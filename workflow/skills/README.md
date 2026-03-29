@@ -1,7 +1,7 @@
 # Layer 3 - Skill Templates
 
 This folder contains the skill templates used during Phase 1b setup. Each file is the
-authoritative template for the corresponding skill. Every skill is self-contained —
+authoritative template for the corresponding skill. Every skill is self-contained -
 no external references required.
 
 For skill documentation (when to use, design rationale, decision table), see
@@ -28,7 +28,6 @@ referenced by the skill templates and are NOT needed in target projects.
 | File | Purpose |
 |------|---------|
 | reference/shared-preamble.md | Original shared conventions (now inlined into each skill) |
-| reference/output-skeletons.md | Output format templates for all report types |
 
 ## Migration Notes
 
@@ -36,4 +35,4 @@ referenced by the skill templates and are NOT needed in target projects.
 - **goat-reflect** was merged into goat-review (instruction review mode). Use `/goat-review` with target = "instruction files".
 - **goat-audit** was merged into goat-review (audit mode). Use `/goat-review` with target = "codebase area".
 - **goat-resume** was renamed to goat-context, then removed. Session resumption is handled by the agent's built-in context.
-- **goat-simplify** is new — code readability and self-documentation improvement.
+- **goat-simplify** is new - code readability and self-documentation improvement.

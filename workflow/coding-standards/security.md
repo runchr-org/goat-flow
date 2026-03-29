@@ -1,9 +1,9 @@
 # Prompt: Create ai/instructions/security.md
 
-> **Purpose:** Cross-cutting security overlay — input validation, auth, secrets, output encoding
+> **Purpose:** Cross-cutting security overlay - input validation, auth, secrets, output encoding
 > **Generates:** `ai/instructions/security.md`
 > **Use when:** Setting up security instructions (overrides other instructions on conflict)
-> **Repo inspection:** Yes — reads auth patterns, validation logic, secrets handling, dependency tree
+> **Repo inspection:** Yes - reads auth patterns, validation logic, secrets handling, dependency tree
 > **Follow-on refs:** `security/web-common.md` for OWASP baseline; `security/framework-specific/` for framework rules; `security/api-auth.md`, `security/file-upload.md`, `security/sql-injection.md` as detected
 
 ---
@@ -23,13 +23,13 @@ Validate ALL external input at the boundary (HTTP handler, CLI parser, message c
 Never trust input from: request bodies, query params, headers, file uploads, webhook payloads.
 
 ```go
-// Good — validate and constrain before use
+// Good - validate and constrain before use
 pageSize, err := strconv.Atoi(r.URL.Query().Get("limit"))
 if err != nil || pageSize < 1 || pageSize > 100 {
     pageSize = 20
 }
 
-// Bad — unbounded user input hits the database
+// Bad - unbounded user input hits the database
 limit := r.URL.Query().Get("limit")
 db.Query(fmt.Sprintf("SELECT * FROM users LIMIT %s", limit))
 ```
@@ -39,15 +39,15 @@ Reject first, then allow. Default to deny.
 ## Authentication Boundaries
 
 - Every endpoint must be explicitly marked public or authenticated. No implicit access.
-- Enforce authentication before business logic — at the framework's routing/middleware layer, not inside individual handlers. The mechanism varies by stack (middleware, decorators, annotations, route filters, guards), but the principle is the same: a new endpoint that forgets the check must fail closed.
+- Enforce authentication before business logic - at the framework's routing/middleware layer, not inside individual handlers. The mechanism varies by stack (middleware, decorators, annotations, route filters, guards), but the principle is the same: a new endpoint that forgets the check must fail closed.
 - Validate credentials once per request at the boundary, not per service call.
 
 ```go
-// Good — auth enforced at the routing layer (Go middleware shown; adapt to your framework)
+// Good - auth enforced at the routing layer (Go middleware shown; adapt to your framework)
 mux.Handle("/api/v1/users", authMiddleware(userHandler))
 mux.Handle("/api/v1/health", publicHandler) // explicitly public
 
-// Bad — auth check buried in handler (easy to forget in new handlers)
+// Bad - auth check buried in handler (easy to forget in new handlers)
 func handler(w http.ResponseWriter, r *http.Request) {
     token := r.Header.Get("Authorization")
     if !isValid(token) { ... }
@@ -62,12 +62,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 - `.env` files are gitignored. Use `.env.example` with placeholder values.
 
 ```bash
-# .env.example — committed, no real values
+# .env.example - committed, no real values
 DATABASE_URL=postgres://user:password@localhost:5432/myapp_dev
 STRIPE_API_KEY=sk_test_placeholder
 JWT_SECRET=replace-me-with-random-64-chars
 
-# .env — gitignored, real values
+# .env - gitignored, real values
 DATABASE_URL=postgres://prod_user:real_password@db.internal:5432/myapp
 ```
 
@@ -75,16 +75,16 @@ DATABASE_URL=postgres://prod_user:real_password@db.internal:5432/myapp
 // Good
 key := os.Getenv("STRIPE_API_KEY")
 
-// Bad — secret in source code
+// Bad - secret in source code
 key := "sk_live_abc123def456"
 
-// Bad — secret in log output
+// Bad - secret in log output
 log.Printf("authenticating with key: %s", apiKey)
 ```
 
 ## Output Encoding
 
-Encode output based on context. The same value needs different encoding in HTML body, HTML attributes, JavaScript, CSS, and URLs. Use the framework's built-in escaping — do not write your own.
+Encode output based on context. The same value needs different encoding in HTML body, HTML attributes, JavaScript, CSS, and URLs. Use the framework's built-in escaping - do not write your own.
 
 - HTML body: `{{ variable }}` (auto-escaped in most template engines)
 - HTML attributes: always quote attribute values; use framework escaping
@@ -98,7 +98,7 @@ Encode output based on context. The same value needs different encoding in HTML 
 - Reject paths containing `..`, null bytes, or absolute paths when relative is expected.
 
 ```go
-// Good — sanitize and verify
+// Good - sanitize and verify
 cleanPath := filepath.Clean(userInput)
 fullPath := filepath.Join(baseDir, cleanPath)
 rel, err := filepath.Rel(baseDir, fullPath)
@@ -106,7 +106,7 @@ if err != nil || strings.HasPrefix(rel, "..") {
     return fmt.Errorf("path traversal attempt: %s", userInput)
 }
 
-// Bad — direct concatenation
+// Bad - direct concatenation
 path := fmt.Sprintf("uploads/%s", userInput)
 ```
 
@@ -116,13 +116,13 @@ path := fmt.Sprintf("uploads/%s", userInput)
 - If using an ORM or query builder, verify it parameterizes. If using raw SQL, use `$1` placeholders.
 
 ```go
-// Good — parameterized
+// Good - parameterized
 db.QueryRow("SELECT * FROM users WHERE id = $1", userID)
 
-// Bad — concatenated
+// Bad - concatenated
 db.QueryRow("SELECT * FROM users WHERE id = " + userID)
 
-// Bad — fmt.Sprintf into SQL
+// Bad - fmt.Sprintf into SQL
 db.QueryRow(fmt.Sprintf("SELECT * FROM users WHERE email = '%s'", email))
 ```
 
@@ -130,10 +130,10 @@ db.QueryRow(fmt.Sprintf("SELECT * FROM users WHERE email = '%s'", email))
 
 Pin CI action versions to full SHA, not tags. Tags can be moved; SHAs are immutable.
 ```yaml
-# Bad — tag can be hijacked
+# Bad - tag can be hijacked
 - uses: actions/checkout@v4
 
-# Good — pinned to exact commit
+# Good - pinned to exact commit
 - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
 ```
 

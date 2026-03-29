@@ -177,12 +177,12 @@ case "$cmd" in
         cli "$cmd" "$@"
         ;;
     fix|audit)
-        echo "\"$cmd\" was removed. Use \"setup\" instead — it adapts to your project's state."
+        echo "\"$cmd\" was removed. Use \"setup\" instead - it adapts to your project's state."
         exit 2
         ;;
     eval)
         echo ""
-        printf "\033[1m  GOAT Flow — Agent Evals\033[0m\n"
+        printf "\033[1m  GOAT Flow - Agent Evals\033[0m\n"
         echo ""
         if [[ -d "agent-evals" ]]; then
             mapfile -t eval_files < <(find agent-evals -maxdepth 1 -name "*.md" ! -name "README.md" ! -name "FORMAT.md" | sort)
@@ -192,7 +192,7 @@ case "$cmd" in
                 printf "    %s\n" "$f"
             done
             echo ""
-            printf "  \033[2mEvals are manually reviewed — paste the ## Scenario into your agent\033[0m\n"
+            printf "  \033[2mEvals are manually reviewed - paste the ## Scenario into your agent\033[0m\n"
             printf "  \033[2mand check ## Expected Behavior gates against the response.\033[0m\n"
             printf "  \033[2mSee agent-evals/FORMAT.md for format details.\033[0m\n"
         else
@@ -206,9 +206,9 @@ case "$cmd" in
         [[ "${1:-}" == "--full" ]] && full_mode=1
 
         if [[ "$full_mode" -eq 1 ]]; then
-            # Full output mode — no truncation
+            # Full output mode - no truncation
             echo ""
-            printf "\033[1m  GOAT Flow CLI — Full Output\033[0m\n"
+            printf "\033[1m  GOAT Flow CLI - Full Output\033[0m\n"
 
             show "1. JSON output" 9999 cli scan . --format json --agent claude
             show "2. Text + verbose" 9999 cli scan . --format text --verbose --agent claude
@@ -220,7 +220,7 @@ case "$cmd" in
             total=6
 
             echo ""
-            printf "\033[1m  GOAT Flow CLI — Human Testing Gate\033[0m\n"
+            printf "\033[1m  GOAT Flow CLI - Human Testing Gate\033[0m\n"
             echo ""
 
             printf "\033[1m  Scanner\033[0m\n"

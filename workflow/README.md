@@ -10,9 +10,10 @@ Templates and prompts for the GOAT Flow workflow layers. See
 | `evaluation/` | Learning loop templates: footguns, lessons, evals, CI validation, handoff |
 | `coding-standards/` | Coding standards templates (conventions, code review, security, testing, git commit) |
 | `playbooks/planning/` | Feature brief, mob elaboration, SBAO ranking, milestone planning |
-| `playbooks/testing/` | Testing workflow methodology and test plan generation |
-| `runtime/` | Enforcement hooks, permission profiles, RFC 2119, code map, architecture, guidelines split |
-| `skills/` | 8 goat-* skill templates: debug, investigate, plan, refactor, review, security, simplify, test |
+| `playbooks/testing/` | Testing workflow methodology |
+| `runtime/` | Enforcement hooks, RFC 2119, code map, architecture, guidelines split |
+| `skills/` | 9 goat-* skill templates: debug, goat dispatcher, investigate, plan, refactor, review, security, simplify, test |
+| `templates/` | Reusable artifact templates (requirements tracking) |
 
 ## Usage
 

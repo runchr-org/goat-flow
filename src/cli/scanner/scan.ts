@@ -22,7 +22,7 @@ function findPackageVersion(): string {
   return '0.0.0';
 }
 
-/** Package version from package.json — single source of truth */
+/** Package version from package.json - single source of truth */
 const PACKAGE_VERSION = findPackageVersion();
 import { runChecks, runAntiPatterns, computeScore } from '../scoring/scorer.js';
 import { generateRecommendations } from '../scoring/recommendations.js';

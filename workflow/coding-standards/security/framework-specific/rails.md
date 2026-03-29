@@ -7,19 +7,19 @@ Reference for generating `ai/instructions/security.md` in Ruby on Rails projects
 Every controller action that accepts user input MUST use strong parameters.
 
 ```ruby
-# DO — require and permit explicitly
+# DO - require and permit explicitly
 def user_params
   params.require(:user).permit(:name, :email, :avatar)
 end
 
 User.create!(user_params)
 
-# DON'T — pass params directly
+# DON'T - pass params directly
 User.create!(params[:user])           # mass assignment of any attribute
 User.create!(params.permit!)          # permits everything
 ```
 
-- Never call `params.permit!` — it disables all mass assignment protection.
+- Never call `params.permit!` - it disables all mass assignment protection.
 - Nest `permit` for associations: `.permit(:name, addresses_attributes: [:street, :city])`.
 
 ## CSRF Protection
@@ -27,7 +27,7 @@ User.create!(params.permit!)          # permits everything
 Rails includes CSRF protection by default. Never skip it for browser-facing actions.
 
 ```ruby
-# DO — CSRF is on by default in ApplicationController
+# DO - CSRF is on by default in ApplicationController
 class ApplicationController < ActionController::Base
   protect_from_forgery with: :exception
 end
@@ -37,13 +37,13 @@ end
   <%= f.submit "Place Order" %>
 <% end %>
 
-# DON'T — skip CSRF for browser actions
+# DON'T - skip CSRF for browser actions
 class OrdersController < ApplicationController
   skip_before_action :verify_authenticity_token  # only for API endpoints with token auth
 end
 ```
 
-- API-only controllers (`ActionController::API`) don't include CSRF — they rely on token auth.
+- API-only controllers (`ActionController::API`) don't include CSRF - they rely on token auth.
 - For JS fetch requests, read the CSRF token from the `<meta>` tag and send it as `X-CSRF-Token` header.
 
 ## XSS Prevention
@@ -51,10 +51,10 @@ end
 ERB auto-escapes output by default. `html_safe` and `raw` bypass this.
 
 ```erb
-<%# DO — auto-escaped output %>
+<%# DO - auto-escaped output %>
 <p><%= user.bio %></p>
 
-<%# DON'T — bypass escaping %>
+<%# DON'T - bypass escaping %>
 <p><%= user.bio.html_safe %></p>
 <p><%= raw user.bio %></p>
 <p><%== user.bio %></p>
@@ -68,12 +68,12 @@ ERB auto-escapes output by default. `html_safe` and `raw` bypass this.
 Strong parameters are the primary defense. Additionally:
 
 ```ruby
-# DO — use enum safely
+# DO - use enum safely
 class Order < ApplicationRecord
   enum status: { pending: 0, confirmed: 1, shipped: 2 }
 end
 
-# DON'T — allow status in params for customer-facing actions
+# DON'T - allow status in params for customer-facing actions
 def order_params
   params.require(:order).permit(:product_id, :quantity, :status)  # user can set status to shipped
 end
@@ -84,7 +84,7 @@ end
 ## Encrypted Credentials
 
 ```bash
-# DO — use Rails encrypted credentials
+# DO - use Rails encrypted credentials
 EDITOR=vim rails credentials:edit
 
 # Access in code
@@ -102,7 +102,7 @@ Rails.application.credentials.dig(:aws, :secret_key)
 gem install brakeman
 brakeman --no-pager
 
-# In CI — fail on warnings
+# In CI - fail on warnings
 brakeman --no-pager --exit-on-warn
 ```
 

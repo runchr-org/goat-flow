@@ -7,13 +7,13 @@ Reference for generating `ai/instructions/security.md` in Django projects.
 Django CSRF middleware is enabled by default. Never remove it.
 
 ```python
-# DO — include CSRF token in templates
+# DO - include CSRF token in templates
 <form method="POST" action="{% url 'create_order' %}">
     {% csrf_token %}
     <button type="submit">Place Order</button>
 </form>
 
-# DON'T — exempt views without a strong reason
+# DON'T - exempt views without a strong reason
 @csrf_exempt  # only for webhook endpoints with their own signature verification
 def webhook(request):
     ...
@@ -27,11 +27,11 @@ def webhook(request):
 Standard Django ORM is safe. `extra()`, `raw()`, and `RawSQL` require care.
 
 ```python
-# DO — parameterized queries
+# DO - parameterized queries
 User.objects.filter(email=email)
 User.objects.raw("SELECT * FROM auth_user WHERE email = %s", [email])
 
-# DON'T — string interpolation
+# DON'T - string interpolation
 User.objects.raw(f"SELECT * FROM auth_user WHERE email = '{email}'")
 User.objects.extra(where=[f"email = '{email}'"])  # deprecated and dangerous
 ```
@@ -46,18 +46,18 @@ User.objects.extra(where=[f"email = '{email}'"])  # deprecated and dangerous
 - Rotating `SECRET_KEY` invalidates all sessions and signed data.
 
 ```python
-# DO — read from environment
+# DO - read from environment
 import os
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
-# DON'T — hardcode
+# DON'T - hardcode
 SECRET_KEY = "django-insecure-abc123"
 ```
 
 ## Production Settings
 
 ```python
-# settings/production.py — MUST set all of these
+# settings/production.py - MUST set all of these
 DEBUG = False                    # never True in production
 ALLOWED_HOSTS = ["app.example.com", "www.example.com"]  # never ["*"]
 SECURE_SSL_REDIRECT = True
@@ -67,7 +67,7 @@ SECURE_HSTS_PRELOAD = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-# SECURE_BROWSER_XSS_FILTER — removed in Django 4.0 (X-XSS-Protection is
+# SECURE_BROWSER_XSS_FILTER - removed in Django 4.0 (X-XSS-Protection is
 # deprecated by browsers). Use Content-Security-Policy instead.
 X_FRAME_OPTIONS = "DENY"
 ```
@@ -78,7 +78,7 @@ X_FRAME_OPTIONS = "DENY"
 ## Session Security
 
 ```python
-# DO — secure session settings
+# DO - secure session settings
 SESSION_COOKIE_AGE = 86400              # 24-hour absolute timeout
 SESSION_COOKIE_SECURE = True            # HTTPS only
 SESSION_COOKIE_HTTPONLY = True           # no JavaScript access

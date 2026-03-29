@@ -20,7 +20,7 @@ function isFileRef(filePath: string): boolean {
   // Paths with '/' are clearly file paths
   if (filePath.includes('/')) return true;
   // Root-level files with extensions (e.g., AGENTS.md:42) are valid refs
-  // Bare names without extensions (e.g., webpack:123) are ambiguous — skip
+  // Bare names without extensions (e.g., webpack:123) are ambiguous - skip
   return /\.[a-zA-Z0-9]+$/.test(filePath);
 }
 
@@ -28,7 +28,7 @@ function isFileRef(filePath: string): boolean {
  * Check if a file reference can be reliably validated for staleness.
  * Paths with '/' are resolvable relative to the project root.
  * Bare filenames with source-code extensions (e.g., `router.go`, `auth.ts`)
- * are ambiguous — they may exist deep in subdirectories. We try fs.exists()
+ * are ambiguous - they may exist deep in subdirectories. We try fs.exists()
  * at root first; if it resolves, it's checkable. If not, and it has a source
  * extension without '/', skip it rather than reporting a false stale ref.
  */
@@ -37,7 +37,7 @@ function isCheckableForStaleness(filePath: string, fs: ReadonlyFS): boolean {
   // If it exists at root, it's checkable regardless of extension
   if (fs.exists(filePath)) return true;
   // Bare source filenames that don't exist at root are likely shorthand
-  // for deeply nested files — skip to avoid false positives
+  // for deeply nested files - skip to avoid false positives
   if (/\.(go|ts|tsx|js|jsx|py|php|rs|java|kt|rb|cs|c|cpp|h|hpp|swift|scala)$/i.test(filePath)) return false;
   // Non-source files (AGENTS.md, package.json, etc.) should be at root
   return true;
@@ -92,7 +92,7 @@ function extractFootgunFacts(fs: ReadonlyFS): SharedFacts['footguns'] {
   }
   // Validate that referenced files still exist on disk.
   // Skip bare source filenames (e.g., `router.go:335`) that can't be resolved
-  // from the project root — they're valid evidence but not checkable for staleness.
+  // from the project root - they're valid evidence but not checkable for staleness.
   const staleRefs: string[] = [];
   let totalRefs = 0;
   let validRefs = 0;
@@ -174,7 +174,7 @@ function extractEvalFacts(fs: ReadonlyFS): SharedFacts['evals'] {
     return { dirExists, count, hasReadme, hasOriginLabels: false, hasAgentsLabels: false, hasReplayPrompts: false, hasFrontmatter: false, evalSkillCount: 0 };
   }
 
-  /** The 8 canonical goat-flow skills — only these count toward eval diversity */
+  /** The 8 canonical goat-flow skills - only these count toward eval diversity */
   const CANONICAL_SKILLS = new Set(['goat-debug', 'goat-investigate', 'goat-plan', 'goat-refactor', 'goat-review', 'goat-security', 'goat-simplify', 'goat-test']);
   /** Canonical skills with at least one eval */
   const skillNames = new Set<string>();
@@ -243,7 +243,7 @@ export function extractSharedFacts(fs: ReadonlyFS): SharedFacts {
   const handoffContent = fs.readFile('tasks/handoff-template.md');
   /** Whether the handoff template exists */
   const handoffExists = handoffContent !== null;
-  /** Count of required handoff sections present — accepts ## H2 headings or **Bold:** labels */
+  /** Count of required handoff sections present - accepts ## H2 headings or **Bold:** labels */
   const HANDOFF_SECTIONS = ['status', 'current state', 'key decisions', 'known risks', 'next step'];
   const handoffSectionCount = handoffContent
     ? HANDOFF_SECTIONS.filter(s => new RegExp(`##\\s*${s}|\\*\\*${s}`, 'i').test(handoffContent)).length
@@ -271,7 +271,7 @@ export function extractSharedFacts(fs: ReadonlyFS): SharedFacts {
     guidelinesOwnership: { exists: fs.exists('docs/guidelines-ownership-split.md') },
     domainReference: { exists: fs.exists('docs/domain-reference.md') },
     preflightScript: { exists: fs.exists('scripts/preflight-checks.sh') },
-    // changelog removed — project-level concern, not AI workflow.
+    // changelog removed - project-level concern, not AI workflow.
     decisions: extractDecisionsFacts(fs),
     localInstructions: extractLocalInstructions(fs),
     gitCommitInstructions: { exists: fs.exists('.github/git-commit-instructions.md') },

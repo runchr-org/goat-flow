@@ -1,7 +1,7 @@
 ---
 name: goat-investigate
 description: "Deep codebase investigation with progressive depth reading, evidence tagging, and structured reporting. Includes onboarding mode for new projects."
-goat-flow-skill-version: "1.0.0"
+goat-flow-skill-version: "0.9.1"
 ---
 # /goat-investigate
 
@@ -10,7 +10,7 @@ goat-flow-skill-version: "1.0.0"
 - **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it — don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills — it does not replace confirmation.
+- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
 - **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `tasks/scratchpad.md`, ask to continue/compact/redirect.
 - **Learning Loop:** Behavioural mistake → `docs/lessons.md`. Architectural trap → `docs/footguns.md`.
@@ -18,7 +18,7 @@ goat-flow-skill-version: "1.0.0"
 
 ## When to Use
 
-Use when exploring an unfamiliar codebase area to understand how it works —
+Use when exploring an unfamiliar codebase area to understand how it works -
 before refactoring, mapping dependencies, understanding a subsystem, or
 onboarding to a new project.
 
@@ -28,7 +28,7 @@ onboarding to a new project.
 - Reviewing a specific diff or PR → /goat-review
 - Planning implementation of a known feature → /goat-plan
 
-## Step 0 — Gather Context
+## Step 0 - Gather Context
 
 <!-- ADAPT: Replace illustrative questions (3, 4) with project-specific options -->
 
@@ -47,7 +47,7 @@ Confirm or adjust with the user.
 
 **Before proceeding:** present what you know (target, purpose, depth) and what you still need. Wait for the user to confirm before entering Phase 1.
 
-## Phase 1 — Scope & Plan
+## Phase 1 - Scope & Plan
 
 Declare scope before reading deeply:
 - **In scope:** [files, directories, or patterns to examine]
@@ -60,15 +60,15 @@ matches: "This area has a known footgun: [entry]. Keep this in mind."
 **BLOCKING GATE:** Present scope to user. "I'll investigate [scope] reading
 up to [N] files. Anything to adjust?"
 
-## Phase 2 — Read (Progressive Depth)
+## Phase 2 - Read (Progressive Depth)
 
-Read in layers — don't try to understand everything at once:
+Read in layers - don't try to understand everything at once:
 
-1. **Entry points** — where execution starts for this area
+1. **Entry points** - where execution starts for this area
    Search for files by pattern, then search file contents for cross-references.
-2. **Critical path** — the main flow through the area
+2. **Critical path** - the main flow through the area
    Read key files. For deep subsystem dives, use parallel exploration if available.
-3. **Supporting files** — helpers, utilities, configs that the critical path depends on
+3. **Supporting files** - helpers, utilities, configs that the critical path depends on
 
 For each file read, log:
 - What role it plays
@@ -81,15 +81,15 @@ For each file read, log:
 **Noise awareness:** If a search returns irrelevant results, drop them.
 Semantic noise is worse than no results.
 
-## Phase 3 — Report
+## Phase 3 - Report
 
 Produce the Investigation Report using the Output Format template below. Every section is required.
 
 Key sections that prevent false confidence:
-- **What I Didn't Read** — REQUIRED. List files/areas skipped with reasons (too many, lower priority, needs additional context). If you examined 8 of 30 files, say so.
-- **Current vs Expected State** — for each finding, state what IS vs what SHOULD BE.
-- **Evidence tags** — OBSERVED for things verified in code. INFERRED for deductions (state what direct evidence is missing).
-  *Example:* "OBSERVED: `auth.ts:47` uses `<` instead of `<=` for token expiry —
+- **What I Didn't Read** - REQUIRED. List files/areas skipped with reasons (too many, lower priority, needs additional context). If you examined 8 of 30 files, say so.
+- **Current vs Expected State** - for each finding, state what IS vs what SHOULD BE.
+- **Evidence tags** - OBSERVED for things verified in code. INFERRED for deductions (state what direct evidence is missing).
+  *Example:* "OBSERVED: `auth.ts:47` uses `<` instead of `<=` for token expiry -
   verified by reading the line. INFERRED: this likely causes premature token
   rejection *(missing: need to verify with a test)*."
 
@@ -103,7 +103,7 @@ Key sections that prevent false confidence:
 
 Activated when Step 0 purpose = "onboarding" / "new to this project" / "need to set up instructions."
 
-**Phase 0.5 — Stack Detection** (before Phase 1):
+**Phase 0.5 - Stack Detection** (before Phase 1):
 <!-- ADAPT: Adjust file patterns for your project's stack -->
 1. Languages: scan file extensions, read build configs (package.json, composer.json, Cargo.toml, go.mod, pyproject.toml, Gemfile, *.csproj)
 2. Frameworks: identify from dependencies and directory patterns
@@ -113,25 +113,25 @@ Activated when Step 0 purpose = "onboarding" / "new to this project" / "need to 
 
 Present findings: "This project uses [languages] with [frameworks]. Build: [cmd], Test: [cmd]. Correct?"
 
-**Phase 3.5 — Glossary Discovery** (during onboarding):
+**Phase 3.5 - Glossary Discovery** (during onboarding):
 If `docs/glossary.md` exists, read it. If it doesn't, build one from the codebase:
 scan class names, domain terms in README/docs, and naming patterns. Present as:
 `| term | definition | canonical file | aliases |`
 Ask: "Should I create docs/glossary.md with these terms?"
 
-**Phase 4 — Instruction Drafting** (after Phase 3, if user requests):
+**Phase 4 - Instruction Drafting** (after Phase 3, if user requests):
 - Present all content inline BEFORE writing any files
-- Source of truth is code, not docs — verify every claim against actual files
+- Source of truth is code, not docs - verify every claim against actual files
 - <!-- ADAPT: Target ai/instructions/ or .github/instructions/ based on project convention -->
-- MUST NOT include aspirational content — only document what currently exists
+- MUST NOT include aspirational content - only document what currently exists
 
 **BLOCKING GATE:** Present drafted instructions. "Write these files, or adjust first?"
 
 ## Common Failure Modes
 
-1. **Over-reading** — agent reads 30 files without pausing at the budget. The read budget checkpoint prevents this.
-2. **Everything is OBSERVED** — agent tags all findings as OBSERVED when many are inferred. Require: "INFERRED findings must state what direct evidence is missing."
-3. **Encyclopedic summary** — agent produces a comprehensive description that answers no specific question. The TL;DR + scope question keep output focused.
+1. **Over-reading** - agent reads 30 files without pausing at the budget. The read budget checkpoint prevents this.
+2. **Everything is OBSERVED** - agent tags all findings as OBSERVED when many are inferred. Require: "INFERRED findings must state what direct evidence is missing."
+3. **Encyclopedic summary** - agent produces a comprehensive description that answers no specific question. The TL;DR + scope question keep output focused.
 
 ## Constraints
 
@@ -139,9 +139,9 @@ Ask: "Should I create docs/glossary.md with these terms?"
 - MUST declare scope before deep reading
 - MUST tag evidence as OBSERVED or INFERRED
 - MUST include "What I Didn't Read" in every report
-- MUST NOT propose implementation or planning — investigation only
+- MUST NOT propose implementation or planning - investigation only
 - MUST NOT fabricate file paths or function names
-- MUST respect the read budget — pause at limit, don't silently exceed
+- MUST respect the read budget - pause at limit, don't silently exceed
 
 ## Output Format
 
@@ -161,7 +161,7 @@ Ask: "Should I create docs/glossary.md with these terms?"
 
 ## Risks / Gotchas
 <!-- Minimum 3, with file:line evidence -->
-- `file:line` — [risk] — Evidence: OBSERVED | INFERRED
+- `file:line` - [risk] - Evidence: OBSERVED | INFERRED
 
 ## Current vs Expected State
 | Aspect | Current | Expected | Gap |
@@ -179,9 +179,9 @@ Ask: "Should I create docs/glossary.md with these terms?"
 
 ## Chains With
 
-- /goat-plan — investigation reveals need for structured planning
-- /goat-debug — investigation uncovers a specific bug → switch to diagnosis
-- /goat-security — investigation reveals security concerns → deeper assessment
-- /goat-refactor — investigation maps code that needs restructuring
+- /goat-plan - investigation reveals need for structured planning
+- /goat-debug - investigation uncovers a specific bug → switch to diagnosis
+- /goat-security - investigation reveals security concerns → deeper assessment
+- /goat-refactor - investigation maps code that needs restructuring
 
 **Handoff shape:** `{scope, components, boundaries, risks, open_questions}`

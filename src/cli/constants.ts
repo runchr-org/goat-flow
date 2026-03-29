@@ -5,7 +5,7 @@ export const SKILL_NAMES = [
   'goat-refactor', 'goat-simplify',
 ] as const;
 
-/** Deprecated skill names — scanner flags these as anti-pattern AP16. */
+/** Deprecated skill names - scanner flags these as anti-pattern AP16. */
 export const DEPRECATED_SKILL_NAMES = new Set([
   'goat-reflect', 'goat-onboard', 'goat-resume',
   'goat-audit', 'goat-context',
@@ -15,7 +15,7 @@ export const DEPRECATED_SKILL_NAMES = new Set([
 export type SkillName = typeof SKILL_NAMES[number];
 
 /**
- * Current skill template version — matches the package/rubric version.
+ * Current skill template version - matches the package/rubric version.
  * Skills embed this as `goat-flow-skill-version: X` in their YAML frontmatter.
  * The scanner compares the embedded version against this constant.
  * Re-exported from version.ts to keep a single source of truth.

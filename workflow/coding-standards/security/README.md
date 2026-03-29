@@ -1,9 +1,9 @@
 # Security Stack Detection
 
-Agents: load `web-common.md` for ALL web projects. Then load the framework-specific file based on detection. Load additional files based on what the project does. Some overlays, such as Cypress, are additive test-stack overlays and should be loaded alongside the main app framework file, not instead of it.
+Agents: load `web-common.md` for ALL web projects. Then load the framework-specific file based on detection. Load additional files based on what the project does.
 
 ## Always Load
-- web-common.md — OWASP Top 10, headers, cookie security
+- web-common.md - OWASP Top 10, headers, cookie security
 
 ## Load If Detected
 
@@ -28,8 +28,7 @@ Agents: load `web-common.md` for ALL web projects. Then load the framework-speci
 | Gemfile + "rails" | framework-specific/rails.md |
 | pom.xml/build.gradle + "spring-boot" | framework-specific/spring.md |
 | package.json + "express" | framework-specific/express-node.md |
-| package.json + "fastify" | framework-specific/express-node.md *(fallback — use as base, adapt middleware patterns)* |
-| package.json + "@nestjs/core" | framework-specific/express-node.md *(fallback — use as base, adapt to guards/pipes/interceptors)* |
+| package.json + "fastify" | framework-specific/express-node.md *(fallback - use as base, adapt middleware patterns)* |
+| package.json + "@nestjs/core" | framework-specific/express-node.md *(fallback - use as base, adapt to guards/pipes/interceptors)* |
 | *.csproj + "Microsoft.AspNetCore" | framework-specific/dotnet.md |
-| package.json + "cypress" | framework-specific/cypress.md |
 | go.mod (Go projects) | framework-specific/go.md |

@@ -16,12 +16,13 @@ If your project uses only domain-specific `.github/instructions/` files (scoped 
 
 ```
 This project has a shared guidelines file at [PATH TO YOUR GUIDELINES FILE].
-I need to split ownership between this guidelines file and CLAUDE.md
-before installing the workflow system.
+I need to split ownership between this guidelines file and the root
+instruction file (CLAUDE.md, AGENTS.md, or equivalent) before
+installing the workflow system.
 
 Read the guidelines file completely. Then:
 
-1. IDENTIFY OVERLAP - Find content that belongs in CLAUDE.md (workflow):
+1. IDENTIFY OVERLAP - Find content that belongs in the root instruction file (workflow):
    - Execution loop / workflow steps
    - Definition of Done / "before marking done" checklists
    - Stop-the-line rules
@@ -53,7 +54,7 @@ Read the guidelines file completely. Then:
    ## Date
    [YYYY-MM-DD]
 
-   ## What was moved to CLAUDE.md
+   ## What was moved to the root instruction file
    - [section name] - [reason it's workflow, not engineering]
 
    ## What was removed (redundant)
@@ -73,5 +74,5 @@ VERIFICATION:
 - Verify docs/guidelines-ownership-split.md exists with all 4 sections
 - Verify no engineering content was accidentally removed
 - Report the line count reduction
-- Commit or stash the guidelines changes before proceeding to Phase 1a
+- Stage the guidelines changes (do NOT commit unless the user asks)
 ```

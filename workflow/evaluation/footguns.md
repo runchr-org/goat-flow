@@ -1,6 +1,8 @@
 # Prompt: Create or Seed docs/footguns.md
 
-Paste this into your coding agent to create or update the footguns file. Footguns are architectural landmines - cross-domain coupling points where changing one thing silently breaks another.
+Paste this into your coding agent to create or update the footguns file.
+Footguns are codebase-specific traps where a local-looking change breaks a
+different part of the system through hidden coupling or stale assumptions.
 
 ---
 
@@ -10,49 +12,49 @@ Paste this into your coding agent to create or update the footguns file. Footgun
 Create or update docs/footguns.md for this project.
 
 IF docs/footguns.md already exists:
-  MERGE with it. Keep ALL existing entries intact. Read the codebase
-  and add NEW footguns discovered from reading the code. Do NOT replace,
-  remove, or rewrite existing entries.
+  MERGE with it carefully. Keep existing confirmed entries unless newer
+  evidence shows the footgun is resolved. Prefer appending a Status note
+  over deleting history.
 
 IF docs/footguns.md does NOT exist:
   Create it and seed with REAL footguns found by reading the codebase.
 
 WHAT TO LOOK FOR:
-- Cross-domain coupling (changing file A silently breaks file B)
-- Shared state that multiple components depend on
-- Import order dependencies
-- Silent failure paths (errors swallowed, no logging, no user feedback)
-- Configuration that affects multiple components
-- Files that MUST change together (coupled by convention, not by code)
-- Database/API contracts where both sides must match
-- Environment variables used across multiple services
-- Shared source files (scripts that are sourced by multiple parents)
+- Cross-domain coupling where changing file A silently breaks file B
+- Contracts duplicated across docs, templates, parser/scanner layers, or APIs
+- Shared configuration that multiple surfaces depend on differently
+- Files that MUST change together even though the code does not enforce it
+- Rename/move hazards, path assumptions, generated-output drift
+- Multi-step setup or rendering flows where a second code path bypasses
+  the normal invariants
+- Any trap proven by the repo itself, not by general best practice
 
 FORMAT - every entry MUST follow this structure:
 
 # Footguns
 
-## [descriptive title]
-**Files:** `path/to/file.ext:NN`, `path/to/other.ext:NN`
-**Risk:** [what breaks and why - be specific]
-**Mitigation:** [how to avoid triggering it]
+## Footgun: [descriptive title]
+**Evidence type:** ACTUAL_MEASURED
+**Symptoms:** [what a human sees go wrong]
+**Why it happens:** [the hidden coupling or drift]
+**Evidence:**
+- `path/to/file.ext:NN` -> [what this line shows]
+- `path/to/other.ext:NN` -> [what this line shows]
+**Prevention:** [how to avoid or verify against it]
+**Created:** YYYY-MM-DD
 
-Every entry added by the agent must include this flag at the start:
-> [!WARNING] AI-GENERATED: UNVERIFIED
-The human removes this flag after reviewing the entry. CI will fail
-if this flag exists on the main branch.
-
-Every footgun entry must include a `**Created:** YYYY-MM-DD` line.
-This enables CI staleness detection (entries not triggered in 90+ days
-are candidates for archival during quarterly shrink).
+If the trap is no longer active but still matters as history, keep the
+entry and add:
+**Status:** RESOLVED - [short reason]
 
 RULES:
 - Every entry MUST include file:line evidence pointing to REAL code
 - Do NOT invent hypothetical footguns
-- Do NOT include general best practices ("always test your code")
+- Do NOT include generic advice like "write tests" or "review carefully"
 - Every footgun must be SPECIFIC to THIS codebase
-- Footguns without file:line evidence are treated as fabricated
-  (anti-pattern AP4, -3 scoring deduction)
+- New entries should describe the smallest useful trap, not a vague theme
+- If two entries are actually the same trap, merge them instead of creating
+  near-duplicate titles
 
 PROPAGATION:
 After creating footguns, check if any map to specific directories.
@@ -61,9 +63,12 @@ file may be needed for that directory (Layer 2 local context).
 
 VERIFICATION:
 - Verify docs/footguns.md exists
-- Verify every entry has file:line references (grep for file patterns)
-- If merged with existing: verify no entries were removed or overwritten
-- Count entries and report
-- Report any directories with 2+ footgun entries (candidates for
-  local CLAUDE.md files)
+- Verify every entry has file:line references under Evidence
+- Verify every new entry has Evidence type, Symptoms, Why it happens,
+  Prevention, and Created
+- If merged with existing: verify no confirmed entry was removed without
+  an explicit reason
+- Report the count of total entries and new entries added
+- Report any directories with 2+ footgun entries as candidates for local
+  instruction files
 ```

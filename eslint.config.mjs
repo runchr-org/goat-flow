@@ -22,7 +22,7 @@ export default tseslint.config(
       // Flag unnecessary conditions (always-true/false checks)
       '@typescript-eslint/no-unnecessary-condition': 'warn',
 
-      // Allow non-null assertions — we're migrating away but not there yet
+      // Allow non-null assertions - we're migrating away but not there yet
       '@typescript-eslint/no-non-null-assertion': 'warn',
 
       // Allow explicit any in a few places (JSON parsing boundaries)
@@ -40,7 +40,7 @@ export default tseslint.config(
         varsIgnorePattern: '^_',
       }],
 
-      // Relax for this project — zero-dep constraint means some patterns differ
+      // Relax for this project - zero-dep constraint means some patterns differ
       '@typescript-eslint/restrict-template-expressions': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',

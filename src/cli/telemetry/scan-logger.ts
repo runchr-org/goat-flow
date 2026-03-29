@@ -22,7 +22,7 @@ export interface ScanHistoryEntry {
 /**
  * Append scan results to the target project's local telemetry log.
  * Writes one JSONL line per agent to `{projectPath}/tasks/logs/scan-history.jsonl`.
- * Silent on failure — telemetry must never break the scan.
+ * Silent on failure - telemetry must never break the scan.
  */
 export function appendScanHistory(report: ScanReport, projectPath: string): void {
   try {
@@ -86,6 +86,6 @@ export function appendScanHistory(report: ScanReport, projectPath: string): void
       } catch { /* rotation is best-effort */ }
     }
   } catch {
-    // Silent — telemetry must never break the scan
+    // Silent - telemetry must never break the scan
   }
 }

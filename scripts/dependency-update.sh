@@ -26,7 +26,7 @@ fi
 
 # 2. Security audit
 info "Running security audit..."
-npm audit 2>/dev/null || warn "Security audit found issues — run 'npm audit fix' to resolve"
+npm audit 2>/dev/null || warn "Security audit found issues - run 'npm audit fix' to resolve"
 
 # 3. Verify build still works after update
 if [[ -f tsconfig.json ]]; then

@@ -38,7 +38,7 @@ export function extractTemplateVars(report: ScanReport, agentReport: AgentReport
     if (ap.triggered && ap.evidence && ap.recommendationKey) {
       evidence[ap.recommendationKey] = ap.evidence;
     }
-    // Also store the AP message as evidence — it often contains actionable detail
+    // Also store the AP message as evidence - it often contains actionable detail
     if (ap.triggered && ap.recommendationKey) {
       evidence[`${ap.recommendationKey}.message`] = ap.message;
     }

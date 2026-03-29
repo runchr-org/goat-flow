@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GOAT Flow Dashboard</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐐</text></svg>">
-  <script src="/vendor/tailwindcss-browser.js"></script>
-  <script defer src="/vendor/alpinejs.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   <style type="text/tailwindcss">
     @custom-variant dark (&:where(.dark, .dark *));
   </style>
   <style>
     [x-cloak] { display: none !important; }
-    /* Dark mode fallback — if Tailwind dark: variant doesn't process, these catch it */
+    /* Dark mode fallback - if Tailwind dark: variant doesn't process, these catch it */
     .dark { background-color: #111827; color: #f3f4f6; }
     .dark aside, .dark .bg-white { background-color: #1f2937 !important; }
     .dark .bg-gray-50, .dark .bg-gray-100 { background-color: #111827 !important; }
@@ -483,7 +483,7 @@
                   </div>
                 </div>
               </template>
-              <p x-show="showDivergencesOnly && divergentChecks.length === 0" class="text-xs text-gray-400 p-2">No divergences — all agents agree on every check.</p>
+              <p x-show="showDivergencesOnly && divergentChecks.length === 0" class="text-xs text-gray-400 p-2">No divergences - all agents agree on every check.</p>
             </div>
           </div>
 

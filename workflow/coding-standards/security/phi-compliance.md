@@ -5,18 +5,18 @@ Reference for generating `ai/instructions/security.md` in projects handling Prot
 ## Minimum Necessary Principle
 
 - Send only the data the model/service/log needs, never full patient records.
-- When building LLM context windows, include only the specific fields required for the task — not the entire patient object.
+- When building LLM context windows, include only the specific fields required for the task - not the entire patient object.
 - API responses should return only requested fields. Never return a full patient record when the consumer needs only name and appointment time.
 
 ```python
-# DO — select only needed fields
+# DO - select only needed fields
 patient_context = {
     "age": patient.age,
     "chief_complaint": patient.chief_complaint,
     "relevant_history": patient.relevant_medical_history,
 }
 
-# DON'T — pass the entire record
+# DON'T - pass the entire record
 patient_context = patient.to_dict()  # includes SSN, address, insurance, etc.
 ```
 
@@ -26,11 +26,11 @@ patient_context = patient.to_dict()  # includes SSN, address, insurance, etc.
 - Enforce tenant scoping at the query layer (repository/service), not just at the controller. A missing scope check in one code path exposes all patients.
 
 ```python
-# DO — scope every PHI query to tenant
+# DO - scope every PHI query to tenant
 def get_patients(tenant_id: int, db: Session):
     return db.query(Patient).filter(Patient.tenant_id == tenant_id).all()
 
-# DON'T — unscoped query
+# DON'T - unscoped query
 def get_patients(db: Session):
     return db.query(Patient).all()  # returns ALL patients across ALL tenants
 ```
@@ -40,11 +40,11 @@ def get_patients(db: Session):
 ## Audit Trail
 
 - Log all PHI access with: who (user ID), when (timestamp), what (record ID, fields accessed), why (action/reason).
-- Audit logs must be immutable — write to an append-only store that the application cannot modify or delete.
+- Audit logs must be immutable - write to an append-only store that the application cannot modify or delete.
 - Retain audit logs per jurisdictional requirements (HIPAA: 6 years minimum).
 
 ```python
-# DO — structured audit log for PHI access
+# DO - structured audit log for PHI access
 audit_logger.info("phi_access",
     user_id=request.user.id,
     patient_id=patient.id,
@@ -61,10 +61,10 @@ audit_logger.info("phi_access",
 - If using error tracking services (Sentry, Datadog), configure scrubbing rules to strip PHI before transmission.
 
 ```python
-# DO — log record ID only, no PHI
+# DO - log record ID only, no PHI
 logger.error("Failed to process record", patient_id=patient.id, error=str(e))
 
-# DON'T — log patient details
+# DON'T - log patient details
 logger.error(f"Failed to process {patient.name} DOB {patient.dob}: {e}")
 ```
 
@@ -78,10 +78,10 @@ logger.error(f"Failed to process {patient.name} DOB {patient.dob}: {e}")
 
 If the project has both compliance signals and LLM integration:
 
-- Apply minimum-necessary disclosure in all model prompts — never pass full patient records.
+- Apply minimum-necessary disclosure in all model prompts - never pass full patient records.
 - Validate model outputs deterministically before writing to PHI-containing database tables.
 - Log all model interactions involving PHI context for audit (prompt, response, patient IDs involved).
-- Model responses may reproduce PHI from the context window — validate and redact before storing or displaying.
+- Model responses may reproduce PHI from the context window - validate and redact before storing or displaying.
 
 ## Common Footguns
 

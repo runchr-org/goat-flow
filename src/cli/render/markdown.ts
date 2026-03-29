@@ -28,7 +28,7 @@ export function renderMarkdown(report: ScanReport): string {
   for (const agent of report.agents) {
     const { score } = agent;
     if (score.grade === 'insufficient-data') {
-      lines.push(`| ${agent.agentName} | N/A | Insufficient data | — | — | — |`);
+      lines.push(`| ${agent.agentName} | N/A | Insufficient data | - | - | - |`);
       continue;
     }
     const { foundation, standard, full } = score.tiers;
@@ -56,7 +56,7 @@ function renderAgentMarkdown(agent: AgentReport): string[] {
   if (failing.length === 0 && agent.recommendations.length === 0) return lines;
 
   if (agent.checks.length > 0) {
-    lines.push(`<details><summary><strong>${agent.agentName}</strong> — ${failing.length} issue${failing.length !== 1 ? 's' : ''}</summary>`);
+    lines.push(`<details><summary><strong>${agent.agentName}</strong> - ${failing.length} issue${failing.length !== 1 ? 's' : ''}</summary>`);
     lines.push('');
   }
 
@@ -74,7 +74,7 @@ function renderAgentMarkdown(agent: AgentReport): string[] {
   if (triggered.length > 0) {
     lines.push('**Anti-pattern deductions:**');
     for (const ap of triggered) {
-      lines.push(`- ${ap.id} ${ap.name}: ${ap.deduction} pts — ${ap.message}`);
+      lines.push(`- ${ap.id} ${ap.name}: ${ap.deduction} pts - ${ap.message}`);
     }
     lines.push('');
   }

@@ -3,7 +3,7 @@
 > **Purpose:** Git commit messages, branch naming, PR workflow
 > **Generates:** `ai/instructions/git-commit.md` + `.github/git-commit-instructions.md`
 > **Use when:** Setting up commit/PR conventions for the project
-> **Repo inspection:** Yes — reads git log for existing commit style, branch naming, PR templates
+> **Repo inspection:** Yes - reads git log for existing commit style, branch naming, PR templates
 > **Follow-on refs:** `copilot-bridge.md` if project uses GitHub Copilot
 
 **Dual output:** The `ai/instructions/` version is the full reference. The `.github/` version includes key rules inline because some tools (Copilot, Codex) may not follow file references.

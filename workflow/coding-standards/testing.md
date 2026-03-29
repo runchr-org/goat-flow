@@ -1,9 +1,9 @@
 # Prompt: Create ai/instructions/testing.md
 
-> **Purpose:** Testing conventions — naming, structure, mocking, coverage expectations
+> **Purpose:** Testing conventions - naming, structure, mocking, coverage expectations
 > **Generates:** `ai/instructions/testing.md`
 > **Use when:** Setting up test instructions for the project
-> **Repo inspection:** Yes — reads existing tests for naming patterns, framework usage, fixtures
+> **Repo inspection:** Yes - reads existing tests for naming patterns, framework usage, fixtures
 > **Follow-on refs:** `backend/` for stack-specific test patterns (e.g. Go table-driven, RSpec, pytest)
 
 ---
@@ -20,12 +20,12 @@ Read the existing tests in the codebase, then write `ai/instructions/testing.md`
 Name tests as sentences that describe the expected behavior. Use the function or component name as prefix.
 
 ```go
-// Good — reads as a specification
+// Good - reads as a specification
 func TestCreateUser_RejectsInvalidEmail(t *testing.T) { ... }
 func TestCreateUser_HashesPasswordBeforeStoring(t *testing.T) { ... }
 func TestListUsers_ReturnsEmptySliceWhenNoneExist(t *testing.T) { ... }
 
-// Bad — vague
+// Bad - vague
 func TestCreateUser(t *testing.T) { ... }
 func TestUser1(t *testing.T) { ... }
 ```
@@ -81,10 +81,10 @@ DO test:
 - Integration points (database queries return expected rows, API calls send correct params)
 
 DON'T test:
-- Private functions directly — test them through the public API
+- Private functions directly - test them through the public API
 - Third-party library internals (e.g., don't test that `json.Marshal` works)
 - Trivial getters/setters with no logic
-- CSS classes or DOM structure — test visible behavior instead
+- CSS classes or DOM structure - test visible behavior instead
 
 ## Mocking Rules
 
@@ -92,7 +92,7 @@ Mock at boundaries only: database, external APIs, file system, clock.
 Never mock the code under test.
 
 ```go
-// Good — mock the repository interface
+// Good - mock the repository interface
 type mockUserRepo struct {
     users map[string]*User
 }
@@ -104,18 +104,18 @@ func (m *mockUserRepo) GetByID(ctx context.Context, id string) (*User, error) {
     return nil, ErrUserNotFound
 }
 
-// Bad — mocking internal functions of the service you're testing
+// Bad - mocking internal functions of the service you're testing
 ```
 
 ```ts
-// Good — mock the API client
+// Good - mock the API client
 vi.mock("@/lib/api", () => ({
   api: {
     users: { list: vi.fn().mockResolvedValue([{ id: "1", name: "Test" }]) },
   },
 }));
 
-// Bad — mocking React hooks or internal state
+// Bad - mocking React hooks or internal state
 ```
 
 ## Property-Based Testing (conditional)
@@ -126,7 +126,7 @@ Include this section only if the project already uses a property-based testing l
 For functions with well-defined contracts (parsers, serializers, math, data transformations), use property-based testing to find edge cases humans miss.
 
 ```python
-# Python — Hypothesis
+# Python - Hypothesis
 from hypothesis import given, strategies as st
 
 @given(st.text())
@@ -142,7 +142,7 @@ def test_discount_never_exceeds_total(amount):
 ```
 
 ```ts
-// TypeScript — fast-check
+// TypeScript - fast-check
 import fc from "fast-check";
 
 test("encode/decode roundtrip", () => {
@@ -155,7 +155,7 @@ test("encode/decode roundtrip", () => {
 ```
 
 ```go
-// Go — pgregory.net/rapid
+// Go - pgregory.net/rapid
 func TestParseAmount_NeverPanics(t *testing.T) {
     rapid.Check(t, func(rt *rapid.T) {
         s := rapid.String().Draw(rt, "input")
@@ -188,7 +188,7 @@ Never: add retries to mask flakiness, mark as `@skip` and forget, or increase ti
 Tests must not depend on execution order or shared state. Each test sets up and tears down its own data.
 
 ```go
-// Good — each test is independent
+// Good - each test is independent
 func TestCreateUser(t *testing.T) {
     t.Parallel()
     db := setupTestDB(t) // fresh schema per test
@@ -200,7 +200,7 @@ func TestCreateUser(t *testing.T) {
 ```
 
 ```ts
-// Good — isolated setup per test
+// Good - isolated setup per test
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -208,7 +208,7 @@ beforeEach(() => {
 ```
 
 ```go
-// Bad — tests share state, order-dependent
+// Bad - tests share state, order-dependent
 var testDB *sql.DB // package-level, shared
 
 func TestA(t *testing.T) {
@@ -225,7 +225,7 @@ Use `t.Parallel()` (Go), parallel test runs (Jest default), or `pytest-xdist` (P
 
 - New features: cover the happy path + at least one error path.
 - Bug fixes: add a test that reproduces the bug before fixing it.
-- No coverage target percentage — meaningful tests over line counts.
+- No coverage target percentage - meaningful tests over line counts.
 - If a test is hard to write, the code probably needs refactoring.
 ````
 

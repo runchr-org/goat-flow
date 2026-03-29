@@ -1,5 +1,4 @@
 import { createServer } from 'node:http';
-import { createRequire } from 'node:module';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,13 +7,6 @@ import { createFS } from './facts/fs.js';
 import { scanProject } from './scanner/scan.js';
 import { renderJson } from './render/json.js';
 import type { AgentId } from './types.js';
-
-/** Load a file from a node_modules package using Node's module resolution */
-function loadNodeModule(pkg: string, file: string): string {
-  const require = createRequire(import.meta.url);
-  const pkgDir = dirname(require.resolve(`${pkg}/package.json`));
-  return readFileSync(join(pkgDir, file), 'utf-8');
-}
 
 /** Load a file from the package root by walking up */
 function loadPackageFile(name: string): string {
@@ -37,7 +29,7 @@ export function serveDashboard(defaultPath: string): void {
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
 
-    // Dashboard HTML — inject default project path
+    // Dashboard HTML - inject default project path
     if (url.pathname === '/') {
       const injection = `<script>window.__GOAT_FLOW_DEFAULT_PATH__ = ${JSON.stringify(absDefault)};</script>`;
       const html = template.replace('</body>', `${injection}\n</body>`);
@@ -81,24 +73,6 @@ export function serveDashboard(defaultPath: string): void {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
       }
-      return;
-    }
-
-    // Vendor assets served from node_modules
-    if (url.pathname === '/vendor/tailwindcss-browser.js') {
-      try {
-        const content = loadNodeModule('@tailwindcss/browser', 'dist/index.global.js');
-        res.writeHead(200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'public, max-age=86400' });
-        res.end(content);
-      } catch { res.writeHead(404); res.end('tailwindcss-browser not found — run npm install'); }
-      return;
-    }
-    if (url.pathname === '/vendor/alpinejs.js') {
-      try {
-        const content = loadNodeModule('alpinejs', 'dist/cdn.min.js');
-        res.writeHead(200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'public, max-age=86400' });
-        res.end(content);
-      } catch { res.writeHead(404); res.end('alpinejs not found — run npm install'); }
       return;
     }
 

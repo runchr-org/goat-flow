@@ -38,12 +38,12 @@ The six-step loop (READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG) is th
 | ID | Check | Pts | Why |
 |----|-------|-----|-----|
 | 1.2.1 | READ step | 2 | Prevents fabricated file paths and guessed codebase facts. |
-| 1.2.2 | CLASSIFY step | 2 | Forces complexity assessment before acting — hotfixes stay hotfixes. |
+| 1.2.2 | CLASSIFY step | 2 | Forces complexity assessment before acting - hotfixes stay hotfixes. |
 | 1.2.2a | CLASSIFY has turn/read budgets | 1 | Budgets are the forcing function; without numbers the step is decorative. |
 | 1.2.3 | SCOPE step | 2 | Blast radius must be declared before acting, not discovered after. |
 | 1.2.4 | ACT step with mode table | 2 | State/Goal/Exit declaration prevents mode-drift mid-task. |
 | 1.2.5 | VERIFY step | 2 | Catches cross-reference breaks, lint failures, and scope overruns before handoff. |
-| 1.2.6 | LOG step | 2 | Closes the learning loop — mistakes must be recorded or they repeat. |
+| 1.2.6 | LOG step | 2 | Closes the learning loop - mistakes must be recorded or they repeat. |
 
 ### 1.3 Autonomy Tiers (10 pts)
 
@@ -52,7 +52,7 @@ The six-step loop (READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG) is th
 | 1.3.1 | Three tiers (Always / Ask First / Never) | 2 | Binary allow/deny isn't granular enough for real work. |
 | 1.3.2 | Ask First boundaries are project-specific | 3 | Template text means the agent defaults to template behaviour, not project behaviour. |
 | 1.3.2a | Ask First paths resolve on disk | 2 | Broken paths make the boundary unenforceable. |
-| 1.3.3 | Never tier has destructive guards | 2 | Delete, secrets, force push — must be explicit, not implicit. |
+| 1.3.3 | Never tier has destructive guards | 2 | Delete, secrets, force push - must be explicit, not implicit. |
 | 1.3.4 | Micro-checklist in Ask First | 1 | Five-item checklist (boundary, related code, footgun, local instruction, rollback) catches common pre-flight skips. |
 
 ### 1.4 Definition of Done (7 pts)
@@ -61,7 +61,7 @@ The six-step loop (READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG) is th
 |----|-------|-----|-----|
 | 1.4.1 | DoD section exists | 2 | Without a DoD, "done" is whatever the agent decides it is. |
 | 1.4.2 | 4+ explicit gates | 2 | Vague gates (e.g. "tests pass") are gamed; specificity is the point. |
-| 1.4.3 | Grep-after-rename gate | 2 | Renames without grep checks leave dangling references — one of the most common post-merge bugs. |
+| 1.4.3 | Grep-after-rename gate | 2 | Renames without grep checks leave dangling references - one of the most common post-merge bugs. |
 | 1.4.4 | Log-update gate | 1 | Ensures lessons/footguns are updated before work is considered complete. |
 
 ### 1.5 Enforcement Baseline (8 pts)
@@ -86,7 +86,7 @@ Eight canonical skills exist because different task types need different interac
 | ID | Check | Pts | Why |
 |----|-------|-----|-----|
 | 2.1.1–2.1.8 | goat-debug/investigate/plan/refactor/review/security/simplify/test | 2 each | Coverage of the eight core task types agents encounter. |
-| 2.1.11 | All 8 present | 1 | Completeness bonus — partial skill sets leave gaps in the workflow. |
+| 2.1.11 | All 9 present | 1 | Completeness bonus - partial skill sets leave gaps in the workflow. |
 | 2.1.12 | Step 0 context gathering | 1 | Skills that act without gathering context produce wrong outputs. |
 | 2.1.13 | Human gates | 1 | Agents should pause before irreversible phases, not complete end-to-end autonomously. |
 | 2.1.14 | MUST/MUST NOT constraints | 1 | RFC 2119 constraints are unambiguous; soft suggestions are ignored. |
@@ -96,7 +96,7 @@ Eight canonical skills exist because different task types need different interac
 | 2.1.18 | Structured choices | 1 | (a)/(b)/(c) at transition points prevents yes/no gates that stall work. |
 | 2.1.19 | Output format defined | 1 | Without a format spec, agents invent output shapes that vary per run. |
 | 2.1.20 | Skill adaptation (not template copy) | 1 | Skills copied verbatim from the template serve the template project, not this one. |
-| 2.1.21 | Shared Conventions block | 1 | Cross-skill consistency block (severity scale, evidence standard, gates, learning loop) — without it, each skill applies different standards. |
+| 2.1.21 | Shared Conventions block | 1 | Cross-skill consistency block (severity scale, evidence standard, gates, learning loop) - without it, each skill applies different standards. |
 
 ### 2.2 Hooks (16 pts)
 
@@ -141,7 +141,7 @@ The router table is how agents navigate from a question to the right file. Witho
 | ID | Check | Pts | Why |
 |----|-------|-----|-----|
 | 2.4.1 | Router section exists | 1 | Required for any router checks to be meaningful. |
-| 2.4.2 | Router references resolve (all=3, partial=1) | 3 | Dead links in the router are worse than no router — they misdirect. |
+| 2.4.2 | Router references resolve (all=3, partial=1) | 3 | Dead links in the router are worse than no router - they misdirect. |
 | 2.4.3 | Skills referenced in router | 1 | Skills not in the router are effectively hidden from the agent. |
 | 2.4.4 | Learning loop in router | 1 | lessons.md and footguns.md must be reachable without searching. |
 | 2.4.5 | Architecture in router | 1 | The architecture doc is the first read for system-change tasks. |
@@ -158,7 +158,7 @@ The router table is how agents navigate from a question to the right file. Witho
 
 ### 2.6 Local Instructions (6 pts)
 
-Local instruction files (ai/instructions/ or .github/instructions/) are cold-path references — not read every turn, but loaded when the agent enters that context.
+Local instruction files (ai/instructions/ or .github/instructions/) are cold-path references - not read every turn, but loaded when the agent enters that context.
 
 | ID | Check | Pts | Why |
 |----|-------|-----|-----|
@@ -187,7 +187,7 @@ Full-tier checks reward projects that have proven the workflow works: evals that
 | 3.1.4 | Evals have replay prompts | 2 | Without a Scenario section, evals can't be replayed to verify behaviour. |
 | 3.1.5 | Evals have origin labels | 1 | Real-incident evals are higher-signal than synthetic seeds. |
 | 3.1.5a | Evals have Agents labels | 1 | Agent-specific evals should only run against their target agent. |
-| 3.1.6 | Evals cover all 8 canonical skills | 1 | Each skill needs at least one eval — uncovered skills accumulate silent regressions. |
+| 3.1.6 | Evals cover all 9 skills | 1 | Each skill needs at least one eval - uncovered skills accumulate silent regressions. |
 
 ### 3.2 CI Validation (6 pts)
 
@@ -204,7 +204,7 @@ Full-tier checks reward projects that have proven the workflow works: evals that
 | ID | Check | Pts | Why |
 |----|-------|-----|-----|
 | 3.3.1 | Handoff template exists | 1 | Without a template, handoffs vary in quality and are often skipped. |
-| 3.3.1a | Handoff template has required sections | 1 | Status, Current State, Key Decisions, Known Risks, Next Step — all five needed for useful handoff. |
+| 3.3.1a | Handoff template has required sections | 1 | Status, Current State, Key Decisions, Known Risks, Next Step - all five needed for useful handoff. |
 | 3.3.2 | RFC 2119 language | 1 | MUST/SHOULD/MAY eliminates ambiguity about what is enforced vs. preferred. |
 | 3.3.4 | Execution loop consistent across agents | 2 | Diverged loops mean the same agent behaves differently depending on which runtime is used. |
 
@@ -218,18 +218,18 @@ Full-tier checks reward projects that have proven the workflow works: evals that
 
 ## Anti-Patterns (max −15)
 
-Anti-patterns are deducted after positive scoring. They represent actively harmful states — not missing features, but existing setups that mislead agents or silently break enforcement.
+Anti-patterns are deducted after positive scoring. They represent actively harmful states - not missing features, but existing setups that mislead agents or silently break enforcement.
 
 | ID | Name | Deduction | Why |
 |----|------|-----------|-----|
 | AP1 | Instruction file over 150 lines | −3 | Hard limit. Agents miss tail content at 150+. |
 | AP2 | Skills without goat- prefix | −3 | Name conflicts with built-in slash commands. |
-| AP3 | DoD in both instruction file and guidelines | −3 | Conflicting definitions — agents pick the wrong one. |
+| AP3 | DoD in both instruction file and guidelines | −3 | Conflicting definitions - agents pick the wrong one. |
 | AP4 | Footguns without file:line evidence | −5 | Entries without evidence are unverifiable folklore, not guardrails. |
 | AP5 | settings.json invalid JSON | −5 | Silently disables all settings-based configuration. |
 | AP6 | Post-turn hook exits non-zero | −5 | Causes infinite retry loops. |
 | AP7 | Local instruction file over 20 lines | −2 | Per-directory local files should be pointers, not documentation. |
-| AP8 | Generic Ask First boundaries | −2 | Template text means template behaviour — not project behaviour. |
+| AP8 | Generic Ask First boundaries | −2 | Template text means template behaviour - not project behaviour. |
 | AP9 | settings.local.json not gitignored | −2 | Leaks personal config into the shared repo. |
 | AP11 | Empty learning loop scaffolding | −2 | Misleads agents into assuming mistakes are documented when they are not. |
 | AP12 | Stale refs in footguns.md | −3 | Dead file:line evidence means the guardrail no longer points to anything real. |

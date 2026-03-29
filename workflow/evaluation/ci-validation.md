@@ -41,7 +41,8 @@ The workflow should run these checks:
    - Report missing references as errors
 
 4. Skills directories have SKILL.md
-   - For each directory in .claude/skills/, verify SKILL.md exists
+   - For each directory in .claude/skills/, .agents/skills/, and
+     .gemini/skills/ (if they exist), verify SKILL.md exists
    - Report missing SKILL.md files as errors
 
 5. Local CLAUDE.md files are under 20 lines
@@ -61,7 +62,7 @@ The workflow should run these checks:
    - WARN for entries with this flag older than 14 days
 
 8. Layer 2 staleness and contradiction detection
-   - Find all local instruction files (*/CLAUDE.md, .github/instructions/*.md)
+   - Find all local instruction files (*/CLAUDE.md, */AGENTS.md, .github/instructions/*.md)
    - WARN if any local file hasn't been modified in 90+ days but the
      directory it covers has been actively changed (check git log)
    - WARN if two local files contain contradictory guidance

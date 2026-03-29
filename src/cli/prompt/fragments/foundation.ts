@@ -1,7 +1,7 @@
 import type { Fragment } from '../types.js';
 
 /**
- * Tier 1 — Foundation fragments (23 check keys)
+ * Tier 1 - Foundation fragments (23 check keys)
  * Instruction file, execution loop, autonomy tiers, DoD, enforcement
  */
 export const foundationFragments: Fragment[] = [
@@ -38,7 +38,7 @@ Keep it under 120 lines. The remaining foundation checks will fill in the sectio
     kind: 'fix',
     instruction: `\`{{instructionFile}}\` is over the 120-line target. Compress it:
 
-1. Remove verbose examples — one BAD/GOOD pair per concept is enough
+1. Remove verbose examples - one BAD/GOOD pair per concept is enough
 2. Replace explanatory paragraphs with terse bullet points
 3. Collapse tables where a one-liner suffices
 4. Move reference material to \`docs/\` and link from the router table
@@ -236,11 +236,11 @@ List 3-7 specific boundaries with actual file paths from this project.`,
     kind: 'fix',
     instruction: `The Ask First section in \`{{instructionFile}}\` references file paths that don't exist on disk. For each broken path:
 
-1. Check if the file was renamed — update to the new path
-2. Check if the file was deleted — remove from the boundary list
-3. Check if it's a typo — fix the path
+1. Check if the file was renamed - update to the new path
+2. Check if the file was deleted - remove from the boundary list
+3. Check if it's a typo - fix the path
 
-**Every path in Ask First must resolve.** Phantom paths mislead agents — they'll look for files that don't exist and may create them (the exact anti-pattern this section is meant to prevent).
+**Every path in Ask First must resolve.** Phantom paths mislead agents - they'll look for files that don't exist and may create them (the exact anti-pattern this section is meant to prevent).
 
 Run \`ls\` on each backtick-wrapped path to verify.`,
   },
@@ -337,17 +337,16 @@ If VERIFY caught a failure or you corrected course: \`docs/lessons.md\` entry re
   }
 }
 \`\`\``,
-      codex: `Create \`scripts/deny-dangerous.sh\`:
+      codex: `Create \`.codex/rules/deny-dangerous.star\` (Starlark execpolicy):
 
-\`\`\`bash
-#!/usr/bin/env bash
-# Block destructive commands
-case "$1" in
-  *"git commit"*|*"git push"*|*"rm -rf"*) echo "BLOCKED: $1"; exit 1 ;;
-esac
-\`\`\`
-
-Make it executable: \`chmod +x scripts/deny-dangerous.sh\``,
+\`\`\`starlark
+# Block destructive commands via Codex execpolicy
+def check(command):
+    for pattern in ["git commit", "git push --force", "rm -rf", "chmod 777"]:
+        if pattern in command:
+            return {"status": "blocked", "message": "BLOCKED: " + pattern}
+    return {"status": "allowed"}
+\`\`\``,
       gemini: `Create \`.gemini/settings.json\` with deny patterns:
 
 \`\`\`json
@@ -369,7 +368,7 @@ Make it executable: \`chmod +x scripts/deny-dangerous.sh\``,
 > **Note:** This blocks ALL commits, including when the user explicitly asks to commit. Once trust is established, move \`git commit\` to \`settings.local.json\` allow list to reduce friction on feature branches.`,
     agentOverrides: {
       claude: 'Add `"Bash(git commit*)"` to `permissions.deny` in `.claude/settings.json`.\n\n> **Escape hatch:** Once trust is established, add `"Bash(git commit*)"` to `.claude/settings.local.json` `permissions.allow` to skip approval on feature branches.',
-      codex: 'Add a case for `*"git commit"*` in `scripts/deny-dangerous.sh`.',
+      codex: 'Add `"git commit"` to the blocked patterns in `.codex/rules/deny-dangerous.star`.',
       gemini: 'Add `"git commit"` to `permissions.deny` in `.gemini/settings.json`.',
     },
   },
@@ -381,7 +380,7 @@ Make it executable: \`chmod +x scripts/deny-dangerous.sh\``,
     instruction: `Add \`git push\` to the deny list in {{settingsFile}}.`,
     agentOverrides: {
       claude: 'Add `"Bash(git push*)"` to `permissions.deny` in `.claude/settings.json`.',
-      codex: 'Add a case for `*"git push"*` in `scripts/deny-dangerous.sh`.',
+      codex: 'Add `"git push"` to the blocked patterns in `.codex/rules/deny-dangerous.star`.',
       gemini: 'Add `"git push"` to `permissions.deny` in `.gemini/settings.json`.',
     },
   },
@@ -396,17 +395,17 @@ Make it executable: \`chmod +x scripts/deny-dangerous.sh\``,
 
 \`\`\`bash
 #!/usr/bin/env bash
-# PreToolUse hook — block destructive Bash commands
+# PreToolUse hook - block destructive Bash commands
 exit 0
 \`\`\`
 
 The actual blocking is done via \`permissions.deny\` in settings.json. This hook is a backup for commands that slip through.`,
-      codex: `Create \`scripts/deny-dangerous.sh\` (see add-deny-mechanism fragment).`,
+      codex: `Create \`.codex/rules/deny-dangerous.star\` (see add-deny-mechanism fragment). Optionally create \`scripts/deny-dangerous.sh\` as documentation/self-test only.`,
       gemini: `Create \`.gemini/hooks/deny-dangerous.sh\`:
 
 \`\`\`bash
 #!/usr/bin/env bash
-# BeforeTool hook — block destructive commands
+# BeforeTool hook - block destructive commands
 exit 0
 \`\`\``,
     },

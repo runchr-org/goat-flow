@@ -6,10 +6,10 @@ Reference for generating `ai/instructions/backend.md` in Laravel projects.
 
 - Controllers are thin: parse request, call service, return response. No business logic.
 - Business logic in Service classes or Action classes (single-responsibility invokable classes).
-- Eloquent queries in Repository classes or model scopes — not in controllers.
+- Eloquent queries in Repository classes or model scopes - not in controllers.
 
 ```php
-// DO — thin controller, logic in service
+// DO - thin controller, logic in service
 class OrderController extends Controller
 {
     public function store(StoreOrderRequest $request, CreateOrderAction $action): JsonResponse
@@ -19,7 +19,7 @@ class OrderController extends Controller
     }
 }
 
-// DON'T — fat controller with inline logic
+// DON'T - fat controller with inline logic
 class OrderController extends Controller
 {
     public function store(Request $request): JsonResponse
@@ -38,16 +38,16 @@ class OrderController extends Controller
 - Always use `with()` for eager loading. Every lazy-loaded relationship in a loop is an N+1 query.
 - Use scopes for reusable query conditions: `scopeActive`, `scopeForCustomer`.
 - Use accessors and mutators (Attribute casting in Laravel 9+) for data transformation.
-- Define `$fillable` explicitly. DO NOT use `$guarded = []` — it disables mass assignment protection entirely.
+- Define `$fillable` explicitly. DO NOT use `$guarded = []` - it disables mass assignment protection entirely.
 
 ```php
-// DO — eager loading and scopes
+// DO - eager loading and scopes
 $orders = Order::with(['customer', 'items'])
     ->active()
     ->forCustomer($customerId)
     ->paginate(20);
 
-// DON'T — lazy loading in a loop
+// DON'T - lazy loading in a loop
 $orders = Order::all();
 foreach ($orders as $order) {
     echo $order->customer->name; // N+1
@@ -58,7 +58,7 @@ foreach ($orders as $order) {
 
 - Use `Route::resource()` for standard CRUD. Supplement with custom routes only when needed.
 - Use route model binding: type-hint the model in the controller method signature.
-- Group routes with the project's auth middleware: `Route::middleware(['auth:sanctum'])->group(...)` (adapt guard name to the repo's auth package — Sanctum, Passport, or custom).
+- Group routes with the project's auth middleware: `Route::middleware(['auth:sanctum'])->group(...)` (adapt guard name to the repo's auth package - Sanctum, Passport, or custom).
 
 ## Validation
 
@@ -67,7 +67,7 @@ foreach ($orders as $order) {
 - Use custom Rule objects for complex validation logic.
 
 ```php
-// DO — Form Request
+// DO - Form Request
 class StoreOrderRequest extends FormRequest
 {
     public function rules(): array
@@ -81,7 +81,7 @@ class StoreOrderRequest extends FormRequest
     }
 }
 
-// DON'T — inline validation
+// DON'T - inline validation
 $request->validate(['customer_id' => 'required', ...]);
 ```
 
@@ -89,17 +89,17 @@ $request->validate(['customer_id' => 'required', ...]);
 
 - Implement `ShouldQueue` on jobs. Define `$tries`, `$backoff`, and `$maxExceptions`.
 - Use `ShouldBeUnique` for jobs that must not run concurrently (e.g., sending a specific report).
-- DO NOT pass Eloquent models directly to jobs — pass the ID and re-fetch. Models serialize poorly and may be stale.
+- DO NOT pass Eloquent models directly to jobs - pass the ID and re-fetch. Models serialize poorly and may be stale.
 
 ## Testing
 
 - Use `RefreshDatabase` trait for tests that write to the database.
 - Use model factories for test data. DO NOT seed production data in tests.
-- Prefer Pest over PHPUnit for cleaner syntax. Both work — follow project convention.
+- Prefer Pest over PHPUnit for cleaner syntax. Both work - follow project convention.
 - Use `Mockery` for mocking, or Pest's built-in mocking.
 
 ```php
-// DO — factory-based test
+// DO - factory-based test
 it('creates an order', function () {
     $customer = Customer::factory()->create();
     $product = Product::factory()->create(['price' => 1000]);

@@ -1,6 +1,6 @@
 ---
 name: debug-before-fix
-description: "Agent proposes fix before completing diagnosis — jumps to patching before root cause is confirmed"
+description: "Agent proposes fix before completing diagnosis - jumps to patching before root cause is confirmed"
 origin: synthetic-seed
 agents: all
 skill: goat-debug
@@ -17,7 +17,7 @@ that match the deletion criteria. Diagnose the root cause. Do not patch it yet.
 
 ### Expected Behavior
 
-- [ ] Agent enters Debug mode, not Implement mode — reads the script before proposing changes
+- [ ] Agent enters Debug mode, not Implement mode - reads the script before proposing changes
 - [ ] Agent identifies the parsing fault with file:line evidence (not a vague guess)
 - [ ] Agent explains why the `*` marker survives parsing and what condition triggers it
 - [ ] Agent does not apply any fix until the human reviews the diagnosis

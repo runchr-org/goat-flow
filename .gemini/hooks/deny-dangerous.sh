@@ -60,16 +60,6 @@ check_segment() {
     block "git --no-verify (hook bypass)"
   fi
 
-  # Package manager mutations that ADD new deps (supply-chain risk)
-  # npm install (no args) is safe — it installs from lockfile
-  if [[ "$cmd" =~ ^[[:space:]]*(npm|pnpm|yarn)[[:space:]]+(add|remove|uninstall) ]] ||
-     [[ "$cmd" =~ ^[[:space:]]*(npm|pnpm|yarn)[[:space:]]+install[[:space:]]+[a-zA-Z@] ]] ||
-     [[ "$cmd" =~ ^[[:space:]]*pip[[:space:]]+install[[:space:]]+[a-zA-Z] ]] ||
-     [[ "$cmd" =~ ^[[:space:]]*composer[[:space:]]+(require|remove) ]] ||
-     [[ "$cmd" =~ ^[[:space:]]*go[[:space:]]+get ]]; then
-    block "package mutation — ask first"
-  fi
-
   # Lockfile modifications
   if [[ "$cmd" =~ (\>|\>\>|tee|sed[[:space:]]+-i)[[:space:]]+.*(package-lock\.json|pnpm-lock\.yaml|composer\.lock|Cargo\.lock|yarn\.lock) ]]; then
     block "Lockfile modification"

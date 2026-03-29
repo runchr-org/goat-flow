@@ -1,7 +1,7 @@
 import type { Fragment } from '../types.js';
 
 /**
- * Tier 2 — Standard fragments
+ * Tier 2 - Standard fragments
  * Skills, hooks, learning loop, router, architecture, local context
  */
 export const standardFragments: Fragment[] = [
@@ -46,7 +46,7 @@ Refer to the goat-flow documentation for the full skill template.`,
     instruction: `Most skills should include a Step 0 that gathers context before acting. Add to each skill:
 
 \`\`\`markdown
-## Step 0 — Gather Context
+## Step 0 - Gather Context
 
 Ask the user before starting:
 1. [What specific questions to ask for this skill]
@@ -55,7 +55,7 @@ Ask the user before starting:
 Do NOT start until the user has answered.
 \`\`\`
 
-This prevents blind execution — the agent asks before it acts.`,
+This prevents blind execution - the agent asks before it acts.`,
   },
   {
     key: 'add-skill-human-gates',
@@ -81,7 +81,7 @@ This prevents the agent from auto-advancing through diagnosis → fix → deploy
 ## Constraints
 
 - MUST gather context before acting (Step 0)
-- MUST stop after presenting findings — no fixes until human reviews
+- MUST stop after presenting findings - no fixes until human reviews
 - MUST NOT skip phases
 - MUST NOT fabricate file paths or evidence
 \`\`\`
@@ -95,15 +95,15 @@ Use RFC 2119 language. MUST = blocking, SHOULD = recommended, MAY = optional.`,
     kind: 'fix',
     instruction: `ALL skills must be conversational. Each skill needs three structural elements:
 
-1. **BLOCKING GATE or HUMAN GATE** — an explicit stop point where the agent presents findings and waits for human input before proceeding. Not a checkpoint — a hard stop.
+1. **BLOCKING GATE or HUMAN GATE** - an explicit stop point where the agent presents findings and waits for human input before proceeding. Not a checkpoint - a hard stop.
 
-2. **Structured choices** — at each gate, offer lettered options like:
+2. **Structured choices** - at each gate, offer lettered options like:
    (a) dig deeper into a specific finding
    (b) check a related area
    (c) proceed to the next phase
    (d) close
 
-3. **No auto-advance** — the skill must explicitly state that the agent does NOT proceed past the gate without human input.
+3. **No auto-advance** - the skill must explicitly state that the agent does NOT proceed past the gate without human input.
 
 \`\`\`markdown
 **BLOCKING GATE:** Present findings. Offer:
@@ -127,7 +127,7 @@ The scanner checks for all three elements. A skill that matches only keywords li
 \`\`\`markdown
 ## Chains With
 
-- goat-[related-skill] — [why this skill chains to it]
+- goat-[related-skill] - [why this skill chains to it]
 \`\`\`
 
 Common chains:
@@ -168,14 +168,14 @@ The human drives direction, not just pace.`,
     instruction: `Skills should have a phased process that prevents step-skipping. Structure as:
 
 \`\`\`markdown
-## Phase 1 — [First step]
+## Phase 1 - [First step]
 [Instructions]
 
-## Phase 2 — [Second step]
-[Instructions — only after Phase 1 complete]
+## Phase 2 - [Second step]
+[Instructions - only after Phase 1 complete]
 
-## Phase 3 — [Third step]
-[Instructions — only after human reviews Phase 2]
+## Phase 3 - [Third step]
+[Instructions - only after human reviews Phase 2]
 \`\`\`
 
 Each phase should have a clear entry condition (what must be done before starting it).`,
@@ -185,9 +185,9 @@ Each phase should have a clear entry condition (what must be done before startin
     phase: 'standard',
     category: 'Skills',
     kind: 'create',
-    instruction: `Ensure all 8 GOAT Flow skills are present under \`{{skillsDir}}/\`:
+    instruction: `Ensure all 9 GOAT Flow skills are present under \`{{skillsDir}}/\`:
 
-- goat-security, goat-debug, goat-investigate, goat-review, goat-plan, goat-test, goat-refactor, goat-simplify
+- goat (dispatcher), goat-security, goat-debug, goat-investigate, goat-review, goat-plan, goat-test, goat-refactor, goat-simplify
 
 Each skill needs a \`SKILL.md\` with: name, description, When to Use, Process, Output sections.`,
   },
@@ -215,7 +215,7 @@ Without an output format, agents produce inconsistent deliverables and the human
 
 Copy \`workflow/skills/goat.md\` to \`{{skillsDir}}/goat/SKILL.md\`.
 
-The dispatcher routes natural language to the correct skill — users type \`/goat fix the login bug\` instead of needing to know the exact skill name. Without it, skill discoverability depends entirely on users memorising 8 command names.`,
+The dispatcher routes natural language to the correct skill - users type \`/goat fix the login bug\` instead of needing to know the exact skill name. Without it, skill discoverability depends entirely on users memorising 8 command names.`,
   },
   {
     key: 'add-skill-shared-conventions',
@@ -230,13 +230,13 @@ The dispatcher routes natural language to the correct skill — users type \`/go
 - **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - **Evidence:** Every finding needs \`file:line\`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it — don't re-ask. Only hard-block with zero context.
+- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Only hard-block with zero context.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
 - **Learning Loop:** Behavioural mistake → \`docs/lessons.md\`. Architectural trap → \`docs/footguns.md\`.
 - **Closing:** Commit or note working artifacts. Check learning loop. Suggest next skill.
 \`\`\`
 
-This block ensures all skills apply the same severity ranking, evidence standard, and learning loop protocol — regardless of which skill is invoked.`,
+This block ensures all skills apply the same severity ranking, evidence standard, and learning loop protocol - regardless of which skill is invoked.`,
   },
 
   {
@@ -286,7 +286,7 @@ Add to \`{{settingsFile}}\` hooks array:
 }
 \`\`\`
 
-This preserves context during long sessions — the agent gets reminded of current task, modified files, and constraints after compaction.`,
+This preserves context during long sessions - the agent gets reminded of current task, modified files, and constraints after compaction.`,
   },
   {
     key: 'fix-deny-json-parsing',
@@ -296,10 +296,10 @@ This preserves context during long sessions — the agent gets reminded of curre
     instruction: `The deny hook uses \`grep -P\` for JSON parsing, which is not available on macOS. Replace with \`jq\`:
 
 \`\`\`bash
-# Good — portable JSON parsing
+# Good - portable JSON parsing
 COMMAND=$(echo "$INPUT" | jq -r '.command // .input // empty' 2>/dev/null || echo "$INPUT")
 
-# Bad — grep -P is not available on macOS
+# Bad - grep -P is not available on macOS
 COMMAND=$(echo "$INPUT" | grep -oP '"command"\\s*:\\s*"([^"]*)"')
 \`\`\`
 
@@ -360,36 +360,16 @@ Also block in settings.json deny list: \`"Bash(git push --force*)"\`, \`"Bash(gi
     phase: 'standard',
     category: 'Hooks',
     kind: 'fix',
-    instruction: `The deny hook MUST block \`chmod 777\`. World-writable permissions are a security vulnerability — any process can read, write, and execute the file.
+    instruction: `The deny hook MUST block \`chmod 777\`. World-writable permissions are a security vulnerability - any process can read, write, and execute the file.
 
 \`\`\`bash
 # Block chmod 777
 if [[ "$cmd" =~ chmod.*777 ]]; then
-  block "chmod 777 — world-writable permissions"
+  block "chmod 777 - world-writable permissions"
 fi
 \`\`\`
 
 Also block in settings.json deny list: \`"Bash(chmod 777*)"\`.`,
-  },
-  {
-    key: 'fix-deny-package-mutation',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
-    instruction: `The deny hook MUST block package manager commands that add or remove dependencies. Bare \`npm install\` (no args) is safe — it installs from the lockfile — so do NOT block it.
-
-\`\`\`bash
-# Block package manager mutations (bare install from lockfile is safe)
-if [[ "$cmd" =~ ^(npm|pnpm|yarn)\\ (add|remove|uninstall) ]] ||
-   [[ "$cmd" =~ ^(npm|pnpm|yarn)\\ install\\ [a-zA-Z@] ]] ||
-   [[ "$cmd" =~ ^pip\\ install\\ [a-zA-Z] ]] ||
-   [[ "$cmd" =~ ^composer\\ (require|remove) ]] ||
-   [[ "$cmd" =~ ^go\\ get ]]; then
-  block "package mutation — use Ask First"
-fi
-\`\`\`
-
-Also block in settings.json deny list: \`"Bash(npm add*)", "Bash(yarn add*)", "Bash(pnpm add*)", "Bash(pip install [a-zA-Z]*)", "Bash(go get*)"\`.`,
   },
   {
     key: 'fix-read-deny-secrets',
@@ -452,7 +432,7 @@ See \`workflow/runtime/enforcement.md\` for the full stop-lint template.`,
 
 \`\`\`bash
 #!/usr/bin/env bash
-# Stop hook — runs after each agent turn
+# Stop hook - runs after each agent turn
 # Add lint checks, line count checks, etc.
 exit 0
 \`\`\`
@@ -469,7 +449,7 @@ exit 0
 
 \`\`\`bash
 #!/usr/bin/env bash
-# AfterAgent hook — post-turn verification
+# AfterAgent hook - post-turn verification
 exit 0
 \`\`\``,
     },
@@ -494,7 +474,7 @@ Open the hook script and ensure the last line is \`exit 0\`. If the script has c
 
 \`\`\`bash
 #!/usr/bin/env bash
-# PostToolUse hook — auto-format after file edits
+# PostToolUse hook - auto-format after file edits
 # Replace YOUR_FORMATTER with your format command (e.g., prettier --write)
 YOUR_FORMATTER "$1" 2>/dev/null || true
 exit 0
@@ -503,7 +483,7 @@ exit 0
 
 \`\`\`bash
 #!/usr/bin/env bash
-# AfterTool hook — auto-format after file edits
+# AfterTool hook - auto-format after file edits
 # Replace YOUR_FORMATTER with your format command (e.g., prettier --write)
 YOUR_FORMATTER "$1" 2>/dev/null || true
 exit 0
@@ -571,7 +551,7 @@ Trigger on pull requests that modify instruction files, skills, or docs/.`,
 (Entries appear here as real incidents occur. Never seed with hypothetical examples.)
 \`\`\``,
   },
-  // seed-lessons removed — merged into seed-lessons-minimum after 2.3.2 was removed as duplicate of 2.3.2a.
+  // seed-lessons removed - merged into seed-lessons-minimum after 2.3.2 was removed as duplicate of 2.3.2a.
   {
     key: 'create-footguns',
     phase: 'standard',
@@ -607,7 +587,7 @@ Every footgun MUST have file:line evidence. No hypotheticals.`,
     instruction: `\`docs/footguns.md\` exists but entries are missing file:line evidence. Update each entry:
 
 **Before:** "Auth module has race conditions"
-**After:** "\`src/auth.ts:42\` — race condition between token refresh and request dispatch"
+**After:** "\`src/auth.ts:42\` - race condition between token refresh and request dispatch"
 
 Every footgun entry MUST have at least one \`file:line\` reference.`,
   },
@@ -618,9 +598,9 @@ Every footgun entry MUST have at least one \`file:line\` reference.`,
     kind: 'fix',
     instruction: `\`docs/footguns.md\` has evidence but no evidence type labels. Add one of these to each entry:
 
-- **ACTUAL_MEASURED** — real data with source (e.g., production metrics, load test results)
-- **DESIGN_TARGET** — intended values from specs (e.g., "target 120 lines per spec")
-- **HYPOTHETICAL_EXAMPLE** — illustrative only (e.g., "imagine a 500ms timeout")
+- **ACTUAL_MEASURED** - real data with source (e.g., production metrics, load test results)
+- **DESIGN_TARGET** - intended values from specs (e.g., "target 120 lines per spec")
+- **HYPOTHETICAL_EXAMPLE** - illustrative only (e.g., "imagine a 500ms timeout")
 
 Bare claims without labels are not acceptable.`,
   },
@@ -673,9 +653,9 @@ Every path in the router MUST resolve to an existing file or directory.`,
     kind: 'fix',
     instruction: `Some router table paths in \`{{instructionFile}}\` don't resolve. For each broken reference:
 
-1. Check if the file was renamed — update the path
-2. Check if the file was deleted — remove the row or create the file
-3. Check if it's a typo — fix the path
+1. Check if the file was renamed - update the path
+2. Check if the file was deleted - remove the row or create the file
+3. Check if it's a typo - fix the path
 
 Every router path MUST point to something that exists.`,
   },
@@ -697,7 +677,7 @@ Every router path MUST point to something that exists.`,
     phase: 'standard',
     category: 'Architecture',
     kind: 'create',
-    instruction: `Create \`docs/architecture.md\` — a concise system overview:
+    instruction: `Create \`docs/architecture.md\` - a concise system overview:
 
 \`\`\`markdown
 # Architecture
@@ -721,7 +701,7 @@ Keep under 100 lines. This is for agent orientation, not exhaustive documentatio
     kind: 'fix',
     instruction: `\`docs/architecture.md\` is over 100 lines. Compress:
 
-1. Remove implementation details — keep only architectural decisions
+1. Remove implementation details - keep only architectural decisions
 2. Replace prose with bullet lists
 3. Move detailed component docs to separate files and link from here
 
@@ -770,7 +750,7 @@ Add rows for domain files as you create them (frontend.md, backend.md, security.
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai/instructions/conventions.md\` — the universal project contract. Include:
+    instruction: `Create \`ai/instructions/conventions.md\` - the universal project contract. Include:
 
 - What the repo is (one line)
 - Architecture overview (2-3 lines)
@@ -799,7 +779,7 @@ The agent should be able to read this file and immediately know how to build, te
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai/instructions/frontend.md\` — frontend-specific coding conventions for the detected UI stack (React, Vue, Angular, Blade, Twig, ERB, Jinja, Blazor, Swift/iOS, or plain TS/JS). Include:
+    instruction: `Create \`ai/instructions/frontend.md\` - frontend-specific coding conventions for the detected UI stack (React, Vue, Angular, Blade, Twig, ERB, Jinja, Blazor, Swift/iOS, or plain TS/JS). Include:
 
 - Component/template patterns (naming, structure, composition)
 - State management or data-binding conventions
@@ -814,7 +794,7 @@ Only include rules specific to frontend/UI work. Shared rules belong in \`conven
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai/instructions/backend.md\` — backend-specific coding conventions. Include:
+    instruction: `Create \`ai/instructions/backend.md\` - backend-specific coding conventions. Include:
 
 - API design patterns (request/response, error handling)
 - Database conventions (queries, migrations, naming)
@@ -829,7 +809,7 @@ Only include rules specific to backend work. Shared rules belong in \`convention
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai/instructions/code-review.md\` — review standards for this project. Include:
+    instruction: `Create \`ai/instructions/code-review.md\` - review standards for this project. Include:
 
 - Priority order: correctness > security > maintainability
 - Approval criteria (what must pass before merge)
@@ -841,7 +821,7 @@ Only include rules specific to backend work. Shared rules belong in \`convention
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai/instructions/git-commit.md\` — commit conventions for this project. Include:
+    instruction: `Create \`ai/instructions/git-commit.md\` - commit conventions for this project. Include:
 
 - Commit message format (with good/bad examples)
 - Branch naming convention
@@ -853,7 +833,7 @@ Only include rules specific to backend work. Shared rules belong in \`convention
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`.github/git-commit-instructions.md\` — universal commit instructions for any tool or human making commits. Include the key rules from \`ai/instructions/git-commit.md\` inline (tools may not follow references to other files).`,
+    instruction: `Create \`.github/git-commit-instructions.md\` - universal commit instructions for any tool or human making commits. Include the key rules from \`ai/instructions/git-commit.md\` inline (tools may not follow references to other files).`,
   },
   {
     key: 'create-copilot-bridge',
@@ -870,7 +850,7 @@ Example:
 ---
 applyTo: "src/frontend/**"
 ---
-<!-- Source: ai/instructions/frontend.md — keep in sync -->
+<!-- Source: ai/instructions/frontend.md - keep in sync -->
 [content from ai/instructions/frontend.md]
 \`\`\``,
   },
@@ -880,9 +860,9 @@ applyTo: "src/frontend/**"
     phase: 'standard',
     category: 'Learning Loop',
     kind: 'fix',
-    instruction: `\`docs/lessons.md\` has no entries. Target 3-5 real incidents — at least 1 is required.
+    instruction: `\`docs/lessons.md\` has no entries. Target 3-5 real incidents - at least 1 is required.
 
-Option A — pull from git history:
+Option A - pull from git history:
 \`\`\`bash
 git log --oneline --all | grep -iE 'fix|revert|bug|broke|rollback|regression'
 \`\`\`
@@ -895,11 +875,11 @@ For each incident found, add an entry:
 **created_at:** YYYY-MM-DD
 \`\`\`
 
-Option B — if no incidents apply yet, add a placeholder:
+Option B - if no incidents apply yet, add a placeholder:
 \`\`\`markdown
 ### No incidents yet
 
-[date] — Project is new. Add entries after the first agent mistake or correction.
+[date] - Project is new. Add entries after the first agent mistake or correction.
 \`\`\`
 
 Do NOT invent hypothetical lessons.`,
@@ -930,9 +910,9 @@ Do NOT invent hypothetical lessons.`,
 [What are the trade-offs? What becomes easier or harder as a result?]
 \`\`\`
 
-Save as \`docs/decisions/ADR-000-template.md\`. Real ADRs are added when significant architectural decisions are made — name them \`ADR-NNN-short-title.md\`.`,
+Save as \`docs/decisions/ADR-000-template.md\`. Real ADRs are added when significant architectural decisions are made - name them \`ADR-NNN-short-title.md\`.`,
   },
-  // Ask First enforcement hook removed — see ADR-006.
+  // Ask First enforcement hook removed - see ADR-006.
 
   {
     key: 'fix-deny-cloud-destructive',
@@ -946,7 +926,7 @@ Save as \`docs/decisions/ADR-000-template.md\`. Real ADRs are added when signifi
 if [[ "$cmd" =~ docker[[:space:]]+push ]] ||
    [[ "$cmd" =~ terraform[[:space:]]+(destroy|apply.*-auto-approve) ]] ||
    [[ "$cmd" =~ aws[[:space:]]+(s3[[:space:]]+rm|ec2[[:space:]]+terminate) ]]; then
-  block "cloud-destructive command — requires manual execution"
+  block "cloud-destructive command - requires manual execution"
 fi
 \`\`\`
 

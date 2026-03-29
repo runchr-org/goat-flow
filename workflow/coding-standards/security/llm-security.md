@@ -9,13 +9,13 @@ Reference for generating `ai/instructions/security.md` in projects that integrat
 - Treat all user-facing text that reaches a model prompt as untrusted input. Sanitize or structure it within clearly delimited boundaries.
 
 ```python
-# DO — separate system instructions from user input with clear delimiters
+# DO - separate system instructions from user input with clear delimiters
 messages = [
     {"role": "system", "content": system_prompt},
     {"role": "user", "content": user_input},  # model sees this as user turn, not instructions
 ]
 
-# DON'T — concatenate user input into the system prompt
+# DON'T - concatenate user input into the system prompt
 prompt = f"You are a helpful assistant. The user says: {user_input}. Now respond."
 ```
 
@@ -28,7 +28,7 @@ prompt = f"You are a helpful assistant. The user says: {user_input}. Now respond
 - If model output is rendered in HTML, apply the same XSS prevention (context-aware encoding) as any other user-generated content.
 
 ```python
-# DO — validate model output before use
+# DO - validate model output before use
 import json
 response = model.generate(prompt)
 try:
@@ -37,21 +37,21 @@ try:
 except (json.JSONDecodeError, KeyError, AssertionError):
     raise ValueError("Model returned invalid output")
 
-# DON'T — execute model output directly
+# DON'T - execute model output directly
 eval(model.generate("Write Python code to..."))
 ```
 
 ## System Prompt Confidentiality
 
 - Do not expose system prompts in error messages, logs, or model responses.
-- If the model is asked to reveal its instructions, it should decline — but do not rely solely on the model to enforce this. Filter responses server-side if system prompt leakage is a concern.
+- If the model is asked to reveal its instructions, it should decline - but do not rely solely on the model to enforce this. Filter responses server-side if system prompt leakage is a concern.
 - Never include secrets (API keys, database credentials) in system prompts.
 
 ## PHI/PII in Model Context
 
 - Apply minimum-necessary disclosure: send only the data the model needs, not full records.
 - Strip or redact sensitive fields before passing context to the model.
-- Model responses may reproduce sensitive data from the context window — validate and redact before storing or displaying.
+- Model responses may reproduce sensitive data from the context window - validate and redact before storing or displaying.
 
 ## Token Limit and Cost Controls
 

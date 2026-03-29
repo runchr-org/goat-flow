@@ -122,7 +122,7 @@ Frontier models follow ~150-200 instructions. Claude Code's system prompt consum
 4. Sub-agent objectives -> compress to two lines
 5. Working memory details -> compress, keep handoff protocol
 
-**Never cut:** The execution loop, autonomy tiers, or definition of done. Sections (f)–(i) (sub-agent objectives, communication when blocked, router table, essential commands) are MUST-include even when compressing — compress them, but do not remove them.
+**Never cut:** The execution loop, autonomy tiers, or definition of done. Sections (f)–(i) (sub-agent objectives, communication when blocked, router table, essential commands) are MUST-include even when compressing - compress them, but do not remove them.
 
 **Router table placement:** The router table should be positioned at the END of the instruction file. Research shows the beginning and end of the context window receive higher attention than the middle. The router table is the highest-leverage section (160x usage uplift) -- placing it at the end exploits the end-of-context attention zone.
 

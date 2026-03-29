@@ -1,4 +1,4 @@
-# Setup — Gemini CLI
+# Setup - Gemini CLI
 
 Set up or improve GOAT Flow for a project using Gemini CLI.
 
@@ -13,7 +13,7 @@ or any shared documentation that other agents depend on.
 ## Gemini CLI specifics
 
 These are the Gemini CLI-specific file paths and configurations. The shared
-phases reference "the instruction file" and "the skills directory" — for
+phases reference "the instruction file" and "the skills directory" - for
 Gemini CLI, these are:
 
 - **Instruction file:** `GEMINI.md`
@@ -23,7 +23,7 @@ Gemini CLI, these are:
 
 ---
 
-## Phase 1a-c — Foundation
+## Phase 1a-c - Foundation
 
 Read and implement [shared/phase-1.md](shared/phase-1.md).
 
@@ -34,10 +34,10 @@ these Gemini CLI-specific enforcement items:
 
 ```
 GEMINI CLI HOOK EVENTS (use these exact names in settings.json):
-  BeforeTool     — runs before a tool executes (guards, blockers)
-  AfterTool      — runs after a tool executes (formatting, logging)
-  AfterAgent     — runs after every agent turn (linting, stop-the-line)
-  SessionEnd     — runs when the session ends (cleanup)
+  BeforeTool     - runs before a tool executes (guards, blockers)
+  AfterTool      - runs after a tool executes (formatting, logging)
+  AfterAgent     - runs after every agent turn (linting, stop-the-line)
+  SessionEnd     - runs when the session ends (cleanup)
 Do NOT use Claude Code event names (PreToolUse, PostToolUse, Stop).
 
 PRE-EXISTING HOOKS:
@@ -79,13 +79,13 @@ VERIFICATION:
 
 ---
 
-## Phase 2 — Evals & Hygiene
+## Phase 2 - Evals & Hygiene
 
 Read and implement [shared/phase-2.md](shared/phase-2.md).
 
 ---
 
-## Phase 3 — Verify & Quality Control
+## Phase 3 - Verify & Quality Control
 
 Read and implement [shared/phase-3.md](shared/phase-3.md).
 

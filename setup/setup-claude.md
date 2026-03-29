@@ -1,4 +1,4 @@
-# Setup — Claude Code
+# Setup - Claude Code
 
 Set up or improve GOAT Flow for a project using Claude Code.
 
@@ -9,7 +9,7 @@ Set up or improve GOAT Flow for a project using Claude Code.
 ## Claude Code specifics
 
 These are the Claude Code-specific file paths and configurations. The shared
-phases below reference "the instruction file" and "the skills directory" — for
+phases below reference "the instruction file" and "the skills directory" - for
 Claude Code, these are:
 
 - **Instruction file:** `CLAUDE.md`
@@ -19,7 +19,7 @@ Claude Code, these are:
 
 ---
 
-## Phase 1a-c — Foundation
+## Phase 1a-c - Foundation
 
 Read and implement [shared/phase-1.md](shared/phase-1.md).
 
@@ -46,7 +46,7 @@ HOOKS:
      pipe-to-shell, --no-verify
    - Use jq for JSON input parsing (grep -P is not portable to macOS).
      Fall back to sed if jq is not installed.
-   - Split commands on && || ; before checking patterns — without this,
+   - Split commands on && || ; before checking patterns - without this,
      chained dangerous commands bypass detection.
    - .env files: block reads via permissions deny list
    - Exit 0 for everything else
@@ -72,7 +72,7 @@ INFRASTRUCTURE FACTS:
 Add a ## Project Infrastructure section to CLAUDE.md documenting:
 - Deployment platform (Docker Compose, Kubernetes, bare VPS, serverless, etc.)
 - Branch conventions (e.g., main=prod, develop=staging, feature/* → PRs)
-- Required runtime versions (Node 20, PHP 8.2, Python 3.11 — whatever is pinned)
+- Required runtime versions (Node 20, PHP 8.2, Python 3.11 - whatever is pinned)
 - Container/build rebuild command (exact command to run after server code or
   config changes, e.g., "docker compose up -d --build")
 - CI/CD system and what triggers it
@@ -89,13 +89,13 @@ VERIFICATION:
 
 ---
 
-## Phase 2 — Evals & Hygiene
+## Phase 2 - Evals & Hygiene
 
 Read and implement [shared/phase-2.md](shared/phase-2.md).
 
 ---
 
-## Phase 3 — Verify & Quality Control
+## Phase 3 - Verify & Quality Control
 
 Read and implement [shared/phase-3.md](shared/phase-3.md).
 

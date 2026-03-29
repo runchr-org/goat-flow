@@ -26,7 +26,7 @@ if [[ -f package.json ]]; then
     info "Installing dependencies..."
     npm install
 else
-    info "No package.json found — initializing..."
+    info "No package.json found - initializing..."
     npm init -y
     npm install
 fi

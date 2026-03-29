@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createMockFS } from '../helpers/mock-fs.js';
 import { detectAgents } from '../../src/cli/detect/agents.js';
 import { detectStack } from '../../src/cli/detect/stack.js';
-import { mapLanguagesToTemplates } from '../../src/cli/prompt/template-refs.js';
+import { mapLanguagesToTemplates, mapSignalsToTemplates } from '../../src/cli/prompt/template-refs.js';
 
 describe('detectAgents', () => {
   it('finds Claude when CLAUDE.md exists', () => {
@@ -149,9 +149,113 @@ describe('detectStack', () => {
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('blazor'));
   });
+
+  // --- Backend stack detection (fleshed-out detectors) ---
+
+  it('detects Ruby from Gemfile', () => {
+    const fs = createMockFS({ 'Gemfile': "source 'https://rubygems.org'\ngem 'sinatra'" });
+    const stack = detectStack(fs);
+    assert.ok(stack.languages.includes('ruby'));
+    assert.equal(stack.testCommand, 'bundle exec rspec');
+  });
+
+  it('detects Rails from Gemfile', () => {
+    const fs = createMockFS({ 'Gemfile': "source 'https://rubygems.org'\ngem 'rails', '~> 7.0'" });
+    const stack = detectStack(fs);
+    assert.ok(stack.languages.includes('ruby'));
+    assert.ok(stack.languages.includes('rails'));
+  });
+
+  it('detects Java from pom.xml', () => {
+    const fs = createMockFS({ 'pom.xml': '<project><artifactId>myapp</artifactId></project>' });
+    const stack = detectStack(fs);
+    assert.ok(stack.languages.includes('java'));
+    assert.equal(stack.buildCommand, 'mvn package');
+    assert.equal(stack.testCommand, 'mvn test');
+  });
+
+  it('detects Spring from pom.xml', () => {
+    const fs = createMockFS({ 'pom.xml': '<project><parent><artifactId>spring-boot-starter-parent</artifactId></parent></project>' });
+    const stack = detectStack(fs);
+    assert.ok(stack.languages.includes('java'));
+    assert.ok(stack.languages.includes('spring'));
+  });
+
+  it('detects C# from .csproj', () => {
+    const fs = createMockFS({ 'src/MyApp.csproj': '<Project Sdk="Microsoft.NET.Sdk.Web"></Project>' });
+    const stack = detectStack(fs);
+    assert.ok(stack.languages.includes('csharp'));
+    assert.equal(stack.buildCommand, 'dotnet build');
+    assert.equal(stack.testCommand, 'dotnet test');
+  });
+
+  // --- Backend framework detection ---
+
+  it('detects Laravel from composer.json', () => {
+    const fs = createMockFS({
+      'composer.json': JSON.stringify({ require: { 'laravel/framework': '^11.0' } }),
+    });
+    const stack = detectStack(fs);
+    assert.ok(stack.languages.includes('php'));
+    assert.ok(stack.languages.includes('laravel'));
+  });
+
+  it('detects Symfony from composer.json', () => {
+    const fs = createMockFS({
+      'composer.json': JSON.stringify({ require: { 'symfony/framework-bundle': '^7.0' } }),
+    });
+    const stack = detectStack(fs);
+    assert.ok(stack.languages.includes('php'));
+    assert.ok(stack.languages.includes('symfony'));
+  });
+
+  it('detects Django from requirements.txt', () => {
+    const fs = createMockFS({
+      'requirements.txt': 'django==5.0\npsycopg2-binary\n',
+    });
+    const stack = detectStack(fs);
+    assert.ok(stack.languages.includes('python'));
+    assert.ok(stack.languages.includes('django'));
+  });
+
+  it('detects FastAPI from pyproject.toml', () => {
+    const fs = createMockFS({
+      'pyproject.toml': '[project]\ndependencies = ["fastapi", "uvicorn"]\n',
+    });
+    const stack = detectStack(fs);
+    assert.ok(stack.languages.includes('python'));
+    assert.ok(stack.languages.includes('fastapi'));
+  });
+
+  it('detects Express from package.json', () => {
+    const fs = createMockFS({
+      'package.json': JSON.stringify({ dependencies: { express: '^4.0.0' }, scripts: { test: 'jest' } }),
+    });
+    const stack = detectStack(fs);
+    assert.ok(stack.languages.includes('javascript'));
+    assert.ok(stack.languages.includes('express'));
+  });
+
+  it('detects Cypress from package.json devDeps', () => {
+    const fs = createMockFS({
+      'package.json': JSON.stringify({ devDependencies: { cypress: '^13.0.0' }, scripts: { test: 'jest' } }),
+    });
+    const stack = detectStack(fs);
+    assert.ok(stack.languages.includes('cypress'));
+  });
+
+  // --- Signal detection ---
+
+  it('detects Packer in deploy platforms', () => {
+    const fs = createMockFS({
+      'infra/web.pkr.hcl': 'source "amazon-ebs" "web" {}',
+    });
+    const stack = detectStack(fs);
+    assert.ok(stack.signals.deployPlatforms.includes('packer'));
+  });
 });
 
-describe('mapLanguagesToTemplates — frontend routing', () => {
+describe('mapLanguagesToTemplates - frontend routing', () => {
   it('routes React to react.md', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'react']);
     const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
@@ -240,5 +344,87 @@ describe('mapLanguagesToTemplates — frontend routing', () => {
     const refs = mapLanguagesToTemplates(['go']);
     const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
     assert.equal(frontend, undefined, 'Go-only should not get frontend.md');
+  });
+});
+
+describe('mapLanguagesToTemplates - backend framework routing', () => {
+  it('routes Laravel over generic PHP for backend.md', () => {
+    const refs = mapLanguagesToTemplates(['php', 'laravel']);
+    const backend = refs.find(r => r.output === 'ai/instructions/backend.md');
+    assert.ok(backend, 'Expected backend.md ref');
+    assert.ok(backend.template.endsWith('/php-laravel.md'), `Got ${backend.template}`);
+  });
+
+  it('routes Django over generic Python for backend.md', () => {
+    const refs = mapLanguagesToTemplates(['python', 'django']);
+    const backend = refs.find(r => r.output === 'ai/instructions/backend.md');
+    assert.ok(backend, 'Expected backend.md ref');
+    assert.ok(backend.template.endsWith('/python-django.md'), `Got ${backend.template}`);
+  });
+
+  it('routes generic Python when no framework detected', () => {
+    const refs = mapLanguagesToTemplates(['python']);
+    const backend = refs.find(r => r.output === 'ai/instructions/backend.md');
+    assert.ok(backend, 'Expected backend.md ref');
+    assert.ok(backend.template.endsWith('/python.md'), `Got ${backend.template}`);
+  });
+
+  it('adds security framework template for detected framework', () => {
+    const refs = mapLanguagesToTemplates(['php', 'laravel']);
+    const sec = refs.find(r => r.output === 'ai/instructions/security-laravel.md');
+    assert.ok(sec, 'Expected security-laravel.md ref');
+    assert.ok(sec.template.includes('framework-specific/laravel.md'));
+  });
+
+  it('adds web-common for Ruby projects', () => {
+    const refs = mapLanguagesToTemplates(['ruby']);
+    const webCommon = refs.find(r => r.output === 'ai/instructions/web-common.md');
+    assert.ok(webCommon, 'Ruby should get web-common.md');
+  });
+});
+
+describe('mapSignalsToTemplates', () => {
+  const emptySignals = {
+    codeGenTools: [], deployPlatforms: [], llmIntegration: false,
+    staticAnalysis: [], complianceSignals: false, formatterGaps: [],
+  };
+
+  it('always includes security.md and testing.md', () => {
+    const refs = mapSignalsToTemplates(emptySignals);
+    assert.ok(refs.find(r => r.output === 'ai/instructions/security.md'), 'Expected security.md');
+    assert.ok(refs.find(r => r.output === 'ai/instructions/testing.md'), 'Expected testing.md');
+  });
+
+  it('always includes secrets-management and supply-chain', () => {
+    const refs = mapSignalsToTemplates(emptySignals);
+    assert.ok(refs.find(r => r.output === 'ai/instructions/secrets-management.md'));
+    assert.ok(refs.find(r => r.output === 'ai/instructions/supply-chain.md'));
+  });
+
+  it('adds web security templates for web languages', () => {
+    const refs = mapSignalsToTemplates(emptySignals, ['typescript']);
+    assert.ok(refs.find(r => r.output === 'ai/instructions/api-auth.md'), 'Expected api-auth.md');
+    assert.ok(refs.find(r => r.output === 'ai/instructions/file-upload.md'), 'Expected file-upload.md');
+    assert.ok(refs.find(r => r.output === 'ai/instructions/sql-injection.md'), 'Expected sql-injection.md');
+  });
+
+  it('skips web security templates for non-web languages', () => {
+    const refs = mapSignalsToTemplates(emptySignals, ['bash']);
+    assert.equal(refs.find(r => r.output === 'ai/instructions/api-auth.md'), undefined);
+  });
+
+  it('adds infrastructure-security for deploy platforms', () => {
+    const refs = mapSignalsToTemplates({ ...emptySignals, deployPlatforms: ['docker'] });
+    assert.ok(refs.find(r => r.output === 'ai/instructions/infrastructure-security.md'));
+  });
+
+  it('adds terraform template when terraform detected', () => {
+    const refs = mapSignalsToTemplates({ ...emptySignals, deployPlatforms: ['terraform'] });
+    assert.ok(refs.find(r => r.output === 'ai/instructions/devops-terraform.md'));
+  });
+
+  it('adds packer template when packer detected', () => {
+    const refs = mapSignalsToTemplates({ ...emptySignals, deployPlatforms: ['packer'] });
+    assert.ok(refs.find(r => r.output === 'ai/instructions/devops-packer.md'));
   });
 });

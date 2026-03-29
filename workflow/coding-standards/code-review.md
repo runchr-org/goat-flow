@@ -1,9 +1,9 @@
 # Prompt: Create ai/instructions/code-review.md
 
-> **Purpose:** Code review checklist — priority order, anti-patterns, review triggers
+> **Purpose:** Code review checklist - priority order, anti-patterns, review triggers
 > **Generates:** `ai/instructions/code-review.md`
 > **Use when:** Setting up code review instructions for the project
-> **Repo inspection:** Yes — reads code for actual anti-patterns, file paths, API contracts
+> **Repo inspection:** Yes - reads code for actual anti-patterns, file paths, API contracts
 > **Follow-on refs:** `security/` for security review additions; `testing.md` for test-coverage expectations
 
 ---
@@ -14,8 +14,8 @@ Write `ai/instructions/code-review.md`:
 
 ````
 IMPORTANT: When listing anti-patterns or review checks, verify each against actual code:
-- Do not reference files that don't exist — run ls/find to confirm paths
-- Do not list API contracts that aren't implemented — read the source
+- Do not reference files that don't exist - run ls/find to confirm paths
+- Do not list API contracts that aren't implemented - read the source
 - Do not include checks for patterns the project doesn't use
 - Every file path in backticks must be verified before including it
 
@@ -25,11 +25,11 @@ IMPORTANT: When listing anti-patterns or review checks, verify each against actu
 
 Check in this order. Stop and flag blocking issues before continuing.
 
-1. **Security** — SQL injection, auth bypass, secret leaks, path traversal?
-2. **Correctness** — Does the code do what the PR says it does?
-3. **Data integrity** — Missing transactions, race conditions, partial writes?
-4. **Maintainability** — Can someone else understand this in 6 months?
-5. **Performance** — Only flag if measurable (N+1 queries, unbounded loops).
+1. **Security** - SQL injection, auth bypass, secret leaks, path traversal?
+2. **Correctness** - Does the code do what the PR says it does?
+3. **Data integrity** - Missing transactions, race conditions, partial writes?
+4. **Maintainability** - Can someone else understand this in 6 months?
+5. **Performance** - Only flag if measurable (N+1 queries, unbounded loops).
 
 ## Approval Criteria
 
@@ -42,12 +42,12 @@ Approve when ALL are true:
 
 ## Anti-Patterns to Flag
 
-**Swallowed errors.** Must log or return — never silently drop.
+**Swallowed errors.** Must log or return - never silently drop.
 ```go
-// Bad — error disappears
+// Bad - error disappears
 result, _ := db.Query(query)
 
-// Good — handle it
+// Good - handle it
 result, err := db.Query(query)
 if err != nil {
     return fmt.Errorf("list users: %w", err)
@@ -74,7 +74,7 @@ const apiKey = process.env.STRIPE_API_KEY;
 
 **Missing input validation.** All external input must be validated before use.
 ```go
-// Bad — trusts user input
+// Bad - trusts user input
 func handler(w http.ResponseWriter, r *http.Request) {
     id := r.URL.Query().Get("id")
     db.Query("SELECT * FROM users WHERE id = " + id)
@@ -100,19 +100,19 @@ try { ... } catch (e) {
 # When reviewing a PR that adds a dependency, verify:
 1. Lockfile updated (not just package.json / go.mod)
 2. No unnecessary transitive dependencies pulled in
-3. License is compatible (MIT, Apache-2.0, BSD — flag GPL in non-GPL projects)
+3. License is compatible (MIT, Apache-2.0, BSD - flag GPL in non-GPL projects)
 4. Package is not deprecated or abandoned
 ```
 
 **Error handling audit:** Every `catch`, `rescue`, `except`, or `if err != nil` must either: handle the error, wrap with context and re-raise, or explicitly document why it's swallowed.
 ```go
-// Flag this in review — swallowed error
+// Flag this in review - swallowed error
 result, _ := db.Query(query)
 
-// Flag this — catch-all with no context
+// Flag this - catch-all with no context
 try { riskyOp(); } catch (e) { return null; }
 
-// Acceptable — explicitly documented suppression
+// Acceptable - explicitly documented suppression
 _, _ = writer.Write(logMsg) // best-effort logging, failure is non-critical
 ```
 
@@ -130,8 +130,8 @@ clang -fsanitize=thread -g -o test_binary test.c
 
 ## Migration & Schema Changes (if the project uses database migrations)
 
-- Migrations must be reversible — include both `up` and `down` (or equivalent rollback).
-- Adding a column is safe. Renaming or removing a column is a breaking change — requires a multi-step migration (add new → migrate data → remove old).
+- Migrations must be reversible - include both `up` and `down` (or equivalent rollback).
+- Adding a column is safe. Renaming or removing a column is a breaking change - requires a multi-step migration (add new → migrate data → remove old).
 - Never modify a migration that has already been applied to shared environments (staging, production). Create a new migration instead.
 - Schema changes that touch high-traffic tables should note the lock impact. On large PostgreSQL/MySQL tables, `ALTER TABLE` can hold locks that block reads/writes.
 
@@ -145,11 +145,11 @@ clang -fsanitize=thread -g -o test_binary test.c
 
 ## Learning Loop Cross-Check
 
-Before approving, check `docs/footguns.md` and `docs/lessons.md` (if they exist) for known traps relevant to the changed files. If a PR touches a file or pattern mentioned in footguns, flag it — even if the code looks correct. Past incidents are the best predictor of future ones.
+Before approving, check `docs/footguns.md` and `docs/lessons.md` (if they exist) for known traps relevant to the changed files. If a PR touches a file or pattern mentioned in footguns, flag it - even if the code looks correct. Past incidents are the best predictor of future ones.
 
 ## Do NOT Nitpick
 
-These are handled by linters — do not comment on them:
+These are handled by linters - do not comment on them:
 - Formatting, whitespace, semicolons
 - Import ordering
 - Variable naming style (camelCase vs snake_case) unless inconsistent within a file

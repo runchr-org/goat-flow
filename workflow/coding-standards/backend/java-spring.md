@@ -16,10 +16,10 @@ section with the patterns actually present in the repo.
 ## Dependency Injection
 
 - Use constructor injection exclusively. DO NOT use `@Autowired` on fields.
-- Mark dependencies `final`. Spring auto-detects single-constructor injection — no `@Autowired` annotation needed.
+- Mark dependencies `final`. Spring auto-detects single-constructor injection - no `@Autowired` annotation needed.
 
 ```java
-// DO — constructor injection with final fields
+// DO - constructor injection with final fields
 @Service
 public class OrderService {
     private final OrderRepository orderRepository;
@@ -31,7 +31,7 @@ public class OrderService {
     }
 }
 
-// DON'T — field injection
+// DON'T - field injection
 @Service
 public class OrderService {
     @Autowired private OrderRepository orderRepository;
@@ -47,11 +47,11 @@ public class OrderService {
 - Use `@Transactional(readOnly = true)` on read-only service methods for performance.
 
 ```java
-// DO — explicit fetch to avoid N+1
+// DO - explicit fetch to avoid N+1
 @Query("SELECT o FROM Order o JOIN FETCH o.items WHERE o.customer.id = :customerId")
 List<Order> findByCustomerWithItems(@Param("customerId") Long customerId);
 
-// DON'T — rely on lazy loading in a loop
+// DON'T - rely on lazy loading in a loop
 List<Order> orders = orderRepository.findByCustomerId(customerId);
 orders.forEach(o -> o.getItems().size()); // N+1 queries
 ```
@@ -64,7 +64,7 @@ orders.forEach(o -> o.getItems().size()); // N+1 queries
 - Handle `MethodArgumentNotValidException` in a `@ControllerAdvice` for consistent error responses.
 
 ```java
-// DO — validated DTO
+// DO - validated DTO
 public record CreateOrderRequest(
     @NotNull Long customerId,
     @NotEmpty List<@Valid OrderItemRequest> items
@@ -90,7 +90,7 @@ public ResponseEntity<OrderResponse> create(@Valid @RequestBody CreateOrderReque
 - Use `@DataJpaTest` for repository tests with an embedded database.
 
 ```java
-// DO — sliced test for controller
+// DO - sliced test for controller
 @WebMvcTest(OrderController.class)
 class OrderControllerTest {
     @Autowired private MockMvc mockMvc;

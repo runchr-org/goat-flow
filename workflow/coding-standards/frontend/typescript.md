@@ -15,23 +15,23 @@ Reference for generating `ai/instructions/frontend.md` or `ai/instructions/backe
 - Use `exports` field in package.json for public entry points. Avoid bare `"main"` for ESM packages.
 
 ```typescript
-// DO — Node ESM / NodeNext import specifiers
+// DO - Node ESM / NodeNext import specifiers
 import { parseConfig } from "./config/parser.js";
 import type { AppConfig } from "./types/config.js";
 
-// DON'T — missing extension for Node ESM runtime
+// DON'T - missing extension for Node ESM runtime
 import { parseConfig } from "./config/parser";
 ```
 
 ## Strict Mode
 
 - Enable `strict: true` in tsconfig. DO NOT disable individual strict checks.
-- No `any` in production code — use `unknown` and narrow with type guards.
+- No `any` in production code - use `unknown` and narrow with type guards.
 - No non-null assertions (`!`) in production code. Narrow with checks or provide defaults.
 - Prefer `satisfies` over `as` when validating config objects or constant maps.
 
 ```typescript
-// DO — narrow unknown with type guard
+// DO - narrow unknown with type guard
 function isError(value: unknown): value is Error {
   return value instanceof Error;
 }
@@ -41,19 +41,19 @@ if (isError(result)) {
   console.error(result.message); // safely narrowed to Error
 }
 
-// DON'T — any and non-null assertions
+// DON'T - any and non-null assertions
 const result: any = await fetchData();
 console.error(result!.message);
 ```
 
 ## Type Patterns
 
-- Prefer `interface` for object shapes — they merge, produce clearer error messages, and extend naturally.
+- Prefer `interface` for object shapes - they merge, produce clearer error messages, and extend naturally.
 - Use `type` for unions, intersections, mapped types, and computed types.
 - Use discriminated unions for state variants. Every branch gets a literal `kind` or `type` field.
 
 ```typescript
-// DO — discriminated union with exhaustive switch
+// DO - discriminated union with exhaustive switch
 interface Success { kind: "success"; data: string }
 interface Failure { kind: "failure"; error: Error }
 type Result = Success | Failure;
@@ -70,7 +70,7 @@ function assertNever(value: never): never {
   throw new Error(`Unhandled result variant: ${JSON.stringify(value)}`);
 }
 
-// DON'T — boolean flags and optional fields for state
+// DON'T - boolean flags and optional fields for state
 interface Result { ok: boolean; data?: string; error?: Error }
 ```
 
@@ -80,7 +80,7 @@ interface Result { ok: boolean; data?: string; error?: Error }
 - Use a Result pattern for operations that can predictably fail.
 
 ```typescript
-// DO — Result type for expected failures
+// DO - Result type for expected failures
 type Result<T, E = Error> = { ok: true; value: T } | { ok: false; error: E };
 
 function parsePort(input: string): Result<number> {
@@ -91,7 +91,7 @@ function parsePort(input: string): Result<number> {
   return { ok: true, value: port };
 }
 
-// DON'T — throw for expected validation failure
+// DON'T - throw for expected validation failure
 function parsePort(input: string): number {
   const port = Number(input);
   if (Number.isNaN(port)) throw new Error("bad port"); // caller must guess what throws
@@ -101,16 +101,16 @@ function parsePort(input: string): number {
 
 ## Module Structure
 
-- Use explicit imports. Avoid barrel files (`index.ts` re-exporting everything) — they break tree-shaking and create circular dependency traps.
+- Use explicit imports. Avoid barrel files (`index.ts` re-exporting everything) - they break tree-shaking and create circular dependency traps.
 - Keep modules focused: one concept per file. Split when a file exceeds ~200 lines.
 - Export types separately with `export type` to ensure they are erased at compile time.
 
 ```typescript
-// DO — explicit imports from specific modules
+// DO - explicit imports from specific modules
 import { createLogger } from "./logging/logger.js";
 import type { LogLevel } from "./logging/types.js";
 
-// DON'T — barrel re-export pulls in everything
+// DON'T - barrel re-export pulls in everything
 import { createLogger, LogLevel } from "./logging/index.js";
 ```
 
@@ -121,13 +121,13 @@ import { createLogger, LogLevel } from "./logging/index.js";
 - Test utility types with `expectTypeOf` (Vitest) or compile-time assertion helpers.
 
 ```typescript
-// DO — interface-based mock
+// DO - interface-based mock
 interface Clock { now(): number }
 
 const fakeClock: Clock = { now: () => 1700000000000 };
 const scheduler = createScheduler(fakeClock);
 
-// DON'T — untyped mock with as any
+// DON'T - untyped mock with as any
 const fakeClock = { now: jest.fn() } as any;
 ```
 

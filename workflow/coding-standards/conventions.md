@@ -1,9 +1,9 @@
 # Prompt: Create ai/instructions/conventions.md
 
-> **Purpose:** Always-loaded project contract — build commands, naming, DO/DON'T rules, dangerous ops
+> **Purpose:** Always-loaded project contract - build commands, naming, DO/DON'T rules, dangerous ops
 > **Generates:** `ai/instructions/conventions.md`
 > **Use when:** Setting up or refreshing project-wide conventions
-> **Repo inspection:** Yes — reads actual source files, runs build/test/lint commands to verify
+> **Repo inspection:** Yes - reads actual source files, runs build/test/lint commands to verify
 > **Follow-on refs:** `backend/`, `frontend/` for stack-specific patterns; `security.md` for security overlay
 
 **Boundary:** conventions.md covers cross-language concerns. Language-specific architecture and patterns go in backend.md or frontend.md.
@@ -33,7 +33,7 @@ IMPORTANT: Only document what currently exists in the codebase.
 
 Next.js frontend in `src/app/`, Go API in `cmd/api/`, PostgreSQL database.
 Frontend calls API over REST. Background jobs run via `cmd/worker/`.
-Shared types live in `pkg/types/` — both API and worker import them.
+Shared types live in `pkg/types/` - both API and worker import them.
 
 ## Build / Test / Lint
 
@@ -58,7 +58,7 @@ if err != nil {
 
 DON'T: Wrap errors without context.
 ```go
-// Bad — loses call site info
+// Bad - loses call site info
 return err
 ```
 
@@ -78,13 +78,13 @@ const hasPermission = user.role === "admin";
 
 DON'T: Use negative boolean names.
 ```ts
-// Bad — double negatives cause bugs
+// Bad - double negatives cause bugs
 const isNotDisabled = true;
 ```
 
 DO: Keep functions under 50 lines (target 40 lines; hard limit 50). Extract a helper when you exceed this.
 
-DON'T: Add commented-out code. Delete it — git has history.
+DON'T: Add commented-out code. Delete it - git has history.
 
 DO: Use named exports, not default exports.
 ```ts
@@ -98,13 +98,13 @@ export default function() { ... }
 ## Universal Standards
 
 These are sensible defaults. If the repo already uses a different convention (e.g. a different line limit
-or complexity threshold configured in a linter), document that instead — do not override it.
+or complexity threshold configured in a linter), document that instead - do not override it.
 
 **Function length:** Target 40 lines; hard limit 50. If a function exceeds this, extract a helper.
 
 **Cyclomatic complexity:** Max 10 branches per function. Flatten with early returns, guard clauses, or strategy pattern.
 ```go
-// Bad — deeply nested, high complexity
+// Bad - deeply nested, high complexity
 func process(order Order) error {
     if order.IsValid() {
         if order.HasItems() {
@@ -120,7 +120,7 @@ func process(order Order) error {
     return nil
 }
 
-// Good — early returns, flat structure
+// Good - early returns, flat structure
 func process(order Order) error {
     if !order.IsValid() {
         return fmt.Errorf("invalid order: %s", order.ID)
@@ -148,7 +148,7 @@ func process(order Order) error {
 
 **Supply chain security:** Never run install scripts from untrusted sources. Verify package checksums when available. Prefer `--ignore-scripts` for npm install in CI.
 ```bash
-# CI installs — use locked, verified dependencies
+# CI installs - use locked, verified dependencies
 npm ci --ignore-scripts        # Node
 pip install --require-hashes   # Python
 ```
@@ -161,19 +161,19 @@ jq '.dependencies | keys' package.json  # structured JSON queries
 ast-grep -p 'console.log($$$)' src/     # structural match, not string match
 ```
 
-**Dead code:** Delete unused code immediately. Don't comment it out — git has history. Don't add TODO comments for code you just wrote — either implement it now or create a task.
+**Dead code:** Delete unused code immediately. Don't comment it out - git has history. Don't add TODO comments for code you just wrote - either implement it now or create a task.
 ```ts
-// Bad — commented-out graveyard
+// Bad - commented-out graveyard
 // function oldHandler() { ... }
 // TODO: maybe use this later?
 
-// Bad — TODO for code you're actively writing
+// Bad - TODO for code you're actively writing
 export function newHandler() {
   // TODO: implement validation
   // TODO: add error handling
 }
 
-// Good — either implement it or don't write the function yet
+// Good - either implement it or don't write the function yet
 export function newHandler(req: Request): Response {
   const validated = validateInput(req.body);
   if (!validated.ok) {
@@ -187,29 +187,29 @@ export function newHandler(req: Request): Response {
 ```
 Bad:  "Connection failed"
 Bad:  "Error: ECONNREFUSED"
-Good: "Failed to connect to database at localhost:5432 — is PostgreSQL running? Try: docker compose up -d"
-Good: "Config file not found at ~/.config/app/config.toml — run 'app init' to create one"
+Good: "Failed to connect to database at localhost:5432 - is PostgreSQL running? Try: docker compose up -d"
+Good: "Config file not found at ~/.config/app/config.toml - run 'app init' to create one"
 ```
 
-## Generated Files — Never Edit
+## Generated Files - Never Edit
 
-- `src/generated/api-client.ts` — run `npm run codegen` to regenerate
-- `db/schema.sql` — managed by migrations in `db/migrations/`
-- `*.lock` files — managed by package managers
+- `src/generated/api-client.ts` - run `npm run codegen` to regenerate
+- `db/schema.sql` - managed by migrations in `db/migrations/`
+- `*.lock` files - managed by package managers
 
 ## Infrastructure
 
-Deployment: [Docker Compose / Kubernetes / bare VPS / serverless — be specific]
+Deployment: [Docker Compose / Kubernetes / bare VPS / serverless - be specific]
 Branch model: [main → production, develop → staging, feature/* → PRs]
-Required versions: [Node 20, PHP 8.2, Python 3.11 — whatever is pinned]
+Required versions: [Node 20, PHP 8.2, Python 3.11 - whatever is pinned]
 After server/config changes: [exact rebuild command, e.g., docker compose up -d --build]
-CI/CD: [GitHub Actions / CircleCI / etc. — what triggers it]
+CI/CD: [GitHub Actions / CircleCI / etc. - what triggers it]
 
 ## Dangerous Operations
 
-- `db/migrations/` — migrations run automatically on deploy. Test locally first with `make migrate-test`.
-- `pkg/types/` — shared between API and worker. Changes here break two services. Run both test suites.
-- `.env.production` — never commit. Use `.env.example` as the template.
+- `db/migrations/` - migrations run automatically on deploy. Test locally first with `make migrate-test`.
+- `pkg/types/` - shared between API and worker. Changes here break two services. Run both test suites.
+- `.env.production` - never commit. Use `.env.example` as the template.
 
 ## Common Commands
 

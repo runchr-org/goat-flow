@@ -5,11 +5,11 @@ Reference for generating `ai/instructions/backend.md` in Symfony projects.
 ## Architecture
 
 - Bundle-free application structure (Symfony 6+). Put code in `src/` with clear namespace boundaries. Note: This guide targets Symfony 6+. Symfony 5 LTS projects may still use bundles.
-- Services are auto-wired by default. Use constructor injection — DO NOT fetch services from the container manually.
+- Services are auto-wired by default. Use constructor injection - DO NOT fetch services from the container manually.
 - Organize by domain: `src/User/`, `src/Order/`, not `src/Entity/`, `src/Repository/`, `src/Controller/`.
 
 ```php
-// DO — constructor injection
+// DO - constructor injection
 class OrderService
 {
     public function __construct(
@@ -18,7 +18,7 @@ class OrderService
     ) {}
 }
 
-// DON'T — container access
+// DON'T - container access
 class OrderService
 {
     public function doSomething(): void
@@ -36,7 +36,7 @@ class OrderService
 - Always run migrations via `doctrine:migrations:migrate`. Never modify the schema manually.
 
 ```php
-// DO — repository method with QueryBuilder
+// DO - repository method with QueryBuilder
 public function findActiveByCustomer(int $customerId): array
 {
     return $this->createQueryBuilder('o')
@@ -48,7 +48,7 @@ public function findActiveByCustomer(int $customerId): array
         ->getResult();
 }
 
-// DON'T — raw DQL in the controller
+// DON'T - raw DQL in the controller
 $orders = $em->createQuery("SELECT o FROM Order o WHERE o.customer = $id")->getResult();
 ```
 
@@ -91,7 +91,7 @@ class OrderController extends AbstractController
 - Stamp messages with `DelayStamp` for scheduled execution.
 
 ```php
-// DO — message + handler
+// DO - message + handler
 final readonly class SendOrderConfirmation
 {
     public function __construct(public int $orderId) {}
@@ -113,7 +113,7 @@ final class SendOrderConfirmationHandler
 
 - `KernelTestCase` for service-level tests that need the container.
 - `WebTestCase` with `$client = static::createClient()` for HTTP tests.
-- If the project uses `zenstruck/foundry`: use factory-based test data. If not, use Doctrine fixtures or create entities via the entity manager directly — but keep factory patterns consistent within the project.
+- If the project uses `zenstruck/foundry`: use factory-based test data. If not, use Doctrine fixtures or create entities via the entity manager directly - but keep factory patterns consistent within the project.
 - Use `.env.test` for test-specific configuration. Never point tests at a production database.
 
 ## Common Footguns

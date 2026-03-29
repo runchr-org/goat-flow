@@ -1,4 +1,4 @@
-# Setup — Codex
+# Setup - Codex
 
 Set up or improve GOAT Flow for a project using Codex (OpenAI).
 
@@ -9,13 +9,13 @@ Set up or improve GOAT Flow for a project using Codex (OpenAI).
 ## Codex specifics
 
 These are the Codex-specific file paths and configurations. The shared
-phases reference "the instruction file" and "the skills directory" — for
+phases reference "the instruction file" and "the skills directory" - for
 Codex, these are:
 
 - **Instruction file:** `AGENTS.md`
 - **Config file:** `.codex/config.toml` (no settings.json)
 - **Skills directory:** `.agents/skills/`
-- **Hooks:** `.codex/hooks/` + `scripts/` (no PreToolUse — use execpolicy)
+- **Hooks:** `.codex/hooks/` + `scripts/` (no PreToolUse - use execpolicy)
 - **Execpolicy:** `.codex/rules/deny-dangerous.star` (Starlark)
 
 ### Codex mechanics to respect
@@ -24,9 +24,9 @@ Codex, these are:
 - Skills use YAML frontmatter with `name` and `description` fields
 - Codex discovers skills via `/skills` or `$skill-name` at runtime
 - Hook events: `SessionStart`, `UserPromptSubmit`, `Stop`, `AfterToolUse`, `AfterAgent`
-- No PreToolUse blocker — use execpolicy rules for command blocking
+- No PreToolUse blocker - use execpolicy rules for command blocking
 - `apply_patch` for edits (not Edit/Write tool)
-- No `/compact`, no `/clear` — context is per-task
+- No `/compact`, no `/clear` - context is per-task
 - No `.claude/` directory structure, no settings.json, no profiles
 
 ### Dual-agent repos
@@ -38,13 +38,12 @@ MUST reference CLAUDE.md in its router table and align shared semantics
 
 ---
 
-## Phase 1a-c — Foundation
+## Phase 1a-c - Foundation
 
 Read and implement [shared/phase-1.md](shared/phase-1.md).
 
 **Codex adaptation notes for Phase 1a:**
-- AGENTS.md target: under 135 lines (Codex files run larger because
-  enforcement can't be offloaded to hooks)
+- AGENTS.md target: under 120 lines (same as all agents). Hard limit: 150.
 - MUST include state declaration in ACT and mode-transition rule
 - LOG MUST have: mechanical trigger, human correction trigger, footgun
   propagation, dual-agent coordination (if applicable)
@@ -72,11 +71,11 @@ HOOKS + EXECPOLICY:
    commands only. File writes and agent spawns cannot be pre-blocked.
 
 3. Verification scripts in scripts/:
-   - scripts/preflight-checks.sh — build, lint, test for the stack
-   - scripts/context-validate.sh — instruction file line count, router
+   - scripts/preflight-checks.sh - build, lint, test for the stack
+   - scripts/context-validate.sh - instruction file line count, router
      references resolve, skill files exist
-   - scripts/deny-dangerous.sh — policy documentation + verification
-     with --self-test flag. This is NOT runtime blocking — it's a
+   - scripts/deny-dangerous.sh - policy documentation + verification
+     with --self-test flag. This is NOT runtime blocking - it's a
      policy doc and verification script.
 
 VERIFICATION:
@@ -88,7 +87,7 @@ VERIFICATION:
 
 ---
 
-## Phase 2 — Evals & Hygiene
+## Phase 2 - Evals & Hygiene
 
 Read and implement [shared/phase-2.md](shared/phase-2.md).
 
@@ -102,7 +101,7 @@ mechanics (declare `Agents: codex`):
 
 ---
 
-## Phase 3 — Verify & Quality Control
+## Phase 3 - Verify & Quality Control
 
 Read and implement [shared/phase-3.md](shared/phase-3.md).
 
@@ -115,13 +114,13 @@ goat-flow scan . --agent codex
 
 ---
 
-## After Codex Runs — Human Checklist
+## After Codex Runs - Human Checklist
 
 - [ ] AGENTS.md has 6-step loop, autonomy tiers, DoD, router table
 - [ ] ACT has state declaration AND mode-transition rule
 - [ ] LOG has mechanical trigger, human correction trigger, footgun propagation
 - [ ] Ask First has explicit 5-item micro-checklist
-- [ ] All 8 goat-* skills in .agents/skills/ with YAML frontmatter
+- [ ] All 9 goat-* skills in .agents/skills/ with YAML frontmatter
 - [ ] scripts/deny-dangerous.sh --self-test passes
 - [ ] Router table references all resolve to real files
 - [ ] If dual-agent: no Claude Code files were modified or removed

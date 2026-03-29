@@ -7,18 +7,18 @@ Reference for generating `ai/instructions/security.md` in ASP.NET Core projects.
 Razor Pages and MVC include anti-forgery tokens by default. Verify they are active.
 
 ```csharp
-// DO — anti-forgery in Razor forms (automatic with tag helpers)
+// DO - anti-forgery in Razor forms (automatic with tag helpers)
 <form asp-action="Create" method="post">
     <!-- token is included automatically by the form tag helper -->
     <button type="submit">Create</button>
 </form>
 
-// DO — validate anti-forgery on POST actions
+// DO - validate anti-forgery on POST actions
 [HttpPost]
 [ValidateAntiForgeryToken]
 public IActionResult Create(OrderModel model) { ... }
 
-// DON'T — skip validation
+// DON'T - skip validation
 [HttpPost]
 [IgnoreAntiforgeryToken]  // only for webhook endpoints with signature verification
 public IActionResult Create(OrderModel model) { ... }
@@ -30,7 +30,7 @@ public IActionResult Create(OrderModel model) { ... }
 ## ASP.NET Core Identity
 
 ```csharp
-// DO — configure Identity with strong defaults
+// DO - configure Identity with strong defaults
 builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 {
     options.Password.RequiredLength = 12;
@@ -42,7 +42,7 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// DON'T — weaken password requirements
+// DON'T - weaken password requirements
 options.Password.RequiredLength = 4;
 options.Password.RequireDigit = false;
 options.Password.RequireNonAlphanumeric = false;
@@ -54,7 +54,7 @@ options.Password.RequireNonAlphanumeric = false;
 ## Data Protection API
 
 ```csharp
-// DO — use Data Protection for encrypting sensitive data
+// DO - use Data Protection for encrypting sensitive data
 public class SecureService
 {
     private readonly IDataProtector _protector;
@@ -68,7 +68,7 @@ public class SecureService
     public string Unprotect(string encrypted) => _protector.Unprotect(encrypted);
 }
 
-// DON'T — roll your own encryption
+// DON'T - roll your own encryption
 var encrypted = Convert.ToBase64String(Encoding.UTF8.GetBytes(secret));  // encoding is not encryption
 ```
 
@@ -78,14 +78,14 @@ var encrypted = Convert.ToBase64String(Encoding.UTF8.GetBytes(secret));  // enco
 ## HTTPS Redirection
 
 ```csharp
-// DO — enforce HTTPS in production
+// DO - enforce HTTPS in production
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
 app.UseHttpsRedirection();
 app.UseHsts();
 
-// In Program.cs — configure HSTS
+// In Program.cs - configure HSTS
 builder.Services.AddHsts(options =>
 {
     options.MaxAge = TimeSpan.FromDays(730);
@@ -93,7 +93,7 @@ builder.Services.AddHsts(options =>
     options.Preload = true;
 });
 
-// DON'T — skip HTTPS enforcement
+// DON'T - skip HTTPS enforcement
 // app.UseHttpsRedirection();  // commented out "for testing"
 ```
 
@@ -102,13 +102,13 @@ builder.Services.AddHsts(options =>
 Razor auto-encodes output by default. `Html.Raw()` bypasses encoding.
 
 ```csharp
-// DO — auto-encoded output (default Razor behavior)
+// DO - auto-encoded output (default Razor behavior)
 <p>@Model.UserBio</p>
 
-// DON'T — bypass encoding with user content
+// DON'T - bypass encoding with user content
 <p>@Html.Raw(Model.UserBio)</p>  // XSS if UserBio contains script tags
 
-// DO — if raw HTML is needed, sanitize first
+// DO - if raw HTML is needed, sanitize first
 @Html.Raw(HtmlSanitizer.Sanitize(Model.UserBio))
 ```
 
@@ -118,7 +118,7 @@ Razor auto-encodes output by default. `Html.Raw()` bypasses encoding.
 ## Authorization Policies
 
 ```csharp
-// DO — define and enforce policies
+// DO - define and enforce policies
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
@@ -135,7 +135,7 @@ builder.Services.AddAuthorization(options =>
 [HttpDelete("users/{id}")]
 public IActionResult DeleteUser(int id) { ... }
 
-// DON'T — check roles manually in controller body
+// DON'T - check roles manually in controller body
 [HttpDelete("users/{id}")]
 public IActionResult DeleteUser(int id)
 {

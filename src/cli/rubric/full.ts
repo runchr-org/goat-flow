@@ -6,7 +6,7 @@ import type { CheckDef, FactContext, CheckResult } from '../types.js';
 //   low    = semantic inference (content quality judgment)
 
 /**
- * Tier 3 — Full (20 points)
+ * Tier 3 - Full (20 points)
  * Agent evals, CI validation, hygiene.
  * These checks represent mature GOAT Flow adoption with CI integration.
  */
@@ -31,7 +31,7 @@ export const fullChecks: CheckDef[] = [
         return { id: '3.1.3', name: '3+ eval files', tier: 'full', category: 'Agent Evals', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: 'No eval files' };
       },
     },
-    recommendation: 'Add 3+ agent eval files — diversity across skills matters more than count',
+    recommendation: 'Add 3+ agent eval files - diversity across skills matters more than count',
     recommendationKey: 'add-evals',
   },
   {
@@ -89,7 +89,7 @@ export const fullChecks: CheckDef[] = [
         id: '3.1.7', name: 'Evals use YAML frontmatter', tier: 'full', category: 'Agent Evals',
         status: ctx.facts.shared.evals.hasFrontmatter ? 'pass' : 'fail',
         points: ctx.facts.shared.evals.hasFrontmatter ? 1 : 0, maxPoints: 1, confidence: 'high',
-        message: ctx.facts.shared.evals.hasFrontmatter ? 'All evals use YAML frontmatter' : 'Some evals use legacy format — migrate to YAML frontmatter with name, description, origin, agents, skill fields',
+        message: ctx.facts.shared.evals.hasFrontmatter ? 'All evals use YAML frontmatter' : 'Some evals use legacy format - migrate to YAML frontmatter with name, description, origin, agents, skill fields',
       }),
     },
     recommendation: 'Migrate eval files to YAML frontmatter format: ---\\nname: eval-name\\ndescription: "..."\\norigin: real-incident | synthetic-seed\\nagents: all\\nskill: goat-*\\n---',
@@ -110,12 +110,12 @@ export const fullChecks: CheckDef[] = [
           return { id: '3.1.6', name: 'Eval skill coverage', tier: 'full', category: 'Agent Evals', status: 'pass', points: 2, maxPoints: 2, confidence: 'medium', message: `All ${TOTAL_SKILLS} canonical skills covered` };
         }
         if (evalSkillCount >= 4) {
-          return { id: '3.1.6', name: 'Eval skill coverage', tier: 'full', category: 'Agent Evals', status: 'partial', points: 1, maxPoints: 2, confidence: 'medium', message: `${evalSkillCount}/${TOTAL_SKILLS} skills covered — add evals for the missing ones` };
+          return { id: '3.1.6', name: 'Eval skill coverage', tier: 'full', category: 'Agent Evals', status: 'partial', points: 1, maxPoints: 2, confidence: 'medium', message: `${evalSkillCount}/${TOTAL_SKILLS} skills covered - add evals for the missing ones` };
         }
-        return { id: '3.1.6', name: 'Eval skill coverage', tier: 'full', category: 'Agent Evals', status: 'fail', points: 0, maxPoints: 2, confidence: 'medium', message: evalSkillCount === 0 ? 'No skill: labels in evals — add skill: goat-X to frontmatter' : `${evalSkillCount}/${TOTAL_SKILLS} skills covered — diversity matters more than count` };
+        return { id: '3.1.6', name: 'Eval skill coverage', tier: 'full', category: 'Agent Evals', status: 'fail', points: 0, maxPoints: 2, confidence: 'medium', message: evalSkillCount === 0 ? 'No skill: labels in evals - add skill: goat-X to frontmatter' : `${evalSkillCount}/${TOTAL_SKILLS} skills covered - diversity matters more than count` };
       },
     },
-    recommendation: 'Add evals covering all 8 skills: goat-debug, goat-investigate, goat-plan, goat-refactor, goat-review, goat-security, goat-simplify, goat-test. Diversity across skills matters more than eval count.',
+    recommendation: 'Add evals covering all 9 skills: goat, goat-debug, goat-investigate, goat-plan, goat-refactor, goat-review, goat-security, goat-simplify, goat-test. Diversity across skills matters more than eval count.',
     recommendationKey: 'add-eval-skill-coverage',
   },
 
@@ -234,7 +234,7 @@ export const fullChecks: CheckDef[] = [
     recommendation: 'Use RFC 2119 language (MUST/SHOULD/MAY) in instruction file',
     recommendationKey: 'add-rfc2119',
   },
-  // 3.3.3 (changelog) removed — CHANGELOG.md is a project-level concern, not an AI workflow check.
+  // 3.3.3 (changelog) removed - CHANGELOG.md is a project-level concern, not an AI workflow check.
   {
     id: '3.3.4', name: 'Execution loop consistent across agents', tier: 'standard', category: 'Dual-Agent Consistency',
     pts: 3, confidence: 'medium',
@@ -249,7 +249,7 @@ export const fullChecks: CheckDef[] = [
           const readMatch = content.match(/(?:###?\s+|\*\*)READ\b/i);
           if (!readMatch) return '';
           const start = readMatch.index!;
-          /** Find the end marker AFTER the READ match — Autonomy Tiers, Router Table, Hard Rules, or Working Memory */
+          /** Find the end marker AFTER the READ match - Autonomy Tiers, Router Table, Hard Rules, or Working Memory */
           const afterRead = content.slice(start);
           const endMatch = afterRead.match(/^##\s+(Autonomy|Router|Hard Rules|Working Memory|Definition of Done)\b/im);
           const end = endMatch ? start + endMatch.index! : content.length;
@@ -268,7 +268,7 @@ export const fullChecks: CheckDef[] = [
             .split(' ')
             .filter(w => w.length > 0);
 
-        // Compare each pair — word-intersection similarity (Jaccard index)
+        // Compare each pair - word-intersection similarity (Jaccard index)
         const diverged: string[] = [];
         for (let i = 1; i < loops.length; i++) {
           const a = loops[0]!, b = loops[i]!;
@@ -290,5 +290,5 @@ export const fullChecks: CheckDef[] = [
     recommendationKey: 'fix-execution-loop-sync',
   },
 
-  // 3.4.1 removed — duplicate of 3.1.6 after both were updated to require all 8 canonical skills.
+  // 3.4.1 removed - duplicate of 3.1.6 after both were updated to require all 9 canonical skills.
 ];

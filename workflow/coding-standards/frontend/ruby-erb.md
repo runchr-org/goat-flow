@@ -4,19 +4,19 @@ Reference for generating `ai/instructions/frontend.md` in Rails projects using E
 
 ## Template Format
 
-- ERB is the Rails default. If the project uses Haml or Slim, follow its conventions — project consistency wins.
+- ERB is the Rails default. If the project uses Haml or Slim, follow its conventions - project consistency wins.
 - `<%= expression %>` outputs and escapes. `<% statement %>` executes without output.
 - DO NOT use `<%== expression %>` (which is `raw`) on user input.
 
 ```erb
-<%# DO — escaped output %>
+<%# DO - escaped output %>
 <p><%= @user.bio %></p>
 
-<%# DON'T — raw output of user data %>
+<%# DON'T - raw output of user data %>
 <p><%= raw @user.bio %></p>
 <p><%== @user.bio %></p>
 
-<%# OK — sanitized content %>
+<%# OK - sanitized content %>
 <p><%= sanitize @article.body, tags: %w[p br strong em] %></p>
 ```
 
@@ -27,21 +27,21 @@ Reference for generating `ai/instructions/frontend.md` in Rails projects using E
 - Name partials with a leading underscore: `_user_card.html.erb`.
 
 ```erb
-<%# DO — explicit locals %>
+<%# DO - explicit locals %>
 <%= render 'users/user_card', user: @user, show_actions: true %>
 
-<%# DON'T — relying on instance variables in partials %>
+<%# DON'T - relying on instance variables in partials %>
 <%= render 'users/user_card' %>
-<%# _user_card.html.erb accesses @user — where does it come from? %>
+<%# _user_card.html.erb accesses @user - where does it come from? %>
 ```
 
 - Use `render collection:` for lists. Rails automatically batches rendering and avoids N+1 partial lookups.
 
 ```erb
-<%# DO — collection rendering %>
+<%# DO - collection rendering %>
 <%= render partial: 'users/user_card', collection: @users, as: :user %>
 
-<%# DON'T — manual loop %>
+<%# DON'T - manual loop %>
 <% @users.each do |user| %>
   <%= render 'users/user_card', user: user %>
 <% end %>
@@ -51,10 +51,10 @@ Reference for generating `ai/instructions/frontend.md` in Rails projects using E
 
 - Use ViewComponents for complex UI logic that does not belong in a partial or helper.
 - Each ViewComponent is a Ruby class + template. Logic in the class, markup in the template.
-- Test ViewComponents with unit tests — they render without a full request cycle.
+- Test ViewComponents with unit tests - they render without a full request cycle.
 
 ```ruby
-# DO — ViewComponent for complex UI
+# DO - ViewComponent for complex UI
 # app/components/user_badge_component.rb
 class UserBadgeComponent < ViewComponent::Base
   def initialize(user:)
@@ -88,7 +88,7 @@ end
   groups small behaviors together.
 
 ```erb
-<%# DO — Turbo Frame for inline editing %>
+<%# DO - Turbo Frame for inline editing %>
 <turbo-frame id="<%= dom_id(@user) %>">
   <p><%= @user.name %></p>
   <%= link_to "Edit", edit_user_path(@user) %>
@@ -100,6 +100,33 @@ end
 - Use view helpers for simple formatting: `time_ago_in_words`, `number_to_currency`.
 - Custom helpers for project-specific formatting. Keep them pure (no side effects, no database calls).
 - If a helper needs more than 10 lines of logic, it belongs in a ViewComponent or presenter.
+
+## Testing
+
+- Test views with **system tests** (Capybara) for user-facing flows, **request specs** for response correctness.
+- Use ViewComponent previews and unit tests for components - they render without a full request cycle.
+- For Turbo/Stimulus: test frame navigation and stream updates with system tests. Stimulus controllers can be unit-tested with `@hotwired/stimulus-test`.
+- Assert on semantic content (`assert_select 'h1', 'Users'`), not implementation details (CSS classes, DOM structure).
+
+```ruby
+# DO - ViewComponent unit test
+require "test_helper"
+
+class UserBadgeComponentTest < ViewComponent::TestCase
+  test "renders admin badge for admin user" do
+    render_inline(UserBadgeComponent.new(user: users(:admin)))
+    assert_selector ".badge-admin"
+  end
+end
+```
+
+## Accessibility
+
+- Use semantic HTML elements (`<nav>`, `<main>`, `<article>`, `<section>`) instead of generic `<div>` wrappers.
+- Every `<img>` must have an `alt` attribute. Decorative images use `alt=""`.
+- Form inputs require associated `<label>` elements - Rails `form.label` handles this automatically.
+- Turbo Frame updates must announce changes to screen readers. Use `aria-live="polite"` on containers that receive async content.
+- Test keyboard navigation: all interactive elements must be reachable via Tab and activatable via Enter/Space.
 
 ## Common Footguns
 

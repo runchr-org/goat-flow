@@ -1,16 +1,16 @@
 # FastAPI Coding Standards
 
 Reference for generating `ai/instructions/backend.md` in FastAPI projects.
-SQLAlchemy and Pydantic sections are conditional — include only if the project uses them.
+SQLAlchemy and Pydantic sections are conditional - include only if the project uses them.
 
 ## Architecture
 
 - Route files in `routes/` or `api/`, business logic in `services/`, data access in `repositories/`.
 - Use `Depends()` for dependency injection of services, database sessions, and auth.
-- Prefer `async def` routes when calling async I/O (httpx, async DB drivers). Use plain `def` for sync-only work — FastAPI runs sync routes in a threadpool automatically.
+- Prefer `async def` routes when calling async I/O (httpx, async DB drivers). Use plain `def` for sync-only work - FastAPI runs sync routes in a threadpool automatically.
 
 ```python
-# DO — dependency injection via Depends
+# DO - dependency injection via Depends
 @router.get("/users/{user_id}")
 async def get_user(
     user_id: int,
@@ -18,7 +18,7 @@ async def get_user(
 ) -> UserResponse:
     return await service.get_by_id(user_id)
 
-# DON'T — instantiate inside the route
+# DON'T - instantiate inside the route
 @router.get("/users/{user_id}")
 async def get_user(user_id: int):
     db = SessionLocal()
@@ -34,7 +34,7 @@ async def get_user(user_id: int):
 - Use `Field()` for validation constraints: `Field(ge=0, le=100)`, `Field(min_length=1)`.
 
 ```python
-# DO — explicit request/response models
+# DO - explicit request/response models
 class UserCreate(BaseModel):
     email: EmailStr
     name: str = Field(min_length=1, max_length=100)
@@ -45,7 +45,7 @@ class UserResponse(BaseModel):
     name: str
     model_config = ConfigDict(from_attributes=True)
 
-# DON'T — same model for input and output
+# DON'T - same model for input and output
 class User(BaseModel):
     id: int | None = None
     email: str
@@ -59,12 +59,12 @@ class User(BaseModel):
 - Use `AsyncSession` with an async database driver (asyncpg) for async routes.
 
 ```python
-# DO — SQLAlchemy 2.0 style
+# DO - SQLAlchemy 2.0 style
 stmt = select(User).where(User.email == email)
 result = await session.execute(stmt)
 user = result.scalar_one_or_none()
 
-# DON'T — legacy Query API
+# DON'T - legacy Query API
 user = session.query(User).filter_by(email=email).first()
 ```
 
@@ -78,7 +78,7 @@ user = session.query(User).filter_by(email=email).first()
 
 - Use FastAPI's `BackgroundTasks` for lightweight fire-and-forget work (sending emails, logging).
 - Use Celery or ARQ for heavy, retryable, or scheduled work.
-- DO NOT run long-running CPU work inside an async route — it blocks the event loop.
+- DO NOT run long-running CPU work inside an async route - it blocks the event loop.
 
 ## Testing
 
@@ -87,7 +87,7 @@ user = session.query(User).filter_by(email=email).first()
 - Use `pytest-asyncio` for async test functions.
 
 ```python
-# DO — async test with dependency override
+# DO - async test with dependency override
 @pytest.fixture
 async def client(test_db):
     app.dependency_overrides[get_db] = lambda: test_db
@@ -106,7 +106,7 @@ async def test_get_user(client):
 - **Missing Depends cleanup**: If a dependency yields (generator pattern), failing to use `yield` means cleanup code never runs and database sessions leak.
 - **Pydantic v1/v2 mixing**: Importing from `pydantic.v1` alongside v2 models causes silent validation failures and schema generation bugs.
 - **Unhandled None from scalar_one_or_none**: Always check for `None` before accessing attributes. Raise `HTTPException(404)` explicitly.
-- **No response_model**: Without `response_model` or a return type annotation, FastAPI returns the raw object — potentially leaking internal fields like password hashes.
+- **No response_model**: Without `response_model` or a return type annotation, FastAPI returns the raw object - potentially leaking internal fields like password hashes.
 
 ## Primary Sources
 

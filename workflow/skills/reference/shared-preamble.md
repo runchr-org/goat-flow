@@ -2,7 +2,7 @@
 
 All goat-* skills follow these shared conventions. Skills inline these
 sections rather than referencing this file at runtime. This document is the
-canonical source — update here first, then propagate to skill templates.
+canonical source - update here first, then propagate to skill templates.
 
 ---
 
@@ -17,7 +17,7 @@ Order findings by severity, not by file or discovery order.
 - Every finding MUST include `file:line` evidence
 - MUST NOT fabricate file paths, function names, or behaviour
 - Before presenting findings, re-read each cited `file:line` to confirm accuracy
-- Tag evidence quality where applicable: **OBSERVED** (directly verified in code) vs **INFERRED** (deduced but not directly confirmed — state what direct evidence is missing)
+- Tag evidence quality where applicable: **OBSERVED** (directly verified in code) vs **INFERRED** (deduced but not directly confirmed - state what direct evidence is missing)
 
 ## Learning Loop
 
@@ -29,15 +29,15 @@ Use the standard entry format:
 ```markdown
 ### [Title]
 **What happened:** [description]
-**Evidence:** `file:line` — [what was found]
+**Evidence:** `file:line` - [what was found]
 **Prevention:** [rule to prevent recurrence]
 **created_at:** YYYY-MM-DD
 ```
 
 ## Human Gates
 
-- **BLOCKING GATE** — agent MUST stop and wait for human decision before proceeding. Used for: scope approval, phase transitions where direction changes, final output review.
-- **CHECKPOINT** — agent presents status and continues unless the human interrupts. Used for: progress reports between passes, intermediate findings. Format: "Phase N complete. [summary]. Continuing to Phase N+1."
+- **BLOCKING GATE** - agent MUST stop and wait for human decision before proceeding. Used for: scope approval, phase transitions where direction changes, final output review.
+- **CHECKPOINT** - agent presents status and continues unless the human interrupts. Used for: progress reports between passes, intermediate findings. Format: "Phase N complete. [summary]. Continuing to Phase N+1."
 
 Do NOT auto-advance past any BLOCKING GATE. CHECKPOINTs auto-advance by default.
 
@@ -50,7 +50,7 @@ Skills that gather context before acting follow this pattern:
 3. If ALL questions are answered by the invocation → present a condensed confirmation and proceed
 4. If the user says "skip Step 0" or provides a detailed brief → confirm understanding and proceed
 
-**The gate rule:** Step 0 MUST end with the agent presenting its understanding and waiting for the user before proceeding to Phase 1. Auto-detect pre-fills context — it does not replace human confirmation. Bare invocation with no arguments = zero context = ask all structural questions and wait.
+**The gate rule:** Step 0 MUST end with the agent presenting its understanding and waiting for the user before proceeding to Phase 1. Auto-detect pre-fills context - it does not replace human confirmation. Bare invocation with no arguments = zero context = ask all structural questions and wait.
 
 Never hard-block when context is already available. The goal is to start moving, not to interrogate.
 
@@ -68,7 +68,7 @@ If 10+ tool calls pass without a human gate or checkpoint, STOP:
 2. Ask the user: continue, compact, or redirect?
 
 The counter resets at every BLOCKING GATE, CHECKPOINT, or human message.
-`tasks/scratchpad.md` is transient — do not commit it.
+`tasks/scratchpad.md` is transient - do not commit it.
 
 ## Working Memory
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "2",
-  "packageVersion": "1.0.0",
-  "rubricVersion": "1.0.0",
+  "packageVersion": "0.9.1",
+  "rubricVersion": "0.9.1",
   "target": "/home/devgoat/projects/goat-flow",
   "stack": {
     "languages": [
@@ -544,7 +544,7 @@
           "points": 0,
           "maxPoints": 1,
           "confidence": "medium",
-          "message": "Only 7/8 skills are conversational — all skills must present findings then let humans drill in",
+          "message": "Only 7/8 skills are conversational - all skills must present findings then let humans drill in",
           "recommendationKey": "add-skill-conversational"
         },
         {
@@ -689,7 +689,7 @@
           "points": 1,
           "maxPoints": 1,
           "confidence": "medium",
-          "message": "Notification hook for compaction found — context preserved across long sessions",
+          "message": "Notification hook for compaction found - context preserved across long sessions",
           "recommendationKey": "add-compaction-hook"
         },
         {
@@ -1469,7 +1469,7 @@
           "triggered": false,
           "deduction": 0,
           "confidence": "high",
-          "message": "All 8 skills at version 1.0.0",
+          "message": "All 8 skills at version 0.9.1",
           "recommendationKey": "ap-fix-outdated-skills"
         },
         {

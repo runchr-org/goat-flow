@@ -24,18 +24,18 @@ On the shell script collection, both agents found the same 5 qualifying incident
 | Stop hooks (lint after every turn) | Stop hook (experimental, v0.114.0+) | Both now have post-turn hooks. Codex's is newer and less battle-tested. |
 | PostToolUse hooks (auto-format) | AfterToolUse hook (experimental) | Codex now has AfterToolUse events. Formatting can be triggered after edits. |
 | Local CLAUDE.md (directory auto-load) | Centralised footguns.md + router references | Claude Code loads warnings automatically when entering a directory. Codex requires the agent to check the router table. |
-| Slash commands (/goat-security, /goat-debug, etc.) | `.agents/skills/` with SKILL.md files, invoked via /skills or $skill-name | Same content, different loading mechanism. 8 skills per agent. |
+| Slash commands (/goat-security, /goat-debug, etc.) | `.agents/skills/` with SKILL.md files, invoked via /skills or $skill-name | Same content, different loading mechanism. 9 skills per agent. |
 | Permission profiles (.claude/profiles/) | Behavioural guidance in AGENTS.md only | No tool-level scoping. |
 | Permissions deny (settings.json) | Execpolicy rules (.codex/rules/ Starlark) + AGENTS.md Never rules + deny-dangerous script + CI | Codex execpolicy (.codex/rules/*.star) provides runtime shell command blocking (allow/prompt/forbidden). Comparable to Claude Code's settings.json deny list for shell commands. No equivalent for Read-deny patterns. |
 | /compact, /insights | No equivalent | Codex context is per-task, not per-session. No session management needed -- but no session learning either. |
 
-The hooks gap has narrowed significantly. Claude Code has three layers: behavioural guidance, PreToolUse hooks that block before execution, and Stop hooks that check after every turn. Codex now has: execpolicy rules for runtime shell command blocking, Stop/AfterToolUse/AfterAgent hooks for post-execution checks, SessionStart for session setup, and UserPromptSubmit for input gating. The remaining gap is that Codex has no general pre-execution blocker for non-shell tools (file writes, agent spawns) — execpolicy only covers shell commands.
+The hooks gap has narrowed significantly. Claude Code has three layers: behavioural guidance, PreToolUse hooks that block before execution, and Stop hooks that check after every turn. Codex now has: execpolicy rules for runtime shell command blocking, Stop/AfterToolUse/AfterAgent hooks for post-execution checks, SessionStart for session setup, and UserPromptSubmit for input gating. The remaining gap is that Codex has no general pre-execution blocker for non-shell tools (file writes, agent spawns) - execpolicy only covers shell commands.
 
 ### What's Better Without Hooks
 
 Codex's hook model is different, not absent. Several things work well in the Codex version:
 
-**Execpolicy is deterministic.** Codex's Starlark-based rules system has clear allow/prompt/forbidden decisions with no LLM interpretation involved. The hook saga documented six versions of a prompt-based stop hook in Claude Code that produced false positives. Codex's execpolicy sidesteps this — pattern matching, not semantic analysis.
+**Execpolicy is deterministic.** Codex's Starlark-based rules system has clear allow/prompt/forbidden decisions with no LLM interpretation involved. The hook saga documented six versions of a prompt-based stop hook in Claude Code that produced false positives. Codex's execpolicy sidesteps this - pattern matching, not semantic analysis.
 
 **Inspectable policy.** `deny-dangerous.sh` is a plain shell script committed to the repo with a `--self-test` flag. Anyone can read it, diff it, run its self-tests. Claude Code's deny hook is similar, but the stop and format hooks involve JSON configuration in `.claude/settings.json` that's less transparent.
 
@@ -49,7 +49,7 @@ Codex's hook model is different, not absent. Several things work well in the Cod
 
 The remaining gap shows up in specific areas:
 
-**Pre-execution blocking for non-shell tools.** Codex's execpolicy blocks shell commands (rm -rf, git push --force). But file writes, agent spawns, and other tool calls have no pre-execution gate. Claude Code's PreToolUse hook covers ALL tool types — Bash, Write, Edit, Read.
+**Pre-execution blocking for non-shell tools.** Codex's execpolicy blocks shell commands (rm -rf, git push --force). But file writes, agent spawns, and other tool calls have no pre-execution gate. Claude Code's PreToolUse hook covers ALL tool types - Bash, Write, Edit, Read.
 
 **Mature stop-the-line.** Claude Code's Stop hook has been battle-tested across multiple versions. Codex's Stop hook is experimental (v0.114.0+) and less proven in production.
 
@@ -71,7 +71,7 @@ Options: define one agent as the footguns owner, split into agent-specific files
 
 ### The Honest Summary
 
-The system's core — execution loop, autonomy tiers, definition of done, learning loop — is agent-agnostic. The enforcement layer has converged significantly: both agents now have runtime command blocking (Claude Code via PreToolUse hooks, Codex via execpolicy) and post-turn hooks (Claude Code via Stop, Codex via Stop/AfterToolUse). Claude Code leads on breadth (PreToolUse covers all tool types, not just shell) and maturity (hooks are battle-tested). Codex leads on execpolicy's deterministic rule engine (no false positives by design).
+The system's core - execution loop, autonomy tiers, definition of done, learning loop - is agent-agnostic. The enforcement layer has converged significantly: both agents now have runtime command blocking (Claude Code via PreToolUse hooks, Codex via execpolicy) and post-turn hooks (Claude Code via Stop, Codex via Stop/AfterToolUse). Claude Code leads on breadth (PreToolUse covers all tool types, not just shell) and maturity (hooks are battle-tested). Codex leads on execpolicy's deterministic rule engine (no false positives by design).
 
 The workflow system is portable. The enforcement model is not.
 
@@ -99,7 +99,7 @@ Implementation options: Docker container with restricted user, rbash (restricted
 
 As of M2.9, GitHub Copilot CLI supports two features previously listed as "no equivalent":
 
-**Skills (`.github/skills/`):** Copilot CLI now discovers skills via `/skills list` or `/goat-{name}` at runtime. The SKILL.md format (YAML frontmatter + content) is identical to `.claude/skills/` and `.agents/skills/`. All 8 skills are supported.
+**Skills (`.github/skills/`):** Copilot CLI now discovers skills via `/skills list` or `/goat-{name}` at runtime. The SKILL.md format (YAML frontmatter + content) is identical to `.claude/skills/` and `.agents/skills/`. All 9 skills are supported.
 
 **Hooks (preToolUse, postToolUse lifecycle):** Copilot CLI now has lifecycle hooks for pre-tool and post-tool events. This narrows the enforcement gap -- Copilot can now block dangerous commands before execution and run formatting/linting after tool use, similar to Claude Code and Gemini CLI.
 

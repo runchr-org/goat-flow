@@ -2,20 +2,20 @@
 
 ---
 
-## v1.0.0 - 2026-03-29
+## v0.9.1 - 2026-03-30
 
-HTML dashboard, CLI enhancements, skill conversation enforcement, coding-standards refresh, scanner hardening, telemetry, signal-aware setup. Rubric v1.0.0: 104 checks + 16 anti-patterns. 167 tests.
+HTML dashboard, CLI enhancements, skill conversation enforcement, coding-standards refresh, scanner hardening, telemetry, signal-aware setup. Rubric v0.9.1: 104 checks + 16 anti-patterns. 167 tests.
 
 ### Dashboard
-- `goat-flow dashboard .` — local server with live scanning, auto-opens browser
-- `goat-flow scan . --format html` — self-contained offline HTML report
+- `goat-flow dashboard .` - local server with live scanning, auto-opens browser
+- `goat-flow scan . --format html` - self-contained offline HTML report
 - 4 tabs: Overview, Checks (drill-down with filters), Compare (multi-agent diff), Fixes (recommendation browser with copy/download)
 - Folder browser, dark mode, responsive mobile, keyboard navigation, ARIA accessibility
 
-### Skills — Conversation Enforcement (M06)
-- All 8 skills + dispatcher synced from canonical templates across all 3 agent directories (27 files)
-- Step 0 contradiction fixed: Shared Conventions said "adaptive" but Step 0 body said "hard block" — resolved by syncing from templates which use the Adaptive Step 0 pattern consistently
-- Explicit "Before proceeding" gate added to every skill's Step 0 section — agents must present context and wait for confirmation before entering Phase 1
+### Skills - Conversation Enforcement (M06)
+- All 9 skills synced from canonical templates across all 3 agent directories (27 files)
+- Step 0 contradiction fixed: Shared Conventions said "adaptive" but Step 0 body said "hard block" - resolved by syncing from templates which use the Adaptive Step 0 pattern consistently
+- Explicit "Before proceeding" gate added to every skill's Step 0 section - agents must present context and wait for confirmation before entering Phase 1
 - Stale goat-audit reference removed from goat-review (goat-audit was merged into goat-review in v0.8.0)
 - Missing Flush protocol added to goat-refactor and goat-simplify deployed copies
 - goat-investigate: onboard mode restored (was missing from deployed copy)
@@ -24,11 +24,21 @@ HTML dashboard, CLI enhancements, skill conversation enforcement, coding-standar
 - Scanner check 2.1.16 tightened: requires all skills to be conversational (was 80% threshold)
 - Scanner heuristic now requires structural indicators (BLOCKING GATE/HUMAN GATE + choices/Offer/Proceed) instead of keyword matching
 
+### Coding Standards - Full Wiring
+- All 55 coding-standards templates now routed by CLI (was 25 of 55)
+- Backend framework detection: Laravel, Symfony, Django, FastAPI, Rails, Spring, Express
+- Stack detectors fleshed out: Ruby (Gemfile), Java (pom.xml/build.gradle), C# (.csproj/.sln)
+- Security framework-specific routing: 9 templates auto-selected per detected framework
+- Signal-driven security topics: api-auth, file-upload, sql-injection (web), infrastructure (deploy platforms), secrets-management, supply-chain (always)
+- DevOps routing: Terraform + Packer templates via deploy platform signals
+- Always-on templates: security.md, testing.md, copilot-bridge.md, domain-instructions.md
+- 21 new fragment map entries for targeted-fix mode
+
 ### CLI
 - `--format html` and `--format markdown` output modes
 - `--output <file>` flag for writing to file
 - npm scripts: scan, scan:verbose, scan:json, setup, dashboard, preflight, validate
-- Alpine.js + Tailwind CSS v4 as npm dependencies (not vendored)
+- Alpine.js + Tailwind CSS v4 via CDN (jsdelivr, version-pinned)
 
 ---
 
@@ -55,7 +65,7 @@ Dispatcher skill, coding-standards refresh, scanner hardening, telemetry, signal
 - `scan-logger.ts` auto-appends per-agent JSONL; skills/loop reference telemetry
 
 ### Skills, Hooks & Version Consistency
-- Dispatcher skill + Shared Conventions across all agent dirs; 8 skill-specific evals (YAML frontmatter)
+- Dispatcher skill + Shared Conventions across all agent dirs; 9 skill-specific evals (YAML frontmatter)
 - Preflight: instruction headers, installed skills, workflow templates, dual-agent loop consistency
 - `.claude/hooks/format-file.sh` (prettier); deny hooks: package + cloud blocks
 
@@ -72,14 +82,14 @@ Skill model cleanup (10→8 enforced), setup prompt bug fix, documentation align
 - Tightened `3.3.1a` to require all five handoff template sections before awarding the point
 - Total check count remains 97 after the cleanup; anti-pattern count increases to 15
 
-### Skill Consolidation (10→8) — ADR-007
+### Skill Consolidation (10→8) - ADR-007
 - goat-reflect/audit merged into goat-review (Instruction Review + Audit modes), goat-onboard merged into goat-investigate (Onboard mode), goat-context removed
 - goat-refactor (cross-file renames, blast radius analysis) and goat-simplify (readability, no behaviour change) added as new skills
-- Deprecated skill dirs deleted from .claude/, .agents/, .github/ — all three now have identical 8-skill parity
+- Deprecated skill dirs deleted from .claude/, .agents/, .github/ - all three now have identical 8-skill parity
 - `goat-flow-skill-version: "0.7.0"` frontmatter on all installed skills; DEPRECATED_SKILL_NAMES constant provides scanner migration grace period
 
 ### Setup Prompt Fix
-- Skill-quality recommendation keys (add-skill-step0, add-skill-human-gates, etc.) were all resolving to "Adapt from goat-debug.md" — FRAGMENT_TEMPLATE_MAP pointed them at goat-debug as an example reference
+- Skill-quality recommendation keys (add-skill-step0, add-skill-human-gates, etc.) were all resolving to "Adapt from goat-debug.md" - FRAGMENT_TEMPLATE_MAP pointed them at goat-debug as an example reference
 - renderShortFix now skips template paths for `add-skill-*` and `create-all-skills` keys, renders actual instruction text instead
 - `--agent all` removed (exit 2 with per-agent message)
 - Language mapper expanded to 10 languages (+Java, Ruby, C#)
@@ -100,8 +110,8 @@ Skill model cleanup (10→8 enforced), setup prompt bug fix, documentation align
 - 138 tests pass (was 96)
 
 ### ADRs
-- ADR-007: skill consolidation 10→8 — justification test, merge mapping, consequences
-- ADR-008: reference-based setup prompts — why inline skeletons failed (template drift, agent copy-paste, context waste)
+- ADR-007: skill consolidation 10→8 - justification test, merge mapping, consequences
+- ADR-008: reference-based setup prompts - why inline skeletons failed (template drift, agent copy-paste, context waste)
 
 ### Cross-Project Audit (9 projects)
 - All 9 projects score A (96-100%) after v0.8.0 changes
@@ -123,7 +133,7 @@ Reference-based setup prompts, scanner accuracy fixes, CLI simplification. Setup
 - 3.3.4 sync: Jaccard word-intersection ≥0.85 (was length-ratio ≥0.6), matches bold format
 - 2.3.2 lessons.md: strips HTML comments, requires 20+ chars of real content after H3
 - AP11: fires when EITHER lessons OR footguns is empty (was AND)
-- Check 2.2.7 removed — ask-first-guard hooks removed from all agents (ADR-006)
+- Check 2.2.7 removed - ask-first-guard hooks removed from all agents (ADR-006)
 
 ### Template Quality
 - enforcement.md: jq parsing guidance, sed fallback, command chaining, read-deny patterns
@@ -132,7 +142,7 @@ Reference-based setup prompts, scanner accuracy fixes, CLI simplification. Setup
 
 ### Removed
 - `fix` and `audit` CLI commands (deprecated in v0.6.0, now exit 2 with migration message)
-- ask-first-guard.sh hooks and scanner check 2.2.7 — see ADR-006
+- ask-first-guard.sh hooks and scanner check 2.2.7 - see ADR-006
 
 ### Other
 - GitHub Actions: goat-flow-scan.yml permissions, setup-node version bump
@@ -150,7 +160,7 @@ Reference-based setup prompts, scanner accuracy fixes, CLI simplification. Setup
 - 3 new anti-patterns: AP10 settings.local bloat, AP11 empty learning loop, AP12 stale footgun refs
 - Confidence-weighted scoring (medium/low checks at 50%), rebalanced weights, removed dead checks
 - Deny hook security audit: blocking logic, jq parsing, command chaining, rm-rf, force push, chmod 777
-- Audited projects drop from 100% to 92-99% — scanner now catches real quality gaps
+- Audited projects drop from 100% to 92-99% - scanner now catches real quality gaps
 
 ### Skills & Coding Standards
 - 10 skills (+goat-onboard, goat-reflect, goat-resume), deployed to all 3 agent dirs

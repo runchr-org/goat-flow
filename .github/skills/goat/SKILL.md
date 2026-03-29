@@ -1,7 +1,7 @@
 ---
 name: goat
 description: "Single entry point that classifies intent and dispatches to the correct goat-* skill."
-goat-flow-skill-version: "1.0.0"
+goat-flow-skill-version: "0.9.1"
 ---
 # /goat
 
@@ -11,16 +11,16 @@ Route to the right skill in one step. Type `/goat` followed by what you need.
 
 1. Read the user's input
 2. Match intent to a skill using the table below
-3. Announce: **"Running /goat-{skill}."** — wait 1 beat for the user to override
+3. Announce: **"Running /goat-{skill}."** - wait 1 beat for the user to override
 4. Load and execute the target skill's full process (Step 0, phases, gates)
 
-The 8 skills remain directly invocable. `/goat` is a convenience layer, not a replacement.
+The other 8 skills remain directly invocable. `/goat` is a convenience layer, not a replacement.
 
 ## Intent Mapping
 
 | If the input mentions... | Route to | Because |
 |--------------------------|----------|---------|
-| bug, error, broken, failing, crash, exception, unexpected, symptom, trace | **/goat-debug** | Diagnosis-first — find root cause before fixing |
+| bug, error, broken, failing, crash, exception, unexpected, symptom, trace | **/goat-debug** | Diagnosis-first - find root cause before fixing |
 | review, PR, diff, merge, check changes, code review | **/goat-review** | Structured review with severity ranking |
 | audit, quality sweep, instruction staleness, CLAUDE.md review | **/goat-review** (audit/instruction mode) | Modes within goat-review |
 | security, vulnerability, CVE, auth bypass, injection, secrets, OWASP | **/goat-security** | Threat-model-driven assessment |
@@ -35,8 +35,8 @@ The 8 skills remain directly invocable. `/goat` is a convenience layer, not a re
 When intent is ambiguous (matches 2+ skills), present the top 2 options:
 
 > "This could be:
-> (a) **/goat-debug** — if there's a specific bug or failure to diagnose
-> (b) **/goat-review** — if you want a quality assessment of this area
+> (a) **/goat-debug** - if there's a specific bug or failure to diagnose
+> (b) **/goat-review** - if you want a quality assessment of this area
 >
 > Which fits better, or tell me more?"
 
@@ -76,17 +76,17 @@ ALWAYS announce the selected skill before executing:
 
 > **Running /goat-debug.** (Say "stop" or name a different skill to override.)
 
-Then proceed directly to the target skill's Step 0. Do NOT add a second round of context gathering — the target skill handles that.
+Then proceed directly to the target skill's Step 0. Do NOT add a second round of context gathering - the target skill handles that.
 
 ## Constraints
 
 - MUST announce which skill was selected before executing
 - MUST NOT add questions beyond the target skill's own Step 0
-- MUST NOT load two skills simultaneously — dispatch to one
+- MUST NOT load two skills simultaneously - dispatch to one
 - MUST present disambiguation options when 2+ skills match equally
 - MUST respect explicit skill name overrides in user input
-- The 8 existing skills MUST remain directly invocable — this is additive
+- The other 8 skills MUST remain directly invocable - this is additive
 
 ## Chains With
 
-This skill doesn't chain — it's the entry point. The dispatched skill handles its own chaining.
+This skill doesn't chain - it's the entry point. The dispatched skill handles its own chaining.

@@ -18,10 +18,10 @@ Type **`/goat`** followed by what you need:
 
 ## First Session
 
-1. **Read `CLAUDE.md`** (or `AGENTS.md` / `GEMINI.md`) — this is your instruction file. It has the execution loop, autonomy tiers, and router table.
-2. **Check `docs/footguns.md`** — these are real traps in this codebase with file:line evidence. Read before making changes.
-3. **Check `docs/lessons.md`** — behavioral mistakes that have happened before. Don't repeat them.
-4. **Check `tasks/handoff.md`** — if a previous session left incomplete work, pick up where it left off.
+1. **Read `CLAUDE.md`** (or `AGENTS.md` / `GEMINI.md`) - this is your instruction file. It has the execution loop, autonomy tiers, and router table.
+2. **Check `docs/footguns.md`** - these are real traps in this codebase with file:line evidence. Read before making changes.
+3. **Check `docs/lessons.md`** - behavioral mistakes that have happened before. Don't repeat them.
+4. **Check `tasks/handoff.md`** - if a previous session left incomplete work, pick up where it left off.
 
 ## When to Use Each Skill
 
@@ -55,7 +55,7 @@ Before every change: **READ** the relevant files. **CLASSIFY** the task (questio
 - **Skills are conversational.** Present findings, then let the human drill in. Don't dump everything at once.
 - **When blocked, check the router table.** It tells you where to find documentation for any area.
 - **When a hook blocks your command,** think about the safe alternative. `rm -rf` blocked? Use `rm file && rmdir dir`.
-- **After renames, grep the entire repo** — including `.md` files, not just source code.
+- **After renames, grep the entire repo** - including `.md` files, not just source code.
 
 ## Adding to the Learning Loop
 

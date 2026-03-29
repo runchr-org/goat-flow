@@ -9,7 +9,7 @@ exception filters instead of copying raw Express middleware patterns.
 
 ## Project Structure
 
-- Organize by domain: `modules/users/`, `modules/orders/` — each with routes, controllers, services, and repositories.
+- Organize by domain: `modules/users/`, `modules/orders/` - each with routes, controllers, services, and repositories.
 - Entry point sets up server, middleware, and routes. No business logic in the entry file.
 - Routes -> Controllers (parse HTTP) -> Services (business logic) -> Repositories (data access).
 - In Nest, the equivalent shape is modules -> controllers -> providers/services
@@ -17,14 +17,14 @@ exception filters instead of copying raw Express middleware patterns.
 
 ## Middleware
 
-- Register error-handling middleware last — Express calls it when `next(err)` is invoked.
+- Register error-handling middleware last - Express calls it when `next(err)` is invoked.
 - Wrap async route handlers to catch rejected promises. Express 4 does not catch async errors automatically.
 - Use Fastify's built-in async error handling or Express 5+ which handles async natively.
 - In Nest, prefer exception filters, guards, pipes, and interceptors over
   ad-hoc middleware for validation, auth, and error translation.
 
 ```typescript
-// DO — async error wrapper for Express 4
+// DO - async error wrapper for Express 4
 const asyncHandler = (fn: RequestHandler): RequestHandler =>
   (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
@@ -34,7 +34,7 @@ router.get('/orders/:id', asyncHandler(async (req, res) => {
   res.json(order);
 }));
 
-// DON'T — unhandled rejection crashes the process
+// DON'T - unhandled rejection crashes the process
 router.get('/orders/:id', async (req, res) => {
   const order = await orderService.getById(req.params.id); // if this throws, Express hangs
   res.json(order);
@@ -44,10 +44,10 @@ router.get('/orders/:id', async (req, res) => {
 ## Validation
 
 - Validate at route boundaries with Zod or Joi. DO NOT trust request data past the controller.
-- Parse, don't validate — use Zod's `.parse()` which returns a typed object and throws on invalid input.
+- Parse, don't validate - use Zod's `.parse()` which returns a typed object and throws on invalid input.
 
 ```typescript
-// DO — Zod schema at the boundary
+// DO - Zod schema at the boundary
 const CreateOrderSchema = z.object({
   customerId: z.string().uuid(),
   items: z.array(z.object({
@@ -62,7 +62,7 @@ router.post('/orders', asyncHandler(async (req, res) => {
   res.status(201).json(order);
 }));
 
-// DON'T — manual validation scattered through the service
+// DON'T - manual validation scattered through the service
 if (!req.body.customerId) return res.status(400).json({ error: 'missing customerId' });
 ```
 
@@ -76,14 +76,14 @@ if (!req.body.customerId) return res.status(400).json({ error: 'missing customer
 - Use transactions for multi-step writes: `prisma.$transaction([...])` or `knex.transaction(...)`.
 
 ```typescript
-// DO — Prisma with transaction
+// DO - Prisma with transaction
 const order = await prisma.$transaction(async (tx) => {
   const order = await tx.order.create({ data: { customerId } });
   await tx.orderItem.createMany({ data: items.map(i => ({ ...i, orderId: order.id })) });
   return order;
 });
 
-// DON'T — multiple writes without transaction
+// DON'T - multiple writes without transaction
 const order = await prisma.order.create({ data: { customerId } });
 await prisma.orderItem.createMany({ data: items }); // if this fails, orphaned order remains
 ```
@@ -92,10 +92,10 @@ await prisma.orderItem.createMany({ data: items }); // if this fails, orphaned o
 
 - Define custom error classes extending a base `AppError` with `statusCode` and `isOperational`.
 - Centralized error handler maps errors to HTTP responses. Log unexpected errors, return generic message.
-- DO NOT catch errors silently — either handle them or let them propagate to the error handler.
+- DO NOT catch errors silently - either handle them or let them propagate to the error handler.
 
 ```typescript
-// DO — custom error class
+// DO - custom error class
 class NotFoundError extends AppError {
   constructor(message: string) {
     super(message, 404);
@@ -122,7 +122,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   with `supertest` for end-to-end HTTP tests.
 
 ```typescript
-// DO — supertest integration test
+// DO - supertest integration test
 describe('POST /orders', () => {
   it('creates an order and returns 201', async () => {
     const customer = await createTestCustomer();

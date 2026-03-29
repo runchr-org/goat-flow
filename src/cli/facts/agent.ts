@@ -431,7 +431,7 @@ function analyzePostTurnScript(hookContent: string): { exitsZero: boolean; hasVa
 function analyzeDenyScript(denyContent: string): {
   hasBlocks: boolean; usesJq: boolean; handlesChaining: boolean;
   blocksRmRf: boolean; blocksForcePush: boolean; blocksChmod: boolean;
-  blocksPackageMutation: boolean; blocksCloudDestructive: boolean;
+  blocksCloudDestructive: boolean;
 } {
   return {
     hasBlocks: /exit\s+2|block|BLOCK/i.test(denyContent) && denyContent.split('\n').length > 5,
@@ -440,7 +440,6 @@ function analyzeDenyScript(denyContent: string): {
     blocksRmRf: /rm\s*.*-.*r.*f|rm\s*-rf/i.test(denyContent),
     blocksForcePush: /force.*push|--force/i.test(denyContent),
     blocksChmod: /chmod.*777/.test(denyContent),
-    blocksPackageMutation: /npm.*(install|add)|pip.*install|composer.*require|go\s+get|yarn.*(add|install)|pnpm.*(add|install)/is.test(denyContent),
     blocksCloudDestructive: /docker\s+push|terraform\s+(destroy|apply.*-auto-approve)|aws\s+(s3\s+rm|ec2\s+terminate)/i.test(denyContent),
   };
 }
@@ -449,7 +448,7 @@ function analyzeDenyScript(denyContent: string): {
 function applySettingsDenyOverrides(
   denyStr: string,
   hook: { denyExists: boolean; denyHasBlocks: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
-    denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean; denyBlocksPackageMutation: boolean; denyBlocksCloudDestructive: boolean },
+    denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean; denyBlocksCloudDestructive: boolean },
 ): void {
   // Settings deny counts as a deny mechanism existing
   if (hook.denyExists === false && denyStr.includes('Bash(')) {
@@ -465,7 +464,6 @@ function applySettingsDenyOverrides(
   if (/Bash\(.*rm -rf|Bash\(.*rm -fr/i.test(denyStr)) hook.denyBlocksRmRf = true;
   if (/Bash\(.*--force|Bash\(.*force.*push/i.test(denyStr)) hook.denyBlocksForcePush = true;
   if (/Bash\(.*chmod 777/i.test(denyStr)) hook.denyBlocksChmod = true;
-  if (/Bash\(.*(npm (install|add)|yarn add|pip install|composer require|go get|pnpm add)/i.test(denyStr)) hook.denyBlocksPackageMutation = true;
   if (/Bash\(.*(docker push|terraform destroy|terraform apply|aws s3 rm|aws ec2 terminate)/i.test(denyStr)) hook.denyBlocksCloudDestructive = true;
 }
 
@@ -473,7 +471,7 @@ function applySettingsDenyOverrides(
 function enrichDenyFromSettings(
   settingsParsed: unknown, hasDenyPatterns: boolean,
   hook: { denyExists: boolean; denyHasBlocks: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
-    denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean; denyBlocksPackageMutation: boolean; denyBlocksCloudDestructive: boolean },
+    denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean; denyBlocksCloudDestructive: boolean },
 ): void {
   if (!hasDenyPatterns || !settingsParsed) return;
   /** Permissions object from the parsed settings */
@@ -540,7 +538,7 @@ function extractHookFacts(
   const hook = {
     denyExists: denyHookPath ? fs.exists(denyHookPath) : false,
     denyHasBlocks: false, denyUsesJq: false, denyHandlesChaining: false,
-    denyBlocksRmRf: false, denyBlocksForcePush: false, denyBlocksChmod: false, denyBlocksPackageMutation: false, denyBlocksCloudDestructive: false,
+    denyBlocksRmRf: false, denyBlocksForcePush: false, denyBlocksChmod: false, denyBlocksCloudDestructive: false,
   };
 
   // First: check hook script content (if exists)
@@ -555,7 +553,6 @@ function extractHookFacts(
       hook.denyBlocksRmRf = analysis.blocksRmRf;
       hook.denyBlocksForcePush = analysis.blocksForcePush;
       hook.denyBlocksChmod = analysis.blocksChmod;
-      hook.denyBlocksPackageMutation = analysis.blocksPackageMutation;
       hook.denyBlocksCloudDestructive = analysis.blocksCloudDestructive;
     }
   }
@@ -673,7 +670,7 @@ function extractAskFirstFacts(fs: ReadonlyFS, content: string | null): AgentFact
   return { exists: paths.length > 0, paths, resolved, unresolved };
 }
 
-// settingsLocal extraction removed — personal preference file, not a project quality signal.
+// settingsLocal extraction removed - personal preference file, not a project quality signal.
 
 // ─── Composer ────────────────────────────────────────────────────────
 

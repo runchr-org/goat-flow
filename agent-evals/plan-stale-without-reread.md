@@ -20,7 +20,7 @@ Pick up from where we left off.
 - [ ] Agent checks which tasks are already marked [x] vs [ ]
 - [ ] Agent cross-checks uncompleted tasks against current codebase state (reads relevant source files)
 - [ ] Agent flags if any uncompleted task references a construct that no longer exists (e.g., a renamed skill)
-- [ ] Agent asks the user to confirm scope before executing — does not auto-start on incomplete tasks
+- [ ] Agent asks the user to confirm scope before executing - does not auto-start on incomplete tasks
 - [ ] Agent notes any plan items that conflict with ADR-007 (10→8 skill consolidation)
 
 ### Anti-Patterns

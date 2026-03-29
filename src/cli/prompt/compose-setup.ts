@@ -89,7 +89,7 @@ export function composeSetup(report: ScanReport, agentId: AgentId): string | nul
   if (percentage >= 50) {
     return renderTargetedFix(report, agentId, agentReport);
   }
-  // Under 50% — too many issues for targeted fixes, redirect to full setup guide
+  // Under 50% - too many issues for targeted fixes, redirect to full setup guide
   return renderSetupRedirect(report, agentId, agentReport);
 }
 
@@ -99,7 +99,7 @@ export function composeSetup(report: ScanReport, agentId: AgentId): string | nul
 
 function renderAllPass(agentId: AgentId, agentReport: AgentReport): string {
   const profile = PROFILES[agentId];
-  return `# GOAT Flow Setup — ${profile.name}\n\nAll checks pass (${agentReport.score.grade}, ${agentReport.score.percentage}%). Nothing to do.`;
+  return `# GOAT Flow Setup - ${profile.name}\n\nAll checks pass (${agentReport.score.grade}, ${agentReport.score.percentage}%). Nothing to do.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,7 +111,7 @@ function renderShortFix(report: ScanReport, agentId: AgentId, agentReport: Agent
   const vars = extractTemplateVars(report, agentReport);
   const lines: string[] = [];
 
-  lines.push(`# GOAT Flow Setup — ${profile.name}`);
+  lines.push(`# GOAT Flow Setup - ${profile.name}`);
   lines.push('');
   const triggeredAPs = agentReport.antiPatterns.filter(ap => ap.triggered).length;
   const countText = triggeredAPs > 0
@@ -136,9 +136,9 @@ function renderShortFix(report: ScanReport, agentId: AgentId, agentReport: Agent
   for (const key of neededKeys) {
     const fragment = getFragment(key);
     if (!fragment) continue;
-    // Skip AP fragments here — they're rendered below with evidence
+    // Skip AP fragments here - they're rendered below with evidence
     if (fragment.phase === 'anti-pattern') continue;
-    // Skip template path for skill-quality keys — they all point to goat-debug.md as an example
+    // Skip template path for skill-quality keys - they all point to goat-debug.md as an example
     // reference, not a creation template. Render their actual instruction text instead.
     const isSkillQuality = key.startsWith('add-skill-') || key === 'create-all-skills';
     const templatePath = isSkillQuality ? null : getFragmentTemplate(key, agentId);
@@ -156,7 +156,7 @@ function renderShortFix(report: ScanReport, agentId: AgentId, agentReport: Agent
     }
   }
 
-  // Anti-patterns — render full fragment instructions with evidence
+  // Anti-patterns - render full fragment instructions with evidence
   if (triggered.length > 0) {
     lines.push('');
     lines.push('**Anti-patterns to fix:**');
@@ -198,7 +198,7 @@ function renderTargetedFix(report: ScanReport, agentId: AgentId, agentReport: Ag
   const vars = extractTemplateVars(report, agentReport);
   const lines: string[] = [];
 
-  lines.push(`# GOAT Flow Setup — ${profile.name}`);
+  lines.push(`# GOAT Flow Setup - ${profile.name}`);
   lines.push('');
   lines.push(`This project scores **${agentReport.score.grade}** (${agentReport.score.percentage}%) for ${profile.name}.`);
   lines.push(`**${vars.failedCount}** checks need attention out of ${vars.totalCount} total.`);
@@ -251,7 +251,7 @@ function renderTargetedFix(report: ScanReport, agentId: AgentId, agentReport: Ag
 
       // Skills as numbered tasks
       if (skillRefs.length > 0) {
-        lines.push(`**Missing Skills (${skillRefs.length} of 8)** — create in \`${PROFILES[agentId].skillsDir}/goat-{name}/SKILL.md\``);
+        lines.push(`**Missing Skills (${skillRefs.length} of 8)** - create in \`${PROFILES[agentId].skillsDir}/goat-{name}/SKILL.md\``);
         lines.push('');
         for (const ref of skillRefs) {
           const name = ref.key.replace('create-skill-', 'goat-');
@@ -262,7 +262,7 @@ function renderTargetedFix(report: ScanReport, agentId: AgentId, agentReport: Ag
 
       // Non-skill template refs as tasks
       for (const ref of nonSkillRefs) {
-        // Skip skill-quality refs — they're guidance, not file creation
+        // Skip skill-quality refs - they're guidance, not file creation
         if (ref.key.startsWith('add-skill-') || ref.key === 'create-all-skills') continue;
         const outputPath = ref.key.replace(/^create-/, '').replace(/-/g, '/');
         const fragment = getFragment(ref.key);
@@ -278,7 +278,7 @@ function renderTargetedFix(report: ScanReport, agentId: AgentId, agentReport: Ag
     }
 
     if (phase === 'standard') {
-      lines.push('**Skill quality check** — every skill MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**, **Chaining**. No placeholder text.');
+      lines.push('**Skill quality check** - every skill MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**, **Chaining**. No placeholder text.');
       lines.push('');
       if (vars.languages && vars.languages !== 'unknown') {
         lines.push(`**Adaptation for this project:** Replace template Step 0 questions with questions about ${vars.languages} patterns. Replace template examples with patterns from this codebase. Do NOT leave placeholder text like "[Step 1]" or "[describe X]".`);
@@ -316,11 +316,11 @@ function defaultAdaptGuidance(output: string, note: string | undefined, language
   if (output.includes('/skills/')) return `Replace template Step 0 questions and examples with ${languages} patterns from this project`;
   if (output === 'docs/footguns.md') return `Run \`grep -rn 'TODO\\|FIXME\\|HACK' src/ | head -20\` to find real traps. Every entry needs \`file:line\` evidence. No hypotheticals`;
   if (output === 'docs/lessons.md') return `Run \`git log --oneline -50 | grep -iE 'fix|revert|hotfix|bug'\` to find real incidents. Seed 3+ entries`;
-  if (output === 'docs/architecture.md') return 'Read project entry points and main directories. Document what exists — under 100 lines, no aspirational content';
+  if (output === 'docs/architecture.md') return 'Read project entry points and main directories. Document what exists - under 100 lines, no aspirational content';
   if (output.includes('instructions/')) return `Adapt for this project's ${languages} patterns. Replace generic examples with real patterns from the codebase`;
   // Fall back to template ref note or generic
   if (note) return note;
-  return 'Adapt template for this project — replace generic examples with real project patterns';
+  return 'Adapt template for this project - replace generic examples with real project patterns';
 }
 
 /** Default verification text for a task */
@@ -335,7 +335,7 @@ function defaultVerify(output: string): string {
   return 'File exists and has project-specific content (not placeholder text)';
 }
 
-// renderFullSetup removed — all new/low-scoring projects use renderSetupRedirect
+// renderFullSetup removed - all new/low-scoring projects use renderSetupRedirect
 // which points agents at setup/setup-{agent}.md instead of generating inline tasks.
 
 // ---------------------------------------------------------------------------
@@ -367,7 +367,7 @@ export function composeMultiAgentSetup(report: ScanReport, agentIds: AgentId[]):
     stack.formatCommand && `Format: ${stack.formatCommand}`,
   ].filter(Boolean).join(' | ');
 
-  lines.push('# GOAT Flow Setup — All Agents');
+  lines.push('# GOAT Flow Setup - All Agents');
   lines.push('');
   lines.push(`Stack: ${languages}`);
   if (cmds) lines.push(cmds);
@@ -385,11 +385,11 @@ export function composeMultiAgentSetup(report: ScanReport, agentIds: AgentId[]):
   lines.push(`If any template path below is missing, run \`${getCliCommand()} setup\` again to get updated paths.`);
   lines.push('');
 
-  // Gather shared refs — use generic skill paths instead of first agent's paths
+  // Gather shared refs - use generic skill paths instead of first agent's paths
   const firstId = agentIds[0]!;
   const allRefs = getAgentTemplates(firstId);
   const languageRefs = mapLanguagesToTemplates(stack.languages);
-  const signalRefs = mapSignalsToTemplates(stack.signals);
+  const signalRefs = mapSignalsToTemplates(stack.signals, stack.languages);
   const standardShared = allRefs.filter(r => r.phase === 'standard' && !r.output.startsWith('('));
   const fullShared = allRefs.filter(r => r.phase === 'full' && !r.output.startsWith('('));
 
@@ -399,7 +399,7 @@ export function composeMultiAgentSetup(report: ScanReport, agentIds: AgentId[]):
     const agentFoundation = getAgentTemplates(agentId).filter(r => r.phase === 'foundation' && !r.output.startsWith('('));
     const guideRef = getAgentTemplates(agentId).find(r => r.output.startsWith('(') && r.phase === 'foundation');
 
-    lines.push(`## ${profile.name} — Foundation`);
+    lines.push(`## ${profile.name} - Foundation`);
     lines.push('');
     let taskNum = 1;
     for (const ref of agentFoundation) {
@@ -412,7 +412,7 @@ export function composeMultiAgentSetup(report: ScanReport, agentIds: AgentId[]):
     }
   }
 
-  lines.push(`**GATE:** Run \`${getCliCommand()} scan .\` — foundation tier must be 100% for all agents.`);
+  lines.push(`**GATE:** Run \`${getCliCommand()} scan .\` - foundation tier must be 100% for all agents.`);
   lines.push('');
 
   // --- Shared standard phase ---
@@ -426,9 +426,9 @@ export function composeMultiAgentSetup(report: ScanReport, agentIds: AgentId[]):
   }
   lines.push('Skills go in each agent\'s skills directory: `.claude/skills/`, `.agents/skills/`');
   lines.push('');
-  lines.push('**Skill quality check** — every skill file MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**, **Chaining**. No placeholder text.');
+  lines.push('**Skill quality check** - every skill file MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**, **Chaining**. No placeholder text.');
   lines.push('');
-  lines.push(`**GATE:** Run \`${getCliCommand()} scan .\` — standard tier must be 100% for all agents.`);
+  lines.push(`**GATE:** Run \`${getCliCommand()} scan .\` - standard tier must be 100% for all agents.`);
   lines.push('');
 
   // --- Shared full phase ---
@@ -439,7 +439,7 @@ export function composeMultiAgentSetup(report: ScanReport, agentIds: AgentId[]):
     lines.push(renderTask({ num: taskNum++, outputPath: ref.output, templatePath: getTemplatePath(ref.template), adapt: defaultAdaptGuidance(ref.output, ref.note, languages), verify: defaultVerify(ref.output) }));
     lines.push('');
   }
-  lines.push(`**GATE:** Run \`${getCliCommand()} scan .\` — target 100% across all agents.`);
+  lines.push(`**GATE:** Run \`${getCliCommand()} scan .\` - target 100% across all agents.`);
   lines.push('');
 
   lines.push('---');
@@ -450,7 +450,7 @@ export function composeMultiAgentSetup(report: ScanReport, agentIds: AgentId[]):
 }
 
 // ---------------------------------------------------------------------------
-// Mode: Setup redirect (under 50% — too many issues for inline fixes)
+// Mode: Setup redirect (under 50% - too many issues for inline fixes)
 // ---------------------------------------------------------------------------
 
 /** Map agent IDs to their setup file paths */
@@ -467,16 +467,16 @@ function renderSetupRedirect(report: ScanReport, agentId: AgentId, agentReport: 
   const languages = stack.languages.join(', ') || 'unknown';
   const lines: string[] = [];
 
-  lines.push(`# GOAT Flow Setup — ${profile.name}`);
+  lines.push(`# GOAT Flow Setup - ${profile.name}`);
   lines.push('');
   if (agentReport) {
-    lines.push(`This project scores **${agentReport.score.grade}** (${agentReport.score.percentage}%) — it needs a full setup pass.`);
+    lines.push(`This project scores **${agentReport.score.grade}** (${agentReport.score.percentage}%) - it needs a full setup pass.`);
   } else {
-    lines.push(`No ${profile.name} configuration detected — this project needs a full setup.`);
+    lines.push(`No ${profile.name} configuration detected - this project needs a full setup.`);
   }
   lines.push('');
 
-  // Project context — detected stack info
+  // Project context - detected stack info
   lines.push(`**Stack:** ${languages}`);
   const cmds = [
     stack.buildCommand && `**Build:** \`${stack.buildCommand}\``,
@@ -506,7 +506,7 @@ function renderSetupRedirect(report: ScanReport, agentId: AgentId, agentReport: 
   lines.push('');
   lines.push('That file walks through:');
   lines.push('- **Phase 1a:** Instruction file, docs seed files, local instruction files');
-  lines.push('- **Phase 1b:** 8 goat-* skills adapted for this project');
+  lines.push('- **Phase 1b:** 9 goat-* skills adapted for this project');
   lines.push('- **Phase 1c:** Enforcement hooks, deny patterns, coding guidelines');
   lines.push('- **Phase 2:** Agent evals, hygiene (handoff template, RFC 2119 pass)');
   lines.push('- **Phase 3:** Verify 100% on the CLI scan');
@@ -542,11 +542,11 @@ function collectNeededKeys(agentReport: AgentReport): Set<string> {
 }
 
 // ---------------------------------------------------------------------------
-// Old inline setup — preserved as rollback
+// Old inline setup - preserved as rollback
 // ---------------------------------------------------------------------------
 
 /**
- * Old inline setup composer — preserved as fallback.
+ * Old inline setup composer - preserved as fallback.
  * Activate with GOAT_FLOW_INLINE_SETUP=1.
  */
 export function composeInlineSetup(report: ScanReport, agentId: AgentId): ComposedPrompt | null {
@@ -557,9 +557,9 @@ export function composeInlineSetup(report: ScanReport, agentId: AgentId): Compos
 
   const allFragments = getAllFragments();
   const phases = [
-    { phase: 'foundation' as const, heading: 'Phase 1a: Foundation — Instruction File + Execution Loop' },
-    { phase: 'standard' as const, heading: 'Phase 1b: Standard — Skills, Hooks, Learning Loop' },
-    { phase: 'full' as const, heading: 'Phase 2: Full — Evals, CI, Hygiene' },
+    { phase: 'foundation' as const, heading: 'Phase 1a: Foundation - Instruction File + Execution Loop' },
+    { phase: 'standard' as const, heading: 'Phase 1b: Standard - Skills, Hooks, Learning Loop' },
+    { phase: 'full' as const, heading: 'Phase 2: Full - Evals, CI, Hygiene' },
   ];
 
   const sections: PromptSection[] = phases.map(({ phase, heading }) => {
@@ -577,7 +577,7 @@ export function composeInlineSetup(report: ScanReport, agentId: AgentId): Compos
   return {
     mode: 'setup',
     agent: agentId,
-    title: `GOAT Flow Setup — ${vars.agentName}`,
+    title: `GOAT Flow Setup - ${vars.agentName}`,
     preamble: buildSetupPreamble(vars),
     sections,
     summary: `Full GOAT Flow setup for ${vars.agentName}. After completing each phase, run \`${getCliCommand()} scan .\` to verify progress.`,

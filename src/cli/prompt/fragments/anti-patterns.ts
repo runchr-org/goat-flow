@@ -13,7 +13,7 @@ export const antiPatternFragments: Fragment[] = [
     instruction: `**CRITICAL:** \`{{instructionFile}}\` is over 150 lines (hard limit). This is an anti-pattern that costs -3 points.
 
 Immediate actions:
-1. Remove verbose examples — keep one BAD/GOOD pair per concept
+1. Remove verbose examples - keep one BAD/GOOD pair per concept
 2. Replace paragraphs with bullet points
 3. Move reference material to \`docs/\` and link from router table
 4. Collapse multi-row tables into inline text where possible
@@ -51,7 +51,7 @@ Remove the DoD from the guidelines file. The DoD belongs only in \`{{instruction
 For every footgun entry, add at least one \`file:line\` reference:
 
 **Before:** "The auth module has race conditions"
-**After:** "\`src/auth.ts:42\` — race condition between token refresh and request dispatch"
+**After:** "\`src/auth.ts:42\` - race condition between token refresh and request dispatch"
 
 If the evidence no longer applies (code changed), either update the reference or remove the footgun.`,
   },
@@ -97,9 +97,9 @@ Replace with project-specific boundaries using actual file paths:
 
 **Before:** "auth, routing, deployment, API, DB"
 **After:** Specific boundaries from this project, e.g.:
-- \`src/auth/\` — authentication module (cross-cutting)
-- \`config/\` — environment configuration
-- \`migrations/\` — database migrations`,
+- \`src/auth/\` - authentication module (cross-cutting)
+- \`config/\` - environment configuration
+- \`migrations/\` - database migrations`,
   },
   {
     key: 'ap-gitignore-settings-local',
@@ -114,17 +114,17 @@ settings.local.json
 .env
 \`\`\``,
   },
-  // AP10 (ap-prune-settings-local) removed — settings.local.json is personal preference.
+  // AP10 (ap-prune-settings-local) removed - settings.local.json is personal preference.
   {
     key: 'ap-fix-empty-scaffolding',
     phase: 'anti-pattern',
     category: 'Anti-Pattern Fix',
     kind: 'fix',
-    instruction: `Learning loop files exist but are empty — created to pass the scanner, not to capture knowledge.
+    instruction: `Learning loop files exist but are empty - created to pass the scanner, not to capture knowledge.
 
 Either:
-1. **Populate** — search git history for real incidents: \`git log --oneline | grep -iE 'fix|revert|bug|broke|regression'\`. Seed from real mistakes only.
-2. **Or remove** — delete the empty files. Let them materialise on first real use.
+1. **Populate** - search git history for real incidents: \`git log --oneline | grep -iE 'fix|revert|bug|broke|regression'\`. Seed from real mistakes only.
+2. **Or remove** - delete the empty files. Let them materialise on first real use.
 
 Empty scaffolding provides no value and creates a false sense of completeness.`,
   },
@@ -184,7 +184,7 @@ For each duplicate pair:
 
 For each outdated skill:
 1. Read the current template from goat-flow (\`workflow/skills/goat-{name}.md\`)
-2. Compare against your installed version — look for new sections, renamed phases, or structural changes
+2. Compare against your installed version - look for new sections, renamed phases, or structural changes
 3. Update the skill content to match the current template structure
 4. Add or update the frontmatter version tag:
 
@@ -224,8 +224,8 @@ For each deprecated skill directory:
 **Dangling references:** {{evidence.ap-fix-dangling-skill-refs}}
 
 For each dangling reference:
-1. Check if the file was renamed or moved — update the path if so
-2. Check if the file was deleted — remove the reference
+1. Check if the file was renamed or moved - update the path if so
+2. Check if the file was deleted - remove the reference
 3. If the reference is aspirational (file should exist but doesn't), either create the file or remove the reference`,
   },
 ];

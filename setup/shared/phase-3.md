@@ -1,4 +1,4 @@
-# Phase 3 — Verify & Quality Control
+# Phase 3 - Verify & Quality Control
 
 Complete Phase 1 and Phase 2 before starting Phase 3.
 
@@ -15,7 +15,7 @@ STEP 2 - Fix failing checks:
 For each failing check:
 1. Read the check description and recommendation.
 2. Make the minimum change to pass the check.
-3. Do NOT over-engineer — fix the specific issue, not surrounding code.
+3. Do NOT over-engineer - fix the specific issue, not surrounding code.
 
 STEP 3 - Fix anti-patterns:
 For each triggered anti-pattern:
@@ -39,10 +39,10 @@ fix them. Repeat until the scan shows:
 - Deductions: 0
 
 STEP 5 - Final verification:
-1. Run the project's build/test/lint commands — they MUST still pass.
+1. Run the project's build/test/lint commands - they MUST still pass.
    GOAT Flow setup should never break the project's existing toolchain.
 2. Verify no existing files were silently deleted or emptied.
-3. Review git diff — every change should be intentional.
+3. Review git diff - every change should be intentional.
 
 Setup is complete when the scanner reports 100% with zero deductions
 and the project's own tests still pass.

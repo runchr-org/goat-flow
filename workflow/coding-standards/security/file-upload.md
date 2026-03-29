@@ -7,7 +7,7 @@ Reference for generating `ai/instructions/security.md` in projects with file upl
 Check file type by magic bytes (file signature), not by extension or client-provided MIME type.
 
 ```python
-# DO — validate by magic bytes
+# DO - validate by magic bytes
 import magic
 
 def validate_upload(file) -> bool:
@@ -16,18 +16,18 @@ def validate_upload(file) -> bool:
     allowed = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
     return mime in allowed
 
-# DON'T — trust the extension or client MIME type
+# DON'T - trust the extension or client MIME type
 def validate_upload(file) -> bool:
     return file.filename.endswith(('.jpg', '.png'))  # attacker controls filename
 ```
 
 ```php
-// DO — Laravel: validate MIME by file content
+// DO - Laravel: validate MIME by file content
 $request->validate([
     'avatar' => ['required', 'file', 'mimetypes:image/jpeg,image/png', 'max:5120'],
 ]);
 
-// DON'T — validate only by extension
+// DON'T - validate only by extension
 $request->validate([
     'avatar' => ['required', 'file', 'extensions:jpg,png'],  // extension-only, easily spoofed
 ]);
@@ -42,12 +42,12 @@ $request->validate([
 Enforce size limits at both the web server and application level.
 
 ```nginx
-# Nginx — enforce at web server
+# Nginx - enforce at web server
 client_max_body_size 10M;
 ```
 
 ```python
-# Django — enforce at application level
+# Django - enforce at application level
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 ```
@@ -61,12 +61,12 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 - Store files outside the web root if using local filesystem.
 
 ```python
-# DO — store in object storage with UUID filename
+# DO - store in object storage with UUID filename
 import uuid
 storage_path = f"uploads/{uuid.uuid4()}.{validated_extension}"
 s3_client.upload_fileobj(file, bucket, storage_path)
 
-# DON'T — store in the public web directory with original filename
+# DON'T - store in the public web directory with original filename
 shutil.copy(file, f"/var/www/html/uploads/{file.filename}")
 ```
 
@@ -76,7 +76,7 @@ shutil.copy(file, f"/var/www/html/uploads/{file.filename}")
 - Strip or reject filenames containing `..`, `/`, `\`, or null bytes.
 
 ```python
-# DO — generate safe filename
+# DO - generate safe filename
 import uuid
 from pathlib import PurePosixPath
 
@@ -86,7 +86,7 @@ def safe_filename(original: str) -> str:
         raise ValueError("Disallowed extension")
     return f"{uuid.uuid4()}{ext}"
 
-# DON'T — use original filename
+# DON'T - use original filename
 def save_file(original: str, data: bytes):
     with open(f"/uploads/{original}", "wb") as f:  # path traversal: "../../../etc/cron.d/evil"
         f.write(data)
@@ -98,7 +98,7 @@ def save_file(original: str, data: bytes):
 - Quarantine uploaded files until scan completes. Never serve unscanned files.
 
 ```python
-# DO — scan before making available
+# DO - scan before making available
 import clamd
 
 def scan_upload(file_path: str) -> bool:
@@ -119,7 +119,7 @@ def scan_upload(file_path: str) -> bool:
 - Re-encode images to prevent polyglot files (e.g., a file that is both a valid JPEG and valid HTML).
 
 ```python
-# DO — strip metadata and re-encode
+# DO - strip metadata and re-encode
 from PIL import Image
 
 def sanitize_image(input_path: str, output_path: str):
@@ -128,7 +128,7 @@ def sanitize_image(input_path: str, output_path: str):
     img_clean.putdata(list(img.getdata()))
     img_clean.save(output_path, format="PNG")
 
-# DON'T — serve the original upload as-is
+# DON'T - serve the original upload as-is
 shutil.copy(upload_path, public_path)
 ```
 
@@ -139,7 +139,7 @@ shutil.copy(upload_path, public_path)
 - **Video/audio processing**: if processing user-uploaded media with FFmpeg, be aware that crafted media headers can trigger SSRF via FFmpeg's protocol handlers (`http://`, `ftp://`). Disable network protocols with `-protocol_whitelist file,pipe`.
 
 ```python
-# DO — validate extraction path (zip slip prevention)
+# DO - validate extraction path (zip slip prevention)
 import zipfile, os
 
 def safe_extract(zip_path: str, dest: str, max_total_bytes: int = 500_000_000):

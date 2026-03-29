@@ -424,7 +424,7 @@ describe('composeSetup mode selection', () => {
   it('100% project → all-pass message', () => {
     const fs = buildFullProject();
     const report = scanProject(fs, '/test', { agentFilter: null });
-    // Full project should score very high — if it hits 100%, we get the all-pass message
+    // Full project should score very high - if it hits 100%, we get the all-pass message
     const output = composeSetup(report, 'claude');
     assert.ok(output);
     // Either all-pass or short-fix mode (depending on exact score)
@@ -455,7 +455,7 @@ describe('M2.13: AP12 stale ref filtering', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `localhost:48101` — dev server port\n',
+      'docs/footguns.md': '# Footguns\n\n- `localhost:48101` - dev server port\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP12');
@@ -469,7 +469,7 @@ describe('M2.13: AP12 stale ref filtering', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `src/auth.ts:42` — race condition\n',
+      'docs/footguns.md': '# Footguns\n\n- `src/auth.ts:42` - race condition\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP12');
@@ -614,7 +614,7 @@ describe('M2.14: hasEvidence filters URLs', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `localhost:48101` — dev server port\n- `127.0.0.1:3000` — API\n',
+      'docs/footguns.md': '# Footguns\n\n- `localhost:48101` - dev server port\n- `127.0.0.1:3000` - API\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const check = report.agents[0]?.checks.find(c => c.id === '2.3.4');
@@ -671,7 +671,7 @@ describe('M2.14: root-level AP12 refs', () => {
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'AGENTS.md': '# AGENTS.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `AGENTS.md:42` — instruction file footgun\n',
+      'docs/footguns.md': '# Footguns\n\n- `AGENTS.md:42` - instruction file footgun\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP12');
@@ -684,7 +684,7 @@ describe('M2.14: root-level AP12 refs', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `AGENTS.md:42` — stale ref\n',
+      'docs/footguns.md': '# Footguns\n\n- `AGENTS.md:42` - stale ref\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP12');
@@ -696,7 +696,7 @@ describe('M2.14: root-level AP12 refs', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `webpack:123` — bundler warning\n',
+      'docs/footguns.md': '# Footguns\n\n- `webpack:123` - bundler warning\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP12');
@@ -709,7 +709,7 @@ describe('M2.14: root-level AP12 refs', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `0.0.0.0:8080` — bind address\n',
+      'docs/footguns.md': '# Footguns\n\n- `0.0.0.0:8080` - bind address\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP12');
@@ -724,7 +724,7 @@ describe('M2.14: hasEvidence edge cases', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `localhost:3000` — dev\n- `src/auth.ts:42` — real ref\n',
+      'docs/footguns.md': '# Footguns\n\n- `localhost:3000` - dev\n- `src/auth.ts:42` - real ref\n',
       'src/auth.ts': 'export const x = 1;\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
@@ -749,7 +749,7 @@ describe('M2.14: hasEvidence edge cases', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `https://example.com:443` — API endpoint\n',
+      'docs/footguns.md': '# Footguns\n\n- `https://example.com:443` - API endpoint\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const check = report.agents[0]?.checks.find(c => c.id === '2.3.4');
@@ -843,7 +843,7 @@ describe('M2.14: placeholder npm script edge cases', () => {
 describe('Rubric version consistency', () => {
   it('RUBRIC_VERSION is current', async () => {
     const { RUBRIC_VERSION } = await import('../../src/cli/rubric/version.js');
-    assert.equal(RUBRIC_VERSION, '1.0.0', 'RUBRIC_VERSION should match package version');
+    assert.equal(RUBRIC_VERSION, '0.9.1', 'RUBRIC_VERSION should match package version');
   });
 });
 
@@ -875,9 +875,9 @@ describe('Multi-agent setup contract', () => {
     const fs = buildEmptyProject();
     const report = scanProject(fs, '/test', { agentFilter: null });
     const output = composeMultiAgentSetup(report, ['claude', 'codex', 'gemini']);
-    assert.ok(output.includes('Claude Code — Foundation'), 'Should have Claude foundation section');
-    assert.ok(output.includes('Codex — Foundation'), 'Should have Codex foundation section');
-    assert.ok(output.includes('Gemini CLI — Foundation'), 'Should have Gemini foundation section');
+    assert.ok(output.includes('Claude Code - Foundation'), 'Should have Claude foundation section');
+    assert.ok(output.includes('Codex - Foundation'), 'Should have Codex foundation section');
+    assert.ok(output.includes('Gemini CLI - Foundation'), 'Should have Gemini foundation section');
   });
 
   it('multi-agent setup has phased structure (Standard + Full sections)', () => {

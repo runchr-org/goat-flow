@@ -1,7 +1,20 @@
 {
   "name": "@blundergoat/goat-flow",
-  "version": "1.0.0",
+  "version": "0.9.1",
   "description": "CLI auditor + scoring engine for GOAT Flow AI coding agent workflows",
+  "author": {
+    "name": "Matthew Hansen",
+    "url": "https://www.blundergoat.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/blundergoat/goat-flow#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blundergoat/goat-flow"
+  },
+  "bugs": {
+    "url": "https://github.com/blundergoat/goat-flow/issues"
+  },
   "type": "module",
   "bin": {
     "goat-flow": "./dist/cli/cli.js"
@@ -11,15 +24,15 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.map",
     "setup",
-    "workflow",
-    "dashboard"
+    "workflow"
   ],
   "engines": {
     "node": ">=20.6.0"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/dashboard && cp src/dashboard/index.html dist/dashboard/index.html",
     "test": "node --import tsx --test 'test/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "scan": "node dist/cli/cli.js scan .",
@@ -31,6 +44,15 @@
     "validate": "bash scripts/context-validate.sh",
     "prepublishOnly": "npm run build"
   },
+  "keywords": [
+    "ai",
+    "audit",
+    "claude",
+    "codex",
+    "coding-agent",
+    "gemini",
+    "workflow"
+  ],
   "devDependencies": {
     "@types/node": "^20.6.0",
     "eslint": "^10.1.0",
@@ -38,27 +60,5 @@
     "tsx": "^4.0.0",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.57.1"
-  },
-  "knip": {
-    "ignoreDependencies": ["alpinejs", "@tailwindcss/browser"]
-  },
-  "keywords": [
-    "ai",
-    "coding-agent",
-    "workflow",
-    "audit",
-    "claude",
-    "codex",
-    "gemini"
-  ],
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/blundergoat/goat-flow",
-    "directory": "."
-  },
-  "dependencies": {
-    "alpinejs": "^3.15.9",
-    "@tailwindcss/browser": "^4.2.2"
   }
 }

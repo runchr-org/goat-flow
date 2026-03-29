@@ -156,7 +156,7 @@ function qualitySkill(name: string): string {
   return `---
 name: goat-${name}
 description: "${name} skill"
-goat-flow-skill-version: "1.0.0"
+goat-flow-skill-version: "0.9.1"
 ---
 # goat-${name}
 
@@ -165,7 +165,7 @@ goat-flow-skill-version: "1.0.0"
 - **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - **Evidence:** Every finding needs \`file:line\`. Tag as OBSERVED (verified) or INFERRED. MUST NOT fabricate.
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it — don't re-ask. Only hard-block with zero context.
+- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Only hard-block with zero context.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
 - **Learning Loop:** Behavioural mistake → \`docs/lessons.md\`. Architectural trap → \`docs/footguns.md\`.
 - **Closing:** Commit or note working artifacts. Check learning loop. Suggest next skill.
@@ -174,7 +174,7 @@ goat-flow-skill-version: "1.0.0"
 
 Use for ${name} tasks.
 
-## Step 0 — Gather Context
+## Step 0 - Gather Context
 
 Ask the user before starting:
 1. What is the scope?
@@ -182,11 +182,11 @@ Ask the user before starting:
 
 Do NOT start until the user has answered.
 
-## Phase 1 — Investigate
+## Phase 1 - Investigate
 
 Read relevant files. Collect evidence.
 
-## Phase 2 — Report
+## Phase 2 - Report
 
 Present findings with file:line evidence.
 
@@ -281,7 +281,7 @@ describe('Fixture 4: full-claude', () => {
       permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
       hooks: [{ type: 'Notification', matcher: 'compact', command: 'echo context' }],
     }),
-    // 8 skills
+    // 9 skills
     ...Object.fromEntries(
       ['security', 'debug', 'investigate', 'review', 'plan', 'test', 'refactor', 'simplify'].map(s => [
         `.claude/skills/goat-${s}/SKILL.md`, qualitySkill(s),
@@ -360,7 +360,7 @@ describe('Fixture 5: full-multi-agent', () => {
     '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.gemini/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.gemini/hooks/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
-    'scripts/deny-dangerous.sh': '#!/usr/bin/env bash\n# deny git commit\n# deny git push\nexit 0\n',
+    '.codex/rules/deny-dangerous.star': '# execpolicy\n# deny git commit\n# deny git push\n',
     'scripts/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
     'docs/footguns.md': '# Footguns\n\n**Evidence:**\n- `src/a.ts:1`\n',
     'docs/lessons.md': '# Lessons\n\n### Entry 1\n**What happened:** x\n',
@@ -485,7 +485,7 @@ describe('Fixture 8: partial-setup', () => {
     '.claude/skills/goat-security/SKILL.md': '# goat-security\n',
     '.claude/skills/goat-debug/SKILL.md': '# goat-debug\n',
     '.claude/skills/goat-review/SKILL.md': '# goat-review\n',
-    // Learning loop — lessons exists but no footguns
+    // Learning loop - lessons exists but no footguns
     'docs/lessons.md': '# Lessons\n\n### Entry 1\nSomething.\n',
     // Architecture exists
     'docs/architecture.md': '# Architecture\n\nOverview.\n',
@@ -642,8 +642,8 @@ describe('Fixture 10: self-goat-flow (score snapshot)', () => {
     // Skills for all agents (8 required skills)
     ...Object.fromEntries(
       ['security', 'debug', 'investigate', 'review', 'plan', 'test', 'refactor', 'simplify'].flatMap(s => [
-        [`.claude/skills/goat-${s}/SKILL.md`, `---\nname: goat-${s}\ngoat-flow-skill-version: "1.0.0"\n---\n# goat-${s}\n`],
-        [`.agents/skills/goat-${s}/SKILL.md`, `---\nname: goat-${s}\ngoat-flow-skill-version: "1.0.0"\n---\n# goat-${s}\n`],
+        [`.claude/skills/goat-${s}/SKILL.md`, `---\nname: goat-${s}\ngoat-flow-skill-version: "0.9.1"\n---\n# goat-${s}\n`],
+        [`.agents/skills/goat-${s}/SKILL.md`, `---\nname: goat-${s}\ngoat-flow-skill-version: "0.9.1"\n---\n# goat-${s}\n`],
       ]),
     ),
     // Hooks
@@ -651,7 +651,7 @@ describe('Fixture 10: self-goat-flow (score snapshot)', () => {
     '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.gemini/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.gemini/hooks/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
-    'scripts/deny-dangerous.sh': '#!/usr/bin/env bash\n# deny git commit\n# deny git push\nexit 0\n',
+    '.codex/rules/deny-dangerous.star': '# execpolicy\n# deny git commit\n# deny git push\n',
     'scripts/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
     // Learning loop
     'docs/footguns.md': '# Footguns\n\n## Footgun: Auth\n\n**Evidence:**\n- `src/auth.ts:42` - broke login\n- `src/auth.ts:88` - missing lock\n',
@@ -742,7 +742,7 @@ GOOD: Inline format. Extract when second format needed
         `.claude/skills/goat-${s}/SKILL.md`, qualitySkill(s),
       ]),
     ),
-    '.claude/skills/goat/SKILL.md': `---\nname: goat\ndescription: "Dispatcher"\ngoat-flow-skill-version: "1.0.0"\n---\n# /goat\n\n## How It Works\n\nRoutes to the right skill.\n\n## Constraints\n\n- MUST announce selected skill\n`,
+    '.claude/skills/goat/SKILL.md': `---\nname: goat\ndescription: "Dispatcher"\ngoat-flow-skill-version: "0.9.1"\n---\n# /goat\n\n## How It Works\n\nRoutes to the right skill.\n\n## Constraints\n\n- MUST announce selected skill\n`,
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nset -euo pipefail\nINPUT=$(cat)\nCMD=$(echo "$INPUT" | jq -r .command // empty)\ncase "$CMD" in *rm\\ -rf*|*--force*|*chmod\\ 777*) exit 2;; esac\nexit 0\n',
     '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\necho "lint check"\nexit 0\n',
     '.claude/hooks/format-file.sh': '#!/usr/bin/env bash\nprettier --write "$1"\nexit 0\n',

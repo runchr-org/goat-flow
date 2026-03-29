@@ -1,6 +1,6 @@
 # Local Telemetry Logs
 
-Local-only telemetry for tracking goat-flow setup quality over time. All data files are gitignored — only this README and `.gitignore` are tracked.
+Local-only telemetry for tracking goat-flow setup quality over time. All data files are gitignored - only this README and `.gitignore` are tracked.
 
 ## Directory Structure
 
@@ -31,8 +31,8 @@ Auto-appended by `goat-flow scan` after each run. One JSON line per agent per sc
     "standard":   { "earned": 62, "available": 62, "percentage": 100 },
     "full":       { "earned": 17, "available": 17, "percentage": 100 }
   },
-  "packageVersion": "1.0.0",
-  "rubricVersion": "1.0.0"
+  "packageVersion": "0.9.1",
+  "rubricVersion": "0.9.1"
 }
 ```
 
@@ -112,7 +112,7 @@ If multiple sessions of the same skill occur on the same day, append a counter: 
 
 ## Notes
 
-- `scan-history.jsonl` is written and rotated automatically by the CLI — no agent action needed
-- `incidents.jsonl` and `sessions/` are written by agents following the execution loop and skill closing protocol — agents enforce retention limits before each write
+- `scan-history.jsonl` is written and rotated automatically by the CLI - no agent action needed
+- `incidents.jsonl` and `sessions/` are written by agents following the execution loop and skill closing protocol - agents enforce retention limits before each write
 - This directory can be safely deleted (`rm -rf tasks/logs/*.jsonl tasks/logs/sessions/`) to reset telemetry
 - The learning loop files (`docs/lessons.md`, `docs/footguns.md`) remain the canonical record; telemetry is supplementary structured data

@@ -40,7 +40,7 @@ export const antiPatterns: AntiPatternDef[] = [
       const inInstruction = instructionContent !== null && DOD_SECTION.test(instructionContent);
       const inConventions = conventionsContent !== null && DOD_SECTION.test(conventionsContent);
       const triggered = inInstruction && inConventions;
-      return { id: 'AP3', name: 'DoD in both instruction file and guidelines', triggered, deduction: triggered ? -3 : 0, confidence: 'low', message: triggered ? 'DoD appears in both instruction file and conventions.md — risk of conflicting definitions' : 'No DoD duplication detected' };
+      return { id: 'AP3', name: 'DoD in both instruction file and guidelines', triggered, deduction: triggered ? -3 : 0, confidence: 'low', message: triggered ? 'DoD appears in both instruction file and conventions.md - risk of conflicting definitions' : 'No DoD duplication detected' };
     },
     recommendation: 'Remove DoD from guidelines file',
     recommendationKey: 'ap-fix-dod-overlap',
@@ -65,7 +65,7 @@ export const antiPatterns: AntiPatternDef[] = [
       const triggered = ctx.agentFacts.settings.valid === false;
       return { id: 'AP5', name: 'settings.json invalid JSON', triggered, deduction: triggered ? -5 : 0, confidence: 'high', message: triggered ? 'settings.json is invalid JSON' : 'settings.json is valid', evidence: ctx.agentFacts.agent.settingsFile ?? undefined };
     },
-    recommendation: 'Fix settings.json — invalid JSON',
+    recommendation: 'Fix settings.json - invalid JSON',
     recommendationKey: 'ap-fix-settings-json',
   },
   {
@@ -84,7 +84,7 @@ export const antiPatterns: AntiPatternDef[] = [
     id: 'AP7', name: 'Local per-directory instruction file over 20 lines', deduction: -2, confidence: 'high',
     evaluate: (ctx: FactContext): AntiPatternResult => {
       // Only check per-directory local files (e.g., src/api/CLAUDE.md)
-      // EXCLUDE ai/instructions/ and .github/instructions/ — those are cold-path files meant to be 40-60 lines
+      // EXCLUDE ai/instructions/ and .github/instructions/ - those are cold-path files meant to be 40-60 lines
       const oversize = ctx.facts.shared.localInstructions.localFileSizes
         .filter(f => f.path.includes('ai/instructions/') === false && f.path.includes('.github/instructions/') === false)
         .filter(f => f.lines > 20);
@@ -115,7 +115,7 @@ export const antiPatterns: AntiPatternDef[] = [
     na: (ctx) => ctx.agentFacts.agent.settingsFile === null,
     evaluate: (ctx: FactContext): AntiPatternResult => {
       if (ctx.facts.shared.gitignore.exists === false) {
-        return { id: 'AP9', name: 'settings.local.json committed', triggered: true, deduction: -2, confidence: 'high', message: 'No .gitignore — settings.local.json is not protected' };
+        return { id: 'AP9', name: 'settings.local.json committed', triggered: true, deduction: -2, confidence: 'high', message: 'No .gitignore - settings.local.json is not protected' };
       }
       const triggered = ctx.facts.shared.gitignore.hasRequiredEntries === false;
       return { id: 'AP9', name: 'settings.local.json committed', triggered, deduction: triggered ? -2 : 0, confidence: 'high', message: triggered ? 'settings.local.json not in .gitignore' : 'settings.local.json is gitignored' };
@@ -123,7 +123,7 @@ export const antiPatterns: AntiPatternDef[] = [
     recommendation: 'Add settings.local.json to .gitignore',
     recommendationKey: 'ap-gitignore-settings-local',
   },
-  // AP10 removed — settings.local.json is a personal preference file, not a project quality signal.
+  // AP10 removed - settings.local.json is a personal preference file, not a project quality signal.
   // === AP11-AP12: Quality Anti-Patterns ===
   {
     id: 'AP11', name: 'Empty learning loop scaffolding', deduction: -2, confidence: 'high',
@@ -165,11 +165,11 @@ export const antiPatterns: AntiPatternDef[] = [
       for (const m of content.matchAll(pathPattern)) {
         const p = m[1];
         if (p === undefined) continue;
-        // Skip glob patterns (e.g., .claude/skills/goat-*/) — not literal paths
+        // Skip glob patterns (e.g., .claude/skills/goat-*/) - not literal paths
         if (/[*?{}]/.test(p)) continue;
         // Strip :linenum suffix if present
         const cleanPath = p.replace(/:[0-9]+(?:[-,][0-9]+)*$/, '');
-        // Only check real filesystem paths — skip virtual test paths
+        // Only check real filesystem paths - skip virtual test paths
         const resolvedRoot = ctx.facts.root;
         if (resolvedRoot && existsSync(resolvedRoot)) {
           if (!existsSync(join(resolvedRoot, cleanPath))) stale.push(cleanPath);
@@ -178,7 +178,7 @@ export const antiPatterns: AntiPatternDef[] = [
       const triggered = stale.length > 0;
       return { id: 'AP13', name: 'Stale code references in instruction file', triggered, deduction: triggered ? -3 : 0, confidence: 'high', message: triggered ? `${stale.length} stale code refs in ${ctx.agentFacts.agent.instructionFile}: ${stale.slice(0, 3).join(', ')}` : 'All code references resolve', evidence: triggered ? stale.join(', ') : undefined };
     },
-    recommendation: 'Fix stale code references in the instruction file — update paths after renames/deletes',
+    recommendation: 'Fix stale code references in the instruction file - update paths after renames/deletes',
     recommendationKey: 'ap-fix-stale-instruction-refs',
   },
   {
@@ -213,7 +213,7 @@ export const antiPatterns: AntiPatternDef[] = [
         evidence: triggered ? outdatedNames.join(', ') : undefined,
       };
     },
-    recommendation: `Update skills to version ${SKILL_VERSION} — re-run setup or add goat-flow-skill-version: ${SKILL_VERSION} to each skill's frontmatter`,
+    recommendation: `Update skills to version ${SKILL_VERSION} - re-run setup or add goat-flow-skill-version: ${SKILL_VERSION} to each skill's frontmatter`,
     recommendationKey: 'ap-fix-outdated-skills',
   },
   {
@@ -225,7 +225,7 @@ export const antiPatterns: AntiPatternDef[] = [
         id: 'AP16', name: 'Deprecated skills present', triggered,
         deduction: triggered ? -5 : 0, confidence: 'high',
         message: triggered
-          ? `${deprecated.length} deprecated skill(s): ${deprecated.join(', ')}. Remove — these are replaced by the 8 canonical skills.`
+          ? `${deprecated.length} deprecated skill(s): ${deprecated.join(', ')}. Remove - these are replaced by the 8 canonical skills.`
           : 'No deprecated skills',
         evidence: triggered ? deprecated.join(', ') : undefined,
       };

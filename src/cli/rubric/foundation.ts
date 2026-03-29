@@ -6,7 +6,7 @@ import type { CheckDef, FactContext, CheckResult } from '../types.js';
 //   low    = semantic inference (content quality judgment)
 
 /**
- * Tier 1 — Foundation (47 points)
+ * Tier 1 - Foundation (47 points)
  * Instruction file, execution loop, autonomy tiers, DoD, enforcement.
  * These are baseline requirements every GOAT Flow project must satisfy.
  */
@@ -58,7 +58,7 @@ export const foundationChecks: CheckDef[] = [
         return { id: '1.1.5', name: 'Instruction file has concrete examples', tier: 'foundation', category: 'Instruction File', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: 'No concrete examples found' };
       },
     },
-    recommendation: 'Add concrete BAD/GOOD or DO/DON\'T examples to the instruction file — at least 2 pairs showing right vs wrong approaches',
+    recommendation: 'Add concrete BAD/GOOD or DO/DON\'T examples to the instruction file - at least 2 pairs showing right vs wrong approaches',
     recommendationKey: 'add-concrete-examples',
   },
 
@@ -193,7 +193,7 @@ export const foundationChecks: CheckDef[] = [
         return { id: '1.3.2a', name: 'Ask First paths resolve', tier: 'foundation', category: 'Autonomy Tiers', status: 'fail', points: 0, maxPoints: 2, confidence: 'high', message: `0/${paths.length} resolve. Broken: ${unresolved.join(', ')}`, evidence: unresolved.join(', ') };
       },
     },
-    recommendation: 'Fix broken paths in Ask First section — every referenced file/directory must exist on disk',
+    recommendation: 'Fix broken paths in Ask First section - every referenced file/directory must exist on disk',
     recommendationKey: 'fix-ask-first-paths',
   },
   {

@@ -153,7 +153,7 @@ flowchart TD
 
 ## Project Shape (Removed in v0.4.0)
 
-**Original rationale:** Different project shapes (app/library/collection) were expected to need different rubric checks. In practice, real implementations showed all projects need the same checks — the same execution loop, autonomy tiers, skills, and enforcement regardless of shape. Permission profiles were the only shape-gated checks, and they were reclassified as create-on-first-use (N/A for everyone). See ADR-002.
+**Original rationale:** Different project shapes (app/library/collection) were expected to need different rubric checks. In practice, real implementations showed all projects need the same checks - the same execution loop, autonomy tiers, skills, and enforcement regardless of shape. Permission profiles were the only shape-gated checks, and they were reclassified as create-on-first-use (N/A for everyone). See ADR-002.
 
 ---
 
@@ -172,7 +172,7 @@ flowchart TD
 
 **v1.5 refinement:** Implementation data confirms all seven original skills add value across all projects. **v2.9 expansion:** Three additional skills added (reflect, onboard, resume), bringing the total to ten skills per agent (security, debug, audit, investigate, review, plan, test, reflect, onboard, resume).
 
-> **Superseded by ADR-007 (v0.8.0, finalized v1.0.0):** The reflect, onboard, and resume skills were consolidated into existing skill modes. goat-audit merged into goat-review (Audit Mode). goat-context removed. goat-refactor and goat-simplify added. The canonical skill count is now **8 skills** per agent + 1 dispatcher (`goat`). See `docs/decisions/ADR-007-consolidate-skills-10-to-8.md`.
+> **Superseded by ADR-007 (v0.8.0, finalized v0.9.1):** The reflect, onboard, and resume skills were consolidated into existing skill modes. goat-audit merged into goat-review (Audit Mode). goat-context removed. goat-refactor and goat-simplify added. The canonical skill count is now **9 skills** per agent (8 specialized + goat dispatcher). See `docs/decisions/ADR-007-consolidate-skills-10-to-8.md`.
 
 ---
 
@@ -204,7 +204,7 @@ flowchart TD
 
 ### SCOPE (v0.1 addition)
 
-**Problem:** Agent touches files and systems outside the task's intended boundary. A "Standard Feature" task silently modifies auth code, deployment config, or unrelated modules. On the Rampart project, the agent changed 57 files across 3 codebases without declaring scope — a circular dependency between `agentStore.ts` and `agentBridge.ts` went undetected because neither file was in the original task's intended boundary. In the same session, the agent built a pre-commit hook feature nobody asked for — a non-goal that would have been surfaced by a scope declaration.
+**Problem:** Agent touches files and systems outside the task's intended boundary. A "Standard Feature" task silently modifies auth code, deployment config, or unrelated modules. On the Rampart project, the agent changed 57 files across 3 codebases without declaring scope - a circular dependency between `agentStore.ts` and `agentBridge.ts` went undetected because neither file was in the original task's intended boundary. In the same session, the agent built a pre-commit hook feature nobody asked for - a non-goal that would have been surfaced by a scope declaration.
 
 **Design decision:** After classifying, declare scope before acting: files allowed to change, non-goals, max blast radius. If changes need to extend beyond declared scope, stop and re-scope with the human. This was initially part of CLASSIFY but the Rampart retrospective showed that scope violations were the single most common preventable failure mode (2 of 6 real bugs). Promoting SCOPE to its own step makes it harder to skip.
 
@@ -212,9 +212,9 @@ flowchart TD
 
 ### CLASSIFY: Complexity Budgets (v0.1 addition)
 
-**Problem:** Complexity tiers (Hotfix / Standard / System / Infrastructure) were labels with no mechanical consequence. On the Rampart project, the initial implementation was an Infrastructure-level change but the agent never re-classified — it blew past any reasonable read or turn budget without checkpoints.
+**Problem:** Complexity tiers (Hotfix / Standard / System / Infrastructure) were labels with no mechanical consequence. On the Rampart project, the initial implementation was an Infrastructure-level change but the agent never re-classified - it blew past any reasonable read or turn budget without checkpoints.
 
-**Design decision:** Each complexity tier now has explicit read and turn budgets: Hotfix (2 reads / 3 turns), Standard (4 / 10), System Change (6 / 20), Infrastructure (8 / 25). Over budget = re-classify before continuing. Budgets are soft limits — the agent doesn't stop automatically, but exceeding them forces a conscious decision to upgrade the complexity tier rather than silently expanding.
+**Design decision:** Each complexity tier now has explicit read and turn budgets: Hotfix (2 reads / 3 turns), Standard (4 / 10), System Change (6 / 20), Infrastructure (8 / 25). Over budget = re-classify before continuing. Budgets are soft limits - the agent doesn't stop automatically, but exceeding them forces a conscious decision to upgrade the complexity tier rather than silently expanding.
 
 **Source:** Claude external review (round 1), Gemini external review (round 2), Rampart retrospective.
 

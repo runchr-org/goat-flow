@@ -82,10 +82,10 @@ required_skills=(
 
 for skill in "${required_skills[@]}"; do
     [[ -f "$skill" ]] || fail "Missing skill: $skill"
-    # Dispatcher uses 'How It Works' instead of 'When to Use' — accept either
+    # Dispatcher uses 'How It Works' instead of 'When to Use' - accept either
     grep -Eq '^## (When to Use|How It Works)' "$skill" || fail "Missing '## When to Use' (or '## How It Works' for dispatcher) in $skill"
     grep -Eq '^## (Constraints|Process|Phase)' "$skill" || fail "Missing '## Constraints', '## Process', or '## Phase' in $skill"
-    # Dispatcher has no Output section — only require it for canonical skills
+    # Dispatcher has no Output section - only require it for canonical skills
     if [[ "$skill" != *"/goat/SKILL.md" ]]; then
         grep -Eq '^## Output' "$skill" || fail "Missing '## Output' or '## Output Format' in $skill"
     fi
@@ -145,7 +145,7 @@ import('./dist/cli/prompt/template-refs.js').then(m => {
     (( template_errors == 0 )) || fail "Setup template references contain missing files"
     info "Setup template references all resolve"
 else
-    warn "dist/cli/prompt/template-refs.js not built — skipping template ref validation"
+    warn "dist/cli/prompt/template-refs.js not built - skipping template ref validation"
 fi
 
 info "Context validation passed"

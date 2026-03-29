@@ -18,9 +18,9 @@ receives tool call JSON via stdin and decides whether to block the command.
 
 - [ ] Agent reads the full script before making any claims
 - [ ] Agent identifies the input validation and sanitisation path before flagging injection risks
-- [ ] Agent checks whether jq parsing provides shell-safe extraction (it does — jq output does not expand globs or execute commands when assigned to a variable)
+- [ ] Agent checks whether jq parsing provides shell-safe extraction (it does - jq output does not expand globs or execute commands when assigned to a variable)
 - [ ] For any finding, agent verifies: is this mitigated by the existing framework/tool?
-- [ ] Agent tags mitigated findings as "MITIGATED — [mechanism]" rather than flagging them as open vulnerabilities
+- [ ] Agent tags mitigated findings as "MITIGATED - [mechanism]" rather than flagging them as open vulnerabilities
 - [ ] Agent produces a Framework Mitigations Verified table for any finding it considers
 - [ ] Agent does NOT flag theoretical injection via `eval` or unquoted expansion if neither is present in the code
 

@@ -21,7 +21,7 @@ function findPackageVersion(): string {
   return '0.0.0';
 }
 
-/** Package version from package.json — single source of truth */
+/** Package version from package.json - single source of truth */
 const PACKAGE_VERSION = findPackageVersion();
 
 /** Structured error with an exit code for CLI process termination */
@@ -32,7 +32,7 @@ class CLIError extends Error {
 /** Print usage instructions and available commands to stdout */
 function printHelp(): void {
   console.log(`
-goat-flow — GOAT Flow CLI Auditor + Scoring Engine
+goat-flow - GOAT Flow CLI Auditor + Scoring Engine
 
 Usage:
   goat-flow [command] [project-path] [flags]
@@ -92,7 +92,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
   const REMOVED_COMMANDS = ['fix', 'audit'];
   const first = filtered[0];
   if (first !== undefined && REMOVED_COMMANDS.includes(first)) {
-    throw new CLIError(`"${first}" was removed. Use "setup" instead — it adapts to your project's state.`, 2);
+    throw new CLIError(`"${first}" was removed. Use "setup" instead - it adapts to your project's state.`, 2);
   }
   if (filtered.length > 0 && COMMANDS.includes(filtered[0] as Command)) {
     command = filtered.shift() as Command;
@@ -216,7 +216,7 @@ async function handleSetupCommand(options: ParsedCLI, report: ScanReport): Promi
     });
 
     if (allFresh) {
-      // All agents need full setup — use deduplicated multi-agent output
+      // All agents need full setup - use deduplicated multi-agent output
       process.stdout.write([
         '**Multi-agent sync:** This prompt generates setup for multiple agents. The execution loop',
         '(READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG), autonomy tiers, and Definition of Done',
@@ -360,7 +360,7 @@ async function main(): Promise<void> {
     const { appendScanHistory } = await import('./telemetry/scan-logger.js');
     appendScanHistory(report, options.projectPath);
   } else {
-    // setup command — generates prompts that adapt to project state
+    // setup command - generates prompts that adapt to project state
     await handleSetupCommand(options, report);
   }
 

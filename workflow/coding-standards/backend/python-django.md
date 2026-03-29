@@ -15,10 +15,10 @@ Reference for generating `ai/instructions/backend.md` in Django projects.
 - Use `.only()` or `.defer()` when you need a subset of fields on large tables.
 
 ```python
-# DO — eager load related objects
+# DO - eager load related objects
 orders = Order.objects.select_related("customer").prefetch_related("items")
 
-# DON'T — N+1: hits the DB once per order in the template loop
+# DON'T - N+1: hits the DB once per order in the template loop
 orders = Order.objects.all()
 for order in orders:
     print(order.customer.name)  # separate query each time
@@ -28,7 +28,7 @@ for order in orders:
 
 - Class-based views for standard CRUD (CreateView, UpdateView, ListView).
 - Function-based views for custom logic that doesn't map to CRUD.
-- DO NOT use class-based views when the logic is a single conditional — a function is clearer.
+- DO NOT use class-based views when the logic is a single conditional - a function is clearer.
 
 ## Django REST Framework (include only if `djangorestframework` is in dependencies)
 
@@ -38,13 +38,13 @@ for order in orders:
 - Apply throttling: `AnonRateThrottle` and `UserRateThrottle` at minimum.
 
 ```python
-# DO — explicit permissions and serializer
+# DO - explicit permissions and serializer
 class OrderViewSet(ModelViewSet):
     queryset = Order.objects.select_related("customer")
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated, IsOrderOwner]
 
-# DON'T — open to all, no eager loading
+# DON'T - open to all, no eager loading
 class OrderViewSet(ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
@@ -54,13 +54,13 @@ class OrderViewSet(ModelViewSet):
 
 - Always review auto-generated migrations before committing. Django guesses rename vs. add+drop.
 - Migrations MUST be reversible. Provide `RunPython` with a reverse function or `migrations.RunPython.noop`.
-- DO NOT squash migrations in a branch — squash on main after merge.
+- DO NOT squash migrations in a branch - squash on main after merge.
 
 ## Settings
 
 - Use `django-environ` or `environs` for environment variable parsing. Never hardcode secrets.
 - Separate settings: `settings/base.py`, `settings/dev.py`, `settings/prod.py`. Import base from each.
-- DO NOT read `os.environ` directly in settings — use the env parser with defaults and type casting.
+- DO NOT read `os.environ` directly in settings - use the env parser with defaults and type casting.
 
 ```python
 # DO
@@ -76,12 +76,12 @@ DEBUG = True
 ## Testing
 
 - Use `pytest-django` over Django's default test runner.
-- Use `factory_boy` for test data. DO NOT use fixtures (JSON/YAML) — they rot and break on schema changes.
+- Use `factory_boy` for test data. DO NOT use fixtures (JSON/YAML) - they rot and break on schema changes.
 - Prefer `RequestFactory` for unit-testing views. Use `Client` only for integration/end-to-end tests.
 - Mark database tests with `@pytest.mark.django_db`.
 
 ```python
-# DO — factory + APIRequestFactory (DRF) for DRF views
+# DO - factory + APIRequestFactory (DRF) for DRF views
 from rest_framework.test import APIRequestFactory, force_authenticate
 user = UserFactory(role="admin")
 request = APIRequestFactory().get("/orders/")
@@ -89,13 +89,13 @@ force_authenticate(request, user=user)
 response = OrderListView.as_view()(request)
 assert response.status_code == 200
 
-# DO — plain Django RequestFactory for non-DRF views
+# DO - plain Django RequestFactory for non-DRF views
 from django.test import RequestFactory
 request = RequestFactory().get("/orders/")
 request.user = UserFactory(role="admin")
 response = OrderListView.as_view()(request)
 
-# DON'T — full Client round-trip for a unit test (use for integration tests only)
+# DON'T - full Client round-trip for a unit test (use for integration tests only)
 client = Client()
 client.force_login(UserFactory())
 response = client.get("/orders/")
@@ -103,10 +103,10 @@ response = client.get("/orders/")
 
 ## Celery (include only if `celery` is in dependencies)
 
-- All tasks MUST be idempotent — safe to retry without side effects.
+- All tasks MUST be idempotent - safe to retry without side effects.
 - Use `acks_late=True` so tasks re-queue if the worker crashes mid-execution.
 - Implement exponential backoff for retries with a ceiling: `self.retry(countdown=min(2 ** self.request.retries, 3600))`.
-- DO NOT pass Django model instances to tasks — pass IDs and re-fetch inside the task.
+- DO NOT pass Django model instances to tasks - pass IDs and re-fetch inside the task.
 
 ## Common Footguns
 

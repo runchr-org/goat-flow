@@ -1,4 +1,4 @@
-# Copilot Instructions — GOAT Flow
+# Copilot Instructions - GOAT Flow
 
 Documentation framework for AI coding agent workflows. Markdown docs + TypeScript CLI scanner.
 
@@ -14,17 +14,17 @@ bash scripts/preflight-checks.sh
 
 ## Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
 
-**READ** — MUST read relevant files before changes. Never fabricate codebase facts.
+**READ** - MUST read relevant files before changes. Never fabricate codebase facts.
 
-**CLASSIFY** — Assess complexity: Hotfix (2 reads, 3 turns), Standard (4 reads, 10 turns), System (6 reads, 20 turns).
+**CLASSIFY** - Assess complexity: Hotfix (2 reads, 3 turns), Standard (4 reads, 10 turns), System (6 reads, 20 turns).
 
-**SCOPE** — Declare files allowed to change, non-goals, max blast radius.
+**SCOPE** - Declare files allowed to change, non-goals, max blast radius.
 
-**ACT** — Declare mode (Plan/Implement/Debug) with goal and exit condition.
+**ACT** - Declare mode (Plan/Implement/Debug) with goal and exit condition.
 
-**VERIFY** — Run shellcheck on .sh changes. Check cross-references after renames. Two corrections on same approach = rewind.
+**VERIFY** - Run shellcheck on .sh changes. Check cross-references after renames. Two corrections on same approach = rewind.
 
-**LOG** — Update docs/lessons.md (behavioral mistakes) or docs/footguns.md (architectural traps) when tripped.
+**LOG** - Update docs/lessons.md (behavioral mistakes) or docs/footguns.md (architectural traps) when tripped.
 
 ## Autonomy Tiers
 

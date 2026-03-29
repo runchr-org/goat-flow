@@ -16,7 +16,7 @@ present.
 - Map errors to HTTP responses at the handler boundary, not deep in business logic.
 
 ```rust
-// DO — thiserror for domain errors
+// DO - thiserror for domain errors
 #[derive(Debug, thiserror::Error)]
 pub enum OrderError {
     #[error("order {0} not found")]
@@ -39,7 +39,7 @@ impl IntoResponse for OrderError {
     }
 }
 
-// DON'T — unwrap in handler
+// DON'T - unwrap in handler
 async fn get_order(Path(id): Path<Uuid>) -> impl IntoResponse {
     let order = db.get_order(id).await.unwrap(); // panics on missing order
     Json(order)
@@ -55,14 +55,14 @@ async fn get_order(Path(id): Path<Uuid>) -> impl IntoResponse {
 ## Async Runtime
 
 - Use `tokio` as the async runtime. Mark the entrypoint with `#[tokio::main]`.
-- DO NOT call blocking code (file I/O, CPU-heavy computation) inside async tasks — use `tokio::task::spawn_blocking`.
+- DO NOT call blocking code (file I/O, CPU-heavy computation) inside async tasks - use `tokio::task::spawn_blocking`.
 - Use `tokio::select!` for racing multiple futures. Always include a cancellation branch.
 
 ```rust
-// DO — spawn_blocking for CPU work
+// DO - spawn_blocking for CPU work
 let hash = tokio::task::spawn_blocking(move || argon2::hash(password)).await?;
 
-// DON'T — block the async runtime
+// DON'T - block the async runtime
 let hash = argon2::hash(password); // blocks the tokio worker thread
 ```
 
@@ -73,7 +73,7 @@ let hash = argon2::hash(password); // blocks the tokio worker thread
 - Use `tower` middleware for cross-cutting concerns: logging, auth, CORS, timeouts.
 
 ```rust
-// DO — extractors and shared state
+// DO - extractors and shared state
 async fn get_user(
     State(state): State<Arc<AppState>>,
     Path(user_id): Path<Uuid>,
@@ -82,7 +82,7 @@ async fn get_user(
     Ok(Json(user))
 }
 
-// DON'T — manual parsing
+// DON'T - manual parsing
 async fn get_user(req: Request) -> impl IntoResponse {
     let id = req.uri().path().split('/').last().unwrap();
     // ...
@@ -96,12 +96,12 @@ async fn get_user(req: Request) -> impl IntoResponse {
 - Run migrations with `sqlx migrate run` or embed them with `sqlx::migrate!()`.
 
 ```rust
-// DO — compile-time checked query
+// DO - compile-time checked query
 let user = sqlx::query_as!(User, "SELECT id, name, email FROM users WHERE id = $1", user_id)
     .fetch_optional(&pool)
     .await?;
 
-// DON'T — unchecked string query
+// DON'T - unchecked string query
 let user = sqlx::query("SELECT * FROM users WHERE id = " + &user_id.to_string())
     .fetch_one(&pool)
     .await?;

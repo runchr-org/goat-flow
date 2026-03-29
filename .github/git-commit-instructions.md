@@ -1,13 +1,13 @@
 # Git Commit Instructions
 
-<!-- Source: ai/instructions/git-commit.md — keep in sync -->
+<!-- Source: ai/instructions/git-commit.md - keep in sync -->
 
 ## Commit Message Format
 
 ```
 <action> <scope>: <description>
 
-<body — what and why, not how>
+<body - what and why, not how>
 ```
 
 **Good:**

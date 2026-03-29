@@ -10,7 +10,7 @@ import { SKILL_NAMES } from '../constants.js';
 const SKILL_QUALITY_THRESHOLD = 0.8;
 
 /**
- * Tier 2 — Standard (69 points)
+ * Tier 2 - Standard (69 points)
  * Skills, hooks, learning loop, router, architecture, local context.
  * These checks represent the operational layer that makes GOAT Flow effective.
  */
@@ -28,20 +28,20 @@ export const standardChecks: CheckDef[] = [
     recommendationKey: `create-skill-${skill.replace('goat-', '')}`,
   })),
   {
-    id: '2.1.11', name: 'All 8 skills present', tier: 'standard', category: 'Skills',
+    id: '2.1.11', name: 'All 9 skills present', tier: 'standard', category: 'Skills',
     pts: 1, confidence: 'high',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
-        id: '2.1.11', name: 'All 8 skills present', tier: 'standard', category: 'Skills',
+        id: '2.1.11', name: 'All 9 skills present', tier: 'standard', category: 'Skills',
         status: ctx.agentFacts.skills.allPresent ? 'pass' : 'fail',
         points: ctx.agentFacts.skills.allPresent ? 1 : 0, maxPoints: 1, confidence: 'high',
         message: ctx.agentFacts.skills.allPresent
-          ? 'All 8 skills present'
+          ? 'All 9 skills present'
           : `Missing: ${ctx.agentFacts.skills.missing.join(', ')}`,
       }),
     },
-    recommendation: 'Create all 8 goat-* skills',
+    recommendation: 'Create all 9 goat-* skills (8 specialized + goat dispatcher)',
     recommendationKey: 'create-all-skills',
   },
 
@@ -60,7 +60,7 @@ export const standardChecks: CheckDef[] = [
         if (ratio >= SKILL_QUALITY_THRESHOLD) {
           return { id: '2.1.12', name: 'Skills gather context (Step 0)', tier: 'standard', category: 'Skills', status: 'pass', points: 1, maxPoints: 1, confidence: 'medium', message: `${quality.withStep0}/${quality.total} skills ask questions before acting` };
         }
-        return { id: '2.1.12', name: 'Skills gather context (Step 0)', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withStep0}/${quality.total} skills gather context — most should ask before acting` };
+        return { id: '2.1.12', name: 'Skills gather context (Step 0)', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withStep0}/${quality.total} skills gather context - most should ask before acting` };
       },
     },
     recommendation: 'Skills should ask clarifying questions before acting (Step 0 pattern)',
@@ -80,7 +80,7 @@ export const standardChecks: CheckDef[] = [
         if (ratio >= SKILL_QUALITY_THRESHOLD) {
           return { id: '2.1.13', name: 'Skills have human gates', tier: 'standard', category: 'Skills', status: 'pass', points: 1, maxPoints: 1, confidence: 'medium', message: `${quality.withHumanGate}/${quality.total} skills include human gates` };
         }
-        return { id: '2.1.13', name: 'Skills have human gates', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withHumanGate}/${quality.total} skills have human gates — agents should pause for review` };
+        return { id: '2.1.13', name: 'Skills have human gates', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withHumanGate}/${quality.total} skills have human gates - agents should pause for review` };
       },
     },
     recommendation: 'Skills should include HUMAN GATE checkpoints where the agent pauses for human review',
@@ -120,7 +120,7 @@ export const standardChecks: CheckDef[] = [
         if (ratio >= SKILL_QUALITY_THRESHOLD) {
           return { id: '2.1.15', name: 'Skills have phased process', tier: 'standard', category: 'Skills', status: 'pass', points: 1, maxPoints: 1, confidence: 'medium', message: `${quality.withPhases}/${quality.total} skills have phased execution` };
         }
-        return { id: '2.1.15', name: 'Skills have phased process', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withPhases}/${quality.total} skills have phased execution — structure prevents skipping steps` };
+        return { id: '2.1.15', name: 'Skills have phased process', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withPhases}/${quality.total} skills have phased execution - structure prevents skipping steps` };
       },
     },
     recommendation: 'Skills should have a phased process (Phase 1, Phase 2, etc.) to prevent step-skipping',
@@ -139,10 +139,10 @@ export const standardChecks: CheckDef[] = [
         if (quality.withConversational === quality.total) {
           return { id: '2.1.16', name: 'Skills are conversational', tier: 'standard', category: 'Skills', status: 'pass', points: 1, maxPoints: 1, confidence: 'medium', message: `${quality.withConversational}/${quality.total} skills encourage conversational interaction` };
         }
-        return { id: '2.1.16', name: 'Skills are conversational', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withConversational}/${quality.total} skills are conversational — all skills must present findings then let humans drill in` };
+        return { id: '2.1.16', name: 'Skills are conversational', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withConversational}/${quality.total} skills are conversational - all skills must present findings then let humans drill in` };
       },
     },
-    recommendation: 'Skills should be conversational — present findings, then let the human drill in with follow-up questions. One-shot dumps miss architectural problems.',
+    recommendation: 'Skills should be conversational - present findings, then let the human drill in with follow-up questions. One-shot dumps miss architectural problems.',
     recommendationKey: 'add-skill-conversational',
   },
   {
@@ -159,7 +159,7 @@ export const standardChecks: CheckDef[] = [
         if (ratio >= SKILL_QUALITY_THRESHOLD) {
           return { id: '2.1.17', name: 'Skills have chaining', tier: 'standard', category: 'Skills', status: 'pass', points: 1, maxPoints: 1, confidence: 'medium', message: `${quality.withChaining}/${quality.total} skills link to related skills` };
         }
-        return { id: '2.1.17', name: 'Skills have chaining', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withChaining}/${quality.total} skills have chaining — skills should link to related skills` };
+        return { id: '2.1.17', name: 'Skills have chaining', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withChaining}/${quality.total} skills have chaining - skills should link to related skills` };
       },
     },
     recommendation: 'Skills should include a "Chains with" footer linking to related skills',
@@ -179,7 +179,7 @@ export const standardChecks: CheckDef[] = [
         if (ratio >= SKILL_QUALITY_THRESHOLD) {
           return { id: '2.1.18', name: 'Skills have structured choices', tier: 'standard', category: 'Skills', status: 'pass', points: 1, maxPoints: 1, confidence: 'medium', message: `${quality.withChoices}/${quality.total} skills offer choices at phase transitions` };
         }
-        return { id: '2.1.18', name: 'Skills have structured choices', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withChoices}/${quality.total} skills have structured choices — use (a)/(b)/(c) options, not yes/no gates` };
+        return { id: '2.1.18', name: 'Skills have structured choices', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withChoices}/${quality.total} skills have structured choices - use (a)/(b)/(c) options, not yes/no gates` };
       },
     },
     recommendation: 'Skills should offer choices at phase transitions, not just yes/no gates',
@@ -200,7 +200,7 @@ export const standardChecks: CheckDef[] = [
         if (ratio >= SKILL_QUALITY_THRESHOLD) {
           return { id: '2.1.19', name: 'Skills have output format', tier: 'standard', category: 'Skills', status: 'pass', points: 1, maxPoints: 1, confidence: 'medium', message: `${quality.withOutputFormat}/${quality.total} skills define an output format` };
         }
-        return { id: '2.1.19', name: 'Skills have output format', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withOutputFormat}/${quality.total} skills define an output format — skills should specify what the agent produces` };
+        return { id: '2.1.19', name: 'Skills have output format', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withOutputFormat}/${quality.total} skills define an output format - skills should specify what the agent produces` };
       },
     },
     recommendation: 'Skills should include an ## Output or ## Output Format section that defines the expected deliverable format',
@@ -220,7 +220,7 @@ export const standardChecks: CheckDef[] = [
           : `${ctx.agentFacts.agent.skillsDir}/goat/SKILL.md not found`,
       }),
     },
-    recommendation: 'Install the goat dispatcher skill alongside the 8 canonical skills — it routes /goat commands to the right skill',
+    recommendation: 'Install the goat dispatcher skill alongside the 8 canonical skills - it routes /goat commands to the right skill',
     recommendationKey: 'install-dispatcher-skill',
   },
   {
@@ -237,7 +237,7 @@ export const standardChecks: CheckDef[] = [
         if (ratio >= SKILL_QUALITY_THRESHOLD) {
           return { id: '2.1.21', name: 'Skills have Shared Conventions block', tier: 'standard', category: 'Skills', status: 'pass', points: 1, maxPoints: 1, confidence: 'medium', message: `${quality.withSharedConventions}/${found.length} skills have Shared Conventions block` };
         }
-        return { id: '2.1.21', name: 'Skills have Shared Conventions block', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withSharedConventions}/${found.length} skills have Shared Conventions block — add severity, evidence standard, gates, learning loop` };
+        return { id: '2.1.21', name: 'Skills have Shared Conventions block', tier: 'standard', category: 'Skills', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `Only ${quality.withSharedConventions}/${found.length} skills have Shared Conventions block - add severity, evidence standard, gates, learning loop` };
       },
     },
     recommendation: 'Add ## Shared Conventions block to each skill (severity scale, evidence standard, gates, adaptive Step 0, learning loop)',
@@ -250,7 +250,7 @@ export const standardChecks: CheckDef[] = [
     pts: 1, confidence: 'high',
     na: (ctx) => ctx.agentFacts.agent.settingsFile === null,
     detect: { type: 'json_valid', path: '{settings_file}' },
-    recommendation: 'Fix settings.json — invalid JSON',
+    recommendation: 'Fix settings.json - invalid JSON',
     recommendationKey: 'fix-settings-json',
   },
   {
@@ -303,7 +303,7 @@ export const standardChecks: CheckDef[] = [
         return {
           id: '2.2.4', name: 'Post-tool hook or documented skip', tier: 'standard', category: 'Hooks',
           status: pass ? 'pass' : 'fail', points: pass ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: exists ? 'Post-tool hook exists' : (noFormatter ? 'No formatter — skip is correct' : 'No post-tool hook and formatter exists'),
+          message: exists ? 'Post-tool hook exists' : (noFormatter ? 'No formatter - skip is correct' : 'No post-tool hook and formatter exists'),
         };
       },
     },
@@ -361,8 +361,8 @@ export const standardChecks: CheckDef[] = [
         status: ctx.agentFacts.hooks.compactionHookExists ? 'pass' : 'fail',
         points: ctx.agentFacts.hooks.compactionHookExists ? 1 : 0, maxPoints: 1, confidence: 'medium',
         message: ctx.agentFacts.hooks.compactionHookExists
-          ? 'Notification hook for compaction found — context preserved across long sessions'
-          : 'No compaction hook — context may be lost during long sessions. Add a Notification hook with compact matcher.',
+          ? 'Notification hook for compaction found - context preserved across long sessions'
+          : 'No compaction hook - context may be lost during long sessions. Add a Notification hook with compact matcher.',
       }),
     },
     recommendation: 'Register a Notification hook for compaction that re-injects current task, modified files, and constraints after context compaction',
@@ -381,7 +381,7 @@ export const standardChecks: CheckDef[] = [
           id: '2.2.5a', name: 'Deny hook uses safe JSON parsing', tier: 'standard', category: 'Hooks',
           status: ctx.agentFacts.hooks.denyUsesJq ? 'pass' : 'fail',
           points: ctx.agentFacts.hooks.denyUsesJq ? 1 : 0, maxPoints: 1, confidence: 'medium',
-          message: ctx.agentFacts.hooks.denyUsesJq ? 'Deny hook uses jq for JSON parsing (portable)' : 'Deny hook uses grep -P or regex for JSON parsing — use jq instead (grep -P is not portable to macOS)',
+          message: ctx.agentFacts.hooks.denyUsesJq ? 'Deny hook uses jq for JSON parsing (portable)' : 'Deny hook uses grep -P or regex for JSON parsing - use jq instead (grep -P is not portable to macOS)',
         };
       },
     },
@@ -401,7 +401,7 @@ export const standardChecks: CheckDef[] = [
           id: '2.2.5b', name: 'Deny hook handles command chaining', tier: 'standard', category: 'Hooks',
           status: ctx.agentFacts.hooks.denyHandlesChaining ? 'pass' : 'fail',
           points: ctx.agentFacts.hooks.denyHandlesChaining ? 1 : 0, maxPoints: 1, confidence: 'medium',
-          message: ctx.agentFacts.hooks.denyHandlesChaining ? 'Deny hook splits on && || ; before checking patterns' : 'Deny hook does not handle command chaining — "echo hello && rm -rf /" would bypass detection',
+          message: ctx.agentFacts.hooks.denyHandlesChaining ? 'Deny hook splits on && || ; before checking patterns' : 'Deny hook does not handle command chaining - "echo hello && rm -rf /" would bypass detection',
         };
       },
     },
@@ -421,7 +421,7 @@ export const standardChecks: CheckDef[] = [
           id: '2.2.5c', name: 'Deny hook blocks rm -rf', tier: 'standard', category: 'Hooks',
           status: ctx.agentFacts.hooks.denyBlocksRmRf ? 'pass' : 'fail',
           points: ctx.agentFacts.hooks.denyBlocksRmRf ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: ctx.agentFacts.hooks.denyBlocksRmRf ? 'Deny hook blocks rm -rf' : 'Deny hook does not block rm -rf — the most dangerous destructive command must be blocked',
+          message: ctx.agentFacts.hooks.denyBlocksRmRf ? 'Deny hook blocks rm -rf' : 'Deny hook does not block rm -rf - the most dangerous destructive command must be blocked',
         };
       },
     },
@@ -434,7 +434,7 @@ export const standardChecks: CheckDef[] = [
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
-        // Codex has no Read-deny mechanism — execpolicy only blocks shell commands, not file reads
+        // Codex has no Read-deny mechanism - execpolicy only blocks shell commands, not file reads
         if (ctx.agentFacts.agent.id === 'codex') {
           return { id: '2.2.5d', name: 'Read-deny covers sensitive paths', tier: 'standard', category: 'Hooks', status: 'na', points: 0, maxPoints: 0, confidence: 'medium', message: 'Codex has no Read-deny mechanism (execpolicy covers shell commands only)' };
         }
@@ -465,7 +465,7 @@ export const standardChecks: CheckDef[] = [
           id: '2.2.5e', name: 'Deny hook blocks force push', tier: 'standard', category: 'Hooks',
           status: ctx.agentFacts.hooks.denyBlocksForcePush ? 'pass' : 'fail',
           points: ctx.agentFacts.hooks.denyBlocksForcePush ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: ctx.agentFacts.hooks.denyBlocksForcePush ? 'Deny hook blocks force push' : 'Deny hook does not block force push — agents must never force push',
+          message: ctx.agentFacts.hooks.denyBlocksForcePush ? 'Deny hook blocks force push' : 'Deny hook does not block force push - agents must never force push',
         };
       },
     },
@@ -485,32 +485,12 @@ export const standardChecks: CheckDef[] = [
           id: '2.2.5f', name: 'Deny hook blocks chmod 777', tier: 'standard', category: 'Hooks',
           status: ctx.agentFacts.hooks.denyBlocksChmod ? 'pass' : 'fail',
           points: ctx.agentFacts.hooks.denyBlocksChmod ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: ctx.agentFacts.hooks.denyBlocksChmod ? 'Deny hook blocks chmod 777' : 'Deny hook does not block chmod 777 — world-writable permissions are a security risk',
+          message: ctx.agentFacts.hooks.denyBlocksChmod ? 'Deny hook blocks chmod 777' : 'Deny hook does not block chmod 777 - world-writable permissions are a security risk',
         };
       },
     },
     recommendation: 'Deny hook MUST block chmod 777. World-writable permissions are a security vulnerability.',
     recommendationKey: 'fix-deny-chmod',
-  },
-  {
-    id: '2.2.5g', name: 'Deny hook blocks package mutations', tier: 'standard', category: 'Hooks',
-    pts: 1, confidence: 'high',
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        if (ctx.agentFacts.hooks.denyExists === false) {
-          return { id: '2.2.5g', name: 'Deny hook blocks package mutations', tier: 'standard', category: 'Hooks', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No deny hook' };
-        }
-        return {
-          id: '2.2.5g', name: 'Deny hook blocks package mutations', tier: 'standard', category: 'Hooks',
-          status: ctx.agentFacts.hooks.denyBlocksPackageMutation ? 'pass' : 'fail',
-          points: ctx.agentFacts.hooks.denyBlocksPackageMutation ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: ctx.agentFacts.hooks.denyBlocksPackageMutation ? 'Deny hook blocks package mutations' : 'Deny hook does not block package mutations (npm add, pip install <pkg>, go get, etc.)',
-        };
-      },
-    },
-    recommendation: 'Deny hook should block package manager commands that add/remove deps (npm add, npm install <pkg>, yarn add, pip install <pkg>, composer require, go get). Bare npm install (from lockfile) must NOT be blocked.',
-    recommendationKey: 'fix-deny-package-mutation',
   },
   {
     id: '2.2.5', name: 'Preflight script', tier: 'standard', category: 'Hooks',
@@ -531,7 +511,7 @@ export const standardChecks: CheckDef[] = [
     recommendation: 'Create context validation script or CI workflow',
     recommendationKey: 'create-context-validation',
   },
-  // 2.2.7 (Ask First mechanical enforcement) removed — see ADR-006.
+  // 2.2.7 (Ask First mechanical enforcement) removed - see ADR-006.
   // The hook blocks normal development on framework projects. Ask First
   // boundaries remain as policy in the instruction file.
 
@@ -543,7 +523,7 @@ export const standardChecks: CheckDef[] = [
     recommendation: 'Create docs/lessons.md',
     recommendationKey: 'create-lessons',
   },
-  // 2.3.2 removed — duplicate of 2.3.2a (hasEntries === entryCount >= 1)
+  // 2.3.2 removed - duplicate of 2.3.2a (hasEntries === entryCount >= 1)
   {
     id: '2.3.3', name: 'footguns.md exists', tier: 'standard', category: 'Learning Loop',
     pts: 2, confidence: 'high',
@@ -581,7 +561,7 @@ export const standardChecks: CheckDef[] = [
     recommendation: 'Seed lessons.md with at least 1 real incident from git history (3-5 is ideal)',
     recommendationKey: 'seed-lessons-minimum',
   },
-  // 2.3.5 removed — duplicate of AP12 (stale footgun refs)
+  // 2.3.5 removed - duplicate of AP12 (stale footgun refs)
   {
     id: '2.3.5a', name: 'Footguns have evidence labels', tier: 'standard', category: 'Learning Loop',
     pts: 1, confidence: 'medium',
@@ -741,13 +721,13 @@ export const standardChecks: CheckDef[] = [
       fn: (ctx: FactContext): CheckResult => {
         const { hasRouter, dirExists } = ctx.facts.shared.localInstructions;
         if (dirExists === false) {
-          return { id: '2.6.2', name: 'Router exists', tier: 'standard', category: 'Local Instructions', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: 'No instructions directory — router not applicable' };
+          return { id: '2.6.2', name: 'Router exists', tier: 'standard', category: 'Local Instructions', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: 'No instructions directory - router not applicable' };
         }
         return {
           id: '2.6.2', name: 'Router exists', tier: 'standard', category: 'Local Instructions',
           status: hasRouter ? 'pass' : 'fail',
           points: hasRouter ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: hasRouter ? 'ai/README.md exists' : 'ai/README.md not found — agents need a router to discover instruction files',
+          message: hasRouter ? 'ai/README.md exists' : 'ai/README.md not found - agents need a router to discover instruction files',
         };
       },
     },
@@ -768,7 +748,7 @@ export const standardChecks: CheckDef[] = [
           id: '2.6.3', name: 'conventions.md exists', tier: 'standard', category: 'Local Instructions',
           status: hasConventions ? 'pass' : 'fail',
           points: hasConventions ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: hasConventions ? 'conventions.md found' : 'conventions.md not found — project needs a universal coding contract',
+          message: hasConventions ? 'conventions.md found' : 'conventions.md not found - project needs a universal coding contract',
         };
       },
     },
@@ -790,7 +770,7 @@ export const standardChecks: CheckDef[] = [
           points: ctx.facts.shared.localInstructions.conventionsHasContent ? 1 : 0, maxPoints: 1, confidence: 'high',
           message: ctx.facts.shared.localInstructions.conventionsHasContent
             ? 'conventions.md has commands and conventions'
-            : 'conventions.md exists but lacks commands or conventions — a stub is not useful',
+            : 'conventions.md exists but lacks commands or conventions - a stub is not useful',
         };
       },
     },
@@ -811,7 +791,7 @@ export const standardChecks: CheckDef[] = [
           id: '2.6.4', name: 'code-review.md exists', tier: 'standard', category: 'Local Instructions',
           status: hasCodeReview ? 'pass' : 'fail',
           points: hasCodeReview ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: hasCodeReview ? 'code-review.md found' : 'code-review.md not found — project needs review standards',
+          message: hasCodeReview ? 'code-review.md found' : 'code-review.md not found - project needs review standards',
         };
       },
     },
@@ -832,7 +812,7 @@ export const standardChecks: CheckDef[] = [
           id: '2.6.5', name: 'git-commit.md exists', tier: 'standard', category: 'Local Instructions',
           status: hasGitCommit ? 'pass' : 'fail',
           points: hasGitCommit ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: hasGitCommit ? 'git-commit.md found' : 'git-commit.md not found — project needs commit conventions',
+          message: hasGitCommit ? 'git-commit.md found' : 'git-commit.md not found - project needs commit conventions',
         };
       },
     },
@@ -948,7 +928,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'LLM integration detected — add prompt/template paths to Router Table and "prompt changes require scenario testing" to Ask First boundaries',
+    recommendation: 'LLM integration detected - add prompt/template paths to Router Table and "prompt changes require scenario testing" to Ask First boundaries',
     recommendationKey: 'fix-llm-signal-followthrough',
   },
   {
@@ -968,7 +948,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'PHI/compliance signals detected — add mandatory constraints to instruction file: "MUST NOT log PHI", "MUST scope queries by tenant". These belong in the hot path, not only in cold-path security docs.',
+    recommendation: 'PHI/compliance signals detected - add mandatory constraints to instruction file: "MUST NOT log PHI", "MUST scope queries by tenant". These belong in the hot path, not only in cold-path security docs.',
     recommendationKey: 'fix-compliance-signal-followthrough',
   },
   {
@@ -983,7 +963,7 @@ export const standardChecks: CheckDef[] = [
           id: '2.7.3', name: 'Formatter hook covers detected languages', tier: 'standard', category: 'Signal Follow-Through',
           status: 'fail',
           points: 0, maxPoints: 1, confidence: 'medium',
-          message: `Formatter gaps: ${gaps.join(', ')} — add formatters to PostToolUse hook (format-file.sh)`,
+          message: `Formatter gaps: ${gaps.join(', ')} - add formatters to PostToolUse hook (format-file.sh)`,
         };
       },
     },

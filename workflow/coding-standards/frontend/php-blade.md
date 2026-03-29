@@ -11,7 +11,7 @@ Reference for generating `ai/instructions/frontend.md` in Laravel projects using
   `::attribute` so Blade does not treat the binding as PHP.
 
 ```blade
-{{-- DO — component with typed props --}}
+{{-- DO - component with typed props --}}
 {{-- resources/views/components/button.blade.php --}}
 @props(['variant' => 'primary', 'size' => 'md'])
 
@@ -22,7 +22,7 @@ Reference for generating `ai/instructions/frontend.md` in Laravel projects using
 {{-- Usage --}}
 <x-button variant="danger" wire:click="delete">Delete</x-button>
 
-{{-- DON'T — @include with loose variables --}}
+{{-- DON'T - @include with loose variables --}}
 @include('partials.button', ['text' => 'Delete', 'class' => 'btn-danger'])
 ```
 
@@ -36,10 +36,10 @@ Reference for generating `ai/instructions/frontend.md` in Laravel projects using
 {{-- DO --}}
 <p>{{ $user->bio }}</p>
 
-{{-- DON'T — XSS vulnerability --}}
+{{-- DON'T - XSS vulnerability --}}
 <p>{!! $user->bio !!}</p>
 
-{{-- OK — sanitized content --}}
+{{-- OK - sanitized content --}}
 <p>{!! clean($article->body) !!}</p>
 ```
 
@@ -49,13 +49,13 @@ Reference for generating `ai/instructions/frontend.md` in Laravel projects using
 - `@extends`/`@section`/`@yield` for existing projects that already use them. Do not mix both patterns in the same project.
 
 ```blade
-{{-- DO — component layout --}}
+{{-- DO - component layout --}}
 <x-layouts.app title="Dashboard">
     <h1>Dashboard</h1>
     {{ $slot }}
 </x-layouts.app>
 
-{{-- LEGACY — @extends layout (acceptable in existing codebases) --}}
+{{-- LEGACY - @extends layout (acceptable in existing codebases) --}}
 @extends('layouts.app')
 @section('content')
     <h1>Dashboard</h1>
@@ -65,23 +65,23 @@ Reference for generating `ai/instructions/frontend.md` in Laravel projects using
 ## Livewire Patterns (if present)
 
 - Livewire components for interactive UI that would otherwise need a JS framework.
-- Keep Livewire component classes thin — delegate business logic to actions/services.
+- Keep Livewire component classes thin - delegate business logic to actions/services.
 - Use `wire:model.blur` for form-style validation, or a debounced
   `wire:model.live` only when the UX truly needs live feedback such as search.
-- Avoid Livewire for static pages or simple forms — a standard form POST is simpler.
+- Avoid Livewire for static pages or simple forms - a standard form POST is simpler.
 
 ```blade
-{{-- DO — debounced search --}}
+{{-- DO - debounced search --}}
 <input type="text" wire:model.live.debounce.300ms="search" />
 
-{{-- DON'T — real-time binding with no debounce --}}
+{{-- DON'T - real-time binding with no debounce --}}
 <input type="text" wire:model.live="search" />
 ```
 
 ## Directives
 
 - Use `@auth`, `@guest`, `@can` for authorization in views. Do not duplicate policy checks in Blade with raw PHP.
-- Use `@forelse` over `@foreach` when the collection might be empty — it gives you the `@empty` block.
+- Use `@forelse` over `@foreach` when the collection might be empty - it gives you the `@empty` block.
 - Keep Blade logic minimal. If a conditional is complex, move it to a computed property on the model, a view composer, or a component class.
 
 ```blade
@@ -92,7 +92,7 @@ Reference for generating `ai/instructions/frontend.md` in Laravel projects using
     <p>No users found.</p>
 @endforelse
 
-{{-- DON'T — complex logic in Blade --}}
+{{-- DON'T - complex logic in Blade --}}
 @if(count($users) > 0 && $currentUser->hasRole('admin') && !$isArchived)
 ```
 
@@ -106,7 +106,7 @@ Reference for generating `ai/instructions/frontend.md` in Laravel projects using
 
 ## Primary Sources
 
-- [Blade Templates — Laravel docs](https://laravel.com/docs/blade)
-- [Blade Components — Laravel docs](https://laravel.com/docs/blade#components)
-- [Livewire — Official docs](https://livewire.laravel.com/docs)
-- [Laravel Security — XSS Prevention](https://laravel.com/docs/strings#html-string)
+- [Blade Templates - Laravel docs](https://laravel.com/docs/blade)
+- [Blade Components - Laravel docs](https://laravel.com/docs/blade#components)
+- [Livewire - Official docs](https://livewire.laravel.com/docs)
+- [Laravel Security - XSS Prevention](https://laravel.com/docs/strings#html-string)

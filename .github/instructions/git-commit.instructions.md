@@ -1,16 +1,16 @@
 ---
 applyTo: "**"
 ---
-<!-- Source: ai/instructions/git-commit.md — keep in sync -->
+<!-- Source: ai/instructions/git-commit.md - keep in sync -->
 
-# Git Commit — GOAT Flow
+# Git Commit - GOAT Flow
 
 ## Commit Message Format
 
 ```
 <action> <scope>: <description>
 
-<body — what and why, not how>
+<body - what and why, not how>
 ```
 
 **Good:**
