@@ -281,7 +281,7 @@ describe('Fixture 4: full-claude', () => {
       permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
       hooks: [{ type: 'Notification', matcher: 'compact', command: 'echo context' }],
     }),
-    // 9 skills
+    // 9 skills (8 + dispatcher)
     ...Object.fromEntries(
       ['security', 'debug', 'investigate', 'review', 'plan', 'test', 'refactor', 'simplify'].map(s => [
         `.claude/skills/goat-${s}/SKILL.md`, qualitySkill(s),

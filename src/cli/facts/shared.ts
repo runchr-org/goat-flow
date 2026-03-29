@@ -174,8 +174,8 @@ function extractEvalFacts(fs: ReadonlyFS): SharedFacts['evals'] {
     return { dirExists, count, hasReadme, hasOriginLabels: false, hasAgentsLabels: false, hasReplayPrompts: false, hasFrontmatter: false, evalSkillCount: 0 };
   }
 
-  /** The 8 canonical goat-flow skills - only these count toward eval diversity */
-  const CANONICAL_SKILLS = new Set(['goat-debug', 'goat-investigate', 'goat-plan', 'goat-refactor', 'goat-review', 'goat-security', 'goat-simplify', 'goat-test']);
+  /** The 9 canonical goat-flow skills (including dispatcher) - only these count toward eval diversity */
+  const CANONICAL_SKILLS = new Set(['goat', 'goat-debug', 'goat-investigate', 'goat-plan', 'goat-refactor', 'goat-review', 'goat-security', 'goat-simplify', 'goat-test']);
   /** Canonical skills with at least one eval */
   const skillNames = new Set<string>();
   /** Track whether all eval files pass origin/replay/agents/frontmatter checks */

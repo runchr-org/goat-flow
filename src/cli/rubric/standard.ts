@@ -220,7 +220,7 @@ export const standardChecks: CheckDef[] = [
           : `${ctx.agentFacts.agent.skillsDir}/goat/SKILL.md not found`,
       }),
     },
-    recommendation: 'Install the goat dispatcher skill alongside the 8 canonical skills - it routes /goat commands to the right skill',
+    recommendation: 'Install the goat dispatcher skill - the 9th canonical skill that routes /goat commands to the right skill',
     recommendationKey: 'install-dispatcher-skill',
   },
   {

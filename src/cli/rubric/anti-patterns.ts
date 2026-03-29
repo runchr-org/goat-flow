@@ -225,12 +225,12 @@ export const antiPatterns: AntiPatternDef[] = [
         id: 'AP16', name: 'Deprecated skills present', triggered,
         deduction: triggered ? -5 : 0, confidence: 'high',
         message: triggered
-          ? `${deprecated.length} deprecated skill(s): ${deprecated.join(', ')}. Remove - these are replaced by the 8 canonical skills.`
+          ? `${deprecated.length} deprecated skill(s): ${deprecated.join(', ')}. Remove - these are replaced by the 9 canonical skills.`
           : 'No deprecated skills',
         evidence: triggered ? deprecated.join(', ') : undefined,
       };
     },
-    recommendation: 'Remove deprecated skill directories (goat-audit, goat-reflect, goat-onboard, goat-resume, goat-context). They are replaced by the 8 canonical goat-* skills.',
+    recommendation: 'Remove deprecated skill directories (goat-audit, goat-reflect, goat-onboard, goat-resume, goat-context). They are replaced by the 9 canonical goat-* skills.',
     recommendationKey: 'ap-remove-deprecated-skills',
   },
   {

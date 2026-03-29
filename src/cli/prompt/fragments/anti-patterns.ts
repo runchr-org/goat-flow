@@ -204,7 +204,7 @@ goat-flow-skill-version: "${SKILL_VERSION}"
 
 **Deprecated skills found:** {{evidence.ap-remove-deprecated-skills}}
 
-These skills were consolidated into the 8 canonical skills in v0.8.0:
+These skills were consolidated into the 9 canonical skills in v0.8.0:
 - \`goat-audit\` → merged into \`goat-review\` (Audit Mode)
 - \`goat-reflect\`, \`goat-onboard\`, \`goat-resume\` → consolidated into existing skills
 - \`goat-context\` → removed

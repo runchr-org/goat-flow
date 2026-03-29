@@ -211,7 +211,7 @@ Without an output format, agents produce inconsistent deliverables and the human
     phase: 'standard',
     category: 'Skills',
     kind: 'create',
-    instruction: `Install the \`goat\` dispatcher skill alongside the 8 canonical skills.
+    instruction: `Install the \`goat\` dispatcher skill — it's the 9th canonical skill that routes to the other 8.
 
 Copy \`workflow/skills/goat.md\` to \`{{skillsDir}}/goat/SKILL.md\`.
 

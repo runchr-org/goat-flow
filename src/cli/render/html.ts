@@ -12,7 +12,9 @@ export function renderHtml(report: ScanReport): string {
   const jsonData = JSON.stringify(report);
 
   // Inject report data
-  const injection = `<script>window.__GOAT_FLOW_REPORT__ = ${jsonData};</script>`;
+  // Escape </script> in JSON to prevent breaking out of the script context
+  const safeJson = jsonData.replace(/<\//g, '<\\/');
+  const injection = `<script>window.__GOAT_FLOW_REPORT__ = ${safeJson};</script>`;
   return html.replace('</body>', `${injection}\n</body>`);
 }
 

@@ -8,6 +8,8 @@ import { scanProject } from './scanner/scan.js';
 import { renderJson } from './render/json.js';
 import type { AgentId } from './types.js';
 
+const VALID_AGENTS = new Set<string>(['claude', 'codex', 'gemini']);
+
 /** Load a file from the package root by walking up */
 function loadPackageFile(name: string): string {
   let dir = dirname(fileURLToPath(import.meta.url));
@@ -44,7 +46,7 @@ export function serveDashboard(defaultPath: string): void {
       try {
         const fs = createFS(projectPath);
         const report = scanProject(fs, projectPath, { agentFilter: null });
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(renderJson(report));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -56,14 +58,20 @@ export function serveDashboard(defaultPath: string): void {
     // Setup API
     if (url.pathname === '/api/setup') {
       const projectPath = resolve(url.searchParams.get('path') || absDefault);
-      const agent = (url.searchParams.get('agent') || 'claude') as AgentId;
+      const agentParam = url.searchParams.get('agent') || 'claude';
+      if (!VALID_AGENTS.has(agentParam)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: `Invalid agent: ${agentParam}. Valid: claude, codex, gemini` }));
+        return;
+      }
+      const agent = agentParam as AgentId;
       try {
         const fs = createFS(projectPath);
         const report = scanProject(fs, projectPath, { agentFilter: agent });
         // Dynamic import to keep startup fast
         import('./prompt/compose-setup.js').then(({ composeSetup }) => {
           const output = composeSetup(report, agent);
-          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ output: output ?? 'No setup output generated.' }));
         }).catch((err: unknown) => {
           res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -92,7 +100,7 @@ export function serveDashboard(defaultPath: string): void {
           });
           return { name, path: full, isProject: hasProject };
         });
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ current: dirPath, parent: dirname(dirPath), dirs }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });

@@ -86,3 +86,8 @@ When the change is code-only, running tests is sufficient. When the change touch
 _Entries: "When deny hook blocks a command, use the unblocked equivalent"_
 
 Deny hooks block dangerous patterns, not all operations. When a command is blocked, spend 2 seconds thinking about the safe alternative before asking the user or giving up.
+
+### Dispatcher is a first-class skill, not a helper
+The goat dispatcher was treated as secondary to the "real" 8 skills — excluded from CANONICAL_SKILLS, eval diversity counting (TOTAL_SKILLS=8), and consistently under-counted in comments and recommendations ("8 canonical skills"). This led to inconsistencies across rubric, fragments, and docs where some said 8 and others said 9.
+
+**Prevention:** The dispatcher routes all `/goat` invocations and has its own evals, failure modes, and structured output. Count it as the 9th canonical skill everywhere: CANONICAL_SKILLS set, TOTAL_SKILLS constant, rubric messages, fragment instructions, and anti-pattern recommendations.
