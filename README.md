@@ -145,7 +145,7 @@ setup/                  Setup guides + shared templates
   setup-codex.md        Codex setup phases
 workflow/               Templates for skills, coding standards, evaluation
   skills/               9 skill templates (8 specialized + /goat dispatcher)
-  coding-standards/     57 templates (backend, frontend, security, devops)
+  coding-standards/     48 templates (backend, frontend, security, devops)
   evaluation/           Eval format, footguns, lessons, handoff templates
   runtime/              Enforcement, architecture, code-map templates
 docs/                   System design + reference documentation

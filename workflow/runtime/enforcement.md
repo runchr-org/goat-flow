@@ -121,6 +121,10 @@ Create the following:
    INPUT=$(cat)
    FILE_PATH=$(echo "$INPUT" | jq -r '.file_path // empty' 2>/dev/null)
    [ -z "$FILE_PATH" ] && exit 0
+   # Skip agent config dirs — prettier rewrites $(git rev-parse) to absolute paths
+   case "$FILE_PATH" in
+     */.claude/*|*/.gemini/*|*/.codex/*|*/.agents/*|*/.github/skills/*) exit 0 ;;
+   esac
    case "$FILE_PATH" in
      *.ts|*.tsx|*.js|*.jsx) npx prettier --write "$FILE_PATH" 2>/dev/null ;;
    esac
@@ -167,6 +171,10 @@ CONTENT-PRESERVING WRITE GUARD:
 HOOK CONFIGURATION PITFALLS:
 - Use $(git rev-parse --show-toplevel) for ALL paths - relative
   paths break when the working directory changes
+- NEVER hardcode absolute paths as fallbacks in hook scripts.
+  Only $(git rev-parse --show-toplevel) is portable. Hardcoded
+  paths like /home/user/projects/myapp break when the repo is
+  cloned elsewhere or the directory is renamed.
 - Put each Stop hook in its own array entry - combining command
   and prompt hooks in one entry causes double-firing
 - Verify hooks exist at the project root - stale working directories

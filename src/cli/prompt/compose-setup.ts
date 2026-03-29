@@ -81,7 +81,7 @@ export function composeSetup(report: ScanReport, agentId: AgentId): string | nul
   const percentage = agentReport.score.percentage;
 
   if (percentage === 100) {
-    return renderAllPass(agentId, agentReport);
+    return renderAllPass(agentId, agentReport, report);
   }
   if (percentage >= SHORT_FIX_THRESHOLD) {
     return renderShortFix(report, agentId, agentReport);
@@ -97,9 +97,38 @@ export function composeSetup(report: ScanReport, agentId: AgentId): string | nul
 // Mode: All pass (100%)
 // ---------------------------------------------------------------------------
 
-function renderAllPass(agentId: AgentId, agentReport: AgentReport): string {
+function renderAllPass(agentId: AgentId, agentReport: AgentReport, report?: ScanReport): string {
   const profile = PROFILES[agentId];
-  return `# GOAT Flow Setup - ${profile.name}\n\nAll checks pass (${agentReport.score.grade}, ${agentReport.score.percentage}%). Nothing to do.`;
+  const lines: string[] = [];
+  lines.push(`# GOAT Flow Setup - ${profile.name}`);
+  lines.push('');
+  lines.push(`All checks pass (${agentReport.score.grade}, ${agentReport.score.percentage}%).`);
+  lines.push('');
+
+  // Summary of what's installed
+  const facts = report?.agents?.find(a => a.agent === agentId);
+  if (facts) {
+    const checks = agentReport.checks;
+    const skillCount = checks.filter(c => c.category === 'Skills' && c.status === 'pass').length;
+    const hookCount = [
+      checks.find(c => c.id === '2.2.1')?.status === 'pass',
+      checks.find(c => c.id === '2.2.3')?.status === 'pass',
+      checks.find(c => c.id === '2.2.4')?.status === 'pass',
+    ].filter(Boolean).length;
+
+    lines.push('**Installed:**');
+    if (skillCount > 0) lines.push(`- ${skillCount} skill checks passing`);
+    if (hookCount > 0) lines.push(`- ${hookCount} hooks (deny, stop-lint, format)`);
+    lines.push(`- Score: ${agentReport.score.tiers.foundation.earned}/${agentReport.score.tiers.foundation.available} foundation, ${agentReport.score.tiers.standard.earned}/${agentReport.score.tiers.standard.available} standard, ${agentReport.score.tiers.full.earned}/${agentReport.score.tiers.full.available} full`);
+    lines.push('');
+  }
+
+  lines.push('**Maintenance:**');
+  lines.push('- After upgrading goat-flow, re-run `goat-flow setup` to check for new checks');
+  lines.push('- Run `goat-flow scan --min-score 90` in CI to catch drift');
+  lines.push('- Review `docs/footguns.md` and `docs/lessons.md` after incidents');
+
+  return lines.join('\n');
 }
 
 // ---------------------------------------------------------------------------

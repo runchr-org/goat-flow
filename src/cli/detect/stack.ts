@@ -23,9 +23,26 @@ function extractNodeCommands(scripts: Record<string, string>): Pick<DetectorResu
     if (!cmd || isPlaceholderScript(cmd)) return null;
     return cmd;
   };
+  // Test command: try exact match first, then scan for test-like script names
+  let testCommand = filterPlaceholder(scripts.test);
+  if (!testCommand) {
+    const testPatterns = ['e2e', 'cypress', 'spec', 'test:unit', 'test:e2e', 'test:integration'];
+    for (const pattern of testPatterns) {
+      if (scripts[pattern] && !isPlaceholderScript(scripts[pattern])) {
+        testCommand = `npm run ${pattern}`;
+        break;
+      }
+    }
+    // Fallback: first script name containing "test"
+    if (!testCommand) {
+      const testKey = Object.keys(scripts).find(k => k.includes('test') && scripts[k] !== undefined && !isPlaceholderScript(scripts[k]));
+      if (testKey) testCommand = `npm run ${testKey}`;
+    }
+  }
+
   return {
     buildCommand: filterPlaceholder(scripts.build),
-    testCommand: filterPlaceholder(scripts.test),
+    testCommand,
     lintCommand: filterPlaceholder(scripts.lint),
     formatCommand: filterPlaceholder(scripts.format ?? scripts['format:check']),
   };

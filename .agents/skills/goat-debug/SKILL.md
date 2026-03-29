@@ -1,7 +1,7 @@
 ---
 name: goat-debug
 description: "Diagnosis-first debugging with hypothesis tracking, recurrence checks, and evidence-based fix planning."
-goat-flow-skill-version: "0.9.1"
+goat-flow-skill-version: "0.9.2"
 ---
 # /goat-debug
 

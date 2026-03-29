@@ -1,7 +1,7 @@
 ---
 name: goat-refactor
 description: "Structured cross-file refactoring with blast radius analysis, both-sides-first reading, rename verification, and absence checks."
-goat-flow-skill-version: "0.9.1"
+goat-flow-skill-version: "0.9.2"
 ---
 # /goat-refactor
 

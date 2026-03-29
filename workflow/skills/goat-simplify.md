@@ -1,7 +1,7 @@
 ---
 name: goat-simplify
 description: "Code readability improvement through naming analysis, self-documentation assessment, comment audit, and complexity reduction."
-goat-flow-skill-version: "0.9.1"
+goat-flow-skill-version: "0.9.2"
 ---
 # /goat-simplify
 

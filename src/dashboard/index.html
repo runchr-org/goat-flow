@@ -120,14 +120,15 @@
 
     <!-- Agent List -->
     <nav class="flex-1 p-2 space-y-1" x-show="report">
-      <template x-for="agent in (report?.agents || [])" :key="agent.agent">
-        <button @click="selectedAgent = agent.agent; activeTab = 'overview'; sidebarOpen = false"
-          :class="selectedAgent === agent.agent ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+      <template x-for="agent in allAgents" :key="agent.id">
+        <button @click="agent.detected ? (selectedAgent = agent.id, activeTab = 'overview', sidebarOpen = false) : runSetupFor(agent.id)"
+          :class="selectedAgent === agent.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : agent.detected ? 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'"
           class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-          <span x-text="agent.agentName"></span>
-          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold"
-            :style="`background-color: ${gradeColor(agent.score.grade)}20; color: ${gradeColor(agent.score.grade)}`"
-            x-text="agent.score.grade === 'insufficient-data' ? '?' : agent.score.grade"></span>
+          <span x-text="agent.name"></span>
+          <span x-show="agent.detected" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold"
+            :style="`background-color: ${gradeColor(agent.grade)}20; color: ${gradeColor(agent.grade)}`"
+            x-text="agent.grade === 'insufficient-data' ? '?' : agent.grade"></span>
+          <span x-show="!agent.detected" class="text-xs text-gray-400 dark:text-gray-500">Set up</span>
         </button>
       </template>
     </nav>
@@ -697,6 +698,29 @@ function app() {
     },
 
     // --- Computed ---
+    get allAgents() {
+      const all = [
+        { id: 'claude', name: 'Claude Code' },
+        { id: 'codex', name: 'Codex' },
+        { id: 'gemini', name: 'Gemini CLI' },
+      ];
+      return all.map(a => {
+        const found = this.report?.agents?.find(r => r.agent === a.id);
+        return { ...a, detected: !!found, grade: found?.score?.grade || null };
+      });
+    },
+    async runSetupFor(agentId) {
+      this.scanning = true; this.toast = '';
+      try {
+        const res = await fetch(`/api/setup?path=${encodeURIComponent(this.projectPath)}&agent=${agentId}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        this.setupOutput = data.output;
+        this.selectedAgent = null;
+        this.showToast(`Setup generated for ${agentId}`, false);
+      } catch (err) { this.showToast(err.message || 'Setup failed', true); }
+      this.scanning = false;
+    },
     get currentAgent() { return this.report?.agents?.find(a => a.agent === this.selectedAgent) || null; },
     get triggeredAPs() { return this.currentAgent?.antiPatterns?.filter(ap => ap.triggered) || []; },
     get failCount() { return this.currentAgent?.checks?.filter(c => c.status === 'fail' || c.status === 'partial').length || 0; },

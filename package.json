@@ -25,6 +25,13 @@
   "files": [
     "dist",
     "!dist/**/*.map",
+    "docs/getting-started.md",
+    "docs/system-spec.md",
+    "docs/onboarding.md",
+    "docs/system",
+    "docs/reference",
+    "docs/guides",
+    "docs/examples",
     "setup",
     "workflow"
   ],
