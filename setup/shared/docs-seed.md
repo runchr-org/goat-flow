@@ -11,11 +11,7 @@ These files are created regardless of which agent you use. They form the learnin
    Do NOT invent entries. If agent-evals/ exist, check each incident:
    if the root cause was a behavioural mistake (not an architectural
    landmine), seed one lesson from it. This gives agents a format
-   example and makes the file visible. If no evals exist, start with
-   this meta-entry so the file isn't blank:
-   "No incidents yet. After your first bug fix or course correction,
-   add an entry here: what happened, what should have happened, and
-   which execution loop step was violated."
+   example and makes the file visible.
    To find real incidents in this project, run:
      git log --oneline -50 | grep -iE 'fix|revert|hotfix|bug|broke|rollback'
    For each match, write a lessons entry with: date, what happened, what
@@ -27,9 +23,8 @@ These files are created regardless of which agent you use. They form the learnin
    existing entries, add new footguns from reading the codebase.
    If the file doesn't exist, create and seed with real footguns only.
    Do NOT invent hypothetical ones. Do NOT replace existing entries.
-   If no real footguns are found yet, start with this meta-entry:
-   "No incidents yet. After your first debugging session or course
-   correction, add an entry here with file:line evidence."
+   If no real footguns are found yet, leave the file with only the
+   format header - an empty footguns file is better than a placeholder.
    Every entry MUST cite specific file paths with line numbers.
    Evidence labels: use ACTUAL_MEASURED for real data with source,
    DESIGN_TARGET for intended values, HYPOTHETICAL_EXAMPLE for
@@ -39,7 +34,7 @@ These files are created regardless of which agent you use. They form the learnin
      grep -rn 'TODO\|FIXME\|HACK\|XXX' src/ --include='*.ts' --include='*.php' --include='*.py' | head -20
      git log --all --oneline -- '*migration*' '**/migrations/**' | head -10
    Each footgun MUST have a file:line reference like src/Auth.php:42.
-   Design patterns are NOT footguns — footguns are actual traps in the
+   Design patterns are NOT footguns - footguns are actual traps in the
    code where an agent (or developer) is likely to make a mistake.
    Also audit config files (.json, .yaml, .sh) for stale project names,
    hardcoded absolute paths, or outdated references. Seed these as
@@ -85,21 +80,23 @@ These files are created regardless of which agent you use. They form the learnin
    Create ai/instructions/conventions.md with project-wide conventions.
    Create ai/instructions/code-review.md with review standards.
    Create ai/instructions/git-commit.md with commit conventions.
-   If .github/instructions/ exists, migrate content to ai/instructions/
-   (group language files into domain files: php.md + python.md → backend.md).
+   If .github/instructions/ exists, treat those files as canonical.
+   Create ai/instructions/ files only where gaps exist - do NOT
+   migrate or duplicate existing .github/instructions/ content.
+   Link to .github/instructions/ from ai/README.md routing map.
    Create .github/git-commit-instructions.md if .git/ exists.
 
-   VERIFICATION GATE — after creating ai/instructions/ files:
+   VERIFICATION GATE - after creating ai/instructions/ files:
    - Verify every file path referenced actually exists (ls/find)
    - Verify every command listed actually runs (build, test, lint)
    - Verify every architectural claim matches current code, not roadmap
-   - Remove any planned/aspirational features — only document current state
+   - Remove any planned/aspirational features - only document current state
    - If docs/architecture.md mentions something, confirm it in source before citing it
 
    ALSO AUDIT EXISTING INSTRUCTION FILES:
    - Read the Ask First section in the hot-path file (CLAUDE.md/AGENTS.md/GEMINI.md)
-   - Verify every path in Ask First exists on disk — stale paths mislead agents
-   - Check router table entries resolve — broken refs are common after renames
+   - Verify every path in Ask First exists on disk - stale paths mislead agents
+   - Check router table entries resolve - broken refs are common after renames
    - If a path doesn't exist, fix it (don't copy it into ai/instructions/)
 ```
 
@@ -108,7 +105,7 @@ These files are created regardless of which agent you use. They form the learnin
 ```
 Create skills in ONE canonical location (.agents/skills/ for multi-agent
 projects), then copy to agent-specific directories (.claude/skills/).
-Do NOT write the same skill independently in multiple directories — this
+Do NOT write the same skill independently in multiple directories - this
 guarantees inconsistency. If making a correction to a skill, update the
 canonical copy first, then propagate.
 ```

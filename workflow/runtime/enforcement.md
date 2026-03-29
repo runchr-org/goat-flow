@@ -1,6 +1,6 @@
 # Prompt: Set Up Enforcement (Hooks, Settings, Permissions)
 
-**This prompt uses Claude Code hook event names.** For Gemini CLI, see `setup/setup-gemini.md` Phase 1c which has the correct Gemini event names (BeforeTool, AfterTool, AfterAgent). Do NOT globally replace hook names in this file — it is the Claude Code reference template.
+**This prompt uses Claude Code hook event names.** For Gemini CLI, see `setup/setup-gemini.md` Phase 1c which has the correct Gemini event names (BeforeTool, AfterTool, AfterAgent). Do NOT globally replace hook names in this file - it is the Claude Code reference template.
 
 Paste this into your coding agent to create the enforcement layer for your project.
 
@@ -59,10 +59,6 @@ Create the following:
    - git commit --no-verify or git commit -n
    - Direct modification of lockfiles (package-lock.json, pnpm-lock.yaml,
      composer.lock, Cargo.lock, yarn.lock)
-   - Direct modification of generated code files, migration files, or
-     compiled artifacts
-   - mv without -n flag: WARN but allow (bare mv risks overwriting
-     untracked files; prefer mv -n but do not hard-block renames)
    Note: Agents hallucinate dependency version bumps to fix type errors.
    Lockfile changes must go through the package manager.
 
@@ -73,7 +69,7 @@ Create the following:
      CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
    Fallback if jq is not installed:
      TOOL=$(echo "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-   Do NOT use grep -P (Perl regex) — it is unavailable on macOS.
+   Do NOT use grep -P (Perl regex) - it is unavailable on macOS.
 
    Command chaining: Split commands on &&, ||, and ; then check each
    segment independently. Without this, chained dangerous commands
@@ -214,7 +210,7 @@ VERIFICATION:
 Deny hooks are best-effort pre-execution filtering for literal shell commands. They do NOT protect against:
 - Shell aliases that wrap denied commands
 - Variable indirection (`$cmd` where cmd='git push main')
-- Pipe to arbitrary shell (`echo malicious | sh` — only `curl|bash` is blocked)
+- Pipe to arbitrary shell (`echo malicious | sh` - only `curl|bash` is blocked)
 - Encoded or obfuscated commands
 - Write/Edit tool operations on .env files (hooks only register for Bash tool)
 

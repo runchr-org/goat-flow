@@ -9,7 +9,7 @@ Reference for generating `ai/instructions/frontend.md` in Symfony projects using
 - Keep the inheritance chain shallow: base layout -> section layout -> page. Three levels max.
 
 ```twig
-{# DO — base layout #}
+{# DO - base layout #}
 {# templates/base.html.twig #}
 <!DOCTYPE html>
 <html>
@@ -20,7 +20,7 @@ Reference for generating `ai/instructions/frontend.md` in Symfony projects using
 </body>
 </html>
 
-{# DO — page template #}
+{# DO - page template #}
 {# templates/user/list.html.twig #}
 {% extends 'base.html.twig' %}
 
@@ -43,13 +43,13 @@ Reference for generating `ai/instructions/frontend.md` in Symfony projects using
 - DO NOT use `raw` with user input.
 
 ```twig
-{# DO — auto-escaped #}
+{# DO - auto-escaped #}
 <p>{{ user.bio }}</p>
 
-{# DON'T — XSS risk #}
+{# DON'T - XSS risk #}
 <p>{{ user.bio|raw }}</p>
 
-{# OK — explicitly sanitized content #}
+{# OK - explicitly sanitized content #}
 <p>{{ article.body|sanitize_html|raw }}</p>
 ```
 
@@ -61,7 +61,7 @@ Reference for generating `ai/instructions/frontend.md` in Symfony projects using
 - Tests for boolean checks: `is active`, `is expired`.
 
 ```php
-// DO — custom filter in a Twig extension
+// DO - custom filter in a Twig extension
 public function getFilters(): array
 {
     return [
@@ -87,14 +87,14 @@ public function formatPrice(int $cents, string $currency = 'USD'): string
 - DO NOT manually build `<form>` tags with `<input>` elements for forms managed by Symfony's form system. You lose validation, CSRF protection, and data transformation.
 
 ```twig
-{# DO — Symfony form rendering #}
+{# DO - Symfony form rendering #}
 {{ form_start(form) }}
   {{ form_row(form.name) }}
   {{ form_row(form.email) }}
   <button type="submit">Save</button>
 {{ form_end(form) }}
 
-{# DON'T — raw HTML for Symfony-managed forms #}
+{# DON'T - raw HTML for Symfony-managed forms #}
 <form method="post">
   <input name="name" value="{{ user.name }}">
 </form>
@@ -115,6 +115,41 @@ public function formatPrice(int $cents, string $currency = 'USD'): string
 - Use Turbo Frames for partial page updates, Turbo Streams for server-pushed updates.
 - Keep Stimulus controllers small. If one exceeds ~80 lines, split it.
 
+## Testing
+
+- Test rendered output with **functional tests** (Symfony WebTestCase). Assert on content, not markup structure.
+- Use `$crawler->filter()` for CSS selector assertions and `$client->submitForm()` for form interactions.
+- Test custom Twig extensions with unit tests - pass input, assert output, no kernel boot needed.
+- For Stimulus controllers: test with Symfony Panther (real browser) or JavaScript unit tests.
+
+```php
+// DO - functional test for rendered page
+public function testUserListRendersAllUsers(): void
+{
+    $client = static::createClient();
+    $crawler = $client->request('GET', '/users');
+
+    $this->assertResponseIsSuccessful();
+    $this->assertSelectorExists('h1:contains("Users")');
+    $this->assertCount(3, $crawler->filter('.user-card'));
+}
+
+// DO - unit test for custom Twig filter
+public function testFormatPriceFilter(): void
+{
+    $extension = new AppExtension();
+    $this->assertSame('12.99 USD', $extension->formatPrice(1299));
+}
+```
+
+## Accessibility
+
+- Use semantic HTML elements (`<nav>`, `<main>`, `<article>`, `<section>`) in base layouts.
+- Every `<img>` must have an `alt` attribute. Decorative images use `alt=""`.
+- Symfony form rendering includes `<label>` elements by default - do not strip them in custom form themes.
+- Turbo Frame updates must announce changes to screen readers. Use `aria-live="polite"` on async content containers.
+- Test keyboard navigation: all interactive elements must be reachable via Tab and activatable via Enter/Space.
+
 ## Common Footguns
 
 - **`raw` filter XSS**: Every `|raw` usage is a potential XSS hole. Audit on every review. Use a custom `|sanitize` filter that runs HTMLPurifier before `|raw`.
@@ -126,8 +161,8 @@ public function formatPrice(int $cents, string $currency = 'USD'): string
 
 ## Primary Sources
 
-- [Twig for Template Designers — Twig docs](https://twig.symfony.com/doc/3.x/templates.html)
-- [Twig in Symfony — Symfony docs](https://symfony.com/doc/current/templates.html)
-- [Symfony Forms — Symfony docs](https://symfony.com/doc/current/forms.html)
-- [Symfony UX (Stimulus + Turbo) — Symfony docs](https://symfony.com/bundles/StimulusBundle/current/index.html)
-- [Asset Management — Symfony docs](https://symfony.com/doc/current/frontend.html)
+- [Twig for Template Designers - Twig docs](https://twig.symfony.com/doc/3.x/templates.html)
+- [Twig in Symfony - Symfony docs](https://symfony.com/doc/current/templates.html)
+- [Symfony Forms - Symfony docs](https://symfony.com/doc/current/forms.html)
+- [Symfony UX (Stimulus + Turbo) - Symfony docs](https://symfony.com/bundles/StimulusBundle/current/index.html)
+- [Asset Management - Symfony docs](https://symfony.com/doc/current/frontend.html)

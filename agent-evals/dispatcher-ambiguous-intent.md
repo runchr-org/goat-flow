@@ -6,7 +6,7 @@ skill: goat
 ---
 # Eval: Dispatcher disambiguates ambiguous intents
 
-5 ambiguous scenarios where intent maps to 2+ skills. The dispatcher MUST ask a clarification question — not guess.
+5 ambiguous scenarios where intent maps to 2+ skills. The dispatcher MUST ask a clarification question - not guess.
 
 ## Scenario 1: "check the auth code"
 **Replay:** `/goat check the auth code`
@@ -34,4 +34,4 @@ skill: goat
 **Failure mode:** Routes to goat-review because "bad" sounds like a quality judgment.
 
 ## Known Failure Mode
-Agent guesses instead of asking. The disambiguation protocol exists to prevent wasted skill loads — a one-question clarification is always faster than loading the wrong 200-line skill and getting redirected by "NOT this skill."
+Agent guesses instead of asking. The disambiguation protocol exists to prevent wasted skill loads - a one-question clarification is always faster than loading the wrong 200-line skill and getting redirected by "NOT this skill."

@@ -10,11 +10,11 @@ Reference for generating `ai/instructions/backend.md` in Rails projects.
 ## Models
 
 - Validations on the model: `validates :email, presence: true, uniqueness: true`.
-- Use callbacks sparingly — only for data integrity (e.g., `before_save :normalize_email`). DO NOT use callbacks for side effects (sending emails, creating related records). Use service objects instead.
+- Use callbacks sparingly - only for data integrity (e.g., `before_save :normalize_email`). DO NOT use callbacks for side effects (sending emails, creating related records). Use service objects instead.
 - Use concerns for shared behavior across models, but limit to 2-3 per model.
 
 ```ruby
-# DO — validation and simple callback
+# DO - validation and simple callback
 class User < ApplicationRecord
   validates :email, presence: true, uniqueness: { case_sensitive: false }
   before_save :normalize_email
@@ -26,7 +26,7 @@ class User < ApplicationRecord
   end
 end
 
-# DON'T — side effects in callbacks
+# DON'T - side effects in callbacks
 class Order < ApplicationRecord
   after_create :send_confirmation_email    # should be in a service
   after_create :update_inventory           # should be in a service
@@ -37,11 +37,11 @@ end
 ## Controllers
 
 - Use `before_action` for authentication and loading resources.
-- Use `strong_parameters` — always permit explicitly. Never use `.permit!`.
+- Use `strong_parameters` - always permit explicitly. Never use `.permit!`.
 - Keep controllers RESTful. If an action doesn't map to CRUD, consider a new controller.
 
 ```ruby
-# DO — strong params, before_action
+# DO - strong params, before_action
 class OrdersController < ApplicationController
   before_action :authenticate_user!
   before_action :set_order, only: [:show, :update, :destroy]
@@ -58,7 +58,7 @@ class OrdersController < ApplicationController
   end
 end
 
-# DON'T — permit everything
+# DON'T - permit everything
 params.require(:order).permit!
 ```
 
@@ -69,7 +69,7 @@ params.require(:order).permit!
 - DO NOT use raw SQL unless ActiveRecord truly cannot express the query. When you must, use parameterized queries.
 
 ```ruby
-# DO — scopes + eager loading
+# DO - scopes + eager loading
 class Order < ApplicationRecord
   scope :active, -> { where(status: :active) }
   scope :recent, -> { order(created_at: :desc).limit(10) }
@@ -77,7 +77,7 @@ end
 
 orders = Order.active.recent.includes(:customer, :items)
 
-# DON'T — raw SQL with interpolation
+# DON'T - raw SQL with interpolation
 Order.where("status = '#{params[:status]}'")  # SQL injection
 ```
 
@@ -88,7 +88,7 @@ Order.where("status = '#{params[:status]}'")  # SQL injection
 - Use `retry: 5` and exponential backoff for transient failures.
 
 ```ruby
-# DO — pass ID, re-fetch inside job
+# DO - pass ID, re-fetch inside job
 class SendConfirmationEmailJob < ApplicationJob
   queue_as :default
 
@@ -98,7 +98,7 @@ class SendConfirmationEmailJob < ApplicationJob
   end
 end
 
-# DON'T — pass ActiveRecord object
+# DON'T - pass ActiveRecord object
 SendConfirmationEmailJob.perform_later(order)
 ```
 
@@ -111,7 +111,7 @@ SendConfirmationEmailJob.perform_later(order)
 - Test behavior through the public interface, not internal implementation.
 
 ```ruby
-# DO — request spec with factory
+# DO - request spec with factory
 RSpec.describe "POST /orders", type: :request do
   let(:user) { create(:user) }
   let(:product) { create(:product, price: 1000) }

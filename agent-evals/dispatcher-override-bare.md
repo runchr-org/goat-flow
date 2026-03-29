@@ -22,8 +22,8 @@ skill: goat
 **Failure mode:** Picks a default skill or asks Step 0 questions without knowing which skill the user wants.
 
 ## Scenario 4: No double Step 0
-**Replay:** `/goat fix the login bug — users getting 401 on POST /api/auth after the session middleware change yesterday`
-**Expected:** Routes to goat-debug. The debug Step 0 recognizes the symptom, reproduction info, and timing are already provided — confirms them rather than re-asking.
+**Replay:** `/goat fix the login bug - users getting 401 on POST /api/auth after the session middleware change yesterday`
+**Expected:** Routes to goat-debug. The debug Step 0 recognizes the symptom, reproduction info, and timing are already provided - confirms them rather than re-asking.
 **Failure mode:** Dispatcher asks its own context questions before dispatching, then goat-debug asks the same questions again (double interrogation).
 
 ## Known Failure Mode

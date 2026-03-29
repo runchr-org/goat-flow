@@ -40,7 +40,7 @@ const isActive = ref(false);
 const displayLabel = computed(() => props.label);
 </script>
 
-<!-- DON'T — Options API in new code -->
+<!-- DON'T - Options API in new code -->
 <script lang="ts">
 export default defineComponent({
   props: { userId: String },
@@ -51,14 +51,14 @@ export default defineComponent({
 
 ## State Management
 
-- **Local state**: `ref()` for primitives, `reactive()` for objects. Prefer `ref()` by default — it has explicit `.value` which makes reactivity clear.
+- **Local state**: `ref()` for primitives, `reactive()` for objects. Prefer `ref()` by default - it has explicit `.value` which makes reactivity clear.
 - **Shared state**: Prefer the store library already adopted by the repo. In
   modern Vue 3 code that usually means Pinia; in older codebases it may still
   mean Vuex until the project migrates.
 - **Composables**: Extract shared reactive logic into `composables/` files prefixed with `use`.
 
 ```ts
-// DO — composable for shared logic
+// DO - composable for shared logic
 // composables/useDebounce.ts
 import { ref, watch, type Ref } from 'vue';
 
@@ -84,29 +84,29 @@ export function useDebounce<T>(value: Ref<T>, delay: number): Ref<T> {
 
 ## Watchers
 
-- `watchEffect` for side effects that depend on multiple reactive sources — it auto-tracks dependencies.
+- `watchEffect` for side effects that depend on multiple reactive sources - it auto-tracks dependencies.
 - `watch` for reacting to specific source changes, especially when you need the old value.
 - DO NOT over-watch. If you can derive the value with `computed`, use `computed`.
 
 ```ts
-// DO — derived state
+// DO - derived state
 const fullName = computed(() => `${first.value} ${last.value}`);
 
-// DON'T — watcher to set derived state
+// DON'T - watcher to set derived state
 watch([first, last], ([f, l]) => { fullName.value = `${f} ${l}`; });
 ```
 
 ## Testing
 
 - Use **Vitest** as the test runner + `@vue/test-utils`.
-- Prefer `mount` over `shallowMount` — shallow mounting hides integration bugs.
+- Prefer `mount` over `shallowMount` - shallow mounting hides integration bugs.
 - Test user-visible behavior: rendered text, emitted events, slot content.
 - Mock API calls at the network level (`msw`) not at the store level.
 - Use `await flushPromises()` after async interactions that trigger suspense,
   router navigation, or network mocks.
 
 ```ts
-// DO — test behavior
+// DO - test behavior
 const wrapper = mount(UserCard, { props: { user: mockUser } });
 await wrapper.find('button').trigger('click');
 expect(wrapper.emitted('select')?.[0]).toEqual([mockUser.id]);
@@ -116,7 +116,7 @@ expect(wrapper.emitted('select')?.[0]).toEqual([mockUser.id]);
 
 - **Reactivity loss from destructuring**: Destructuring a `reactive()` object strips reactivity. Use `toRefs()` or stick with `ref()`.
 ```ts
-// BROKEN — loses reactivity
+// BROKEN - loses reactivity
 const { name, email } = reactive({ name: 'Ada', email: 'ada@example.com' });
 
 // FIXED

@@ -1,6 +1,8 @@
 # Prompt: Create tasks/handoff-template.md
 
-Paste this into your coding agent to create the session handoff template. Used when a coding session ends mid-task and another session (or another agent) needs to pick up where it left off.
+Paste this into your coding agent to create the session handoff template.
+Use it when work stops mid-task and another session needs to resume
+without reconstructing context from scratch.
 
 ---
 
@@ -9,58 +11,68 @@ Paste this into your coding agent to create the session handoff template. Used w
 ```
 Create tasks/handoff-template.md for this project.
 
-This is a session handoff template - used when work stops mid-task
-and needs to be resumed later (by the same agent in a new session,
-a different agent, or a human). The template is copied for each
-handoff. The original stays as a reusable template.
+This is a reusable session handoff template. It is copied when an agent
+stops with incomplete work. The template itself stays clean.
 
 Create with this structure:
 
-# Session Handoff
+# Agent Session Handoff Template
+
+**Purpose:** When an agent has incomplete work at the end of a session,
+copy this template to `tasks/handoff.md` and fill it in. The next session
+must read that handoff before doing new work.
+
+**When to create:** If you are stopping with unfinished work, blocked
+progress, or a forced rewind after repeated failed attempts.
+
+**When to read:** At the start of a session, check whether
+`tasks/handoff.md` exists. If it does, read it first.
+
+---
+
+## Date
+[YYYY-MM-DD]
 
 ## Status
-<!-- In Progress / Blocked / Complete -->
+[In Progress / Blocked / Ready for Review]
 
 ## Current State
-<!-- What was being worked on. Be specific:
-     - Which files were modified
-     - Which tests pass/fail
-     - What's committed vs uncommitted
-     - Where in the plan/task list work stopped -->
+- What was being worked on
+- What is done and not done
+- Branch name if relevant
+- Files changed this session
+- Validation status if anything was run
 
 ## Key Decisions Made
-<!-- Decisions made during this session that affect future work.
-     Include reasoning so the next session doesn't re-debate them.
-     - [decision]: [reasoning] -->
+- Decision and why it was made
 
 ## Known Risks
-<!-- Anything the next session should watch out for.
-     - [risk]: [mitigation or workaround] -->
+- Risk and mitigation
+- What might break if the next session misses this context
 
 ## Next Step
-<!-- The SINGLE most important thing the next session should do first.
-     Be specific enough that someone with no context can start:
-     "Run the test suite, fix the auth test failure in
-     tests/auth.test.ts:47, then continue with task #3 in the plan." -->
-
-## Context Files to Read
-<!-- List the files the next session should read before starting:
-     - [file path]: [why it matters]
-     - docs/footguns.md: check for new entries from this session
-     - tasks/todo.md: current task progress -->
+- Exactly what to do first, with file paths
+- Which files to read first
+- The next concrete validation step if known
 
 USAGE:
 When ending a session mid-task, the agent should:
-1. Copy this template to tasks/handoff.md (or tasks/handoff-YYYY-MM-DD.md)
+1. Copy this template to `tasks/handoff.md`
 2. Fill in all sections with specifics from the current session
-3. Commit the handoff file
+3. Leave it in the worktree for the next session to read
+
+Do NOT invent progress, test results, or decisions. If something is
+unknown, say it is unknown.
+Do NOT commit or push the handoff unless a human explicitly asks.
 
 The next session starts by reading the handoff file before doing
 anything else.
 
 VERIFICATION:
 - Verify tasks/handoff-template.md exists
-- Verify it has all 6 sections (Status, Current State, Key Decisions,
-  Known Risks, Next Step, Context Files)
-- Verify the usage instructions explain the copy-and-fill workflow
+- Verify it has the Date, Status, Current State, Key Decisions Made,
+  Known Risks, and Next Step sections
+- Verify it says when to create and when to read the handoff
+- Verify it does not reference stale planning or tracking files that are
+  no longer part of the repo
 ```

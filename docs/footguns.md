@@ -38,7 +38,7 @@ Cross-domain gotchas confirmed in this codebase. Add entries only when the repo 
 
 **Evidence type:** ACTUAL_MEASURED
 
-**Status:** RESOLVED — unified to 120 lines for all project shapes in v0.1.1. The original 100/120 split was dropped after real implementations showed every project with the 6-step loop, budgets, and all required sections lands in the 100-120 range regardless of shape.
+**Status:** RESOLVED - unified to 120 lines for all project shapes in v0.1.1. The original 100/120 split was dropped after real implementations showed every project with the 6-step loop, budgets, and all required sections lands in the 100-120 range regardless of shape.
 
 **Prevention:** Line target is 120 for all shapes, stated in `docs/system-spec.md:104`. If this number appears differently in any other file, the spec is canonical.
 
@@ -56,7 +56,7 @@ Cross-domain gotchas confirmed in this codebase. Add entries only when the repo 
 - `setup/shared/execution-loop.md:14` → updated loop definition (authoritative)
 - `setup/setup-claude.md:43` → "Read docs/system-spec.md" as first instruction
 
-**Prevention:** After updating `setup/shared/execution-loop.md`, ALWAYS update the same concept in `docs/system-spec.md`, `docs/system/six-steps.md`, and `docs/system/five-layers.md`. The spec is read first by agents — it must match. This is a specific instance of the "concept duplication" footgun above, but critical enough to track separately because it directly causes broken implementations.
+**Prevention:** After updating `setup/shared/execution-loop.md`, ALWAYS update the same concept in `docs/system-spec.md`, `docs/system/six-steps.md`, and `docs/system/five-layers.md`. The spec is read first by agents - it must match. This is a specific instance of the "concept duplication" footgun above, but critical enough to track separately because it directly causes broken implementations.
 
 **Created:** 2026-03-20
 
@@ -89,8 +89,8 @@ Cross-domain gotchas confirmed in this codebase. Add entries only when the repo 
 - `workflow/runtime/enforcement.md` → all `.claude/` paths replaced with `.gemini/`, creating hybrid state
 
 **Prevention:**
-- Agent-specific files (`setup/setup-*.md`, `.claude/`, `.gemini/`) — edits fine
-- Shared docs (`docs/`, `workflow/`) — MUST remain agent-neutral or list all agents
+- Agent-specific files (`setup/setup-*.md`, `.claude/`, `.gemini/`) - edits fine
+- Shared docs (`docs/`, `workflow/`) - MUST remain agent-neutral or list all agents
 - When adding agent support: ADD to tables and examples, never DELETE or REPLACE existing agent references
 - Setup prompts MUST include explicit scope constraints: "Do NOT modify files outside `.gemini/` and `GEMINI.md`"
 
@@ -114,7 +114,7 @@ Hook script comments also carried over Claude-specific language ("runs after eve
 - `.gemini/hooks/stop-lint.sh:2` → updated to "AfterAgent hook" (fixed 2026-03-21)
 - `.gemini/settings.json:14,25` → updated to `BeforeTool` and `AfterAgent` event names (fixed 2026-03-21)
 
-**Prevention:** When creating or updating a setup file for a new CLI, diff it against the source file and check every CLI-specific term — not just paths. Maintain the event name reference block at the top of each CLI's Phase 1c section.
+**Prevention:** When creating or updating a setup file for a new CLI, diff it against the source file and check every CLI-specific term - not just paths. Maintain the event name reference block at the top of each CLI's Phase 1c section.
 
 **Created:** 2026-03-21
 
@@ -124,7 +124,7 @@ Hook script comments also carried over Claude-specific language ("runs after eve
 
 **Symptoms:** A file that existed at the destination path is silently overwritten and its content is permanently lost. Especially dangerous for untracked files that have no git recovery path.
 
-**Why it happens:** `mv src dest` and `cp src dest` overwrite `dest` without warning if it already exists. The Write tool does the same. Agents treat rename/move as a single command without checking the destination. If the user then asks to "undo", the agent moves the overwritten content back to the source path — destroying the original destination content entirely.
+**Why it happens:** `mv src dest` and `cp src dest` overwrite `dest` without warning if it already exists. The Write tool does the same. Agents treat rename/move as a single command without checking the destination. If the user then asks to "undo", the agent moves the overwritten content back to the source path - destroying the original destination content entirely.
 
 **Evidence:**
 - `docs/roadmaps/TODO_improvements_v0.4.md` → overwritten by `mv TODO_improvements_v0.3.md TODO_improvements_v0.4.md` (2026-03-21). The file was untracked and unrecoverable through git. Required extraction from Claude conversation logs to partially recover.
@@ -133,7 +133,7 @@ Hook script comments also carried over Claude-specific language ("runs after eve
 - Before ANY `mv`, `cp`, or Write to an existing path: run `ls` on the destination first
 - If the destination exists, STOP and ask the user before proceeding
 - For `mv`: use `mv -n` (no-clobber) instead of bare `mv`
-- This is a Never-tier rule — overwriting a file the user didn't ask to overwrite is data destruction
+- This is a Never-tier rule - overwriting a file the user didn't ask to overwrite is data destruction
 
 **Created:** 2026-03-21
 

@@ -2,13 +2,13 @@
 
 > **Purpose:** Guide + prompt for creating domain-specific instruction files and the `ai/README.md` router
 > **Generates:** Multiple `ai/instructions/{domain}.md` files + `ai/README.md` router
-> **Use when:** After `conventions.md` — creating domain-specific instructions for each codebase boundary
-> **Repo inspection:** Yes — discovers domain boundaries from code structure, languages, and patterns
+> **Use when:** After `conventions.md` - creating domain-specific instructions for each codebase boundary
+> **Repo inspection:** Yes - discovers domain boundaries from code structure, languages, and patterns
 > **Follow-on refs:** `copilot-bridge.md` for Copilot bridges; other templates in this directory as source material
 
 Domain instruction files keep deep domain knowledge out of the always-loaded Layer 1 budget. They live in `ai/instructions/` and load on demand when the agent works on a matching domain. The router at `ai/README.md` tells agents which files to load for each task type.
 
-`.github/instructions/` is for **Copilot bridge files only** — see `copilot-bridge.md` in this directory. Bridges copy content from `ai/instructions/` inline because Copilot does not follow file references.
+`.github/instructions/` serves a dual role: **Copilot bridge files** (see `copilot-bridge.md`) and **Codex local instructions** (Codex discovers these as its local context mechanism). If both Copilot and Codex are active, the same files serve both agents. `ai/instructions/` remains the canonical source; `.github/instructions/` files either bridge from it (Copilot) or are read directly (Codex).
 
 ---
 
@@ -26,9 +26,9 @@ Source of truth is `ai/instructions/`. One file per domain or cross-cutting conc
 
 ```
 ai/
-├── README.md                  # Router — tells agents which files to load
+├── README.md                  # Router - tells agents which files to load
 └── instructions/
-    ├── conventions.md                # Always loaded — project-wide conventions
+    ├── conventions.md                # Always loaded - project-wide conventions
     ├── frontend.md            # React/TypeScript domain conventions
     ├── backend.md             # Go/PostgreSQL domain conventions
     ├── code-review.md         # Code review checklist and priorities
@@ -49,7 +49,7 @@ The router (`ai/README.md`) maps task types to files:
 | Security-sensitive work | `instructions/security.md` |
 | Writing tests | `instructions/testing.md` |
 
-Agents read `ai/README.md`, then load the relevant files based on the current task. This keeps token budgets low — agents only load what they need.
+Agents read `ai/README.md`, then load the relevant files based on the current task. This keeps token budgets low - agents only load what they need.
 
 ---
 
@@ -57,16 +57,16 @@ Agents read `ai/README.md`, then load the relevant files based on the current ta
 
 ````
 Create domain-specific instruction files for this project. These are
-Layer 2 (Local Context) — they load on demand via the router at
+Layer 2 (Local Context) - they load on demand via the router at
 ai/README.md, keeping deep domain knowledge out of the root
 instruction file's line budget.
 
 All instruction files go in ai/instructions/. The router goes in ai/README.md.
 Copilot bridges (if needed) go in .github/instructions/.
 
-STEP 1 — DISCOVER DOMAINS
+STEP 1 - DISCOVER DOMAINS
 
-Read the entire codebase first. Do NOT invent conventions — extract
+Read the entire codebase first. Do NOT invent conventions - extract
 rules from what the code already does.
 
 Look for these natural boundaries:
@@ -81,7 +81,7 @@ Look for these natural boundaries:
 Only create files for domains that genuinely exist. A small project
 may need 2-3 files. A large multi-language app may need 6-8.
 
-STEP 2 — CREATE INSTRUCTION FILES
+STEP 2 - CREATE INSTRUCTION FILES
 
 Start with ai/instructions/conventions.md (always loaded).
 
@@ -90,25 +90,25 @@ Then for each domain, create ai/instructions/{domain}.md
 Examples: frontend.md, backend.md, testing.md, security.md
 
 Each domain file MUST have:
-- **Overview** — what this area does (2-3 sentences)
-- **Key files** — which files own what responsibility
-- **Conventions** — patterns extracted from existing code (do/don't with examples)
-- **Gotchas** — "never do this" warnings with file:line evidence
-- **Cross-boundary dependencies** — what breaks if you change here
+- **Overview** - what this area does (2-3 sentences)
+- **Key files** - which files own what responsibility
+- **Conventions** - patterns extracted from existing code (do/don't with examples)
+- **Gotchas** - "never do this" warnings with file:line evidence
+- **Cross-boundary dependencies** - what breaks if you change here
 
 Rules:
-- Each file MUST be self-contained — an agent reading only this file
+- Each file MUST be self-contained - an agent reading only this file
   should be able to work correctly in that area
 - Target 40-60 lines per file (concise, forceful)
 - Every gotcha must reference real code (file:line where possible)
 - Extract patterns from what the code already does
 
-STEP 3 — CREATE ROUTER
+STEP 3 - CREATE ROUTER
 
 Write ai/README.md mapping task types to instruction files.
 Remove rows for files that don't apply to this project.
 
-STEP 4 — CREATE COPILOT BRIDGES (if needed)
+STEP 4 - CREATE COPILOT BRIDGES (if needed)
 
 If the team uses GitHub Copilot, create bridge files in .github/instructions/
 that copy content from ai/instructions/ inline with applyTo frontmatter.
@@ -117,6 +117,6 @@ See copilot-bridge.md template for format.
 VERIFICATION:
 - Verify ai/README.md lists all created instruction files
 - Verify each file is self-contained (conventions, gotchas, examples)
-- Verify no invented conventions — all extracted from existing code
+- Verify no invented conventions - all extracted from existing code
 - Report: number of files created and which domains they cover
 ````

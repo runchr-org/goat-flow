@@ -322,7 +322,7 @@ function extractSkillFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFacts['ski
         if (/human\s*gate|blocking\s*gate|wait.*approv|wait.*confirm|do\s+not\s+proceed|does this.*look right|does this.*match/i.test(skillContent)) withHumanGate++;
         if (/MUST\s+NOT|MUST\s+/m.test(skillContent)) withConstraints++;
         if (/##\s*(Phase|Step)\s+[0-9]/i.test(skillContent)) withPhases++;
-        if (/conversational|drill.*in|dig deeper|walk.*through|present.*findings.*then|let.*human.*drill|iterate|follow[-.]up question|proceed\?/i.test(skillContent)) withConversational++;
+        if ((/blocking\s*gate|human\s*gate/i.test(skillContent)) && (/\(a\)|want me to|offer:|proceed\?/i.test(skillContent))) withConversational++;
         if (/chains?\s*with|related\s*skills?|next.*skill|→.*goat-/i.test(skillContent)) withChaining++;
         if (/\(a\)|\(b\)|\(c\)|want me to.*\n.*\n/i.test(skillContent)) withChoices++;
         if (/##\s*(Output|Output Format)/i.test(skillContent)) withOutputFormat++;
@@ -373,7 +373,8 @@ function extractSkillFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFacts['ski
       if (/^https?:/.test(ref)) continue;
       // Skip template placeholders, example paths, and gitignored working files
       if (/\{|YYYY|file:line|path\/to|monitoring\//i.test(ref)) continue;
-      if (/^tasks\/(handoff|todo|commit|release)\.md$/.test(ref)) continue;
+      if (/^tasks\/(handoff|todo|commit|release|scratchpad|improvement)/.test(ref)) continue;
+      if (/^(src\/api|config\/|docs\/glossary)/.test(ref)) continue;
       if (!fs.exists(ref) && !danglingRefs.includes(ref)) {
         danglingRefs.push(ref);
       }
@@ -430,7 +431,7 @@ function analyzePostTurnScript(hookContent: string): { exitsZero: boolean; hasVa
 function analyzeDenyScript(denyContent: string): {
   hasBlocks: boolean; usesJq: boolean; handlesChaining: boolean;
   blocksRmRf: boolean; blocksForcePush: boolean; blocksChmod: boolean;
-  blocksPackageMutation: boolean; blocksCloudDestructive: boolean;
+  blocksCloudDestructive: boolean;
 } {
   return {
     hasBlocks: /exit\s+2|block|BLOCK/i.test(denyContent) && denyContent.split('\n').length > 5,
@@ -439,7 +440,6 @@ function analyzeDenyScript(denyContent: string): {
     blocksRmRf: /rm\s*.*-.*r.*f|rm\s*-rf/i.test(denyContent),
     blocksForcePush: /force.*push|--force/i.test(denyContent),
     blocksChmod: /chmod.*777/.test(denyContent),
-    blocksPackageMutation: /npm.*install|pip.*install|composer.*require|go\s+get|yarn.*add|pnpm.*add/is.test(denyContent),
     blocksCloudDestructive: /docker\s+push|terraform\s+(destroy|apply.*-auto-approve)|aws\s+(s3\s+rm|ec2\s+terminate)/i.test(denyContent),
   };
 }
@@ -448,7 +448,7 @@ function analyzeDenyScript(denyContent: string): {
 function applySettingsDenyOverrides(
   denyStr: string,
   hook: { denyExists: boolean; denyHasBlocks: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
-    denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean; denyBlocksPackageMutation: boolean; denyBlocksCloudDestructive: boolean },
+    denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean; denyBlocksCloudDestructive: boolean },
 ): void {
   // Settings deny counts as a deny mechanism existing
   if (hook.denyExists === false && denyStr.includes('Bash(')) {
@@ -464,7 +464,6 @@ function applySettingsDenyOverrides(
   if (/Bash\(.*rm -rf|Bash\(.*rm -fr/i.test(denyStr)) hook.denyBlocksRmRf = true;
   if (/Bash\(.*--force|Bash\(.*force.*push/i.test(denyStr)) hook.denyBlocksForcePush = true;
   if (/Bash\(.*chmod 777/i.test(denyStr)) hook.denyBlocksChmod = true;
-  if (/Bash\(.*(npm install|yarn add|pip install|composer require|go get|pnpm add)/i.test(denyStr)) hook.denyBlocksPackageMutation = true;
   if (/Bash\(.*(docker push|terraform destroy|terraform apply|aws s3 rm|aws ec2 terminate)/i.test(denyStr)) hook.denyBlocksCloudDestructive = true;
 }
 
@@ -472,7 +471,7 @@ function applySettingsDenyOverrides(
 function enrichDenyFromSettings(
   settingsParsed: unknown, hasDenyPatterns: boolean,
   hook: { denyExists: boolean; denyHasBlocks: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
-    denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean; denyBlocksPackageMutation: boolean; denyBlocksCloudDestructive: boolean },
+    denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean; denyBlocksCloudDestructive: boolean },
 ): void {
   if (!hasDenyPatterns || !settingsParsed) return;
   /** Permissions object from the parsed settings */
@@ -539,7 +538,7 @@ function extractHookFacts(
   const hook = {
     denyExists: denyHookPath ? fs.exists(denyHookPath) : false,
     denyHasBlocks: false, denyUsesJq: false, denyHandlesChaining: false,
-    denyBlocksRmRf: false, denyBlocksForcePush: false, denyBlocksChmod: false, denyBlocksPackageMutation: false, denyBlocksCloudDestructive: false,
+    denyBlocksRmRf: false, denyBlocksForcePush: false, denyBlocksChmod: false, denyBlocksCloudDestructive: false,
   };
 
   // First: check hook script content (if exists)
@@ -554,7 +553,6 @@ function extractHookFacts(
       hook.denyBlocksRmRf = analysis.blocksRmRf;
       hook.denyBlocksForcePush = analysis.blocksForcePush;
       hook.denyBlocksChmod = analysis.blocksChmod;
-      hook.denyBlocksPackageMutation = analysis.blocksPackageMutation;
       hook.denyBlocksCloudDestructive = analysis.blocksCloudDestructive;
     }
   }
@@ -672,7 +670,7 @@ function extractAskFirstFacts(fs: ReadonlyFS, content: string | null): AgentFact
   return { exists: paths.length > 0, paths, resolved, unresolved };
 }
 
-// settingsLocal extraction removed — personal preference file, not a project quality signal.
+// settingsLocal extraction removed - personal preference file, not a project quality signal.
 
 // ─── Composer ────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 ---
 name: goat-plan
 description: "4-phase planning workflow with complexity routing, kill criteria, and triangular tension analysis for competing approaches."
-goat-flow-skill-version: "0.9.0"
+goat-flow-skill-version: "0.9.1"
 ---
 # /goat-plan
 
@@ -10,7 +10,7 @@ goat-flow-skill-version: "0.9.0"
 - **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it — don't re-ask. Only hard-block with zero context.
+- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
 - **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `tasks/scratchpad.md`, ask to continue/compact/redirect.
 - **Learning Loop:** Behavioural mistake → `docs/lessons.md`. Architectural trap → `docs/footguns.md`.
@@ -31,7 +31,7 @@ path. Single-line changes don't need planning.
 - Reviewing an existing plan or PR → /goat-review
 - Debugging a specific issue → /goat-debug
 
-## Step 0 — Where Are We?
+## Step 0 - Where Are We?
 
 **Continuation detection:** Before starting fresh, check for existing planning artifacts:
 <!-- ADAPT: Add your project's planning file patterns -->
@@ -59,20 +59,22 @@ If matches found: "Branch [name] modified [files] [N] days ago. Coordinate?"
 Even a vague answer ("if it takes more than a week" or "if it breaks the existing API")
 helps frame the planning.
 
-## Phase 1 — Feature Brief
+**Before proceeding:** present what you know (feature, complexity, constraints, kill criteria) and what you still need. Wait for the user to confirm before entering Phase 1.
+
+## Phase 1 - Feature Brief
 
 Walk through each section ONE AT A TIME. Present one, wait for confirmation,
 then present the next. Do NOT dump all 8 sections at once.
 
 <!-- ADAPT: Adjust sections for your project's planning conventions -->
-1. **Problem** — what's wrong or missing (1-2 sentences)
-2. **Proposed solution** — high-level approach
-3. **Risks / assumptions** — what could go wrong. Include kill criteria from Step 0.
-4. **Rollback / feature flag plan** — how to undo if it fails in production
-5. **Scope** — in/out with explicit exclusions
-6. **Dependencies** — what blocks this, what this blocks
-7. **Success criteria** — measurable outcomes
-8. **Questions** — unknowns that need answers before proceeding
+1. **Problem** - what's wrong or missing (1-2 sentences)
+2. **Proposed solution** - high-level approach
+3. **Risks / assumptions** - what could go wrong. Include kill criteria from Step 0.
+4. **Rollback / feature flag plan** - how to undo if it fails in production
+5. **Scope** - in/out with explicit exclusions
+6. **Dependencies** - what blocks this, what this blocks
+7. **Success criteria** - measurable outcomes
+8. **Questions** - unknowns that need answers before proceeding
 
 Ask the question whose answer could invalidate the approach FIRST.
 
@@ -81,14 +83,14 @@ brief are defined. If new terms appear, add them: `| term | definition | canonic
 
 **BLOCKING GATE:** Present complete brief. "Approve, or adjust?"
 
-## Phase 2 — Mob Elaboration
+## Phase 2 - Mob Elaboration
 
-Generate 3-5 sharp questions about the brief — questions that could change
+Generate 3-5 sharp questions about the brief - questions that could change
 the design if answered differently.
 
 **Do NOT answer your own questions.** Present them and STOP. Wait for the
 user to answer. If the user says "answer them yourself," that's permission
-to proceed — but the default is to wait.
+to proceed - but the default is to wait.
 
 After answers arrive, summarise each answer in one sentence and ask:
 "Want me to drill deeper into any of these, or are we locked in?"
@@ -96,7 +98,7 @@ Repeat until the user says "locked in" or 3 rounds complete (whichever first).
 
 **CHECKPOINT:** "Locked in. Proceeding to approach analysis."
 
-## Phase 3 — Triangular Tension Analysis
+## Phase 3 - Triangular Tension Analysis
 
 Generate 2-3 competing approaches for the implementation. For each approach,
 evaluate from three perspectives:
@@ -117,7 +119,7 @@ Present a comparison table:
 | Reversibility | ... | ... | ... |
 
 Recommend one approach with reasoning. Tag any decisions made with incomplete
-data as **Decision Debt** — to be revisited in later milestones.
+data as **Decision Debt** - to be revisited in later milestones.
 
 > For multi-agent teams: see `workflow/playbooks/planning/sbao-ranking.md` for
 > the full SBAO process with external sessions and sub-agents. The triangular
@@ -125,14 +127,14 @@ data as **Decision Debt** — to be revisited in later milestones.
 
 **BLOCKING GATE:** "Recommended approach: [A]. Proceed to milestones?"
 
-## Phase 4 — Milestones
+## Phase 4 - Milestones
 
 Structure implementation as milestones using these archetypes:
 <!-- ADAPT: Rename or reorder for your process -->
-1. **Prove It Works** — smallest slice that validates the approach
-2. **Make It Real** — core functionality, happy path complete
-3. **Make It Solid** — error handling, edge cases, tests
-4. **Make It Shine** — performance, polish, documentation
+1. **Prove It Works** - smallest slice that validates the approach
+2. **Make It Real** - core functionality, happy path complete
+3. **Make It Solid** - error handling, edge cases, tests
+4. **Make It Shine** - performance, polish, documentation
 
 Each milestone must have:
 - Clear deliverable (what ships)
@@ -141,16 +143,16 @@ Each milestone must have:
 - Depends on (which milestone must complete first)
 
 After completing each milestone, re-read the NEXT milestone and rewrite it
-based on what you learned. Plans evolve — the Phase 4 milestones written
+based on what you learned. Plans evolve - the Phase 4 milestones written
 before implementation are hypotheses, not commitments.
 
 **BLOCKING GATE:** Present milestones. "Approve and start implementing?"
 
 ## Common Failure Modes
 
-1. **Brief dump** — agent presents all 8 sections at once. Walk through one at a time.
-2. **Self-answering elaboration** — agent answers its own Phase 2 questions. Wait for the user.
-3. **Stale continuation** — agent resumes from a plan that no longer matches the code. Check staleness.
+1. **Brief dump** - agent presents all 8 sections at once. Walk through one at a time.
+2. **Self-answering elaboration** - agent answers its own Phase 2 questions. Wait for the user.
+3. **Stale continuation** - agent resumes from a plan that no longer matches the code. Check staleness.
 
 ## Constraints
 
@@ -208,7 +210,7 @@ before implementation are hypotheses, not commitments.
 | Reversibility | ... | ... |
 
 **Recommendation:** [approach] because [reasoning].
-**Decision Debt:** [decision] — Confidence: LOW/MEDIUM — Revisit when: [trigger]
+**Decision Debt:** [decision] - Confidence: LOW/MEDIUM - Revisit when: [trigger]
 ```
 
 ### Milestone Card (Phase 4)
@@ -225,8 +227,8 @@ before implementation are hypotheses, not commitments.
 
 ## Chains With
 
-- /goat-investigate — need research before planning
-- /goat-test — milestones need verification plans
-- /goat-review — plan needs review before implementation starts
+- /goat-investigate - need research before planning
+- /goat-test - milestones need verification plans
+- /goat-review - plan needs review before implementation starts
 
 **Handoff shape:** `{feature_brief, approach_chosen, milestones, kill_criteria}`

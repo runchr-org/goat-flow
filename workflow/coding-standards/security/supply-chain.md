@@ -5,10 +5,10 @@ Reference for generating `ai/instructions/security.md` in projects with third-pa
 ## Lockfile Integrity
 
 - Commit lockfiles to version control. They pin exact versions of every transitive dependency.
-- In CI, always install from the lockfile — never resolve fresh.
+- In CI, always install from the lockfile - never resolve fresh.
 
 ```bash
-# DO — install from lockfile in CI
+# DO - install from lockfile in CI
 npm ci                          # Node
 pip install --require-hashes -r requirements.txt  # Python
 composer install --no-dev       # PHP
@@ -16,7 +16,7 @@ bundle install --frozen         # Ruby
 cargo build --locked            # Rust
 dotnet restore --locked-mode    # .NET
 
-# DON'T — resolve fresh in CI
+# DON'T - resolve fresh in CI
 npm install    # may resolve different versions than local
 pip install -r requirements.txt  # no hash verification
 ```
@@ -25,15 +25,15 @@ pip install -r requirements.txt  # no hash verification
 
 - **Lockfiles**: always exact versions (handled automatically by package manager).
 - **Manifests** (package.json, pyproject.toml): ranges are acceptable, but prefer tight ranges.
-- Review version bumps in PRs — `npm diff` or `cargo update --dry-run` to see what changed.
+- Review version bumps in PRs - `npm diff` or `cargo update --dry-run` to see what changed.
 
 ```json
-// DO — tight range
+// DO - tight range
 "dependencies": {
   "express": "^4.18.0"
 }
 
-// DON'T — accept any version
+// DON'T - accept any version
 "dependencies": {
   "express": "*"
 }
@@ -58,10 +58,10 @@ Run audits in CI on every PR. Block merge on critical/high severity.
 ## CI Pipeline Security
 
 ```yaml
-# DO — pin GitHub Actions to full SHA
+# DO - pin GitHub Actions to full SHA
 - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
 
-# DON'T — pin to mutable tag
+# DON'T - pin to mutable tag
 - uses: actions/checkout@v4    # tag can be moved to point at different code
 - uses: actions/checkout@main  # branch ref, even worse
 ```
@@ -90,12 +90,12 @@ dotnet list package --include-transitive  # .NET
 - For private modules, configure `GOPROXY` and `GONOSUMCHECK` explicitly. Incorrect configuration causes agents to misconfigure proxy settings or bypass the checksum database silently.
 
 ```bash
-# DO — explicit private module configuration
+# DO - explicit private module configuration
 export GOPROXY="https://proxy.golang.org,direct"
 export GONOSUMCHECK="github.com/yourorg/*"
 export GONOSUMDB="github.com/yourorg/*"
 
-# DON'T — disable the checksum database entirely
+# DON'T - disable the checksum database entirely
 export GONOSUMCHECK="*"
 export GOFLAGS="-insecure"
 ```

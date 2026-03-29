@@ -62,4 +62,9 @@ def check(command):
     if "mkfs" in cmd or "dd if=" in cmd:
         return "forbidden"
 
+    # Cloud destructive
+    for cloud_cmd in ["docker push", "terraform destroy", "terraform apply", "aws s3 rm", "aws ec2 terminate"]:
+        if cloud_cmd in cmd:
+            return "forbidden"
+
     return "allow"

@@ -11,7 +11,7 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 | Core docs | `docs/` | System spec, architecture descriptions, design rationale, examples |
 | Setup prompts | `setup/` | Agent-specific setup instructions for Claude Code, Gemini CLI, or Codex |
 | Shared setup | `setup/shared/` | Cross-agent setup fragments (execution loop, docs seed, Phase 2) |
-| Skill templates | `workflow/skills/` | Reference prompts for creating the 8 goat-* skills |
+| Skill templates | `workflow/skills/` | Reference prompts for creating the 9 goat-* skills |
 | Playbook templates | `workflow/playbooks/` | Planning (feature brief → SBAO) and testing methodology |
 | Evaluation templates | `workflow/evaluation/` | Agent evals, CI validation, footguns/lessons templates |
 | Runtime templates | `workflow/runtime/` | Layer 1 setup, enforcement patterns, architecture scaffolding |
@@ -30,7 +30,7 @@ User reads docs/getting-started.md
 
 ## Key Constraints
 
-- **CLI scanner and prompt generator** in `src/cli/` with 80-check rubric, fragment-based prompts, and multi-agent scoring. Dashboard planned for `src/dashboard/`.
+- **CLI scanner and prompt generator** in `src/cli/` with 104 scanner checks + 16 anti-patterns, fragment-based prompts, and multi-agent scoring. **HTML dashboard** at `src/dashboard/index.html` with local server (`goat-flow dashboard .`).
 - **docs/system-spec.md is canonical.** All other docs derive from or elaborate on it. Conflicts resolve in favour of the spec.
 - **Cross-references are fragile.** 60+ markdown files with dense internal linking. File renames require repo-wide grep.
 - **Real evidence only.** All examples, footguns, and anti-patterns must trace to real incidents with file:line references.
@@ -41,5 +41,5 @@ Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- lo
 
 ## Deliberate Trade-offs
 
-- **Redundancy across docs** — The same concepts appear in multiple files (spec, layers, steps, rationale) for different audiences. This is intentional: each file serves a different reading path. The cost is maintenance burden on edits.
-- **CLI validates the methodology** — The scanner (`src/cli/`) scores projects against the rubric, confirming the workflow produces measurable results. Dashboard and `goat-flow init` are planned next.
+- **Redundancy across docs** - The same concepts appear in multiple files (spec, layers, steps, rationale) for different audiences. This is intentional: each file serves a different reading path. The cost is maintenance burden on edits.
+- **CLI validates the methodology** - The scanner (`src/cli/`) scores projects against the rubric, confirming the workflow produces measurable results. Dashboard and `goat-flow init` are planned next.

@@ -18,7 +18,7 @@ architecture or persistence sections with the patterns actually present.
   separation. Keep EF Core mapping where the project currently places it.
 
 ```csharp
-// DO — thin controller dispatching to MediatR
+// DO - thin controller dispatching to MediatR
 [ApiController]
 [Route("api/[controller]")]
 public class OrdersController : ControllerBase
@@ -35,7 +35,7 @@ public class OrdersController : ControllerBase
     }
 }
 
-// DON'T — business logic in the controller
+// DON'T - business logic in the controller
 [HttpPost]
 public async Task<IActionResult> Create(CreateOrderRequest request)
 {
@@ -56,10 +56,10 @@ public async Task<IActionResult> Create(CreateOrderRequest request)
 - Use `DbContext` with `AddDbContext<AppDbContext>()` in DI. Configure entity mapping in `IEntityTypeConfiguration<T>` classes.
 - Use `Include()` for eager loading related entities. Use `AsNoTracking()` for read-only queries.
 - Run migrations with `dotnet ef migrations add` then review generated code. Never hand-edit migration files.
-- Use `SaveChangesAsync()` — never the synchronous version in async code paths.
+- Use `SaveChangesAsync()` - never the synchronous version in async code paths.
 
 ```csharp
-// DO — explicit Include, AsNoTracking for reads
+// DO - explicit Include, AsNoTracking for reads
 var orders = await context.Orders
     .AsNoTracking()
     .Include(o => o.Items)
@@ -67,7 +67,7 @@ var orders = await context.Orders
     .Where(o => o.CustomerId == customerId)
     .ToListAsync();
 
-// DON'T — lazy loading triggers N+1
+// DON'T - lazy loading triggers N+1
 var orders = await context.Orders.Where(o => o.CustomerId == customerId).ToListAsync();
 foreach (var order in orders)
 {
@@ -78,12 +78,12 @@ foreach (var order in orders)
 ## Dependency Injection
 
 - Use `AddScoped` for per-request services (DbContext, repositories). Use `AddSingleton` for stateless services (configuration, caches). Use `AddTransient` for lightweight, stateless helpers.
-- For HTTP clients, use `IHttpClientFactory` via `AddHttpClient<T>()` — avoids socket exhaustion and handles DNS refresh. Never register `HttpClient` as a singleton directly.
+- For HTTP clients, use `IHttpClientFactory` via `AddHttpClient<T>()` - avoids socket exhaustion and handles DNS refresh. Never register `HttpClient` as a singleton directly.
 - Use `IOptions<T>` pattern for strongly-typed configuration. Bind from `appsettings.json` sections.
-- DO NOT resolve scoped services from a singleton — it causes captive dependency bugs.
+- DO NOT resolve scoped services from a singleton - it causes captive dependency bugs.
 
 ```csharp
-// DO — IOptions pattern
+// DO - IOptions pattern
 services.Configure<SmtpSettings>(configuration.GetSection("Smtp"));
 
 public class EmailService
@@ -92,7 +92,7 @@ public class EmailService
     public EmailService(IOptions<SmtpSettings> options) => _settings = options.Value;
 }
 
-// DON'T — reading config directly
+// DON'T - reading config directly
 var host = configuration["Smtp:Host"]; // stringly typed, no validation
 ```
 
@@ -100,7 +100,7 @@ var host = configuration["Smtp:Host"]; // stringly typed, no validation
 
 - Follow project convention: Minimal APIs for lightweight services, Controllers for larger apps.
 - Use `TypedResults` with Minimal APIs for OpenAPI schema generation.
-- Return `IActionResult` or typed results — DO NOT return raw entities from controllers.
+- Return `IActionResult` or typed results - DO NOT return raw entities from controllers.
 
 ## Validation
 
@@ -108,7 +108,7 @@ var host = configuration["Smtp:Host"]; // stringly typed, no validation
 - Validate in the pipeline (MediatR behaviors or action filters), not manually in controllers.
 
 ```csharp
-// DO — FluentValidation
+// DO - FluentValidation
 public class CreateOrderCommandValidator : AbstractValidator<CreateOrderCommand>
 {
     public CreateOrderCommandValidator()
@@ -131,7 +131,7 @@ public class CreateOrderCommandValidator : AbstractValidator<CreateOrderCommand>
 - Isolate unit tests: no database, no HTTP, no file system. Mock all infrastructure.
 
 ```csharp
-// DO — integration test with WebApplicationFactory
+// DO - integration test with WebApplicationFactory
 public class OrdersTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;

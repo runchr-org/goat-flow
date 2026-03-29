@@ -7,13 +7,13 @@ Reference for generating `ai/instructions/security.md` in Laravel projects.
 Laravel includes CSRF protection via the `VerifyCsrfToken` middleware. Every state-changing form must include the token.
 
 ```blade
-{{-- DO — include CSRF token in forms --}}
+{{-- DO - include CSRF token in forms --}}
 <form method="POST" action="/orders">
     @csrf
     <button type="submit">Place Order</button>
 </form>
 
-{{-- DON'T — omit CSRF token --}}
+{{-- DON'T - omit CSRF token --}}
 <form method="POST" action="/orders">
     <button type="submit">Place Order</button>
 </form>
@@ -27,12 +27,12 @@ Laravel includes CSRF protection via the `VerifyCsrfToken` middleware. Every sta
 Always define `$fillable` (whitelist). Never use `$guarded = []`.
 
 ```php
-// DO — explicit fillable
+// DO - explicit fillable
 class User extends Model {
     protected $fillable = ['name', 'email'];
 }
 
-// DON'T — disable guarding
+// DON'T - disable guarding
 class User extends Model {
     protected $guarded = [];  // allows setting is_admin, role, etc.
 }
@@ -45,11 +45,11 @@ class User extends Model {
 Standard Eloquent methods are safe. Raw methods require manual parameterization.
 
 ```php
-// DO — parameterized raw query
+// DO - parameterized raw query
 $users = DB::select('SELECT * FROM users WHERE email = ?', [$email]);
 User::whereRaw('LOWER(email) = ?', [strtolower($email)])->first();
 
-// DON'T — concatenated raw query
+// DON'T - concatenated raw query
 $users = DB::select("SELECT * FROM users WHERE email = '$email'");
 User::whereRaw("email = '$email'")->first();
 ```
@@ -64,11 +64,11 @@ User::whereRaw("email = '$email'")->first();
 ## Authentication Guards
 
 ```php
-// DO — use guards explicitly
+// DO - use guards explicitly
 Auth::guard('api')->user();
 $this->middleware('auth:sanctum');
 
-// DON'T — rely on default guard without specifying
+// DON'T - rely on default guard without specifying
 Auth::user();  // may not check the expected guard in API contexts
 ```
 
@@ -78,7 +78,7 @@ Auth::user();  // may not check the expected guard in API contexts
 ## Rate Limiting
 
 ```php
-// DO — define rate limits in RouteServiceProvider or bootstrap
+// DO - define rate limits in RouteServiceProvider or bootstrap
 RateLimiter::for('login', function (Request $request) {
     return Limit::perMinute(5)->by($request->ip());
 });
@@ -88,17 +88,17 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:lo
 ```
 
 - Rate-limit login, password reset, and email verification endpoints.
-- Use `by()` to scope limits — per-IP for login, per-user for API endpoints.
+- Use `by()` to scope limits - per-IP for login, per-user for API endpoints.
 
 ## File Validation
 
 ```php
-// DO — validate file type, size, and MIME
+// DO - validate file type, size, and MIME
 $request->validate([
     'document' => ['required', 'file', 'mimetypes:application/pdf,image/jpeg', 'max:10240'],
 ]);
 
-// DON'T — validate only by extension
+// DON'T - validate only by extension
 $request->validate([
     'document' => ['required', 'file', 'extensions:pdf,jpg'],  // extension-only, easily spoofed
 ]);

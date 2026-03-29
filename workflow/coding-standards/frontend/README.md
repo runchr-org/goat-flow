@@ -13,7 +13,7 @@ DO/DON'T guidance) stay in `conventions.md`.
 | package.json + "react" in deps | react.md | auto | Add framework-specific data/loading guidance only if the repo actually uses Next/Remix/Router data APIs |
 | package.json + "vue" in deps | vue.md | auto | Vue 3 / Composition API first |
 | package.json + "@angular/core" in deps | angular.md | auto | Version-gated: verify standalone/signals/control-flow support from package.json |
-| composer.json + "laravel/framework" + resources/views/*.blade.php | php-blade.md | auto | Livewire guidance is conditional — include only if present |
+| composer.json + "laravel/framework" + resources/views/*.blade.php | php-blade.md | auto | Livewire guidance is conditional - include only if present |
 | composer.json + "symfony/twig-bundle" | php-twig.md | auto | Encore/AssetMapper/Turbo sections are conditional |
 | Gemfile + "rails" + app/views/**/*.erb | ruby-erb.md | auto | Hotwire/ViewComponent guidance is conditional |
 | requirements.txt/pyproject.toml + "django" | python-jinja.md | auto | Keep Django-specific sections only; do not mix Flask guidance into generated output |

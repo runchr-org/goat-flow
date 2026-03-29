@@ -15,7 +15,7 @@ few maintenance scripts.
 #!/usr/bin/env bash
 set -euo pipefail
 
-# DO — structured with functions and main entry
+# DO - structured with functions and main entry
 usage() { printf "Usage: %s <config-file>\n" "$0" >&2; }
 
 validate_config() {
@@ -31,7 +31,7 @@ main() {
 
 main "$@"
 
-# DON'T — flat script with no functions, no strict mode
+# DON'T - flat script with no functions, no strict mode
 config=$1
 if [ ! -f $config ]; then echo "not found"; fi
 ```
@@ -43,7 +43,7 @@ if [ ! -f $config ]; then echo "not found"; fi
 - Declare variables `local` inside functions. Never leak globals from helper functions.
 
 ```bash
-# DO — quoted, local, with defaults
+# DO - quoted, local, with defaults
 process_file() {
   local input_file="$1"
   local output_dir="${2:-./out}"
@@ -51,7 +51,7 @@ process_file() {
   cp "$input_file" "$output_dir/"
 }
 
-# DON'T — unquoted, global, no defaults
+# DON'T - unquoted, global, no defaults
 process_file() {
   input_file=$1
   mkdir -p $output_dir
@@ -66,14 +66,14 @@ process_file() {
 - Use `|| true` only for genuinely optional commands. DO NOT suppress errors blindly.
 
 ```bash
-# DO — trap for cleanup, command check
+# DO - trap for cleanup, command check
 cleanup() { [[ -n "${tmpdir:-}" ]] && rm -rf "$tmpdir"; }
 trap cleanup EXIT
 
 tmpdir="$(mktemp -d)"
 command -v jq >/dev/null 2>&1 || { printf "jq is required\n" >&2; exit 1; }
 
-# DON'T — no cleanup, silent failure
+# DON'T - no cleanup, silent failure
 tmpdir=/tmp/myscript$$
 mkdir $tmpdir
 jq '.key' data.json || true  # silently swallows real errors
@@ -83,16 +83,16 @@ jq '.key' data.json || true  # silently swallows real errors
 
 - Use `[[ ]]` for conditionals in bash-only scripts (supports regex, pattern matching, no word splitting).
 - Use `[ ]` if the script must run under `/bin/sh` or dash.
-- Use `printf` over `echo` — `echo` behavior varies across shells (`-n`, `-e` flags, backslash handling).
+- Use `printf` over `echo` - `echo` behavior varies across shells (`-n`, `-e` flags, backslash handling).
 
 ```bash
-# DO — printf for portable output, [[ ]] for bash
+# DO - printf for portable output, [[ ]] for bash
 printf "Processing %d files\n" "$count"
 if [[ "$filename" =~ \.tar\.gz$ ]]; then
   extract "$filename"
 fi
 
-# DON'T — echo with flags, [ ] with unquoted variables
+# DON'T - echo with flags, [ ] with unquoted variables
 echo -e "Processing $count files\n"
 if [ $filename = *.tar.gz ]; then
   extract $filename
@@ -106,12 +106,12 @@ fi
 - Use `readonly` for constants. Use `declare -a` for arrays.
 
 ```bash
-# DO — shellcheck clean, mktemp, readonly
+# DO - shellcheck clean, mktemp, readonly
 readonly VERSION="1.2.0"
 readonly CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/myapp"
 tmpfile="$(mktemp)"
 
-# DON'T — hardcoded temp path, mutable constant
+# DON'T - hardcoded temp path, mutable constant
 VERSION=1.2.0
 tmpfile=/tmp/myapp_tmp
 ```
@@ -122,12 +122,12 @@ tmpfile=/tmp/myapp_tmp
 - Prefer `while IFS= read -r line` for reading files line-by-line. DO NOT use `for line in $(cat file)`.
 
 ```bash
-# DO — read file line-by-line safely
+# DO - read file line-by-line safely
 while IFS= read -r line; do
   printf "Line: %s\n" "$line"
 done < "$input_file"
 
-# DON'T — word splitting and glob expansion on every line
+# DON'T - word splitting and glob expansion on every line
 for line in $(cat $input_file); do
   echo $line
 done
@@ -139,11 +139,11 @@ done
 - Use assertion helper functions for readable test output.
 
 ```bash
-# DO — self-test pattern
+# DO - self-test pattern
 assert_eq() {
   local label="$1" expected="$2" actual="$3"
   if [[ "$expected" != "$actual" ]]; then
-    printf "FAIL: %s — expected '%s', got '%s'\n" "$label" "$expected" "$actual" >&2
+    printf "FAIL: %s - expected '%s', got '%s'\n" "$label" "$expected" "$actual" >&2
     return 1
   fi
   printf "PASS: %s\n" "$label"
@@ -160,9 +160,9 @@ fi
 
 - **Unquoted variables**: `rm -rf $dir/` with an empty `$dir` becomes `rm -rf /`. Always quote.
 - **Word splitting**: `for f in $(ls *.txt)` breaks on filenames with spaces. Use `for f in *.txt` or `find` with `-print0`.
-- **cd without error handling**: Running destructive commands on a separate line after `cd` — if `cd` fails, the next command runs in the wrong (current) directory. The safe forms are `cd /some/dir && rm -rf .` (stops if `cd` fails) or `cd /some/dir || exit 1` followed by the destructive command on the next line.
+- **cd without error handling**: Running destructive commands on a separate line after `cd` - if `cd` fails, the next command runs in the wrong (current) directory. The safe forms are `cd /some/dir && rm -rf .` (stops if `cd` fails) or `cd /some/dir || exit 1` followed by the destructive command on the next line.
 - **Pipes hide exit codes**: In `cmd1 | cmd2`, only `cmd2`'s exit code is checked by default. Use `set -o pipefail` (included in `set -euo pipefail`).
-- **Subshell variable scope**: Variables set inside `while read ... done < <(cmd)` using process substitution persist. Variables set inside `cmd | while read ...` do not — the pipe creates a subshell.
+- **Subshell variable scope**: Variables set inside `while read ... done < <(cmd)` using process substitution persist. Variables set inside `cmd | while read ...` do not - the pipe creates a subshell.
 
 ## Primary Sources
 

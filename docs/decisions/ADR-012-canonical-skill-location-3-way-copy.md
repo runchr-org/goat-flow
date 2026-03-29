@@ -17,14 +17,14 @@ Keep the 3-way copy model. Formalize the current approach:
 2. Agent directories (`.claude/skills/`, `.agents/`, `.github/instructions/`) in target projects are copies
 3. M03.2 drift check compares agent directory copies against each other and flags divergence
 4. The setup prompt handles initial copy during project onboarding
-5. Manual sync remains the update path — no generation command
+5. Manual sync remains the update path - no generation command
 
 This is the current model, explicitly documented so future milestones do not treat it as an open question.
 
 ## Consequences
 
-- No new CLI command needed — the framework remains documentation-only with no runtime tooling
+- No new CLI command needed - the framework remains documentation-only with no runtime tooling
 - M03.2 drift check is the enforcement mechanism; without it, drift will recur
 - Manual sync means skill updates require touching 3 directories per project; this is accepted
 - The setup prompt must clearly document which directories to copy skills into
-- Symlinks and generation are explicitly rejected — if revisited, a new ADR is required
+- Symlinks and generation are explicitly rejected - if revisited, a new ADR is required

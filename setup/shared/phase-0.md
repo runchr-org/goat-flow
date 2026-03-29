@@ -1,4 +1,4 @@
-# Phase 0 — Bootstrap (minimal entry point)
+# Phase 0 - Bootstrap (minimal entry point)
 
 Use Phase 0 when you want minimal protection with zero ceremony. Creates only two
 things: a lean instruction file and a deny hook. Nothing else.
@@ -21,15 +21,15 @@ That's it. No skills, no docs/, no evals, no learning loop files.
 ## Instructions for the Agent
 
 ```
-GOAL: Minimal GOAT Flow bootstrap — instruction file + deny hook only.
+GOAL: Minimal GOAT Flow bootstrap - instruction file + deny hook only.
 
-STEP 1 — Detect the project:
+STEP 1 - Detect the project:
 - Read package.json / Cargo.toml / go.mod / composer.json (whichever exists)
   to find: language, build command, test command.
 - Check if the instruction file already exists. If it does, read it. Do not
-  overwrite content that looks intentional — merge instead.
+  overwrite content that looks intentional - merge instead.
 
-STEP 2 — Create the instruction file (30–50 lines):
+STEP 2 - Create the instruction file (30–50 lines):
 Include only these sections:
   # {ProjectName} - v0.1.0
   ## Essential Commands     ← build, test, lint (one line each)
@@ -39,14 +39,18 @@ Include only these sections:
 Leave out: execution loop, router table, complexity budgets, working memory,
 footguns/lessons references. Those belong in Phase 1.
 
-STEP 3 — Create the deny hook:
-For Claude Code: add to .claude/settings.json PreToolUse hook.
-For Codex/Gemini: create scripts/deny-dangerous.sh.
+STEP 3 - Create the deny hook:
+For Claude Code: .claude/hooks/deny-dangerous.sh wired to PreToolUse in
+  .claude/settings.json.
+For Gemini CLI: .gemini/hooks/deny-dangerous.sh wired to BeforeTool in
+  .gemini/settings.json.
+For Codex: .codex/rules/deny-dangerous.star (Starlark execpolicy).
+  Also create scripts/deny-dangerous.sh as documentation/verification only.
 
-The deny hook MUST block: rm -rf, git push --force, .env edits, main/master push.
-Use scripts/deny-dangerous.sh as the reference implementation if it exists.
+The deny mechanism MUST block: rm -rf, git push --force, .env edits,
+main/master push.
 
-STEP 4 — Verify:
+STEP 4 - Verify:
 - Instruction file is under 50 lines.
 - Deny hook is wired and exits 0 on safe commands.
 - Nothing else was created or modified.

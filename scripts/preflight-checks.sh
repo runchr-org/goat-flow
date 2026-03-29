@@ -29,7 +29,7 @@ section "Context Validation"
 if bash scripts/context-validate.sh >/dev/null 2>&1; then
     pass "Router paths, skills, frontmatter"
 else
-    fail "Context validation — run scripts/context-validate.sh for details"
+    fail "Context validation - run scripts/context-validate.sh for details"
 fi
 
 # ── Shell Scripts ────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ if command -v shellcheck >/dev/null 2>&1; then
     if shellcheck --exclude=SC2001 scripts/*.sh scripts/maintenance/*.sh >/dev/null 2>&1; then
         pass "Shellcheck"
     else
-        fail "Shellcheck — run shellcheck scripts/*.sh for details"
+        fail "Shellcheck - run shellcheck scripts/*.sh for details"
     fi
 else
     skip "Shellcheck (not installed)"
@@ -126,7 +126,7 @@ if [[ -f package.json ]] && [[ -f src/cli/rubric/version.ts ]]; then
                 fail "package.json ($pkg_version) does not match CHANGELOG.md newest (v${changelog_version})"
             fi
             if [[ -n "$rubric_version" ]] && [[ "$rubric_version" != "$changelog_version" ]]; then
-                note "RUBRIC_VERSION ($rubric_version) differs from CHANGELOG.md newest (v${changelog_version}) — bump if rubric changed"
+                note "RUBRIC_VERSION ($rubric_version) differs from CHANGELOG.md newest (v${changelog_version}) - bump if rubric changed"
             fi
         else
             fail "CHANGELOG.md has no version entry matching '## vX.Y.Z'"
@@ -150,7 +150,7 @@ if [[ -f package.json ]] && [[ -f src/cli/rubric/version.ts ]]; then
         rubric_changed=$(git diff --name-only src/cli/rubric/ 2>/dev/null | grep -v version.ts | head -1 || true)
         version_changed=$(git diff --name-only src/cli/rubric/version.ts 2>/dev/null || true)
         if [[ -n "$rubric_changed" ]] && [[ -z "$version_changed" ]]; then
-            note "Rubric files changed but RUBRIC_VERSION unchanged — consider bumping"
+            note "Rubric files changed but RUBRIC_VERSION unchanged - consider bumping"
         fi
     fi
 else
@@ -177,10 +177,10 @@ if [[ ${#agent_files[@]} -ge 2 ]]; then
         ref_words=$(echo "$ref_loop" | wc -w)
         other_words=$(echo "$other_loop" | wc -w)
         if [[ "$ref_words" -eq 0 ]] || [[ "$other_words" -eq 0 ]]; then
-            fail "Execution loop missing in $af — copy from ${agent_files[0]}"
+            fail "Execution loop missing in $af - copy from ${agent_files[0]}"
             loop_ok=false
         else
-            # Check word count ratio — >40% divergence = structural drift
+            # Check word count ratio - >40% divergence = structural drift
             diff_pct=$(( (ref_words - other_words) * 100 / ref_words ))
             abs_diff=${diff_pct#-}
             if [[ "$abs_diff" -gt 40 ]]; then
@@ -201,7 +201,7 @@ if [[ -f tsconfig.json ]]; then
     if npx tsc --noEmit 2>/dev/null; then
         pass "Typecheck"
     else
-        fail "Typecheck — run npx tsc --noEmit for details"
+        fail "Typecheck - run npx tsc --noEmit for details"
     fi
 
     if npx tsc 2>/dev/null; then
@@ -218,7 +218,7 @@ if [[ -f tsconfig.json ]]; then
         if [[ "$lint_exit" -eq 0 ]]; then
             pass "ESLint ($lint_warnings warnings)"
         elif [[ "$lint_errors" -gt 0 ]]; then
-            fail "ESLint ($lint_errors errors, $lint_warnings warnings) — run npx eslint src/cli/"
+            fail "ESLint ($lint_errors errors, $lint_warnings warnings) - run npx eslint src/cli/"
         else
             pass "ESLint (0 errors, $lint_warnings warnings)"
         fi
@@ -226,14 +226,14 @@ if [[ -f tsconfig.json ]]; then
         skip "ESLint (not configured)"
     fi
 
-    # Knip (unused exports, dead code — breaking error)
+    # Knip (unused exports, dead code - breaking error)
     if command -v npx >/dev/null 2>&1 && npx knip --version >/dev/null 2>&1; then
         knip_output=$(npx knip --no-progress 2>&1) && knip_exit=0 || knip_exit=$?
         if [[ "$knip_exit" -eq 0 ]]; then
             pass "Knip (no unused exports or deps)"
         else
             unused_count=$(echo "$knip_output" | grep -c '^[A-Za-z].*  ' || echo "?")
-            fail "Knip: $unused_count unused exports/types — run npx knip for details"
+            fail "Knip: $unused_count unused exports/types - run npx knip for details"
         fi
     else
         skip "Knip (not installed)"
@@ -307,7 +307,7 @@ if [[ -f dist/cli/cli.js ]]; then
         if $all_a; then
             pass "All agents at 100%"
         else
-            fail "Not all agents at 100% — run: node dist/cli/cli.js scan . --format text"
+            fail "Not all agents at 100% - run: node dist/cli/cli.js scan . --format text"
         fi
     else
         fail "goat-flow scan failed (exit $scan_exit)"

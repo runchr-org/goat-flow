@@ -1,7 +1,7 @@
 import type { Fragment } from '../types.js';
 
 /**
- * Tier 3 — Full fragments
+ * Tier 3 - Full fragments
  * Agent evals, CI validation, hygiene
  */
 export const fullFragments: Fragment[] = [
@@ -89,7 +89,7 @@ Use \`all\` if the eval applies to every agent. Use \`claude\`, \`codex\`, or \`
     phase: 'full',
     category: 'Agent Evals',
     kind: 'fix',
-    instruction: `Each of the 8 canonical skills needs at least one eval. Add a \`skill:\` label to each eval's YAML frontmatter:
+    instruction: `Each of the 9 canonical skills needs at least one eval. Add a \`skill:\` label to each eval's YAML frontmatter:
 
 \`\`\`yaml
 ---
@@ -169,7 +169,7 @@ jobs:
     phase: 'full',
     category: 'CI Validation',
     kind: 'create',
-    instruction: `Add a skills existence check to \`.github/workflows/context-validation.yml\`. Verify all 8 goat-* skill directories have a SKILL.md.`,
+    instruction: `Add a skills existence check to \`.github/workflows/context-validation.yml\`. Verify all 9 goat-* skill directories have a SKILL.md.`,
   },
   {
     key: 'ci-trigger-prs',
@@ -226,13 +226,13 @@ Without this, PRs can merge without context validation passing.`,
     kind: 'create',
     instruction: `Use RFC 2119 language in \`{{instructionFile}}\`: MUST, SHOULD, MAY.
 
-- **MUST** — requirement, blocking
-- **SHOULD** — recommended, strong expectation
-- **MAY** — optional, acceptable to skip
+- **MUST** - requirement, blocking
+- **SHOULD** - recommended, strong expectation
+- **MAY** - optional, acceptable to skip
 
 Ensure at least 3 instances across the instruction file. Use MUST for DoD gates and enforcement, SHOULD for best practices.`,
   },
-  // add-changelog removed — CHANGELOG.md is a project-level concern, not an AI workflow artifact.
+  // add-changelog removed - CHANGELOG.md is a project-level concern, not an AI workflow artifact.
   // === Execution Loop Sync ===
   {
     key: 'fix-execution-loop-sync',
@@ -248,7 +248,7 @@ Ensure at least 3 instances across the instruction file. Use MUST for DoD gates 
 
 Note: the execution loop MUST be duplicated (each file is loaded independently). The goal is consistency, not deduplication.`,
   },
-  // diversify-evals removed — merged into add-eval-skill-coverage after 3.4.1 was removed.
+  // diversify-evals removed - merged into add-eval-skill-coverage after 3.4.1 was removed.
   {
     key: 'fix-eval-frontmatter',
     phase: 'full',

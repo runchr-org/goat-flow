@@ -1,7 +1,7 @@
 ---
 name: goat-security
 description: "Threat-model-driven security assessment with framework-aware verification, exploitability ranking, and concrete dependency auditing."
-goat-flow-skill-version: "0.9.0"
+goat-flow-skill-version: "0.9.1"
 ---
 # /goat-security
 
@@ -10,7 +10,7 @@ goat-flow-skill-version: "0.9.0"
 - **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it — don't re-ask. Only hard-block with zero context.
+- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
 - **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `tasks/scratchpad.md`, ask to continue/compact/redirect.
 - **Learning Loop:** Behavioural mistake → `docs/lessons.md`. Architectural trap → `docs/footguns.md`.
@@ -27,7 +27,7 @@ handling, when touching secrets/credentials, or for a security-focused audit.
 - Diagnosing a specific vulnerability → /goat-debug
 - Understanding code before securing it → /goat-investigate
 
-## Step 0 — Gather Context
+## Step 0 - Gather Context
 
 **Structural questions (always ask or confirm):**
 1. What's the threat model? (user-facing web app, internal tool, CLI, library, API)
@@ -41,7 +41,9 @@ handling, when touching secrets/credentials, or for a security-focused audit.
 Present: "This is a [framework] project. I'll check [framework]'s built-in
 security features during verification."
 
-## Phase 1 — Threat Surface Scan
+**Before proceeding:** present what you know (threat model, framework, auth boundaries) and what you still need. Wait for the user to confirm before entering Phase 1.
+
+## Phase 1 - Threat Surface Scan
 
 Scan against the checklist below. **Skip categories that don't apply** based
 on Step 0 threat model (a CLI tool doesn't need CORS/CSP checks).
@@ -57,7 +59,7 @@ on Step 0 threat model (a CLI tool doesn't need CORS/CSP checks).
 | XSS | User input rendered without escaping | No HTML output | `innerHTML = userInput`, unescaped template |
 | Command injection | User input in shell commands | No shell execution | `exec("convert " + filename)`, unsanitized args |
 | Path traversal | User input in file paths | No file system access | `fs.readFile(basePath + userInput)` |
-| Dependency CVEs | Known vulnerabilities in dependencies | — | Run audit command below |
+| Dependency CVEs | Known vulnerabilities in dependencies | - | Run audit command below |
 | CORS/CSP | Misconfigured cross-origin policies | No HTTP server | `Access-Control-Allow-Origin: *` |
 | Permission escalation | Role/privilege checks missing or bypassable | Single-role system | Admin routes without role check |
 
@@ -74,10 +76,10 @@ dotnet list package --vulnerable  # .NET
 
 Log every finding with `file:line` evidence.
 
-## Phase 2 — Framework-Aware Verification
+## Phase 2 - Framework-Aware Verification
 
 **THIS IS THE KEY DIFFERENTIATOR.** For EACH Phase 1 finding, check if the
-framework already mitigates it. Attempt to DISPROVE each finding — the adversarial
+framework already mitigates it. Attempt to DISPROVE each finding - the adversarial
 framing catches more false positives than "check if it's handled."
 
 **Framework verification examples:**
@@ -109,7 +111,7 @@ Remove confirmed false positives. Flag partial mitigations as findings.
 (c) test an edge case
 (d) proceed to ranking
 
-## Phase 3 — Exploitability Ranking
+## Phase 3 - Exploitability Ranking
 
 Rank verified findings by exploitability, not just severity:
 
@@ -124,7 +126,7 @@ For each **Critical** and **High** finding, write a one-sentence attack scenario
 Example: "An unauthenticated user can extract the users table by submitting
 `' OR 1=1--` in the search field at `src/api/search.ts:42`."
 
-## Phase 4 — Self-Check
+## Phase 4 - Self-Check
 
 Re-read each cited `file:line` for Critical and High findings.
 - Does the code actually do what the finding claims?
@@ -137,9 +139,9 @@ Remove findings that don't survive re-verification.
 
 ## Common Failure Modes
 
-1. **Generic OWASP checklist** — agent runs through web categories on a CLI tool. The skip conditions in Phase 1 prevent this.
-2. **False positives from framework ignorance** — agent flags "no input sanitization" in a Rails app where strong params handle it. Phase 2 catches this.
-3. **Missing dependency audit** — agent scans code but skips `npm audit`. The concrete commands in Phase 1 prevent this.
+1. **Generic OWASP checklist** - agent runs through web categories on a CLI tool. The skip conditions in Phase 1 prevent this.
+2. **False positives from framework ignorance** - agent flags "no input sanitization" in a Rails app where strong params handle it. Phase 2 catches this.
+3. **Missing dependency audit** - agent scans code but skips `npm audit`. The concrete commands in Phase 1 prevent this.
 
 ## Constraints
 
@@ -174,9 +176,9 @@ Remove findings that don't survive re-verification.
 ## Findings (by exploitability)
 
 ### Critical (exploitable without auth)
-- **[title]** — `file:line`
+- **[title]** - `file:line`
   **Attack scenario:** An [attacker] can [action] via [vector], resulting in [impact]
-  **Framework mitigation:** [not mitigated | mitigated by X — downgraded]
+  **Framework mitigation:** [not mitigated | mitigated by X - downgraded]
 
 ### High / Medium / Low
 
@@ -193,8 +195,8 @@ Remove findings that don't survive re-verification.
 
 ## Chains With
 
-- /goat-review — security findings feed into change review
-- /goat-debug — specific vulnerability needs deeper diagnosis
-- /goat-review — security scan reveals broader quality issues → audit mode
+- /goat-review - security findings feed into change review
+- /goat-debug - specific vulnerability needs deeper diagnosis
+- /goat-review - security scan reveals broader quality issues → audit mode
 
 **Handoff shape:** `{threat_model, findings_by_exploitability, framework_mitigations, dependency_audit_results}`

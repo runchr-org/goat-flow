@@ -1,43 +1,58 @@
 # Prompt: Create docs/lessons.md
 
-Paste this into your coding agent to create the lessons learned file for the learning loop.
+Paste this into your coding agent to create the lessons file for the
+learning loop. Lessons capture behavioural mistakes made by the agent so
+the same failure mode does not repeat.
 
 ---
 
 ## The Prompt
 
 ```
-Create docs/lessons.md for this project. This file captures behavioural
-mistakes the agent makes - things it did wrong that should not be
-repeated in future sessions. It's part of the learning loop (LOG step
-of the execution loop).
+Create or update docs/lessons.md for this project.
 
-Create with this format header and empty sections:
+This file is for behavioural mistakes by the agent, not ordinary product
+bugs. Add entries only after a real mistake or correction happened.
 
-# Lessons Learned
+If docs/lessons.md does not exist, create it with this structure:
+
+# Lessons
+
+Behavioural mistakes made by the agent during this project. Each entry
+describes what went wrong and how to avoid repeating it.
 
 ## Entries
-<!-- Format: YYYY-MM-DD | Category | Lesson | Evidence -->
-<!-- Categories: fabrication, mode-drift, premature-fix, scope-creep, missed-read, other -->
+
+### Short lesson title
+**What happened:** Brief description of the real mistake. Include file:line
+evidence when that is the clearest way to explain it.
+
+**Prevention:** The behavioural rule or verification step that should stop
+this from happening again.
+
+**created_at:** YYYY-MM-DD
 
 ## Patterns
-<!-- Recurring themes extracted from entries above -->
-<!-- Review entries monthly. When 3+ entries share a theme, extract the pattern here -->
+### Pattern: recurring theme
+_Entries: "Short lesson title", "Another lesson title"_
 
-Every entry added by the agent must include this flag at the start:
-> [!WARNING] AI-GENERATED: UNVERIFIED
-The human removes this flag after reviewing the entry. CI will fail
-if this flag exists on the main branch.
+Short synthesis of the repeated failure mode and the guardrail it implies.
 
-The file starts EMPTY. Do NOT invent entries. Entries are added after
-real mistakes occur during coding sessions. Example of a real entry:
+If docs/lessons.md already exists:
+- Keep existing entries intact
+- Append new entries in the same format
+- Update Patterns only when there are repeated themes worth extracting
 
-2026-03-15 | missed-read | Assumed API contract without reading
-frontend consumer. The endpoint expected { items: [] } but backend
-returned { data: [] }. | src/api/items.ts:47, src/pages/Items.tsx:23
+RULES:
+- Do NOT invent entries
+- Do NOT log ordinary code defects unless the agent behaviour caused them
+- Prefer one concrete lesson per entry over a vague umbrella statement
+- Keep the Prevention action-oriented and enforceable
+- Use the current repo format, not a temporary AI-generated placeholder
 
 VERIFICATION:
 - Verify docs/lessons.md exists
-- Verify it has the Entries and Patterns sections with format comments
-- Verify it contains NO fabricated entries
+- Verify it has Entries and Patterns sections
+- Verify every new entry has What happened, Prevention, and created_at
+- Verify no fabricated entries were added
 ```

@@ -1,7 +1,7 @@
 ---
 name: goat-debug
 description: "Diagnosis-first debugging with hypothesis tracking, recurrence checks, and evidence-based fix planning."
-goat-flow-skill-version: "0.9.0"
+goat-flow-skill-version: "0.9.1"
 ---
 # /goat-debug
 
@@ -10,7 +10,7 @@ goat-flow-skill-version: "0.9.0"
 - **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it — don't re-ask. Only hard-block with zero context.
+- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
 - **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `tasks/scratchpad.md`, ask to continue/compact/redirect.
 - **Learning Loop:** Behavioural mistake → `docs/lessons.md`. Architectural trap → `docs/footguns.md`.
@@ -18,7 +18,7 @@ goat-flow-skill-version: "0.9.0"
 
 ## When to Use
 
-Use when diagnosing a bug or unexpected behavior — especially when the root
+Use when diagnosing a bug or unexpected behavior - especially when the root
 cause is unclear or spans multiple components.
 
 Purpose: diagnosis-first debugging. The agent gathers context, then investigates
@@ -33,7 +33,7 @@ That's the failure mode this skill exists to prevent.
 - Generating test instructions → /goat-test
 - Performance profiling or unclear requirements → general reasoning
 
-## Step 0 — Gather Context
+## Step 0 - Gather Context
 
 <!-- ADAPT: Replace illustrative questions (3, 4) with your project's common debug targets -->
 
@@ -49,7 +49,9 @@ That's the failure mode this skill exists to prevent.
 If the user said `/goat-debug the test in auth.test.ts fails with TypeError`,
 confirm: "Symptom: TypeError in auth.test.ts. I'll start with that file. Correct?"
 
-## Phase 1 — Investigate (no fixes)
+**Before proceeding:** present what you know (symptom, area, urgency) and what you still need. Wait for the user to confirm before entering Phase 1.
+
+## Phase 1 - Investigate (no fixes)
 
 **RECURRENCE CHECK:** Before investigating, search `docs/footguns.md` +
 `docs/lessons.md` + `agent-evals/` for the symptom, file path, or module name.
@@ -83,7 +85,7 @@ After tracing, mark each: CONFIRMED / ELIMINATED / UNRESOLVED with evidence.
 
 Generate multiple hypotheses internally before committing to a trace path.
 
-## Phase 2 — Diagnosis
+## Phase 2 - Diagnosis
 
 Present findings using the Output Format template below:
 - Root cause with **confidence level**: HIGH (reproduced) / MEDIUM (traced to cause) / LOW (inferred from patterns)
@@ -95,15 +97,15 @@ Return to Phase 1 for deeper investigation, or present partial findings and ask
 the user whether to proceed or dig deeper.
 
 **BLOCKING GATE:** Present diagnosis. Offer:
-(a) investigate deeper — I'm not confident yet
+(a) investigate deeper - I'm not confident yet
 (b) propose a fix plan
-(c) this matches a known issue — close
+(c) this matches a known issue - close
 (d) something else
 
 This gate is the core value of the skill. Skipping diagnosis is how 3-hour
 debugging sessions start.
 
-## Phase 3 — Fix Plan
+## Phase 3 - Fix Plan
 
 Only if human approved. Propose a fix plan (not the fix itself):
 - **What changes:** specific files and functions
@@ -117,7 +119,7 @@ Only if human approved. Propose a fix plan (not the fix itself):
 
 If yes → implement. Then auto-transition to Phase 4 (skip redundant "confirm fix applied" when the agent did the work).
 
-## Phase 4 — Post-Fix Verification
+## Phase 4 - Post-Fix Verification
 
 If a fix was applied (by agent or human):
 1. Run the specific verification from Phase 3
@@ -131,9 +133,9 @@ stop and rewind. Present what you've tried and ask the human for a different ang
 
 ## Common Failure Modes
 
-1. **"Just try something"** — agent patches without understanding. Phase 1 prevents this.
-2. **Single-track hypothesis** — 3 variations of the same theory. The 2-category rule prevents this.
-3. **Premature fix** — agent proposes a fix with LOW confidence. The confidence floor prevents this.
+1. **"Just try something"** - agent patches without understanding. Phase 1 prevents this.
+2. **Single-track hypothesis** - 3 variations of the same theory. The 2-category rule prevents this.
+3. **Premature fix** - agent proposes a fix with LOW confidence. The confidence floor prevents this.
 
 ## Constraints
 
@@ -163,7 +165,7 @@ stop and rewind. Present what you've tried and ask the human for a different ang
 
 ## Reproduction Steps
 1. [step]
-2. Expected: [X] — Actual: [Y]
+2. Expected: [X] - Actual: [Y]
 
 ## Fix Plan
 <!-- Only if human approved Phase 3 -->
@@ -174,8 +176,8 @@ stop and rewind. Present what you've tried and ask the human for a different ang
 
 ## Chains With
 
-- /goat-test — bug fixed, need verification plan
-- /goat-investigate — root cause unclear, need deeper exploration
-- /goat-review — fix ready, needs review before merge
+- /goat-test - bug fixed, need verification plan
+- /goat-investigate - root cause unclear, need deeper exploration
+- /goat-review - fix ready, needs review before merge
 
 **Handoff shape:** `{bug_description, root_cause, confidence, fix_applied, files_changed}`

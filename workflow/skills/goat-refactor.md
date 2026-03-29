@@ -1,7 +1,7 @@
 ---
 name: goat-refactor
 description: "Structured cross-file refactoring with blast radius analysis, both-sides-first reading, rename verification, and absence checks."
-goat-flow-skill-version: "0.9.0"
+goat-flow-skill-version: "0.9.1"
 ---
 # /goat-refactor
 
@@ -10,7 +10,7 @@ goat-flow-skill-version: "0.9.0"
 - **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it — don't re-ask. Only hard-block with zero context.
+- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
 - **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `tasks/scratchpad.md`, ask to continue/compact/redirect.
 - **Learning Loop:** Behavioural mistake → `docs/lessons.md`. Architectural trap → `docs/footguns.md`.
@@ -28,7 +28,7 @@ could break references.
 - Reviewing a completed change → /goat-review
 - Investigating code to understand it → /goat-investigate
 
-## Step 0 — Gather Context
+## Step 0 - Gather Context
 
 **Structural questions (always ask or confirm):**
 1. What are we refactoring? (rename, extract, move, restructure, interface change)
@@ -41,7 +41,9 @@ could break references.
 **Auto-detect:** If the user describes a rename, grep for the old name to
 estimate scope: `grep -rn 'OldName' --include='*.{ts,py,go,php,rs}' | wc -l`
 
-## Phase 1 — Scope & Impact
+**Before proceeding:** present what you know (refactor type, estimated scope, boundaries) and what you still need. Wait for the user to confirm before entering Phase 1.
+
+## Phase 1 - Scope & Impact
 
 Before changing anything:
 
@@ -63,16 +65,16 @@ Before changing anything:
 **BLOCKING GATE:** "This refactor touches [N] files across [M] boundaries.
 Blast radius: [assessment]. Proceed?"
 
-## Phase 2 — Execute (one layer at a time)
+## Phase 2 - Execute (one layer at a time)
 
 Do NOT change everything at once. Change one side of the interface, verify,
 then change the other side.
 
 **For renames:**
 1. Change the definition (source of truth)
-2. Verify: `grep -rn 'OldName' --include='*.{ts,py,go,php,rs}'` — should find only consumers
+2. Verify: `grep -rn 'OldName' --include='*.{ts,py,go,php,rs}'` - should find only consumers
 3. Update consumers one by one
-4. Verify: grep again — should find zero hits
+4. Verify: grep again - should find zero hits
 5. Update documentation: `grep -rn 'OldName' --include='*.md'`
 
 **For extractions:**
@@ -86,13 +88,13 @@ then change the other side.
 1. Add the new interface alongside the old one
 2. Migrate consumers to new interface
 3. Remove old interface
-4. Verify: grep for old interface — zero hits
+4. Verify: grep for old interface - zero hits
 
 After EACH step, run the project's lint/test commands to catch breakage early.
 
 **CHECKPOINT:** "Step [N] complete. [summary]. Continuing."
 
-## Phase 3 — Verify
+## Phase 3 - Verify
 
 Comprehensive verification after all changes:
 
@@ -121,22 +123,22 @@ Comprehensive verification after all changes:
 ## What I Didn't Refactor
 
 List files/areas that reference the old names but were deliberately skipped:
-- [file] — reason: [out of scope / different repo / generated code / etc.]
+- [file] - reason: [out of scope / different repo / generated code / etc.]
 
 ## Common Failure Modes
 
-1. **Change both sides at once** — breaks everything simultaneously with no way to isolate the cause. One side at a time.
-2. **Forget documentation** — code is renamed but CLAUDE.md still references the old path. The doc cross-reference check catches this.
-3. **Miss a consumer** — grep only the obvious file types. Include `.md`, `.json`, `.yml`, not just source code.
+1. **Change both sides at once** - breaks everything simultaneously with no way to isolate the cause. One side at a time.
+2. **Forget documentation** - code is renamed but CLAUDE.md still references the old path. The doc cross-reference check catches this.
+3. **Miss a consumer** - grep only the obvious file types. Include `.md`, `.json`, `.yml`, not just source code.
 
 ## Constraints
 
 <!-- FIXED: Do not adapt these -->
 - MUST read both sides of every interface before changing either side
-- MUST grep for old names after EVERY rename — not just at the end
+- MUST grep for old names after EVERY rename - not just at the end
 - MUST change one layer at a time, verify between layers
 - MUST check documentation references, not just source code
-- MUST run build/typecheck after changes — don't trust grep alone
+- MUST run build/typecheck after changes - don't trust grep alone
 - MUST NOT fabricate file paths or function names
 - MUST flag Ask First boundary crossings before proceeding
 
@@ -158,7 +160,7 @@ List files/areas that reference the old names but were deliberately skipped:
 | Documentation updated | yes ✓ / [N] stale refs |
 
 ## What I Didn't Refactor
-- [file] — [reason]
+- [file] - [reason]
 
 ## Remaining Work
 - [any follow-up needed]
@@ -166,8 +168,8 @@ List files/areas that reference the old names but were deliberately skipped:
 
 ## Chains With
 
-- /goat-review — refactoring done, needs review before merge
-- /goat-test — refactoring done, need verification plan
-- /goat-investigate — need to understand code before refactoring
+- /goat-review - refactoring done, needs review before merge
+- /goat-test - refactoring done, need verification plan
+- /goat-investigate - need to understand code before refactoring
 
 **Handoff shape:** `{scope, files_changed, verification_results, remaining_references}`

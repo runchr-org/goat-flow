@@ -24,7 +24,7 @@ if [[ -f package-lock.json ]]; then
     info "Installing from lockfile (npm ci)..."
     npm ci
 else
-    info "No lockfile found — running npm install..."
+    info "No lockfile found - running npm install..."
     npm install
 fi
 
@@ -43,7 +43,7 @@ fi
 # 5. Verify tests
 if [[ -f package.json ]] && grep -q '"test"' package.json 2>/dev/null; then
     info "Running tests to verify install..."
-    npm test || warn "Tests failed — install may be incomplete"
+    npm test || warn "Tests failed - install may be incomplete"
 fi
 
 echo ""

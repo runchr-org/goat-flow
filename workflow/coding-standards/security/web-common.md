@@ -19,7 +19,7 @@ Reference for generating `ai/instructions/security.md` in any web project.
 
 ## HTTP Security Headers
 
-Set these on every response. Values below are conservative defaults — adjust CSP directives for your actual asset sources and inline script needs.
+Set these on every response. Values below are conservative defaults - adjust CSP directives for your actual asset sources and inline script needs.
 
 ```
 Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
@@ -31,12 +31,12 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 ```
 
 ```python
-# DO — set all security headers (Django middleware example)
+# DO - set all security headers (Django middleware example)
 response["Content-Security-Policy"] = "default-src 'self'; script-src 'self'"
 response["X-Content-Type-Options"] = "nosniff"
 response["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
 
-# DON'T — skip headers or use unsafe values
+# DON'T - skip headers or use unsafe values
 response["Content-Security-Policy"] = "default-src *; script-src 'unsafe-inline' 'unsafe-eval'"
 ```
 
@@ -64,41 +64,41 @@ res.cookie('session', token, {
   path: '/',
 });
 
-// DON'T — missing flags
+// DON'T - missing flags
 res.cookie('session', token);
 ```
 
 ## CORS Configuration
 
 ```js
-// DO — explicit origin whitelist
+// DO - explicit origin whitelist
 const allowedOrigins = ['https://app.example.com', 'https://admin.example.com'];
 app.use(cors({
   origin: (origin, cb) => allowedOrigins.includes(origin) ? cb(null, true) : cb(new Error('Blocked')),
   credentials: true,
 }));
 
-// DON'T — wildcard with credentials
+// DON'T - wildcard with credentials
 app.use(cors({ origin: '*', credentials: true }));
 ```
 
 - Never use `origin: '*'` in production. Enumerate allowed origins.
-- When `credentials: true`, the browser rejects wildcard origins anyway — but misconfigured servers may reflect the request origin, which is equally dangerous.
+- When `credentials: true`, the browser rejects wildcard origins anyway - but misconfigured servers may reflect the request origin, which is equally dangerous.
 
 ## Rate Limiting
 
 - **Per-IP**: 100 requests/minute for general endpoints. Lower for expensive operations.
 - **Per-user**: 20 requests/minute for auth-sensitive endpoints (login, password reset).
-- **Auth failures**: exponential backoff — 1s, 2s, 4s, 8s... up to 5-minute lockout after 10 failures.
+- **Auth failures**: exponential backoff - 1s, 2s, 4s, 8s... up to 5-minute lockout after 10 failures.
 - Return `429 Too Many Requests` with a `Retry-After` header.
 
 ## Error Responses
 
 ```json
-// DO — safe error response
+// DO - safe error response
 { "error": "An unexpected error occurred", "request_id": "abc-123" }
 
-// DON'T — leaks internals
+// DON'T - leaks internals
 { "error": "SQLSTATE[42S02]: Table 'users' not found at /var/www/app/Models/User.php:42" }
 ```
 
@@ -109,9 +109,9 @@ app.use(cors({ origin: '*', credentials: true }));
 ## SSRF Prevention
 
 - Validate and whitelist all outbound URLs constructed from user input.
-- Block requests to internal/private network ranges: `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.169.254` (cloud IMDS — the most common SSRF target in AWS/GCP/Azure; grants access to instance metadata, IAM credentials, and secrets).
+- Block requests to internal/private network ranges: `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.169.254` (cloud IMDS - the most common SSRF target in AWS/GCP/Azure; grants access to instance metadata, IAM credentials, and secrets).
 - Disable HTTP redirects in outbound requests, or re-validate the target after each redirect.
-- Use a URL allowlist, not a denylist — new internal services or cloud metadata endpoints appear over time.
+- Use a URL allowlist, not a denylist - new internal services or cloud metadata endpoints appear over time.
 
 ## WebSocket Security
 
@@ -124,5 +124,5 @@ app.use(cors({ origin: '*', credentials: true }));
 
 - Disable introspection in production (`introspection: false`). Introspection exposes the entire schema to attackers.
 - Enforce query depth limiting (max 10-15 levels) to prevent deeply nested queries from consuming excessive resources.
-- Enforce query complexity analysis — assign costs to fields and reject queries exceeding a total cost budget.
+- Enforce query complexity analysis - assign costs to fields and reject queries exceeding a total cost budget.
 - Disable batching or limit batch size to prevent attackers from sending hundreds of queries in a single request.

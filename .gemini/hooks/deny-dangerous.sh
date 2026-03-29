@@ -60,30 +60,11 @@ check_segment() {
     block "git --no-verify (hook bypass)"
   fi
 
-  # Package manager mutations (supply-chain risk)
-  if [[ "$cmd" =~ ^[[:space:]]*(npm|pnpm|yarn)[[:space:]]+(install|add|remove|uninstall) ]] ||
-     [[ "$cmd" =~ ^[[:space:]]*pip[[:space:]]+install ]] ||
-     [[ "$cmd" =~ ^[[:space:]]*composer[[:space:]]+(require|remove) ]] ||
-     [[ "$cmd" =~ ^[[:space:]]*go[[:space:]]+get ]]; then
-    block "package mutation — ask first"
-  fi
-
   # Lockfile modifications
   if [[ "$cmd" =~ (\>|\>\>|tee|sed[[:space:]]+-i)[[:space:]]+.*(package-lock\.json|pnpm-lock\.yaml|composer\.lock|Cargo\.lock|yarn\.lock) ]]; then
     block "Lockfile modification"
   fi
 
-  # Generated code / migration modifications
-  if [[ "$cmd" =~ (\>|\>\>|tee|sed[[:space:]]+-i)[[:space:]]+.*(\.generated\.|\.g\.|migrations/) ]]; then
-    block "Generated code / migration modification"
-  fi
-
-  # mv without -n (no-clobber) -- can silently overwrite destination
-  if [[ "$cmd" =~ ^[[:space:]]*mv[[:space:]]+ ]]; then
-    if ! [[ "$cmd" =~ mv.*[[:space:]](-[^[:space:]]*n[^[:space:]]*|--no-clobber)([[:space:]]|$) ]]; then
-      block "Use 'mv -n' instead of 'mv' to prevent overwriting existing files"
-    fi
-  fi
 }
 
 # Split on command chaining operators and check each segment

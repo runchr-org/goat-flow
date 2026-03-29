@@ -9,7 +9,7 @@ Paste this into your coding agent to create the agent eval suite for your projec
 ```
 Create an agent eval regression suite for this project. Agent evals are
 replay tests - each one recreates a real incident and verifies the agent
-handles it correctly. They catch regressions when CLAUDE.md changes.
+handles it correctly. They catch regressions when instruction files change.
 
 1. Create the agent-evals/ directory
 
@@ -72,7 +72,7 @@ VERIFICATION:
 
 ## What Makes a Great Eval
 
-A great eval has specific, verifiable evidence — not vague descriptions.
+A great eval has specific, verifiable evidence - not vague descriptions.
 
 **Good example (from a real project):**
 ````markdown

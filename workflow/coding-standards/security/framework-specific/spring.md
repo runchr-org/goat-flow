@@ -7,7 +7,7 @@ Reference for generating `ai/instructions/security.md` in Spring Boot projects.
 Use `SecurityFilterChain` bean configuration (not the deprecated `WebSecurityConfigurerAdapter`).
 
 ```java
-// DO — SecurityFilterChain bean
+// DO - SecurityFilterChain bean
 @Bean
 public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     return http
@@ -21,7 +21,7 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         .build();
 }
 
-// DON'T — overly permissive security
+// DON'T - overly permissive security
 @Bean
 public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     return http
@@ -37,13 +37,13 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 ## CSRF Configuration
 
 ```java
-// DO — CSRF with cookie-based token for SPAs
+// DO - CSRF with cookie-based token for SPAs
 .csrf(csrf -> csrf
     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
     .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
 )
 
-// DO — disable CSRF only for stateless JWT APIs
+// DO - disable CSRF only for stateless JWT APIs
 .csrf(csrf -> csrf.disable())
 // ONLY when session policy is STATELESS and no cookies are used for auth
 ```
@@ -54,7 +54,7 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 ## Method-Level Authorization
 
 ```java
-// DO — method-level security with @PreAuthorize
+// DO - method-level security with @PreAuthorize
 @PreAuthorize("hasRole('ADMIN')")
 @DeleteMapping("/users/{id}")
 public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
@@ -62,12 +62,12 @@ public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
     return ResponseEntity.noContent().build();
 }
 
-// DO — expression-based access control
+// DO - expression-based access control
 @PreAuthorize("#userId == authentication.principal.id or hasRole('ADMIN')")
 @GetMapping("/users/{userId}/profile")
 public UserProfile getProfile(@PathVariable Long userId) { ... }
 
-// DON'T — check roles manually in controller body
+// DON'T - check roles manually in controller body
 @DeleteMapping("/users/{id}")
 public ResponseEntity<Void> deleteUser(@PathVariable Long id, Authentication auth) {
     if (!auth.getAuthorities().contains("ROLE_ADMIN")) {  // easy to forget
@@ -78,12 +78,12 @@ public ResponseEntity<Void> deleteUser(@PathVariable Long id, Authentication aut
 ```
 
 - Enable method security: `@EnableMethodSecurity` on a config class.
-- Use `@PreAuthorize` over `@Secured` — it supports SpEL expressions.
+- Use `@PreAuthorize` over `@Secured` - it supports SpEL expressions.
 
 ## Actuator Endpoint Protection
 
 ```yaml
-# DO — restrict actuator endpoints
+# DO - restrict actuator endpoints
 management:
   endpoints:
     web:
@@ -93,12 +93,12 @@ management:
     health:
       show-details: when_authorized
 
-# DON'T — expose all actuator endpoints
+# DON'T - expose all actuator endpoints
 management:
   endpoints:
     web:
       exposure:
-        include: "*"   # exposes env, configprops, heapdump — leaks secrets
+        include: "*"   # exposes env, configprops, heapdump - leaks secrets
 ```
 
 - Never expose `env`, `configprops`, `heapdump`, or `shutdown` endpoints publicly.
@@ -107,14 +107,14 @@ management:
 ## Secrets in application.yml
 
 ```yaml
-# DO — use environment variables
+# DO - use environment variables
 spring:
   datasource:
     url: ${DATABASE_URL}
     username: ${DATABASE_USER}
     password: ${DATABASE_PASSWORD}
 
-# DON'T — hardcode credentials
+# DON'T - hardcode credentials
 spring:
   datasource:
     url: jdbc:postgresql://db.example.com:5432/prod
@@ -128,7 +128,7 @@ spring:
 ## Input Validation
 
 ```java
-// DO — validate with @Valid and constraints
+// DO - validate with @Valid and constraints
 public record CreateUserRequest(
     @NotBlank @Email String email,
     @NotBlank @Size(min = 8, max = 128) String password,
@@ -138,7 +138,7 @@ public record CreateUserRequest(
 @PostMapping("/users")
 public ResponseEntity<User> createUser(@Valid @RequestBody CreateUserRequest request) { ... }
 
-// DON'T — no validation on input
+// DON'T - no validation on input
 @PostMapping("/users")
 public ResponseEntity<User> createUser(@RequestBody Map<String, Object> body) {
     String email = (String) body.get("email");  // no validation, type-unsafe

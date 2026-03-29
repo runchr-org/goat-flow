@@ -44,7 +44,7 @@ runs:
           cat "$STDERR_FILE" >&2
         fi
 
-        # MIN_SCORE from env — never interpolate inputs into inline Python (injection-safe)
+        # MIN_SCORE from env - never interpolate inputs into inline Python (injection-safe)
         summary=$(printf '%s\n' "$output" | python3 -c "
         import json, sys, os, re
         ms = os.environ.get('MIN_SCORE', '0').strip()

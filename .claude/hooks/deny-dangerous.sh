@@ -33,12 +33,12 @@ check_segment() {
   if [[ "$cmd" =~ ^[[:space:]]*rm[[:space:]] ]] && ! [[ "$cmd" =~ rm[[:space:]]+-[a-zA-Z]*r ]]; then
     local rm_re='rm[[:space:]].*[*?]'
     if [[ "$cmd" =~ $rm_re ]]; then
-      block "rm with glob pattern — list targets first: ls <pattern>, then confirm"
+      block "rm with glob pattern - list targets first: ls <pattern>, then confirm"
     fi
     local rm_args
     rm_args=$(echo "$cmd" | sed 's/^[[:space:]]*rm[[:space:]]*//' | tr ' ' '\n' | grep -v '^-' | wc -l)
     if [[ "$rm_args" -ge 5 ]]; then
-      block "rm on ${rm_args} files — list files first and confirm"
+      block "rm on ${rm_args} files - list files first and confirm"
     fi
   fi
 
@@ -73,30 +73,11 @@ check_segment() {
     block "git --no-verify (hook bypass)"
   fi
 
-  # Package manager mutations (supply-chain risk)
-  if [[ "$cmd" =~ ^[[:space:]]*(npm|pnpm|yarn)[[:space:]]+(install|add|remove|uninstall) ]] ||
-     [[ "$cmd" =~ ^[[:space:]]*pip[[:space:]]+install ]] ||
-     [[ "$cmd" =~ ^[[:space:]]*composer[[:space:]]+(require|remove) ]] ||
-     [[ "$cmd" =~ ^[[:space:]]*go[[:space:]]+get ]]; then
-    block "package mutation — ask first"
-  fi
-
   # Lockfile modifications
   if [[ "$cmd" =~ (\>|\>\>|tee|sed[[:space:]]+-i)[[:space:]]+.*(package-lock\.json|pnpm-lock\.yaml|composer\.lock|Cargo\.lock|yarn\.lock) ]]; then
     block "Lockfile modification"
   fi
 
-  # Generated code / migration modifications
-  if [[ "$cmd" =~ (\>|\>\>|tee|sed[[:space:]]+-i)[[:space:]]+.*(\.generated\.|\.g\.|migrations/) ]]; then
-    block "Generated code / migration modification"
-  fi
-
-  # mv without -n (no-clobber) -- can silently overwrite destination
-  if [[ "$cmd" =~ ^[[:space:]]*mv[[:space:]]+ ]]; then
-    if ! [[ "$cmd" =~ mv.*[[:space:]](-[^[:space:]]*n[^[:space:]]*|--no-clobber)([[:space:]]|$) ]]; then
-      block "Use 'mv -n' instead of 'mv' to prevent overwriting existing files"
-    fi
-  fi
 }
 
 # Split on command chaining operators and check each segment

@@ -20,13 +20,13 @@ generated `frontend.md` unless the repo genuinely contains both stacks.
 - DO NOT use `|safe` on user-provided data. Ever.
 
 ```jinja2
-{# DO — auto-escaped by default #}
+{# DO - auto-escaped by default #}
 <p>{{ user.bio }}</p>
 
-{# DON'T — XSS vulnerability #}
+{# DON'T - XSS vulnerability #}
 <p>{{ user.bio|safe }}</p>
 
-{# OK — trusted, sanitized content #}
+{# OK - trusted, sanitized content #}
 <p>{{ article.sanitized_body|safe }}</p>
 ```
 
@@ -58,7 +58,7 @@ generated `frontend.md` unless the repo genuinely contains both stacks.
 ## Django Branch
 
 - **Template tags**: Write custom template tags for complex logic. Simple display logic only in templates.
-- **Context processors**: Use for global data (current user, site settings). Do not overload them — each adds overhead to every request.
+- **Context processors**: Use for global data (current user, site settings). Do not overload them - each adds overhead to every request.
 - Use `{% url 'name' %}` for URL generation. Never hardcode paths.
 - Use `{% csrf_token %}` in every POST form. Django rejects POST requests without it.
 
@@ -70,7 +70,7 @@ generated `frontend.md` unless the repo genuinely contains both stacks.
   <button type="submit">Save</button>
 </form>
 
-{# DON'T — hardcoded URL, missing CSRF #}
+{# DON'T - hardcoded URL, missing CSRF #}
 <form method="post" action="/users/{{ user.pk }}/update/">
 ```
 
@@ -96,6 +96,36 @@ generated `frontend.md` unless the repo genuinely contains both stacks.
 {% from "macros/forms.html" import form_field %}
 {{ form_field(form.email) }}
 ```
+
+## Testing
+
+- **Django**: Use `TestCase` with `assertContains()` and `assertTemplateUsed()`. Test rendered output, not template internals.
+- **Flask**: Use `test_client().get()` and assert on `response.data`. Use `pytest-flask` for cleaner fixtures.
+- Test custom template tags/filters with unit tests - pass input, assert output, no request cycle needed.
+- Assert on semantic content (`assertContains(response, 'Users')`) rather than markup structure.
+
+```python
+# Django - functional test
+def test_user_list_renders(self):
+    response = self.client.get(reverse('user_list'))
+    self.assertEqual(response.status_code, 200)
+    self.assertTemplateUsed(response, 'users/list.html')
+    self.assertContains(response, 'Users')
+
+# Flask - functional test
+def test_user_list_renders(client):
+    response = client.get('/users')
+    assert response.status_code == 200
+    assert b'Users' in response.data
+```
+
+## Accessibility
+
+- Use semantic HTML elements (`<nav>`, `<main>`, `<article>`, `<section>`) in base templates.
+- Every `<img>` must have an `alt` attribute. Decorative images use `alt=""`.
+- Django form rendering (`{{ form.as_div }}`) includes `<label>` elements by default. Custom form templates must preserve label-input association.
+- Flask-WTF macros should render `<label>` elements alongside inputs. Verify in custom macros.
+- Test keyboard navigation: all interactive elements must be reachable via Tab and activatable via Enter/Space.
 
 ## Common Footguns
 

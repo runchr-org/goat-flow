@@ -1,7 +1,20 @@
 {
   "name": "@blundergoat/goat-flow",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "CLI auditor + scoring engine for GOAT Flow AI coding agent workflows",
+  "author": {
+    "name": "Matthew Hansen",
+    "url": "https://www.blundergoat.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/blundergoat/goat-flow#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blundergoat/goat-flow"
+  },
+  "bugs": {
+    "url": "https://github.com/blundergoat/goat-flow/issues"
+  },
   "type": "module",
   "bin": {
     "goat-flow": "./dist/cli/cli.js"
@@ -11,6 +24,7 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.map",
     "setup",
     "workflow"
   ],
@@ -18,12 +32,27 @@
     "node": ">=20.6.0"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/dashboard && cp src/dashboard/index.html dist/dashboard/index.html",
     "test": "node --import tsx --test 'test/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
-    "self-scan": "node dist/cli/cli.js .",
+    "scan": "node dist/cli/cli.js scan .",
+    "scan:verbose": "node dist/cli/cli.js scan . --verbose",
+    "scan:json": "node dist/cli/cli.js scan . --format json",
+    "setup": "node dist/cli/cli.js setup . --agent claude",
+    "dashboard": "node dist/cli/cli.js dashboard .",
+    "preflight": "bash scripts/preflight-checks.sh",
+    "validate": "bash scripts/context-validate.sh",
     "prepublishOnly": "npm run build"
   },
+  "keywords": [
+    "ai",
+    "audit",
+    "claude",
+    "codex",
+    "coding-agent",
+    "gemini",
+    "workflow"
+  ],
   "devDependencies": {
     "@types/node": "^20.6.0",
     "eslint": "^10.1.0",
@@ -31,20 +60,5 @@
     "tsx": "^4.0.0",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.57.1"
-  },
-  "keywords": [
-    "ai",
-    "coding-agent",
-    "workflow",
-    "audit",
-    "claude",
-    "codex",
-    "gemini"
-  ],
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/blundergoat/goat-flow",
-    "directory": "."
   }
 }

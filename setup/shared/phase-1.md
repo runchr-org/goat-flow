@@ -1,6 +1,6 @@
-# Phase 1 — Foundation (shared across all agents)
+# Phase 1 - Foundation (shared across all agents)
 
-This phase works for ALL projects — new, existing, partially set up, or outdated.
+This phase works for ALL projects - new, existing, partially set up, or outdated.
 It always audits the current state before making changes.
 
 The agent-specific setup file (setup-claude.md, setup-codex.md, setup-gemini.md)
@@ -9,10 +9,10 @@ HOW to build the content.
 
 ---
 
-## Phase 1a — Instruction File + Docs
+## Phase 1a - Instruction File + Docs
 
 ```
-Read setup/shared/execution-loop.md FIRST — this is the authoritative
+Read setup/shared/execution-loop.md FIRST - this is the authoritative
 template for instruction file sections. If the project has docs/system-spec.md,
 read it for background context. If they conflict, execution-loop.md wins.
 
@@ -22,11 +22,11 @@ STEP 0 - Detect stack and current state:
    Gemfile, *.csproj, or equivalent. List what you find.
 2. Check if the instruction file already exists. If it does, read it completely.
 3. Check for other agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md).
-   If multiple exist, this is a multi-agent project — coordinate content.
+   If multiple exist, this is a multi-agent project - coordinate content.
 4. Check for existing scripts/ (preflight, validation, deny-dangerous).
-5. Check for existing agent settings and hooks — note what exists.
+5. Check for existing agent settings and hooks - note what exists.
 6. Check for existing docs/ (footguns.md, lessons.md, architecture.md)
-   and agent-evals/ — note what already exists so later steps merge,
+   and agent-evals/ - note what already exists so later steps merge,
    not replace.
 
 STEP 1 - Instruction file (create or rewrite):
@@ -48,7 +48,7 @@ If the instruction file DOES exist:
 For ALL projects:
 - Target: under 120 lines. Hard limit: 150.
 - Adapt all examples and Ask First boundaries for THIS project.
-- Do NOT skip sections (f)–(i) — they are small but required.
+- Do NOT skip sections (f)–(i) - they are small but required.
 - The loop MUST be: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG.
 - CLASSIFY MUST include read/turn budgets per complexity tier.
 - If other agent instruction files exist, include multi-agent coordination
@@ -58,7 +58,7 @@ For ALL projects:
 
 STEP 2 - Docs seed files:
 Create the files listed in setup/shared/docs-seed.md.
-If docs/footguns.md or docs/lessons.md already exist, MERGE — do not replace.
+If docs/footguns.md or docs/lessons.md already exist, MERGE - do not replace.
 Read existing content first, add new entries from the codebase, keep all
 existing entries. Only create files that don't already exist.
 
@@ -78,33 +78,33 @@ Do NOT proceed to Phase 1b until all gates pass.
 
 ---
 
-## Phase 1b — Skills
+## Phase 1b - Skills
 
 ```
 Use the stack detected in Phase 1a Step 0 (languages and frameworks).
 
 PRE-EXISTING SKILLS:
 If non-goat-prefixed skills exist (e.g., audit/, review/, preflight/),
-IGNORE them — they are the project's custom skills. Do not modify, delete,
-or merge them. Focus ONLY on creating/updating the 8 goat-* skills.
+IGNORE them - they are the project's custom skills. Do not modify, delete,
+or merge them. Focus ONLY on creating/updating the 9 goat-* skills.
 
 SKILL VERSION AUDIT:
 If goat-* skills already exist, check the goat-flow-skill-version tag in
 each skill's YAML frontmatter. If the version is missing or does not match
 the current goat-flow version:
 1. Read the current template from workflow/skills/goat-{name}.md
-2. Compare EVERY section against the installed skill — look for new
+2. Compare EVERY section against the installed skill - look for new
    sections, renamed phases, structural changes, or improved guidance
 3. The template may contain valuable upgrades (better prompts, new gates,
-   improved output formats) — do not assume the old version is fine
+   improved output formats) - do not assume the old version is fine
 4. Update the skill content to match the current template structure
 5. Update the goat-flow-skill-version tag to the current version
-This is NOT a cosmetic update — skill templates improve with each release.
+This is NOT a cosmetic update - skill templates improve with each release.
 
 Read the detailed skill templates in workflow/skills/goat-*.md for each
 skill's full specification before creating or updating.
 
-Create or update these 8 skills in the agent's skills directory:
+Create or update these 9 skills in the agent's skills directory:
 
 1. goat-investigate/SKILL.md - Deep codebase investigation + onboarding mode.
    Progressive depth reading, evidence tagging, "What I Didn't Read" section.
@@ -142,20 +142,20 @@ Each skill MUST include these sections:
 Adapt all examples for THIS project's tech stack. Do NOT leave placeholder
 text like "[Step 1]" or "[describe X]".
 
-ADAPTATION EXAMPLE — Step 0 questions:
+ADAPTATION EXAMPLE - Step 0 questions:
   Generic (wrong):  "What code to simplify?"
   Adapted (right):  "Which Symfony controller to simplify? Check docs/footguns.md
                      for PracGroup scoping traps first."
 The adapted version names a real project artifact and references the learning loop.
 Every skill's Step 0, constraints, and output format should be this specific.
 
-DISPATCHER (required — 9th skill):
+DISPATCHER (required - 9th skill):
 Also install workflow/skills/goat.md as {agent-skills-dir}/goat/SKILL.md.
 This is the /goat dispatcher that routes natural language to the right skill.
 Without it, users must remember exact skill names. The scanner checks for it
 (check 2.1.20) and will flag its absence.
 
-VERSION CHECK (required — AP15 deduction if skipped):
+VERSION CHECK (required - AP15 deduction if skipped):
 After installing all skills, verify each SKILL.md frontmatter contains:
   goat-flow-skill-version: matching the installed goat-flow version
 Check the current expected version in workflow/skills/goat-debug.md line 4.
@@ -163,7 +163,7 @@ If any skill has a different version or is missing the tag, the scanner
 deducts -2 per outdated skill (AP15, max -10). Do not skip this check.
 
 VERIFICATION (all MUST pass before proceeding to Phase 1c):
-- GATE: Verify all 8 goat-* skill files exist with required sections.
+- GATE: Verify all 9 goat-* skill files exist with required sections.
 - GATE: Verify goat/SKILL.md (dispatcher) exists in the skills directory.
 - GATE: Verify all 9 skills have matching goat-flow-skill-version tags.
 - GATE: Verify instruction file router table references the skill directories.
@@ -174,7 +174,7 @@ Do NOT proceed to Phase 1c until all gates pass.
 
 ---
 
-## Phase 1c — Coding Guidelines
+## Phase 1c - Coding Guidelines
 
 ```
 Check for existing coding guidelines in the project:
@@ -190,7 +190,7 @@ RULES:
 - DO create ai/instructions/ files where gaps exist.
 
 If .github/instructions/ exists:
-- Read existing files — these are the project's canonical conventions.
+- Read existing files - these are the project's canonical conventions.
 - Create ai/README.md as routing map linking to both ai/instructions/
   and .github/instructions/ files.
 - Create ai/instructions/backend.md and ai/instructions/frontend.md
@@ -209,7 +209,7 @@ If no instruction files exist:
 VERIFICATION after creating ai/instructions/ files:
 1. Verify every file path referenced actually exists (ls)
 2. Verify commands work: run build/test/lint commands listed in conventions.md
-3. Remove aspirational content — only document current state, not roadmaps
+3. Remove aspirational content - only document current state, not roadmaps
 
 Add to instruction file Router Table:
 | Project guidelines | `ai/README.md` |

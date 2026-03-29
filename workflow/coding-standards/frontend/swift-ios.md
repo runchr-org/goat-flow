@@ -18,7 +18,7 @@ that do not match the codebase.
   value state.
 
 ```swift
-// DO — Observation-based ownership
+// DO - Observation-based ownership
 @Observable
 final class ProfileModel {
     var user: User
@@ -45,7 +45,7 @@ struct ProfileEditor: View {
     }
 }
 
-// DON'T — recreate owned legacy observable state on every render
+// DON'T - recreate owned legacy observable state on every render
 struct ProfileView: View {
     @ObservedObject var viewModel = ProfileViewModel()
 }
@@ -59,7 +59,7 @@ struct ProfileView: View {
 - DO NOT put networking or database code directly in views.
 
 ```swift
-// DO — iOS 17+ @Observable
+// DO - iOS 17+ @Observable
 @Observable
 class UserListViewModel {
     var users: [User] = []
@@ -77,7 +77,7 @@ class UserListViewModel {
     }
 }
 
-// DO — pre-iOS 17
+// DO - pre-iOS 17
 class UserListViewModel: ObservableObject {
     @Published var users: [User] = []
     @Published var isLoading = false
@@ -90,7 +90,7 @@ class UserListViewModel: ObservableObject {
 - Define routes as an enum for type safety. Use `.navigationDestination(for:)` to map routes to views.
 
 ```swift
-// DO — type-safe navigation
+// DO - type-safe navigation
 enum Route: Hashable {
     case userDetail(User)
     case settings
@@ -150,7 +150,7 @@ final class UserListViewController: UIViewController {
   disappears or the task identity changes.
 
 ```swift
-// DO — structured concurrency
+// DO - structured concurrency
 struct UserListView: View {
     @State private var viewModel = UserListViewModel()
 
@@ -164,7 +164,7 @@ struct UserListView: View {
     }
 }
 
-// DON'T — unstructured GCD
+// DON'T - unstructured GCD
 DispatchQueue.global().async {
     let users = fetchUsers()
     DispatchQueue.main.async {
@@ -176,12 +176,12 @@ DispatchQueue.global().async {
 ## Testing
 
 - Use **XCTest** for unit and integration tests.
-- Test view models independently — they are plain Swift classes with no UI dependency.
+- Test view models independently - they are plain Swift classes with no UI dependency.
 - Use **ViewInspector** for SwiftUI view testing when needed, but prefer testing the view model.
 - Use `XCTestExpectation` or async test methods for async code.
 
 ```swift
-// DO — test the view model
+// DO - test the view model
 func testLoadUsers() async {
     let viewModel = UserListViewModel(service: MockUserService(users: mockUsers))
     await viewModel.loadUsers()

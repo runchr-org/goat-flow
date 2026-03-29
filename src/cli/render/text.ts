@@ -151,7 +151,7 @@ function renderAgent(agent: AgentReport, verbose: boolean): string {
       }
       lines.push('');
       const top = impacts[0]!;
-      lines.push(`  Highest-impact fix: ${top.label} — recovers ${top.points} points`);
+      lines.push(`  Highest-impact fix: ${top.label} - recovers ${top.points} points`);
       lines.push('');
     }
   }
@@ -174,5 +174,5 @@ function renderCheck(check: CheckResult): string {
 
 /** Format a single triggered anti-pattern as a bracketed deduction line */
 function renderAntiPattern(ap: AntiPatternResult): string {
-  return `  [${ap.id}] ${ap.name}: ${ap.deduction} — ${ap.message}`;
+  return `  [${ap.id}] ${ap.name}: ${ap.deduction} - ${ap.message}`;
 }

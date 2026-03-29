@@ -16,7 +16,7 @@ Reference for generating `ai/instructions/backend.md` in Go projects.
   narrow interface only when a real caller needs one.
 
 ```go
-// DO — consumer defines the interface it actually needs
+// DO - consumer defines the interface it actually needs
 type UserGetter interface {
     GetByID(ctx context.Context, id string) (User, error)
 }
@@ -35,7 +35,7 @@ type Handler struct {
 
 func NewHandler(svc UserGetter) Handler { return Handler{svc: svc} }
 
-// DON'T — define an interface next to the implementation when only one
+// DON'T - define an interface next to the implementation when only one
 // consumer needs it, then force every constructor to return that interface.
 ```
 
@@ -43,7 +43,7 @@ func NewHandler(svc UserGetter) Handler { return Handler{svc: svc} }
 
 - Wrap errors with context using `fmt.Errorf("fetch user %s: %w", id, err)`.
 - Define sentinel errors for expected conditions: `var ErrNotFound = errors.New("not found")`.
-- Use `errors.Is` and `errors.As` for checking — never compare error strings.
+- Use `errors.Is` and `errors.As` for checking - never compare error strings.
 - Return errors, don't panic. Reserve `panic` for truly unrecoverable programmer bugs.
 
 ```go
@@ -68,16 +68,16 @@ if err != nil {
 
 - Use `errgroup.Group` for parallel work that needs error collection.
 - Every goroutine must have a clear shutdown path. Leaked goroutines are memory leaks.
-- Protect shared state with `sync.Mutex` — prefer channels for coordination, mutexes for protection.
+- Protect shared state with `sync.Mutex` - prefer channels for coordination, mutexes for protection.
 
 ```go
-// DO — errgroup for parallel fetches
+// DO - errgroup for parallel fetches
 g, ctx := errgroup.WithContext(ctx)
 g.Go(func() error { user, err = fetchUser(ctx, id); return err })
 g.Go(func() error { orders, err = fetchOrders(ctx, id); return err })
 if err := g.Wait(); err != nil { return err }
 
-// DON'T — fire-and-forget goroutine with no error handling
+// DON'T - fire-and-forget goroutine with no error handling
 go fetchUser(ctx, id)
 ```
 
@@ -95,7 +95,7 @@ go fetchUser(ctx, id)
 - `t.Parallel()` on independent tests. DO NOT use it when tests share database state.
 
 ```go
-// DO — table-driven test
+// DO - table-driven test
 tests := []struct {
     name    string
     input   string

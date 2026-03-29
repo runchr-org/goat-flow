@@ -7,81 +7,81 @@ Reference for generating `ai/instructions/security.md` in projects using SQL dat
 Every ORM has a safe default. Use it. Raw queries are escape hatches, not standard practice.
 
 ```php
-// Laravel Eloquent — DO
+// Laravel Eloquent - DO
 $users = User::where('email', $email)->first();
 $results = DB::table('orders')->where('status', '=', $status)->get();
 
-// Laravel Eloquent — DON'T
+// Laravel Eloquent - DON'T
 $users = DB::select("SELECT * FROM users WHERE email = '$email'");
 $results = DB::select(DB::raw("SELECT * FROM orders WHERE status = $status"));
 ```
 
 ```ruby
-# ActiveRecord — DO
+# ActiveRecord - DO
 User.where(email: email).first
 User.where("email = ?", email).first
 
-# ActiveRecord — DON'T
+# ActiveRecord - DON'T
 User.where("email = '#{email}'").first
 User.find_by_sql("SELECT * FROM users WHERE email = '#{email}'")
 ```
 
 ```python
-# SQLAlchemy — DO
+# SQLAlchemy - DO
 session.query(User).filter(User.email == email).first()
 session.execute(text("SELECT * FROM users WHERE email = :email"), {"email": email})
 
-# SQLAlchemy — DON'T
+# SQLAlchemy - DON'T
 session.execute(f"SELECT * FROM users WHERE email = '{email}'")
 ```
 
 ```typescript
-// Prisma — DO
+// Prisma - DO
 const user = await prisma.user.findUnique({ where: { email } });
 
-// Prisma — DON'T (raw query without parameterization)
+// Prisma - DON'T (raw query without parameterization)
 const user = await prisma.$queryRawUnsafe(`SELECT * FROM users WHERE email = '${email}'`);
 
-// Prisma — safe raw query
+// Prisma - safe raw query
 const user = await prisma.$queryRaw`SELECT * FROM users WHERE email = ${email}`;
 ```
 
 ```go
-// sqlc — DO (generated code is parameterized by default)
+// sqlc - DO (generated code is parameterized by default)
 user, err := queries.GetUserByEmail(ctx, email)
 
-// database/sql — DO
+// database/sql - DO
 row := db.QueryRowContext(ctx, "SELECT * FROM users WHERE email = $1", email)
 
-// database/sql — DON'T
+// database/sql - DON'T
 row := db.QueryRowContext(ctx, "SELECT * FROM users WHERE email = '" + email + "'")
 ```
 
 ```csharp
-// EF Core — DO
+// EF Core - DO
 var user = context.Users.FirstOrDefault(u => u.Email == email);
 var users = context.Users.FromSqlInterpolated($"SELECT * FROM users WHERE email = {email}");
 
-// EF Core — DON'T
+// EF Core - DON'T
 var users = context.Users.FromSqlRaw("SELECT * FROM users WHERE email = '" + email + "'");
 ```
 
 ```java
-// Spring Data JPA — DO
+// Spring Data JPA - DO
 @Query("SELECT u FROM User u WHERE u.email = :email")
 User findByEmail(@Param("email") String email);
 
-// JDBC — DON'T
+// JDBC - DON'T
 String sql = "SELECT * FROM users WHERE email = '" + email + "'";
 Statement stmt = connection.createStatement();
 ResultSet rs = stmt.executeQuery(sql);
 ```
 
 ```rust
-// Diesel — DO
+// Diesel - DO
 users::table.filter(users::email.eq(&email)).first::<User>(&mut conn)?;
 
-// sqlx — DO
+// sqlx - DO
 let user = sqlx::query_as!(User, "SELECT * FROM users WHERE email = $1", email)
     .fetch_one(&pool).await?;
 ```
@@ -90,17 +90,17 @@ let user = sqlx::query_as!(User, "SELECT * FROM users WHERE email = $1", email)
 
 Sometimes raw SQL is necessary (complex reporting, database-specific features). When using it:
 
-1. **Always parameterize inputs** — use the ORM's raw parameterized method, not string interpolation.
-2. **Whitelist dynamic identifiers** — column/table names cannot be parameterized. Validate against an explicit allowlist.
+1. **Always parameterize inputs** - use the ORM's raw parameterized method, not string interpolation.
+2. **Whitelist dynamic identifiers** - column/table names cannot be parameterized. Validate against an explicit allowlist.
 
 ```python
-# DO — whitelist column names for dynamic ORDER BY
+# DO - whitelist column names for dynamic ORDER BY
 ALLOWED_SORT = {"name", "created_at", "email"}
 if sort_column not in ALLOWED_SORT:
     raise ValueError(f"Invalid sort column: {sort_column}")
 session.execute(text(f"SELECT * FROM users ORDER BY {sort_column}"), {})
 
-# DON'T — user input as column name
+# DON'T - user input as column name
 session.execute(text(f"SELECT * FROM users ORDER BY {request.args['sort']}"), {})
 ```
 

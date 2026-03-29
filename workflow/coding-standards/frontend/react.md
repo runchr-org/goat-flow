@@ -16,7 +16,7 @@ component, state, and testing rules and drop the type syntax.
 ## Component Patterns
 
 - Use function components exclusively. Class components are legacy only.
-- DO NOT use `React.FC` — it adds implicit `children` and breaks generics.
+- DO NOT use `React.FC` - it adds implicit `children` and breaks generics.
 - Type props with an interface, colocated above the component.
 
 ```tsx
@@ -50,10 +50,10 @@ const UserCard: React.FC<{ user: User }> = ({ user }) => { ... };
 - Lift state up only when two siblings need the same data. Prefer composition over context for avoiding prop drilling.
 
 ```tsx
-// DO — server state with an existing query/cache layer
+// DO - server state with an existing query/cache layer
 const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: fetchUsers });
 
-// DON'T — manual fetch into useState
+// DON'T - manual fetch into useState
 const [users, setUsers] = useState<User[]>([]);
 useEffect(() => { fetchUsers().then(setUsers); }, []);
 ```
@@ -69,10 +69,10 @@ useEffect(() => { fetchUsers().then(setUsers); }, []);
   without re-subscribing on every render.
 
 ```tsx
-// DO — derived state calculated during render
+// DO - derived state calculated during render
 const activeUsers = users.filter(u => u.isActive);
 
-// DON'T — useEffect to derive state
+// DON'T - useEffect to derive state
 const [activeUsers, setActiveUsers] = useState<User[]>([]);
 useEffect(() => { setActiveUsers(users.filter(u => u.isActive)); }, [users]);
 ```
@@ -91,18 +91,18 @@ useEffect(() => { setActiveUsers(users.filter(u => u.isActive)); }, [users]);
 ## Testing
 
 - Use `@testing-library/react`. Test behavior, not implementation details.
-- Use `userEvent.setup()` over `fireEvent` for most interactions — it simulates
+- Use `userEvent.setup()` over `fireEvent` for most interactions - it simulates
   real browser behavior more accurately.
 - DO NOT test internal state. Test what the user sees and does.
 - Query priority: `getByRole` > `getByLabelText` > `getByText` > `getByTestId`.
 
 ```tsx
-// DO — test behavior
+// DO - test behavior
 const user = userEvent.setup();
 await user.click(screen.getByRole('button', { name: /submit/i }));
 expect(screen.getByText('Order confirmed')).toBeInTheDocument();
 
-// DON'T — test implementation
+// DON'T - test implementation
 expect(component.state.isSubmitted).toBe(true);
 ```
 
@@ -119,7 +119,7 @@ expect(component.state.isSubmitted).toBe(true);
 - **Stale closures**: Values captured in event handlers or effects can be stale.
   Use `useEffectEvent` or refs for latest-value access in subscriptions and
   timers.
-- **Dependency arrays**: Missing deps cause stale data. Unnecessary deps cause infinite loops. The linter is correct — fix the design, don't suppress the warning.
+- **Dependency arrays**: Missing deps cause stale data. Unnecessary deps cause infinite loops. The linter is correct - fix the design, don't suppress the warning.
 - **Key prop misuse**: Keys must be stable and unique. Never use array index as key for reorderable lists. Never use `Math.random()`.
 - **Duplicated state**: Storing derived data in `useState` creates sync bugs and
   extra renders. Derive during render unless the value must survive independently.

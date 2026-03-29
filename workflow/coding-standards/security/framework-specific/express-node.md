@@ -7,11 +7,11 @@ Reference for generating `ai/instructions/security.md` in Express or Node.js API
 Helmet sets security headers with sensible defaults. Install and use it first.
 
 ```js
-// DO — use helmet with all defaults
+// DO - use helmet with all defaults
 import helmet from 'helmet';
 app.use(helmet());
 
-// DO — customize CSP for your needs
+// DO - customize CSP for your needs
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -25,7 +25,7 @@ app.use(helmet({
   },
 }));
 
-// DON'T — no security headers
+// DON'T - no security headers
 const app = express();
 // ... no helmet, no manual headers
 ```
@@ -36,7 +36,7 @@ const app = express();
 ## Rate Limiting
 
 ```js
-// DO — rate limit with express-rate-limit
+// DO - rate limit with express-rate-limit
 import rateLimit from 'express-rate-limit';
 
 const generalLimiter = rateLimit({
@@ -55,7 +55,7 @@ const authLimiter = rateLimit({
 app.use(generalLimiter);
 app.post('/auth/login', authLimiter, loginHandler);
 
-// DON'T — no rate limiting on auth endpoints
+// DON'T - no rate limiting on auth endpoints
 app.post('/auth/login', loginHandler);
 ```
 
@@ -65,7 +65,7 @@ app.post('/auth/login', loginHandler);
 ## CORS Configuration
 
 ```js
-// DO — explicit origin whitelist
+// DO - explicit origin whitelist
 import cors from 'cors';
 
 const allowedOrigins = ['https://app.example.com', 'https://admin.example.com'];
@@ -81,15 +81,15 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
 }));
 
-// DON'T — wildcard or reflect origin
+// DON'T - wildcard or reflect origin
 app.use(cors({ origin: '*' }));
-app.use(cors({ origin: true }));  // reflects any origin — equivalent to wildcard with credentials
+app.use(cors({ origin: true }));  // reflects any origin - equivalent to wildcard with credentials
 ```
 
 ## Prototype Pollution
 
 ```js
-// DO — validate and sanitize object inputs
+// DO - validate and sanitize object inputs
 function mergeConfig(defaults, userInput) {
   const safe = {};
   for (const key of Object.keys(defaults)) {
@@ -102,10 +102,10 @@ function mergeConfig(defaults, userInput) {
   return safe;
 }
 
-// DON'T — deep merge user input without sanitization
+// DON'T - deep merge user input without sanitization
 const config = _.merge({}, defaults, req.body);  // prototype pollution via __proto__
 
-// DON'T — allow __proto__ or constructor in input
+// DON'T - allow __proto__ or constructor in input
 Object.assign(target, userInput);  // if userInput has __proto__, it pollutes
 ```
 
@@ -115,7 +115,7 @@ Object.assign(target, userInput);  // if userInput has __proto__, it pollutes
 ## ReDoS Prevention
 
 ```js
-// DO — use safe regex patterns, limit input length
+// DO - use safe regex patterns, limit input length
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;  // simple, no backtracking
 
 function validateInput(input) {
@@ -123,7 +123,7 @@ function validateInput(input) {
   return EMAIL_RE.test(input);
 }
 
-// DON'T — vulnerable regex patterns with nested quantifiers
+// DON'T - vulnerable regex patterns with nested quantifiers
 const EVIL_RE = /^(a+)+$/;          // exponential backtracking
 const EVIL2 = /^([a-zA-Z]+)*$/;     // nested quantifiers
 ```
@@ -134,7 +134,7 @@ const EVIL2 = /^([a-zA-Z]+)*$/;     // nested quantifiers
 ## Input Validation with express-validator
 
 ```js
-// DO — validate and sanitize all inputs
+// DO - validate and sanitize all inputs
 import { body, param, validationResult } from 'express-validator';
 
 app.post('/users',
@@ -150,7 +150,7 @@ app.post('/users',
   }
 );
 
-// DON'T — trust req.body directly
+// DON'T - trust req.body directly
 app.post('/users', async (req, res) => {
   const user = await User.create(req.body);  // no validation, mass assignment
 });
@@ -159,7 +159,7 @@ app.post('/users', async (req, res) => {
 ## Async Error Handling
 
 ```js
-// DO — catch async errors (Express 5 handles this automatically)
+// DO - catch async errors (Express 5 handles this automatically)
 // For Express 4, wrap async handlers:
 const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
@@ -169,13 +169,13 @@ app.get('/users/:id', asyncHandler(async (req, res) => {
   res.json(user);
 }));
 
-// DO — global error handler that does not leak internals
+// DO - global error handler that does not leak internals
 app.use((err, req, res, next) => {
   console.error(err);  // log full error server-side
   res.status(500).json({ error: 'Internal server error', requestId: req.id });
 });
 
-// DON'T — unhandled rejections crash the process or leak stack traces
+// DON'T - unhandled rejections crash the process or leak stack traces
 app.get('/users/:id', async (req, res) => {
   const user = await User.findByPk(req.params.id);  // unhandled rejection on DB error
   res.json(user);

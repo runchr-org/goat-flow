@@ -22,7 +22,7 @@ fi
 
 # 2. Check dependencies are installed
 if [[ -f package.json ]] && [[ ! -d node_modules ]]; then
-    info "Dependencies not installed — running npm install..."
+    info "Dependencies not installed - running npm install..."
     npm install
 fi
 
@@ -54,7 +54,7 @@ fi
 echo ""
 info "=== Dev environment ready ==="
 info "Commands:"
-info "  npm run build       — Compile TypeScript"
-info "  npm test            — Run tests"
-info "  npm run typecheck   — Type-check without emitting"
-info "  npm run self-scan   — Scan this repo with goat-flow"
+info "  npm run build       - Compile TypeScript"
+info "  npm test            - Run tests"
+info "  npm run typecheck   - Type-check without emitting"
+info "  npm run self-scan   - Scan this repo with goat-flow"

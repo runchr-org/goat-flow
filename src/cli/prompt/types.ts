@@ -83,7 +83,7 @@ export interface PromptVariables {
   totalCount: string;
   date: string;
   /**
-   * Scan evidence keyed by recommendation key — populated from check/AP results
+   * Scan evidence keyed by recommendation key - populated from check/AP results
    * so fragments can include specific details (stale refs, bloat patterns, etc.)
    */
   evidence: Record<string, string>;

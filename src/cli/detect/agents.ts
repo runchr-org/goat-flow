@@ -20,7 +20,7 @@ export const PROFILES: Record<AgentId, AgentProfile> = {
     settingsFile: '.codex/config.toml',
     skillsDir: '.agents/skills',
     hooksDir: '.codex/hooks',
-    denyMechanism: { type: 'deny-script', path: 'scripts/deny-dangerous.sh' },
+    denyMechanism: { type: 'deny-script', path: '.codex/rules/deny-dangerous.star' },
     localPattern: '.github/instructions/*.md',
     hookEvents: { preTool: '', postTool: 'after_tool_use', postTurn: 'stop' },
   },

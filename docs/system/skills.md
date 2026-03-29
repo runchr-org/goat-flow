@@ -1,6 +1,6 @@
 # Skills
 
-Eight focused capabilities loaded on demand. Each skill has a distinct artifact, a hard quality gate, and a repeatable output. Skills don't load unless invoked — they stay out of the instruction budget.
+Eight focused capabilities loaded on demand. Each skill has a distinct artifact, a hard quality gate, and a repeatable output. Skills don't load unless invoked - they stay out of the instruction budget.
 
 All skills use the `goat-` prefix to avoid conflicts with built-in agent commands.
 
@@ -15,7 +15,7 @@ All skills use the `goat-` prefix to avoid conflicts with built-in agent command
 | /goat-refactor | Cross-file refactoring | MUST read both sides before changing; grep-after-every-rename | Renames, interface changes, restructuring across files |
 | /goat-simplify | Code readability improvement | MUST NOT change behavior; prefer renaming over commenting | Code that works but is hard to read or maintain |
 
-> **Migration note (v0.7.0):** /goat-reflect merged into /goat-review (Instruction Review Mode). /goat-onboard merged into /goat-investigate (Onboard Mode). /goat-audit merged into /goat-review (Audit Mode). /goat-context removed. /goat-refactor and /goat-simplify are new.
+> **Consolidation (v0.8.0, finalized v0.9.1):** /goat-reflect merged into /goat-review (Instruction Review Mode). /goat-onboard merged into /goat-investigate (Onboard Mode). /goat-audit merged into /goat-review (Audit Mode). /goat-context removed. /goat-refactor and /goat-simplify added. /goat dispatcher added in v0.9.0.
 
 ---
 
@@ -39,7 +39,7 @@ All skills use the `goat-` prefix to avoid conflicts with built-in agent command
 
 **Hard gate:** No fixes until human reviews diagnosis. "If you want to 'just try something' before tracing the code path, STOP."
 
-**Invoke when:** A test fails and you don't know why, or a bug report comes in and the cause isn't obvious. Do NOT invoke when you already know the fix — just fix it.
+**Invoke when:** A test fails and you don't know why, or a bug report comes in and the cause isn't obvious. Do NOT invoke when you already know the fix - just fix it.
 
 ### /goat-investigate
 
@@ -72,13 +72,13 @@ All skills use the `goat-` prefix to avoid conflicts with built-in agent command
 
 **Hard gate:** Human approval required between phases. MUST surface kill criteria early. MUST tag low-confidence decisions as Decision Debt.
 
-**Invoke when:** You need to plan a Standard Feature or larger. For Hotfixes, skip — just fix it.
+**Invoke when:** You need to plan a Standard Feature or larger. For Hotfixes, skip - just fix it.
 
 ### /goat-test
 
 **When:** After a coding milestone or every 30-60 minutes of agent work.
 
-**What it does:** Generates test plans across three phases. Does NOT run the tests — it produces instructions for others to run.
+**What it does:** Generates test plans across three phases. Does NOT run the tests - it produces instructions for others to run.
 
 - **Phase 1 (Automated):** Exact commands for the coding agent to run
 - **Phase 2 (AI Verification):** Self-contained prompts for a SEPARATE fresh agent session
@@ -96,7 +96,7 @@ All skills use the `goat-` prefix to avoid conflicts with built-in agent command
 
 **Hard gate:** MUST read both sides before changing. MUST grep-after-every-rename. MUST check doc cross-references.
 
-**Invoke when:** You need to rename, move, or restructure code across multiple files. Do NOT invoke for single-file changes — just make them.
+**Invoke when:** You need to rename, move, or restructure code across multiple files. Do NOT invoke for single-file changes - just make them.
 
 ### /goat-simplify
 
@@ -106,7 +106,7 @@ All skills use the `goat-` prefix to avoid conflicts with built-in agent command
 
 **Hard gate:** MUST NOT change behavior. MUST prefer renaming over commenting. MUST verify behavior unchanged after implementation.
 
-**Invoke when:** You want to make code more self-documenting, clean up naming, or reduce cognitive load before handing off to other developers or agents. Do NOT invoke for code that needs restructuring across files — use /goat-refactor.
+**Invoke when:** You want to make code more self-documenting, clean up naming, or reduce cognitive load before handing off to other developers or agents. Do NOT invoke for code that needs restructuring across files - use /goat-refactor.
 
 ---
 
@@ -147,23 +147,23 @@ Skills are created during Phase 1b of the GOAT Flow setup. The skill templates i
 
 ### /goat-debug
 **Problem:** Agents guess fixes before understanding the bug. "Just try something" works ~30% of the time and creates confusing diffs the other 70%.
-**Design:** Hard gate — hypotheses across 2+ categories, diagnosis with file:line evidence and confidence level, fixes only after human reviews.
+**Design:** Hard gate - hypotheses across 2+ categories, diagnosis with file:line evidence and confidence level, fixes only after human reviews.
 
 ### /goat-investigate
 **Problem:** Planning without understanding the codebase. Agent proposes approaches based on assumptions that turn out wrong midway through.
-**Design:** Progressive depth reading with OBSERVED/INFERRED evidence tagging. Includes Onboard Mode for new projects (stack detection + instruction drafting). Hard gate — no planning until human reviews.
+**Design:** Progressive depth reading with OBSERVED/INFERRED evidence tagging. Includes Onboard Mode for new projects (stack detection + instruction drafting). Hard gate - no planning until human reviews.
 
 ### /goat-review
 **Problem:** Rubber-stamp reviews and fabricated audit findings. Agent says "looks good" or invents plausible-sounding issues.
-**Design:** Three modes in one skill. Standard review: RFC 2119 severity, footgun matching, full-file context. Audit mode: negative verification + fabrication self-check — attempt to disprove each finding. Instruction review mode: friction signals + staleness audit. Merged from separate /goat-audit and /goat-reflect skills to reduce skill count while preserving all mechanisms.
+**Design:** Three modes in one skill. Standard review: RFC 2119 severity, footgun matching, full-file context. Audit mode: negative verification + fabrication self-check - attempt to disprove each finding. Instruction review mode: friction signals + staleness audit. Merged from separate /goat-audit and /goat-reflect skills to reduce skill count while preserving all mechanisms.
 
 ### /goat-plan
 **Problem:** Jumping into implementation without structured planning. Features get built without clear scope, success criteria, or phased milestones.
 **Design:** 4-phase workflow with human gates. Feature brief → Mob elaboration → Triangular tension (SKEPTIC/ANALYST/STRATEGIST) → Milestones with exit/kill criteria. Adapts depth to complexity tier.
 
 ### /goat-test
-**Problem:** The coding agent verifies its own work and declares victory. Self-assessment is unreliable — the agent has blind spots for the same failure modes it introduced.
-**Design:** Generates test plans across three phases. The coding agent produces the plan but does NOT execute verification — separate agents and the human do (doer-verifier principle).
+**Problem:** The coding agent verifies its own work and declares victory. Self-assessment is unreliable - the agent has blind spots for the same failure modes it introduced.
+**Design:** Generates test plans across three phases. The coding agent produces the plan but does NOT execute verification - separate agents and the human do (doer-verifier principle).
 
 ### /goat-refactor
 **Problem:** Cross-file changes break when one side is updated without reading the other. Renames leave orphaned references in docs and tests.
@@ -177,11 +177,11 @@ Skills are created during Phase 1b of the GOAT Flow setup. The skill templates i
 
 A skill earns its place if it meets ALL of:
 
-1. **Distinct artifact** — produces something the execution loop doesn't
-2. **Hard quality gate** — has pass/fail criteria, not subjective
-3. **Special failure mode** — addresses a failure the loop alone misses
-4. **Repeatable output** — same input produces consistent results
+1. **Distinct artifact** - produces something the execution loop doesn't
+2. **Hard quality gate** - has pass/fail criteria, not subjective
+3. **Special failure mode** - addresses a failure the loop alone misses
+4. **Repeatable output** - same input produces consistent results
 
 Skills that failed this test and were downgraded to inline instructions: `/annotation-cycle`, `/sbao-synthesis`, `/review-triage`, `/revert-rescope`.
 
-Skills that were merged (v0.7.0): `/goat-reflect` → `/goat-review` (Instruction Review Mode). `/goat-onboard` → `/goat-investigate` (Onboard Mode). `/goat-audit` → `/goat-review` (Audit Mode). `/goat-context` removed — session resumption is handled by the agent's built-in context management.
+Skills that were consolidated (v0.8.0–v0.9.1): `/goat-reflect` → `/goat-review` (Instruction Review Mode). `/goat-onboard` → `/goat-investigate` (Onboard Mode). `/goat-audit` → `/goat-review` (Audit Mode). `/goat-context` removed - session resumption is handled by the agent's built-in context management.

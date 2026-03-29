@@ -5,12 +5,12 @@ Reference for generating `ai/instructions/security.md` in Go projects.
 ## Cryptographic Randomness
 
 ```go
-// DO — crypto/rand for secrets, tokens, keys
+// DO - crypto/rand for secrets, tokens, keys
 import "crypto/rand"
 token := make([]byte, 32)
 _, err := crypto_rand.Read(token)
 
-// DON'T — math/rand for security-sensitive values
+// DON'T - math/rand for security-sensitive values
 import "math/rand"
 token := rand.Intn(999999)  // predictable, not cryptographically secure
 ```
@@ -21,11 +21,11 @@ token := rand.Intn(999999)  // predictable, not cryptographically secure
 ## Template Engines
 
 ```go
-// DO — html/template for HTML output (auto-escapes by default)
+// DO - html/template for HTML output (auto-escapes by default)
 import "html/template"
 tmpl := template.Must(template.New("page").Parse(`<p>Hello, {{.Name}}</p>`))
 
-// DON'T — text/template for HTML output (no escaping = XSS)
+// DON'T - text/template for HTML output (no escaping = XSS)
 import "text/template"
 tmpl := template.Must(template.New("page").Parse(`<p>Hello, {{.Name}}</p>`))
 ```
@@ -36,13 +36,13 @@ tmpl := template.Must(template.New("page").Parse(`<p>Hello, {{.Name}}</p>`))
 ## Timing-Safe Comparison
 
 ```go
-// DO — constant-time comparison for secrets
+// DO - constant-time comparison for secrets
 import "crypto/subtle"
 if subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
     return ErrInvalidToken
 }
 
-// DON'T — regular string comparison (timing side-channel)
+// DON'T - regular string comparison (timing side-channel)
 if provided != expected {
     return ErrInvalidToken
 }
@@ -54,7 +54,7 @@ if provided != expected {
 ## SSRF Prevention
 
 ```go
-// DO — validate URL before making outbound request
+// DO - validate URL before making outbound request
 import "net/url"
 
 func safeGet(rawURL string) (*http.Response, error) {
@@ -70,7 +70,7 @@ func safeGet(rawURL string) (*http.Response, error) {
     return http.Get(u.String())
 }
 
-// DON'T — pass user URL directly
+// DON'T - pass user URL directly
 resp, err := http.Get(userProvidedURL)  // SSRF: user can target internal services
 ```
 
@@ -80,12 +80,12 @@ resp, err := http.Get(userProvidedURL)  // SSRF: user can target internal servic
 ## HTTP Client Timeouts
 
 ```go
-// DO — set explicit timeouts
+// DO - set explicit timeouts
 client := &http.Client{
     Timeout: 10 * time.Second,
 }
 
-// DON'T — use the default client (no timeout)
+// DON'T - use the default client (no timeout)
 resp, err := http.Get(url)  // hangs forever on slow/malicious server
 ```
 
@@ -95,7 +95,7 @@ resp, err := http.Get(url)  // hangs forever on slow/malicious server
 ## Goroutine Panic Recovery
 
 ```go
-// DO — recover from panics in HTTP handlers
+// DO - recover from panics in HTTP handlers
 func recoverMiddleware(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         defer func() {
@@ -110,7 +110,7 @@ func recoverMiddleware(next http.Handler) http.Handler {
 ```
 
 - An unrecovered panic in an HTTP handler crashes the entire process. Use recovery middleware.
-- Most frameworks (Gin, Echo, Chi) include panic recovery middleware — ensure it is enabled.
+- Most frameworks (Gin, Echo, Chi) include panic recovery middleware - ensure it is enabled.
 
 ## Common Footguns
 

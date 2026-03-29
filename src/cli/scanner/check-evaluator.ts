@@ -2,7 +2,7 @@ import type { Detection, CheckResult, FactContext, Confidence } from '../types.j
 
 /**
  * Evaluate a Detection against extracted facts.
- * This is the core engine — 10 evaluator types handle all checks.
+ * This is the core engine - 10 evaluator types handle all checks.
  */
 export function evaluateCheck(
   id: string,
@@ -93,7 +93,7 @@ function getSectionContent(path: string, section: string | undefined, ctx: FactC
         return content;
       }
     }
-    // Section not found — fall back to full content
+    // Section not found - fall back to full content
     return ctx.agentFacts.instruction.content;
   }
   return null;
@@ -287,7 +287,7 @@ function evalJsonContains(base: CheckBase, pts: number, detect: Extract<Detectio
     if (detect.pattern) {
       /** Case-insensitive regex from the detection pattern */
       const regex = new RegExp(detect.pattern, 'i');
-      /** Stringified value for regex matching — arrays are joined, objects are serialized */
+      /** Stringified value for regex matching - arrays are joined, objects are serialized */
       const value = Array.isArray(current) ? current.join(' ') : (typeof current === 'string' ? current : JSON.stringify(current));
       /** Whether the pattern was found in the stringified value */
       const match = regex.test(value);
@@ -389,7 +389,7 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
     '.gitignore': shared.gitignore.exists,
     'scripts/preflight-checks.sh': shared.preflightScript.exists,
     'docs/decisions': shared.decisions.dirExists,
-    // CHANGELOG.md removed — project-level concern.
+    // CHANGELOG.md removed - project-level concern.
     'ai/instructions': shared.localInstructions.dirExists && shared.localInstructions.location === 'ai',
     'ai/README.md': shared.localInstructions.hasRouter && shared.localInstructions.location === 'ai',
     '.github/instructions': shared.localInstructions.dirExists && shared.localInstructions.location === 'github',

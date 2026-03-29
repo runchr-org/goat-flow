@@ -176,11 +176,11 @@ Layer 1 is the hub. Its router table is the index to everything else. Layers 2-4
 
 | Phase | What it builds | Layers |
 |-------|---------------|--------|
-| Phase 0 (bootstrap) | Minimal CLAUDE.md + deny-dangerous hook + settings.json | Layer 1 (minimal) |
+| Phase 0 (bootstrap) | Minimal instruction file + deny mechanism | Layer 1 (minimal) |
 | Phase 1a | Full instruction file: execution loop, autonomy tiers, DoD, router, stack definition | Layer 1 |
 | Phase 1b | Skills: /goat-security, /goat-debug, /goat-investigate, /goat-review, /goat-plan, /goat-test, /goat-refactor, /goat-simplify | Layer 3 |
 | Phase 1c | Enforcement: hooks, permissions deny list, preflight script, context validation | Layer 1 enforcement |
-| Phase 2 | Agent eval suite, CI validation, RFC 2119 pass, permission profiles (optional) | Layer 5, enhances Layers 1-4 |
+| Phase 2 | Agent eval suite, CI validation, RFC 2119 pass | Layer 5, enhances Layers 1-4 |
 
 **Quarterly shrink:** Model-version gating required before removing rules. Run the eval suite on the current model version first. Shrink based on tooling improvements and rules never triggered in 90+ days.
 
@@ -209,7 +209,7 @@ Until graduation, Phase 0 is sufficient. Don't over-invest in a prototype.
 |--------|-----|---------|-------------------|
 | Layer 1 line target | ~120 | ~120 | ~120 |
 | Layer 2 local files | Likely needed | Create where needed | Create where needed |
-| Layer 3 skills | All 8 | All 8 | All 8 |
+| Layer 3 skills | All 9 | All 9 | All 9 |
 | Layer 5 evals | Real incidents | Stack failure modes | Real incidents |
 
 ---
@@ -222,10 +222,10 @@ GOAT Flow's core (execution loop, autonomy tiers, DoD, learning loop) is agent-a
 |---------|------------|-------|--------|---------|------------|
 | Instruction file | CLAUDE.md | AGENTS.md | .cursor/rules/ | .github/copilot-instructions.md | GEMINI.md |
 | Skills/playbooks | .claude/skills/ | .agents/skills/ | .cursor/rules/*.mdc | .github/skills/ | .agents/skills/ |
-| Hooks/enforcement | .claude/hooks/ + settings.json | scripts/ (policy only) | - | preToolUse, postToolUse lifecycle | .gemini/hooks/ + settings.json |
+| Hooks/enforcement | .claude/hooks/ + settings.json | .codex/hooks/ + scripts/ (verification) | - | preToolUse, postToolUse lifecycle | .gemini/hooks/ + settings.json |
 | Domain instructions | ai/instructions/ | ai/instructions/ | .cursor/rules/ | .github/instructions/ (bridges to ai/) | ai/instructions/ |
 | Evals | agent-evals/ | agent-evals/ | agent-evals/ | agent-evals/ | agent-evals/ |
-| Deny mechanism | permissions.deny array | scripts/deny-dangerous.sh | - | - | permissions.deny array |
+| Deny mechanism | permissions.deny array | .codex/rules/deny-dangerous.star (execpolicy) | - | - | permissions.deny array |
 
 Setup guides: see `setup/setup-claude.md`, `setup/setup-gemini.md`, `setup/setup-codex.md`, and `setup/setup-copilot.md`.
 

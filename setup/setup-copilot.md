@@ -1,4 +1,4 @@
-# Copilot Setup — GOAT Flow
+# Copilot Setup - GOAT Flow
 
 Paste this into any AI coding agent to set up GitHub Copilot support for a project with GOAT Flow.
 
@@ -22,10 +22,10 @@ The stack is:
 ### Phase 1a: Cold Path (ai/instructions/)
 
 If `ai/instructions/` does not exist:
-1. Create `ai/README.md` — routing map (see workflow/coding-standards/README.md)
-2. Create `ai/instructions/conventions.md` — project conventions (see workflow/coding-standards/conventions.md)
-3. Create `ai/instructions/code-review.md` — review standards (see workflow/coding-standards/code-review.md)
-4. Create `ai/instructions/git-commit.md` — commit format (see workflow/coding-standards/git-commit.md)
+1. Create `ai/README.md` - routing map (see workflow/coding-standards/README.md)
+2. Create `ai/instructions/conventions.md` - project conventions (see workflow/coding-standards/conventions.md)
+3. Create `ai/instructions/code-review.md` - review standards (see workflow/coding-standards/code-review.md)
+4. Create `ai/instructions/git-commit.md` - commit format (see workflow/coding-standards/git-commit.md)
 
 VERIFICATION: After creating ai/instructions/ files, the agent MUST:
 1. Verify every file path exists: for each backtick-wrapped path, run `ls`
@@ -57,14 +57,14 @@ Example for frontend:
 ---
 applyTo: "src/frontend/**"
 ---
-<!-- Source: ai/instructions/frontend.md — keep in sync -->
+<!-- Source: ai/instructions/frontend.md - keep in sync -->
 [inline content from ai/instructions/frontend.md]
 
-Copilot needs inline content — it doesn't follow markdown links.
+Copilot needs inline content - it doesn't follow markdown links.
 
 ### Phase 1d: Git Commit Instructions
 
-Create `.github/git-commit-instructions.md` if not exists — universal commit instructions.
+Create `.github/git-commit-instructions.md` if not exists - universal commit instructions.
 
 ### Phase 1e: Copilot CLI Skills
 
@@ -74,7 +74,7 @@ For each skill in the workflow, create `.github/skills/goat-{name}/SKILL.md`:
 - goat-security, goat-debug, goat-investigate, goat-review, goat-plan, goat-test, goat-refactor, goat-simplify
 
 Each SKILL.md needs YAML frontmatter (name + description) and the full skill content.
-Copy from `.claude/skills/` or `.agents/skills/` — the format is identical.
+Copy from `.claude/skills/` or `.agents/skills/` - the format is identical.
 
 Copilot CLI discovers these via `/skills list` or `/goat-{name}` at runtime.
 

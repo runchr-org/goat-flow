@@ -52,7 +52,7 @@ export interface HookEvents {
   postTurn: string;
 }
 
-// === Detection (discriminated union — each variant carries only its required fields) ===
+// === Detection (discriminated union - each variant carries only its required fields) ===
 
 /**
  * Discriminated union describing how a rubric check detects pass/fail.
@@ -204,7 +204,7 @@ export interface SharedFacts {
   guidelinesOwnership: { exists: boolean };
   domainReference: { exists: boolean };
   preflightScript: { exists: boolean };
-  // changelog removed — project-level concern, not AI workflow.
+  // changelog removed - project-level concern, not AI workflow.
   localInstructions: {
     dirExists: boolean;
     // Which directory convention is used: ai/ or .github/
@@ -241,7 +241,7 @@ export interface AgentFacts {
     parsed: unknown;
     hasDenyPatterns: boolean;
   };
-  // settingsLocal removed — personal preference file, not a project quality signal.
+  // settingsLocal removed - personal preference file, not a project quality signal.
   skills: {
     found: string[];
     missing: string[];
@@ -280,7 +280,6 @@ export interface AgentFacts {
     denyBlocksRmRf: boolean;
     denyBlocksForcePush: boolean;
     denyBlocksChmod: boolean;
-    denyBlocksPackageMutation: boolean;
     denyBlocksCloudDestructive: boolean;
     postTurnExists: boolean;
     postTurnExitsZero: boolean;
@@ -404,7 +403,7 @@ export interface ReadonlyFS {
 /** Parsed command-line arguments for the goat-flow scan command */
 export interface CLIOptions {
   projectPath: string;
-  format: 'json' | 'text';
+  format: 'json' | 'text' | 'html' | 'markdown';
   // Null means scan all detected agents
   agent: AgentId | null;
   verbose: boolean;
@@ -412,6 +411,8 @@ export interface CLIOptions {
   minScore: number | null;
   // Fail the process if grade is below this threshold
   minGrade: Grade | null;
+  // Write output to a file instead of stdout
+  output: string | null;
   help: boolean;
   version: boolean;
 }

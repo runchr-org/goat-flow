@@ -2,10 +2,11 @@
 
 > **When to use:** When setting up context files for a new or existing project. Creates a scannable reference for AI agents and developers to quickly understand the repo layout.
 >
-> **Output:** `docs/code-map.md` - reference this from your instruction file (CLAUDE.md / AGENTS.md).
+> **Output:** `docs/code-map.md` - reference this from your instruction file.
 
 ```
 Create docs/code-map.md: a quick-reference tree map of the repository layout.
+
 Use this format:
 
 project-name/
@@ -16,11 +17,22 @@ project-name/
 └── other/           = brief description
 
 Rules:
-- Explore the full directory structure before writing
-- One-line "= description" for every entry
-- Call out generated/never-edit files explicitly
-- Group related items but don't go deeper than 3-4 levels (summarize beyond that)
-- Include key files by name when they're important (e.g. router.go, api.ts)
-- Note ports, stack choices, and tools inline where relevant
-- Keep it scannable: someone should understand the project layout in 30 seconds
+- Explore the real directory structure before writing
+- Map the hot paths first: entrypoints, src/, tests/, scripts/, docs/,
+  config, deployment assets
+- One short "= description" for every included entry
+- Call out generated, vendored, build-output, or never-edit paths explicitly
+- Do not recurse into dependency caches like node_modules/, vendor/,
+  dist/, build/, coverage/, or .git/; summarize them instead
+- Go 2 to 4 levels deep where that improves understanding, then summarize
+- Include key files by name when they matter for routing, startup, config,
+  persistence, or deployment
+- Note stack choices, ports, major tools, or agent/runtime files inline
+- Keep it current-state only; do not list planned directories that do not exist
+
+Verification:
+- every path mentioned must exist
+- if a file is marked generated or never-edit, that should be supported by
+  the repo structure or comments
+- the map should let a new agent find the main entrypoints in under 30 seconds
 ```

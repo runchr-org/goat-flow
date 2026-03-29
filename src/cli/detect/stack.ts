@@ -50,6 +50,8 @@ function detectNodeStack(fs: ReadonlyFS): DetectorResult {
     if ('vue' in deps || 'nuxt' in deps) languages.push('vue');
     if ('@angular/core' in deps) languages.push('angular');
     if ('svelte' in deps || '@sveltejs/kit' in deps) languages.push('svelte');
+    if ('express' in deps) languages.push('express');
+    if ('cypress' in deps) languages.push('cypress');
     const scripts = pkg.scripts as Record<string, string> | undefined;
     const commands = scripts ? extractNodeCommands(scripts) : {};
     return { languages, ...commands };
@@ -101,8 +103,12 @@ function detectPythonStack(fs: ReadonlyFS): DetectorResult {
   const hasPython = fs.exists('pyproject.toml') || fs.exists('setup.py') || fs.exists('requirements.txt')
     || fs.glob('*/pyproject.toml').length > 0 || fs.glob('*/requirements.txt').length > 0;
   if (hasPython) {
+    const languages: string[] = ['python'];
+    const pyContent = fs.readFile('requirements.txt') ?? fs.readFile('pyproject.toml') ?? '';
+    if (/\bdjango\b/i.test(pyContent)) languages.push('django');
+    if (/\bfastapi\b/i.test(pyContent)) languages.push('fastapi');
     return {
-      languages: ['python'],
+      languages,
       testCommand: 'pytest',
       lintCommand: 'ruff check',
     };
@@ -118,13 +124,21 @@ function detectPHPStack(fs: ReadonlyFS): DetectorResult {
 
   const composer = fs.readJson('composer.json') as Record<string, unknown> | null;
   if (composer) {
+    const languages: string[] = ['php'];
+    const require = composer.require as Record<string, string> | undefined;
+    if (require) {
+      if ('laravel/framework' in require) languages.push('laravel');
+      if ('symfony/framework-bundle' in require) languages.push('symfony');
+    }
+    if (fs.exists('artisan') && !languages.includes('laravel')) languages.push('laravel');
+    if (fs.exists('symfony.lock') && !languages.includes('symfony')) languages.push('symfony');
     const scripts = composer.scripts as Record<string, string> | undefined;
     if (scripts) {
       testCommand = scripts.test ?? null;
       lintCommand = scripts.analyse ?? scripts.lint ?? null;
       formatCommand = scripts['cs:check'] ?? scripts['cs:fix'] ?? null;
     }
-    return { languages: ['php'], testCommand, lintCommand, formatCommand };
+    return { languages, testCommand, lintCommand, formatCommand };
   }
 
   // Monorepo: check subdirectory manifests if not detected at root
@@ -135,17 +149,48 @@ function detectPHPStack(fs: ReadonlyFS): DetectorResult {
 }
 
 /** Detect Ruby from Gemfile */
-function detectRubyStack(_fs: ReadonlyFS): DetectorResult {
+function detectRubyStack(fs: ReadonlyFS): DetectorResult {
+  if (fs.exists('Gemfile') || fs.glob('*/Gemfile').length > 0) {
+    const languages: string[] = ['ruby'];
+    const gemfile = fs.readFile('Gemfile') ?? '';
+    if (/gem\s+['"]rails['"]/.test(gemfile) || fs.exists('bin/rails')) {
+      languages.push('rails');
+    }
+    return {
+      languages,
+      testCommand: 'bundle exec rspec',
+      lintCommand: 'bundle exec rubocop',
+    };
+  }
   return {};
 }
 
 /** Detect Java from pom.xml or build.gradle */
-function detectJavaStack(_fs: ReadonlyFS): DetectorResult {
+function detectJavaStack(fs: ReadonlyFS): DetectorResult {
+  const hasMaven = fs.exists('pom.xml') || fs.glob('*/pom.xml').length > 0;
+  const hasGradle = fs.glob('build.gradle*').length > 0 || fs.glob('*/build.gradle*').length > 0;
+  if (hasMaven || hasGradle) {
+    const languages: string[] = ['java'];
+    const manifest = fs.readFile('pom.xml') ?? fs.readFile('build.gradle') ?? fs.readFile('build.gradle.kts') ?? '';
+    if (/spring-boot/i.test(manifest)) languages.push('spring');
+    return {
+      languages,
+      buildCommand: hasMaven ? 'mvn package' : 'gradle build',
+      testCommand: hasMaven ? 'mvn test' : 'gradle test',
+    };
+  }
   return {};
 }
 
 /** Detect .NET from *.csproj or *.sln */
-function detectDotnetStack(_fs: ReadonlyFS): DetectorResult {
+function detectDotnetStack(fs: ReadonlyFS): DetectorResult {
+  if (fs.glob('**/*.csproj').length > 0 || fs.glob('*.sln').length > 0) {
+    return {
+      languages: ['csharp'],
+      buildCommand: 'dotnet build',
+      testCommand: 'dotnet test',
+    };
+  }
   return {};
 }
 
@@ -157,7 +202,7 @@ function detectShellScripts(fs: ReadonlyFS): DetectorResult {
   return {};
 }
 
-/** Detect markdown-only (docs) project — only when no other languages found */
+/** Detect markdown-only (docs) project - only when no other languages found */
 function detectMarkdownOnly(fs: ReadonlyFS): DetectorResult {
   if (fs.glob('**/*.md').length > 5) {
     return { languages: ['markdown'] };
@@ -241,6 +286,7 @@ function detectProjectSignals(fs: ReadonlyFS, languages: string[], formatCommand
   if (fs.exists('vercel.json')) deployPlatforms.push('vercel');
   if (fs.exists('terraform') || fs.glob('**/main.tf').length > 0) deployPlatforms.push('terraform');
   if (fs.glob('**/*.tf').length > 0 && !deployPlatforms.includes('terraform')) deployPlatforms.push('terraform');
+  if (fs.glob('**/*.pkr.hcl').length > 0 || fs.exists('packer.json')) deployPlatforms.push('packer');
 
   // LLM integration
   let llmIntegration = false;

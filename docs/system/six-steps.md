@@ -263,19 +263,19 @@ The human must remove this flag after reviewing the entry. CI should fail if thi
 
 ### Context Rot
 
-Context rot is the measurable degradation in agent output quality as context grows — even when the context window isn't close to full. A model with a 200K token window can start degrading at 50K tokens. The window tells you what fits, not what the model will use effectively.
+Context rot is the measurable degradation in agent output quality as context grows - even when the context window isn't close to full. A model with a 200K token window can start degrading at 50K tokens. The window tells you what fits, not what the model will use effectively.
 
 Three mechanisms cause context rot, and they compound superlinearly:
 
-1. **Lost-in-the-Middle** — Models attend well to the start and end of context but poorly to the middle. Critical information placed in the middle of a long conversation effectively becomes invisible. This is why the router table is positioned at the END of the instruction file.
+1. **Lost-in-the-Middle** - Models attend well to the start and end of context but poorly to the middle. Critical information placed in the middle of a long conversation effectively becomes invisible. This is why the router table is positioned at the END of the instruction file.
 
-2. **Attention Dilution** — As context grows, the attention weight per token decreases proportionally. At 5K tokens the model has a focused beam; at 100K tokens it's a floodlight where everything is dimmer.
+2. **Attention Dilution** - As context grows, the attention weight per token decreases proportionally. At 5K tokens the model has a focused beam; at 100K tokens it's a floodlight where everything is dimmer.
 
-3. **Distractor Interference** — Semantically similar but irrelevant content actively misleads the model. Failed search results, superseded reasoning, and verbose error tracebacks are worse than random noise because they pull reasoning off track.
+3. **Distractor Interference** - Semantically similar but irrelevant content actively misleads the model. Failed search results, superseded reasoning, and verbose error tracebacks are worse than random noise because they pull reasoning off track.
 
 **The 40-60% Rule:** Keep context utilization in the 40-60% range. Compact at 60%, not 90%. This is much more aggressive than the default but dramatically reduces rot. (Source: HumanLayer)
 
-**Instruction Centrifugation:** As conversation grows, the system prompt fades. By turn 50, CLAUDE.md rules have low influence. By turn 100, almost invisible. This is why agents weaken MUST to SHOULD on long tasks — the instruction literally fades from attention.
+**Instruction Centrifugation:** As conversation grows, the system prompt fades. By turn 50, CLAUDE.md rules have low influence. By turn 100, almost invisible. This is why agents weaken MUST to SHOULD on long tasks - the instruction literally fades from attention.
 
 ### Defenses
 
@@ -353,4 +353,4 @@ The loop started as READ → ACT → VERIFY (three steps). Three steps were adde
 
 - **CLASSIFY was added** because the agent kept confusing questions with directives and drifting between modes silently. Without an explicit classification step, mode drift happened on ~30% of tasks.
 - **LOG was added** because the same mistakes kept recurring across sessions. A 14-footgun discovery on a Tauri app was lost between sessions twice before the logging step was formalised.
-- **SCOPE was added** (v0.1.1) because agents touched files outside the task's intended boundary without declaring intent. On the Rampart project, 2 of 6 real bugs were scope violations — a circular dependency went undetected because neither file was in the original task boundary, and an unwanted feature was built without approval. SCOPE was initially a paragraph inside CLASSIFY but the retrospective showed scope violations were the most common preventable failure mode.
+- **SCOPE was added** (v0.1.1) because agents touched files outside the task's intended boundary without declaring intent. On the Rampart project, 2 of 6 real bugs were scope violations - a circular dependency went undetected because neither file was in the original task boundary, and an unwanted feature was built without approval. SCOPE was initially a paragraph inside CLASSIFY but the retrospective showed scope violations were the most common preventable failure mode.

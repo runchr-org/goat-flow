@@ -4,7 +4,7 @@ Prompt templates for generating project-specific coding guidelines. These templa
 
 ## How It Works
 
-This is a **cold-path router** system. Agents read `ai/README.md` (the router) to decide which instruction files to load for the current task. Instruction files live in `ai/instructions/` and load on demand — agents only pull in what they need, keeping token budgets low.
+This is a **cold-path router** system. Agents read `ai/README.md` (the router) to decide which instruction files to load for the current task. Instruction files live in `ai/instructions/` and load on demand - agents only pull in what they need, keeping token budgets low.
 
 The templates in this directory are not loaded directly by agents. They are prompts you paste into your coding agent during setup. The agent reads your codebase and generates project-specific `ai/instructions/` files from these templates.
 
@@ -46,19 +46,19 @@ coding-standards/
 | `frontend/` | Stack-specific frontend conventions (React/TS, Vue, Angular, Swift, Blazor, etc.) |
 | `backend/` | Stack-specific backend conventions (Go, Node, Python, Rust, etc.) |
 | `security/` | Universal security template + `framework-specific/` overlays |
-| `devops/` | Infrastructure-as-code references (Terraform, Packer) — see `devops/README.md` for detection signals |
+| `devops/` | Infrastructure-as-code references (Terraform, Packer) - see `devops/README.md` for detection signals |
 
 ### Support Status
 
 | Area | Supported | Fallback | Not yet supported |
 |------|-----------|----------|-------------------|
-| **Backend** | Go, Django, FastAPI, Laravel, Symfony, Rails | Flask (use `python.md`), generic PHP | — |
-| **Backend (partial)** | — | Spring Boot, TypeScript Node, .NET, Rust, Bash | — |
-| **Frontend** | React, Vue, Angular, TypeScript | — | Svelte (use `typescript.md` as base) |
-| **Frontend (template)** | Blade, Twig, ERB, Jinja | — | — |
-| **Frontend (native)** | Swift/iOS, Blazor | — | — |
-| **Security** | Laravel, Symfony, Django, Rails, Spring, Express, .NET, Cypress | — | Fastify, NestJS (use `express-node.md` as base) |
-| **DevOps** | Terraform, Packer | — | Kubernetes, Ansible |
+| **Backend** | Go, Django, FastAPI, Laravel, Symfony, Rails | Flask (use `python.md`), generic PHP | - |
+| **Backend (partial)** | - | Spring Boot, TypeScript Node, .NET, Rust, Bash | - |
+| **Frontend** | React, Vue, Angular, TypeScript | - | Svelte (use `typescript.md` as base) |
+| **Frontend (template)** | Blade, Twig, ERB, Jinja | - | - |
+| **Frontend (native)** | Swift/iOS, Blazor | - | - |
+| **Security** | Laravel, Symfony, Django, Rails, Spring, Express, .NET, Cypress | - | Fastify, NestJS (use `express-node.md` as base) |
+| **DevOps** | Terraform, Packer | - | Kubernetes, Ansible |
 
 ## How Agents Use It
 
@@ -73,4 +73,4 @@ This directory contains two kinds of files:
 
 **Prompt templates** (top-level: `conventions.md`, `code-review.md`, `security.md`, `testing.md`, `git-commit.md`, `domain-instructions.md`): paste the prompt block into your coding agent and it generates the corresponding `ai/instructions/` file from your actual codebase.
 
-**Reference packs** (`backend/`, `frontend/`, `security/`): stack-specific content that the setup agent reads as source material to inform what it writes. These are not pasted as prompts — the agent loads the relevant reference file based on the detected stack and uses it to fill in the stack-specific sections of the generated `ai/instructions/` file.
+**Reference packs** (`backend/`, `frontend/`, `security/`): stack-specific content that the setup agent reads as source material to inform what it writes. These are not pasted as prompts - the agent loads the relevant reference file based on the detected stack and uses it to fill in the stack-specific sections of the generated `ai/instructions/` file.

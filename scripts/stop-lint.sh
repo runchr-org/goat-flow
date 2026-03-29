@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Post-turn verification for Codex
 # Checks changed files for lint/type issues after each agent turn
-# MUST exit 0 — non-zero causes infinite retry loops
+# MUST exit 0 - non-zero causes infinite retry loops
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT_DIR" || exit 0

@@ -30,7 +30,7 @@ already moving that area forward.
   `user-card.component.html`.
 
 ```typescript
-// DO — standalone component
+// DO - standalone component
 @Component({
   selector: 'app-user-card',
   standalone: true,
@@ -43,7 +43,7 @@ export class UserCardComponent {
   selected = output<string>();
 }
 
-// DON'T — NgModule-dependent component in new code
+// DON'T - NgModule-dependent component in new code
 @NgModule({ declarations: [UserCardComponent], ... })
 ```
 
@@ -56,13 +56,13 @@ export class UserCardComponent {
   local state.
 
 ```typescript
-// DO — signal for simple state
+// DO - signal for simple state
 count = signal(0);
 doubleCount = computed(() => this.count() * 2);
 
 increment() { this.count.update(c => c + 1); }
 
-// DO — RxJS for HTTP and streams
+// DO - RxJS for HTTP and streams
 users$ = this.http.get<User[]>('/api/users');
 searchResults$ = this.searchTerm$.pipe(
   debounceTime(300),
@@ -109,7 +109,7 @@ constructor(private userService: UserService, private router: Router) {}
   <app-user-card [user]="user" />
 }
 
-<!-- DON'T — missing track expression -->
+<!-- DON'T - missing track expression -->
 @for (user of users) { ... }
 ```
 

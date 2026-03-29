@@ -7,7 +7,7 @@ Reference for generating `ai/instructions/devops.md` in projects using Terraform
 Pin both Terraform itself and every provider. Unpinned versions silently break on upgrade.
 
 ```hcl
-# DO — pin to patch-level precision: ~> X.Y.Z allows only X.Y.* patches
+# DO - pin to patch-level precision: ~> X.Y.Z allows only X.Y.* patches
 terraform {
   required_version = "~> 1.7.0"
 
@@ -23,11 +23,11 @@ terraform {
   }
 }
 
-# DON'T — no version pin, or two-segment form that allows unintended minor bumps
-# ~> 1.7 means >= 1.7, < 2.0 — permits 1.8, 1.9, etc.
-# ~> 5.40 means >= 5.40, < 6.0 — permits 5.41, 5.42, etc.
+# DON'T - no version pin, or two-segment form that allows unintended minor bumps
+# ~> 1.7 means >= 1.7, < 2.0 - permits 1.8, 1.9, etc.
+# ~> 5.40 means >= 5.40, < 6.0 - permits 5.41, 5.42, etc.
 terraform {
-  required_version = "~> 1.7"   # permits 1.8, 1.9 — too loose for reproducible infra
+  required_version = "~> 1.7"   # permits 1.8, 1.9 - too loose for reproducible infra
 
   required_providers {
     aws = { source = "hashicorp/aws" }   # no version = whatever is installed
@@ -36,7 +36,7 @@ terraform {
 ```
 
 - `~> X.Y.Z` (three-segment) locks to patch upgrades only: `~> 5.40.0` permits 5.40.1 but blocks 5.41.0.
-- `~> X.Y` (two-segment) permits all minor and patch upgrades within the major — use only if you actively want that range.
+- `~> X.Y` (two-segment) permits all minor and patch upgrades within the major - use only if you actively want that range.
 - Commit `.terraform.lock.hcl`. It pins provider checksums across platforms and CI.
 
 ## Remote State
@@ -44,7 +44,7 @@ terraform {
 Never store state in git. Use remote state with locking from the first commit.
 
 ```hcl
-# DO — S3 backend with DynamoDB locking
+# DO - S3 backend with DynamoDB locking
 terraform {
   backend "s3" {
     bucket         = "my-tfstate-prod"
@@ -63,28 +63,28 @@ terraform {
 ## Secrets and Variables
 
 ```hcl
-# DO — mark secrets as sensitive
+# DO - mark secrets as sensitive
 variable "db_password" {
   type      = string
-  sensitive = true   # suppresses value in plan/apply output — NOT in state file
+  sensitive = true   # suppresses value in plan/apply output - NOT in state file
 }
 
-# DO — pass secrets via environment variables, never in tfvars committed to git
+# DO - pass secrets via environment variables, never in tfvars committed to git
 # TF_VAR_db_password=hunter2 terraform apply
 ```
 
 ```hcl
-# DON'T — hardcode secrets
+# DON'T - hardcode secrets
 resource "aws_db_instance" "main" {
   password = "hunter2"   # committed to state and git history
 }
 
-# DON'T — store secrets in tfvars committed to git
+# DON'T - store secrets in tfvars committed to git
 # terraform.tfvars:
 # db_password = "hunter2"
 ```
 
-- Use `sensitive = true` on any variable or output containing credentials, tokens, or keys. It suppresses values in terminal output and `terraform output` — but secrets are **still stored in plaintext in state**. Treat state files as secrets.
+- Use `sensitive = true` on any variable or output containing credentials, tokens, or keys. It suppresses values in terminal output and `terraform output` - but secrets are **still stored in plaintext in state**. Treat state files as secrets.
 - Pull secrets from a secrets manager at apply time: `data "aws_secretsmanager_secret_version"`.
 - Add `*.tfvars` and `*.tfvars.json` to `.gitignore`. Provide `terraform.tfvars.example` with placeholder values.
 
@@ -106,7 +106,7 @@ environments/
     terraform.tfvars  # gitignored
 ```
 
-- Each module has `variables.tf`, `outputs.tf`, and `versions.tf` — never mix them into `main.tf`.
+- Each module has `variables.tf`, `outputs.tf`, and `versions.tf` - never mix them into `main.tf`.
 - Validate variables where the contract matters:
 
 ```hcl
@@ -122,7 +122,7 @@ variable "environment" {
 ## Resource Lifecycle and Destruction Protection
 
 ```hcl
-# DO — protect stateful resources from accidental destruction
+# DO - protect stateful resources from accidental destruction
 resource "aws_rds_cluster" "main" {
   ...
   lifecycle {
@@ -131,7 +131,7 @@ resource "aws_rds_cluster" "main" {
   }
 }
 
-# DO — safe replacement ordering for resources that can't have downtime
+# DO - safe replacement ordering for resources that can't have downtime
 resource "aws_instance" "app" {
   ...
   lifecycle {
@@ -146,12 +146,12 @@ resource "aws_instance" "app" {
 ## Plan Safety
 
 ```bash
-# DO — save and review the plan before applying
+# DO - save and review the plan before applying
 terraform plan -out=tfplan
 terraform show tfplan           # review in CI artifact or locally
 terraform apply tfplan          # apply exactly what was reviewed
 
-# DON'T — apply without reviewing the plan
+# DON'T - apply without reviewing the plan
 terraform apply -auto-approve   # skips plan review entirely
 ```
 
@@ -162,7 +162,7 @@ terraform apply -auto-approve   # skips plan review entirely
 ## IAM Least Privilege
 
 ```hcl
-# DO — narrow resource ARNs and specific actions
+# DO - narrow resource ARNs and specific actions
 resource "aws_iam_policy" "app" {
   policy = jsonencode({
     Version = "2012-10-17"
@@ -174,7 +174,7 @@ resource "aws_iam_policy" "app" {
   })
 }
 
-# DON'T — wildcard actions or resources
+# DON'T - wildcard actions or resources
 resource "aws_iam_policy" "app_bad" {
   policy = jsonencode({
     Version = "2012-10-17"

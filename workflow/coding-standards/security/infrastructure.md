@@ -6,11 +6,11 @@ Reference for generating `ai/instructions/security.md` in projects with Docker, 
 
 - Run as non-root user. Define `USER` after installing packages.
 - Use multi-stage builds to keep build tools out of production images.
-- Never pass secrets via `ARG` or `ENV` — they are visible in image history.
+- Never pass secrets via `ARG` or `ENV` - they are visible in image history.
 - Maintain a `.dockerignore` to exclude `.env`, `.git`, `node_modules`, and other sensitive/unnecessary files.
 
 ```dockerfile
-# DO — non-root user, multi-stage build
+# DO - non-root user, multi-stage build
 FROM node:20-slim AS build
 WORKDIR /app
 COPY package*.json ./
@@ -25,7 +25,7 @@ USER app
 EXPOSE 3000
 CMD ["node", "server.js"]
 
-# DON'T — root user, secrets in build args
+# DON'T - root user, secrets in build args
 FROM node:20
 ARG DATABASE_URL
 ENV DATABASE_URL=$DATABASE_URL
@@ -35,7 +35,7 @@ CMD ["node", "server.js"]
 ```
 
 ```dockerignore
-# .dockerignore — always include
+# .dockerignore - always include
 .env
 .env.*
 .git
@@ -55,7 +55,7 @@ tests/
 - Prefer OIDC federation over long-lived cloud credentials.
 
 ```yaml
-# DO — OIDC for AWS access, pinned actions
+# DO - OIDC for AWS access, pinned actions
 permissions:
   id-token: write
   contents: read
@@ -66,7 +66,7 @@ steps:
       role-to-assume: arn:aws:iam::123456789:role/ci-deploy
       aws-region: us-east-1
 
-# DON'T — long-lived keys, unpinned actions
+# DON'T - long-lived keys, unpinned actions
 steps:
   - uses: aws-actions/configure-aws-credentials@v4
     with:
@@ -80,11 +80,11 @@ steps:
 ## Network Security
 
 - Internal services (databases, caches, queues) must not be exposed to the public internet.
-- TLS everywhere — including internal service-to-service communication.
+- TLS everywhere - including internal service-to-service communication.
 - No self-signed certificates in production. Use Let's Encrypt or a managed certificate service.
 
 ```yaml
-# DO — internal-only database (docker-compose)
+# DO - internal-only database (docker-compose)
 services:
   db:
     image: postgres:16
@@ -93,7 +93,7 @@ services:
     networks:
       - internal
 
-# DON'T — expose database to host
+# DON'T - expose database to host
 services:
   db:
     image: postgres:16
@@ -111,14 +111,14 @@ services:
 - Audit permissions quarterly. Remove unused permissions.
 
 ```json
-// DO — scoped IAM policy
+// DO - scoped IAM policy
 {
   "Effect": "Allow",
   "Action": ["s3:GetObject", "s3:PutObject"],
   "Resource": "arn:aws:s3:::my-app-uploads/*"
 }
 
-// DON'T — overly broad permissions
+// DON'T - overly broad permissions
 {
   "Effect": "Allow",
   "Action": "s3:*",
@@ -134,14 +134,14 @@ services:
 - Log all authentication events, authorization failures, and admin actions.
 
 ```python
-# DO — structured logging, no secrets
+# DO - structured logging, no secrets
 import structlog
 logger = structlog.get_logger()
 
 logger.info("user_login", user_id=user.id, ip=request.remote_addr, method="password")
 logger.warning("auth_failure", user_id=user.id, ip=request.remote_addr, reason="invalid_password")
 
-# DON'T — unstructured logging with secrets
+# DON'T - unstructured logging with secrets
 logger.info(f"User {user.email} logged in with password {password}")
 logger.debug(f"Headers: {dict(request.headers)}")  # leaks Authorization header
 ```
@@ -151,23 +151,23 @@ logger.debug(f"Headers: {dict(request.headers)}")  # leaks Authorization header
 - Use the platform's secrets manager (AWS Secrets Manager / SSM Parameter Store, GCP Secret Manager, Azure Key Vault) instead of environment variables for production secrets. Environment variables are visible in process listings and crash dumps.
 - Fetch secrets at application startup or use a sidecar/init container that injects secrets into a tmpfs mount.
 - Enable automatic rotation where supported. AWS Secrets Manager supports automatic rotation with Lambda functions.
-- Scope IAM permissions to specific secret ARNs — never grant `secretsmanager:GetSecretValue` on `*`.
+- Scope IAM permissions to specific secret ARNs - never grant `secretsmanager:GetSecretValue` on `*`.
 
 ```python
-# DO — fetch from secrets manager at startup
+# DO - fetch from secrets manager at startup
 import boto3
 client = boto3.client("secretsmanager")
 secret = client.get_secret_value(SecretId="prod/myapp/db-password")
 db_password = secret["SecretString"]
 
-# DON'T — rely solely on environment variables in production
+# DON'T - rely solely on environment variables in production
 db_password = os.environ["DB_PASSWORD"]  # visible in /proc/*/environ, crash dumps, docker inspect
 ```
 
 ## Kubernetes Security Context (if the project uses Kubernetes)
 
 ```yaml
-# DO — restrict container capabilities
+# DO - restrict container capabilities
 securityContext:
   runAsNonRoot: true
   readOnlyRootFilesystem: true

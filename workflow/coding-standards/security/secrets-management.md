@@ -7,12 +7,12 @@ Reference for generating `ai/instructions/security.md` in projects handling cred
 Environment variables or framework-native secret stores (Rails encrypted credentials, Spring Vault, AWS SSM) are the acceptable sources for secrets in application code.
 
 ```python
-# DO — read from environment
+# DO - read from environment
 import os
 DATABASE_URL = os.environ["DATABASE_URL"]
 API_KEY = os.environ["STRIPE_API_KEY"]
 
-# DON'T — hardcode secrets
+# DON'T - hardcode secrets
 DATABASE_URL = "postgres://admin:s3cret@db.example.com/prod"
 API_KEY = "sk_live_abc123xyz"
 ```
@@ -22,8 +22,8 @@ API_KEY = "sk_live_abc123xyz"
 
 ## .env Pattern
 
-- `.env.example` — committed. Contains every variable name with placeholder values and comments.
-- `.env` — gitignored. Contains real values for local development.
+- `.env.example` - committed. Contains every variable name with placeholder values and comments.
+- `.env` - gitignored. Contains real values for local development.
 - Never commit `.env`. Add it to `.gitignore` before the first commit.
 
 ```bash
@@ -39,13 +39,13 @@ REDIS_URL=redis://:auth_token@redis.internal:6379
 ```
 
 ```gitignore
-# DO — gitignore real env files
+# DO - gitignore real env files
 .env
 .env.local
 .env.production
 .env.*.local
 
-# DON'T — gitignore the example
+# DON'T - gitignore the example
 # .env.example   <-- this should be committed
 ```
 
@@ -55,11 +55,11 @@ REDIS_URL=redis://:auth_token@redis.internal:6379
 - Never write secrets as plaintext in workflow files, Dockerfiles, or build scripts.
 
 ```yaml
-# DO — use GitHub Secrets
+# DO - use GitHub Secrets
 env:
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-# DON'T — plaintext in workflow
+# DON'T - plaintext in workflow
 env:
   DATABASE_URL: "postgres://admin:password@db.example.com/prod"
 ```
@@ -74,7 +74,7 @@ env:
 - No hardcoded expiry assumptions. Read TTL from the secret store or environment.
 
 ```python
-# DO — support key rotation with fallback
+# DO - support key rotation with fallback
 PRIMARY_KEY = os.environ["API_KEY"]
 FALLBACK_KEY = os.environ.get("API_KEY_PREVIOUS")
 
@@ -91,10 +91,10 @@ def verify_request(provided_key: str) -> bool:
 Never log secrets. This includes tokens, passwords, API keys, session IDs, and PII.
 
 ```python
-# DO — log the action, not the credential
+# DO - log the action, not the credential
 logger.info("API call to Stripe", extra={"merchant_id": merchant.id})
 
-# DON'T — log the secret
+# DON'T - log the secret
 logger.info(f"Calling Stripe with key {api_key}")
 logger.debug(f"Request headers: {request.headers}")  # may contain Authorization
 ```

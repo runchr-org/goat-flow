@@ -20,11 +20,11 @@ concerns (build commands, naming patterns, DO/DON'T rules) go in conventions.md.
 | go.mod | go.md |
 | pyproject.toml/requirements.txt + "django" | python-django.md |
 | pyproject.toml/requirements.txt + "fastapi" | python-fastapi.md |
-| pyproject.toml/requirements.txt + "flask" | python.md (Flask projects: use python.md, add Flask-specific conventions manually) |
-| pyproject.toml/requirements.txt (no django/fastapi/flask) | python.md |
+| pyproject.toml/requirements.txt + "flask" | No dedicated template - generate conventions from observed patterns in the codebase |
+| pyproject.toml/requirements.txt (no django/fastapi/flask) | No dedicated template - generate conventions from observed patterns in the codebase |
 | composer.json + "laravel/framework" | php-laravel.md |
 | composer.json + "symfony/framework-bundle" | php-symfony.md |
-| composer.json (no laravel/symfony) | php.md (best fit for custom/legacy PHP apps; libraries/plugins/themes must keep only applicable sections) |
+| composer.json (no laravel/symfony) | No dedicated template - generate conventions from observed patterns in the codebase |
 | Cargo.toml | rust.md (Tokio + HTTP + SQLx oriented; adapt if the repo uses Diesel, SeaORM, or framework-specific patterns) |
 | build.gradle/pom.xml + "spring-boot" | java-spring.md (Spring Boot + JPA oriented; replace only the data layer guidance if the repo uses jOOQ/MyBatis/JdbcTemplate) |
 | Gemfile + "rails" | ruby-rails.md |
@@ -37,11 +37,11 @@ concerns (build commands, naming patterns, DO/DON'T rules) go in conventions.md.
 | Stack | Status | Notes |
 |--------|--------|-------|
 | Go | Supported | General Go application/service baseline |
-| Python (generic) | Supported | CLI/library/script baseline |
+| Python (generic) | No template | Generate from observed patterns |
 | Django | Supported | Django + DRF-specific |
 | FastAPI | Supported | FastAPI + SQLAlchemy-specific |
-| Flask | Fallback | Start from `python.md`, add observed Flask conventions manually |
-| PHP (generic) | Partial | Best for custom/legacy PHP web apps; do not copy web/session sections into libraries/plugins/themes |
+| Flask | No template | Generate from observed patterns |
+| PHP (generic) | No template | Generate from observed patterns |
 | Laravel | Supported | Laravel + Eloquent-specific |
 | Symfony | Supported | Symfony + Doctrine-specific |
 | Spring Boot | Partial | Spring Boot + JPA/Spring Data-oriented |

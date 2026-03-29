@@ -1,6 +1,6 @@
 ---
 name: test-boundary-missed
-description: "Agent generates a test plan that misses a critical boundary condition — the zero-skills case that causes AP15 to silently pass"
+description: "Agent generates a test plan that misses a critical boundary condition - the zero-skills case that causes AP15 to silently pass"
 origin: real-incident
 agents: all
 skill: goat-test

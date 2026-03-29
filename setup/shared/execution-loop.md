@@ -24,7 +24,7 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
         Hotfix (2 reads / 3 turns), Standard (4 / 10),
         System Change (6 / 20), Infrastructure (8 / 25)
      3. Mode: Plan / Implement / Explain / Debug / Review
-   - SCOPE: declare before acting — files allowed to change, non-goals,
+   - SCOPE: declare before acting - files allowed to change, non-goals,
      max blast radius. Expanding beyond scope = stop and re-scope
    - ACT: behaviour per mode as a table. State declaration rule.
      Mode-transition rule: "Switching to [NEW STATE] because [reason]."
@@ -33,13 +33,14 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
    - VERIFY: continuous test loop. Stop-the-line with two-level
      escalation. Revert-and-rescope tactic.
      Plan tracking: if working from a plan/milestone file, tick each
-     checkbox (`- [x]`) as the task is completed — not at the end.
+     checkbox (`- [x]`) as the task is completed - not at the end.
      Recovery protocols: include 2-3 common failure patterns with fixes
      (e.g., missing context → read X first, out-of-scope → name boundary
      and redirect, conflicting instructions → flag and ask)
      Telemetry: if `tasks/logs/` exists, append to
      `tasks/logs/incidents.jsonl` when VERIFY catches a failure or
-     two-corrections-rewind fires. Schema in `tasks/logs/README.md`.
+     two-corrections-rewind fires. If >200 lines, trim oldest half first.
+     Schema in `tasks/logs/README.md`.
    - LOG: MUST update when tripped (DoD gate #4). Reference all three
      learning loop files:
      docs/lessons.md (behavioural mistakes),
@@ -55,8 +56,8 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
      Dual-agent projects: learning loop files are shared. Read the
      current file before appending to avoid duplicating entries.
      Incident telemetry: after writing to lessons.md or footguns.md,
-     also append to `tasks/logs/incidents.jsonl` if the directory exists.
-     Schema in `tasks/logs/README.md`.
+     also append to `tasks/logs/incidents.jsonl` if the directory exists
+     (trim oldest half if >200 lines). Schema in `tasks/logs/README.md`.
 
 c) Autonomy Tiers: Always / Ask First / Never
    - Never tier MUST include:
@@ -71,11 +72,11 @@ c) Autonomy Tiers: Always / Ask First / Never
      1. Boundary touched: [name it]
      2. Related code read: [yes/no]
      3. Footgun entry checked: [relevant entry, or "none"]
-     4. Local instruction checked: [local CLAUDE.md / .github/instructions/ / none]
+     4. Local instruction checked: [local instruction file / .github/instructions/ / none]
      5. Rollback command: [exact command]
    For multi-agent projects, consider extending AGENTS.md with domain
    concepts, key patterns, and deprecation warnings. AGENTS.md can serve
-   double duty as execution protocol + domain reference — but watch the
+   double duty as execution protocol + domain reference - but watch the
    line budget.
 
 d) Definition of Done: 6 gates
@@ -90,13 +91,13 @@ e) Working Memory: Working Notes for 5+ turn tasks, context escalation
    ladder, session handoff protocol. Incomplete work → copy
    tasks/handoff-template.md to tasks/handoff.md and fill in.
    Next session MUST read tasks/handoff.md if it exists.
-   Multi-task sessions: re-read CLAUDE.md constraints before starting.
+   Multi-task sessions: re-read the instruction file constraints before starting.
    Context health: compact at 60% utilization (not 90%). Remove
    failed attempts and superseded reasoning before compacting (noise
-   pruning). Use /clear between unrelated tasks for fresh context.
+   pruning). Clear context between unrelated tasks when the agent supports it.
    tasks/todo.md and tasks/handoff.md MUST be gitignored.
-   settings.local.json: review quarterly, prune session artifacts.
-   Target: under 20 intentional lines (test runners, build tools only).
+   Agent-local settings (e.g., .claude/settings.local.json): review
+   quarterly, prune session artifacts.
    Recommended: register a Notification hook for compaction that
    re-injects current task, modified files, and constraints.
    See workflow/runtime/enforcement.md for the hook configuration.
@@ -107,21 +108,21 @@ f) Sub-Agent Objectives: one focused objective, structured return,
 g) Communication When Blocked: one question with recommended default
 
 h) Router table: MUST include at minimum:
-     - All 8 skill directories (Claude/Gemini/Codex/Copilot: .claude/skills/, .agents/skills/, .github/skills/)
+     - All 9 skill directories (Claude/Gemini/Codex/Copilot: .claude/skills/, .agents/skills/, .github/skills/)
      - Learning loop files (footguns, lessons)
      - Architecture doc, handoff template, agent evals
      - Project guidelines: `ai/README.md`
      - Any playbooks, profiles, or domain docs relevant to project
      Dual-agent projects: router MUST include the other agent's
      instruction file (AGENTS.md or CLAUDE.md).
-     (Unrouted files are invisible to the agent — 160x usage uplift
+     (Unrouted files are invisible to the agent - 160x usage uplift
      for referenced tools)
 
 i) Essential commands
 
 If over line target, apply cut priority from the system spec.
 If you must weaken a MUST to meet the line target, the target is
-wrong — raise it, don't weaken the rule.
+wrong - raise it, don't weaken the rule.
 Do NOT skip sections (f)–(i) - they are small but required.
 
 When sources conflict, this precedence applies:

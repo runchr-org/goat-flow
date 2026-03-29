@@ -18,7 +18,7 @@ Reference for generating `ai/instructions/frontend.md` in Blazor projects.
 - Treat render mode as a delivery decision. Keep components portable across modes unless a feature depends on browser-only APIs.
 
 ```razor
-@* .NET 8+ — per-component render mode *@
+@* .NET 8+ - per-component render mode *@
 <UserDashboard @rendermode="InteractiveServer" />
 <HeavyChart @rendermode="InteractiveWebAssembly" />
 <SearchPage @rendermode="InteractiveAuto" />
@@ -30,11 +30,11 @@ Reference for generating `ai/instructions/frontend.md` in Blazor projects.
   data does not depend on changing route parameters.
 - `OnParametersSetAsync` when you need to react to parameter changes (re-fetch
   when a route param changes).
-- DO NOT put heavy logic in `SetParametersAsync` — it runs on every render cycle.
+- DO NOT put heavy logic in `SetParametersAsync` - it runs on every render cycle.
 - `Dispose` (implement `IDisposable`) for cleaning up event handlers, timers, and subscriptions.
 
 ```csharp
-// DO — data fetching in OnInitializedAsync
+// DO - data fetching in OnInitializedAsync
 @code {
     private List<User>? users;
 
@@ -44,7 +44,7 @@ Reference for generating `ai/instructions/frontend.md` in Blazor projects.
     }
 }
 
-// DON'T — fetching in OnAfterRenderAsync
+// DON'T - fetching in OnAfterRenderAsync
 protected override async Task OnAfterRenderAsync(bool firstRender)
 {
     if (firstRender)
@@ -63,7 +63,7 @@ protected override async Task OnAfterRenderAsync(bool firstRender)
 - DO NOT call `StateHasChanged()` manually unless you are handling an external event (timer, event bus). Blazor calls it automatically after UI events and lifecycle methods.
 
 ```csharp
-// DO — state container service
+// DO - state container service
 public class CartState
 {
     public List<CartItem> Items { get; private set; } = new();
@@ -91,12 +91,12 @@ builder.Services.AddScoped<CartState>();
 
 ## Component Design
 
-- One component per `.razor` file. Keep components focused — extract when a file exceeds ~100 lines.
+- One component per `.razor` file. Keep components focused - extract when a file exceeds ~100 lines.
 - Use `[Parameter]` for inputs, `EventCallback<T>` for outputs.
 - DO NOT mark services as `[Parameter]`. Use `@inject` for dependency injection.
 
 ```razor
-@* DO — parameter + event callback *@
+@* DO - parameter + event callback *@
 <UserCard User="@user" OnSelected="HandleUserSelected" />
 
 @code {
@@ -116,7 +116,7 @@ builder.Services.AddScoped<CartState>();
 - Minimize interop calls. Batch operations into a single JS function rather than calling JS in a loop.
 
 ```csharp
-// DO — JS interop after render
+// DO - JS interop after render
 @inject IJSRuntime JS
 
 protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -127,7 +127,7 @@ protected override async Task OnAfterRenderAsync(bool firstRender)
     }
 }
 
-// DON'T — JS interop during initialization (DOM not ready)
+// DON'T - JS interop during initialization (DOM not ready)
 protected override async Task OnInitializedAsync()
 {
     await JS.InvokeVoidAsync("initializeChart", chartElement); // Throws
@@ -138,7 +138,7 @@ protected override async Task OnInitializedAsync()
 
 - Use `EditForm` with `DataAnnotationsValidator` for standard validation.
 - Use `FluentValidation` for complex validation rules.
-- Bind with `@bind-Value` on `InputText`, `InputNumber`, etc. — not raw HTML `<input>` elements.
+- Bind with `@bind-Value` on `InputText`, `InputNumber`, etc. - not raw HTML `<input>` elements.
 
 ## Common Footguns
 

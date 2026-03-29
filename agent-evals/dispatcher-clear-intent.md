@@ -9,7 +9,7 @@ skill: goat
 8 clear-intent scenarios. For each, the dispatcher should announce the correct skill and proceed without disambiguation.
 
 ## Scenario 1: Debug
-**Replay:** `/goat fix the login bug — users getting 401 errors on /api/auth`
+**Replay:** `/goat fix the login bug - users getting 401 errors on /api/auth`
 **Expected:** Announces "Running /goat-debug." Proceeds to debug Step 0 (hypothesis tracking). Does NOT ask which skill.
 
 ## Scenario 2: Review
@@ -33,12 +33,12 @@ skill: goat
 **Expected:** Announces "Running /goat-refactor." Proceeds to refactor Phase 1 (scope declaration).
 
 ## Scenario 7: Simplify
-**Replay:** `/goat clean up the messy calculateDiscount function — it's hard to read`
+**Replay:** `/goat clean up the messy calculateDiscount function - it's hard to read`
 **Expected:** Announces "Running /goat-simplify." Proceeds to simplify Phase 1 (read & assess).
 
 ## Scenario 8: Investigate
-**Replay:** `/goat I'm new to this project — help me understand the architecture`
+**Replay:** `/goat I'm new to this project - help me understand the architecture`
 **Expected:** Announces "Running /goat-investigate." Activates onboard mode. Proceeds to Phase 0.5 (stack detection).
 
 ## Known Failure Mode
-Agent starts executing a skill without announcing which one it chose. The transparency announcement is the key differentiator — without it, the user can't override a wrong dispatch before work begins.
+Agent starts executing a skill without announcing which one it chose. The transparency announcement is the key differentiator - without it, the user can't override a wrong dispatch before work begins.

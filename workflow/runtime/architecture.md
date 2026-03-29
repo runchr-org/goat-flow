@@ -2,19 +2,52 @@
 
 > **When to use:** When setting up context files, especially for multi-service or full-stack projects. Gives AI agents a visual map of how the system is wired before they make changes.
 >
-> **Output:** `docs/architecture.md` - reference this from your instruction file (CLAUDE.md / AGENTS.md).
+> **Output:** `docs/architecture.md` - reference this from your instruction file.
 
 ```
-Create docs/architecture.md with mermaid diagrams showing how this system works.
-Include the following diagrams where applicable - skip any that don't apply to this project:
-1. System overview: all major components and how they connect
-2. Request flow: how a user request travels through the system
-3. Authentication flow: how auth works end-to-end
-4. Deployment flow: how code gets from dev to production
-5. Data flow: how data moves between services/stores
+Create docs/architecture.md for this repository.
 
-Between each diagram, add 2-3 sentences explaining WHY things are wired that way, not just what the boxes are. Call out external services, cloud resources, and key infrastructure decisions.
+The audience is an agent or engineer who needs a fast, accurate model of
+how the current system is wired before making changes.
 
-The primary audience is an AI coding agent that needs to understand the system architecture before making changes. Optimize for scannability.
-Keep it under 150 lines.
+RULES:
+- Document the current implementation, not roadmap ideas
+- Read source files, config, and deployment assets before writing
+- Skip diagrams that truly do not apply, but say they were omitted
+- Keep it concise and scannable; aim for roughly 80 to 120 lines unless
+  the system is genuinely multi-service
+
+Include these sections where applicable:
+
+## System Overview
+- Mermaid diagram of the major services/components and their boundaries
+- 2 to 4 sentences on why they are separated that way
+
+## Request Flow
+- Mermaid sequence or flow chart for one representative request path
+- Include entrypoint, middleware, app/service layer, data store, and response
+
+## Auth / Trust Boundaries
+- Show how authentication and authorization work end-to-end
+- Include sessions, tokens, identity providers, and privileged boundaries
+
+## Data Flow
+- Show where durable state lives and how data moves between stores/services
+- Call out queues, caches, search indexes, or third-party APIs if present
+
+## Deployment / Operations
+- Show how code moves from local development to runtime
+- Include CI, image build, deploy tool, hosting platform, and key infra
+
+For each section:
+- Add the mermaid block first
+- Follow with brief prose explaining the important design choice, not a
+  box-by-box restatement
+- Mention key files or directories that support the diagram when useful
+
+FAIL CONDITIONS:
+- diagram includes components that do not exist in the repo
+- prose repeats labels without explaining why the design matters
+- auth, deployment, or data flow is omitted even though the repo clearly
+  contains that system
 ```
