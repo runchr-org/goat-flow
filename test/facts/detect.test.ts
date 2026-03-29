@@ -253,6 +253,29 @@ describe('detectStack', () => {
     const stack = detectStack(fs);
     assert.ok(stack.signals.deployPlatforms.includes('packer'));
   });
+
+  // --- Test command fallback detection ---
+
+  it('detects testCommand from e2e script when no scripts.test', () => {
+    const fs = createMockFS({
+      'package.json': JSON.stringify({
+        devDependencies: { cypress: '^13.0.0' },
+        scripts: { e2e: 'cypress run', build: 'tsc' },
+      }),
+    });
+    const stack = detectStack(fs);
+    assert.equal(stack.testCommand, 'npm run e2e');
+  });
+
+  it('detects testCommand from test-like script name', () => {
+    const fs = createMockFS({
+      'package.json': JSON.stringify({
+        scripts: { predeploy_tests_feature: 'cypress run --spec "cypress/e2e/feature/**"' },
+      }),
+    });
+    const stack = detectStack(fs);
+    assert.ok(stack.testCommand?.includes('test'), `Expected test-like command, got: ${stack.testCommand}`);
+  });
 });
 
 describe('mapLanguagesToTemplates - frontend routing', () => {

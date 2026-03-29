@@ -1,7 +1,7 @@
 ---
 name: goat-investigate
 description: "Deep codebase investigation with progressive depth reading, evidence tagging, and structured reporting. Includes onboarding mode for new projects."
-goat-flow-skill-version: "0.9.1"
+goat-flow-skill-version: "0.9.2"
 ---
 # /goat-investigate
 
