@@ -1,17 +1,17 @@
 import type { SharedFacts, ReadonlyFS } from '../types.js';
 
 /**
- * Matches file:line evidence in multiple formats:
- * - `src/auth.ts:42` (backtick-wrapped)
+ * Matches file path evidence in multiple formats:
+ * - `src/auth.ts` (backtick-wrapped file path)
+ * - `src/auth.ts:42` (backtick-wrapped with line number)
  * - `src/auth.ts:42-50` (backtick-wrapped with line range)
- * - `src/auth.ts:42,86-94` (backtick-wrapped with comma-separated ranges)
  * - (lines 866-880) or (line 52) (prose-style)
- * - `src/auth.ts` (lines 42-50) (backtick path + prose line)
+ * Line numbers are optional historical context — file paths alone are valid evidence.
  */
-const EVIDENCE_PATTERN = /`[^`]+:[0-9]+(?:[-,][0-9]+)*`|\(lines?\s+[0-9]+/;
+const EVIDENCE_PATTERN = /`[^`]+\.[a-zA-Z]{1,10}(?::[0-9]+(?:[-,][0-9]+)*)?`|\(lines?\s+[0-9]+/;
 
-/** Regex to extract file paths from backtick-wrapped file:line references (with optional ranges). */
-const FILE_REF_REGEX = /`([^`]+):[0-9]+(?:[-,][0-9]+)*`/g;
+/** Regex to extract file paths from backtick-wrapped references (with optional line numbers). */
+const FILE_REF_REGEX = /`([^`]+\.[a-zA-Z]{1,10})(?::[0-9]+(?:[-,][0-9]+)*)?`/g;
 
 /** Check if a backtick-wrapped file:line reference is a real file path (not a URL/hostname) */
 function isFileRef(filePath: string): boolean {
@@ -97,41 +97,28 @@ function extractFootgunFacts(fs: ReadonlyFS): SharedFacts['footguns'] {
       }
     }
   }
-  // Validate that referenced files still exist on disk and line numbers are in range.
-  // Skip bare source filenames (e.g., `router.go:335`) that can't be resolved
-  // from the project root - they're valid evidence but not checkable for staleness.
+  // Validate that referenced files still exist on disk.
+  // Line numbers in footguns are historical context — they rot and don't need updating.
+  // Only check file existence, not line-number accuracy.
   const staleRefs: string[] = [];
   let totalRefs = 0;
   let validRefs = 0;
   if (footgunsContent) {
-    const fileRefs = footgunsContent.matchAll(new RegExp(FILE_REF_REGEX.source, 'g'));
+    // For stale ref checking, only match file:line refs (not bare paths).
+    // Bare file paths in footgun evidence often document files that WERE renamed/deleted
+    // (that's the footgun). Only file:line refs indicate live code references worth validating.
+    const STALE_REF_REGEX = /`([^`]+):[0-9]+(?:[-,][0-9]+)*`/g;
+    const fileRefs = footgunsContent.matchAll(STALE_REF_REGEX);
     for (const match of fileRefs) {
-      const fullRef = match[1];
-      if (fullRef === undefined) continue;
-      if (!isFileRef(fullRef)) continue;
-      // Split file:line — extract file path and optional line number
-      const lineMatch = fullRef.match(/^(.+?):(\d+)/);
-      const filePath = lineMatch?.[1] ?? fullRef;
-      const lineNum = lineMatch?.[2] ? parseInt(lineMatch[2], 10) : null;
+      const filePath = match[1];
+      if (filePath === undefined) continue;
+      if (!isFileRef(filePath)) continue;
       if (!isCheckableForStaleness(filePath, fs)) continue;
       totalRefs++;
-      if (!fs.exists(filePath)) {
-        staleRefs.push(fullRef);
-      } else if (lineNum !== null) {
-        // Fabrication check: verify the line number is within range
-        const content = fs.readFile(filePath);
-        if (content) {
-          const lines = content.split('\n');
-          if (lineNum > lines.length) {
-            staleRefs.push(`${fullRef} (line ${lineNum} exceeds file length ${lines.length})`);
-          } else {
-            validRefs++;
-          }
-        } else {
-          validRefs++; // file exists but unreadable — don't penalize
-        }
-      } else {
+      if (fs.exists(filePath)) {
         validRefs++;
+      } else {
+        staleRefs.push(filePath);
       }
     }
   }

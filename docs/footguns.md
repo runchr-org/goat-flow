@@ -1,6 +1,6 @@
 # Footguns
 
-Cross-domain gotchas confirmed in this codebase. Add entries only when the repo itself demonstrates the behaviour. Every entry MUST include file:line evidence.
+Cross-domain gotchas confirmed in this codebase. Add entries only when the repo itself demonstrates the behaviour. Every entry MUST include file path evidence. Line numbers are optional historical context — they rot and don't need updating.
 
 ## Footgun: Cross-reference fragility across docs
 
@@ -11,10 +11,8 @@ Cross-domain gotchas confirmed in this codebase. Add entries only when the repo 
 **Why it happens:** Documentation files reference each other by relative path. The project has 60+ markdown files with dense cross-referencing. Renaming one file can break references in 5-10 others.
 
 **Evidence:**
-- `docs/getting-started.md:162` → references `workflow/_reference/system-spec.md` (stale path, file is at `docs/system-spec.md`)
-- `docs/getting-started.md:163` → references `workflow/_draft/00-1-ai-workflow-ARTICLE-prime_v1.5.md`
-- `docs/getting-started.md:15` → references `workflow/_draft/00-1-ai-workflow-ARTICLE-prime_v1.5.md`
-- `docs/system/five-layers.md:274` → references `FIVE_LAYER_SYSTEM.md` (old filename)
+- `docs/getting-started.md` → referenced stale paths to old workflow directory
+- `docs/system/five-layers.md` → referenced `FIVE_LAYER_SYSTEM.md` (old filename)
 
 **Prevention:** After any file rename or move, grep the entire repo for the old path. Use `grep -r "old-filename" --include="*.md"` before declaring done. This is DoD gate #6.
 
@@ -27,10 +25,10 @@ Cross-domain gotchas confirmed in this codebase. Add entries only when the repo 
 **Why it happens:** The execution loop, autonomy tiers, anti-pattern table, and other core concepts are described in `docs/system-spec.md`, `docs/system/six-steps.md`, `docs/system/five-layers.md`, `docs/getting-started.md`, and `docs/reference/design-rationale.md`. Updating one without updating the others creates drift.
 
 **Evidence:**
-- `docs/system-spec.md:126` → execution loop definition
-- `docs/system/six-steps.md:7` → execution loop definition (detailed version)
-- `docs/getting-started.md:10` → execution loop summary
-- `docs/reference/design-rationale.md:194` → execution loop rationale with repeated content
+- `docs/system-spec.md` → execution loop definition
+- `docs/system/six-steps.md` → execution loop definition (detailed version)
+- `docs/getting-started.md` → execution loop summary
+- `docs/reference/design-rationale.md` → execution loop rationale with repeated content
 
 **Prevention:** When editing a core concept, grep for the concept name across all docs and update every occurrence. `docs/system-spec.md` is the canonical source of truth.
 
@@ -40,7 +38,7 @@ Cross-domain gotchas confirmed in this codebase. Add entries only when the repo 
 
 **Status:** RESOLVED - unified to 120 lines for all project shapes in v0.1.1. The original 100/120 split was dropped after real implementations showed every project with the 6-step loop, budgets, and all required sections lands in the 100-120 range regardless of shape.
 
-**Prevention:** Line target is 120 for all shapes, stated in `docs/system-spec.md:104`. If this number appears differently in any other file, the spec is canonical.
+**Prevention:** Line target is 120 for all shapes, stated in `docs/system-spec.md`. If this number appears differently in any other file, the spec is canonical.
 
 ## Footgun: Setup instructions contradict spec on execution loop steps
 
@@ -51,10 +49,9 @@ Cross-domain gotchas confirmed in this codebase. Add entries only when the repo 
 **Why it happens:** `setup/setup-claude.md` tells agents to "Read docs/system-spec.md" FIRST. If system-spec.md shows a different loop than `setup/shared/execution-loop.md`, agents absorb whichever they read first and can't reconcile the contradiction. This caused 7 of 8 gaps in the sus-form-detector implementation.
 
 **Evidence:**
-- `docs/system-spec.md:15` → loop definition in Layer 1 architecture diagram
-- `docs/system-spec.md:126` → loop definition in execution loop section
-- `setup/shared/execution-loop.md:14` → updated loop definition (authoritative)
-- `setup/setup-claude.md:43` → "Read docs/system-spec.md" as first instruction
+- `docs/system-spec.md` → loop definition in Layer 1 architecture diagram and execution loop section
+- `setup/shared/execution-loop.md` → updated loop definition (authoritative)
+- `setup/setup-claude.md` → "Read docs/system-spec.md" as first instruction
 
 **Prevention:** After updating `setup/shared/execution-loop.md`, ALWAYS update the same concept in `docs/system-spec.md`, `docs/system/six-steps.md`, and `docs/system/five-layers.md`. The spec is read first by agents - it must match. This is a specific instance of the "concept duplication" footgun above, but critical enough to track separately because it directly causes broken implementations.
 
@@ -82,10 +79,9 @@ Cross-domain gotchas confirmed in this codebase. Add entries only when the repo 
 **Why it happens:** When an agent is asked to set up or update its platform support, it replaces existing references wholesale instead of adding multi-agent support. The agent treats the task as find-and-replace: `.claude/` → `.gemini/`, `PreToolUse` → `BeforeTool`, "Every Claude turn" → "Every Gemini turn". It does not distinguish between agent-specific files (`setup/setup-gemini.md`) and shared files (`docs/system-spec.md`).
 
 **Evidence:**
-- `docs/system-spec.md:429` → "Every Gemini turn" replaced "Every Claude turn" (should be agent-neutral)
-- `docs/system/five-layers.md:100` → Claude Code row deleted from skills table, replaced with Gemini CLI only
-- `docs/system/five-layers.md:49-50` → `.gemini/settings.json` replaced `.claude/` equivalents
-- `docs/system/six-steps.md:182` → Claude Code hook example replaced with Gemini, not added alongside
+- `docs/system-spec.md` → "Every Gemini turn" replaced "Every Claude turn" (should be agent-neutral)
+- `docs/system/five-layers.md` → Claude Code row deleted from skills table, replaced with Gemini CLI only
+- `docs/system/six-steps.md` → Claude Code hook example replaced with Gemini, not added alongside
 - `workflow/runtime/enforcement.md` → all `.claude/` paths replaced with `.gemini/`, creating hybrid state
 
 **Prevention:**
@@ -109,10 +105,9 @@ Cross-domain gotchas confirmed in this codebase. Add entries only when the repo 
 Hook script comments also carried over Claude-specific language ("runs after every Claude turn").
 
 **Evidence:**
-- `setup/setup-gemini.md:188-193` → now has Gemini CLI event reference block (fix applied 2026-03-21)
-- `.gemini/hooks/deny-dangerous.sh:2` → updated to "BeforeTool hook" (fixed 2026-03-21)
-- `.gemini/hooks/stop-lint.sh:2` → updated to "AfterAgent hook" (fixed 2026-03-21)
-- `.gemini/settings.json:14,25` → updated to `BeforeTool` and `AfterAgent` event names (fixed 2026-03-21)
+- `setup/setup-gemini.md` → Gemini CLI event reference block (BeforeTool, AfterTool, SessionEnd)
+- `.gemini/hooks/deny-dangerous.sh` → updated to "BeforeTool hook"
+- `.gemini/settings.json` → updated to `BeforeTool` and `AfterAgent` event names
 
 **Prevention:** When creating or updating a setup file for a new CLI, diff it against the source file and check every CLI-specific term - not just paths. Maintain the event name reference block at the top of each CLI's Phase 1c section.
 
@@ -127,7 +122,7 @@ Hook script comments also carried over Claude-specific language ("runs after eve
 **Why it happens:** `mv src dest` and `cp src dest` overwrite `dest` without warning if it already exists. The Write tool does the same. Agents treat rename/move as a single command without checking the destination. If the user then asks to "undo", the agent moves the overwritten content back to the source path - destroying the original destination content entirely.
 
 **Evidence:**
-- `docs/roadmaps/TODO_improvements_v0.4.md` → overwritten by `mv TODO_improvements_v0.3.md TODO_improvements_v0.4.md` (2026-03-21). The file was untracked and unrecoverable through git. Required extraction from Claude conversation logs to partially recover.
+- `docs/roadmaps/TODO_improvements_v0.4.md` → overwritten by `mv TODO_improvements_v0.3.md TODO_improvements_v0.4.md` (2026-03-21). The file was untracked and unrecoverable through git.
 
 **Prevention:**
 - Before ANY `mv`, `cp`, or Write to an existing path: run `ls` on the destination first
@@ -143,17 +138,14 @@ Hook script comments also carried over Claude-specific language ("runs after eve
 
 **Symptoms:** `goat-flow setup . --agent all` emits a single deduplicated setup prompt that looks shorter and cleaner than per-agent setup, but it can direct users to scaffold shared skills in the wrong directory, flatten phase-specific guidance into one generic reference, and skip template validation entirely.
 
-**Why it happens:** `composeMultiAgentSetup()` rebuilds the full-setup output as a separate code path instead of reusing the single-agent phase rendering. Its shared table is derived from the first agent's standard refs, so Claude's `.claude/skills/` path leaks into a multi-agent prompt even though shared multi-agent skills are supposed to canonicalize under `.agents/skills/`. The same path also replaces per-phase agent-specific guidance and validation with one final gate.
+**Why it happens:** `composeMultiAgentSetup()` rebuilds the full-setup output as a separate code path instead of reusing the single-agent phase rendering. Its shared table is derived from the first agent's standard refs, so Claude's `.claude/skills/` path leaks into a multi-agent prompt even though shared multi-agent skills are supposed to canonicalize under `.agents/skills/`.
 
 **Evidence:**
-- `src/cli/cli.ts:205` → routes multi-agent full setup through `composeMultiAgentSetup()`
-- `src/cli/prompt/compose-setup.ts:399` → builds shared refs from the first agent only
-- `src/cli/prompt/template-refs.ts:151` → skill output path is derived from `p.skillsDir`
-- `src/cli/detect/agents.ts:8` → Claude profile sets `skillsDir: '.claude/skills'`
-- `setup/shared/docs-seed.md:106` → multi-agent projects should canonicalize skills in `.agents/skills/`
-- `src/cli/prompt/compose-setup.ts:441` → emits one bare "Agent-specific setup" line per agent
-- `src/cli/prompt/compose-setup.ts:448` → collapses setup to one final scan gate
-- `src/cli/prompt/compose-setup.ts:262` → template validation exists only in the single-agent full setup path
+- `src/cli/cli.ts` → routes multi-agent full setup through `composeMultiAgentSetup()`
+- `src/cli/prompt/compose-setup.ts` → builds shared refs from the first agent only
+- `src/cli/prompt/template-refs.ts` → skill output path is derived from `p.skillsDir`
+- `src/cli/detect/agents.ts` → Claude profile sets `skillsDir: '.claude/skills'`
+- `setup/shared/docs-seed.md` → multi-agent projects should canonicalize skills in `.agents/skills/`
 
 **Prevention:** When adding a condensed or multi-agent output mode, preserve the same invariants as the single-agent path: canonical shared output paths, per-phase agent-specific guidance, and the same template validation gates. If a new setup mode cannot reuse those invariants directly, treat it as a high-risk integration path and audit its rendered output before release.
 
@@ -173,12 +165,9 @@ Hook script comments also carried over Claude-specific language ("runs after eve
 When one of those changes without the others, the setup guidance stops matching the scan logic.
 
 **Evidence:**
-- `workflow/evaluation/evals.md:46` → template tells users to create an `## Origin` section
-- `src/cli/facts/shared.ts:118` → scanner only accepts `**Origin:**` labels
-- `src/cli/facts/shared.ts:119` → scanner only accepts `## Replay Prompt`
-- `src/cli/evals/parser.ts:246` → parser already treats `Scenario` as equivalent to `Replay Prompt`
-- `workflow/evaluation/evals.md:78` → example opens with an outer ```markdown fence
-- `workflow/evaluation/evals.md:88` → example nests inner triple-backtick fences, which breaks standard markdown rendering
+- `workflow/evaluation/evals.md` → template tells users to create an `## Origin` section
+- `src/cli/facts/shared.ts` → scanner only accepts `**Origin:**` labels
+- `src/cli/evals/parser.ts` → parser treats `Scenario` as equivalent to `Replay Prompt`
 
 **Prevention:** Treat eval shape as a single contract. Any change to allowed headings, label format, or example structure must be updated in the template, parser, and scanner together. Verify with one round-trip test: write an eval from the template, parse it, then confirm it passes the full-tier scan checks.
 
@@ -190,12 +179,12 @@ When one of those changes without the others, the setup guidance stops matching 
 
 **Symptoms:** User asks `/goat analyse this plan` or `/goat evaluate the setup`. Dispatcher auto-routes to goat-review without disambiguating. User expected goat-plan (or wanted to choose). The wrong skill loads and the entire interaction is wasted.
 
-**Why it happens:** The intent mapping table in `.claude/skills/goat/SKILL.md:19-31` has rows mapping keywords to skills. "Analyse", "evaluate", "critique", "assess", and "deeply review" appear in none of them. When no keyword matches, the agent falls through to the closest semantic match instead of triggering the disambiguation path. The disambiguation table (`.claude/skills/goat/SKILL.md:45-55`) has common ambiguities but none involving analysis verbs applied to planning artifacts.
+**Why it happens:** The dispatcher's intent mapping table has rows mapping keywords to skills. "Analyse", "evaluate", "critique", "assess", and "deeply review" appear in none of them. When no keyword matches, the agent falls through to the closest semantic match instead of triggering the disambiguation path.
 
 **Evidence:**
-- `.claude/skills/goat/SKILL.md:19-31` → intent mapping table has no row for analyse/evaluate/critique
-- `.claude/skills/goat/SKILL.md:45-55` → disambiguation table lacks "analyse a plan" ambiguity
-- `workflow/skills/goat.md:19-31` → same gap in the template version
+- `.claude/skills/goat/SKILL.md` → intent mapping table has no row for analyse/evaluate/critique
+- `.claude/skills/goat/SKILL.md` → disambiguation table lacks "analyse a plan" ambiguity
+- `workflow/skills/goat.md` → same gap in the template version
 - Real incident: `/goat deeply analyse this plan: tasks/roadmaps/0.9.3/tasks.md` routed to goat-review without asking (2026-03-30)
 
 **Prevention:** Add analysis/evaluation verbs to the disambiguation table (NOT the intent mapping table — they are inherently ambiguous). When the target is a planning artifact (path contains `roadmap`, `plan`, `todo`, `milestone`), always present goat-review vs goat-plan as options. The dispatcher's job is to route clearly and ask when unclear — not to guess.

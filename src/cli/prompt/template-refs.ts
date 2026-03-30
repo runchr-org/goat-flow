@@ -127,6 +127,7 @@ function getFoundationHooks(agentId: AgentId): TemplateRef[] {
 
 /** Ordered list of the 6 goat-flow skill template sources (5 + dispatcher) */
 const SKILL_TEMPLATES = [
+  'workflow/skills/goat.md',
   'workflow/skills/goat-debug.md',
   'workflow/skills/goat-plan.md',
   'workflow/skills/goat-review.md',
