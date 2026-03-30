@@ -194,3 +194,53 @@ When one of those changes without the others, the setup guidance stops matching 
 **Prevention:** Add analysis/evaluation verbs to the disambiguation table (NOT the intent mapping table — they are inherently ambiguous). When the target is a planning artifact (path contains `roadmap`, `plan`, `todo`, `milestone`), always present goat-review vs goat-plan as options. The dispatcher's job is to route clearly and ask when unclear — not to guess.
 
 **Created:** 2026-03-30
+
+## Footgun: Setup adds skills but never removes them
+
+**Evidence type:** ACTUAL_MEASURED
+
+**Symptoms:** After upgrading goat-flow (e.g., 0.9.0 → 0.9.3), projects end up with 13 skill directories instead of 6. The scanner scores 100% because it only checks the 6 canonical skills — the 7 stale ones are invisible. The dispatcher routes to old skill names. The router table references skills that should have been merged as modes.
+
+**Why it happens:** The setup prompt (AP15 fragment) says "update outdated skills" but never says "delete skills that no longer exist in the canonical set." The scanner has no check for non-canonical skill directories. The agent does exactly what it's told — updates 6 skills, leaves 7 untouched.
+
+**Evidence:**
+- `src/cli/prompt/fragments/anti-patterns.ts` → AP15 fragment only instructs "update," not "remove"
+- devgoat-bash-scripts: 13 skills after upgrade (7 stale at v0.9.0)
+- blundergoat-platform: 13 skills after upgrade (same pattern)
+
+**Prevention:** Setup must explicitly list old goat-flow skill names to delete during upgrade: goat-investigate, goat-simplify, goat-refactor, goat-audit, goat-onboard, goat-reflect, goat-resume, goat-context. The scanner should warn about non-canonical goat-* directories.
+
+**Created:** 2026-03-31
+
+## Footgun: Scanner reports enforcement features it didn't detect
+
+**Evidence type:** ACTUAL_MEASURED
+
+**Symptoms:** Scanner gives Codex full marks for deny hook quality (jq parsing, chaining detection, compaction hook) when the Codex enforcement is actually a Starlark execpolicy file — a completely different format that doesn't use jq or split on &&/||/;.
+
+**Why it happens:** `src/cli/facts/agent.ts` hardcodes `denyUsesJq = true` and `denyHandlesChaining = true` for execpolicy agents, and treats `session_start` hooks as compaction hooks. These are assumptions, not detections. The scanner reports them as facts.
+
+**Evidence:**
+- `src/cli/facts/agent.ts` → hardcoded assumptions for Codex enforcement quality
+- goat-flow Codex self-review (66/100): "the scanner fakes Codex compaction and deny-hook properties"
+
+**Prevention:** Only report what's actually detected from file content. If a Starlark file exists, report it exists — don't assume it has properties that only apply to bash hooks.
+
+**Created:** 2026-03-31
+
+## Footgun: Workflow skill templates lag behind installed skills
+
+**Evidence type:** ACTUAL_MEASURED
+
+**Symptoms:** Consumer projects running `npx goat-flow setup` get templates at v0.9.2 while the package is v0.9.3. The setup agent writes "0.9.2" from the template, the scanner flags it as outdated, and the agent has to do a second pass to fix every skill to "0.9.3."
+
+**Why it happens:** The `workflow/skills/*.md` templates are the source of truth for consumer projects. When goat-flow's own installed skills (`.claude/skills/`) get updated, the templates don't automatically follow. The npm publish script doesn't verify template versions match `RUBRIC_VERSION`.
+
+**Evidence:**
+- `workflow/skills/goat-debug.md` → frontmatter version lagging behind `.claude/skills/goat-debug/SKILL.md`
+- devgoat-bash-scripts review: "templates ship with 0.9.2 but scanner expects 0.9.3"
+- halaxy-cypress review: "skill version mismatch between templates and installed package"
+
+**Prevention:** npm publish script or preflight must verify all `workflow/skills/*.md` files have `goat-flow-skill-version` matching `RUBRIC_VERSION`. Fail the publish if they don't match.
+
+**Created:** 2026-03-31

@@ -103,7 +103,28 @@ _Entries: "Skill session logs are never written"_
 
 Rules that fire after the agent has delivered its primary output have near-zero compliance. The agent's attention is on the deliverable, not the closing checklist. Session logging, learning loop updates, and handoff notes all suffer from this. Prevention must be structural: either make the closing step part of the output format (so it happens DURING delivery, not after), or enforce it via hooks/DoD gates that block completion.
 
-### Dispatcher is a first-class skill, not a helper
-The goat dispatcher was treated as secondary to the "real" 8 skills — excluded from CANONICAL_SKILLS, eval diversity counting (TOTAL_SKILLS=8), and consistently under-counted in comments and recommendations ("8 canonical skills"). This led to inconsistencies across rubric, fragments, and docs where some said 8 and others said 9.
+### Skill consolidation requires a full grep after every merge
+**What happened:** Consolidated 9 skills to 6 (v0.9.3). Updated .claude/skills, scanner constants, test fixtures, docs, evals. Missed: .agents/skills still had old skill content, .github/skills still had old dirs, 16+ files still said "9 skills", setup fragments still referenced old skill names, CI still validated old skill list. External reviewers found all of these. Required 3 rounds of fixes.
 
-**Prevention:** The dispatcher routes all `/goat` invocations and has its own evals, failure modes, and structured output. Count it as the 9th canonical skill everywhere: CANONICAL_SKILLS set, TOTAL_SKILLS constant, rubric messages, fragment instructions, and anti-pattern recommendations.
+**Root cause:** Treated skill merge as "delete old dirs + update a few constants." Didn't grep for ALL references to old skill names across the full repo. The same lesson as "Removing a concept requires full-repo grep" but at a larger scale.
+
+**Prevention:** After any skill rename/merge/delete: (1) grep entire repo for every old name, (2) check all 3 agent dirs (.claude/, .agents/, .github/), (3) check scanner constants + types + anti-patterns + fragments + template-refs, (4) check test fixtures, (5) run the full test suite + scanner. Don't trust "it builds and tests pass" — read the changed files.
+
+**created_at:** 2026-03-30
+
+### Scanner 100% does not mean the project is correct
+**What happened:** goat-flow scored 100% on its own scanner while preflight-checks.sh failed with 8 errors. Scanner checked structural presence (files exist, have right headings). Preflight checked functional correctness (commands work, paths resolve, versions match). The two tools disagreed about the repo's health.
+
+**Root cause:** Scanner and preflight check different things. Neither is authoritative for the other's concerns. "100% scanner score" became a proxy for "everything is fine" when it only means "the skeleton is correct."
+
+**Prevention:** Don't treat scanner score as a quality gate for the whole project. Use it for what it checks (structure) and preflight for what it checks (function). When they disagree, investigate — the more specific tool is usually right.
+
+**created_at:** 2026-03-31
+
+### Dispatcher is a first-class skill, not a helper
+
+**Status:** RESOLVED in v0.9.3. Dispatcher added to SKILL_NAMES. All counts updated to 6 (5 + dispatcher).
+
+The goat dispatcher was treated as secondary to the "real" skills — excluded from CANONICAL_SKILLS and consistently under-counted. This led to inconsistencies across 15+ files.
+
+**Prevention:** Count the dispatcher in every enumeration of canonical skills.
