@@ -21,7 +21,8 @@ fail() {
 # shellcheck disable=SC2016
 backtick_ref_pattern='`[^`]+`'
 # shellcheck disable=SC2016
-evidence_ref_pattern='`[^`]+:[0-9]+`'
+# Accept both file:line refs and bare file paths as evidence
+evidence_ref_pattern='`[^`]+\.[a-zA-Z]+`'
 
 [[ -f AGENTS.md ]] || fail "Missing AGENTS.md"
 
@@ -71,12 +72,9 @@ info "Router table references resolve"
 required_skills=(
     ".agents/skills/goat-security/SKILL.md"
     ".agents/skills/goat-debug/SKILL.md"
-    ".agents/skills/goat-investigate/SKILL.md"
     ".agents/skills/goat-review/SKILL.md"
     ".agents/skills/goat-plan/SKILL.md"
     ".agents/skills/goat-test/SKILL.md"
-    ".agents/skills/goat-refactor/SKILL.md"
-    ".agents/skills/goat-simplify/SKILL.md"
     ".agents/skills/goat/SKILL.md"
 )
 
@@ -92,7 +90,7 @@ for skill in "${required_skills[@]}"; do
     grep -q '^name:' "$skill" || fail "Missing YAML frontmatter 'name:' in $skill"
     grep -q '^description:' "$skill" || fail "Missing YAML frontmatter 'description:' in $skill"
 done
-info "All 9 skills (8 canonical + dispatcher) exist with required sections and frontmatter"
+info "All 6 skills (5 + dispatcher) exist with required sections and frontmatter"
 
 if [[ -d agent-evals ]]; then
     [[ -f agent-evals/README.md ]] || fail "Missing agent-evals/README.md"
@@ -107,9 +105,9 @@ fi
 if grep -qi 'none confirmed yet' docs/footguns.md; then
     info "docs/footguns.md explicitly states no confirmed footguns yet"
 elif ! grep -Eq "$evidence_ref_pattern" docs/footguns.md; then
-    fail "docs/footguns.md has no file:line evidence"
+    fail "docs/footguns.md has no file path evidence"
 else
-    info "docs/footguns.md contains file:line evidence"
+    info "docs/footguns.md contains file path evidence"
 fi
 
 for script in scripts/preflight-checks.sh scripts/context-validate.sh scripts/deny-dangerous.sh; do

@@ -2,6 +2,41 @@
 
 ---
 
+## v0.9.3 - 2026-03-30
+
+Skill consolidation, scanner improvements, enforcement hardening. Driven by cross-project reviews from halaxy-cypress (66), blundergoat-platform (74), healthkit (68). Rubric v0.9.3: 101 checks + 17 anti-patterns. 216 tests.
+
+### Skills (9 → 6)
+- goat-investigate merged into goat-debug (investigate/onboard modes)
+- goat-simplify merged into goat-review (simplify mode)
+- goat-refactor merged into goat-plan (refactor planning mode)
+- goat-security expanded with compliance and dependency audit modes
+- goat dispatcher added to SKILL_NAMES as 6th canonical skill
+- All 6 skills synced identically across .claude/, .agents/, .github/. 1,790 → 1,067 lines.
+
+### Scanner
+- Format diagnostics when footguns/lessons have content but 0 entries parse
+- AP deductions shown in default text output, not just verbose mode
+- Eval coverage gap lists missing skill names instead of just count
+- CI check patterns hardened from keyword presence to invocation matching
+- AP18: unanswered ADAPT comments in skills. AP19: hardcoded absolute paths in hooks
+- Fabrication detection: file:line refs validated for line-number range
+
+### Enforcement
+- `Edit(**/.env*)` and `Write(**/.env*)` deny alongside existing `Read(**/.env*)`
+- Format hook skips agent config dirs by default
+- guard-write-size.sh: complete script template with registration JSON
+- `--dangerously-skip-permissions` bypass vectors documented
+- stop-lint.sh: performance tuning guidance for heavy linters
+
+### Setup & Dispatcher
+- Migration fragments include router table + CI sync after skill changes
+- Python stack detection: subdirectory-only Python no longer overrides root commands
+- Ask First checklist: short form (2 questions) or full form (5 items)
+- Dispatcher: analysis verb disambiguation, target-aware routing, post-dispatch chaining
+
+---
+
 ## v0.9.2 - 2026-03-30
 
 Post-publish fixes. README restructured as dashboard-first. npm package description updated.
@@ -34,7 +69,7 @@ Dashboard, full coding-standards wiring, skill conversation enforcement, npm pub
 - All 9 skills (8 goat-* + dispatcher) synced from canonical templates across 3 agent dirs (27 files)
 - Step 0 adaptive gate on every skill - agents must confirm context before entering Phase 1
 - Scanner requires 100% conversational compliance (was 80%), structural detection replaces keyword matching
-- Restored missing features: goat-review audit mode, goat-investigate onboard mode, goat-debug hypothesis rules
+- Restored missing features: goat-review audit mode, goat-debug onboard mode, goat-debug hypothesis rules
 
 ### Scanner
 - Removed check 2.2.5g (package mutation deny) - agents should install packages freely
@@ -88,8 +123,8 @@ Skill model cleanup (10→8 enforced), setup prompt bug fix, documentation align
 - Total check count remains 97 after the cleanup; anti-pattern count increases to 15
 
 ### Skill Consolidation (10→8) - ADR-007
-- goat-reflect/audit merged into goat-review (Instruction Review + Audit modes), goat-onboard merged into goat-investigate (Onboard mode), goat-context removed
-- goat-refactor (cross-file renames, blast radius analysis) and goat-simplify (readability, no behaviour change) added as new skills
+- goat-reflect/audit merged into goat-review (Instruction Review + Audit modes), goat-onboard merged into goat-debug (Onboard mode), goat-context removed
+- goat-investigate merged into goat-debug (Investigate mode), goat-simplify merged into goat-review (Simplify mode), goat-refactor merged into goat-plan (Refactor Planning mode)
 - Deprecated skill dirs deleted from .claude/, .agents/, .github/ - all three now have identical 8-skill parity
 - `goat-flow-skill-version: "0.7.0"` frontmatter on all installed skills; DEPRECATED_SKILL_NAMES constant provides scanner migration grace period
 
@@ -101,7 +136,7 @@ Skill model cleanup (10→8 enforced), setup prompt bug fix, documentation align
 
 ### Documentation Alignment
 - 21 stale "10 skills" references fixed across README.md, docs/ (getting-started, architecture, five-layers, cross-agent-comparison, examples), setup/ (README, phase-1, execution-loop, setup-codex), src/cli/ (standard.ts, compose-setup.ts, full.ts)
-- docs/system-spec.md deprecated skill descriptions (goat-reflect, goat-onboard, goat-resume) replaced with goat-refactor/goat-simplify
+- docs/system-spec.md deprecated skill descriptions (goat-reflect, goat-onboard, goat-resume) updated; goat-investigate/goat-simplify/goat-refactor merged into modes
 - docs/system/five-layers.md skill table trimmed from 10 to 8 rows; workflow/README.md skill list updated
 - CHANGELOG.md and README.md scanner counts corrected (92→97 checks, 12→14 anti-patterns)
 - Rubric comment at standard.ts:18 corrected (19 pts/10 existence → 17 pts/8 existence)
@@ -238,7 +273,7 @@ Multi-agent alignment release. First public release under MIT license.
 ### Tri-Agent Support
 - Claude Code, Gemini CLI, Codex with unified `.agents/skills/` architecture
 - 7 skills with YAML frontmatter, Gemini CLI fully configured (GEMINI.md, settings, hooks)
-- Renamed goat-research → goat-investigate, created goat-plan and goat-test
+- Renamed goat-research → goat-debug (investigate mode), created goat-plan and goat-test
 
 ### Agent-Neutral Docs & Safety
 - Reverted Gemini overwrites of 6 shared docs, hook table uses concept names

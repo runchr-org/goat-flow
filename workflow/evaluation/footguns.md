@@ -38,8 +38,8 @@ FORMAT - every entry MUST follow this structure:
 **Symptoms:** [what a human sees go wrong]
 **Why it happens:** [the hidden coupling or drift]
 **Evidence:**
-- `path/to/file.ext:NN` -> [what this line shows]
-- `path/to/other.ext:NN` -> [what this line shows]
+- `path/to/file.ext` → [what this file contains that demonstrates the trap]
+- `path/to/other.ext` → [what this file contains]
 **Prevention:** [how to avoid or verify against it]
 **Created:** YYYY-MM-DD
 
@@ -48,7 +48,7 @@ entry and add:
 **Status:** RESOLVED - [short reason]
 
 RULES:
-- Every entry MUST include file:line evidence pointing to REAL code
+- Every entry MUST include file path evidence pointing to REAL code. Line numbers are optional historical context.
 - Do NOT invent hypothetical footguns
 - Do NOT include generic advice like "write tests" or "review carefully"
 - Every footgun must be SPECIFIC to THIS codebase
@@ -63,7 +63,7 @@ file may be needed for that directory (Layer 2 local context).
 
 VERIFICATION:
 - Verify docs/footguns.md exists
-- Verify every entry has file:line references under Evidence
+- Verify every entry has file path references under Evidence
 - Verify every new entry has Evidence type, Symptoms, Why it happens,
   Prevention, and Created
 - If merged with existing: verify no confirmed entry was removed without

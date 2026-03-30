@@ -1,17 +1,17 @@
 import type { SharedFacts, ReadonlyFS } from '../types.js';
 
 /**
- * Matches file:line evidence in multiple formats:
- * - `src/auth.ts:42` (backtick-wrapped)
+ * Matches file path evidence in multiple formats:
+ * - `src/auth.ts` (backtick-wrapped file path)
+ * - `src/auth.ts:42` (backtick-wrapped with line number)
  * - `src/auth.ts:42-50` (backtick-wrapped with line range)
- * - `src/auth.ts:42,86-94` (backtick-wrapped with comma-separated ranges)
  * - (lines 866-880) or (line 52) (prose-style)
- * - `src/auth.ts` (lines 42-50) (backtick path + prose line)
+ * Line numbers are optional historical context — file paths alone are valid evidence.
  */
-const EVIDENCE_PATTERN = /`[^`]+:[0-9]+(?:[-,][0-9]+)*`|\(lines?\s+[0-9]+/;
+const EVIDENCE_PATTERN = /`[^`]+\.[a-zA-Z]{1,10}(?::[0-9]+(?:[-,][0-9]+)*)?`|\(lines?\s+[0-9]+/;
 
-/** Regex to extract file paths from backtick-wrapped file:line references (with optional ranges). */
-const FILE_REF_REGEX = /`([^`]+):[0-9]+(?:[-,][0-9]+)*`/g;
+/** Regex to extract file paths from backtick-wrapped references (with optional line numbers). */
+const FILE_REF_REGEX = /`([^`]+\.[a-zA-Z]{1,10})(?::[0-9]+(?:[-,][0-9]+)*)?`/g;
 
 /** Check if a backtick-wrapped file:line reference is a real file path (not a URL/hostname) */
 function isFileRef(filePath: string): boolean {
@@ -58,6 +58,13 @@ function extractFootgunFacts(fs: ReadonlyFS): SharedFacts['footguns'] {
     (footgunsContent.match(/^## Footgun:/gm)?.length ?? 0) +
     (footgunsContent.match(/^### .{5,}/gm)?.length ?? 0)
   ) : 0;
+  // Diagnostic: detect when file has content but no entries parsed (wrong heading format)
+  let formatDiagnostic: string | null = null;
+  if (exists && footgunsContent && entryCount === 0 && footgunsContent.trim().length > 50) {
+    const allHeadings = footgunsContent.match(/^#{2,3} .+/gm) ?? [];
+    const sample = allHeadings.slice(0, 3).map(h => `"${h}"`).join(', ');
+    formatDiagnostic = `File has content but 0 entries detected. Expected heading format: "## Footgun: [title]" or "### [title]" (5+ chars). Found headings: ${sample || '(none)'}`;
+  }
   /** Number of explicit evidence type labels in the file */
   const labelCount = footgunsContent ? (footgunsContent.match(/^\*\*Evidence type:\*\*/gm)?.length ?? 0) : 0;
   // Check for real file:line evidence (filter out URLs/hostnames before deciding)
@@ -91,13 +98,17 @@ function extractFootgunFacts(fs: ReadonlyFS): SharedFacts['footguns'] {
     }
   }
   // Validate that referenced files still exist on disk.
-  // Skip bare source filenames (e.g., `router.go:335`) that can't be resolved
-  // from the project root - they're valid evidence but not checkable for staleness.
+  // Line numbers in footguns are historical context — they rot and don't need updating.
+  // Only check file existence, not line-number accuracy.
   const staleRefs: string[] = [];
   let totalRefs = 0;
   let validRefs = 0;
   if (footgunsContent) {
-    const fileRefs = footgunsContent.matchAll(new RegExp(FILE_REF_REGEX.source, 'g'));
+    // For stale ref checking, only match file:line refs (not bare paths).
+    // Bare file paths in footgun evidence often document files that WERE renamed/deleted
+    // (that's the footgun). Only file:line refs indicate live code references worth validating.
+    const STALE_REF_REGEX = /`([^`]+):[0-9]+(?:[-,][0-9]+)*`/g;
+    const fileRefs = footgunsContent.matchAll(STALE_REF_REGEX);
     for (const match of fileRefs) {
       const filePath = match[1];
       if (filePath === undefined) continue;
@@ -121,6 +132,7 @@ function extractFootgunFacts(fs: ReadonlyFS): SharedFacts['footguns'] {
     staleRefs,
     totalRefs,
     validRefs,
+    formatDiagnostic,
   };
 }
 
@@ -134,6 +146,7 @@ function extractLessonsFacts(fs: ReadonlyFS): SharedFacts['lessons'] {
   let hasEntries = false;
   let entryCount = 0;
 
+  let formatDiagnostic: string | null = null;
   if (exists) {
     // Strip HTML comments before checking for entries
     const stripped = lessonsContent.replace(/<!--[\s\S]*?-->/g, '');
@@ -142,6 +155,12 @@ function extractLessonsFacts(fs: ReadonlyFS): SharedFacts['lessons'] {
     const matches = stripped.match(h3Pattern);
     entryCount = matches ? matches.length : 0;
     hasEntries = entryCount > 0;
+    // Diagnostic: detect when file has content but no entries parsed (wrong heading format)
+    if (entryCount === 0 && lessonsContent.trim().length > 50) {
+      const allHeadings = lessonsContent.match(/^#{2,3} .+/gm) ?? [];
+      const sample = allHeadings.slice(0, 3).map(h => `"${h}"`).join(', ');
+      formatDiagnostic = `File has content but 0 entries detected. Expected heading format: "### [title]" followed by 20+ chars of content on the next line. Found headings: ${sample || '(none)'}`;
+    }
   }
 
   // Check for stale file references in lessons
@@ -156,7 +175,7 @@ function extractLessonsFacts(fs: ReadonlyFS): SharedFacts['lessons'] {
     }
   }
 
-  return { exists, hasEntries, entryCount, staleRefs };
+  return { exists, hasEntries, entryCount, staleRefs, formatDiagnostic };
 }
 
 /** Extract eval facts: directory, file count, replay prompts, origin labels, skill coverage. */
@@ -171,11 +190,11 @@ function extractEvalFacts(fs: ReadonlyFS): SharedFacts['evals'] {
   const hasReadme = dirExists && fs.exists('agent-evals/README.md');
 
   if (count === 0) {
-    return { dirExists, count, hasReadme, hasOriginLabels: false, hasAgentsLabels: false, hasReplayPrompts: false, hasFrontmatter: false, evalSkillCount: 0 };
+    return { dirExists, count, hasReadme, hasOriginLabels: false, hasAgentsLabels: false, hasReplayPrompts: false, hasFrontmatter: false, evalSkillCount: 0, missingSkills: [] };
   }
 
-  /** The 9 canonical goat-flow skills (including dispatcher) - only these count toward eval diversity */
-  const CANONICAL_SKILLS = new Set(['goat', 'goat-debug', 'goat-investigate', 'goat-plan', 'goat-refactor', 'goat-review', 'goat-security', 'goat-simplify', 'goat-test']);
+  /** The 6 canonical goat-flow skills (5 + dispatcher) */
+  const CANONICAL_SKILLS = new Set(['goat', 'goat-debug', 'goat-review', 'goat-plan', 'goat-security', 'goat-test']);
   /** Canonical skills with at least one eval */
   const skillNames = new Set<string>();
   /** Track whether all eval files pass origin/replay/agents/frontmatter checks */
@@ -206,7 +225,8 @@ function extractEvalFacts(fs: ReadonlyFS): SharedFacts['evals'] {
       if (name && CANONICAL_SKILLS.has(name)) skillNames.add(name);
     }
   }
-  return { dirExists, count, hasReadme, hasOriginLabels: allHaveOrigin, hasAgentsLabels: allHaveAgents, hasReplayPrompts: allHaveReplay, hasFrontmatter: allHaveFrontmatter, evalSkillCount: skillNames.size };
+  const missingSkills = Array.from(CANONICAL_SKILLS).filter(skill => !skillNames.has(skill)).sort();
+  return { dirExists, count, hasReadme, hasOriginLabels: allHaveOrigin, hasAgentsLabels: allHaveAgents, hasReplayPrompts: allHaveReplay, hasFrontmatter: allHaveFrontmatter, evalSkillCount: skillNames.size, missingSkills };
 }
 
 /** Extract project-wide shared facts from docs, evals, CI, and config files. */
@@ -256,9 +276,13 @@ export function extractSharedFacts(fs: ReadonlyFS): SharedFacts {
     evals: extractEvalFacts(fs),
     ci: {
       workflowExists: ciExists,
-      checksLineCount: ciExists && /wc -l/i.test(ciContent),
-      checksRouter: ciExists && /router/i.test(ciContent),
-      checksSkills: ciExists && /skills/i.test(ciContent),
+      // Hardened checks: look for actual invocations in `run:` blocks, not just keywords
+      // Accept: wc -l in a run block, or context-validate.sh (which does the check)
+      checksLineCount: ciExists && ((/wc\s+-l/i.test(ciContent) && /CLAUDE|AGENTS|GEMINI|\.md/i.test(ciContent)) || /context-validate/i.test(ciContent)),
+      // Accept: context-validate.sh, or router/reference check in a run block
+      checksRouter: ciExists && (/context-validate/i.test(ciContent) || /router.*resolve|router.*check|router.*ref/i.test(ciContent)),
+      // Accept: goat- pattern in a run block checking skill dirs, or context-validate.sh
+      checksSkills: ciExists && (/context-validate/i.test(ciContent) || /goat-.*SKILL\.md|skills.*goat-/i.test(ciContent)),
       ciTriggersOnPRs: ciExists && /pull_request/i.test(ciContent),
     },
     handoffTemplate: {

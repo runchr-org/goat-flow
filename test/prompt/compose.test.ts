@@ -94,7 +94,7 @@ function buildFullProject() {
       permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
     }),
     ...Object.fromEntries(
-      ['preflight', 'debug', 'audit', 'investigate', 'review', 'plan', 'test'].map(s => [
+      ['preflight', 'debug', 'audit', 'review', 'plan', 'test'].map(s => [
         `.claude/skills/goat-${s}/SKILL.md`, `# goat-${s}\n`,
       ]),
     ),
@@ -843,7 +843,7 @@ describe('M2.14: placeholder npm script edge cases', () => {
 describe('Rubric version consistency', () => {
   it('RUBRIC_VERSION is current', async () => {
     const { RUBRIC_VERSION } = await import('../../src/cli/rubric/version.js');
-    assert.equal(RUBRIC_VERSION, '0.9.2', 'RUBRIC_VERSION should match package version');
+    assert.equal(RUBRIC_VERSION, '0.9.3', 'RUBRIC_VERSION should match package version');
   });
 });
 

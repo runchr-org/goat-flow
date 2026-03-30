@@ -1,6 +1,6 @@
 {
   "name": "@blundergoat/goat-flow",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "CLI scanner, dashboard, and setup generator for GOAT Flow AI coding agent workflows",
   "author": {
     "name": "Matthew Hansen",
@@ -36,7 +36,7 @@
     "workflow"
   ],
   "engines": {
-    "node": ">=20.6.0"
+    "node": ">=20.11.0"
   },
   "scripts": {
     "build": "tsc && mkdir -p dist/dashboard && cp src/dashboard/index.html dist/dashboard/index.html",
