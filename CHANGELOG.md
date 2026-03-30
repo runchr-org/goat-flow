@@ -2,6 +2,61 @@
 
 ---
 
+## v0.9.3 - 2026-03-30
+
+Skill consolidation, scanner improvements, enforcement hardening. Driven by cross-project reviews from halaxy-cypress (66→target 80+), blundergoat-platform (74→target 85+), healthkit (68→target 80+).
+
+### Skill Consolidation (9 → 6)
+- goat-investigate merged into goat-debug (investigate/onboard modes)
+- goat-simplify merged into goat-review (simplify mode)
+- goat-refactor merged into goat-plan (refactor planning mode)
+- goat-security expanded with compliance and dependency audit modes
+- goat dispatcher added to SKILL_NAMES as 6th canonical skill
+- All deprecated/backwards-compat infrastructure removed (no DEPRECATED_SKILL_NAMES, no AP16)
+- All 6 skills synced identically across .claude/, .agents/, .github/
+- Total skill lines: 1,790 → 1,067 (40% reduction)
+
+### Scanner
+- Format diagnostics: when footguns/lessons have content but 0 entries parse, shows expected format + found headings
+- AP deduction transparency: triggered anti-patterns shown in default text output, not just verbose mode
+- Eval coverage gap: lists missing skill names ("Missing: goat-plan, goat-security") instead of just "5/6 covered"
+- CI check patterns hardened from keyword presence to invocation matching (context-validate.sh or actual commands)
+- AP18: detect unanswered `<!-- ADAPT: -->` comments in installed skills (-2 pts)
+- AP19: detect hardcoded absolute paths in hook scripts (-2 pts)
+- Fabrication detection: file:line refs validated for line-number range (out-of-range = stale)
+- Eval partial threshold adjusted for 6-skill model (>= 4 → >= 3)
+- Rubric: 101 checks + 17 anti-patterns. 216 tests.
+
+### Enforcement Templates
+- Add `Edit(**/.env*)` and `Write(**/.env*)` deny alongside existing `Read(**/.env*)`
+- Format hook must skip agent config dirs by default (`.claude/`, `.gemini/`, etc.)
+- `--dangerously-skip-permissions` bypass vectors documented (what survives, what doesn't)
+- Bash glob deny breadth documented as known safety-first trade-off
+- guard-write-size.sh: complete copy-paste script template with registration JSON
+- stop-lint.sh: performance tuning guidance (scope heavy linters to changed files)
+- Session log reminder Stop hook template
+
+### Setup
+- AP15 migration fragments include router table + CI sync after skill changes
+- Subshell bug warning in CI router-check template (don't use `grep | while read`)
+- Python stack detection: subdirectory-only Python no longer overrides root-level commands
+- Permission restriction warning in "Before you start" section
+- Ask First checklist: short form (2 questions) for most projects, full form (5 items) for PHI/compliance
+- Skill closing protocol: session logging moved to FIRST action, not afterthought
+- tasks/logs/sessions/ directory creation added to setup full phase
+
+### Dispatcher
+- Analysis verb disambiguation (analyse/evaluate/critique → ask review vs plan)
+- Target-aware routing (file path signals inform skill selection)
+- Post-dispatch chaining suggestions after skill completion
+- Open-ended fallback on all disambiguation questions ("or tell me more")
+
+### Testing
+- 23 hook regression tests for deny-dangerous.sh (blocks, allows, sed fallback, known limitations)
+- 216 total tests, 100% scanner score across all 3 agents
+
+---
+
 ## v0.9.2 - 2026-03-30
 
 Post-publish fixes. README restructured as dashboard-first. npm package description updated.
