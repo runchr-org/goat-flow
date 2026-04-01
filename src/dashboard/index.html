@@ -99,6 +99,14 @@
       </div>
       <p x-show="toast" x-transition.opacity class="text-xs" :class="toastError ? 'text-red-500' : 'text-green-600 dark:text-green-400'" x-text="toast"></p>
 
+      <!-- View Toggle -->
+      <div class="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 mt-2">
+        <button @click="activeView = 'scan'" :class="activeView === 'scan' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''"
+          class="flex-1 px-2 py-1 text-xs font-medium rounded-md transition-colors">Scanner</button>
+        <button @click="activeView = 'launcher'" :class="activeView === 'launcher' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''"
+          class="flex-1 px-2 py-1 text-xs font-medium rounded-md transition-colors">Launcher</button>
+      </div>
+
       <!-- Folder Browser -->
       <div x-show="showBrowser" x-cloak class="mt-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 max-h-52 overflow-y-auto">
         <div class="px-2 py-1.5 border-b border-gray-200 dark:border-gray-700 flex items-center gap-1">
@@ -152,6 +160,42 @@
         <span class="text-sm font-medium">Scanning...</span>
       </div>
     </div>
+
+    <!-- ═══ Launcher View ═══ -->
+    <div x-show="activeView === 'launcher'" x-cloak class="max-w-4xl mx-auto space-y-6">
+      <div>
+        <h2 class="text-2xl font-bold">Launcher</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Browse prompt recipes. Click to copy. Paste in your terminal.</p>
+      </div>
+
+      <!-- Category Filter -->
+      <div class="flex flex-wrap gap-1.5">
+        <template x-for="cat in presetCats" :key="cat.id">
+          <button @click="presetFilter = cat.id"
+            :class="presetFilter === cat.id ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'"
+            class="px-3 py-1 text-xs font-medium rounded-full transition-colors" x-text="cat.label"></button>
+        </template>
+      </div>
+
+      <!-- Preset Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <template x-for="preset in filteredPresets" :key="preset.id">
+          <button @click="copyPreset(preset.prompt)" @keydown.enter="copyPreset(preset.prompt)"
+            class="text-left p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400" x-text="preset.name"></h3>
+              <span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 shrink-0" x-text="preset.cat"></span>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-2" x-text="preset.desc"></p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-2 font-mono truncate" x-text="preset.prompt"></p>
+          </button>
+        </template>
+        <p x-show="filteredPresets.length === 0" class="col-span-full text-sm text-gray-400 dark:text-gray-500 text-center py-8">No presets in this category.</p>
+      </div>
+    </div>
+
+    <!-- ═══ Scan View ═══ -->
+    <div x-show="activeView === 'scan'">
 
     <!-- No Data -->
     <div x-show="!report && !setupOutput && !scanning" class="flex items-center justify-center h-full">
@@ -582,42 +626,64 @@
         <p class="text-sm text-gray-500">Click <strong>Setup</strong> to generate setup instructions</p>
       </div>
     </div>
+
+    </div><!-- /scan view -->
   </main>
 </div>
 
+<!-- Preset data (separate file for easy editing) -->
+<script src="/assets/presets.js"></script>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     App: State + Init
+     ═══════════════════════════════════════════════════════════════════ -->
 <script>
+const STATUS_ORDER = { fail: 0, partial: 1, pass: 2, na: 3 };
+
 function app() {
-  const STATUS_ORDER = { fail: 0, partial: 1, pass: 2, na: 3 };
   return {
+    // --- Core state ---
     report: window.__GOAT_FLOW_REPORT__ || null,
     selectedAgent: window.__GOAT_FLOW_REPORT__?.agents?.[0]?.agent || null,
     projectPath: window.__GOAT_FLOW_DEFAULT_PATH__ || '.',
     darkMode: localStorage.getItem('gf-dark') === 'true' || (!localStorage.getItem('gf-dark') && window.matchMedia('(prefers-color-scheme: dark)').matches),
     scanning: false, toast: '', toastError: false, setupOutput: '', copyLabel: 'Copy', sidebarOpen: false, srAnnouncement: '',
+    activeView: 'scan',
     showBrowser: false, browserCurrent: '', browserParent: '', browserDirs: [],
-    // Tabs + filters
+
+    // --- Scanner state ---
     activeTab: 'overview',
     filterTier: 'all',
     filterStatuses: ['fail', 'partial', 'pass', 'na'],
     searchQuery: '',
     expandedChecks: [],
-    // M05.3: compare
     showDivergencesOnly: false,
-    // M05.4: fixes
     selectedFixes: [],
     fixCopyLabel: 'Copy fixes',
 
+    // --- Launcher state ---
+    presets: PRESETS,
+    presetFilter: 'all',
+    get presetCats() {
+      const cats = new Map();
+      for (const p of this.presets) if (!cats.has(p.cat)) cats.set(p.cat, p.cat.charAt(0).toUpperCase() + p.cat.slice(1));
+      return [{ id: 'all', label: 'All' }, ...Array.from(cats, ([id, label]) => ({ id, label }))];
+    },
+    get filteredPresets() {
+      return this.presetFilter === 'all' ? this.presets : this.presets.filter(p => p.cat === this.presetFilter);
+    },
+    copyPreset(prompt) { this.copyText(prompt); this.showToast('Copied! Paste in your terminal.', false); },
+
+    // --- Init ---
     init() {
       this.$watch('darkMode', v => localStorage.setItem('gf-dark', v));
       if (location.protocol === 'http:' || location.protocol === 'https:') this.runScan();
-      // Global keyboard shortcuts
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape') { this.sidebarOpen = false; this.showBrowser = false; }
         if (e.key === '1' && e.altKey) this.activeTab = 'overview';
         if (e.key === '2' && e.altKey) this.activeTab = 'checks';
         if (e.key === '3' && e.altKey && (this.report?.agents?.length || 0) > 1) this.activeTab = 'compare';
         if (e.key === '4' && e.altKey) this.activeTab = 'fixes';
-        // Arrow keys in check list
         if (this.activeTab === 'checks' && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
           const btns = [...document.querySelectorAll('[aria-expanded]')];
           if (btns.length === 0) return;
@@ -629,7 +695,7 @@ function app() {
       });
     },
 
-    // --- API calls ---
+    // ── API Calls ──────────────────────────────────────────────────
     async runScan() {
       this.scanning = true; this.toast = ''; this.setupOutput = '';
       try {
@@ -659,8 +725,20 @@ function app() {
       } catch (err) { this.showToast(err.message || 'Setup failed', true); }
       this.scanning = false;
     },
+    async runSetupFor(agentId) {
+      this.scanning = true; this.toast = '';
+      try {
+        const res = await fetch(`/api/setup?path=${encodeURIComponent(this.projectPath)}&agent=${agentId}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        this.setupOutput = data.output;
+        this.selectedAgent = null;
+        this.showToast(`Setup generated for ${agentId}`, false);
+      } catch (err) { this.showToast(err.message || 'Setup failed', true); }
+      this.scanning = false;
+    },
 
-    // --- Folder browser ---
+    // ── Folder Browser ─────────────────────────────────────────────
     async openBrowser() { this.showBrowser = !this.showBrowser; if (this.showBrowser) await this.browseTo(this.projectPath); },
     async browseTo(path) {
       try {
@@ -675,7 +753,7 @@ function app() {
       else this.browseTo(dir.path);
     },
 
-    // --- Clipboard ---
+    // ── Clipboard + Toast ──────────────────────────────────────────
     copyText(text) {
       const el = document.createElement('textarea'); el.value = text; el.style.position = 'fixed'; el.style.opacity = '0';
       document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
@@ -683,7 +761,7 @@ function app() {
     },
     showToast(msg, isError) { this.toast = msg; this.toastError = isError; setTimeout(() => this.toast = '', 4000); },
 
-    // --- Check filtering ---
+    // ── Check Filtering ────────────────────────────────────────────
     toggleStatus(s) {
       if (this.filterStatuses.includes(s)) this.filterStatuses = this.filterStatuses.filter(x => x !== s);
       else this.filterStatuses = [...this.filterStatuses, s];
@@ -697,34 +775,14 @@ function app() {
       return { fail: 'bg-red-600 text-white', partial: 'bg-amber-500 text-white', pass: 'bg-green-600 text-white', na: 'bg-gray-500 text-white' }[s];
     },
 
-    // --- Computed ---
+    // ── Computed Properties ─────────────────────────────────────────
     get allAgents() {
-      const all = [
-        { id: 'claude', name: 'Claude Code' },
-        { id: 'codex', name: 'Codex' },
-        { id: 'gemini', name: 'Gemini CLI' },
-      ];
-      return all.map(a => {
-        const found = this.report?.agents?.find(r => r.agent === a.id);
-        return { ...a, detected: !!found, grade: found?.score?.grade || null };
-      });
-    },
-    async runSetupFor(agentId) {
-      this.scanning = true; this.toast = '';
-      try {
-        const res = await fetch(`/api/setup?path=${encodeURIComponent(this.projectPath)}&agent=${agentId}`);
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        this.setupOutput = data.output;
-        this.selectedAgent = null;
-        this.showToast(`Setup generated for ${agentId}`, false);
-      } catch (err) { this.showToast(err.message || 'Setup failed', true); }
-      this.scanning = false;
+      const all = [{ id: 'claude', name: 'Claude Code' }, { id: 'codex', name: 'Codex' }, { id: 'gemini', name: 'Gemini CLI' }];
+      return all.map(a => { const found = this.report?.agents?.find(r => r.agent === a.id); return { ...a, detected: !!found, grade: found?.score?.grade || null }; });
     },
     get currentAgent() { return this.report?.agents?.find(a => a.agent === this.selectedAgent) || null; },
     get triggeredAPs() { return this.currentAgent?.antiPatterns?.filter(ap => ap.triggered) || []; },
     get failCount() { return this.currentAgent?.checks?.filter(c => c.status === 'fail' || c.status === 'partial').length || 0; },
-
     get filteredChecks() {
       if (!this.currentAgent) return [];
       let checks = this.currentAgent.checks;
@@ -736,31 +794,17 @@ function app() {
       }
       return checks;
     },
-
     get checkTiers() {
       const tiers = ['foundation', 'standard', 'full'];
       return tiers.map(t => {
         const tierChecks = this.filteredChecks.filter(c => c.tier === t);
-        // Group by category
         const catMap = {};
-        for (const c of tierChecks) {
-          if (!catMap[c.category]) catMap[c.category] = [];
-          catMap[c.category].push(c);
-        }
-        // Sort within each category by status
-        const categories = Object.entries(catMap).map(([name, checks]) => ({
-          name,
-          checks: checks.sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9))
-        }));
-        // Tier totals
+        for (const c of tierChecks) { if (!catMap[c.category]) catMap[c.category] = []; catMap[c.category].push(c); }
+        const categories = Object.entries(catMap).map(([name, checks]) => ({ name, checks: checks.sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9)) }));
         const allTierChecks = this.currentAgent?.checks?.filter(c => c.tier === t) || [];
-        const earned = allTierChecks.reduce((s, c) => s + c.points, 0);
-        const available = allTierChecks.reduce((s, c) => s + c.maxPoints, 0);
-        return { name: t, checks: tierChecks, categories, earned, available };
+        return { name: t, checks: tierChecks, categories, earned: allTierChecks.reduce((s, c) => s + c.points, 0), available: allTierChecks.reduce((s, c) => s + c.maxPoints, 0) };
       });
     },
-
-    // --- Tabs ---
     get tabs() {
       return [
         { id: 'overview', label: 'Overview', badge: 0 },
@@ -770,74 +814,42 @@ function app() {
       ];
     },
 
-    // --- M05.3: Compare ---
-    bestTierPct(tier) {
-      return Math.max(...(this.report?.agents || []).map(a => a.score.tiers[tier]?.percentage || 0));
-    },
-
+    // ── Compare View ───────────────────────────────────────────────
+    bestTierPct(tier) { return Math.max(...(this.report?.agents || []).map(a => a.score.tiers[tier]?.percentage || 0)); },
     get allCompareChecks() {
       if (!this.report || this.report.agents.length < 2) return [];
-      const first = this.report.agents[0];
-      return first.checks.map(c => {
+      return this.report.agents[0].checks.map(c => {
         const statuses = {};
-        for (const a of this.report.agents) {
-          const match = a.checks.find(x => x.id === c.id);
-          statuses[a.agent] = match?.status || 'na';
-        }
-        const vals = Object.values(statuses);
-        const divergent = new Set(vals).size > 1;
-        return { id: c.id, name: c.name, statuses, divergent };
+        for (const a of this.report.agents) { statuses[a.agent] = a.checks.find(x => x.id === c.id)?.status || 'na'; }
+        return { id: c.id, name: c.name, statuses, divergent: new Set(Object.values(statuses)).size > 1 };
       });
     },
-
     get divergentChecks() { return this.allCompareChecks.filter(c => c.divergent); },
-
     get allCompareAPs() {
       if (!this.report || this.report.agents.length < 2) return [];
       const apIds = [...new Set(this.report.agents.flatMap(a => a.antiPatterns.map(ap => ap.id)))];
       return apIds.map(id => {
-        const triggered = {}; const deductions = {};
-        let name = '';
-        for (const a of this.report.agents) {
-          const ap = a.antiPatterns.find(x => x.id === id);
-          triggered[a.agent] = ap?.triggered || false;
-          deductions[a.agent] = ap?.deduction || 0;
-          if (ap) name = ap.name;
-        }
+        const triggered = {}; const deductions = {}; let name = '';
+        for (const a of this.report.agents) { const ap = a.antiPatterns.find(x => x.id === id); triggered[a.agent] = ap?.triggered || false; deductions[a.agent] = ap?.deduction || 0; if (ap) name = ap.name; }
         return { id, name, triggered, deductions };
       });
     },
 
-    // --- M05.4: Fixes ---
+    // ── Fixes View ─────────────────────────────────────────────────
     selectAllFixes() { this.selectedFixes = (this.currentAgent?.recommendations || []).map(r => r.key); },
-    selectCriticalFixes() {
-      this.selectedFixes = (this.currentAgent?.recommendations || [])
-        .filter(r => r.priority === 'critical' || r.priority === 'high').map(r => r.key);
-    },
+    selectCriticalFixes() { this.selectedFixes = (this.currentAgent?.recommendations || []).filter(r => r.priority === 'critical' || r.priority === 'high').map(r => r.key); },
     copyFixes() {
       const lines = [`# Fix list for ${this.currentAgent?.agentName} (${this.report?.target || ''})`, ''];
-      // Always include triggered APs first
       const aps = this.triggeredAPs;
-      if (aps.length > 0) {
-        lines.push('## Blocking: Anti-Pattern Fixes', '');
-        aps.forEach(ap => { lines.push(`- **${ap.id}** (${ap.deduction} pts): ${ap.name}`); lines.push(`  ${ap.message}`); lines.push(''); });
-      }
-      // Then selected recommendations
+      if (aps.length > 0) { lines.push('## Blocking: Anti-Pattern Fixes', ''); aps.forEach(ap => { lines.push(`- **${ap.id}** (${ap.deduction} pts): ${ap.name}`); lines.push(`  ${ap.message}`); lines.push(''); }); }
       const recs = (this.currentAgent?.recommendations || []).filter(r => this.selectedFixes.includes(r.key));
-      if (recs.length > 0) {
-        lines.push('## Recommendations', '');
-        recs.forEach((r, i) => { lines.push(`${i + 1}. **[${r.priority.toUpperCase()}]** ${r.checkId}: ${r.category}`); lines.push(`   ${r.action}`); lines.push(''); });
-      }
+      if (recs.length > 0) { lines.push('## Recommendations', ''); recs.forEach((r, i) => { lines.push(`${i + 1}. **[${r.priority.toUpperCase()}]** ${r.checkId}: ${r.category}`); lines.push(`   ${r.action}`); lines.push(''); }); }
       lines.push(`Verify: \`goat-flow scan ${this.projectPath} --agent ${this.selectedAgent}\``);
       this.copyText(lines.join('\n'));
       this.fixCopyLabel = 'Copied!'; setTimeout(() => this.fixCopyLabel = 'Copy fixes', 2000);
     },
-    copyCLICommand() {
-      this.copyText(`goat-flow setup ${this.projectPath} --agent ${this.selectedAgent || 'claude'}`);
-      this.showToast('CLI command copied', false);
-    },
+    copyCLICommand() { this.copyText(`goat-flow setup ${this.projectPath} --agent ${this.selectedAgent || 'claude'}`); this.showToast('CLI command copied', false); },
     downloadFixes() {
-      // Reuse copyFixes logic but download instead
       const lines = [`# Fix list for ${this.currentAgent?.agentName} (${this.report?.target || ''})`, ''];
       const aps = this.triggeredAPs;
       if (aps.length > 0) { lines.push('## Blocking: Anti-Pattern Fixes', ''); aps.forEach(ap => { lines.push(`- **${ap.id}** (${ap.deduction} pts): ${ap.name}`); lines.push(`  ${ap.message}`); lines.push(''); }); }
@@ -847,14 +859,10 @@ function app() {
       const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `goat-flow-fixes-${this.selectedAgent || 'all'}.md`; a.click(); URL.revokeObjectURL(a.href);
     },
-    getCheckEvidence(agent, checkId) {
-      const c = agent.checks.find(x => x.id === checkId);
-      return c ? { message: c.message || '', evidence: c.evidence || '' } : { message: 'N/A', evidence: '' };
-    },
+    getCheckEvidence(agent, checkId) { const c = agent.checks.find(x => x.id === checkId); return c ? { message: c.message || '', evidence: c.evidence || '' } : { message: 'N/A', evidence: '' }; },
 
-    gradeColor(grade) {
-      return { A: '#10b981', B: '#3b82f6', C: '#f59e0b', D: '#f97316', F: '#ef4444', 'insufficient-data': '#94a3b8' }[grade] || '#94a3b8';
-    }
+    // ── Helpers ─────────────────────────────────────────────────────
+    gradeColor(grade) { return { A: '#10b981', B: '#3b82f6', C: '#f59e0b', D: '#f97316', F: '#ef4444', 'insufficient-data': '#94a3b8' }[grade] || '#94a3b8'; },
   };
 }
 </script>

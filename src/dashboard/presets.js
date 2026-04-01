@@ -1,0 +1,16 @@
+const PRESETS = [
+  { id: 'explore', name: 'Explore Codebase', desc: 'Get oriented in an unfamiliar project', prompt: '/goat-debug onboard me to this codebase — start with an overview and ask me what I want to understand', cat: 'explore' },
+  { id: 'question', name: 'Quick Question', desc: 'Ask anything about this codebase', prompt: 'I have a question about this codebase. Ask me what I want to know.', cat: 'explore' },
+  { id: 'diagram', name: 'Architecture Diagram', desc: 'Map the architecture and generate a mermaid diagram', prompt: '/goat-debug investigate mode — map out the architecture and generate a diagram', cat: 'explore' },
+  { id: 'review', name: 'Code Review', desc: 'Review recent changes for issues', prompt: '/goat-review review my recent changes — ask me what to focus on or run git diff to find them', cat: 'review' },
+  { id: 'simplify', name: 'Simplify Code', desc: 'Find code that can be cleaned up', prompt: '/goat-review simplify mode — find code that can be cleaned up', cat: 'review' },
+  { id: 'uncommitted', name: 'Review Uncommitted', desc: 'Analyse uncommitted changes', prompt: '/goat-review review my uncommitted changes — run git diff and analyse what I\'ve changed', cat: 'review' },
+  { id: 'security', name: 'Security Audit', desc: 'Run a threat model on the project', prompt: '/goat-security run a threat model on this project', cat: 'security' },
+  { id: 'plan', name: 'Plan Feature', desc: 'Plan a new feature through guided questions', prompt: '/goat-plan I want to plan a new feature, ask me questions', cat: 'plan' },
+  { id: 'refactor', name: 'Plan Refactor', desc: 'Plan a code restructure with blast radius analysis', prompt: '/goat-plan refactor mode — I want to restructure code, ask me questions', cat: 'plan' },
+  { id: 'test', name: 'Test Plan', desc: 'Generate a test plan for recent changes', prompt: '/goat-test generate a test plan for the recent changes', cat: 'test' },
+  { id: 'docs', name: 'Generate Docs', desc: 'Generate or update documentation', prompt: '/goat-review I want to generate API documentation — ask me which parts of the codebase to document', cat: 'docs' },
+  { id: 'error', name: 'Explain Error', desc: 'Diagnose an error with guided investigation', prompt: '/goat-debug I have an error I want to diagnose — ask me to paste the error message and any relevant context', cat: 'debug' },
+  { id: 'triage', name: 'Triage Ideas', desc: 'Sort a plan into excellent / okay / bad ideas', prompt: 'Read this plan and categorise every idea into: excellent ideas, okay ideas, bad ideas. For each, explain why in one sentence.', cat: 'review' },
+  { id: 'compare', name: 'Compare & Rate', desc: 'Rank options in a comparison table with scores', prompt: 'Compare these options. Create a comparison table, rank them, and rate each out of 100 with a one-line justification.', cat: 'review' },
+];

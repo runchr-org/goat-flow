@@ -39,6 +39,21 @@ export function serveDashboard(defaultPath: string): void {
       return;
     }
 
+    // Static dashboard assets (presets.js, etc.)
+    if (url.pathname.startsWith('/assets/')) {
+      const filename = url.pathname.slice('/assets/'.length);
+      if (/^[a-z0-9_-]+\.js$/i.test(filename)) {
+        try {
+          const content = loadPackageFile(`src/dashboard/${filename}`);
+          res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8' });
+          res.end(content);
+        } catch {
+          res.writeHead(404); res.end('Not found');
+        }
+        return;
+      }
+    }
+
     // Scan API
     if (url.pathname === '/api/scan') {
       const projectPath = resolve(url.searchParams.get('path') || absDefault);
