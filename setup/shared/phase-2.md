@@ -6,13 +6,13 @@ Complete Phase 1 before starting Phase 2.
 
 ```
 AGENT EVALS:
-1. Create agent-evals/ directory with README.md if they don't exist.
+1. Create ai/evals/ directory with README.md if they don't exist.
    Read existing evals first - do NOT duplicate incidents already covered.
 
 2. Search this project's git history for real incidents:
    git log --oneline -50 | grep -iE 'fix|revert|hotfix|bug|broke|rollback'
 
-3. For each qualifying incident (up to 5), create agent-evals/[name].md
+3. For each qualifying incident (up to 5), create ai/evals/[name].md
    with YAML frontmatter and markdown body:
 
    ---
@@ -52,7 +52,7 @@ HYGIENE:
    (e.g., .claude/settings.local.json for Claude Code).
 
 VERIFICATION:
-- GATE: agent-evals/ has eval files with YAML frontmatter and Replay Prompt sections.
+- GATE: ai/evals/ has eval files with YAML frontmatter and Replay Prompt sections.
 - GATE: tasks/handoff-template.md has all 6 required sections (Date through Next Step).
 - GATE: Count MUST/SHOULD/MAY in instruction file - need 10+.
 - GATE: Instruction file is still under 120 lines after RFC 2119 pass.

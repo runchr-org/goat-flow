@@ -37,7 +37,7 @@ User reads docs/getting-started.md
 
 ## Hot Path / Cold Path
 
-Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- loaded every turn, under 120 lines. `ai/instructions/` is the cold path -- domain-specific coding guidelines loaded on demand via `ai/README.md` router.
+Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- loaded every turn, under 120 lines. `ai/coding-standards/` is the cold path -- domain-specific coding guidelines loaded on demand via `ai/README.md` router.
 
 ## Deliberate Trade-offs
 

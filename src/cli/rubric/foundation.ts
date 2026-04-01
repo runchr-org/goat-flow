@@ -331,6 +331,39 @@ export const foundationChecks: CheckDef[] = [
     recommendation: 'Create deny-dangerous.sh hook/script',
     recommendationKey: 'create-deny-script',
   },
+  {
+    id: '1.5.5', name: 'goat-flow.yaml exists', tier: 'foundation', category: 'Project Config',
+    pts: 1, confidence: 'high',
+    detect: { type: 'file_exists', path: 'goat-flow.yaml' },
+    recommendation: 'Create goat-flow.yaml in the project root',
+    recommendationKey: 'create-goat-flow-config',
+  },
+  {
+    id: '1.5.6', name: 'goat-flow.yaml is valid', tier: 'foundation', category: 'Project Config',
+    pts: 1, confidence: 'high',
+    na: (ctx) => ctx.facts.shared.config.exists === false,
+    detect: {
+      type: 'custom',
+      fn: (ctx: FactContext): CheckResult => {
+        const { valid, parseError, errorCount, warningCount } = ctx.facts.shared.config;
+        return {
+          id: '1.5.6',
+          name: 'goat-flow.yaml is valid',
+          tier: 'foundation',
+          category: 'Project Config',
+          status: valid ? 'pass' : 'fail',
+          points: valid ? 1 : 0,
+          maxPoints: 1,
+          confidence: 'high',
+          message: valid
+            ? `goat-flow.yaml parsed successfully${warningCount > 0 ? ` (${warningCount} warning${warningCount === 1 ? '' : 's'})` : ''}`
+            : `goat-flow.yaml invalid${parseError ? `: ${parseError}` : ` (${errorCount} error${errorCount === 1 ? '' : 's'})`}`,
+        };
+      },
+    },
+    recommendation: 'Fix goat-flow.yaml so it parses and validates cleanly',
+    recommendationKey: 'fix-goat-flow-config',
+  },
 ];
 
 /**

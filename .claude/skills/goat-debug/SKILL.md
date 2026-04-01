@@ -12,9 +12,9 @@ goat-flow-skill-version: "0.9.3"
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
 - **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `tasks/scratchpad.md`, ask to continue/compact/redirect.
-- **Learning Loop:** Behavioural mistake → `docs/lessons.md`. Architectural trap → `docs/footguns.md`.
-- **Closing:** FIRST: if `tasks/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `tasks/handoff.md`. Check learning loop. Suggest next skill.
+- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/scratchpad.md`, ask to continue/compact/redirect.
+- **Learning Loop:** Behavioural mistake → create a new markdown entry in `ai/lessons/` or `.goat-flow/lessons/`. Architectural trap → create a new markdown entry in `docs/footguns/` or `.goat-flow/footguns/`.
+- **Closing:** FIRST: if `.goat-flow/tasks/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Suggest next skill.
 
 ## When to Use
 
@@ -44,7 +44,7 @@ Use when diagnosing a bug, understanding unfamiliar code, or onboarding to a new
 
 **Auto-detect:** Read the error message or target if provided inline. Confirm before proceeding.
 
-**Footgun check:** If `docs/footguns.md` exists, read it for entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
 **Before proceeding:** present what you know, the selected mode, and what you still need. Wait for user to confirm.
 
@@ -54,7 +54,7 @@ Use when diagnosing a bug, understanding unfamiliar code, or onboarding to a new
 
 ### Phase D1 - Investigate (no fixes)
 
-**RECURRENCE CHECK:** Before investigating, search `docs/footguns.md` + `docs/lessons.md` + `agent-evals/` for the symptom, file path, or module name.
+**RECURRENCE CHECK:** Before investigating, search `docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, `.goat-flow/lessons/`, and `ai/evals/` for the symptom, file path, or module name.
 
 If a match is found, present it first: "This area has a known issue: [footgun]. Is this the same problem?"
 
@@ -114,7 +114,7 @@ Declare before reading deeply:
 - **Out of scope:** [what we're NOT investigating]
 - **Read budget:** Default 8 files. Narrow: 5. Broad: 12.
 
-Read `docs/footguns.md` for entries mentioning the target area.
+Read `docs/footguns/` and `.goat-flow/footguns/` for entries mentioning the target area.
 
 **BLOCKING GATE:** "I'll investigate [scope] reading up to [N] files. Adjust?"
 

@@ -1,6 +1,6 @@
 # Laravel + Eloquent Coding Standards
 
-Reference for generating `ai/instructions/backend.md` in Laravel projects.
+Reference for generating `ai/coding-standards/backend.md` in Laravel projects.
 
 ## Architecture
 

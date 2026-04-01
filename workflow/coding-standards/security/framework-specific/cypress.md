@@ -1,6 +1,6 @@
 # Cypress Security Standards
 
-Reference for generating `ai/instructions/security.md` in projects using Cypress for E2E testing. Cypress tests interact with real authentication, session state, and environment-specific data - securing the test suite prevents credential leaks and environment contamination.
+Reference for generating `ai/coding-standards/security.md` in projects using Cypress for E2E testing. Cypress tests interact with real authentication, session state, and environment-specific data - securing the test suite prevents credential leaks and environment contamination.
 
 ## Credential Management
 

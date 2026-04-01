@@ -20,7 +20,7 @@ export const antiPatterns: AntiPatternDef[] = [
     recommendationKey: 'ap-compress-instruction-file',
   },
   // AP2 removed — penalized project-specific skills (e.g., deploy/, preflight/) by assuming all skills need goat- prefix.
-  // See docs/footguns.md "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
+  // See docs/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
   {
     id: 'AP3', name: 'DoD in both instruction file and guidelines', deduction: -3, confidence: 'low',
     evaluate: (ctx: FactContext): AntiPatternResult => {
@@ -75,9 +75,9 @@ export const antiPatterns: AntiPatternDef[] = [
     id: 'AP7', name: 'Local per-directory instruction file over 20 lines', deduction: -2, confidence: 'high',
     evaluate: (ctx: FactContext): AntiPatternResult => {
       // Only check per-directory local files (e.g., src/api/CLAUDE.md)
-      // EXCLUDE ai/instructions/ and .github/instructions/ - those are cold-path files meant to be 40-60 lines
+      // EXCLUDE ai/coding-standards/ and .github/instructions/ - those are cold-path files meant to be 40-60 lines
       const oversize = ctx.facts.shared.localInstructions.localFileSizes
-        .filter(f => f.path.includes('ai/instructions/') === false && f.path.includes('.github/instructions/') === false)
+        .filter(f => f.path.includes(ctx.facts.shared.localInstructions.path) === false && f.path.includes('.github/instructions/') === false)
         .filter(f => f.lines > 20);
       const triggered = oversize.length > 0;
       const message = triggered
@@ -151,7 +151,7 @@ export const antiPatterns: AntiPatternDef[] = [
       const content = ctx.agentFacts.instruction.content;
       if (!content) return { id: 'AP13', name: 'Stale code references in instruction file', triggered: false, deduction: 0, confidence: 'high', message: 'No instruction file' };
       // Extract backtick-wrapped paths starting with common project directories
-      const pathPattern = /`((?:src|config|templates?|app|apps|lib|docs|scripts|setup|workflow|agent-evals|\.claude|\.agents|\.github)\/[^`]+)`/g;
+      const pathPattern = /`((?:src|config|templates?|app|apps|lib|docs|scripts|setup|workflow|ai|agent-evals|\.claude|\.agents|\.github)\/[^`]+)`/g;
       const stale: string[] = [];
       for (const m of content.matchAll(pathPattern)) {
         const p = m[1];

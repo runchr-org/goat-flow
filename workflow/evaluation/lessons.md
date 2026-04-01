@@ -1,4 +1,4 @@
-# Prompt: Create docs/lessons.md
+# Prompt: Create ai/lessons/
 
 Paste this into your coding agent to create the lessons file for the
 learning loop. Lessons capture behavioural mistakes made by the agent so
@@ -9,12 +9,12 @@ the same failure mode does not repeat.
 ## The Prompt
 
 ```
-Create or update docs/lessons.md for this project.
+Create or update ai/lessons/ for this project.
 
 This file is for behavioural mistakes by the agent, not ordinary product
 bugs. Add entries only after a real mistake or correction happened.
 
-If docs/lessons.md does not exist, create it with this structure:
+If ai/lessons/ does not exist, create it with this structure:
 
 # Lessons
 
@@ -38,7 +38,7 @@ _Entries: "Short lesson title", "Another lesson title"_
 
 Short synthesis of the repeated failure mode and the guardrail it implies.
 
-If docs/lessons.md already exists:
+If ai/lessons/ already exists:
 - Keep existing entries intact
 - Append new entries in the same format
 - Update Patterns only when there are repeated themes worth extracting
@@ -51,7 +51,7 @@ RULES:
 - Use the current repo format, not a temporary AI-generated placeholder
 
 VERIFICATION:
-- Verify docs/lessons.md exists
+- Verify ai/lessons/ exists
 - Verify it has Entries and Patterns sections
 - Verify every new entry has What happened, Prevention, and created_at
 - Verify no fabricated entries were added

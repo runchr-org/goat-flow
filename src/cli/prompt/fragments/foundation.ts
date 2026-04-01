@@ -187,13 +187,61 @@ Over budget = re-classify before continuing.`,
     instruction: `Add the LOG step to \`{{instructionFile}}\`:
 
 \`\`\`markdown
-**LOG** - MUST update when tripped.
+**LOG** - MUST update when tripped. Create one markdown file per entry - do not append to a monolithic log.
 
 | File | When to update |
 |------|---------------|
-| \\\`docs/lessons.md\\\` | Behavioural mistake |
-| \\\`docs/footguns.md\\\` | Cross-doc architectural trap |
+| \\\`ai/lessons/\\\` or \\\`.goat-flow/lessons/\\\` | Behavioural mistake |
+| \\\`docs/footguns/\\\` or \\\`.goat-flow/footguns/\\\` | Cross-doc architectural trap |
+
+Lessons use \\\`YYYY-MM-DD-slug.md\\\` with frontmatter \\\`name\\\`, \\\`created\\\`.
+Footguns use \\\`slug.md\\\` with frontmatter \\\`name\\\`, \\\`status\\\`, \\\`created\\\`, \\\`evidence_type\\\`.
 \`\`\``,
+  },
+  {
+    key: 'create-goat-flow-config',
+    phase: 'foundation',
+    category: 'Project Config',
+    kind: 'create',
+    instruction: `Create \`goat-flow.yaml\` in the project root:
+
+\`\`\`yaml
+version: "0.9.4"
+footguns:
+  committed: docs/footguns/
+  local: .goat-flow/footguns/
+lessons:
+  committed: ai/lessons/
+  local: .goat-flow/lessons/
+decisions:
+  path: ai/decisions/
+tasks:
+  path: .goat-flow/tasks/
+logs:
+  path: .goat-flow/tasks/logs/
+agents:
+  - {{agentId}}
+skills:
+  install: all
+\`\`\`
+
+If you want auto-detection, omit \`agents\`. If multiple agents are installed, list them explicitly.`,
+  },
+  {
+    key: 'fix-goat-flow-config',
+    phase: 'foundation',
+    category: 'Project Config',
+    kind: 'fix',
+    instruction: `Fix \`goat-flow.yaml\` so it is valid YAML and matches the supported schema:
+
+- \`version\`: string
+- \`footguns.committed\`, \`footguns.local\`: non-empty strings
+- \`lessons.committed\`, \`lessons.local\`: non-empty strings
+- \`decisions.path\`, \`tasks.path\`, \`logs.path\`: non-empty strings
+- \`agents\`: null or a non-empty array of \`claude\`, \`codex\`, \`gemini\`
+- \`skills.install\`: \`all\` or a non-empty array of skill names
+
+Unknown keys are warnings, not fatal.`,
   },
 
   // === Autonomy Tiers ===
@@ -320,7 +368,7 @@ After any rename, grep for the old pattern to confirm zero remaining references.
     kind: 'create',
     instruction: `Add the log-update gate to DoD in \`{{instructionFile}}\`:
 
-If VERIFY caught a failure or you corrected course: \`docs/lessons.md\` entry required before DoD.`,
+If VERIFY caught a failure or you corrected course: create a lesson entry in \`ai/lessons/\` or \`.goat-flow/lessons/\` before DoD.`,
   },
 
   // === Enforcement ===

@@ -22,8 +22,8 @@ on:
       - 'AGENTS.md'
       - '.claude/**'
       - '.github/instructions/**'
-      - 'docs/footguns.md'
-      - 'docs/lessons.md'
+      - 'docs/footguns/'
+      - 'ai/lessons/'
 
 The workflow should run these checks:
 
@@ -50,13 +50,13 @@ The workflow should run these checks:
    - Verify each is under 20 lines
    - Report violations as warnings
 
-6. Footguns have evidence (if docs/footguns.md exists)
-   - Check that docs/footguns.md contains at least one file: or line:
+6. Footguns have evidence (if docs/footguns/ exists)
+   - Check that docs/footguns/ contains at least one file: or line:
      reference pattern
    - Warn if zero evidence references found
 
 7. Pending review flag check
-   - Grep docs/footguns.md and docs/lessons.md for the string
+   - Grep docs/footguns/ and ai/lessons/ for the string
      "> [!WARNING] AI-GENERATED: UNVERIFIED"
    - FAIL if found (agent-authored entries must be reviewed before merge)
    - WARN for entries with this flag older than 14 days

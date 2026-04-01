@@ -59,11 +59,11 @@ describe('appendScanHistory', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('creates tasks/logs/ and writes JSONL', () => {
+  it('creates .goat-flow/logs/ and writes JSONL', () => {
     const report = makeReport([makeAgentReport('claude', 95)]);
     appendScanHistory(report, tmpDir);
 
-    const logPath = join(tmpDir, 'tasks', 'logs', 'scan-history.jsonl');
+    const logPath = join(tmpDir, '.goat-flow', 'logs', 'scan-history.jsonl');
     assert.ok(existsSync(logPath), 'scan-history.jsonl should exist');
 
     const content = readFileSync(logPath, 'utf-8').trim();
@@ -86,7 +86,7 @@ describe('appendScanHistory', () => {
     ]);
     appendScanHistory(report, tmpDir);
 
-    const logPath = join(tmpDir, 'tasks', 'logs', 'scan-history.jsonl');
+    const logPath = join(tmpDir, '.goat-flow', 'logs', 'scan-history.jsonl');
     const lines = readFileSync(logPath, 'utf-8').trim().split('\n');
     assert.equal(lines.length, 3);
 
@@ -99,7 +99,7 @@ describe('appendScanHistory', () => {
     appendScanHistory(report, tmpDir);
     appendScanHistory(report, tmpDir);
 
-    const logPath = join(tmpDir, 'tasks', 'logs', 'scan-history.jsonl');
+    const logPath = join(tmpDir, '.goat-flow', 'logs', 'scan-history.jsonl');
     const lines = readFileSync(logPath, 'utf-8').trim().split('\n');
     assert.equal(lines.length, 2, 'Should have 2 lines after 2 appends');
   });
@@ -108,7 +108,7 @@ describe('appendScanHistory', () => {
     const report = makeReport([makeAgentReport('claude', 95), makeAgentReport('codex', 80)]);
     appendScanHistory(report, tmpDir);
 
-    const logPath = join(tmpDir, 'tasks', 'logs', 'scan-history.jsonl');
+    const logPath = join(tmpDir, '.goat-flow', 'logs', 'scan-history.jsonl');
     const lines = readFileSync(logPath, 'utf-8').trim().split('\n');
     for (const line of lines) {
       assert.doesNotThrow(() => JSON.parse(line), `Line should be valid JSON: ${line}`);
@@ -119,7 +119,7 @@ describe('appendScanHistory', () => {
     const report = makeReport([makeAgentReport('claude', 95)]);
     appendScanHistory(report, tmpDir);
 
-    const logPath = join(tmpDir, 'tasks', 'logs', 'scan-history.jsonl');
+    const logPath = join(tmpDir, '.goat-flow', 'logs', 'scan-history.jsonl');
     const entry = JSON.parse(readFileSync(logPath, 'utf-8').trim());
     assert.ok(entry.tiers.foundation);
     assert.ok(entry.tiers.standard);
@@ -139,7 +139,7 @@ describe('appendScanHistory', () => {
     const report = makeReport([]);
     appendScanHistory(report, tmpDir);
 
-    const logPath = join(tmpDir, 'tasks', 'logs', 'scan-history.jsonl');
+    const logPath = join(tmpDir, '.goat-flow', 'logs', 'scan-history.jsonl');
     assert.ok(!existsSync(logPath), 'Should not create file for empty report');
   });
 });

@@ -1,6 +1,6 @@
 # Frontend Stack Detection
 
-Agents: read this file to identify the frontend stack, then load the matching file as a reference when generating `ai/instructions/frontend.md`.
+Agents: read this file to identify the frontend stack, then load the matching file as a reference when generating `ai/coding-standards/frontend.md`.
 
 **Boundary with conventions.md:** `frontend.md` covers framework, rendering, and
 UI-testing patterns. Cross-language rules (naming, build hygiene, generic

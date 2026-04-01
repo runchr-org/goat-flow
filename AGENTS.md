@@ -1,4 +1,4 @@
-# AGENTS.md - v0.9.2 (2026-03-30)
+# AGENTS.md - v0.9.3 (2026-03-31)
 GOAT Flow documentation framework. Markdown docs + Bash validation scripts. This Codex layer supplements the existing Claude Code workflow; leave `CLAUDE.md` and `.claude/` untouched unless a task explicitly targets them.
 ## Essential Commands
 ```bash
@@ -49,13 +49,13 @@ GOOD: Inline format. Extract when second format needed
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure in your code, or you corrected course: lessons.md entry required before DoD. After human correction: MUST log immediately. Propagate footguns to local CLAUDE.md.
+**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure in your code, or you corrected course: create a lesson entry before DoD. After human correction: MUST log immediately. Do not append to a monolithic log: use `ai/lessons/` or `.goat-flow/lessons/` for `YYYY-MM-DD-slug.md` files with frontmatter `name`, `created`, and use `docs/footguns/` or `.goat-flow/footguns/` for `slug.md` files with frontmatter `name`, `status`, `created`, `evidence_type`. Propagate footguns to local CLAUDE.md.
 
 | File | When to update |
 |------|---------------|
-| `docs/lessons.md` | Behavioural mistake (agent did something wrong) |
-| `docs/footguns.md` | Cross-doc architectural trap (with file:line evidence) |
-| `docs/decisions/` | Significant technical decision with context/rationale |
+| `ai/lessons/` or `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
+| `docs/footguns/` or `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
+| `ai/decisions/` | Significant technical decision with context/rationale |
 ## Autonomy Tiers
 **Always:** Read any file, run validation scripts, edit within declared scope, add Codex artifacts, update shared learning-loop files with evidence.
 **Ask First**
@@ -80,7 +80,7 @@ MUST confirm all 6 gates:
 5. Current state recorded before stopping incomplete work
 6. Grep old pattern/path after rename, move, or terminology change
 ## Working Memory
-For 5+ turn tasks, keep short working notes in the task thread or a temporary scratch file. Use `tasks/handoff-template.md` before ending incomplete work. If context drifts or two approaches fail, restate scope and start fresh.
+For 5+ turn tasks, keep short working notes in `.goat-flow/tasks/todo.md` or the task thread. Use `tasks/handoff-template.md` before ending incomplete work, then save the filled handoff to `.goat-flow/tasks/handoff.md`. If context drifts or two approaches fail, restate scope and start fresh.
 Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.
 ## Router Table
 | Resource | Path |
@@ -96,13 +96,15 @@ Sub-agents: ONE objective, structured return (paths, evidence, confidence, next 
 | Codex setup | `setup/setup-codex.md` |
 | Shared execution template | `setup/shared/execution-loop.md` |
 | Skills | `.agents/skills/goat-*/SKILL.md` |
-| Footguns | `docs/footguns.md` |
-| Lessons | `docs/lessons.md` |
+| Footguns (Committed) | `docs/footguns/` |
+| Footguns (Local) | `.goat-flow/footguns/` |
+| Lessons (Committed) | `ai/lessons/` |
+| Lessons (Local) | `.goat-flow/lessons/` |
 | Architecture | `docs/architecture.md` |
 | Preflight script | `scripts/preflight-checks.sh` |
 | Context validation | `scripts/context-validate.sh` |
 | Deny policy | `scripts/deny-dangerous.sh` |
-| Agent evals | `agent-evals/` |
+| Agent evals | `ai/evals/` |
 | Handoff template | `tasks/handoff-template.md` |
 
 ## Hard Rules

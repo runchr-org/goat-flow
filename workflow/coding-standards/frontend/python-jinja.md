@@ -1,6 +1,6 @@
 # Python Server-Rendered Templates (Django or Flask/Jinja2)
 
-Reference for generating `ai/instructions/frontend.md` in Python projects with
+Reference for generating `ai/coding-standards/frontend.md` in Python projects with
 server-rendered templates.
 
 Choose ONE framework branch when generating project instructions:

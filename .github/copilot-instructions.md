@@ -24,7 +24,7 @@ bash scripts/preflight-checks.sh
 
 **VERIFY** - Run shellcheck on .sh changes. Check cross-references after renames. Two corrections on same approach = rewind.
 
-**LOG** - Update docs/lessons.md (behavioral mistakes) or docs/footguns.md (architectural traps) when tripped.
+**LOG** - Update ai/lessons/ (behavioral mistakes) or docs/footguns/ (architectural traps) when tripped.
 
 ## Autonomy Tiers
 
@@ -40,7 +40,7 @@ MUST confirm ALL: (1) shellcheck passes (2) no broken cross-references (3) no un
 
 ## Working Memory
 
-5+ turn tasks → tasks/todo.md. Incomplete work → tasks/handoff.md.
+5+ turn tasks → .goat-flow/tasks/todo.md. Incomplete work → .goat-flow/tasks/handoff.md.
 
 ## Sub-Agent Objectives
 
@@ -57,7 +57,7 @@ One question with recommended default.
 | System spec | `docs/system-spec.md` |
 | Project guidelines | `ai/README.md` |
 | Skills | `.claude/skills/goat-*/` |
-| Footguns | `docs/footguns.md` |
-| Lessons | `docs/lessons.md` |
+| Footguns | `docs/footguns/` |
+| Lessons | `ai/lessons/` |
 | Architecture | `docs/architecture.md` |
-| Decisions | `docs/decisions/` |
+| Decisions | `ai/decisions/` |

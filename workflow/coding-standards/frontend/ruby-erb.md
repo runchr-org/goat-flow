@@ -1,6 +1,6 @@
 # Ruby + Rails ERB Coding Standards
 
-Reference for generating `ai/instructions/frontend.md` in Rails projects using ERB templates.
+Reference for generating `ai/coding-standards/frontend.md` in Rails projects using ERB templates.
 
 ## Template Format
 

@@ -177,8 +177,9 @@ async function handleEvalCommand(options: ParsedCLI): Promise<void> {
   const { createFS } = await import('./facts/fs.js');
   /** Virtual filesystem scoped to the target project path */
   const fs = createFS(options.projectPath);
-  /** Resolved path to the agent-evals directory */
-  const evalsDir = resolve(options.projectPath, 'agent-evals');
+  const { loadConfig } = await import('./config/reader.js');
+  /** Resolved evals path from config (defaults to ai/evals/) */
+  const evalsDir = resolve(options.projectPath, loadConfig(options.projectPath, fs).config.evals.path);
   const { evals, errors } = loadEvals(fs, evalsDir);
   /** Aggregated eval summary grouped by skill, agent, difficulty, and origin */
   const summary = summarize(evals, errors);

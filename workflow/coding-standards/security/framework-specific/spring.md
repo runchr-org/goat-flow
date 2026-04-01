@@ -1,6 +1,6 @@
 # Spring Boot Security Standards
 
-Reference for generating `ai/instructions/security.md` in Spring Boot projects.
+Reference for generating `ai/coding-standards/security.md` in Spring Boot projects.
 
 ## Spring Security Configuration
 

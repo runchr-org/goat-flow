@@ -11,9 +11,9 @@ Create an agent eval regression suite for this project. Agent evals are
 replay tests - each one recreates a real incident and verifies the agent
 handles it correctly. They catch regressions when instruction files change.
 
-1. Create the agent-evals/ directory
+1. Create the ai/evals/ directory
 
-2. Create agent-evals/README.md explaining:
+2. Create ai/evals/README.md explaining:
    - What agent evals are (replay tests for agent behaviour)
    - How to use them (paste the replay prompt, verify expected outcome)
    - How to add new ones (after every real incident)
@@ -23,7 +23,7 @@ handles it correctly. They catch regressions when instruction files change.
 
    git log --oneline --all | grep -iE 'fix|revert|bug|broke|regression'
 
-   For each qualifying incident, create agent-evals/[incident-name].md:
+   For each qualifying incident, create ai/evals/[incident-name].md:
 
    # [Incident Title]
 
@@ -60,8 +60,8 @@ handles it correctly. They catch regressions when instruction files change.
    as they occur.
 
 VERIFICATION:
-- Verify agent-evals/ directory exists
-- Verify agent-evals/README.md exists
+- Verify ai/evals/ directory exists
+- Verify ai/evals/README.md exists
 - Count eval files (target: 3-5 minimum)
 - Verify each eval has all 5 sections (description, replay prompt,
   expected outcome, failure mode, origin)

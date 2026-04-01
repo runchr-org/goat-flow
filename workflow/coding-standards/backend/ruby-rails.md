@@ -1,6 +1,6 @@
 # Ruby on Rails + RSpec Coding Standards
 
-Reference for generating `ai/instructions/backend.md` in Rails projects.
+Reference for generating `ai/coding-standards/backend.md` in Rails projects.
 
 ## Philosophy
 

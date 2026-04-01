@@ -57,6 +57,13 @@ function resolvePath(path: string, ctx: FactContext): string {
     .replace('{settings_file}', ctx.agentFacts.agent.settingsFile ?? '')
     .replace('{skills_dir}', ctx.agentFacts.agent.skillsDir)
     .replace('{hooks_dir}', ctx.agentFacts.agent.hooksDir ?? '')
+    .replace('{footguns_committed_dir}', ctx.facts.shared.footguns.paths.committed)
+    .replace('{footguns_local_dir}', ctx.facts.shared.footguns.paths.local)
+    .replace('{lessons_committed_dir}', ctx.facts.shared.lessons.paths.committed)
+    .replace('{lessons_local_dir}', ctx.facts.shared.lessons.paths.local)
+    .replace('{decisions_dir}', ctx.facts.shared.decisions.path)
+    .replace('{evals_dir}', ctx.facts.shared.evals.path)
+    .replace('{coding_standards_dir}', ctx.facts.shared.localInstructions.path)
     .replace('{deny_path}', getDenyPath(ctx));
 }
 
@@ -372,25 +379,32 @@ function evalComposite(base: CheckBase, pts: number, partialPts: number | undefi
 function checkSharedPath(path: string, ctx: FactContext): boolean {
   /** Shared facts covering docs, evals, CI, and other project-wide resources */
   const shared = ctx.facts.shared;
+  const normalizedDecisionsPath = shared.decisions.path.replace(/\/$/, '');
   /** Map of known paths to their existence status from shared facts */
   const pathMap: Record<string, boolean> = {
-    'docs/footguns.md': shared.footguns.exists,
-    'docs/lessons.md': shared.lessons.exists,
+    [shared.footguns.paths.committed]: shared.footguns.committedExists,
+    [shared.footguns.paths.local]: shared.footguns.localExists,
+    [shared.lessons.paths.committed]: shared.lessons.committedExists,
+    [shared.lessons.paths.local]: shared.lessons.localExists,
     'docs/architecture.md': shared.architecture.exists,
     'docs/guidelines-ownership-split.md': shared.guidelinesOwnership.exists,
     'docs/domain-reference.md': shared.domainReference.exists,
     'tasks/handoff-template.md': shared.handoffTemplate.exists,
-    'agent-evals': shared.evals.dirExists,
-    'agent-evals/README.md': shared.evals.hasReadme,
+    [shared.evals.path]: shared.evals.dirExists,
+    [shared.evals.path.replace(/\/$/, '')]: shared.evals.dirExists,
+    [shared.evals.path.replace(/\/$/, '') + '/README.md']: shared.evals.hasReadme,
     '.copilotignore': shared.ignoreFiles.copilotignore,
     '.cursorignore': shared.ignoreFiles.cursorignore,
     '.geminiignore': shared.ignoreFiles.geminiignore,
     '.github/workflows/context-validation.yml': shared.ci.workflowExists,
     '.gitignore': shared.gitignore.exists,
+    'goat-flow.yaml': shared.config.exists,
     'scripts/preflight-checks.sh': shared.preflightScript.exists,
-    'docs/decisions': shared.decisions.dirExists,
+    [shared.decisions.path]: shared.decisions.dirExists,
+    [normalizedDecisionsPath]: shared.decisions.dirExists,
     // CHANGELOG.md removed - project-level concern.
-    'ai/instructions': shared.localInstructions.dirExists && shared.localInstructions.location === 'ai',
+    [shared.localInstructions.path]: shared.localInstructions.dirExists && shared.localInstructions.location === 'ai',
+    [shared.localInstructions.path.replace(/\/$/, '')]: shared.localInstructions.dirExists && shared.localInstructions.location === 'ai',
     'ai/README.md': shared.localInstructions.hasRouter && shared.localInstructions.location === 'ai',
     '.github/instructions': shared.localInstructions.dirExists && shared.localInstructions.location === 'github',
     '.github/git-commit-instructions.md': shared.gitCommitInstructions.exists,

@@ -1,6 +1,6 @@
 # Django Security Standards
 
-Reference for generating `ai/instructions/security.md` in Django projects.
+Reference for generating `ai/coding-standards/security.md` in Django projects.
 
 ## CSRF Protection
 

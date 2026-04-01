@@ -1,6 +1,6 @@
 # .NET Blazor Coding Standards
 
-Reference for generating `ai/instructions/frontend.md` in Blazor projects.
+Reference for generating `ai/coding-standards/frontend.md` in Blazor projects.
 
 ## Version Gates
 

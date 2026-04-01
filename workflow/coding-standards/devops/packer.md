@@ -1,6 +1,6 @@
 # Packer Coding Standards
 
-Reference for generating `ai/instructions/devops.md` in projects using Packer.
+Reference for generating `ai/coding-standards/devops.md` in projects using Packer.
 
 ## Template Format
 

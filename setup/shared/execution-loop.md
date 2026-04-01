@@ -16,7 +16,7 @@ a) Version header (v1.0 - YYYY-MM-DD)
 b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
    - READ: read relevant files first, never fabricate codebase facts
      (include BAD/GOOD example)
-     Cross-doc: MUST read docs/footguns.md before modifying files
+     Cross-doc: MUST read docs/footguns/ before modifying files
      listed in the Ask First boundaries. Known traps prevent repeat mistakes.
    - CLASSIFY: three signals before acting:
      1. Intent: question (answer it) vs directive (act on it)
@@ -38,27 +38,29 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
      Recovery protocols: include 2-3 common failure patterns with fixes
      (e.g., missing context → read X first, out-of-scope → name boundary
      and redirect, conflicting instructions → flag and ask)
-     Telemetry: if `tasks/logs/` exists, append to
-     `tasks/logs/incidents.jsonl` when VERIFY catches a failure or
+     Telemetry: if `.goat-flow/tasks/logs/` exists, append to
+     `.goat-flow/tasks/logs/incidents.jsonl` when VERIFY catches a failure or
      two-corrections-rewind fires. If >200 lines, trim oldest half first.
-     Schema in `tasks/logs/README.md`.
-   - LOG: MUST update when tripped (DoD gate #4). Reference all three
-     learning loop files:
-     docs/lessons.md (behavioural mistakes),
-     docs/footguns.md (architectural traps with file:line evidence),
-     docs/decisions/ (significant technical decisions with context/rationale).
+     Schema in `.goat-flow/tasks/logs/README.md`.
+   - LOG: MUST update when tripped (DoD gate #4). Create one markdown
+     file per entry - do NOT append to a monolithic log.
+     Lessons: `ai/lessons/` or `.goat-flow/lessons/` using
+     `YYYY-MM-DD-slug.md` with frontmatter `name`, `created`.
+     Footguns: `docs/footguns/` or `.goat-flow/footguns/` using
+     `slug.md` with frontmatter `name`, `status`, `created`,
+     `evidence_type`. Decisions: `ai/decisions/`.
      When-to-use table. Footgun propagation rule.
      Context-based loading rules.
      MECHANICAL TRIGGER (non-negotiable):
-     - VERIFY caught a failure in your code → lessons.md entry BEFORE DoD
-     - Human corrected agent behaviour → lessons.md entry IMMEDIATELY
-     - Discovered architectural trap with file:line evidence → footguns.md
+     - VERIFY caught a failure in your code → `ai/lessons/` entry BEFORE DoD
+     - Human corrected agent behaviour → `ai/lessons/` entry IMMEDIATELY
+     - Discovered architectural trap with file:line evidence → `docs/footguns/`
      Skip = DoD gate #4 blocks completion. This is not optional.
      Dual-agent projects: learning loop files are shared. Read the
      current file before appending to avoid duplicating entries.
-     Incident telemetry: after writing to lessons.md or footguns.md,
-     also append to `tasks/logs/incidents.jsonl` if the directory exists
-     (trim oldest half if >200 lines). Schema in `tasks/logs/README.md`.
+     Incident telemetry: after writing to `ai/lessons/` or `docs/footguns/`,
+     also append to `.goat-flow/tasks/logs/incidents.jsonl` if the directory exists
+     (trim oldest half if >200 lines). Schema in `.goat-flow/tasks/logs/README.md`.
 
 c) Autonomy Tiers: Always / Ask First / Never
    - Never tier MUST include:
@@ -94,13 +96,13 @@ d) Definition of Done: 6 gates
 
 e) Working Memory: Working Notes for 5+ turn tasks, context escalation
    ladder, session handoff protocol. Incomplete work → copy
-   tasks/handoff-template.md to tasks/handoff.md and fill in.
-   Next session MUST read tasks/handoff.md if it exists.
+   tasks/handoff-template.md to .goat-flow/tasks/handoff.md and fill in.
+   Next session MUST read .goat-flow/tasks/handoff.md if it exists.
    Multi-task sessions: re-read the instruction file constraints before starting.
    Context health: compact at 60% utilization (not 90%). Remove
    failed attempts and superseded reasoning before compacting (noise
    pruning). Clear context between unrelated tasks when the agent supports it.
-   tasks/todo.md and tasks/handoff.md MUST be gitignored.
+   .goat-flow/tasks/todo.md and .goat-flow/tasks/handoff.md MUST be gitignored.
    Agent-local settings (e.g., .claude/settings.local.json): review
    quarterly, prune session artifacts.
    Recommended: register a Notification hook for compaction that
@@ -114,7 +116,7 @@ g) Communication When Blocked: one question with recommended default
 
 h) Router table: MUST include at minimum:
      - All 6 skill directories (Claude/Gemini/Codex/Copilot: .claude/skills/, .agents/skills/, .github/skills/)
-     - Learning loop files (footguns, lessons)
+     - Learning loop directories (`docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, `.goat-flow/lessons/`)
      - Architecture doc, handoff template, agent evals
      - Project guidelines: `ai/README.md`
      - Any playbooks, profiles, or domain docs relevant to project

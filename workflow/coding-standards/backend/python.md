@@ -1,6 +1,6 @@
 # Python Coding Standards
 
-Reference for generating `ai/instructions/backend.md` in Python projects without a specific web framework (Django, FastAPI). For framework-specific standards, see `python-django.md` or `python-fastapi.md`.
+Reference for generating `ai/coding-standards/backend.md` in Python projects without a specific web framework (Django, FastAPI). For framework-specific standards, see `python-django.md` or `python-fastapi.md`.
 
 ## Project Structure
 

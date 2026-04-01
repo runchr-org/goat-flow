@@ -1,6 +1,6 @@
 # ASP.NET Core Security Standards
 
-Reference for generating `ai/instructions/security.md` in ASP.NET Core projects.
+Reference for generating `ai/coding-standards/security.md` in ASP.NET Core projects.
 
 ## Anti-Forgery Tokens (CSRF)
 

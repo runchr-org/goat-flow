@@ -184,8 +184,12 @@ export interface ProjectSignals {
 export interface SharedFacts {
   footguns: {
     exists: boolean;
+    committedExists: boolean;
+    localExists: boolean;
     hasEvidence: boolean;
     entryCount: number;
+    committedCount: number;
+    localCount: number;
     labelCount: number;
     hasEvidenceLabels: boolean;
     dirMentions: Map<string, number>;
@@ -193,11 +197,24 @@ export interface SharedFacts {
     totalRefs: number;
     validRefs: number;
     formatDiagnostic: string | null;
+    paths: { committed: string; local: string };
   };
-  lessons: { exists: boolean; hasEntries: boolean; entryCount: number; staleRefs: string[]; formatDiagnostic: string | null };
-  decisions: { dirExists: boolean; fileCount: number };
+  lessons: {
+    exists: boolean;
+    committedExists: boolean;
+    localExists: boolean;
+    hasEntries: boolean;
+    entryCount: number;
+    committedCount: number;
+    localCount: number;
+    staleRefs: string[];
+    formatDiagnostic: string | null;
+    paths: { committed: string; local: string };
+  };
+  decisions: { dirExists: boolean; fileCount: number; path: string };
+  config: { exists: boolean; valid: boolean; warningCount: number; errorCount: number; parseError: string | null };
   architecture: { exists: boolean; lineCount: number };
-  evals: { dirExists: boolean; count: number; hasReadme: boolean; hasOriginLabels: boolean; hasAgentsLabels: boolean; hasReplayPrompts: boolean; hasFrontmatter: boolean; evalSkillCount: number; missingSkills: string[] };
+  evals: { dirExists: boolean; count: number; hasReadme: boolean; hasOriginLabels: boolean; hasAgentsLabels: boolean; hasReplayPrompts: boolean; hasFrontmatter: boolean; evalSkillCount: number; missingSkills: string[]; path: string };
   ci: { workflowExists: boolean; checksLineCount: boolean; checksRouter: boolean; checksSkills: boolean; ciTriggersOnPRs: boolean };
   handoffTemplate: { exists: boolean; sectionCount: number; hasRequiredSections: boolean };
   ignoreFiles: { copilotignore: boolean; cursorignore: boolean; geminiignore: boolean };
@@ -220,9 +237,10 @@ export interface SharedFacts {
     hasGitCommit: boolean;
     conventionsContent: string | null;
     localFileSizes: Array<{ path: string; lines: number }>;
+    path: string;
   };
   gitCommitInstructions: { exists: boolean };
-  /** Total line count across ai/instructions/ files (cold-path budget) */
+  /** Total line count across ai/coding-standards/ files (cold-path budget) */
   aiInstructionsLineCount: number;
 }
 
@@ -386,6 +404,11 @@ export interface ScanReport {
     antiPatternCount: number;
     // ISO 8601 timestamp of when the scan completed
     timestamp: string;
+    config: { exists: boolean; valid: boolean };
+    learningLoop: {
+      footguns: { committed: number; local: number };
+      lessons: { committed: number; local: number };
+    };
   };
 }
 

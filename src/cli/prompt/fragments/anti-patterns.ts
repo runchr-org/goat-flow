@@ -21,7 +21,7 @@ Immediate actions:
 Target: under 120 lines. Hard limit: 150.`,
   },
   // ap-fix-skill-names removed — AP2 was harmful dead code that would rename project-specific skills.
-  // See docs/footguns.md "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
+  // See docs/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
   {
     key: 'ap-fix-dod-overlap',
     phase: 'anti-pattern',
@@ -36,7 +36,7 @@ Remove the DoD from the guidelines file. The DoD belongs only in \`{{instruction
     phase: 'anti-pattern',
     category: 'Anti-Pattern Fix',
     kind: 'fix',
-    instruction: `**CRITICAL:** \`docs/footguns.md\` has entries without file:line evidence. This is an anti-pattern that costs -5 points.
+    instruction: `**CRITICAL:** footgun entries under \`docs/footguns/\` or \`.goat-flow/footguns/\` lack file:line evidence. This is an anti-pattern that costs -5 points.
 
 For every footgun entry, add at least one \`file:line\` reference:
 
@@ -123,7 +123,7 @@ Empty scaffolding provides no value and creates a false sense of completeness.`,
     phase: 'anti-pattern',
     category: 'Anti-Pattern Fix',
     kind: 'fix',
-    instruction: `\`docs/footguns.md\` contains file:line references to files that no longer exist. Stale references mislead agents.
+    instruction: `Footgun entries contain file:line references to files that no longer exist. Stale references mislead agents.
 
 **Stale refs found:** {{evidence.ap-fix-stale-references}}
 

@@ -19,14 +19,14 @@ Create with this structure:
 # Agent Session Handoff Template
 
 **Purpose:** When an agent has incomplete work at the end of a session,
-copy this template to `tasks/handoff.md` and fill it in. The next session
+copy this template to `.goat-flow/tasks/handoff.md` and fill it in. The next session
 must read that handoff before doing new work.
 
 **When to create:** If you are stopping with unfinished work, blocked
 progress, or a forced rewind after repeated failed attempts.
 
 **When to read:** At the start of a session, check whether
-`tasks/handoff.md` exists. If it does, read it first.
+`.goat-flow/tasks/handoff.md` exists. If it does, read it first.
 
 ---
 
@@ -57,7 +57,7 @@ progress, or a forced rewind after repeated failed attempts.
 
 USAGE:
 When ending a session mid-task, the agent should:
-1. Copy this template to `tasks/handoff.md`
+1. Copy this template to `.goat-flow/tasks/handoff.md`
 2. Fill in all sections with specifics from the current session
 3. Leave it in the worktree for the next session to read
 

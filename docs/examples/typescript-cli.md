@@ -28,7 +28,7 @@ Three instruction files, 6 skills across 3 locations, enforcement hooks, and a l
 - `.agents/skills/goat-*/` -- Shared skills (Codex + Gemini CLI)
 - `workflow/skills/` -- Canonical skill templates
 
-Cold-path coding guidelines in `ai/instructions/` (conventions.md, code-review.md, git-commit.md) loaded on demand, keeping instruction files under the 120-line target.
+Cold-path coding guidelines in `ai/coding-standards/` (conventions.md, code-review.md, git-commit.md) loaded on demand, keeping instruction files under the 120-line target.
 
 ## What the Scanner Caught
 
@@ -50,7 +50,7 @@ Specific catches during development:
 
 **Skills prevented blind debugging.** `/goat-debug` enforces diagnosis-first with file:line evidence before any fix. `/goat-review` in audit mode uses negative verification and fabrication self-check to catch false positives.
 
-**The learning loop captured 9 real incidents.** `docs/lessons.md` holds 9 entries with a pattern section. `docs/footguns.md` holds 7 entries with file:line evidence. Real examples: agents under line pressure cut required sections, `mv` overwrote an untracked file with no git recovery path, sub-agents wrote planned features as current state.
+**The learning loop captured 9 real incidents.** `ai/lessons/` holds 9 entries with a pattern section. `docs/footguns/` holds 7 entries with file:line evidence. Real examples: agents under line pressure cut required sections, `mv` overwrote an untracked file with no git recovery path, sub-agents wrote planned features as current state.
 
 **Enforcement hooks achieved 100% compliance** on binary prohibitions (git commit, git push blocked via permissions deny) versus ~70% with rules alone. The deny-dangerous hook catches `rm -rf`, force push, pipe-to-shell, and `.env` edits before execution.
 

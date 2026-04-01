@@ -62,7 +62,7 @@ AI coding agents need structure, not just rules. This system organises everythin
 
 **What it contains:** Module-specific footguns (1-2 lines each), local convention differences, cross-boundary warnings, hard constraints. Max ~20 lines per file.
 
-**Relationship to footguns.md:** `docs/footguns.md` is the central index and source of truth. Footguns mapped to a specific directory are **propagated** (not moved) as one-line summaries into local instruction files.
+**Relationship to footguns.md:** `docs/footguns/` is the central index and source of truth. Footguns mapped to a specific directory are **propagated** (not moved) as one-line summaries into local instruction files.
 
 **File locations:**
 
@@ -138,11 +138,11 @@ AI coding agents need structure, not just rules. This system organises everythin
 | **Doer-verifier testing** | Three parallel verification tracks (automated tests, AI verification, human testing) after every milestone or 30-60 minutes of coding | After every coding session |
 | **Agent evals** | Regression tests from real incidents - replay prompts that verify the agent handles known failure modes correctly | On demand, or after CLAUDE.md changes |
 | **CI context validation** | Automated checks: instruction file line count, router reference resolution, skill completeness | On every PR |
-| **Learning loop** | `docs/footguns.md` (cross-domain coupling with file:line evidence), `docs/lessons.md` (what worked/failed) | Updated after every task |
+| **Learning loop** | `docs/footguns/` (cross-domain coupling with file:line evidence), `ai/lessons/` (what worked/failed) | Updated after every task |
 
-**Cold path (ai/instructions/):** Project-specific coding guidelines organized by domain. Loaded on demand when the task matches -- frontend.md for frontend work, backend.md for backend work, etc. Router at `ai/README.md` tells agents what to load. Keeps the hot path under 120 lines by moving domain details to dedicated files.
+**Cold path (ai/coding-standards/):** Project-specific coding guidelines organized by domain. Loaded on demand when the task matches -- frontend.md for frontend work, backend.md for backend work, etc. Router at `ai/README.md` tells agents what to load. Keeps the hot path under 120 lines by moving domain details to dedicated files.
 
-**Create on first use:** Two artifacts materialise when first needed, not pre-created empty: agent profiles directory (e.g., `.claude/profiles/` or `.gemini/profiles/`, create when meaningful role separation exists), and `docs/decisions/` (create when there's a real architectural decision worth recording). All other artifacts are created during initial setup.
+**Create on first use:** Two artifacts materialise when first needed, not pre-created empty: agent profiles directory (e.g., `.claude/profiles/` or `.gemini/profiles/`, create when meaningful role separation exists), and `ai/decisions/` (create when there's a real architectural decision worth recording). All other artifacts are created during initial setup.
 
 **The doer-verifier principle:** The coding agent is the doer. Testing uses independent verifiers - automated suites, separate AI agents, and the developer. Never trust the coding agent's self-assessment.
 
@@ -219,8 +219,8 @@ GOAT Flow's core (execution loop, autonomy tiers, DoD, learning loop) is agent-a
 | Instruction file | CLAUDE.md | AGENTS.md | .cursor/rules/ | .github/copilot-instructions.md | GEMINI.md |
 | Skills/playbooks | .claude/skills/ | .agents/skills/ | .cursor/rules/*.mdc | .github/skills/ | .agents/skills/ |
 | Hooks/enforcement | .claude/hooks/ + settings.json | .codex/hooks/ + scripts/ (verification) | - | preToolUse, postToolUse lifecycle | .gemini/hooks/ + settings.json |
-| Domain instructions | ai/instructions/ | ai/instructions/ | .cursor/rules/ | .github/instructions/ (bridges to ai/) | ai/instructions/ |
-| Evals | agent-evals/ | agent-evals/ | agent-evals/ | agent-evals/ | agent-evals/ |
+| Domain instructions | ai/coding-standards/ | ai/coding-standards/ | .cursor/rules/ | .github/instructions/ (bridges to ai/) | ai/coding-standards/ |
+| Evals | ai/evals/ | ai/evals/ | ai/evals/ | ai/evals/ | ai/evals/ |
 | Deny mechanism | permissions.deny array | .codex/rules/deny-dangerous.star (execpolicy) | - | - | permissions.deny array |
 
 Setup guides: see `setup/setup-claude.md`, `setup/setup-gemini.md`, `setup/setup-codex.md`, and `setup/setup-copilot.md`.

@@ -1,6 +1,6 @@
 # FastAPI Coding Standards
 
-Reference for generating `ai/instructions/backend.md` in FastAPI projects.
+Reference for generating `ai/coding-standards/backend.md` in FastAPI projects.
 SQLAlchemy and Pydantic sections are conditional - include only if the project uses them.
 
 ## Architecture

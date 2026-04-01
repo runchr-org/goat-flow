@@ -1,0 +1,47 @@
+# goat-flow.yaml — project configuration
+# Docs: https://github.com/blundergoat/goat-flow
+
+# Version of goat-flow this config was created with
+version: "0.9.4"
+
+# Learning loop paths
+# "committed" = version-controlled (team knowledge, survives git clone)
+# "local" = gitignored (agent-specific observations, high-frequency)
+footguns:
+  committed: docs/footguns/
+  local: .goat-flow/footguns/
+
+lessons:
+  committed: ai/lessons/
+  local: .goat-flow/lessons/
+
+# Architecture decisions — always committed
+decisions:
+  path: ai/decisions/
+
+# Agent evals — always committed
+evals:
+  path: ai/evals/
+
+# Coding standards — always committed
+coding-standards:
+  path: ai/coding-standards/
+
+# Agent working memory — gitignored
+tasks:
+  path: .goat-flow/tasks/
+
+# Telemetry and session logs — gitignored
+logs:
+  path: .goat-flow/logs/
+
+# Which agents are set up (omit to auto-detect)
+agents:
+  - claude
+  - codex
+  - gemini
+
+# Skill selection (default: all 6 canonical)
+# Use a list to install only specific skills: [goat-debug, goat-review, goat-test]
+skills:
+  install: all

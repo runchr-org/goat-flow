@@ -52,13 +52,13 @@ GOOD: Inline format. Extract when second format needed
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure in your code, or you corrected course: lessons.md entry required before DoD. After human correction: MUST log immediately. Propagate footguns to local CLAUDE.md.
+**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure in your code, or you corrected course: add a new learning-loop entry file before DoD. After human correction: MUST log immediately. Do not append to a monolithic log: use `ai/lessons/` or `.goat-flow/lessons/` for `YYYY-MM-DD-slug.md` files with frontmatter `name`, `created`, and use `docs/footguns/` or `.goat-flow/footguns/` for `YYYY-MM-DD-slug.md` files with frontmatter `name`, `status`, `created`, `evidence_type`. Propagate footguns to local CLAUDE.md.
 
 | File | When to update |
 |------|---------------|
-| `docs/lessons.md` | Behavioural mistake (agent did something wrong) |
-| `docs/footguns.md` | Cross-doc architectural trap (with file:line evidence) |
-| `docs/decisions/` | Significant technical decision with context/rationale |
+| `ai/lessons/` | Behavioural mistake (agent did something wrong) |
+| `docs/footguns/` | Cross-doc architectural trap (with file:line evidence) |
+| `ai/decisions/` | Significant technical decision with context/rationale |
 
 ## Autonomy Tiers
 
@@ -95,7 +95,7 @@ MUST confirm ALL: (1) shellcheck passes on changed .sh files (2) no broken cross
 
 ## Working Memory
 
-5+ turn tasks → `tasks/todo.md`. Incomplete work → `tasks/handoff.md`. `/compact` after 15+ turns → split → `/clear` between unrelated tasks.
+5+ turn tasks → `.goat-flow/tasks/todo.md`. Incomplete work → `.goat-flow/tasks/handoff.md`. `/compact` after 15+ turns → split → `/clear` between unrelated tasks.
 
 ## Router Table
 
@@ -104,11 +104,12 @@ MUST confirm ALL: (1) shellcheck passes on changed .sh files (2) no broken cross
 | System spec (canonical) | `docs/system-spec.md` |
 | System docs (5-layers, 6-steps, rubrics) | `docs/system/` |
 | Coding guidelines | `ai/README.md` |
-| Footguns · Lessons | `docs/footguns.md` · `docs/lessons.md` |
-| Architecture · Decisions | `docs/architecture.md` · `docs/decisions/` |
+| Learning loop | `docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, `.goat-flow/lessons/` |
+| Architecture · Decisions | `docs/architecture.md` · `ai/decisions/` |
+| AI infrastructure | `ai/` (lessons, decisions, evals, coding-standards) |
 | CLI scanner/prompt code | `src/cli/` |
 | Scripts | `scripts/` |
 | Skills | `.claude/skills/goat-*/` |
-| Agent evals | `agent-evals/` |
-| Local telemetry logs | `tasks/logs/` |
+| Agent evals | `ai/evals/` |
+| Local workspace | `.goat-flow/tasks/`, `.goat-flow/logs/` |
 | Release | `CHANGELOG.md`, `README.md`, `package.json` |

@@ -11,14 +11,14 @@ export const fullFragments: Fragment[] = [
     phase: 'full',
     category: 'Agent Evals',
     kind: 'create',
-    instruction: `Create the \`agent-evals/\` directory for agent evaluation scenarios.`,
+    instruction: `Create the \`ai/evals/\` directory for agent evaluation scenarios.`,
   },
   {
     key: 'add-evals',
     phase: 'full',
     category: 'Agent Evals',
     kind: 'create',
-    instruction: `Add 3+ eval files to \`agent-evals/\`. Each eval should capture a real incident:
+    instruction: `Add 3+ eval files to \`ai/evals/\`. Each eval should capture a real incident:
 
 \`\`\`markdown
 # Eval: [Short description]
@@ -211,15 +211,14 @@ Without this, PRs can merge without context validation passing.`,
     instruction: `Create the telemetry logs directory for session tracking:
 
 \`\`\`bash
-mkdir -p tasks/logs/sessions
+mkdir -p .goat-flow/tasks/logs/sessions
 \`\`\`
 
-Copy the README from the goat-flow templates: \`workflow/evaluation/logs-README.md\` → \`tasks/logs/README.md\`.
+Copy the README from the goat-flow templates: \`workflow/evaluation/logs-README.md\` → \`.goat-flow/tasks/logs/README.md\`.
 
 Add to \`.gitignore\`:
 \`\`\`
-tasks/logs/*.jsonl
-tasks/logs/sessions/
+.goat-flow/
 \`\`\`
 
 This enables the skill session logging protocol (Shared Conventions closing step) and telemetry from \`goat-flow scan\`.`,

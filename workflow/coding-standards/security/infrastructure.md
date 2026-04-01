@@ -1,6 +1,6 @@
 # Infrastructure Security
 
-Reference for generating `ai/instructions/security.md` in projects with Docker, CI pipelines, or cloud infrastructure.
+Reference for generating `ai/coding-standards/security.md` in projects with Docker, CI pipelines, or cloud infrastructure.
 
 ## Docker
 

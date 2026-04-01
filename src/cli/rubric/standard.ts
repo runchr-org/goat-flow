@@ -561,18 +561,18 @@ export const standardChecks: CheckDef[] = [
 
   // === 2.3 Learning Loop (6 pts) ===
   {
-    id: '2.3.1', name: 'lessons.md exists', tier: 'standard', category: 'Learning Loop',
+    id: '2.3.1', name: 'Lessons directory exists', tier: 'standard', category: 'Learning Loop',
     pts: 1, confidence: 'high',
-    detect: { type: 'file_exists', path: 'docs/lessons.md' },
-    recommendation: 'Create docs/lessons.md',
+    detect: { type: 'dir_exists', path: '{lessons_committed_dir}' },
+    recommendation: 'Create the committed lessons directory',
     recommendationKey: 'create-lessons',
   },
   // 2.3.2 removed - duplicate of 2.3.2a (hasEntries === entryCount >= 1)
   {
-    id: '2.3.3', name: 'footguns.md exists', tier: 'standard', category: 'Learning Loop',
+    id: '2.3.3', name: 'Footguns directory exists', tier: 'standard', category: 'Learning Loop',
     pts: 2, confidence: 'high',
-    detect: { type: 'file_exists', path: 'docs/footguns.md' },
-    recommendation: 'Create docs/footguns.md',
+    detect: { type: 'dir_exists', path: '{footguns_committed_dir}' },
+    recommendation: 'Create the committed footguns directory',
     recommendationKey: 'create-footguns',
   },
   {
@@ -597,13 +597,26 @@ export const standardChecks: CheckDef[] = [
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
         const { exists, entryCount } = ctx.facts.shared.lessons;
-        if (!exists) return { id: '2.3.2a', name: 'lessons.md has at least 1 entry', tier: 'standard', category: 'Learning Loop', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No lessons.md' };
-        if (entryCount >= 1) return { id: '2.3.2a', name: 'lessons.md has at least 1 entry', tier: 'standard', category: 'Learning Loop', status: 'pass', points: 1, maxPoints: 1, confidence: 'high', message: `${entryCount} lesson entries (3-5 is ideal)` };
+        if (!exists) return { id: '2.3.2a', name: 'lessons.md has at least 1 entry', tier: 'standard', category: 'Learning Loop', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No lesson directories' };
+        if (entryCount >= 1) {
+          const { committedCount, localCount } = ctx.facts.shared.lessons;
+          return {
+            id: '2.3.2a',
+            name: 'lessons.md has at least 1 entry',
+            tier: 'standard',
+            category: 'Learning Loop',
+            status: 'pass',
+            points: 1,
+            maxPoints: 1,
+            confidence: 'high',
+            message: `${entryCount} lesson entries (${committedCount} committed, ${localCount} local)`,
+          };
+        }
         const diagnostic = ctx.facts.shared.lessons.formatDiagnostic;
         return { id: '2.3.2a', name: 'lessons.md has at least 1 entry', tier: 'standard', category: 'Learning Loop', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: diagnostic ?? 'No lesson entries. Add 1+ real incidents from git history, or a placeholder explaining why none apply yet.' };
       },
     },
-    recommendation: 'Seed lessons.md with at least 1 real incident from git history (3-5 is ideal)',
+    recommendation: 'Seed the lessons directories with at least 1 real incident from git history (3-5 is ideal)',
     recommendationKey: 'seed-lessons-minimum',
   },
   // 2.3.5 removed - duplicate of AP12 (stale footgun refs)
@@ -645,10 +658,10 @@ export const standardChecks: CheckDef[] = [
         if (staleRefs.length === 0) {
           return { id: '2.3.6', name: 'Lessons file references resolve', tier: 'standard', category: 'Learning Loop', status: 'pass', points: 1, maxPoints: 1, confidence: 'medium', message: 'All lesson file references resolve' };
         }
-        return { id: '2.3.6', name: 'Lessons file references resolve', tier: 'standard', category: 'Learning Loop', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `${staleRefs.length} stale refs in lessons.md: ${staleRefs.slice(0, 3).join(', ')}` };
+        return { id: '2.3.6', name: 'Lessons file references resolve', tier: 'standard', category: 'Learning Loop', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `${staleRefs.length} stale refs in lesson entries: ${staleRefs.slice(0, 3).join(', ')}` };
       },
     },
-    recommendation: 'Update or remove stale file path references in docs/lessons.md',
+    recommendation: 'Update or remove stale file path references in lesson entries',
     recommendationKey: 'fix-lesson-stale-refs',
   },
 
@@ -696,7 +709,7 @@ export const standardChecks: CheckDef[] = [
     pts: 1, confidence: 'high',
     na: (ctx) => !ctx.agentFacts.instruction.content?.toLowerCase().includes('router'),
     detect: { type: 'grep', path: '{instruction_file}', section: 'router', pattern: 'lessons|footguns|learning' },
-    recommendation: 'Add lessons.md and footguns.md to the router table',
+    recommendation: 'Add lessons and footguns directories to the router table',
     recommendationKey: 'route-learning-loop',
   },
   {
@@ -712,7 +725,7 @@ export const standardChecks: CheckDef[] = [
     pts: 1, confidence: 'high',
     na: (ctx) => !ctx.agentFacts.instruction.content?.toLowerCase().includes('router') || !ctx.facts.shared.evals.dirExists,
     detect: { type: 'grep', path: '{instruction_file}', section: 'router', pattern: 'eval|agent-eval' },
-    recommendation: 'Add agent-evals/ to the router table',
+    recommendation: 'Add ai/evals/ to the router table',
     recommendationKey: 'route-evals',
   },
 
@@ -735,8 +748,8 @@ export const standardChecks: CheckDef[] = [
   {
     id: '2.5.3', name: 'decisions dir scaffolded', tier: 'standard', category: 'Architecture',
     pts: 1, confidence: 'high',
-    detect: { type: 'dir_exists', path: 'docs/decisions' },
-    recommendation: 'Create docs/decisions/ with an ADR template',
+    detect: { type: 'dir_exists', path: '{decisions_dir}' },
+    recommendation: 'Create ai/decisions/ with an ADR template',
     recommendationKey: 'create-decisions-dir',
   },
   // === 2.6 Local Instructions (cold path) (6 pts) ===
@@ -751,11 +764,11 @@ export const standardChecks: CheckDef[] = [
           id: '2.6.1', name: 'Instructions directory exists', tier: 'standard', category: 'Local Instructions',
           status: dirExists ? 'pass' : 'fail',
           points: dirExists ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: dirExists ? `Found at ${location === 'ai' ? 'ai/instructions/' : '.github/instructions/'}` : 'No ai/instructions/ or .github/instructions/ directory',
+          message: dirExists ? `Found at ${location === 'ai' ? 'ai/coding-standards/' : '.github/instructions/'}` : 'No ai/coding-standards/ or .github/instructions/ directory',
         };
       },
     },
-    recommendation: 'Create ai/instructions/ with project coding guidelines',
+    recommendation: 'Create ai/coding-standards/ with project coding guidelines',
     recommendationKey: 'create-instructions-dir',
   },
   {
@@ -797,7 +810,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Create ai/instructions/conventions.md with project-wide conventions',
+    recommendation: 'Create ai/coding-standards/conventions.md with project-wide conventions',
     recommendationKey: 'create-conventions-instructions',
   },
   {
@@ -840,7 +853,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Create ai/instructions/code-review.md with review standards',
+    recommendation: 'Create ai/coding-standards/code-review.md with review standards',
     recommendationKey: 'create-code-review-instructions',
   },
   {
@@ -861,7 +874,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Create ai/instructions/git-commit.md with commit format and PR workflow',
+    recommendation: 'Create ai/coding-standards/git-commit.md with commit format and PR workflow',
     recommendationKey: 'create-git-commit-instructions',
   },
   {
@@ -904,7 +917,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Create ai/instructions/frontend.md with frontend coding conventions for the detected UI stack',
+    recommendation: 'Create ai/coding-standards/frontend.md with frontend coding conventions for the detected UI stack',
     recommendationKey: 'create-frontend-instructions',
   },
   {
@@ -932,7 +945,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Create ai/instructions/backend.md with backend coding conventions',
+    recommendation: 'Create ai/coding-standards/backend.md with backend coding conventions',
     recommendationKey: 'create-backend-instructions',
   },
 

@@ -1,7 +1,7 @@
 ---
 applyTo: "**"
 ---
-<!-- Source: ai/instructions/git-commit.md - keep in sync -->
+<!-- Source: ai/coding-standards/git-commit.md - keep in sync -->
 
 # Git Commit - GOAT Flow
 

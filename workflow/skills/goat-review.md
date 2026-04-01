@@ -12,9 +12,9 @@ goat-flow-skill-version: "0.9.3"
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
 - **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `tasks/scratchpad.md`, ask to continue/compact/redirect.
-- **Learning Loop:** Behavioural mistake → `docs/lessons.md`. Architectural trap → `docs/footguns.md`.
-- **Closing:** FIRST: if `tasks/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `tasks/handoff.md`. Check learning loop. Suggest next skill.
+- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/scratchpad.md`, ask to continue/compact/redirect.
+- **Learning Loop:** Behavioural mistake → create a new markdown entry in `ai/lessons/` or `.goat-flow/lessons/`. Architectural trap → create a new markdown entry in `docs/footguns/` or `.goat-flow/footguns/`.
+- **Closing:** FIRST: if `.goat-flow/tasks/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Suggest next skill.
 
 ## When to Use
 
@@ -49,10 +49,10 @@ Also use for reviewing instruction files for staleness - see modes below.
 - If target is a **codebase area** (not a specific diff) → activate Audit Mode.
 - Otherwise → standard diff review (Phases 0-4 below).
 
-If `ai/instructions/code-review.md` exists, load it and apply project-specific
+If `ai/coding-standards/code-review.md` exists, load it and apply project-specific
 review standards alongside these defaults.
 
-**Footgun check:** If `docs/footguns.md` exists, read it for entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
 **Before proceeding:** present what you know and what you still need. Wait for the user to confirm scope, mode, and concerns before entering Phase 1.
 
@@ -81,9 +81,9 @@ pre-existing issues as part of this change - note them separately.
 
 **Cross-cutting checks:**
 - Autonomy tier violations: does this change cross an Ask First boundary?
-- Footgun matching: check each finding against `docs/footguns.md`. Output: `MATCH: [entry]` or `CLEAR`
+- Footgun matching: check each finding against `docs/footguns/` and `.goat-flow/footguns/`. Output: `MATCH: [entry]` or `CLEAR`
   *Example:* "Finding: Renamed `UserService` → `AccountService`. Footgun check:
-  `docs/footguns.md` entry 'cross-reference fragility'. MATCH - grep for
+  `docs/footguns/` or `.goat-flow/footguns/` entry 'cross-reference fragility'. MATCH - grep for
   `UserService` across all `.md` files."
 - Pattern drift: does new code use a different pattern than existing codebase? Don't assume it's wrong - ask: "Intentional divergence?"
 - Downstream impact: "What breaks if this change has a bug?" - map the cascade
@@ -153,7 +153,7 @@ Scan categories, weighted by audit purpose:
 For each finding, log: category, `file:line`, description, severity.
 <!-- ADAPT: Use your agent's parallel execution capability, or scan areas sequentially. -->
 
-**Recurrence check:** Before reporting, search `docs/footguns.md` for entries
+**Recurrence check:** Before reporting, search `docs/footguns/` and `.goat-flow/footguns/` for entries
 in the scanned area. Cross-reference findings with known footguns.
 
 **Phase A2 - Verify & Self-Check:**
@@ -196,14 +196,14 @@ Review your output for fix language. Rephrase any recommendations as findings.
 ## Instruction Review Mode
 
 Activated when review target is instruction files (CLAUDE.md, AGENTS.md,
-ai/instructions/, .github/instructions/).
+ai/coding-standards/, .github/instructions/).
 
 **Phase 1i - Friction Signal Scan:**
 Gather observable signals (not conversation memory - agents can't read prior sessions):
 - `git log --oneline -20` for recent activity patterns
-- Read `docs/lessons.md` for entries since last instruction update
-- Read `docs/footguns.md` for entries in areas governed by the instructions
-- Check `agent-evals/` for recurring failure patterns
+- Read `ai/lessons/` and `.goat-flow/lessons/` for entries since last instruction update
+- Read `docs/footguns/` and `.goat-flow/footguns/` for entries in areas governed by the instructions
+- Check `ai/evals/` for recurring failure patterns
 
 **Phase 2i - Instruction Audit:**
 For each instruction file, check:
@@ -220,7 +220,7 @@ Present proposals in diff-like format:
 | CLAUDE.md | Ask First | `src/old-path/` | `src/new-path/` | Path renamed in commit abc123 |
 
 MUST NOT auto-edit instruction files. Present for human approval.
-MUST NOT edit `docs/footguns.md` or `docs/lessons.md` - those have their own update standards.
+MUST NOT edit `docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, or `.goat-flow/lessons/` - those have their own update standards.
 
 ## Common Failure Modes
 
@@ -235,7 +235,7 @@ MUST NOT edit `docs/footguns.md` or `docs/lessons.md` - those have their own upd
 <!-- FIXED: Do not adapt these -->
 - MUST review the diff for issues, read full files for context
 - MUST NOT flag pre-existing issues as part of this change (review mode)
-- MUST check each finding against `docs/footguns.md` (MATCH/CLEAR)
+- MUST check each finding against `docs/footguns/` and `.goat-flow/footguns/` (MATCH/CLEAR)
 - MUST order findings by severity, not by file or discovery order
 - MUST NOT fabricate file paths or function names
 - MUST NOT make file edits in review or audit mode - report findings only. Only edit if user explicitly says "implement".

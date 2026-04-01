@@ -30,7 +30,7 @@ graph LR
 
 **The incident:** Asked about a dependency, Claude said it was a local path dependency. It was actually installed from a package registry. It never read the manifest.
 
-**The rule:** Read the relevant files first. Never fabricate codebase facts. When starting work in a specific domain, also read the relevant cold-path file from `ai/instructions/` (see `ai/README.md` for the routing map).
+**The rule:** Read the relevant files first. Never fabricate codebase facts. When starting work in a specific domain, also read the relevant cold-path file from `ai/coding-standards/` (see `ai/README.md` for the routing map).
 
 | Project Shape | What to read |
 |---------------|-------------|
@@ -242,8 +242,8 @@ When a fix isn't working:
 
 | File | When to update | Example entry |
 |------|---------------|---------------|
-| `docs/lessons.md` | Behavioural mistake (agent did something wrong) | "Assumed API contract without reading frontend" |
-| `docs/footguns.md` | Architectural landmine (cross-domain coupling) | "Auth nonce spans 4 components; breaking any one silently breaks login" |
+| `ai/lessons/` | Behavioural mistake (agent did something wrong) | "Assumed API contract without reading frontend" |
+| `docs/footguns/` | Architectural landmine (cross-domain coupling) | "Auth nonce spans 4 components; breaking any one silently breaks login" |
 
 **Agent-authored entries:** All entries added by the agent during the LOG step must be flagged:
 
@@ -251,11 +251,11 @@ When a fix isn't working:
 > [!WARNING] AI-GENERATED: UNVERIFIED
 ```
 
-The human must remove this flag after reviewing the entry. CI should fail if this flag exists in `docs/footguns.md` or `docs/lessons.md` on the main branch.
+The human must remove this flag after reviewing the entry. CI should fail if this flag exists in `docs/footguns/` or `ai/lessons/` on the main branch.
 
-**Footguns require evidence.** Every entry in `docs/footguns.md` must include file:line references to real code. Footguns without evidence are likely fabricated (anti-pattern AP4, -3 deduction).
+**Footguns require evidence.** Every entry in `docs/footguns/` must include file:line references to real code. Footguns without evidence are likely fabricated (anti-pattern AP4, -3 deduction).
 
-**Loading rules:** `docs/footguns.md` is referenced from the router table and loaded on demand. Footguns mapped to specific directories are propagated as one-line summaries into Layer 2 local context files (e.g., `src/auth/CLAUDE.md`). The central file remains the source of truth.
+**Loading rules:** `docs/footguns/` is referenced from the router table and loaded on demand. Footguns mapped to specific directories are propagated as one-line summaries into Layer 2 local context files (e.g., `src/auth/CLAUDE.md`). The central file remains the source of truth.
 
 ---
 
@@ -324,7 +324,7 @@ A typical task flows like this:
 
               Fix applied. All tests pass. Grep for old function name - zero hits.
 
-5. LOG     - docs/footguns.md: "Rate limit window must match session renewal window
+5. LOG     - docs/footguns/: "Rate limit window must match session renewal window
               (auth.ts:47, session.ts:112). Mismatched windows cause silent auth failures."
 ```
 

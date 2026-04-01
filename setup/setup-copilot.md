@@ -4,7 +4,7 @@ Paste this into any AI coding agent to set up GitHub Copilot support for a proje
 
 ## Prerequisites
 
-This guide creates `.github/copilot-instructions.md` (Copilot's hot path) and `.github/instructions/` bridge files (Copilot's cold path). It also creates `ai/instructions/` if not already present.
+This guide creates `.github/copilot-instructions.md` (Copilot's hot path) and `.github/instructions/` bridge files (Copilot's cold path). It also creates `ai/coding-standards/` if not already present.
 
 ---
 
@@ -19,21 +19,21 @@ The stack is:
 - Test: [command]
 - Lint: [command]
 
-### Phase 1a: Cold Path (ai/instructions/)
+### Phase 1a: Cold Path (ai/coding-standards/)
 
-If `ai/instructions/` does not exist:
+If `ai/coding-standards/` does not exist:
 1. Create `ai/README.md` - routing map (see workflow/coding-standards/README.md)
-2. Create `ai/instructions/conventions.md` - project conventions (see workflow/coding-standards/conventions.md)
-3. Create `ai/instructions/code-review.md` - review standards (see workflow/coding-standards/code-review.md)
-4. Create `ai/instructions/git-commit.md` - commit format (see workflow/coding-standards/git-commit.md)
+2. Create `ai/coding-standards/conventions.md` - project conventions (see workflow/coding-standards/conventions.md)
+3. Create `ai/coding-standards/code-review.md` - review standards (see workflow/coding-standards/code-review.md)
+4. Create `ai/coding-standards/git-commit.md` - commit format (see workflow/coding-standards/git-commit.md)
 
-VERIFICATION: After creating ai/instructions/ files, the agent MUST:
+VERIFICATION: After creating ai/coding-standards/ files, the agent MUST:
 1. Verify every file path exists: for each backtick-wrapped path, run `ls`
 2. Verify commands work: run build/test/lint commands listed in conventions.md
 3. Remove aspirational content: if a feature is planned but not implemented, remove it
    Source of truth is the code, not docs/architecture.md or roadmaps.
 
-If `.github/instructions/` exists but `ai/instructions/` does not:
+If `.github/instructions/` exists but `ai/coding-standards/` does not:
 - Migrate: group language files into domain files (php.md + python.md → backend.md)
 - Create `ai/README.md` router
 
@@ -51,14 +51,14 @@ Use `setup/shared/execution-loop.md` as the template. Keep under 120 lines.
 
 ### Phase 1c: Copilot Bridge Files
 
-For each file in `ai/instructions/`, create a matching `.github/instructions/*.instructions.md`:
+For each file in `ai/coding-standards/`, create a matching `.github/instructions/*.instructions.md`:
 
 Example for frontend:
 ---
 applyTo: "src/frontend/**"
 ---
-<!-- Source: ai/instructions/frontend.md - keep in sync -->
-[inline content from ai/instructions/frontend.md]
+<!-- Source: ai/coding-standards/frontend.md - keep in sync -->
+[inline content from ai/coding-standards/frontend.md]
 
 Copilot needs inline content - it doesn't follow markdown links.
 
@@ -81,9 +81,9 @@ Copilot CLI discovers these via `/skills list` or `/goat-{name}` at runtime.
 ### Phase 2: Verify
 
 - [ ] `ai/README.md` exists and routes correctly
-- [ ] `ai/instructions/` has conventions.md, code-review.md, git-commit.md
+- [ ] `ai/coding-standards/` has conventions.md, code-review.md, git-commit.md
 - [ ] `.github/copilot-instructions.md` exists with execution loop
-- [ ] `.github/instructions/` bridge files reference ai/instructions/ content
+- [ ] `.github/instructions/` bridge files reference ai/coding-standards/ content
 - [ ] `.github/git-commit-instructions.md` exists
 
 ### Human Gate

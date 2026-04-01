@@ -1,6 +1,6 @@
 # PHP + Symfony Twig Coding Standards
 
-Reference for generating `ai/instructions/frontend.md` in Symfony projects using Twig templates.
+Reference for generating `ai/coding-standards/frontend.md` in Symfony projects using Twig templates.
 
 ## Template Inheritance
 

@@ -61,7 +61,11 @@
     "gemini",
     "workflow"
   ],
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.6.0",
     "eslint": "^10.1.0",
     "knip": "^6.0.2",

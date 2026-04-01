@@ -15,8 +15,8 @@ export const fullChecks: CheckDef[] = [
   {
     id: '3.1.1', name: 'Evals directory exists', tier: 'full', category: 'Agent Evals',
     pts: 1, confidence: 'high',
-    detect: { type: 'dir_exists', path: 'agent-evals' },
-    recommendation: 'Create agent-evals/ directory',
+    detect: { type: 'dir_exists', path: '{evals_dir}' },
+    recommendation: 'Create evals directory (default: ai/evals/)',
     recommendationKey: 'create-evals-dir',
   },
   {

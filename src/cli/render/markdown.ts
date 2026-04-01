@@ -16,6 +16,9 @@ export function renderMarkdown(report: ScanReport): string {
 
   lines.push('## GOAT Flow Audit');
   lines.push('');
+  lines.push(`Learning loop: footguns ${report.meta.learningLoop.footguns.committed} committed / ${report.meta.learningLoop.footguns.local} local; lessons ${report.meta.learningLoop.lessons.committed} committed / ${report.meta.learningLoop.lessons.local} local.`);
+  lines.push(`Config: ${report.meta.config.exists ? (report.meta.config.valid ? '`goat-flow.yaml` valid.' : '`goat-flow.yaml` invalid.') : '`goat-flow.yaml` missing; scanner used defaults.'}`);
+  lines.push('');
 
   if (report.agents.length === 0) {
     lines.push('No GOAT Flow agents detected. No `CLAUDE.md`, `AGENTS.md`, or `GEMINI.md` found.');

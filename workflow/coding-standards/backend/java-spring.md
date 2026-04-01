@@ -1,6 +1,6 @@
 # Spring Boot Backend Standards (Spring Boot + JPA oriented)
 
-Reference for generating `ai/instructions/backend.md` in Spring Boot projects.
+Reference for generating `ai/coding-standards/backend.md` in Spring Boot projects.
 
 This file assumes Spring Boot with Spring Data/JPA as the common case. If the
 repo uses jOOQ, MyBatis, JdbcTemplate, or another data layer, keep the DI,

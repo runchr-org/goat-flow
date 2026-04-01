@@ -49,6 +49,37 @@ M1 Fixes & Hygiene. Driven by 6 cross-project reviews (avg 71/100) + real-projec
 - 3 new lessons: "AI gate passed" ≠ done, verification scope must not assume goat-only skills, dispatcher keeps getting excluded from glob patterns
 - 2 new footguns: CI template derivation bug (goat-goat), AP2 penalizes project-specific skills (RESOLVED)
 
+### Config File & Learning Loop (M1b)
+- New `goat-flow.yaml` config file with `js-yaml` reader, validation, merge semantics, unknown-key warnings
+- Monolithic `docs/footguns.md` and `docs/lessons.md` migrated to directory format with individual YAML frontmatter entry files
+- Migration scripts: `splitFootguns`, `splitLessons`, `mergeFootguns`, `mergeLessons`
+- Scanner reads footgun/lesson/evals/coding-standards paths from config (not hardcoded)
+- Config threaded through `scan.ts` → `orchestrator.ts` → `shared.ts`
+- Checks 2.3.1/2.3.3 switched from `file_exists` to `dir_exists`
+- New foundation checks 1.5.5 (config exists) and 1.5.6 (config valid)
+- `.goat-flow/` gitignored workspace for local footguns, lessons, tasks, and logs
+- Committed vs local split: `docs/footguns/` + `ai/lessons/` (team knowledge) vs `.goat-flow/footguns/` + `.goat-flow/lessons/` (agent-local)
+- CLAUDE.md LOG section updated with write-path guidance (frontmatter format, filename convention, committed vs local routing)
+- Unknown agent names in config downgraded from error to warning (future-proof)
+- Template vars `{evals_dir}` and `{coding_standards_dir}` added to check-evaluator
+
+### Directory Restructure
+- `docs/lessons/` → `ai/lessons/` (agent behavioral corrections belong with agent infra)
+- `docs/decisions/` → `ai/decisions/` (ADRs about agent workflow)
+- `agent-evals/` → `ai/evals/` (agent test infrastructure)
+- `ai/instructions/` → `ai/coding-standards/` (clearer name)
+- `tasks/` → `.goat-flow/tasks/` (gitignored working memory)
+- `tasks/logs/` → `.goat-flow/logs/` (gitignored telemetry)
+- All footgun files date-prefixed (`YYYY-MM-DD-slug.md`)
+- 248 files updated across source, tests, docs, skills (3 agent dirs), setup templates, CI
+
+### Roadmap Plans
+- M1b, M3, M5, M6, M7 deeply reviewed and improved for sub-agent executability
+- M3: gamification audit phased (inventory → human judgment → implementation), project type detection heuristics, measurable quality gate thresholds
+- M5: build script gap fixed, dispatcher routing corrected, CDN fallback clarified
+- M6: `--prompt` flag corrected to positional arg, integration contract with serve-dashboard.ts, sub-agent phasing added
+- M7: CSP `connect-src` moved to M6, Escape key replaced with Ctrl+Shift+D, session lifecycle deduped with M6
+
 ---
 
 ## v0.9.3 - 2026-03-30
@@ -301,7 +332,7 @@ CLI scanner + prompt generator, local context system, 80-check rubric. All 6 aud
 - Monorepo stack detection, markdown link router extraction, 78 tests across 20 suites
 
 ### Local Context (Cold Path)
-- `ai/instructions/` vendor-neutral coding guidelines with `ai/README.md` router
+- `ai/coding-standards/` vendor-neutral coding guidelines with `ai/README.md` router
 - Copilot bridge files (`.github/copilot-instructions.md`, `.github/instructions/`)
 - 11 workflow templates, migration guide with real project examples
 

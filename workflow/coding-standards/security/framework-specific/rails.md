@@ -1,6 +1,6 @@
 # Rails Security Standards
 
-Reference for generating `ai/instructions/security.md` in Ruby on Rails projects.
+Reference for generating `ai/coding-standards/security.md` in Ruby on Rails projects.
 
 ## Strong Parameters
 

@@ -1,6 +1,6 @@
 # PHP + Laravel Blade Coding Standards
 
-Reference for generating `ai/instructions/frontend.md` in Laravel projects using Blade templates.
+Reference for generating `ai/coding-standards/frontend.md` in Laravel projects using Blade templates.
 
 ## Component-Based Blade
 

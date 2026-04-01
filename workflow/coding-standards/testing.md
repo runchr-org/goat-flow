@@ -1,7 +1,7 @@
-# Prompt: Create ai/instructions/testing.md
+# Prompt: Create ai/coding-standards/testing.md
 
 > **Purpose:** Testing conventions - naming, structure, mocking, coverage expectations
-> **Generates:** `ai/instructions/testing.md`
+> **Generates:** `ai/coding-standards/testing.md`
 > **Use when:** Setting up test instructions for the project
 > **Repo inspection:** Yes - reads existing tests for naming patterns, framework usage, fixtures
 > **Follow-on refs:** `backend/` for stack-specific test patterns (e.g. Go table-driven, RSpec, pytest)
@@ -10,7 +10,7 @@
 
 ## The Prompt
 
-Read the existing tests in the codebase, then write `ai/instructions/testing.md`:
+Read the existing tests in the codebase, then write `ai/coding-standards/testing.md`:
 
 ````
 # Testing Instructions

@@ -1,6 +1,6 @@
 # Universal Web Security Standards
 
-Reference for generating `ai/instructions/security.md` in any web project.
+Reference for generating `ai/coding-standards/security.md` in any web project.
 
 ## OWASP Top 10 Quick Reference
 

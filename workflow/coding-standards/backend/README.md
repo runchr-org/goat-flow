@@ -1,6 +1,6 @@
 # Backend Stack Detection
 
-Agents: read this file to identify the backend stack, then load the matching file as a reference when generating `ai/instructions/backend.md`.
+Agents: read this file to identify the backend stack, then load the matching file as a reference when generating `ai/coding-standards/backend.md`.
 
 **Boundary with conventions.md:** backend.md covers language-specific architecture
 and patterns (service layers, ORM patterns, error handling idioms). Cross-language

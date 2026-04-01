@@ -1,6 +1,6 @@
 # DevOps / IaC Stack Detection
 
-Agents: read this file to identify infrastructure tooling in the project, then load the matching file as a reference when generating `ai/instructions/devops.md`.
+Agents: read this file to identify infrastructure tooling in the project, then load the matching file as a reference when generating `ai/coding-standards/devops.md`.
 
 **Boundary with backend.md and conventions.md:** devops.md covers infrastructure-as-code conventions, image-build pipelines, and deployment tooling. Application-level patterns (service layers, ORM, error handling) belong in backend.md.
 

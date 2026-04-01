@@ -1,6 +1,6 @@
 # Swift iOS Coding Standards (SwiftUI-First, UIKit-Aware)
 
-Reference for generating `ai/instructions/frontend.md` in iOS projects.
+Reference for generating `ai/coding-standards/frontend.md` in iOS projects.
 
 Generate SwiftUI guidance by default when the repo is SwiftUI-first. If the app
 is UIKit-heavy, keep the UIKit section below and trim SwiftUI-specific rules

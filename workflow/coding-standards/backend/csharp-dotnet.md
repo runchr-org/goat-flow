@@ -1,6 +1,6 @@
 # .NET Backend Standards (ASP.NET Core + EF Core oriented)
 
-Reference for generating `ai/instructions/backend.md` in .NET projects.
+Reference for generating `ai/coding-standards/backend.md` in .NET projects.
 
 This file assumes ASP.NET Core and EF Core as the common case. If the repo uses
 Minimal APIs without MediatR, Dapper instead of EF Core, or a different

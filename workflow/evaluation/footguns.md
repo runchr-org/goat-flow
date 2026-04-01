@@ -1,4 +1,4 @@
-# Prompt: Create or Seed docs/footguns.md
+# Prompt: Create or Seed docs/footguns/
 
 Paste this into your coding agent to create or update the footguns file.
 Footguns are codebase-specific traps where a local-looking change breaks a
@@ -9,14 +9,14 @@ different part of the system through hidden coupling or stale assumptions.
 ## The Prompt
 
 ```
-Create or update docs/footguns.md for this project.
+Create or update docs/footguns/ for this project.
 
-IF docs/footguns.md already exists:
+IF docs/footguns/ already exists:
   MERGE with it carefully. Keep existing confirmed entries unless newer
   evidence shows the footgun is resolved. Prefer appending a Status note
   over deleting history.
 
-IF docs/footguns.md does NOT exist:
+IF docs/footguns/ does NOT exist:
   Create it and seed with REAL footguns found by reading the codebase.
 
 WHAT TO LOOK FOR:
@@ -62,7 +62,7 @@ If a directory has 2+ footgun entries, note this - a local CLAUDE.md
 file may be needed for that directory (Layer 2 local context).
 
 VERIFICATION:
-- Verify docs/footguns.md exists
+- Verify docs/footguns/ exists
 - Verify every entry has file path references under Evidence
 - Verify every new entry has Evidence type, Symptoms, Why it happens,
   Prevention, and Created

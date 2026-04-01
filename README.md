@@ -70,7 +70,7 @@ Rules in instruction files help - but research shows agents follow ~70% of prose
 
 **Enforcement hooks:** Pre-tool hooks block dangerous commands before execution (100% block rate vs ~70% for rules alone). Post-turn hooks lint after every change.
 
-**Learning loop:** `docs/footguns.md` captures architectural traps with file:line evidence. `docs/lessons.md` captures behavioural mistakes. Real incidents only - no hypotheticals. Agent evals replay past failures as regression tests.
+**Learning loop:** `docs/footguns/` captures architectural traps with file:line evidence. `ai/lessons/` captures behavioural mistakes. Real incidents only - no hypotheticals. Agent evals replay past failures as regression tests.
 
 **6 skills (5 specialized + dispatcher):** `/goat` routes to the right skill automatically. `/goat-security`, `/goat-debug`, `/goat-review`, `/goat-plan`, `/goat-test`. Each has a distinct artifact, human gates, and a repeatable structured output. Former standalone skills (investigate, simplify, refactor) are now modes within debug, review, and plan respectively.
 
@@ -154,7 +154,7 @@ workflow/               Templates for skills, coding standards, evaluation
   runtime/              Enforcement, architecture, code-map templates
 docs/                   System design + reference documentation
 scripts/                Preflight, validation, enforcement scripts
-agent-evals/            Regression tests from real incidents
+ai/evals/               Regression tests from real incidents
 ```
 
 ## Documentation

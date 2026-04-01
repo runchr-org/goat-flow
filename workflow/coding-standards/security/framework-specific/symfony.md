@@ -1,6 +1,6 @@
 # Symfony Security Standards
 
-Reference for generating `ai/instructions/security.md` in Symfony projects.
+Reference for generating `ai/coding-standards/security.md` in Symfony projects.
 
 ## CSRF Protection
 

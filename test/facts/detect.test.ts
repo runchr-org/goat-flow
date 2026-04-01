@@ -281,91 +281,91 @@ describe('detectStack', () => {
 describe('mapLanguagesToTemplates - frontend routing', () => {
   it('routes React to react.md', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'react']);
-    const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
+    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/react.md'));
   });
 
   it('routes Vue to vue.md', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'vue']);
-    const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
+    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/vue.md'));
   });
 
   it('routes Angular to angular.md', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'angular']);
-    const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
+    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/angular.md'));
   });
 
   it('routes Blade to php-blade.md', () => {
     const refs = mapLanguagesToTemplates(['php', 'blade']);
-    const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
+    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/php-blade.md'));
   });
 
   it('routes Twig to php-twig.md', () => {
     const refs = mapLanguagesToTemplates(['php', 'twig']);
-    const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
+    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/php-twig.md'));
   });
 
   it('routes ERB to ruby-erb.md', () => {
     const refs = mapLanguagesToTemplates(['erb']);
-    const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
+    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/ruby-erb.md'));
   });
 
   it('routes Jinja to python-jinja.md', () => {
     const refs = mapLanguagesToTemplates(['python', 'jinja']);
-    const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
+    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/python-jinja.md'));
   });
 
   it('routes Blazor to dotnet-blazor.md', () => {
     const refs = mapLanguagesToTemplates(['blazor']);
-    const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
+    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/dotnet-blazor.md'));
   });
 
   it('routes Swift to swift-ios.md', () => {
     const refs = mapLanguagesToTemplates(['swift']);
-    const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
+    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/swift-ios.md'));
   });
 
   it('falls back to typescript.md for TS without framework', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'typescript']);
-    const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
+    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/typescript.md'));
   });
 
   it('framework takes priority over TS fallback', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'typescript', 'react']);
-    const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
+    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/react.md'), `Got ${frontend.template}`);
   });
 
   it('first detected framework wins', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'react', 'vue']);
-    const frontendRefs = refs.filter(r => r.output === 'ai/instructions/frontend.md');
+    const frontendRefs = refs.filter(r => r.output === 'ai/coding-standards/frontend.md');
     assert.equal(frontendRefs.length, 1, 'Should produce exactly one frontend ref');
     assert.ok(frontendRefs[0].template.endsWith('/react.md'));
   });
 
   it('no frontend ref for Go-only project', () => {
     const refs = mapLanguagesToTemplates(['go']);
-    const frontend = refs.find(r => r.output === 'ai/instructions/frontend.md');
+    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
     assert.equal(frontend, undefined, 'Go-only should not get frontend.md');
   });
 });
@@ -373,35 +373,35 @@ describe('mapLanguagesToTemplates - frontend routing', () => {
 describe('mapLanguagesToTemplates - backend framework routing', () => {
   it('routes Laravel over generic PHP for backend.md', () => {
     const refs = mapLanguagesToTemplates(['php', 'laravel']);
-    const backend = refs.find(r => r.output === 'ai/instructions/backend.md');
+    const backend = refs.find(r => r.output === 'ai/coding-standards/backend.md');
     assert.ok(backend, 'Expected backend.md ref');
     assert.ok(backend.template.endsWith('/php-laravel.md'), `Got ${backend.template}`);
   });
 
   it('routes Django over generic Python for backend.md', () => {
     const refs = mapLanguagesToTemplates(['python', 'django']);
-    const backend = refs.find(r => r.output === 'ai/instructions/backend.md');
+    const backend = refs.find(r => r.output === 'ai/coding-standards/backend.md');
     assert.ok(backend, 'Expected backend.md ref');
     assert.ok(backend.template.endsWith('/python-django.md'), `Got ${backend.template}`);
   });
 
   it('routes generic Python when no framework detected', () => {
     const refs = mapLanguagesToTemplates(['python']);
-    const backend = refs.find(r => r.output === 'ai/instructions/backend.md');
+    const backend = refs.find(r => r.output === 'ai/coding-standards/backend.md');
     assert.ok(backend, 'Expected backend.md ref');
     assert.ok(backend.template.endsWith('/python.md'), `Got ${backend.template}`);
   });
 
   it('adds security framework template for detected framework', () => {
     const refs = mapLanguagesToTemplates(['php', 'laravel']);
-    const sec = refs.find(r => r.output === 'ai/instructions/security-laravel.md');
+    const sec = refs.find(r => r.output === 'ai/coding-standards/security-laravel.md');
     assert.ok(sec, 'Expected security-laravel.md ref');
     assert.ok(sec.template.includes('framework-specific/laravel.md'));
   });
 
   it('adds web-common for Ruby projects', () => {
     const refs = mapLanguagesToTemplates(['ruby']);
-    const webCommon = refs.find(r => r.output === 'ai/instructions/web-common.md');
+    const webCommon = refs.find(r => r.output === 'ai/coding-standards/web-common.md');
     assert.ok(webCommon, 'Ruby should get web-common.md');
   });
 });
@@ -414,40 +414,40 @@ describe('mapSignalsToTemplates', () => {
 
   it('always includes security.md and testing.md', () => {
     const refs = mapSignalsToTemplates(emptySignals);
-    assert.ok(refs.find(r => r.output === 'ai/instructions/security.md'), 'Expected security.md');
-    assert.ok(refs.find(r => r.output === 'ai/instructions/testing.md'), 'Expected testing.md');
+    assert.ok(refs.find(r => r.output === 'ai/coding-standards/security.md'), 'Expected security.md');
+    assert.ok(refs.find(r => r.output === 'ai/coding-standards/testing.md'), 'Expected testing.md');
   });
 
   it('always includes secrets-management and supply-chain', () => {
     const refs = mapSignalsToTemplates(emptySignals);
-    assert.ok(refs.find(r => r.output === 'ai/instructions/secrets-management.md'));
-    assert.ok(refs.find(r => r.output === 'ai/instructions/supply-chain.md'));
+    assert.ok(refs.find(r => r.output === 'ai/coding-standards/secrets-management.md'));
+    assert.ok(refs.find(r => r.output === 'ai/coding-standards/supply-chain.md'));
   });
 
   it('adds web security templates for web languages', () => {
     const refs = mapSignalsToTemplates(emptySignals, ['typescript']);
-    assert.ok(refs.find(r => r.output === 'ai/instructions/api-auth.md'), 'Expected api-auth.md');
-    assert.ok(refs.find(r => r.output === 'ai/instructions/file-upload.md'), 'Expected file-upload.md');
-    assert.ok(refs.find(r => r.output === 'ai/instructions/sql-injection.md'), 'Expected sql-injection.md');
+    assert.ok(refs.find(r => r.output === 'ai/coding-standards/api-auth.md'), 'Expected api-auth.md');
+    assert.ok(refs.find(r => r.output === 'ai/coding-standards/file-upload.md'), 'Expected file-upload.md');
+    assert.ok(refs.find(r => r.output === 'ai/coding-standards/sql-injection.md'), 'Expected sql-injection.md');
   });
 
   it('skips web security templates for non-web languages', () => {
     const refs = mapSignalsToTemplates(emptySignals, ['bash']);
-    assert.equal(refs.find(r => r.output === 'ai/instructions/api-auth.md'), undefined);
+    assert.equal(refs.find(r => r.output === 'ai/coding-standards/api-auth.md'), undefined);
   });
 
   it('adds infrastructure-security for deploy platforms', () => {
     const refs = mapSignalsToTemplates({ ...emptySignals, deployPlatforms: ['docker'] });
-    assert.ok(refs.find(r => r.output === 'ai/instructions/infrastructure-security.md'));
+    assert.ok(refs.find(r => r.output === 'ai/coding-standards/infrastructure-security.md'));
   });
 
   it('adds terraform template when terraform detected', () => {
     const refs = mapSignalsToTemplates({ ...emptySignals, deployPlatforms: ['terraform'] });
-    assert.ok(refs.find(r => r.output === 'ai/instructions/devops-terraform.md'));
+    assert.ok(refs.find(r => r.output === 'ai/coding-standards/devops-terraform.md'));
   });
 
   it('adds packer template when packer detected', () => {
     const refs = mapSignalsToTemplates({ ...emptySignals, deployPlatforms: ['packer'] });
-    assert.ok(refs.find(r => r.output === 'ai/instructions/devops-packer.md'));
+    assert.ok(refs.find(r => r.output === 'ai/coding-standards/devops-packer.md'));
   });
 });

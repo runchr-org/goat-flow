@@ -1,6 +1,6 @@
 # TypeScript Coding Standards (Framework-Agnostic)
 
-Reference for generating `ai/instructions/frontend.md` or `ai/instructions/backend.md` in TypeScript projects that do NOT use React, Vue, or Angular. Applies to CLI tools, libraries, Node.js services, and utility packages.
+Reference for generating `ai/coding-standards/frontend.md` or `ai/coding-standards/backend.md` in TypeScript projects that do NOT use React, Vue, or Angular. Applies to CLI tools, libraries, Node.js services, and utility packages.
 
 ## Module Configuration
 

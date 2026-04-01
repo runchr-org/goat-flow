@@ -109,7 +109,7 @@ function extractRouterPaths(content: string): string[] {
   const routerSection = extractSection(content, 'router');
   if (routerSection == null) return paths;
 
-  /** Backtick-wrapped path matches (e.g. `docs/footguns.md`) */
+  /** Backtick-wrapped path matches (e.g. `docs/footguns/`) */
   const backtickMatches = routerSection.matchAll(/`([^`]+)`/g);
   // Iterate over backtick matches to collect file paths from the router table
   for (const match of backtickMatches) {
@@ -372,7 +372,7 @@ function extractSkillFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFacts['ski
       if (/^https?:/.test(ref)) continue;
       // Skip template placeholders, example paths, and gitignored working files
       if (/\{|YYYY|file:line|path\/to|monitoring\//i.test(ref)) continue;
-      if (/^tasks\/(handoff|todo|commit|release|scratchpad|improvement)/.test(ref)) continue;
+      if (/^(?:\.goat-flow\/)?tasks\/(handoff|todo|commit|release|scratchpad|improvement)/.test(ref)) continue;
       if (/^(src\/api|config\/|docs\/glossary)/.test(ref)) continue;
       if (!fs.exists(ref) && !danglingRefs.includes(ref)) {
         danglingRefs.push(ref);
