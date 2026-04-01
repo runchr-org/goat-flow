@@ -25,7 +25,7 @@ function getFoundationRefs(agentId: AgentId): TemplateRef[] {
   /** Shared refs that every agent gets at the foundation tier */
   const shared: TemplateRef[] = [
     {
-      output: 'goat-flow.yaml',
+      output: '.goat-flow/config.yaml',
       template: 'setup/shared/execution-loop.md',
       phase: 'foundation',
       note: 'Create config file with default paths and detected agents',
@@ -273,34 +273,23 @@ const LANGUAGE_TEMPLATE_MAP: Record<string, string> = {
   python: 'workflow/coding-standards/backend/python.md',
   go: 'workflow/coding-standards/backend/go.md',
   rust: 'workflow/coding-standards/backend/rust.md',
-  java: 'workflow/coding-standards/backend/java-spring.md',
-  ruby: 'workflow/coding-standards/backend/ruby-rails.md',
-  csharp: 'workflow/coding-standards/backend/csharp-dotnet.md',
   bash: 'workflow/coding-standards/backend/bash.md',
   // Framework-specific overrides (preferred over generic language template)
   laravel: 'workflow/coding-standards/backend/php-laravel.md',
   symfony: 'workflow/coding-standards/backend/php-symfony.md',
   django: 'workflow/coding-standards/backend/python-django.md',
   fastapi: 'workflow/coding-standards/backend/python-fastapi.md',
-  rails: 'workflow/coding-standards/backend/ruby-rails.md',
-  spring: 'workflow/coding-standards/backend/java-spring.md',
   express: 'workflow/coding-standards/backend/typescript-node.md',
 };
 
 /** Languages that indicate a web project (gets web-common.md security template) */
-const WEB_LANGUAGES = new Set(['typescript', 'javascript', 'php', 'python', 'go', 'rust', 'ruby', 'java', 'csharp']);
+const WEB_LANGUAGES = new Set(['typescript', 'javascript', 'php', 'python', 'go', 'rust']);
 
 /** Map from detected frontend framework/template engine to its coding-standards template */
 const FRONTEND_TEMPLATE_MAP: Record<string, string> = {
   react: 'workflow/coding-standards/frontend/react.md',
   vue: 'workflow/coding-standards/frontend/vue.md',
   angular: 'workflow/coding-standards/frontend/angular.md',
-  blade: 'workflow/coding-standards/frontend/php-blade.md',
-  twig: 'workflow/coding-standards/frontend/php-twig.md',
-  erb: 'workflow/coding-standards/frontend/ruby-erb.md',
-  jinja: 'workflow/coding-standards/frontend/python-jinja.md',
-  blazor: 'workflow/coding-standards/frontend/dotnet-blazor.md',
-  swift: 'workflow/coding-standards/frontend/swift-ios.md',
 };
 
 /** Map from detected framework/language to security framework-specific template */
@@ -383,8 +372,8 @@ export function mapLanguagesToTemplates(languages: string[]): TemplateRef[] {
 
   // Add backend.md for backend-language projects (scanner check 2.6.7b)
   // Framework-specific takes priority over generic language
-  const frameworkBackendLangs = ['laravel', 'symfony', 'django', 'fastapi', 'rails', 'spring', 'express'];
-  const backendLangs = ['go', 'python', 'rust', 'java', 'php', 'ruby', 'csharp'];
+  const frameworkBackendLangs = ['laravel', 'symfony', 'django', 'fastapi', 'express'];
+  const backendLangs = ['go', 'python', 'rust', 'php'];
   const detectedFramework = languages.find(l => frameworkBackendLangs.includes(l));
   const detectedBackend = detectedFramework ?? languages.find(l => backendLangs.includes(l));
   if (detectedBackend) {
@@ -526,17 +515,7 @@ export function mapSignalsToTemplates(signals: ProjectSignals, languages: string
       }
     }
 
-    if (signals.deployPlatforms.includes('packer')) {
-      const pk = 'workflow/coding-standards/devops/packer.md';
-      if (templateExists(pk)) {
-        refs.push({
-          output: 'ai/coding-standards/devops-packer.md',
-          template: pk,
-          phase: 'standard',
-          note: 'Packer detected',
-        });
-      }
-    }
+    // Packer template removed (niche, unmaintained)
   }
 
   if (signals.complianceSignals) {
@@ -724,7 +703,6 @@ const FRAGMENT_TEMPLATE_MAP: Record<string, string | Partial<Record<AgentId, str
   'create-security-go': 'workflow/coding-standards/security/framework-specific/go.md',
   'create-security-dotnet': 'workflow/coding-standards/security/framework-specific/dotnet.md',
   'create-devops-terraform': 'workflow/coding-standards/devops/terraform.md',
-  'create-devops-packer': 'workflow/coding-standards/devops/packer.md',
 
   // Fix-kind - local instructions
   'improve-conventions-instructions': 'workflow/coding-standards/conventions.md',
@@ -795,10 +773,10 @@ export function getLanguageTemplate(key: string, languages: string[]): string | 
   // Only override coding-standards fragment keys
   if (key === 'create-backend-instructions') {
     // Framework-specific takes priority over generic language
-    const frameworkLangs = ['laravel', 'symfony', 'django', 'fastapi', 'rails', 'spring', 'express'];
+    const frameworkLangs = ['laravel', 'symfony', 'django', 'fastapi', 'express'];
     const detectedFramework = languages.find(l => frameworkLangs.includes(l));
     if (detectedFramework) return LANGUAGE_TEMPLATE_MAP[detectedFramework] ?? null;
-    const backendLangs = ['go', 'python', 'rust', 'java', 'php', 'ruby', 'csharp'];
+    const backendLangs = ['go', 'python', 'rust', 'php'];
     const detected = languages.find(l => backendLangs.includes(l));
     if (detected) return LANGUAGE_TEMPLATE_MAP[detected] ?? null;
   }

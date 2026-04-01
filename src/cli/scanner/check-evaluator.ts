@@ -398,7 +398,7 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
     '.geminiignore': shared.ignoreFiles.geminiignore,
     '.github/workflows/context-validation.yml': shared.ci.workflowExists,
     '.gitignore': shared.gitignore.exists,
-    'goat-flow.yaml': shared.config.exists,
+    '.goat-flow/config.yaml': shared.config.exists,
     'scripts/preflight-checks.sh': shared.preflightScript.exists,
     [shared.decisions.path]: shared.decisions.dirExists,
     [normalizedDecisionsPath]: shared.decisions.dirExists,

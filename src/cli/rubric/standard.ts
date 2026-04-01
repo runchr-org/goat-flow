@@ -746,10 +746,24 @@ export const standardChecks: CheckDef[] = [
     recommendationKey: 'compress-architecture',
   },
   {
-    id: '2.5.3', name: 'decisions dir scaffolded', tier: 'standard', category: 'Architecture',
+    id: '2.5.3', name: 'decisions dir has real ADR content', tier: 'standard', category: 'Architecture',
     pts: 1, confidence: 'high',
-    detect: { type: 'dir_exists', path: '{decisions_dir}' },
-    recommendation: 'Create ai/decisions/ with an ADR template',
+    detect: {
+      type: 'custom',
+      fn: (ctx: FactContext): CheckResult => {
+        const { dirExists, fileCount, hasRealContent } = ctx.facts.shared.decisions;
+        if (!dirExists || fileCount === 0) {
+          return { id: '2.5.3', name: 'decisions dir has real ADR content', tier: 'standard', category: 'Architecture', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: dirExists ? 'Directory exists but no ADR files' : 'No decisions directory' };
+        }
+        return {
+          id: '2.5.3', name: 'decisions dir has real ADR content', tier: 'standard', category: 'Architecture',
+          status: hasRealContent ? 'pass' : 'fail',
+          points: hasRealContent ? 1 : 0, maxPoints: 1, confidence: 'high',
+          message: hasRealContent ? `${fileCount} ADR files, real content found` : `${fileCount} ADR files but none have real Context + Decision sections (≥50 chars, not TODO/TBD)`,
+        };
+      },
+    },
+    recommendation: 'Create ai/decisions/ with at least 1 ADR containing real Context and Decision sections',
     recommendationKey: 'create-decisions-dir',
   },
   // === 2.6 Local Instructions (cold path) (6 pts) ===
@@ -904,7 +918,7 @@ export const standardChecks: CheckDef[] = [
           return { id: '2.6.7a', name: checkName, tier: 'standard', category: 'Local Instructions', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No instructions directory' };
         }
         const langs = ctx.facts.stack.languages.map(l => l.toLowerCase());
-        const frontendSignals = ['typescript', 'javascript', 'react', 'vue', 'angular', 'svelte', 'blade', 'twig', 'erb', 'jinja', 'blazor', 'swift'];
+        const frontendSignals = ['typescript', 'javascript', 'react', 'vue', 'angular', 'svelte'];
         const needsFrontend = langs.some(l => frontendSignals.includes(l));
         if (!needsFrontend) {
           return { id: '2.6.7a', name: checkName, tier: 'standard', category: 'Local Instructions', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No frontend/UI stack detected' };
@@ -931,7 +945,7 @@ export const standardChecks: CheckDef[] = [
           return { id: '2.6.7b', name: 'backend.md exists for backend-language projects', tier: 'standard', category: 'Local Instructions', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No instructions directory' };
         }
         const langs = ctx.facts.stack.languages.map(l => l.toLowerCase());
-        const backendLangs = ['go', 'python', 'rust', 'java', 'php', 'ruby', 'csharp'];
+        const backendLangs = ['go', 'python', 'rust', 'php'];
         const needsBackend = langs.some(l => backendLangs.includes(l));
         if (!needsBackend) {
           return { id: '2.6.7b', name: 'backend.md exists for backend-language projects', tier: 'standard', category: 'Local Instructions', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No backend language detected' };

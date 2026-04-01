@@ -211,10 +211,10 @@ export interface SharedFacts {
     formatDiagnostic: string | null;
     paths: { committed: string; local: string };
   };
-  decisions: { dirExists: boolean; fileCount: number; path: string };
+  decisions: { dirExists: boolean; fileCount: number; path: string; hasRealContent: boolean };
   config: { exists: boolean; valid: boolean; warningCount: number; errorCount: number; parseError: string | null };
   architecture: { exists: boolean; lineCount: number };
-  evals: { dirExists: boolean; count: number; hasReadme: boolean; hasOriginLabels: boolean; hasAgentsLabels: boolean; hasReplayPrompts: boolean; hasFrontmatter: boolean; evalSkillCount: number; missingSkills: string[]; path: string };
+  evals: { dirExists: boolean; count: number; hasReadme: boolean; hasOriginLabels: boolean; hasAgentsLabels: boolean; hasReplayPrompts: boolean; hasRealContent: boolean; hasFrontmatter: boolean; evalSkillCount: number; missingSkills: string[]; path: string };
   ci: { workflowExists: boolean; checksLineCount: boolean; checksRouter: boolean; checksSkills: boolean; ciTriggersOnPRs: boolean };
   handoffTemplate: { exists: boolean; sectionCount: number; hasRequiredSections: boolean };
   ignoreFiles: { copilotignore: boolean; cursorignore: boolean; geminiignore: boolean };

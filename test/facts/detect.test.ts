@@ -300,46 +300,12 @@ describe('mapLanguagesToTemplates - frontend routing', () => {
     assert.ok(frontend.template.endsWith('/angular.md'));
   });
 
-  it('routes Blade to php-blade.md', () => {
-    const refs = mapLanguagesToTemplates(['php', 'blade']);
-    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
-    assert.ok(frontend, 'Expected frontend.md ref');
-    assert.ok(frontend.template.endsWith('/php-blade.md'));
-  });
-
-  it('routes Twig to php-twig.md', () => {
-    const refs = mapLanguagesToTemplates(['php', 'twig']);
-    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
-    assert.ok(frontend, 'Expected frontend.md ref');
-    assert.ok(frontend.template.endsWith('/php-twig.md'));
-  });
-
-  it('routes ERB to ruby-erb.md', () => {
-    const refs = mapLanguagesToTemplates(['erb']);
-    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
-    assert.ok(frontend, 'Expected frontend.md ref');
-    assert.ok(frontend.template.endsWith('/ruby-erb.md'));
-  });
-
-  it('routes Jinja to python-jinja.md', () => {
-    const refs = mapLanguagesToTemplates(['python', 'jinja']);
-    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
-    assert.ok(frontend, 'Expected frontend.md ref');
-    assert.ok(frontend.template.endsWith('/python-jinja.md'));
-  });
-
-  it('routes Blazor to dotnet-blazor.md', () => {
-    const refs = mapLanguagesToTemplates(['blazor']);
-    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
-    assert.ok(frontend, 'Expected frontend.md ref');
-    assert.ok(frontend.template.endsWith('/dotnet-blazor.md'));
-  });
-
-  it('routes Swift to swift-ios.md', () => {
-    const refs = mapLanguagesToTemplates(['swift']);
-    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
-    assert.ok(frontend, 'Expected frontend.md ref');
-    assert.ok(frontend.template.endsWith('/swift-ios.md'));
+  it('does not route removed template engines (blade, twig, erb, jinja, blazor, swift)', () => {
+    for (const lang of ['blade', 'twig', 'erb', 'jinja', 'blazor', 'swift']) {
+      const refs = mapLanguagesToTemplates([lang]);
+      const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
+      assert.ok(!frontend, `${lang} should not produce a frontend template (template removed)`);
+    }
   });
 
   it('falls back to typescript.md for TS without framework', () => {
@@ -399,10 +365,10 @@ describe('mapLanguagesToTemplates - backend framework routing', () => {
     assert.ok(sec.template.includes('framework-specific/laravel.md'));
   });
 
-  it('adds web-common for Ruby projects', () => {
+  it('does not add web-common for Ruby projects (template removed)', () => {
     const refs = mapLanguagesToTemplates(['ruby']);
     const webCommon = refs.find(r => r.output === 'ai/coding-standards/web-common.md');
-    assert.ok(webCommon, 'Ruby should get web-common.md');
+    assert.ok(!webCommon, 'Ruby template removed — should not get web-common.md');
   });
 });
 
@@ -446,8 +412,8 @@ describe('mapSignalsToTemplates', () => {
     assert.ok(refs.find(r => r.output === 'ai/coding-standards/devops-terraform.md'));
   });
 
-  it('adds packer template when packer detected', () => {
+  it('does not add packer template (removed)', () => {
     const refs = mapSignalsToTemplates({ ...emptySignals, deployPlatforms: ['packer'] });
-    assert.ok(refs.find(r => r.output === 'ai/coding-standards/devops-packer.md'));
+    assert.ok(!refs.find(r => r.output === 'ai/coding-standards/devops-packer.md'));
   });
 });

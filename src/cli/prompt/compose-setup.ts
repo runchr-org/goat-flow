@@ -347,7 +347,7 @@ function renderTask(task: SetupTask): string {
 function defaultAdaptGuidance(output: string, note: string | undefined, languages: string): string {
   // Path-specific guidance takes precedence over generic notes
   if (output.includes('/skills/')) return `Replace template Step 0 questions and examples with ${languages} patterns from this project`;
-  if (output === 'goat-flow.yaml') return 'Use the default directory paths unless this project already needs explicit overrides';
+  if (output === '.goat-flow/config.yaml') return 'Use the default directory paths unless this project already needs explicit overrides';
   if (output === 'docs/footguns/') return `Seed \`docs/footguns/\` with individual markdown entries using YAML frontmatter. Every entry needs \`file:line\` evidence. No hypotheticals`;
   if (output === 'ai/lessons/') return `Seed \`ai/lessons/\` with individual markdown entries using YAML frontmatter. Use real incidents from git history`;
   if (output === 'docs/architecture.md') return 'Read project entry points and main directories. Document what exists - under 100 lines, no aspirational content';
@@ -360,7 +360,7 @@ function defaultAdaptGuidance(output: string, note: string | undefined, language
 /** Default verification text for a task */
 function defaultVerify(output: string): string {
   if (output.includes('/skills/')) return 'File has: When to Use, Process with human gates, Constraints, Output Format, Chaining sections';
-  if (output === 'goat-flow.yaml') return 'File exists, parses as YAML, and includes version plus footguns/lessons/decisions/tasks/logs/agents/skills settings';
+  if (output === '.goat-flow/config.yaml') return 'File exists, parses as YAML, and includes version plus footguns/lessons/decisions/tasks/logs/agents/skills settings';
   if (output === 'docs/footguns/') return 'Directory exists with README.md plus 1+ entry files using YAML frontmatter and `path:line` evidence';
   if (output === 'ai/lessons/') return 'Directory exists with README.md plus 1+ entry files using YAML frontmatter';
   if (output === 'docs/architecture.md') return 'File exists and is under 100 lines';

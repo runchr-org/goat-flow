@@ -237,7 +237,7 @@ function extractEvalFacts(fs: ReadonlyFS, rawEvalsPath: string): SharedFacts['ev
   const hasReadme = dirExists && fs.exists(`${evalsPath}/README.md`);
 
   if (count === 0) {
-    return { dirExists, count, hasReadme, hasOriginLabels: false, hasAgentsLabels: false, hasReplayPrompts: false, hasFrontmatter: false, evalSkillCount: 0, missingSkills: [], path: evalsPath };
+    return { dirExists, count, hasReadme, hasOriginLabels: false, hasAgentsLabels: false, hasReplayPrompts: false, hasRealContent: false, hasFrontmatter: false, evalSkillCount: 0, missingSkills: [], path: evalsPath };
   }
 
   /** The 6 canonical goat-flow skills (5 + dispatcher) */
@@ -249,6 +249,7 @@ function extractEvalFacts(fs: ReadonlyFS, rawEvalsPath: string): SharedFacts['ev
   let allHaveAgents = true;
   let allHaveReplay = true;
   let allHaveFrontmatter = true;
+  let allHaveRealContent = true;
   // Iterate over ALL eval files for quality checks and skill counting
   for (const f of evalFiles) {
     /** Raw content of this eval file */
@@ -257,12 +258,17 @@ function extractEvalFacts(fs: ReadonlyFS, rawEvalsPath: string): SharedFacts['ev
       allHaveOrigin = false;
       allHaveAgents = false;
       allHaveReplay = false;
+      allHaveRealContent = false;
       continue;
     }
     if (!/^---\n/.test(content)) allHaveFrontmatter = false;
     if (/\*\*Origin:\*\*/i.test(content) === false && /^## Origin/im.test(content) === false && /^origin:/im.test(content) === false) allHaveOrigin = false;
     if (/\*\*Agents:\*\*/i.test(content) === false && /^agents:/im.test(content) === false) allHaveAgents = false;
     if (/##+ Replay Prompt/i.test(content) === false && /##+ Scenario/i.test(content) === false) allHaveReplay = false;
+    // Check for real scenario content: ≥100 chars after scenario heading, not just TODO/TBD
+    const scenarioMatch = content.match(/##+ (?:Replay Prompt|Scenario)\s*\n([\s\S]*?)(?=\n##|\n---|$)/i);
+    const scenarioBody = scenarioMatch?.[1]?.trim() ?? '';
+    if (scenarioBody.length < 100 || /^(?:TODO|TBD)/i.test(scenarioBody)) allHaveRealContent = false;
     /** All skill label matches found in the eval content */
     const skillMatches = content.matchAll(/\*\*Skill:\*\*\s*(.+)|skill:\s*(.+)/gi);
     // Iterate over skill matches to collect unique skill names
@@ -273,7 +279,7 @@ function extractEvalFacts(fs: ReadonlyFS, rawEvalsPath: string): SharedFacts['ev
     }
   }
   const missingSkills = Array.from(CANONICAL_SKILLS).filter(skill => !skillNames.has(skill)).sort();
-  return { dirExists, count, hasReadme, hasOriginLabels: allHaveOrigin, hasAgentsLabels: allHaveAgents, hasReplayPrompts: allHaveReplay, hasFrontmatter: allHaveFrontmatter, evalSkillCount: skillNames.size, missingSkills, path: evalsPath };
+  return { dirExists, count, hasReadme, hasOriginLabels: allHaveOrigin, hasAgentsLabels: allHaveAgents, hasReplayPrompts: allHaveReplay, hasRealContent: allHaveRealContent, hasFrontmatter: allHaveFrontmatter, evalSkillCount: skillNames.size, missingSkills, path: evalsPath };
 }
 
 /** Extract project-wide shared facts from docs, evals, CI, and config files. */
@@ -375,10 +381,21 @@ function extractDecisionsFacts(fs: ReadonlyFS, rawPath: string): SharedFacts['de
   /** Whether the decisions directory exists */
   const dirExists = fs.exists(path);
   /** Count of markdown files in decisions directory, excluding README */
-  const fileCount = dirExists
-    ? fs.listDir(path).filter(f => f.endsWith('.md') && f !== 'README.md').length
-    : 0;
-  return { dirExists, fileCount, path };
+  const files = dirExists
+    ? fs.listDir(path).filter(f => f.endsWith('.md') && f !== 'README.md')
+    : [];
+  const fileCount = files.length;
+  // Check if at least 1 ADR has real Context + Decision content (≥50 chars each, not TODO/TBD)
+  let hasRealContent = false;
+  for (const f of files) {
+    const content = fs.readFile(`${path}/${f}`);
+    if (!content) continue;
+    const hasContext = /^## Context\s*\n(.{50,})/m.test(content);
+    const hasDecision = /^## Decision\s*\n(.{50,})/m.test(content);
+    const startsWithTodo = /^## (?:Context|Decision)\s*\n\s*(?:TODO|TBD)/im.test(content);
+    if (hasContext && hasDecision && !startsWithTodo) { hasRealContent = true; break; }
+  }
+  return { dirExists, fileCount, path, hasRealContent };
 }
 
 /** Detect and analyze local instruction files from coding-standards dir or .github/instructions/. */

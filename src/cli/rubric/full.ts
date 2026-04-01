@@ -20,18 +20,19 @@ export const fullChecks: CheckDef[] = [
     recommendationKey: 'create-evals-dir',
   },
   {
-    id: '3.1.3', name: '3+ eval files', tier: 'full', category: 'Agent Evals',
+    id: '3.1.3', name: '3+ eval files with real content', tier: 'full', category: 'Agent Evals',
     pts: 1, confidence: 'high',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
-        const count = ctx.facts.shared.evals.count;
-        if (count >= 3) return { id: '3.1.3', name: '3+ eval files', tier: 'full', category: 'Agent Evals', status: 'pass', points: 1, maxPoints: 1, confidence: 'high', message: `${count} eval files` };
-        if (count >= 1) return { id: '3.1.3', name: '3+ eval files', tier: 'full', category: 'Agent Evals', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: `${count} eval files (need 3+)` };
-        return { id: '3.1.3', name: '3+ eval files', tier: 'full', category: 'Agent Evals', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: 'No eval files' };
+        const { count, hasRealContent } = ctx.facts.shared.evals;
+        if (count >= 3 && hasRealContent) return { id: '3.1.3', name: '3+ eval files with real content', tier: 'full', category: 'Agent Evals', status: 'pass', points: 1, maxPoints: 1, confidence: 'high', message: `${count} eval files with real scenario content` };
+        if (count >= 3) return { id: '3.1.3', name: '3+ eval files with real content', tier: 'full', category: 'Agent Evals', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: `${count} eval files but scenarios lack real content (need ≥100 chars, not TODO/TBD)` };
+        if (count >= 1) return { id: '3.1.3', name: '3+ eval files with real content', tier: 'full', category: 'Agent Evals', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: `${count} eval files (need 3+ with real content)` };
+        return { id: '3.1.3', name: '3+ eval files with real content', tier: 'full', category: 'Agent Evals', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: 'No eval files' };
       },
     },
-    recommendation: 'Add 3+ agent eval files - diversity across skills matters more than count',
+    recommendation: 'Add 3+ agent eval files with real scenario content (≥100 chars per scenario, not just headings)',
     recommendationKey: 'add-evals',
   },
   {
@@ -228,16 +229,10 @@ export const fullChecks: CheckDef[] = [
     recommendation: 'Add required sections to handoff template: Status, Current State, Key Decisions, Known Risks, Next Step',
     recommendationKey: 'fix-handoff-sections',
   },
-  {
-    id: '3.3.2', name: 'RFC 2119 language', tier: 'full', category: 'Hygiene',
-    pts: 1, confidence: 'high',
-    detect: { type: 'grep_count', path: '{instruction_file}', pattern: '\\bMUST\\b|\\bSHOULD\\b|\\bMAY\\b', min: 10 },
-    recommendation: 'Use RFC 2119 language (MUST/SHOULD/MAY) in instruction file',
-    recommendationKey: 'add-rfc2119',
-  },
+  // 3.3.2 (RFC 2119 keyword count) removed — incentivized keyword sprinkling, not meaningful usage.
   // 3.3.3 (changelog) removed - CHANGELOG.md is a project-level concern, not an AI workflow check.
   {
-    id: '3.3.4', name: 'Execution loop consistent across agents', tier: 'standard', category: 'Dual-Agent Consistency',
+    id: '3.3.4', name: 'Execution loop consistent across agents', tier: 'full', category: 'Dual-Agent Consistency',
     pts: 3, confidence: 'medium',
     na: (ctx) => ctx.facts.agents.length <= 1,
     detect: {

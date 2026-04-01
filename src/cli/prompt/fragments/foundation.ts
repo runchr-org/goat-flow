@@ -203,7 +203,7 @@ Footguns use \\\`slug.md\\\` with frontmatter \\\`name\\\`, \\\`status\\\`, \\\`
     phase: 'foundation',
     category: 'Project Config',
     kind: 'create',
-    instruction: `Create \`goat-flow.yaml\` in the project root:
+    instruction: `Create \`.goat-flow/config.yaml\`:
 
 \`\`\`yaml
 version: "0.9.4"
@@ -232,7 +232,7 @@ If you want auto-detection, omit \`agents\`. If multiple agents are installed, l
     phase: 'foundation',
     category: 'Project Config',
     kind: 'fix',
-    instruction: `Fix \`goat-flow.yaml\` so it is valid YAML and matches the supported schema:
+    instruction: `Fix \`.goat-flow/config.yaml\` so it is valid YAML and matches the supported schema:
 
 - \`version\`: string
 - \`footguns.committed\`, \`footguns.local\`: non-empty strings

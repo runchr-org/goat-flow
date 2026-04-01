@@ -41,8 +41,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function readConfigText(projectRoot: string, fs?: ReadonlyFS): string | null {
-  if (fs) return fs.readFile('goat-flow.yaml');
-  const path = join(projectRoot, 'goat-flow.yaml');
+  if (fs) return fs.readFile('.goat-flow/config.yaml');
+  const path = join(projectRoot, '.goat-flow', 'config.yaml');
   if (!existsSync(path)) return null;
   return readFileSync(path, 'utf8');
 }
@@ -259,7 +259,7 @@ export function loadConfig(projectRoot: string, fs?: ReadonlyFS): LoadedConfig {
       valid: false,
       config: cloneDefaults(),
       warnings: [],
-      errors: [{ level: 'error', path: 'goat-flow.yaml', message: error instanceof Error ? error.message : String(error) }],
+      errors: [{ level: 'error', path: '.goat-flow/config.yaml', message: error instanceof Error ? error.message : String(error) }],
       parseError: error instanceof Error ? error.message : String(error),
     };
   }

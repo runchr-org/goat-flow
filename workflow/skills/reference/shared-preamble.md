@@ -88,11 +88,11 @@ If 3 consecutive file reads produce no new signal relevant to the current questi
 ## Flush Protocol
 
 If 10+ tool calls pass without a human gate or checkpoint, STOP:
-1. Write a 3-sentence status to `.goat-flow/tasks/scratchpad.md` (what you're doing, where you are, what's next)
+1. Write a 3-sentence status to `.goat-flow/tasks/handoff.md` (what you're doing, where you are, what's next)
 2. Ask the user: continue, compact, or redirect?
 
 The counter resets at every BLOCKING GATE, CHECKPOINT, or human message.
-`.goat-flow/tasks/scratchpad.md` is transient - do not commit it.
+`.goat-flow/tasks/handoff.md` is transient - do not commit it.
 
 ## Working Memory
 
@@ -112,4 +112,4 @@ When the skill completes:
 1. If work is incomplete: write `.goat-flow/tasks/handoff.md` using the standard handoff template (Date, Status, Current State, Key Decisions, Known Risks, Next Step)
 2. Check the Learning Loop (above) for anything worth logging
 3. Suggest the most relevant next skill if applicable (see Chains With in each skill)
-4. If `.goat-flow/tasks/logs/` exists: write a session summary to `.goat-flow/tasks/logs/sessions/YYYY-MM-DD-goat-{skill}.md`. If >50 session files, delete the oldest to stay at 50. (Schema in `.goat-flow/tasks/logs/README.md`)
+4. If `.goat-flow/logs/` exists: write a session summary to `.goat-flow/logs/sessions/YYYY-MM-DD-goat-{skill}.md`. If >50 session files, delete the oldest to stay at 50. (Schema in `.goat-flow/logs/README.md`)

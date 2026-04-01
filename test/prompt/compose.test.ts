@@ -392,7 +392,7 @@ describe('M2.11b: scanner fixes', () => {
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
       'ai/lessons/README.md': '# Lessons\n\nOne file per lesson.\n\n### Entry Format\n<!-- Describe what happened -->\n',
-      'goat-flow.yaml': 'version: "0.9.4"\nlessons:\n  committed: ai/lessons/\n  local: .goat-flow/lessons/\nfootguns:\n  committed: docs/footguns/\n  local: .goat-flow/footguns/\ndecisions:\n  path: ai/decisions/\ntasks:\n  path: .goat-flow/tasks/\nskills:\n  install: all\n',
+      '.goat-flow/config.yaml': 'version: "0.9.4"\nlessons:\n  committed: ai/lessons/\n  local: .goat-flow/lessons/\nfootguns:\n  committed: docs/footguns/\n  local: .goat-flow/footguns/\ndecisions:\n  path: ai/decisions/\ntasks:\n  path: .goat-flow/tasks/\nskills:\n  install: all\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const check = report.agents[0]?.checks.find(c => c.id === '2.3.2a');

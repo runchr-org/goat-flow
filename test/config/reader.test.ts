@@ -4,7 +4,7 @@ import { createMockFS } from '../helpers/mock-fs.js';
 import { CONFIG_DEFAULTS, loadConfig, readConfig, validateConfig } from '../../src/cli/config/index.js';
 
 describe('config reader', () => {
-  it('returns defaults when goat-flow.yaml is missing', () => {
+  it('returns defaults when config.yaml is missing', () => {
     const fs = createMockFS({});
     const loaded = loadConfig('/test', fs);
     assert.equal(loaded.exists, false);
@@ -15,7 +15,7 @@ describe('config reader', () => {
 
   it('merges partial configs with defaults', () => {
     const fs = createMockFS({
-      'goat-flow.yaml': [
+      '.goat-flow/config.yaml': [
         'footguns:',
         '  committed: custom/footguns/',
         'skills:',
@@ -35,7 +35,7 @@ describe('config reader', () => {
 
   it('preserves explicit null agents override', () => {
     const fs = createMockFS({
-      'goat-flow.yaml': 'agents: null\n',
+      '.goat-flow/config.yaml': 'agents: null\n',
     });
 
     const loaded = loadConfig('/test', fs);
@@ -69,7 +69,7 @@ describe('config reader', () => {
 
   it('reports YAML parse errors and falls back to defaults', () => {
     const fs = createMockFS({
-      'goat-flow.yaml': 'footguns: [unterminated\n',
+      '.goat-flow/config.yaml': 'footguns: [unterminated\n',
     });
 
     const loaded = loadConfig('/test', fs);

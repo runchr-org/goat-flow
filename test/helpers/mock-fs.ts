@@ -211,9 +211,9 @@ function normalizeLearningLoop(files: Record<string, string>): Record<string, st
     Object.keys(normalized).some(k => k.startsWith('docs/footguns/')) ||
     Object.keys(normalized).some(k => k.startsWith('ai/lessons/'));
 
-  if (hasLearningLoop && !('goat-flow.yaml' in normalized)) {
+  if (hasLearningLoop && !('.goat-flow/config.yaml' in normalized)) {
     const agents = detectAgents(normalized);
-    normalized['goat-flow.yaml'] = [
+    normalized['.goat-flow/config.yaml'] = [
       'version: "0.9.4"',
       'footguns:',
       '  committed: docs/footguns/',
