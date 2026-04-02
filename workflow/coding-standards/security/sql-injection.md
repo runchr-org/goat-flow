@@ -1,6 +1,6 @@
 # SQL Injection Prevention
 
-Reference for generating `ai/instructions/security.md` in projects using SQL databases.
+Reference for generating `ai/coding-standards/security.md` in projects using SQL databases.
 
 ## Parameterized Queries by ORM
 

@@ -1,6 +1,6 @@
 # GOAT Flow -- Getting Started
 
-**Version:** v0.9.1 | 2026-03-30
+**Version:** v0.9.4 | 2026-03-31
 **Companion to:** `setup/` (agent setup guides) and `docs/system-spec.md` (canonical spec)
 
 ---
@@ -64,7 +64,7 @@ Just want the bare minimum to try it?
 **After Phase 1a:**
 - [ ] CLAUDE.md line count reported -- under 120?
 - [ ] If Prompt B: open `docs/domain-reference.md` and verify nothing was silently dropped. Compare against the original CLAUDE.md
-- [ ] `docs/footguns.md` contains real footguns with file:line evidence, not hypothetical ones
+- [ ] `docs/footguns/` contains real footguns with file:line evidence, not hypothetical ones
 - [ ] `docs/guidelines-ownership-split.md` exists and documents the migration
 - [ ] Budget a second pass -- agents aggressively cut content during compression. The anti-BDUF guard and sections (f)-(i) are commonly dropped then needed back
 
@@ -99,7 +99,7 @@ You don't have to do everything. Pick your tier:
 
 **Weekly:** Run Claude Code's `/insights` to review learning loop patterns (analyses your recent session history for recurring patterns). Look for friction that could become a new rule or footgun. For other agents: Gemini CLI uses `/memories`, Cursor users should review their rules periodically.
 
-**When something breaks:** After Claude causes a bug, add it to `docs/lessons.md` (behavioural) or `docs/footguns.md` (architectural). If it's worth regression-testing, create an agent eval in `agent-evals/`.
+**When something breaks:** After Claude causes a bug, add it to `ai/lessons/` (behavioural) or `docs/footguns/` (architectural). If it's worth regression-testing, create an agent eval in `ai/evals/`.
 
 **Quarterly:** Re-count CLAUDE.md lines. Check for stale rules. Ask: "if I removed this, would the model still do the right thing?" Archive lessons not triggered in 30+ days.
 
@@ -117,10 +117,10 @@ You don't have to do everything. Pick your tier:
 - **Post-turn hooks must exit 0.** Even when they find errors. Non-zero exit codes trap the agent in infinite fix loops.
   - Fix: Verify the hook exits 0 even on errors. Add the infinite loop guard: if [ "${STOP_HOOK_ACTIVE:-}" = "1" ]; then exit 0; fi
 - **Secret scanning is manual.** The `gitleaks` setup requires `git config --global` which affects all repos. Do it yourself, don't let Claude Code do it. Document it in README, not CLAUDE.md.
-- **Pre-existing footguns don't need replacement.** If docs/footguns.md already exists with real entries, the implementation should merge, not replace. Some projects need zero new footguns -- that's fine.
+- **Pre-existing footguns don't need replacement.** If docs/footguns/ already exists with real entries, the implementation should merge, not replace. Some projects need zero new footguns -- that's fine.
 - **Pre-existing hooks need migration.** If .claude/settings.json already has inline hook commands, migrate them to external scripts under .claude/hooks/ during Phase 1c.
 - **Skip post-tool hook if no formatter.** Shell scripts, for example, have no standard formatter. Don't create a format hook that re-runs the linter.
-- **Dual-agent repos need coordination.** If you run both Claude Code and Codex implementations on the same project, they share docs/footguns.md and docs/lessons.md. Changes by one agent affect the other. Run Claude Code first (it creates the shared docs), then Codex (it merges with existing files).
+- **Dual-agent repos need coordination.** If you run both Claude Code and Codex implementations on the same project, they share docs/footguns/ and ai/lessons/. Changes by one agent affect the other. Run Claude Code first (it creates the shared docs), then Codex (it merges with existing files).
 
 ## File Reference
 
@@ -138,17 +138,17 @@ src/auth/CLAUDE.md (etc.)              <- Layer 2: local context (if qualifying 
 .claude/hooks/stop-lint.sh
 .claude/hooks/format-file.sh           <- skip if no formatter configured
 .claude/settings.json
-docs/lessons.md                        <- learning loop
-docs/footguns.md
+ai/lessons/                          <- learning loop
+docs/footguns/
 docs/architecture.md
 docs/domain-reference.md               <- Prompt B path only
 docs/guidelines-ownership-split.md     <- migration rationale
-docs/decisions/
-tasks/handoff-template.md
+ai/decisions/
+.goat-flow/tasks/handoff-template.md
 ai/README.md                           <- Cold-path router for project coding guidelines
-ai/instructions/                       <- Domain-specific coding guidelines (base, code-review, git-commit, frontend, backend, etc.)
+ai/coding-standards/                       <- Domain-specific coding guidelines (base, code-review, git-commit, frontend, backend, etc.)
 .github/git-commit-instructions.md     <- Universal commit instructions
-agent-evals/                           <- Phase 2
+ai/evals/                              <- Phase 2
 .github/workflows/context-validation.yml  <- Phase 2
 ```
 

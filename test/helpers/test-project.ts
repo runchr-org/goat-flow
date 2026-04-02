@@ -47,16 +47,19 @@ export class TestProject {
   }
 
   withLearningLoop(): this {
-    this.withFile('docs/footguns.md', '# Footguns\n\n## Footgun: Example\n\n**Evidence:**\n- `src/auth.ts:42` - broke login\n');
-    this.withFile('docs/lessons.md', '# Lessons\n\n## Entries\n\n### Entry 1\n**What happened:** something\n\n**created_at:** 2026-01-01\n');
+    this.withFile('.goat-flow/config.yaml', 'version: "0.9.4"\nfootguns:\n  committed: docs/footguns/\n  local: .goat-flow/footguns/\nlessons:\n  committed: ai/lessons/\n  local: .goat-flow/lessons/\ndecisions:\n  path: ai/decisions/\ntasks:\n  path: .goat-flow/tasks/\nskills:\n  install: all\n');
+    this.withFile('docs/footguns/README.md', '# Footguns\n');
+    this.withFile('docs/footguns/example.md', '---\nname: Example footgun\nstatus: active\ncreated: 2026-01-01\nevidence_type: ACTUAL_MEASURED\n---\n\n**Evidence:**\n- `src/auth.ts:42` - broke login\n');
+    this.withFile('ai/lessons/README.md', '# Lessons\n');
+    this.withFile('ai/lessons/2026-01-01-entry-1.md', '---\nname: Entry 1\ncreated: 2026-01-01\n---\n\n**What happened:** something\n');
     return this;
   }
 
   withEvals(count: number = 3): this {
-    this.withFile('agent-evals/README.md', '# Agent Evals\n');
+    this.withFile('ai/evals/README.md', '# Agent Evals\n');
     for (let i = 1; i <= count; i++) {
       this.withFile(
-        `agent-evals/eval-${i}.md`,
+        `ai/evals/eval-${i}.md`,
         `# Eval ${i}\n\n**Origin:** real-incident\n**Agents:** all\n\n## Replay Prompt\n\n\`\`\`\nDo the thing\n\`\`\`\n`
       );
     }

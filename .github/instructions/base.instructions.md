@@ -1,7 +1,7 @@
 ---
 applyTo: "**"
 ---
-<!-- Source: ai/instructions/conventions.md - keep in sync -->
+<!-- Source: ai/coding-standards/conventions.md - keep in sync -->
 
 # Base - GOAT Flow
 
@@ -22,7 +22,7 @@ Documentation framework for AI coding agent workflows. Markdown docs + TypeScrip
 npm run build          # Compile TypeScript to dist/
 npm test               # Run all tests (node:test + tsx)
 npm run typecheck      # Type-check without emitting
-npm run self-scan      # Scan this repo with goat-flow
+npm run scan           # Scan this repo with goat-flow
 shellcheck scripts/*.sh scripts/maintenance/*.sh
 bash scripts/preflight-checks.sh   # Full preflight gate
 bash scripts/context-validate.sh   # Validate GOAT Flow structure
@@ -31,7 +31,7 @@ scripts/run-cli.sh                 # Interactive CLI menu
 
 ## Conventions
 
-- TypeScript ESM, Node 20.6+, zero runtime deps
+- TypeScript ESM, Node >=20.11.0, zero runtime deps
 - `node:test` for testing - no Jest/Vitest
 - All shell scripts: `set -euo pipefail`, pass shellcheck
 - Rubric checks are typed data in `src/cli/rubric/` - not parsed from markdown

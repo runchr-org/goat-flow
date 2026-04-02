@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AntiPatternDef, FactContext, AntiPatternResult } from '../types.js';
-import { SKILL_VERSION } from '../constants.js';
+import { SKILL_VERSION, SKILL_NAMES } from '../constants.js';
 
 /**
  * Anti-Pattern Deductions (max -15)
@@ -19,17 +19,8 @@ export const antiPatterns: AntiPatternDef[] = [
     recommendation: 'Compress instruction file below 150 lines',
     recommendationKey: 'ap-compress-instruction-file',
   },
-  {
-    id: 'AP2', name: 'Skill name conflicts with built-in', deduction: -3, confidence: 'high',
-    evaluate: (ctx: FactContext): AntiPatternResult => {
-      // Filter skills that lack the required goat- prefix (excluding the dispatcher 'goat' itself)
-      const nonGoat = ctx.agentFacts.skills.found.filter(s => s !== 'goat' && s.startsWith('goat-') === false);
-      const triggered = nonGoat.length > 0;
-      return { id: 'AP2', name: 'Skill name conflicts with built-in', triggered, deduction: triggered ? -3 : 0, confidence: 'high', message: triggered ? `Skills without goat- prefix: ${nonGoat.join(', ')}` : 'All skills use goat- prefix' };
-    },
-    recommendation: 'Rename skills to use goat- prefix',
-    recommendationKey: 'ap-fix-skill-names',
-  },
+  // AP2 removed — penalized project-specific skills (e.g., deploy/, preflight/) by assuming all skills need goat- prefix.
+  // See docs/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
   {
     id: 'AP3', name: 'DoD in both instruction file and guidelines', deduction: -3, confidence: 'low',
     evaluate: (ctx: FactContext): AntiPatternResult => {
@@ -84,9 +75,9 @@ export const antiPatterns: AntiPatternDef[] = [
     id: 'AP7', name: 'Local per-directory instruction file over 20 lines', deduction: -2, confidence: 'high',
     evaluate: (ctx: FactContext): AntiPatternResult => {
       // Only check per-directory local files (e.g., src/api/CLAUDE.md)
-      // EXCLUDE ai/instructions/ and .github/instructions/ - those are cold-path files meant to be 40-60 lines
+      // EXCLUDE ai/coding-standards/ and .github/instructions/ - those are cold-path files meant to be 40-60 lines
       const oversize = ctx.facts.shared.localInstructions.localFileSizes
-        .filter(f => f.path.includes('ai/instructions/') === false && f.path.includes('.github/instructions/') === false)
+        .filter(f => f.path.includes(ctx.facts.shared.localInstructions.path) === false && f.path.includes('.github/instructions/') === false)
         .filter(f => f.lines > 20);
       const triggered = oversize.length > 0;
       const message = triggered
@@ -160,7 +151,7 @@ export const antiPatterns: AntiPatternDef[] = [
       const content = ctx.agentFacts.instruction.content;
       if (!content) return { id: 'AP13', name: 'Stale code references in instruction file', triggered: false, deduction: 0, confidence: 'high', message: 'No instruction file' };
       // Extract backtick-wrapped paths starting with common project directories
-      const pathPattern = /`((?:src|config|templates?|app|apps|lib|docs|scripts|setup|workflow|agent-evals|\.claude|\.agents|\.github)\/[^`]+)`/g;
+      const pathPattern = /`((?:src|config|templates?|app|apps|lib|docs|scripts|setup|workflow|ai|agent-evals|\.claude|\.agents|\.github)\/[^`]+)`/g;
       const stale: string[] = [];
       for (const m of content.matchAll(pathPattern)) {
         const p = m[1];
@@ -185,9 +176,9 @@ export const antiPatterns: AntiPatternDef[] = [
     id: 'AP14', name: 'Duplicate skill directories', deduction: -2, confidence: 'high',
     evaluate: (ctx: FactContext): AntiPatternResult => {
       // Check for non-goat skills that have a goat- equivalent
-      const found = ctx.agentFacts.skills.found;
-      const goatSkills = found.filter(s => s.startsWith('goat-'));
-      const nonGoat = found.filter(s => !s.startsWith('goat-'));
+      const installedDirs = ctx.agentFacts.skills.installedDirs;
+      const goatSkills = installedDirs.filter(s => s.startsWith('goat-'));
+      const nonGoat = installedDirs.filter(s => !s.startsWith('goat-') && s !== 'goat');
       const duplicates = nonGoat.filter(s => goatSkills.includes(`goat-${s}`));
       const triggered = duplicates.length > 0;
       return { id: 'AP14', name: 'Duplicate skill directories', triggered, deduction: triggered ? -2 : 0, confidence: 'high', message: triggered ? `Duplicate skills: ${duplicates.map(s => `${s}/ + goat-${s}/`).join(', ')}` : 'No duplicate skills' };
@@ -264,6 +255,50 @@ export const antiPatterns: AntiPatternDef[] = [
     },
     recommendation: 'Replace hardcoded absolute paths in hook scripts with $(git rev-parse --show-toplevel). Absolute paths break when the repo is cloned elsewhere.',
     recommendationKey: 'ap-fix-hook-paths',
+  },
+  // === AP20: Non-canonical goat-flow skill directories ===
+  {
+    id: 'AP20', name: 'Non-canonical goat-flow skill directories', deduction: -3, confidence: 'high',
+    evaluate: (ctx: FactContext): AntiPatternResult => {
+      const canonicalSet = new Set<string>(SKILL_NAMES);
+      const nonCanonical = ctx.agentFacts.skills.installedDirs.filter(s =>
+        (s.startsWith('goat-') || s === 'goat') && !canonicalSet.has(s)
+      );
+      // Also flag known legacy skill names that aren't goat-* prefixed
+      const legacyNames = ['audit', 'review', 'preflight'];
+      const legacyFound = ctx.agentFacts.skills.installedDirs.filter(s => legacyNames.includes(s));
+      const allStale = [...new Set([...nonCanonical, ...legacyFound])].sort();
+      const triggered = allStale.length > 0;
+      return {
+        id: 'AP20', name: 'Non-canonical goat-flow skill directories', triggered,
+        deduction: triggered ? -3 : 0, confidence: 'high',
+        message: triggered
+          ? `Found ${allStale.length} non-canonical skill dir(s): ${allStale.join(', ')}. These are likely from a previous goat-flow version and confuse agents.`
+          : 'All skill directories are canonical',
+        evidence: triggered ? `Run \`goat-flow upgrade\` or manually delete: ${allStale.join(', ')}` : undefined,
+      };
+    },
+    recommendation: 'Remove non-canonical skill directories left over from a previous goat-flow version. Run `goat-flow upgrade` or manually delete the stale directories.',
+    recommendationKey: 'ap-remove-stale-skills',
+  },
+  // === AP21: Stale goat-flow-owned router entries ===
+  {
+    id: 'AP21', name: 'Stale goat-flow-owned router entries', deduction: -2, confidence: 'high',
+    na: (ctx) => !ctx.agentFacts.router.hasMarkers,
+    evaluate: (ctx: FactContext): AntiPatternResult => {
+      const { staleMarkerPaths } = ctx.agentFacts.router;
+      const triggered = staleMarkerPaths.length > 0;
+      return {
+        id: 'AP21', name: 'Stale goat-flow-owned router entries', triggered,
+        deduction: triggered ? -2 : 0, confidence: 'high',
+        message: triggered
+          ? `${staleMarkerPaths.length} stale paths inside router markers: ${staleMarkerPaths.slice(0, 3).join(', ')}`
+          : 'All goat-flow-owned router paths resolve',
+        evidence: triggered ? staleMarkerPaths.join(', ') : undefined,
+      };
+    },
+    recommendation: 'Update router table marker block — some goat-flow-owned paths point to non-existent resources. Run `goat-flow setup` to regenerate.',
+    recommendationKey: 'ap-fix-stale-router-markers',
   },
 ];
 

@@ -109,7 +109,7 @@ function extractRouterPaths(content: string): string[] {
   const routerSection = extractSection(content, 'router');
   if (routerSection == null) return paths;
 
-  /** Backtick-wrapped path matches (e.g. `docs/footguns.md`) */
+  /** Backtick-wrapped path matches (e.g. `docs/footguns/`) */
   const backtickMatches = routerSection.matchAll(/`([^`]+)`/g);
   // Iterate over backtick matches to collect file paths from the router table
   for (const match of backtickMatches) {
@@ -286,6 +286,10 @@ function extractSkillVersion(content: string): string | null {
 
 /** Extract skill facts: found/missing skills, versions, and quality metrics. */
 function extractSkillFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFacts['skills'] {
+  /** All installed skill directory names, including stale goat-flow and legacy skills */
+  const installedDirs = fs.listDir(agent.skillsDir)
+    .filter(entry => fs.exists(`${agent.skillsDir}/${entry}/SKILL.md`))
+    .sort();
   /** Names of skills that were found on disk */
   const found: string[] = [];
   /** Names of expected skills that are missing */
@@ -368,7 +372,7 @@ function extractSkillFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFacts['ski
       if (/^https?:/.test(ref)) continue;
       // Skip template placeholders, example paths, and gitignored working files
       if (/\{|YYYY|file:line|path\/to|monitoring\//i.test(ref)) continue;
-      if (/^tasks\/(handoff|todo|commit|release|scratchpad|improvement)/.test(ref)) continue;
+      if (/^(?:\.goat-flow\/)?tasks\/(handoff|todo|commit|release|scratchpad|improvement)/.test(ref)) continue;
       if (/^(src\/api|config\/|docs\/glossary)/.test(ref)) continue;
       if (!fs.exists(ref) && !danglingRefs.includes(ref)) {
         danglingRefs.push(ref);
@@ -377,6 +381,7 @@ function extractSkillFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFacts['ski
   }
 
   return {
+    installedDirs,
     found, missing, allPresent: missing.length === 0,
     versions, outdatedCount, hasDispatcher, danglingRefs,
     quality: { withStep0, withHumanGate, withConstraints, withPhases, withConversational, withChaining, withChoices, withOutputFormat, withSharedConventions, unadaptedCount, adaptCommentCount, total: found.length },
@@ -442,7 +447,7 @@ function analyzeDenyScript(denyContent: string): {
 /** Apply settings-based Bash deny pattern overrides to hook facts. */
 function applySettingsDenyOverrides(
   denyStr: string,
-  hook: { denyExists: boolean; denyHasBlocks: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
+  hook: { denyExists: boolean; denyHasBlocks: boolean; denyIsConfigBased: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
     denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean; denyBlocksCloudDestructive: boolean },
 ): void {
   // Settings deny counts as a deny mechanism existing
@@ -450,10 +455,8 @@ function applySettingsDenyOverrides(
     hook.denyExists = true;
     // settings.json deny is mechanical blocking
     hook.denyHasBlocks = true;
-    // no JSON parsing needed -- it's config, not a script
-    hook.denyUsesJq = true;
-    // settings.json matches substrings, handles chaining implicitly
-    hook.denyHandlesChaining = true;
+    // Config-based deny — jq/chaining checks are not applicable
+    hook.denyIsConfigBased = true;
   }
   // Check for specific dangerous patterns in Bash deny rules
   if (/Bash\(.*rm -rf|Bash\(.*rm -fr/i.test(denyStr)) hook.denyBlocksRmRf = true;
@@ -465,7 +468,7 @@ function applySettingsDenyOverrides(
 /** Enrich deny hook facts from settings.json Bash deny patterns. */
 function enrichDenyFromSettings(
   settingsParsed: unknown, hasDenyPatterns: boolean,
-  hook: { denyExists: boolean; denyHasBlocks: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
+  hook: { denyExists: boolean; denyHasBlocks: boolean; denyIsConfigBased: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
     denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean; denyBlocksCloudDestructive: boolean },
 ): void {
   if (!hasDenyPatterns || !settingsParsed) return;
@@ -482,7 +485,7 @@ function enrichDenyFromSettings(
 /** Apply Codex execpolicy Starlark rules to deny hook facts. */
 function enrichDenyFromExecpolicy(
   fs: ReadonlyFS,
-  hook: { denyExists: boolean; denyHasBlocks: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
+  hook: { denyExists: boolean; denyHasBlocks: boolean; denyIsConfigBased: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
     denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean },
 ): void {
   /** Path to the Codex execpolicy Starlark rule file */
@@ -496,10 +499,8 @@ function enrichDenyFromExecpolicy(
   hook.denyBlocksRmRf = /rm.*-.*rf|rm.*-.*fr/i.test(ruleContent);
   hook.denyBlocksForcePush = /force.*push|--force/i.test(ruleContent);
   hook.denyBlocksChmod = /chmod.*777/.test(ruleContent);
-  // Execpolicy uses Starlark, not jq -- mark as safe parsing
-  hook.denyUsesJq = true;
-  // Starlark processes the full command string, handling chaining implicitly
-  hook.denyHandlesChaining = true;
+  // Execpolicy is config-based — jq/chaining checks are not applicable
+  hook.denyIsConfigBased = true;
 }
 
 /** Extract all hook-related facts: deny hooks, post-turn, post-tool, compaction. */
@@ -532,7 +533,7 @@ function extractHookFacts(
 
   const hook = {
     denyExists: denyHookPath ? fs.exists(denyHookPath) : false,
-    denyHasBlocks: false, denyUsesJq: false, denyHandlesChaining: false,
+    denyHasBlocks: false, denyIsConfigBased: false, denyUsesJq: false, denyHandlesChaining: false,
     denyBlocksRmRf: false, denyBlocksForcePush: false, denyBlocksChmod: false, denyBlocksCloudDestructive: false,
   };
 
@@ -665,7 +666,30 @@ function extractRouterFacts(fs: ReadonlyFS, content: string | null): AgentFacts[
       unresolved.push(p);
     }
   }
-  return { exists: paths.length > 0, paths, resolved, unresolved };
+  // Extract goat-flow-owned marker block paths
+  const markerStart = '<!-- goat-flow:router:start -->';
+  const markerEnd = '<!-- goat-flow:router:end -->';
+  const hasMarkers = content !== null && content.includes(markerStart) && content.includes(markerEnd);
+  const markerPaths: string[] = [];
+  const staleMarkerPaths: string[] = [];
+  if (hasMarkers && content) {
+    const startIdx = content.indexOf(markerStart) + markerStart.length;
+    const endIdx = content.indexOf(markerEnd);
+    const markerContent = content.slice(startIdx, endIdx);
+    // Extract backtick-wrapped paths from the marker block
+    const pathRefs = markerContent.matchAll(/`([^`]+\/[^`]*)`/g);
+    for (const m of pathRefs) {
+      const raw = m[1]!;
+      // Skip glob patterns (e.g., `.claude/skills/goat-*/`) — they represent groups, not checkable paths
+      if (raw.includes('*')) continue;
+      const ref = raw.replace(/\/$/, '');
+      if (ref) {
+        markerPaths.push(ref);
+        if (!fs.exists(ref)) staleMarkerPaths.push(ref);
+      }
+    }
+  }
+  return { exists: paths.length > 0, paths, resolved, unresolved, hasMarkers, markerPaths, staleMarkerPaths };
 }
 
 /** Extract ask-first boundary facts: paths listed and their resolution status. */

@@ -1,6 +1,6 @@
 # Go Security Standards
 
-Reference for generating `ai/instructions/security.md` in Go projects.
+Reference for generating `ai/coding-standards/security.md` in Go projects.
 
 ## Cryptographic Randomness
 

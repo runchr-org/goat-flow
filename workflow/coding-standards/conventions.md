@@ -1,7 +1,7 @@
-# Prompt: Create ai/instructions/conventions.md
+# Prompt: Create ai/coding-standards/conventions.md
 
 > **Purpose:** Always-loaded project contract - build commands, naming, DO/DON'T rules, dangerous ops
-> **Generates:** `ai/instructions/conventions.md`
+> **Generates:** `ai/coding-standards/conventions.md`
 > **Use when:** Setting up or refreshing project-wide conventions
 > **Repo inspection:** Yes - reads actual source files, runs build/test/lint commands to verify
 > **Follow-on refs:** `backend/`, `frontend/` for stack-specific patterns; `security.md` for security overlay
@@ -12,7 +12,7 @@
 
 ## The Prompt
 
-Read the codebase, then write `ai/instructions/conventions.md` following this structure:
+Read the codebase, then write `ai/coding-standards/conventions.md` following this structure:
 
 ````
 IMPORTANT: Only document what currently exists in the codebase.

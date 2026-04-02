@@ -1,0 +1,5 @@
+# Everything in .goat-flow/ is gitignored EXCEPT config.yaml
+# config.yaml is committed — the whole team shares the same paths
+*
+!.gitignore
+!config.yaml

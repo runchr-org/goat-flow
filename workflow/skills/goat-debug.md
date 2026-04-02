@@ -1,7 +1,7 @@
 ---
 name: goat-debug
 description: "Diagnosis-first debugging with hypothesis tracking, recurrence checks, and evidence-based fix planning."
-goat-flow-skill-version: "0.9.2"
+goat-flow-skill-version: "0.9.4"
 ---
 # /goat-debug
 
@@ -12,9 +12,9 @@ goat-flow-skill-version: "0.9.2"
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
 - **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `tasks/scratchpad.md`, ask to continue/compact/redirect.
-- **Learning Loop:** Behavioural mistake → `docs/lessons.md`. Architectural trap → `docs/footguns.md`.
-- **Closing:** FIRST: if `tasks/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `tasks/handoff.md`. Check learning loop. Suggest next skill.
+- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect.
+- **Learning Loop:** Behavioural mistake → create a new markdown entry in `ai/lessons/` or `.goat-flow/lessons/`. Architectural trap → create a new markdown entry in `docs/footguns/` or `.goat-flow/footguns/`.
+- **Closing:** FIRST: if `.goat-flow/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Suggest next skill.
 
 ## When to Use
 
@@ -49,12 +49,13 @@ That's the failure mode this skill exists to prevent.
 If the user said `/goat-debug the test in auth.test.ts fails with TypeError`,
 confirm: "Symptom: TypeError in auth.test.ts. I'll start with that file. Correct?"
 
+**Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+
 **Before proceeding:** present what you know (symptom, area, urgency) and what you still need. Wait for the user to confirm before entering Phase 1.
 
 ## Phase 1 - Investigate (no fixes)
 
-**RECURRENCE CHECK:** Before investigating, search `docs/footguns.md` +
-`docs/lessons.md` + `agent-evals/` for the symptom, file path, or module name.
+**RECURRENCE CHECK:** Before investigating, search `docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, `.goat-flow/lessons/`, and `ai/evals/` for the symptom, file path, or module name.
 Search strategy: (a) exact file path, (b) error message keywords, (c) component name.
 
 If a match is found, present it first: "This area has a known issue: [footgun].

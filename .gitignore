@@ -73,17 +73,18 @@ node_modules/
 # Working notes and TODO files
 TODO_*.md
 docs_*.md
-tasks/todo.md
-tasks/handoff.md
-tasks/commit.md
-tasks/release.md
+# .goat-flow/ managed by its own .gitignore (config.yaml is committed, everything else ignored)
 
 # Build output
 dist
 
-### macOS / Windows
+### Scan output
+scan_result.json
+
+### macOS / Windows / WSL
 .DS_*
 Thumbs.db
+*:Zone.Identifier
 **/*.backup.*
 **/*.back.*
 *.sublime*

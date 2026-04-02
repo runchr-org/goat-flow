@@ -33,8 +33,46 @@ fi
 info "AGENTS.md line count: $agents_lines"
 
 allowed_missing_paths=(
-    "docs/decisions/"
+    "ai/decisions/"
+    ".goat-flow/footguns/"
+    ".goat-flow/lessons/"
+    ".goat-flow/tasks/"
+    ".goat-flow/logs/"
 )
+
+trim_yaml_value() {
+    sed -E 's/[[:space:]]+#.*$//' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | sed -E "s/^'(.*)'$/\\1/; s/^\"(.*)\"$/\\1/"
+}
+
+config_path() {
+    local section=$1
+    local key=$2
+    local default_value=$3
+
+    if [[ ! -f .goat-flow/config.yaml ]]; then
+        printf '%s\n' "$default_value"
+        return
+    fi
+
+    local value
+    value="$(
+        awk -v section="$section" -v key="$key" '
+            $0 ~ "^" section ":" { in_section = 1; next }
+            in_section && $0 ~ "^[^[:space:]]" { in_section = 0 }
+            in_section && $1 == key ":" {
+                sub(/^[[:space:]]*[^:]+:[[:space:]]*/, "", $0)
+                print $0
+                exit
+            }
+        ' .goat-flow/config.yaml | trim_yaml_value
+    )"
+
+    if [[ -n "$value" ]]; then
+        printf '%s\n' "$value"
+    else
+        printf '%s\n' "$default_value"
+    fi
+}
 
 router_errors=0
 while IFS= read -r ref; do
@@ -92,22 +130,44 @@ for skill in "${required_skills[@]}"; do
 done
 info "All 6 skills (5 + dispatcher) exist with required sections and frontmatter"
 
-if [[ -d agent-evals ]]; then
+if [[ -d ai/evals ]]; then
+    [[ -f ai/evals/README.md ]] || fail "Missing ai/evals/README.md"
+    info "Agent eval directory exists (ai/evals/)"
+elif [[ -d agent-evals ]]; then
     [[ -f agent-evals/README.md ]] || fail "Missing agent-evals/README.md"
-    info "Agent eval directory exists (agent-evals/)"
+    info "Agent eval directory exists (agent-evals/) [legacy path]"
 elif [[ -d codex-evals ]]; then
     [[ -f codex-evals/README.md ]] || fail "Missing codex-evals/README.md"
-    info "Codex eval directory exists (codex-evals/)"
+    info "Codex eval directory exists (codex-evals/) [legacy path]"
 else
-    fail "Missing eval directory (agent-evals/ or codex-evals/)"
+    fail "Missing eval directory (ai/evals/ or agent-evals/ or codex-evals/)"
 fi
 
-if grep -qi 'none confirmed yet' docs/footguns.md; then
-    info "docs/footguns.md explicitly states no confirmed footguns yet"
-elif ! grep -Eq "$evidence_ref_pattern" docs/footguns.md; then
-    fail "docs/footguns.md has no file path evidence"
+footguns_committed_dir="$(config_path footguns committed "docs/footguns/")"
+legacy_dir="docs"
+legacy_footguns_file="$legacy_dir/footguns.md"
+
+if [[ -d "$footguns_committed_dir" ]]; then
+    mapfile -t footgun_entries < <(find "$footguns_committed_dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | sort)
+    if (( ${#footgun_entries[@]} == 0 )); then
+        fail "$footguns_committed_dir exists but contains no footgun entry files"
+    elif grep -Rqi 'none confirmed yet' "$footguns_committed_dir"; then
+        info "$footguns_committed_dir explicitly states no confirmed footguns yet"
+    elif ! grep -REq "$evidence_ref_pattern" "${footgun_entries[@]}"; then
+        fail "$footguns_committed_dir has no file path evidence in entry files"
+    else
+        info "$footguns_committed_dir contains footgun entries with file path evidence"
+    fi
+elif [[ -f "$legacy_footguns_file" ]]; then
+    if grep -qi 'none confirmed yet' "$legacy_footguns_file"; then
+        info "$legacy_footguns_file explicitly states no confirmed footguns yet"
+    elif ! grep -Eq "$evidence_ref_pattern" "$legacy_footguns_file"; then
+        fail "$legacy_footguns_file has no file path evidence"
+    else
+        info "$legacy_footguns_file contains file path evidence"
+    fi
 else
-    info "docs/footguns.md contains file path evidence"
+    fail "Missing footguns directory ($footguns_committed_dir) and legacy fallback ($legacy_footguns_file)"
 fi
 
 for script in scripts/preflight-checks.sh scripts/context-validate.sh scripts/deny-dangerous.sh; do

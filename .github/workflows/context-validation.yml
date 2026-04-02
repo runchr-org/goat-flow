@@ -13,7 +13,7 @@ on:
       - 'workflow/**'
       - 'scripts/**'
       - '.agents/**'
-      - 'agent-evals/**'
+      - 'ai/evals/**'
 
 jobs:
   validate:
@@ -87,7 +87,7 @@ jobs:
 
       - name: Check for unreviewed AI-generated entries
         run: |
-          if grep -r 'AI-GENERATED: UNVERIFIED' docs/footguns.md docs/lessons.md 2>/dev/null; then
+          if grep -r 'AI-GENERATED: UNVERIFIED' docs/footguns/ ai/lessons/ 2>/dev/null; then
             echo "::error::Unreviewed AI-generated entries found in learning loop files"
             exit 1
           fi
@@ -104,6 +104,13 @@ jobs:
               echo "$f is valid JSON"
             fi
           done
+
+      - name: Create gitignored workspace dirs
+        run: |
+          mkdir -p .goat-flow/footguns .goat-flow/lessons .goat-flow/tasks .goat-flow/logs/sessions
+          if [ ! -f .goat-flow/tasks/handoff-template.md ]; then
+            printf '## Date\n\n## Status\n\n## Current State\n\n## Key Decisions Made\n\n## Known Risks\n\n## Next Step\n' > .goat-flow/tasks/handoff-template.md
+          fi
 
       - name: Validate Codex workflow
         run: |

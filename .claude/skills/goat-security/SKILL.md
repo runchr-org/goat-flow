@@ -1,7 +1,7 @@
 ---
 name: goat-security
 description: "Threat-model-driven security assessment with framework-aware verification, exploitability ranking, compliance auditing, and dependency vulnerability scanning."
-goat-flow-skill-version: "0.9.3"
+goat-flow-skill-version: "0.9.4"
 ---
 # /goat-security
 
@@ -12,9 +12,9 @@ goat-flow-skill-version: "0.9.3"
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
 - **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `tasks/scratchpad.md`, ask to continue/compact/redirect.
-- **Learning Loop:** Behavioural mistake → `docs/lessons.md`. Architectural trap → `docs/footguns.md`.
-- **Closing:** FIRST: if `tasks/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `tasks/handoff.md`. Check learning loop. Suggest next skill.
+- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect.
+- **Learning Loop:** Behavioural mistake → create a new markdown entry in `ai/lessons/` or `.goat-flow/lessons/`. Architectural trap → create a new markdown entry in `docs/footguns/` or `.goat-flow/footguns/`.
+- **Closing:** FIRST: if `.goat-flow/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Suggest next skill.
 
 ## When to Use
 
@@ -38,6 +38,8 @@ Use when assessing security posture, checking compliance, or auditing dependenci
 3. What framework? (I'll check built-in security features)
 
 **Auto-detect:** Read package.json/composer.json/go.mod to identify framework. Check for PHI/compliance signals in README, docs/architecture.md.
+
+**Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
 **Before proceeding:** present mode, threat model, framework, and scope. Wait for confirmation.
 

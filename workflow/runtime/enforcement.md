@@ -133,7 +133,12 @@ Create the following:
      */.claude/*|*/.gemini/*|*/.codex/*|*/.agents/*|*/.github/skills/*) exit 0 ;;
    esac
    case "$FILE_PATH" in
-     *.ts|*.tsx|*.js|*.jsx) npx prettier --write "$FILE_PATH" 2>/dev/null ;;
+     *.ts|*.tsx|*.js|*.jsx)
+       command -v npx >/dev/null 2>&1 && npx prettier --write "$FILE_PATH" 2>/dev/null ;;
+     *.py)
+       command -v black >/dev/null 2>&1 && black -q "$FILE_PATH" 2>/dev/null ;;
+     *.sh)
+       command -v shfmt >/dev/null 2>&1 && shfmt -w "$FILE_PATH" 2>/dev/null ;;
    esac
    exit 0
    ```
@@ -145,8 +150,8 @@ Create the following:
 
    Add these lines if not already present:
    .claude/settings.local.json
-   tasks/todo.md
-   tasks/handoff.md
+   .goat-flow/tasks/todo.md
+   .goat-flow/tasks/handoff.md
 
 AGENT IGNORE FILES:
 6. Create agent ignore files to prevent reading sensitive files:
@@ -230,9 +235,9 @@ SESSION LOG REMINDER (optional Stop hook):
    The hook should:
    - Check if the conversation contained a skill invocation (grep for
      "Running /goat-" in recent output)
-   - If yes, check if tasks/logs/sessions/ has a file with today's date
+   - If yes, check if .goat-flow/logs/sessions/ has a file with today's date
    - If no file found, print a reminder to stderr:
-     "Skill session detected but no log written to tasks/logs/sessions/.
+     "Skill session detected but no log written to .goat-flow/logs/sessions/.
       Write a session summary before closing."
    - Always exit 0 (informational only — don't block the agent)
 
@@ -244,7 +249,7 @@ SESSION LOG REMINDER (optional Stop hook):
 
 Register a Notification hook that fires after context compaction.
 This re-injects key context that gets lost during long sessions:
-- Current task description (from tasks/todo.md if it exists)
+- Current task description (from .goat-flow/tasks/todo.md if it exists)
 - List of modified files (git diff --name-only)
 - Hard constraints (Ask First boundaries, Never tier rules)
 - Active working notes
@@ -253,7 +258,7 @@ In .claude/settings.json, add to the hooks array:
 {
   "type": "Notification",
   "matcher": "compact",
-  "command": "echo 'CONTEXT AFTER COMPACTION:' && echo 'Modified files:' && git diff --name-only 2>/dev/null && echo '---' && cat tasks/todo.md 2>/dev/null || echo 'No active tasks' && echo '---' && echo 'Constraints: read CLAUDE.md Autonomy Tiers before proceeding'"
+  "command": "echo 'CONTEXT AFTER COMPACTION:' && echo 'Modified files:' && git diff --name-only 2>/dev/null && echo '---' && cat .goat-flow/tasks/todo.md 2>/dev/null || echo 'No active tasks' && echo '---' && echo 'Constraints: read CLAUDE.md Autonomy Tiers before proceeding'"
 }
 
 This is most valuable during multi-hour sessions where losing the

@@ -1,6 +1,6 @@
 # Angular Coding Standards (TypeScript-First)
 
-Reference for generating `ai/instructions/frontend.md` in Angular projects.
+Reference for generating `ai/coding-standards/frontend.md` in Angular projects.
 Assume TypeScript for new code; if the project is JavaScript-only, keep the
 same architecture and testing rules and drop the type syntax.
 

@@ -1,7 +1,7 @@
 ---
 name: goat-test
 description: "3-phase test plan generation with automated commands, AI verification prompts, and human testing checklists. Doer-verifier principle."
-goat-flow-skill-version: "0.9.2"
+goat-flow-skill-version: "0.9.4"
 ---
 # /goat-test
 
@@ -12,9 +12,9 @@ goat-flow-skill-version: "0.9.2"
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
 - **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `tasks/scratchpad.md`, ask to continue/compact/redirect.
-- **Learning Loop:** Behavioural mistake → `docs/lessons.md`. Architectural trap → `docs/footguns.md`.
-- **Closing:** FIRST: if `tasks/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `tasks/handoff.md`. Check learning loop. Suggest next skill.
+- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect.
+- **Learning Loop:** Behavioural mistake → create a new markdown entry in `ai/lessons/` or `.goat-flow/lessons/`. Architectural trap → create a new markdown entry in `docs/footguns/` or `.goat-flow/footguns/`.
+- **Closing:** FIRST: if `.goat-flow/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Suggest next skill.
 
 ## When to Use
 
@@ -22,8 +22,10 @@ Use after a coding milestone or every 30-60 minutes of implementation to
 generate testing instructions. Testing after 30-60 min keeps the blast radius
 narrow enough that failures point to a specific change.
 
-The coding agent MUST NOT verify its own work. This skill generates instructions
-for verification - it does not run tests itself.
+The coding agent runs Phase 1 commands (automated tests). Phase 2 (AI verification)
+and Phase 3 (human testing) MUST be performed by a separate agent or human — not the
+agent that wrote the code. In single-agent mode, present Phase 2/3 as instructions
+for the user to execute or delegate.
 
 **NOT this skill:**
 - Running tests → just run them directly
@@ -45,6 +47,8 @@ Phase 1 only + abbreviated Phase 3 (1-2 manual checks). Skip Phase 2.
 Correct?"
 
 **Pattern read:** Before generating test instructions, read 1-2 existing test files in the affected area. Match the project's assertion style, selector patterns, and fixture conventions exactly. Generate tests that look like the ones already there - not textbook examples.
+
+**Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the changed area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant to your test plan?"
 
 **Before proceeding:** present what you know (what changed, risk level, test stack) and what you still need. Wait for the user to confirm before entering Phase 0.
 
@@ -147,7 +151,7 @@ Explicitly list coverage gaps. Be honest about what's NOT verified:
 ## Constraints
 
 <!-- FIXED: Do not adapt these -->
-- The coding agent MUST NOT verify its own work (doer-verifier principle)
+- Phase 2/3 verification MUST NOT be performed by the coding agent (doer-verifier principle)
 - MUST fill ALL bracketed values in Phase 2 prompts - no [PLACEHOLDER] in output
 - MUST list what ISN'T tested
 - MUST note which tests use mocks and what they can't catch

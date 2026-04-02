@@ -1,4 +1,5 @@
 import type { ScanReport, AgentReport, ReadonlyFS, AgentId } from '../types.js';
+import { loadConfig } from '../config/index.js';
 import { extractProjectFacts } from '../facts/orchestrator.js';
 import { allChecks, allAntiPatterns } from '../rubric/registry.js';
 import { readFileSync, existsSync } from 'node:fs';
@@ -33,10 +34,12 @@ export interface ScanOptions {
 
 /** Run all rubric checks and anti-pattern detections against a project, returning a full scan report. */
 export function scanProject(fs: ReadonlyFS, projectPath: string, options: ScanOptions): ScanReport {
+  const configState = loadConfig(projectPath, fs);
   /** Extracted project and agent facts used by all evaluators */
   const facts = extractProjectFacts(fs, {
     agentFilter: options.agentFilter,
     projectPath,
+    configState,
   });
 
   // Iterate over each detected agent to produce per-agent reports
@@ -77,6 +80,20 @@ export function scanProject(fs: ReadonlyFS, projectPath: string, options: ScanOp
       checkCount: allChecks.length,
       antiPatternCount: allAntiPatterns.length,
       timestamp: new Date().toISOString(),
+      config: {
+        exists: facts.shared.config.exists,
+        valid: facts.shared.config.valid,
+      },
+      learningLoop: {
+        footguns: {
+          committed: facts.shared.footguns.committedCount,
+          local: facts.shared.footguns.localCount,
+        },
+        lessons: {
+          committed: facts.shared.lessons.committedCount,
+          local: facts.shared.lessons.localCount,
+        },
+      },
     },
   };
 }

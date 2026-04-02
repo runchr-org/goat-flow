@@ -8,7 +8,7 @@ A project already running Claude Code with GOAT Flow needs to add Codex and Gemi
 
 When Gemini CLI was asked to set up GOAT Flow, it modified 6 shared documentation files -- replacing Claude Code references with Gemini-specific equivalents instead of adding multi-agent support alongside them.
 
-**What actually happened** (from `docs/lessons.md`):
+**What actually happened** (from `ai/lessons/`):
 
 - `docs/system-spec.md:429` -- "Every Claude turn" became "Every Gemini turn" (should be agent-neutral)
 - `docs/system/five-layers.md:100` -- Claude Code row deleted from skills table, replaced with Gemini CLI only
@@ -59,8 +59,8 @@ The scanner checks all three agents' instruction files for structural completene
 
 ## Key Lessons
 
-**"Broad setup rewrites shared docs"** is now a tracked footgun in `docs/footguns.md` with file:line evidence. The prevention rule: when adding agent support, ADD to tables and examples -- never DELETE or REPLACE existing agent references.
+**"Broad setup rewrites shared docs"** is now a tracked footgun in `docs/footguns/` with file:line evidence. The prevention rule: when adding agent support, ADD to tables and examples -- never DELETE or REPLACE existing agent references.
 
 **Vocabulary differences are silent failures.** Claude Code uses `PreToolUse`/`Stop`; Gemini CLI uses `BeforeTool`/`AfterAgent`. Path substitution (`.claude/` to `.gemini/`) misses these. Each agent's setup guide now maintains a hook event reference block so the correct vocabulary is visible during setup.
 
-**Run Claude Code first, then Codex.** For learning loop files shared by multiple agents (`docs/footguns.md`, `docs/lessons.md`), define one agent as the primary writer. The simplest pattern: Claude Code creates entries, Codex merges with existing content. This avoids merge conflicts on append-only files.
+**Run Claude Code first, then Codex.** For learning loop files shared by multiple agents (`docs/footguns/`, `ai/lessons/`), define one agent as the primary writer. The simplest pattern: Claude Code creates entries, Codex merges with existing content. This avoids merge conflicts on append-only files.

@@ -21,12 +21,12 @@ export interface ScanHistoryEntry {
 
 /**
  * Append scan results to the target project's local telemetry log.
- * Writes one JSONL line per agent to `{projectPath}/tasks/logs/scan-history.jsonl`.
+ * Writes one JSONL line per agent to `{projectPath}/.goat-flow/logs/scan-history.jsonl`.
  * Silent on failure - telemetry must never break the scan.
  */
 export function appendScanHistory(report: ScanReport, projectPath: string): void {
   try {
-    const logsDir = join(projectPath, 'tasks', 'logs');
+    const logsDir = join(projectPath, '.goat-flow', 'logs');
     mkdirSync(logsDir, { recursive: true });
 
     const now = new Date().toISOString();

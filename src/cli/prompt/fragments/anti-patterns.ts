@@ -20,18 +20,8 @@ Immediate actions:
 
 Target: under 120 lines. Hard limit: 150.`,
   },
-  {
-    key: 'ap-fix-skill-names',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
-    instruction: `Skills without the \`goat-\` prefix conflict with potential built-in commands. Rename:
-
-1. Find skills in \`{{skillsDir}}/\` that don't start with \`goat-\`
-2. Rename the directory: \`mv {{skillsDir}}/[old-name] {{skillsDir}}/goat-[old-name]\`
-3. Update the SKILL.md \`name:\` field inside each renamed skill
-4. Update any references in \`{{instructionFile}}\` router table`,
-  },
+  // ap-fix-skill-names removed — AP2 was harmful dead code that would rename project-specific skills.
+  // See docs/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
   {
     key: 'ap-fix-dod-overlap',
     phase: 'anti-pattern',
@@ -46,7 +36,7 @@ Remove the DoD from the guidelines file. The DoD belongs only in \`{{instruction
     phase: 'anti-pattern',
     category: 'Anti-Pattern Fix',
     kind: 'fix',
-    instruction: `**CRITICAL:** \`docs/footguns.md\` has entries without file:line evidence. This is an anti-pattern that costs -5 points.
+    instruction: `**CRITICAL:** footgun entries under \`docs/footguns/\` or \`.goat-flow/footguns/\` lack file:line evidence. This is an anti-pattern that costs -5 points.
 
 For every footgun entry, add at least one \`file:line\` reference:
 
@@ -133,7 +123,7 @@ Empty scaffolding provides no value and creates a false sense of completeness.`,
     phase: 'anti-pattern',
     category: 'Anti-Pattern Fix',
     kind: 'fix',
-    instruction: `\`docs/footguns.md\` contains file:line references to files that no longer exist. Stale references mislead agents.
+    instruction: `Footgun entries contain file:line references to files that no longer exist. Stale references mislead agents.
 
 **Stale refs found:** {{evidence.ap-fix-stale-references}}
 
@@ -236,5 +226,34 @@ Replace all absolute paths with \`$(git rev-parse --show-toplevel)\`:
 # BAD:  /home/user/projects/myapp/.claude/hooks/deny-dangerous.sh
 # GOOD: $(git rev-parse --show-toplevel)/.claude/hooks/deny-dangerous.sh
 \`\`\``,
+  },
+  {
+    key: 'ap-remove-stale-skills',
+    phase: 'anti-pattern',
+    category: 'Anti-Pattern Fix',
+    kind: 'fix',
+    instruction: `Non-canonical goat-flow skill directories were found. These are from a previous version and confuse agents — they load the wrong skill file.
+
+Delete these directories and keep only the 6 canonical skills: \`goat\`, \`goat-debug\`, \`goat-plan\`, \`goat-review\`, \`goat-security\`, \`goat-test\`.
+
+Common stale directories to remove:
+- \`goat-investigate\` → merged into goat-debug (investigate mode)
+- \`goat-audit\` → merged into goat-review (audit mode)
+- \`goat-onboard\` → merged into goat-debug (onboard mode)
+- \`goat-reflect\` → merged into goat-review (instruction mode)
+- \`goat-resume\` → removed (handled by agent context)
+- \`goat-simplify\` → merged into goat-review (simplify mode)
+- \`goat-refactor\` → merged into goat-plan (refactor mode)
+- \`goat-context\` → removed
+- \`audit/\`, \`review/\`, \`preflight/\` → replaced by goat-* skills
+
+After deleting, update the router table in your instruction file to reference only the 6 canonical skills.`,
+  },
+  {
+    key: 'ap-fix-stale-router-markers',
+    phase: 'anti-pattern',
+    category: 'Anti-Pattern Fix',
+    kind: 'fix',
+    instruction: `Some paths inside the goat-flow router marker block point to non-existent resources. Run \`goat-flow setup\` to regenerate the marker block, or manually update the paths between \`<!-- goat-flow:router:start -->\` and \`<!-- goat-flow:router:end -->\`.`,
   },
 ];

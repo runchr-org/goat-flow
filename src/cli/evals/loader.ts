@@ -1,5 +1,5 @@
 /**
- * Eval runner: reads eval files from agent-evals/, parses them,
+ * Eval runner: reads eval files from ai/evals/, parses them,
  * and outputs a structured summary.
  *
  * This is v1 scaffolding -- it parses and reports.

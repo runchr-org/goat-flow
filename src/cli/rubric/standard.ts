@@ -10,12 +10,12 @@ import { SKILL_NAMES } from '../constants.js';
 const SKILL_QUALITY_THRESHOLD = 0.8;
 
 /**
- * Tier 2 - Standard (69 points)
+ * Tier 2 - Standard (58 pts on a fully configured project; varies with N/A checks)
  * Skills, hooks, learning loop, router, architecture, local context.
  * These checks represent the operational layer that makes GOAT Flow effective.
  */
 export const standardChecks: CheckDef[] = [
-  // === 2.1 Skills (27 pts: 8 existence@2 + 1 completeness@1 + 8 quality@1 + 1 dispatcher@1 + 1 shared-conventions@1) ===
+  // === 2.1 Skills (23 pts: 6 existence@2 + 1 completeness@1 + 8 quality@1 + 1 dispatcher@1 + 1 shared-conventions@1) ===
   ...SKILL_NAMES.map((skill, i) => ({
     id: `2.1.${i + 1}`,
     name: `${skill} skill`,
@@ -377,6 +377,9 @@ export const standardChecks: CheckDef[] = [
         if (ctx.agentFacts.hooks.denyExists === false) {
           return { id: '2.2.5a', name: 'Deny hook uses safe JSON parsing', tier: 'standard', category: 'Hooks', status: 'na', points: 0, maxPoints: 0, confidence: 'medium', message: 'No deny hook' };
         }
+        if (ctx.agentFacts.hooks.denyIsConfigBased) {
+          return { id: '2.2.5a', name: 'Deny hook uses safe JSON parsing', tier: 'standard', category: 'Hooks', status: 'na', points: 0, maxPoints: 0, confidence: 'medium', message: 'Deny is config-based (settings.json or execpolicy) — JSON parsing check not applicable' };
+        }
         return {
           id: '2.2.5a', name: 'Deny hook uses safe JSON parsing', tier: 'standard', category: 'Hooks',
           status: ctx.agentFacts.hooks.denyUsesJq ? 'pass' : 'fail',
@@ -396,6 +399,9 @@ export const standardChecks: CheckDef[] = [
       fn: (ctx: FactContext): CheckResult => {
         if (ctx.agentFacts.hooks.denyExists === false) {
           return { id: '2.2.5b', name: 'Deny hook handles command chaining', tier: 'standard', category: 'Hooks', status: 'na', points: 0, maxPoints: 0, confidence: 'medium', message: 'No deny hook' };
+        }
+        if (ctx.agentFacts.hooks.denyIsConfigBased) {
+          return { id: '2.2.5b', name: 'Deny hook handles command chaining', tier: 'standard', category: 'Hooks', status: 'na', points: 0, maxPoints: 0, confidence: 'medium', message: 'Deny is config-based (settings.json or execpolicy) — chaining check not applicable' };
         }
         return {
           id: '2.2.5b', name: 'Deny hook handles command chaining', tier: 'standard', category: 'Hooks',
@@ -451,6 +457,44 @@ export const standardChecks: CheckDef[] = [
     },
     recommendation: 'Settings permissions.deny should include Read patterns for: .env*, .ssh/**, .aws/**, *.pem, *.key, credentials*. These prevent agents from reading secrets.',
     recommendationKey: 'fix-read-deny-secrets',
+  },
+  {
+    id: '2.2.5g', name: 'Edit/Write deny mirrors Read deny for .env', tier: 'standard', category: 'Hooks',
+    pts: 1, confidence: 'medium',
+    detect: {
+      type: 'custom',
+      fn: (ctx: FactContext): CheckResult => {
+        if (ctx.agentFacts.agent.id === 'codex') {
+          return { id: '2.2.5g', name: 'Edit/Write deny mirrors Read deny for .env', tier: 'standard', category: 'Hooks', status: 'na', points: 0, maxPoints: 0, confidence: 'medium', message: 'Codex uses execpolicy, not settings deny' };
+        }
+        if (!ctx.agentFacts.settings.hasDenyPatterns || !ctx.agentFacts.settings.parsed) {
+          return { id: '2.2.5g', name: 'Edit/Write deny mirrors Read deny for .env', tier: 'standard', category: 'Hooks', status: 'na', points: 0, maxPoints: 0, confidence: 'medium', message: 'No deny patterns configured' };
+        }
+        const perms = (ctx.agentFacts.settings.parsed as Record<string, unknown>).permissions as Record<string, unknown> | undefined;
+        const denyArr = perms?.deny;
+        if (!Array.isArray(denyArr)) {
+          return { id: '2.2.5g', name: 'Edit/Write deny mirrors Read deny for .env', tier: 'standard', category: 'Hooks', status: 'na', points: 0, maxPoints: 0, confidence: 'medium', message: 'No deny array' };
+        }
+        const denyStr = (denyArr as string[]).join(' ');
+        const hasReadEnv = /Read\(.*\.env/.test(denyStr);
+        const hasEditEnv = /Edit\(.*\.env/.test(denyStr);
+        const hasWriteEnv = /Write\(.*\.env/.test(denyStr);
+        if (!hasReadEnv) {
+          return { id: '2.2.5g', name: 'Edit/Write deny mirrors Read deny for .env', tier: 'standard', category: 'Hooks', status: 'na', points: 0, maxPoints: 0, confidence: 'medium', message: 'No Read deny for .env — check 2.2.5d covers this' };
+        }
+        const pass = hasEditEnv && hasWriteEnv;
+        return {
+          id: '2.2.5g', name: 'Edit/Write deny mirrors Read deny for .env', tier: 'standard', category: 'Hooks',
+          status: pass ? 'pass' : 'fail',
+          points: pass ? 1 : 0, maxPoints: 1, confidence: 'medium',
+          message: pass
+            ? 'Edit and Write deny patterns exist for .env alongside Read deny'
+            : `Read(.env) is denied but ${!hasEditEnv ? 'Edit(.env)' : ''}${!hasEditEnv && !hasWriteEnv ? ' and ' : ''}${!hasWriteEnv ? 'Write(.env)' : ''} is not — agents can still modify secrets`,
+        };
+      },
+    },
+    recommendation: 'If Read(**/.env*) is denied, also add Edit(**/.env*) and Write(**/.env*) to permissions.deny. Without these, agents can still modify secret files even though they cannot read them.',
+    recommendationKey: 'fix-edit-write-deny-env',
   },
   {
     id: '2.2.5e', name: 'Deny hook blocks force push', tier: 'standard', category: 'Hooks',
@@ -517,18 +561,18 @@ export const standardChecks: CheckDef[] = [
 
   // === 2.3 Learning Loop (6 pts) ===
   {
-    id: '2.3.1', name: 'lessons.md exists', tier: 'standard', category: 'Learning Loop',
+    id: '2.3.1', name: 'Lessons directory exists', tier: 'standard', category: 'Learning Loop',
     pts: 1, confidence: 'high',
-    detect: { type: 'file_exists', path: 'docs/lessons.md' },
-    recommendation: 'Create docs/lessons.md',
+    detect: { type: 'dir_exists', path: '{lessons_committed_dir}' },
+    recommendation: 'Create the committed lessons directory',
     recommendationKey: 'create-lessons',
   },
   // 2.3.2 removed - duplicate of 2.3.2a (hasEntries === entryCount >= 1)
   {
-    id: '2.3.3', name: 'footguns.md exists', tier: 'standard', category: 'Learning Loop',
+    id: '2.3.3', name: 'Footguns directory exists', tier: 'standard', category: 'Learning Loop',
     pts: 2, confidence: 'high',
-    detect: { type: 'file_exists', path: 'docs/footguns.md' },
-    recommendation: 'Create docs/footguns.md',
+    detect: { type: 'dir_exists', path: '{footguns_committed_dir}' },
+    recommendation: 'Create the committed footguns directory',
     recommendationKey: 'create-footguns',
   },
   {
@@ -553,13 +597,26 @@ export const standardChecks: CheckDef[] = [
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
         const { exists, entryCount } = ctx.facts.shared.lessons;
-        if (!exists) return { id: '2.3.2a', name: 'lessons.md has at least 1 entry', tier: 'standard', category: 'Learning Loop', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No lessons.md' };
-        if (entryCount >= 1) return { id: '2.3.2a', name: 'lessons.md has at least 1 entry', tier: 'standard', category: 'Learning Loop', status: 'pass', points: 1, maxPoints: 1, confidence: 'high', message: `${entryCount} lesson entries (3-5 is ideal)` };
+        if (!exists) return { id: '2.3.2a', name: 'lessons.md has at least 1 entry', tier: 'standard', category: 'Learning Loop', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No lesson directories' };
+        if (entryCount >= 1) {
+          const { committedCount, localCount } = ctx.facts.shared.lessons;
+          return {
+            id: '2.3.2a',
+            name: 'lessons.md has at least 1 entry',
+            tier: 'standard',
+            category: 'Learning Loop',
+            status: 'pass',
+            points: 1,
+            maxPoints: 1,
+            confidence: 'high',
+            message: `${entryCount} lesson entries (${committedCount} committed, ${localCount} local)`,
+          };
+        }
         const diagnostic = ctx.facts.shared.lessons.formatDiagnostic;
         return { id: '2.3.2a', name: 'lessons.md has at least 1 entry', tier: 'standard', category: 'Learning Loop', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: diagnostic ?? 'No lesson entries. Add 1+ real incidents from git history, or a placeholder explaining why none apply yet.' };
       },
     },
-    recommendation: 'Seed lessons.md with at least 1 real incident from git history (3-5 is ideal)',
+    recommendation: 'Seed the lessons directories with at least 1 real incident from git history (3-5 is ideal)',
     recommendationKey: 'seed-lessons-minimum',
   },
   // 2.3.5 removed - duplicate of AP12 (stale footgun refs)
@@ -586,7 +643,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Add evidence type labels (ACTUAL_MEASURED, DESIGN_TARGET, HYPOTHETICAL_EXAMPLE) to footgun entries',
+    recommendation: 'Add evidence type labels to footgun entries. Expected format: `**Evidence type:** ACTUAL_MEASURED` (or DESIGN_TARGET, HYPOTHETICAL_EXAMPLE)',
     recommendationKey: 'add-footgun-labels',
   },
 
@@ -601,10 +658,10 @@ export const standardChecks: CheckDef[] = [
         if (staleRefs.length === 0) {
           return { id: '2.3.6', name: 'Lessons file references resolve', tier: 'standard', category: 'Learning Loop', status: 'pass', points: 1, maxPoints: 1, confidence: 'medium', message: 'All lesson file references resolve' };
         }
-        return { id: '2.3.6', name: 'Lessons file references resolve', tier: 'standard', category: 'Learning Loop', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `${staleRefs.length} stale refs in lessons.md: ${staleRefs.slice(0, 3).join(', ')}` };
+        return { id: '2.3.6', name: 'Lessons file references resolve', tier: 'standard', category: 'Learning Loop', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: `${staleRefs.length} stale refs in lesson entries: ${staleRefs.slice(0, 3).join(', ')}` };
       },
     },
-    recommendation: 'Update or remove stale file path references in docs/lessons.md',
+    recommendation: 'Update or remove stale file path references in lesson entries',
     recommendationKey: 'fix-lesson-stale-refs',
   },
 
@@ -652,7 +709,7 @@ export const standardChecks: CheckDef[] = [
     pts: 1, confidence: 'high',
     na: (ctx) => !ctx.agentFacts.instruction.content?.toLowerCase().includes('router'),
     detect: { type: 'grep', path: '{instruction_file}', section: 'router', pattern: 'lessons|footguns|learning' },
-    recommendation: 'Add lessons.md and footguns.md to the router table',
+    recommendation: 'Add lessons and footguns directories to the router table',
     recommendationKey: 'route-learning-loop',
   },
   {
@@ -668,7 +725,7 @@ export const standardChecks: CheckDef[] = [
     pts: 1, confidence: 'high',
     na: (ctx) => !ctx.agentFacts.instruction.content?.toLowerCase().includes('router') || !ctx.facts.shared.evals.dirExists,
     detect: { type: 'grep', path: '{instruction_file}', section: 'router', pattern: 'eval|agent-eval' },
-    recommendation: 'Add agent-evals/ to the router table',
+    recommendation: 'Add ai/evals/ to the router table',
     recommendationKey: 'route-evals',
   },
 
@@ -689,10 +746,24 @@ export const standardChecks: CheckDef[] = [
     recommendationKey: 'compress-architecture',
   },
   {
-    id: '2.5.3', name: 'decisions dir scaffolded', tier: 'standard', category: 'Architecture',
+    id: '2.5.3', name: 'decisions dir has real ADR content', tier: 'standard', category: 'Architecture',
     pts: 1, confidence: 'high',
-    detect: { type: 'dir_exists', path: 'docs/decisions' },
-    recommendation: 'Create docs/decisions/ with an ADR template',
+    detect: {
+      type: 'custom',
+      fn: (ctx: FactContext): CheckResult => {
+        const { dirExists, fileCount, hasRealContent } = ctx.facts.shared.decisions;
+        if (!dirExists || fileCount === 0) {
+          return { id: '2.5.3', name: 'decisions dir has real ADR content', tier: 'standard', category: 'Architecture', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: dirExists ? 'Directory exists but no ADR files' : 'No decisions directory' };
+        }
+        return {
+          id: '2.5.3', name: 'decisions dir has real ADR content', tier: 'standard', category: 'Architecture',
+          status: hasRealContent ? 'pass' : 'fail',
+          points: hasRealContent ? 1 : 0, maxPoints: 1, confidence: 'high',
+          message: hasRealContent ? `${fileCount} ADR files, real content found` : `${fileCount} ADR files but none have real Context + Decision sections (≥50 chars, not TODO/TBD)`,
+        };
+      },
+    },
+    recommendation: 'Create ai/decisions/ with at least 1 ADR containing real Context and Decision sections',
     recommendationKey: 'create-decisions-dir',
   },
   // === 2.6 Local Instructions (cold path) (6 pts) ===
@@ -707,11 +778,11 @@ export const standardChecks: CheckDef[] = [
           id: '2.6.1', name: 'Instructions directory exists', tier: 'standard', category: 'Local Instructions',
           status: dirExists ? 'pass' : 'fail',
           points: dirExists ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: dirExists ? `Found at ${location === 'ai' ? 'ai/instructions/' : '.github/instructions/'}` : 'No ai/instructions/ or .github/instructions/ directory',
+          message: dirExists ? `Found at ${location === 'ai' ? 'ai/coding-standards/' : '.github/instructions/'}` : 'No ai/coding-standards/ or .github/instructions/ directory',
         };
       },
     },
-    recommendation: 'Create ai/instructions/ with project coding guidelines',
+    recommendation: 'Create ai/coding-standards/ with project coding guidelines',
     recommendationKey: 'create-instructions-dir',
   },
   {
@@ -753,7 +824,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Create ai/instructions/conventions.md with project-wide conventions',
+    recommendation: 'Create ai/coding-standards/conventions.md with project-wide conventions',
     recommendationKey: 'create-conventions-instructions',
   },
   {
@@ -796,7 +867,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Create ai/instructions/code-review.md with review standards',
+    recommendation: 'Create ai/coding-standards/code-review.md with review standards',
     recommendationKey: 'create-code-review-instructions',
   },
   {
@@ -817,7 +888,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Create ai/instructions/git-commit.md with commit format and PR workflow',
+    recommendation: 'Create ai/coding-standards/git-commit.md with commit format and PR workflow',
     recommendationKey: 'create-git-commit-instructions',
   },
   {
@@ -847,7 +918,7 @@ export const standardChecks: CheckDef[] = [
           return { id: '2.6.7a', name: checkName, tier: 'standard', category: 'Local Instructions', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No instructions directory' };
         }
         const langs = ctx.facts.stack.languages.map(l => l.toLowerCase());
-        const frontendSignals = ['typescript', 'javascript', 'react', 'vue', 'angular', 'svelte', 'blade', 'twig', 'erb', 'jinja', 'blazor', 'swift'];
+        const frontendSignals = ['typescript', 'javascript', 'react', 'vue', 'angular', 'svelte'];
         const needsFrontend = langs.some(l => frontendSignals.includes(l));
         if (!needsFrontend) {
           return { id: '2.6.7a', name: checkName, tier: 'standard', category: 'Local Instructions', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No frontend/UI stack detected' };
@@ -860,7 +931,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Create ai/instructions/frontend.md with frontend coding conventions for the detected UI stack',
+    recommendation: 'Create ai/coding-standards/frontend.md with frontend coding conventions for the detected UI stack',
     recommendationKey: 'create-frontend-instructions',
   },
   {
@@ -874,7 +945,7 @@ export const standardChecks: CheckDef[] = [
           return { id: '2.6.7b', name: 'backend.md exists for backend-language projects', tier: 'standard', category: 'Local Instructions', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No instructions directory' };
         }
         const langs = ctx.facts.stack.languages.map(l => l.toLowerCase());
-        const backendLangs = ['go', 'python', 'rust', 'java', 'php', 'ruby', 'csharp'];
+        const backendLangs = ['go', 'python', 'rust', 'php'];
         const needsBackend = langs.some(l => backendLangs.includes(l));
         if (!needsBackend) {
           return { id: '2.6.7b', name: 'backend.md exists for backend-language projects', tier: 'standard', category: 'Local Instructions', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No backend language detected' };
@@ -888,7 +959,7 @@ export const standardChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Create ai/instructions/backend.md with backend coding conventions',
+    recommendation: 'Create ai/coding-standards/backend.md with backend coding conventions',
     recommendationKey: 'create-backend-instructions',
   },
 

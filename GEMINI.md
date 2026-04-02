@@ -1,4 +1,4 @@
-# GEMINI.md - v0.9.2 (2026-03-30)
+# GEMINI.md - v0.9.4 (2026-04-02)
 
 Documentation framework for AI coding agent workflows. Markdown docs + Bash maintenance scripts.
 
@@ -60,13 +60,13 @@ GOOD: Inline format. Extract when second format needed
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure in your code, or you corrected course: lessons.md entry required before DoD. After human correction: MUST log immediately. Propagate footguns to local CLAUDE.md.
+**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure in your code, or you corrected course: create a lesson entry before DoD. After human correction: MUST log immediately. Do not append to a monolithic log: use `ai/lessons/` or `.goat-flow/lessons/` for `YYYY-MM-DD-slug.md` files with frontmatter `name`, `created`, and use `docs/footguns/` or `.goat-flow/footguns/` for `slug.md` files with frontmatter `name`, `status`, `created`, `evidence_type`. Propagate footguns to local GEMINI.md.
 
 | File | When to update |
 |------|---------------|
-| `docs/lessons.md` | Behavioural mistake (agent did something wrong) |
-| `docs/footguns.md` | Cross-doc architectural trap (with file:line evidence) |
-| `docs/decisions/` | Significant technical decision with context/rationale |
+| `ai/lessons/` or `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
+| `docs/footguns/` or `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
+| `ai/decisions/` | Significant technical decision with context/rationale |
 
 ## Autonomy Tiers
 
@@ -98,17 +98,23 @@ Sub-agents: ONE objective, structured return, 5-call budget. When blocked: one q
 
 ## Working Memory
 
-5+ turns -> `tasks/todo.md`. Handoff -> `tasks/handoff.md` (read if exists).
+5+ turns -> `.goat-flow/tasks/todo.md`. Handoff -> `.goat-flow/tasks/handoff.md` (read if exists).
 Context health: compact at 60% util. Noise pruning before compacting. `/clear` between unrelated tasks.
 
 ## Router Table
 
-| Target | Path |
-|--------|------|
-| **Skills** | `.agents/skills/goat-{security,debug,audit,investigate,review,plan,test}` |
-| **Playbooks** | `workflow/playbooks/` |
-| **Learning** | `docs/{lessons,footguns}.md`, `docs/decisions/` |
-| **Architecture** | `docs/architecture.md` |
-| **Handoff** | `tasks/handoff-template.md` |
-| **Evals** | `agent-evals/` |
-| **Other Agents** | `CLAUDE.md`, `AGENTS.md` |
+| Resource | Path |
+|----------|------|
+| Architecture | `docs/architecture.md` |
+| System docs | `docs/system/` |
+| Scripts | `scripts/` |
+<!-- goat-flow:router:start -->
+| Skills | `.agents/skills/goat-*/` |
+| Footguns | `docs/footguns/`, `.goat-flow/footguns/` |
+| Lessons | `ai/lessons/`, `.goat-flow/lessons/` |
+| Decisions | `ai/decisions/` |
+| Evals | `ai/evals/` |
+| Coding standards | `ai/coding-standards/` |
+| Config | `.goat-flow/config.yaml` |
+| Local workspace | `.goat-flow/tasks/`, `.goat-flow/logs/` |
+<!-- goat-flow:router:end -->

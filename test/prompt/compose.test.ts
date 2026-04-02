@@ -47,8 +47,8 @@ npm test
 
 | File | When to update |
 |------|---------------|
-| \`docs/lessons.md\` | Behavioural mistake |
-| \`docs/footguns.md\` | Architectural trap |
+| \`ai/lessons/\` | Behavioural mistake |
+| \`docs/footguns/\` | Architectural trap |
 
 ## Autonomy Tiers
 
@@ -77,8 +77,8 @@ MUST confirm ALL: (1) shellcheck passes (2) no broken cross-references (3) no un
 | Resource | Path |
 |----------|------|
 | Skills | \`.claude/skills/goat-*/\` |
-| Footguns | \`docs/footguns.md\` |
-| Lessons | \`docs/lessons.md\` |
+| Footguns | \`docs/footguns/\` |
+| Lessons | \`ai/lessons/\` |
 | Architecture | \`docs/architecture.md\` |
 `;
 
@@ -101,15 +101,15 @@ function buildFullProject() {
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\necho "BLOCKED" >&2\nexit 2\n',
     '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\nshellcheck changed.sh\nnpx tsc --noEmit\nexit 0\n',
     '.claude/hooks/format-file.sh': '#!/usr/bin/env bash\nexit 0\n',
-    'docs/footguns.md': '# Footguns\n\n- `src/auth.ts:42` - race\n',
-    'docs/lessons.md': '# Lessons\n\n### Entry 1\nStuff.\n',
+    'docs/footguns/': '# Footguns\n\n- `src/auth.ts:42` - race\n',
+    'ai/lessons/': '# Lessons\n\n### Entry 1\nStuff.\n',
     'docs/architecture.md': '# Architecture\n\nOverview.\n',
     'docs/system-spec.md': '# System Spec\n',
     'setup/README.md': '# Setup\n',
-    'agent-evals/README.md': '# Evals\n',
-    'agent-evals/eval-1.md': '# E1\n\n**Origin:** real-incident\n\n## Replay Prompt\n\n```\nx\n```\n',
-    'agent-evals/eval-2.md': '# E2\n\n**Origin:** real-incident\n\n## Replay Prompt\n\n```\ny\n```\n',
-    'agent-evals/eval-3.md': '# E3\n\n**Origin:** real-incident\n\n## Replay Prompt\n\n```\nz\n```\n',
+    'ai/evals/README.md': '# Evals\n',
+    'ai/evals/eval-1.md': '# E1\n\n**Origin:** real-incident\n\n## Replay Prompt\n\n```\nx\n```\n',
+    'ai/evals/eval-2.md': '# E2\n\n**Origin:** real-incident\n\n## Replay Prompt\n\n```\ny\n```\n',
+    'ai/evals/eval-3.md': '# E3\n\n**Origin:** real-incident\n\n## Replay Prompt\n\n```\nz\n```\n',
     '.github/workflows/context-validation.yml': 'name: CV\nsteps:\n  - run: wc -l\n  - run: check router\n  - run: check skills\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\n',
@@ -130,6 +130,36 @@ function buildEmptyProject() {
   return createMockFS({
     'package.json': JSON.stringify({ name: 'empty', scripts: { start: 'node .' } }),
     'README.md': '# Empty\n',
+  });
+}
+
+function buildTargetedUpgradeProject(extraFiles: Record<string, string> = {}) {
+  return createMockFS({
+    'CLAUDE.md': FULL_CLAUDE_MD,
+    'package.json': JSON.stringify({
+      name: 'upgrade-project',
+      devDependencies: { typescript: '^5.0.0' },
+      scripts: { build: 'tsc', test: 'vitest', lint: 'eslint .' },
+    }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)', 'Read(**/.env*)'] },
+    }),
+    '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 2\n',
+    '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
+    '.claude/hooks/format-file.sh': '#!/usr/bin/env bash\nexit 0\n',
+    '.claude/skills/goat-debug/SKILL.md': '---\nname: goat-debug\ngoat-flow-skill-version: "0.9.4"\n---\n# /goat-debug\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
+    '.claude/skills/goat-plan/SKILL.md': '---\nname: goat-plan\ngoat-flow-skill-version: "0.9.4"\n---\n# /goat-plan\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
+    '.claude/skills/goat-review/SKILL.md': '---\nname: goat-review\ngoat-flow-skill-version: "0.9.4"\n---\n# /goat-review\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
+    '.claude/skills/goat-security/SKILL.md': '---\nname: goat-security\ngoat-flow-skill-version: "0.9.4"\n---\n# /goat-security\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
+    '.claude/skills/goat-test/SKILL.md': '---\nname: goat-test\ngoat-flow-skill-version: "0.9.4"\n---\n# /goat-test\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
+    'docs/footguns/': '# Footguns\n\n- `src/auth.ts:42` - race\n',
+    'ai/lessons/': '# Lessons\n\n### Entry 1\nStuff.\n',
+    'docs/architecture.md': '# Architecture\n\nOverview.\n',
+    'scripts/preflight-checks.sh': '#!/usr/bin/env bash\n',
+    'scripts/context-validate.sh': '#!/usr/bin/env bash\n',
+    'tasks/handoff-template.md': '# Handoff\n',
+    '.gitignore': 'settings.local.json\n',
+    ...extraFiles,
   });
 }
 
@@ -215,6 +245,35 @@ describe('composeSetup (reference-based)', () => {
     assert.ok(refs.length > 0, 'Should have template refs');
     assert.ok(refs[0].output, 'Ref should have output');
     assert.ok(refs[0].template, 'Ref should have template');
+  });
+
+  it('uses the dispatcher path instead of goat-goat in targeted fix output', () => {
+    const fs = buildTargetedUpgradeProject();
+    const report = scanProject(fs, '/test', { agentFilter: null });
+    const output = composeSetup(report, 'claude');
+    assert.ok(output);
+    assert.ok(output.includes('.claude/skills/goat/SKILL.md'), 'Dispatcher path should be goat/SKILL.md');
+    assert.ok(!output.includes('goat-goat'), 'Prompt should not fabricate goat-goat');
+    assert.ok(output.includes('Missing Skills (1 of 6)'), 'Prompt should count the 6 canonical skills');
+  });
+
+  it('surfaces stale goat skill cleanup when AP20 is triggered', () => {
+    const fs = buildTargetedUpgradeProject({
+      '.claude/skills/goat-investigate/SKILL.md': '# /goat-investigate\n',
+      '.claude/skills/goat-audit/SKILL.md': '# /goat-audit\n',
+      '.claude/skills/audit/SKILL.md': '# /audit\n',
+    });
+    const report = scanProject(fs, '/test', { agentFilter: null });
+    const ap20 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP20');
+    assert.ok(ap20, 'AP20 should exist');
+    assert.equal(ap20.triggered, true, 'AP20 should fire on stale goat-flow skill directories');
+    assert.ok(ap20.message.includes('goat-investigate'), 'AP20 should name stale goat skills');
+    assert.ok(ap20.message.includes('audit'), 'AP20 should name legacy skill dirs');
+
+    const output = composeSetup(report, 'claude');
+    assert.ok(output);
+    assert.ok(output.includes('Delete these directories'), 'Setup prompt should instruct the user to remove stale skill dirs');
+    assert.ok(output.includes('goat-investigate'), 'Setup prompt should mention stale skill examples');
   });
 });
 
@@ -328,11 +387,12 @@ describe('M2.11b: setup prompt improvements', () => {
 });
 
 describe('M2.11b: scanner fixes', () => {
-  it('lessons.md with only template headings fails 2.3.2', () => {
+  it('lessons directory with only README/template text fails 2.3.2a', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/lessons.md': '# Lessons\n\n### Entry Format\n<!-- Describe what happened -->\n',
+      'ai/lessons/README.md': '# Lessons\n\nOne file per lesson.\n\n### Entry Format\n<!-- Describe what happened -->\n',
+      '.goat-flow/config.yaml': 'version: "0.9.4"\nlessons:\n  committed: ai/lessons/\n  local: .goat-flow/lessons/\nfootguns:\n  committed: docs/footguns/\n  local: .goat-flow/footguns/\ndecisions:\n  path: ai/decisions/\ntasks:\n  path: .goat-flow/tasks/\nskills:\n  install: all\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const check = report.agents[0]?.checks.find(c => c.id === '2.3.2a');
@@ -344,7 +404,7 @@ describe('M2.11b: scanner fixes', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/lessons.md': '# Lessons\n\n### 2026-03-20: Auth migration broke staging\nRolled back because the migration assumed sequential IDs.\n',
+      'ai/lessons/': '# Lessons\n\n### 2026-03-20: Auth migration broke staging\nRolled back because the migration assumed sequential IDs.\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const check = report.agents[0]?.checks.find(c => c.id === '2.3.2a');
@@ -356,8 +416,8 @@ describe('M2.11b: scanner fixes', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/lessons.md': '# Lessons\n\nNo entries yet.\n',
-      'docs/footguns.md': '# Footguns\n\n- some pattern without evidence\n',
+      'ai/lessons/': '# Lessons\n\nNo entries yet.\n',
+      'docs/footguns/': '# Footguns\n\n- some pattern without evidence\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap11 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP11');
@@ -455,7 +515,7 @@ describe('M2.13: AP12 stale ref filtering', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `localhost:48101` - dev server port\n',
+      'docs/footguns/': '# Footguns\n\n- `localhost:48101` - dev server port\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP12');
@@ -469,7 +529,7 @@ describe('M2.13: AP12 stale ref filtering', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `src/auth.ts:42` - race condition\n',
+      'docs/footguns/': '# Footguns\n\n- `src/auth.ts:42` - race condition\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP12');
@@ -553,9 +613,9 @@ describe('M2.13: --agent all dedup', () => {
     const report = scanProject(fs, '/test', { agentFilter: null });
     const output = composeMultiAgentSetup(report, ['claude', 'codex', 'gemini']);
     assert.ok(output);
-    // Shared files should appear exactly once
-    const footgunsCount = (output.match(/docs\/footguns\.md/g) || []).length;
-    assert.equal(footgunsCount, 1, `docs/footguns.md should appear once, got ${footgunsCount}`);
+    // Shared tasks should be listed once, not repeated per agent
+    const footgunsTaskCount = (output.match(/### Task \d+: Create `docs\/footguns\/`/g) || []).length;
+    assert.equal(footgunsTaskCount, 1, `shared docs/footguns/ task should appear once, got ${footgunsTaskCount}`);
     // Should have per-agent sections
     assert.ok(output.includes('Claude Code'), 'Should have Claude section');
     assert.ok(output.includes('Codex'), 'Should have Codex section');
@@ -614,7 +674,7 @@ describe('M2.14: hasEvidence filters URLs', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `localhost:48101` - dev server port\n- `127.0.0.1:3000` - API\n',
+      'docs/footguns/': '# Footguns\n\n- `localhost:48101` - dev server port\n- `127.0.0.1:3000` - API\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const check = report.agents[0]?.checks.find(c => c.id === '2.3.4');
@@ -628,9 +688,9 @@ describe('M2.14: eval format aliases', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'agent-evals/test-1.md': '# E1\n\n**Origin:** real\n\n## Scenario\n\nDo X.\n',
-      'agent-evals/test-2.md': '# E2\n\n**Origin:** real\n\n## Scenario\n\nDo Y.\n',
-      'agent-evals/test-3.md': '# E3\n\n**Origin:** real\n\n## Scenario\n\nDo Z.\n',
+      'ai/evals/test-1.md': '# E1\n\n**Origin:** real\n\n## Scenario\n\nDo X.\n',
+      'ai/evals/test-2.md': '# E2\n\n**Origin:** real\n\n## Scenario\n\nDo Y.\n',
+      'ai/evals/test-3.md': '# E3\n\n**Origin:** real\n\n## Scenario\n\nDo Z.\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const check = report.agents[0]?.checks.find(c => c.id === '3.1.4');
@@ -642,9 +702,9 @@ describe('M2.14: eval format aliases', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'agent-evals/test-1.md': '# E1\n\n## Origin\n\nreal-incident\n\n## Replay Prompt\n\n```\nx\n```\n',
-      'agent-evals/test-2.md': '# E2\n\n## Origin\n\nreal-incident\n\n## Replay Prompt\n\n```\ny\n```\n',
-      'agent-evals/test-3.md': '# E3\n\n## Origin\n\nreal-incident\n\n## Replay Prompt\n\n```\nz\n```\n',
+      'ai/evals/test-1.md': '# E1\n\n## Origin\n\nreal-incident\n\n## Replay Prompt\n\n```\nx\n```\n',
+      'ai/evals/test-2.md': '# E2\n\n## Origin\n\nreal-incident\n\n## Replay Prompt\n\n```\ny\n```\n',
+      'ai/evals/test-3.md': '# E3\n\n## Origin\n\nreal-incident\n\n## Replay Prompt\n\n```\nz\n```\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const check = report.agents[0]?.checks.find(c => c.id === '3.1.5');
@@ -671,7 +731,7 @@ describe('M2.14: root-level AP12 refs', () => {
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'AGENTS.md': '# AGENTS.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `AGENTS.md:42` - instruction file footgun\n',
+      'docs/footguns/': '# Footguns\n\n- `AGENTS.md:42` - instruction file footgun\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP12');
@@ -684,7 +744,7 @@ describe('M2.14: root-level AP12 refs', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `AGENTS.md:42` - stale ref\n',
+      'docs/footguns/': '# Footguns\n\n- `AGENTS.md:42` - stale ref\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP12');
@@ -696,7 +756,7 @@ describe('M2.14: root-level AP12 refs', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `webpack:123` - bundler warning\n',
+      'docs/footguns/': '# Footguns\n\n- `webpack:123` - bundler warning\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP12');
@@ -709,7 +769,7 @@ describe('M2.14: root-level AP12 refs', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `0.0.0.0:8080` - bind address\n',
+      'docs/footguns/': '# Footguns\n\n- `0.0.0.0:8080` - bind address\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find(ap => ap.id === 'AP12');
@@ -724,7 +784,7 @@ describe('M2.14: hasEvidence edge cases', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `localhost:3000` - dev\n- `src/auth.ts:42` - real ref\n',
+      'docs/footguns/': '# Footguns\n\n- `localhost:3000` - dev\n- `src/auth.ts:42` - real ref\n',
       'src/auth.ts': 'export const x = 1;\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
@@ -737,7 +797,7 @@ describe('M2.14: hasEvidence edge cases', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\nThe auth module (lines 42-50) has a race condition.\n',
+      'docs/footguns/': '# Footguns\n\nThe auth module (lines 42-50) has a race condition.\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const check = report.agents[0]?.checks.find(c => c.id === '2.3.4');
@@ -749,7 +809,7 @@ describe('M2.14: hasEvidence edge cases', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'docs/footguns.md': '# Footguns\n\n- `https://example.com:443` - API endpoint\n',
+      'docs/footguns/': '# Footguns\n\n- `https://example.com:443` - API endpoint\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const check = report.agents[0]?.checks.find(c => c.id === '2.3.4');
@@ -763,9 +823,9 @@ describe('M2.14: preferred eval format (### Scenario H3)', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'agent-evals/test-1.md': '# E1\n\n**Origin:** real\n\n### Scenario\n\nDo X.\n',
-      'agent-evals/test-2.md': '# E2\n\n**Origin:** real\n\n### Scenario\n\nDo Y.\n',
-      'agent-evals/test-3.md': '# E3\n\n**Origin:** real\n\n### Scenario\n\nDo Z.\n',
+      'ai/evals/test-1.md': '# E1\n\n**Origin:** real\n\n### Scenario\n\nDo X.\n',
+      'ai/evals/test-2.md': '# E2\n\n**Origin:** real\n\n### Scenario\n\nDo Y.\n',
+      'ai/evals/test-3.md': '# E3\n\n**Origin:** real\n\n### Scenario\n\nDo Z.\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const check = report.agents[0]?.checks.find(c => c.id === '3.1.4');
@@ -778,9 +838,9 @@ describe('M2.14: preferred eval format (### Scenario H3)', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'agent-evals/test-1.md': evalContent,
-      'agent-evals/test-2.md': evalContent.replace('test-1', 'test-2'),
-      'agent-evals/test-3.md': evalContent.replace('test-1', 'test-3'),
+      'ai/evals/test-1.md': evalContent,
+      'ai/evals/test-2.md': evalContent.replace('test-1', 'test-2'),
+      'ai/evals/test-3.md': evalContent.replace('test-1', 'test-3'),
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const originCheck = report.agents[0]?.checks.find(c => c.id === '3.1.5');
@@ -841,9 +901,11 @@ describe('M2.14: placeholder npm script edge cases', () => {
 });
 
 describe('Rubric version consistency', () => {
-  it('RUBRIC_VERSION is current', async () => {
+  it('RUBRIC_VERSION matches package.json', async () => {
+    const { readFileSync } = await import('node:fs');
     const { RUBRIC_VERSION } = await import('../../src/cli/rubric/version.js');
-    assert.equal(RUBRIC_VERSION, '0.9.3', 'RUBRIC_VERSION should match package version');
+    const pkg = JSON.parse(readFileSync('package.json', 'utf-8')) as { version: string };
+    assert.equal(RUBRIC_VERSION, pkg.version, 'RUBRIC_VERSION should match package.json version');
   });
 });
 

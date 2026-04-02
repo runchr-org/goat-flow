@@ -158,7 +158,7 @@ The router table is how agents navigate from a question to the right file. Witho
 
 ### 2.6 Local Instructions (6 pts)
 
-Local instruction files (ai/instructions/ or .github/instructions/) are cold-path references - not read every turn, but loaded when the agent enters that context.
+Local instruction files (ai/coding-standards/ or .github/instructions/) are cold-path references - not read every turn, but loaded when the agent enters that context.
 
 | ID | Check | Pts | Why |
 |----|-------|-----|-----|
@@ -182,7 +182,7 @@ Full-tier checks reward projects that have proven the workflow works: evals that
 
 | ID | Check | Pts | Why |
 |----|-------|-----|-----|
-| 3.1.1 | agent-evals/ exists | 1 | Without evals, there is no way to catch skill regressions. |
+| 3.1.1 | ai/evals/ exists | 1 | Without evals, there is no way to catch skill regressions. |
 | 3.1.3 | 5+ eval files | 2 | Coverage requires breadth; 1–2 evals test one happy path. |
 | 3.1.4 | Evals have replay prompts | 2 | Without a Scenario section, evals can't be replayed to verify behaviour. |
 | 3.1.5 | Evals have origin labels | 1 | Real-incident evals are higher-signal than synthetic seeds. |
@@ -212,7 +212,7 @@ Full-tier checks reward projects that have proven the workflow works: evals that
 
 | ID | Check | Pts | Why |
 |----|-------|-----|-----|
-| 3.4.2 | Cold-path instructions within line budget | 1 | ai/instructions/ files over budget get ignored as context grows. |
+| 3.4.2 | Cold-path instructions within line budget | 1 | ai/coding-standards/ files over budget get ignored as context grows. |
 
 ---
 
@@ -223,7 +223,7 @@ Anti-patterns are deducted after positive scoring. They represent actively harmf
 | ID | Name | Deduction | Why |
 |----|------|-----------|-----|
 | AP1 | Instruction file over 150 lines | −3 | Hard limit. Agents miss tail content at 150+. |
-| AP2 | Skills without goat- prefix | −3 | Name conflicts with built-in slash commands. |
+| ~~AP2~~ | ~~Skills without goat- prefix~~ | Removed | Penalized project-specific skills (e.g., deploy/, preflight/). |
 | AP3 | DoD in both instruction file and guidelines | −3 | Conflicting definitions - agents pick the wrong one. |
 | AP4 | Footguns without file:line evidence | −5 | Entries without evidence are unverifiable folklore, not guardrails. |
 | AP5 | settings.json invalid JSON | −5 | Silently disables all settings-based configuration. |

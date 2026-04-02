@@ -1,6 +1,6 @@
 # Supply Chain Security
 
-Reference for generating `ai/instructions/security.md` in projects with third-party dependencies.
+Reference for generating `ai/coding-standards/security.md` in projects with third-party dependencies.
 
 ## Lockfile Integrity
 

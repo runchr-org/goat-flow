@@ -26,10 +26,12 @@ note()    { warnings=$((warnings + 1)); echo -e "  ${Y}⚠${RST} $1"; }
 
 # ── Context Validation ───────────────────────────────────────────────
 section "Context Validation"
-if bash scripts/context-validate.sh >/dev/null 2>&1; then
+ctx_output=$(bash scripts/context-validate.sh 2>&1) && ctx_exit=0 || ctx_exit=$?
+if [[ "$ctx_exit" -eq 0 ]]; then
     pass "Router paths, skills, frontmatter"
 else
-    fail "Context validation - run scripts/context-validate.sh for details"
+    fail "Context validation failed:"
+    echo "$ctx_output" | grep -E 'FAIL|ERROR|✗' | head -3 | sed 's/^/    /'
 fi
 
 # ── Shell Scripts ────────────────────────────────────────────────────
@@ -62,7 +64,7 @@ fi
 section "Skill Template Versions"
 skill_version=$(grep -o "RUBRIC_VERSION = '[^']*'" src/cli/rubric/version.ts | grep -o "'[^']*'" | tr -d "'" || true)
 if [[ -z "$skill_version" ]]; then
-    note "Could not extract SKILL_VERSION from src/cli/constants.ts"
+    note "Could not extract RUBRIC_VERSION from src/cli/rubric/version.ts"
 else
     template_fail=0
     while IFS= read -r -d '' f; do
@@ -71,7 +73,7 @@ else
             fail "Skill template $f has version '$ver', expected '$skill_version'"
             template_fail=1
         fi
-    done < <(find workflow/skills -name 'goat-*.md' -not -path '*/reference/*' -print0)
+    done < <(find workflow/skills -maxdepth 1 -name 'goat*.md' -print0)
     if [[ "$template_fail" -eq 0 ]]; then
         pass "All workflow skill templates at version $skill_version"
     fi
@@ -117,9 +119,23 @@ if [[ -f package.json ]] && [[ -f src/cli/rubric/version.ts ]]; then
         fail "SCHEMA_VERSION invalid: '$schema_version' (expected positive integer)"
     fi
 
+    # .goat-flow/config.yaml version should match package version
+    if [[ -f .goat-flow/config.yaml ]]; then
+        config_version=$(grep '^version:' .goat-flow/config.yaml | grep -oE '"[^"]+"' | tr -d '"' || true)
+        if [[ -n "$config_version" ]]; then
+            if [[ "$config_version" != "$pkg_version" ]]; then
+                fail ".goat-flow/config.yaml version ($config_version) does not match package.json ($pkg_version)"
+            else
+                pass ".goat-flow/config.yaml version ($config_version)"
+            fi
+        else
+            fail ".goat-flow/config.yaml has no version field"
+        fi
+    fi
+
     # CHANGELOG.md newest version should match package.json + RUBRIC_VERSION
     if [[ -f CHANGELOG.md ]]; then
-        changelog_version=$(grep -oP '^## v\K[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | head -1)
+        changelog_version=$(grep -oE '^## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | head -1 | sed 's/^## v//')
         if [[ -n "$changelog_version" ]]; then
             pass "CHANGELOG.md newest entry (v${changelog_version})"
             if [[ "$pkg_version" != "$changelog_version" ]]; then
@@ -138,7 +154,7 @@ if [[ -f package.json ]] && [[ -f src/cli/rubric/version.ts ]]; then
     # Instruction file headers must match package version
     for ifile in CLAUDE.md AGENTS.md GEMINI.md; do
         if [[ -f "$ifile" ]]; then
-            header_version=$(head -1 "$ifile" | grep -oP 'v\K[0-9]+\.[0-9]+(\.[0-9]+)?' || true)
+            header_version=$(head -1 "$ifile" | grep -oE 'v[0-9]+\.[0-9]+(\.[0-9]+)?' | sed 's/^v//' || true)
             if [[ -n "$header_version" ]] && [[ "$header_version" != "$pkg_version" ]]; then
                 fail "$ifile header says v${header_version}, expected v${pkg_version}"
             fi
@@ -198,16 +214,17 @@ fi
 if [[ -f tsconfig.json ]]; then
     section "TypeScript"
 
-    if npx tsc --noEmit 2>/dev/null; then
-        pass "Typecheck"
+    if npx tsc 2>/dev/null; then
+        pass "Typecheck + build (dist/ produced)"
     else
-        fail "Typecheck - run npx tsc --noEmit for details"
+        fail "Typecheck/build - run npx tsc for details"
     fi
 
-    if npx tsc 2>/dev/null; then
-        pass "Build (dist/ producible)"
+    # Dashboard HTML served from src/ at runtime (no copy step needed)
+    if [[ -f src/dashboard/index.html ]]; then
+        pass "src/dashboard/index.html exists"
     else
-        fail "Build"
+        fail "src/dashboard/index.html missing"
     fi
 
     # ESLint (type-checked rules)
@@ -294,11 +311,11 @@ if [[ -f dist/cli/cli.js ]]; then
     scan_output=$(node dist/cli/cli.js scan . --format text 2>&1) && scan_exit=0 || scan_exit=$?
     if [[ "$scan_exit" -eq 0 ]]; then
         # Extract per-agent grades and check for any below A
-        grades=$(echo "$scan_output" | grep -oP 'Grade: \K\S+ \(\d+%\)')
+        grades=$(echo "$scan_output" | grep -oE 'Grade: [A-F] \([0-9]+%\)' | sed 's/Grade: //')
         all_a=true
         while IFS= read -r grade; do
             [[ -z "$grade" ]] && continue
-            pct=$(echo "$grade" | grep -oP '\d+')
+            pct=$(echo "$grade" | grep -oE '[0-9]+')
             if [[ "$pct" -lt 100 ]]; then
                 all_a=false
                 note "Scan: $grade (target: 100%)"
@@ -316,69 +333,39 @@ else
     skip "GOAT Flow Scan (dist/cli/cli.js not built)"
 fi
 
-# ── Coding Standards Drift Detection ─────────────────────────────────
+# ── Coding Standards ─────────────────────────────────────────────────
 section "Coding Standards"
 
-# Check that every .md file referenced in backend/README.md detection table exists
 cs_dir="workflow/coding-standards"
-if [[ -f "$cs_dir/backend/README.md" ]]; then
-    backend_missing=0
-    while IFS= read -r ref_file; do
-        if [[ ! -f "$cs_dir/backend/$ref_file" ]]; then
-            fail "backend/README.md references missing file: $ref_file"
-            backend_missing=1
+
+# Check that every backend .md file has ## Common Footguns and ## Primary Sources
+if compgen -G "$cs_dir/backend/*.md" >/dev/null; then
+    for bf in "$cs_dir"/backend/*.md; do
+        bname="$(basename "$bf")"
+        if ! grep -q '^## Common Footguns' "$bf"; then
+            note "backend/$bname: missing '## Common Footguns' heading"
         fi
-    done < <(grep -oP '(?<=\| )[a-z][-a-z]+\.md' "$cs_dir/backend/README.md" | sort -u)
-    if [[ "$backend_missing" -eq 0 ]]; then
-        pass "backend/README.md: all referenced files exist"
-    fi
+        if ! grep -q '^## Primary Sources' "$bf"; then
+            note "backend/$bname: missing '## Primary Sources' heading"
+        fi
+    done
+    pass "backend/*.md mandatory heading check ($(find "$cs_dir/backend" -name '*.md' | wc -l) files)"
 else
-    skip "backend/README.md not found"
+    skip "No backend coding standards found"
 fi
 
-# Check that every backend .md file (except README) has ## Common Footguns and ## Primary Sources
-for bf in "$cs_dir"/backend/*.md; do
-    [[ "$(basename "$bf")" == "README.md" ]] && continue
-    bname="$(basename "$bf")"
-    if ! grep -q '^## Common Footguns' "$bf"; then
-        note "backend/$bname: missing '## Common Footguns' heading"
-    fi
-    if ! grep -q '^## Primary Sources' "$bf"; then
-        note "backend/$bname: missing '## Primary Sources' heading"
-    fi
-done
-pass "backend/*.md mandatory heading check"
-
-# Check that security/README.md referenced files exist
-if [[ -f "$cs_dir/security/README.md" ]]; then
-    sec_missing=0
-    while IFS= read -r ref_file; do
-        if [[ ! -f "$cs_dir/security/$ref_file" ]]; then
-            fail "security/README.md references missing file: $ref_file"
-            sec_missing=1
+# Check template-refs.ts doesn't reference deleted templates
+if [[ -f src/cli/prompt/template-refs.ts ]]; then
+    stale_refs=0
+    while IFS= read -r template_path; do
+        if [[ ! -f "$template_path" ]]; then
+            fail "template-refs.ts references missing: $template_path"
+            stale_refs=1
         fi
-    done < <(grep -oP '(?<=\| )[-a-z/]+\.md' "$cs_dir/security/README.md" | sort -u)
-    if [[ "$sec_missing" -eq 0 ]]; then
-        pass "security/README.md: all referenced files exist"
+    done < <(grep -v '^\s*//' src/cli/prompt/template-refs.ts | grep -oE "workflow/coding-standards/[^'\"]*\.md" | sort -u)
+    if [[ "$stale_refs" -eq 0 ]]; then
+        pass "template-refs.ts: all referenced coding standards exist"
     fi
-else
-    skip "security/README.md not found"
-fi
-
-# Check devops/ files exist if devops/README.md references them
-if [[ -f "$cs_dir/devops/README.md" ]]; then
-    devops_missing=0
-    while IFS= read -r ref_file; do
-        if [[ ! -f "$cs_dir/devops/$ref_file" ]]; then
-            fail "devops/README.md references missing file: $ref_file"
-            devops_missing=1
-        fi
-    done < <(grep -oP '(?<=\| )[a-z][-a-z]+\.md' "$cs_dir/devops/README.md" | sort -u)
-    if [[ "$devops_missing" -eq 0 ]]; then
-        pass "devops/README.md: all referenced files exist"
-    fi
-else
-    skip "devops/README.md not found"
 fi
 
 # ── Summary ──────────────────────────────────────────────────────────

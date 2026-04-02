@@ -1,7 +1,7 @@
 ---
 applyTo: "**"
 ---
-<!-- Source: ai/instructions/code-review.md - keep in sync -->
+<!-- Source: ai/coding-standards/code-review.md - keep in sync -->
 
 # Code Review - GOAT Flow
 

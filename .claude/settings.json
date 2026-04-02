@@ -8,6 +8,8 @@
       "Bash(*dd if=*)",
       "Bash(*git reset --hard*)",
       "Read(**/.env*)",
+      "Edit(**/.env*)",
+      "Write(**/.env*)",
       "Read(**/secrets/**)",
       "Read(**/*.pem)",
       "Read(**/*.key)",
@@ -51,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'CONTEXT AFTER COMPACTION:' && echo 'Modified files:' && git diff --name-only 2>/dev/null && echo '---' && cat tasks/todo.md 2>/dev/null || echo 'No active tasks' && echo '---' && echo 'Constraints: read CLAUDE.md Autonomy Tiers before proceeding'"
+            "command": "echo 'CONTEXT AFTER COMPACTION:' && echo 'Modified files:' && git diff --name-only 2>/dev/null && echo '---' && cat .goat-flow/tasks/todo.md 2>/dev/null || echo 'No active tasks' && echo '---' && echo 'Constraints: read CLAUDE.md Autonomy Tiers before proceeding'"
           }
         ]
       }

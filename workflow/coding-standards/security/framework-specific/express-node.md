@@ -1,6 +1,6 @@
 # Express/Node.js Security Standards
 
-Reference for generating `ai/instructions/security.md` in Express or Node.js API projects.
+Reference for generating `ai/coding-standards/security.md` in Express or Node.js API projects.
 
 ## Helmet Middleware
 

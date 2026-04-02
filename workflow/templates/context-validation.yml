@@ -1,0 +1,46 @@
+# GOAT Flow Context Validation
+# Copy this file to .github/workflows/context-validation.yml
+# It validates instruction files, router references, and skill directories.
+#
+# Scanner regex expects these exact step names — do not rename them.
+name: Context Validation
+on: [push, pull_request]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check instruction file line counts
+        run: |
+          for f in CLAUDE.md AGENTS.md GEMINI.md; do
+            [ -f "$f" ] && lines=$(wc -l < "$f") && [ "$lines" -gt 150 ] && echo "::error::$f is $lines lines (limit 150)" && exit 1
+          done
+          echo "All instruction files within line limit"
+
+      - name: Check router references
+        run: |
+          if [ -f scripts/context-validate.sh ]; then
+            bash scripts/context-validate.sh
+          else
+            echo "::warning::scripts/context-validate.sh not found, skipping"
+          fi
+
+      - name: Check skills exist
+        run: |
+          fail=0
+          for skill in goat goat-debug goat-plan goat-review goat-security goat-test; do
+            found=0
+            for dir in .claude/skills .agents/skills; do
+              if [ -f "$dir/$skill/SKILL.md" ]; then
+                echo "✓ $dir/$skill/SKILL.md"
+                found=1
+              fi
+            done
+            if [ "$found" -eq 0 ]; then
+              echo "::error::Missing skill: $skill (not in .claude/skills/ or .agents/skills/)"
+              fail=1
+            fi
+          done
+          if [ "$fail" -eq 1 ]; then exit 1; fi
+          echo "All 6 canonical skills present"

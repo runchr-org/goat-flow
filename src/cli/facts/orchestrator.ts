@@ -1,4 +1,5 @@
 import type { ProjectFacts, ReadonlyFS, AgentId } from '../types.js';
+import type { LoadedConfig } from '../config/types.js';
 import { detectAgents } from '../detect/agents.js';
 import { detectStack } from '../detect/stack.js';
 import { extractSharedFacts } from './shared.js';
@@ -7,6 +8,7 @@ import { extractAgentFacts } from './agent.js';
 interface ExtractOptions {
   agentFilter: AgentId | null;
   projectPath?: string;
+  configState: LoadedConfig;
 }
 
 /** Orchestrate full fact extraction: detect agents, detect stack, gather shared and per-agent facts. */
@@ -23,7 +25,7 @@ export function extractProjectFacts(fs: ReadonlyFS, options: ExtractOptions): Pr
   const stack = detectStack(fs);
 
   /** Shared facts covering docs, evals, CI, and other project-wide resources */
-  const shared = extractSharedFacts(fs);
+  const shared = extractSharedFacts(fs, options.configState);
 
   /** Per-agent facts including instruction, settings, skills, and hooks */
   const agentFacts = agents.map(agent => {

@@ -1,6 +1,6 @@
 # Bash Coding Standards
 
-Reference for generating `ai/instructions/backend.md` or project-level shell
+Reference for generating `ai/coding-standards/backend.md` or project-level shell
 script guidelines. Use this when shell is a primary implementation surface or a
 significant automation/runtime layer, not just because a non-shell repo has a
 few maintenance scripts.

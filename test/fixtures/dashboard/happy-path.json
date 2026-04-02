@@ -810,8 +810,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "docs/lessons.md exists",
-          "evidence": "docs/lessons.md",
+          "message": "ai/lessons/ exists",
+          "evidence": "ai/lessons/",
           "recommendationKey": "create-lessons"
         },
         {
@@ -823,8 +823,8 @@
           "status": "pass",
           "points": 2,
           "maxPoints": 2,
-          "message": "docs/footguns.md exists",
-          "evidence": "docs/footguns.md",
+          "message": "docs/footguns/ exists",
+          "evidence": "docs/footguns/",
           "recommendationKey": "create-footguns"
         },
         {
@@ -987,8 +987,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "docs/decisions/ exists",
-          "evidence": "docs/decisions",
+          "message": "ai/decisions/ exists",
+          "evidence": "ai/decisions",
           "recommendationKey": "create-decisions-dir"
         },
         {
@@ -1000,7 +1000,7 @@
           "points": 1,
           "maxPoints": 1,
           "confidence": "high",
-          "message": "Found at ai/instructions/",
+          "message": "Found at ai/coding-standards/",
           "recommendationKey": "create-instructions-dir"
         },
         {
@@ -1156,8 +1156,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "agent-evals/ exists",
-          "evidence": "agent-evals",
+          "message": "ai/evals/ exists",
+          "evidence": "ai/evals",
           "recommendationKey": "create-evals-dir"
         },
         {
@@ -1353,15 +1353,6 @@
           "message": "114 lines (OK)",
           "evidence": "CLAUDE.md",
           "recommendationKey": "ap-compress-instruction-file"
-        },
-        {
-          "id": "AP2",
-          "name": "Skill name conflicts with built-in",
-          "triggered": false,
-          "deduction": 0,
-          "confidence": "high",
-          "message": "All skills use goat- prefix",
-          "recommendationKey": "ap-fix-skill-names"
         },
         {
           "id": "AP3",
@@ -2271,8 +2262,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "docs/lessons.md exists",
-          "evidence": "docs/lessons.md",
+          "message": "ai/lessons/ exists",
+          "evidence": "ai/lessons/",
           "recommendationKey": "create-lessons"
         },
         {
@@ -2284,8 +2275,8 @@
           "status": "pass",
           "points": 2,
           "maxPoints": 2,
-          "message": "docs/footguns.md exists",
-          "evidence": "docs/footguns.md",
+          "message": "docs/footguns/ exists",
+          "evidence": "docs/footguns/",
           "recommendationKey": "create-footguns"
         },
         {
@@ -2448,8 +2439,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "docs/decisions/ exists",
-          "evidence": "docs/decisions",
+          "message": "ai/decisions/ exists",
+          "evidence": "ai/decisions",
           "recommendationKey": "create-decisions-dir"
         },
         {
@@ -2461,7 +2452,7 @@
           "points": 1,
           "maxPoints": 1,
           "confidence": "high",
-          "message": "Found at ai/instructions/",
+          "message": "Found at ai/coding-standards/",
           "recommendationKey": "create-instructions-dir"
         },
         {
@@ -2617,8 +2608,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "agent-evals/ exists",
-          "evidence": "agent-evals",
+          "message": "ai/evals/ exists",
+          "evidence": "ai/evals",
           "recommendationKey": "create-evals-dir"
         },
         {
@@ -2814,15 +2805,6 @@
           "message": "113 lines (OK)",
           "evidence": "AGENTS.md",
           "recommendationKey": "ap-compress-instruction-file"
-        },
-        {
-          "id": "AP2",
-          "name": "Skill name conflicts with built-in",
-          "triggered": false,
-          "deduction": 0,
-          "confidence": "high",
-          "message": "All skills use goat- prefix",
-          "recommendationKey": "ap-fix-skill-names"
         },
         {
           "id": "AP3",
@@ -3732,8 +3714,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "docs/lessons.md exists",
-          "evidence": "docs/lessons.md",
+          "message": "ai/lessons/ exists",
+          "evidence": "ai/lessons/",
           "recommendationKey": "create-lessons"
         },
         {
@@ -3745,8 +3727,8 @@
           "status": "pass",
           "points": 2,
           "maxPoints": 2,
-          "message": "docs/footguns.md exists",
-          "evidence": "docs/footguns.md",
+          "message": "docs/footguns/ exists",
+          "evidence": "docs/footguns/",
           "recommendationKey": "create-footguns"
         },
         {
@@ -3909,8 +3891,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "docs/decisions/ exists",
-          "evidence": "docs/decisions",
+          "message": "ai/decisions/ exists",
+          "evidence": "ai/decisions",
           "recommendationKey": "create-decisions-dir"
         },
         {
@@ -3922,7 +3904,7 @@
           "points": 1,
           "maxPoints": 1,
           "confidence": "high",
-          "message": "Found at ai/instructions/",
+          "message": "Found at ai/coding-standards/",
           "recommendationKey": "create-instructions-dir"
         },
         {
@@ -4078,8 +4060,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "agent-evals/ exists",
-          "evidence": "agent-evals",
+          "message": "ai/evals/ exists",
+          "evidence": "ai/evals",
           "recommendationKey": "create-evals-dir"
         },
         {
@@ -4275,15 +4257,6 @@
           "message": "114 lines (OK)",
           "evidence": "GEMINI.md",
           "recommendationKey": "ap-compress-instruction-file"
-        },
-        {
-          "id": "AP2",
-          "name": "Skill name conflicts with built-in",
-          "triggered": false,
-          "deduction": 0,
-          "confidence": "high",
-          "message": "All skills use goat- prefix",
-          "recommendationKey": "ap-fix-skill-names"
         },
         {
           "id": "AP3",

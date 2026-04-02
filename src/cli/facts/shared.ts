@@ -1,4 +1,5 @@
 import type { SharedFacts, ReadonlyFS } from '../types.js';
+import type { LoadedConfig } from '../config/types.js';
 
 /**
  * Matches file path evidence in multiple formats:
@@ -43,154 +44,200 @@ function isCheckableForStaleness(filePath: string, fs: ReadonlyFS): boolean {
   return true;
 }
 
-/** Extract footgun facts: existence, evidence quality, and directory mention counts. */
-function extractFootgunFacts(fs: ReadonlyFS): SharedFacts['footguns'] {
-  /** Raw content of the footguns documentation file */
-  const footgunsContent = fs.readFile('docs/footguns.md');
-  /** Whether the footguns file exists on disk */
-  const exists = footgunsContent !== null;
-  /** Number of footgun entries in the file.
-   * Detects two formats:
-   *   Standard:    ## Footgun: Name
-   *   H3 entries:  ### Name  (older projects that predate the standard format)
-   */
-  const entryCount = footgunsContent ? (
-    (footgunsContent.match(/^## Footgun:/gm)?.length ?? 0) +
-    (footgunsContent.match(/^### .{5,}/gm)?.length ?? 0)
-  ) : 0;
-  // Diagnostic: detect when file has content but no entries parsed (wrong heading format)
-  let formatDiagnostic: string | null = null;
-  if (exists && footgunsContent && entryCount === 0 && footgunsContent.trim().length > 50) {
-    const allHeadings = footgunsContent.match(/^#{2,3} .+/gm) ?? [];
-    const sample = allHeadings.slice(0, 3).map(h => `"${h}"`).join(', ');
-    formatDiagnostic = `File has content but 0 entries detected. Expected heading format: "## Footgun: [title]" or "### [title]" (5+ chars). Found headings: ${sample || '(none)'}`;
+interface MarkdownEntry {
+  path: string;
+  content: string;
+}
+
+interface EntryDir {
+  path: string;
+  exists: boolean;
+  files: MarkdownEntry[];
+}
+
+function listMarkdownEntries(fs: ReadonlyFS, dir: string): EntryDir {
+  const exists = fs.exists(dir);
+  const files = exists
+    ? fs.listDir(dir)
+      .filter(file => file.endsWith('.md') && file !== 'README.md')
+      .sort((a, b) => a.localeCompare(b))
+      .flatMap(file => {
+        const path = dir.endsWith('/') ? `${dir}${file}` : `${dir}/${file}`;
+        const content = fs.readFile(path);
+        if (content === null) return [];
+        return [{ path, content }];
+      })
+    : [];
+  return { path: dir, exists, files };
+}
+
+function mergeDirMentions(target: Map<string, number>, content: string): void {
+  const pathRefs = content.matchAll(new RegExp(FILE_REF_REGEX.source, 'g'));
+  for (const match of pathRefs) {
+    const group = match[1];
+    if (group === undefined || !isFileRef(group)) continue;
+    const dir = group.split('/').slice(0, -1).join('/');
+    if (!dir) continue;
+    target.set(dir, (target.get(dir) ?? 0) + 1);
   }
-  /** Number of explicit evidence type labels in the file */
-  const labelCount = footgunsContent ? (footgunsContent.match(/^\*\*Evidence type:\*\*/gm)?.length ?? 0) : 0;
-  // Check for real file:line evidence (filter out URLs/hostnames before deciding)
-  let hasEvidence = false;
-  if (exists && footgunsContent) {
-    // First check: does the file have any evidence-like patterns at all?
-    if (EVIDENCE_PATTERN.test(footgunsContent)) {
-      // Second check: does it have at least one real file:line ref (not just URLs)?
-      const refs = footgunsContent.matchAll(new RegExp(FILE_REF_REGEX.source, 'g'));
-      for (const m of refs) {
-        if (m[1] !== undefined && isFileRef(m[1])) { hasEvidence = true; break; }
-      }
-      // Also accept prose-style evidence: (lines 42-50) or (line 52)
-      if (!hasEvidence) hasEvidence = /\(lines?\s+[0-9]+/.test(footgunsContent);
-    }
-  }
-  /** Map of directory paths to how many times they appear in footgun evidence */
+}
+
+function summarizeFootgunEntries(fs: ReadonlyFS, entries: MarkdownEntry[]): Pick<
+  SharedFacts['footguns'],
+  'hasEvidence' | 'labelCount' | 'dirMentions' | 'staleRefs' | 'totalRefs' | 'validRefs' | 'formatDiagnostic'
+> {
   const dirMentions = new Map<string, number>();
-  if (footgunsContent) {
-    /** All backtick-wrapped file:line references found in the footguns content */
-    const pathRefs = footgunsContent.matchAll(new RegExp(FILE_REF_REGEX.source, 'g'));
-    for (const match of pathRefs) {
-      const group = match[1];
-      if (group === undefined) continue;
-      if (!isFileRef(group)) continue;
-      /** Parent directory of the referenced file */
-      const dir = group.split('/').slice(0, -1).join('/');
-      if (dir) {
-        dirMentions.set(dir, (dirMentions.get(dir) ?? 0) + 1);
-      }
-    }
-  }
-  // Validate that referenced files still exist on disk.
-  // Line numbers in footguns are historical context — they rot and don't need updating.
-  // Only check file existence, not line-number accuracy.
   const staleRefs: string[] = [];
+  const diagnostics: string[] = [];
+  let hasEvidence = false;
+  let labelCount = 0;
   let totalRefs = 0;
   let validRefs = 0;
-  if (footgunsContent) {
-    // For stale ref checking, only match file:line refs (not bare paths).
-    // Bare file paths in footgun evidence often document files that WERE renamed/deleted
-    // (that's the footgun). Only file:line refs indicate live code references worth validating.
-    const STALE_REF_REGEX = /`([^`]+):[0-9]+(?:[-,][0-9]+)*`/g;
-    const fileRefs = footgunsContent.matchAll(STALE_REF_REGEX);
+
+  for (const entry of entries) {
+    const { content, path } = entry;
+    if (/^evidence_type:\s*.+$/mi.test(content) || /^\*\*Evidence type:\*\*/m.test(content)) {
+      labelCount++;
+    }
+
+    if (!hasEvidence && EVIDENCE_PATTERN.test(content)) {
+      const refs = content.matchAll(new RegExp(FILE_REF_REGEX.source, 'g'));
+      for (const match of refs) {
+        if (match[1] !== undefined && isFileRef(match[1])) {
+          hasEvidence = true;
+          break;
+        }
+      }
+      if (!hasEvidence) hasEvidence = /\(lines?\s+[0-9]+/.test(content);
+    }
+
+    mergeDirMentions(dirMentions, content);
+
+    const fileRefs = content.matchAll(/`([^`]+):[0-9]+(?:[-,][0-9]+)*`/g);
     for (const match of fileRefs) {
       const filePath = match[1];
-      if (filePath === undefined) continue;
-      if (!isFileRef(filePath)) continue;
-      if (!isCheckableForStaleness(filePath, fs)) continue;
+      if (filePath === undefined || !isFileRef(filePath) || !isCheckableForStaleness(filePath, fs)) continue;
       totalRefs++;
-      if (fs.exists(filePath)) {
-        validRefs++;
-      } else {
-        staleRefs.push(filePath);
-      }
+      if (fs.exists(filePath)) validRefs++;
+      else staleRefs.push(filePath);
+    }
+
+    if (!/^---\n[\s\S]*?\n---\n?/m.test(content)) {
+      diagnostics.push(`${path} missing YAML frontmatter`);
     }
   }
+
   return {
-    exists,
     hasEvidence,
-    entryCount,
     labelCount,
-    hasEvidenceLabels: entryCount > 0 && labelCount >= entryCount,
     dirMentions,
     staleRefs,
     totalRefs,
     validRefs,
+    formatDiagnostic: diagnostics.length > 0 ? diagnostics.join('; ') : null,
+  };
+}
+
+function summarizeLessonEntries(fs: ReadonlyFS, entries: MarkdownEntry[]): Pick<
+  SharedFacts['lessons'],
+  'staleRefs' | 'formatDiagnostic'
+> {
+  const staleRefs: string[] = [];
+  const diagnostics: string[] = [];
+
+  for (const entry of entries) {
+    const { content, path } = entry;
+    const pathPattern = /`((?:src|config|app|apps|lib|docs|scripts|setup|workflow|strands_agents|agents|\.goat-flow)\/[^`]+)`/g;
+    for (const match of content.matchAll(pathPattern)) {
+      const ref = match[1];
+      if (ref === undefined || /[*?{}]/.test(ref)) continue;
+      const filePath = ref.replace(/:[0-9]+(?:[-,][0-9]+)*$/, '');
+      if (!fs.exists(filePath)) staleRefs.push(filePath);
+    }
+    if (!/^---\n[\s\S]*?\n---\n?/m.test(content)) {
+      diagnostics.push(`${path} missing YAML frontmatter`);
+    }
+  }
+
+  return {
+    staleRefs,
+    formatDiagnostic: diagnostics.length > 0 ? diagnostics.join('; ') : null,
+  };
+}
+
+/** Extract footgun facts: existence, evidence quality, and directory mention counts. */
+function extractFootgunFacts(fs: ReadonlyFS, configState: LoadedConfig): SharedFacts['footguns'] {
+  const committed = listMarkdownEntries(fs, configState.config.footguns.committed);
+  const local = listMarkdownEntries(fs, configState.config.footguns.local);
+  const allEntries = [...committed.files, ...local.files];
+  const summary = summarizeFootgunEntries(fs, allEntries);
+  const formatDiagnostic = allEntries.length === 0 && (committed.exists || local.exists)
+    ? 'Footgun directories exist but contain 0 entry files'
+    : summary.formatDiagnostic;
+
+  return {
+    exists: committed.exists || local.exists,
+    committedExists: committed.exists,
+    localExists: local.exists,
+    hasEvidence: summary.hasEvidence,
+    entryCount: allEntries.length,
+    committedCount: committed.files.length,
+    localCount: local.files.length,
+    labelCount: summary.labelCount,
+    hasEvidenceLabels: allEntries.length > 0 && summary.labelCount >= allEntries.length,
+    dirMentions: summary.dirMentions,
+    staleRefs: summary.staleRefs,
+    totalRefs: summary.totalRefs,
+    validRefs: summary.validRefs,
     formatDiagnostic,
+    paths: {
+      committed: configState.config.footguns.committed,
+      local: configState.config.footguns.local,
+    },
   };
 }
 
 /** Extract lessons facts: existence and whether entries are present. */
-function extractLessonsFacts(fs: ReadonlyFS): SharedFacts['lessons'] {
-  /** Raw content of the lessons documentation file */
-  const lessonsContent = fs.readFile('docs/lessons.md');
-  /** Whether the lessons file exists on disk */
-  const exists = lessonsContent !== null;
+function extractLessonsFacts(fs: ReadonlyFS, configState: LoadedConfig): SharedFacts['lessons'] {
+  const committed = listMarkdownEntries(fs, configState.config.lessons.committed);
+  const local = listMarkdownEntries(fs, configState.config.lessons.local);
+  const allEntries = [...committed.files, ...local.files];
+  const summary = summarizeLessonEntries(fs, allEntries);
+  const formatDiagnostic = allEntries.length === 0 && (committed.exists || local.exists)
+    ? 'Lesson directories exist but contain 0 entry files'
+    : summary.formatDiagnostic;
 
-  let hasEntries = false;
-  let entryCount = 0;
-
-  let formatDiagnostic: string | null = null;
-  if (exists) {
-    // Strip HTML comments before checking for entries
-    const stripped = lessonsContent.replace(/<!--[\s\S]*?-->/g, '');
-    // Find H3 headings followed by actual content (not just whitespace/comments)
-    const h3Pattern = /^### .+\n+(\S[^\n]{19,})/gm;
-    const matches = stripped.match(h3Pattern);
-    entryCount = matches ? matches.length : 0;
-    hasEntries = entryCount > 0;
-    // Diagnostic: detect when file has content but no entries parsed (wrong heading format)
-    if (entryCount === 0 && lessonsContent.trim().length > 50) {
-      const allHeadings = lessonsContent.match(/^#{2,3} .+/gm) ?? [];
-      const sample = allHeadings.slice(0, 3).map(h => `"${h}"`).join(', ');
-      formatDiagnostic = `File has content but 0 entries detected. Expected heading format: "### [title]" followed by 20+ chars of content on the next line. Found headings: ${sample || '(none)'}`;
-    }
-  }
-
-  // Check for stale file references in lessons
-  const staleRefs: string[] = [];
-  if (lessonsContent) {
-    const pathPattern = /`((?:src|config|app|apps|lib|docs|scripts|setup|workflow|strands_agents|agents)\/[^`]+)`/g;
-    for (const m of lessonsContent.matchAll(pathPattern)) {
-      const p = m[1];
-      if (p === undefined || /[*?{}]/.test(p)) continue;
-      const filePath = p.replace(/:[0-9]+(?:[-,][0-9]+)*$/, '');
-      if (!fs.exists(filePath)) staleRefs.push(filePath);
-    }
-  }
-
-  return { exists, hasEntries, entryCount, staleRefs, formatDiagnostic };
+  return {
+    exists: committed.exists || local.exists,
+    committedExists: committed.exists,
+    localExists: local.exists,
+    hasEntries: allEntries.length > 0,
+    entryCount: allEntries.length,
+    committedCount: committed.files.length,
+    localCount: local.files.length,
+    staleRefs: summary.staleRefs,
+    formatDiagnostic,
+    paths: {
+      committed: configState.config.lessons.committed,
+      local: configState.config.lessons.local,
+    },
+  };
 }
 
 /** Extract eval facts: directory, file count, replay prompts, origin labels, skill coverage. */
-function extractEvalFacts(fs: ReadonlyFS): SharedFacts['evals'] {
-  /** Whether the agent-evals directory exists */
-  const dirExists = fs.exists('agent-evals');
+function extractEvalFacts(fs: ReadonlyFS, rawEvalsPath: string): SharedFacts['evals'] {
+  const evalsPath = rawEvalsPath.replace(/\/$/, '');
+  /** Whether the evals directory exists */
+  const dirExists = fs.exists(evalsPath);
   /** Markdown eval files (excluding README) found in the evals directory */
-  const evalFiles = dirExists ? fs.listDir('agent-evals').filter(f => f.endsWith('.md') && f !== 'README.md' && f !== 'FORMAT.md') : [];
+  const evalFiles = dirExists ? fs.listDir(evalsPath).filter(f => f.endsWith('.md') && f !== 'README.md' && f !== 'FORMAT.md') : [];
   /** Total number of eval files found */
   const count = evalFiles.length;
   /** Whether the evals directory contains a README.md */
-  const hasReadme = dirExists && fs.exists('agent-evals/README.md');
+  const hasReadme = dirExists && fs.exists(`${evalsPath}/README.md`);
 
   if (count === 0) {
-    return { dirExists, count, hasReadme, hasOriginLabels: false, hasAgentsLabels: false, hasReplayPrompts: false, hasFrontmatter: false, evalSkillCount: 0, missingSkills: [] };
+    return { dirExists, count, hasReadme, hasOriginLabels: false, hasAgentsLabels: false, hasReplayPrompts: false, hasRealContent: false, hasFrontmatter: false, evalSkillCount: 0, missingSkills: [], path: evalsPath };
   }
 
   /** The 6 canonical goat-flow skills (5 + dispatcher) */
@@ -202,10 +249,11 @@ function extractEvalFacts(fs: ReadonlyFS): SharedFacts['evals'] {
   let allHaveAgents = true;
   let allHaveReplay = true;
   let allHaveFrontmatter = true;
+  let realContentCount = 0;
   // Iterate over ALL eval files for quality checks and skill counting
   for (const f of evalFiles) {
     /** Raw content of this eval file */
-    const content = fs.readFile(`agent-evals/${f}`);
+    const content = fs.readFile(`${evalsPath}/${f}`);
     if (content === null) {
       allHaveOrigin = false;
       allHaveAgents = false;
@@ -216,6 +264,10 @@ function extractEvalFacts(fs: ReadonlyFS): SharedFacts['evals'] {
     if (/\*\*Origin:\*\*/i.test(content) === false && /^## Origin/im.test(content) === false && /^origin:/im.test(content) === false) allHaveOrigin = false;
     if (/\*\*Agents:\*\*/i.test(content) === false && /^agents:/im.test(content) === false) allHaveAgents = false;
     if (/##+ Replay Prompt/i.test(content) === false && /##+ Scenario/i.test(content) === false) allHaveReplay = false;
+    // Check for real scenario content: ≥100 chars after scenario heading, not just TODO/TBD
+    const scenarioMatch = content.match(/##+ (?:Replay Prompt|Scenario)\s*\n([\s\S]*?)(?=\n##|\n---|$)/i);
+    const scenarioBody = scenarioMatch?.[1]?.trim() ?? '';
+    if (scenarioBody.length >= 100 && !/^(?:TODO|TBD)/i.test(scenarioBody)) realContentCount++;
     /** All skill label matches found in the eval content */
     const skillMatches = content.matchAll(/\*\*Skill:\*\*\s*(.+)|skill:\s*(.+)/gi);
     // Iterate over skill matches to collect unique skill names
@@ -226,11 +278,13 @@ function extractEvalFacts(fs: ReadonlyFS): SharedFacts['evals'] {
     }
   }
   const missingSkills = Array.from(CANONICAL_SKILLS).filter(skill => !skillNames.has(skill)).sort();
-  return { dirExists, count, hasReadme, hasOriginLabels: allHaveOrigin, hasAgentsLabels: allHaveAgents, hasReplayPrompts: allHaveReplay, hasFrontmatter: allHaveFrontmatter, evalSkillCount: skillNames.size, missingSkills };
+  // hasRealContent: at least 60% of evals have ≥100 char scenarios (not all — dispatcher intent tests and other eval types use shorter formats)
+  const hasRealContent = count > 0 && realContentCount >= Math.ceil(count * 0.60);
+  return { dirExists, count, hasReadme, hasOriginLabels: allHaveOrigin, hasAgentsLabels: allHaveAgents, hasReplayPrompts: allHaveReplay, hasRealContent, hasFrontmatter: allHaveFrontmatter, evalSkillCount: skillNames.size, missingSkills, path: evalsPath };
 }
 
 /** Extract project-wide shared facts from docs, evals, CI, and config files. */
-export function extractSharedFacts(fs: ReadonlyFS): SharedFacts {
+export function extractSharedFacts(fs: ReadonlyFS, configState: LoadedConfig): SharedFacts {
   /** Whether the architecture documentation file exists */
   const archExists = fs.exists('docs/architecture.md');
   /** Line count of the architecture file (0 if missing) */
@@ -260,7 +314,7 @@ export function extractSharedFacts(fs: ReadonlyFS): SharedFacts {
   );
 
   /** Raw content of the shared handoff template */
-  const handoffContent = fs.readFile('tasks/handoff-template.md');
+  const handoffContent = fs.readFile('.goat-flow/tasks/handoff-template.md');
   /** Whether the handoff template exists */
   const handoffExists = handoffContent !== null;
   /** Count of required handoff sections present - accepts ## H2 headings or **Bold:** labels */
@@ -270,10 +324,18 @@ export function extractSharedFacts(fs: ReadonlyFS): SharedFacts {
     : 0;
 
   return {
-    footguns: extractFootgunFacts(fs),
-    lessons: extractLessonsFacts(fs),
+    footguns: extractFootgunFacts(fs, configState),
+    lessons: extractLessonsFacts(fs, configState),
+    config: {
+      exists: configState.exists,
+      valid: configState.valid,
+      warningCount: configState.warnings.length,
+      errorCount: configState.errors.length,
+      parseError: configState.parseError,
+      lineLimits: configState.config.lineLimits,
+    },
     architecture: { exists: archExists, lineCount: archLineCount },
-    evals: extractEvalFacts(fs),
+    evals: extractEvalFacts(fs, configState.config.evals.path),
     ci: {
       workflowExists: ciExists,
       // Hardened checks: look for actual invocations in `run:` blocks, not just keywords
@@ -296,50 +358,64 @@ export function extractSharedFacts(fs: ReadonlyFS): SharedFacts {
     domainReference: { exists: fs.exists('docs/domain-reference.md') },
     preflightScript: { exists: fs.exists('scripts/preflight-checks.sh') },
     // changelog removed - project-level concern, not AI workflow.
-    decisions: extractDecisionsFacts(fs),
-    localInstructions: extractLocalInstructions(fs),
+    decisions: extractDecisionsFacts(fs, configState.config.decisions.path),
+    localInstructions: extractLocalInstructions(fs, configState.config.codingStandards.path),
     gitCommitInstructions: { exists: fs.exists('.github/git-commit-instructions.md') },
-    aiInstructionsLineCount: countAiInstructionsLines(fs),
+    aiInstructionsLineCount: countCodingStandardsLines(fs, configState.config.codingStandards.path),
   };
 }
 
-/** Count total lines across ai/instructions/ files */
-function countAiInstructionsLines(fs: ReadonlyFS): number {
-  if (!fs.exists('ai/instructions')) return 0;
-  const files = fs.listDir('ai/instructions').filter(f => f.endsWith('.md'));
+/** Count total lines across coding standards files */
+function countCodingStandardsLines(fs: ReadonlyFS, rawCsPath: string): number {
+  const csPath = rawCsPath.replace(/\/$/, '');
+  if (!fs.exists(csPath)) return 0;
+  const files = fs.listDir(csPath).filter(f => f.endsWith('.md'));
   let total = 0;
   for (const f of files) {
-    total += fs.lineCount(`ai/instructions/${f}`);
+    total += fs.lineCount(`${csPath}/${f}`);
   }
   return total;
 }
 
 /** Extract decisions directory facts: existence and file count. */
-function extractDecisionsFacts(fs: ReadonlyFS): SharedFacts['decisions'] {
+function extractDecisionsFacts(fs: ReadonlyFS, rawPath: string): SharedFacts['decisions'] {
+  const path = rawPath.replace(/\/$/, '');
   /** Whether the decisions directory exists */
-  const dirExists = fs.exists('docs/decisions');
+  const dirExists = fs.exists(path);
   /** Count of markdown files in decisions directory, excluding README */
-  const fileCount = dirExists
-    ? fs.listDir('docs/decisions').filter(f => f.endsWith('.md') && f !== 'README.md').length
-    : 0;
-  return { dirExists, fileCount };
+  const files = dirExists
+    ? fs.listDir(path).filter(f => f.endsWith('.md') && f !== 'README.md')
+    : [];
+  const fileCount = files.length;
+  // Check if at least 1 ADR has real Context + Decision content (≥50 chars each, not TODO/TBD)
+  let hasRealContent = false;
+  for (const f of files) {
+    const content = fs.readFile(`${path}/${f}`);
+    if (!content) continue;
+    const hasContext = /^## Context\s*\n(.{50,})/m.test(content);
+    const hasDecision = /^## Decision\s*\n(.{50,})/m.test(content);
+    const startsWithTodo = /^## (?:Context|Decision)\s*\n\s*(?:TODO|TBD)/im.test(content);
+    if (hasContext && hasDecision && !startsWithTodo) { hasRealContent = true; break; }
+  }
+  return { dirExists, fileCount, path, hasRealContent };
 }
 
-/** Detect and analyze local instruction files from ai/instructions/ or .github/instructions/. */
-function extractLocalInstructions(fs: ReadonlyFS): SharedFacts['localInstructions'] {
-  /** Whether the ai/instructions/ directory exists */
-  const aiDir = fs.exists('ai/instructions');
+/** Detect and analyze local instruction files from coding-standards dir or .github/instructions/. */
+function extractLocalInstructions(fs: ReadonlyFS, rawCsPath: string): SharedFacts['localInstructions'] {
+  const csPath = rawCsPath.replace(/\/$/, '');
+  /** Whether the coding-standards directory exists at the configured path */
+  const aiDir = fs.exists(csPath);
   /** Whether the .github/instructions/ directory exists */
   const ghDir = fs.exists('.github/instructions');
 
   if (aiDir === false && ghDir === false) {
-    return { dirExists: false, location: null, fileCount: 0, hasRouter: false, hasConventions: false, conventionsHasContent: false, hasFrontend: false, hasBackend: false, hasCodeReview: false, hasGitCommit: false, conventionsContent: null, localFileSizes: [] };
+    return { dirExists: false, location: null, fileCount: 0, hasRouter: false, hasConventions: false, conventionsHasContent: false, hasFrontend: false, hasBackend: false, hasCodeReview: false, hasGitCommit: false, conventionsContent: null, localFileSizes: [], path: csPath };
   }
 
   /** Which directory convention is in use ('ai' or 'github') */
   const location = aiDir ? 'ai' as const : 'github' as const;
   /** Resolved path to the local instructions directory */
-  const dir = aiDir ? 'ai/instructions' : '.github/instructions';
+  const dir = aiDir ? csPath : '.github/instructions';
   /** Markdown files found in the local instructions directory */
   const files = fs.listDir(dir).filter(f => f.endsWith('.md'));
   /** Whether a router README exists for the ai/ convention */
@@ -371,7 +447,7 @@ function extractLocalInstructions(fs: ReadonlyFS): SharedFacts['localInstruction
   let conventionsContent: string | null = null;
   if (hasConventions) {
     /** Resolved path to the conventions instruction file */
-    const conventionsPath = aiDir ? 'ai/instructions/conventions.md' : '.github/instructions/conventions.instructions.md';
+    const conventionsPath = aiDir ? `${csPath}/conventions.md` : '.github/instructions/conventions.instructions.md';
     conventionsContent = fs.readFile(conventionsPath);
     if (conventionsContent) {
       /** Whether the conventions file includes command examples */
@@ -384,5 +460,5 @@ function extractLocalInstructions(fs: ReadonlyFS): SharedFacts['localInstruction
     }
   }
 
-  return { dirExists: true, location, fileCount: files.length, hasRouter, hasConventions, conventionsHasContent, hasFrontend, hasBackend, hasCodeReview, hasGitCommit, conventionsContent, localFileSizes };
+  return { dirExists: true, location, fileCount: files.length, hasRouter, hasConventions, conventionsHasContent, hasFrontend, hasBackend, hasCodeReview, hasGitCommit, conventionsContent, localFileSizes, path: dir };
 }

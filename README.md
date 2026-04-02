@@ -6,6 +6,9 @@ A structured workflow system for AI coding agents. Gives Claude Code, Gemini CLI
 
 ```bash
 npm install --save-dev @blundergoat/goat-flow
+
+pnpm add -D @blundergoat/goat-flow                                                                                                                                                                                         
+
 ```
 
 Or run without installing: `npx @blundergoat/goat-flow dashboard`
@@ -14,6 +17,7 @@ Or run without installing: `npx @blundergoat/goat-flow dashboard`
 
 ```bash
 npx goat-flow dashboard
+
 ```
 
 Scan your project, browse results by category, compare agents side by side, and copy fix prompts. The dashboard is the fastest way to see where your project stands and what to do next.
@@ -46,7 +50,7 @@ Available agents: `claude`, `codex`, `gemini`
 npx goat-flow scan --agent claude
 ```
 
-Target: Grade A. Re-run setup and scan until you hit 100%. The scanner checks 103 items across foundation (instruction file, execution loop, hooks), standard (skills, learning loop, local instructions), and full (evals, CI) tiers.
+Target: Grade A. Re-run setup and scan until you hit 100%. The scanner checks 95 items + 17 anti-patterns across foundation (instruction file, execution loop, hooks), standard (skills, learning loop, local instructions), and full (evals, CI) tiers.
 
 ### 4. Iterate
 
@@ -66,7 +70,7 @@ Rules in instruction files help - but research shows agents follow ~70% of prose
 
 **Enforcement hooks:** Pre-tool hooks block dangerous commands before execution (100% block rate vs ~70% for rules alone). Post-turn hooks lint after every change.
 
-**Learning loop:** `docs/footguns.md` captures architectural traps with file:line evidence. `docs/lessons.md` captures behavioural mistakes. Real incidents only - no hypotheticals. Agent evals replay past failures as regression tests.
+**Learning loop:** `docs/footguns/` captures architectural traps with file:line evidence. `ai/lessons/` captures behavioural mistakes. Real incidents only - no hypotheticals. Agent evals replay past failures as regression tests.
 
 **6 skills (5 specialized + dispatcher):** `/goat` routes to the right skill automatically. `/goat-security`, `/goat-debug`, `/goat-review`, `/goat-plan`, `/goat-test`. Each has a distinct artifact, human gates, and a repeatable structured output. Former standalone skills (investigate, simplify, refactor) are now modes within debug, review, and plan respectively.
 
@@ -112,7 +116,7 @@ npx goat-flow dashboard                   # Interactive dashboard
 ```
 Layer 1 - Runtime         Instruction file (~120 lines), hooks, settings
 Layer 2 - Local Context   Per-directory instruction files for high-risk areas
-Layer 3 - Skills          9 on-demand capabilities loaded via slash commands
+Layer 3 - Skills          6 on-demand capabilities loaded via slash commands
 Layer 4 - Playbooks       Planning methodology templates
 Layer 5 - Evaluation      Agent evals, CI validation, learning loop
 ```
@@ -136,21 +140,21 @@ All agents share the same execution loop, autonomy tiers, definition of done, an
 ## Project Structure
 
 ```
-src/cli/                CLI scanner, prompt generator, scoring engine
-src/dashboard/          Single-page HTML dashboard (Alpine.js + Tailwind via CDN)
+ai/evals/               Regression tests from real incidents
+docs/                   System design + reference documentation
+scripts/                Preflight, validation, enforcement scripts
 setup/                  Setup guides + shared templates
   shared/               Cross-agent templates (execution loop, docs seed)
   setup-claude.md       Claude Code setup phases
-  setup-gemini.md       Gemini CLI setup phases
   setup-codex.md        Codex setup phases
+  setup-gemini.md       Gemini CLI setup phases
+src/cli/                CLI scanner, prompt generator, scoring engine
+src/dashboard/          Single-page HTML dashboard (Alpine.js + Tailwind via CDN)
 workflow/               Templates for skills, coding standards, evaluation
-  skills/               6 skill templates (5 specialized + /goat dispatcher)
   coding-standards/     48 templates (backend, frontend, security, devops)
   evaluation/           Eval format, footguns, lessons, handoff templates
   runtime/              Enforcement, architecture, code-map templates
-docs/                   System design + reference documentation
-scripts/                Preflight, validation, enforcement scripts
-agent-evals/            Regression tests from real incidents
+  skills/               6 skill templates (5 specialized + /goat dispatcher)
 ```
 
 ## Documentation

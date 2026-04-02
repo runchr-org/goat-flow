@@ -11,14 +11,14 @@ export const fullFragments: Fragment[] = [
     phase: 'full',
     category: 'Agent Evals',
     kind: 'create',
-    instruction: `Create the \`agent-evals/\` directory for agent evaluation scenarios.`,
+    instruction: `Create the \`ai/evals/\` directory for agent evaluation scenarios.`,
   },
   {
     key: 'add-evals',
     phase: 'full',
     category: 'Agent Evals',
     kind: 'create',
-    instruction: `Add 3+ eval files to \`agent-evals/\`. Each eval should capture a real incident:
+    instruction: `Add 3+ eval files to \`ai/evals/\`. Each eval should capture a real incident:
 
 \`\`\`markdown
 # Eval: [Short description]
@@ -113,31 +113,16 @@ Skills not yet covered should each get one eval targeting their most common fail
     phase: 'full',
     category: 'CI Validation',
     kind: 'create',
-    instruction: `Create \`.github/workflows/context-validation.yml\`:
+    instruction: `Copy the CI template to \`.github/workflows/context-validation.yml\`.
 
-\`\`\`yaml
-name: Context Validation
-on: [push, pull_request]
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check instruction file line counts
-        run: |
-          for f in CLAUDE.md AGENTS.md GEMINI.md; do
-            [ -f "$f" ] && lines=$(wc -l < "$f") && [ "$lines" -gt 150 ] && echo "::error::$f is $lines lines (limit 150)" && exit 1
-          done
-      - name: Check router references
-        run: bash scripts/context-validate.sh || true
-      - name: Check skills exist
-        run: |
-          for skill in security debug investigate review plan test refactor simplify; do
-            for dir in .claude/skills .agents/skills; do
-              [ -d "$dir/goat-$skill" ] && echo "✓ $dir/goat-$skill"
-            done
-          done
-\`\`\``,
+**Template:** Read \`workflow/templates/context-validation.yml\` from the goat-flow package and copy it to your project's \`.github/workflows/\` directory.
+
+Do NOT rename the step names — the scanner checks for these exact strings: "Check instruction file line counts", "Check router references", "Check skills exist".
+
+If the template file is not available, create \`.github/workflows/context-validation.yml\` with these steps:
+1. Check instruction file line counts (CLAUDE.md, AGENTS.md, GEMINI.md must be ≤150 lines)
+2. Run \`bash scripts/context-validate.sh\` for router reference validation
+3. Check that the 6 canonical skill directories exist: goat, goat-debug, goat-plan, goat-review, goat-security, goat-test`,
   },
   {
     key: 'ci-check-lines',
@@ -226,15 +211,14 @@ Without this, PRs can merge without context validation passing.`,
     instruction: `Create the telemetry logs directory for session tracking:
 
 \`\`\`bash
-mkdir -p tasks/logs/sessions
+mkdir -p .goat-flow/logs/sessions
 \`\`\`
 
-Copy the README from the goat-flow templates: \`workflow/evaluation/logs-README.md\` → \`tasks/logs/README.md\`.
+Copy the README from the goat-flow templates: \`workflow/evaluation/logs-README.md\` → \`.goat-flow/logs/README.md\`.
 
 Add to \`.gitignore\`:
 \`\`\`
-tasks/logs/*.jsonl
-tasks/logs/sessions/
+.goat-flow/
 \`\`\`
 
 This enables the skill session logging protocol (Shared Conventions closing step) and telemetry from \`goat-flow scan\`.`,

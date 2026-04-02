@@ -22,16 +22,40 @@ Order findings by severity, not by file or discovery order.
 ## Learning Loop
 
 After completing the skill, check if this run uncovered anything worth logging:
-- Behavioural mistake (agent did something wrong) → `docs/lessons.md`
-- Architectural trap with `file:line` evidence → `docs/footguns.md`
+- Behavioural mistake (agent did something wrong) → create a new markdown entry in `ai/lessons/` or `.goat-flow/lessons/`
+- Architectural trap with `file:line` evidence → create a new markdown entry in `docs/footguns/` or `.goat-flow/footguns/`
 
-Use the standard entry format:
+Do not append to a monolithic log or directory README. Route team-wide entries to `ai/lessons/` or `docs/footguns/`; route machine/session-only entries to `.goat-flow/lessons/` or `.goat-flow/footguns/`.
+Filename conventions:
+- Lessons: `YYYY-MM-DD-slug.md`
+- Footguns: `slug.md`
+
+Use the standard entry formats:
 ```markdown
-### [Title]
+<!-- Lesson entry -->
+---
+name: [Title]
+created: YYYY-MM-DD
+---
+
 **What happened:** [description]
 **Evidence:** `file:line` - [what was found]
 **Prevention:** [rule to prevent recurrence]
-**created_at:** YYYY-MM-DD
+```
+
+```markdown
+<!-- Footgun entry -->
+---
+name: [Title]
+status: active
+created: YYYY-MM-DD
+evidence_type: ACTUAL_MEASURED
+---
+
+**Symptoms:** [what breaks]
+**Why it happens:** [root cause]
+**Evidence:** `file:line` - [what was found]
+**Prevention:** [rule to prevent recurrence]
 ```
 
 ## Human Gates
@@ -64,17 +88,17 @@ If 3 consecutive file reads produce no new signal relevant to the current questi
 ## Flush Protocol
 
 If 10+ tool calls pass without a human gate or checkpoint, STOP:
-1. Write a 3-sentence status to `tasks/scratchpad.md` (what you're doing, where you are, what's next)
+1. Write a 3-sentence status to `.goat-flow/tasks/handoff.md` (what you're doing, where you are, what's next)
 2. Ask the user: continue, compact, or redirect?
 
 The counter resets at every BLOCKING GATE, CHECKPOINT, or human message.
-`tasks/scratchpad.md` is transient - do not commit it.
+`.goat-flow/tasks/handoff.md` is transient - do not commit it.
 
 ## Working Memory
 
 For tasks exceeding 5 turns within this skill:
-- Maintain state in `tasks/todo.md`
-- If interrupted or compacted, write `tasks/handoff.md`
+- Maintain state in `.goat-flow/tasks/todo.md`
+- If interrupted or compacted, write `.goat-flow/tasks/handoff.md`
 
 ## Autonomy Awareness
 
@@ -85,7 +109,7 @@ boundaries. If the proposed change crosses an Ask First boundary, flag it:
 ## Closing Protocol
 
 When the skill completes:
-1. If work is incomplete: write `tasks/handoff.md` using the standard handoff template (Date, Status, Current State, Key Decisions, Known Risks, Next Step)
+1. If work is incomplete: write `.goat-flow/tasks/handoff.md` using the standard handoff template (Date, Status, Current State, Key Decisions, Known Risks, Next Step)
 2. Check the Learning Loop (above) for anything worth logging
 3. Suggest the most relevant next skill if applicable (see Chains With in each skill)
-4. If `tasks/logs/` exists: write a session summary to `tasks/logs/sessions/YYYY-MM-DD-goat-{skill}.md`. If >50 session files, delete the oldest to stay at 50. (Schema in `tasks/logs/README.md`)
+4. If `.goat-flow/logs/` exists: write a session summary to `.goat-flow/logs/sessions/YYYY-MM-DD-goat-{skill}.md`. If >50 session files, delete the oldest to stay at 50. (Schema in `.goat-flow/logs/README.md`)

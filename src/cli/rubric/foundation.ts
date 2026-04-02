@@ -6,7 +6,7 @@ import type { CheckDef, FactContext, CheckResult } from '../types.js';
 //   low    = semantic inference (content quality judgment)
 
 /**
- * Tier 1 - Foundation (47 points)
+ * Tier 1 - Foundation (49 points)
  * Instruction file, execution loop, autonomy tiers, DoD, enforcement.
  * These are baseline requirements every GOAT Flow project must satisfy.
  */
@@ -22,8 +22,18 @@ export const foundationChecks: CheckDef[] = [
   {
     id: '1.1.2', name: 'Under line target', tier: 'foundation', category: 'Instruction File',
     pts: 3, partialPts: 1, confidence: 'high',
-    detect: { type: 'line_count', path: '{instruction_file}', pass: 120, partial: 150, fail: 150 },
-    recommendation: 'Compress instruction file below 120 lines. Apply cut priority: verbose examples first, then explanatory paragraphs.',
+    detect: {
+      type: 'custom',
+      fn: (ctx: FactContext): CheckResult => {
+        const lines = ctx.agentFacts.instruction.lineCount;
+        const { target, limit } = ctx.facts.shared.config.lineLimits;
+        const base = { id: '1.1.2', name: 'Under line target', tier: 'foundation' as const, category: 'Instruction File', confidence: 'high' as const };
+        if (lines <= target) return { ...base, status: 'pass', points: 3, maxPoints: 3, message: `${lines} lines (under ${target} target)` };
+        if (lines <= limit) return { ...base, status: 'partial', points: 1, maxPoints: 3, message: `${lines} lines (under ${limit} limit but over ${target} target)` };
+        return { ...base, status: 'fail', points: 0, maxPoints: 3, message: `${lines} lines (over ${limit} limit)` };
+      },
+    },
+    recommendation: 'Compress instruction file below the line target. Adjust in .goat-flow/config.yaml line-limits if needed.',
     recommendationKey: 'compress-instruction-file',
   },
   {
@@ -121,8 +131,8 @@ export const foundationChecks: CheckDef[] = [
   {
     id: '1.2.6', name: 'LOG step', tier: 'foundation', category: 'Execution Loop',
     pts: 2, confidence: 'medium',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'lessons\\.md|footguns\\.md|MUST update when tripped' },
-    recommendation: 'Add LOG step referencing lessons.md, footguns.md',
+    detect: { type: 'grep', path: '{instruction_file}', pattern: 'lessons/|footguns/|MUST update when tripped' },
+    recommendation: 'Add LOG step referencing lessons and footguns directories',
     recommendationKey: 'add-log-step',
   },
 
@@ -319,7 +329,14 @@ export const foundationChecks: CheckDef[] = [
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
-        // Whether a deny-dangerous script exists in the hooks directory
+        // Config-based deny (settings.json permissions.deny) is a valid alternative to a script
+        if (ctx.agentFacts.hooks.denyIsConfigBased && !ctx.agentFacts.hooks.denyExists) {
+          return {
+            id: '1.5.4', name: 'Deny hook/script exists', tier: 'foundation', category: 'Enforcement',
+            status: 'na', points: 0, maxPoints: 0, confidence: 'high',
+            message: 'Deny is config-based (settings.json permissions.deny) — script not required',
+          };
+        }
         const exists = ctx.agentFacts.hooks.denyExists;
         return {
           id: '1.5.4', name: 'Deny hook/script exists', tier: 'foundation', category: 'Enforcement',
@@ -328,8 +345,41 @@ export const foundationChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Create deny-dangerous.sh hook/script',
+    recommendation: 'Create deny-dangerous.sh hook/script or use settings.json permissions.deny',
     recommendationKey: 'create-deny-script',
+  },
+  {
+    id: '1.5.5', name: '.goat-flow/config.yaml exists', tier: 'foundation', category: 'Project Config',
+    pts: 1, confidence: 'high',
+    detect: { type: 'file_exists', path: '.goat-flow/config.yaml' },
+    recommendation: 'Create .goat-flow/config.yaml in the project root',
+    recommendationKey: 'create-goat-flow-config',
+  },
+  {
+    id: '1.5.6', name: '.goat-flow/config.yaml is valid', tier: 'foundation', category: 'Project Config',
+    pts: 1, confidence: 'high',
+    na: (ctx) => ctx.facts.shared.config.exists === false,
+    detect: {
+      type: 'custom',
+      fn: (ctx: FactContext): CheckResult => {
+        const { valid, parseError, errorCount, warningCount } = ctx.facts.shared.config;
+        return {
+          id: '1.5.6',
+          name: '.goat-flow/config.yaml is valid',
+          tier: 'foundation',
+          category: 'Project Config',
+          status: valid ? 'pass' : 'fail',
+          points: valid ? 1 : 0,
+          maxPoints: 1,
+          confidence: 'high',
+          message: valid
+            ? `.goat-flow/config.yaml parsed successfully${warningCount > 0 ? ` (${warningCount} warning${warningCount === 1 ? '' : 's'})` : ''}`
+            : `.goat-flow/config.yaml invalid${parseError ? `: ${parseError}` : ` (${errorCount} error${errorCount === 1 ? '' : 's'})`}`,
+        };
+      },
+    },
+    recommendation: 'Fix .goat-flow/config.yaml so it parses and validates cleanly',
+    recommendationKey: 'fix-goat-flow-config',
   },
 ];
 

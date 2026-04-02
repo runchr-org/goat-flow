@@ -19,9 +19,9 @@ Type **`/goat`** followed by what you need:
 ## First Session
 
 1. **Read `CLAUDE.md`** (or `AGENTS.md` / `GEMINI.md`) - this is your instruction file. It has the execution loop, autonomy tiers, and router table.
-2. **Check `docs/footguns.md`** - these are real traps in this codebase with file:line evidence. Read before making changes.
-3. **Check `docs/lessons.md`** - behavioral mistakes that have happened before. Don't repeat them.
-4. **Check `tasks/handoff.md`** - if a previous session left incomplete work, pick up where it left off.
+2. **Check `docs/footguns/`** - these are real traps in this codebase with file:line evidence. Read before making changes.
+3. **Check `ai/lessons/`** - behavioral mistakes that have happened before. Don't repeat them.
+4. **Check `.goat-flow/tasks/handoff.md`** - if a previous session left incomplete work, pick up where it left off.
 
 ## When to Use Each Skill
 
@@ -60,6 +60,6 @@ Before every change: **READ** the relevant files. **CLASSIFY** the task (questio
 ## Adding to the Learning Loop
 
 When you make a mistake or discover a trap:
-- **Behavioral mistake** (you did something wrong) → add to `docs/lessons.md`
-- **Architectural trap** (the code has a hidden coupling) → add to `docs/footguns.md` with `file:line` evidence
-- **Technical decision** (significant choice with trade-offs) → add to `docs/decisions/ADR-NNN-*.md`
+- **Behavioral mistake** (you did something wrong) → add to `ai/lessons/`
+- **Architectural trap** (the code has a hidden coupling) → add to `docs/footguns/` with `file:line` evidence
+- **Technical decision** (significant choice with trade-offs) → add to `ai/decisions/ADR-NNN-*.md`

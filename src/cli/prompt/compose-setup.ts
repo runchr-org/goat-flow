@@ -1,4 +1,5 @@
 import type { ScanReport, AgentId, AgentReport, ProjectSignals } from '../types.js';
+import { SKILL_NAMES } from '../constants.js';
 import type { ComposedPrompt, PromptSection, PromptVariables, FragmentPhase, SetupTask } from './types.js';
 import { getAllFragments, getFragment } from './registry.js';
 import { extractTemplateVars, fillTemplate } from './template-filler.js';
@@ -32,7 +33,7 @@ function renderSignals(lines: string[], signals: ProjectSignals): void {
     actions.push('- **LLM integration:** Add prompt/template file paths to the Router Table. Add "prompt changes require scenario testing" to Ask First boundaries. Seed a learning-loop entry for prompt-regression risk.');
   }
   if (signals.complianceSignals) {
-    actions.push('- **PHI/compliance:** Add mandatory constraints to the instruction file hot path (not just cold-path docs): "MUST NOT log PHI", "MUST NOT include patient data in error messages", "MUST scope all queries by tenant". These belong in the execution loop or Ask First section, not only in ai/instructions/security.md.');
+    actions.push('- **PHI/compliance:** Add mandatory constraints to the instruction file hot path (not just cold-path docs): "MUST NOT log PHI", "MUST NOT include patient data in error messages", "MUST scope all queries by tenant". These belong in the execution loop or Ask First section, not only in ai/coding-standards/security.md.');
   }
   if (signals.formatterGaps.length > 0) {
     actions.push(`- **Formatter gaps (${signals.formatterGaps.join(', ')}):** Add formatters to the PostToolUse hook (format-file.sh). Every detected language should have a formatter running on save.`);
@@ -126,7 +127,7 @@ function renderAllPass(agentId: AgentId, agentReport: AgentReport, report?: Scan
   lines.push('**Maintenance:**');
   lines.push('- After upgrading goat-flow, re-run `goat-flow setup` to check for new checks');
   lines.push('- Run `goat-flow scan --min-score 90` in CI to catch drift');
-  lines.push('- Review `docs/footguns.md` and `docs/lessons.md` after incidents');
+  lines.push('- Review `docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, and `.goat-flow/lessons/` after incidents');
 
   return lines.join('\n');
 }
@@ -280,11 +281,14 @@ function renderTargetedFix(report: ScanReport, agentId: AgentId, agentReport: Ag
 
       // Skills as numbered tasks
       if (skillRefs.length > 0) {
-        lines.push(`**Missing Skills (${skillRefs.length} of 8)** - create in \`${PROFILES[agentId].skillsDir}/goat-{name}/SKILL.md\``);
+        lines.push(`**Missing Skills (${skillRefs.length} of ${SKILL_NAMES.length})** - create in \`${PROFILES[agentId].skillsDir}/{skill-name}/SKILL.md\``);
         lines.push('');
         for (const ref of skillRefs) {
-          const name = ref.key.replace('create-skill-', 'goat-');
-          lines.push(renderTask({ num: taskNum++, outputPath: `${PROFILES[agentId].skillsDir}/${name}/SKILL.md`, templatePath: getTemplatePath(ref.template), adapt: defaultAdaptGuidance(ref.key, undefined, vars.languages), verify: defaultVerify(ref.key) }));
+          const name = ref.key === 'create-skill-goat'
+            ? 'goat'
+            : ref.key.replace('create-skill-', 'goat-');
+          const outputPath = `${PROFILES[agentId].skillsDir}/${name}/SKILL.md`;
+          lines.push(renderTask({ num: taskNum++, outputPath, templatePath: getTemplatePath(ref.template), adapt: defaultAdaptGuidance(outputPath, undefined, vars.languages), verify: defaultVerify(outputPath) }));
           lines.push('');
         }
       }
@@ -343,8 +347,9 @@ function renderTask(task: SetupTask): string {
 function defaultAdaptGuidance(output: string, note: string | undefined, languages: string): string {
   // Path-specific guidance takes precedence over generic notes
   if (output.includes('/skills/')) return `Replace template Step 0 questions and examples with ${languages} patterns from this project`;
-  if (output === 'docs/footguns.md') return `Run \`grep -rn 'TODO\\|FIXME\\|HACK' src/ | head -20\` to find real traps. Every entry needs \`file:line\` evidence. No hypotheticals`;
-  if (output === 'docs/lessons.md') return `Run \`git log --oneline -50 | grep -iE 'fix|revert|hotfix|bug'\` to find real incidents. Seed 3+ entries`;
+  if (output === '.goat-flow/config.yaml') return 'Use the default directory paths unless this project already needs explicit overrides';
+  if (output === 'docs/footguns/') return `Seed \`docs/footguns/\` with individual markdown entries using YAML frontmatter. Every entry needs \`file:line\` evidence. No hypotheticals`;
+  if (output === 'ai/lessons/') return `Seed \`ai/lessons/\` with individual markdown entries using YAML frontmatter. Use real incidents from git history`;
   if (output === 'docs/architecture.md') return 'Read project entry points and main directories. Document what exists - under 100 lines, no aspirational content';
   if (output.includes('instructions/')) return `Adapt for this project's ${languages} patterns. Replace generic examples with real patterns from the codebase`;
   // Fall back to template ref note or generic
@@ -355,8 +360,9 @@ function defaultAdaptGuidance(output: string, note: string | undefined, language
 /** Default verification text for a task */
 function defaultVerify(output: string): string {
   if (output.includes('/skills/')) return 'File has: When to Use, Process with human gates, Constraints, Output Format, Chaining sections';
-  if (output === 'docs/footguns.md') return 'File exists, has 3+ entries, each with backtick-wrapped `path:line` evidence';
-  if (output === 'docs/lessons.md') return 'File exists, has entries with ### headings and 20+ chars of content each';
+  if (output === '.goat-flow/config.yaml') return 'File exists, parses as YAML, and includes version plus footguns/lessons/decisions/tasks/logs/agents/skills settings';
+  if (output === 'docs/footguns/') return 'Directory exists with README.md plus 1+ entry files using YAML frontmatter and `path:line` evidence';
+  if (output === 'ai/lessons/') return 'Directory exists with README.md plus 1+ entry files using YAML frontmatter';
   if (output === 'docs/architecture.md') return 'File exists and is under 100 lines';
   if (output.endsWith('.sh')) return '`bash -n <file>` passes (no syntax errors)';
   if (output.endsWith('.json')) return 'Valid JSON (no parse errors)';
@@ -518,6 +524,24 @@ function renderSetupRedirect(report: ScanReport, agentId: AgentId, agentReport: 
 
   // Pre-instructions
   lines.push('## Before you start');
+  lines.push('');
+  lines.push('**Step 0 — Clean up stale artifacts (if upgrading):**');
+  lines.push('');
+  lines.push('**Skills:** The 6 canonical skills are: `goat`, `goat-debug`, `goat-plan`, `goat-review`, `goat-security`, `goat-test`.');
+  lines.push('Delete any other `goat-*` directories (e.g., `goat-investigate`, `goat-audit`, `goat-onboard`, `goat-reflect`, `goat-resume`, `goat-simplify`, `goat-refactor`, `goat-context`).');
+  lines.push('Also delete legacy skill directories: `audit/`, `review/`, `preflight/`.');
+  lines.push('');
+  lines.push('**Router table:** Rewrite the Router Table in the instruction file to reference only the 6 canonical skills:');
+  lines.push('```');
+  lines.push('| Resource | Path |');
+  lines.push('|----------|------|');
+  lines.push('| Skills | `.claude/skills/goat-*/` (or equivalent agent skills dir) |');
+  lines.push('```');
+  lines.push('Remove any entries pointing to deleted skills (goat-investigate, goat-reflect, etc.).');
+  lines.push('');
+  lines.push('**Dispatcher:** Replace the `/goat` dispatcher skill entirely from the goat-flow template.');
+  lines.push('Read the template at `workflow/skills/goat.md` and write it to the agent skills dir.');
+  lines.push('Preserve any project-specific disambiguation examples the existing dispatcher may have.');
   lines.push('');
   lines.push('1. Verify the detected stack above is correct. If not, the setup file will');
   lines.push('   ask you to detect it from the actual codebase (package.json, composer.json, etc.)');

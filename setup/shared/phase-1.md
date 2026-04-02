@@ -26,7 +26,7 @@ STEP 0 - Detect stack and current state:
 4. Check for existing scripts/ (preflight, validation, deny-dangerous).
 5. Check for existing agent settings and hooks - note what exists.
 6. Check for existing docs/ (footguns.md, lessons.md, architecture.md)
-   and agent-evals/ - note what already exists so later steps merge,
+   and ai/evals/ - note what already exists so later steps merge,
    not replace.
 
 STEP 1 - Instruction file (create or rewrite):
@@ -58,12 +58,12 @@ For ALL projects:
 
 STEP 2 - Docs seed files:
 Create the files listed in setup/shared/docs-seed.md.
-If docs/footguns.md or docs/lessons.md already exist, MERGE - do not replace.
+If docs/footguns/ or ai/lessons/ already exist, MERGE - do not replace.
 Read existing content first, add new entries from the codebase, keep all
 existing entries. Only create files that don't already exist.
 
 STEP 3 - Local instruction files (Layer 2):
-Read docs/footguns.md and the codebase structure. For directories with
+Read docs/footguns/ and the codebase structure. For directories with
 2+ footgun entries, Ask First boundaries, or differing conventions:
 create a local instruction file (under 20 lines each).
 Skip directories already covered by .github/instructions/ files.
@@ -144,7 +144,7 @@ text like "[Step 1]" or "[describe X]".
 
 ADAPTATION EXAMPLE - Step 0 questions:
   Generic (wrong):  "What code to simplify?"
-  Adapted (right):  "Which Symfony controller to simplify? Check docs/footguns.md
+  Adapted (right):  "Which Symfony controller to simplify? Check docs/footguns/
                      for PracGroup scoping traps first."
 The adapted version names a real project artifact and references the learning loop.
 Every skill's Step 0, constraints, and output format should be this specific.
@@ -179,7 +179,7 @@ Do NOT proceed to Phase 1c until all gates pass.
 ```
 Check for existing coding guidelines in the project:
 - .github/instructions/*.md
-- ai/instructions/*.md
+- ai/coding-standards/*.md
 - Any project-specific code-review, git-commit, or conventions docs
 
 RULES:
@@ -187,26 +187,26 @@ RULES:
   The project knows its own inhouse rules better than templates.
 - Do NOT override existing git-commit or code-review instructions.
 - DO create ai/README.md as a routing map pointing to all guideline files.
-- DO create ai/instructions/ files where gaps exist.
+- DO create ai/coding-standards/ files where gaps exist.
 
 If .github/instructions/ exists:
 - Read existing files - these are the project's canonical conventions.
-- Create ai/README.md as routing map linking to both ai/instructions/
+- Create ai/README.md as routing map linking to both ai/coding-standards/
   and .github/instructions/ files.
-- Create ai/instructions/backend.md and ai/instructions/frontend.md
+- Create ai/coding-standards/backend.md and ai/coding-standards/frontend.md
   ONLY if the existing instructions don't cover those domains.
   Base new files on workflow/coding-standards/ templates but adapt
   for this project. Link to existing conventions where they overlap.
 
 If no instruction files exist:
 - Create ai/README.md (routing map)
-- Create ai/instructions/conventions.md (from workflow/coding-standards/conventions.md)
-- Create ai/instructions/code-review.md (from workflow/coding-standards/code-review.md)
-- Create ai/instructions/git-commit.md (from workflow/coding-standards/git-commit.md)
-- Create ai/instructions/backend.md and/or ai/instructions/frontend.md
+- Create ai/coding-standards/conventions.md (from workflow/coding-standards/conventions.md)
+- Create ai/coding-standards/code-review.md (from workflow/coding-standards/code-review.md)
+- Create ai/coding-standards/git-commit.md (from workflow/coding-standards/git-commit.md)
+- Create ai/coding-standards/backend.md and/or ai/coding-standards/frontend.md
   based on detected stack (from workflow/coding-standards/backend/ and frontend/ templates)
 
-VERIFICATION after creating ai/instructions/ files:
+VERIFICATION after creating ai/coding-standards/ files:
 1. Verify every file path referenced actually exists (ls)
 2. Verify commands work: run build/test/lint commands listed in conventions.md
 3. Remove aspirational content - only document current state, not roadmaps

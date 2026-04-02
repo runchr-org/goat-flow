@@ -7,8 +7,8 @@ These files are created regardless of which agent you use. They form the learnin
 ## Learning Loop Files
 
 ```
-1. docs/lessons.md - Format header with Entries/Patterns sections.
-   Do NOT invent entries. If agent-evals/ exist, check each incident:
+1. ai/lessons/ - Format header with Entries/Patterns sections.
+   Do NOT invent entries. If ai/evals/ exist, check each incident:
    if the root cause was a behavioural mistake (not an architectural
    landmine), seed one lesson from it. This gives agents a format
    example and makes the file visible.
@@ -19,7 +19,7 @@ These files are created regardless of which agent you use. They form the learnin
    has >50 commits. If <50 commits, start with what you have.
    If the project uses a bug tracker, include issue numbers (e.g., #63442) for traceability.
 
-2. docs/footguns.md - If the file already exists, MERGE with it: keep
+2. docs/footguns/ - If the file already exists, MERGE with it: keep
    existing entries, add new footguns from reading the codebase.
    If the file doesn't exist, create and seed with real footguns only.
    Do NOT invent hypothetical ones. Do NOT replace existing entries.
@@ -40,11 +40,11 @@ These files are created regardless of which agent you use. They form the learnin
    hardcoded absolute paths, or outdated references. Seed these as
    footguns if found.
 
-3. tasks/handoff-template.md - Template for session handoffs. MUST
+3. .goat-flow/tasks/handoff-template.md - Template for session handoffs. MUST
    include a purpose section explaining: when to create (incomplete
    work or two-correction stop), when to read (start of every session,
-   check if tasks/handoff.md exists), and how to use (copy template
-   to tasks/handoff.md, fill in). Sections: Date, Status, Current
+   check if .goat-flow/tasks/handoff.md exists), and how to use (copy template
+   to .goat-flow/tasks/handoff.md, fill in). Sections: Date, Status, Current
    State (including files changed), Key Decisions, Known Risks,
    Next Step.
 
@@ -64,7 +64,7 @@ These files are created regardless of which agent you use. They form the learnin
    overview (under 100 lines): what the system does, major components,
    data flows, non-obvious constraints, deliberate trade-offs.
 
-6. docs/decisions/ - ADR directory. DO NOT create this directory during
+6. ai/decisions/ - ADR directory. DO NOT create this directory during
    setup unless you can identify a real architectural decision from the
    code right now. If no real decisions exist yet, skip this entirely.
    The directory materialises when the first real ADR is written.
@@ -75,18 +75,18 @@ These files are created regardless of which agent you use. They form the learnin
 ## Project Coding Guidelines (Cold Path)
 
 ```
-7. ai/instructions/ - Project coding guidelines (cold path).
+7. ai/coding-standards/ - Project coding guidelines (cold path).
    Create ai/README.md as routing map.
-   Create ai/instructions/conventions.md with project-wide conventions.
-   Create ai/instructions/code-review.md with review standards.
-   Create ai/instructions/git-commit.md with commit conventions.
+   Create ai/coding-standards/conventions.md with project-wide conventions.
+   Create ai/coding-standards/code-review.md with review standards.
+   Create ai/coding-standards/git-commit.md with commit conventions.
    If .github/instructions/ exists, treat those files as canonical.
-   Create ai/instructions/ files only where gaps exist - do NOT
+   Create ai/coding-standards/ files only where gaps exist - do NOT
    migrate or duplicate existing .github/instructions/ content.
    Link to .github/instructions/ from ai/README.md routing map.
    Create .github/git-commit-instructions.md if .git/ exists.
 
-   VERIFICATION GATE - after creating ai/instructions/ files:
+   VERIFICATION GATE - after creating ai/coding-standards/ files:
    - Verify every file path referenced actually exists (ls/find)
    - Verify every command listed actually runs (build, test, lint)
    - Verify every architectural claim matches current code, not roadmap
@@ -97,7 +97,7 @@ These files are created regardless of which agent you use. They form the learnin
    - Read the Ask First section in the hot-path file (CLAUDE.md/AGENTS.md/GEMINI.md)
    - Verify every path in Ask First exists on disk - stale paths mislead agents
    - Check router table entries resolve - broken refs are common after renames
-   - If a path doesn't exist, fix it (don't copy it into ai/instructions/)
+   - If a path doesn't exist, fix it (don't copy it into ai/coding-standards/)
 ```
 
 ## Skills Deduplication

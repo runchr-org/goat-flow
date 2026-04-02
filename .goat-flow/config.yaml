@@ -1,0 +1,54 @@
+# .goat-flow/config.yaml — project configuration
+# Docs: https://github.com/blundergoat/goat-flow
+
+version: "0.9.4"
+
+# ── Project Setup ───────────────────────────────
+agents:
+  - claude
+  - codex
+  - gemini
+
+skills:
+  install:
+    - goat
+    - goat-debug
+    - goat-plan
+    - goat-review
+    - goat-security
+    - goat-test
+
+# ── Scanner Thresholds ──────────────────────────
+# Adjust for project complexity:
+#   Small CLI: target 80, limit 120
+#   Standard:  target 120, limit 150 (default)
+#   Large:     target 150, limit 200
+line-limits:
+  target: 120
+  limit: 150
+
+# ── Committed Paths (ai/) ──────────────────────
+lessons:
+  committed: ai/lessons/
+  local: .goat-flow/lessons/
+
+decisions:
+  path: ai/decisions/
+
+evals:
+  path: ai/evals/
+
+coding-standards:
+  path: ai/coding-standards/
+
+# ── Committed Paths (docs/) ─────────────────────
+footguns:
+  committed: docs/footguns/
+  local: .goat-flow/footguns/
+
+# ── Local Paths (.goat-flow/) ───────────────────
+tasks:
+  path: .goat-flow/tasks/
+
+logs:
+  path: .goat-flow/logs/

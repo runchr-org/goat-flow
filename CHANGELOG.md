@@ -2,17 +2,35 @@
 
 ---
 
+## v0.9.4 - 2026-04-02
+
+Scanner honesty, config file, directory restructure, embedded terminal, dashboard UX. Driven by 6 cross-project reviews + real-project testing. 275 tests.
+
+- **Scanner:** stop faking Codex enforcement facts, remove harmful AP2, fix goat-goat derivation bug, new AP20/AP21, `.env` Edit/Write deny check, devDeps-only JS detection
+- **Config:** `.goat-flow/config.yaml` with `js-yaml`, directory-based footguns/lessons (YAML frontmatter entries), committed vs local split, migration scripts
+- **Restructure:** `docs/lessons/` -> `ai/lessons/`, `docs/decisions/` -> `ai/decisions/`, `agent-evals/` -> `ai/evals/`, `ai/instructions/` -> `ai/coding-standards/`, `tasks/` -> `.goat-flow/tasks/` (gitignored)
+- **Skills:** all 5 check footguns in Step 0, dispatcher enriched with modes/chaining, version sync to 0.9.4
+- **Setup:** stale skill cleanup (8 old names), router rewrite, static CI template, format hook wires into settings.json
+- **Terminal backend:** `node-pty` + `ws` as optionalDeps, `TerminalManager` with multi-runner (claude/codex/gemini), REST API (create/list/delete/health), WebSocket streaming, idle timeout, Origin check
+- **Terminal launcher:** xterm.js lazy-loaded from CDN, Launch button on preset cards, Setup Launcher panel (pick agent + runner), Terminal nav button with session indicator, Ctrl+Shift+D exit
+- **Dashboard UX:** dark mode toggle fixed, copy feedback on cards, Escape collapses checks, agent switch preserves tab, Reset filters, brighter focus rings, anti-patterns hidden during search
+- **Deep Critique preset** added (audit category) - 6-phase system review prompt
+- **Tests:** 239 -> 275 (+36). New: eval parser/loader, serve-dashboard API, terminal server
+
+
+---
+
 ## v0.9.3 - 2026-03-30
 
 Skill consolidation, scanner improvements, enforcement hardening. Driven by cross-project reviews from halaxy-cypress (66), blundergoat-platform (74), healthkit (68). Rubric v0.9.3: 101 checks + 17 anti-patterns. 216 tests.
 
-### Skills (9 → 6)
+### Skills (9 -> 6)
 - goat-investigate merged into goat-debug (investigate/onboard modes)
 - goat-simplify merged into goat-review (simplify mode)
 - goat-refactor merged into goat-plan (refactor planning mode)
 - goat-security expanded with compliance and dependency audit modes
 - goat dispatcher added to SKILL_NAMES as 6th canonical skill
-- All 6 skills synced identically across .claude/, .agents/, .github/. 1,790 → 1,067 lines.
+- All 6 skills synced identically across .claude/, .agents/, .github/. 1,790 -> 1,067 lines.
 
 ### Scanner
 - Format diagnostics when footguns/lessons have content but 0 entries parse
@@ -113,7 +131,7 @@ Dispatcher skill, coding-standards refresh, scanner hardening, telemetry, signal
 
 ## v0.8.0 - 2026-03-28
 
-Skill model cleanup (10→8 enforced), setup prompt bug fix, documentation alignment, rubric scoring cleanup. Rubric v0.8.0: 97 checks + 15 anti-patterns. 138 tests.
+Skill model cleanup (10->8 enforced), setup prompt bug fix, documentation alignment, rubric scoring cleanup. Rubric v0.8.0: 97 checks + 15 anti-patterns. 138 tests.
 
 ### Rubric Scoring Cleanup
 - Converted previously advisory checks into scored checks where the detector is reliable: footgun evidence labels, lesson path validity, router completeness for learning loop/architecture/evals, eval Agents labels, handoff template required sections, and eval skill diversity
@@ -122,7 +140,7 @@ Skill model cleanup (10→8 enforced), setup prompt bug fix, documentation align
 - Tightened `3.3.1a` to require all five handoff template sections before awarding the point
 - Total check count remains 97 after the cleanup; anti-pattern count increases to 15
 
-### Skill Consolidation (10→8) - ADR-007
+### Skill Consolidation (10->8) - ADR-007
 - goat-reflect/audit merged into goat-review (Instruction Review + Audit modes), goat-onboard merged into goat-debug (Onboard mode), goat-context removed
 - goat-investigate merged into goat-debug (Investigate mode), goat-simplify merged into goat-review (Simplify mode), goat-refactor merged into goat-plan (Refactor Planning mode)
 - Deprecated skill dirs deleted from .claude/, .agents/, .github/ - all three now have identical 8-skill parity
@@ -138,8 +156,8 @@ Skill model cleanup (10→8 enforced), setup prompt bug fix, documentation align
 - 21 stale "10 skills" references fixed across README.md, docs/ (getting-started, architecture, five-layers, cross-agent-comparison, examples), setup/ (README, phase-1, execution-loop, setup-codex), src/cli/ (standard.ts, compose-setup.ts, full.ts)
 - docs/system-spec.md deprecated skill descriptions (goat-reflect, goat-onboard, goat-resume) updated; goat-investigate/goat-simplify/goat-refactor merged into modes
 - docs/system/five-layers.md skill table trimmed from 10 to 8 rows; workflow/README.md skill list updated
-- CHANGELOG.md and README.md scanner counts corrected (92→97 checks, 12→14 anti-patterns)
-- Rubric comment at standard.ts:18 corrected (19 pts/10 existence → 17 pts/8 existence)
+- CHANGELOG.md and README.md scanner counts corrected (92->97 checks, 12->14 anti-patterns)
+- Rubric comment at standard.ts:18 corrected (19 pts/10 existence -> 17 pts/8 existence)
 
 ### CI Template Fix
 - `full.ts:126` shell for-loop was generating CI YAML checking deprecated skills (audit, reflect, onboard, resume)
@@ -150,7 +168,7 @@ Skill model cleanup (10→8 enforced), setup prompt bug fix, documentation align
 - 138 tests pass (was 96)
 
 ### ADRs
-- ADR-007: skill consolidation 10→8 - justification test, merge mapping, consequences
+- ADR-007: skill consolidation 10->8 - justification test, merge mapping, consequences
 - ADR-008: reference-based setup prompts - why inline skeletons failed (template drift, agent copy-paste, context waste)
 
 ### Cross-Project Audit (9 projects)
@@ -216,7 +234,7 @@ Reference-based setup prompts, scanner accuracy fixes, CLI simplification. Setup
 - .codex/ directory, .github/actions/goat-flow-scan/ composite action
 - Deny hooks hardened across all agents, GitHub Actions SHA-pinned
 - CODEOWNERS, CONTRIBUTING.md, SECURITY.md added
-- Prompt/doc drift fixed: "7→10 skills", permission profiles removed
+- Prompt/doc drift fixed: "7->10 skills", permission profiles removed
 
 ---
 
@@ -231,7 +249,7 @@ All 7 skills rewritten with conversational structure and failure-mode prevention
 - YAML `name:` frontmatter + `## When to Use` on all skill files
 
 ### Scanner (84 checks)
-- Skill quality threshold unified at 0.8 (human gates 0.5→0.8, conversational 0.3→0.8)
+- Skill quality threshold unified at 0.8 (human gates 0.5->0.8, conversational 0.3->0.8)
 - New checks: skill chaining (2.1.14), structured choices (2.1.15)
 - Fixed compaction hook detection, non-null assertions
 
@@ -252,7 +270,7 @@ CLI scanner + prompt generator, local context system, 80-check rubric. All 6 aud
 - Monorepo stack detection, markdown link router extraction, 78 tests across 20 suites
 
 ### Local Context (Cold Path)
-- `ai/instructions/` vendor-neutral coding guidelines with `ai/README.md` router
+- `ai/coding-standards/` vendor-neutral coding guidelines with `ai/README.md` router
 - Copilot bridge files (`.github/copilot-instructions.md`, `.github/instructions/`)
 - 11 workflow templates, migration guide with real project examples
 
@@ -273,7 +291,7 @@ Multi-agent alignment release. First public release under MIT license.
 ### Tri-Agent Support
 - Claude Code, Gemini CLI, Codex with unified `.agents/skills/` architecture
 - 7 skills with YAML frontmatter, Gemini CLI fully configured (GEMINI.md, settings, hooks)
-- Renamed goat-research → goat-debug (investigate mode), created goat-plan and goat-test
+- Renamed goat-research -> goat-debug (investigate mode), created goat-plan and goat-test
 
 ### Agent-Neutral Docs & Safety
 - Reverted Gemini overwrites of 6 shared docs, hook table uses concept names
@@ -294,10 +312,10 @@ Multi-agent alignment release. First public release under MIT license.
 Workflow deployed across 7 projects. Multi-agent support. 11 diagnostic rounds.
 
 ### Execution Loop
-- 6-step loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
+- 6-step loop: READ -> CLASSIFY -> SCOPE -> ACT -> VERIFY -> LOG
 - Complexity budgets: Hotfix (2/3), Standard (4/10), System (6/20), Infra (8/25)
 - Debug gate: no fixes until human reviews diagnosis
-- LOG triggers: VERIFY failure → lessons.md, human correction → log immediately
+- LOG triggers: VERIFY failure -> lessons.md, human correction -> log immediately
 
 ### Skills (7 total)
 - Added goat-plan (triangular tension pass), goat-test (3-track doer-verifier)
@@ -324,7 +342,7 @@ First release. Complete workflow system.
 ### System
 - 5-layer architecture: Runtime, Local Context, Skills, Playbooks, Evaluation
 - 6-step execution loop with SCOPE, complexity budgets, re-classification protocol
-- 3-layer enforcement: permissions deny → hooks → instruction rules
+- 3-layer enforcement: permissions deny -> hooks -> instruction rules
 - Autonomy tiers (Always / Ask First / Never) with micro-checklist
 - Definition of Done (6 gates)
 - Doer-verifier testing with risk-scaled ratios
