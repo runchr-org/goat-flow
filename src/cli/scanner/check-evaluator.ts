@@ -449,7 +449,7 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
     // CHANGELOG.md removed - project-level concern.
     [shared.localInstructions.path]: shared.localInstructions.dirExists && shared.localInstructions.location === 'ai',
     [shared.localInstructions.path.replace(/\/$/, '')]: shared.localInstructions.dirExists && shared.localInstructions.location === 'ai',
-    'ai/README.md': shared.localInstructions.hasRouter && shared.localInstructions.location === 'ai',
+    'ai/README.md': shared.localInstructions.hasValidRouter && shared.localInstructions.location === 'ai',
     '.github/instructions': shared.localInstructions.dirExists && shared.localInstructions.location === 'github',
     '.github/git-commit-instructions.md': shared.gitCommitInstructions.exists,
   };

@@ -1,14 +1,14 @@
 # Project Coding Guidelines
 
-Read `instructions/conventions.md` first for every task.
+Read `ai/coding-standards/conventions.md` first for every task.
 
 Then load additional files based on the work:
 
 | Task | Load |
 |------|------|
-| TypeScript / CLI work | `instructions/frontend.md` |
-| Code review | `instructions/code-review.md` |
-| Committing code | `instructions/git-commit.md` |
+| TypeScript / CLI work | `ai/coding-standards/frontend.md` |
+| Code review | `ai/coding-standards/code-review.md` |
+| Committing code | `ai/coding-standards/git-commit.md` |
 
 Precedence (highest first):
 1. code-review.md (for review tasks only)

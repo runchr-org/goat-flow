@@ -4,30 +4,33 @@
 
 ## v0.10.0 - 2026-04-03
 
-Execution-loop canonicalization, install-flow refinement, and preflight-unblocking CLI refactors.
+Execution-loop canonicalization, install-flow refinement, scanner UX, and preflight-unblocking refactors. Rubric v0.10.0: 103 checks + 18 anti-patterns. 282 tests.
 
-#### Install and Packaging
-- Package metadata and lockfile updates for `install goat-flow` compatibility
-- Added `postinstall` warning helper (`scripts/warn-node-pty.mjs`) and included it in package `files`.
-- Updated README with install matrix, tested command notes for npm/pnpm/yarn/bun, and CLI Node runtime guidance.
+### Install & Packaging
+- added `pnpm.onlyBuiltDependencies` for `node-pty` so pnpm installs can build the embedded terminal without manual manifest edits
+- README install matrix now documents tested npm, pnpm, yarn, and `npx @blundergoat/goat-flow@latest` behavior, plus the local `npx . scan .` path
+- tightened pnpm `node-pty` guidance and Node runtime notes for dashboard/CLI usage
 
-#### Complexity and Preflight
-- Refactored high-complexity CLI paths in config parsing, stack detection, fact extraction, rendering, terminal serving, and scan/eval pipelines
-- Reduced control-flow complexity so max-complexity lint constraints pass.
+### Scanner & Preflight
+- refactored high-complexity CLI paths in config parsing, stack detection, fact extraction, renderers, rubric checks, and scan evaluation to clear preflight complexity failures
+- hook registration checks now verify settings/config registration and expected script paths instead of treating hook files as sufficient
+- `ai/README.md` router validation now checks referenced paths, so broken local-instruction routers fail `2.6.2` instead of scoring 100%
+- text and markdown scan output now group failures by severity, show fail/partial/pass summaries, and surface "Top N to fix first" diagnostic priorities
+- CI validation heuristics now inspect actual workflow `run:` commands instead of keyword presence
 
-#### Dashboard and CLI UX
-- Added first-run dashboard browser auto-open with persistent `--no-open` option
-- Improved terminal-unavailable messaging with install/approval troubleshooting guidance in dashboard and CLI paths
+### Dashboard & CLI UX
+- added first-run browser auto-open for `goat-flow dashboard` with persistent opt-out via `--no-open`
+- improved terminal-unavailable messaging and install guidance around `node-pty` and native build approval flows
 
-#### Docs and Execution Loop
-- Made `docs/system-spec.md` the canonical execution-loop definition
-- Reduced duplicate loop writeups in `docs/system/six-steps.md` and `docs/reference/design-rationale.md` to compatibility pointers
-- Aligned setup shared templates with loop provenance requirements
+### Execution Loop & Templates
+- made `docs/system-spec.md` canonical for the execution loop and reduced duplicate loop docs to compatibility pointers
+- replaced fixed read budgets with the 3x-estimate re-classification trigger and no-duplicate-file rule across runtime/setup docs
+- synced setup shared templates and workflow docs to the `5 skills + dispatcher` model and canonical loop wording
 
-#### Workflow and Learning
-- Removed obsolete session-logging ritual language from five skill close-paths and runtime reminder hooks
-- Moved completion handoff focus to `.goat-flow/tasks/handoff.md`.
-- Added 2026-04-03 lesson/footgun updates and template metadata checks in `scripts/context-validate.sh`.
+### Learning & Guardrails
+- removed obsolete session-logging ritual text from skill close steps and runtime reminders
+- added ADR-019 and new 2026-04-03 lessons/footguns covering critique handling, implementation-skill boundaries, changelog overwrite prevention, and scanner reliability traps
+- added regression fixtures for missing hook registration and broken `ai/README.md` routers
 
 ## v0.9.4 - 2026-04-02
 

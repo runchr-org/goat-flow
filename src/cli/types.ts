@@ -229,6 +229,8 @@ export interface SharedFacts {
     location: 'ai' | 'github' | null;
     fileCount: number;
     hasRouter: boolean;
+    hasValidRouter: boolean;
+    routerNeedsFix: string | null;
     hasConventions: boolean;
     conventionsHasContent: boolean;
     hasFrontend: boolean;
@@ -305,8 +307,12 @@ export interface AgentFacts {
     denyBlocksChmod: boolean;
     denyBlocksCloudDestructive: boolean;
     postTurnExists: boolean;
+    postTurnRegistered: boolean;
+    postTurnRegisteredPath: string | null;
     postTurnExitsZero: boolean;
     postTurnHasValidation: boolean;
+    postToolRegistered: boolean;
+    postToolRegisteredPath: string | null;
     postToolExists: boolean;
     compactionHookExists: boolean;
     /** Hook scripts containing hardcoded absolute paths (not wrapped in $(git rev-parse)) */

@@ -570,7 +570,7 @@ describe('Fixture 10a: project with ai/coding-standards/', () => {
     'package.json': JSON.stringify({ name: 'with-ai', scripts: { test: 'jest' } }),
     '.claude/settings.json': JSON.stringify({ permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] } }),
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
-    'ai/README.md': '# Project Guidelines\n\nRead instructions/conventions.md first.\n',
+    'ai/README.md': '# Project Guidelines\n\nRead [conventions](ai/coding-standards/conventions.md) first.\n',
     'ai/coding-standards/conventions.md': '# Conventions\n\n## Commands\n\n```bash\nnpm test\nnpm run build\nnpm run lint\n```\n\n## Conventions\n\nDo: use early returns\nDon\'t: nest deeply\nDo: co-locate tests\nDon\'t: hardcode secrets\n',
     'ai/coding-standards/frontend.md': '# Frontend\n\nFrontend conventions.\n',
     'ai/coding-standards/code-review.md': '# Code Review\n\nReview standards.\n',
@@ -632,6 +632,71 @@ describe('Fixture 10c: project without instructions', () => {
     const localChecks = report.agents[0].checks.filter(c => c.category === 'Local Instructions');
     const failing = localChecks.filter(c => c.status === 'fail');
     assert.ok(failing.length >= 4, `Expected 4+ failures, got ${failing.length}`);
+  });
+});
+
+describe('Regression: hooks exist without registration should fail', () => {
+  const fs = createMockFS({
+    'CLAUDE.md': FULL_CLAUDE_MD,
+    'package.json': JSON.stringify({ name: 'hooks-not-registered', scripts: { test: 'node --test', format: 'prettier --write .' } }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
+      hooks: [],
+    }),
+    '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
+    '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\necho lint\nexit 0\n',
+    '.claude/hooks/format-file.sh': '#!/usr/bin/env bash\nprettier --write "$1"\nexit 0\n',
+  });
+  const report = scanProject(fs, '/test/hooks-not-registered', { agentFilter: 'claude' });
+
+  it('fails post-turn registration when hook file exists but not registered', () => {
+    const check = report.agents[0].checks.find(c => c.id === '2.2.2');
+    assert.ok(check, 'Expected check 2.2.2');
+    assert.equal(check.status, 'fail');
+    assert.ok(check.message.includes('.claude/settings.json'), check.message);
+    assert.ok(check.message.includes('"Stop"'), check.message);
+    assert.ok(check.message.includes('.claude/hooks/stop-lint.sh'), check.message);
+  });
+
+  it('fails post-tool registration when hook file exists but not registered', () => {
+    const check = report.agents[0].checks.find(c => c.id === '2.2.4');
+    assert.ok(check, 'Expected check 2.2.4');
+    assert.equal(check.status, 'fail');
+    assert.ok(check.message.includes('.claude/settings.json'), check.message);
+    assert.ok(check.message.includes('"PostToolUse"'), check.message);
+    assert.ok(check.message.includes('.claude/hooks/format-file.sh'), check.message);
+  });
+});
+
+describe('Regression: broken ai/README router should fail', () => {
+  const fs = createMockFS({
+    'CLAUDE.md': FULL_CLAUDE_MD,
+    'package.json': JSON.stringify({ name: 'broken-ai-router', scripts: { test: 'node --test' } }),
+    '.claude/settings.json': JSON.stringify({ permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] } }),
+    '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
+    'ai/README.md': '# Coding Guidelines\n\nSee [Conventions](ai/coding-standards/missing.md).\n',
+    'ai/coding-standards/conventions.md': '# Conventions\n\n## Commands\n\n```bash\nnpm test\n```\n\n## Conventions\n\nDo: use early returns\nDon\'t: hardcode secrets\n' + 'Line.\n'.repeat(16),
+    'ai/coding-standards/code-review.md': '# Code Review\n\nReview checklist.\n',
+    'ai/coding-standards/git-commit.md': '# Git Commit\n\nCommit conventions.\n',
+    '.github/git-commit-instructions.md': '# Git Commit\n\nCommit conventions.\n',
+  });
+  const report = scanProject(fs, '/test/broken-ai-router', { agentFilter: 'claude' });
+
+  it('fails the router validity check when ai/README.md points at a missing file', () => {
+    const check = report.agents[0].checks.find(c => c.id === '2.6.2');
+    assert.ok(check, 'Expected check 2.6.2');
+    assert.equal(check.status, 'fail');
+    assert.ok(check.message.includes('references missing paths'), check.message);
+    assert.ok(check.message.includes('ai/coding-standards/missing.md'), check.message);
+  });
+
+  it('does not treat a broken ai/README.md as a passing router', () => {
+    const localChecks = report.agents[0].checks.filter(c => c.category === 'Local Instructions');
+    assert.ok(localChecks.some(check => check.id === '2.6.2' && check.status === 'fail'));
+  });
+
+  it('does not score as a perfect setup when the router is broken', () => {
+    assert.ok(report.agents[0].score.percentage < 100, `Expected score < 100, got ${report.agents[0].score.percentage}%`);
   });
 });
 
@@ -772,7 +837,7 @@ GOOD: Inline format. Extract when second format needed
     'tasks/handoff-template.md': '# Handoff Template\n\n## Status\n\n## Current State\n\n## Key Decisions\n\n## Known Risks\n\n## Next Step\n',
     '.gitignore': '.env\nsettings.local.json\nnode_modules/\n',
     'docs/system-spec.md': '# System Spec\n',
-    'ai/README.md': '# Coding Guidelines\n\nRouter for instruction files.\n',
+    'ai/README.md': '# Coding Guidelines\n\nSee [Conventions](ai/coding-standards/conventions.md) and [Code Review](ai/coding-standards/code-review.md).\n',
     'ai/coding-standards/conventions.md': '# Conventions\n\n## Commands\n\n```bash\nnpm test\n```\n\n## Conventions\n\nDo: use TypeScript\nDon\'t: use any\n\n' + 'Line.\n'.repeat(10),
     'ai/coding-standards/code-review.md': '# Code Review\n\nReview checklist.\n',
     'ai/coding-standards/git-commit.md': '# Git Commit\n\nCommit conventions.\n',

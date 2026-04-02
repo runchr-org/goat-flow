@@ -92,6 +92,12 @@ interface LocalInstructionFlags {
   hasGitCommit: boolean;
 }
 
+interface RouterValidation {
+  hasValidRouter: boolean;
+  routerNeedsFix: string | null;
+  invalidRefs: string[];
+}
+
 const CANONICAL_EVAL_SKILLS = ['goat', 'goat-debug', 'goat-review', 'goat-plan', 'goat-security', 'goat-test'];
 const CANONICAL_EVAL_SKILL_SET = new Set(CANONICAL_EVAL_SKILLS);
 const REQUIRED_GITIGNORE_ENTRIES = ['.env', 'settings.local.json'];
@@ -407,20 +413,65 @@ function hasCIWorkflowCheck(ciContent: string | null, pattern: RegExp): boolean 
   return ciContent !== null && pattern.test(ciContent);
 }
 
+function collectWorkflowRunCommands(ciContent: string | null): string[] {
+  if (ciContent === null) return [];
+
+  const commands: string[] = [];
+  const runCommandPattern = /^\s*-\s*run:\s*(.+)$/gim;
+  for (const match of ciContent.matchAll(runCommandPattern)) {
+    const command = match[1];
+    if (command !== undefined && command.trim().length > 0) {
+      commands.push(command.trim());
+    }
+  }
+
+  return commands;
+}
+
+function hasRunCommand(ciContent: string | null, predicate: (command: string) => boolean): boolean {
+  return collectWorkflowRunCommands(ciContent).some(predicate);
+}
+
+function isContextValidationCommand(command: string): boolean {
+  const trimmed = command.toLowerCase();
+  return /\bscripts\/context-validate\.sh\b/.test(trimmed)
+    || /\bcontext-validate\b/.test(trimmed)
+    || /\bgoat-flow\s+scan\b/.test(trimmed);
+}
+
 function checksCILineCount(ciContent: string | null): boolean {
   if (ciContent === null) return false;
-  return (/wc\s+-l/i.test(ciContent) && /CLAUDE|AGENTS|GEMINI|\.md/i.test(ciContent))
-    || /context-validate/i.test(ciContent);
+
+  const runCommand = (command: string): boolean => /wc\s+-l/i.test(command) && /CLAUDE|AGENTS|GEMINI|\.md/i.test(command);
+
+  return hasRunCommand(ciContent, isContextValidationCommand) || hasRunCommand(ciContent, runCommand);
 }
 
 function checksCIRouter(ciContent: string | null): boolean {
-  return hasCIWorkflowCheck(ciContent, /context-validate/i)
-    || hasCIWorkflowCheck(ciContent, /router.*resolve|router.*check|router.*ref/i);
+  if (hasRunCommand(ciContent, isContextValidationCommand)) return true;
+
+  const runCommandChecksRouter = (command: string): boolean => {
+    const lower = command.toLowerCase();
+    return /router/.test(lower)
+      && /(check|validation|validate|resolve|ref|reference)/.test(lower)
+      && (/(goat-flow|scan|context|context-validate)/.test(lower) || /\.yml|\.yaml/.test(lower));
+  };
+
+  const hasExplicitRouterCheck = hasRunCommand(ciContent, runCommandChecksRouter);
+  return hasExplicitRouterCheck;
 }
 
 function checksCISkills(ciContent: string | null): boolean {
-  return hasCIWorkflowCheck(ciContent, /context-validate/i)
-    || hasCIWorkflowCheck(ciContent, /goat-.*SKILL\.md|skills.*goat-/i);
+  if (hasRunCommand(ciContent, isContextValidationCommand)) return true;
+
+  const runCommandChecksSkills = (command: string): boolean => {
+    const lower = command.toLowerCase();
+    return /skills/.test(lower)
+      && /goat-/.test(lower)
+      && /(check|validation|validate|scan|ls|find|grep)/.test(lower);
+  };
+
+  return hasRunCommand(ciContent, runCommandChecksSkills);
 }
 
 function extractCIFacts(fs: ReadonlyFS): SharedFacts['ci'] {
@@ -536,6 +587,8 @@ function createEmptyLocalInstructions(csPath: string): SharedFacts['localInstruc
     location: null,
     fileCount: 0,
     hasRouter: false,
+    hasValidRouter: false,
+    routerNeedsFix: null,
     hasConventions: false,
     conventionsHasContent: false,
     hasFrontend: false,
@@ -573,6 +626,75 @@ function hasConventionsContent(content: string): boolean {
   return hasCommands && hasConventionRules && lineCount > 15;
 }
 
+function isReadableRouterRef(rawRef: string): boolean {
+  const ref = rawRef.trim();
+  if (!ref) return false;
+  if (ref.startsWith('http://') || ref.startsWith('https://')) return false;
+  if (ref.startsWith('$') || /\b(README|docs|command|format|lint)\b/i.test(ref)) return false;
+  if (ref.includes(' ')) return false;
+  return /(?:^\.\/|^\.\.\/|^\w+\/|^[a-zA-Z0-9._-]+\.[a-zA-Z0-9]+$)/.test(ref);
+}
+
+function stripRouterAnchor(ref: string): string {
+  const anchorIndex = ref.indexOf('#');
+  if (anchorIndex === -1) return ref.trim();
+  return ref.slice(0, anchorIndex).trim();
+}
+
+function extractRouterRefsFromMarkdown(content: string): string[] {
+  const refs = new Set<string>();
+
+  for (const match of content.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
+    const raw = match[1];
+    if (!raw) continue;
+    const ref = stripRouterAnchor(raw);
+    if (isReadableRouterRef(ref)) refs.add(ref);
+  }
+
+  for (const match of content.matchAll(/`([^`]+)`/g)) {
+    const raw = match[1];
+    if (!raw) continue;
+    const ref = stripRouterAnchor(raw);
+    if (isReadableRouterRef(ref)) refs.add(ref);
+  }
+
+  return Array.from(refs);
+}
+
+function validateRouterLinks(fs: ReadonlyFS, aiReadmeContent: string | null): RouterValidation {
+  if (aiReadmeContent === null) {
+    return {
+      hasValidRouter: false,
+      invalidRefs: [],
+      routerNeedsFix: 'ai/README.md missing - create it and reference existing coding standard files',
+    };
+  }
+
+  const refs = extractRouterRefsFromMarkdown(aiReadmeContent);
+  if (refs.length === 0) {
+    return {
+      hasValidRouter: false,
+      invalidRefs: [],
+      routerNeedsFix: 'ai/README.md should reference at least one instruction file (for example ai/coding-standards/conventions.md).',
+    };
+  }
+
+  const invalidRefs = refs.filter(ref => !fs.exists(ref));
+  if (invalidRefs.length > 0) {
+    return {
+      hasValidRouter: false,
+      invalidRefs,
+      routerNeedsFix: `ai/README.md references missing paths: ${invalidRefs.join(', ')}`,
+    };
+  }
+
+  return {
+    hasValidRouter: true,
+    invalidRefs: [],
+    routerNeedsFix: null,
+  };
+}
+
 function analyzeConventionsContent(
   fs: ReadonlyFS,
   location: LocalInstructionDir['location'],
@@ -601,12 +723,20 @@ function extractLocalInstructions(fs: ReadonlyFS, rawCsPath: string): SharedFact
   const files = fs.listDir(dir).filter(file => file.endsWith('.md'));
   const flags = collectLocalInstructionFlags(files);
   const conventions = analyzeConventionsContent(fs, location, csPath, flags.hasConventions);
+  const hasRouter = location === 'ai' && fs.exists('ai/README.md');
+  const routerValidation = location === 'ai' ? validateRouterLinks(fs, fs.readFile('ai/README.md')) : {
+    hasValidRouter: true,
+    routerNeedsFix: null,
+    invalidRefs: [],
+  };
 
   return {
     dirExists: true,
     location,
     fileCount: files.length,
-    hasRouter: location === 'ai' && fs.exists('ai/README.md'),
+    hasRouter,
+    hasValidRouter: routerValidation.hasValidRouter && hasRouter,
+    routerNeedsFix: hasRouter ? routerValidation.routerNeedsFix : null,
     hasConventions: flags.hasConventions,
     conventionsHasContent: conventions.conventionsHasContent,
     hasFrontend: flags.hasFrontend,

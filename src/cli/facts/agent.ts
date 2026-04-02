@@ -613,10 +613,183 @@ type HookDenyFacts = Pick<
 type PostTurnFacts = Pick<
   AgentFacts['hooks'],
   | 'postTurnExists'
+  | 'postTurnRegistered'
+  | 'postTurnRegisteredPath'
   | 'postTurnExitsZero'
   | 'postTurnHasValidation'
+  | 'postToolRegistered'
+  | 'postToolRegisteredPath'
   | 'postToolExists'
 >;
+
+type HookRegistrationFacts = Pick<
+  AgentFacts['hooks'],
+  | 'postTurnRegistered'
+  | 'postTurnRegisteredPath'
+  | 'postToolRegistered'
+  | 'postToolRegisteredPath'
+>;
+
+interface HookRegistrationMatch {
+  registered: boolean;
+  path: string | null;
+}
+
+function normalizeHookPath(candidate: string): string | null {
+  if (!candidate) return null;
+  let path = candidate.trim();
+  if (!path) return null;
+  path = path.replace(/^['"`]|['"`]$/g, '');
+  // Common Claude/Gemini pattern: bash "$(git rev-parse --show-toplevel)/.../script.sh"
+  const substitutionMatch = path.match(/\$\([^)]*\)\/(.*\.sh)$/);
+  if (substitutionMatch && substitutionMatch[1]) {
+    path = substitutionMatch[1];
+  }
+  if (!path.endsWith('.sh')) return null;
+  return path;
+}
+
+function extractHookPathsFromCommand(command: string): string[] {
+  const pathCandidates: string[] = [];
+  const quotedMatches = command.matchAll(/["']([^"']+\.sh)["']/g);
+  for (const match of quotedMatches) {
+    const path = match[1];
+    if (path === undefined) continue;
+    const normalized = normalizeHookPath(path);
+    if (normalized) pushUniquePath(pathCandidates, normalized);
+  }
+
+  const unquotedMatches = command.matchAll(/([^\s"'`]+\.sh)/g);
+  for (const match of unquotedMatches) {
+    const path = match[1];
+    if (path === undefined) continue;
+    const normalized = normalizeHookPath(path);
+    if (normalized) pushUniquePath(pathCandidates, normalized);
+  }
+
+  return pathCandidates;
+}
+
+function firstHookPathFromCommands(commands: string[]): string | null {
+  for (const command of commands) {
+    const candidates = extractHookPathsFromCommand(command);
+    const [first] = candidates;
+    if (first === undefined) continue;
+    return first;
+  }
+  return null;
+}
+
+function readHooksObject(settingsParsed: unknown): Record<string, unknown> | null {
+  if (!settingsParsed || typeof settingsParsed !== 'object') return null;
+  const hooks = (settingsParsed as Record<string, unknown>).hooks;
+  if (!hooks || typeof hooks !== 'object') return null;
+  return hooks as Record<string, unknown>;
+}
+
+function normalizeEventConfig(hooks: Record<string, unknown>, event: string): HookRegistrationMatch {
+  const rawEvent = hooks[event];
+  if (rawEvent === undefined) return { registered: false, path: null };
+  if (!Array.isArray(rawEvent)) return { registered: false, path: null };
+
+  const commands: string[] = [];
+  for (const entry of rawEvent) {
+    if (!entry || typeof entry !== 'object') continue;
+    const entryObj = entry as Record<string, unknown>;
+    const eventHooks = entryObj.hooks;
+    if (!Array.isArray(eventHooks)) continue;
+
+    for (const hook of eventHooks) {
+      if (!hook || typeof hook !== 'object') continue;
+      const hookObj = hook as Record<string, unknown>;
+      if (hookObj.type !== 'command') continue;
+      const command = hookObj.command;
+      if (typeof command === 'string') {
+        commands.push(command);
+      }
+    }
+  }
+
+  const path = firstHookPathFromCommands(commands);
+  return { registered: path !== null, path };
+}
+
+function extractTomlSection(config: string, section: string): string | null {
+  const header = `[hooks.${section}]`;
+  const start = config.indexOf(header);
+  if (start < 0) return null;
+
+  const sectionTail = config.slice(start + header.length);
+  const nextHeader = sectionTail.indexOf('\n[');
+  return (nextHeader < 0 ? sectionTail : sectionTail.slice(0, nextHeader)).trim();
+}
+
+function extractTomlCommandValues(section: string): string[] {
+  const commandMatch = section.match(/command\\s*=\\s*\\[(.*?)\\]/s);
+  if (commandMatch?.[1]) {
+    return Array.from(commandMatch[1].matchAll(/"([^"\\\\]*)"|'([^'\\\\]*)'/g))
+      .map(m => m[1] ?? m[2])
+      .filter((value): value is string => typeof value === 'string' && value.length > 0);
+  }
+
+  const inlineMatch = section.match(/command\\s*=\\s*["']([^"']+)["']/);
+  return inlineMatch?.[1] ? [inlineMatch[1]] : [];
+}
+
+function normalizeCodexHookRegistration(config: string, section: string): HookRegistrationMatch {
+  const sectionText = extractTomlSection(config, section);
+  if (sectionText === null) return { registered: false, path: null };
+
+  const commands = extractTomlCommandValues(sectionText);
+  const path = firstHookPathFromCommands(commands);
+  return { registered: path !== null, path };
+}
+
+function buildHookRegistration(agent: AgentProfile, settingsParsed: unknown, configText: string | null): {
+  postTurnRegistered: boolean;
+  postTurnRegisteredPath: string | null;
+  postToolRegistered: boolean;
+  postToolRegisteredPath: string | null;
+} {
+  if (agent.id === 'codex') {
+    if (configText == null) {
+      return {
+        postTurnRegistered: false,
+        postTurnRegisteredPath: null,
+        postToolRegistered: false,
+        postToolRegisteredPath: null,
+      };
+    }
+
+    const stop = normalizeCodexHookRegistration(configText, 'stop');
+    const afterTool = normalizeCodexHookRegistration(configText, 'after_tool_use');
+    return {
+      postTurnRegistered: stop.registered,
+      postTurnRegisteredPath: stop.path,
+      postToolRegistered: afterTool.registered,
+      postToolRegisteredPath: afterTool.path,
+    };
+  }
+
+  const hooks = readHooksObject(settingsParsed);
+  if (!hooks) {
+    return {
+      postTurnRegistered: false,
+      postTurnRegisteredPath: null,
+      postToolRegistered: false,
+      postToolRegisteredPath: null,
+    };
+  }
+
+  const postTurn = normalizeEventConfig(hooks, agent.hookEvents.postTurn);
+  const postTool = normalizeEventConfig(hooks, agent.hookEvents.postTool);
+  return {
+    postTurnRegistered: postTurn.registered,
+    postTurnRegisteredPath: postTurn.path,
+    postToolRegistered: postTool.registered,
+    postToolRegisteredPath: postTool.path,
+  };
+}
 
 function detectCompactionHookExists(
   fs: ReadonlyFS,
@@ -712,6 +885,8 @@ function extractHookFacts(
   fs: ReadonlyFS, agent: AgentProfile, settingsParsed: unknown, hasDenyPatterns: boolean, settingsValid: boolean,
 ): Omit<AgentFacts['hooks'], 'readDenyCoversSecrets'> {
   const compactionHookExists = detectCompactionHookExists(fs, agent, settingsParsed, settingsValid);
+  const configText = agent.id === 'codex' ? fs.readFile('.codex/config.toml') : null;
+  const registration = buildHookRegistration(agent, settingsParsed, configText);
   const hook = analyzeDenyHookPath(fs, resolveDenyHookPath(fs, agent));
   const absolutePathHooks = findAbsolutePathHooks(fs, agent.hooksDir);
 
@@ -723,7 +898,7 @@ function extractHookFacts(
     enrichDenyFromExecpolicy(fs, hook);
   }
 
-  const postTurn = extractPostTurnFacts(fs, agent);
+  const postTurn = extractPostTurnFacts(fs, agent, registration);
 
   return {
     ...hook,
@@ -749,75 +924,63 @@ function analyzeHookScriptAtPath(
   };
 }
 
-function extractCodexStopScriptPath(configContent: string): string | null {
-  const stopScript = configContent.match(/\[hooks\.stop\]\s*\n\s*command\s*=\s*\[.*?"([^"]+\.sh)"/);
-  return stopScript?.[1] ?? null;
-}
+function extractCodexPostTurnFacts(fs: ReadonlyFS, registration: HookRegistrationFacts): PostTurnFacts {
+  const postTurnRegisteredPath = registration.postTurnRegisteredPath;
+  const postToolRegisteredPath = registration.postToolRegisteredPath;
+  const postTurnExists = registration.postTurnRegistered && postTurnRegisteredPath !== null && fs.exists(postTurnRegisteredPath);
+  const postToolExists = registration.postToolRegistered && postToolRegisteredPath !== null && fs.exists(postToolRegisteredPath);
 
-function extractCodexPostTurnFacts(fs: ReadonlyFS): PostTurnFacts {
-  const configContent = fs.readFile('.codex/config.toml');
-  if (!configContent) {
-    return {
-      postTurnExists: false,
-      postTurnExitsZero: false,
-      postTurnHasValidation: false,
-      postToolExists: false,
-    };
-  }
-
-  const postTurnExists = /\[hooks\.stop\]/.test(configContent);
-  const postToolExists = /\[hooks\.after_tool_use\]/.test(configContent);
-  if (!postTurnExists) {
-    return {
-      postTurnExists,
-      postTurnExitsZero: false,
-      postTurnHasValidation: false,
-      postToolExists,
-    };
-  }
-
-  const stopScriptPath = extractCodexStopScriptPath(configContent);
   return {
+    postTurnRegistered: registration.postTurnRegistered,
+    postTurnRegisteredPath,
+    postToolRegistered: registration.postToolRegistered,
+    postToolRegisteredPath,
     postTurnExists,
     postToolExists,
     ...(
-      stopScriptPath
-        ? analyzeHookScriptAtPath(fs, stopScriptPath)
+      postTurnExists && postTurnRegisteredPath
+        ? analyzeHookScriptAtPath(fs, postTurnRegisteredPath)
         : { postTurnExitsZero: false, postTurnHasValidation: false }
     ),
   };
 }
 
-function extractDirectoryPostTurnFacts(fs: ReadonlyFS, hooksDir: string): PostTurnFacts {
-  const stopLintPath = `${hooksDir}/stop-lint.sh`;
-  const postTurnExists = fs.exists(stopLintPath);
-  const postToolExists = fs.exists(`${hooksDir}/format-file.sh`);
+function extractDirectoryPostTurnFacts(fs: ReadonlyFS, registration: HookRegistrationFacts): PostTurnFacts {
+  const postTurnRegisteredPath = registration.postTurnRegisteredPath;
+  const postToolRegisteredPath = registration.postToolRegisteredPath;
+  const postTurnExists = registration.postTurnRegistered && postTurnRegisteredPath !== null && fs.exists(postTurnRegisteredPath);
+  const postToolExists = registration.postToolRegistered && postToolRegisteredPath !== null && fs.exists(postToolRegisteredPath);
 
   return {
+    postTurnRegistered: registration.postTurnRegistered,
+    postTurnRegisteredPath,
+    postToolRegistered: registration.postToolRegistered,
+    postToolRegisteredPath,
     postTurnExists,
     postToolExists,
     ...(
-      postTurnExists
-        ? analyzeHookScriptAtPath(fs, stopLintPath)
+      postTurnExists && postTurnRegisteredPath
+        ? analyzeHookScriptAtPath(fs, postTurnRegisteredPath)
         : { postTurnExitsZero: false, postTurnHasValidation: false }
     ),
   };
 }
 
 /** Extract post-turn and post-tool hook facts. */
-function extractPostTurnFacts(fs: ReadonlyFS, agent: AgentProfile): {
-  postTurnExists: boolean; postTurnExitsZero: boolean;
-  postTurnHasValidation: boolean; postToolExists: boolean;
-} {
+function extractPostTurnFacts(fs: ReadonlyFS, agent: AgentProfile, registration: HookRegistrationFacts): PostTurnFacts {
   if (agent.id === 'codex') {
-    return extractCodexPostTurnFacts(fs);
+    return extractCodexPostTurnFacts(fs, registration);
   }
 
   if (agent.hooksDir) {
-    return extractDirectoryPostTurnFacts(fs, agent.hooksDir);
+    return extractDirectoryPostTurnFacts(fs, registration);
   }
 
   return {
+    postTurnRegistered: false,
+    postTurnRegisteredPath: null,
+    postToolRegistered: false,
+    postToolRegisteredPath: null,
     postTurnExists: false,
     postTurnExitsZero: false,
     postTurnHasValidation: false,

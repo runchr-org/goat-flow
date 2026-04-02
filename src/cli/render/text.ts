@@ -3,6 +3,8 @@ import type { ScanReport, AgentReport, CheckResult, AntiPatternResult, CheckStat
 /** Priority levels used by recommendation entries */
 type Priority = 'critical' | 'high' | 'medium' | 'low';
 
+type CheckSeverity = Priority;
+
 /** Render a text-based progress bar using block characters */
 function progressBar(percentage: number, width: number = 20): string {
   /** Number of filled blocks proportional to the percentage */
@@ -36,6 +38,78 @@ function getTriggeredAntiPatterns(antiPatterns: AntiPatternResult[]): AntiPatter
   return antiPatterns.filter(antiPattern => antiPattern.triggered);
 }
 
+function checkSeverityFromTier(tier: string): CheckSeverity {
+  if (tier === 'foundation') return 'critical';
+  if (tier === 'standard') return 'high';
+  return 'medium';
+}
+
+function getCheckSeverity(check: CheckResult): CheckSeverity {
+  if (check.status === 'partial' && check.tier === 'full') return 'low';
+  return checkSeverityFromTier(check.tier);
+}
+
+function collectCheckFailureSummary(checks: AgentReport['checks']): {
+  fail: number;
+  partial: number;
+  pass: number;
+  severityCounts: Record<CheckSeverity, number>;
+} {
+  const summary = {
+    fail: 0,
+    partial: 0,
+    pass: 0,
+    severityCounts: { critical: 0, high: 0, medium: 0, low: 0 } as Record<CheckSeverity, number>,
+  };
+
+  for (const check of checks) {
+    if (check.status === 'fail') {
+      summary.fail += 1;
+      summary.severityCounts[getCheckSeverity(check)] += 1;
+      continue;
+    }
+    if (check.status === 'partial') {
+      summary.partial += 1;
+      summary.severityCounts.low += 1;
+      continue;
+    }
+    if (check.status === 'pass') summary.pass += 1;
+  }
+
+  return summary;
+}
+
+function appendSeverityGroupedFailingChecks(lines: string[], checks: AgentReport['checks']): void {
+  const critical: CheckResult[] = [];
+  const high: CheckResult[] = [];
+  const medium: CheckResult[] = [];
+  const low: CheckResult[] = [];
+
+  for (const check of checks) {
+    if (check.status !== 'fail' && check.status !== 'partial') continue;
+    const severity = getCheckSeverity(check);
+    if (severity === 'critical') critical.push(check);
+    else if (severity === 'high') high.push(check);
+    else if (severity === 'medium') medium.push(check);
+    else low.push(check);
+  }
+
+  const groups: Array<{ name: string; checks: CheckResult[] }> = [
+    { name: 'CRITICAL', checks: critical },
+    { name: 'HIGH', checks: high },
+    { name: 'MEDIUM', checks: medium },
+    { name: 'LOW', checks: low },
+  ];
+
+  for (const group of groups) {
+    if (group.checks.length === 0) continue;
+    lines.push(`  ${group.name}:`);
+    for (const check of group.checks) {
+      lines.push(`    - ${check.id} ${check.name}: ${check.message}`);
+    }
+  }
+}
+
 function appendTierScores(lines: string[], agent: AgentReport): void {
   const { foundation, standard, full } = agent.score.tiers;
   lines.push(`  Foundation:  ${String(foundation.earned).padStart(3)}/${foundation.available}  ${progressBar(foundation.percentage)}  ${foundation.percentage}%`);
@@ -64,6 +138,18 @@ function appendRecommendations(lines: string[], agent: AgentReport): void {
 }
 
 function appendCheckDetails(lines: string[], agent: AgentReport): void {
+  const counts = collectCheckFailureSummary(agent.checks);
+  const totalChecks = counts.pass + counts.partial + counts.fail;
+  lines.push(`Failures: ${counts.fail} failed, ${counts.partial} partial, ${counts.pass} pass / ${totalChecks} checks.`);
+  lines.push(`Critical: ${counts.severityCounts.critical} | High: ${counts.severityCounts.high} | Medium: ${counts.severityCounts.medium} | Low: ${counts.severityCounts.low}`);
+  if (counts.fail + counts.partial > 0) {
+    appendSeverityGroupedFailingChecks(lines, agent.checks);
+    if (getTriggeredAntiPatterns(agent.antiPatterns).length > 0) {
+      lines.push(`Anti-patterns triggered: ${getTriggeredAntiPatterns(agent.antiPatterns).length}`);
+    }
+  }
+  lines.push('');
+
   lines.push('Check Details:');
   for (const check of agent.checks) {
     lines.push(renderCheck(check));
@@ -113,6 +199,10 @@ function appendDiagnosticSummary(
   lines.push('');
   const top = impacts[0];
   if (top) lines.push(`  Highest-impact fix: ${top.label} - recovers ${top.points} points`);
+  if (impacts.length > 0) {
+    const topThree = impacts.slice(0, 3).map(item => item.label);
+    lines.push(`  Top ${topThree.length} to fix next: ${topThree.join('; ')}`);
+  }
   lines.push('');
 }
 

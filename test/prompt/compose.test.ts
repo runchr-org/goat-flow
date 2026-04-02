@@ -5,6 +5,7 @@ import { scanProject } from '../../src/cli/scanner/scan.js';
 import { composeSetup, composeInlineSetup, composeMultiAgentSetup } from '../../src/cli/prompt/compose-setup.js';
 import type { TemplateRef } from '../../src/cli/prompt/template-refs.js';
 import { renderText } from '../../src/cli/render/text.js';
+import { renderMarkdown } from '../../src/cli/render/markdown.js';
 import { parseCLIArgs } from '../../src/cli/cli.js';
 
 // ─── Shared fixtures ────────────────────────────────────────────────
@@ -274,6 +275,28 @@ describe('composeSetup (reference-based)', () => {
     assert.ok(output);
     assert.ok(output.includes('Delete these directories'), 'Setup prompt should instruct the user to remove stale skill dirs');
     assert.ok(output.includes('goat-investigate'), 'Setup prompt should mention stale skill examples');
+  });
+});
+
+describe('M18: markdown renderer summaries', () => {
+  it('renders severity grouped failures and top fixes', () => {
+    const fs = buildMinimalProject();
+    const report = scanProject(fs, '/test', { agentFilter: 'claude' });
+    const output = renderMarkdown(report);
+
+    assert.ok(output.includes('Failures:'), 'Output should include failure summary');
+    assert.ok(output.includes('Critical'), 'Output should include severity summary');
+    assert.ok(output.includes('Top'), 'Output should include diagnostic top-fix list');
+    assert.ok(output.includes('to fix first'), 'Output should show "to fix first" summary');
+  });
+
+  it('groups failures by severity headings', () => {
+    const fs = buildMinimalProject();
+    const report = scanProject(fs, '/test', { agentFilter: 'claude' });
+    const output = renderMarkdown(report);
+
+    assert.ok(output.includes('### CRITICAL') || output.includes('### HIGH') || output.includes('### MEDIUM') || output.includes('### LOW'),
+      'Output should include at least one severity group');
   });
 });
 

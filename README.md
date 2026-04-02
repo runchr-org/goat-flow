@@ -22,9 +22,9 @@ The dashboard auto-opens in your browser on first run.
 |---|---|---|
 | npm | `npm install --save-dev @blundergoat/goat-flow` | ✅ tested |
 | pnpm | `pnpm add -D @blundergoat/goat-flow` then `pnpm approve-builds` | ✅ tested; terminal may require approving `node-pty` |
-| yarn | `yarn add -D @blundergoat/goat-flow` | ⚪ not executed here (yarn missing) |
-| bun | `bun add -d @blundergoat/goat-flow` | ⚪ not executed here (bun missing) |
-| npx | `npx @blundergoat/goat-flow@0.10.0 scan .` | ⚪ not verifiable yet (registry currently resolves to 0.9.4) |
+| yarn | `yarn add -D @blundergoat/goat-flow` (`corepack yarn`) | ✅ tested; installs latest published package |
+| bun | `bun add -d @blundergoat/goat-flow` | ❌ unavailable in current environment (`bun` command not found) |
+| npx | `npx @blundergoat/goat-flow@latest scan .` | ✅ tested for no-install usage; currently resolves to 0.9.4 |
 
 ### Global (optional)
 
@@ -88,13 +88,19 @@ All agents share the same execution loop, autonomy tiers, and learning loop.
 node-pty didn't compile. Fix: `npm install node-pty` or `pnpm approve-builds` (select node-pty).
 
 **pnpm: node-pty not building?**
-pnpm blocks native builds by default. Run `pnpm approve-builds` and select node-pty, then restart the dashboard.
+If needed, run `pnpm approve-builds` and select `node-pty`, then restart the dashboard.
 
 **Scan shows 0% on a fresh project?**
 Expected. Run `npx goat-flow setup --agent claude` to generate setup instructions, then paste into your agent.
 
 **npx: command not found?**
 Install Node.js 20+.
+
+To run the current local workspace without publishing/installing first, use:
+
+```bash
+npx . scan .
+```
 
 ## Documentation
 

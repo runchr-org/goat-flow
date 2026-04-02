@@ -40,6 +40,11 @@
   "engines": {
     "node": ">=20.11.0"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "node-pty"
+    ]
+  },
   "scripts": {
     "build": "tsc",
     "test": "node --import tsx --test test/*/*.test.ts",

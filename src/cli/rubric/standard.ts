@@ -54,6 +54,23 @@ function formatMissingEnvDenyActions(hasEditEnv: boolean, hasWriteEnv: boolean):
   return missing.join(' and ');
 }
 
+function getHookSettingsPath(ctx: FactContext): string {
+  return ctx.agentFacts.agent.settingsFile ?? 'agent hook config';
+}
+
+function formatMissingHookRegistrationMessage(
+  ctx: FactContext,
+  hookKind: 'post-turn' | 'post-tool',
+  eventName: string,
+  expectedPath: string,
+): string {
+  const settingsPath = getHookSettingsPath(ctx);
+  const formatterDetail = hookKind === 'post-tool' && ctx.facts.stack.formatCommand
+    ? ` Formatter detected: ${ctx.facts.stack.formatCommand}.`
+    : '';
+  return `Expected ${hookKind} hook registration in ${settingsPath} for event "${eventName}" pointing at ${expectedPath}, but no matching hook entry was found.${formatterDetail}`;
+}
+
 /**
  * Tier 2 - Standard (58 pts on a fully configured project; varies with N/A checks)
  * Skills, hooks, learning loop, router, architecture, local context.
@@ -305,9 +322,13 @@ export const standardChecks: CheckDef[] = [
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
         id: '2.2.2', name: 'Post-turn hook registered', tier: 'standard', category: 'Hooks',
-        status: ctx.agentFacts.hooks.postTurnExists ? 'pass' : 'fail',
-        points: ctx.agentFacts.hooks.postTurnExists ? 2 : 0, maxPoints: 2, confidence: 'high',
-        message: ctx.agentFacts.hooks.postTurnExists ? 'Post-turn hook exists' : 'No post-turn hook (stop-lint)',
+        status: ctx.agentFacts.hooks.postTurnRegistered ? 'pass' : 'fail',
+        points: ctx.agentFacts.hooks.postTurnRegistered ? 2 : 0, maxPoints: 2, confidence: 'high',
+        message: ctx.agentFacts.hooks.postTurnRegistered && ctx.agentFacts.hooks.postTurnRegisteredPath
+          ? `Post-turn hook registered: ${ctx.agentFacts.hooks.postTurnRegisteredPath}`
+          : ctx.agentFacts.hooks.postTurnRegistered
+            ? 'Post-turn hook registered but script path is missing'
+            : formatMissingHookRegistrationMessage(ctx, 'post-turn', ctx.agentFacts.agent.hookEvents.postTurn, `${ctx.agentFacts.agent.hooksDir ?? '.'}/stop-lint.sh`),
       }),
     },
     recommendation: 'Create stop-lint hook for post-turn verification',
@@ -340,7 +361,7 @@ export const standardChecks: CheckDef[] = [
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
         // Whether a post-tool hook (format-file) exists
-        const exists = ctx.agentFacts.hooks.postToolExists;
+        const exists = ctx.agentFacts.hooks.postToolRegistered;
         // Also pass if no formatter configured (documented skip)
         const noFormatter = ctx.facts.stack.formatCommand === null;
         // Pass when either the hook exists or no formatter is needed
@@ -348,7 +369,11 @@ export const standardChecks: CheckDef[] = [
         return {
           id: '2.2.4', name: 'Post-tool hook or documented skip', tier: 'standard', category: 'Hooks',
           status: pass ? 'pass' : 'fail', points: pass ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: exists ? 'Post-tool hook exists' : (noFormatter ? 'No formatter - skip is correct' : 'No post-tool hook and formatter exists'),
+          message: exists
+            ? `Post-tool hook registered: ${ctx.agentFacts.hooks.postToolRegisteredPath}`
+            : (noFormatter
+              ? 'No formatter - skip is correct'
+              : formatMissingHookRegistrationMessage(ctx, 'post-tool', ctx.agentFacts.agent.hookEvents.postTool, `${ctx.agentFacts.agent.hooksDir ?? '.'}/format-file.sh`)),
         };
       },
     },
@@ -829,15 +854,25 @@ export const standardChecks: CheckDef[] = [
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
-        const { hasRouter, dirExists } = ctx.facts.shared.localInstructions;
+        const { hasRouter, hasValidRouter, routerNeedsFix, dirExists } = ctx.facts.shared.localInstructions;
         if (dirExists === false) {
           return { id: '2.6.2', name: 'Router exists', tier: 'standard', category: 'Local Instructions', status: 'fail', points: 0, maxPoints: 1, confidence: 'high', message: 'No instructions directory - router not applicable' };
+        }
+        if (!hasValidRouter && routerNeedsFix !== null) {
+          return {
+            id: '2.6.2', name: 'Router exists', tier: 'standard', category: 'Local Instructions',
+            status: 'fail',
+            points: 0,
+            maxPoints: 1,
+            confidence: 'high',
+            message: routerNeedsFix,
+          };
         }
         return {
           id: '2.6.2', name: 'Router exists', tier: 'standard', category: 'Local Instructions',
           status: hasRouter ? 'pass' : 'fail',
           points: hasRouter ? 1 : 0, maxPoints: 1, confidence: 'high',
-          message: hasRouter ? 'ai/README.md exists' : 'ai/README.md not found - agents need a router to discover instruction files',
+          message: hasRouter ? 'ai/README.md exists and router links are valid' : 'ai/README.md not found - agents need a router to discover instruction files',
         };
       },
     },

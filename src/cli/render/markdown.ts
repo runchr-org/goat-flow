@@ -1,4 +1,4 @@
-import type { ScanReport, AgentReport, CheckStatus } from '../types.js';
+import type { ScanReport, AgentReport, AntiPatternResult, CheckResult } from '../types.js';
 
 const RECOMMENDATION_TAGS = {
   critical: '🔴',
@@ -7,14 +7,121 @@ const RECOMMENDATION_TAGS = {
   low: '🟡',
 } as const;
 
-/** Map check status to a markdown-friendly emoji */
-function statusEmoji(status: CheckStatus): string {
-  switch (status) {
-    case 'pass': return ':white_check_mark:';
-    case 'partial': return ':yellow_circle:';
-    case 'fail': return ':x:';
-    case 'na': return ':heavy_minus_sign:';
+type Priority = 'critical' | 'high' | 'medium' | 'low';
+type CheckSeverity = Priority;
+
+function checkSeverityFromTier(tier: string): CheckSeverity {
+  if (tier === 'foundation') return 'critical';
+  if (tier === 'standard') return 'high';
+  return 'medium';
+}
+
+function getCheckSeverity(check: CheckResult): CheckSeverity {
+  if (check.status === 'partial' && check.tier === 'full') return 'low';
+  return checkSeverityFromTier(check.tier);
+}
+
+function getTriggeredAntiPatterns(antiPatterns: AntiPatternResult[]): AntiPatternResult[] {
+  return antiPatterns.filter(antiPattern => antiPattern.triggered);
+}
+
+function collectCheckFailureSummary(checks: AgentReport['checks']): {
+  fail: number;
+  partial: number;
+  pass: number;
+  severityCounts: Record<CheckSeverity, number>;
+} {
+  const summary = {
+    fail: 0,
+    partial: 0,
+    pass: 0,
+    severityCounts: { critical: 0, high: 0, medium: 0, low: 0 } as Record<CheckSeverity, number>,
+  };
+
+  for (const check of checks) {
+    if (check.status === 'fail') {
+      summary.fail += 1;
+      summary.severityCounts[getCheckSeverity(check)] += 1;
+      continue;
+    }
+    if (check.status === 'partial') {
+      summary.partial += 1;
+      summary.severityCounts.low += 1;
+      continue;
+    }
+    if (check.status === 'pass') {
+      summary.pass += 1;
+    }
   }
+
+  return summary;
+}
+
+function appendSeverityGroupedFailingChecks(lines: string[], checks: AgentReport['checks']): void {
+  const critical: CheckResult[] = [];
+  const high: CheckResult[] = [];
+  const medium: CheckResult[] = [];
+  const low: CheckResult[] = [];
+
+  for (const check of checks) {
+    if (check.status !== 'fail' && check.status !== 'partial') continue;
+    const severity = getCheckSeverity(check);
+    if (severity === 'critical') critical.push(check);
+    else if (severity === 'high') high.push(check);
+    else if (severity === 'medium') medium.push(check);
+    else low.push(check);
+  }
+
+  const groups: Array<{ name: string; checks: CheckResult[] }> = [
+    { name: 'CRITICAL', checks: critical },
+    { name: 'HIGH', checks: high },
+    { name: 'MEDIUM', checks: medium },
+    { name: 'LOW', checks: low },
+  ];
+
+  for (const group of groups) {
+    if (group.checks.length === 0) continue;
+    lines.push(`### ${group.name}`);
+    lines.push('| Check | Points | Message |');
+    lines.push('|------|--------|---------|');
+    for (const check of group.checks) {
+      lines.push(`| ${check.id} ${check.name} | ${check.points}/${check.maxPoints} | ${check.message} |`);
+    }
+    lines.push('');
+  }
+}
+
+function collectDiagnosticImpacts(agent: AgentReport): Array<{ label: string; points: number; priority: string }> {
+  const impacts: Array<{ label: string; points: number; priority: string }> = [];
+
+  for (const recommendation of agent.recommendations) {
+    const check = agent.checks.find(candidate => candidate.id === recommendation.checkId);
+    const recoverable = check ? check.maxPoints - check.points : 0;
+    if (recoverable > 0) {
+      impacts.push({ label: `${recommendation.checkId}: ${recommendation.action}`, points: recoverable, priority: recommendation.priority });
+    }
+  }
+
+  for (const antiPattern of getTriggeredAntiPatterns(agent.antiPatterns)) {
+    impacts.push({ label: `${antiPattern.id}: ${antiPattern.name}`, points: Math.abs(antiPattern.deduction), priority: 'critical' });
+  }
+
+  impacts.sort((a, b) => b.points - a.points);
+  return impacts;
+}
+
+function appendDiagnosticSummary(lines: string[], impacts: Array<{ label: string; points: number; priority: string }>): void {
+  if (impacts.length === 0) return;
+
+  lines.push('## Diagnostic Summary');
+  for (const item of impacts.slice(0, 5)) {
+    lines.push(`- ${item.label} (${item.points} pts recoverable)`);
+  }
+  const topThree = impacts.slice(0, 3).map(item => item.label);
+  if (topThree.length > 0) {
+    lines.push(`Top ${topThree.length} to fix first: ${topThree.join('; ')}`);
+  }
+  lines.push('');
 }
 
 /** Render a scan report as GitHub-flavored markdown suitable for PR comments */
@@ -61,16 +168,17 @@ export function renderMarkdown(report: ScanReport): string {
 function appendFailingChecks(lines: string[], failing: AgentReport['checks']): void {
   if (failing.length === 0) return;
 
-  lines.push('| Status | Check | Points | Message |');
-  lines.push('|--------|-------|--------|---------|');
-  for (const check of failing) {
-    lines.push(`| ${statusEmoji(check.status)} | ${check.id} ${check.name} | ${check.points}/${check.maxPoints} | ${check.message} |`);
-  }
+  const counts = collectCheckFailureSummary(failing);
+  const totalChecks = counts.fail + counts.partial + counts.pass;
+  lines.push(`Failures: ${counts.fail} failed, ${counts.partial} partial, ${counts.pass} pass / ${totalChecks} checks.`);
+  lines.push(`Severity: Critical ${counts.severityCounts.critical} | High ${counts.severityCounts.high} | Medium ${counts.severityCounts.medium} | Low ${counts.severityCounts.low}`);
   lines.push('');
+
+  appendSeverityGroupedFailingChecks(lines, failing);
 }
 
 function appendTriggeredAntiPatterns(lines: string[], agent: AgentReport): void {
-  const triggered = agent.antiPatterns.filter(antiPattern => antiPattern.triggered);
+  const triggered = getTriggeredAntiPatterns(agent.antiPatterns);
   if (triggered.length === 0) return;
 
   lines.push('**Anti-pattern deductions:**');
@@ -104,8 +212,9 @@ function renderAgentMarkdown(agent: AgentReport): string[] {
     lines.push(`<details><summary><strong>${agent.agentName}</strong> - ${failing.length} issue${failing.length !== 1 ? 's' : ''}</summary>`);
     lines.push('');
   }
-  appendFailingChecks(lines, failing);
+  appendFailingChecks(lines, agent.checks);
   appendTriggeredAntiPatterns(lines, agent);
+  appendDiagnosticSummary(lines, collectDiagnosticImpacts(agent));
   appendRecommendations(lines, agent);
 
   if (agent.checks.length > 0) {
