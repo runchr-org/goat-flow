@@ -73,12 +73,40 @@ M1 Fixes & Hygiene. Driven by 6 cross-project reviews (avg 71/100) + real-projec
 - All footgun files date-prefixed (`YYYY-MM-DD-slug.md`)
 - 248 files updated across source, tests, docs, skills (3 agent dirs), setup templates, CI
 
-### Roadmap Plans
-- M1b, M3, M5, M6, M7 deeply reviewed and improved for sub-agent executability
-- M3: gamification audit phased (inventory → human judgment → implementation), project type detection heuristics, measurable quality gate thresholds
-- M5: build script gap fixed, dispatcher routing corrected, CDN fallback clarified
-- M6: `--prompt` flag corrected to positional arg, integration contract with serve-dashboard.ts, sub-agent phasing added
-- M7: CSP `connect-src` moved to M6, Escape key replaced with Ctrl+Shift+D, session lifecycle deduped with M6
+### PTY Terminal Backend (M6)
+- `node-pty` (pinned 1.1.0) + `ws` added as `optionalDependencies` — lazy-loaded on first terminal request, scanner-only installs unaffected
+- `TerminalManager`: multi-runner support (claude/codex/gemini), session create/kill/list, 30-min idle timeout, max 3 concurrent sessions, graceful SIGTERM/SIGINT shutdown
+- REST API: `POST /api/terminal/create` (with `runner` field), `GET /api/terminal/list`, `DELETE /api/terminal/:id`, `GET /api/health` (reports `availableRunners`)
+- WebSocket upgrade on server `'upgrade'` event with Origin check (DNS rebinding protection), single reused `WebSocketServer` instance
+- Typed JSON envelopes: client sends `input`/`resize`, server sends `output`/`exit`/`error`/`shutdown`
+- `serveDashboard()` returns `DashboardServer` handle with `close()` for test teardown
+- Request body capped at 64KB
+
+### Terminal Launcher UI (M7)
+- xterm.js + FitAddon lazy-loaded from CDN on first Launch click, with 5s timeout fallback
+- "Launch" button on every preset card (visible when `/api/health` reports runners available)
+- Setup Launcher panel: pick target agent (claude/codex/gemini) + runner CLI, generates setup prompt via `/api/setup` then spawns chosen CLI with it
+- Terminal nav button in sidebar view toggle (Scanner | Launcher | Terminal) with pulsing green dot when session active
+- Connection status indicator (green/red), session-ended overlay with "Return to Launcher"
+- Ctrl+Shift+D exit shortcut, double-launch guard
+- FitAddon delayed fit (50ms + 200ms) to handle Alpine.js `x-show` transition timing
+- Deep Critique preset added (audit category) — 6-phase goat-flow system review prompt
+
+### Dashboard UX Fixes (from browser review)
+- **Dark mode toggle fixed** — removed `:class` from `<html>`, added `classList.toggle` in `$watch` + `init()` to properly sync with anti-FOUC script
+- **Copy feedback on cards** — button turns green with "Copied!" for 1.5s after click
+- **Escape collapses checks** — all expanded checks collapse on Escape key
+- **Agent switch preserves tab** — switching agents no longer jumps to Overview tab
+- **"Reset filters"** — renamed from "Show all", now clears tier, statuses, and search query
+- **Focus rings brighter** — `#60a5fa` with 3px offset + glow shadow for dark background visibility
+- **Anti-patterns hidden during search** — anti-pattern section hidden when search or tier filter active
+
+### Tests
+- 239 → 275 tests (+36)
+- New `test/evals/evals.test.ts` (20 tests): parser frontmatter, defaults, validation, legacy format, section aliases, loader discovery, skip files, error handling, summarizer grouping, formatters
+- New `test/terminal/serve-dashboard.test.ts` (16 tests): HTML serving, path injection, health endpoint, terminal create/list/delete, browse API, body size limit, static assets, 404 handling
+- New `test/terminal/terminal-server.test.ts` (16 tests): path validation, manager CRUD, max sessions, idle timeout (mock timers), shell metacharacter injection, runner info
+
 
 ---
 

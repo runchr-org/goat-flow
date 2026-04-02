@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" :class="darkMode ? 'dark' : ''" x-data="app()" x-init="init()">
+<html lang="en" x-data="app()" x-init="init()">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +12,10 @@
   </style>
   <style>
     [x-cloak] { display: none !important; }
+    /* xterm.js container */
+    .terminal-container { width: 100%; height: calc(100vh - 8rem); }
+    .terminal-container .xterm { height: 100%; }
+    .terminal-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); z-index: 10; border-radius: 0.75rem; }
     /* Dark mode fallback - if Tailwind dark: variant doesn't process, these catch it */
     .dark { background-color: #111827; color: #f3f4f6; }
     .dark aside, .dark .bg-white { background-color: #1f2937 !important; }
@@ -39,7 +43,7 @@
       span[class*="bg-"] { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
     }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-    :focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; border-radius: 4px; }
+    :focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; border-radius: 4px; box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.3); }
   </style>
   <!-- Prevent FOUC: apply dark mode before paint -->
   <script>
@@ -105,6 +109,12 @@
           class="flex-1 px-2 py-1 text-xs font-medium rounded-md transition-colors">Scanner</button>
         <button @click="activeView = 'launcher'" :class="activeView === 'launcher' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''"
           class="flex-1 px-2 py-1 text-xs font-medium rounded-md transition-colors">Launcher</button>
+        <button x-show="terminalAvailable" @click="activeView = terminalSessionId && !terminalEnded ? 'terminal' : 'launcher'"
+          :class="activeView === 'terminal' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''"
+          class="flex-1 px-2 py-1 text-xs font-medium rounded-md transition-colors relative">
+          Terminal
+          <span x-show="terminalSessionId && !terminalEnded && activeView !== 'terminal'" class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+        </button>
       </div>
 
       <!-- Folder Browser -->
@@ -129,7 +139,7 @@
     <!-- Agent List -->
     <nav class="flex-1 p-2 space-y-1" x-show="report">
       <template x-for="agent in allAgents" :key="agent.id">
-        <button @click="agent.detected ? (selectedAgent = agent.id, activeTab = 'overview', sidebarOpen = false) : runSetupFor(agent.id)"
+        <button @click="agent.detected ? (selectedAgent = agent.id, sidebarOpen = false) : runSetupFor(agent.id)"
           :class="selectedAgent === agent.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : agent.detected ? 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'"
           class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors">
           <span x-text="agent.name"></span>
@@ -165,7 +175,39 @@
     <div x-show="activeView === 'launcher'" x-cloak class="max-w-4xl mx-auto space-y-6">
       <div>
         <h2 class="text-2xl font-bold">Launcher</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Browse prompt recipes. Click to copy. Paste in your terminal.</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Browse prompt recipes. Click to copy, or launch directly.</p>
+      </div>
+
+      <!-- ── Setup Launcher ── -->
+      <div x-show="terminalAvailable" class="p-4 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 space-y-3">
+        <h3 class="text-sm font-bold text-blue-900 dark:text-blue-200">Run Setup</h3>
+        <p class="text-xs text-blue-700 dark:text-blue-300">Generate a setup prompt and launch it in a coding agent CLI.</p>
+        <div class="flex flex-wrap gap-2 items-end">
+          <div class="flex-1 min-w-[140px]">
+            <label class="text-xs font-medium text-blue-800 dark:text-blue-300 block mb-1">Setup for agent</label>
+            <select x-model="setupAgent" class="w-full text-xs px-2 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+              <option value="claude">Claude</option>
+              <option value="codex">Codex</option>
+              <option value="gemini">Gemini</option>
+            </select>
+          </div>
+          <div class="flex-1 min-w-[140px]">
+            <label class="text-xs font-medium text-blue-800 dark:text-blue-300 block mb-1">Run in CLI</label>
+            <select x-model="setupRunner" class="w-full text-xs px-2 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+              <template x-for="r in availableRunners" :key="r">
+                <option :value="r" x-text="r.charAt(0).toUpperCase() + r.slice(1)"></option>
+              </template>
+            </select>
+          </div>
+          <button @click="launchSetup()" :disabled="launching"
+            class="px-4 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+            <span x-show="!launching">Launch Setup</span>
+            <span x-show="launching">Starting...</span>
+          </button>
+        </div>
+        <p class="text-xs text-blue-600 dark:text-blue-400">
+          Project: <span class="font-mono" x-text="projectPath"></span>
+        </p>
       </div>
 
       <!-- Category Filter -->
@@ -180,17 +222,58 @@
       <!-- Preset Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <template x-for="preset in filteredPresets" :key="preset.id">
-          <button @click="copyPreset(preset.prompt)" @keydown.enter="copyPreset(preset.prompt)"
-            class="text-left p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <div class="text-left p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all group">
             <div class="flex items-start justify-between gap-2">
               <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400" x-text="preset.name"></h3>
               <span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 shrink-0" x-text="preset.cat"></span>
             </div>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-2" x-text="preset.desc"></p>
             <p class="text-xs text-gray-400 dark:text-gray-500 mt-2 font-mono truncate" x-text="preset.prompt"></p>
-          </button>
+            <div class="flex gap-2 mt-3" x-data="{ copied: false }">
+              <button @click="copyPreset(preset.prompt); copied = true; setTimeout(() => copied = false, 1500)"
+                class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                :class="copied ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'">
+                <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+              </button>
+              <button x-show="terminalAvailable" @click="launchPreset(preset.prompt)"
+                class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                Launch
+              </button>
+            </div>
+          </div>
         </template>
         <p x-show="filteredPresets.length === 0" class="col-span-full text-sm text-gray-400 dark:text-gray-500 text-center py-8">No presets in this category.</p>
+      </div>
+    </div>
+
+    <!-- ═══ Terminal View ═══ -->
+    <div x-show="activeView === 'terminal'" x-cloak class="max-w-6xl mx-auto">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-bold">Terminal</h2>
+          <span class="flex items-center gap-1.5 text-xs">
+            <span class="w-2 h-2 rounded-full" :class="terminalConnected ? 'bg-green-500' : 'bg-red-500'"></span>
+            <span x-text="terminalConnected ? 'Connected' : 'Disconnected'" class="text-gray-500 dark:text-gray-400"></span>
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-gray-400 dark:text-gray-500">Ctrl+Shift+D to exit</span>
+          <button @click="exitTerminal()" class="px-3 py-1 text-xs font-medium rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+            Back to Launcher
+          </button>
+        </div>
+      </div>
+      <div class="relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-black">
+        <div x-ref="terminalContainer" class="terminal-container"></div>
+        <!-- Ended overlay -->
+        <div x-show="terminalEnded" class="terminal-overlay">
+          <div class="text-center space-y-3">
+            <p class="text-white text-lg font-semibold">Session ended</p>
+            <button @click="exitTerminal()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+              Return to Launcher
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -363,8 +446,8 @@
               <span class="text-gray-300 dark:text-gray-600">|</span>
               <button @click="filterStatuses = ['fail', 'partial']"
                 class="px-2.5 py-1 text-xs font-medium rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors">Failures only</button>
-              <button @click="filterStatuses = ['fail', 'partial', 'pass', 'na']"
-                class="px-2.5 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Show all</button>
+              <button @click="filterStatuses = ['fail', 'partial', 'pass', 'na']; filterTier = 'all'; searchQuery = ''"
+                class="px-2.5 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Reset filters</button>
             </div>
             <div class="flex items-center gap-3">
               <input type="text" x-model="searchQuery" placeholder="Search checks by ID, name, or evidence..."
@@ -417,8 +500,8 @@
             </div>
           </template>
 
-          <!-- Anti-Patterns Section -->
-          <div class="space-y-1 pt-2">
+          <!-- Anti-Patterns Section (hidden when search/filters are active) -->
+          <div x-show="!searchQuery.trim() && filterTier === 'all'" class="space-y-1 pt-2">
             <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">Anti-Patterns</h3>
             <template x-for="ap in currentAgent.antiPatterns" :key="ap.id">
               <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
@@ -661,6 +744,19 @@ function app() {
     selectedFixes: [],
     fixCopyLabel: 'Copy fixes',
 
+    // --- Terminal state ---
+    terminalAvailable: false,
+    terminalSessionId: null,
+    terminalConnected: false,
+    terminalEnded: false,
+    launching: false,
+    availableRunners: [],
+    setupAgent: 'claude',
+    setupRunner: 'claude',
+    _terminalWs: null,
+    _terminalXterm: null,
+    _xtermLoaded: false,
+
     // --- Launcher state ---
     presets: PRESETS,
     presetFilter: 'all',
@@ -676,10 +772,20 @@ function app() {
 
     // --- Init ---
     init() {
-      this.$watch('darkMode', v => localStorage.setItem('gf-dark', v));
-      if (location.protocol === 'http:' || location.protocol === 'https:') this.runScan();
+      this.$watch('darkMode', v => {
+        localStorage.setItem('gf-dark', v);
+        document.documentElement.classList.toggle('dark', v);
+      });
+      // Sync initial state (anti-FOUC script may have added 'dark' before Alpine)
+      document.documentElement.classList.toggle('dark', this.darkMode);
+      if (location.protocol === 'http:' || location.protocol === 'https:') {
+        this.runScan();
+        this.checkTerminalAvailable();
+      }
       document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { this.sidebarOpen = false; this.showBrowser = false; }
+        if (e.key === 'Escape') { this.sidebarOpen = false; this.showBrowser = false; if (this.expandedChecks.length > 0) this.expandedChecks = []; }
+        // Ctrl+Shift+D exits terminal view
+        if (e.key === 'D' && e.ctrlKey && e.shiftKey && this.activeView === 'terminal') { e.preventDefault(); this.exitTerminal(); return; }
         if (e.key === '1' && e.altKey) this.activeTab = 'overview';
         if (e.key === '2' && e.altKey) this.activeTab = 'checks';
         if (e.key === '3' && e.altKey && (this.report?.agents?.length || 0) > 1) this.activeTab = 'compare';
@@ -760,6 +866,164 @@ function app() {
       this.copyLabel = 'Copied!'; setTimeout(() => this.copyLabel = 'Copy', 2000);
     },
     showToast(msg, isError) { this.toast = msg; this.toastError = isError; setTimeout(() => this.toast = '', 4000); },
+
+    // ── Terminal ───────────────────────────────────────────────────
+    async checkTerminalAvailable() {
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          const data = await res.json();
+          this.availableRunners = data.availableRunners || [];
+          this.terminalAvailable = data.nodePtyAvailable && this.availableRunners.length > 0;
+          if (this.availableRunners.length > 0) this.setupRunner = this.availableRunners[0];
+        }
+      } catch { this.terminalAvailable = false; }
+    },
+    async loadXterm() {
+      if (this._xtermLoaded) return;
+      await new Promise((resolve, reject) => {
+        const link = document.createElement('link'); link.rel = 'stylesheet';
+        link.href = 'https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css';
+        document.head.appendChild(link);
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js';
+        script.onerror = reject;
+        const timer = setTimeout(() => reject(new Error('xterm.js load timeout')), 5000);
+        script.onload = () => { clearTimeout(timer); resolve(); };
+        document.head.appendChild(script);
+      });
+      // Load the fit addon
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js';
+        const timer = setTimeout(() => reject(new Error('fit addon load timeout')), 5000);
+        script.onload = () => { clearTimeout(timer); resolve(); };
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+      this._xtermLoaded = true;
+    },
+    async launchSetup() {
+      if (this.launching) return;
+      this.launching = true;
+      try {
+        this.showToast('Generating setup prompt...', false);
+        const setupRes = await fetch(`/api/setup?path=${encodeURIComponent(this.projectPath)}&agent=${this.setupAgent}`);
+        const setupData = await setupRes.json();
+        if (setupData.error) throw new Error(setupData.error);
+        await this.launchInTerminal(setupData.output, this.setupRunner);
+      } catch (err) {
+        this.showToast(err.message || 'Setup launch failed', true);
+      }
+      this.launching = false;
+    },
+    async launchPreset(prompt, runner) {
+      if (this.launching) return;
+      await this.launchInTerminal(prompt, runner || 'claude');
+    },
+    async launchInTerminal(prompt, runner = 'claude') {
+      if (this.terminalSessionId && !this.terminalEnded) {
+        this.showToast('A session is already running. Exit it first.', true);
+        return;
+      }
+      this.launching = true;
+      try {
+        this.showToast('Starting session...', false);
+        await this.loadXterm();
+        const res = await fetch('/api/terminal/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, projectPath: this.projectPath, runner }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        this.terminalSessionId = data.id;
+        this.terminalEnded = false;
+        this.activeView = 'terminal';
+        await this.$nextTick();
+        this.connectTerminal(data.wsUrl);
+      } catch (err) {
+        this.showToast(err.message || 'Failed to launch', true);
+      }
+      this.launching = false;
+    },
+    connectTerminal(wsUrl) {
+      const container = this.$refs.terminalContainer;
+      if (!container) return;
+      container.innerHTML = '';
+      const term = new window.Terminal({
+        cursorBlink: true,
+        fontSize: 14,
+        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        theme: this.darkMode
+          ? { background: '#111827', foreground: '#f3f4f6', cursor: '#f3f4f6' }
+          : { background: '#000000', foreground: '#f3f4f6', cursor: '#f3f4f6' },
+      });
+      const fitAddon = new window.FitAddon.FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(container);
+      this._terminalXterm = term;
+      // Fit after container has final dimensions (x-show transition)
+      const doFit = () => {
+        fitAddon.fit();
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+        }
+      };
+      // Retry fit — container may still be transitioning
+      setTimeout(doFit, 50);
+      setTimeout(doFit, 200);
+      // Resize on window resize
+      const resizeHandler = () => { doFit(); };
+      window.addEventListener('resize', resizeHandler);
+      // WebSocket
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${proto}//${location.host}${wsUrl}`);
+      this._terminalWs = ws;
+      ws.onopen = () => {
+        this.terminalConnected = true;
+        // Fit and send resize now that connection is open
+        setTimeout(doFit, 50);
+      };
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'output') term.write(msg.data);
+          else if (msg.type === 'exit') { this.terminalEnded = true; this.terminalConnected = false; }
+          else if (msg.type === 'error') { term.write(`\r\n\x1b[31m${msg.message}\x1b[0m\r\n`); }
+          else if (msg.type === 'shutdown') { this.terminalEnded = true; this.terminalConnected = false; }
+        } catch { /* ignore malformed messages */ }
+      };
+      ws.onclose = () => { this.terminalConnected = false; if (!this.terminalEnded) this.terminalEnded = true; };
+      ws.onerror = () => { this.terminalConnected = false; };
+      // Send input from xterm to WS
+      term.onData(data => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'input', data }));
+      });
+      // Send resize events
+      term.onResize(({ cols, rows }) => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+      });
+      // Cleanup handler
+      this._terminalCleanup = () => {
+        window.removeEventListener('resize', resizeHandler);
+        try { ws.close(); } catch {}
+        try { term.dispose(); } catch {}
+        this._terminalWs = null;
+        this._terminalXterm = null;
+      };
+      term.focus();
+    },
+    exitTerminal() {
+      if (this.terminalSessionId && !this.terminalEnded) {
+        fetch(`/api/terminal/${this.terminalSessionId}`, { method: 'DELETE' }).catch(() => {});
+      }
+      if (this._terminalCleanup) { this._terminalCleanup(); this._terminalCleanup = null; }
+      this.terminalSessionId = null;
+      this.terminalConnected = false;
+      this.terminalEnded = false;
+      this.activeView = 'launcher';
+    },
 
     // ── Check Filtering ────────────────────────────────────────────
     toggleStatus(s) {

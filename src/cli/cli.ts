@@ -315,10 +315,10 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Dashboard: start local server (handles scan/setup via API)
+  // Dashboard: start local server (handles scan/setup/terminal via API)
   if (options.command === 'dashboard') {
     const { serveDashboard } = await import('./serve-dashboard.js');
-    serveDashboard(options.projectPath);
+    await serveDashboard({ projectPath: options.projectPath });
     return;
   }
 
