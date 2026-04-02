@@ -103,7 +103,7 @@ export const fullChecks: CheckDef[] = [
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
         const { evalSkillCount, count, missingSkills } = ctx.facts.shared.evals;
-        const TOTAL_SKILLS = 6; // 5 skills + dispatcher (v0.9.3)
+        const TOTAL_SKILLS = 6; // 5 skills + dispatcher
         const missingList = missingSkills.length > 0 ? `. Missing: ${missingSkills.join(', ')}` : '';
         if (count === 0) {
           return { id: '3.1.6', name: 'Eval skill coverage', tier: 'full', category: 'Agent Evals', status: 'fail', points: 0, maxPoints: 2, confidence: 'medium', message: 'No eval files' };
