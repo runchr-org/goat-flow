@@ -105,6 +105,13 @@ jobs:
             fi
           done
 
+      - name: Create gitignored workspace dirs
+        run: |
+          mkdir -p .goat-flow/footguns .goat-flow/lessons .goat-flow/tasks .goat-flow/logs/sessions
+          if [ ! -f .goat-flow/tasks/handoff-template.md ]; then
+            printf '## Date\n\n## Status\n\n## Current State\n\n## Key Decisions Made\n\n## Known Risks\n\n## Next Step\n' > .goat-flow/tasks/handoff-template.md
+          fi
+
       - name: Validate Codex workflow
         run: |
           if [ -f AGENTS.md ] && [ -f scripts/context-validate.sh ]; then
