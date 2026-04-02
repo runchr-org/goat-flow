@@ -36,6 +36,8 @@ allowed_missing_paths=(
     "ai/decisions/"
     ".goat-flow/footguns/"
     ".goat-flow/lessons/"
+    ".goat-flow/tasks/"
+    ".goat-flow/logs/"
 )
 
 trim_yaml_value() {
