@@ -2,9 +2,21 @@
 
 ---
 
-## v0.10.0 - 2026-04-03
+## v0.10.0 - 2026-04-04
 
-Category bucket learning loop, scanner honesty, session logs, 48-file CLI refactor, execution-loop dedup. Rubric v0.10.0: 112 checks + 19 anti-patterns. 314 tests.
+Category bucket learning loop, scanner honesty, session logs, 48-file CLI refactor, execution-loop dedup, SBAO Phase 3, dashboard presets overhaul, project restructure. Rubric v0.10.0: 112 checks + 19 anti-patterns. 820 tests.
+
+### SBAO & Skills
+- goat-plan Phase 3 rewritten as Signal-Based Adaptive Orchestration: 3 sub-agents (2 core trio SKEPTIC/ANALYST/STRATEGIST + 1 fresh-context control group), ranked comparison table, human-gated synthesis
+- SBAO recommends skip for Hotfix/Small Feature (user decides)
+- all ADAPT markers replaced with goat-flow-specific content in installed skills - 100% scanner score across all 3 agents
+- skill version frontmatter added to `.agents/` and `.github/` copies
+
+### Dashboard Presets
+- 16→19 presets: rewrote `targeted-test`→`qa-gaps`, `diagram`→`user-flow`, `critique`, `triage`; added `review-instructions`, `compliance`, `sbao`
+- 17 of 19 presets now have guided forms with Step 0-mapped fields
+- added favorites UI: star toggle, localStorage persistence, sort-to-top, ★ Favorites filter pill
+- categories renamed: "understand"→"debug & explore", added "utility", removed empty "audit"
 
 ### Install & Packaging
 - added `pnpm.onlyBuiltDependencies` for `node-pty` so pnpm installs can build the embedded terminal without manual manifest edits
@@ -15,6 +27,9 @@ Category bucket learning loop, scanner honesty, session logs, 48-file CLI refact
 - refactored 48 source files for complexity reduction, type safety, and module boundaries
 - extracted route handlers (serve-dashboard.ts), per-field validators (config/reader.ts), per-signal detectors (detect/stack.ts), per-skill-attribute extractors (facts/agent.ts)
 - 45 cyclomatic complexity violations → 0
+- grouped server files into `src/cli/server/` (dashboard.ts, terminal.ts, types.ts)
+- completed M28 F2 `scorer.ts`→`calculate.ts` rename
+- JSDoc added to 25 remaining declarations across `src/cli/`
 
 ### Scanner & Rubric
 - refactored high-complexity rubric and scanner paths to clear preflight complexity failures
@@ -32,7 +47,8 @@ Category bucket learning loop, scanner honesty, session logs, 48-file CLI refact
 - added rubric regression fixture corpus: `passing-minimal` (100%), `passing-full` (100%), `failing-known` (expected failures for 2.2.3, 2.6.2), plus targeted regressions for hook honesty, duplicate surfaces, router completeness, and local-instruction duplication
 - new `test/fixtures/project-fixtures.test.ts` and `test/helpers/fixture-scanner.ts` for fixture-based rubric regression testing
 - added `test/helpers/hook-runner.ts` and `test/hooks/format-file.test.ts` for real hook-behavior coverage
-- 314 tests
+- `test/` restructured from 15 source-mirrored dirs to 3 layers (unit/integration/contract)
+- 820 tests
 
 ### Dashboard & CLI UX
 - added first-run browser auto-open for `goat-flow dashboard` with persistent opt-out via `--no-open`
@@ -41,8 +57,15 @@ Category bucket learning loop, scanner honesty, session logs, 48-file CLI refact
 - fix preset Launch button to respect runner dropdown selection
 - added project identity: dynamic tab title, color accent stripe, project name in sidebar
 - added cursor:pointer on all interactive elements; ResizeObserver for terminal column-width fix
-- added targeted testing preset for risk-based QA plans from GitHub issues
 - added "Open Terminal" button on setup instructions page
+
+### Project Structure
+- `setup/`→`workflow/setup/`, `ai/`→`ai-docs/` with cross-reference updates across all docs, skills, and tests
+- `docs/` flattened: removed `system/`, `reference/`, `guides/` dirs; added `docs/skills/` with Mermaid flow diagrams per skill
+- `docs/five-layers.md` renamed from `architecture.md` to avoid confusion with `ai-docs/architecture.md`
+- `ai-docs/glossary.md` created with 36 domain terms
+- preflight: removed pointless `index.html exists` check, `console.log` warning, `TODO` warning; added per-section timing
+- `context-validate.sh`: fixed stale `setup/shared/` path
 
 ### Execution Loop & Templates
 - made `docs/system-spec.md` canonical for the execution loop and reduced duplicate loop docs to compatibility pointers
@@ -70,35 +93,14 @@ Category bucket learning loop, scanner honesty, session logs, 48-file CLI refact
 
 Scanner honesty, config file, directory restructure, embedded terminal, dashboard UX. Driven by 6 cross-project reviews + real-project testing. 275 tests.
 
-### Scanner
-- stop faking Codex enforcement facts, remove harmful AP2, fix goat-goat derivation bug, new AP20/AP21, `.env` Edit/Write deny check, devDeps-only JS detection
-
-### Config
-- `.goat-flow/config.yaml` with `js-yaml`, directory-based footguns/lessons (YAML frontmatter entries), committed vs local split, migration scripts
-
-### Restructure
-- `docs/lessons/` -> `ai-docs/lessons/`, `docs/decisions/` -> `ai-docs/decisions/`, `agent-evals/` -> `ai-docs/evals/`, `ai/instructions/` -> `ai-docs/coding-standards/`, `tasks/` -> `.goat-flow/tasks/` (gitignored)
-
-### Skills
-- all 5 check footguns in Step 0, dispatcher enriched with modes/chaining, version sync to 0.9.4
-
-### Setup
-- stale skill cleanup (8 old names), router rewrite, static CI template, format hook wires into settings.json
-
-### Terminal Backend
-- `node-pty` + `ws` as optionalDeps, `TerminalManager` with multi-runner (claude/codex/gemini), REST API (create/list/delete/health), WebSocket streaming, idle timeout, Origin check
-
-### Terminal Launcher
-- xterm.js lazy-loaded from CDN, Launch button on preset cards, Setup Launcher panel (pick agent + runner), Terminal nav button with session indicator, Ctrl+Shift+D exit
-
-### Dashboard UX
-- dark mode toggle fixed, copy feedback on cards, Escape collapses checks, agent switch preserves tab, Reset filters, brighter focus rings, anti-patterns hidden during search
-
-### Deep Critique Preset
-- added (audit category) - 6-phase system review prompt
-
-### Tests
-- 239 -> 275 (+36). New: eval parser/loader, serve-dashboard API, terminal server
+**Scanner** - stop faking Codex enforcement facts, remove harmful AP2, fix goat-goat derivation bug, new AP20/AP21, `.env` Edit/Write deny check, devDeps-only JS detection
+**Config** - `.goat-flow/config.yaml` with `js-yaml`, directory-based footguns/lessons (YAML frontmatter entries), committed vs local split, migration scripts
+**Restructure** - `docs/lessons/`→`ai-docs/lessons/`, `docs/decisions/`→`ai-docs/decisions/`, `agent-evals/`→`ai-docs/evals/`, `ai/instructions/`→`ai-docs/coding-standards/`, `tasks/`→`.goat-flow/tasks/` (gitignored)
+**Skills** - all 5 check footguns in Step 0, dispatcher enriched with modes/chaining, version sync to 0.9.4
+**Setup** - stale skill cleanup (8 old names), router rewrite, static CI template, format hook wires into settings.json
+**Terminal** - `node-pty` + `ws` as optionalDeps, `TerminalManager` with multi-runner (claude/codex/gemini), REST API (create/list/delete/health), WebSocket streaming, idle timeout, Origin check. xterm.js lazy-loaded from CDN, Launch button on preset cards, Setup Launcher panel (pick agent + runner), session indicator, Ctrl+Shift+D exit
+**Dashboard** - dark mode toggle fixed, copy feedback on cards, Escape collapses checks, agent switch preserves tab, Reset filters, brighter focus rings, anti-patterns hidden during search. Deep Critique preset added (6-phase system review)
+**Tests** - 239→275 (+36). New: eval parser/loader, serve-dashboard API, terminal server
 
 
 ---

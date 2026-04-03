@@ -16,9 +16,19 @@ fi
 errors=0
 warnings=0
 checks=0
+preflight_start=$SECONDS
+section_start=$SECONDS
 
 # ── Helpers ──────────────────────────────────────────────────────────
-section() { echo -e "\n${B}━━ $1${RST}"; }
+section() {
+    # Print elapsed time for the previous section (skip for the first call)
+    if [[ "$section_start" -ne "$preflight_start" ]] || [[ "$checks" -gt 0 ]]; then
+        local elapsed=$(( SECONDS - section_start ))
+        echo -e "  ${DIM}(${elapsed}s)${RST}"
+    fi
+    section_start=$SECONDS
+    echo -e "\n${B}━━ $1${RST}";
+}
 pass()    { checks=$((checks + 1)); echo -e "  ${G}✓${RST} $1"; }
 fail()    { checks=$((checks + 1)); errors=$((errors + 1)); echo -e "  ${R}✗${RST} $1" >&2; }
 skip()    { echo -e "  ${DIM}⊘ $1 (skipped)${RST}"; }
@@ -360,10 +370,14 @@ if [[ -f src/cli/prompt/template-refs.ts ]]; then
 fi
 
 # ── Summary ──────────────────────────────────────────────────────────
+# Print elapsed time for the last section
+echo -e "  ${DIM}($(( SECONDS - section_start ))s)${RST}"
+
+total_elapsed=$(( SECONDS - preflight_start ))
 echo ""
 echo -e "${DIM}─────────────────────────────────────────────────${RST}"
 if [[ "$errors" -gt 0 ]]; then
-    echo -e "${BOLD}${R}PREFLIGHT FAILED${RST}  ${errors} error(s), ${warnings} warning(s), ${checks} checks"
+    echo -e "${BOLD}${R}PREFLIGHT FAILED${RST}  ${errors} error(s), ${warnings} warning(s), ${checks} checks  ${DIM}(${total_elapsed}s)${RST}"
     exit 1
 fi
-echo -e "${BOLD}${G}PREFLIGHT PASSED${RST}  ${checks} checks, ${warnings} warning(s)"
+echo -e "${BOLD}${G}PREFLIGHT PASSED${RST}  ${checks} checks, ${warnings} warning(s)  ${DIM}(${total_elapsed}s)${RST}"
