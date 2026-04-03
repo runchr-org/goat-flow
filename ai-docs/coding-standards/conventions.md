@@ -101,9 +101,9 @@ Never edit or commit: `dist/`, `node_modules/`, `.claude/projects/`, `.claude/wo
 
 These files are high-risk because other files reference them or users depend on them:
 - `docs/system-spec.md` -- canonical spec, referenced by 10+ docs
-- `docs/system/five-layers.md`, `docs/system/six-steps.md` -- core architecture
+- `docs/architecture.md` -- core architecture
 - `workflow/setup/` -- prompt changes affect what users generate
 - `workflow/skills/` -- template changes affect user skill creation
-- `docs/reference/design-rationale.md` -- evidence citations
+- `docs/design-rationale.md` -- evidence citations
 - `src/cli/rubric/version.ts` -- must stay in sync with package.json
 - Any file rename (breaks cross-references; CLAUDE.md DoD requires grep-after-rename)

@@ -1,22 +1,71 @@
 ---
 name: goat-plan
 description: "4-phase planning workflow with complexity routing, kill criteria, and triangular tension analysis. Includes refactor planning mode for cross-file restructuring."
-goat-flow-skill-version: "0.10.0"
 ---
 # /goat-plan
 
 ## Shared Conventions
 
-- **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
-- **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
-- **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Ceremony:** Hotfix/Small Feature → skip closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3. Standard → full phases. System/Infrastructure → full + cross-boundary verification. Sub-agent mode → GATEs become CHECKPOINTs automatically.
-- **Footgun fast-path:** If Step 0 footgun check matches a known trap, surface it immediately and offer the mitigation path. Still require READ + VERIFY on actual files — footguns are incident records, not executable specs.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect. (Skip for Hotfix/Small Feature.)
-- **Learning Loop:** Behavioural mistake → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`. Architectural trap → add a `## Footgun:` entry to the relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`.
-- **Closing:** If incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`. Suggest next skill.
+### Severity & Evidence
+- **Severity order:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE. Order findings by severity, not by file or discovery order.
+- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (directly verified in code) or INFERRED (deduced — state what direct evidence is missing). Before presenting findings, re-read each cited `file:line` to confirm accuracy. MUST NOT fabricate file paths, function names, or behaviour.
+
+### Human Gates
+- **BLOCKING GATE** — agent MUST stop and wait for human decision. Used for: scope approval, phase transitions, final output review. Do NOT auto-advance.
+- **CHECKPOINT** — agent presents status and continues unless interrupted. Used for: progress reports, intermediate findings. Format: "Phase N complete. [summary]. Continuing to Phase N+1."
+
+### Adaptive Step 0
+1. Read the user's invocation for context already provided
+2. For each Step 0 question: if answer is clear from context → **confirm** ("I see [answer]. Correct?"). Otherwise → **ask**
+3. If ALL questions answered by invocation → condensed confirmation, proceed
+4. If user says "skip Step 0" → confirm understanding, proceed
+
+**Gate rule:** Step 0 MUST end with the agent presenting its understanding and waiting for the user before Phase 1. Auto-detect pre-fills context — it does not replace confirmation. Bare invocation = zero context = ask all structural questions and wait.
+
+### Stuck Protocol
+If 3 consecutive reads produce no new signal: (1) present what you have so far, (2) state what you were looking for and didn't find, (3) ask to redirect, narrow scope, or close.
+
+### Ceremony Level
+| Complexity | Ceremony |
+|------------|----------|
+| Hotfix / Small Feature | Skip: closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3 |
+| Standard | Full phases, gates at major decisions |
+| System / Infrastructure | Full phases + cross-boundary verification + rollback planning |
+
+**Sub-agent mode:** GATEs become CHECKPOINTs automatically. Step 0 proceeds with auto-detected scope.
+
+### Footgun Fast-Path
+If Step 0 footgun check matches a known trap: (1) surface match immediately, (2) offer mitigation path from the entry, (3) still require READ + VERIFY on actual files — footguns are incident records, not executable specs, (4) do NOT skip to implementation on a match alone.
+
+### Flush Protocol
+If 10+ tool calls pass without a gate/checkpoint (skip for Hotfix/Small Feature): (1) write 3-sentence status to `.goat-flow/tasks/handoff.md` (what, where, next), (2) if working from a plan/milestone file: tick all completed checkboxes NOW before continuing, (3) ask: continue, compact, or redirect? Counter resets at every BLOCKING GATE, CHECKPOINT, or human message. Handoff file is transient — do not commit.
+
+### Learning Loop
+After completing the skill, check if this run uncovered anything worth logging:
+- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`
+- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`
+- Route team-wide entries to `ai-docs/`; session-only entries to `.goat-flow/`
+- Match entry format to existing entries in the target bucket file. Do not append to a monolithic log or directory README.
+
+### Recovery
+When a skill fails mid-execution (context limit, sub-agent dies, tool error):
+- Partial completion → identify last completed step (last `[x]` checkbox), resume from next
+- Missing artifacts → return to the step that generates them, re-execute
+- User wants restart → archive current output to handoff, re-run from Step 0
+- User wants to skip → document skip reason in output, proceed to closing
+- Sub-agent/autonomous mode → write `.goat-flow/tasks/handoff.md` with enough context to resume
+
+### Working Memory
+For tasks exceeding 5 turns: maintain state in `.goat-flow/tasks/todo.md`. If interrupted or compacted, write `.goat-flow/tasks/handoff.md`.
+
+### Autonomy Awareness
+Before proposing actions that change files, check the instruction file's Ask First boundaries. If the proposed change crosses a boundary, flag it: "This change touches [boundary]. Proceeding requires approval per Ask First rules."
+
+### Closing Protocol
+1. If incomplete → write `.goat-flow/tasks/handoff.md` (Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files)
+2. Check Learning Loop for anything worth logging
+3. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` (what happened, files changed, decisions, learnings)
+4. Suggest most relevant next skill (see Chains With)
 
 ## When to Use
 
@@ -40,22 +89,36 @@ Use before non-trivial implementation or cross-file restructuring.
 
 ## Step 0 - Where Are We?
 
-**Continuation detection:** Check for existing planning artifacts:
+**Continuation detection:** Before starting fresh, check for existing planning artifacts:
+<!-- ADAPT: Add your project's planning file patterns -->
 - `requirements-*.md`, `TODO_*_prime.md`
-- `tasks/improvement-plan.md`, `tasks/roadmaps/*.md`
+- `tasks/improvement-plan.md`, `tasks/roadmaps/*.md`, `tasks/roadmaps/milestones/*.md`
+- Any `*-plan*.md`, `*-requirements*.md`, `*-milestone*.md`
 
-Check staleness: `git log --since="2 weeks ago" -- [artifact]`.
+Also check for staleness: `git log --since="2 weeks ago" -- [artifact]`. If the artifact hasn't been touched while code diverged, flag it.
 
-**Concurrent work check:** `git log --all --oneline --since='3 days ago' -- <target-files-or-dirs>`
+If found: "I found [artifact] from [date]. Want to: (a) resume from here, (b) start fresh, (c) jump to a specific phase?"
 
-**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Concurrent work check:** Before planning, check if other branches touch the same area:
+`git log --all --oneline --since='3 days ago' -- <target-files-or-dirs>`
+If matches found: "Branch [name] modified [files] [N] days ago. Coordinate?"
 
 **Structural questions (always ask or confirm):**
 1. What are we doing? (new feature, refactor, infrastructure change)
-2. If new: What complexity? (Hotfix / Standard / System / Infrastructure) → Plan mode
+2. If new: What complexity? (Hotfix / Small Feature / Standard / System / Infrastructure) → Plan mode
 3. If restructure: What's the scope? (rename, extract, move, interface change) → Refactor mode
 
+**Illustrative questions (adapt):**
+5. <!-- ADAPT: "What's the riskiest part? (e.g., database migration, API contract, auth changes)" -->
+6. <!-- ADAPT: "Any constraints? (timeline, backwards compatibility, performance budget)" -->
+
+**Escape hatch:** If the user says "I'll figure it out from the code" or provides minimal info, infer scope from `git diff`, named files, or the project structure and confirm before proceeding.
+
 **Kill criteria (surface early):** "What would make us abandon this entirely?"
+Even a vague answer ("if it takes more than a week" or "if it breaks the existing API")
+helps frame the planning.
+
+**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
 **Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
 - "hotfix" but 5+ files affected → likely Standard or System
@@ -63,70 +126,95 @@ Check staleness: `git log --since="2 weeks ago" -- [artifact]`.
 - "quick test" but 20+ functions in target → warn scope is larger than implied
 Surface the mismatch, suggest re-classification. Don't silently proceed.
 
-**Before proceeding:** present mode, scope, constraints, kill criteria. Wait for confirmation.
+**Before proceeding:** present what you know (feature, complexity, constraints, kill criteria) and what you still need. Wait for the user to confirm before entering Phase 1.
 
----
+## Phase 1 - Feature Brief
 
-## Plan Mode (Phases 1-4)
+Walk through each section ONE AT A TIME. Present one, wait for confirmation,
+then present the next. Do NOT dump all 8 sections at once.
 
-### Phase 1 - Feature Brief
-
-Walk through each section ONE AT A TIME. Do NOT dump all at once.
-
-1. **Problem** - what's wrong or missing
+<!-- ADAPT: Adjust sections for your project's planning conventions -->
+1. **Problem** - what's wrong or missing (1-2 sentences)
 2. **Proposed solution** - high-level approach
-3. **Risks / assumptions** - include kill criteria from Step 0
-4. **Rollback / feature flag plan**
+3. **Risks / assumptions** - what could go wrong. Include kill criteria from Step 0.
+4. **Rollback / feature flag plan** - how to undo if it fails in production
 5. **Scope** - in/out with explicit exclusions
 6. **Dependencies** - what blocks this, what this blocks
 7. **Success criteria** - measurable outcomes
-8. **Questions** - ask the question that could invalidate the approach FIRST
+8. **Questions** - unknowns that need answers before proceeding
 
-**BLOCKING GATE:** "Approve brief, or adjust?"
+Ask the question whose answer could invalidate the approach FIRST.
 
-### Phase 2 - Mob Elaboration (skip for Hotfix/Small Feature/Standard — only for System/Infrastructure)
+<!-- ADAPT -->
+**Glossary check:** If `ai-docs/glossary.md` exists, verify all domain terms in the
+brief are defined. If new terms appear, add them: `| term | definition | canonical file | aliases |`
 
-Generate 3-5 sharp questions. **Do NOT answer your own questions.** Wait for the user. Repeat until "locked in" or 3 rounds.
+**BLOCKING GATE:** Present complete brief. "Approve, or adjust?"
 
-### Phase 3 - Triangular Tension Analysis (skip for Hotfix/Small Feature/Standard — only for System/Infrastructure)
+## Phase 2 - Mob Elaboration
 
-2-3 competing approaches evaluated from:
-- **SKEPTIC:** What could go wrong? What are we assuming?
-- **ANALYST:** Cost/benefit? Measurable trade-offs?
-- **STRATEGIST:** Path to shipping? Fastest way to learn?
+Generate 3-5 sharp questions about the brief - questions that could change
+the design if answered differently.
 
-Present comparison table. Tag incomplete-data decisions as **Decision Debt**.
+**Do NOT answer your own questions.** Present them and STOP. Wait for the
+user to answer. If the user says "answer them yourself," that's permission
+to proceed - but the default is to wait.
+
+After answers arrive, summarise each answer in one sentence and ask:
+"Want me to drill deeper into any of these, or are we locked in?"
+Repeat until the user says "locked in" or 3 rounds complete (whichever first).
+
+**CHECKPOINT:** "Locked in. Proceeding to approach analysis."
+
+## Phase 3 - Triangular Tension Analysis
+
+Generate 2-3 competing approaches for the implementation. For each approach,
+evaluate from three perspectives:
+
+- **SKEPTIC:** What could go wrong? What's the worst case? What are we assuming that might be false?
+- **ANALYST:** What does the data/evidence say? What's the cost/benefit? What are the measurable trade-offs?
+- **STRATEGIST:** What's the path to shipping? What's the fastest way to learn if this works?
+
+Generate competing plans internally before committing to output.
+
+Present a comparison table:
+
+| Criterion | Approach A | Approach B | Approach C |
+|-----------|-----------|-----------|-----------|
+| Risk | ... | ... | ... |
+| Effort | ... | ... | ... |
+| Speed to feedback | ... | ... | ... |
+| Reversibility | ... | ... | ... |
+
+Recommend one approach with reasoning. Tag any decisions made with incomplete
+data as **Decision Debt** - to be revisited in later milestones.
+
+> For multi-agent teams: see `workflow/playbooks/planning/sbao-ranking.md` for
+> the full SBAO process with external sessions and sub-agents. The triangular
+> tension analysis above is the single-agent default.
 
 **BLOCKING GATE:** "Recommended approach: [A]. Proceed to milestones?"
 
-### Phase 4 - Milestones
+## Phase 4 - Milestones
 
-1. **Prove It Works** - smallest validating slice
-2. **Make It Real** - core functionality, happy path
+Structure implementation as milestones using these archetypes:
+<!-- ADAPT: Rename or reorder for your process -->
+1. **Prove It Works** - smallest slice that validates the approach
+2. **Make It Real** - core functionality, happy path complete
 3. **Make It Solid** - error handling, edge cases, tests
 4. **Make It Shine** - performance, polish, documentation
 
-Each milestone: deliverable, exit criteria, kill criteria, depends on.
+Each milestone must have:
+- Clear deliverable (what ships)
+- Exit criteria (how to know it's done)
+- Kill criteria (what would make us stop here)
+- Depends on (which milestone must complete first)
 
-After each milestone, re-read and rewrite the NEXT milestone based on learnings.
+After completing each milestone, re-read the NEXT milestone and rewrite it
+based on what you learned. Plans evolve - the Phase 4 milestones written
+before implementation are hypotheses, not commitments.
 
-**BLOCKING GATE:** "Approve and start implementing?"
-### Phase 5 - Execute (per milestone, only if user approved implementation)
-
-Only triggers when the user's intent was "build/create/implement" — NOT when intent was "plan/design/architect."
-If user explicitly says "just plan, don't implement" → skip Phase 5 entirely.
-
-**Context isolation:** If the agent supports `context: fork`, run each milestone's implementation in an isolated subagent context. The main session only sees the resulting diff, not the trial-and-error reasoning.
-
-For each milestone:
-1. Confirm: "Ready to start implementing Milestone N?"
-2. Implement the deliverable
-3. **CHECKPOINT:** "Milestone N complete. [summary of changes]. Continue to next?"
-4. Run milestone exit criteria
-5. Re-read and revise next milestone based on learnings
-
-Two-corrections rule applies. If stuck → write `.goat-flow/tasks/handoff.md`.
-
+**BLOCKING GATE:** Present milestones. "Approve and start implementing?"
 
 ---
 
@@ -192,13 +280,18 @@ Comprehensive verification after all changes:
 
 ---
 
+## Common Failure Modes
+
+1. **Brief dump** - agent presents all 8 sections at once. Walk through one at a time.
+2. **Self-answering elaboration** - agent answers its own Phase 2 questions. Wait for the user.
+3. **Stale continuation** - agent resumes from a plan that no longer matches the code. Check staleness.
+
 ## Constraints
 
-Conversational: present findings by severity tier, pause between tiers. Let the human drill in.
-
-- MUST walk through brief sections one at a time (plan mode)
+<!-- FIXED: Do not adapt these -->
+- MUST walk through brief sections one at a time, not dump all at once (plan mode)
 - MUST NOT answer your own elaboration questions (plan mode)
-- MUST surface kill criteria in Phase 1
+- MUST surface kill criteria in Phase 1, not defer to Phase 4
 - MUST tag low-confidence decisions as Decision Debt
 - MUST re-read next milestone after completing each one
 - MUST read both sides of every interface before changing either (refactor mode)
@@ -207,10 +300,67 @@ Conversational: present findings by severity tier, pause between tiers. Let the 
 - MUST check documentation references, not just source code (refactor mode)
 - MUST flag Ask First boundary crossings (refactor mode)
 - MUST NOT fabricate file paths or function names
+- MUST audit sub-agent output if using multi-agent SBAO (see lessons entries on auditing delegated output)
 
 ## Output Format
 
-See mode-specific phases above for output structure. All modes produce findings with `file:line` evidence tagged OBSERVED/INFERRED.
+### Feature Brief (Phase 1)
+
+```markdown
+# Feature Brief: [name]
+
+## Problem
+<!-- 1-2 sentences: what's wrong or missing -->
+
+## Proposed Solution
+<!-- high-level approach -->
+
+## Risks & Kill Criteria
+<!-- what could go wrong. Format: "If [measurable condition], then [action]" -->
+
+## Rollback Plan
+<!-- how to undo if it fails -->
+
+## Scope
+- **In:** [list]
+- **Out:** [list]
+
+## Dependencies
+- **Blocks:** [list]
+- **Blocked by:** [list]
+
+## Success Criteria
+<!-- 2-3 measurable outcomes -->
+
+## Open Questions
+<!-- unknowns that need answers before proceeding -->
+```
+
+### Comparison Table (Phase 3)
+
+```markdown
+| Criterion | Approach A | Approach B |
+|-----------|-----------|-----------|
+| Risk | ... | ... |
+| Effort | ... | ... |
+| Speed to feedback | ... | ... |
+| Reversibility | ... | ... |
+
+**Recommendation:** [approach] because [reasoning].
+**Decision Debt:** [decision] - Confidence: LOW/MEDIUM - Revisit when: [trigger]
+```
+
+### Milestone Card (Phase 4)
+
+```markdown
+## M[N]: [name]
+**Deliverable:** [what ships]
+**Exit criteria:** [testable, binary]
+**Kill criteria:** [what would make us stop here]
+**Depends on:** [prerequisite]
+### Tasks
+- [ ] [task]
+```
 
 ## Chains With
 

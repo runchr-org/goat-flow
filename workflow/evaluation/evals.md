@@ -23,9 +23,16 @@ handles it correctly. They catch regressions when instruction files change.
 
    git log --oneline --all | grep -iE 'fix|revert|bug|broke|regression'
 
-   For each qualifying incident, create ai-docs/evals/[incident-name].md:
+   For each qualifying incident, create ai-docs/evals/[incident-name].md
+   with YAML frontmatter and markdown body:
 
-   # [Incident Title]
+   ---
+   name: [kebab-case-name]
+   description: "[one-line description]"
+   origin: real-incident | synthetic-seed
+   agents: all | claude | codex | gemini
+   skill: goat-debug | goat-review | goat-security | etc.
+   ---
 
    ## Bug Description
    [What went wrong, with file:line references to the code involved]
@@ -40,12 +47,8 @@ handles it correctly. They catch regressions when instruction files change.
    ## Expected Outcome
    [What the agent should do correctly - specific, verifiable actions]
 
-   ## Known Failure Mode
+   ## Failure Mode
    [What the agent did wrong originally, so you know what to watch for]
-
-   ## Origin
-   [git hash, issue number, or "real-history" - proves this is from
-   a real incident, not fabricated]
 
 4. If the project has fewer than 3 qualifying incidents in git history,
    create evals from common failure modes for the project's stack:
@@ -62,7 +65,7 @@ handles it correctly. They catch regressions when instruction files change.
 VERIFICATION:
 - Verify ai-docs/evals/ directory exists
 - Verify ai-docs/evals/README.md exists
-- Count eval files (target: 3-5 minimum)
+- Count eval files. Quality over quantity — do not create evals just to hit a count target. If fewer than 3 real incidents exist, create fewer.
 - Verify each eval has all 5 sections (description, replay prompt,
   expected outcome, failure mode, origin)
 - Verify at least some evals reference real git hashes or issues
@@ -76,7 +79,13 @@ A great eval has specific, verifiable evidence - not vague descriptions.
 
 **Good example (from a real project):**
 ````markdown
-# Incomplete Access Control Fix
+---
+name: incomplete-access-control-fix
+description: "Bulk export endpoint missed role-based access control applied to other patient endpoints"
+origin: real-incident
+agents: all
+skill: goat-security
+---
 
 ## Bug Description
 Fix at commit `abc1234` addressed role-based access for `GET /api/patients`
@@ -94,11 +103,9 @@ patient data. Verify role-based filtering is applied consistently.
 Agent identifies ExportController.php:89 as missing the same role check
 applied in PatientController.php:42.
 
-## Known Failure Mode
+## Failure Mode
 Agent only checked the controller mentioned in the original fix commit,
 not related controllers handling the same data.
-
-**Origin:** real-history (commit abc1234, issue #63442)
 ````
 
 Key traits:

@@ -1,6 +1,7 @@
 # Prompt: Mob Elaboration
 
 > **When to use:** After drafting your [feature brief](feature-brief.md) and before writing the implementation plan. Use this to turn a broad request into locked requirements, explicit non-goals, and real integration constraints.
+> For single-agent interactive elaboration, see /goat-plan Phase 2.
 >
 > **Output:** A short, current-state requirements artifact or inline summary that the next planning step can trust.
 

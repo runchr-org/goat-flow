@@ -14,8 +14,8 @@ RULES:
 - Document the current implementation, not roadmap ideas
 - Read source files, config, and deployment assets before writing
 - Skip diagrams that truly do not apply, but say they were omitted
-- Keep it concise and scannable; aim for roughly 80 to 120 lines unless
-  the system is genuinely multi-service
+- Keep it concise and scannable; target under 100 lines. Multi-service
+  systems may go up to 120.
 
 Include these sections where applicable:
 

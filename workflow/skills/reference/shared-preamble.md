@@ -111,7 +111,8 @@ If Step 0's footgun check produces a direct match with a documented trap:
 
 If 10+ tool calls pass without a human gate or checkpoint (Hotfix/Small Feature: skip this rule):
 1. Write a 3-sentence status to `.goat-flow/tasks/handoff.md` (what you're doing, where you are, what's next)
-2. Ask the user: continue, compact, or redirect?
+2. If working from a plan/milestone file: tick all completed checkboxes NOW before continuing
+3. Ask the user: continue, compact, or redirect?
 
 The counter resets at every BLOCKING GATE, CHECKPOINT, or human message.
 `.goat-flow/tasks/handoff.md` is transient - do not commit it.

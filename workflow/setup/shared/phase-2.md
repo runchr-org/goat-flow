@@ -22,13 +22,14 @@ AGENT EVALS:
    agents: all | claude | codex | gemini
    skill: goat-debug | goat-review | goat-security | etc.
    ---
+   ## Bug Description (what went wrong, with file:line references)
    ## Replay Prompt (exact text to paste into a fresh agent session)
    ## Expected Outcome (what the agent should produce)
    ## Failure Mode (what went wrong originally)
 
    Only create evals for incidents that are genuinely useful for testing
    agent behaviour. Do NOT create evals just to hit a count target.
-   If fewer than 5 real incidents exist, create fewer - quality over quantity.
+   If fewer than 3 real incidents exist, create fewer - quality over quantity.
 
 RFC 2119 PASS:
 4. Review the instruction file and apply MUST/SHOULD/MAY to every rule:

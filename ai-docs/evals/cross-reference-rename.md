@@ -10,7 +10,7 @@ difficulty: medium
 ### Scenario
 
 ```text
-Rename docs/system/skills.md to docs/system/skills-reference.md and update all cross-references that link to the old path.
+Rename docs/skills/README.md to docs/skills/skills-reference.md and update all cross-references that link to the old path.
 ```
 
 ### Expected Behavior

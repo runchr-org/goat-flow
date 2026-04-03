@@ -152,6 +152,7 @@ logger.debug(f"Headers: {dict(request.headers)}")  # leaks Authorization header
 - Fetch secrets at application startup or use a sidecar/init container that injects secrets into a tmpfs mount.
 - Enable automatic rotation where supported. AWS Secrets Manager supports automatic rotation with Lambda functions.
 - Scope IAM permissions to specific secret ARNs - never grant `secretsmanager:GetSecretValue` on `*`.
+- For the `.env` development pattern and rotation guidelines, see `secrets-management.md`.
 
 ```python
 # DO - fetch from secrets manager at startup

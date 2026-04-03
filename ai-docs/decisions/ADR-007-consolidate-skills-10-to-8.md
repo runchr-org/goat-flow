@@ -39,7 +39,7 @@ Merge 4 skills into existing skills as modes. Add 2 new skills that pass the jus
 
 - Scanner SKILL_NAMES constant updated to 8; DEPRECATED_SKILL_NAMES array provides migration grace period
 - Setup phase-1.md documents the merge mapping so agents know where old functionality lives
-- docs/system/skills.md migration note explains the consolidation for users upgrading from v0.6.0
+- docs/architecture.md migration note explains the consolidation for users upgrading from v0.6.0
 - All 3 agent skill directories (.claude/, .agents/, .github/) must maintain identical 8-skill set
 - Rubric check 2.1.11 ("All 9 skills present") updated; recommendation text aligned
 - Projects with old skills still installed will trigger AP14 (duplicate skills) or AP15 (outdated versions)

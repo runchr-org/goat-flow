@@ -57,14 +57,7 @@ Run audits in CI on every PR. Block merge on critical/high severity.
 
 ## CI Pipeline Security
 
-```yaml
-# DO - pin GitHub Actions to full SHA
-- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
-
-# DON'T - pin to mutable tag
-- uses: actions/checkout@v4    # tag can be moved to point at different code
-- uses: actions/checkout@main  # branch ref, even worse
-```
+For CI-specific SHA pinning, see `security/infrastructure.md`.
 
 - Review Dependabot/Renovate PRs before merging. Read the changelog. Check for breaking changes.
 - Limit Dependabot to security updates if update volume is unmanageable.

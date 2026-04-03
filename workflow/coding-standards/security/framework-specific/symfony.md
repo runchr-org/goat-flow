@@ -30,7 +30,7 @@ Reference for generating `ai-docs/coding-standards/security.md` in Symfony proje
 
 - QueryBuilder and DQL parameterize automatically: `$qb->where('u.email = :email')->setParameter('email', $email)`.
 - Raw SQL via DBAL requires explicit binding: `$conn->executeQuery('...WHERE email = :email', ['email' => $email])`.
-- Never string-interpolate into any query. `createNativeQuery()` and `extra()` do NOT auto-parameterize.
+- Never string-interpolate into any query. `createNativeQuery()` and raw DBAL queries do NOT auto-parameterize. Always use explicit parameter binding.
 
 ## Rate Limiting
 

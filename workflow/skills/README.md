@@ -5,7 +5,7 @@ authoritative template for the corresponding skill. Every skill is self-containe
 no external references required.
 
 For skill documentation (when to use, design rationale, decision table), see
-[docs/system/skills.md](../../docs/system/skills.md).
+[docs/skills/](../../docs/skills/).
 
 ## Active Skills (5 + dispatcher)
 

@@ -1,19 +1,20 @@
 # Workflow Templates
 
 Templates and prompts for the GOAT Flow workflow layers. See
-`docs/system/five-layers.md` for the full architecture.
+`docs/architecture.md` for the full architecture.
 
 ## Subdirectories
 
 | Directory | Purpose |
 |-----------|---------|
 | `evaluation/` | Learning loop templates: footguns, lessons, evals, CI validation, handoff |
+| `setup/` | Agent-specific setup guides and shared setup phases |
 | `coding-standards/` | Coding standards templates (conventions, code review, security, testing, git commit) |
 | `playbooks/planning/` | Feature brief, mob elaboration, SBAO ranking, milestone planning |
 | `playbooks/testing/` | Testing workflow methodology |
 | `runtime/` | Enforcement hooks, RFC 2119, code map, architecture, guidelines split |
 | `skills/` | 6 goat-flow skill templates: goat (dispatcher), goat-debug, goat-plan, goat-review, goat-security, goat-test |
-| `templates/` | Reusable artifact templates (requirements tracking) |
+| `templates/` | Reusable artifact templates (requirements tracking, context-validation.yml) |
 
 ## Usage
 

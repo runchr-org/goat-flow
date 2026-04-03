@@ -25,29 +25,29 @@ After the root instruction file (CLAUDE.md / AGENTS.md) is set up. Create domain
 Source of truth is `ai-docs/coding-standards/`. One file per domain or cross-cutting concern.
 
 ```
-ai/
-├── README.md                  # Router - tells agents which files to load
-└── instructions/
-    ├── conventions.md                # Always loaded - project-wide conventions
-    ├── frontend.md            # React/TypeScript domain conventions
-    ├── backend.md             # Go/PostgreSQL domain conventions
-    ├── code-review.md         # Code review checklist and priorities
-    ├── git-commit.md          # Commit messages, branches, PR workflow
-    ├── security.md            # Cross-cutting security rules (highest precedence)
-    └── testing.md             # Test naming, structure, mocking rules
+ai-docs/
+├── README.md                    # Router - tells agents which files to load
+└── coding-standards/
+    ├── conventions.md            # Always loaded - project-wide conventions
+    ├── frontend.md               # React/TypeScript domain conventions
+    ├── backend.md                # Go/PostgreSQL domain conventions
+    ├── code-review.md            # Code review checklist and priorities
+    ├── git-commit.md             # Commit messages, branches, PR workflow
+    ├── security.md               # Cross-cutting security rules (highest precedence)
+    └── testing.md                # Test naming, structure, mocking rules
 ```
 
 The router (`ai-docs/README.md`) maps task types to files:
 
 | Task | Load |
 |------|------|
-| All tasks | `instructions/conventions.md` |
-| Frontend work | `instructions/frontend.md` |
-| Backend work | `instructions/backend.md` |
-| Code review | `instructions/code-review.md` |
-| Committing code | `instructions/git-commit.md` |
-| Security-sensitive work | `instructions/security.md` |
-| Writing tests | `instructions/testing.md` |
+| All tasks | `coding-standards/conventions.md` |
+| Frontend work | `coding-standards/frontend.md` |
+| Backend work | `coding-standards/backend.md` |
+| Code review | `coding-standards/code-review.md` |
+| Committing code | `coding-standards/git-commit.md` |
+| Security-sensitive work | `coding-standards/security.md` |
+| Writing tests | `coding-standards/testing.md` |
 
 Agents read `ai-docs/README.md`, then load the relevant files based on the current task. This keeps token budgets low - agents only load what they need.
 

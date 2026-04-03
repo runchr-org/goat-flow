@@ -44,6 +44,26 @@ When the change is code-only, running tests is sufficient. When the change touch
 
 ---
 
+## Lesson: RECURRENCE — Agent didn't tick checkboxes during M29 execution (same failure as M1)
+
+**Created:** 2026-04-04
+
+**What happened:** While executing M29 (Workflow Review Fixes — 6 workstreams, ~25 sub-tasks, ~100 checkboxes), the agent completed every task, ran full verification, marked the milestone "Done", wrote a session log — and ticked zero checkboxes. The user discovered it during review and escalated. This is a direct recurrence of the pattern documented on 2026-03-31 (M1 execution, same root cause).
+
+**Why this is worse than the first time:**
+1. The lesson was already documented 4 days ago in this exact file
+2. CLAUDE.md VERIFY explicitly says "MUST tick `- [x]` on each task as it's completed - not at the end"
+3. The agent had just EXPANDED the shared conventions block to include closing protocol instructions about checkpoint discipline
+4. The agent was executing a plan about fixing verification and consistency failures — and committed the same verification failure in the process
+
+**Root cause (unchanged):** When parallelizing work across multiple agents, the orchestrating agent tracks completion mentally but never writes it to the file. The "tick as you go" rule is read, understood, and ignored because the strong default is: launch agent → read result → launch next agent. The file update step has no forcing function.
+
+**Previous prevention (insufficient):** "After each task completes, tick it immediately." This didn't work because "immediately" competes with "launch the next parallel agent" and loses.
+
+**Stronger prevention:** After receiving results from EACH agent or completing EACH sub-task, the FIRST action must be editing the milestone file to tick the checkbox — BEFORE reading the next task, launching the next agent, or doing anything else. If parallelizing, tick all completed checkboxes in a batch BEFORE starting the next phase. Treat unticked checkboxes as uncommitted work — if the session dies, the progress is invisible.
+
+---
+
 ## Pattern: "AI gate passed" does not mean the work is done
 
 **Created:** 2026-04-01

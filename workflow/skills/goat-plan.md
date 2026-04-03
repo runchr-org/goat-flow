@@ -1,37 +1,92 @@
 ---
 name: goat-plan
-description: "4-phase planning workflow with complexity routing, kill criteria, and triangular tension analysis for competing approaches."
+description: "4-phase planning workflow with complexity routing, kill criteria, and triangular tension analysis. Includes refactor planning mode for cross-file restructuring."
 goat-flow-skill-version: "0.10.0"
 ---
 # /goat-plan
 
 ## Shared Conventions
 
-- **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
-- **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
-- **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Ceremony:** Hotfix/Small Feature → skip closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3. Standard → full phases. System/Infrastructure → full + cross-boundary verification. Sub-agent mode → GATEs become CHECKPOINTs automatically.
-- **Footgun fast-path:** If Step 0 footgun check matches a known trap, surface it immediately and offer the mitigation path. Still require READ + VERIFY on actual files — footguns are incident records, not executable specs.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect. (Skip for Hotfix/Small Feature.)
-- **Learning Loop:** Behavioural mistake → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`. Architectural trap → add a `## Footgun:` entry to the relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`.
-- **Closing:** If incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`. Suggest next skill.
+### Severity & Evidence
+- **Severity order:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE. Order findings by severity, not by file or discovery order.
+- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (directly verified in code) or INFERRED (deduced — state what direct evidence is missing). Before presenting findings, re-read each cited `file:line` to confirm accuracy. MUST NOT fabricate file paths, function names, or behaviour.
+
+### Human Gates
+- **BLOCKING GATE** — agent MUST stop and wait for human decision. Used for: scope approval, phase transitions, final output review. Do NOT auto-advance.
+- **CHECKPOINT** — agent presents status and continues unless interrupted. Used for: progress reports, intermediate findings. Format: "Phase N complete. [summary]. Continuing to Phase N+1."
+
+### Adaptive Step 0
+1. Read the user's invocation for context already provided
+2. For each Step 0 question: if answer is clear from context → **confirm** ("I see [answer]. Correct?"). Otherwise → **ask**
+3. If ALL questions answered by invocation → condensed confirmation, proceed
+4. If user says "skip Step 0" → confirm understanding, proceed
+
+**Gate rule:** Step 0 MUST end with the agent presenting its understanding and waiting for the user before Phase 1. Auto-detect pre-fills context — it does not replace confirmation. Bare invocation = zero context = ask all structural questions and wait.
+
+### Stuck Protocol
+If 3 consecutive reads produce no new signal: (1) present what you have so far, (2) state what you were looking for and didn't find, (3) ask to redirect, narrow scope, or close.
+
+### Ceremony Level
+| Complexity | Ceremony |
+|------------|----------|
+| Hotfix / Small Feature | Skip: closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3 |
+| Standard | Full phases, gates at major decisions |
+| System / Infrastructure | Full phases + cross-boundary verification + rollback planning |
+
+**Sub-agent mode:** GATEs become CHECKPOINTs automatically. Step 0 proceeds with auto-detected scope.
+
+### Footgun Fast-Path
+If Step 0 footgun check matches a known trap: (1) surface match immediately, (2) offer mitigation path from the entry, (3) still require READ + VERIFY on actual files — footguns are incident records, not executable specs, (4) do NOT skip to implementation on a match alone.
+
+### Flush Protocol
+If 10+ tool calls pass without a gate/checkpoint (skip for Hotfix/Small Feature): (1) write 3-sentence status to `.goat-flow/tasks/handoff.md` (what, where, next), (2) if working from a plan/milestone file: tick all completed checkboxes NOW before continuing, (3) ask: continue, compact, or redirect? Counter resets at every BLOCKING GATE, CHECKPOINT, or human message. Handoff file is transient — do not commit.
+
+### Learning Loop
+After completing the skill, check if this run uncovered anything worth logging:
+- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`
+- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`
+- Route team-wide entries to `ai-docs/`; session-only entries to `.goat-flow/`
+- Match entry format to existing entries in the target bucket file. Do not append to a monolithic log or directory README.
+
+### Recovery
+When a skill fails mid-execution (context limit, sub-agent dies, tool error):
+- Partial completion → identify last completed step (last `[x]` checkbox), resume from next
+- Missing artifacts → return to the step that generates them, re-execute
+- User wants restart → archive current output to handoff, re-run from Step 0
+- User wants to skip → document skip reason in output, proceed to closing
+- Sub-agent/autonomous mode → write `.goat-flow/tasks/handoff.md` with enough context to resume
+
+### Working Memory
+For tasks exceeding 5 turns: maintain state in `.goat-flow/tasks/todo.md`. If interrupted or compacted, write `.goat-flow/tasks/handoff.md`.
+
+### Autonomy Awareness
+Before proposing actions that change files, check the instruction file's Ask First boundaries. If the proposed change crosses a boundary, flag it: "This change touches [boundary]. Proceeding requires approval per Ask First rules."
+
+### Closing Protocol
+1. If incomplete → write `.goat-flow/tasks/handoff.md` (Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files)
+2. Check Learning Loop for anything worth logging
+3. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` (what happened, files changed, decisions, learnings)
+4. Suggest most relevant next skill (see Chains With)
 
 ## When to Use
 
-Use before any non-trivial implementation. Hotfixes can use the compressed
-path. Single-line changes don't need planning.
+Use before non-trivial implementation or cross-file restructuring.
 
+**Mode routing:**
+- Designing something new → **Plan mode** (Phases 1-4)
+- Restructuring existing code → **Refactor planning mode** (Phases R1-R3)
+
+**Complexity routing (plan mode):**
 - **Hotfix** → Phase 1 brief only (3-5 lines), skip Phases 2-4
-- **Standard** → Phase 1 brief + Phase 4 milestones. MAY skip Phase 2-3.
+- **Small Feature** → Phase 1 compressed brief (Problem/Solution/Scope/Success all at once), skip Phases 2-3, 1-2 milestones max
+- **Standard** → Phase 1 brief + Phase 4 milestones. SHOULD skip Phase 2-3 (only use if approach is genuinely uncertain).
 - **System** → Full 4-phase process with human gates
 - **Infrastructure** → Full process + rollback planning
 
 **NOT this skill:**
-- Understanding code before planning → /goat-debug (investigate mode)
-- Reviewing an existing plan or PR → /goat-review
-- Debugging a specific issue → /goat-debug
+- Diagnosing a bug → /goat-debug
+- Reviewing an existing change → /goat-review
+- Generating test instructions → /goat-test
 
 ## Step 0 - Where Are We?
 
@@ -50,10 +105,9 @@ If found: "I found [artifact] from [date]. Want to: (a) resume from here, (b) st
 If matches found: "Branch [name] modified [files] [N] days ago. Coordinate?"
 
 **Structural questions (always ask or confirm):**
-1. What problem does this solve? (or "what are we building?")
-2. Who's affected? (end users, developers, ops — helps scope the blast radius)
-3. What does done look like? (acceptance criteria, even rough ones)
-4. What complexity? (Hotfix / Standard / System / Infrastructure)
+1. What are we doing? (new feature, refactor, infrastructure change)
+2. If new: What complexity? (Hotfix / Small Feature / Standard / System / Infrastructure) → Plan mode
+3. If restructure: What's the scope? (rename, extract, move, interface change) → Refactor mode
 
 **Illustrative questions (adapt):**
 5. <!-- ADAPT: "What's the riskiest part? (e.g., database migration, API contract, auth changes)" -->
@@ -92,7 +146,8 @@ then present the next. Do NOT dump all 8 sections at once.
 
 Ask the question whose answer could invalidate the approach FIRST.
 
-**Glossary check:** If `docs/glossary.md` exists, verify all domain terms in the
+<!-- ADAPT -->
+**Glossary check:** If `ai-docs/glossary.md` exists, verify all domain terms in the
 brief are defined. If new terms appear, add them: `| term | definition | canonical file | aliases |`
 
 **BLOCKING GATE:** Present complete brief. "Approve, or adjust?"
@@ -162,6 +217,70 @@ before implementation are hypotheses, not commitments.
 
 **BLOCKING GATE:** Present milestones. "Approve and start implementing?"
 
+---
+
+## Refactor Planning Mode (Phases R1-R3)
+
+Activated when restructuring existing code: renames, extractions, moves, interface changes.
+
+### Phase R1 - Blast Radius Analysis
+
+Before changing anything:
+
+1. **Declare scope:**
+   - Files to change: [list]
+   - Files that might break: [list]
+   - Files out of scope: [list]
+
+2. **Read both sides of every interface being changed:**
+   If renaming: read every caller AND the definition.
+   If moving: read every importer AND the module.
+   If changing an API: read server AND all clients.
+
+3. **Auto-detect scope:** `grep -rn 'OldName' --include='*.{ts,py,go,php,rs}' | wc -l`
+
+4. **Check autonomy tiers:** Flag Ask First boundary crossings.
+
+5. **Check footguns:** Read `ai-docs/footguns/` and `.goat-flow/footguns/` for affected area.
+
+**BLOCKING GATE:** "This refactor touches [N] files across [M] boundaries. Blast radius: [assessment]. Proceed?"
+
+### Phase R2 - Execution Sequence
+
+Plan the execution order. Do NOT change everything at once.
+
+**For renames:**
+1. Change definition → grep verify → update consumers one-by-one → grep verify
+2. Update documentation: `grep -rn 'OldName' --include='*.md'`
+
+**For extractions:**
+1. Create new module → move code → update imports → verify old location clean → update consumers
+
+**For interface changes:**
+1. Add new interface alongside old → migrate consumers → remove old → grep verify
+
+**Checkpoints:** Run lint/test after EACH step.
+
+### Phase R3 - Verification Plan
+
+Comprehensive verification after all changes:
+
+1. **Absence check:** Grep for every old name/path. Include: `*.md`, `*.json`, `*.yml`. Target: ZERO remaining.
+2. **Import/reference check:** Build or typecheck.
+3. **Doc cross-reference check:** Grep CLAUDE.md, AGENTS.md, docs/*.md for old paths.
+4. **Test verification:** Run full test suite.
+5. **Multi-agent vocabulary check:** No agent-specific vocabulary introduced in shared docs.
+
+**BLOCKING GATE:** Present verification plan:
+- Old references remaining: [target: 0]
+- Build/typecheck: [expected: pass]
+- Tests: [expected: pass]
+- Doc references: [expected: updated]
+
+"Approve plan and start executing?"
+
+---
+
 ## Common Failure Modes
 
 1. **Brief dump** - agent presents all 8 sections at once. Walk through one at a time.
@@ -171,11 +290,16 @@ before implementation are hypotheses, not commitments.
 ## Constraints
 
 <!-- FIXED: Do not adapt these -->
-- MUST walk through brief sections one at a time, not dump all at once
-- MUST NOT answer your own elaboration questions
+- MUST walk through brief sections one at a time, not dump all at once (plan mode)
+- MUST NOT answer your own elaboration questions (plan mode)
 - MUST surface kill criteria in Phase 1, not defer to Phase 4
 - MUST tag low-confidence decisions as Decision Debt
 - MUST re-read next milestone after completing each one
+- MUST read both sides of every interface before changing either (refactor mode)
+- MUST grep for old names after EVERY rename, not just at end (refactor mode)
+- MUST change one layer at a time, verify between layers (refactor mode)
+- MUST check documentation references, not just source code (refactor mode)
+- MUST flag Ask First boundary crossings (refactor mode)
 - MUST NOT fabricate file paths or function names
 - MUST audit sub-agent output if using multi-agent SBAO (see lessons entries on auditing delegated output)
 
@@ -241,8 +365,8 @@ before implementation are hypotheses, not commitments.
 
 ## Chains With
 
-- /goat-debug (investigate mode) - need research before planning
-- /goat-test - milestones need verification plans
-- /goat-review - plan needs review before implementation starts
+- /goat-debug - need to understand code before planning → investigate mode
+- /goat-test - milestones/refactor needs verification plan
+- /goat-review - plan or refactor result needs review before merge
 
-**Handoff shape:** `{feature_brief, approach_chosen, milestones, kill_criteria}`
+**Handoff shape:** `{mode, feature_brief?, approach_chosen?, milestones?, blast_radius?, execution_sequence?, verification_plan?}`

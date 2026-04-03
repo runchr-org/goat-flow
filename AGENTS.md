@@ -68,7 +68,7 @@ GOOD: Inline format. Extract when second format needed
 3. Footgun entry checked: [relevant entry, or "none"]
 4. Local instruction checked: [.github/instructions/<file> / CLAUDE.md / none]
 5. Rollback command: [exact command]
-- `docs/system-spec.md`, `docs/system/`, or `CLAUDE.md`
+- `docs/system-spec.md`, `docs/architecture.md`, or `CLAUDE.md`
 - `workflow/setup/` or `workflow/skills/` template changes affecting generated output
 - `.github/workflows/` changes
 - Adding, removing, or renaming files
@@ -90,7 +90,7 @@ Sub-agents: ONE objective, structured return (paths, evidence, confidence, next 
 | Resource | Path |
 |----------|------|
 | System spec | `docs/system-spec.md` |
-| System docs | `docs/system/` |
+| System docs | `docs/architecture.md` |
 | Architecture | `ai-docs/architecture.md` |
 | Scripts | `scripts/` |
 <!-- goat-flow:router:start -->

@@ -7,16 +7,66 @@ goat-flow-skill-version: "0.10.0"
 
 ## Shared Conventions
 
-- **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
-- **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
-- **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Ceremony:** Hotfix/Small Feature → skip closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3. Standard → full phases. System/Infrastructure → full + cross-boundary verification. Sub-agent mode → GATEs become CHECKPOINTs automatically.
-- **Footgun fast-path:** If Step 0 footgun check matches a known trap, surface it immediately and offer the mitigation path. Still require READ + VERIFY on actual files — footguns are incident records, not executable specs.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect. (Skip for Hotfix/Small Feature.)
-- **Learning Loop:** Behavioural mistake → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`. Architectural trap → add a `## Footgun:` entry to the relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`.
-- **Closing:** If incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`. Suggest next skill.
+### Severity & Evidence
+- **Severity order:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE. Order findings by severity, not by file or discovery order.
+- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (directly verified in code) or INFERRED (deduced — state what direct evidence is missing). Before presenting findings, re-read each cited `file:line` to confirm accuracy. MUST NOT fabricate file paths, function names, or behaviour.
+
+### Human Gates
+- **BLOCKING GATE** — agent MUST stop and wait for human decision. Used for: scope approval, phase transitions, final output review. Do NOT auto-advance.
+- **CHECKPOINT** — agent presents status and continues unless interrupted. Used for: progress reports, intermediate findings. Format: "Phase N complete. [summary]. Continuing to Phase N+1."
+
+### Adaptive Step 0
+1. Read the user's invocation for context already provided
+2. For each Step 0 question: if answer is clear from context → **confirm** ("I see [answer]. Correct?"). Otherwise → **ask**
+3. If ALL questions answered by invocation → condensed confirmation, proceed
+4. If user says "skip Step 0" → confirm understanding, proceed
+
+**Gate rule:** Step 0 MUST end with the agent presenting its understanding and waiting for the user before Phase 1. Auto-detect pre-fills context — it does not replace confirmation. Bare invocation = zero context = ask all structural questions and wait.
+
+### Stuck Protocol
+If 3 consecutive reads produce no new signal: (1) present what you have so far, (2) state what you were looking for and didn't find, (3) ask to redirect, narrow scope, or close.
+
+### Ceremony Level
+| Complexity | Ceremony |
+|------------|----------|
+| Hotfix / Small Feature | Skip: closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3 |
+| Standard | Full phases, gates at major decisions |
+| System / Infrastructure | Full phases + cross-boundary verification + rollback planning |
+
+**Sub-agent mode:** GATEs become CHECKPOINTs automatically. Step 0 proceeds with auto-detected scope.
+
+### Footgun Fast-Path
+If Step 0 footgun check matches a known trap: (1) surface match immediately, (2) offer mitigation path from the entry, (3) still require READ + VERIFY on actual files — footguns are incident records, not executable specs, (4) do NOT skip to implementation on a match alone.
+
+### Flush Protocol
+If 10+ tool calls pass without a gate/checkpoint (skip for Hotfix/Small Feature): (1) write 3-sentence status to `.goat-flow/tasks/handoff.md` (what, where, next), (2) if working from a plan/milestone file: tick all completed checkboxes NOW before continuing, (3) ask: continue, compact, or redirect? Counter resets at every BLOCKING GATE, CHECKPOINT, or human message. Handoff file is transient — do not commit.
+
+### Learning Loop
+After completing the skill, check if this run uncovered anything worth logging:
+- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`
+- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`
+- Route team-wide entries to `ai-docs/`; session-only entries to `.goat-flow/`
+- Match entry format to existing entries in the target bucket file. Do not append to a monolithic log or directory README.
+
+### Recovery
+When a skill fails mid-execution (context limit, sub-agent dies, tool error):
+- Partial completion → identify last completed step (last `[x]` checkbox), resume from next
+- Missing artifacts → return to the step that generates them, re-execute
+- User wants restart → archive current output to handoff, re-run from Step 0
+- User wants to skip → document skip reason in output, proceed to closing
+- Sub-agent/autonomous mode → write `.goat-flow/tasks/handoff.md` with enough context to resume
+
+### Working Memory
+For tasks exceeding 5 turns: maintain state in `.goat-flow/tasks/todo.md`. If interrupted or compacted, write `.goat-flow/tasks/handoff.md`.
+
+### Autonomy Awareness
+Before proposing actions that change files, check the instruction file's Ask First boundaries. If the proposed change crosses a boundary, flag it: "This change touches [boundary]. Proceeding requires approval per Ask First rules."
+
+### Closing Protocol
+1. If incomplete → write `.goat-flow/tasks/handoff.md` (Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files)
+2. Check Learning Loop for anything worth logging
+3. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` (what happened, files changed, decisions, learnings)
+4. Suggest most relevant next skill (see Chains With)
 
 ## When to Use
 
@@ -41,20 +91,24 @@ Phase 1 only + abbreviated Phase 3 (1-2 manual checks). Skip Phase 2.
 ## Step 0 - Gather Context
 
 **Structural questions (always ask or confirm):**
-1. What to test? (recent changes, specific module, coverage gaps)
-2. What's the risk level? (Hotfix / Standard / System)
+1. What changed? (or I'll run `git diff` to find it)
+2. What's the risk? (what could break if this is wrong?)
+3. What's already tested? (existing test files, manual checks done)
+4. What's the risk level? (Hotfix / Standard / System)
 
 **Auto-detect mode (unless user explicitly specifies):**
 
 Scope detection priority: (1) explicit user input, (2) staged changes, (3) unstaged changes to target, (4) git diff. If user names a specific file, use THAT — not the full worktree diff.
 
-- User names a change / `git diff --stat` shows changes to target → **Standard mode** (test the change, Phase 0 Change Manifest)
-- User names a module AND no changes exist → **Audit mode** (coverage gap analysis, skip Phase 0, go straight to gap analysis)
+- Changes to target exist → **Standard mode** (Phase 0 Change Manifest)
+- No changes to target → **Audit mode** (coverage gap analysis, skip Phase 0)
 - Audit mode: analyze module's public API surface, map existing test files, identify untested paths
-- User explicitly says "quick" → **Quick mode** (most recent commit only)
+- User says "quick" → **Quick mode** (most recent commit only)
 - User explicitly says "audit" or "standard" → respect override
 
-**Auto-detect stack:** Read test files and present: "Test stack: [detected]. Correct?"
+<!-- ADAPT: "Test stack: [detected from package.json/Makefile/etc.]" -->
+
+**Escape hatch:** If the user says "just test what changed" or provides minimal info, auto-detect scope from `git diff --stat` and existing test files, then proceed with confirmation.
 
 **Pattern read:** Before generating test instructions, read 1-2 existing test files in the affected area. Match the project's assertion style, selector patterns, and fixture conventions exactly. Generate tests that look like the ones already there - not textbook examples.
 
@@ -89,13 +143,13 @@ corresponding change."
 ## Phase 1 - Automated Tests
 
 Generate commands for the coding agent to run:
-
+<!-- ADAPT: Replace with your project's test commands -->
 ```bash
 # Run relevant test suite
-node --import tsx --test test/**/*.test.ts
+<!-- ADAPT: your test command targeting changed areas -->
 
 # Run full preflight if available
-bash scripts/preflight-checks.sh
+<!-- ADAPT: your preflight command -->
 ```
 
 **Phase 1 executor:** The coding agent runs these commands. Phase 2 and 3 are
@@ -124,11 +178,13 @@ bias toward its own work. Recommend a different model for verification.
 **If Phase 2 will be skipped:** Note it explicitly in "What ISN'T Tested":
 "AI verification not performed - [reason]. Coverage relies on automated tests
 (Phase 1) and human testing (Phase 3) only. Cross-model blind spots are NOT covered."
+<!-- ADAPT: If your agent supports sub-agents, offer to run Phase 2 prompts
+as sub-agent tasks instead of requiring a separate session. -->
 
 **Failure Signatures:**
 | If this breaks... | You'll see... |
 |-------------------|---------------|
-Scanner score regression, stale footgun refs, broken cross-references after renames
+<!-- ADAPT: fill with project-specific failure patterns -->
 | Auth change broken | 401 responses on `/api/user` |
 | Migration failed | Missing columns in `users` table |
 | Build regression | `npm run build` exits non-zero |
@@ -164,8 +220,6 @@ Explicitly list coverage gaps. Be honest about what's NOT verified:
 
 ## Constraints
 
-Conversational: present findings by severity tier, pause between tiers. Let the human drill in.
-
 <!-- FIXED: Do not adapt these -->
 - Phase 2/3 verification MUST NOT be performed by the coding agent (doer-verifier principle)
 - MUST fill ALL bracketed values in Phase 2 prompts - no [PLACEHOLDER] in output
@@ -184,7 +238,7 @@ Conversational: present findings by severity tier, pause between tiers. Let the 
 |------|-----------|-------------|------|-------------------|
 
 ## Phase 1: Automated Tests
-npm test
+<!-- ADAPT: your project's test commands -->
 ```bash
 # Commands for the coding agent to run
 ```
@@ -207,7 +261,7 @@ npm test
 <!-- Explicit gaps in coverage -->
 ```
 
-Phase 1 commands should be CI-pasteable (include a YAML snippet alongside human-readable commands).
+Phase 1 commands should be copy-pasteable into CI or terminal.
 
 ## Chains With
 

@@ -24,7 +24,7 @@ coding-standards/
 ├── domain-instructions.md     # Guide for creating domain-specific instruction files
 ├── frontend/                  # Stack-specific frontend templates (React, Vue, etc.)
 ├── backend/                   # Stack-specific backend templates (Go, Node, Python, etc.)
-├── devops/                    # IaC references (Terraform, Packer)
+├── devops/                    # IaC references (Terraform)
 └── security/                  # Stack-specific security overlays
     └── framework-specific/    # Framework-level security templates (Rails, Django, etc.)
 ```
@@ -43,22 +43,21 @@ coding-standards/
 
 | Directory | Purpose |
 |-----------|---------|
-| `frontend/` | Stack-specific frontend conventions (React/TS, Vue, Angular, Swift, Blazor, etc.) |
+| `frontend/` | Stack-specific frontend conventions (React/TS, Vue, Angular, TypeScript) |
 | `backend/` | Stack-specific backend conventions (Go, Node, Python, Rust, etc.) |
 | `security/` | Universal security template + `framework-specific/` overlays |
-| `devops/` | Infrastructure-as-code references (Terraform, Packer) - see `devops/README.md` for detection signals |
+| `devops/` | Infrastructure-as-code references (Terraform) |
 
 ### Support Status
 
 | Area | Supported | Fallback | Not yet supported |
 |------|-----------|----------|-------------------|
-| **Backend** | Go, Django, FastAPI, Laravel, Symfony, Rails | Flask (use `python.md`), generic PHP | - |
-| **Backend (partial)** | - | Spring Boot, TypeScript Node, .NET, Rust, Bash | - |
+| **Backend** | Go, Django, FastAPI, Laravel, Symfony | Flask (use `python.md`), generic PHP | Rails |
+| **Backend (partial)** | - | TypeScript Node, .NET, Rust, Bash | - |
 | **Frontend** | React, Vue, Angular, TypeScript | - | Svelte (use `typescript.md` as base) |
 | **Frontend (template)** | Blade, Twig, ERB, Jinja | - | - |
-| **Frontend (native)** | Swift/iOS, Blazor | - | - |
-| **Security** | Laravel, Symfony, Django, Rails, Spring, Express, .NET, Cypress | - | Fastify, NestJS (use `express-node.md` as base) |
-| **DevOps** | Terraform, Packer | - | Kubernetes, Ansible |
+| **Security** | Laravel, Symfony, Django, Express, Go | - | Rails, Spring, .NET. Fastify, NestJS (use `express-node.md` as base) |
+| **DevOps** | Terraform | - | Packer, Kubernetes, Ansible |
 
 ## How Agents Use It
 

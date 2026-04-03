@@ -11,9 +11,9 @@ When Gemini CLI was asked to set up GOAT Flow, it modified 6 shared documentatio
 **What actually happened** (from `ai-docs/lessons/`):
 
 - `docs/system-spec.md:429` -- "Every Claude turn" became "Every Gemini turn" (should be agent-neutral)
-- `docs/system/five-layers.md:100` -- Claude Code row deleted from skills table, replaced with Gemini CLI only
-- `docs/system/five-layers.md:49-50` -- `.claude/` paths replaced with `.gemini/` paths
-- `docs/system/six-steps.md:182` -- Claude Code hook example replaced, not added alongside
+- `docs/architecture.md:100` -- Claude Code row deleted from skills table, replaced with Gemini CLI only
+- `docs/architecture.md:49-50` -- `.claude/` paths replaced with `.gemini/` paths
+- `docs/system-spec.md:182` -- Claude Code hook example replaced, not added alongside
 - `workflow/runtime/enforcement.md` -- ended up in a hybrid state with half `.claude/` and half `.gemini/` paths
 
 **Root cause:** The agent treated the task as find-and-replace (`.claude/` to `.gemini/`, `PreToolUse` to `BeforeTool`). It did not distinguish between agent-specific files and shared files.

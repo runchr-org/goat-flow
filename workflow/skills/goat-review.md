@@ -1,22 +1,72 @@
 ---
 name: goat-review
-description: "Structured code review and quality audit with RFC 2119 severity, diff-aware analysis, footgun matching, negative verification, and instruction-file audit mode."
+description: "Structured code review and quality audit with RFC 2119 severity, diff-aware analysis, footgun matching, negative verification, simplify mode for readability, and instruction-file audit mode."
 goat-flow-skill-version: "0.10.0"
 ---
 # /goat-review
 
 ## Shared Conventions
 
-- **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
-- **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
-- **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Ceremony:** Hotfix/Small Feature → skip closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3. Standard → full phases. System/Infrastructure → full + cross-boundary verification. Sub-agent mode → GATEs become CHECKPOINTs automatically.
-- **Footgun fast-path:** If Step 0 footgun check matches a known trap, surface it immediately and offer the mitigation path. Still require READ + VERIFY on actual files — footguns are incident records, not executable specs.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect. (Skip for Hotfix/Small Feature.)
-- **Learning Loop:** Behavioural mistake → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`. Architectural trap → add a `## Footgun:` entry to the relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`.
-- **Closing:** If incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`. Suggest next skill.
+### Severity & Evidence
+- **Severity order:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE. Order findings by severity, not by file or discovery order.
+- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (directly verified in code) or INFERRED (deduced — state what direct evidence is missing). Before presenting findings, re-read each cited `file:line` to confirm accuracy. MUST NOT fabricate file paths, function names, or behaviour.
+
+### Human Gates
+- **BLOCKING GATE** — agent MUST stop and wait for human decision. Used for: scope approval, phase transitions, final output review. Do NOT auto-advance.
+- **CHECKPOINT** — agent presents status and continues unless interrupted. Used for: progress reports, intermediate findings. Format: "Phase N complete. [summary]. Continuing to Phase N+1."
+
+### Adaptive Step 0
+1. Read the user's invocation for context already provided
+2. For each Step 0 question: if answer is clear from context → **confirm** ("I see [answer]. Correct?"). Otherwise → **ask**
+3. If ALL questions answered by invocation → condensed confirmation, proceed
+4. If user says "skip Step 0" → confirm understanding, proceed
+
+**Gate rule:** Step 0 MUST end with the agent presenting its understanding and waiting for the user before Phase 1. Auto-detect pre-fills context — it does not replace confirmation. Bare invocation = zero context = ask all structural questions and wait.
+
+### Stuck Protocol
+If 3 consecutive reads produce no new signal: (1) present what you have so far, (2) state what you were looking for and didn't find, (3) ask to redirect, narrow scope, or close.
+
+### Ceremony Level
+| Complexity | Ceremony |
+|------------|----------|
+| Hotfix / Small Feature | Skip: closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3 |
+| Standard | Full phases, gates at major decisions |
+| System / Infrastructure | Full phases + cross-boundary verification + rollback planning |
+
+**Sub-agent mode:** GATEs become CHECKPOINTs automatically. Step 0 proceeds with auto-detected scope.
+
+### Footgun Fast-Path
+If Step 0 footgun check matches a known trap: (1) surface match immediately, (2) offer mitigation path from the entry, (3) still require READ + VERIFY on actual files — footguns are incident records, not executable specs, (4) do NOT skip to implementation on a match alone.
+
+### Flush Protocol
+If 10+ tool calls pass without a gate/checkpoint (skip for Hotfix/Small Feature): (1) write 3-sentence status to `.goat-flow/tasks/handoff.md` (what, where, next), (2) if working from a plan/milestone file: tick all completed checkboxes NOW before continuing, (3) ask: continue, compact, or redirect? Counter resets at every BLOCKING GATE, CHECKPOINT, or human message. Handoff file is transient — do not commit.
+
+### Learning Loop
+After completing the skill, check if this run uncovered anything worth logging:
+- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`
+- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`
+- Route team-wide entries to `ai-docs/`; session-only entries to `.goat-flow/`
+- Match entry format to existing entries in the target bucket file. Do not append to a monolithic log or directory README.
+
+### Recovery
+When a skill fails mid-execution (context limit, sub-agent dies, tool error):
+- Partial completion → identify last completed step (last `[x]` checkbox), resume from next
+- Missing artifacts → return to the step that generates them, re-execute
+- User wants restart → archive current output to handoff, re-run from Step 0
+- User wants to skip → document skip reason in output, proceed to closing
+- Sub-agent/autonomous mode → write `.goat-flow/tasks/handoff.md` with enough context to resume
+
+### Working Memory
+For tasks exceeding 5 turns: maintain state in `.goat-flow/tasks/todo.md`. If interrupted or compacted, write `.goat-flow/tasks/handoff.md`.
+
+### Autonomy Awareness
+Before proposing actions that change files, check the instruction file's Ask First boundaries. If the proposed change crosses a boundary, flag it: "This change touches [boundary]. Proceeding requires approval per Ask First rules."
+
+### Closing Protocol
+1. If incomplete → write `.goat-flow/tasks/handoff.md` (Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files)
+2. Check Learning Loop for anything worth logging
+3. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` (what happened, files changed, decisions, learnings)
+4. Suggest most relevant next skill (see Chains With)
 
 ## When to Use
 
@@ -24,12 +74,12 @@ Use when reviewing a diff, PR, or specific set of changes before they ship.
 Also use for systematic quality audits of a codebase area - before releases,
 after major changes, or when code quality is uncertain.
 Also use for reviewing instruction files for staleness - see modes below.
+Also use for improving readability, naming, and code clarity - see Simplify Mode.
 
 **NOT this skill:**
 - OWASP-driven security assessment → /goat-security
 - Understanding unfamiliar code before changing it → /goat-debug (investigate mode)
 - Generating test instructions → /goat-test
-- Making code more readable → /goat-review (simplify mode)
 
 ## Step 0 - Gather Context
 
@@ -102,7 +152,7 @@ pre-existing issues as part of this change - note them separately.
 - Pattern drift: does new code use a different pattern than existing codebase? Don't assume it's wrong - ask: "Intentional divergence?"
 - Downstream impact: "What breaks if this change has a bug?" - map the cascade
 - Test execution gaps: tests exist but weren't run against the changed path (different from "no test exists")
-- Glossary consistency: if `docs/glossary.md` exists, flag terms used inconsistently in the diff (different name for same concept)
+- Glossary consistency: if `ai-docs/glossary.md` exists, flag terms used inconsistently in the diff (different name for same concept) <!-- ADAPT -->
 
 **Self-check:** Before presenting, re-verify `file:line` references for all MUST-fix findings.
 
@@ -236,6 +286,50 @@ Present proposals in diff-like format:
 MUST NOT auto-edit instruction files. Present for human approval.
 MUST NOT edit `ai-docs/footguns/`, `.goat-flow/footguns/`, `ai-docs/lessons/`, or `.goat-flow/lessons/` - those have their own update standards.
 
+---
+
+## Simplify Mode
+
+Activated when goal is readability improvement. **MUST NOT change behavior.**
+
+**Quick path:** For a single function or ≤50 lines: skip S1 scope confirmation.
+
+### Phase S1 - Read & Assess
+**Footgun check:** Read `ai-docs/footguns/` and `.goat-flow/footguns/` for target area.
+
+Read target files. Assess: Can a new reader understand without context? Are names self-explanatory? Do comments add value? Is control flow easy to follow?
+
+### Phase S2 - Identify Opportunities
+Scan by impact:
+
+| Category | What to look for | Impact |
+|----------|-----------------|--------|
+| Naming | Cryptic names, abbreviations, misleading names | High |
+| Self-documentation | Code that requires comments to explain intent | High |
+| Comment quality | Commented-out code, outdated comments, comments restating code | Medium |
+| Complexity | Deep nesting (>3 levels), long functions (>40 lines) | Medium |
+| Constants | Magic numbers, hardcoded strings | Medium |
+| Dead code | Unused imports, unreachable branches | Low |
+
+**The naming test:** "Would a new reader understand this name without reading the implementation?"
+
+**Refactor boundary:** If a rename crosses file boundaries or changes a public API → redirect to /goat-plan (refactor mode).
+
+**Intentional complexity:** Crypto, parsers, performance-critical paths → flag as "complex by design."
+
+### Phase S3 - Self-Check & Present
+Re-read each `file:line`. Is the suggested rename safe? Remove findings where evidence doesn't hold.
+
+Present ordered by impact. **BLOCKING GATE:** (a) implement all, (b) implement selectively, (c) drill in, (d) close
+
+### Phase S4 - Implement (if approved)
+Apply one file at a time. After each:
+1. Grep for old names — zero remaining
+2. Check doc cross-references
+3. Run tests/linter — behavior unchanged
+
+If tests fail → revert that change, note as unsafe, continue with rest.
+
 ## Common Failure Modes
 
 1. **One-shot dump** - agent produces entire review at once instead of conversational drilling. Present findings by severity tier, pause between tiers.
@@ -258,6 +352,8 @@ MUST NOT edit `ai-docs/footguns/`, `.goat-flow/footguns/`, `ai-docs/lessons/`, o
 - MUST NOT propose fixes in audit mode - audit reports only
 - MUST re-verify file:line references in audit self-check
 - MUST group 3+ related audit findings as systemic patterns
+- MUST NOT change behavior in simplify mode
+- MUST NOT rename public/exported APIs without explicit approval (simplify mode)
 - Conversational: present findings, then let the human drill in. One-shot dumps miss architectural problems.
 
 ## Output Format
@@ -307,6 +403,5 @@ Output should be compatible with standard GitHub/GitLab PR review templates.
 - /goat-plan - review reveals missing requirements → planning needed
 - /goat-test - review finds coverage gaps → test plan needed
 - /goat-security - review/audit finds security concern → deeper assessment
-- /goat-review (simplify mode) - review finds readability issues → simplification needed
 
 **Handoff shape:** `{scope, mode, findings_by_severity, breaking_changes, coverage_gaps, patterns}`

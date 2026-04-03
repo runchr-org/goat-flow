@@ -8,13 +8,13 @@ category: docs-and-crossrefs
 
 **Symptoms:** A user reads conflicting descriptions of the same concept in different files. An agent follows a rule from one file that contradicts another.
 
-**Why it happens:** The execution loop, autonomy tiers, anti-pattern table, and other core concepts are described in `docs/system-spec.md`, `docs/system/six-steps.md`, `docs/system/five-layers.md`, `docs/getting-started.md`, and `docs/reference/design-rationale.md`. Updating one without updating the others creates drift.
+**Why it happens:** The execution loop, autonomy tiers, anti-pattern table, and other core concepts are described in `docs/system-spec.md`, `docs/architecture.md`, `docs/getting-started.md`, and `docs/design-rationale.md`. Updating one without updating the others creates drift.
 
 **Evidence:**
 - `docs/system-spec.md` → execution loop definition
-- `docs/system/six-steps.md` → execution loop definition (detailed version)
+- `docs/system-spec.md` → execution loop definition (detailed version)
 - `docs/getting-started.md` → execution loop summary
-- `docs/reference/design-rationale.md` → execution loop rationale with repeated content
+- `docs/design-rationale.md` → execution loop rationale with repeated content
 
 **Prevention:** When editing a core concept, grep for the concept name across all docs and update every occurrence. `docs/system-spec.md` is the canonical source of truth.
 
@@ -30,7 +30,7 @@ category: docs-and-crossrefs
 
 **Evidence:**
 - `docs/getting-started.md` → referenced stale paths to old workflow directory
-- `docs/system/five-layers.md` → referenced `FIVE_LAYER_SYSTEM.md` (old filename)
+- `docs/architecture.md` → referenced `FIVE_LAYER_SYSTEM.md` (old filename)
 
 **Prevention:** After any file rename or move, grep the entire repo for the old path. Use `grep -r "old-filename" --include="*.md"` before declaring done. This is DoD gate #6.
 

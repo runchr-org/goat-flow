@@ -10,13 +10,13 @@ const dispatcherContent = readFileSync(
 );
 
 // Extract intent mapping rows from the markdown table
-function extractRoutingTable(content: string): Array<{ keywords: string; skill: string; mode: string; edits: string }> {
+function extractRoutingTable(content: string): Array<{ keywords: string; skill: string; mode: string }> {
   const tableMatch = content.match(/\| If the input mentions[\s\S]*?\n\n/);
   if (!tableMatch) return [];
   const lines = tableMatch[0].split('\n').filter(l => l.startsWith('|') && !l.includes('---') && !l.includes('If the input'));
   return lines.map(line => {
     const cols = line.split('|').map(c => c.trim()).filter(Boolean);
-    return { keywords: cols[0] ?? '', skill: cols[1] ?? '', mode: cols[2] ?? '', edits: cols[3] ?? '' };
+    return { keywords: cols[0] ?? '', skill: cols[1] ?? '', mode: cols[2] ?? '' };
   });
 }
 
@@ -27,42 +27,28 @@ describe('Dispatcher routing table', () => {
     assert.ok(routes.length >= 10, `Expected ≥10 routes, got ${routes.length}`);
   });
 
-  it('has an "Edits code?" column', () => {
-    assert.ok(
-      dispatcherContent.includes('Edits code?'),
-      'Routing table should have "Edits code?" column for investigation vs implementation',
-    );
-  });
-
-  it('investigation verbs route to read-only', () => {
+  it('investigation verbs route to investigate mode', () => {
     const investigateRow = routes.find(r => r.keywords.includes('understand'));
     assert.ok(investigateRow, 'Should have an understand/investigate row');
-    assert.ok(investigateRow.edits.includes('No'), `Investigate should be read-only, got: ${investigateRow.edits}`);
+    assert.ok(investigateRow.mode.includes('Investigate'), `Investigate should route to Investigate mode, got: ${investigateRow.mode}`);
   });
 
-  it('implementation verbs route to edits', () => {
-    const fixRow = routes.find(r => r.keywords.includes('fix'));
-    assert.ok(fixRow, 'Should have a fix/change/update row');
-    assert.ok(fixRow.edits.includes('Yes'), `Fix should allow edits, got: ${fixRow.edits}`);
-  });
-
-  it('build/create routes to goat-plan with execute', () => {
+  it('build/create routes to goat-plan', () => {
     const buildRow = routes.find(r => r.keywords.includes('build'));
     assert.ok(buildRow, 'Should have a build/create row');
     assert.ok(buildRow.skill.includes('goat-plan'), `Build should route to goat-plan, got: ${buildRow.skill}`);
-    assert.ok(buildRow.edits.includes('Yes'), `Build should allow edits`);
   });
 
-  it('review routes to read-only', () => {
+  it('review routes to goat-review', () => {
     const reviewRow = routes.find(r => r.keywords.includes('review'));
     assert.ok(reviewRow, 'Should have a review row');
-    assert.ok(reviewRow.edits.includes('No'), `Review should be read-only, got: ${reviewRow.edits}`);
+    assert.ok(reviewRow.skill.includes('goat-review'), `Review should route to goat-review, got: ${reviewRow.skill}`);
   });
 
-  it('security routes to read-only', () => {
+  it('security routes to goat-security', () => {
     const secRow = routes.find(r => r.keywords.includes('security'));
     assert.ok(secRow, 'Should have a security row');
-    assert.ok(secRow.edits.includes('No'), `Security should be read-only, got: ${secRow.edits}`);
+    assert.ok(secRow.skill.includes('goat-security'), `Security should route to goat-security, got: ${secRow.skill}`);
   });
 
   it('has escape hatch for simple questions', () => {
@@ -73,8 +59,8 @@ describe('Dispatcher routing table', () => {
   });
 
   it('has disambiguation for ambiguous inputs', () => {
-    assert.ok(dispatcherContent.includes('the login is broken'), 'Should have "login is broken" disambiguation');
-    assert.ok(dispatcherContent.includes('investigate') && dispatcherContent.includes('fix it'), 'Should ask about investigate vs fix');
+    assert.ok(dispatcherContent.includes('Common Ambiguities'), 'Should have Common Ambiguities table');
+    assert.ok(dispatcherContent.includes('check the auth code'), 'Should have auth code disambiguation');
   });
 
   it('all 5 specialized skills appear in routing table', () => {

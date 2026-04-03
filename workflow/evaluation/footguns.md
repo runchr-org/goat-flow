@@ -56,7 +56,7 @@ entry and add:
 **Status:** RESOLVED - [short reason]
 
 RULES:
-- Every entry MUST include file path evidence pointing to REAL code. Line numbers are optional historical context.
+- Every entry MUST include file path evidence pointing to REAL code. Line numbers are RECOMMENDED — include them when available, but they are historical context that may drift as code changes.
 - Do NOT invent hypothetical footguns
 - Do NOT include generic advice like "write tests" or "review carefully"
 - Every footgun must be SPECIFIC to THIS codebase

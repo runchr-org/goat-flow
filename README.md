@@ -108,8 +108,8 @@ npx . scan .
 |----------|---------------|
 | [Getting Started](docs/getting-started.md) | Reading order, setup checklist |
 | [System Spec](docs/system-spec.md) | Full technical specification |
-| [5-Layer Architecture](docs/system/five-layers.md) | Runtime, Skills, Evaluation layers |
-| [Skills Reference](docs/system/skills.md) | All skills: when to use, gates, outputs |
+| [Architecture](docs/architecture.md) | Runtime, Skills, Evaluation layers |
+| [Skills Reference](docs/skills/README.md) | All skills: when to use, gates, outputs |
 
 ## Author
 

@@ -18,16 +18,16 @@ The other 5 skills remain directly invocable. `/goat` is a convenience layer, no
 
 ## Intent Mapping
 
-| If the input mentions... | Route to | Mode | Edits code? |
+| If the input mentions... | Route to | Mode |
 |--------------------------|----------|------|
 | bug, error, broken, crash, exception, symptom, trace | **/goat-debug** | Diagnose |
 | understand, explore, how does, new to this, onboard | **/goat-debug** | Investigate / Onboard |
 | review, PR, diff, merge, check changes, code review | **/goat-review** | Standard |
 | audit, quality sweep, instruction staleness | **/goat-review** | Audit / Instruction |
 | simplify, readability, clean up, naming, messy | **/goat-review** | Simplify |
-| security, vulnerability, CVE, auth bypass, injection, OWASP | **/goat-security** | Threat model |
+| security, vulnerability, CVE, CVEs, auth bypass, injection, OWASP | **/goat-security** | Threat model |
 | HIPAA, GDPR, PHI, compliance, regulation | **/goat-security** | Compliance |
-| dependencies, CVEs, outdated packages, supply chain | **/goat-security** | Dependency audit |
+| dependencies, outdated packages, supply chain, dependency audit | **/goat-security** | Dependency audit |
 | plan, design, feature, architect, build (new thing) | **/goat-plan** | Plan |
 | rename, move, extract, restructure, refactor, cross-file | **/goat-plan** | Refactor |
 | test, testing, verification, coverage, test plan | **/goat-test** | — |
@@ -54,6 +54,9 @@ Do NOT guess when ambiguous. One clarification question is faster than loading t
 | "help with the migration" | plan vs plan(refactor) vs debug | Ask: "Planning it, executing a restructure, or fixing a failing one? Or tell me more." |
 | "this code is bad" | review vs review(simplify) vs debug | Ask: "Is it broken, hard to read, or low quality? Or tell me more." |
 | "analyse/evaluate/critique a plan" | review vs plan | Ask: "Find problems in the plan (review), or sharpen and improve it (plan)? Or tell me more." |
+| "refactor the tests" | plan(refactor) vs test | Ask: "Restructuring test code, or generating a test plan?" |
+| "review the security code" | review vs security | Ask: "Quality review, or security assessment?" |
+| "audit the code" | review(audit) vs security | Ask: "Code quality audit (review) or security/dependency audit (security)?" |
 
 **Target-aware disambiguation:** If the input references a file path, check the path for context:
 - Path contains `roadmap`, `plan`, `todo`, `milestone` → disambiguate between goat-review and goat-plan

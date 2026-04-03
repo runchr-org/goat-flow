@@ -14,8 +14,8 @@ A structured workflow system for AI coding agents - Claude Code, Gemini CLI, and
 1. **This file** -- how to start
 2. **The spec** (`docs/system-spec.md`) -- full reference for every design decision
 3. **The setup** (`workflow/setup/setup-claude.md`, `workflow/setup/setup-gemini.md`, or `workflow/setup/setup-codex.md`) -- what you run
-4. **The rationale** (`docs/reference/design-rationale.md`) -- deep dives on why each section exists
-5. **The skills** (`docs/system/skills.md`) -- all 6 skills with usage guidance
+4. **The rationale** (`docs/design-rationale.md`) -- deep dives on why each section exists
+5. **The skills** (`docs/skills/README.md`) -- all 6 skills with usage guidance
 
 ## Before You Start
 
@@ -156,9 +156,9 @@ ai-docs/evals/                              <- Phase 2
 ## Further Reading
 
 - **The spec** (`docs/system-spec.md`) -- full system design, rationale for every section, hook design patterns, security hardening details
-- **The rationale** (`docs/reference/design-rationale.md`) -- deep dives on why each section exists
-- **Cross-agent comparison** (`docs/reference/cross-agent-comparison.md`) -- how this adapts across Claude Code, Gemini CLI, and Codex
-- **Skills reference** (`docs/system/skills.md`) -- all 6 skills, when to use, hard gates
+- **The rationale** (`docs/design-rationale.md`) -- deep dives on why each section exists
+- **Cross-agent comparison** (`docs/cross-agent-comparison.md`) -- how this adapts across Claude Code, Gemini CLI, and Codex
+- **Skills reference** (`docs/skills/README.md`) -- all 6 skills, when to use, hard gates
 - **Planning playbooks** (`workflow/playbooks/`) -- planning prompts (mob elaboration, SBAO ranking, milestone planning)
 - **Scaffold prompts** (`workflow/runtime/`) -- project scaffolding prompts
 - **Testing workflow** (`workflow/playbooks/testing/`) -- testing-related workflow files

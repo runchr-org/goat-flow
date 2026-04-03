@@ -10,7 +10,7 @@ difficulty: medium
 ### Scenario
 
 ```text
-Rename docs/system/six-steps.md to docs/system/execution-loop.md and update the canonical spec to match.
+Rename docs/system-spec.md to docs/execution-loop.md and update the canonical spec to match.
 ```
 
 ### Expected Behavior
