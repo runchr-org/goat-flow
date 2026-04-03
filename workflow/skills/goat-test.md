@@ -41,8 +41,10 @@ Phase 1 only + abbreviated Phase 3 (1-2 manual checks). Skip Phase 2.
 ## Step 0 - Gather Context
 
 **Structural questions (always ask or confirm):**
-1. What to test? (recent changes, specific module, coverage gaps)
-2. What's the risk level? (Hotfix / Standard / System)
+1. What changed? (or I'll run `git diff` to find it)
+2. What's the risk? (what could break if this is wrong?)
+3. What's already tested? (existing test files, manual checks done)
+4. What's the risk level? (Hotfix / Standard / System)
 
 **Auto-detect mode (unless user explicitly specifies):**
 
@@ -55,6 +57,8 @@ Scope detection priority: (1) explicit user input, (2) staged changes, (3) unsta
 - User explicitly says "audit" or "standard" → respect override
 
 <!-- ADAPT: "Test stack: [detected from package.json/Makefile/etc.]" -->
+
+**Escape hatch:** If the user says "just test what changed" or provides minimal info, auto-detect scope from `git diff --stat` and existing test files, then proceed with confirmation.
 
 **Pattern read:** Before generating test instructions, read 1-2 existing test files in the affected area. Match the project's assertion style, selector patterns, and fixture conventions exactly. Generate tests that look like the ones already there - not textbook examples.
 

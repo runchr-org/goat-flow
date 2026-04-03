@@ -23,8 +23,10 @@ check_segment() {
   local cmd="$1"
 
   # rm -rf without scoping (handles both -rf and -fr flag order)
+  # Block: rm -rf / , rm -rf ./ , rm -rf ~ , rm -rf without a real path
+  # Allow: rm -rf ./node_modules , rm -rf dist/ , rm -rf /tmp/goat-flow-*
   if [[ "$cmd" =~ rm[[:space:]]+-[a-zA-Z]*r[a-zA-Z]*f|rm[[:space:]]+-[a-zA-Z]*f[a-zA-Z]*r ]]; then
-    if ! [[ "$cmd" =~ rm[[:space:]]+-(rf|fr)[[:space:]]+(\./|[a-zA-Z]) ]]; then
+    if ! [[ "$cmd" =~ rm[[:space:]]+-(rf|fr)[[:space:]]+(\./[a-zA-Z]|[a-zA-Z]) ]]; then
       block "rm -rf without safe scoping"
     fi
   fi
@@ -48,9 +50,12 @@ check_segment() {
     block "Direct push to main/master"
   fi
 
-  # Force push
+  # Force push (--force, --force-with-lease, or -f shorthand)
   if [[ "$cmd" =~ git[[:space:]]+push[[:space:]]+.*--force ]]; then
     block "git push --force"
+  fi
+  if [[ "$cmd" =~ git[[:space:]]+push[[:space:]]+(.*[[:space:]])?-f([[:space:]]|$) ]]; then
+    block "git push -f (force push shorthand)"
   fi
 
   # chmod 777

@@ -50,12 +50,16 @@ If found: "I found [artifact] from [date]. Want to: (a) resume from here, (b) st
 If matches found: "Branch [name] modified [files] [N] days ago. Coordinate?"
 
 **Structural questions (always ask or confirm):**
-1. What are we building? (feature, fix, refactor, infrastructure change)
-2. What complexity? (Hotfix / Standard / System / Infrastructure)
+1. What problem does this solve? (or "what are we building?")
+2. Who's affected? (end users, developers, ops — helps scope the blast radius)
+3. What does done look like? (acceptance criteria, even rough ones)
+4. What complexity? (Hotfix / Standard / System / Infrastructure)
 
 **Illustrative questions (adapt):**
-3. <!-- ADAPT: "What's the riskiest part? (e.g., database migration, API contract, auth changes)" -->
-4. <!-- ADAPT: "Any constraints? (timeline, backwards compatibility, performance budget)" -->
+5. <!-- ADAPT: "What's the riskiest part? (e.g., database migration, API contract, auth changes)" -->
+6. <!-- ADAPT: "Any constraints? (timeline, backwards compatibility, performance budget)" -->
+
+**Escape hatch:** If the user says "I'll figure it out from the code" or provides minimal info, infer scope from `git diff`, named files, or the project structure and confirm before proceeding.
 
 **Kill criteria (surface early):** "What would make us abandon this entirely?"
 Even a vague answer ("if it takes more than a week" or "if it breaks the existing API")

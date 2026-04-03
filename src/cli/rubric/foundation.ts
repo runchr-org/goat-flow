@@ -119,51 +119,68 @@ export const foundationChecks: CheckDef[] = [
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
+        const base = {
+          id: '1.1.5',
+          name: 'Instruction file has concrete examples',
+          tier: 'foundation' as const,
+          category: 'Instruction File',
+          confidence: 'medium' as const,
+        };
         const content = ctx.agentFacts.instruction.content;
         if (content === null) {
-          return {
-            id: '1.1.5',
-            name: 'Instruction file has concrete examples',
-            tier: 'foundation',
-            category: 'Instruction File',
-            status: 'fail',
-            points: 0,
-            maxPoints: 1,
-            confidence: 'medium',
-            message: 'No instruction file content',
-          };
+          return { ...base, status: 'fail', points: 0, maxPoints: 1, message: 'No instruction file content' };
         }
         const matches =
           content.match(/\bBAD\b|\bGOOD\b|\bDON'T\b|\bexample:/gi) ?? [];
-        if (matches.length >= 2) {
-          return {
-            id: '1.1.5',
-            name: 'Instruction file has concrete examples',
-            tier: 'foundation',
-            category: 'Instruction File',
-            status: 'pass',
-            points: 1,
-            maxPoints: 1,
-            confidence: 'medium',
-            message: `Instruction file uses concrete DO/DON'T or BAD/GOOD examples (${matches.length} matches)`,
-          };
+        if (matches.length < 2) {
+          return { ...base, status: 'fail', points: 0, maxPoints: 1, message: 'No concrete examples found (need 2+ BAD/GOOD/DON\'T/example: markers)' };
         }
-        return {
-          id: '1.1.5',
-          name: 'Instruction file has concrete examples',
-          tier: 'foundation',
-          category: 'Instruction File',
-          status: 'fail',
-          points: 0,
-          maxPoints: 1,
-          confidence: 'medium',
-          message: 'No concrete examples found',
-        };
+        // Tightened: examples must reference project paths (backtick-wrapped with /)
+        // This catches generic text like "the function" vs real refs like `docs/system-spec.md:104`
+        const hasProjectPaths = /`[^`]*\/[^`]+`/.test(content);
+        if (hasProjectPaths) {
+          return { ...base, status: 'pass', points: 1, maxPoints: 1, message: `Concrete examples with project path references (${matches.length} markers)` };
+        }
+        return { ...base, status: 'fail', points: 0, maxPoints: 1, message: `Found ${matches.length} BAD/GOOD markers but no backtick-wrapped project paths. Examples should reference real files like \`src/auth.ts\` not generic text.` };
       },
     },
     recommendation:
-      "Add concrete BAD/GOOD or DO/DON'T examples to the instruction file - at least 2 pairs showing right vs wrong approaches",
+      "Add concrete BAD/GOOD or DO/DON'T examples that reference real project paths (e.g., `src/auth.ts:42`) — not generic placeholder text",
     recommendationKey: 'add-concrete-examples',
+  },
+
+  {
+    id: '1.1.5a',
+    name: 'Instruction file paths resolve on disk',
+    tier: 'foundation',
+    category: 'Instruction File',
+    pts: 1,
+    confidence: 'high',
+    detect: {
+      type: 'custom',
+      fn: (ctx: FactContext): CheckResult => {
+        const base = {
+          id: '1.1.5a',
+          name: 'Instruction file paths resolve on disk',
+          tier: 'foundation' as const,
+          category: 'Instruction File',
+          confidence: 'high' as const,
+        };
+        const routerResolved = ctx.agentFacts.router.resolved;
+        const askFirstResolved = ctx.agentFacts.askFirst.resolved;
+        const totalResolved = routerResolved + askFirstResolved;
+        if (totalResolved >= 2) {
+          return { ...base, status: 'pass', points: 1, maxPoints: 1, message: `${totalResolved} project-specific paths resolve (router: ${routerResolved}, Ask First: ${askFirstResolved})` };
+        }
+        if (totalResolved === 1) {
+          return { ...base, status: 'fail', points: 0, maxPoints: 1, message: `Only ${totalResolved} project path resolves (need 2+). Add backtick-wrapped paths in the Router Table or Ask First section that point to real files/dirs.` };
+        }
+        return { ...base, status: 'fail', points: 0, maxPoints: 1, message: 'No project-specific paths resolve on disk. Add backtick-wrapped paths in the Router Table or Ask First section that point to real files/dirs.' };
+      },
+    },
+    recommendation:
+      'Reference at least 2 real project file paths (in Router Table or Ask First section) that exist on disk — e.g., `docs/architecture.md`, `src/cli/`',
+    recommendationKey: 'add-resolvable-paths',
   },
 
   // === 1.2 Execution Loop (13 pts) ===
@@ -314,11 +331,33 @@ export const foundationChecks: CheckDef[] = [
     pts: 2,
     confidence: 'medium',
     detect: {
-      type: 'grep',
-      path: '{instruction_file}',
-      pattern: 'lessons/|footguns/|MUST update when tripped',
+      type: 'custom',
+      fn: (ctx: FactContext): CheckResult => {
+        const base = {
+          id: '1.2.6',
+          name: 'LOG step',
+          tier: 'foundation' as const,
+          category: 'Execution Loop',
+          confidence: 'medium' as const,
+        };
+        const content = ctx.agentFacts.instruction.content;
+        if (content === null) {
+          return { ...base, status: 'fail', points: 0, maxPoints: 2, message: 'No instruction file content' };
+        }
+        const hasLogMention = /lessons\/|footguns\/|MUST update when tripped/i.test(content);
+        if (!hasLogMention) {
+          return { ...base, status: 'fail', points: 0, maxPoints: 2, message: 'LOG step not found. Expected references to lessons/ or footguns/ directories.' };
+        }
+        // Tightened: verify at least one referenced learning-loop directory exists
+        const footgunsExist = ctx.facts.shared.footguns.committedExists || ctx.facts.shared.footguns.localExists;
+        const lessonsExist = ctx.facts.shared.lessons.committedExists || ctx.facts.shared.lessons.localExists;
+        if (footgunsExist || lessonsExist) {
+          return { ...base, status: 'pass', points: 2, maxPoints: 2, message: 'LOG step references learning-loop paths that exist on disk' };
+        }
+        return { ...base, status: 'fail', points: 0, maxPoints: 2, message: `LOG step references learning-loop paths but neither footguns (${ctx.facts.shared.footguns.paths.committed}) nor lessons (${ctx.facts.shared.lessons.paths.committed}) directory exists. Create them or update the paths.` };
+      },
     },
-    recommendation: 'Add LOG step referencing lessons and footguns directories',
+    recommendation: 'Add LOG step referencing lessons and footguns directories — and create those directories so the paths resolve',
     recommendationKey: 'add-log-step',
   },
 
@@ -606,51 +645,36 @@ export const foundationChecks: CheckDef[] = [
   // === 1.5 Enforcement Baseline (8 pts) ===
   {
     id: '1.5.1',
-    name: 'Deny mechanism exists',
+    name: 'Deny mechanism has 3+ patterns',
     tier: 'foundation',
     category: 'Enforcement',
     pts: 3,
+    partialPts: 1,
     confidence: 'high',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
-        const deny = ctx.agentFacts.agent.denyMechanism;
-        // Whether any deny mechanism was found for this agent
-        let exists = false;
-        // Path(s) where the deny mechanism was detected
-        let evidence = '';
-
-        if (deny.type === 'settings-deny') {
-          exists = ctx.agentFacts.settings.hasDenyPatterns;
-          evidence = deny.path;
-        } else if (deny.type === 'deny-script') {
-          exists = ctx.agentFacts.hooks.denyExists;
-          evidence = deny.path;
-        } else {
-          exists =
-            ctx.agentFacts.settings.hasDenyPatterns ||
-            ctx.agentFacts.hooks.denyExists;
-          evidence = `${deny.settingsPath} or ${deny.scriptPath}`;
-        }
-
-        return {
+        const base = {
           id: '1.5.1',
-          name: 'Deny mechanism exists',
-          tier: 'foundation',
+          name: 'Deny mechanism has 3+ patterns',
+          tier: 'foundation' as const,
           category: 'Enforcement',
-          status: exists ? 'pass' : 'fail',
-          points: exists ? 3 : 0,
-          maxPoints: 3,
-          confidence: 'high',
-          message: exists
-            ? `Deny mechanism found at ${evidence}`
-            : 'No deny mechanism found',
-          evidence,
+          confidence: 'high' as const,
         };
+        const patternCount = countDenyPatterns(ctx);
+        const evidence = getDenyEvidence(ctx);
+
+        if (patternCount >= 3) {
+          return { ...base, status: 'pass', points: 3, maxPoints: 3, message: `Deny mechanism has ${patternCount} distinct patterns at ${evidence}`, evidence };
+        }
+        if (patternCount >= 1) {
+          return { ...base, status: 'partial', points: 1, maxPoints: 3, message: `Deny mechanism has ${patternCount} pattern${patternCount === 1 ? '' : 's'} (need 3+). Add blocks for rm -rf, force push, chmod 777, or pipe-to-shell.`, evidence };
+        }
+        return { ...base, status: 'fail', points: 0, maxPoints: 3, message: 'No deny mechanism found. Add permissions.deny in settings.json or a deny-dangerous.sh script with 3+ blocked patterns.', evidence };
       },
     },
     recommendation:
-      'Add a deny mechanism (permissions.deny in settings.json or deny-dangerous.sh script)',
+      'Add a deny mechanism with at least 3 patterns (e.g., git commit, git push, rm -rf). Use permissions.deny in settings.json or deny-dangerous.sh.',
     recommendationKey: 'add-deny-mechanism',
   },
   {
@@ -837,4 +861,38 @@ function findSection(ctx: FactContext, name: string): string | null {
     if (heading.includes(name.toLowerCase())) return content;
   }
   return null;
+}
+
+/** Count distinct deny patterns from settings-based deny and/or script-based deny. */
+function countDenyPatterns(ctx: FactContext): number {
+  // Settings-based: count permissions.deny array entries
+  let settingsCount = 0;
+  if (ctx.agentFacts.settings.hasDenyPatterns && ctx.agentFacts.settings.parsed) {
+    const perms = (ctx.agentFacts.settings.parsed as Record<string, unknown>).permissions as Record<string, unknown> | undefined;
+    const denyArr = perms?.deny;
+    if (Array.isArray(denyArr)) settingsCount = denyArr.length;
+  }
+  if (settingsCount >= 3) return settingsCount;
+
+  // Script-based: count distinct blocking behaviors detected in the deny hook
+  const h = ctx.agentFacts.hooks;
+  const scriptBehaviors = [
+    h.denyBlocksRmRf,
+    h.denyBlocksForcePush,
+    h.denyBlocksChmod,
+    h.denyBlocksPipeToShell,
+    h.denyBlocksCloudDestructive,
+    ctx.agentFacts.deny.gitCommitBlocked,
+    ctx.agentFacts.deny.gitPushBlocked,
+  ].filter(Boolean).length;
+
+  return Math.max(settingsCount, scriptBehaviors);
+}
+
+/** Return a human-readable evidence string for the deny mechanism location. */
+function getDenyEvidence(ctx: FactContext): string {
+  const deny = ctx.agentFacts.agent.denyMechanism;
+  if (deny.type === 'settings-deny') return deny.path;
+  if (deny.type === 'deny-script') return deny.path;
+  return `${deny.settingsPath} + ${deny.scriptPath}`;
 }

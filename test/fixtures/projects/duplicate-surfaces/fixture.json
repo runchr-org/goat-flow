@@ -1,0 +1,10 @@
+{
+  "extends": "../passing-minimal",
+  "agentFilter": "claude",
+  "expected": {
+    "claude": {
+      "maxPercentage": 99,
+      "triggeredAntiPatterns": ["AP22"]
+    }
+  }
+}

@@ -147,6 +147,32 @@ describe('deny-dangerous.sh hook', () => {
     );
   });
 
+  it('blocks git push -f shorthand', () => {
+    const r = runHook('git push -f origin dev');
+    assert.equal(r.exitCode, 2, 'Should block -f shorthand for force push');
+    assert.ok(r.stderr.includes('BLOCKED'), r.stderr);
+  });
+
+  it('blocks rm -rf ./ (bare dot-slash)', () => {
+    const r = runHook('rm -rf ./');
+    assert.equal(r.exitCode, 2, 'Should block rm -rf ./ without a real subdirectory');
+    assert.ok(r.stderr.includes('BLOCKED'), r.stderr);
+  });
+
+  // === Commands that SHOULD be allowed (additional) ===
+
+  it('allows npm install (safe package management)', () => {
+    const r = runHook('npm install express');
+    assert.equal(r.exitCode, 0);
+  });
+
+  it('allows rm -rf with a real subdirectory after ./', () => {
+    const r = runHook('rm -rf ./node_modules');
+    assert.equal(r.exitCode, 0);
+  });
+
+  // === Known bypass vectors (documented, not blocked) ===
+
   it('does NOT block source .env (known limitation)', () => {
     const r = runHook('source .env');
     assert.equal(r.exitCode, 0, 'source .env bypass is a known limitation');

@@ -27,6 +27,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   'agents',
   'skills',
   'line-limits',
+  'persona',
 ]);
 
 export const CONFIG_DEFAULTS: GoatFlowConfig = {
@@ -41,6 +42,7 @@ export const CONFIG_DEFAULTS: GoatFlowConfig = {
   agents: null,
   skills: { install: 'all' },
   lineLimits: { target: 120, limit: 150 },
+  persona: 'developer',
 };
 
 /** Clone the default config object so callers can mutate it safely. */
@@ -57,6 +59,7 @@ function cloneDefaults(): GoatFlowConfig {
     agents: CONFIG_DEFAULTS.agents,
     skills: { install: CONFIG_DEFAULTS.skills.install },
     lineLimits: { ...CONFIG_DEFAULTS.lineLimits },
+    persona: CONFIG_DEFAULTS.persona,
   };
 }
 
@@ -117,6 +120,15 @@ function mergeSkills(value: unknown, merged: GoatFlowConfig): void {
   }
 }
 
+const KNOWN_PERSONAS = new Set(['developer', 'investigator']);
+
+/** Apply a valid persona override from the raw config. */
+function mergePersona(value: unknown, merged: GoatFlowConfig): void {
+  if (typeof value === 'string' && KNOWN_PERSONAS.has(value)) {
+    merged.persona = value as GoatFlowConfig['persona'];
+  }
+}
+
 /** Apply positive line-limit overrides from the raw config. */
 function mergeLineLimits(value: unknown, merged: GoatFlowConfig): void {
   if (!isRecord(value)) return;
@@ -146,6 +158,7 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
 
   // YAML key is `line-limits` (kebab-case), TypeScript field is `lineLimits` (camelCase)
   mergeLineLimits(raw['line-limits'], merged);
+  mergePersona(raw.persona, merged);
 
   return merged;
 }
@@ -420,6 +433,23 @@ function validateSkillInstallList(
   }
 }
 
+/** Validate the persona field when present. */
+function validatePersonaField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  if (!('persona' in raw)) return;
+  const { persona } = raw;
+  if (typeof persona !== 'string' || !KNOWN_PERSONAS.has(persona)) {
+    pushError(
+      errors,
+      'persona',
+      `must be one of: ${Array.from(KNOWN_PERSONAS).join(', ')}`,
+    );
+  }
+}
+
 /** Validate the skills installation policy block. */
 function validateSkillsField(
   raw: RawConfig,
@@ -451,6 +481,7 @@ const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateLogsField,
   validateAgentsField,
   validateSkillsField,
+  validatePersonaField,
 ];
 
 /** Validate a parsed config object and return structured warnings and errors. */

@@ -14,6 +14,7 @@ export interface GoatFlowConfig {
   agents: string[] | null;
   skills: { install: string[] | 'all' };
   lineLimits: { target: number; limit: number };
+  persona: 'developer' | 'investigator';
 }
 
 export interface ValidationIssue {

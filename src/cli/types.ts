@@ -252,6 +252,7 @@ export interface SharedFacts {
     parseError: string | null;
     lineLimits: { target: number; limit: number };
     configLocalExists: boolean;
+    persona: string;
   };
   architecture: { exists: boolean; lineCount: number };
   evals: {
@@ -530,6 +531,8 @@ export interface CLIOptions {
   minGrade: Grade | null;
   // Write output to a file instead of stdout
   output: string | null;
+  // Show prioritized setup guidance instead of scores
+  guide: boolean;
   // Open browser automatically for dashboard command
   openDashboard: boolean;
   help: boolean;

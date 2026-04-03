@@ -36,12 +36,15 @@ Also use for reviewing instruction files for staleness - see modes below.
 <!-- ADAPT: Replace illustrative questions with project-specific review concerns -->
 
 **Structural questions (always ask or confirm):**
-1. What should I review? (PR, recent commits, specific files, codebase area, instruction files)
-2. Any specific concerns? (performance, security, a tricky area, instruction drift)
+1. Which files or area? (or I'll run `git diff` to find recent changes)
+2. What's the concern? (performance, security, correctness, readability — or "general review")
+3. Diff review or full audit? (I'll auto-detect from whether changes exist)
 
 **Illustrative questions (adapt):**
-3. <!-- ADAPT: "Is this responding to external feedback? (Copilot, another agent, team review)" -->
-4. Riskiest change first, or full sweep?
+4. <!-- ADAPT: "Is this responding to external feedback? (Copilot, another agent, team review)" -->
+5. Riskiest change first, or full sweep?
+
+**Escape hatch:** If the user says "just review what changed" or provides minimal info, auto-detect scope from `git diff --stat` and proceed.
 
 **Auto-detect mode (unless user explicitly specifies):**
 

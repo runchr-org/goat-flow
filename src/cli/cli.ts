@@ -65,6 +65,7 @@ Flags:
   --min-score <n>   CI gate: exit 1 if score below threshold (0-100)
   --min-grade <g>   CI gate: exit 1 if grade below threshold (A, B, C, D)
   --output <file>   Write output to file instead of stdout
+  --guide           Show prioritized setup guidance instead of scores
   --no-open         Dashboard: do not auto-open browser
   --help, -h        Show this help
   --version, -v     Show version
@@ -72,6 +73,7 @@ Flags:
 Examples:
   goat-flow .                        Scan current directory
   goat-flow scan --format json       Force JSON output
+  goat-flow scan --guide             Prioritized setup guidance
   goat-flow setup --agent claude     Setup prompt for Claude
   goat-flow setup --agent codex      Setup prompt for Codex
   goat-flow setup --agent gemini      Setup prompt for Gemini
@@ -210,6 +212,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
       'min-score': { type: 'string' },
       'min-grade': { type: 'string' },
       output: { type: 'string', short: 'o' },
+      guide: { type: 'boolean', default: false },
       'no-open': { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
       version: { type: 'boolean', short: 'v', default: false },
@@ -227,6 +230,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     minScore: parseMinScoreArg(values['min-score']),
     minGrade: parseMinGradeArg(values['min-grade']),
     output: resolveOutputPath(values.output, positionals),
+    guide: values.guide === true,
     openDashboard: values['no-open'] !== true,
     help: values.help === true,
     version: values.version === true,
@@ -396,6 +400,11 @@ async function renderScanOutput(
 ): Promise<string> {
   const { renderJson } = await import('./render/json.js');
   const { renderText } = await import('./render/text.js');
+
+  if (options.guide) {
+    const { renderGuide } = await import('./render/guide.js');
+    return renderGuide(report);
+  }
 
   if (options.format === 'html') {
     const { renderHtml } = await import('./render/html.js');

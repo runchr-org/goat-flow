@@ -122,8 +122,46 @@ done < <(
     ' AGENTS.md | grep -oE "$backtick_ref_pattern" | tr -d '`'
 )
 
-(( router_errors == 0 )) || fail "Router table contains missing required paths"
-info "Router table references resolve"
+(( router_errors == 0 )) || fail "AGENTS.md router table contains missing required paths"
+info "AGENTS.md router table references resolve"
+
+# Validate CLAUDE.md router table if it exists
+if [[ -f CLAUDE.md ]]; then
+    claude_router_errors=0
+    while IFS= read -r ref; do
+        [[ -z "$ref" ]] && continue
+        [[ "$ref" == *"*"* ]] && continue
+
+        if [[ -e "$ref" ]]; then
+            continue
+        fi
+
+        allowed=0
+        for allowed_ref in "${allowed_missing_paths[@]}"; do
+            if [[ "$ref" == "$allowed_ref" ]]; then
+                allowed=1
+                break
+            fi
+        done
+
+        if (( allowed == 0 )); then
+            warn "Missing CLAUDE.md router path: $ref"
+            claude_router_errors=1
+        fi
+    done < <(
+        awk '
+            /<!-- goat-flow:router:start -->/ { in_router=1; next }
+            /<!-- goat-flow:router:end -->/ { in_router=0 }
+            !in_router && /^## Router Table/ { in_router=1; next }
+            !in_router { next }
+            /^## / && in_router { in_router=0; next }
+            in_router { print }
+        ' CLAUDE.md | grep -oE "$backtick_ref_pattern" | tr -d '`'
+    )
+
+    (( claude_router_errors == 0 )) || fail "CLAUDE.md router table contains missing required paths"
+    info "CLAUDE.md router table references resolve"
+fi
 
 required_skills=(
     ".agents/skills/goat-security/SKILL.md"

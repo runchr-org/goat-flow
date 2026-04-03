@@ -1,0 +1,20 @@
+{
+  "skill": "goat-test",
+  "scenarios": [
+    {
+      "vagueInput": "test this",
+      "expectedQuestions": ["what changed", "risk", "what tested"],
+      "idealSpecificInput": "Generate a test plan for the config reader refactor in src/cli/config/reader.ts. Changed validation logic and added persona parsing. Existing tests in test/config/ cover basic loading."
+    },
+    {
+      "vagueInput": "we need tests",
+      "expectedQuestions": ["what changed", "risk", "what tested"],
+      "idealSpecificInput": "Write tests for the dashboard preset system in src/dashboard/presets.js. No existing tests. High risk: guided presets construct prompts from user input."
+    },
+    {
+      "vagueInput": "make sure it works",
+      "expectedQuestions": ["what specifically", "what changed", "risk"],
+      "idealSpecificInput": "Test the webhook retry logic in src/api/webhooks.ts — changed from 3 to 5 retries with exponential backoff. Risk: failed deliveries could be lost."
+    }
+  ]
+}

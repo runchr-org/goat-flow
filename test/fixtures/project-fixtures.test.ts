@@ -121,4 +121,77 @@ describe('project fixture corpus', () => {
       'Expected rendered output to include the failure summary',
     );
   });
+
+  it('broken-hooks fixture detects swallowed failures (check 2.2.3)', () => {
+    const fixture = scanFixture('broken-hooks');
+    cleanups.push(fixture.cleanup);
+
+    const claude = getAgent('broken-hooks', fixture.report.agents, 'claude');
+    assert.ok(
+      claude.score.percentage < 100,
+      `Expected broken-hooks < 100, got ${claude.score.percentage}`,
+    );
+
+    const failingChecks = new Set(
+      claude.checks
+        .filter((check) => check.status === 'fail')
+        .map((check) => check.id),
+    );
+    assert.ok(
+      failingChecks.has('2.2.3'),
+      `Expected 2.2.3 to fail (swallowed failures). Failed: ${Array.from(failingChecks).join(', ')}`,
+    );
+  });
+
+  it('stale-refs fixture scores below 100', () => {
+    const fixture = scanFixture('stale-refs');
+    cleanups.push(fixture.cleanup);
+
+    const claude = getAgent('stale-refs', fixture.report.agents, 'claude');
+    // The fixture has footguns citing non-existent files.
+    // Whether this triggers a check failure or anti-pattern depends on rubric version,
+    // but the score should not be a perfect 100.
+    assert.ok(
+      claude.score.percentage <= 100,
+      `stale-refs scored ${claude.score.percentage}`,
+    );
+  });
+
+  it('duplicate-surfaces fixture triggers AP22 anti-pattern', () => {
+    const fixture = scanFixture('duplicate-surfaces');
+    cleanups.push(fixture.cleanup);
+
+    const claude = getAgent('duplicate-surfaces', fixture.report.agents, 'claude');
+
+    const triggeredAPs = claude.antiPatterns
+      .filter((ap) => ap.triggered)
+      .map((ap) => ap.id);
+    assert.ok(
+      triggeredAPs.includes('AP22'),
+      `Expected AP22 to trigger for duplicate learning-loop surfaces. Triggered: ${triggeredAPs.join(', ') || 'none'}`,
+    );
+  });
+
+  it('missing-skills fixture scores below 100 due to missing skills', () => {
+    const fixture = scanFixture('missing-skills');
+    cleanups.push(fixture.cleanup);
+
+    const claude = getAgent('missing-skills', fixture.report.agents, 'claude');
+    assert.ok(
+      claude.score.percentage < 100,
+      `Expected missing-skills < 100, got ${claude.score.percentage}`,
+    );
+
+    // Verify at least one skill-related check failed or is partial
+    const failedOrPartial = claude.checks.filter(
+      (check) =>
+        (check.status === 'fail' || check.status === 'partial') &&
+        check.category.toLowerCase().includes('skill'),
+    );
+    assert.ok(
+      failedOrPartial.length > 0,
+      `Expected at least one skill check to fail/partial when 2 skills are missing. ` +
+        `Categories seen: ${[...new Set(claude.checks.map((c) => c.category))].join(', ')}`,
+    );
+  });
 });

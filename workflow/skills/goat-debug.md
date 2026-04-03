@@ -41,11 +41,15 @@ That's the failure mode this skill exists to prevent.
 
 **Structural questions (always ask or confirm):**
 1. What's the symptom? (error message, unexpected behaviour, test failure)
-2. How urgent? Default: 10 turns. After that, present what you have even if incomplete.
+2. Which area? (or I'll scan `git diff` to find it)
+3. When did it start? (e.g., after a specific commit, deploy, or "always")
 
 **Illustrative questions (adapt):**
-3. <!-- ADAPT: "Which area? (e.g., auth flow, database queries, API endpoints, build pipeline)" -->
-4. What have you already tried? (so I don't repeat dead ends)
+4. <!-- ADAPT: "Which area? (e.g., auth flow, database queries, API endpoints, build pipeline)" -->
+5. What have you already tried? (so I don't repeat dead ends)
+6. How urgent? Default: 10 turns. After that, present what you have even if incomplete.
+
+**Escape hatch:** If the user says "I'll figure it out from the code" or provides minimal info, proceed with what you have — auto-detect from error output, `git diff`, or named files.
 
 **Auto-detect:** Read the error message or test output if provided inline.
 If the user said `/goat-debug the test in auth.test.ts fails with TypeError`,

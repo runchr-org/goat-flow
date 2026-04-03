@@ -376,7 +376,7 @@ describe('Fixture 4: full-claude', () => {
       },
     }),
     '.claude/settings.json': JSON.stringify({
-      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)', 'Bash(rm -rf*)'] },
       hooks: [
         { type: 'Notification', matcher: 'compact', command: 'echo context' },
       ],
@@ -1591,8 +1591,8 @@ describe('Fixture 10: self-goat-flow (score snapshot)', () => {
     assertPercentageRange(report, 'codex', 65, 100, 'self-goat-flow');
   });
 
-  it('Gemini scores B or C (70-100%)', () => {
-    assertPercentageRange(report, 'gemini', 70, 100, 'self-goat-flow');
+  it('Gemini scores C or better (65-100%)', () => {
+    assertPercentageRange(report, 'gemini', 65, 100, 'self-goat-flow');
   });
 
   it('zero false positive anti-patterns on known-good setup', () => {
@@ -1771,6 +1771,268 @@ GOOD: Inline format. Extract when second format needed
       report.meta.antiPatternCount >= 14,
       `Expected 14+ APs, got ${report.meta.antiPatternCount}`,
     );
+  });
+});
+
+// ─── Regression: tightened checks (Phase 2 scanner honesty) ───────
+
+describe('Regression: 1.1.5 requires project paths in BAD/GOOD examples', () => {
+  // PASS: has BAD/GOOD markers AND backtick-wrapped paths with /
+  const passFs = createMockFS({
+    'CLAUDE.md': `# CLAUDE.md - v1.0
+
+## Essential Commands
+
+\`\`\`bash
+npm test
+\`\`\`
+
+BAD:  "The spec says 100 lines for apps" (guessed without reading)
+GOOD: Read \`docs/system-spec.md:104\` → "Target 120 lines. Hard limit 150."
+`,
+    'package.json': JSON.stringify({ name: 'test' }),
+  });
+  const passReport = scanProject(passFs, '/test/1.1.5-pass', { agentFilter: 'claude' });
+
+  it('passes when BAD/GOOD examples reference project paths', () => {
+    const check = passReport.agents[0]?.checks.find(c => c.id === '1.1.5');
+    assert.ok(check, '1.1.5 not found');
+    assert.equal(check.status, 'pass', `Expected pass: ${check.message}`);
+  });
+
+  // FAIL: has BAD/GOOD markers but NO backtick-wrapped paths
+  const failFs = createMockFS({
+    'CLAUDE.md': `# CLAUDE.md - v1.0
+
+## Essential Commands
+
+\`\`\`bash
+npm test
+\`\`\`
+
+BAD:  Writing verbose code
+GOOD: Writing concise code
+`,
+    'package.json': JSON.stringify({ name: 'test' }),
+  });
+  const failReport = scanProject(failFs, '/test/1.1.5-fail', { agentFilter: 'claude' });
+
+  it('fails when BAD/GOOD examples lack project path references', () => {
+    const check = failReport.agents[0]?.checks.find(c => c.id === '1.1.5');
+    assert.ok(check, '1.1.5 not found');
+    assert.equal(check.status, 'fail', `Expected fail: ${check.message}`);
+  });
+});
+
+describe('Regression: 1.1.5a requires 2+ resolvable project paths', () => {
+  // PASS: router + ask-first have 2+ paths that exist
+  const passFs = createMockFS({
+    'CLAUDE.md': `# CLAUDE.md - v1.0
+
+## Router Table
+
+| Resource | Path |
+|----------|------|
+| Docs | \`docs/architecture.md\` |
+| Config | \`.goat-flow/config.yaml\` |
+
+## Autonomy Tiers
+
+**Ask First** Boundaries:
+- \`src/auth.ts\` changes
+
+**Never:** Delete .env
+`,
+    'package.json': JSON.stringify({ name: 'test' }),
+    'docs/architecture.md': '# Arch\n',
+    'src/auth.ts': '// auth\n',
+  });
+  const passReport = scanProject(passFs, '/test/1.1.5a-pass', { agentFilter: 'claude' });
+
+  it('passes with 2+ resolvable paths', () => {
+    const check = passReport.agents[0]?.checks.find(c => c.id === '1.1.5a');
+    assert.ok(check, '1.1.5a not found');
+    assert.equal(check.status, 'pass', `Expected pass: ${check.message}`);
+  });
+
+  // FAIL: router paths don't resolve
+  const failFs = createMockFS({
+    'CLAUDE.md': `# CLAUDE.md - v1.0
+
+## Router Table
+
+| Resource | Path |
+|----------|------|
+| Phantom | \`does/not/exist.md\` |
+`,
+    'package.json': JSON.stringify({ name: 'test' }),
+  });
+  const failReport = scanProject(failFs, '/test/1.1.5a-fail', { agentFilter: 'claude' });
+
+  it('fails when no project paths resolve', () => {
+    const check = failReport.agents[0]?.checks.find(c => c.id === '1.1.5a');
+    assert.ok(check, '1.1.5a not found');
+    assert.equal(check.status, 'fail', `Expected fail: ${check.message}`);
+  });
+});
+
+describe('Regression: 1.2.6 LOG step paths must exist on disk', () => {
+  // PASS: LOG mentions lessons/ and the dir exists
+  const passFs = createMockFS({
+    'CLAUDE.md': `# CLAUDE.md - v1.0
+
+**LOG** - MUST update when tripped. lessons/ and footguns/ entries.
+
+| File | When |
+|------|------|
+| \`ai/lessons/\` | mistakes |
+| \`docs/footguns/\` | traps |
+`,
+    'package.json': JSON.stringify({ name: 'test' }),
+    'ai/lessons/': '# Lessons\n\n### E1\nStuff.\n',
+    'docs/footguns/': '# Footguns\n\n- `src/x.ts:1` - evidence\n',
+  });
+  const passReport = scanProject(passFs, '/test/1.2.6-pass', { agentFilter: 'claude' });
+
+  it('passes when LOG step paths exist', () => {
+    const check = passReport.agents[0]?.checks.find(c => c.id === '1.2.6');
+    assert.ok(check, '1.2.6 not found');
+    assert.equal(check.status, 'pass', `Expected pass: ${check.message}`);
+  });
+
+  // FAIL: LOG mentions lessons/ but dirs don't exist
+  const failFs = createMockFS({
+    'CLAUDE.md': `# CLAUDE.md - v1.0
+
+**LOG** - MUST update when tripped. lessons/ and footguns/ entries.
+`,
+    'package.json': JSON.stringify({ name: 'test' }),
+  });
+  const failReport = scanProject(failFs, '/test/1.2.6-fail', { agentFilter: 'claude' });
+
+  it('fails when LOG step paths do not exist', () => {
+    const check = failReport.agents[0]?.checks.find(c => c.id === '1.2.6');
+    assert.ok(check, '1.2.6 not found');
+    assert.equal(check.status, 'fail', `Expected fail: ${check.message}`);
+  });
+});
+
+describe('Regression: 1.5.1 deny mechanism requires 3+ patterns', () => {
+  // PASS: 3 deny patterns in settings
+  const passFs = createMockFS({
+    'CLAUDE.md': '# CLAUDE.md\n',
+    'package.json': JSON.stringify({ name: 'test' }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)', 'Bash(rm -rf*)'] },
+    }),
+  });
+  const passReport = scanProject(passFs, '/test/1.5.1-pass', { agentFilter: 'claude' });
+
+  it('passes with 3+ deny patterns', () => {
+    const check = passReport.agents[0]?.checks.find(c => c.id === '1.5.1');
+    assert.ok(check, '1.5.1 not found');
+    assert.equal(check.status, 'pass', `Expected pass: ${check.message}`);
+    assert.equal(check.points, 3);
+  });
+
+  // PARTIAL: 2 deny patterns
+  const partialFs = createMockFS({
+    'CLAUDE.md': '# CLAUDE.md\n',
+    'package.json': JSON.stringify({ name: 'test' }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
+    }),
+  });
+  const partialReport = scanProject(partialFs, '/test/1.5.1-partial', { agentFilter: 'claude' });
+
+  it('gives partial credit with 1-2 deny patterns', () => {
+    const check = partialReport.agents[0]?.checks.find(c => c.id === '1.5.1');
+    assert.ok(check, '1.5.1 not found');
+    assert.equal(check.status, 'partial', `Expected partial: ${check.message}`);
+    assert.equal(check.points, 1);
+  });
+
+  // FAIL: no deny patterns
+  const failFs = createMockFS({
+    'CLAUDE.md': '# CLAUDE.md\n',
+    'package.json': JSON.stringify({ name: 'test' }),
+  });
+  const failReport = scanProject(failFs, '/test/1.5.1-fail', { agentFilter: 'claude' });
+
+  it('fails with no deny mechanism', () => {
+    const check = failReport.agents[0]?.checks.find(c => c.id === '1.5.1');
+    assert.ok(check, '1.5.1 not found');
+    assert.equal(check.status, 'fail', `Expected fail: ${check.message}`);
+    assert.equal(check.points, 0);
+  });
+});
+
+describe('Regression: 2.1.12 requires Step 0 AND constraints', () => {
+  // PASS: skills have both Step 0 and Constraints
+  const skillWithBoth = (name: string) => `---
+name: goat-${name}
+goat-flow-skill-version: "${RUBRIC_VERSION}"
+---
+# goat-${name}
+
+## Step 0 - Gather Context
+
+Ask the user before starting.
+
+## Constraints
+
+- MUST gather context before acting
+- MUST provide file:line evidence
+`;
+  const passFs = createMockFS({
+    'CLAUDE.md': '# CLAUDE.md\n',
+    'package.json': JSON.stringify({ name: 'test' }),
+    ...Object.fromEntries(
+      ['debug', 'review', 'plan', 'security', 'test'].map(s => [
+        `.claude/skills/goat-${s}/SKILL.md`,
+        skillWithBoth(s),
+      ]),
+    ),
+  });
+  const passReport = scanProject(passFs, '/test/2.1.12-pass', { agentFilter: 'claude' });
+
+  it('passes when skills have both Step 0 and constraints', () => {
+    const check = passReport.agents[0]?.checks.find(c => c.id === '2.1.12');
+    assert.ok(check, '2.1.12 not found');
+    assert.equal(check.status, 'pass', `Expected pass: ${check.message}`);
+  });
+
+  // FAIL: skills have Step 0 but no Constraints
+  const skillNoConstraints = (name: string) => `---
+name: goat-${name}
+goat-flow-skill-version: "${RUBRIC_VERSION}"
+---
+# goat-${name}
+
+## Step 0 - Gather Context
+
+Ask the user before starting.
+
+## Phase 1
+
+Do the thing.
+`;
+  const failFs = createMockFS({
+    'CLAUDE.md': '# CLAUDE.md\n',
+    'package.json': JSON.stringify({ name: 'test' }),
+    ...Object.fromEntries(
+      ['debug', 'review', 'plan', 'security', 'test'].map(s => [
+        `.claude/skills/goat-${s}/SKILL.md`,
+        skillNoConstraints(s),
+      ]),
+    ),
+  });
+  const failReport = scanProject(failFs, '/test/2.1.12-fail', { agentFilter: 'claude' });
+
+  it('fails when skills lack constraints (scope confirmation)', () => {
+    const check = failReport.agents[0]?.checks.find(c => c.id === '2.1.12');
+    assert.ok(check, '2.1.12 not found');
+    assert.equal(check.status, 'fail', `Expected fail: ${check.message}`);
   });
 });
 

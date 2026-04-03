@@ -903,6 +903,7 @@ export function extractSharedFacts(
       parseError: configState.parseError,
       lineLimits: configState.config.lineLimits,
       configLocalExists: fs.exists('.goat-flow/config.local.yaml'),
+      persona: configState.config.persona,
     },
     architecture: extractArchitectureFacts(fs),
     evals: extractEvalFacts(fs, configState.config.evals.path),

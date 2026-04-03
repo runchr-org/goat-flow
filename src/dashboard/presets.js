@@ -3,25 +3,47 @@ const PRESETS = [
   { id: 'explore', name: 'Explore Codebase', desc: 'Get oriented in an unfamiliar project', prompt: '/goat-debug onboard me to this codebase — start with an overview and ask me what I want to understand', cat: 'understand' },
   { id: 'diagram', name: 'Architecture Diagram', desc: 'Get a high-level Mermaid diagram scoped to what you need', prompt: '/goat-debug investigate mode — I want a high-level architecture diagram of this codebase as a Mermaid diagram I can paste into GitHub.\n\nBefore generating anything, ask me:\n1. What part of the system should the diagram cover? (whole project, a specific feature, data flow, deployment, etc.)\n2. Who is the audience? (new team members, stakeholders, my own reference)\n3. What level of detail? (bird\'s-eye boxes-and-arrows, or more detailed with key modules and their relationships)\n\nThen produce a single Mermaid code block I can copy directly. Keep it clean and readable — no more than 15-20 nodes. Add a one-paragraph summary above the diagram explaining what it shows.', cat: 'understand' },
   { id: 'error', name: 'Explain Error', desc: 'Diagnose an error with guided investigation', prompt: '/goat-debug I have an error I want to diagnose — ask me to paste the error message and any relevant context', cat: 'understand' },
-  { id: 'fix-bug', name: 'Fix Bug', desc: 'Diagnose and fix a specific bug', prompt: '/goat-debug diagnose mode — I have a bug to fix, ask me for the symptom and relevant file', cat: 'understand' },
+  { id: 'fix-bug', name: 'Fix Bug', desc: 'Diagnose and fix a specific bug', prompt: '/goat-debug diagnose mode — I have a bug to fix, ask me for the symptom and relevant file', cat: 'understand', guided: true, guidedFields: [
+    { key: 'symptom', label: 'Describe the symptom', type: 'textarea', placeholder: 'e.g., Login returns 500 after the auth changes' },
+    { key: 'area', label: 'Which file or area?', type: 'input', placeholder: 'e.g., src/auth/login.ts, or leave blank' },
+    { key: 'when', label: 'When did it start?', type: 'input', placeholder: 'e.g., after commit abc123, or always' },
+    { key: 'urgency', label: 'Urgency', type: 'select', options: ['blocking', 'annoying', 'just noticed'], default: 'annoying' }
+  ], guidedTemplate: '/goat-debug diagnose mode — {symptom} in {area}, started {when}, urgency: {urgency}' },
 
   // === Review ===
-  { id: 'review', name: 'Code Review', desc: 'Review recent changes for issues', prompt: '/goat-review review my recent changes — ask me what to focus on or run git diff to find them', cat: 'review' },
+  { id: 'review', name: 'Code Review', desc: 'Review recent changes for issues', prompt: '/goat-review review my recent changes — ask me what to focus on or run git diff to find them', cat: 'review', guided: true, guidedFields: [
+    { key: 'files', label: 'Which files or PR?', type: 'input', placeholder: 'e.g., src/auth/, PR #42, or leave blank for git diff' },
+    { key: 'concern', label: 'What\'s the concern?', type: 'input', placeholder: 'e.g., security, performance, correctness, or general' },
+    { key: 'depth', label: 'Review depth', type: 'select', options: ['quick check', 'standard review', 'deep audit'], default: 'standard review' }
+  ], guidedTemplate: '/goat-review review {files} — focus on {concern}, depth: {depth}' },
   { id: 'simplify', name: 'Simplify Code', desc: 'Find code that can be cleaned up', prompt: '/goat-review simplify mode — find code that can be cleaned up, start with the most-changed files', cat: 'review' },
   { id: 'uncommitted', name: 'Review Uncommitted', desc: 'Analyse uncommitted changes', prompt: '/goat-review review my uncommitted changes — run git diff and analyse what I\'ve changed', cat: 'review' },
   { id: 'triage', name: 'Triage Ideas', desc: 'Sort a plan into excellent / okay / bad ideas', prompt: 'I\'ll paste a plan below. Categorise every idea into: excellent ideas, okay ideas, bad ideas. For each, explain why in one sentence.', cat: 'review' },
 
   // === Plan ===
-  { id: 'plan', name: 'Plan Feature', desc: 'Plan a new feature through guided questions', prompt: '/goat-plan I want to add a new feature', cat: 'plan' },
+  { id: 'plan', name: 'Plan Feature', desc: 'Plan a new feature through guided questions', prompt: '/goat-plan I want to add a new feature', cat: 'plan', guided: true, guidedFields: [
+    { key: 'problem', label: 'What problem does this solve?', type: 'textarea', placeholder: 'e.g., Users can\'t reset their password without contacting support' },
+    { key: 'users', label: 'Who\'s affected?', type: 'input', placeholder: 'e.g., end users, admin team, or all developers' },
+    { key: 'constraints', label: 'Any constraints?', type: 'input', placeholder: 'e.g., must be backwards compatible, deadline Friday' },
+    { key: 'done', label: 'What does done look like?', type: 'input', placeholder: 'e.g., users can reset via email link, admin sees audit log' }
+  ], guidedTemplate: '/goat-plan plan feature — problem: {problem}, affects: {users}, constraints: {constraints}, done: {done}' },
   { id: 'refactor', name: 'Plan Refactor', desc: 'Plan a code restructure with blast radius analysis', prompt: '/goat-plan refactor mode — include blast radius analysis', cat: 'plan' },
 
   // === Test ===
-  { id: 'test', name: 'Test Plan', desc: 'Generate a test plan for changes in this branch', prompt: '/goat-test generate a test plan — run git diff to identify what changed', cat: 'test' },
+  { id: 'test', name: 'Test Plan', desc: 'Generate a test plan for changes in this branch', prompt: '/goat-test generate a test plan — run git diff to identify what changed', cat: 'test', guided: true, guidedFields: [
+    { key: 'changed', label: 'What changed?', type: 'input', placeholder: 'e.g., src/cli/config/, or leave blank for git diff' },
+    { key: 'risk', label: 'What\'s the risk?', type: 'input', placeholder: 'e.g., validation could miss edge cases, auth could break' },
+    { key: 'covered', label: 'What\'s already tested?', type: 'input', placeholder: 'e.g., unit tests in test/config/, or nothing yet' }
+  ], guidedTemplate: '/goat-test test plan — changed: {changed}, risk: {risk}, already tested: {covered}' },
   { id: 'quick-test', name: 'Quick Test', desc: 'Focused test plan for the most recent commit', prompt: '/goat-test quick mode — generate a focused test plan for my most recent commit', cat: 'test' },
   { id: 'targeted-test', name: 'Targeted Test Plan', desc: 'Paste a GitHub issue and get a risk-targeted manual testing plan based on code changes', prompt: '/goat-test I need a targeted manual testing plan for a branch that\'s ready for QA.\n\nI\'ll paste the GitHub issue details below — it includes requirements, dev notes, what\'s been tested, and any existing testing plans. Wait for me to paste before proceeding.\n\nOnce I paste it, do this:\n\n**Step 1 — Understand the change**\n- Read the requirements and acceptance criteria from the issue\n- Run `git diff main...HEAD --stat` to see what files changed in this branch\n- Read the actual diffs for changed files to understand what was modified\n\n**Step 2 — Map what\'s already covered**\n- What the developer already tested (from their notes in the issue)\n- What static analysis catches (phpstan, eslint, type checking)\n- What automated tests cover (existing unit/integration tests for changed files)\n- What basic smoke testing covers (view all pages, modals load, no 500s)\n- Mark each as COVERED — these do NOT need manual testing\n\n**Step 3 — Find the gaps**\n- What changed in behavior that no automated check verifies?\n- What edge cases exist in the changed logic?\n- What cross-component interactions could break?\n- What data states could cause problems?\n- What user flows touch the changed code?\n- Mark each as GAP — these NEED manual testing\n\n**Step 4 — Risk-rank the gaps**\nFor each gap, rate:\n- **CRITICAL** — could cause data loss, payment errors, security issues, or service outage\n- **HIGH** — broken feature, wrong behavior visible to users\n- **MEDIUM** — edge case, unlikely but impactful\n- **LOW** — cosmetic, minor UX, recoverable\n\n**Step 5 — Produce the testing plan**\nOutput a table:\n\n| # | Test | Risk | Why not covered already | Steps | Time est |\n|---|------|------|------------------------|-------|----------|\n\nOnly include CRITICAL and HIGH items by default.\n\nThen give me:\n- **1-hour version** — only CRITICAL items, bare minimum for go-live confidence\n- **2-hour version** — CRITICAL + HIGH items\n- **Full version** — all gaps including MEDIUM (only if relevant)\n- **Confidence level** — how confident are you this covers the real risks? What might you be missing?\n- **Blockers** — anything that would prevent testing (missing test data, environment issues, access needed)\n\nDo NOT include:\n- Things phpstan/eslint already catch\n- Things existing automated tests already verify\n- Basic "view the page and check it loads" smoke tests\n- Re-verifying what the developer already confirmed working', cat: 'test' },
 
   // === Security ===
-  { id: 'security', name: 'Security Audit', desc: 'Run a threat model and dependency scan', prompt: '/goat-security run a threat model on this project, then check dependencies for known vulnerabilities', cat: 'security' },
+  { id: 'security', name: 'Security Audit', desc: 'Run a threat model and dependency scan', prompt: '/goat-security run a threat model on this project, then check dependencies for known vulnerabilities', cat: 'security', guided: true, guidedFields: [
+    { key: 'component', label: 'Which component?', type: 'input', placeholder: 'e.g., src/auth/, API endpoints, or whole project' },
+    { key: 'deployment', label: 'Deployment context?', type: 'select', options: ['web app (public)', 'internal tool', 'CLI', 'library', 'API service'], default: 'web app (public)' },
+    { key: 'concern', label: 'Specific threat concern?', type: 'input', placeholder: 'e.g., injection, auth bypass, data exposure, or general audit' }
+  ], guidedTemplate: '/goat-security threat model {component} — deployment: {deployment}, concern: {concern}' },
   { id: 'dep-scan', name: 'Dependency Scan', desc: 'Scan for known CVEs and outdated packages', prompt: '/goat-security dependency audit mode — scan for known CVEs and outdated packages', cat: 'security' },
 
   // === Audit ===

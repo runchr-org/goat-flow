@@ -468,7 +468,7 @@ export const standardChecks: CheckDef[] = [
   // === 2.1.12-2.1.18 Skill Content Quality (7 pts) ===
   {
     id: '2.1.12',
-    name: 'Skills gather context (Step 0)',
+    name: 'Skills gather context with scope (Step 0)',
     tier: 'standard',
     category: 'Skills',
     pts: 1,
@@ -476,49 +476,31 @@ export const standardChecks: CheckDef[] = [
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
+        const base = {
+          id: '2.1.12',
+          name: 'Skills gather context with scope (Step 0)',
+          tier: 'standard' as const,
+          category: 'Skills',
+          confidence: 'medium' as const,
+        };
         const { quality } = ctx.agentFacts.skills;
         if (quality.total === 0) {
-          return {
-            id: '2.1.12',
-            name: 'Skills gather context (Step 0)',
-            tier: 'standard',
-            category: 'Skills',
-            status: 'fail',
-            points: 0,
-            maxPoints: 1,
-            confidence: 'medium',
-            message: 'No skills found',
-          };
+          return { ...base, status: 'fail', points: 0, maxPoints: 1, message: 'No skills found' };
         }
-        const ratio = quality.withStep0 / quality.total;
-        if (ratio >= SKILL_QUALITY_THRESHOLD) {
-          return {
-            id: '2.1.12',
-            name: 'Skills gather context (Step 0)',
-            tier: 'standard',
-            category: 'Skills',
-            status: 'pass',
-            points: 1,
-            maxPoints: 1,
-            confidence: 'medium',
-            message: `${quality.withStep0}/${quality.total} skills ask questions before acting`,
-          };
+        const step0Ratio = quality.withStep0 / quality.total;
+        const constraintsRatio = quality.withConstraints / quality.total;
+        // Tightened: Step 0 must be paired with constraints (scope confirmation proxy)
+        if (step0Ratio >= SKILL_QUALITY_THRESHOLD && constraintsRatio >= SKILL_QUALITY_THRESHOLD) {
+          return { ...base, status: 'pass', points: 1, maxPoints: 1, message: `${quality.withStep0}/${quality.total} skills gather context and ${quality.withConstraints}/${quality.total} define scope constraints` };
         }
-        return {
-          id: '2.1.12',
-          name: 'Skills gather context (Step 0)',
-          tier: 'standard',
-          category: 'Skills',
-          status: 'fail',
-          points: 0,
-          maxPoints: 1,
-          confidence: 'medium',
-          message: `Only ${quality.withStep0}/${quality.total} skills gather context - most should ask before acting`,
-        };
+        if (step0Ratio >= SKILL_QUALITY_THRESHOLD) {
+          return { ...base, status: 'fail', points: 0, maxPoints: 1, message: `${quality.withStep0}/${quality.total} skills have Step 0, but only ${quality.withConstraints}/${quality.total} define constraints. Step 0 should include scope boundaries (what's in/out).` };
+        }
+        return { ...base, status: 'fail', points: 0, maxPoints: 1, message: `Only ${quality.withStep0}/${quality.total} skills gather context — most should ask before acting with scope constraints` };
       },
     },
     recommendation:
-      'Skills should ask clarifying questions before acting (Step 0 pattern)',
+      'Skills should ask clarifying questions before acting (Step 0) AND define scope constraints (what to do/not do)',
     recommendationKey: 'add-skill-step0',
   },
   {

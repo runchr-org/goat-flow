@@ -216,26 +216,78 @@
         <!-- Prompt list (scrollable) -->
         <div class="flex-1 overflow-y-auto">
           <template x-for="preset in filteredPresets" :key="preset.id">
-            <div class="border-b border-gray-100 dark:border-gray-700" x-data="{ expanded: false }">
+            <div class="border-b border-gray-100 dark:border-gray-700" x-data="{ expanded: false, guidedValues: {}, showPreview: false }">
               <button @click="expanded = !expanded" class="w-full text-left px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-750 flex items-center gap-2 transition-colors">
                 <span class="flex-1 text-sm font-medium truncate text-gray-900 dark:text-gray-100" x-text="preset.name"></span>
+                <span x-show="preset.guided" class="text-xs px-1 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 shrink-0">guided</span>
                 <span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-400 shrink-0" x-text="preset.cat"></span>
                 <span class="text-gray-400 text-xs transition-transform" :class="expanded ? 'rotate-90' : ''">&rsaquo;</span>
               </button>
               <div x-show="expanded" x-cloak class="px-3 pb-3 space-y-2">
                 <p class="text-xs text-gray-500 dark:text-gray-400" x-text="preset.desc"></p>
-                <p class="text-xs text-gray-400 dark:text-gray-500 font-mono break-all line-clamp-3" x-text="preset.prompt"></p>
+
+                <!-- Guided form (when preset.guided && preset.guidedFields) -->
+                <template x-if="preset.guided && preset.guidedFields">
+                  <div class="space-y-2 border border-gray-200 dark:border-gray-600 rounded-lg p-2 bg-gray-50 dark:bg-gray-900">
+                    <template x-for="field in preset.guidedFields" :key="field.key">
+                      <div>
+                        <label class="text-xs font-medium text-gray-600 dark:text-gray-300" x-text="field.label"></label>
+                        <template x-if="field.type === 'textarea'">
+                          <textarea x-model="guidedValues[field.key]" :placeholder="field.placeholder"
+                            class="w-full mt-0.5 px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-1 focus:ring-blue-500" rows="2"></textarea>
+                        </template>
+                        <template x-if="field.type === 'input'">
+                          <input type="text" x-model="guidedValues[field.key]" :placeholder="field.placeholder"
+                            class="w-full mt-0.5 px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-1 focus:ring-blue-500">
+                        </template>
+                        <template x-if="field.type === 'select'">
+                          <select x-model="guidedValues[field.key]" x-init="guidedValues[field.key] = field.default || field.options[0]"
+                            class="w-full mt-0.5 px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-1 focus:ring-blue-500">
+                            <template x-for="opt in field.options" :key="opt">
+                              <option :value="opt" x-text="opt"></option>
+                            </template>
+                          </select>
+                        </template>
+                      </div>
+                    </template>
+                    <!-- Prompt preview -->
+                    <div x-show="showPreview" class="text-xs font-mono text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-800 rounded p-1.5 break-all" x-text="buildGuidedPrompt(preset, guidedValues)"></div>
+                    <!-- Prompt specificity indicator -->
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-xs text-gray-400" x-text="'Specificity: ' + promptDots(promptSpecificity(buildGuidedPrompt(preset, guidedValues)))"></span>
+                      <button @click="showPreview = !showPreview" class="text-xs text-blue-500 hover:text-blue-600" x-text="showPreview ? 'Hide preview' : 'Preview prompt'"></button>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- Non-guided: show raw prompt -->
+                <template x-if="!preset.guided">
+                  <div>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 font-mono break-all line-clamp-3" x-text="preset.prompt"></p>
+                    <!-- Prompt specificity indicator for non-guided -->
+                    <div class="flex items-center gap-1.5 mt-1">
+                      <span class="text-xs text-gray-400" x-text="'Specificity: ' + promptDots(promptSpecificity(preset.prompt))"></span>
+                    </div>
+                  </div>
+                </template>
+
                 <div class="flex gap-1.5" x-data="{ copied: false }">
-                  <button @click="copyPreset(preset.prompt); copied = true; setTimeout(() => copied = false, 1500)"
+                  <!-- Skip button for guided presets (launches raw prompt) -->
+                  <button x-show="preset.guided" @click="copyPreset(preset.prompt); copied = true; setTimeout(() => copied = false, 1500)"
+                    class="px-2 py-1 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                    Skip
+                  </button>
+                  <!-- Copy: uses guided prompt if available, otherwise raw -->
+                  <button @click="copyPreset(preset.guided ? buildGuidedPrompt(preset, guidedValues) : preset.prompt); copied = true; setTimeout(() => copied = false, 1500)"
                     class="flex-1 px-2 py-1 text-xs font-medium rounded-lg transition-colors"
                     :class="copied ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'">
                     <span x-text="copied ? 'Copied!' : 'Copy'"></span>
                   </button>
-                  <button x-show="terminalAvailable && (!terminalSessionId || terminalEnded)" @click="launchPreset(preset.prompt, setupRunner); workspacePanel = 'terminal'"
+                  <button x-show="terminalAvailable && (!terminalSessionId || terminalEnded)" @click="launchPreset(preset.guided ? buildGuidedPrompt(preset, guidedValues) : preset.prompt, setupRunner); workspacePanel = 'terminal'"
                     class="flex-1 px-2 py-1 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
                     Launch
                   </button>
-                  <button x-show="terminalSessionId && !terminalEnded" @click="sendToTerminal(preset.prompt); workspacePanel = 'terminal'"
+                  <button x-show="terminalSessionId && !terminalEnded" @click="sendToTerminal(preset.guided ? buildGuidedPrompt(preset, guidedValues) : preset.prompt); workspacePanel = 'terminal'"
                     class="flex-1 px-2 py-1 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">
                     Send
                   </button>
@@ -835,6 +887,27 @@ function app() {
         list = list.filter(p => p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q) || p.prompt.toLowerCase().includes(q));
       }
       return list;
+    },
+    buildGuidedPrompt(preset, values) {
+      if (!preset.guidedTemplate) return preset.prompt;
+      let result = preset.guidedTemplate;
+      for (const field of preset.guidedFields || []) {
+        const val = (values[field.key] || '').trim();
+        result = result.replace(`{${field.key}}`, val || field.default || '');
+      }
+      // Clean up empty placeholders and trailing separators
+      return result.replace(/\s*,\s*,/g, ',').replace(/—\s*,/g, '—').replace(/,\s*$/g, '').trim();
+    },
+    promptSpecificity(text) {
+      let score = 0;
+      if (/[/\\]|\.ts|\.js|\.py|\.php|src\/|lib\/|app\//.test(text)) score++;
+      if (/error|bug|broken|fail|crash|slow|wrong|missing|symptom|issue/.test(text)) score++;
+      if (/only|just|specific|in\s+\w+\/|scope|area|module|component/.test(text)) score++;
+      if (/should|expect|want|need|goal|done|criteria|must/.test(text)) score++;
+      return score;
+    },
+    promptDots(score) {
+      return '\u25CF'.repeat(score) + '\u25CB'.repeat(4 - score) + ` (${score}/4)`;
     },
     copyPreset(prompt) { this.copyText(prompt); this.showToast('Copied! Paste in your terminal.', false); },
     sendToTerminal(text) {

@@ -32,12 +32,16 @@ handling, when touching secrets/credentials, or for a security-focused audit.
 ## Step 0 - Gather Context
 
 **Structural questions (always ask or confirm):**
-1. What's the threat model? (user-facing web app, internal tool, CLI, library, API)
-2. What framework are you using? (I'll check its built-in security features in Phase 2)
+1. Which component or area? (or I'll scan the full project)
+2. What's the deployment context? (user-facing web app, internal tool, CLI, library, API)
+3. Any specific threat concern? (injection, auth bypass, data exposure — or "general audit")
 
 **Illustrative questions (adapt):**
-3. <!-- ADAPT: "What auth boundaries exist? (OAuth, JWT, session, API key, none)" -->
-4. <!-- ADAPT: "Any known vulnerabilities to skip? (already tracked, being fixed separately)" -->
+4. <!-- ADAPT: "What auth boundaries exist? (OAuth, JWT, session, API key, none)" -->
+5. <!-- ADAPT: "Any known vulnerabilities to skip? (already tracked, being fixed separately)" -->
+6. What framework are you using? (I'll check its built-in security features in Phase 2)
+
+**Escape hatch:** If the user says "just scan everything" or provides minimal info, auto-detect framework from package files and run a broad threat surface scan.
 
 **Auto-detect:** Read package.json/composer.json/go.mod to identify framework.
 Present: "This is a [framework] project. I'll check [framework]'s built-in

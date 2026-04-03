@@ -2,7 +2,7 @@
  * Helper utilities for scanning disk-backed project fixtures.
  * The helpers copy fixtures into temporary workspaces so tests can mutate them without touching checked-in data.
  */
-import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { createFS } from '../../src/cli/facts/fs.js';
@@ -22,6 +22,8 @@ interface FixtureExpectation {
 export interface FixtureManifest {
   extends?: string;
   agentFilter?: AgentId | null;
+  /** Paths to delete from the materialized workspace after copying layers. */
+  overrideDelete?: string[];
   expected?: Record<string, FixtureExpectation>;
 }
 
@@ -60,6 +62,16 @@ export function scanFixture(name: string): ScannedFixture {
   const root = mkdtempSync(join(tmpdir(), `goat-flow-fixture-${name}-`));
 
   copyFixtureLayer(sourceDir, root);
+
+  // Apply file deletions from the manifest (for testing missing-file scenarios)
+  if (manifest.overrideDelete) {
+    for (const delPath of manifest.overrideDelete) {
+      const target = join(root, delPath);
+      if (existsSync(target)) {
+        rmSync(target, { recursive: true, force: true });
+      }
+    }
+  }
 
   return {
     root,

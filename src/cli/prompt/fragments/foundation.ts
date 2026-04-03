@@ -94,6 +94,30 @@ GOOD: Read docs/system-spec.md:104 → "Target 120 lines. Hard limit 150."
 
 Include at least 2 example pairs showing right vs wrong approaches for your most important rules.`,
   },
+  {
+    key: 'add-resolvable-paths',
+    phase: 'foundation',
+    category: 'Instruction File',
+    kind: 'fix',
+    instruction: `Your instruction file should reference at least 2 real project file paths that exist on disk. Add backtick-wrapped paths in the Router Table and Ask First sections:
+
+\`\`\`markdown
+## Router Table
+
+| Resource | Path |
+|----------|------|
+| Source code | \`src/\` |
+| Config | \`.goat-flow/config.yaml\` |
+
+## Autonomy Tiers
+
+**Ask First** Boundaries:
+- \`docs/api-spec.md\` changes
+- \`src/auth/\` modifications
+\`\`\`
+
+These paths must point to files or directories that actually exist in your project.`,
+  },
 
   // === Execution Loop ===
   {
