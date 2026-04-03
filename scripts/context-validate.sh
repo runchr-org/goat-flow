@@ -76,16 +76,16 @@ warn_if_legacy_surface_exists() {
     fi
 }
 
-footguns_committed_dir="$(config_path footguns committed "docs/footguns/")"
+footguns_committed_dir="$(config_path footguns committed "ai-docs/footguns/")"
 footguns_local_dir="$(config_path footguns local ".goat-flow/footguns/")"
-lessons_committed_dir="$(config_path lessons committed "ai/lessons/")"
+lessons_committed_dir="$(config_path lessons committed "ai-docs/lessons/")"
 lessons_local_dir="$(config_path lessons local ".goat-flow/lessons/")"
-evals_dir="$(config_path evals path "ai/evals/")"
+evals_dir="$(config_path evals path "ai-docs/evals/")"
 tasks_dir="$(config_path tasks path ".goat-flow/tasks/")"
 logs_dir="$(config_path logs path ".goat-flow/logs/")"
 
 allowed_missing_paths=(
-    "ai/decisions/"
+    "ai-docs/decisions/"
     "$footguns_local_dir"
     "$lessons_local_dir"
     "$tasks_dir"

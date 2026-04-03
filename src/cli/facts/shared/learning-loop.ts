@@ -58,17 +58,20 @@ function isCheckableForStaleness(filePath: string, fs: ReadonlyFS): boolean {
   return true;
 }
 
+/** One markdown file read from a learning-loop directory. */
 interface MarkdownEntry {
   path: string;
   content: string;
 }
 
+/** A learning-loop directory with its existence flag and contained markdown entries. */
 interface EntryDir {
   path: string;
   exists: boolean;
   files: MarkdownEntry[];
 }
 
+/** Aggregated file-reference validation results for footgun entries. */
 interface FootgunRefSummary {
   staleRefs: string[];
   invalidLineRefs: string[];
@@ -76,14 +79,16 @@ interface FootgunRefSummary {
   validRefs: number;
 }
 
+/** Known filesystem locations where footgun artifacts may appear. */
 const FOOTGUN_SURFACE_CANDIDATES = [
-  'docs/footguns/',
+  'ai-docs/footguns/',
   '.goat-flow/footguns/',
   'docs/footguns.md',
   '.goat-flow/footguns.md',
 ];
+/** Known filesystem locations where lesson artifacts may appear. */
 const LESSON_SURFACE_CANDIDATES = [
-  'ai/lessons/',
+  'ai-docs/lessons/',
   '.goat-flow/lessons/',
   'docs/lessons/',
   'docs/lessons.md',
@@ -110,7 +115,7 @@ function findCompetingArtifactSurfaces(
     .sort((a, b) => a.localeCompare(b));
 }
 
-/** List markdown entries. */
+/** List markdown files in a directory, reading each into a path+content pair. */
 function listMarkdownEntries(fs: ReadonlyFS, dir: string): EntryDir {
   const exists = fs.exists(dir);
   const files = exists
@@ -128,7 +133,7 @@ function listMarkdownEntries(fs: ReadonlyFS, dir: string): EntryDir {
   return { path: dir, exists, files };
 }
 
-/** Parse markdown frontmatter. */
+/** Split markdown content into optional YAML frontmatter and remaining body. */
 function parseMarkdownFrontmatter(content: string): {
   frontmatter: string | null;
   body: string;
@@ -138,12 +143,12 @@ function parseMarkdownFrontmatter(content: string): {
   return { frontmatter: match[1] ?? '', body: match[2] ?? '' };
 }
 
-/** Count matches. */
+/** Count all regex matches within a string. */
 function countMatches(content: string, pattern: RegExp): number {
   return Array.from(content.matchAll(pattern)).length;
 }
 
-/** Count lesson entries. */
+/** Count `## Lesson:` or `## Pattern:` bucket entries in one markdown file. */
 function countLessonEntries(content: string): number {
   const { body } = parseMarkdownFrontmatter(content);
   const bucketCount = countMatches(body, /^##\s+(?:Lesson|Pattern):\s+/gm);

@@ -14,7 +14,9 @@ import type {
   ValidationResult,
 } from './types.js';
 
+/** Agent identifiers accepted in the config's `agents` field. */
 const KNOWN_AGENTS = new Set(['claude', 'codex', 'gemini']);
+/** Top-level config keys recognized by the validator (others trigger warnings). */
 const KNOWN_TOP_LEVEL_KEYS = new Set([
   'version',
   'footguns',
@@ -30,13 +32,14 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   'persona',
 ]);
 
+/** Built-in default values used when config.yaml is missing or omits fields. */
 export const CONFIG_DEFAULTS: GoatFlowConfig = {
   version: RUBRIC_VERSION,
-  footguns: { committed: 'docs/footguns/', local: '.goat-flow/footguns/' },
-  lessons: { committed: 'ai/lessons/', local: '.goat-flow/lessons/' },
-  decisions: { path: 'ai/decisions/' },
-  evals: { path: 'ai/evals/' },
-  codingStandards: { path: 'ai/coding-standards/' },
+  footguns: { committed: 'ai-docs/footguns/', local: '.goat-flow/footguns/' },
+  lessons: { committed: 'ai-docs/lessons/', local: '.goat-flow/lessons/' },
+  decisions: { path: 'ai-docs/decisions/' },
+  evals: { path: 'ai-docs/evals/' },
+  codingStandards: { path: 'ai-docs/coding-standards/' },
   tasks: { path: '.goat-flow/tasks/' },
   logs: { path: '.goat-flow/logs/' },
   agents: null,
@@ -120,6 +123,7 @@ function mergeSkills(value: unknown, merged: GoatFlowConfig): void {
   }
 }
 
+/** Valid persona values accepted in the config file. */
 const KNOWN_PERSONAS = new Set(['developer', 'investigator']);
 
 /** Apply a valid persona override from the raw config. */
@@ -192,7 +196,9 @@ function validateStringPath(
   }
 }
 
+/** Shorthand for a loosely-typed parsed YAML config object. */
 type RawConfig = Record<string, unknown>;
+/** Signature for a single config field validator function. */
 type ConfigValidator = (
   raw: RawConfig,
   warnings: ValidationIssue[],
@@ -469,6 +475,7 @@ function validateSkillsField(
   });
 }
 
+/** Ordered list of field-level validators applied during config validation. */
 const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateVersionField,
   validateFootgunsField,

@@ -33,23 +33,23 @@ line-limits:
   target: 120
   limit: 150
 
-# ── Committed Paths (ai/) ──────────────────────
+# ── Committed Paths (ai-docs/) ─────────────────
 lessons:
-  committed: ai/lessons/
+  committed: ai-docs/lessons/
   local: .goat-flow/lessons/
 
 decisions:
-  path: ai/decisions/
+  path: ai-docs/decisions/
 
 evals:
-  path: ai/evals/
+  path: ai-docs/evals/
 
 coding-standards:
-  path: ai/coding-standards/
+  path: ai-docs/coding-standards/
 
-# ── Committed Paths (docs/) ─────────────────────
+# ── Committed Paths (ai-docs/) cont. ────────────
 footguns:
-  committed: docs/footguns/
+  committed: ai-docs/footguns/
   local: .goat-flow/footguns/
 
 # ── Local Paths (.goat-flow/) ───────────────────

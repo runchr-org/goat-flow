@@ -30,13 +30,13 @@ function getFoundationRefs(agentId: AgentId): TemplateRef[] {
   const shared: TemplateRef[] = [
     {
       output: '.goat-flow/config.yaml',
-      template: 'setup/shared/execution-loop.md',
+      template: 'workflow/setup/shared/execution-loop.md',
       phase: 'foundation',
       note: 'Create config file with default paths and detected agents',
     },
     {
       output: p.instructionFile,
-      template: 'setup/shared/execution-loop.md',
+      template: 'workflow/setup/shared/execution-loop.md',
       phase: 'foundation',
       note: 'Adapt BAD/GOOD examples',
     },
@@ -83,19 +83,19 @@ function getFoundationHooks(agentId: AgentId): TemplateRef[] {
       return [
         {
           output: '.codex/config.toml',
-          template: 'setup/setup-codex.md',
+          template: 'workflow/setup/setup-codex.md',
           phase: 'foundation',
           note: 'Section: hooks + execpolicy (line 111+)',
         },
         {
           output: '.codex/rules/deny-dangerous.star',
-          template: 'setup/setup-codex.md',
+          template: 'workflow/setup/setup-codex.md',
           phase: 'foundation',
           note: 'Starlark execpolicy (line 120+)',
         },
         {
           output: 'scripts/stop-lint.sh',
-          template: 'setup/setup-codex.md',
+          template: 'workflow/setup/setup-codex.md',
           phase: 'foundation',
           note: 'Section: verification scripts (line 131+)',
         },
@@ -105,25 +105,25 @@ function getFoundationHooks(agentId: AgentId): TemplateRef[] {
       return [
         {
           output: '.gemini/settings.json',
-          template: 'setup/setup-gemini.md',
+          template: 'workflow/setup/setup-gemini.md',
           phase: 'foundation',
           note: 'Use detected stack commands',
         },
         {
           output: '.gemini/hooks/deny-dangerous.sh',
-          template: 'setup/setup-gemini.md',
+          template: 'workflow/setup/setup-gemini.md',
           phase: 'foundation',
           note: 'Gemini BeforeTool hook',
         },
         {
           output: '.gemini/hooks/stop-lint.sh',
-          template: 'setup/setup-gemini.md',
+          template: 'workflow/setup/setup-gemini.md',
           phase: 'foundation',
           note: 'Gemini AfterAgent hook',
         },
         {
           output: '.gemini/hooks/format-file.sh',
-          template: 'setup/setup-gemini.md',
+          template: 'workflow/setup/setup-gemini.md',
           phase: 'foundation',
           note: 'Gemini AfterTool hook',
         },
@@ -164,19 +164,19 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
   /** Shared documentation and workflow refs for the standard phase */
   const sharedRefs: TemplateRef[] = [
     {
-      output: 'docs/footguns/',
-      template: 'setup/shared/docs-seed.md',
+      output: 'ai-docs/footguns/',
+      template: 'workflow/setup/shared/docs-seed.md',
       phase: 'standard',
       note: 'Real incidents only',
     },
     {
-      output: 'ai/lessons/',
-      template: 'setup/shared/docs-seed.md',
+      output: 'ai-docs/lessons/',
+      template: 'workflow/setup/shared/docs-seed.md',
       phase: 'standard',
       note: 'Seed from git history',
     },
     {
-      output: 'docs/architecture.md',
+      output: 'ai-docs/architecture.md',
       template: 'workflow/runtime/architecture.md',
       phase: 'standard',
       note: 'Under 100 lines',
@@ -192,25 +192,25 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
   /** Role-specific coding-standards refs that the scanner checks for */
   const roleRefs: TemplateRef[] = [
     {
-      output: 'ai/README.md',
-      template: 'setup/shared/docs-seed.md',
+      output: 'ai-docs/README.md',
+      template: 'workflow/setup/shared/docs-seed.md',
       phase: 'standard',
-      note: 'Routing map for ai/coding-standards/',
+      note: 'Routing map for ai-docs/coding-standards/',
     },
     {
-      output: 'ai/coding-standards/conventions.md',
+      output: 'ai-docs/coding-standards/conventions.md',
       template: 'workflow/coding-standards/conventions.md',
       phase: 'standard',
       note: 'Project-wide conventions',
     },
     {
-      output: 'ai/coding-standards/code-review.md',
+      output: 'ai-docs/coding-standards/code-review.md',
       template: 'workflow/coding-standards/code-review.md',
       phase: 'standard',
       note: 'Review standards',
     },
     {
-      output: 'ai/coding-standards/git-commit.md',
+      output: 'ai-docs/coding-standards/git-commit.md',
       template: 'workflow/coding-standards/git-commit.md',
       phase: 'standard',
       note: 'Commit conventions',
@@ -228,7 +228,7 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
 function getFullRefs(_agentId: AgentId): TemplateRef[] {
   return [
     {
-      output: 'ai/evals/*.md (3+)',
+      output: 'ai-docs/evals/*.md (3+)',
       template: 'workflow/evaluation/evals.md',
       phase: 'full',
       note: 'Real incidents preferred',
@@ -248,9 +248,9 @@ function getFullRefs(_agentId: AgentId): TemplateRef[] {
 
 /** Map each agent to its dedicated setup guide template */
 const SETUP_GUIDE_TEMPLATES: Record<AgentId, string> = {
-  claude: 'setup/setup-claude.md',
-  codex: 'setup/setup-codex.md',
-  gemini: 'setup/setup-gemini.md',
+  claude: 'workflow/setup/setup-claude.md',
+  codex: 'workflow/setup/setup-codex.md',
+  gemini: 'workflow/setup/setup-gemini.md',
 };
 
 /** Return the per-phase setup guide refs for a specific agent */
@@ -313,53 +313,57 @@ const SECURITY_FRAMEWORK_MAP: Record<string, string> = {
   go: 'workflow/coding-standards/security/framework-specific/go.md',
 };
 
+/** Specification for a signal-driven template reference. */
 interface SignalTemplateRefSpec {
   output: string;
   template: string;
   note: string;
 }
 
+/** Signal-driven templates included for every project regardless of stack. */
 const ALWAYS_SIGNAL_TEMPLATES: SignalTemplateRefSpec[] = [
   {
-    output: 'ai/coding-standards/security.md',
+    output: 'ai-docs/coding-standards/security.md',
     template: 'workflow/coding-standards/security.md',
     note: 'Security overview - adapt topics to detected stack',
   },
   {
-    output: 'ai/coding-standards/testing.md',
+    output: 'ai-docs/coding-standards/testing.md',
     template: 'workflow/coding-standards/testing.md',
     note: 'Testing conventions',
   },
   {
-    output: 'ai/coding-standards/secrets-management.md',
+    output: 'ai-docs/coding-standards/secrets-management.md',
     template: 'workflow/coding-standards/security/secrets-management.md',
     note: 'Secrets handling baseline',
   },
   {
-    output: 'ai/coding-standards/supply-chain.md',
+    output: 'ai-docs/coding-standards/supply-chain.md',
     template: 'workflow/coding-standards/security/supply-chain.md',
     note: 'Dependency security',
   },
 ] as const;
 
+/** Signal-driven templates added only for web-language projects. */
 const WEB_SIGNAL_TEMPLATES: SignalTemplateRefSpec[] = [
   {
-    output: 'ai/coding-standards/api-auth.md',
+    output: 'ai-docs/coding-standards/api-auth.md',
     template: 'workflow/coding-standards/security/api-auth.md',
     note: 'Auth patterns for web projects',
   },
   {
-    output: 'ai/coding-standards/file-upload.md',
+    output: 'ai-docs/coding-standards/file-upload.md',
     template: 'workflow/coding-standards/security/file-upload.md',
     note: 'Upload security for web projects',
   },
   {
-    output: 'ai/coding-standards/sql-injection.md',
+    output: 'ai-docs/coding-standards/sql-injection.md',
     template: 'workflow/coding-standards/security/sql-injection.md',
     note: 'SQL injection prevention',
   },
 ] as const;
 
+/** Backend languages that route through framework-specific templates. */
 const FRAMEWORK_BACKEND_LANGS = [
   'laravel',
   'symfony',
@@ -367,7 +371,9 @@ const FRAMEWORK_BACKEND_LANGS = [
   'fastapi',
   'express',
 ] as const;
+/** Generic backend languages without framework-specific detection. */
 const GENERIC_BACKEND_LANGS = ['go', 'python', 'rust', 'php'] as const;
+/** Fallback frontend template when no specific framework is detected. */
 const FRONTEND_FALLBACK_TEMPLATE =
   'workflow/coding-standards/frontend/typescript.md';
 
@@ -440,7 +446,7 @@ function addLanguageTemplateRefs(
     pushIfUnseenTemplate(
       refs,
       seen,
-      `ai/coding-standards/${getTemplateBasename(template)}.md`,
+      `ai-docs/coding-standards/${getTemplateBasename(template)}.md`,
       template,
       `Detected: ${language}`,
     );
@@ -452,7 +458,7 @@ function addWebCommonTemplate(refs: TemplateRef[], languages: string[]): void {
   if (!languages.some((language) => WEB_LANGUAGES.has(language))) return;
   pushIfTemplateExists(
     refs,
-    'ai/coding-standards/web-common.md',
+    'ai-docs/coding-standards/web-common.md',
     'workflow/coding-standards/security/web-common.md',
     'Web security baseline',
   );
@@ -468,7 +474,7 @@ function addFrontendTemplateRef(
     if (!template || !templateExists(template)) continue;
     refs.push(
       buildStandardTemplateRef(
-        'ai/coding-standards/frontend.md',
+        'ai-docs/coding-standards/frontend.md',
         template,
         `Detected: ${language}`,
       ),
@@ -483,7 +489,7 @@ function addFrontendTemplateRef(
   ) {
     pushIfTemplateExists(
       refs,
-      'ai/coding-standards/frontend.md',
+      'ai-docs/coding-standards/frontend.md',
       FRONTEND_FALLBACK_TEMPLATE,
       'Detected: typescript/javascript (no framework detected)',
     );
@@ -501,7 +507,7 @@ function addBackendTemplateRef(refs: TemplateRef[], languages: string[]): void {
   if (!template) return;
   pushIfTemplateExists(
     refs,
-    'ai/coding-standards/backend.md',
+    'ai-docs/coding-standards/backend.md',
     template,
     `Detected: ${detectedBackend}`,
   );
@@ -519,7 +525,7 @@ function addSecurityFrameworkRefs(
     pushIfUnseenTemplate(
       refs,
       seen,
-      `ai/coding-standards/security-${language}.md`,
+      `ai-docs/coding-standards/security-${language}.md`,
       template,
       `Security: ${language}`,
     );
@@ -560,7 +566,7 @@ function addDeploySignalTemplates(
   if (signals.deployPlatforms.length === 0) return;
   pushIfTemplateExists(
     refs,
-    'ai/coding-standards/infrastructure-security.md',
+    'ai-docs/coding-standards/infrastructure-security.md',
     'workflow/coding-standards/security/infrastructure.md',
     `Deploy platforms: ${signals.deployPlatforms.join(', ')}`,
   );
@@ -568,7 +574,7 @@ function addDeploySignalTemplates(
   if (signals.deployPlatforms.includes('terraform')) {
     pushIfTemplateExists(
       refs,
-      'ai/coding-standards/devops-terraform.md',
+      'ai-docs/coding-standards/devops-terraform.md',
       'workflow/coding-standards/devops/terraform.md',
       'Terraform detected',
     );
@@ -583,7 +589,7 @@ function addComplianceSignalTemplate(
   if (!signals.complianceSignals) return;
   pushIfTemplateExists(
     refs,
-    'ai/coding-standards/phi-compliance.md',
+    'ai-docs/coding-standards/phi-compliance.md',
     'workflow/coding-standards/security/phi-compliance.md',
     'PHI/compliance signals detected',
   );
@@ -597,7 +603,7 @@ function addLlmSignalTemplate(
   if (!signals.llmIntegration) return;
   pushIfTemplateExists(
     refs,
-    'ai/coding-standards/llm-security.md',
+    'ai-docs/coding-standards/llm-security.md',
     'workflow/coding-standards/security/llm-security.md',
     'LLM integration detected',
   );
@@ -647,9 +653,9 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   'create-skill-test': 'workflow/skills/goat-test.md',
 
   // File-level creates - instruction file and docs
-  'create-instruction-file': 'setup/shared/execution-loop.md',
-  'create-lessons': 'setup/shared/docs-seed.md',
-  'create-footguns': 'setup/shared/docs-seed.md',
+  'create-instruction-file': 'workflow/setup/shared/execution-loop.md',
+  'create-lessons': 'workflow/setup/shared/docs-seed.md',
+  'create-footguns': 'workflow/setup/shared/docs-seed.md',
   'create-architecture': 'workflow/runtime/architecture.md',
   'create-handoff-template': 'workflow/evaluation/handoff.md',
   'create-evals-dir': 'workflow/evaluation/evals.md',
@@ -659,18 +665,18 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   // File-level creates - hooks/enforcement
   'create-deny-script': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'create-stop-lint': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'create-format-hook': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
 
   // File-level creates - coding standards
@@ -679,23 +685,23 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   'create-git-commit-instructions': 'workflow/coding-standards/git-commit.md',
 
   // Section-level creates - execution loop steps (all point to same parent)
-  'add-read-step': 'setup/shared/execution-loop.md',
-  'add-classify-step': 'setup/shared/execution-loop.md',
-  'add-scope-step': 'setup/shared/execution-loop.md',
-  'add-act-step': 'setup/shared/execution-loop.md',
-  'add-verify-step': 'setup/shared/execution-loop.md',
-  'add-log-step': 'setup/shared/execution-loop.md',
+  'add-read-step': 'workflow/setup/shared/execution-loop.md',
+  'add-classify-step': 'workflow/setup/shared/execution-loop.md',
+  'add-scope-step': 'workflow/setup/shared/execution-loop.md',
+  'add-act-step': 'workflow/setup/shared/execution-loop.md',
+  'add-verify-step': 'workflow/setup/shared/execution-loop.md',
+  'add-log-step': 'workflow/setup/shared/execution-loop.md',
 
   // Section-level creates - autonomy tiers
-  'add-autonomy-tiers': 'setup/shared/execution-loop.md',
-  'add-never-guards': 'setup/shared/execution-loop.md',
-  'add-micro-checklist': 'setup/shared/execution-loop.md',
+  'add-autonomy-tiers': 'workflow/setup/shared/execution-loop.md',
+  'add-never-guards': 'workflow/setup/shared/execution-loop.md',
+  'add-micro-checklist': 'workflow/setup/shared/execution-loop.md',
 
   // Section-level creates - definition of done
-  'add-dod': 'setup/shared/execution-loop.md',
-  'add-dod-gates': 'setup/shared/execution-loop.md',
-  'add-grep-gate': 'setup/shared/execution-loop.md',
-  'add-log-gate': 'setup/shared/execution-loop.md',
+  'add-dod': 'workflow/setup/shared/execution-loop.md',
+  'add-dod-gates': 'workflow/setup/shared/execution-loop.md',
+  'add-grep-gate': 'workflow/setup/shared/execution-loop.md',
+  'add-log-gate': 'workflow/setup/shared/execution-loop.md',
 
   // Fix-kind - skill quality (all templates demonstrate these sections)
   'create-all-skills': 'workflow/skills/goat-debug.md',
@@ -711,64 +717,64 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   // Fix-kind - hook hardening (agent-specific)
   'add-deny-blocks': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-json-parsing': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-chaining': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-rm-rf': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-force-push': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-chmod': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-pipe-to-shell': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-cloud-destructive': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-read-deny-secrets': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'add-stop-lint-validation': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'add-compaction-hook': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
 
   // Fix-kind - learning loop
-  'seed-lessons': 'setup/shared/docs-seed.md',
-  'seed-lessons-minimum': 'setup/shared/docs-seed.md',
-  'add-footgun-evidence': 'setup/shared/docs-seed.md',
+  'seed-lessons': 'workflow/setup/shared/docs-seed.md',
+  'seed-lessons-minimum': 'workflow/setup/shared/docs-seed.md',
+  'add-footgun-evidence': 'workflow/setup/shared/docs-seed.md',
 
   // File-level creates - security, testing, devops, domain
   'create-security-instructions': 'workflow/coding-standards/security.md',
@@ -800,36 +806,36 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   // Fix-kind - local instructions
   'improve-conventions-instructions':
     'workflow/coding-standards/conventions.md',
-  'create-instructions-dir': 'setup/shared/docs-seed.md',
-  'create-instructions-router': 'setup/shared/docs-seed.md',
+  'create-instructions-dir': 'workflow/setup/shared/docs-seed.md',
+  'create-instructions-router': 'workflow/setup/shared/docs-seed.md',
   'create-frontend-instructions':
     'workflow/coding-standards/frontend/typescript.md',
   'create-github-git-commit': 'workflow/coding-standards/git-commit.md',
 
   // Fix-kind - foundation (instruction file sections)
-  'add-version-header': 'setup/shared/execution-loop.md',
-  'add-essential-commands': 'setup/shared/execution-loop.md',
-  'add-concrete-examples': 'setup/shared/execution-loop.md',
-  'add-classify-budgets': 'setup/shared/execution-loop.md',
-  'add-router': 'setup/shared/execution-loop.md',
-  'route-skills': 'setup/shared/execution-loop.md',
+  'add-version-header': 'workflow/setup/shared/execution-loop.md',
+  'add-essential-commands': 'workflow/setup/shared/execution-loop.md',
+  'add-concrete-examples': 'workflow/setup/shared/execution-loop.md',
+  'add-classify-budgets': 'workflow/setup/shared/execution-loop.md',
+  'add-router': 'workflow/setup/shared/execution-loop.md',
+  'route-skills': 'workflow/setup/shared/execution-loop.md',
   'add-deny-mechanism': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'block-git-commit': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   'block-git-push': {
     claude: 'workflow/runtime/enforcement.md',
-    codex: 'setup/setup-codex.md',
-    gemini: 'setup/setup-gemini.md',
+    codex: 'workflow/setup/setup-codex.md',
+    gemini: 'workflow/setup/setup-gemini.md',
   },
   // add-rfc2119 intentionally excluded - inline instruction is self-contained
-  'fix-execution-loop-sync': 'setup/shared/execution-loop.md',
+  'fix-execution-loop-sync': 'workflow/setup/shared/execution-loop.md',
 
   // Fix-kind - evals and CI
   'add-replay-prompts': 'workflow/evaluation/evals.md',
@@ -841,9 +847,9 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   'ci-trigger-prs': 'workflow/evaluation/ci-validation.md',
 
   // Fix-kind - anti-patterns (ones with clear template sources)
-  'ap-add-footgun-evidence': 'setup/shared/docs-seed.md',
-  'ap-fix-empty-scaffolding': 'setup/shared/docs-seed.md',
-  'ap-fix-duplicate-learning-loop-surfaces': 'setup/shared/docs-seed.md',
+  'ap-add-footgun-evidence': 'workflow/setup/shared/docs-seed.md',
+  'ap-fix-empty-scaffolding': 'workflow/setup/shared/docs-seed.md',
+  'ap-fix-duplicate-learning-loop-surfaces': 'workflow/setup/shared/docs-seed.md',
   'ap-fix-dangling-skill-refs': 'workflow/skills/goat-debug.md',
   'ap-fix-adapt-comments': 'workflow/skills/goat-debug.md',
   'ap-fix-hook-paths': 'workflow/runtime/enforcement.md',

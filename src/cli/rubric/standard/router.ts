@@ -1,6 +1,7 @@
 import type { CheckDef, FactContext, CheckResult } from '../../types.js';
 import { getRequiredRouterPathCheckResult, getRouterSkillsCheckResult } from './router-helpers.js';
 
+/** Standard-tier checks for the router table and path resolution (2.4.x). */
 export const routerChecks: CheckDef[] = [
   {
     id: '2.4.1',
@@ -135,7 +136,7 @@ export const routerChecks: CheckDef[] = [
       section: 'router',
       pattern: 'architecture|arch',
     },
-    recommendation: 'Add docs/architecture.md to the router table',
+    recommendation: 'Add ai-docs/architecture.md to the router table',
     recommendationKey: 'route-architecture',
   },
   {
@@ -154,7 +155,7 @@ export const routerChecks: CheckDef[] = [
       section: 'router',
       pattern: 'eval|agent-eval',
     },
-    recommendation: 'Add ai/evals/ to the router table',
+    recommendation: 'Add ai-docs/evals/ to the router table',
     recommendationKey: 'route-evals',
   },
   {

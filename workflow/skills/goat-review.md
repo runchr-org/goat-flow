@@ -15,7 +15,7 @@ goat-flow-skill-version: "0.10.0"
 - **Ceremony:** Hotfix/Small Feature → skip closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3. Standard → full phases. System/Infrastructure → full + cross-boundary verification. Sub-agent mode → GATEs become CHECKPOINTs automatically.
 - **Footgun fast-path:** If Step 0 footgun check matches a known trap, surface it immediately and offer the mitigation path. Still require READ + VERIFY on actual files — footguns are incident records, not executable specs.
 - **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect. (Skip for Hotfix/Small Feature.)
-- **Learning Loop:** Behavioural mistake → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai/lessons/` or `.goat-flow/lessons/`. Architectural trap → add a `## Footgun:` entry to the relevant category bucket in `docs/footguns/` or `.goat-flow/footguns/`.
+- **Learning Loop:** Behavioural mistake → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`. Architectural trap → add a `## Footgun:` entry to the relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`.
 - **Closing:** If incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`. Suggest next skill.
 
 ## When to Use
@@ -57,10 +57,10 @@ Scope detection priority: (1) explicit user input, (2) staged changes to target,
 - Goal is **readability/cleanup** → **Simplify mode** (Phases S1-S4)
 - User explicitly says "audit" or "standard" → respect override
 
-If `ai/coding-standards/code-review.md` exists, load it and apply project-specific
+If `ai-docs/coding-standards/code-review.md` exists, load it and apply project-specific
 review standards alongside these defaults.
 
-**Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
 **Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
 - "hotfix" but 5+ files affected → likely Standard or System
@@ -95,9 +95,9 @@ pre-existing issues as part of this change - note them separately.
 
 **Cross-cutting checks:**
 - Autonomy tier violations: does this change cross an Ask First boundary?
-- Footgun matching: check each finding against `docs/footguns/` and `.goat-flow/footguns/`. Output: `MATCH: [entry]` or `CLEAR`
+- Footgun matching: check each finding against `ai-docs/footguns/` and `.goat-flow/footguns/`. Output: `MATCH: [entry]` or `CLEAR`
   *Example:* "Finding: Renamed `UserService` → `AccountService`. Footgun check:
-  `docs/footguns/` or `.goat-flow/footguns/` entry 'cross-reference fragility'. MATCH - grep for
+  `ai-docs/footguns/` or `.goat-flow/footguns/` entry 'cross-reference fragility'. MATCH - grep for
   `UserService` across all `.md` files."
 - Pattern drift: does new code use a different pattern than existing codebase? Don't assume it's wrong - ask: "Intentional divergence?"
 - Downstream impact: "What breaks if this change has a bug?" - map the cascade
@@ -167,7 +167,7 @@ Scan categories, weighted by audit purpose:
 For each finding, log: category, `file:line`, description, severity.
 <!-- ADAPT: Use your agent's parallel execution capability, or scan areas sequentially. -->
 
-**Recurrence check:** Before reporting, search `docs/footguns/` and `.goat-flow/footguns/` for entries
+**Recurrence check:** Before reporting, search `ai-docs/footguns/` and `.goat-flow/footguns/` for entries
 in the scanned area. Cross-reference findings with known footguns.
 
 **Phase A2 - Verify & Self-Check:**
@@ -210,14 +210,14 @@ Review your output for fix language. Rephrase any recommendations as findings.
 ## Instruction Review Mode
 
 Activated when review target is instruction files (CLAUDE.md, AGENTS.md,
-ai/coding-standards/, .github/instructions/).
+ai-docs/coding-standards/, .github/instructions/).
 
 **Phase 1i - Friction Signal Scan:**
 Gather observable signals (not conversation memory - agents can't read prior sessions):
 - `git log --oneline -20` for recent activity patterns
-- Read `ai/lessons/` and `.goat-flow/lessons/` for entries since last instruction update
-- Read `docs/footguns/` and `.goat-flow/footguns/` for entries in areas governed by the instructions
-- Check `ai/evals/` for recurring failure patterns
+- Read `ai-docs/lessons/` and `.goat-flow/lessons/` for entries since last instruction update
+- Read `ai-docs/footguns/` and `.goat-flow/footguns/` for entries in areas governed by the instructions
+- Check `ai-docs/evals/` for recurring failure patterns
 
 **Phase 2i - Instruction Audit:**
 For each instruction file, check:
@@ -234,7 +234,7 @@ Present proposals in diff-like format:
 | CLAUDE.md | Ask First | `src/old-path/` | `src/new-path/` | Path renamed in commit abc123 |
 
 MUST NOT auto-edit instruction files. Present for human approval.
-MUST NOT edit `docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, or `.goat-flow/lessons/` - those have their own update standards.
+MUST NOT edit `ai-docs/footguns/`, `.goat-flow/footguns/`, `ai-docs/lessons/`, or `.goat-flow/lessons/` - those have their own update standards.
 
 ## Common Failure Modes
 
@@ -249,7 +249,7 @@ MUST NOT edit `docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, or `.goat
 <!-- FIXED: Do not adapt these -->
 - MUST review the diff for issues, read full files for context
 - MUST NOT flag pre-existing issues as part of this change (review mode)
-- MUST check each finding against `docs/footguns/` and `.goat-flow/footguns/` (MATCH/CLEAR)
+- MUST check each finding against `ai-docs/footguns/` and `.goat-flow/footguns/` (MATCH/CLEAR)
 - MUST order findings by severity, not by file or discovery order
 - MUST NOT fabricate file paths or function names
 - MUST NOT make file edits in review or audit mode - report findings only. Only edit if user explicitly says "implement".

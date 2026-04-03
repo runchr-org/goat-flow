@@ -1,7 +1,7 @@
-# Prompt: Create ai/coding-standards/conventions.md
+# Prompt: Create ai-docs/coding-standards/conventions.md
 
 > **Purpose:** Always-loaded project contract - build commands, naming, DO/DON'T rules, dangerous ops
-> **Generates:** `ai/coding-standards/conventions.md`
+> **Generates:** `ai-docs/coding-standards/conventions.md`
 > **Use when:** Setting up or refreshing project-wide conventions
 > **Repo inspection:** Yes - reads actual source files, runs build/test/lint commands to verify
 > **Follow-on refs:** `backend/`, `frontend/` for stack-specific patterns; `security.md` for security overlay
@@ -12,12 +12,12 @@
 
 ## The Prompt
 
-Read the codebase, then write `ai/coding-standards/conventions.md` following this structure:
+Read the codebase, then write `ai-docs/coding-standards/conventions.md` following this structure:
 
 ````
 IMPORTANT: Only document what currently exists in the codebase.
 - Verify every claim by reading actual source files, not documentation or roadmaps
-- Do NOT include planned/aspirational features from docs/architecture.md or roadmaps
+- Do NOT include planned/aspirational features from ai-docs/architecture.md or roadmaps
 - If a doc says something exists, check the code before including it
 - Run the actual commands (build, test, lint) to confirm they work before listing them
 

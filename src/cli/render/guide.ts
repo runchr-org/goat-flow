@@ -5,6 +5,7 @@
  */
 import type { ScanReport, AgentReport, CheckResult } from '../types.js';
 
+/** A single prioritized item in the setup guide output */
 interface GuideItem {
   priority: number;
   tier: string;
@@ -14,12 +15,14 @@ interface GuideItem {
   effort: 'trivial' | 'moderate' | 'complex';
 }
 
+/** Map a rubric tier to an effort estimate for the setup guide */
 function effortFromTier(tier: string): 'trivial' | 'moderate' | 'complex' {
   if (tier === 'foundation') return 'trivial';
   if (tier === 'standard') return 'moderate';
   return 'complex';
 }
 
+/** Calculate sort priority from a check result (lower = higher priority) */
 function priorityFromCheck(check: CheckResult): number {
   // Foundation checks first, then standard, then full
   const tierWeight = check.tier === 'foundation' ? 0 : check.tier === 'standard' ? 100 : 200;
@@ -28,6 +31,7 @@ function priorityFromCheck(check: CheckResult): number {
   return tierWeight + pointWeight;
 }
 
+/** Build prioritized setup items from an agent's failing and partial checks */
 function buildGuideItems(agent: AgentReport): GuideItem[] {
   const items: GuideItem[] = [];
 
@@ -50,6 +54,7 @@ function buildGuideItems(agent: AgentReport): GuideItem[] {
   return items;
 }
 
+/** Render the setup guide for a single agent */
 function renderAgentGuide(agent: AgentReport): string {
   const lines: string[] = [];
   const items = buildGuideItems(agent);

@@ -55,7 +55,7 @@ goat-flow setup --agent claude|codex|gemini
 
 **5 skills + dispatcher:** `/goat` routes to `/goat-debug`, `/goat-review`, `/goat-plan`, `/goat-test`, or `/goat-security`. Each has structured phases with human gates.
 
-**Learning loop:** `docs/footguns/` captures architectural traps with file:line evidence. `ai/lessons/` captures real incidents. Agent evals replay past failures.
+**Learning loop:** `ai-docs/footguns/` captures architectural traps with file:line evidence. `ai-docs/lessons/` captures real incidents. Agent evals replay past failures.
 
 **Scanner:** Scores your project across 91 checks + 18 anti-patterns. The dashboard shows what's missing and how to fix it.
 

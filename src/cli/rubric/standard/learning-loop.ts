@@ -1,5 +1,6 @@
 import type { CheckDef, FactContext, CheckResult } from '../../types.js';
 
+/** Standard-tier checks for lessons and footguns infrastructure (2.3.x). */
 export const learningLoopChecks: CheckDef[] = [
   {
     id: '2.3.1',
@@ -147,7 +148,7 @@ export const learningLoopChecks: CheckDef[] = [
           confidence: 'high',
           message:
             diagnostic ??
-            'No lesson entries found across `ai/lessons/` and `.goat-flow/lessons/`. Add at least one real incident from git history, or a placeholder explaining why none apply yet.',
+            'No lesson entries found across `ai-docs/lessons/` and `.goat-flow/lessons/`. Add at least one real incident from git history, or a placeholder explaining why none apply yet.',
         };
       },
     },

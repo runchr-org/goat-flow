@@ -46,6 +46,7 @@ export function evaluateCheck(
   return evaluatePrimaryCheck(base, pts, partialPts, detect, ctx);
 }
 
+/** Shared fields included in every check evaluation result */
 interface CheckBase {
   id: string;
   name: string;
@@ -246,7 +247,7 @@ function getLineCountInfo(
       lineCount: ctx.agentFacts.instruction.lineCount,
     };
   }
-  if (path === 'docs/architecture.md') {
+  if (path === 'ai-docs/architecture.md') {
     return {
       exists: ctx.facts.shared.architecture.exists,
       lineCount: ctx.facts.shared.architecture.lineCount,
@@ -710,9 +711,9 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
     [shared.footguns.paths.local]: shared.footguns.localExists,
     [shared.lessons.paths.committed]: shared.lessons.committedExists,
     [shared.lessons.paths.local]: shared.lessons.localExists,
-    'docs/architecture.md': shared.architecture.exists,
-    'docs/guidelines-ownership-split.md': shared.guidelinesOwnership.exists,
-    'docs/domain-reference.md': shared.domainReference.exists,
+    'ai-docs/architecture.md': shared.architecture.exists,
+    'ai-docs/guidelines-ownership-split.md': shared.guidelinesOwnership.exists,
+    'ai-docs/domain-reference.md': shared.domainReference.exists,
     '.goat-flow/tasks/handoff-template.md': shared.handoffTemplate.exists,
     [shared.evals.path]: shared.evals.dirExists,
     [shared.evals.path.replace(/\/$/, '')]: shared.evals.dirExists,
@@ -734,7 +735,7 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
     [shared.localInstructions.path.replace(/\/$/, '')]:
       shared.localInstructions.dirExists &&
       shared.localInstructions.location === 'ai',
-    'ai/README.md':
+    'ai-docs/README.md':
       shared.localInstructions.hasValidRouter &&
       shared.localInstructions.location === 'ai',
     '.github/instructions':

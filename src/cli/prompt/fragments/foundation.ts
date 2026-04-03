@@ -45,7 +45,7 @@ Keep it under 120 lines. The remaining foundation checks will fill in the sectio
 1. Remove verbose examples - one BAD/GOOD pair per concept is enough
 2. Replace explanatory paragraphs with terse bullet points
 3. Collapse tables where a one-liner suffices
-4. Move reference material to \`docs/\` and link from the router table
+4. Move reference material to \`ai-docs/\` and link from the router table
 
 Hard limit: 150 lines. Target: under 120.`,
   },
@@ -219,8 +219,8 @@ Over budget = re-classify before continuing.`,
 
 | File | When to update |
 |------|---------------|
-| \\\`ai/lessons/\\\` or \\\`.goat-flow/lessons/\\\` | Behavioural mistake |
-| \\\`docs/footguns/\\\` or \\\`.goat-flow/footguns/\\\` | Cross-doc architectural trap |
+| \\\`ai-docs/lessons/\\\` or \\\`.goat-flow/lessons/\\\` | Behavioural mistake |
+| \\\`ai-docs/footguns/\\\` or \\\`.goat-flow/footguns/\\\` | Cross-doc architectural trap |
 
 Lessons use category files such as \\\`verification.md\\\` with frontmatter \\\`category\\\`, then \\\`## Lesson:\\\` / \\\`## Pattern:\\\` entries inside.
 Footguns use category files such as \\\`hooks.md\\\` with frontmatter \\\`category\\\`, then \\\`## Footgun:\\\` entries with Status/Created/Evidence type inside.
@@ -236,13 +236,13 @@ Footguns use category files such as \\\`hooks.md\\\` with frontmatter \\\`catego
 \`\`\`yaml
 version: "0.10.0"
 footguns:
-  committed: docs/footguns/
+  committed: ai-docs/footguns/
   local: .goat-flow/footguns/
 lessons:
-  committed: ai/lessons/
+  committed: ai-docs/lessons/
   local: .goat-flow/lessons/
 decisions:
-  path: ai/decisions/
+  path: ai-docs/decisions/
 tasks:
   path: .goat-flow/tasks/
 logs:
@@ -425,7 +425,7 @@ After any rename, grep for the old pattern to confirm zero remaining references.
     kind: 'create',
     instruction: `Add the log-update gate to DoD in \`{{instructionFile}}\`:
 
-If VERIFY caught a failure or you corrected course: create a lesson entry in \`ai/lessons/\` or \`.goat-flow/lessons/\` before DoD.`,
+If VERIFY caught a failure or you corrected course: create a lesson entry in \`ai-docs/lessons/\` or \`.goat-flow/lessons/\` before DoD.`,
   },
 
   // === Enforcement ===

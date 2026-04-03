@@ -10,6 +10,7 @@ export type FragmentPhase = Tier | 'anti-pattern';
 /** Whether a fragment creates new content or fixes existing content */
 export type FragmentKind = 'create' | 'fix';
 
+/** A structured prompt fragment with recommendation key, phase, and instruction. */
 export interface Fragment {
   /** Must match a CheckDef.recommendationKey or AntiPatternDef.recommendationKey */
   key: string;

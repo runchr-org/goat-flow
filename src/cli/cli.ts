@@ -12,6 +12,7 @@ import type { CLIOptions, Grade, AgentId, ScanReport } from './types.js';
 
 import { getPackageVersion } from './paths.js';
 
+/** Current package version used in --version output */
 const PACKAGE_VERSION = getPackageVersion();
 
 /** Structured error with an exit code for CLI process termination */
@@ -72,13 +73,18 @@ function printVersion(): void {
   console.log(`goat-flow v${PACKAGE_VERSION}`);
 }
 
+/** Supported CLI subcommand names */
 type Command = 'scan' | 'setup' | 'eval' | 'dashboard';
 
 /** List of recognized CLI subcommands */
 const COMMANDS: Command[] = ['scan', 'setup', 'eval', 'dashboard'];
+/** Previously valid commands that now produce a helpful deprecation error */
 const REMOVED_COMMANDS = ['fix', 'audit'];
+/** Accepted values for the --format flag */
 const VALID_FORMATS = ['json', 'text', 'html', 'markdown'] as const;
+/** Accepted values for the --agent flag */
 const VALID_AGENTS: AgentId[] = ['claude', 'codex', 'gemini'];
+/** Banner text warning that multi-agent setup output must stay in sync */
 const MULTI_AGENT_SYNC_BANNER = [
   '**Multi-agent sync:** This prompt generates setup for multiple agents. The execution loop',
   '(READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG), autonomy tiers, and Definition of Done',
@@ -86,6 +92,7 @@ const MULTI_AGENT_SYNC_BANNER = [
   'then COPY THEM VERBATIM to the other instruction files. Do not rephrase.',
 ];
 
+/** Fully resolved CLI options including the dispatched command */
 export interface ParsedCLI extends CLIOptions {
   command: Command;
 }
@@ -227,7 +234,7 @@ async function handleEvalCommand(options: ParsedCLI): Promise<void> {
   /** Virtual filesystem scoped to the target project path */
   const fs = createFS(options.projectPath);
   const { loadConfig } = await import('./config/reader.js');
-  /** Resolved evals path from config (defaults to ai/evals/) */
+  /** Resolved evals path from config (defaults to ai-docs/evals/) */
   const evalsDir = resolve(
     options.projectPath,
     loadConfig(options.projectPath, fs).config.evals.path,
@@ -434,7 +441,7 @@ async function main(): Promise<void> {
     return;
   }
   if (options.command === 'dashboard') {
-    const { serveDashboard } = await import('./serve-dashboard.js');
+    const { serveDashboard } = await import('./server/dashboard.js');
     await serveDashboard({
       projectPath: options.projectPath,
       openBrowser: options.openDashboard,

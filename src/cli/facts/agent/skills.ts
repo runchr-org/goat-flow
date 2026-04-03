@@ -6,6 +6,7 @@ import { SKILL_NAMES, SKILL_VERSION } from '../../constants.js';
 import { extractSection } from './instruction.js';
 import { pushUniquePath } from './routing.js';
 
+/** Compute Jaccard similarity between two strings by comparing word sets. */
 function jaccardSimilarity(a: string, b: string): number {
   const wordsA = new Set(
     a
@@ -41,6 +42,7 @@ function extractSkillVersion(content: string): string | null {
   return versionMatch?.[1]?.trim() ?? null;
 }
 
+/** Quality signal counters accumulated across all installed skills. */
 interface SkillQualityCounts {
   withStep0: number;
   withHumanGate: number;
@@ -53,6 +55,7 @@ interface SkillQualityCounts {
   withSharedConventions: number;
 }
 
+/** Aggregates found/missing skills, version drift, and quality metrics for one agent. */
 interface SkillInventory {
   found: string[];
   missing: string[];
@@ -62,6 +65,7 @@ interface SkillInventory {
   adaptCommentCount: number;
 }
 
+/** Mapping of quality signal names to their detection regex patterns. */
 const SKILL_QUALITY_PATTERNS: Array<{
   key: keyof SkillQualityCounts;
   pattern: RegExp;

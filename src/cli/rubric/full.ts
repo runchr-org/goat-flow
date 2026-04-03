@@ -25,7 +25,7 @@ export const fullChecks: CheckDef[] = [
     pts: 1,
     confidence: 'high',
     detect: { type: 'dir_exists', path: '{evals_dir}' },
-    recommendation: 'Create evals directory (default: ai/evals/)',
+    recommendation: 'Create evals directory (default: ai-docs/evals/)',
     recommendationKey: 'create-evals-dir',
   },
   {

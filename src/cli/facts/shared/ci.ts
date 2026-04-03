@@ -4,6 +4,7 @@
  */
 import type { SharedFacts, ReadonlyFS } from '../../types.js';
 
+/** Gitignore entries that every project must include for secret protection. */
 const REQUIRED_GITIGNORE_ENTRIES = ['.env', 'settings.local.json'];
 
 /** Detect whether the CI workflow already includes a required validation pattern. */

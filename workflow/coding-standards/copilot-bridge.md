@@ -17,7 +17,7 @@ Create or update GitHub Copilot bridge files for this repository.
 
 First, inspect the repo and identify the canonical instruction source
 directory. Common patterns include:
-- ai/coding-standards/
+- ai-docs/coding-standards/
 - instructions/
 - docs/instructions/
 
@@ -68,7 +68,7 @@ diff for every bridge you touched.
 Example helper:
 
 strip_frontmatter() { awk '/^---$/{n++; next} n>=2{print}' "$1"; }
-diff <(strip_frontmatter .github/instructions/conventions.instructions.md) ai/coding-standards/conventions.md
+diff <(strip_frontmatter .github/instructions/conventions.instructions.md) ai-docs/coding-standards/conventions.md
 
 FAIL CONDITIONS:
 - A bridge references another file instead of inlining it

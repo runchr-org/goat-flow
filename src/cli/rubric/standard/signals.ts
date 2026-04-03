@@ -1,5 +1,6 @@
 import type { CheckDef, FactContext, CheckResult } from '../../types.js';
 
+/** Standard-tier checks for signal follow-through and enforcement (2.7.x). */
 export const signalChecks: CheckDef[] = [
   {
     id: '2.7.1',

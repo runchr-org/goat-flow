@@ -1,7 +1,7 @@
 # GOAT Flow -- Getting Started
 
 **Version:** v0.10.0 | 2026-03-31
-**Companion to:** `setup/` (agent setup guides) and `docs/system-spec.md` (canonical spec)
+**Companion to:** `workflow/setup/` (agent setup guides) and `docs/system-spec.md` (canonical spec)
 
 ---
 
@@ -13,7 +13,7 @@ A structured workflow system for AI coding agents - Claude Code, Gemini CLI, and
 
 1. **This file** -- how to start
 2. **The spec** (`docs/system-spec.md`) -- full reference for every design decision
-3. **The setup** (`setup/setup-claude.md`, `setup/setup-gemini.md`, or `setup/setup-codex.md`) -- what you run
+3. **The setup** (`workflow/setup/setup-claude.md`, `workflow/setup/setup-gemini.md`, or `workflow/setup/setup-codex.md`) -- what you run
 4. **The rationale** (`docs/reference/design-rationale.md`) -- deep dives on why each section exists
 5. **The skills** (`docs/system/skills.md`) -- all 6 skills with usage guidance
 
@@ -21,7 +21,7 @@ A structured workflow system for AI coding agents - Claude Code, Gemini CLI, and
 
 1. **Copy the system spec and setup prompts into your project root.**
    - `docs/system-spec.md`
-   - The setup guide from `setup/` -- use `setup-claude.md` for Claude Code, `setup-gemini.md` for Gemini CLI, or `setup-codex.md` for Codex
+   - The setup guide from `workflow/setup/` -- use `setup-claude.md` for Claude Code, `setup-gemini.md` for Gemini CLI, or `setup-codex.md` for Codex
 
 2. **Rename if needed.** The prompts reference the system spec by exact filename. If your copies have prefixes or version suffixes, rename them to match.
 
@@ -53,7 +53,7 @@ New project, no CLAUDE.md exists?
   -> Phase 0 (minimal) OR Phase 1a Prompt A (full)
 
 Existing project with a CLAUDE.md full of domain content?
-  -> Phase 1a Prompt B (migrates domain content to docs/domain-reference.md)
+  -> Phase 1a Prompt B (migrates domain content to ai-docs/domain-reference.md)
 
 Just want the bare minimum to try it?
   -> Phase 0 only. Add skills and hooks later.
@@ -63,9 +63,9 @@ Just want the bare minimum to try it?
 
 **After Phase 1a:**
 - [ ] CLAUDE.md line count reported -- under 120?
-- [ ] If Prompt B: open `docs/domain-reference.md` and verify nothing was silently dropped. Compare against the original CLAUDE.md
-- [ ] `docs/footguns/` contains real footguns with file:line evidence, not hypothetical ones
-- [ ] `docs/guidelines-ownership-split.md` exists and documents the migration
+- [ ] If Prompt B: open `ai-docs/domain-reference.md` and verify nothing was silently dropped. Compare against the original CLAUDE.md
+- [ ] `ai-docs/footguns/` contains real footguns with file:line evidence, not hypothetical ones
+- [ ] `ai-docs/guidelines-ownership-split.md` exists and documents the migration
 - [ ] Budget a second pass -- agents aggressively cut content during compression. The anti-BDUF guard and sections (f)-(i) are commonly dropped then needed back
 
 **After Phase 1b:**
@@ -99,7 +99,7 @@ You don't have to do everything. Pick your tier:
 
 **Weekly:** Run Claude Code's `/insights` to review learning loop patterns (analyses your recent session history for recurring patterns). Look for friction that could become a new rule or footgun. For other agents: Gemini CLI uses `/memories`, Cursor users should review their rules periodically.
 
-**When something breaks:** After Claude causes a bug, add it to `ai/lessons/` (behavioural) or `docs/footguns/` (architectural). If it's worth regression-testing, create an agent eval in `ai/evals/`.
+**When something breaks:** After Claude causes a bug, add it to `ai-docs/lessons/` (behavioural) or `ai-docs/footguns/` (architectural). If it's worth regression-testing, create an agent eval in `ai-docs/evals/`.
 
 **Quarterly:** Re-count CLAUDE.md lines. Check for stale rules. Ask: "if I removed this, would the model still do the right thing?" Archive lessons not triggered in 30+ days.
 
@@ -117,10 +117,10 @@ You don't have to do everything. Pick your tier:
 - **Post-turn hooks must exit 0.** Even when they find errors. Non-zero exit codes trap the agent in infinite fix loops.
   - Fix: Verify the hook exits 0 even on errors. Add the infinite loop guard: if [ "${STOP_HOOK_ACTIVE:-}" = "1" ]; then exit 0; fi
 - **Secret scanning is manual.** The `gitleaks` setup requires `git config --global` which affects all repos. Do it yourself, don't let Claude Code do it. Document it in README, not CLAUDE.md.
-- **Pre-existing footguns don't need replacement.** If docs/footguns/ already exists with real entries, the implementation should merge, not replace. Some projects need zero new footguns -- that's fine.
+- **Pre-existing footguns don't need replacement.** If ai-docs/footguns/ already exists with real entries, the implementation should merge, not replace. Some projects need zero new footguns -- that's fine.
 - **Pre-existing hooks need migration.** If .claude/settings.json already has inline hook commands, migrate them to external scripts under .claude/hooks/ during Phase 1c.
 - **Skip post-tool hook if no formatter.** Shell scripts, for example, have no standard formatter. Don't create a format hook that re-runs the linter.
-- **Dual-agent repos need coordination.** If you run both Claude Code and Codex implementations on the same project, they share docs/footguns/ and ai/lessons/. Changes by one agent affect the other. Run Claude Code first (it creates the shared docs), then Codex (it merges with existing files).
+- **Dual-agent repos need coordination.** If you run both Claude Code and Codex implementations on the same project, they share ai-docs/footguns/ and ai-docs/lessons/. Changes by one agent affect the other. Run Claude Code first (it creates the shared docs), then Codex (it merges with existing files).
 
 ## File Reference
 
@@ -138,17 +138,17 @@ src/auth/CLAUDE.md (etc.)              <- Layer 2: local context (if qualifying 
 .claude/hooks/stop-lint.sh
 .claude/hooks/format-file.sh           <- skip if no formatter configured
 .claude/settings.json
-ai/lessons/                          <- learning loop
-docs/footguns/
-docs/architecture.md
-docs/domain-reference.md               <- Prompt B path only
-docs/guidelines-ownership-split.md     <- migration rationale
-ai/decisions/
+ai-docs/lessons/                          <- learning loop
+ai-docs/footguns/
+ai-docs/architecture.md
+ai-docs/domain-reference.md               <- Prompt B path only
+ai-docs/guidelines-ownership-split.md     <- migration rationale
+ai-docs/decisions/
 .goat-flow/tasks/handoff-template.md
-ai/README.md                           <- Cold-path router for project coding guidelines
-ai/coding-standards/                       <- Domain-specific coding guidelines (base, code-review, git-commit, frontend, backend, etc.)
+ai-docs/README.md                           <- Cold-path router for project coding guidelines
+ai-docs/coding-standards/                       <- Domain-specific coding guidelines (base, code-review, git-commit, frontend, backend, etc.)
 .github/git-commit-instructions.md     <- Universal commit instructions
-ai/evals/                              <- Phase 2
+ai-docs/evals/                              <- Phase 2
 .github/workflows/context-validation.yml  <- Phase 2
 ```
 

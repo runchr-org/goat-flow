@@ -19,7 +19,7 @@ Layer 1 -- Runtime (CLAUDE.md, ~120 lines)
 Layer 2 -- Local Context (directory-level CLAUDE.md files)
     Auto-loaded when Claude works in that directory
     High-risk boundaries, module-specific gotchas, local conventions
-    Cold path: ai/coding-standards/ holds domain-specific coding guidelines
+    Cold path: ai-docs/coding-standards/ holds domain-specific coding guidelines
     loaded on demand. Hot path (instruction files) stays under 120 lines.
 
 Layer 3 -- Skills (loaded via slash commands)
@@ -44,7 +44,7 @@ CLAUDE.md and shared coding standards (`.github/instructions/ai-agent-guidelines
 
 **The test:** if a rule would be identical across every project, it belongs in guidelines. If it changes per project, it belongs in CLAUDE.md.
 
-**When adopting with existing guidelines:** audit for overlap. Remove execution loop, DoD, stop-the-line, working memory, or autonomy tier content from the guidelines file. Create `docs/guidelines-ownership-split.md` documenting what was moved and why.
+**When adopting with existing guidelines:** audit for overlap. Remove execution loop, DoD, stop-the-line, working memory, or autonomy tier content from the guidelines file. Create `ai-docs/guidelines-ownership-split.md` documenting what was moved and why.
 
 **Sharpening the boundary for fuzzy cases:** Some rules sit at the boundary (e.g., "git hygiene: one logical change per commit"). Apply this test: does the rule change HOW THE AGENT BEHAVES (workflow -> CLAUDE.md) or does it define WHAT GOOD CODE LOOKS LIKE (engineering -> guidelines)? "One logical change per commit" defines good code practices -> guidelines. "Always run tests before declaring done" defines agent behaviour -> CLAUDE.md.
 
@@ -56,7 +56,7 @@ Claude Code auto-reads `CLAUDE.md` in the working directory plus ancestors up to
 
 **Exclude:** duplicated project-wide rules, full architectural explanations, anything already covered by `.github/instructions/` files with `applyTo` scoping.
 
-**Relationship to docs/footguns/**:** entries in the directory are the source of truth. Directory-specific learning-loop entries can be mirrored in local `CLAUDE.md` files as one-line summaries, but do not move the source files.
+**Relationship to ai-docs/footguns/**:** entries in the directory are the source of truth. Directory-specific learning-loop entries can be mirrored in local `CLAUDE.md` files as one-line summaries, but do not move the source files.
 
 **Create when:** a module has 2+ footgun entries, is an Ask First boundary, or has conventions differing from default. **Do not create** for every directory, simple modules, flat-structure libraries, or directories already covered by instruction files.
 
@@ -223,11 +223,11 @@ Revert-and-rescope: (1) Esc + restate approach, (2) git revert + rescope, (3) /c
 
 | File                    | When                                    | Example                                                                 |
 | ----------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| `ai/lessons/`         | Behavioural mistake (agent did wrong)   | "Assumed API contract without reading frontend"                         |
-| `docs/footguns/`      | Architectural landmine (cross-domain)   | "Auth nonce spans 4 components; breaking any one silently breaks login" |
-Use category bucket files for the learning loop: do not append to a monolithic log, and do not force one file per incident forever. Lessons go in `ai/lessons/` or `.goat-flow/lessons/` using category files such as `verification.md` or `workflow.md` with file-level frontmatter `category`, then `## Lesson:` / `## Pattern:` entries inside. Footguns go in `docs/footguns/` or `.goat-flow/footguns/` using category files such as `hooks.md` or `setup.md` with file-level frontmatter `category`, then `## Footgun:` entries with `**Status:**`, `**Created:**`, and `**Evidence type:**` inside. Legacy one-entry files remain readable during migration. Keep cross-domain entries with real evidence in `docs/footguns/`. Quarterly review: entries not triggered in >30 days should be archived or deprioritized. Contested entries: keep `CONTESTED` evidence in the entry and flag follow-up in session notes.
+| `ai-docs/lessons/`         | Behavioural mistake (agent did wrong)   | "Assumed API contract without reading frontend"                         |
+| `ai-docs/footguns/`      | Architectural landmine (cross-domain)   | "Auth nonce spans 4 components; breaking any one silently breaks login" |
+Use category bucket files for the learning loop: do not append to a monolithic log, and do not force one file per incident forever. Lessons go in `ai-docs/lessons/` or `.goat-flow/lessons/` using category files such as `verification.md` or `workflow.md` with file-level frontmatter `category`, then `## Lesson:` / `## Pattern:` entries inside. Footguns go in `ai-docs/footguns/` or `.goat-flow/footguns/` using category files such as `hooks.md` or `setup.md` with file-level frontmatter `category`, then `## Footgun:` entries with `**Status:**`, `**Created:**`, and `**Evidence type:**` inside. Legacy one-entry files remain readable during migration. Keep cross-domain entries with real evidence in `ai-docs/footguns/`. Quarterly review: entries not triggered in >30 days should be archived or deprioritized. Contested entries: keep `CONTESTED` evidence in the entry and flag follow-up in session notes.
 
-**Dual-agent coordination:** If both CLAUDE.md and AGENTS.md share `docs/footguns/` and `ai/lessons/`, define one agent as owner or adopt merge-and-flag. Simplest: run Claude Code first (creates docs), then Codex (merges with existing).
+**Dual-agent coordination:** If both CLAUDE.md and AGENTS.md share `ai-docs/footguns/` and `ai-docs/lessons/`, define one agent as owner or adopt merge-and-flag. Simplest: run Claude Code first (creates docs), then Codex (merges with existing).
 
 ---
 
@@ -299,7 +299,7 @@ Max -15 total. Applied after tier scoring. Final score cannot drop below 0.
 | AP1 | Instruction file over 150 lines | `wc -l {instruction_file}` > 150 | -3 |
 | ~~AP2~~ | ~~Skill name conflicts with built-in~~ | Removed — penalized project-specific skills | — |
 | AP3 | DoD in both instruction file and guidelines | DoD section found in both files | -3 |
-| AP4 | Footguns without evidence | `docs/footguns/` exists but zero `file:|line:` references | -5 |
+| AP4 | Footguns without evidence | `ai-docs/footguns/` exists but zero `file:|line:` references | -5 |
 | AP5 | Settings.json invalid JSON | `JSON.parse()` throws | -5 |
 | AP6 | Post-turn hook exits non-zero | Last exit in stop-lint hook is not `exit 0` | -5 |
 | AP7 | Local instruction file over 20 lines | Any local file `wc -l` > 20 | -2 |
@@ -315,9 +315,9 @@ For tasks exceeding 5 turns: maintain Working Notes in .goat-flow/tasks/todo.md.
 For within-session state persistence, use `.claude/tasks/session-current.md`. This complements the escalation ladder (scratchpad -> handoff -> ask human) by providing a file the agent can read and write during the session that persists across tool calls.
 
 **Multi-agent contention:** When multiple developers have agents running against the same codebase concurrently:
-- Learning loop directories (`docs/footguns/`, `ai/lessons/`) may receive concurrent new category buckets or bucket-entry edits. Keep both sets of entries and review for duplicates after merge.
+- Learning loop directories (`ai-docs/footguns/`, `ai-docs/lessons/`) may receive concurrent new category buckets or bucket-entry edits. Keep both sets of entries and review for duplicates after merge.
 - Avoid concurrent edits to the same files. Use git worktrees for isolation when possible.
-- If two agents edit docs/footguns/ or ai/lessons/ simultaneously, both sets of entries should be kept. Merge carefully when they touch the same bucket file, then review for duplicates.
+- If two agents edit ai-docs/footguns/ or ai-docs/lessons/ simultaneously, both sets of entries should be kept. Merge carefully when they touch the same bucket file, then review for duplicates.
 
 ## Sub-Agent Objectives
 
@@ -379,17 +379,17 @@ stack:
 
 | File                                  | Purpose                      | Seed Content                                        |
 | ------------------------------------- | ---------------------------- | --------------------------------------------------- |
-| `docs/domain-reference.md`            | Project domain knowledge     | Migrated from existing CLAUDE.md (Prompt B only)    |
-| `ai/lessons/`                      | Behavioural learning loop    | README + category buckets (`verification.md`, `workflow.md`) |
-| `docs/footguns/`                    | Architectural landmines      | README + category buckets (`hooks.md`, `setup.md`)  |
-| `docs/architecture.md`               | System overview              | Under 100 lines. What, why, how, constraints        |
-| `ai/decisions/`                       | Architecture Decision Records | ADR template + real decisions if discoverable (see template below) |
-| `docs/guidelines-ownership-split.md` | Migration rationale          | What was moved, removed, and why                    |
+| `ai-docs/domain-reference.md`            | Project domain knowledge     | Migrated from existing CLAUDE.md (Prompt B only)    |
+| `ai-docs/lessons/`                      | Behavioural learning loop    | README + category buckets (`verification.md`, `workflow.md`) |
+| `ai-docs/footguns/`                    | Architectural landmines      | README + category buckets (`hooks.md`, `setup.md`)  |
+| `ai-docs/architecture.md`               | System overview              | Under 100 lines. What, why, how, constraints        |
+| `ai-docs/decisions/`                       | Architecture Decision Records | ADR template + real decisions if discoverable (see template below) |
+| `ai-docs/guidelines-ownership-split.md` | Migration rationale          | What was moved, removed, and why                    |
 | `.goat-flow/tasks/handoff-template.md`          | Session handoff              | Date, Status, Current State, Decisions, Errors, Learnings, Risks, Next Step, Context Files |
-| `ai/README.md`                       | Cold-path router (which instruction files to load) |                                  |
-| `ai/coding-standards/conventions.md`     | Universal project contract (conventions, commands, boundaries) |                     |
-| `ai/coding-standards/code-review.md`     | Review standards and approval criteria |                                             |
-| `ai/coding-standards/git-commit.md`      | Commit format, branch naming, PR workflow |                                          |
+| `ai-docs/README.md`                       | Cold-path router (which instruction files to load) |                                  |
+| `ai-docs/coding-standards/conventions.md`     | Universal project contract (conventions, commands, boundaries) |                     |
+| `ai-docs/coding-standards/code-review.md`     | Review standards and approval criteria |                                             |
+| `ai-docs/coding-standards/git-commit.md`      | Commit format, branch naming, PR workflow |                                          |
 
 ### ADR Template
 
@@ -506,7 +506,7 @@ Gitleaks pre-commit hook. **Manual setup only** -- do not ask an AI agent to mod
 
 ## Phase 2 Overview
 
-**2.1 Agent Evals** -- `ai/evals/` directory with flat .md files per incident. Replay when CLAUDE.md or skills change. Start with real incidents; seed from stack failure modes if no history.
+**2.1 Agent Evals** -- `ai-docs/evals/` directory with flat .md files per incident. Replay when CLAUDE.md or skills change. Start with real incidents; seed from stack failure modes if no history.
 
 **2.2 RFC 2119 Pass** -- Apply MUST/SHOULD/MAY to all CLAUDE.md rules. Compress prose in the same pass.
 

@@ -4,6 +4,7 @@
 import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
 import { pushUniquePath } from './routing.js';
 
+/** Check whether the agent settings include a compaction/notification hook matching 'compact'. */
 function checkCompactionHook(
   settingsParsed: unknown,
   settingsValid: boolean,
@@ -37,6 +38,7 @@ function checkCompactionHook(
   return false;
 }
 
+/** Regex matching common lint, typecheck, and format-check tool invocations. */
 const POST_TURN_VALIDATION_COMMAND_PATTERN =
   /\b(shellcheck|eslint|tsc|phpstan|ruff|mypy|flake8|rubocop|stylelint|ktlint|swiftlint)\b|biome\s+check|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:lint|typecheck|format(?::check)?)\b|cargo\s+check|go\s+vet|prettier\s+--check|bash\s+-n\b|(?:^|\s)(?:bash\s+)?(?:\.\/)?scripts\/preflight-checks\.sh\b/i;
 
@@ -216,6 +218,7 @@ function enrichDenyFromExecpolicy(
   hook.denyIsConfigBased = true;
 }
 
+/** Subset of hook facts describing deny-hook blocking behavior. */
 type HookDenyFacts = Pick<
   AgentFacts['hooks'],
   | 'denyExists'
@@ -230,6 +233,7 @@ type HookDenyFacts = Pick<
   | 'denyBlocksCloudDestructive'
 >;
 
+/** Subset of hook facts describing post-turn and post-tool hook registration and behavior. */
 type PostTurnFacts = Pick<
   AgentFacts['hooks'],
   | 'postTurnExists'
@@ -243,6 +247,7 @@ type PostTurnFacts = Pick<
   | 'postToolExists'
 >;
 
+/** Subset of hook facts describing post-turn and post-tool registration state. */
 type HookRegistrationFacts = Pick<
   AgentFacts['hooks'],
   | 'postTurnRegistered'
@@ -251,6 +256,7 @@ type HookRegistrationFacts = Pick<
   | 'postToolRegisteredPath'
 >;
 
+/** Result of resolving one hook event to its registered script path. */
 interface HookRegistrationMatch {
   registered: boolean;
   path: string | null;

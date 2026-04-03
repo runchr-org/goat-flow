@@ -1,14 +1,16 @@
 /**
- * Local instruction fact extraction — analyzes ai/coding-standards/ or .github/instructions/ directories.
+ * Local instruction fact extraction — analyzes ai-docs/coding-standards/ or .github/instructions/ directories.
  * Validates router links, conventions content quality, and instruction file presence.
  */
 import type { SharedFacts, ReadonlyFS } from '../../types.js';
 
+/** Resolved local instruction directory with its source location tag. */
 interface LocalInstructionDir {
   location: 'ai' | 'github';
   dir: string;
 }
 
+/** Presence flags for key local instruction documents. */
 interface LocalInstructionFlags {
   hasConventions: boolean;
   hasFrontend: boolean;
@@ -17,6 +19,7 @@ interface LocalInstructionFlags {
   hasGitCommit: boolean;
 }
 
+/** Result of validating router link references in ai-docs/README.md. */
 interface RouterValidation {
   hasValidRouter: boolean;
   routerNeedsFix: string | null;
@@ -106,10 +109,11 @@ function isReadableRouterRef(rawRef: string): boolean {
   const ref = rawRef.trim();
   if (!ref) return false;
   if (ref.startsWith('http://') || ref.startsWith('https://')) return false;
-  if (ref.startsWith('$') || /\b(README|docs|command|format|lint)\b/i.test(ref))
+  if (ref.startsWith('$')) return false;
+  if (!ref.includes('/') && /\b(README|docs|command|format|lint)\b/i.test(ref))
     return false;
   if (ref.includes(' ')) return false;
-  return /(?:^\.\/|^\.\.\/|^\w+\/|^[a-zA-Z0-9._-]+\.[a-zA-Z0-9]+$)/.test(ref);
+  return /(?:^\.\/|^\.\.\/|^[\w-]+\/|^[a-zA-Z0-9._-]+\.[a-zA-Z0-9]+$)/.test(ref);
 }
 
 /** Remove any markdown anchor fragment from a router reference. */
@@ -140,7 +144,7 @@ function extractRouterRefsFromMarkdown(content: string): string[] {
   return Array.from(refs);
 }
 
-/** Validate that `ai/README.md` references only existing local instruction files. */
+/** Validate that `ai-docs/README.md` references only existing local instruction files. */
 function validateRouterLinks(
   fs: ReadonlyFS,
   aiReadmeContent: string | null,
@@ -150,7 +154,7 @@ function validateRouterLinks(
       hasValidRouter: false,
       invalidRefs: [],
       routerNeedsFix:
-        'ai/README.md missing - create it and reference existing coding standard files',
+        'ai-docs/README.md missing - create it and reference existing coding standard files',
     };
   }
 
@@ -160,7 +164,7 @@ function validateRouterLinks(
       hasValidRouter: false,
       invalidRefs: [],
       routerNeedsFix:
-        'ai/README.md should reference at least one instruction file (for example ai/coding-standards/conventions.md).',
+        'ai-docs/README.md should reference at least one instruction file (for example ai-docs/coding-standards/conventions.md).',
     };
   }
 
@@ -169,7 +173,7 @@ function validateRouterLinks(
     return {
       hasValidRouter: false,
       invalidRefs,
-      routerNeedsFix: `ai/README.md references missing paths: ${invalidRefs.join(', ')}`,
+      routerNeedsFix: `ai-docs/README.md references missing paths: ${invalidRefs.join(', ')}`,
     };
   }
 
@@ -231,10 +235,10 @@ export function extractLocalInstructions(
     csPath,
     flags.hasConventions,
   );
-  const hasRouter = location === 'ai' && fs.exists('ai/README.md');
+  const hasRouter = location === 'ai' && fs.exists('ai-docs/README.md');
   const routerValidation =
     location === 'ai'
-      ? validateRouterLinks(fs, fs.readFile('ai/README.md'))
+      ? validateRouterLinks(fs, fs.readFile('ai-docs/README.md'))
       : {
           hasValidRouter: true,
           routerNeedsFix: null,

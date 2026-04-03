@@ -22,10 +22,10 @@ Order findings by severity, not by file or discovery order.
 ## Learning Loop
 
 After completing the skill, check if this run uncovered anything worth logging:
-- Behavioural mistake (agent did something wrong) → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai/lessons/` or `.goat-flow/lessons/`
-- Architectural trap with `file:line` evidence → add a `## Footgun:` entry to the relevant category bucket in `docs/footguns/` or `.goat-flow/footguns/`
+- Behavioural mistake (agent did something wrong) → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`
+- Architectural trap with `file:line` evidence → add a `## Footgun:` entry to the relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`
 
-Do not append to a monolithic log or directory README. Route team-wide entries to `ai/lessons/` or `docs/footguns/`; route machine/session-only entries to `.goat-flow/lessons/` or `.goat-flow/footguns/`.
+Do not append to a monolithic log or directory README. Route team-wide entries to `ai-docs/lessons/` or `ai-docs/footguns/`; route machine/session-only entries to `.goat-flow/lessons/` or `.goat-flow/footguns/`.
 Bucket conventions:
 - Lessons: `verification.md`, `workflow.md`, `coordination.md`
 - Footguns: `hooks.md`, `setup.md`, `scanner.md`

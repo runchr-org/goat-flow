@@ -8,6 +8,7 @@ import { extractSkillFacts } from './skills.js';
 import { extractRouterFacts, extractAskFirstFacts } from './routing.js';
 import { extractHookFacts } from './hooks.js';
 
+/** Collect all facts for a single agent by delegating to sub-extractors. */
 export function extractAgentFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,

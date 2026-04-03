@@ -1,5 +1,6 @@
 import type { CheckDef, FactContext, CheckResult } from '../../types.js';
 
+/** Standard-tier checks for architecture documentation (2.5.x). */
 export const architectureChecks: CheckDef[] = [
   {
     id: '2.5.1',
@@ -8,8 +9,8 @@ export const architectureChecks: CheckDef[] = [
     category: 'Architecture',
     pts: 1,
     confidence: 'high',
-    detect: { type: 'file_exists', path: 'docs/architecture.md' },
-    recommendation: 'Create docs/architecture.md',
+    detect: { type: 'file_exists', path: 'ai-docs/architecture.md' },
+    recommendation: 'Create ai-docs/architecture.md',
     recommendationKey: 'create-architecture',
   },
   {
@@ -22,11 +23,11 @@ export const architectureChecks: CheckDef[] = [
     na: (ctx) => ctx.facts.shared.architecture.exists === false,
     detect: {
       type: 'line_count',
-      path: 'docs/architecture.md',
+      path: 'ai-docs/architecture.md',
       pass: 100,
       fail: 150,
     },
-    recommendation: 'Compress docs/architecture.md below 100 lines',
+    recommendation: 'Compress ai-docs/architecture.md below 100 lines',
     recommendationKey: 'compress-architecture',
   },
   {
@@ -72,7 +73,7 @@ export const architectureChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Create ai/decisions/ with at least 1 ADR containing real Context and Decision sections',
+      'Create ai-docs/decisions/ with at least 1 ADR containing real Context and Decision sections',
     recommendationKey: 'create-decisions-dir',
   },
 ];

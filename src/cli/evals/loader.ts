@@ -1,8 +1,8 @@
 /**
- * Discovers, parses, and summarizes eval fixtures under `ai/evals/`.
+ * Discovers, parses, and summarizes eval fixtures under `ai-docs/evals/`.
  * This module stays read-only; execution of eval scenarios is intentionally out of scope.
  *
- * Eval runner: reads eval files from ai/evals/, parses them,
+ * Eval runner: reads eval files from ai-docs/evals/, parses them,
  * and outputs a structured summary.
  *
  * This is v1 scaffolding -- it parses and reports.
@@ -25,7 +25,9 @@ import type {
 
 /** Set of filenames to skip when discovering eval files */
 const SKIP_FILES = new Set(['README.md', 'FORMAT.md']);
+/** Display order for difficulty breakdown in summary output */
 const DIFFICULTY_ORDER = ['easy', 'medium', 'hard'] as const;
+/** Display order for origin breakdown in summary output */
 const ORIGIN_ORDER = ['real-incident', 'synthetic-seed'] as const;
 
 /** Discover all markdown eval files in the given directory, excluding skip-listed names */

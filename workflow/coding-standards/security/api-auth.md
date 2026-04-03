@@ -1,6 +1,6 @@
 # Authentication & Authorization Standards
 
-Reference for generating `ai/coding-standards/security.md` in projects using JWT, OAuth, or session-based auth.
+Reference for generating `ai-docs/coding-standards/security.md` in projects using JWT, OAuth, or session-based auth.
 
 ## JWT
 

@@ -810,8 +810,8 @@
           "status": "fail",
           "points": 0,
           "maxPoints": 1,
-          "message": "ai/lessons/ exists",
-          "evidence": "ai/lessons/",
+          "message": "ai-docs/lessons/ exists",
+          "evidence": "ai-docs/lessons/",
           "recommendationKey": "create-lessons"
         },
         {
@@ -823,8 +823,8 @@
           "status": "pass",
           "points": 2,
           "maxPoints": 2,
-          "message": "docs/footguns/ exists",
-          "evidence": "docs/footguns/",
+          "message": "ai-docs/footguns/ exists",
+          "evidence": "ai-docs/footguns/",
           "recommendationKey": "create-footguns"
         },
         {
@@ -961,8 +961,8 @@
           "status": "fail",
           "points": 0,
           "maxPoints": 1,
-          "message": "docs/architecture.md exists",
-          "evidence": "docs/architecture.md",
+          "message": "ai-docs/architecture.md exists",
+          "evidence": "ai-docs/architecture.md",
           "recommendationKey": "create-architecture"
         },
         {
@@ -975,7 +975,7 @@
           "points": 1,
           "maxPoints": 1,
           "message": "45 lines (at or under 100 target)",
-          "evidence": "docs/architecture.md: 45 lines",
+          "evidence": "ai-docs/architecture.md: 45 lines",
           "recommendationKey": "compress-architecture"
         },
         {
@@ -987,8 +987,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "ai/decisions/ exists",
-          "evidence": "ai/decisions",
+          "message": "ai-docs/decisions/ exists",
+          "evidence": "ai-docs/decisions",
           "recommendationKey": "create-decisions-dir"
         },
         {
@@ -1000,7 +1000,7 @@
           "points": 0,
           "maxPoints": 1,
           "confidence": "high",
-          "message": "Found at ai/coding-standards/",
+          "message": "Found at ai-docs/coding-standards/",
           "recommendationKey": "create-instructions-dir"
         },
         {
@@ -1012,7 +1012,7 @@
           "points": 1,
           "maxPoints": 1,
           "confidence": "high",
-          "message": "ai/README.md exists",
+          "message": "ai-docs/README.md exists",
           "recommendationKey": "create-instructions-router"
         },
         {
@@ -1156,8 +1156,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "ai/evals/ exists",
-          "evidence": "ai/evals",
+          "message": "ai-docs/evals/ exists",
+          "evidence": "ai-docs/evals",
           "recommendationKey": "create-evals-dir"
         },
         {

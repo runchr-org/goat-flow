@@ -9,10 +9,12 @@ import { allChecks, allAntiPatterns } from '../rubric/registry.js';
 import { RUBRIC_VERSION, SCHEMA_VERSION } from '../rubric/version.js';
 import { getPackageVersion } from '../paths.js';
 
+/** Current package version embedded in scan report metadata */
 const PACKAGE_VERSION = getPackageVersion();
-import { runChecks, runAntiPatterns, computeScore } from '../scoring/scorer.js';
+import { runChecks, runAntiPatterns, computeScore } from '../scoring/calculate.js';
 import { generateRecommendations } from '../scoring/recommendations.js';
 
+/** Options for the scan orchestrator */
 export interface ScanOptions {
   agentFilter: AgentId | null;
 }

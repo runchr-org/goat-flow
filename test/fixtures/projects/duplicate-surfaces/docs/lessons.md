@@ -1,6 +1,6 @@
 # Lessons
 
-This is a legacy monolithic lessons file that competes with ai/lessons/ directory.
+This is a legacy monolithic lessons file that competes with ai-docs/lessons/ directory.
 
 ## Entries
 

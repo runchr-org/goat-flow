@@ -39,7 +39,7 @@ GOOD: grep old paths after every rename
 
 **VERIFY** - MUST run shellcheck on `.sh` changes. MUST check cross-references after renames. Two corrections on one approach = stop.
 
-**LOG** - MUST update when tripped. Behavioural mistakes go in `ai/lessons/`. Architectural traps go in `docs/footguns/`. Session summaries go in `.goat-flow/logs/sessions/`.
+**LOG** - MUST update when tripped. Behavioural mistakes go in `ai-docs/lessons/`. Architectural traps go in `ai-docs/footguns/`. Session summaries go in `.goat-flow/logs/sessions/`.
 
 ## Autonomy Tiers
 
@@ -49,13 +49,13 @@ GOOD: grep old paths after every rename
 1. Boundary touched: [name]
 2. Related code read: [yes/no]
 3. Footgun entry checked: [entry or none]
-4. Local instruction checked: [`ai/README.md`, `docs/system-spec.md`, `workflow/skills/README.md`]
+4. Local instruction checked: [`ai-docs/README.md`, `docs/system-spec.md`, `workflow/skills/README.md`]
 5. Rollback command: [exact command]
 
 Boundaries:
 - `docs/system-spec.md`
 - `workflow/skills/README.md`
-- `setup/shared/execution-loop.md`
+- `workflow/setup/shared/execution-loop.md`
 - `.github/workflows/context-validation.yml`
 
 **Never:** Delete docs without replacement, edit secrets, push to main, force push, overwrite files without checking.
@@ -73,12 +73,12 @@ Boundaries:
 |----------|------|
 | System spec | `docs/system-spec.md` |
 | Skills | `.claude/skills/` |
-| Footguns | `docs/footguns/`, `.goat-flow/footguns/` |
-| Lessons | `ai/lessons/`, `.goat-flow/lessons/` |
-| Decisions | `ai/decisions/` |
-| Evals | `ai/evals/` |
-| Coding standards | `ai/coding-standards/` |
+| Footguns | `ai-docs/footguns/`, `.goat-flow/footguns/` |
+| Lessons | `ai-docs/lessons/`, `.goat-flow/lessons/` |
+| Decisions | `ai-docs/decisions/` |
+| Evals | `ai-docs/evals/` |
+| Coding standards | `ai-docs/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
 | Local workspace | `.goat-flow/tasks/`, `.goat-flow/logs/` |
 | Handoff | `.goat-flow/tasks/handoff-template.md` |
-| Architecture | `docs/architecture.md` |
+| Architecture | `ai-docs/architecture.md` |

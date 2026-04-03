@@ -15,7 +15,7 @@ goat-flow-skill-version: "0.10.0"
 - **Ceremony:** Hotfix/Small Feature → skip closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3. Standard → full phases. System/Infrastructure → full + cross-boundary verification. Sub-agent mode → GATEs become CHECKPOINTs automatically.
 - **Footgun fast-path:** If Step 0 footgun check matches a known trap, surface it immediately and offer the mitigation path. Still require READ + VERIFY on actual files — footguns are incident records, not executable specs.
 - **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect. (Skip for Hotfix/Small Feature.)
-- **Learning Loop:** Behavioural mistake → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai/lessons/` or `.goat-flow/lessons/`. Architectural trap → add a `## Footgun:` entry to the relevant category bucket in `docs/footguns/` or `.goat-flow/footguns/`.
+- **Learning Loop:** Behavioural mistake → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`. Architectural trap → add a `## Footgun:` entry to the relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`.
 - **Closing:** If incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`. Suggest next skill.
 
 ## When to Use
@@ -41,13 +41,13 @@ Scope detection priority: (1) explicit user input, (2) staged changes to target,
 - User names a diff/PR/commits → **Standard mode** (Phases 0-4)
 - User names a file AND `git diff --stat` shows changes to it → **Standard mode**
 - User names a file AND no changes exist → **Audit mode** (Phases A1-A3)
-- Target is **instruction files** (CLAUDE.md, AGENTS.md, ai/coding-standards/) → **Instruction mode** (Phases 1i-3i)
+- Target is **instruction files** (CLAUDE.md, AGENTS.md, ai-docs/coding-standards/) → **Instruction mode** (Phases 1i-3i)
 - Goal is **readability/naming/cleanup** → **Simplify mode** (Phases S1-S4)
 - User explicitly says "audit" or "standard" → respect override
 
-If `ai/coding-standards/code-review.md` exists, load and apply project-specific standards.
+If `ai-docs/coding-standards/code-review.md` exists, load and apply project-specific standards.
 
-**Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
 **Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
 - "hotfix" but 5+ files affected → likely Standard or System
@@ -79,7 +79,7 @@ Review the DIFF for issues. Read FULL FILES for context. Do not flag pre-existin
 
 **Cross-cutting checks:**
 - Autonomy tier violations: crosses Ask First boundary?
-- Footgun matching: check each finding against `docs/footguns/` and `.goat-flow/footguns/`. Output: `MATCH: [entry]` or `CLEAR`
+- Footgun matching: check each finding against `ai-docs/footguns/` and `.goat-flow/footguns/`. Output: `MATCH: [entry]` or `CLEAR`
 - Pattern drift: new code uses different pattern than existing? Ask: "Intentional?"
 - Test execution gaps: tests exist but don't exercise changed path
 
@@ -100,7 +100,7 @@ Activated when target is a codebase area, not a specific diff.
 ### Phase A1 - Scan
 Scan categories weighted by audit purpose (security/consistency/general). Log: category, `file:line`, description, severity.
 
-**Recurrence check:** Search `docs/footguns/` and `.goat-flow/footguns/` for entries in the scanned area.
+**Recurrence check:** Search `ai-docs/footguns/` and `.goat-flow/footguns/` for entries in the scanned area.
 
 ### Phase A2 - Verify & Self-Check
 **Negative verification:** For each finding, attempt to DISPROVE it. Re-read `file:line`. Look for contradicting evidence. Remove genuine false positives.
@@ -124,9 +124,9 @@ Activated when target is instruction files.
 
 ### Phase 1i - Friction Signal Scan
 - `git log --oneline -20` for recent activity
-- Read `ai/lessons/` and `.goat-flow/lessons/` for entries since last update
-- Read `docs/footguns/` and `.goat-flow/footguns/` for entries in governed areas
-- Check `ai/evals/` for recurring failures
+- Read `ai-docs/lessons/` and `.goat-flow/lessons/` for entries since last update
+- Read `ai-docs/footguns/` and `.goat-flow/footguns/` for entries in governed areas
+- Check `ai-docs/evals/` for recurring failures
 
 ### Phase 2i - Instruction Audit
 For each file, check: missing rules, misleading rules, stale rules, outdated rules.
@@ -143,7 +143,7 @@ Activated when goal is readability improvement. **MUST NOT change behavior.**
 **Quick path:** For a single function or ≤50 lines: skip S1 scope confirmation.
 
 ### Phase S1 - Read & Assess
-**Footgun check:** Read `docs/footguns/` and `.goat-flow/footguns/` for target area.
+**Footgun check:** Read `ai-docs/footguns/` and `.goat-flow/footguns/` for target area.
 
 Read target files. Assess: Can a new reader understand without context? Are names self-explanatory? Do comments add value? Is control flow easy to follow?
 
@@ -184,7 +184,7 @@ If tests fail → revert that change, note as unsafe, continue with rest.
 
 - MUST review the diff, read full files for context (standard mode)
 - MUST NOT flag pre-existing issues as part of this change (standard mode)
-- MUST check each finding against `docs/footguns/` and `.goat-flow/footguns/` (MATCH/CLEAR)
+- MUST check each finding against `ai-docs/footguns/` and `.goat-flow/footguns/` (MATCH/CLEAR)
 - MUST order findings by severity, not by file or discovery order
 - MUST attempt to disprove each finding in audit mode (negative verification)
 - MUST NOT propose fixes in audit mode

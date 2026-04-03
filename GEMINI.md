@@ -61,15 +61,15 @@ GOOD: Inline format. Extract when second format needed
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
 **LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure or you corrected course: add an entry before DoD. After human correction: log immediately. Use **category bucket files** — NOT one file per incident, NOT a monolithic log.
-- Lessons: `ai/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content.
-- Footguns: `docs/footguns/` category bucket files (e.g. `hooks.md`, `scanner.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
+- Lessons: `ai-docs/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content.
+- Footguns: `ai-docs/footguns/` category bucket files (e.g. `hooks.md`, `scanner.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
 - Local variants: `.goat-flow/lessons/` and `.goat-flow/footguns/` use same category bucket format.
 
 | File | When to update |
 |------|---------------|
-| `ai/lessons/` or `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
-| `docs/footguns/` or `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
-| `ai/decisions/` | Significant technical decision with context/rationale |
+| `ai-docs/lessons/` or `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
+| `ai-docs/footguns/` or `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
+| `ai-docs/decisions/` | Significant technical decision with context/rationale |
 | `.goat-flow/logs/sessions/` | End of every significant session — `YYYY-MM-DD-slug.md` summary |
 
 ## Autonomy Tiers
@@ -83,7 +83,7 @@ GOOD: Inline format. Extract when second format needed
 - [ ] Local instruction checked: [local GEMINI.md / .github/instructions/ / none]
 - [ ] Rollback command: [exact command]
 
-Boundaries: `docs/system-spec.md`, `docs/system/`, `setup/`, `workflow/skills/`, `docs/reference/design-rationale.md`, renaming/moving files, 3+ doc file changes.
+Boundaries: `docs/system-spec.md`, `docs/system/`, `workflow/setup/`, `workflow/skills/`, `docs/reference/design-rationale.md`, renaming/moving files, 3+ doc file changes.
 
 **Never:** Delete docs without replacement. Modify secrets/.env. Push to main. Change security config. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`)
 
@@ -107,13 +107,13 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 
 | Resource | Path |
 |----------|------|
-| System docs, architecture | `docs/system/`, `docs/architecture.md` |
+| System docs, architecture | `docs/system/`, `ai-docs/architecture.md` |
 | Scripts | `scripts/` |
 <!-- goat-flow:router:start -->
 | Skills | `.agents/skills/` |
-| Footguns, lessons | `docs/footguns/`, `ai/lessons/` (+ `.goat-flow/` local variants) |
-| Decisions, evals | `ai/decisions/`, `ai/evals/` |
-| Coding standards | `ai/coding-standards/` |
+| Footguns, lessons | `ai-docs/footguns/`, `ai-docs/lessons/` (+ `.goat-flow/` local variants) |
+| Decisions, evals | `ai-docs/decisions/`, `ai-docs/evals/` |
+| Coding standards | `ai-docs/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
 | Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
 | Handoff | `.goat-flow/tasks/handoff-template.md` |

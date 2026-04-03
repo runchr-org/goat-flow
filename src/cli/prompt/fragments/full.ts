@@ -15,14 +15,14 @@ export const fullFragments: Fragment[] = [
     phase: 'full',
     category: 'Agent Evals',
     kind: 'create',
-    instruction: `Create the \`ai/evals/\` directory for agent evaluation scenarios.`,
+    instruction: `Create the \`ai-docs/evals/\` directory for agent evaluation scenarios.`,
   },
   {
     key: 'add-evals',
     phase: 'full',
     category: 'Agent Evals',
     kind: 'create',
-    instruction: `Add 3+ eval files to \`ai/evals/\`. Each eval should capture a real incident:
+    instruction: `Add 3+ eval files to \`ai-docs/evals/\`. Each eval should capture a real incident:
 
 \`\`\`markdown
 # Eval: [Short description]

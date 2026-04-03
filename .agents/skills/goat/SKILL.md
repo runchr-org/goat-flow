@@ -91,7 +91,7 @@ If the input is a simple factual question (no action verbs, question mark presen
 Examples:
 - "What checks does the scanner run?" → just answer from knowledge
 - "How many skills are there?" → "5 skills + dispatcher"
-- "Where are the footguns stored?" → "docs/footguns/"
+- "Where are the footguns stored?" → "ai-docs/footguns/"
 
 Do NOT route factual questions to goat-debug investigate mode — that's heavyweight for a 1-line answer.
 

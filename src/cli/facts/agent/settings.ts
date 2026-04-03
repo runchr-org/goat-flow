@@ -3,6 +3,7 @@
  */
 import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
 
+/** Check whether the agent's deny mechanism blocks git commit and/or git push. */
 export function checkDenyPatterns(
   fs: ReadonlyFS,
   agent: AgentProfile,
@@ -58,6 +59,7 @@ export function checkDenyPatterns(
 }
 
 
+/** Extract settings facts including deny patterns and read-deny secret coverage. */
 export function extractSettingsFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,

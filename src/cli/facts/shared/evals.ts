@@ -3,6 +3,7 @@
  */
 import type { SharedFacts, ReadonlyFS } from '../../types.js';
 
+/** Analysis results for a single eval markdown file. */
 interface EvalFileAnalysis {
   hasOrigin: boolean;
   hasAgents: boolean;
@@ -12,6 +13,7 @@ interface EvalFileAnalysis {
   skillNames: string[];
 }
 
+/** Running aggregate of analysis results across multiple eval files. */
 interface EvalAggregate {
   allHaveOrigin: boolean;
   allHaveAgents: boolean;
@@ -21,6 +23,7 @@ interface EvalAggregate {
   skillNames: Set<string>;
 }
 
+/** Skill names that should each have at least one eval covering them. */
 const CANONICAL_EVAL_SKILLS = [
   'goat',
   'goat-debug',
@@ -29,6 +32,7 @@ const CANONICAL_EVAL_SKILLS = [
   'goat-security',
   'goat-test',
 ];
+/** Set view of canonical eval skills for O(1) membership checks. */
 const CANONICAL_EVAL_SKILL_SET = new Set(CANONICAL_EVAL_SKILLS);
 
 /** List eval markdown files, excluding directory metadata documents. */

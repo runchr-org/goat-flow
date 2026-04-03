@@ -1,6 +1,6 @@
 # React Coding Standards (TypeScript-First)
 
-Reference for generating `ai/coding-standards/frontend.md` in React projects.
+Reference for generating `ai-docs/coding-standards/frontend.md` in React projects.
 Assume TypeScript for new code; if the project is JavaScript-only, keep the same
 component, state, and testing rules and drop the type syntax.
 

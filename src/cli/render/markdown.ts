@@ -9,6 +9,7 @@ import type {
 } from '../types.js';
 import { getCheckSeverity, collectCheckFailureSummary, getTriggeredAntiPatterns, collectDiagnosticImpacts } from './shared.js';
 
+/** Emoji indicators prefixed to recommendations by priority level */
 const RECOMMENDATION_TAGS = {
   critical: '🔴',
   high: '🟠',

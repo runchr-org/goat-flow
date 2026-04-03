@@ -4,6 +4,7 @@
 import type { AgentFacts, ReadonlyFS } from '../../types.js';
 import { extractSection } from './instruction.js';
 
+/** Return true if a string contains '/' or '.', suggesting a file path. */
 function looksLikePath(s: string): boolean {
   return s.includes('/') || s.includes('.');
 }
@@ -20,7 +21,7 @@ export function pushUniquePath(paths: string[], path: string): void {
   }
 }
 
-/** Collect matched paths. */
+/** Collect paths matching a regex pattern, filtered by a validation predicate. */
 function collectMatchedPaths(
   content: string,
   pattern: RegExp,
@@ -96,6 +97,7 @@ function extractAskFirstPaths(content: string): string[] {
 }
 
 
+/** Resolve referenced paths against the filesystem, counting hits and misses. */
 function resolveReferencedPaths(
   fs: ReadonlyFS,
   paths: string[],

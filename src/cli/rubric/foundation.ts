@@ -179,7 +179,7 @@ export const foundationChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Reference at least 2 real project file paths (in Router Table or Ask First section) that exist on disk — e.g., `docs/architecture.md`, `src/cli/`',
+      'Reference at least 2 real project file paths (in Router Table or Ask First section) that exist on disk — e.g., `ai-docs/architecture.md`, `src/cli/`',
     recommendationKey: 'add-resolvable-paths',
   },
 

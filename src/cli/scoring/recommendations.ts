@@ -20,6 +20,7 @@ const TIER_PRIORITY: Record<string, Priority> = {
   full: 'medium',
 };
 
+/** Numeric sort order for recommendation priorities (lower = more urgent) */
 const PRIORITY_ORDER: Record<Priority, number> = {
   critical: 0,
   high: 1,

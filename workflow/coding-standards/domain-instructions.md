@@ -1,14 +1,14 @@
 # Domain Instruction Files (Layer 2)
 
-> **Purpose:** Guide + prompt for creating domain-specific instruction files and the `ai/README.md` router
-> **Generates:** Multiple `ai/coding-standards/{domain}.md` files + `ai/README.md` router
+> **Purpose:** Guide + prompt for creating domain-specific instruction files and the `ai-docs/README.md` router
+> **Generates:** Multiple `ai-docs/coding-standards/{domain}.md` files + `ai-docs/README.md` router
 > **Use when:** After `conventions.md` - creating domain-specific instructions for each codebase boundary
 > **Repo inspection:** Yes - discovers domain boundaries from code structure, languages, and patterns
 > **Follow-on refs:** `copilot-bridge.md` for Copilot bridges; other templates in this directory as source material
 
-Domain instruction files keep deep domain knowledge out of the always-loaded Layer 1 budget. They live in `ai/coding-standards/` and load on demand when the agent works on a matching domain. The router at `ai/README.md` tells agents which files to load for each task type.
+Domain instruction files keep deep domain knowledge out of the always-loaded Layer 1 budget. They live in `ai-docs/coding-standards/` and load on demand when the agent works on a matching domain. The router at `ai-docs/README.md` tells agents which files to load for each task type.
 
-`.github/instructions/` serves a dual role: **Copilot bridge files** (see `copilot-bridge.md`) and **Codex local instructions** (Codex discovers these as its local context mechanism). If both Copilot and Codex are active, the same files serve both agents. `ai/coding-standards/` remains the canonical source; `.github/instructions/` files either bridge from it (Copilot) or are read directly (Codex).
+`.github/instructions/` serves a dual role: **Copilot bridge files** (see `copilot-bridge.md`) and **Codex local instructions** (Codex discovers these as its local context mechanism). If both Copilot and Codex are active, the same files serve both agents. `ai-docs/coding-standards/` remains the canonical source; `.github/instructions/` files either bridge from it (Copilot) or are read directly (Codex).
 
 ---
 
@@ -16,13 +16,13 @@ Domain instruction files keep deep domain knowledge out of the always-loaded Lay
 
 After the root instruction file (CLAUDE.md / AGENTS.md) is set up. Create domain files when:
 - A domain has conventions that differ from the project default
-- A domain has 2+ footgun entries in docs/footguns/
+- A domain has 2+ footgun entries in ai-docs/footguns/
 - A domain is an Ask First boundary
 - The domain is complex enough that an agent needs dedicated context
 
 ## Where They Live
 
-Source of truth is `ai/coding-standards/`. One file per domain or cross-cutting concern.
+Source of truth is `ai-docs/coding-standards/`. One file per domain or cross-cutting concern.
 
 ```
 ai/
@@ -37,7 +37,7 @@ ai/
     └── testing.md             # Test naming, structure, mocking rules
 ```
 
-The router (`ai/README.md`) maps task types to files:
+The router (`ai-docs/README.md`) maps task types to files:
 
 | Task | Load |
 |------|------|
@@ -49,7 +49,7 @@ The router (`ai/README.md`) maps task types to files:
 | Security-sensitive work | `instructions/security.md` |
 | Writing tests | `instructions/testing.md` |
 
-Agents read `ai/README.md`, then load the relevant files based on the current task. This keeps token budgets low - agents only load what they need.
+Agents read `ai-docs/README.md`, then load the relevant files based on the current task. This keeps token budgets low - agents only load what they need.
 
 ---
 
@@ -58,10 +58,10 @@ Agents read `ai/README.md`, then load the relevant files based on the current ta
 ````
 Create domain-specific instruction files for this project. These are
 Layer 2 (Local Context) - they load on demand via the router at
-ai/README.md, keeping deep domain knowledge out of the root
+ai-docs/README.md, keeping deep domain knowledge out of the root
 instruction file's line budget.
 
-All instruction files go in ai/coding-standards/. The router goes in ai/README.md.
+All instruction files go in ai-docs/coding-standards/. The router goes in ai-docs/README.md.
 Copilot bridges (if needed) go in .github/instructions/.
 
 STEP 1 - DISCOVER DOMAINS
@@ -83,9 +83,9 @@ may need 2-3 files. A large multi-language app may need 6-8.
 
 STEP 2 - CREATE INSTRUCTION FILES
 
-Start with ai/coding-standards/conventions.md (always loaded).
+Start with ai-docs/coding-standards/conventions.md (always loaded).
 
-Then for each domain, create ai/coding-standards/{domain}.md
+Then for each domain, create ai-docs/coding-standards/{domain}.md
 
 Examples: frontend.md, backend.md, testing.md, security.md
 
@@ -105,17 +105,17 @@ Rules:
 
 STEP 3 - CREATE ROUTER
 
-Write ai/README.md mapping task types to instruction files.
+Write ai-docs/README.md mapping task types to instruction files.
 Remove rows for files that don't apply to this project.
 
 STEP 4 - CREATE COPILOT BRIDGES (if needed)
 
 If the team uses GitHub Copilot, create bridge files in .github/instructions/
-that copy content from ai/coding-standards/ inline with applyTo frontmatter.
+that copy content from ai-docs/coding-standards/ inline with applyTo frontmatter.
 See copilot-bridge.md template for format.
 
 VERIFICATION:
-- Verify ai/README.md lists all created instruction files
+- Verify ai-docs/README.md lists all created instruction files
 - Verify each file is self-contained (conventions, gotchas, examples)
 - Verify no invented conventions - all extracted from existing code
 - Report: number of files created and which domains they cover

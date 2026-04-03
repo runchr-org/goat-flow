@@ -8,7 +8,7 @@ A project already running Claude Code with GOAT Flow needs to add Codex and Gemi
 
 When Gemini CLI was asked to set up GOAT Flow, it modified 6 shared documentation files -- replacing Claude Code references with Gemini-specific equivalents instead of adding multi-agent support alongside them.
 
-**What actually happened** (from `ai/lessons/`):
+**What actually happened** (from `ai-docs/lessons/`):
 
 - `docs/system-spec.md:429` -- "Every Claude turn" became "Every Gemini turn" (should be agent-neutral)
 - `docs/system/five-layers.md:100` -- Claude Code row deleted from skills table, replaced with Gemini CLI only
@@ -26,7 +26,7 @@ Agent-specific files (editable by that agent):
 - `CLAUDE.md`, `.claude/hooks/`, `.claude/skills/`, `.claude/settings.json`
 - `GEMINI.md`, `.gemini/hooks/`, `.gemini/settings.json`
 - `AGENTS.md`, `scripts/deny-dangerous.sh` (Codex policy)
-- `setup/setup-claude.md`, `setup/setup-gemini.md`, `setup/setup-codex.md`
+- `workflow/setup/setup-claude.md`, `workflow/setup/setup-gemini.md`, `workflow/setup/setup-codex.md`
 
 Shared files (must remain agent-neutral or list all agents):
 - `docs/` -- system spec, architecture, learning loop
@@ -59,8 +59,8 @@ The scanner checks all three agents' instruction files for structural completene
 
 ## Key Lessons
 
-**"Broad setup rewrites shared docs"** is now a tracked footgun in `docs/footguns/` with file:line evidence. The prevention rule: when adding agent support, ADD to tables and examples -- never DELETE or REPLACE existing agent references.
+**"Broad setup rewrites shared docs"** is now a tracked footgun in `ai-docs/footguns/` with file:line evidence. The prevention rule: when adding agent support, ADD to tables and examples -- never DELETE or REPLACE existing agent references.
 
 **Vocabulary differences are silent failures.** Claude Code uses `PreToolUse`/`Stop`; Gemini CLI uses `BeforeTool`/`AfterAgent`. Path substitution (`.claude/` to `.gemini/`) misses these. Each agent's setup guide now maintains a hook event reference block so the correct vocabulary is visible during setup.
 
-**Run Claude Code first, then Codex.** For learning loop files shared by multiple agents (`docs/footguns/`, `ai/lessons/`), define one agent as the primary writer. The simplest pattern: Claude Code creates entries, Codex merges with existing content. This avoids merge conflicts on append-only files.
+**Run Claude Code first, then Codex.** For learning loop files shared by multiple agents (`ai-docs/footguns/`, `ai-docs/lessons/`), define one agent as the primary writer. The simplest pattern: Claude Code creates entries, Codex merges with existing content. This avoids merge conflicts on append-only files.

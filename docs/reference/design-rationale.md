@@ -172,7 +172,7 @@ flowchart TD
 
 **v1.5 refinement:** Implementation data confirms all seven original skills add value across all projects. **v2.9 expansion:** Three additional skills added (reflect, onboard, resume), bringing the total to ten skills per agent (security, debug, audit, investigate, review, plan, test, reflect, onboard, resume).
 
-> **Superseded by ADR-007 (v0.8.0, finalized v0.9.3):** The reflect, onboard, and resume skills were consolidated into existing skill modes. goat-audit merged into goat-review (Audit Mode). goat-context removed. goat-investigate merged into goat-debug (Investigate Mode). goat-simplify merged into goat-review (Simplify Mode). goat-refactor merged into goat-plan (Refactor Planning Mode). The canonical skill count is now **6 skills** per agent (5 specialized + goat dispatcher). See `ai/decisions/ADR-007-consolidate-skills-10-to-8.md`.
+> **Superseded by ADR-007 (v0.8.0, finalized v0.9.3):** The reflect, onboard, and resume skills were consolidated into existing skill modes. goat-audit merged into goat-review (Audit Mode). goat-context removed. goat-investigate merged into goat-debug (Investigate Mode). goat-simplify merged into goat-review (Simplify Mode). goat-refactor merged into goat-plan (Refactor Planning Mode). The canonical skill count is now **6 skills** per agent (5 specialized + goat dispatcher). See `ai-docs/decisions/ADR-007-consolidate-skills-10-to-8.md`.
 
 ---
 
@@ -207,7 +207,7 @@ In short:
 
 ## Dual-Agent Coordination
 
-**Problem:** When both Claude Code and Codex share `docs/footguns/` and `ai/lessons/`, changes by one agent affect the other. On a shell script collection, Codex retitled 5 entries and removed 3 that Claude Code's implementation had created.
+**Problem:** When both Claude Code and Codex share `ai-docs/footguns/` and `ai-docs/lessons/`, changes by one agent affect the other. On a shell script collection, Codex retitled 5 entries and removed 3 that Claude Code's implementation had created.
 
 **Design decision:** Document the coordination risk. Simplest rule: run Claude Code first (it creates the shared docs), then Codex (it merges with existing). Review Codex's changes to shared files before committing.
 
@@ -286,7 +286,7 @@ In short:
 
 **Incident:** On the Tauri app, a rule change that improved one workflow broke another. (BlunderGOAT CC)
 
-**Design decision:** Flat .md files in `ai/evals/`, each containing a replay prompt from a real incident. When CLAUDE.md or skills change, replay the prompts and verify the agent still handles them correctly. Why flat files, not folders: each eval is a single .md file with no supporting assets - the folder structure added navigation friction with no benefit.
+**Design decision:** Flat .md files in `ai-docs/evals/`, each containing a replay prompt from a real incident. When CLAUDE.md or skills change, replay the prompts and verify the agent still handles them correctly. Why flat files, not folders: each eval is a single .md file with no supporting assets - the folder structure added navigation friction with no benefit.
 
 ---
 
@@ -330,4 +330,4 @@ Shrink based on **tooling improvements** (better linters, better hooks, better C
 
 **Source:** 6 real implementations showed every project needs ~200-500 lines of domain guidance that doesn't fit in the hot path. Projects with `.github/instructions/` files had the right idea but were too file-scoped (one file per language instead of one per domain).
 
-**Design decision:** Split into hot path (agent behavior, 120 lines) and cold path (project coding guidelines, unlimited). Cold path lives at `ai/coding-standards/` with a router at `ai/README.md`. Domain-based organization (backend.md, frontend.md) not language-based (php.md, python.md). `.github/instructions/` serves as Copilot bridge files. `.github/git-commit-instructions.md` is universal for any git project.
+**Design decision:** Split into hot path (agent behavior, 120 lines) and cold path (project coding guidelines, unlimited). Cold path lives at `ai-docs/coding-standards/` with a router at `ai-docs/README.md`. Domain-based organization (backend.md, frontend.md) not language-based (php.md, python.md). `.github/instructions/` serves as Copilot bridge files. `.github/git-commit-instructions.md` is universal for any git project.

@@ -57,7 +57,7 @@ function defaultSharedFacts(): SharedFacts {
       totalRefs: 1,
       validRefs: 1,
       formatDiagnostic: null,
-      paths: { committed: 'docs/footguns/', local: '.goat-flow/footguns/' },
+      paths: { committed: 'ai-docs/footguns/', local: '.goat-flow/footguns/' },
     },
     lessons: {
       exists: true,
@@ -70,12 +70,12 @@ function defaultSharedFacts(): SharedFacts {
       staleRefs: [],
       duplicateSurfacePaths: [],
       formatDiagnostic: null,
-      paths: { committed: 'ai/lessons/', local: '.goat-flow/lessons/' },
+      paths: { committed: 'ai-docs/lessons/', local: '.goat-flow/lessons/' },
     },
     decisions: {
       dirExists: true,
       fileCount: 1,
-      path: 'ai/decisions/',
+      path: 'ai-docs/decisions/',
       hasRealContent: true,
     },
     config: {
@@ -99,7 +99,7 @@ function defaultSharedFacts(): SharedFacts {
       hasFrontmatter: true,
       evalSkillCount: 3,
       missingSkills: [],
-      path: 'ai/evals/',
+      path: 'ai-docs/evals/',
     },
     ci: {
       workflowExists: true,
@@ -125,7 +125,7 @@ function defaultSharedFacts(): SharedFacts {
     localInstructions: {
       dirExists: true,
       location: 'ai' as const,
-      path: 'ai/coding-standards/',
+      path: 'ai-docs/coding-standards/',
       hasValidRouter: true,
       hasConventions: true,
       hasConventionsContent: true,

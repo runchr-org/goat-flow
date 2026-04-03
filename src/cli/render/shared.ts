@@ -3,6 +3,7 @@
  */
 import type { CheckResult, AgentReport, AntiPatternResult } from '../types.js';
 
+/** Severity level assigned to a check for display grouping */
 type CheckSeverity = 'critical' | 'high' | 'medium' | 'low';
 
 /** Map a rubric tier to the severity used in output. */
@@ -59,6 +60,7 @@ export function getTriggeredAntiPatterns(
   return antiPatterns.filter((ap) => ap.triggered);
 }
 
+/** A single recoverable-points entry used to rank highest-impact fixes */
 interface DiagnosticImpact {
   label: string;
   points: number;

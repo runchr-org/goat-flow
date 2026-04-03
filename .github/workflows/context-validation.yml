@@ -13,7 +13,7 @@ on:
       - 'workflow/**'
       - 'scripts/**'
       - '.agents/**'
-      - 'ai/evals/**'
+      - 'ai-docs/evals/**'
 
 jobs:
   validate:
@@ -87,7 +87,7 @@ jobs:
 
       - name: Check for unreviewed AI-generated entries
         run: |
-          if grep -r 'AI-GENERATED: UNVERIFIED' docs/footguns/ ai/lessons/ 2>/dev/null; then
+          if grep -r 'AI-GENERATED: UNVERIFIED' ai-docs/footguns/ ai-docs/lessons/ 2>/dev/null; then
             echo "::error::Unreviewed AI-generated entries found in learning loop files"
             exit 1
           fi

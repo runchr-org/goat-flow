@@ -312,7 +312,7 @@ export interface SharedFacts {
     path: string;
   };
   gitCommitInstructions: { exists: boolean };
-  /** Total line count across ai/coding-standards/ files (cold-path budget) */
+  /** Total line count across ai-docs/coding-standards/ files (cold-path budget) */
   aiInstructionsLineCount: number;
 }
 

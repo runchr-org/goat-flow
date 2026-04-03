@@ -11,6 +11,7 @@ import type {
 } from '../types.js';
 import { SKILL_VERSION, SKILL_NAMES } from '../constants.js';
 
+/** Regex matching backtick-wrapped project paths in instruction file content. */
 const INSTRUCTION_PATH_PATTERN =
   /`((?:src|config|templates?|app|apps|lib|docs|scripts|setup|workflow|ai|agent-evals|\.claude|\.agents|\.github)\/[^`]+)`/g;
 
@@ -61,7 +62,7 @@ export const antiPatterns: AntiPatternDef[] = [
     recommendationKey: 'ap-compress-instruction-file',
   },
   // AP2 removed — penalized project-specific skills (e.g., deploy/, preflight/) by assuming all skills need goat- prefix.
-  // See docs/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
+  // See ai-docs/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
   {
     id: 'AP3',
     name: 'DoD in both instruction file and guidelines',
@@ -190,7 +191,7 @@ export const antiPatterns: AntiPatternDef[] = [
     confidence: 'high',
     evaluate: (ctx: FactContext): AntiPatternResult => {
       // Only check per-directory local files (e.g., src/api/CLAUDE.md)
-      // EXCLUDE ai/coding-standards/ and .github/instructions/ - those are cold-path files meant to be 40-60 lines
+      // EXCLUDE ai-docs/coding-standards/ and .github/instructions/ - those are cold-path files meant to be 40-60 lines
       const oversize = ctx.facts.shared.localInstructions.localFileSizes
         .filter(
           (f) =>

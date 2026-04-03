@@ -1,7 +1,9 @@
 import type { CheckDef, FactContext, CheckResult } from '../../types.js';
 import { SKILL_NAMES } from '../../constants.js';
+/** Minimum ratio of quality signals required for a skill to pass quality checks. */
 const SKILL_QUALITY_THRESHOLD = 0.8;
 
+/** Standard-tier checks for skill presence and quality (2.1.x). */
 export const skillChecks: CheckDef[] = [
   ...SKILL_NAMES.map((skill, i) => ({
     id: `2.1.${i + 1}`,

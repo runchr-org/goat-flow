@@ -19,8 +19,8 @@ Category bucket learning loop, scanner honesty, session logs, 48-file CLI refact
 ### Scanner & Rubric
 - refactored high-complexity rubric and scanner paths to clear preflight complexity failures
 - hook honesty checks now verify settings/config registration, registered-path existence, real post-turn validation commands, swallowed-failure wrappers, post-tool event schema, agent-config skips, and deny coverage for pipe-to-shell patterns
-- `ai/README.md` router validation now checks referenced paths, so broken local-instruction routers fail `2.6.2` instead of scoring 100%
-- local-instruction honesty now fails duplicate instruction surfaces when `ai/coding-standards/` and `.github/instructions/` coexist
+- `ai-docs/README.md` router validation now checks referenced paths, so broken local-instruction routers fail `2.6.2` instead of scoring 100%
+- local-instruction honesty now fails duplicate instruction surfaces when `ai-docs/coding-standards/` and `.github/instructions/` coexist
 - router completeness now enforces the canonical skills root (not `goat-*/`), plus explicit `.goat-flow/config.yaml` and `.goat-flow/tasks/handoff-template.md` entries
 - duplicate learning-loop surfaces now fail both a positive canonical-surface check and anti-pattern `AP22`, while preserving the intended committed/local split
 - new check `2.3.7`: verifies instruction file references session logs (`.goat-flow/logs/sessions/`)
@@ -77,7 +77,7 @@ Scanner honesty, config file, directory restructure, embedded terminal, dashboar
 - `.goat-flow/config.yaml` with `js-yaml`, directory-based footguns/lessons (YAML frontmatter entries), committed vs local split, migration scripts
 
 ### Restructure
-- `docs/lessons/` -> `ai/lessons/`, `docs/decisions/` -> `ai/decisions/`, `agent-evals/` -> `ai/evals/`, `ai/instructions/` -> `ai/coding-standards/`, `tasks/` -> `.goat-flow/tasks/` (gitignored)
+- `docs/lessons/` -> `ai-docs/lessons/`, `docs/decisions/` -> `ai-docs/decisions/`, `agent-evals/` -> `ai-docs/evals/`, `ai/instructions/` -> `ai-docs/coding-standards/`, `tasks/` -> `.goat-flow/tasks/` (gitignored)
 
 ### Skills
 - all 5 check footguns in Step 0, dispatcher enriched with modes/chaining, version sync to 0.9.4
@@ -353,7 +353,7 @@ CLI scanner + prompt generator, local context system, 80-check rubric. All 6 aud
 - Monorepo stack detection, markdown link router extraction, 78 tests across 20 suites
 
 ### Local Context (Cold Path)
-- `ai/coding-standards/` vendor-neutral coding guidelines with `ai/README.md` router
+- `ai-docs/coding-standards/` vendor-neutral coding guidelines with `ai-docs/README.md` router
 - Copilot bridge files (`.github/copilot-instructions.md`, `.github/instructions/`)
 - 11 workflow templates, migration guide with real project examples
 

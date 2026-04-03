@@ -1,6 +1,6 @@
-# Migrate from .github/instructions/ to ai/coding-standards/
+# Migrate from .github/instructions/ to ai-docs/coding-standards/
 
-For projects that already have `.github/instructions/` files and want to move to the vendor-neutral `ai/coding-standards/` structure.
+For projects that already have `.github/instructions/` files and want to move to the vendor-neutral `ai-docs/coding-standards/` structure.
 
 ---
 
@@ -8,12 +8,12 @@ For projects that already have `.github/instructions/` files and want to move to
 
 `.github/instructions/` is GitHub-specific. It works for Copilot, but Claude Code, Gemini CLI, Codex, Cursor, and Aider don't auto-discover it. You end up duplicating content in CLAUDE.md, AGENTS.md, and GEMINI.md to compensate.
 
-`ai/coding-standards/` fixes this:
+`ai-docs/coding-standards/` fixes this:
 
 - **Vendor-neutral** -- works with any agent, any platform, even without GitHub
 - **Domain-based instead of file-based** -- `backend.md` covers PHP + Python + SQL together, instead of one file per language
-- **Routed** -- `ai/README.md` tells agents which files to load for which tasks
-- **Single source of truth** -- edit in `ai/coding-standards/`, bridge to `.github/instructions/` only if you use Copilot
+- **Routed** -- `ai-docs/README.md` tells agents which files to load for which tasks
+- **Single source of truth** -- edit in `ai-docs/coding-standards/`, bridge to `.github/instructions/` only if you use Copilot
 
 After migration, `.github/instructions/` files become thin Copilot bridges that reference the `ai/` originals. If you don't use Copilot, you can delete them entirely.
 
@@ -61,7 +61,7 @@ Read every file. You need to know what's in them before you can group by domain.
 mkdir -p ai/coding-standards
 ```
 
-Create the router file `ai/README.md`:
+Create the router file `ai-docs/README.md`:
 
 ```markdown
 # Project Coding Guidelines
@@ -95,7 +95,7 @@ This is the main work. Map your existing file-scoped instructions into domain-sc
 
 ### Mapping Table
 
-| Old file (.github/instructions/) | New file (ai/coding-standards/) | Notes |
+| Old file (.github/instructions/) | New file (ai-docs/coding-standards/) | Notes |
 |---|----|---|
 | `ai-agent-guidelines.instructions.md` | `conventions.md` | Project-wide conventions, commands, boundaries |
 | `php.instructions.md` | `backend.md` | Combine all backend languages into one file |
@@ -140,7 +140,7 @@ Do **not** put language-specific or domain-specific rules in `conventions.md`. I
 
 Two files, serving different purposes.
 
-### ai/coding-standards/git-commit.md
+### ai-docs/coding-standards/git-commit.md
 
 Full commit conventions for any AI agent. Include commit message format, branch naming, PR workflow, and examples. See `workflow/coding-standards/git-commit.md` for a template.
 
@@ -151,7 +151,7 @@ Universal commit instructions for any tool or human. This is not agent-specific 
 ```markdown
 # Commit Message Instructions
 
-Source of truth: `ai/coding-standards/git-commit.md` (read that file for full details).
+Source of truth: `ai-docs/coding-standards/git-commit.md` (read that file for full details).
 
 ## Format
 
@@ -173,11 +173,11 @@ If `.github/git-commit-instructions.md` already exists, merge your `commit-messa
 
 ## Step 4: Convert .github/instructions/ to Bridges
 
-After creating the `ai/coding-standards/` files, replace the content of each `.github/instructions/` file with a bridge.
+After creating the `ai-docs/coding-standards/` files, replace the content of each `.github/instructions/` file with a bridge.
 
 ### Bridge Pattern
 
-A bridge file has `applyTo` frontmatter and includes the full content from the corresponding `ai/coding-standards/` file inline. Copilot does not follow file references, so the content must be pasted in.
+A bridge file has `applyTo` frontmatter and includes the full content from the corresponding `ai-docs/coding-standards/` file inline. Copilot does not follow file references, so the content must be pasted in.
 
 Example -- `.github/instructions/backend.instructions.md`:
 
@@ -188,22 +188,22 @@ applyTo: "src/api/**,src/services/**,**/*.php,**/*.py"
 
 # Backend Instructions
 
-<!-- Source: ai/coding-standards/backend.md -- keep in sync -->
+<!-- Source: ai-docs/coding-standards/backend.md -- keep in sync -->
 
-[Paste the full content of ai/coding-standards/backend.md here]
+[Paste the full content of ai-docs/coding-standards/backend.md here]
 ```
 
 ### applyTo Patterns by Domain
 
 | Domain file | Bridge file | applyTo |
 |---|---|---|
-| `ai/coding-standards/conventions.md` | `.github/instructions/conventions.instructions.md` | `"**"` |
-| `ai/coding-standards/frontend.md` | `.github/instructions/frontend.instructions.md` | `"src/app/**,src/components/**,*.tsx,*.ts,*.vue,**/*.twig"` |
-| `ai/coding-standards/backend.md` | `.github/instructions/backend.instructions.md` | `"src/api/**,src/services/**,**/*.php,**/*.py,**/*.go"` |
-| `ai/coding-standards/code-review.md` | `.github/instructions/code-review.instructions.md` | `"**"` |
-| `ai/coding-standards/git-commit.md` | `.github/git-commit-instructions.md` | (not a bridge - standalone file, no applyTo frontmatter) |
-| `ai/coding-standards/security.md` | `.github/instructions/security.instructions.md` | `"**/auth/**,**/middleware/**,**/security/**"` |
-| `ai/coding-standards/testing.md` | `.github/instructions/testing.instructions.md` | `"**/*.test.*,**/*.spec.*,**/test/**,**/tests/**"` |
+| `ai-docs/coding-standards/conventions.md` | `.github/instructions/conventions.instructions.md` | `"**"` |
+| `ai-docs/coding-standards/frontend.md` | `.github/instructions/frontend.instructions.md` | `"src/app/**,src/components/**,*.tsx,*.ts,*.vue,**/*.twig"` |
+| `ai-docs/coding-standards/backend.md` | `.github/instructions/backend.instructions.md` | `"src/api/**,src/services/**,**/*.php,**/*.py,**/*.go"` |
+| `ai-docs/coding-standards/code-review.md` | `.github/instructions/code-review.instructions.md` | `"**"` |
+| `ai-docs/coding-standards/git-commit.md` | `.github/git-commit-instructions.md` | (not a bridge - standalone file, no applyTo frontmatter) |
+| `ai-docs/coding-standards/security.md` | `.github/instructions/security.instructions.md` | `"**/auth/**,**/middleware/**,**/security/**"` |
+| `ai-docs/coding-standards/testing.md` | `.github/instructions/testing.instructions.md` | `"**/*.test.*,**/*.spec.*,**/test/**,**/tests/**"` |
 
 Adjust the `applyTo` globs to match your project's actual directory structure.
 
@@ -226,20 +226,20 @@ rm .github/instructions/ai-agent-guidelines.instructions.md
 rm .github/instructions/commit-messages.instructions.md
 ```
 
-If you don't use Copilot at all, you can delete `.github/instructions/` entirely. The `ai/coding-standards/` files are the source of truth.
+If you don't use Copilot at all, you can delete `.github/instructions/` entirely. The `ai-docs/coding-standards/` files are the source of truth.
 
 ---
 
 ## Step 5: Update Router Tables
 
-Add `ai/README.md` to your agent config file's router table so the agent knows the cold path exists.
+Add `ai-docs/README.md` to your agent config file's router table so the agent knows the cold path exists.
 
 ### CLAUDE.md
 
 Add this row to the Router Table section:
 
 ```markdown
-| Project guidelines | `ai/README.md` |
+| Project guidelines | `ai-docs/README.md` |
 ```
 
 ### AGENTS.md
@@ -247,7 +247,7 @@ Add this row to the Router Table section:
 Add to the Resource List:
 
 ```markdown
-| Project guidelines | `ai/README.md` |
+| Project guidelines | `ai-docs/README.md` |
 ```
 
 ### GEMINI.md
@@ -255,7 +255,7 @@ Add to the Resource List:
 Add to the Resource List:
 
 ```markdown
-| Project guidelines | `ai/README.md` |
+| Project guidelines | `ai-docs/README.md` |
 ```
 
 If you have a `.github/copilot-instructions.md`, add the same router entry there too.
@@ -266,8 +266,8 @@ If you have a `.github/copilot-instructions.md`, add the same router entry there
 
 Run `goat-flow scan .` and confirm:
 
-- Instructions directory exists (checks `ai/coding-standards/` first, falls back to `.github/instructions/`)
-- Router exists (`ai/README.md`)
+- Instructions directory exists (checks `ai-docs/coding-standards/` first, falls back to `.github/instructions/`)
+- Router exists (`ai-docs/README.md`)
 - `conventions.md` exists
 - `code-review.md` exists
 - `git-commit.md` exists
@@ -279,7 +279,7 @@ If you use Copilot bridges, do a quick diff to make sure they match:
 
 ```bash
 # Spot-check that bridges are in sync with source
-diff <(tail -n +6 .github/instructions/backend.instructions.md) ai/coding-standards/backend.md
+diff <(tail -n +6 .github/instructions/backend.instructions.md) ai-docs/coding-standards/backend.md
 ```
 
 ---
@@ -318,15 +318,15 @@ ai/
 .github/
 ├── git-commit-instructions.md            # universal commit rules (new)
 └── instructions/
-    ├── conventions.instructions.md       # bridge → ai/coding-standards/conventions.md
-    ├── backend.instructions.md           # bridge → ai/coding-standards/backend.md
-    ├── frontend.instructions.md          # bridge → ai/coding-standards/frontend.md
-    ├── code-review.instructions.md       # bridge → ai/coding-standards/code-review.md
-    ├── security.instructions.md          # bridge → ai/coding-standards/security.md
-    └── testing.instructions.md           # bridge → ai/coding-standards/testing.md
+    ├── conventions.instructions.md       # bridge → ai-docs/coding-standards/conventions.md
+    ├── backend.instructions.md           # bridge → ai-docs/coding-standards/backend.md
+    ├── frontend.instructions.md          # bridge → ai-docs/coding-standards/frontend.md
+    ├── code-review.instructions.md       # bridge → ai-docs/coding-standards/code-review.md
+    ├── security.instructions.md          # bridge → ai-docs/coding-standards/security.md
+    └── testing.instructions.md           # bridge → ai-docs/coding-standards/testing.md
 ```
 
-**7 files** in `.github/instructions/` became **7 domain files** in `ai/coding-standards/` (this project mapped nearly 1:1 because the original files were already somewhat domain-scoped). The key changes: `ai-agent-guidelines` became `conventions.md`, `handlers` became `backend.md`, `commit-messages` became `git-commit.md` with a separate `.github/git-commit-instructions.md`.
+**7 files** in `.github/instructions/` became **7 domain files** in `ai-docs/coding-standards/` (this project mapped nearly 1:1 because the original files were already somewhat domain-scoped). The key changes: `ai-agent-guidelines` became `conventions.md`, `handlers` became `backend.md`, `commit-messages` became `git-commit.md` with a separate `.github/git-commit-instructions.md`.
 
 Old files `ai-agent-guidelines.instructions.md`, `handlers.instructions.md`, and `commit-messages.instructions.md` were deleted. The remaining `.github/instructions/` files were replaced with bridge content.
 
@@ -363,10 +363,10 @@ ai/
 .github/
 ├── git-commit-instructions.md            # universal commit rules (new)
 └── instructions/
-    ├── conventions.instructions.md       # bridge → ai/coding-standards/conventions.md
-    ├── backend.instructions.md           # bridge → ai/coding-standards/backend.md
-    ├── frontend.instructions.md          # bridge → ai/coding-standards/frontend.md
-    └── security.instructions.md          # bridge → ai/coding-standards/security.md
+    ├── conventions.instructions.md       # bridge → ai-docs/coding-standards/conventions.md
+    ├── backend.instructions.md           # bridge → ai-docs/coding-standards/backend.md
+    ├── frontend.instructions.md          # bridge → ai-docs/coding-standards/frontend.md
+    └── security.instructions.md          # bridge → ai-docs/coding-standards/security.md
 ```
 
 **7 language files** became **3 domain files** + `conventions.md`:
@@ -388,11 +388,11 @@ Old files `php.instructions.md`, `python.instructions.md`, `twig.instructions.md
 
 | Step | What to do | Time |
 |------|-----------|------|
-| 1 | Create `ai/` + `ai/README.md` router | 2 min |
-| 2 | Group existing files by domain, write new `ai/coding-standards/` files | 15-30 min |
-| 3 | Create `ai/coding-standards/git-commit.md` + `.github/git-commit-instructions.md` | 5 min |
+| 1 | Create `ai/` + `ai-docs/README.md` router | 2 min |
+| 2 | Group existing files by domain, write new `ai-docs/coding-standards/` files | 15-30 min |
+| 3 | Create `ai-docs/coding-standards/git-commit.md` + `.github/git-commit-instructions.md` | 5 min |
 | 4 | Replace `.github/instructions/` content with bridges, delete merged files | 10 min |
-| 5 | Add `ai/README.md` to CLAUDE.md / AGENTS.md / GEMINI.md router tables | 2 min |
+| 5 | Add `ai-docs/README.md` to CLAUDE.md / AGENTS.md / GEMINI.md router tables | 2 min |
 | 6 | Run `goat-flow scan .` and verify all checks pass | 2 min |
 
 Total: 30-50 minutes for a typical project.

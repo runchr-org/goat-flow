@@ -32,7 +32,7 @@ else
 fi
 
 # 3. Create core directories
-for dir in docs ai/decisions tasks ai/evals scripts/maintenance; do
+for dir in ai-docs/decisions ai-docs/evals tasks scripts/maintenance; do
     if [[ ! -d "$dir" ]]; then
         mkdir -p "$dir"
         info "Created $dir/"

@@ -1,20 +1,20 @@
 # Prompt: Create git commit instructions
 
 > **Purpose:** Git commit messages, branch naming, PR workflow
-> **Generates:** `ai/coding-standards/git-commit.md` + `.github/git-commit-instructions.md`
+> **Generates:** `ai-docs/coding-standards/git-commit.md` + `.github/git-commit-instructions.md`
 > **Use when:** Setting up commit/PR conventions for the project
 > **Repo inspection:** Yes - reads git log for existing commit style, branch naming, PR templates
 > **Follow-on refs:** `copilot-bridge.md` if project uses GitHub Copilot
 
-**Dual output:** The `ai/coding-standards/` version is the full reference. The `.github/` version includes key rules inline because some tools (Copilot, Codex) may not follow file references.
+**Dual output:** The `ai-docs/coding-standards/` version is the full reference. The `.github/` version includes key rules inline because some tools (Copilot, Codex) may not follow file references.
 
 ---
 
 ## The Prompt
 
-### ai/coding-standards/git-commit.md (full version)
+### ai-docs/coding-standards/git-commit.md (full version)
 
-Write `ai/coding-standards/git-commit.md`:
+Write `ai-docs/coding-standards/git-commit.md`:
 
 ````
 # Git Commit Instructions

@@ -1,6 +1,6 @@
 # PHI/Healthcare Compliance Security
 
-Reference for generating `ai/coding-standards/security.md` in projects handling Protected Health Information (PHI) or operating under healthcare compliance requirements (HIPAA, GDPR health data, etc.).
+Reference for generating `ai-docs/coding-standards/security.md` in projects handling Protected Health Information (PHI) or operating under healthcare compliance requirements (HIPAA, GDPR health data, etc.).
 
 ## Minimum Necessary Principle
 

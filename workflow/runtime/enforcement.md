@@ -1,6 +1,6 @@
 # Prompt: Set Up Enforcement (Hooks, Settings, Permissions)
 
-**This prompt uses Claude Code hook event names.** For Gemini CLI, see `setup/setup-gemini.md` Phase 1c which has the correct Gemini event names (BeforeTool, AfterTool, AfterAgent). Do NOT globally replace hook names in this file - it is the Claude Code reference template.
+**This prompt uses Claude Code hook event names.** For Gemini CLI, see `workflow/setup/setup-gemini.md` Phase 1c which has the correct Gemini event names (BeforeTool, AfterTool, AfterAgent). Do NOT globally replace hook names in this file - it is the Claude Code reference template.
 
 Paste this into your coding agent to create the enforcement layer for your project.
 

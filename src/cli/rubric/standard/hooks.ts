@@ -11,6 +11,7 @@ import {
   countExistingRegisteredHookPaths,
 } from './hook-helpers.js';
 
+/** Standard-tier checks for hook registration and behavior (2.2.x). */
 export const hookChecks: CheckDef[] = [
   {
     id: '2.2.1',

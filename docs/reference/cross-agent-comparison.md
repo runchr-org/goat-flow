@@ -65,7 +65,7 @@ AGENTS.md runs larger than CLAUDE.md for the same project. On the shell script c
 
 ### Dual-Agent Coordination
 
-When both agents share `docs/footguns/` and `ai/lessons/`, changes by one affect the other. The shell script collection surfaced this: Codex retitled 5 entries and removed 3 that Claude Code's implementation had. The removed entries (template default placeholders, missing show_help, arithmetic under set -e) were arguably single-domain rather than cross-domain -- defensible drops -- but the Claude Code side wasn't consulted.
+When both agents share `ai-docs/footguns/` and `ai-docs/lessons/`, changes by one affect the other. The shell script collection surfaced this: Codex retitled 5 entries and removed 3 that Claude Code's implementation had. The removed entries (template default placeholders, missing show_help, arithmetic under set -e) were arguably single-domain rather than cross-domain -- defensible drops -- but the Claude Code side wasn't consulted.
 
 Options: define one agent as the footguns owner, split into agent-specific files, or adopt a merge-and-flag protocol. The simplest rule: run Claude Code first (it creates the shared docs), then Codex (it merges with existing). Review Codex's changes to shared files before committing.
 

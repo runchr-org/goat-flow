@@ -3,6 +3,7 @@
  */
 import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
 
+/** Parse markdown content into a map of lowercase heading names to their body text. */
 function parseSections(content: string): Map<string, string> {
   /** Accumulated heading-to-content mapping */
   const sections = new Map<string, string>();
@@ -35,6 +36,7 @@ function parseSections(content: string): Map<string, string> {
 }
 
 
+/** Extract the body text of a named markdown section, or null if not found. */
 export function extractSection(content: string, sectionName: string): string | null {
   /** Input split into individual lines */
   const lines = content.split('\n');
@@ -64,6 +66,7 @@ export function extractSection(content: string, sectionName: string): string | n
 // ─── Focused extraction functions ────────────────────────────────────
 
 
+/** Extract instruction file facts: existence, content, line count, and parsed sections. */
 export function extractInstructionFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,

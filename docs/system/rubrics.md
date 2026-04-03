@@ -158,12 +158,12 @@ The router table is how agents navigate from a question to the right file. Witho
 
 ### 2.6 Local Instructions (6 pts)
 
-Local instruction files (ai/coding-standards/ or .github/instructions/) are cold-path references - not read every turn, but loaded when the agent enters that context.
+Local instruction files (ai-docs/coding-standards/ or .github/instructions/) are cold-path references - not read every turn, but loaded when the agent enters that context.
 
 | ID | Check | Pts | Why |
 |----|-------|-----|-----|
 | 2.6.1 | Instructions directory exists | 1 | Establishes the cold-path reference structure. |
-| 2.6.2 | Router (ai/README.md) exists | 1 | Without a router, agents can't discover which instruction file to load. |
+| 2.6.2 | Router (ai-docs/README.md) exists | 1 | Without a router, agents can't discover which instruction file to load. |
 | 2.6.3 | conventions.md exists | 1 | Project-wide coding conventions in one place, not scattered in the instruction file. |
 | 2.6.3a | conventions.md has real content | 1 | Template-only conventions don't encode project-specific rules. |
 | 2.6.4 | code-review.md exists | 1 | Review checklist prevents agents from applying personal style as project standard. |
@@ -182,7 +182,7 @@ Full-tier checks reward projects that have proven the workflow works: evals that
 
 | ID | Check | Pts | Why |
 |----|-------|-----|-----|
-| 3.1.1 | ai/evals/ exists | 1 | Without evals, there is no way to catch skill regressions. |
+| 3.1.1 | ai-docs/evals/ exists | 1 | Without evals, there is no way to catch skill regressions. |
 | 3.1.3 | 5+ eval files | 2 | Coverage requires breadth; 1–2 evals test one happy path. |
 | 3.1.4 | Evals have replay prompts | 2 | Without a Scenario section, evals can't be replayed to verify behaviour. |
 | 3.1.5 | Evals have origin labels | 1 | Real-incident evals are higher-signal than synthetic seeds. |
@@ -212,7 +212,7 @@ Full-tier checks reward projects that have proven the workflow works: evals that
 
 | ID | Check | Pts | Why |
 |----|-------|-----|-----|
-| 3.4.2 | Cold-path instructions within line budget | 1 | ai/coding-standards/ files over budget get ignored as context grows. |
+| 3.4.2 | Cold-path instructions within line budget | 1 | ai-docs/coding-standards/ files over budget get ignored as context grows. |
 
 ---
 

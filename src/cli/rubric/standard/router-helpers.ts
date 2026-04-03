@@ -3,6 +3,7 @@
  */
 import type { FactContext, CheckResult } from '../../types.js';
 
+/** Extract the Router Table section from instruction file content. */
 function extractRouterSection(content: string | null): string | null {
   if (content === null) return null;
   const lines = content.split('\n');

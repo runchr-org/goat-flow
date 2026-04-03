@@ -1,6 +1,6 @@
 # Django + DRF Coding Standards
 
-Reference for generating `ai/coding-standards/backend.md` in Django projects.
+Reference for generating `ai-docs/coding-standards/backend.md` in Django projects.
 
 ## App Structure
 

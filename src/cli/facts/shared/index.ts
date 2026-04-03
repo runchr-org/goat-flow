@@ -10,6 +10,7 @@ import { extractEvalFacts } from './evals.js';
 import { extractCIFacts, extractGitignoreFacts } from './ci.js';
 import { extractLocalInstructions } from './local-instructions.js';
 
+/** Required section headings for a well-formed handoff template. */
 export const HANDOFF_SECTIONS = [
   'date',
   'status',
@@ -24,10 +25,10 @@ export const HANDOFF_SECTIONS = [
 
 /** Extract existence and line-count facts for the architecture doc. */
 function extractArchitectureFacts(fs: ReadonlyFS): SharedFacts['architecture'] {
-  const exists = fs.exists('docs/architecture.md');
+  const exists = fs.exists('ai-docs/architecture.md');
   return {
     exists,
-    lineCount: exists ? fs.lineCount('docs/architecture.md') : 0,
+    lineCount: exists ? fs.lineCount('ai-docs/architecture.md') : 0,
   };
 }
 
@@ -120,9 +121,9 @@ export function extractSharedFacts(
     },
     gitignore: extractGitignoreFacts(fs),
     guidelinesOwnership: {
-      exists: fs.exists('docs/guidelines-ownership-split.md'),
+      exists: fs.exists('ai-docs/guidelines-ownership-split.md'),
     },
-    domainReference: { exists: fs.exists('docs/domain-reference.md') },
+    domainReference: { exists: fs.exists('ai-docs/domain-reference.md') },
     preflightScript: { exists: fs.exists('scripts/preflight-checks.sh') },
     // changelog removed - project-level concern, not AI workflow.
     decisions: extractDecisionsFacts(fs, configState.config.decisions.path),

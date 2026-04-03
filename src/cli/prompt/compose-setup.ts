@@ -74,7 +74,7 @@ function collectSignalActionLines(signals: ProjectSignals): string[] {
   }
   if (signals.complianceSignals) {
     actions.push(
-      '- **PHI/compliance:** Add mandatory constraints to the instruction file hot path (not just cold-path docs): "MUST NOT log PHI", "MUST NOT include patient data in error messages", "MUST scope all queries by tenant". These belong in the execution loop or Ask First section, not only in ai/coding-standards/security.md.',
+      '- **PHI/compliance:** Add mandatory constraints to the instruction file hot path (not just cold-path docs): "MUST NOT log PHI", "MUST NOT include patient data in error messages", "MUST scope all queries by tenant". These belong in the execution loop or Ask First section, not only in ai-docs/coding-standards/security.md.',
     );
   }
   if (signals.formatterGaps.length > 0) {
@@ -114,6 +114,7 @@ const PHASE_ORDER: FragmentPhase[] = [
   'standard',
   'full',
 ];
+/** Human-readable heading text for each setup phase. */
 const PHASE_HEADINGS: Record<FragmentPhase, string> = {
   'anti-pattern': 'Critical: Anti-Pattern Fixes',
   foundation: 'Phase 1: Foundation',
@@ -159,6 +160,7 @@ export function composeSetup(
 // Mode: All pass (100%)
 // ---------------------------------------------------------------------------
 
+/** Render congratulatory message when all checks pass (100%). */
 function renderAllPass(
   agentId: AgentId,
   agentReport: AgentReport,
@@ -202,7 +204,7 @@ function renderAllPass(
   );
   lines.push('- Run `goat-flow scan --min-score 90` in CI to catch drift');
   lines.push(
-    '- Review `docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, and `.goat-flow/lessons/` after incidents',
+    '- Review `ai-docs/footguns/`, `.goat-flow/footguns/`, `ai-docs/lessons/`, and `.goat-flow/lessons/` after incidents',
   );
 
   return lines.join('\n');
@@ -326,6 +328,7 @@ function renderTriggeredAntiPatternFixes(
 // Mode: Short fix (90-99%)
 // ---------------------------------------------------------------------------
 
+/** Compose a short fix prompt for projects scoring 90-99%. */
 function renderShortFix(
   report: ScanReport,
   agentId: AgentId,
@@ -367,12 +370,14 @@ function renderShortFix(
 // Mode: Targeted fix (1-89%)
 // ---------------------------------------------------------------------------
 
+/** Template reference used in targeted fix mode. */
 interface TargetedTemplateRef {
   category: string;
   key: string;
   template: string;
 }
 
+/** Inline fragment rendered directly in targeted fix mode. */
 interface TargetedInlineFragment {
   category: string;
   instruction: string;
@@ -648,11 +653,11 @@ function defaultAdaptGuidance(
     return `Replace template Step 0 questions and examples with ${languages} patterns from this project`;
   if (output === '.goat-flow/config.yaml')
     return 'Use the default directory paths unless this project already needs explicit overrides';
-  if (output === 'docs/footguns/')
-    return 'Seed `docs/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals';
-  if (output === 'ai/lessons/')
-    return 'Seed `ai/lessons/` with category bucket files. Use `category:` frontmatter on the file and `## Lesson:` / `## Pattern:` entries from real incidents';
-  if (output === 'docs/architecture.md')
+  if (output === 'ai-docs/footguns/')
+    return 'Seed `ai-docs/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals';
+  if (output === 'ai-docs/lessons/')
+    return 'Seed `ai-docs/lessons/` with category bucket files. Use `category:` frontmatter on the file and `## Lesson:` / `## Pattern:` entries from real incidents';
+  if (output === 'ai-docs/architecture.md')
     return 'Read project entry points and main directories. Document what exists - under 100 lines, no aspirational content';
   if (output.includes('instructions/'))
     return `Adapt for this project's ${languages} patterns. Replace generic examples with real patterns from the codebase`;
@@ -667,11 +672,11 @@ function defaultVerify(output: string): string {
     return 'File has: When to Use, Process with human gates, Constraints, Output Format, Chaining sections';
   if (output === '.goat-flow/config.yaml')
     return 'File exists, parses as YAML, and includes version plus footguns/lessons/decisions/tasks/logs/agents/skills settings';
-  if (output === 'docs/footguns/')
+  if (output === 'ai-docs/footguns/')
     return 'Directory exists with README.md plus 1+ category bucket files using `category:` frontmatter and `path:line` evidence inside `## Footgun:` entries';
-  if (output === 'ai/lessons/')
+  if (output === 'ai-docs/lessons/')
     return 'Directory exists with README.md plus 1+ category bucket files using `category:` frontmatter and `## Lesson:` / `## Pattern:` entries';
-  if (output === 'docs/architecture.md')
+  if (output === 'ai-docs/architecture.md')
     return 'File exists and is under 100 lines';
   if (output.endsWith('.sh'))
     return '`bash -n <file>` passes (no syntax errors)';
@@ -687,6 +692,7 @@ function defaultVerify(output: string): string {
 // Mode: Multi-agent deduplicated setup
 // ---------------------------------------------------------------------------
 
+/** Validate that all referenced template files exist for each agent. */
 function validateMultiAgentTemplateRefs(agentIds: AgentId[]): void {
   for (const id of agentIds) {
     const missing = validateTemplateRefs(id);
@@ -897,9 +903,9 @@ export function composeMultiAgentSetup(
 
 /** Lookup from agent ID to its setup guide in the goat-flow templates directory. */
 const SETUP_FILES: Record<AgentId, string> = {
-  claude: 'setup/setup-claude.md',
-  codex: 'setup/setup-codex.md',
-  gemini: 'setup/setup-gemini.md',
+  claude: 'workflow/setup/setup-claude.md',
+  codex: 'workflow/setup/setup-codex.md',
+  gemini: 'workflow/setup/setup-gemini.md',
 };
 
 /** Render setup redirect. */

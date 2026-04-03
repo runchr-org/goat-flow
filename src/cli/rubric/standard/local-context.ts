@@ -1,5 +1,6 @@
 import type { CheckDef, FactContext, CheckResult } from '../../types.js';
 
+/** Standard-tier checks for local instructions and coding standards (2.6.x). */
 export const localContextChecks: CheckDef[] = [
   {
     id: '2.6.1',
@@ -22,13 +23,13 @@ export const localContextChecks: CheckDef[] = [
           maxPoints: 1,
           confidence: 'high',
           message: dirExists
-            ? `Found at ${location === 'ai' ? 'ai/coding-standards/' : '.github/instructions/'}`
-            : 'No ai/coding-standards/ or .github/instructions/ directory',
+            ? `Found at ${location === 'ai' ? 'ai-docs/coding-standards/' : '.github/instructions/'}`
+            : 'No ai-docs/coding-standards/ or .github/instructions/ directory',
         };
       },
     },
     recommendation:
-      'Create ai/coding-standards/ with project coding guidelines',
+      'Create ai-docs/coding-standards/ with project coding guidelines',
     recommendationKey: 'create-instructions-dir',
   },
   {
@@ -89,7 +90,7 @@ export const localContextChecks: CheckDef[] = [
             maxPoints: 1,
             confidence: 'high',
             message:
-              'No local instructions directory found. Expected `ai/` with an `ai/README.md` router when project instruction files exist.',
+              'No local instructions directory found. Expected `ai/` with an `ai-docs/README.md` router when project instruction files exist.',
           };
         }
         if (!hasValidRouter && routerNeedsFix !== null) {
@@ -115,12 +116,12 @@ export const localContextChecks: CheckDef[] = [
           maxPoints: 1,
           confidence: 'high',
           message: hasRouter
-            ? 'ai/README.md exists and router links are valid'
-            : 'ai/README.md not found. Create a router file so agents can discover instruction files under `ai/`.',
+            ? 'ai-docs/README.md exists and router links are valid'
+            : 'ai-docs/README.md not found. Create a router file so agents can discover instruction files under `ai/`.',
         };
       },
     },
-    recommendation: 'Create ai/README.md as routing map for instruction files',
+    recommendation: 'Create ai-docs/README.md as routing map for instruction files',
     recommendationKey: 'create-instructions-router',
   },
   {
@@ -164,7 +165,7 @@ export const localContextChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Create ai/coding-standards/conventions.md with project-wide conventions',
+      'Create ai-docs/coding-standards/conventions.md with project-wide conventions',
     recommendationKey: 'create-conventions-instructions',
   },
   {
@@ -253,7 +254,7 @@ export const localContextChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Create ai/coding-standards/code-review.md with review standards',
+      'Create ai-docs/coding-standards/code-review.md with review standards',
     recommendationKey: 'create-code-review-instructions',
   },
   {
@@ -296,7 +297,7 @@ export const localContextChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Create ai/coding-standards/git-commit.md with commit format and PR workflow',
+      'Create ai-docs/coding-standards/git-commit.md with commit format and PR workflow',
     recommendationKey: 'create-git-commit-instructions',
   },
   {
@@ -391,7 +392,7 @@ export const localContextChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Create ai/coding-standards/frontend.md with frontend coding conventions for the detected UI stack',
+      'Create ai-docs/coding-standards/frontend.md with frontend coding conventions for the detected UI stack',
     recommendationKey: 'create-frontend-instructions',
   },
   {
@@ -451,7 +452,7 @@ export const localContextChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Create ai/coding-standards/backend.md with backend coding conventions',
+      'Create ai-docs/coding-standards/backend.md with backend coding conventions',
     recommendationKey: 'create-backend-instructions',
   },
 ];

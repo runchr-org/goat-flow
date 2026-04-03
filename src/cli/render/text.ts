@@ -11,7 +11,7 @@ import type {
 } from '../types.js';
 import { getCheckSeverity, collectCheckFailureSummary, getTriggeredAntiPatterns, collectDiagnosticImpacts } from './shared.js';
 
-/** Priority levels used by recommendation entries */
+/** Recommendation priority levels used for display labels */
 type Priority = 'critical' | 'high' | 'medium' | 'low';
 
 

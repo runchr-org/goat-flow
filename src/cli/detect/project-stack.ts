@@ -13,6 +13,7 @@ interface DetectorResult {
   formatCommand?: string | null;
 }
 
+/** Node.js framework indicators matched against package dependencies */
 const NODE_FRAMEWORKS = [
   { language: 'react', packages: ['react', 'react-dom', 'next'] },
   { language: 'vue', packages: ['vue', 'nuxt'] },
@@ -22,6 +23,7 @@ const NODE_FRAMEWORKS = [
   { language: 'cypress', packages: ['cypress'] },
 ] as const;
 
+/** Additional language/template indicators beyond primary manifest detection */
 const EXTRA_LANGUAGE_SIGNALS = [
   { language: 'blade', paths: [], globs: ['**/*.blade.php'] },
   { language: 'twig', paths: [], globs: ['**/*.twig'] },
@@ -35,6 +37,7 @@ const EXTRA_LANGUAGE_SIGNALS = [
   { language: 'blazor', paths: [], globs: ['**/*.razor'] },
 ] as const;
 
+/** Code generation tool indicators detected from config files */
 const CODE_GEN_SIGNALS = [
   { tool: 'sqlc', paths: ['sqlc.yaml', 'sqlc.yml'], globs: [] },
   { tool: 'hygen', paths: ['_templates'], globs: ['**/.hygen.js'] },
@@ -46,6 +49,7 @@ const CODE_GEN_SIGNALS = [
   },
 ] as const;
 
+/** Deployment platform indicators detected from config files */
 const DEPLOY_SIGNALS = [
   { tool: 'amplify', paths: ['amplify.yml', 'amplify'], globs: [] },
   {
@@ -59,28 +63,35 @@ const DEPLOY_SIGNALS = [
   { tool: 'packer', paths: ['packer.json'], globs: ['**/*.pkr.hcl'] },
 ] as const;
 
+/** Root-level files that indicate a Python project */
 const ROOT_PYTHON_FILES = [
   'pyproject.toml',
   'setup.py',
   'requirements.txt',
 ] as const;
+/** Glob patterns for detecting Python projects in subdirectories */
 const SUBDIR_PYTHON_GLOBS = ['*/pyproject.toml', '*/requirements.txt'] as const;
+/** Build manifest paths read to detect Java framework dependencies */
 const JAVA_MANIFEST_PATHS = [
   'pom.xml',
   'build.gradle',
   'build.gradle.kts',
 ] as const;
+/** Environment files checked for LLM provider API key variables */
 const LLM_ENV_FILES = ['.env.example', '.env.sample', '.env'] as const;
+/** Dependency files checked for LLM SDK references */
 const LLM_DEP_FILES = [
   'requirements.txt',
   'pyproject.toml',
   'package.json',
 ] as const;
+/** Files checked for compliance-related keywords (HIPAA, GDPR, etc.) */
 const COMPLIANCE_DOCS = [
   'README.md',
-  'docs/architecture.md',
+  'ai-docs/architecture.md',
   '.github/instructions/security.instructions.md',
 ] as const;
+/** Maps languages to their known formatter tool names for gap detection */
 const FORMATTER_MAP: Record<string, string[]> = {
   typescript: ['prettier', 'biome', 'dprint'],
   javascript: ['prettier', 'biome', 'dprint'],

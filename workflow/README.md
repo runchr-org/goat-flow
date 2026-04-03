@@ -19,5 +19,5 @@ Templates and prompts for the GOAT Flow workflow layers. See
 
 These are **prompt templates**, not executable code. Copy the prompt
 block from any file and paste it into your coding agent. The setup
-guides in `setup/` reference these templates during Phase 1b (skills)
+guides in `workflow/setup/` reference these templates during Phase 1b (skills)
 and Phase 2 (evaluation).
