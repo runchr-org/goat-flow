@@ -238,7 +238,7 @@ export class TerminalManager {
     });
   }
 
-  /** Return public session info for a terminal session ID. */
+  /** Return the public session snapshot for one terminal session ID. */
   get(id: string): SessionInfo | null {
     const session = this.sessions.get(id);
     if (!session) return null;
@@ -253,14 +253,14 @@ export class TerminalManager {
     return true;
   }
 
-  /** List all non-terminated terminal sessions. */
+  /** List every terminal session that is still considered live. */
   list(): SessionInfo[] {
     return Array.from(this.sessions.values())
       .filter((s) => s.status !== 'terminated')
       .map((s) => this.toInfo(s));
   }
 
-  /** Return health information. */
+  /** Report terminal backend health and available runner binaries. */
   async health(): Promise<HealthResponse> {
     // Probe node-pty availability on first health check
     if (this.nodePtyAvailable === null) {

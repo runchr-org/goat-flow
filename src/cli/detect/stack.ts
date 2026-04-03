@@ -110,7 +110,8 @@ function extractNodeCommands(
   DetectorResult,
   'buildCommand' | 'testCommand' | 'lintCommand' | 'formatCommand'
 > {
-  /** Compute filter placeholder. */
+  /** Drop empty or intentionally placeholder script commands from detection output. */
+  /** Keep only real script commands that should survive stack detection. */
   const filterPlaceholder = (cmd: string | undefined): string | null => {
     if (!cmd || isPlaceholderScript(cmd)) return null;
     return cmd;
@@ -167,7 +168,7 @@ function addLanguageIfMissing(languages: string[], language: string): void {
   }
 }
 
-/** Check whether any of the named packages appear in a dependency map. */
+/** Detect whether any package in a candidate set is present in a dependency map. */
 function hasAnyDependency(
   deps: Record<string, string>,
   packages: readonly string[],
@@ -286,12 +287,12 @@ function detectRustStack(fs: ReadonlyFS): DetectorResult {
   return {};
 }
 
-/** Check whether any exact path in a list exists. */
+/** Detect whether any exact path in a candidate list exists. */
 function hasAnyPath(fs: ReadonlyFS, paths: readonly string[]): boolean {
   return paths.some((path) => fs.exists(path));
 }
 
-/** Check whether any glob in a list matches at least one file. */
+/** Detect whether any glob in a candidate list matches at least one file. */
 function hasAnyGlob(fs: ReadonlyFS, globs: readonly string[]): boolean {
   return globs.some((pattern) => fs.glob(pattern).length > 0);
 }

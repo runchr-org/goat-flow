@@ -112,7 +112,7 @@ const HANDOFF_TEMPLATE = `# Handoff Template
 ## Context Files
 `;
 
-/** Build full project. */
+/** Build a well-configured mock project used by setup-composition tests. */
 function buildFullProject() {
   return createMockFS({
     'CLAUDE.md': FULL_CLAUDE_MD,
@@ -157,7 +157,7 @@ function buildFullProject() {
   });
 }
 
-/** Build minimal project. */
+/** Build a minimally configured mock project with almost no goat-flow setup. */
 function buildMinimalProject() {
   return createMockFS({
     'CLAUDE.md':
@@ -169,7 +169,7 @@ function buildMinimalProject() {
   });
 }
 
-/** Build empty project. */
+/** Build an almost-empty mock project used for fresh-setup flows. */
 function buildEmptyProject() {
   return createMockFS({
     'package.json': JSON.stringify({
@@ -180,7 +180,7 @@ function buildEmptyProject() {
   });
 }
 
-/** Build targeted upgrade project. */
+/** Build a mostly configured mock project that still needs targeted fixes. */
 function buildTargetedUpgradeProject(extraFiles: Record<string, string> = {}) {
   return createMockFS({
     'CLAUDE.md': FULL_CLAUDE_MD,
@@ -432,7 +432,8 @@ describe('composeInlineSetup (old, preserved)', () => {
 });
 
 describe('mapLanguagesToTemplates', () => {
-  // Dynamic import since it's not in the top-level imports
+  // Dynamic import keeps the helper local to this suite.
+  /** Load the template mapper lazily for the routing tests in this suite. */
   const getMapper = async () => {
     const mod = await import('../../src/cli/prompt/template-refs.js');
     return mod.mapLanguagesToTemplates;

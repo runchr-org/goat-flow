@@ -68,7 +68,7 @@ export const antiPatterns: AntiPatternDef[] = [
     deduction: -3,
     confidence: 'low',
     evaluate: (ctx: FactContext): AntiPatternResult => {
-      // Check for actual DoD SECTION duplication (heading), not just the word "DoD" in passing
+      // Only count real DoD section duplication, not incidental mentions of the phrase.
       const DOD_SECTION = /^#+\s*definition of done/im;
       const instructionContent = ctx.agentFacts.instruction.content;
       const conventionsContent =
@@ -390,7 +390,7 @@ export const antiPatterns: AntiPatternDef[] = [
     deduction: -2,
     confidence: 'high',
     evaluate: (ctx: FactContext): AntiPatternResult => {
-      // Check for non-goat skills that have a goat- equivalent
+      // Flag duplicate installs where a legacy skill coexists with its goat-* counterpart.
       const installedDirs = ctx.agentFacts.skills.installedDirs;
       const goatSkills = installedDirs.filter((s) => s.startsWith('goat-'));
       const nonGoat = installedDirs.filter(

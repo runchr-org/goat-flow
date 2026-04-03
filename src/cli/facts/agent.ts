@@ -154,17 +154,17 @@ function collectMatchedPaths(
   }
 }
 
-/** Check whether a backtick-wrapped router reference looks like a local path. */
+/** Treat backtick-wrapped router references as paths only when they look local and literal. */
 function isRouterBacktickPath(path: string): boolean {
   return !hasGlobChars(path) && looksLikePath(path);
 }
 
-/** Check whether a markdown link target looks like a local router path. */
+/** Treat markdown link targets as router paths only when they look local and literal. */
 function isRouterLinkPath(path: string): boolean {
   return !hasGlobChars(path) && !path.startsWith('http') && looksLikePath(path);
 }
 
-/** Check whether a backtick-wrapped Ask First item looks like a boundary path. */
+/** Treat Ask First bullet items as boundary paths only when they look like local files. */
 function isAskFirstPath(path: string): boolean {
   if (hasGlobChars(path)) return false;
   if (path.startsWith('http')) return false;

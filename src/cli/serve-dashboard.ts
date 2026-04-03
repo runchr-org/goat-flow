@@ -469,7 +469,8 @@ export function serveDashboard(
       })();
     });
 
-    // Graceful shutdown
+    // Gracefully stop any live terminal sessions before the process exits.
+    /** Shut down the dashboard server's live terminal state before exiting the process. */
     const doShutdown = (): void => {
       void (async () => {
         if (managerPromise) {

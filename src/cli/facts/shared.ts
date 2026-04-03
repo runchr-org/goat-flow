@@ -506,7 +506,7 @@ function collectEvalSkillNames(content: string): string[] {
   return Array.from(skillNames);
 }
 
-/** Check whether an eval contains enough scenario text to count as real content. */
+/** Count an eval as real only when its scenario section has substantive non-placeholder text. */
 function hasEvalRealContent(content: string): boolean {
   const scenarioMatch = content.match(
     /##+ (?:Replay Prompt|Scenario)\s*\n([\s\S]*?)(?=\n##|\n---|$)/i,
@@ -619,7 +619,7 @@ function extractArchitectureFacts(fs: ReadonlyFS): SharedFacts['architecture'] {
   };
 }
 
-/** Check whether the CI workflow content matches a required validation pattern. */
+/** Detect whether the CI workflow already includes a required validation pattern. */
 function hasCIWorkflowCheck(
   ciContent: string | null,
   pattern: RegExp,
@@ -643,7 +643,7 @@ function collectWorkflowRunCommands(ciContent: string | null): string[] {
   return commands;
 }
 
-/** Check whether any workflow `run:` command satisfies a predicate. */
+/** Detect whether any workflow `run:` command satisfies a validation predicate. */
 function hasRunCommand(
   ciContent: string | null,
   predicate: (command: string) => boolean,
@@ -665,7 +665,7 @@ function isContextValidationCommand(command: string): boolean {
 function checksCILineCount(ciContent: string | null): boolean {
   if (ciContent === null) return false;
 
-  /** Detect ad-hoc shell commands that explicitly count instruction-file lines. */
+  /** Match ad-hoc shell commands that explicitly count instruction-file lines. */
   const runCommand = (command: string): boolean =>
     /wc\s+-l/i.test(command) && /CLAUDE|AGENTS|GEMINI|\.md/i.test(command);
 
@@ -679,7 +679,7 @@ function checksCILineCount(ciContent: string | null): boolean {
 function checksCIRouter(ciContent: string | null): boolean {
   if (hasRunCommand(ciContent, isContextValidationCommand)) return true;
 
-  /** Detect ad-hoc workflow commands that explicitly validate router references. */
+  /** Match ad-hoc workflow commands that explicitly validate router references. */
   const runCommandChecksRouter = (command: string): boolean => {
     const lower = command.toLowerCase();
     return (
@@ -701,7 +701,7 @@ function checksCIRouter(ciContent: string | null): boolean {
 function checksCISkills(ciContent: string | null): boolean {
   if (hasRunCommand(ciContent, isContextValidationCommand)) return true;
 
-  /** Detect ad-hoc workflow commands that explicitly validate skill installs. */
+  /** Match ad-hoc workflow commands that explicitly validate skill installs. */
   const runCommandChecksSkills = (command: string): boolean => {
     const lower = command.toLowerCase();
     return (

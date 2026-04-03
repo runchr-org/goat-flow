@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { appendScanHistory } from '../../src/cli/telemetry/scan-logger.js';
 import type { ScanReport, AgentReport } from '../../src/cli/types.js';
 
-/** Build tier score. */
+/** Build a tier-score object for telemetry log tests. */
 function makeTierScore(earned: number, available: number) {
   return {
     tier: 'foundation' as const,
@@ -20,7 +20,7 @@ function makeTierScore(earned: number, available: number) {
   };
 }
 
-/** Build agent report. */
+/** Build a minimal agent report for telemetry log tests. */
 function makeAgentReport(
   agent: 'claude' | 'codex' | 'gemini',
   percentage: number,
@@ -80,7 +80,7 @@ function makeAgentReport(
   };
 }
 
-/** Build report. */
+/** Build a minimal multi-agent scan report for telemetry log tests. */
 function makeReport(agents: AgentReport[]): ScanReport {
   return {
     schemaVersion: '3',

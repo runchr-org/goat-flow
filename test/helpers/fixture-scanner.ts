@@ -71,17 +71,17 @@ export function scanFixture(name: string): ScannedFixture {
   };
 }
 
-/** Return the on-disk root directory for a named fixture. */
+/** Return the checked-in root directory for a named project fixture. */
 export function getFixtureRoot(name: string): string {
   return join(FIXTURE_ROOT, name);
 }
 
-/** Return the manifest path for a named fixture. */
+/** Return the manifest file path for a named project fixture. */
 export function getFixtureManifestPath(name: string): string {
   return join(getFixtureRoot(name), 'fixture.json');
 }
 
-/** Return the source directory that contains a fixture's manifest file. */
+/** Return the source directory that owns a fixture manifest. */
 export function getFixtureSourceDir(name: string): string {
   return dirname(getFixtureManifestPath(name));
 }

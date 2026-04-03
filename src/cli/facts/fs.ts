@@ -114,7 +114,7 @@ export function createFS(rootPath: string): ReadonlyFS {
   }
 
   return {
-    /** Check whether a relative path exists under the project root. */
+    /** Report whether a relative path exists under the project root. */
     exists(path: string): boolean {
       try {
         statSync(resolvePath(path));

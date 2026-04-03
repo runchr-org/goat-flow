@@ -13,7 +13,7 @@ import { SKILL_NAMES } from '../constants.js';
 // Minimum ratio of skills passing a quality signal to award the point (80%)
 const SKILL_QUALITY_THRESHOLD = 0.8;
 
-/** Build hooks check result. */
+/** Build a standard-tier hook check result with shared Hooks category metadata. */
 function buildHooksCheckResult(
   id: string,
   name: string,
@@ -36,7 +36,7 @@ function buildHooksCheckResult(
   };
 }
 
-/** Return deny patterns. */
+/** Return the configured settings-based deny patterns when they exist. */
 function getDenyPatterns(ctx: FactContext): string[] | null {
   if (
     !ctx.agentFacts.settings.hasDenyPatterns ||
@@ -52,7 +52,7 @@ function getDenyPatterns(ctx: FactContext): string[] | null {
     : null;
 }
 
-/** Return env deny coverage. */
+/** Detect which `.env` operations are covered by the deny pattern set. */
 function getEnvDenyCoverage(denyPatterns: string[]): {
   hasReadEnv: boolean;
   hasEditEnv: boolean;
@@ -66,7 +66,7 @@ function getEnvDenyCoverage(denyPatterns: string[]): {
   };
 }
 
-/** Format missing env deny actions. */
+/** Format the missing `.env` deny actions for the failure message. */
 function formatMissingEnvDenyActions(
   hasEditEnv: boolean,
   hasWriteEnv: boolean,
@@ -77,12 +77,12 @@ function formatMissingEnvDenyActions(
   return missing.join(' and ');
 }
 
-/** Return hook settings path. */
+/** Return the settings path that should contain hook registrations for this agent. */
 function getHookSettingsPath(ctx: FactContext): string {
   return ctx.agentFacts.agent.settingsFile ?? 'agent hook config';
 }
 
-/** Format missing hook registration message. */
+/** Build the failure message for a missing hook registration. */
 function formatMissingHookRegistrationMessage(
   ctx: FactContext,
   hookKind: 'post-turn' | 'post-tool',
@@ -97,7 +97,7 @@ function formatMissingHookRegistrationMessage(
   return `Expected ${hookKind} hook registration in ${settingsPath} for event "${eventName}" pointing at ${expectedPath}, but no matching hook entry was found.${formatterDetail}`;
 }
 
-/** Return post tool hook status. */
+/** Gather the facts needed to score the post-tool hook check. */
 function getPostToolHookStatus(ctx: FactContext): {
   noFormatter: boolean;
   registered: boolean;
@@ -120,7 +120,7 @@ function getPostToolHookStatus(ctx: FactContext): {
   };
 }
 
-/** Return post tool hook message. */
+/** Build the user-facing status message for the post-tool hook check. */
 function getPostToolHookMessage(
   ctx: FactContext,
   status: ReturnType<typeof getPostToolHookStatus>,
@@ -153,7 +153,7 @@ function getPostToolHookMessage(
   );
 }
 
-/** Build post tool hook check result. */
+/** Build the final check result for the post-tool hook-or-skip rule. */
 function buildPostToolHookCheckResult(ctx: FactContext): CheckResult {
   const status = getPostToolHookStatus(ctx);
   return {

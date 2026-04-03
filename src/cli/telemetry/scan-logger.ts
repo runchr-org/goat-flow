@@ -34,7 +34,7 @@ export interface ScanHistoryEntry {
   rubricVersion: string;
 }
 
-/** Count checks. */
+/** Count check outcomes for one agent so the JSONL log stays compact. */
 function countChecks(
   agent: ScanReport['agents'][number],
 ): ScanHistoryEntry['checks'] {
@@ -65,7 +65,7 @@ function countChecks(
   return checks;
 }
 
-/** Build scan history entry. */
+/** Flatten one agent report into the JSONL entry written to scan history. */
 function buildScanHistoryEntry(
   report: ScanReport,
   agent: ScanReport['agents'][number],

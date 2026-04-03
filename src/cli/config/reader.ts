@@ -60,7 +60,7 @@ function cloneDefaults(): GoatFlowConfig {
   };
 }
 
-/** Check whether a value is a plain object record. */
+/** Narrow unknown config values to plain object records before field inspection. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return (
     value !== null &&

@@ -113,7 +113,7 @@ function parseLegacyFrontmatter(
   raw: string,
   filename: string,
 ): EvalFrontmatter {
-  // Extract **Origin:** and **Agents:** from markdown body
+  // Legacy evals stored metadata inline instead of in YAML frontmatter.
   /** Regex match for the **Origin:** metadata line */
   const originMatch = raw.match(/\*\*Origin:\*\*\s*`?([^`\n]+)`?/);
   /** Regex match for the **Agents:** metadata line */
@@ -144,7 +144,7 @@ function parseLegacyFrontmatter(
 
 /** Extract the text content under a given heading from a markdown document */
 function extractSection(raw: string, heading: string): string {
-  // Match ## Heading or ### Heading, case-insensitive
+  // Match the requested section at heading level 2 or 3.
   /** Regex pattern to locate the target heading at level 2 or 3 */
   const pattern = new RegExp(`^#{2,3}\\s+${escapeRegex(heading)}\\s*$`, 'im');
   /** Regex match result for the heading location */
@@ -153,7 +153,7 @@ function extractSection(raw: string, heading: string): string {
 
   /** Character offset where section content begins (after the heading) */
   const start = match.index + match[0].length;
-  // Find next heading of same or higher level
+  // Stop when the next peer-or-higher heading begins.
   /** Remaining text after the matched heading */
   const rest = raw.slice(start);
   /** Match for the next heading that terminates this section */
@@ -226,7 +226,7 @@ function parseAntiPatterns(section: string): string[] {
   return patterns;
 }
 
-/** Parse eval frontmatter. */
+/** Parse either YAML frontmatter or the legacy inline metadata format. */
 function parseEvalFrontmatter(
   raw: string,
   filename: string,
@@ -249,7 +249,7 @@ function parseEvalFrontmatter(
   };
 }
 
-/** Extract first section. */
+/** Return the first non-empty section body from a list of heading aliases. */
 function extractFirstSection(body: string, headings: string[]): string {
   for (const heading of headings) {
     const section = extractSection(body, heading);
@@ -258,7 +258,7 @@ function extractFirstSection(body: string, headings: string[]): string {
   return '';
 }
 
-/** Resolve anti patterns. */
+/** Fall back to the raw section text when no bullet-list anti-patterns were parsed. */
 function resolveAntiPatterns(section: string): string[] {
   const antiPatterns = parseAntiPatterns(section);
   if (antiPatterns.length === 0 && section.length > 0) return [section];

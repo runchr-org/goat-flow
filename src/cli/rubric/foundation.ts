@@ -378,7 +378,7 @@ export const foundationChecks: CheckDef[] = [
           };
         }
         const lines = section.split('\n').filter((l) => l.trim()).length;
-        // Check whether the section contains backtick-wrapped file paths
+        // Require concrete project paths, not just generic policy text.
         const hasProjectPaths = /`[^`]*[./][^`]*`/.test(section);
         if (lines > 5 && hasProjectPaths) {
           return {

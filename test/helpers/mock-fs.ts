@@ -119,7 +119,7 @@ function maybeSplitLegacyLearningLoopFolders(
   files: Record<string, string>,
 ): Record<string, string> {
   const split = { ...files };
-  /** Check whether the synthetic fixture already contains nested paths for a directory. */
+  /** Detect whether the synthetic fixture already contains nested paths for a directory. */
   const hasNestedPath = (dir: string): boolean => {
     return Object.keys(split).some(
       (key) => key.startsWith(dir) && key.length > dir.length,
@@ -231,7 +231,7 @@ function maybeSplitLegacyLearningLoopFolders(
   return split;
 }
 
-/** Detect agents. */
+/** Infer which agents are present from synthetic instruction and config files. */
 function detectAgents(files: Record<string, string>): string[] {
   const agents: string[] = [];
   if (
@@ -252,7 +252,7 @@ function detectAgents(files: Record<string, string>): string[] {
   return agents;
 }
 
-/** Normalize learning loop. */
+/** Expand legacy learning-loop fixtures into the current directory-based layout. */
 function normalizeLearningLoop(
   files: Record<string, string>,
 ): Record<string, string> {

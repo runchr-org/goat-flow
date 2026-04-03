@@ -21,13 +21,13 @@ const EXPECTED_SKILLS = [
 export class TestProject {
   private files: Map<string, string> = new Map();
 
-  /** Run with file. */
+  /** Queue an arbitrary file to be written into the temporary test project. */
   withFile(path: string, content: string): this {
     this.files.set(path, content);
     return this;
   }
 
-  /** Run with instruction file. */
+  /** Add the root instruction file for the requested agent. */
   withInstructionFile(
     agent: 'claude' | 'codex' | 'gemini',
     content: string,
@@ -40,14 +40,14 @@ export class TestProject {
     return this.withFile(filename, content);
   }
 
-  /** Run with settings. */
+  /** Add a JSON settings file for agents that support one. */
   withSettings(agent: 'claude' | 'gemini', settings: object): this {
     const path =
       agent === 'claude' ? '.claude/settings.json' : '.gemini/settings.json';
     return this.withFile(path, JSON.stringify(settings, null, 2));
   }
 
-  /** Run with skills. */
+  /** Add a minimal installed-skill set for the requested agent. */
   withSkills(
     agent: 'claude' | 'codex' | 'gemini',
     names?: readonly string[],
@@ -63,7 +63,7 @@ export class TestProject {
     return this;
   }
 
-  /** Run with hooks. */
+  /** Add minimal deny and post-turn hooks for the requested agent. */
   withHooks(agent: 'claude' | 'gemini'): this {
     const dir = agent === 'claude' ? '.claude/hooks' : '.gemini/hooks';
     this.withFile(`${dir}/deny-dangerous.sh`, '#!/usr/bin/env bash\nexit 0\n');
@@ -71,7 +71,7 @@ export class TestProject {
     return this;
   }
 
-  /** Run with learning loop. */
+  /** Add the minimal goat-flow config, footguns, and lessons needed by scanner tests. */
   withLearningLoop(): this {
     this.withFile(
       '.goat-flow/config.yaml',
@@ -90,7 +90,7 @@ export class TestProject {
     return this;
   }
 
-  /** Run with evals. */
+  /** Add a small eval corpus under `ai/evals/`. */
   withEvals(count: number = 3): this {
     this.withFile('ai/evals/README.md', '# Agent Evals\n');
     for (let i = 1; i <= count; i++) {
@@ -102,7 +102,7 @@ export class TestProject {
     return this;
   }
 
-  /** Run with architecture. */
+  /** Add a non-trivial architecture document. */
   withArchitecture(): this {
     return this.withFile(
       'docs/architecture.md',
@@ -110,7 +110,7 @@ export class TestProject {
     );
   }
 
-  /** Run with handoff. */
+  /** Add the shared handoff template expected by scanner checks. */
   withHandoff(): this {
     return this.withFile(
       '.goat-flow/tasks/handoff-template.md',
@@ -118,7 +118,7 @@ export class TestProject {
     );
   }
 
-  /** Create the requested item. */
+  /** Materialize the queued files into a temporary directory and return a cleanup hook. */
   create(): { root: string; cleanup: () => void } {
     const root = mkdtempSync(join(tmpdir(), 'goat-flow-test-'));
 

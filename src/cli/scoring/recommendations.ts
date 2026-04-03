@@ -27,7 +27,7 @@ const PRIORITY_ORDER: Record<Priority, number> = {
   low: 3,
 };
 
-/** Create check recommendation. */
+/** Turn one failed or partial check into a remediation recommendation. */
 function createCheckRecommendation(
   result: CheckResult,
   checkDefs: CheckDef[],
@@ -50,7 +50,7 @@ function createCheckRecommendation(
   };
 }
 
-/** Create anti pattern recommendation. */
+/** Turn one triggered anti-pattern into a remediation recommendation. */
 function createAntiPatternRecommendation(
   result: AntiPatternResult,
   antiPatternDefs: AntiPatternDef[],

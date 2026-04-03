@@ -71,7 +71,7 @@ function collectLessonBlocks(body: string): RawLessonBlock[] {
   let heading = '';
   let rawBody: string[] = [];
 
-  /** Flush the current lesson block into the output list. */
+  /** Push the current in-progress lesson block into the output list. */
   const flush = (): void => {
     if (!heading) return;
     blocks.push({

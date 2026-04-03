@@ -473,7 +473,7 @@ export const fullChecks: CheckDef[] = [
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
-        /** Extract execution loop text between READ and Autonomy/Router headings */
+        /** Extract the execution-loop block between READ and the next major section boundary. */
         const extractLoop = (content: string | null): string => {
           if (!content) return '';
           /** Match READ as a heading (## READ, ### READ) or bold (**READ**) */
@@ -506,7 +506,8 @@ export const fullChecks: CheckDef[] = [
             confidence: 'medium',
             message: 'Only one agent instruction file',
           };
-        // Normalize for comparison: lowercase, strip markdown formatting
+        // Normalize loop text before similarity comparison.
+        /** Convert loop text into comparable lowercase tokens with markdown stripped. */
         const normalize = (s: string): string[] =>
           s
             .toLowerCase()

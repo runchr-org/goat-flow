@@ -18,7 +18,7 @@ function getAgentPaths(id: AgentId) {
   };
 }
 
-/** Count check statuses. */
+/** Count passed versus actionable check outcomes for template variables. */
 function countCheckStatuses(agentReport: AgentReport): {
   failed: number;
   passed: number;
@@ -37,7 +37,7 @@ function countCheckStatuses(agentReport: AgentReport): {
   return { failed, passed };
 }
 
-/** Collect check evidence. */
+/** Copy per-check evidence into the keyed template-variable map. */
 function collectCheckEvidence(
   agentReport: AgentReport,
   evidence: Record<string, string>,
@@ -49,7 +49,7 @@ function collectCheckEvidence(
   }
 }
 
-/** Collect anti pattern evidence. */
+/** Copy triggered anti-pattern evidence and messages into the template-variable map. */
 function collectAntiPatternEvidence(
   agentReport: AgentReport,
   evidence: Record<string, string>,

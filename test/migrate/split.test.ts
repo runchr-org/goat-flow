@@ -21,7 +21,7 @@ import {
   splitLessons,
 } from '../../src/cli/migrate/index.js';
 
-/** Run with temp dir. */
+/** Run a migration test inside a disposable temporary directory. */
 function withTempDir(fn: (dir: string) => void): void {
   const dir = mkdtempSync(join(tmpdir(), 'goat-flow-migrate-'));
   try {

@@ -143,12 +143,12 @@ export function summarize(
   };
 }
 
-/** Format eval count. */
+/** Format a singular-or-plural eval count for text summaries. */
 function formatEvalCount(count: number): string {
   return `${count} eval${count !== 1 ? 's' : ''}`;
 }
 
-/** Append skill summary. */
+/** Append the per-skill eval breakdown to the text summary. */
 function appendSkillSummary(lines: string[], skills: SkillBreakdown[]): void {
   lines.push('By Skill:');
   if (skills.length === 0) {
@@ -163,7 +163,7 @@ function appendSkillSummary(lines: string[], skills: SkillBreakdown[]): void {
   lines.push('');
 }
 
-/** Append agent summary. */
+/** Append the per-agent eval breakdown to the text summary. */
 function appendAgentSummary(lines: string[], agents: AgentBreakdown[]): void {
   lines.push('By Agent:');
   for (const agent of agents) {
@@ -172,7 +172,7 @@ function appendAgentSummary(lines: string[], agents: AgentBreakdown[]): void {
   lines.push('');
 }
 
-/** Append non zero section. */
+/** Append a count section while omitting keys whose counts are zero. */
 function appendNonZeroSection<T extends string>(
   lines: string[],
   title: string,
@@ -186,7 +186,7 @@ function appendNonZeroSection<T extends string>(
   lines.push('');
 }
 
-/** Append parse error summary. */
+/** Append any eval parse failures collected during loading. */
 function appendParseErrorSummary(lines: string[], errors: ParseError[]): void {
   if (errors.length === 0) return;
 

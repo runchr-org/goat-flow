@@ -17,7 +17,7 @@ afterEach(() => {
   }
 });
 
-/** Return agent. */
+/** Look up one agent report from a fixture scan and fail loudly if it is missing. */
 function getAgent(
   reportName: string,
   agents: AgentReport[],

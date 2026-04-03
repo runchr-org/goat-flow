@@ -12,7 +12,7 @@ const HOOK_PATH = resolve(
   '../../.claude/hooks/deny-dangerous.sh',
 );
 
-/** Run hook. */
+/** Execute the deny hook and capture its exit status plus stderr. */
 function runHook(command: string): { exitCode: number; stderr: string } {
   const json = JSON.stringify({ tool_name: 'Bash', tool_input: { command } });
   try {
