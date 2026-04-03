@@ -231,22 +231,34 @@ info "Codex scripts are executable"
 # Validate template consistency for deduplicated execution-loop + execution docs
 template_errors=0
 
-if ! grep -Fq "generated from \`docs/system-spec.md\`" setup/shared/execution-loop.md; then
+if [[ ! -f setup/shared/execution-loop.md ]]; then
+    warn "Missing template file: setup/shared/execution-loop.md"
+    template_errors=1
+elif ! grep -Fq "generated from \`docs/system-spec.md\`" setup/shared/execution-loop.md; then
     warn "setup/shared/execution-loop.md should note it is generated from docs/system-spec.md"
     template_errors=1
 fi
 
-if ! grep -Fq 'Active Skills (5 + dispatcher)' workflow/skills/README.md; then
+if [[ ! -f workflow/skills/README.md ]]; then
+    warn "Missing template file: workflow/skills/README.md"
+    template_errors=1
+elif ! grep -Fq 'Active Skills (5 + dispatcher)' workflow/skills/README.md; then
     warn "workflow/skills/README.md should keep the canonical active skills header"
     template_errors=1
 fi
 
-if ! grep -Fq 'category: verification' workflow/evaluation/lessons.md; then
+if [[ ! -f workflow/evaluation/lessons.md ]]; then
+    warn "Missing template file: workflow/evaluation/lessons.md"
+    template_errors=1
+elif ! grep -Fq 'category: verification' workflow/evaluation/lessons.md; then
     warn "workflow/evaluation/lessons.md should describe the category-bucket format"
     template_errors=1
 fi
 
-if ! grep -Fq 'category: hooks' workflow/evaluation/footguns.md; then
+if [[ ! -f workflow/evaluation/footguns.md ]]; then
+    warn "Missing template file: workflow/evaluation/footguns.md"
+    template_errors=1
+elif ! grep -Fq 'category: hooks' workflow/evaluation/footguns.md; then
     warn "workflow/evaluation/footguns.md should describe the category-bucket format"
     template_errors=1
 fi

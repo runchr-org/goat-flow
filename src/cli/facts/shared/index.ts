@@ -79,8 +79,8 @@ function extractDecisionsFacts(
   for (const f of files) {
     const content = fs.readFile(`${path}/${f}`);
     if (!content) continue;
-    const hasContext = /^## Context\s*\n(.{50,})/m.test(content);
-    const hasDecision = /^## Decision\s*\n(.{50,})/m.test(content);
+    const hasContext = /^## Context\s*\n([\s\S]{50,}?)(?=^## |$)/m.test(content);
+    const hasDecision = /^## Decision\s*\n([\s\S]{50,}?)(?=^## |$)/m.test(content);
     const startsWithTodo =
       /^## (?:Context|Decision)\s*\n\s*(?:TODO|TBD)/im.test(content);
     if (hasContext && hasDecision && !startsWithTodo) {
