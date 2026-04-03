@@ -43,18 +43,27 @@ Also use for reviewing instruction files for staleness - see modes below.
 3. <!-- ADAPT: "Is this responding to external feedback? (Copilot, another agent, team review)" -->
 4. Riskiest change first, or full sweep?
 
-**Auto-detect:** Read `git diff --stat` to pre-fill scope. Present: "I see
-[N] files changed in [areas]. Reviewing [scope]. Correct?"
+**Auto-detect mode (unless user explicitly specifies):**
 
-**Mode routing:**
-- If target is **instruction files** → activate Instruction Review Mode.
-- If target is a **codebase area** (not a specific diff) → activate Audit Mode.
-- Otherwise → standard diff review (Phases 0-4 below).
+Scope detection priority: (1) explicit user input, (2) staged changes to target, (3) unstaged changes to target, (4) git diff. If user names a specific file, use THAT — not the full worktree diff. If worktree is very dirty (20+ changed files), ask user to specify scope.
+
+- User names a diff/PR/commits → **Standard mode** (Phases 0-4)
+- User names a file AND `git diff --stat` shows changes to it → **Standard mode**
+- User names a file AND no changes exist → **Audit mode** (Phases A1-A3)
+- Target is **instruction files** → **Instruction mode** (Phases 1i-3i)
+- Goal is **readability/cleanup** → **Simplify mode** (Phases S1-S4)
+- User explicitly says "audit" or "standard" → respect override
 
 If `ai/coding-standards/code-review.md` exists, load it and apply project-specific
 review standards alongside these defaults.
 
 **Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+
+**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
+- "hotfix" but 5+ files affected → likely Standard or System
+- "small feature" but crosses 3+ boundaries → likely System
+- "quick test" but 20+ functions in target → warn scope is larger than implied
+Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 **Before proceeding:** present what you know and what you still need. Wait for the user to confirm scope, mode, and concerns before entering Phase 1.
 

@@ -34,15 +34,26 @@ Use when reviewing code, auditing quality, checking instruction files, or improv
 1. What should I review? (PR, commits, files, area, instruction files, readability)
 2. Any specific concerns? (performance, security, tricky area, instruction drift)
 
-**Mode routing:**
-- Target is a **PR/diff/commits** → Standard mode (Phases 0-4)
-- Target is a **codebase area** (not a specific diff) → Audit mode (Phases A1-A3)
-- Target is **instruction files** (CLAUDE.md, AGENTS.md, ai/coding-standards/) → Instruction mode (Phases 1i-3i)
-- Goal is **readability/naming/cleanup** → Simplify mode (Phases S1-S4)
+**Auto-detect mode (unless user explicitly specifies):**
+
+Scope detection priority: (1) explicit user input, (2) staged changes to target, (3) unstaged changes to target, (4) git diff. If user names a specific file, use THAT — not the full worktree diff. If worktree is very dirty (20+ changed files), ask user to specify scope.
+
+- User names a diff/PR/commits → **Standard mode** (Phases 0-4)
+- User names a file AND `git diff --stat` shows changes to it → **Standard mode**
+- User names a file AND no changes exist → **Audit mode** (Phases A1-A3)
+- Target is **instruction files** (CLAUDE.md, AGENTS.md, ai/coding-standards/) → **Instruction mode** (Phases 1i-3i)
+- Goal is **readability/naming/cleanup** → **Simplify mode** (Phases S1-S4)
+- User explicitly says "audit" or "standard" → respect override
 
 If `ai/coding-standards/code-review.md` exists, load and apply project-specific standards.
 
 **Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+
+**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
+- "hotfix" but 5+ files affected → likely Standard or System
+- "small feature" but crosses 3+ boundaries → likely System
+- "quick test" but 20+ functions in target → warn scope is larger than implied
+Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 **Before proceeding:** present scope, mode, and concerns. Wait for confirmation.
 

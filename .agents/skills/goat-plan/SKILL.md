@@ -28,7 +28,8 @@ Use before non-trivial implementation or cross-file restructuring.
 
 **Complexity routing (plan mode):**
 - **Hotfix** → Phase 1 brief only (3-5 lines), skip Phases 2-4
-- **Standard** → Phase 1 brief + Phase 4 milestones. MAY skip Phase 2-3.
+- **Small Feature** → Phase 1 compressed brief (Problem/Solution/Scope/Success all at once), skip Phases 2-3, 1-2 milestones max
+- **Standard** → Phase 1 brief + Phase 4 milestones. SHOULD skip Phase 2-3 (only use if approach is genuinely uncertain).
 - **System** → Full 4-phase process with human gates
 - **Infrastructure** → Full process + rollback planning
 
@@ -56,6 +57,12 @@ Check staleness: `git log --since="2 weeks ago" -- [artifact]`.
 
 **Kill criteria (surface early):** "What would make us abandon this entirely?"
 
+**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
+- "hotfix" but 5+ files affected → likely Standard or System
+- "small feature" but crosses 3+ boundaries → likely System
+- "quick test" but 20+ functions in target → warn scope is larger than implied
+Surface the mismatch, suggest re-classification. Don't silently proceed.
+
 **Before proceeding:** present mode, scope, constraints, kill criteria. Wait for confirmation.
 
 ---
@@ -77,11 +84,11 @@ Walk through each section ONE AT A TIME. Do NOT dump all at once.
 
 **BLOCKING GATE:** "Approve brief, or adjust?"
 
-### Phase 2 - Mob Elaboration
+### Phase 2 - Mob Elaboration (skip for Hotfix/Small Feature/Standard — only for System/Infrastructure)
 
 Generate 3-5 sharp questions. **Do NOT answer your own questions.** Wait for the user. Repeat until "locked in" or 3 rounds.
 
-### Phase 3 - Triangular Tension Analysis
+### Phase 3 - Triangular Tension Analysis (skip for Hotfix/Small Feature/Standard — only for System/Infrastructure)
 
 2-3 competing approaches evaluated from:
 - **SKEPTIC:** What could go wrong? What are we assuming?
@@ -104,6 +111,20 @@ Each milestone: deliverable, exit criteria, kill criteria, depends on.
 After each milestone, re-read and rewrite the NEXT milestone based on learnings.
 
 **BLOCKING GATE:** "Approve and start implementing?"
+### Phase 5 - Execute (per milestone, only if user approved implementation)
+
+Only triggers when the user's intent was "build/create/implement" — NOT when intent was "plan/design/architect."
+If user explicitly says "just plan, don't implement" → skip Phase 5 entirely.
+
+For each milestone:
+1. Confirm: "Ready to start implementing Milestone N?"
+2. Implement the deliverable
+3. **CHECKPOINT:** "Milestone N complete. [summary of changes]. Continue to next?"
+4. Run milestone exit criteria
+5. Re-read and revise next milestone based on learnings
+
+Two-corrections rule applies. If stuck → write `.goat-flow/tasks/handoff.md`.
+
 
 ---
 

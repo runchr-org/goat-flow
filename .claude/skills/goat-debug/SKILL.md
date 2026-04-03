@@ -44,9 +44,25 @@ Use when diagnosing a bug, understanding unfamiliar code, or onboarding to a new
 - Explore/understand/how does/new to → Investigate mode
 - Onboard/new project/set up instructions → Onboard mode
 
+**Bug-type routing (diagnose mode only):**
+- Deterministic bug (always reproduces, same input → same output) → read error, trace to root cause
+- Intermittent bug (race condition, timing, flaky) → add observability first, reproduce under controlled conditions
+
+**Layer list for tracing:**
+- Backend (API, services, database, queue)
+- Frontend / Browser (JavaScript, DOM, EventSource, WebSocket)
+- Infrastructure (Docker, config, environment, deploy)
+- Cross-process boundaries (PHP → Python → Mercure → Browser)
+
 **Auto-detect:** Read the error message or target if provided inline. Confirm before proceeding.
 
 **Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+
+**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
+- "hotfix" but 5+ files affected → likely Standard or System
+- "small feature" but crosses 3+ boundaries → likely System
+- "quick test" but 20+ functions in target → warn scope is larger than implied
+Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 **Before proceeding:** present what you know, the selected mode, and what you still need. Wait for user to confirm.
 
@@ -82,9 +98,12 @@ Present findings:
 
 **BLOCKING GATE:** Present diagnosis. Offer:
 (a) investigate deeper
-(b) propose a fix plan
-(c) this matches a known issue - close
+(b) propose a fix plan (→ Phase D3)
+(c) this matches a known issue — close
 (d) switch to investigate mode for deeper exploration
+(e) just report findings — don't fix (stop here)
+
+If the user's original intent was "just diagnose" or "investigate" (no implementation verbs), default to (e).
 
 ### Phase D3 - Fix Plan
 

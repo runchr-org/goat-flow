@@ -18,19 +18,24 @@ The other 5 skills remain directly invocable. `/goat` is a convenience layer, no
 
 ## Intent Mapping
 
-| If the input mentions... | Route to | Mode |
-|--------------------------|----------|------|
-| bug, error, broken, crash, exception, symptom, trace | **/goat-debug** | Diagnose |
-| understand, explore, how does, new to this, onboard | **/goat-debug** | Investigate / Onboard |
-| review, PR, diff, merge, check changes, code review | **/goat-review** | Standard |
-| audit, quality sweep, instruction staleness | **/goat-review** | Audit / Instruction |
-| simplify, readability, clean up, naming, messy | **/goat-review** | Simplify |
-| security, vulnerability, CVE, auth bypass, injection, OWASP | **/goat-security** | Threat model |
-| HIPAA, GDPR, PHI, compliance, regulation | **/goat-security** | Compliance |
-| dependencies, CVEs, outdated packages, supply chain | **/goat-security** | Dependency audit |
-| plan, design, feature, architect, build (new thing) | **/goat-plan** | Plan |
-| rename, move, extract, restructure, refactor, cross-file | **/goat-plan** | Refactor |
-| test, testing, verification, coverage, test plan | **/goat-test** | — |
+| If the input mentions... | Route to | Mode | Edits code? |
+|--------------------------|----------|------|-------------|
+| understand, explore, how does, onboard, explain | **/goat-debug** | Investigate | No (read-only) |
+| what's causing, diagnose, why is, symptom, trace | **/goat-debug** | Diagnose | No (read-only) |
+| fix, change, update (specific bug) | **/goat-debug** | Diagnose → Implement | Yes (after diagnosis + approval) |
+| review, PR, diff, merge, check changes | **/goat-review** | Auto-detect (Standard/Audit) | No (read-only) |
+| audit, quality sweep, instruction staleness | **/goat-review** | Audit / Instruction | No (read-only) |
+| simplify, readability, clean up, naming, messy | **/goat-review** | Simplify | No (read-only, suggests) |
+| security, vulnerability, CVE, auth bypass, OWASP | **/goat-security** | Threat model | No (read-only) |
+| HIPAA, GDPR, PHI, compliance, regulation | **/goat-security** | Compliance | No (read-only) |
+| dependencies, CVEs, outdated packages | **/goat-security** | Dependency audit | No (read-only) |
+| plan, design, architect | **/goat-plan** | Plan | No (read-only) |
+| build, create, implement (new thing) | **/goat-plan** | Plan → Execute | Yes (after plan + approval) |
+| rename, move, extract, restructure, refactor | **/goat-plan** | Refactor | Yes (after plan + approval) |
+| test, testing, verification, coverage | **/goat-test** | Auto-detect (Standard/Audit) | No (read-only) |
+
+**Investigation verbs** (understand, explain, diagnose, review, plan) → read-only mode. Skills stop at findings.
+**Implementation verbs** (fix, build, change, create, implement) → carry through to implementation after the read-only phase completes and user approves.
 
 ## Disambiguation
 
@@ -54,6 +59,9 @@ Do NOT guess when ambiguous. One clarification question is faster than loading t
 | "help with the migration" | plan vs plan(refactor) vs debug | Ask: "Planning it, executing a restructure, or fixing a failing one? Or tell me more." |
 | "this code is bad" | review vs review(simplify) vs debug | Ask: "Is it broken, hard to read, or low quality? Or tell me more." |
 | "analyse/evaluate/critique a plan" | review vs plan | Ask: "Find problems in the plan (review), or sharpen and improve it (plan)? Or tell me more." |
+| "the login is broken" | investigate vs fix | Ask: "Do you want me to investigate this or fix it?" |
+| "this code is messy" | review vs simplify vs refactor | Ask: "Review for quality, clean up readability, or plan a restructure?" |
+| "we need tests" | test plan vs write tests | Ask: "Generate a test plan, or write the tests?" |
 
 **Target-aware disambiguation:** If the input references a file path, check the path for context:
 - Path contains `roadmap`, `plan`, `todo`, `milestone` → disambiguate between goat-review and goat-plan
@@ -75,6 +83,17 @@ If the user types just `/goat` with no arguments:
 > - `/goat check for CVEs` → security (dependency audit)
 >
 > Or describe what you're working on and I'll route you."
+
+## Simple Questions (escape hatch)
+
+If the input is a simple factual question (no action verbs, question mark present, asking about facts/structure), **answer directly** without routing to a skill.
+
+Examples:
+- "What checks does the scanner run?" → just answer from knowledge
+- "How many skills are there?" → "5 skills + dispatcher"
+- "Where are the footguns stored?" → "docs/footguns/"
+
+Do NOT route factual questions to goat-debug investigate mode — that's heavyweight for a 1-line answer.
 
 ## Override
 

@@ -18,7 +18,7 @@ The other 5 skills remain directly invocable. `/goat` is a convenience layer, no
 
 ## Intent Mapping
 
-| If the input mentions... | Route to | Mode |
+| If the input mentions... | Route to | Mode | Edits code? |
 |--------------------------|----------|------|
 | bug, error, broken, crash, exception, symptom, trace | **/goat-debug** | Diagnose |
 | understand, explore, how does, new to this, onboard | **/goat-debug** | Investigate / Onboard |
@@ -75,6 +75,10 @@ If the user types just `/goat` with no arguments:
 > - `/goat check for CVEs` → security (dependency audit)
 >
 > Or describe what you're working on and I'll route you."
+
+## Simple Questions (escape hatch)
+
+If the input is a simple factual question, answer directly without routing to a skill.
 
 ## Override
 

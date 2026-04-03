@@ -116,6 +116,19 @@ If 10+ tool calls pass without a human gate or checkpoint (Hotfix/Small Feature:
 The counter resets at every BLOCKING GATE, CHECKPOINT, or human message.
 `.goat-flow/tasks/handoff.md` is transient - do not commit it.
 
+## Recovery
+
+When a skill fails mid-execution (context limit, sub-agent dies, tool error):
+
+| Situation | Action |
+|-----------|--------|
+| Partial completion | Identify last completed step (last `[x]` checkbox), resume from next |
+| Missing artifacts | Return to the step that generates them, re-execute |
+| User wants restart | Archive current output to handoff, re-run from Step 0 |
+| User wants to skip | Document skip reason in output, proceed to closing |
+
+In sub-agent/autonomous mode, recovery is especially critical — there's no human to ask "what now?" Write `.goat-flow/tasks/handoff.md` with enough context to resume.
+
 ## Working Memory
 
 For tasks exceeding 5 turns within this skill:

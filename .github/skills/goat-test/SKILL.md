@@ -41,7 +41,7 @@ Phase 1 only + abbreviated Phase 3 (1-2 manual checks). Skip Phase 2.
 ## Step 0 - Gather Context
 
 **Structural questions (always ask or confirm):**
-1. What changed? (feature, fix, refactor - auto-detect from `git diff --stat`)
+1. What to test? (recent changes, specific module, coverage gaps)
 2. What's the risk level? (Hotfix / Standard / System)
 
 **Auto-detect:** Read `git diff --stat` and present: "[N] files changed in [areas].
@@ -51,6 +51,12 @@ Correct?"
 **Pattern read:** Before generating test instructions, read 1-2 existing test files in the affected area. Match the project's assertion style, selector patterns, and fixture conventions exactly. Generate tests that look like the ones already there - not textbook examples.
 
 **Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the changed area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant to your test plan?"
+
+**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
+- "hotfix" but 5+ files affected → likely Standard or System
+- "small feature" but crosses 3+ boundaries → likely System
+- "quick test" but 20+ functions in target → warn scope is larger than implied
+Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 **Before proceeding:** present what you know (what changed, risk level, test stack) and what you still need. Wait for the user to confirm before entering Phase 0.
 
