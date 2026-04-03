@@ -12,7 +12,9 @@ goat-flow-skill-version: "0.10.0"
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
 - **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect.
+- **Ceremony:** Hotfix/Small Feature → skip closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3. Standard → full phases. System/Infrastructure → full + cross-boundary verification. Sub-agent mode → GATEs become CHECKPOINTs automatically.
+- **Footgun fast-path:** If Step 0 footgun check matches a known trap, surface it immediately and offer the mitigation path. Still require READ + VERIFY on actual files — footguns are incident records, not executable specs.
+- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect. (Skip for Hotfix/Small Feature.)
 - **Learning Loop:** Behavioural mistake → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai/lessons/` or `.goat-flow/lessons/`. Architectural trap → add a `## Footgun:` entry to the relevant category bucket in `docs/footguns/` or `.goat-flow/footguns/`.
 - **Closing:** If incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`. Suggest next skill.
 
@@ -54,11 +56,9 @@ Use when diagnosing a bug, understanding unfamiliar code, or onboarding to a new
 
 ### Phase D1 - Investigate (no fixes)
 
-**RECURRENCE CHECK:** Before investigating, search `docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, `.goat-flow/lessons/`, and `ai/evals/` for the symptom, file path, or module name.
+(Recurrence check already done in Step 0 — do not repeat here.)
 
-If a match is found, present it first: "This area has a known issue: [footgun]. Is this the same problem?"
-
-**HYPOTHESIS TRACKING:** After reading Step 0 context but BEFORE tracing code, write 2-3 hypotheses. Hypotheses MUST span at least 2 categories:
+**HYPOTHESIS TRACKING:** After initial read of the primary file, write 2-3 hypotheses. Hypotheses MUST span at least 2 categories:
 - Data (wrong input, missing field, encoding)
 - Logic (off-by-one, wrong condition, fence-post error)
 - Timing (race condition, async ordering, timeout)
@@ -172,7 +172,7 @@ Present: "This project uses [languages] with [frameworks]. Build: [cmd], Test: [
 
 Conversational: present findings by severity tier, pause between tiers. Let the human drill in.
 
-- MUST write hypotheses BEFORE tracing code (diagnose mode)
+- MUST write hypotheses AFTER initial read of the primary file (diagnose mode)
 - MUST include at least 2 hypothesis categories (diagnose mode)
 - MUST NOT propose fixes until human reviews diagnosis (D2→D3 gate)
 - MUST declare scope before deep reading (investigate mode)

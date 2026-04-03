@@ -15,7 +15,7 @@
     /* Pointer cursor for all interactive elements */
     button, select, summary, label, [role="button"] { cursor: pointer; }
     /* xterm.js container */
-    .terminal-container { width: 100%; height: calc(100vh - 8rem); }
+    .terminal-container { width: 100%; height: 100%; }
     .terminal-container .xterm { height: 100%; }
     .terminal-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); z-index: 10; border-radius: 0.75rem; }
     /* Dark mode fallback - if Tailwind dark: variant doesn't process, these catch it */
@@ -277,6 +277,16 @@
         </div>
       </div>
       <div x-show="terminalAvailable">
+      <!-- No session placeholder -->
+      <div x-show="!terminalSessionId" class="flex items-center justify-center" style="height: calc(100vh - 12rem)">
+        <div class="text-center space-y-3">
+          <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <p class="text-sm text-gray-400 dark:text-gray-500">No active terminal session</p>
+          <p class="text-xs text-gray-400 dark:text-gray-500">Click <strong>Launch</strong> on a prompt, or use <strong>Run Setup</strong> in the Launcher.</p>
+        </div>
+      </div>
+      <!-- Active session -->
+      <div x-show="terminalSessionId">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-3">
           <h2 class="text-lg font-bold">Terminal</h2>
@@ -288,22 +298,23 @@
         <div class="flex items-center gap-2">
           <span class="text-xs text-gray-400 dark:text-gray-500">Ctrl+Shift+D to exit</span>
           <button @click="exitTerminal()" class="px-3 py-1 text-xs font-medium rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-            Back to Launcher
+            End Session
           </button>
         </div>
       </div>
-      <div class="relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-black">
+      <div class="relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-black" style="height: calc(100vh - 12rem)">
         <div x-ref="terminalContainer" class="terminal-container"></div>
         <!-- Ended overlay -->
         <div x-show="terminalEnded" class="terminal-overlay">
           <div class="text-center space-y-3">
             <p class="text-white text-lg font-semibold">Session ended</p>
             <button @click="exitTerminal()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
-              Return to Launcher
+              New Session
             </button>
           </div>
         </div>
       </div>
+      </div><!-- /terminalSessionId -->
       </div><!-- /terminalAvailable -->
     </div>
 
@@ -1090,7 +1101,7 @@ function app() {
       this.terminalSessionId = null;
       this.terminalConnected = false;
       this.terminalEnded = false;
-      this.activeView = 'launcher';
+      // Stay in current view — don't switch to launcher. User sees the "no session" placeholder.
     },
 
     // ── Check Filtering ────────────────────────────────────────────

@@ -87,9 +87,29 @@ If 3 consecutive file reads produce no new signal relevant to the current questi
 2. State what you were looking for and didn't find
 3. Ask the human to redirect, narrow scope, or close
 
+## Ceremony Level
+
+Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
+
+| Complexity | Ceremony |
+|------------|----------|
+| Hotfix / Small Feature | Skip: closing ceremony, flush rule, footgun MATCH/CLEAR annotations. Skip goat-plan Phases 2-3. |
+| Standard | Full phases, gates at major decisions. |
+| System / Infrastructure | Full phases + cross-boundary verification + rollback planning. |
+
+**Sub-agent mode:** When invoked as a sub-agent (forked context), BLOCKING GATEs automatically become CHECKPOINTs (logged, not paused). Step 0 proceeds with auto-detected scope.
+
+## Footgun Fast-Path
+
+If Step 0's footgun check produces a direct match with a documented trap:
+1. Surface the match immediately: "This matches known footgun X."
+2. Offer the standard mitigation path from the footgun entry
+3. Still require READ and VERIFY on the actual target files — footguns are incident records, not executable specs
+4. Do NOT skip straight to implementation based on a footgun match alone
+
 ## Flush Protocol
 
-If 10+ tool calls pass without a human gate or checkpoint, STOP:
+If 10+ tool calls pass without a human gate or checkpoint (Hotfix/Small Feature: skip this rule):
 1. Write a 3-sentence status to `.goat-flow/tasks/handoff.md` (what you're doing, where you are, what's next)
 2. Ask the user: continue, compact, or redirect?
 
