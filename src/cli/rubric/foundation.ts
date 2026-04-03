@@ -796,6 +796,35 @@ export const foundationChecks: CheckDef[] = [
       'Fix .goat-flow/config.yaml so it parses and validates cleanly',
     recommendationKey: 'fix-goat-flow-config',
   },
+  {
+    id: '1.5.7',
+    name: '.goat-flow/config.local.yaml exists',
+    tier: 'foundation',
+    category: 'Project Config',
+    pts: 1,
+    confidence: 'high',
+    detect: {
+      type: 'custom',
+      fn: (ctx: FactContext): CheckResult => {
+        const exists = ctx.facts.shared.config.configLocalExists;
+        return {
+          id: '1.5.7',
+          name: '.goat-flow/config.local.yaml exists',
+          tier: 'foundation',
+          category: 'Project Config',
+          status: exists ? 'pass' : 'fail',
+          points: exists ? 1 : 0,
+          maxPoints: 1,
+          confidence: 'high',
+          message: exists
+            ? '.goat-flow/config.local.yaml exists (gitignored local overrides)'
+            : '.goat-flow/config.local.yaml not found. Create it for personal overrides (persona, paths). This file is gitignored.',
+        };
+      },
+    },
+    recommendation: 'Create `.goat-flow/config.local.yaml` for personal overrides. Example: `persona: investigator` for read-only mode.',
+    recommendationKey: 'create-config-local',
+  },
 ];
 
 /**

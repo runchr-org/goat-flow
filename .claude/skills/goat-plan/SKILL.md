@@ -117,9 +117,11 @@ After each milestone, re-read and rewrite the NEXT milestone based on learnings.
 Only triggers when the user's intent was "build/create/implement" — NOT when intent was "plan/design/architect."
 If user explicitly says "just plan, don't implement" → skip Phase 5 entirely.
 
+**Context isolation:** If the agent supports `context: fork`, run each milestone's implementation in an isolated subagent context. The main session only sees the resulting diff, not the trial-and-error reasoning. This achieves real doer-verifier separation — the implementation context is genuinely independent from the planning context.
+
 For each milestone:
 1. Confirm: "Ready to start implementing Milestone N?"
-2. Implement the deliverable
+2. Implement the deliverable (in forked context if available)
 3. **CHECKPOINT:** "Milestone N complete. [summary of changes]. Continue to next?"
 4. Run milestone exit criteria
 5. Re-read and revise next milestone based on learnings

@@ -18,6 +18,12 @@ skills:
     - goat-security
     - goat-test
 
+# ── Persona ────────────────────────────────────
+# developer (default): full access — investigate, plan, AND implement
+# investigator: read-only — investigate, plan, review only. No code changes.
+# Override locally in .goat-flow/config.local.yaml (gitignored).
+persona: developer
+
 # ── Scanner Thresholds ──────────────────────────
 # Adjust for project complexity:
 #   Small CLI: target 80, limit 120

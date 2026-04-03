@@ -691,7 +691,7 @@ export const standardChecks: CheckDef[] = [
     name: 'Skills are conversational',
     tier: 'standard',
     category: 'Skills',
-    pts: 1,
+    pts: 0, // Deprecated: "conversational" is unverifiable. Skills with choices/gates are already checked by 2.1.13 + 2.1.18.
     confidence: 'medium',
     detect: {
       type: 'custom',
@@ -938,7 +938,7 @@ export const standardChecks: CheckDef[] = [
     name: 'Skills have Shared Conventions block',
     tier: 'standard',
     category: 'Skills',
-    pts: 1,
+    pts: 0, // Deprecated: 5 critiques called this "copy-paste debt." Skills are self-contained.
     confidence: 'medium',
     detect: {
       type: 'custom',

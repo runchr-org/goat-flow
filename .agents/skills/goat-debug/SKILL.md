@@ -109,6 +109,8 @@ Only if human approved. Propose:
 - **Blast radius:** what else could break
 - **Verification:** how to confirm the fix worked
 
+**Context isolation:** If the agent supports `context: fork`, run the implementation in an isolated subagent context. The main session only sees the resulting diff.
+
 If approved → implement, then Phase D4.
 
 ### Phase D4 - Post-Fix Verification

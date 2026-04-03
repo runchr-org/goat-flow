@@ -107,12 +107,14 @@ If the user's original intent was "just diagnose" or "investigate" (no implement
 
 ### Phase D3 - Fix Plan
 
-Only if human approved. Propose:
+Only if human approved (option b from D2 gate). Propose:
 - **What changes:** specific files and functions
 - **Blast radius:** what else could break
 - **Verification:** how to confirm the fix worked
 
-If approved → implement, then Phase D4.
+**Context isolation:** If the agent supports `context: fork`, run the implementation in an isolated subagent context. The main session only sees the resulting diff, not the trial-and-error. This achieves real doer-verifier separation.
+
+If approved → implement (in forked context if available), then Phase D4.
 
 ### Phase D4 - Post-Fix Verification
 

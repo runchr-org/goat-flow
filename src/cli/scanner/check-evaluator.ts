@@ -284,7 +284,7 @@ function formatLineCountResult(
       status: 'partial',
       points: partialPts,
       maxPoints: pts,
-      message: `${lineCount} lines (under ${failThreshold} limit but over ${passThreshold} target)`,
+      message: `${lineCount} lines found. Expected at or under ${passThreshold}; currently still under the ${failThreshold}-line hard limit. Trim ${lineCount - passThreshold} lines to get back under target.`,
       evidence,
     };
   }
@@ -357,8 +357,8 @@ function evalGrep(
     points: match ? pts : 0,
     maxPoints: pts,
     message: match
-      ? `Pattern found: /${detect.pattern}/`
-      : `Pattern not found: /${detect.pattern}/`,
+      ? `${base.name} present in ${resolvePath(detect.path, ctx)}`
+      : `${base.name} not found. Expected pattern: /${detect.pattern}/ in ${resolvePath(detect.path, ctx)}`,
     evidence: detect.section
       ? `${resolvePath(detect.path, ctx)} [${detect.section}]`
       : resolvePath(detect.path, ctx),

@@ -229,7 +229,36 @@ skills:
   install: all
 \`\`\`
 
-If you want auto-detection, omit \`agents\`. If multiple agents are installed, list them explicitly.`,
+If you want auto-detection, omit \`agents\`. If multiple agents are installed, list them explicitly.
+
+Also create \`.goat-flow/config.local.yaml\` (gitignored — personal overrides):
+
+\`\`\`yaml
+# Local overrides — this file is gitignored.
+# Values here merge on top of config.yaml.
+# Uncomment and edit as needed.
+
+# persona: investigator
+\`\`\`
+
+Ensure \`.goat-flow/config.local.yaml\` is gitignored (the default \`.goat-flow/.gitignore\` pattern \`*\` handles this).`,
+  },
+  {
+    key: 'create-config-local',
+    phase: 'foundation',
+    category: 'Project Config',
+    kind: 'fix',
+    instruction: `Create \`.goat-flow/config.local.yaml\` for personal overrides (gitignored):
+
+\`\`\`yaml
+# Local overrides — this file is gitignored.
+# Values here merge on top of config.yaml.
+# Uncomment and edit as needed.
+
+# persona: investigator
+\`\`\`
+
+This file is automatically gitignored by the \`.goat-flow/.gitignore\` pattern.`,
   },
   {
     key: 'fix-goat-flow-config',

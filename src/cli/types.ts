@@ -251,6 +251,7 @@ export interface SharedFacts {
     errorCount: number;
     parseError: string | null;
     lineLimits: { target: number; limit: number };
+    configLocalExists: boolean;
   };
   architecture: { exists: boolean; lineCount: number };
   evals: {
