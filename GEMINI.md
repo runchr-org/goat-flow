@@ -67,6 +67,7 @@ GOOD: Inline format. Extract when second format needed
 | `ai/lessons/` or `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
 | `docs/footguns/` or `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
 | `ai/decisions/` | Significant technical decision with context/rationale |
+| `.goat-flow/logs/sessions/` | End of every significant session — `YYYY-MM-DD-slug.md` summary |
 
 ## Autonomy Tiers
 
@@ -116,5 +117,6 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 | Evals | `ai/evals/` |
 | Coding standards | `ai/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
+| Session logs | `.goat-flow/logs/sessions/` |
 | Local workspace | `.goat-flow/tasks/`, `.goat-flow/logs/` |
 <!-- goat-flow:router:end -->

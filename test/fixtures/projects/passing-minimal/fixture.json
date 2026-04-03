@@ -1,0 +1,11 @@
+{
+  "agentFilter": "claude",
+  "expected": {
+    "claude": {
+      "percentage": 100,
+      "grade": "A",
+      "failedChecks": [],
+      "triggeredAntiPatterns": []
+    }
+  }
+}

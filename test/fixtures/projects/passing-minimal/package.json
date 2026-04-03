@@ -1,0 +1,12 @@
+{
+  "name": "passing-minimal-fixture",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "lint": "eslint .",
+    "format": "prettier --write . && shfmt -w scripts/*.sh .claude/hooks/*.sh"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

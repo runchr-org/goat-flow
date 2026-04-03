@@ -45,8 +45,8 @@ These files are created regardless of which agent you use. They form the learnin
    work or two-correction stop), when to read (start of every session,
    check if .goat-flow/tasks/handoff.md exists), and how to use (copy template
    to .goat-flow/tasks/handoff.md, fill in). Sections: Date, Status, Current
-   State (including files changed), Key Decisions, Known Risks,
-   Next Step.
+   State (including files changed), Key Decisions, Errors & Corrections,
+   Learnings, Known Risks, Next Step, Context Files.
 
 4. .goat-flow/tasks/.gitignore - Ignore runtime working files:
    todo.md

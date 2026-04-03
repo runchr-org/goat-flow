@@ -178,7 +178,7 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
       note: 'Under 100 lines',
     },
     {
-      output: 'tasks/handoff-template.md',
+      output: '.goat-flow/tasks/handoff-template.md',
       template: 'workflow/evaluation/handoff.md',
       phase: 'standard',
       note: 'Copy template',

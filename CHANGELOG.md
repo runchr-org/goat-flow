@@ -4,32 +4,48 @@
 
 ## v0.10.0 - 2026-04-03
 
-Execution-loop canonicalization, install-flow refinement, scanner UX, and preflight-unblocking refactors. Rubric v0.10.0: 103 checks + 18 anti-patterns. 282 tests.
+Execution-loop canonicalization, install-flow refinement, scanner UX, rubric fixtures, session logs, and preflight-unblocking refactors. Rubric v0.10.0: 104 checks + 18 anti-patterns. 285 tests.
 
 ### Install & Packaging
 - added `pnpm.onlyBuiltDependencies` for `node-pty` so pnpm installs can build the embedded terminal without manual manifest edits
-- README install matrix now documents tested npm, pnpm, yarn, and `npx @blundergoat/goat-flow@latest` behavior, plus the local `npx . scan .` path
+- README rewritten (177→121 lines): install matrix (npm/pnpm/yarn/global), troubleshooting section, simplified getting started
 - tightened pnpm `node-pty` guidance and Node runtime notes for dashboard/CLI usage
 
-### Scanner & Preflight
-- refactored high-complexity CLI paths in config parsing, stack detection, fact extraction, renderers, rubric checks, and scan evaluation to clear preflight complexity failures
+### Scanner & Rubric
+- refactored high-complexity CLI paths across 22 source files (45 violations → 0) to clear preflight complexity failures
 - hook registration checks now verify settings/config registration and expected script paths instead of treating hook files as sufficient
 - `ai/README.md` router validation now checks referenced paths, so broken local-instruction routers fail `2.6.2` instead of scoring 100%
+- new check `2.3.7`: verifies instruction file references session logs (`.goat-flow/logs/sessions/`)
+- replaced fixed read/turn budgets with 5-tier complexity model (Hotfix/Small Feature/Standard/System/Infrastructure) and 3x-estimate re-classification trigger; rubric check `1.2.2a` updated to validate new format
 - text and markdown scan output now group failures by severity, show fail/partial/pass summaries, and surface "Top N to fix first" diagnostic priorities
 - CI validation heuristics now inspect actual workflow `run:` commands instead of keyword presence
 
+### Test Infrastructure
+- added rubric regression fixture corpus: `passing-minimal` (100%), `passing-full` (100%), `failing-known` (expected failures for 2.2.3, 2.6.2)
+- new `test/fixtures/project-fixtures.test.ts` and `test/helpers/fixture-scanner.ts` for fixture-based rubric regression testing
+- 282 → 285 tests
+
 ### Dashboard & CLI UX
 - added first-run browser auto-open for `goat-flow dashboard` with persistent opt-out via `--no-open`
-- improved terminal-unavailable messaging and install guidance around `node-pty` and native build approval flows
+- terminal tab now shows explanation when node-pty missing (was hidden); CLI prints warning at startup
+- fix Ctrl+V paste in terminal (reads clipboard text, not raw \x16); Ctrl+C copies selection
+- fix preset Launch button to respect runner dropdown selection
+- added project identity: dynamic tab title, color accent stripe, project name in sidebar
+- added cursor:pointer on all interactive elements; ResizeObserver for terminal column-width fix
+- added targeted testing preset for risk-based QA plans from GitHub issues
+- added "Open Terminal" button on setup instructions page
 
 ### Execution Loop & Templates
 - made `docs/system-spec.md` canonical for the execution loop and reduced duplicate loop docs to compatibility pointers
-- replaced fixed read budgets with the 3x-estimate re-classification trigger and no-duplicate-file rule across runtime/setup docs
-- synced setup shared templates and workflow docs to the `5 skills + dispatcher` model and canonical loop wording
+- removed dead session-logging ritual from all skill closing protocols (proven never written by own lesson)
+- fixed template contradictions: skill count ("5 skills + dispatcher"), log paths, monolithic vs per-entry format
+- synced setup shared templates and workflow docs to canonical loop wording
+- added no-duplicate-file rule to CLAUDE.md Hard Rules and coding standards
 
-### Learning & Guardrails
-- removed obsolete session-logging ritual text from skill close steps and runtime reminders
-- added ADR-019 and new 2026-04-03 lessons/footguns covering critique handling, implementation-skill boundaries, changelog overwrite prevention, and scanner reliability traps
+### Learning & Session Logs
+- added session log path (`.goat-flow/logs/sessions/`) to all 3 instruction files, 20 skill files, workflow templates, and setup templates
+- improved handoff template: added Errors & Corrections, Learnings, and Context Files sections; now tracked in git
+- added ADR-019 (no-implementation-skill) and new 2026-04-03 lessons/footguns covering critique handling, doer-verifier theater, scanner reliability traps, and setup duplication
 - added regression fixtures for missing hook registration and broken `ai/README.md` routers
 
 ## v0.9.4 - 2026-04-02

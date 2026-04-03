@@ -152,6 +152,27 @@ auth, routing, deployment, API, DB
 Shared sourced files, CONFIGURATION
 `;
 
+const HANDOFF_TEMPLATE = `# Handoff Template
+
+## Date
+
+## Status
+
+## Current State
+
+## Key Decisions
+
+## Errors & Corrections
+
+## Learnings
+
+## Known Risks
+
+## Next Step
+
+## Context Files
+`;
+
 // Quality skill content for fixtures that expect high scores
 function qualitySkill(name: string): string {
   return `---
@@ -315,7 +336,7 @@ describe('Fixture 4: full-claude', () => {
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\necho "preflight"\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\necho "validate"\n',
     // Handoff
-    'tasks/handoff-template.md': '# Handoff Template\n',
+    '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     // Gitignore
     '.gitignore': '.env\nsettings.local.json\nnode_modules/\n',
     // Referenced router paths
@@ -379,7 +400,7 @@ describe('Fixture 5: full-multi-agent', () => {
     '.github/workflows/context-validation.yml': 'name: CV\non: [push, pull_request]\njobs:\n  v:\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\n',
-    'tasks/handoff-template.md': '# Handoff\n',
+    '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': '.env\nsettings.local.json\n',
   });
   const report = scanProject(fs, '/test/multi', { agentFilter: null });
@@ -545,7 +566,7 @@ describe('Fixture 9: allowed-missing (N/A checks)', () => {
     'docs/footguns/': '# Footguns\n\n- `src/a.ts:5` - evidence\n',
     'ai/lessons/': '# Lessons\n\n### E1\nStuff.\n',
     'docs/architecture.md': '# Arch\n\nOverview.\n',
-    'tasks/handoff-template.md': '# Handoff\n',
+    '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': '.env\nsettings.local.json\n',
   });
   const report = scanProject(fs, '/test/allowed-missing', { agentFilter: null });
@@ -742,7 +763,7 @@ describe('Fixture 10: self-goat-flow (score snapshot)', () => {
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\n',
     // Misc
-    'tasks/handoff-template.md': '# Handoff Template\n',
+    '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': '.env\nsettings.local.json\nnode_modules/\n',
     'docs/system-spec.md': '# System Spec\n',
     'CHANGELOG.md': '# Changelog\n',
@@ -834,7 +855,7 @@ GOOD: Inline format. Extract when second format needed
     'ai/evals/eval-9.md': '---\nname: eval-9\norigin: real-incident\nagents: all\nskill: goat\n---\n\n### Scenario\n\n```\nRoute intent\n```\n',
     '.github/workflows/context-validation.yml': 'name: Context Validation\non:\n  pull_request:\n    paths: [CLAUDE.md]\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\necho "preflight"\n',
-    'tasks/handoff-template.md': '# Handoff Template\n\n## Status\n\n## Current State\n\n## Key Decisions\n\n## Known Risks\n\n## Next Step\n',
+    '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': '.env\nsettings.local.json\nnode_modules/\n',
     'docs/system-spec.md': '# System Spec\n',
     'ai/README.md': '# Coding Guidelines\n\nSee [Conventions](ai/coding-standards/conventions.md) and [Code Review](ai/coding-standards/code-review.md).\n',

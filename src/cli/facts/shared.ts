@@ -101,7 +101,17 @@ interface RouterValidation {
 const CANONICAL_EVAL_SKILLS = ['goat', 'goat-debug', 'goat-review', 'goat-plan', 'goat-security', 'goat-test'];
 const CANONICAL_EVAL_SKILL_SET = new Set(CANONICAL_EVAL_SKILLS);
 const REQUIRED_GITIGNORE_ENTRIES = ['.env', 'settings.local.json'];
-const HANDOFF_SECTIONS = ['status', 'current state', 'key decisions', 'known risks', 'next step'];
+export const HANDOFF_SECTIONS = [
+  'date',
+  'status',
+  'current state',
+  'key decisions',
+  'errors & corrections',
+  'learnings',
+  'known risks',
+  'next step',
+  'context files',
+];
 
 function listMarkdownEntries(fs: ReadonlyFS, dir: string): EntryDir {
   const exists = fs.exists(dir);
@@ -502,7 +512,7 @@ function extractHandoffTemplateFacts(fs: ReadonlyFS): SharedFacts['handoffTempla
   return {
     exists: content !== null,
     sectionCount,
-    hasRequiredSections: sectionCount >= 5,
+    hasRequiredSections: sectionCount >= HANDOFF_SECTIONS.length,
   };
 }
 

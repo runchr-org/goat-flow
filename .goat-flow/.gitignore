@@ -1,5 +1,7 @@
-# Everything in .goat-flow/ is gitignored EXCEPT config.yaml
+# Everything in .goat-flow/ is gitignored EXCEPT config.yaml and tasks/handoff-template.md
 # config.yaml is committed — the whole team shares the same paths
+# handoff-template.md is committed — shared template for session handoffs
 *
 !.gitignore
 !config.yaml
+!tasks/

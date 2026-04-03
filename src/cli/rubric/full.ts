@@ -1,4 +1,5 @@
 import type { CheckDef, FactContext, CheckResult } from '../types.js';
+import { HANDOFF_SECTIONS } from '../facts/shared.js';
 
 // Confidence criteria:
 //   high   = deterministic (file exists, line count, JSON valid, exact match)
@@ -221,12 +222,12 @@ export const fullChecks: CheckDef[] = [
           maxPoints: 1,
           confidence: 'medium',
           message: hasRequiredSections
-            ? `Found ${sectionCount}/5 required sections`
-            : `Found ${sectionCount}/5 required sections`,
+            ? `Found ${sectionCount}/${HANDOFF_SECTIONS.length} required sections`
+            : `Found ${sectionCount}/${HANDOFF_SECTIONS.length} required sections`,
         };
       },
     },
-    recommendation: 'Add required sections to handoff template: Status, Current State, Key Decisions, Known Risks, Next Step',
+    recommendation: 'Add required sections to handoff template: Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files',
     recommendationKey: 'fix-handoff-sections',
   },
   // 3.3.2 (RFC 2119 keyword count) removed — incentivized keyword sprinkling, not meaningful usage.

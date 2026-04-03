@@ -52,6 +52,9 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
      - Human corrected agent behaviour → `ai/lessons/` entry IMMEDIATELY
      - Discovered architectural trap with file:line evidence → `docs/footguns/`
      Skip = DoD gate #4 blocks completion. This is not optional.
+     Session logs: write a summary to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`
+     at the end of every significant session. Include: what happened, files changed,
+     decisions made, errors, learnings, next steps.
      Dual-agent projects: learning loop files are shared. Read the
      current file before appending to avoid duplicating entries.
 

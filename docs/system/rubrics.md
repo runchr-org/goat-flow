@@ -204,7 +204,7 @@ Full-tier checks reward projects that have proven the workflow works: evals that
 | ID | Check | Pts | Why |
 |----|-------|-----|-----|
 | 3.3.1 | Handoff template exists | 1 | Without a template, handoffs vary in quality and are often skipped. |
-| 3.3.1a | Handoff template has required sections | 1 | Status, Current State, Key Decisions, Known Risks, Next Step - all five needed for useful handoff. |
+| 3.3.1a | Handoff template has required sections | 1 | Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, and Context Files keep resume quality high and reduce repeated mistakes. |
 | 3.3.2 | RFC 2119 language | 1 | MUST/SHOULD/MAY eliminates ambiguity about what is enforced vs. preferred. |
 | 3.3.4 | Execution loop consistent across agents | 2 | Diverged loops mean the same agent behaves differently depending on which runtime is used. |
 

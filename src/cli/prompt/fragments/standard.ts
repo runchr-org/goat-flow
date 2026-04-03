@@ -651,6 +651,21 @@ Every footgun entry MUST have at least one \`file:line\` reference.`,
 Bare claims without labels are not acceptable.`,
   },
   {
+    key: 'add-session-logs',
+    phase: 'standard',
+    category: 'Learning Loop',
+    kind: 'fix',
+    instruction: `Add session log path to the LOG step and router table in \`{{instructionFile}}\`:
+
+1. In the LOG step's "when to update" table, add:
+   \`| \`.goat-flow/logs/sessions/\` | End of every significant session — \`YYYY-MM-DD-slug.md\` summary |\`
+
+2. In the Router Table, add:
+   \`| Session logs | \`.goat-flow/logs/sessions/\` |\`
+
+Session logs capture what happened in a session so the next agent can pick up context. Format: \`YYYY-MM-DD-slug.md\` with sections for Current State, Decisions, Errors, Learnings, Next Steps.`,
+  },
+  {
     key: 'route-learning-loop',
     phase: 'standard',
     category: 'Router Table',

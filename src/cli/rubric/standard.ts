@@ -9,7 +9,7 @@ import { SKILL_NAMES } from '../constants.js';
 // Minimum ratio of skills passing a quality signal to award the point (80%)
 const SKILL_QUALITY_THRESHOLD = 0.8;
 
-function buildStandardCheckResult(
+function buildHooksCheckResult(
   id: string,
   name: string,
   status: CheckResult['status'],
@@ -535,15 +535,15 @@ export const standardChecks: CheckDef[] = [
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
         if (ctx.agentFacts.agent.id === 'codex') {
-          return buildStandardCheckResult('2.2.5g', 'Edit/Write deny mirrors Read deny for .env', 'na', 0, 0, 'medium', 'Codex uses execpolicy, not settings deny');
+          return buildHooksCheckResult('2.2.5g', 'Edit/Write deny mirrors Read deny for .env', 'na', 0, 0, 'medium', 'Codex uses execpolicy, not settings deny');
         }
         const denyPatterns = getDenyPatterns(ctx);
         if (denyPatterns === null) {
-          return buildStandardCheckResult('2.2.5g', 'Edit/Write deny mirrors Read deny for .env', 'na', 0, 0, 'medium', 'No deny patterns configured');
+          return buildHooksCheckResult('2.2.5g', 'Edit/Write deny mirrors Read deny for .env', 'na', 0, 0, 'medium', 'No deny patterns configured');
         }
         const { hasReadEnv, hasEditEnv, hasWriteEnv } = getEnvDenyCoverage(denyPatterns);
         if (!hasReadEnv) {
-          return buildStandardCheckResult('2.2.5g', 'Edit/Write deny mirrors Read deny for .env', 'na', 0, 0, 'medium', 'No Read deny for .env — check 2.2.5d covers this');
+          return buildHooksCheckResult('2.2.5g', 'Edit/Write deny mirrors Read deny for .env', 'na', 0, 0, 'medium', 'No Read deny for .env — check 2.2.5d covers this');
         }
         const pass = hasEditEnv && hasWriteEnv;
         return {
@@ -726,6 +726,14 @@ export const standardChecks: CheckDef[] = [
     },
     recommendation: 'Update or remove stale file path references in lesson entries',
     recommendationKey: 'fix-lesson-stale-refs',
+  },
+
+  {
+    id: '2.3.7', name: 'Session logs referenced', tier: 'standard', category: 'Learning Loop',
+    pts: 1, confidence: 'high',
+    detect: { type: 'grep', path: '{instruction_file}', pattern: 'logs/sessions|session.log|session.*summary' },
+    recommendation: 'Add session log path to the LOG step and router table: `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`',
+    recommendationKey: 'add-session-logs',
   },
 
   // === 2.4 Router Table (8 pts) ===

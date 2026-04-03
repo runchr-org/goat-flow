@@ -83,6 +83,27 @@ MUST confirm ALL: (1) shellcheck passes (2) no broken cross-references (3) no un
 | Architecture | \`docs/architecture.md\` |
 `;
 
+const HANDOFF_TEMPLATE = `# Handoff Template
+
+## Date
+
+## Status
+
+## Current State
+
+## Key Decisions
+
+## Errors & Corrections
+
+## Learnings
+
+## Known Risks
+
+## Next Step
+
+## Context Files
+`;
+
 function buildFullProject() {
   return createMockFS({
     'CLAUDE.md': FULL_CLAUDE_MD,
@@ -114,7 +135,7 @@ function buildFullProject() {
     '.github/workflows/context-validation.yml': 'name: CV\nsteps:\n  - run: wc -l\n  - run: check router\n  - run: check skills\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\n',
-    'tasks/handoff-template.md': '# Handoff\n',
+    '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': '.env\nsettings.local.json\n',
     'CHANGELOG.md': '# Changelog\n',
   });
@@ -158,7 +179,7 @@ function buildTargetedUpgradeProject(extraFiles: Record<string, string> = {}) {
     'docs/architecture.md': '# Architecture\n\nOverview.\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\n',
-    'tasks/handoff-template.md': '# Handoff\n',
+    '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': 'settings.local.json\n',
     ...extraFiles,
   });

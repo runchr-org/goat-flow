@@ -71,7 +71,10 @@ export class TestProject {
   }
 
   withHandoff(): this {
-    return this.withFile('tasks/handoff-template.md', '# Handoff Template\n');
+    return this.withFile(
+      '.goat-flow/tasks/handoff-template.md',
+      '# Handoff Template\n\n## Date\n\n## Status\n\n## Current State\n\n## Key Decisions\n\n## Errors & Corrections\n\n## Learnings\n\n## Known Risks\n\n## Next Step\n\n## Context Files\n',
+    );
   }
 
   create(): { root: string; cleanup: () => void } {

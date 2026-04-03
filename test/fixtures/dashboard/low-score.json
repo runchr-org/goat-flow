@@ -1302,8 +1302,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "tasks/handoff-template.md exists",
-          "evidence": "tasks/handoff-template.md",
+          "message": ".goat-flow/tasks/handoff-template.md exists",
+          "evidence": ".goat-flow/tasks/handoff-template.md",
           "recommendationKey": "create-handoff-template"
         },
         {
@@ -1315,7 +1315,7 @@
           "points": 1,
           "maxPoints": 1,
           "confidence": "medium",
-          "message": "Found 5/5 required sections",
+          "message": "Found 9/9 required sections",
           "recommendationKey": "fix-handoff-sections"
         },
         {

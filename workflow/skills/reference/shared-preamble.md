@@ -109,6 +109,6 @@ boundaries. If the proposed change crosses an Ask First boundary, flag it:
 ## Closing Protocol
 
 When the skill completes:
-1. If work is incomplete: write `.goat-flow/tasks/handoff.md` using the standard handoff template (Date, Status, Current State, Key Decisions, Known Risks, Next Step)
+1. If work is incomplete: write `.goat-flow/tasks/handoff.md` using the standard handoff template (Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files)
 2. Check the Learning Loop (above) for anything worth logging
 3. Suggest the most relevant next skill if applicable (see Chains With in each skill)
