@@ -1,3 +1,7 @@
+/**
+ * Core shared types for goat-flow.
+ * This file defines the scanner's domain model so detection, scoring, rendering, and tests all speak the same contracts.
+ */
 // === Agent Types ===
 
 /** Supported AI coding agent identifiers */
@@ -62,11 +66,31 @@ export type Detection =
   | { type: 'file_exists'; path: string }
   | { type: 'dir_exists'; path: string }
   | { type: 'grep'; path: string; pattern: string; section?: string }
-  | { type: 'grep_count'; path: string; pattern: string; min: number; partial?: number; section?: string }
-  | { type: 'line_count'; path: string; pass?: number; partial?: number; fail?: number }
+  | {
+      type: 'grep_count';
+      path: string;
+      pattern: string;
+      min: number;
+      partial?: number;
+      section?: string;
+    }
+  | {
+      type: 'line_count';
+      path: string;
+      pass?: number;
+      partial?: number;
+      fail?: number;
+    }
   | { type: 'json_valid'; path: string }
   | { type: 'json_contains'; path: string; field: string; pattern?: string }
-  | { type: 'count_items'; path: string; pattern: string; pass: number; partial?: number; section?: string }
+  | {
+      type: 'count_items';
+      path: string;
+      pattern: string;
+      pass: number;
+      partial?: number;
+      section?: string;
+    }
   | { type: 'composite'; checks: Detection[]; mode: 'all' | 'any' }
   | { type: 'custom'; fn: (ctx: FactContext) => CheckResult };
 
@@ -211,13 +235,51 @@ export interface SharedFacts {
     formatDiagnostic: string | null;
     paths: { committed: string; local: string };
   };
-  decisions: { dirExists: boolean; fileCount: number; path: string; hasRealContent: boolean };
-  config: { exists: boolean; valid: boolean; warningCount: number; errorCount: number; parseError: string | null; lineLimits: { target: number; limit: number } };
+  decisions: {
+    dirExists: boolean;
+    fileCount: number;
+    path: string;
+    hasRealContent: boolean;
+  };
+  config: {
+    exists: boolean;
+    valid: boolean;
+    warningCount: number;
+    errorCount: number;
+    parseError: string | null;
+    lineLimits: { target: number; limit: number };
+  };
   architecture: { exists: boolean; lineCount: number };
-  evals: { dirExists: boolean; count: number; hasReadme: boolean; hasOriginLabels: boolean; hasAgentsLabels: boolean; hasReplayPrompts: boolean; hasRealContent: boolean; hasFrontmatter: boolean; evalSkillCount: number; missingSkills: string[]; path: string };
-  ci: { workflowExists: boolean; checksLineCount: boolean; checksRouter: boolean; checksSkills: boolean; ciTriggersOnPRs: boolean };
-  handoffTemplate: { exists: boolean; sectionCount: number; hasRequiredSections: boolean };
-  ignoreFiles: { copilotignore: boolean; cursorignore: boolean; geminiignore: boolean };
+  evals: {
+    dirExists: boolean;
+    count: number;
+    hasReadme: boolean;
+    hasOriginLabels: boolean;
+    hasAgentsLabels: boolean;
+    hasReplayPrompts: boolean;
+    hasRealContent: boolean;
+    hasFrontmatter: boolean;
+    evalSkillCount: number;
+    missingSkills: string[];
+    path: string;
+  };
+  ci: {
+    workflowExists: boolean;
+    checksLineCount: boolean;
+    checksRouter: boolean;
+    checksSkills: boolean;
+    ciTriggersOnPRs: boolean;
+  };
+  handoffTemplate: {
+    exists: boolean;
+    sectionCount: number;
+    hasRequiredSections: boolean;
+  };
+  ignoreFiles: {
+    copilotignore: boolean;
+    cursorignore: boolean;
+    geminiignore: boolean;
+  };
   gitignore: { exists: boolean; hasRequiredEntries: boolean };
   guidelinesOwnership: { exists: boolean };
   domainReference: { exists: boolean };
@@ -311,9 +373,11 @@ export interface AgentFacts {
     postTurnRegisteredPath: string | null;
     postTurnExitsZero: boolean;
     postTurnHasValidation: boolean;
+    postTurnSwallowsFailures: boolean;
     postToolRegistered: boolean;
     postToolRegisteredPath: string | null;
     postToolExists: boolean;
+    postToolUsesExpectedPathField: boolean;
     compactionHookExists: boolean;
     /** Hook scripts containing hardcoded absolute paths (not wrapped in $(git rev-parse)) */
     absolutePathHooks: string[];
@@ -413,6 +477,11 @@ export interface ScanReport {
     antiPatternCount: number;
     // ISO 8601 timestamp of when the scan completed
     timestamp: string;
+    versions: {
+      schema: string;
+      package: string;
+      rubric: string;
+    };
     config: { exists: boolean; valid: boolean };
     learningLoop: {
       footguns: { committed: number; local: number };

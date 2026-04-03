@@ -1,3 +1,7 @@
+/**
+ * Coordinates full fact extraction for a scan.
+ * It combines stack detection, shared project facts, and per-agent facts into the `ProjectFacts` object used by scoring.
+ */
 import type { ProjectFacts, ReadonlyFS, AgentId } from '../types.js';
 import type { LoadedConfig } from '../config/types.js';
 import { detectAgents } from '../detect/agents.js';
@@ -11,14 +15,17 @@ interface ExtractOptions {
   configState: LoadedConfig;
 }
 
-/** Orchestrate full fact extraction: detect agents, detect stack, gather shared and per-agent facts. */
-export function extractProjectFacts(fs: ReadonlyFS, options: ExtractOptions): ProjectFacts {
+/** Gather stack, shared, and per-agent facts into the single scan input object. */
+export function extractProjectFacts(
+  fs: ReadonlyFS,
+  options: ExtractOptions,
+): ProjectFacts {
   /** All detected agent profiles in the project */
   let agents = detectAgents(fs);
 
   // Filter to specific agent if requested
   if (options.agentFilter) {
-    agents = agents.filter(a => a.id === options.agentFilter);
+    agents = agents.filter((a) => a.id === options.agentFilter);
   }
 
   /** Detected technology stack (language, framework, etc.) */
@@ -28,7 +35,7 @@ export function extractProjectFacts(fs: ReadonlyFS, options: ExtractOptions): Pr
   const shared = extractSharedFacts(fs, options.configState);
 
   /** Per-agent facts including instruction, settings, skills, and hooks */
-  const agentFacts = agents.map(agent => {
+  const agentFacts = agents.map((agent) => {
     /** Extracted facts for this specific agent */
     const facts = extractAgentFacts(fs, agent);
 
@@ -41,9 +48,11 @@ export function extractProjectFacts(fs: ReadonlyFS, options: ExtractOptions): Pr
     for (const [dir, count] of shared.footguns.dirMentions) {
       if (count >= 2) {
         warranted.push(dir);
-        // Check if a local instruction file exists for this dir
+        // Missing local context is only interesting for directories repeatedly named in footguns.
         /** Whether a local instruction file already exists for this directory */
-        const hasLocal = facts.localContext.files.some(f => f.startsWith(dir));
+        const hasLocal = facts.localContext.files.some((f) =>
+          f.startsWith(dir),
+        );
         if (hasLocal === false) {
           missing.push(dir);
         }

@@ -1,7 +1,16 @@
+/**
+ * End-to-end tests for eval parsing, loading, and summary formatting.
+ * The suite covers both structured frontmatter evals and older legacy markdown inputs.
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseEvalFile } from '../../src/cli/evals/parser.js';
-import { loadEvals, summarize, formatSummaryText, formatSummaryJson } from '../../src/cli/evals/loader.js';
+import {
+  loadEvals,
+  summarize,
+  formatSummaryText,
+  formatSummaryJson,
+} from '../../src/cli/evals/loader.js';
 import { createMockFS } from '../helpers/mock-fs.js';
 
 // --- Parser tests ---
@@ -41,9 +50,15 @@ User reports a bug in the auth module.
     assert.equal(result.frontmatter.difficulty, 'hard');
     assert.equal(result.scenario, 'User reports a bug in the auth module.');
     assert.equal(result.expectedBehaviors.length, 2);
-    assert.equal(result.expectedBehaviors[0].text, 'Agent reads auth module first');
+    assert.equal(
+      result.expectedBehaviors[0].text,
+      'Agent reads auth module first',
+    );
     assert.equal(result.expectedBehaviors[0].status, 'fail');
-    assert.equal(result.expectedBehaviors[1].text, 'Agent identifies the root cause');
+    assert.equal(
+      result.expectedBehaviors[1].text,
+      'Agent identifies the root cause',
+    );
     assert.equal(result.expectedBehaviors[1].status, 'pass');
     assert.equal(result.antiPatterns.length, 2);
     assert.equal(result.antiPatterns[0], 'Agent skips reading the code');
@@ -280,7 +295,7 @@ describe('summarize', () => {
 
     assert.equal(summary.totalEvals, 3);
     assert.equal(summary.bySkill.length, 2); // goat-debug, goat-review
-    const debugSkill = summary.bySkill.find(s => s.skill === 'goat-debug');
+    const debugSkill = summary.bySkill.find((s) => s.skill === 'goat-debug');
     assert.equal(debugSkill?.count, 2);
     assert.equal(summary.byOrigin['real-incident'], 2);
     assert.equal(summary.byOrigin['synthetic-seed'], 1);

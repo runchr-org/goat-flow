@@ -1,14 +1,26 @@
+/**
+ * Unit and integration coverage for the dashboard terminal manager.
+ * These tests protect path validation, session lifecycle handling, and PTY-dependent behavior.
+ */
 import { describe, it, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
-import { TerminalManager, validateProjectPath } from '../../src/cli/terminal-server.js';
+import {
+  TerminalManager,
+  validateProjectPath,
+} from '../../src/cli/terminal-server.js';
 
 // Check if claude CLI is available (skip PTY tests on CI where it's not installed)
 let claudeAvailable = false;
-try { execFileSync('claude', ['--version'], { stdio: 'ignore', timeout: 5000 }); claudeAvailable = true; } catch { /* not installed */ }
+try {
+  execFileSync('claude', ['--version'], { stdio: 'ignore', timeout: 5000 });
+  claudeAvailable = true;
+} catch {
+  /* not installed */
+}
 const skipReason = 'claude CLI not installed (CI environment)';
 const requiresClaude = { skip: claudeAvailable ? false : skipReason };
 
@@ -20,7 +32,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  try { rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore */ }
+  try {
+    rmSync(tempDir, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
 });
 
 describe('validateProjectPath', () => {
@@ -40,10 +56,7 @@ describe('validateProjectPath', () => {
     const { writeFileSync } = await import('node:fs');
     const filePath = join(tempDir, 'not-a-dir.txt');
     writeFileSync(filePath, 'hello');
-    assert.throws(
-      () => validateProjectPath(filePath),
-      /not a directory/,
-    );
+    assert.throws(() => validateProjectPath(filePath), /not a directory/);
   });
 });
 
@@ -84,7 +97,8 @@ describe('TerminalManager', () => {
     const manager = new TerminalManager();
     // Use a runner that doesn't exist — codex or gemini might not be installed
     // Override runnerPaths to be empty
-    (manager as unknown as { runnerPaths: Map<string, string> }).runnerPaths = new Map();
+    (manager as unknown as { runnerPaths: Map<string, string> }).runnerPaths =
+      new Map();
     await assert.rejects(
       () => manager.create('hello', tempDir, 'claude'),
       /CLI not found/,
@@ -159,36 +173,48 @@ describe('idle timeout', () => {
 });
 
 describe('shell metacharacter safety', () => {
-  it('prompt with semicolon is passed as literal argument', requiresClaude, async () => {
-    const manager = new TerminalManager();
-    try {
-      const session = await manager.create('"; rm -rf /"', tempDir);
-      assert.ok(session.id);
-      manager.kill(session.id);
-    } finally {
-      await manager.shutdown();
-    }
-  });
+  it(
+    'prompt with semicolon is passed as literal argument',
+    requiresClaude,
+    async () => {
+      const manager = new TerminalManager();
+      try {
+        const session = await manager.create('"; rm -rf /"', tempDir);
+        assert.ok(session.id);
+        manager.kill(session.id);
+      } finally {
+        await manager.shutdown();
+      }
+    },
+  );
 
-  it('prompt with $() is passed as literal argument', requiresClaude, async () => {
-    const manager = new TerminalManager();
-    try {
-      const session = await manager.create('$(whoami)', tempDir);
-      assert.ok(session.id);
-      manager.kill(session.id);
-    } finally {
-      await manager.shutdown();
-    }
-  });
+  it(
+    'prompt with $() is passed as literal argument',
+    requiresClaude,
+    async () => {
+      const manager = new TerminalManager();
+      try {
+        const session = await manager.create('$(whoami)', tempDir);
+        assert.ok(session.id);
+        manager.kill(session.id);
+      } finally {
+        await manager.shutdown();
+      }
+    },
+  );
 
-  it('prompt with backticks is passed as literal argument', requiresClaude, async () => {
-    const manager = new TerminalManager();
-    try {
-      const session = await manager.create('`id`', tempDir);
-      assert.ok(session.id);
-      manager.kill(session.id);
-    } finally {
-      await manager.shutdown();
-    }
-  });
+  it(
+    'prompt with backticks is passed as literal argument',
+    requiresClaude,
+    async () => {
+      const manager = new TerminalManager();
+      try {
+        const session = await manager.create('`id`', tempDir);
+        assert.ok(session.id);
+        manager.kill(session.id);
+      } finally {
+        await manager.shutdown();
+      }
+    },
+  );
 });

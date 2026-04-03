@@ -1,4 +1,13 @@
-import { mkdirSync, appendFileSync, readFileSync, writeFileSync } from 'node:fs';
+/**
+ * Append-only JSONL telemetry for scan history.
+ * The dashboard and future trend analysis read this compact per-agent log instead of reparsing full reports.
+ */
+import {
+  mkdirSync,
+  appendFileSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import type { ScanReport, AgentId, Grade } from '../types.js';
 
@@ -8,7 +17,13 @@ export interface ScanHistoryEntry {
   agent: AgentId;
   grade: Grade;
   percentage: number;
-  checks: { pass: number; partial: number; fail: number; na: number; total: number };
+  checks: {
+    pass: number;
+    partial: number;
+    fail: number;
+    na: number;
+    total: number;
+  };
   deductions: number;
   tiers: {
     foundation: { earned: number; available: number; percentage: number };
@@ -19,8 +34,17 @@ export interface ScanHistoryEntry {
   rubricVersion: string;
 }
 
-function countChecks(agent: ScanReport['agents'][number]): ScanHistoryEntry['checks'] {
-  const checks: ScanHistoryEntry['checks'] = { pass: 0, partial: 0, fail: 0, na: 0, total: agent.checks.length };
+/** Count checks. */
+function countChecks(
+  agent: ScanReport['agents'][number],
+): ScanHistoryEntry['checks'] {
+  const checks: ScanHistoryEntry['checks'] = {
+    pass: 0,
+    partial: 0,
+    fail: 0,
+    na: 0,
+    total: agent.checks.length,
+  };
 
   for (const check of agent.checks) {
     if (check.status === 'pass') {
@@ -41,6 +65,7 @@ function countChecks(agent: ScanReport['agents'][number]): ScanHistoryEntry['che
   return checks;
 }
 
+/** Build scan history entry. */
 function buildScanHistoryEntry(
   report: ScanReport,
   agent: ScanReport['agents'][number],
@@ -75,6 +100,7 @@ function buildScanHistoryEntry(
   };
 }
 
+/** Trim the scan-history log so it only keeps the most recent entries. */
 function rotateScanHistory(logPath: string): void {
   try {
     const content = readFileSync(logPath, 'utf-8');
@@ -92,7 +118,10 @@ function rotateScanHistory(logPath: string): void {
  * Writes one JSONL line per agent to `{projectPath}/.goat-flow/logs/scan-history.jsonl`.
  * Silent on failure - telemetry must never break the scan.
  */
-export function appendScanHistory(report: ScanReport, projectPath: string): void {
+export function appendScanHistory(
+  report: ScanReport,
+  projectPath: string,
+): void {
   try {
     const logsDir = join(projectPath, '.goat-flow', 'logs');
     mkdirSync(logsDir, { recursive: true });

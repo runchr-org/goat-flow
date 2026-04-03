@@ -1,3 +1,7 @@
+/**
+ * Tests for append-only scan telemetry logging.
+ * They verify JSONL creation, append behavior, and basic report-to-log shape mapping.
+ */
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
@@ -6,11 +10,21 @@ import { tmpdir } from 'node:os';
 import { appendScanHistory } from '../../src/cli/telemetry/scan-logger.js';
 import type { ScanReport, AgentReport } from '../../src/cli/types.js';
 
+/** Build tier score. */
 function makeTierScore(earned: number, available: number) {
-  return { tier: 'foundation' as const, earned, available, percentage: available > 0 ? Math.round((earned / available) * 100) : 0 };
+  return {
+    tier: 'foundation' as const,
+    earned,
+    available,
+    percentage: available > 0 ? Math.round((earned / available) * 100) : 0,
+  };
 }
 
-function makeAgentReport(agent: 'claude' | 'codex' | 'gemini', percentage: number): AgentReport {
+/** Build agent report. */
+function makeAgentReport(
+  agent: 'claude' | 'codex' | 'gemini',
+  percentage: number,
+): AgentReport {
   return {
     agent,
     agentName: agent,
@@ -27,24 +41,83 @@ function makeAgentReport(agent: 'claude' | 'codex' | 'gemini', percentage: numbe
       },
     },
     checks: [
-      { id: '1.1', name: 'test', tier: 'foundation', category: 'Test', status: 'pass', points: 5, maxPoints: 5, confidence: 'high', message: 'ok' },
-      { id: '1.2', name: 'test2', tier: 'foundation', category: 'Test', status: 'fail', points: 0, maxPoints: 3, confidence: 'high', message: 'missing' },
-      { id: '1.3', name: 'test3', tier: 'standard', category: 'Test', status: 'na', points: 0, maxPoints: 0, confidence: 'medium', message: 'n/a' },
+      {
+        id: '1.1',
+        name: 'test',
+        tier: 'foundation',
+        category: 'Test',
+        status: 'pass',
+        points: 5,
+        maxPoints: 5,
+        confidence: 'high',
+        message: 'ok',
+      },
+      {
+        id: '1.2',
+        name: 'test2',
+        tier: 'foundation',
+        category: 'Test',
+        status: 'fail',
+        points: 0,
+        maxPoints: 3,
+        confidence: 'high',
+        message: 'missing',
+      },
+      {
+        id: '1.3',
+        name: 'test3',
+        tier: 'standard',
+        category: 'Test',
+        status: 'na',
+        points: 0,
+        maxPoints: 0,
+        confidence: 'medium',
+        message: 'n/a',
+      },
     ],
     antiPatterns: [],
     recommendations: [],
   };
 }
 
+/** Build report. */
 function makeReport(agents: AgentReport[]): ScanReport {
   return {
-    schemaVersion: '2',
+    schemaVersion: '3',
     packageVersion: '0.9.0',
     rubricVersion: '0.9.0',
     target: '/test',
-    stack: { languages: ['typescript'], buildCommand: 'tsc', testCommand: 'vitest', lintCommand: 'eslint', formatCommand: 'prettier', signals: { codeGenTools: [], deployPlatforms: [], llmIntegration: false, staticAnalysis: [], complianceSignals: false, formatterGaps: [] } },
+    stack: {
+      languages: ['typescript'],
+      buildCommand: 'tsc',
+      testCommand: 'vitest',
+      lintCommand: 'eslint',
+      formatCommand: 'prettier',
+      signals: {
+        codeGenTools: [],
+        deployPlatforms: [],
+        llmIntegration: false,
+        staticAnalysis: [],
+        complianceSignals: false,
+        formatterGaps: [],
+      },
+    },
     agents,
-    meta: { checkCount: 98, antiPatternCount: 14 },
+    meta: {
+      checkCount: 98,
+      antiPatternCount: 14,
+      timestamp: '2026-04-03T00:00:00.000Z',
+      versions: {
+        schema: '3',
+        package: '0.9.0',
+        rubric: '0.9.0',
+      },
+      config: { exists: true, valid: true },
+      learningLoop: {
+        footguns: { committed: 1, local: 0 },
+        lessons: { committed: 1, local: 0 },
+      },
+    },
   };
 }
 
@@ -90,7 +163,7 @@ describe('appendScanHistory', () => {
     const lines = readFileSync(logPath, 'utf-8').trim().split('\n');
     assert.equal(lines.length, 3);
 
-    const agents = lines.map(l => JSON.parse(l).agent);
+    const agents = lines.map((l) => JSON.parse(l).agent);
     assert.deepEqual(agents, ['claude', 'codex', 'gemini']);
   });
 
@@ -105,13 +178,19 @@ describe('appendScanHistory', () => {
   });
 
   it('each line is valid JSON', () => {
-    const report = makeReport([makeAgentReport('claude', 95), makeAgentReport('codex', 80)]);
+    const report = makeReport([
+      makeAgentReport('claude', 95),
+      makeAgentReport('codex', 80),
+    ]);
     appendScanHistory(report, tmpDir);
 
     const logPath = join(tmpDir, '.goat-flow', 'logs', 'scan-history.jsonl');
     const lines = readFileSync(logPath, 'utf-8').trim().split('\n');
     for (const line of lines) {
-      assert.doesNotThrow(() => JSON.parse(line), `Line should be valid JSON: ${line}`);
+      assert.doesNotThrow(
+        () => JSON.parse(line),
+        `Line should be valid JSON: ${line}`,
+      );
     }
   });
 
@@ -131,7 +210,10 @@ describe('appendScanHistory', () => {
   it('does not throw on read-only or missing path', () => {
     // Pass a path that can't be created (nested under a file)
     assert.doesNotThrow(() => {
-      appendScanHistory(makeReport([makeAgentReport('claude', 90)]), '/dev/null/impossible');
+      appendScanHistory(
+        makeReport([makeAgentReport('claude', 90)]),
+        '/dev/null/impossible',
+      );
     });
   });
 

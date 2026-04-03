@@ -1,3 +1,7 @@
+/**
+ * Registry that flattens all prompt fragment catalogs into a single lookup surface.
+ * Use this module when mapping failed checks or anti-patterns to prompt content.
+ */
 import type { Fragment, FragmentPhase } from './types.js';
 import { foundationFragments } from './fragments/foundation.js';
 import { standardFragments } from './fragments/standard.js';
@@ -14,7 +18,7 @@ const allFragments: Fragment[] = [
 
 /** Lookup map from fragment key to its definition for O(1) retrieval */
 const fragmentMap = new Map<string, Fragment>(
-  allFragments.map(f => [f.key, f]),
+  allFragments.map((f) => [f.key, f]),
 );
 
 /** Retrieve a single fragment by its unique key */
@@ -24,7 +28,7 @@ export function getFragment(key: string): Fragment | undefined {
 
 /** Retrieve all fragments belonging to a specific phase */
 export function getFragmentsByPhase(phase: FragmentPhase): Fragment[] {
-  return allFragments.filter(f => f.phase === phase);
+  return allFragments.filter((f) => f.phase === phase);
 }
 
 /** Return every registered fragment */
@@ -37,7 +41,7 @@ export function getFragmentKeys(): string[] {
   return [...fragmentMap.keys()];
 }
 
-/** Check whether a fragment with the given key exists in the registry */
+/** Report whether a fragment key is registered in the flattened prompt catalog. */
 export function hasFragment(key: string): boolean {
   return fragmentMap.has(key);
 }

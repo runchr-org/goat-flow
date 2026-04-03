@@ -1,3 +1,7 @@
+/**
+ * Per-agent fact extractor for instruction files, skills, settings, hooks, and routing metadata.
+ * Scanner tiers use these facts as the canonical snapshot of one configured runtime.
+ */
 import type { AgentProfile, AgentFacts, ReadonlyFS } from '../types.js';
 import { SKILL_NAMES, SKILL_VERSION } from '../constants.js';
 
@@ -6,11 +10,25 @@ const EXPECTED_SKILLS = SKILL_NAMES;
 
 /** Jaccard word-set similarity between two text blocks (0-1) */
 function jaccardSimilarity(a: string, b: string): number {
-  const wordsA = new Set(a.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2));
-  const wordsB = new Set(b.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2));
+  const wordsA = new Set(
+    a
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter((w) => w.length > 2),
+  );
+  const wordsB = new Set(
+    b
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter((w) => w.length > 2),
+  );
   if (wordsA.size === 0 && wordsB.size === 0) return 1;
   let intersection = 0;
-  for (const w of wordsA) { if (wordsB.has(w)) intersection++; }
+  for (const w of wordsA) {
+    if (wordsB.has(w)) intersection++;
+  }
   const union = new Set([...wordsA, ...wordsB]).size;
   return union === 0 ? 1 : intersection / union;
 }
@@ -50,30 +68,37 @@ function parseSections(content: string): Map<string, string> {
 }
 
 /** Determine whether git commit and git push are blocked by the agent's deny mechanism. */
-function checkDenyPatterns(fs: ReadonlyFS, agent: AgentProfile): { gitCommitBlocked: boolean; gitPushBlocked: boolean } {
+function checkDenyPatterns(
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+): { gitCommitBlocked: boolean; gitPushBlocked: boolean } {
   /** Deny mechanism configuration for this agent */
   const deny = agent.denyMechanism;
 
   if (deny.type === 'settings-deny') {
     /** Parsed JSON from the settings deny file */
     const parsed = fs.readJson(deny.path) as Record<string, unknown> | null;
-    if (parsed == null) return { gitCommitBlocked: false, gitPushBlocked: false };
+    if (parsed == null)
+      return { gitCommitBlocked: false, gitPushBlocked: false };
     /** Permissions object from the parsed settings */
-    const permissions = parsed.permissions as Record<string, unknown> | undefined;
+    const permissions = parsed.permissions as
+      | Record<string, unknown>
+      | undefined;
     /** Raw deny array from permissions */
     const rawDeny = permissions?.deny;
     /** Deny patterns as a string array, defaulting to empty */
     const denyList = Array.isArray(rawDeny) ? (rawDeny as string[]) : [];
     return {
-      gitCommitBlocked: denyList.some(p => p.includes('git commit')),
-      gitPushBlocked: denyList.some(p => p.includes('git push')),
+      gitCommitBlocked: denyList.some((p) => p.includes('git commit')),
+      gitPushBlocked: denyList.some((p) => p.includes('git push')),
     };
   }
 
   if (deny.type === 'deny-script') {
     /** Content of the deny hook script */
     const content = fs.readFile(deny.path);
-    if (content == null) return { gitCommitBlocked: false, gitPushBlocked: false };
+    if (content == null)
+      return { gitCommitBlocked: false, gitPushBlocked: false };
     return {
       gitCommitBlocked: /git\s+commit/i.test(content),
       gitPushBlocked: /git\s+push/i.test(content),
@@ -82,9 +107,15 @@ function checkDenyPatterns(fs: ReadonlyFS, agent: AgentProfile): { gitCommitBloc
 
   // type: 'both'
   /** Deny results from the settings-based mechanism */
-  const settings = checkDenyPatterns(fs, { ...agent, denyMechanism: { type: 'settings-deny', path: deny.settingsPath } });
+  const settings = checkDenyPatterns(fs, {
+    ...agent,
+    denyMechanism: { type: 'settings-deny', path: deny.settingsPath },
+  });
   /** Deny results from the script-based mechanism */
-  const script = checkDenyPatterns(fs, { ...agent, denyMechanism: { type: 'deny-script', path: deny.scriptPath } });
+  const script = checkDenyPatterns(fs, {
+    ...agent,
+    denyMechanism: { type: 'deny-script', path: deny.scriptPath },
+  });
   return {
     gitCommitBlocked: settings.gitCommitBlocked || script.gitCommitBlocked,
     gitPushBlocked: settings.gitPushBlocked || script.gitPushBlocked,
@@ -101,12 +132,14 @@ function hasGlobChars(s: string): boolean {
   return s.includes('*') || s.includes('{');
 }
 
+/** Add a discovered path once without duplicating earlier matches. */
 function pushUniquePath(paths: string[], path: string): void {
   if (paths.includes(path) === false) {
     paths.push(path);
   }
 }
 
+/** Collect matched paths. */
 function collectMatchedPaths(
   content: string,
   pattern: RegExp,
@@ -121,19 +154,23 @@ function collectMatchedPaths(
   }
 }
 
+/** Check whether a backtick-wrapped router reference looks like a local path. */
 function isRouterBacktickPath(path: string): boolean {
   return !hasGlobChars(path) && looksLikePath(path);
 }
 
+/** Check whether a markdown link target looks like a local router path. */
 function isRouterLinkPath(path: string): boolean {
   return !hasGlobChars(path) && !path.startsWith('http') && looksLikePath(path);
 }
 
+/** Check whether a backtick-wrapped Ask First item looks like a boundary path. */
 function isAskFirstPath(path: string): boolean {
   if (hasGlobChars(path)) return false;
   if (path.startsWith('http')) return false;
   if (!looksLikePath(path)) return false;
-  if (path.includes('|') || path.startsWith('-') || path.startsWith('$')) return false;
+  if (path.includes('|') || path.startsWith('-') || path.startsWith('$'))
+    return false;
   return true;
 }
 
@@ -151,13 +188,16 @@ function extractRouterPaths(content: string): string[] {
   return paths;
 }
 
+/** Extract the Ask First section whether it is written as a heading or bold block. */
 function extractAskFirstSection(content: string): string | null {
   const headingMatch = content.match(/##\s+ask\s+first[\s\S]*?(?=\n##\s|$)/i);
   if (headingMatch) {
     return headingMatch[0];
   }
 
-  const boldMatch = content.match(/\*\*Ask First\*\*[\s\S]*?(?=\n\*\*Never\*\*|\n##\s|$)/i);
+  const boldMatch = content.match(
+    /\*\*Ask First\*\*[\s\S]*?(?=\n\*\*Never\*\*|\n##\s|$)/i,
+  );
   return boldMatch?.[0] ?? null;
 }
 
@@ -204,7 +244,10 @@ function extractSection(content: string, sectionName: string): string | null {
 // ─── Focused extraction functions ────────────────────────────────────
 
 /** Extract instruction file facts: existence, content, line count, and sections. */
-function extractInstructionFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFacts['instruction'] {
+function extractInstructionFacts(
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+): AgentFacts['instruction'] {
   /** Raw content of the agent's instruction file (null if missing) */
   const content = fs.readFile(agent.instructionFile);
   /** Whether the instruction file exists on disk */
@@ -220,7 +263,10 @@ function extractInstructionFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFact
 }
 
 /** Extract settings file facts: existence, validity, parsed content, deny patterns. */
-function extractSettingsFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFacts['settings'] & { readDenyCoversSecrets: boolean } {
+function extractSettingsFacts(
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+): AgentFacts['settings'] & { readDenyCoversSecrets: boolean } {
   /** Whether the agent's settings file exists on disk */
   const exists = agent.settingsFile ? fs.exists(agent.settingsFile) : false;
   let valid = false;
@@ -239,24 +285,35 @@ function extractSettingsFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFacts['
     }
     if (valid && parsed) {
       /** Permissions object from the parsed settings */
-      const perms = (parsed as Record<string, unknown>).permissions as Record<string, unknown> | undefined;
+      const perms = (parsed as Record<string, unknown>).permissions as
+        | Record<string, unknown>
+        | undefined;
       /** Raw deny array from permissions */
       const denyArr = perms?.deny;
-      hasDenyPatterns = Array.isArray(denyArr) && (denyArr as string[]).length > 0;
+      hasDenyPatterns =
+        Array.isArray(denyArr) && (denyArr as string[]).length > 0;
     }
   }
 
-  // Check read-deny covers common sensitive paths
-  const readDenyCoversSecrets = checkReadDenyCoversSecrets(parsed, hasDenyPatterns);
+  // Require deny coverage for the common secret-bearing paths goat-flow cares about.
+  const readDenyCoversSecrets = checkReadDenyCoversSecrets(
+    parsed,
+    hasDenyPatterns,
+  );
 
   return { exists, valid, parsed, hasDenyPatterns, readDenyCoversSecrets };
 }
 
-/** Check whether read-deny patterns cover common sensitive file paths. */
-function checkReadDenyCoversSecrets(parsed: unknown, hasDenyPatterns: boolean): boolean {
+/** Require settings-based read denies for the main secret and credential path families. */
+function checkReadDenyCoversSecrets(
+  parsed: unknown,
+  hasDenyPatterns: boolean,
+): boolean {
   if (!hasDenyPatterns || !parsed) return false;
   /** Permissions object from the parsed settings */
-  const perms = (parsed as Record<string, unknown>).permissions as Record<string, unknown> | undefined;
+  const perms = (parsed as Record<string, unknown>).permissions as
+    | Record<string, unknown>
+    | undefined;
   /** Raw deny array from permissions */
   const denyArr = perms?.deny;
   if (!Array.isArray(denyArr)) return false;
@@ -269,7 +326,9 @@ function checkReadDenyCoversSecrets(parsed: unknown, hasDenyPatterns: boolean): 
   /** Whether .aws paths are covered by deny rules */
   const hasAws = /Read\(.*\.aws/.test(denyStr);
   /** Whether key/credential paths are covered by deny rules */
-  const hasKeys = /Read\(.*\.(pem|key|pfx)\b/.test(denyStr) || /Read\(.*credentials/.test(denyStr);
+  const hasKeys =
+    /Read\(.*\.(pem|key|pfx)\b/.test(denyStr) ||
+    /Read\(.*credentials/.test(denyStr);
   return hasEnv && hasSsh && hasAws && hasKeys;
 }
 
@@ -278,7 +337,9 @@ function extractSkillVersion(content: string): string | null {
   // Match YAML frontmatter between --- delimiters
   const frontmatter = content.match(/^---\n([\s\S]*?)\n---/);
   if (!frontmatter?.[1]) return null;
-  const versionMatch = frontmatter[1].match(/goat-flow-skill-version:\s*["']?([^"'\n]+)/);
+  const versionMatch = frontmatter[1].match(
+    /goat-flow-skill-version:\s*["']?([^"'\n]+)/,
+  );
   return versionMatch?.[1]?.trim() ?? null;
 }
 
@@ -303,18 +364,32 @@ interface SkillInventory {
   adaptCommentCount: number;
 }
 
-const SKILL_QUALITY_PATTERNS: Array<{ key: keyof SkillQualityCounts; pattern: RegExp }> = [
-  { key: 'withStep0', pattern: /step\s*0|gather\s*context|ask.*before|ask\s+the\s+user/i },
-  { key: 'withHumanGate', pattern: /human\s*gate|blocking\s*gate|wait.*approv|wait.*confirm|do\s+not\s+proceed|does this.*look right|does this.*match/i },
+const SKILL_QUALITY_PATTERNS: Array<{
+  key: keyof SkillQualityCounts;
+  pattern: RegExp;
+}> = [
+  {
+    key: 'withStep0',
+    pattern: /step\s*0|gather\s*context|ask.*before|ask\s+the\s+user/i,
+  },
+  {
+    key: 'withHumanGate',
+    pattern:
+      /human\s*gate|blocking\s*gate|wait.*approv|wait.*confirm|do\s+not\s+proceed|does this.*look right|does this.*match/i,
+  },
   { key: 'withConstraints', pattern: /MUST\s+NOT|MUST\s+/m },
   { key: 'withPhases', pattern: /##\s*(Phase|Step)\s+[0-9]/i },
   { key: 'withConversational', pattern: /blocking\s*gate|human\s*gate/i },
-  { key: 'withChaining', pattern: /chains?\s*with|related\s*skills?|next.*skill|→.*goat-/i },
+  {
+    key: 'withChaining',
+    pattern: /chains?\s*with|related\s*skills?|next.*skill|→.*goat-/i,
+  },
   { key: 'withChoices', pattern: /\(a\)|\(b\)|\(c\)|want me to.*\n.*\n/i },
   { key: 'withOutputFormat', pattern: /##\s*(Output|Output Format)/i },
   { key: 'withSharedConventions', pattern: /^##\s+shared conventions/im },
 ] as const;
 
+/** Build the zeroed accumulator used while scoring installed skill quality. */
 function createSkillQualityCounts(): SkillQualityCounts {
   return {
     withStep0: 0,
@@ -329,12 +404,16 @@ function createSkillQualityCounts(): SkillQualityCounts {
   };
 }
 
-function updateSkillQualityCounts(content: string, quality: SkillQualityCounts): void {
+/** Update skill-quality counters for one installed skill document. */
+function updateSkillQualityCounts(
+  content: string,
+  quality: SkillQualityCounts,
+): void {
   for (const check of SKILL_QUALITY_PATTERNS) {
     if (check.key === 'withConversational') {
       if (
-        /blocking\s*gate|human\s*gate/i.test(content)
-        && /\(a\)|want me to|offer:|proceed\?/i.test(content)
+        /blocking\s*gate|human\s*gate/i.test(content) &&
+        /\(a\)|want me to|offer:|proceed\?/i.test(content)
       ) {
         quality[check.key]++;
       }
@@ -346,16 +425,23 @@ function updateSkillQualityCounts(content: string, quality: SkillQualityCounts):
   }
 }
 
+/** Count remaining `<!-- ADAPT: ... -->` markers in a skill file. */
 function countAdaptComments(content: string): number {
   return content.match(/<!--\s*ADAPT:/g)?.length ?? 0;
 }
 
-function collectInstalledSkillDirs(fs: ReadonlyFS, agent: AgentProfile): string[] {
-  return fs.listDir(agent.skillsDir)
-    .filter(entry => fs.exists(`${agent.skillsDir}/${entry}/SKILL.md`))
+/** List installed skill directories that contain a `SKILL.md` file. */
+function collectInstalledSkillDirs(
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+): string[] {
+  return fs
+    .listDir(agent.skillsDir)
+    .filter((entry) => fs.exists(`${agent.skillsDir}/${entry}/SKILL.md`))
     .sort();
 }
 
+/** Analyze one installed skill for version drift and quality signals. */
 function analyzeSkillContent(
   skill: string,
   content: string,
@@ -372,7 +458,11 @@ function analyzeSkillContent(
   };
 }
 
-function scanExpectedSkills(fs: ReadonlyFS, agent: AgentProfile): SkillInventory {
+/** Scan the expected skill set for presence, version drift, and quality signals. */
+function scanExpectedSkills(
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+): SkillInventory {
   const found: string[] = [];
   const missing: string[] = [];
   const versions: Record<string, string | null> = {};
@@ -391,14 +481,27 @@ function scanExpectedSkills(fs: ReadonlyFS, agent: AgentProfile): SkillInventory
     const skillContent = fs.readFile(skillPath);
     if (!skillContent) continue;
 
-    const analysis = analyzeSkillContent(skill, skillContent, versions, quality);
+    const analysis = analyzeSkillContent(
+      skill,
+      skillContent,
+      versions,
+      quality,
+    );
     if (analysis.outdated) outdatedCount++;
     adaptCommentCount += analysis.adaptCommentCount;
   }
 
-  return { found, missing, versions, outdatedCount, quality, adaptCommentCount };
+  return {
+    found,
+    missing,
+    versions,
+    outdatedCount,
+    quality,
+    adaptCommentCount,
+  };
 }
 
+/** Count installed skills whose Step 0 section still matches the template too closely. */
 function countUnadaptedSkills(
   fs: ReadonlyFS,
   agent: AgentProfile,
@@ -415,7 +518,11 @@ function countUnadaptedSkills(
 
     const installedStep0 = extractSection(installed, 'Step 0');
     const templateStep0 = extractSection(template, 'Step 0');
-    if (installedStep0 && templateStep0 && jaccardSimilarity(installedStep0, templateStep0) > 0.9) {
+    if (
+      installedStep0 &&
+      templateStep0 &&
+      jaccardSimilarity(installedStep0, templateStep0) > 0.9
+    ) {
       unadaptedCount++;
     }
   }
@@ -423,21 +530,29 @@ function countUnadaptedSkills(
   return unadaptedCount;
 }
 
+/** Ignore placeholder or intentionally external refs when checking dangling skill links. */
 function shouldIgnoreDanglingSkillRef(ref: string): boolean {
   if (/^https?:/.test(ref)) return true;
   if (/\{|YYYY|file:line|path\/to|monitoring\//i.test(ref)) return true;
-  if (/^(?:\.goat-flow\/)?tasks\/(handoff|todo|commit|release|scratchpad|improvement)/.test(ref)) return true;
+  if (
+    /^(?:\.goat-flow\/)?tasks\/(handoff|todo|commit|release|scratchpad|improvement)/.test(
+      ref,
+    )
+  )
+    return true;
   if (/^(src\/api|config\/|docs\/glossary)/.test(ref)) return true;
   return false;
 }
 
+/** Collect skill-local path references that no longer resolve on disk. */
 function extractDanglingSkillRefs(
   fs: ReadonlyFS,
   agent: AgentProfile,
   found: string[],
 ): string[] {
   const danglingRefs: string[] = [];
-  const pathRefPattern = /`((?:[a-zA-Z0-9._-]+\/)+[a-zA-Z0-9._-]+(?::[0-9]+)?)`/g;
+  const pathRefPattern =
+    /`((?:[a-zA-Z0-9._-]+\/)+[a-zA-Z0-9._-]+(?::[0-9]+)?)`/g;
 
   for (const skill of found) {
     const content = fs.readFile(`${agent.skillsDir}/${skill}/SKILL.md`);
@@ -456,8 +571,11 @@ function extractDanglingSkillRefs(
   return danglingRefs;
 }
 
-/** Extract skill facts: found/missing skills, versions, and quality metrics. */
-function extractSkillFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFacts['skills'] {
+/** Extract skill presence, version drift, and quality facts for one agent. */
+function extractSkillFacts(
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+): AgentFacts['skills'] {
   const installedDirs = collectInstalledSkillDirs(fs, agent);
   const inventory = scanExpectedSkills(fs, agent);
   const unadaptedCount = countUnadaptedSkills(fs, agent, inventory.found);
@@ -482,8 +600,11 @@ function extractSkillFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFacts['ski
   };
 }
 
-/** Check compaction notification hook in parsed settings JSON. */
-function checkCompactionHook(settingsParsed: unknown, settingsValid: boolean): boolean {
+/** Detect whether settings declare a compaction notification hook. */
+function checkCompactionHook(
+  settingsParsed: unknown,
+  settingsValid: boolean,
+): boolean {
   if (!settingsParsed || !settingsValid) return false;
 
   /** Top-level settings object cast for property access */
@@ -494,55 +615,100 @@ function checkCompactionHook(settingsParsed: unknown, settingsValid: boolean): b
 
   if (Array.isArray(hooks)) {
     // Array format: hooks: [{type: "Notification", matcher: "compact"}]
-    return (hooks as Array<Record<string, unknown>>).some(h =>
-      h.type === 'Notification' && (typeof h.matcher === 'string' ? h.matcher : '').includes('compact')
+    return (hooks as Array<Record<string, unknown>>).some(
+      (h) =>
+        h.type === 'Notification' &&
+        (typeof h.matcher === 'string' ? h.matcher : '').includes('compact'),
     );
   }
   // Nested format: hooks.Notification[{matcher: "compact"}]
   /** Notification hooks array from the nested hooks object */
-  const notifHooks = (hooks).Notification as Array<Record<string, unknown>> | undefined;
+  const notifHooks = hooks.Notification as
+    | Array<Record<string, unknown>>
+    | undefined;
   if (Array.isArray(notifHooks)) {
-    return notifHooks.some(h =>
-      (typeof h.matcher === 'string' ? h.matcher : '').includes('compact')
+    return notifHooks.some((h) =>
+      (typeof h.matcher === 'string' ? h.matcher : '').includes('compact'),
     );
   }
   return false;
 }
 
+const VALIDATION_COMMAND_PATTERN =
+  /\b(shellcheck|eslint|tsc|phpstan|ruff|mypy|flake8|pytest|rubocop)\b|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:lint|test)|cargo\s+check|go\s+test|prettier\s+--check/i;
+
+/** Detect shell lines that intentionally mask validation failures with `|| true`. */
+function lineSwallowsValidationFailure(line: string): boolean {
+  if (line.includes('|| true') === false) return false;
+  if (line.trimStart().startsWith('#')) return false;
+  if (/\bcommand\s+-v\b/.test(line)) return false;
+  return VALIDATION_COMMAND_PATTERN.test(line);
+}
+
 /** Analyze a hook script for post-turn validation characteristics. */
-function analyzePostTurnScript(hookContent: string): { exitsZero: boolean; hasValidation: boolean } {
+function analyzePostTurnScript(hookContent: string): {
+  exitsZero: boolean;
+  hasValidation: boolean;
+  swallowsFailures: boolean;
+} {
   /** Non-empty, non-comment lines from the hook script */
-  const lines = hookContent.trim().split('\n').filter(l => l.trim() && l.trim().startsWith('#') === false);
+  const lines = hookContent
+    .trim()
+    .split('\n')
+    .filter((l) => l.trim() && l.trim().startsWith('#') === false);
   /** Last meaningful line of the hook script */
   const lastLine = lines[lines.length - 1];
   return {
     exitsZero: lastLine !== undefined && lastLine.trim() === 'exit 0',
-    hasValidation: /shellcheck|tsc|lint|fmt|check|test|wc -l/i.test(hookContent) && hookContent.split('\n').length > 10,
+    hasValidation:
+      VALIDATION_COMMAND_PATTERN.test(hookContent) &&
+      hookContent.split('\n').length > 10,
+    swallowsFailures: lines.some(lineSwallowsValidationFailure),
   };
 }
 
 /** Check deny hook script content for quality indicators. */
 function analyzeDenyScript(denyContent: string): {
-  hasBlocks: boolean; usesJq: boolean; handlesChaining: boolean;
-  blocksRmRf: boolean; blocksForcePush: boolean; blocksChmod: boolean;
+  hasBlocks: boolean;
+  usesJq: boolean;
+  handlesChaining: boolean;
+  blocksRmRf: boolean;
+  blocksForcePush: boolean;
+  blocksChmod: boolean;
   blocksCloudDestructive: boolean;
 } {
   return {
-    hasBlocks: /exit\s+2|block|BLOCK/i.test(denyContent) && denyContent.split('\n').length > 5,
-    usesJq: /\bjq\b/.test(denyContent) && !/grep\s+-[a-zA-Z]*P/.test(denyContent),
-    handlesChaining: /&&|\|\||;/.test(denyContent) && /split|segment|chain/i.test(denyContent),
+    hasBlocks:
+      /exit\s+2|block|BLOCK/i.test(denyContent) &&
+      denyContent.split('\n').length > 5,
+    usesJq:
+      /\bjq\b/.test(denyContent) && !/grep\s+-[a-zA-Z]*P/.test(denyContent),
+    handlesChaining:
+      /&&|\|\||;/.test(denyContent) && /split|segment|chain/i.test(denyContent),
     blocksRmRf: /rm\s*.*-.*r.*f|rm\s*-rf/i.test(denyContent),
     blocksForcePush: /force.*push|--force/i.test(denyContent),
     blocksChmod: /chmod.*777/.test(denyContent),
-    blocksCloudDestructive: /docker\s+push|terraform\s+(destroy|apply.*-auto-approve)|aws\s+(s3\s+rm|ec2\s+terminate)/i.test(denyContent),
+    blocksCloudDestructive:
+      /docker\s+push|terraform\s+(destroy|apply.*-auto-approve)|aws\s+(s3\s+rm|ec2\s+terminate)/i.test(
+        denyContent,
+      ),
   };
 }
 
 /** Apply settings-based Bash deny pattern overrides to hook facts. */
 function applySettingsDenyOverrides(
   denyStr: string,
-  hook: { denyExists: boolean; denyHasBlocks: boolean; denyIsConfigBased: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
-    denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean; denyBlocksCloudDestructive: boolean },
+  hook: {
+    denyExists: boolean;
+    denyHasBlocks: boolean;
+    denyIsConfigBased: boolean;
+    denyUsesJq: boolean;
+    denyHandlesChaining: boolean;
+    denyBlocksRmRf: boolean;
+    denyBlocksForcePush: boolean;
+    denyBlocksChmod: boolean;
+    denyBlocksCloudDestructive: boolean;
+  },
 ): void {
   // Settings deny counts as a deny mechanism existing
   if (hook.denyExists === false && denyStr.includes('Bash(')) {
@@ -552,22 +718,41 @@ function applySettingsDenyOverrides(
     // Config-based deny — jq/chaining checks are not applicable
     hook.denyIsConfigBased = true;
   }
-  // Check for specific dangerous patterns in Bash deny rules
-  if (/Bash\(.*rm -rf|Bash\(.*rm -fr/i.test(denyStr)) hook.denyBlocksRmRf = true;
-  if (/Bash\(.*--force|Bash\(.*force.*push/i.test(denyStr)) hook.denyBlocksForcePush = true;
+  // Mirror the shell-hook safety checks against settings-based Bash deny rules.
+  if (/Bash\(.*rm -rf|Bash\(.*rm -fr/i.test(denyStr))
+    hook.denyBlocksRmRf = true;
+  if (/Bash\(.*--force|Bash\(.*force.*push/i.test(denyStr))
+    hook.denyBlocksForcePush = true;
   if (/Bash\(.*chmod 777/i.test(denyStr)) hook.denyBlocksChmod = true;
-  if (/Bash\(.*(docker push|terraform destroy|terraform apply|aws s3 rm|aws ec2 terminate)/i.test(denyStr)) hook.denyBlocksCloudDestructive = true;
+  if (
+    /Bash\(.*(docker push|terraform destroy|terraform apply|aws s3 rm|aws ec2 terminate)/i.test(
+      denyStr,
+    )
+  )
+    hook.denyBlocksCloudDestructive = true;
 }
 
 /** Enrich deny hook facts from settings.json Bash deny patterns. */
 function enrichDenyFromSettings(
-  settingsParsed: unknown, hasDenyPatterns: boolean,
-  hook: { denyExists: boolean; denyHasBlocks: boolean; denyIsConfigBased: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
-    denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean; denyBlocksCloudDestructive: boolean },
+  settingsParsed: unknown,
+  hasDenyPatterns: boolean,
+  hook: {
+    denyExists: boolean;
+    denyHasBlocks: boolean;
+    denyIsConfigBased: boolean;
+    denyUsesJq: boolean;
+    denyHandlesChaining: boolean;
+    denyBlocksRmRf: boolean;
+    denyBlocksForcePush: boolean;
+    denyBlocksChmod: boolean;
+    denyBlocksCloudDestructive: boolean;
+  },
 ): void {
   if (!hasDenyPatterns || !settingsParsed) return;
   /** Permissions object from the parsed settings */
-  const perms = (settingsParsed as Record<string, unknown>).permissions as Record<string, unknown> | undefined;
+  const perms = (settingsParsed as Record<string, unknown>).permissions as
+    | Record<string, unknown>
+    | undefined;
   /** Raw deny array from permissions */
   const rawDeny = perms?.deny;
   if (!Array.isArray(rawDeny)) return;
@@ -579,8 +764,16 @@ function enrichDenyFromSettings(
 /** Apply Codex execpolicy Starlark rules to deny hook facts. */
 function enrichDenyFromExecpolicy(
   fs: ReadonlyFS,
-  hook: { denyExists: boolean; denyHasBlocks: boolean; denyIsConfigBased: boolean; denyUsesJq: boolean; denyHandlesChaining: boolean;
-    denyBlocksRmRf: boolean; denyBlocksForcePush: boolean; denyBlocksChmod: boolean },
+  hook: {
+    denyExists: boolean;
+    denyHasBlocks: boolean;
+    denyIsConfigBased: boolean;
+    denyUsesJq: boolean;
+    denyHandlesChaining: boolean;
+    denyBlocksRmRf: boolean;
+    denyBlocksForcePush: boolean;
+    denyBlocksChmod: boolean;
+  },
 ): void {
   /** Path to the Codex execpolicy Starlark rule file */
   const execpolicyPath = '.codex/rules/deny-dangerous.star';
@@ -589,7 +782,8 @@ function enrichDenyFromExecpolicy(
   const ruleContent = fs.readFile(execpolicyPath);
   if (!ruleContent) return;
   hook.denyExists = true;
-  hook.denyHasBlocks = /forbidden|prompt/i.test(ruleContent) && ruleContent.split('\n').length > 5;
+  hook.denyHasBlocks =
+    /forbidden|prompt/i.test(ruleContent) && ruleContent.split('\n').length > 5;
   hook.denyBlocksRmRf = /rm.*-.*rf|rm.*-.*fr/i.test(ruleContent);
   hook.denyBlocksForcePush = /force.*push|--force/i.test(ruleContent);
   hook.denyBlocksChmod = /chmod.*777/.test(ruleContent);
@@ -617,6 +811,7 @@ type PostTurnFacts = Pick<
   | 'postTurnRegisteredPath'
   | 'postTurnExitsZero'
   | 'postTurnHasValidation'
+  | 'postTurnSwallowsFailures'
   | 'postToolRegistered'
   | 'postToolRegisteredPath'
   | 'postToolExists'
@@ -635,6 +830,7 @@ interface HookRegistrationMatch {
   path: string | null;
 }
 
+/** Normalize hook command arguments into a repo-relative shell-script path. */
 function normalizeHookPath(candidate: string): string | null {
   if (!candidate) return null;
   let path = candidate.trim();
@@ -649,6 +845,7 @@ function normalizeHookPath(candidate: string): string | null {
   return path;
 }
 
+/** Extract normalized shell-script paths from one hook command string. */
 function extractHookPathsFromCommand(command: string): string[] {
   const pathCandidates: string[] = [];
   const quotedMatches = command.matchAll(/["']([^"']+\.sh)["']/g);
@@ -670,6 +867,7 @@ function extractHookPathsFromCommand(command: string): string[] {
   return pathCandidates;
 }
 
+/** Return the first shell-script path referenced by a list of hook commands. */
 function firstHookPathFromCommands(commands: string[]): string | null {
   for (const command of commands) {
     const candidates = extractHookPathsFromCommand(command);
@@ -680,40 +878,57 @@ function firstHookPathFromCommands(commands: string[]): string | null {
   return null;
 }
 
-function readHooksObject(settingsParsed: unknown): Record<string, unknown> | null {
+/** Return the parsed `hooks` object from settings when it exists. */
+function readHooksObject(
+  settingsParsed: unknown,
+): Record<string, unknown> | null {
   if (!settingsParsed || typeof settingsParsed !== 'object') return null;
   const hooks = (settingsParsed as Record<string, unknown>).hooks;
   if (!hooks || typeof hooks !== 'object') return null;
   return hooks as Record<string, unknown>;
 }
 
-function normalizeEventConfig(hooks: Record<string, unknown>, event: string): HookRegistrationMatch {
+/** Extract the shell command from one hook entry when it uses command mode. */
+function extractCommandFromHook(hook: unknown): string | null {
+  if (!hook || typeof hook !== 'object') return null;
+  const hookObj = hook as Record<string, unknown>;
+  if (hookObj.type !== 'command') return null;
+  return typeof hookObj.command === 'string' ? hookObj.command : null;
+}
+
+/** Extract all shell commands declared inside one event registration entry. */
+function extractCommandsFromEventEntry(entry: unknown): string[] {
+  if (!entry || typeof entry !== 'object') return [];
+  const eventHooks = (entry as Record<string, unknown>).hooks;
+  if (!Array.isArray(eventHooks)) return [];
+
+  const commands: string[] = [];
+  for (const hook of eventHooks) {
+    const command = extractCommandFromHook(hook);
+    if (command !== null) commands.push(command);
+  }
+  return commands;
+}
+
+/** Normalize one event's hook registration into a simple registered/path pair. */
+function normalizeEventConfig(
+  hooks: Record<string, unknown>,
+  event: string,
+): HookRegistrationMatch {
   const rawEvent = hooks[event];
   if (rawEvent === undefined) return { registered: false, path: null };
   if (!Array.isArray(rawEvent)) return { registered: false, path: null };
 
   const commands: string[] = [];
   for (const entry of rawEvent) {
-    if (!entry || typeof entry !== 'object') continue;
-    const entryObj = entry as Record<string, unknown>;
-    const eventHooks = entryObj.hooks;
-    if (!Array.isArray(eventHooks)) continue;
-
-    for (const hook of eventHooks) {
-      if (!hook || typeof hook !== 'object') continue;
-      const hookObj = hook as Record<string, unknown>;
-      if (hookObj.type !== 'command') continue;
-      const command = hookObj.command;
-      if (typeof command === 'string') {
-        commands.push(command);
-      }
-    }
+    commands.push(...extractCommandsFromEventEntry(entry));
   }
 
   const path = firstHookPathFromCommands(commands);
   return { registered: path !== null, path };
 }
 
+/** Extract one `[hooks.<section>]` block from the Codex TOML config. */
 function extractTomlSection(config: string, section: string): string | null {
   const header = `[hooks.${section}]`;
   const start = config.indexOf(header);
@@ -721,22 +936,32 @@ function extractTomlSection(config: string, section: string): string | null {
 
   const sectionTail = config.slice(start + header.length);
   const nextHeader = sectionTail.indexOf('\n[');
-  return (nextHeader < 0 ? sectionTail : sectionTail.slice(0, nextHeader)).trim();
+  return (
+    nextHeader < 0 ? sectionTail : sectionTail.slice(0, nextHeader)
+  ).trim();
 }
 
+/** Extract command strings from a Codex TOML hook section. */
 function extractTomlCommandValues(section: string): string[] {
   const commandMatch = section.match(/command\\s*=\\s*\\[(.*?)\\]/s);
   if (commandMatch?.[1]) {
     return Array.from(commandMatch[1].matchAll(/"([^"\\\\]*)"|'([^'\\\\]*)'/g))
-      .map(m => m[1] ?? m[2])
-      .filter((value): value is string => typeof value === 'string' && value.length > 0);
+      .map((m) => m[1] ?? m[2])
+      .filter(
+        (value): value is string =>
+          typeof value === 'string' && value.length > 0,
+      );
   }
 
   const inlineMatch = section.match(/command\\s*=\\s*["']([^"']+)["']/);
   return inlineMatch?.[1] ? [inlineMatch[1]] : [];
 }
 
-function normalizeCodexHookRegistration(config: string, section: string): HookRegistrationMatch {
+/** Normalize Codex TOML hook config into a simple registered/path pair. */
+function normalizeCodexHookRegistration(
+  config: string,
+  section: string,
+): HookRegistrationMatch {
   const sectionText = extractTomlSection(config, section);
   if (sectionText === null) return { registered: false, path: null };
 
@@ -745,7 +970,12 @@ function normalizeCodexHookRegistration(config: string, section: string): HookRe
   return { registered: path !== null, path };
 }
 
-function buildHookRegistration(agent: AgentProfile, settingsParsed: unknown, configText: string | null): {
+/** Collect registered post-turn and post-tool hook paths for the current agent. */
+function buildHookRegistration(
+  agent: AgentProfile,
+  settingsParsed: unknown,
+  configText: string | null,
+): {
   postTurnRegistered: boolean;
   postTurnRegisteredPath: string | null;
   postToolRegistered: boolean;
@@ -762,7 +992,10 @@ function buildHookRegistration(agent: AgentProfile, settingsParsed: unknown, con
     }
 
     const stop = normalizeCodexHookRegistration(configText, 'stop');
-    const afterTool = normalizeCodexHookRegistration(configText, 'after_tool_use');
+    const afterTool = normalizeCodexHookRegistration(
+      configText,
+      'after_tool_use',
+    );
     return {
       postTurnRegistered: stop.registered,
       postTurnRegisteredPath: stop.path,
@@ -791,22 +1024,32 @@ function buildHookRegistration(agent: AgentProfile, settingsParsed: unknown, con
   };
 }
 
+/** Detect whether the current agent has a compaction/session-start hook configured. */
 function detectCompactionHookExists(
   fs: ReadonlyFS,
   agent: AgentProfile,
   settingsParsed: unknown,
   settingsValid: boolean,
 ): boolean {
-  const compactionHookExists = checkCompactionHook(settingsParsed, settingsValid);
+  const compactionHookExists = checkCompactionHook(
+    settingsParsed,
+    settingsValid,
+  );
   if (compactionHookExists || agent.id !== 'codex') {
     return compactionHookExists;
   }
 
   const configContent = fs.readFile('.codex/config.toml');
-  return Boolean(configContent && /\[hooks\.session_start\]/.test(configContent));
+  return Boolean(
+    configContent && /\[hooks\.session_start\]/.test(configContent),
+  );
 }
 
-function resolveDenyHookPath(fs: ReadonlyFS, agent: AgentProfile): string | null {
+/** Resolve the deny hook script path for the current agent, if it has one. */
+function resolveDenyHookPath(
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+): string | null {
   if (agent.hooksDir && fs.exists(`${agent.hooksDir}/deny-dangerous.sh`)) {
     return `${agent.hooksDir}/deny-dangerous.sh`;
   }
@@ -819,6 +1062,7 @@ function resolveDenyHookPath(fs: ReadonlyFS, agent: AgentProfile): string | null
   return null;
 }
 
+/** Build the empty deny-hook fact object used when no deny hook is available. */
 function createEmptyDenyFacts(denyExists: boolean): HookDenyFacts {
   return {
     denyExists,
@@ -833,7 +1077,11 @@ function createEmptyDenyFacts(denyExists: boolean): HookDenyFacts {
   };
 }
 
-function analyzeDenyHookPath(fs: ReadonlyFS, denyHookPath: string | null): HookDenyFacts {
+/** Analyze the deny hook script on disk for the blocking behaviors we care about. */
+function analyzeDenyHookPath(
+  fs: ReadonlyFS,
+  denyHookPath: string | null,
+): HookDenyFacts {
   const denyExists = denyHookPath !== null && fs.exists(denyHookPath);
   const hook = createEmptyDenyFacts(denyExists);
   if (!denyExists || !denyHookPath) {
@@ -858,13 +1106,20 @@ function analyzeDenyHookPath(fs: ReadonlyFS, denyHookPath: string | null): HookD
   };
 }
 
+/** Detect hardcoded absolute paths inside shell hook lines. */
 function lineHasAbsolutePath(line: string): boolean {
-  return !line.trimStart().startsWith('#')
-    && !/\$\(git rev-parse/.test(line)
-    && /\/(home|Users|tmp|var|opt)\/\w+\//.test(line);
+  return (
+    !line.trimStart().startsWith('#') &&
+    !/\$\(git rev-parse/.test(line) &&
+    /\/(home|Users|tmp|var|opt)\/\w+\//.test(line)
+  );
 }
 
-function findAbsolutePathHooks(fs: ReadonlyFS, hooksDir: string | null): string[] {
+/** List hook scripts that contain hardcoded absolute paths. */
+function findAbsolutePathHooks(
+  fs: ReadonlyFS,
+  hooksDir: string | null,
+): string[] {
   if (!hooksDir || !fs.exists(hooksDir)) return [];
   const absolutePathHooks: string[] = [];
 
@@ -880,12 +1135,40 @@ function findAbsolutePathHooks(fs: ReadonlyFS, hooksDir: string | null): string[
   return absolutePathHooks;
 }
 
+/** Detect Claude's top-level `.file_path` field usage in a post-tool hook. */
+function usesClaudeTopLevelFilePath(hookContent: string): boolean {
+  return /(^|[^A-Za-z0-9_])\.file_path\b/.test(hookContent);
+}
+
+/** Detect whether Claude post-tool hooks read the expected top-level `.file_path` field. */
+function detectPostToolPathField(
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+  registeredPath: string | null,
+): boolean {
+  if (agent.id !== 'claude') return true;
+  if (registeredPath === null || !fs.exists(registeredPath)) return false;
+  const hookContent = fs.readFile(registeredPath);
+  if (!hookContent) return false;
+  return usesClaudeTopLevelFilePath(hookContent);
+}
+
 /** Extract all hook-related facts: deny hooks, post-turn, post-tool, compaction. */
 function extractHookFacts(
-  fs: ReadonlyFS, agent: AgentProfile, settingsParsed: unknown, hasDenyPatterns: boolean, settingsValid: boolean,
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+  settingsParsed: unknown,
+  hasDenyPatterns: boolean,
+  settingsValid: boolean,
 ): Omit<AgentFacts['hooks'], 'readDenyCoversSecrets'> {
-  const compactionHookExists = detectCompactionHookExists(fs, agent, settingsParsed, settingsValid);
-  const configText = agent.id === 'codex' ? fs.readFile('.codex/config.toml') : null;
+  const compactionHookExists = detectCompactionHookExists(
+    fs,
+    agent,
+    settingsParsed,
+    settingsValid,
+  );
+  const configText =
+    agent.id === 'codex' ? fs.readFile('.codex/config.toml') : null;
   const registration = buildHookRegistration(agent, settingsParsed, configText);
   const hook = analyzeDenyHookPath(fs, resolveDenyHookPath(fs, agent));
   const absolutePathHooks = findAbsolutePathHooks(fs, agent.hooksDir);
@@ -903,32 +1186,56 @@ function extractHookFacts(
   return {
     ...hook,
     ...postTurn,
+    postToolUsesExpectedPathField: detectPostToolPathField(
+      fs,
+      agent,
+      registration.postToolRegisteredPath,
+    ),
     compactionHookExists,
     absolutePathHooks,
   };
 }
 
+/** Analyze a hook script file for exit-zero and validation behavior. */
 function analyzeHookScriptAtPath(
   fs: ReadonlyFS,
   scriptPath: string,
-): Pick<PostTurnFacts, 'postTurnExitsZero' | 'postTurnHasValidation'> {
+): Pick<
+  PostTurnFacts,
+  'postTurnExitsZero' | 'postTurnHasValidation' | 'postTurnSwallowsFailures'
+> {
   const hookContent = fs.readFile(scriptPath);
   if (!hookContent) {
-    return { postTurnExitsZero: false, postTurnHasValidation: false };
+    return {
+      postTurnExitsZero: false,
+      postTurnHasValidation: false,
+      postTurnSwallowsFailures: false,
+    };
   }
 
   const analysis = analyzePostTurnScript(hookContent);
   return {
     postTurnExitsZero: analysis.exitsZero,
     postTurnHasValidation: analysis.hasValidation,
+    postTurnSwallowsFailures: analysis.swallowsFailures,
   };
 }
 
-function extractCodexPostTurnFacts(fs: ReadonlyFS, registration: HookRegistrationFacts): PostTurnFacts {
+/** Extract post-turn and post-tool facts from Codex hook registration. */
+function extractCodexPostTurnFacts(
+  fs: ReadonlyFS,
+  registration: HookRegistrationFacts,
+): PostTurnFacts {
   const postTurnRegisteredPath = registration.postTurnRegisteredPath;
   const postToolRegisteredPath = registration.postToolRegisteredPath;
-  const postTurnExists = registration.postTurnRegistered && postTurnRegisteredPath !== null && fs.exists(postTurnRegisteredPath);
-  const postToolExists = registration.postToolRegistered && postToolRegisteredPath !== null && fs.exists(postToolRegisteredPath);
+  const postTurnExists =
+    registration.postTurnRegistered &&
+    postTurnRegisteredPath !== null &&
+    fs.exists(postTurnRegisteredPath);
+  const postToolExists =
+    registration.postToolRegistered &&
+    postToolRegisteredPath !== null &&
+    fs.exists(postToolRegisteredPath);
 
   return {
     postTurnRegistered: registration.postTurnRegistered,
@@ -937,19 +1244,31 @@ function extractCodexPostTurnFacts(fs: ReadonlyFS, registration: HookRegistratio
     postToolRegisteredPath,
     postTurnExists,
     postToolExists,
-    ...(
-      postTurnExists && postTurnRegisteredPath
-        ? analyzeHookScriptAtPath(fs, postTurnRegisteredPath)
-        : { postTurnExitsZero: false, postTurnHasValidation: false }
-    ),
+    ...(postTurnExists && postTurnRegisteredPath
+      ? analyzeHookScriptAtPath(fs, postTurnRegisteredPath)
+      : {
+          postTurnExitsZero: false,
+          postTurnHasValidation: false,
+          postTurnSwallowsFailures: false,
+        }),
   };
 }
 
-function extractDirectoryPostTurnFacts(fs: ReadonlyFS, registration: HookRegistrationFacts): PostTurnFacts {
+/** Extract post-turn and post-tool facts from shell hook directories. */
+function extractDirectoryPostTurnFacts(
+  fs: ReadonlyFS,
+  registration: HookRegistrationFacts,
+): PostTurnFacts {
   const postTurnRegisteredPath = registration.postTurnRegisteredPath;
   const postToolRegisteredPath = registration.postToolRegisteredPath;
-  const postTurnExists = registration.postTurnRegistered && postTurnRegisteredPath !== null && fs.exists(postTurnRegisteredPath);
-  const postToolExists = registration.postToolRegistered && postToolRegisteredPath !== null && fs.exists(postToolRegisteredPath);
+  const postTurnExists =
+    registration.postTurnRegistered &&
+    postTurnRegisteredPath !== null &&
+    fs.exists(postTurnRegisteredPath);
+  const postToolExists =
+    registration.postToolRegistered &&
+    postToolRegisteredPath !== null &&
+    fs.exists(postToolRegisteredPath);
 
   return {
     postTurnRegistered: registration.postTurnRegistered,
@@ -958,16 +1277,22 @@ function extractDirectoryPostTurnFacts(fs: ReadonlyFS, registration: HookRegistr
     postToolRegisteredPath,
     postTurnExists,
     postToolExists,
-    ...(
-      postTurnExists && postTurnRegisteredPath
-        ? analyzeHookScriptAtPath(fs, postTurnRegisteredPath)
-        : { postTurnExitsZero: false, postTurnHasValidation: false }
-    ),
+    ...(postTurnExists && postTurnRegisteredPath
+      ? analyzeHookScriptAtPath(fs, postTurnRegisteredPath)
+      : {
+          postTurnExitsZero: false,
+          postTurnHasValidation: false,
+          postTurnSwallowsFailures: false,
+        }),
   };
 }
 
 /** Extract post-turn and post-tool hook facts. */
-function extractPostTurnFacts(fs: ReadonlyFS, agent: AgentProfile, registration: HookRegistrationFacts): PostTurnFacts {
+function extractPostTurnFacts(
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+  registration: HookRegistrationFacts,
+): PostTurnFacts {
   if (agent.id === 'codex') {
     return extractCodexPostTurnFacts(fs, registration);
   }
@@ -984,11 +1309,16 @@ function extractPostTurnFacts(fs: ReadonlyFS, agent: AgentProfile, registration:
     postTurnExists: false,
     postTurnExitsZero: false,
     postTurnHasValidation: false,
+    postTurnSwallowsFailures: false,
     postToolExists: false,
   };
 }
 
-function resolveReferencedPaths(fs: ReadonlyFS, paths: string[]): {
+/** Count which referenced paths resolve and which remain missing. */
+function resolveReferencedPaths(
+  fs: ReadonlyFS,
+  paths: string[],
+): {
   resolved: number;
   unresolved: string[];
 } {
@@ -1006,13 +1336,17 @@ function resolveReferencedPaths(fs: ReadonlyFS, paths: string[]): {
   return { resolved, unresolved };
 }
 
+/** Extract router marker paths from the fenced marker block in the instruction file. */
 function extractMarkerPaths(content: string | null): {
   hasMarkers: boolean;
   markerPaths: string[];
 } {
   const markerStart = '<!-- goat-flow:router:start -->';
   const markerEnd = '<!-- goat-flow:router:end -->';
-  const hasMarkers = content !== null && content.includes(markerStart) && content.includes(markerEnd);
+  const hasMarkers =
+    content !== null &&
+    content.includes(markerStart) &&
+    content.includes(markerEnd);
   if (!hasMarkers) {
     return { hasMarkers: false, markerPaths: [] };
   }
@@ -1034,11 +1368,16 @@ function extractMarkerPaths(content: string | null): {
 }
 
 /** Extract router table facts: paths found and their resolution status. */
-function extractRouterFacts(fs: ReadonlyFS, content: string | null): AgentFacts['router'] {
+function extractRouterFacts(
+  fs: ReadonlyFS,
+  content: string | null,
+): AgentFacts['router'] {
   const paths = content !== null ? extractRouterPaths(content) : [];
   const resolution = resolveReferencedPaths(fs, paths);
   const markerInfo = extractMarkerPaths(content);
-  const staleMarkerPaths = markerInfo.markerPaths.filter(path => !fs.exists(path));
+  const staleMarkerPaths = markerInfo.markerPaths.filter(
+    (path) => !fs.exists(path),
+  );
 
   return {
     exists: paths.length > 0,
@@ -1052,7 +1391,10 @@ function extractRouterFacts(fs: ReadonlyFS, content: string | null): AgentFacts[
 }
 
 /** Extract ask-first boundary facts: paths listed and their resolution status. */
-function extractAskFirstFacts(fs: ReadonlyFS, content: string | null): AgentFacts['askFirst'] {
+function extractAskFirstFacts(
+  fs: ReadonlyFS,
+  content: string | null,
+): AgentFacts['askFirst'] {
   const paths = content !== null ? extractAskFirstPaths(content) : [];
   const resolution = resolveReferencedPaths(fs, paths);
   return {
@@ -1068,11 +1410,20 @@ function extractAskFirstFacts(fs: ReadonlyFS, content: string | null): AgentFact
 // ─── Composer ────────────────────────────────────────────────────────
 
 /** Extract all facts about a single agent from the filesystem. */
-export function extractAgentFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFacts {
+export function extractAgentFacts(
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+): AgentFacts {
   const instruction = extractInstructionFacts(fs, agent);
   const settings = extractSettingsFacts(fs, agent);
   const skills = extractSkillFacts(fs, agent);
-  const hookFacts = extractHookFacts(fs, agent, settings.parsed, settings.hasDenyPatterns, settings.valid);
+  const hookFacts = extractHookFacts(
+    fs,
+    agent,
+    settings.parsed,
+    settings.hasDenyPatterns,
+    settings.valid,
+  );
   const deny = checkDenyPatterns(fs, agent);
   const router = extractRouterFacts(fs, instruction.content);
   const askFirst = extractAskFirstFacts(fs, instruction.content);
@@ -1082,9 +1433,9 @@ export function extractAgentFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFac
     ? fs.glob(agent.localPattern)
     : [];
   /** Local context files excluding the root instruction file */
-  const filteredLocal = localFiles.filter(f => f !== agent.instructionFile);
+  const filteredLocal = localFiles.filter((f) => f !== agent.instructionFile);
 
-  // Determine warranted local files (dirs with 2+ footgun mentions)
+  // Shared footgun analysis later fills in which local context files are warranted.
   /** Directories warranting local context files based on footgun mentions */
   const warranted: string[] = [];
   /** Warranted directories that lack a local context file */
@@ -1094,9 +1445,17 @@ export function extractAgentFacts(fs: ReadonlyFS, agent: AgentProfile): AgentFac
   return {
     agent,
     instruction,
-    settings: { exists: settings.exists, valid: settings.valid, parsed: settings.parsed, hasDenyPatterns: settings.hasDenyPatterns },
+    settings: {
+      exists: settings.exists,
+      valid: settings.valid,
+      parsed: settings.parsed,
+      hasDenyPatterns: settings.hasDenyPatterns,
+    },
     skills,
-    hooks: { ...hookFacts, readDenyCoversSecrets: settings.readDenyCoversSecrets },
+    hooks: {
+      ...hookFacts,
+      readDenyCoversSecrets: settings.readDenyCoversSecrets,
+    },
     deny,
     router,
     askFirst,

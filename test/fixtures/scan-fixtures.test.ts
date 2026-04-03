@@ -1,3 +1,7 @@
+/**
+ * In-memory scanner regression suite.
+ * These focused fixtures are cheaper than disk-backed projects and lock down individual rubric edge cases.
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createMockFS } from '../helpers/mock-fs.js';
@@ -7,14 +11,30 @@ import type { ScanReport, Grade } from '../../src/cli/types.js';
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
-function assertGrade(report: ScanReport, agentId: string, expected: Grade, label: string) {
-  const agent = report.agents.find(a => a.agent === agentId);
+function assertGrade(
+  report: ScanReport,
+  agentId: string,
+  expected: Grade,
+  label: string,
+) {
+  const agent = report.agents.find((a) => a.agent === agentId);
   assert.ok(agent, `${label}: agent '${agentId}' not found`);
-  assert.equal(agent.score.grade, expected, `${label}: expected grade ${expected}, got ${agent.score.grade} (${agent.score.percentage}%)`);
+  assert.equal(
+    agent.score.grade,
+    expected,
+    `${label}: expected grade ${expected}, got ${agent.score.grade} (${agent.score.percentage}%)`,
+  );
 }
 
-function assertPercentageRange(report: ScanReport, agentId: string, min: number, max: number, label: string) {
-  const agent = report.agents.find(a => a.agent === agentId);
+/** Assert percentage range. */
+function assertPercentageRange(
+  report: ScanReport,
+  agentId: string,
+  min: number,
+  max: number,
+  label: string,
+) {
+  const agent = report.agents.find((a) => a.agent === agentId);
   assert.ok(agent, `${label}: agent '${agentId}' not found`);
   assert.ok(
     agent.score.percentage >= min && agent.score.percentage <= max,
@@ -22,21 +42,55 @@ function assertPercentageRange(report: ScanReport, agentId: string, min: number,
   );
 }
 
+/** Assert no agents. */
 function assertNoAgents(report: ScanReport, label: string) {
-  assert.equal(report.agents.length, 0, `${label}: expected no agents, got ${report.agents.length}`);
+  assert.equal(
+    report.agents.length,
+    0,
+    `${label}: expected no agents, got ${report.agents.length}`,
+  );
 }
 
+/** Assert valid report. */
 function assertValidReport(report: ScanReport, label: string) {
   assert.ok(report.schemaVersion, `${label}: missing schemaVersion`);
   assert.ok(report.packageVersion, `${label}: missing packageVersion`);
   assert.ok(report.rubricVersion, `${label}: missing rubricVersion`);
   assert.ok(report.meta.checkCount > 0, `${label}: checkCount should be > 0`);
-  assert.ok(report.meta.antiPatternCount > 0, `${label}: antiPatternCount should be > 0`);
+  assert.ok(
+    report.meta.antiPatternCount > 0,
+    `${label}: antiPatternCount should be > 0`,
+  );
+  assert.ok(report.meta.versions, `${label}: missing meta.versions`);
+  assert.equal(
+    report.meta.versions.schema,
+    report.schemaVersion,
+    `${label}: meta schema version should match top-level schemaVersion`,
+  );
+  assert.equal(
+    report.meta.versions.package,
+    report.packageVersion,
+    `${label}: meta package version should match top-level packageVersion`,
+  );
+  assert.equal(
+    report.meta.versions.rubric,
+    report.rubricVersion,
+    `${label}: meta rubric version should match top-level rubricVersion`,
+  );
   for (const agent of report.agents) {
-    assert.ok(agent.checks.length > 0, `${label}: ${agent.agent} should have checks`);
+    assert.ok(
+      agent.checks.length > 0,
+      `${label}: ${agent.agent} should have checks`,
+    );
     for (const check of agent.checks) {
-      assert.ok(check.confidence, `${label}: check ${check.id} missing confidence`);
-      assert.ok(['pass', 'partial', 'fail', 'na'].includes(check.status), `${label}: check ${check.id} invalid status '${check.status}'`);
+      assert.ok(
+        check.confidence,
+        `${label}: check ${check.id} missing confidence`,
+      );
+      assert.ok(
+        ['pass', 'partial', 'fail', 'na'].includes(check.status),
+        `${label}: check ${check.id} invalid status '${check.status}'`,
+      );
     }
   }
 }
@@ -233,7 +287,10 @@ Structured report with findings.
 describe('Fixture 1: empty project', () => {
   const fs = createMockFS({
     'README.md': '# My Project\n',
-    'package.json': JSON.stringify({ name: 'my-project', scripts: { start: 'node index.js' } }),
+    'package.json': JSON.stringify({
+      name: 'my-project',
+      scripts: { start: 'node index.js' },
+    }),
   });
   const report = scanProject(fs, '/test/empty', { agentFilter: null });
 
@@ -246,7 +303,10 @@ describe('Fixture 1: empty project', () => {
 describe('Fixture 2: minimal-claude', () => {
   const fs = createMockFS({
     'CLAUDE.md': MINIMAL_CLAUDE_MD,
-    'package.json': JSON.stringify({ name: 'my-app', scripts: { start: 'node server.js', test: 'jest' } }),
+    'package.json': JSON.stringify({
+      name: 'my-app',
+      scripts: { start: 'node server.js', test: 'jest' },
+    }),
   });
   const report = scanProject(fs, '/test/minimal-claude', { agentFilter: null });
 
@@ -261,18 +321,27 @@ describe('Fixture 2: minimal-claude', () => {
 
   it('scores F or D (no execution loop, no skills, no enforcement)', () => {
     const grade = report.agents[0].score.grade;
-    assert.ok(grade === 'F' || grade === 'D', `Expected F or D, got ${grade} (${report.agents[0].score.percentage}%)`);
+    assert.ok(
+      grade === 'F' || grade === 'D',
+      `Expected F or D, got ${grade} (${report.agents[0].score.percentage}%)`,
+    );
   });
 
   it('has recommendations', () => {
-    assert.ok(report.agents[0].recommendations.length > 5, 'Expected many recommendations for minimal setup');
+    assert.ok(
+      report.agents[0].recommendations.length > 5,
+      'Expected many recommendations for minimal setup',
+    );
   });
 });
 
 describe('Fixture 3: minimal-codex', () => {
   const fs = createMockFS({
     'AGENTS.md': MINIMAL_AGENTS_MD,
-    'package.json': JSON.stringify({ name: 'my-codex-app', scripts: { start: 'node app.js' } }),
+    'package.json': JSON.stringify({
+      name: 'my-codex-app',
+      scripts: { start: 'node app.js' },
+    }),
   });
   const report = scanProject(fs, '/test/minimal-codex', { agentFilter: null });
 
@@ -297,41 +366,64 @@ describe('Fixture 4: full-claude', () => {
     'package.json': JSON.stringify({
       name: 'full-project',
       devDependencies: { typescript: '^5.0.0' },
-      scripts: { build: 'tsc', test: 'vitest', lint: 'eslint .', format: 'prettier --write .' },
+      scripts: {
+        build: 'tsc',
+        test: 'vitest',
+        lint: 'eslint .',
+        format: 'prettier --write .',
+      },
     }),
     '.claude/settings.json': JSON.stringify({
       permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
-      hooks: [{ type: 'Notification', matcher: 'compact', command: 'echo context' }],
+      hooks: [
+        { type: 'Notification', matcher: 'compact', command: 'echo context' },
+      ],
     }),
     // 6 skills (5 + dispatcher)
     ...Object.fromEntries(
-      ['debug', 'review', 'plan', 'security', 'test'].map(s => [
-        `.claude/skills/goat-${s}/SKILL.md`, qualitySkill(s),
+      ['debug', 'review', 'plan', 'security', 'test'].map((s) => [
+        `.claude/skills/goat-${s}/SKILL.md`,
+        qualitySkill(s),
       ]),
     ),
     // Hooks
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
-    '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\necho "lint check"\nexit 0\n',
-    '.claude/hooks/format-file.sh': '#!/usr/bin/env bash\nprettier --write "$1"\nexit 0\n',
+    '.claude/hooks/stop-lint.sh':
+      '#!/usr/bin/env bash\necho "lint check"\nexit 0\n',
+    '.claude/hooks/format-file.sh':
+      '#!/usr/bin/env bash\nINPUT=$(cat)\nFILE_PATH=$(echo "$INPUT" | jq -r \'.file_path // empty\' 2>/dev/null)\n[ -z "$FILE_PATH" ] && exit 0\ncase "$FILE_PATH" in\n  */.claude/*|*/.gemini/*|*/.codex/*|*/.agents/*|*/.github/skills/*) exit 0 ;;\nesac\nprettier --write "$FILE_PATH"\nexit 0\n',
     // Learning loop
-    'docs/footguns/': '# Footguns\n\n## Footgun: Auth race\n\n**Evidence:**\n- `src/auth.ts:42` - race condition\n- `src/auth.ts:88` - missing lock\n',
+    'docs/footguns/':
+      '# Footguns\n\n## Footgun: Auth race\n\n**Evidence:**\n- `src/auth.ts:42` - race condition\n- `src/auth.ts:88` - missing lock\n',
     'src/auth.ts': '// auth module\nexport function login() {}\n',
-    'ai/lessons/': '# Lessons\n\n## Entries\n\n### Entry 1\n**What happened:** broke prod\n\n### Entry 2\n**What happened:** missed test\n\n### Entry 3\n**What happened:** stale ref\n',
+    'ai/lessons/':
+      '# Lessons\n\n## Entries\n\n### Entry 1\n**What happened:** broke prod\n\n### Entry 2\n**What happened:** missed test\n\n### Entry 3\n**What happened:** stale ref\n',
     // Architecture
-    'docs/architecture.md': '# Architecture\n\n' + 'System overview.\n'.repeat(10),
+    'docs/architecture.md':
+      '# Architecture\n\n' + 'System overview.\n'.repeat(10),
     // Evals
     'ai/evals/README.md': '# Agent Evals\n',
-    'ai/evals/eval-1.md': '---\nname: eval-1\norigin: real-incident\nagents: all\nskill: goat-debug\n---\n\n### Scenario\n\n```\nDo the thing\n```\n',
-    'ai/evals/eval-2.md': '---\nname: eval-2\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nDo something\n```\n',
-    'ai/evals/eval-3.md': '---\nname: eval-3\norigin: synthetic-seed\nagents: claude\nskill: goat-plan\n---\n\n### Scenario\n\n```\nAnother prompt\n```\n',
-    'ai/evals/eval-4.md': '---\nname: eval-4\norigin: real-incident\nagents: all\nskill: goat-security\n---\n\n### Scenario\n\n```\nCheck auth\n```\n',
-    'ai/evals/eval-5.md': '---\nname: eval-5\norigin: real-incident\nagents: all\nskill: goat-debug\n---\n\n### Scenario\n\n```\nExplore module\n```\n',
-    'ai/evals/eval-6.md': '---\nname: eval-6\norigin: real-incident\nagents: all\nskill: goat-test\n---\n\n### Scenario\n\n```\nVerify changes\n```\n',
-    'ai/evals/eval-7.md': '---\nname: eval-7\norigin: real-incident\nagents: all\nskill: goat-plan\n---\n\n### Scenario\n\n```\nRename across files\n```\n',
-    'ai/evals/eval-8.md': '---\nname: eval-8\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nClean up naming\n```\n',
-    'ai/evals/eval-9.md': '---\nname: eval-9\norigin: real-incident\nagents: all\nskill: goat\n---\n\n### Scenario\n\n```\nRoute intent\n```\n',
+    'ai/evals/eval-1.md':
+      '---\nname: eval-1\norigin: real-incident\nagents: all\nskill: goat-debug\n---\n\n### Scenario\n\n```\nDo the thing\n```\n',
+    'ai/evals/eval-2.md':
+      '---\nname: eval-2\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nDo something\n```\n',
+    'ai/evals/eval-3.md':
+      '---\nname: eval-3\norigin: synthetic-seed\nagents: claude\nskill: goat-plan\n---\n\n### Scenario\n\n```\nAnother prompt\n```\n',
+    'ai/evals/eval-4.md':
+      '---\nname: eval-4\norigin: real-incident\nagents: all\nskill: goat-security\n---\n\n### Scenario\n\n```\nCheck auth\n```\n',
+    'ai/evals/eval-5.md':
+      '---\nname: eval-5\norigin: real-incident\nagents: all\nskill: goat-debug\n---\n\n### Scenario\n\n```\nExplore module\n```\n',
+    'ai/evals/eval-6.md':
+      '---\nname: eval-6\norigin: real-incident\nagents: all\nskill: goat-test\n---\n\n### Scenario\n\n```\nVerify changes\n```\n',
+    'ai/evals/eval-7.md':
+      '---\nname: eval-7\norigin: real-incident\nagents: all\nskill: goat-plan\n---\n\n### Scenario\n\n```\nRename across files\n```\n',
+    'ai/evals/eval-8.md':
+      '---\nname: eval-8\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nClean up naming\n```\n',
+    'ai/evals/eval-9.md':
+      '---\nname: eval-9\norigin: real-incident\nagents: all\nskill: goat\n---\n\n### Scenario\n\n```\nRoute intent\n```\n',
     // CI
-    '.github/workflows/context-validation.yml': 'name: Context Validation\non: [push, pull_request]\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
+    '.github/workflows/context-validation.yml':
+      'name: Context Validation\non: [push, pull_request]\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
     // Preflight + validation
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\necho "preflight"\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\necho "validate"\n',
@@ -349,29 +441,45 @@ describe('Fixture 4: full-claude', () => {
   });
 
   it('scores A or B', () => {
-    assertGrade(report, 'claude', report.agents[0].score.percentage >= 90 ? 'A' : 'B', 'full-claude');
+    assertGrade(
+      report,
+      'claude',
+      report.agents[0].score.percentage >= 90 ? 'A' : 'B',
+      'full-claude',
+    );
     assertPercentageRange(report, 'claude', 75, 100, 'full-claude');
   });
 
   it('has zero or near-zero anti-pattern deductions', () => {
-    const triggered = report.agents[0].antiPatterns.filter(ap => ap.triggered);
-    assert.ok(triggered.length <= 1, `Expected 0-1 triggered anti-patterns, got ${triggered.length}: ${triggered.map(t => t.id).join(', ')}`);
+    const triggered = report.agents[0].antiPatterns.filter(
+      (ap) => ap.triggered,
+    );
+    assert.ok(
+      triggered.length <= 1,
+      `Expected 0-1 triggered anti-patterns, got ${triggered.length}: ${triggered.map((t) => t.id).join(', ')}`,
+    );
   });
 
   it('has few recommendations', () => {
-    assert.ok(report.agents[0].recommendations.length <= 30, `Expected ≤30 recommendations, got ${report.agents[0].recommendations.length}`);
+    assert.ok(
+      report.agents[0].recommendations.length <= 30,
+      `Expected ≤30 recommendations, got ${report.agents[0].recommendations.length}`,
+    );
   });
 
   it('confidence field present on all checks', () => {
     for (const check of report.agents[0].checks) {
-      assert.ok(['high', 'medium', 'low'].includes(check.confidence), `Check ${check.id} missing valid confidence`);
+      assert.ok(
+        ['high', 'medium', 'low'].includes(check.confidence),
+        `Check ${check.id} missing valid confidence`,
+      );
     }
   });
 });
 
 describe('Fixture 5: full-multi-agent', () => {
   const skills = Object.fromEntries(
-    ['preflight', 'debug', 'audit', 'review', 'plan', 'test'].flatMap(s => [
+    ['preflight', 'debug', 'audit', 'review', 'plan', 'test'].flatMap((s) => [
       [`.claude/skills/goat-${s}/SKILL.md`, qualitySkill(s)],
       [`.agents/skills/goat-${s}/SKILL.md`, qualitySkill(s)],
     ]),
@@ -380,24 +488,37 @@ describe('Fixture 5: full-multi-agent', () => {
     'CLAUDE.md': FULL_CLAUDE_MD,
     'AGENTS.md': FULL_CLAUDE_MD.replace('CLAUDE.md', 'AGENTS.md'),
     'GEMINI.md': FULL_CLAUDE_MD.replace('CLAUDE.md', 'GEMINI.md'),
-    'package.json': JSON.stringify({ name: 'multi-agent', devDependencies: { typescript: '^5.0.0' }, scripts: { test: 'vitest', lint: 'eslint .' } }),
-    '.claude/settings.json': JSON.stringify({ permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] } }),
-    '.gemini/settings.json': JSON.stringify({ permissions: { deny: ['git commit', 'git push'] } }),
+    'package.json': JSON.stringify({
+      name: 'multi-agent',
+      devDependencies: { typescript: '^5.0.0' },
+      scripts: { test: 'vitest', lint: 'eslint .' },
+    }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
+    }),
+    '.gemini/settings.json': JSON.stringify({
+      permissions: { deny: ['git commit', 'git push'] },
+    }),
     ...skills,
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.gemini/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.gemini/hooks/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
-    '.codex/rules/deny-dangerous.star': '# execpolicy\n# deny git commit\n# deny git push\n',
+    '.codex/rules/deny-dangerous.star':
+      '# execpolicy\n# deny git commit\n# deny git push\n',
     'scripts/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
     'docs/footguns/': '# Footguns\n\n**Evidence:**\n- `src/a.ts:1`\n',
     'ai/lessons/': '# Lessons\n\n### Entry 1\n**What happened:** x\n',
     'docs/architecture.md': '# Architecture\n\nOverview.\n',
     'ai/evals/README.md': '# Evals\n',
-    'ai/evals/eval-1.md': '---\nname: e1\norigin: real-incident\nagents: all\n---\n\n### Scenario\n\n```\nx\n```\n',
-    'ai/evals/eval-2.md': '---\nname: e2\norigin: real-incident\nagents: all\n---\n\n### Scenario\n\n```\ny\n```\n',
-    'ai/evals/eval-3.md': '---\nname: e3\norigin: synthetic-seed\nagents: claude\n---\n\n### Scenario\n\n```\nz\n```\n',
-    '.github/workflows/context-validation.yml': 'name: CV\non: [push, pull_request]\njobs:\n  v:\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
+    'ai/evals/eval-1.md':
+      '---\nname: e1\norigin: real-incident\nagents: all\n---\n\n### Scenario\n\n```\nx\n```\n',
+    'ai/evals/eval-2.md':
+      '---\nname: e2\norigin: real-incident\nagents: all\n---\n\n### Scenario\n\n```\ny\n```\n',
+    'ai/evals/eval-3.md':
+      '---\nname: e3\norigin: synthetic-seed\nagents: claude\n---\n\n### Scenario\n\n```\nz\n```\n',
+    '.github/workflows/context-validation.yml':
+      'name: CV\non: [push, pull_request]\njobs:\n  v:\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\n',
     '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
@@ -407,13 +528,19 @@ describe('Fixture 5: full-multi-agent', () => {
 
   it('detects all 3 agents', () => {
     assert.equal(report.agents.length, 3);
-    assert.deepEqual(report.agents.map(a => a.agent).sort(), ['claude', 'codex', 'gemini']);
+    assert.deepEqual(report.agents.map((a) => a.agent).sort(), [
+      'claude',
+      'codex',
+      'gemini',
+    ]);
   });
 
   it('all agents score C or better', () => {
     for (const agent of report.agents) {
       assert.ok(
-        agent.score.grade === 'A' || agent.score.grade === 'B' || agent.score.grade === 'C',
+        agent.score.grade === 'A' ||
+          agent.score.grade === 'B' ||
+          agent.score.grade === 'C',
         `${agent.agent}: expected A, B, or C, got ${agent.score.grade} (${agent.score.percentage}%)`,
       );
     }
@@ -435,11 +562,14 @@ describe('Fixture 6: N/A checks', () => {
       devDependencies: { typescript: '^5.0.0' },
       scripts: { build: 'tsc', test: 'vitest' },
     }),
-    '.claude/settings.json': JSON.stringify({ permissions: { deny: ['Bash(git commit*)'] } }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)'] },
+    }),
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     ...Object.fromEntries(
-      ['preflight', 'debug', 'audit', 'review', 'plan', 'test'].map(s => [
-        `.claude/skills/goat-${s}/SKILL.md`, qualitySkill(s),
+      ['preflight', 'debug', 'audit', 'review', 'plan', 'test'].map((s) => [
+        `.claude/skills/goat-${s}/SKILL.md`,
+        qualitySkill(s),
       ]),
     ),
     'docs/footguns/': '# Footguns\n\n- `src/index.ts:10` - gotcha\n',
@@ -455,9 +585,13 @@ describe('Fixture 6: N/A checks', () => {
 describe('Fixture 7: anti-patterns', () => {
   const fs = createMockFS({
     'CLAUDE.md': AP_CLAUDE_MD,
-    'package.json': JSON.stringify({ name: 'bad-project', scripts: { start: 'node .' } }),
+    'package.json': JSON.stringify({
+      name: 'bad-project',
+      scripts: { start: 'node .' },
+    }),
     '.claude/settings.json': '{ invalid json !!!',
-    'docs/footguns/': '# Footguns\n\nSome footguns but no file:line evidence at all.\n',
+    'docs/footguns/':
+      '# Footguns\n\nSome footguns but no file:line evidence at all.\n',
     '.claude/skills/not-goat-prefixed/SKILL.md': '# bad skill\n',
   });
   const report = scanProject(fs, '/test/anti-patterns', { agentFilter: null });
@@ -467,35 +601,41 @@ describe('Fixture 7: anti-patterns', () => {
   });
 
   it('triggers AP1 (over 150 lines)', () => {
-    const ap1 = report.agents[0].antiPatterns.find(ap => ap.id === 'AP1');
+    const ap1 = report.agents[0].antiPatterns.find((ap) => ap.id === 'AP1');
     assert.ok(ap1, 'AP1 not found');
     assert.ok(ap1.triggered, 'AP1 should be triggered (file is >150 lines)');
     assert.equal(ap1.deduction, -3);
   });
 
   it('triggers AP4 (footguns without evidence)', () => {
-    const ap4 = report.agents[0].antiPatterns.find(ap => ap.id === 'AP4');
+    const ap4 = report.agents[0].antiPatterns.find((ap) => ap.id === 'AP4');
     assert.ok(ap4, 'AP4 not found');
     assert.ok(ap4.triggered, 'AP4 should be triggered (no file:line evidence)');
     assert.equal(ap4.deduction, -5);
   });
 
   it('triggers AP5 (invalid settings JSON)', () => {
-    const ap5 = report.agents[0].antiPatterns.find(ap => ap.id === 'AP5');
+    const ap5 = report.agents[0].antiPatterns.find((ap) => ap.id === 'AP5');
     assert.ok(ap5, 'AP5 not found');
     assert.ok(ap5.triggered, 'AP5 should be triggered (invalid JSON)');
     assert.equal(ap5.deduction, -5);
   });
 
   it('triggers AP8 (generic Ask First)', () => {
-    const ap8 = report.agents[0].antiPatterns.find(ap => ap.id === 'AP8');
+    const ap8 = report.agents[0].antiPatterns.find((ap) => ap.id === 'AP8');
     assert.ok(ap8, 'AP8 not found');
-    assert.ok(ap8.triggered, 'AP8 should be triggered (template text in Ask First)');
+    assert.ok(
+      ap8.triggered,
+      'AP8 should be triggered (template text in Ask First)',
+    );
     assert.equal(ap8.deduction, -2);
   });
 
   it('total deductions capped at -15', () => {
-    assert.ok(report.agents[0].score.deductions >= -15, `Deductions should be >= -15, got ${report.agents[0].score.deductions}`);
+    assert.ok(
+      report.agents[0].score.deductions >= -15,
+      `Deductions should be >= -15, got ${report.agents[0].score.deductions}`,
+    );
   });
 
   it('scores F due to anti-patterns + missing features', () => {
@@ -506,7 +646,10 @@ describe('Fixture 7: anti-patterns', () => {
 describe('Fixture 8: partial-setup', () => {
   const fs = createMockFS({
     'CLAUDE.md': FULL_CLAUDE_MD,
-    'package.json': JSON.stringify({ name: 'partial', scripts: { test: 'jest' } }),
+    'package.json': JSON.stringify({
+      name: 'partial',
+      scripts: { test: 'jest' },
+    }),
     // Has settings but no deny patterns
     '.claude/settings.json': JSON.stringify({ theme: 'dark' }),
     // Has some skills but not all
@@ -542,8 +685,13 @@ describe('Fixture 8: partial-setup', () => {
   });
 
   it('has critical and high priority recommendations', () => {
-    const priorities = new Set(report.agents[0].recommendations.map(r => r.priority));
-    assert.ok(priorities.has('critical') || priorities.has('high'), 'Expected at least critical or high priority recommendations');
+    const priorities = new Set(
+      report.agents[0].recommendations.map((r) => r.priority),
+    );
+    assert.ok(
+      priorities.has('critical') || priorities.has('high'),
+      'Expected at least critical or high priority recommendations',
+    );
   });
 });
 
@@ -556,11 +704,14 @@ describe('Fixture 9: allowed-missing (N/A checks)', () => {
       devDependencies: { typescript: '^5.0.0' },
       scripts: { test: 'vitest' },
     }),
-    '.claude/settings.json': JSON.stringify({ permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] } }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
+    }),
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     ...Object.fromEntries(
-      ['preflight', 'debug', 'audit', 'review', 'plan', 'test'].map(s => [
-        `.claude/skills/goat-${s}/SKILL.md`, qualitySkill(s),
+      ['preflight', 'debug', 'audit', 'review', 'plan', 'test'].map((s) => [
+        `.claude/skills/goat-${s}/SKILL.md`,
+        qualitySkill(s),
       ]),
     ),
     'docs/footguns/': '# Footguns\n\n- `src/a.ts:5` - evidence\n',
@@ -569,72 +720,113 @@ describe('Fixture 9: allowed-missing (N/A checks)', () => {
     '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': '.env\nsettings.local.json\n',
   });
-  const report = scanProject(fs, '/test/allowed-missing', { agentFilter: null });
+  const report = scanProject(fs, '/test/allowed-missing', {
+    agentFilter: null,
+  });
 
   it('N/A checks do not inflate score (earned=0, maxPoints=0)', () => {
-    const naChecks = report.agents[0].checks.filter(c => c.status === 'na');
+    const naChecks = report.agents[0].checks.filter((c) => c.status === 'na');
     for (const check of naChecks) {
-      assert.equal(check.points, 0, `N/A check ${check.id} should have 0 points`);
-      assert.equal(check.maxPoints, 0, `N/A check ${check.id} should have 0 maxPoints`);
+      assert.equal(
+        check.points,
+        0,
+        `N/A check ${check.id} should have 0 points`,
+      );
+      assert.equal(
+        check.maxPoints,
+        0,
+        `N/A check ${check.id} should have 0 maxPoints`,
+      );
     }
   });
 
   it('local instruction checks exist', () => {
-    const localChecks = report.agents[0].checks.filter(c => c.category === 'Local Instructions');
-    assert.ok(localChecks.length >= 4, `Expected 4+ local instruction checks, got ${localChecks.length}`);
+    const localChecks = report.agents[0].checks.filter(
+      (c) => c.category === 'Local Instructions',
+    );
+    assert.ok(
+      localChecks.length >= 4,
+      `Expected 4+ local instruction checks, got ${localChecks.length}`,
+    );
   });
 });
 
 describe('Fixture 10a: project with ai/coding-standards/', () => {
   const fs = createMockFS({
     'CLAUDE.md': FULL_CLAUDE_MD,
-    'package.json': JSON.stringify({ name: 'with-ai', scripts: { test: 'jest' } }),
-    '.claude/settings.json': JSON.stringify({ permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] } }),
+    'package.json': JSON.stringify({
+      name: 'with-ai',
+      scripts: { test: 'jest' },
+    }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
+    }),
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
-    'ai/README.md': '# Project Guidelines\n\nRead [conventions](ai/coding-standards/conventions.md) first.\n',
-    'ai/coding-standards/conventions.md': '# Conventions\n\n## Commands\n\n```bash\nnpm test\nnpm run build\nnpm run lint\n```\n\n## Conventions\n\nDo: use early returns\nDon\'t: nest deeply\nDo: co-locate tests\nDon\'t: hardcode secrets\n',
+    'ai/README.md':
+      '# Project Guidelines\n\nRead [conventions](ai/coding-standards/conventions.md) first.\n',
+    'ai/coding-standards/conventions.md':
+      "# Conventions\n\n## Commands\n\n```bash\nnpm test\nnpm run build\nnpm run lint\n```\n\n## Conventions\n\nDo: use early returns\nDon't: nest deeply\nDo: co-locate tests\nDon't: hardcode secrets\n",
     'ai/coding-standards/frontend.md': '# Frontend\n\nFrontend conventions.\n',
-    'ai/coding-standards/code-review.md': '# Code Review\n\nReview standards.\n',
+    'ai/coding-standards/code-review.md':
+      '# Code Review\n\nReview standards.\n',
     'ai/coding-standards/git-commit.md': '# Git Commit\n\nCommit format.\n',
     '.github/git-commit-instructions.md': '# Git Commit\n\nCommit format.\n',
   });
-  const report = scanProject(fs, '/test/ai-instructions', { agentFilter: null });
+  const report = scanProject(fs, '/test/ai-instructions', {
+    agentFilter: null,
+  });
 
   it('all local instruction checks pass', () => {
-    const localChecks = report.agents[0].checks.filter(c => c.category === 'Local Instructions');
-    const failing = localChecks.filter(c => c.status === 'fail');
-    assert.equal(failing.length, 0, `Expected 0 failures, got: ${failing.map(c => c.id + ' ' + c.name).join(', ')}`);
+    const localChecks = report.agents[0].checks.filter(
+      (c) => c.category === 'Local Instructions',
+    );
+    const failing = localChecks.filter((c) => c.status === 'fail');
+    assert.equal(
+      failing.length,
+      0,
+      `Expected 0 failures, got: ${failing.map((c) => c.id + ' ' + c.name).join(', ')}`,
+    );
   });
 
   it('detects ai/ location', () => {
-    const dirCheck = report.agents[0].checks.find(c => c.id === '2.6.1');
+    const dirCheck = report.agents[0].checks.find((c) => c.id === '2.6.1');
     assert.ok(dirCheck);
     assert.equal(dirCheck.status, 'pass');
-    assert.ok(dirCheck.message.includes('ai/coding-standards'), dirCheck.message);
+    assert.ok(
+      dirCheck.message.includes('ai/coding-standards'),
+      dirCheck.message,
+    );
   });
 });
 
 describe('Fixture 10b: project with .github/instructions/ only', () => {
   const fs = createMockFS({
     'CLAUDE.md': FULL_CLAUDE_MD,
-    'package.json': JSON.stringify({ name: 'gh-only', scripts: { test: 'jest' } }),
-    '.claude/settings.json': JSON.stringify({ permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] } }),
+    'package.json': JSON.stringify({
+      name: 'gh-only',
+      scripts: { test: 'jest' },
+    }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
+    }),
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.github/instructions/conventions.instructions.md': '# Conventions\n',
     '.github/instructions/code-review.instructions.md': '# Review\n',
     '.github/instructions/git-commit.instructions.md': '# Commit\n',
     '.github/git-commit-instructions.md': '# Commit\n',
   });
-  const report = scanProject(fs, '/test/gh-instructions', { agentFilter: null });
+  const report = scanProject(fs, '/test/gh-instructions', {
+    agentFilter: null,
+  });
 
   it('accepts .github/instructions/ as alternative', () => {
-    const dirCheck = report.agents[0].checks.find(c => c.id === '2.6.1');
+    const dirCheck = report.agents[0].checks.find((c) => c.id === '2.6.1');
     assert.ok(dirCheck);
     assert.equal(dirCheck.status, 'pass');
   });
 
   it('accepts .instructions.md extension', () => {
-    const baseCheck = report.agents[0].checks.find(c => c.id === '2.6.3');
+    const baseCheck = report.agents[0].checks.find((c) => c.id === '2.6.3');
     assert.ok(baseCheck);
     assert.equal(baseCheck.status, 'pass');
   });
@@ -643,81 +835,219 @@ describe('Fixture 10b: project with .github/instructions/ only', () => {
 describe('Fixture 10c: project without instructions', () => {
   const fs = createMockFS({
     'CLAUDE.md': FULL_CLAUDE_MD,
-    'package.json': JSON.stringify({ name: 'no-instructions', scripts: { test: 'jest' } }),
-    '.claude/settings.json': JSON.stringify({ permissions: { deny: ['Bash(git commit*)'] } }),
+    'package.json': JSON.stringify({
+      name: 'no-instructions',
+      scripts: { test: 'jest' },
+    }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)'] },
+    }),
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
   });
-  const report = scanProject(fs, '/test/no-instructions', { agentFilter: null });
+  const report = scanProject(fs, '/test/no-instructions', {
+    agentFilter: null,
+  });
 
   it('local instruction checks fail', () => {
-    const localChecks = report.agents[0].checks.filter(c => c.category === 'Local Instructions');
-    const failing = localChecks.filter(c => c.status === 'fail');
-    assert.ok(failing.length >= 4, `Expected 4+ failures, got ${failing.length}`);
+    const localChecks = report.agents[0].checks.filter(
+      (c) => c.category === 'Local Instructions',
+    );
+    const failing = localChecks.filter((c) => c.status === 'fail');
+    assert.ok(
+      failing.length >= 4,
+      `Expected 4+ failures, got ${failing.length}`,
+    );
   });
 });
 
 describe('Regression: hooks exist without registration should fail', () => {
   const fs = createMockFS({
     'CLAUDE.md': FULL_CLAUDE_MD,
-    'package.json': JSON.stringify({ name: 'hooks-not-registered', scripts: { test: 'node --test', format: 'prettier --write .' } }),
+    'package.json': JSON.stringify({
+      name: 'hooks-not-registered',
+      scripts: { test: 'node --test', format: 'prettier --write .' },
+    }),
     '.claude/settings.json': JSON.stringify({
       permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
       hooks: [],
     }),
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\necho lint\nexit 0\n',
-    '.claude/hooks/format-file.sh': '#!/usr/bin/env bash\nprettier --write "$1"\nexit 0\n',
+    '.claude/hooks/format-file.sh':
+      '#!/usr/bin/env bash\nprettier --write "$1"\nexit 0\n',
   });
-  const report = scanProject(fs, '/test/hooks-not-registered', { agentFilter: 'claude' });
+  const report = scanProject(fs, '/test/hooks-not-registered', {
+    agentFilter: 'claude',
+  });
 
   it('fails post-turn registration when hook file exists but not registered', () => {
-    const check = report.agents[0].checks.find(c => c.id === '2.2.2');
+    const check = report.agents[0].checks.find((c) => c.id === '2.2.2');
     assert.ok(check, 'Expected check 2.2.2');
     assert.equal(check.status, 'fail');
     assert.ok(check.message.includes('.claude/settings.json'), check.message);
     assert.ok(check.message.includes('"Stop"'), check.message);
-    assert.ok(check.message.includes('.claude/hooks/stop-lint.sh'), check.message);
+    assert.ok(
+      check.message.includes('.claude/hooks/stop-lint.sh'),
+      check.message,
+    );
   });
 
   it('fails post-tool registration when hook file exists but not registered', () => {
-    const check = report.agents[0].checks.find(c => c.id === '2.2.4');
+    const check = report.agents[0].checks.find((c) => c.id === '2.2.4');
     assert.ok(check, 'Expected check 2.2.4');
     assert.equal(check.status, 'fail');
     assert.ok(check.message.includes('.claude/settings.json'), check.message);
     assert.ok(check.message.includes('"PostToolUse"'), check.message);
-    assert.ok(check.message.includes('.claude/hooks/format-file.sh'), check.message);
+    assert.ok(
+      check.message.includes('.claude/hooks/format-file.sh'),
+      check.message,
+    );
+  });
+});
+
+describe('Regression: post-turn hook swallowing failures should fail honesty checks', () => {
+  const fs = createMockFS({
+    'CLAUDE.md': FULL_CLAUDE_MD,
+    'package.json': JSON.stringify({
+      name: 'swallowed-hook-failures',
+      scripts: { test: 'node --test' },
+    }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
+      hooks: {
+        Stop: [
+          {
+            hooks: [{ type: 'command', command: '.claude/hooks/stop-lint.sh' }],
+          },
+        ],
+      },
+    }),
+    '.claude/hooks/stop-lint.sh':
+      '#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(pwd)\nif [ -z "$ROOT" ]; then\n  exit 0\nfi\nfor f in scripts/*.sh; do\n  SC_OUT=$(shellcheck "$f" 2>&1) || true\n  if [ -n "$SC_OUT" ]; then\n    echo "$SC_OUT" >&2\n  fi\ndone\nprintf "checked\\n" >&2\nexit 0\n',
+  });
+  const report = scanProject(fs, '/test/swallowed-hook-failures', {
+    agentFilter: 'claude',
+  });
+
+  it('fails check 2.2.3 when validation commands use || true', () => {
+    const check = report.agents[0].checks.find((c) => c.id === '2.2.3');
+    assert.ok(check, 'Expected check 2.2.3');
+    assert.equal(check.status, 'fail');
+    assert.ok(check.message.includes('|| true'), check.message);
+  });
+
+  it('still recognizes that the hook has validation logic', () => {
+    const check = report.agents[0].checks.find((c) => c.id === '2.2.4b');
+    assert.ok(check, 'Expected check 2.2.4b');
+    assert.equal(check.status, 'pass');
+  });
+
+  it('triggers AP6 for swallowed validation failures', () => {
+    const antiPattern = report.agents[0].antiPatterns.find(
+      (ap) => ap.id === 'AP6',
+    );
+    assert.ok(antiPattern, 'Expected anti-pattern AP6');
+    assert.equal(antiPattern.triggered, true);
+    assert.ok(antiPattern.message.includes('|| true'), antiPattern.message);
   });
 });
 
 describe('Regression: broken ai/README router should fail', () => {
   const fs = createMockFS({
     'CLAUDE.md': FULL_CLAUDE_MD,
-    'package.json': JSON.stringify({ name: 'broken-ai-router', scripts: { test: 'node --test' } }),
-    '.claude/settings.json': JSON.stringify({ permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] } }),
+    'package.json': JSON.stringify({
+      name: 'broken-ai-router',
+      scripts: { test: 'node --test' },
+    }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
+    }),
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
-    'ai/README.md': '# Coding Guidelines\n\nSee [Conventions](ai/coding-standards/missing.md).\n',
-    'ai/coding-standards/conventions.md': '# Conventions\n\n## Commands\n\n```bash\nnpm test\n```\n\n## Conventions\n\nDo: use early returns\nDon\'t: hardcode secrets\n' + 'Line.\n'.repeat(16),
-    'ai/coding-standards/code-review.md': '# Code Review\n\nReview checklist.\n',
-    'ai/coding-standards/git-commit.md': '# Git Commit\n\nCommit conventions.\n',
-    '.github/git-commit-instructions.md': '# Git Commit\n\nCommit conventions.\n',
+    'ai/README.md':
+      '# Coding Guidelines\n\nSee [Conventions](ai/coding-standards/missing.md).\n',
+    'ai/coding-standards/conventions.md':
+      "# Conventions\n\n## Commands\n\n```bash\nnpm test\n```\n\n## Conventions\n\nDo: use early returns\nDon't: hardcode secrets\n" +
+      'Line.\n'.repeat(16),
+    'ai/coding-standards/code-review.md':
+      '# Code Review\n\nReview checklist.\n',
+    'ai/coding-standards/git-commit.md':
+      '# Git Commit\n\nCommit conventions.\n',
+    '.github/git-commit-instructions.md':
+      '# Git Commit\n\nCommit conventions.\n',
   });
-  const report = scanProject(fs, '/test/broken-ai-router', { agentFilter: 'claude' });
+  const report = scanProject(fs, '/test/broken-ai-router', {
+    agentFilter: 'claude',
+  });
 
   it('fails the router validity check when ai/README.md points at a missing file', () => {
-    const check = report.agents[0].checks.find(c => c.id === '2.6.2');
+    const check = report.agents[0].checks.find((c) => c.id === '2.6.2');
     assert.ok(check, 'Expected check 2.6.2');
     assert.equal(check.status, 'fail');
-    assert.ok(check.message.includes('references missing paths'), check.message);
-    assert.ok(check.message.includes('ai/coding-standards/missing.md'), check.message);
+    assert.ok(
+      check.message.includes('references missing paths'),
+      check.message,
+    );
+    assert.ok(
+      check.message.includes('ai/coding-standards/missing.md'),
+      check.message,
+    );
   });
 
   it('does not treat a broken ai/README.md as a passing router', () => {
-    const localChecks = report.agents[0].checks.filter(c => c.category === 'Local Instructions');
-    assert.ok(localChecks.some(check => check.id === '2.6.2' && check.status === 'fail'));
+    const localChecks = report.agents[0].checks.filter(
+      (c) => c.category === 'Local Instructions',
+    );
+    assert.ok(
+      localChecks.some(
+        (check) => check.id === '2.6.2' && check.status === 'fail',
+      ),
+    );
   });
 
   it('does not score as a perfect setup when the router is broken', () => {
-    assert.ok(report.agents[0].score.percentage < 100, `Expected score < 100, got ${report.agents[0].score.percentage}%`);
+    assert.ok(
+      report.agents[0].score.percentage < 100,
+      `Expected score < 100, got ${report.agents[0].score.percentage}%`,
+    );
+  });
+});
+
+describe('Regression: category bucket learning loop counts entries, not files', () => {
+  const fs = createMockFS({
+    'CLAUDE.md': FULL_CLAUDE_MD,
+    'package.json': JSON.stringify({
+      name: 'category-buckets',
+      scripts: { test: 'node --test', format: 'prettier --write .' },
+    }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
+    }),
+    'src/hook.ts': 'export const hook = true;\n',
+    'src/router.ts': 'export const router = true;\n',
+    'ai/lessons/verification.md':
+      '---\ncategory: verification\n---\n\n## Lesson: First lesson\n**Created:** 2026-04-03\n**What happened:** Missed a real regression.\n**Evidence:** `src/hook.ts:1` - hook changed without a fixture.\n**Prevention:** Add the fixture first.\n\n## Lesson: Second lesson\n**Created:** 2026-04-03\n**What happened:** Trusted stale expectations.\n**Evidence:** `src/router.ts:1` - the routing contract had changed.\n**Prevention:** Re-run the scanner before updating fixtures.\n',
+    'docs/footguns/hooks.md':
+      '---\ncategory: hooks\n---\n\n## Footgun: Hook payload mismatch\n**Status:** active\n**Created:** 2026-04-03\n**Evidence type:** ACTUAL_MEASURED\n**Symptoms:** Hook never sees the edited file.\n**Why it happens:** The wrong JSON field is parsed.\n**Evidence:**\n- `src/hook.ts:1` - hook consumes the wrong payload shape.\n**Prevention:** Read the actual runtime payload.\n\n## Footgun: Router drift\n**Status:** active\n**Created:** 2026-04-03\n**Evidence type:** ACTUAL_MEASURED\n**Symptoms:** Router docs and code diverge.\n**Why it happens:** One side changes without the other.\n**Evidence:**\n- `src/router.ts:1` - router behavior is the real contract.\n**Prevention:** Update both sides together.\n',
+  });
+  const report = scanProject(fs, '/test/category-buckets', {
+    agentFilter: 'claude',
+  });
+
+  it('counts lesson entries inside a single bucket file', () => {
+    const check = report.agents[0].checks.find((c) => c.id === '2.3.2a');
+    assert.ok(check, 'Expected check 2.3.2a');
+    assert.equal(check.status, 'pass');
+    assert.ok(
+      check.message.includes('2 lesson entries (2 committed, 0 local)'),
+      check.message,
+    );
+  });
+
+  it('counts footgun evidence labels per entry, not per file', () => {
+    const check = report.agents[0].checks.find((c) => c.id === '2.3.5a');
+    assert.ok(check, 'Expected check 2.3.5a');
+    assert.equal(check.status, 'pass');
+    assert.ok(check.message.includes('2/2 footgun entries'), check.message);
   });
 });
 
@@ -729,14 +1059,27 @@ describe('Fixture 10: self-goat-flow (score snapshot)', () => {
     'CLAUDE.md': FULL_CLAUDE_MD,
     'AGENTS.md': FULL_CLAUDE_MD.replace('CLAUDE.md', 'AGENTS.md'),
     'GEMINI.md': FULL_CLAUDE_MD.replace('CLAUDE.md', 'GEMINI.md'),
-    'package.json': JSON.stringify({ name: 'goat-flow', scripts: { test: 'node --test' } }),
-    '.claude/settings.json': JSON.stringify({ permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] } }),
-    '.gemini/settings.json': JSON.stringify({ permissions: { deny: ['git commit', 'git push'] } }),
+    'package.json': JSON.stringify({
+      name: 'goat-flow',
+      scripts: { test: 'node --test' },
+    }),
+    '.claude/settings.json': JSON.stringify({
+      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
+    }),
+    '.gemini/settings.json': JSON.stringify({
+      permissions: { deny: ['git commit', 'git push'] },
+    }),
     // Skills for all agents (5 required skills)
     ...Object.fromEntries(
-      ['debug', 'review', 'plan', 'security', 'test'].flatMap(s => [
-        [`.claude/skills/goat-${s}/SKILL.md`, `---\nname: goat-${s}\ngoat-flow-skill-version: "${RUBRIC_VERSION}"\n---\n# goat-${s}\n`],
-        [`.agents/skills/goat-${s}/SKILL.md`, `---\nname: goat-${s}\ngoat-flow-skill-version: "${RUBRIC_VERSION}"\n---\n# goat-${s}\n`],
+      ['debug', 'review', 'plan', 'security', 'test'].flatMap((s) => [
+        [
+          `.claude/skills/goat-${s}/SKILL.md`,
+          `---\nname: goat-${s}\ngoat-flow-skill-version: "${RUBRIC_VERSION}"\n---\n# goat-${s}\n`,
+        ],
+        [
+          `.agents/skills/goat-${s}/SKILL.md`,
+          `---\nname: goat-${s}\ngoat-flow-skill-version: "${RUBRIC_VERSION}"\n---\n# goat-${s}\n`,
+        ],
       ]),
     ),
     // Hooks
@@ -744,21 +1087,29 @@ describe('Fixture 10: self-goat-flow (score snapshot)', () => {
     '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.gemini/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.gemini/hooks/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
-    '.codex/rules/deny-dangerous.star': '# execpolicy\n# deny git commit\n# deny git push\n',
+    '.codex/rules/deny-dangerous.star':
+      '# execpolicy\n# deny git commit\n# deny git push\n',
     'scripts/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
     // Learning loop
-    'docs/footguns/': '# Footguns\n\n## Footgun: Auth\n\n**Evidence:**\n- `src/auth.ts:42` - broke login\n- `src/auth.ts:88` - missing lock\n',
+    'docs/footguns/':
+      '# Footguns\n\n## Footgun: Auth\n\n**Evidence:**\n- `src/auth.ts:42` - broke login\n- `src/auth.ts:88` - missing lock\n',
     'src/auth.ts': '// auth module\n',
-    'ai/lessons/': '# Lessons\n\n## Entries\n\n### Entry 1\n**What happened:** something\n\n### Entry 2\n**What happened:** missed test\n\n### Entry 3\n**What happened:** stale ref\n',
+    'ai/lessons/':
+      '# Lessons\n\n## Entries\n\n### Entry 1\n**What happened:** something\n\n### Entry 2\n**What happened:** missed test\n\n### Entry 3\n**What happened:** stale ref\n',
     // Architecture
-    'docs/architecture.md': '# Architecture\n\n' + 'System overview.\n'.repeat(10),
+    'docs/architecture.md':
+      '# Architecture\n\n' + 'System overview.\n'.repeat(10),
     // Evals
     'ai/evals/README.md': '# Agent Evals\n',
-    'ai/evals/eval-1.md': '---\nname: eval-1\norigin: real-incident\nagents: all\n---\n\n### Scenario\n\n```\nDo the thing\n```\n',
-    'ai/evals/eval-2.md': '---\nname: eval-2\norigin: real-incident\nagents: all\n---\n\n### Scenario\n\n```\nDo another thing\n```\n',
-    'ai/evals/eval-3.md': '---\nname: eval-3\norigin: synthetic-seed\nagents: claude\n---\n\n### Scenario\n\n```\nThird eval\n```\n',
+    'ai/evals/eval-1.md':
+      '---\nname: eval-1\norigin: real-incident\nagents: all\n---\n\n### Scenario\n\n```\nDo the thing\n```\n',
+    'ai/evals/eval-2.md':
+      '---\nname: eval-2\norigin: real-incident\nagents: all\n---\n\n### Scenario\n\n```\nDo another thing\n```\n',
+    'ai/evals/eval-3.md':
+      '---\nname: eval-3\norigin: synthetic-seed\nagents: claude\n---\n\n### Scenario\n\n```\nThird eval\n```\n',
     // CI
-    '.github/workflows/context-validation.yml': 'name: CV\non: [push, pull_request]\njobs:\n  v:\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
+    '.github/workflows/context-validation.yml':
+      'name: CV\non: [push, pull_request]\njobs:\n  v:\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
     // Scripts
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\n',
@@ -788,8 +1139,12 @@ describe('Fixture 10: self-goat-flow (score snapshot)', () => {
 
   it('zero false positive anti-patterns on known-good setup', () => {
     for (const agent of report.agents) {
-      const triggered = agent.antiPatterns.filter(ap => ap.triggered);
-      assert.equal(triggered.length, 0, `${agent.agent}: unexpected anti-patterns: ${triggered.map(t => `${t.id}(${t.message})`).join(', ')}`);
+      const triggered = agent.antiPatterns.filter((ap) => ap.triggered);
+      assert.equal(
+        triggered.length,
+        0,
+        `${agent.agent}: unexpected anti-patterns: ${triggered.map((t) => `${t.id}(${t.message})`).join(', ')}`,
+      );
     }
   });
 
@@ -797,8 +1152,14 @@ describe('Fixture 10: self-goat-flow (score snapshot)', () => {
     for (const agent of report.agents) {
       for (const rec of agent.recommendations) {
         assert.ok(rec.key, `Recommendation for ${rec.checkId} missing key`);
-        assert.ok(rec.key.length > 0, `Recommendation key for ${rec.checkId} is empty`);
-        assert.ok(!rec.key.includes(' '), `Recommendation key '${rec.key}' contains spaces`);
+        assert.ok(
+          rec.key.length > 0,
+          `Recommendation key for ${rec.checkId} is empty`,
+        );
+        assert.ok(
+          !rec.key.includes(' '),
+          `Recommendation key '${rec.key}' contains spaces`,
+        );
       }
     }
   });
@@ -808,7 +1169,9 @@ describe('Fixture 10: self-goat-flow (score snapshot)', () => {
 // These tests pin specific behaviors so threshold changes are detected.
 
 describe('Regression: full project score stability', () => {
-  const REGRESSION_CLAUDE_MD = FULL_CLAUDE_MD + `
+  const REGRESSION_CLAUDE_MD =
+    FULL_CLAUDE_MD +
+    `
 \`\`\`
 BAD:  "The spec says 100 lines for apps" (guessed without reading)
 GOOD: Read docs/system-spec.md:104 → "Target 120 lines. Hard limit 150."
@@ -824,71 +1187,130 @@ GOOD: Inline format. Extract when second format needed
     'package.json': JSON.stringify({
       name: 'regression-project',
       devDependencies: { typescript: '^5.0.0' },
-      scripts: { build: 'tsc', test: 'vitest', lint: 'eslint .', format: 'prettier --write .' },
+      scripts: {
+        build: 'tsc',
+        test: 'vitest',
+        lint: 'eslint .',
+        format: 'prettier --write .',
+      },
     }),
     '.claude/settings.json': JSON.stringify({
-      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)', 'Read(.env*)', 'Read(.ssh/**)', 'Read(.aws/**)'] },
-      hooks: [{ type: 'Notification', matcher: 'compact', command: 'echo context' }],
+      permissions: {
+        deny: [
+          'Bash(git commit*)',
+          'Bash(git push*)',
+          'Read(.env*)',
+          'Read(.ssh/**)',
+          'Read(.aws/**)',
+        ],
+      },
+      hooks: [
+        { type: 'Notification', matcher: 'compact', command: 'echo context' },
+      ],
     }),
     ...Object.fromEntries(
-      ['debug', 'review', 'plan', 'security', 'test'].map(s => [
-        `.claude/skills/goat-${s}/SKILL.md`, qualitySkill(s),
+      ['debug', 'review', 'plan', 'security', 'test'].map((s) => [
+        `.claude/skills/goat-${s}/SKILL.md`,
+        qualitySkill(s),
       ]),
     ),
     '.claude/skills/goat/SKILL.md': `---\nname: goat\ndescription: "Dispatcher"\ngoat-flow-skill-version: "${RUBRIC_VERSION}"\n---\n# /goat\n\n## How It Works\n\nRoutes to the right skill.\n\n## Constraints\n\n- MUST announce selected skill\n`,
-    '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nset -euo pipefail\nINPUT=$(cat)\nCMD=$(echo "$INPUT" | jq -r .command // empty)\ncase "$CMD" in *rm\\ -rf*|*--force*|*chmod\\ 777*) exit 2;; esac\nexit 0\n',
-    '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\necho "lint check"\nexit 0\n',
-    '.claude/hooks/format-file.sh': '#!/usr/bin/env bash\nprettier --write "$1"\nexit 0\n',
-    'docs/footguns/': '# Footguns\n\n## Footgun: Auth race\n\n**Evidence type:** ACTUAL_MEASURED\n\n**Evidence:**\n- `src/auth.ts:42` - race condition\n- `src/auth.ts:88` - missing lock\n',
+    '.claude/hooks/deny-dangerous.sh':
+      '#!/usr/bin/env bash\nset -euo pipefail\nINPUT=$(cat)\nCMD=$(echo "$INPUT" | jq -r .command // empty)\ncase "$CMD" in *rm\\ -rf*|*--force*|*chmod\\ 777*) exit 2;; esac\nexit 0\n',
+    '.claude/hooks/stop-lint.sh':
+      '#!/usr/bin/env bash\necho "lint check"\nexit 0\n',
+    '.claude/hooks/format-file.sh':
+      '#!/usr/bin/env bash\nINPUT=$(cat)\nFILE_PATH=$(echo "$INPUT" | jq -r \'.file_path // empty\' 2>/dev/null)\n[ -z "$FILE_PATH" ] && exit 0\ncase "$FILE_PATH" in\n  */.claude/*|*/.gemini/*|*/.codex/*|*/.agents/*|*/.github/skills/*) exit 0 ;;\nesac\nprettier --write "$FILE_PATH"\nexit 0\n',
+    'docs/footguns/':
+      '# Footguns\n\n## Footgun: Auth race\n\n**Evidence type:** ACTUAL_MEASURED\n\n**Evidence:**\n- `src/auth.ts:42` - race condition\n- `src/auth.ts:88` - missing lock\n',
     'src/auth.ts': '// auth module\n',
-    'ai/lessons/': '# Lessons\n\n## Entries\n\n### Entry 1\n**What happened:** broke prod deploy\n\n### Entry 2\n**What happened:** missed test coverage\n\n### Entry 3\n**What happened:** stale ref after rename\n',
-    'docs/architecture.md': '# Architecture\n\n' + 'System overview line.\n'.repeat(8),
+    'ai/lessons/':
+      '# Lessons\n\n## Entries\n\n### Entry 1\n**What happened:** broke prod deploy\n\n### Entry 2\n**What happened:** missed test coverage\n\n### Entry 3\n**What happened:** stale ref after rename\n',
+    'docs/architecture.md':
+      '# Architecture\n\n' + 'System overview line.\n'.repeat(8),
     'ai/evals/README.md': '# Agent Evals\n',
-    'ai/evals/eval-1.md': '---\nname: eval-1\norigin: real-incident\nagents: all\nskill: goat-debug\n---\n\n### Scenario\n\n```\nDo the thing\n```\n',
-    'ai/evals/eval-2.md': '---\nname: eval-2\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nDo something\n```\n',
-    'ai/evals/eval-3.md': '---\nname: eval-3\norigin: synthetic-seed\nagents: claude\nskill: goat-plan\n---\n\n### Scenario\n\n```\nAnother prompt\n```\n',
-    'ai/evals/eval-4.md': '---\nname: eval-4\norigin: real-incident\nagents: all\nskill: goat-security\n---\n\n### Scenario\n\n```\nCheck auth\n```\n',
-    'ai/evals/eval-5.md': '---\nname: eval-5\norigin: real-incident\nagents: all\nskill: goat-debug\n---\n\n### Scenario\n\n```\nExplore module\n```\n',
-    'ai/evals/eval-6.md': '---\nname: eval-6\norigin: real-incident\nagents: all\nskill: goat-test\n---\n\n### Scenario\n\n```\nVerify changes\n```\n',
-    'ai/evals/eval-7.md': '---\nname: eval-7\norigin: real-incident\nagents: all\nskill: goat-plan\n---\n\n### Scenario\n\n```\nRename across files\n```\n',
-    'ai/evals/eval-8.md': '---\nname: eval-8\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nClean up naming\n```\n',
-    'ai/evals/eval-9.md': '---\nname: eval-9\norigin: real-incident\nagents: all\nskill: goat\n---\n\n### Scenario\n\n```\nRoute intent\n```\n',
-    '.github/workflows/context-validation.yml': 'name: Context Validation\non:\n  pull_request:\n    paths: [CLAUDE.md]\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
+    'ai/evals/eval-1.md':
+      '---\nname: eval-1\norigin: real-incident\nagents: all\nskill: goat-debug\n---\n\n### Scenario\n\n```\nDo the thing\n```\n',
+    'ai/evals/eval-2.md':
+      '---\nname: eval-2\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nDo something\n```\n',
+    'ai/evals/eval-3.md':
+      '---\nname: eval-3\norigin: synthetic-seed\nagents: claude\nskill: goat-plan\n---\n\n### Scenario\n\n```\nAnother prompt\n```\n',
+    'ai/evals/eval-4.md':
+      '---\nname: eval-4\norigin: real-incident\nagents: all\nskill: goat-security\n---\n\n### Scenario\n\n```\nCheck auth\n```\n',
+    'ai/evals/eval-5.md':
+      '---\nname: eval-5\norigin: real-incident\nagents: all\nskill: goat-debug\n---\n\n### Scenario\n\n```\nExplore module\n```\n',
+    'ai/evals/eval-6.md':
+      '---\nname: eval-6\norigin: real-incident\nagents: all\nskill: goat-test\n---\n\n### Scenario\n\n```\nVerify changes\n```\n',
+    'ai/evals/eval-7.md':
+      '---\nname: eval-7\norigin: real-incident\nagents: all\nskill: goat-plan\n---\n\n### Scenario\n\n```\nRename across files\n```\n',
+    'ai/evals/eval-8.md':
+      '---\nname: eval-8\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nClean up naming\n```\n',
+    'ai/evals/eval-9.md':
+      '---\nname: eval-9\norigin: real-incident\nagents: all\nskill: goat\n---\n\n### Scenario\n\n```\nRoute intent\n```\n',
+    '.github/workflows/context-validation.yml':
+      'name: Context Validation\non:\n  pull_request:\n    paths: [CLAUDE.md]\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\necho "preflight"\n',
     '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': '.env\nsettings.local.json\nnode_modules/\n',
     'docs/system-spec.md': '# System Spec\n',
-    'ai/README.md': '# Coding Guidelines\n\nSee [Conventions](ai/coding-standards/conventions.md) and [Code Review](ai/coding-standards/code-review.md).\n',
-    'ai/coding-standards/conventions.md': '# Conventions\n\n## Commands\n\n```bash\nnpm test\n```\n\n## Conventions\n\nDo: use TypeScript\nDon\'t: use any\n\n' + 'Line.\n'.repeat(10),
-    'ai/coding-standards/code-review.md': '# Code Review\n\nReview checklist.\n',
-    'ai/coding-standards/git-commit.md': '# Git Commit\n\nCommit conventions.\n',
+    'ai/README.md':
+      '# Coding Guidelines\n\nSee [Conventions](ai/coding-standards/conventions.md) and [Code Review](ai/coding-standards/code-review.md).\n',
+    'ai/coding-standards/conventions.md':
+      "# Conventions\n\n## Commands\n\n```bash\nnpm test\n```\n\n## Conventions\n\nDo: use TypeScript\nDon't: use any\n\n" +
+      'Line.\n'.repeat(10),
+    'ai/coding-standards/code-review.md':
+      '# Code Review\n\nReview checklist.\n',
+    'ai/coding-standards/git-commit.md':
+      '# Git Commit\n\nCommit conventions.\n',
     'CHANGELOG.md': '# Changelog\n\n## v1.0\n\nInitial setup.\n',
   });
   const report = scanProject(fs, '/test/regression', { agentFilter: null });
 
   it('full project scores A or B (80%+)', () => {
     assertValidReport(report, 'regression-full');
-    const agent = report.agents.find(a => a.agent === 'claude');
+    const agent = report.agents.find((a) => a.agent === 'claude');
     assert.ok(agent, 'Claude agent should exist');
-    assert.ok(agent.score.percentage >= 80, `Expected 80%+, got ${agent.score.percentage}%`);
-    assert.ok(['A', 'B'].includes(agent.score.grade), `Expected A or B, got ${agent.score.grade}`);
+    assert.ok(
+      agent.score.percentage >= 80,
+      `Expected 80%+, got ${agent.score.percentage}%`,
+    );
+    assert.ok(
+      ['A', 'B'].includes(agent.score.grade),
+      `Expected A or B, got ${agent.score.grade}`,
+    );
   });
 
   it('has zero anti-pattern deductions', () => {
-    const agent = report.agents.find(a => a.agent === 'claude')!;
-    const triggered = agent.antiPatterns.filter(ap => ap.triggered);
-    assert.equal(triggered.length, 0, `Expected 0 triggered APs, got: ${triggered.map(a => a.id).join(', ')}`);
+    const agent = report.agents.find((a) => a.agent === 'claude')!;
+    const triggered = agent.antiPatterns.filter((ap) => ap.triggered);
+    assert.equal(
+      triggered.length,
+      0,
+      `Expected 0 triggered APs, got: ${triggered.map((a) => a.id).join(', ')}`,
+    );
   });
 
   it('all foundation checks pass', () => {
-    const agent = report.agents.find(a => a.agent === 'claude')!;
-    const foundationFails = agent.checks.filter(c => c.tier === 'foundation' && c.status === 'fail');
-    assert.equal(foundationFails.length, 0, `Foundation failures: ${foundationFails.map(c => `${c.id}: ${c.message}`).join(', ')}`);
+    const agent = report.agents.find((a) => a.agent === 'claude')!;
+    const foundationFails = agent.checks.filter(
+      (c) => c.tier === 'foundation' && c.status === 'fail',
+    );
+    assert.equal(
+      foundationFails.length,
+      0,
+      `Foundation failures: ${foundationFails.map((c) => `${c.id}: ${c.message}`).join(', ')}`,
+    );
   });
 
   it('check count is stable', () => {
-    assert.ok(report.meta.checkCount >= 95, `Expected 95+ checks, got ${report.meta.checkCount}`);
-    assert.ok(report.meta.antiPatternCount >= 14, `Expected 14+ APs, got ${report.meta.antiPatternCount}`);
+    assert.ok(
+      report.meta.checkCount >= 95,
+      `Expected 95+ checks, got ${report.meta.checkCount}`,
+    );
+    assert.ok(
+      report.meta.antiPatternCount >= 14,
+      `Expected 14+ APs, got ${report.meta.antiPatternCount}`,
+    );
   });
 });
 
@@ -897,16 +1319,24 @@ describe('Regression: minimal project scores F', () => {
     'CLAUDE.md': MINIMAL_CLAUDE_MD,
     'package.json': JSON.stringify({ name: 'minimal' }),
   });
-  const report = scanProject(fs, '/test/regression-minimal', { agentFilter: null });
+  const report = scanProject(fs, '/test/regression-minimal', {
+    agentFilter: null,
+  });
 
   it('minimal project scores D or F', () => {
-    const agent = report.agents.find(a => a.agent === 'claude');
+    const agent = report.agents.find((a) => a.agent === 'claude');
     assert.ok(agent, 'Claude agent should exist');
-    assert.ok(agent.score.percentage < 50, `Expected <50%, got ${agent.score.percentage}%`);
+    assert.ok(
+      agent.score.percentage < 50,
+      `Expected <50%, got ${agent.score.percentage}%`,
+    );
   });
 
   it('has many recommendations', () => {
-    const agent = report.agents.find(a => a.agent === 'claude')!;
-    assert.ok(agent.recommendations.length >= 10, `Expected 10+ recommendations, got ${agent.recommendations.length}`);
+    const agent = report.agents.find((a) => a.agent === 'claude')!;
+    assert.ok(
+      agent.recommendations.length >= 10,
+      `Expected 10+ recommendations, got ${agent.recommendations.length}`,
+    );
   });
 });

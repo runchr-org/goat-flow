@@ -1,6 +1,15 @@
+/**
+ * Consistency checks for prompt fragment coverage.
+ * These tests fail when rubric checks or anti-patterns lose their matching fragment entries.
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { getAllFragments, getFragment, hasFragment, getFragmentKeys } from '../../src/cli/prompt/registry.js';
+import {
+  getAllFragments,
+  getFragment,
+  hasFragment,
+  getFragmentKeys,
+} from '../../src/cli/prompt/registry.js';
 import { allChecks, allAntiPatterns } from '../../src/cli/rubric/registry.js';
 
 describe('Fragment registry', () => {
@@ -11,7 +20,11 @@ describe('Fragment registry', () => {
         missing.push(`${check.id}: ${check.recommendationKey}`);
       }
     }
-    assert.equal(missing.length, 0, `Missing fragments for checks:\n  ${missing.join('\n  ')}`);
+    assert.equal(
+      missing.length,
+      0,
+      `Missing fragments for checks:\n  ${missing.join('\n  ')}`,
+    );
   });
 
   it('has fragments for all anti-pattern recommendationKeys', () => {
@@ -21,7 +34,11 @@ describe('Fragment registry', () => {
         missing.push(`${ap.id}: ${ap.recommendationKey}`);
       }
     }
-    assert.equal(missing.length, 0, `Missing fragments for anti-patterns:\n  ${missing.join('\n  ')}`);
+    assert.equal(
+      missing.length,
+      0,
+      `Missing fragments for anti-patterns:\n  ${missing.join('\n  ')}`,
+    );
   });
 
   it('has no duplicate fragment keys', () => {
@@ -32,25 +49,38 @@ describe('Fragment registry', () => {
       if (seen.has(key)) dupes.push(key);
       seen.add(key);
     }
-    assert.equal(dupes.length, 0, `Duplicate fragment keys: ${dupes.join(', ')}`);
+    assert.equal(
+      dupes.length,
+      0,
+      `Duplicate fragment keys: ${dupes.join(', ')}`,
+    );
   });
 
   it('every fragment has non-empty instruction', () => {
     for (const fragment of getAllFragments()) {
-      assert.ok(fragment.instruction.trim().length > 0, `Fragment '${fragment.key}' has empty instruction`);
+      assert.ok(
+        fragment.instruction.trim().length > 0,
+        `Fragment '${fragment.key}' has empty instruction`,
+      );
     }
   });
 
   it('every fragment has a valid phase', () => {
     const validPhases = ['foundation', 'standard', 'full', 'anti-pattern'];
     for (const fragment of getAllFragments()) {
-      assert.ok(validPhases.includes(fragment.phase), `Fragment '${fragment.key}' has invalid phase '${fragment.phase}'`);
+      assert.ok(
+        validPhases.includes(fragment.phase),
+        `Fragment '${fragment.key}' has invalid phase '${fragment.phase}'`,
+      );
     }
   });
 
   it('every fragment has a category', () => {
     for (const fragment of getAllFragments()) {
-      assert.ok(fragment.category.length > 0, `Fragment '${fragment.key}' has no category`);
+      assert.ok(
+        fragment.category.length > 0,
+        `Fragment '${fragment.key}' has no category`,
+      );
     }
   });
 

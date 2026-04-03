@@ -7,3 +7,5 @@ These fixtures back scanner regression coverage.
 - `failing-known/` extends `passing-minimal/` and intentionally breaks known checks so rubric tightenings stay protected.
 
 Each fixture directory contains a `fixture.json` manifest. Overlay fixtures can set `"extends"` to another fixture directory and only override the files they change.
+
+When rubric thresholds, check IDs, or expected failing surfaces change, update the fixture manifests and `test/fixtures/project-fixtures.test.ts` in the same change. Treat fixture drift as a real regression signal, not as optional cleanup.

@@ -1,4 +1,14 @@
-import type { CheckResult, AntiPatternResult, Recommendation, CheckDef, AntiPatternDef } from '../types.js';
+/**
+ * Turns failed checks and triggered anti-patterns into prioritized follow-up actions.
+ * The goal is to keep remediation ordering consistent across every renderer.
+ */
+import type {
+  CheckResult,
+  AntiPatternResult,
+  Recommendation,
+  CheckDef,
+  AntiPatternDef,
+} from '../types.js';
 
 /** Shorthand alias for the priority union type */
 type Priority = Recommendation['priority'];
@@ -17,14 +27,21 @@ const PRIORITY_ORDER: Record<Priority, number> = {
   low: 3,
 };
 
-function createCheckRecommendation(result: CheckResult, checkDefs: CheckDef[]): Recommendation | null {
+/** Create check recommendation. */
+function createCheckRecommendation(
+  result: CheckResult,
+  checkDefs: CheckDef[],
+): Recommendation | null {
   if (result.status === 'pass' || result.status === 'na') return null;
 
-  const definition = checkDefs.find(check => check.id === result.id);
+  const definition = checkDefs.find((check) => check.id === result.id);
   if (definition === undefined) return null;
 
   return {
-    priority: result.status === 'partial' ? 'low' : TIER_PRIORITY[result.tier] ?? 'medium',
+    priority:
+      result.status === 'partial'
+        ? 'low'
+        : (TIER_PRIORITY[result.tier] ?? 'medium'),
     checkId: result.id,
     category: result.category,
     message: result.message,
@@ -33,13 +50,16 @@ function createCheckRecommendation(result: CheckResult, checkDefs: CheckDef[]): 
   };
 }
 
+/** Create anti pattern recommendation. */
 function createAntiPatternRecommendation(
   result: AntiPatternResult,
   antiPatternDefs: AntiPatternDef[],
 ): Recommendation | null {
   if (result.triggered === false) return null;
 
-  const definition = antiPatternDefs.find(antiPattern => antiPattern.id === result.id);
+  const definition = antiPatternDefs.find(
+    (antiPattern) => antiPattern.id === result.id,
+  );
   if (definition === undefined) return null;
 
   return {
@@ -68,7 +88,10 @@ export function generateRecommendations(
   }
 
   for (const result of antiPatternResults) {
-    const recommendation = createAntiPatternRecommendation(result, antiPatternDefs);
+    const recommendation = createAntiPatternRecommendation(
+      result,
+      antiPatternDefs,
+    );
     if (recommendation) recommendations.push(recommendation);
   }
 

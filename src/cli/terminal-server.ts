@@ -1,3 +1,7 @@
+/**
+ * PTY-backed terminal session manager used by the dashboard.
+ * It validates runner and project inputs, spawns CLI sessions, and brokers WebSocket traffic.
+ */
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { statSync } from 'node:fs';
@@ -46,10 +50,18 @@ function resolveCLIPath(name: string): string | null {
   try {
     execFileSync(name, ['--version'], { stdio: 'ignore', timeout: 5000 });
     try {
-      return execFileSync('which', [name], { encoding: 'utf-8', timeout: 5000 }).trim();
+      return execFileSync('which', [name], {
+        encoding: 'utf-8',
+        timeout: 5000,
+      }).trim();
     } catch {
       try {
-        return execFileSync('where', [name], { encoding: 'utf-8', timeout: 5000 }).trim().split('\n')[0]?.trim() ?? null;
+        return (
+          execFileSync('where', [name], { encoding: 'utf-8', timeout: 5000 })
+            .trim()
+            .split('\n')[0]
+            ?.trim() ?? null
+        );
       } catch {
         return name; // Works via PATH even without absolute resolution
       }
@@ -69,15 +81,18 @@ function validateProjectPath(projectPath: string): string {
       throw new Error(`Invalid project path: not a directory`);
     }
   } catch (err) {
-    if (err instanceof Error && err.message.startsWith('Invalid project path')) throw err;
+    if (err instanceof Error && err.message.startsWith('Invalid project path'))
+      throw err;
     throw new Error(`Invalid project path: does not exist`);
   }
 
   return resolved;
 }
 
+/** Send a terminal event to the browser when the socket is still open. */
 function sendMessage(ws: WebSocket, msg: ServerMessage): void {
-  if (ws.readyState === 1) { // WebSocket.OPEN
+  if (ws.readyState === 1) {
+    // WebSocket.OPEN
     ws.send(JSON.stringify(msg));
   }
 }
@@ -106,14 +121,25 @@ export class TerminalManager {
       return this.nodePtyModule;
     } catch {
       this.nodePtyAvailable = false;
-      throw new Error('node-pty is not available. Install it with: npm install node-pty');
+      throw new Error(
+        'node-pty is not available. Install it with: npm install node-pty',
+      );
     }
   }
 
-  async create(prompt: string, projectPath: string, runner: Runner = 'claude'): Promise<CreateResponse> {
-    const activeSessions = Array.from(this.sessions.values()).filter(s => s.status !== 'terminated').length;
+  /** Create a new terminal session for the requested runner and project. */
+  async create(
+    prompt: string,
+    projectPath: string,
+    runner: Runner = 'claude',
+  ): Promise<CreateResponse> {
+    const activeSessions = Array.from(this.sessions.values()).filter(
+      (s) => s.status !== 'terminated',
+    ).length;
     if (activeSessions >= MAX_SESSIONS) {
-      throw new Error(`Maximum ${MAX_SESSIONS} concurrent sessions. Kill an existing session first.`);
+      throw new Error(
+        `Maximum ${MAX_SESSIONS} concurrent sessions. Kill an existing session first.`,
+      );
     }
 
     const cliPath = this.runnerPaths.get(runner);
@@ -149,7 +175,11 @@ export class TerminalManager {
     pty.onExit(({ exitCode, signal }) => {
       session.status = 'terminated';
       if (session.ws) {
-        sendMessage(session.ws, { type: 'exit', code: exitCode, signal: signal?.toString() ?? null });
+        sendMessage(session.ws, {
+          type: 'exit',
+          code: exitCode,
+          signal: signal?.toString() ?? null,
+        });
       }
       this.clearIdleTimer(session);
     });
@@ -164,10 +194,14 @@ export class TerminalManager {
     };
   }
 
+  /** Attach a browser WebSocket to an existing terminal session. */
   attachWebSocket(id: string, ws: WebSocket): void {
     const session = this.sessions.get(id);
     if (!session || session.status === 'terminated') {
-      sendMessage(ws, { type: 'error', message: 'Session not found or already terminated' });
+      sendMessage(ws, {
+        type: 'error',
+        message: 'Session not found or already terminated',
+      });
       ws.close();
       return;
     }
@@ -181,7 +215,9 @@ export class TerminalManager {
     ws.on('message', (raw: Buffer | string) => {
       let msg: ClientMessage;
       try {
-        msg = JSON.parse(typeof raw === 'string' ? raw : raw.toString('utf-8')) as ClientMessage;
+        msg = JSON.parse(
+          typeof raw === 'string' ? raw : raw.toString('utf-8'),
+        ) as ClientMessage;
       } catch {
         sendMessage(ws, { type: 'error', message: 'Invalid JSON' });
         return;
@@ -202,12 +238,14 @@ export class TerminalManager {
     });
   }
 
+  /** Return public session info for a terminal session ID. */
   get(id: string): SessionInfo | null {
     const session = this.sessions.get(id);
     if (!session) return null;
     return this.toInfo(session);
   }
 
+  /** Terminate a terminal session by ID. */
   kill(id: string): boolean {
     const session = this.sessions.get(id);
     if (!session) return false;
@@ -215,25 +253,34 @@ export class TerminalManager {
     return true;
   }
 
+  /** List all non-terminated terminal sessions. */
   list(): SessionInfo[] {
     return Array.from(this.sessions.values())
-      .filter(s => s.status !== 'terminated')
-      .map(s => this.toInfo(s));
+      .filter((s) => s.status !== 'terminated')
+      .map((s) => this.toInfo(s));
   }
 
+  /** Return health information. */
   async health(): Promise<HealthResponse> {
     // Probe node-pty availability on first health check
     if (this.nodePtyAvailable === null) {
-      try { await this.loadNodePty(); } catch { /* sets nodePtyAvailable = false */ }
+      try {
+        await this.loadNodePty();
+      } catch {
+        /* sets nodePtyAvailable = false */
+      }
     }
     return {
       uptime: Math.floor((Date.now() - this.startedAt) / 1000),
-      activeSessions: Array.from(this.sessions.values()).filter(s => s.status === 'active').length,
+      activeSessions: Array.from(this.sessions.values()).filter(
+        (s) => s.status === 'active',
+      ).length,
       nodePtyAvailable: this.nodePtyAvailable ?? false,
       availableRunners: Array.from(this.runnerPaths.keys()),
     };
   }
 
+  /** Shut down every tracked session and notify attached clients. */
   shutdown(): void {
     for (const session of this.sessions.values()) {
       if (session.ws) {
@@ -243,28 +290,42 @@ export class TerminalManager {
     }
   }
 
+  /** Tear down a terminal session and release its resources. */
   private killSession(session: TerminalSession): void {
     this.clearIdleTimer(session);
     if (session.pty && session.status !== 'terminated') {
       session.status = 'terminated';
-      try { session.pty.kill(); } catch { /* already dead */ }
+      try {
+        session.pty.kill();
+      } catch {
+        /* already dead */
+      }
     }
     if (session.ws) {
-      try { session.ws.close(); } catch { /* already closed */ }
+      try {
+        session.ws.close();
+      } catch {
+        /* already closed */
+      }
       session.ws = null;
     }
   }
 
+  /** Reset the idle-timeout timer for a session. */
   private resetIdleTimer(session: TerminalSession): void {
     this.clearIdleTimer(session);
     session.idleTimer = setTimeout(() => {
       if (session.ws) {
-        sendMessage(session.ws, { type: 'error', message: 'Session killed: idle timeout (30 min)' });
+        sendMessage(session.ws, {
+          type: 'error',
+          message: 'Session killed: idle timeout (30 min)',
+        });
       }
       this.killSession(session);
     }, IDLE_TIMEOUT_MS);
   }
 
+  /** Clear the idle-timeout timer for a session. */
   private clearIdleTimer(session: TerminalSession): void {
     if (session.idleTimer) {
       clearTimeout(session.idleTimer);
@@ -272,6 +333,7 @@ export class TerminalManager {
     }
   }
 
+  /** Convert an internal session record into its public response shape. */
   private toInfo(session: TerminalSession): SessionInfo {
     return {
       id: session.id,

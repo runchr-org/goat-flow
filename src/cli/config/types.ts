@@ -1,3 +1,7 @@
+/**
+ * Shared type contracts for the goat-flow config file.
+ * These interfaces describe the normalized shape used after YAML parsing and validation.
+ */
 export interface GoatFlowConfig {
   version: string;
   footguns: { committed: string; local: string };

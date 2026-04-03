@@ -7,21 +7,24 @@ These files are created regardless of which agent you use. They form the learnin
 ## Learning Loop Files
 
 ```
-1. ai/lessons/ - Format header with Entries/Patterns sections.
+1. ai/lessons/ - README plus category bucket files.
    Do NOT invent entries. If ai/evals/ exist, check each incident:
    if the root cause was a behavioural mistake (not an architectural
    landmine), seed one lesson from it. This gives agents a format
    example and makes the file visible.
    To find real incidents in this project, run:
      git log --oneline -50 | grep -iE 'fix|revert|hotfix|bug|broke|rollback'
-   For each match, write a lessons entry with: date, what happened, what
-   the correct behaviour should have been. Minimum 3 entries if the project
-   has >50 commits. If <50 commits, start with what you have.
+   For each match, add a lesson entry to the relevant category bucket
+   (for example `verification.md` or `workflow.md`) with: Created,
+   What happened, and what the correct behaviour should have been.
+   Minimum 3 entries if the project has >50 commits. If <50 commits,
+   start with what you have.
    If the project uses a bug tracker, include issue numbers (e.g., #63442) for traceability.
 
-2. docs/footguns/ - If the file already exists, MERGE with it: keep
+2. docs/footguns/ - If the directory already exists, MERGE with it: keep
    existing entries, add new footguns from reading the codebase.
-   If the file doesn't exist, create and seed with real footguns only.
+   If the directory doesn't exist, create and seed category bucket
+   files with real footguns only.
    Do NOT invent hypothetical ones. Do NOT replace existing entries.
    If no real footguns are found yet, leave the file with only the
    format header - an empty footguns file is better than a placeholder.
@@ -34,6 +37,8 @@ These files are created regardless of which agent you use. They form the learnin
      grep -rn 'TODO\|FIXME\|HACK\|XXX' src/ --include='*.ts' --include='*.php' --include='*.py' | head -20
      git log --all --oneline -- '*migration*' '**/migrations/**' | head -10
    Each footgun MUST have a file:line reference like src/Auth.php:42.
+   Prefer bucket files such as `hooks.md`, `setup.md`, or `scanner.md`
+   with `category:` frontmatter and multiple `## Footgun:` entries.
    Design patterns are NOT footguns - footguns are actual traps in the
    code where an agent (or developer) is likely to make a mistake.
    Also audit config files (.json, .yaml, .sh) for stale project names,

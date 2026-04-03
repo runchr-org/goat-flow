@@ -1,4 +1,7 @@
 /**
+ * Parser for goat-flow eval markdown files.
+ * It accepts the current frontmatter format plus older legacy metadata so mixed eval sets can be reported consistently.
+ *
  * Parses eval markdown files into structured objects.
  *
  * Supports two formats:
@@ -51,7 +54,10 @@ function parseFrontmatter(raw: string): EvalFrontmatter | null {
     /** Trimmed key portion before the colon */
     const key = line.slice(0, idx).trim();
     /** Trimmed value portion after the colon, with surrounding quotes stripped */
-    const val = line.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
+    const val = line
+      .slice(idx + 1)
+      .trim()
+      .replace(/^["']|["']$/g, '');
     fields.set(key, val);
   }
 
@@ -81,7 +87,8 @@ function validateOrigin(val: string | undefined): EvalOrigin {
 
 /** Validate and normalize an agents value, defaulting to all */
 function validateAgents(val: string | undefined): EvalAgents {
-  if (val === 'all' || val === 'claude' || val === 'codex' || val === 'gemini') return val;
+  if (val === 'all' || val === 'claude' || val === 'codex' || val === 'gemini')
+    return val;
   return 'all';
 }
 
@@ -102,7 +109,10 @@ function validateDifficulty(val: string | undefined): EvalDifficulty {
 // --- Legacy format parsing ---
 
 /** Parse legacy eval format (no frontmatter) by extracting metadata from markdown body */
-function parseLegacyFrontmatter(raw: string, filename: string): EvalFrontmatter {
+function parseLegacyFrontmatter(
+  raw: string,
+  filename: string,
+): EvalFrontmatter {
   // Extract **Origin:** and **Agents:** from markdown body
   /** Regex match for the **Origin:** metadata line */
   const originMatch = raw.match(/\*\*Origin:\*\*\s*`?([^`\n]+)`?/);
@@ -136,10 +146,7 @@ function parseLegacyFrontmatter(raw: string, filename: string): EvalFrontmatter 
 function extractSection(raw: string, heading: string): string {
   // Match ## Heading or ### Heading, case-insensitive
   /** Regex pattern to locate the target heading at level 2 or 3 */
-  const pattern = new RegExp(
-    `^#{2,3}\\s+${escapeRegex(heading)}\\s*$`,
-    'im',
-  );
+  const pattern = new RegExp(`^#{2,3}\\s+${escapeRegex(heading)}\\s*$`, 'im');
   /** Regex match result for the heading location */
   const match = raw.match(pattern);
   if (match == null || match.index === undefined) return '';
@@ -219,7 +226,11 @@ function parseAntiPatterns(section: string): string[] {
   return patterns;
 }
 
-function parseEvalFrontmatter(raw: string, filename: string): { frontmatter: EvalFrontmatter; body: string } {
+/** Parse eval frontmatter. */
+function parseEvalFrontmatter(
+  raw: string,
+  filename: string,
+): { frontmatter: EvalFrontmatter; body: string } {
   if (!FRONTMATTER_RE.test(raw)) {
     return {
       frontmatter: parseLegacyFrontmatter(raw, filename),
@@ -238,6 +249,7 @@ function parseEvalFrontmatter(raw: string, filename: string): { frontmatter: Eva
   };
 }
 
+/** Extract first section. */
 function extractFirstSection(body: string, headings: string[]): string {
   for (const heading of headings) {
     const section = extractSection(body, heading);
@@ -246,6 +258,7 @@ function extractFirstSection(body: string, headings: string[]): string {
   return '';
 }
 
+/** Resolve anti patterns. */
 function resolveAntiPatterns(section: string): string[] {
   const antiPatterns = parseAntiPatterns(section);
   if (antiPatterns.length === 0 && section.length > 0) return [section];
@@ -258,8 +271,15 @@ function resolveAntiPatterns(section: string): string[] {
 export function parseEvalFile(raw: string, filename: string): ParsedEval {
   const { frontmatter, body } = parseEvalFrontmatter(raw, filename);
   const scenario = extractFirstSection(body, ['Scenario', 'Replay Prompt']);
-  const expectedSection = extractFirstSection(body, ['Expected Behavior', 'Expected Behaviour', 'Expected Outcome']);
-  const antiPatternSection = extractFirstSection(body, ['Anti-Patterns', 'Known Failure Mode']);
+  const expectedSection = extractFirstSection(body, [
+    'Expected Behavior',
+    'Expected Behaviour',
+    'Expected Outcome',
+  ]);
+  const antiPatternSection = extractFirstSection(body, [
+    'Anti-Patterns',
+    'Known Failure Mode',
+  ]);
 
   return {
     file: filename,

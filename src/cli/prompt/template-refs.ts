@@ -1,3 +1,7 @@
+/**
+ * Maps languages, signals, fragments, and agents to concrete template files.
+ * Setup generation relies on this module as the canonical routing table for repo-owned templates.
+ */
 import type { AgentId, ProjectSignals } from '../types.js';
 import { PROFILES } from '../detect/agents.js';
 import { templateExists } from '../paths.js';
@@ -146,7 +150,7 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
   const p = PROFILES[agentId];
 
   /** Skill file refs - one per skill template, output into the agent's skills dir */
-  const skillRefs: TemplateRef[] = SKILL_TEMPLATES.map(tmpl => {
+  const skillRefs: TemplateRef[] = SKILL_TEMPLATES.map((tmpl) => {
     /** Skill name extracted from the template filename (e.g., "goat-commit") */
     const skillName = tmpl.replace('workflow/skills/', '').replace('.md', '');
     return {
@@ -253,7 +257,7 @@ const SETUP_GUIDE_TEMPLATES: Record<AgentId, string> = {
 function getSetupGuideRefs(agentId: AgentId): TemplateRef[] {
   const template = SETUP_GUIDE_TEMPLATES[agentId];
   const name = PROFILES[agentId].name;
-  return (['foundation', 'standard', 'full'] as const).map(phase => ({
+  return (['foundation', 'standard', 'full'] as const).map((phase) => ({
     output: `(${name} agent-specific setup)`,
     template,
     phase,
@@ -283,7 +287,14 @@ const LANGUAGE_TEMPLATE_MAP: Record<string, string> = {
 };
 
 /** Languages that indicate a web project (gets web-common.md security template) */
-const WEB_LANGUAGES = new Set(['typescript', 'javascript', 'php', 'python', 'go', 'rust']);
+const WEB_LANGUAGES = new Set([
+  'typescript',
+  'javascript',
+  'php',
+  'python',
+  'go',
+  'rust',
+]);
 
 /** Map from detected frontend framework/template engine to its coding-standards template */
 const FRONTEND_TEMPLATE_MAP: Record<string, string> = {
@@ -297,7 +308,8 @@ const SECURITY_FRAMEWORK_MAP: Record<string, string> = {
   django: 'workflow/coding-standards/security/framework-specific/django.md',
   laravel: 'workflow/coding-standards/security/framework-specific/laravel.md',
   symfony: 'workflow/coding-standards/security/framework-specific/symfony.md',
-  express: 'workflow/coding-standards/security/framework-specific/express-node.md',
+  express:
+    'workflow/coding-standards/security/framework-specific/express-node.md',
   go: 'workflow/coding-standards/security/framework-specific/go.md',
 };
 
@@ -348,10 +360,18 @@ const WEB_SIGNAL_TEMPLATES: SignalTemplateRefSpec[] = [
   },
 ] as const;
 
-const FRAMEWORK_BACKEND_LANGS = ['laravel', 'symfony', 'django', 'fastapi', 'express'] as const;
+const FRAMEWORK_BACKEND_LANGS = [
+  'laravel',
+  'symfony',
+  'django',
+  'fastapi',
+  'express',
+] as const;
 const GENERIC_BACKEND_LANGS = ['go', 'python', 'rust', 'php'] as const;
-const FRONTEND_FALLBACK_TEMPLATE = 'workflow/coding-standards/frontend/typescript.md';
+const FRONTEND_FALLBACK_TEMPLATE =
+  'workflow/coding-standards/frontend/typescript.md';
 
+/** Build a standard-phase template reference entry. */
 function buildStandardTemplateRef(
   output: string,
   template: string,
@@ -360,6 +380,7 @@ function buildStandardTemplateRef(
   return { output, template, phase: 'standard', note };
 }
 
+/** Add a template ref only when the source template exists on disk. */
 function pushIfTemplateExists(
   refs: TemplateRef[],
   output: string,
@@ -370,6 +391,7 @@ function pushIfTemplateExists(
   refs.push(buildStandardTemplateRef(output, template, note));
 }
 
+/** Add a template ref only once, skipping duplicates and missing templates. */
 function pushIfUnseenTemplate(
   refs: TemplateRef[],
   seen: Set<string>,
@@ -382,6 +404,7 @@ function pushIfUnseenTemplate(
   refs.push(buildStandardTemplateRef(output, template, note));
 }
 
+/** Return mapped template. */
 function getMappedTemplate(
   map: Record<string, string>,
   key: string,
@@ -390,19 +413,22 @@ function getMappedTemplate(
   return Object.hasOwn(map, key) && template !== undefined ? template : null;
 }
 
+/** Return template basename. */
 function getTemplateBasename(template: string): string {
   const parts = template.split('/');
   const filename = parts[parts.length - 1] ?? template;
   return filename.replace('.md', '');
 }
 
+/** Find detected language. */
 function findDetectedLanguage(
   languages: string[],
   candidates: readonly string[],
 ): string | null {
-  return languages.find(language => candidates.includes(language)) ?? null;
+  return languages.find((language) => candidates.includes(language)) ?? null;
 }
 
+/** Add language-specific coding-standards templates for detected languages. */
 function addLanguageTemplateRefs(
   refs: TemplateRef[],
   languages: string[],
@@ -421,11 +447,9 @@ function addLanguageTemplateRefs(
   }
 }
 
-function addWebCommonTemplate(
-  refs: TemplateRef[],
-  languages: string[],
-): void {
-  if (!languages.some(language => WEB_LANGUAGES.has(language))) return;
+/** Add the shared web-security template when the project has web languages. */
+function addWebCommonTemplate(refs: TemplateRef[], languages: string[]): void {
+  if (!languages.some((language) => WEB_LANGUAGES.has(language))) return;
   pushIfTemplateExists(
     refs,
     'ai/coding-standards/web-common.md',
@@ -434,15 +458,29 @@ function addWebCommonTemplate(
   );
 }
 
-function addFrontendTemplateRef(refs: TemplateRef[], languages: string[]): void {
+/** Add the primary frontend template for the first detected frontend stack. */
+function addFrontendTemplateRef(
+  refs: TemplateRef[],
+  languages: string[],
+): void {
   for (const language of languages) {
     const template = getMappedTemplate(FRONTEND_TEMPLATE_MAP, language);
     if (!template || !templateExists(template)) continue;
-    refs.push(buildStandardTemplateRef('ai/coding-standards/frontend.md', template, `Detected: ${language}`));
+    refs.push(
+      buildStandardTemplateRef(
+        'ai/coding-standards/frontend.md',
+        template,
+        `Detected: ${language}`,
+      ),
+    );
     return;
   }
 
-  if (languages.some(language => language === 'typescript' || language === 'javascript')) {
+  if (
+    languages.some(
+      (language) => language === 'typescript' || language === 'javascript',
+    )
+  ) {
     pushIfTemplateExists(
       refs,
       'ai/coding-standards/frontend.md',
@@ -452,9 +490,11 @@ function addFrontendTemplateRef(refs: TemplateRef[], languages: string[]): void 
   }
 }
 
+/** Add the primary backend template for the detected server-side stack. */
 function addBackendTemplateRef(refs: TemplateRef[], languages: string[]): void {
-  const detectedBackend = findDetectedLanguage(languages, FRAMEWORK_BACKEND_LANGS)
-    ?? findDetectedLanguage(languages, GENERIC_BACKEND_LANGS);
+  const detectedBackend =
+    findDetectedLanguage(languages, FRAMEWORK_BACKEND_LANGS) ??
+    findDetectedLanguage(languages, GENERIC_BACKEND_LANGS);
   if (!detectedBackend) return;
 
   const template = getMappedTemplate(LANGUAGE_TEMPLATE_MAP, detectedBackend);
@@ -467,6 +507,7 @@ function addBackendTemplateRef(refs: TemplateRef[], languages: string[]): void {
   );
 }
 
+/** Add framework-specific security templates for detected backend stacks. */
 function addSecurityFrameworkRefs(
   refs: TemplateRef[],
   languages: string[],
@@ -501,6 +542,7 @@ export function mapLanguagesToTemplates(languages: string[]): TemplateRef[] {
   return refs;
 }
 
+/** Add a group of signal-driven templates when their source files exist. */
 function addSignalTemplateGroup(
   refs: TemplateRef[],
   specs: readonly SignalTemplateRefSpec[],
@@ -510,7 +552,11 @@ function addSignalTemplateGroup(
   }
 }
 
-function addDeploySignalTemplates(refs: TemplateRef[], signals: ProjectSignals): void {
+/** Add infrastructure and Terraform templates for detected deploy signals. */
+function addDeploySignalTemplates(
+  refs: TemplateRef[],
+  signals: ProjectSignals,
+): void {
   if (signals.deployPlatforms.length === 0) return;
   pushIfTemplateExists(
     refs,
@@ -529,7 +575,11 @@ function addDeploySignalTemplates(refs: TemplateRef[], signals: ProjectSignals):
   }
 }
 
-function addComplianceSignalTemplate(refs: TemplateRef[], signals: ProjectSignals): void {
+/** Add the PHI/compliance template when compliance signals are detected. */
+function addComplianceSignalTemplate(
+  refs: TemplateRef[],
+  signals: ProjectSignals,
+): void {
   if (!signals.complianceSignals) return;
   pushIfTemplateExists(
     refs,
@@ -539,7 +589,11 @@ function addComplianceSignalTemplate(refs: TemplateRef[], signals: ProjectSignal
   );
 }
 
-function addLlmSignalTemplate(refs: TemplateRef[], signals: ProjectSignals): void {
+/** Add the LLM-security template when LLM integration signals are detected. */
+function addLlmSignalTemplate(
+  refs: TemplateRef[],
+  signals: ProjectSignals,
+): void {
   if (!signals.llmIntegration) return;
   pushIfTemplateExists(
     refs,
@@ -554,10 +608,13 @@ function addLlmSignalTemplate(refs: TemplateRef[], signals: ProjectSignals): voi
  * Auto-includes phi-compliance.md when compliance signals detected,
  * and llm-security.md when LLM integration detected.
  */
-export function mapSignalsToTemplates(signals: ProjectSignals, languages: string[] = []): TemplateRef[] {
+export function mapSignalsToTemplates(
+  signals: ProjectSignals,
+  languages: string[] = [],
+): TemplateRef[] {
   const refs: TemplateRef[] = [];
   addSignalTemplateGroup(refs, ALWAYS_SIGNAL_TEMPLATES);
-  if (languages.some(language => WEB_LANGUAGES.has(language))) {
+  if (languages.some((language) => WEB_LANGUAGES.has(language))) {
     addSignalTemplateGroup(refs, WEB_SIGNAL_TEMPLATES);
   }
   addDeploySignalTemplates(refs, signals);
@@ -577,7 +634,10 @@ export function mapSignalsToTemplates(signals: ProjectSignals, languages: string
  * String value = universal template. Object value = per-agent templates.
  * Keys NOT in this map render inline (fix-kind fragments, inline-only creates).
  */
-const FRAGMENT_TEMPLATE_MAP: Record<string, string | Partial<Record<AgentId, string>>> = {
+const FRAGMENT_TEMPLATE_MAP: Record<
+  string,
+  string | Partial<Record<AgentId, string>>
+> = {
   // File-level creates - skills
   'create-skill-goat': 'workflow/skills/goat.md',
   'create-skill-security': 'workflow/skills/goat-security.md',
@@ -709,25 +769,36 @@ const FRAGMENT_TEMPLATE_MAP: Record<string, string | Partial<Record<AgentId, str
   'create-security-instructions': 'workflow/coding-standards/security.md',
   'create-testing-instructions': 'workflow/coding-standards/testing.md',
   'create-copilot-bridge': 'workflow/coding-standards/copilot-bridge.md',
-  'create-domain-instructions': 'workflow/coding-standards/domain-instructions.md',
+  'create-domain-instructions':
+    'workflow/coding-standards/domain-instructions.md',
   'create-security-auth': 'workflow/coding-standards/security/api-auth.md',
   'create-security-upload': 'workflow/coding-standards/security/file-upload.md',
-  'create-security-infra': 'workflow/coding-standards/security/infrastructure.md',
-  'create-security-secrets': 'workflow/coding-standards/security/secrets-management.md',
+  'create-security-infra':
+    'workflow/coding-standards/security/infrastructure.md',
+  'create-security-secrets':
+    'workflow/coding-standards/security/secrets-management.md',
   'create-security-sql': 'workflow/coding-standards/security/sql-injection.md',
-  'create-security-supply-chain': 'workflow/coding-standards/security/supply-chain.md',
-  'create-security-django': 'workflow/coding-standards/security/framework-specific/django.md',
-  'create-security-laravel': 'workflow/coding-standards/security/framework-specific/laravel.md',
-  'create-security-symfony': 'workflow/coding-standards/security/framework-specific/symfony.md',
-  'create-security-express': 'workflow/coding-standards/security/framework-specific/express-node.md',
-  'create-security-go': 'workflow/coding-standards/security/framework-specific/go.md',
+  'create-security-supply-chain':
+    'workflow/coding-standards/security/supply-chain.md',
+  'create-security-django':
+    'workflow/coding-standards/security/framework-specific/django.md',
+  'create-security-laravel':
+    'workflow/coding-standards/security/framework-specific/laravel.md',
+  'create-security-symfony':
+    'workflow/coding-standards/security/framework-specific/symfony.md',
+  'create-security-express':
+    'workflow/coding-standards/security/framework-specific/express-node.md',
+  'create-security-go':
+    'workflow/coding-standards/security/framework-specific/go.md',
   'create-devops-terraform': 'workflow/coding-standards/devops/terraform.md',
 
   // Fix-kind - local instructions
-  'improve-conventions-instructions': 'workflow/coding-standards/conventions.md',
+  'improve-conventions-instructions':
+    'workflow/coding-standards/conventions.md',
   'create-instructions-dir': 'setup/shared/docs-seed.md',
   'create-instructions-router': 'setup/shared/docs-seed.md',
-  'create-frontend-instructions': 'workflow/coding-standards/frontend/typescript.md',
+  'create-frontend-instructions':
+    'workflow/coding-standards/frontend/typescript.md',
   'create-github-git-commit': 'workflow/coding-standards/git-commit.md',
 
   // Fix-kind - foundation (instruction file sections)
@@ -776,7 +847,10 @@ const FRAGMENT_TEMPLATE_MAP: Record<string, string | Partial<Record<AgentId, str
  * Look up the template for a fragment key, resolving per-agent entries.
  * Returns the relative template path, or null if not in the map.
  */
-export function getFragmentTemplate(key: string, agentId: AgentId): string | null {
+export function getFragmentTemplate(
+  key: string,
+  agentId: AgentId,
+): string | null {
   const entry = FRAGMENT_TEMPLATE_MAP[key];
   if (!entry) return null;
   if (typeof entry === 'string') return entry;
@@ -788,23 +862,36 @@ export function getFragmentTemplate(key: string, agentId: AgentId): string | nul
  * Returns the relative template path if the project's detected languages
  * provide a more specific template than the generic one in FRAGMENT_TEMPLATE_MAP.
  */
-export function getLanguageTemplate(key: string, languages: string[]): string | null {
+export function getLanguageTemplate(
+  key: string,
+  languages: string[],
+): string | null {
   // Only override coding-standards fragment keys
   if (key === 'create-backend-instructions') {
     // Framework-specific takes priority over generic language
-    const frameworkLangs = ['laravel', 'symfony', 'django', 'fastapi', 'express'];
-    const detectedFramework = languages.find(l => frameworkLangs.includes(l));
-    if (detectedFramework) return LANGUAGE_TEMPLATE_MAP[detectedFramework] ?? null;
+    const frameworkLangs = [
+      'laravel',
+      'symfony',
+      'django',
+      'fastapi',
+      'express',
+    ];
+    const detectedFramework = languages.find((l) => frameworkLangs.includes(l));
+    if (detectedFramework)
+      return LANGUAGE_TEMPLATE_MAP[detectedFramework] ?? null;
     const backendLangs = ['go', 'python', 'rust', 'php'];
-    const detected = languages.find(l => backendLangs.includes(l));
+    const detected = languages.find((l) => backendLangs.includes(l));
     if (detected) return LANGUAGE_TEMPLATE_MAP[detected] ?? null;
   }
   if (key === 'create-frontend-instructions') {
-    if (languages.some(l => l === 'typescript' || l === 'javascript')) {
+    if (languages.some((l) => l === 'typescript' || l === 'javascript')) {
       return 'workflow/coding-standards/frontend/typescript.md';
     }
   }
-  if (key === 'create-conventions-instructions' || key === 'improve-conventions-instructions') {
+  if (
+    key === 'create-conventions-instructions' ||
+    key === 'improve-conventions-instructions'
+  ) {
     // Conventions stays generic - it covers cross-language patterns
     return null;
   }

@@ -1,3 +1,7 @@
+/**
+ * Static prompt fragments for anti-pattern fixes.
+ * Each entry maps a triggered anti-pattern to reusable setup or remediation guidance.
+ */
 import type { Fragment } from '../types.js';
 import { SKILL_VERSION } from '../../constants.js';
 
@@ -61,9 +65,9 @@ If the evidence no longer applies (code changed), either update the reference or
     phase: 'anti-pattern',
     category: 'Anti-Pattern Fix',
     kind: 'fix',
-    instruction: `**CRITICAL:** The post-turn hook (stop-lint.sh) does not end with \`exit 0\`. Non-zero exit causes infinite retry loops. This costs -5 points.
+    instruction: `**CRITICAL:** The post-turn hook (stop-lint.sh) swallows validation failures with \`|| true\`. This hides lint/typecheck errors and costs -5 points.
 
-Fix: ensure the last line of the script is \`exit 0\`. If the script has conditional exits, ensure ALL code paths reach \`exit 0\`.`,
+Fix: remove \`|| true\` from the real validation commands. Keep optional discovery guards if needed, but do not suppress the actual \`shellcheck\`, \`eslint\`, \`tsc\`, or formatter invocation.`,
   },
   {
     key: 'ap-compress-local-files',

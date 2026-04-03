@@ -52,7 +52,10 @@ GOOD: Inline format. Extract when second format needed
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure in your code, or you corrected course: add a new learning-loop entry file before DoD. After human correction: MUST log immediately. Do not append to a monolithic log: use `ai/lessons/` or `.goat-flow/lessons/` for `YYYY-MM-DD-slug.md` files with frontmatter `name`, `created`, and use `docs/footguns/` or `.goat-flow/footguns/` for `YYYY-MM-DD-slug.md` files with frontmatter `name`, `status`, `created`, `evidence_type`. Propagate footguns to local CLAUDE.md.
+**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure or you corrected course: add an entry before DoD. After human correction: log immediately. Use **category bucket files** — NOT one file per incident, NOT a monolithic log.
+- Lessons: `ai/lessons/<category>.md` (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content. Create new category file only if no existing category fits.
+- Footguns: `docs/footguns/<category>.md` (e.g. `hooks.md`, `scanner.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
+- Local variants: `.goat-flow/lessons/` and `.goat-flow/footguns/` use same category bucket format.
 
 | File | When to update |
 |------|---------------|

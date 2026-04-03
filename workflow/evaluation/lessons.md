@@ -11,35 +11,38 @@ the same failure mode does not repeat.
 ```
 Create or update ai/lessons/ for this project.
 
-This file is for behavioural mistakes by the agent, not ordinary product
+This directory is for behavioural mistakes by the agent, not ordinary product
 bugs. Add entries only after a real mistake or correction happened.
 
-If ai/lessons/ does not exist, create it with this frontmatter:
+Use category bucket files, not one giant log and not one file per incident.
+Examples: `ai/lessons/verification.md`, `ai/lessons/workflow.md`,
+`ai/lessons/coordination.md`.
+
+If a matching bucket does not exist, create one like this:
 
 ```markdown
 ---
-name: [Title]
-created: YYYY-MM-DD
+category: verification
 ---
 
+## Lesson: [Short title]
+**Created:** YYYY-MM-DD
 **What happened:** [real mistake and impact]
 **Evidence:** `file:line` - [what was found]
 **Prevention:** [action that would have prevented the mistake]
-```
 
-For existing ai/lessons/, append one new file entry in the same format.
-Use short filenames in this format: `YYYY-MM-DD-slug.md`.
-
-## Patterns
-### Pattern: recurring theme
-_Entries: "Short lesson title", "Another lesson title"_
+## Pattern: recurring theme
+**Created:** YYYY-MM-DD
+_Entries: [optional related titles]_
 
 Short synthesis of the repeated failure mode and the guardrail it implies.
+```
 
 If ai/lessons/ already exists:
 - Keep existing entries intact
-- Append new entries in the same format
-- Update Patterns only when there are repeated themes worth extracting
+- Add the new entry to the most relevant category bucket
+- Split a bucket when it grows too large (roughly >200 lines or >10 entries)
+- Update Pattern entries only when there are repeated themes worth extracting
 
 RULES:
 - Do NOT invent entries
@@ -50,7 +53,7 @@ RULES:
 
 VERIFICATION:
 - Verify ai/lessons/ exists
-- Verify it has Entries and Patterns sections
-- Verify every new entry has What happened, Prevention, and created_at
+- Verify the bucket file has `category:` frontmatter
+- Verify every new entry has `## Lesson:` or `## Pattern:` plus Created/What happened/Prevention
 - Verify no fabricated entries were added
 ```

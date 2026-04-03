@@ -1,10 +1,18 @@
+/**
+ * Shell-level tests for the Claude deny hook.
+ * The suite executes the real script and asserts that dangerous commands are blocked with the expected exit behavior.
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
-const HOOK_PATH = resolve(import.meta.dirname, '../../.claude/hooks/deny-dangerous.sh');
+const HOOK_PATH = resolve(
+  import.meta.dirname,
+  '../../.claude/hooks/deny-dangerous.sh',
+);
 
+/** Run hook. */
 function runHook(command: string): { exitCode: number; stderr: string } {
   const json = JSON.stringify({ tool_name: 'Bash', tool_input: { command } });
   try {
@@ -132,7 +140,11 @@ describe('deny-dangerous.sh hook', () => {
     // The hook's regex matches rm -rf inside the full command string,
     // so subshell wrapping does NOT bypass detection.
     const r = runHook('echo $(rm -rf /)');
-    assert.equal(r.exitCode, 2, 'rm -rf inside subshell should still be caught');
+    assert.equal(
+      r.exitCode,
+      2,
+      'rm -rf inside subshell should still be caught',
+    );
   });
 
   it('does NOT block source .env (known limitation)', () => {

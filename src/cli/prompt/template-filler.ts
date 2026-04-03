@@ -1,3 +1,7 @@
+/**
+ * Fills prompt templates with agent- and project-specific path variables.
+ * This keeps template text declarative while centralizing variable derivation and fallback formatting.
+ */
 import type { ScanReport, AgentReport, AgentId } from '../types.js';
 import type { PromptVariables } from './types.js';
 import { PROFILES } from '../detect/agents.js';
@@ -14,7 +18,11 @@ function getAgentPaths(id: AgentId) {
   };
 }
 
-function countCheckStatuses(agentReport: AgentReport): { failed: number; passed: number } {
+/** Count check statuses. */
+function countCheckStatuses(agentReport: AgentReport): {
+  failed: number;
+  passed: number;
+} {
   let failed = 0;
   let passed = 0;
 
@@ -29,7 +37,11 @@ function countCheckStatuses(agentReport: AgentReport): { failed: number; passed:
   return { failed, passed };
 }
 
-function collectCheckEvidence(agentReport: AgentReport, evidence: Record<string, string>): void {
+/** Collect check evidence. */
+function collectCheckEvidence(
+  agentReport: AgentReport,
+  evidence: Record<string, string>,
+): void {
   for (const check of agentReport.checks) {
     if (check.evidence && check.recommendationKey) {
       evidence[check.recommendationKey] = check.evidence;
@@ -37,17 +49,27 @@ function collectCheckEvidence(agentReport: AgentReport, evidence: Record<string,
   }
 }
 
-function collectAntiPatternEvidence(agentReport: AgentReport, evidence: Record<string, string>): void {
+/** Collect anti pattern evidence. */
+function collectAntiPatternEvidence(
+  agentReport: AgentReport,
+  evidence: Record<string, string>,
+): void {
   for (const antiPattern of agentReport.antiPatterns) {
-    if (antiPattern.triggered && antiPattern.evidence && antiPattern.recommendationKey) {
+    if (
+      antiPattern.triggered &&
+      antiPattern.evidence &&
+      antiPattern.recommendationKey
+    ) {
       evidence[antiPattern.recommendationKey] = antiPattern.evidence;
     }
     if (antiPattern.triggered && antiPattern.recommendationKey) {
-      evidence[`${antiPattern.recommendationKey}.message`] = antiPattern.message;
+      evidence[`${antiPattern.recommendationKey}.message`] =
+        antiPattern.message;
     }
   }
 }
 
+/** Combine check and anti-pattern evidence into prompt-ready template variables. */
 function collectEvidence(agentReport: AgentReport): Record<string, string> {
   const evidence: Record<string, string> = {};
   collectCheckEvidence(agentReport, evidence);
@@ -59,7 +81,10 @@ function collectEvidence(agentReport: AgentReport): Record<string, string> {
  * Extract template variables from a scan report + agent report.
  * These replace {{variable}} placeholders in fragment instructions.
  */
-export function extractTemplateVars(report: ScanReport, agentReport: AgentReport): PromptVariables {
+export function extractTemplateVars(
+  report: ScanReport,
+  agentReport: AgentReport,
+): PromptVariables {
   /** File paths specific to the detected agent, derived from PROFILES */
   const paths = getAgentPaths(agentReport.agent);
   const checkCounts = countCheckStatuses(agentReport);

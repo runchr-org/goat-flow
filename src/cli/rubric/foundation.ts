@@ -1,3 +1,7 @@
+/**
+ * Foundation-tier rubric checks.
+ * These are the baseline requirements every GOAT Flow project must satisfy before higher-level workflow checks matter.
+ */
 import type { CheckDef, FactContext, CheckResult } from '../types.js';
 
 // Confidence criteria:
@@ -13,135 +17,323 @@ import type { CheckDef, FactContext, CheckResult } from '../types.js';
 export const foundationChecks: CheckDef[] = [
   // === 1.1 Instruction File (9 pts) ===
   {
-    id: '1.1.1', name: 'Instruction file exists', tier: 'foundation', category: 'Instruction File',
-    pts: 2, confidence: 'high',
+    id: '1.1.1',
+    name: 'Instruction file exists',
+    tier: 'foundation',
+    category: 'Instruction File',
+    pts: 2,
+    confidence: 'high',
     detect: { type: 'file_exists', path: '{instruction_file}' },
     recommendation: 'Create the root instruction file for this agent',
     recommendationKey: 'create-instruction-file',
   },
   {
-    id: '1.1.2', name: 'Under line target', tier: 'foundation', category: 'Instruction File',
-    pts: 3, partialPts: 1, confidence: 'high',
+    id: '1.1.2',
+    name: 'Under line target',
+    tier: 'foundation',
+    category: 'Instruction File',
+    pts: 3,
+    partialPts: 1,
+    confidence: 'high',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
         const lines = ctx.agentFacts.instruction.lineCount;
         const { target, limit } = ctx.facts.shared.config.lineLimits;
-        const base = { id: '1.1.2', name: 'Under line target', tier: 'foundation' as const, category: 'Instruction File', confidence: 'high' as const };
-        if (lines <= target) return { ...base, status: 'pass', points: 3, maxPoints: 3, message: `${lines} lines (under ${target} target)` };
-        if (lines <= limit) return { ...base, status: 'partial', points: 1, maxPoints: 3, message: `${lines} lines (under ${limit} limit but over ${target} target)` };
-        return { ...base, status: 'fail', points: 0, maxPoints: 3, message: `${lines} lines (over ${limit} limit)` };
+        const base = {
+          id: '1.1.2',
+          name: 'Under line target',
+          tier: 'foundation' as const,
+          category: 'Instruction File',
+          confidence: 'high' as const,
+        };
+        if (lines <= target)
+          return {
+            ...base,
+            status: 'pass',
+            points: 3,
+            maxPoints: 3,
+            message: `${lines} lines (under ${target} target)`,
+          };
+        if (lines <= limit)
+          return {
+            ...base,
+            status: 'partial',
+            points: 1,
+            maxPoints: 3,
+            message: `${lines} lines (under ${limit} limit but over ${target} target)`,
+          };
+        return {
+          ...base,
+          status: 'fail',
+          points: 0,
+          maxPoints: 3,
+          message: `${lines} lines (over ${limit} limit)`,
+        };
       },
     },
-    recommendation: 'Compress instruction file below the line target. Adjust in .goat-flow/config.yaml line-limits if needed.',
+    recommendation:
+      'Compress instruction file below the line target. Adjust in .goat-flow/config.yaml line-limits if needed.',
     recommendationKey: 'compress-instruction-file',
   },
   {
-    id: '1.1.3', name: 'Version header', tier: 'foundation', category: 'Instruction File',
-    pts: 1, confidence: 'high',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'v[0-9]|\\d{4}-\\d{2}-\\d{2}' },
-    recommendation: 'Add a version header (e.g., "v1.0 - 2026-03-21") to the instruction file',
+    id: '1.1.3',
+    name: 'Version header',
+    tier: 'foundation',
+    category: 'Instruction File',
+    pts: 1,
+    confidence: 'high',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      pattern: 'v[0-9]|\\d{4}-\\d{2}-\\d{2}',
+    },
+    recommendation:
+      'Add a version header (e.g., "v1.0 - 2026-03-21") to the instruction file',
     recommendationKey: 'add-version-header',
   },
   {
-    id: '1.1.4', name: 'Essential commands section', tier: 'foundation', category: 'Instruction File',
-    pts: 2, confidence: 'high',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'essential commands|## Commands' },
-    recommendation: 'Add an Essential Commands section with build, test, lint commands',
+    id: '1.1.4',
+    name: 'Essential commands section',
+    tier: 'foundation',
+    category: 'Instruction File',
+    pts: 2,
+    confidence: 'high',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      pattern: 'essential commands|## Commands',
+    },
+    recommendation:
+      'Add an Essential Commands section with build, test, lint commands',
     recommendationKey: 'add-essential-commands',
   },
 
   {
-    id: '1.1.5', name: 'Instruction file has concrete examples', tier: 'foundation', category: 'Instruction File',
-    pts: 1, confidence: 'medium',
+    id: '1.1.5',
+    name: 'Instruction file has concrete examples',
+    tier: 'foundation',
+    category: 'Instruction File',
+    pts: 1,
+    confidence: 'medium',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
         const content = ctx.agentFacts.instruction.content;
         if (content === null) {
-          return { id: '1.1.5', name: 'Instruction file has concrete examples', tier: 'foundation', category: 'Instruction File', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: 'No instruction file content' };
+          return {
+            id: '1.1.5',
+            name: 'Instruction file has concrete examples',
+            tier: 'foundation',
+            category: 'Instruction File',
+            status: 'fail',
+            points: 0,
+            maxPoints: 1,
+            confidence: 'medium',
+            message: 'No instruction file content',
+          };
         }
-        const matches = content.match(/\bBAD\b|\bGOOD\b|\bDON'T\b|\bexample:/gi) ?? [];
+        const matches =
+          content.match(/\bBAD\b|\bGOOD\b|\bDON'T\b|\bexample:/gi) ?? [];
         if (matches.length >= 2) {
-          return { id: '1.1.5', name: 'Instruction file has concrete examples', tier: 'foundation', category: 'Instruction File', status: 'pass', points: 1, maxPoints: 1, confidence: 'medium', message: `Instruction file uses concrete DO/DON'T or BAD/GOOD examples (${matches.length} matches)` };
+          return {
+            id: '1.1.5',
+            name: 'Instruction file has concrete examples',
+            tier: 'foundation',
+            category: 'Instruction File',
+            status: 'pass',
+            points: 1,
+            maxPoints: 1,
+            confidence: 'medium',
+            message: `Instruction file uses concrete DO/DON'T or BAD/GOOD examples (${matches.length} matches)`,
+          };
         }
-        return { id: '1.1.5', name: 'Instruction file has concrete examples', tier: 'foundation', category: 'Instruction File', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: 'No concrete examples found' };
+        return {
+          id: '1.1.5',
+          name: 'Instruction file has concrete examples',
+          tier: 'foundation',
+          category: 'Instruction File',
+          status: 'fail',
+          points: 0,
+          maxPoints: 1,
+          confidence: 'medium',
+          message: 'No concrete examples found',
+        };
       },
     },
-    recommendation: 'Add concrete BAD/GOOD or DO/DON\'T examples to the instruction file - at least 2 pairs showing right vs wrong approaches',
+    recommendation:
+      "Add concrete BAD/GOOD or DO/DON'T examples to the instruction file - at least 2 pairs showing right vs wrong approaches",
     recommendationKey: 'add-concrete-examples',
   },
 
   // === 1.2 Execution Loop (13 pts) ===
   {
-    id: '1.2.1', name: 'READ step', tier: 'foundation', category: 'Execution Loop',
-    pts: 2, confidence: 'high',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'read.*first|never fabricate|MUST read' },
-    recommendation: 'Add READ step: "MUST read relevant files before changes. Never fabricate codebase facts."',
+    id: '1.2.1',
+    name: 'READ step',
+    tier: 'foundation',
+    category: 'Execution Loop',
+    pts: 2,
+    confidence: 'high',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      pattern: 'read.*first|never fabricate|MUST read',
+    },
+    recommendation:
+      'Add READ step: "MUST read relevant files before changes. Never fabricate codebase facts."',
     recommendationKey: 'add-read-step',
   },
   {
-    id: '1.2.2', name: 'CLASSIFY step', tier: 'foundation', category: 'Execution Loop',
-    pts: 2, confidence: 'high',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'classify|complexity.*budget|Hotfix.*Standard' },
-    recommendation: 'Add CLASSIFY step with complexity budgets (Hotfix/Standard/System/Infrastructure)',
+    id: '1.2.2',
+    name: 'CLASSIFY step',
+    tier: 'foundation',
+    category: 'Execution Loop',
+    pts: 2,
+    confidence: 'high',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      pattern: 'classify|complexity.*budget|Hotfix.*Standard',
+    },
+    recommendation:
+      'Add CLASSIFY step with complexity budgets (Hotfix/Standard/System/Infrastructure)',
     recommendationKey: 'add-classify-step',
   },
   {
-    id: '1.2.2a', name: 'CLASSIFY has budgets', tier: 'foundation', category: 'Execution Loop',
-    pts: 1, confidence: 'medium',
+    id: '1.2.2a',
+    name: 'CLASSIFY has budgets',
+    tier: 'foundation',
+    category: 'Execution Loop',
+    pts: 1,
+    confidence: 'medium',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
         const content = ctx.agentFacts.instruction.content;
         if (content === null) {
-          return { id: '1.2.2a', name: 'CLASSIFY has budgets', tier: 'foundation', category: 'Execution Loop', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: 'No instruction file content' };
+          return {
+            id: '1.2.2a',
+            name: 'CLASSIFY has budgets',
+            tier: 'foundation',
+            category: 'Execution Loop',
+            status: 'fail',
+            points: 0,
+            maxPoints: 1,
+            confidence: 'medium',
+            message: 'No instruction file content',
+          };
         }
-        const hasComplexityTiers = /Hotfix|Standard|System.*Change|Infrastructure|re-classify|re-scope|3x.*estimate/i.test(content);
+        const hasComplexityTiers =
+          /Hotfix|Standard|System.*Change|Infrastructure|re-classify|re-scope|3x.*estimate/i.test(
+            content,
+          );
         if (hasComplexityTiers) {
-          return { id: '1.2.2a', name: 'CLASSIFY has complexity tiers', tier: 'foundation', category: 'Execution Loop', status: 'pass', points: 1, maxPoints: 1, confidence: 'medium', message: 'CLASSIFY section includes complexity tiers with re-classification trigger' };
+          return {
+            id: '1.2.2a',
+            name: 'CLASSIFY has complexity tiers',
+            tier: 'foundation',
+            category: 'Execution Loop',
+            status: 'pass',
+            points: 1,
+            maxPoints: 1,
+            confidence: 'medium',
+            message:
+              'CLASSIFY section includes complexity tiers with re-classification trigger',
+          };
         }
-        return { id: '1.2.2a', name: 'CLASSIFY has complexity tiers', tier: 'foundation', category: 'Execution Loop', status: 'fail', points: 0, maxPoints: 1, confidence: 'medium', message: 'CLASSIFY section has no complexity tiers' };
+        return {
+          id: '1.2.2a',
+          name: 'CLASSIFY has complexity tiers',
+          tier: 'foundation',
+          category: 'Execution Loop',
+          status: 'fail',
+          points: 0,
+          maxPoints: 1,
+          confidence: 'medium',
+          message: 'CLASSIFY section has no complexity tiers',
+        };
       },
     },
-    recommendation: 'Add complexity tiers to the CLASSIFY step (Hotfix / Small Feature / Standard / System / Infrastructure) with a re-classification trigger',
+    recommendation:
+      'Add complexity tiers to the CLASSIFY step (Hotfix / Small Feature / Standard / System / Infrastructure) with a re-classification trigger',
     recommendationKey: 'add-classify-budgets',
   },
   {
-    id: '1.2.3', name: 'SCOPE step', tier: 'foundation', category: 'Execution Loop',
-    pts: 2, confidence: 'high',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'scope.*declare|blast radius|non-goals|files allowed to change' },
-    recommendation: 'Add SCOPE step: "MUST declare before acting: files allowed to change, non-goals, max blast radius."',
+    id: '1.2.3',
+    name: 'SCOPE step',
+    tier: 'foundation',
+    category: 'Execution Loop',
+    pts: 2,
+    confidence: 'high',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      pattern: 'scope.*declare|blast radius|non-goals|files allowed to change',
+    },
+    recommendation:
+      'Add SCOPE step: "MUST declare before acting: files allowed to change, non-goals, max blast radius."',
     recommendationKey: 'add-scope-step',
   },
   {
-    id: '1.2.4', name: 'ACT step', tier: 'foundation', category: 'Execution Loop',
-    pts: 2, confidence: 'high',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'State:.*\\|.*Goal:|mode.*behaviour|Plan.*Implement.*Debug' },
+    id: '1.2.4',
+    name: 'ACT step',
+    tier: 'foundation',
+    category: 'Execution Loop',
+    pts: 2,
+    confidence: 'high',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      pattern: 'State:.*\\|.*Goal:|mode.*behaviour|Plan.*Implement.*Debug',
+    },
     recommendation: 'Add ACT step with state declaration format and mode table',
     recommendationKey: 'add-act-step',
   },
   {
-    id: '1.2.5', name: 'VERIFY step', tier: 'foundation', category: 'Execution Loop',
-    pts: 2, confidence: 'high',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'verify|stop.the.line|two corrections|MUST run.*shellcheck|MUST check cross-ref' },
-    recommendation: 'Add VERIFY step with stop-the-line escalation and revert-and-rescope',
+    id: '1.2.5',
+    name: 'VERIFY step',
+    tier: 'foundation',
+    category: 'Execution Loop',
+    pts: 2,
+    confidence: 'high',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      pattern:
+        'verify|stop.the.line|two corrections|MUST run.*shellcheck|MUST check cross-ref',
+    },
+    recommendation:
+      'Add VERIFY step with stop-the-line escalation and revert-and-rescope',
     recommendationKey: 'add-verify-step',
   },
   {
-    id: '1.2.6', name: 'LOG step', tier: 'foundation', category: 'Execution Loop',
-    pts: 2, confidence: 'medium',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'lessons/|footguns/|MUST update when tripped' },
+    id: '1.2.6',
+    name: 'LOG step',
+    tier: 'foundation',
+    category: 'Execution Loop',
+    pts: 2,
+    confidence: 'medium',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      pattern: 'lessons/|footguns/|MUST update when tripped',
+    },
     recommendation: 'Add LOG step referencing lessons and footguns directories',
     recommendationKey: 'add-log-step',
   },
 
   // === 1.3 Autonomy Tiers (10 pts) ===
   {
-    id: '1.3.1', name: 'Three tiers present', tier: 'foundation', category: 'Autonomy Tiers',
-    pts: 2, confidence: 'high',
+    id: '1.3.1',
+    name: 'Three tiers present',
+    tier: 'foundation',
+    category: 'Autonomy Tiers',
+    pts: 2,
+    confidence: 'high',
     detect: {
-      type: 'composite', mode: 'all', checks: [
+      type: 'composite',
+      mode: 'all',
+      checks: [
         { type: 'grep', path: '{instruction_file}', pattern: '\\bAlways\\b' },
         { type: 'grep', path: '{instruction_file}', pattern: 'Ask First' },
         { type: 'grep', path: '{instruction_file}', pattern: '\\bNever\\b' },
@@ -151,8 +343,12 @@ export const foundationChecks: CheckDef[] = [
     recommendationKey: 'add-autonomy-tiers',
   },
   {
-    id: '1.3.2', name: 'Ask First project-specific', tier: 'foundation', category: 'Autonomy Tiers',
-    pts: 3, confidence: 'medium',
+    id: '1.3.2',
+    name: 'Ask First project-specific',
+    tier: 'foundation',
+    category: 'Autonomy Tiers',
+    pts: 3,
+    confidence: 'medium',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -162,106 +358,257 @@ export const foundationChecks: CheckDef[] = [
           // Try finding "Ask First" as bold text in the full content
           const content = ctx.agentFacts.instruction.content;
           if (content !== null) {
-            const match = content.match(/\*\*Ask First\*\*[\s\S]*?(?=\n\*\*Never\*\*|\n##\s|$)/i);
+            const match = content.match(
+              /\*\*Ask First\*\*[\s\S]*?(?=\n\*\*Never\*\*|\n##\s|$)/i,
+            );
             if (match) section = match[0];
           }
         }
         if (section === null) {
-          return { id: '1.3.2', name: 'Ask First project-specific', tier: 'foundation', category: 'Autonomy Tiers', status: 'fail', points: 0, maxPoints: 3, confidence: 'medium', message: 'No Ask First section found' };
+          return {
+            id: '1.3.2',
+            name: 'Ask First project-specific',
+            tier: 'foundation',
+            category: 'Autonomy Tiers',
+            status: 'fail',
+            points: 0,
+            maxPoints: 3,
+            confidence: 'medium',
+            message: 'No Ask First section found',
+          };
         }
-        const lines = section.split('\n').filter(l => l.trim()).length;
+        const lines = section.split('\n').filter((l) => l.trim()).length;
         // Check whether the section contains backtick-wrapped file paths
         const hasProjectPaths = /`[^`]*[./][^`]*`/.test(section);
         if (lines > 5 && hasProjectPaths) {
-          return { id: '1.3.2', name: 'Ask First project-specific', tier: 'foundation', category: 'Autonomy Tiers', status: 'pass', points: 3, maxPoints: 3, confidence: 'medium', message: `Ask First has ${lines} lines with project-specific content`, evidence: 'Ask First section' };
+          return {
+            id: '1.3.2',
+            name: 'Ask First project-specific',
+            tier: 'foundation',
+            category: 'Autonomy Tiers',
+            status: 'pass',
+            points: 3,
+            maxPoints: 3,
+            confidence: 'medium',
+            message: `Ask First has ${lines} lines with project-specific content`,
+            evidence: 'Ask First section',
+          };
         }
         if (lines > 5) {
-          return { id: '1.3.2', name: 'Ask First project-specific', tier: 'foundation', category: 'Autonomy Tiers', status: 'partial', points: 1, maxPoints: 3, confidence: 'medium', message: `Ask First has ${lines} lines but may be generic` };
+          return {
+            id: '1.3.2',
+            name: 'Ask First project-specific',
+            tier: 'foundation',
+            category: 'Autonomy Tiers',
+            status: 'partial',
+            points: 1,
+            maxPoints: 3,
+            confidence: 'medium',
+            message: `Ask First has ${lines} lines but may be generic`,
+          };
         }
-        return { id: '1.3.2', name: 'Ask First project-specific', tier: 'foundation', category: 'Autonomy Tiers', status: 'fail', points: 0, maxPoints: 3, confidence: 'medium', message: `Ask First section too short (${lines} lines)` };
+        return {
+          id: '1.3.2',
+          name: 'Ask First project-specific',
+          tier: 'foundation',
+          category: 'Autonomy Tiers',
+          status: 'fail',
+          points: 0,
+          maxPoints: 3,
+          confidence: 'medium',
+          message: `Ask First section too short (${lines} lines)`,
+        };
       },
     },
-    recommendation: 'Make Ask First boundaries project-specific with actual file paths and domain terms',
+    recommendation:
+      'Make Ask First boundaries project-specific with actual file paths and domain terms',
     recommendationKey: 'project-specific-ask-first',
   },
   {
-    id: '1.3.2a', name: 'Ask First paths resolve', tier: 'foundation', category: 'Autonomy Tiers',
-    pts: 2, confidence: 'high',
+    id: '1.3.2a',
+    name: 'Ask First paths resolve',
+    tier: 'foundation',
+    category: 'Autonomy Tiers',
+    pts: 2,
+    confidence: 'high',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
         const { paths, resolved, unresolved } = ctx.agentFacts.askFirst;
         if (paths.length === 0) {
-          return { id: '1.3.2a', name: 'Ask First paths resolve', tier: 'foundation', category: 'Autonomy Tiers', status: 'na', points: 0, maxPoints: 0, confidence: 'high', message: 'No backtick-wrapped paths in Ask First section' };
+          return {
+            id: '1.3.2a',
+            name: 'Ask First paths resolve',
+            tier: 'foundation',
+            category: 'Autonomy Tiers',
+            status: 'na',
+            points: 0,
+            maxPoints: 0,
+            confidence: 'high',
+            message: 'No backtick-wrapped paths in Ask First section',
+          };
         }
         if (unresolved.length === 0) {
-          return { id: '1.3.2a', name: 'Ask First paths resolve', tier: 'foundation', category: 'Autonomy Tiers', status: 'pass', points: 2, maxPoints: 2, confidence: 'high', message: `All ${resolved} Ask First paths resolve` };
+          return {
+            id: '1.3.2a',
+            name: 'Ask First paths resolve',
+            tier: 'foundation',
+            category: 'Autonomy Tiers',
+            status: 'pass',
+            points: 2,
+            maxPoints: 2,
+            confidence: 'high',
+            message: `All ${resolved} Ask First paths resolve`,
+          };
         }
         if (resolved > 0) {
-          return { id: '1.3.2a', name: 'Ask First paths resolve', tier: 'foundation', category: 'Autonomy Tiers', status: 'partial', points: 1, maxPoints: 2, confidence: 'high', message: `${resolved}/${paths.length} resolve. Broken: ${unresolved.join(', ')}`, evidence: unresolved.join(', ') };
+          return {
+            id: '1.3.2a',
+            name: 'Ask First paths resolve',
+            tier: 'foundation',
+            category: 'Autonomy Tiers',
+            status: 'partial',
+            points: 1,
+            maxPoints: 2,
+            confidence: 'high',
+            message: `${resolved}/${paths.length} resolve. Broken: ${unresolved.join(', ')}`,
+            evidence: unresolved.join(', '),
+          };
         }
-        return { id: '1.3.2a', name: 'Ask First paths resolve', tier: 'foundation', category: 'Autonomy Tiers', status: 'fail', points: 0, maxPoints: 2, confidence: 'high', message: `0/${paths.length} resolve. Broken: ${unresolved.join(', ')}`, evidence: unresolved.join(', ') };
+        return {
+          id: '1.3.2a',
+          name: 'Ask First paths resolve',
+          tier: 'foundation',
+          category: 'Autonomy Tiers',
+          status: 'fail',
+          points: 0,
+          maxPoints: 2,
+          confidence: 'high',
+          message: `0/${paths.length} resolve. Broken: ${unresolved.join(', ')}`,
+          evidence: unresolved.join(', '),
+        };
       },
     },
-    recommendation: 'Fix broken paths in Ask First section - every referenced file/directory must exist on disk',
+    recommendation:
+      'Fix broken paths in Ask First section - every referenced file/directory must exist on disk',
     recommendationKey: 'fix-ask-first-paths',
   },
   {
-    id: '1.3.3', name: 'Never tier destructive guards', tier: 'foundation', category: 'Autonomy Tiers',
-    pts: 2, confidence: 'high',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'delete.*without|\\.\\.env|secrets|push.*main|force push|overwrite.*without' },
-    recommendation: 'Add destructive guards to Never tier: delete, .env, secrets, push to main, force push',
+    id: '1.3.3',
+    name: 'Never tier destructive guards',
+    tier: 'foundation',
+    category: 'Autonomy Tiers',
+    pts: 2,
+    confidence: 'high',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      pattern:
+        'delete.*without|\\.\\.env|secrets|push.*main|force push|overwrite.*without',
+    },
+    recommendation:
+      'Add destructive guards to Never tier: delete, .env, secrets, push to main, force push',
     recommendationKey: 'add-never-guards',
   },
   {
-    id: '1.3.4', name: 'Micro-checklist present', tier: 'foundation', category: 'Autonomy Tiers',
-    pts: 1, confidence: 'high',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'boundary.*touched|rollback.*command|\\[\\s*\\].*boundary|footgun.*checked' },
-    recommendation: 'Add 5-item micro-checklist for Ask First items (boundary, related code, footgun, local instruction, rollback)',
+    id: '1.3.4',
+    name: 'Micro-checklist present',
+    tier: 'foundation',
+    category: 'Autonomy Tiers',
+    pts: 1,
+    confidence: 'high',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      pattern:
+        'boundary.*touched|rollback.*command|\\[\\s*\\].*boundary|footgun.*checked',
+    },
+    recommendation:
+      'Add 5-item micro-checklist for Ask First items (boundary, related code, footgun, local instruction, rollback)',
     recommendationKey: 'add-micro-checklist',
   },
 
   // === 1.4 Definition of Done (7 pts) ===
   {
-    id: '1.4.1', name: 'DoD section exists', tier: 'foundation', category: 'Definition of Done',
-    pts: 2, confidence: 'high',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'definition of done|done.*until|MUST confirm ALL' },
+    id: '1.4.1',
+    name: 'DoD section exists',
+    tier: 'foundation',
+    category: 'Definition of Done',
+    pts: 2,
+    confidence: 'high',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      pattern: 'definition of done|done.*until|MUST confirm ALL',
+    },
     recommendation: 'Add a Definition of Done section with explicit gates',
     recommendationKey: 'add-dod',
   },
   {
-    id: '1.4.2', name: '4+ explicit gates', tier: 'foundation', category: 'Definition of Done',
-    pts: 2, partialPts: 1, confidence: 'medium',
+    id: '1.4.2',
+    name: '4+ explicit gates',
+    tier: 'foundation',
+    category: 'Definition of Done',
+    pts: 2,
+    partialPts: 1,
+    confidence: 'medium',
     detect: {
-      type: 'count_items', path: '{instruction_file}', section: 'definition of done',
+      type: 'count_items',
+      path: '{instruction_file}',
+      section: 'definition of done',
       // Match numbered lists, checkboxes, OR semicolon-separated items in prose.
       // Prose format: "MUST confirm all 6 gates: lint; verified; no Ask First; logs; notes; rg"
       // The semicolons act as list delimiters in single-line DoD declarations.
       pattern: '\\(\\d+\\)|^\\d+\\.|^- \\[|;(?=[^;]*\\S)',
-      pass: 6, partial: 4,
+      pass: 6,
+      partial: 4,
     },
-    recommendation: 'Add 6 DoD gates: tests green, preflight passes, no boundary violations, logs updated, working notes current, grep after renames',
+    recommendation:
+      'Add 6 DoD gates: tests green, preflight passes, no boundary violations, logs updated, working notes current, grep after renames',
     recommendationKey: 'add-dod-gates',
   },
   {
-    id: '1.4.3', name: 'Grep-after-rename gate', tier: 'foundation', category: 'Definition of Done',
-    pts: 2, confidence: 'high',
-    detect: { type: 'grep', path: '{instruction_file}', section: 'definition of done', pattern: 'grep.*old.*pattern|zero.*remaining|grep.*rename|rg.*stale|rg.*rename|stale.*reference' },
+    id: '1.4.3',
+    name: 'Grep-after-rename gate',
+    tier: 'foundation',
+    category: 'Definition of Done',
+    pts: 2,
+    confidence: 'high',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      section: 'definition of done',
+      pattern:
+        'grep.*old.*pattern|zero.*remaining|grep.*rename|rg.*stale|rg.*rename|stale.*reference',
+    },
     recommendation: 'Add grep-after-rename gate to DoD',
     recommendationKey: 'add-grep-gate',
   },
   {
-    id: '1.4.4', name: 'Log-update gate', tier: 'foundation', category: 'Definition of Done',
-    pts: 1, confidence: 'high',
-    detect: { type: 'grep', path: '{instruction_file}', pattern: 'logs? updated|lessons.*updated|footguns.*updated|update.*log|log.*update|MUST.*log' },
+    id: '1.4.4',
+    name: 'Log-update gate',
+    tier: 'foundation',
+    category: 'Definition of Done',
+    pts: 1,
+    confidence: 'high',
+    detect: {
+      type: 'grep',
+      path: '{instruction_file}',
+      pattern:
+        'logs? updated|lessons.*updated|footguns.*updated|update.*log|log.*update|MUST.*log',
+    },
     recommendation: 'Add log-update gate to DoD',
     recommendationKey: 'add-log-gate',
   },
 
   // === 1.5 Enforcement Baseline (8 pts) ===
   {
-    id: '1.5.1', name: 'Deny mechanism exists', tier: 'foundation', category: 'Enforcement',
-    pts: 3, confidence: 'high',
+    id: '1.5.1',
+    name: 'Deny mechanism exists',
+    tier: 'foundation',
+    category: 'Enforcement',
+    pts: 3,
+    confidence: 'high',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -278,91 +625,156 @@ export const foundationChecks: CheckDef[] = [
           exists = ctx.agentFacts.hooks.denyExists;
           evidence = deny.path;
         } else {
-          exists = ctx.agentFacts.settings.hasDenyPatterns || ctx.agentFacts.hooks.denyExists;
+          exists =
+            ctx.agentFacts.settings.hasDenyPatterns ||
+            ctx.agentFacts.hooks.denyExists;
           evidence = `${deny.settingsPath} or ${deny.scriptPath}`;
         }
 
         return {
-          id: '1.5.1', name: 'Deny mechanism exists', tier: 'foundation', category: 'Enforcement',
-          status: exists ? 'pass' : 'fail', points: exists ? 3 : 0, maxPoints: 3, confidence: 'high',
-          message: exists ? `Deny mechanism found at ${evidence}` : 'No deny mechanism found',
+          id: '1.5.1',
+          name: 'Deny mechanism exists',
+          tier: 'foundation',
+          category: 'Enforcement',
+          status: exists ? 'pass' : 'fail',
+          points: exists ? 3 : 0,
+          maxPoints: 3,
+          confidence: 'high',
+          message: exists
+            ? `Deny mechanism found at ${evidence}`
+            : 'No deny mechanism found',
           evidence,
         };
       },
     },
-    recommendation: 'Add a deny mechanism (permissions.deny in settings.json or deny-dangerous.sh script)',
+    recommendation:
+      'Add a deny mechanism (permissions.deny in settings.json or deny-dangerous.sh script)',
     recommendationKey: 'add-deny-mechanism',
   },
   {
-    id: '1.5.2', name: 'git commit blocked', tier: 'foundation', category: 'Enforcement',
-    pts: 1, confidence: 'high',
+    id: '1.5.2',
+    name: 'git commit blocked',
+    tier: 'foundation',
+    category: 'Enforcement',
+    pts: 1,
+    confidence: 'high',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
-        id: '1.5.2', name: 'git commit blocked', tier: 'foundation', category: 'Enforcement',
+        id: '1.5.2',
+        name: 'git commit blocked',
+        tier: 'foundation',
+        category: 'Enforcement',
         status: ctx.agentFacts.deny.gitCommitBlocked ? 'pass' : 'fail',
-        points: ctx.agentFacts.deny.gitCommitBlocked ? 1 : 0, maxPoints: 1, confidence: 'high',
-        message: ctx.agentFacts.deny.gitCommitBlocked ? 'git commit is blocked' : 'git commit is not blocked',
+        points: ctx.agentFacts.deny.gitCommitBlocked ? 1 : 0,
+        maxPoints: 1,
+        confidence: 'high',
+        message: ctx.agentFacts.deny.gitCommitBlocked
+          ? 'git commit is blocked'
+          : 'git commit is not blocked',
       }),
     },
     recommendation: 'Block git commit in deny mechanism',
     recommendationKey: 'block-git-commit',
   },
   {
-    id: '1.5.3', name: 'git push blocked', tier: 'foundation', category: 'Enforcement',
-    pts: 2, confidence: 'high',
+    id: '1.5.3',
+    name: 'git push blocked',
+    tier: 'foundation',
+    category: 'Enforcement',
+    pts: 2,
+    confidence: 'high',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
-        id: '1.5.3', name: 'git push blocked', tier: 'foundation', category: 'Enforcement',
+        id: '1.5.3',
+        name: 'git push blocked',
+        tier: 'foundation',
+        category: 'Enforcement',
         status: ctx.agentFacts.deny.gitPushBlocked ? 'pass' : 'fail',
-        points: ctx.agentFacts.deny.gitPushBlocked ? 2 : 0, maxPoints: 2, confidence: 'high',
-        message: ctx.agentFacts.deny.gitPushBlocked ? 'git push is blocked' : 'git push is not blocked',
+        points: ctx.agentFacts.deny.gitPushBlocked ? 2 : 0,
+        maxPoints: 2,
+        confidence: 'high',
+        message: ctx.agentFacts.deny.gitPushBlocked
+          ? 'git push is blocked'
+          : 'git push is not blocked',
       }),
     },
     recommendation: 'Block git push in deny mechanism',
     recommendationKey: 'block-git-push',
   },
   {
-    id: '1.5.4', name: 'Deny hook/script exists', tier: 'foundation', category: 'Enforcement',
-    pts: 2, confidence: 'high',
+    id: '1.5.4',
+    name: 'Deny hook/script exists',
+    tier: 'foundation',
+    category: 'Enforcement',
+    pts: 2,
+    confidence: 'high',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
         // Config-based deny (settings.json permissions.deny) is a valid alternative to a script
-        if (ctx.agentFacts.hooks.denyIsConfigBased && !ctx.agentFacts.hooks.denyExists) {
+        if (
+          ctx.agentFacts.hooks.denyIsConfigBased &&
+          !ctx.agentFacts.hooks.denyExists
+        ) {
           return {
-            id: '1.5.4', name: 'Deny hook/script exists', tier: 'foundation', category: 'Enforcement',
-            status: 'na', points: 0, maxPoints: 0, confidence: 'high',
-            message: 'Deny is config-based (settings.json permissions.deny) — script not required',
+            id: '1.5.4',
+            name: 'Deny hook/script exists',
+            tier: 'foundation',
+            category: 'Enforcement',
+            status: 'na',
+            points: 0,
+            maxPoints: 0,
+            confidence: 'high',
+            message:
+              'Deny is config-based (settings.json permissions.deny) — script not required',
           };
         }
         const exists = ctx.agentFacts.hooks.denyExists;
         return {
-          id: '1.5.4', name: 'Deny hook/script exists', tier: 'foundation', category: 'Enforcement',
-          status: exists ? 'pass' : 'fail', points: exists ? 2 : 0, maxPoints: 2, confidence: 'high',
-          message: exists ? 'Deny hook/script exists' : 'No deny hook/script found',
+          id: '1.5.4',
+          name: 'Deny hook/script exists',
+          tier: 'foundation',
+          category: 'Enforcement',
+          status: exists ? 'pass' : 'fail',
+          points: exists ? 2 : 0,
+          maxPoints: 2,
+          confidence: 'high',
+          message: exists
+            ? 'Deny hook/script exists'
+            : 'No deny hook/script found',
         };
       },
     },
-    recommendation: 'Create deny-dangerous.sh hook/script or use settings.json permissions.deny',
+    recommendation:
+      'Create deny-dangerous.sh hook/script or use settings.json permissions.deny',
     recommendationKey: 'create-deny-script',
   },
   {
-    id: '1.5.5', name: '.goat-flow/config.yaml exists', tier: 'foundation', category: 'Project Config',
-    pts: 1, confidence: 'high',
+    id: '1.5.5',
+    name: '.goat-flow/config.yaml exists',
+    tier: 'foundation',
+    category: 'Project Config',
+    pts: 1,
+    confidence: 'high',
     detect: { type: 'file_exists', path: '.goat-flow/config.yaml' },
     recommendation: 'Create .goat-flow/config.yaml in the project root',
     recommendationKey: 'create-goat-flow-config',
   },
   {
-    id: '1.5.6', name: '.goat-flow/config.yaml is valid', tier: 'foundation', category: 'Project Config',
-    pts: 1, confidence: 'high',
+    id: '1.5.6',
+    name: '.goat-flow/config.yaml is valid',
+    tier: 'foundation',
+    category: 'Project Config',
+    pts: 1,
+    confidence: 'high',
     na: (ctx) => ctx.facts.shared.config.exists === false,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
-        const { valid, parseError, errorCount, warningCount } = ctx.facts.shared.config;
+        const { valid, parseError, errorCount, warningCount } =
+          ctx.facts.shared.config;
         return {
           id: '1.5.6',
           name: '.goat-flow/config.yaml is valid',
@@ -378,7 +790,8 @@ export const foundationChecks: CheckDef[] = [
         };
       },
     },
-    recommendation: 'Fix .goat-flow/config.yaml so it parses and validates cleanly',
+    recommendation:
+      'Fix .goat-flow/config.yaml so it parses and validates cleanly',
     recommendationKey: 'fix-goat-flow-config',
   },
 ];

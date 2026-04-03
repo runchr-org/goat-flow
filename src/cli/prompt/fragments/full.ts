@@ -1,3 +1,7 @@
+/**
+ * Static prompt fragments for full-tier requirements.
+ * They cover evals, CI wiring, and mature-adoption hygiene tasks.
+ */
 import type { Fragment } from '../types.js';
 
 /**
@@ -219,7 +223,8 @@ Without this, PRs can merge without context validation passing.`,
     phase: 'full',
     category: 'Hygiene',
     kind: 'fix',
-    instruction: '`.goat-flow/tasks/handoff-template.md` is missing required sections. It must include: ## Date, ## Status, ## Current State, ## Key Decisions, ## Errors & Corrections, ## Learnings, ## Known Risks, ## Next Step, and ## Context Files.',
+    instruction:
+      '`.goat-flow/tasks/handoff-template.md` is missing required sections. It must include: ## Date, ## Status, ## Current State, ## Key Decisions, ## Errors & Corrections, ## Learnings, ## Known Risks, ## Next Step, and ## Context Files.',
   },
   {
     key: 'create-logs-dir',

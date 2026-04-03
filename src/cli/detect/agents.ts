@@ -1,3 +1,7 @@
+/**
+ * Detects which agent runtimes are configured in a project.
+ * Also defines the canonical per-agent profiles used by setup, fact extraction, and prompt rendering.
+ */
 import type { AgentProfile, AgentId, ReadonlyFS } from '../types.js';
 
 /** Configuration profiles for all supported AI coding agents */
@@ -11,7 +15,11 @@ export const PROFILES: Record<AgentId, AgentProfile> = {
     hooksDir: '.claude/hooks',
     denyMechanism: { type: 'settings-deny', path: '.claude/settings.json' },
     localPattern: '*/CLAUDE.md',
-    hookEvents: { preTool: 'PreToolUse', postTool: 'PostToolUse', postTurn: 'Stop' },
+    hookEvents: {
+      preTool: 'PreToolUse',
+      postTool: 'PostToolUse',
+      postTurn: 'Stop',
+    },
   },
   codex: {
     id: 'codex',
@@ -20,7 +28,10 @@ export const PROFILES: Record<AgentId, AgentProfile> = {
     settingsFile: '.codex/config.toml',
     skillsDir: '.agents/skills',
     hooksDir: '.codex/hooks',
-    denyMechanism: { type: 'deny-script', path: '.codex/rules/deny-dangerous.star' },
+    denyMechanism: {
+      type: 'deny-script',
+      path: '.codex/rules/deny-dangerous.star',
+    },
     localPattern: '.github/instructions/*.md',
     hookEvents: { preTool: '', postTool: 'after_tool_use', postTurn: 'stop' },
   },
@@ -33,7 +44,11 @@ export const PROFILES: Record<AgentId, AgentProfile> = {
     hooksDir: '.gemini/hooks',
     denyMechanism: { type: 'settings-deny', path: '.gemini/settings.json' },
     localPattern: '*/GEMINI.md',
-    hookEvents: { preTool: 'BeforeTool', postTool: 'AfterTool', postTurn: 'AfterAgent' },
+    hookEvents: {
+      preTool: 'BeforeTool',
+      postTool: 'AfterTool',
+      postTurn: 'AfterAgent',
+    },
   },
 };
 

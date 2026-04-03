@@ -1,12 +1,33 @@
+/**
+ * Loads and validates `.goat-flow/config.yaml`.
+ * Owns defaults, schema-level validation, and the normalized `LoadedConfig` returned to scanners and prompt builders.
+ */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { load } from 'js-yaml';
 import type { ReadonlyFS } from '../types.js';
 import { RUBRIC_VERSION } from '../rubric/version.js';
-import type { GoatFlowConfig, LoadedConfig, ValidationIssue, ValidationResult } from './types.js';
+import type {
+  GoatFlowConfig,
+  LoadedConfig,
+  ValidationIssue,
+  ValidationResult,
+} from './types.js';
 
 const KNOWN_AGENTS = new Set(['claude', 'codex', 'gemini']);
-const KNOWN_TOP_LEVEL_KEYS = new Set(['version', 'footguns', 'lessons', 'decisions', 'evals', 'coding-standards', 'tasks', 'logs', 'agents', 'skills', 'line-limits']);
+const KNOWN_TOP_LEVEL_KEYS = new Set([
+  'version',
+  'footguns',
+  'lessons',
+  'decisions',
+  'evals',
+  'coding-standards',
+  'tasks',
+  'logs',
+  'agents',
+  'skills',
+  'line-limits',
+]);
 
 export const CONFIG_DEFAULTS: GoatFlowConfig = {
   version: RUBRIC_VERSION,
@@ -22,6 +43,7 @@ export const CONFIG_DEFAULTS: GoatFlowConfig = {
   lineLimits: { target: 120, limit: 150 },
 };
 
+/** Clone the default config object so callers can mutate it safely. */
 function cloneDefaults(): GoatFlowConfig {
   return {
     version: CONFIG_DEFAULTS.version,
@@ -38,10 +60,16 @@ function cloneDefaults(): GoatFlowConfig {
   };
 }
 
+/** Check whether a value is a plain object record. */
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && Array.isArray(value) === false;
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    Array.isArray(value) === false
+  );
 }
 
+/** Read raw config YAML from the project root or injected test filesystem. */
 function readConfigText(projectRoot: string, fs?: ReadonlyFS): string | null {
   if (fs) return fs.readFile('.goat-flow/config.yaml');
   const path = join(projectRoot, '.goat-flow', 'config.yaml');
@@ -49,6 +77,7 @@ function readConfigText(projectRoot: string, fs?: ReadonlyFS): string | null {
   return readFileSync(path, 'utf8');
 }
 
+/** Apply committed/local path overrides for a two-path config section. */
 function mergePairPaths(
   value: unknown,
   target: { committed: string; local: string },
@@ -58,27 +87,28 @@ function mergePairPaths(
   if (typeof value.local === 'string') target.local = value.local;
 }
 
-function mergeSinglePath(
-  value: unknown,
-  target: { path: string },
-): void {
+/** Apply a `path` override for a single-path config section. */
+function mergeSinglePath(value: unknown, target: { path: string }): void {
   if (isRecord(value) && typeof value.path === 'string') {
     target.path = value.path;
   }
 }
 
+/** Apply a config version override when the raw value is valid. */
 function mergeVersion(value: unknown, merged: GoatFlowConfig): void {
   if (typeof value === 'string') {
     merged.version = value;
   }
 }
 
+/** Apply an explicit agent allowlist or null auto-detect override. */
 function mergeAgents(value: unknown, merged: GoatFlowConfig): void {
   if (value === null || Array.isArray(value)) {
     merged.agents = value as string[] | null;
   }
 }
 
+/** Apply the configured skill install policy. */
 function mergeSkills(value: unknown, merged: GoatFlowConfig): void {
   if (!isRecord(value)) return;
   const { install } = value;
@@ -87,12 +117,16 @@ function mergeSkills(value: unknown, merged: GoatFlowConfig): void {
   }
 }
 
+/** Apply positive line-limit overrides from the raw config. */
 function mergeLineLimits(value: unknown, merged: GoatFlowConfig): void {
   if (!isRecord(value)) return;
-  if (typeof value.target === 'number' && value.target > 0) merged.lineLimits.target = value.target;
-  if (typeof value.limit === 'number' && value.limit > 0) merged.lineLimits.limit = value.limit;
+  if (typeof value.target === 'number' && value.target > 0)
+    merged.lineLimits.target = value.target;
+  if (typeof value.limit === 'number' && value.limit > 0)
+    merged.lineLimits.limit = value.limit;
 }
 
+/** Merge a validated raw config object on top of the built-in defaults. */
 function mergeConfig(raw: unknown): GoatFlowConfig {
   const merged = cloneDefaults();
   if (!isRecord(raw)) return merged;
@@ -116,14 +150,25 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
   return merged;
 }
 
-function pushError(errors: ValidationIssue[], path: string, message: string): void {
+/** Append a config validation error with its source path. */
+function pushError(
+  errors: ValidationIssue[],
+  path: string,
+  message: string,
+): void {
   errors.push({ level: 'error', path, message });
 }
 
-function pushWarning(warnings: ValidationIssue[], path: string, message: string): void {
+/** Append a config validation warning with its source path. */
+function pushWarning(
+  warnings: ValidationIssue[],
+  path: string,
+  message: string,
+): void {
   warnings.push({ level: 'warning', path, message });
 }
 
+/** Require a non-empty string wherever the schema expects a path value. */
 function validateStringPath(
   value: unknown,
   path: string,
@@ -141,7 +186,11 @@ type ConfigValidator = (
   errors: ValidationIssue[],
 ) => void;
 
-function validateUnknownTopLevelKeys(raw: RawConfig, warnings: ValidationIssue[]): void {
+/** Warn when the config contains top-level keys the scanner does not understand. */
+function validateUnknownTopLevelKeys(
+  raw: RawConfig,
+  warnings: ValidationIssue[],
+): void {
   for (const key of Object.keys(raw)) {
     if (!KNOWN_TOP_LEVEL_KEYS.has(key)) {
       pushWarning(warnings, key, 'unknown top-level key');
@@ -149,6 +198,7 @@ function validateUnknownTopLevelKeys(raw: RawConfig, warnings: ValidationIssue[]
   }
 }
 
+/** Validate that an optional top-level field is an object before inspecting nested keys. */
 function validateObjectField(
   raw: RawConfig,
   key: string,
@@ -164,6 +214,7 @@ function validateObjectField(
   onValid(value);
 }
 
+/** Validate an optional nested path field when it is present. */
 function validateOptionalStringField(
   value: RawConfig,
   key: string,
@@ -175,17 +226,24 @@ function validateOptionalStringField(
   }
 }
 
+/** Validate a `{ committed, local }` path section such as footguns or lessons. */
 function validatePairPathSection(
   raw: RawConfig,
   section: 'footguns' | 'lessons',
   errors: ValidationIssue[],
 ): void {
   validateObjectField(raw, section, errors, (value) => {
-    validateOptionalStringField(value, 'committed', `${section}.committed`, errors);
+    validateOptionalStringField(
+      value,
+      'committed',
+      `${section}.committed`,
+      errors,
+    );
     validateOptionalStringField(value, 'local', `${section}.local`, errors);
   });
 }
 
+/** Validate a `{ path }` section such as decisions, evals, or logs. */
 function validateSinglePathSection(
   raw: RawConfig,
   section: 'decisions' | 'evals' | 'coding-standards' | 'tasks' | 'logs',
@@ -196,6 +254,7 @@ function validateSinglePathSection(
   });
 }
 
+/** Require a positive numeric value for a numeric config field. */
 function validatePositiveNumber(
   value: unknown,
   path: string,
@@ -206,6 +265,7 @@ function validatePositiveNumber(
   }
 }
 
+/** Validate version field. */
 function validateVersionField(
   raw: RawConfig,
   _warnings: ValidationIssue[],
@@ -216,6 +276,7 @@ function validateVersionField(
   }
 }
 
+/** Validate the footguns path section. */
 function validateFootgunsField(
   raw: RawConfig,
   _warnings: ValidationIssue[],
@@ -224,6 +285,7 @@ function validateFootgunsField(
   validatePairPathSection(raw, 'footguns', errors);
 }
 
+/** Validate the lessons path section. */
 function validateLessonsField(
   raw: RawConfig,
   _warnings: ValidationIssue[],
@@ -232,6 +294,7 @@ function validateLessonsField(
   validatePairPathSection(raw, 'lessons', errors);
 }
 
+/** Validate the decisions path section. */
 function validateDecisionsField(
   raw: RawConfig,
   _warnings: ValidationIssue[],
@@ -240,6 +303,7 @@ function validateDecisionsField(
   validateSinglePathSection(raw, 'decisions', errors);
 }
 
+/** Validate the evals path section. */
 function validateEvalsField(
   raw: RawConfig,
   _warnings: ValidationIssue[],
@@ -248,6 +312,7 @@ function validateEvalsField(
   validateSinglePathSection(raw, 'evals', errors);
 }
 
+/** Validate the coding-standards path section. */
 function validateCodingStandardsField(
   raw: RawConfig,
   _warnings: ValidationIssue[],
@@ -256,24 +321,28 @@ function validateCodingStandardsField(
   validateSinglePathSection(raw, 'coding-standards', errors);
 }
 
+/** Validate line-limit overrides and ensure target stays below limit. */
 function validateLineLimitsField(
   raw: RawConfig,
   _warnings: ValidationIssue[],
   errors: ValidationIssue[],
 ): void {
   validateObjectField(raw, 'line-limits', errors, (value) => {
-    if ('target' in value) validatePositiveNumber(value.target, 'line-limits.target', errors);
-    if ('limit' in value) validatePositiveNumber(value.limit, 'line-limits.limit', errors);
+    if ('target' in value)
+      validatePositiveNumber(value.target, 'line-limits.target', errors);
+    if ('limit' in value)
+      validatePositiveNumber(value.limit, 'line-limits.limit', errors);
     if (
-      typeof value.target === 'number'
-      && typeof value.limit === 'number'
-      && value.target >= value.limit
+      typeof value.target === 'number' &&
+      typeof value.limit === 'number' &&
+      value.target >= value.limit
     ) {
       pushError(errors, 'line-limits', 'target must be less than limit');
     }
   });
 }
 
+/** Validate the tasks path section. */
 function validateTasksField(
   raw: RawConfig,
   _warnings: ValidationIssue[],
@@ -282,6 +351,7 @@ function validateTasksField(
   validateSinglePathSection(raw, 'tasks', errors);
 }
 
+/** Validate the logs path section. */
 function validateLogsField(
   raw: RawConfig,
   _warnings: ValidationIssue[],
@@ -290,9 +360,18 @@ function validateLogsField(
   validateSinglePathSection(raw, 'logs', errors);
 }
 
-function validateAgentList(agents: unknown[], warnings: ValidationIssue[], errors: ValidationIssue[]): void {
+/** Validate an explicit list of enabled agents. */
+function validateAgentList(
+  agents: unknown[],
+  warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
   if (agents.length === 0) {
-    pushError(errors, 'agents', 'cannot be empty; omit the field to auto-detect');
+    pushError(
+      errors,
+      'agents',
+      'cannot be empty; omit the field to auto-detect',
+    );
   }
   for (const [index, value] of agents.entries()) {
     if (typeof value !== 'string') {
@@ -309,6 +388,7 @@ function validateAgentList(agents: unknown[], warnings: ValidationIssue[], error
   }
 }
 
+/** Validate the optional top-level agents selector. */
 function validateAgentsField(
   raw: RawConfig,
   warnings: ValidationIssue[],
@@ -325,7 +405,11 @@ function validateAgentsField(
   }
 }
 
-function validateSkillInstallList(install: unknown[], errors: ValidationIssue[]): void {
+/** Validate an explicit `skills.install` allowlist. */
+function validateSkillInstallList(
+  install: unknown[],
+  errors: ValidationIssue[],
+): void {
   if (install.length === 0) {
     pushError(errors, 'skills.install', 'cannot be empty');
   }
@@ -336,6 +420,7 @@ function validateSkillInstallList(install: unknown[], errors: ValidationIssue[])
   }
 }
 
+/** Validate the skills installation policy block. */
 function validateSkillsField(
   raw: RawConfig,
   _warnings: ValidationIssue[],
@@ -368,6 +453,7 @@ const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateSkillsField,
 ];
 
+/** Validate a parsed config object and return structured warnings and errors. */
 export function validateConfig(raw: unknown): ValidationResult {
   const warnings: ValidationIssue[] = [];
   const errors: ValidationIssue[] = [];
@@ -385,6 +471,7 @@ export function validateConfig(raw: unknown): ValidationResult {
   return { valid: errors.length === 0, warnings, errors };
 }
 
+/** Load, parse, validate, and normalize `.goat-flow/config.yaml`. */
 export function loadConfig(projectRoot: string, fs?: ReadonlyFS): LoadedConfig {
   const content = readConfigText(projectRoot, fs);
   if (content === null) {
@@ -407,7 +494,13 @@ export function loadConfig(projectRoot: string, fs?: ReadonlyFS): LoadedConfig {
       valid: false,
       config: cloneDefaults(),
       warnings: [],
-      errors: [{ level: 'error', path: '.goat-flow/config.yaml', message: error instanceof Error ? error.message : String(error) }],
+      errors: [
+        {
+          level: 'error',
+          path: '.goat-flow/config.yaml',
+          message: error instanceof Error ? error.message : String(error),
+        },
+      ],
       parseError: error instanceof Error ? error.message : String(error),
     };
   }
@@ -423,6 +516,10 @@ export function loadConfig(projectRoot: string, fs?: ReadonlyFS): LoadedConfig {
   };
 }
 
-export function readConfig(projectRoot: string, fs?: ReadonlyFS): GoatFlowConfig {
+/** Return the normalized config object, falling back to defaults on failure. */
+export function readConfig(
+  projectRoot: string,
+  fs?: ReadonlyFS,
+): GoatFlowConfig {
   return loadConfig(projectRoot, fs).config;
 }

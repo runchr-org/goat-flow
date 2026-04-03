@@ -1,3 +1,7 @@
+/**
+ * HTML renderer for standalone scan dashboards.
+ * It injects the JSON report into the packaged dashboard shell and leaves interaction to the client-side app.
+ */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,7 +26,11 @@ export function renderHtml(report: ScanReport): string {
 function loadFile(name: string): string {
   let dir = dirname(fileURLToPath(import.meta.url));
   for (let i = 0; i < 5; i++) {
-    try { return readFileSync(join(dir, name), 'utf-8'); } catch { /* up */ }
+    try {
+      return readFileSync(join(dir, name), 'utf-8');
+    } catch {
+      /* up */
+    }
     dir = dirname(dir);
   }
   throw new Error(`${name} not found. Reinstall goat-flow.`);

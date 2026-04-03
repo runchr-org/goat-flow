@@ -1,4 +1,14 @@
-import type { ScanReport, AgentReport, CheckResult, AntiPatternResult, CheckStatus } from '../types.js';
+/**
+ * Terminal-oriented renderer for human-readable scan output.
+ * This is the default CLI presentation layer and owns compact formatting, labels, and recommendation grouping.
+ */
+import type {
+  ScanReport,
+  AgentReport,
+  CheckResult,
+  AntiPatternResult,
+  CheckStatus,
+} from '../types.js';
 
 /** Priority levels used by recommendation entries */
 type Priority = 'critical' | 'high' | 'medium' | 'low';
@@ -17,38 +27,52 @@ function progressBar(percentage: number, width: number = 20): string {
 /** Map a check status to its 4-character display label */
 function statusIcon(status: CheckStatus): string {
   switch (status) {
-    case 'pass': return 'PASS';
-    case 'partial': return 'PART';
-    case 'fail': return 'FAIL';
-    case 'na': return 'N/A ';
+    case 'pass':
+      return 'PASS';
+    case 'partial':
+      return 'PART';
+    case 'fail':
+      return 'FAIL';
+    case 'na':
+      return 'N/A ';
   }
 }
 
 /** Map a priority level to its fixed-width display label */
 function priorityLabel(priority: Priority): string {
   switch (priority) {
-    case 'critical': return 'CRITICAL';
-    case 'high': return 'HIGH    ';
-    case 'medium': return 'MEDIUM  ';
-    case 'low': return 'LOW     ';
+    case 'critical':
+      return 'CRITICAL';
+    case 'high':
+      return 'HIGH    ';
+    case 'medium':
+      return 'MEDIUM  ';
+    case 'low':
+      return 'LOW     ';
   }
 }
 
-function getTriggeredAntiPatterns(antiPatterns: AntiPatternResult[]): AntiPatternResult[] {
-  return antiPatterns.filter(antiPattern => antiPattern.triggered);
+/** Keep only the anti-patterns that were actually triggered for the agent. */
+function getTriggeredAntiPatterns(
+  antiPatterns: AntiPatternResult[],
+): AntiPatternResult[] {
+  return antiPatterns.filter((antiPattern) => antiPattern.triggered);
 }
 
+/** Map a rubric tier to the severity used in text output. */
 function checkSeverityFromTier(tier: string): CheckSeverity {
   if (tier === 'foundation') return 'critical';
   if (tier === 'standard') return 'high';
   return 'medium';
 }
 
+/** Derive the display severity for a failed or partial check. */
 function getCheckSeverity(check: CheckResult): CheckSeverity {
   if (check.status === 'partial' && check.tier === 'full') return 'low';
   return checkSeverityFromTier(check.tier);
 }
 
+/** Summarize pass/fail counts and severity totals for an agent's checks. */
 function collectCheckFailureSummary(checks: AgentReport['checks']): {
   fail: number;
   partial: number;
@@ -59,7 +83,10 @@ function collectCheckFailureSummary(checks: AgentReport['checks']): {
     fail: 0,
     partial: 0,
     pass: 0,
-    severityCounts: { critical: 0, high: 0, medium: 0, low: 0 } as Record<CheckSeverity, number>,
+    severityCounts: { critical: 0, high: 0, medium: 0, low: 0 } as Record<
+      CheckSeverity,
+      number
+    >,
   };
 
   for (const check of checks) {
@@ -79,7 +106,11 @@ function collectCheckFailureSummary(checks: AgentReport['checks']): {
   return summary;
 }
 
-function appendSeverityGroupedFailingChecks(lines: string[], checks: AgentReport['checks']): void {
+/** Append failing checks grouped by severity to the output buffer. */
+function appendSeverityGroupedFailingChecks(
+  lines: string[],
+  checks: AgentReport['checks'],
+): void {
   const critical: CheckResult[] = [];
   const high: CheckResult[] = [];
   const medium: CheckResult[] = [];
@@ -110,26 +141,39 @@ function appendSeverityGroupedFailingChecks(lines: string[], checks: AgentReport
   }
 }
 
+/** Append the per-tier score breakdown for one agent. */
 function appendTierScores(lines: string[], agent: AgentReport): void {
   const { foundation, standard, full } = agent.score.tiers;
-  lines.push(`  Foundation:  ${String(foundation.earned).padStart(3)}/${foundation.available}  ${progressBar(foundation.percentage)}  ${foundation.percentage}%`);
-  lines.push(`  Standard:    ${String(standard.earned).padStart(3)}/${standard.available}  ${progressBar(standard.percentage)}  ${standard.percentage}%`);
-  lines.push(`  Full:        ${String(full.earned).padStart(3)}/${full.available}  ${progressBar(full.percentage)}  ${full.percentage}%`);
+  lines.push(
+    `  Foundation:  ${String(foundation.earned).padStart(3)}/${foundation.available}  ${progressBar(foundation.percentage)}  ${foundation.percentage}%`,
+  );
+  lines.push(
+    `  Standard:    ${String(standard.earned).padStart(3)}/${standard.available}  ${progressBar(standard.percentage)}  ${standard.percentage}%`,
+  );
+  lines.push(
+    `  Full:        ${String(full.earned).padStart(3)}/${full.available}  ${progressBar(full.percentage)}  ${full.percentage}%`,
+  );
 }
 
+/** Append triggered anti-pattern deductions for one agent. */
 function appendDeductionSummary(lines: string[], agent: AgentReport): void {
   lines.push(`  Deductions:  ${agent.score.deductions}`);
   for (const antiPattern of getTriggeredAntiPatterns(agent.antiPatterns)) {
-    lines.push(`    ${antiPattern.id} ${antiPattern.name}: ${antiPattern.deduction} pts`);
+    lines.push(
+      `    ${antiPattern.id} ${antiPattern.name}: ${antiPattern.deduction} pts`,
+    );
   }
 }
 
+/** Append the top remediation recommendations for one agent. */
 function appendRecommendations(lines: string[], agent: AgentReport): void {
   if (agent.recommendations.length === 0) return;
 
   lines.push('Recommendations:');
   for (const recommendation of agent.recommendations.slice(0, 10)) {
-    lines.push(`  [${priorityLabel(recommendation.priority)}] ${recommendation.checkId}: ${recommendation.action}`);
+    lines.push(
+      `  [${priorityLabel(recommendation.priority)}] ${recommendation.checkId}: ${recommendation.action}`,
+    );
   }
   if (agent.recommendations.length > 10) {
     lines.push(`  ... and ${agent.recommendations.length - 10} more`);
@@ -137,15 +181,45 @@ function appendRecommendations(lines: string[], agent: AgentReport): void {
   lines.push('');
 }
 
+/** Append the compact failure overview used in non-verbose output. */
+function appendFailureOverview(lines: string[], agent: AgentReport): void {
+  const counts = collectCheckFailureSummary(agent.checks);
+  const totalChecks = counts.pass + counts.partial + counts.fail;
+  const triggeredAntiPatterns = getTriggeredAntiPatterns(agent.antiPatterns);
+  if (counts.fail + counts.partial === 0 && triggeredAntiPatterns.length === 0)
+    return;
+
+  lines.push(
+    `Failures: ${counts.fail} failed, ${counts.partial} partial, ${counts.pass} pass / ${totalChecks} checks.`,
+  );
+  lines.push(
+    `Critical: ${counts.severityCounts.critical} | High: ${counts.severityCounts.high} | Medium: ${counts.severityCounts.medium} | Low: ${counts.severityCounts.low}`,
+  );
+  if (counts.fail + counts.partial > 0) {
+    appendSeverityGroupedFailingChecks(lines, agent.checks);
+  }
+  if (triggeredAntiPatterns.length > 0) {
+    lines.push(`Anti-patterns triggered: ${triggeredAntiPatterns.length}`);
+  }
+  lines.push('');
+}
+
+/** Append the full per-check section for verbose output. */
 function appendCheckDetails(lines: string[], agent: AgentReport): void {
   const counts = collectCheckFailureSummary(agent.checks);
   const totalChecks = counts.pass + counts.partial + counts.fail;
-  lines.push(`Failures: ${counts.fail} failed, ${counts.partial} partial, ${counts.pass} pass / ${totalChecks} checks.`);
-  lines.push(`Critical: ${counts.severityCounts.critical} | High: ${counts.severityCounts.high} | Medium: ${counts.severityCounts.medium} | Low: ${counts.severityCounts.low}`);
+  lines.push(
+    `Failures: ${counts.fail} failed, ${counts.partial} partial, ${counts.pass} pass / ${totalChecks} checks.`,
+  );
+  lines.push(
+    `Critical: ${counts.severityCounts.critical} | High: ${counts.severityCounts.high} | Medium: ${counts.severityCounts.medium} | Low: ${counts.severityCounts.low}`,
+  );
   if (counts.fail + counts.partial > 0) {
     appendSeverityGroupedFailingChecks(lines, agent.checks);
     if (getTriggeredAntiPatterns(agent.antiPatterns).length > 0) {
-      lines.push(`Anti-patterns triggered: ${getTriggeredAntiPatterns(agent.antiPatterns).length}`);
+      lines.push(
+        `Anti-patterns triggered: ${getTriggeredAntiPatterns(agent.antiPatterns).length}`,
+      );
     }
   }
   lines.push('');
@@ -157,7 +231,11 @@ function appendCheckDetails(lines: string[], agent: AgentReport): void {
   lines.push('');
 }
 
-function appendAntiPatternDetails(lines: string[], antiPatterns: AntiPatternResult[]): void {
+/** Append detailed anti-pattern deductions for verbose output. */
+function appendAntiPatternDetails(
+  lines: string[],
+  antiPatterns: AntiPatternResult[],
+): void {
   if (antiPatterns.length === 0) return;
 
   lines.push('Anti-Pattern Deductions:');
@@ -167,25 +245,40 @@ function appendAntiPatternDetails(lines: string[], antiPatterns: AntiPatternResu
   lines.push('');
 }
 
-function collectDiagnosticImpacts(agent: AgentReport): Array<{ label: string; points: number; priority: string }> {
-  const impacts: Array<{ label: string; points: number; priority: string }> = [];
+/** Estimate which fixes recover the most score for the current agent. */
+function collectDiagnosticImpacts(
+  agent: AgentReport,
+): Array<{ label: string; points: number; priority: string }> {
+  const impacts: Array<{ label: string; points: number; priority: string }> =
+    [];
 
   for (const recommendation of agent.recommendations) {
-    const check = agent.checks.find(candidate => candidate.id === recommendation.checkId);
+    const check = agent.checks.find(
+      (candidate) => candidate.id === recommendation.checkId,
+    );
     const recoverable = check ? check.maxPoints - check.points : 0;
     if (recoverable > 0) {
-      impacts.push({ label: `${recommendation.checkId}: ${recommendation.action}`, points: recoverable, priority: recommendation.priority });
+      impacts.push({
+        label: `${recommendation.checkId}: ${recommendation.action}`,
+        points: recoverable,
+        priority: recommendation.priority,
+      });
     }
   }
 
   for (const antiPattern of getTriggeredAntiPatterns(agent.antiPatterns)) {
-    impacts.push({ label: `${antiPattern.id}: ${antiPattern.name}`, points: Math.abs(antiPattern.deduction), priority: 'critical' });
+    impacts.push({
+      label: `${antiPattern.id}: ${antiPattern.name}`,
+      points: Math.abs(antiPattern.deduction),
+      priority: 'critical',
+    });
   }
 
   impacts.sort((a, b) => b.points - a.points);
   return impacts;
 }
 
+/** Append the highest-impact fixes and score recovery summary. */
 function appendDiagnosticSummary(
   lines: string[],
   impacts: Array<{ label: string; points: number; priority: string }>,
@@ -194,18 +287,26 @@ function appendDiagnosticSummary(
 
   lines.push('Diagnostic Summary:');
   for (const item of impacts.slice(0, 5)) {
-    lines.push(`  ${priorityLabel(item.priority as Priority).trim().padEnd(8)} ${item.label} (${item.points} pts recoverable)`);
+    lines.push(
+      `  ${priorityLabel(item.priority as Priority)
+        .trim()
+        .padEnd(8)} ${item.label} (${item.points} pts recoverable)`,
+    );
   }
   lines.push('');
   const top = impacts[0];
-  if (top) lines.push(`  Highest-impact fix: ${top.label} - recovers ${top.points} points`);
+  if (top)
+    lines.push(
+      `  Highest-impact fix: ${top.label} - recovers ${top.points} points`,
+    );
   if (impacts.length > 0) {
-    const topThree = impacts.slice(0, 3).map(item => item.label);
+    const topThree = impacts.slice(0, 3).map((item) => item.label);
     lines.push(`  Top ${topThree.length} to fix next: ${topThree.join('; ')}`);
   }
   lines.push('');
 }
 
+/** Append the verbose-only diagnostics section. */
 function appendVerboseDetails(lines: string[], agent: AgentReport): void {
   appendCheckDetails(lines, agent);
   appendAntiPatternDetails(lines, getTriggeredAntiPatterns(agent.antiPatterns));
@@ -221,8 +322,12 @@ export function renderText(report: ScanReport, verbose: boolean): string {
   if (report.stack.languages.length > 0) {
     lines.push(`Stack: ${report.stack.languages.join(', ')}`);
   }
-  lines.push(`Learning loop: footguns ${report.meta.learningLoop.footguns.committed} committed / ${report.meta.learningLoop.footguns.local} local | lessons ${report.meta.learningLoop.lessons.committed} committed / ${report.meta.learningLoop.lessons.local} local`);
-  lines.push(`Config: ${report.meta.config.exists ? (report.meta.config.valid ? '.goat-flow/config.yaml valid' : '.goat-flow/config.yaml invalid') : '.goat-flow/config.yaml missing (defaults active)'}`);
+  lines.push(
+    `Learning loop: footguns ${report.meta.learningLoop.footguns.committed} committed / ${report.meta.learningLoop.footguns.local} local | lessons ${report.meta.learningLoop.lessons.committed} committed / ${report.meta.learningLoop.lessons.local} local`,
+  );
+  lines.push(
+    `Config: ${report.meta.config.exists ? (report.meta.config.valid ? '.goat-flow/config.yaml valid' : '.goat-flow/config.yaml invalid') : '.goat-flow/config.yaml missing (defaults active)'}`,
+  );
   lines.push('');
 
   if (report.agents.length === 0) {
@@ -239,7 +344,9 @@ export function renderText(report: ScanReport, verbose: boolean): string {
     lines.push('');
   }
 
-  lines.push(`Rubric: v${report.rubricVersion} | Checks: ${report.meta.checkCount} | Anti-patterns: ${report.meta.antiPatternCount}`);
+  lines.push(
+    `Rubric: v${report.rubricVersion} | Checks: ${report.meta.checkCount} | Anti-patterns: ${report.meta.antiPatternCount}`,
+  );
 
   return lines.join('\n');
 }
@@ -269,6 +376,7 @@ function renderAgent(agent: AgentReport, verbose: boolean): string {
   }
 
   lines.push('');
+  if (!verbose) appendFailureOverview(lines, agent);
   appendRecommendations(lines, agent);
   if (verbose) appendVerboseDetails(lines, agent);
 
@@ -280,9 +388,8 @@ function renderCheck(check: CheckResult): string {
   /** 4-character status label */
   const status = statusIcon(check.status);
   /** Points display, or N/A for non-applicable checks */
-  const points = check.status === 'na'
-    ? 'N/A'
-    : `${check.points}/${check.maxPoints}`;
+  const points =
+    check.status === 'na' ? 'N/A' : `${check.points}/${check.maxPoints}`;
   /** Optional evidence suffix */
   const evidence = check.evidence ? ` (${check.evidence})` : '';
   return `  [${status}] ${check.id} ${check.name}: ${points}${evidence}`;

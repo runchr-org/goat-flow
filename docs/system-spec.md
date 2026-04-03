@@ -225,7 +225,7 @@ Revert-and-rescope: (1) Esc + restate approach, (2) git revert + rescope, (3) /c
 | ----------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
 | `ai/lessons/`         | Behavioural mistake (agent did wrong)   | "Assumed API contract without reading frontend"                         |
 | `docs/footguns/`      | Architectural landmine (cross-domain)   | "Auth nonce spans 4 components; breaking any one silently breaks login" |
-Create one markdown file per learning-loop entry; do not append to a monolithic log. Lessons go in `ai/lessons/` or `.goat-flow/lessons/` using `YYYY-MM-DD-slug.md` with frontmatter `name`, `created`. Footguns go in `docs/footguns/` or `.goat-flow/footguns/` using `slug.md` with frontmatter `name`, `status`, `created`, `evidence_type`. Keep cross-domain entries with real evidence in `docs/footguns/`. Quarterly review: entries not triggered in >30 days should be archived or deprioritized. Contested entries: keep `CONTESTED` evidence in the entry and flag follow-up in session notes.
+Use category bucket files for the learning loop: do not append to a monolithic log, and do not force one file per incident forever. Lessons go in `ai/lessons/` or `.goat-flow/lessons/` using category files such as `verification.md` or `workflow.md` with file-level frontmatter `category`, then `## Lesson:` / `## Pattern:` entries inside. Footguns go in `docs/footguns/` or `.goat-flow/footguns/` using category files such as `hooks.md` or `setup.md` with file-level frontmatter `category`, then `## Footgun:` entries with `**Status:**`, `**Created:**`, and `**Evidence type:**` inside. Legacy one-entry files remain readable during migration. Keep cross-domain entries with real evidence in `docs/footguns/`. Quarterly review: entries not triggered in >30 days should be archived or deprioritized. Contested entries: keep `CONTESTED` evidence in the entry and flag follow-up in session notes.
 
 **Dual-agent coordination:** If both CLAUDE.md and AGENTS.md share `docs/footguns/` and `ai/lessons/`, define one agent as owner or adopt merge-and-flag. Simplest: run Claude Code first (creates docs), then Codex (merges with existing).
 
@@ -315,9 +315,9 @@ For tasks exceeding 5 turns: maintain Working Notes in .goat-flow/tasks/todo.md.
 For within-session state persistence, use `.claude/tasks/session-current.md`. This complements the escalation ladder (scratchpad -> handoff -> ask human) by providing a file the agent can read and write during the session that persists across tool calls.
 
 **Multi-agent contention:** When multiple developers have agents running against the same codebase concurrently:
-- Learning loop directories (`docs/footguns/`, `ai/lessons/`) may receive concurrent new entry files. Keep both sets of entries and review for duplicates after merge.
+- Learning loop directories (`docs/footguns/`, `ai/lessons/`) may receive concurrent new category buckets or bucket-entry edits. Keep both sets of entries and review for duplicates after merge.
 - Avoid concurrent edits to the same files. Use git worktrees for isolation when possible.
-- If two agents edit docs/footguns/ or ai/lessons/ simultaneously, both sets of entries should be kept. Review for duplicates after merge.
+- If two agents edit docs/footguns/ or ai/lessons/ simultaneously, both sets of entries should be kept. Merge carefully when they touch the same bucket file, then review for duplicates.
 
 ## Sub-Agent Objectives
 
@@ -380,8 +380,8 @@ stack:
 | File                                  | Purpose                      | Seed Content                                        |
 | ------------------------------------- | ---------------------------- | --------------------------------------------------- |
 | `docs/domain-reference.md`            | Project domain knowledge     | Migrated from existing CLAUDE.md (Prompt B only)    |
-| `ai/lessons/`                      | Behavioural learning loop    | Format header + empty Entries/Patterns              |
-| `docs/footguns/`                    | Architectural landmines      | Real footguns from codebase. Merge if file exists   |
+| `ai/lessons/`                      | Behavioural learning loop    | README + category buckets (`verification.md`, `workflow.md`) |
+| `docs/footguns/`                    | Architectural landmines      | README + category buckets (`hooks.md`, `setup.md`)  |
 | `docs/architecture.md`               | System overview              | Under 100 lines. What, why, how, constraints        |
 | `ai/decisions/`                       | Architecture Decision Records | ADR template + real decisions if discoverable (see template below) |
 | `docs/guidelines-ownership-split.md` | Migration rationale          | What was moved, removed, and why                    |

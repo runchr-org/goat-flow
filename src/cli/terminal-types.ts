@@ -1,3 +1,7 @@
+/**
+ * Shared wire types for dashboard terminal sessions.
+ * Both the HTTP/WebSocket server and the frontend rely on these discriminated unions staying in sync.
+ */
 // WS message envelopes (discriminated union on `type`)
 
 export type ClientMessage =

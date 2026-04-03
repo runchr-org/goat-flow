@@ -1,9 +1,16 @@
+/**
+ * Coverage for agent detection, stack detection, and signal-to-template routing.
+ * These tests protect the heuristics that drive setup suggestions.
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createMockFS } from '../helpers/mock-fs.js';
 import { detectAgents } from '../../src/cli/detect/agents.js';
 import { detectStack } from '../../src/cli/detect/stack.js';
-import { mapLanguagesToTemplates, mapSignalsToTemplates } from '../../src/cli/prompt/template-refs.js';
+import {
+  mapLanguagesToTemplates,
+  mapSignalsToTemplates,
+} from '../../src/cli/prompt/template-refs.js';
 
 describe('detectAgents', () => {
   it('finds Claude when CLAUDE.md exists', () => {
@@ -21,7 +28,10 @@ describe('detectAgents', () => {
     });
     const agents = detectAgents(fs);
     assert.equal(agents.length, 3);
-    assert.deepEqual(agents.map(a => a.id), ['claude', 'codex', 'gemini']);
+    assert.deepEqual(
+      agents.map((a) => a.id),
+      ['claude', 'codex', 'gemini'],
+    );
   });
 
   it('returns empty when no instruction files', () => {
@@ -78,7 +88,10 @@ describe('detectStack', () => {
 
   it('detects React from package.json deps', () => {
     const fs = createMockFS({
-      'package.json': JSON.stringify({ dependencies: { react: '^18.0.0' }, scripts: { test: 'vitest' } }),
+      'package.json': JSON.stringify({
+        dependencies: { react: '^18.0.0' },
+        scripts: { test: 'vitest' },
+      }),
     });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('react'));
@@ -86,7 +99,10 @@ describe('detectStack', () => {
 
   it('detects Vue from package.json deps', () => {
     const fs = createMockFS({
-      'package.json': JSON.stringify({ dependencies: { vue: '^3.0.0' }, scripts: { test: 'vitest' } }),
+      'package.json': JSON.stringify({
+        dependencies: { vue: '^3.0.0' },
+        scripts: { test: 'vitest' },
+      }),
     });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('vue'));
@@ -94,7 +110,10 @@ describe('detectStack', () => {
 
   it('detects Angular from package.json deps', () => {
     const fs = createMockFS({
-      'package.json': JSON.stringify({ dependencies: { '@angular/core': '^17.0.0' }, scripts: { test: 'ng test' } }),
+      'package.json': JSON.stringify({
+        dependencies: { '@angular/core': '^17.0.0' },
+        scripts: { test: 'ng test' },
+      }),
     });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('angular'));
@@ -102,7 +121,10 @@ describe('detectStack', () => {
 
   it('detects Svelte from package.json deps', () => {
     const fs = createMockFS({
-      'package.json': JSON.stringify({ devDependencies: { svelte: '^4.0.0' }, scripts: { test: 'vitest' } }),
+      'package.json': JSON.stringify({
+        devDependencies: { svelte: '^4.0.0' },
+        scripts: { test: 'vitest' },
+      }),
     });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('svelte'));
@@ -110,7 +132,9 @@ describe('detectStack', () => {
 
   it('detects Blade from .blade.php files', () => {
     const fs = createMockFS({
-      'composer.json': JSON.stringify({ require: { 'laravel/framework': '^11.0' } }),
+      'composer.json': JSON.stringify({
+        require: { 'laravel/framework': '^11.0' },
+      }),
       'resources/views/welcome.blade.php': '<h1>Hello</h1>',
     });
     const stack = detectStack(fs);
@@ -119,7 +143,9 @@ describe('detectStack', () => {
 
   it('detects Twig from .twig files', () => {
     const fs = createMockFS({
-      'composer.json': JSON.stringify({ require: { 'symfony/framework-bundle': '^7.0' } }),
+      'composer.json': JSON.stringify({
+        require: { 'symfony/framework-bundle': '^7.0' },
+      }),
       'templates/base.html.twig': '{% block body %}{% endblock %}',
     });
     const stack = detectStack(fs);
@@ -153,21 +179,27 @@ describe('detectStack', () => {
   // --- Backend stack detection (fleshed-out detectors) ---
 
   it('detects Ruby from Gemfile', () => {
-    const fs = createMockFS({ 'Gemfile': "source 'https://rubygems.org'\ngem 'sinatra'" });
+    const fs = createMockFS({
+      Gemfile: "source 'https://rubygems.org'\ngem 'sinatra'",
+    });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('ruby'));
     assert.equal(stack.testCommand, 'bundle exec rspec');
   });
 
   it('detects Rails from Gemfile', () => {
-    const fs = createMockFS({ 'Gemfile': "source 'https://rubygems.org'\ngem 'rails', '~> 7.0'" });
+    const fs = createMockFS({
+      Gemfile: "source 'https://rubygems.org'\ngem 'rails', '~> 7.0'",
+    });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('ruby'));
     assert.ok(stack.languages.includes('rails'));
   });
 
   it('detects Java from pom.xml', () => {
-    const fs = createMockFS({ 'pom.xml': '<project><artifactId>myapp</artifactId></project>' });
+    const fs = createMockFS({
+      'pom.xml': '<project><artifactId>myapp</artifactId></project>',
+    });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('java'));
     assert.equal(stack.buildCommand, 'mvn package');
@@ -175,14 +207,19 @@ describe('detectStack', () => {
   });
 
   it('detects Spring from pom.xml', () => {
-    const fs = createMockFS({ 'pom.xml': '<project><parent><artifactId>spring-boot-starter-parent</artifactId></parent></project>' });
+    const fs = createMockFS({
+      'pom.xml':
+        '<project><parent><artifactId>spring-boot-starter-parent</artifactId></parent></project>',
+    });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('java'));
     assert.ok(stack.languages.includes('spring'));
   });
 
   it('detects C# from .csproj', () => {
-    const fs = createMockFS({ 'src/MyApp.csproj': '<Project Sdk="Microsoft.NET.Sdk.Web"></Project>' });
+    const fs = createMockFS({
+      'src/MyApp.csproj': '<Project Sdk="Microsoft.NET.Sdk.Web"></Project>',
+    });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('csharp'));
     assert.equal(stack.buildCommand, 'dotnet build');
@@ -193,7 +230,9 @@ describe('detectStack', () => {
 
   it('detects Laravel from composer.json', () => {
     const fs = createMockFS({
-      'composer.json': JSON.stringify({ require: { 'laravel/framework': '^11.0' } }),
+      'composer.json': JSON.stringify({
+        require: { 'laravel/framework': '^11.0' },
+      }),
     });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('php'));
@@ -202,7 +241,9 @@ describe('detectStack', () => {
 
   it('detects Symfony from composer.json', () => {
     const fs = createMockFS({
-      'composer.json': JSON.stringify({ require: { 'symfony/framework-bundle': '^7.0' } }),
+      'composer.json': JSON.stringify({
+        require: { 'symfony/framework-bundle': '^7.0' },
+      }),
     });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('php'));
@@ -229,7 +270,10 @@ describe('detectStack', () => {
 
   it('detects Express from package.json', () => {
     const fs = createMockFS({
-      'package.json': JSON.stringify({ dependencies: { express: '^4.0.0' }, scripts: { test: 'jest' } }),
+      'package.json': JSON.stringify({
+        dependencies: { express: '^4.0.0' },
+        scripts: { test: 'jest' },
+      }),
     });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('javascript'));
@@ -238,7 +282,10 @@ describe('detectStack', () => {
 
   it('detects Cypress from package.json devDeps', () => {
     const fs = createMockFS({
-      'package.json': JSON.stringify({ devDependencies: { cypress: '^13.0.0' }, scripts: { test: 'jest' } }),
+      'package.json': JSON.stringify({
+        devDependencies: { cypress: '^13.0.0' },
+        scripts: { test: 'jest' },
+      }),
     });
     const stack = detectStack(fs);
     assert.ok(stack.languages.includes('cypress'));
@@ -270,32 +317,44 @@ describe('detectStack', () => {
   it('detects testCommand from test-like script name', () => {
     const fs = createMockFS({
       'package.json': JSON.stringify({
-        scripts: { predeploy_tests_feature: 'cypress run --spec "cypress/e2e/feature/**"' },
+        scripts: {
+          predeploy_tests_feature:
+            'cypress run --spec "cypress/e2e/feature/**"',
+        },
       }),
     });
     const stack = detectStack(fs);
-    assert.ok(stack.testCommand?.includes('test'), `Expected test-like command, got: ${stack.testCommand}`);
+    assert.ok(
+      stack.testCommand?.includes('test'),
+      `Expected test-like command, got: ${stack.testCommand}`,
+    );
   });
 });
 
 describe('mapLanguagesToTemplates - frontend routing', () => {
   it('routes React to react.md', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'react']);
-    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
+    const frontend = refs.find(
+      (r) => r.output === 'ai/coding-standards/frontend.md',
+    );
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/react.md'));
   });
 
   it('routes Vue to vue.md', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'vue']);
-    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
+    const frontend = refs.find(
+      (r) => r.output === 'ai/coding-standards/frontend.md',
+    );
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/vue.md'));
   });
 
   it('routes Angular to angular.md', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'angular']);
-    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
+    const frontend = refs.find(
+      (r) => r.output === 'ai/coding-standards/frontend.md',
+    );
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/angular.md'));
   });
@@ -303,35 +362,55 @@ describe('mapLanguagesToTemplates - frontend routing', () => {
   it('does not route removed template engines (blade, twig, erb, jinja, blazor, swift)', () => {
     for (const lang of ['blade', 'twig', 'erb', 'jinja', 'blazor', 'swift']) {
       const refs = mapLanguagesToTemplates([lang]);
-      const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
-      assert.ok(!frontend, `${lang} should not produce a frontend template (template removed)`);
+      const frontend = refs.find(
+        (r) => r.output === 'ai/coding-standards/frontend.md',
+      );
+      assert.ok(
+        !frontend,
+        `${lang} should not produce a frontend template (template removed)`,
+      );
     }
   });
 
   it('falls back to typescript.md for TS without framework', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'typescript']);
-    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
+    const frontend = refs.find(
+      (r) => r.output === 'ai/coding-standards/frontend.md',
+    );
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/typescript.md'));
   });
 
   it('framework takes priority over TS fallback', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'typescript', 'react']);
-    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
+    const frontend = refs.find(
+      (r) => r.output === 'ai/coding-standards/frontend.md',
+    );
     assert.ok(frontend, 'Expected frontend.md ref');
-    assert.ok(frontend.template.endsWith('/react.md'), `Got ${frontend.template}`);
+    assert.ok(
+      frontend.template.endsWith('/react.md'),
+      `Got ${frontend.template}`,
+    );
   });
 
   it('first detected framework wins', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'react', 'vue']);
-    const frontendRefs = refs.filter(r => r.output === 'ai/coding-standards/frontend.md');
-    assert.equal(frontendRefs.length, 1, 'Should produce exactly one frontend ref');
+    const frontendRefs = refs.filter(
+      (r) => r.output === 'ai/coding-standards/frontend.md',
+    );
+    assert.equal(
+      frontendRefs.length,
+      1,
+      'Should produce exactly one frontend ref',
+    );
     assert.ok(frontendRefs[0].template.endsWith('/react.md'));
   });
 
   it('no frontend ref for Go-only project', () => {
     const refs = mapLanguagesToTemplates(['go']);
-    const frontend = refs.find(r => r.output === 'ai/coding-standards/frontend.md');
+    const frontend = refs.find(
+      (r) => r.output === 'ai/coding-standards/frontend.md',
+    );
     assert.equal(frontend, undefined, 'Go-only should not get frontend.md');
   });
 });
@@ -339,81 +418,148 @@ describe('mapLanguagesToTemplates - frontend routing', () => {
 describe('mapLanguagesToTemplates - backend framework routing', () => {
   it('routes Laravel over generic PHP for backend.md', () => {
     const refs = mapLanguagesToTemplates(['php', 'laravel']);
-    const backend = refs.find(r => r.output === 'ai/coding-standards/backend.md');
+    const backend = refs.find(
+      (r) => r.output === 'ai/coding-standards/backend.md',
+    );
     assert.ok(backend, 'Expected backend.md ref');
-    assert.ok(backend.template.endsWith('/php-laravel.md'), `Got ${backend.template}`);
+    assert.ok(
+      backend.template.endsWith('/php-laravel.md'),
+      `Got ${backend.template}`,
+    );
   });
 
   it('routes Django over generic Python for backend.md', () => {
     const refs = mapLanguagesToTemplates(['python', 'django']);
-    const backend = refs.find(r => r.output === 'ai/coding-standards/backend.md');
+    const backend = refs.find(
+      (r) => r.output === 'ai/coding-standards/backend.md',
+    );
     assert.ok(backend, 'Expected backend.md ref');
-    assert.ok(backend.template.endsWith('/python-django.md'), `Got ${backend.template}`);
+    assert.ok(
+      backend.template.endsWith('/python-django.md'),
+      `Got ${backend.template}`,
+    );
   });
 
   it('routes generic Python when no framework detected', () => {
     const refs = mapLanguagesToTemplates(['python']);
-    const backend = refs.find(r => r.output === 'ai/coding-standards/backend.md');
+    const backend = refs.find(
+      (r) => r.output === 'ai/coding-standards/backend.md',
+    );
     assert.ok(backend, 'Expected backend.md ref');
-    assert.ok(backend.template.endsWith('/python.md'), `Got ${backend.template}`);
+    assert.ok(
+      backend.template.endsWith('/python.md'),
+      `Got ${backend.template}`,
+    );
   });
 
   it('adds security framework template for detected framework', () => {
     const refs = mapLanguagesToTemplates(['php', 'laravel']);
-    const sec = refs.find(r => r.output === 'ai/coding-standards/security-laravel.md');
+    const sec = refs.find(
+      (r) => r.output === 'ai/coding-standards/security-laravel.md',
+    );
     assert.ok(sec, 'Expected security-laravel.md ref');
     assert.ok(sec.template.includes('framework-specific/laravel.md'));
   });
 
   it('does not add web-common for Ruby projects (template removed)', () => {
     const refs = mapLanguagesToTemplates(['ruby']);
-    const webCommon = refs.find(r => r.output === 'ai/coding-standards/web-common.md');
-    assert.ok(!webCommon, 'Ruby template removed — should not get web-common.md');
+    const webCommon = refs.find(
+      (r) => r.output === 'ai/coding-standards/web-common.md',
+    );
+    assert.ok(
+      !webCommon,
+      'Ruby template removed — should not get web-common.md',
+    );
   });
 });
 
 describe('mapSignalsToTemplates', () => {
   const emptySignals = {
-    codeGenTools: [], deployPlatforms: [], llmIntegration: false,
-    staticAnalysis: [], complianceSignals: false, formatterGaps: [],
+    codeGenTools: [],
+    deployPlatforms: [],
+    llmIntegration: false,
+    staticAnalysis: [],
+    complianceSignals: false,
+    formatterGaps: [],
   };
 
   it('always includes security.md and testing.md', () => {
     const refs = mapSignalsToTemplates(emptySignals);
-    assert.ok(refs.find(r => r.output === 'ai/coding-standards/security.md'), 'Expected security.md');
-    assert.ok(refs.find(r => r.output === 'ai/coding-standards/testing.md'), 'Expected testing.md');
+    assert.ok(
+      refs.find((r) => r.output === 'ai/coding-standards/security.md'),
+      'Expected security.md',
+    );
+    assert.ok(
+      refs.find((r) => r.output === 'ai/coding-standards/testing.md'),
+      'Expected testing.md',
+    );
   });
 
   it('always includes secrets-management and supply-chain', () => {
     const refs = mapSignalsToTemplates(emptySignals);
-    assert.ok(refs.find(r => r.output === 'ai/coding-standards/secrets-management.md'));
-    assert.ok(refs.find(r => r.output === 'ai/coding-standards/supply-chain.md'));
+    assert.ok(
+      refs.find(
+        (r) => r.output === 'ai/coding-standards/secrets-management.md',
+      ),
+    );
+    assert.ok(
+      refs.find((r) => r.output === 'ai/coding-standards/supply-chain.md'),
+    );
   });
 
   it('adds web security templates for web languages', () => {
     const refs = mapSignalsToTemplates(emptySignals, ['typescript']);
-    assert.ok(refs.find(r => r.output === 'ai/coding-standards/api-auth.md'), 'Expected api-auth.md');
-    assert.ok(refs.find(r => r.output === 'ai/coding-standards/file-upload.md'), 'Expected file-upload.md');
-    assert.ok(refs.find(r => r.output === 'ai/coding-standards/sql-injection.md'), 'Expected sql-injection.md');
+    assert.ok(
+      refs.find((r) => r.output === 'ai/coding-standards/api-auth.md'),
+      'Expected api-auth.md',
+    );
+    assert.ok(
+      refs.find((r) => r.output === 'ai/coding-standards/file-upload.md'),
+      'Expected file-upload.md',
+    );
+    assert.ok(
+      refs.find((r) => r.output === 'ai/coding-standards/sql-injection.md'),
+      'Expected sql-injection.md',
+    );
   });
 
   it('skips web security templates for non-web languages', () => {
     const refs = mapSignalsToTemplates(emptySignals, ['bash']);
-    assert.equal(refs.find(r => r.output === 'ai/coding-standards/api-auth.md'), undefined);
+    assert.equal(
+      refs.find((r) => r.output === 'ai/coding-standards/api-auth.md'),
+      undefined,
+    );
   });
 
   it('adds infrastructure-security for deploy platforms', () => {
-    const refs = mapSignalsToTemplates({ ...emptySignals, deployPlatforms: ['docker'] });
-    assert.ok(refs.find(r => r.output === 'ai/coding-standards/infrastructure-security.md'));
+    const refs = mapSignalsToTemplates({
+      ...emptySignals,
+      deployPlatforms: ['docker'],
+    });
+    assert.ok(
+      refs.find(
+        (r) => r.output === 'ai/coding-standards/infrastructure-security.md',
+      ),
+    );
   });
 
   it('adds terraform template when terraform detected', () => {
-    const refs = mapSignalsToTemplates({ ...emptySignals, deployPlatforms: ['terraform'] });
-    assert.ok(refs.find(r => r.output === 'ai/coding-standards/devops-terraform.md'));
+    const refs = mapSignalsToTemplates({
+      ...emptySignals,
+      deployPlatforms: ['terraform'],
+    });
+    assert.ok(
+      refs.find((r) => r.output === 'ai/coding-standards/devops-terraform.md'),
+    );
   });
 
   it('does not add packer template (removed)', () => {
-    const refs = mapSignalsToTemplates({ ...emptySignals, deployPlatforms: ['packer'] });
-    assert.ok(!refs.find(r => r.output === 'ai/coding-standards/devops-packer.md'));
+    const refs = mapSignalsToTemplates({
+      ...emptySignals,
+      deployPlatforms: ['packer'],
+    });
+    assert.ok(
+      !refs.find((r) => r.output === 'ai/coding-standards/devops-packer.md'),
+    );
   });
 });

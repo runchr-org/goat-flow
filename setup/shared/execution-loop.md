@@ -38,13 +38,16 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
      Recovery protocols: include 2-3 common failure patterns with fixes
      (e.g., missing context → read X first, out-of-scope → name boundary
      and redirect, conflicting instructions → flag and ask)
-   - LOG: MUST update when tripped (DoD gate #4). Create one markdown
-     file per entry - do NOT append to a monolithic log.
-     Lessons: `ai/lessons/` or `.goat-flow/lessons/` using
-     `YYYY-MM-DD-slug.md` with frontmatter `name`, `created`.
+   - LOG: MUST update when tripped (DoD gate #4). Use category bucket
+     files - do NOT append to a monolithic log and do NOT create one
+     file per incident forever.
+     Lessons: `ai/lessons/` or `.goat-flow/lessons/` using category
+     files such as `verification.md` with frontmatter `category`, then
+     `## Lesson:` / `## Pattern:` entries inside.
      Footguns: `docs/footguns/` or `.goat-flow/footguns/` using
-     `slug.md` with frontmatter `name`, `status`, `created`,
-     `evidence_type`. Decisions: `ai/decisions/`.
+     category files such as `hooks.md` with frontmatter `category`,
+     then `## Footgun:` entries with Status/Created/Evidence type
+     inside. Decisions: `ai/decisions/`.
      When-to-use table. Footgun propagation rule.
      Context-based loading rules.
      MECHANICAL TRIGGER (non-negotiable):

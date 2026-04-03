@@ -150,7 +150,7 @@ legacy_footguns_file="$legacy_dir/footguns.md"
 if [[ -d "$footguns_committed_dir" ]]; then
     mapfile -t footgun_entries < <(find "$footguns_committed_dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | sort)
     if (( ${#footgun_entries[@]} == 0 )); then
-        fail "$footguns_committed_dir exists but contains no footgun entry files"
+        fail "$footguns_committed_dir exists but contains no footgun bucket or legacy entry files"
     elif grep -Rqi 'none confirmed yet' "$footguns_committed_dir"; then
         info "$footguns_committed_dir explicitly states no confirmed footguns yet"
     elif ! grep -REq "$evidence_ref_pattern" "${footgun_entries[@]}"; then
@@ -188,13 +188,13 @@ if ! grep -Fq 'Active Skills (5 + dispatcher)' workflow/skills/README.md; then
     template_errors=1
 fi
 
-if ! grep -Fq 'name: [Title]' workflow/evaluation/lessons.md; then
-    warn "workflow/evaluation/lessons.md should describe the per-entry frontmatter"
+if ! grep -Fq 'category: verification' workflow/evaluation/lessons.md; then
+    warn "workflow/evaluation/lessons.md should describe the category-bucket format"
     template_errors=1
 fi
 
-if ! grep -Fq 'name: [descriptive title]' workflow/evaluation/footguns.md; then
-    warn "workflow/evaluation/footguns.md should describe the per-entry frontmatter"
+if ! grep -Fq 'category: hooks' workflow/evaluation/footguns.md; then
+    warn "workflow/evaluation/footguns.md should describe the category-bucket format"
     template_errors=1
 fi
 

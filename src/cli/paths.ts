@@ -1,3 +1,7 @@
+/**
+ * Resolves goat-flow package-root paths that need to work from source and packaged builds.
+ * Template lookup and CLI self-reference should go through this module instead of hardcoding dist-relative paths.
+ */
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +29,7 @@ export function getTemplatePath(relative: string): string {
   return join(GOAT_FLOW_ROOT, relative);
 }
 
-/** Check whether a template file exists on disk */
+/** Resolve a template path and report whether the packaged source file exists. */
 export function templateExists(relative: string): boolean {
   return existsSync(getTemplatePath(relative));
 }

@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
+/**
+ * Command-line entry point for goat-flow.
+ * Handles argv parsing, command dispatch, exit codes, and on-disk output for scan, eval, setup, dashboard, and migration workflows.
+ */
+
 import { parseArgs } from 'node:util';
 import { resolve, dirname, join } from 'node:path';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -13,7 +18,9 @@ function findPackageVersion(): string {
   for (let i = 0; i < 10; i++) {
     const candidate = join(dir, 'package.json');
     if (existsSync(candidate)) {
-      return (JSON.parse(readFileSync(candidate, 'utf-8')) as { version: string }).version;
+      return (
+        JSON.parse(readFileSync(candidate, 'utf-8')) as { version: string }
+      ).version;
     }
     const parent = dirname(dir);
     if (parent === dir) break;
@@ -27,7 +34,12 @@ const PACKAGE_VERSION = findPackageVersion();
 
 /** Structured error with an exit code for CLI process termination */
 class CLIError extends Error {
-  constructor(message: string, public exitCode: number) { super(message); }
+  constructor(
+    message: string,
+    public exitCode: number,
+  ) {
+    super(message);
+  }
 }
 
 /** Print usage instructions and available commands to stdout */
@@ -94,38 +106,62 @@ export interface ParsedCLI extends CLIOptions {
   command: Command;
 }
 
-function parseCommand(argv: string[]): { command: Command; filteredArgs: string[] } {
+/** Parse the positional subcommand from raw CLI args, defaulting to `scan`. */
+function parseCommand(argv: string[]): {
+  command: Command;
+  filteredArgs: string[];
+} {
   const filteredArgs = [...argv];
   const first = filteredArgs[0];
   if (first !== undefined && REMOVED_COMMANDS.includes(first)) {
-    throw new CLIError(`"${first}" was removed. Use "setup" instead - it adapts to your project's state.`, 2);
+    throw new CLIError(
+      `"${first}" was removed. Use "setup" instead - it adapts to your project's state.`,
+      2,
+    );
   }
-  if (filteredArgs.length > 0 && COMMANDS.includes(filteredArgs[0] as Command)) {
+  if (
+    filteredArgs.length > 0 &&
+    COMMANDS.includes(filteredArgs[0] as Command)
+  ) {
     return { command: filteredArgs.shift() as Command, filteredArgs };
   }
   return { command: 'scan', filteredArgs };
 }
 
+/** Parse the `--format` flag, defaulting to text on TTYs and JSON otherwise. */
 function parseFormatArg(value: string | undefined): CLIOptions['format'] {
-  const defaultFormat: CLIOptions['format'] = process.stdout.isTTY ? 'text' : 'json';
+  const defaultFormat: CLIOptions['format'] = process.stdout.isTTY
+    ? 'text'
+    : 'json';
   if (!value) return defaultFormat;
   if (!VALID_FORMATS.includes(value as (typeof VALID_FORMATS)[number])) {
-    throw new CLIError(`Invalid format: ${value}. Use: json, text, html, markdown`, 2);
+    throw new CLIError(
+      `Invalid format: ${value}. Use: json, text, html, markdown`,
+      2,
+    );
   }
   return value as CLIOptions['format'];
 }
 
+/** Parse the `--agent` flag and reject deprecated aggregate agent modes. */
 function parseAgentArg(value: string | undefined): AgentId | null {
   if (!value) return null;
   if (value === 'all') {
-    throw new CLIError(`--agent all is no longer supported. Run setup separately for each agent: --agent claude, --agent codex, --agent gemini`, 2);
+    throw new CLIError(
+      `--agent all is no longer supported. Run setup separately for each agent: --agent claude, --agent codex, --agent gemini`,
+      2,
+    );
   }
   if (!VALID_AGENTS.includes(value as AgentId)) {
-    throw new CLIError(`Invalid agent: ${value}. Use: claude, codex, gemini`, 2);
+    throw new CLIError(
+      `Invalid agent: ${value}. Use: claude, codex, gemini`,
+      2,
+    );
   }
   return value as AgentId;
 }
 
+/** Parse the `--min-score` threshold and keep it within the 0-100 range. */
 function parseMinScoreArg(value: string | undefined): number | null {
   if (!value) return null;
   const minScore = parseInt(value, 10);
@@ -135,6 +171,7 @@ function parseMinScoreArg(value: string | undefined): number | null {
   return minScore;
 }
 
+/** Parse the `--min-grade` threshold using the supported letter grades. */
 function parseMinGradeArg(value: string | undefined): Grade | null {
   if (!value) return null;
   const normalized = value.toUpperCase();
@@ -145,6 +182,7 @@ function parseMinGradeArg(value: string | undefined): Grade | null {
   return normalized as Grade;
 }
 
+/** Resolve `--output`, defaulting bare file names into `.goat-flow/` under the target repo. */
 function resolveOutputPath(
   output: string | undefined,
   positionals: string[],
@@ -204,26 +242,30 @@ async function handleEvalCommand(options: ParsedCLI): Promise<void> {
   const fs = createFS(options.projectPath);
   const { loadConfig } = await import('./config/reader.js');
   /** Resolved evals path from config (defaults to ai/evals/) */
-  const evalsDir = resolve(options.projectPath, loadConfig(options.projectPath, fs).config.evals.path);
+  const evalsDir = resolve(
+    options.projectPath,
+    loadConfig(options.projectPath, fs).config.evals.path,
+  );
   const { evals, errors } = loadEvals(fs, evalsDir);
   /** Aggregated eval summary grouped by skill, agent, difficulty, and origin */
   const summary = summarize(evals, errors);
   /** Formatted output string in the requested format */
-  const output = options.format === 'json'
-    ? formatSummaryJson(summary)
-    : formatSummaryText(summary);
+  const output =
+    options.format === 'json'
+      ? formatSummaryJson(summary)
+      : formatSummaryText(summary);
   process.stdout.write(output + '\n');
   if (errors.length > 0) {
     throw new CLIError('Eval completed with errors', 1);
   }
 }
 
+/** Pick the agent list for setup output from the CLI override or scan report. */
 function getSetupAgentIds(options: ParsedCLI, report: ScanReport): AgentId[] {
-  return options.agent
-    ? [options.agent]
-    : report.agents.map(a => a.agent);
+  return options.agent ? [options.agent] : report.agents.map((a) => a.agent);
 }
 
+/** Print the banner that warns multi-agent setup output must stay in sync. */
 function writeMultiAgentSyncBanner(withDivider: boolean): void {
   const lines = withDivider
     ? [...MULTI_AGENT_SYNC_BANNER, '', '---', '']
@@ -231,20 +273,30 @@ function writeMultiAgentSyncBanner(withDivider: boolean): void {
   process.stdout.write(lines.join('\n'));
 }
 
-function shouldUseMultiAgentSetup(agentIds: AgentId[], report: ScanReport): boolean {
-  return agentIds.length > 1
-    && process.env.GOAT_FLOW_INLINE_SETUP !== '1'
-    && agentIds.every(id => {
-      const agentReport = report.agents.find(a => a.agent === id);
+/** Decide whether setup output should be merged across multiple detected agents. */
+function shouldUseMultiAgentSetup(
+  agentIds: AgentId[],
+  report: ScanReport,
+): boolean {
+  return (
+    agentIds.length > 1 &&
+    process.env.GOAT_FLOW_INLINE_SETUP !== '1' &&
+    agentIds.every((id) => {
+      const agentReport = report.agents.find((a) => a.agent === id);
       return !agentReport || agentReport.score.percentage === 0;
-    });
+    })
+  );
 }
 
+/** Render either inline or reference-based setup output for one agent. */
 function renderSetupOutput(
   report: ScanReport,
   agentId: AgentId,
   composeSetup: (report: ScanReport, agent: AgentId) => string | null,
-  composeInlineSetup: (report: ScanReport, agent: AgentId) => ComposedPrompt | null,
+  composeInlineSetup: (
+    report: ScanReport,
+    agent: AgentId,
+  ) => ComposedPrompt | null,
   renderPrompt: (prompt: ComposedPrompt) => string,
 ): string | null {
   if (process.env.GOAT_FLOW_INLINE_SETUP === '1') {
@@ -255,13 +307,20 @@ function renderSetupOutput(
 }
 
 /** Handle the setup command: compose and render setup prompts per agent */
-async function handleSetupCommand(options: ParsedCLI, report: ScanReport): Promise<void> {
-  const { composeSetup, composeInlineSetup, composeMultiAgentSetup } = await import('./prompt/compose-setup.js');
+async function handleSetupCommand(
+  options: ParsedCLI,
+  report: ScanReport,
+): Promise<void> {
+  const { composeSetup, composeInlineSetup, composeMultiAgentSetup } =
+    await import('./prompt/compose-setup.js');
   const { renderPrompt } = await import('./prompt/render.js');
 
   const agentIds = getSetupAgentIds(options, report);
   if (agentIds.length === 0) {
-    throw new CLIError('No agents detected. Use --agent claude, --agent codex, or --agent gemini', 1);
+    throw new CLIError(
+      'No agents detected. Use --agent claude, --agent codex, or --agent gemini',
+      1,
+    );
   }
 
   if (shouldUseMultiAgentSetup(agentIds, report)) {
@@ -276,7 +335,13 @@ async function handleSetupCommand(options: ParsedCLI, report: ScanReport): Promi
   }
 
   for (const agentId of agentIds) {
-    const output = renderSetupOutput(report, agentId, composeSetup, composeInlineSetup, renderPrompt);
+    const output = renderSetupOutput(
+      report,
+      agentId,
+      composeSetup,
+      composeInlineSetup,
+      renderPrompt,
+    );
     if (output) {
       process.stdout.write(output + '\n');
       if (agentIds.length > 1) process.stdout.write('\n---\n\n');
@@ -289,11 +354,21 @@ function handleCIGate(options: ParsedCLI, report: ScanReport): void {
   if (options.minScore === null && options.minGrade === null) return;
 
   /** Numeric ordering of grades for comparison (higher is better) */
-  const gradeOrder: Record<string, number> = { 'A': 5, 'B': 4, 'C': 3, 'D': 2, 'F': 1, 'insufficient-data': 0 };
+  const gradeOrder: Record<string, number> = {
+    A: 5,
+    B: 4,
+    C: 3,
+    D: 2,
+    F: 1,
+    'insufficient-data': 0,
+  };
 
   // Iterate over each agent report to check against CI gate thresholds
   for (const agent of report.agents) {
-    if (options.minScore !== null && agent.score.percentage < options.minScore) {
+    if (
+      options.minScore !== null &&
+      agent.score.percentage < options.minScore
+    ) {
       throw new CLIError(
         `CI gate failed: ${agent.agent} score ${agent.score.percentage}% below threshold ${options.minScore}%`,
         1,
@@ -314,7 +389,11 @@ function handleCIGate(options: ParsedCLI, report: ScanReport): void {
   }
 }
 
-async function renderScanOutput(options: ParsedCLI, report: ScanReport): Promise<string> {
+/** Render scan output. */
+async function renderScanOutput(
+  options: ParsedCLI,
+  report: ScanReport,
+): Promise<string> {
   const { renderJson } = await import('./render/json.js');
   const { renderText } = await import('./render/text.js');
 
@@ -332,6 +411,7 @@ async function renderScanOutput(options: ParsedCLI, report: ScanReport): Promise
   return renderJson(report);
 }
 
+/** Write scan output. */
 function writeScanOutput(options: ParsedCLI, rendered: string): void {
   if (options.output) {
     mkdirSync(dirname(options.output), { recursive: true });
@@ -343,7 +423,11 @@ function writeScanOutput(options: ParsedCLI, rendered: string): void {
   process.stdout.write(rendered + '\n');
 }
 
-async function handleScanCommand(options: ParsedCLI, report: ScanReport): Promise<void> {
+/** Run the main scan flow, render the report, and append scan history. */
+async function handleScanCommand(
+  options: ParsedCLI,
+  report: ScanReport,
+): Promise<void> {
   const rendered = await renderScanOutput(options, report);
   writeScanOutput(options, rendered);
 
@@ -362,8 +446,14 @@ async function main(): Promise<void> {
   /** Parsed CLI options derived from process.argv */
   const options = parseCLIArgs(process.argv.slice(2));
 
-  if (options.help) { printHelp(); return; }
-  if (options.version) { printVersion(); return; }
+  if (options.help) {
+    printHelp();
+    return;
+  }
+  if (options.version) {
+    printVersion();
+    return;
+  }
   if (options.command === 'eval') {
     await handleEvalCommand(options);
     return;
@@ -398,6 +488,8 @@ main().catch((err: unknown) => {
     console.error(err.message);
     process.exit(err.exitCode);
   }
-  console.error(`Fatal error: ${err instanceof Error ? err.message : String(err)}`);
+  console.error(
+    `Fatal error: ${err instanceof Error ? err.message : String(err)}`,
+  );
   process.exit(1);
 });

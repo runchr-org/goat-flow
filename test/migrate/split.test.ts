@@ -1,10 +1,27 @@
+/**
+ * Round-trip tests for lesson and footgun migration helpers.
+ * These cases protect both split output structure and merge-back fidelity.
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  mkdirSync,
+  readdirSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { mergeFootguns, mergeLessons, splitFootguns, splitLessons } from '../../src/cli/migrate/index.js';
+import {
+  mergeFootguns,
+  mergeLessons,
+  splitFootguns,
+  splitLessons,
+} from '../../src/cli/migrate/index.js';
 
+/** Run with temp dir. */
 function withTempDir(fn: (dir: string) => void): void {
   const dir = mkdtempSync(join(tmpdir(), 'goat-flow-migrate-'));
   try {
@@ -16,7 +33,7 @@ function withTempDir(fn: (dir: string) => void): void {
 
 describe('migration helpers', () => {
   it('splits and merges footguns', () => {
-    withTempDir(dir => {
+    withTempDir((dir) => {
       const input = join(dir, 'footguns.md');
       const outputDir = join(dir, 'footguns');
       const merged = join(dir, 'footguns-merged.md');
@@ -59,15 +76,13 @@ describe('migration helpers', () => {
       const result = splitFootguns(input, outputDir);
       assert.equal(result.fileCount, 3);
       assert.ok(result.files.includes('README.md'));
-      assert.ok(result.files.includes('duplicate-slug.md'));
-      assert.ok(result.files.includes('duplicate-slug-2.md'));
+      assert.ok(result.files.includes('general.md'));
 
-      const first = readFileSync(join(outputDir, 'cross-reference-fragility.md'), 'utf8');
-      assert.match(first, /^---\nname: Cross reference fragility/m);
-      assert.match(first, /evidence_type: ACTUAL_MEASURED/);
-
-      const second = readFileSync(join(outputDir, 'duplicate-slug.md'), 'utf8');
-      assert.match(second, /status: resolved/);
+      const bucket = readFileSync(join(outputDir, 'general.md'), 'utf8');
+      assert.match(bucket, /^---\ncategory: general/m);
+      assert.match(bucket, /## Footgun: Cross reference fragility/);
+      assert.match(bucket, /\*\*Evidence type:\*\* ACTUAL_MEASURED/);
+      assert.match(bucket, /\*\*Status:\*\* resolved/);
 
       const mergedResult = mergeFootguns(outputDir, merged);
       assert.equal(mergedResult.fileCount, 3);
@@ -78,7 +93,7 @@ describe('migration helpers', () => {
   });
 
   it('splits and merges lessons including patterns', () => {
-    withTempDir(dir => {
+    withTempDir((dir) => {
       const input = join(dir, 'lessons.md');
       const outputDir = join(dir, 'lessons');
       const merged = join(dir, 'lessons-merged.md');
@@ -115,61 +130,86 @@ describe('migration helpers', () => {
 
       const result = splitLessons(input, outputDir);
       assert.equal(result.fileCount, 3);
-      assert.ok(result.files.includes('2026-03-29-version-bumps-require-confirmation.md'));
-      assert.ok(result.files.includes('pattern-verification-scope-must-match-change-scope.md'));
+      assert.ok(result.files.includes('general.md'));
+      assert.ok(result.files.includes('patterns.md'));
 
-      const pattern = readFileSync(join(outputDir, 'pattern-verification-scope-must-match-change-scope.md'), 'utf8');
-      assert.match(pattern, /type: pattern/);
-      assert.match(pattern, /related:/);
-      assert.match(pattern, /2026-03-29-version-bumps-require-confirmation.md/);
+      const general = readFileSync(join(outputDir, 'general.md'), 'utf8');
+      assert.match(general, /^---\ncategory: general/m);
+      assert.match(general, /## Lesson: Version bumps require confirmation/);
+
+      const pattern = readFileSync(join(outputDir, 'patterns.md'), 'utf8');
+      assert.match(pattern, /^---\ncategory: patterns/m);
+      assert.match(
+        pattern,
+        /## Pattern: Verification scope must match change scope/,
+      );
+      assert.match(
+        pattern,
+        /_Entries: "Version bumps require confirmation", "Double check means read the files"_/,
+      );
 
       const mergedResult = mergeLessons(outputDir, merged);
       assert.equal(mergedResult.fileCount, 3);
       const mergedText = readFileSync(merged, 'utf8');
       assert.match(mergedText, /## Entries/);
       assert.match(mergedText, /## Patterns/);
-      assert.match(mergedText, /_Entries: "Version bumps require confirmation", "Double check means read the files"_/);
+      assert.match(
+        mergedText,
+        /_Entries: "Version bumps require confirmation", "Double check means read the files"_/,
+      );
     });
   });
 
   it('warns on missing lesson dates and preserves files', () => {
-    withTempDir(dir => {
+    withTempDir((dir) => {
       const input = join(dir, 'lessons.md');
       const outputDir = join(dir, 'lessons');
-      writeFileSync(input, [
-        '# Lessons',
-        '',
-        '## Entries',
-        '',
-        '### Missing date',
-        'Body only.',
-        '',
-      ].join('\n'));
+      writeFileSync(
+        input,
+        [
+          '# Lessons',
+          '',
+          '## Entries',
+          '',
+          '### Missing date',
+          'Body only.',
+          '',
+        ].join('\n'),
+      );
 
       const result = splitLessons(input, outputDir);
-      assert.ok(result.warnings.some(warning => warning.includes('no created_at date')));
-      assert.ok(readdirSync(outputDir).some(file => file === 'unknown-missing-date.md'));
+      assert.ok(
+        result.warnings.some((warning) =>
+          warning.includes('no created_at date'),
+        ),
+      );
+      assert.ok(readdirSync(outputDir).some((file) => file === 'general.md'));
     });
   });
 
   it('warns on empty footgun body after metadata extraction', () => {
-    withTempDir(dir => {
+    withTempDir((dir) => {
       const input = join(dir, 'footguns.md');
       const outputDir = join(dir, 'footguns');
       mkdirSync(outputDir, { recursive: true });
-      writeFileSync(input, [
-        '# Footguns',
-        '',
-        '## Footgun: Empty body',
-        '',
-        '**Evidence type:** ACTUAL_MEASURED',
-        '',
-        '**Created:** 2026-03-20',
-        '',
-      ].join('\n'));
+      writeFileSync(
+        input,
+        [
+          '# Footguns',
+          '',
+          '## Footgun: Empty body',
+          '',
+          '**Evidence type:** ACTUAL_MEASURED',
+          '',
+          '**Created:** 2026-03-20',
+          '',
+        ].join('\n'),
+      );
 
       const result = splitFootguns(input, outputDir);
-      assert.ok(result.warnings.some(warning => warning.includes('empty body')));
+      assert.ok(
+        result.warnings.some((warning) => warning.includes('empty body')),
+      );
     });
   });
 });

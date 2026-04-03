@@ -1,3 +1,7 @@
+/**
+ * Static prompt fragments for foundation-tier requirements.
+ * These snippets back generated setup prompts for instruction files, enforcement, and execution-loop basics.
+ */
 import type { Fragment } from '../types.js';
 
 /**
@@ -187,15 +191,15 @@ Over budget = re-classify before continuing.`,
     instruction: `Add the LOG step to \`{{instructionFile}}\`:
 
 \`\`\`markdown
-**LOG** - MUST update when tripped. Create one markdown file per entry - do not append to a monolithic log.
+**LOG** - MUST update when tripped. Use category bucket files - do not append to a monolithic log and do not create one file per incident forever.
 
 | File | When to update |
 |------|---------------|
 | \\\`ai/lessons/\\\` or \\\`.goat-flow/lessons/\\\` | Behavioural mistake |
 | \\\`docs/footguns/\\\` or \\\`.goat-flow/footguns/\\\` | Cross-doc architectural trap |
 
-Lessons use \\\`YYYY-MM-DD-slug.md\\\` with frontmatter \\\`name\\\`, \\\`created\\\`.
-Footguns use \\\`slug.md\\\` with frontmatter \\\`name\\\`, \\\`status\\\`, \\\`created\\\`, \\\`evidence_type\\\`.
+Lessons use category files such as \\\`verification.md\\\` with frontmatter \\\`category\\\`, then \\\`## Lesson:\\\` / \\\`## Pattern:\\\` entries inside.
+Footguns use category files such as \\\`hooks.md\\\` with frontmatter \\\`category\\\`, then \\\`## Footgun:\\\` entries with Status/Created/Evidence type inside.
 \`\`\``,
   },
   {
@@ -425,9 +429,12 @@ def check(command):
 
 > **Note:** This blocks ALL commits, including when the user explicitly asks to commit. Once trust is established, move \`git commit\` to \`settings.local.json\` allow list to reduce friction on feature branches.`,
     agentOverrides: {
-      claude: 'Add `"Bash(git commit*)"` to `permissions.deny` in `.claude/settings.json`.\n\n> **Escape hatch:** Once trust is established, add `"Bash(git commit*)"` to `.claude/settings.local.json` `permissions.allow` to skip approval on feature branches.',
-      codex: 'Add `"git commit"` to the blocked patterns in `.codex/rules/deny-dangerous.star`.',
-      gemini: 'Add `"git commit"` to `permissions.deny` in `.gemini/settings.json`.',
+      claude:
+        'Add `"Bash(git commit*)"` to `permissions.deny` in `.claude/settings.json`.\n\n> **Escape hatch:** Once trust is established, add `"Bash(git commit*)"` to `.claude/settings.local.json` `permissions.allow` to skip approval on feature branches.',
+      codex:
+        'Add `"git commit"` to the blocked patterns in `.codex/rules/deny-dangerous.star`.',
+      gemini:
+        'Add `"git commit"` to `permissions.deny` in `.gemini/settings.json`.',
     },
   },
   {
@@ -437,9 +444,12 @@ def check(command):
     kind: 'create',
     instruction: `Add \`git push\` to the deny list in {{settingsFile}}.`,
     agentOverrides: {
-      claude: 'Add `"Bash(git push*)"` to `permissions.deny` in `.claude/settings.json`.',
-      codex: 'Add `"git push"` to the blocked patterns in `.codex/rules/deny-dangerous.star`.',
-      gemini: 'Add `"git push"` to `permissions.deny` in `.gemini/settings.json`.',
+      claude:
+        'Add `"Bash(git push*)"` to `permissions.deny` in `.claude/settings.json`.',
+      codex:
+        'Add `"git push"` to the blocked patterns in `.codex/rules/deny-dangerous.star`.',
+      gemini:
+        'Add `"git push"` to `permissions.deny` in `.gemini/settings.json`.',
     },
   },
   {

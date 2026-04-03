@@ -1,7 +1,19 @@
-import { readFileSync, statSync, readdirSync, accessSync, constants, type Dirent } from 'node:fs';
+/**
+ * Read-only filesystem adapter over Node's `fs` APIs.
+ * The rest of the scanner targets this interface so tests can swap in mock filesystems without touching extraction logic.
+ */
+import {
+  readFileSync,
+  statSync,
+  readdirSync,
+  accessSync,
+  constants,
+  type Dirent,
+} from 'node:fs';
 import { resolve, relative, join } from 'node:path';
 import type { ReadonlyFS } from '../types.js';
 
+/** Read directory entries, returning an empty list when the path is missing. */
 function readDirEntries(path: string): Dirent[] {
   try {
     return readdirSync(path, { withFileTypes: true });
@@ -10,12 +22,14 @@ function readDirEntries(path: string): Dirent[] {
   }
 }
 
+/** Convert one glob segment into the regex used by the filesystem walker. */
 function buildGlobRegex(part: string): RegExp {
   return new RegExp(
-    '^' + part.replace(/\./g, '\\.').replace(/\*/g, '[^/]*') + '$'
+    '^' + part.replace(/\./g, '\\.').replace(/\*/g, '[^/]*') + '$',
   );
 }
 
+/** Walk a glob pattern recursively from the current directory segment. */
 function walkGlob(
   root: string,
   resolvePath: (path: string) => string,
@@ -35,6 +49,7 @@ function walkGlob(
   walkGlobSegment(root, resolvePath, parts, dir, patternIndex, results, part);
 }
 
+/** Handle the recursive `**` segment in the custom glob walker. */
 function walkGlobStar(
   root: string,
   resolvePath: (path: string) => string,
@@ -49,11 +64,19 @@ function walkGlobStar(
 
   for (const entry of readDirEntries(resolvePath(dir))) {
     if (entry.isDirectory() && isIgnoredDir(entry.name) === false) {
-      walkGlob(root, resolvePath, parts, join(dir, entry.name), patternIndex, results);
+      walkGlob(
+        root,
+        resolvePath,
+        parts,
+        join(dir, entry.name),
+        patternIndex,
+        results,
+      );
     }
   }
 }
 
+/** Handle a normal glob segment and descend when matching directories remain. */
 function walkGlobSegment(
   root: string,
   resolvePath: (path: string) => string,
@@ -91,6 +114,7 @@ export function createFS(rootPath: string): ReadonlyFS {
   }
 
   return {
+    /** Check whether a relative path exists under the project root. */
     exists(path: string): boolean {
       try {
         statSync(resolvePath(path));
@@ -100,6 +124,7 @@ export function createFS(rootPath: string): ReadonlyFS {
       }
     },
 
+    /** Read a UTF-8 file under the project root. */
     readFile(path: string): string | null {
       try {
         return readFileSync(resolvePath(path), 'utf-8');
@@ -108,6 +133,7 @@ export function createFS(rootPath: string): ReadonlyFS {
       }
     },
 
+    /** Count newline-delimited lines in a UTF-8 file. */
     lineCount(path: string): number {
       try {
         const content = readFileSync(resolvePath(path), 'utf-8');
@@ -117,6 +143,7 @@ export function createFS(rootPath: string): ReadonlyFS {
       }
     },
 
+    /** Read and parse a JSON file under the project root. */
     readJson(path: string): unknown {
       try {
         const content = readFileSync(resolvePath(path), 'utf-8');
@@ -126,15 +153,18 @@ export function createFS(rootPath: string): ReadonlyFS {
       }
     },
 
+    /** List direct children of a directory under the project root. */
     listDir(path: string): string[] {
       try {
-        return readdirSync(resolvePath(path), { withFileTypes: true })
-          .map(entry => entry.name);
+        return readdirSync(resolvePath(path), { withFileTypes: true }).map(
+          (entry) => entry.name,
+        );
       } catch {
         return [];
       }
     },
 
+    /** Report whether a file under the project root has any execute bit set. */
     isExecutable(path: string): boolean {
       try {
         accessSync(resolvePath(path), constants.X_OK);
@@ -153,6 +183,7 @@ export function createFS(rootPath: string): ReadonlyFS {
       }
     },
 
+    /** Expand a simplified glob pattern against the project tree. */
     glob(pattern: string): string[] {
       // Simple recursive glob implementation (no deps)
       // Supports: *, **, specific extensions
@@ -168,12 +199,21 @@ export function createFS(rootPath: string): ReadonlyFS {
 
 /** Directory names to skip during recursive glob traversal */
 const IGNORED_DIRS = new Set([
-  '.git', 'node_modules', 'dist', 'build', 'coverage',
-  '.next', '.turbo', 'vendor', '.venv', '__pycache__',
-  '.idea', '.vscode',
+  '.git',
+  'node_modules',
+  'dist',
+  'build',
+  'coverage',
+  '.next',
+  '.turbo',
+  'vendor',
+  '.venv',
+  '__pycache__',
+  '.idea',
+  '.vscode',
 ]);
 
-/** Check whether a directory name should be skipped during glob traversal. */
+/** Skip heavyweight or generated directories during recursive glob walking. */
 function isIgnoredDir(name: string): boolean {
   return IGNORED_DIRS.has(name);
 }

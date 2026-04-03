@@ -16,7 +16,26 @@ jobs:
         run: |
           mkdir -p .goat-flow/footguns .goat-flow/lessons .goat-flow/tasks .goat-flow/logs/sessions
           if [ ! -f .goat-flow/tasks/handoff-template.md ]; then
-            printf '## Date\n\n## Status\n\n## Current State\n\n## Key Decisions Made\n\n## Known Risks\n\n## Next Step\n' > .goat-flow/tasks/handoff-template.md
+            printf '%s\n' \
+              '# Agent Session Handoff Template' \
+              '' \
+              '## Date' \
+              '' \
+              '## Status' \
+              '' \
+              '## Current State' \
+              '' \
+              '## Key Decisions Made' \
+              '' \
+              '## Errors & Corrections' \
+              '' \
+              '## Learnings' \
+              '' \
+              '## Known Risks' \
+              '' \
+              '## Next Step' \
+              '' \
+              '## Context Files' > .goat-flow/tasks/handoff-template.md
           fi
       - uses: ./.github/actions/goat-flow-scan
         with:

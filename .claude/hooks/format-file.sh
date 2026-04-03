@@ -3,10 +3,13 @@
 set -uo pipefail
 
 INPUT=$(cat)
-FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)
+FILE=$(echo "$INPUT" | jq -r '.file_path // empty' 2>/dev/null || true)
 [[ -z "$FILE" ]] && exit 0
 
 case "$FILE" in
+  */.claude/*|*/.gemini/*|*/.codex/*|*/.agents/*|*/.github/skills/*)
+    exit 0
+    ;;
   *.ts|*.tsx|*.js|*.jsx|*.json|*.md)
     command -v prettier >/dev/null 2>&1 && prettier --write "$FILE" 2>/dev/null || true
     ;;

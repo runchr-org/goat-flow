@@ -1,4 +1,7 @@
 /**
+ * Programmatic entry point for goat-flow as a library.
+ * Re-exports the stable scan, prompt, config, and telemetry APIs used by tests and external consumers.
+ *
  * Library entry point for programmatic consumers (M2, M3).
  * Re-exports the scan engine, types, and utilities.
  */

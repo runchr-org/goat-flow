@@ -22,36 +22,38 @@ Order findings by severity, not by file or discovery order.
 ## Learning Loop
 
 After completing the skill, check if this run uncovered anything worth logging:
-- Behavioural mistake (agent did something wrong) → create a new markdown entry in `ai/lessons/` or `.goat-flow/lessons/`
-- Architectural trap with `file:line` evidence → create a new markdown entry in `docs/footguns/` or `.goat-flow/footguns/`
+- Behavioural mistake (agent did something wrong) → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai/lessons/` or `.goat-flow/lessons/`
+- Architectural trap with `file:line` evidence → add a `## Footgun:` entry to the relevant category bucket in `docs/footguns/` or `.goat-flow/footguns/`
 
 Do not append to a monolithic log or directory README. Route team-wide entries to `ai/lessons/` or `docs/footguns/`; route machine/session-only entries to `.goat-flow/lessons/` or `.goat-flow/footguns/`.
-Filename conventions:
-- Lessons: `YYYY-MM-DD-slug.md`
-- Footguns: `slug.md`
+Bucket conventions:
+- Lessons: `verification.md`, `workflow.md`, `coordination.md`
+- Footguns: `hooks.md`, `setup.md`, `scanner.md`
 
 Use the standard entry formats:
 ```markdown
-<!-- Lesson entry -->
+<!-- Lesson bucket -->
 ---
-name: [Title]
-created: YYYY-MM-DD
+category: verification
 ---
 
+## Lesson: [Title]
+**Created:** YYYY-MM-DD
 **What happened:** [description]
 **Evidence:** `file:line` - [what was found]
 **Prevention:** [rule to prevent recurrence]
 ```
 
 ```markdown
-<!-- Footgun entry -->
+<!-- Footgun bucket -->
 ---
-name: [Title]
-status: active
-created: YYYY-MM-DD
-evidence_type: ACTUAL_MEASURED
+category: hooks
 ---
 
+## Footgun: [Title]
+**Status:** active
+**Created:** YYYY-MM-DD
+**Evidence type:** ACTUAL_MEASURED
 **Symptoms:** [what breaks]
 **Why it happens:** [root cause]
 **Evidence:** `file:line` - [what was found]

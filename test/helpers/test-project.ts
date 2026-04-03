@@ -1,9 +1,18 @@
+/**
+ * Temporary on-disk project builder for integration tests.
+ * Use it when a test needs real files, directories, and shell-visible paths rather than the mock filesystem.
+ */
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 
 const EXPECTED_SKILLS = [
-  'preflight', 'debug', 'audit', 'review', 'plan', 'test',
+  'preflight',
+  'debug',
+  'audit',
+  'review',
+  'plan',
+  'test',
 ] as const;
 
 /**
@@ -12,33 +21,49 @@ const EXPECTED_SKILLS = [
 export class TestProject {
   private files: Map<string, string> = new Map();
 
+  /** Run with file. */
   withFile(path: string, content: string): this {
     this.files.set(path, content);
     return this;
   }
 
-  withInstructionFile(agent: 'claude' | 'codex' | 'gemini', content: string): this {
-    const filename = { claude: 'CLAUDE.md', codex: 'AGENTS.md', gemini: 'GEMINI.md' }[agent];
+  /** Run with instruction file. */
+  withInstructionFile(
+    agent: 'claude' | 'codex' | 'gemini',
+    content: string,
+  ): this {
+    const filename = {
+      claude: 'CLAUDE.md',
+      codex: 'AGENTS.md',
+      gemini: 'GEMINI.md',
+    }[agent];
     return this.withFile(filename, content);
   }
 
+  /** Run with settings. */
   withSettings(agent: 'claude' | 'gemini', settings: object): this {
-    const path = agent === 'claude' ? '.claude/settings.json' : '.gemini/settings.json';
+    const path =
+      agent === 'claude' ? '.claude/settings.json' : '.gemini/settings.json';
     return this.withFile(path, JSON.stringify(settings, null, 2));
   }
 
-  withSkills(agent: 'claude' | 'codex' | 'gemini', names?: readonly string[]): this {
+  /** Run with skills. */
+  withSkills(
+    agent: 'claude' | 'codex' | 'gemini',
+    names?: readonly string[],
+  ): this {
     const dir = agent === 'claude' ? '.claude/skills' : '.agents/skills';
     const skillNames = names ?? EXPECTED_SKILLS;
     for (const name of skillNames) {
       this.withFile(
         `${dir}/goat-${name}/SKILL.md`,
-        `---\nname: goat-${name}\ndescription: "${name}"\n---\n# goat-${name}\n\n## When to Use\n\nUse for ${name}.\n\n## Process\n\n1. Do the thing.\n\n## Output\n\nResults.\n`
+        `---\nname: goat-${name}\ndescription: "${name}"\n---\n# goat-${name}\n\n## When to Use\n\nUse for ${name}.\n\n## Process\n\n1. Do the thing.\n\n## Output\n\nResults.\n`,
       );
     }
     return this;
   }
 
+  /** Run with hooks. */
   withHooks(agent: 'claude' | 'gemini'): this {
     const dir = agent === 'claude' ? '.claude/hooks' : '.gemini/hooks';
     this.withFile(`${dir}/deny-dangerous.sh`, '#!/usr/bin/env bash\nexit 0\n');
@@ -46,30 +71,46 @@ export class TestProject {
     return this;
   }
 
+  /** Run with learning loop. */
   withLearningLoop(): this {
-    this.withFile('.goat-flow/config.yaml', 'version: "0.10.0"\nfootguns:\n  committed: docs/footguns/\n  local: .goat-flow/footguns/\nlessons:\n  committed: ai/lessons/\n  local: .goat-flow/lessons/\ndecisions:\n  path: ai/decisions/\ntasks:\n  path: .goat-flow/tasks/\nskills:\n  install: all\n');
+    this.withFile(
+      '.goat-flow/config.yaml',
+      'version: "0.10.0"\nfootguns:\n  committed: docs/footguns/\n  local: .goat-flow/footguns/\nlessons:\n  committed: ai/lessons/\n  local: .goat-flow/lessons/\ndecisions:\n  path: ai/decisions/\ntasks:\n  path: .goat-flow/tasks/\nskills:\n  install: all\n',
+    );
     this.withFile('docs/footguns/README.md', '# Footguns\n');
-    this.withFile('docs/footguns/example.md', '---\nname: Example footgun\nstatus: active\ncreated: 2026-01-01\nevidence_type: ACTUAL_MEASURED\n---\n\n**Evidence:**\n- `src/auth.ts:42` - broke login\n');
+    this.withFile(
+      'docs/footguns/example.md',
+      '---\nname: Example footgun\nstatus: active\ncreated: 2026-01-01\nevidence_type: ACTUAL_MEASURED\n---\n\n**Evidence:**\n- `src/auth.ts:42` - broke login\n',
+    );
     this.withFile('ai/lessons/README.md', '# Lessons\n');
-    this.withFile('ai/lessons/2026-01-01-entry-1.md', '---\nname: Entry 1\ncreated: 2026-01-01\n---\n\n**What happened:** something\n');
+    this.withFile(
+      'ai/lessons/2026-01-01-entry-1.md',
+      '---\nname: Entry 1\ncreated: 2026-01-01\n---\n\n**What happened:** something\n',
+    );
     return this;
   }
 
+  /** Run with evals. */
   withEvals(count: number = 3): this {
     this.withFile('ai/evals/README.md', '# Agent Evals\n');
     for (let i = 1; i <= count; i++) {
       this.withFile(
         `ai/evals/eval-${i}.md`,
-        `# Eval ${i}\n\n**Origin:** real-incident\n**Agents:** all\n\n## Replay Prompt\n\n\`\`\`\nDo the thing\n\`\`\`\n`
+        `# Eval ${i}\n\n**Origin:** real-incident\n**Agents:** all\n\n## Replay Prompt\n\n\`\`\`\nDo the thing\n\`\`\`\n`,
       );
     }
     return this;
   }
 
+  /** Run with architecture. */
   withArchitecture(): this {
-    return this.withFile('docs/architecture.md', '# Architecture\n\n' + 'System overview.\n'.repeat(10));
+    return this.withFile(
+      'docs/architecture.md',
+      '# Architecture\n\n' + 'System overview.\n'.repeat(10),
+    );
   }
 
+  /** Run with handoff. */
   withHandoff(): this {
     return this.withFile(
       '.goat-flow/tasks/handoff-template.md',
@@ -77,6 +118,7 @@ export class TestProject {
     );
   }
 
+  /** Create the requested item. */
   create(): { root: string; cleanup: () => void } {
     const root = mkdtempSync(join(tmpdir(), 'goat-flow-test-'));
 

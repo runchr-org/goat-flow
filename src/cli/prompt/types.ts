@@ -1,3 +1,7 @@
+/**
+ * Type contracts for prompt fragments and composed setup output.
+ * These interfaces let prompt composition stay structured until the final render step.
+ */
 import type { AgentId, Tier } from '../types.js';
 
 /** The three modes a composed prompt can operate in */

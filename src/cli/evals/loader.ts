@@ -1,4 +1,7 @@
 /**
+ * Discovers, parses, and summarizes eval fixtures under `ai/evals/`.
+ * This module stays read-only; execution of eval scenarios is intentionally out of scope.
+ *
  * Eval runner: reads eval files from ai/evals/, parses them,
  * and outputs a structured summary.
  *
@@ -29,13 +32,17 @@ const ORIGIN_ORDER = ['real-incident', 'synthetic-seed'] as const;
 function discoverEvalFiles(fs: ReadonlyFS, evalsDir: string): string[] {
   if (fs.exists(evalsDir) === false) return [];
 
-  return fs.listDir(evalsDir)
-    .filter(f => f.endsWith('.md') && SKIP_FILES.has(f) === false)
+  return fs
+    .listDir(evalsDir)
+    .filter((f) => f.endsWith('.md') && SKIP_FILES.has(f) === false)
     .sort();
 }
 
 /** Load and parse all eval files from a directory, returning parsed evals and any parse errors */
-export function loadEvals(fs: ReadonlyFS, evalsDir: string): {
+export function loadEvals(
+  fs: ReadonlyFS,
+  evalsDir: string,
+): {
   evals: ParsedEval[];
   errors: ParseError[];
 } {
@@ -68,7 +75,10 @@ export function loadEvals(fs: ReadonlyFS, evalsDir: string): {
 }
 
 /** Aggregate parsed evals into a summary grouped by skill, agent, difficulty, and origin */
-export function summarize(evals: ParsedEval[], errors: ParseError[]): EvalSummary {
+export function summarize(
+  evals: ParsedEval[],
+  errors: ParseError[],
+): EvalSummary {
   /** Map of skill name to count and file list for skill breakdown */
   const bySkillMap = new Map<string, { count: number; files: string[] }>();
   /** Map of agent target to count and file list for agent breakdown */
@@ -133,10 +143,12 @@ export function summarize(evals: ParsedEval[], errors: ParseError[]): EvalSummar
   };
 }
 
+/** Format eval count. */
 function formatEvalCount(count: number): string {
   return `${count} eval${count !== 1 ? 's' : ''}`;
 }
 
+/** Append skill summary. */
 function appendSkillSummary(lines: string[], skills: SkillBreakdown[]): void {
   lines.push('By Skill:');
   if (skills.length === 0) {
@@ -151,6 +163,7 @@ function appendSkillSummary(lines: string[], skills: SkillBreakdown[]): void {
   lines.push('');
 }
 
+/** Append agent summary. */
 function appendAgentSummary(lines: string[], agents: AgentBreakdown[]): void {
   lines.push('By Agent:');
   for (const agent of agents) {
@@ -159,6 +172,7 @@ function appendAgentSummary(lines: string[], agents: AgentBreakdown[]): void {
   lines.push('');
 }
 
+/** Append non zero section. */
 function appendNonZeroSection<T extends string>(
   lines: string[],
   title: string,
@@ -172,6 +186,7 @@ function appendNonZeroSection<T extends string>(
   lines.push('');
 }
 
+/** Append parse error summary. */
 function appendParseErrorSummary(lines: string[], errors: ParseError[]): void {
   if (errors.length === 0) return;
 
@@ -192,7 +207,12 @@ export function formatSummaryText(summary: EvalSummary): string {
   lines.push('');
   appendSkillSummary(lines, summary.bySkill);
   appendAgentSummary(lines, summary.byAgent);
-  appendNonZeroSection(lines, 'By Difficulty:', DIFFICULTY_ORDER, summary.byDifficulty);
+  appendNonZeroSection(
+    lines,
+    'By Difficulty:',
+    DIFFICULTY_ORDER,
+    summary.byDifficulty,
+  );
   appendNonZeroSection(lines, 'By Origin:', ORIGIN_ORDER, summary.byOrigin);
   appendParseErrorSummary(lines, summary.parseErrors);
 

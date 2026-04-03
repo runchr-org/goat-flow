@@ -1,3 +1,7 @@
+/**
+ * Top-level scan orchestrator.
+ * It loads config, extracts facts, runs the rubric, computes recommendations, and returns the full report consumed by CLI renderers and tests.
+ */
 import type { ScanReport, AgentReport, ReadonlyFS, AgentId } from '../types.js';
 import { loadConfig } from '../config/index.js';
 import { extractProjectFacts } from '../facts/orchestrator.js';
@@ -14,7 +18,9 @@ function findPackageVersion(): string {
   for (let i = 0; i < 10; i++) {
     const candidate = join(dir, 'package.json');
     if (existsSync(candidate)) {
-      return (JSON.parse(readFileSync(candidate, 'utf-8')) as { version: string }).version;
+      return (
+        JSON.parse(readFileSync(candidate, 'utf-8')) as { version: string }
+      ).version;
     }
     const parent = dirname(dir);
     if (parent === dir) break;
@@ -33,7 +39,11 @@ export interface ScanOptions {
 }
 
 /** Run all rubric checks and anti-pattern detections against a project, returning a full scan report. */
-export function scanProject(fs: ReadonlyFS, projectPath: string, options: ScanOptions): ScanReport {
+export function scanProject(
+  fs: ReadonlyFS,
+  projectPath: string,
+  options: ScanOptions,
+): ScanReport {
   const configState = loadConfig(projectPath, fs);
   /** Extracted project and agent facts used by all evaluators */
   const facts = extractProjectFacts(fs, {
@@ -44,7 +54,7 @@ export function scanProject(fs: ReadonlyFS, projectPath: string, options: ScanOp
 
   // Iterate over each detected agent to produce per-agent reports
   /** Per-agent scan reports containing scores, check results, and recommendations */
-  const agentReports: AgentReport[] = facts.agents.map(agentFacts => {
+  const agentReports: AgentReport[] = facts.agents.map((agentFacts) => {
     /** Evaluation context combining shared and agent-specific facts */
     const ctx = { facts, agentFacts };
 
@@ -53,10 +63,17 @@ export function scanProject(fs: ReadonlyFS, projectPath: string, options: ScanOp
     /** Results from running all anti-pattern detections */
     const antiPatternResults = runAntiPatterns(allAntiPatterns, ctx);
     /** Computed score based on check and anti-pattern results */
-    const score = computeScore(checkResults, antiPatternResults, allChecks.length);
+    const score = computeScore(
+      checkResults,
+      antiPatternResults,
+      allChecks.length,
+    );
     /** Prioritized recommendations based on failed checks and detected anti-patterns */
     const recommendations = generateRecommendations(
-      checkResults, antiPatternResults, allChecks, allAntiPatterns,
+      checkResults,
+      antiPatternResults,
+      allChecks,
+      allAntiPatterns,
     );
 
     return {
@@ -80,6 +97,11 @@ export function scanProject(fs: ReadonlyFS, projectPath: string, options: ScanOp
       checkCount: allChecks.length,
       antiPatternCount: allAntiPatterns.length,
       timestamp: new Date().toISOString(),
+      versions: {
+        schema: SCHEMA_VERSION,
+        package: PACKAGE_VERSION,
+        rubric: RUBRIC_VERSION,
+      },
       config: {
         exists: facts.shared.config.exists,
         valid: facts.shared.config.valid,

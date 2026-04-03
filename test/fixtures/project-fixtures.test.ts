@@ -1,6 +1,11 @@
+/**
+ * Golden-fixture integration tests for real project layouts.
+ * Each fixture is scanned end to end and compared against expected grades, checks, and report snippets.
+ */
 import { afterEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { AgentReport } from '../../src/cli/types.js';
+import { renderText } from '../../src/cli/render/text.js';
 import { scanFixture } from '../helpers/fixture-scanner.js';
 
 const cleanups: Array<() => void> = [];
@@ -12,8 +17,13 @@ afterEach(() => {
   }
 });
 
-function getAgent(reportName: string, agents: AgentReport[], agentId: string): AgentReport {
-  const agent = agents.find(candidate => candidate.agent === agentId);
+/** Return agent. */
+function getAgent(
+  reportName: string,
+  agents: AgentReport[],
+  agentId: string,
+): AgentReport {
+  const agent = agents.find((candidate) => candidate.agent === agentId);
   assert.ok(agent, `${reportName}: missing agent ${agentId}`);
   return agent;
 }
@@ -27,11 +37,17 @@ describe('project fixture corpus', () => {
     assert.equal(claude.score.percentage, 100);
     assert.equal(claude.score.grade, 'A');
     assert.deepEqual(
-      claude.checks.filter(check => check.status === 'fail' || check.status === 'partial').map(check => check.id),
+      claude.checks
+        .filter(
+          (check) => check.status === 'fail' || check.status === 'partial',
+        )
+        .map((check) => check.id),
       [],
     );
     assert.deepEqual(
-      claude.antiPatterns.filter(pattern => pattern.triggered).map(pattern => pattern.id),
+      claude.antiPatterns
+        .filter((pattern) => pattern.triggered)
+        .map((pattern) => pattern.id),
       [],
     );
   });
@@ -44,11 +60,17 @@ describe('project fixture corpus', () => {
     assert.equal(claude.score.percentage, 100);
     assert.equal(claude.score.grade, 'A');
     assert.deepEqual(
-      claude.checks.filter(check => check.status === 'fail' || check.status === 'partial').map(check => check.id),
+      claude.checks
+        .filter(
+          (check) => check.status === 'fail' || check.status === 'partial',
+        )
+        .map((check) => check.id),
       [],
     );
     assert.deepEqual(
-      claude.antiPatterns.filter(pattern => pattern.triggered).map(pattern => pattern.id),
+      claude.antiPatterns
+        .filter((pattern) => pattern.triggered)
+        .map((pattern) => pattern.id),
       [],
     );
   });
@@ -58,14 +80,45 @@ describe('project fixture corpus', () => {
     cleanups.push(fixture.cleanup);
 
     const claude = getAgent('failing-known', fixture.report.agents, 'claude');
-    assert.ok(claude.score.percentage < 100, `Expected failing-known < 100, got ${claude.score.percentage}`);
+    assert.ok(
+      claude.score.percentage < 100,
+      `Expected failing-known < 100, got ${claude.score.percentage}`,
+    );
 
     const failingChecks = new Set(
       claude.checks
-        .filter(check => check.status === 'fail')
-        .map(check => check.id),
+        .filter((check) => check.status === 'fail')
+        .map((check) => check.id),
     );
-    assert.ok(failingChecks.has('2.2.4b'), `Expected 2.2.4b to fail. Saw: ${Array.from(failingChecks).join(', ')}`);
-    assert.ok(failingChecks.has('2.6.2'), `Expected 2.6.2 to fail. Saw: ${Array.from(failingChecks).join(', ')}`);
+    assert.ok(
+      failingChecks.has('2.2.4b'),
+      `Expected 2.2.4b to fail. Saw: ${Array.from(failingChecks).join(', ')}`,
+    );
+    assert.ok(
+      failingChecks.has('2.6.2'),
+      `Expected 2.6.2 to fail. Saw: ${Array.from(failingChecks).join(', ')}`,
+    );
+  });
+
+  it('failing-known text output reports both failures in one pass', () => {
+    const fixture = scanFixture('failing-known');
+    cleanups.push(fixture.cleanup);
+
+    const output = renderText(fixture.report, false);
+    assert.match(
+      output,
+      /2\.2\.4b/,
+      'Expected rendered output to include check 2.2.4b',
+    );
+    assert.match(
+      output,
+      /2\.6\.2/,
+      'Expected rendered output to include check 2.6.2',
+    );
+    assert.match(
+      output,
+      /Failures: \d+ failed, \d+ partial, \d+ pass/,
+      'Expected rendered output to include the failure summary',
+    );
   });
 });

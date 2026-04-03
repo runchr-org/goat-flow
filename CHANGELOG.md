@@ -4,15 +4,20 @@
 
 ## v0.10.0 - 2026-04-03
 
-Execution-loop canonicalization, install-flow refinement, scanner UX, rubric fixtures, session logs, and preflight-unblocking refactors. Rubric v0.10.0: 104 checks + 18 anti-patterns. 285 tests.
+Category bucket learning loop, scanner hardening, session logs, 48-file CLI refactor, execution-loop dedup. Rubric v0.10.0: 104 checks + 18 anti-patterns. 291 tests.
 
 ### Install & Packaging
 - added `pnpm.onlyBuiltDependencies` for `node-pty` so pnpm installs can build the embedded terminal without manual manifest edits
 - README rewritten (177→121 lines): install matrix (npm/pnpm/yarn/global), troubleshooting section, simplified getting started
 - tightened pnpm `node-pty` guidance and Node runtime notes for dashboard/CLI usage
 
+### CLI Refactor
+- refactored 48 source files for complexity reduction, type safety, and module boundaries
+- extracted route handlers (serve-dashboard.ts), per-field validators (config/reader.ts), per-signal detectors (detect/stack.ts), per-skill-attribute extractors (facts/agent.ts)
+- 45 cyclomatic complexity violations → 0
+
 ### Scanner & Rubric
-- refactored high-complexity CLI paths across 22 source files (45 violations → 0) to clear preflight complexity failures
+- refactored high-complexity rubric and scanner paths to clear preflight complexity failures
 - hook registration checks now verify settings/config registration and expected script paths instead of treating hook files as sufficient
 - `ai/README.md` router validation now checks referenced paths, so broken local-instruction routers fail `2.6.2` instead of scoring 100%
 - new check `2.3.7`: verifies instruction file references session logs (`.goat-flow/logs/sessions/`)
@@ -23,7 +28,7 @@ Execution-loop canonicalization, install-flow refinement, scanner UX, rubric fix
 ### Test Infrastructure
 - added rubric regression fixture corpus: `passing-minimal` (100%), `passing-full` (100%), `failing-known` (expected failures for 2.2.3, 2.6.2)
 - new `test/fixtures/project-fixtures.test.ts` and `test/helpers/fixture-scanner.ts` for fixture-based rubric regression testing
-- 282 → 285 tests
+- 282 → 291 tests
 
 ### Dashboard & CLI UX
 - added first-run browser auto-open for `goat-flow dashboard` with persistent opt-out via `--no-open`
@@ -42,11 +47,18 @@ Execution-loop canonicalization, install-flow refinement, scanner UX, rubric fix
 - synced setup shared templates and workflow docs to canonical loop wording
 - added no-duplicate-file rule to CLAUDE.md Hard Rules and coding standards
 
-### Learning & Session Logs
-- added session log path (`.goat-flow/logs/sessions/`) to all 3 instruction files, 20 skill files, workflow templates, and setup templates
+### Learning Loop
+- migrated from per-incident files to category bucket files (ADR-021): 20 footgun files → 5 buckets, 31 lesson files → 5 buckets
+- format: `## Footgun: <name>` / `## Lesson: <name>` entries inside category files (e.g., `hooks.md`, `verification.md`)
+- fixed scanner evidence label detection to match new inline `**Evidence:** ACTUAL_MEASURED` format
+- updated LOG instructions in all 3 instruction files, 20 skill files, workflow templates, and setup templates
+
+### Session Logs & Handoff
+- added session log path (`.goat-flow/logs/sessions/`) to all instruction files, skill closing protocols, and setup templates
+- new rubric check `2.3.7`: validates instruction file references session logs
 - improved handoff template: added Errors & Corrections, Learnings, and Context Files sections; now tracked in git
-- added ADR-019 (no-implementation-skill) and new 2026-04-03 lessons/footguns covering critique handling, doer-verifier theater, scanner reliability traps, and setup duplication
-- added regression fixtures for missing hook registration and broken `ai/README.md` routers
+- added ADR-019 (no-implementation-skill), ADR-021 (category bucket learning loop)
+- new 2026-04-03 lessons/footguns covering critique handling, doer-verifier theater, scanner reliability traps, setup duplication
 
 ## v0.9.4 - 2026-04-02
 

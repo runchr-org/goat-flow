@@ -1,7 +1,16 @@
+/**
+ * Regression coverage for config parsing and validation.
+ * These tests lock down defaults, error reporting, and normalization of `.goat-flow/config.yaml`.
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createMockFS } from '../helpers/mock-fs.js';
-import { CONFIG_DEFAULTS, loadConfig, readConfig, validateConfig } from '../../src/cli/config/index.js';
+import {
+  CONFIG_DEFAULTS,
+  loadConfig,
+  readConfig,
+  validateConfig,
+} from '../../src/cli/config/index.js';
 
 describe('config reader', () => {
   it('returns defaults when config.yaml is missing', () => {
@@ -29,7 +38,10 @@ describe('config reader', () => {
     assert.equal(loaded.valid, true);
     assert.equal(loaded.config.footguns.committed, 'custom/footguns/');
     assert.equal(loaded.config.footguns.local, CONFIG_DEFAULTS.footguns.local);
-    assert.deepEqual(loaded.config.skills.install, ['goat-debug', 'goat-review']);
+    assert.deepEqual(loaded.config.skills.install, [
+      'goat-debug',
+      'goat-review',
+    ]);
     assert.equal(loaded.config.tasks.path, CONFIG_DEFAULTS.tasks.path);
   });
 
@@ -62,9 +74,11 @@ describe('config reader', () => {
     });
 
     assert.equal(result.valid, false);
-    assert.ok(result.errors.some(issue => issue.path === 'footguns.committed'));
-    assert.ok(result.errors.some(issue => issue.path === 'agents'));
-    assert.ok(result.errors.some(issue => issue.path === 'skills.install'));
+    assert.ok(
+      result.errors.some((issue) => issue.path === 'footguns.committed'),
+    );
+    assert.ok(result.errors.some((issue) => issue.path === 'agents'));
+    assert.ok(result.errors.some((issue) => issue.path === 'skills.install'));
   });
 
   it('reports YAML parse errors and falls back to defaults', () => {

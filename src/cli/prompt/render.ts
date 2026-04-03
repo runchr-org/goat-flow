@@ -1,3 +1,7 @@
+/**
+ * Renders a composed prompt into pasteable markdown.
+ * The formatter intentionally stays simple so prompt-composition policy lives in `compose-setup.ts`.
+ */
 import type { ComposedPrompt } from './types.js';
 
 /**
@@ -45,7 +49,9 @@ export function renderPrompt(prompt: ComposedPrompt): string {
 }
 
 /** Group an array of fragments into a map keyed by category */
-function groupByCategory(fragments: Array<{ key: string; category: string; instruction: string }>): Map<string, typeof fragments> {
+function groupByCategory(
+  fragments: Array<{ key: string; category: string; instruction: string }>,
+): Map<string, typeof fragments> {
   /** Map from category name to its fragment list */
   const map = new Map<string, typeof fragments>();
   // Iterate over each fragment to bucket it into the correct category group

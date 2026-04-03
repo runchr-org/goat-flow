@@ -1,6 +1,16 @@
+/**
+ * Score engine for rubric and anti-pattern results.
+ * It executes checks, aggregates tier totals, applies deductions, and assigns the final grade.
+ */
 import type {
-  CheckResult, AntiPatternResult, ScoreSummary, TierScore, Grade,
-  FactContext, CheckDef, AntiPatternDef,
+  CheckResult,
+  AntiPatternResult,
+  ScoreSummary,
+  TierScore,
+  Grade,
+  FactContext,
+  CheckDef,
+  AntiPatternDef,
 } from '../types.js';
 import { evaluateCheck } from '../scanner/check-evaluator.js';
 
@@ -16,12 +26,12 @@ const GRADE_THRESHOLDS: [number, Grade][] = [
 /** Floor for total anti-pattern deductions to prevent runaway penalties */
 const MAX_DEDUCTION = -15;
 /** Minimum ratio of applicable checks before grading; below this yields insufficient-data */
-const INFLATION_THRESHOLD = 0.10;
+const INFLATION_THRESHOLD = 0.1;
 
 /** Execute all check definitions against the fact context and return results */
 export function runChecks(checks: CheckDef[], ctx: FactContext): CheckResult[] {
-  return checks.map(check => {
-    // Check N/A condition
+  return checks.map((check) => {
+    // Short-circuit checks whose explicit applicability guard says they do not apply.
     if (check.na && check.na(ctx)) {
       return {
         id: check.id,
@@ -40,8 +50,15 @@ export function runChecks(checks: CheckDef[], ctx: FactContext): CheckResult[] {
     try {
       /** Evaluation result from running the check's detect function */
       const result = evaluateCheck(
-        check.id, check.name, check.tier, check.category,
-        check.pts, check.partialPts, check.detect, check.confidence, ctx,
+        check.id,
+        check.name,
+        check.tier,
+        check.category,
+        check.pts,
+        check.partialPts,
+        check.detect,
+        check.confidence,
+        ctx,
       );
       result.recommendationKey = check.recommendationKey;
       return result;
@@ -63,8 +80,11 @@ export function runChecks(checks: CheckDef[], ctx: FactContext): CheckResult[] {
 }
 
 /** Execute all anti-pattern definitions against the fact context and return results */
-export function runAntiPatterns(patterns: AntiPatternDef[], ctx: FactContext): AntiPatternResult[] {
-  return patterns.map(antiPattern => {
+export function runAntiPatterns(
+  patterns: AntiPatternDef[],
+  ctx: FactContext,
+): AntiPatternResult[] {
+  return patterns.map((antiPattern) => {
     if (antiPattern.na && antiPattern.na(ctx)) {
       return {
         id: antiPattern.id,
@@ -96,7 +116,7 @@ export function runAntiPatterns(patterns: AntiPatternDef[], ctx: FactContext): A
   });
 }
 
-/** Compute the overall score summary from check results and anti-pattern results */
+/** Combine tier totals and anti-pattern deductions into the final score summary. */
 export function computeScore(
   checkResults: CheckResult[],
   antiPatternResults: AntiPatternResult[],
@@ -116,7 +136,7 @@ export function computeScore(
 
   /** Sum of deductions from all triggered anti-patterns before clamping */
   const rawDeductions = antiPatternResults
-    .filter(ap => ap.triggered)
+    .filter((ap) => ap.triggered)
     .reduce((sum, ap) => sum + ap.deduction, 0);
   /** Clamped deductions, floored at MAX_DEDUCTION */
   const deductions = Math.max(rawDeductions, MAX_DEDUCTION);
@@ -127,13 +147,15 @@ export function computeScore(
   const percentage = available > 0 ? Math.round((raw / available) * 100) : 0;
 
   /** Number of checks that are not N/A */
-  const applicableChecks = checkResults.filter(c => c.status !== 'na').length;
+  const applicableChecks = checkResults.filter((c) => c.status !== 'na').length;
   /** Ratio of applicable checks to total, used for inflation guard */
-  const applicableRatio = totalCheckCount > 0 ? applicableChecks / totalCheckCount : 0;
+  const applicableRatio =
+    totalCheckCount > 0 ? applicableChecks / totalCheckCount : 0;
   /** Letter grade, or insufficient-data if too few checks are applicable */
-  const grade = applicableRatio < INFLATION_THRESHOLD
-    ? 'insufficient-data' as Grade
-    : computeGrade(percentage);
+  const grade =
+    applicableRatio < INFLATION_THRESHOLD
+      ? ('insufficient-data' as Grade)
+      : computeGrade(percentage);
 
   return {
     earned,
@@ -146,9 +168,12 @@ export function computeScore(
 }
 
 /** Calculate earned and available points for a single scoring tier */
-function scoreTier(results: CheckResult[], tier: 'foundation' | 'standard' | 'full'): TierScore {
+function scoreTier(
+  results: CheckResult[],
+  tier: 'foundation' | 'standard' | 'full',
+): TierScore {
   /** Check results that belong to this tier */
-  const tierResults = results.filter(r => r.tier === tier);
+  const tierResults = results.filter((r) => r.tier === tier);
 
   // Sum raw weighted values, round once at the end (not per-check).
   // This ensures 1pt medium checks actually contribute 0.5, not 1.0.
@@ -157,7 +182,8 @@ function scoreTier(results: CheckResult[], tier: 'foundation' | 'standard' | 'fu
   // Iterate over each tier result to accumulate weighted points
   for (const r of tierResults) {
     /** Confidence-based weight: medium/low checks count at half value */
-    const weight = r.confidence === 'medium' || r.confidence === 'low' ? 0.5 : 1.0;
+    const weight =
+      r.confidence === 'medium' || r.confidence === 'low' ? 0.5 : 1.0;
     rawEarned += r.points * weight;
     rawAvailable += r.maxPoints * weight;
   }

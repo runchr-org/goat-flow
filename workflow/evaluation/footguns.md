@@ -11,7 +11,9 @@ different part of the system through hidden coupling or stale assumptions.
 ```
 Create or update `docs/footguns/` for this project.
 
-Each footgun is one markdown file (for example: `docs/footguns/2026-03-31-short-title.md`).
+Use category bucket files, not one giant log and not one file per trap.
+Examples: `docs/footguns/hooks.md`, `docs/footguns/setup.md`,
+`docs/footguns/scanner.md`.
 
 IF docs/footguns/ already exists:
   MERGE with it carefully. Keep existing confirmed entries unless newer
@@ -19,7 +21,8 @@ IF docs/footguns/ already exists:
   over deleting history.
 
 IF docs/footguns/ does NOT exist:
-  Create the directory and seed with one file per real, code-proven footgun.
+  Create the directory and seed with category bucket files for real,
+  code-proven footguns.
 
 WHAT TO LOOK FOR:
 - Cross-domain coupling where changing file A silently breaks file B
@@ -31,18 +34,15 @@ WHAT TO LOOK FOR:
   the normal invariants
 - Any trap proven by the repo itself, not by general best practice
 
-FORMAT - every entry MUST follow this structure:
+FORMAT - create or update a category bucket file like this:
 
 ---
-name: [descriptive title]
-status: active
-created: YYYY-MM-DD
-evidence_type: ACTUAL_MEASURED
+category: hooks
 ---
-
-# Footgun Entry
 
 ## Footgun: [descriptive title]
+**Status:** active
+**Created:** YYYY-MM-DD
 **Evidence type:** ACTUAL_MEASURED
 **Symptoms:** [what a human sees go wrong]
 **Why it happens:** [the hidden coupling or drift]
@@ -50,7 +50,6 @@ evidence_type: ACTUAL_MEASURED
 - `path/to/file.ext` → [what this file contains that demonstrates the trap]
 - `path/to/other.ext` → [what this file contains]
 **Prevention:** [how to avoid or verify against it]
-**Created:** YYYY-MM-DD
 
 If the trap is no longer active but still matters as history, keep the
 entry and add:
@@ -64,6 +63,7 @@ RULES:
 - New entries should describe the smallest useful trap, not a vague theme
 - If two entries are actually the same trap, merge them instead of creating
   near-duplicate titles
+- Split a bucket when it grows too large (roughly >200 lines or >10 entries)
 
 PROPAGATION:
 After creating footguns, check if any map to specific directories.
@@ -72,9 +72,10 @@ file may be needed for that directory (Layer 2 local context).
 
 VERIFICATION:
 - Verify docs/footguns/ exists
+- Verify the bucket file has `category:` frontmatter
 - Verify every entry has file path references under Evidence
-- Verify every new entry has Evidence type, Symptoms, Why it happens,
-  Prevention, and Created
+- Verify every new entry has Status, Created, Evidence type, Symptoms,
+  Why it happens, and Prevention
 - If merged with existing: verify no confirmed entry was removed without
   an explicit reason
 - Report the count of total entries and new entries added
