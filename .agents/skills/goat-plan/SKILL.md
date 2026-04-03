@@ -1,6 +1,7 @@
 ---
 name: goat-plan
 description: "4-phase planning workflow with complexity routing, kill criteria, and triangular tension analysis. Includes refactor planning mode for cross-file restructuring."
+goat-flow-skill-version: "0.10.0"
 ---
 # /goat-plan
 
@@ -90,10 +91,9 @@ Use before non-trivial implementation or cross-file restructuring.
 ## Step 0 - Where Are We?
 
 **Continuation detection:** Before starting fresh, check for existing planning artifacts:
-<!-- ADAPT: Add your project's planning file patterns -->
-- `requirements-*.md`, `TODO_*_prime.md`
-- `tasks/improvement-plan.md`, `tasks/roadmaps/*.md`, `tasks/roadmaps/milestones/*.md`
-- Any `*-plan*.md`, `*-requirements*.md`, `*-milestone*.md`
+- `.goat-flow/tasks/todo.md`, `.goat-flow/tasks/handoff.md`
+- `.goat-flow/tasks/0.10.0/*.md` (version-specific milestone files, e.g., `M24-install-and-readme.md`)
+- `.goat-flow/tasks/_archived/roadmaps/` (prior version roadmaps and milestones)
 
 Also check for staleness: `git log --since="2 weeks ago" -- [artifact]`. If the artifact hasn't been touched while code diverged, flag it.
 
@@ -108,9 +108,9 @@ If matches found: "Branch [name] modified [files] [N] days ago. Coordinate?"
 2. If new: What complexity? (Hotfix / Small Feature / Standard / System / Infrastructure) → Plan mode
 3. If restructure: What's the scope? (rename, extract, move, interface change) → Refactor mode
 
-**Illustrative questions (adapt):**
-5. <!-- ADAPT: "What's the riskiest part? (e.g., database migration, API contract, auth changes)" -->
-6. <!-- ADAPT: "Any constraints? (timeline, backwards compatibility, performance budget)" -->
+**Illustrative questions:**
+5. What's the riskiest part? (e.g., rubric check changes, cross-reference renames, skill template updates, setup prompt changes, scanner refactors)
+6. Any constraints? (e.g., must pass preflight, no broken cross-refs, shellcheck clean, no new `_v2`/`_backup` file variants)
 
 **Escape hatch:** If the user says "I'll figure it out from the code" or provides minimal info, infer scope from `git diff`, named files, or the project structure and confirm before proceeding.
 
@@ -133,7 +133,6 @@ Surface the mismatch, suggest re-classification. Don't silently proceed.
 Walk through each section ONE AT A TIME. Present one, wait for confirmation,
 then present the next. Do NOT dump all 8 sections at once.
 
-<!-- ADAPT: Adjust sections for your project's planning conventions -->
 1. **Problem** - what's wrong or missing (1-2 sentences)
 2. **Proposed solution** - high-level approach
 3. **Risks / assumptions** - what could go wrong. Include kill criteria from Step 0.
@@ -145,9 +144,8 @@ then present the next. Do NOT dump all 8 sections at once.
 
 Ask the question whose answer could invalidate the approach FIRST.
 
-<!-- ADAPT -->
-**Glossary check:** If `ai-docs/glossary.md` exists, verify all domain terms in the
-brief are defined. If new terms appear, add them: `| term | definition | canonical file | aliases |`
+**Glossary check:** Verify all domain terms in the brief are defined in `ai-docs/glossary.md`.
+If new terms appear, add them: `| term | definition | canonical file | aliases |`
 
 **BLOCKING GATE:** Present complete brief. "Approve, or adjust?"
 
@@ -166,39 +164,61 @@ Repeat until the user says "locked in" or 3 rounds complete (whichever first).
 
 **CHECKPOINT:** "Locked in. Proceeding to approach analysis."
 
-## Phase 3 - Triangular Tension Analysis
+## Phase 3 - Signal-Based Adaptive Orchestration (SBAO)
 
-Generate 2-3 competing approaches for the implementation. For each approach,
-evaluate from three perspectives:
+**For Hotfix / Small Feature:** "SBAO launches 3 sub-agents — that's heavy for a small change. Skip to Phase 4, or run SBAO anyway?" Let the user decide.
 
-- **SKEPTIC:** What could go wrong? What's the worst case? What are we assuming that might be false?
-- **ANALYST:** What does the data/evidence say? What's the cost/benefit? What are the measurable trade-offs?
-- **STRATEGIST:** What's the path to shipping? What's the fastest way to learn if this works?
+Critique and improve the plan from Phase 1-2 using multiple perspectives.
+The **core trio** (SKEPTIC / ANALYST / STRATEGIST) provides adversarial tension.
 
-Generate competing plans internally before committing to output.
+### Step 1 — Generate competing critiques
 
-Present a comparison table:
+Launch 3 sub-agents in parallel. Each reads the codebase and the Phase 1-2 brief,
+then produces plan improvement ideas.
 
-| Criterion | Approach A | Approach B | Approach C |
-|-----------|-----------|-----------|-----------|
-| Risk | ... | ... | ... |
-| Effort | ... | ... | ... |
-| Speed to feedback | ... | ... | ... |
-| Reversibility | ... | ... | ... |
+**Sub-agent A (core trio — risk focus):**
+> Review this plan as a SKEPTIC, ANALYST, and STRATEGIST. What could go wrong? What does the evidence say about cost/benefit? What's the fastest path to shipping? Propose specific improvements.
 
-Recommend one approach with reasoning. Tag any decisions made with incomplete
-data as **Decision Debt** - to be revisited in later milestones.
+**Sub-agent B (core trio — alternatives focus):**
+> Review this plan as a SKEPTIC, ANALYST, and STRATEGIST. Generate 2-3 alternative approaches. For each, evaluate risk, effort, speed to feedback, and reversibility. Propose specific improvements.
 
-> For multi-agent teams: see `workflow/playbooks/planning/sbao-ranking.md` for
-> the full SBAO process with external sessions and sub-agents. The triangular
-> tension analysis above is the single-agent default.
+**Sub-agent C (fresh context — control group):**
+> Without reading any prior discussion, review the codebase and these requirements: [brief]. What's your technical plan? What would you do differently from this existing plan? (This agent has NO context from Phases 1-2 — it's a litmus test for context drift.)
 
-**BLOCKING GATE:** "Recommended approach: [A]. Proceed to milestones?"
+The main agent does NOT use the core trio — it already has existing context and
+would just reinforce its own assumptions.
+
+### Step 2 — Rank and compare
+
+Once all sub-agents report back, the main agent:
+
+1. **Rank** every improvement idea in a comparison table, rated out of 100 with reasons
+2. **Summarise agreement** — where do all perspectives converge? (high-confidence decisions)
+3. **Summarise disagreement** — where do they differ? (these need human judgment)
+4. **Flag the control group delta** — did Sub-agent C (fresh context) find something the others missed? If yes, that's a context drift signal.
+
+| Idea | Source | Score | Agree/Disagree | Why |
+|------|--------|-------|----------------|-----|
+| ... | Sub-A | 85 | All agree | ... |
+| ... | Sub-C | 72 | C only | Context drift signal — fresh eyes found this |
+
+Tag any decisions made with incomplete data as **Decision Debt** — to be revisited in later milestones.
+
+### Step 3 — Clarify and synthesize
+
+**STOP and ask the human clarifying questions** before creating the improved plan.
+Focus questions on the disagreements and trade-offs from Step 2.
+
+After answers, synthesize a prime plan that:
+- **Keeps** the ideas the human approved
+- **Drops** the ideas the human rejected
+- **Decides** the open trade-offs with reasoned recommendations
+
+**BLOCKING GATE:** "Here's the improved plan. Approve, adjust, or re-run SBAO with different sub-agent prompts?"
 
 ## Phase 4 - Milestones
 
-Structure implementation as milestones using these archetypes:
-<!-- ADAPT: Rename or reorder for your process -->
+Structure implementation as milestones using these archetypes (write to `.goat-flow/tasks/<version>/M<NN>-<slug>.md`):
 1. **Prove It Works** - smallest slice that validates the approach
 2. **Make It Real** - core functionality, happy path complete
 3. **Make It Solid** - error handling, edge cases, tests

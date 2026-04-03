@@ -77,7 +77,7 @@ GOOD: Inline format. Extract when second format needed
 
 Boundaries:
 - `docs/system-spec.md` changes (canonical spec, referenced everywhere)
-- `docs/architecture.md` (core architecture doc)
+- `docs/five-layers.md` (core architecture doc)
 - `workflow/setup/` prompt changes (affects what users generate)
 - `workflow/skills/` template changes (affects user skill creation)
 - `docs/design-rationale.md` (evidence citations, source attributions)
@@ -106,7 +106,7 @@ MUST confirm ALL: (1) shellcheck passes on changed .sh files (2) no broken cross
 | Resource | Path |
 |----------|------|
 | System spec (canonical) | `docs/system-spec.md` |
-| System docs, architecture | `docs/architecture.md`, `ai-docs/architecture.md` |
+| System docs, architecture | `docs/five-layers.md`, `ai-docs/architecture.md` |
 | CLI scanner/prompt code | `src/cli/` |
 | Scripts | `scripts/` |
 <!-- goat-flow:router:start -->

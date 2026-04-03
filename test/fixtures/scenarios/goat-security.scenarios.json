@@ -3,7 +3,7 @@
   "scenarios": [
     {
       "vagueInput": "check security",
-      "expectedQuestions": ["goal", "threat model", "framework"],
+      "expectedQuestions": ["component", "threat concern", "framework"],
       "idealSpecificInput": "Run a threat model on the user authentication flow in src/auth/. It's a user-facing web app deployed on AWS ECS. Concerned about session fixation and CSRF."
     },
     {

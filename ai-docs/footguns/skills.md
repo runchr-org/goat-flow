@@ -12,7 +12,7 @@ category: skills
 
 **Evidence:**
 - `docs/system-spec.md` → "Every Gemini turn" replaced "Every Claude turn" (should be agent-neutral)
-- `docs/architecture.md` → Claude Code row deleted from skills table, replaced with Gemini CLI only
+- `docs/five-layers.md` → Claude Code row deleted from skills table, replaced with Gemini CLI only
 - `docs/system-spec.md` → Claude Code hook example replaced with Gemini, not added alongside
 - `workflow/runtime/enforcement.md` → all `.claude/` paths replaced with `.gemini/`, creating hybrid state
 

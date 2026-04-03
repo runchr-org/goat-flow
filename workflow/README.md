@@ -1,7 +1,7 @@
 # Workflow Templates
 
 Templates and prompts for the GOAT Flow workflow layers. See
-`docs/architecture.md` for the full architecture.
+`docs/five-layers.md` for the full architecture.
 
 ## Subdirectories
 

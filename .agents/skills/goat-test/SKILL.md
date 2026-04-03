@@ -1,6 +1,7 @@
 ---
 name: goat-test
 description: "3-phase test plan generation with automated commands, AI verification prompts, and human testing checklists. Doer-verifier principle."
+goat-flow-skill-version: "0.10.0"
 ---
 # /goat-test
 
@@ -105,7 +106,7 @@ Scope detection priority: (1) explicit user input, (2) staged changes, (3) unsta
 - User says "quick" → **Quick mode** (most recent commit only)
 - User explicitly says "audit" or "standard" → respect override
 
-<!-- ADAPT: "Test stack: [detected from package.json/Makefile/etc.]" -->
+**Test stack:** `node --test` (Node built-in runner), `node:assert/strict`, test files at `test/{category}/{name}.test.ts`, fixtures at `test/fixtures/projects/`, shell linting via `shellcheck` and `bash -n`.
 
 **Escape hatch:** If the user says "just test what changed" or provides minimal info, auto-detect scope from `git diff --stat` and existing test files, then proceed with confirmation.
 
@@ -142,13 +143,24 @@ corresponding change."
 ## Phase 1 - Automated Tests
 
 Generate commands for the coding agent to run:
-<!-- ADAPT: Replace with your project's test commands -->
 ```bash
 # Run relevant test suite
-<!-- ADAPT: your test command targeting changed areas -->
+npm test
 
-# Run full preflight if available
-<!-- ADAPT: your preflight command -->
+# Type-check
+npx tsc --noEmit
+
+# Lint TypeScript
+npx eslint src/cli/
+
+# Lint shell scripts
+shellcheck scripts/*.sh
+
+# Syntax-check shell scripts
+bash -n scripts/maintenance/*.sh
+
+# Run full preflight gate
+bash scripts/preflight-checks.sh
 ```
 
 **Phase 1 executor:** The coding agent runs these commands. Phase 2 and 3 are
@@ -177,16 +189,17 @@ bias toward its own work. Recommend a different model for verification.
 **If Phase 2 will be skipped:** Note it explicitly in "What ISN'T Tested":
 "AI verification not performed - [reason]. Coverage relies on automated tests
 (Phase 1) and human testing (Phase 3) only. Cross-model blind spots are NOT covered."
-<!-- ADAPT: If your agent supports sub-agents, offer to run Phase 2 prompts
-as sub-agent tasks instead of requiring a separate session. -->
+Use sub-agents for independent Phase 2 verification areas (e.g., rubric checks, fact extraction, setup prompt validation in parallel) instead of requiring a separate session.
 
 **Failure Signatures:**
 | If this breaks... | You'll see... |
 |-------------------|---------------|
-<!-- ADAPT: fill with project-specific failure patterns -->
-| Auth change broken | 401 responses on `/api/user` |
-| Migration failed | Missing columns in `users` table |
-| Build regression | `npm run build` exits non-zero |
+| Rubric check change broken | `npm test` fails in `test/unit/rubric*.test.ts` with assertion mismatch |
+| Fact extractor change broken | `npm test` fails in `test/unit/fact*.test.ts`, extracted facts don't match expected |
+| Cross-reference rename missed | `grep` for old pattern still returns hits in `.md` files |
+| Shell script syntax error | `bash -n` or `shellcheck` exits non-zero on changed script |
+| TypeScript build regression | `npx tsc --noEmit` exits non-zero, type errors in `src/cli/` |
+| Dashboard render broken | HTML structure tests fail in `test/unit/dashboard*.test.ts` |
 
 ## Phase 3 - Human Testing
 
@@ -237,9 +250,12 @@ Explicitly list coverage gaps. Be honest about what's NOT verified:
 |------|-----------|-------------|------|-------------------|
 
 ## Phase 1: Automated Tests
-<!-- ADAPT: your project's test commands -->
 ```bash
-# Commands for the coding agent to run
+npm test
+npx tsc --noEmit
+npx eslint src/cli/
+shellcheck scripts/*.sh
+bash scripts/preflight-checks.sh
 ```
 
 ### Integration Gaps

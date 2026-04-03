@@ -218,6 +218,7 @@
           <template x-for="preset in filteredPresets" :key="preset.id">
             <div class="border-b border-gray-100 dark:border-gray-700" x-data="{ expanded: false, guidedValues: {}, showPreview: false }">
               <button @click="expanded = !expanded" class="w-full text-left px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-750 flex items-center gap-2 transition-colors">
+                <span @click.stop="toggleFavorite(preset.id)" class="shrink-0 text-sm cursor-pointer transition-colors" :class="isFavorite(preset.id) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600 hover:text-yellow-300'" x-text="isFavorite(preset.id) ? '\u2605' : '\u2606'" :title="isFavorite(preset.id) ? 'Remove from favorites' : 'Add to favorites'"></span>
                 <span class="flex-1 text-sm font-medium truncate text-gray-900 dark:text-gray-100" x-text="preset.name"></span>
                 <span x-show="preset.guided" class="text-xs px-1 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 shrink-0">guided</span>
                 <span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-400 shrink-0" x-text="preset.cat"></span>
@@ -295,7 +296,8 @@
               </div>
             </div>
           </template>
-          <p x-show="filteredPresets.length === 0" class="text-xs text-gray-400 p-3 text-center">No presets in this category.</p>
+          <p x-show="filteredPresets.length === 0 && presetFilter === 'favorites'" class="text-xs text-gray-400 p-3 text-center">Star presets to add them here.</p>
+          <p x-show="filteredPresets.length === 0 && presetFilter !== 'favorites'" class="text-xs text-gray-400 p-3 text-center">No presets in this category.</p>
         </div>
 
         <!-- Setup launcher (compact, bottom) -->
@@ -875,16 +877,32 @@ function app() {
     presets: PRESETS,
     presetFilter: 'all',
     presetSearch: '',
+    presetFavorites: JSON.parse(localStorage.getItem('goat-flow-preset-favorites') || '[]'),
+    toggleFavorite(id) {
+      const idx = this.presetFavorites.indexOf(id);
+      if (idx === -1) this.presetFavorites.push(id);
+      else this.presetFavorites.splice(idx, 1);
+      localStorage.setItem('goat-flow-preset-favorites', JSON.stringify(this.presetFavorites));
+    },
+    isFavorite(id) { return this.presetFavorites.includes(id); },
     get presetCats() {
       const cats = new Map();
       for (const p of this.presets) if (!cats.has(p.cat)) cats.set(p.cat, p.cat.charAt(0).toUpperCase() + p.cat.slice(1));
-      return [{ id: 'all', label: 'All' }, ...Array.from(cats, ([id, label]) => ({ id, label }))];
+      return [{ id: 'all', label: 'All' }, { id: 'favorites', label: '\u2605 Favorites' }, ...Array.from(cats, ([id, label]) => ({ id, label }))];
     },
     get filteredPresets() {
-      let list = this.presetFilter === 'all' ? this.presets : this.presets.filter(p => p.cat === this.presetFilter);
+      let list;
+      if (this.presetFilter === 'favorites') {
+        list = this.presets.filter(p => this.presetFavorites.includes(p.id));
+      } else {
+        list = this.presetFilter === 'all' ? this.presets : this.presets.filter(p => p.cat === this.presetFilter);
+      }
       if (this.presetSearch.trim()) {
         const q = this.presetSearch.toLowerCase();
         list = list.filter(p => p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q) || p.prompt.toLowerCase().includes(q));
+      } else if (this.presetFilter !== 'favorites') {
+        const favSet = new Set(this.presetFavorites);
+        list = [...list.filter(p => favSet.has(p.id)), ...list.filter(p => !favSet.has(p.id))];
       }
       return list;
     },

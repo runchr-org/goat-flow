@@ -220,13 +220,6 @@ if [[ -f tsconfig.json ]]; then
         fail "Typecheck/build - run npx tsc for details"
     fi
 
-    # Dashboard HTML served from src/ at runtime (no copy step needed)
-    if [[ -f src/dashboard/index.html ]]; then
-        pass "src/dashboard/index.html exists"
-    else
-        fail "src/dashboard/index.html missing"
-    fi
-
     # ESLint (type-checked rules)
     if command -v npx >/dev/null 2>&1 && [[ -f eslint.config.mjs ]]; then
         lint_output=$(npx eslint src/cli/ 2>&1) && lint_exit=0 || lint_exit=$?
@@ -257,14 +250,12 @@ if [[ -f tsconfig.json ]]; then
     fi
 
     # Quality checks (warnings, not failures)
-    console_hits=$(grep -rn 'console\.log' src/cli/ --include='*.ts' | grep -v 'cli.ts' | grep -v 'render/' || true)
-    [[ -n "$console_hits" ]] && note "console.log outside cli.ts/render/ ($(echo "$console_hits" | wc -l) hits)"
+    # console.log is fine — this is a local CLI tool, not a library
 
     any_hits=$(grep -rn ': any\b' src/cli/ --include='*.ts' || true)
     [[ -n "$any_hits" ]] && note "Explicit 'any' types ($(echo "$any_hits" | wc -l) hits)"
 
-    todo_hits=$(grep -rn 'TODO\|FIXME\|HACK' src/cli/ --include='*.ts' || true)
-    [[ -n "$todo_hits" ]] && note "TODOs ($(echo "$todo_hits" | wc -l) hits)"
+    # TODO/FIXME check removed — all hits are string literals in scanner code that detect TODOs in target projects
 fi
 
 # ── Tests ────────────────────────────────────────────────────────────

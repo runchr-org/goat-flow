@@ -323,7 +323,7 @@ For within-session state persistence, use `.claude/tasks/session-current.md`. Th
 
 One focused objective per sub-agent with concrete deliverable format. Required return: paths, evidence, confidence, next step. Tool call budget: 5 per sub-agent.
 
-**Sub-agent patterns:** Fresh-context (recommended default), parallel teams (independent tasks), role-based delegation (SDLC phases). See docs/architecture.md for full strategy.
+**Sub-agent patterns:** Fresh-context (recommended default), parallel teams (independent tasks), role-based delegation (SDLC phases). See docs/five-layers.md for full strategy.
 
 ## Stack Definition
 

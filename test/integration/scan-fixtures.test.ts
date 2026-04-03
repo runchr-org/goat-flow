@@ -152,7 +152,7 @@ bash scripts/preflight-checks.sh
 
 Boundaries:
 - \`docs/system-spec.md\` changes (canonical spec)
-- \`docs/architecture.md\`
+- \`docs/five-layers.md\`
 - \`workflow/setup/\` prompt changes
 - \`workflow/skills/\` template changes
 - Changes spanning 3+ documentation files

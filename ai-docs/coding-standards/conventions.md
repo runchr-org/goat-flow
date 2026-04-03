@@ -101,7 +101,7 @@ Never edit or commit: `dist/`, `node_modules/`, `.claude/projects/`, `.claude/wo
 
 These files are high-risk because other files reference them or users depend on them:
 - `docs/system-spec.md` -- canonical spec, referenced by 10+ docs
-- `docs/architecture.md` -- core architecture
+- `docs/five-layers.md` -- core architecture
 - `workflow/setup/` -- prompt changes affect what users generate
 - `workflow/skills/` -- template changes affect user skill creation
 - `docs/design-rationale.md` -- evidence citations

@@ -167,34 +167,59 @@ Repeat until the user says "locked in" or 3 rounds complete (whichever first).
 
 **CHECKPOINT:** "Locked in. Proceeding to approach analysis."
 
-## Phase 3 - Triangular Tension Analysis
+## Phase 3 - Signal-Based Adaptive Orchestration (SBAO)
 
-Generate 2-3 competing approaches for the implementation. For each approach,
-evaluate from three perspectives:
+**For Hotfix / Small Feature:** "SBAO launches 3 sub-agents — that's heavy for a small change. Skip to Phase 4, or run SBAO anyway?" Let the user decide.
 
-- **SKEPTIC:** What could go wrong? What's the worst case? What are we assuming that might be false?
-- **ANALYST:** What does the data/evidence say? What's the cost/benefit? What are the measurable trade-offs?
-- **STRATEGIST:** What's the path to shipping? What's the fastest way to learn if this works?
+<!-- ADAPT: Adjust sub-agent count for your budget/tooling -->
 
-Generate competing plans internally before committing to output.
+Critique and improve the plan from Phase 1-2 using multiple perspectives.
+The **core trio** (SKEPTIC / ANALYST / STRATEGIST) provides adversarial tension.
 
-Present a comparison table:
+### Step 1 — Generate competing critiques
 
-| Criterion | Approach A | Approach B | Approach C |
-|-----------|-----------|-----------|-----------|
-| Risk | ... | ... | ... |
-| Effort | ... | ... | ... |
-| Speed to feedback | ... | ... | ... |
-| Reversibility | ... | ... | ... |
+Launch 3 sub-agents in parallel. Each reads the codebase and the Phase 1-2 brief,
+then produces plan improvement ideas.
 
-Recommend one approach with reasoning. Tag any decisions made with incomplete
-data as **Decision Debt** - to be revisited in later milestones.
+**Sub-agent A (core trio — risk focus):**
+> Review this plan as a SKEPTIC, ANALYST, and STRATEGIST. What could go wrong? What does the evidence say about cost/benefit? What's the fastest path to shipping? Propose specific improvements.
 
-> For multi-agent teams: see `workflow/playbooks/planning/sbao-ranking.md` for
-> the full SBAO process with external sessions and sub-agents. The triangular
-> tension analysis above is the single-agent default.
+**Sub-agent B (core trio — alternatives focus):**
+> Review this plan as a SKEPTIC, ANALYST, and STRATEGIST. Generate 2-3 alternative approaches. For each, evaluate risk, effort, speed to feedback, and reversibility. Propose specific improvements.
 
-**BLOCKING GATE:** "Recommended approach: [A]. Proceed to milestones?"
+**Sub-agent C (fresh context — control group):**
+> Without reading any prior discussion, review the codebase and these requirements: [brief]. What's your technical plan? What would you do differently from this existing plan? (This agent has NO context from Phases 1-2 — it's a litmus test for context drift.)
+
+The main agent does NOT use the core trio — it already has existing context and
+would just reinforce its own assumptions.
+
+### Step 2 — Rank and compare
+
+Once all sub-agents report back, the main agent:
+
+1. **Rank** every improvement idea in a comparison table, rated out of 100 with reasons
+2. **Summarise agreement** — where do all perspectives converge? (high-confidence decisions)
+3. **Summarise disagreement** — where do they differ? (these need human judgment)
+4. **Flag the control group delta** — did Sub-agent C (fresh context) find something the others missed? If yes, that's a context drift signal.
+
+| Idea | Source | Score | Agree/Disagree | Why |
+|------|--------|-------|----------------|-----|
+| ... | Sub-A | 85 | All agree | ... |
+| ... | Sub-C | 72 | C only | Context drift signal — fresh eyes found this |
+
+Tag any decisions made with incomplete data as **Decision Debt** — to be revisited in later milestones.
+
+### Step 3 — Clarify and synthesize
+
+**STOP and ask the human clarifying questions** before creating the improved plan.
+Focus questions on the disagreements and trade-offs from Step 2.
+
+After answers, synthesize a prime plan that:
+- **Keeps** the ideas the human approved
+- **Drops** the ideas the human rejected
+- **Decides** the open trade-offs with reasoned recommendations
+
+**BLOCKING GATE:** "Here's the improved plan. Approve, adjust, or re-run SBAO with different sub-agent prompts?"
 
 ## Phase 4 - Milestones
 

@@ -1,6 +1,7 @@
 ---
 name: goat-security
 description: "Threat-model-driven security assessment with framework-aware verification, exploitability ranking, and concrete dependency auditing."
+goat-flow-skill-version: "0.10.0"
 ---
 # /goat-security
 
@@ -86,8 +87,8 @@ handling, when touching secrets/credentials, or for a security-focused audit.
 3. Any specific threat concern? (injection, auth bypass, data exposure — or "general audit")
 
 **Illustrative questions (adapt):**
-4. <!-- ADAPT: "What auth boundaries exist? (OAuth, JWT, session, API key, none)" -->
-5. <!-- ADAPT: "Any known vulnerabilities to skip? (already tracked, being fixed separately)" -->
+4. What auth boundaries exist? (dashboard server has no auth, CLI runs locally, no user-facing auth)
+5. Any known vulnerabilities to skip? (e.g., dashboard runs on localhost only, no external API calls)
 6. What framework are you using? (I'll check its built-in security features in Phase 2)
 
 **Escape hatch:** If the user says "just scan everything" or provides minimal info, auto-detect framework from package files and run a broad threat surface scan.
@@ -111,30 +112,22 @@ Surface the mismatch, suggest re-classification. Don't silently proceed.
 Scan against the checklist below. **Skip categories that don't apply** based
 on Step 0 threat model (a CLI tool doesn't need CORS/CSP checks).
 
-<!-- ADAPT: Remove categories irrelevant to your stack -->
-
 | Category | Check | Skip If | Example |
 |----------|-------|---------|---------|
 | Input validation | User input reaches backend without sanitization | No user input (library) | `req.body.name` passed directly to SQL |
 | Auth/authz | Missing or bypassable authentication on sensitive routes | No HTTP endpoints | Session token in URL, missing CSRF on POST |
 | Secret handling | Hardcoded secrets, .env committed, secrets in logs | No secrets in codebase | API key in source, token in error message |
-| SQL injection | User input in raw queries without parameterization | No database | `db.query("SELECT * FROM users WHERE id=" + id)` |
+| SQL injection | User input in raw queries without parameterization | No database (goat-flow has none) | `db.query("SELECT * FROM users WHERE id=" + id)` |
 | XSS | User input rendered without escaping | No HTML output | `innerHTML = userInput`, unescaped template |
 | Command injection | User input in shell commands | No shell execution | `exec("convert " + filename)`, unsanitized args |
 | Path traversal | User input in file paths | No file system access | `fs.readFile(basePath + userInput)` |
 | Dependency CVEs | Known vulnerabilities in dependencies | - | Run audit command below |
 | CORS/CSP | Misconfigured cross-origin policies | No HTTP server | `Access-Control-Allow-Origin: *` |
-| Permission escalation | Role/privilege checks missing or bypassable | Single-role system | Admin routes without role check |
+| Permission escalation | Role/privilege checks missing or bypassable | Single-role system (goat-flow CLI is single-user) | Admin routes without role check |
 
 **Dependency audit commands:**
-<!-- ADAPT: Use your project's package manager -->
 ```bash
-npm audit              # Node.js
-pip-audit              # Python
-cargo audit            # Rust
-composer audit          # PHP
-bundler-audit check    # Ruby
-dotnet list package --vulnerable  # .NET
+npm audit              # Node.js (goat-flow uses npm)
 ```
 
 Log every finding with `file:line` evidence.
@@ -145,21 +138,15 @@ Log every finding with `file:line` evidence.
 framework already mitigates it. Attempt to DISPROVE each finding - the adversarial
 framing catches more false positives than "check if it's handled."
 
-**Framework verification examples:**
-<!-- ADAPT: Replace with your framework's security features -->
+**Framework verification examples (goat-flow stack):**
 
-| Framework | Feature | What it mitigates | How to verify |
+| Component | Feature | What it mitigates | How to verify |
 |-----------|---------|-------------------|---------------|
-| Express | `helmet()` middleware | XSS, clickjacking, MIME sniffing | Check `app.use(helmet())` exists AND is before route handlers |
-| Express | `csurf` / `csrf()` | CSRF attacks | Check middleware registered on state-changing routes |
-| Django | ORM queries | SQL injection | Check no `.raw()` or `.extra()` with user input |
-| Django | `CsrfViewMiddleware` | CSRF | Check not in `CSRF_EXEMPT` for sensitive views |
-| Rails | `strong_parameters` | Mass assignment | Check `params.require(:model).permit(...)` on controllers |
-| Rails | Auto-escaping in ERB | XSS | Check no `raw()` or `.html_safe` on user content |
-| React | JSX auto-escaping | XSS | Check no `dangerouslySetInnerHTML` with user content |
-| Next.js | Server actions | CSRF, input validation | Check server actions validate input, don't trust client |
-| Symfony | CSRF token component | CSRF | Check forms include `csrf_token()` |
-| Spring | Security filter chain | Auth bypass | Check `SecurityFilterChain` covers the route |
+| Node.js `http` | localhost-only binding | Remote access to dashboard | Check `server.listen()` binds to `127.0.0.1`, not `0.0.0.0` |
+| TypeScript | Strict mode | Type confusion, null errors | Check `tsconfig.json` has `strict: true` |
+| Bash scripts | `shellcheck` linting | Injection, quoting bugs, globbing | Run `shellcheck scripts/*.sh` — zero warnings |
+| File I/O | Path validation | Path traversal in scanner/facts | Check user-supplied paths are validated before `fs.readFile` |
+| Dashboard | Static HTML+JS | XSS via injected content | Check no `innerHTML` with unsanitized data in `src/dashboard/` |
 
 **Verification protocol:**
 For each finding: Is the mitigation (a) installed, (b) configured, (c) applied
@@ -218,7 +205,7 @@ Identify which regulations apply from project context:
 
 If unclear, ask: "Which regulatory framework applies? (HIPAA, GDPR, SOC2, PCI-DSS, or tell me more)"
 
-Load relevant coding standards if they exist: `ai-docs/coding-standards/security.md` and framework-specific security files.
+Load relevant coding standards if they exist in the project's coding standards directory.
 
 ### Phase C2 - Compliance Scan
 

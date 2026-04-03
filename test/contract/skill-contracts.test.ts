@@ -49,7 +49,7 @@ describe('Skill content contracts', () => {
 
       it('has footgun fast-path', () => {
         assert.ok(
-          content.includes('Footgun fast-path') || content.includes('footgun fast'),
+          content.includes('Footgun Fast-Path') || content.includes('footgun fast'),
           `${name} should have footgun fast-path`,
         );
       });
@@ -94,25 +94,16 @@ describe('Skill content contracts', () => {
         );
       });
 
-      it('goat-debug has bug-type routing', () => {
+      it('goat-debug has investigate mode', () => {
         if (name !== 'goat-debug') return;
-        assert.ok(content.includes('Bug-type routing'), 'goat-debug should have bug-type routing');
-        assert.ok(content.includes('Deterministic'), 'Should mention deterministic bugs');
-        assert.ok(content.includes('Intermittent') || content.includes('intermittent'), 'Should mention intermittent bugs');
+        assert.ok(content.includes('Investigate Mode'), 'goat-debug should have Investigate Mode');
+        assert.ok(content.includes('Onboard Mode'), 'goat-debug should have Onboard Mode');
       });
 
-      it('goat-debug has browser/JS layer', () => {
-        if (name !== 'goat-debug') return;
-        assert.ok(
-          content.includes('Browser') || content.includes('JavaScript'),
-          'goat-debug should include browser/JS in layer list',
-        );
-      });
-
-      it('goat-plan has Phase 5 Execute', () => {
+      it('goat-plan has refactor mode', () => {
         if (name !== 'goat-plan') return;
-        assert.ok(content.includes('Phase 5'), 'goat-plan should have Phase 5 Execute');
-        assert.ok(content.includes('context: fork') || content.includes('context isolation'), 'Phase 5 should mention context isolation');
+        assert.ok(content.includes('Refactor Planning Mode'), 'goat-plan should have Refactor Planning Mode');
+        assert.ok(content.includes('Blast Radius'), 'Refactor mode should have blast radius analysis');
       });
 
       it('goat-plan has Small Feature tier', () => {

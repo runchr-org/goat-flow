@@ -6,11 +6,11 @@ import { join } from 'node:path';
 // Load presets from the source file
 const presetsContent = readFileSync(join(import.meta.dirname, '../../src/dashboard/presets.js'), 'utf-8');
 // Extract the PRESETS array by evaluating the JS
-const PRESETS: Array<{ id: string; name: string; desc: string; prompt: string; cat: string }> = eval(presetsContent + '; PRESETS');
+const PRESETS: Array<{ id: string; name: string; desc: string; prompt: string; cat: string; guided?: boolean; guidedFields?: Array<{ key: string }>; guidedTemplate?: string }> = eval(presetsContent + '; PRESETS');
 
 describe('Preset launcher content validation', () => {
-  it('has at least 12 presets', () => {
-    assert.ok(PRESETS.length >= 12, `Expected ≥12 presets, got ${PRESETS.length}`);
+  it('has at least 16 presets', () => {
+    assert.ok(PRESETS.length >= 16, `Expected ≥16 presets, got ${PRESETS.length}`);
   });
 
   it('every preset has required fields', () => {
@@ -30,7 +30,7 @@ describe('Preset launcher content validation', () => {
   });
 
   it('categories are from the allowed set', () => {
-    const allowed = new Set(['understand', 'review', 'plan', 'test', 'security', 'audit']);
+    const allowed = new Set(['debug & explore', 'review', 'plan', 'test', 'security', 'utility']);
     for (const p of PRESETS) {
       assert.ok(allowed.has(p.cat), `Preset ${p.id} has unknown category '${p.cat}'. Allowed: ${[...allowed].join(', ')}`);
     }
@@ -41,14 +41,19 @@ describe('Preset launcher content validation', () => {
     assert.ok(!ids.includes('question'), 'Quick Question should be deleted');
     assert.ok(!ids.includes('docs'), 'Generate Docs should be deleted');
     assert.ok(!ids.includes('compare'), 'Compare & Rate should be deleted');
+    assert.ok(!ids.includes('targeted-test'), 'Targeted Test Plan should be replaced by qa-gaps');
+    assert.ok(!ids.includes('diagram'), 'Architecture Diagram should be replaced by user-flow');
   });
 
-  it('new presets exist', () => {
+  it('current presets exist', () => {
     const ids = PRESETS.map(p => p.id);
     assert.ok(ids.includes('fix-bug'), 'Fix Bug preset missing');
     assert.ok(ids.includes('quick-test'), 'Quick Test preset missing');
     assert.ok(ids.includes('dep-scan'), 'Dependency Scan preset missing');
-    assert.ok(ids.includes('targeted-test'), 'Targeted Test Plan preset missing');
+    assert.ok(ids.includes('qa-gaps'), 'QA Testing Gaps preset missing');
+    assert.ok(ids.includes('user-flow'), 'User Flow Diagram preset missing');
+    assert.ok(ids.includes('review-instructions'), 'Review Instructions preset missing');
+    assert.ok(ids.includes('compliance'), 'Compliance Check preset missing');
   });
 
   it('every preset with a skill prefix uses a valid skill', () => {
@@ -64,8 +69,19 @@ describe('Preset launcher content validation', () => {
     }
   });
 
+  it('guided presets have matching template placeholders', () => {
+    for (const p of PRESETS) {
+      if (p.guided && p.guidedTemplate && p.guidedFields) {
+        const fieldKeys = new Set(p.guidedFields.map(f => f.key));
+        const templateKeys = [...p.guidedTemplate.matchAll(/\{(\w+)\}/g)].map(m => m[1]);
+        for (const tk of templateKeys) {
+          assert.ok(fieldKeys.has(tk), `Preset ${p.id} template uses {${tk}} but no guided field with that key exists`);
+        }
+      }
+    }
+  });
+
   it('search filters presets by name, desc, and prompt', () => {
-    // Simulate the filteredPresets logic
     const search = (q: string) => {
       const lower = q.toLowerCase();
       return PRESETS.filter(p =>
@@ -79,6 +95,8 @@ describe('Preset launcher content validation', () => {
     assert.ok(search('bug').length >= 1, 'Search "bug" should find bug-related presets');
     assert.ok(search('zzzznonexistent').length === 0, 'Search nonsense should find nothing');
     assert.ok(search('review').length >= 1, 'Search "review" should find review presets');
+    assert.ok(search('compliance').length >= 1, 'Search "compliance" should find compliance preset');
+    assert.ok(search('QA').length >= 1, 'Search "QA" should find qa-gaps preset');
   });
 
   it('category filter works correctly', () => {
@@ -86,24 +104,46 @@ describe('Preset launcher content validation', () => {
       cat === 'all' ? PRESETS : PRESETS.filter(p => p.cat === cat);
 
     assert.ok(filterByCategory('all').length === PRESETS.length, 'All filter returns everything');
-    assert.ok(filterByCategory('understand').length >= 2, 'Understand category has presets');
-    assert.ok(filterByCategory('security').length >= 1, 'Security category has presets');
+    assert.ok(filterByCategory('debug & explore').length >= 3, 'Debug & explore category has presets');
+    assert.ok(filterByCategory('security').length >= 2, 'Security category has presets');
+    assert.ok(filterByCategory('review').length >= 3, 'Review category has presets');
     assert.ok(filterByCategory('nonexistent').length === 0, 'Unknown category returns nothing');
   });
 
-  it('architecture diagram preset asks scoping questions', () => {
-    const diagram = PRESETS.find(p => p.id === 'diagram');
-    assert.ok(diagram, 'Architecture Diagram preset exists');
-    assert.ok(diagram.prompt.includes('ask me'), 'Should ask questions before generating');
-    assert.ok(diagram.prompt.includes('Mermaid'), 'Should mention Mermaid format');
-    assert.ok(diagram.prompt.includes('15-20 nodes'), 'Should constrain node count');
+  it('user flow diagram preset generates Mermaid', () => {
+    const userFlow = PRESETS.find(p => p.id === 'user-flow');
+    assert.ok(userFlow, 'User Flow Diagram preset exists');
+    assert.ok(userFlow.guidedTemplate?.includes('Mermaid'), 'Should mention Mermaid format');
+    assert.ok(userFlow.guidedTemplate?.includes('8-12 nodes'), 'Should constrain node count for viewport fit');
+    assert.ok(userFlow.guidedTemplate?.includes('USER'), 'Should distinguish user vs system actions');
   });
 
-  it('targeted test preset waits for input', () => {
-    const targeted = PRESETS.find(p => p.id === 'targeted-test');
-    assert.ok(targeted, 'Targeted Test Plan preset exists');
-    assert.ok(targeted.prompt.includes('Wait for me to paste'), 'Should wait for GitHub issue paste');
-    assert.ok(targeted.prompt.includes('1-hour version'), 'Should offer time-boxed versions');
-    assert.ok(targeted.prompt.includes('Do NOT include'), 'Should specify exclusions');
+  it('qa-gaps preset focuses on QA testing', () => {
+    const qaGaps = PRESETS.find(p => p.id === 'qa-gaps');
+    assert.ok(qaGaps, 'QA Testing Gaps preset exists');
+    assert.ok(qaGaps.guided, 'Should be guided');
+    assert.ok(qaGaps.guidedTemplate?.includes('gap'), 'Should mention testing gaps');
+    assert.ok(qaGaps.guidedTemplate?.includes('risk'), 'Should mention risk');
+    assert.ok(qaGaps.guidedFields?.some(f => f.key === 'timeBudget'), 'Should have time budget field');
+  });
+
+  it('critique routes through goat-review', () => {
+    const critique = PRESETS.find(p => p.id === 'critique');
+    assert.ok(critique, 'Critique preset exists');
+    assert.ok(critique.prompt.startsWith('/goat-review'), 'Should route through goat-review');
+    assert.ok(critique.cat === 'review', 'Should be in review category');
+  });
+
+  it('compliance routes through goat-security', () => {
+    const compliance = PRESETS.find(p => p.id === 'compliance');
+    assert.ok(compliance, 'Compliance preset exists');
+    assert.ok(compliance.prompt.includes('compliance mode'), 'Should use compliance mode');
+    assert.ok(compliance.guidedFields?.some(f => f.key === 'regulation'), 'Should have regulation field');
+  });
+
+  it('every description is under 60 characters', () => {
+    for (const p of PRESETS) {
+      assert.ok(p.desc.length <= 60, `Preset ${p.id} desc too long (${p.desc.length} chars): "${p.desc}"`);
+    }
   });
 });

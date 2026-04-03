@@ -58,7 +58,7 @@ function hasQuestionPattern(step0: string, topic: string): boolean {
     area: ['area', 'which file', 'which area', 'where', 'module', 'component'],
     when: ['when', 'since', 'start', 'recently', 'after'],
     error: ['error', 'message', 'stack trace', 'exception', 'symptom'],
-    'what were you doing': ['what were you', 'reproduce', 'steps', 'trying'],
+    'what were you doing': ['what were you', 'reproduce', 'steps', 'trying', 'tried'],
     'which files': ['file', 'area', 'which', 'what should i review', 'scope'],
     concern: ['concern', 'worried', 'specific', 'focus', 'looking for'],
     scope: ['scope', 'area', 'boundary', 'depth', 'audit', 'standard'],

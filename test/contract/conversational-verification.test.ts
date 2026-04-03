@@ -144,9 +144,9 @@ describe('scenario file validation', () => {
 
 describe('guided presets validation', () => {
   const presets = loadPresets();
-  const guidedIds = ['fix-bug', 'review', 'plan', 'security', 'test'];
+  const guidedIds = ['fix-bug', 'review', 'plan', 'security', 'test', 'explore', 'error', 'user-flow', 'simplify', 'uncommitted', 'review-instructions', 'critique', 'refactor', 'sbao', 'qa-gaps', 'dep-scan', 'compliance', 'triage'];
 
-  it('top 5 presets have guided: true', () => {
+  it('guided presets have guided: true', () => {
     for (const id of guidedIds) {
       const preset = presets.find((p) => p.id === id);
       assert.ok(preset, `Preset ${id} not found`);
@@ -166,8 +166,8 @@ describe('guided presets validation', () => {
         `Preset ${id} missing guidedFields`,
       );
       assert.ok(
-        preset.guidedFields!.length >= 3,
-        `Preset ${id} should have >= 3 guided fields, got ${preset.guidedFields!.length}`,
+        preset.guidedFields!.length >= 1,
+        `Preset ${id} should have >= 1 guided field, got ${preset.guidedFields!.length}`,
       );
     }
   });

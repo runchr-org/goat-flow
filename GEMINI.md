@@ -83,7 +83,7 @@ GOOD: Inline format. Extract when second format needed
 - [ ] Local instruction checked: [local GEMINI.md / .github/instructions/ / none]
 - [ ] Rollback command: [exact command]
 
-Boundaries: `docs/system-spec.md`, `docs/architecture.md`, `workflow/setup/`, `workflow/skills/`, `docs/design-rationale.md`, renaming/moving files, 3+ doc file changes.
+Boundaries: `docs/system-spec.md`, `docs/five-layers.md`, `workflow/setup/`, `workflow/skills/`, `docs/design-rationale.md`, renaming/moving files, 3+ doc file changes.
 
 **Never:** Delete docs without replacement. Modify secrets/.env. Push to main. Change security config. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`)
 
@@ -107,7 +107,7 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 
 | Resource | Path |
 |----------|------|
-| System docs, architecture | `docs/architecture.md`, `ai-docs/architecture.md` |
+| System docs, architecture | `docs/five-layers.md`, `ai-docs/architecture.md` |
 | Scripts | `scripts/` |
 <!-- goat-flow:router:start -->
 | Skills | `.agents/skills/` |

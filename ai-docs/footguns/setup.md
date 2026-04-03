@@ -15,7 +15,7 @@ category: setup
 - `workflow/setup/shared/execution-loop.md` → updated loop definition (authoritative)
 - `workflow/setup/setup-claude.md` → "Read docs/system-spec.md" as first instruction
 
-**Prevention:** After updating `workflow/setup/shared/execution-loop.md`, ALWAYS update the same concept in `docs/system-spec.md` and `docs/architecture.md`. The spec is read first by agents - it must match. This is a specific instance of the "concept duplication" footgun above, but critical enough to track separately because it directly causes broken implementations.
+**Prevention:** After updating `workflow/setup/shared/execution-loop.md`, ALWAYS update the same concept in `docs/system-spec.md` and `docs/five-layers.md`. The spec is read first by agents - it must match. This is a specific instance of the "concept duplication" footgun above, but critical enough to track separately because it directly causes broken implementations.
 
 ---
 
