@@ -281,6 +281,6 @@ Note: the execution loop MUST be duplicated (each file is loaded independently).
     phase: 'full',
     category: 'Agent Evals',
     kind: 'fix',
-    instruction: `Some eval files use legacy format (bold markers like \`**Origin:**\`) instead of YAML frontmatter. Migrate all evals to canonical format with \`---\` frontmatter containing name, description, origin, agents, skill, and difficulty fields. Use \`### Scenario\` (not \`## Replay Prompt\`), checkbox gates in \`### Expected Behavior\`, and bullet list \`### Anti-Patterns\`.`,
+    instruction: `Add YAML frontmatter to eval files: \`---\` block with name, description, origin, agents, skill, and difficulty fields. Use \`### Scenario\`, checkbox gates in \`### Expected Behavior\`, and bullet list \`### Anti-Patterns\`.`,
   },
 ];

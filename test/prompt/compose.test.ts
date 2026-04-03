@@ -8,7 +8,6 @@ import { createMockFS } from '../helpers/mock-fs.js';
 import { scanProject } from '../../src/cli/scanner/scan.js';
 import {
   composeSetup,
-  composeInlineSetup,
   composeMultiAgentSetup,
 } from '../../src/cli/prompt/compose-setup.js';
 import type { TemplateRef } from '../../src/cli/prompt/template-refs.js';
@@ -421,17 +420,6 @@ describe('M18: markdown renderer summaries', () => {
   });
 });
 
-describe('composeInlineSetup (old, preserved)', () => {
-  it('still works and returns ComposedPrompt', () => {
-    const fs = buildEmptyProject();
-    const report = scanProject(fs, '/test', { agentFilter: null });
-    const prompt = composeInlineSetup(report, 'claude');
-    assert.ok(prompt);
-    assert.equal(prompt.mode, 'setup');
-    assert.equal(prompt.agent, 'claude');
-    assert.ok(prompt.sections.length > 0, 'Should have sections');
-  });
-});
 
 describe('mapLanguagesToTemplates', () => {
   // Dynamic import keeps the helper local to this suite.

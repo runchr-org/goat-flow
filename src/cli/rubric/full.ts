@@ -3,7 +3,7 @@
  * This tier focuses on eval coverage, CI validation, and handoff hygiene once the basics are already in place.
  */
 import type { CheckDef, FactContext, CheckResult } from '../types.js';
-import { HANDOFF_SECTIONS } from '../facts/shared.js';
+import { HANDOFF_SECTIONS } from '../facts/shared/index.js';
 
 // Confidence criteria:
 //   high   = deterministic (file exists, line count, JSON valid, exact match)
@@ -193,7 +193,7 @@ export const fullChecks: CheckDef[] = [
         confidence: 'high',
         message: ctx.facts.shared.evals.hasFrontmatter
           ? 'All evals use YAML frontmatter'
-          : 'Some evals use legacy format - migrate to YAML frontmatter with name, description, origin, agents, skill fields',
+          : 'Missing YAML frontmatter — add name, description, origin, agents, skill fields',
       }),
     },
     recommendation:

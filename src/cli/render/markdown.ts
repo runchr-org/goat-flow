@@ -5,9 +5,9 @@
 import type {
   ScanReport,
   AgentReport,
-  AntiPatternResult,
   CheckResult,
 } from '../types.js';
+import { getCheckSeverity, collectCheckFailureSummary, getTriggeredAntiPatterns, collectDiagnosticImpacts } from './shared.js';
 
 const RECOMMENDATION_TAGS = {
   critical: '🔴',
@@ -16,64 +16,8 @@ const RECOMMENDATION_TAGS = {
   low: '🟡',
 } as const;
 
-type Priority = 'critical' | 'high' | 'medium' | 'low';
-type CheckSeverity = Priority;
 
-/** Map a rubric tier to the severity buckets used in markdown output. */
-function checkSeverityFromTier(tier: string): CheckSeverity {
-  if (tier === 'foundation') return 'critical';
-  if (tier === 'standard') return 'high';
-  return 'medium';
-}
 
-/** Derive the display severity for a failed or partial check. */
-function getCheckSeverity(check: CheckResult): CheckSeverity {
-  if (check.status === 'partial' && check.tier === 'full') return 'low';
-  return checkSeverityFromTier(check.tier);
-}
-
-/** Keep only the anti-patterns that were actually triggered for the agent. */
-function getTriggeredAntiPatterns(
-  antiPatterns: AntiPatternResult[],
-): AntiPatternResult[] {
-  return antiPatterns.filter((antiPattern) => antiPattern.triggered);
-}
-
-/** Summarize pass/fail counts and severity totals for one agent. */
-function collectCheckFailureSummary(checks: AgentReport['checks']): {
-  fail: number;
-  partial: number;
-  pass: number;
-  severityCounts: Record<CheckSeverity, number>;
-} {
-  const summary = {
-    fail: 0,
-    partial: 0,
-    pass: 0,
-    severityCounts: { critical: 0, high: 0, medium: 0, low: 0 } as Record<
-      CheckSeverity,
-      number
-    >,
-  };
-
-  for (const check of checks) {
-    if (check.status === 'fail') {
-      summary.fail += 1;
-      summary.severityCounts[getCheckSeverity(check)] += 1;
-      continue;
-    }
-    if (check.status === 'partial') {
-      summary.partial += 1;
-      summary.severityCounts.low += 1;
-      continue;
-    }
-    if (check.status === 'pass') {
-      summary.pass += 1;
-    }
-  }
-
-  return summary;
-}
 
 /** Append severity-grouped failure tables to the markdown output buffer. */
 function appendSeverityGroupedFailingChecks(
@@ -115,38 +59,6 @@ function appendSeverityGroupedFailingChecks(
   }
 }
 
-/** Estimate which fixes recover the most score for the current agent. */
-function collectDiagnosticImpacts(
-  agent: AgentReport,
-): Array<{ label: string; points: number; priority: string }> {
-  const impacts: Array<{ label: string; points: number; priority: string }> =
-    [];
-
-  for (const recommendation of agent.recommendations) {
-    const check = agent.checks.find(
-      (candidate) => candidate.id === recommendation.checkId,
-    );
-    const recoverable = check ? check.maxPoints - check.points : 0;
-    if (recoverable > 0) {
-      impacts.push({
-        label: `${recommendation.checkId}: ${recommendation.action}`,
-        points: recoverable,
-        priority: recommendation.priority,
-      });
-    }
-  }
-
-  for (const antiPattern of getTriggeredAntiPatterns(agent.antiPatterns)) {
-    impacts.push({
-      label: `${antiPattern.id}: ${antiPattern.name}`,
-      points: Math.abs(antiPattern.deduction),
-      priority: 'critical',
-    });
-  }
-
-  impacts.sort((a, b) => b.points - a.points);
-  return impacts;
-}
 
 /** Append the highest-impact fix summary section. */
 function appendDiagnosticSummary(

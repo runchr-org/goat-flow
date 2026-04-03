@@ -106,40 +106,6 @@ function validateDifficulty(val: string | undefined): EvalDifficulty {
   return 'medium';
 }
 
-// --- Legacy format parsing ---
-
-/** Parse legacy eval format (no frontmatter) by extracting metadata from markdown body */
-function parseLegacyFrontmatter(
-  raw: string,
-  filename: string,
-): EvalFrontmatter {
-  // Legacy evals stored metadata inline instead of in YAML frontmatter.
-  /** Regex match for the **Origin:** metadata line */
-  const originMatch = raw.match(/\*\*Origin:\*\*\s*`?([^`\n]+)`?/);
-  /** Regex match for the **Agents:** metadata line */
-  const agentsMatch = raw.match(/\*\*Agents:\*\*\s*`?([^`\n]+)`?/);
-  /** Regex match for the # Eval: title heading */
-  const titleMatch = raw.match(/^#\s+Eval:\s*(.+)/m);
-
-  /** Validated origin extracted from the markdown body */
-  const origin = validateOrigin(originMatch?.[1]?.trim());
-  /** Validated agents extracted from the markdown body */
-  const agents = validateAgents(agentsMatch?.[1]?.trim());
-  /** Eval name derived from the filename without .md extension */
-  const name = filename.replace(/\.md$/, '');
-  /** Eval description extracted from the title heading */
-  const description = titleMatch?.[1]?.trim() ?? '';
-
-  return {
-    name,
-    description,
-    origin,
-    agents,
-    skill: null,
-    difficulty: 'medium',
-  };
-}
-
 // --- Section extraction ---
 
 /** Extract the text content under a given heading from a markdown document */
@@ -226,21 +192,14 @@ function parseAntiPatterns(section: string): string[] {
   return patterns;
 }
 
-/** Parse either YAML frontmatter or the legacy inline metadata format. */
+/** Parse YAML frontmatter and return it with the remaining body text. */
 function parseEvalFrontmatter(
   raw: string,
   filename: string,
 ): { frontmatter: EvalFrontmatter; body: string } {
-  if (!FRONTMATTER_RE.test(raw)) {
-    return {
-      frontmatter: parseLegacyFrontmatter(raw, filename),
-      body: raw,
-    };
-  }
-
   const frontmatter = parseFrontmatter(raw);
   if (frontmatter == null) {
-    throw new Error(`Invalid frontmatter in ${filename}`);
+    throw new Error(`Missing or invalid YAML frontmatter in ${filename}`);
   }
 
   return {

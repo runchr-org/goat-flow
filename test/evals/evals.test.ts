@@ -89,7 +89,7 @@ description: No name field
 ### Scenario
 Test.
 `;
-    assert.throws(() => parseEvalFile(raw, 'bad.md'), /Invalid frontmatter/);
+    assert.throws(() => parseEvalFile(raw, 'bad.md'), /Missing or invalid YAML frontmatter/);
   });
 
   it('validates skill against SKILL_NAMES', () => {
@@ -155,42 +155,17 @@ The agent should never skip the diagnosis phase and jump straight to a fix.
   });
 });
 
-describe('parseEvalFile — legacy format (no frontmatter)', () => {
-  it('parses legacy eval with **Origin:** and **Agents:**', () => {
+describe('parseEvalFile — missing frontmatter', () => {
+  it('throws when file has no YAML frontmatter', () => {
     const raw = `# Eval: Debug before fix
 
 **Origin:** \`real-incident\`
-**Agents:** \`claude\`
 
 ## Replay Prompt
 
 Fix the login bug.
-
-## Expected Outcome
-
-1. Agent reads the auth module
-2. Agent identifies the root cause
 `;
-    const result = parseEvalFile(raw, 'debug-before-fix.md');
-    assert.equal(result.frontmatter.name, 'debug-before-fix');
-    assert.equal(result.frontmatter.origin, 'real-incident');
-    assert.equal(result.frontmatter.agents, 'claude');
-    assert.equal(result.frontmatter.skill, null);
-    assert.equal(result.frontmatter.difficulty, 'medium');
-    assert.equal(result.scenario, 'Fix the login bug.');
-    assert.equal(result.expectedBehaviors.length, 2);
-  });
-
-  it('defaults origin and agents when missing', () => {
-    const raw = `# Eval: simple test
-
-## Replay Prompt
-
-Do something.
-`;
-    const result = parseEvalFile(raw, 'simple.md');
-    assert.equal(result.frontmatter.origin, 'synthetic-seed');
-    assert.equal(result.frontmatter.agents, 'all');
+    assert.throws(() => parseEvalFile(raw, 'debug-before-fix.md'), /Missing or invalid YAML frontmatter/);
   });
 });
 

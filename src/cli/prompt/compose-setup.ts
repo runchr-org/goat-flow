@@ -10,13 +10,11 @@ import type {
 } from '../types.js';
 import { SKILL_NAMES } from '../constants.js';
 import type {
-  ComposedPrompt,
-  PromptSection,
   PromptVariables,
   FragmentPhase,
   SetupTask,
 } from './types.js';
-import { getAllFragments, getFragment } from './registry.js';
+import { getFragment } from './registry.js';
 import { extractTemplateVars, fillTemplate } from './template-filler.js';
 import { PROFILES } from '../detect/agents.js';
 import { getTemplatePath, getCliCommand } from '../paths.js';
@@ -93,7 +91,7 @@ function collectSignalActionLines(signals: ProjectSignals): string[] {
   return actions;
 }
 
-/** Render detected project signals into the setup prompt output */
+/** Append signal-specific lines (code gen, deploy, LLM, compliance) and actionable follow-up tasks to the prompt output. */
 function renderSignals(lines: string[], signals: ProjectSignals): void {
   const parts = collectSignalSummaryParts(signals);
   if (parts.length > 0) {
@@ -109,7 +107,7 @@ function renderSignals(lines: string[], signals: ProjectSignals): void {
   }
 }
 
-/** Phase order for targeted-fix mode (anti-patterns first, then tiers) */
+/** Anti-patterns are rendered before tiers so critical issues surface at the top of the fix list. */
 const PHASE_ORDER: FragmentPhase[] = [
   'anti-pattern',
   'foundation',
@@ -135,11 +133,6 @@ export function composeSetup(
   report: ScanReport,
   agentId: AgentId,
 ): string | null {
-  // Rollback: GOAT_FLOW_INLINE_SETUP=1 activates the old inline renderer
-  if (process.env.GOAT_FLOW_INLINE_SETUP === '1') {
-    return null; // Caller handles via composeInlineSetup + renderPrompt
-  }
-
   const agentReport = report.agents.find((a) => a.agent === agentId);
 
   // No agents detected → redirect to setup guide
@@ -633,7 +626,7 @@ function renderTargetedFix(
   return lines.join('\n');
 }
 
-/** Render a SetupTask as a numbered markdown block */
+/** Format a task as a numbered markdown block with read/adapt/verify steps, used inside phase sections. */
 function renderTask(task: SetupTask): string {
   const lines: string[] = [];
   lines.push(`### Task ${task.num}: Create \`${task.outputPath}\``);
@@ -644,7 +637,7 @@ function renderTask(task: SetupTask): string {
   return lines.join('\n');
 }
 
-/** Default adaptation guidance based on output path patterns */
+/** Return human-readable adapt instructions for a task, choosing path-specific guidance (skills, config, footguns, etc.) or falling back to a generic message. */
 function defaultAdaptGuidance(
   output: string,
   note: string | undefined,
@@ -668,7 +661,7 @@ function defaultAdaptGuidance(
   return 'Adapt template for this project - replace generic examples with real project patterns';
 }
 
-/** Default verification text for a task */
+/** Return the verify instruction shown in step 3 of a task, matched to output type (skill, config, shell, JSON, etc.). */
 function defaultVerify(output: string): string {
   if (output.includes('/skills/'))
     return 'File has: When to Use, Process with human gates, Constraints, Output Format, Chaining sections';
@@ -902,7 +895,7 @@ export function composeMultiAgentSetup(
 // Mode: Setup redirect (under 50% - too many issues for inline fixes)
 // ---------------------------------------------------------------------------
 
-/** Map agent IDs to their setup file paths */
+/** Lookup from agent ID to its setup guide in the goat-flow templates directory. */
 const SETUP_FILES: Record<AgentId, string> = {
   claude: 'setup/setup-claude.md',
   codex: 'setup/setup-codex.md',
@@ -1058,7 +1051,7 @@ function renderSetupRedirect(
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Collect the set of recommendation keys needed for failed/partial checks and triggered anti-patterns */
+/** Gather fragment keys from all non-passing checks and triggered anti-patterns so the prompt only renders fixes the project actually needs. */
 function collectNeededKeys(agentReport: AgentReport): Set<string> {
   const neededKeys = new Set<string>();
   for (const check of agentReport.checks) {
@@ -1077,112 +1070,3 @@ function collectNeededKeys(agentReport: AgentReport): Set<string> {
   return neededKeys;
 }
 
-// ---------------------------------------------------------------------------
-// Old inline setup - preserved as rollback
-// ---------------------------------------------------------------------------
-
-/**
- * Old inline setup composer - preserved as fallback.
- * Activate with GOAT_FLOW_INLINE_SETUP=1.
- */
-export function composeInlineSetup(
-  report: ScanReport,
-  agentId: AgentId,
-): ComposedPrompt | null {
-  const agentReport = report.agents.find((a) => a.agent === agentId);
-  const vars = agentReport
-    ? extractTemplateVars(report, agentReport)
-    : buildFreshVars(report, agentId);
-
-  const allFragments = getAllFragments();
-  const phases = [
-    {
-      phase: 'foundation' as const,
-      heading: 'Phase 1a: Foundation - Instruction File + Execution Loop',
-    },
-    {
-      phase: 'standard' as const,
-      heading: 'Phase 1b: Standard - Skills, Hooks, Learning Loop',
-    },
-    { phase: 'full' as const, heading: 'Phase 2: Full - Evals, CI, Hygiene' },
-  ];
-
-  const sections: PromptSection[] = phases
-    .map(({ phase, heading }) => {
-      const fragments = allFragments
-        .filter(
-          (fragment) => fragment.phase === phase && fragment.kind === 'create',
-        )
-        .map((fragment) => {
-          let instruction = fragment.instruction;
-          const override = fragment.agentOverrides?.[agentId];
-          if (override) instruction = override;
-          return {
-            key: fragment.key,
-            category: fragment.category,
-            instruction: fillTemplate(instruction, vars),
-          };
-        });
-      return { phase, heading, fragments };
-    })
-    .filter((s) => s.fragments.length > 0);
-
-  return {
-    mode: 'setup',
-    agent: agentId,
-    title: `GOAT Flow Setup - ${vars.agentName}`,
-    preamble: buildSetupPreamble(vars),
-    sections,
-    summary: `Full GOAT Flow setup for ${vars.agentName}. After completing each phase, run \`${getCliCommand()} scan .\` to verify progress.`,
-  };
-}
-
-/** Build setup preamble. */
-function buildSetupPreamble(vars: PromptVariables): string {
-  const cmds = [
-    vars.buildCommand && `**Build:** \`${vars.buildCommand}\``,
-    vars.testCommand && `**Test:** \`${vars.testCommand}\``,
-    vars.lintCommand && `**Lint:** \`${vars.lintCommand}\``,
-    vars.formatCommand && `**Format:** \`${vars.formatCommand}\``,
-  ]
-    .filter(Boolean)
-    .join(' | ');
-
-  return [
-    `Set up GOAT Flow for ${vars.agentName}.`,
-    '',
-    `**Stack:** ${vars.languages}`,
-    ...(cmds ? [cmds] : []),
-    '',
-    'Work through each phase in order. All Phase 1a gates must pass before starting Phase 1b.',
-    '',
-    '**Phase 1a** creates the instruction file, execution loop, autonomy tiers, DoD, and enforcement.',
-    '**Phase 1b** adds skills, hooks, learning loop files, router table, and architecture docs.',
-    '**Phase 2** adds agent evals, CI validation, and hygiene.',
-  ].join('\n');
-}
-
-/** Build fresh vars. */
-function buildFreshVars(report: ScanReport, agentId: AgentId): PromptVariables {
-  const profile = PROFILES[agentId];
-  return {
-    agentId,
-    agentName: profile.name,
-    instructionFile: profile.instructionFile,
-    settingsFile: profile.settingsFile ?? '',
-    skillsDir: profile.skillsDir,
-    hooksDir: profile.hooksDir ?? '',
-    languages: report.stack.languages.join(', ') || 'unknown',
-    buildCommand: report.stack.buildCommand ?? '',
-    testCommand: report.stack.testCommand ?? '',
-    lintCommand: report.stack.lintCommand ?? '',
-    formatCommand: report.stack.formatCommand ?? '',
-    grade: 'F',
-    percentage: '0',
-    failedCount: '0',
-    passedCount: '0',
-    totalCount: '0',
-    date: new Date().toISOString().slice(0, 10),
-    evidence: {},
-  };
-}

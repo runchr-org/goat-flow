@@ -3,7 +3,7 @@
  * Template lookup and CLI self-reference should go through this module instead of hardcoding dist-relative paths.
  */
 import { dirname, join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /** Find the goat-flow project root by walking up from this file's directory */
@@ -23,6 +23,15 @@ function findGoatFlowRoot(): string {
 
 /** Absolute path to the goat-flow project root */
 const GOAT_FLOW_ROOT = findGoatFlowRoot();
+
+/** Read the package version from the nearest package.json */
+export function getPackageVersion(): string {
+  const pkgPath = join(GOAT_FLOW_ROOT, 'package.json');
+  if (!existsSync(pkgPath)) return '0.0.0';
+  return (
+    JSON.parse(readFileSync(pkgPath, 'utf-8')) as { version: string }
+  ).version;
+}
 
 /** Resolve a relative template path to an absolute path within goat-flow */
 export function getTemplatePath(relative: string): string {

@@ -6,7 +6,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createMockFS } from '../helpers/mock-fs.js';
 import { detectAgents } from '../../src/cli/detect/agents.js';
-import { detectStack } from '../../src/cli/detect/stack.js';
+import { detectStack } from '../../src/cli/detect/project-stack.js';
 import {
   mapLanguagesToTemplates,
   mapSignalsToTemplates,

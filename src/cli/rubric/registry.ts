@@ -4,7 +4,7 @@
  */
 import type { CheckDef, AntiPatternDef } from '../types.js';
 import { foundationChecks } from './foundation.js';
-import { standardChecks } from './standard.js';
+import { standardChecks } from './standard/index.js';
 import { fullChecks } from './full.js';
 import { antiPatterns } from './anti-patterns.js';
 

@@ -2,11 +2,8 @@
  * Version markers for the rubric and JSON schema.
  * Bump these constants when scanner semantics or report contracts change, not for wording-only edits.
  */
-// Bump RUBRIC_VERSION when: checks added/removed, point values changed,
-// detection logic changed, anti-patterns added/removed.
-// Do NOT bump for: fragment text changes, recommendation wording, comments.
+/** Rubric version — bump when checks/points/detection logic change, not for text edits. */
 export const RUBRIC_VERSION = '0.10.0';
 
-// Bump SCHEMA_VERSION when: JSON report fields added/removed/renamed,
-// or field types changed. Consumers use this to parse reports correctly.
+/** JSON report schema version — bump when report field names/types change. */
 export const SCHEMA_VERSION = '3';

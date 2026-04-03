@@ -5,9 +5,9 @@
 import type { ProjectFacts, ReadonlyFS, AgentId } from '../types.js';
 import type { LoadedConfig } from '../config/types.js';
 import { detectAgents } from '../detect/agents.js';
-import { detectStack } from '../detect/stack.js';
-import { extractSharedFacts } from './shared.js';
-import { extractAgentFacts } from './agent.js';
+import { detectStack } from '../detect/project-stack.js';
+import { extractSharedFacts } from './shared/index.js';
+import { extractAgentFacts } from './agent/index.js';
 
 interface ExtractOptions {
   agentFilter: AgentId | null;

@@ -12,7 +12,7 @@ import type {
   CheckDef,
   AntiPatternDef,
 } from '../types.js';
-import { evaluateCheck } from '../scanner/check-evaluator.js';
+import { evaluateCheck } from '../scanner/evaluate-check.js';
 
 /** Percentage thresholds mapped to letter grades, checked top-down */
 const GRADE_THRESHOLDS: [number, Grade][] = [

@@ -7,30 +7,12 @@
 
 import { parseArgs } from 'node:util';
 import { resolve, dirname, join } from 'node:path';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import type { CLIOptions, Grade, AgentId, ScanReport } from './types.js';
-import type { ComposedPrompt } from './prompt/types.js';
 
-/** Find package.json by walking up from the current file's directory */
-function findPackageVersion(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    const candidate = join(dir, 'package.json');
-    if (existsSync(candidate)) {
-      return (
-        JSON.parse(readFileSync(candidate, 'utf-8')) as { version: string }
-      ).version;
-    }
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return '0.0.0';
-}
+import { getPackageVersion } from './paths.js';
 
-/** Package version from package.json - single source of truth */
-const PACKAGE_VERSION = findPackageVersion();
+const PACKAGE_VERSION = getPackageVersion();
 
 /** Structured error with an exit code for CLI process termination */
 class CLIError extends Error {
@@ -292,21 +274,12 @@ function shouldUseMultiAgentSetup(
   );
 }
 
-/** Render either inline or reference-based setup output for one agent. */
+/** Compose setup output for one agent. */
 function renderSetupOutput(
   report: ScanReport,
   agentId: AgentId,
   composeSetup: (report: ScanReport, agent: AgentId) => string | null,
-  composeInlineSetup: (
-    report: ScanReport,
-    agent: AgentId,
-  ) => ComposedPrompt | null,
-  renderPrompt: (prompt: ComposedPrompt) => string,
 ): string | null {
-  if (process.env.GOAT_FLOW_INLINE_SETUP === '1') {
-    const prompt = composeInlineSetup(report, agentId);
-    return prompt ? renderPrompt(prompt) : null;
-  }
   return composeSetup(report, agentId);
 }
 
@@ -315,9 +288,8 @@ async function handleSetupCommand(
   options: ParsedCLI,
   report: ScanReport,
 ): Promise<void> {
-  const { composeSetup, composeInlineSetup, composeMultiAgentSetup } =
+  const { composeSetup, composeMultiAgentSetup } =
     await import('./prompt/compose-setup.js');
-  const { renderPrompt } = await import('./prompt/render.js');
 
   const agentIds = getSetupAgentIds(options, report);
   if (agentIds.length === 0) {
@@ -339,13 +311,7 @@ async function handleSetupCommand(
   }
 
   for (const agentId of agentIds) {
-    const output = renderSetupOutput(
-      report,
-      agentId,
-      composeSetup,
-      composeInlineSetup,
-      renderPrompt,
-    );
+    const output = renderSetupOutput(report, agentId, composeSetup);
     if (output) {
       process.stdout.write(output + '\n');
       if (agentIds.length > 1) process.stdout.write('\n---\n\n');

@@ -6,31 +6,10 @@ import type { ScanReport, AgentReport, ReadonlyFS, AgentId } from '../types.js';
 import { loadConfig } from '../config/index.js';
 import { extractProjectFacts } from '../facts/orchestrator.js';
 import { allChecks, allAntiPatterns } from '../rubric/registry.js';
-import { readFileSync, existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { RUBRIC_VERSION, SCHEMA_VERSION } from '../rubric/version.js';
+import { getPackageVersion } from '../paths.js';
 
-/** Find package.json by walking up from the current file's directory */
-function findPackageVersion(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  // Walk up until we find package.json (max 10 levels to prevent infinite loop)
-  for (let i = 0; i < 10; i++) {
-    const candidate = join(dir, 'package.json');
-    if (existsSync(candidate)) {
-      return (
-        JSON.parse(readFileSync(candidate, 'utf-8')) as { version: string }
-      ).version;
-    }
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return '0.0.0';
-}
-
-/** Package version from package.json - single source of truth */
-const PACKAGE_VERSION = findPackageVersion();
+const PACKAGE_VERSION = getPackageVersion();
 import { runChecks, runAntiPatterns, computeScore } from '../scoring/scorer.js';
 import { generateRecommendations } from '../scoring/recommendations.js';
 
