@@ -268,8 +268,15 @@ export function renderText(report: ScanReport, verbose: boolean): string {
   return lines.join('\n');
 }
 
+/** Filter out hidden checks that should not appear in output */
+function visibleChecks(agent: AgentReport): AgentReport {
+  return { ...agent, checks: agent.checks.filter(c => !c.hidden) };
+}
+
 /** Render a single agent's report including grade, tiers, and recommendations */
 function renderAgent(agent: AgentReport, verbose: boolean): string {
+  /** Agent with hidden checks filtered out for display (scores are unaffected) */
+  const display = visibleChecks(agent);
   /** Accumulated output lines for this agent */
   const lines: string[] = [];
   /** Destructured score summary for the agent */
@@ -293,9 +300,9 @@ function renderAgent(agent: AgentReport, verbose: boolean): string {
   }
 
   lines.push('');
-  if (!verbose) appendFailureOverview(lines, agent);
+  if (!verbose) appendFailureOverview(lines, display);
   appendRecommendations(lines, agent);
-  if (verbose) appendVerboseDetails(lines, agent);
+  if (verbose) appendVerboseDetails(lines, display);
 
   return lines.join('\n');
 }

@@ -24,6 +24,7 @@ export const fullChecks: CheckDef[] = [
     category: 'Agent Evals',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: { type: 'dir_exists', path: '{evals_dir}' },
     recommendation: 'Create evals directory (default: ai-docs/evals/)',
     recommendationKey: 'create-evals-dir',
@@ -35,6 +36,7 @@ export const fullChecks: CheckDef[] = [
     category: 'Agent Evals',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -62,6 +64,7 @@ export const fullChecks: CheckDef[] = [
     category: 'Agent Evals',
     pts: 2,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
@@ -88,6 +91,7 @@ export const fullChecks: CheckDef[] = [
     category: 'Agent Evals',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
@@ -115,6 +119,7 @@ export const fullChecks: CheckDef[] = [
     category: 'Agent Evals',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
@@ -142,6 +147,7 @@ export const fullChecks: CheckDef[] = [
     category: 'Agent Evals',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     na: (ctx) => ctx.facts.shared.evals.count === 0,
     detect: {
       type: 'custom',
@@ -171,6 +177,7 @@ export const fullChecks: CheckDef[] = [
     pts: 2,
     partialPts: 1,
     confidence: 'medium',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -248,6 +255,7 @@ export const fullChecks: CheckDef[] = [
     category: 'CI Validation',
     pts: 2,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -276,6 +284,7 @@ export const fullChecks: CheckDef[] = [
     category: 'CI Validation',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
@@ -302,6 +311,7 @@ export const fullChecks: CheckDef[] = [
     category: 'CI Validation',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
@@ -328,6 +338,7 @@ export const fullChecks: CheckDef[] = [
     category: 'CI Validation',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
@@ -354,6 +365,7 @@ export const fullChecks: CheckDef[] = [
     category: 'CI Validation',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -398,6 +410,7 @@ export const fullChecks: CheckDef[] = [
     category: 'Hygiene',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'file_exists',
       path: '.goat-flow/tasks/handoff-template.md',
@@ -412,6 +425,7 @@ export const fullChecks: CheckDef[] = [
     category: 'Hygiene',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
     na: (ctx) => !ctx.facts.shared.handoffTemplate.exists,
     detect: {
       type: 'custom',
@@ -446,6 +460,7 @@ export const fullChecks: CheckDef[] = [
     category: 'Dual-Agent Consistency',
     pts: 3,
     confidence: 'medium',
+    priority: 'optional',
     na: (ctx) => ctx.facts.agents.length <= 1,
     detect: {
       type: 'custom',

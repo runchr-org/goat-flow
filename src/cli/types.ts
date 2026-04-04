@@ -116,6 +116,10 @@ export interface CheckDef {
   // Stable key for deduplicating recommendations across checks
   recommendationKey: string;
   confidence: Confidence;
+  // Grading priority: required checks gate the letter grade, recommended improve it, optional are bonus
+  priority: 'required' | 'recommended' | 'optional';
+  // If true, check runs and contributes to score but doesn't appear in scanner output
+  hidden?: boolean;
 }
 
 /**
@@ -151,6 +155,8 @@ export interface CheckResult {
   // File path or description pointing to what was found or missing
   evidence?: string;
   recommendationKey?: string;
+  // If true, check ran but should not appear in scanner output
+  hidden?: boolean;
 }
 
 /** Result of evaluating a single anti-pattern against a project */
@@ -452,6 +458,11 @@ export interface ScoreSummary {
     standard: TierScore;
     full: TierScore;
   };
+  // Priority-based grading counters (excludes N/A checks)
+  requiredPassed: number;
+  requiredTotal: number;
+  recommendedPassed: number;
+  recommendedTotal: number;
 }
 
 /** A prioritized action item generated from a failed or partial check */

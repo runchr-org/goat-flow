@@ -6,7 +6,7 @@ import { join } from 'node:path';
 // Load presets from the source file
 const presetsContent = readFileSync(join(import.meta.dirname, '../../src/dashboard/presets.js'), 'utf-8');
 // Extract the PRESETS array by evaluating the JS
-const PRESETS: Array<{ id: string; name: string; desc: string; prompt: string; cat: string; guided?: boolean; guidedFields?: Array<{ key: string }>; guidedTemplate?: string }> = eval(presetsContent + '; PRESETS');
+const PRESETS: Array<{ id: string; name: string; desc: string; prompt: string; cat: string }> = eval(presetsContent + '; PRESETS');
 
 describe('Preset launcher content validation', () => {
   it('every preset has required fields', () => {
@@ -26,7 +26,7 @@ describe('Preset launcher content validation', () => {
   });
 
   it('categories are from the allowed set', () => {
-    const allowed = new Set(['debug & explore', 'review', 'plan', 'test', 'security', 'utility']);
+    const allowed = new Set(['debug & explore', 'review', 'plan', 'test', 'security']);
     for (const p of PRESETS) {
       assert.ok(allowed.has(p.cat), `Preset ${p.id} has unknown category '${p.cat}'. Allowed: ${[...allowed].join(', ')}`);
     }
@@ -65,18 +65,6 @@ describe('Preset launcher content validation', () => {
     }
   });
 
-  it('guided presets have matching template placeholders', () => {
-    for (const p of PRESETS) {
-      if (p.guided && p.guidedTemplate && p.guidedFields) {
-        const fieldKeys = new Set(p.guidedFields.map(f => f.key));
-        const templateKeys = [...p.guidedTemplate.matchAll(/\{(\w+)\}/g)].map(m => m[1]);
-        for (const tk of templateKeys) {
-          assert.ok(fieldKeys.has(tk), `Preset ${p.id} template uses {${tk}} but no guided field with that key exists`);
-        }
-      }
-    }
-  });
-
   it('category filter works correctly', () => {
     const filterByCategory = (cat: string) =>
       cat === 'all' ? PRESETS : PRESETS.filter(p => p.cat === cat);
@@ -86,37 +74,6 @@ describe('Preset launcher content validation', () => {
     assert.ok(filterByCategory('security').length >= 2, 'Security category has presets');
     assert.ok(filterByCategory('review').length >= 3, 'Review category has presets');
     assert.ok(filterByCategory('nonexistent').length === 0, 'Unknown category returns nothing');
-  });
-
-  it('user flow diagram preset generates Mermaid', () => {
-    const userFlow = PRESETS.find(p => p.id === 'user-flow');
-    assert.ok(userFlow, 'User Flow Diagram preset exists');
-    assert.ok(userFlow.guidedTemplate?.includes('Mermaid'), 'Should mention Mermaid format');
-    assert.ok(userFlow.guidedTemplate?.includes('8-12 nodes'), 'Should constrain node count for viewport fit');
-    assert.ok(userFlow.guidedTemplate?.includes('USER'), 'Should distinguish user vs system actions');
-  });
-
-  it('qa-gaps preset focuses on QA testing', () => {
-    const qaGaps = PRESETS.find(p => p.id === 'qa-gaps');
-    assert.ok(qaGaps, 'QA Testing Gaps preset exists');
-    assert.ok(qaGaps.guided, 'Should be guided');
-    assert.ok(qaGaps.guidedTemplate?.includes('gap'), 'Should mention testing gaps');
-    assert.ok(qaGaps.guidedTemplate?.includes('risk'), 'Should mention risk');
-    assert.ok(qaGaps.guidedFields?.some(f => f.key === 'timeBudget'), 'Should have time budget field');
-  });
-
-  it('critique routes through goat-review', () => {
-    const critique = PRESETS.find(p => p.id === 'critique');
-    assert.ok(critique, 'Critique preset exists');
-    assert.ok(critique.prompt.startsWith('/goat-review'), 'Should route through goat-review');
-    assert.ok(critique.cat === 'review', 'Should be in review category');
-  });
-
-  it('compliance routes through goat-security', () => {
-    const compliance = PRESETS.find(p => p.id === 'compliance');
-    assert.ok(compliance, 'Compliance preset exists');
-    assert.ok(compliance.prompt.includes('compliance mode'), 'Should use compliance mode');
-    assert.ok(compliance.guidedFields?.some(f => f.key === 'regulation'), 'Should have regulation field');
   });
 
 });

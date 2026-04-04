@@ -18,7 +18,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { createFS } from '../facts/fs.js';
 import { scanProject } from '../scanner/scan.js';
 import { renderJson } from '../render/json.js';
@@ -34,18 +34,40 @@ const VALID_RUNNERS = new Set<string>(['claude', 'codex', 'gemini']);
 /** Maximum request body size accepted by POST endpoints */
 const MAX_BODY_BYTES = 64 * 1024; // 64 KB
 
-/** Load a file from the package root by walking up */
-function loadPackageFile(name: string): string {
+/** Resolve the absolute path to a file in the package root by walking up */
+function resolvePackageFile(name: string): string {
   let dir = dirname(fileURLToPath(import.meta.url));
   for (let i = 0; i < 5; i++) {
+    const candidate = join(dir, name);
     try {
-      return readFileSync(join(dir, name), 'utf-8');
+      statSync(candidate);
+      return candidate;
     } catch {
       /* up */
     }
     dir = dirname(dir);
   }
   throw new Error(`${name} not found`);
+}
+
+/** Load a file from the package root by walking up */
+function loadPackageFile(name: string): string {
+  return readFileSync(resolvePackageFile(name), 'utf-8');
+}
+
+/** Replace `<!-- include: path -->` markers with fragment file contents (one level, no nesting). */
+function assembleHtml(shellPath: string): string {
+  let html = readFileSync(shellPath, 'utf-8');
+  const includePattern = /<!-- include: (.+?) -->/g;
+  html = html.replace(includePattern, (_, path: string) => {
+    const fragmentPath = join(dirname(shellPath), path);
+    try {
+      return readFileSync(fragmentPath, 'utf-8');
+    } catch {
+      return `<!-- ERROR: Could not include ${path} -->`;
+    }
+  });
+  return html;
 }
 
 /** Read the request body as a string, capped at MAX_BODY_BYTES. */
@@ -141,7 +163,7 @@ export function serveDashboard(
   options: DashboardOptions,
 ): Promise<DashboardServer> {
   return new Promise((resolveStart) => {
-    const template = loadPackageFile('src/dashboard/index.html');
+    const template = assembleHtml(resolvePackageFile('src/dashboard/index.html'));
     const absDefault = resolve(options.projectPath);
     const openBrowser = options.openBrowser === true;
 
@@ -532,6 +554,27 @@ export function serveDashboard(
       return true;
     }
 
+    /** Detect which coding agent CLIs are installed on the machine. */
+    function handleAgentDetectRequest(url: URL, res: ServerResponse): boolean {
+      if (url.pathname !== '/api/agents/installed') return false;
+
+      const agents = ['claude', 'codex', 'gemini'].map(name => {
+        try {
+          execFileSync('which', [name], { timeout: 3000, stdio: 'pipe' });
+          let version: string | null = null;
+          try {
+            version = execFileSync(name, ['--version'], { timeout: 5000, stdio: 'pipe' }).toString().trim().split('\n')[0] ?? null;
+          } catch { /* version detection optional */ }
+          return { id: name, installed: true, version };
+        } catch {
+          return { id: name, installed: false, version: null };
+        }
+      });
+
+      jsonResponse(res, 200, { agents });
+      return true;
+    }
+
     /** Map terminal-launch failures to the client-facing HTTP status codes we expose. */
     function terminalCreateStatus(message: string): number {
       return message.includes('Maximum') ||
@@ -675,22 +718,23 @@ export function serveDashboard(
       return true;
     }
 
-    /** Validate YAML content for binary characters and basic syntax. Returns error message or null. */
+    /** Check if a YAML line looks syntactically valid (key: value, list item, or continuation). */
+    function isValidYamlLine(line: string): boolean {
+      return /^\s*[\w.-]+\s*:/.test(line) || /^\s*-\s/.test(line) || /^\s+\S/.test(line);
+    }
+
+    /** Validate YAML content for binary characters, unclosed brackets, and basic syntax. Returns error message or null. */
     function validateYamlContent(content: string): string | null {
-      if (/[\x00-\x08\x0e-\x1f]/.test(content)) {
-        return 'Content contains binary characters';
-      }
+      if (/[\x00-\x08\x0e-\x1f]/.test(content)) return 'Content contains binary characters';
+      const stripped = content.replace(/#.*/g, '').replace(/(['"])(?:(?!\1).)*\1/g, '');
+      const opens = (stripped.match(/[[\{]/g) || []).length;
+      const closes = (stripped.match(/[\]\}]/g) || []).length;
+      if (opens !== closes) return `Invalid YAML: unclosed bracket or brace (${opens} opened, ${closes} closed)`;
       const lines = content.split('\n');
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i] as string;
         if (/^\s*$/.test(line) || /^\s*#/.test(line)) continue;
-        if (
-          !/^\s*[\w.-]+\s*:/.test(line) &&
-          !/^\s*-\s/.test(line) &&
-          !/^\s+\S/.test(line)
-        ) {
-          return `Invalid YAML syntax at line ${i + 1}: "${line.trim()}"`;
-        }
+        if (!isValidYamlLine(line)) return `Invalid YAML syntax at line ${i + 1}: "${line.trim()}"`;
       }
       return null;
     }
@@ -775,6 +819,7 @@ export function serveDashboard(
         () => Promise.resolve(handleSetupDetectRequest(url, res)),
         () => handleSetupRequest(url, res),
         () => Promise.resolve(handleBrowseRequest(url, res)),
+        () => Promise.resolve(handleAgentDetectRequest(url, res)),
         () => Promise.resolve(handleConfigReadRequest(url, res)),
         () => handleConfigWriteRequest(req, url, res),
         () => Promise.resolve(handleConfigDeleteRequest(req, url, res)),

@@ -20,6 +20,7 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     na: (ctx) => ctx.agentFacts.agent.settingsFile === null,
     detect: { type: 'json_valid', path: '{settings_file}' },
     recommendation: 'Fix settings.json - invalid JSON',
@@ -32,6 +33,7 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 2,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -58,6 +60,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -112,6 +116,7 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -156,6 +161,7 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'custom',
       fn: buildPostToolHookCheckResult,
@@ -171,6 +177,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -232,6 +240,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -293,6 +303,7 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -335,6 +346,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -377,6 +390,7 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
     na: (ctx) => ctx.agentFacts.agent.settingsFile === null,
     detect: {
       type: 'custom',
@@ -405,6 +419,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -461,6 +477,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -517,6 +535,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -559,6 +579,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -616,6 +638,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -682,6 +706,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -724,6 +750,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -766,6 +794,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -810,6 +840,7 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: { type: 'file_exists', path: 'scripts/preflight-checks.sh' },
     recommendation: 'Create scripts/preflight-checks.sh',
     recommendationKey: 'create-preflight-script',
@@ -821,6 +852,7 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'composite',
       mode: 'any',
@@ -848,6 +880,8 @@ export const hookChecks: CheckDef[] = [
     category: 'Hooks',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
+    hidden: true,
     na: (ctx) =>
       ctx.agentFacts.hooks.denyExists === false ||
       ctx.facts.stack.signals.deployPlatforms.length === 0,
@@ -881,6 +915,7 @@ export const hookChecks: CheckDef[] = [
     pts: 1,
     partialPts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {

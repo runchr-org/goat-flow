@@ -9,6 +9,7 @@ export const architectureChecks: CheckDef[] = [
     category: 'Architecture',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: { type: 'file_exists', path: 'ai-docs/architecture.md' },
     recommendation: 'Create ai-docs/architecture.md',
     recommendationKey: 'create-architecture',
@@ -20,6 +21,7 @@ export const architectureChecks: CheckDef[] = [
     category: 'Architecture',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     na: (ctx) => ctx.facts.shared.architecture.exists === false,
     detect: {
       type: 'line_count',
@@ -37,6 +39,7 @@ export const architectureChecks: CheckDef[] = [
     category: 'Architecture',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {

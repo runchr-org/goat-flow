@@ -23,6 +23,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Instruction File',
     pts: 2,
     confidence: 'high',
+    priority: 'required',
     detect: { type: 'file_exists', path: '{instruction_file}' },
     recommendation: 'Create the root instruction file for this agent',
     recommendationKey: 'create-instruction-file',
@@ -35,6 +36,7 @@ export const foundationChecks: CheckDef[] = [
     pts: 3,
     partialPts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -83,6 +85,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Instruction File',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -99,6 +102,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Instruction File',
     pts: 2,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -116,6 +120,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Instruction File',
     pts: 1,
     confidence: 'medium',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -156,6 +161,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Instruction File',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -191,6 +197,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Execution Loop',
     pts: 2,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -207,6 +214,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Execution Loop',
     pts: 2,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -223,6 +231,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Execution Loop',
     pts: 1,
     confidence: 'medium',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -282,6 +291,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Execution Loop',
     pts: 2,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -298,6 +308,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Execution Loop',
     pts: 2,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -313,6 +324,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Execution Loop',
     pts: 2,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -330,6 +342,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Execution Loop',
     pts: 2,
     confidence: 'medium',
+    priority: 'required',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -369,6 +382,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Autonomy Tiers',
     pts: 2,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'composite',
       mode: 'all',
@@ -388,6 +402,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Autonomy Tiers',
     pts: 3,
     confidence: 'medium',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -471,6 +486,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Autonomy Tiers',
     pts: 2,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -541,6 +557,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Autonomy Tiers',
     pts: 2,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -558,6 +575,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Autonomy Tiers',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -577,6 +595,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Definition of Done',
     pts: 2,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -593,6 +612,7 @@ export const foundationChecks: CheckDef[] = [
     pts: 2,
     partialPts: 1,
     confidence: 'medium',
+    priority: 'required',
     detect: {
       type: 'count_items',
       path: '{instruction_file}',
@@ -615,6 +635,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Definition of Done',
     pts: 2,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -632,6 +653,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Definition of Done',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -651,6 +673,7 @@ export const foundationChecks: CheckDef[] = [
     pts: 3,
     partialPts: 1,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -684,6 +707,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Enforcement',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
@@ -710,6 +734,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Enforcement',
     pts: 2,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
@@ -736,6 +761,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Enforcement',
     pts: 2,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -784,6 +810,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Project Config',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: { type: 'file_exists', path: '.goat-flow/config.yaml' },
     recommendation: 'Create .goat-flow/config.yaml in the project root',
     recommendationKey: 'create-goat-flow-config',
@@ -795,6 +822,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Project Config',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     na: (ctx) => ctx.facts.shared.config.exists === false,
     detect: {
       type: 'custom',
@@ -827,6 +855,7 @@ export const foundationChecks: CheckDef[] = [
     category: 'Project Config',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {

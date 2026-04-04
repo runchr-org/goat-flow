@@ -64,6 +64,7 @@ function buildGuideItems(agent: AgentReport): GuideItem[] {
   const items: GuideItem[] = [];
 
   for (const check of agent.checks) {
+    if (check.hidden) continue;
     if (check.status === 'pass' || check.status === 'na') continue;
 
     const rec = agent.recommendations.find(r => r.checkId === check.id);
@@ -86,8 +87,9 @@ function buildGuideItems(agent: AgentReport): GuideItem[] {
 function renderAgentGuide(agent: AgentReport): string {
   const lines: string[] = [];
   const items = buildGuideItems(agent);
-  const passCount = agent.checks.filter(c => c.status === 'pass').length;
-  const totalCount = agent.checks.filter(c => c.status !== 'na').length;
+  const visible = agent.checks.filter(c => !c.hidden);
+  const passCount = visible.filter(c => c.status === 'pass').length;
+  const totalCount = visible.filter(c => c.status !== 'na').length;
 
   lines.push(`# Setup Guide: ${agent.agentName}`);
   lines.push(`Score: ${agent.score.percentage}% (${agent.score.grade}) — ${passCount}/${totalCount} checks pass`);

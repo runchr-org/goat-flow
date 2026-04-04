@@ -9,6 +9,7 @@ export const signalChecks: CheckDef[] = [
     category: 'Signal Follow-Through',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
     na: (ctx) => !ctx.facts.stack.signals.llmIntegration,
     detect: {
       type: 'custom',
@@ -43,6 +44,7 @@ export const signalChecks: CheckDef[] = [
     category: 'Signal Follow-Through',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
     na: (ctx) => !ctx.facts.stack.signals.complianceSignals,
     detect: {
       type: 'custom',
@@ -78,6 +80,7 @@ export const signalChecks: CheckDef[] = [
     category: 'Signal Follow-Through',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
     na: (ctx) => ctx.facts.stack.signals.formatterGaps.length === 0,
     detect: {
       type: 'custom',

@@ -18,6 +18,8 @@ export const skillChecks: CheckDef[] = [
     },
     recommendation: `Create ${skill} skill`,
     recommendationKey: `create-skill-${skill.replace('goat-', '')}`,
+    priority: 'recommended' as const,
+    hidden: true as const,
   })),
   {
     id: '2.1.11',
@@ -26,6 +28,7 @@ export const skillChecks: CheckDef[] = [
     category: 'Skills',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
@@ -55,6 +58,7 @@ export const skillChecks: CheckDef[] = [
     category: 'Skills',
     pts: 1,
     confidence: 'medium',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -92,6 +96,7 @@ export const skillChecks: CheckDef[] = [
     category: 'Skills',
     pts: 1,
     confidence: 'medium',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -147,6 +152,7 @@ export const skillChecks: CheckDef[] = [
     category: 'Skills',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -202,6 +208,7 @@ export const skillChecks: CheckDef[] = [
     category: 'Skills',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -257,6 +264,8 @@ export const skillChecks: CheckDef[] = [
     category: 'Skills',
     pts: 0, // Deprecated: "conversational" is unverifiable. Skills with choices/gates are already checked by 2.1.13 + 2.1.18.
     confidence: 'medium',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -311,6 +320,8 @@ export const skillChecks: CheckDef[] = [
     category: 'Skills',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -366,6 +377,8 @@ export const skillChecks: CheckDef[] = [
     category: 'Skills',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -422,6 +435,8 @@ export const skillChecks: CheckDef[] = [
     category: 'Skills',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -477,6 +492,7 @@ export const skillChecks: CheckDef[] = [
     category: 'Skills',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
@@ -504,6 +520,8 @@ export const skillChecks: CheckDef[] = [
     category: 'Skills',
     pts: 0, // Deprecated: 5 critiques called this "copy-paste debt." Skills are self-contained.
     confidence: 'medium',
+    priority: 'optional',
+    hidden: true,
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {

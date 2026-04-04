@@ -9,6 +9,7 @@ export const learningLoopChecks: CheckDef[] = [
     category: 'Learning Loop',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: { type: 'dir_exists', path: '{lessons_committed_dir}' },
     recommendation: 'Create the committed lessons directory',
     recommendationKey: 'create-lessons',
@@ -21,6 +22,7 @@ export const learningLoopChecks: CheckDef[] = [
     category: 'Learning Loop',
     pts: 2,
     confidence: 'high',
+    priority: 'recommended',
     detect: { type: 'dir_exists', path: '{footguns_committed_dir}' },
     recommendation: 'Create the committed footguns directory',
     recommendationKey: 'create-footguns',
@@ -32,6 +34,7 @@ export const learningLoopChecks: CheckDef[] = [
     category: 'Learning Loop',
     pts: 2,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -106,6 +109,7 @@ export const learningLoopChecks: CheckDef[] = [
     pts: 1,
     partialPts: 0,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -164,6 +168,7 @@ export const learningLoopChecks: CheckDef[] = [
     category: 'Learning Loop',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     na: (ctx) =>
       ctx.facts.shared.footguns.exists === false ||
       ctx.facts.shared.footguns.hasEvidence === false,
@@ -199,6 +204,7 @@ export const learningLoopChecks: CheckDef[] = [
     category: 'Learning Loop',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     na: (ctx) =>
       ctx.facts.shared.footguns.exists === false &&
       ctx.facts.shared.lessons.exists === false,
@@ -238,6 +244,7 @@ export const learningLoopChecks: CheckDef[] = [
     category: 'Learning Loop',
     pts: 1,
     confidence: 'medium',
+    priority: 'optional',
     na: (ctx) =>
       !ctx.facts.shared.lessons.exists ||
       ctx.facts.shared.lessons.staleRefs.length === 0,
@@ -283,6 +290,7 @@ export const learningLoopChecks: CheckDef[] = [
     category: 'Learning Loop',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'grep',
       path: '{instruction_file}',

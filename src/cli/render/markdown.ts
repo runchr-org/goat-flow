@@ -188,24 +188,26 @@ function appendRecommendations(lines: string[], agent: AgentReport): void {
 /** Render a single agent's failing checks and recommendations */
 function renderAgentMarkdown(agent: AgentReport): string[] {
   const lines: string[] = [];
-  const failing = agent.checks.filter(
+  /** Visible checks only (hidden checks still contribute to scores) */
+  const visible = agent.checks.filter((c) => !c.hidden);
+  const failing = visible.filter(
     (c) => c.status === 'fail' || c.status === 'partial',
   );
 
   if (failing.length === 0 && agent.recommendations.length === 0) return lines;
 
-  if (agent.checks.length > 0) {
+  if (visible.length > 0) {
     lines.push(
       `<details><summary><strong>${agent.agentName}</strong> - ${failing.length} issue${failing.length !== 1 ? 's' : ''}</summary>`,
     );
     lines.push('');
   }
-  appendFailingChecks(lines, agent.checks);
+  appendFailingChecks(lines, visible);
   appendTriggeredAntiPatterns(lines, agent);
   appendDiagnosticSummary(lines, collectDiagnosticImpacts(agent));
   appendRecommendations(lines, agent);
 
-  if (agent.checks.length > 0) {
+  if (visible.length > 0) {
     lines.push('</details>');
   }
 

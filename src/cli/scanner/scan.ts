@@ -48,6 +48,7 @@ export function scanProject(
       checkResults,
       antiPatternResults,
       allChecks.length,
+      allChecks,
     );
     /** Prioritized recommendations based on failed checks and detected anti-patterns */
     const recommendations = generateRecommendations(

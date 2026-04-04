@@ -1,0 +1,72 @@
+    <!-- ═══ Config View ═══ -->
+    <div x-show="activeView === 'settings'" x-cloak class="max-w-6xl mx-auto space-y-4" style="height: calc(100vh - 5rem); overflow-y: auto;">
+      <h2 class="text-2xl font-bold">Config</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Left panel: config.yaml (read-only) -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow flex flex-col">
+          <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">config.yaml</h3>
+              <p class="text-[10px] text-gray-400 font-mono">.goat-flow/config.yaml (committed)</p>
+            </div>
+            <span class="text-xs text-gray-400 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700">read-only</span>
+          </div>
+          <div class="flex-1 p-4 overflow-auto">
+            <template x-if="configNote">
+              <div class="flex items-center justify-center h-32 text-center">
+                <div>
+                  <p class="text-sm text-gray-500 dark:text-gray-400" x-text="configNote"></p>
+                  <p class="text-xs text-gray-400 mt-2">Run <code class="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">goat-flow setup</code> to create one.</p>
+                </div>
+              </div>
+            </template>
+            <template x-if="!configNote">
+              <pre class="text-xs font-mono whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed" x-text="configYaml"></pre>
+            </template>
+          </div>
+        </div>
+
+        <!-- Right panel: config.local.yaml (editable) -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow flex flex-col">
+          <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                config.local.yaml
+                <span x-show="configDirty" class="ml-1 text-amber-500">*</span>
+              </h3>
+              <p class="text-[10px] text-gray-400 font-mono">.goat-flow/config.local.yaml (gitignored, local only)</p>
+            </div>
+            <!-- Save/Reset buttons at top -->
+            <div class="flex items-center gap-2">
+              <div x-data="{ confirming: false }">
+                <button x-show="!confirming" @click="confirming = true"
+                  class="px-2.5 py-1 text-xs font-medium rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                  Reset
+                </button>
+                <span x-show="confirming" x-cloak class="inline-flex items-center gap-1">
+                  <button @click="resetLocalConfig(); confirming = false"
+                    class="px-2.5 py-1 text-xs font-medium rounded bg-red-600 text-white hover:bg-red-700 transition-colors">
+                    Confirm Reset
+                  </button>
+                  <button @click="confirming = false"
+                    class="px-2 py-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    Cancel
+                  </button>
+                </span>
+              </div>
+              <button @click="saveLocalConfig()"
+                class="px-2.5 py-1 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors relative">
+                Save
+                <span x-show="configDirty" class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500"></span>
+              </button>
+            </div>
+          </div>
+          <div class="flex-1 p-4">
+            <textarea x-model="localConfigYaml" @input="configDirty = true"
+              class="w-full h-64 text-xs font-mono rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 p-3 resize-y focus:ring-1 focus:ring-blue-500 leading-relaxed"
+              placeholder="# Local overrides"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>

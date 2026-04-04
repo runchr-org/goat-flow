@@ -1,0 +1,136 @@
+    <!-- ═══ Wizard View (single page, two columns) ═══ -->
+    <div x-show="activeView === 'wizard'" x-cloak style="height: calc(100vh - 5rem); overflow: hidden;">
+
+      <div class="flex items-center gap-3 px-4 py-2">
+        <button @click="activeView = 'scan'; scanDetailAgent = null" class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+          Back to scanner
+        </button>
+        <div class="flex-1"></div>
+        <h2 class="text-lg font-bold">Setup Wizard</h2>
+      </div>
+
+      <div class="flex gap-4 px-4" style="height: calc(100% - 3rem);">
+
+        <!-- Left column: Config + Agent selector -->
+        <div class="w-1/2 overflow-y-auto space-y-4 pr-2 pb-8">
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow">
+            <!-- Loading state -->
+            <div x-show="wizardDetecting" class="px-6 py-12 flex items-center justify-center gap-3">
+              <svg class="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              <span class="text-sm text-gray-500">Detecting project stack...</span>
+            </div>
+
+            <div x-show="!wizardDetecting" class="divide-y divide-gray-100 dark:divide-gray-700">
+              <!-- Intent heading -->
+              <div class="px-6 py-4">
+                <h2 class="text-xl font-bold" x-text="
+                  !report ? 'Setup GOAT Flow' :
+                  report.agents.some(a => a.score.percentage < 100) ? 'Fix Issues' :
+                  'GOAT Flow is up to date'
+                "></h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="
+                  !report ? 'Configure GOAT Flow for this project' :
+                  report.agents.some(a => a.score.percentage < 100) ? 'Your setup has issues -generate a fix prompt' :
+                  'All checks passing -generate maintenance prompt'
+                "></p>
+              </div>
+
+              <!-- Detection results -->
+              <div class="px-6 py-4">
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Detected Configuration</h3>
+                <div class="space-y-2">
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 w-24 shrink-0" title="Programming languages detected from file extensions and package manifests">Languages</span>
+                    <div class="flex flex-wrap gap-1.5">
+                      <template x-for="lang in wizardData.languages" :key="lang">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" x-text="lang"></span>
+                      </template>
+                      <span x-show="wizardData.languages.length === 0" class="text-xs text-gray-400 italic">None detected</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 w-24 shrink-0" title="Web/application frameworks detected from dependency files">Frameworks</span>
+                    <div class="flex flex-wrap gap-1.5">
+                      <template x-for="fw in wizardData.frameworks" :key="fw">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300" x-text="fw"></span>
+                      </template>
+                      <span x-show="wizardData.frameworks.length === 0" class="text-xs text-gray-400 italic">None detected</span>
+                    </div>
+                  </div>
+                  <template x-for="cmd in ['test', 'lint', 'build', 'format']" :key="cmd">
+                    <div class="flex items-center gap-3">
+                      <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 w-24 shrink-0 capitalize"
+                      :title="{test: 'Command to run tests (from package.json, Makefile, etc.)', lint: 'Command to run linter (eslint, phpstan, ruff, etc.)', build: 'Command to compile/build the project', format: 'Command to auto-format code (prettier, black, rustfmt, etc.)'}[cmd]"
+                      x-text="cmd"></span>
+                      <code class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate" x-text="wizardData.commands[cmd] || '(not detected)'"></code>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Agent selector with scores -->
+              <div class="px-6 py-4">
+                <label class="text-xs font-medium text-gray-600 dark:text-gray-300">Setup for</label>
+                <div class="flex gap-2 mt-1">
+                  <template x-for="agentId in ['claude', 'codex', 'gemini']" :key="agentId">
+                    <button @click="wizardSelectedAgent = agentId"
+                      :class="wizardSelectedAgent === agentId ? 'ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                      class="flex-1 p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-center transition-colors">
+                      <p class="text-sm font-medium" x-text="agentId === 'claude' ? 'Claude Code' : agentId === 'codex' ? 'Codex' : 'Gemini CLI'"></p>
+                      <p class="text-xs mt-0.5"
+                        :class="report?.agents.find(a => a.agent === agentId) ? '' : 'text-gray-400'"
+                        x-text="report?.agents.find(a => a.agent === agentId) ?
+                          report.agents.find(a => a.agent === agentId).score.grade + ' ' + report.agents.find(a => a.agent === agentId).score.percentage + '%' :
+                          'Not scanned'"></p>
+                    </button>
+                  </template>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">Terminal will use the agent selected in the header (<span class="font-medium" x-text="activeRunner"></span>)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right column: Setup Prompt -->
+        <div class="w-1/2 overflow-y-auto pl-2" x-effect="if (activeView === 'wizard' && wizardSelectedAgent && !wizardDetecting) { generateWizardSetup(); }">
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow h-full flex flex-col">
+            <div class="flex items-center justify-between px-6 py-3 border-b border-gray-100 dark:border-gray-700">
+              <h3 class="text-sm font-bold">Setup Prompt</h3>
+              <div class="flex items-center gap-2">
+                <template x-if="!wizardGenerating && wizardSetupOutputs[wizardSelectedAgent]">
+                  <div class="flex items-center gap-2">
+                    <button x-data="{ copied: false }" @click="copyText(wizardSetupOutputs[wizardSelectedAgent]); copied = true; setTimeout(() => copied = false, 1500)"
+                      class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors"
+                      :class="copied ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'">
+                      <svg x-show="!copied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                      <svg x-show="copied" x-cloak class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                      Copy
+                    </button>
+                    <button x-show="terminalAvailable" @click="launchPreset(wizardSetupOutputs[wizardSelectedAgent], activeRunner); activeView = 'workspace'"
+                      :disabled="launching || (terminalSessionId && !terminalEnded)"
+                      class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                      Terminal
+                    </button>
+                  </div>
+                </template>
+                <button @click="generateWizardSetup()" class="text-xs text-blue-500 hover:text-blue-600">Regenerate</button>
+              </div>
+            </div>
+
+            <div x-show="wizardGenerating" class="flex-1 flex items-center justify-center gap-3">
+              <svg class="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              <span class="text-sm text-gray-500">Generating...</span>
+            </div>
+
+            <template x-if="!wizardGenerating && wizardSetupOutputs[wizardSelectedAgent]">
+              <pre class="flex-1 text-xs font-mono whitespace-pre-wrap text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 px-4 py-3 overflow-y-auto leading-relaxed" x-text="wizardSetupOutputs[wizardSelectedAgent]"></pre>
+            </template>
+
+            <p x-show="!wizardGenerating && !wizardSetupOutputs[wizardSelectedAgent]" class="flex-1 flex items-center justify-center text-xs text-gray-400">Select an agent to auto-generate the setup prompt.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>

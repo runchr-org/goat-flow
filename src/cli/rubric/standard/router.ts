@@ -10,6 +10,7 @@ export const routerChecks: CheckDef[] = [
     category: 'Router Table',
     pts: 1,
     confidence: 'high',
+    priority: 'required',
     detect: {
       type: 'grep',
       path: '{instruction_file}',
@@ -26,6 +27,7 @@ export const routerChecks: CheckDef[] = [
     pts: 3,
     partialPts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -94,6 +96,7 @@ export const routerChecks: CheckDef[] = [
     category: 'Router Table',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: getRouterSkillsCheckResult,
@@ -110,6 +113,7 @@ export const routerChecks: CheckDef[] = [
     category: 'Router Table',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     na: (ctx) =>
       !ctx.agentFacts.instruction.content?.toLowerCase().includes('router'),
     detect: {
@@ -128,6 +132,7 @@ export const routerChecks: CheckDef[] = [
     category: 'Router Table',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     na: (ctx) =>
       !ctx.agentFacts.instruction.content?.toLowerCase().includes('router'),
     detect: {
@@ -146,6 +151,7 @@ export const routerChecks: CheckDef[] = [
     category: 'Router Table',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     na: (ctx) =>
       !ctx.agentFacts.instruction.content?.toLowerCase().includes('router') ||
       !ctx.facts.shared.evals.dirExists,
@@ -165,6 +171,7 @@ export const routerChecks: CheckDef[] = [
     category: 'Router Table',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     na: (ctx) =>
       !ctx.agentFacts.instruction.content?.toLowerCase().includes('router'),
     detect: {
@@ -189,6 +196,7 @@ export const routerChecks: CheckDef[] = [
     category: 'Router Table',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     na: (ctx) =>
       !ctx.agentFacts.instruction.content?.toLowerCase().includes('router'),
     detect: {

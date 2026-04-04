@@ -9,6 +9,7 @@ export const localContextChecks: CheckDef[] = [
     category: 'Local Instructions',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -39,6 +40,7 @@ export const localContextChecks: CheckDef[] = [
     category: 'Local Instructions',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     na: (ctx) => ctx.facts.shared.localInstructions.dirExists === false,
     detect: {
       type: 'custom',
@@ -74,6 +76,7 @@ export const localContextChecks: CheckDef[] = [
     category: 'Local Instructions',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -131,6 +134,7 @@ export const localContextChecks: CheckDef[] = [
     category: 'Local Instructions',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -175,6 +179,7 @@ export const localContextChecks: CheckDef[] = [
     category: 'Local Instructions',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -221,6 +226,7 @@ export const localContextChecks: CheckDef[] = [
     category: 'Local Instructions',
     pts: 1,
     confidence: 'high',
+    priority: 'recommended',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -264,6 +270,7 @@ export const localContextChecks: CheckDef[] = [
     category: 'Local Instructions',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -307,6 +314,7 @@ export const localContextChecks: CheckDef[] = [
     category: 'Local Instructions',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => ({
@@ -334,6 +342,7 @@ export const localContextChecks: CheckDef[] = [
     category: 'Local Instructions',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
@@ -402,6 +411,7 @@ export const localContextChecks: CheckDef[] = [
     category: 'Local Instructions',
     pts: 1,
     confidence: 'high',
+    priority: 'optional',
     detect: {
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {

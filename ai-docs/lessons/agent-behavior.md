@@ -56,6 +56,17 @@ category: agent-behavior
 
 ---
 
+## Lesson: "Update the plan" means write the plan, not execute it
+**Created:** 2026-04-04
+
+**What happened:** User asked to "create M31 plan" and then later to "update this plan" with a detailed design spec. The agent wrote the plan file, then immediately launched a sub-agent to rewrite `index.html` — implementing the plan without being asked. User had to interrupt and correct: "dont change anything. just update this plan."
+
+**Why it matters:** The user controls when code changes happen. Writing a plan and executing a plan are two completely separate actions. The user may want to review, share with others, or revise before any code is touched.
+
+**Prevention:** Listen for the verb. "update the plan", "create M31", "write a plan" = write markdown only. "execute", "implement", "do it", "fix it" = make code changes. When in doubt, write the plan and ask if they want it executed. Never auto-execute a plan the user just asked you to write.
+
+---
+
 ## Lesson: Installed skill files are not templates
 **Created:** 2026-04-04
 
