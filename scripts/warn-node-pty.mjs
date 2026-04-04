@@ -1,3 +1,6 @@
+// Skip in CI — node-pty is intentionally absent in CI environments
+if (process.env.CI) process.exit(0);
+
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);

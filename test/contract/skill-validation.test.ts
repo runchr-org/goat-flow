@@ -203,7 +203,6 @@ describe('No stale tail content in installed skills', () => {
 
     it(`${dir}/SKILL.md does not have duplicate heading blocks`, () => {
       // A corrupted skill file might have the same top-level heading repeated
-      const topHeading = `# /` + dir.replace('goat-', 'goat-');
       const headingPattern = new RegExp(`^# /${dir}$`, 'gm');
       const matches = content.match(headingPattern);
       const count = matches?.length ?? 0;

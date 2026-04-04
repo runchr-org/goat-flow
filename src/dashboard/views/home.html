@@ -1,0 +1,117 @@
+    <!-- ═══ Home View ═══ -->
+    <div x-show="activeView === 'home'" x-cloak style="height: calc(100vh - 5rem); overflow-y: auto;">
+      <div class="max-w-4xl mx-auto space-y-6 py-4">
+
+        <!-- Project Overview -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+          <div class="flex items-start justify-between">
+            <div>
+              <h2 class="text-xl font-bold" x-text="projectName || 'GOAT Flow'"></h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400 font-mono mt-1" x-text="projectPath"></p>
+            </div>
+            <span class="text-xs text-gray-400" x-text="report ? `v${report.rubricVersion}` : 'v0.10.0'"></span>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2" x-show="report">
+            <template x-for="lang in (report?.stack?.languages || [])" :key="lang">
+              <span class="px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300" x-text="lang"></span>
+            </template>
+          </div>
+        </div>
+
+        <!-- Installed Agents -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-sm font-bold mb-3">Installed Agents</h3>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <template x-for="agent in [
+              { id: 'claude', name: 'Claude Code' },
+              { id: 'codex', name: 'Codex' },
+              { id: 'gemini', name: 'Gemini CLI' },
+              { id: 'copilot', name: 'Copilot' }
+            ]" :key="agent.id">
+              <div class="p-3 rounded-lg border text-center"
+                :class="installedAgents.find(a => a.id === agent.id) ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700 opacity-50'">
+                <p class="text-sm font-medium" x-text="agent.name"></p>
+                <p class="text-xs mt-1"
+                  :class="installedAgents.find(a => a.id === agent.id) ? 'text-green-600 dark:text-green-400' : 'text-gray-400'"
+                  x-text="installedAgents.find(a => a.id === agent.id) ? '● Installed' : '○ Not found'"></p>
+                <p x-show="installedAgents.find(a => a.id === agent.id)?.version" class="text-xs text-gray-400 mt-0.5 truncate"
+                  x-text="installedAgents.find(a => a.id === agent.id)?.version"></p>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Scanner Summary -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-sm font-bold mb-3">Scanner</h3>
+          <div x-show="report">
+            <div class="grid grid-cols-3 gap-3">
+              <template x-for="agent in (report?.agents || [])" :key="agent.agent">
+                <button @click="activeView = 'scan'; scanDetailAgent = agent.agent"
+                  class="p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-center">
+                  <p class="text-sm font-medium" x-text="agent.agent"></p>
+                  <p class="text-2xl font-bold mt-1" :style="`color: ${gradeColor(agent.score.grade)}`" x-text="agent.score.grade"></p>
+                  <p class="text-xs text-gray-400" x-text="agent.score.percentage + '%'"></p>
+                </button>
+              </template>
+            </div>
+          </div>
+          <div x-show="!report" class="text-center py-4">
+            <p class="text-sm text-gray-400 mb-3">No scan results yet</p>
+            <button @click="runScan()" :disabled="scanning"
+              class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+              <span x-text="scanning ? 'Scanning...' : 'Run Scan'"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Usage Metrics -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-sm font-bold mb-3">Project Health</h3>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div>
+              <p class="text-2xl font-bold" x-text="report ? report.agents.length : '—'"></p>
+              <p class="text-xs text-gray-400">Agents</p>
+            </div>
+            <div>
+              <p class="text-2xl font-bold" x-text="report ? report.agents[0]?.checks.filter(c => !c.hidden && c.status !== 'na').length : '—'"></p>
+              <p class="text-xs text-gray-400">Checks</p>
+            </div>
+            <div>
+              <p class="text-2xl font-bold" x-text="report ? report.agents[0]?.antiPatterns.filter(a => a.triggered).length : '—'"></p>
+              <p class="text-xs text-gray-400">Anti-patterns</p>
+            </div>
+            <div>
+              <p class="text-2xl font-bold" x-text="presets.length"></p>
+              <p class="text-xs text-gray-400">Presets</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <button @click="runScan()" class="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-center bg-white dark:bg-gray-800">
+            <p class="text-sm font-medium">Run Scan</p>
+            <p class="text-xs text-gray-400 mt-1">Check project health</p>
+          </button>
+          <button @click="activeView = 'workspace'" class="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-center bg-white dark:bg-gray-800">
+            <p class="text-sm font-medium">Workspace</p>
+            <p class="text-xs text-gray-400 mt-1">Launch prompts</p>
+          </button>
+          <button @click="activeView = 'wizard'; detectStack()" class="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-center bg-white dark:bg-gray-800">
+            <p class="text-sm font-medium">Setup</p>
+            <p class="text-xs text-gray-400 mt-1">Configure agent</p>
+          </button>
+          <button @click="activeView = 'settings'; loadConfig()" class="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-center bg-white dark:bg-gray-800">
+            <p class="text-sm font-medium">Config</p>
+            <p class="text-xs text-gray-400 mt-1">Project configuration</p>
+          </button>
+        </div>
+
+        <!-- About -->
+        <div class="text-xs text-gray-400 text-center space-y-1 pt-2">
+          <p>Built by <a href="https://www.blundergoat.com/about" class="text-blue-500 hover:underline" target="_blank">Matthew Hansen</a> · MIT License · <a href="https://github.com/blundergoat/goat-flow" class="text-blue-500 hover:underline" target="_blank">GitHub</a></p>
+          <p>GOAT Flow - structured workflows for AI coding agents</p>
+        </div>
+      </div>
+    </div>

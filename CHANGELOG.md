@@ -4,90 +4,18 @@
 
 ## v0.10.0 - 2026-04-04
 
-Category bucket learning loop, scanner honesty, session logs, 48-file CLI refactor, execution-loop dedup, SBAO Phase 3, dashboard presets overhaul, project restructure. Rubric v0.10.0: 112 checks + 19 anti-patterns. 820 tests.
+SBAO Phase 3, dashboard simplification, rubric priority grading, category bucket learning loop, scanner honesty, 48-file CLI refactor. 112 checks + 19 anti-patterns. 1,165 tests.
 
-### SBAO & Skills
-- goat-plan Phase 3 rewritten as Signal-Based Adaptive Orchestration: 3 sub-agents (2 core trio SKEPTIC/ANALYST/STRATEGIST + 1 fresh-context control group), ranked comparison table, human-gated synthesis
-- SBAO recommends skip for Hotfix/Small Feature (user decides)
-- all ADAPT markers replaced with goat-flow-specific content in installed skills - 100% scanner score across all 3 agents
-- skill version frontmatter added to `.agents/` and `.github/` copies
-
-### Dashboard Presets
-- 16→19 presets: rewrote `targeted-test`→`qa-gaps`, `diagram`→`user-flow`, `critique`, `triage`; added `review-instructions`, `compliance`, `sbao`
-- 17 of 19 presets now have guided forms with Step 0-mapped fields
-- added favorites UI: star toggle, localStorage persistence, sort-to-top, ★ Favorites filter pill
-- categories renamed: "understand"→"debug & explore", added "utility", removed empty "audit"
-
-### Install & Packaging
-- added `pnpm.onlyBuiltDependencies` for `node-pty` so pnpm installs can build the embedded terminal without manual manifest edits
-- README rewritten (177→121 lines): install matrix (npm/pnpm/yarn/global), troubleshooting section, simplified getting started
-- tightened pnpm `node-pty` guidance and Node runtime notes for dashboard/CLI usage
-
-### CLI Refactor
-- refactored 48 source files for complexity reduction, type safety, and module boundaries
-- extracted route handlers (serve-dashboard.ts), per-field validators (config/reader.ts), per-signal detectors (detect/stack.ts), per-skill-attribute extractors (facts/agent.ts)
-- 45 cyclomatic complexity violations → 0
-- grouped server files into `src/cli/server/` (dashboard.ts, terminal.ts, types.ts)
-- completed M28 F2 `scorer.ts`→`calculate.ts` rename
-- JSDoc added to 25 remaining declarations across `src/cli/`
-
-### Scanner & Rubric
-- refactored high-complexity rubric and scanner paths to clear preflight complexity failures
-- hook honesty checks now verify settings/config registration, registered-path existence, real post-turn validation commands, swallowed-failure wrappers, post-tool event schema, agent-config skips, and deny coverage for pipe-to-shell patterns
-- `ai-docs/README.md` router validation now checks referenced paths, so broken local-instruction routers fail `2.6.2` instead of scoring 100%
-- local-instruction honesty now fails duplicate instruction surfaces when `ai-docs/coding-standards/` and `.github/instructions/` coexist
-- router completeness now enforces the canonical skills root (not `goat-*/`), plus explicit `.goat-flow/config.yaml` and `.goat-flow/tasks/handoff-template.md` entries
-- duplicate learning-loop surfaces now fail both a positive canonical-surface check and anti-pattern `AP22`, while preserving the intended committed/local split
-- new check `2.3.7`: verifies instruction file references session logs (`.goat-flow/logs/sessions/`)
-- replaced fixed read/turn budgets with 5-tier complexity model (Hotfix/Small Feature/Standard/System/Infrastructure) and 3x-estimate re-classification trigger; rubric check `1.2.2a` updated to validate new format
-- text and markdown scan output now group failures by severity, show fail/partial/pass summaries, and surface "Top N to fix first" diagnostic priorities
-- CI validation heuristics now inspect actual workflow `run:` commands instead of keyword presence
-
-### Test Infrastructure
-- added rubric regression fixture corpus: `passing-minimal` (100%), `passing-full` (100%), `failing-known` (expected failures for 2.2.3, 2.6.2), plus targeted regressions for hook honesty, duplicate surfaces, router completeness, and local-instruction duplication
-- new `test/fixtures/project-fixtures.test.ts` and `test/helpers/fixture-scanner.ts` for fixture-based rubric regression testing
-- added `test/helpers/hook-runner.ts` and `test/hooks/format-file.test.ts` for real hook-behavior coverage
-- `test/` restructured from 15 source-mirrored dirs to 3 layers (unit/integration/contract)
-- 820 tests
-
-### Dashboard & CLI UX
-- added first-run browser auto-open for `goat-flow dashboard` with persistent opt-out via `--no-open`
-- terminal tab now shows explanation when node-pty missing (was hidden); CLI prints warning at startup
-- fix Ctrl+V paste in terminal (reads clipboard text, not raw \x16); Ctrl+C copies selection
-- fix preset Launch button to respect runner dropdown selection
-- added project identity: dynamic tab title, color accent stripe, project name in sidebar
-- added cursor:pointer on all interactive elements; ResizeObserver for terminal column-width fix
-- added "Open Terminal" button on setup instructions page
-
-### Project Structure
-- `setup/`→`workflow/setup/`, `ai/`→`ai-docs/` with cross-reference updates across all docs, skills, and tests
-- `docs/` flattened: removed `system/`, `reference/`, `guides/` dirs; added `docs/skills/` with Mermaid flow diagrams per skill
-- `docs/five-layers.md` renamed from `architecture.md` to avoid confusion with `ai-docs/architecture.md`
-- `ai-docs/glossary.md` created with 36 domain terms
-- preflight: removed pointless `index.html exists` check, `console.log` warning, `TODO` warning; added per-section timing
-- `context-validate.sh`: fixed stale `setup/shared/` path
-
-### Execution Loop & Templates
-- made `docs/system-spec.md` canonical for the execution loop and reduced duplicate loop docs to compatibility pointers
-- removed dead session-logging ritual from all skill closing protocols (proven never written by own lesson)
-- fixed template contradictions: skill count ("5 skills + dispatcher"), log paths, monolithic vs per-entry format
-- synced setup shared templates and workflow docs to canonical loop wording
-- added no-duplicate-file rule to CLAUDE.md Hard Rules and coding standards
-
-### Learning Loop
-- migrated from per-incident files to category bucket files (ADR-021): 20 footgun files → 5 buckets, 31 lesson files → 5 buckets
-- format: `## Footgun: <name>` / `## Lesson: <name>` entries inside category files (e.g., `hooks.md`, `verification.md`)
-- fixed scanner evidence label detection to match new inline `**Evidence:** ACTUAL_MEASURED` format
-- scanner now enforces canonical learning-loop surfaces and validates footgun line bounds instead of rewarding stale or duplicate artifact layouts
-- updated LOG instructions in all 3 instruction files, 20 skill files, workflow templates, and setup templates
-
-### Session Logs & Handoff
-- added session log path (`.goat-flow/logs/sessions/`) to all instruction files, skill closing protocols, and setup templates
-- new rubric check `2.3.7`: validates instruction file references session logs
-- improved handoff template: added Errors & Corrections, Learnings, and Context Files sections; now tracked in git
-- router table now includes the shared handoff-template path so incomplete-work handoffs are discoverable from the canonical index
-- added ADR-019 (no-implementation-skill), ADR-021 (category bucket learning loop)
-- new 2026-04-03 lessons/footguns covering critique handling, doer-verifier theater, scanner reliability traps, setup duplication
+**SBAO** - goat-plan Phase 3 rewritten as multi-agent critique: 3 sub-agents (2 core trio SKEPTIC/ANALYST/STRATEGIST + 1 fresh-context control group), ranked comparison, human-gated synthesis. Recommends skip for Hotfix/Small Feature (user decides).
+**Dashboard** - 1910→1332 lines, split into shell + 5 view fragments with server-side assembly. Home page (installed agents, scanner summary, quick actions), 2-level scanner drill-down, two-column setup wizard with auto-detect intent, simplified prompt cards with category badges. Header: project path + terminal agent selector. Agent detection API. `/goat` prompt adaptation for Codex (`$goat`).
+**Presets** - all 19 rewritten to `/goat [plain language]` (dispatcher routes). Guided forms removed - skills handle Step 0 in terminal.
+**Rubric** - priority field (required/recommended/optional) on all 110 checks. Grade: A=all req+rec, B=all req+80% rec, C=all req. Full tier bonus-only. 24 checks hidden from output (still run internally).
+**Scanner** - hook honesty checks verify real validation commands, swallowed failures, deny coverage. Router validation checks path resolution. 5-tier complexity model. Severity-grouped output with "Top N to fix" priorities.
+**CLI** - 48 files refactored, 45 complexity violations→0, `src/cli/server/` grouping, JSDoc on all declarations. `setup/`→`workflow/setup/`, `ai/`→`ai-docs/`.
+**Learning Loop** - migrated to category bucket files (ADR-021): 20 footgun→5 buckets, 31 lesson→5 buckets. Scanner enforces canonical surfaces.
+**Tests** - 275→1,165. Fixture corpus, 3-layer structure (unit/integration/contract), hook behavior tests, journey tests.
+**Structure** - `docs/` flattened, `docs/skills/` with Mermaid diagrams, `ai-docs/glossary.md` (36 terms), preflight with decimal timing.
+**Terminal** - xterm.js with WebSocket streaming, multi-runner, refit on view switch, floating error toasts.
 
 ## v0.9.4 - 2026-04-02
 

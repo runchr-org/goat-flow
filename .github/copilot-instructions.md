@@ -54,7 +54,7 @@ One question with recommended default.
 |----------|------|
 | System spec | `docs/system-spec.md` |
 | Project guidelines | `ai-docs/README.md` |
-| Skills | `.claude/skills/goat-*/` |
+| Skills | `.github/skills/`, `.claude/skills/` |
 | Footguns | `ai-docs/footguns/`, `.goat-flow/footguns/` |
 | Lessons | `ai-docs/lessons/`, `.goat-flow/lessons/` |
 | Architecture | `ai-docs/architecture.md` |

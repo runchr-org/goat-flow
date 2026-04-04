@@ -102,7 +102,7 @@ function analyzeDenyScript(denyContent: string): {
     blocksForcePush: /force.*push|--force/i.test(denyContent),
     blocksChmod: /chmod.*777/.test(denyContent),
     blocksPipeToShell:
-      /(curl|wget)[^|]*\|[[:space:]]*(ba)?sh/i.test(denyContent) ||
+      /(curl|wget)[^|]*\|\s*(ba)?sh/i.test(denyContent) ||
       /pipe-to-shell/i.test(denyContent),
     blocksCloudDestructive:
       /docker\s+push|terraform\s+(destroy|apply.*-auto-approve)|aws\s+(s3\s+rm|ec2\s+terminate)/i.test(

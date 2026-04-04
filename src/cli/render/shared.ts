@@ -44,7 +44,7 @@ export function collectCheckFailureSummary(checks: AgentReport['checks']): {
     }
     if (check.status === 'partial') {
       summary.partial += 1;
-      summary.severityCounts.low += 1;
+      summary.severityCounts[getCheckSeverity(check)] += 1;
       continue;
     }
     if (check.status === 'pass') summary.pass += 1;

@@ -184,8 +184,8 @@ case "$cmd" in
         echo ""
         printf "\033[1m  GOAT Flow - Agent Evals\033[0m\n"
         echo ""
-        if [[ -d "ai/evals" ]]; then
-            mapfile -t eval_files < <(find ai/evals -maxdepth 1 -name "*.md" ! -name "README.md" ! -name "FORMAT.md" | sort)
+        if [[ -d "ai-docs/evals" ]]; then
+            mapfile -t eval_files < <(find ai-docs/evals -maxdepth 1 -name "*.md" ! -name "README.md" ! -name "FORMAT.md" | sort)
             printf "  \033[2m%d eval files in ai-docs/evals/\033[0m\n" "${#eval_files[@]}"
             echo ""
             for f in "${eval_files[@]}"; do

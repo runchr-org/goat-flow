@@ -23,11 +23,6 @@ function getWorkflowTemplates(): string[] {
     .filter((f) => f.startsWith('goat-') && f.endsWith('.md'));
 }
 
-/** Read a file relative to the project root. */
-function readFile(relativePath: string): string {
-  return readFileSync(join(ROOT, relativePath), 'utf-8');
-}
-
 // ---------------------------------------------------------------
 // 1. Every workflow/skills/goat-*.md has a matching installed copy
 // ---------------------------------------------------------------

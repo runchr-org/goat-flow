@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SKILLS_DIR = join(import.meta.dirname, '../../.claude/skills');

@@ -104,7 +104,7 @@ function analyzeEvalFile(
       hasOrigin: false,
       hasAgents: false,
       hasReplay: false,
-      hasFrontmatter: true,
+      hasFrontmatter: false,
       hasRealContent: false,
       skillNames: [],
     };
