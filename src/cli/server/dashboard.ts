@@ -14,6 +14,7 @@ import {
   writeFileSync,
   existsSync,
   mkdirSync,
+  unlinkSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -249,6 +250,241 @@ export function serveDashboard(
       return true;
     }
 
+    /** Detect languages by scanning file extensions, manifest files, and tsconfig. */
+    function detectLanguages(projectPath: string): string[] {
+      const extMap: Record<string, string> = {
+        '.php': 'PHP',
+        '.py': 'Python',
+        '.ts': 'TypeScript',
+        '.js': 'JavaScript',
+        '.go': 'Go',
+        '.rs': 'Rust',
+        '.rb': 'Ruby',
+        '.java': 'Java',
+        '.cs': 'C#',
+        '.swift': 'Swift',
+        '.kt': 'Kotlin',
+      };
+      const langSet = new Set<string>();
+      const ignoredDirs = new Set(['node_modules', 'vendor', '__pycache__', 'dist', 'build']);
+
+      const scanExtensions = (dir: string, depth: number): void => {
+        if (depth > 3) return;
+        try {
+          for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            if (entry.name.startsWith('.') || ignoredDirs.has(entry.name)) continue;
+            if (entry.isDirectory()) {
+              scanExtensions(join(dir, entry.name), depth + 1);
+            } else {
+              const ext = entry.name.slice(entry.name.lastIndexOf('.'));
+              if (extMap[ext]) langSet.add(extMap[ext]);
+            }
+          }
+        } catch { /* unreadable dir */ }
+      };
+      scanExtensions(projectPath, 0);
+
+      const manifestLangs: [string, string][] = [
+        ['package.json', 'JavaScript'],
+        ['composer.json', 'PHP'],
+        ['go.mod', 'Go'],
+        ['pyproject.toml', 'Python'],
+        ['Cargo.toml', 'Rust'],
+        ['Gemfile', 'Ruby'],
+      ];
+      for (const [file, lang] of manifestLangs) {
+        if (existsSync(join(projectPath, file))) langSet.add(lang);
+      }
+      if (existsSync(join(projectPath, 'tsconfig.json'))) langSet.add('TypeScript');
+
+      return [...langSet];
+    }
+
+    /** Detect frameworks by matching patterns against dependency file contents. */
+    function detectFrameworks(projectPath: string): string[] {
+      const frameworkPatterns: [string, RegExp][] = [
+        ['Symfony', /symfony\//i],
+        ['Laravel', /laravel\/framework/i],
+        ['Django', /django/i],
+        ['FastAPI', /fastapi/i],
+        ['Flask', /flask/i],
+        ['Express', /"express"/i],
+        ['React', /"react"/i],
+        ['Vue', /"vue"/i],
+        ['Angular', /@angular\/core/i],
+        ['Next.js', /"next"/i],
+        ['Nuxt', /"nuxt"/i],
+        ['Svelte', /"svelte"/i],
+        ['Rails', /rails/i],
+        ['Spring', /spring-boot/i],
+        ['Actix', /actix-web/i],
+        ['Gin', /gin-gonic/i],
+        ['Echo', /labstack\/echo/i],
+      ];
+
+      const depFiles = ['package.json', 'composer.json', 'Gemfile', 'pyproject.toml', 'Cargo.toml', 'go.mod'];
+      let allDepsContent = '';
+      for (const df of depFiles) {
+        const fp = join(projectPath, df);
+        if (existsSync(fp)) {
+          try { allDepsContent += readFileSync(fp, 'utf-8') + '\n'; } catch { /* skip */ }
+        }
+      }
+
+      const frameworks: string[] = [];
+      for (const [name, pattern] of frameworkPatterns) {
+        if (pattern.test(allDepsContent)) frameworks.push(name);
+      }
+      return frameworks;
+    }
+
+    /** Type for the detected command slots. */
+    type CommandSlots = { test: string; lint: string; build: string; format: string };
+
+    /** Fill empty command slots from package.json scripts. */
+    function detectCommandsFromNpm(projectPath: string, commands: CommandSlots): void {
+      const pkgPath = join(projectPath, 'package.json');
+      if (!existsSync(pkgPath)) return;
+      try {
+        const scripts = JSON.parse(readFileSync(pkgPath, 'utf-8')).scripts || {};
+        if (scripts.test) commands.test = 'npm test';
+        if (scripts.lint) commands.lint = 'npm run lint';
+        if (scripts.build) commands.build = 'npm run build';
+        if (scripts.format) commands.format = 'npm run format';
+      } catch { /* invalid JSON */ }
+    }
+
+    /** Fill empty command slots from composer.json scripts. */
+    function detectCommandsFromComposer(projectPath: string, commands: CommandSlots): void {
+      const composerPath = join(projectPath, 'composer.json');
+      if (!existsSync(composerPath)) return;
+      try {
+        const scripts = JSON.parse(readFileSync(composerPath, 'utf-8')).scripts || {};
+        if (scripts.test && !commands.test) commands.test = 'composer test';
+        if (scripts.lint && !commands.lint) commands.lint = 'composer lint';
+      } catch { /* invalid JSON */ }
+    }
+
+    /** Fill empty command slots from Makefile targets. */
+    function detectCommandsFromMakefile(projectPath: string, commands: CommandSlots): void {
+      const makefilePath = join(projectPath, 'Makefile');
+      if (!existsSync(makefilePath)) return;
+      try {
+        const makefile = readFileSync(makefilePath, 'utf-8');
+        const makeTargets: [keyof CommandSlots, RegExp][] = [
+          ['test', /^test\s*:/m],
+          ['lint', /^lint\s*:/m],
+          ['build', /^build\s*:/m],
+          ['format', /^(?:fmt|format)\s*:/m],
+        ];
+        for (const [slot, pattern] of makeTargets) {
+          if (!commands[slot] && pattern.test(makefile)) commands[slot] = `make ${slot}`;
+        }
+      } catch { /* unreadable */ }
+    }
+
+    /** Fill empty command slots from pyproject.toml tool references. */
+    function detectCommandsFromPyproject(projectPath: string, commands: CommandSlots): void {
+      const pyprojectPath = join(projectPath, 'pyproject.toml');
+      if (!existsSync(pyprojectPath)) return;
+      try {
+        const pyproject = readFileSync(pyprojectPath, 'utf-8');
+        if (/pytest|unittest/.test(pyproject) && !commands.test) commands.test = 'pytest';
+        if (/ruff|flake8|pylint/.test(pyproject) && !commands.lint) commands.lint = 'ruff check .';
+        if (/black|ruff format/.test(pyproject) && !commands.format) commands.format = 'ruff format .';
+      } catch { /* unreadable */ }
+    }
+
+    /** Detect test/lint/build/format commands from package.json, composer.json, Makefile, pyproject.toml. */
+    function detectCommands(projectPath: string): CommandSlots {
+      const commands: CommandSlots = { test: '', lint: '', build: '', format: '' };
+      detectCommandsFromNpm(projectPath, commands);
+      detectCommandsFromComposer(projectPath, commands);
+      detectCommandsFromMakefile(projectPath, commands);
+      detectCommandsFromPyproject(projectPath, commands);
+      return commands;
+    }
+
+    /** Detect which AI coding agents have config directories in the project. */
+    function detectAgents(projectPath: string): Record<string, boolean> {
+      return {
+        claude: existsSync(join(projectPath, '.claude')),
+        codex: existsSync(join(projectPath, '.codex')),
+        gemini: existsSync(join(projectPath, '.gemini')),
+        copilot: existsSync(join(projectPath, '.github', 'copilot-instructions.md')),
+      };
+    }
+
+    /** Detect existing goat-flow artifacts (skills, instructions, evals, lessons, footguns, config). */
+    function detectExistingArtifacts(projectPath: string): Record<string, boolean> {
+      const existing: Record<string, boolean> = {
+        skills: false,
+        instructions: false,
+        evals: false,
+        lessons: false,
+        footguns: false,
+        config: false,
+      };
+
+      const skillsDir = join(projectPath, '.claude', 'skills');
+      if (existsSync(skillsDir)) {
+        try {
+          existing.skills = readdirSync(skillsDir).some((e) => e.startsWith('goat-'));
+        } catch { /* unreadable */ }
+      }
+
+      existing.instructions = existsSync(join(projectPath, 'ai-docs')) || existsSync(join(projectPath, 'ai'));
+      existing.evals = existsSync(join(projectPath, 'ai', 'evals')) || existsSync(join(projectPath, 'ai-docs', 'evals'));
+      existing.lessons = existsSync(join(projectPath, 'ai', 'lessons')) || existsSync(join(projectPath, 'ai-docs', 'lessons'));
+      existing.footguns = existsSync(join(projectPath, 'docs', 'footguns')) || existsSync(join(projectPath, 'ai-docs', 'footguns'));
+      existing.config = existsSync(join(projectPath, '.goat-flow', 'config.yaml'));
+
+      return existing;
+    }
+
+    /** Detect non-goat-flow agent config files (.github/instructions, CLAUDE.md, etc.). */
+    function detectNonGoatFlowConfig(projectPath: string): string[] {
+      const nonGoatFlow: string[] = [];
+      const checks: [string[], string][] = [
+        [['.github', 'instructions'], '.github/instructions/'],
+        [['.github', 'copilot-instructions.md'], '.github/copilot-instructions.md'],
+        [['CLAUDE.md'], 'CLAUDE.md'],
+        [['AGENTS.md'], 'AGENTS.md'],
+        [['CODEX.md'], 'CODEX.md'],
+        [['.cursorrules'], '.cursorrules'],
+      ];
+      for (const [segments, label] of checks) {
+        if (existsSync(join(projectPath, ...segments))) nonGoatFlow.push(label);
+      }
+      return nonGoatFlow;
+    }
+
+    /** Detect project stack, commands, agents, and existing config for the setup wizard. */
+    function handleSetupDetectRequest(
+      url: URL,
+      res: ServerResponse,
+    ): boolean {
+      if (url.pathname !== '/api/setup/detect') return false;
+
+      const projectPath = resolve(url.searchParams.get('path') || absDefault);
+
+      try {
+        jsonResponse(res, 200, {
+          languages: detectLanguages(projectPath),
+          frameworks: detectFrameworks(projectPath),
+          commands: detectCommands(projectPath),
+          agents: detectAgents(projectPath),
+          existing: detectExistingArtifacts(projectPath),
+          nonGoatFlow: detectNonGoatFlowConfig(projectPath),
+        });
+      } catch (err) {
+        jsonResponse(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return true;
+    }
+
     /** Heuristically treat a directory as a project when it has common repo markers. */
     function isProjectDirectory(dirPath: string): boolean {
       return [
@@ -403,6 +639,129 @@ export function serveDashboard(
       return true;
     }
 
+    /** Read config.yaml and config.local.yaml for the settings view. */
+    function handleConfigReadRequest(url: URL, res: ServerResponse): boolean {
+      if (url.pathname !== '/api/config') return false;
+
+      const projectPath = resolve(url.searchParams.get('path') || absDefault);
+      const configPath = join(projectPath, '.goat-flow', 'config.yaml');
+      const localConfigPath = join(
+        projectPath,
+        '.goat-flow',
+        'config.local.yaml',
+      );
+
+      try {
+        if (!existsSync(configPath)) {
+          jsonResponse(res, 200, {
+            config: null,
+            localConfig: null,
+            note: 'No .goat-flow/config.yaml found',
+          });
+          return true;
+        }
+
+        const config = readFileSync(configPath, 'utf-8');
+        const localConfig = existsSync(localConfigPath)
+          ? readFileSync(localConfigPath, 'utf-8')
+          : null;
+
+        jsonResponse(res, 200, { config, localConfig });
+      } catch (err) {
+        jsonResponse(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return true;
+    }
+
+    /** Validate YAML content for binary characters and basic syntax. Returns error message or null. */
+    function validateYamlContent(content: string): string | null {
+      if (/[\x00-\x08\x0e-\x1f]/.test(content)) {
+        return 'Content contains binary characters';
+      }
+      const lines = content.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i] as string;
+        if (/^\s*$/.test(line) || /^\s*#/.test(line)) continue;
+        if (
+          !/^\s*[\w.-]+\s*:/.test(line) &&
+          !/^\s*-\s/.test(line) &&
+          !/^\s+\S/.test(line)
+        ) {
+          return `Invalid YAML syntax at line ${i + 1}: "${line.trim()}"`;
+        }
+      }
+      return null;
+    }
+
+    /** Write config.local.yaml with basic validation. */
+    async function handleConfigWriteRequest(
+      req: IncomingMessage,
+      url: URL,
+      res: ServerResponse,
+    ): Promise<boolean> {
+      if (url.pathname !== '/api/config/local' || req.method !== 'PUT')
+        return false;
+
+      try {
+        const body = JSON.parse(await readBody(req)) as { content?: string };
+        const content = body.content;
+        if (typeof content !== 'string') {
+          jsonResponse(res, 400, { error: 'Missing content field' });
+          return true;
+        }
+
+        const yamlError = validateYamlContent(content);
+        if (yamlError) {
+          jsonResponse(res, 400, { error: yamlError });
+          return true;
+        }
+
+        const projectPath = resolve(url.searchParams.get('path') || absDefault);
+        const dirPath = join(projectPath, '.goat-flow');
+        const localConfigPath = join(dirPath, 'config.local.yaml');
+
+        mkdirSync(dirPath, { recursive: true });
+        writeFileSync(localConfigPath, content, 'utf-8');
+        jsonResponse(res, 200, { success: true });
+      } catch (err) {
+        jsonResponse(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return true;
+    }
+
+    /** Delete config.local.yaml to reset local overrides. */
+    function handleConfigDeleteRequest(
+      req: IncomingMessage,
+      url: URL,
+      res: ServerResponse,
+    ): boolean {
+      if (url.pathname !== '/api/config/local' || req.method !== 'DELETE')
+        return false;
+
+      try {
+        const projectPath = resolve(url.searchParams.get('path') || absDefault);
+        const localConfigPath = join(
+          projectPath,
+          '.goat-flow',
+          'config.local.yaml',
+        );
+
+        if (existsSync(localConfigPath)) {
+          unlinkSync(localConfigPath);
+        }
+        jsonResponse(res, 200, { success: true });
+      } catch (err) {
+        jsonResponse(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return true;
+    }
+
     /** Dispatch one HTTP request across the dashboard routes in priority order. */
     async function handleRequest(
       req: IncomingMessage,
@@ -413,8 +772,12 @@ export function serveDashboard(
         () => Promise.resolve(handleHtmlRequest(url, res)),
         () => Promise.resolve(handleAssetRequest(url, res)),
         () => Promise.resolve(handleScanRequest(url, res)),
+        () => Promise.resolve(handleSetupDetectRequest(url, res)),
         () => handleSetupRequest(url, res),
         () => Promise.resolve(handleBrowseRequest(url, res)),
+        () => Promise.resolve(handleConfigReadRequest(url, res)),
+        () => handleConfigWriteRequest(req, url, res),
+        () => Promise.resolve(handleConfigDeleteRequest(req, url, res)),
         () => handleTerminalCreateRequest(req, url, res),
         () => handleTerminalListRequest(req, url, res),
         () => handleTerminalDeleteRequest(req, url, res),

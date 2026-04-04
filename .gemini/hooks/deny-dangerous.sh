@@ -24,8 +24,21 @@ check_segment() {
 
   # rm -rf without scoping (handles both -rf and -fr flag order)
   if [[ "$cmd" =~ rm[[:space:]]+-[a-zA-Z]*r[a-zA-Z]*f|rm[[:space:]]+-[a-zA-Z]*f[a-zA-Z]*r ]]; then
-    if ! [[ "$cmd" =~ rm[[:space:]]+-(rf|fr)[[:space:]]+(\./|[a-zA-Z]) ]]; then
+    if ! [[ "$cmd" =~ rm[[:space:]]+-(rf|fr)[[:space:]]+(\./[a-zA-Z]|[a-zA-Z]|/tmp/) ]]; then
       block "rm -rf without safe scoping"
+    fi
+  fi
+
+  # rm with glob patterns or 5+ files (bulk delete risk)
+  if [[ "$cmd" =~ ^[[:space:]]*rm[[:space:]] ]] && ! [[ "$cmd" =~ rm[[:space:]]+-[a-zA-Z]*r ]]; then
+    local rm_re='rm[[:space:]].*[*?]'
+    if [[ "$cmd" =~ $rm_re ]]; then
+      block "rm with glob pattern - list targets first: ls <pattern>, then confirm"
+    fi
+    local rm_args
+    rm_args=$(echo "$cmd" | sed 's/^[[:space:]]*rm[[:space:]]*//' | tr ' ' '\n' | grep -v '^-' | wc -l)
+    if [[ "$rm_args" -ge 5 ]]; then
+      block "rm on ${rm_args} files - list files first and confirm"
     fi
   fi
 
@@ -35,9 +48,12 @@ check_segment() {
     block "Direct push to main/master"
   fi
 
-  # Force push
+  # Force push (--force, --force-with-lease, or -f shorthand)
   if [[ "$cmd" =~ git[[:space:]]+push[[:space:]]+.*--force ]]; then
     block "git push --force"
+  fi
+  if [[ "$cmd" =~ git[[:space:]]+push[[:space:]]+(.*[[:space:]])?-f([[:space:]]|$) ]]; then
+    block "git push -f (force push shorthand)"
   fi
 
   # chmod 777

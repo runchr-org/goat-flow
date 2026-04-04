@@ -85,7 +85,7 @@ function collectSignalActionLines(signals: ProjectSignals): string[] {
   if (signals.staticAnalysis.length > 0) {
     const tools = formatStaticAnalysisTools(signals, true);
     actions.push(
-      `- **Static analysis (${tools}):** Verify the linter is enforced in hooks (stop-lint.sh), not just configured. Add "MUST maintain ${tools} compliance" to the instruction file.`,
+      `- **Static analysis (${tools}):** Verify the linter is enforced in hooks (stop-lint.sh), not just configured. Add \`<important if="editing source files">MUST maintain ${tools} compliance</important>\` to the instruction file (conditional tag keeps it contextual).`,
     );
   }
   return actions;
@@ -654,7 +654,7 @@ function defaultAdaptGuidance(
   if (output === '.goat-flow/config.yaml')
     return 'Use the default directory paths unless this project already needs explicit overrides';
   if (output === 'ai-docs/footguns/')
-    return 'Seed `ai-docs/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals';
+    return 'Seed `ai-docs/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals. For EVERY cited file:line: read the actual code and verify the claim — does the method exist? Does the exception type match? Does the risk description match actual behavior? Flag any footgun where cited behavior does not match the code as UNVERIFIED';
   if (output === 'ai-docs/lessons/')
     return 'Seed `ai-docs/lessons/` with category bucket files. Use `category:` frontmatter on the file and `## Lesson:` / `## Pattern:` entries from real incidents';
   if (output === 'ai-docs/architecture.md')
@@ -954,25 +954,33 @@ function renderSetupRedirect(
   lines.push(
     '**Skills:** The 6 canonical skills are: `goat`, `goat-debug`, `goat-plan`, `goat-review`, `goat-security`, `goat-test`.',
   );
+  lines.push('');
   lines.push(
-    'Delete any other `goat-*` directories (e.g., `goat-investigate`, `goat-audit`, `goat-onboard`, `goat-reflect`, `goat-resume`, `goat-simplify`, `goat-refactor`, `goat-context`).',
+    'Check the skills directory for stale or duplicate entries:',
   );
   lines.push(
-    'Also delete legacy skill directories: `audit/`, `review/`, `preflight/`.',
+    '- Delete stale `goat-*` directories: `goat-investigate`, `goat-audit`, `goat-onboard`, `goat-reflect`, `goat-resume`, `goat-simplify`, `goat-refactor`, `goat-context`',
+  );
+  lines.push(
+    '- Check for generic skill directories: `audit/`, `review/`, `preflight/`, `debug/`, `plan/`, `test/`, `security/`',
+  );
+  lines.push(
+    '  If any exist alongside the `goat-*` version: (a) migrate unique content into the goat-* version, (b) delete the generic directory, or (c) skip if it\'s a project-specific skill unrelated to goat-flow',
   );
   lines.push('');
   lines.push(
-    '**Router table:** Rewrite the Router Table in the instruction file to reference only the 6 canonical skills:',
+    '**Multi-agent consistency:** If multiple agent skill directories exist (`.claude/skills/`, `.agents/skills/`, `.gemini/skills/`), clean stale dirs from ALL of them — not just the agent being set up. Also update `GEMINI.md` and `AGENTS.md` if they reference deleted skills.',
   );
-  lines.push('```');
-  lines.push('| Resource | Path |');
-  lines.push('|----------|------|');
+  lines.push('');
   lines.push(
-    '| Skills | `.claude/skills/` (or equivalent agent skills dir) |',
+    '**Instruction files:** Check if `.github/instructions/` exists before creating `ai-docs/coding-standards/`.',
   );
-  lines.push('```');
   lines.push(
-    'Remove any entries pointing to deleted skills (goat-investigate, goat-reflect, etc.).',
+    '  If both would exist: (a) migrate `.github/instructions/` content into `ai-docs/coding-standards/`, (b) replace `.github/instructions/` files with one-line imports pointing to `ai-docs/coding-standards/`, or (c) keep `.github/instructions/` as canonical and skip `ai-docs/coding-standards/` creation. Do NOT create overlapping content in both locations.',
+  );
+  lines.push('');
+  lines.push(
+    '**Router table:** Rewrite the Router Table in the instruction file. Remove entries pointing to deleted skills. If `ai-docs/README.md` exists, include it as the Project Guidelines entry.',
   );
   lines.push('');
   lines.push(
@@ -983,6 +991,36 @@ function renderSetupRedirect(
   );
   lines.push(
     'Preserve any project-specific disambiguation examples the existing dispatcher may have.',
+  );
+  lines.push('');
+  lines.push(
+    '**Step 0b — Migrate, don\'t duplicate (check BEFORE creating files):**',
+  );
+  lines.push('');
+  lines.push(
+    'Before creating any artifact, check if an equivalent already exists. Do NOT create parallel surfaces.',
+  );
+  lines.push('');
+  lines.push('| Artifact | If this exists... | Do NOT also create... |');
+  lines.push('|----------|-------------------|----------------------|');
+  lines.push(
+    '| Tasks | `tasks/` | `.goat-flow/tasks/` (or vice versa) |',
+  );
+  lines.push(
+    '| Footguns | `docs/footguns.md` (flat file) | `ai-docs/footguns/` (directory) |',
+  );
+  lines.push(
+    '| Lessons | `docs/lessons.md` (flat file) | `ai-docs/lessons/` (directory) |',
+  );
+  lines.push(
+    '| Evals | `agent-evals/` | `ai-docs/evals/` |',
+  );
+  lines.push(
+    '| Coding standards | `ai/instructions/` or `.github/instructions/` | `ai-docs/coding-standards/` with overlapping content |',
+  );
+  lines.push('');
+  lines.push(
+    'For each artifact type: (1) use the EXISTING path as canonical, (2) update `.goat-flow/config.yaml` to point there, (3) list what you chose NOT to create and why.',
   );
   lines.push('');
   lines.push(
@@ -1015,6 +1053,15 @@ function renderSetupRedirect(
   lines.push(
     '   Read it first. If it restricts Bash or Write, work single-threaded instead of spawning sub-agents.',
   );
+  lines.push(
+    '5. **Deny rule escape hatch:** The default deny pattern `Bash(*git commit*)` blocks ALL commits.',
+  );
+  lines.push(
+    '   To relax specific rules after setup, add allow overrides in `.claude/settings.local.json` (gitignored).',
+  );
+  lines.push(
+    '   See `workflow/runtime/enforcement.md` for the full escape hatch guide.',
+  );
   lines.push('');
 
   // Main instruction
@@ -1039,10 +1086,68 @@ function renderSetupRedirect(
   );
   lines.push('- **Phase 3:** Verify 100% on the CLI scan');
   lines.push('');
+  const fileCount = report.stack.sourceFileCount;
+  const sizeLabel =
+    fileCount > 0
+      ? ` (detected ~${fileCount} source files)`
+      : '';
+  lines.push(
+    `**Scale to project size${sizeLabel}** — do NOT over-scaffold:`,
+  );
+  lines.push(
+    '- **Small projects (<100 source files):** Skip ADR framework, handoff template, and keep evals to 3 max. Use 2-3 skills with modes instead of all 6.',
+  );
+  lines.push(
+    '- **Medium projects (100-500 source files):** Full 6 skills, full learning loop, evals as incidents arise.',
+  );
+  lines.push(
+    '- **Large projects (>500 source files):** Full setup + local instruction files per major component.',
+  );
+  lines.push(
+    'If the goat-flow scaffolding would be larger than the project source code, you are over-scaffolding.',
+  );
+  lines.push('');
+  lines.push('**File categories** — know what to keep vs skip:');
+  lines.push(
+    '- **Hot-path (loaded every session):** Instruction file (CLAUDE.md), skills, hooks, `.goat-flow/config.yaml`',
+  );
+  lines.push(
+    '- **Cold-path (loaded on demand):** `ai-docs/coding-standards/`, `ai-docs/architecture.md`, `ai-docs/decisions/`',
+  );
+  lines.push(
+    '- **Optional (delete if unwanted):** `ai-docs/evals/`, `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/tasks/handoff-template.md`',
+  );
+  lines.push(
+    '- **Gitignored (never commit):** `.goat-flow/logs/`, `.goat-flow/tasks/todo.md`, `.goat-flow/tasks/handoff.md`',
+  );
+  lines.push('');
+
+  // Post-setup verification
+  lines.push('## Post-setup verification');
+  lines.push('');
+  lines.push('**Hook smoke-test** (run after creating hook scripts):');
+  lines.push('```bash');
+  lines.push('# Syntax check every hook script');
+  lines.push(
+    `for f in ${profile.hooksDir}/*.sh; do bash -n "$f" || echo "FAIL: $f"; done`,
+  );
+  lines.push('# Shellcheck if available');
+  lines.push(
+    `command -v shellcheck >/dev/null && shellcheck ${profile.hooksDir}/*.sh`,
+  );
+  lines.push('```');
+  lines.push(
+    'If any hook fails syntax check: fix it before declaring setup complete.',
+  );
+  lines.push('');
+  lines.push(
+    '**File creation checklist:** After setup, verify all expected files exist. Report any you could not create (permission denied, path conflict) with the reason.',
+  );
+  lines.push('');
 
   // Scan + iterate
   lines.push(
-    `After completing setup, run: \`${getCliCommand()} scan . --agent ${agentId}\``,
+    `**Scan:** Run \`${getCliCommand()} scan . --agent ${agentId}\``,
   );
   lines.push('');
   lines.push('**Target: 100% with zero anti-pattern deductions.**');

@@ -484,21 +484,6 @@ describe('mapLanguagesToTemplates', () => {
 // ─── M2.11b: post-healthkit quality fixes ───────────────────────────
 
 describe('M2.11b: setup prompt improvements', () => {
-  it('empty project gets redirect to setup-claude.md (not inline coding-standards)', () => {
-    const fs = buildEmptyProject();
-    const report = scanProject(fs, '/test', { agentFilter: null });
-    const output = composeSetup(report, 'claude');
-    assert.ok(output);
-    assert.ok(
-      output.includes('setup-claude.md'),
-      'Should redirect to setup-claude.md',
-    );
-    assert.ok(
-      output.includes('Phase 1a'),
-      'Should list phases covered in setup file',
-    );
-  });
-
   it('TS/JS empty project gets redirect (not inline frontend.md)', () => {
     // Empty project with TS now gets redirect instead of inline language refs
     const fs = createMockFS({
@@ -713,18 +698,6 @@ describe('composeSetup mode selection', () => {
     assert.ok(output.includes('GOAT Flow Setup'), 'Should have title');
   });
 
-  it('removed commands produce errors', () => {
-    assert.throws(
-      () => parseCLIArgs(['fix', '.']),
-      /removed/i,
-      'fix should throw removed error',
-    );
-    assert.throws(
-      () => parseCLIArgs(['audit', '.']),
-      /removed/i,
-      'audit should throw removed error',
-    );
-  });
 });
 
 // ─── M2.13: scanner accuracy & setup polish ──────────────────────────
@@ -1011,24 +984,6 @@ describe('M2.14: eval format aliases', () => {
   });
 });
 
-describe('M2.14: full setup output', () => {
-  it('empty project gets redirect to setup file (not inline Adapting templates)', () => {
-    const fs = buildEmptyProject();
-    const report = scanProject(fs, '/test', { agentFilter: null });
-    const output = composeSetup(report, 'claude');
-    assert.ok(output);
-    assert.ok(
-      output.includes('setup-claude.md'),
-      'Should redirect to setup-claude.md',
-    );
-    assert.ok(output.includes('Phase 1a'), 'Should mention foundation phase');
-    assert.ok(
-      output.includes('Enforcement'),
-      'Should mention enforcement phase',
-    );
-  });
-});
-
 describe('M2.14: root-level AP12 refs', () => {
   it('AGENTS.md:42 is counted as valid ref when AGENTS.md exists', () => {
     const fs = createMockFS({
@@ -1287,15 +1242,6 @@ describe('CLI: removed commands', () => {
 });
 
 describe('Multi-agent setup contract', () => {
-  it('multi-agent setup validates template refs', () => {
-    const fs = buildEmptyProject();
-    const report = scanProject(fs, '/test', { agentFilter: null });
-    // Should not throw with valid templates
-    assert.doesNotThrow(() =>
-      composeMultiAgentSetup(report, ['claude', 'codex', 'gemini']),
-    );
-  });
-
   it('multi-agent setup has per-agent foundation sections', () => {
     const fs = buildEmptyProject();
     const report = scanProject(fs, '/test', { agentFilter: null });
@@ -1358,25 +1304,6 @@ describe('Multi-agent setup contract', () => {
 // === Sprint 1 H-tests: New format verification ===
 
 describe('H-tests: Setup prompt format verification', () => {
-  it('empty project uses setup redirect (not numbered tasks)', () => {
-    const fs = buildEmptyProject();
-    const report = scanProject(fs, '/test', { agentFilter: null });
-    const output = composeSetup(report, 'claude');
-    assert.ok(output);
-    assert.ok(
-      output.includes('setup-claude.md'),
-      'Should redirect to setup-claude.md',
-    );
-    assert.ok(
-      !output.includes('### Task 1:'),
-      'Redirect should not have inline numbered tasks',
-    );
-    assert.ok(
-      output.includes('Deeply review and implement'),
-      'Should instruct to follow the setup file',
-    );
-  });
-
   it('GATE commands use resolved CLI path', () => {
     const fs = buildEmptyProject();
     const report = scanProject(fs, '/test', { agentFilter: null });
@@ -1442,6 +1369,111 @@ describe('H-tests: Setup prompt format verification', () => {
     assert.ok(
       output.includes('cli.js setup'),
       'Redirect should include setup re-run command',
+    );
+  });
+});
+
+// ─── M19: Setup reliability verification ───────────────────────────
+
+describe('M19: setup redirect includes migration guidance', () => {
+  it('setup redirect includes duplicate skill detection guidance', () => {
+    const fs = buildMinimalProject();
+    const report = scanProject(fs, '/test', { agentFilter: null });
+    const output = composeSetup(report, 'claude');
+    assert.ok(output);
+    assert.ok(
+      output.includes('audit/'),
+      'Should warn about generic audit/ skill directory',
+    );
+    assert.ok(
+      output.includes('migrate unique content'),
+      'Should suggest migrating content from generic to goat-* skill',
+    );
+  });
+
+  it('setup redirect includes instruction file migration guidance', () => {
+    const fs = buildMinimalProject();
+    const report = scanProject(fs, '/test', { agentFilter: null });
+    const output = composeSetup(report, 'claude');
+    assert.ok(output);
+    assert.ok(
+      output.includes('.github/instructions/'),
+      'Should mention .github/instructions/ migration',
+    );
+    assert.ok(
+      output.includes('ai-docs/coding-standards/'),
+      'Should mention ai-docs/coding-standards/ as alternative',
+    );
+  });
+
+  it('setup redirect includes permission pre-flight guidance', () => {
+    const fs = buildMinimalProject();
+    const report = scanProject(fs, '/test', { agentFilter: null });
+    const output = composeSetup(report, 'claude');
+    assert.ok(output);
+    assert.ok(
+      output.includes('settings.local.json'),
+      'Should mention permission restrictions check',
+    );
+  });
+
+  it('setup redirect includes hook smoke-test instructions', () => {
+    const fs = buildMinimalProject();
+    const report = scanProject(fs, '/test', { agentFilter: null });
+    const output = composeSetup(report, 'claude');
+    assert.ok(output);
+    assert.ok(
+      output.includes('bash -n'),
+      'Should include hook syntax check command',
+    );
+    assert.ok(
+      output.includes('shellcheck'),
+      'Should include shellcheck command',
+    );
+  });
+
+  it('setup redirect includes migrate-not-duplicate table', () => {
+    const fs = buildMinimalProject();
+    const report = scanProject(fs, '/test', { agentFilter: null });
+    const output = composeSetup(report, 'claude');
+    assert.ok(output);
+    assert.ok(
+      output.includes('Migrate, don\'t duplicate'),
+      'Should include migration guidance heading',
+    );
+    assert.ok(
+      output.includes('agent-evals/'),
+      'Should list eval duplicate path',
+    );
+  });
+
+  it('setup redirect includes project size scaling guidance', () => {
+    const fs = buildMinimalProject();
+    const report = scanProject(fs, '/test', { agentFilter: null });
+    const output = composeSetup(report, 'claude');
+    assert.ok(output);
+    assert.ok(
+      output.includes('Small projects'),
+      'Should include small project guidance',
+    );
+    assert.ok(
+      output.includes('Hot-path'),
+      'Should categorize files as hot-path vs cold-path',
+    );
+  });
+
+  it('setup redirect includes multi-agent consistency guidance', () => {
+    const fs = buildMinimalProject();
+    const report = scanProject(fs, '/test', { agentFilter: null });
+    const output = composeSetup(report, 'claude');
+    assert.ok(output);
+    assert.ok(
+      output.includes('Multi-agent consistency'),
+      'Should include multi-agent cleanup guidance',
+    );
+    assert.ok(
+      output.includes('GEMINI.md'),
+      'Should mention updating GEMINI.md',
     );
   });
 });

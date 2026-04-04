@@ -1,7 +1,5 @@
 # GEMINI.md - v0.10.0 (2026-04-02)
-
 Documentation framework for AI coding agent workflows. Markdown docs + Bash maintenance scripts.
-
 ## Essential Commands
 
 ```bash
@@ -10,7 +8,6 @@ bash -n scripts/maintenance/*.sh          # Syntax-check scripts
 bash scripts/preflight-checks.sh         # Full preflight gate
 bash scripts/context-validate.sh         # Validate GOAT Flow structure
 ```
-
 ## Truth Order
 
 1. User's explicit instruction (this session)
@@ -107,10 +104,12 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 
 | Resource | Path |
 |----------|------|
+| System spec (canonical) | `docs/system-spec.md` |
 | System docs, architecture | `docs/five-layers.md`, `ai-docs/architecture.md` |
 | Scripts | `scripts/` |
 <!-- goat-flow:router:start -->
 | Skills | `.agents/skills/` |
+| Project guidelines | `ai-docs/README.md` |
 | Footguns, lessons | `ai-docs/footguns/`, `ai-docs/lessons/` (+ `.goat-flow/` local variants) |
 | Decisions, evals | `ai-docs/decisions/`, `ai-docs/evals/` |
 | Coding standards | `ai-docs/coding-standards/` |

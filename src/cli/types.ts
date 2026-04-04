@@ -184,6 +184,8 @@ export interface StackInfo {
   testCommand: string | null;
   lintCommand: string | null;
   formatCommand: string | null;
+  /** Approximate count of source files (excludes node_modules, vendor, dist, .git) */
+  sourceFileCount: number;
   /** Extended project signals detected during setup-time analysis */
   signals: ProjectSignals;
 }
@@ -357,6 +359,8 @@ export interface AgentFacts {
       withChoices: number;
       withOutputFormat: number;
       withSharedConventions: number;
+      /** Number of malformed (unclosed) markdown fence blocks across all skill files */
+      malformedFenceCount: number;
       /** Skills where Step 0 Jaccard similarity to template > 0.9 (unadapted) */
       unadaptedCount: number;
       /** Total remaining <!-- ADAPT: --> comments across all skill files */

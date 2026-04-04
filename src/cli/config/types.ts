@@ -20,6 +20,8 @@ export interface GoatFlowConfig {
   lineLimits: { target: number; limit: number };
   /** User role that controls read-only vs read-write mode */
   persona: 'developer' | 'investigator';
+  /** Opt-in skill usage telemetry (logs invocations to .goat-flow/logs/skill-usage.jsonl) */
+  telemetry: boolean;
 }
 
 /** A single validation warning or error found during config parsing. */

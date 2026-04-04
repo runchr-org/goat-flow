@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop hook: runs after every Claude turn.
+# Stop hook: runs after every Codex turn.
 # MUST exit 0 even on errors (non-zero causes infinite loops).
 # Errors go to stderr as informational feedback.
 
@@ -24,7 +24,8 @@ CHANGED_TS=$(git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null | grep '\.
 
 # Shell scripts: syntax check + shellcheck
 if [ -n "$CHANGED_SH" ]; then
-  for f in $CHANGED_SH; do
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
     if [ -f "$f" ]; then
       # Syntax check
       if ! bash -n "$f" 2>/dev/null; then
@@ -38,7 +39,7 @@ if [ -n "$CHANGED_SH" ]; then
         fi
       fi
     fi
-  done
+  done <<< "$CHANGED_SH"
 fi
 
 # TypeScript: type check (if tsc available and tsconfig exists)

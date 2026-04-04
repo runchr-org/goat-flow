@@ -90,7 +90,7 @@ export const localContextChecks: CheckDef[] = [
             maxPoints: 1,
             confidence: 'high',
             message:
-              'No local instructions directory found. Expected `ai/` with an `ai-docs/README.md` router when project instruction files exist.',
+              'No local instructions directory found. Expected `ai-docs/` with an `ai-docs/README.md` router when project instruction files exist.',
           };
         }
         if (!hasValidRouter && routerNeedsFix !== null) {
@@ -117,7 +117,7 @@ export const localContextChecks: CheckDef[] = [
           confidence: 'high',
           message: hasRouter
             ? 'ai-docs/README.md exists and router links are valid'
-            : 'ai-docs/README.md not found. Create a router file so agents can discover instruction files under `ai/`.',
+            : 'ai-docs/README.md not found. Create a router file so agents can discover instruction files under `ai-docs/`.',
         };
       },
     },

@@ -873,4 +873,42 @@ export const hookChecks: CheckDef[] = [
       'Deny hook should block cloud-destructive commands when deploy platforms are detected: docker push, terraform destroy, terraform apply -auto-approve, aws s3 rm, aws ec2 terminate-instances.',
     recommendationKey: 'fix-deny-cloud-destructive',
   },
+  {
+    id: '2.2.8',
+    name: 'Agent ignore files for sensitive paths',
+    tier: 'standard',
+    category: 'Hooks',
+    pts: 1,
+    partialPts: 1,
+    confidence: 'high',
+    detect: {
+      type: 'custom',
+      fn: (ctx: FactContext): CheckResult => {
+        const { copilotignore, cursorignore } = ctx.facts.shared.ignoreFiles;
+        const readDeny = ctx.agentFacts.hooks.readDenyCoversSecrets;
+        const hasAny = copilotignore || cursorignore || readDeny;
+        const all = [
+          copilotignore ? '.copilotignore' : null,
+          cursorignore ? '.cursorignore' : null,
+          readDeny ? 'settings.json Read deny' : null,
+        ].filter(Boolean);
+        return {
+          id: '2.2.8',
+          name: 'Agent ignore files for sensitive paths',
+          tier: 'standard',
+          category: 'Hooks',
+          status: hasAny ? 'pass' : 'fail',
+          points: hasAny ? 1 : 0,
+          maxPoints: 1,
+          confidence: 'high',
+          message: hasAny
+            ? `Sensitive path protection: ${all.join(', ')}`
+            : 'No .copilotignore, .cursorignore, or Read deny patterns for sensitive files (.env, secrets, keys)',
+        };
+      },
+    },
+    recommendation:
+      'Create .copilotignore and/or .cursorignore with patterns for .env*, secrets/, *.pem, *.key. For Claude Code, add Read(**/.env*) deny patterns to settings.json.',
+    recommendationKey: 'create-ignore-files',
+  },
 ];

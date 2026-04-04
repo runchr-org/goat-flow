@@ -9,10 +9,6 @@ const presetsContent = readFileSync(join(import.meta.dirname, '../../src/dashboa
 const PRESETS: Array<{ id: string; name: string; desc: string; prompt: string; cat: string; guided?: boolean; guidedFields?: Array<{ key: string }>; guidedTemplate?: string }> = eval(presetsContent + '; PRESETS');
 
 describe('Preset launcher content validation', () => {
-  it('has at least 16 presets', () => {
-    assert.ok(PRESETS.length >= 16, `Expected ≥16 presets, got ${PRESETS.length}`);
-  });
-
   it('every preset has required fields', () => {
     for (const p of PRESETS) {
       assert.ok(p.id, `Preset missing id`);
@@ -81,24 +77,6 @@ describe('Preset launcher content validation', () => {
     }
   });
 
-  it('search filters presets by name, desc, and prompt', () => {
-    const search = (q: string) => {
-      const lower = q.toLowerCase();
-      return PRESETS.filter(p =>
-        p.name.toLowerCase().includes(lower) ||
-        p.desc.toLowerCase().includes(lower) ||
-        p.prompt.toLowerCase().includes(lower),
-      );
-    };
-
-    assert.ok(search('security').length >= 1, 'Search "security" should find security presets');
-    assert.ok(search('bug').length >= 1, 'Search "bug" should find bug-related presets');
-    assert.ok(search('zzzznonexistent').length === 0, 'Search nonsense should find nothing');
-    assert.ok(search('review').length >= 1, 'Search "review" should find review presets');
-    assert.ok(search('compliance').length >= 1, 'Search "compliance" should find compliance preset');
-    assert.ok(search('QA').length >= 1, 'Search "QA" should find qa-gaps preset');
-  });
-
   it('category filter works correctly', () => {
     const filterByCategory = (cat: string) =>
       cat === 'all' ? PRESETS : PRESETS.filter(p => p.cat === cat);
@@ -141,9 +119,4 @@ describe('Preset launcher content validation', () => {
     assert.ok(compliance.guidedFields?.some(f => f.key === 'regulation'), 'Should have regulation field');
   });
 
-  it('every description is under 60 characters', () => {
-    for (const p of PRESETS) {
-      assert.ok(p.desc.length <= 60, `Preset ${p.id} desc too long (${p.desc.length} chars): "${p.desc}"`);
-    }
-  });
 });

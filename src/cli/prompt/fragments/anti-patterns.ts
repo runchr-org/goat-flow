@@ -280,4 +280,16 @@ After deleting, update the router table in your instruction file to reference on
     kind: 'fix',
     instruction: `Some paths inside the goat-flow router marker block point to non-existent resources. Run \`goat-flow setup\` to regenerate the marker block, or manually update the paths between \`<!-- goat-flow:router:start -->\` and \`<!-- goat-flow:router:end -->\`.`,
   },
+  {
+    key: 'ap-fix-broad-deny-patterns',
+    phase: 'anti-pattern',
+    category: 'Anti-Pattern Fix',
+    kind: 'fix',
+    instruction: `Overly broad deny patterns block legitimate commands. Replace patterns like \`Bash(*git*)\` with specific ones:
+
+- \`Bash(*git commit*)\` — blocks commits (not all git commands)
+- \`Bash(*git push*)\` — blocks pushes (not git status, git diff, etc.)
+
+If you need to allow specific blocked commands, add them to \`.claude/settings.local.json\` allow list instead of weakening the deny patterns.`,
+  },
 ];

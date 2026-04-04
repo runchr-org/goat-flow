@@ -46,6 +46,7 @@ export const CONFIG_DEFAULTS: GoatFlowConfig = {
   skills: { install: 'all' },
   lineLimits: { target: 120, limit: 150 },
   persona: 'developer',
+  telemetry: false,
 };
 
 /** Clone the default config object so callers can mutate it safely. */
@@ -63,6 +64,7 @@ function cloneDefaults(): GoatFlowConfig {
     skills: { install: CONFIG_DEFAULTS.skills.install },
     lineLimits: { ...CONFIG_DEFAULTS.lineLimits },
     persona: CONFIG_DEFAULTS.persona,
+    telemetry: CONFIG_DEFAULTS.telemetry,
   };
 }
 
@@ -163,6 +165,7 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
   // YAML key is `line-limits` (kebab-case), TypeScript field is `lineLimits` (camelCase)
   mergeLineLimits(raw['line-limits'], merged);
   mergePersona(raw.persona, merged);
+  if (typeof raw.telemetry === 'boolean') merged.telemetry = raw.telemetry;
 
   return merged;
 }

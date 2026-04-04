@@ -172,6 +172,29 @@ describe('project fixture corpus', () => {
     );
   });
 
+  it('fresh-project has no detected agents', () => {
+    const fixture = scanFixture('fresh-project');
+    cleanups.push(fixture.cleanup);
+
+    // A project with no CLAUDE.md/AGENTS.md/GEMINI.md should have zero agent reports
+    assert.equal(
+      fixture.report.agents.length,
+      0,
+      `Expected 0 agents for fresh project, got ${fixture.report.agents.length}: ${fixture.report.agents.map((a) => a.agent).join(', ')}`,
+    );
+  });
+
+  it('scanner-bait fixture scores below 100', () => {
+    const fixture = scanFixture('scanner-bait');
+    cleanups.push(fixture.cleanup);
+
+    const claude = getAgent('scanner-bait', fixture.report.agents, 'claude');
+    assert.ok(
+      claude.score.percentage < 100,
+      `Expected scanner-bait < 100, got ${claude.score.percentage}%`,
+    );
+  });
+
   it('missing-skills fixture scores below 100 due to missing skills', () => {
     const fixture = scanFixture('missing-skills');
     cleanups.push(fixture.cleanup);

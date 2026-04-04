@@ -95,6 +95,7 @@ Sub-agents: ONE objective, structured return (paths, evidence, confidence, next 
 | Scripts | `scripts/` |
 <!-- goat-flow:router:start -->
 | Skills | `.agents/skills/` |
+| Project guidelines | `ai-docs/README.md` |
 | Footguns | `ai-docs/footguns/`, `.goat-flow/footguns/` |
 | Lessons | `ai-docs/lessons/`, `.goat-flow/lessons/` |
 | Decisions | `ai-docs/decisions/` |

@@ -1066,6 +1066,28 @@ fi
 Also block in settings.json deny list: \`"Bash(docker push*)", "Bash(terraform destroy*)", "Bash(terraform apply*-auto-approve*)", "Bash(aws s3 rm*)", "Bash(aws ec2 terminate*)"\`.`,
   },
 
+  {
+    key: 'create-ignore-files',
+    phase: 'standard',
+    category: 'Hooks',
+    kind: 'create',
+    instruction: `Create agent ignore files to prevent reading sensitive files:
+
+For Copilot — create \`.copilotignore\`:
+\`\`\`
+.env*
+**/secrets/
+**/*.pem
+**/*.key
+**/credentials*
+\`\`\`
+
+For Cursor — create \`.cursorignore\` with the same patterns.
+
+For Claude Code — add Read deny patterns to .claude/settings.json:
+\`"Read(**/.env*)", "Read(**/*.pem)", "Read(**/*.key)"\``,
+  },
+
   // === Signal Follow-Through ===
   {
     key: 'fix-llm-signal-followthrough',

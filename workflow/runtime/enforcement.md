@@ -260,6 +260,88 @@ In .claude/settings.json, add to the hooks array:
 This is most valuable during multi-hour sessions where losing the
 thread means repeating work or violating boundaries.
 
+5. DoD verification hook (Stop, optional)
+
+Register a Stop hook that runs mechanical Definition of Done checks
+after each agent turn. This replaces aspirational "MUST verify" language
+with actual enforcement.
+
+```bash
+#!/usr/bin/env bash
+# dod-check.sh — Stop hook, runs after each turn
+# MUST exit 0 (informational only — non-zero causes infinite loops)
+if [ "${DOD_HOOK_ACTIVE:-}" = "1" ]; then exit 0; fi
+export DOD_HOOK_ACTIVE=1
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+cd "$ROOT" || exit 0
+WARNINGS=""
+
+# Check 1: shellcheck on changed .sh files
+CHANGED_SH=$(git diff --name-only HEAD 2>/dev/null | grep '\.sh$') || true
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  [ -f "$f" ] && ! bash -n "$f" 2>/dev/null && WARNINGS="${WARNINGS}Syntax error: $f\n"
+done <<< "$CHANGED_SH"
+
+# Check 2: grep old pattern after renames (checks last commit message for rename hints)
+LAST_MSG=$(git log -1 --pretty=%s 2>/dev/null || echo "")
+if echo "$LAST_MSG" | grep -qi 'rename\|move\|refactor'; then
+  WARNINGS="${WARNINGS}Recent rename detected — verify grep for old pattern (DoD #6)\n"
+fi
+
+# Check 3: no broken cross-references in instruction files
+for f in CLAUDE.md AGENTS.md GEMINI.md; do
+  [ -f "$f" ] || continue
+  grep -oE '`[^`]+`' "$f" | tr -d '`' | while read -r ref; do
+    [[ "$ref" == *"*"* || "$ref" == *"{"* || -z "$ref" ]] && continue
+    [ ! -e "$ref" ] && WARNINGS="${WARNINGS}Broken ref in $f: $ref\n"
+  done
+done
+
+if [ -n "$WARNINGS" ]; then
+  echo -e "DoD check:\n$WARNINGS" >&2
+fi
+exit 0
+```
+
+Register as a Stop hook alongside stop-lint.sh.
+
+6. Skill usage telemetry (PreToolUse, optional, opt-in)
+
+Logs skill invocations to `.goat-flow/logs/skill-usage.jsonl` for
+understanding which skills are used, how often, and which are idle.
+
+Opt-in via `.goat-flow/config.yaml`:
+```yaml
+telemetry: true  # default: false
+```
+
+```bash
+#!/usr/bin/env bash
+# skill-telemetry.sh — PreToolUse hook, logs skill invocations
+# Only runs if telemetry is enabled in config
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+CONFIG="$ROOT/.goat-flow/config.yaml"
+[ -f "$CONFIG" ] && grep -q 'telemetry: true' "$CONFIG" || exit 0
+
+INPUT=$(cat)
+# Detect skill invocations from Skill tool calls
+SKILL=$(echo "$INPUT" | jq -r '.tool_input.skill // empty' 2>/dev/null)
+[ -z "$SKILL" ] && exit 0
+[[ "$SKILL" == goat* ]] || exit 0
+
+LOG="$ROOT/.goat-flow/logs/skill-usage.jsonl"
+mkdir -p "$(dirname "$LOG")"
+echo "{\"ts\":\"$(date -u +%FT%TZ)\",\"skill\":\"$SKILL\",\"session\":\"$$\"}" >> "$LOG"
+exit 0
+```
+
+Register as PreToolUse (Skill tool matcher if supported, or unmatched):
+```json
+{ "type": "PreToolUse", "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/skill-telemetry.sh\"" }
+```
+
 VERIFICATION:
 - Verify .claude/settings.json is valid JSON (parse it)
 - Verify deny-dangerous.sh blocks: rm -rf, git push main,
@@ -367,3 +449,42 @@ command = "bash .codex/hooks/session-start.sh"
 | Read-deny patterns | settings.json Read deny | No equivalent |
 | Config format | JSON (.claude/settings.json) | TOML (.codex/config.toml) |
 | Rule language | Bash scripts | Starlark (.star files) + Bash hooks |
+
+---
+
+## Relaxing Deny Rules (Escape Hatch)
+
+Once you trust the agent's behavior in your project, you may want to relax some deny rules. Common scenarios:
+
+**Allowing git commits:** The default deny pattern `Bash(*git commit*)` blocks ALL commits, including ones the user explicitly asks for. To allow commits while keeping other protections:
+
+1. Open `.claude/settings.local.json` (create if needed — this file is gitignored)
+2. Add an allow rule that overrides the deny:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(*git commit*)",
+      "Bash(*git push origin dev*)"
+    ]
+  }
+}
+```
+
+Allow rules take precedence over deny rules. Be specific — `Bash(*git push*)` allows pushes to ANY branch including main.
+
+**Per-project overrides via `settings.local.json`:** This file is gitignored and not shared with the team. Use it for personal trust decisions. The team-shared `settings.json` keeps the conservative defaults.
+
+**Modifying hook scripts:** To relax a specific deny check (e.g., allowing `rm -rf ./dist`), edit the hook script directly. Add the safe pattern to the allow condition:
+
+```bash
+# In deny-dangerous.sh — allow rm -rf on known build directories
+if [[ "$cmd" =~ rm[[:space:]]+-[a-zA-Z]*r[a-zA-Z]*f ]]; then
+  if ! [[ "$cmd" =~ rm[[:space:]]+-(rf|fr)[[:space:]]+(\./[a-zA-Z]|[a-zA-Z]|/tmp/) ]]; then
+    block "rm -rf without safe scoping"
+  fi
+fi
+```
+
+**Removing a hook entirely:** If a hook causes more friction than value, remove its registration from `.claude/settings.json` (or the equivalent agent config). The hook script can stay on disk for later re-enablement.

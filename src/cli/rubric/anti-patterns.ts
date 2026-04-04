@@ -612,7 +612,59 @@ export const antiPatterns: AntiPatternDef[] = [
       'Update router table marker block — some goat-flow-owned paths point to non-existent resources. Run `goat-flow setup` to regenerate.',
     recommendationKey: 'ap-fix-stale-router-markers',
   },
+  // === AP23: Overly broad deny patterns ===
+  {
+    id: 'AP23',
+    name: 'Overly broad deny patterns',
+    deduction: -2,
+    confidence: 'medium',
+    evaluate: (ctx: FactContext): AntiPatternResult => {
+      const parsed = ctx.agentFacts.settings.parsed as Record<string, unknown> | null;
+      const permissions = parsed?.permissions as Record<string, unknown> | undefined;
+      const rawDeny = permissions?.deny;
+      const denyList = Array.isArray(rawDeny) ? (rawDeny as string[]) : [];
+      if (denyList.length === 0)
+        return {
+          id: 'AP23',
+          name: 'Overly broad deny patterns',
+          triggered: false,
+          deduction: 0,
+          confidence: 'medium',
+          message: 'No deny patterns configured',
+        };
+      const tooBroad = findBroadDenyPatterns(denyList);
+      const triggered = tooBroad.length > 0;
+      return {
+        id: 'AP23',
+        name: 'Overly broad deny patterns',
+        triggered,
+        deduction: triggered ? -2 : 0,
+        confidence: 'medium',
+        message: triggered
+          ? `${tooBroad.length} overly broad deny pattern(s): ${tooBroad.join(', ')}. These block legitimate commands. Use specific patterns like Bash(*git push*) instead of Bash(*git*).`
+          : 'Deny patterns are specific enough',
+        evidence: triggered ? tooBroad.join(', ') : undefined,
+      };
+    },
+    recommendation:
+      'Replace overly broad deny patterns with specific ones. E.g., use Bash(*git push*) and Bash(*git commit*) instead of Bash(*git*). Move to settings.local.json allow list if needed.',
+    recommendationKey: 'ap-fix-broad-deny-patterns',
+  },
 ];
+
+/** Return deny patterns that block common substrings too aggressively. */
+function findBroadDenyPatterns(denyList: string[]): string[] {
+  const tooBroad: string[] = [];
+  for (const p of denyList) {
+    // Bash(*git*) blocks anything mentioning "git" — too broad
+    if (/^Bash\(\*git\*\)$/i.test(p)) tooBroad.push(p);
+    // Bash(*test*) blocks all test commands
+    if (/^Bash\(\*test\*\)$/i.test(p)) tooBroad.push(p);
+    // Bash(*run*) blocks npm run, cargo run, etc.
+    if (/^Bash\(\*run\*\)$/i.test(p)) tooBroad.push(p);
+  }
+  return tooBroad;
+}
 
 /**
  * Search the instruction file sections for a heading containing the given name.

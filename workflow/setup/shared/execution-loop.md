@@ -126,10 +126,30 @@ h) Router table: MUST include at minimum:
 
 i) Essential commands
 
+j) Conditional rules (optional, recommended for large codebases):
+   Use `<important>` tags with `if` attributes to scope rules to
+   relevant contexts. Claude filters these based on the current task:
+   ```
+   <important if="editing PHP files">
+   PHPStan level 10 must pass. Run: vendor/bin/phpstan analyse
+   </important>
+
+   <important if="touching auth or payment code">
+   Ask First boundary — complete the full 5-item checklist before proceeding.
+   </important>
+
+   <important if="modifying database migrations">
+   MUST test rollback: php artisan migrate:rollback then migrate again.
+   </important>
+   ```
+   Use these when the instruction file grows beyond the line target.
+   Rules inside `<important if="...">` load contextually instead of
+   always occupying the token budget.
+
 If over line target, apply cut priority from the system spec.
 If you must weaken a MUST to meet the line target, the target is
 wrong - raise it, don't weaken the rule.
-Do NOT skip sections (f)–(i) - they are small but required.
+Do NOT skip sections (f)–(j) - they are small but required.
 
 When sources conflict, this precedence applies:
 1. User's explicit instruction (this session)

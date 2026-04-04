@@ -24,6 +24,11 @@ skills:
 # Override locally in .goat-flow/config.local.yaml (gitignored).
 persona: developer
 
+# ── Telemetry ─────────────────────────────────
+# Opt-in: logs skill invocations to .goat-flow/logs/skill-usage.jsonl
+# Requires the skill-telemetry.sh hook (see workflow/runtime/enforcement.md)
+telemetry: false
+
 # ── Scanner Thresholds ──────────────────────────
 # Adjust for project complexity:
 #   Small CLI: target 80, limit 120

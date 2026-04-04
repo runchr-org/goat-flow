@@ -1,6 +1,5 @@
 # CLAUDE.md - v0.10.0 (2026-04-02)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash scripts + TypeScript CLI scanner.
-
 ## Essential Commands
 
 ```bash
@@ -9,7 +8,6 @@ bash -n scripts/maintenance/*.sh          # Syntax-check scripts
 bash scripts/preflight-checks.sh         # Full preflight gate
 bash scripts/context-validate.sh         # Validate GOAT Flow structure
 ```
-
 ## Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
 
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
@@ -111,6 +109,7 @@ MUST confirm ALL: (1) shellcheck passes on changed .sh files (2) no broken cross
 | Scripts | `scripts/` |
 <!-- goat-flow:router:start -->
 | Skills | `.claude/skills/` |
+| Project guidelines | `ai-docs/README.md` |
 | Footguns, lessons | `ai-docs/footguns/`, `ai-docs/lessons/` (+ `.goat-flow/` local variants) |
 | Decisions, evals | `ai-docs/decisions/`, `ai-docs/evals/` |
 | Coding standards | `ai-docs/coding-standards/` |

@@ -15,11 +15,39 @@ interface GuideItem {
   effort: 'trivial' | 'moderate' | 'complex';
 }
 
-/** Map a rubric tier to an effort estimate for the setup guide */
+/** Per-check effort overrides where tier-based effort is inaccurate. */
+const EFFORT_OVERRIDES: Record<string, 'trivial' | 'moderate' | 'complex'> = {
+  // Foundation checks that are actually moderate (need content, not just file creation)
+  '1.1.5': 'moderate',     // Concrete examples require BAD/GOOD pairs with real paths
+  '1.1.5a': 'moderate',    // Path resolution requires real project paths in instruction file
+  '1.2.6': 'moderate',     // LOG step needs footguns/lessons dirs AND content
+  '1.3.2': 'moderate',     // Ask First boundaries need project-specific paths
+
+  // Standard checks that are actually trivial (one-line fixes)
+  '2.2.1': 'trivial',      // Fix settings.json JSON syntax
+  '2.4.4': 'trivial',      // Add handoff ref to router table
+  '2.4.5': 'trivial',      // Add config ref to router table
+  '2.4.6': 'trivial',      // Add session log ref to router table
+
+  // Standard checks that are actually complex
+  '2.1.12': 'complex',     // Skills need Step 0 AND constraints — structural rewrite
+  '2.2.8': 'trivial',      // Create .copilotignore file
+
+  // Full checks that are moderate (not complex)
+  '3.1.3': 'moderate',     // Eval files need real scenario content
+  '3.3.1a': 'moderate',    // Handoff template sections — fill in a template
+};
+
+/** Map a rubric tier to a default effort estimate for the setup guide. */
 function effortFromTier(tier: string): 'trivial' | 'moderate' | 'complex' {
   if (tier === 'foundation') return 'trivial';
   if (tier === 'standard') return 'moderate';
   return 'complex';
+}
+
+/** Get the effort estimate for a check, using per-check overrides where available. */
+function getEffort(checkId: string, tier: string): 'trivial' | 'moderate' | 'complex' {
+  return EFFORT_OVERRIDES[checkId] ?? effortFromTier(tier);
 }
 
 /** Calculate sort priority from a check result (lower = higher priority) */
@@ -45,7 +73,7 @@ function buildGuideItems(agent: AgentReport): GuideItem[] {
       id: check.id,
       name: check.name,
       action: rec?.action ?? check.message,
-      effort: effortFromTier(check.tier),
+      effort: getEffort(check.id, check.tier),
     });
   }
 

@@ -262,3 +262,132 @@ describe('M12: persona structural checks', () => {
     );
   });
 });
+
+// === M12 manual test coverage: persona routing behavior ===
+
+describe('M12: persona routing behavior (contract verification)', () => {
+  it('goat-debug investigate mode is structurally read-only (no fix phases)', () => {
+    const content = readSkill('goat-debug');
+    // Extract investigate mode section
+    const investigateSection = content.match(
+      /## Investigate Mode[\s\S]*?(?=\n## [A-Z]|\n---\n## )/,
+    );
+    assert.ok(investigateSection, 'goat-debug should have Investigate Mode section');
+    // Investigate mode should NOT contain fix/implement/edit language
+    assert.ok(
+      !investigateSection[0].includes('implement the fix') &&
+        !investigateSection[0].includes('apply the change'),
+      'Investigate mode should not contain implementation language',
+    );
+    // It should have a report phase, not a fix phase
+    assert.ok(
+      investigateSection[0].includes('Report') || investigateSection[0].includes('I3'),
+      'Investigate mode should end with a report phase',
+    );
+  });
+
+  it('goat-debug diagnose mode has fix gate requiring approval', () => {
+    const content = readSkill('goat-debug');
+    // The D2→D3 gate should require human approval before any fix
+    assert.ok(
+      content.includes('BLOCKING GATE') && content.includes('propose a fix'),
+      'Diagnose mode should have a blocking gate before fix proposal',
+    );
+    // Phase D3 should only activate after approval
+    assert.ok(
+      content.includes('Only if human approved') ||
+        content.includes('if approved') ||
+        content.includes('If yes'),
+      'Fix phase should be gated on human approval',
+    );
+  });
+
+  it('goat-debug has mode selection in Step 0 that routes by intent', () => {
+    const content = readSkill('goat-debug');
+    assert.ok(
+      content.includes('Mode selection') || content.includes('mode routing'),
+      'Step 0 should have explicit mode selection/routing',
+    );
+    assert.ok(
+      content.includes('Diagnose mode') &&
+        content.includes('Investigate mode') &&
+        content.includes('Onboard mode'),
+      'Step 0 should list all three modes',
+    );
+  });
+
+  it('goat-plan has implementation gated on approval', () => {
+    const content = readSkill('goat-plan');
+    // Phase 4 milestones should have a blocking gate
+    assert.ok(
+      content.includes('Approve and start implementing') ||
+        content.includes('approve'),
+      'Milestones should gate implementation on approval',
+    );
+  });
+});
+
+// === M11 manual test coverage: recovery and checkpoint behavior ===
+
+describe('M11: recovery and checkpoint behavior (contract verification)', () => {
+  for (const name of ALL_SKILLS) {
+    it(`${name} has recovery procedures in shared conventions`, () => {
+      const content = readSkill(name);
+      assert.ok(
+        content.includes('### Recovery'),
+        `${name} should have Recovery section in shared conventions`,
+      );
+      assert.ok(
+        content.includes('Partial completion'),
+        `${name} recovery should handle partial completion`,
+      );
+      assert.ok(
+        content.includes('resume from next'),
+        `${name} recovery should describe how to resume`,
+      );
+    });
+
+    it(`${name} has working memory for long tasks`, () => {
+      const content = readSkill(name);
+      assert.ok(
+        content.includes('### Working Memory'),
+        `${name} should have Working Memory section`,
+      );
+      assert.ok(
+        content.includes('todo.md') || content.includes('handoff.md'),
+        `${name} working memory should reference state files`,
+      );
+    });
+
+    it(`${name} has closing protocol with handoff`, () => {
+      const content = readSkill(name);
+      assert.ok(
+        content.includes('### Closing Protocol'),
+        `${name} should have Closing Protocol section`,
+      );
+      assert.ok(
+        content.includes('If incomplete'),
+        `${name} closing should handle incomplete work`,
+      );
+    });
+  }
+
+  it('shared preamble recovery covers sub-agent mode', () => {
+    assert.ok(
+      preamble.includes('Sub-agent') || preamble.includes('sub-agent'),
+      'Recovery should cover sub-agent/autonomous recovery',
+    );
+    assert.ok(
+      preamble.includes('handoff.md'),
+      'Sub-agent recovery should write handoff for context preservation',
+    );
+  });
+
+  it('flush protocol includes checkpoint verification for plans', () => {
+    assert.ok(
+      preamble.includes('tick all completed checkboxes') ||
+        preamble.includes('plan/milestone file'),
+      'Flush protocol should enforce checkpoint ticking when working from a plan',
+    );
+  });
+});

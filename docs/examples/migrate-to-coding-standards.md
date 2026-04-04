@@ -55,10 +55,10 @@ Read every file. You need to know what's in them before you can group by domain.
 
 ---
 
-## Step 1: Create the ai/ Structure
+## Step 1: Create the ai-docs/ Structure
 
 ```bash
-mkdir -p ai/coding-standards
+mkdir -p ai-docs/coding-standards
 ```
 
 Create the router file `ai-docs/README.md`:

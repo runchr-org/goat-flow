@@ -53,6 +53,7 @@ interface SkillQualityCounts {
   withChoices: number;
   withOutputFormat: number;
   withSharedConventions: number;
+  malformedFenceCount: number;
 }
 
 /** Aggregates found/missing skills, version drift, and quality metrics for one agent. */
@@ -103,6 +104,7 @@ function createSkillQualityCounts(): SkillQualityCounts {
     withChoices: 0,
     withOutputFormat: 0,
     withSharedConventions: 0,
+    malformedFenceCount: 0,
   };
 }
 
@@ -132,6 +134,27 @@ function countAdaptComments(content: string): number {
   return content.match(/<!--\s*ADAPT:/g)?.length ?? 0;
 }
 
+/** Count malformed markdown fence blocks (unclosed or improperly nested triple-backtick regions). */
+function countMalformedFences(content: string): number {
+  const lines = content.split('\n');
+  let openFences = 0;
+  let malformed = 0;
+  for (const line of lines) {
+    if (/^```/.test(line.trim())) {
+      if (openFences > 0) {
+        // Closing a fence
+        openFences--;
+      } else {
+        // Opening a fence
+        openFences++;
+      }
+    }
+  }
+  // Any unclosed fences are malformed
+  malformed += openFences;
+  return malformed;
+}
+
 /** List installed skill directories that contain a `SKILL.md` file. */
 function collectInstalledSkillDirs(
   fs: ReadonlyFS,
@@ -153,6 +176,8 @@ function analyzeSkillContent(
   const version = extractSkillVersion(content);
   versions[skill] = version;
   updateSkillQualityCounts(content, quality);
+
+  quality.malformedFenceCount += countMalformedFences(content);
 
   return {
     outdated: version === null || version !== SKILL_VERSION,

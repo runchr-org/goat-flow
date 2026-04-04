@@ -544,7 +544,7 @@ function mergeCommands(
 /** Combine detector outputs into the final stack info shape. */
 function mergeDetectorResults(
   detectors: DetectorResult[],
-): Omit<StackInfo, 'signals'> {
+): Omit<StackInfo, 'signals' | 'sourceFileCount'> {
   const languages: string[] = [];
   const commands: Pick<
     StackInfo,
@@ -624,7 +624,25 @@ export function detectStack(fs: ReadonlyFS): StackInfo {
     stack.languages,
     stack.formatCommand,
   );
-  return { ...stack, signals };
+  const sourceFileCount = countSourceFiles(fs);
+  return { ...stack, sourceFileCount, signals };
+}
+
+/** Count approximate source files (excludes generated/vendor/build dirs). */
+function countSourceFiles(fs: ReadonlyFS): number {
+  const patterns = [
+    'src/**/*.*',
+    'lib/**/*.*',
+    'app/**/*.*',
+    'packages/**/*.*',
+  ];
+  const seen = new Set<string>();
+  for (const pattern of patterns) {
+    for (const file of fs.glob(pattern)) {
+      seen.add(file);
+    }
+  }
+  return seen.size;
 }
 
 /** Collect named tool/platform signals that feed richer setup prompts. */

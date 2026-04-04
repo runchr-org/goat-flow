@@ -200,6 +200,7 @@ function defaultAgentFacts(): AgentFacts {
         withChoices: 5,
         withOutputFormat: 5,
         withSharedConventions: 5,
+        malformedFenceCount: 0,
         unadaptedCount: 0,
         adaptCommentCount: 0,
         total: 5,
