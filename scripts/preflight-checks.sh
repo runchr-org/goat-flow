@@ -16,17 +16,28 @@ fi
 errors=0
 warnings=0
 checks=0
-preflight_start=$SECONDS
-section_start=$SECONDS
+
+# Millisecond-precision timing using date +%s%N
+now_ms() { echo $(( $(date +%s%N) / 1000000 )); }
+fmt_elapsed() {
+    local ms=$(( $1 ))
+    local secs=$(( ms / 1000 ))
+    local frac=$(( ms % 1000 ))
+    printf '%d.%01ds' "$secs" "$(( frac / 100 ))"
+}
+
+preflight_start=$(now_ms)
+section_start=$(now_ms)
 
 # ── Helpers ──────────────────────────────────────────────────────────
 section() {
     # Print elapsed time for the previous section (skip for the first call)
-    if [[ "$section_start" -ne "$preflight_start" ]] || [[ "$checks" -gt 0 ]]; then
-        local elapsed=$(( SECONDS - section_start ))
-        echo -e "  ${DIM}(${elapsed}s)${RST}"
+    local now
+    now=$(now_ms)
+    if [[ "$checks" -gt 0 ]]; then
+        echo -e "  ${DIM}($(fmt_elapsed $(( now - section_start ))))${RST}"
     fi
-    section_start=$SECONDS
+    section_start=$now
     echo -e "\n${B}━━ $1${RST}";
 }
 pass()    { checks=$((checks + 1)); echo -e "  ${G}✓${RST} $1"; }
@@ -371,13 +382,13 @@ fi
 
 # ── Summary ──────────────────────────────────────────────────────────
 # Print elapsed time for the last section
-echo -e "  ${DIM}($(( SECONDS - section_start ))s)${RST}"
+echo -e "  ${DIM}($(fmt_elapsed $(( $(now_ms) - section_start ))))${RST}"
 
-total_elapsed=$(( SECONDS - preflight_start ))
+total_elapsed=$(fmt_elapsed $(( $(now_ms) - preflight_start )))
 echo ""
 echo -e "${DIM}─────────────────────────────────────────────────${RST}"
 if [[ "$errors" -gt 0 ]]; then
-    echo -e "${BOLD}${R}PREFLIGHT FAILED${RST}  ${errors} error(s), ${warnings} warning(s), ${checks} checks  ${DIM}(${total_elapsed}s)${RST}"
+    echo -e "${BOLD}${R}PREFLIGHT FAILED${RST}  ${errors} error(s), ${warnings} warning(s), ${checks} checks  ${DIM}(${total_elapsed})${RST}"
     exit 1
 fi
-echo -e "${BOLD}${G}PREFLIGHT PASSED${RST}  ${checks} checks, ${warnings} warning(s)  ${DIM}(${total_elapsed}s)${RST}"
+echo -e "${BOLD}${G}PREFLIGHT PASSED${RST}  ${checks} checks, ${warnings} warning(s)  ${DIM}(${total_elapsed})${RST}"

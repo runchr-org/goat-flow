@@ -84,7 +84,7 @@ const PRESETS = [
     { key: 'concern', label: 'Specific concern?', type: 'input', placeholder: 'e.g., critical CVEs only, or all outdated packages' }
   ], guidedTemplate: '/goat-security — focus on dependency CVEs and outdated packages. Concern: {concern}. Skip the full threat surface scan.' },
   { id: 'compliance', name: 'Compliance Check', desc: 'Check code against HIPAA, GDPR, SOC2, or PCI-DSS', prompt: '/goat-security compliance mode — check this project for regulatory compliance issues. Ask me which regulations apply.', cat: 'security', guided: true, guidedFields: [
-    { key: 'regulation', label: 'Which regulation?', type: 'select', options: ['HIPAA (healthcare/PHI)', 'GDPR (EU data protection)', 'SOC 2', 'PCI DSS (payments)', 'not sure — help me identify'], default: 'not sure — help me identify' },
+    { key: 'regulation', label: 'Which regulation?', type: 'select', options: ['not sure — help me identify', 'HIPAA (healthcare/PHI)', 'GDPR (EU data protection)', 'SOC 2', 'PCI DSS (payments)'], default: 'not sure — help me identify' },
     { key: 'component', label: 'Which component?', type: 'input', placeholder: 'e.g., patient data flow, payment processing, user consent, or whole project' },
     { key: 'concern', label: 'Specific concern?', type: 'input', placeholder: 'e.g., data retention, consent tracking, audit logging, or general' }
   ], guidedTemplate: '/goat-security compliance mode — regulation: {regulation}. Component: {component}. Concern: {concern}.' },

@@ -765,7 +765,10 @@
         <!-- Left panel: config.yaml (read-only) -->
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow flex flex-col">
           <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">config.yaml</h3>
+            <div>
+              <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">config.yaml</h3>
+              <p class="text-[10px] text-gray-400 font-mono">.goat-flow/config.yaml (committed)</p>
+            </div>
             <span class="text-xs text-gray-400 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700">read-only</span>
           </div>
           <div class="flex-1 p-4 overflow-auto">
@@ -781,18 +784,19 @@
               <pre class="text-xs font-mono whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed" x-text="configYaml"></pre>
             </template>
           </div>
-          <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-700">
-            <p class="text-xs text-gray-400 font-mono">.goat-flow/config.yaml (committed)</p>
           </div>
         </div>
 
         <!-- Right panel: config.local.yaml (editable) -->
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow flex flex-col">
           <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
-              config.local.yaml
-              <span x-show="configDirty" class="ml-1 text-amber-500">*</span>
-            </h3>
+            <div>
+              <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                config.local.yaml
+                <span x-show="configDirty" class="ml-1 text-amber-500">*</span>
+              </h3>
+              <p class="text-[10px] text-gray-400 font-mono">.goat-flow/config.local.yaml (gitignored, local only)</p>
+            </div>
             <span class="text-xs text-gray-400 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700">editable</span>
           </div>
           <div class="flex-1 p-4">
@@ -800,13 +804,24 @@
               class="w-full h-64 text-xs font-mono rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 p-3 resize-y focus:ring-1 focus:ring-blue-500 leading-relaxed"
               placeholder="# Local overrides"></textarea>
           </div>
-          <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-            <p class="text-xs text-gray-400 font-mono">.goat-flow/config.local.yaml (gitignored, local only)</p>
+          <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end">
             <div class="flex items-center gap-2">
-              <button @click="resetLocalConfig()"
-                class="px-2.5 py-1 text-xs font-medium rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                Reset
-              </button>
+              <div x-data="{ confirming: false }">
+                <button x-show="!confirming" @click="confirming = true"
+                  class="px-2.5 py-1 text-xs font-medium rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                  Reset
+                </button>
+                <span x-show="confirming" x-cloak class="inline-flex items-center gap-1">
+                  <button @click="resetLocalConfig(); confirming = false"
+                    class="px-2.5 py-1 text-xs font-medium rounded bg-red-600 text-white hover:bg-red-700 transition-colors">
+                    Confirm Reset
+                  </button>
+                  <button @click="confirming = false"
+                    class="px-2 py-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    Cancel
+                  </button>
+                </span>
+              </div>
               <button @click="saveLocalConfig()"
                 class="px-2.5 py-1 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors relative">
                 Save
@@ -1379,10 +1394,27 @@ function app() {
       let result = preset.guidedTemplate;
       for (const field of preset.guidedFields || []) {
         const val = (values[field.key] || '').trim();
-        result = result.replace(`{${field.key}}`, val || field.default || '');
+        if (val) {
+          result = result.replace(`{${field.key}}`, val);
+        } else {
+          // Remove the entire clause containing the blank field
+          // Patterns: "label: {key}." or "label: {key}," or "label: {key}" or ", label: {key}"
+          result = result.replace(new RegExp(`[,.]?\\s*\\w[\\w\\s]*:\\s*\\{${field.key}\\}\\.?`, 'g'), '');
+          // Also handle "— label: {key}" patterns
+          result = result.replace(new RegExp(`\\s*—\\s*\\{${field.key}\\}`, 'g'), '');
+          // Fallback: remove bare placeholder
+          result = result.replace(`{${field.key}}`, '');
+        }
       }
-      // Clean up empty placeholders and trailing separators
-      return result.replace(/\s*,\s*,/g, ',').replace(/—\s*,/g, '—').replace(/,\s*$/g, '').trim();
+      // Clean up leftover artifacts: double spaces, trailing punctuation, dangling separators
+      return result
+        .replace(/\s{2,}/g, ' ')
+        .replace(/\s*,\s*,/g, ',')
+        .replace(/—\s*,/g, '—')
+        .replace(/,\s*$/g, '')
+        .replace(/\.\s*\./g, '.')
+        .replace(/\s+\./g, '.')
+        .trim();
     },
     promptSpecificity(text) {
       let score = 0;
@@ -1530,7 +1562,6 @@ function app() {
       } catch { this.showToast('Failed to save config', true); }
     },
     async resetLocalConfig() {
-      if (!confirm('Reset config.local.yaml? This will delete your local overrides.')) return;
       try {
         const res = await fetch(`/api/config/local?path=${encodeURIComponent(this.projectPath)}`, { method: 'DELETE' });
         const data = await res.json();
