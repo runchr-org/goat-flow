@@ -1,117 +1,169 @@
     <!-- ═══ Home View ═══ -->
     <div x-show="activeView === 'home'" x-cloak style="height: calc(100vh - 5rem); overflow-y: auto;">
-      <div class="max-w-4xl mx-auto space-y-6 py-4">
+      <div style="max-width: 880px; margin: 0 auto; padding: 12px 28px 24px;">
 
-        <!-- Project Overview -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-          <div class="flex items-start justify-between">
-            <div>
-              <h2 class="text-xl font-bold" x-text="projectName || 'GOAT Flow'"></h2>
-              <p class="text-sm text-gray-500 dark:text-gray-400 font-mono mt-1" x-text="projectPath"></p>
-            </div>
-            <span class="text-xs text-gray-400" x-text="report ? `v${report.rubricVersion}` : 'v0.10.0'"></span>
-          </div>
-          <div class="mt-3 flex flex-wrap gap-2" x-show="report">
+        <!-- Project header (no card, just text) -->
+        <div style="margin-bottom: 20px;">
+          <div class="gf-text-primary" style="font-size: 18px; font-weight: 500;" x-text="projectName || 'GOAT Flow'"></div>
+          <div class="gf-text-muted" style="font-size: 11px; font-family: 'JetBrains Mono', 'Fira Code', monospace; margin-top: 3px;" x-text="projectPath"></div>
+          <div class="gf-tags" x-show="report">
             <template x-for="lang in (report?.stack?.languages || [])" :key="lang">
-              <span class="px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300" x-text="lang"></span>
+              <span class="gf-tag" x-text="lang"></span>
             </template>
           </div>
         </div>
 
-        <!-- Installed Agents -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-          <h3 class="text-sm font-bold mb-3">Installed Agents</h3>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <template x-for="agent in [
-              { id: 'claude', name: 'Claude Code' },
-              { id: 'codex', name: 'Codex' },
-              { id: 'gemini', name: 'Gemini CLI' },
-              { id: 'copilot', name: 'Copilot' }
-            ]" :key="agent.id">
-              <div class="p-3 rounded-lg border text-center"
-                :class="installedAgents.find(a => a.id === agent.id) ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700 opacity-50'">
-                <p class="text-sm font-medium" x-text="agent.name"></p>
-                <p class="text-xs mt-1"
-                  :class="installedAgents.find(a => a.id === agent.id) ? 'text-green-600 dark:text-green-400' : 'text-gray-400'"
-                  x-text="installedAgents.find(a => a.id === agent.id) ? '● Installed' : '○ Not found'"></p>
-                <p x-show="installedAgents.find(a => a.id === agent.id)?.version" class="text-xs text-gray-400 mt-0.5 truncate"
-                  x-text="installedAgents.find(a => a.id === agent.id)?.version"></p>
-              </div>
-            </template>
+        <!-- Health banner -->
+        <div x-show="report" x-data="{ allPass: false }" x-effect="allPass = report?.agents?.every(a => a.score.grade === 'A')"
+          class="gf-banner-row" :class="allPass ? 'gf-banner-pass' : 'gf-banner-fail'">
+          <div class="gf-banner-icon" style="width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0" x-html="allPass ? '&#10003;' : '&#10005;'"></div>
+          <div style="flex:1;min-width:0"><div class="gf-banner-title" style="font-size:14px;font-weight:500" x-text="allPass ? 'All checks passing' : (report?.agents?.filter(a => a.score.grade !== 'A').length + ' agent(s) need attention')"></div><div class="gf-banner-sub" style="font-size:12px;margin-top:1px" x-text="(() => { const tc = (report?.agents || []).reduce((s, a) => s + a.checks.filter(c => !c.hidden && c.status !== 'na').length, 0); const ap = (report?.agents || []).reduce((s, a) => s + a.antiPatterns.filter(p => p.triggered).length, 0); return tc + ' checks across ' + (report?.agents?.length || 0) + ' agents - ' + ap + ' anti-patterns - ' + presets.length + ' presets installed'; })()"></div></div>
+          <div class="gf-banner-ts" style="font-size:11px;opacity:0.7;white-space:nowrap;flex-shrink:0" x-text="lastScanTime ? 'Scanned ' + formatTimeAgo(lastScanTime) : ''"></div>
+        </div>
+
+        <!-- No scan data -->
+        <div x-show="!report" class="gf-surface" style="border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 20px;">
+          <p class="gf-text-muted" style="font-size: 13px; margin-bottom: 12px;">No scan results yet</p>
+          <button @click="runScan()" :disabled="scanning" class="gf-btn-primary" style="padding: 6px 16px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500;">
+            <span x-text="scanning ? 'Scanning...' : 'Run Scan'"></span>
+          </button>
+        </div>
+
+        <!-- Metric strip -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+          <div class="gf-metric">
+            <div class="gf-metric-value" x-text="report ? report.agents.length : '-'"></div>
+            <div class="gf-metric-label">Agents</div>
+          </div>
+          <div class="gf-metric">
+            <div class="gf-metric-value gf-grade-text" x-text="report ? (() => {
+              const grades = report.agents.map(a => a.score.grade);
+              const order = ['A','B','C','D','F'];
+              const worst = grades.reduce((w, g) => order.indexOf(g) > order.indexOf(w) ? g : w, 'A');
+              return worst;
+            })() : '-'"></div>
+            <div class="gf-metric-label">Avg grade</div>
+          </div>
+          <div class="gf-metric">
+            <div class="gf-metric-value" x-text="presets.length"></div>
+            <div class="gf-metric-label">Presets</div>
+          </div>
+          <div class="gf-metric">
+            <div class="gf-metric-value">6</div>
+            <div class="gf-metric-label">Skills</div>
           </div>
         </div>
 
-        <!-- Scanner Summary -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-          <h3 class="text-sm font-bold mb-3">Scanner</h3>
-          <div x-show="report">
-            <div class="grid grid-cols-3 gap-3">
-              <template x-for="agent in (report?.agents || [])" :key="agent.agent">
-                <button @click="activeView = 'scan'; scanDetailAgent = agent.agent"
-                  class="p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-center">
-                  <p class="text-sm font-medium" x-text="agent.agent"></p>
-                  <p class="text-2xl font-bold mt-1" :style="`color: ${gradeColor(agent.score.grade)}`" x-text="agent.score.grade"></p>
-                  <p class="text-xs text-gray-400" x-text="agent.score.percentage + '%'"></p>
-                </button>
+        <!-- Agents table card -->
+        <div class="gf-card" style="border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+          <div class="gf-card-header" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;">
+            <span class="gf-text-primary" style="font-size: 14px; font-weight: 500;">Agents</span>
+            <span class="gf-link" style="font-size: 12px; cursor: pointer;" @click="runScan()">Re-scan</span>
+          </div>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <template x-for="col in ['Agent', 'Version', 'Grade', 'Score', 'Tiers']">
+                  <th class="gf-th" x-text="col"></th>
+                </template>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Installed agents with scan data -->
+              <template x-for="agent in [
+                { id: 'claude', name: 'Claude Code' },
+                { id: 'codex', name: 'Codex' },
+                { id: 'gemini', name: 'Gemini CLI' },
+                { id: 'copilot', name: 'Copilot' }
+              ]" :key="agent.id">
+                <tr class="gf-tr"
+                  :class="installedAgents.find(a => a.id === agent.id) ? 'gf-tr-clickable' : 'gf-tr-disabled'"
+                  @click="installedAgents.find(a => a.id === agent.id) && report?.agents?.find(a => a.agent === agent.id) && (activeView = 'scan', scanDetailAgent = agent.id)">
+
+                  <!-- Agent name -->
+                  <td class="gf-td">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span class="gf-dot" :class="installedAgents.find(a => a.id === agent.id) ? 'gf-dot-on' : 'gf-dot-off'"></span>
+                      <span style="font-size: 13px; font-weight: 500;"
+                        :class="installedAgents.find(a => a.id === agent.id) ? 'gf-text-primary' : 'gf-text-disabled'"
+                        x-text="agent.name"></span>
+                    </div>
+                  </td>
+
+                  <!-- Version -->
+                  <td class="gf-td">
+                    <span :class="installedAgents.find(a => a.id === agent.id) ? 'gf-text-muted' : 'gf-text-disabled'"
+                      :style="'font-size:11px;font-family:JetBrains Mono,Fira Code,monospace;' + (!installedAgents.find(a => a.id === agent.id) ? 'font-style:italic;' : '')"
+                      x-text="installedAgents.find(a => a.id === agent.id)?.version || 'not installed'"></span>
+                  </td>
+
+                  <!-- Grade -->
+                  <td class="gf-td">
+                    <template x-if="report?.agents?.find(a => a.agent === agent.id)">
+                      <span class="gf-grade"
+                        :class="'gf-grade-' + (report.agents.find(a => a.agent === agent.id)?.score.grade || '').toLowerCase()"
+                        x-text="report.agents.find(a => a.agent === agent.id)?.score.grade"></span>
+                    </template>
+                    <template x-if="!report?.agents?.find(a => a.agent === agent.id)">
+                      <span class="gf-grade gf-grade-na">&mdash;</span>
+                    </template>
+                  </td>
+
+                  <!-- Score -->
+                  <td class="gf-td">
+                    <span style="font-size: 12px;"
+                      :class="report?.agents?.find(a => a.agent === agent.id) ? 'gf-text-secondary' : 'gf-text-disabled'"
+                      x-text="report?.agents?.find(a => a.agent === agent.id) ? report.agents.find(a => a.agent === agent.id).score.percentage + '%' : '\u2014'"></span>
+                  </td>
+
+                  <!-- Tier bars -->
+                  <td class="gf-td">
+                    <template x-if="report?.agents?.find(a => a.agent === agent.id)">
+                      <div style="display: flex; align-items: center; gap: 3px;" x-data="{
+                        ag: report.agents.find(a => a.agent === agent.id),
+                        tierW(tier) {
+                          const t = this.ag?.score?.tiers?.[tier];
+                          if (!t) return 0;
+                          return Math.max(4, (t.earned / Math.max(t.available, 1)) * (tier === 'standard' ? 36 : tier === 'foundation' ? 24 : 14));
+                        }
+                      }">
+                        <span class="gf-tier-label">F</span>
+                        <span class="gf-tier-bar" :style="'width:' + tierW('foundation') + 'px'"></span>
+                        <span class="gf-tier-label">S</span>
+                        <span class="gf-tier-bar" :style="'width:' + tierW('standard') + 'px'"></span>
+                        <span class="gf-tier-label">+</span>
+                        <span class="gf-tier-bar" :style="'width:' + tierW('full') + 'px'"></span>
+                      </div>
+                    </template>
+                    <template x-if="!report?.agents?.find(a => a.agent === agent.id)">
+                      <span class="gf-text-disabled" style="font-size: 12px;">&mdash;</span>
+                    </template>
+                  </td>
+                </tr>
               </template>
-            </div>
-          </div>
-          <div x-show="!report" class="text-center py-4">
-            <p class="text-sm text-gray-400 mb-3">No scan results yet</p>
-            <button @click="runScan()" :disabled="scanning"
-              class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
-              <span x-text="scanning ? 'Scanning...' : 'Run Scan'"></span>
-            </button>
-          </div>
+            </tbody>
+          </table>
         </div>
 
-        <!-- Usage Metrics -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-          <h3 class="text-sm font-bold mb-3">Project Health</h3>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-            <div>
-              <p class="text-2xl font-bold" x-text="report ? report.agents.length : '—'"></p>
-              <p class="text-xs text-gray-400">Agents</p>
-            </div>
-            <div>
-              <p class="text-2xl font-bold" x-text="report ? report.agents[0]?.checks.filter(c => !c.hidden && c.status !== 'na').length : '—'"></p>
-              <p class="text-xs text-gray-400">Checks</p>
-            </div>
-            <div>
-              <p class="text-2xl font-bold" x-text="report ? report.agents[0]?.antiPatterns.filter(a => a.triggered).length : '—'"></p>
-              <p class="text-xs text-gray-400">Anti-patterns</p>
-            </div>
-            <div>
-              <p class="text-2xl font-bold" x-text="presets.length"></p>
-              <p class="text-xs text-gray-400">Presets</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <button @click="runScan()" class="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-center bg-white dark:bg-gray-800">
-            <p class="text-sm font-medium">Run Scan</p>
-            <p class="text-xs text-gray-400 mt-1">Check project health</p>
+        <!-- Quick actions -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;">
+          <button @click="runScan()" class="gf-action-btn">
+            <div class="gf-action-title">Run scan</div>
+            <div class="gf-action-desc">Re-evaluate all agents</div>
           </button>
-          <button @click="activeView = 'workspace'" class="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-center bg-white dark:bg-gray-800">
-            <p class="text-sm font-medium">Workspace</p>
-            <p class="text-xs text-gray-400 mt-1">Launch prompts</p>
+          <button @click="activeView = 'workspace'" class="gf-action-btn">
+            <div class="gf-action-title">Launch workspace</div>
+            <div class="gf-action-desc">Open prompt launcher</div>
           </button>
-          <button @click="activeView = 'wizard'; detectStack()" class="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-center bg-white dark:bg-gray-800">
-            <p class="text-sm font-medium">Setup</p>
-            <p class="text-xs text-gray-400 mt-1">Configure agent</p>
-          </button>
-          <button @click="activeView = 'settings'; loadConfig()" class="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-center bg-white dark:bg-gray-800">
-            <p class="text-sm font-medium">Config</p>
-            <p class="text-xs text-gray-400 mt-1">Project configuration</p>
+          <button @click="activeView = 'wizard'; detectStack()" class="gf-action-btn">
+            <div class="gf-action-title">Setup wizard</div>
+            <div class="gf-action-desc">Generate setup prompt</div>
           </button>
         </div>
 
-        <!-- About -->
-        <div class="text-xs text-gray-400 text-center space-y-1 pt-2">
-          <p>Built by <a href="https://www.blundergoat.com/about" class="text-blue-500 hover:underline" target="_blank">Matthew Hansen</a> · MIT License · <a href="https://github.com/blundergoat/goat-flow" class="text-blue-500 hover:underline" target="_blank">GitHub</a></p>
-          <p>GOAT Flow - structured workflows for AI coding agents</p>
+        <!-- Footer -->
+        <div class="gf-footer" style="text-align: center; font-size: 11px; padding: 8px 0;">
+          Built by <a href="https://www.blundergoat.com/about" target="_blank" class="gf-footer-link">Matthew Hansen</a> · MIT License · <a href="https://github.com/blundergoat/goat-flow" target="_blank" class="gf-footer-link">GitHub</a>
         </div>
       </div>
     </div>
