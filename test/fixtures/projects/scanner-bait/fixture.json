@@ -1,0 +1,9 @@
+{
+  "extends": "../passing-minimal",
+  "agentFilter": "claude",
+  "expected": {
+    "claude": {
+      "maxPercentage": 99
+    }
+  }
+}

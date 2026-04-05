@@ -47,7 +47,7 @@ Read the guidelines file completely. Then:
      parts, remove the workflow parts
 
 4. CREATE the migration report:
-   docs/guidelines-ownership-split.md with:
+   ai-docs/guidelines-ownership-split.md with:
 
    # Guidelines Ownership Split
 
@@ -71,7 +71,7 @@ Read the guidelines file completely. Then:
 VERIFICATION:
 - Verify the guidelines file no longer contains DoD, execution loop,
   stop-the-line, working memory, or autonomy tier content
-- Verify docs/guidelines-ownership-split.md exists with all 4 sections
+- Verify ai-docs/guidelines-ownership-split.md exists with all 4 sections
 - Verify no engineering content was accidentally removed
 - Report the line count reduction
 - Stage the guidelines changes (do NOT commit unless the user asks)

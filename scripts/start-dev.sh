@@ -16,8 +16,8 @@ command -v node >/dev/null 2>&1 || fail "Node.js required"
 command -v npm >/dev/null 2>&1 || fail "npm required"
 
 NODE_VERSION=$(node -e "console.log(process.versions.node.split('.')[0])")
-if (( NODE_VERSION < 22 )); then
-    fail "Node.js v22+ required, found v$NODE_VERSION"
+if (( NODE_VERSION < 20 )); then
+    fail "Node.js v20+ required, found v$NODE_VERSION"
 fi
 
 # 2. Check dependencies are installed

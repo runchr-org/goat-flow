@@ -1,7 +1,7 @@
-# .goat-flow/config.yaml — project configuration
+# .goat-flow/config.yaml - project configuration
 # Docs: https://github.com/blundergoat/goat-flow
 
-version: "0.9.4"
+version: "0.10.0"
 
 # ── Project Setup ───────────────────────────────
 agents:
@@ -18,6 +18,11 @@ skills:
     - goat-security
     - goat-test
 
+# ── Telemetry ─────────────────────────────────
+# Opt-in: logs skill invocations to .goat-flow/logs/skill-usage.jsonl
+# Requires the skill-telemetry.sh hook (see workflow/runtime/enforcement.md)
+telemetry: false
+
 # ── Scanner Thresholds ──────────────────────────
 # Adjust for project complexity:
 #   Small CLI: target 80, limit 120
@@ -27,23 +32,23 @@ line-limits:
   target: 120
   limit: 150
 
-# ── Committed Paths (ai/) ──────────────────────
+# ── Committed Paths (ai-docs/) ─────────────────
 lessons:
-  committed: ai/lessons/
+  committed: ai-docs/lessons/
   local: .goat-flow/lessons/
 
 decisions:
-  path: ai/decisions/
+  path: ai-docs/decisions/
 
 evals:
-  path: ai/evals/
+  path: ai-docs/evals/
 
 coding-standards:
-  path: ai/coding-standards/
+  path: ai-docs/coding-standards/
 
-# ── Committed Paths (docs/) ─────────────────────
+# ── Committed Paths (ai-docs/) cont. ────────────
 footguns:
-  committed: docs/footguns/
+  committed: ai-docs/footguns/
   local: .goat-flow/footguns/
 
 # ── Local Paths (.goat-flow/) ───────────────────

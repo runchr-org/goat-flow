@@ -1,6 +1,6 @@
 {
   "name": "@blundergoat/goat-flow",
-  "version": "0.9.4",
+  "version": "0.10.0",
   "description": "CLI scanner, dashboard, and setup generator for GOAT Flow AI coding agent workflows",
   "author": {
     "name": "Matthew Hansen",
@@ -28,25 +28,34 @@
     "src/dashboard",
     "docs/getting-started.md",
     "docs/system-spec.md",
-    "docs/onboarding.md",
-    "docs/system",
-    "docs/reference",
-    "docs/guides",
+    "docs/using-skills.md",
+    "docs/five-layers.md",
+    "docs/design-rationale.md",
+    "docs/cross-agent-comparison.md",
+    "docs/rubrics.md",
     "docs/examples",
-    "setup",
+    "docs/skills",
+    "scripts/warn-node-pty.mjs",
     "workflow"
   ],
   "engines": {
     "node": ">=20.11.0"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "node-pty"
+    ]
+  },
   "scripts": {
     "build": "tsc",
     "test": "node --import tsx --test test/*/*.test.ts",
     "typecheck": "tsc --noEmit",
+    "postinstall": "node scripts/warn-node-pty.mjs",
     "scan": "node dist/cli/cli.js scan .",
     "scan:verbose": "node dist/cli/cli.js scan . --verbose",
     "scan:json": "node dist/cli/cli.js scan . --format json",
     "setup": "node dist/cli/cli.js setup . --agent claude",
+    "dev": "tsc && node dist/cli/cli.js dashboard . --dev",
     "dashboard": "node dist/cli/cli.js dashboard .",
     "preflight": "bash scripts/preflight-checks.sh",
     "validate": "bash scripts/context-validate.sh",

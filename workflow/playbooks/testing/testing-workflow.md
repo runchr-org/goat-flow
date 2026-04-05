@@ -1,5 +1,7 @@
 # Testing AI-Driven Development - Doer-Verifier Workflow
 
+> For AI-driven test plan generation, see /goat-test. This playbook is the manual/multi-agent methodology.
+
 The coding agent is the **doer**. Testing uses independent **verifiers** - automated suites, separate AI agents, and the developer - to catch what the doer missed. Never trust the coding agent's self-assessment.
 
 ```mermaid

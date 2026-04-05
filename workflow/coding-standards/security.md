@@ -1,7 +1,7 @@
-# Prompt: Create ai/coding-standards/security.md
+# Prompt: Create ai-docs/coding-standards/security.md
 
 > **Purpose:** Cross-cutting security overlay - input validation, auth, secrets, output encoding
-> **Generates:** `ai/coding-standards/security.md`
+> **Generates:** `ai-docs/coding-standards/security.md`
 > **Use when:** Setting up security instructions (overrides other instructions on conflict)
 > **Repo inspection:** Yes - reads auth patterns, validation logic, secrets handling, dependency tree
 > **Follow-on refs:** `security/web-common.md` for OWASP baseline; `security/framework-specific/` for framework rules; `security/api-auth.md`, `security/file-upload.md`, `security/sql-injection.md` as detected
@@ -10,7 +10,7 @@
 
 ## The Prompt
 
-Write `ai/coding-standards/security.md`:
+Write `ai-docs/coding-standards/security.md`:
 
 ````
 # Security Instructions
@@ -128,14 +128,7 @@ db.QueryRow(fmt.Sprintf("SELECT * FROM users WHERE email = '%s'", email))
 
 ## Supply Chain Security
 
-Pin CI action versions to full SHA, not tags. Tags can be moved; SHAs are immutable.
-```yaml
-# Bad - tag can be hijacked
-- uses: actions/checkout@v4
-
-# Good - pinned to exact commit
-- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
-```
+For CI pipeline SHA pinning examples, see `security/infrastructure.md` CI Pipeline Security section.
 
 Verify package integrity in CI. Use lockfile-based installs.
 ```bash
@@ -152,21 +145,7 @@ cargo audit                      # check Rust deps
 
 ## CORS / CSP Headers
 
-Every web app should set these security headers. Configure at the reverse proxy or middleware layer.
-
-```
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
-Referrer-Policy: strict-origin-when-cross-origin
-Permissions-Policy: camera=(), microphone=(), geolocation=()
-```
-
-Verify headers are set correctly:
-```bash
-curl -sI https://your-app.example.com | grep -iE "content-security|x-frame|strict-transport|x-content-type"
-```
+For HTTP security header configuration, see `security/web-common.md`.
 
 ## Credential Scope
 

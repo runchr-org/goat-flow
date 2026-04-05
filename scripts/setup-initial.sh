@@ -13,11 +13,11 @@ info "=== GOAT Flow Initial Setup ==="
 
 # 1. Check Node.js version
 if ! command -v node >/dev/null 2>&1; then
-    fail "Node.js is required (v22+). Install from https://nodejs.org"
+    fail "Node.js is required (v20+). Install from https://nodejs.org"
 fi
 NODE_VERSION=$(node -e "console.log(process.versions.node.split('.')[0])")
-if (( NODE_VERSION < 22 )); then
-    fail "Node.js v22+ required, found v$NODE_VERSION"
+if (( NODE_VERSION < 20 )); then
+    fail "Node.js v20+ required, found v$NODE_VERSION"
 fi
 info "Node.js v$(node --version) detected"
 
@@ -32,7 +32,7 @@ else
 fi
 
 # 3. Create core directories
-for dir in docs ai/decisions tasks ai/evals scripts/maintenance; do
+for dir in ai-docs/coding-standards ai-docs/decisions ai-docs/evals ai-docs/footguns ai-docs/lessons .goat-flow/tasks .goat-flow/logs/sessions scripts/maintenance; do
     if [[ ! -d "$dir" ]]; then
         mkdir -p "$dir"
         info "Created $dir/"

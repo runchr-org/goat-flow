@@ -1,3 +1,7 @@
+/**
+ * Static prompt fragments for foundation-tier requirements.
+ * These snippets back generated setup prompts for instruction files, enforcement, and execution-loop basics.
+ */
 import type { Fragment } from '../types.js';
 
 /**
@@ -41,7 +45,7 @@ Keep it under 120 lines. The remaining foundation checks will fill in the sectio
 1. Remove verbose examples - one BAD/GOOD pair per concept is enough
 2. Replace explanatory paragraphs with terse bullet points
 3. Collapse tables where a one-liner suffices
-4. Move reference material to \`docs/\` and link from the router table
+4. Move reference material to \`ai-docs/\` and link from the router table
 
 Hard limit: 150 lines. Target: under 120.`,
   },
@@ -89,6 +93,30 @@ GOOD: Read docs/system-spec.md:104 → "Target 120 lines. Hard limit 150."
 \`\`\`
 
 Include at least 2 example pairs showing right vs wrong approaches for your most important rules.`,
+  },
+  {
+    key: 'add-resolvable-paths',
+    phase: 'foundation',
+    category: 'Instruction File',
+    kind: 'fix',
+    instruction: `Your instruction file should reference at least 2 real project file paths that exist on disk. Add backtick-wrapped paths in the Router Table and Ask First sections:
+
+\`\`\`markdown
+## Router Table
+
+| Resource | Path |
+|----------|------|
+| Source code | \`src/\` |
+| Config | \`.goat-flow/config.yaml\` |
+
+## Autonomy Tiers
+
+**Ask First** Boundaries:
+- \`docs/api-spec.md\` changes
+- \`src/auth/\` modifications
+\`\`\`
+
+These paths must point to files or directories that actually exist in your project.`,
   },
 
   // === Execution Loop ===
@@ -187,15 +215,15 @@ Over budget = re-classify before continuing.`,
     instruction: `Add the LOG step to \`{{instructionFile}}\`:
 
 \`\`\`markdown
-**LOG** - MUST update when tripped. Create one markdown file per entry - do not append to a monolithic log.
+**LOG** - MUST update when tripped. Use category bucket files - do not append to a monolithic log and do not create one file per incident forever.
 
 | File | When to update |
 |------|---------------|
-| \\\`ai/lessons/\\\` or \\\`.goat-flow/lessons/\\\` | Behavioural mistake |
-| \\\`docs/footguns/\\\` or \\\`.goat-flow/footguns/\\\` | Cross-doc architectural trap |
+| \\\`ai-docs/lessons/\\\` or \\\`.goat-flow/lessons/\\\` | Behavioural mistake |
+| \\\`ai-docs/footguns/\\\` or \\\`.goat-flow/footguns/\\\` | Cross-doc architectural trap |
 
-Lessons use \\\`YYYY-MM-DD-slug.md\\\` with frontmatter \\\`name\\\`, \\\`created\\\`.
-Footguns use \\\`slug.md\\\` with frontmatter \\\`name\\\`, \\\`status\\\`, \\\`created\\\`, \\\`evidence_type\\\`.
+Lessons use category files such as \\\`verification.md\\\` with frontmatter \\\`category\\\`, then \\\`## Lesson:\\\` / \\\`## Pattern:\\\` entries inside.
+Footguns use category files such as \\\`hooks.md\\\` with frontmatter \\\`category\\\`, then \\\`## Footgun:\\\` entries with Status/Created/Evidence type inside.
 \`\`\``,
   },
   {
@@ -206,15 +234,15 @@ Footguns use \\\`slug.md\\\` with frontmatter \\\`name\\\`, \\\`status\\\`, \\\`
     instruction: `Create \`.goat-flow/config.yaml\`:
 
 \`\`\`yaml
-version: "0.9.4"
+version: "0.10.0"
 footguns:
-  committed: docs/footguns/
+  committed: ai-docs/footguns/
   local: .goat-flow/footguns/
 lessons:
-  committed: ai/lessons/
+  committed: ai-docs/lessons/
   local: .goat-flow/lessons/
 decisions:
-  path: ai/decisions/
+  path: ai-docs/decisions/
 tasks:
   path: .goat-flow/tasks/
 logs:
@@ -225,7 +253,36 @@ skills:
   install: all
 \`\`\`
 
-If you want auto-detection, omit \`agents\`. If multiple agents are installed, list them explicitly.`,
+If you want auto-detection, omit \`agents\`. If multiple agents are installed, list them explicitly.
+
+Also create \`.goat-flow/config.local.yaml\` (gitignored - personal overrides):
+
+\`\`\`yaml
+# Local overrides - this file is gitignored.
+# Values here merge on top of config.yaml.
+# Uncomment and edit as needed.
+
+# userRole: investigator
+\`\`\`
+
+Ensure \`.goat-flow/config.local.yaml\` is gitignored (the default \`.goat-flow/.gitignore\` pattern \`*\` handles this).`,
+  },
+  {
+    key: 'create-config-local',
+    phase: 'foundation',
+    category: 'Project Config',
+    kind: 'fix',
+    instruction: `Create \`.goat-flow/config.local.yaml\` for personal overrides (gitignored):
+
+\`\`\`yaml
+# Local overrides - this file is gitignored.
+# Values here merge on top of config.yaml.
+# Uncomment and edit as needed.
+
+# userRole: investigator
+\`\`\`
+
+This file is automatically gitignored by the \`.goat-flow/.gitignore\` pattern.`,
   },
   {
     key: 'fix-goat-flow-config',
@@ -316,7 +373,7 @@ Run \`ls\` on each backtick-wrapped path to verify.`,
 - [ ] How do I undo this? [exact rollback command]
 \`\`\`
 
-**Full form (5 items — use for healthcare, multi-tenant, or compliance-critical projects):**
+**Full form (5 items - use for healthcare, multi-tenant, or compliance-critical projects):**
 \`\`\`markdown
 **Ask First** (MUST complete before proceeding):
 - [ ] Boundary touched: [name]
@@ -368,7 +425,7 @@ After any rename, grep for the old pattern to confirm zero remaining references.
     kind: 'create',
     instruction: `Add the log-update gate to DoD in \`{{instructionFile}}\`:
 
-If VERIFY caught a failure or you corrected course: create a lesson entry in \`ai/lessons/\` or \`.goat-flow/lessons/\` before DoD.`,
+If VERIFY caught a failure or you corrected course: create a lesson entry in \`ai-docs/lessons/\` or \`.goat-flow/lessons/\` before DoD.`,
   },
 
   // === Enforcement ===
@@ -425,9 +482,12 @@ def check(command):
 
 > **Note:** This blocks ALL commits, including when the user explicitly asks to commit. Once trust is established, move \`git commit\` to \`settings.local.json\` allow list to reduce friction on feature branches.`,
     agentOverrides: {
-      claude: 'Add `"Bash(git commit*)"` to `permissions.deny` in `.claude/settings.json`.\n\n> **Escape hatch:** Once trust is established, add `"Bash(git commit*)"` to `.claude/settings.local.json` `permissions.allow` to skip approval on feature branches.',
-      codex: 'Add `"git commit"` to the blocked patterns in `.codex/rules/deny-dangerous.star`.',
-      gemini: 'Add `"git commit"` to `permissions.deny` in `.gemini/settings.json`.',
+      claude:
+        'Add `"Bash(git commit*)"` to `permissions.deny` in `.claude/settings.json`.\n\n> **Escape hatch:** Once trust is established, add `"Bash(git commit*)"` to `.claude/settings.local.json` `permissions.allow` to skip approval on feature branches.',
+      codex:
+        'Add `"git commit"` to the blocked patterns in `.codex/rules/deny-dangerous.star`.',
+      gemini:
+        'Add `"git commit"` to `permissions.deny` in `.gemini/settings.json`.',
     },
   },
   {
@@ -437,9 +497,12 @@ def check(command):
     kind: 'create',
     instruction: `Add \`git push\` to the deny list in {{settingsFile}}.`,
     agentOverrides: {
-      claude: 'Add `"Bash(git push*)"` to `permissions.deny` in `.claude/settings.json`.',
-      codex: 'Add `"git push"` to the blocked patterns in `.codex/rules/deny-dangerous.star`.',
-      gemini: 'Add `"git push"` to `permissions.deny` in `.gemini/settings.json`.',
+      claude:
+        'Add `"Bash(git push*)"` to `permissions.deny` in `.claude/settings.json`.',
+      codex:
+        'Add `"git push"` to the blocked patterns in `.codex/rules/deny-dangerous.star`.',
+      gemini:
+        'Add `"git push"` to `permissions.deny` in `.gemini/settings.json`.',
     },
   },
   {

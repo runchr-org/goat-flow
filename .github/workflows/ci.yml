@@ -3,8 +3,9 @@ name: CI
 on:
   pull_request:
     branches: [main, dev]
-  push:
-    branches: [dev]
+
+permissions:
+  contents: read
 
 jobs:
   build-test-lint:
@@ -16,14 +17,19 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Create gitignored runtime dirs
+        run: |
+          # Project runtime dirs (gitignored, needed by path-resolution tests)
+          mkdir -p .goat-flow/footguns .goat-flow/lessons
+
       - name: Install
         run: npm ci
 
       - name: Build
-        run: npx tsc && mkdir -p dist/dashboard && cp src/dashboard/index.html dist/dashboard/
+        run: npx tsc && cp -r src/dashboard dist/
 
       - name: Test
-        run: npm test
+        run: node --import tsx --test --test-reporter=spec test/*/*.test.ts
 
       - name: Lint
         run: npx eslint src/cli/

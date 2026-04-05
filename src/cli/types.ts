@@ -1,3 +1,7 @@
+/**
+ * Core shared types for goat-flow.
+ * This file defines the scanner's domain model so detection, scoring, rendering, and tests all speak the same contracts.
+ */
 // === Agent Types ===
 
 /** Supported AI coding agent identifiers */
@@ -62,11 +66,31 @@ export type Detection =
   | { type: 'file_exists'; path: string }
   | { type: 'dir_exists'; path: string }
   | { type: 'grep'; path: string; pattern: string; section?: string }
-  | { type: 'grep_count'; path: string; pattern: string; min: number; partial?: number; section?: string }
-  | { type: 'line_count'; path: string; pass?: number; partial?: number; fail?: number }
+  | {
+      type: 'grep_count';
+      path: string;
+      pattern: string;
+      min: number;
+      partial?: number;
+      section?: string;
+    }
+  | {
+      type: 'line_count';
+      path: string;
+      pass?: number;
+      partial?: number;
+      fail?: number;
+    }
   | { type: 'json_valid'; path: string }
   | { type: 'json_contains'; path: string; field: string; pattern?: string }
-  | { type: 'count_items'; path: string; pattern: string; pass: number; partial?: number; section?: string }
+  | {
+      type: 'count_items';
+      path: string;
+      pattern: string;
+      pass: number;
+      partial?: number;
+      section?: string;
+    }
   | { type: 'composite'; checks: Detection[]; mode: 'all' | 'any' }
   | { type: 'custom'; fn: (ctx: FactContext) => CheckResult };
 
@@ -92,6 +116,10 @@ export interface CheckDef {
   // Stable key for deduplicating recommendations across checks
   recommendationKey: string;
   confidence: Confidence;
+  // Grading priority: required checks gate the letter grade, recommended improve it, optional are bonus
+  priority: 'required' | 'recommended' | 'optional';
+  // If true, check runs and contributes to score but doesn't appear in scanner output
+  hidden?: boolean;
 }
 
 /**
@@ -127,6 +155,8 @@ export interface CheckResult {
   // File path or description pointing to what was found or missing
   evidence?: string;
   recommendationKey?: string;
+  // If true, check ran but should not appear in scanner output
+  hidden?: boolean;
 }
 
 /** Result of evaluating a single anti-pattern against a project */
@@ -160,6 +190,8 @@ export interface StackInfo {
   testCommand: string | null;
   lintCommand: string | null;
   formatCommand: string | null;
+  /** Approximate count of source files (excludes node_modules, vendor, dist, .git) */
+  sourceFileCount: number;
   /** Extended project signals detected during setup-time analysis */
   signals: ProjectSignals;
 }
@@ -194,6 +226,8 @@ export interface SharedFacts {
     hasEvidenceLabels: boolean;
     dirMentions: Map<string, number>;
     staleRefs: string[];
+    invalidLineRefs: string[];
+    duplicateSurfacePaths: string[];
     totalRefs: number;
     validRefs: number;
     formatDiagnostic: string | null;
@@ -208,16 +242,57 @@ export interface SharedFacts {
     committedCount: number;
     localCount: number;
     staleRefs: string[];
+    duplicateSurfacePaths: string[];
     formatDiagnostic: string | null;
     paths: { committed: string; local: string };
   };
-  decisions: { dirExists: boolean; fileCount: number; path: string; hasRealContent: boolean };
-  config: { exists: boolean; valid: boolean; warningCount: number; errorCount: number; parseError: string | null; lineLimits: { target: number; limit: number } };
+  decisions: {
+    dirExists: boolean;
+    fileCount: number;
+    path: string;
+    hasRealContent: boolean;
+  };
+  config: {
+    exists: boolean;
+    valid: boolean;
+    warningCount: number;
+    errorCount: number;
+    parseError: string | null;
+    lineLimits: { target: number; limit: number };
+    configLocalExists: boolean;
+    userRole: 'developer' | 'investigator' | 'tester';
+  };
   architecture: { exists: boolean; lineCount: number };
-  evals: { dirExists: boolean; count: number; hasReadme: boolean; hasOriginLabels: boolean; hasAgentsLabels: boolean; hasReplayPrompts: boolean; hasRealContent: boolean; hasFrontmatter: boolean; evalSkillCount: number; missingSkills: string[]; path: string };
-  ci: { workflowExists: boolean; checksLineCount: boolean; checksRouter: boolean; checksSkills: boolean; ciTriggersOnPRs: boolean };
-  handoffTemplate: { exists: boolean; sectionCount: number; hasRequiredSections: boolean };
-  ignoreFiles: { copilotignore: boolean; cursorignore: boolean; geminiignore: boolean };
+  evals: {
+    dirExists: boolean;
+    count: number;
+    hasReadme: boolean;
+    hasOriginLabels: boolean;
+    hasAgentsLabels: boolean;
+    hasReplayPrompts: boolean;
+    hasRealContent: boolean;
+    hasFrontmatter: boolean;
+    evalSkillCount: number;
+    missingSkills: string[];
+    path: string;
+  };
+  ci: {
+    workflowExists: boolean;
+    checksLineCount: boolean;
+    checksRouter: boolean;
+    checksSkills: boolean;
+    ciTriggersOnPRs: boolean;
+  };
+  handoffTemplate: {
+    exists: boolean;
+    sectionCount: number;
+    hasRequiredSections: boolean;
+  };
+  ignoreFiles: {
+    copilotignore: boolean;
+    cursorignore: boolean;
+    geminiignore: boolean;
+  };
   gitignore: { exists: boolean; hasRequiredEntries: boolean };
   guidelinesOwnership: { exists: boolean };
   domainReference: { exists: boolean };
@@ -227,8 +302,13 @@ export interface SharedFacts {
     dirExists: boolean;
     // Which directory convention is used: ai/ or .github/
     location: 'ai' | 'github' | null;
+    aiDirExists: boolean;
+    githubDirExists: boolean;
+    duplicateSurfacePaths: string[];
     fileCount: number;
     hasRouter: boolean;
+    hasValidRouter: boolean;
+    routerNeedsFix: string | null;
     hasConventions: boolean;
     conventionsHasContent: boolean;
     hasFrontend: boolean;
@@ -240,7 +320,7 @@ export interface SharedFacts {
     path: string;
   };
   gitCommitInstructions: { exists: boolean };
-  /** Total line count across ai/coding-standards/ files (cold-path budget) */
+  /** Total line count across ai-docs/coding-standards/ files (cold-path budget) */
   aiInstructionsLineCount: number;
 }
 
@@ -285,6 +365,8 @@ export interface AgentFacts {
       withChoices: number;
       withOutputFormat: number;
       withSharedConventions: number;
+      /** Number of malformed (unclosed) markdown fence blocks across all skill files */
+      malformedFenceCount: number;
       /** Skills where Step 0 Jaccard similarity to template > 0.9 (unadapted) */
       unadaptedCount: number;
       /** Total remaining <!-- ADAPT: --> comments across all skill files */
@@ -303,11 +385,19 @@ export interface AgentFacts {
     denyBlocksRmRf: boolean;
     denyBlocksForcePush: boolean;
     denyBlocksChmod: boolean;
+    denyBlocksPipeToShell: boolean;
     denyBlocksCloudDestructive: boolean;
     postTurnExists: boolean;
+    postTurnRegistered: boolean;
+    postTurnRegisteredPath: string | null;
     postTurnExitsZero: boolean;
     postTurnHasValidation: boolean;
+    postTurnSwallowsFailures: boolean;
+    postToolRegistered: boolean;
+    postToolRegisteredPath: string | null;
     postToolExists: boolean;
+    postToolUsesExpectedPathField: boolean;
+    postToolSkipsAgentConfigPaths: boolean;
     compactionHookExists: boolean;
     /** Hook scripts containing hardcoded absolute paths (not wrapped in $(git rev-parse)) */
     absolutePathHooks: string[];
@@ -368,6 +458,11 @@ export interface ScoreSummary {
     standard: TierScore;
     full: TierScore;
   };
+  // Priority-based grading counters (excludes N/A checks)
+  requiredPassed: number;
+  requiredTotal: number;
+  recommendedPassed: number;
+  recommendedTotal: number;
 }
 
 /** A prioritized action item generated from a failed or partial check */
@@ -407,6 +502,11 @@ export interface ScanReport {
     antiPatternCount: number;
     // ISO 8601 timestamp of when the scan completed
     timestamp: string;
+    versions: {
+      schema: string;
+      package: string;
+      rubric: string;
+    };
     config: { exists: boolean; valid: boolean };
     learningLoop: {
       footguns: { committed: number; local: number };
@@ -446,6 +546,12 @@ export interface CLIOptions {
   minGrade: Grade | null;
   // Write output to a file instead of stdout
   output: string | null;
+  // Show prioritized setup guidance instead of scores
+  guide: boolean;
+  // Open browser automatically for dashboard command
+  openDashboard: boolean;
+  // Enable live reload for dashboard development
+  dev: boolean;
   help: boolean;
   version: boolean;
 }

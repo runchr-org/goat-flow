@@ -1,6 +1,6 @@
 # File Upload Security
 
-Reference for generating `ai/coding-standards/security.md` in projects with file upload features.
+Reference for generating `ai-docs/coding-standards/security.md` in projects with file upload features.
 
 ## File Type Validation
 

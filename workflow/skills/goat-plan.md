@@ -1,35 +1,32 @@
 ---
 name: goat-plan
-description: "4-phase planning workflow with complexity routing, kill criteria, and triangular tension analysis for competing approaches."
-goat-flow-skill-version: "0.9.4"
+description: "4-phase planning workflow with complexity routing, kill criteria, and triangular tension analysis. Includes refactor planning mode for cross-file restructuring."
+goat-flow-skill-version: "0.10.0"
 ---
 # /goat-plan
 
-## Shared Conventions
-
-- **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
-- **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
-- **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect.
-- **Learning Loop:** Behavioural mistake → create a new markdown entry in `ai/lessons/` or `.goat-flow/lessons/`. Architectural trap → create a new markdown entry in `docs/footguns/` or `.goat-flow/footguns/`.
-- **Closing:** FIRST: if `.goat-flow/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Suggest next skill.
+<!-- Shared Conventions: inline from workflow/skills/reference/shared-preamble.md during setup.
+     Setup agents: read shared-preamble.md and include its content as "## Shared Conventions" at the top of the installed SKILL.md. -->
 
 ## When to Use
 
-Use before any non-trivial implementation. Hotfixes can use the compressed
-path. Single-line changes don't need planning.
+Use before non-trivial implementation or cross-file restructuring.
 
+**Mode routing:**
+- Designing something new → **Plan mode** (Phases 1-4)
+- Restructuring existing code → **Refactor planning mode** (Phases R1-R3)
+
+**Complexity routing (plan mode):**
 - **Hotfix** → Phase 1 brief only (3-5 lines), skip Phases 2-4
-- **Standard** → Phase 1 brief + Phase 4 milestones. MAY skip Phase 2-3.
+- **Small Feature** → Phase 1 compressed brief (Problem/Solution/Scope/Success all at once), skip Phases 2-3, 1-2 milestones max
+- **Standard** → Phase 1 brief + Phase 4 milestones. SHOULD skip Phase 2-3 (only use if approach is genuinely uncertain).
 - **System** → Full 4-phase process with human gates
 - **Infrastructure** → Full process + rollback planning
 
 **NOT this skill:**
-- Understanding code before planning → /goat-debug (investigate mode)
-- Reviewing an existing plan or PR → /goat-review
-- Debugging a specific issue → /goat-debug
+- Diagnosing a bug → /goat-debug
+- Reviewing an existing change → /goat-review
+- Generating test instructions → /goat-test
 
 ## Step 0 - Where Are We?
 
@@ -48,18 +45,32 @@ If found: "I found [artifact] from [date]. Want to: (a) resume from here, (b) st
 If matches found: "Branch [name] modified [files] [N] days ago. Coordinate?"
 
 **Structural questions (always ask or confirm):**
-1. What are we building? (feature, fix, refactor, infrastructure change)
-2. What complexity? (Hotfix / Standard / System / Infrastructure)
+1. What are we doing? (new feature, refactor, infrastructure change)
+2. If new: What complexity? (Hotfix / Small Feature / Standard / System / Infrastructure) → Plan mode
+3. If restructure: What's the scope? (rename, extract, move, interface change) → Refactor mode
 
 **Illustrative questions (adapt):**
-3. <!-- ADAPT: "What's the riskiest part? (e.g., database migration, API contract, auth changes)" -->
-4. <!-- ADAPT: "Any constraints? (timeline, backwards compatibility, performance budget)" -->
+5. <!-- ADAPT: "What's the riskiest part? (e.g., database migration, API contract, auth changes)" -->
+6. <!-- ADAPT: "Any constraints? (timeline, backwards compatibility, performance budget)" -->
+
+<!-- ADAPT: Dynamic context injection (optional). These run at skill load time:
+**Project stack:** !`cat package.json | jq -r '.dependencies | keys[]' 2>/dev/null | head -10`
+**Active branches:** !`git branch --list --no-merged main 2>/dev/null | head -5`
+-->
+
+**Escape hatch:** If the user says "I'll figure it out from the code" or provides minimal info, infer scope from `git diff`, named files, or the project structure and confirm before proceeding.
 
 **Kill criteria (surface early):** "What would make us abandon this entirely?"
 Even a vague answer ("if it takes more than a week" or "if it breaks the existing API")
 helps frame the planning.
 
-**Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+
+**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
+- "hotfix" but 5+ files affected → likely Standard or System
+- "small feature" but crosses 3+ boundaries → likely System
+- "quick test" but 20+ functions in target → warn scope is larger than implied
+Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 **Before proceeding:** present what you know (feature, complexity, constraints, kill criteria) and what you still need. Wait for the user to confirm before entering Phase 1.
 
@@ -80,7 +91,8 @@ then present the next. Do NOT dump all 8 sections at once.
 
 Ask the question whose answer could invalidate the approach FIRST.
 
-**Glossary check:** If `docs/glossary.md` exists, verify all domain terms in the
+<!-- ADAPT -->
+**Glossary check:** If `ai-docs/glossary.md` exists, verify all domain terms in the
 brief are defined. If new terms appear, add them: `| term | definition | canonical file | aliases |`
 
 **BLOCKING GATE:** Present complete brief. "Approve, or adjust?"
@@ -100,34 +112,61 @@ Repeat until the user says "locked in" or 3 rounds complete (whichever first).
 
 **CHECKPOINT:** "Locked in. Proceeding to approach analysis."
 
-## Phase 3 - Triangular Tension Analysis
+## Phase 3 - Signal-Based Adaptive Orchestration (SBAO)
 
-Generate 2-3 competing approaches for the implementation. For each approach,
-evaluate from three perspectives:
+**SBAO agents: 2 with core trio + 1 fresh-context. Never split SKEPTIC/ANALYST/STRATEGIST into separate agents.**
 
-- **SKEPTIC:** What could go wrong? What's the worst case? What are we assuming that might be false?
-- **ANALYST:** What does the data/evidence say? What's the cost/benefit? What are the measurable trade-offs?
-- **STRATEGIST:** What's the path to shipping? What's the fastest way to learn if this works?
+**For Hotfix / Small Feature:** "SBAO launches 3 sub-agents - that's heavy for a small change. Skip to Phase 4, or run SBAO anyway?" Let the user decide.
 
-Generate competing plans internally before committing to output.
+<!-- ADAPT: Adjust sub-agent count for your budget/tooling -->
 
-Present a comparison table:
+Critique and improve the plan from Phase 1-2 using multiple perspectives.
+The **core trio** (SKEPTIC / ANALYST / STRATEGIST) provides adversarial tension.
 
-| Criterion | Approach A | Approach B | Approach C |
-|-----------|-----------|-----------|-----------|
-| Risk | ... | ... | ... |
-| Effort | ... | ... | ... |
-| Speed to feedback | ... | ... | ... |
-| Reversibility | ... | ... | ... |
+### Step 1 - Generate competing critiques
 
-Recommend one approach with reasoning. Tag any decisions made with incomplete
-data as **Decision Debt** - to be revisited in later milestones.
+Launch 3 sub-agents in parallel. Each reads the codebase and the Phase 1-2 brief,
+then produces plan improvement ideas.
 
-> For multi-agent teams: see `workflow/playbooks/planning/sbao-ranking.md` for
-> the full SBAO process with external sessions and sub-agents. The triangular
-> tension analysis above is the single-agent default.
+**Sub-agent A (core trio - risk focus):**
+> Review this plan as a SKEPTIC, ANALYST, and STRATEGIST. What could go wrong? What does the evidence say about cost/benefit? What's the fastest path to shipping? Propose specific improvements.
 
-**BLOCKING GATE:** "Recommended approach: [A]. Proceed to milestones?"
+**Sub-agent B (core trio - alternatives focus):**
+> Review this plan as a SKEPTIC, ANALYST, and STRATEGIST. Generate 2-3 alternative approaches. For each, evaluate risk, effort, speed to feedback, and reversibility. Propose specific improvements.
+
+**Sub-agent C (fresh context - control group):**
+> Without reading any prior discussion, review the codebase and these requirements: [brief]. What's your technical plan? What would you do differently from this existing plan? (This agent has NO context from Phases 1-2 - it's a litmus test for context drift.)
+
+The main agent does NOT use the core trio - it already has existing context and
+would just reinforce its own assumptions.
+
+### Step 2 - Rank and compare
+
+Once all sub-agents report back, the main agent:
+
+1. **Rank** every improvement idea in a comparison table, rated out of 100 with reasons
+2. **Summarise agreement** - where do all perspectives converge? (high-confidence decisions)
+3. **Summarise disagreement** - where do they differ? (these need human judgment)
+4. **Flag the control group delta** - did Sub-agent C (fresh context) find something the others missed? If yes, that's a context drift signal.
+
+| Idea | Source | Score | Agree/Disagree | Why |
+|------|--------|-------|----------------|-----|
+| ... | Sub-A | 85 | All agree | ... |
+| ... | Sub-C | 72 | C only | Context drift signal - fresh eyes found this |
+
+Tag any decisions made with incomplete data as **Decision Debt** - to be revisited in later milestones.
+
+### Step 3 - Clarify and synthesize
+
+**STOP and ask the human clarifying questions** before creating the improved plan.
+Focus questions on the disagreements and trade-offs from Step 2.
+
+After answers, synthesize a prime plan that:
+- **Keeps** the ideas the human approved
+- **Drops** the ideas the human rejected
+- **Decides** the open trade-offs with reasoned recommendations
+
+**BLOCKING GATE:** "Here's the improved plan. Approve, adjust, or re-run SBAO with different sub-agent prompts?"
 
 ## Phase 4 - Milestones
 
@@ -150,6 +189,70 @@ before implementation are hypotheses, not commitments.
 
 **BLOCKING GATE:** Present milestones. "Approve and start implementing?"
 
+---
+
+## Refactor Planning Mode (Phases R1-R3)
+
+Activated when restructuring existing code: renames, extractions, moves, interface changes.
+
+### Phase R1 - Blast Radius Analysis
+
+Before changing anything:
+
+1. **Declare scope:**
+   - Files to change: [list]
+   - Files that might break: [list]
+   - Files out of scope: [list]
+
+2. **Read both sides of every interface being changed:**
+   If renaming: read every caller AND the definition.
+   If moving: read every importer AND the module.
+   If changing an API: read server AND all clients.
+
+3. **Auto-detect scope:** `grep -rn 'OldName' --include='*.{ts,py,go,php,rs}' | wc -l`
+
+4. **Check autonomy tiers:** Flag Ask First boundary crossings.
+
+5. **Check footguns:** Read `ai-docs/footguns/` and `.goat-flow/footguns/` for affected area.
+
+**BLOCKING GATE:** "This refactor touches [N] files across [M] boundaries. Blast radius: [assessment]. Proceed?"
+
+### Phase R2 - Execution Sequence
+
+Plan the execution order. Do NOT change everything at once.
+
+**For renames:**
+1. Change definition → grep verify → update consumers one-by-one → grep verify
+2. Update documentation: `grep -rn 'OldName' --include='*.md'`
+
+**For extractions:**
+1. Create new module → move code → update imports → verify old location clean → update consumers
+
+**For interface changes:**
+1. Add new interface alongside old → migrate consumers → remove old → grep verify
+
+**Checkpoints:** Run lint/test after EACH step.
+
+### Phase R3 - Verification Plan
+
+Comprehensive verification after all changes:
+
+1. **Absence check:** Grep for every old name/path. Include: `*.md`, `*.json`, `*.yml`. Target: ZERO remaining.
+2. **Import/reference check:** Build or typecheck.
+3. **Doc cross-reference check:** Grep CLAUDE.md, AGENTS.md, docs/*.md for old paths.
+4. **Test verification:** Run full test suite.
+5. **Multi-agent vocabulary check:** No agent-specific vocabulary introduced in shared docs.
+
+**BLOCKING GATE:** Present verification plan:
+- Old references remaining: [target: 0]
+- Build/typecheck: [expected: pass]
+- Tests: [expected: pass]
+- Doc references: [expected: updated]
+
+"Approve plan and start executing?"
+
+---
+
 ## Common Failure Modes
 
 1. **Brief dump** - agent presents all 8 sections at once. Walk through one at a time.
@@ -159,11 +262,16 @@ before implementation are hypotheses, not commitments.
 ## Constraints
 
 <!-- FIXED: Do not adapt these -->
-- MUST walk through brief sections one at a time, not dump all at once
-- MUST NOT answer your own elaboration questions
+- MUST walk through brief sections one at a time, not dump all at once (plan mode)
+- MUST NOT answer your own elaboration questions (plan mode)
 - MUST surface kill criteria in Phase 1, not defer to Phase 4
 - MUST tag low-confidence decisions as Decision Debt
 - MUST re-read next milestone after completing each one
+- MUST read both sides of every interface before changing either (refactor mode)
+- MUST grep for old names after EVERY rename, not just at end (refactor mode)
+- MUST change one layer at a time, verify between layers (refactor mode)
+- MUST check documentation references, not just source code (refactor mode)
+- MUST flag Ask First boundary crossings (refactor mode)
 - MUST NOT fabricate file paths or function names
 - MUST audit sub-agent output if using multi-agent SBAO (see lessons entries on auditing delegated output)
 
@@ -229,8 +337,8 @@ before implementation are hypotheses, not commitments.
 
 ## Chains With
 
-- /goat-debug (investigate mode) - need research before planning
-- /goat-test - milestones need verification plans
-- /goat-review - plan needs review before implementation starts
+- /goat-debug - need to understand code before planning → investigate mode
+- /goat-test - milestones/refactor needs verification plan
+- /goat-review - plan or refactor result needs review before merge
 
-**Handoff shape:** `{feature_brief, approach_chosen, milestones, kill_criteria}`
+**Handoff shape:** `{mode, feature_brief?, approach_chosen?, milestones?, blast_radius?, execution_sequence?, verification_plan?}`

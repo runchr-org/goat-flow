@@ -22,36 +22,38 @@ Order findings by severity, not by file or discovery order.
 ## Learning Loop
 
 After completing the skill, check if this run uncovered anything worth logging:
-- Behavioural mistake (agent did something wrong) → create a new markdown entry in `ai/lessons/` or `.goat-flow/lessons/`
-- Architectural trap with `file:line` evidence → create a new markdown entry in `docs/footguns/` or `.goat-flow/footguns/`
+- Behavioural mistake (agent did something wrong) → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`
+- Architectural trap with `file:line` evidence → add a `## Footgun:` entry to the relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`
 
-Do not append to a monolithic log or directory README. Route team-wide entries to `ai/lessons/` or `docs/footguns/`; route machine/session-only entries to `.goat-flow/lessons/` or `.goat-flow/footguns/`.
-Filename conventions:
-- Lessons: `YYYY-MM-DD-slug.md`
-- Footguns: `slug.md`
+Do not append to a monolithic log or directory README. Route team-wide entries to `ai-docs/lessons/` or `ai-docs/footguns/`; route machine/session-only entries to `.goat-flow/lessons/` or `.goat-flow/footguns/`.
+Bucket conventions:
+- Lessons: `verification.md`, `workflow.md`, `coordination.md`
+- Footguns: `hooks.md`, `setup.md`, `scanner.md`
 
 Use the standard entry formats:
 ```markdown
-<!-- Lesson entry -->
+<!-- Lesson bucket -->
 ---
-name: [Title]
-created: YYYY-MM-DD
+category: verification
 ---
 
+## Lesson: [Title]
+**Created:** YYYY-MM-DD
 **What happened:** [description]
 **Evidence:** `file:line` - [what was found]
 **Prevention:** [rule to prevent recurrence]
 ```
 
 ```markdown
-<!-- Footgun entry -->
+<!-- Footgun bucket -->
 ---
-name: [Title]
-status: active
-created: YYYY-MM-DD
-evidence_type: ACTUAL_MEASURED
+category: hooks
 ---
 
+## Footgun: [Title]
+**Status:** active
+**Created:** YYYY-MM-DD
+**Evidence type:** ACTUAL_MEASURED
 **Symptoms:** [what breaks]
 **Why it happens:** [root cause]
 **Evidence:** `file:line` - [what was found]
@@ -85,14 +87,48 @@ If 3 consecutive file reads produce no new signal relevant to the current questi
 2. State what you were looking for and didn't find
 3. Ask the human to redirect, narrow scope, or close
 
+## Ceremony Level
+
+Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
+
+| Complexity | Ceremony |
+|------------|----------|
+| Hotfix / Small Feature | Skip: closing ceremony, flush rule, footgun MATCH/CLEAR annotations. Skip goat-plan Phases 2-3. |
+| Standard | Full phases, gates at major decisions. |
+| System / Infrastructure | Full phases + cross-boundary verification + rollback planning. |
+
+**Sub-agent mode:** When invoked as a sub-agent (forked context), BLOCKING GATEs automatically become CHECKPOINTs (logged, not paused). Step 0 proceeds with auto-detected scope.
+
+## Footgun Fast-Path
+
+If Step 0's footgun check produces a direct match with a documented trap:
+1. Surface the match immediately: "This matches known footgun X."
+2. Offer the standard mitigation path from the footgun entry
+3. Still require READ and VERIFY on the actual target files - footguns are incident records, not executable specs
+4. Do NOT skip straight to implementation based on a footgun match alone
+
 ## Flush Protocol
 
-If 10+ tool calls pass without a human gate or checkpoint, STOP:
+If 10+ tool calls pass without a human gate or checkpoint (Hotfix/Small Feature: skip this rule):
 1. Write a 3-sentence status to `.goat-flow/tasks/handoff.md` (what you're doing, where you are, what's next)
-2. Ask the user: continue, compact, or redirect?
+2. If working from a plan/milestone file: tick all completed checkboxes NOW before continuing
+3. Ask the user: continue, compact, or redirect?
 
 The counter resets at every BLOCKING GATE, CHECKPOINT, or human message.
 `.goat-flow/tasks/handoff.md` is transient - do not commit it.
+
+## Recovery
+
+When a skill fails mid-execution (context limit, sub-agent dies, tool error):
+
+| Situation | Action |
+|-----------|--------|
+| Partial completion | Identify last completed step (last `[x]` checkbox), resume from next |
+| Missing artifacts | Return to the step that generates them, re-execute |
+| User wants restart | Archive current output to handoff, re-run from Step 0 |
+| User wants to skip | Document skip reason in output, proceed to closing |
+
+In sub-agent/autonomous mode, recovery is especially critical - there's no human to ask "what now?" Write `.goat-flow/tasks/handoff.md` with enough context to resume.
 
 ## Working Memory
 
@@ -109,7 +145,7 @@ boundaries. If the proposed change crosses an Ask First boundary, flag it:
 ## Closing Protocol
 
 When the skill completes:
-1. If work is incomplete: write `.goat-flow/tasks/handoff.md` using the standard handoff template (Date, Status, Current State, Key Decisions, Known Risks, Next Step)
+1. If work is incomplete: write `.goat-flow/tasks/handoff.md` using the standard handoff template (Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files)
 2. Check the Learning Loop (above) for anything worth logging
-3. Suggest the most relevant next skill if applicable (see Chains With in each skill)
-4. If `.goat-flow/logs/` exists: write a session summary to `.goat-flow/logs/sessions/YYYY-MM-DD-goat-{skill}.md`. If >50 session files, delete the oldest to stay at 50. (Schema in `.goat-flow/logs/README.md`)
+3. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` (what happened, files changed, decisions, learnings)
+4. Suggest the most relevant next skill if applicable (see Chains With in each skill)

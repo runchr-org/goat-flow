@@ -1,4 +1,4 @@
-# AGENTS.md - v0.9.4 (2026-04-02)
+# AGENTS.md - v0.10.0 (2026-04-02)
 GOAT Flow documentation framework. Markdown docs + Bash validation scripts. This Codex layer supplements the existing Claude Code workflow; leave `CLAUDE.md` and `.claude/` untouched unless a task explicitly targets them.
 ## Essential Commands
 ```bash
@@ -49,13 +49,17 @@ GOOD: Inline format. Extract when second format needed
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure in your code, or you corrected course: create a lesson entry before DoD. After human correction: MUST log immediately. Do not append to a monolithic log: use `ai/lessons/` or `.goat-flow/lessons/` for `YYYY-MM-DD-slug.md` files with frontmatter `name`, `created`, and use `docs/footguns/` or `.goat-flow/footguns/` for `slug.md` files with frontmatter `name`, `status`, `created`, `evidence_type`. Propagate footguns to local CLAUDE.md.
+**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure or you corrected course: add an entry before DoD. After human correction: log immediately. Use **category bucket files** - NOT one file per incident, NOT a monolithic log.
+- Lessons: `ai-docs/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content.
+- Footguns: `ai-docs/footguns/` category bucket files (e.g. `hooks.md`, `scanner.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
+- Local variants: `.goat-flow/lessons/` and `.goat-flow/footguns/` use same category bucket format.
 
 | File | When to update |
 |------|---------------|
-| `ai/lessons/` or `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
-| `docs/footguns/` or `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
-| `ai/decisions/` | Significant technical decision with context/rationale |
+| `ai-docs/lessons/` or `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
+| `ai-docs/footguns/` or `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
+| `ai-docs/decisions/` | Significant technical decision with context/rationale |
+| `.goat-flow/logs/sessions/` | End of every significant session - `YYYY-MM-DD-slug.md` summary |
 ## Autonomy Tiers
 **Always:** Read any file, run validation scripts, edit within declared scope, add Codex artifacts, update shared learning-loop files with evidence.
 **Ask First**
@@ -64,8 +68,8 @@ GOOD: Inline format. Extract when second format needed
 3. Footgun entry checked: [relevant entry, or "none"]
 4. Local instruction checked: [.github/instructions/<file> / CLAUDE.md / none]
 5. Rollback command: [exact command]
-- `docs/system-spec.md`, `docs/system/`, or `CLAUDE.md`
-- `setup/` or `workflow/` template changes affecting generated output
+- `docs/system-spec.md`, `docs/five-layers.md`, or `CLAUDE.md`
+- `workflow/setup/` or `workflow/skills/` template changes affecting generated output
 - `.github/workflows/` changes
 - Adding, removing, or renaming files
 - Changes spanning 3+ docs/scripts
@@ -86,18 +90,21 @@ Sub-agents: ONE objective, structured return (paths, evidence, confidence, next 
 | Resource | Path |
 |----------|------|
 | System spec | `docs/system-spec.md` |
-| System docs | `docs/system/` |
-| Architecture | `docs/architecture.md` |
+| System docs | `docs/five-layers.md` |
+| Architecture | `ai-docs/architecture.md` |
 | Scripts | `scripts/` |
 <!-- goat-flow:router:start -->
-| Skills | `.agents/skills/goat-*/` |
-| Footguns | `docs/footguns/`, `.goat-flow/footguns/` |
-| Lessons | `ai/lessons/`, `.goat-flow/lessons/` |
-| Decisions | `ai/decisions/` |
-| Evals | `ai/evals/` |
-| Coding standards | `ai/coding-standards/` |
+| Skills | `.agents/skills/` |
+| Project guidelines | `ai-docs/README.md` |
+| Footguns | `ai-docs/footguns/`, `.goat-flow/footguns/` |
+| Lessons | `ai-docs/lessons/`, `.goat-flow/lessons/` |
+| Decisions | `ai-docs/decisions/` |
+| Evals | `ai-docs/evals/` |
+| Coding standards | `ai-docs/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
+| Session logs | `.goat-flow/logs/sessions/` |
 | Local workspace | `.goat-flow/tasks/`, `.goat-flow/logs/` |
+| Handoff | `.goat-flow/tasks/handoff-template.md` |
 <!-- goat-flow:router:end -->
 
 ## Hard Rules

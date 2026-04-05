@@ -2,7 +2,7 @@
 # Copy this file to .github/workflows/context-validation.yml
 # It validates instruction files, router references, and skill directories.
 #
-# Scanner regex expects these exact step names — do not rename them.
+# Scanner regex expects these exact step names - do not rename them.
 name: Context Validation
 on: [push, pull_request]
 jobs:

@@ -1,7 +1,5 @@
-# CLAUDE.md - v0.9.4 (2026-04-02)
-
+# CLAUDE.md - v0.10.0 (2026-04-02)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash scripts + TypeScript CLI scanner.
-
 ## Essential Commands
 
 ```bash
@@ -10,7 +8,6 @@ bash -n scripts/maintenance/*.sh          # Syntax-check scripts
 bash scripts/preflight-checks.sh         # Full preflight gate
 bash scripts/context-validate.sh         # Validate GOAT Flow structure
 ```
-
 ## Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
 
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
@@ -19,16 +16,17 @@ BAD:  "The spec says 100 lines for apps" (guessed without reading)
 GOOD: Read docs/system-spec.md:104 → "Target 120 lines. Hard limit 150."
 ```
 
-**CLASSIFY** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review.
+**CLASSIFY** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity (below). (3) Mode: Plan / Implement / Explain / Debug / Review.
 
-| Complexity | Read budget | Turn budget |
-|------------|-------------|-------------|
-| Hotfix | 2 reads | 3 turns |
-| Standard Feature | 4 reads | 10 turns |
-| System Change | 6 reads | 20 turns |
-| Infrastructure | 8 reads | 25 turns |
+| Complexity | Guideline | Ceremony |
+|------------|-----------|----------|
+| Hotfix | 1-2 files. If you need more, re-classify. | Minimal - skip goat-plan Phases 2-3, skip closing ceremony |
+| Small Feature | Compressed brief (Problem/Solution/Scope/Success all at once). | Light - skip mob elaboration and triangular tension |
+| Standard | No fixed cap. If reads exceed 3x your initial estimate, re-classify. | Full phases, gates at major decisions |
+| System Change | No fixed cap. Same re-classification trigger. | Full phases + cross-boundary verification |
+| Infrastructure | No fixed cap. Same re-classification trigger. | Full phases + rollback planning + multi-agent coordination |
 
-Over budget = re-classify before continuing.
+Exceeding your estimate doesn't mean you're wrong - it means the task is bigger than classified. Stop, re-scope, continue.
 
 **SCOPE** - MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
 
@@ -52,13 +50,17 @@ GOOD: Inline format. Extract when second format needed
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure in your code, or you corrected course: add a new learning-loop entry file before DoD. After human correction: MUST log immediately. Do not append to a monolithic log: use `ai/lessons/` or `.goat-flow/lessons/` for `YYYY-MM-DD-slug.md` files with frontmatter `name`, `created`, and use `docs/footguns/` or `.goat-flow/footguns/` for `YYYY-MM-DD-slug.md` files with frontmatter `name`, `status`, `created`, `evidence_type`. Propagate footguns to local CLAUDE.md.
+**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure or you corrected course: add an entry before DoD. After human correction: log immediately. Use **category bucket files** - NOT one file per incident, NOT a monolithic log.
+- Lessons: `ai-docs/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content. Create new category file only if no existing category fits.
+- Footguns: `ai-docs/footguns/` category bucket files (e.g. `hooks.md`, `scanner.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
+- Local variants: `.goat-flow/lessons/` and `.goat-flow/footguns/` use same category bucket format.
 
 | File | When to update |
 |------|---------------|
-| `ai/lessons/` | Behavioural mistake (agent did something wrong) |
-| `docs/footguns/` | Cross-doc architectural trap (with file:line evidence) |
-| `ai/decisions/` | Significant technical decision with context/rationale |
+| `ai-docs/lessons/` | Behavioural mistake (agent did something wrong) |
+| `ai-docs/footguns/` | Cross-doc architectural trap (with file:line evidence) |
+| `ai-docs/decisions/` | Significant technical decision with context/rationale |
+| `.goat-flow/logs/sessions/` | End of every significant session - `YYYY-MM-DD-slug.md` summary |
 
 ## Autonomy Tiers
 
@@ -73,10 +75,10 @@ GOOD: Inline format. Extract when second format needed
 
 Boundaries:
 - `docs/system-spec.md` changes (canonical spec, referenced everywhere)
-- `docs/system/five-layers.md`, `docs/system/six-steps.md` (core architecture docs)
-- `setup/` prompt changes (affects what users generate)
+- `docs/five-layers.md` (core architecture doc)
+- `workflow/setup/` prompt changes (affects what users generate)
 - `workflow/skills/` template changes (affects user skill creation)
-- `docs/reference/design-rationale.md` (evidence citations, source attributions)
+- `docs/design-rationale.md` (evidence citations, source attributions)
 - Adding, removing, or renaming any file (breaks cross-references)
 - Changes spanning 3+ documentation files
 
@@ -87,6 +89,7 @@ Boundaries:
 MUST confirm ALL: (1) shellcheck passes on changed .sh files (2) no broken cross-references introduced (3) no unapproved boundary changes (4) logs updated if tripped (5) working notes current (6) grep old pattern after renames
 
 ## Hard Rules
+- If file exists, modify in-place. NEVER create `_modified`, `_new`, `_backup`, `_v2` variants.
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - MUST maintain cross-file consistency: same concept, same description everywhere
 - MUST preserve file:line evidence format in footguns and examples
@@ -94,7 +97,6 @@ MUST confirm ALL: (1) shellcheck passes on changed .sh files (2) no broken cross
 - Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.
 
 ## Working Memory
-
 5+ turn tasks → `.goat-flow/tasks/todo.md`. Incomplete work → `.goat-flow/tasks/handoff.md`. `/compact` after 15+ turns → split → `/clear` between unrelated tasks.
 
 ## Router Table
@@ -102,18 +104,16 @@ MUST confirm ALL: (1) shellcheck passes on changed .sh files (2) no broken cross
 | Resource | Path |
 |----------|------|
 | System spec (canonical) | `docs/system-spec.md` |
-| System docs | `docs/system/` |
-| Architecture | `docs/architecture.md` |
+| System docs, architecture | `docs/five-layers.md`, `ai-docs/architecture.md` |
 | CLI scanner/prompt code | `src/cli/` |
 | Scripts | `scripts/` |
-
 <!-- goat-flow:router:start -->
-| Skills | `.claude/skills/goat-*/` |
-| Footguns | `docs/footguns/`, `.goat-flow/footguns/` |
-| Lessons | `ai/lessons/`, `.goat-flow/lessons/` |
-| Decisions | `ai/decisions/` |
-| Evals | `ai/evals/` |
-| Coding standards | `ai/coding-standards/` |
+| Skills | `.claude/skills/` |
+| Project guidelines | `ai-docs/README.md` |
+| Footguns, lessons | `ai-docs/footguns/`, `ai-docs/lessons/` (+ `.goat-flow/` local variants) |
+| Decisions, evals | `ai-docs/decisions/`, `ai-docs/evals/` |
+| Coding standards | `ai-docs/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
-| Local workspace | `.goat-flow/tasks/`, `.goat-flow/logs/` |
+| Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
+| Handoff | `.goat-flow/tasks/handoff-template.md` |
 <!-- goat-flow:router:end -->

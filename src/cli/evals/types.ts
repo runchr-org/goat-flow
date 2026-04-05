@@ -1,3 +1,7 @@
+/**
+ * Type contracts for eval parsing, scoring, and summary output.
+ * Keep these definitions centralized so the parser, loader, and CLI formatter share the same vocabulary.
+ */
 // === Eval Types ===
 
 import type { AgentId } from '../types.js';

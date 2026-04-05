@@ -1,6 +1,6 @@
 # LLM/AI Integration Security
 
-Reference for generating `ai/coding-standards/security.md` in projects that integrate with language models or AI services.
+Reference for generating `ai-docs/coding-standards/security.md` in projects that integrate with language models or AI services.
 
 ## Prompt Injection
 

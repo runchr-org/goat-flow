@@ -1,20 +1,12 @@
 ---
 name: goat-security
 description: "Threat-model-driven security assessment with framework-aware verification, exploitability ranking, and concrete dependency auditing."
-goat-flow-skill-version: "0.9.4"
+goat-flow-skill-version: "0.10.0"
 ---
 # /goat-security
 
-## Shared Conventions
-
-- **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
-- **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
-- **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect.
-- **Learning Loop:** Behavioural mistake → create a new markdown entry in `ai/lessons/` or `.goat-flow/lessons/`. Architectural trap → create a new markdown entry in `docs/footguns/` or `.goat-flow/footguns/`.
-- **Closing:** FIRST: if `.goat-flow/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Suggest next skill.
+<!-- Shared Conventions: inline from workflow/skills/reference/shared-preamble.md during setup.
+     Setup agents: read shared-preamble.md and include its content as "## Shared Conventions" at the top of the installed SKILL.md. -->
 
 ## When to Use
 
@@ -30,18 +22,33 @@ handling, when touching secrets/credentials, or for a security-focused audit.
 ## Step 0 - Gather Context
 
 **Structural questions (always ask or confirm):**
-1. What's the threat model? (user-facing web app, internal tool, CLI, library, API)
-2. What framework are you using? (I'll check its built-in security features in Phase 2)
+1. Which component or area? (or I'll scan the full project)
+2. What's the deployment context? (user-facing web app, internal tool, CLI, library, API)
+3. Any specific threat concern? (injection, auth bypass, data exposure - or "general audit")
 
 **Illustrative questions (adapt):**
-3. <!-- ADAPT: "What auth boundaries exist? (OAuth, JWT, session, API key, none)" -->
-4. <!-- ADAPT: "Any known vulnerabilities to skip? (already tracked, being fixed separately)" -->
+4. <!-- ADAPT: "What auth boundaries exist? (OAuth, JWT, session, API key, none)" -->
+5. <!-- ADAPT: "Any known vulnerabilities to skip? (already tracked, being fixed separately)" -->
+6. What framework are you using? (I'll check its built-in security features in Phase 2)
+
+<!-- ADAPT: Dynamic context injection (optional). These run at skill load time:
+**Dependencies:** !`cat package.json 2>/dev/null | jq -r '.dependencies + .devDependencies | keys[]' | head -15`
+**Framework:** !`cat composer.json 2>/dev/null | jq -r '.require | keys[]' | head -10`
+-->
+
+**Escape hatch:** If the user says "just scan everything" or provides minimal info, auto-detect framework from package files and run a broad threat surface scan.
 
 **Auto-detect:** Read package.json/composer.json/go.mod to identify framework.
 Present: "This is a [framework] project. I'll check [framework]'s built-in
 security features during verification."
 
-**Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+
+**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
+- "hotfix" but 5+ files affected → likely Standard or System
+- "small feature" but crosses 3+ boundaries → likely System
+- "quick test" but 20+ functions in target → warn scope is larger than implied
+Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 **Before proceeding:** present what you know (threat model, framework, auth boundaries) and what you still need. Wait for the user to confirm before entering Phase 1.
 
@@ -138,6 +145,51 @@ Re-read each cited `file:line` for Critical and High findings.
 Remove findings that don't survive re-verification.
 
 **BLOCKING GATE:** Present final report using the Output Format template below.
+
+---
+
+## Compliance Mode
+
+<!-- EVOLVING: This mode will be expanded as compliance standards are added -->
+
+Activated when Step 0 identifies a regulatory compliance concern (HIPAA, GDPR, SOC2, PCI-DSS).
+
+### Phase C1 - Regulation Detection
+
+Identify which regulations apply from project context:
+- HIPAA: PHI/healthcare data, patient records, health APIs
+- GDPR: EU user data, consent flows, data subject rights
+- SOC2: Enterprise SaaS, audit logging, access controls
+- PCI-DSS: Payment processing, card data, tokenization
+
+If unclear, ask: "Which regulatory framework applies? (HIPAA, GDPR, SOC2, PCI-DSS, or tell me more)"
+
+Load relevant coding standards if they exist: `ai-docs/coding-standards/security.md` and framework-specific security files.
+
+### Phase C2 - Compliance Scan
+
+For each applicable regulation, check against its core requirements using the Phase 1 threat surface categories as a base. Add regulation-specific checks:
+- **HIPAA:** minimum necessary principle, tenant scoping, audit trail, PHI in logs (see `workflow/coding-standards/security/phi-compliance.md` for reference)
+- **GDPR:** consent mechanisms, data subject access/deletion, data processing agreements, cross-border transfer
+- **SOC2:** access control logging, change management, incident response procedures
+- **PCI-DSS:** cardholder data isolation, encryption at rest/transit, key management
+
+Log findings with `file:line` evidence and regulation citation.
+
+### Phase C3 - Gap Report
+
+Present compliance gaps ordered by risk:
+- **Non-compliant:** Direct violation of a regulatory requirement. Cite the specific regulation clause.
+- **Partially compliant:** Implementation exists but is incomplete or misconfigured.
+- **Not assessed:** Requires access/context the agent doesn't have (e.g., infrastructure config, vendor agreements).
+
+**BLOCKING GATE:** Present compliance report. Offer:
+(a) drill into a specific finding
+(b) check a different regulation
+(c) proceed to exploitability ranking (Phase 3) for technical findings
+(d) close
+
+---
 
 ## Common Failure Modes
 

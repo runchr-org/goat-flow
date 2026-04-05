@@ -1,3 +1,7 @@
+/**
+ * Static prompt fragments for full-tier requirements.
+ * They cover evals, CI wiring, and mature-adoption hygiene tasks.
+ */
 import type { Fragment } from '../types.js';
 
 /**
@@ -11,14 +15,14 @@ export const fullFragments: Fragment[] = [
     phase: 'full',
     category: 'Agent Evals',
     kind: 'create',
-    instruction: `Create the \`ai/evals/\` directory for agent evaluation scenarios.`,
+    instruction: `Create the \`ai-docs/evals/\` directory for agent evaluation scenarios.`,
   },
   {
     key: 'add-evals',
     phase: 'full',
     category: 'Agent Evals',
     kind: 'create',
-    instruction: `Add 3+ eval files to \`ai/evals/\`. Each eval should capture a real incident:
+    instruction: `Add 3+ eval files to \`ai-docs/evals/\`. Each eval should capture a real incident:
 
 \`\`\`markdown
 # Eval: [Short description]
@@ -117,7 +121,7 @@ Skills not yet covered should each get one eval targeting their most common fail
 
 **Template:** Read \`workflow/templates/context-validation.yml\` from the goat-flow package and copy it to your project's \`.github/workflows/\` directory.
 
-Do NOT rename the step names — the scanner checks for these exact strings: "Check instruction file line counts", "Check router references", "Check skills exist".
+Do NOT rename the step names - the scanner checks for these exact strings: "Check instruction file line counts", "Check router references", "Check skills exist".
 
 If the template file is not available, create \`.github/workflows/context-validation.yml\` with these steps:
 1. Check instruction file line counts (CLAUDE.md, AGENTS.md, GEMINI.md must be ≤150 lines)
@@ -146,7 +150,7 @@ If the template file is not available, create \`.github/workflows/context-valida
     kind: 'create',
     instruction: `Add a router reference check to \`.github/workflows/context-validation.yml\`. This verifies all paths in the router table resolve to existing files.
 
-IMPORTANT: If writing inline shell instead of calling a script, do NOT use \`grep ... | while read\` — the pipe creates a subshell and error counts won't propagate. Use process substitution: \`while read ... done < <(grep ...)\` or write results to a temp file.`,
+IMPORTANT: If writing inline shell instead of calling a script, do NOT use \`grep ... | while read\` - the pipe creates a subshell and error counts won't propagate. Use process substitution: \`while read ... done < <(grep ...)\` or write results to a temp file.`,
   },
   {
     key: 'ci-check-skills',
@@ -175,25 +179,43 @@ Without this, PRs can merge without context validation passing.`,
     phase: 'full',
     category: 'Hygiene',
     kind: 'create',
-    instruction: `Create \`tasks/handoff-template.md\`:
+    instruction: `Create \`.goat-flow/tasks/handoff-template.md\`:
 
 \`\`\`markdown
-# Handoff: [Task Name]
+# Agent Session Handoff Template
 
-**Date:** YYYY-MM-DD
-**Status:** incomplete | blocked | ready-for-review
+**Purpose:** Copy this template to \`.goat-flow/tasks/handoff.md\` when work stops mid-task. The next session reads that file before doing new work.
+
+**When to create:** unfinished work, blocked progress, or repeated failed attempts.
+
+**When to read:** at the start of a session, if \`.goat-flow/tasks/handoff.md\` exists.
+
+## Date
+[YYYY-MM-DD]
+
+## Status
+[In Progress / Blocked / Ready for Review]
 
 ## Current State
-[What was done, what remains]
+[What was done, what remains, files changed]
 
 ## Key Decisions
 [Decisions made during this session]
+
+## Errors & Corrections
+[What went wrong, what was fixed, what was abandoned]
+
+## Learnings
+[What worked well, what did not, surprising findings]
 
 ## Known Risks
 [What could go wrong]
 
 ## Next Step
 [Exactly what to do next]
+
+## Context Files
+[Files the next session should read first]
 \`\`\``,
   },
   {
@@ -201,7 +223,8 @@ Without this, PRs can merge without context validation passing.`,
     phase: 'full',
     category: 'Hygiene',
     kind: 'fix',
-    instruction: '`tasks/handoff-template.md` is missing required sections. It must include: ## Status, ## Current State, ## Key Decisions, ## Known Risks, ## Next Step.',
+    instruction:
+      '`.goat-flow/tasks/handoff-template.md` is missing required sections. It must include: ## Date, ## Status, ## Current State, ## Key Decisions, ## Errors & Corrections, ## Learnings, ## Known Risks, ## Next Step, and ## Context Files.',
   },
   {
     key: 'create-logs-dir',
@@ -258,6 +281,6 @@ Note: the execution loop MUST be duplicated (each file is loaded independently).
     phase: 'full',
     category: 'Agent Evals',
     kind: 'fix',
-    instruction: `Some eval files use legacy format (bold markers like \`**Origin:**\`) instead of YAML frontmatter. Migrate all evals to canonical format with \`---\` frontmatter containing name, description, origin, agents, skill, and difficulty fields. Use \`### Scenario\` (not \`## Replay Prompt\`), checkbox gates in \`### Expected Behavior\`, and bullet list \`### Anti-Patterns\`.`,
+    instruction: `Add YAML frontmatter to eval files: \`---\` block with name, description, origin, agents, skill, and difficulty fields. Use \`### Scenario\`, checkbox gates in \`### Expected Behavior\`, and bullet list \`### Anti-Patterns\`.`,
   },
 ];

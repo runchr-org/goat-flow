@@ -1,20 +1,12 @@
 ---
 name: goat-review
-description: "Structured code review and quality audit with RFC 2119 severity, diff-aware analysis, footgun matching, negative verification, and instruction-file audit mode."
-goat-flow-skill-version: "0.9.4"
+description: "Structured code review and quality audit with RFC 2119 severity, diff-aware analysis, footgun matching, negative verification, simplify mode for readability, and instruction-file audit mode."
+goat-flow-skill-version: "0.10.0"
 ---
 # /goat-review
 
-## Shared Conventions
-
-- **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
-- **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
-- **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect.
-- **Learning Loop:** Behavioural mistake → create a new markdown entry in `ai/lessons/` or `.goat-flow/lessons/`. Architectural trap → create a new markdown entry in `docs/footguns/` or `.goat-flow/footguns/`.
-- **Closing:** FIRST: if `.goat-flow/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Suggest next skill.
+<!-- Shared Conventions: inline from workflow/skills/reference/shared-preamble.md during setup.
+     Setup agents: read shared-preamble.md and include its content as "## Shared Conventions" at the top of the installed SKILL.md. -->
 
 ## When to Use
 
@@ -22,37 +14,54 @@ Use when reviewing a diff, PR, or specific set of changes before they ship.
 Also use for systematic quality audits of a codebase area - before releases,
 after major changes, or when code quality is uncertain.
 Also use for reviewing instruction files for staleness - see modes below.
+Also use for improving readability, naming, and code clarity - see Simplify Mode.
 
 **NOT this skill:**
 - OWASP-driven security assessment → /goat-security
 - Understanding unfamiliar code before changing it → /goat-debug (investigate mode)
 - Generating test instructions → /goat-test
-- Making code more readable → /goat-review (simplify mode)
 
 ## Step 0 - Gather Context
 
 <!-- ADAPT: Replace illustrative questions with project-specific review concerns -->
 
 **Structural questions (always ask or confirm):**
-1. What should I review? (PR, recent commits, specific files, codebase area, instruction files)
-2. Any specific concerns? (performance, security, a tricky area, instruction drift)
+1. Which files or area? (or I'll run `git diff` to find recent changes)
+2. What's the concern? (performance, security, correctness, readability - or "general review")
+3. Diff review or full audit? (I'll auto-detect from whether changes exist)
 
 **Illustrative questions (adapt):**
-3. <!-- ADAPT: "Is this responding to external feedback? (Copilot, another agent, team review)" -->
-4. Riskiest change first, or full sweep?
+4. <!-- ADAPT: "Is this responding to external feedback? (Copilot, another agent, team review)" -->
+5. Riskiest change first, or full sweep?
 
-**Auto-detect:** Read `git diff --stat` to pre-fill scope. Present: "I see
-[N] files changed in [areas]. Reviewing [scope]. Correct?"
+<!-- ADAPT: Dynamic context injection (optional). These run at skill load time:
+**Changed files:** !`git diff --stat`
+**Recent commits:** !`git log --oneline -3`
+-->
 
-**Mode routing:**
-- If target is **instruction files** → activate Instruction Review Mode.
-- If target is a **codebase area** (not a specific diff) → activate Audit Mode.
-- Otherwise → standard diff review (Phases 0-4 below).
+**Escape hatch:** If the user says "just review what changed" or provides minimal info, auto-detect scope from `git diff --stat` and proceed.
 
-If `ai/coding-standards/code-review.md` exists, load it and apply project-specific
+**Auto-detect mode (unless user explicitly specifies):**
+
+Scope detection priority: (1) explicit user input, (2) staged changes to target, (3) unstaged changes to target, (4) git diff. If user names a specific file, use THAT - not the full worktree diff. If worktree is very dirty (20+ changed files), ask user to specify scope.
+
+- User names a diff/PR/commits → **Standard mode** (Phases 0-4)
+- User names a file AND `git diff --stat` shows changes to it → **Standard mode**
+- User names a file AND no changes exist → **Audit mode** (Phases A1-A3)
+- Target is **instruction files** → **Instruction mode** (Phases 1i-3i)
+- Goal is **readability/cleanup** → **Simplify mode** (Phases S1-S4)
+- User explicitly says "audit" or "standard" → respect override
+
+If `ai-docs/coding-standards/code-review.md` exists, load it and apply project-specific
 review standards alongside these defaults.
 
-**Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+
+**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
+- "hotfix" but 5+ files affected → likely Standard or System
+- "small feature" but crosses 3+ boundaries → likely System
+- "quick test" but 20+ functions in target → warn scope is larger than implied
+Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 **Before proceeding:** present what you know and what you still need. Wait for the user to confirm scope, mode, and concerns before entering Phase 1.
 
@@ -81,14 +90,14 @@ pre-existing issues as part of this change - note them separately.
 
 **Cross-cutting checks:**
 - Autonomy tier violations: does this change cross an Ask First boundary?
-- Footgun matching: check each finding against `docs/footguns/` and `.goat-flow/footguns/`. Output: `MATCH: [entry]` or `CLEAR`
+- Footgun matching: check each finding against `ai-docs/footguns/` and `.goat-flow/footguns/`. Output: `MATCH: [entry]` or `CLEAR`
   *Example:* "Finding: Renamed `UserService` → `AccountService`. Footgun check:
-  `docs/footguns/` or `.goat-flow/footguns/` entry 'cross-reference fragility'. MATCH - grep for
+  `ai-docs/footguns/` or `.goat-flow/footguns/` entry 'cross-reference fragility'. MATCH - grep for
   `UserService` across all `.md` files."
 - Pattern drift: does new code use a different pattern than existing codebase? Don't assume it's wrong - ask: "Intentional divergence?"
 - Downstream impact: "What breaks if this change has a bug?" - map the cascade
 - Test execution gaps: tests exist but weren't run against the changed path (different from "no test exists")
-- Glossary consistency: if `docs/glossary.md` exists, flag terms used inconsistently in the diff (different name for same concept)
+- Glossary consistency: if `ai-docs/glossary.md` exists, flag terms used inconsistently in the diff (different name for same concept) <!-- ADAPT -->
 
 **Self-check:** Before presenting, re-verify `file:line` references for all MUST-fix findings.
 
@@ -153,7 +162,7 @@ Scan categories, weighted by audit purpose:
 For each finding, log: category, `file:line`, description, severity.
 <!-- ADAPT: Use your agent's parallel execution capability, or scan areas sequentially. -->
 
-**Recurrence check:** Before reporting, search `docs/footguns/` and `.goat-flow/footguns/` for entries
+**Recurrence check:** Before reporting, search `ai-docs/footguns/` and `.goat-flow/footguns/` for entries
 in the scanned area. Cross-reference findings with known footguns.
 
 **Phase A2 - Verify & Self-Check:**
@@ -196,14 +205,14 @@ Review your output for fix language. Rephrase any recommendations as findings.
 ## Instruction Review Mode
 
 Activated when review target is instruction files (CLAUDE.md, AGENTS.md,
-ai/coding-standards/, .github/instructions/).
+ai-docs/coding-standards/, .github/instructions/).
 
 **Phase 1i - Friction Signal Scan:**
 Gather observable signals (not conversation memory - agents can't read prior sessions):
 - `git log --oneline -20` for recent activity patterns
-- Read `ai/lessons/` and `.goat-flow/lessons/` for entries since last instruction update
-- Read `docs/footguns/` and `.goat-flow/footguns/` for entries in areas governed by the instructions
-- Check `ai/evals/` for recurring failure patterns
+- Read `ai-docs/lessons/` and `.goat-flow/lessons/` for entries since last instruction update
+- Read `ai-docs/footguns/` and `.goat-flow/footguns/` for entries in areas governed by the instructions
+- Check `ai-docs/evals/` for recurring failure patterns
 
 **Phase 2i - Instruction Audit:**
 For each instruction file, check:
@@ -220,7 +229,51 @@ Present proposals in diff-like format:
 | CLAUDE.md | Ask First | `src/old-path/` | `src/new-path/` | Path renamed in commit abc123 |
 
 MUST NOT auto-edit instruction files. Present for human approval.
-MUST NOT edit `docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, or `.goat-flow/lessons/` - those have their own update standards.
+MUST NOT edit `ai-docs/footguns/`, `.goat-flow/footguns/`, `ai-docs/lessons/`, or `.goat-flow/lessons/` - those have their own update standards.
+
+---
+
+## Simplify Mode
+
+Activated when goal is readability improvement. **MUST NOT change behavior.**
+
+**Quick path:** For a single function or ≤50 lines: skip S1 scope confirmation.
+
+### Phase S1 - Read & Assess
+**Footgun check:** Read `ai-docs/footguns/` and `.goat-flow/footguns/` for target area.
+
+Read target files. Assess: Can a new reader understand without context? Are names self-explanatory? Do comments add value? Is control flow easy to follow?
+
+### Phase S2 - Identify Opportunities
+Scan by impact:
+
+| Category | What to look for | Impact |
+|----------|-----------------|--------|
+| Naming | Cryptic names, abbreviations, misleading names | High |
+| Self-documentation | Code that requires comments to explain intent | High |
+| Comment quality | Commented-out code, outdated comments, comments restating code | Medium |
+| Complexity | Deep nesting (>3 levels), long functions (>40 lines) | Medium |
+| Constants | Magic numbers, hardcoded strings | Medium |
+| Dead code | Unused imports, unreachable branches | Low |
+
+**The naming test:** "Would a new reader understand this name without reading the implementation?"
+
+**Refactor boundary:** If a rename crosses file boundaries or changes a public API → redirect to /goat-plan (refactor mode).
+
+**Intentional complexity:** Crypto, parsers, performance-critical paths → flag as "complex by design."
+
+### Phase S3 - Self-Check & Present
+Re-read each `file:line`. Is the suggested rename safe? Remove findings where evidence doesn't hold.
+
+Present ordered by impact. **BLOCKING GATE:** (a) implement all, (b) implement selectively, (c) drill in, (d) close
+
+### Phase S4 - Implement (if approved)
+Apply one file at a time. After each:
+1. Grep for old names - zero remaining
+2. Check doc cross-references
+3. Run tests/linter - behavior unchanged
+
+If tests fail → revert that change, note as unsafe, continue with rest.
 
 ## Common Failure Modes
 
@@ -235,7 +288,7 @@ MUST NOT edit `docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, or `.goat
 <!-- FIXED: Do not adapt these -->
 - MUST review the diff for issues, read full files for context
 - MUST NOT flag pre-existing issues as part of this change (review mode)
-- MUST check each finding against `docs/footguns/` and `.goat-flow/footguns/` (MATCH/CLEAR)
+- MUST check each finding against `ai-docs/footguns/` and `.goat-flow/footguns/` (MATCH/CLEAR)
 - MUST order findings by severity, not by file or discovery order
 - MUST NOT fabricate file paths or function names
 - MUST NOT make file edits in review or audit mode - report findings only. Only edit if user explicitly says "implement".
@@ -244,6 +297,8 @@ MUST NOT edit `docs/footguns/`, `.goat-flow/footguns/`, `ai/lessons/`, or `.goat
 - MUST NOT propose fixes in audit mode - audit reports only
 - MUST re-verify file:line references in audit self-check
 - MUST group 3+ related audit findings as systemic patterns
+- MUST NOT change behavior in simplify mode
+- MUST NOT rename public/exported APIs without explicit approval (simplify mode)
 - Conversational: present findings, then let the human drill in. One-shot dumps miss architectural problems.
 
 ## Output Format
@@ -293,6 +348,5 @@ Output should be compatible with standard GitHub/GitLab PR review templates.
 - /goat-plan - review reveals missing requirements → planning needed
 - /goat-test - review finds coverage gaps → test plan needed
 - /goat-security - review/audit finds security concern → deeper assessment
-- /goat-review (simplify mode) - review finds readability issues → simplification needed
 
 **Handoff shape:** `{scope, mode, findings_by_severity, breaking_changes, coverage_gaps, patterns}`

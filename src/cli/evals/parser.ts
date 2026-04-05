@@ -1,4 +1,7 @@
 /**
+ * Parser for goat-flow eval markdown files.
+ * It accepts the current frontmatter format plus older legacy metadata so mixed eval sets can be reported consistently.
+ *
  * Parses eval markdown files into structured objects.
  *
  * Supports two formats:
@@ -51,7 +54,10 @@ function parseFrontmatter(raw: string): EvalFrontmatter | null {
     /** Trimmed key portion before the colon */
     const key = line.slice(0, idx).trim();
     /** Trimmed value portion after the colon, with surrounding quotes stripped */
-    const val = line.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
+    const val = line
+      .slice(idx + 1)
+      .trim()
+      .replace(/^["']|["']$/g, '');
     fields.set(key, val);
   }
 
@@ -81,7 +87,8 @@ function validateOrigin(val: string | undefined): EvalOrigin {
 
 /** Validate and normalize an agents value, defaulting to all */
 function validateAgents(val: string | undefined): EvalAgents {
-  if (val === 'all' || val === 'claude' || val === 'codex' || val === 'gemini') return val;
+  if (val === 'all' || val === 'claude' || val === 'codex' || val === 'gemini')
+    return val;
   return 'all';
 }
 
@@ -99,54 +106,20 @@ function validateDifficulty(val: string | undefined): EvalDifficulty {
   return 'medium';
 }
 
-// --- Legacy format parsing ---
-
-/** Parse legacy eval format (no frontmatter) by extracting metadata from markdown body */
-function parseLegacyFrontmatter(raw: string, filename: string): EvalFrontmatter {
-  // Extract **Origin:** and **Agents:** from markdown body
-  /** Regex match for the **Origin:** metadata line */
-  const originMatch = raw.match(/\*\*Origin:\*\*\s*`?([^`\n]+)`?/);
-  /** Regex match for the **Agents:** metadata line */
-  const agentsMatch = raw.match(/\*\*Agents:\*\*\s*`?([^`\n]+)`?/);
-  /** Regex match for the # Eval: title heading */
-  const titleMatch = raw.match(/^#\s+Eval:\s*(.+)/m);
-
-  /** Validated origin extracted from the markdown body */
-  const origin = validateOrigin(originMatch?.[1]?.trim());
-  /** Validated agents extracted from the markdown body */
-  const agents = validateAgents(agentsMatch?.[1]?.trim());
-  /** Eval name derived from the filename without .md extension */
-  const name = filename.replace(/\.md$/, '');
-  /** Eval description extracted from the title heading */
-  const description = titleMatch?.[1]?.trim() ?? '';
-
-  return {
-    name,
-    description,
-    origin,
-    agents,
-    skill: null,
-    difficulty: 'medium',
-  };
-}
-
 // --- Section extraction ---
 
 /** Extract the text content under a given heading from a markdown document */
 function extractSection(raw: string, heading: string): string {
-  // Match ## Heading or ### Heading, case-insensitive
+  // Match the requested section at heading level 2 or 3.
   /** Regex pattern to locate the target heading at level 2 or 3 */
-  const pattern = new RegExp(
-    `^#{2,3}\\s+${escapeRegex(heading)}\\s*$`,
-    'im',
-  );
+  const pattern = new RegExp(`^#{2,3}\\s+${escapeRegex(heading)}\\s*$`, 'im');
   /** Regex match result for the heading location */
   const match = raw.match(pattern);
   if (match == null || match.index === undefined) return '';
 
   /** Character offset where section content begins (after the heading) */
   const start = match.index + match[0].length;
-  // Find next heading of same or higher level
+  // Stop when the next peer-or-higher heading begins.
   /** Remaining text after the matched heading */
   const rest = raw.slice(start);
   /** Match for the next heading that terminates this section */
@@ -219,65 +192,60 @@ function parseAntiPatterns(section: string): string[] {
   return patterns;
 }
 
+/** Parse YAML frontmatter and return it with the remaining body text. */
+function parseEvalFrontmatter(
+  raw: string,
+  filename: string,
+): { frontmatter: EvalFrontmatter; body: string } {
+  const frontmatter = parseFrontmatter(raw);
+  if (frontmatter == null) {
+    throw new Error(`Missing or invalid YAML frontmatter in ${filename}`);
+  }
+
+  return {
+    frontmatter,
+    body: raw.replace(FRONTMATTER_RE, '').trim(),
+  };
+}
+
+/** Return the first non-empty section body from a list of heading aliases. */
+function extractFirstSection(body: string, headings: string[]): string {
+  for (const heading of headings) {
+    const section = extractSection(body, heading);
+    if (section) return section;
+  }
+  return '';
+}
+
+/** Fall back to the raw section text when no bullet-list anti-patterns were parsed. */
+function resolveAntiPatterns(section: string): string[] {
+  const antiPatterns = parseAntiPatterns(section);
+  if (antiPatterns.length === 0 && section.length > 0) return [section];
+  return antiPatterns;
+}
+
 // --- Main parser ---
 
 /** Parse a raw eval markdown file into a structured ParsedEval object */
 export function parseEvalFile(raw: string, filename: string): ParsedEval {
-  /** Whether the raw content starts with YAML frontmatter delimiters */
-  const hasFrontmatter = FRONTMATTER_RE.test(raw);
-
-  let frontmatter: EvalFrontmatter;
-  let body: string;
-
-  if (hasFrontmatter) {
-    /** Parsed frontmatter from the new-format eval file */
-    const parsed = parseFrontmatter(raw);
-    if (parsed == null) {
-      throw new Error(`Invalid frontmatter in ${filename}`);
-    }
-    frontmatter = parsed;
-    body = raw.replace(FRONTMATTER_RE, '').trim();
-  } else {
-    frontmatter = parseLegacyFrontmatter(raw, filename);
-    body = raw;
-  }
-
-  // Extract sections (try both new and legacy heading names)
-  /** Scenario text extracted from Scenario or Replay Prompt heading */
-  const scenario =
-    extractSection(body, 'Scenario') ||
-    extractSection(body, 'Replay Prompt') ||
-    '';
-
-  /** Expected behavior section extracted from various heading name variants */
-  const expectedSection =
-    extractSection(body, 'Expected Behavior') ||
-    extractSection(body, 'Expected Behaviour') ||
-    extractSection(body, 'Expected Outcome') ||
-    '';
-
-  /** Anti-pattern section extracted from Anti-Patterns or Known Failure Mode heading */
-  const antiPatternSection =
-    extractSection(body, 'Anti-Patterns') ||
-    extractSection(body, 'Known Failure Mode') ||
-    '';
-
-  /** Parsed behavioral gates from the expected behavior section */
-  const expectedBehaviors = parseGates(expectedSection);
-  /** Parsed anti-pattern strings from the anti-pattern section */
-  const antiPatterns = parseAntiPatterns(antiPatternSection);
-
-  // If anti-pattern section has no bullets, treat the whole text as one item
-  if (antiPatterns.length === 0 && antiPatternSection.length > 0) {
-    antiPatterns.push(antiPatternSection);
-  }
+  const { frontmatter, body } = parseEvalFrontmatter(raw, filename);
+  const scenario = extractFirstSection(body, ['Scenario', 'Replay Prompt']);
+  const expectedSection = extractFirstSection(body, [
+    'Expected Behavior',
+    'Expected Behaviour',
+    'Expected Outcome',
+  ]);
+  const antiPatternSection = extractFirstSection(body, [
+    'Anti-Patterns',
+    'Known Failure Mode',
+  ]);
 
   return {
     file: filename,
     frontmatter,
     scenario: extractScenarioText(scenario),
-    expectedBehaviors,
-    antiPatterns,
+    expectedBehaviors: parseGates(expectedSection),
+    antiPatterns: resolveAntiPatterns(antiPatternSection),
   };
 }
 

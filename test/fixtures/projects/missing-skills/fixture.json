@@ -1,0 +1,13 @@
+{
+  "extends": "../passing-minimal",
+  "agentFilter": "claude",
+  "overrideDelete": [
+    ".claude/skills/goat-security/SKILL.md",
+    ".claude/skills/goat-test/SKILL.md"
+  ],
+  "expected": {
+    "claude": {
+      "maxPercentage": 99
+    }
+  }
+}

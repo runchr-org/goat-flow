@@ -1,0 +1,4 @@
+# Track the handoff template (shared). Ignore working files (personal).
+*
+!.gitignore
+!handoff-template.md

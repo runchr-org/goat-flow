@@ -41,10 +41,19 @@ progress, or a forced rewind after repeated failed attempts.
 - What is done and not done
 - Branch name if relevant
 - Files changed this session
-- Validation status if anything was run
 
 ## Key Decisions Made
 - Decision and why it was made
+
+## Errors & Corrections
+- What went wrong and how it was fixed
+- Any approaches that were tried and abandoned (and why)
+- If a footgun or lesson was created from this, link it here
+
+## Learnings
+- What worked well this session (repeat in future)
+- What didn't work (avoid in future)
+- Any surprising findings about the codebase
 
 ## Known Risks
 - Risk and mitigation
@@ -53,7 +62,10 @@ progress, or a forced rewind after repeated failed attempts.
 ## Next Step
 - Exactly what to do first, with file paths
 - Which files to read first
-- The next concrete validation step if known
+
+## Context Files
+- Key files the next agent should read before starting
+- Any files that were read but not changed (important for understanding)
 
 USAGE:
 When ending a session mid-task, the agent should:
@@ -70,9 +82,8 @@ anything else.
 
 VERIFICATION:
 - Verify .goat-flow/tasks/handoff-template.md exists
-- Verify it has the Date, Status, Current State, Key Decisions Made,
-  Known Risks, and Next Step sections
+- Verify it has Date, Status, Current State, Key Decisions Made,
+  Errors & Corrections, Learnings, Known Risks, Next Step, and
+  Context Files sections
 - Verify it says when to create and when to read the handoff
-- Verify it does not reference stale planning or tracking files that are
-  no longer part of the repo
 ```

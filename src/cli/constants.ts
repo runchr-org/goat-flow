@@ -1,12 +1,19 @@
-/** Canonical list of all GOAT Flow skill names (v0.9.4: 5 skills + dispatcher = 6) */
+/**
+ * Canonical cross-module constants for skills and version-aligned aliases.
+ * Keep definitions here so detection, prompts, and scanner checks stay in sync.
+ */
+/** Canonical list of all GOAT Flow skill names (5 specialized skills + dispatcher = 6) */
 export const SKILL_NAMES = [
-  'goat', 'goat-debug', 'goat-review', 'goat-plan',
-  'goat-security', 'goat-test',
+  'goat',
+  'goat-debug',
+  'goat-review',
+  'goat-plan',
+  'goat-security',
+  'goat-test',
 ] as const;
 
-
 /** Type derived from the canonical skill list */
-export type SkillName = typeof SKILL_NAMES[number];
+export type SkillName = (typeof SKILL_NAMES)[number];
 
 /**
  * Current skill template version - matches the package/rubric version.

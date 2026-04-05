@@ -1,7 +1,7 @@
-# Prompt: Create ai/coding-standards/code-review.md
+# Prompt: Create ai-docs/coding-standards/code-review.md
 
 > **Purpose:** Code review checklist - priority order, anti-patterns, review triggers
-> **Generates:** `ai/coding-standards/code-review.md`
+> **Generates:** `ai-docs/coding-standards/code-review.md`
 > **Use when:** Setting up code review instructions for the project
 > **Repo inspection:** Yes - reads code for actual anti-patterns, file paths, API contracts
 > **Follow-on refs:** `security/` for security review additions; `testing.md` for test-coverage expectations
@@ -10,7 +10,7 @@
 
 ## The Prompt
 
-Write `ai/coding-standards/code-review.md`:
+Write `ai-docs/coding-standards/code-review.md`:
 
 ````
 IMPORTANT: When listing anti-patterns or review checks, verify each against actual code:
@@ -145,7 +145,7 @@ clang -fsanitize=thread -g -o test_binary test.c
 
 ## Learning Loop Cross-Check
 
-Before approving, check `docs/footguns/` and `ai/lessons/` (if they exist) for known traps relevant to the changed files. If a PR touches a file or pattern mentioned in footguns, flag it - even if the code looks correct. Past incidents are the best predictor of future ones.
+Before approving, check `ai-docs/footguns/` and `ai-docs/lessons/` (if they exist) for known traps relevant to the changed files. If a PR touches a file or pattern mentioned in footguns, flag it - even if the code looks correct. Past incidents are the best predictor of future ones.
 
 ## Do NOT Nitpick
 

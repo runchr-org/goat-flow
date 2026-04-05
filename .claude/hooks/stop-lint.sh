@@ -3,7 +3,7 @@
 # MUST exit 0 even on errors (non-zero causes infinite loops).
 # Errors go to stderr as informational feedback.
 
-# Infinite loop guard
+# Infinite loop guard (convention from enforcement.md)
 if [ "${STOP_HOOK_ACTIVE:-}" = "1" ]; then
   exit 0
 fi
@@ -19,12 +19,13 @@ cd "$ROOT" || exit 0
 ERRORS=""
 
 # Check which file types were modified
-CHANGED_SH=$(git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null | grep '\.sh$' || true)
-CHANGED_TS=$(git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null | grep '\.ts$' || true)
+CHANGED_SH=$(git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null | grep '\.sh$') || CHANGED_SH=""
+CHANGED_TS=$(git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null | grep '\.ts$') || CHANGED_TS=""
 
 # Shell scripts: syntax check + shellcheck
 if [ -n "$CHANGED_SH" ]; then
-  for f in $CHANGED_SH; do
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
     if [ -f "$f" ]; then
       # Syntax check
       if ! bash -n "$f" 2>/dev/null; then
@@ -33,13 +34,12 @@ if [ -n "$CHANGED_SH" ]; then
 
       # Shellcheck (if available)
       if command -v shellcheck >/dev/null 2>&1; then
-        SC_OUT=$(shellcheck "$f" 2>&1) || true
-        if [ -n "$SC_OUT" ]; then
+        if ! SC_OUT=$(shellcheck "$f" 2>&1); then
           ERRORS="${ERRORS}shellcheck issues in $f:\n${SC_OUT}\n"
         fi
       fi
     fi
-  done
+  done <<< "$CHANGED_SH"
 fi
 
 # TypeScript: type check (if tsc available and tsconfig exists)

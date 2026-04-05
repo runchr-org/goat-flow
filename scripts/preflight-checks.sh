@@ -17,8 +17,35 @@ errors=0
 warnings=0
 checks=0
 
+# Millisecond-precision timing with portable fallback (macOS date lacks %N)
+if date +%s%N 2>/dev/null | grep -qv N; then
+    now_ms() { echo $(( $(date +%s%N) / 1000000 )); }
+elif command -v node >/dev/null 2>&1; then
+    now_ms() { node -e 'process.stdout.write(String(Date.now()))'; }
+else
+    now_ms() { echo $(( $(date +%s) * 1000 )); }
+fi
+fmt_elapsed() {
+    local ms=$(( $1 ))
+    local secs=$(( ms / 1000 ))
+    local frac=$(( ms % 1000 ))
+    printf '%d.%01ds' "$secs" "$(( frac / 100 ))"
+}
+
+preflight_start=$(now_ms)
+section_start=$(now_ms)
+
 # ── Helpers ──────────────────────────────────────────────────────────
-section() { echo -e "\n${B}━━ $1${RST}"; }
+section() {
+    # Print elapsed time for the previous section (skip for the first call)
+    local now
+    now=$(now_ms)
+    if [[ "$checks" -gt 0 ]]; then
+        echo -e "  ${DIM}($(fmt_elapsed $(( now - section_start ))))${RST}"
+    fi
+    section_start=$now
+    echo -e "\n${B}━━ $1${RST}";
+}
 pass()    { checks=$((checks + 1)); echo -e "  ${G}✓${RST} $1"; }
 fail()    { checks=$((checks + 1)); errors=$((errors + 1)); echo -e "  ${R}✗${RST} $1" >&2; }
 skip()    { echo -e "  ${DIM}⊘ $1 (skipped)${RST}"; }
@@ -220,13 +247,6 @@ if [[ -f tsconfig.json ]]; then
         fail "Typecheck/build - run npx tsc for details"
     fi
 
-    # Dashboard HTML served from src/ at runtime (no copy step needed)
-    if [[ -f src/dashboard/index.html ]]; then
-        pass "src/dashboard/index.html exists"
-    else
-        fail "src/dashboard/index.html missing"
-    fi
-
     # ESLint (type-checked rules)
     if command -v npx >/dev/null 2>&1 && [[ -f eslint.config.mjs ]]; then
         lint_output=$(npx eslint src/cli/ 2>&1) && lint_exit=0 || lint_exit=$?
@@ -257,14 +277,12 @@ if [[ -f tsconfig.json ]]; then
     fi
 
     # Quality checks (warnings, not failures)
-    console_hits=$(grep -rn 'console\.log' src/cli/ --include='*.ts' | grep -v 'cli.ts' | grep -v 'render/' || true)
-    [[ -n "$console_hits" ]] && note "console.log outside cli.ts/render/ ($(echo "$console_hits" | wc -l) hits)"
+    # console.log is fine - this is a local CLI tool, not a library
 
     any_hits=$(grep -rn ': any\b' src/cli/ --include='*.ts' || true)
     [[ -n "$any_hits" ]] && note "Explicit 'any' types ($(echo "$any_hits" | wc -l) hits)"
 
-    todo_hits=$(grep -rn 'TODO\|FIXME\|HACK' src/cli/ --include='*.ts' || true)
-    [[ -n "$todo_hits" ]] && note "TODOs ($(echo "$todo_hits" | wc -l) hits)"
+    # TODO/FIXME check removed - all hits are string literals in scanner code that detect TODOs in target projects
 fi
 
 # ── Tests ────────────────────────────────────────────────────────────
@@ -369,10 +387,14 @@ if [[ -f src/cli/prompt/template-refs.ts ]]; then
 fi
 
 # ── Summary ──────────────────────────────────────────────────────────
+# Print elapsed time for the last section
+echo -e "  ${DIM}($(fmt_elapsed $(( $(now_ms) - section_start ))))${RST}"
+
+total_elapsed=$(fmt_elapsed $(( $(now_ms) - preflight_start )))
 echo ""
 echo -e "${DIM}─────────────────────────────────────────────────${RST}"
 if [[ "$errors" -gt 0 ]]; then
-    echo -e "${BOLD}${R}PREFLIGHT FAILED${RST}  ${errors} error(s), ${warnings} warning(s), ${checks} checks"
+    echo -e "${BOLD}${R}PREFLIGHT FAILED${RST}  ${errors} error(s), ${warnings} warning(s), ${checks} checks  ${DIM}(${total_elapsed})${RST}"
     exit 1
 fi
-echo -e "${BOLD}${G}PREFLIGHT PASSED${RST}  ${checks} checks, ${warnings} warning(s)"
+echo -e "${BOLD}${G}PREFLIGHT PASSED${RST}  ${checks} checks, ${warnings} warning(s)  ${DIM}(${total_elapsed})${RST}"

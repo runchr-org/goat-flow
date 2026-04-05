@@ -1,39 +1,30 @@
+/**
+ * Top-level scan orchestrator.
+ * It loads config, extracts facts, runs the rubric, computes recommendations, and returns the full report consumed by CLI renderers and tests.
+ */
 import type { ScanReport, AgentReport, ReadonlyFS, AgentId } from '../types.js';
 import { loadConfig } from '../config/index.js';
 import { extractProjectFacts } from '../facts/orchestrator.js';
 import { allChecks, allAntiPatterns } from '../rubric/registry.js';
-import { readFileSync, existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { RUBRIC_VERSION, SCHEMA_VERSION } from '../rubric/version.js';
+import { getPackageVersion } from '../paths.js';
 
-/** Find package.json by walking up from the current file's directory */
-function findPackageVersion(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  // Walk up until we find package.json (max 10 levels to prevent infinite loop)
-  for (let i = 0; i < 10; i++) {
-    const candidate = join(dir, 'package.json');
-    if (existsSync(candidate)) {
-      return (JSON.parse(readFileSync(candidate, 'utf-8')) as { version: string }).version;
-    }
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return '0.0.0';
-}
-
-/** Package version from package.json - single source of truth */
-const PACKAGE_VERSION = findPackageVersion();
-import { runChecks, runAntiPatterns, computeScore } from '../scoring/scorer.js';
+/** Current package version embedded in scan report metadata */
+const PACKAGE_VERSION = getPackageVersion();
+import { runChecks, runAntiPatterns, computeScore } from '../scoring/calculate.js';
 import { generateRecommendations } from '../scoring/recommendations.js';
 
+/** Options for the scan orchestrator */
 export interface ScanOptions {
   agentFilter: AgentId | null;
 }
 
 /** Run all rubric checks and anti-pattern detections against a project, returning a full scan report. */
-export function scanProject(fs: ReadonlyFS, projectPath: string, options: ScanOptions): ScanReport {
+export function scanProject(
+  fs: ReadonlyFS,
+  projectPath: string,
+  options: ScanOptions,
+): ScanReport {
   const configState = loadConfig(projectPath, fs);
   /** Extracted project and agent facts used by all evaluators */
   const facts = extractProjectFacts(fs, {
@@ -44,7 +35,7 @@ export function scanProject(fs: ReadonlyFS, projectPath: string, options: ScanOp
 
   // Iterate over each detected agent to produce per-agent reports
   /** Per-agent scan reports containing scores, check results, and recommendations */
-  const agentReports: AgentReport[] = facts.agents.map(agentFacts => {
+  const agentReports: AgentReport[] = facts.agents.map((agentFacts) => {
     /** Evaluation context combining shared and agent-specific facts */
     const ctx = { facts, agentFacts };
 
@@ -53,10 +44,18 @@ export function scanProject(fs: ReadonlyFS, projectPath: string, options: ScanOp
     /** Results from running all anti-pattern detections */
     const antiPatternResults = runAntiPatterns(allAntiPatterns, ctx);
     /** Computed score based on check and anti-pattern results */
-    const score = computeScore(checkResults, antiPatternResults, allChecks.length);
+    const score = computeScore(
+      checkResults,
+      antiPatternResults,
+      allChecks.length,
+      allChecks,
+    );
     /** Prioritized recommendations based on failed checks and detected anti-patterns */
     const recommendations = generateRecommendations(
-      checkResults, antiPatternResults, allChecks, allAntiPatterns,
+      checkResults,
+      antiPatternResults,
+      allChecks,
+      allAntiPatterns,
     );
 
     return {
@@ -80,6 +79,11 @@ export function scanProject(fs: ReadonlyFS, projectPath: string, options: ScanOp
       checkCount: allChecks.length,
       antiPatternCount: allAntiPatterns.length,
       timestamp: new Date().toISOString(),
+      versions: {
+        schema: SCHEMA_VERSION,
+        package: PACKAGE_VERSION,
+        rubric: RUBRIC_VERSION,
+      },
       config: {
         exists: facts.shared.config.exists,
         valid: facts.shared.config.valid,

@@ -1,3 +1,7 @@
+/**
+ * Static prompt fragments for anti-pattern fixes.
+ * Each entry maps a triggered anti-pattern to reusable setup or remediation guidance.
+ */
 import type { Fragment } from '../types.js';
 import { SKILL_VERSION } from '../../constants.js';
 
@@ -15,13 +19,13 @@ export const antiPatternFragments: Fragment[] = [
 Immediate actions:
 1. Remove verbose examples - keep one BAD/GOOD pair per concept
 2. Replace paragraphs with bullet points
-3. Move reference material to \`docs/\` and link from router table
+3. Move reference material to \`ai-docs/\` and link from router table
 4. Collapse multi-row tables into inline text where possible
 
 Target: under 120 lines. Hard limit: 150.`,
   },
-  // ap-fix-skill-names removed — AP2 was harmful dead code that would rename project-specific skills.
-  // See docs/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
+  // ap-fix-skill-names removed - AP2 was harmful dead code that would rename project-specific skills.
+  // See ai-docs/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
   {
     key: 'ap-fix-dod-overlap',
     phase: 'anti-pattern',
@@ -36,7 +40,7 @@ Remove the DoD from the guidelines file. The DoD belongs only in \`{{instruction
     phase: 'anti-pattern',
     category: 'Anti-Pattern Fix',
     kind: 'fix',
-    instruction: `**CRITICAL:** footgun entries under \`docs/footguns/\` or \`.goat-flow/footguns/\` lack file:line evidence. This is an anti-pattern that costs -5 points.
+    instruction: `**CRITICAL:** footgun entries under \`ai-docs/footguns/\` or \`.goat-flow/footguns/\` lack file:line evidence. This is an anti-pattern that costs -5 points.
 
 For every footgun entry, add at least one \`file:line\` reference:
 
@@ -61,9 +65,9 @@ If the evidence no longer applies (code changed), either update the reference or
     phase: 'anti-pattern',
     category: 'Anti-Pattern Fix',
     kind: 'fix',
-    instruction: `**CRITICAL:** The post-turn hook (stop-lint.sh) does not end with \`exit 0\`. Non-zero exit causes infinite retry loops. This costs -5 points.
+    instruction: `**CRITICAL:** The post-turn hook (stop-lint.sh) swallows validation failures with \`|| true\`. This hides lint/typecheck errors and costs -5 points.
 
-Fix: ensure the last line of the script is \`exit 0\`. If the script has conditional exits, ensure ALL code paths reach \`exit 0\`.`,
+Fix: remove \`|| true\` from the real validation commands. Keep optional discovery guards if needed, but do not suppress the actual \`shellcheck\`, \`eslint\`, \`tsc\`, or formatter invocation.`,
   },
   {
     key: 'ap-compress-local-files',
@@ -133,6 +137,26 @@ For each stale reference:
 3. If the footgun is **no longer relevant**: remove the entire entry
 
 Every file:line reference must point to a real file on disk.`,
+  },
+  {
+    key: 'ap-fix-duplicate-learning-loop-surfaces',
+    phase: 'anti-pattern',
+    category: 'Anti-Pattern Fix',
+    kind: 'fix',
+    instruction: `This project still has competing learning-loop surfaces alongside the configured bucket layout.
+
+**Duplicate surfaces found:** {{evidence.ap-fix-duplicate-learning-loop-surfaces}}
+
+Keep the configured split only:
+- committed lessons bucket dir from \`.goat-flow/config.yaml\`
+- local lessons bucket dir from \`.goat-flow/config.yaml\`
+- committed footguns bucket dir from \`.goat-flow/config.yaml\`
+- local footguns bucket dir from \`.goat-flow/config.yaml\`
+
+For each duplicate surface:
+1. If it contains unique history, migrate the entries into the configured bucket files first
+2. If it is a stale legacy artifact (\`docs/lessons.md\`, \`docs/footguns.md\`, etc.), delete it
+3. Re-run the scan and confirm only the configured bucket paths remain`,
   },
   {
     key: 'ap-fix-stale-instruction-refs',
@@ -232,7 +256,7 @@ Replace all absolute paths with \`$(git rev-parse --show-toplevel)\`:
     phase: 'anti-pattern',
     category: 'Anti-Pattern Fix',
     kind: 'fix',
-    instruction: `Non-canonical goat-flow skill directories were found. These are from a previous version and confuse agents — they load the wrong skill file.
+    instruction: `Non-canonical goat-flow skill directories were found. These are from a previous version and confuse agents - they load the wrong skill file.
 
 Delete these directories and keep only the 6 canonical skills: \`goat\`, \`goat-debug\`, \`goat-plan\`, \`goat-review\`, \`goat-security\`, \`goat-test\`.
 
@@ -255,5 +279,17 @@ After deleting, update the router table in your instruction file to reference on
     category: 'Anti-Pattern Fix',
     kind: 'fix',
     instruction: `Some paths inside the goat-flow router marker block point to non-existent resources. Run \`goat-flow setup\` to regenerate the marker block, or manually update the paths between \`<!-- goat-flow:router:start -->\` and \`<!-- goat-flow:router:end -->\`.`,
+  },
+  {
+    key: 'ap-fix-broad-deny-patterns',
+    phase: 'anti-pattern',
+    category: 'Anti-Pattern Fix',
+    kind: 'fix',
+    instruction: `Overly broad deny patterns block legitimate commands. Replace patterns like \`Bash(*git*)\` with specific ones:
+
+- \`Bash(*git commit*)\` - blocks commits (not all git commands)
+- \`Bash(*git push*)\` - blocks pushes (not git status, git diff, etc.)
+
+If you need to allow specific blocked commands, add them to \`.claude/settings.local.json\` allow list instead of weakening the deny patterns.`,
   },
 ];

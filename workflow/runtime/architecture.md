@@ -2,10 +2,10 @@
 
 > **When to use:** When setting up context files, especially for multi-service or full-stack projects. Gives AI agents a visual map of how the system is wired before they make changes.
 >
-> **Output:** `docs/architecture.md` - reference this from your instruction file.
+> **Output:** `ai-docs/architecture.md` - reference this from your instruction file.
 
 ```
-Create docs/architecture.md for this repository.
+Create ai-docs/architecture.md for this repository.
 
 The audience is an agent or engineer who needs a fast, accurate model of
 how the current system is wired before making changes.
@@ -14,8 +14,8 @@ RULES:
 - Document the current implementation, not roadmap ideas
 - Read source files, config, and deployment assets before writing
 - Skip diagrams that truly do not apply, but say they were omitted
-- Keep it concise and scannable; aim for roughly 80 to 120 lines unless
-  the system is genuinely multi-service
+- Keep it concise and scannable; target under 100 lines. Multi-service
+  systems may go up to 120.
 
 Include these sections where applicable:
 

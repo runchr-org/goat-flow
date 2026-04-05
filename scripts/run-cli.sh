@@ -184,9 +184,9 @@ case "$cmd" in
         echo ""
         printf "\033[1m  GOAT Flow - Agent Evals\033[0m\n"
         echo ""
-        if [[ -d "ai/evals" ]]; then
-            mapfile -t eval_files < <(find ai/evals -maxdepth 1 -name "*.md" ! -name "README.md" ! -name "FORMAT.md" | sort)
-            printf "  \033[2m%d eval files in ai/evals/\033[0m\n" "${#eval_files[@]}"
+        if [[ -d "ai-docs/evals" ]]; then
+            mapfile -t eval_files < <(find ai-docs/evals -maxdepth 1 -name "*.md" ! -name "README.md" ! -name "FORMAT.md" | sort)
+            printf "  \033[2m%d eval files in ai-docs/evals/\033[0m\n" "${#eval_files[@]}"
             echo ""
             for f in "${eval_files[@]}"; do
                 printf "    %s\n" "$f"
@@ -194,10 +194,10 @@ case "$cmd" in
             echo ""
             printf "  \033[2mEvals are manually reviewed - paste the ## Scenario into your agent\033[0m\n"
             printf "  \033[2mand check ## Expected Behavior gates against the response.\033[0m\n"
-            printf "  \033[2mSee ai/evals/FORMAT.md for format details.\033[0m\n"
+            printf "  \033[2mSee ai-docs/evals/FORMAT.md for format details.\033[0m\n"
         else
-            printf "  \033[31mNo ai/evals/ directory found.\033[0m\n"
-            printf "  \033[2mCreate ai/evals/ to track expected agent behaviors.\033[0m\n"
+            printf "  \033[31mNo ai-docs/evals/ directory found.\033[0m\n"
+            printf "  \033[2mCreate ai-docs/evals/ to track expected agent behaviors.\033[0m\n"
         fi
         echo ""
         ;;

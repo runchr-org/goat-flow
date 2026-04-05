@@ -1,6 +1,6 @@
 # Symfony + Doctrine Coding Standards
 
-Reference for generating `ai/coding-standards/backend.md` in Symfony projects.
+Reference for generating `ai-docs/coding-standards/backend.md` in Symfony projects.
 
 ## Architecture
 

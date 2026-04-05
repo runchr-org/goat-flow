@@ -1,5 +1,9 @@
+/**
+ * Resolves goat-flow package-root paths that need to work from source and packaged builds.
+ * Template lookup and CLI self-reference should go through this module instead of hardcoding dist-relative paths.
+ */
 import { dirname, join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /** Find the goat-flow project root by walking up from this file's directory */
@@ -20,12 +24,24 @@ function findGoatFlowRoot(): string {
 /** Absolute path to the goat-flow project root */
 const GOAT_FLOW_ROOT = findGoatFlowRoot();
 
+/** Read the package version from the nearest package.json */
+export function getPackageVersion(): string {
+  const pkgPath = join(GOAT_FLOW_ROOT, 'package.json');
+  if (!existsSync(pkgPath)) return '0.0.0';
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { version?: unknown };
+    return typeof pkg.version === 'string' ? pkg.version : '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
 /** Resolve a relative template path to an absolute path within goat-flow */
 export function getTemplatePath(relative: string): string {
   return join(GOAT_FLOW_ROOT, relative);
 }
 
-/** Check whether a template file exists on disk */
+/** Resolve a template path and report whether the packaged source file exists. */
 export function templateExists(relative: string): boolean {
   return existsSync(getTemplatePath(relative));
 }

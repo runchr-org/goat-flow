@@ -1,3 +1,7 @@
+/**
+ * Static prompt fragments for standard-tier requirements.
+ * These snippets cover skills, hooks, learning-loop files, router tables, and local-context structure.
+ */
 import type { Fragment } from '../types.js';
 
 /**
@@ -6,7 +10,7 @@ import type { Fragment } from '../types.js';
  */
 export const standardFragments: Fragment[] = [
   // === Skills (5 individual + dispatcher + 1 completeness + 7 quality + 2 cross-cutting) ===
-  ...['debug', 'review', 'plan', 'security', 'test'].map(skill => ({
+  ...['debug', 'review', 'plan', 'security', 'test'].map((skill) => ({
     key: `create-skill-${skill}`,
     phase: 'standard' as const,
     category: 'Skills',
@@ -211,7 +215,7 @@ Without an output format, agents produce inconsistent deliverables and the human
     phase: 'standard',
     category: 'Skills',
     kind: 'create',
-    instruction: `Install the \`goat\` dispatcher skill — the 6th canonical skill that routes to the other 5.
+    instruction: `Install the \`goat\` dispatcher skill - the 6th canonical skill that routes to the other 5.
 
 Copy \`workflow/skills/goat.md\` to \`{{skillsDir}}/goat/SKILL.md\`.
 
@@ -232,7 +236,7 @@ The dispatcher routes natural language to the correct skill - users type \`/goat
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
 - **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Only hard-block with zero context.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Learning Loop:** Behavioural mistake → create a new entry in \`ai/lessons/\` or \`.goat-flow/lessons/\`. Architectural trap → create a new entry in \`docs/footguns/\` or \`.goat-flow/footguns/\`.
+- **Learning Loop:** Behavioural mistake → create a new entry in \`ai-docs/lessons/\` or \`.goat-flow/lessons/\`. Architectural trap → create a new entry in \`ai-docs/footguns/\` or \`.goat-flow/footguns/\`.
 - **Closing:** Commit or note working artifacts. Check learning loop. Suggest next skill.
 \`\`\`
 
@@ -244,10 +248,10 @@ This block ensures all skills apply the same severity ranking, evidence standard
     phase: 'standard',
     category: 'Learning Loop',
     kind: 'fix',
-    instruction: `Lesson entry files under \`ai/lessons/\` or \`.goat-flow/lessons/\` contain file path references that no longer exist on disk. For each stale reference:
+    instruction: `Lesson bucket files under \`ai-docs/lessons/\` or \`.goat-flow/lessons/\` contain file path references that no longer exist on disk. For each stale reference:
 1. If the file was **renamed**: update the path in the affected entry file
 2. If the file was **deleted**: remove the reference or note it as historical
-3. Verify with: \`grep -Rns 'old/path' ai/lessons/ .goat-flow/lessons/ 2>/dev/null\``,
+3. Verify with: \`grep -Rns 'old/path' ai-docs/lessons/ .goat-flow/lessons/ 2>/dev/null\``,
   },
 
   // === Hooks ===
@@ -372,6 +376,22 @@ fi
 Also block in settings.json deny list: \`"Bash(chmod 777*)"\`.`,
   },
   {
+    key: 'fix-deny-pipe-to-shell',
+    phase: 'standard',
+    category: 'Hooks',
+    kind: 'fix',
+    instruction: `The deny hook MUST block pipe-to-shell patterns such as \`curl | bash\` and \`wget | sh\`. These commands execute remote code without inspection.
+
+\`\`\`bash
+# Block pipe-to-shell downloads
+if [[ "$cmd" =~ (curl|wget)[^|]*\|[[:space:]]*(ba)?sh ]]; then
+  block "pipe-to-shell"
+fi
+\`\`\`
+
+Safer alternative: download the script first, inspect it, then run it explicitly if it is trusted.`,
+  },
+  {
     key: 'fix-read-deny-secrets',
     phase: 'standard',
     category: 'Hooks',
@@ -473,9 +493,9 @@ exit 0
     phase: 'standard',
     category: 'Hooks',
     kind: 'fix',
-    instruction: `The post-turn hook (stop-lint.sh) may not exit 0. This causes infinite retry loops.
+    instruction: `The post-turn hook (stop-lint.sh) is swallowing validation failures with \`|| true\`.
 
-Open the hook script and ensure the last line is \`exit 0\`. If the script has conditional exits, ensure all code paths eventually reach \`exit 0\`.`,
+Open the hook script and remove \`|| true\` from lint, typecheck, and format commands so real failures are surfaced. Keep intentional guards for optional discovery commands (for example \`grep ... || true\` when checking if files exist), but do not suppress the actual validation command itself.`,
   },
   {
     key: 'create-format-hook',
@@ -489,10 +509,15 @@ Open the hook script and ensure the last line is \`exit 0\`. If the script has c
 \`\`\`bash
 #!/usr/bin/env bash
 # PostToolUse hook - auto-format after file edits
+INPUT=$(cat)
+FILE_PATH=$(echo "$INPUT" | jq -r '.file_path // empty' 2>/dev/null)
+[ -z "$FILE_PATH" ] && exit 0
 # Skip agent directories to avoid reformatting generated content
-case "$1" in .claude/*|.agents/*|.github/*) exit 0 ;; esac
+case "$FILE_PATH" in
+  */.claude/*|*/.gemini/*|*/.codex/*|*/.agents/*|*/.github/skills/*) exit 0 ;;
+esac
 # Replace YOUR_FORMATTER with your format command (e.g., prettier --write)
-YOUR_FORMATTER "$1" 2>/dev/null || true
+YOUR_FORMATTER "$FILE_PATH" 2>/dev/null || true
 exit 0
 \`\`\`
 
@@ -562,7 +587,7 @@ Adjust the lint and test commands to match your project. Remove steps that don't
     instruction: `Create \`.github/workflows/context-validation.yml\` for CI-based context validation.
 
 The workflow should check: instruction file line counts, router table references resolve, skills exist.
-Trigger on pull requests that modify instruction files, skills, or docs/.`,
+Trigger on pull requests that modify instruction files, skills, or ai-docs/.`,
   },
 
   // === Learning Loop ===
@@ -573,13 +598,14 @@ Trigger on pull requests that modify instruction files, skills, or docs/.`,
     kind: 'create',
     instruction: `Create committed lessons as a directory, not a single file.
 
-Create \`ai/lessons/README.md\`:
+Create \`ai-docs/lessons/README.md\`:
 
 \`\`\`markdown
 # Lessons
 
-\`ai/lessons/\` stores one markdown file per team-visible lesson.
-Use YAML frontmatter with at least \`name\` and \`created\`.
+\`ai-docs/lessons/\` stores category bucket files such as \`verification.md\` or \`workflow.md\`.
+Use file-level YAML frontmatter with \`category\`.
+Inside each bucket, add \`## Lesson:\` or \`## Pattern:\` entries with \`**Created:**\`.
 Use \`.goat-flow/lessons/\` for local/session-specific lessons that should stay gitignored.
 \`\`\``,
   },
@@ -591,13 +617,14 @@ Use \`.goat-flow/lessons/\` for local/session-specific lessons that should stay 
     kind: 'create',
     instruction: `Create committed footguns as a directory, not a single file.
 
-Create \`docs/footguns/README.md\`:
+Create \`ai-docs/footguns/README.md\`:
 
 \`\`\`markdown
 # Footguns
 
-\`docs/footguns/\` stores one markdown file per architectural trap.
-Use YAML frontmatter with \`name\`, \`status\`, \`created\`, and \`evidence_type\`.
+\`ai-docs/footguns/\` stores category bucket files such as \`hooks.md\` or \`setup.md\`.
+Use file-level YAML frontmatter with \`category\`.
+Inside each bucket, add \`## Footgun:\` entries with \`**Status:**\`, \`**Created:**\`, and \`**Evidence type:**\`.
 Use \`.goat-flow/footguns/\` for local/session-specific traps that should stay gitignored.
 \`\`\`
 
@@ -607,15 +634,16 @@ grep -rn 'TODO\\|FIXME\\|HACK\\|XXX' src/ --include='*.ts' --include='*.php' --i
 git log --all --oneline -- '*migration*' '**/migrations/**' | head -10
 \`\`\`
 
-**Step 2:** For each real trap, create an individual entry file such as \`docs/footguns/cross-reference-fragility.md\`:
+**Step 2:** Add each real trap to the most relevant category bucket such as \`ai-docs/footguns/docs.md\`:
 \`\`\`markdown
 ---
-name: Cross-reference fragility across docs
-status: active
-created: YYYY-MM-DD
-evidence_type: ACTUAL_MEASURED
+category: docs
 ---
 
+## Footgun: Cross-reference fragility across docs
+**Status:** active
+**Created:** YYYY-MM-DD
+**Evidence type:** ACTUAL_MEASURED
 **Symptoms:** [what breaks]
 **Why it happens:** [root cause]
 **Evidence:**
@@ -630,7 +658,7 @@ Every footgun MUST have file:line evidence. No hypotheticals.`,
     phase: 'standard',
     category: 'Learning Loop',
     kind: 'fix',
-    instruction: `Footgun entry files under \`docs/footguns/\` or \`.goat-flow/footguns/\` are missing \`file:line\` evidence. Update each affected entry:
+    instruction: `Footgun bucket files under \`ai-docs/footguns/\` or \`.goat-flow/footguns/\` are missing \`file:line\` evidence. Update each affected entry:
 
 **Before:** "Auth module has race conditions"
 **After:** "\`src/auth.ts:42\` - race condition between token refresh and request dispatch"
@@ -642,7 +670,7 @@ Every footgun entry MUST have at least one \`file:line\` reference.`,
     phase: 'standard',
     category: 'Learning Loop',
     kind: 'fix',
-    instruction: `Footgun entry files under \`docs/footguns/\` or \`.goat-flow/footguns/\` have evidence but no \`evidence_type\` frontmatter. Add one of these values to each entry:
+    instruction: `Footgun entries under \`ai-docs/footguns/\` or \`.goat-flow/footguns/\` have evidence but no Evidence type label. Add one of these values to each \`## Footgun:\` entry:
 
 - **ACTUAL_MEASURED** - real data with source (e.g., production metrics, load test results)
 - **DESIGN_TARGET** - intended values from specs (e.g., "target 120 lines per spec")
@@ -651,25 +679,67 @@ Every footgun entry MUST have at least one \`file:line\` reference.`,
 Bare claims without labels are not acceptable.`,
   },
   {
+    key: 'add-session-logs',
+    phase: 'standard',
+    category: 'Learning Loop',
+    kind: 'fix',
+    instruction: `Add session log path to the LOG step and router table in \`{{instructionFile}}\`:
+
+1. In the LOG step's "when to update" table, add:
+   \`| \`.goat-flow/logs/sessions/\` | End of every significant session - \`YYYY-MM-DD-slug.md\` summary |\`
+
+2. In the Router Table, add:
+   \`| Session logs | \`.goat-flow/logs/sessions/\` |\`
+
+Session logs capture what happened in a session so the next agent can pick up context. Format: \`YYYY-MM-DD-slug.md\` with sections for Current State, Decisions, Errors, Learnings, Next Steps.`,
+  },
+  {
     key: 'route-learning-loop',
     phase: 'standard',
     category: 'Router Table',
     kind: 'fix',
-    instruction: 'Add \`ai/lessons/\`, \`docs/footguns/\`, \`.goat-flow/lessons/\`, and \`.goat-flow/footguns/\` to the router table in \`{{instructionFile}}\`.',
+    instruction:
+      'Add \`ai-docs/lessons/\`, \`ai-docs/footguns/\`, \`.goat-flow/lessons/\`, and \`.goat-flow/footguns/\` to the router table in \`{{instructionFile}}\`.',
   },
   {
     key: 'route-architecture',
     phase: 'standard',
     category: 'Router Table',
     kind: 'fix',
-    instruction: 'Add \`docs/architecture.md\` to the router table in \`{{instructionFile}}\`.',
+    instruction:
+      'Add \`ai-docs/architecture.md\` to the router table in \`{{instructionFile}}\`.',
   },
   {
     key: 'route-evals',
     phase: 'standard',
     category: 'Router Table',
     kind: 'fix',
-    instruction: 'Add \`ai/evals/\` to the router table in \`{{instructionFile}}\`.',
+    instruction:
+      'Add \`ai-docs/evals/\` to the router table in \`{{instructionFile}}\`.',
+  },
+  {
+    key: 'route-handoff',
+    phase: 'standard',
+    category: 'Router Table',
+    kind: 'fix',
+    instruction:
+      'Add \`.goat-flow/tasks/handoff-template.md\` to the router table in \`{{instructionFile}}\`.',
+  },
+  {
+    key: 'route-config',
+    phase: 'standard',
+    category: 'Router Table',
+    kind: 'fix',
+    instruction:
+      'Add \`.goat-flow/config.yaml\` to the router table in \`{{instructionFile}}\`.',
+  },
+  {
+    key: 'fix-duplicate-instruction-surfaces',
+    phase: 'standard',
+    category: 'Local Instructions',
+    kind: 'fix',
+    instruction:
+      'Keep one canonical local-instructions surface. Prefer `ai-docs/coding-standards/` for goat-flow-managed docs, migrate any useful files from `.github/instructions/`, then delete the duplicate directory so agents do not have to choose between two competing instruction trees.',
   },
   // === Router Table ===
   {
@@ -685,14 +755,15 @@ Bare claims without labels are not acceptable.`,
 <!-- goat-flow:router:start -->
 | Resource | Path |
 |----------|------|
-| Skills | \\\`{{skillsDir}}/goat-*/\\\` |
-| Footguns | \\\`docs/footguns/\\\`, \\\`.goat-flow/footguns/\\\` |
-| Lessons | \\\`ai/lessons/\\\`, \\\`.goat-flow/lessons/\\\` |
-| Decisions | \\\`ai/decisions/\\\` |
-| Evals | \\\`ai/evals/\\\` |
-| Coding standards | \\\`ai/coding-standards/\\\` |
+| Skills | \\\`{{skillsDir}}/\\\` |
+| Footguns | \\\`ai-docs/footguns/\\\`, \\\`.goat-flow/footguns/\\\` |
+| Lessons | \\\`ai-docs/lessons/\\\`, \\\`.goat-flow/lessons/\\\` |
+| Decisions | \\\`ai-docs/decisions/\\\` |
+| Evals | \\\`ai-docs/evals/\\\` |
+| Coding standards | \\\`ai-docs/coding-standards/\\\` |
 | Config | \\\`.goat-flow/config.yaml\\\` |
 | Local workspace | \\\`.goat-flow/tasks/\\\`, \\\`.goat-flow/logs/\\\` |
+| Handoff | \\\`.goat-flow/tasks/handoff-template.md\\\` |
 <!-- goat-flow:router:end -->
 \`\`\`
 
@@ -719,8 +790,10 @@ Every router path MUST point to something that exists.`,
     instruction: `Add skill directories to the router table in \`{{instructionFile}}\`:
 
 \`\`\`markdown
-| Skills | \\\`{{skillsDir}}/goat-*/\\\` |
-\`\`\``,
+| Skills | \\\`{{skillsDir}}/\\\` |
+\`\`\`
+
+Use the skills root, not \`goat-*/\`, so the router covers both the \`goat/\` dispatcher and the 5 \`goat-*\` skills.`,
   },
 
   // === Architecture ===
@@ -729,7 +802,7 @@ Every router path MUST point to something that exists.`,
     phase: 'standard',
     category: 'Architecture',
     kind: 'create',
-    instruction: `Create \`docs/architecture.md\` - a concise system overview:
+    instruction: `Create \`ai-docs/architecture.md\` - a concise system overview:
 
 \`\`\`markdown
 # Architecture
@@ -751,7 +824,7 @@ Keep under 100 lines. This is for agent orientation, not exhaustive documentatio
     phase: 'standard',
     category: 'Architecture',
     kind: 'fix',
-    instruction: `\`docs/architecture.md\` is over 100 lines. Compress:
+    instruction: `\`ai-docs/architecture.md\` is over 100 lines. Compress:
 
 1. Remove implementation details - keep only architectural decisions
 2. Replace prose with bullet lists
@@ -765,7 +838,7 @@ Target: under 100 lines.`,
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create the \`ai/coding-standards/\` directory and \`ai/README.md\` router:
+    instruction: `Create the \`ai-docs/coding-standards/\` directory and \`ai-docs/README.md\` router:
 
 \`\`\`markdown
 # Project Coding Guidelines
@@ -795,14 +868,14 @@ Add rows for domain files as you create them (frontend.md, backend.md, security.
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai/README.md\` as the routing map for instruction files. This tells agents which files to load for which tasks. See the \`ai/coding-standards/\` directory for the files it references.`,
+    instruction: `Create \`ai-docs/README.md\` as the routing map for instruction files. This tells agents which files to load for which tasks. See the \`ai-docs/coding-standards/\` directory for the files it references.`,
   },
   {
     key: 'create-conventions-instructions',
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai/coding-standards/conventions.md\` - the universal project contract. Include:
+    instruction: `Create \`ai-docs/coding-standards/conventions.md\` - the universal project contract. Include:
 
 - What the repo is (one line)
 - Architecture overview (2-3 lines)
@@ -818,7 +891,7 @@ Keep it concrete: "Use \`sqlc.arg(name)\` in queries" not "write clean SQL".`,
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'fix',
-    instruction: `\`ai/coding-standards/conventions.md\` exists but lacks real content. A stub file is not useful. Add:
+    instruction: `\`ai-docs/coding-standards/conventions.md\` exists but lacks real content. A stub file is not useful. Add:
 
 1. **Commands section** with actual build/test/lint commands in a bash code block
 2. **Conventions section** with concrete DO/DON'T rules extracted from the codebase
@@ -831,7 +904,7 @@ The agent should be able to read this file and immediately know how to build, te
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai/coding-standards/frontend.md\` - frontend-specific coding conventions for the detected UI stack (React, Vue, Angular, Blade, Twig, ERB, Jinja, Blazor, Swift/iOS, or plain TS/JS). Include:
+    instruction: `Create \`ai-docs/coding-standards/frontend.md\` - frontend-specific coding conventions for the detected UI stack (React, Vue, Angular, Blade, Twig, ERB, Jinja, Blazor, Swift/iOS, or plain TS/JS). Include:
 
 - Component/template patterns (naming, structure, composition)
 - State management or data-binding conventions
@@ -846,7 +919,7 @@ Only include rules specific to frontend/UI work. Shared rules belong in \`conven
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai/coding-standards/backend.md\` - backend-specific coding conventions. Include:
+    instruction: `Create \`ai-docs/coding-standards/backend.md\` - backend-specific coding conventions. Include:
 
 - API design patterns (request/response, error handling)
 - Database conventions (queries, migrations, naming)
@@ -861,7 +934,7 @@ Only include rules specific to backend work. Shared rules belong in \`convention
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai/coding-standards/code-review.md\` - review standards for this project. Include:
+    instruction: `Create \`ai-docs/coding-standards/code-review.md\` - review standards for this project. Include:
 
 - Priority order: correctness > security > maintainability
 - Approval criteria (what must pass before merge)
@@ -873,7 +946,7 @@ Only include rules specific to backend work. Shared rules belong in \`convention
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai/coding-standards/git-commit.md\` - commit conventions for this project. Include:
+    instruction: `Create \`ai-docs/coding-standards/git-commit.md\` - commit conventions for this project. Include:
 
 - Commit message format (with good/bad examples)
 - Branch naming convention
@@ -885,14 +958,14 @@ Only include rules specific to backend work. Shared rules belong in \`convention
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`.github/git-commit-instructions.md\` - universal commit instructions for any tool or human making commits. Include the key rules from \`ai/coding-standards/git-commit.md\` inline (tools may not follow references to other files).`,
+    instruction: `Create \`.github/git-commit-instructions.md\` - universal commit instructions for any tool or human making commits. Include the key rules from \`ai-docs/coding-standards/git-commit.md\` inline (tools may not follow references to other files).`,
   },
   {
     key: 'create-copilot-bridge',
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`.github/instructions/\` bridge files for GitHub Copilot. For each file in \`ai/coding-standards/\`, create a matching \`.instructions.md\` file with:
+    instruction: `Create \`.github/instructions/\` bridge files for GitHub Copilot. For each file in \`ai-docs/coding-standards/\`, create a matching \`.instructions.md\` file with:
 
 1. \`applyTo\` frontmatter scoping it to the relevant paths
 2. The content from the source file (Copilot needs inline content, not links)
@@ -902,8 +975,8 @@ Example:
 ---
 applyTo: "src/frontend/**"
 ---
-<!-- Source: ai/coding-standards/frontend.md - keep in sync -->
-[content from ai/coding-standards/frontend.md]
+<!-- Source: ai-docs/coding-standards/frontend.md - keep in sync -->
+[content from ai-docs/coding-standards/frontend.md]
 \`\`\``,
   },
   // === Learning Loop Depth ===
@@ -912,19 +985,20 @@ applyTo: "src/frontend/**"
     phase: 'standard',
     category: 'Learning Loop',
     kind: 'fix',
-    instruction: `\`ai/lessons/\` has no entry files. Target 3-5 real incidents - at least 1 is required.
+    instruction: `\`ai-docs/lessons/\` has no lesson entries. Target 3-5 real incidents - at least 1 is required.
 
 Option A - pull from git history:
 \`\`\`bash
 git log --oneline --all | grep -iE 'fix|revert|bug|broke|rollback|regression'
 \`\`\`
-For each incident found, create an entry file such as \`ai/lessons/YYYY-MM-DD-short-title.md\`:
+For each incident found, add it to a category bucket such as \`ai-docs/lessons/verification.md\`:
 \`\`\`markdown
 ---
-name: [Short description]
-created: YYYY-MM-DD
+category: verification
 ---
 
+## Lesson: [Short description]
+**Created:** YYYY-MM-DD
 **What happened:** [What went wrong]
 **Root cause:** [Why it happened]
 **Fix:** [What was done]
@@ -933,10 +1007,11 @@ created: YYYY-MM-DD
 Option B - if no incidents apply yet, add a placeholder:
 \`\`\`markdown
 ---
-name: No incidents yet
-created: YYYY-MM-DD
+category: general
 ---
 
+## Lesson: No incidents yet
+**Created:** YYYY-MM-DD
 Project is new. Add entries after the first agent mistake or correction.
 \`\`\`
 
@@ -947,7 +1022,7 @@ Do NOT invent hypothetical lessons.`,
     phase: 'standard',
     category: 'Architecture',
     kind: 'create',
-    instruction: `Create \`ai/decisions/\` and seed it with an ADR template:
+    instruction: `Create \`ai-docs/decisions/\` and seed it with an ADR template:
 
 \`\`\`markdown
 # ADR-000: Template
@@ -968,27 +1043,31 @@ Do NOT invent hypothetical lessons.`,
 [What are the trade-offs? What becomes easier or harder as a result?]
 \`\`\`
 
-Save as \`ai/decisions/ADR-000-template.md\`. Real ADRs are added when significant architectural decisions are made - name them \`ADR-NNN-short-title.md\`.`,
+Save as \`ai-docs/decisions/ADR-000-template.md\`. Real ADRs are added when significant architectural decisions are made - name them \`ADR-NNN-short-title.md\`.`,
   },
   // Ask First enforcement hook removed - see ADR-006.
 
+
   {
-    key: 'fix-deny-cloud-destructive',
+    key: 'create-ignore-files',
     phase: 'standard',
     category: 'Hooks',
-    kind: 'fix',
-    instruction: `Deploy platforms detected but deny hook does not block cloud-destructive commands. Add to deny-dangerous.sh:
+    kind: 'create',
+    instruction: `Create agent ignore files to prevent reading sensitive files:
 
-\`\`\`bash
-# Block cloud-destructive commands
-if [[ "$cmd" =~ docker[[:space:]]+push ]] ||
-   [[ "$cmd" =~ terraform[[:space:]]+(destroy|apply.*-auto-approve) ]] ||
-   [[ "$cmd" =~ aws[[:space:]]+(s3[[:space:]]+rm|ec2[[:space:]]+terminate) ]]; then
-  block "cloud-destructive command - requires manual execution"
-fi
+For Copilot - create \`.copilotignore\`:
+\`\`\`
+.env*
+**/secrets/
+**/*.pem
+**/*.key
+**/credentials*
 \`\`\`
 
-Also block in settings.json deny list: \`"Bash(docker push*)", "Bash(terraform destroy*)", "Bash(terraform apply*-auto-approve*)", "Bash(aws s3 rm*)", "Bash(aws ec2 terminate*)"\`.`,
+For Cursor - create \`.cursorignore\` with the same patterns.
+
+For Claude Code - add Read deny patterns to .claude/settings.json:
+\`"Read(**/.env*)", "Read(**/*.pem)", "Read(**/*.key)"\``,
   },
 
   // === Signal Follow-Through ===
@@ -1001,23 +1080,5 @@ Also block in settings.json deny list: \`"Bash(docker push*)", "Bash(terraform d
 1. Prompt/template file paths in the Router Table
 2. "Prompt changes require scenario testing" in Ask First boundaries
 3. Seed a learning-loop entry noting prompt-regression risk`,
-  },
-  {
-    key: 'fix-compliance-signal-followthrough',
-    phase: 'standard',
-    category: 'Signal Follow-Through',
-    kind: 'fix',
-    instruction: `PHI/compliance signals detected but constraints are not on the instruction file hot path. Add to the execution loop or Ask First section (NOT only in cold-path docs):
-- "MUST NOT log PHI/PII"
-- "MUST NOT include patient data in error messages"
-- "MUST scope all database queries by tenant"
-- "Data-touching changes require audit-path verification"`,
-  },
-  {
-    key: 'fix-formatter-gaps',
-    phase: 'standard',
-    category: 'Signal Follow-Through',
-    kind: 'fix',
-    instruction: `Formatter gaps detected: {{formatterGaps}}. Add formatters to the PostToolUse hook (format-file.sh) so every detected language has automatic formatting on save.`,
   },
 ];

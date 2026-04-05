@@ -1,6 +1,6 @@
 # Rust Backend Standards (Tokio + HTTP + SQLx oriented)
 
-Reference for generating `ai/coding-standards/backend.md` in Rust backend projects.
+Reference for generating `ai-docs/coding-standards/backend.md` in Rust backend projects.
 
 This file assumes Tokio for async work, HTTP extractors/middleware, and SQLx as
 the common data layer. If the repo uses Actix-specific patterns, Diesel,

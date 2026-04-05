@@ -1,6 +1,7 @@
 # Prompt: Milestone Planning
 
 > **When to use:** After [SBAO](sbao-ranking.md) produces a prime plan. Use this to break that plan into phased milestones with clear exit criteria.
+> For single-agent interactive milestone planning, see /goat-plan Phase 4.
 >
 > **Input:** Attach your `requirements-<feature-name>.md` and/or `TODO_feature-name_prime.md` at the end of this prompt.
 

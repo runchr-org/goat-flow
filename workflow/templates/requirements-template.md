@@ -1,5 +1,7 @@
 # Requirements: {Feature Name}
 
+> For initial feature briefs before formal tracking, see `workflow/playbooks/planning/feature-brief.md`.
+
 **Milestone:** {milestone reference}
 **Created:** {date}
 **Owner:** {who owns delivery of this feature}

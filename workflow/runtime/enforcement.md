@@ -1,6 +1,6 @@
 # Prompt: Set Up Enforcement (Hooks, Settings, Permissions)
 
-**This prompt uses Claude Code hook event names.** For Gemini CLI, see `setup/setup-gemini.md` Phase 1c which has the correct Gemini event names (BeforeTool, AfterTool, AfterAgent). Do NOT globally replace hook names in this file - it is the Claude Code reference template.
+**This prompt uses Claude Code hook event names.** For Gemini CLI, see `workflow/setup/setup-gemini.md` Phase 1c which has the correct Gemini event names (BeforeTool, AfterTool, AfterAgent). Do NOT globally replace hook names in this file - it is the Claude Code reference template.
 
 Paste this into your coding agent to create the enforcement layer for your project.
 
@@ -128,7 +128,7 @@ Create the following:
    INPUT=$(cat)
    FILE_PATH=$(echo "$INPUT" | jq -r '.file_path // empty' 2>/dev/null)
    [ -z "$FILE_PATH" ] && exit 0
-   # Skip agent config dirs — prettier rewrites $(git rev-parse) to absolute paths
+   # Skip agent config dirs - prettier rewrites $(git rev-parse) to absolute paths
    case "$FILE_PATH" in
      */.claude/*|*/.gemini/*|*/.codex/*|*/.agents/*|*/.github/skills/*) exit 0 ;;
    esac
@@ -175,7 +175,7 @@ CONTENT-PRESERVING WRITE GUARD:
 
    ```bash
    #!/usr/bin/env bash
-   # guard-write-size.sh — PreToolUse hook for Write tool
+   # guard-write-size.sh - PreToolUse hook for Write tool
    # Blocks writes that remove >80% of an existing file's content.
    set -euo pipefail
    ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -227,23 +227,19 @@ HOOK CONFIGURATION PITFALLS:
 - Check git diff before running expensive checks - don't lint
   unchanged files
 
-SESSION LOG REMINDER (optional Stop hook):
-   Add a Stop hook that checks whether a session log was written when
-   a skill was invoked. This catches the common failure mode where agents
-   skip the closing protocol after delivering their output.
+SESSION NOTES REMINDER (optional Stop hook):
+   Add a Stop hook that checks for skill handoff artifacts when a
+   skill session appears incomplete. This helps avoid losing context.
 
    The hook should:
    - Check if the conversation contained a skill invocation (grep for
      "Running /goat-" in recent output)
-   - If yes, check if .goat-flow/logs/sessions/ has a file with today's date
-   - If no file found, print a reminder to stderr:
-     "Skill session detected but no log written to .goat-flow/logs/sessions/.
-      Write a session summary before closing."
-   - Always exit 0 (informational only — don't block the agent)
-
-   This pairs with the Shared Conventions closing protocol which says
-   "FIRST: write session summary" to make logging happen during delivery,
-   not as an afterthought.
+   - If yes, check whether `.goat-flow/tasks/handoff.md` exists and
+     contains a recent write timestamp
+   - If no handoff is present, print a reminder to stderr:
+     "Skill session ended without a handoff. If work is incomplete, write
+     `.goat-flow/tasks/handoff.md`."
+   - Always exit 0 (informational only - don't block the agent)
 
 4. Compaction hook (Notification, optional but recommended)
 
@@ -264,6 +260,88 @@ In .claude/settings.json, add to the hooks array:
 This is most valuable during multi-hour sessions where losing the
 thread means repeating work or violating boundaries.
 
+5. DoD verification hook (Stop, optional)
+
+Register a Stop hook that runs mechanical Definition of Done checks
+after each agent turn. This replaces aspirational "MUST verify" language
+with actual enforcement.
+
+```bash
+#!/usr/bin/env bash
+# dod-check.sh - Stop hook, runs after each turn
+# MUST exit 0 (informational only - non-zero causes infinite loops)
+if [ "${DOD_HOOK_ACTIVE:-}" = "1" ]; then exit 0; fi
+export DOD_HOOK_ACTIVE=1
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+cd "$ROOT" || exit 0
+WARNINGS=""
+
+# Check 1: shellcheck on changed .sh files
+CHANGED_SH=$(git diff --name-only HEAD 2>/dev/null | grep '\.sh$') || true
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  [ -f "$f" ] && ! bash -n "$f" 2>/dev/null && WARNINGS="${WARNINGS}Syntax error: $f\n"
+done <<< "$CHANGED_SH"
+
+# Check 2: grep old pattern after renames (checks last commit message for rename hints)
+LAST_MSG=$(git log -1 --pretty=%s 2>/dev/null || echo "")
+if echo "$LAST_MSG" | grep -qi 'rename\|move\|refactor'; then
+  WARNINGS="${WARNINGS}Recent rename detected - verify grep for old pattern (DoD #6)\n"
+fi
+
+# Check 3: no broken cross-references in instruction files
+for f in CLAUDE.md AGENTS.md GEMINI.md; do
+  [ -f "$f" ] || continue
+  grep -oE '`[^`]+`' "$f" | tr -d '`' | while read -r ref; do
+    [[ "$ref" == *"*"* || "$ref" == *"{"* || -z "$ref" ]] && continue
+    [ ! -e "$ref" ] && WARNINGS="${WARNINGS}Broken ref in $f: $ref\n"
+  done
+done
+
+if [ -n "$WARNINGS" ]; then
+  echo -e "DoD check:\n$WARNINGS" >&2
+fi
+exit 0
+```
+
+Register as a Stop hook alongside stop-lint.sh.
+
+6. Skill usage telemetry (PreToolUse, optional, opt-in)
+
+Logs skill invocations to `.goat-flow/logs/skill-usage.jsonl` for
+understanding which skills are used, how often, and which are idle.
+
+Opt-in via `.goat-flow/config.yaml`:
+```yaml
+telemetry: true  # default: false
+```
+
+```bash
+#!/usr/bin/env bash
+# skill-telemetry.sh - PreToolUse hook, logs skill invocations
+# Only runs if telemetry is enabled in config
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+CONFIG="$ROOT/.goat-flow/config.yaml"
+[ -f "$CONFIG" ] && grep -q 'telemetry: true' "$CONFIG" || exit 0
+
+INPUT=$(cat)
+# Detect skill invocations from Skill tool calls
+SKILL=$(echo "$INPUT" | jq -r '.tool_input.skill // empty' 2>/dev/null)
+[ -z "$SKILL" ] && exit 0
+[[ "$SKILL" == goat* ]] || exit 0
+
+LOG="$ROOT/.goat-flow/logs/skill-usage.jsonl"
+mkdir -p "$(dirname "$LOG")"
+echo "{\"ts\":\"$(date -u +%FT%TZ)\",\"skill\":\"$SKILL\",\"session\":\"$$\"}" >> "$LOG"
+exit 0
+```
+
+Register as PreToolUse (Skill tool matcher if supported, or unmatched):
+```json
+{ "type": "PreToolUse", "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/skill-telemetry.sh\"" }
+```
+
 VERIFICATION:
 - Verify .claude/settings.json is valid JSON (parse it)
 - Verify deny-dangerous.sh blocks: rm -rf, git push main,
@@ -283,7 +361,7 @@ Deny hooks are best-effort pre-execution filtering for literal shell commands. T
 - Variable indirection (`$cmd` where cmd='git push main')
 - Pipe to arbitrary shell (`echo malicious | sh` - only `curl|bash` is blocked)
 - Encoded or obfuscated commands
-- Write/Edit tool operations on .env files (mitigated by adding Edit(**/.env*) and Write(**/.env*) to settings.json deny — ensure these are present)
+- Write/Edit tool operations on .env files (mitigated by adding Edit(**/.env*) and Write(**/.env*) to settings.json deny - ensure these are present)
 
 ### What `--dangerously-skip-permissions` Bypasses
 
@@ -307,7 +385,7 @@ When Claude Code runs with `--dangerously-skip-permissions`:
 
 ### Settings.json Deny Pattern Breadth
 
-`Bash(*git commit*)` is a glob substring match — it blocks ANY Bash command containing the string "git commit", including `git log --oneline | grep commit` or comments mentioning "git commit". This is a deliberate safety-first trade-off: broad matching prevents bypass via command chaining but may block legitimate commands that happen to contain denied substrings. If a user hits a false positive, they can run the blocked command manually via `! <command>` in the Claude Code prompt.
+`Bash(*git commit*)` is a glob substring match - it blocks ANY Bash command containing the string "git commit", including `git log --oneline | grep commit` or comments mentioning "git commit". This is a deliberate safety-first trade-off: broad matching prevents bypass via command chaining but may block legitimate commands that happen to contain denied substrings. If a user hits a false positive, they can run the blocked command manually via `! <command>` in the Claude Code prompt.
 
 Defense in depth: hooks + settings.json deny patterns + instruction file rules. No single layer is a complete sandbox.
 
@@ -371,3 +449,42 @@ command = "bash .codex/hooks/session-start.sh"
 | Read-deny patterns | settings.json Read deny | No equivalent |
 | Config format | JSON (.claude/settings.json) | TOML (.codex/config.toml) |
 | Rule language | Bash scripts | Starlark (.star files) + Bash hooks |
+
+---
+
+## Relaxing Deny Rules (Escape Hatch)
+
+Once you trust the agent's behavior in your project, you may want to relax some deny rules. Common scenarios:
+
+**Allowing git commits:** The default deny pattern `Bash(*git commit*)` blocks ALL commits, including ones the user explicitly asks for. To allow commits while keeping other protections:
+
+1. Open `.claude/settings.local.json` (create if needed - this file is gitignored)
+2. Add an allow rule that overrides the deny:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(*git commit*)",
+      "Bash(*git push origin dev*)"
+    ]
+  }
+}
+```
+
+Allow rules take precedence over deny rules. Be specific - `Bash(*git push*)` allows pushes to ANY branch including main.
+
+**Per-project overrides via `settings.local.json`:** This file is gitignored and not shared with the team. Use it for personal trust decisions. The team-shared `settings.json` keeps the conservative defaults.
+
+**Modifying hook scripts:** To relax a specific deny check (e.g., allowing `rm -rf ./dist`), edit the hook script directly. Add the safe pattern to the allow condition:
+
+```bash
+# In deny-dangerous.sh - allow rm -rf on known build directories
+if [[ "$cmd" =~ rm[[:space:]]+-[a-zA-Z]*r[a-zA-Z]*f ]]; then
+  if ! [[ "$cmd" =~ rm[[:space:]]+-(rf|fr)[[:space:]]+(\./[a-zA-Z]|[a-zA-Z]|/tmp/) ]]; then
+    block "rm -rf without safe scoping"
+  fi
+fi
+```
+
+**Removing a hook entirely:** If a hook causes more friction than value, remove its registration from `.claude/settings.json` (or the equivalent agent config). The hook script can stay on disk for later re-enablement.

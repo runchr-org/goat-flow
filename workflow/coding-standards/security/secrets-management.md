@@ -1,10 +1,10 @@
 # Secrets Management
 
-Reference for generating `ai/coding-standards/security.md` in projects handling credentials, tokens, or API keys.
+Reference for generating `ai-docs/coding-standards/security.md` in projects handling credentials, tokens, or API keys.
 
 ## Environment Variables
 
-Environment variables or framework-native secret stores (Rails encrypted credentials, Spring Vault, AWS SSM) are the acceptable sources for secrets in application code.
+Environment variables are acceptable for development and simple deployments. For production: use the platform's secrets manager (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) or framework-native encrypted credentials. Env vars in production are visible in process listings and crash dumps. See `security/infrastructure.md` for production-grade patterns.
 
 ```python
 # DO - read from environment

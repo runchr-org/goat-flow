@@ -1,0 +1,20 @@
+{
+  "skill": "goat-review",
+  "scenarios": [
+    {
+      "vagueInput": "review the code",
+      "expectedQuestions": ["which files", "concern", "scope"],
+      "idealSpecificInput": "Review src/cli/config/reader.ts - concerned about validation edge cases in mergeConfig. Diff review, not full audit."
+    },
+    {
+      "vagueInput": "is this good?",
+      "expectedQuestions": ["what specifically", "concern", "scope"],
+      "idealSpecificInput": "Review the error handling in src/api/middleware.ts - is the retry logic correct for transient failures?"
+    },
+    {
+      "vagueInput": "check my changes",
+      "expectedQuestions": ["which files", "concern", "scope"],
+      "idealSpecificInput": "Review my uncommitted changes to the auth module (src/auth/) - focused on security implications of the session token change."
+    }
+  ]
+}

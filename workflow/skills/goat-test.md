@@ -1,20 +1,12 @@
 ---
 name: goat-test
 description: "3-phase test plan generation with automated commands, AI verification prompts, and human testing checklists. Doer-verifier principle."
-goat-flow-skill-version: "0.9.4"
+goat-flow-skill-version: "0.10.0"
 ---
 # /goat-test
 
-## Shared Conventions
-
-- **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
-- **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Bare invocation with no arguments = zero context = ask structural questions and WAIT. Auto-detect pre-fills - it does not replace confirmation.
-- **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Flush:** 10+ tool calls without a gate/checkpoint → write 3-sentence status to `.goat-flow/tasks/handoff.md`, ask to continue/compact/redirect.
-- **Learning Loop:** Behavioural mistake → create a new markdown entry in `ai/lessons/` or `.goat-flow/lessons/`. Architectural trap → create a new markdown entry in `docs/footguns/` or `.goat-flow/footguns/`.
-- **Closing:** FIRST: if `.goat-flow/logs/sessions/` exists, write session summary there (date, skill, complexity, turns, incidents). THEN: if incomplete → write `.goat-flow/tasks/handoff.md`. Check learning loop. Suggest next skill.
+<!-- Shared Conventions: inline from workflow/skills/reference/shared-preamble.md during setup.
+     Setup agents: read shared-preamble.md and include its content as "## Shared Conventions" at the top of the installed SKILL.md. -->
 
 ## When to Use
 
@@ -23,7 +15,7 @@ generate testing instructions. Testing after 30-60 min keeps the blast radius
 narrow enough that failures point to a specific change.
 
 The coding agent runs Phase 1 commands (automated tests). Phase 2 (AI verification)
-and Phase 3 (human testing) MUST be performed by a separate agent or human — not the
+and Phase 3 (human testing) MUST be performed by a separate agent or human - not the
 agent that wrote the code. In single-agent mode, present Phase 2/3 as instructions
 for the user to execute or delegate.
 
@@ -39,16 +31,39 @@ Phase 1 only + abbreviated Phase 3 (1-2 manual checks). Skip Phase 2.
 ## Step 0 - Gather Context
 
 **Structural questions (always ask or confirm):**
-1. What changed? (feature, fix, refactor - auto-detect from `git diff --stat`)
-2. What's the risk level? (Hotfix / Standard / System)
+1. What changed? (or I'll run `git diff` to find it)
+2. What's the risk? (what could break if this is wrong?)
+3. What's already tested? (existing test files, manual checks done)
+4. What's the risk level? (Hotfix / Standard / System)
 
-**Auto-detect:** Read `git diff --stat` and present: "[N] files changed in [areas].
+**Auto-detect mode (unless user explicitly specifies):**
+
+Scope detection priority: (1) explicit user input, (2) staged changes, (3) unstaged changes to target, (4) git diff. If user names a specific file, use THAT - not the full worktree diff.
+
+- Changes to target exist → **Standard mode** (Phase 0 Change Manifest)
+- No changes to target → **Audit mode** (coverage gap analysis, skip Phase 0)
+- Audit mode: analyze module's public API surface, map existing test files, identify untested paths
+- User says "quick" → **Quick mode** (most recent commit only)
+- User explicitly says "audit" or "standard" → respect override
+
 <!-- ADAPT: "Test stack: [detected from package.json/Makefile/etc.]" -->
-Correct?"
+
+<!-- ADAPT: Dynamic context injection (optional). These run at skill load time:
+**Changed files:** !`git diff --name-only`
+**Test files near changes:** !`git diff --name-only | xargs -I{} find $(dirname {}) -name '*.test.*' 2>/dev/null | head -5`
+-->
+
+**Escape hatch:** If the user says "just test what changed" or provides minimal info, auto-detect scope from `git diff --stat` and existing test files, then proceed with confirmation.
 
 **Pattern read:** Before generating test instructions, read 1-2 existing test files in the affected area. Match the project's assertion style, selector patterns, and fixture conventions exactly. Generate tests that look like the ones already there - not textbook examples.
 
-**Footgun check:** If `docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the changed area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant to your test plan?"
+**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the changed area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant to your test plan?"
+
+**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
+- "hotfix" but 5+ files affected → likely Standard or System
+- "small feature" but crosses 3+ boundaries → likely System
+- "quick test" but 20+ functions in target → warn scope is larger than implied
+Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 **Before proceeding:** present what you know (what changed, risk level, test stack) and what you still need. Wait for the user to confirm before entering Phase 0.
 
@@ -191,7 +206,7 @@ Explicitly list coverage gaps. Be honest about what's NOT verified:
 <!-- Explicit gaps in coverage -->
 ```
 
-Phase 1 commands should be CI-pasteable (include a YAML snippet alongside human-readable commands).
+Phase 1 commands should be copy-pasteable into CI or terminal.
 
 ## Chains With
 

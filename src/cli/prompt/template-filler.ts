@@ -1,3 +1,7 @@
+/**
+ * Fills prompt templates with agent- and project-specific path variables.
+ * This keeps template text declarative while centralizing variable derivation and fallback formatting.
+ */
 import type { ScanReport, AgentReport, AgentId } from '../types.js';
 import type { PromptVariables } from './types.js';
 import { PROFILES } from '../detect/agents.js';
@@ -14,37 +18,77 @@ function getAgentPaths(id: AgentId) {
   };
 }
 
-/**
- * Extract template variables from a scan report + agent report.
- * These replace {{variable}} placeholders in fragment instructions.
- */
-export function extractTemplateVars(report: ScanReport, agentReport: AgentReport): PromptVariables {
-  /** Checks that failed or partially passed */
-  const failed = agentReport.checks.filter(c => c.status === 'fail' || c.status === 'partial');
-  /** Checks that fully passed */
-  const passed = agentReport.checks.filter(c => c.status === 'pass');
+/** Count passed versus actionable check outcomes for template variables. */
+function countCheckStatuses(agentReport: AgentReport): {
+  failed: number;
+  passed: number;
+} {
+  let failed = 0;
+  let passed = 0;
 
-  /** File paths specific to the detected agent, derived from PROFILES */
-  const paths = getAgentPaths(agentReport.agent);
+  for (const check of agentReport.checks) {
+    if (check.status === 'pass') {
+      passed++;
+      continue;
+    }
+    if (check.status === 'fail' || check.status === 'partial') failed++;
+  }
 
-  // Collect evidence from check results and anti-pattern results
-  const evidence: Record<string, string> = {};
+  return { failed, passed };
+}
+
+/** Copy per-check evidence into the keyed template-variable map. */
+function collectCheckEvidence(
+  agentReport: AgentReport,
+  evidence: Record<string, string>,
+): void {
   for (const check of agentReport.checks) {
     if (check.evidence && check.recommendationKey) {
       evidence[check.recommendationKey] = check.evidence;
     }
   }
-  for (const ap of agentReport.antiPatterns) {
-    if (ap.triggered && ap.evidence && ap.recommendationKey) {
-      evidence[ap.recommendationKey] = ap.evidence;
+}
+
+/** Copy triggered anti-pattern evidence and messages into the template-variable map. */
+function collectAntiPatternEvidence(
+  agentReport: AgentReport,
+  evidence: Record<string, string>,
+): void {
+  for (const antiPattern of agentReport.antiPatterns) {
+    if (
+      antiPattern.triggered &&
+      antiPattern.evidence &&
+      antiPattern.recommendationKey
+    ) {
+      evidence[antiPattern.recommendationKey] = antiPattern.evidence;
     }
-    // Also store the AP message as evidence - it often contains actionable detail
-    if (ap.triggered && ap.recommendationKey) {
-      evidence[`${ap.recommendationKey}.message`] = ap.message;
+    if (antiPattern.triggered && antiPattern.recommendationKey) {
+      evidence[`${antiPattern.recommendationKey}.message`] =
+        antiPattern.message;
     }
   }
+}
 
-  // AP evidence flows through the map above (check.evidence + ap.evidence).
+/** Combine check and anti-pattern evidence into prompt-ready template variables. */
+function collectEvidence(agentReport: AgentReport): Record<string, string> {
+  const evidence: Record<string, string> = {};
+  collectCheckEvidence(agentReport, evidence);
+  collectAntiPatternEvidence(agentReport, evidence);
+  return evidence;
+}
+
+/**
+ * Extract template variables from a scan report + agent report.
+ * These replace {{variable}} placeholders in fragment instructions.
+ */
+export function extractTemplateVars(
+  report: ScanReport,
+  agentReport: AgentReport,
+): PromptVariables {
+  /** File paths specific to the detected agent, derived from PROFILES */
+  const paths = getAgentPaths(agentReport.agent);
+  const checkCounts = countCheckStatuses(agentReport);
+  const evidence = collectEvidence(agentReport);
 
   return {
     agentId: agentReport.agent,
@@ -60,8 +104,8 @@ export function extractTemplateVars(report: ScanReport, agentReport: AgentReport
     formatCommand: report.stack.formatCommand ?? '',
     grade: agentReport.score.grade,
     percentage: String(agentReport.score.percentage),
-    failedCount: String(failed.length),
-    passedCount: String(passed.length),
+    failedCount: String(checkCounts.failed),
+    passedCount: String(checkCounts.passed),
     totalCount: String(agentReport.checks.length),
     date: new Date().toISOString().slice(0, 10),
     evidence,

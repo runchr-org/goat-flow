@@ -1,20 +1,20 @@
 # Prompt: Create git commit instructions
 
 > **Purpose:** Git commit messages, branch naming, PR workflow
-> **Generates:** `ai/coding-standards/git-commit.md` + `.github/git-commit-instructions.md`
+> **Generates:** `ai-docs/coding-standards/git-commit.md` + `.github/git-commit-instructions.md`
 > **Use when:** Setting up commit/PR conventions for the project
 > **Repo inspection:** Yes - reads git log for existing commit style, branch naming, PR templates
 > **Follow-on refs:** `copilot-bridge.md` if project uses GitHub Copilot
 
-**Dual output:** The `ai/coding-standards/` version is the full reference. The `.github/` version includes key rules inline because some tools (Copilot, Codex) may not follow file references.
+**Dual output:** The `ai-docs/coding-standards/` version is the full reference. The `.github/` version includes key rules inline because some tools (Copilot, Codex) may not follow file references.
 
 ---
 
 ## The Prompt
 
-### ai/coding-standards/git-commit.md (full version)
+### ai-docs/coding-standards/git-commit.md (full version)
 
-Write `ai/coding-standards/git-commit.md`:
+Write `ai-docs/coding-standards/git-commit.md`:
 
 ````
 # Git Commit Instructions
@@ -116,64 +116,12 @@ Adjust the test commands, branch conventions, and merge strategy to match this p
 
 ---
 
-### .github/git-commit-instructions.md (bridge version)
+### Bridge Output (.github/git-commit-instructions.md)
 
-Also write `.github/git-commit-instructions.md`:
+Generate a second file at `.github/git-commit-instructions.md` with the same content as above, adding Copilot-specific YAML frontmatter:
 
-````
-# Commit Message Instructions
-
-## Format
-
+```yaml
+---
+applyTo: '**'
+---
 ```
-<type>: <what changed and why>
-```
-
-Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`
-
-## Rules
-
-- First line under 72 characters
-- Lowercase after the type prefix
-- Describe what AND why, not just what
-- One logical change per commit
-- Add blank line + body paragraph if the "why" needs more context
-
-## Good Examples
-
-```
-feat: add rate limiting to /api/v1/upload endpoint
-fix: prevent duplicate webhook delivery on retry
-refactor: extract email validation into shared util
-test: add integration tests for payment flow
-docs: update API authentication guide for v2 tokens
-chore: bump Go to 1.22, update dependencies
-ci: add PostgreSQL service to GitHub Actions test job
-```
-
-## Bad Examples
-
-```
-update code          # too vague
-fix bug              # which bug?
-WIP                  # don't commit work in progress
-Fixed stuff          # lowercase, be specific
-```
-
-## PR Descriptions
-
-Include in every PR:
-- **What**: one sentence on what changed
-- **Why**: one sentence on why
-- **How**: 2-3 bullets on the approach
-- **Testing**: checklist of what was tested
-
-## Never Commit
-
-- `.env` files with real secrets
-- API keys, tokens, passwords
-- Large binary files
-- Generated files (check `.gitignore`)
-````
-
-Adjust the commit types and examples to match this project's conventions.

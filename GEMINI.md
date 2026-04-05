@@ -1,7 +1,5 @@
-# GEMINI.md - v0.9.4 (2026-04-02)
-
+# GEMINI.md - v0.10.0 (2026-04-02)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash maintenance scripts.
-
 ## Essential Commands
 
 ```bash
@@ -10,7 +8,6 @@ bash -n scripts/maintenance/*.sh          # Syntax-check scripts
 bash scripts/preflight-checks.sh         # Full preflight gate
 bash scripts/context-validate.sh         # Validate GOAT Flow structure
 ```
-
 ## Truth Order
 
 1. User's explicit instruction (this session)
@@ -60,13 +57,17 @@ GOOD: Inline format. Extract when second format needed
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure in your code, or you corrected course: create a lesson entry before DoD. After human correction: MUST log immediately. Do not append to a monolithic log: use `ai/lessons/` or `.goat-flow/lessons/` for `YYYY-MM-DD-slug.md` files with frontmatter `name`, `created`, and use `docs/footguns/` or `.goat-flow/footguns/` for `slug.md` files with frontmatter `name`, `status`, `created`, `evidence_type`. Propagate footguns to local GEMINI.md.
+**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure or you corrected course: add an entry before DoD. After human correction: log immediately. Use **category bucket files** - NOT one file per incident, NOT a monolithic log.
+- Lessons: `ai-docs/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content.
+- Footguns: `ai-docs/footguns/` category bucket files (e.g. `hooks.md`, `scanner.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
+- Local variants: `.goat-flow/lessons/` and `.goat-flow/footguns/` use same category bucket format.
 
 | File | When to update |
 |------|---------------|
-| `ai/lessons/` or `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
-| `docs/footguns/` or `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
-| `ai/decisions/` | Significant technical decision with context/rationale |
+| `ai-docs/lessons/` or `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
+| `ai-docs/footguns/` or `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
+| `ai-docs/decisions/` | Significant technical decision with context/rationale |
+| `.goat-flow/logs/sessions/` | End of every significant session - `YYYY-MM-DD-slug.md` summary |
 
 ## Autonomy Tiers
 
@@ -79,7 +80,7 @@ GOOD: Inline format. Extract when second format needed
 - [ ] Local instruction checked: [local GEMINI.md / .github/instructions/ / none]
 - [ ] Rollback command: [exact command]
 
-Boundaries: `docs/system-spec.md`, `docs/system/`, `setup/`, `workflow/skills/`, `docs/reference/design-rationale.md`, renaming/moving files, 3+ doc file changes.
+Boundaries: `docs/system-spec.md`, `docs/five-layers.md`, `workflow/setup/`, `workflow/skills/`, `docs/design-rationale.md`, renaming/moving files, 3+ doc file changes.
 
 **Never:** Delete docs without replacement. Modify secrets/.env. Push to main. Change security config. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`)
 
@@ -90,14 +91,12 @@ MUST confirm ALL: (1) shellcheck passes (2) no broken cross-refs (3) no unapprov
 Sub-agents: ONE objective, structured return, 5-call budget. When blocked: one question + default.
 
 ## Hard Rules
-
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - MUST maintain cross-file consistency: same concept, same description everywhere
 - MUST preserve file:line evidence format in footguns and examples
 - MUST use real incidents, never hypothetical. docs/system-spec.md is canonical source of truth
 
 ## Working Memory
-
 5+ turns -> `.goat-flow/tasks/todo.md`. Handoff -> `.goat-flow/tasks/handoff.md` (read if exists).
 Context health: compact at 60% util. Noise pruning before compacting. `/clear` between unrelated tasks.
 
@@ -105,16 +104,16 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 
 | Resource | Path |
 |----------|------|
-| Architecture | `docs/architecture.md` |
-| System docs | `docs/system/` |
+| System spec (canonical) | `docs/system-spec.md` |
+| System docs, architecture | `docs/five-layers.md`, `ai-docs/architecture.md` |
 | Scripts | `scripts/` |
 <!-- goat-flow:router:start -->
-| Skills | `.agents/skills/goat-*/` |
-| Footguns | `docs/footguns/`, `.goat-flow/footguns/` |
-| Lessons | `ai/lessons/`, `.goat-flow/lessons/` |
-| Decisions | `ai/decisions/` |
-| Evals | `ai/evals/` |
-| Coding standards | `ai/coding-standards/` |
+| Skills | `.agents/skills/` |
+| Project guidelines | `ai-docs/README.md` |
+| Footguns, lessons | `ai-docs/footguns/`, `ai-docs/lessons/` (+ `.goat-flow/` local variants) |
+| Decisions, evals | `ai-docs/decisions/`, `ai-docs/evals/` |
+| Coding standards | `ai-docs/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
-| Local workspace | `.goat-flow/tasks/`, `.goat-flow/logs/` |
+| Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
+| Handoff | `.goat-flow/tasks/handoff-template.md` |
 <!-- goat-flow:router:end -->
