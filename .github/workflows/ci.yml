@@ -24,7 +24,7 @@ jobs:
         run: npx tsc && cp -r src/dashboard dist/
 
       - name: Test
-        run: npm test
+        run: node --import tsx --test --test-reporter=spec test/*/*.test.ts
 
       - name: Lint
         run: npx eslint src/cli/

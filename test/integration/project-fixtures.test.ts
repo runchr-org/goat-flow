@@ -34,22 +34,20 @@ describe('project fixture corpus', () => {
     cleanups.push(fixture.cleanup);
 
     const claude = getAgent('passing-minimal', fixture.report.agents, 'claude');
-    assert.equal(claude.score.percentage, 100);
+    const failedChecks = claude.checks
+      .filter((check) => check.status === 'fail' || check.status === 'partial')
+      .map((check) => `${check.id}: ${check.message}`);
+    const triggeredAPs = claude.antiPatterns
+      .filter((pattern) => pattern.triggered)
+      .map((pattern) => pattern.id);
+    assert.deepEqual(failedChecks, [], 'No checks should fail');
+    assert.deepEqual(triggeredAPs, [], 'No anti-patterns should trigger');
+    assert.equal(
+      claude.score.percentage,
+      100,
+      `Score ${claude.score.percentage}% (${claude.score.earned}/${claude.score.available}). Failed: ${failedChecks.join('; ')}. APs: ${triggeredAPs.join(', ')}`,
+    );
     assert.equal(claude.score.grade, 'A');
-    assert.deepEqual(
-      claude.checks
-        .filter(
-          (check) => check.status === 'fail' || check.status === 'partial',
-        )
-        .map((check) => check.id),
-      [],
-    );
-    assert.deepEqual(
-      claude.antiPatterns
-        .filter((pattern) => pattern.triggered)
-        .map((pattern) => pattern.id),
-      [],
-    );
   });
 
   it('passing-full scores 100 for Claude', () => {
@@ -57,22 +55,20 @@ describe('project fixture corpus', () => {
     cleanups.push(fixture.cleanup);
 
     const claude = getAgent('passing-full', fixture.report.agents, 'claude');
-    assert.equal(claude.score.percentage, 100);
+    const failedChecks = claude.checks
+      .filter((check) => check.status === 'fail' || check.status === 'partial')
+      .map((check) => `${check.id}: ${check.message}`);
+    const triggeredAPs = claude.antiPatterns
+      .filter((pattern) => pattern.triggered)
+      .map((pattern) => pattern.id);
+    assert.deepEqual(failedChecks, [], 'No checks should fail');
+    assert.deepEqual(triggeredAPs, [], 'No anti-patterns should trigger');
+    assert.equal(
+      claude.score.percentage,
+      100,
+      `Score ${claude.score.percentage}% (${claude.score.earned}/${claude.score.available}). Failed: ${failedChecks.join('; ')}. APs: ${triggeredAPs.join(', ')}`,
+    );
     assert.equal(claude.score.grade, 'A');
-    assert.deepEqual(
-      claude.checks
-        .filter(
-          (check) => check.status === 'fail' || check.status === 'partial',
-        )
-        .map((check) => check.id),
-      [],
-    );
-    assert.deepEqual(
-      claude.antiPatterns
-        .filter((pattern) => pattern.triggered)
-        .map((pattern) => pattern.id),
-      [],
-    );
   });
 
   it('failing-known exposes the expected scanner regressions', () => {
