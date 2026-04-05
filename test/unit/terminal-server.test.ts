@@ -95,7 +95,7 @@ describe('TerminalManager', () => {
 
   it('rejects create when runner CLI not found', async () => {
     const manager = new TerminalManager();
-    // Use a runner that doesn't exist — codex or gemini might not be installed
+    // Use a runner that doesn't exist - codex or gemini might not be installed
     // Override runnerPaths to be empty
     (manager as unknown as { runnerPaths: Map<string, string> }).runnerPaths =
       new Map();

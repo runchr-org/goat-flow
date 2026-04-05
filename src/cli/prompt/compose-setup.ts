@@ -654,7 +654,7 @@ function defaultAdaptGuidance(
   if (output === '.goat-flow/config.yaml')
     return 'Use the default directory paths unless this project already needs explicit overrides';
   if (output === 'ai-docs/footguns/')
-    return 'Seed `ai-docs/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals. For EVERY cited file:line: read the actual code and verify the claim — does the method exist? Does the exception type match? Does the risk description match actual behavior? Flag any footgun where cited behavior does not match the code as UNVERIFIED';
+    return 'Seed `ai-docs/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals. For EVERY cited file:line: read the actual code and verify the claim - does the method exist? Does the exception type match? Does the risk description match actual behavior? Flag any footgun where cited behavior does not match the code as UNVERIFIED';
   if (output === 'ai-docs/lessons/')
     return 'Seed `ai-docs/lessons/` with category bucket files. Use `category:` frontmatter on the file and `## Lesson:` / `## Pattern:` entries from real incidents';
   if (output === 'ai-docs/architecture.md')
@@ -949,7 +949,7 @@ function renderSetupRedirect(
   // Pre-instructions
   lines.push('## Before you start');
   lines.push('');
-  lines.push('**Step 0 — Clean up stale artifacts (if upgrading):**');
+  lines.push('**Step 0 - Clean up stale artifacts (if upgrading):**');
   lines.push('');
   lines.push(
     '**Skills:** The 6 canonical skills are: `goat`, `goat-debug`, `goat-plan`, `goat-review`, `goat-security`, `goat-test`.',
@@ -969,7 +969,7 @@ function renderSetupRedirect(
   );
   lines.push('');
   lines.push(
-    '**Multi-agent consistency:** If multiple agent skill directories exist (`.claude/skills/`, `.agents/skills/`, `.gemini/skills/`), clean stale dirs from ALL of them — not just the agent being set up. Also update `GEMINI.md` and `AGENTS.md` if they reference deleted skills.',
+    '**Multi-agent consistency:** If multiple agent skill directories exist (`.claude/skills/`, `.agents/skills/`, `.gemini/skills/`), clean stale dirs from ALL of them - not just the agent being set up. Also update `GEMINI.md` and `AGENTS.md` if they reference deleted skills.',
   );
   lines.push('');
   lines.push(

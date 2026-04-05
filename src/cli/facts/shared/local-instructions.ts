@@ -1,5 +1,5 @@
 /**
- * Local instruction fact extraction — analyzes ai-docs/coding-standards/ or .github/instructions/ directories.
+ * Local instruction fact extraction - analyzes ai-docs/coding-standards/ or .github/instructions/ directories.
  * Validates router links, conventions content quality, and instruction file presence.
  */
 import type { SharedFacts, ReadonlyFS } from '../../types.js';

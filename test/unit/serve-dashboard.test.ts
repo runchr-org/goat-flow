@@ -235,7 +235,7 @@ describe('serve-dashboard API', () => {
       });
       assert.ok(status >= 400);
     } catch (err) {
-      // Connection reset is also correct — server destroys the socket
+      // Connection reset is also correct - server destroys the socket
       assert.ok(
         err instanceof Error &&
           (err.message.includes('socket hang up') ||

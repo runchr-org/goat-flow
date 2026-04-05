@@ -1,5 +1,5 @@
 /**
- * Project-wide shared fact extractor — composes sub-extractors for learning-loop,
+ * Project-wide shared fact extractor - composes sub-extractors for learning-loop,
  * evals, CI, local instructions, and project-level metadata into a single SharedFacts object.
  */
 import type { SharedFacts, ReadonlyFS } from '../../types.js';
@@ -108,7 +108,7 @@ export function extractSharedFacts(
       parseError: configState.parseError,
       lineLimits: configState.config.lineLimits,
       configLocalExists: fs.exists('.goat-flow/config.local.yaml'),
-      persona: configState.config.persona,
+      userRole: configState.config.userRole,
     },
     architecture: extractArchitectureFacts(fs),
     evals: extractEvalFacts(fs, configState.config.evals.path),

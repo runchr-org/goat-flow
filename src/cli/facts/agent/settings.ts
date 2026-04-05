@@ -1,5 +1,5 @@
 /**
- * Agent settings fact extraction — parses settings.json for deny patterns and read-deny coverage.
+ * Agent settings fact extraction - parses settings.json for deny patterns and read-deny coverage.
  */
 import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
 

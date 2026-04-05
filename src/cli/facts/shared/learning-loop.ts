@@ -11,7 +11,7 @@ import type { LoadedConfig } from '../../config/types.js';
  * - `src/auth.ts:42` (backtick-wrapped with line number)
  * - `src/auth.ts:42-50` (backtick-wrapped with line range)
  * - (lines 866-880) or (line 52) (prose-style)
- * Line numbers are optional historical context — file paths alone are valid evidence.
+ * Line numbers are optional historical context - file paths alone are valid evidence.
  */
 const EVIDENCE_PATTERN =
   /`[^`]+\.[a-zA-Z]{1,10}(?::[0-9]+(?:[-,][0-9]+)*)?`|\(lines?\s+[0-9]+/;

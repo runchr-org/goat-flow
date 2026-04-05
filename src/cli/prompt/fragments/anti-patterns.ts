@@ -24,7 +24,7 @@ Immediate actions:
 
 Target: under 120 lines. Hard limit: 150.`,
   },
-  // ap-fix-skill-names removed — AP2 was harmful dead code that would rename project-specific skills.
+  // ap-fix-skill-names removed - AP2 was harmful dead code that would rename project-specific skills.
   // See ai-docs/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
   {
     key: 'ap-fix-dod-overlap',
@@ -256,7 +256,7 @@ Replace all absolute paths with \`$(git rev-parse --show-toplevel)\`:
     phase: 'anti-pattern',
     category: 'Anti-Pattern Fix',
     kind: 'fix',
-    instruction: `Non-canonical goat-flow skill directories were found. These are from a previous version and confuse agents — they load the wrong skill file.
+    instruction: `Non-canonical goat-flow skill directories were found. These are from a previous version and confuse agents - they load the wrong skill file.
 
 Delete these directories and keep only the 6 canonical skills: \`goat\`, \`goat-debug\`, \`goat-plan\`, \`goat-review\`, \`goat-security\`, \`goat-test\`.
 
@@ -287,8 +287,8 @@ After deleting, update the router table in your instruction file to reference on
     kind: 'fix',
     instruction: `Overly broad deny patterns block legitimate commands. Replace patterns like \`Bash(*git*)\` with specific ones:
 
-- \`Bash(*git commit*)\` — blocks commits (not all git commands)
-- \`Bash(*git push*)\` — blocks pushes (not git status, git diff, etc.)
+- \`Bash(*git commit*)\` - blocks commits (not all git commands)
+- \`Bash(*git push*)\` - blocks pushes (not git status, git diff, etc.)
 
 If you need to allow specific blocked commands, add them to \`.claude/settings.local.json\` allow list instead of weakening the deny patterns.`,
   },

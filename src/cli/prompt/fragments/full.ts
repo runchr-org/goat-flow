@@ -121,7 +121,7 @@ Skills not yet covered should each get one eval targeting their most common fail
 
 **Template:** Read \`workflow/templates/context-validation.yml\` from the goat-flow package and copy it to your project's \`.github/workflows/\` directory.
 
-Do NOT rename the step names — the scanner checks for these exact strings: "Check instruction file line counts", "Check router references", "Check skills exist".
+Do NOT rename the step names - the scanner checks for these exact strings: "Check instruction file line counts", "Check router references", "Check skills exist".
 
 If the template file is not available, create \`.github/workflows/context-validation.yml\` with these steps:
 1. Check instruction file line counts (CLAUDE.md, AGENTS.md, GEMINI.md must be ≤150 lines)
@@ -150,7 +150,7 @@ If the template file is not available, create \`.github/workflows/context-valida
     kind: 'create',
     instruction: `Add a router reference check to \`.github/workflows/context-validation.yml\`. This verifies all paths in the router table resolve to existing files.
 
-IMPORTANT: If writing inline shell instead of calling a script, do NOT use \`grep ... | while read\` — the pipe creates a subshell and error counts won't propagate. Use process substitution: \`while read ... done < <(grep ...)\` or write results to a temp file.`,
+IMPORTANT: If writing inline shell instead of calling a script, do NOT use \`grep ... | while read\` - the pipe creates a subshell and error counts won't propagate. Use process substitution: \`while read ... done < <(grep ...)\` or write results to a temp file.`,
   },
   {
     key: 'ci-check-skills',

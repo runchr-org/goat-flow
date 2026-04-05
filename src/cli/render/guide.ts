@@ -1,5 +1,5 @@
 /**
- * Guide mode renderer — turns the scanner into a setup assistant.
+ * Guide mode renderer - turns the scanner into a setup assistant.
  * Instead of scores, shows prioritized "what to create next" instructions.
  * Skips checks that don't apply to the detected stack.
  */
@@ -30,12 +30,12 @@ const EFFORT_OVERRIDES: Record<string, 'trivial' | 'moderate' | 'complex'> = {
   '2.4.6': 'trivial',      // Add session log ref to router table
 
   // Standard checks that are actually complex
-  '2.1.12': 'complex',     // Skills need Step 0 AND constraints — structural rewrite
+  '2.1.12': 'complex',     // Skills need Step 0 AND constraints - structural rewrite
   '2.2.8': 'trivial',      // Create .copilotignore file
 
   // Full checks that are moderate (not complex)
   '3.1.3': 'moderate',     // Eval files need real scenario content
-  '3.3.1a': 'moderate',    // Handoff template sections — fill in a template
+  '3.3.1a': 'moderate',    // Handoff template sections - fill in a template
 };
 
 /** Map a rubric tier to a default effort estimate for the setup guide. */
@@ -92,7 +92,7 @@ function renderAgentGuide(agent: AgentReport): string {
   const totalCount = visible.filter(c => c.status !== 'na').length;
 
   lines.push(`# Setup Guide: ${agent.agentName}`);
-  lines.push(`Score: ${agent.score.percentage}% (${agent.score.grade}) — ${passCount}/${totalCount} checks pass`);
+  lines.push(`Score: ${agent.score.percentage}% (${agent.score.grade}) - ${passCount}/${totalCount} checks pass`);
   lines.push('');
 
   if (items.length === 0) {

@@ -1,5 +1,5 @@
 /**
- * Skill fact extraction — inventories installed skills, measures quality signals, and detects unadapted content.
+ * Skill fact extraction - inventories installed skills, measures quality signals, and detects unadapted content.
  */
 import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
 import { SKILL_NAMES, SKILL_VERSION } from '../../constants.js';

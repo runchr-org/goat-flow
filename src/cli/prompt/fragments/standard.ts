@@ -215,7 +215,7 @@ Without an output format, agents produce inconsistent deliverables and the human
     phase: 'standard',
     category: 'Skills',
     kind: 'create',
-    instruction: `Install the \`goat\` dispatcher skill — the 6th canonical skill that routes to the other 5.
+    instruction: `Install the \`goat\` dispatcher skill - the 6th canonical skill that routes to the other 5.
 
 Copy \`workflow/skills/goat.md\` to \`{{skillsDir}}/goat/SKILL.md\`.
 
@@ -686,7 +686,7 @@ Bare claims without labels are not acceptable.`,
     instruction: `Add session log path to the LOG step and router table in \`{{instructionFile}}\`:
 
 1. In the LOG step's "when to update" table, add:
-   \`| \`.goat-flow/logs/sessions/\` | End of every significant session — \`YYYY-MM-DD-slug.md\` summary |\`
+   \`| \`.goat-flow/logs/sessions/\` | End of every significant session - \`YYYY-MM-DD-slug.md\` summary |\`
 
 2. In the Router Table, add:
    \`| Session logs | \`.goat-flow/logs/sessions/\` |\`
@@ -1073,7 +1073,7 @@ Also block in settings.json deny list: \`"Bash(docker push*)", "Bash(terraform d
     kind: 'create',
     instruction: `Create agent ignore files to prevent reading sensitive files:
 
-For Copilot — create \`.copilotignore\`:
+For Copilot - create \`.copilotignore\`:
 \`\`\`
 .env*
 **/secrets/
@@ -1082,9 +1082,9 @@ For Copilot — create \`.copilotignore\`:
 **/credentials*
 \`\`\`
 
-For Cursor — create \`.cursorignore\` with the same patterns.
+For Cursor - create \`.cursorignore\` with the same patterns.
 
-For Claude Code — add Read deny patterns to .claude/settings.json:
+For Claude Code - add Read deny patterns to .claude/settings.json:
 \`"Read(**/.env*)", "Read(**/*.pem)", "Read(**/*.key)"\``,
   },
 

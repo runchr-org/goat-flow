@@ -10,15 +10,15 @@
             <div class="gf-text-secondary" style="font-size: 12px; font-weight: 500; margin-bottom: 8px;">Project path</div>
             <div style="display: flex; gap: 0;" class="gf-detect-row">
               <input type="text" x-model="projectPath"
-                style="flex: 1; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; padding: 6px 10px; border-radius: 6px 0 0 6px; outline: none; background: #1a1a1e; border: 0.5px solid #3f3f46; color: #a1a1aa;"
+                class="gf-input" style="flex: 1; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; padding: 6px 10px; border-radius: 6px 0 0 6px; outline: none;"
                 placeholder="/path/to/project" @keydown.enter="runScan()">
               <button @click="openBrowser()"
-                style="padding: 6px 10px; font-size: 12px; border-radius: 0 6px 6px 0; cursor: pointer; background: #27272a; border: 0.5px solid #3f3f46; border-left: none; color: #a1a1aa;"
+                class="gf-input-btn" style="padding: 6px 10px; font-size: 12px; border-radius: 0 6px 6px 0; cursor: pointer; border-left: none;"
                 title="Browse folders">...</button>
             </div>
             <!-- Folder browser dropdown -->
             <div x-show="showBrowser" x-cloak @click.outside="showBrowser = false" style="position: relative;">
-              <div style="position: absolute; top: 4px; left: 0; right: 0; z-index: 50; border: 0.5px solid #3f3f46; border-radius: 6px; background: #1a1a1e; max-height: 200px; overflow-y: auto;">
+              <div class="gf-dropdown" style="position: absolute; top: 4px; left: 0; right: 0; z-index: 50; border-radius: 6px; max-height: 200px; overflow-y: auto;">
                 <div style="padding: 6px 10px; border-bottom: 0.5px solid #2a2a2e; display: flex; align-items: center; gap: 6px;">
                   <button @click="browseTo(browserParent)" style="font-size: 11px; color: #4ade80; background: none; border: none; cursor: pointer;">&uarr; Up</button>
                   <span class="gf-text-muted" style="font-size: 11px; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" x-text="browserCurrent"></span>
@@ -27,7 +27,7 @@
                   <button @click="selectDir(dir)"
                     style="width: 100%; text-align: left; padding: 4px 10px; font-size: 11px; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px;"
                     :style="{ color: dir.isProject ? '#e4e4e7' : '#71717a' }"
-                    onmouseenter="this.style.background='#27272a'" onmouseleave="this.style.background='none'">
+                    class="gf-dropdown-row">
                     <span x-text="dir.name"></span>
                     <span x-show="dir.isProject" style="margin-left: auto; font-size: 10px; color: #4ade80;">project</span>
                   </button>
@@ -97,7 +97,7 @@
               <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center;">
                 <div>
                   <p class="gf-text-muted" style="font-size: 12px;" x-text="configNote"></p>
-                  <p class="gf-text-disabled" style="font-size: 11px; margin-top: 8px;">Run <code style="font-family: monospace; background: #27272a; padding: 1px 4px; border-radius: 3px;">goat-flow setup</code> to create one.</p>
+                  <p class="gf-text-disabled" style="font-size: 11px; margin-top: 8px;">Run <code class="gf-code-inline" style="font-family: monospace; padding: 1px 4px; border-radius: 3px;">goat-flow setup</code> to create one.</p>
                 </div>
               </div>
             </template>

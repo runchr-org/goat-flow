@@ -15,7 +15,7 @@ import { createMockFS } from '../helpers/mock-fs.js';
 
 // --- Parser tests ---
 
-describe('parseEvalFile — new format (frontmatter)', () => {
+describe('parseEvalFile - new format (frontmatter)', () => {
   it('parses a complete eval file', () => {
     const raw = `---
 name: test-eval
@@ -155,7 +155,7 @@ The agent should never skip the diagnosis phase and jump straight to a fix.
   });
 });
 
-describe('parseEvalFile — missing frontmatter', () => {
+describe('parseEvalFile - missing frontmatter', () => {
   it('throws when file has no YAML frontmatter', () => {
     const raw = `# Eval: Debug before fix
 
@@ -169,7 +169,7 @@ Fix the login bug.
   });
 });
 
-describe('parseEvalFile — section heading aliases', () => {
+describe('parseEvalFile - section heading aliases', () => {
   it('accepts "Replay Prompt" as alias for Scenario', () => {
     const raw = `---
 name: alias-test

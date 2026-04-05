@@ -574,7 +574,7 @@ export function serveDashboard(
     function handleAgentDetectRequest(url: URL, res: ServerResponse): boolean {
       if (url.pathname !== '/api/agents/installed') return false;
 
-      const agents = ['claude', 'codex', 'gemini'].map(name => {
+      const agents = ['claude', 'codex', 'gemini', 'copilot'].map(name => {
         try {
           execFileSync('which', [name], { timeout: 3000, stdio: 'pipe' });
           let version: string | null = null;
@@ -905,7 +905,7 @@ export function serveDashboard(
         return;
       }
 
-      // Origin check — reject non-localhost origins (DNS rebinding protection)
+      // Origin check - reject non-localhost origins (DNS rebinding protection)
       const origin = req.headers.origin;
       const addr = server.address();
       if (origin && addr && typeof addr !== 'string') {

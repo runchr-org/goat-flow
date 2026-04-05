@@ -17,7 +17,7 @@ import type {
   Runner,
 } from './types.js';
 
-// node-pty types — optional dep, can't use static import
+// node-pty types - optional dep, can't use static import
 /** Lazily imported node-pty module type */
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 type NodePtyModule = typeof import('node-pty');

@@ -448,7 +448,7 @@ export const hookChecks: CheckDef[] = [
             maxPoints: 0,
             confidence: 'medium',
             message:
-              'Deny is config-based (settings.json or execpolicy) — JSON parsing check not applicable',
+              'Deny is config-based (settings.json or execpolicy) - JSON parsing check not applicable',
           };
         }
         return {
@@ -506,7 +506,7 @@ export const hookChecks: CheckDef[] = [
             maxPoints: 0,
             confidence: 'medium',
             message:
-              'Deny is config-based (settings.json or execpolicy) — chaining check not applicable',
+              'Deny is config-based (settings.json or execpolicy) - chaining check not applicable',
           };
         }
         return {
@@ -676,7 +676,7 @@ export const hookChecks: CheckDef[] = [
             0,
             0,
             'medium',
-            'No Read deny for .env — check 2.2.5d covers this',
+            'No Read deny for .env - check 2.2.5d covers this',
           );
         }
         const pass = hasEditEnv && hasWriteEnv;
@@ -691,7 +691,7 @@ export const hookChecks: CheckDef[] = [
           confidence: 'medium',
           message: pass
             ? 'Edit and Write deny patterns exist for .env alongside Read deny'
-            : `Read(.env) is denied but ${formatMissingEnvDenyActions(hasEditEnv, hasWriteEnv)} is not — agents can still modify secrets`,
+            : `Read(.env) is denied but ${formatMissingEnvDenyActions(hasEditEnv, hasWriteEnv)} is not - agents can still modify secrets`,
         };
       },
     },

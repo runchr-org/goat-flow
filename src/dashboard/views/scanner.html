@@ -8,7 +8,7 @@
           <h2 class="text-xl font-semibold gf-text-secondary">Scan a project to get started</h2>
           <p class="text-sm gf-text-muted">Set your project path in Config, then click Scan.</p>
           <button @click="runScan()" :disabled="scanning"
-            style="padding: 6px 20px; font-size: 12px; border-radius: 6px; border: 0.5px solid #166534; background: none; color: #4ade80; cursor: pointer; font-weight: 500;">
+            class="gf-btn-scan" style="padding: 6px 20px; font-size: 12px; border-radius: 6px; cursor: pointer; font-weight: 500;">
             Scan
           </button>
         </div>
@@ -21,7 +21,7 @@
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
           <span class="gf-text-primary" style="font-size: 20px; font-weight: 500;">Scanner</span>
           <button @click="runScan()" :disabled="scanning"
-            style="font-size: 12px; padding: 4px 12px; border-radius: 6px; border: 0.5px solid #166534; background: none; color: #4ade80; cursor: pointer; font-weight: 500;">
+            class="gf-btn-scan" style="font-size: 12px; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-weight: 500;">
             <span x-text="scanning ? 'Scanning...' : 'Re-scan'"></span>
           </button>
         </div>
@@ -46,7 +46,7 @@
                 <template x-for="tier in ['foundation', 'standard', 'full']" :key="agent.agent + '-' + tier">
                   <div style="display: flex; align-items: center; gap: 8px;">
                     <span class="gf-text-secondary" style="font-size: 12px; width: 70px;" x-text="tier"></span>
-                    <div style="flex: 1; height: 4px; border-radius: 2px; background: #3f3f46; overflow: hidden;">
+                    <div class="gf-bar-track" style="flex: 1; height: 4px; border-radius: 2px; overflow: hidden;">
                       <div class="gf-tier-bar" :style="`width:${agent.score.tiers[tier].percentage}%`"></div>
                     </div>
                     <span class="gf-text-muted" style="font-size: 12px; width: 32px; text-align: right;" x-text="`${agent.score.tiers[tier].percentage}%`"></span>
@@ -88,10 +88,10 @@
             <!-- Tier stat cards -->
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
               <template x-for="tier in ['foundation', 'standard', 'full']" :key="tier">
-                <div style="background: #27272a; border-radius: 8px; padding: 12px 16px;">
+                <div class="gf-bg-elevated" style="border-radius: 8px; padding: 12px 16px;">
                   <div class="gf-text-muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;" x-text="tier"></div>
                   <div class="gf-text-primary" style="font-size: 16px; font-weight: 500; margin-top: 2px;" x-text="`${currentAgent.score.tiers[tier].earned} / ${currentAgent.score.tiers[tier].available}`"></div>
-                  <div style="height: 4px; border-radius: 2px; background: #3f3f46; margin-top: 8px; overflow: hidden;">
+                  <div class="gf-bar-track" style="height: 4px; border-radius: 2px; margin-top: 8px; overflow: hidden;">
                     <div class="gf-tier-bar" :style="`width:${currentAgent.score.tiers[tier].percentage}%`"></div>
                   </div>
                 </div>
@@ -104,7 +104,7 @@
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 <template x-for="ap in triggeredAPs" :key="ap.id">
                   <div style="display: flex; align-items: flex-start; gap: 10px; font-size: 13px;">
-                    <span style="flex-shrink: 0; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; background: #450a0a; color: #f87171;" x-text="ap.deduction"></span>
+                    <span class="gf-badge-ap" style="flex-shrink: 0; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;" x-text="ap.deduction"></span>
                     <div>
                       <span class="gf-text-primary" style="font-weight: 500;" x-text="`${ap.id}: ${ap.name}`"></span>
                       <p class="gf-text-muted" style="font-size: 12px; margin-top: 2px;" x-text="ap.message" x-show="ap.evidence"></p>
@@ -121,18 +121,18 @@
                 <template x-for="rec in currentAgent.recommendations" :key="rec.key">
                   <div style="display: flex; align-items: flex-start; gap: 10px; font-size: 13px; padding-bottom: 8px; border-bottom: 0.5px solid #2a2a2e;">
                     <span style="flex-shrink: 0; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;"
-                      :style="rec.priority==='critical' ? 'background:#450a0a;color:#f87171' : rec.priority==='high' ? 'background:#451a03;color:#fb923c' : rec.priority==='medium' ? 'background:#422006;color:#fbbf24' : 'background:#1e3a5f;color:#818cf8'"
+                      :class="'gf-badge-' + rec.priority"
                       x-text="rec.priority.toUpperCase()"></span>
                     <div style="flex: 1; min-width: 0;">
                       <span class="gf-text-primary" style="font-weight: 500;" x-text="`${rec.checkId}: ${rec.category}`"></span>
                       <p class="gf-text-muted" style="font-size: 12px; margin-top: 2px;" x-text="rec.action"></p>
                     </div>
                     <div style="display: flex; gap: 6px; flex-shrink: 0;">
-                      <button @click="copyFixPrompt(rec)" style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: #27272a; color: #a1a1aa; border: none; cursor: pointer;">Copy</button>
+                      <button @click="copyFixPrompt(rec)" class="gf-btn-muted" style="padding: 2px 8px; font-size: 11px; border-radius: 4px; cursor: pointer;">Copy</button>
                       <button x-show="terminalAvailable && (!terminalSessionId || terminalEnded)" @click="launchPreset(buildFixPrompt(rec), activeRunner); activeView = 'workspace'; workspacePanel = 'terminal'"
-                        style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: #14532d; color: #4ade80; border: none; cursor: pointer;">Run</button>
+                        class="gf-btn-green" style="padding: 2px 8px; font-size: 11px; border-radius: 4px; border: none; cursor: pointer;">Run</button>
                       <button x-show="terminalSessionId && !terminalEnded" @click="sendToTerminal(buildFixPrompt(rec)); activeView = 'workspace'; workspacePanel = 'terminal'"
-                        style="padding: 2px 8px; font-size: 11px; border-radius: 4px; background: #14532d; color: #4ade80; border: none; cursor: pointer;">Send</button>
+                        class="gf-btn-green" style="padding: 2px 8px; font-size: 11px; border-radius: 4px; border: none; cursor: pointer;">Send</button>
                     </div>
                   </div>
                 </template>
@@ -143,7 +143,7 @@
             <div class="gf-card" style="border-radius: 8px; padding: 16px 20px;"
               x-show="currentAgent.recommendations.length === 0 && triggeredAPs.length === 0">
               <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 0;">
-                <div style="width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; background: #166534; color: #4ade80;">&#10003;</div>
+                <div class="gf-check-pass" style="width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 16px;">&#10003;</div>
                 <span style="font-size: 14px; font-weight: 500; color: #4ade80;">All checks pass. Nothing to fix.</span>
               </div>
             </div>

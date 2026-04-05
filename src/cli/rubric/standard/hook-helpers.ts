@@ -1,5 +1,5 @@
 /**
- * Hook check helpers — builders for deny, post-turn, post-tool, and registration checks.
+ * Hook check helpers - builders for deny, post-turn, post-tool, and registration checks.
  */
 import type { FactContext, CheckResult } from '../../types.js';
 

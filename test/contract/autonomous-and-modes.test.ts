@@ -1,6 +1,6 @@
 /**
  * Structural verification for M11 (autonomous mode), M14 (auto-mode selection),
- * and M12 (persona) prerequisites. These tests verify SKILL.md content
+ * and M12 (userRole) prerequisites. These tests verify SKILL.md content
  * contains the patterns required for each feature.
  */
 import { describe, it } from 'node:test';
@@ -200,19 +200,19 @@ describe('M14: auto-mode selection structural checks', () => {
 
 // === M12: Persona prerequisites ===
 
-describe('M12: persona structural checks', () => {
-  it('config.yaml has persona field', () => {
+describe('M12: userRole structural checks', () => {
+  it('config.yaml has userRole field', () => {
     const configContent = readFileSync(
       join(import.meta.dirname, '../../.goat-flow/config.yaml'),
       'utf-8',
     );
     assert.ok(
-      configContent.includes('persona:'),
-      'config.yaml should have persona field',
+      configContent.includes('userRole:'),
+      'config.yaml should have userRole field',
     );
     assert.ok(
       configContent.includes('developer'),
-      'config.yaml should default to developer persona',
+      'config.yaml should default to developer userRole',
     );
     assert.ok(
       configContent.includes('investigator'),
@@ -220,15 +220,15 @@ describe('M12: persona structural checks', () => {
     );
   });
 
-  it('config.yaml documents persona options for dispatcher routing', () => {
+  it('config.yaml documents userRole options for dispatcher routing', () => {
     const configContent = readFileSync(
       join(import.meta.dirname, '../../.goat-flow/config.yaml'),
       'utf-8',
     );
     // Persona is documented in config.yaml — dispatcher reads it at runtime
     assert.ok(
-      configContent.includes('persona: developer'),
-      'config.yaml should set persona: developer as default',
+      configContent.includes('userRole: developer'),
+      'config.yaml should set userRole: developer as default',
     );
     assert.ok(
       configContent.includes('investigator'),
@@ -263,9 +263,9 @@ describe('M12: persona structural checks', () => {
   });
 });
 
-// === M12 manual test coverage: persona routing behavior ===
+// === M12 manual test coverage: userRole routing behavior ===
 
-describe('M12: persona routing behavior (contract verification)', () => {
+describe('M12: userRole routing behavior (contract verification)', () => {
   it('goat-debug investigate mode is structurally read-only (no fix phases)', () => {
     const content = readSkill('goat-debug');
     // Extract investigate mode section

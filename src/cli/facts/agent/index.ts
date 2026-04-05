@@ -1,5 +1,5 @@
 /**
- * Per-agent fact extractor — thin composer that delegates to sub-extractors.
+ * Per-agent fact extractor - thin composer that delegates to sub-extractors.
  */
 import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
 import { extractInstructionFacts } from './instruction.js';

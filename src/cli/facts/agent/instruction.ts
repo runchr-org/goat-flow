@@ -1,5 +1,5 @@
 /**
- * Instruction file fact extraction — parses heading sections and gathers instruction-level metadata.
+ * Instruction file fact extraction - parses heading sections and gathers instruction-level metadata.
  */
 import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
 

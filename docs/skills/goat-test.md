@@ -50,6 +50,6 @@ flowchart LR
     P2Run -.->|"MUST be human"| P3Run
 ```
 
-**Key constraint:** The coding agent MUST NOT verify its own work. Phase 2 prompts must be completely self-contained — the verifier agent starts fresh with no context from the coding session.
+**Key constraint:** The coding agent MUST NOT verify its own work. Phase 2 prompts must be completely self-contained - the verifier agent starts fresh with no context from the coding session.
 
 **Source:** `workflow/skills/goat-test.md`

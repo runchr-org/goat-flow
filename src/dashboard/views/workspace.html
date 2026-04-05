@@ -38,12 +38,15 @@
           <template x-for="preset in filteredPresets" :key="preset.id">
             <div class="border-b border-gray-100 dark:border-gray-700 border-l-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700/50 flex items-start gap-2"
               :class="{
-                'border-l-blue-400': preset.cat === 'debug & explore',
-                'border-l-purple-400': preset.cat === 'review',
-                'border-l-amber-400': preset.cat === 'plan',
-                'border-l-green-400': preset.cat === 'test',
-                'border-l-red-400': preset.cat === 'security',
-                'border-l-gray-400': preset.cat === 'utility'
+                'border-l-amber-400 bg-gray-800/50': promptRunStates[preset.id] === 'running',
+                'border-l-emerald-400': promptRunStates[preset.id] === 'pass',
+                'border-l-red-400': promptRunStates[preset.id] === 'fail',
+                'border-l-blue-400': !promptRunStates[preset.id] && preset.cat === 'debug & explore',
+                'border-l-purple-400': !promptRunStates[preset.id] && preset.cat === 'review',
+                'border-l-amber-400': !promptRunStates[preset.id] && preset.cat === 'plan',
+                'border-l-green-400': !promptRunStates[preset.id] && preset.cat === 'test',
+                'border-l-red-400': !promptRunStates[preset.id] && preset.cat === 'security',
+                'border-l-gray-400': !promptRunStates[preset.id] && preset.cat === 'utility'
               }">
               <button @click.stop="toggleFavorite(preset.id)" class="shrink-0 text-sm transition-colors"
                 :class="isFavorite(preset.id) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600 hover:text-yellow-300'"
@@ -69,13 +72,13 @@
               </button>
               <button x-show="terminalAvailable && (!terminalSessionId || terminalEnded)"
                 @click="launchPreset(preset.prompt, activeRunner); workspacePanel = 'terminal'"
-                class="shrink-0 p-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                class="shrink-0 p-1.5 rounded-full bg-transparent text-gray-400 border border-[#3f3f46] hover:text-emerald-400 hover:border-emerald-600 transition-colors"
                 title="Launch in terminal">
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
               </button>
               <button x-show="terminalSessionId && !terminalEnded"
                 @click="sendToTerminal(preset.prompt); workspacePanel = 'terminal'"
-                class="shrink-0 p-1.5 rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+                class="shrink-0 p-1.5 rounded-full bg-transparent text-emerald-400 border border-emerald-600 hover:bg-emerald-900/30 transition-colors"
                 title="Send to terminal">
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95l15.556-6.374a.75.75 0 000-1.374L3.105 2.289z"/></svg>
               </button>
@@ -117,11 +120,13 @@
           <div class="flex flex-col flex-1 overflow-hidden">
             <div class="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0">
               <div class="flex items-center gap-3">
-                <h2 class="text-sm font-bold">Terminal</h2>
+                <span x-show="lastRunPrompt" class="text-sm font-semibold" style="color: #fbbf24;" x-text="`Running: ${lastRunPrompt}`"></span>
+                <span x-show="!lastRunPrompt" class="text-sm font-bold">Terminal</span>
                 <span class="flex items-center gap-1.5 text-xs">
                   <span class="w-2 h-2 rounded-full" :class="terminalConnected ? 'bg-green-500' : 'bg-red-500'"></span>
                   <span x-text="terminalConnected ? 'Connected' : 'Disconnected'" class="text-gray-400"></span>
                 </span>
+                <span class="text-xs" style="color: #52525b;" x-show="lastRunAgent" x-text="lastRunAgent"></span>
               </div>
               <div class="flex items-center gap-2">
                 <span class="text-xs text-gray-400">Ctrl+Shift+D</span>

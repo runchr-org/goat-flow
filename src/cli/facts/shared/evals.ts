@@ -1,5 +1,5 @@
 /**
- * Eval fact extraction — analyzes eval markdown files for frontmatter, skill coverage, and content quality.
+ * Eval fact extraction - analyzes eval markdown files for frontmatter, skill coverage, and content quality.
  */
 import type { SharedFacts, ReadonlyFS } from '../../types.js';
 

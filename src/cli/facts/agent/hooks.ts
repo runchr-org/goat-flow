@@ -1,5 +1,5 @@
 /**
- * Hook fact extraction — analyzes deny hooks, post-turn hooks, post-tool hooks, and hook registration.
+ * Hook fact extraction - analyzes deny hooks, post-turn hooks, post-tool hooks, and hook registration.
  */
 import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
 import { pushUniquePath } from './routing.js';
@@ -132,7 +132,7 @@ function applySettingsDenyOverrides(
     hook.denyExists = true;
     // settings.json deny is mechanical blocking
     hook.denyHasBlocks = true;
-    // Config-based deny — jq/chaining checks are not applicable
+    // Config-based deny - jq/chaining checks are not applicable
     hook.denyIsConfigBased = true;
   }
   // Mirror the shell-hook safety checks against settings-based Bash deny rules.
@@ -214,7 +214,7 @@ function enrichDenyFromExecpolicy(
   hook.denyBlocksChmod = /chmod.*777/.test(ruleContent);
   hook.denyBlocksPipeToShell =
     /curl.*\|\s*(ba)?sh|wget.*\|\s*(ba)?sh|pipe-to-shell/i.test(ruleContent);
-  // Execpolicy is config-based — jq/chaining checks are not applicable
+  // Execpolicy is config-based - jq/chaining checks are not applicable
   hook.denyIsConfigBased = true;
 }
 

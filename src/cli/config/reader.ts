@@ -29,7 +29,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   'agents',
   'skills',
   'line-limits',
-  'persona',
+  'userRole',
 ]);
 
 /** Built-in default values used when config.yaml is missing or omits fields. */
@@ -45,7 +45,7 @@ export const CONFIG_DEFAULTS: GoatFlowConfig = {
   agents: null,
   skills: { install: 'all' },
   lineLimits: { target: 120, limit: 150 },
-  persona: 'developer',
+  userRole: 'developer',
   telemetry: false,
 };
 
@@ -63,7 +63,7 @@ function cloneDefaults(): GoatFlowConfig {
     agents: CONFIG_DEFAULTS.agents,
     skills: { install: CONFIG_DEFAULTS.skills.install },
     lineLimits: { ...CONFIG_DEFAULTS.lineLimits },
-    persona: CONFIG_DEFAULTS.persona,
+    userRole: CONFIG_DEFAULTS.userRole,
     telemetry: CONFIG_DEFAULTS.telemetry,
   };
 }
@@ -125,13 +125,13 @@ function mergeSkills(value: unknown, merged: GoatFlowConfig): void {
   }
 }
 
-/** Valid persona values accepted in the config file. */
-const KNOWN_PERSONAS = new Set(['developer', 'investigator']);
+/** Valid userRole values accepted in the config file. */
+const KNOWN_USER_ROLES = new Set(['developer', 'investigator']);
 
-/** Apply a valid persona override from the raw config. */
-function mergePersona(value: unknown, merged: GoatFlowConfig): void {
-  if (typeof value === 'string' && KNOWN_PERSONAS.has(value)) {
-    merged.persona = value as GoatFlowConfig['persona'];
+/** Apply a valid userRole override from the raw config. */
+function mergeUserRole(value: unknown, merged: GoatFlowConfig): void {
+  if (typeof value === 'string' && KNOWN_USER_ROLES.has(value)) {
+    merged.userRole = value as GoatFlowConfig['userRole'];
   }
 }
 
@@ -164,7 +164,7 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
 
   // YAML key is `line-limits` (kebab-case), TypeScript field is `lineLimits` (camelCase)
   mergeLineLimits(raw['line-limits'], merged);
-  mergePersona(raw.persona, merged);
+  mergeUserRole(raw.userRole, merged);
   if (typeof raw.telemetry === 'boolean') merged.telemetry = raw.telemetry;
 
   return merged;
@@ -442,19 +442,19 @@ function validateSkillInstallList(
   }
 }
 
-/** Validate the persona field when present. */
-function validatePersonaField(
+/** Validate the userRole field when present. */
+function validateUserRoleField(
   raw: RawConfig,
   _warnings: ValidationIssue[],
   errors: ValidationIssue[],
 ): void {
-  if (!('persona' in raw)) return;
-  const { persona } = raw;
-  if (typeof persona !== 'string' || !KNOWN_PERSONAS.has(persona)) {
+  if (!('userRole' in raw)) return;
+  const { userRole } = raw;
+  if (typeof userRole !== 'string' || !KNOWN_USER_ROLES.has(userRole)) {
     pushError(
       errors,
-      'persona',
-      `must be one of: ${Array.from(KNOWN_PERSONAS).join(', ')}`,
+      'userRole',
+      `must be one of: ${Array.from(KNOWN_USER_ROLES).join(', ')}`,
     );
   }
 }
@@ -491,7 +491,7 @@ const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateLogsField,
   validateAgentsField,
   validateSkillsField,
-  validatePersonaField,
+  validateUserRoleField,
 ];
 
 /** Validate a parsed config object and return structured warnings and errors. */

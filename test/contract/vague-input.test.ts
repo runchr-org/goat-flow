@@ -86,7 +86,7 @@ function hasQuestionPattern(step0: string, topic: string): boolean {
 }
 
 /**
- * Check whether Step 0 has adaptive behavior — it should not ask
+ * Check whether Step 0 has adaptive behavior - it should not ask
  * unnecessary questions when specific input is already provided.
  * We verify this by checking for auto-detect or conditional patterns.
  */

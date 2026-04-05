@@ -67,7 +67,7 @@ interface DiagnosticImpact {
   priority: string;
 }
 
-/** Rank fixes by recoverable points — checks first, then triggered anti-patterns. */
+/** Rank fixes by recoverable points - checks first, then triggered anti-patterns. */
 export function collectDiagnosticImpacts(
   agent: AgentReport,
 ): DiagnosticImpact[] {

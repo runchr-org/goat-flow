@@ -468,7 +468,7 @@ describe('mapLanguagesToTemplates - backend framework routing', () => {
     );
     assert.ok(
       !webCommon,
-      'Ruby template removed — should not get web-common.md',
+      'Ruby template removed - should not get web-common.md',
     );
   });
 });

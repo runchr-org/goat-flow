@@ -61,7 +61,7 @@ export const antiPatterns: AntiPatternDef[] = [
     recommendation: 'Compress instruction file below 150 lines',
     recommendationKey: 'ap-compress-instruction-file',
   },
-  // AP2 removed — penalized project-specific skills (e.g., deploy/, preflight/) by assuming all skills need goat- prefix.
+  // AP2 removed - penalized project-specific skills (e.g., deploy/, preflight/) by assuming all skills need goat- prefix.
   // See ai-docs/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
   {
     id: 'AP3',
@@ -609,7 +609,7 @@ export const antiPatterns: AntiPatternDef[] = [
       };
     },
     recommendation:
-      'Update router table marker block — some goat-flow-owned paths point to non-existent resources. Run `goat-flow setup` to regenerate.',
+      'Update router table marker block - some goat-flow-owned paths point to non-existent resources. Run `goat-flow setup` to regenerate.',
     recommendationKey: 'ap-fix-stale-router-markers',
   },
   // === AP23: Overly broad deny patterns ===
@@ -656,7 +656,7 @@ export const antiPatterns: AntiPatternDef[] = [
 function findBroadDenyPatterns(denyList: string[]): string[] {
   const tooBroad: string[] = [];
   for (const p of denyList) {
-    // Bash(*git*) blocks anything mentioning "git" — too broad
+    // Bash(*git*) blocks anything mentioning "git" - too broad
     if (/^Bash\(\*git\*\)$/i.test(p)) tooBroad.push(p);
     // Bash(*test*) blocks all test commands
     if (/^Bash\(\*test\*\)$/i.test(p)) tooBroad.push(p);

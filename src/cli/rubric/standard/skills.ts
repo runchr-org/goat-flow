@@ -82,7 +82,7 @@ export const skillChecks: CheckDef[] = [
         if (step0Ratio >= SKILL_QUALITY_THRESHOLD) {
           return { ...base, status: 'fail', points: 0, maxPoints: 1, message: `${quality.withStep0}/${quality.total} skills have Step 0, but only ${quality.withConstraints}/${quality.total} define constraints. Step 0 should include scope boundaries (what's in/out).` };
         }
-        return { ...base, status: 'fail', points: 0, maxPoints: 1, message: `Only ${quality.withStep0}/${quality.total} skills gather context — most should ask before acting with scope constraints` };
+        return { ...base, status: 'fail', points: 0, maxPoints: 1, message: `Only ${quality.withStep0}/${quality.total} skills gather context - most should ask before acting with scope constraints` };
       },
     },
     recommendation:

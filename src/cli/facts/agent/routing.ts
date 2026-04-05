@@ -1,5 +1,5 @@
 /**
- * Router and Ask First fact extraction — collects referenced paths from instruction file sections.
+ * Router and Ask First fact extraction - collects referenced paths from instruction file sections.
  */
 import type { AgentFacts, ReadonlyFS } from '../../types.js';
 import { extractSection } from './instruction.js';

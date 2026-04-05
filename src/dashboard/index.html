@@ -18,7 +18,7 @@
     .terminal-container { width: 100%; height: 100%; }
     .terminal-container .xterm { height: 100%; }
     .terminal-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); z-index: 10; border-radius: 0.75rem; }
-    /* Dark mode fallback — neutral zinc palette (no blue tint) */
+    /* Dark mode fallback - neutral zinc palette (no blue tint) */
     .dark { background-color: #1a1a1e !important; color: #e4e4e7; }
     .dark .bg-white { background-color: #111114 !important; }
     .dark .bg-gray-50, .dark .bg-gray-100 { background-color: #1a1a1e !important; }
@@ -38,6 +38,13 @@
     .dark input, .dark textarea { background-color: #1a1a1e !important; color: #e4e4e7 !important; border-color: #3f3f46 !important; }
     .dark pre { color: #d4d4d8 !important; }
     .dark .stroke-gray-700, .dark path[stroke="#e5e7eb"] { stroke: #2a2a2e !important; }
+    .dark .border-l-blue-400 { border-left-color: #60a5fa !important; }
+    .dark .border-l-purple-400 { border-left-color: #c084fc !important; }
+    .dark .border-l-amber-400 { border-left-color: #fbbf24 !important; }
+    .dark .border-l-green-400 { border-left-color: #4ade80 !important; }
+    .dark .border-l-red-400 { border-left-color: #f87171 !important; }
+    .dark .border-l-emerald-400 { border-left-color: #34d399 !important; }
+    .dark .border-l-gray-400 { border-left-color: #9ca3af !important; }
     @media print {
       .no-print { display: none !important; }
       body { background: white !important; color: black !important; }
@@ -52,6 +59,16 @@
     }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
     :focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; border-radius: 4px; box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.3); }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    .dark ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+    .dark ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+    :root:not(.dark) ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
+    :root:not(.dark) ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+    * { scrollbar-width: thin; scrollbar-color: #3f3f46 transparent; }
+    :root:not(.dark) * { scrollbar-color: #d4d4d8 transparent; }
 
     /* ═══ GOAT Flow Design Tokens ═══ */
     /* Dark theme text/bg helpers */
@@ -188,6 +205,46 @@
     :root:not(.dark) .gf-btn-reset { background: #f4f4f5; color: #71717a; border-color: #e4e4e7; }
     :root:not(.dark) .gf-btn-save { background: #16a34a; color: #fff; }
     :root:not(.dark) .gf-panel-note { color: #d4d4d8; }
+
+    /* Reusable themed elements */
+    .gf-bg-elevated { background: #27272a; }
+    .gf-bg-page { background: #1a1a1e; }
+    .gf-bar-track { background: #3f3f46; }
+    .gf-bar-fill { background: #4ade80; }
+    .gf-input { background: #1a1a1e; border: 0.5px solid #3f3f46; color: #a1a1aa; }
+    .gf-input-btn { background: #27272a; border: 0.5px solid #3f3f46; color: #a1a1aa; }
+    .gf-dropdown { background: #1a1a1e; border: 0.5px solid #3f3f46; }
+    .gf-dropdown-row:hover { background: #27272a; }
+    .gf-btn-muted { background: #27272a; color: #a1a1aa; border: none; }
+    .gf-code-inline { background: #27272a; }
+    :root:not(.dark) .gf-bg-elevated { background: #f4f4f5; }
+    :root:not(.dark) .gf-bg-page { background: #fafafa; }
+    :root:not(.dark) .gf-bar-track { background: #e4e4e7; }
+    :root:not(.dark) .gf-bar-fill { background: #16a34a; }
+    :root:not(.dark) .gf-input { background: #f4f4f5; border-color: #e4e4e7; color: #71717a; }
+    :root:not(.dark) .gf-input-btn { background: #e4e4e7; border-color: #e4e4e7; color: #71717a; }
+    :root:not(.dark) .gf-dropdown { background: #fff; border-color: #e4e4e7; }
+    :root:not(.dark) .gf-dropdown-row:hover { background: #f4f4f5; }
+    :root:not(.dark) .gf-btn-muted { background: #f4f4f5; color: #71717a; }
+    :root:not(.dark) .gf-code-inline { background: #f4f4f5; }
+
+    /* Severity badges */
+    .gf-badge-critical { background: #450a0a; color: #f87171; }
+    .gf-badge-high { background: #451a03; color: #fb923c; }
+    .gf-badge-medium { background: #422006; color: #fbbf24; }
+    .gf-badge-low { background: #1e3a5f; color: #818cf8; }
+    .gf-badge-ap { background: #450a0a; color: #f87171; }
+    .gf-btn-green { background: #14532d; color: #4ade80; }
+    .gf-btn-scan { border: 0.5px solid #166534; background: none; color: #4ade80; }
+    .gf-check-pass { background: #166534; color: #4ade80; }
+    :root:not(.dark) .gf-badge-critical { background: #fee2e2; color: #dc2626; }
+    :root:not(.dark) .gf-badge-high { background: #ffedd5; color: #c2410c; }
+    :root:not(.dark) .gf-badge-medium { background: #fef3c7; color: #b45309; }
+    :root:not(.dark) .gf-badge-low { background: #e0e7ff; color: #4f46e5; }
+    :root:not(.dark) .gf-badge-ap { background: #fee2e2; color: #dc2626; }
+    :root:not(.dark) .gf-btn-green { background: #dcfce7; color: #16a34a; }
+    :root:not(.dark) .gf-btn-scan { border-color: #bbf7d0; color: #16a34a; }
+    :root:not(.dark) .gf-check-pass { background: #dcfce7; color: #16a34a; }
 
     /* Primary button */
     .gf-btn-primary { background: #4ade80; color: #111114; }
@@ -359,6 +416,7 @@ function app() {
     scanning: false, toast: '', toastError: false, copyLabel: 'Copy', srAnnouncement: '',
     activeView: 'home',
     installedAgents: [],
+    allAgents: [],
     activeRunner: 'claude',
     userRole: '',
     workspacePanel: 'prompts',
@@ -384,6 +442,9 @@ function app() {
     terminalSessionId: null,
     terminalConnected: false,
     terminalEnded: false,
+    lastRunPrompt: null,
+    lastRunAgent: null,
+    promptRunStates: {},
     launching: false,
     availableRunners: [],
     _terminalWs: null,
@@ -442,7 +503,7 @@ function app() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: yaml }),
         });
-      } catch { /* silent — localStorage is the fallback */ }
+      } catch { /* silent - localStorage is the fallback */ }
     },
     async _loadFavoritesFromConfig() {
       try {
@@ -555,6 +616,7 @@ function app() {
         this._loadFavoritesFromConfig();
         // Detect installed agents
         fetch('/api/agents/installed').then(r => r.json()).then(data => {
+          this.allAgents = data.agents;
           this.installedAgents = data.agents.filter(a => a.installed);
           if (this.installedAgents.length > 0 && !this.installedAgents.find(a => a.id === this.activeRunner)) {
             this.activeRunner = this.installedAgents[0].id;
@@ -640,17 +702,21 @@ function app() {
         const data = await res.json();
         if (data.error) { this.showToast(data.error, true); return; }
         this.configDirty = false;
-        // saved successfully — no toast needed
+        // saved successfully - no toast needed
       } catch { this.showToast('Failed to save config', true); }
     },
     async resetLocalConfig() {
       try {
-        const res = await fetch(`/api/config/local?path=${encodeURIComponent(this.projectPath)}`, { method: 'DELETE' });
+        const res = await fetch(`/api/config/local?path=${encodeURIComponent(this.projectPath)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: this._localConfigPlaceholder }),
+        });
         const data = await res.json();
         if (data.error) { this.showToast(data.error, true); return; }
         this.localConfigYaml = this._localConfigPlaceholder;
         this.configDirty = false;
-        // reset successfully — no toast needed
+        this._parseUserRole();
       } catch { this.showToast('Failed to reset config', true); }
     },
 
@@ -702,7 +768,7 @@ function app() {
     },
     copyFixPrompt(rec) {
       this.copyText(this.buildFixPrompt(rec));
-      // copied — button gives inline feedback
+      // copied - button gives inline feedback
     },
 
     // -- Terminal --
@@ -742,13 +808,17 @@ function app() {
     },
     async launchPreset(prompt, runner) {
       if (this.launching) return;
+      const preset = this.presets.find(p => this.adaptPrompt(p.prompt) === this.adaptPrompt(prompt));
+      this.lastRunPrompt = preset?.name || 'Custom prompt';
+      this.lastRunAgent = runner || this.activeRunner;
+      if (preset) this.promptRunStates[preset.id] = 'running';
       let adapted = this.adaptPrompt(prompt);
       if (this.userRole === 'investigator') {
         adapted = 'You are in investigator mode. Read-only - investigate, plan, and review only. Do NOT make any code changes.\n\n' + adapted;
       } else if (this.userRole === 'tester') {
         adapted = 'You are in tester mode. Test-focused - generate test plans, verify coverage, run QA analysis. Do NOT make code changes beyond test files.\n\n' + adapted;
       }
-      await this.launchInTerminal(adapted, runner || 'claude');
+      await this.launchInTerminal(adapted, runner || this.activeRunner);
     },
     async launchInTerminal(prompt, runner = 'claude') {
       if (this.terminalSessionId && !this.terminalEnded) {
@@ -757,7 +827,7 @@ function app() {
       }
       this.launching = true;
       try {
-        // launching — button shows "Starting..." state
+        // launching - button shows "Starting..." state
         await this.loadXterm();
         const res = await fetch('/api/terminal/create', {
           method: 'POST',
@@ -785,9 +855,7 @@ function app() {
         cursorBlink: true,
         fontSize: 14,
         fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-        theme: this.darkMode
-          ? { background: '#111827', foreground: '#f3f4f6', cursor: '#f3f4f6' }
-          : { background: '#000000', foreground: '#f3f4f6', cursor: '#f3f4f6' },
+        theme: { background: '#0f1729', foreground: '#f3f4f6', cursor: '#f3f4f6' },
       });
       const fitAddon = new window.FitAddon.FitAddon();
       term.loadAddon(fitAddon);
@@ -819,7 +887,11 @@ function app() {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === 'output') term.write(msg.data);
-          else if (msg.type === 'exit') { this.terminalEnded = true; this.terminalConnected = false; }
+          else if (msg.type === 'exit') {
+            this.terminalEnded = true; this.terminalConnected = false;
+            const runningId = Object.entries(this.promptRunStates).find(([_, s]) => s === 'running')?.[0];
+            if (runningId) this.promptRunStates[runningId] = 'pass';
+          }
           else if (msg.type === 'error') { term.write(`\r\n\x1b[31m${msg.message}\x1b[0m\r\n`); }
           else if (msg.type === 'shutdown') { this.terminalEnded = true; this.terminalConnected = false; }
         } catch { /* ignore malformed messages */ }
@@ -856,6 +928,8 @@ function app() {
       term.focus();
     },
     exitTerminal() {
+      const runningId = Object.entries(this.promptRunStates).find(([_, s]) => s === 'running')?.[0];
+      if (runningId) this.promptRunStates[runningId] = 'pass';
       if (this.terminalSessionId && !this.terminalEnded) {
         fetch(`/api/terminal/${this.terminalSessionId}`, { method: 'DELETE' }).catch(() => {});
       }
@@ -863,6 +937,8 @@ function app() {
       this.terminalSessionId = null;
       this.terminalConnected = false;
       this.terminalEnded = false;
+      this.lastRunPrompt = null;
+      this.lastRunAgent = null;
     },
 
     // -- Computed Properties --

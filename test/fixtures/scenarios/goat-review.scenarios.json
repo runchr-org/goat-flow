@@ -4,7 +4,7 @@
     {
       "vagueInput": "review the code",
       "expectedQuestions": ["which files", "concern", "scope"],
-      "idealSpecificInput": "Review src/cli/config/reader.ts — concerned about validation edge cases in mergeConfig. Diff review, not full audit."
+      "idealSpecificInput": "Review src/cli/config/reader.ts - concerned about validation edge cases in mergeConfig. Diff review, not full audit."
     },
     {
       "vagueInput": "is this good?",

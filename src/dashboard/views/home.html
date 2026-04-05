@@ -63,38 +63,33 @@
           <table style="width: 100%; border-collapse: collapse;">
             <thead>
               <tr>
-                <template x-for="col in ['Agent', 'Version', 'Grade', 'Score', 'Tiers']">
+                <template x-for="col in ['Agent', 'Version', 'Grade', 'Score']">
                   <th class="gf-th" x-text="col"></th>
                 </template>
               </tr>
             </thead>
             <tbody>
               <!-- Installed agents with scan data -->
-              <template x-for="agent in [
-                { id: 'claude', name: 'Claude Code' },
-                { id: 'codex', name: 'Codex' },
-                { id: 'gemini', name: 'Gemini CLI' },
-                { id: 'copilot', name: 'Copilot' }
-              ]" :key="agent.id">
+              <template x-for="agent in allAgents.map(a => ({ ...a, name: { claude: 'Claude Code', codex: 'Codex', gemini: 'Gemini CLI', copilot: 'Copilot' }[a.id] || a.id }))" :key="agent.id">
                 <tr class="gf-tr"
-                  :class="installedAgents.find(a => a.id === agent.id) ? 'gf-tr-clickable' : 'gf-tr-disabled'"
-                  @click="installedAgents.find(a => a.id === agent.id) && report?.agents?.find(a => a.agent === agent.id) && (activeView = 'scan', scanDetailAgent = agent.id)">
+                  :class="agent.installed ? 'gf-tr-clickable' : 'gf-tr-disabled'"
+                  @click="agent.installed && report?.agents?.find(a => a.agent === agent.id) && (activeView = 'scan', scanDetailAgent = agent.id)">
 
                   <!-- Agent name -->
                   <td class="gf-td">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                      <span class="gf-dot" :class="installedAgents.find(a => a.id === agent.id) ? 'gf-dot-on' : 'gf-dot-off'"></span>
+                      <span class="gf-dot" :class="agent.installed ? 'gf-dot-on' : 'gf-dot-off'"></span>
                       <span style="font-size: 13px; font-weight: 500;"
-                        :class="installedAgents.find(a => a.id === agent.id) ? 'gf-text-primary' : 'gf-text-disabled'"
+                        :class="agent.installed ? 'gf-text-primary' : 'gf-text-disabled'"
                         x-text="agent.name"></span>
                     </div>
                   </td>
 
                   <!-- Version -->
                   <td class="gf-td">
-                    <span :class="installedAgents.find(a => a.id === agent.id) ? 'gf-text-muted' : 'gf-text-disabled'"
-                      :style="'font-size:11px;font-family:JetBrains Mono,Fira Code,monospace;' + (!installedAgents.find(a => a.id === agent.id) ? 'font-style:italic;' : '')"
-                      x-text="installedAgents.find(a => a.id === agent.id)?.version || 'not installed'"></span>
+                    <span :class="agent.installed ? 'gf-text-muted' : 'gf-text-disabled'"
+                      :style="'font-size:11px;font-family:JetBrains Mono,Fira Code,monospace;' + (!agent.installed ? 'font-style:italic;' : '')"
+                      x-text="agent.version || (agent.installed ? '' : 'not installed')"></span>
                   </td>
 
                   <!-- Grade -->
@@ -116,29 +111,6 @@
                       x-text="report?.agents?.find(a => a.agent === agent.id) ? report.agents.find(a => a.agent === agent.id).score.percentage + '%' : '\u2014'"></span>
                   </td>
 
-                  <!-- Tier bars -->
-                  <td class="gf-td">
-                    <template x-if="report?.agents?.find(a => a.agent === agent.id)">
-                      <div style="display: flex; align-items: center; gap: 3px;" x-data="{
-                        ag: report.agents.find(a => a.agent === agent.id),
-                        tierW(tier) {
-                          const t = this.ag?.score?.tiers?.[tier];
-                          if (!t) return 0;
-                          return Math.max(4, (t.earned / Math.max(t.available, 1)) * (tier === 'standard' ? 36 : tier === 'foundation' ? 24 : 14));
-                        }
-                      }">
-                        <span class="gf-tier-label">F</span>
-                        <span class="gf-tier-bar" :style="'width:' + tierW('foundation') + 'px'"></span>
-                        <span class="gf-tier-label">S</span>
-                        <span class="gf-tier-bar" :style="'width:' + tierW('standard') + 'px'"></span>
-                        <span class="gf-tier-label">+</span>
-                        <span class="gf-tier-bar" :style="'width:' + tierW('full') + 'px'"></span>
-                      </div>
-                    </template>
-                    <template x-if="!report?.agents?.find(a => a.agent === agent.id)">
-                      <span class="gf-text-disabled" style="font-size: 12px;">&mdash;</span>
-                    </template>
-                  </td>
                 </tr>
               </template>
             </tbody>

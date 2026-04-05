@@ -1,6 +1,6 @@
 # Smoke Tests (Layer 7)
 
-Real agent tests — spawns Claude Code in `--print` mode against fixture projects.
+Real agent tests - spawns Claude Code in `--print` mode against fixture projects.
 
 **Cost:** ~$0.50-2.00 per test. Run on release branches only, not every PR.
 

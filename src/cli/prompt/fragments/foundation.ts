@@ -255,14 +255,14 @@ skills:
 
 If you want auto-detection, omit \`agents\`. If multiple agents are installed, list them explicitly.
 
-Also create \`.goat-flow/config.local.yaml\` (gitignored — personal overrides):
+Also create \`.goat-flow/config.local.yaml\` (gitignored - personal overrides):
 
 \`\`\`yaml
-# Local overrides — this file is gitignored.
+# Local overrides - this file is gitignored.
 # Values here merge on top of config.yaml.
 # Uncomment and edit as needed.
 
-# persona: investigator
+# userRole: investigator
 \`\`\`
 
 Ensure \`.goat-flow/config.local.yaml\` is gitignored (the default \`.goat-flow/.gitignore\` pattern \`*\` handles this).`,
@@ -279,7 +279,7 @@ Ensure \`.goat-flow/config.local.yaml\` is gitignored (the default \`.goat-flow/
 # Values here merge on top of config.yaml.
 # Uncomment and edit as needed.
 
-# persona: investigator
+# userRole: investigator
 \`\`\`
 
 This file is automatically gitignored by the \`.goat-flow/.gitignore\` pattern.`,
@@ -373,7 +373,7 @@ Run \`ls\` on each backtick-wrapped path to verify.`,
 - [ ] How do I undo this? [exact rollback command]
 \`\`\`
 
-**Full form (5 items — use for healthcare, multi-tenant, or compliance-critical projects):**
+**Full form (5 items - use for healthcare, multi-tenant, or compliance-critical projects):**
 \`\`\`markdown
 **Ask First** (MUST complete before proceeding):
 - [ ] Boundary touched: [name]

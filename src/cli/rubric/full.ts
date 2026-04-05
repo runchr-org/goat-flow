@@ -162,7 +162,7 @@ export const fullChecks: CheckDef[] = [
         confidence: 'high',
         message: ctx.facts.shared.evals.hasFrontmatter
           ? 'All evals use YAML frontmatter'
-          : 'Missing YAML frontmatter — add name, description, origin, agents, skill fields',
+          : 'Missing YAML frontmatter - add name, description, origin, agents, skill fields',
       }),
     },
     recommendation:
@@ -451,7 +451,7 @@ export const fullChecks: CheckDef[] = [
       'Add required sections to handoff template: Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files',
     recommendationKey: 'fix-handoff-sections',
   },
-  // 3.3.2 (RFC 2119 keyword count) removed — incentivized keyword sprinkling, not meaningful usage.
+  // 3.3.2 (RFC 2119 keyword count) removed - incentivized keyword sprinkling, not meaningful usage.
   // 3.3.3 (changelog) removed - CHANGELOG.md is a project-level concern, not an AI workflow check.
   {
     id: '3.3.4',

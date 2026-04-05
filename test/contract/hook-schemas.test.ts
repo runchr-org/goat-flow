@@ -1,7 +1,7 @@
 /**
  * Layer 3: Hook event JSON schema validation.
  * Validates that hook scripts parse the correct JSON fields for each event type.
- * Claude Code hook events have different payload shapes — this catches mismatches.
+ * Claude Code hook events have different payload shapes - this catches mismatches.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,7 +11,7 @@ import { join } from 'node:path';
 const ROOT = join(import.meta.dirname, '../..');
 
 /**
- * Hook event schemas — documents what fields are available on stdin for each event.
+ * Hook event schemas - documents what fields are available on stdin for each event.
  * Source: Claude Code documentation + workflow/runtime/enforcement.md
  */
 const HOOK_EVENT_SCHEMAS: Record<string, { requiredFields: string[]; description: string }> = {
@@ -25,7 +25,7 @@ const HOOK_EVENT_SCHEMAS: Record<string, { requiredFields: string[]; description
   },
   Stop: {
     requiredFields: [],
-    description: 'Fires after every agent turn. No structured stdin — check git diff for changed files.',
+    description: 'Fires after every agent turn. No structured stdin - check git diff for changed files.',
   },
   Notification: {
     requiredFields: [],

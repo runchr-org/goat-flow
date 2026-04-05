@@ -150,7 +150,7 @@ export const foundationChecks: CheckDef[] = [
       },
     },
     recommendation:
-      "Add concrete BAD/GOOD or DO/DON'T examples that reference real project paths (e.g., `src/auth.ts:42`) — not generic placeholder text",
+      "Add concrete BAD/GOOD or DO/DON'T examples that reference real project paths (e.g., `src/auth.ts:42`) - not generic placeholder text",
     recommendationKey: 'add-concrete-examples',
   },
 
@@ -185,7 +185,7 @@ export const foundationChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Reference at least 2 real project file paths (in Router Table or Ask First section) that exist on disk — e.g., `ai-docs/architecture.md`, `src/cli/`',
+      'Reference at least 2 real project file paths (in Router Table or Ask First section) that exist on disk - e.g., `ai-docs/architecture.md`, `src/cli/`',
     recommendationKey: 'add-resolvable-paths',
   },
 
@@ -370,7 +370,7 @@ export const foundationChecks: CheckDef[] = [
         return { ...base, status: 'fail', points: 0, maxPoints: 2, message: `LOG step references learning-loop paths but neither footguns (${ctx.facts.shared.footguns.paths.committed}) nor lessons (${ctx.facts.shared.lessons.paths.committed}) directory exists. Create them or update the paths.` };
       },
     },
-    recommendation: 'Add LOG step referencing lessons and footguns directories — and create those directories so the paths resolve',
+    recommendation: 'Add LOG step referencing lessons and footguns directories - and create those directories so the paths resolve',
     recommendationKey: 'add-log-step',
   },
 
@@ -780,7 +780,7 @@ export const foundationChecks: CheckDef[] = [
             maxPoints: 0,
             confidence: 'high',
             message:
-              'Deny is config-based (settings.json permissions.deny) — script not required',
+              'Deny is config-based (settings.json permissions.deny) - script not required',
           };
         }
         const exists = ctx.agentFacts.hooks.denyExists;
@@ -871,11 +871,11 @@ export const foundationChecks: CheckDef[] = [
           confidence: 'high',
           message: exists
             ? '.goat-flow/config.local.yaml exists (gitignored local overrides)'
-            : '.goat-flow/config.local.yaml not found. Create it for personal overrides (persona, paths). This file is gitignored.',
+            : '.goat-flow/config.local.yaml not found. Create it for personal overrides (userRole, paths). This file is gitignored.',
         };
       },
     },
-    recommendation: 'Create `.goat-flow/config.local.yaml` for personal overrides. Example: `persona: investigator` for read-only mode.',
+    recommendation: 'Create `.goat-flow/config.local.yaml` for personal overrides. Example: `userRole: investigator` for read-only mode.',
     recommendationKey: 'create-config-local',
   },
 ];

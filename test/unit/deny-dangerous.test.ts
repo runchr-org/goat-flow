@@ -181,7 +181,7 @@ describe('deny-dangerous.sh hook', () => {
   // === jq fallback path ===
 
   it('blocks dangerous command even without jq (sed fallback)', () => {
-    // Send raw command text instead of JSON — triggers the sed fallback
+    // Send raw command text instead of JSON - triggers the sed fallback
     const raw = 'rm -rf /';
     try {
       execSync(`echo '${raw}' | bash "${HOOK_PATH}"`, {

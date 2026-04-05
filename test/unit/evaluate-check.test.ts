@@ -34,7 +34,7 @@ function runSingleAntiPattern(
 }
 
 // ---------------------------------------------------------------
-// 2.2.2 — Post-turn hook registered and enforces validation
+// 2.2.2 - Post-turn hook registered and enforces validation
 // ---------------------------------------------------------------
 describe('Check 2.2.2: Post-turn hook registered', () => {
   const check = getCheck('2.2.2');
@@ -89,7 +89,7 @@ describe('Check 2.2.2: Post-turn hook registered', () => {
 });
 
 // ---------------------------------------------------------------
-// 2.2.3 — Post-turn hook does not swallow failures
+// 2.2.3 - Post-turn hook does not swallow failures
 // ---------------------------------------------------------------
 describe('Check 2.2.3: Hook does not swallow failures', () => {
   const check = getCheck('2.2.3');
@@ -142,7 +142,7 @@ describe('Check 2.2.3: Hook does not swallow failures', () => {
 });
 
 // ---------------------------------------------------------------
-// 2.3.7 — Session logs referenced in instruction file
+// 2.3.7 - Session logs referenced in instruction file
 // ---------------------------------------------------------------
 describe('Check 2.3.7: Session logs referenced', () => {
   const check = getCheck('2.3.7');
@@ -184,7 +184,7 @@ describe('Check 2.3.7: Session logs referenced', () => {
 });
 
 // ---------------------------------------------------------------
-// 1.5.7 — .goat-flow/config.local.yaml exists
+// 1.5.7 - .goat-flow/config.local.yaml exists
 // ---------------------------------------------------------------
 describe('Check 1.5.7: config.local.yaml exists', () => {
   const check = getCheck('1.5.7');

@@ -1754,8 +1754,8 @@ GOOD: Inline format. Extract when second format needed
     'ai-docs/coding-standards/git-commit.md':
       '# Git Commit\n\nCommit conventions.\n',
     'CHANGELOG.md': '# Changelog\n\n## v1.0\n\nInitial setup.\n',
-    '.goat-flow/config.yaml': 'version: "0.10.0"\npersona: developer\n',
-    '.goat-flow/config.local.yaml': '# Local overrides\n# persona: investigator\n',
+    '.goat-flow/config.yaml': 'version: "0.10.0"\nuserRole: developer\n',
+    '.goat-flow/config.local.yaml': '# Local overrides\n# userRole: investigator\n',
   });
   const report = scanProject(fs, '/test/regression', { agentFilter: null });
 

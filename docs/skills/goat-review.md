@@ -43,7 +43,7 @@ flowchart TD
     A3 -->|"BLOCKING GATE"| Close["Close"]
 ```
 
-**Key constraint:** In audit mode, MUST attempt to disprove each finding. MUST NOT propose fixes — findings only.
+**Key constraint:** In audit mode, MUST attempt to disprove each finding. MUST NOT propose fixes - findings only.
 
 ## Simplify Mode
 
