@@ -1,6 +1,6 @@
 /**
  * HTTP server for the local goat-flow dashboard.
- * It serves the frontend shell, exposes scan and terminal endpoints, and manages first-run browser opening.
+ * It serves the frontend shell, exposes scan and terminal endpoints.
  */
 import {
   createServer,
