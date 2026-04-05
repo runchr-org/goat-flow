@@ -74,3 +74,21 @@ category: skills
 - halaxy-agents-lab `.github/workflows/context-validation.yml` → `CANONICAL_SKILLS="goat-debug goat-review goat-plan goat-security goat-test goat-goat"` (permanently broken)
 
 **Prevention:** Always iterate canonical skill names directly (`goat goat-debug goat-plan goat-review goat-security goat-test`), never derive them by prefixing. Import from `SKILL_NAMES` in code, or list literal names in templates. The dispatcher name breaks the `goat-{suffix}` pattern.
+
+---
+
+## Footgun: Skills have phase gates but no time/call budget for context gathering
+
+**Status:** open | **Created:** 2026-04-05 | **Evidence:** ACTUAL_MEASURED
+
+Skills enforce phase gates (Step 0 must complete before Phase 1, gates pause for human approval) but have no budget for how long Step 0 can take. Claude can spend an entire session reading templates, exploring the codebase, and gathering context without ever producing output or asking a question.
+
+**Evidence:**
+- Claude Insights (112 sessions): "Claude spent so long reading templates that the user had to pull the plug before it wrote a single file" — during a healthkit GOAT Flow setup
+- Pattern appears across review and setup sessions where Claude reads 20+ files in Step 0 without checkpointing
+
+**Impact:** The user has no signal that the skill is stuck. The session appears active (tool calls are happening) but no output is produced. The only recovery is interrupting and restarting, wasting the entire session's context.
+
+**Prevention:**
+1. Add a Step 0 call budget to the shared preamble: "If Step 0 exceeds 5 file reads without producing output or asking a question, stop and present what you know so far"
+2. Skills should checkpoint mid-Step-0 for complex projects: "I've read X files. Here's what I understand so far. Should I continue gathering context or start with what I have?"

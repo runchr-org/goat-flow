@@ -73,3 +73,23 @@ The scanner awards 100% (A grade) to projects that have:
 **Impact:** The scanner rewards formatting compliance, not functional correctness. Users trust A/100 as "setup is good" when it means "setup matches regex patterns."
 
 **Fix:** M18 in `.goat-flow/tasks/0.10.0/M18-scanner-ux.md`. Add semantic validation: verify hook registration, validate skill file content, parse eval frontmatter, check ai-docs/README.md references resolve.
+
+---
+
+## Footgun: Scanner validates hook file content but not hook runtime behavior
+
+**Status:** open | **Created:** 2026-04-05 | **Evidence:** ACTUAL_MEASURED
+
+The scanner checks that hook files exist, contain the right patterns (jq parsing, chaining detection, pipe-to-shell blocking), and are registered in settings.json. But it never verifies the hooks actually execute. A hook with correct content but wrong permissions, missing dependencies (jq not installed), or broken JSON field paths passes the scanner at 100% while providing zero enforcement at runtime.
+
+**Evidence:**
+- 4+ sessions across 112 (Claude Insights data) derailed by sub-agent permission failures hitting hooks that the scanner had already validated
+- `format-file.sh` exists in `.claude/hooks/` but is not registered in `.claude/settings.json` — scanner doesn't catch this mismatch (found in dead code audit 2026-04-05)
+- `deny-dangerous.sh` sed fallback truncates commands with escaped quotes — scanner checks for sed fallback existence, not correctness
+
+**Impact:** Users trust 100% scanner score as "setup is working" when it means "setup files look right." The gap between file validation and runtime behavior is invisible.
+
+**Prevention:**
+1. Add a setup completion smoke test: pipe a known-blocked command through the deny hook and verify exit code 2
+2. Scanner should verify hook registration matches hook files (file exists → must be registered, registered → file must exist)
+3. Consider a `goat-flow verify` command that does runtime checks vs the current `goat-flow scan` which does static checks
