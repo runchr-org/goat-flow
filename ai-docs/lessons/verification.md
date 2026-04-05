@@ -160,3 +160,33 @@ Deny hooks block dangerous patterns, not all operations. When a command is block
 **What happened:** After normalizing router references by trimming trailing slashes, the follow-up `2.4.3` filter still looked for the literal substring `/skills/`. That turned `.claude/skills/` into `.claude/skills`, so the canonical passing fixture dropped from `100` to `99` even though the router row was correct.
 **Root cause:** Mixed two phases of logic without rechecking the invariant after normalization. The filter assumed the original slash shape still existed after the normalizer had deliberately removed it.
 **Fix:** When a parser normalizes paths, downstream checks must use shape tests that still hold after normalization, such as segment-boundary regexes (`/\/skills(?:\/|$)/`) instead of raw substring checks that depend on trailing separators.
+
+---
+
+## Lesson: Regressions caught too late — tests run at milestone granularity, not edit granularity
+
+**Created:** 2026-04-05
+
+**What happened:** Claude Insights reported 68 buggy-code friction events across 112 sessions (61% of sessions had at least one). The `/goat-test` skill generates test plans after implementation, and `stop-lint.sh` runs linting after every turn, but neither catches logic regressions mid-implementation. Tests only run when the user explicitly asks or when a milestone completes. Regressions introduced in turn 3 of a 10-turn implementation aren't caught until the end, when the debugging context is stale.
+
+**Root cause:** The verification loop runs at the wrong granularity. Lint after every turn catches syntax. Tests after every milestone catch logic. The gap between these two is where regressions hide.
+
+**Prevention:**
+1. Consider an optional post-write hook that runs the project's test command after file changes (configured via `config.yaml`, off by default)
+2. Skills with implementation phases should include a "run tests" checkpoint every N edits, not just at phase boundaries
+3. For test-heavy projects (1000+ tests), a focused test subset (changed files only) avoids the full-suite penalty while still catching regressions early
+
+---
+
+## Lesson: Parallel sessions (37% of messages) need concurrency-safe file patterns
+
+**Created:** 2026-04-05
+
+**What happened:** Claude Insights showed 75 overlap events across 77 sessions — 37% of all messages happened during parallel Claude sessions. Learning loop files (`.goat-flow/logs/`, `ai-docs/lessons/`, `ai-docs/footguns/`) are append-only by convention, but nothing prevents two agents from writing to the same file simultaneously. Session logs use date-slug filenames which reduces collisions, but category bucket files (e.g. `ai-docs/lessons/verification.md`) are shared write targets.
+
+**Root cause:** goat-flow was designed for single-agent sessions. The category bucket format (multiple entries in one file) creates write contention that per-entry files (one file per lesson) wouldn't have.
+
+**Prevention:**
+1. Document which files are safe for concurrent access in the plugin instructions
+2. For learning loop writes during parallel sessions, use unique filenames (date-agent-slug) rather than appending to shared buckets
+3. Session logs already use unique filenames — extend this pattern to footgun/lesson entries when multi-agent mode is detected
