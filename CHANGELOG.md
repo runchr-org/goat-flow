@@ -2,20 +2,28 @@
 
 ---
 
-## v0.10.0 - 2026-04-04
+## v0.10.0 - 2026-04-05
 
-SBAO Phase 3, dashboard simplification, rubric priority grading, category bucket learning loop, scanner honesty, 48-file CLI refactor. 112 checks + 19 anti-patterns. 1,165 tests.
+SBAO Phase 3, dashboard redesign, rubric priority grading, security hardening, copilot support, 48-file CLI refactor. 115 checks + 20 anti-patterns. 1,166 tests.
 
-**SBAO** - goat-plan Phase 3 rewritten as multi-agent critique: 3 sub-agents (2 core trio SKEPTIC/ANALYST/STRATEGIST + 1 fresh-context control group), ranked comparison, human-gated synthesis. Recommends skip for Hotfix/Small Feature (user decides).
-**Dashboard** - 1910→1332 lines, split into shell + 5 view fragments with server-side assembly. Home page (installed agents, scanner summary, quick actions), 2-level scanner drill-down, two-column setup wizard with auto-detect intent, simplified prompt cards with category badges. Header: project path + terminal agent selector. Agent detection API. `/goat` prompt adaptation for Codex (`$goat`).
-**Presets** - all 19 rewritten to `/goat [plain language]` (dispatcher routes). Guided forms removed - skills handle Step 0 in terminal.
-**Rubric** - priority field (required/recommended/optional) on all 110 checks. Grade: A=all req+rec, B=all req+80% rec, C=all req. Full tier bonus-only. 24 checks hidden from output (still run internally).
-**Scanner** - hook honesty checks verify real validation commands, swallowed failures, deny coverage. Router validation checks path resolution. 5-tier complexity model. Severity-grouped output with "Top N to fix" priorities.
-**CLI** - 48 files refactored, 45 complexity violations→0, `src/cli/server/` grouping, JSDoc on all declarations. `setup/`→`workflow/setup/`, `ai/`→`ai-docs/`.
-**Learning Loop** - migrated to category bucket files (ADR-021): 20 footgun→5 buckets, 31 lesson→5 buckets. Scanner enforces canonical surfaces.
-**Tests** - 275→1,165. Fixture corpus, 3-layer structure (unit/integration/contract), hook behavior tests, journey tests.
-**Structure** - `docs/` flattened, `docs/skills/` with Mermaid diagrams, `ai-docs/glossary.md` (36 terms), preflight with decimal timing.
-**Terminal** - xterm.js with WebSocket streaming, multi-runner, refit on view switch, floating error toasts.
+**Dashboard Redesign** - Neutral zinc palette (#1a1a1e/#111114/#27272a), CSS extracted to `styles.css`, JS extracted to `app.js` (index.html 89 lines). Dark/light themes with `gf-*` design token classes. Live reload dev mode (`npm run dev`).
+**Home Page** - Action-driven: dynamic "What to do next" cards (issues → fix/details/workspace, passing → code review/test/security with play icons). Scanner-style 4-column agent cards with color-coded tier bars (green >80%, orange 50-80%, red <50%). Agents table with per-agent terminal launch. Welcome state for unconfigured projects.
+**Scanner** - Single-page with inline detail expansion (no separate detail page). Hover states via CSS classes. Severity badges themed for light mode.
+**Workspace** - Prompt preview on sidebar click (right panel shows prompt text + Launch button). Run state tracking (amber running, green pass). Category-colored filter pills. Round outline play/send buttons.
+**Setup** - Left column card (title + agents + detected config), right prompt card with dark code background. "Formatter" label. Page heading.
+**Config** - Two-row layout (path picker + role selector). userRole toggle (click to select, click again to deselect). Local-only (not in committed config). "Open Setup Wizard" button when config.yaml missing.
+**Header** - Centered nav, goat emoji, green project name. "Terminal:" agent selector with disabled state during session. Green dot on Workspace nav when terminal running.
+**Copilot** - Agent detection, terminal sessions, Runner type, RUNNER_BINARIES. Dashboard shows dimmed card when not scanned. ADR-025.
+**Security** - Host header validation on all API routes (DNS rebinding). Write/Edit deny for 12 sensitive file patterns. Terminal resize validation (`clampDim`). Session map cleanup on kill.
+**persona→userRole** - Renamed across config reader, types, facts, rubric, prompts, tests, fixtures. Added `tester` to schema.
+**SBAO** - goat-plan Phase 3 rewritten as multi-agent critique: 2 core trio + 1 fresh-context (never split perspectives). Bold reminder in skill file. SBAO routing in dispatcher.
+**Presets** - all 19 rewritten to `/goat [plain language]`. Guided forms removed.
+**Rubric** - priority field (required/recommended/optional) on all checks. Grade: A=all req+rec, B=all req+80% rec, C=all req. Full tier bonus-only. 24 checks hidden. `telemetry` in KNOWN_TOP_LEVEL_KEYS.
+**Scanner** - hook honesty, router validation, severity-grouped output. GOAT_FLOW_INLINE_SETUP dead code removed.
+**CLI** - 48 files refactored, 45→0 complexity violations. `setup/`→`workflow/setup/`, `ai/`→`ai-docs/`. Server logging (errors, host blocks, dev request log).
+**Learning Loop** - category bucket files (ADR-021). Alpine.js `:style` footgun documented. SBAO agent structure lesson (3 recurrences). Checkbox discipline lesson (3 recurrences).
+**Tests** - 275→1,166. Terminal idle timeout updated for session deletion. Tautological/dead assertions fixed. deny-dangerous.sh hardened (long-form flags, pipe-to-interpreter).
+**Structure** - `docs/skills/` with Mermaid diagrams, `ai-docs/glossary.md`, preflight with decimal timing. Footer: "Built by BlunderGOAT · v0.10.0".
 
 ## v0.9.4 - 2026-04-02
 

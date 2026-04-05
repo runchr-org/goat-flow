@@ -35,6 +35,7 @@ const RUNNER_BINARIES: Record<Runner, string> = {
   claude: 'claude',
   codex: 'codex',
   gemini: 'gemini',
+  copilot: 'copilot',
 };
 
 /** Internal state for a single PTY terminal session */
@@ -157,6 +158,7 @@ export class TerminalManager {
 
     const cliPath = this.runnerPaths.get(runner);
     if (!cliPath) {
+      console.warn(`[terminal] Runner "${runner}" not found. Available: ${[...this.runnerPaths.keys()].join(', ')}`);
       throw new Error(`${runner} CLI not found. Install it first.`);
     }
 
@@ -166,6 +168,7 @@ export class TerminalManager {
     const id = randomUUID();
     const args = prompt ? [prompt] : [];
 
+    console.log(`[terminal] Starting ${runner} session in ${validatedPath}`);
     const pty = nodePty.spawn(cliPath, args, {
       name: 'xterm-256color',
       cols: 80,

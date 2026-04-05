@@ -41,7 +41,10 @@
 
           <!-- User role card -->
           <div class="gf-card" style="padding: 14px 16px;" x-data="{
-            get currentRole() { return userRole; },
+            get currentRole() {
+              const match = (localConfigYaml || '').match(/^\s*userRole:\s*(\w+)/m);
+              return match && ['developer', 'investigator', 'tester'].includes(match[1]) ? match[1] : '';
+            },
             toggleRole(role) {
               if (userRole === role) {
                 // Deselect: remove userRole line from yaml

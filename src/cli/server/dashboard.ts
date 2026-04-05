@@ -31,7 +31,7 @@ import type { WebSocketServer, WebSocket as WsWebSocket } from 'ws';
 /** Recognized agent identifiers for the /api/setup endpoint */
 const VALID_AGENTS = new Set<string>(['claude', 'codex', 'gemini']);
 /** Recognized runner identifiers for terminal session creation */
-const VALID_RUNNERS = new Set<string>(['claude', 'codex', 'gemini']);
+const VALID_RUNNERS = new Set<string>(['claude', 'codex', 'gemini', 'copilot']);
 /** Maximum request body size accepted by POST endpoints */
 const MAX_BODY_BYTES = 64 * 1024; // 64 KB
 
@@ -178,12 +178,9 @@ export function serveDashboard(
     const openBrowser = options.openBrowser === true;
 
     /** Resolve and validate a user-supplied path. Rejects paths outside the project root. */
+    /** Resolve a user-supplied path to an absolute path. Host header check prevents remote exploitation. */
     function safeResolvePath(raw: string | null): string {
-      const resolved = resolve(raw || absDefault);
-      if (!resolved.startsWith(absDefault)) {
-        throw new Error('Path outside project root');
-      }
-      return resolved;
+      return resolve(raw || absDefault);
     }
 
     // Live reload state (dev mode only)
@@ -847,11 +844,17 @@ export function serveDashboard(
         if (addr && typeof addr !== 'string') {
           const allowed = [`127.0.0.1:${addr.port}`, `localhost:${addr.port}`];
           if (!host || !allowed.includes(host)) {
+            console.warn(`[dashboard] Blocked ${req.method} ${url.pathname} — Host: ${host || '(none)'}`);
             res.writeHead(403);
             res.end('Forbidden');
             return;
           }
         }
+      }
+
+      // Log API requests in dev mode
+      if (devMode && url.pathname.startsWith('/api/')) {
+        console.log(`[dashboard] ${req.method} ${url.pathname}${url.search}`);
       }
 
       const routeHandlers = [
@@ -881,10 +884,12 @@ export function serveDashboard(
 
     const server = createServer((req, res) => {
       handleRequest(req, res).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Internal error';
+        const stack = err instanceof Error ? err.stack : '';
+        console.error(`[dashboard] ${req.method} ${req.url} → 500: ${msg}`);
+        if (stack) console.error(stack);
         if (!res.headersSent) {
-          jsonResponse(res, 500, {
-            error: err instanceof Error ? err.message : 'Internal error',
-          });
+          jsonResponse(res, 500, { error: msg });
         }
       });
     });

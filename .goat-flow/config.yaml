@@ -18,12 +18,6 @@ skills:
     - goat-security
     - goat-test
 
-# ── Persona ────────────────────────────────────
-# developer (default): full access — investigate, plan, AND implement
-# investigator: read-only — investigate, plan, review only. No code changes.
-# Override locally in .goat-flow/config.local.yaml (gitignored).
-userRole: developer
-
 # ── Telemetry ─────────────────────────────────
 # Opt-in: logs skill invocations to .goat-flow/logs/skill-usage.jsonl
 # Requires the skill-telemetry.sh hook (see workflow/runtime/enforcement.md)

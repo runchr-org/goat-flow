@@ -45,7 +45,7 @@
                   <div style="display: flex; align-items: center; gap: 8px;">
                     <span class="gf-text-secondary" style="font-size: 12px; width: 70px;" x-text="tier"></span>
                     <div class="gf-bar-track" style="flex: 1; height: 4px; border-radius: 2px; overflow: hidden;">
-                      <div class="gf-tier-bar" :style="`width:${agent.score.tiers[tier].percentage}%`"></div>
+                      <div :style="`width:${agent.score.tiers[tier].percentage}%;height:4px;border-radius:2px;background:${agent.score.tiers[tier].percentage > 80 ? '#4ade80' : agent.score.tiers[tier].percentage >= 50 ? '#fb923c' : '#f87171'}`"></div>
                     </div>
                     <span class="gf-text-muted" style="font-size: 12px; width: 32px; text-align: right;" x-text="`${agent.score.tiers[tier].percentage}%`"></span>
                   </div>
@@ -90,7 +90,7 @@
                   <div class="gf-text-muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;" x-text="tier"></div>
                   <div class="gf-text-primary" style="font-size: 16px; font-weight: 500; margin-top: 2px;" x-text="`${currentAgent.score.tiers[tier].earned} / ${currentAgent.score.tiers[tier].available}`"></div>
                   <div class="gf-bar-track" style="height: 4px; border-radius: 2px; margin-top: 8px; overflow: hidden;">
-                    <div class="gf-tier-bar" :style="`width:${currentAgent.score.tiers[tier].percentage}%`"></div>
+                    <div :style="`width:${currentAgent.score.tiers[tier].percentage}%;height:4px;border-radius:2px;background:${currentAgent.score.tiers[tier].percentage > 80 ? '#4ade80' : currentAgent.score.tiers[tier].percentage >= 50 ? '#fb923c' : '#f87171'}`"></div>
                   </div>
                 </div>
               </template>

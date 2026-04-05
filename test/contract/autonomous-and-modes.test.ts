@@ -201,38 +201,29 @@ describe('M14: auto-mode selection structural checks', () => {
 // === M12: Persona prerequisites ===
 
 describe('M12: userRole structural checks', () => {
-  it('config.yaml has userRole field', () => {
-    const configContent = readFileSync(
-      join(import.meta.dirname, '../../.goat-flow/config.yaml'),
+  it('config reader defaults userRole to developer when not set', () => {
+    const readerContent = readFileSync(
+      join(import.meta.dirname, '../../src/cli/config/reader.ts'),
       'utf-8',
     );
     assert.ok(
-      configContent.includes('userRole:'),
-      'config.yaml should have userRole field',
-    );
-    assert.ok(
-      configContent.includes('developer'),
-      'config.yaml should default to developer userRole',
-    );
-    assert.ok(
-      configContent.includes('investigator'),
-      'config.yaml should document investigator option',
+      readerContent.includes("userRole: 'developer'"),
+      'CONFIG_DEFAULTS should set userRole to developer',
     );
   });
 
-  it('config.yaml documents userRole options for dispatcher routing', () => {
-    const configContent = readFileSync(
-      join(import.meta.dirname, '../../.goat-flow/config.yaml'),
+  it('config types define valid userRole options', () => {
+    const typesContent = readFileSync(
+      join(import.meta.dirname, '../../src/cli/config/types.ts'),
       'utf-8',
     );
-    // Persona is documented in config.yaml - dispatcher reads it at runtime
     assert.ok(
-      configContent.includes('userRole: developer'),
-      'config.yaml should set userRole: developer as default',
+      typesContent.includes('developer'),
+      'config types should include developer role',
     );
     assert.ok(
-      configContent.includes('investigator'),
-      'config.yaml should document investigator option',
+      typesContent.includes('investigator'),
+      'config types should include investigator role',
     );
   });
 

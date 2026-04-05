@@ -18,7 +18,7 @@ export type ServerMessage =
 export type SessionStatus = 'starting' | 'active' | 'terminated';
 
 /** Supported CLI runners that can be spawned in a terminal session. */
-export type Runner = 'claude' | 'codex' | 'gemini';
+export type Runner = 'claude' | 'codex' | 'gemini' | 'copilot';
 
 /** Metadata for an active or recently terminated terminal session. */
 export interface SessionInfo {

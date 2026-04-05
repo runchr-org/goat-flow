@@ -40,7 +40,7 @@
             <div @click="selectedPreset = preset" class="border-b border-gray-100 dark:border-gray-700 border-l-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700/50 flex items-start gap-2 cursor-pointer transition-all"
               :class="{
                 'ring-1 ring-emerald-500/50': selectedPreset?.id === preset.id,
-                'border-l-amber-400 bg-gray-800/50': promptRunStates[preset.id] === 'running',
+                'border-l-amber-400 bg-amber-900/20': promptRunStates[preset.id] === 'running',
                 'border-l-emerald-400': promptRunStates[preset.id] === 'pass',
                 'border-l-red-400': promptRunStates[preset.id] === 'fail',
                 'border-l-blue-400': !promptRunStates[preset.id] && preset.cat === 'debug & explore',
