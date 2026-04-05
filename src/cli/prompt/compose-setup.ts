@@ -638,7 +638,7 @@ function defaultAdaptGuidance(
   if (output.includes('/skills/'))
     return `Replace template Step 0 questions and examples with ${languages} patterns from this project`;
   if (output === '.goat-flow/config.yaml')
-    return 'Use the default directory paths unless this project already needs explicit overrides';
+    return 'Use the default directory paths unless this project already needs explicit overrides. IMPORTANT: if config.yaml declares local paths (e.g., local: .goat-flow/footguns/), create those directories with a .gitkeep file. Config must not reference paths that do not exist.';
   if (output === 'ai-docs/footguns/')
     return 'Seed `ai-docs/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals. For EVERY cited file:line: read the actual code and verify the claim - does the method exist? Does the exception type match? Does the risk description match actual behavior? Flag any footgun where cited behavior does not match the code as UNVERIFIED';
   if (output === 'ai-docs/lessons/')
@@ -1010,6 +1010,10 @@ function renderSetupRedirect(
   );
   lines.push('');
   lines.push(
+    'Examples: If `.github/instructions/` exists with coding standards, do NOT create `ai-docs/coding-standards/` with overlapping content — reference the existing files from `ai-docs/README.md`. If `docs/footguns.md` exists, migrate its entries to `ai-docs/footguns/` instead of creating a parallel surface.',
+  );
+  lines.push('');
+  lines.push(
     '1. Verify the detected stack above is correct. If not, the setup file will',
   );
   lines.push(
@@ -1046,12 +1050,16 @@ function renderSetupRedirect(
     '   To relax specific rules after setup, add allow overrides in `.claude/settings.local.json` (gitignored).',
   );
   lines.push(
-    '   See `workflow/runtime/enforcement.md` for the full escape hatch guide.',
+    '   See `workflow/hooks/README.md` for hook configuration details.',
   );
   lines.push('');
 
   // Main instruction
   lines.push('## Setup instructions');
+  lines.push('');
+  lines.push(
+    'FIRST, read `workflow/setup/shared/system-overview.md` to understand the design intent.',
+  );
   lines.push('');
   lines.push(
     `Deeply review and implement the instructions in: \`${setupFile}\``,
@@ -1065,46 +1073,18 @@ function renderSetupRedirect(
     '- **Phase 1b:** 6 skills (5 goat-* skills + /goat dispatcher) adapted for this project',
   );
   lines.push(
-    '- **Phase 1c:** Enforcement hooks, deny patterns, coding guidelines',
+    '- **Phase 1c:** Advisory hooks, deny patterns, coding guidelines',
   );
   lines.push(
     '- **Phase 2:** Agent evals, hygiene (handoff template, RFC 2119 pass)',
   );
   lines.push('- **Phase 3:** Verify 100% on the CLI scan');
   lines.push('');
-  const fileCount = report.stack.sourceFileCount;
-  const sizeLabel =
-    fileCount > 0
-      ? ` (detected ~${fileCount} source files)`
-      : '';
   lines.push(
-    `**Scale to project size${sizeLabel}** - do NOT over-scaffold:`,
+    '**Read `workflow/setup/shared/system-overview.md` first** to understand the design intent behind the goat-flow system.',
   );
   lines.push(
-    '- **Small projects (<100 source files):** Skip ADR framework, handoff template, and keep evals to 3 max. Use 2-3 skills with modes instead of all 6.',
-  );
-  lines.push(
-    '- **Medium projects (100-500 source files):** Full 6 skills, full learning loop, evals as incidents arise.',
-  );
-  lines.push(
-    '- **Large projects (>500 source files):** Full setup + local instruction files per major component.',
-  );
-  lines.push(
-    'If the goat-flow scaffolding would be larger than the project source code, you are over-scaffolding.',
-  );
-  lines.push('');
-  lines.push('**File categories** - know what to keep vs skip:');
-  lines.push(
-    '- **Hot-path (loaded every session):** Instruction file (CLAUDE.md), skills, hooks, `.goat-flow/config.yaml`',
-  );
-  lines.push(
-    '- **Cold-path (loaded on demand):** `ai-docs/coding-standards/`, `ai-docs/architecture.md`, `ai-docs/decisions/`',
-  );
-  lines.push(
-    '- **Optional (delete if unwanted):** `ai-docs/evals/`, `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/tasks/handoff-template.md`',
-  );
-  lines.push(
-    '- **Gitignored (never commit):** `.goat-flow/logs/`, `.goat-flow/tasks/todo.md`, `.goat-flow/tasks/handoff.md`',
+    'Install the full system for every project. Do not skip components based on project size.',
   );
   lines.push('');
 

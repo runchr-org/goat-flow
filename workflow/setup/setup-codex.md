@@ -2,7 +2,7 @@
 
 Set up or improve GOAT Flow for a project using Codex (OpenAI).
 
-**Before you start:** Read [shared/guidelines-audit.md](shared/guidelines-audit.md) and do the audit if applicable.
+**Before you start:** Read [shared/system-overview.md](shared/system-overview.md) to understand the design intent behind goat-flow.
 
 ---
 

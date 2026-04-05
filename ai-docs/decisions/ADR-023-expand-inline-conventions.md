@@ -1,6 +1,6 @@
 # ADR-023: Expand inline shared conventions from 12 to ~62 lines
 
-**Status:** Accepted (supersedes ADR-011)
+**Status:** Superseded by ADR-028
 **Date:** 2026-04-04
 **Context:** A 4-agent deep review of workflow/ found that the 12-line inlined shared conventions block was a lossy compression of the 150-line canonical preamble. Recovery procedures, Working Memory management, and Autonomy Awareness were silently lost - exactly the instructions agents need when things go wrong. All 4 reviewers flagged this independently.
 

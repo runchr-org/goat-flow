@@ -1,7 +1,7 @@
 # ADR-011: Shared Conventions -- Keep Inline
 
 **Date:** 2026-03-28
-**Status:** Accepted
+**Status:** Superseded by ADR-023
 
 ## Context
 

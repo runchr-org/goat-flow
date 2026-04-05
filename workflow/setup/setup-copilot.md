@@ -2,6 +2,8 @@
 
 Paste this into any AI coding agent to set up GitHub Copilot support for a project with GOAT Flow.
 
+**Before you start:** Read [shared/system-overview.md](shared/system-overview.md) to understand the design intent behind goat-flow.
+
 ## Prerequisites
 
 This guide creates `.github/copilot-instructions.md` (Copilot's hot path) and `.github/instructions/` bridge files (Copilot's cold path). It also creates `ai-docs/coding-standards/` if not already present.

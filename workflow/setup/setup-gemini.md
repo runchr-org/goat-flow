@@ -6,7 +6,7 @@ Set up or improve GOAT Flow for a project using Gemini CLI.
 `.agents/skills/`, and `GEMINI.md`. Do NOT modify existing files in `.claude/`
 or any shared documentation that other agents depend on.
 
-**Before you start:** Read [shared/guidelines-audit.md](shared/guidelines-audit.md) and do the audit if applicable.
+**Before you start:** Read [shared/system-overview.md](shared/system-overview.md) to understand the design intent behind goat-flow.
 
 ---
 
