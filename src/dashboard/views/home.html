@@ -2,19 +2,60 @@
     <div x-show="activeView === 'home'" x-cloak style="height: calc(100vh - 5rem); overflow-y: auto;">
       <div style="max-width: 880px; margin: 0 auto; padding: 12px 28px 24px;">
 
-        <!-- Project header (no card, just text) -->
-        <div style="margin-bottom: 20px;">
-          <div class="gf-text-primary" style="font-size: 18px; font-weight: 500;" x-text="projectName || 'GOAT Flow'"></div>
-          <div class="gf-text-muted" style="font-size: 11px; font-family: 'JetBrains Mono', 'Fira Code', monospace; margin-top: 3px;" x-text="projectPath"></div>
-          <div class="gf-tags" x-show="report">
-            <template x-for="lang in (report?.stack?.languages || [])" :key="lang">
-              <span class="gf-tag" x-text="lang"></span>
+        <!-- What to do next (issues found) — ABOVE banner -->
+        <div x-show="report && !(report.agents.length > 0 && report.agents.every(a => a.score.grade === 'A'))" x-cloak style="margin-bottom: 20px;">
+          <div class="gf-text-primary" style="font-size: 14px; font-weight: 500; margin-bottom: 10px;" x-text="report?.agents?.length === 0 ? 'Welcome - get started with GOAT Flow' : (report?.agents?.[0]?.recommendations?.length || 0) + ' issues to fix'"></div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+            <button @click="activeView = 'wizard'; detectStack()" class="gf-action-btn" style="text-align: left; display: flex; align-items: center; gap: 10px; border-color: #166534;">
+              <span class="gf-play-icon" style="color: #4ade80; border-color: #166534;">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085"/></svg>
+              </span>
+              <div style="flex: 1; min-width: 0;">
+                <div class="gf-action-title" style="color: #4ade80;">Fix issues</div>
+                <div class="gf-action-desc">Open Setup Wizard</div>
+              </div>
+            </button>
+            <button @click="activeView = 'scan'; scanDetailAgent = report.agents[0]?.agent" class="gf-action-btn" style="text-align: left; display: flex; align-items: center; gap: 10px;">
+              <span class="gf-play-icon">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+              </span>
+              <div style="flex: 1; min-width: 0;">
+                <div class="gf-action-title">View details</div>
+                <div class="gf-action-desc">Scanner breakdown</div>
+              </div>
+            </button>
+            <button @click="activeView = 'workspace'" class="gf-action-btn" style="text-align: left; display: flex; align-items: center; gap: 10px;">
+              <span class="gf-play-icon">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              </span>
+              <div style="flex: 1; min-width: 0;">
+                <div class="gf-action-title">Workspace</div>
+                <div class="gf-action-desc">Browse prompts</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Suggested prompts (all passing) — ABOVE banner -->
+        <div x-show="report && report.agents.length > 0 && report.agents.every(a => a.score.grade === 'A')" x-cloak style="margin-bottom: 20px;">
+          <div class="gf-text-primary" style="font-size: 14px; font-weight: 500; margin-bottom: 10px;">All clear - run a prompt</div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+            <template x-for="p in presets.filter(p => ['review', 'test', 'security'].includes(p.id))" :key="p.id">
+              <button @click="launchPreset(p.prompt, activeRunner); workspacePanel = 'terminal'" class="gf-action-btn" style="text-align: left; display: flex; align-items: center; gap: 10px;">
+                <span class="gf-play-icon">
+                  <svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                </span>
+                <div style="flex: 1; min-width: 0;">
+                  <div class="gf-action-title" x-text="p.name"></div>
+                  <div class="gf-action-desc" x-text="p.desc"></div>
+                </div>
+              </button>
             </template>
           </div>
         </div>
 
         <!-- Health banner -->
-        <div x-show="report" x-data="{ allPass: false }" x-effect="allPass = report?.agents?.every(a => a.score.grade === 'A')"
+        <div x-show="report" x-data="{ allPass: false }" x-effect="allPass = report?.agents?.length > 0 && report?.agents?.every(a => a.score.grade === 'A')"
           class="gf-banner-row" :class="allPass ? 'gf-banner-pass' : 'gf-banner-fail'">
           <div class="gf-banner-icon" style="width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0" x-html="allPass ? '&#10003;' : '&#10005;'"></div>
           <div style="flex:1;min-width:0"><div class="gf-banner-title" style="font-size:14px;font-weight:500" x-text="allPass ? 'All checks passing' : (report?.agents?.filter(a => a.score.grade !== 'A').length + ' agent(s) need attention')"></div><div class="gf-banner-sub" style="font-size:12px;margin-top:1px" x-text="(() => { const tc = (report?.agents || []).reduce((s, a) => s + a.checks.filter(c => !c.hidden && c.status !== 'na').length, 0); const ap = (report?.agents || []).reduce((s, a) => s + a.antiPatterns.filter(p => p.triggered).length, 0); return tc + ' checks across ' + (report?.agents?.length || 0) + ' agents - ' + ap + ' anti-patterns - ' + presets.length + ' presets installed'; })()"></div></div>
@@ -29,53 +70,68 @@
           </button>
         </div>
 
-        <!-- Metric strip -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
-          <div class="gf-metric">
-            <div class="gf-metric-value" x-text="report ? report.agents.length : '-'"></div>
-            <div class="gf-metric-label">Agents</div>
+        <!-- Agent cards -->
+        <div x-show="report" style="margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <span class="gf-text-primary" style="font-size: 14px; font-weight: 500;">Scanner</span>
+            <button @click="runScan()" :disabled="scanning" class="gf-btn-scan" style="font-size: 12px; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+              <span x-text="scanning ? 'Scanning...' : 'Re-scan'"></span>
+            </button>
           </div>
-          <div class="gf-metric">
-            <div class="gf-metric-value gf-grade-text" x-text="report ? (() => {
-              const grades = report.agents.map(a => a.score.grade);
-              const order = ['A','B','C','D','F'];
-              const worst = grades.reduce((w, g) => order.indexOf(g) > order.indexOf(w) ? g : w, 'A');
-              return worst;
-            })() : '-'"></div>
-            <div class="gf-metric-label">Avg grade</div>
-          </div>
-          <div class="gf-metric">
-            <div class="gf-metric-value" x-text="presets.length"></div>
-            <div class="gf-metric-label">Presets</div>
-          </div>
-          <div class="gf-metric">
-            <div class="gf-metric-value">6</div>
-            <div class="gf-metric-label">Skills</div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+            <template x-for="agent in (report?.agents || [])" :key="agent.agent">
+              <button @click="activeView = 'scan'; scanDetailAgent = agent.agent; selectedAgent = agent.agent"
+                class="gf-card" style="padding: 20px 24px; cursor: pointer; transition: border-color 0.1s;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                  <span class="gf-text-primary" style="font-size: 14px; font-weight: 500;" x-text="agent.agentName"></span>
+                  <span style="font-size: 20px; font-weight: 500;" :style="{ color: gradeColor(agent.score.grade) }" x-text="agent.score.grade === 'insufficient-data' ? '?' : agent.score.grade"></span>
+                </div>
+                <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px;">
+                  <span style="font-size: 14px; font-weight: 500;" :style="{ color: gradeColor(agent.score.grade) }" x-text="`${agent.score.percentage}%`"></span>
+                  <span class="gf-text-secondary" style="font-size: 12px;" x-text="`${agent.checks.filter(c => !c.hidden && c.status !== 'na').length} checks`"></span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <template x-for="tier in ['foundation', 'standard', 'full']" :key="agent.agent + '-' + tier">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span class="gf-text-secondary" style="font-size: 12px; width: 70px;" x-text="tier"></span>
+                      <div class="gf-bar-track" style="flex: 1; height: 4px; border-radius: 2px; overflow: hidden;">
+                        <div :style="`width:${agent.score.tiers[tier].percentage}%;height:4px;border-radius:2px;background:${agent.score.tiers[tier].percentage > 80 ? '#4ade80' : agent.score.tiers[tier].percentage >= 50 ? '#fb923c' : '#f87171'}`"></div>
+                      </div>
+                      <span class="gf-text-muted" style="font-size: 12px; width: 32px; text-align: right;" x-text="`${agent.score.tiers[tier].percentage}%`"></span>
+                    </div>
+                  </template>
+                </div>
+              </button>
+            </template>
+            <!-- Unscanned installed agents (e.g. Copilot) -->
+            <template x-for="agent in allAgents.filter(a => a.installed && !(report?.agents || []).find(r => r.agent === a.id))" :key="agent.id">
+              <div class="gf-card" style="padding: 20px 24px; opacity: 0.5;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                  <span class="gf-text-disabled" style="font-size: 14px; font-weight: 500;" x-text="{ claude: 'Claude Code', codex: 'Codex', gemini: 'Gemini CLI', copilot: 'Copilot' }[agent.id] || agent.id"></span>
+                  <span class="gf-grade gf-grade-na">&mdash;</span>
+                </div>
+                <div class="gf-text-disabled" style="font-size: 11px; font-style: italic;" x-text="agent.version || 'not scanned'"></div>
+              </div>
+            </template>
           </div>
         </div>
 
-        <!-- Agents table card -->
+        <!-- Agents table -->
         <div class="gf-card" style="border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
           <div class="gf-card-header" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;">
             <span class="gf-text-primary" style="font-size: 14px; font-weight: 500;">Agents</span>
-            <span class="gf-link" style="font-size: 12px; cursor: pointer;" @click="runScan()">Re-scan</span>
           </div>
           <table style="width: 100%; border-collapse: collapse;">
             <thead>
               <tr>
-                <template x-for="col in ['Agent', 'Version', 'Grade', 'Score']">
+                <template x-for="col in ['Agent', 'Version', 'Status', '']">
                   <th class="gf-th" x-text="col"></th>
                 </template>
               </tr>
             </thead>
             <tbody>
-              <!-- Installed agents with scan data -->
               <template x-for="agent in allAgents.map(a => ({ ...a, name: { claude: 'Claude Code', codex: 'Codex', gemini: 'Gemini CLI', copilot: 'Copilot' }[a.id] || a.id }))" :key="agent.id">
-                <tr class="gf-tr"
-                  :class="agent.installed ? 'gf-tr-clickable' : 'gf-tr-disabled'"
-                  @click="agent.installed && report?.agents?.find(a => a.agent === agent.id) && (activeView = 'scan', scanDetailAgent = agent.id)">
-
-                  <!-- Agent name -->
+                <tr class="gf-tr">
                   <td class="gf-td">
                     <div style="display: flex; align-items: center; gap: 8px;">
                       <span class="gf-dot" :class="agent.installed ? 'gf-dot-on' : 'gf-dot-off'"></span>
@@ -84,84 +140,24 @@
                         x-text="agent.name"></span>
                     </div>
                   </td>
-
-                  <!-- Version -->
                   <td class="gf-td">
                     <span :class="agent.installed ? 'gf-text-muted' : 'gf-text-disabled'"
                       :style="'font-size:11px;font-family:JetBrains Mono,Fira Code,monospace;' + (!agent.installed ? 'font-style:italic;' : '')"
                       x-text="agent.version || (agent.installed ? '' : 'not installed')"></span>
                   </td>
-
-                  <!-- Grade -->
                   <td class="gf-td">
-                    <template x-if="report?.agents?.find(a => a.agent === agent.id)">
-                      <span class="gf-grade"
-                        :class="'gf-grade-' + (report.agents.find(a => a.agent === agent.id)?.score.grade || '').toLowerCase()"
-                        x-text="report.agents.find(a => a.agent === agent.id)?.score.grade"></span>
-                    </template>
-                    <template x-if="!report?.agents?.find(a => a.agent === agent.id)">
-                      <span class="gf-grade gf-grade-na">&mdash;</span>
-                    </template>
+                    <span style="font-size: 11px;" :class="agent.installed ? 'gf-text-secondary' : 'gf-text-disabled'"
+                      x-text="agent.installed ? 'Installed' : 'Not found'"></span>
                   </td>
-
-                  <!-- Score -->
-                  <td class="gf-td">
-                    <span style="font-size: 12px;"
-                      :class="report?.agents?.find(a => a.agent === agent.id) ? 'gf-text-secondary' : 'gf-text-disabled'"
-                      x-text="report?.agents?.find(a => a.agent === agent.id) ? report.agents.find(a => a.agent === agent.id).score.percentage + '%' : '\u2014'"></span>
+                  <td class="gf-td" style="text-align: right;">
+                    <button x-show="agent.installed && terminalAvailable" @click="activeRunner = agent.id; launchInTerminal('', agent.id)"
+                      style="font-size: 11px; padding: 2px 8px; border-radius: 4px; cursor: pointer;"
+                      class="gf-btn-scan">Terminal</button>
                   </td>
-
                 </tr>
               </template>
             </tbody>
           </table>
-        </div>
-
-        <!-- Recommended actions (issues found) -->
-        <div x-show="report && !report.agents.every(a => a.score.grade === 'A')" x-cloak>
-          <div class="gf-card" style="border-radius: 8px; padding: 16px 20px; margin-bottom: 20px;">
-            <h3 class="gf-text-muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Recommended actions</h3>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              <template x-for="rec in (report.agents[0]?.recommendations || []).slice(0, 5)" :key="rec.key">
-                <div style="display: flex; align-items: flex-start; gap: 10px; font-size: 13px; padding-bottom: 8px; border-bottom: 0.5px solid #2a2a2e; cursor: pointer;"
-                  @click="activeView = 'scan'; scanDetailAgent = report.agents[0].agent">
-                  <span style="flex-shrink: 0; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;"
-                    :class="'gf-badge-' + rec.priority"
-                    x-text="rec.priority.toUpperCase()"></span>
-                  <div style="flex: 1; min-width: 0;">
-                    <span class="gf-text-primary" style="font-weight: 500;" x-text="`${rec.checkId}: ${rec.category}`"></span>
-                    <p class="gf-text-muted" style="font-size: 12px; margin-top: 2px;" x-text="rec.action"></p>
-                  </div>
-                </div>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <!-- All checks pass message -->
-        <div x-show="report && report.agents.every(a => a.score.grade === 'A')" x-cloak>
-          <div class="gf-card" style="border-radius: 8px; padding: 16px 20px; margin-bottom: 20px;">
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 0;">
-              <div class="gf-check-pass" style="width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 16px;">&#10003;</div>
-              <span style="font-size: 14px; font-weight: 500; color: #4ade80;">All checks pass. Nothing to fix.</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Quick actions -->
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;">
-          <button @click="runScan()" class="gf-action-btn">
-            <div class="gf-action-title">Run scan</div>
-            <div class="gf-action-desc">Re-evaluate all agents</div>
-          </button>
-          <button @click="activeView = 'workspace'" class="gf-action-btn">
-            <div class="gf-action-title">Launch workspace</div>
-            <div class="gf-action-desc">Open prompt launcher</div>
-          </button>
-          <button @click="activeView = 'wizard'; detectStack()" class="gf-action-btn">
-            <div class="gf-action-title">Setup wizard</div>
-            <div class="gf-action-desc">Generate setup prompt</div>
-          </button>
         </div>
 
         <!-- Footer -->

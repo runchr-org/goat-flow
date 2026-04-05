@@ -1,6 +1,6 @@
 # GOAT Flow
 
-A structured workflow system for AI coding agents. Gives Claude Code, Gemini CLI, and Codex an execution loop, autonomy tiers, enforcement hooks, and a learning loop — instead of a wall of rules they half-follow.
+A structured workflow system for AI coding agents. Gives Claude Code, Gemini CLI, Codex, and Copilot an execution loop, autonomy tiers, enforcement hooks, and a learning loop - instead of a wall of rules they half-follow.
 
 ## Quick Start
 
@@ -10,106 +10,160 @@ npx goat-flow dashboard
 ```
 
 Open the dashboard, click **Scan**, and see your score. Click **Setup** to generate setup instructions, then paste them into your coding agent.
-The dashboard auto-opens in your browser on first run.
 
 ![Dashboard](docs/assets/dashboard-preview.png)
 
-## Install Options
-
-### Recommended (project-level)
-
-| Manager | Commands | Notes |
-|---|---|---|
-| npm | `npm install --save-dev @blundergoat/goat-flow` | ✅ tested |
-| pnpm | `pnpm add -D @blundergoat/goat-flow` then `pnpm approve-builds` | ✅ tested; terminal may require approving `node-pty` |
-| yarn | `yarn add -D @blundergoat/goat-flow` (`corepack yarn`) | ✅ tested; installs latest published package |
-| bun | `bun add -d @blundergoat/goat-flow` | ❌ unavailable in current environment (`bun` command not found) |
-| npx | `npx @blundergoat/goat-flow@latest scan .` | ✅ tested for no-install usage; currently resolves to 0.9.4 |
-
-### Global (optional)
+## Install
 
 ```bash
-npm install -g @blundergoat/goat-flow
-goat-flow dashboard
-```
-✅ global install tested.
+# npm
+npm install --save-dev @blundergoat/goat-flow
 
+# pnpm
+pnpm add -D @blundergoat/goat-flow && pnpm approve-builds
+
+# yarn
+yarn add -D @blundergoat/goat-flow
+
+# no-install
+npx @blundergoat/goat-flow@latest scan .
+
+# global
+npm install -g @blundergoat/goat-flow
+```
+
+Requires Node.js 20+.
 
 ## Commands
 
 ```bash
-goat-flow dashboard        # Visual dashboard + optional terminal
-goat-flow scan             # Scanner output + score report
-goat-flow setup            # Setup prompt for your project agent
+goat-flow dashboard                    # Visual dashboard with integrated terminal
+goat-flow scan .                       # Score your project across 112+ checks
+goat-flow setup . --agent claude       # Generate setup prompt for your agent
 
-# Optional:
-goat-flow scan --format json
-goat-flow setup --agent claude|codex|gemini
+goat-flow scan . --format json         # JSON output for CI
+goat-flow scan . --format markdown     # Markdown report
+goat-flow setup . --agent gemini       # Gemini CLI setup
+goat-flow setup . --agent codex        # Codex setup
 ```
 
-## What It Does
+## Features
 
-**Execution loop:** READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG. Prevents fabrication (READ), scope creep (SCOPE), and broken code (VERIFY).
+### Execution Loop
 
-**Enforcement hooks:** Pre-tool hooks block dangerous commands (100% block rate vs ~70% for rules alone). Post-turn hooks lint after every change.
+**READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG.** Every task follows this loop. READ prevents fabrication. CLASSIFY routes by complexity (hotfix → infrastructure). SCOPE declares blast radius before changes. VERIFY gates block broken code. LOG captures incidents for future sessions.
 
-**5 skills + dispatcher:** `/goat` routes to `/goat-debug`, `/goat-review`, `/goat-plan`, `/goat-test`, or `/goat-security`. Each has structured phases with human gates.
+### Enforcement Hooks
 
-**Learning loop:** `ai-docs/footguns/` captures architectural traps with file:line evidence. `ai-docs/lessons/` captures real incidents. Agent evals replay past failures.
+Pre-tool hooks block dangerous commands before execution - `rm -rf`, force push, secret file access, pipe-to-shell. Post-turn hooks run linting and type checking after every change. Format-on-write hooks keep code clean automatically. ~100% block rate vs ~70% for rules-only approaches.
 
-**Scanner:** Scores your project across 91 checks + 18 anti-patterns. The dashboard shows what's missing and how to fix it.
+### Skills
 
-## Skills
+Six structured workflows, each with phases and human gates:
 
 ```
-/goat fix the login bug           → /goat-debug (diagnose)
-/goat review the PR               → /goat-review
-/goat plan the new feature        → /goat-plan
-/goat check for security issues   → /goat-security
-/goat how does the auth work      → /goat-debug (investigate)
-/goat generate a test plan        → /goat-test
+/goat fix the login bug           → /goat-debug (diagnose mode)
+/goat how does the auth work      → /goat-debug (investigate mode)
+/goat review the PR               → /goat-review (standard mode)
+/goat clean up the naming         → /goat-review (simplify mode)
+/goat plan the new feature        → /goat-plan (with complexity routing)
+/goat refactor the user service   → /goat-plan (refactor mode)
+/goat check for security issues   → /goat-security (threat model)
+/goat check for CVEs              → /goat-security (dependency audit)
+/goat generate a test plan        → /goat-test (3-phase doer-verifier)
 ```
 
-All 5 skills are also directly invocable: `/goat-debug`, `/goat-review`, etc.
+The `/goat` dispatcher auto-routes by intent. All skills are also directly invocable.
+
+### Scanner
+
+Scores your project across 112+ checks and 19 anti-patterns, organized in three tiers:
+
+- **Foundation** - instruction file, essential commands, autonomy tiers, Definition of Done
+- **Standard** - skills, hooks, learning loop, local context, router table
+- **Full** - evals, coding standards, architecture docs, cross-references
+
+Priority-weighted grading - security and correctness checks count more than style. Output formats: text, JSON, markdown, HTML.
+
+### Dashboard
+
+Single-page dashboard with five views:
+
+- **Home** - project overview, agent summary, quick-start presets
+- **Scanner** - live scanning with severity-grouped results and fix suggestions
+- **Workspace** - split-pane terminal for running agents alongside scan results
+- **Settings** - config editor with persona selection and local overrides
+- **Setup Wizard** - guided setup prompt generation
+
+19 built-in presets for common tasks (diagnose error, code review, plan feature, security audit, etc.).
+
+### Learning Loop
+
+Captures knowledge from real incidents so agents improve over time:
+
+- **Footguns** (`ai-docs/footguns/`) - architectural traps in the code with file:line evidence
+- **Lessons** (`ai-docs/lessons/`) - agent behavioral mistakes with root cause analysis
+- **Evals** (`ai-docs/evals/`) - replay past failures as regression tests
+- **Decisions** (`ai-docs/decisions/`) - ADRs with context and rationale
+- **Session logs** (`.goat-flow/logs/sessions/`) - per-session summaries
+
+Category bucket format keeps related entries together. Agents read these before acting to avoid repeating known mistakes.
+
+### Autonomy Tiers
+
+Three-tier permission model built into the instruction file:
+
+- **Always** - read files, lint, edit within scope, append to logs
+- **Ask First** - spec changes, boundary files, adding/removing files, 3+ file changes
+- **Never** - delete docs without replacement, modify secrets, push to main, force push
+
+### Coding Standards
+
+36 language and framework-specific templates in `workflow/coding-standards/`:
+
+Backend (Python, Go, Rust, PHP, TypeScript/Node), frontend (React, Angular, Vue, TypeScript), security (OWASP, supply chain, PHI compliance, framework-specific), DevOps (Terraform), plus cross-cutting guides for testing, code review, and git commits.
+
+### Complexity Routing
+
+Tasks are classified by complexity, and ceremony scales to match:
+
+| Complexity | Ceremony |
+|---|---|
+| Hotfix | Skip planning phases, minimal closing |
+| Small Feature | Compressed brief, skip elaboration |
+| Standard | Full phases, gates at major decisions |
+| System Change | Full phases + cross-boundary verification |
+| Infrastructure | Full phases + rollback planning |
 
 ## Multi-Agent Support
 
-| | Claude Code | Gemini CLI | Codex |
-|---|---|---|---|
-| Instruction file | CLAUDE.md | GEMINI.md | AGENTS.md |
-| Skills | .claude/skills/ | .github/skills/ | .agents/skills/ |
-| Hooks | .claude/hooks/ | .gemini/hooks/ | .codex/hooks/ |
+| | Claude Code | Gemini CLI | Codex | Copilot |
+|---|---|---|---|---|
+| Instruction file | CLAUDE.md | GEMINI.md | AGENTS.md | .github/copilot-instructions.md |
+| Skills | .claude/skills/ | .github/skills/ | .agents/skills/ | .github/skills/ |
+| Hooks | .claude/hooks/ | .gemini/hooks/ | .codex/hooks/ | - |
 
-All agents share the same execution loop, autonomy tiers, and learning loop.
+All agents share the same execution loop, autonomy tiers, skills, and learning loop. The `setup` command generates agent-specific configuration.
 
 ## Troubleshooting
 
 **Terminal not showing in dashboard?**
-node-pty didn't compile. Fix: `npm install node-pty` or `pnpm approve-builds` (select node-pty).
-
-**pnpm: node-pty not building?**
-If needed, run `pnpm approve-builds` and select `node-pty`, then restart the dashboard.
+node-pty didn't compile. Run `pnpm approve-builds` (select node-pty) or `npm rebuild node-pty`.
 
 **Scan shows 0% on a fresh project?**
-Expected. Run `npx goat-flow setup --agent claude` to generate setup instructions, then paste into your agent.
-
-**npx: command not found?**
-Install Node.js 20+.
-
-To run the current local workspace without publishing/installing first, use:
-
-```bash
-npx . scan .
-```
+Expected. Run `npx goat-flow setup . --agent claude` and paste the output into your agent.
 
 ## Documentation
 
 | Document | What it covers |
-|----------|---------------|
+|---|---|
 | [Getting Started](docs/getting-started.md) | Reading order, setup checklist |
 | [System Spec](docs/system-spec.md) | Full technical specification |
-| [Architecture](docs/five-layers.md) | Runtime, Skills, Evaluation layers |
-| [Skills Reference](docs/skills/README.md) | All skills: when to use, gates, outputs |
+| [Architecture](docs/five-layers.md) | 5-layer architecture: Runtime, Context, Skills, Playbooks, Evaluation |
+| [Skills Reference](docs/skills/README.md) | All 6 skills: modes, phases, gates, outputs |
+| [Using Skills](docs/using-skills.md) | How to invoke and chain skills |
+| [Design Rationale](docs/design-rationale.md) | Why it works this way |
+| [Cross-Agent Comparison](docs/cross-agent-comparison.md) | Differences between Claude, Gemini, Codex, Copilot |
 
 ## Author
 

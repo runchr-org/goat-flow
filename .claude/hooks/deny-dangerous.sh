@@ -31,6 +31,11 @@ check_segment() {
     fi
   fi
 
+  # rm with long-form flags (--recursive --force, --force --recursive)
+  if [[ "$cmd" =~ rm[[:space:]]+.*--recursive ]] && [[ "$cmd" =~ rm[[:space:]]+.*--force ]]; then
+    block "rm --recursive --force"
+  fi
+
   # rm with glob patterns or 5+ files (bulk delete risk)
   if [[ "$cmd" =~ ^[[:space:]]*rm[[:space:]] ]] && ! [[ "$cmd" =~ rm[[:space:]]+-[a-zA-Z]*r ]]; then
     local rm_re='rm[[:space:]].*[*?]'
@@ -63,9 +68,12 @@ check_segment() {
     block "chmod 777"
   fi
 
-  # Pipe to shell
+  # Pipe to shell (bash, sh, python, node, perl, ruby)
   if [[ "$cmd" =~ (curl|wget)[^|]*\|[[:space:]]*(ba)?sh ]]; then
     block "pipe-to-shell (curl|bash)"
+  fi
+  if [[ "$cmd" =~ (curl|wget)[^|]*\|[[:space:]]*(python|python3|node|perl|ruby) ]]; then
+    block "pipe-to-interpreter (curl|python/node/perl/ruby)"
   fi
 
   # .env modifications (matches .env, .env.local, .env.production, etc.)
