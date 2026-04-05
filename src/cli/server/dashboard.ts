@@ -830,6 +830,23 @@ export function serveDashboard(
       return true;
     }
 
+    /** DNS rebinding protection: reject API requests with unexpected Host header. */
+    function rejectBadHost(req: IncomingMessage, url: URL, res: ServerResponse): boolean {
+      if (!url.pathname.startsWith('/api/')) return false;
+      const host = req.headers.host;
+      const addr = server.address();
+      if (addr && typeof addr !== 'string') {
+        const allowed = [`127.0.0.1:${addr.port}`, `localhost:${addr.port}`];
+        if (!host || !allowed.includes(host)) {
+          console.warn(`[dashboard] Blocked ${req.method} ${url.pathname} - Host: ${host || '(none)'}`);
+          res.writeHead(403);
+          res.end('Forbidden');
+          return true;
+        }
+      }
+      return false;
+    }
+
     /** Dispatch one HTTP request across the dashboard routes in priority order. */
     async function handleRequest(
       req: IncomingMessage,
@@ -837,20 +854,7 @@ export function serveDashboard(
     ): Promise<void> {
       const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
 
-      // DNS rebinding protection: validate Host header on API routes
-      if (url.pathname.startsWith('/api/')) {
-        const host = req.headers.host;
-        const addr = server.address();
-        if (addr && typeof addr !== 'string') {
-          const allowed = [`127.0.0.1:${addr.port}`, `localhost:${addr.port}`];
-          if (!host || !allowed.includes(host)) {
-            console.warn(`[dashboard] Blocked ${req.method} ${url.pathname} - Host: ${host || '(none)'}`);
-            res.writeHead(403);
-            res.end('Forbidden');
-            return;
-          }
-        }
-      }
+      if (rejectBadHost(req, url, res)) return;
 
       // Log API requests in dev mode
       if (devMode && url.pathname.startsWith('/api/')) {
