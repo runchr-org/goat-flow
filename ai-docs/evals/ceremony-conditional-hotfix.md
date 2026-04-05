@@ -1,6 +1,6 @@
 ---
 name: ceremony-conditional-hotfix
-description: "Agent correctly skips ceremony for Hotfix complexity — no closing ceremony, no flush rule, no footgun annotations"
+description: "Agent correctly skips ceremony for Hotfix complexity - no closing ceremony, no flush rule, no footgun annotations"
 origin: synthetic-seed
 agents: all
 skill: goat-debug

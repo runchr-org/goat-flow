@@ -57,10 +57,6 @@ function collectSignalSummaryParts(signals: ProjectSignals): string[] {
     parts.push(
       `**Static analysis:** ${formatStaticAnalysisTools(signals, false)}`,
     );
-  if (signals.complianceSignals)
-    parts.push('**PHI/compliance signals detected**');
-  if (signals.formatterGaps.length > 0)
-    parts.push(`**Formatter gaps:** ${signals.formatterGaps.join(', ')}`);
   return parts;
 }
 
@@ -70,16 +66,6 @@ function collectSignalActionLines(signals: ProjectSignals): string[] {
   if (signals.llmIntegration) {
     actions.push(
       '- **LLM integration:** Add prompt/template file paths to the Router Table. Add "prompt changes require scenario testing" to Ask First boundaries. Seed a learning-loop entry for prompt-regression risk.',
-    );
-  }
-  if (signals.complianceSignals) {
-    actions.push(
-      '- **PHI/compliance:** Add mandatory constraints to the instruction file hot path (not just cold-path docs): "MUST NOT log PHI", "MUST NOT include patient data in error messages", "MUST scope all queries by tenant". These belong in the execution loop or Ask First section, not only in ai-docs/coding-standards/security.md.',
-    );
-  }
-  if (signals.formatterGaps.length > 0) {
-    actions.push(
-      `- **Formatter gaps (${signals.formatterGaps.join(', ')}):** Add formatters to the PostToolUse hook (format-file.sh). Every detected language should have a formatter running on save.`,
     );
   }
   if (signals.staticAnalysis.length > 0) {

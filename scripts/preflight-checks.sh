@@ -277,12 +277,12 @@ if [[ -f tsconfig.json ]]; then
     fi
 
     # Quality checks (warnings, not failures)
-    # console.log is fine — this is a local CLI tool, not a library
+    # console.log is fine - this is a local CLI tool, not a library
 
     any_hits=$(grep -rn ': any\b' src/cli/ --include='*.ts' || true)
     [[ -n "$any_hits" ]] && note "Explicit 'any' types ($(echo "$any_hits" | wc -l) hits)"
 
-    # TODO/FIXME check removed — all hits are string literals in scanner code that detect TODOs in target projects
+    # TODO/FIXME check removed - all hits are string literals in scanner code that detect TODOs in target projects
 fi
 
 # ── Tests ────────────────────────────────────────────────────────────

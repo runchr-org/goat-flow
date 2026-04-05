@@ -104,7 +104,7 @@ Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
 If Step 0's footgun check produces a direct match with a documented trap:
 1. Surface the match immediately: "This matches known footgun X."
 2. Offer the standard mitigation path from the footgun entry
-3. Still require READ and VERIFY on the actual target files — footguns are incident records, not executable specs
+3. Still require READ and VERIFY on the actual target files - footguns are incident records, not executable specs
 4. Do NOT skip straight to implementation based on a footgun match alone
 
 ## Flush Protocol
@@ -128,7 +128,7 @@ When a skill fails mid-execution (context limit, sub-agent dies, tool error):
 | User wants restart | Archive current output to handoff, re-run from Step 0 |
 | User wants to skip | Document skip reason in output, proceed to closing |
 
-In sub-agent/autonomous mode, recovery is especially critical — there's no human to ask "what now?" Write `.goat-flow/tasks/handoff.md` with enough context to resume.
+In sub-agent/autonomous mode, recovery is especially critical - there's no human to ask "what now?" Write `.goat-flow/tasks/handoff.md` with enough context to resume.
 
 ## Working Memory
 

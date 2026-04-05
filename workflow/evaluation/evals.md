@@ -65,7 +65,7 @@ handles it correctly. They catch regressions when instruction files change.
 VERIFICATION:
 - Verify ai-docs/evals/ directory exists
 - Verify ai-docs/evals/README.md exists
-- Count eval files. Quality over quantity — do not create evals just to hit a count target. If fewer than 3 real incidents exist, create fewer.
+- Count eval files. Quality over quantity - do not create evals just to hit a count target. If fewer than 3 real incidents exist, create fewer.
 - Verify each eval has all 5 sections (description, replay prompt,
   expected outcome, failure mode, origin)
 - Verify at least some evals reference real git hashes or issues

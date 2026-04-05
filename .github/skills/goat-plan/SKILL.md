@@ -184,29 +184,29 @@ then produces plan improvement ideas.
 **Sub-agent B (core trio - alternatives focus):**
 > Review this plan as a SKEPTIC, ANALYST, and STRATEGIST. Generate 2-3 alternative approaches. For each, evaluate risk, effort, speed to feedback, and reversibility. Propose specific improvements.
 
-**Sub-agent C (fresh context — control group):**
-> Without reading any prior discussion, review the codebase and these requirements: [brief]. What's your technical plan? What would you do differently from this existing plan? (This agent has NO context from Phases 1-2 — it's a litmus test for context drift.)
+**Sub-agent C (fresh context - control group):**
+> Without reading any prior discussion, review the codebase and these requirements: [brief]. What's your technical plan? What would you do differently from this existing plan? (This agent has NO context from Phases 1-2 - it's a litmus test for context drift.)
 
-The main agent does NOT use the core trio — it already has existing context and
+The main agent does NOT use the core trio - it already has existing context and
 would just reinforce its own assumptions.
 
-### Step 2 — Rank and compare
+### Step 2 - Rank and compare
 
 Once all sub-agents report back, the main agent:
 
 1. **Rank** every improvement idea in a comparison table, rated out of 100 with reasons
-2. **Summarise agreement** — where do all perspectives converge? (high-confidence decisions)
-3. **Summarise disagreement** — where do they differ? (these need human judgment)
-4. **Flag the control group delta** — did Sub-agent C (fresh context) find something the others missed? If yes, that's a context drift signal.
+2. **Summarise agreement** - where do all perspectives converge? (high-confidence decisions)
+3. **Summarise disagreement** - where do they differ? (these need human judgment)
+4. **Flag the control group delta** - did Sub-agent C (fresh context) find something the others missed? If yes, that's a context drift signal.
 
 | Idea | Source | Score | Agree/Disagree | Why |
 |------|--------|-------|----------------|-----|
 | ... | Sub-A | 85 | All agree | ... |
-| ... | Sub-C | 72 | C only | Context drift signal — fresh eyes found this |
+| ... | Sub-C | 72 | C only | Context drift signal - fresh eyes found this |
 
-Tag any decisions made with incomplete data as **Decision Debt** — to be revisited in later milestones.
+Tag any decisions made with incomplete data as **Decision Debt** - to be revisited in later milestones.
 
-### Step 3 — Clarify and synthesize
+### Step 3 - Clarify and synthesize
 
 **STOP and ask the human clarifying questions** before creating the improved plan.
 Focus questions on the disagreements and trade-offs from Step 2.

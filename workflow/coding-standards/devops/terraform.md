@@ -5,17 +5,17 @@ Reference for generating `ai-docs/coding-standards/devops.md` in projects using 
 ## Version Pinning
 
 - Pin Terraform and every provider to patch-level: `~> X.Y.Z` (not `~> X.Y`). Two-segment form permits unintended minor bumps.
-- Commit `.terraform.lock.hcl` — pins provider checksums across platforms and CI.
+- Commit `.terraform.lock.hcl` - pins provider checksums across platforms and CI.
 
 ## Remote State
 
-- Never store state in git — state files contain secrets in plaintext.
+- Never store state in git - state files contain secrets in plaintext.
 - Use remote state with locking (S3+DynamoDB, GCS, Terraform Cloud) from the first commit.
 - One state file per environment and service. Never share state across environments.
 
 ## Secrets
 
-- `sensitive = true` on any variable/output with credentials. Suppresses terminal output but secrets are **still in state plaintext** — treat state as secret.
+- `sensitive = true` on any variable/output with credentials. Suppresses terminal output but secrets are **still in state plaintext** - treat state as secret.
 - Pass secrets via `TF_VAR_*` environment variables, never in committed `.tfvars`.
 - Pull runtime secrets from a secrets manager: `data "aws_secretsmanager_secret_version"`.
 - Add `*.tfvars` to `.gitignore`. Provide `terraform.tfvars.example` with placeholders.
@@ -34,14 +34,14 @@ environments/{env}/main.tf, variables.tf, terraform.tfvars (gitignored)
 - `prevent_destroy = true` on databases, S3 buckets with live data, KMS keys.
 - `create_before_destroy = true` for resources that can't have downtime.
 - Save and review plans: `terraform plan -out=tfplan && terraform show tfplan && terraform apply tfplan`.
-- Never `terraform apply -auto-approve` in CI — use saved plan files.
+- Never `terraform apply -auto-approve` in CI - use saved plan files.
 - Never `terraform destroy` in production without a second reviewer.
 - Use `-target` only for emergency break-glass. Targeted applies create state drift.
 
 ## IAM
 
 - One IAM role per service. Never share roles across trust levels.
-- Narrow resource ARNs and specific actions — never `Action: ["*"]` or `Resource: ["*"]`.
+- Narrow resource ARNs and specific actions - never `Action: ["*"]` or `Resource: ["*"]`.
 - Run `checkov` or `tfsec` in CI to catch overly permissive policies.
 
 ## Common Footguns

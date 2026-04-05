@@ -20,7 +20,7 @@ The dispatcher is not a passive router. It:
 4. Has constraints (MUST announce, MUST NOT load two skills, MUST present disambiguation)
 5. Is installed as a SKILL.md file alongside the other 8
 
-Excluding it from canonical counting created a 8-vs-9 inconsistency across 15+ files in the scanner, fragments, and docs. Every time "8 canonical skills" appeared, someone had to mentally add "plus the dispatcher" — or didn't, and the count was wrong.
+Excluding it from canonical counting created a 8-vs-9 inconsistency across 15+ files in the scanner, fragments, and docs. Every time "8 canonical skills" appeared, someone had to mentally add "plus the dispatcher" - or didn't, and the count was wrong.
 
 ## Consequences
 

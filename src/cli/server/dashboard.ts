@@ -844,7 +844,7 @@ export function serveDashboard(
         if (addr && typeof addr !== 'string') {
           const allowed = [`127.0.0.1:${addr.port}`, `localhost:${addr.port}`];
           if (!host || !allowed.includes(host)) {
-            console.warn(`[dashboard] Blocked ${req.method} ${url.pathname} — Host: ${host || '(none)'}`);
+            console.warn(`[dashboard] Blocked ${req.method} ${url.pathname} - Host: ${host || '(none)'}`);
             res.writeHead(403);
             res.end('Forbidden');
             return;

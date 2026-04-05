@@ -49,7 +49,7 @@ That's the failure mode this skill exists to prevent.
 - Explore/understand/how does/new to → Investigate mode
 - Onboard/new project/set up instructions → Onboard mode
 
-**Escape hatch:** If the user says "I'll figure it out from the code" or provides minimal info, proceed with what you have — auto-detect from error output, `git diff`, or named files.
+**Escape hatch:** If the user says "I'll figure it out from the code" or provides minimal info, proceed with what you have - auto-detect from error output, `git diff`, or named files.
 
 **Auto-detect:** Read the error message or test output if provided inline.
 If the user said `/goat-debug the test in auth.test.ts fails with TypeError`,
@@ -71,7 +71,7 @@ Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 ### Phase D1 - Investigate (no fixes)
 
-(Recurrence check already done in Step 0 — do not repeat here.)
+(Recurrence check already done in Step 0 - do not repeat here.)
 
 **HYPOTHESIS TRACKING:** After initial read of the primary file,
 write 2-3 hypotheses. Hypotheses MUST span at least 2 categories:
@@ -111,9 +111,9 @@ the user whether to proceed or dig deeper.
 **BLOCKING GATE:** Present diagnosis. Offer:
 (a) investigate deeper
 (b) propose a fix plan (→ Phase D3)
-(c) this matches a known issue — close
+(c) this matches a known issue - close
 (d) switch to investigate mode for deeper exploration
-(e) just report findings — don't fix (stop here)
+(e) just report findings - don't fix (stop here)
 
 If the user's original intent was "just diagnose" or "investigate" (no implementation verbs), default to (e).
 
@@ -226,7 +226,7 @@ Conversational: present findings by severity tier, pause between tiers. Let the 
 - MUST declare scope before deep reading (investigate mode)
 - MUST tag evidence as OBSERVED or INFERRED (investigate mode)
 - MUST include "What I Didn't Read" in every investigation report
-- MUST pause if reads exceed 3x initial estimate — re-scope before continuing (investigate mode)
+- MUST pause if reads exceed 3x initial estimate - re-scope before continuing (investigate mode)
 - MUST check recurrence against footguns + lessons (diagnose mode)
 - MUST NOT fabricate file paths or function names
 - MUST verify fix doesn't violate architecture constraints

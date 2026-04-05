@@ -1047,24 +1047,6 @@ Save as \`ai-docs/decisions/ADR-000-template.md\`. Real ADRs are added when sign
   },
   // Ask First enforcement hook removed - see ADR-006.
 
-  {
-    key: 'fix-deny-cloud-destructive',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
-    instruction: `Deploy platforms detected but deny hook does not block cloud-destructive commands. Add to deny-dangerous.sh:
-
-\`\`\`bash
-# Block cloud-destructive commands
-if [[ "$cmd" =~ docker[[:space:]]+push ]] ||
-   [[ "$cmd" =~ terraform[[:space:]]+(destroy|apply.*-auto-approve) ]] ||
-   [[ "$cmd" =~ aws[[:space:]]+(s3[[:space:]]+rm|ec2[[:space:]]+terminate) ]]; then
-  block "cloud-destructive command - requires manual execution"
-fi
-\`\`\`
-
-Also block in settings.json deny list: \`"Bash(docker push*)", "Bash(terraform destroy*)", "Bash(terraform apply*-auto-approve*)", "Bash(aws s3 rm*)", "Bash(aws ec2 terminate*)"\`.`,
-  },
 
   {
     key: 'create-ignore-files',
@@ -1098,23 +1080,5 @@ For Claude Code - add Read deny patterns to .claude/settings.json:
 1. Prompt/template file paths in the Router Table
 2. "Prompt changes require scenario testing" in Ask First boundaries
 3. Seed a learning-loop entry noting prompt-regression risk`,
-  },
-  {
-    key: 'fix-compliance-signal-followthrough',
-    phase: 'standard',
-    category: 'Signal Follow-Through',
-    kind: 'fix',
-    instruction: `PHI/compliance signals detected but constraints are not on the instruction file hot path. Add to the execution loop or Ask First section (NOT only in cold-path docs):
-- "MUST NOT log PHI/PII"
-- "MUST NOT include patient data in error messages"
-- "MUST scope all database queries by tenant"
-- "Data-touching changes require audit-path verification"`,
-  },
-  {
-    key: 'fix-formatter-gaps',
-    phase: 'standard',
-    category: 'Signal Follow-Through',
-    kind: 'fix',
-    instruction: `Formatter gaps detected: {{formatterGaps}}. Add formatters to the PostToolUse hook (format-file.sh) so every detected language has automatic formatting on save.`,
   },
 ];

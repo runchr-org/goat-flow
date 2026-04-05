@@ -29,7 +29,7 @@ These files are created regardless of which agent you use. They form the learnin
    If no real footguns are found yet, leave the file with only the
    format header - an empty footguns file is better than a placeholder.
    Every entry MUST cite specific file paths. Line numbers are
-   RECOMMENDED — include them when available, but they are historical
+   RECOMMENDED - include them when available, but they are historical
    context that may drift as code changes.
    Evidence labels: use ACTUAL_MEASURED for real data with source,
    DESIGN_TARGET for intended values, HYPOTHETICAL_EXAMPLE for

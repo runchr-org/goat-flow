@@ -2,7 +2,7 @@
 
 **Status:** Accepted (supersedes ADR-011)
 **Date:** 2026-04-04
-**Context:** A 4-agent deep review of workflow/ found that the 12-line inlined shared conventions block was a lossy compression of the 150-line canonical preamble. Recovery procedures, Working Memory management, and Autonomy Awareness were silently lost — exactly the instructions agents need when things go wrong. All 4 reviewers flagged this independently.
+**Context:** A 4-agent deep review of workflow/ found that the 12-line inlined shared conventions block was a lossy compression of the 150-line canonical preamble. Recovery procedures, Working Memory management, and Autonomy Awareness were silently lost - exactly the instructions agents need when things go wrong. All 4 reviewers flagged this independently.
 
 ## Decision
 
@@ -22,5 +22,5 @@ Sections added that were previously missing:
 - ~50 additional lines per skill template (×5 = 250 total across skill templates)
 - Drift surface grows from 60 lines (12×5) to 310 lines (62×5), but content gap is closed
 - M03.2 drift check must compare against the expanded canonical source in `workflow/skills/reference/shared-preamble.md`
-- `shared-preamble.md` remains the canonical source — update there first, then propagate
-- No structural change to skill distribution model — templates remain single-file, self-contained
+- `shared-preamble.md` remains the canonical source - update there first, then propagate
+- No structural change to skill distribution model - templates remain single-file, self-contained

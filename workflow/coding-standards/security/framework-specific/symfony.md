@@ -10,19 +10,19 @@ Reference for generating `ai-docs/coding-standards/security.md` in Symfony proje
 
 ## Access Control
 
-- `access_control` in `security.yaml` matches URL patterns only — it does NOT enforce ownership.
+- `access_control` in `security.yaml` matches URL patterns only - it does NOT enforce ownership.
 - Implement a `Voter` for object-level permissions. Call `$this->denyAccessUnlessGranted('EDIT', $post)` or use `#[IsGranted('EDIT', subject: 'post')]` on the action.
 - Apply grants on the action, not just the controller class, to avoid inheriting broad permissions.
 
 ## Input Validation
 
 - Validate at the controller boundary using Validator constraints (`#[Assert\NotBlank]`, `#[Assert\Email]`, etc.) on DTOs.
-- For API endpoints, use `#[MapRequestPayload]` (6.3+) — deserializes and validates in one step.
+- For API endpoints, use `#[MapRequestPayload]` (6.3+) - deserializes and validates in one step.
 - Symfony Forms run `$form->isValid()` automatically.
 
 ## XSS Prevention
 
-- Twig auto-escapes all output by default. `|raw` and `{% autoescape false %}` bypass escaping — every use needs a justification comment.
+- Twig auto-escapes all output by default. `|raw` and `{% autoescape false %}` bypass escaping - every use needs a justification comment.
 - Only use `|raw` on content you generated (e.g., server-side Markdown rendering with a trusted library).
 - For user-supplied rich text, sanitize with `HtmlSanitizer` component or `ezyang/htmlpurifier` before marking safe.
 
@@ -42,7 +42,7 @@ Reference for generating `ai-docs/coding-standards/security.md` in Symfony proje
 
 - `APP_SECRET` must be ≥32 random bytes. Signs cookies, CSRF tokens, remember-me. Never reuse across environments.
 - Use the Symfony secrets vault (`secrets:set`) or environment variables in production. Never commit real values.
-- Rotating `APP_SECRET` invalidates all signed cookies and CSRF tokens — active sessions dropped.
+- Rotating `APP_SECRET` invalidates all signed cookies and CSRF tokens - active sessions dropped.
 
 ## Production
 
@@ -51,7 +51,7 @@ Reference for generating `ai-docs/coding-standards/security.md` in Symfony proje
 
 ## Password Hashing
 
-- Use `algorithm: auto` in `security.yaml` — selects strongest available (argon2id > bcrypt). Transparent rehashing on login.
+- Use `algorithm: auto` in `security.yaml` - selects strongest available (argon2id > bcrypt). Transparent rehashing on login.
 - Never use `md5()`, `sha1()`, or hardcode `bcrypt` when `argon2id` is available.
 
 ## File Upload

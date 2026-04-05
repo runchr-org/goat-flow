@@ -2,7 +2,7 @@
     <div x-show="activeView === 'home'" x-cloak style="height: calc(100vh - 5rem); overflow-y: auto;">
       <div style="max-width: 880px; margin: 0 auto; padding: 12px 28px 24px;">
 
-        <!-- What to do next (issues found) — ABOVE banner -->
+        <!-- What to do next (issues found) - ABOVE banner -->
         <div x-show="report && !(report.agents.length > 0 && report.agents.every(a => a.score.grade === 'A'))" x-cloak style="margin-bottom: 20px;">
           <div class="gf-text-primary" style="font-size: 14px; font-weight: 500; margin-bottom: 10px;" x-text="report?.agents?.length === 0 ? 'Welcome - get started with GOAT Flow' : (report?.agents?.[0]?.recommendations?.length || 0) + ' issues to fix'"></div>
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
@@ -36,7 +36,7 @@
           </div>
         </div>
 
-        <!-- Suggested prompts (all passing) — ABOVE banner -->
+        <!-- Suggested prompts (all passing) - ABOVE banner -->
         <div x-show="report && report.agents.length > 0 && report.agents.every(a => a.score.grade === 'A')" x-cloak style="margin-bottom: 20px;">
           <div class="gf-text-primary" style="font-size: 14px; font-weight: 500; margin-bottom: 10px;">All clear - run a prompt</div>
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">

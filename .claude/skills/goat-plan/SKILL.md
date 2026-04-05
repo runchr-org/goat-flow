@@ -204,9 +204,9 @@ Once all sub-agents report back, the main agent:
 | ... | Sub-A | 85 | All agree | ... |
 | ... | Sub-C | 72 | C only | Context drift signal - fresh eyes found this |
 
-Tag any decisions made with incomplete data as **Decision Debt** — to be revisited in later milestones.
+Tag any decisions made with incomplete data as **Decision Debt** - to be revisited in later milestones.
 
-### Step 3 — Clarify and synthesize
+### Step 3 - Clarify and synthesize
 
 **STOP and ask the human clarifying questions** before creating the improved plan.
 Focus questions on the disagreements and trade-offs from Step 2.

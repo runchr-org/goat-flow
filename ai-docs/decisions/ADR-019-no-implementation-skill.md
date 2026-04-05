@@ -1,4 +1,4 @@
-# ADR-019: No implementation skill — extend existing skills instead
+# ADR-019: No implementation skill - extend existing skills instead
 
 **Status:** Accepted
 **Date:** 2026-04-03
@@ -6,10 +6,10 @@
 
 ## Options evaluated
 
-- **Option A: goat-doer + goat-verifier** — Two new skills. Rejected 6/6. Doer-verifier in single-agent context is theater; the verifier has full context of the doer's reasoning.
-- **Option B: goat-implement** — One new skill. Rejected 5/6. Gemini favored it but for DoD enforcement (hooks), not code editing. Implementation is "the thing the agent does when it's not running a skill."
-- **Option C: Extend existing skills** — No new skills. Favored 5/6. goat-debug already has fix phases (D3/D4). goat-plan needs Phase 5 (Execute). The gap is carry-through, not capability.
-- **Option D: Mode, not skill** — Codex's variant of C. The system spec already defines Implement as a core execution mode. The bug is no user-facing path into it. Fix the dispatcher routing, not the skill set.
+- **Option A: goat-doer + goat-verifier** - Two new skills. Rejected 6/6. Doer-verifier in single-agent context is theater; the verifier has full context of the doer's reasoning.
+- **Option B: goat-implement** - One new skill. Rejected 5/6. Gemini favored it but for DoD enforcement (hooks), not code editing. Implementation is "the thing the agent does when it's not running a skill."
+- **Option C: Extend existing skills** - No new skills. Favored 5/6. goat-debug already has fix phases (D3/D4). goat-plan needs Phase 5 (Execute). The gap is carry-through, not capability.
+- **Option D: Mode, not skill** - Codex's variant of C. The system spec already defines Implement as a core execution mode. The bug is no user-facing path into it. Fix the dispatcher routing, not the skill set.
 
 ## Decision
 
@@ -24,7 +24,7 @@ Three changes:
 
 - The system spec (`docs/system-spec.md:154`, `docs/system-spec.md:185`) already defines Implement as a core execution mode
 - ADR-017 says edits happen in the normal ACT step, not inside goat-plan
-- Skills must NOT jump into implementation early — investigation/diagnosis/planning must complete first
+- Skills must NOT jump into implementation early - investigation/diagnosis/planning must complete first
 - Real verification comes from /goat-review or /goat-test in a fresh invocation, not from the same agent re-reading its own diff
 - Adding skills increases the count that critics already say is too many (ADR-017 consolidated 9→6 for this reason)
 

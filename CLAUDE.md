@@ -20,13 +20,13 @@ GOOD: Read docs/system-spec.md:104 → "Target 120 lines. Hard limit 150."
 
 | Complexity | Guideline | Ceremony |
 |------------|-----------|----------|
-| Hotfix | 1-2 files. If you need more, re-classify. | Minimal — skip goat-plan Phases 2-3, skip closing ceremony |
-| Small Feature | Compressed brief (Problem/Solution/Scope/Success all at once). | Light — skip mob elaboration and triangular tension |
+| Hotfix | 1-2 files. If you need more, re-classify. | Minimal - skip goat-plan Phases 2-3, skip closing ceremony |
+| Small Feature | Compressed brief (Problem/Solution/Scope/Success all at once). | Light - skip mob elaboration and triangular tension |
 | Standard | No fixed cap. If reads exceed 3x your initial estimate, re-classify. | Full phases, gates at major decisions |
 | System Change | No fixed cap. Same re-classification trigger. | Full phases + cross-boundary verification |
 | Infrastructure | No fixed cap. Same re-classification trigger. | Full phases + rollback planning + multi-agent coordination |
 
-Exceeding your estimate doesn't mean you're wrong — it means the task is bigger than classified. Stop, re-scope, continue.
+Exceeding your estimate doesn't mean you're wrong - it means the task is bigger than classified. Stop, re-scope, continue.
 
 **SCOPE** - MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
 
@@ -50,7 +50,7 @@ GOOD: Inline format. Extract when second format needed
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure or you corrected course: add an entry before DoD. After human correction: log immediately. Use **category bucket files** — NOT one file per incident, NOT a monolithic log.
+**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure or you corrected course: add an entry before DoD. After human correction: log immediately. Use **category bucket files** - NOT one file per incident, NOT a monolithic log.
 - Lessons: `ai-docs/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content. Create new category file only if no existing category fits.
 - Footguns: `ai-docs/footguns/` category bucket files (e.g. `hooks.md`, `scanner.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
 - Local variants: `.goat-flow/lessons/` and `.goat-flow/footguns/` use same category bucket format.
@@ -60,7 +60,7 @@ GOOD: Inline format. Extract when second format needed
 | `ai-docs/lessons/` | Behavioural mistake (agent did something wrong) |
 | `ai-docs/footguns/` | Cross-doc architectural trap (with file:line evidence) |
 | `ai-docs/decisions/` | Significant technical decision with context/rationale |
-| `.goat-flow/logs/sessions/` | End of every significant session — `YYYY-MM-DD-slug.md` summary |
+| `.goat-flow/logs/sessions/` | End of every significant session - `YYYY-MM-DD-slug.md` summary |
 
 ## Autonomy Tiers
 

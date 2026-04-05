@@ -24,7 +24,7 @@ handling, when touching secrets/credentials, or for a security-focused audit.
 **Structural questions (always ask or confirm):**
 1. Which component or area? (or I'll scan the full project)
 2. What's the deployment context? (user-facing web app, internal tool, CLI, library, API)
-3. Any specific threat concern? (injection, auth bypass, data exposure — or "general audit")
+3. Any specific threat concern? (injection, auth bypass, data exposure - or "general audit")
 
 **Illustrative questions (adapt):**
 4. <!-- ADAPT: "What auth boundaries exist? (OAuth, JWT, session, API key, none)" -->

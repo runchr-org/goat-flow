@@ -57,7 +57,7 @@ category: skills
 - `workflow/skills/goat.md` → same gap in the template version
 - Real incident: `/goat deeply analyse this plan: tasks/roadmaps/0.9.3/tasks.md` routed to goat-review without asking (2026-03-30)
 
-**Prevention:** Add analysis/evaluation verbs to the disambiguation table (NOT the intent mapping table — they are inherently ambiguous). When the target is a planning artifact (path contains `roadmap`, `plan`, `todo`, `milestone`), always present goat-review vs goat-plan as options. The dispatcher's job is to route clearly and ask when unclear — not to guess.
+**Prevention:** Add analysis/evaluation verbs to the disambiguation table (NOT the intent mapping table - they are inherently ambiguous). When the target is a planning artifact (path contains `roadmap`, `plan`, `todo`, `milestone`), always present goat-review vs goat-plan as options. The dispatcher's job is to route clearly and ask when unclear - not to guess.
 
 ---
 
@@ -67,7 +67,7 @@ category: skills
 
 **Symptoms:** Consumer project CI workflow checks for `goat-investigate`, `goat-refactor`, `goat-simplify` (all stale) and misses the `goat` dispatcher entirely. When an agent adapts the pattern to include the dispatcher, it prefixes `goat-` to the name `goat`, producing `goat-goat`. The CI check permanently fails for the dispatcher.
 
-**Why it happens:** `src/cli/prompt/fragments/full.ts` CI template had `for skill in security debug investigate review plan test refactor simplify; do` and constructed `goat-$skill`. This design assumes all skill names follow the `goat-{suffix}` pattern, but the dispatcher is just `goat`. The suffix list was also never updated after the 9→6 consolidation — 3 stale suffixes remained.
+**Why it happens:** `src/cli/prompt/fragments/full.ts` CI template had `for skill in security debug investigate review plan test refactor simplify; do` and constructed `goat-$skill`. This design assumes all skill names follow the `goat-{suffix}` pattern, but the dispatcher is just `goat`. The suffix list was also never updated after the 9→6 consolidation - 3 stale suffixes remained.
 
 **Evidence:**
 - `src/cli/prompt/fragments/full.ts` → CI template skill loop with stale suffixes and derivation pattern

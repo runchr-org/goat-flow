@@ -750,11 +750,6 @@ const FRAGMENT_TEMPLATE_MAP: Record<
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
-  'fix-deny-cloud-destructive': {
-    claude: 'workflow/runtime/enforcement.md',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
-  },
   'fix-read-deny-secrets': {
     claude: 'workflow/runtime/enforcement.md',
     codex: 'workflow/setup/setup-codex.md',

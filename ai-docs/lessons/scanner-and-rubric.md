@@ -10,7 +10,7 @@ category: scanner-and-rubric
 
 **Root cause:** Scanner and preflight check different things. Neither is authoritative for the other's concerns. "100% scanner score" became a proxy for "everything is fine" when it only means "the skeleton is correct."
 
-**Prevention:** Don't treat scanner score as a quality gate for the whole project. Use it for what it checks (structure) and preflight for what it checks (function). When they disagree, investigate — the more specific tool is usually right.
+**Prevention:** Don't treat scanner score as a quality gate for the whole project. Use it for what it checks (structure) and preflight for what it checks (function). When they disagree, investigate - the more specific tool is usually right.
 
 ---
 

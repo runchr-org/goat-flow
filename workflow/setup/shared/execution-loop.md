@@ -71,10 +71,10 @@ c) Autonomy Tiers: Always / Ask First / Never
         confirmation. Bulk deletes are irreversible for untracked files.
    - Adapt Ask First boundaries for THIS project's specific risks
    - Include Ask First checklist. Choose SHORT or FULL form:
-     SHORT (2 questions — recommended for most projects):
+     SHORT (2 questions - recommended for most projects):
      1. What else depends on this? [list callers/consumers]
      2. How do I undo this? [exact rollback command]
-     FULL (5 items — for high-risk codebases, PHI, or multi-tenant systems):
+     FULL (5 items - for high-risk codebases, PHI, or multi-tenant systems):
      1. Boundary touched: [name it]
      2. Related code read: [yes/no]
      3. Footgun entry checked: [relevant entry, or "none"]
@@ -135,7 +135,7 @@ j) Conditional rules (optional, recommended for large codebases):
    </important>
 
    <important if="touching auth or payment code">
-   Ask First boundary — complete the full 5-item checklist before proceeding.
+   Ask First boundary - complete the full 5-item checklist before proceeding.
    </important>
 
    <important if="modifying database migrations">

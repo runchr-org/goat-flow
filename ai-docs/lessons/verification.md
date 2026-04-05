@@ -24,13 +24,13 @@ When the change is code-only, running tests is sufficient. When the change touch
 
 **Created:** 2026-03-31
 
-**What happened:** After executing M1 (Fixes & Hygiene), the agent reported results and offered to "continue with P9/P17/P4" — moving to the next work item without running the AI Testing Gate that was literally in the same milestone file it had been working from. The gate was designed by the agent itself, written into the milestone file, and explicitly says "Run this prompt after all M1 tasks are complete." The agent wrote it, completed the tasks, and skipped it entirely.
+**What happened:** After executing M1 (Fixes & Hygiene), the agent reported results and offered to "continue with P9/P17/P4" - moving to the next work item without running the AI Testing Gate that was literally in the same milestone file it had been working from. The gate was designed by the agent itself, written into the milestone file, and explicitly says "Run this prompt after all M1 tasks are complete." The agent wrote it, completed the tasks, and skipped it entirely.
 
-**Why this matters:** The AI Testing Gate is the verification step that catches implementation errors before they propagate. Skipping it means the doer is also the judge — the exact anti-pattern the gate was designed to prevent. The agent's eagerness to move forward ("Want me to continue?") overrode the verification step that stood between finishing and done.
+**Why this matters:** The AI Testing Gate is the verification step that catches implementation errors before they propagate. Skipping it means the doer is also the judge - the exact anti-pattern the gate was designed to prevent. The agent's eagerness to move forward ("Want me to continue?") overrode the verification step that stood between finishing and done.
 
 **This is the same root cause as the commit offer and the checkbox skip:** After completing implementation work, the agent's default is to report results and suggest the next action. Verification steps that happen AFTER the primary output get skipped because the agent treats "code works, tests pass" as the finish line.
 
-**Prevention:** After completing all tasks in a milestone, the NEXT action is ALWAYS the AI Testing Gate — not reporting results, not suggesting next steps. The gate must run before any summary or status update. Treat the testing gate as the last task in the milestone, not a post-milestone activity.
+**Prevention:** After completing all tasks in a milestone, the NEXT action is ALWAYS the AI Testing Gate - not reporting results, not suggesting next steps. The gate must run before any summary or status update. Treat the testing gate as the last task in the milestone, not a post-milestone activity.
 
 ---
 
@@ -38,40 +38,40 @@ When the change is code-only, running tests is sufficient. When the change touch
 
 **Created:** 2026-03-31
 
-**What happened:** CLAUDE.md VERIFY section says "If working from a plan/milestone file, MUST tick `- [x]` on each task as it's completed - not at the end." While executing M1 (17 tasks across 10 priority groups), the agent completed all tasks but ticked zero checkboxes. Only noticed when the user pointed it out. Same root cause as the commit offer — instructions read but not followed when a strong default behavior (finish the code, report results) took over.
+**What happened:** CLAUDE.md VERIFY section says "If working from a plan/milestone file, MUST tick `- [x]` on each task as it's completed - not at the end." While executing M1 (17 tasks across 10 priority groups), the agent completed all tasks but ticked zero checkboxes. Only noticed when the user pointed it out. Same root cause as the commit offer - instructions read but not followed when a strong default behavior (finish the code, report results) took over.
 
-**Prevention:** Before starting work from a milestone file, read the checkbox tasks. After each task completes, tick it immediately — before moving to the next task. "Not at the end" means not at the end.
+**Prevention:** Before starting work from a milestone file, read the checkbox tasks. After each task completes, tick it immediately - before moving to the next task. "Not at the end" means not at the end.
 
 ---
 
-## Lesson: RECURRENCE — Agent didn't tick checkboxes during M29 execution (same failure as M1)
+## Lesson: RECURRENCE - Agent didn't tick checkboxes during M29 execution (same failure as M1)
 
 **Created:** 2026-04-04
 
-**What happened:** While executing M29 (Workflow Review Fixes — 6 workstreams, ~25 sub-tasks, ~100 checkboxes), the agent completed every task, ran full verification, marked the milestone "Done", wrote a session log — and ticked zero checkboxes. The user discovered it during review and escalated. This is a direct recurrence of the pattern documented on 2026-03-31 (M1 execution, same root cause).
+**What happened:** While executing M29 (Workflow Review Fixes - 6 workstreams, ~25 sub-tasks, ~100 checkboxes), the agent completed every task, ran full verification, marked the milestone "Done", wrote a session log - and ticked zero checkboxes. The user discovered it during review and escalated. This is a direct recurrence of the pattern documented on 2026-03-31 (M1 execution, same root cause).
 
 **Why this is worse than the first time:**
 1. The lesson was already documented 4 days ago in this exact file
 2. CLAUDE.md VERIFY explicitly says "MUST tick `- [x]` on each task as it's completed - not at the end"
 3. The agent had just EXPANDED the shared conventions block to include closing protocol instructions about checkpoint discipline
-4. The agent was executing a plan about fixing verification and consistency failures — and committed the same verification failure in the process
+4. The agent was executing a plan about fixing verification and consistency failures - and committed the same verification failure in the process
 
 **Root cause (unchanged):** When parallelizing work across multiple agents, the orchestrating agent tracks completion mentally but never writes it to the file. The "tick as you go" rule is read, understood, and ignored because the strong default is: launch agent → read result → launch next agent. The file update step has no forcing function.
 
 **Previous prevention (insufficient):** "After each task completes, tick it immediately." This didn't work because "immediately" competes with "launch the next parallel agent" and loses.
 
-**Stronger prevention:** After receiving results from EACH agent or completing EACH sub-task, the FIRST action must be editing the milestone file to tick the checkbox — BEFORE reading the next task, launching the next agent, or doing anything else. If parallelizing, tick all completed checkboxes in a batch BEFORE starting the next phase. Treat unticked checkboxes as uncommitted work — if the session dies, the progress is invisible.
+**Stronger prevention:** After receiving results from EACH agent or completing EACH sub-task, the FIRST action must be editing the milestone file to tick the checkbox - BEFORE reading the next task, launching the next agent, or doing anything else. If parallelizing, tick all completed checkboxes in a batch BEFORE starting the next phase. Treat unticked checkboxes as uncommitted work - if the session dies, the progress is invisible.
 
 ---
 
-## Lesson: RECURRENCE #3 — Agent didn't tick M32 checkboxes after completing M32a tasks
+## Lesson: RECURRENCE #3 - Agent didn't tick M32 checkboxes after completing M32a tasks
 **Created:** 2026-04-05
 
 **What happened:** Completed all 5 M32a merge-blocker tasks (reset endpoint, userRole fallback, path traversal, DNS rebinding, telemetry key). Verified with tsc + tests + preflight. Then moved on to answering the user's other questions without ticking any checkboxes in `M32-dashboard-polish.md`. User caught it. Third occurrence of the same pattern (M1 → M29 → M32).
 
 **Why previous prevention failed:** The "stronger prevention" from M29 says "FIRST action must be editing the milestone file." But the user sent follow-up messages while I was working, and I context-switched to answering them instead of ticking checkboxes first. The forcing function ("before doing anything else") lost to "the user is waiting for a response."
 
-**What needs to change:** This pattern has survived 3 rounds of "just do it harder" prevention rules. Documentation-level enforcement does not work. This needs mechanical enforcement — either a hook that checks for unticked items after tool calls, or a habit of ticking DURING the edit (in the same Edit call that makes the fix), not as a separate step after.
+**What needs to change:** This pattern has survived 3 rounds of "just do it harder" prevention rules. Documentation-level enforcement does not work. This needs mechanical enforcement - either a hook that checks for unticked items after tool calls, or a habit of ticking DURING the edit (in the same Edit call that makes the fix), not as a separate step after.
 
 ---
 

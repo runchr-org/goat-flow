@@ -6,7 +6,7 @@
 
 ## Decision
 
-Use **category bucket files** — one file per category with multiple entries inside.
+Use **category bucket files** - one file per category with multiple entries inside.
 
 **Footguns:** `ai-docs/footguns/<category>.md` (e.g., `hooks.md`, `scanner.md`, `setup.md`)
 - Each entry: `## Footgun: <name>` with Status/Created/Evidence header line

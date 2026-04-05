@@ -281,7 +281,7 @@ Conversational: present findings by severity tier, pause between tiers. Let the 
 - MUST declare scope before deep reading (investigate mode)
 - MUST tag evidence as OBSERVED or INFERRED (investigate mode)
 - MUST include "What I Didn't Read" in every investigation report
-- MUST pause if reads exceed 3x initial estimate — re-scope before continuing (investigate mode)
+- MUST pause if reads exceed 3x initial estimate - re-scope before continuing (investigate mode)
 - MUST check recurrence against footguns + lessons (diagnose mode)
 - MUST NOT fabricate file paths or function names
 - MUST verify fix doesn't violate architecture constraints

@@ -27,7 +27,7 @@ Also use for improving readability, naming, and code clarity - see Simplify Mode
 
 **Structural questions (always ask or confirm):**
 1. Which files or area? (or I'll run `git diff` to find recent changes)
-2. What's the concern? (performance, security, correctness, readability — or "general review")
+2. What's the concern? (performance, security, correctness, readability - or "general review")
 3. Diff review or full audit? (I'll auto-detect from whether changes exist)
 
 **Illustrative questions (adapt):**
@@ -43,7 +43,7 @@ Also use for improving readability, naming, and code clarity - see Simplify Mode
 
 **Auto-detect mode (unless user explicitly specifies):**
 
-Scope detection priority: (1) explicit user input, (2) staged changes to target, (3) unstaged changes to target, (4) git diff. If user names a specific file, use THAT — not the full worktree diff. If worktree is very dirty (20+ changed files), ask user to specify scope.
+Scope detection priority: (1) explicit user input, (2) staged changes to target, (3) unstaged changes to target, (4) git diff. If user names a specific file, use THAT - not the full worktree diff. If worktree is very dirty (20+ changed files), ask user to specify scope.
 
 - User names a diff/PR/commits → **Standard mode** (Phases 0-4)
 - User names a file AND `git diff --stat` shows changes to it → **Standard mode**
@@ -269,9 +269,9 @@ Present ordered by impact. **BLOCKING GATE:** (a) implement all, (b) implement s
 
 ### Phase S4 - Implement (if approved)
 Apply one file at a time. After each:
-1. Grep for old names — zero remaining
+1. Grep for old names - zero remaining
 2. Check doc cross-references
-3. Run tests/linter — behavior unchanged
+3. Run tests/linter - behavior unchanged
 
 If tests fail → revert that change, note as unsafe, continue with rest.
 

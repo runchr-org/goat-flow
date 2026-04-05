@@ -872,41 +872,7 @@ export const hookChecks: CheckDef[] = [
   // boundaries remain as policy in the instruction file.
 
 
-  // 2.2.5h (originally misplaced after 2.6.x)
-  {
-    id: '2.2.5h',
-    name: 'Deny hook blocks cloud-destructive commands',
-    tier: 'standard',
-    category: 'Hooks',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    hidden: true,
-    na: (ctx) =>
-      ctx.agentFacts.hooks.denyExists === false ||
-      ctx.facts.stack.signals.deployPlatforms.length === 0,
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => ({
-        id: '2.2.5h',
-        name: 'Deny hook blocks cloud-destructive commands',
-        tier: 'standard',
-        category: 'Hooks',
-        status: ctx.agentFacts.hooks.denyBlocksCloudDestructive
-          ? 'pass'
-          : 'fail',
-        points: ctx.agentFacts.hooks.denyBlocksCloudDestructive ? 1 : 0,
-        maxPoints: 1,
-        confidence: 'high',
-        message: ctx.agentFacts.hooks.denyBlocksCloudDestructive
-          ? 'Deny hook blocks cloud-destructive commands'
-          : `Deploy platforms detected (${ctx.facts.stack.signals.deployPlatforms.join(', ')}) but deny hook does not block cloud-destructive commands (docker push, terraform destroy, aws s3 rm, etc.)`,
-      }),
-    },
-    recommendation:
-      'Deny hook should block cloud-destructive commands when deploy platforms are detected: docker push, terraform destroy, terraform apply -auto-approve, aws s3 rm, aws ec2 terminate-instances.',
-    recommendationKey: 'fix-deny-cloud-destructive',
-  },
+
   {
     id: '2.2.8',
     name: 'Agent ignore files for sensitive paths',

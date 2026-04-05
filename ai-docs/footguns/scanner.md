@@ -28,7 +28,7 @@ When one of those changes without the others, the setup guidance stops matching 
 
 **Status:** active | **Created:** 2026-03-31 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** Scanner gives Codex full marks for deny hook quality (jq parsing, chaining detection, compaction hook) when the Codex enforcement is actually a Starlark execpolicy file — a completely different format that doesn't use jq or split on &&/||/;.
+**Symptoms:** Scanner gives Codex full marks for deny hook quality (jq parsing, chaining detection, compaction hook) when the Codex enforcement is actually a Starlark execpolicy file - a completely different format that doesn't use jq or split on &&/||/;.
 
 **Why it happens:** `src/cli/facts/agent.ts` hardcodes `denyUsesJq = true` and `denyHandlesChaining = true` for execpolicy agents, and treats `session_start` hooks as compaction hooks. These are assumptions, not detections. The scanner reports them as facts.
 
@@ -36,7 +36,7 @@ When one of those changes without the others, the setup guidance stops matching 
 - `src/cli/facts/agent.ts` → hardcoded assumptions for Codex enforcement quality
 - goat-flow Codex self-review (66/100): "the scanner fakes Codex compaction and deny-hook properties"
 
-**Prevention:** Only report what's actually detected from file content. If a Starlark file exists, report it exists — don't assume it has properties that only apply to bash hooks.
+**Prevention:** Only report what's actually detected from file content. If a Starlark file exists, report it exists - don't assume it has properties that only apply to bash hooks.
 
 ---
 
@@ -64,7 +64,7 @@ When one of those changes without the others, the setup guidance stops matching 
 The scanner awards 100% (A grade) to projects that have:
 - Broken `ai-docs/README.md:3` (invalid content)
 - `settings.json` missing hook registration that the rubric claims exists (`src/cli/facts/agent/hooks.ts:479`, `src/cli/rubric/standard/hooks.ts:55` check file existence only)
-- Physically broken skill files (`.claude/skills/goat-plan/SKILL.md:182` — stale tail, `:198` — references deleted goat-investigate)
+- Physically broken skill files (`.claude/skills/goat-plan/SKILL.md:182` - stale tail, `:198` - references deleted goat-investigate)
 - Malformed eval frontmatter (duplicate YAML blocks)
 - CI workflow containing literal scanner-bait comments (`.github/workflows/context-validation.yml:40`)
 

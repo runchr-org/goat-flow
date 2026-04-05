@@ -15,7 +15,7 @@ generate testing instructions. Testing after 30-60 min keeps the blast radius
 narrow enough that failures point to a specific change.
 
 The coding agent runs Phase 1 commands (automated tests). Phase 2 (AI verification)
-and Phase 3 (human testing) MUST be performed by a separate agent or human — not the
+and Phase 3 (human testing) MUST be performed by a separate agent or human - not the
 agent that wrote the code. In single-agent mode, present Phase 2/3 as instructions
 for the user to execute or delegate.
 
@@ -38,7 +38,7 @@ Phase 1 only + abbreviated Phase 3 (1-2 manual checks). Skip Phase 2.
 
 **Auto-detect mode (unless user explicitly specifies):**
 
-Scope detection priority: (1) explicit user input, (2) staged changes, (3) unstaged changes to target, (4) git diff. If user names a specific file, use THAT — not the full worktree diff.
+Scope detection priority: (1) explicit user input, (2) staged changes, (3) unstaged changes to target, (4) git diff. If user names a specific file, use THAT - not the full worktree diff.
 
 - Changes to target exist → **Standard mode** (Phase 0 Change Manifest)
 - No changes to target → **Audit mode** (coverage gap analysis, skip Phase 0)

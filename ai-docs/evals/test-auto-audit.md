@@ -11,7 +11,7 @@ difficulty: medium
 
 ```text
 Generate tests for src/cli/config/reader.ts
-(No recent changes — testing existing code for coverage gaps)
+(No recent changes - testing existing code for coverage gaps)
 ```
 
 ### Expected Behavior

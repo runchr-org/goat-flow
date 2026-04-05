@@ -36,10 +36,10 @@ If 3 consecutive reads produce no new signal: (1) present what you have so far, 
 **Sub-agent mode:** GATEs become CHECKPOINTs automatically. Step 0 proceeds with auto-detected scope.
 
 ### Footgun Fast-Path
-If Step 0 footgun check matches a known trap: (1) surface match immediately, (2) offer mitigation path from the entry, (3) still require READ + VERIFY on actual files — footguns are incident records, not executable specs, (4) do NOT skip to implementation on a match alone.
+If Step 0 footgun check matches a known trap: (1) surface match immediately, (2) offer mitigation path from the entry, (3) still require READ + VERIFY on actual files - footguns are incident records, not executable specs, (4) do NOT skip to implementation on a match alone.
 
 ### Flush Protocol
-If 10+ tool calls pass without a gate/checkpoint (skip for Hotfix/Small Feature): (1) write 3-sentence status to `.goat-flow/tasks/handoff.md` (what, where, next), (2) if working from a plan/milestone file: tick all completed checkboxes NOW before continuing, (3) ask: continue, compact, or redirect? Counter resets at every BLOCKING GATE, CHECKPOINT, or human message. Handoff file is transient — do not commit.
+If 10+ tool calls pass without a gate/checkpoint (skip for Hotfix/Small Feature): (1) write 3-sentence status to `.goat-flow/tasks/handoff.md` (what, where, next), (2) if working from a plan/milestone file: tick all completed checkboxes NOW before continuing, (3) ask: continue, compact, or redirect? Counter resets at every BLOCKING GATE, CHECKPOINT, or human message. Handoff file is transient - do not commit.
 
 ### Learning Loop
 After completing the skill, check if this run uncovered anything worth logging:
@@ -84,7 +84,7 @@ handling, when touching secrets/credentials, or for a security-focused audit.
 **Structural questions (always ask or confirm):**
 1. Which component or area? (or I'll scan the full project)
 2. What's the deployment context? (user-facing web app, internal tool, CLI, library, API)
-3. Any specific threat concern? (injection, auth bypass, data exposure — or "general audit")
+3. Any specific threat concern? (injection, auth bypass, data exposure - or "general audit")
 
 **Illustrative questions (adapt):**
 4. What auth boundaries exist? (dashboard server has no auth, CLI runs locally, no user-facing auth)
@@ -144,7 +144,7 @@ framing catches more false positives than "check if it's handled."
 |-----------|---------|-------------------|---------------|
 | Node.js `http` | localhost-only binding | Remote access to dashboard | Check `server.listen()` binds to `127.0.0.1`, not `0.0.0.0` |
 | TypeScript | Strict mode | Type confusion, null errors | Check `tsconfig.json` has `strict: true` |
-| Bash scripts | `shellcheck` linting | Injection, quoting bugs, globbing | Run `shellcheck scripts/*.sh` — zero warnings |
+| Bash scripts | `shellcheck` linting | Injection, quoting bugs, globbing | Run `shellcheck scripts/*.sh` - zero warnings |
 | File I/O | Path validation | Path traversal in scanner/facts | Check user-supplied paths are validated before `fs.readFile` |
 | Dashboard | Static HTML+JS | XSS via injected content | Check no `innerHTML` with unsanitized data in `src/dashboard/` |
 

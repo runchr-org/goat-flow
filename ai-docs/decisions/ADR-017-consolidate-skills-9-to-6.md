@@ -10,7 +10,7 @@ Cross-project reviews from 3 consumer projects (halaxy-cypress 66/100, blundergo
 - "9 skills is too many for initial setup" (2/3 projects)
 - "goat-debug and goat-investigate have 95% Step 0 overlap" (halaxy-cypress)
 - "goat-simplify is a subset of goat-review" (healthkit)
-- "goat-simplify has never been invoked" (all 3 projects — 0 usage across all reviewers)
+- "goat-simplify has never been invoked" (all 3 projects - 0 usage across all reviewers)
 
 Two projects wanted to merge goat-simplify but disagreed on the target (refactor vs review), suggesting the skill's identity was unclear rather than that a specific merge was obvious.
 
@@ -26,19 +26,19 @@ Merge 3 skills as modes into their natural hosts. Expand goat-security. No new s
 
 goat-security expanded with 2 new modes: Compliance (HIPAA/GDPR/PHI) and Dependency audit (CVE scanning).
 
-**Canonical skill set (v0.9.3):** goat (dispatcher), goat-debug, goat-review, goat-plan, goat-security, goat-test — 6 total.
+**Canonical skill set (v0.9.3):** goat (dispatcher), goat-debug, goat-review, goat-plan, goat-security, goat-test - 6 total.
 
 ## Rationale
 
 **goat-investigate → goat-debug:** Both are "read and understand" skills. Debug starts with a symptom, investigate starts with a question. Step 0 branches on whether the user has a bug. Phase 1 behavior differs (hypothesis tracking vs progressive depth reading) but that's a mode difference, not a skill difference.
 
-**goat-simplify → goat-review:** Readability assessment is already in goat-review's severity scan under "Style." The only differentiator was the "must not change behavior" constraint — that's a one-line mode qualifier, not a separate skill. healthkit reviewer: "readability assessment is already in goat-review."
+**goat-simplify → goat-review:** Readability assessment is already in goat-review's severity scan under "Style." The only differentiator was the "must not change behavior" constraint - that's a one-line mode qualifier, not a separate skill. healthkit reviewer: "readability assessment is already in goat-review."
 
-**goat-refactor → goat-plan:** Refactor's value is the planning discipline (blast radius analysis, both-sides-first reading, execution sequence, absence checks) — not the execution itself. The actual file edits happen in the normal ACT step. goat-plan's refactor mode produces the plan; the execution loop handles the rest.
+**goat-refactor → goat-plan:** Refactor's value is the planning discipline (blast radius analysis, both-sides-first reading, execution sequence, absence checks) - not the execution itself. The actual file edits happen in the normal ACT step. goat-plan's refactor mode produces the plan; the execution loop handles the rest.
 
 **No goat-implement or goat-migrate:** Both were requested by reviewers but adding skills after consolidating from 9→6 goes the wrong direction. The execution loop + goat-plan cover implementation and migration workflows.
 
-**No deprecated infrastructure:** No DEPRECATED_SKILL_NAMES, no AP16, no migration detection for old skills. No one else is using this project — just delete the old skills. Consumer projects with old skills installed will see them as unknown directories, not flagged anti-patterns.
+**No deprecated infrastructure:** No DEPRECATED_SKILL_NAMES, no AP16, no migration detection for old skills. No one else is using this project - just delete the old skills. Consumer projects with old skills installed will see them as unknown directories, not flagged anti-patterns.
 
 ## Consequences
 
