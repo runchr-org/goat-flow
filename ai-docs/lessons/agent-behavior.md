@@ -109,3 +109,32 @@ category: agent-behavior
 **Why it matters:** The core trio's value comes from triangular tension - one agent weighing "what could go wrong" against "what's the cost/benefit" against "what's the fastest path." Splitting them into separate agents eliminates that tension. The fresh-context agent exists to catch blind spots the framework creates - if all 3 agents use the framework, there's no control group.
 
 **Prevention:** Before launching SBAO sub-agents, re-read the SBAO spec in `workflow/skills/goat-plan.md` or `.claude/skills/goat-plan/SKILL.md`. The structure is always: 2 agents with core trio, 1 agent without. Never split SKEPTIC/ANALYST/STRATEGIST into separate agents.
+
+---
+
+## Lesson: Agent used setup script as source of truth instead of package.json
+**Created:** 2026-04-05
+
+**What happened:** When investigating CI test failures on Node 20, the agent read `setup-initial.sh` (which checks for Node 22+) and concluded the project requires Node 22 — contradicting `package.json` `engines.node: ">=20.11.0"`. The agent then suggested updating CI to Node 22 instead of fixing the scripts. The user corrected this: `package.json` is the canonical source of truth for the Node version requirement. Three shell scripts (`setup-initial.sh`, `dependency-install.sh`, `start-dev.sh`) all had the wrong version check.
+
+**Why it matters:** Derived artifacts (scripts, docs, CI) can drift from the canonical source. When they conflict, the agent must identify which source is authoritative rather than picking whichever it read first. For Node version requirements, `package.json` `engines` is always canonical — it's what npm enforces, what CI reads, and what downstream consumers see.
+
+**Prevention:** When version requirements conflict across files, check `package.json` first. It's the published contract. Scripts and docs are derived from it, not the other way around. See ADR-027.
+
+---
+
+## Lesson: Automated code review bots produce predictable false positive patterns
+**Created:** 2026-04-05
+
+**What happened:** PR #12 (v0.10.0, 463 files) received ~15 automated review comments from Copilot and github-code-quality. About half were valid and led to real fixes (CRLF frontmatter, setup-initial dirs, CI build copy, ADR-020 superseded status). The other half were false positives that follow recurring patterns:
+
+1. **Cross-file references invisible to single-file analysis.** `app()` in `app.js` flagged as "unused function" — it's called via `x-data="app()"` in `index.html`. Alpine.js, htmx, and any HTML-attribute-driven framework will trigger this.
+2. **Control flow misread without runtime context.** `section()` timing gated on `checks > 0` flagged as "could suppress timing" — in the actual call sequence, every section runs at least one check before the next section starts. The bot analyzed the function in isolation.
+3. **Absurd suggested replacements.** `postinstall` script suggestion replaced a clean 1-line script with a 150-char inline `node -e` one-liner containing 5 conditionals. The "fix" is worse than the "problem."
+4. **"Second source of truth" without checking for synchronization.** `getPackageVersion()` flagged as competing with `version.ts` — but CI already has a version-consistency check that fails if they diverge. The bot didn't read the CI workflow.
+5. **By-design partial support treated as bug.** TOML branch always reporting `hasDenyPatterns=false` flagged as a mistake — it's intentional because Codex TOML support is partial (documented in ADR-025).
+6. **Process nits disguised as code issues.** ESLint complexity threshold change flagged as "should be a separate PR" — a style preference about PR organization, not a code defect.
+
+**Why it matters:** Blindly applying bot suggestions wastes time and can introduce regressions. But dismissing all bot feedback means missing the valid catches (the CRLF fix alone would have caused Windows platform failures).
+
+**Prevention:** Triage bot comments into three buckets: (1) valid — fix it, (2) false positive from known pattern — dismiss with a one-line reason, (3) needs investigation — read the code before deciding. The patterns above cover most false positives in cross-file web apps and shell scripts.

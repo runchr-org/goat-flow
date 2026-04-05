@@ -54,7 +54,11 @@ describe('CLAUDE.md path resolution', () => {
   });
 
   it('all referenced paths resolve on disk', () => {
-    const stale = paths.filter(p => !existsSync(join(ROOT, p)));
+    // .goat-flow/ runtime dirs are gitignored — skip them in CI
+    const gitignored = ['.goat-flow/lessons/', '.goat-flow/footguns/', '.goat-flow/logs/', '.goat-flow/tasks/'];
+    const stale = paths.filter(p =>
+      !existsSync(join(ROOT, p)) && !gitignored.some(g => p.startsWith(g)),
+    );
     assert.equal(
       stale.length, 0,
       `${stale.length} stale path(s) in CLAUDE.md: ${stale.join(', ')}`,

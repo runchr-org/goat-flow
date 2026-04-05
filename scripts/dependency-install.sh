@@ -14,8 +14,8 @@ info "=== Dependency Install ==="
 # 1. Check Node.js
 command -v node >/dev/null 2>&1 || fail "Node.js required"
 NODE_VERSION=$(node -e "console.log(process.versions.node.split('.')[0])")
-if (( NODE_VERSION < 22 )); then
-    fail "Node.js v22+ required, found v$NODE_VERSION"
+if (( NODE_VERSION < 20 )); then
+    fail "Node.js v20+ required, found v$NODE_VERSION"
 fi
 info "Node.js v$(node --version)"
 
