@@ -97,16 +97,29 @@
                         class="gf-btn-copy" :style="{ background: copied ? '#14532d' : '', color: copied ? '#4ade80' : '', borderColor: copied ? '#166534' : '' }">
                         <span x-text="copied ? 'Copied' : 'Copy'"></span>
                       </button>
-                      <button x-show="terminalAvailable" @click="launchPreset(wizardSetupOutputs[wizardSelectedAgent], activeRunner); activeView = 'workspace'"
-                        :disabled="launching || (terminalSessionId && !terminalEnded)"
-                        class="gf-btn-terminal">
-                        Terminal
-                      </button>
+                      <button @click="generateWizardSetup()" class="gf-btn-regen">Regenerate</button>
                     </div>
                   </template>
-                  <button @click="generateWizardSetup()" class="gf-btn-regen">Regenerate</button>
                 </div>
               </div>
+
+              <!-- Terminal CTA -->
+              <template x-if="!wizardGenerating && wizardSetupOutputs[wizardSelectedAgent] && terminalAvailable">
+                <div style="padding: 16px; border-bottom: 1px solid #2a2a2e; background: #0d1a0d; border-radius: 0;">
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <button @click="launchPreset(wizardSetupOutputs[wizardSelectedAgent], activeRunner); activeView = 'workspace'"
+                      :disabled="launching || (terminalSessionId && !terminalEnded)"
+                      style="padding: 10px 24px; background: #166534; color: #4ade80; border: 1px solid #22c55e; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s;"
+                      onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#166534'">
+                      <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5l8 7-8 7"/></svg>
+                      Run Setup in Terminal
+                    </button>
+                  </div>
+                  <div class="gf-text-muted" style="font-size: 12px; line-height: 1.4;">
+                    Launches <span x-text="activeRunner" style="color: #a1a1aa; font-weight: 500;"></span> to install GOAT Flow into this project - creates instruction files, skills, hooks, and coding standards.
+                  </div>
+                </div>
+              </template>
 
               <!-- Generating state -->
               <div x-show="wizardGenerating" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;">

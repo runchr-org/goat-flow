@@ -84,7 +84,7 @@ category: skills
 Skills enforce phase gates (Step 0 must complete before Phase 1, gates pause for human approval) but have no budget for how long Step 0 can take. Claude can spend an entire session reading templates, exploring the codebase, and gathering context without ever producing output or asking a question.
 
 **Evidence:**
-- Claude Insights (112 sessions): "Claude spent so long reading templates that the user had to pull the plug before it wrote a single file" — during a healthkit GOAT Flow setup
+- Claude Insights (112 sessions): "Claude spent so long reading templates that the user had to pull the plug before it wrote a single file" - during a healthkit GOAT Flow setup
 - Pattern appears across review and setup sessions where Claude reads 20+ files in Step 0 without checkpointing
 
 **Impact:** The user has no signal that the skill is stuck. The session appears active (tool calls are happening) but no output is produced. The only recovery is interrupting and restarting, wasting the entire session's context.

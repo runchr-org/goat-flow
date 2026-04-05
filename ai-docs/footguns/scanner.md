@@ -84,8 +84,8 @@ The scanner checks that hook files exist, contain the right patterns (jq parsing
 
 **Evidence:**
 - 4+ sessions across 112 (Claude Insights data) derailed by sub-agent permission failures hitting hooks that the scanner had already validated
-- `format-file.sh` exists in `.claude/hooks/` but is not registered in `.claude/settings.json` — scanner doesn't catch this mismatch (found in dead code audit 2026-04-05)
-- `deny-dangerous.sh` sed fallback truncates commands with escaped quotes — scanner checks for sed fallback existence, not correctness
+- `format-file.sh` exists in `.claude/hooks/` but is not registered in `.claude/settings.json` - scanner doesn't catch this mismatch (found in dead code audit 2026-04-05)
+- `deny-dangerous.sh` sed fallback truncates commands with escaped quotes - scanner checks for sed fallback existence, not correctness
 
 **Impact:** Users trust 100% scanner score as "setup is working" when it means "setup files look right." The gap between file validation and runtime behavior is invisible.
 

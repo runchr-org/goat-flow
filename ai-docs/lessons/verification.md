@@ -163,7 +163,7 @@ Deny hooks block dangerous patterns, not all operations. When a command is block
 
 ---
 
-## Lesson: Regressions caught too late — tests run at milestone granularity, not edit granularity
+## Lesson: Regressions caught too late - tests run at milestone granularity, not edit granularity
 
 **Created:** 2026-04-05
 
@@ -182,11 +182,11 @@ Deny hooks block dangerous patterns, not all operations. When a command is block
 
 **Created:** 2026-04-05
 
-**What happened:** Claude Insights showed 75 overlap events across 77 sessions — 37% of all messages happened during parallel Claude sessions. Learning loop files (`.goat-flow/logs/`, `ai-docs/lessons/`, `ai-docs/footguns/`) are append-only by convention, but nothing prevents two agents from writing to the same file simultaneously. Session logs use date-slug filenames which reduces collisions, but category bucket files (e.g. `ai-docs/lessons/verification.md`) are shared write targets.
+**What happened:** Claude Insights showed 75 overlap events across 77 sessions - 37% of all messages happened during parallel Claude sessions. Learning loop files (`.goat-flow/logs/`, `ai-docs/lessons/`, `ai-docs/footguns/`) are append-only by convention, but nothing prevents two agents from writing to the same file simultaneously. Session logs use date-slug filenames which reduces collisions, but category bucket files (e.g. `ai-docs/lessons/verification.md`) are shared write targets.
 
 **Root cause:** goat-flow was designed for single-agent sessions. The category bucket format (multiple entries in one file) creates write contention that per-entry files (one file per lesson) wouldn't have.
 
 **Prevention:**
 1. Document which files are safe for concurrent access in the plugin instructions
 2. For learning loop writes during parallel sessions, use unique filenames (date-agent-slug) rather than appending to shared buckets
-3. Session logs already use unique filenames — extend this pattern to footgun/lesson entries when multi-agent mode is detected
+3. Session logs already use unique filenames - extend this pattern to footgun/lesson entries when multi-agent mode is detected

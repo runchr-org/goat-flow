@@ -22,6 +22,6 @@ guides must derive their version check from this value.
 ## Consequences
 
 - Shell scripts updated to check `NODE_VERSION < 20` (matching `>=20.11.0`)
-- CI workflow already used Node 20 — no change needed
-- README already said "Node.js 20+" — no change needed
+- CI workflow already used Node 20 - no change needed
+- README already said "Node.js 20+" - no change needed
 - Any future version bump starts in `package.json`; scripts and docs follow
