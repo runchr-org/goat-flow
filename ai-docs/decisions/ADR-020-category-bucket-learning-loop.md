@@ -1,6 +1,6 @@
 # ADR-020: Category Bucket Learning Loop Files
 
-**Status:** Accepted
+**Status:** Superseded by ADR-021
 **Date:** 2026-04-03
 
 ## Context

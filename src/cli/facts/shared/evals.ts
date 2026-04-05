@@ -118,7 +118,7 @@ function analyzeEvalFile(
     hasAgents: /\*\*Agents:\*\*/i.test(content) || /^agents:/im.test(content),
     hasReplay:
       /##+ Replay Prompt/i.test(content) || /##+ Scenario/i.test(content),
-    hasFrontmatter: /^---\n/.test(content),
+    hasFrontmatter: /^---\r?\n/.test(content),
     hasRealContent: hasEvalRealContent(content),
     skillNames: collectEvalSkillNames(content),
   };

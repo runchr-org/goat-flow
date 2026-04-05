@@ -1,5 +1,3 @@
-const STATUS_ORDER = { fail: 0, partial: 1, pass: 2, na: 3 };
-
 function app() {
   return {
     // --- Core state ---
