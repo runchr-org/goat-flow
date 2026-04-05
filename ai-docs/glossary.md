@@ -12,6 +12,7 @@ Domain-specific terms for new contributors. Standard programming terms are exclu
 | Ceremony | The amount of planning process required for a task, ranging from Minimal (hotfix) to Full (system change/infrastructure). | `CLAUDE.md` | -- |
 | Cold Path | Documentation loaded on demand (coding standards, playbooks) rather than every session. | `docs/system-spec.md` | -- |
 | Definition of Done | Six explicit gates that must all pass before a task is considered complete. | `docs/system-spec.md` | DoD |
+| Development Driven Testing | Testing philosophy where development drives the tests, not the other way around. The loop: plan → code → manually test → preflight checks → self review → decide if automated test needed → commit. Static analysis and type checking catch what TDD used to require unit tests for. Automated tests focus on business logic, integration boundaries, and regression prevention. | `workflow/coding-standards/testing.md` | DDT |
 | Doer-Verifier | The principle that the agent which wrote the code must not be the one that verifies it. | `docs/system-spec.md` | -- |
 | Enforcement Gradient | Three-layer enforcement stack: permissions deny (hardest) > hooks > CLAUDE.md rules (softest). | `docs/system-spec.md` | -- |
 | Evidence Standard | The requirement that every finding must include `file:line` references and be tagged OBSERVED or INFERRED. | `workflow/skills/reference/shared-preamble.md` | -- |

@@ -154,6 +154,7 @@ function app() {
       const adapted = this.adaptPrompt(text);
       const escaped = adapted.replace(/\r?\n/g, ' ');
       this._terminalWs.send(JSON.stringify({ type: 'input', data: escaped + '\r' }));
+      if (this._terminalXterm) this._terminalXterm.focus();
     },
 
     // --- Init ---
