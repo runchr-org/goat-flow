@@ -198,15 +198,15 @@ function buildTargetedUpgradeProject(extraFiles: Record<string, string> = {}) {
     '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.claude/hooks/format-file.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.claude/skills/goat-debug/SKILL.md':
-      '---\nname: goat-debug\ngoat-flow-skill-version: "1.0.0"\n---\n# /goat-debug\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
+      '---\nname: goat-debug\ngoat-flow-skill-version: "1.1.0"\n---\n# /goat-debug\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
     '.claude/skills/goat-plan/SKILL.md':
-      '---\nname: goat-plan\ngoat-flow-skill-version: "1.0.0"\n---\n# /goat-plan\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
+      '---\nname: goat-plan\ngoat-flow-skill-version: "1.1.0"\n---\n# /goat-plan\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
     '.claude/skills/goat-review/SKILL.md':
-      '---\nname: goat-review\ngoat-flow-skill-version: "1.0.0"\n---\n# /goat-review\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
+      '---\nname: goat-review\ngoat-flow-skill-version: "1.1.0"\n---\n# /goat-review\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
     '.claude/skills/goat-security/SKILL.md':
-      '---\nname: goat-security\ngoat-flow-skill-version: "1.0.0"\n---\n# /goat-security\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
+      '---\nname: goat-security\ngoat-flow-skill-version: "1.1.0"\n---\n# /goat-security\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
     '.claude/skills/goat-test/SKILL.md':
-      '---\nname: goat-test\ngoat-flow-skill-version: "1.0.0"\n---\n# /goat-test\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
+      '---\nname: goat-test\ngoat-flow-skill-version: "1.1.0"\n---\n# /goat-test\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
     'ai-docs/footguns/': '# Footguns\n\n- `src/auth.ts:42` - race\n',
     'ai-docs/lessons/': '# Lessons\n\n### Entry 1\nStuff.\n',
     'ai-docs/architecture.md': '# Architecture\n\nOverview.\n',

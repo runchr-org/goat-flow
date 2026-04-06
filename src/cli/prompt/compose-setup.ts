@@ -18,6 +18,8 @@ import { getFragment } from './registry.js';
 import { extractTemplateVars, fillTemplate } from './template-filler.js';
 import { PROFILES } from '../detect/agents.js';
 import { getTemplatePath, getCliCommand } from '../paths.js';
+import { classifyProjectState } from '../classify-state.js';
+import { createFS } from '../facts/fs.js';
 import {
   getAgentTemplates,
   validateTemplateRefs,
@@ -895,6 +897,7 @@ const SETUP_FILES: Record<AgentId, string> = {
 };
 
 /** Render setup redirect. */
+// eslint-disable-next-line complexity -- state-aware routing requires many branches
 function renderSetupRedirect(
   report: ScanReport,
   agentId: AgentId,
@@ -906,18 +909,87 @@ function renderSetupRedirect(
   const languages = stack.languages.join(', ') || 'unknown';
   const lines: string[] = [];
 
-  lines.push(`# GOAT Flow Setup - ${profile.name}`);
-  lines.push('');
-  if (agentReport) {
+  // State-aware routing: classify project and branch on adoption state
+  const projectFS = createFS(report.target);
+  const projectState = classifyProjectState(projectFS);
+
+  if (projectState.state === 'v1.1') {
+    // Current version — just scan and fix
+    lines.push(`# GOAT Flow Setup - ${profile.name}`);
+    lines.push('');
+    lines.push('## This project is already on the current goat-flow version');
+    lines.push('');
     lines.push(
-      `This project scores **${agentReport.score.grade}** (${agentReport.score.percentage}%) - it needs a full setup pass.`,
+      `Run \`${getCliCommand()} scan . --agent ${agentId}\` and fix any failing checks.`,
     );
-  } else {
-    lines.push(
-      `No ${profile.name} configuration detected - this project needs a full setup.`,
-    );
+    lines.push('No setup changes needed — the project is up to date.');
+    lines.push('');
+    return lines.join('\n');
   }
-  lines.push('');
+
+  if (projectState.state === 'v1.0') {
+    lines.push(`# GOAT Flow Setup - ${profile.name}`);
+    lines.push('');
+    lines.push('## Upgrade from v1.0 to current');
+    lines.push('');
+    lines.push(
+      'This project has goat-flow v1.0. Follow the upgrade path:',
+    );
+    lines.push(
+      'Read and implement `workflow/setup/upgrade.md` **Step 2b** (v1.0 → current).',
+    );
+    lines.push('');
+    lines.push(
+      'Key changes: install `.goat-flow/skill-conventions.md`, update skills to use 7-line fallback,',
+    );
+    lines.push(
+      'remove handoff-template.md/todo.md/handoff.md, update instruction file Working Memory section.',
+    );
+    lines.push('');
+    // Still include stack detection and agent-specific info below
+  }
+
+  if (projectState.state === 'v0.9') {
+    lines.push(`# GOAT Flow Setup - ${profile.name}`);
+    lines.push('');
+    lines.push('## Migration from v0.9 to current');
+    lines.push('');
+    lines.push(
+      'This project has old goat-flow skills (v0.9 era). Follow the migration path:',
+    );
+    lines.push(
+      'Read and implement `workflow/setup/upgrade.md` **Step 2a** (v0.9 → current).',
+    );
+    lines.push('');
+    lines.push(
+      'Key changes: consolidate 10 old skills to 5+dispatcher, migrate docs/footguns.md → ai-docs/footguns/,',
+    );
+    lines.push(
+      'docs/lessons.md → ai-docs/lessons/, create .goat-flow/config.yaml, install skill-conventions.md.',
+    );
+    lines.push('');
+    // Still include stack detection and agent-specific info below
+  }
+
+  // For bare/partial/error states, render the standard header
+  if (
+    projectState.state === 'bare' ||
+    projectState.state === 'partial' ||
+    projectState.state === 'error'
+  ) {
+    lines.push(`# GOAT Flow Setup - ${profile.name}`);
+    lines.push('');
+    if (agentReport) {
+      lines.push(
+        `This project scores **${agentReport.score.grade}** (${agentReport.score.percentage}%) - it needs a full setup pass.`,
+      );
+    } else {
+      lines.push(
+        `No ${profile.name} configuration detected - this project needs a full setup.`,
+      );
+    }
+    lines.push('');
+  }
 
   // Project context - detected stack info
   lines.push(`**Stack:** ${languages}`);
@@ -932,129 +1004,171 @@ function renderSetupRedirect(
   renderSignals(lines, stack.signals);
   lines.push('');
 
-  // Pre-instructions
-  lines.push('## Before you start');
-  lines.push('');
-  lines.push('**If this project already has goat-flow:** Read `workflow/setup/upgrade.md` for the upgrade path instead of running a full setup.');
-  lines.push('');
-  lines.push('**Step 0 - Clean up stale artifacts (if upgrading):**');
-  lines.push('');
-  lines.push(
-    '**Skills:** The 6 canonical skills are: `goat`, `goat-debug`, `goat-plan`, `goat-review`, `goat-security`, `goat-test`.',
-  );
-  lines.push('');
-  lines.push(
-    'Check the skills directory for stale or duplicate entries:',
-  );
-  lines.push(
-    '- Delete stale `goat-*` directories: `goat-investigate`, `goat-audit`, `goat-onboard`, `goat-reflect`, `goat-resume`, `goat-simplify`, `goat-refactor`, `goat-context`',
-  );
-  lines.push(
-    '- Check for generic skill directories: `audit/`, `review/`, `preflight/`, `debug/`, `plan/`, `test/`, `security/`',
-  );
-  lines.push(
-    '  If any exist alongside the `goat-*` version: (a) migrate unique content into the goat-* version, (b) delete the generic directory, or (c) skip if it\'s a project-specific skill unrelated to goat-flow',
-  );
-  lines.push('');
-  lines.push(
-    '**Multi-agent consistency:** If multiple agent skill directories exist (`.claude/skills/`, `.agents/skills/`, `.gemini/skills/`), clean stale dirs from ALL of them - not just the agent being set up. Also update `GEMINI.md` and `AGENTS.md` if they reference deleted skills.',
-  );
-  lines.push('');
-  lines.push(
-    '**Instruction files:** Check if `.github/instructions/` exists before creating `ai-docs/coding-standards/`.',
-  );
-  lines.push(
-    '  If both would exist: (a) migrate `.github/instructions/` content into `ai-docs/coding-standards/`, (b) replace `.github/instructions/` files with one-line imports pointing to `ai-docs/coding-standards/`, or (c) keep `.github/instructions/` as canonical and skip `ai-docs/coding-standards/` creation. Do NOT create overlapping content in both locations.',
-  );
-  lines.push('');
-  lines.push(
-    '**Router table:** Rewrite the Router Table in the instruction file. Remove entries pointing to deleted skills. If `ai-docs/README.md` exists, include it as the Project Guidelines entry.',
-  );
-  lines.push('');
-  lines.push(
-    '**Dispatcher:** Replace the `/goat` dispatcher skill entirely from the goat-flow template.',
-  );
-  lines.push(
-    'Read the template at `workflow/skills/goat.md` and write it to the agent skills dir.',
-  );
-  lines.push(
-    'Preserve any project-specific disambiguation examples the existing dispatcher may have.',
-  );
-  lines.push('');
-  lines.push(
-    '**Step 0b - Migrate, don\'t duplicate (check BEFORE creating files):**',
-  );
-  lines.push('');
-  lines.push(
-    'Before creating any artifact, check if an equivalent already exists. Do NOT create parallel surfaces.',
-  );
-  lines.push('');
-  lines.push('| Artifact | If this exists... | Do NOT also create... |');
-  lines.push('|----------|-------------------|----------------------|');
-  lines.push(
-    '| Tasks | `tasks/` | `.goat-flow/tasks/` (or vice versa) |',
-  );
-  lines.push(
-    '| Footguns | `docs/footguns.md` (flat file) | `ai-docs/footguns/` (directory) |',
-  );
-  lines.push(
-    '| Lessons | `docs/lessons.md` (flat file) | `ai-docs/lessons/` (directory) |',
-  );
-  lines.push(
-    '| Evals | `agent-evals/` | `ai-docs/evals/` |',
-  );
-  lines.push(
-    '| Coding standards | `ai/instructions/` or `.github/instructions/` | `ai-docs/coding-standards/` with overlapping content |',
-  );
-  lines.push('');
-  lines.push(
-    'For each artifact type: (1) use the EXISTING path as canonical, (2) update `.goat-flow/config.yaml` to point there, (3) list what you chose NOT to create and why.',
-  );
-  lines.push('');
-  lines.push(
-    'Examples: If `.github/instructions/` exists with coding standards, do NOT create `ai-docs/coding-standards/` with overlapping content — reference the existing files from `ai-docs/README.md`. If `docs/footguns.md` exists, migrate its entries to `ai-docs/footguns/` instead of creating a parallel surface.',
-  );
-  lines.push('');
-  lines.push(
-    '1. Verify the detected stack above is correct. If not, the setup file will',
-  );
-  lines.push(
-    '   ask you to detect it from the actual codebase (package.json, composer.json, etc.)',
-  );
-  lines.push(
-    '2. "Adapt" means: replace generic examples with THIS project\'s real examples.',
-  );
-  lines.push(
-    '   Skills: replace generic Step 0 questions with questions specific to this stack.',
-  );
-  lines.push(
-    '   Footguns: only real traps from THIS codebase with `file:line` evidence.',
-  );
-  lines.push(
-    '   Conventions: real build/test/lint commands, real file naming patterns.',
-  );
-  lines.push(
-    '3. Do NOT copy templates verbatim. If a template says "[describe X]", describe X for THIS project.',
-  );
-  lines.push(
-    '4. Check for existing permission restrictions: if `.claude/settings.local.json` (or equivalent)',
-  );
-  lines.push(
-    '   exists and limits allowed tools/commands, the setup may fail to create files.',
-  );
-  lines.push(
-    '   Read it first. If it restricts Bash or Write, work single-threaded instead of spawning sub-agents.',
-  );
-  lines.push(
-    '5. **Deny rule escape hatch:** The default deny pattern `Bash(*git commit*)` blocks ALL commits.',
-  );
-  lines.push(
-    '   To relax specific rules after setup, add allow overrides in `.claude/settings.local.json` (gitignored).',
-  );
-  lines.push(
-    '   See `workflow/hooks/README.md` for hook configuration details.',
-  );
-  lines.push('');
+  // Check for LLM integration signal
+  const hasLLM = report.stack.signals?.llmIntegration === true;
+  if (hasLLM) {
+    lines.push('## LLM Integration Detected');
+    lines.push('');
+    lines.push(
+      'This project integrates with LLM providers (Anthropic, OpenAI, Strands, LangChain, or similar).',
+    );
+    lines.push('Setup MUST account for this:');
+    lines.push('');
+    lines.push(
+      '1. **Ask First boundaries** in the instruction file MUST include prompt/template files,',
+    );
+    lines.push(
+      '   system prompts, and agent configuration files. Prompt changes are behavioral changes.',
+    );
+    lines.push(
+      '2. **Router table** MUST include paths to prompt files, system prompts, and agent configs.',
+    );
+    lines.push(
+      '   Agents need to know where the sensitive LLM-facing files are.',
+    );
+    lines.push(
+      '3. **goat-security** is especially important — the threat model should cover:',
+    );
+    lines.push(
+      '   prompt injection, output validation, credential exposure, and LLM cost controls.',
+    );
+    lines.push(
+      '4. **Footguns** should document any coupling between prompt templates and code logic',
+    );
+    lines.push(
+      '   (e.g., if changing a system prompt breaks JSON parsing downstream).',
+    );
+    lines.push('');
+  }
+
+  // Pre-instructions — only for bare/partial/error states
+  // (v0.9 and v1.0 already have their upgrade header with specific instructions)
+  if (
+    projectState.state === 'bare' ||
+    projectState.state === 'partial' ||
+    projectState.state === 'error'
+  ) {
+    lines.push('## Before you start');
+    lines.push('');
+    lines.push('**Step 0 - Clean up stale artifacts (if upgrading):**');
+    lines.push('');
+    lines.push(
+      '**Skills:** The 6 canonical skills are: `goat`, `goat-debug`, `goat-plan`, `goat-review`, `goat-security`, `goat-test`.',
+    );
+    lines.push('');
+    lines.push(
+      'Check the skills directory for stale or duplicate entries:',
+    );
+    lines.push(
+      '- Delete stale `goat-*` directories: `goat-investigate`, `goat-audit`, `goat-onboard`, `goat-reflect`, `goat-resume`, `goat-simplify`, `goat-refactor`, `goat-context`',
+    );
+    lines.push(
+      '- Check for generic skill directories: `audit/`, `review/`, `preflight/`, `debug/`, `plan/`, `test/`, `security/`',
+    );
+    lines.push(
+      '  If any exist alongside the `goat-*` version: (a) migrate unique content into the goat-* version, (b) delete the generic directory, or (c) skip if it\'s a project-specific skill unrelated to goat-flow',
+    );
+    lines.push('');
+    lines.push(
+      '**Multi-agent consistency:** If multiple agent skill directories exist (`.claude/skills/`, `.agents/skills/`, `.gemini/skills/`), clean stale dirs from ALL of them - not just the agent being set up. Also update `GEMINI.md` and `AGENTS.md` if they reference deleted skills.',
+    );
+    lines.push('');
+    lines.push(
+      '**Instruction files:** Check if `.github/instructions/` exists before creating `ai-docs/coding-standards/`.',
+    );
+    lines.push(
+      '  If both would exist: (a) migrate `.github/instructions/` content into `ai-docs/coding-standards/`, (b) replace `.github/instructions/` files with one-line imports pointing to `ai-docs/coding-standards/`, or (c) keep `.github/instructions/` as canonical and skip `ai-docs/coding-standards/` creation. Do NOT create overlapping content in both locations.',
+    );
+    lines.push('');
+    lines.push(
+      '**Router table:** Rewrite the Router Table in the instruction file. Remove entries pointing to deleted skills. If `ai-docs/README.md` exists, include it as the Project Guidelines entry.',
+    );
+    lines.push('');
+    lines.push(
+      '**Dispatcher:** Replace the `/goat` dispatcher skill entirely from the goat-flow template.',
+    );
+    lines.push(
+      'Read the template at `workflow/skills/goat.md` and write it to the agent skills dir.',
+    );
+    lines.push(
+      'Preserve any project-specific disambiguation examples the existing dispatcher may have.',
+    );
+    lines.push('');
+    lines.push(
+      '**Step 0b - Migrate, don\'t duplicate (check BEFORE creating files):**',
+    );
+    lines.push('');
+    lines.push(
+      'Before creating any artifact, check if an equivalent already exists. Do NOT create parallel surfaces.',
+    );
+    lines.push('');
+    lines.push('| Artifact | If this exists... | Do NOT also create... |');
+    lines.push('|----------|-------------------|----------------------|');
+    lines.push(
+      '| Tasks | `tasks/` | `.goat-flow/tasks/` (or vice versa) |',
+    );
+    lines.push(
+      '| Footguns | `docs/footguns.md` (flat file) | `ai-docs/footguns/` (directory) |',
+    );
+    lines.push(
+      '| Lessons | `docs/lessons.md` (flat file) | `ai-docs/lessons/` (directory) |',
+    );
+    lines.push(
+      '| Evals | `agent-evals/` | `ai-docs/evals/` |',
+    );
+    lines.push(
+      '| Coding standards | `ai/instructions/` or `.github/instructions/` | `ai-docs/coding-standards/` with overlapping content |',
+    );
+    lines.push('');
+    lines.push(
+      'For each artifact type: (1) use the EXISTING path as canonical, (2) update `.goat-flow/config.yaml` to point there, (3) list what you chose NOT to create and why.',
+    );
+    lines.push('');
+    lines.push(
+      'Examples: If `.github/instructions/` exists with coding standards, do NOT create `ai-docs/coding-standards/` with overlapping content — reference the existing files from `ai-docs/README.md`. If `docs/footguns.md` exists, migrate its entries to `ai-docs/footguns/` instead of creating a parallel surface.',
+    );
+    lines.push('');
+    lines.push(
+      '1. Verify the detected stack above is correct. If not, the setup file will',
+    );
+    lines.push(
+      '   ask you to detect it from the actual codebase (package.json, composer.json, etc.)',
+    );
+    lines.push(
+      '2. "Adapt" means: replace generic examples with THIS project\'s real examples.',
+    );
+    lines.push(
+      '   Skills: replace generic Step 0 questions with questions specific to this stack.',
+    );
+    lines.push(
+      '   Footguns: only real traps from THIS codebase with `file:line` evidence.',
+    );
+    lines.push(
+      '   Conventions: real build/test/lint commands, real file naming patterns.',
+    );
+    lines.push(
+      '3. Do NOT copy templates verbatim. If a template says "[describe X]", describe X for THIS project.',
+    );
+    lines.push(
+      '4. Check for existing permission restrictions: if `.claude/settings.local.json` (or equivalent)',
+    );
+    lines.push(
+      '   exists and limits allowed tools/commands, the setup may fail to create files.',
+    );
+    lines.push(
+      '   Read it first. If it restricts Bash or Write, work single-threaded instead of spawning sub-agents.',
+    );
+    lines.push(
+      '5. **Deny rule escape hatch:** The default deny pattern `Bash(*git commit*)` blocks ALL commits.',
+    );
+    lines.push(
+      '   To relax specific rules after setup, add allow overrides in `.claude/settings.local.json` (gitignored).',
+    );
+    lines.push(
+      '   See `workflow/hooks/README.md` for hook configuration details.',
+    );
+    lines.push('');
+  } // end: "Before you start" section (bare/partial/error only)
 
   // Main instruction
   lines.push('## Setup instructions');

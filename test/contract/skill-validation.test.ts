@@ -157,15 +157,14 @@ describe('Installed skills have valid YAML frontmatter', () => {
 // ---------------------------------------------------------------
 describe('Installed skill version tags', () => {
   const installed = getInstalledSkillDirs();
-  // Read RUBRIC_VERSION from the built source
+  // Read RUBRIC_VERSION from package.json (RUBRIC_VERSION derives from it since v1.1.0)
   let rubricVersion = '1.0.0'; // fallback
-  const versionPath = join(ROOT, 'src/cli/rubric/version.ts');
-  if (existsSync(versionPath)) {
-    const versionContent = readFileSync(versionPath, 'utf-8');
-    const match = versionContent.match(
-      /RUBRIC_VERSION\s*=\s*['"]([^'"]+)['"]/,
-    );
-    if (match) rubricVersion = match[1];
+  const pkgPath = join(ROOT, 'package.json');
+  if (existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+      if (typeof pkg.version === 'string') rubricVersion = pkg.version;
+    } catch { /* fallback */ }
   }
 
   for (const dir of installed) {

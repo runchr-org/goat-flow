@@ -1,7 +1,7 @@
 ---
 name: goat-security
 description: "goat-security skill"
-goat-flow-skill-version: "1.0.0"
+goat-flow-skill-version: "1.1.0"
 ---
 # /goat-security
 

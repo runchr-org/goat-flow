@@ -1,7 +1,7 @@
 ---
 name: goat-debug
 description: "Diagnosis-first debugging with hypothesis tracking and recurrence checks. Includes investigate mode for deep codebase exploration and onboarding."
-goat-flow-skill-version: "1.0.0"
+goat-flow-skill-version: "1.1.0"
 ---
 # /goat-debug
 
@@ -36,22 +36,15 @@ That's the failure mode this skill exists to prevent.
 
 ## Step 0 - Gather Context
 
-<!-- ADAPT: Replace illustrative questions (3, 4) with your project's common debug targets -->
-
 **Structural questions (always ask or confirm):**
 1. What's the goal? (diagnose a bug, explore an area, onboard to the project)
 2. If bug: What's the symptom? (error message, unexpected behaviour, test failure)
 3. If explore: What area? How deep? (surface scan / full trace)
 
 **Illustrative questions (adapt):**
-4. <!-- ADAPT: "Which area? (e.g., auth flow, database queries, API endpoints, build pipeline)" -->
+4. Which area of the codebase is involved?
 5. What have you already tried? (so I don't repeat dead ends)
 6. How urgent? Default: 10 turns. After that, present what you have even if incomplete.
-
-<!-- ADAPT: Dynamic context injection (optional). These run at skill load time:
-**Recent changes:** !`git log --oneline -5`
-**Modified files:** !`git diff --name-only HEAD~1`
--->
 
 **Mode selection:**
 - Bug/symptom/error/crash → Diagnose mode
@@ -134,8 +127,6 @@ Only if human approved. Propose a fix plan (not the fix itself):
 - **Architecture check:** verify fix doesn't violate constraints in `ai-docs/architecture.md`
 - **Verification:** how to confirm the fix worked (specific test or command)
 
-<!-- ADAPT: Add your project's specific verification commands -->
-
 "Should I implement this fix?"
 
 If yes → implement. Then auto-transition to Phase D4 (skip redundant "confirm fix applied" when the agent did the work).
@@ -209,7 +200,6 @@ Present: "This project uses [languages] with [frameworks]. Build: [cmd], Test: [
 
 ### Phase O2 - Glossary & Instruction Drafting (after I3)
 
-<!-- ADAPT: Update glossary path to match your project structure -->
 **Glossary:** If `ai-docs/glossary.md` exists, read it. If not, build one from codebase.
 
 **Instruction Drafting (if requested):** Present all content inline BEFORE writing files. Source of truth is code, not docs. MUST NOT include aspirational content.

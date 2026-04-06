@@ -1,7 +1,7 @@
 ---
 name: goat-test
 description: "3-phase test plan generation with automated commands, AI verification prompts, and human testing checklists. Doer-verifier principle."
-goat-flow-skill-version: "1.0.0"
+goat-flow-skill-version: "1.1.0"
 ---
 # /goat-test
 
@@ -55,13 +55,6 @@ Scope detection priority: (1) explicit user input, (2) staged changes, (3) unsta
 - User says "quick" → **Quick mode** (most recent commit only)
 - User explicitly says "audit" or "standard" → respect override
 
-<!-- ADAPT: "Test stack: [detected from package.json/Makefile/etc.]" -->
-
-<!-- ADAPT: Dynamic context injection (optional). These run at skill load time:
-**Changed files:** !`git diff --name-only`
-**Test files near changes:** !`git diff --name-only | xargs -I{} find $(dirname {}) -name '*.test.*' 2>/dev/null | head -5`
--->
-
 **Escape hatch:** If the user says "just test what changed" or provides minimal info, auto-detect scope from `git diff --stat` and existing test files, then proceed with confirmation.
 
 **Pattern read:** Before generating test instructions, read 1-2 existing test files in the affected area. Match the project's assertion style, selector patterns, and fixture conventions exactly. Generate tests that look like the ones already there - not textbook examples.
@@ -97,13 +90,10 @@ corresponding change."
 ## Phase 1 - Automated Tests
 
 Generate commands for the coding agent to run:
-<!-- ADAPT: Replace with your project's test commands -->
 ```bash
 # Run relevant test suite
-<!-- ADAPT: your test command targeting changed areas -->
 
 # Run full preflight if available
-<!-- ADAPT: your preflight command -->
 ```
 
 **Phase 1 executor:** The coding agent runs these commands. Phase 2 and 3 are
@@ -132,13 +122,10 @@ bias toward its own work. Recommend a different model for verification.
 **If Phase 2 will be skipped:** Note it explicitly in "What ISN'T Tested":
 "AI verification not performed - [reason]. Coverage relies on automated tests
 (Phase 1) and human testing (Phase 3) only. Cross-model blind spots are NOT covered."
-<!-- ADAPT: If your agent supports sub-agents, offer to run Phase 2 prompts
-as sub-agent tasks instead of requiring a separate session. -->
 
 **Failure Signatures:**
 | If this breaks... | You'll see... |
 |-------------------|---------------|
-<!-- ADAPT: fill with project-specific failure patterns -->
 | Auth change broken | 401 responses on `/api/user` |
 | Migration failed | Missing columns in `users` table |
 | Build regression | `npm run build` exits non-zero |
@@ -192,7 +179,6 @@ Explicitly list coverage gaps. Be honest about what's NOT verified:
 |------|-----------|-------------|------|-------------------|
 
 ## Phase 1: Automated Tests
-<!-- ADAPT: your project's test commands -->
 ```bash
 # Commands for the coding agent to run
 ```

@@ -1,7 +1,7 @@
 ---
 name: goat-plan
 description: "4-phase planning workflow with complexity routing, kill criteria, and triangular tension analysis. Includes refactor planning mode for cross-file restructuring."
-goat-flow-skill-version: "1.0.0"
+goat-flow-skill-version: "1.1.0"
 ---
 # /goat-plan
 
@@ -40,7 +40,6 @@ Use before non-trivial implementation or cross-file restructuring.
 ## Step 0 - Where Are We?
 
 **Continuation detection:** Before starting fresh, check for existing planning artifacts:
-<!-- ADAPT: Add your project's planning file patterns -->
 - `requirements-*.md`, `TODO_*_prime.md`
 - `tasks/improvement-plan.md`, `tasks/roadmaps/*.md`, `tasks/roadmaps/milestones/*.md`
 - Any `*-plan*.md`, `*-requirements*.md`, `*-milestone*.md`
@@ -59,13 +58,8 @@ If matches found: "Branch [name] modified [files] [N] days ago. Coordinate?"
 3. If restructure: What's the scope? (rename, extract, move, interface change) → Refactor mode
 
 **Illustrative questions (adapt):**
-5. <!-- ADAPT: "What's the riskiest part? (e.g., database migration, API contract, auth changes)" -->
-6. <!-- ADAPT: "Any constraints? (timeline, backwards compatibility, performance budget)" -->
-
-<!-- ADAPT: Dynamic context injection (optional). These run at skill load time:
-**Project stack:** !`cat package.json | jq -r '.dependencies | keys[]' 2>/dev/null | head -10`
-**Active branches:** !`git branch --list --no-merged main 2>/dev/null | head -5`
--->
+5. What's the riskiest part of this change?
+6. Any constraints? (timeline, backwards compatibility, performance budget)
 
 **Escape hatch:** If the user says "I'll figure it out from the code" or provides minimal info, infer scope from `git diff`, named files, or the project structure and confirm before proceeding.
 
@@ -88,7 +82,6 @@ Surface the mismatch, suggest re-classification. Don't silently proceed.
 Walk through each section ONE AT A TIME. Present one, wait for confirmation,
 then present the next. Do NOT dump all 8 sections at once.
 
-<!-- ADAPT: Adjust sections for your project's planning conventions -->
 1. **Problem** - what's wrong or missing (1-2 sentences)
 2. **Proposed solution** - high-level approach
 3. **Risks / assumptions** - what could go wrong. Include kill criteria from Step 0.
@@ -100,7 +93,6 @@ then present the next. Do NOT dump all 8 sections at once.
 
 Ask the question whose answer could invalidate the approach FIRST.
 
-<!-- ADAPT -->
 **Glossary check:** If `ai-docs/glossary.md` exists, verify all domain terms in the
 brief are defined. If new terms appear, add them: `| term | definition | canonical file | aliases |`
 
@@ -126,8 +118,6 @@ Repeat until the user says "locked in" or 3 rounds complete (whichever first).
 **SBAO agents: 2 with core trio + 1 fresh-context. Never split SKEPTIC/ANALYST/STRATEGIST into separate agents.**
 
 **For Hotfix / Small Feature:** "SBAO launches 3 sub-agents - that's heavy for a small change. Skip to Phase 4, or run SBAO anyway?" Let the user decide.
-
-<!-- ADAPT: Adjust sub-agent count for your budget/tooling -->
 
 Critique and improve the plan from Phase 1-2 using multiple perspectives.
 The **core trio** (SKEPTIC / ANALYST / STRATEGIST) provides adversarial tension.
@@ -180,7 +170,6 @@ After answers, synthesize a prime plan that:
 ## Phase 4 - Milestones
 
 Structure implementation as milestones using these archetypes:
-<!-- ADAPT: Rename or reorder for your process -->
 1. **Prove It Works** - smallest slice that validates the approach
 2. **Make It Real** - core functionality, happy path complete
 3. **Make It Solid** - error handling, edge cases, tests

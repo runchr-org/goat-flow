@@ -6,50 +6,81 @@ Instructions for creating project coding standards in `ai-docs/coding-standards/
 
 ## Step 1 — Discover existing standards
 
-Before creating anything, scan the project for existing coding standards:
+Scan the project for existing coding standards:
 
 - `.github/instructions/*.md` or `.github/instructions/*.instructions.md`
 - `ai/instructions/*.md`
 - `docs/` (conventions, code-review, coding-standards files)
 - Inline in CLAUDE.md, AGENTS.md, or GEMINI.md (domain knowledge sections)
-- Any project-specific README files with coding conventions
 
-List what you find. These are the project's canonical standards — do NOT recreate or duplicate them.
+List what you find.
 
-## Step 2 — Reference existing files
+## Step 2 — Always create ai-docs/coding-standards/conventions.md
 
-Create `ai-docs/README.md` as a routing map. For each existing standards file found in Step 1, add a reference:
+This file ALWAYS gets created. It is either:
+
+**A) A pointer file** (if the project has existing standards):
+```markdown
+# Project Conventions
+
+This project's coding standards live in `.github/instructions/`:
+
+| Standard | File |
+|----------|------|
+| Conventions | `.github/instructions/conventions.instructions.md` |
+| PHP | `.github/instructions/php.instructions.md` |
+| Code review | `.github/instructions/code-review.instructions.md` |
+| [list all that exist] |
+
+Build: [command]
+Test: [command]
+Lint: [command]
+```
+
+**B) A full conventions file** (if no existing standards):
+Use `workflow/coding-standards/conventions.md` template. Include: build/test/lint commands, naming conventions, file structure, stack-specific patterns.
+
+Either way, the scanner sees `conventions.md` exists with content. No contradiction.
+
+## Step 3 — Create ai-docs/README.md routing map
+
+Always create. Points to `ai-docs/coding-standards/` AND any existing instruction locations:
+
+```markdown
+# AI Docs Router
 
 | Need | Where to look |
 |------|--------------|
-| PHP conventions | `.github/instructions/php.instructions.md` |
-| Code review | `.github/instructions/code-review.instructions.md` |
-| [etc. — list what exists] |
+| Coding conventions | `ai-docs/coding-standards/conventions.md` |
+| Architecture | `ai-docs/architecture.md` |
+| Footguns | `ai-docs/footguns/` |
+| Lessons | `ai-docs/lessons/` |
+| Decisions | `ai-docs/decisions/` |
+```
 
-Do NOT copy content from existing files into `ai-docs/coding-standards/`. Reference them.
+If `.github/instructions/` exists, add those entries too.
 
-## Step 3 — Supplement gaps
+## Step 4 — Supplement gaps only
 
-Check which areas the project does NOT already cover. Use templates from `workflow/coding-standards/` to fill gaps only:
+Check which areas the project does NOT already cover. Create additional `ai-docs/coding-standards/` files ONLY for gaps:
 
-- `conventions.md` — project-wide conventions (build/test/lint commands, naming, structure). Create if no equivalent exists.
-- `code-review.md` — review standards. Create if no code-review instructions exist.
-- `git-commit.md` — commit format. Create if no git-commit instructions exist.
-- `backend.md` / `frontend.md` — stack-specific standards. Use the relevant template from `workflow/coding-standards/backend/` or `workflow/coding-standards/frontend/`. Create only if the project has no equivalent.
-- `testing.md` — testing standards following DDT methodology. Create if no testing conventions exist.
+- `code-review.md` — if no code-review instructions exist anywhere
+- `git-commit.md` — if no git-commit instructions exist anywhere
+- `backend.md` / `frontend.md` — if no stack-specific standards exist. Use templates from `workflow/coding-standards/backend/` or `workflow/coding-standards/frontend/`
+- `testing.md` — testing standards following DDT methodology, if none exist
 
-Only create files for standards the project doesn't already have.
+Do NOT create files for areas already covered by `.github/instructions/` or other project files.
 
-## Step 4 — Verify
+## Step 5 — Verify
 
-- Every path referenced in `ai-docs/README.md` actually exists
-- Every command listed in conventions.md actually runs
-- No aspirational content — only document current state
-- No duplication between `ai-docs/coding-standards/` and existing `.github/instructions/` or `docs/` files
+- `ai-docs/coding-standards/conventions.md` exists (always)
+- `ai-docs/README.md` exists (always)
+- Every path referenced actually exists
+- Every command listed actually runs
+- No content duplicated from `.github/instructions/` — only pointer references
 
 ## What NOT to do
 
 - Do NOT edit or delete existing project files
-- Do NOT migrate `.github/instructions/` content into `ai-docs/coding-standards/`
-- Do NOT create `ai-docs/coding-standards/` files that overlap with existing instruction files
-- If the project already has comprehensive standards, this step may create nothing beyond `ai-docs/README.md`
+- Do NOT copy `.github/instructions/` content into `ai-docs/coding-standards/`
+- DO always create `conventions.md` — as a pointer if existing standards exist, as a full file if not

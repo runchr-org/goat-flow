@@ -1,9 +1,12 @@
 /**
  * Version markers for the rubric and JSON schema.
- * Bump these constants when scanner semantics or report contracts change, not for wording-only edits.
+ * RUBRIC_VERSION tracks the package version so they can't drift.
+ * SCHEMA_VERSION is independent — bump when report field names/types change.
  */
-/** Rubric version - bump when checks/points/detection logic change, not for text edits. */
-export const RUBRIC_VERSION = '1.0.0';
+import { getPackageVersion } from '../paths.js';
+
+/** Rubric version — derived from package.json so it stays in sync automatically. */
+export const RUBRIC_VERSION = getPackageVersion();
 
 /** JSON report schema version - bump when report field names/types change. */
 export const SCHEMA_VERSION = '3';

@@ -1,7 +1,7 @@
 ---
 name: goat-review
 description: "Structured code review and quality audit with RFC 2119 severity, diff-aware analysis, footgun matching, negative verification, simplify mode for readability, and instruction-file audit mode."
-goat-flow-skill-version: "1.0.0"
+goat-flow-skill-version: "1.1.0"
 ---
 # /goat-review
 
@@ -32,21 +32,14 @@ Also use for improving readability, naming, and code clarity - see Simplify Mode
 
 ## Step 0 - Gather Context
 
-<!-- ADAPT: Replace illustrative questions with project-specific review concerns -->
-
 **Structural questions (always ask or confirm):**
 1. Which files or area? (or I'll run `git diff` to find recent changes)
 2. What's the concern? (performance, security, correctness, readability - or "general review")
 3. Diff review or full audit? (I'll auto-detect from whether changes exist)
 
 **Illustrative questions (adapt):**
-4. <!-- ADAPT: "Is this responding to external feedback? (Copilot, another agent, team review)" -->
+4. Is this responding to external feedback? (another agent, team review, etc.)
 5. Riskiest change first, or full sweep?
-
-<!-- ADAPT: Dynamic context injection (optional). These run at skill load time:
-**Changed files:** !`git diff --stat`
-**Recent commits:** !`git log --oneline -3`
--->
 
 **Escape hatch:** If the user says "just review what changed" or provides minimal info, auto-detect scope from `git diff --stat` and proceed.
 
@@ -106,7 +99,7 @@ pre-existing issues as part of this change - note them separately.
 - Pattern drift: does new code use a different pattern than existing codebase? Don't assume it's wrong - ask: "Intentional divergence?"
 - Downstream impact: "What breaks if this change has a bug?" - map the cascade
 - Test execution gaps: tests exist but weren't run against the changed path (different from "no test exists")
-- Glossary consistency: if `ai-docs/glossary.md` exists, flag terms used inconsistently in the diff (different name for same concept) <!-- ADAPT -->
+- Glossary consistency: if `ai-docs/glossary.md` exists, flag terms used inconsistently in the diff (different name for same concept)
 
 **Self-check:** Before presenting, re-verify `file:line` references for all MUST-fix findings.
 
@@ -135,7 +128,6 @@ Use the Output Format template below. Additional required sections for reviews:
 ## Phase 4 - DoD Gate Check
 
 Verify the project's Definition of Done against this change:
-<!-- ADAPT: Replace with your project's actual DoD gates -->
 1. Tests/lint pass on changed files
 2. No broken cross-references introduced
 3. No unapproved boundary changes
@@ -154,7 +146,6 @@ or when code quality is uncertain.
 **Scope guidance:** For >20 files, recommend splitting into focused audits.
 
 **Phase A1 - Scan:**
-<!-- ADAPT: Adjust category list and weights for your project -->
 
 Scan categories, weighted by audit purpose:
 
@@ -169,7 +160,6 @@ Scan categories, weighted by audit purpose:
 | Style | Low | Low | Low |
 
 For each finding, log: category, `file:line`, description, severity.
-<!-- ADAPT: Use your agent's parallel execution capability, or scan areas sequentially. -->
 
 **Recurrence check:** Before reporting, search `ai-docs/footguns/` and `.goat-flow/footguns/` for entries
 in the scanned area. Cross-reference findings with known footguns.

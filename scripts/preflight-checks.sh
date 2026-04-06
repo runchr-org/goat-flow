@@ -89,9 +89,9 @@ fi
 
 # ── Skill Template Versions ──────────────────────────────────────────
 section "Skill Template Versions"
-skill_version=$(grep -o "RUBRIC_VERSION = '[^']*'" src/cli/rubric/version.ts | grep -o "'[^']*'" | tr -d "'" || true)
+skill_version=$(node -e "console.log(require('./package.json').version)" 2>/dev/null || true)
 if [[ -z "$skill_version" ]]; then
-    note "Could not extract RUBRIC_VERSION from src/cli/rubric/version.ts"
+    note "Could not read version from package.json"
 else
     template_fail=0
     while IFS= read -r -d '' f; do
@@ -127,7 +127,7 @@ fi
 section "Version Consistency"
 if [[ -f package.json ]] && [[ -f src/cli/rubric/version.ts ]]; then
     pkg_version=$(node -e "console.log(require('./package.json').version)")
-    rubric_version=$(grep "RUBRIC_VERSION" src/cli/rubric/version.ts | grep -oE "'[^']+'" | tr -d "'")
+    rubric_version="$pkg_version"  # RUBRIC_VERSION derives from package.json since v1.1.0
     schema_version=$(grep "SCHEMA_VERSION" src/cli/rubric/version.ts | grep -oE "'[^']+'" | tr -d "'")
 
     pass "package.json ($pkg_version)"

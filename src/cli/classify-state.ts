@@ -24,6 +24,7 @@ export interface ProjectState {
 }
 
 /** Detect which adoption stage a project is at based on its on-disk artifacts. */
+// eslint-disable-next-line complexity -- intentionally branchy state machine
 export function classifyProjectState(fs: StateFS): ProjectState {
   // Check for .goat-flow/config.yaml (v1.0+)
   const hasConfig = fs.exists('.goat-flow/config.yaml');

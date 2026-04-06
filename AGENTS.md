@@ -1,4 +1,4 @@
-# AGENTS.md - v1.0.0 (2026-04-05)
+# AGENTS.md - v1.1.0 (2026-04-06)
 GOAT Flow documentation framework. Markdown docs + Bash validation scripts. This Codex layer supplements the existing Claude Code workflow; leave `CLAUDE.md` and `.claude/` untouched unless a task explicitly targets them.
 ## Essential Commands
 ```bash

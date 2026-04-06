@@ -1,7 +1,7 @@
 ---
 name: goat-security
 description: "Threat-model-driven security assessment with framework-aware verification, exploitability ranking, and concrete dependency auditing."
-goat-flow-skill-version: "1.0.0"
+goat-flow-skill-version: "1.1.0"
 ---
 # /goat-security
 
@@ -36,14 +36,9 @@ handling, when touching secrets/credentials, or for a security-focused audit.
 3. Any specific threat concern? (injection, auth bypass, data exposure - or "general audit")
 
 **Illustrative questions (adapt):**
-4. <!-- ADAPT: "What auth boundaries exist? (OAuth, JWT, session, API key, none)" -->
-5. <!-- ADAPT: "Any known vulnerabilities to skip? (already tracked, being fixed separately)" -->
+4. What auth boundaries exist? (OAuth, JWT, session, API key, none)
+5. Any known vulnerabilities to skip? (already tracked, being fixed separately)
 6. What framework are you using? (I'll check its built-in security features in Phase 2)
-
-<!-- ADAPT: Dynamic context injection (optional). These run at skill load time:
-**Dependencies:** !`cat package.json 2>/dev/null | jq -r '.dependencies + .devDependencies | keys[]' | head -15`
-**Framework:** !`cat composer.json 2>/dev/null | jq -r '.require | keys[]' | head -10`
--->
 
 **Escape hatch:** If the user says "just scan everything" or provides minimal info, auto-detect framework from package files and run a broad threat surface scan.
 
@@ -66,8 +61,6 @@ Surface the mismatch, suggest re-classification. Don't silently proceed.
 Scan against the checklist below. **Skip categories that don't apply** based
 on Step 0 threat model (a CLI tool doesn't need CORS/CSP checks).
 
-<!-- ADAPT: Remove categories irrelevant to your stack -->
-
 | Category | Check | Skip If | Example |
 |----------|-------|---------|---------|
 | Input validation | User input reaches backend without sanitization | No user input (library) | `req.body.name` passed directly to SQL |
@@ -82,7 +75,6 @@ on Step 0 threat model (a CLI tool doesn't need CORS/CSP checks).
 | Permission escalation | Role/privilege checks missing or bypassable | Single-role system | Admin routes without role check |
 
 **Dependency audit commands:**
-<!-- ADAPT: Use your project's package manager -->
 ```bash
 npm audit              # Node.js
 pip-audit              # Python
@@ -101,7 +93,6 @@ framework already mitigates it. Attempt to DISPROVE each finding - the adversari
 framing catches more false positives than "check if it's handled."
 
 **Framework verification examples:**
-<!-- ADAPT: Replace with your framework's security features -->
 
 | Framework | Feature | What it mitigates | How to verify |
 |-----------|---------|-------------------|---------------|
