@@ -248,9 +248,9 @@ describe('No setup/shared references to deleted skills', () => {
     f.endsWith('.md'),
   );
 
-  // phase-1.md documents migration history ("goat-reflect merged into...").
-  // These are intentional historical references, not active skill usage.
-  const MIGRATION_HISTORY_FILES = new Set(['phase-1.md']);
+  // phase-1.md and system-overview.md document migration history and upgrade
+  // routing. These intentionally mention old skill names, not active skill usage.
+  const MIGRATION_HISTORY_FILES = new Set(['phase-1.md', 'system-overview.md']);
 
   for (const file of sharedFiles) {
     if (MIGRATION_HISTORY_FILES.has(file)) continue;

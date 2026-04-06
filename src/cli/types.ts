@@ -52,7 +52,6 @@ export type DenyMechanism =
 /** Hook event file names specific to each agent runtime */
 export interface HookEvents {
   preTool: string;
-  postTool: string;
   postTurn: string;
 }
 
@@ -276,13 +275,7 @@ export interface SharedFacts {
     missingSkills: string[];
     path: string;
   };
-  ci: {
-    workflowExists: boolean;
-    checksLineCount: boolean;
-    checksRouter: boolean;
-    checksSkills: boolean;
-    ciTriggersOnPRs: boolean;
-  };
+  // ci removed - CI workflow is a project-level concern.
   ignoreFiles: {
     copilotignore: boolean;
     cursorignore: boolean;
@@ -290,6 +283,7 @@ export interface SharedFacts {
   };
   gitignore: { exists: boolean; hasRequiredEntries: boolean };
   preflightScript: { exists: boolean };
+  contextValidation: { exists: boolean };
   skillConventions: { exists: boolean };
   // changelog removed - project-level concern, not AI workflow.
   localInstructions: {
@@ -387,11 +381,6 @@ export interface AgentFacts {
     postTurnExitsZero: boolean;
     postTurnHasValidation: boolean;
     postTurnSwallowsFailures: boolean;
-    postToolRegistered: boolean;
-    postToolRegisteredPath: string | null;
-    postToolExists: boolean;
-    postToolUsesExpectedPathField: boolean;
-    postToolSkipsAgentConfigPaths: boolean;
     compactionHookExists: boolean;
     /** Hook scripts containing hardcoded absolute paths (not wrapped in $(git rev-parse)) */
     absolutePathHooks: string[];

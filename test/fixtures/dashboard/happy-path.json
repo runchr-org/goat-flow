@@ -27,7 +27,7 @@
       "agent": "claude",
       "agentName": "Claude Code",
       "score": {
-        "earned": 124,
+        "earned": 132,
         "available": 124,
         "deductions": 0,
         "percentage": 100,
@@ -51,7 +51,8 @@
             "available": 17,
             "percentage": 100
           }
-        }
+        },
+        "maxPoints": 132
       },
       "checks": [
         {
@@ -1233,67 +1234,6 @@
           "recommendationKey": "add-eval-skill-coverage"
         },
         {
-          "id": "3.2.1",
-          "name": "CI workflow exists",
-          "tier": "full",
-          "category": "CI Validation",
-          "confidence": "high",
-          "status": "pass",
-          "points": 2,
-          "maxPoints": 2,
-          "message": ".github/workflows/context-validation.yml exists",
-          "evidence": ".github/workflows/context-validation.yml",
-          "recommendationKey": "create-ci-workflow"
-        },
-        {
-          "id": "3.2.2",
-          "name": "CI checks line count",
-          "tier": "full",
-          "category": "CI Validation",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "CI workflow checks line count",
-          "recommendationKey": "ci-check-lines"
-        },
-        {
-          "id": "3.2.3",
-          "name": "CI checks router refs",
-          "tier": "full",
-          "category": "CI Validation",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "CI workflow checks router",
-          "recommendationKey": "ci-check-router"
-        },
-        {
-          "id": "3.2.4",
-          "name": "CI checks skills",
-          "tier": "full",
-          "category": "CI Validation",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "CI workflow checks skills",
-          "recommendationKey": "ci-check-skills"
-        },
-        {
-          "id": "3.2.5",
-          "name": "CI triggers on PRs",
-          "tier": "full",
-          "category": "CI Validation",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "CI runs automatically on pull requests",
-          "recommendationKey": "ci-trigger-prs"
-        },
-        {
           "id": "3.3.1",
           "name": "Handoff template",
           "tier": "full",
@@ -1479,7 +1419,7 @@
       "agent": "codex",
       "agentName": "Codex",
       "score": {
-        "earned": 124,
+        "earned": 131,
         "available": 124,
         "deductions": 0,
         "percentage": 100,
@@ -1503,7 +1443,8 @@
             "available": 17,
             "percentage": 100
           }
-        }
+        },
+        "maxPoints": 131
       },
       "checks": [
         {
@@ -2685,67 +2626,6 @@
           "recommendationKey": "add-eval-skill-coverage"
         },
         {
-          "id": "3.2.1",
-          "name": "CI workflow exists",
-          "tier": "full",
-          "category": "CI Validation",
-          "confidence": "high",
-          "status": "pass",
-          "points": 2,
-          "maxPoints": 2,
-          "message": ".github/workflows/context-validation.yml exists",
-          "evidence": ".github/workflows/context-validation.yml",
-          "recommendationKey": "create-ci-workflow"
-        },
-        {
-          "id": "3.2.2",
-          "name": "CI checks line count",
-          "tier": "full",
-          "category": "CI Validation",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "CI workflow checks line count",
-          "recommendationKey": "ci-check-lines"
-        },
-        {
-          "id": "3.2.3",
-          "name": "CI checks router refs",
-          "tier": "full",
-          "category": "CI Validation",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "CI workflow checks router",
-          "recommendationKey": "ci-check-router"
-        },
-        {
-          "id": "3.2.4",
-          "name": "CI checks skills",
-          "tier": "full",
-          "category": "CI Validation",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "CI workflow checks skills",
-          "recommendationKey": "ci-check-skills"
-        },
-        {
-          "id": "3.2.5",
-          "name": "CI triggers on PRs",
-          "tier": "full",
-          "category": "CI Validation",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "CI runs automatically on pull requests",
-          "recommendationKey": "ci-trigger-prs"
-        },
-        {
           "id": "3.3.1",
           "name": "Handoff template",
           "tier": "full",
@@ -2931,7 +2811,7 @@
       "agent": "gemini",
       "agentName": "Gemini CLI",
       "score": {
-        "earned": 124,
+        "earned": 132,
         "available": 124,
         "deductions": 0,
         "percentage": 100,
@@ -2955,7 +2835,8 @@
             "available": 17,
             "percentage": 100
           }
-        }
+        },
+        "maxPoints": 132
       },
       "checks": [
         {
@@ -4137,67 +4018,6 @@
           "recommendationKey": "add-eval-skill-coverage"
         },
         {
-          "id": "3.2.1",
-          "name": "CI workflow exists",
-          "tier": "full",
-          "category": "CI Validation",
-          "confidence": "high",
-          "status": "pass",
-          "points": 2,
-          "maxPoints": 2,
-          "message": ".github/workflows/context-validation.yml exists",
-          "evidence": ".github/workflows/context-validation.yml",
-          "recommendationKey": "create-ci-workflow"
-        },
-        {
-          "id": "3.2.2",
-          "name": "CI checks line count",
-          "tier": "full",
-          "category": "CI Validation",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "CI workflow checks line count",
-          "recommendationKey": "ci-check-lines"
-        },
-        {
-          "id": "3.2.3",
-          "name": "CI checks router refs",
-          "tier": "full",
-          "category": "CI Validation",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "CI workflow checks router",
-          "recommendationKey": "ci-check-router"
-        },
-        {
-          "id": "3.2.4",
-          "name": "CI checks skills",
-          "tier": "full",
-          "category": "CI Validation",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "CI workflow checks skills",
-          "recommendationKey": "ci-check-skills"
-        },
-        {
-          "id": "3.2.5",
-          "name": "CI triggers on PRs",
-          "tier": "full",
-          "category": "CI Validation",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "CI runs automatically on pull requests",
-          "recommendationKey": "ci-trigger-prs"
-        },
-        {
           "id": "3.3.1",
           "name": "Handoff template",
           "tier": "full",
@@ -4381,7 +4201,7 @@
     }
   ],
   "meta": {
-    "checkCount": 104,
+    "checkCount": 297,
     "antiPatternCount": 16,
     "timestamp": "2026-03-29T07:12:38.200Z"
   }

@@ -28,7 +28,7 @@ Hook template `workflow/hooks/stop-lint.sh` uses `|| true` after lint/type-check
 
 **Evidence:** Found independently by Codex critiques on the-summit-chatroom (`.claude/hooks/stop-lint.sh:22`, `:29`, `:37` all swallow failure) and blundergoat-platform.
 
-**Related:** `format-file.sh` reads `.tool_input.file_path` but PostToolUse uses top-level `.file_path` per `workflow/hooks/format-file.sh` (originally enforcement.md:125). `deny-dangerous.sh` parses `.command // .input` but template says `.tool_input.command` per `workflow/hooks/deny-dangerous.sh` (originally enforcement.md:69).
+**Related:** `deny-dangerous.sh` parses `.command // .input` but template says `.tool_input.command` per `workflow/hooks/deny-dangerous.sh` (originally enforcement.md:69). (format-file.sh was removed from goat-flow core in v1.1.0 as a project-specific preference.)
 
 **Impact:** The entire hook enforcement layer is dishonest. Projects pass the scanner's enforcement check while hooks never actually block anything.
 

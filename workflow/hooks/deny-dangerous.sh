@@ -30,7 +30,6 @@ if command -v jq >/dev/null 2>&1; then
   COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null || echo "$INPUT")
 else
   # Fallback: extract with sed (less reliable but works without jq)
-  # Do NOT use grep -P (Perl regex) - unavailable on macOS
   COMMAND=$(echo "$INPUT" | sed -n 's/.*"command"\s*:\s*"\([^"]*\)".*/\1/p' | head -1)
   [[ -z "$COMMAND" ]] && COMMAND="$INPUT"
 fi

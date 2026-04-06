@@ -60,7 +60,7 @@ Do NOT guess when ambiguous. One clarification question is faster than loading t
 | "audit the code" | review(audit) vs security | Ask: "Code quality audit (review) or security/dependency audit (security)?" |
 
 **Target-aware disambiguation:** If the input references a file path, check the path for context:
-- Path contains `roadmap`, `plan`, `todo`, `milestone` → disambiguate between goat-review and goat-plan
+- Path contains `roadmap`, `plan`, `.goat-flow/tasks/`, `milestone` → disambiguate between goat-review and goat-plan
 - Path contains `test`, `spec`, `e2e` → lean toward goat-test
 - Path contains `security`, `auth`, `vuln` → lean toward goat-security
 

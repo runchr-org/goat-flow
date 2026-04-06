@@ -38,11 +38,8 @@ Use before non-trivial implementation or cross-file restructuring.
 ## Step 0 - Where Are We?
 
 **Continuation detection:** Before starting fresh, check for existing planning artifacts:
-- `.goat-flow/tasks/todo.md`, `.goat-flow/tasks/handoff.md`
-- `.goat-flow/tasks/1.0.0/*.md` (version-specific milestone files, e.g., `M24-install-and-readme.md`)
-- `.goat-flow/tasks/_archived/roadmaps/` (prior version roadmaps and milestones)
-
-Also check for staleness: `git log --since="2 weeks ago" -- [artifact]`. If the artifact hasn't been touched while code diverged, flag it.
+- `.goat-flow/tasks/**` (milestone files, plans, requirements)
+- `.goat-flow/logs/sessions/*.md` (recent session summaries if no active plan file)
 
 If found: "I found [artifact] from [date]. Want to: (a) resume from here, (b) start fresh, (c) jump to a specific phase?"
 
@@ -112,6 +109,8 @@ Repeat until the user says "locked in" or 3 rounds complete (whichever first).
 **CHECKPOINT:** "Locked in. Proceeding to approach analysis."
 
 ## Phase 3 - Signal-Based Adaptive Orchestration (SBAO)
+
+**Skip Phases 2-4 for Hotfix, Small Feature, and Standard complexity.** Proceed directly from Phase 1 brief to milestone writing. Only System and Infrastructure complexity warrant the full SBAO orchestration below.
 
 **SBAO agents: 2 with core trio + 1 fresh-context. Never split SKEPTIC/ANALYST/STRATEGIST into separate agents.**
 

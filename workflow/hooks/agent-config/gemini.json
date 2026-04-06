@@ -36,15 +36,6 @@
             "command": "bash \"$(git rev-parse --show-toplevel)/.gemini/hooks/deny-dangerous.sh\""
           }
         ]
-      },
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.gemini/hooks/guard-write-size.sh\""
-          }
-        ]
       }
     ],
 
@@ -56,20 +47,6 @@
           {
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/.gemini/hooks/stop-lint.sh\""
-          }
-        ]
-      }
-    ],
-
-    // AfterTool: fires after Edit/Write completes. For auto-formatting.
-    // Equivalent to Claude's PostToolUse.
-    "AfterTool": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.gemini/hooks/format-file.sh\""
           }
         ]
       }

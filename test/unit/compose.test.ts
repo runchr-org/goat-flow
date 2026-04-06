@@ -135,7 +135,6 @@ function buildFullProject() {
       '#!/usr/bin/env bash\necho "BLOCKED" >&2\nexit 2\n',
     '.claude/hooks/stop-lint.sh':
       '#!/usr/bin/env bash\nshellcheck changed.sh\nnpx tsc --noEmit\nexit 0\n',
-    '.claude/hooks/format-file.sh': '#!/usr/bin/env bash\nexit 0\n',
     'ai-docs/footguns/': '# Footguns\n\n- `src/auth.ts:42` - race\n',
     'ai-docs/lessons/': '# Lessons\n\n### Entry 1\nStuff.\n',
     'ai-docs/architecture.md': '# Architecture\n\nOverview.\n',
@@ -147,8 +146,6 @@ function buildFullProject() {
       '# E2\n\n**Origin:** real-incident\n\n## Replay Prompt\n\n```\ny\n```\n',
     'ai-docs/evals/eval-3.md':
       '# E3\n\n**Origin:** real-incident\n\n## Replay Prompt\n\n```\nz\n```\n',
-    '.github/workflows/context-validation.yml':
-      'name: CV\nsteps:\n  - run: wc -l\n  - run: check router\n  - run: check skills\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\n',
     '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
@@ -196,7 +193,6 @@ function buildTargetedUpgradeProject(extraFiles: Record<string, string> = {}) {
     }),
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 2\n',
     '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
-    '.claude/hooks/format-file.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.claude/skills/goat-debug/SKILL.md':
       '---\nname: goat-debug\ngoat-flow-skill-version: "1.1.0"\n---\n# /goat-debug\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
     '.claude/skills/goat-plan/SKILL.md':

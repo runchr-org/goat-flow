@@ -720,10 +720,11 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
     '.copilotignore': shared.ignoreFiles.copilotignore,
     '.cursorignore': shared.ignoreFiles.cursorignore,
     '.geminiignore': shared.ignoreFiles.geminiignore,
-    '.github/workflows/context-validation.yml': shared.ci.workflowExists,
+    // CI workflow removed - project-level concern.
     '.gitignore': shared.gitignore.exists,
     '.goat-flow/config.yaml': shared.config.exists,
     'scripts/preflight-checks.sh': shared.preflightScript.exists,
+    'scripts/context-validate.sh': shared.contextValidation.exists,
     [shared.decisions.path]: shared.decisions.dirExists,
     [normalizedDecisionsPath]: shared.decisions.dirExists,
     // CHANGELOG.md removed - project-level concern.

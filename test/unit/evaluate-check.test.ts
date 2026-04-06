@@ -473,10 +473,9 @@ describe('Check 2.2.6: Context validation', () => {
 
   it('passes when context-validate.sh exists', () => {
     const ctx = createMockContext({
-      shared: { ci: { workflowExists: true } },
+      shared: { contextValidation: { exists: true } },
     });
     const result = runSingleCheck(check, ctx);
-    // This is a composite check (any of: context-validate.sh OR CI workflow)
     assert.equal(result.status, 'pass', `Expected pass, got ${result.status}: ${result.message}`);
   });
 });
@@ -1119,20 +1118,6 @@ describe('Check 2.1.20: Dispatcher installed', () => {
     const ctx = createMockContext({ agentFacts: { skills: { hasDispatcher: false } } });
     const result = runSingleCheck(check, ctx);
     assert.equal(result.status, 'fail', result.message);
-  });
-});
-
-// ---------------------------------------------------------------
-// 2.2.4: Post-tool hook registered
-// ---------------------------------------------------------------
-describe('Check 2.2.4: Post-tool hook', () => {
-  const check = getCheck('2.2.4');
-  assert.ok(check, 'Check 2.2.4 should exist');
-
-  it('passes with default mock (post-tool registered)', () => {
-    const ctx = createMockContext();
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'pass', result.message);
   });
 });
 

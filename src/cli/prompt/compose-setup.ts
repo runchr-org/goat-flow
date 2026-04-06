@@ -928,7 +928,7 @@ function renderSetupRedirect(
   }
 
   if (projectState.state === 'v1.0') {
-    lines.push(`# GOAT Flow Setup - ${profile.name}`);
+    lines.push(`# GOAT Flow Upgrade - ${profile.name}`);
     lines.push('');
     lines.push('## Upgrade from v1.0 to current');
     lines.push('');
@@ -946,11 +946,35 @@ function renderSetupRedirect(
       'remove handoff-template.md/todo.md/handoff.md, update instruction file Working Memory section.',
     );
     lines.push('');
-    // Still include stack detection and agent-specific info below
+    lines.push(`**Stack:** ${languages}`);
+    const v10Cmds = [
+      stack.buildCommand && `**Build:** \`${stack.buildCommand}\``,
+      stack.testCommand && `**Test:** \`${stack.testCommand}\``,
+      stack.lintCommand && `**Lint:** \`${stack.lintCommand}\``,
+    ]
+      .filter(Boolean)
+      .join(' | ');
+    if (v10Cmds) lines.push(v10Cmds);
+    renderSignals(lines, stack.signals);
+    lines.push('');
+    if (report.stack.signals?.llmIntegration === true) {
+      lines.push(
+        '**LLM integration detected.** Ensure Ask First boundaries and router table include prompt/template files.',
+      );
+      lines.push('');
+    }
+    const v10SetupFile = SETUP_FILES[agentId];
+    if (v10SetupFile) {
+      lines.push(
+        `For ${profile.name}-specific hooks and settings, also read: \`${v10SetupFile}\``,
+      );
+      lines.push('');
+    }
+    return lines.join('\n');
   }
 
   if (projectState.state === 'v0.9') {
-    lines.push(`# GOAT Flow Setup - ${profile.name}`);
+    lines.push(`# GOAT Flow Migration - ${profile.name}`);
     lines.push('');
     lines.push('## Migration from v0.9 to current');
     lines.push('');
@@ -968,7 +992,31 @@ function renderSetupRedirect(
       'docs/lessons.md → ai-docs/lessons/, create .goat-flow/config.yaml, install skill-conventions.md.',
     );
     lines.push('');
-    // Still include stack detection and agent-specific info below
+    lines.push(`**Stack:** ${languages}`);
+    const v09Cmds = [
+      stack.buildCommand && `**Build:** \`${stack.buildCommand}\``,
+      stack.testCommand && `**Test:** \`${stack.testCommand}\``,
+      stack.lintCommand && `**Lint:** \`${stack.lintCommand}\``,
+    ]
+      .filter(Boolean)
+      .join(' | ');
+    if (v09Cmds) lines.push(v09Cmds);
+    renderSignals(lines, stack.signals);
+    lines.push('');
+    if (report.stack.signals?.llmIntegration === true) {
+      lines.push(
+        '**LLM integration detected.** Ensure Ask First boundaries and router table include prompt/template files.',
+      );
+      lines.push('');
+    }
+    const v09SetupFile = SETUP_FILES[agentId];
+    if (v09SetupFile) {
+      lines.push(
+        `For ${profile.name}-specific hooks and settings, also read: \`${v09SetupFile}\``,
+      );
+      lines.push('');
+    }
+    return lines.join('\n');
   }
 
   // For bare/partial/error states, render the standard header

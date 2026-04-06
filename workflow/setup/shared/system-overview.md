@@ -2,6 +2,16 @@
 
 Read this first. This is what you're installing and why.
 
+## When NOT to run setup
+
+If `.goat-flow/config.yaml` exists and its version matches the current goat-flow release, **do not run setup**. The project is already configured. Run `goat-flow scan .` instead and fix any failing checks.
+
+Running setup on an already-current project is destructive — it overwrites adapted content with generic templates.
+
+If the version is older, use the upgrade path instead:
+- Old skill names (goat-audit, goat-investigate, etc.) → `workflow/setup/upgrade-0.9.x.md`
+- Version < current → `workflow/setup/upgrade-1.0.0.md`
+
 ## What goat-flow is
 
 A framework that gives AI coding agents extended memory across sessions. Not documentation, not ceremony, not a quality gate — memory infrastructure.
@@ -46,6 +56,7 @@ A framework that gives AI coding agents extended memory across sessions. Not doc
 Setup should only create/edit files in `.goat-flow/` and `ai-docs/`. Everything else in the project is hands-off.
 
 - **Existing CLAUDE.md / AGENTS.md / GEMINI.md:** Do NOT edit or delete. Copy the existing file to `ai-docs/` for reference (e.g., `ai-docs/original-CLAUDE.md`), then create a new lean instruction file. The user's original content is preserved, not destroyed.
+- **Exception: goat-flow-generated instruction files** (detectable by version header like `# CLAUDE.md - v1.1.0`): edit in-place for version bumps, section fixes, and maintenance. Do not copy-and-replace files that goat-flow already generated.
 - **Existing project files** (`.github/instructions/`, `docs/`, `src/`, etc.): Never edit, never delete. Reference them from `ai-docs/README.md`.
 - **Exception for upgrades:** Older goat-flow versions may have files outside `.goat-flow/` and `ai-docs/` (e.g., `docs/footguns.md`, `tasks/`). These can be migrated during an upgrade.
 - If the project has `.github/instructions/`, use them as canonical — don't duplicate into `ai-docs/coding-standards/`.

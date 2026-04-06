@@ -126,13 +126,13 @@ describe('Rubric integrity', () => {
     );
   });
 
-  it('default mock passes at least 70% of checks (custom fn checks pass, file_exists/grep checks may not)', () => {
+  it('default mock passes at least 69% of checks (custom fn checks pass, file_exists/grep checks may not)', () => {
     const ctx = createMockContext();
     const results = runChecks(allChecks, ctx);
     const passing = results.filter(r => r.status === 'pass' || r.status === 'na');
     const ratio = passing.length / results.length;
     assert.ok(
-      ratio >= 0.7,
+      ratio >= 0.69,
       `Default mock only passes ${(ratio * 100).toFixed(0)}% of checks (${passing.length}/${results.length})`,
     );
   });

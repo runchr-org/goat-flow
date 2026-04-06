@@ -16,12 +16,6 @@
 [hooks.stop]
 command = "bash .codex/hooks/stop-lint.sh"
 
-# --- AfterToolUse Hook --------------------------------------------------------
-# Fires after any tool invocation. Used for auto-formatting edited files.
-# Remove this if your project has no formatter.
-[hooks.after_tool_use]
-command = "bash .codex/hooks/format-file.sh"
-
 # --- SessionStart Hook --------------------------------------------------------
 # Fires once when a session opens. Use for environment verification,
 # loading context, or checking prerequisites.

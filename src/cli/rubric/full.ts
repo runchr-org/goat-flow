@@ -1,6 +1,6 @@
 /**
  * Full-tier rubric checks for mature adoption.
- * This tier focuses on eval coverage, CI validation, and mature-adoption hygiene once the basics are already in place.
+ * This tier focuses on eval coverage, dual-agent consistency, and mature-adoption hygiene once the basics are already in place.
  */
 import type { CheckDef, FactContext, CheckResult } from '../types.js';
 // Confidence criteria:
@@ -9,9 +9,9 @@ import type { CheckDef, FactContext, CheckResult } from '../types.js';
 //   low    = semantic inference (content quality judgment)
 
 /**
- * Tier 3 - Full (20 points)
- * Agent evals, CI validation, hygiene.
- * These checks represent mature GOAT Flow adoption with CI integration.
+ * Tier 3 - Full
+ * Agent evals, dual-agent consistency, hygiene.
+ * These checks represent mature GOAT Flow adoption.
  */
 export const fullChecks: CheckDef[] = [
   // === 3.1 Agent Evals (9 pts: 1 existence + 1 count + 2 replay + 1 origin + 1 agents + 2 coverage + 1 frontmatter) ===
@@ -245,160 +245,7 @@ export const fullChecks: CheckDef[] = [
     recommendationKey: 'add-eval-skill-coverage',
   },
 
-  // === 3.2 CI Validation (6 pts) ===
-  {
-    id: '3.2.1',
-    name: 'CI workflow exists',
-    tier: 'full',
-    category: 'CI Validation',
-    pts: 2,
-    confidence: 'high',
-    priority: 'optional',
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        const ci = ctx.facts.shared.ci;
-        const hasValidation = ci.checksLineCount || ci.checksRouter || ci.checksSkills;
-        const passes = ci.workflowExists && hasValidation;
-        const message = !ci.workflowExists
-          ? 'Missing `.github/workflows/context-validation.yml`. Expected a dedicated context-validation workflow in GitHub Actions.'
-          : hasValidation
-            ? 'CI workflow found at `.github/workflows/context-validation.yml` and it runs validation commands'
-            : 'CI workflow exists but no real validation commands were detected. Add runnable checks such as `bash scripts/context-validate.sh`, line-count enforcement, router validation, or full skill validation.';
-        return {
-          id: '3.2.1', name: 'CI workflow exists', tier: 'full', category: 'CI Validation',
-          status: passes ? 'pass' : 'fail', points: passes ? 2 : 0, maxPoints: 2,
-          confidence: 'high', message,
-        };
-      },
-    },
-    recommendation: 'Create .github/workflows/context-validation.yml',
-    recommendationKey: 'create-ci-workflow',
-  },
-  {
-    id: '3.2.2',
-    name: 'CI checks line count',
-    tier: 'full',
-    category: 'CI Validation',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => ({
-        id: '3.2.2',
-        name: 'CI checks line count',
-        tier: 'full',
-        category: 'CI Validation',
-        status: ctx.facts.shared.ci.checksLineCount ? 'pass' : 'fail',
-        points: ctx.facts.shared.ci.checksLineCount ? 1 : 0,
-        maxPoints: 1,
-        confidence: 'high',
-        message: ctx.facts.shared.ci.checksLineCount
-          ? 'CI workflow checks line count'
-          : 'CI workflow does not check line count. Add a step that enforces the instruction-file line target or runs `bash scripts/context-validate.sh`.',
-      }),
-    },
-    recommendation: 'Add line count check to CI workflow',
-    recommendationKey: 'ci-check-lines',
-  },
-  {
-    id: '3.2.3',
-    name: 'CI checks router refs',
-    tier: 'full',
-    category: 'CI Validation',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => ({
-        id: '3.2.3',
-        name: 'CI checks router refs',
-        tier: 'full',
-        category: 'CI Validation',
-        status: ctx.facts.shared.ci.checksRouter ? 'pass' : 'fail',
-        points: ctx.facts.shared.ci.checksRouter ? 1 : 0,
-        maxPoints: 1,
-        confidence: 'high',
-        message: ctx.facts.shared.ci.checksRouter
-          ? 'CI workflow checks router'
-          : 'CI workflow does not check router references. Add a router validation step or run `bash scripts/context-validate.sh` in CI.',
-      }),
-    },
-    recommendation: 'Add router reference check to CI workflow',
-    recommendationKey: 'ci-check-router',
-  },
-  {
-    id: '3.2.4',
-    name: 'CI checks skills',
-    tier: 'full',
-    category: 'CI Validation',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => ({
-        id: '3.2.4',
-        name: 'CI checks skills',
-        tier: 'full',
-        category: 'CI Validation',
-        status: ctx.facts.shared.ci.checksSkills ? 'pass' : 'fail',
-        points: ctx.facts.shared.ci.checksSkills ? 1 : 0,
-        maxPoints: 1,
-        confidence: 'high',
-        message: ctx.facts.shared.ci.checksSkills
-          ? 'CI workflow checks skills'
-          : 'CI workflow does not check installed skills. Add a skill validation step or run `bash scripts/context-validate.sh` in CI.',
-      }),
-    },
-    recommendation: 'Add skills check to CI workflow',
-    recommendationKey: 'ci-check-skills',
-  },
-  {
-    id: '3.2.5',
-    name: 'CI triggers on PRs',
-    tier: 'full',
-    category: 'CI Validation',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        if (ctx.facts.shared.ci.workflowExists === false) {
-          return {
-            id: '3.2.5',
-            name: 'CI triggers on PRs',
-            tier: 'full',
-            category: 'CI Validation',
-            status: 'na',
-            points: 0,
-            maxPoints: 0,
-            confidence: 'high',
-            message: 'No CI workflow',
-          };
-        }
-        return {
-          id: '3.2.5',
-          name: 'CI triggers on PRs',
-          tier: 'full',
-          category: 'CI Validation',
-          status: ctx.facts.shared.ci.ciTriggersOnPRs ? 'pass' : 'fail',
-          points: ctx.facts.shared.ci.ciTriggersOnPRs ? 1 : 0,
-          maxPoints: 1,
-          confidence: 'high',
-          message: ctx.facts.shared.ci.ciTriggersOnPRs
-            ? 'CI runs automatically on pull requests'
-            : 'CI does not trigger on PRs',
-        };
-      },
-    },
-    recommendation:
-      'Add pull_request trigger to CI workflow so validation runs on every PR',
-    recommendationKey: 'ci-trigger-prs',
-  },
+  // 3.2 CI Validation removed - CI workflow is a project-level concern, not an AI workflow check.
 
   // === 3.3 Hygiene ===
   // 3.3.1 (handoff template) removed - handoff is workspace-level, not a rubric concern.

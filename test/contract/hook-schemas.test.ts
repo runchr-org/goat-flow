@@ -19,10 +19,6 @@ const HOOK_EVENT_SCHEMAS: Record<string, { requiredFields: string[]; description
     requiredFields: ['tool_name', 'tool_input'],
     description: 'Fires before a tool is executed. tool_input contains tool-specific fields (e.g., .command for Bash, .file_path for Write).',
   },
-  PostToolUse: {
-    requiredFields: ['file_path'],
-    description: 'Fires after Edit/Write. file_path is at the TOP LEVEL (not nested under tool_input).',
-  },
   Stop: {
     requiredFields: [],
     description: 'Fires after every agent turn. No structured stdin - check git diff for changed files.',
@@ -54,22 +50,6 @@ describe('Hook scripts parse correct JSON fields per event schema', () => {
     assert.ok(
       content.includes('.tool_input.command') || content.includes('"command"'),
       'deny-dangerous.sh should extract the command from PreToolUse stdin',
-    );
-  });
-
-  it('format-file.sh parses PostToolUse fields (.file_path at top level)', () => {
-    const scriptPath = join(hooksDir, 'format-file.sh');
-    if (!existsSync(scriptPath)) return;
-    const content = readFileSync(scriptPath, 'utf-8');
-
-    assert.ok(
-      hookParsesField(content, 'file_path'),
-      'format-file.sh should parse .file_path (top-level, NOT .tool_input.file_path)',
-    );
-    // Should NOT use .tool_input.file_path (wrong for PostToolUse)
-    assert.ok(
-      !content.includes('.tool_input.file_path'),
-      'format-file.sh should NOT use .tool_input.file_path (that is the PreToolUse path, not PostToolUse)',
     );
   });
 

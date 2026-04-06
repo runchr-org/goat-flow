@@ -29,7 +29,7 @@ If 3 consecutive reads produce no new signal: (1) present what you have so far, 
 ### Ceremony Level
 | Complexity | Ceremony |
 |------------|----------|
-| Hotfix / Small Feature | Skip: closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3 |
+| Hotfix / Small Feature | Skip: closing ceremony, footgun annotations, goat-plan Phases 2-3 |
 | Standard | Full phases, gates at major decisions |
 | System / Infrastructure | Full phases + cross-boundary verification + rollback planning |
 
@@ -37,9 +37,6 @@ If 3 consecutive reads produce no new signal: (1) present what you have so far, 
 
 ### Footgun Fast-Path
 If Step 0 footgun check matches a known trap: (1) surface match immediately, (2) offer mitigation path from the entry, (3) still require READ + VERIFY on actual files - footguns are incident records, not executable specs, (4) do NOT skip to implementation on a match alone.
-
-### Flush Protocol
-If 10+ tool calls pass without a gate/checkpoint (skip for Hotfix/Small Feature): (1) write 3-sentence status to `.goat-flow/tasks/handoff.md` (what, where, next), (2) if working from a plan/milestone file: tick all completed checkboxes NOW before continuing, (3) ask: continue, compact, or redirect? Counter resets at every BLOCKING GATE, CHECKPOINT, or human message. Handoff file is transient - do not commit.
 
 ### Learning Loop
 After completing the skill, check if this run uncovered anything worth logging:
@@ -52,18 +49,17 @@ After completing the skill, check if this run uncovered anything worth logging:
 When a skill fails mid-execution (context limit, sub-agent dies, tool error):
 - Partial completion → identify last completed step (last `[x]` checkbox), resume from next
 - Missing artifacts → return to the step that generates them, re-execute
-- User wants restart → archive current output to handoff, re-run from Step 0
+- User wants restart → re-run from Step 0
 - User wants to skip → document skip reason in output, proceed to closing
-- Sub-agent/autonomous mode → write `.goat-flow/tasks/handoff.md` with enough context to resume
 
 ### Working Memory
-For tasks exceeding 5 turns: maintain state in `.goat-flow/tasks/todo.md`. If interrupted or compacted, write `.goat-flow/tasks/handoff.md`.
+For tasks exceeding 5 turns: maintain state in the active milestone file under `.goat-flow/tasks/`. If interrupted or compacted, write a session log to `.goat-flow/logs/sessions/`.
 
 ### Autonomy Awareness
 Before proposing actions that change files, check the instruction file's Ask First boundaries. If the proposed change crosses a boundary, flag it: "This change touches [boundary]. Proceeding requires approval per Ask First rules."
 
 ### Closing Protocol
-1. If incomplete → write `.goat-flow/tasks/handoff.md` (Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files)
+1. If incomplete → write a session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` (Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files)
 2. Check Learning Loop for anything worth logging
 3. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` (what happened, files changed, decisions, learnings)
 4. Suggest most relevant next skill (see Chains With)
@@ -120,7 +116,7 @@ Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 ## Phase 0 - Spec Compliance (conditional)
 
-If `requirements-{feature}.md` or `TODO_*_prime.md` exists for the feature
+If a feature requirements document, milestone file, or task file exists for the feature
 being reviewed, check each acceptance criterion against the implementation.
 If no spec exists, skip this phase - zero cost.
 

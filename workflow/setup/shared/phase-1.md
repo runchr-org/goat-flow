@@ -15,6 +15,7 @@ Read workflow/setup/shared/execution-loop.md FIRST — this is the authoritative
 template for instruction file sections. If they conflict, execution-loop.md wins.
 
 STEP 0 — Detect stack and current state:
+0. Check `.goat-flow/config.yaml`. If it exists and the version matches the current release, STOP — this project is already set up. Run `goat-flow scan .` and fix any failing checks. If the version is older, follow the appropriate upgrade guide (`upgrade-0.9.x.md` or `upgrade-1.0.0.md`) instead of this fresh setup.
 1. Detect the project's languages, build/test/lint/format commands by
    reading package.json, Cargo.toml, go.mod, composer.json, pyproject.toml,
    Gemfile, *.csproj, or equivalent. List what you find.
@@ -34,12 +35,10 @@ If the instruction file does NOT exist:
 If the instruction file DOES exist:
 - Read it completely.
 - Separate domain knowledge from agent instructions:
-  Domain content = describes HOW THE PROJECT WORKS (move to ai-docs/domain-reference.md)
+  Domain content = describes HOW THE PROJECT WORKS (move to ai-docs/architecture.md)
   Agent instructions = commands the agent with imperative verbs (keep)
   Test: "The API uses chi router on port 8080" → domain knowledge → MOVE
   Test: "Never create middleware.ts" → agent instruction → KEEP
-- If domain content was moved, create ai-docs/guidelines-ownership-split.md
-  documenting what was moved and why.
 - Rewrite with the sections from workflow/setup/shared/execution-loop.md,
   preserving any existing agent-behavioural rules that are still valid.
 
@@ -116,9 +115,18 @@ existing entries. Only create files that don't already exist.
      data flows, non-obvious constraints, deliberate trade-offs. Don't
      pad, but don't artificially compress a complex system either.
 
-  4. ai-docs/decisions/ — Create with an ADR template file
+  4. ai-docs/glossary.md — Key domain terms, definitions, and canonical
+     file references. Always create this file.
+
+  5. ai-docs/decisions/ — Create with an ADR template file
      (`ADR-000-template.md`). Empty directories with a template are
      correctly set up.
+
+  6. .goat-flow/README.md — Copy from `workflow/setup/shared/goat-flow-readme.md`.
+     Explains what each .goat-flow/ directory is for.
+
+Do NOT create `ai-docs/domain-reference.md` — domain context belongs in
+architecture.md or the instruction file, not a separate doc.
 
 STEP 3 — Local instruction files (Layer 2):
 Read ai-docs/footguns/ and the codebase structure. For directories with
@@ -284,7 +292,7 @@ AGENT EVALS:
 2. Search this project's git history for real incidents:
    git log --oneline -50 | grep -iE 'fix|revert|hotfix|bug|broke|rollback'
 
-3. For each qualifying incident (up to 5), create ai-docs/evals/[name].md
+3. For each qualifying incident (2-3 is ideal), create ai-docs/evals/[name].md
    with YAML frontmatter and markdown body:
 
    ---

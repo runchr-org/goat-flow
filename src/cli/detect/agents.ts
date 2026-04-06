@@ -17,7 +17,6 @@ export const PROFILES: Record<AgentId, AgentProfile> = {
     localPattern: '*/CLAUDE.md',
     hookEvents: {
       preTool: 'PreToolUse',
-      postTool: 'PostToolUse',
       postTurn: 'Stop',
     },
   },
@@ -33,7 +32,7 @@ export const PROFILES: Record<AgentId, AgentProfile> = {
       path: '.codex/rules/deny-dangerous.star',
     },
     localPattern: '.github/instructions/*.md',
-    hookEvents: { preTool: '', postTool: 'after_tool_use', postTurn: 'stop' },
+    hookEvents: { preTool: '', postTurn: 'stop' },
   },
   gemini: {
     id: 'gemini',
@@ -46,7 +45,6 @@ export const PROFILES: Record<AgentId, AgentProfile> = {
     localPattern: '*/GEMINI.md',
     hookEvents: {
       preTool: 'BeforeTool',
-      postTool: 'AfterTool',
       postTurn: 'AfterAgent',
     },
   },

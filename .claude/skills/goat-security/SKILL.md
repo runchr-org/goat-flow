@@ -138,6 +138,8 @@ Remove findings that don't survive re-verification.
 
 ## Compliance Mode
 
+**Compliance mode is opt-in.** Only activate when the user explicitly mentions HIPAA, GDPR, PHI, or regulatory compliance. Most projects do not need this section.
+
 <!-- EVOLVING: This mode will be expanded as compliance standards are added -->
 
 Activated when Step 0 identifies a regulatory compliance concern (HIPAA, GDPR, SOC2, PCI-DSS).
@@ -157,7 +159,7 @@ Load relevant coding standards if they exist in the project's coding standards d
 ### Phase C2 - Compliance Scan
 
 For each applicable regulation, check against its core requirements using the Phase 1 threat surface categories as a base. Add regulation-specific checks:
-- **HIPAA:** minimum necessary principle, tenant scoping, audit trail, PHI in logs (see `workflow/coding-standards/security/phi-compliance.md` for reference)
+- **HIPAA:** minimum necessary principle, tenant scoping, audit trail, PHI in logs
 - **GDPR:** consent mechanisms, data subject access/deletion, data processing agreements, cross-border transfer
 - **SOC2:** access control logging, change management, incident response procedures
 - **PCI-DSS:** cardholder data isolation, encryption at rest/transit, key management

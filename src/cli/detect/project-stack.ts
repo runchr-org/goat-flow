@@ -723,16 +723,11 @@ function detectComplianceSignals(fs: ReadonlyFS): boolean {
   );
 }
 
-/** Combine formatter-related commands and hook content into one searchable string. */
+/** Combine formatter-related commands into one searchable string. */
 function getFormatterSources(
-  fs: ReadonlyFS,
   formatCommand: string | null,
 ): string {
-  const formatHookContent =
-    fs.readFile('.claude/hooks/format-file.sh') ??
-    fs.readFile('.gemini/hooks/format-file.sh') ??
-    '';
-  return [formatCommand ?? '', formatHookContent].join(' ').toLowerCase();
+  return (formatCommand ?? '').toLowerCase();
 }
 
 /** Decide whether formatter-gap checks should apply to the given language. */
@@ -746,11 +741,10 @@ function shouldCheckFormatter(lang: string, languages: string[]): boolean {
 
 /** Detect formatter gaps. */
 function detectFormatterGaps(
-  fs: ReadonlyFS,
   languages: string[],
   formatCommand: string | null,
 ): string[] {
-  const formatterSources = getFormatterSources(fs, formatCommand);
+  const formatterSources = getFormatterSources(formatCommand);
   const formatterGaps: string[] = [];
 
   for (const lang of languages) {
@@ -777,6 +771,6 @@ function detectProjectSignals(
     llmIntegration: detectLLMIntegration(fs),
     staticAnalysis: detectStaticAnalysis(fs),
     complianceSignals: detectComplianceSignals(fs),
-    formatterGaps: detectFormatterGaps(fs, languages, formatCommand),
+    formatterGaps: detectFormatterGaps(languages, formatCommand),
   };
 }

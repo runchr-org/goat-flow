@@ -25,14 +25,6 @@
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "hooks": [
-          { "type": "command", "command": ".claude/hooks/format-file.sh" }
-        ]
-      }
-    ],
     "Notification": [
       {
         "matcher": "compact",

@@ -101,13 +101,6 @@ function defaultSharedFacts(): SharedFacts {
       missingSkills: [],
       path: 'ai-docs/evals/',
     },
-    ci: {
-      workflowExists: true,
-      checksLineCount: true,
-      checksRouter: true,
-      checksSkills: true,
-      ciTriggersOnPRs: true,
-    },
     ignoreFiles: {
       copilotignore: false,
       cursorignore: false,
@@ -115,6 +108,7 @@ function defaultSharedFacts(): SharedFacts {
     },
     gitignore: { exists: true, hasRequiredEntries: true },
     preflightScript: { exists: true },
+    contextValidation: { exists: true },
     skillConventions: { exists: false },
     localInstructions: {
       dirExists: true,
@@ -163,7 +157,6 @@ function defaultAgentFacts(): AgentFacts {
         permissions: { deny: ['Bash(rm -rf *)'] },
         hooks: {
           Stop: [{ hooks: [{ type: 'command', command: '.claude/hooks/stop-lint.sh' }] }],
-          PostToolUse: [{ matcher: 'Write|Edit', hooks: [{ type: 'command', command: '.claude/hooks/format-file.sh' }] }],
         },
       },
       hasDenyPatterns: true,
@@ -217,11 +210,6 @@ function defaultAgentFacts(): AgentFacts {
       postTurnExitsZero: true,
       postTurnHasValidation: true,
       postTurnSwallowsFailures: false,
-      postToolRegistered: true,
-      postToolRegisteredPath: '.claude/hooks/format-file.sh',
-      postToolExists: true,
-      postToolUsesExpectedPathField: true,
-      postToolSkipsAgentConfigPaths: true,
       compactionHookExists: false,
       absolutePathHooks: [],
       readDenyCoversSecrets: true,

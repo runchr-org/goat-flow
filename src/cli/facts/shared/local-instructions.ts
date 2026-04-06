@@ -217,8 +217,20 @@ export function extractLocalInstructions(
   const csPath = rawCsPath.replace(/\/$/, '');
   const aiDirExists = fs.exists(csPath);
   const githubDirExists = fs.exists('.github/instructions');
-  const duplicateSurfacePaths =
-    aiDirExists && githubDirExists ? [csPath, '.github/instructions'] : [];
+  // Detect duplicate instruction surfaces, but exempt pointer files.
+  // If ai-docs/coding-standards/conventions.md references .github/instructions/
+  // without substantial duplicated content, it's a pointer — not a duplicate.
+  let duplicateSurfacePaths: string[] = [];
+  if (aiDirExists && githubDirExists) {
+    const conventionsContent = fs.readFile(`${csPath}/conventions.md`);
+    const isPointerFile =
+      conventionsContent !== null &&
+      /\.github\/instructions\//.test(conventionsContent) &&
+      conventionsContent.split('\n').length < 50;
+    if (!isPointerFile) {
+      duplicateSurfacePaths = [csPath, '.github/instructions'];
+    }
+  }
   const localInstructionDir = resolveLocalInstructionDir(
     aiDirExists,
     githubDirExists,

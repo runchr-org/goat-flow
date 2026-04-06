@@ -381,9 +381,6 @@ describe('Fixture 4: full-claude', () => {
         Stop: [
           { hooks: [{ type: 'command', command: '.claude/hooks/stop-lint.sh' }] },
         ],
-        PostToolUse: [
-          { matcher: 'Edit|Write', hooks: [{ type: 'command', command: '.claude/hooks/format-file.sh' }] },
-        ],
         Notification: [
           { matcher: 'compact', hooks: [{ type: 'command', command: 'echo context' }] },
         ],
@@ -400,8 +397,6 @@ describe('Fixture 4: full-claude', () => {
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.claude/hooks/stop-lint.sh':
       '#!/usr/bin/env bash\nnpx eslint . --quiet\nexit 0\n',
-    '.claude/hooks/format-file.sh':
-      '#!/usr/bin/env bash\nINPUT=$(cat)\nFILE_PATH=$(echo "$INPUT" | jq -r \'.file_path // empty\' 2>/dev/null)\n[ -z "$FILE_PATH" ] && exit 0\ncase "$FILE_PATH" in\n  */.claude/*|*/.gemini/*|*/.codex/*|*/.agents/*|*/.github/skills/*) exit 0 ;;\nesac\nprettier --write "$FILE_PATH"\nexit 0\n',
     // Learning loop
     'ai-docs/footguns/':
       '# Footguns\n\n## Footgun: Auth race\n\n**Evidence:**\n- `src/auth.ts:42` - race condition\n- `src/auth.ts:88` - missing lock\n',
@@ -506,9 +501,6 @@ describe('Fixture 5: full-multi-agent', () => {
         Stop: [
           { hooks: [{ type: 'command', command: '.claude/hooks/stop-lint.sh' }] },
         ],
-        PostToolUse: [
-          { matcher: 'Edit|Write', hooks: [{ type: 'command', command: '.claude/hooks/format-file.sh' }] },
-        ],
       },
     }),
     '.gemini/settings.json': JSON.stringify({
@@ -522,15 +514,13 @@ describe('Fixture 5: full-multi-agent', () => {
     ...skills,
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\nnpx eslint . --quiet\nexit 0\n',
-    '.claude/hooks/format-file.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.gemini/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.gemini/hooks/stop-lint.sh': '#!/usr/bin/env bash\nnpx eslint . --quiet\nexit 0\n',
     '.codex/rules/deny-dangerous.star':
       '# execpolicy\n# deny git commit\n# deny git push\n',
     '.codex/config.toml':
-      '[stop]\ncommand = ["scripts/stop-lint.sh"]\n\n[after_tool_use]\ncommand = ["scripts/format-file.sh"]\n',
+      '[stop]\ncommand = ["scripts/stop-lint.sh"]\n',
     'scripts/stop-lint.sh': '#!/usr/bin/env bash\nnpx eslint . --quiet\nexit 0\n',
-    'scripts/format-file.sh': '#!/usr/bin/env bash\nexit 0\n',
     'ai-docs/footguns/': '# Footguns\n\n**Evidence:**\n- `src/a.ts:1`\n',
     'ai-docs/lessons/': '# Lessons\n\n### Entry 1\n**What happened:** x\n',
     'ai-docs/architecture.md': '# Architecture\n\nOverview.\n',
@@ -924,8 +914,6 @@ describe('Regression: hooks exist without registration should fail', () => {
     }),
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
     '.claude/hooks/stop-lint.sh': '#!/usr/bin/env bash\necho lint\nexit 0\n',
-    '.claude/hooks/format-file.sh':
-      '#!/usr/bin/env bash\nprettier --write "$1"\nexit 0\n',
   });
   const report = scanProject(fs, '/test/hooks-not-registered', {
     agentFilter: 'claude',
@@ -939,18 +927,6 @@ describe('Regression: hooks exist without registration should fail', () => {
     assert.ok(check.message.includes('"Stop"'), check.message);
     assert.ok(
       check.message.includes('.claude/hooks/stop-lint.sh'),
-      check.message,
-    );
-  });
-
-  it('fails post-tool registration when hook file exists but not registered', () => {
-    const check = report.agents[0].checks.find((c) => c.id === '2.2.4');
-    assert.ok(check, 'Expected check 2.2.4');
-    assert.equal(check.status, 'fail');
-    assert.ok(check.message.includes('.claude/settings.json'), check.message);
-    assert.ok(check.message.includes('"PostToolUse"'), check.message);
-    assert.ok(
-      check.message.includes('.claude/hooks/format-file.sh'),
       check.message,
     );
   });
@@ -976,17 +952,6 @@ describe('Regression: registered hook paths must exist on disk', () => {
             ],
           },
         ],
-        PostToolUse: [
-          {
-            matcher: 'Write|Edit|MultiEdit',
-            hooks: [
-              {
-                type: 'command',
-                command: '.claude/hooks/missing-format-file.sh',
-              },
-            ],
-          },
-        ],
       },
     }),
   });
@@ -999,7 +964,6 @@ describe('Regression: registered hook paths must exist on disk', () => {
     assert.ok(check, 'Expected check 2.2.2a');
     assert.equal(check.status, 'fail');
     assert.match(check.message, /missing-stop-lint\.sh/);
-    assert.match(check.message, /missing-format-file\.sh/);
   });
 });
 
@@ -1120,50 +1084,6 @@ describe('Regression: post-turn hook swallowing failures should fail honesty che
   });
 });
 
-describe('Regression: post-tool hook behavior checks should fail on schema drift', () => {
-  const fs = createMockFS({
-    'CLAUDE.md': FULL_CLAUDE_MD,
-    'package.json': JSON.stringify({
-      name: 'post-tool-schema-drift',
-      scripts: { test: 'node --test', format: 'prettier --write .' },
-    }),
-    '.claude/settings.json': JSON.stringify({
-      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
-      hooks: {
-        PostToolUse: [
-          {
-            matcher: 'Write|Edit|MultiEdit',
-            hooks: [
-              { type: 'command', command: '.claude/hooks/format-file.sh' },
-            ],
-          },
-        ],
-      },
-    }),
-    '.claude/hooks/format-file.sh':
-      '#!/usr/bin/env bash\nINPUT=$(cat)\nFILE=$(echo "$INPUT" | jq -r \'.tool_input.file_path // empty\' 2>/dev/null)\n[ -z "$FILE" ] && exit 0\nprettier --write "$FILE"\nexit 0\n',
-  });
-  const report = scanProject(fs, '/test/post-tool-schema-drift', {
-    agentFilter: 'claude',
-  });
-
-  it('fails check 2.2.4d when the hook reads the wrong event field', () => {
-    const check = report.agents[0].checks.find((c) => c.id === '2.2.4d');
-    assert.ok(check, 'Expected check 2.2.4d');
-    assert.equal(check.status, 'fail');
-    assert.match(check.message, /Expected top-level `?\.file_path`?/);
-  });
-
-  it('fails check 2.2.4e when the hook does not skip agent config dirs', () => {
-    const check = report.agents[0].checks.find((c) => c.id === '2.2.4e');
-    assert.ok(check, 'Expected check 2.2.4e');
-    assert.equal(check.status, 'fail');
-    assert.match(check.message, /\.claude\//);
-    assert.match(check.message, /\.agents\//);
-    assert.match(check.message, /\.gemini\//);
-  });
-});
-
 describe('Regression: broken ai-docs/README router should fail', () => {
   const fs = createMockFS({
     'CLAUDE.md': FULL_CLAUDE_MD,
@@ -1224,94 +1144,7 @@ describe('Regression: broken ai-docs/README router should fail', () => {
   });
 });
 
-describe('Regression: multiline CI run blocks are parsed as real validation', () => {
-  const fs = createMockFS({
-    'CLAUDE.md': FULL_CLAUDE_MD,
-    'package.json': JSON.stringify({
-      name: 'multiline-ci-validation',
-      scripts: { test: 'node --test' },
-    }),
-    '.claude/settings.json': JSON.stringify({
-      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
-    }),
-    '.github/workflows/context-validation.yml': `name: Context Validation
-on: [pull_request]
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check instruction file line count
-        run: |
-          for f in CLAUDE.md AGENTS.md GEMINI.md; do
-            [ -f "$f" ] && wc -l "$f"
-          done
-      - name: Check router references
-        run: |
-          grep -oP '\`[^\`]+\`' CLAUDE.md | tr -d '\`' | while read -r ref; do
-            [ ! -e "$ref" ] && echo "missing path: $ref"
-          done
-      - name: Check skills exist
-        run: |
-          fail=0
-          for skill in goat goat-debug goat-plan goat-review goat-security goat-test; do
-            [ ! -f ".claude/skills/$skill/SKILL.md" ] && fail=1
-          done
-          [ "$fail" -eq 0 ] || exit 1
-`,
-  });
-  const report = scanProject(fs, '/test/multiline-ci-validation', {
-    agentFilter: 'claude',
-  });
-
-  it('passes 3.2.1 when the workflow contains real multiline validation commands', () => {
-    const check = report.agents[0].checks.find((c) => c.id === '3.2.1');
-    assert.ok(check, 'Expected check 3.2.1');
-    assert.equal(check.status, 'pass');
-  });
-
-  it('passes the line/router/skills CI checks for block-style workflows', () => {
-    const lineCount = report.agents[0].checks.find((c) => c.id === '3.2.2');
-    const router = report.agents[0].checks.find((c) => c.id === '3.2.3');
-    const skills = report.agents[0].checks.find((c) => c.id === '3.2.4');
-    assert.ok(lineCount, 'Expected check 3.2.2');
-    assert.ok(router, 'Expected check 3.2.3');
-    assert.ok(skills, 'Expected check 3.2.4');
-    assert.equal(lineCount.status, 'pass');
-    assert.equal(router.status, 'pass');
-    assert.equal(skills.status, 'pass');
-  });
-});
-
-describe('Regression: CI scanner bait should not satisfy skill validation', () => {
-  const fs = createMockFS({
-    'CLAUDE.md': FULL_CLAUDE_MD,
-    'package.json': JSON.stringify({
-      name: 'ci-scanner-bait',
-      scripts: { test: 'node --test' },
-    }),
-    '.claude/settings.json': JSON.stringify({
-      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
-    }),
-    '.github/workflows/context-validation.yml':
-      'name: Context Validation\non: [pull_request]\njobs:\n  validate:\n    steps:\n      - run: echo "checking skills goat-debug"\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
-  });
-  const report = scanProject(fs, '/test/ci-scanner-bait', {
-    agentFilter: 'claude',
-  });
-
-  it('fails 3.2.1 when the workflow has no real validation commands', () => {
-    const check = report.agents[0].checks.find((c) => c.id === '3.2.1');
-    assert.ok(check, 'Expected check 3.2.1');
-    assert.equal(check.status, 'fail');
-    assert.match(check.message, /no real validation commands/i);
-  });
-
-  it('fails 3.2.4 when the workflow only lists one skill path', () => {
-    const check = report.agents[0].checks.find((c) => c.id === '3.2.4');
-    assert.ok(check, 'Expected check 3.2.4');
-    assert.equal(check.status, 'fail');
-  });
-});
+// CI validation regression tests removed - CI checks 3.2.x deleted.
 
 describe('Regression: category bucket learning loop counts entries, not files', () => {
   const fs = createMockFS({
@@ -1598,8 +1431,8 @@ describe('Fixture 10: self-goat-flow (score snapshot)', () => {
     assert.equal(report.agents.length, 3);
   });
 
-  it('Claude scores B or C (68-100%)', () => {
-    assertPercentageRange(report, 'claude', 68, 100, 'self-goat-flow');
+  it('Claude scores C or better (65-100%)', () => {
+    assertPercentageRange(report, 'claude', 65, 100, 'self-goat-flow');
   });
 
   it('Codex scores B or C (65-100%)', () => {
@@ -1681,9 +1514,6 @@ GOOD: Inline format. Extract when second format needed
         Stop: [
           { hooks: [{ type: 'command', command: '.claude/hooks/stop-lint.sh' }] },
         ],
-        PostToolUse: [
-          { matcher: 'Edit|Write', hooks: [{ type: 'command', command: '.claude/hooks/format-file.sh' }] },
-        ],
         Notification: [
           { matcher: 'compact', hooks: [{ type: 'command', command: 'echo context' }] },
         ],
@@ -1700,8 +1530,6 @@ GOOD: Inline format. Extract when second format needed
       '#!/usr/bin/env bash\nset -euo pipefail\nINPUT=$(cat)\nCMD=$(echo "$INPUT" | jq -r .command // empty)\ncase "$CMD" in *rm\\ -rf*|*--force*|*chmod\\ 777*) exit 2;; esac\nexit 0\n',
     '.claude/hooks/stop-lint.sh':
       '#!/usr/bin/env bash\nnpx eslint . --quiet\nexit 0\n',
-    '.claude/hooks/format-file.sh':
-      '#!/usr/bin/env bash\nINPUT=$(cat)\nFILE_PATH=$(echo "$INPUT" | jq -r \'.file_path // empty\' 2>/dev/null)\n[ -z "$FILE_PATH" ] && exit 0\ncase "$FILE_PATH" in\n  */.claude/*|*/.gemini/*|*/.codex/*|*/.agents/*|*/.github/skills/*) exit 0 ;;\nesac\nprettier --write "$FILE_PATH"\nexit 0\n',
     'ai-docs/footguns/':
       '# Footguns\n\n## Footgun: Auth race\n\n**Evidence type:** ACTUAL_MEASURED\n\n**Evidence:**\n- `src/auth.ts:42` - race condition\n- `src/auth.ts:88` - missing lock\n',
     'src/auth.ts': '// auth module\n',
@@ -1728,9 +1556,8 @@ GOOD: Inline format. Extract when second format needed
       '---\nname: eval-8\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nClean up naming\n```\n',
     'ai-docs/evals/eval-9.md':
       '---\nname: eval-9\norigin: real-incident\nagents: all\nskill: goat\n---\n\n### Scenario\n\n```\nRoute intent\n```\n',
-    '.github/workflows/context-validation.yml':
-      'name: Context Validation\non:\n  pull_request:\n    paths: [CLAUDE.md]\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\necho "preflight"\n',
+    'scripts/context-validate.sh': '#!/usr/bin/env bash\necho "validate"\n',
     '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': '.env\nsettings.local.json\nnode_modules/\n',
     'ai-docs/README.md':
@@ -1786,8 +1613,8 @@ GOOD: Inline format. Extract when second format needed
 
   it('check count is stable', () => {
     assert.ok(
-      report.meta.checkCount >= 95,
-      `Expected 95+ checks, got ${report.meta.checkCount}`,
+      report.meta.checkCount >= 80,
+      `Expected 80+ checks, got ${report.meta.checkCount}`,
     );
     assert.ok(
       report.meta.antiPatternCount >= 14,

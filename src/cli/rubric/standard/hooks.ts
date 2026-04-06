@@ -4,7 +4,6 @@ import {
   getDenyPatterns,
   getEnvDenyCoverage,
   formatMissingEnvDenyActions,
-  buildPostToolHookCheckResult,
   getPostTurnHookStatus,
   getPostTurnHookMessage,
   getMissingRegisteredHookPaths,
@@ -66,8 +65,7 @@ export const hookChecks: CheckDef[] = [
       type: 'custom',
       fn: (ctx: FactContext): CheckResult => {
         const hasRegisteredHooks =
-          ctx.agentFacts.hooks.postTurnRegistered ||
-          ctx.agentFacts.hooks.postToolRegistered;
+          ctx.agentFacts.hooks.postTurnRegistered;
         if (!hasRegisteredHooks) {
           return buildHooksCheckResult(
             '2.2.2a',
@@ -153,148 +151,6 @@ export const hookChecks: CheckDef[] = [
     recommendation:
       'Remove `|| true` after lint/typecheck/format commands in stop-lint.sh so validation failures are surfaced honestly',
     recommendationKey: 'fix-hook-exit',
-  },
-  {
-    id: '2.2.4',
-    name: 'Post-tool hook or documented skip',
-    tier: 'standard',
-    category: 'Hooks',
-    pts: 1,
-    confidence: 'high',
-    priority: 'required',
-    detect: {
-      type: 'custom',
-      fn: buildPostToolHookCheckResult,
-    },
-    recommendation:
-      'Create format-file hook or document why it was skipped (no formatter). Claude PostToolUse hooks must read top-level `.file_path` from stdin JSON.',
-    recommendationKey: 'create-format-hook',
-  },
-  {
-    id: '2.2.4d',
-    name: 'Post-tool hook reads expected JSON key',
-    tier: 'standard',
-    category: 'Hooks',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    hidden: true,
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        if (ctx.facts.stack.formatCommand === null) {
-          return buildHooksCheckResult(
-            '2.2.4d',
-            'Post-tool hook reads expected JSON key',
-            'na',
-            0,
-            0,
-            'high',
-            'No formatter detected - post-tool schema check not applicable',
-          );
-        }
-        if (ctx.agentFacts.hooks.postToolRegistered === false) {
-          return buildHooksCheckResult(
-            '2.2.4d',
-            'Post-tool hook reads expected JSON key',
-            'na',
-            0,
-            0,
-            'high',
-            'No post-tool hook registered',
-          );
-        }
-        if (ctx.agentFacts.hooks.postToolExists === false) {
-          return buildHooksCheckResult(
-            '2.2.4d',
-            'Post-tool hook reads expected JSON key',
-            'na',
-            0,
-            0,
-            'high',
-            'Registered post-tool hook file is missing',
-          );
-        }
-
-        return buildHooksCheckResult(
-          '2.2.4d',
-          'Post-tool hook reads expected JSON key',
-          ctx.agentFacts.hooks.postToolUsesExpectedPathField ? 'pass' : 'fail',
-          ctx.agentFacts.hooks.postToolUsesExpectedPathField ? 1 : 0,
-          1,
-          'high',
-          ctx.agentFacts.hooks.postToolUsesExpectedPathField
-            ? 'Post-tool hook reads the expected top-level path field from the event payload'
-            : `Post-tool hook at ${ctx.agentFacts.hooks.postToolRegisteredPath} reads the wrong JSON key. Expected top-level \`.file_path\` for the current agent event schema.`,
-        );
-      },
-    },
-    recommendation:
-      'Update the post-tool hook to read the event schema the agent actually emits. Claude PostToolUse hooks should read top-level `.file_path`.',
-    recommendationKey: 'create-format-hook',
-  },
-  {
-    id: '2.2.4e',
-    name: 'Post-tool hook skips agent config dirs',
-    tier: 'standard',
-    category: 'Hooks',
-    pts: 1,
-    confidence: 'medium',
-    priority: 'optional',
-    hidden: true,
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        if (ctx.facts.stack.formatCommand === null) {
-          return buildHooksCheckResult(
-            '2.2.4e',
-            'Post-tool hook skips agent config dirs',
-            'na',
-            0,
-            0,
-            'medium',
-            'No formatter detected - config-dir skip check not applicable',
-          );
-        }
-        if (ctx.agentFacts.hooks.postToolRegistered === false) {
-          return buildHooksCheckResult(
-            '2.2.4e',
-            'Post-tool hook skips agent config dirs',
-            'na',
-            0,
-            0,
-            'medium',
-            'No post-tool hook registered',
-          );
-        }
-        if (ctx.agentFacts.hooks.postToolExists === false) {
-          return buildHooksCheckResult(
-            '2.2.4e',
-            'Post-tool hook skips agent config dirs',
-            'na',
-            0,
-            0,
-            'medium',
-            'Registered post-tool hook file is missing',
-          );
-        }
-
-        return buildHooksCheckResult(
-          '2.2.4e',
-          'Post-tool hook skips agent config dirs',
-          ctx.agentFacts.hooks.postToolSkipsAgentConfigPaths ? 'pass' : 'fail',
-          ctx.agentFacts.hooks.postToolSkipsAgentConfigPaths ? 1 : 0,
-          1,
-          'medium',
-          ctx.agentFacts.hooks.postToolSkipsAgentConfigPaths
-            ? 'Post-tool hook skips agent config directories before formatting'
-            : `Post-tool hook at ${ctx.agentFacts.hooks.postToolRegisteredPath} does not clearly skip agent config directories. Add guards for paths under \`.claude/\`, \`.agents/\`, and \`.gemini/\`.`,
-        );
-      },
-    },
-    recommendation:
-      'Format hooks should skip agent-owned config directories (`.claude/`, `.agents/`, `.gemini/`) instead of rewriting runtime files.',
-    recommendationKey: 'create-format-hook',
   },
   {
     id: '2.2.4a',
@@ -853,18 +709,8 @@ export const hookChecks: CheckDef[] = [
     pts: 1,
     confidence: 'high',
     priority: 'recommended',
-    detect: {
-      type: 'composite',
-      mode: 'any',
-      checks: [
-        { type: 'file_exists', path: 'scripts/context-validate.sh' },
-        {
-          type: 'file_exists',
-          path: '.github/workflows/context-validation.yml',
-        },
-      ],
-    },
-    recommendation: 'Create context validation script or CI workflow',
+    detect: { type: 'file_exists', path: 'scripts/context-validate.sh' },
+    recommendation: 'Create context validation script',
     recommendationKey: 'create-context-validation',
   },
   // 2.2.7 (Ask First mechanical enforcement) removed - see ADR-006.

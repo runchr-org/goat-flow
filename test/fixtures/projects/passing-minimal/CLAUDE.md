@@ -56,7 +56,6 @@ Boundaries:
 - `ai-docs/architecture.md`
 - `workflow/skills/README.md`
 - `workflow/setup/shared/execution-loop.md`
-- `.github/workflows/context-validation.yml`
 
 **Never:** Delete docs without replacement, edit secrets, push to main, force push, overwrite files without checking.
 

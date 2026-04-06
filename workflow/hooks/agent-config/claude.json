@@ -36,15 +36,6 @@
             "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-dangerous.sh\""
           }
         ]
-      },
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/guard-write-size.sh\""
-          }
-        ]
       }
     ],
 
@@ -55,20 +46,6 @@
           {
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/stop-lint.sh\""
-          }
-        ]
-      }
-    ],
-
-    // PostToolUse: fires after Edit/Write completes. For auto-formatting.
-    // Remove this section if your project has no formatter configured.
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/format-file.sh\""
           }
         ]
       }

@@ -210,8 +210,7 @@ goat-flow-skill-version: "${SKILL_VERSION}"
 \`\`\`
 
 After updating all skills:
-5. Verify the router table in CLAUDE.md (and AGENTS.md/GEMINI.md) references all 6 canonical skills and no non-existent paths
-6. If \`.github/workflows/context-validation.yml\` exists, verify its skills check list matches the canonical set`,
+5. Verify the router table in CLAUDE.md (and AGENTS.md/GEMINI.md) references all 6 canonical skills and no non-existent paths`,
   },
   {
     key: 'ap-fix-dangling-skill-refs',

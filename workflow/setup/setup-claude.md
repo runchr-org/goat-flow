@@ -2,6 +2,18 @@
 
 **Before you start:** Read [shared/system-overview.md](shared/system-overview.md) to understand the design intent behind goat-flow.
 
+## Step 0 — Check project state
+
+Before doing anything else, check if this project already has goat-flow:
+1. Does `.goat-flow/config.yaml` exist? Read it.
+2. If the version matches the current goat-flow release → **STOP.** This project is current. Run `goat-flow scan .` and fix any failing checks. Do not run setup.
+3. If version exists but is older → this is an upgrade, not a fresh setup. Read the appropriate upgrade guide:
+   - Old skill names (goat-audit, goat-investigate, etc.) → `workflow/setup/upgrade-0.9.x.md`
+   - Version < current → `workflow/setup/upgrade-1.0.0.md`
+4. If no config exists → continue with setup below.
+
+---
+
 ## Claude Code specifics
 
 - **Instruction file:** `CLAUDE.md`
@@ -22,8 +34,6 @@ After completing all shared phases, implement these Claude Code add-ons:
 Copy scripts from `workflow/hooks/` to `.claude/hooks/`:
 - `deny-dangerous.sh` (required)
 - `stop-lint.sh` (required)
-- `format-file.sh` (recommended, skip if no formatter)
-- `guard-write-size.sh` (optional)
 
 Copy `workflow/hooks/agent-config/claude.json` as the base for `.claude/settings.json`. Customize deny patterns and hook paths for this project.
 

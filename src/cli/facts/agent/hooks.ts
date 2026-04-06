@@ -1,5 +1,5 @@
 /**
- * Hook fact extraction - analyzes deny hooks, post-turn hooks, post-tool hooks, and hook registration.
+ * Hook fact extraction - analyzes deny hooks, post-turn hooks, and hook registration.
  */
 import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
 import { pushUniquePath } from './routing.js';
@@ -95,7 +95,13 @@ function analyzeDenyScript(denyContent: string): {
       /exit\s+2|block|BLOCK/i.test(denyContent) &&
       denyContent.split('\n').length > 5,
     usesJq:
-      /\bjq\b/.test(denyContent) && !/grep\s+-[a-zA-Z]*P/.test(denyContent),
+      /\bjq\b/.test(denyContent) &&
+      !/grep\s+-[a-zA-Z]*P/.test(
+        denyContent
+          .split('\n')
+          .filter((l) => !l.trimStart().startsWith('#'))
+          .join('\n'),
+      ),
     handlesChaining:
       /&&|\|\||;/.test(denyContent) && /split|segment|chain/i.test(denyContent),
     blocksRmRf: /rm\s*.*-.*r.*f|rm\s*-rf/i.test(denyContent),
@@ -233,7 +239,7 @@ type HookDenyFacts = Pick<
   | 'denyBlocksCloudDestructive'
 >;
 
-/** Subset of hook facts describing post-turn and post-tool hook registration and behavior. */
+/** Subset of hook facts describing post-turn hook registration and behavior. */
 type PostTurnFacts = Pick<
   AgentFacts['hooks'],
   | 'postTurnExists'
@@ -242,18 +248,13 @@ type PostTurnFacts = Pick<
   | 'postTurnExitsZero'
   | 'postTurnHasValidation'
   | 'postTurnSwallowsFailures'
-  | 'postToolRegistered'
-  | 'postToolRegisteredPath'
-  | 'postToolExists'
 >;
 
-/** Subset of hook facts describing post-turn and post-tool registration state. */
+/** Subset of hook facts describing post-turn registration state. */
 type HookRegistrationFacts = Pick<
   AgentFacts['hooks'],
   | 'postTurnRegistered'
   | 'postTurnRegisteredPath'
-  | 'postToolRegistered'
-  | 'postToolRegisteredPath'
 >;
 
 /** Result of resolving one hook event to its registered script path. */
@@ -402,7 +403,7 @@ function normalizeCodexHookRegistration(
   return { registered: path !== null, path };
 }
 
-/** Collect registered post-turn and post-tool hook paths for the current agent. */
+/** Collect registered post-turn hook paths for the current agent. */
 function buildHookRegistration(
   agent: AgentProfile,
   settingsParsed: unknown,
@@ -410,29 +411,19 @@ function buildHookRegistration(
 ): {
   postTurnRegistered: boolean;
   postTurnRegisteredPath: string | null;
-  postToolRegistered: boolean;
-  postToolRegisteredPath: string | null;
 } {
   if (agent.id === 'codex') {
     if (configText == null) {
       return {
         postTurnRegistered: false,
         postTurnRegisteredPath: null,
-        postToolRegistered: false,
-        postToolRegisteredPath: null,
       };
     }
 
     const stop = normalizeCodexHookRegistration(configText, 'stop');
-    const afterTool = normalizeCodexHookRegistration(
-      configText,
-      'after_tool_use',
-    );
     return {
       postTurnRegistered: stop.registered,
       postTurnRegisteredPath: stop.path,
-      postToolRegistered: afterTool.registered,
-      postToolRegisteredPath: afterTool.path,
     };
   }
 
@@ -441,18 +432,13 @@ function buildHookRegistration(
     return {
       postTurnRegistered: false,
       postTurnRegisteredPath: null,
-      postToolRegistered: false,
-      postToolRegisteredPath: null,
     };
   }
 
   const postTurn = normalizeEventConfig(hooks, agent.hookEvents.postTurn);
-  const postTool = normalizeEventConfig(hooks, agent.hookEvents.postTool);
   return {
     postTurnRegistered: postTurn.registered,
     postTurnRegisteredPath: postTurn.path,
-    postToolRegistered: postTool.registered,
-    postToolRegisteredPath: postTool.path,
   };
 }
 
@@ -569,50 +555,7 @@ function findAbsolutePathHooks(
   return absolutePathHooks;
 }
 
-/** Detect Claude's top-level `.file_path` field usage in a post-tool hook. */
-function usesClaudeTopLevelFilePath(hookContent: string): boolean {
-  return /(^|[^A-Za-z0-9_])\.file_path\b/.test(hookContent);
-}
-
-/** Detect whether a post-tool hook skips agent-managed config directories before formatting. */
-function skipsAgentConfigDirectories(hookContent: string): boolean {
-  const nonCommentContent = hookContent
-    .split('\n')
-    .filter((line) => line.trimStart().startsWith('#') === false)
-    .join('\n');
-  return (
-    /\.claude\//.test(nonCommentContent) &&
-    /\.agents\//.test(nonCommentContent) &&
-    /\.gemini\//.test(nonCommentContent) &&
-    /exit 0/.test(nonCommentContent)
-  );
-}
-
-/** Detect whether Claude post-tool hooks read the expected top-level `.file_path` field. */
-function detectPostToolPathField(
-  fs: ReadonlyFS,
-  agent: AgentProfile,
-  registeredPath: string | null,
-): boolean {
-  if (agent.id !== 'claude') return true;
-  if (registeredPath === null || !fs.exists(registeredPath)) return false;
-  const hookContent = fs.readFile(registeredPath);
-  if (!hookContent) return false;
-  return usesClaudeTopLevelFilePath(hookContent);
-}
-
-/** Detect whether a registered post-tool hook skips agent config directories. */
-function detectPostToolConfigSkip(
-  fs: ReadonlyFS,
-  registeredPath: string | null,
-): boolean {
-  if (registeredPath === null || !fs.exists(registeredPath)) return false;
-  const hookContent = fs.readFile(registeredPath);
-  if (!hookContent) return false;
-  return skipsAgentConfigDirectories(hookContent);
-}
-
-/** Extract all hook-related facts: deny hooks, post-turn, post-tool, compaction. */
+/** Extract all hook-related facts: deny hooks, post-turn, compaction. */
 export function extractHookFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,
@@ -645,15 +588,6 @@ export function extractHookFacts(
   return {
     ...hook,
     ...postTurn,
-    postToolUsesExpectedPathField: detectPostToolPathField(
-      fs,
-      agent,
-      registration.postToolRegisteredPath,
-    ),
-    postToolSkipsAgentConfigPaths: detectPostToolConfigSkip(
-      fs,
-      registration.postToolRegisteredPath,
-    ),
     compactionHookExists,
     absolutePathHooks,
   };
@@ -684,29 +618,21 @@ function analyzeHookScriptAtPath(
   };
 }
 
-/** Extract post-turn and post-tool facts from Codex hook registration. */
+/** Extract post-turn facts from Codex hook registration. */
 function extractCodexPostTurnFacts(
   fs: ReadonlyFS,
   registration: HookRegistrationFacts,
 ): PostTurnFacts {
   const postTurnRegisteredPath = registration.postTurnRegisteredPath;
-  const postToolRegisteredPath = registration.postToolRegisteredPath;
   const postTurnExists =
     registration.postTurnRegistered &&
     postTurnRegisteredPath !== null &&
     fs.exists(postTurnRegisteredPath);
-  const postToolExists =
-    registration.postToolRegistered &&
-    postToolRegisteredPath !== null &&
-    fs.exists(postToolRegisteredPath);
 
   return {
     postTurnRegistered: registration.postTurnRegistered,
     postTurnRegisteredPath,
-    postToolRegistered: registration.postToolRegistered,
-    postToolRegisteredPath,
     postTurnExists,
-    postToolExists,
     ...(postTurnExists && postTurnRegisteredPath
       ? analyzeHookScriptAtPath(fs, postTurnRegisteredPath)
       : {
@@ -717,29 +643,21 @@ function extractCodexPostTurnFacts(
   };
 }
 
-/** Extract post-turn and post-tool facts from shell hook directories. */
+/** Extract post-turn facts from shell hook directories. */
 function extractDirectoryPostTurnFacts(
   fs: ReadonlyFS,
   registration: HookRegistrationFacts,
 ): PostTurnFacts {
   const postTurnRegisteredPath = registration.postTurnRegisteredPath;
-  const postToolRegisteredPath = registration.postToolRegisteredPath;
   const postTurnExists =
     registration.postTurnRegistered &&
     postTurnRegisteredPath !== null &&
     fs.exists(postTurnRegisteredPath);
-  const postToolExists =
-    registration.postToolRegistered &&
-    postToolRegisteredPath !== null &&
-    fs.exists(postToolRegisteredPath);
 
   return {
     postTurnRegistered: registration.postTurnRegistered,
     postTurnRegisteredPath,
-    postToolRegistered: registration.postToolRegistered,
-    postToolRegisteredPath,
     postTurnExists,
-    postToolExists,
     ...(postTurnExists && postTurnRegisteredPath
       ? analyzeHookScriptAtPath(fs, postTurnRegisteredPath)
       : {
@@ -767,13 +685,10 @@ function extractPostTurnFacts(
   return {
     postTurnRegistered: false,
     postTurnRegisteredPath: null,
-    postToolRegistered: false,
-    postToolRegisteredPath: null,
     postTurnExists: false,
     postTurnExitsZero: false,
     postTurnHasValidation: false,
     postTurnSwallowsFailures: false,
-    postToolExists: false,
   };
 }
 

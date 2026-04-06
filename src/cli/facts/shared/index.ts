@@ -1,13 +1,13 @@
 /**
  * Project-wide shared fact extractor - composes sub-extractors for learning-loop,
- * evals, CI, local instructions, and project-level metadata into a single SharedFacts object.
+ * evals, local instructions, and project-level metadata into a single SharedFacts object.
  */
 import type { SharedFacts, ReadonlyFS } from '../../types.js';
 import type { LoadedConfig } from '../../config/types.js';
 
 import { extractFootgunFacts, extractLessonsFacts } from './learning-loop.js';
 import { extractEvalFacts } from './evals.js';
-import { extractCIFacts, extractGitignoreFacts } from './ci.js';
+import { extractGitignoreFacts } from './ci.js';
 import { extractLocalInstructions } from './local-instructions.js';
 
 /** Extract existence and line-count facts for the architecture doc. */
@@ -81,7 +81,6 @@ export function extractSharedFacts(
     },
     architecture: extractArchitectureFacts(fs),
     evals: extractEvalFacts(fs, configState.config.evals.path),
-    ci: extractCIFacts(fs),
     ignoreFiles: {
       copilotignore: fs.exists('.copilotignore'),
       cursorignore: fs.exists('.cursorignore'),
@@ -89,6 +88,7 @@ export function extractSharedFacts(
     },
     gitignore: extractGitignoreFacts(fs),
     preflightScript: { exists: fs.exists('scripts/preflight-checks.sh') },
+    contextValidation: { exists: fs.exists('scripts/context-validate.sh') },
     skillConventions: { exists: fs.exists('.goat-flow/skill-conventions.md') },
     // changelog removed - project-level concern, not AI workflow.
     decisions: extractDecisionsFacts(fs, configState.config.decisions.path),

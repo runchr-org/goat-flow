@@ -1,7 +1,8 @@
 # Shared Skill Preamble
 
-All goat-* skills follow these shared conventions. Skills inline these
-sections rather than referencing this file at runtime. This document is the
+All goat-* skills follow these shared conventions. Skills reference this file
+at runtime for full shared conventions. Each skill also includes a 7-line
+inline fallback in case this file is unavailable. This document is the
 canonical source - update here first, then propagate to skill templates.
 
 ---

@@ -498,55 +498,6 @@ exit 0
 Open the hook script and remove \`|| true\` from lint, typecheck, and format commands so real failures are surfaced. Keep intentional guards for optional discovery commands (for example \`grep ... || true\` when checking if files exist), but do not suppress the actual validation command itself.`,
   },
   {
-    key: 'create-format-hook',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'create',
-    instruction: `Create a post-tool formatting hook.`,
-    agentOverrides: {
-      claude: `Create \`.claude/hooks/format-file.sh\` (skip if no formatter is configured):
-
-\`\`\`bash
-#!/usr/bin/env bash
-# PostToolUse hook - auto-format after file edits
-INPUT=$(cat)
-FILE_PATH=$(echo "$INPUT" | jq -r '.file_path // empty' 2>/dev/null)
-[ -z "$FILE_PATH" ] && exit 0
-# Skip agent directories to avoid reformatting generated content
-case "$FILE_PATH" in
-  */.claude/*|*/.gemini/*|*/.codex/*|*/.agents/*|*/.github/skills/*) exit 0 ;;
-esac
-# Replace YOUR_FORMATTER with your format command (e.g., prettier --write)
-YOUR_FORMATTER "$FILE_PATH" 2>/dev/null || true
-exit 0
-\`\`\`
-
-Then register it in \`.claude/settings.json\` under hooks:
-\`\`\`json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "command": ".claude/hooks/format-file.sh $FILE_PATH"
-      }
-    ]
-  }
-}
-\`\`\``,
-      gemini: `Create \`.gemini/hooks/format-file.sh\` (skip if no formatter is configured):
-
-\`\`\`bash
-#!/usr/bin/env bash
-# AfterTool hook - auto-format after file edits
-# Replace YOUR_FORMATTER with your format command (e.g., prettier --write)
-YOUR_FORMATTER "$1" 2>/dev/null || true
-exit 0
-\`\`\``,
-      codex: `No post-tool hook for Codex. If you have a formatter, document it in AGENTS.md under Essential Commands instead.`,
-    },
-  },
-  {
     key: 'create-preflight-script',
     phase: 'standard',
     category: 'Hooks',
@@ -584,10 +535,10 @@ Adjust the lint and test commands to match your project. Remove steps that don't
     phase: 'standard',
     category: 'Hooks',
     kind: 'create',
-    instruction: `Create \`.github/workflows/context-validation.yml\` for CI-based context validation.
+    instruction: `Create \`scripts/context-validate.sh\` for local context validation.
 
-The workflow should check: instruction file line counts, router table references resolve, skills exist.
-Trigger on pull requests that modify instruction files, skills, or ai-docs/.`,
+The script should check: instruction file line counts, router table references resolve, skills exist.
+Run it from the post-turn hook or preflight script.`,
   },
 
   // === Learning Loop ===

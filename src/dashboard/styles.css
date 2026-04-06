@@ -147,6 +147,9 @@ button, select, summary, label, [role="button"] { cursor: pointer; }
 .gf-btn-copy { font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer; background: #27272a; color: #a1a1aa; border: 0.5px solid #3f3f46; }
 .gf-btn-terminal { font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer; background: #166534; color: #4ade80; font-weight: 500; border: none; }
 .gf-btn-regen { font-size: 11px; cursor: pointer; color: #4ade80; background: none; border: none; }
+.gf-terminal-cta { background: #0d1a0d; border-bottom: 1px solid #2a2a2e; }
+.gf-btn-terminal-cta { padding: 10px 24px; background: #166534; color: #4ade80; border: 1px solid #22c55e; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s; }
+.gf-btn-terminal-cta:hover { background: #15803d; }
 
 /* Config page */
 .gf-top-row { display: grid !important; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 16px; }
@@ -287,6 +290,9 @@ button, select, summary, label, [role="button"] { cursor: pointer; }
 :root:not(.dark) .gf-btn-copy { background: #f4f4f5; color: #71717a; border-color: #e4e4e7; }
 :root:not(.dark) .gf-btn-terminal { background: #16a34a; color: #fff; }
 :root:not(.dark) .gf-btn-regen { color: #16a34a; }
+:root:not(.dark) .gf-terminal-cta { background: #f0fdf4; border-bottom-color: #e4e4e7; }
+:root:not(.dark) .gf-btn-terminal-cta { background: #16a34a; color: #fff; border-color: #15803d; }
+:root:not(.dark) .gf-btn-terminal-cta:hover { background: #15803d; }
 :root:not(.dark) .gf-role-btn { background: #fafafa; border-color: #e4e4e7; }
 :root:not(.dark) .gf-role-btn:hover { background: #f4f4f5; }
 :root:not(.dark) .gf-role-btn-sel { border-color: #16a34a !important; }

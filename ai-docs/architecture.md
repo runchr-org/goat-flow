@@ -8,13 +8,14 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| Core docs | `docs/` | Skills documentation, examples |
-| Setup prompts | `workflow/setup/` | Agent-specific setup instructions for Claude Code, Gemini CLI, Codex, or Copilot |
-| Shared setup | `workflow/setup/shared/` | Cross-agent setup fragments (execution loop, docs seed, Phase 2) |
+| Setup prompts | `workflow/setup/` | Agent-specific setup instructions, upgrade guides, project-structure.json |
+| Shared setup | `workflow/setup/shared/` | Cross-agent setup fragments (system-overview, execution-loop, phase-1, coding-standards) |
 | Skill templates | `workflow/skills/` | Reference prompts for the 6 goat-flow skill templates |
+| Hook scripts | `workflow/hooks/` | Copyable hook scripts (deny-dangerous.sh, stop-lint.sh) + per-agent config templates |
 | Playbook templates | `workflow/playbooks/` | Planning (feature brief, SBAO) and testing methodology |
-| Evaluation templates | `workflow/evaluation/` | Agent evals, CI validation, footguns/lessons templates |
-| Runtime templates | `workflow/runtime/` | Layer 1 setup, enforcement patterns, architecture scaffolding |
+| Evaluation templates | `workflow/evaluation/` | Agent evals, footguns/lessons templates |
+| Coding standards | `workflow/coding-standards/` | Best-practice templates for backend, frontend, security, testing |
+| Docs | `docs/` | CLI usage, dashboard guide |
 | CLI scanner | `src/cli/` | 112 scanner checks + 19 anti-patterns (19 hidden), fragment-based prompts, multi-agent scoring |
 | Dashboard | `src/cli/server/dashboard.ts` (server), `src/dashboard/` (HTML + views) | HTML dashboard with views for home, scanner, settings, wizard, workspace |
 | Maintenance scripts | `scripts/maintenance/` | Repo hygiene: git cleanup, secret scanning, Zone.Identifier removal |

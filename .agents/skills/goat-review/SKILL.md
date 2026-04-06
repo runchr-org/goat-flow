@@ -67,7 +67,7 @@ Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 ## Phase 0 - Spec Compliance (conditional)
 
-If `requirements-{feature}.md` or `TODO_*_prime.md` exists for the feature
+If a feature requirements document, milestone file, or task file exists for the feature
 being reviewed, check each acceptance criterion against the implementation.
 If no spec exists, skip this phase - zero cost.
 

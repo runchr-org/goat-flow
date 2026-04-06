@@ -111,67 +111,7 @@ Skills not yet covered should each get one eval targeting their most common fail
 - **goat-test**: agent generates tests that miss a critical boundary condition`,
   },
 
-  // === CI Validation ===
-  {
-    key: 'create-ci-workflow',
-    phase: 'full',
-    category: 'CI Validation',
-    kind: 'create',
-    instruction: `Copy the CI template to \`.github/workflows/context-validation.yml\`.
-
-**Template:** Read \`workflow/hooks/context-validation.yml\` from the goat-flow package and copy it to your project's \`.github/workflows/\` directory.
-
-Do NOT rename the step names - the scanner checks for these exact strings: "Check instruction file line counts", "Check router references", "Check skills exist".
-
-If the template file is not available, create \`.github/workflows/context-validation.yml\` with these steps:
-1. Check instruction file line counts (CLAUDE.md, AGENTS.md, GEMINI.md must be ≤150 lines)
-2. Run \`bash scripts/context-validate.sh\` for router reference validation
-3. Check that the 6 canonical skill directories exist: goat, goat-debug, goat-plan, goat-review, goat-security, goat-test`,
-  },
-  {
-    key: 'ci-check-lines',
-    phase: 'full',
-    category: 'CI Validation',
-    kind: 'create',
-    instruction: `Add a line count check step to \`.github/workflows/context-validation.yml\`:
-
-\`\`\`yaml
-- name: Check instruction file line counts
-  run: |
-    for f in CLAUDE.md AGENTS.md GEMINI.md; do
-      [ -f "$f" ] && lines=$(wc -l < "$f") && [ "$lines" -gt 150 ] && echo "::error::$f is $lines lines" && exit 1
-    done
-\`\`\``,
-  },
-  {
-    key: 'ci-check-router',
-    phase: 'full',
-    category: 'CI Validation',
-    kind: 'create',
-    instruction: `Add a router reference check to \`.github/workflows/context-validation.yml\`. This verifies all paths in the router table resolve to existing files.
-
-IMPORTANT: If writing inline shell instead of calling a script, do NOT use \`grep ... | while read\` - the pipe creates a subshell and error counts won't propagate. Use process substitution: \`while read ... done < <(grep ...)\` or write results to a temp file.`,
-  },
-  {
-    key: 'ci-check-skills',
-    phase: 'full',
-    category: 'CI Validation',
-    kind: 'create',
-    instruction: `Add a skills existence check to \`.github/workflows/context-validation.yml\`. Verify all 6 goat-flow skill directories (5 + dispatcher) have a SKILL.md.`,
-  },
-  {
-    key: 'ci-trigger-prs',
-    phase: 'full',
-    category: 'CI Validation',
-    kind: 'fix',
-    instruction: `Add \`pull_request\` to the CI workflow triggers so validation runs automatically on every PR:
-
-\`\`\`yaml
-on: [push, pull_request]
-\`\`\`
-
-Without this, PRs can merge without context validation passing.`,
-  },
+  // CI Validation fragments removed - CI workflow is a project-level concern.
 
   // === Hygiene ===
   // create-handoff-template and fix-handoff-sections removed - handoff is workspace-level, not a rubric concern.

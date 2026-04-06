@@ -142,35 +142,6 @@ describe('Hook template consistency with workflow/hooks/', () => {
     });
   });
 
-  describe('format-file.sh', () => {
-    const hook = readHook('format-file.sh');
-
-    it('exists', () => {
-      assert.ok(hook, 'format-file.sh should exist');
-    });
-
-    it('reads top-level .file_path from JSON (NOT .tool_input.file_path)', () => {
-      assert.ok(hook);
-      // enforcement.md says PostToolUse provides .file_path at top level
-      assert.ok(
-        hook.includes('.file_path') || hook.includes("'file_path'"),
-        'format-file.sh should parse .file_path from stdin JSON',
-      );
-      // Should NOT use .tool_input.file_path for PostToolUse
-      assert.ok(
-        !hook.includes('.tool_input.file_path'),
-        'format-file.sh should NOT parse .tool_input.file_path (wrong key for PostToolUse)',
-      );
-    });
-
-    it('skips agent config directories', () => {
-      assert.ok(hook);
-      assert.ok(
-        hook.includes('.claude') || hook.includes('agent'),
-        'format-file.sh should skip agent config directories',
-      );
-    });
-  });
 });
 
 describe('Settings.json hook registration matches installed hooks', () => {

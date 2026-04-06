@@ -71,12 +71,6 @@ function getFoundationHooks(agentId: AgentId): TemplateRef[] {
           phase: 'foundation',
           note: 'Section: Stop hook',
         },
-        {
-          output: '.claude/hooks/format-file.sh',
-          template: 'workflow/hooks/format-file.sh',
-          phase: 'foundation',
-          note: 'Section: PostToolUse',
-        },
       ];
 
     case 'codex':
@@ -120,12 +114,6 @@ function getFoundationHooks(agentId: AgentId): TemplateRef[] {
           template: 'workflow/setup/setup-gemini.md',
           phase: 'foundation',
           note: 'Gemini AfterAgent hook',
-        },
-        {
-          output: '.gemini/hooks/format-file.sh',
-          template: 'workflow/setup/setup-gemini.md',
-          phase: 'foundation',
-          note: 'Gemini AfterTool hook',
         },
       ];
   }
@@ -226,12 +214,6 @@ function getFullRefs(_agentId: AgentId): TemplateRef[] {
       template: 'workflow/evaluation/evals.md',
       phase: 'full',
       note: 'Real incidents preferred',
-    },
-    {
-      output: '.github/workflows/context-validation.yml',
-      template: 'workflow/evaluation/ci-validation.md',
-      phase: 'full',
-      note: 'CI validation',
     },
   ];
 }
@@ -653,7 +635,6 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   'create-architecture': 'workflow/setup/shared/architecture.md',
   'create-evals-dir': 'workflow/evaluation/evals.md',
   'add-evals': 'workflow/evaluation/evals.md',
-  'create-ci-workflow': 'workflow/evaluation/ci-validation.md',
 
   // File-level creates - hooks/enforcement
   'create-deny-script': {
@@ -666,12 +647,6 @@ const FRAGMENT_TEMPLATE_MAP: Record<
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
-  'create-format-hook': {
-    claude: 'workflow/hooks/format-file.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
-  },
-
   // File-level creates - coding standards
   'create-conventions-instructions': 'workflow/coding-standards/conventions.md',
   'create-code-review-instructions': 'workflow/coding-standards/code-review.md',
@@ -825,14 +800,10 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   // add-rfc2119 intentionally excluded - inline instruction is self-contained
   'fix-execution-loop-sync': 'workflow/setup/shared/execution-loop.md',
 
-  // Fix-kind - evals and CI
+  // Fix-kind - evals
   'add-replay-prompts': 'workflow/evaluation/evals.md',
   'add-origin-labels': 'workflow/evaluation/evals.md',
   'add-eval-skill-coverage': 'workflow/evaluation/evals.md',
-  'ci-check-lines': 'workflow/evaluation/ci-validation.md',
-  'ci-check-router': 'workflow/evaluation/ci-validation.md',
-  'ci-check-skills': 'workflow/evaluation/ci-validation.md',
-  'ci-trigger-prs': 'workflow/evaluation/ci-validation.md',
 
   // Fix-kind - anti-patterns (ones with clear template sources)
   'ap-add-footgun-evidence': 'workflow/setup/shared/phase-1.md',

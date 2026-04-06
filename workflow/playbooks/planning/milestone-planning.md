@@ -3,7 +3,7 @@
 > **When to use:** After [SBAO](sbao-ranking.md) produces a prime plan. Use this to break that plan into phased milestones with clear exit criteria.
 > For single-agent interactive milestone planning, see /goat-plan Phase 4.
 >
-> **Input:** Attach your `requirements-<feature-name>.md` and/or `TODO_feature-name_prime.md` at the end of this prompt.
+> **Input:** Attach your feature requirements document or milestone file from `.goat-flow/tasks/` at the end of this prompt.
 
 ```
 You are helping me plan a software project broken into milestones.
@@ -67,7 +67,7 @@ For each milestone, provide:
 - **Gotchas & fallbacks** (table: risk | concrete fallback)
 - **Key decisions** (architectural choices made and why)
 
-Now help me plan milestones for the project described in the attached requirements (attach `requirements-<feature-name>.md` and/or `TODO_feature-name_prime.md`).
+Now help me plan milestones for the project described in the attached requirements (attach your feature requirements document or milestone file from `.goat-flow/tasks/`).
 ```
 
 ---
