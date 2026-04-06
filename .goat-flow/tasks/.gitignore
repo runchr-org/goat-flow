@@ -1,4 +1,3 @@
-# Track the handoff template (shared). Ignore working files (personal).
+# v1.1 tracks committed task docs and ignores scratch continuity files.
 *
 !.gitignore
-!handoff-template.md
