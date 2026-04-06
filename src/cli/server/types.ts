@@ -27,6 +27,8 @@ export interface SessionInfo {
   createdAt: string;
   projectPath: string;
   runner: Runner;
+  /** Epoch milliseconds of last user input (for idle duration calculation) */
+  lastInputAt: number;
 }
 
 /** Response body from the POST /api/sessions endpoint. */

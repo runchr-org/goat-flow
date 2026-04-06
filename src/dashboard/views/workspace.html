@@ -157,8 +157,15 @@
                   <span x-text="terminalConnected ? 'Connected' : 'Disconnected'" class="text-gray-400"></span>
                 </span>
                 <span class="text-xs" style="color: #52525b;" x-show="lastRunAgent" x-text="lastRunAgent"></span>
+                <span x-show="terminalSessionId && !terminalEnded" class="text-xs text-gray-400 font-mono"
+                      x-text="terminalAge"></span>
               </div>
               <div class="flex items-center gap-2">
+                <button x-show="terminalSessionCount > 1"
+                        @click="if(confirm('End all ' + terminalSessionCount + ' sessions?')) endAllSessions()"
+                        class="text-xs text-red-500 hover:underline">
+                  End all sessions
+                </button>
                 <span class="text-xs text-gray-400">Ctrl+Shift+D</span>
                 <button @click="exitTerminal()" class="px-2 py-1 text-xs font-medium rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                   End Session

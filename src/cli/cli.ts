@@ -37,6 +37,7 @@ Commands:
   scan              Score a project (default)
   setup             Generate setup prompt (adapts to project state)
   eval              Parse and summarize agent evals
+  status            Show project state (bare/partial/v0.9/v1.0/v1.1)
   info rubrics      List all rubric checks (filter: --tier foundation|standard|full)
   info anti-patterns List all anti-pattern deductions
 
@@ -76,10 +77,10 @@ function printVersion(): void {
 }
 
 /** Supported CLI subcommand names */
-type Command = 'scan' | 'setup' | 'eval' | 'dashboard' | 'info';
+type Command = 'scan' | 'setup' | 'eval' | 'dashboard' | 'info' | 'status';
 
 /** List of recognized CLI subcommands */
-const COMMANDS: Command[] = ['scan', 'setup', 'eval', 'dashboard', 'info'];
+const COMMANDS: Command[] = ['scan', 'setup', 'eval', 'dashboard', 'info', 'status'];
 /** Previously valid commands that now produce a helpful deprecation error */
 const REMOVED_COMMANDS = ['fix', 'audit'];
 /** Accepted values for the --format flag */
@@ -244,6 +245,38 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     help: values.help === true,
     version: values.version === true,
   };
+}
+
+/** Handle the status command: classify and display project adoption state */
+async function handleStatusCommand(options: ParsedCLI): Promise<void> {
+  const { createFS } = await import('./facts/fs.js');
+  const { classifyProjectState } = await import('./classify-state.js');
+
+  const fs = createFS(options.projectPath);
+  const result = classifyProjectState(fs);
+
+  if (options.format === 'json') {
+    process.stdout.write(
+      JSON.stringify({ path: options.projectPath, ...result }, null, 2) + '\n',
+    );
+    return;
+  }
+
+  const stateColors: Record<string, string> = {
+    bare: '\x1b[90m',      // gray
+    partial: '\x1b[33m',   // yellow
+    'v0.9': '\x1b[31m',    // red
+    'v1.0': '\x1b[36m',    // cyan
+    'v1.1': '\x1b[32m',    // green
+    error: '\x1b[31m',     // red
+  };
+  const reset = '\x1b[0m';
+  const color = stateColors[result.state] || '';
+
+  console.log(`  Path:    ${options.projectPath}`);
+  console.log(`  State:   ${color}${result.state}${reset}`);
+  console.log(`  Action:  ${result.action}`);
+  console.log(`  Details: ${result.details}`);
 }
 
 /** Handle the eval command: load, summarize, and output agent eval results */
@@ -493,6 +526,10 @@ async function main(): Promise<void> {
   }
   if (options.version) {
     printVersion();
+    return;
+  }
+  if (options.command === 'status') {
+    await handleStatusCommand(options);
     return;
   }
   if (options.command === 'eval') {

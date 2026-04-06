@@ -35,6 +35,11 @@ function app() {
     terminalSessionId: null,
     terminalConnected: false,
     terminalEnded: false,
+    terminalSessionCount: 0,
+    terminalAge: '',
+    _ageInterval: null,
+    _terminalStartTime: null,
+    _lastInputTime: null,
     lastRunPrompt: null,
     selectedPreset: null,
     lastRunAgent: null,
@@ -44,6 +49,18 @@ function app() {
     _terminalWs: null,
     _terminalXterm: null,
     _xtermLoaded: false,
+
+    // --- Projects state ---
+    projectsList: [],
+    projectsScanning: false,
+    showAddProject: false,
+    newProjectPath: '',
+
+    // --- Rubrics state ---
+    rubricChecks: [],
+    antiPatterns: [],
+    rubricFilter: 'all',
+    rubricSearch: '',
 
     // --- Config/Settings state ---
     configYaml: '',
@@ -154,6 +171,7 @@ function app() {
       const adapted = this.adaptPrompt(text);
       const escaped = adapted.replace(/\r?\n/g, ' ');
       this._terminalWs.send(JSON.stringify({ type: 'input', data: escaped + '\r' }));
+      this._lastInputTime = Date.now();
       if (this._terminalXterm) this._terminalXterm.focus();
     },
 
@@ -204,6 +222,7 @@ function app() {
       updateTitle();
       // Sync initial state (anti-FOUC script may have added 'dark' before Alpine)
       document.documentElement.classList.toggle('dark', this.darkMode);
+      this._loadSavedProjects();
       if (location.protocol === 'http:' || location.protocol === 'https:') {
         this.runScan();
         this.loadConfig();
@@ -350,6 +369,55 @@ function app() {
       this.wizardGenerating = false;
     },
 
+    // -- Projects --
+    async addProject() {
+      if (!this.newProjectPath) return;
+      this.projectsList.push({ path: this.newProjectPath, state: '...', action: '...', details: 'Scanning...' });
+      this.showAddProject = false;
+      try {
+        const res = await fetch(`/api/projects/status?paths=${encodeURIComponent(this.newProjectPath)}`);
+        const data = await res.json();
+        if (data.projects?.[0]) {
+          const idx = this.projectsList.findIndex(p => p.path === this.newProjectPath);
+          if (idx >= 0) this.projectsList[idx] = data.projects[0];
+        }
+      } catch { /* silent */ }
+      this.newProjectPath = '';
+      localStorage.setItem('goat-flow-projects', JSON.stringify(this.projectsList.map(p => p.path)));
+    },
+    removeProject(path) {
+      this.projectsList = this.projectsList.filter(p => p.path !== path);
+      localStorage.setItem('goat-flow-projects', JSON.stringify(this.projectsList.map(p => p.path)));
+    },
+    async scanAllProjects() {
+      this.projectsScanning = true;
+      try {
+        const paths = this.projectsList.map(p => p.path).join(',');
+        const res = await fetch(`/api/projects/status?paths=${encodeURIComponent(paths)}`);
+        const data = await res.json();
+        if (data.projects) this.projectsList = data.projects;
+      } catch { /* silent */ }
+      this.projectsScanning = false;
+    },
+    _loadSavedProjects() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('goat-flow-projects') || '[]');
+        if (saved.length > 0) {
+          this.projectsList = saved.map(path => ({ path, state: '...', action: '...', details: 'Not scanned' }));
+        }
+      } catch { /* ignore */ }
+    },
+
+    // -- Rubrics --
+    async loadRubrics() {
+      try {
+        const res = await fetch('/api/rubrics');
+        const data = await res.json();
+        this.rubricChecks = data.checks || [];
+        this.antiPatterns = data.antiPatterns || [];
+      } catch { this.showToast('Failed to load rubrics', true); }
+    },
+
     // -- Clipboard + Toast --
     copyText(text) {
       const el = document.createElement('textarea'); el.value = text; el.style.position = 'fixed'; el.style.opacity = '0';
@@ -378,6 +446,31 @@ function app() {
           if (this.availableRunners.length > 0) this.activeRunner = this.availableRunners[0];
         }
       } catch { this.terminalAvailable = false; }
+      this.updateSessionCount();
+    },
+    async updateSessionCount() {
+      try {
+        const res = await fetch('/api/terminal/sessions');
+        const data = await res.json();
+        this.terminalSessionCount = data.activeCount || 0;
+      } catch { /* ignore */ }
+    },
+    async endAllSessions() {
+      try {
+        const res = await fetch('/api/terminal/sessions');
+        const data = await res.json();
+        for (const session of (data.sessions || [])) {
+          await fetch(`/api/terminal/${session.id}`, { method: 'DELETE' });
+        }
+        this.terminalSessionId = null;
+        this.terminalEnded = true;
+        this.terminalConnected = false;
+        if (this._terminalCleanup) { this._terminalCleanup(); this._terminalCleanup = null; }
+        await this.updateSessionCount();
+        this.showToast('All sessions ended');
+      } catch (err) {
+        this.showToast('Failed to end sessions: ' + (err.message || ''), true);
+      }
     },
     async loadXterm() {
       if (this._xtermLoaded) return;
@@ -434,12 +527,20 @@ function app() {
         if (data.error) throw new Error(data.error);
         this.terminalSessionId = data.id;
         this.terminalEnded = false;
+        this._terminalStartTime = Date.now();
+        this._lastInputTime = Date.now();
         this.activeView = 'workspace';
         this.workspacePanel = 'terminal';
         await this.$nextTick();
         this.connectTerminal(data.wsUrl);
+        this.updateSessionCount();
       } catch (err) {
-        this.showToast(err.message || 'Failed to launch', true);
+        const msg = err.message || 'Failed to launch';
+        if (msg.includes('Maximum') || msg.includes('concurrent')) {
+          this.showToast('Maximum 3 sessions reached. End an existing session first.', true);
+        } else {
+          this.showToast(msg, true);
+        }
       }
       this.launching = false;
     },
@@ -478,6 +579,32 @@ function app() {
       ws.onopen = () => {
         this.terminalConnected = true;
         setTimeout(doFit, 50);
+        // Start session age ticker
+        if (this._ageInterval) clearInterval(this._ageInterval);
+        this._ageInterval = setInterval(() => {
+          if (!this.terminalSessionId || this.terminalEnded) {
+            clearInterval(this._ageInterval);
+            this.terminalAge = '';
+            return;
+          }
+          const elapsed = Math.floor((Date.now() - this._terminalStartTime) / 1000);
+          const mins = Math.floor(elapsed / 60);
+          const hrs = Math.floor(mins / 60);
+          let age;
+          if (hrs > 0) age = `Running ${hrs}h ${mins % 60}m`;
+          else age = `Running ${mins}m`;
+          // Idle timeout warning (60min server timeout)
+          if (this._lastInputTime) {
+            const idleSecs = Math.floor((Date.now() - this._lastInputTime) / 1000);
+            const idleMins = Math.floor(idleSecs / 60);
+            if (idleMins >= 58) {
+              age = `Running ${mins}m | Timeout in ${60 - idleMins}m`;
+            } else if (idleMins >= 50) {
+              age += ` | Idle ${idleMins}m`;
+            }
+          }
+          this.terminalAge = age;
+        }, 30000);
       };
       ws.onmessage = (event) => {
         try {
@@ -487,6 +614,7 @@ function app() {
             this.terminalEnded = true; this.terminalConnected = false;
             const runningId = Object.entries(this.promptRunStates).find(([_, s]) => s === 'running')?.[0];
             if (runningId) this.promptRunStates[runningId] = 'pass';
+            this.updateSessionCount();
           }
           else if (msg.type === 'error') { term.write(`\r\n\x1b[31m${msg.message}\x1b[0m\r\n`); }
           else if (msg.type === 'shutdown') { this.terminalEnded = true; this.terminalConnected = false; }
@@ -509,6 +637,7 @@ function app() {
       });
       term.onData(data => {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'input', data }));
+        this._lastInputTime = Date.now();
       });
       term.onResize(({ cols, rows }) => {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols, rows }));
@@ -530,16 +659,34 @@ function app() {
         fetch(`/api/terminal/${this.terminalSessionId}`, { method: 'DELETE' }).catch(() => {});
       }
       if (this._terminalCleanup) { this._terminalCleanup(); this._terminalCleanup = null; }
+      if (this._ageInterval) { clearInterval(this._ageInterval); this._ageInterval = null; }
       this.terminalSessionId = null;
       this.terminalConnected = false;
       this.terminalEnded = false;
+      this.terminalAge = '';
+      this._terminalStartTime = null;
+      this._lastInputTime = null;
       this.lastRunPrompt = null;
       this.lastRunAgent = null;
+      this.updateSessionCount();
     },
 
     // -- Computed Properties --
     get currentAgent() { return this.report?.agents?.find(a => a.agent === (this.scanDetailAgent || this.selectedAgent)) || null; },
     get triggeredAPs() { return this.currentAgent?.antiPatterns?.filter(ap => ap.triggered) || []; },
+    get filteredRubricChecks() {
+      return this.rubricChecks.filter(c => {
+        if (this.rubricFilter !== 'all' && c.tier !== this.rubricFilter) return false;
+        if (this.rubricSearch && !c.name.toLowerCase().includes(this.rubricSearch.toLowerCase()) && !c.id.includes(this.rubricSearch)) return false;
+        return true;
+      });
+    },
+    get filteredAntiPatterns() {
+      return this.antiPatterns.filter(ap => {
+        if (this.rubricSearch && !ap.name.toLowerCase().includes(this.rubricSearch.toLowerCase()) && !ap.id.includes(this.rubricSearch)) return false;
+        return true;
+      });
+    },
 
     // -- Helpers --
     gradeColor(grade) { return { A: '#4ade80', B: '#facc15', C: '#fb923c', D: '#f87171', F: '#f87171', 'insufficient-data': '#71717a' }[grade] || '#71717a'; },

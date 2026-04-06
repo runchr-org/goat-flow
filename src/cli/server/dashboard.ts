@@ -21,6 +21,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { createFS } from '../facts/fs.js';
+import { classifyProjectState } from '../classify-state.js';
 import { scanProject } from '../scanner/scan.js';
 import { renderJson } from '../render/json.js';
 import type { AgentId } from '../types.js';
@@ -788,6 +789,74 @@ export function serveDashboard(
       return true;
     }
 
+    /** Return enriched terminal session info with age and idle duration. */
+    async function handleTerminalSessionsRequest(
+      req: IncomingMessage,
+      url: URL,
+      res: ServerResponse,
+    ): Promise<boolean> {
+      if (url.pathname !== '/api/terminal/sessions' || req.method !== 'GET')
+        return false;
+
+      try {
+        const manager = await getManager();
+        const sessions = manager.list();
+        const now = Date.now();
+        const enriched = sessions.map((s) => ({
+          ...s,
+          age: Math.floor((now - new Date(s.createdAt).getTime()) / 1000),
+          idleDuration: Math.floor((now - s.lastInputAt) / 1000),
+        }));
+        jsonResponse(res, 200, {
+          sessions: enriched,
+          maxSessions: 3,
+          activeCount: sessions.length,
+        });
+      } catch (err) {
+        jsonResponse(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return true;
+    }
+
+    /** Classify project adoption state for one or more paths. */
+    function handleProjectsStatusRequest(
+      url: URL,
+      res: ServerResponse,
+    ): boolean {
+      if (url.pathname !== '/api/projects/status') return false;
+
+      const pathsParam = url.searchParams.get('paths');
+      if (!pathsParam) {
+        jsonResponse(res, 400, { error: 'Missing paths parameter' });
+        return true;
+      }
+
+      const paths = pathsParam
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean);
+
+      const results = paths.map((p) => {
+        try {
+          const resolved = resolve(p);
+          const fs = createFS(resolved);
+          return { path: resolved, ...classifyProjectState(fs) };
+        } catch (err) {
+          return {
+            path: p,
+            state: 'error' as const,
+            action: 'none' as const,
+            details: String(err),
+          };
+        }
+      });
+
+      jsonResponse(res, 200, { projects: results });
+      return true;
+    }
+
     /** DNS rebinding protection: reject API requests with unexpected Host header. */
     function rejectBadHost(req: IncomingMessage, url: URL, res: ServerResponse): boolean {
       if (!url.pathname.startsWith('/api/')) return false;
@@ -830,8 +899,10 @@ export function serveDashboard(
         () => Promise.resolve(handleConfigReadRequest(url, res)),
         () => handleConfigWriteRequest(req, url, res),
         () => Promise.resolve(handleConfigDeleteRequest(req, url, res)),
+        () => Promise.resolve(handleProjectsStatusRequest(url, res)),
         () => handleTerminalCreateRequest(req, url, res),
         () => handleTerminalListRequest(req, url, res),
+        () => handleTerminalSessionsRequest(req, url, res),
         () => handleTerminalDeleteRequest(req, url, res),
         () => handleHealthRequest(req, url, res),
       ];

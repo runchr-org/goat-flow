@@ -41,8 +41,18 @@
       <button @click="activeView = 'home'" class="gf-nb" :class="activeView === 'home' && 'gf-nb-active'">Home</button>
       <button @click="activeView = 'scan'; scanDetailAgent = scanDetailAgent || report?.agents?.[0]?.agent || null; selectedAgent = scanDetailAgent" class="gf-nb" :class="activeView === 'scan' && 'gf-nb-active'">Scanner</button>
       <button @click="activeView = 'workspace'" class="gf-nb" :class="activeView === 'workspace' && 'gf-nb-active'" style="position: relative;">Workspace
-        <span x-show="terminalSessionId && !terminalEnded" style="position: absolute; top: -2px; right: -2px; width: 6px; height: 6px; border-radius: 50%; background: #4ade80;"></span>
+        <span x-show="terminalSessionId && !terminalEnded && terminalSessionCount === 0" style="position: absolute; top: -2px; right: -2px; width: 6px; height: 6px; border-radius: 50%; background: #4ade80;"></span>
+        <span x-show="terminalSessionCount > 0" x-cloak
+          class="ml-1 px-1.5 py-0.5 rounded-full text-xs font-mono"
+          :class="{
+            'bg-green-100 text-green-800': terminalSessionCount === 1,
+            'bg-yellow-100 text-yellow-800': terminalSessionCount === 2,
+            'bg-red-100 text-red-800': terminalSessionCount >= 3,
+          }"
+          x-text="terminalSessionCount + '/3'"></span>
       </button>
+      <button @click="activeView = 'projects'" class="gf-nb" :class="activeView === 'projects' && 'gf-nb-active'">Projects</button>
+      <button @click="activeView = 'rubrics'; loadRubrics()" class="gf-nb" :class="activeView === 'rubrics' && 'gf-nb-active'">Rubrics</button>
       <button @click="activeView = 'wizard'; detectStack()" class="gf-nb" :class="activeView === 'wizard' && 'gf-nb-active'">Setup</button>
       <button @click="activeView = 'settings'; loadConfig()" class="gf-nb" :class="activeView === 'settings' && 'gf-nb-active'">Config</button>
     </div></div>
@@ -76,6 +86,8 @@
     <!-- include: views/workspace.html -->
     <!-- include: views/wizard.html -->
     <!-- include: views/home.html -->
+    <!-- include: views/projects.html -->
+    <!-- include: views/rubrics.html -->
     <!-- include: views/settings.html -->
 
   </main>

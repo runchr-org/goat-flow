@@ -360,6 +360,7 @@ export class TerminalManager {
       createdAt: session.createdAt,
       projectPath: session.projectPath,
       runner: session.runner,
+      lastInputAt: session.lastInputAt,
     };
   }
 }
