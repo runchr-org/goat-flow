@@ -7,66 +7,13 @@ goat-flow-skill-version: "1.0.0"
 
 ## Shared Conventions
 
-### Severity & Evidence
-- **Severity order:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE. Order findings by severity, not by file or discovery order.
-- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (directly verified in code) or INFERRED (deduced - state what direct evidence is missing). Before presenting findings, re-read each cited `file:line` to confirm accuracy. MUST NOT fabricate file paths, function names, or behaviour.
-
-### Human Gates
-- **BLOCKING GATE** - agent MUST stop and wait for human decision. Used for: scope approval, phase transitions, final output review. Do NOT auto-advance.
-- **CHECKPOINT** - agent presents status and continues unless interrupted. Used for: progress reports, intermediate findings. Format: "Phase N complete. [summary]. Continuing to Phase N+1."
-
-### Adaptive Step 0
-1. Read the user's invocation for context already provided
-2. For each Step 0 question: if answer is clear from context → **confirm** ("I see [answer]. Correct?"). Otherwise → **ask**
-3. If ALL questions answered by invocation → condensed confirmation, proceed
-4. If user says "skip Step 0" → confirm understanding, proceed
-
-**Gate rule:** Step 0 MUST end with the agent presenting its understanding and waiting for the user before Phase 1. Auto-detect pre-fills context - it does not replace confirmation. Bare invocation = zero context = ask all structural questions and wait.
-
-### Stuck Protocol
-If 3 consecutive reads produce no new signal: (1) present what you have so far, (2) state what you were looking for and didn't find, (3) ask to redirect, narrow scope, or close.
-
-### Ceremony Level
-| Complexity | Ceremony |
-|------------|----------|
-| Hotfix / Small Feature | Skip: closing ceremony, flush rule, footgun annotations, goat-plan Phases 2-3 |
-| Standard | Full phases, gates at major decisions |
-| System / Infrastructure | Full phases + cross-boundary verification + rollback planning |
-
-**Sub-agent mode:** GATEs become CHECKPOINTs automatically. Step 0 proceeds with auto-detected scope.
-
-### Footgun Fast-Path
-If Step 0 footgun check matches a known trap: (1) surface match immediately, (2) offer mitigation path from the entry, (3) still require READ + VERIFY on actual files - footguns are incident records, not executable specs, (4) do NOT skip to implementation on a match alone.
-
-### Flush Protocol
-If 10+ tool calls pass without a gate/checkpoint (skip for Hotfix/Small Feature): (1) write 3-sentence status to `.goat-flow/tasks/handoff.md` (what, where, next), (2) if working from a plan/milestone file: tick all completed checkboxes NOW before continuing, (3) ask: continue, compact, or redirect? Counter resets at every BLOCKING GATE, CHECKPOINT, or human message. Handoff file is transient - do not commit.
-
-### Learning Loop
-After completing the skill, check if this run uncovered anything worth logging:
-- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`
-- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`
-- Route team-wide entries to `ai-docs/`; session-only entries to `.goat-flow/`
-- Match entry format to existing entries in the target bucket file. Do not append to a monolithic log or directory README.
-
-### Recovery
-When a skill fails mid-execution (context limit, sub-agent dies, tool error):
-- Partial completion → identify last completed step (last `[x]` checkbox), resume from next
-- Missing artifacts → return to the step that generates them, re-execute
-- User wants restart → archive current output to handoff, re-run from Step 0
-- User wants to skip → document skip reason in output, proceed to closing
-- Sub-agent/autonomous mode → write `.goat-flow/tasks/handoff.md` with enough context to resume
-
-### Working Memory
-For tasks exceeding 5 turns: maintain state in `.goat-flow/tasks/todo.md`. If interrupted or compacted, write `.goat-flow/tasks/handoff.md`.
-
-### Autonomy Awareness
-Before proposing actions that change files, check the instruction file's Ask First boundaries. If the proposed change crosses a boundary, flag it: "This change touches [boundary]. Proceeding requires approval per Ask First rules."
-
-### Closing Protocol
-1. If incomplete → write `.goat-flow/tasks/handoff.md` (Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files)
-2. Check Learning Loop for anything worth logging
-3. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` (what happened, files changed, decisions, learnings)
-4. Suggest most relevant next skill (see Chains With)
+Read `.goat-flow/skill-conventions.md` for full shared conventions.
+If unavailable, use these essentials:
+- Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
+- Evidence: every finding MUST include file:line, tag OBSERVED vs INFERRED
+- Learning loop: check ai-docs/lessons/ and ai-docs/footguns/ after completion
+- Gates: BLOCKING GATE = stop and wait. CHECKPOINT = continue unless interrupted.
+- Task tracking: tick checkboxes immediately when completed, not at the end.
 
 ## When to Use
 

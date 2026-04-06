@@ -8,7 +8,7 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| Core docs | `docs/` | System spec, architecture descriptions, design rationale, examples |
+| Core docs | `docs/` | Skills documentation, examples |
 | Setup prompts | `workflow/setup/` | Agent-specific setup instructions for Claude Code, Gemini CLI, Codex, or Copilot |
 | Shared setup | `workflow/setup/shared/` | Cross-agent setup fragments (execution loop, docs seed, Phase 2) |
 | Skill templates | `workflow/skills/` | Reference prompts for the 6 goat-flow skill templates |
@@ -22,10 +22,10 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 ## Data Flow
 
 ```
-User reads docs/getting-started.md
+User runs `npx goat-flow setup .` or reads workflow/setup/
   -> Chooses agent (setup-claude.md, setup-gemini.md, setup-codex.md, or setup-copilot.md)
   -> Pastes Phase 0/1a/1b/1c/2 prompts into their agent
-  -> Agent reads docs/system-spec.md (canonical reference)
+  -> Agent reads workflow/setup/shared/ (system-overview.md, execution-loop.md)
   -> Agent generates project-specific files (CLAUDE.md, hooks, skills, etc.)
 ```
 
@@ -58,7 +58,7 @@ src/dashboard/
 
 ## Key Constraints
 
-- **docs/system-spec.md is canonical.** All other docs derive from or elaborate on it. Conflicts resolve in favour of the spec.
+- **Setup shared templates are canonical.** `workflow/setup/shared/execution-loop.md` defines the execution loop; `workflow/setup/shared/system-overview.md` defines the layer architecture and design intent. ADRs in `ai-docs/decisions/` capture specific design decisions.
 - **Cross-references are fragile.** 60+ markdown files with dense internal linking. File renames require repo-wide grep.
 - **Real evidence only.** All examples, footguns, and anti-patterns must trace to real incidents with file:line references.
 

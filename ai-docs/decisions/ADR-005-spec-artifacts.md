@@ -19,7 +19,7 @@ goat-plan Phase 1 now produces a structured requirements section inside `require
 - A **Non-Requirements** section for explicitly excluded scope
 - A **Verification Summary** with counts
 
-The template lives at `workflow/templates/requirements-template.md`. The structured section is appended after the existing narrative brief sections -- it does not replace them. Hotfix-complexity features skip it.
+The template lives at `workflow/playbooks/planning/requirements-template.md`. The structured section is appended after the existing narrative brief sections -- it does not replace them. Hotfix-complexity features skip it.
 
 ## Consequences
 

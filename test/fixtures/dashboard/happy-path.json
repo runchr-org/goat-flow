@@ -1304,7 +1304,7 @@
           "maxPoints": 1,
           "message": ".goat-flow/tasks/handoff-template.md exists",
           "evidence": ".goat-flow/tasks/handoff-template.md",
-          "recommendationKey": "create-handoff-template"
+          "recommendationKey": "create-skill-conventions"
         },
         {
           "id": "3.3.1a",
@@ -2756,7 +2756,7 @@
           "maxPoints": 1,
           "message": ".goat-flow/tasks/handoff-template.md exists",
           "evidence": ".goat-flow/tasks/handoff-template.md",
-          "recommendationKey": "create-handoff-template"
+          "recommendationKey": "create-skill-conventions"
         },
         {
           "id": "3.3.1a",
@@ -4208,7 +4208,7 @@
           "maxPoints": 1,
           "message": ".goat-flow/tasks/handoff-template.md exists",
           "evidence": ".goat-flow/tasks/handoff-template.md",
-          "recommendationKey": "create-handoff-template"
+          "recommendationKey": "create-skill-conventions"
         },
         {
           "id": "3.3.1a",

@@ -89,7 +89,7 @@ List only commands the agent will actually run. Skip "none".`,
 
 \`\`\`markdown
 BAD:  "The spec says 100 lines for apps" (guessed without reading)
-GOOD: Read docs/system-spec.md:104 → "Target 120 lines. Hard limit 150."
+GOOD: Read workflow/setup/shared/execution-loop.md → "Target 120 lines. Hard limit 150."
 \`\`\`
 
 Include at least 2 example pairs showing right vs wrong approaches for your most important rules.`,

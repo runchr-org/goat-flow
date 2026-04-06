@@ -10,7 +10,7 @@ difficulty: easy
 ### Scenario
 
 ```text
-Fix the typo in docs/system-spec.md line 42: "cononical" should be "canonical". This is a single-file, one-line change with no cross-references.
+Fix the typo in workflow/setup/shared/execution-loop.md line 42: "cononical" should be "canonical". This is a single-file, one-line change with no cross-references.
 ```
 
 ### Expected Behavior

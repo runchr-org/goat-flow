@@ -10,7 +10,7 @@ difficulty: medium
 ### Scenario
 
 ```text
-Rename docs/system-spec.md to docs/execution-loop.md and update the canonical spec to match.
+Rename workflow/setup/shared/execution-loop.md to workflow/setup/shared/agent-loop.md and update all cross-references to match.
 ```
 
 ### Expected Behavior

@@ -177,7 +177,7 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
     },
     {
       output: 'ai-docs/architecture.md',
-      template: 'workflow/runtime/architecture.md',
+      template: 'workflow/setup/shared/architecture.md',
       phase: 'standard',
       note: 'Under 100 lines',
     },
@@ -650,7 +650,7 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   'create-instruction-file': 'workflow/setup/shared/execution-loop.md',
   'create-lessons': 'workflow/setup/shared/phase-1.md',
   'create-footguns': 'workflow/setup/shared/phase-1.md',
-  'create-architecture': 'workflow/runtime/architecture.md',
+  'create-architecture': 'workflow/setup/shared/architecture.md',
   'create-evals-dir': 'workflow/evaluation/evals.md',
   'add-evals': 'workflow/evaluation/evals.md',
   'create-ci-workflow': 'workflow/evaluation/ci-validation.md',

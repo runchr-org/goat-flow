@@ -13,7 +13,7 @@ bash scripts/context-validate.sh         # Validate GOAT Flow structure
 1. User's explicit instruction (this session)
 2. Instruction file (GEMINI.md)
 3. Shared setup templates (setup/shared/)
-4. System spec (docs/system-spec.md)
+4. Architecture (ai-docs/architecture.md)
 5. Skills / playbooks (on-demand context)
 
 ## Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
@@ -21,7 +21,7 @@ bash scripts/context-validate.sh         # Validate GOAT Flow structure
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
 ```
 BAD:  "The spec says 100 lines for apps" (guessed without reading)
-GOOD: Read docs/system-spec.md:104 → "Target 120 lines. Hard limit 150."
+GOOD: Read workflow/setup/shared/execution-loop.md:3 → "Target: under 120 lines. Hard limit: 150."
 ```
 
 **CLASSIFY** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review.
@@ -80,7 +80,7 @@ GOOD: Inline format. Extract when second format needed
 - [ ] Local instruction checked: [local GEMINI.md / .github/instructions/ / none]
 - [ ] Rollback command: [exact command]
 
-Boundaries: `docs/system-spec.md`, `docs/five-layers.md`, `workflow/setup/`, `workflow/skills/`, `docs/design-rationale.md`, renaming/moving files, 3+ doc file changes.
+Boundaries: `ai-docs/architecture.md`, `workflow/setup/`, `workflow/skills/`, renaming/moving files, 3+ doc file changes.
 
 **Never:** Delete docs without replacement. Modify secrets/.env. Push to main. Change security config. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`)
 
@@ -94,7 +94,7 @@ Sub-agents: ONE objective, structured return, 5-call budget. When blocked: one q
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - MUST maintain cross-file consistency: same concept, same description everywhere
 - MUST preserve file:line evidence format in footguns and examples
-- MUST use real incidents, never hypothetical. docs/system-spec.md is canonical source of truth
+- MUST use real incidents, never hypothetical. `ai-docs/architecture.md` is canonical source of truth
 
 ## Working Memory
 If working from a plan/milestone file, tick `- [x]` on each completed task immediately — not at the end.
@@ -104,8 +104,7 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 
 | Resource | Path |
 |----------|------|
-| System spec (canonical) | `docs/system-spec.md` |
-| System docs, architecture | `docs/five-layers.md`, `ai-docs/architecture.md` |
+| Architecture | `ai-docs/architecture.md` |
 | Scripts | `scripts/` |
 <!-- goat-flow:router:start -->
 | Skills | `.agents/skills/` |

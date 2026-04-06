@@ -6,7 +6,7 @@ category: setup-and-migration
 
 **Created:** 2026-03-21
 
-**What happened:** Gemini CLI was asked to set up GOAT Flow. It modified 6 shared documentation files (`docs/system-spec.md`, `docs/five-layers.md`, `docs/design-rationale.md`, `docs/getting-started.md`, `workflow/runtime/enforcement.md`, and skill files), replacing Claude Code references with Gemini-specific equivalents. The skills table in `docs/five-layers.md` had its Claude Code row deleted. The enforcement template ended up in a hybrid state - half `.claude/` paths, half `.gemini/` paths.
+**What happened:** Gemini CLI was asked to set up GOAT Flow. It modified 6 shared documentation files (`docs/system-spec.md` (retired in v1.1.0, see `workflow/setup/shared/system-overview.md`), `docs/five-layers.md` (retired in v1.1.0, see `workflow/setup/shared/system-overview.md`), `docs/design-rationale.md` (retired in v1.1.0, see `workflow/setup/shared/system-overview.md`), `docs/getting-started.md` (retired in v1.1.0, see `workflow/setup/`), `workflow/runtime/enforcement.md` (retired in v1.1.0, see `workflow/hooks/`), and skill files), replacing Claude Code references with Gemini-specific equivalents. The skills table in `docs/five-layers.md` had its Claude Code row deleted. The enforcement template ended up in a hybrid state - half `.claude/` paths, half `.gemini/` paths.
 
 **Prevention:** Agent setup prompts must include explicit scope constraints. For Gemini: "Only create/modify files under `.gemini/` and `GEMINI.md`. Do NOT modify `docs/`, `workflow/`, or any file outside the `.gemini/` directory." For any agent: treat shared documentation as a boundary that requires Ask First permission.
 
@@ -36,9 +36,9 @@ category: setup-and-migration
 
 **Created:** 2026-03-20
 
-**What happened:** system-spec.md showed the old 5-step execution loop while execution-loop.md had the updated 6-step version with SCOPE. The setup prompt says "Read docs/system-spec.md" first. Both rampart and sus-form-detector agents absorbed the spec's loop and either didn't notice or couldn't override execution-loop.md. 7 of 8 gaps in sus-form-detector traced to this single contradiction.
+**What happened:** `docs/system-spec.md` (retired in v1.1.0, see `workflow/setup/shared/execution-loop.md`) showed the old 5-step execution loop while execution-loop.md had the updated 6-step version with SCOPE. The setup prompt said "Read docs/system-spec.md" first. Both rampart and sus-form-detector agents absorbed the spec's loop and either didn't notice or couldn't override execution-loop.md. 7 of 8 gaps in sus-form-detector traced to this single contradiction.
 
-**Prevention:** When updating any concept that appears in multiple files, update the file agents read FIRST (system-spec.md) before or at the same time as the authoritative source. Never assume agents will reconcile contradictions - they follow the first version they encounter.
+**Prevention:** When updating any concept that appears in multiple files, update the file agents read FIRST before or at the same time as the authoritative source. Never assume agents will reconcile contradictions - they follow the first version they encounter. The retirement of `docs/system-spec.md` in v1.1.0 eliminates this specific duplication, but the general principle remains.
 
 ---
 

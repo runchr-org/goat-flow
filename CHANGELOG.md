@@ -2,6 +2,37 @@
 
 ---
 
+## v1.1.0 - 2026-04-06 (in progress)
+
+Setup overhaul driven by 10 real-project reviews. Setup agents now understand design intent, not just the checklist.
+
+**M01 — Foundation**
+- `workflow/setup/shared/system-overview.md` — 58-line orientation doc read by setup agents first
+- ADR-028 (extract skill conventions), ADR-029 (instruction budget constraint), ADR-030 (skill consolidation 9→5+dispatcher)
+- ADR-031 (setup file ownership — never delete user code, single-agent scoping)
+- compose-setup.ts: removed wrong scaling table, fixed enforcement→advisory language, added anti-duplication examples
+
+**M02 — Skills & Scanner**
+- Extracted 152-line shared conventions from 5 skills to `.goat-flow/skill-conventions.md` with 7-line inline fallback (ADR-028 supersedes ADR-023)
+- Killed flush protocol, todo.md, handoff.md — milestone file checkboxes replace all three
+- Scanner: removed handoff checks (3.3.1, 3.3.1a, 2.4.7), AP11 no longer penalises empty learning loop, added skill-conventions.md check, removed guidelines-ownership-split checks
+- goat-plan: 10-bullet TL;DR summary confirmation step before milestone approval
+- goat-test: DDT (Development Driven Testing) guidance in Step 0
+- goat-review/goat-security: boundary notes clarifying ownership split
+
+**M03a — Setup Restructure**
+- Merged 7 shared setup files → 3 (phase-0.md, phase-1.md, execution-loop.md + system-overview.md + coding-standards.md)
+- Created `workflow/hooks/` with copyable scripts + per-agent config templates (claude.json, codex.toml, gemini.json)
+- Rewrote 4 agent setup files: Claude 108→62, Codex 138→80, Gemini 98→46, Copilot 93→51 lines
+- All agents now have human checklists, reference system-overview.md, use workflow/hooks/
+
+**M03b — Doc Cleanup**
+- Deleted ~3,000 lines: system-spec.md, design-rationale.md, five-layers.md, rubrics.md, getting-started.md, cross-agent-comparison.md, using-skills.md, docs/examples/, workflow/runtime/, workflow/templates/
+- Updated 100+ cross-references across ai-docs/, test fixtures, scanner code, instruction files
+- All workflow/** files updated with v1.1.0 references
+
+---
+
 ## v1.0.0 - 2026-04-05
 
 Version bump from v0.10.0 for semver compatibility (`^0.9.x` won't resolve to `0.10.0`).

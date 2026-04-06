@@ -157,13 +157,7 @@ Expected. Run `npx goat-flow setup . --agent claude` and paste the output into y
 
 | Document | What it covers |
 |---|---|
-| [Getting Started](docs/getting-started.md) | Reading order, setup checklist |
-| [System Spec](docs/system-spec.md) | Full technical specification |
-| [Architecture](docs/five-layers.md) | 5-layer architecture: Runtime, Context, Skills, Playbooks, Evaluation |
 | [Skills Reference](docs/skills/README.md) | All 6 skills: modes, phases, gates, outputs |
-| [Using Skills](docs/using-skills.md) | How to invoke and chain skills |
-| [Design Rationale](docs/design-rationale.md) | Why it works this way |
-| [Cross-Agent Comparison](docs/cross-agent-comparison.md) | Differences between Claude, Gemini, Codex, Copilot |
 
 ## Author
 

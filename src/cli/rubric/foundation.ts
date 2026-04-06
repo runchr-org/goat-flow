@@ -141,7 +141,7 @@ export const foundationChecks: CheckDef[] = [
           return { ...base, status: 'fail', points: 0, maxPoints: 1, message: 'No concrete examples found (need 2+ BAD/GOOD/DON\'T/example: markers)' };
         }
         // Tightened: examples must reference project paths (backtick-wrapped with /)
-        // This catches generic text like "the function" vs real refs like `docs/system-spec.md:104`
+        // This catches generic text like "the function" vs real refs like `src/cli/rubric/foundation.ts:42`
         const hasProjectPaths = /`[^`]*\/[^`]+`/.test(content);
         if (hasProjectPaths) {
           return { ...base, status: 'pass', points: 1, maxPoints: 1, message: `Concrete examples with project path references (${matches.length} markers)` };
@@ -459,7 +459,7 @@ export const foundationChecks: CheckDef[] = [
             points: 1,
             maxPoints: 3,
             confidence: 'medium',
-            message: `Ask First has ${lines} non-empty lines, but no project-specific backtick paths were found. Add concrete boundaries like \`docs/system-spec.md\` or \`.github/workflows/\`.`,
+            message: `Ask First has ${lines} non-empty lines, but no project-specific backtick paths were found. Add concrete boundaries like \`ai-docs/decisions/\` or \`.github/workflows/\`.`,
           };
         }
         return {
@@ -502,7 +502,7 @@ export const foundationChecks: CheckDef[] = [
             maxPoints: 0,
             confidence: 'high',
             message:
-              'No backtick-wrapped paths in Ask First section. Add concrete repo paths like `docs/system-spec.md` or `.github/workflows/` so the boundary can be verified.',
+              'No backtick-wrapped paths in Ask First section. Add concrete repo paths like `ai-docs/decisions/` or `.github/workflows/` so the boundary can be verified.',
           };
         }
         if (unresolved.length === 0) {

@@ -28,8 +28,8 @@ bash scripts/context-validate.sh
 - Review
 
 ```
-BAD: guessed the spec without reading docs/system-spec.md:1
-GOOD: read docs/system-spec.md:1 before changing prompts
+BAD: guessed the spec without reading ai-docs/architecture.md:1
+GOOD: read ai-docs/architecture.md:1 before changing prompts
 ```
 
 ```
@@ -49,11 +49,11 @@ GOOD: grep old paths after every rename
 1. Boundary touched: [name]
 2. Related code read: [yes/no]
 3. Footgun entry checked: [entry or none]
-4. Local instruction checked: [`ai-docs/README.md`, `docs/system-spec.md`, `workflow/skills/README.md`]
+4. Local instruction checked: [`ai-docs/README.md`, `ai-docs/architecture.md`, `workflow/skills/README.md`]
 5. Rollback command: [exact command]
 
 Boundaries:
-- `docs/system-spec.md`
+- `ai-docs/architecture.md`
 - `workflow/skills/README.md`
 - `workflow/setup/shared/execution-loop.md`
 - `.github/workflows/context-validation.yml`

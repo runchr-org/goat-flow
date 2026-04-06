@@ -13,7 +13,7 @@ bash scripts/context-validate.sh         # Validate GOAT Flow structure
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
 ```
 BAD:  "The spec says 100 lines for apps" (guessed without reading)
-GOOD: Read docs/system-spec.md:104 → "Target 120 lines. Hard limit 150."
+GOOD: Read workflow/setup/shared/execution-loop.md:3 → "Target: under 120 lines. Hard limit: 150."
 ```
 
 **CLASSIFY** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity (below). (3) Mode: Plan / Implement / Explain / Debug / Review.
@@ -74,11 +74,9 @@ GOOD: Inline format. Extract when second format needed
 - [ ] Rollback command: [exact command]
 
 Boundaries:
-- `docs/system-spec.md` changes (canonical spec, referenced everywhere)
-- `docs/five-layers.md` (core architecture doc)
 - `workflow/setup/` prompt changes (affects what users generate)
 - `workflow/skills/` template changes (affects user skill creation)
-- `docs/design-rationale.md` (evidence citations, source attributions)
+- `ai-docs/architecture.md` (core architecture doc)
 - Adding, removing, or renaming any file (breaks cross-references)
 - Changes spanning 3+ documentation files
 
@@ -93,7 +91,7 @@ MUST confirm ALL: (1) shellcheck passes on changed .sh files (2) no broken cross
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - MUST maintain cross-file consistency: same concept, same description everywhere
 - MUST preserve file:line evidence format in footguns and examples
-- MUST use real incidents, never hypothetical
+- MUST use real incidents, never hypothetical. `ai-docs/architecture.md` is canonical source of truth
 - Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.
 
 ## Working Memory

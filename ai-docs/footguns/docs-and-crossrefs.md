@@ -8,15 +8,15 @@ category: docs-and-crossrefs
 
 **Symptoms:** A user reads conflicting descriptions of the same concept in different files. An agent follows a rule from one file that contradicts another.
 
-**Why it happens:** The execution loop, autonomy tiers, anti-pattern table, and other core concepts are described in `docs/system-spec.md`, `docs/five-layers.md`, `docs/getting-started.md`, and `docs/design-rationale.md`. Updating one without updating the others creates drift.
+**Why it happens:** The execution loop, autonomy tiers, anti-pattern table, and other core concepts were historically described in `docs/system-spec.md`, `docs/five-layers.md`, `docs/getting-started.md`, and `docs/design-rationale.md` (all retired in v1.1.0). Updating one without updating the others created drift. The same risk applies to their replacements.
 
 **Evidence:**
-- `docs/system-spec.md` → execution loop definition
-- `docs/system-spec.md` → execution loop definition (detailed version)
-- `docs/getting-started.md` → execution loop summary
-- `docs/design-rationale.md` → execution loop rationale with repeated content
+- `docs/system-spec.md` → execution loop definition (file retired in v1.1.0, see `workflow/setup/shared/execution-loop.md`)
+- `docs/system-spec.md` → execution loop definition, detailed version (file retired in v1.1.0, see `workflow/setup/shared/execution-loop.md`)
+- `docs/getting-started.md` → execution loop summary (file retired in v1.1.0, see `workflow/setup/`)
+- `docs/design-rationale.md` → execution loop rationale with repeated content (file retired in v1.1.0, see `workflow/setup/shared/system-overview.md`)
 
-**Prevention:** When editing a core concept, grep for the concept name across all docs and update every occurrence. `docs/system-spec.md` is the canonical source of truth.
+**Prevention:** When editing a core concept, grep for the concept name across all docs and update every occurrence. `workflow/setup/shared/execution-loop.md` is the canonical source for the execution loop; `workflow/setup/shared/system-overview.md` for design intent.
 
 ---
 
@@ -29,8 +29,8 @@ category: docs-and-crossrefs
 **Why it happens:** Documentation files reference each other by relative path. The project has 60+ markdown files with dense cross-referencing. Renaming one file can break references in 5-10 others.
 
 **Evidence:**
-- `docs/getting-started.md` → referenced stale paths to old workflow directory
-- `docs/five-layers.md` → referenced `FIVE_LAYER_SYSTEM.md` (old filename)
+- `docs/getting-started.md` → referenced stale paths to old workflow directory (file retired in v1.1.0, see `workflow/setup/`)
+- `docs/five-layers.md` → referenced `FIVE_LAYER_SYSTEM.md` (old filename) (file retired in v1.1.0, see `workflow/setup/shared/system-overview.md`)
 
 **Prevention:** After any file rename or move, grep the entire repo for the old path. Use `grep -r "old-filename" --include="*.md"` before declaring done. This is DoD gate #6.
 
@@ -55,4 +55,4 @@ category: docs-and-crossrefs
 
 **Status:** resolved | **Created:** 2026-03-18 | **Evidence:** ACTUAL_MEASURED
 
-**Prevention:** Line target is 120 for all shapes, stated in `docs/system-spec.md`. If this number appears differently in any other file, the spec is canonical.
+**Prevention:** Line target is 120 for all shapes, stated in `ai-docs/decisions/ADR-029-instruction-budget-constraint.md` (`docs/system-spec.md` retired in v1.1.0). If this number appears differently in any other file, the ADR is canonical.

@@ -119,7 +119,7 @@ Skills not yet covered should each get one eval targeting their most common fail
     kind: 'create',
     instruction: `Copy the CI template to \`.github/workflows/context-validation.yml\`.
 
-**Template:** Read \`workflow/templates/context-validation.yml\` from the goat-flow package and copy it to your project's \`.github/workflows/\` directory.
+**Template:** Read \`workflow/hooks/context-validation.yml\` from the goat-flow package and copy it to your project's \`.github/workflows/\` directory.
 
 Do NOT rename the step names - the scanner checks for these exact strings: "Check instruction file line counts", "Check router references", "Check skills exist".
 

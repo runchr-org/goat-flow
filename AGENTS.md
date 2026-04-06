@@ -13,7 +13,7 @@ shellcheck scripts/*.sh scripts/maintenance/*.sh
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
 ```
 BAD:  "The spec says 100 lines for apps" (guessed without reading)
-GOOD: Read docs/system-spec.md:104 → "Target 120 lines. Hard limit 150."
+GOOD: Read workflow/setup/shared/execution-loop.md:3 → "Target: under 120 lines. Hard limit: 150."
 ```
 
 **CLASSIFY** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review.
@@ -68,7 +68,7 @@ GOOD: Inline format. Extract when second format needed
 3. Footgun entry checked: [relevant entry, or "none"]
 4. Local instruction checked: [.github/instructions/<file> / CLAUDE.md / none]
 5. Rollback command: [exact command]
-- `docs/system-spec.md`, `docs/five-layers.md`, or `CLAUDE.md`
+- `ai-docs/architecture.md` or `CLAUDE.md`
 - `workflow/setup/` or `workflow/skills/` template changes affecting generated output
 - `.github/workflows/` changes
 - Adding, removing, or renaming files
@@ -89,8 +89,6 @@ Sub-agents: ONE objective, structured return (paths, evidence, confidence, next 
 ## Router Table
 | Resource | Path |
 |----------|------|
-| System spec | `docs/system-spec.md` |
-| System docs | `docs/five-layers.md` |
 | Architecture | `ai-docs/architecture.md` |
 | Scripts | `scripts/` |
 <!-- goat-flow:router:start -->
@@ -111,4 +109,4 @@ Sub-agents: ONE objective, structured return (paths, evidence, confidence, next 
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - MUST maintain cross-file consistency: same concept, same description everywhere
 - MUST preserve file:line evidence format in footguns and examples
-- MUST use real incidents, never hypothetical. docs/system-spec.md is canonical source of truth
+- MUST use real incidents, never hypothetical. `ai-docs/architecture.md` is canonical source of truth

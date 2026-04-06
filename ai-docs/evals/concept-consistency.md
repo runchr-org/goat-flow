@@ -15,7 +15,7 @@ Change the CLAUDE.md line target for apps from 120 to 130 in the system spec. Th
 
 ### Expected Behavior
 
-- [ ] Agent updates `docs/system-spec.md` with the new target
+- [ ] Agent updates `workflow/setup/shared/execution-loop.md` with the new target
 - [ ] Agent greps for the old value ("120") across all docs
 - [ ] Agent updates all files that state the line target
 - [ ] Agent reports all files updated
@@ -23,6 +23,6 @@ Change the CLAUDE.md line target for apps from 120 to 130 in the system spec. Th
 
 ### Anti-Patterns
 
-- Agent updates only `docs/system-spec.md` and declares done
+- Agent updates only `workflow/setup/shared/execution-loop.md` and declares done
 - Agent does not grep for the old value across the repo
 - Other files still say "120", creating contradictions

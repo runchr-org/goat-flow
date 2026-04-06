@@ -70,7 +70,7 @@ npm test
 - [ ] Rollback command: [exact command]
 
 Boundaries:
-- \`docs/system-spec.md\` changes
+- \`ai-docs/architecture.md\` changes
 - \`workflow/setup/\` prompt changes
 - Changes spanning 3+ documentation files
 
@@ -139,7 +139,6 @@ function buildFullProject() {
     'ai-docs/footguns/': '# Footguns\n\n- `src/auth.ts:42` - race\n',
     'ai-docs/lessons/': '# Lessons\n\n### Entry 1\nStuff.\n',
     'ai-docs/architecture.md': '# Architecture\n\nOverview.\n',
-    'docs/system-spec.md': '# System Spec\n',
     'workflow/setup/README.md': '# Setup\n',
     'ai-docs/evals/README.md': '# Evals\n',
     'ai-docs/evals/eval-1.md':

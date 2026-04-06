@@ -12,7 +12,7 @@ const ROOT = join(import.meta.dirname, '../..');
 
 /**
  * Hook event schemas - documents what fields are available on stdin for each event.
- * Source: Claude Code documentation + workflow/runtime/enforcement.md
+ * Source: Claude Code documentation + workflow/hooks/
  */
 const HOOK_EVENT_SCHEMAS: Record<string, { requiredFields: string[]; description: string }> = {
   PreToolUse: {

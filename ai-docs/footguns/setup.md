@@ -8,14 +8,14 @@ category: setup
 
 **Symptoms:** Agents implementing GOAT Flow produce a CLAUDE.md with the old 5-step loop (READ → CLASSIFY → ACT → VERIFY → LOG), missing SCOPE and complexity budgets. Cascades into missing sections (f)-(g) because agents under line pressure cut what the spec doesn't reinforce.
 
-**Why it happens:** `workflow/setup/setup-claude.md` tells agents to "Read docs/system-spec.md" FIRST. If system-spec.md shows a different loop than `workflow/setup/shared/execution-loop.md`, agents absorb whichever they read first and can't reconcile the contradiction. This caused 7 of 8 gaps in the sus-form-detector implementation.
+**Why it happens:** `workflow/setup/setup-claude.md` previously told agents to "Read docs/system-spec.md" FIRST. If system-spec.md showed a different loop than `workflow/setup/shared/execution-loop.md`, agents absorbed whichever they read first and couldn't reconcile the contradiction. This caused 7 of 8 gaps in the sus-form-detector implementation.
 
 **Evidence:**
-- `docs/system-spec.md` → loop definition in Layer 1 architecture diagram and execution loop section
+- `docs/system-spec.md` → loop definition in Layer 1 architecture diagram and execution loop section (file retired in v1.1.0, see `workflow/setup/shared/execution-loop.md`)
 - `workflow/setup/shared/execution-loop.md` → updated loop definition (authoritative)
-- `workflow/setup/setup-claude.md` → "Read docs/system-spec.md" as first instruction
+- `workflow/setup/setup-claude.md` → previously "Read docs/system-spec.md" as first instruction (now points to `workflow/setup/shared/system-overview.md`)
 
-**Prevention:** After updating `workflow/setup/shared/execution-loop.md`, ALWAYS update the same concept in `docs/system-spec.md` and `docs/five-layers.md`. The spec is read first by agents - it must match. This is a specific instance of the "concept duplication" footgun above, but critical enough to track separately because it directly causes broken implementations.
+**Prevention:** `workflow/setup/shared/execution-loop.md` is the single authoritative source for the execution loop. `docs/system-spec.md` and `docs/five-layers.md` have been retired (v1.1.0), eliminating the duplication that caused this footgun. If the loop definition is ever duplicated again, this footgun will recur.
 
 ---
 

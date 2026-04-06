@@ -8,7 +8,7 @@
 
 Scanner check 2.2.7 ("Ask First has mechanical enforcement") was added in the dev branch as part of a batch of new checks (commit `b3b25c5`). The check awards 2 points if a PreToolUse hook exists that references Ask First boundary paths and exits with code 2 to block edits.
 
-To achieve 100% on the scanner, an ask-first-guard.sh hook was created for all three agents (Claude, Codex, Gemini) in this project. The hook hardcoded boundary paths (`workflow/setup/`, `workflow/skills/`, `docs/system-spec.md`, etc.) and blocked Edit/Write operations to those paths.
+To achieve 100% on the scanner, an ask-first-guard.sh hook was created for all three agents (Claude, Codex, Gemini) in this project. The hook hardcoded boundary paths (`workflow/setup/`, `workflow/skills/`, etc.) and blocked Edit/Write operations to those paths.
 
 The hook immediately started blocking normal development work on goat-flow itself. Every edit to `workflow/setup/` or `workflow/` - which is the primary activity in this repo - triggered the guard and required manual approval.
 
@@ -22,7 +22,7 @@ Keep:
 
 ## Rationale
 
-1. **goat-flow is a framework, not a consumer project.** The primary workflow is editing `workflow/setup/`, `workflow/`, and `docs/system-spec.md`. These are the exact paths the hook blocks. A hook that blocks every normal edit is not enforcement - it's obstruction.
+1. **goat-flow is a framework, not a consumer project.** The primary workflow is editing `workflow/setup/`, `workflow/`, and shared templates. These are the exact paths the hook blocks. A hook that blocks every normal edit is not enforcement - it's obstruction. (Original citation referenced `docs/system-spec.md`, retired in v1.1.0.)
 
 2. **The hook was created for the wrong reason.** It was added to chase a 100% scanner score, not because it solved a real problem. The check (2.2.7) was new - it didn't exist when the project was previously at 100%. Creating a hook to satisfy a new check without evaluating whether the check applies to this project was mechanical score-chasing.
 

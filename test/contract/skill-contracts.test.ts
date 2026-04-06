@@ -4,11 +4,17 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SKILLS_DIR = join(import.meta.dirname, '../../.claude/skills');
+const CONVENTIONS_PATH = join(
+  import.meta.dirname,
+  '../../.goat-flow/skill-conventions.md',
+);
 const SKILL_NAMES = ['goat-debug', 'goat-plan', 'goat-review', 'goat-security', 'goat-test'];
 
 function readSkill(name: string): string {
   return readFileSync(join(SKILLS_DIR, name, 'SKILL.md'), 'utf-8');
 }
+
+const conventions = readFileSync(CONVENTIONS_PATH, 'utf-8');
 
 describe('Skill content contracts', () => {
   for (const name of SKILL_NAMES) {
@@ -40,38 +46,10 @@ describe('Skill content contracts', () => {
         );
       });
 
-      it('has ceremony level in shared conventions', () => {
+      it('delegates shared conventions to skill-conventions.md', () => {
         assert.ok(
-          content.includes('Ceremony:') || content.includes('ceremony'),
-          `${name} should have ceremony-conditional logic`,
-        );
-      });
-
-      it('has footgun fast-path', () => {
-        assert.ok(
-          content.includes('Footgun Fast-Path') || content.includes('footgun fast'),
-          `${name} should have footgun fast-path`,
-        );
-      });
-
-      it('has learning loop reference', () => {
-        assert.ok(
-          content.includes('Learning Loop') || content.includes('learning loop'),
-          `${name} should reference the learning loop`,
-        );
-      });
-
-      it('has session log in closing', () => {
-        assert.ok(
-          content.includes('logs/sessions'),
-          `${name} should reference session logs in closing protocol`,
-        );
-      });
-
-      it('has category bucket format for lessons/footguns', () => {
-        assert.ok(
-          content.includes('category bucket') || content.includes('## Lesson:') || content.includes('## Footgun:'),
-          `${name} should reference category bucket format`,
+          content.includes('skill-conventions.md'),
+          `${name} should reference skill-conventions.md for shared conventions`,
         );
       });
 
@@ -114,7 +92,7 @@ describe('Skill content contracts', () => {
       it('goat-plan Phase 2-3 are conditional', () => {
         if (name !== 'goat-plan') return;
         assert.ok(
-          content.includes('skip for Hotfix') || content.includes('skip for Standard') || content.includes('only for System'),
+          content.includes('skip Phases 2-3') || content.includes('skip Phases 2-4') || content.includes('skip Phase 2-3'),
           'goat-plan Phase 2-3 should be conditional on complexity',
         );
       });
@@ -130,6 +108,43 @@ describe('Skill content contracts', () => {
       });
     });
   }
+});
+
+describe('Shared skill-conventions.md content', () => {
+  it('has ceremony level section', () => {
+    assert.ok(
+      conventions.includes('Ceremony Level'),
+      'skill-conventions.md should have Ceremony Level section',
+    );
+  });
+
+  it('has footgun fast-path', () => {
+    assert.ok(
+      conventions.includes('Footgun Fast-Path'),
+      'skill-conventions.md should have Footgun Fast-Path section',
+    );
+  });
+
+  it('has learning loop reference', () => {
+    assert.ok(
+      conventions.includes('Learning Loop'),
+      'skill-conventions.md should have Learning Loop section',
+    );
+  });
+
+  it('has session log in closing', () => {
+    assert.ok(
+      conventions.includes('logs/sessions'),
+      'skill-conventions.md should reference session logs in closing protocol',
+    );
+  });
+
+  it('has category bucket format for lessons/footguns', () => {
+    assert.ok(
+      conventions.includes('## Lesson:') || conventions.includes('## Footgun:'),
+      'skill-conventions.md should have category bucket entry format examples',
+    );
+  });
 });
 
 describe('Skill-template consistency', () => {

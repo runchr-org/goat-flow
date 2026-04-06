@@ -151,8 +151,8 @@ bash scripts/preflight-checks.sh
 - [ ] Rollback command: [exact command]
 
 Boundaries:
-- \`docs/system-spec.md\` changes (canonical spec)
-- \`docs/five-layers.md\`
+- \`ai-docs/architecture.md\` changes (canonical architecture)
+- \`ai-docs/coding-standards/conventions.md\`
 - \`workflow/setup/\` prompt changes
 - \`workflow/skills/\` template changes
 - Changes spanning 3+ documentation files
@@ -167,7 +167,7 @@ MUST confirm ALL: (1) shellcheck passes on changed .sh files (2) no broken cross
 
 | Resource | Path |
 |----------|------|
-| System spec | \`docs/system-spec.md\` |
+| Architecture | \`ai-docs/architecture.md\` |
 | Skills | \`.claude/skills/\` |
 | Footguns | \`ai-docs/footguns/\` |
 | Lessons | \`ai-docs/lessons/\` |
@@ -441,8 +441,6 @@ describe('Fixture 4: full-claude', () => {
     '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     // Gitignore
     '.gitignore': '.env\nsettings.local.json\nnode_modules/\n',
-    // Referenced router paths
-    'docs/system-spec.md': '# System Spec\n',
   });
   const report = scanProject(fs, '/test/full-claude', { agentFilter: null });
 
@@ -1592,7 +1590,6 @@ describe('Fixture 10: self-goat-flow (score snapshot)', () => {
     // Misc
     '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': '.env\nsettings.local.json\nnode_modules/\n',
-    'docs/system-spec.md': '# System Spec\n',
     'CHANGELOG.md': '# Changelog\n',
   });
   const report = scanProject(fs, '/test/self-goat-flow', { agentFilter: null });
@@ -1650,7 +1647,7 @@ describe('Regression: full project score stability', () => {
     `
 \`\`\`
 BAD:  "The spec says 100 lines for apps" (guessed without reading)
-GOOD: Read docs/system-spec.md:104 → "Target 120 lines. Hard limit 150."
+GOOD: Read ai-docs/architecture.md:14 → "Target 120 lines. Hard limit 150."
 \`\`\`
 
 \`\`\`
@@ -1736,7 +1733,6 @@ GOOD: Inline format. Extract when second format needed
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\necho "preflight"\n',
     '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': '.env\nsettings.local.json\nnode_modules/\n',
-    'docs/system-spec.md': '# System Spec\n',
     'ai-docs/README.md':
       '# Coding Guidelines\n\nSee [Conventions](ai-docs/coding-standards/conventions.md) and [Code Review](ai-docs/coding-standards/code-review.md).\n',
     'ai-docs/coding-standards/conventions.md':
@@ -1814,7 +1810,7 @@ npm test
 \`\`\`
 
 BAD:  "The spec says 100 lines for apps" (guessed without reading)
-GOOD: Read \`docs/system-spec.md:104\` → "Target 120 lines. Hard limit 150."
+GOOD: Read \`ai-docs/architecture.md:14\` → "Target 120 lines. Hard limit 150."
 `,
     'package.json': JSON.stringify({ name: 'test' }),
   });

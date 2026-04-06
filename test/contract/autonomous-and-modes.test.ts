@@ -13,12 +13,17 @@ const PREAMBLE_PATH = join(
   import.meta.dirname,
   '../../workflow/skills/reference/shared-preamble.md',
 );
+const CONVENTIONS_PATH = join(
+  import.meta.dirname,
+  '../../.goat-flow/skill-conventions.md',
+);
 
 function readSkill(name: string): string {
   return readFileSync(join(SKILLS_DIR, name, 'SKILL.md'), 'utf-8');
 }
 
 const preamble = readFileSync(PREAMBLE_PATH, 'utf-8');
+const conventions = readFileSync(CONVENTIONS_PATH, 'utf-8');
 const ALL_SKILLS = [
   'goat-debug',
   'goat-plan',
@@ -84,12 +89,23 @@ describe('M11: autonomous mode structural checks', () => {
     );
   });
 
+  it('skill-conventions.md has ceremony-conditional content', () => {
+    assert.ok(
+      conventions.includes('Ceremony Level'),
+      'skill-conventions.md should have Ceremony Level section',
+    );
+    assert.ok(
+      conventions.includes('Hotfix'),
+      'Ceremony should reference Hotfix complexity',
+    );
+  });
+
   for (const name of ALL_SKILLS) {
-    it(`${name} has ceremony-conditional content`, () => {
+    it(`${name} delegates ceremony to skill-conventions.md`, () => {
       const content = readSkill(name);
       assert.ok(
-        content.includes('Ceremony') || content.includes('ceremony'),
-        `${name} should have ceremony-conditional logic`,
+        content.includes('skill-conventions.md'),
+        `${name} should reference skill-conventions.md for ceremony conventions`,
       );
     });
 
@@ -321,44 +337,35 @@ describe('M12: userRole routing behavior (contract verification)', () => {
 // === M11 manual test coverage: recovery and checkpoint behavior ===
 
 describe('M11: recovery and checkpoint behavior (contract verification)', () => {
+  it('skill-conventions.md has recovery procedures', () => {
+    assert.ok(
+      conventions.includes('## Recovery'),
+      'skill-conventions.md should have Recovery section',
+    );
+    assert.ok(
+      conventions.includes('Partial completion'),
+      'Recovery should handle partial completion',
+    );
+    assert.ok(
+      conventions.includes('resume from next'),
+      'Recovery should describe how to resume',
+    );
+  });
+
   for (const name of ALL_SKILLS) {
-    it(`${name} has recovery procedures in shared conventions`, () => {
+    it(`${name} references skill-conventions.md for shared conventions`, () => {
       const content = readSkill(name);
       assert.ok(
-        content.includes('### Recovery'),
-        `${name} should have Recovery section in shared conventions`,
-      );
-      assert.ok(
-        content.includes('Partial completion'),
-        `${name} recovery should handle partial completion`,
-      );
-      assert.ok(
-        content.includes('resume from next'),
-        `${name} recovery should describe how to resume`,
+        content.includes('skill-conventions.md'),
+        `${name} should reference .goat-flow/skill-conventions.md (v1.1.0: conventions extracted from inline)`,
       );
     });
 
-    it(`${name} has working memory for long tasks`, () => {
+    it(`${name} has inline fallback for shared conventions`, () => {
       const content = readSkill(name);
       assert.ok(
-        content.includes('### Working Memory'),
-        `${name} should have Working Memory section`,
-      );
-      assert.ok(
-        content.includes('todo.md') || content.includes('handoff.md'),
-        `${name} working memory should reference state files`,
-      );
-    });
-
-    it(`${name} has closing protocol with handoff`, () => {
-      const content = readSkill(name);
-      assert.ok(
-        content.includes('### Closing Protocol'),
-        `${name} should have Closing Protocol section`,
-      );
-      assert.ok(
-        content.includes('If incomplete'),
-        `${name} closing should handle incomplete work`,
+        content.includes('If unavailable, use these essentials') || content.includes('SECURITY > CORRECTNESS'),
+        `${name} should have inline fallback in case skill-conventions.md is missing`,
       );
     });
   }

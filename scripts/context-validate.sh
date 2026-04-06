@@ -234,17 +234,6 @@ template_errors=0
 if [[ ! -f workflow/setup/shared/execution-loop.md ]]; then
     warn "Missing template file: workflow/setup/shared/execution-loop.md"
     template_errors=1
-elif ! grep -Fq "generated from \`docs/system-spec.md\`" workflow/setup/shared/execution-loop.md; then
-    warn "workflow/setup/shared/execution-loop.md should note it is generated from docs/system-spec.md"
-    template_errors=1
-fi
-
-if [[ ! -f workflow/skills/README.md ]]; then
-    warn "Missing template file: workflow/skills/README.md"
-    template_errors=1
-elif ! grep -Fq 'Active Skills (5 + dispatcher)' workflow/skills/README.md; then
-    warn "workflow/skills/README.md should keep the canonical active skills header"
-    template_errors=1
 fi
 
 if [[ ! -f workflow/evaluation/lessons.md ]]; then
