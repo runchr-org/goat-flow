@@ -38,5 +38,4 @@ Build the dispatcher. Install as `/goat` in all agent skill directories.
 - New skill template at `workflow/skills/goat.md` - not counted in the canonical 8 (it's a routing layer, not a workflow skill)
 - Installed in `.claude/skills/goat/`, `.agents/skills/goat/`, `.github/skills/goat/`
 - Scanner does NOT require the dispatcher - it's optional. No rubric check for its existence.
-- The onboarding guide (`docs/skills/README.md`) should be updated to recommend `/goat` as the primary entry point for new users
 - Each skill's "NOT this skill" blocks remain useful as fallback routing when users invoke skills directly
