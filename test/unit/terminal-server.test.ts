@@ -159,8 +159,8 @@ describe('idle timeout', () => {
       const session = await manager.create('', tempDir);
       assert.equal(manager.get(session.id)?.status, 'active');
 
-      // Advance past the 30-minute idle timeout
-      mock.timers.tick(31 * 60 * 1000);
+      // Advance past the 60-minute idle timeout
+      mock.timers.tick(61 * 60 * 1000);
 
       // Session should now be terminated (and possibly removed from the map)
       const info = manager.get(session.id);

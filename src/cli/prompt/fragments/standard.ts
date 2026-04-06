@@ -271,7 +271,7 @@ Add blocking patterns for dangerous commands. The hook should \`exit 2\` (with a
 - \`.env\` file modifications
 - \`--no-verify\` bypass
 
-See \`workflow/runtime/enforcement.md\` for the full deny pattern list.`,
+See \`workflow/hooks/deny-dangerous.sh\` for the full deny pattern list.`,
   },
   {
     key: 'add-compaction-hook',
@@ -446,7 +446,7 @@ Place them alongside the existing \`Read(**/.env*)\` deny rule.`,
 
 The hook MUST exit 0 even if checks fail (non-zero causes infinite loops). Report issues to stderr as informational feedback.
 
-See \`workflow/runtime/enforcement.md\` for the full stop-lint template.`,
+See \`workflow/hooks/stop-lint.sh\` for the full stop-lint template.`,
   },
   {
     key: 'fix-settings-json',

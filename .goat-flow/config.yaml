@@ -20,7 +20,7 @@ skills:
 
 # ── Telemetry ─────────────────────────────────
 # Opt-in: logs skill invocations to .goat-flow/logs/skill-usage.jsonl
-# Requires the skill-telemetry.sh hook (see workflow/runtime/enforcement.md)
+# Requires the skill-telemetry.sh hook (see workflow/hooks/)
 telemetry: false
 
 # ── Scanner Thresholds ──────────────────────────

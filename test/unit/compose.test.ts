@@ -784,14 +784,14 @@ describe('M2.13: Codex template map', () => {
     );
   });
 
-  it('Claude still maps enforcement fragments to enforcement.md', async () => {
+  it('Claude maps enforcement fragments to workflow/hooks/', async () => {
     const { getFragmentTemplate } =
       await import('../../src/cli/prompt/template-refs.js');
     const denyTemplate = getFragmentTemplate('create-deny-script', 'claude');
     assert.ok(denyTemplate);
     assert.ok(
-      denyTemplate.includes('enforcement'),
-      'Claude should reference enforcement.md',
+      denyTemplate.includes('workflow/hooks/'),
+      'Claude should reference workflow/hooks/',
     );
   });
 });

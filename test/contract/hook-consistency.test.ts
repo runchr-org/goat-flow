@@ -1,6 +1,6 @@
 /**
  * Tests that installed hooks (.claude/hooks/*) are consistent with the
- * workflow/runtime/enforcement.md template reference.
+ * workflow/hooks/ template reference directory.
  *
  * Verifies: JSON key parsing matches, deny patterns cover the documented set,
  * format hook reads the documented field name.
@@ -12,7 +12,7 @@ import { join } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '../..');
 const HOOKS_DIR = join(ROOT, '.claude/hooks');
-const ENFORCEMENT_MD = join(ROOT, 'workflow/runtime/enforcement.md');
+const HOOKS_TEMPLATE_DIR = join(ROOT, 'workflow/hooks');
 
 /** Read a hook script if it exists. */
 function readHook(name: string): string | null {
@@ -20,13 +20,11 @@ function readHook(name: string): string | null {
   return existsSync(path) ? readFileSync(path, 'utf-8') : null;
 }
 
-describe('Hook template consistency with enforcement.md', () => {
-  const enforcement = existsSync(ENFORCEMENT_MD)
-    ? readFileSync(ENFORCEMENT_MD, 'utf-8')
-    : null;
+describe('Hook template consistency with workflow/hooks/', () => {
+  const hooksTemplateExists = existsSync(HOOKS_TEMPLATE_DIR);
 
-  it('enforcement.md exists as the reference template', () => {
-    assert.ok(enforcement, 'workflow/runtime/enforcement.md should exist');
+  it('workflow/hooks/ exists as the reference template directory', () => {
+    assert.ok(hooksTemplateExists, 'workflow/hooks/ should exist');
   });
 
   describe('deny-dangerous.sh', () => {

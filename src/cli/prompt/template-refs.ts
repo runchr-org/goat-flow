@@ -55,25 +55,25 @@ function getFoundationHooks(agentId: AgentId): TemplateRef[] {
       return [
         {
           output: '.claude/settings.json',
-          template: 'workflow/runtime/enforcement.md',
+          template: 'workflow/hooks/README.md',
           phase: 'foundation',
           note: 'Use detected stack commands',
         },
         {
           output: '.claude/hooks/deny-dangerous.sh',
-          template: 'workflow/runtime/enforcement.md',
+          template: 'workflow/hooks/deny-dangerous.sh',
           phase: 'foundation',
           note: 'Section: PreToolUse',
         },
         {
           output: '.claude/hooks/stop-lint.sh',
-          template: 'workflow/runtime/enforcement.md',
+          template: 'workflow/hooks/stop-lint.sh',
           phase: 'foundation',
           note: 'Section: Stop hook',
         },
         {
           output: '.claude/hooks/format-file.sh',
-          template: 'workflow/runtime/enforcement.md',
+          template: 'workflow/hooks/format-file.sh',
           phase: 'foundation',
           note: 'Section: PostToolUse',
         },
@@ -165,13 +165,13 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
   const sharedRefs: TemplateRef[] = [
     {
       output: 'ai-docs/footguns/',
-      template: 'workflow/setup/shared/docs-seed.md',
+      template: 'workflow/setup/shared/phase-1.md',
       phase: 'standard',
       note: 'Real incidents only',
     },
     {
       output: 'ai-docs/lessons/',
-      template: 'workflow/setup/shared/docs-seed.md',
+      template: 'workflow/setup/shared/phase-1.md',
       phase: 'standard',
       note: 'Seed from git history',
     },
@@ -187,7 +187,7 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
   const roleRefs: TemplateRef[] = [
     {
       output: 'ai-docs/README.md',
-      template: 'workflow/setup/shared/docs-seed.md',
+      template: 'workflow/setup/shared/phase-1.md',
       phase: 'standard',
       note: 'Routing map for ai-docs/coding-standards/',
     },
@@ -648,8 +648,8 @@ const FRAGMENT_TEMPLATE_MAP: Record<
 
   // File-level creates - instruction file and docs
   'create-instruction-file': 'workflow/setup/shared/execution-loop.md',
-  'create-lessons': 'workflow/setup/shared/docs-seed.md',
-  'create-footguns': 'workflow/setup/shared/docs-seed.md',
+  'create-lessons': 'workflow/setup/shared/phase-1.md',
+  'create-footguns': 'workflow/setup/shared/phase-1.md',
   'create-architecture': 'workflow/runtime/architecture.md',
   'create-evals-dir': 'workflow/evaluation/evals.md',
   'add-evals': 'workflow/evaluation/evals.md',
@@ -657,17 +657,17 @@ const FRAGMENT_TEMPLATE_MAP: Record<
 
   // File-level creates - hooks/enforcement
   'create-deny-script': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/deny-dangerous.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'create-stop-lint': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/stop-lint.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'create-format-hook': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/format-file.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
@@ -709,60 +709,60 @@ const FRAGMENT_TEMPLATE_MAP: Record<
 
   // Fix-kind - hook hardening (agent-specific)
   'add-deny-blocks': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/deny-dangerous.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-json-parsing': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/deny-dangerous.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-chaining': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/deny-dangerous.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-rm-rf': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/deny-dangerous.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-force-push': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/deny-dangerous.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-chmod': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/deny-dangerous.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-deny-pipe-to-shell': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/deny-dangerous.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'fix-read-deny-secrets': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/deny-dangerous.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'add-stop-lint-validation': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/stop-lint.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'add-compaction-hook': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/README.md',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
 
   // Fix-kind - learning loop
-  'seed-lessons': 'workflow/setup/shared/docs-seed.md',
-  'seed-lessons-minimum': 'workflow/setup/shared/docs-seed.md',
-  'add-footgun-evidence': 'workflow/setup/shared/docs-seed.md',
+  'seed-lessons': 'workflow/setup/shared/phase-1.md',
+  'seed-lessons-minimum': 'workflow/setup/shared/phase-1.md',
+  'add-footgun-evidence': 'workflow/setup/shared/phase-1.md',
 
   // File-level creates - security, testing, devops, domain
   'create-security-instructions': 'workflow/coding-standards/security.md',
@@ -794,8 +794,8 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   // Fix-kind - local instructions
   'improve-conventions-instructions':
     'workflow/coding-standards/conventions.md',
-  'create-instructions-dir': 'workflow/setup/shared/docs-seed.md',
-  'create-instructions-router': 'workflow/setup/shared/docs-seed.md',
+  'create-instructions-dir': 'workflow/setup/shared/phase-1.md',
+  'create-instructions-router': 'workflow/setup/shared/phase-1.md',
   'create-frontend-instructions':
     'workflow/coding-standards/frontend/typescript.md',
   'create-github-git-commit': 'workflow/coding-standards/git-commit.md',
@@ -808,17 +808,17 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   'add-router': 'workflow/setup/shared/execution-loop.md',
   'route-skills': 'workflow/setup/shared/execution-loop.md',
   'add-deny-mechanism': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/deny-dangerous.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'block-git-commit': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/deny-dangerous.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
   'block-git-push': {
-    claude: 'workflow/runtime/enforcement.md',
+    claude: 'workflow/hooks/deny-dangerous.sh',
     codex: 'workflow/setup/setup-codex.md',
     gemini: 'workflow/setup/setup-gemini.md',
   },
@@ -835,12 +835,12 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   'ci-trigger-prs': 'workflow/evaluation/ci-validation.md',
 
   // Fix-kind - anti-patterns (ones with clear template sources)
-  'ap-add-footgun-evidence': 'workflow/setup/shared/docs-seed.md',
-  'ap-fix-empty-scaffolding': 'workflow/setup/shared/docs-seed.md',
-  'ap-fix-duplicate-learning-loop-surfaces': 'workflow/setup/shared/docs-seed.md',
+  'ap-add-footgun-evidence': 'workflow/setup/shared/phase-1.md',
+  'ap-fix-empty-scaffolding': 'workflow/setup/shared/phase-1.md',
+  'ap-fix-duplicate-learning-loop-surfaces': 'workflow/setup/shared/phase-1.md',
   'ap-fix-dangling-skill-refs': 'workflow/skills/goat-debug.md',
   'ap-fix-adapt-comments': 'workflow/skills/goat-debug.md',
-  'ap-fix-hook-paths': 'workflow/runtime/enforcement.md',
+  'ap-fix-hook-paths': 'workflow/hooks/README.md',
 };
 
 /**

@@ -1076,9 +1076,9 @@ function renderSetupRedirect(
     '- **Phase 1c:** Advisory hooks, deny patterns, coding guidelines',
   );
   lines.push(
-    '- **Phase 2:** Agent evals, hygiene (handoff template, RFC 2119 pass)',
+    '- **Phase 1d:** Agent evals, hygiene (handoff template, RFC 2119 pass)',
   );
-  lines.push('- **Phase 3:** Verify 100% on the CLI scan');
+  lines.push('- **Final Verification:** Verify 100% on the CLI scan');
   lines.push('');
   lines.push(
     '**Read `workflow/setup/shared/system-overview.md` first** to understand the design intent behind the goat-flow system.',

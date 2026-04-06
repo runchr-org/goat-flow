@@ -1,16 +1,11 @@
 # Instruction File Sections
 
-These sections go in every project's root instruction file (CLAUDE.md, AGENTS.md, or equivalent). They are generated from `docs/system-spec.md` and kept in sync with it.
-
-**MULTI-AGENT SYNC:** When multiple agent files exist (CLAUDE.md + AGENTS.md + GEMINI.md), the execution loop content is duplicated in each (no import mechanism exists). Changes to the loop MUST be propagated to all copies. The scanner checks for divergence (check 3.3.4).
-
-Target: under 120 lines. Hard limit: 150. Use BAD/GOOD examples not prose.
+These sections go in the project's instruction file. Target: under 120 lines. Hard limit: 150.
 
 ---
 
 ## Required Sections
 
-```
 a) Version header (v1.0 - YYYY-MM-DD)
 
 b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
@@ -41,13 +36,9 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
    - LOG: MUST update when tripped (DoD gate #4). Use category bucket
      files - do NOT append to a monolithic log and do NOT create one
      file per incident forever.
-     Lessons: `ai-docs/lessons/` or `.goat-flow/lessons/` using category
-     files such as `verification.md` with frontmatter `category`, then
-     `## Lesson:` / `## Pattern:` entries inside.
-     Footguns: `ai-docs/footguns/` or `.goat-flow/footguns/` using
-     category files such as `hooks.md` with frontmatter `category`,
-     then `## Footgun:` entries with Status/Created/Evidence type
-     inside. Decisions: `ai-docs/decisions/`.
+     Lessons: `ai-docs/lessons/` or `.goat-flow/lessons/` category files.
+     Footguns: `ai-docs/footguns/` or `.goat-flow/footguns/` category files.
+     Decisions: `ai-docs/decisions/`.
      When-to-use table. Footgun propagation rule.
      Context-based loading rules.
      MECHANICAL TRIGGER (non-negotiable):
@@ -93,20 +84,17 @@ d) Definition of Done: 6 gates
    (5) working notes current
    (6) grep old pattern after renames
 
-e) Working Memory: Working Notes for 5+ turn tasks, context escalation
-   ladder, session handoff protocol. Incomplete work → copy
-   .goat-flow/tasks/handoff-template.md to .goat-flow/tasks/handoff.md and fill in.
-   Next session MUST read .goat-flow/tasks/handoff.md if it exists.
+e) Working Memory:
+   Progress tracking: use milestone file checkboxes (`- [x]`) to track
+   task completion. This is the primary mechanism for multi-turn work.
+   Session logs: write to `.goat-flow/logs/sessions/` on /compact or at
+   session end. Include current task state, modified files, next steps.
    Multi-task sessions: re-read the instruction file constraints before starting.
    Context health: compact at 60% utilization (not 90%). Remove
    failed attempts and superseded reasoning before compacting (noise
    pruning). Clear context between unrelated tasks when the agent supports it.
-   .goat-flow/tasks/todo.md and .goat-flow/tasks/handoff.md MUST be gitignored.
    Agent-local settings (e.g., .claude/settings.local.json): review
    quarterly, prune session artifacts.
-   Recommended: register a Notification hook for compaction that
-   re-injects current task, modified files, and constraints.
-   See workflow/runtime/enforcement.md for the hook configuration.
 
 f) Sub-Agent Objectives: one focused objective, structured return,
    5-call budget
@@ -116,7 +104,7 @@ g) Communication When Blocked: one question with recommended default
 h) Router table: MUST include at minimum:
      - All 6 skill directories (Claude/Gemini/Codex/Copilot: .claude/skills/, .agents/skills/, .github/skills/)
      - Learning loop directories (`ai-docs/footguns/`, `.goat-flow/footguns/`, `ai-docs/lessons/`, `.goat-flow/lessons/`)
-     - Architecture doc, handoff template, agent evals
+     - Architecture doc, agent evals
      - Project guidelines: `ai-docs/README.md`
      - Any playbooks, profiles, or domain docs relevant to project
      Dual-agent projects: router MUST include the other agent's
@@ -126,35 +114,6 @@ h) Router table: MUST include at minimum:
 
 i) Essential commands
 
-j) Conditional rules (optional, recommended for large codebases):
-   Use `<important>` tags with `if` attributes to scope rules to
-   relevant contexts. Claude filters these based on the current task:
-   ```
-   <important if="editing PHP files">
-   PHPStan level 10 must pass. Run: vendor/bin/phpstan analyse
-   </important>
-
-   <important if="touching auth or payment code">
-   Ask First boundary - complete the full 5-item checklist before proceeding.
-   </important>
-
-   <important if="modifying database migrations">
-   MUST test rollback: php artisan migrate:rollback then migrate again.
-   </important>
-   ```
-   Use these when the instruction file grows beyond the line target.
-   Rules inside `<important if="...">` load contextually instead of
-   always occupying the token budget.
-
-If over line target, apply cut priority from the system spec.
 If you must weaken a MUST to meet the line target, the target is
 wrong - raise it, don't weaken the rule.
-Do NOT skip sections (f)–(j) - they are small but required.
-
-When sources conflict, this precedence applies:
-1. User's explicit instruction (this session)
-2. CLAUDE.md / AGENTS.md (always-loaded instruction file)
-3. workflow/setup/shared/execution-loop.md (shared template)
-4. docs/system-spec.md (canonical reference)
-5. Skills / playbooks (on-demand context)
-```
+Do NOT skip sections (f)-(i) - they are small but required.
