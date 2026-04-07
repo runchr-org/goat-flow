@@ -54,7 +54,6 @@
       <button @click="activeView = 'projects'" class="gf-nb" :class="activeView === 'projects' && 'gf-nb-active'">Projects</button>
       <button @click="activeView = 'rubrics'; loadRubrics()" class="gf-nb" :class="activeView === 'rubrics' && 'gf-nb-active'">Rubrics</button>
       <button @click="activeView = 'wizard'; detectStack()" class="gf-nb" :class="activeView === 'wizard' && 'gf-nb-active'">Setup</button>
-      <button @click="activeView = 'settings'; loadConfig()" class="gf-nb" :class="activeView === 'settings' && 'gf-nb-active'">Config</button>
     </div></div>
     <span class="gf-text-muted" style="font-size: 11px; margin-right: 4px;">Terminal:</span>
     <div class="gf-asel">
@@ -88,7 +87,6 @@
     <!-- include: views/home.html -->
     <!-- include: views/projects.html -->
     <!-- include: views/rubrics.html -->
-    <!-- include: views/settings.html -->
 
   </main>
 </div>

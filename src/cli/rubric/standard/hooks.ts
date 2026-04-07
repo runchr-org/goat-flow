@@ -689,30 +689,8 @@ export const hookChecks: CheckDef[] = [
       'Deny hook MUST block pipe-to-shell patterns such as `curl | bash` and `wget | sh`. Agents should download scripts for inspection instead of piping them straight into a shell.',
     recommendationKey: 'fix-deny-pipe-to-shell',
   },
-  {
-    id: '2.2.5',
-    name: 'Preflight script',
-    tier: 'standard',
-    category: 'Hooks',
-    pts: 1,
-    confidence: 'high',
-    priority: 'recommended',
-    detect: { type: 'file_exists', path: 'scripts/preflight-checks.sh' },
-    recommendation: 'Create scripts/preflight-checks.sh',
-    recommendationKey: 'create-preflight-script',
-  },
-  {
-    id: '2.2.6',
-    name: 'Context validation',
-    tier: 'standard',
-    category: 'Hooks',
-    pts: 1,
-    confidence: 'high',
-    priority: 'recommended',
-    detect: { type: 'file_exists', path: 'scripts/context-validate.sh' },
-    recommendation: 'Create context validation script',
-    recommendationKey: 'create-context-validation',
-  },
+  // 2.2.5 (Preflight script exists) removed - framework-internal scripts, not a user project quality signal.
+  // 2.2.6 (Context validation script) removed - same rationale.
   // 2.2.7 (Ask First mechanical enforcement) removed - see ADR-006.
   // The hook blocks normal development on framework projects. Ask First
   // boundaries remain as policy in the instruction file.

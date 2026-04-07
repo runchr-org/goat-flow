@@ -811,8 +811,8 @@
           "status": "fail",
           "points": 0,
           "maxPoints": 1,
-          "message": "ai-docs/lessons/ exists",
-          "evidence": "ai-docs/lessons/",
+          "message": ".goat-flow/lessons/ exists",
+          "evidence": ".goat-flow/lessons/",
           "recommendationKey": "create-lessons"
         },
         {
@@ -824,8 +824,8 @@
           "status": "pass",
           "points": 2,
           "maxPoints": 2,
-          "message": "ai-docs/footguns/ exists",
-          "evidence": "ai-docs/footguns/",
+          "message": ".goat-flow/footguns/ exists",
+          "evidence": ".goat-flow/footguns/",
           "recommendationKey": "create-footguns"
         },
         {
@@ -962,8 +962,8 @@
           "status": "fail",
           "points": 0,
           "maxPoints": 1,
-          "message": "ai-docs/architecture.md exists",
-          "evidence": "ai-docs/architecture.md",
+          "message": ".goat-flow/architecture.md exists",
+          "evidence": ".goat-flow/architecture.md",
           "recommendationKey": "create-architecture"
         },
         {
@@ -976,7 +976,7 @@
           "points": 1,
           "maxPoints": 1,
           "message": "45 lines (at or under 100 target)",
-          "evidence": "ai-docs/architecture.md: 45 lines",
+          "evidence": ".goat-flow/architecture.md: 45 lines",
           "recommendationKey": "compress-architecture"
         },
         {
@@ -988,8 +988,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "ai-docs/decisions/ exists",
-          "evidence": "ai-docs/decisions",
+          "message": ".goat-flow/decisions/ exists",
+          "evidence": ".goat-flow/decisions",
           "recommendationKey": "create-decisions-dir"
         },
         {
@@ -1001,7 +1001,7 @@
           "points": 0,
           "maxPoints": 1,
           "confidence": "high",
-          "message": "Found at ai-docs/coding-standards/",
+          "message": "Found at .goat-flow/coding-standards/",
           "recommendationKey": "create-instructions-dir"
         },
         {
@@ -1013,7 +1013,7 @@
           "points": 1,
           "maxPoints": 1,
           "confidence": "high",
-          "message": "ai-docs/README.md exists",
+          "message": ".goat-flow/README.md exists",
           "recommendationKey": "create-instructions-router"
         },
         {
@@ -1157,8 +1157,8 @@
           "status": "pass",
           "points": 1,
           "maxPoints": 1,
-          "message": "ai-docs/evals/ exists",
-          "evidence": "ai-docs/evals",
+          "message": ".goat-flow/evals/ exists",
+          "evidence": ".goat-flow/evals",
           "recommendationKey": "create-evals-dir"
         },
         {

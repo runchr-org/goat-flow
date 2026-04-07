@@ -22,7 +22,6 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   'footguns',
   'lessons',
   'decisions',
-  'evals',
   'coding-standards',
   'tasks',
   'logs',
@@ -36,11 +35,10 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
 /** Built-in default values used when config.yaml is missing or omits fields. */
 export const CONFIG_DEFAULTS: GoatFlowConfig = {
   version: RUBRIC_VERSION,
-  footguns: { committed: 'ai-docs/footguns/', local: '.goat-flow/footguns/' },
-  lessons: { committed: 'ai-docs/lessons/', local: '.goat-flow/lessons/' },
-  decisions: { path: 'ai-docs/decisions/' },
-  evals: { path: 'ai-docs/evals/' },
-  codingStandards: { path: 'ai-docs/coding-standards/' },
+  footguns: { path: '.goat-flow/footguns/' },
+  lessons: { path: '.goat-flow/lessons/' },
+  decisions: { path: '.goat-flow/decisions/' },
+  codingStandards: { path: '.goat-flow/coding-standards/' },
   tasks: { path: '.goat-flow/tasks/' },
   logs: { path: '.goat-flow/logs/' },
   agents: null,
@@ -57,7 +55,6 @@ function cloneDefaults(): GoatFlowConfig {
     footguns: { ...CONFIG_DEFAULTS.footguns },
     lessons: { ...CONFIG_DEFAULTS.lessons },
     decisions: { ...CONFIG_DEFAULTS.decisions },
-    evals: { ...CONFIG_DEFAULTS.evals },
     codingStandards: { ...CONFIG_DEFAULTS.codingStandards },
     tasks: { ...CONFIG_DEFAULTS.tasks },
     logs: { ...CONFIG_DEFAULTS.logs },
@@ -84,16 +81,6 @@ function readConfigText(projectRoot: string, fs?: ReadonlyFS): string | null {
   const path = join(projectRoot, '.goat-flow', 'config.yaml');
   if (!existsSync(path)) return null;
   return readFileSync(path, 'utf8');
-}
-
-/** Apply committed/local path overrides for a two-path config section. */
-function mergePairPaths(
-  value: unknown,
-  target: { committed: string; local: string },
-): void {
-  if (!isRecord(value)) return;
-  if (typeof value.committed === 'string') target.committed = value.committed;
-  if (typeof value.local === 'string') target.local = value.local;
 }
 
 /** Apply a `path` override for a single-path config section. */
@@ -151,11 +138,9 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
   if (!isRecord(raw)) return merged;
 
   mergeVersion(raw.version, merged);
-  mergePairPaths(raw.footguns, merged.footguns);
-  mergePairPaths(raw.lessons, merged.lessons);
+  mergeSinglePath(raw.footguns, merged.footguns);
+  mergeSinglePath(raw.lessons, merged.lessons);
   mergeSinglePath(raw.decisions, merged.decisions);
-  mergeSinglePath(raw.evals, merged.evals);
-
   // YAML key is `coding-standards` (kebab-case), TypeScript field is `codingStandards` (camelCase)
   mergeSinglePath(raw['coding-standards'], merged.codingStandards);
   mergeSinglePath(raw.tasks, merged.tasks);
@@ -249,27 +234,10 @@ function validateOptionalStringField(
   }
 }
 
-/** Validate a `{ committed, local }` path section such as footguns or lessons. */
-function validatePairPathSection(
-  raw: RawConfig,
-  section: 'footguns' | 'lessons',
-  errors: ValidationIssue[],
-): void {
-  validateObjectField(raw, section, errors, (value) => {
-    validateOptionalStringField(
-      value,
-      'committed',
-      `${section}.committed`,
-      errors,
-    );
-    validateOptionalStringField(value, 'local', `${section}.local`, errors);
-  });
-}
-
-/** Validate a `{ path }` section such as decisions, evals, or logs. */
+/** Validate a `{ path }` section such as footguns, lessons, decisions, or logs. */
 function validateSinglePathSection(
   raw: RawConfig,
-  section: 'decisions' | 'evals' | 'coding-standards' | 'tasks' | 'logs',
+  section: 'footguns' | 'lessons' | 'decisions' | 'coding-standards' | 'tasks' | 'logs',
   errors: ValidationIssue[],
 ): void {
   validateObjectField(raw, section, errors, (value) => {
@@ -305,7 +273,7 @@ function validateFootgunsField(
   _warnings: ValidationIssue[],
   errors: ValidationIssue[],
 ): void {
-  validatePairPathSection(raw, 'footguns', errors);
+  validateSinglePathSection(raw, 'footguns', errors);
 }
 
 /** Validate the lessons path section. */
@@ -314,7 +282,7 @@ function validateLessonsField(
   _warnings: ValidationIssue[],
   errors: ValidationIssue[],
 ): void {
-  validatePairPathSection(raw, 'lessons', errors);
+  validateSinglePathSection(raw, 'lessons', errors);
 }
 
 /** Validate the decisions path section. */
@@ -324,15 +292,6 @@ function validateDecisionsField(
   errors: ValidationIssue[],
 ): void {
   validateSinglePathSection(raw, 'decisions', errors);
-}
-
-/** Validate the evals path section. */
-function validateEvalsField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validateSinglePathSection(raw, 'evals', errors);
 }
 
 /** Validate the coding-standards path section. */
@@ -485,7 +444,6 @@ const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateFootgunsField,
   validateLessonsField,
   validateDecisionsField,
-  validateEvalsField,
   validateCodingStandardsField,
   validateLineLimitsField,
   validateTasksField,

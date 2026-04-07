@@ -1,7 +1,7 @@
-# Prompt: Create ai-docs/coding-standards/security.md
+# Prompt: Create .goat-flow/coding-standards/security.md
 
 > **Purpose:** Cross-cutting security overlay - input validation, auth, secrets, output encoding
-> **Generates:** `ai-docs/coding-standards/security.md`
+> **Generates:** `.goat-flow/coding-standards/security.md`
 > **Use when:** Setting up security instructions (overrides other instructions on conflict)
 > **Repo inspection:** Yes - reads auth patterns, validation logic, secrets handling, dependency tree
 > **Follow-on refs:** `security/web-common.md` for OWASP baseline; `security/framework-specific/` for framework rules; `security/api-auth.md`, `security/file-upload.md`, `security/sql-injection.md` as detected
@@ -10,7 +10,7 @@
 
 ## The Prompt
 
-Write `ai-docs/coding-standards/security.md`:
+Write `.goat-flow/coding-standards/security.md`:
 
 ````
 # Security Instructions

@@ -215,12 +215,8 @@ export interface ProjectSignals {
 export interface SharedFacts {
   footguns: {
     exists: boolean;
-    committedExists: boolean;
-    localExists: boolean;
     hasEvidence: boolean;
     entryCount: number;
-    committedCount: number;
-    localCount: number;
     labelCount: number;
     hasEvidenceLabels: boolean;
     dirMentions: Map<string, number>;
@@ -230,20 +226,16 @@ export interface SharedFacts {
     totalRefs: number;
     validRefs: number;
     formatDiagnostic: string | null;
-    paths: { committed: string; local: string };
+    path: string;
   };
   lessons: {
     exists: boolean;
-    committedExists: boolean;
-    localExists: boolean;
     hasEntries: boolean;
     entryCount: number;
-    committedCount: number;
-    localCount: number;
     staleRefs: string[];
     duplicateSurfacePaths: string[];
     formatDiagnostic: string | null;
-    paths: { committed: string; local: string };
+    path: string;
   };
   decisions: {
     dirExists: boolean;
@@ -262,19 +254,7 @@ export interface SharedFacts {
     userRole: 'developer' | 'investigator' | 'tester';
   };
   architecture: { exists: boolean; lineCount: number };
-  evals: {
-    dirExists: boolean;
-    count: number;
-    hasReadme: boolean;
-    hasOriginLabels: boolean;
-    hasAgentsLabels: boolean;
-    hasReplayPrompts: boolean;
-    hasRealContent: boolean;
-    hasFrontmatter: boolean;
-    evalSkillCount: number;
-    missingSkills: string[];
-    path: string;
-  };
+  // evals removed - evals system removed in v1.1.0 (M09).
   // ci removed - CI workflow is a project-level concern.
   ignoreFiles: {
     copilotignore: boolean;
@@ -308,7 +288,7 @@ export interface SharedFacts {
     path: string;
   };
   gitCommitInstructions: { exists: boolean };
-  /** Total line count across ai-docs/coding-standards/ files (cold-path budget) */
+  /** Total line count across .goat-flow/coding-standards/ files (cold-path budget) */
   aiInstructionsLineCount: number;
 }
 
@@ -492,8 +472,8 @@ export interface ScanReport {
     };
     config: { exists: boolean; valid: boolean };
     learningLoop: {
-      footguns: { committed: number; local: number };
-      lessons: { committed: number; local: number };
+      footguns: { count: number };
+      lessons: { count: number };
     };
   };
 }

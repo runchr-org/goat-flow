@@ -81,18 +81,16 @@ interface FootgunRefSummary {
 
 /** Known filesystem locations where footgun artifacts may appear. */
 const FOOTGUN_SURFACE_CANDIDATES = [
-  'ai-docs/footguns/',
   '.goat-flow/footguns/',
+  'ai-docs/footguns/',
   'docs/footguns.md',
-  '.goat-flow/footguns.md',
 ];
 /** Known filesystem locations where lesson artifacts may appear. */
 const LESSON_SURFACE_CANDIDATES = [
-  'ai-docs/lessons/',
   '.goat-flow/lessons/',
+  'ai-docs/lessons/',
   'docs/lessons/',
   'docs/lessons.md',
-  '.goat-flow/lessons.md',
 ];
 
 /** Normalize a surface path so trailing slashes do not affect comparisons. */
@@ -100,7 +98,7 @@ function normalizeSurfacePath(path: string): string {
   return path.replace(/\/$/, '');
 }
 
-/** Detect competing artifact surfaces outside the configured committed/local split. */
+/** Detect competing artifact surfaces outside the configured canonical path. */
 function findCompetingArtifactSurfaces(
   fs: ReadonlyFS,
   canonicalPaths: string[],
@@ -389,31 +387,17 @@ export function extractFootgunFacts(
   fs: ReadonlyFS,
   configState: LoadedConfig,
 ): SharedFacts['footguns'] {
-  const committed = listMarkdownEntries(
-    fs,
-    configState.config.footguns.committed,
-  );
-  const local = listMarkdownEntries(fs, configState.config.footguns.local);
-  const allEntries = [...committed.files, ...local.files];
-  const summary = summarizeFootgunEntries(fs, allEntries);
-  const committedCount = summarizeFootgunEntries(
-    fs,
-    committed.files,
-  ).entryCount;
-  const localCount = summarizeFootgunEntries(fs, local.files).entryCount;
+  const dir = listMarkdownEntries(fs, configState.config.footguns.path);
+  const summary = summarizeFootgunEntries(fs, dir.files);
   const formatDiagnostic =
-    summary.entryCount === 0 && (committed.exists || local.exists)
-      ? 'Footgun directories exist but contain 0 entries'
+    summary.entryCount === 0 && dir.exists
+      ? 'Footgun directory exists but contains 0 entries'
       : summary.formatDiagnostic;
 
   return {
-    exists: committed.exists || local.exists,
-    committedExists: committed.exists,
-    localExists: local.exists,
+    exists: dir.exists,
     hasEvidence: summary.hasEvidence,
     entryCount: summary.entryCount,
-    committedCount,
-    localCount,
     labelCount: summary.labelCount,
     hasEvidenceLabels:
       summary.entryCount > 0 && summary.labelCount >= summary.entryCount,
@@ -422,16 +406,13 @@ export function extractFootgunFacts(
     invalidLineRefs: summary.invalidLineRefs,
     duplicateSurfacePaths: findCompetingArtifactSurfaces(
       fs,
-      [configState.config.footguns.committed, configState.config.footguns.local],
+      [configState.config.footguns.path],
       FOOTGUN_SURFACE_CANDIDATES,
     ),
     totalRefs: summary.totalRefs,
     validRefs: summary.validRefs,
     formatDiagnostic,
-    paths: {
-      committed: configState.config.footguns.committed,
-      local: configState.config.footguns.local,
-    },
+    path: configState.config.footguns.path,
   };
 }
 
@@ -440,38 +421,24 @@ export function extractLessonsFacts(
   fs: ReadonlyFS,
   configState: LoadedConfig,
 ): SharedFacts['lessons'] {
-  const committed = listMarkdownEntries(
-    fs,
-    configState.config.lessons.committed,
-  );
-  const local = listMarkdownEntries(fs, configState.config.lessons.local);
-  const allEntries = [...committed.files, ...local.files];
-  const summary = summarizeLessonEntries(fs, allEntries);
-  const committedCount = summarizeLessonEntries(fs, committed.files).entryCount;
-  const localCount = summarizeLessonEntries(fs, local.files).entryCount;
+  const dir = listMarkdownEntries(fs, configState.config.lessons.path);
+  const summary = summarizeLessonEntries(fs, dir.files);
   const formatDiagnostic =
-    summary.entryCount === 0 && (committed.exists || local.exists)
-      ? 'Lesson directories exist but contain 0 entries'
+    summary.entryCount === 0 && dir.exists
+      ? 'Lesson directory exists but contains 0 entries'
       : summary.formatDiagnostic;
 
   return {
-    exists: committed.exists || local.exists,
-    committedExists: committed.exists,
-    localExists: local.exists,
+    exists: dir.exists,
     hasEntries: summary.entryCount > 0,
     entryCount: summary.entryCount,
-    committedCount,
-    localCount,
     staleRefs: summary.staleRefs,
     duplicateSurfacePaths: findCompetingArtifactSurfaces(
       fs,
-      [configState.config.lessons.committed, configState.config.lessons.local],
+      [configState.config.lessons.path],
       LESSON_SURFACE_CANDIDATES,
     ),
     formatDiagnostic,
-    paths: {
-      committed: configState.config.lessons.committed,
-      local: configState.config.lessons.local,
-    },
+    path: configState.config.lessons.path,
   };
 }

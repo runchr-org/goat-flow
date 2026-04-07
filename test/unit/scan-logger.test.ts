@@ -114,8 +114,8 @@ function makeReport(agents: AgentReport[]): ScanReport {
       },
       config: { exists: true, valid: true },
       learningLoop: {
-        footguns: { committed: 1, local: 0 },
-        lessons: { committed: 1, local: 0 },
+        footguns: { count: 1 },
+        lessons: { count: 1 },
       },
     },
   };

@@ -1,6 +1,6 @@
 # Coding Standards Setup
 
-Instructions for creating project coding standards in `ai-docs/coding-standards/`.
+Instructions for creating project coding standards in `.goat-flow/coding-standards/`.
 
 ---
 
@@ -15,7 +15,7 @@ Scan the project for existing coding standards:
 
 List what you find.
 
-## Step 2 — Always create ai-docs/coding-standards/conventions.md
+## Step 2 — Always create .goat-flow/coding-standards/conventions.md
 
 This file ALWAYS gets created. It is either:
 
@@ -42,27 +42,27 @@ Use `workflow/coding-standards/conventions.md` template. Include: build/test/lin
 
 Either way, the scanner sees `conventions.md` exists with content. No contradiction.
 
-## Step 3 — Create ai-docs/README.md routing map
+## Step 3 — Create .goat-flow/README.md routing map
 
-Always create. Points to `ai-docs/coding-standards/` AND any existing instruction locations:
+Always create. Points to `.goat-flow/coding-standards/` AND any existing instruction locations:
 
 ```markdown
 # AI Docs Router
 
 | Need | Where to look |
 |------|--------------|
-| Coding conventions | `ai-docs/coding-standards/conventions.md` |
-| Architecture | `ai-docs/architecture.md` |
-| Footguns | `ai-docs/footguns/` |
-| Lessons | `ai-docs/lessons/` |
-| Decisions | `ai-docs/decisions/` |
+| Coding conventions | `.goat-flow/coding-standards/conventions.md` |
+| Architecture | `.goat-flow/architecture.md` |
+| Footguns | `.goat-flow/footguns/` |
+| Lessons | `.goat-flow/lessons/` |
+| Decisions | `.goat-flow/decisions/` |
 ```
 
 If `.github/instructions/` exists, add those entries too.
 
 ## Step 4 — Supplement gaps only
 
-Check which areas the project does NOT already cover. Create additional `ai-docs/coding-standards/` files ONLY for gaps:
+Check which areas the project does NOT already cover. Create additional `.goat-flow/coding-standards/` files ONLY for gaps:
 
 - `code-review.md` — if no code-review instructions exist anywhere
 - `git-commit.md` — if no git-commit instructions exist anywhere
@@ -73,8 +73,8 @@ Do NOT create files for areas already covered by `.github/instructions/` or othe
 
 ## Step 5 — Verify
 
-- `ai-docs/coding-standards/conventions.md` exists (always)
-- `ai-docs/README.md` exists (always)
+- `.goat-flow/coding-standards/conventions.md` exists (always)
+- `.goat-flow/README.md` exists (always)
 - Every path referenced actually exists
 - Every command listed actually runs
 - No content duplicated from `.github/instructions/` — only pointer references
@@ -82,5 +82,5 @@ Do NOT create files for areas already covered by `.github/instructions/` or othe
 ## What NOT to do
 
 - Do NOT edit or delete existing project files
-- Do NOT copy `.github/instructions/` content into `ai-docs/coding-standards/`
+- Do NOT copy `.github/instructions/` content into `.goat-flow/coding-standards/`
 - DO always create `conventions.md` — as a pointer if existing standards exist, as a full file if not

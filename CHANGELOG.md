@@ -21,14 +21,14 @@ Setup overhaul driven by 10 real-project reviews. Setup agents now understand de
 - goat-review/goat-security: boundary notes clarifying ownership split
 
 **M03a — Setup Restructure**
-- Merged 7 shared setup files → 3 (phase-0.md, phase-1.md, execution-loop.md + system-overview.md + coding-standards.md)
+- Merged 7 shared setup files → 3 (phase-1.md, execution-loop.md + system-overview.md + coding-standards.md); phase-0.md was later removed
 - Created `workflow/hooks/` with copyable scripts + per-agent config templates (claude.json, codex.toml, gemini.json)
 - Rewrote 4 agent setup files: Claude 108→62, Codex 138→80, Gemini 98→46, Copilot 93→51 lines
 - All agents now have human checklists, reference system-overview.md, use workflow/hooks/
 
 **M03b — Doc Cleanup**
 - Deleted ~3,000 lines: system-spec.md, design-rationale.md, five-layers.md, rubrics.md, getting-started.md, cross-agent-comparison.md, using-skills.md, docs/examples/, workflow/runtime/, workflow/templates/
-- Updated 100+ cross-references across ai-docs/, test fixtures, scanner code, instruction files
+- Updated 100+ cross-references across .goat-flow/, test fixtures, scanner code, instruction files
 - All workflow/** files updated with v1.1.0 references
 
 **M08 — Post-Critique Fixes** (driven by Codex implementing + critiquing v1.1.0 across 11 projects)
@@ -39,7 +39,7 @@ Setup overhaul driven by 10 real-project reviews. Setup agents now understand de
 - Scanner: removed CI Validation checks 3.2.1–3.2.5 (6pts, not AI workflow), fixed grep -P false positive (9/11 projects), fixed 2.6.1a pointer-file exemption (8/11 projects)
 - Removed format-file.sh and guard-write-size.sh from goat-flow system — only deny-dangerous.sh and stop-lint.sh ship
 - Skills: purged all stale v1.0 refs (todo.md, handoff.md, TODO_*_prime, flush), SBAO opt-in, compliance mode opt-in, fixed skill-conventions.md contradiction
-- Reduced default ai-docs/ scaffold (2-3 evals, no domain-reference.md, always glossary.md)
+- Reduced default .goat-flow/ scaffold (no domain-reference.md, always glossary.md)
 - Dashboard: added /api/rubrics endpoint, light mode fix for setup page
 
 ---
@@ -129,7 +129,7 @@ Dispatcher skill, coding-standards refresh, scanner hardening, telemetry, signal
 **Coding Standards** - Backend: Go/DRF/Rust/Spring/.NET/TS Node. Frontend: 9-framework routing. Security: llm-security, phi-compliance, 5 framework-specific. DevOps: terraform, packer.
 **Scanner** - Dispatcher + Shared Conventions checks. AP16 deprecated skills (-5), AP17 dangling refs (-3). Signal follow-through (LLM, PHI, formatter). Eval frontmatter enforcement.
 **Setup** - `mapSignalsToTemplates()` auto-routes phi/llm templates. `renderSignals()` produces tasks. `scan-logger.ts` per-agent JSONL.
-**Skills** - Dispatcher + Shared Conventions across all dirs. 9 skill-specific evals. Preflight: headers, skills, templates, dual-agent consistency. Format hook (prettier), deny hooks (package + cloud).
+**Skills** - Dispatcher + Shared Conventions across all dirs. Preflight: headers, skills, templates, dual-agent consistency. Format hook (prettier), deny hooks (package + cloud).
 
 ---
 
@@ -214,4 +214,4 @@ First release. Complete workflow system.
 
 **System** - 5-layer architecture. 6-step execution loop with SCOPE. 3-layer enforcement (permissions→hooks→rules). Autonomy tiers. DoD (6 gates). Doer-verifier testing.
 **Skills (6)** - preflight, debug, audit, research, review, plan. Planning playbooks (feature brief, mob elaboration, SBAO, milestones). Testing playbooks (doer-verifier, 3 tracks).
-**Docs** - system-spec, five-layers, six-steps, getting-started, design-rationale. Cross-agent comparison. Agent evals from real incidents. CI context validation.
+**Docs** - system-spec, five-layers, six-steps, getting-started, design-rationale. Cross-agent comparison. CI context validation.

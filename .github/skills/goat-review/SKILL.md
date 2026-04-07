@@ -40,9 +40,9 @@ If Step 0 footgun check matches a known trap: (1) surface match immediately, (2)
 
 ### Learning Loop
 After completing the skill, check if this run uncovered anything worth logging:
-- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`
-- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`
-- Route team-wide entries to `ai-docs/`; session-only entries to `.goat-flow/`
+- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `.goat-flow/lessons/`
+- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `.goat-flow/footguns/`
+- Route entries to `.goat-flow/lessons/` or `.goat-flow/footguns/`
 - Match entry format to existing entries in the target bucket file. Do not append to a monolithic log or directory README.
 
 ### Recovery
@@ -101,10 +101,10 @@ Scope detection priority: (1) explicit user input, (2) staged changes to target,
 - Goal is **readability/cleanup** → **Simplify mode** (Phases S1-S4)
 - User explicitly says "audit" or "standard" → respect override
 
-If `ai-docs/coding-standards/code-review.md` exists, load it and apply project-specific
+If `.goat-flow/coding-standards/code-review.md` exists, load it and apply project-specific
 review standards alongside these defaults.
 
-**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
 **Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
 - "hotfix" but 5+ files affected → likely Standard or System
@@ -139,14 +139,14 @@ pre-existing issues as part of this change - note them separately.
 
 **Cross-cutting checks:**
 - Autonomy tier violations: does this change cross an Ask First boundary?
-- Footgun matching: check each finding against `ai-docs/footguns/` and `.goat-flow/footguns/`. Output: `MATCH: [entry]` or `CLEAR`
+- Footgun matching: check each finding against `.goat-flow/footguns/`. Output: `MATCH: [entry]` or `CLEAR`
   *Example:* "Finding: Renamed `UserService` → `AccountService`. Footgun check:
-  `ai-docs/footguns/` or `.goat-flow/footguns/` entry 'cross-reference fragility'. MATCH - grep for
+  `.goat-flow/footguns/` entry 'cross-reference fragility'. MATCH - grep for
   `UserService` across all `.md` files."
 - Pattern drift: does new code use a different pattern than existing codebase? Don't assume it's wrong - ask: "Intentional divergence?"
 - Downstream impact: "What breaks if this change has a bug?" - map the cascade
 - Test execution gaps: tests exist but weren't run against the changed path (different from "no test exists")
-- Glossary consistency: if `ai-docs/glossary.md` exists, flag terms used inconsistently in the diff (different name for same concept)
+- Glossary consistency: if `.goat-flow/glossary.md` exists, flag terms used inconsistently in the diff (different name for same concept)
 
 **Self-check:** Before presenting, re-verify `file:line` references for all MUST-fix findings.
 
@@ -209,7 +209,7 @@ Scan categories, weighted by audit purpose. GOAT Flow priorities: cross-referenc
 For each finding, log: category, `file:line`, description, severity.
 Use sub-agents for independent audit areas (e.g., rubric checks, skill templates, setup prompts in parallel).
 
-**Recurrence check:** Before reporting, search `ai-docs/footguns/` and `.goat-flow/footguns/` for entries
+**Recurrence check:** Before reporting, search `.goat-flow/footguns/` for entries
 in the scanned area. Cross-reference findings with known footguns.
 
 **Phase A2 - Verify & Self-Check:**
@@ -252,14 +252,13 @@ Review your output for fix language. Rephrase any recommendations as findings.
 ## Instruction Review Mode
 
 Activated when review target is instruction files (CLAUDE.md, AGENTS.md,
-ai-docs/coding-standards/, .github/instructions/).
+.goat-flow/coding-standards/, .github/instructions/).
 
 **Phase 1i - Friction Signal Scan:**
 Gather observable signals (not conversation memory - agents can't read prior sessions):
 - `git log --oneline -20` for recent activity patterns
-- Read `ai-docs/lessons/` and `.goat-flow/lessons/` for entries since last instruction update
-- Read `ai-docs/footguns/` and `.goat-flow/footguns/` for entries in areas governed by the instructions
-- Check `ai-docs/evals/` for recurring failure patterns
+- Read `.goat-flow/lessons/` for entries since last instruction update
+- Read `.goat-flow/footguns/` for entries in areas governed by the instructions
 
 **Phase 2i - Instruction Audit:**
 For each instruction file, check:
@@ -276,7 +275,7 @@ Present proposals in diff-like format:
 | CLAUDE.md | Ask First | `src/old-path/` | `src/new-path/` | Path renamed in commit abc123 |
 
 MUST NOT auto-edit instruction files. Present for human approval.
-MUST NOT edit `ai-docs/footguns/`, `.goat-flow/footguns/`, `ai-docs/lessons/`, or `.goat-flow/lessons/` - those have their own update standards.
+MUST NOT edit `.goat-flow/footguns/` or `.goat-flow/lessons/` - those have their own update standards.
 
 ---
 
@@ -287,7 +286,7 @@ Activated when goal is readability improvement. **MUST NOT change behavior.**
 **Quick path:** For a single function or ≤50 lines: skip S1 scope confirmation.
 
 ### Phase S1 - Read & Assess
-**Footgun check:** Read `ai-docs/footguns/` and `.goat-flow/footguns/` for target area.
+**Footgun check:** Read `.goat-flow/footguns/` for target area.
 
 Read target files. Assess: Can a new reader understand without context? Are names self-explanatory? Do comments add value? Is control flow easy to follow?
 
@@ -335,7 +334,7 @@ If tests fail → revert that change, note as unsafe, continue with rest.
 <!-- FIXED: Do not adapt these -->
 - MUST review the diff for issues, read full files for context
 - MUST NOT flag pre-existing issues as part of this change (review mode)
-- MUST check each finding against `ai-docs/footguns/` and `.goat-flow/footguns/` (MATCH/CLEAR)
+- MUST check each finding against `.goat-flow/footguns/` (MATCH/CLEAR)
 - MUST order findings by severity, not by file or discovery order
 - MUST NOT fabricate file paths or function names
 - MUST NOT make file edits in review or audit mode - report findings only. Only edit if user explicitly says "implement".

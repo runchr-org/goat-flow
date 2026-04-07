@@ -66,7 +66,7 @@ Only Claude Code supports this syntax. Do not add to AGENTS.md or GEMINI.md.
 - [ ] All 6 goat-flow skills in `.claude/skills/` with version tags
 - [ ] Hooks wired and deny-dangerous blocks expected commands
 - [ ] Router table references all resolve to real files
-- [ ] `ai-docs/` has footguns/, lessons/, coding-standards/
+- [ ] `.goat-flow/` has footguns/, lessons/, coding-standards/
 - [ ] `.goat-flow/config.yaml` exists with correct paths
 - [ ] `goat-flow scan . --agent claude` passes at 100%
 - [ ] Project build/test/lint still passes

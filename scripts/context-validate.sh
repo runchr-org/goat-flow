@@ -76,18 +76,13 @@ warn_if_legacy_surface_exists() {
     fi
 }
 
-footguns_committed_dir="$(config_path footguns committed "ai-docs/footguns/")"
-footguns_local_dir="$(config_path footguns local ".goat-flow/footguns/")"
-lessons_committed_dir="$(config_path lessons committed "ai-docs/lessons/")"
-lessons_local_dir="$(config_path lessons local ".goat-flow/lessons/")"
-evals_dir="$(config_path evals path "ai-docs/evals/")"
+footguns_dir="$(config_path footguns path ".goat-flow/footguns/")"
+lessons_dir="$(config_path lessons path ".goat-flow/lessons/")"
 tasks_dir="$(config_path tasks path ".goat-flow/tasks/")"
 logs_dir="$(config_path logs path ".goat-flow/logs/")"
 
 allowed_missing_paths=(
-    "ai-docs/decisions/"
-    "$footguns_local_dir"
-    "$lessons_local_dir"
+    ".goat-flow/decisions/"
     "$tasks_dir"
     "$logs_dir"
 )
@@ -186,42 +181,33 @@ for skill in "${required_skills[@]}"; do
 done
 info "All 6 skills (5 + dispatcher) exist with required sections and frontmatter"
 
-if [[ -d "$evals_dir" ]]; then
-    [[ -f "$evals_dir/README.md" ]] || fail "Missing $evals_dir/README.md"
-    info "Agent eval directory exists ($evals_dir)"
-else
-    fail "Missing canonical eval directory ($evals_dir)"
-fi
-warn_if_legacy_surface_exists "agent-evals" "$evals_dir" "eval"
-warn_if_legacy_surface_exists "codex-evals" "$evals_dir" "eval"
-
-if [[ -d "$lessons_committed_dir" ]]; then
-    mapfile -t lesson_entries < <(find "$lessons_committed_dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | sort)
+if [[ -d "$lessons_dir" ]]; then
+    mapfile -t lesson_entries < <(find "$lessons_dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | sort)
     if (( ${#lesson_entries[@]} == 0 )); then
-        fail "$lessons_committed_dir exists but contains no lesson category files"
+        fail "$lessons_dir exists but contains no lesson category files"
     else
-        info "$lessons_committed_dir contains lesson category files"
+        info "$lessons_dir contains lesson category files"
     fi
 else
-    fail "Missing canonical lessons directory ($lessons_committed_dir)"
+    fail "Missing canonical lessons directory ($lessons_dir)"
 fi
-warn_if_legacy_surface_exists "docs/lessons.md" "$lessons_committed_dir" "lesson"
+warn_if_legacy_surface_exists "docs/lessons.md" "$lessons_dir" "lesson"
 
-if [[ -d "$footguns_committed_dir" ]]; then
-    mapfile -t footgun_entries < <(find "$footguns_committed_dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | sort)
+if [[ -d "$footguns_dir" ]]; then
+    mapfile -t footgun_entries < <(find "$footguns_dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | sort)
     if (( ${#footgun_entries[@]} == 0 )); then
-        fail "$footguns_committed_dir exists but contains no footgun category files"
-    elif grep -Rqi 'none confirmed yet' "$footguns_committed_dir"; then
-        info "$footguns_committed_dir explicitly states no confirmed footguns yet"
+        fail "$footguns_dir exists but contains no footgun category files"
+    elif grep -Rqi 'none confirmed yet' "$footguns_dir"; then
+        info "$footguns_dir explicitly states no confirmed footguns yet"
     elif ! grep -REq "$evidence_ref_pattern" "${footgun_entries[@]}"; then
-        fail "$footguns_committed_dir has no file path evidence in entry files"
+        fail "$footguns_dir has no file path evidence in entry files"
     else
-        info "$footguns_committed_dir contains footgun entries with file path evidence"
+        info "$footguns_dir contains footgun entries with file path evidence"
     fi
 else
-    fail "Missing canonical footguns directory ($footguns_committed_dir)"
+    fail "Missing canonical footguns directory ($footguns_dir)"
 fi
-warn_if_legacy_surface_exists "docs/footguns.md" "$footguns_committed_dir" "footgun"
+warn_if_legacy_surface_exists "docs/footguns.md" "$footguns_dir" "footgun"
 
 for script in scripts/preflight-checks.sh scripts/context-validate.sh scripts/deny-dangerous.sh; do
     [[ -x "$script" ]] || fail "Script is not executable: $script"

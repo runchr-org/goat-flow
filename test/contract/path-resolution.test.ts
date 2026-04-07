@@ -11,7 +11,7 @@ const ROOT = join(import.meta.dirname, '../..');
 
 /** Extract backtick-wrapped file paths from markdown content. */
 function extractPaths(content: string): string[] {
-  const pattern = /`((?:src|config|docs|ai-docs|scripts|setup|workflow|\.claude|\.agents|\.github|\.goat-flow)\/[^`]+)`/g;
+  const pattern = /`((?:src|config|docs|scripts|setup|workflow|\.claude|\.agents|\.github|\.goat-flow)\/[^`]+)`/g;
   const paths: string[] = [];
   for (const match of content.matchAll(pattern)) {
     const rawPath = match[1];
@@ -55,7 +55,7 @@ describe('CLAUDE.md path resolution', () => {
 
   it('all referenced paths resolve on disk', () => {
     // .goat-flow/ runtime dirs are gitignored - skip them in CI
-    const gitignored = ['.goat-flow/lessons/', '.goat-flow/footguns/', '.goat-flow/logs/', '.goat-flow/tasks/'];
+    const gitignored = ['.goat-flow/logs/', '.goat-flow/tasks/'];
     const stale = paths.filter(p =>
       !existsSync(join(ROOT, p)) && !gitignored.some(g => p.startsWith(g)),
     );
@@ -93,22 +93,4 @@ describe('CLAUDE.md router table path resolution', () => {
   });
 });
 
-describe('Eval frontmatter validation', () => {
-  const evalsDir = join(ROOT, 'ai-docs/evals');
-  if (!existsSync(evalsDir)) return;
-
-  const evalFiles = readdirSync(evalsDir)
-    .filter(f => f.endsWith('.md') && f !== 'README.md');
-
-  for (const file of evalFiles) {
-    it(`${file} has no duplicate YAML frontmatter blocks`, () => {
-      const content = readFileSync(join(evalsDir, file), 'utf-8');
-      const frontmatterBlocks = content.match(/^---$/gm);
-      if (!frontmatterBlocks) return; // No frontmatter is OK
-      assert.ok(
-        frontmatterBlocks.length <= 2,
-        `${file} has ${frontmatterBlocks.length / 2} YAML blocks (expected at most 1)`,
-      );
-    });
-  }
-});
+// Eval frontmatter validation removed - evals system removed in v1.1.0 (M09).

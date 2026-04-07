@@ -11,8 +11,8 @@ function stripLeadingHeading(content: string): string {
 
 const LEGACY_FOOTGUNS_FILE = ['docs', 'footguns.md'].join('/');
 const LEGACY_LESSONS_FILE = ['docs', 'lessons.md'].join('/');
-const LEGACY_FOOTGUNS_DIR = ['ai-docs', 'footguns/'].join('/');
-const LEGACY_LESSONS_DIR = ['ai-docs', 'lessons/'].join('/');
+const LEGACY_FOOTGUNS_DIR = ['.goat-flow', 'footguns/'].join('/');
+const LEGACY_LESSONS_DIR = ['.goat-flow', 'lessons/'].join('/');
 
 /** Convert a label into a slug-safe file name fragment. */
 function slugify(value: string): string {
@@ -260,40 +260,38 @@ function normalizeLearningLoop(
 
   if (
     normalized[LEGACY_FOOTGUNS_FILE] &&
-    !Object.keys(normalized).some((k) => k.startsWith('ai-docs/footguns/'))
+    !Object.keys(normalized).some((k) => k.startsWith('.goat-flow/footguns/'))
   ) {
-    normalized['ai-docs/footguns/README.md'] =
+    normalized['.goat-flow/footguns/README.md'] =
       '# Footguns\n\nLegacy test fixture imported into directory layout.\n';
-    normalized['ai-docs/footguns/legacy-entry.md'] =
+    normalized['.goat-flow/footguns/legacy-entry.md'] =
       `---\nname: Legacy footgun fixture\nstatus: active\ncreated: 2026-01-01\nevidence_type: ACTUAL_MEASURED\n---\n\n${stripLeadingHeading(normalized[LEGACY_FOOTGUNS_FILE])}\n`;
   }
 
   if (
     normalized[LEGACY_LESSONS_FILE] &&
-    !Object.keys(normalized).some((k) => k.startsWith('ai-docs/lessons/'))
+    !Object.keys(normalized).some((k) => k.startsWith('.goat-flow/lessons/'))
   ) {
-    normalized['ai-docs/lessons/README.md'] =
+    normalized['.goat-flow/lessons/README.md'] =
       '# Lessons\n\nLegacy test fixture imported into directory layout.\n';
-    normalized['ai-docs/lessons/legacy-entry.md'] =
+    normalized['.goat-flow/lessons/legacy-entry.md'] =
       `---\nname: Legacy lesson fixture\ncreated: 2026-01-01\n---\n\n${stripLeadingHeading(normalized[LEGACY_LESSONS_FILE])}\n`;
   }
 
   const hasLearningLoop =
-    Object.keys(normalized).some((k) => k.startsWith('ai-docs/footguns/')) ||
-    Object.keys(normalized).some((k) => k.startsWith('ai-docs/lessons/'));
+    Object.keys(normalized).some((k) => k.startsWith('.goat-flow/footguns/')) ||
+    Object.keys(normalized).some((k) => k.startsWith('.goat-flow/lessons/'));
 
   if (hasLearningLoop && !('.goat-flow/config.yaml' in normalized)) {
     const agents = detectAgents(normalized);
     normalized['.goat-flow/config.yaml'] = [
       'version: "1.0.0"',
       'footguns:',
-      '  committed: ai-docs/footguns/',
-      '  local: .goat-flow/footguns/',
+      '  path: .goat-flow/footguns/',
       'lessons:',
-      '  committed: ai-docs/lessons/',
-      '  local: .goat-flow/lessons/',
+      '  path: .goat-flow/lessons/',
       'decisions:',
-      '  path: ai-docs/decisions/',
+      '  path: .goat-flow/decisions/',
       'tasks:',
       '  path: .goat-flow/tasks/',
       ...(agents.length > 0

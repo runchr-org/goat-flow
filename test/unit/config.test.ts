@@ -26,7 +26,7 @@ describe('config reader', () => {
     const fs = createMockFS({
       '.goat-flow/config.yaml': [
         'footguns:',
-        '  committed: custom/footguns/',
+        '  path: custom/footguns/',
         'skills:',
         '  install:',
         '    - goat-debug',
@@ -36,8 +36,7 @@ describe('config reader', () => {
 
     const loaded = loadConfig('/test', fs);
     assert.equal(loaded.valid, true);
-    assert.equal(loaded.config.footguns.committed, 'custom/footguns/');
-    assert.equal(loaded.config.footguns.local, CONFIG_DEFAULTS.footguns.local);
+    assert.equal(loaded.config.footguns.path, 'custom/footguns/');
     assert.deepEqual(loaded.config.skills.install, [
       'goat-debug',
       'goat-review',
@@ -68,14 +67,14 @@ describe('config reader', () => {
 
   it('errors on invalid types', () => {
     const result = validateConfig({
-      footguns: { committed: 123 },
+      footguns: { path: 123 },
       agents: [],
       skills: { install: [] },
     });
 
     assert.equal(result.valid, false);
     assert.ok(
-      result.errors.some((issue) => issue.path === 'footguns.committed'),
+      result.errors.some((issue) => issue.path === 'footguns.path'),
     );
     assert.ok(result.errors.some((issue) => issue.path === 'agents'));
     assert.ok(result.errors.some((issue) => issue.path === 'skills.install'));

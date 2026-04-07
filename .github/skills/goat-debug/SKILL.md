@@ -40,9 +40,9 @@ If Step 0 footgun check matches a known trap: (1) surface match immediately, (2)
 
 ### Learning Loop
 After completing the skill, check if this run uncovered anything worth logging:
-- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`
-- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`
-- Route team-wide entries to `ai-docs/`; session-only entries to `.goat-flow/`
+- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `.goat-flow/lessons/`
+- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `.goat-flow/footguns/`
+- Route entries to `.goat-flow/lessons/` or `.goat-flow/footguns/`
 - Match entry format to existing entries in the target bucket file. Do not append to a monolithic log or directory README.
 
 ### Recovery
@@ -104,7 +104,7 @@ That's the failure mode this skill exists to prevent.
 If the user said `/goat-debug the test in auth.test.ts fails with TypeError`,
 confirm: "Symptom: TypeError in auth.test.ts. I'll start with that file. Correct?"
 
-**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. Also check `ai-docs/lessons/` and `.goat-flow/lessons/` for recurrence. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. Also check `.goat-flow/lessons/` for recurrence. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
 **Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
 - "hotfix" but 5+ files affected → likely Standard or System
@@ -171,7 +171,7 @@ If the user's original intent was "just diagnose" or "investigate" (no implement
 Only if human approved. Propose a fix plan (not the fix itself):
 - **What changes:** specific files and functions
 - **Blast radius:** what else could break
-- **Architecture check:** verify fix doesn't violate constraints in `ai-docs/architecture.md`
+- **Architecture check:** verify fix doesn't violate constraints in `.goat-flow/architecture.md`
 - **Verification:** how to confirm the fix worked (specific test or command)
 
 **Verification commands:**
@@ -206,7 +206,7 @@ Declare before reading deeply:
 - **Out of scope:** [what we're NOT investigating]
 - **Read estimate:** How many files do you expect to read? (If you exceed 3x this estimate, pause and re-scope.)
 
-Read `ai-docs/footguns/` and `.goat-flow/footguns/` for entries mentioning the target area.
+Read `.goat-flow/footguns/` for entries mentioning the target area.
 
 **BLOCKING GATE:** "I'll investigate [scope] reading up to [N] files. Adjust?"
 
@@ -252,7 +252,7 @@ Present: "This project uses [languages] with [frameworks]. Build: [cmd], Test: [
 
 ### Phase O2 - Glossary & Instruction Drafting (after I3)
 
-**Glossary:** Read `ai-docs/glossary.md` for project terminology. If new terms are discovered during onboarding, add them.
+**Glossary:** Read `.goat-flow/glossary.md` for project terminology. If new terms are discovered during onboarding, add them.
 
 **Instruction Drafting (if requested):** Present all content inline BEFORE writing files. Source of truth is code, not docs. MUST NOT include aspirational content.
 

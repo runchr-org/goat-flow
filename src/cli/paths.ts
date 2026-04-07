@@ -54,3 +54,21 @@ export function templateExists(relative: string): boolean {
 export function getCliCommand(): string {
   return `node ${join(GOAT_FLOW_ROOT, 'dist', 'cli', 'cli.js')}`;
 }
+
+/** Cached parsed project-structure.json */
+let _projectStructure: Record<string, unknown> | null = null;
+
+/**
+ * Read and cache the canonical project-structure.json from goat-flow's workflow/setup/ dir.
+ * Returns the parsed JSON object, or an empty object if the file is missing or unparseable.
+ */
+export function getProjectStructure(): Record<string, unknown> {
+  if (_projectStructure !== null) return _projectStructure;
+  const structurePath = join(GOAT_FLOW_ROOT, 'workflow', 'setup', 'project-structure.json');
+  try {
+    _projectStructure = JSON.parse(readFileSync(structurePath, 'utf-8')) as Record<string, unknown>;
+  } catch {
+    _projectStructure = {};
+  }
+  return _projectStructure;
+}

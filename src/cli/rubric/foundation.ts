@@ -10,7 +10,7 @@ import type { CheckDef, FactContext, CheckResult } from '../types.js';
 //   low    = semantic inference (content quality judgment)
 
 /**
- * Tier 1 - Foundation (49 points)
+ * Tier 1 - Foundation (48 points)
  * Instruction file, execution loop, autonomy tiers, DoD, enforcement.
  * These are baseline requirements every GOAT Flow project must satisfy.
  */
@@ -185,7 +185,7 @@ export const foundationChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Reference at least 2 real project file paths (in Router Table or Ask First section) that exist on disk - e.g., `ai-docs/architecture.md`, `src/cli/`',
+      'Reference at least 2 real project file paths (in Router Table or Ask First section) that exist on disk - e.g., `.goat-flow/architecture.md`, `src/cli/`',
     recommendationKey: 'add-resolvable-paths',
   },
 
@@ -362,12 +362,16 @@ export const foundationChecks: CheckDef[] = [
           return { ...base, status: 'fail', points: 0, maxPoints: 2, message: 'LOG step not found. Expected references to lessons/ or footguns/ directories.' };
         }
         // Tightened: verify at least one referenced learning-loop directory exists
-        const footgunsExist = ctx.facts.shared.footguns.committedExists || ctx.facts.shared.footguns.localExists;
-        const lessonsExist = ctx.facts.shared.lessons.committedExists || ctx.facts.shared.lessons.localExists;
-        if (footgunsExist || lessonsExist) {
+        const footgunsExist = ctx.facts.shared.footguns.exists;
+        const lessonsExist = ctx.facts.shared.lessons.exists;
+        if (footgunsExist && lessonsExist) {
           return { ...base, status: 'pass', points: 2, maxPoints: 2, message: 'LOG step references learning-loop paths that exist on disk' };
         }
-        return { ...base, status: 'fail', points: 0, maxPoints: 2, message: `LOG step references learning-loop paths but neither footguns (${ctx.facts.shared.footguns.paths.committed}) nor lessons (${ctx.facts.shared.lessons.paths.committed}) directory exists. Create them or update the paths.` };
+        const missing = [
+          !footgunsExist ? `footguns (${ctx.facts.shared.footguns.path})` : '',
+          !lessonsExist ? `lessons (${ctx.facts.shared.lessons.path})` : '',
+        ].filter(Boolean).join(' and ');
+        return { ...base, status: 'fail', points: 0, maxPoints: 2, message: `LOG step references learning-loop paths but ${missing} directory does not exist. Create it or update the paths.` };
       },
     },
     recommendation: 'Add LOG step referencing lessons and footguns directories - and create those directories so the paths resolve',
@@ -459,7 +463,7 @@ export const foundationChecks: CheckDef[] = [
             points: 1,
             maxPoints: 3,
             confidence: 'medium',
-            message: `Ask First has ${lines} non-empty lines, but no project-specific backtick paths were found. Add concrete boundaries like \`ai-docs/decisions/\` or \`.github/workflows/\`.`,
+            message: `Ask First has ${lines} non-empty lines, but no project-specific backtick paths were found. Add concrete boundaries like \`.goat-flow/decisions/\` or \`.github/workflows/\`.`,
           };
         }
         return {
@@ -502,7 +506,7 @@ export const foundationChecks: CheckDef[] = [
             maxPoints: 0,
             confidence: 'high',
             message:
-              'No backtick-wrapped paths in Ask First section. Add concrete repo paths like `ai-docs/decisions/` or `.github/workflows/` so the boundary can be verified.',
+              'No backtick-wrapped paths in Ask First section. Add concrete repo paths like `.goat-flow/decisions/` or `.github/workflows/` so the boundary can be verified.',
           };
         }
         if (unresolved.length === 0) {
@@ -848,36 +852,7 @@ export const foundationChecks: CheckDef[] = [
       'Fix .goat-flow/config.yaml so it parses and validates cleanly',
     recommendationKey: 'fix-goat-flow-config',
   },
-  {
-    id: '1.5.7',
-    name: '.goat-flow/config.local.yaml exists',
-    tier: 'foundation',
-    category: 'Project Config',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        const exists = ctx.facts.shared.config.configLocalExists;
-        return {
-          id: '1.5.7',
-          name: '.goat-flow/config.local.yaml exists',
-          tier: 'foundation',
-          category: 'Project Config',
-          status: exists ? 'pass' : 'fail',
-          points: exists ? 1 : 0,
-          maxPoints: 1,
-          confidence: 'high',
-          message: exists
-            ? '.goat-flow/config.local.yaml exists (gitignored local overrides)'
-            : '.goat-flow/config.local.yaml not found. Create it for personal overrides (userRole, paths). This file is gitignored.',
-        };
-      },
-    },
-    recommendation: 'Create `.goat-flow/config.local.yaml` for personal overrides. Example: `userRole: investigator` for read-only mode.',
-    recommendationKey: 'create-config-local',
-  },
+  // 1.5.7 (config.local.yaml exists) removed - personal preference file, not a project quality signal.
 ];
 
 /**

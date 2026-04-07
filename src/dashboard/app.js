@@ -62,13 +62,6 @@ function app() {
     rubricFilter: 'all',
     rubricSearch: '',
 
-    // --- Config/Settings state ---
-    configYaml: '',
-    localConfigYaml: '',
-    configDirty: false,
-    configNote: '',
-    _localConfigPlaceholder: '# Local overrides - this file is gitignored.\n# Values here merge on top of config.yaml.\n# Uncomment and edit as needed.\n\n# userRole: developer\n# agents:\n#   - claude\n',
-
     // --- Wizard state ---
     wizardDetecting: false,
     wizardSelectedAgent: 'claude',
@@ -93,44 +86,6 @@ function app() {
       if (idx === -1) this.presetFavorites.push(id);
       else this.presetFavorites.splice(idx, 1);
       localStorage.setItem('goat-flow-preset-favorites', JSON.stringify(this.presetFavorites));
-      this._saveFavoritesToConfig();
-    },
-    async _saveFavoritesToConfig() {
-      try {
-        const res = await fetch(`/api/config?path=${encodeURIComponent(this.projectPath)}`);
-        const data = await res.json();
-        let yaml = data.localConfig || '';
-        // Remove existing favorites line(s)
-        yaml = yaml.replace(/^\s*favorites:.*$\n?/m, '');
-        yaml = yaml.replace(/^\s*- [a-z-]+\n?/gm, (match, offset) => {
-          // Only remove list items that follow a favorites: key
-          const before = yaml.substring(0, offset);
-          return before.match(/favorites:\s*\n\s*$/m) ? '' : match;
-        });
-        // Append favorites
-        yaml = yaml.trimEnd() + '\nfavorites:\n' + this.presetFavorites.map(f => `  - ${f}`).join('\n') + '\n';
-        await fetch(`/api/config/local?path=${encodeURIComponent(this.projectPath)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: yaml }),
-        });
-      } catch { /* silent - localStorage is the fallback */ }
-    },
-    async _loadFavoritesFromConfig() {
-      try {
-        const res = await fetch(`/api/config?path=${encodeURIComponent(this.projectPath)}`);
-        const data = await res.json();
-        if (data.localConfig) {
-          const match = data.localConfig.match(/favorites:\s*\n((?:\s+-\s+\S+\n?)*)/);
-          if (match) {
-            const ids = match[1].match(/- (\S+)/g)?.map(m => m.replace('- ', '')) || [];
-            if (ids.length > 0) {
-              this.presetFavorites = ids;
-              localStorage.setItem('goat-flow-preset-favorites', JSON.stringify(ids));
-            }
-          }
-        }
-      } catch { /* fall back to localStorage */ }
     },
     isFavorite(id) { return this.presetFavorites.includes(id); },
     get presetCats() {
@@ -225,9 +180,7 @@ function app() {
       this._loadSavedProjects();
       if (location.protocol === 'http:' || location.protocol === 'https:') {
         this.runScan();
-        this.loadConfig();
         this.checkTerminalAvailable();
-        this._loadFavoritesFromConfig();
         // Detect installed agents
         fetch('/api/agents/installed').then(r => r.json()).then(data => {
           this.allAgents = data.agents;
@@ -281,58 +234,6 @@ function app() {
     selectDir(dir) {
       if (dir.isProject) { this.projectPath = dir.path; this.showBrowser = false; this.runScan(); }
       else this.browseTo(dir.path);
-    },
-
-    // -- Config/Settings --
-    async loadConfig() {
-      try {
-        const res = await fetch(`/api/config?path=${encodeURIComponent(this.projectPath)}`);
-        const data = await res.json();
-        if (data.error) { this.showToast(data.error, true); return; }
-        if (data.note) {
-          this.configNote = data.note;
-          this.configYaml = '';
-          this.localConfigYaml = this._localConfigPlaceholder;
-        } else {
-          this.configNote = '';
-          this.configYaml = data.config || '';
-          this.localConfigYaml = data.localConfig || this._localConfigPlaceholder;
-        }
-        this.configDirty = false;
-        this._parseUserRole();
-      } catch { this.showToast('Failed to load config', true); }
-    },
-    _parseUserRole() {
-      const valid = ['developer', 'investigator', 'tester'];
-      const match = (this.localConfigYaml || '').match(/^\s*userRole:\s*(\w+)/m);
-      this.userRole = (match && valid.includes(match[1])) ? match[1] : '';
-    },
-    async saveLocalConfig() {
-      try {
-        const res = await fetch(`/api/config/local?path=${encodeURIComponent(this.projectPath)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: this.localConfigYaml }),
-        });
-        const data = await res.json();
-        if (data.error) { this.showToast(data.error, true); return; }
-        this.configDirty = false;
-        // saved successfully - no toast needed
-      } catch { this.showToast('Failed to save config', true); }
-    },
-    async resetLocalConfig() {
-      try {
-        const res = await fetch(`/api/config/local?path=${encodeURIComponent(this.projectPath)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: this._localConfigPlaceholder }),
-        });
-        const data = await res.json();
-        if (data.error) { this.showToast(data.error, true); return; }
-        this.localConfigYaml = this._localConfigPlaceholder;
-        this.configDirty = false;
-        this._parseUserRole();
-      } catch { this.showToast('Failed to reset config', true); }
     },
 
     // -- Wizard --

@@ -1,7 +1,7 @@
-# Prompt: Create ai-docs/coding-standards/testing.md
+# Prompt: Create .goat-flow/coding-standards/testing.md
 
 > **Purpose:** Testing conventions - naming, structure, mocking, coverage expectations
-> **Generates:** `ai-docs/coding-standards/testing.md`
+> **Generates:** `.goat-flow/coding-standards/testing.md`
 > **Use when:** Setting up test instructions for the project
 > **Repo inspection:** Yes - reads existing tests for naming patterns, framework usage, fixtures
 > **Follow-on refs:** `backend/` for stack-specific test patterns (e.g. Go table-driven, RSpec, pytest)
@@ -10,7 +10,7 @@
 
 ## The Prompt
 
-Read the existing tests in the codebase, then write `ai-docs/coding-standards/testing.md`:
+Read the existing tests in the codebase, then write `.goat-flow/coding-standards/testing.md`:
 
 ````
 # Testing Instructions

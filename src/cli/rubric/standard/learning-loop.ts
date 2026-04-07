@@ -127,7 +127,6 @@ export const learningLoopChecks: CheckDef[] = [
             message: 'No lesson directories',
           };
         if (entryCount >= 1) {
-          const { committedCount, localCount } = ctx.facts.shared.lessons;
           return {
             id: '2.3.2a',
             name: 'lessons.md has at least 1 entry',
@@ -137,7 +136,7 @@ export const learningLoopChecks: CheckDef[] = [
             points: 1,
             maxPoints: 1,
             confidence: 'high',
-            message: `${entryCount} lesson entries (${committedCount} committed, ${localCount} local)`,
+            message: `${entryCount} lesson entries in .goat-flow/lessons/`,
           };
         }
         const diagnostic = ctx.facts.shared.lessons.formatDiagnostic;
@@ -152,7 +151,7 @@ export const learningLoopChecks: CheckDef[] = [
           confidence: 'high',
           message:
             diagnostic ??
-            'No lesson entries found across `ai-docs/lessons/` and `.goat-flow/lessons/`. Add at least one real incident from git history, or a placeholder explaining why none apply yet.',
+            'No lesson entries found in `.goat-flow/lessons/`. Add at least one real incident from git history, or a placeholder explaining why none apply yet.',
         };
       },
     },
@@ -161,81 +160,8 @@ export const learningLoopChecks: CheckDef[] = [
     recommendationKey: 'seed-lessons-minimum',
   },
   // 2.3.5 removed - duplicate of AP12 (stale footgun refs)
-  {
-    id: '2.3.5a',
-    name: 'Footguns have evidence labels',
-    tier: 'standard',
-    category: 'Learning Loop',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    na: (ctx) =>
-      ctx.facts.shared.footguns.exists === false ||
-      ctx.facts.shared.footguns.hasEvidence === false,
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        const { entryCount, labelCount, hasEvidenceLabels } =
-          ctx.facts.shared.footguns;
-        return {
-          id: '2.3.5a',
-          name: 'Footguns have evidence labels',
-          tier: 'standard',
-          category: 'Learning Loop',
-          status: hasEvidenceLabels ? 'pass' : 'fail',
-          points: hasEvidenceLabels ? 1 : 0,
-          maxPoints: 1,
-          confidence: 'high',
-          message: hasEvidenceLabels
-            ? `${labelCount}/${entryCount} footgun entries have evidence labels`
-            : (ctx.facts.shared.footguns.formatDiagnostic ??
-              `Only ${labelCount}/${entryCount} footgun entries have evidence labels`),
-        };
-      },
-    },
-    recommendation:
-      'Add evidence type labels to footgun entries. Expected format: `**Evidence type:** ACTUAL_MEASURED` (or DESIGN_TARGET, HYPOTHETICAL_EXAMPLE)',
-    recommendationKey: 'add-footgun-labels',
-  },
-  {
-    id: '2.3.5b',
-    name: 'Learning-loop surfaces are canonical',
-    tier: 'standard',
-    category: 'Learning Loop',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    na: (ctx) =>
-      ctx.facts.shared.footguns.exists === false &&
-      ctx.facts.shared.lessons.exists === false,
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        const duplicates = [
-          ...ctx.facts.shared.footguns.duplicateSurfacePaths,
-          ...ctx.facts.shared.lessons.duplicateSurfacePaths,
-        ].sort((a, b) => a.localeCompare(b));
-
-        return {
-          id: '2.3.5b',
-          name: 'Learning-loop surfaces are canonical',
-          tier: 'standard',
-          category: 'Learning Loop',
-          status: duplicates.length === 0 ? 'pass' : 'fail',
-          points: duplicates.length === 0 ? 1 : 0,
-          maxPoints: 1,
-          confidence: 'high',
-          message:
-            duplicates.length === 0
-              ? 'Only the configured committed/local learning-loop bucket paths are present'
-              : `Competing learning-loop surfaces found: ${duplicates.join(', ')}. Keep only the configured bucket paths from .goat-flow/config.yaml.`,
-        };
-      },
-    },
-    recommendation:
-      'Remove or migrate duplicate lessons/footguns surfaces so only the configured bucket paths remain',
-    recommendationKey: 'ap-fix-duplicate-learning-loop-surfaces',
-  },
+  // 2.3.5a (Footguns have evidence labels) removed - ceremony check. Evidence presence is already checked by 2.3.4.
+  // 2.3.5b (Learning-loop surfaces are canonical) removed - duplicate of AP22 anti-pattern.
 
   {
     id: '2.3.6',

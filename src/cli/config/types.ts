@@ -5,10 +5,9 @@
 /** Normalized config shape after parsing and validating .goat-flow/config.yaml. */
 export interface GoatFlowConfig {
   version: string;
-  footguns: { committed: string; local: string };
-  lessons: { committed: string; local: string };
+  footguns: { path: string };
+  lessons: { path: string };
   decisions: { path: string };
-  evals: { path: string };
   codingStandards: { path: string };
   tasks: { path: string };
   logs: { path: string };

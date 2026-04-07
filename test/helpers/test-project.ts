@@ -75,37 +75,25 @@ export class TestProject {
   withLearningLoop(): this {
     this.withFile(
       '.goat-flow/config.yaml',
-      'version: "1.0.0"\nfootguns:\n  committed: ai-docs/footguns/\n  local: .goat-flow/footguns/\nlessons:\n  committed: ai-docs/lessons/\n  local: .goat-flow/lessons/\ndecisions:\n  path: ai-docs/decisions/\ntasks:\n  path: .goat-flow/tasks/\nskills:\n  install: all\n',
+      'version: "1.0.0"\nfootguns:\n  path: .goat-flow/footguns/\nlessons:\n  path: .goat-flow/lessons/\ndecisions:\n  path: .goat-flow/decisions/\ntasks:\n  path: .goat-flow/tasks/\nskills:\n  install: all\n',
     );
-    this.withFile('ai-docs/footguns/README.md', '# Footguns\n');
+    this.withFile('.goat-flow/footguns/README.md', '# Footguns\n');
     this.withFile(
-      'ai-docs/footguns/example.md',
+      '.goat-flow/footguns/example.md',
       '---\nname: Example footgun\nstatus: active\ncreated: 2026-01-01\nevidence_type: ACTUAL_MEASURED\n---\n\n**Evidence:**\n- `src/auth.ts:42` - broke login\n',
     );
-    this.withFile('ai-docs/lessons/README.md', '# Lessons\n');
+    this.withFile('.goat-flow/lessons/README.md', '# Lessons\n');
     this.withFile(
-      'ai-docs/lessons/2026-01-01-entry-1.md',
+      '.goat-flow/lessons/2026-01-01-entry-1.md',
       '---\nname: Entry 1\ncreated: 2026-01-01\n---\n\n**What happened:** something\n',
     );
-    return this;
-  }
-
-  /** Add a small eval corpus under `ai-docs/evals/`. */
-  withEvals(count: number = 3): this {
-    this.withFile('ai-docs/evals/README.md', '# Agent Evals\n');
-    for (let i = 1; i <= count; i++) {
-      this.withFile(
-        `ai-docs/evals/eval-${i}.md`,
-        `# Eval ${i}\n\n**Origin:** real-incident\n**Agents:** all\n\n## Replay Prompt\n\n\`\`\`\nDo the thing\n\`\`\`\n`,
-      );
-    }
     return this;
   }
 
   /** Add a non-trivial architecture document. */
   withArchitecture(): this {
     return this.withFile(
-      'ai-docs/architecture.md',
+      '.goat-flow/architecture.md',
       '# Architecture\n\n' + 'System overview.\n'.repeat(10),
     );
   }

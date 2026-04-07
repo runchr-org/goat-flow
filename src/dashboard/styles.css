@@ -152,24 +152,6 @@ button, select, summary, label, [role="button"] { cursor: pointer; }
 .gf-btn-terminal-cta:hover { background: #15803d; }
 
 /* Config page */
-.gf-top-row { display: grid !important; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 16px; }
-.gf-role-strip { display: flex !important; gap: 6px; }
-.gf-role-btn { flex: 1; padding: 8px 12px; cursor: pointer; border-radius: 6px; text-align: center; background: #1a1a1e; border: 0.5px solid #2a2a2e; transition: background 0.1s, border-color 0.1s; }
-.gf-role-btn:hover { background: #27272a; }
-.gf-role-btn-sel { border-color: #4ade80 !important; }
-.gf-role-name { font-size: 13px; font-weight: 500; color: #e4e4e7; }
-.gf-role-desc { font-size: 11px; margin-top: 2px; color: #52525b; }
-.gf-config-grid { display: grid !important; grid-template-columns: 1fr 1fr; gap: 12px; }
-.gf-config-panel { border-radius: 8px; display: flex; flex-direction: column; min-height: 380px; background: #111114; border: 0.5px solid #2a2a2e; }
-.gf-config-readonly { opacity: 0.6; }
-.gf-panel-hdr { display: flex !important; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 0.5px solid #2a2a2e; }
-.gf-panel-body { flex: 1; padding: 12px 14px; overflow-y: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; line-height: 1.7; white-space: pre-wrap; color: #71717a; }
-.gf-yaml-edit { width: 100%; flex: 1; resize: none; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; line-height: 1.7; padding: 12px 14px; border: none; outline: none; background: #0d0d10; color: #a1a1aa; }
-.gf-badge-ro { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #27272a; color: #71717a; }
-.gf-btn-reset { font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer; background: #27272a; color: #a1a1aa; border: 0.5px solid #3f3f46; }
-.gf-btn-save { font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-weight: 500; background: #166534; color: #4ade80; border: none; }
-.gf-panel-note { font-size: 11px; padding: 8px 14px; color: #52525b; }
-
 /* Reusable themed elements */
 .gf-bg-elevated { background: #27272a; }
 .gf-bg-page { background: #1a1a1e; }
@@ -293,19 +275,6 @@ button, select, summary, label, [role="button"] { cursor: pointer; }
 :root:not(.dark) .gf-terminal-cta { background: #f0fdf4; border-bottom-color: #e4e4e7; }
 :root:not(.dark) .gf-btn-terminal-cta { background: #16a34a; color: #fff; border-color: #15803d; }
 :root:not(.dark) .gf-btn-terminal-cta:hover { background: #15803d; }
-:root:not(.dark) .gf-role-btn { background: #fafafa; border-color: #e4e4e7; }
-:root:not(.dark) .gf-role-btn:hover { background: #f4f4f5; }
-:root:not(.dark) .gf-role-btn-sel { border-color: #16a34a !important; }
-:root:not(.dark) .gf-role-name { color: #18181b; }
-:root:not(.dark) .gf-role-desc { color: #a1a1aa; }
-:root:not(.dark) .gf-config-panel { background: #fff; border-color: #e4e4e7; }
-:root:not(.dark) .gf-panel-hdr { border-bottom-color: #e4e4e7; }
-:root:not(.dark) .gf-panel-body { color: #71717a; }
-:root:not(.dark) .gf-yaml-edit { background: #f9fafb; color: #4b5563; }
-:root:not(.dark) .gf-badge-ro { background: #f4f4f5; color: #a1a1aa; }
-:root:not(.dark) .gf-btn-reset { background: #f4f4f5; color: #71717a; border-color: #e4e4e7; }
-:root:not(.dark) .gf-btn-save { background: #16a34a; color: #fff; }
-:root:not(.dark) .gf-panel-note { color: #d4d4d8; }
 :root:not(.dark) .gf-bg-elevated { background: #f4f4f5; }
 :root:not(.dark) .gf-bg-page { background: #fafafa; }
 :root:not(.dark) .gf-bar-track { background: #e4e4e7; }

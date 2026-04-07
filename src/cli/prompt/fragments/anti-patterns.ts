@@ -19,36 +19,15 @@ export const antiPatternFragments: Fragment[] = [
 Immediate actions:
 1. Remove verbose examples - keep one BAD/GOOD pair per concept
 2. Replace paragraphs with bullet points
-3. Move reference material to \`ai-docs/\` and link from router table
+3. Move reference material to \`.goat-flow/\` and link from router table
 4. Collapse multi-row tables into inline text where possible
 
 Target: under 120 lines. Hard limit: 150.`,
   },
   // ap-fix-skill-names removed - AP2 was harmful dead code that would rename project-specific skills.
-  // See ai-docs/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
-  {
-    key: 'ap-fix-dod-overlap',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
-    instruction: `Definition of Done appears in both the instruction file and a guidelines file. This causes confusion about which is authoritative.
-
-Remove the DoD from the guidelines file. The DoD belongs only in \`{{instructionFile}}\`.`,
-  },
-  {
-    key: 'ap-add-footgun-evidence',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
-    instruction: `**CRITICAL:** footgun entries under \`ai-docs/footguns/\` or \`.goat-flow/footguns/\` lack file:line evidence. This is an anti-pattern that costs -5 points.
-
-For every footgun entry, add at least one \`file:line\` reference:
-
-**Before:** "The auth module has race conditions"
-**After:** "\`src/auth.ts:42\` - race condition between token refresh and request dispatch"
-
-If the evidence no longer applies (code changed), either update the reference or remove the footgun.`,
-  },
+  // See .goat-flow/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
+  // ap-fix-dod-overlap removed - AP3 removed.
+  // ap-add-footgun-evidence removed - AP4 removed (duplicate of rubric check 2.3.4).
   {
     key: 'ap-fix-settings-json',
     phase: 'anti-pattern',
@@ -69,17 +48,7 @@ If the evidence no longer applies (code changed), either update the reference or
 
 Fix: remove \`|| true\` from the real validation commands. Keep optional discovery guards if needed, but do not suppress the actual \`shellcheck\`, \`eslint\`, \`tsc\`, or formatter invocation.`,
   },
-  {
-    key: 'ap-compress-local-files',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
-    instruction: `Local instruction files are over 20 lines. Compress each one:
-
-1. Keep only directory-specific context (3-5 lines of gotchas)
-2. Remove anything duplicated from the root instruction file
-3. Reference the root file: "See {{instructionFile}} for full rules"`,
-  },
+  // ap-compress-local-files removed - AP7 removed.
   {
     key: 'ap-fix-generic-ask-first',
     phase: 'anti-pattern',
@@ -109,19 +78,7 @@ settings.local.json
 \`\`\``,
   },
   // AP10 (ap-prune-settings-local) removed - settings.local.json is personal preference.
-  {
-    key: 'ap-fix-empty-scaffolding',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
-    instruction: `Learning loop files exist but are empty - created to pass the scanner, not to capture knowledge.
-
-Either:
-1. **Populate** - search git history for real incidents: \`git log --oneline | grep -iE 'fix|revert|bug|broke|regression'\`. Seed from real mistakes only.
-2. **Or remove** - delete the empty files. Let them materialise on first real use.
-
-Empty scaffolding provides no value and creates a false sense of completeness.`,
-  },
+  // ap-fix-empty-scaffolding removed - AP11 removed (was already 0 deduction).
   {
     key: 'ap-fix-stale-references',
     phase: 'anti-pattern',
@@ -138,26 +95,7 @@ For each stale reference:
 
 Every file:line reference must point to a real file on disk.`,
   },
-  {
-    key: 'ap-fix-duplicate-learning-loop-surfaces',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
-    instruction: `This project still has competing learning-loop surfaces alongside the configured bucket layout.
-
-**Duplicate surfaces found:** {{evidence.ap-fix-duplicate-learning-loop-surfaces}}
-
-Keep the configured split only:
-- committed lessons bucket dir from \`.goat-flow/config.yaml\`
-- local lessons bucket dir from \`.goat-flow/config.yaml\`
-- committed footguns bucket dir from \`.goat-flow/config.yaml\`
-- local footguns bucket dir from \`.goat-flow/config.yaml\`
-
-For each duplicate surface:
-1. If it contains unique history, migrate the entries into the configured bucket files first
-2. If it is a stale legacy artifact (\`docs/lessons.md\`, \`docs/footguns.md\`, etc.), delete it
-3. Re-run the scan and confirm only the configured bucket paths remain`,
-  },
+  // ap-fix-duplicate-learning-loop-surfaces removed - AP22 removed.
   {
     key: 'ap-fix-stale-instruction-refs',
     phase: 'anti-pattern',
@@ -226,17 +164,7 @@ For each dangling reference:
 2. Check if the file was deleted - remove the reference
 3. If the reference is aspirational (file should exist but doesn't), either create the file or remove the reference`,
   },
-  {
-    key: 'ap-fix-adapt-comments',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
-    instruction: `Skill files contain remaining \`<!-- ADAPT: -->\` comments. These are unanswered template questions that should be replaced with project-specific content.
-
-Search for \`<!-- ADAPT:\` across all skill files and replace each one with a real answer for THIS project. For example:
-- \`<!-- ADAPT: "Which area?" -->\` → replace with actual areas: "auth flow, database queries, API endpoints"
-- \`<!-- ADAPT: Replace with your test command -->\` → replace with the actual test command from package.json`,
-  },
+  // ap-fix-adapt-comments removed - AP18 removed.
   {
     key: 'ap-fix-hook-paths',
     phase: 'anti-pattern',

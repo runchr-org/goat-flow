@@ -32,7 +32,7 @@ export function extractProjectFacts(
   /** Detected technology stack (language, framework, etc.) */
   const stack = detectStack(fs);
 
-  /** Shared facts covering docs, evals, CI, and other project-wide resources */
+  /** Shared facts covering docs, CI, and other project-wide resources */
   const shared = extractSharedFacts(fs, options.configState);
 
   /** Per-agent facts including instruction, settings, skills, and hooks */

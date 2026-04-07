@@ -14,7 +14,7 @@ Before doing anything else, check if this project already has goat-flow:
 
 ---
 
-**Scope:** Only touch `.gemini/`, `.agents/skills/`, `GEMINI.md`, and shared `ai-docs/` / `.goat-flow/`. Do NOT modify `.claude/` or other agent files.
+**Scope:** Only touch `.gemini/`, `.agents/skills/`, `GEMINI.md`, and shared `.goat-flow/`. Do NOT modify `.claude/` or other agent files.
 
 ## Gemini CLI specifics
 
@@ -52,7 +52,7 @@ Create `.geminiignore` with secret patterns: `.env*`, `**/secrets/`, `**/*.pem`,
 - [ ] All 6 goat-flow skills in `.agents/skills/` with version tags
 - [ ] Hooks wired with Gemini event names (BeforeTool, AfterAgent, AfterTool)
 - [ ] Router table references all resolve to real files
-- [ ] `ai-docs/` has footguns/, lessons/, coding-standards/
+- [ ] `.goat-flow/` has footguns/, lessons/, coding-standards/
 - [ ] `.goat-flow/config.yaml` exists with correct paths
 - [ ] `goat-flow scan . --agent gemini` passes at 100%
 - [ ] Project build/test/lint still passes

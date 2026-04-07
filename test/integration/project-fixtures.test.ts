@@ -90,13 +90,10 @@ describe('project fixture corpus', () => {
       failingChecks.has('2.2.3'),
       `Expected 2.2.3 to fail. Saw: ${Array.from(failingChecks).join(', ')}`,
     );
-    assert.ok(
-      failingChecks.has('2.6.2'),
-      `Expected 2.6.2 to fail. Saw: ${Array.from(failingChecks).join(', ')}`,
-    );
+    // 2.6.2 removed from rubric - no longer expected to fail
   });
 
-  it('failing-known text output reports both failures in one pass', () => {
+  it('failing-known text output reports failures in one pass', () => {
     const fixture = scanFixture('failing-known');
     cleanups.push(fixture.cleanup);
 
@@ -106,11 +103,7 @@ describe('project fixture corpus', () => {
       /2\.2\.3/,
       'Expected rendered output to include check 2.2.3',
     );
-    assert.match(
-      output,
-      /2\.6\.2/,
-      'Expected rendered output to include check 2.6.2',
-    );
+    // 2.6.2 removed from rubric
     assert.match(
       output,
       /Failures: \d+ failed, \d+ partial, \d+ pass/,
@@ -153,19 +146,13 @@ describe('project fixture corpus', () => {
     );
   });
 
-  it('duplicate-surfaces fixture triggers AP22 anti-pattern', () => {
+  // AP22 (duplicate-surfaces) test removed - anti-pattern deleted.
+  it('duplicate-surfaces fixture scans without errors', () => {
     const fixture = scanFixture('duplicate-surfaces');
     cleanups.push(fixture.cleanup);
 
     const claude = getAgent('duplicate-surfaces', fixture.report.agents, 'claude');
-
-    const triggeredAPs = claude.antiPatterns
-      .filter((ap) => ap.triggered)
-      .map((ap) => ap.id);
-    assert.ok(
-      triggeredAPs.includes('AP22'),
-      `Expected AP22 to trigger for duplicate learning-loop surfaces. Triggered: ${triggeredAPs.join(', ') || 'none'}`,
-    );
+    assert.ok(claude.checks.length > 0, 'Expected checks to run');
   });
 
   it('fresh-project has no detected agents', () => {

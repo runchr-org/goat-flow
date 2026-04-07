@@ -11,7 +11,7 @@ Read `.goat-flow/skill-conventions.md` for full shared conventions.
 If unavailable, use these essentials:
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - Evidence: every finding MUST include file:line, tag OBSERVED vs INFERRED
-- Learning loop: check ai-docs/lessons/ and ai-docs/footguns/ after completion
+- Learning loop: check .goat-flow/lessons/ and .goat-flow/footguns/ after completion
 - Gates: BLOCKING GATE = stop and wait. CHECKPOINT = continue unless interrupted.
 - Task tracking: tick checkboxes immediately when completed, not at the end.
 
@@ -55,7 +55,7 @@ That's the failure mode this skill exists to prevent.
 If the user said `/goat-debug the test in auth.test.ts fails with TypeError`,
 confirm: "Symptom: TypeError in auth.test.ts. I'll start with that file. Correct?"
 
-**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. Also check `ai-docs/lessons/` and `.goat-flow/lessons/` for recurrence. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. Also check `.goat-flow/lessons/` for recurrence. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
 **Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
 - "hotfix" but 5+ files affected → likely Standard or System
@@ -122,7 +122,7 @@ If the user's original intent was "just diagnose" or "investigate" (no implement
 Only if human approved. Propose a fix plan (not the fix itself):
 - **What changes:** specific files and functions
 - **Blast radius:** what else could break
-- **Architecture check:** verify fix doesn't violate constraints in `ai-docs/architecture.md`
+- **Architecture check:** verify fix doesn't violate constraints in `.goat-flow/architecture.md`
 - **Verification:** how to confirm the fix worked (specific test or command)
 
 **Verification commands:**
@@ -157,7 +157,7 @@ Declare before reading deeply:
 - **Out of scope:** [what we're NOT investigating]
 - **Read estimate:** How many files do you expect to read? (If you exceed 3x this estimate, pause and re-scope.)
 
-Read `ai-docs/footguns/` and `.goat-flow/footguns/` for entries mentioning the target area.
+Read `.goat-flow/footguns/` for entries mentioning the target area.
 
 **BLOCKING GATE:** "I'll investigate [scope] reading up to [N] files. Adjust?"
 
@@ -203,7 +203,7 @@ Present: "This project uses [languages] with [frameworks]. Build: [cmd], Test: [
 
 ### Phase O2 - Glossary & Instruction Drafting (after I3)
 
-**Glossary:** Read `ai-docs/glossary.md` for project terminology. If new terms are discovered during onboarding, add them.
+**Glossary:** Read `.goat-flow/glossary.md` for project terminology. If new terms are discovered during onboarding, add them.
 
 **Instruction Drafting (if requested):** Present all content inline BEFORE writing files. Source of truth is code, not docs. MUST NOT include aspirational content.
 

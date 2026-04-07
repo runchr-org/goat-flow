@@ -24,9 +24,8 @@ STEP 0 — Detect stack and current state:
    If multiple exist, this is a multi-agent project — coordinate content.
 4. Check for existing scripts/ (preflight, validation, deny-dangerous).
 5. Check for existing agent settings and hooks — note what exists.
-6. Check for existing ai-docs/ (footguns/, lessons/, architecture.md)
-   and ai-docs/evals/ — note what already exists so later steps merge,
-   not replace.
+6. Check for existing .goat-flow/ (footguns/, lessons/, architecture.md)
+   — note what already exists so later steps merge, not replace.
 
 STEP 1 — Instruction file (create or rewrite):
 If the instruction file does NOT exist:
@@ -35,7 +34,7 @@ If the instruction file does NOT exist:
 If the instruction file DOES exist:
 - Read it completely.
 - Separate domain knowledge from agent instructions:
-  Domain content = describes HOW THE PROJECT WORKS (move to ai-docs/architecture.md)
+  Domain content = describes HOW THE PROJECT WORKS (move to .goat-flow/architecture.md)
   Agent instructions = commands the agent with imperative verbs (keep)
   Test: "The API uses chi router on port 8080" → domain knowledge → MOVE
   Test: "Never create middleware.ts" → agent instruction → KEEP
@@ -61,14 +60,12 @@ Agents without this context propose incompatible syntax, test against stale
 containers, and push to the wrong branch. Document from reality, not aspirations.
 
 STEP 2 — Docs seed files:
-If ai-docs/footguns/ or ai-docs/lessons/ already exist, MERGE — do not replace.
+If .goat-flow/footguns/ or .goat-flow/lessons/ already exist, MERGE — do not replace.
 Read existing content first, add new entries from the codebase, keep all
 existing entries. Only create files that don't already exist.
 
-  1. ai-docs/lessons/ — README plus category bucket files.
-     Do NOT invent entries. If ai-docs/evals/ exist, check each incident:
-     if the root cause was a behavioural mistake (not an architectural
-     landmine), seed one lesson from it.
+  1. .goat-flow/lessons/ — README plus category bucket files.
+     Do NOT invent entries.
      To find real incidents in this project, run:
        git log --oneline -50 | grep -iE 'fix|revert|hotfix|bug|broke|rollback'
      For each match, add a lesson entry to the relevant category bucket
@@ -80,7 +77,7 @@ existing entries. Only create files that don't already exist.
      If the project uses a bug tracker, include issue numbers (e.g., #63442)
      for traceability.
 
-  2. ai-docs/footguns/ — If the directory already exists, MERGE with it: keep
+  2. .goat-flow/footguns/ — If the directory already exists, MERGE with it: keep
      existing entries, add new footguns from reading the codebase.
      If the directory doesn't exist, create and seed category bucket
      files with real footguns only.
@@ -107,7 +104,7 @@ existing entries. Only create files that don't already exist.
      hardcoded absolute paths, or outdated references. Seed these as
      footguns if found.
 
-  3. ai-docs/architecture.md — If the file already exists: review for
+  3. .goat-flow/architecture.md — If the file already exists: review for
      conciseness. If it only covers one layer, note missing components
      as TODOs.
      If the file doesn't exist: read the codebase and write an overview.
@@ -115,21 +112,21 @@ existing entries. Only create files that don't already exist.
      data flows, non-obvious constraints, deliberate trade-offs. Don't
      pad, but don't artificially compress a complex system either.
 
-  4. ai-docs/glossary.md — Key domain terms, definitions, and canonical
+  4. .goat-flow/glossary.md — Key domain terms, definitions, and canonical
      file references. Always create this file.
 
-  5. ai-docs/decisions/ — Create with an ADR template file
+  5. .goat-flow/decisions/ — Create with an ADR template file
      (`ADR-000-template.md`). Empty directories with a template are
      correctly set up.
 
   6. .goat-flow/README.md — Copy from `workflow/setup/shared/goat-flow-readme.md`.
      Explains what each .goat-flow/ directory is for.
 
-Do NOT create `ai-docs/domain-reference.md` — domain context belongs in
+Do NOT create `.goat-flow/domain-reference.md` — domain context belongs in
 architecture.md or the instruction file, not a separate doc.
 
 STEP 3 — Local instruction files (Layer 2):
-Read ai-docs/footguns/ and the codebase structure. For directories with
+Read .goat-flow/footguns/ and the codebase structure. For directories with
 2+ footgun entries, Ask First boundaries, or differing conventions:
 create a local instruction file (under 20 lines each).
 Skip directories already covered by .github/instructions/ files.
@@ -202,7 +199,7 @@ text like "[Step 1]" or "[describe X]".
 
 ADAPTATION EXAMPLE — Step 0 questions:
   Generic (wrong):  "What code to simplify?"
-  Adapted (right):  "Which Symfony controller to simplify? Check ai-docs/footguns/
+  Adapted (right):  "Which Symfony controller to simplify? Check .goat-flow/footguns/
                      for PracGroup scoping traps first."
 The adapted version names a real project artifact and references the learning loop.
 Every skill's Step 0, constraints, and output format should be this specific.
@@ -237,44 +234,44 @@ NEXT: Proceed to Phase 1c.
 
 Check for existing coding guidelines in the project:
 - .github/instructions/*.md
-- ai-docs/coding-standards/*.md
+- .goat-flow/coding-standards/*.md
 - Any project-specific code-review, git-commit, or conventions docs
 
 RULES:
 - Do NOT delete or alter existing coding convention documents.
   The project knows its own inhouse rules better than templates.
 - Do NOT override existing git-commit or code-review instructions.
-- DO create ai-docs/README.md as a routing map pointing to all guideline files.
-- DO create ai-docs/coding-standards/ files where gaps exist.
+- DO create .goat-flow/README.md as a routing map pointing to all guideline files.
+- DO create .goat-flow/coding-standards/ files where gaps exist.
 
 If .github/instructions/ exists:
 - Read existing files — these are the project's canonical conventions.
-- Create ai-docs/README.md as routing map linking to both ai-docs/coding-standards/
+- Create .goat-flow/README.md as routing map linking to both .goat-flow/coding-standards/
   and .github/instructions/ files.
-- Create ai-docs/coding-standards/backend.md and ai-docs/coding-standards/frontend.md
+- Create .goat-flow/coding-standards/backend.md and .goat-flow/coding-standards/frontend.md
   ONLY if the existing instructions don't cover those domains.
   Base new files on workflow/coding-standards/ templates but adapt
   for this project. Link to existing conventions where they overlap.
 
 If no instruction files exist:
-- Create ai-docs/README.md (routing map)
-- Create ai-docs/coding-standards/conventions.md (from workflow/coding-standards/conventions.md)
-- Create ai-docs/coding-standards/code-review.md (from workflow/coding-standards/code-review.md)
-- Create ai-docs/coding-standards/git-commit.md (from workflow/coding-standards/git-commit.md)
-- Create ai-docs/coding-standards/backend.md and/or ai-docs/coding-standards/frontend.md
+- Create .goat-flow/README.md (routing map)
+- Create .goat-flow/coding-standards/conventions.md (from workflow/coding-standards/conventions.md)
+- Create .goat-flow/coding-standards/code-review.md (from workflow/coding-standards/code-review.md)
+- Create .goat-flow/coding-standards/git-commit.md (from workflow/coding-standards/git-commit.md)
+- Create .goat-flow/coding-standards/backend.md and/or .goat-flow/coding-standards/frontend.md
   based on detected stack (from workflow/coding-standards/backend/ and frontend/ templates)
 
-VERIFICATION after creating ai-docs/coding-standards/ files:
+VERIFICATION after creating .goat-flow/coding-standards/ files:
 1. Verify every file path referenced actually exists (ls)
 2. Verify commands work: run build/test/lint commands listed in conventions.md
 3. Remove aspirational content — only document current state, not roadmaps
 
 Add to instruction file Router Table:
-| Project guidelines | `ai-docs/README.md` |
+| Project guidelines | `.goat-flow/README.md` |
 
 VERIFICATION GATE (all MUST pass before proceeding to Phase 1d):
-- GATE: ai-docs/README.md exists and links to all guideline files.
-- GATE: ai-docs/coding-standards/ has at least conventions.md or equivalent coverage.
+- GATE: .goat-flow/README.md exists and links to all guideline files.
+- GATE: .goat-flow/coding-standards/ has at least conventions.md or equivalent coverage.
 - GATE: Every file path referenced in README.md actually exists on disk.
 - GATE: Instruction file router table includes the Project guidelines entry.
 Do NOT proceed to Phase 1d until all gates pass.
@@ -283,36 +280,10 @@ NEXT: Proceed to Phase 1d.
 
 ---
 
-## Phase 1d — Evals & Polish
-
-AGENT EVALS:
-1. Create ai-docs/evals/ directory with README.md if they don't exist.
-   Read existing evals first — do NOT duplicate incidents already covered.
-
-2. Search this project's git history for real incidents:
-   git log --oneline -50 | grep -iE 'fix|revert|hotfix|bug|broke|rollback'
-
-3. For each qualifying incident (2-3 is ideal), create ai-docs/evals/[name].md
-   with YAML frontmatter and markdown body:
-
-   ---
-   name: [kebab-case-name]
-   description: "[one-line description]"
-   origin: real-incident
-   agents: all | claude | codex | gemini
-   skill: goat-debug | goat-review | goat-security | etc.
-   ---
-   ## Bug Description (what went wrong, with file:line references)
-   ## Replay Prompt (exact text to paste into a fresh agent session)
-   ## Expected Outcome (what the agent should produce)
-   ## Failure Mode (what went wrong originally)
-
-   Only create evals for incidents that are genuinely useful for testing
-   agent behaviour. Do NOT create evals just to hit a count target.
-   If fewer than 3 real incidents exist, create fewer — quality over quantity.
+## Phase 1d — Polish
 
 RFC 2119 PASS:
-4. Review the instruction file and apply MUST/SHOULD/MAY to every rule:
+1. Review the instruction file and apply MUST/SHOULD/MAY to every rule:
 
    MUST (non-negotiable — the system breaks without these):
    - Execution loop steps (READ, CLASSIFY, SCOPE, ACT, VERIFY, LOG)
@@ -351,11 +322,10 @@ RFC 2119 PASS:
    - Do NOT remove any rules — only change how they're expressed
    - Preserve the execution loop structure
 
-5. Add agent-local settings to .gitignore if not already there
+2. Add agent-local settings to .gitignore if not already there
    (e.g., .claude/settings.local.json for Claude Code).
 
 VERIFICATION GATE (all MUST pass before proceeding to Final Verification):
-- GATE: ai-docs/evals/ has eval files with YAML frontmatter and Replay Prompt sections.
 - GATE: Count MUST/SHOULD/MAY in instruction file — need 10+.
 - GATE: Instruction file is still under 120 lines after RFC 2119 pass.
 Do NOT proceed to Final Verification until all gates pass.

@@ -212,31 +212,18 @@ describe('workflow/setup/shared/*.md .goat-flow/ path consistency', () => {
       }
     }
 
-    // Specifically check that lessons path is consistent
-    let lessonsInGoatFlow = false;
-    let lessonsInTasksGoatFlow = false;
+    // Verify local .goat-flow/ learning-loop paths have been removed
     for (const file of sharedFiles) {
       const content = readFileSync(join(SETUP_SHARED_DIR, file), 'utf-8');
-      if (content.includes('.goat-flow/lessons/')) lessonsInGoatFlow = true;
-      if (content.includes('.goat-flow/tasks/lessons/')) lessonsInTasksGoatFlow = true;
+      assert.ok(
+        !content.includes('.goat-flow/lessons/'),
+        `${file} still references removed path .goat-flow/lessons/`,
+      );
+      assert.ok(
+        !content.includes('.goat-flow/footguns/'),
+        `${file} still references removed path .goat-flow/footguns/`,
+      );
     }
-    assert.ok(
-      !(lessonsInGoatFlow && lessonsInTasksGoatFlow),
-      'Path disagreement: .goat-flow/lessons/ and .goat-flow/tasks/lessons/ both used',
-    );
-
-    // Check that footguns path is consistent
-    let footgunsInGoatFlow = false;
-    let footgunsInTasksGoatFlow = false;
-    for (const file of sharedFiles) {
-      const content = readFileSync(join(SETUP_SHARED_DIR, file), 'utf-8');
-      if (content.includes('.goat-flow/footguns/')) footgunsInGoatFlow = true;
-      if (content.includes('.goat-flow/tasks/footguns/')) footgunsInTasksGoatFlow = true;
-    }
-    assert.ok(
-      !(footgunsInGoatFlow && footgunsInTasksGoatFlow),
-      'Path disagreement: .goat-flow/footguns/ and .goat-flow/tasks/footguns/ both used',
-    );
   });
 });
 

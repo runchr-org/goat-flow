@@ -11,10 +11,7 @@ import {
   readFileSync,
   readdirSync,
   statSync,
-  writeFileSync,
   existsSync,
-  mkdirSync,
-  unlinkSync,
   watch,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -118,7 +115,7 @@ export interface DashboardServer {
 
 /**
  * Start a local dashboard server. Serves the HTML dashboard and
- * exposes /api/scan, /api/setup, /api/terminal/*, and /api/health endpoints.
+ * exposes /api/scan, /api/setup, /api/terminal/*, /api/health, and other endpoints.
  * Returns a handle for testing; callers that don't need it can ignore the return value.
  */
 export function serveDashboard(
@@ -419,12 +416,11 @@ export function serveDashboard(
       };
     }
 
-    /** Detect existing goat-flow artifacts (skills, instructions, evals, lessons, footguns, config). */
+    /** Detect existing goat-flow artifacts (skills, instructions, lessons, footguns, config). */
     function detectExistingArtifacts(projectPath: string): Record<string, boolean> {
       const existing: Record<string, boolean> = {
         skills: false,
         instructions: false,
-        evals: false,
         lessons: false,
         footguns: false,
         config: false,
@@ -437,10 +433,9 @@ export function serveDashboard(
         } catch { /* unreadable */ }
       }
 
-      existing.instructions = existsSync(join(projectPath, 'ai-docs')) || existsSync(join(projectPath, 'ai'));
-      existing.evals = existsSync(join(projectPath, 'ai', 'evals')) || existsSync(join(projectPath, 'ai-docs', 'evals'));
-      existing.lessons = existsSync(join(projectPath, 'ai', 'lessons')) || existsSync(join(projectPath, 'ai-docs', 'lessons'));
-      existing.footguns = existsSync(join(projectPath, 'docs', 'footguns')) || existsSync(join(projectPath, 'ai-docs', 'footguns'));
+      existing.instructions = existsSync(join(projectPath, '.goat-flow', 'coding-standards')) || existsSync(join(projectPath, 'ai-docs')) || existsSync(join(projectPath, 'ai'));
+      existing.lessons = existsSync(join(projectPath, '.goat-flow', 'lessons')) || existsSync(join(projectPath, 'ai', 'lessons')) || existsSync(join(projectPath, 'ai-docs', 'lessons'));
+      existing.footguns = existsSync(join(projectPath, '.goat-flow', 'footguns')) || existsSync(join(projectPath, 'docs', 'footguns')) || existsSync(join(projectPath, 'ai-docs', 'footguns'));
       existing.config = existsSync(join(projectPath, '.goat-flow', 'config.yaml'));
 
       return existing;
@@ -698,130 +693,6 @@ export function serveDashboard(
       return true;
     }
 
-    /** Read config.yaml and config.local.yaml for the settings view. */
-    function handleConfigReadRequest(url: URL, res: ServerResponse): boolean {
-      if (url.pathname !== '/api/config') return false;
-
-      const projectPath = safeResolvePath(url.searchParams.get('path'));
-      const configPath = join(projectPath, '.goat-flow', 'config.yaml');
-      const localConfigPath = join(
-        projectPath,
-        '.goat-flow',
-        'config.local.yaml',
-      );
-
-      try {
-        if (!existsSync(configPath)) {
-          jsonResponse(res, 200, {
-            config: null,
-            localConfig: null,
-            note: 'No .goat-flow/config.yaml found',
-          });
-          return true;
-        }
-
-        const config = readFileSync(configPath, 'utf-8');
-        const localConfig = existsSync(localConfigPath)
-          ? readFileSync(localConfigPath, 'utf-8')
-          : null;
-
-        jsonResponse(res, 200, { config, localConfig });
-      } catch (err) {
-        jsonResponse(res, 500, {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      return true;
-    }
-
-    /** Check if a YAML line looks syntactically valid (key: value, list item, or continuation). */
-    function isValidYamlLine(line: string): boolean {
-      return /^\s*[\w.-]+\s*:/.test(line) || /^\s*-\s/.test(line) || /^\s+\S/.test(line);
-    }
-
-    /** Validate YAML content for binary characters, unclosed brackets, and basic syntax. Returns error message or null. */
-    function validateYamlContent(content: string): string | null {
-      if (/[\x00-\x08\x0e-\x1f]/.test(content)) return 'Content contains binary characters';
-      const stripped = content.replace(/#.*/g, '').replace(/(['"])(?:(?!\1).)*\1/g, '');
-      const opens = (stripped.match(/[[\{]/g) || []).length;
-      const closes = (stripped.match(/[\]\}]/g) || []).length;
-      if (opens !== closes) return `Invalid YAML: unclosed bracket or brace (${opens} opened, ${closes} closed)`;
-      const lines = content.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i] as string;
-        if (/^\s*$/.test(line) || /^\s*#/.test(line)) continue;
-        if (!isValidYamlLine(line)) return `Invalid YAML syntax at line ${i + 1}: "${line.trim()}"`;
-      }
-      return null;
-    }
-
-    /** Write config.local.yaml with basic validation. */
-    async function handleConfigWriteRequest(
-      req: IncomingMessage,
-      url: URL,
-      res: ServerResponse,
-    ): Promise<boolean> {
-      if (url.pathname !== '/api/config/local' || req.method !== 'PUT')
-        return false;
-
-      try {
-        const body = JSON.parse(await readBody(req)) as { content?: string };
-        const content = body.content;
-        if (typeof content !== 'string') {
-          jsonResponse(res, 400, { error: 'Missing content field' });
-          return true;
-        }
-
-        const yamlError = validateYamlContent(content);
-        if (yamlError) {
-          jsonResponse(res, 400, { error: yamlError });
-          return true;
-        }
-
-        const projectPath = safeResolvePath(url.searchParams.get('path'));
-        const dirPath = join(projectPath, '.goat-flow');
-        const localConfigPath = join(dirPath, 'config.local.yaml');
-
-        mkdirSync(dirPath, { recursive: true });
-        writeFileSync(localConfigPath, content, 'utf-8');
-        jsonResponse(res, 200, { success: true });
-      } catch (err) {
-        jsonResponse(res, 500, {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      return true;
-    }
-
-    /** Delete config.local.yaml to reset local overrides. */
-    function handleConfigDeleteRequest(
-      req: IncomingMessage,
-      url: URL,
-      res: ServerResponse,
-    ): boolean {
-      if (url.pathname !== '/api/config/local' || req.method !== 'DELETE')
-        return false;
-
-      try {
-        const projectPath = safeResolvePath(url.searchParams.get('path'));
-        const localConfigPath = join(
-          projectPath,
-          '.goat-flow',
-          'config.local.yaml',
-        );
-
-        if (existsSync(localConfigPath)) {
-          unlinkSync(localConfigPath);
-        }
-        jsonResponse(res, 200, { success: true });
-      } catch (err) {
-        jsonResponse(res, 500, {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      return true;
-    }
-
     /** Return enriched terminal session info with age and idle duration. */
     async function handleTerminalSessionsRequest(
       req: IncomingMessage,
@@ -929,9 +800,6 @@ export function serveDashboard(
         () => handleSetupRequest(url, res),
         () => Promise.resolve(handleBrowseRequest(url, res)),
         () => Promise.resolve(handleAgentDetectRequest(url, res)),
-        () => Promise.resolve(handleConfigReadRequest(url, res)),
-        () => handleConfigWriteRequest(req, url, res),
-        () => Promise.resolve(handleConfigDeleteRequest(req, url, res)),
         () => Promise.resolve(handleProjectsStatusRequest(url, res)),
         () => Promise.resolve(handleRubricsRequest(url, res)),
         () => handleTerminalCreateRequest(req, url, res),

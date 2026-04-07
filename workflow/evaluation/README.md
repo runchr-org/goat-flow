@@ -8,4 +8,3 @@ Learning loop templates for capturing and replaying knowledge. These are prompts
 |------|---------|
 | footguns.md | Document architectural traps with file path evidence |
 | lessons.md | Document agent behavioral mistakes |
-| evals.md | Create replay tests from real incidents |

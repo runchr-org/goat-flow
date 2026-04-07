@@ -257,62 +257,7 @@ export const skillChecks: CheckDef[] = [
       'Skills should have a phased process (Phase 1, Phase 2, etc.) to prevent step-skipping',
     recommendationKey: 'add-skill-phases',
   },
-  {
-    id: '2.1.16',
-    name: 'Skills are conversational',
-    tier: 'standard',
-    category: 'Skills',
-    pts: 0, // Deprecated: "conversational" is unverifiable. Skills with choices/gates are already checked by 2.1.13 + 2.1.18.
-    confidence: 'medium',
-    priority: 'optional',
-    hidden: true,
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        const { quality } = ctx.agentFacts.skills;
-        if (quality.total === 0) {
-          return {
-            id: '2.1.16',
-            name: 'Skills are conversational',
-            tier: 'standard',
-            category: 'Skills',
-            status: 'fail',
-            points: 0,
-            maxPoints: 1,
-            confidence: 'medium',
-            message: 'No skills found',
-          };
-        }
-        if (quality.withConversational === quality.total) {
-          return {
-            id: '2.1.16',
-            name: 'Skills are conversational',
-            tier: 'standard',
-            category: 'Skills',
-            status: 'pass',
-            points: 1,
-            maxPoints: 1,
-            confidence: 'medium',
-            message: `${quality.withConversational}/${quality.total} skills encourage conversational interaction`,
-          };
-        }
-        return {
-          id: '2.1.16',
-          name: 'Skills are conversational',
-          tier: 'standard',
-          category: 'Skills',
-          status: 'fail',
-          points: 0,
-          maxPoints: 1,
-          confidence: 'medium',
-          message: `Only ${quality.withConversational}/${quality.total} skills are conversational - all skills must present findings then let humans drill in`,
-        };
-      },
-    },
-    recommendation:
-      'Skills should be conversational - present findings, then let the human drill in with follow-up questions. One-shot dumps miss architectural problems.',
-    recommendationKey: 'add-skill-conversational',
-  },
+  // 2.1.16 (Skills are conversational) removed - "conversational" is unverifiable. Already covered by 2.1.13 (human gates) + 2.1.18 (structured choices).
   {
     id: '2.1.17',
     name: 'Skills have chaining',
@@ -513,61 +458,5 @@ export const skillChecks: CheckDef[] = [
       'Install the goat dispatcher skill - the 6th canonical skill that routes /goat commands to the right skill',
     recommendationKey: 'create-skill-goat',
   },
-  {
-    id: '2.1.21',
-    name: 'Skills have Shared Conventions block',
-    tier: 'standard',
-    category: 'Skills',
-    pts: 0, // Deprecated: 5 critiques called this "copy-paste debt." Skills are self-contained.
-    confidence: 'medium',
-    priority: 'optional',
-    hidden: true,
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        const { found, quality } = ctx.agentFacts.skills;
-        if (found.length === 0) {
-          return {
-            id: '2.1.21',
-            name: 'Skills have Shared Conventions block',
-            tier: 'standard',
-            category: 'Skills',
-            status: 'fail',
-            points: 0,
-            maxPoints: 1,
-            confidence: 'medium',
-            message: 'No skills found',
-          };
-        }
-        const ratio = quality.withSharedConventions / found.length;
-        if (ratio >= SKILL_QUALITY_THRESHOLD) {
-          return {
-            id: '2.1.21',
-            name: 'Skills have Shared Conventions block',
-            tier: 'standard',
-            category: 'Skills',
-            status: 'pass',
-            points: 1,
-            maxPoints: 1,
-            confidence: 'medium',
-            message: `${quality.withSharedConventions}/${found.length} skills have Shared Conventions block`,
-          };
-        }
-        return {
-          id: '2.1.21',
-          name: 'Skills have Shared Conventions block',
-          tier: 'standard',
-          category: 'Skills',
-          status: 'fail',
-          points: 0,
-          maxPoints: 1,
-          confidence: 'medium',
-          message: `Only ${quality.withSharedConventions}/${found.length} skills have Shared Conventions block - add severity, evidence standard, gates, learning loop`,
-        };
-      },
-    },
-    recommendation:
-      'Add ## Shared Conventions block to each skill (severity scale, evidence standard, gates, adaptive Step 0, learning loop)',
-    recommendationKey: 'add-skill-shared-conventions',
-  },
+  // 2.1.21 (Shared Conventions block) removed - 5 critiques called this "copy-paste debt." Skills are self-contained.
 ];

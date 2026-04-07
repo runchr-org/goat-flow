@@ -183,33 +183,7 @@ describe('Check 2.3.7: Session logs referenced', () => {
   });
 });
 
-// ---------------------------------------------------------------
-// 1.5.7 - .goat-flow/config.local.yaml exists
-// ---------------------------------------------------------------
-describe('Check 1.5.7: config.local.yaml exists', () => {
-  const check = getCheck('1.5.7');
-  assert.ok(check, 'Check 1.5.7 should exist in the registry');
-
-  it('passes when config.local.yaml exists', () => {
-    const ctx = createMockContext({
-      shared: {
-        config: { configLocalExists: true },
-      },
-    });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'pass', `Expected pass, got ${result.status}: ${result.message}`);
-  });
-
-  it('fails when config.local.yaml is missing', () => {
-    const ctx = createMockContext({
-      shared: {
-        config: { configLocalExists: false },
-      },
-    });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'fail', `Expected fail, got ${result.status}: ${result.message}`);
-  });
-});
+// 1.5.7 (config.local.yaml exists) removed - check deleted.
 
 // ---------------------------------------------------------------
 // 2.4.3 - Skills referenced in router (caught the goat-* glob bug)
@@ -333,29 +307,7 @@ describe('Check 1.1.1: Instruction file exists', () => {
   });
 });
 
-// ---------------------------------------------------------------
-// 2.2.5 - Preflight script exists
-// ---------------------------------------------------------------
-describe('Check 2.2.5: Preflight script', () => {
-  const check = getCheck('2.2.5');
-  assert.ok(check, 'Check 2.2.5 should exist in the registry');
-
-  it('passes when preflight script exists', () => {
-    const ctx = createMockContext({
-      shared: { preflightScript: { exists: true } },
-    });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'pass', `Expected pass, got ${result.status}: ${result.message}`);
-  });
-
-  it('fails when preflight script is missing', () => {
-    const ctx = createMockContext({
-      shared: { preflightScript: { exists: false } },
-    });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'fail', `Expected fail, got ${result.status}: ${result.message}`);
-  });
-});
+// 2.2.5 (Preflight script exists) removed - check deleted.
 
 // ---------------------------------------------------------------
 // 2.3.4 - Footguns have file:line evidence (had real bugs)
@@ -464,21 +416,7 @@ describe('Check 2.1.12: Skills have Step 0', () => {
   });
 });
 
-// ---------------------------------------------------------------
-// 2.2.6 - Context validation script exists
-// ---------------------------------------------------------------
-describe('Check 2.2.6: Context validation', () => {
-  const check = getCheck('2.2.6');
-  assert.ok(check, 'Check 2.2.6 should exist in the registry');
-
-  it('passes when context-validate.sh exists', () => {
-    const ctx = createMockContext({
-      shared: { contextValidation: { exists: true } },
-    });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'pass', `Expected pass, got ${result.status}: ${result.message}`);
-  });
-});
+// 2.2.6 (Context validation script) removed - check deleted.
 
 // ---------------------------------------------------------------
 // Anti-Pattern: AP1 - Instruction file over 150 lines
@@ -553,71 +491,9 @@ describe('Anti-pattern AP12: Stale file references in footguns', () => {
   });
 });
 
-// ---------------------------------------------------------------
-// Anti-Pattern: AP22 - Duplicate learning-loop surfaces
-// ---------------------------------------------------------------
-describe('Anti-pattern AP22: Duplicate learning-loop surfaces', () => {
-  const ap = getAntiPattern('AP22');
-  assert.ok(ap, 'AP22 should exist');
+// AP22 (Duplicate learning-loop surfaces) removed - anti-pattern deleted.
 
-  it('does not trigger when no duplicate surfaces', () => {
-    const ctx = createMockContext({
-      shared: {
-        footguns: { duplicateSurfacePaths: [] },
-        lessons: { duplicateSurfacePaths: [] },
-      },
-    });
-    const result = runSingleAntiPattern(ap, ctx);
-    assert.equal(result.triggered, false);
-  });
-
-  it('triggers when duplicate footgun surfaces exist', () => {
-    const ctx = createMockContext({
-      shared: {
-        footguns: { duplicateSurfacePaths: ['docs/footguns.md'] },
-        lessons: { duplicateSurfacePaths: [] },
-      },
-    });
-    const result = runSingleAntiPattern(ap, ctx);
-    assert.equal(result.triggered, true);
-    assert.ok(result.deduction < 0);
-  });
-
-  it('triggers when duplicate lesson surfaces exist', () => {
-    const ctx = createMockContext({
-      shared: {
-        footguns: { duplicateSurfacePaths: [] },
-        lessons: { duplicateSurfacePaths: ['docs/lessons.md'] },
-      },
-    });
-    const result = runSingleAntiPattern(ap, ctx);
-    assert.equal(result.triggered, true);
-    assert.ok(result.deduction < 0);
-  });
-});
-
-// ---------------------------------------------------------------
-// Anti-Pattern: AP3 - DoD in both instruction file and guidelines
-// ---------------------------------------------------------------
-describe('Anti-pattern AP3: DoD duplication', () => {
-  const ap = getAntiPattern('AP3');
-  assert.ok(ap, 'AP3 should exist');
-
-  it('does not trigger when DoD is only in instruction file', () => {
-    const ctx = createMockContext({
-      agentFacts: {
-        instruction: {
-          content: '# CLAUDE.md\n\n## Definition of Done\n\n1. tests pass\n',
-        },
-      },
-      shared: {
-        localInstructions: { hasConventionsContent: false },
-      },
-    });
-    const result = runSingleAntiPattern(ap, ctx);
-    assert.equal(result.triggered, false);
-  });
-});
+// AP3 (DoD duplication) removed - anti-pattern deleted.
 
 // ---------------------------------------------------------------
 // 2.2.8 - Agent ignore files for sensitive paths
@@ -933,7 +809,7 @@ describe('Check 1.2.6: LOG step references real dirs', () => {
     const ctx = createMockContext({
       agentFacts: {
         instruction: {
-          content: '# CLAUDE.md\n\n## Execution Loop\n\n**LOG** - MUST update. Lessons go in `ai-docs/lessons/`. Footguns go in `ai-docs/footguns/`.\n',
+          content: '# CLAUDE.md\n\n## Execution Loop\n\n**LOG** - MUST update. Lessons go in `.goat-flow/lessons/`. Footguns go in `.goat-flow/footguns/`.\n',
           sections: new Map([
             ['execution loop', 'READ CLASSIFY SCOPE ACT VERIFY LOG lessons footguns'],
           ]),
@@ -943,6 +819,44 @@ describe('Check 1.2.6: LOG step references real dirs', () => {
     });
     const result = runSingleCheck(check, ctx);
     assert.equal(result.status, 'pass', result.message);
+  });
+
+  it('fails when only footguns exists (both dirs required)', () => {
+    const ctx = createMockContext({
+      agentFacts: {
+        instruction: {
+          content: '# CLAUDE.md\n\n## Execution Loop\n\n**LOG** - MUST update. Lessons go in `.goat-flow/lessons/`. Footguns go in `.goat-flow/footguns/`.\n',
+          sections: new Map([
+            ['execution loop', 'READ CLASSIFY SCOPE ACT VERIFY LOG lessons footguns'],
+          ]),
+        },
+      },
+      shared: {
+        footguns: { exists: true },
+        lessons: { exists: false },
+      },
+    });
+    const result = runSingleCheck(check, ctx);
+    assert.equal(result.status, 'fail', result.message);
+  });
+
+  it('fails when only lessons exists (both dirs required)', () => {
+    const ctx = createMockContext({
+      agentFacts: {
+        instruction: {
+          content: '# CLAUDE.md\n\n## Execution Loop\n\n**LOG** - MUST update. Lessons go in `.goat-flow/lessons/`. Footguns go in `.goat-flow/footguns/`.\n',
+          sections: new Map([
+            ['execution loop', 'READ CLASSIFY SCOPE ACT VERIFY LOG lessons footguns'],
+          ]),
+        },
+      },
+      shared: {
+        footguns: { exists: false },
+        lessons: { exists: true },
+      },
+    });
+    const result = runSingleCheck(check, ctx);
+    assert.equal(result.status, 'fail', result.message);
   });
 });
 
@@ -1146,26 +1060,9 @@ describe('Check 2.5.3: Decisions dir ADR content', () => {
 });
 
 // ---------------------------------------------------------------
-// Anti-pattern batch: AP18, AP19, AP20, AP21
+// Anti-pattern batch: AP19, AP20, AP21
 // ---------------------------------------------------------------
-describe('Anti-pattern AP18: Unanswered ADAPT comments', () => {
-  const ap = getAntiPattern('AP18');
-  assert.ok(ap, 'AP18 should exist');
-
-  it('triggers when skills have ADAPT comments', () => {
-    const ctx = createMockContext({
-      agentFacts: { skills: { quality: { adaptCommentCount: 3 } } },
-    });
-    const result = runSingleAntiPattern(ap, ctx);
-    assert.equal(result.triggered, true, result.message);
-  });
-
-  it('does not trigger when no ADAPT comments', () => {
-    const ctx = createMockContext(); // default: 0
-    const result = runSingleAntiPattern(ap, ctx);
-    assert.equal(result.triggered, false);
-  });
-});
+// AP18 (Unanswered ADAPT comments) removed - anti-pattern deleted.
 
 describe('Anti-pattern AP19: Hardcoded absolute paths', () => {
   const ap = getAntiPattern('AP19');
@@ -1206,90 +1103,8 @@ describe('Anti-pattern AP20: Non-canonical skill directories', () => {
 });
 
 // ---------------------------------------------------------------
-// Full tier batch: Eval checks
+// Full tier: Eval checks removed - evals system removed in v1.1.0 (M09).
 // ---------------------------------------------------------------
-describe('Check 3.1.1: Evals directory exists', () => {
-  const check = getCheck('3.1.1');
-  assert.ok(check, 'Check 3.1.1 should exist');
-
-  it('passes with default mock (evals dir exists)', () => {
-    const ctx = createMockContext();
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'pass', result.message);
-  });
-});
-
-describe('Check 3.1.3: 3+ eval files with real content', () => {
-  const check = getCheck('3.1.3');
-  assert.ok(check, 'Check 3.1.3 should exist');
-
-  it('passes with 3+ evals that have real content', () => {
-    const ctx = createMockContext({
-      shared: { evals: { count: 5, hasRealContent: true } },
-    });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'pass', result.message);
-  });
-
-  it('fails with 3+ evals but no real content', () => {
-    const ctx = createMockContext({
-      shared: { evals: { count: 3, hasRealContent: false } },
-    });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'fail', result.message);
-  });
-
-  it('fails with fewer than 3 evals', () => {
-    const ctx = createMockContext({
-      shared: { evals: { count: 1, hasRealContent: true } },
-    });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'fail', result.message);
-  });
-});
-
-describe('Check 3.1.4: Evals have origin labels', () => {
-  const check = getCheck('3.1.4');
-  assert.ok(check, 'Check 3.1.4 should exist');
-
-  it('passes with default mock (has origin labels)', () => {
-    const ctx = createMockContext();
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'pass', result.message);
-  });
-});
-
-describe('Check 3.1.5: Evals have origin labels', () => {
-  const check = getCheck('3.1.5');
-  assert.ok(check, 'Check 3.1.5 should exist');
-
-  it('passes with default mock', () => {
-    const ctx = createMockContext();
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'pass', result.message);
-  });
-});
-
-describe('Check 3.1.5a: Evals have agents labels', () => {
-  const check = getCheck('3.1.5a');
-  assert.ok(check, 'Check 3.1.5a should exist');
-
-  it('passes when evals have agents labels', () => {
-    const ctx = createMockContext({
-      shared: { evals: { hasAgentsLabels: true } },
-    });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'pass', result.message);
-  });
-
-  it('fails when evals missing agents labels', () => {
-    const ctx = createMockContext({
-      shared: { evals: { hasAgentsLabels: false } },
-    });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'fail', result.message);
-  });
-});
 
 // ---------------------------------------------------------------
 // Full tier: Hygiene
@@ -1321,19 +1136,7 @@ describe('Check 2.3.3: Lessons directory exists', () => {
   });
 });
 
-describe('Check 2.3.5b: Footgun format diagnostic', () => {
-  const check = getCheck('2.3.5b');
-  assert.ok(check, 'Check 2.3.5b should exist');
-
-  it('passes when no format issues', () => {
-    const ctx = createMockContext({
-      shared: { footguns: { formatDiagnostic: null } },
-    });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'pass', result.message);
-  });
-
-});
+// 2.3.5b (Learning-loop surfaces are canonical) removed - check deleted.
 
 // ---------------------------------------------------------------
 // Standard: Learning Loop additional
@@ -1352,18 +1155,7 @@ describe('Check 2.3.2a: Footguns have entries', () => {
 
 });
 
-describe('Check 2.3.5a: Footguns have evidence labels', () => {
-  const check = getCheck('2.3.5a');
-  assert.ok(check, 'Check 2.3.5a should exist');
-
-  it('passes when all entries have labels', () => {
-    const ctx = createMockContext({
-      shared: { footguns: { entryCount: 3, labelCount: 3, hasEvidenceLabels: true } },
-    });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'pass', result.message);
-  });
-});
+// 2.3.5a (Footguns have evidence labels) removed - check deleted.
 
 describe('Check 2.3.6: Duplicate learning-loop surfaces', () => {
   const check = getCheck('2.3.6');
@@ -1396,14 +1188,7 @@ describe('Check 2.6.1: Instructions directory exists', () => {
   });
 });
 
-describe('Check 2.6.2: Instructions have conventions', () => {
-  const check = getCheck('2.6.2');
-  assert.ok(check, 'Check 2.6.2 should exist');
-
-  it('exists in registry', () => {
-    assert.ok(check.id === '2.6.2');
-  });
-});
+// 2.6.2 (.goat-flow/README.md router exists) removed - check deleted.
 
 describe('Check 2.6.3: Instructions have valid router', () => {
   const check = getCheck('2.6.3');
@@ -1468,20 +1253,9 @@ describe('Check 2.5.1: Architecture doc exists', () => {
 });
 
 // ---------------------------------------------------------------
-// Remaining anti-patterns: AP4, AP6, AP8
+// Remaining anti-patterns: AP6, AP8
 // ---------------------------------------------------------------
-describe('Anti-pattern AP4: Footguns without evidence', () => {
-  const ap = getAntiPattern('AP4');
-  assert.ok(ap, 'AP4 should exist');
-
-  it('does not trigger when footguns have evidence', () => {
-    const ctx = createMockContext({
-      shared: { footguns: { exists: true, hasEvidence: true, entryCount: 1 } },
-    });
-    const result = runSingleAntiPattern(ap, ctx);
-    assert.equal(result.triggered, false);
-  });
-});
+// AP4 (Footguns without evidence) removed - anti-pattern deleted.
 
 describe('Anti-pattern AP6: Hook swallows failures', () => {
   const ap = getAntiPattern('AP6');

@@ -141,29 +141,10 @@ export const routerChecks: CheckDef[] = [
       section: 'router',
       pattern: 'architecture|arch',
     },
-    recommendation: 'Add ai-docs/architecture.md to the router table',
+    recommendation: 'Add .goat-flow/architecture.md to the router table',
     recommendationKey: 'route-architecture',
   },
-  {
-    id: '2.4.6',
-    name: 'Evals in router',
-    tier: 'standard',
-    category: 'Router Table',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    na: (ctx) =>
-      !ctx.agentFacts.instruction.content?.toLowerCase().includes('router') ||
-      !ctx.facts.shared.evals.dirExists,
-    detect: {
-      type: 'grep',
-      path: '{instruction_file}',
-      section: 'router',
-      pattern: 'eval|agent-eval',
-    },
-    recommendation: 'Add ai-docs/evals/ to the router table',
-    recommendationKey: 'route-evals',
-  },
+  // 2.4.6 (evals in router) removed - evals system removed in v1.1.0 (M09).
   // 2.4.7 (handoff template in router) removed - handoff is workspace-level, not a rubric concern.
   {
     id: '2.4.8',

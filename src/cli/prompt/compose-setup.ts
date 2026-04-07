@@ -192,7 +192,7 @@ function renderAllPass(
   );
   lines.push('- Run `goat-flow scan --min-score 90` in CI to catch drift');
   lines.push(
-    '- Review `ai-docs/footguns/`, `.goat-flow/footguns/`, `ai-docs/lessons/`, and `.goat-flow/lessons/` after incidents',
+    '- Review `.goat-flow/footguns/` and `.goat-flow/lessons/` after incidents',
   );
 
   return lines.join('\n');
@@ -640,12 +640,12 @@ function defaultAdaptGuidance(
   if (output.includes('/skills/'))
     return `Replace template Step 0 questions and examples with ${languages} patterns from this project`;
   if (output === '.goat-flow/config.yaml')
-    return 'Use the default directory paths unless this project already needs explicit overrides. IMPORTANT: if config.yaml declares local paths (e.g., local: .goat-flow/footguns/), create those directories with a .gitkeep file. Config must not reference paths that do not exist.';
-  if (output === 'ai-docs/footguns/')
-    return 'Seed `ai-docs/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals. For EVERY cited file:line: read the actual code and verify the claim - does the method exist? Does the exception type match? Does the risk description match actual behavior? Flag any footgun where cited behavior does not match the code as UNVERIFIED';
-  if (output === 'ai-docs/lessons/')
-    return 'Seed `ai-docs/lessons/` with category bucket files. Use `category:` frontmatter on the file and `## Lesson:` / `## Pattern:` entries from real incidents';
-  if (output === 'ai-docs/architecture.md')
+    return 'Use the default directory paths unless this project already needs explicit overrides.';
+  if (output === '.goat-flow/footguns/')
+    return 'Seed `.goat-flow/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals. For EVERY cited file:line: read the actual code and verify the claim - does the method exist? Does the exception type match? Does the risk description match actual behavior? Flag any footgun where cited behavior does not match the code as UNVERIFIED';
+  if (output === '.goat-flow/lessons/')
+    return 'Seed `.goat-flow/lessons/` with category bucket files. Use `category:` frontmatter on the file and `## Lesson:` / `## Pattern:` entries from real incidents';
+  if (output === '.goat-flow/architecture.md')
     return 'Read project entry points and main directories. Document what exists - under 100 lines, no aspirational content';
   if (output.includes('instructions/'))
     return `Adapt for this project's ${languages} patterns. Replace generic examples with real patterns from the codebase`;
@@ -660,11 +660,11 @@ function defaultVerify(output: string): string {
     return 'File has: When to Use, Process with human gates, Constraints, Output Format, Chaining sections';
   if (output === '.goat-flow/config.yaml')
     return 'File exists, parses as YAML, and includes version plus footguns/lessons/decisions/tasks/logs/agents/skills settings';
-  if (output === 'ai-docs/footguns/')
+  if (output === '.goat-flow/footguns/')
     return 'Directory exists with README.md plus 1+ category bucket files using `category:` frontmatter and `path:line` evidence inside `## Footgun:` entries';
-  if (output === 'ai-docs/lessons/')
+  if (output === '.goat-flow/lessons/')
     return 'Directory exists with README.md plus 1+ category bucket files using `category:` frontmatter and `## Lesson:` / `## Pattern:` entries';
-  if (output === 'ai-docs/architecture.md')
+  if (output === '.goat-flow/architecture.md')
     return 'File exists and is under 100 lines';
   if (output.endsWith('.sh'))
     return '`bash -n <file>` passes (no syntax errors)';
@@ -828,7 +828,7 @@ function renderMultiAgentSharedSection(
 
 /**
  * Compose a deduplicated setup for multiple agents.
- * Shared files (docs, skills, coding-standards, evals, CI) appear once.
+ * Shared files (docs, skills, coding-standards, CI) appear once.
  * Per-agent files (instruction file, settings, hooks) appear in agent sections.
  */
 export function composeMultiAgentSetup(
@@ -986,10 +986,10 @@ function renderSetupRedirect(
     );
     lines.push('');
     lines.push(
-      'Key changes: consolidate 10 old skills to 5+dispatcher, migrate docs/footguns.md → ai-docs/footguns/,',
+      'Key changes: consolidate 10 old skills to 5+dispatcher, migrate docs/footguns.md → .goat-flow/footguns/,',
     );
     lines.push(
-      'docs/lessons.md → ai-docs/lessons/, create .goat-flow/config.yaml, install skill-conventions.md.',
+      'docs/lessons.md → .goat-flow/lessons/, create .goat-flow/config.yaml, install skill-conventions.md.',
     );
     lines.push('');
     lines.push(`**Stack:** ${languages}`);
@@ -1122,14 +1122,14 @@ function renderSetupRedirect(
     );
     lines.push('');
     lines.push(
-      '**Instruction files:** Check if `.github/instructions/` exists before creating `ai-docs/coding-standards/`.',
+      '**Instruction files:** Check if `.github/instructions/` exists before creating `.goat-flow/coding-standards/`.',
     );
     lines.push(
-      '  If both would exist: (a) migrate `.github/instructions/` content into `ai-docs/coding-standards/`, (b) replace `.github/instructions/` files with one-line imports pointing to `ai-docs/coding-standards/`, or (c) keep `.github/instructions/` as canonical and skip `ai-docs/coding-standards/` creation. Do NOT create overlapping content in both locations.',
+      '  If both would exist: (a) migrate `.github/instructions/` content into `.goat-flow/coding-standards/`, (b) replace `.github/instructions/` files with one-line imports pointing to `.goat-flow/coding-standards/`, or (c) keep `.github/instructions/` as canonical and skip `.goat-flow/coding-standards/` creation. Do NOT create overlapping content in both locations.',
     );
     lines.push('');
     lines.push(
-      '**Router table:** Rewrite the Router Table in the instruction file. Remove entries pointing to deleted skills. If `ai-docs/README.md` exists, include it as the Project Guidelines entry.',
+      '**Router table:** Rewrite the Router Table in the instruction file. Remove entries pointing to deleted skills. If `.goat-flow/README.md` exists, include it as the Project Guidelines entry.',
     );
     lines.push('');
     lines.push(
@@ -1156,16 +1156,13 @@ function renderSetupRedirect(
       '| Tasks | `tasks/` | `.goat-flow/tasks/` (or vice versa) |',
     );
     lines.push(
-      '| Footguns | `docs/footguns.md` (flat file) | `ai-docs/footguns/` (directory) |',
+      '| Footguns | `docs/footguns.md` (flat file) | `.goat-flow/footguns/` (directory) |',
     );
     lines.push(
-      '| Lessons | `docs/lessons.md` (flat file) | `ai-docs/lessons/` (directory) |',
+      '| Lessons | `docs/lessons.md` (flat file) | `.goat-flow/lessons/` (directory) |',
     );
     lines.push(
-      '| Evals | `agent-evals/` | `ai-docs/evals/` |',
-    );
-    lines.push(
-      '| Coding standards | `ai/instructions/` or `.github/instructions/` | `ai-docs/coding-standards/` with overlapping content |',
+      '| Coding standards | `ai/instructions/` or `.github/instructions/` | `.goat-flow/coding-standards/` with overlapping content |',
     );
     lines.push('');
     lines.push(
@@ -1173,7 +1170,7 @@ function renderSetupRedirect(
     );
     lines.push('');
     lines.push(
-      'Examples: If `.github/instructions/` exists with coding standards, do NOT create `ai-docs/coding-standards/` with overlapping content — reference the existing files from `ai-docs/README.md`. If `docs/footguns.md` exists, migrate its entries to `ai-docs/footguns/` instead of creating a parallel surface.',
+      'Examples: If `.github/instructions/` exists with coding standards, do NOT create `.goat-flow/coding-standards/` with overlapping content — reference the existing files from `.goat-flow/README.md`. If `docs/footguns.md` exists, migrate its entries to `.goat-flow/footguns/` instead of creating a parallel surface.',
     );
     lines.push('');
     lines.push(
@@ -1240,7 +1237,7 @@ function renderSetupRedirect(
     '- **Phase 1c:** Advisory hooks, deny patterns, coding guidelines',
   );
   lines.push(
-    '- **Phase 1d:** Agent evals, hygiene (handoff template, RFC 2119 pass)',
+    '- **Phase 1d:** Hygiene (RFC 2119 pass)',
   );
   lines.push('- **Final Verification:** Verify 100% on the CLI scan');
   lines.push('');

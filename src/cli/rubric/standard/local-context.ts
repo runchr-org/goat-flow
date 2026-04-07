@@ -24,13 +24,13 @@ export const localContextChecks: CheckDef[] = [
           maxPoints: 1,
           confidence: 'high',
           message: dirExists
-            ? `Found at ${location === 'ai' ? 'ai-docs/coding-standards/' : '.github/instructions/'}`
-            : 'No ai-docs/coding-standards/ or .github/instructions/ directory',
+            ? `Found at ${location === 'ai' ? '.goat-flow/coding-standards/' : '.github/instructions/'}`
+            : 'No .goat-flow/coding-standards/ or .github/instructions/ directory',
         };
       },
     },
     recommendation:
-      'Create ai-docs/coding-standards/ with project coding guidelines',
+      'Create .goat-flow/coding-standards/ with project coding guidelines',
     recommendationKey: 'create-instructions-dir',
   },
   {
@@ -69,64 +69,7 @@ export const localContextChecks: CheckDef[] = [
       'Keep one canonical local-instructions surface and remove the duplicate copy',
     recommendationKey: 'fix-duplicate-instruction-surfaces',
   },
-  {
-    id: '2.6.2',
-    name: 'Router exists',
-    tier: 'standard',
-    category: 'Local Instructions',
-    pts: 1,
-    confidence: 'high',
-    priority: 'recommended',
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        const { hasRouter, hasValidRouter, routerNeedsFix, dirExists } =
-          ctx.facts.shared.localInstructions;
-        if (dirExists === false) {
-          return {
-            id: '2.6.2',
-            name: 'Router exists',
-            tier: 'standard',
-            category: 'Local Instructions',
-            status: 'fail',
-            points: 0,
-            maxPoints: 1,
-            confidence: 'high',
-            message:
-              'No local instructions directory found. Expected `ai-docs/` with an `ai-docs/README.md` router when project instruction files exist.',
-          };
-        }
-        if (!hasValidRouter && routerNeedsFix !== null) {
-          return {
-            id: '2.6.2',
-            name: 'Router exists',
-            tier: 'standard',
-            category: 'Local Instructions',
-            status: 'fail',
-            points: 0,
-            maxPoints: 1,
-            confidence: 'high',
-            message: routerNeedsFix,
-          };
-        }
-        return {
-          id: '2.6.2',
-          name: 'Router exists',
-          tier: 'standard',
-          category: 'Local Instructions',
-          status: hasRouter ? 'pass' : 'fail',
-          points: hasRouter ? 1 : 0,
-          maxPoints: 1,
-          confidence: 'high',
-          message: hasRouter
-            ? 'ai-docs/README.md exists and router links are valid'
-            : 'ai-docs/README.md not found. Create a router file so agents can discover instruction files under `ai-docs/`.',
-        };
-      },
-    },
-    recommendation: 'Create ai-docs/README.md as routing map for instruction files',
-    recommendationKey: 'create-instructions-router',
-  },
+  // 2.6.2 (.goat-flow/README.md router exists) removed - ceremony. Agents navigate via the instruction file router table.
   {
     id: '2.6.3',
     name: 'conventions.md exists',
@@ -169,7 +112,7 @@ export const localContextChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Create ai-docs/coding-standards/conventions.md with project-wide conventions',
+      'Create .goat-flow/coding-standards/conventions.md with project-wide conventions',
     recommendationKey: 'create-conventions-instructions',
   },
   {
@@ -219,122 +162,9 @@ export const localContextChecks: CheckDef[] = [
       "conventions.md should include: build/test/lint commands, coding conventions (DO/DON'T), and dangerous operations",
     recommendationKey: 'improve-conventions-instructions',
   },
-  {
-    id: '2.6.4',
-    name: 'code-review.md exists',
-    tier: 'standard',
-    category: 'Local Instructions',
-    pts: 1,
-    confidence: 'high',
-    priority: 'recommended',
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        const { hasCodeReview, dirExists } = ctx.facts.shared.localInstructions;
-        if (dirExists === false) {
-          return {
-            id: '2.6.4',
-            name: 'code-review.md exists',
-            tier: 'standard',
-            category: 'Local Instructions',
-            status: 'fail',
-            points: 0,
-            maxPoints: 1,
-            confidence: 'high',
-            message: 'No instructions directory',
-          };
-        }
-        return {
-          id: '2.6.4',
-          name: 'code-review.md exists',
-          tier: 'standard',
-          category: 'Local Instructions',
-          status: hasCodeReview ? 'pass' : 'fail',
-          points: hasCodeReview ? 1 : 0,
-          maxPoints: 1,
-          confidence: 'high',
-          message: hasCodeReview
-            ? 'code-review.md found'
-            : 'code-review.md not found - project needs review standards',
-        };
-      },
-    },
-    recommendation:
-      'Create ai-docs/coding-standards/code-review.md with review standards',
-    recommendationKey: 'create-code-review-instructions',
-  },
-  {
-    id: '2.6.5',
-    name: 'git-commit.md exists',
-    tier: 'standard',
-    category: 'Local Instructions',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => {
-        const { hasGitCommit, dirExists } = ctx.facts.shared.localInstructions;
-        if (dirExists === false) {
-          return {
-            id: '2.6.5',
-            name: 'git-commit.md exists',
-            tier: 'standard',
-            category: 'Local Instructions',
-            status: 'fail',
-            points: 0,
-            maxPoints: 1,
-            confidence: 'high',
-            message: 'No instructions directory',
-          };
-        }
-        return {
-          id: '2.6.5',
-          name: 'git-commit.md exists',
-          tier: 'standard',
-          category: 'Local Instructions',
-          status: hasGitCommit ? 'pass' : 'fail',
-          points: hasGitCommit ? 1 : 0,
-          maxPoints: 1,
-          confidence: 'high',
-          message: hasGitCommit
-            ? 'git-commit.md found'
-            : 'git-commit.md not found - project needs commit conventions',
-        };
-      },
-    },
-    recommendation:
-      'Create ai-docs/coding-standards/git-commit.md with commit format and PR workflow',
-    recommendationKey: 'create-git-commit-instructions',
-  },
-  {
-    id: '2.6.6',
-    name: 'git-commit-instructions.md in .github/',
-    tier: 'standard',
-    category: 'Local Instructions',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    detect: {
-      type: 'custom',
-      fn: (ctx: FactContext): CheckResult => ({
-        id: '2.6.6',
-        name: 'git-commit-instructions.md in .github/',
-        tier: 'standard',
-        category: 'Local Instructions',
-        status: ctx.facts.shared.gitCommitInstructions.exists ? 'pass' : 'fail',
-        points: ctx.facts.shared.gitCommitInstructions.exists ? 1 : 0,
-        maxPoints: 1,
-        confidence: 'high',
-        message: ctx.facts.shared.gitCommitInstructions.exists
-          ? '.github/git-commit-instructions.md found'
-          : '.github/git-commit-instructions.md not found',
-      }),
-    },
-    recommendation:
-      'Create .github/git-commit-instructions.md for universal commit guidance',
-    recommendationKey: 'create-github-git-commit',
-  },
+  // 2.6.4 (code-review.md exists) removed - optional file should not be a scored check.
+  // 2.6.5 (git-commit.md exists) removed - same rationale.
+  // 2.6.6 (git-commit-instructions.md in .github/) removed - same rationale.
   {
     id: '2.6.7a',
     name: 'frontend.md exists for projects with a detected frontend/UI stack',
@@ -401,7 +231,7 @@ export const localContextChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Create ai-docs/coding-standards/frontend.md with frontend coding conventions for the detected UI stack',
+      'Create .goat-flow/coding-standards/frontend.md with frontend coding conventions for the detected UI stack',
     recommendationKey: 'create-frontend-instructions',
   },
   {
@@ -462,7 +292,7 @@ export const localContextChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Create ai-docs/coding-standards/backend.md with backend coding conventions',
+      'Create .goat-flow/coding-standards/backend.md with backend coding conventions',
     recommendationKey: 'create-backend-instructions',
   },
 ];

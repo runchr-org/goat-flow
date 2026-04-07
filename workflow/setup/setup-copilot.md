@@ -32,7 +32,7 @@ After completing all shared phases:
 
 ### Copilot bridge files
 
-For each file in `ai-docs/coding-standards/`, create a matching `.github/instructions/*.instructions.md`:
+For each file in `.goat-flow/coding-standards/`, create a matching `.github/instructions/*.instructions.md`:
 
 ```yaml
 ---
@@ -56,8 +56,8 @@ Create `.github/git-commit-instructions.md` if not exists.
 ## Human Checklist
 
 - [ ] `.github/copilot-instructions.md` has execution loop, autonomy tiers, DoD, router table
-- [ ] `ai-docs/` has footguns/, lessons/, coding-standards/
-- [ ] `.github/instructions/` bridge files reference `ai-docs/coding-standards/` content
+- [ ] `.goat-flow/` has footguns/, lessons/, coding-standards/
+- [ ] `.github/instructions/` bridge files reference `.goat-flow/coding-standards/` content
 - [ ] `.goat-flow/config.yaml` exists with correct paths
 - [ ] Project build/test/lint still passes
 - [ ] Open Copilot Chat and verify it picks up the instructions

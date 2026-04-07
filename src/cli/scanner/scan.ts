@@ -90,12 +90,10 @@ export function scanProject(
       },
       learningLoop: {
         footguns: {
-          committed: facts.shared.footguns.committedCount,
-          local: facts.shared.footguns.localCount,
+          count: facts.shared.footguns.entryCount,
         },
         lessons: {
-          committed: facts.shared.lessons.committedCount,
-          local: facts.shared.lessons.localCount,
+          count: facts.shared.lessons.entryCount,
         },
       },
     },

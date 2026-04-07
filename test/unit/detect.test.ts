@@ -335,7 +335,7 @@ describe('mapLanguagesToTemplates - frontend routing', () => {
   it('routes React to react.md', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'react']);
     const frontend = refs.find(
-      (r) => r.output === 'ai-docs/coding-standards/frontend.md',
+      (r) => r.output === '.goat-flow/coding-standards/frontend.md',
     );
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/react.md'));
@@ -344,7 +344,7 @@ describe('mapLanguagesToTemplates - frontend routing', () => {
   it('routes Vue to vue.md', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'vue']);
     const frontend = refs.find(
-      (r) => r.output === 'ai-docs/coding-standards/frontend.md',
+      (r) => r.output === '.goat-flow/coding-standards/frontend.md',
     );
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/vue.md'));
@@ -353,7 +353,7 @@ describe('mapLanguagesToTemplates - frontend routing', () => {
   it('routes Angular to angular.md', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'angular']);
     const frontend = refs.find(
-      (r) => r.output === 'ai-docs/coding-standards/frontend.md',
+      (r) => r.output === '.goat-flow/coding-standards/frontend.md',
     );
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/angular.md'));
@@ -363,7 +363,7 @@ describe('mapLanguagesToTemplates - frontend routing', () => {
     for (const lang of ['blade', 'twig', 'erb', 'jinja', 'blazor', 'swift']) {
       const refs = mapLanguagesToTemplates([lang]);
       const frontend = refs.find(
-        (r) => r.output === 'ai-docs/coding-standards/frontend.md',
+        (r) => r.output === '.goat-flow/coding-standards/frontend.md',
       );
       assert.ok(
         !frontend,
@@ -375,7 +375,7 @@ describe('mapLanguagesToTemplates - frontend routing', () => {
   it('falls back to typescript.md for TS without framework', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'typescript']);
     const frontend = refs.find(
-      (r) => r.output === 'ai-docs/coding-standards/frontend.md',
+      (r) => r.output === '.goat-flow/coding-standards/frontend.md',
     );
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(frontend.template.endsWith('/typescript.md'));
@@ -384,7 +384,7 @@ describe('mapLanguagesToTemplates - frontend routing', () => {
   it('framework takes priority over TS fallback', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'typescript', 'react']);
     const frontend = refs.find(
-      (r) => r.output === 'ai-docs/coding-standards/frontend.md',
+      (r) => r.output === '.goat-flow/coding-standards/frontend.md',
     );
     assert.ok(frontend, 'Expected frontend.md ref');
     assert.ok(
@@ -396,7 +396,7 @@ describe('mapLanguagesToTemplates - frontend routing', () => {
   it('first detected framework wins', () => {
     const refs = mapLanguagesToTemplates(['javascript', 'react', 'vue']);
     const frontendRefs = refs.filter(
-      (r) => r.output === 'ai-docs/coding-standards/frontend.md',
+      (r) => r.output === '.goat-flow/coding-standards/frontend.md',
     );
     assert.equal(
       frontendRefs.length,
@@ -409,7 +409,7 @@ describe('mapLanguagesToTemplates - frontend routing', () => {
   it('no frontend ref for Go-only project', () => {
     const refs = mapLanguagesToTemplates(['go']);
     const frontend = refs.find(
-      (r) => r.output === 'ai-docs/coding-standards/frontend.md',
+      (r) => r.output === '.goat-flow/coding-standards/frontend.md',
     );
     assert.equal(frontend, undefined, 'Go-only should not get frontend.md');
   });
@@ -419,7 +419,7 @@ describe('mapLanguagesToTemplates - backend framework routing', () => {
   it('routes Laravel over generic PHP for backend.md', () => {
     const refs = mapLanguagesToTemplates(['php', 'laravel']);
     const backend = refs.find(
-      (r) => r.output === 'ai-docs/coding-standards/backend.md',
+      (r) => r.output === '.goat-flow/coding-standards/backend.md',
     );
     assert.ok(backend, 'Expected backend.md ref');
     assert.ok(
@@ -431,7 +431,7 @@ describe('mapLanguagesToTemplates - backend framework routing', () => {
   it('routes Django over generic Python for backend.md', () => {
     const refs = mapLanguagesToTemplates(['python', 'django']);
     const backend = refs.find(
-      (r) => r.output === 'ai-docs/coding-standards/backend.md',
+      (r) => r.output === '.goat-flow/coding-standards/backend.md',
     );
     assert.ok(backend, 'Expected backend.md ref');
     assert.ok(
@@ -443,7 +443,7 @@ describe('mapLanguagesToTemplates - backend framework routing', () => {
   it('routes generic Python when no framework detected', () => {
     const refs = mapLanguagesToTemplates(['python']);
     const backend = refs.find(
-      (r) => r.output === 'ai-docs/coding-standards/backend.md',
+      (r) => r.output === '.goat-flow/coding-standards/backend.md',
     );
     assert.ok(backend, 'Expected backend.md ref');
     assert.ok(
@@ -455,7 +455,7 @@ describe('mapLanguagesToTemplates - backend framework routing', () => {
   it('adds security framework template for detected framework', () => {
     const refs = mapLanguagesToTemplates(['php', 'laravel']);
     const sec = refs.find(
-      (r) => r.output === 'ai-docs/coding-standards/security-laravel.md',
+      (r) => r.output === '.goat-flow/coding-standards/security-laravel.md',
     );
     assert.ok(sec, 'Expected security-laravel.md ref');
     assert.ok(sec.template.includes('framework-specific/laravel.md'));
@@ -464,7 +464,7 @@ describe('mapLanguagesToTemplates - backend framework routing', () => {
   it('does not add web-common for Ruby projects (template removed)', () => {
     const refs = mapLanguagesToTemplates(['ruby']);
     const webCommon = refs.find(
-      (r) => r.output === 'ai-docs/coding-standards/web-common.md',
+      (r) => r.output === '.goat-flow/coding-standards/web-common.md',
     );
     assert.ok(
       !webCommon,
@@ -486,11 +486,11 @@ describe('mapSignalsToTemplates', () => {
   it('always includes security.md and testing.md', () => {
     const refs = mapSignalsToTemplates(emptySignals);
     assert.ok(
-      refs.find((r) => r.output === 'ai-docs/coding-standards/security.md'),
+      refs.find((r) => r.output === '.goat-flow/coding-standards/security.md'),
       'Expected security.md',
     );
     assert.ok(
-      refs.find((r) => r.output === 'ai-docs/coding-standards/testing.md'),
+      refs.find((r) => r.output === '.goat-flow/coding-standards/testing.md'),
       'Expected testing.md',
     );
   });
@@ -499,26 +499,26 @@ describe('mapSignalsToTemplates', () => {
     const refs = mapSignalsToTemplates(emptySignals);
     assert.ok(
       refs.find(
-        (r) => r.output === 'ai-docs/coding-standards/secrets-management.md',
+        (r) => r.output === '.goat-flow/coding-standards/secrets-management.md',
       ),
     );
     assert.ok(
-      refs.find((r) => r.output === 'ai-docs/coding-standards/supply-chain.md'),
+      refs.find((r) => r.output === '.goat-flow/coding-standards/supply-chain.md'),
     );
   });
 
   it('adds web security templates for web languages', () => {
     const refs = mapSignalsToTemplates(emptySignals, ['typescript']);
     assert.ok(
-      refs.find((r) => r.output === 'ai-docs/coding-standards/api-auth.md'),
+      refs.find((r) => r.output === '.goat-flow/coding-standards/api-auth.md'),
       'Expected api-auth.md',
     );
     assert.ok(
-      refs.find((r) => r.output === 'ai-docs/coding-standards/file-upload.md'),
+      refs.find((r) => r.output === '.goat-flow/coding-standards/file-upload.md'),
       'Expected file-upload.md',
     );
     assert.ok(
-      refs.find((r) => r.output === 'ai-docs/coding-standards/sql-injection.md'),
+      refs.find((r) => r.output === '.goat-flow/coding-standards/sql-injection.md'),
       'Expected sql-injection.md',
     );
   });
@@ -526,7 +526,7 @@ describe('mapSignalsToTemplates', () => {
   it('skips web security templates for non-web languages', () => {
     const refs = mapSignalsToTemplates(emptySignals, ['bash']);
     assert.equal(
-      refs.find((r) => r.output === 'ai-docs/coding-standards/api-auth.md'),
+      refs.find((r) => r.output === '.goat-flow/coding-standards/api-auth.md'),
       undefined,
     );
   });
@@ -538,7 +538,7 @@ describe('mapSignalsToTemplates', () => {
     });
     assert.ok(
       refs.find(
-        (r) => r.output === 'ai-docs/coding-standards/infrastructure-security.md',
+        (r) => r.output === '.goat-flow/coding-standards/infrastructure-security.md',
       ),
     );
   });
@@ -549,7 +549,7 @@ describe('mapSignalsToTemplates', () => {
       deployPlatforms: ['terraform'],
     });
     assert.ok(
-      refs.find((r) => r.output === 'ai-docs/coding-standards/devops-terraform.md'),
+      refs.find((r) => r.output === '.goat-flow/coding-standards/devops-terraform.md'),
     );
   });
 
@@ -559,7 +559,7 @@ describe('mapSignalsToTemplates', () => {
       deployPlatforms: ['packer'],
     });
     assert.ok(
-      !refs.find((r) => r.output === 'ai-docs/coding-standards/devops-packer.md'),
+      !refs.find((r) => r.output === '.goat-flow/coding-standards/devops-packer.md'),
     );
   });
 });

@@ -113,18 +113,11 @@ function resolvePath(path: string, ctx: FactContext): string {
     .replace('{settings_file}', ctx.agentFacts.agent.settingsFile ?? '')
     .replace('{skills_dir}', ctx.agentFacts.agent.skillsDir)
     .replace('{hooks_dir}', ctx.agentFacts.agent.hooksDir ?? '')
-    .replace(
-      '{footguns_committed_dir}',
-      ctx.facts.shared.footguns.paths.committed,
-    )
-    .replace('{footguns_local_dir}', ctx.facts.shared.footguns.paths.local)
-    .replace(
-      '{lessons_committed_dir}',
-      ctx.facts.shared.lessons.paths.committed,
-    )
-    .replace('{lessons_local_dir}', ctx.facts.shared.lessons.paths.local)
+    .replace('{footguns_committed_dir}', ctx.facts.shared.footguns.path)
+    .replace('{footguns_local_dir}', '')
+    .replace('{lessons_committed_dir}', ctx.facts.shared.lessons.path)
+    .replace('{lessons_local_dir}', '')
     .replace('{decisions_dir}', ctx.facts.shared.decisions.path)
-    .replace('{evals_dir}', ctx.facts.shared.evals.path)
     .replace('{coding_standards_dir}', ctx.facts.shared.localInstructions.path)
     .replace('{deny_path}', getDenyPath(ctx));
 }
@@ -247,7 +240,7 @@ function getLineCountInfo(
       lineCount: ctx.agentFacts.instruction.lineCount,
     };
   }
-  if (path === 'ai-docs/architecture.md') {
+  if (path === '.goat-flow/architecture.md') {
     return {
       exists: ctx.facts.shared.architecture.exists,
       lineCount: ctx.facts.shared.architecture.lineCount,
@@ -702,21 +695,15 @@ function evalComposite(
 
 /** Look up whether a path exists in shared project facts. */
 function checkSharedPath(path: string, ctx: FactContext): boolean {
-  /** Shared facts covering docs, evals, CI, and other project-wide resources */
+  /** Shared facts covering docs, CI, and other project-wide resources */
   const shared = ctx.facts.shared;
   const normalizedDecisionsPath = shared.decisions.path.replace(/\/$/, '');
   /** Map of known paths to their existence status from shared facts */
   const pathMap: Record<string, boolean> = {
-    [shared.footguns.paths.committed]: shared.footguns.committedExists,
-    [shared.footguns.paths.local]: shared.footguns.localExists,
-    [shared.lessons.paths.committed]: shared.lessons.committedExists,
-    [shared.lessons.paths.local]: shared.lessons.localExists,
-    'ai-docs/architecture.md': shared.architecture.exists,
+    [shared.footguns.path]: shared.footguns.exists,
+    [shared.lessons.path]: shared.lessons.exists,
+    '.goat-flow/architecture.md': shared.architecture.exists,
     '.goat-flow/skill-conventions.md': shared.skillConventions.exists,
-    [shared.evals.path]: shared.evals.dirExists,
-    [shared.evals.path.replace(/\/$/, '')]: shared.evals.dirExists,
-    [shared.evals.path.replace(/\/$/, '') + '/README.md']:
-      shared.evals.hasReadme,
     '.copilotignore': shared.ignoreFiles.copilotignore,
     '.cursorignore': shared.ignoreFiles.cursorignore,
     '.geminiignore': shared.ignoreFiles.geminiignore,
@@ -734,7 +721,7 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
     [shared.localInstructions.path.replace(/\/$/, '')]:
       shared.localInstructions.dirExists &&
       shared.localInstructions.location === 'ai',
-    'ai-docs/README.md':
+    '.goat-flow/README.md':
       shared.localInstructions.hasValidRouter &&
       shared.localInstructions.location === 'ai',
     '.github/instructions':

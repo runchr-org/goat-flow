@@ -11,7 +11,7 @@ Read `.goat-flow/skill-conventions.md` for full shared conventions.
 If unavailable, use these essentials:
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - Evidence: every finding MUST include file:line, tag OBSERVED vs INFERRED
-- Learning loop: check ai-docs/lessons/ and ai-docs/footguns/ after completion
+- Learning loop: check .goat-flow/lessons/ and .goat-flow/footguns/ after completion
 - Gates: BLOCKING GATE = stop and wait. CHECKPOINT = continue unless interrupted.
 - Task tracking: tick checkboxes immediately when completed, not at the end.
 
@@ -44,7 +44,7 @@ handling, when touching secrets/credentials, or for a security-focused audit.
 Present: "This is a [framework] project. I'll check [framework]'s built-in
 security features during verification."
 
-**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
 **Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
 - "hotfix" but 5+ files affected → likely Standard or System

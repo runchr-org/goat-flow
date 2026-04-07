@@ -2,10 +2,10 @@
 
 > **When to use:** When setting up context files for a new or existing project. Creates a scannable reference for AI agents and developers to quickly understand the repo layout.
 >
-> **Output:** `ai-docs/code-map.md` - reference this from your instruction file.
+> **Output:** `.goat-flow/code-map.md` - reference this from your instruction file.
 
 ```
-Create ai-docs/code-map.md: a quick-reference tree map of the repository layout.
+Create .goat-flow/code-map.md: a quick-reference tree map of the repository layout.
 
 Use this format:
 

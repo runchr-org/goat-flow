@@ -92,35 +92,7 @@ This prevents the agent from auto-advancing through diagnosis → fix → deploy
 
 Use RFC 2119 language. MUST = blocking, SHOULD = recommended, MAY = optional.`,
   },
-  {
-    key: 'add-skill-conversational',
-    phase: 'standard',
-    category: 'Skills',
-    kind: 'fix',
-    instruction: `ALL skills must be conversational. Each skill needs three structural elements:
-
-1. **BLOCKING GATE or HUMAN GATE** - an explicit stop point where the agent presents findings and waits for human input before proceeding. Not a checkpoint - a hard stop.
-
-2. **Structured choices** - at each gate, offer lettered options like:
-   (a) dig deeper into a specific finding
-   (b) check a related area
-   (c) proceed to the next phase
-   (d) close
-
-3. **No auto-advance** - the skill must explicitly state that the agent does NOT proceed past the gate without human input.
-
-\`\`\`markdown
-**BLOCKING GATE:** Present findings. Offer:
-(a) drill into a specific finding
-(b) review a related area
-(c) proceed to next phase
-(d) something else
-
-Do NOT auto-advance. Let the human challenge, redirect, or confirm.
-\`\`\`
-
-The scanner checks for all three elements. A skill that matches only keywords like "conversational" without the structural gate pattern will not pass.`,
-  },
+  // add-skill-conversational removed - check 2.1.16 removed (unverifiable, covered by human gates + choices).
   {
     key: 'add-skill-chaining',
     phase: 'standard',
@@ -221,37 +193,17 @@ Copy \`workflow/skills/goat.md\` to \`{{skillsDir}}/goat/SKILL.md\`.
 
 The dispatcher routes natural language to the correct skill - users type \`/goat fix the login bug\` instead of needing to know the exact skill name. Without it, skill discoverability depends entirely on users memorising 5 command names.`,
   },
-  {
-    key: 'add-skill-shared-conventions',
-    phase: 'standard',
-    category: 'Skills',
-    kind: 'fix',
-    instruction: `Skills should include a \`## Shared Conventions\` block that establishes cross-skill consistency. Add this block to each skill (immediately after the title heading, before ## When to Use):
-
-\`\`\`markdown
-## Shared Conventions
-
-- **Severity:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- **Evidence:** Every finding needs \`file:line\`. Tag as OBSERVED (verified) or INFERRED (state what's missing). MUST NOT fabricate.
-- **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
-- **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Only hard-block with zero context.
-- **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Learning Loop:** Behavioural mistake → create a new entry in \`ai-docs/lessons/\` or \`.goat-flow/lessons/\`. Architectural trap → create a new entry in \`ai-docs/footguns/\` or \`.goat-flow/footguns/\`.
-- **Closing:** Commit or note working artifacts. Check learning loop. Suggest next skill.
-\`\`\`
-
-This block ensures all skills apply the same severity ranking, evidence standard, and learning loop protocol - regardless of which skill is invoked.`,
-  },
+  // add-skill-shared-conventions removed - check 2.1.21 removed (copy-paste debt).
 
   {
     key: 'fix-lesson-stale-refs',
     phase: 'standard',
     category: 'Learning Loop',
     kind: 'fix',
-    instruction: `Lesson bucket files under \`ai-docs/lessons/\` or \`.goat-flow/lessons/\` contain file path references that no longer exist on disk. For each stale reference:
+    instruction: `Lesson bucket files under \`.goat-flow/lessons/\` contain file path references that no longer exist on disk. For each stale reference:
 1. If the file was **renamed**: update the path in the affected entry file
 2. If the file was **deleted**: remove the reference or note it as historical
-3. Verify with: \`grep -Rns 'old/path' ai-docs/lessons/ .goat-flow/lessons/ 2>/dev/null\``,
+3. Verify with: \`grep -Rns 'old/path' .goat-flow/lessons/ 2>/dev/null\``,
   },
 
   // === Hooks ===
@@ -497,49 +449,8 @@ exit 0
 
 Open the hook script and remove \`|| true\` from lint, typecheck, and format commands so real failures are surfaced. Keep intentional guards for optional discovery commands (for example \`grep ... || true\` when checking if files exist), but do not suppress the actual validation command itself.`,
   },
-  {
-    key: 'create-preflight-script',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'create',
-    instruction: `Create \`scripts/preflight-checks.sh\`:
-
-\`\`\`bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-echo "=== Preflight Checks ==="
-
-# Lint (skip if no linter configured)
-if [ -n "{{lintCommand}}" ]; then
-  {{lintCommand}} || { echo "FAIL: lint"; exit 1; }
-fi
-
-# Tests (skip if no test command configured)
-if [ -n "{{testCommand}}" ]; then
-  {{testCommand}} || { echo "FAIL: tests"; exit 1; }
-fi
-
-# Line count check
-for f in CLAUDE.md AGENTS.md GEMINI.md; do
-  [ -f "$f" ] && lines=$(wc -l < "$f") && [ "$lines" -gt 150 ] && echo "WARN: $f is $lines lines (limit 150)"
-done
-
-echo "=== All checks passed ==="
-\`\`\`
-
-Adjust the lint and test commands to match your project. Remove steps that don't apply.`,
-  },
-  {
-    key: 'create-context-validation',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'create',
-    instruction: `Create \`scripts/context-validate.sh\` for local context validation.
-
-The script should check: instruction file line counts, router table references resolve, skills exist.
-Run it from the post-turn hook or preflight script.`,
-  },
+  // create-preflight-script removed - check 2.2.5 removed.
+  // create-context-validation removed - check 2.2.6 removed.
 
   // === Learning Loop ===
   {
@@ -549,15 +460,14 @@ Run it from the post-turn hook or preflight script.`,
     kind: 'create',
     instruction: `Create committed lessons as a directory, not a single file.
 
-Create \`ai-docs/lessons/README.md\`:
+Create \`.goat-flow/lessons/README.md\`:
 
 \`\`\`markdown
 # Lessons
 
-\`ai-docs/lessons/\` stores category bucket files such as \`verification.md\` or \`workflow.md\`.
+\`.goat-flow/lessons/\` stores category bucket files such as \`verification.md\` or \`workflow.md\`.
 Use file-level YAML frontmatter with \`category\`.
 Inside each bucket, add \`## Lesson:\` or \`## Pattern:\` entries with \`**Created:**\`.
-Use \`.goat-flow/lessons/\` for local/session-specific lessons that should stay gitignored.
 \`\`\``,
   },
   // seed-lessons removed - merged into seed-lessons-minimum after 2.3.2 was removed as duplicate of 2.3.2a.
@@ -568,15 +478,14 @@ Use \`.goat-flow/lessons/\` for local/session-specific lessons that should stay 
     kind: 'create',
     instruction: `Create committed footguns as a directory, not a single file.
 
-Create \`ai-docs/footguns/README.md\`:
+Create \`.goat-flow/footguns/README.md\`:
 
 \`\`\`markdown
 # Footguns
 
-\`ai-docs/footguns/\` stores category bucket files such as \`hooks.md\` or \`setup.md\`.
+\`.goat-flow/footguns/\` stores category bucket files such as \`hooks.md\` or \`setup.md\`.
 Use file-level YAML frontmatter with \`category\`.
 Inside each bucket, add \`## Footgun:\` entries with \`**Status:**\`, \`**Created:**\`, and \`**Evidence type:**\`.
-Use \`.goat-flow/footguns/\` for local/session-specific traps that should stay gitignored.
 \`\`\`
 
 **Step 1:** Find potential footguns:
@@ -585,7 +494,7 @@ grep -rn 'TODO\\|FIXME\\|HACK\\|XXX' src/ --include='*.ts' --include='*.php' --i
 git log --all --oneline -- '*migration*' '**/migrations/**' | head -10
 \`\`\`
 
-**Step 2:** Add each real trap to the most relevant category bucket such as \`ai-docs/footguns/docs.md\`:
+**Step 2:** Add each real trap to the most relevant category bucket such as \`.goat-flow/footguns/docs.md\`:
 \`\`\`markdown
 ---
 category: docs
@@ -609,26 +518,14 @@ Every footgun MUST have file:line evidence. No hypotheticals.`,
     phase: 'standard',
     category: 'Learning Loop',
     kind: 'fix',
-    instruction: `Footgun bucket files under \`ai-docs/footguns/\` or \`.goat-flow/footguns/\` are missing \`file:line\` evidence. Update each affected entry:
+    instruction: `Footgun bucket files under \`.goat-flow/footguns/\` are missing \`file:line\` evidence. Update each affected entry:
 
 **Before:** "Auth module has race conditions"
 **After:** "\`src/auth.ts:42\` - race condition between token refresh and request dispatch"
 
 Every footgun entry MUST have at least one \`file:line\` reference.`,
   },
-  {
-    key: 'add-footgun-labels',
-    phase: 'standard',
-    category: 'Learning Loop',
-    kind: 'fix',
-    instruction: `Footgun entries under \`ai-docs/footguns/\` or \`.goat-flow/footguns/\` have evidence but no Evidence type label. Add one of these values to each \`## Footgun:\` entry:
-
-- **ACTUAL_MEASURED** - real data with source (e.g., production metrics, load test results)
-- **DESIGN_TARGET** - intended values from specs (e.g., "target 120 lines per spec")
-- **HYPOTHETICAL_EXAMPLE** - illustrative only (e.g., "imagine a 500ms timeout")
-
-Bare claims without labels are not acceptable.`,
-  },
+  // add-footgun-labels removed - check 2.3.5a removed.
   {
     key: 'add-session-logs',
     phase: 'standard',
@@ -650,7 +547,7 @@ Session logs capture what happened in a session so the next agent can pick up co
     category: 'Router Table',
     kind: 'fix',
     instruction:
-      'Add \`ai-docs/lessons/\`, \`ai-docs/footguns/\`, \`.goat-flow/lessons/\`, and \`.goat-flow/footguns/\` to the router table in \`{{instructionFile}}\`.',
+      'Add \`.goat-flow/lessons/\` and \`.goat-flow/footguns/\` to the router table in \`{{instructionFile}}\`.',
   },
   {
     key: 'route-architecture',
@@ -658,15 +555,7 @@ Session logs capture what happened in a session so the next agent can pick up co
     category: 'Router Table',
     kind: 'fix',
     instruction:
-      'Add \`ai-docs/architecture.md\` to the router table in \`{{instructionFile}}\`.',
-  },
-  {
-    key: 'route-evals',
-    phase: 'standard',
-    category: 'Router Table',
-    kind: 'fix',
-    instruction:
-      'Add \`ai-docs/evals/\` to the router table in \`{{instructionFile}}\`.',
+      'Add \`.goat-flow/architecture.md\` to the router table in \`{{instructionFile}}\`.',
   },
   {
     key: 'route-config',
@@ -682,7 +571,7 @@ Session logs capture what happened in a session so the next agent can pick up co
     category: 'Local Instructions',
     kind: 'fix',
     instruction:
-      'Keep one canonical local-instructions surface. Prefer `ai-docs/coding-standards/` for goat-flow-managed docs, migrate any useful files from `.github/instructions/`, then delete the duplicate directory so agents do not have to choose between two competing instruction trees.',
+      'Keep one canonical local-instructions surface. Prefer `.goat-flow/coding-standards/` for goat-flow-managed docs, migrate any useful files from `.github/instructions/`, then delete the duplicate directory so agents do not have to choose between two competing instruction trees.',
   },
   // === Router Table ===
   {
@@ -699,11 +588,10 @@ Session logs capture what happened in a session so the next agent can pick up co
 | Resource | Path |
 |----------|------|
 | Skills | \\\`{{skillsDir}}/\\\` |
-| Footguns | \\\`ai-docs/footguns/\\\`, \\\`.goat-flow/footguns/\\\` |
-| Lessons | \\\`ai-docs/lessons/\\\`, \\\`.goat-flow/lessons/\\\` |
-| Decisions | \\\`ai-docs/decisions/\\\` |
-| Evals | \\\`ai-docs/evals/\\\` |
-| Coding standards | \\\`ai-docs/coding-standards/\\\` |
+| Footguns | \\\`.goat-flow/footguns/\\\` |
+| Lessons | \\\`.goat-flow/lessons/\\\` |
+| Decisions | \\\`.goat-flow/decisions/\\\` |
+| Coding standards | \\\`.goat-flow/coding-standards/\\\` |
 | Config | \\\`.goat-flow/config.yaml\\\` |
 | Local workspace | \\\`.goat-flow/tasks/\\\`, \\\`.goat-flow/logs/\\\` |
 <!-- goat-flow:router:end -->
@@ -744,7 +632,7 @@ Use the skills root, not \`goat-*/\`, so the router covers both the \`goat/\` di
     phase: 'standard',
     category: 'Architecture',
     kind: 'create',
-    instruction: `Create \`ai-docs/architecture.md\` - a concise system overview:
+    instruction: `Create \`.goat-flow/architecture.md\` - a concise system overview:
 
 \`\`\`markdown
 # Architecture
@@ -761,26 +649,14 @@ Use the skills root, not \`goat-*/\`, so the router covers both the \`goat/\` di
 
 Keep under 100 lines. This is for agent orientation, not exhaustive documentation.`,
   },
-  {
-    key: 'compress-architecture',
-    phase: 'standard',
-    category: 'Architecture',
-    kind: 'fix',
-    instruction: `\`ai-docs/architecture.md\` is over 100 lines. Compress:
-
-1. Remove implementation details - keep only architectural decisions
-2. Replace prose with bullet lists
-3. Move detailed component docs to separate files and link from here
-
-Target: under 100 lines.`,
-  },
+  // compress-architecture removed - check 2.5.2 removed.
   // === Local Instructions (cold path) ===
   {
     key: 'create-instructions-dir',
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create the \`ai-docs/coding-standards/\` directory and \`ai-docs/README.md\` router:
+    instruction: `Create the \`.goat-flow/coding-standards/\` directory and \`.goat-flow/README.md\` router:
 
 \`\`\`markdown
 # Project Coding Guidelines
@@ -810,14 +686,14 @@ Add rows for domain files as you create them (frontend.md, backend.md, security.
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai-docs/README.md\` as the routing map for instruction files. This tells agents which files to load for which tasks. See the \`ai-docs/coding-standards/\` directory for the files it references.`,
+    instruction: `Create \`.goat-flow/README.md\` as the routing map for instruction files. This tells agents which files to load for which tasks. See the \`.goat-flow/coding-standards/\` directory for the files it references.`,
   },
   {
     key: 'create-conventions-instructions',
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai-docs/coding-standards/conventions.md\` - the universal project contract. Include:
+    instruction: `Create \`.goat-flow/coding-standards/conventions.md\` - the universal project contract. Include:
 
 - What the repo is (one line)
 - Architecture overview (2-3 lines)
@@ -833,7 +709,7 @@ Keep it concrete: "Use \`sqlc.arg(name)\` in queries" not "write clean SQL".`,
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'fix',
-    instruction: `\`ai-docs/coding-standards/conventions.md\` exists but lacks real content. A stub file is not useful. Add:
+    instruction: `\`.goat-flow/coding-standards/conventions.md\` exists but lacks real content. A stub file is not useful. Add:
 
 1. **Commands section** with actual build/test/lint commands in a bash code block
 2. **Conventions section** with concrete DO/DON'T rules extracted from the codebase
@@ -846,7 +722,7 @@ The agent should be able to read this file and immediately know how to build, te
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai-docs/coding-standards/frontend.md\` - frontend-specific coding conventions for the detected UI stack (React, Vue, Angular, Blade, Twig, ERB, Jinja, Blazor, Swift/iOS, or plain TS/JS). Include:
+    instruction: `Create \`.goat-flow/coding-standards/frontend.md\` - frontend-specific coding conventions for the detected UI stack (React, Vue, Angular, Blade, Twig, ERB, Jinja, Blazor, Swift/iOS, or plain TS/JS). Include:
 
 - Component/template patterns (naming, structure, composition)
 - State management or data-binding conventions
@@ -861,7 +737,7 @@ Only include rules specific to frontend/UI work. Shared rules belong in \`conven
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`ai-docs/coding-standards/backend.md\` - backend-specific coding conventions. Include:
+    instruction: `Create \`.goat-flow/coding-standards/backend.md\` - backend-specific coding conventions. Include:
 
 - API design patterns (request/response, error handling)
 - Database conventions (queries, migrations, naming)
@@ -871,43 +747,15 @@ Only include rules specific to frontend/UI work. Shared rules belong in \`conven
 
 Only include rules specific to backend work. Shared rules belong in \`conventions.md\`.`,
   },
-  {
-    key: 'create-code-review-instructions',
-    phase: 'standard',
-    category: 'Local Instructions',
-    kind: 'create',
-    instruction: `Create \`ai-docs/coding-standards/code-review.md\` - review standards for this project. Include:
-
-- Priority order: correctness > security > maintainability
-- Approval criteria (what must pass before merge)
-- 3-5 common anti-patterns to flag (with code examples)
-- What NOT to nitpick (style handled by linter)`,
-  },
-  {
-    key: 'create-git-commit-instructions',
-    phase: 'standard',
-    category: 'Local Instructions',
-    kind: 'create',
-    instruction: `Create \`ai-docs/coding-standards/git-commit.md\` - commit conventions for this project. Include:
-
-- Commit message format (with good/bad examples)
-- Branch naming convention
-- PR workflow (draft → review → merge)
-- What to include in PR descriptions`,
-  },
-  {
-    key: 'create-github-git-commit',
-    phase: 'standard',
-    category: 'Local Instructions',
-    kind: 'create',
-    instruction: `Create \`.github/git-commit-instructions.md\` - universal commit instructions for any tool or human making commits. Include the key rules from \`ai-docs/coding-standards/git-commit.md\` inline (tools may not follow references to other files).`,
-  },
+  // create-code-review-instructions removed - check 2.6.4 removed.
+  // create-git-commit-instructions removed - check 2.6.5 removed.
+  // create-github-git-commit removed - check 2.6.6 removed.
   {
     key: 'create-copilot-bridge',
     phase: 'standard',
     category: 'Local Instructions',
     kind: 'create',
-    instruction: `Create \`.github/instructions/\` bridge files for GitHub Copilot. For each file in \`ai-docs/coding-standards/\`, create a matching \`.instructions.md\` file with:
+    instruction: `Create \`.github/instructions/\` bridge files for GitHub Copilot. For each file in \`.goat-flow/coding-standards/\`, create a matching \`.instructions.md\` file with:
 
 1. \`applyTo\` frontmatter scoping it to the relevant paths
 2. The content from the source file (Copilot needs inline content, not links)
@@ -917,8 +765,8 @@ Example:
 ---
 applyTo: "src/frontend/**"
 ---
-<!-- Source: ai-docs/coding-standards/frontend.md - keep in sync -->
-[content from ai-docs/coding-standards/frontend.md]
+<!-- Source: .goat-flow/coding-standards/frontend.md - keep in sync -->
+[content from .goat-flow/coding-standards/frontend.md]
 \`\`\``,
   },
   // === Learning Loop Depth ===
@@ -927,13 +775,13 @@ applyTo: "src/frontend/**"
     phase: 'standard',
     category: 'Learning Loop',
     kind: 'fix',
-    instruction: `\`ai-docs/lessons/\` has no lesson entries. Target 3-5 real incidents - at least 1 is required.
+    instruction: `\`.goat-flow/lessons/\` has no lesson entries. Target 3-5 real incidents - at least 1 is required.
 
 Option A - pull from git history:
 \`\`\`bash
 git log --oneline --all | grep -iE 'fix|revert|bug|broke|rollback|regression'
 \`\`\`
-For each incident found, add it to a category bucket such as \`ai-docs/lessons/verification.md\`:
+For each incident found, add it to a category bucket such as \`.goat-flow/lessons/verification.md\`:
 \`\`\`markdown
 ---
 category: verification
@@ -964,28 +812,9 @@ Do NOT invent hypothetical lessons.`,
     phase: 'standard',
     category: 'Architecture',
     kind: 'create',
-    instruction: `Create \`ai-docs/decisions/\` and seed it with an ADR template:
+    instruction: `Create \`.goat-flow/decisions/\` and seed it with an ADR template.
 
-\`\`\`markdown
-# ADR-000: Template
-
-**Status:** Template
-**Date:** {{date}}
-
-## Context
-
-[Why does this decision need to be made? What forces are at play?]
-
-## Decision
-
-[What did we decide to do?]
-
-## Consequences
-
-[What are the trade-offs? What becomes easier or harder as a result?]
-\`\`\`
-
-Save as \`ai-docs/decisions/ADR-000-template.md\`. Real ADRs are added when significant architectural decisions are made - name them \`ADR-NNN-short-title.md\`.`,
+Copy \`workflow/setup/ADR-000-template.md\` to \`.goat-flow/decisions/ADR-000-template.md\`. Real ADRs are added when significant architectural decisions are made - name them \`ADR-NNN-short-title.md\`.`,
   },
   // Ask First enforcement hook removed - see ADR-006.
 

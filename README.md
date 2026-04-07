@@ -81,7 +81,7 @@ Scores your project across 112+ checks and 19 anti-patterns, organized in three 
 
 - **Foundation** - instruction file, essential commands, autonomy tiers, Definition of Done
 - **Standard** - skills, hooks, learning loop, local context, router table
-- **Full** - evals, coding standards, architecture docs, cross-references
+- **Full** - coding standards, architecture docs, cross-references
 
 Priority-weighted grading - security and correctness checks count more than style. Output formats: text, JSON, markdown, HTML.
 
@@ -101,10 +101,9 @@ Single-page dashboard with five views:
 
 Captures knowledge from real incidents so agents improve over time:
 
-- **Footguns** (`ai-docs/footguns/`) - architectural traps in the code with file:line evidence
-- **Lessons** (`ai-docs/lessons/`) - agent behavioral mistakes with root cause analysis
-- **Evals** (`ai-docs/evals/`) - replay past failures as regression tests
-- **Decisions** (`ai-docs/decisions/`) - ADRs with context and rationale
+- **Footguns** (`.goat-flow/footguns/`) - architectural traps in the code with file:line evidence
+- **Lessons** (`.goat-flow/lessons/`) - agent behavioral mistakes with root cause analysis
+- **Decisions** (`.goat-flow/decisions/`) - ADRs with context and rationale
 - **Session logs** (`.goat-flow/logs/sessions/`) - per-session summaries
 
 Category bucket format keeps related entries together. Agents read these before acting to avoid repeating known mistakes.

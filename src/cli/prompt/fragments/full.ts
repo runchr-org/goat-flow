@@ -1,115 +1,15 @@
 /**
  * Static prompt fragments for full-tier requirements.
- * They cover evals, CI wiring, and mature-adoption hygiene tasks.
+ * They cover CI wiring and mature-adoption hygiene tasks.
  */
 import type { Fragment } from '../types.js';
 
 /**
  * Tier 3 - Full fragments
- * Agent evals, CI validation, hygiene
+ * CI validation, hygiene
  */
 export const fullFragments: Fragment[] = [
-  // === Agent Evals ===
-  {
-    key: 'create-evals-dir',
-    phase: 'full',
-    category: 'Agent Evals',
-    kind: 'create',
-    instruction: `Create the \`ai-docs/evals/\` directory for agent evaluation scenarios.`,
-  },
-  {
-    key: 'add-evals',
-    phase: 'full',
-    category: 'Agent Evals',
-    kind: 'create',
-    instruction: `Add 3+ eval files to \`ai-docs/evals/\`. Each eval should capture a real incident:
-
-\`\`\`markdown
-# Eval: [Short description]
-
-**Origin:** real-incident
-**Agents:** all
-
-## Context
-
-[What was happening when the incident occurred]
-
-## Replay Prompt
-
-\\\`\\\`\\\`
-[Exact prompt to reproduce the scenario]
-\\\`\\\`\\\`
-
-## Expected Behaviour
-
-[What the agent should do]
-\`\`\`
-
-Prefer real incidents over synthetic seeds. At least 3 evals required.`,
-  },
-  {
-    key: 'add-replay-prompts',
-    phase: 'full',
-    category: 'Agent Evals',
-    kind: 'fix',
-    instruction: `Eval files are missing \`## Replay Prompt\` sections. Add a replay prompt to each eval:
-
-\`\`\`markdown
-## Replay Prompt
-
-\\\`\\\`\\\`
-[The exact text to paste into the agent to replay this scenario]
-\\\`\\\`\\\`
-\`\`\``,
-  },
-  {
-    key: 'add-origin-labels',
-    phase: 'full',
-    category: 'Agent Evals',
-    kind: 'fix',
-    instruction: `Eval files are missing \`**Origin:**\` labels. Add to each eval:
-
-\`\`\`markdown
-**Origin:** real-incident
-\`\`\`
-
-Use \`real-incident\` for evals from actual bugs/issues. Use \`synthetic-seed\` for designed test scenarios.`,
-  },
-  {
-    key: 'add-agents-labels',
-    phase: 'full',
-    category: 'Agent Evals',
-    kind: 'fix',
-    instruction: `Eval files are missing \`**Agents:**\` labels. Add to each eval:
-
-\`\`\`markdown
-**Agents:** all
-\`\`\`
-
-Use \`all\` if the eval applies to every agent. Use \`claude\`, \`codex\`, or \`gemini\` if agent-specific.`,
-  },
-  {
-    key: 'add-eval-skill-coverage',
-    phase: 'full',
-    category: 'Agent Evals',
-    kind: 'fix',
-    instruction: `Each of the 6 canonical skills needs at least one eval. Add a \`skill:\` label to each eval's YAML frontmatter:
-
-\`\`\`yaml
----
-skill: goat-debug
-origin: real-incident
-agents: all
----
-\`\`\`
-
-Skills not yet covered should each get one eval targeting their most common failure mode:
-- **goat-debug**: agent proposes a fix before completing diagnosis; investigate mode: agent skips Step 0 and fabricates context
-- **goat-plan**: agent continues a stale plan without re-reading context; refactor mode: agent over-scopes and touches unrelated files
-- **goat-review**: agent misses a footgun during code review; simplify mode: agent removes logic it didn't understand
-- **goat-security**: agent flags a framework-mitigated vulnerability as real
-- **goat-test**: agent generates tests that miss a critical boundary condition`,
-  },
+  // Agent Evals fragments removed - evals system removed in v1.1.0 (M09).
 
   // CI Validation fragments removed - CI workflow is a project-level concern.
 
@@ -163,14 +63,6 @@ Ensure at least 3 instances across the instruction file. Use MUST for DoD gates 
 4. After reconciling, verify essential commands and Ask First boundaries are also consistent
 
 Note: the execution loop MUST be duplicated (each file is loaded independently). The goal is consistency, not deduplication.`,
-  },
-  // diversify-evals removed - merged into add-eval-skill-coverage after 3.4.1 was removed.
-  {
-    key: 'fix-eval-frontmatter',
-    phase: 'full',
-    category: 'Agent Evals',
-    kind: 'fix',
-    instruction: `Add YAML frontmatter to eval files: \`---\` block with name, description, origin, agents, skill, and difficulty fields. Use \`### Scenario\`, checkbox gates in \`### Expected Behavior\`, and bullet list \`### Anti-Patterns\`.`,
   },
 
   // === Skill Conventions ===

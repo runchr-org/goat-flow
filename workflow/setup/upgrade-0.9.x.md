@@ -2,7 +2,7 @@
 
 Read `shared/system-overview.md` first if you haven't already.
 
-These projects have 10 old skills and learning loop content in `docs/` not `ai-docs/`.
+These projects have 10 old skills and learning loop content in `docs/` not `.goat-flow/`.
 
 ---
 
@@ -32,14 +32,14 @@ If the project has no goat-flow at all, use the fresh setup (`setup-claude.md` e
 
 These files contain real project memory. Migrate the content, don't discard it.
 
-- If `docs/footguns.md` exists: migrate entries into `ai-docs/footguns/` category bucket files. After migration is verified, delete `docs/footguns.md`.
-- If `docs/lessons.md` exists: migrate entries into `ai-docs/lessons/` category bucket files. After migration is verified, delete `docs/lessons.md`.
-- If `agent-evals/` exists: migrate to `ai-docs/evals/`. After migration is verified, delete `agent-evals/`.
-- If `docs/architecture.md` exists: move to `ai-docs/architecture.md`. Delete the source.
-- If `docs/decisions/` exists: move to `ai-docs/decisions/`. Delete the source.
+- If `docs/footguns.md` exists: migrate entries into `.goat-flow/footguns/` category bucket files. After migration is verified, delete `docs/footguns.md`.
+- If `docs/lessons.md` exists: migrate entries into `.goat-flow/lessons/` category bucket files. After migration is verified, delete `docs/lessons.md`.
+- If `agent-evals/` exists: delete it (evals system removed in v1.1.0).
+- If `docs/architecture.md` exists: move to `.goat-flow/architecture.md`. Delete the source.
+- If `docs/decisions/` exists: move to `.goat-flow/decisions/`. Delete the source.
 - If `docs/guidelines-ownership-split.md` exists: delete it (superseded by ADR-031 file ownership rules).
 
-**Parallel surfaces are an anti-pattern.** Do not leave old `docs/` files alongside new `ai-docs/` equivalents. The scanner penalizes this (AP22).
+**Parallel surfaces are an anti-pattern.** Do not leave old `docs/` files alongside new `.goat-flow/` equivalents. The scanner penalizes this (AP22).
 
 ---
 
@@ -55,10 +55,9 @@ These files contain real project memory. Migrate the content, don't discard it.
 
 - Create `.goat-flow/config.yaml` with current version
 - Copy `workflow/skills/reference/shared-preamble.md` → `.goat-flow/skill-conventions.md`
-- Create `ai-docs/README.md` routing map
-- Create `ai-docs/glossary.md`
+- Create `.goat-flow/glossary.md`
 - Install hooks from `workflow/hooks/`
-- If `.github/instructions/` exists: create `ai-docs/coding-standards/conventions.md` as a pointer file referencing those files. Do NOT duplicate their content.
+- If `.github/instructions/` exists: create `.goat-flow/coding-standards/conventions.md` as a pointer file referencing those files. Do NOT duplicate their content.
 
 ---
 
@@ -86,4 +85,4 @@ Follow the agent-specific setup file (e.g., `setup-claude.md`) for:
 2. Run `goat-flow scan . --agent {agent}` — target 100%
 3. Verify project build/test/lint still passes
 4. Review git diff — every change should be intentional
-5. Confirm no parallel surfaces: `docs/footguns.md` + `ai-docs/footguns/` should not both exist
+5. Confirm no parallel surfaces: `docs/footguns.md` + `.goat-flow/footguns/` should not both exist

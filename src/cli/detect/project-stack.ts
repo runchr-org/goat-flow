@@ -88,7 +88,7 @@ const LLM_DEP_FILES = [
 /** Files checked for compliance-related keywords (HIPAA, GDPR, etc.) */
 const COMPLIANCE_DOCS = [
   'README.md',
-  'ai-docs/architecture.md',
+  '.goat-flow/architecture.md',
   '.github/instructions/security.instructions.md',
 ] as const;
 /** Maps languages to their known formatter tool names for gap detection */

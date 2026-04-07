@@ -28,8 +28,8 @@ bash scripts/context-validate.sh
 - Review
 
 ```
-BAD: guessed the spec without reading ai-docs/architecture.md:1
-GOOD: read ai-docs/architecture.md:1 before changing prompts
+BAD: guessed the spec without reading .goat-flow/architecture.md:1
+GOOD: read .goat-flow/architecture.md:1 before changing prompts
 ```
 
 ```
@@ -39,7 +39,7 @@ GOOD: grep old paths after every rename
 
 **VERIFY** - MUST run shellcheck on `.sh` changes. MUST check cross-references after renames. Two corrections on one approach = stop.
 
-**LOG** - MUST update when tripped. Behavioural mistakes go in `ai-docs/lessons/`. Architectural traps go in `ai-docs/footguns/`. Session summaries go in `.goat-flow/logs/sessions/`.
+**LOG** - MUST update when tripped. Behavioural mistakes go in `.goat-flow/lessons/`. Architectural traps go in `.goat-flow/footguns/`. Session summaries go in `.goat-flow/logs/sessions/`.
 
 ## Autonomy Tiers
 
@@ -49,11 +49,11 @@ GOOD: grep old paths after every rename
 1. Boundary touched: [name]
 2. Related code read: [yes/no]
 3. Footgun entry checked: [entry or none]
-4. Local instruction checked: [`ai-docs/README.md`, `ai-docs/architecture.md`, `workflow/skills/README.md`]
+4. Local instruction checked: [`.goat-flow/architecture.md`, `workflow/skills/README.md`]
 5. Rollback command: [exact command]
 
 Boundaries:
-- `ai-docs/architecture.md`
+- `.goat-flow/architecture.md`
 - `workflow/skills/README.md`
 - `workflow/setup/shared/execution-loop.md`
 
@@ -70,13 +70,12 @@ Boundaries:
 ## Router Table
 | Resource | Path |
 |----------|------|
-| Architecture | `ai-docs/architecture.md` |
+| Architecture | `.goat-flow/architecture.md` |
 | Skills | `.claude/skills/` |
-| Footguns | `ai-docs/footguns/`, `.goat-flow/footguns/` |
-| Lessons | `ai-docs/lessons/`, `.goat-flow/lessons/` |
-| Decisions | `ai-docs/decisions/` |
-| Evals | `ai-docs/evals/` |
-| Coding standards | `ai-docs/coding-standards/` |
+| Footguns | `.goat-flow/footguns/` |
+| Lessons | `.goat-flow/lessons/` |
+| Decisions | `.goat-flow/decisions/` |
+| Coding standards | `.goat-flow/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
 | Local workspace | `.goat-flow/tasks/`, `.goat-flow/logs/` |
 | Skill conventions | `.goat-flow/skill-conventions.md` |

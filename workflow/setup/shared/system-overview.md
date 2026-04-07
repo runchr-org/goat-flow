@@ -32,7 +32,7 @@ A framework that gives AI coding agents extended memory across sessions. Not doc
 - No implementation skill (ADR-019): it would duplicate native behavior or add ceremony to every edit.
 - The dispatcher (/goat) is a separate file: its 35-trigger routing table + 11 disambiguation rules would consume half the instruction file budget if inlined.
 
-### 3. ai-docs/ (footguns, lessons, decisions, coding-standards, evals)
+### 3. .goat-flow/ learning loop (footguns, lessons, decisions, coding-standards)
 
 - AI extended memory. Persists across sessions.
 - Empty directories = correctly set up. Empty means "no incidents yet", not "incomplete".
@@ -41,7 +41,7 @@ A framework that gives AI coding agents extended memory across sessions. Not doc
 
 - The components are lightweight infrastructure, not ceremony proportional to codebase size.
 - A 30-file project still needs security checks, debug workflows, and benefits from footguns carrying forward between sessions.
-- Full system: 5 skills + dispatcher, ai-docs/, hooks, config. Nothing is optional based on project size.
+- Full system: 5 skills + dispatcher, .goat-flow/ learning loop, hooks, config. Nothing is optional based on project size.
 - Only size-sensitive guidance: projects with >500 source files should consider local instruction files per major component.
 
 ## Development Driven Testing (DDT)
@@ -53,20 +53,20 @@ A framework that gives AI coding agents extended memory across sessions. Not doc
 
 ## File ownership rules
 
-Setup should only create/edit files in `.goat-flow/` and `ai-docs/`. Everything else in the project is hands-off.
+Setup only creates/edits files in `.goat-flow/`. Everything else in the project is hands-off.
 
-- **Existing CLAUDE.md / AGENTS.md / GEMINI.md:** Do NOT edit or delete. Copy the existing file to `ai-docs/` for reference (e.g., `ai-docs/original-CLAUDE.md`), then create a new lean instruction file. The user's original content is preserved, not destroyed.
+- **Existing CLAUDE.md / AGENTS.md / GEMINI.md:** Do NOT edit or delete. Copy the existing file to `.goat-flow/` for reference (e.g., `.goat-flow/original-CLAUDE.md`), then create a new lean instruction file. The user's original content is preserved, not destroyed.
 - **Exception: goat-flow-generated instruction files** (detectable by version header like `# CLAUDE.md - v1.1.0`): edit in-place for version bumps, section fixes, and maintenance. Do not copy-and-replace files that goat-flow already generated.
-- **Existing project files** (`.github/instructions/`, `docs/`, `src/`, etc.): Never edit, never delete. Reference them from `ai-docs/README.md`.
-- **Exception for upgrades:** Older goat-flow versions may have files outside `.goat-flow/` and `ai-docs/` (e.g., `docs/footguns.md`, `tasks/`). These can be migrated during an upgrade.
-- If the project has `.github/instructions/`, use them as canonical — don't duplicate into `ai-docs/coding-standards/`.
-- If the project has `docs/footguns.md`, migrate entries to `ai-docs/footguns/` — don't create a parallel surface.
+- **Existing project files** (`.github/instructions/`, `docs/`, `src/`, etc.): Never edit, never delete. Reference them from the router table.
+- **Exception for upgrades:** Older goat-flow versions may have files outside `.goat-flow/` (e.g., `docs/footguns.md`, `tasks/`, `ai-docs/`). These can be migrated during an upgrade.
+- If the project has `.github/instructions/`, use them as canonical — don't duplicate into `.goat-flow/coding-standards/`.
+- If the project has `docs/footguns.md`, migrate entries to `.goat-flow/footguns/` — don't create a parallel surface.
 
 ## Single-agent scoping
 
 Setup for one agent only touches that agent's files. Do not modify other agents' configurations.
 
-- Setting up Claude: touch CLAUDE.md, `.claude/`, and shared `ai-docs/` / `.goat-flow/`. Do NOT touch AGENTS.md, GEMINI.md, `.agents/`, `.gemini/`, or their skills.
+- Setting up Claude: touch CLAUDE.md, `.claude/`, and shared `.goat-flow/`. Do NOT touch AGENTS.md, GEMINI.md, `.agents/`, `.gemini/`, or their skills.
 - Setting up Codex: touch AGENTS.md, `.agents/`, `.codex/`, and shared folders. Do NOT touch CLAUDE.md or `.claude/`.
 - Users scan and fix each agent setup separately.
 

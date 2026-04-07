@@ -86,7 +86,7 @@ Note: Codex has NO PreToolUse equivalent. Execpolicy blocks shell commands only.
 - [ ] `.codex/rules/deny-dangerous.star` exists with forbidden patterns
 - [ ] Router table references all resolve to real files
 - [ ] If dual-agent: no Claude Code files were modified
-- [ ] `ai-docs/` has footguns/, lessons/, coding-standards/
+- [ ] `.goat-flow/` has footguns/, lessons/, coding-standards/
 - [ ] `.goat-flow/config.yaml` exists with correct paths
 - [ ] `goat-flow scan . --agent codex` passes at 100%
 - [ ] Project build/test/lint still passes

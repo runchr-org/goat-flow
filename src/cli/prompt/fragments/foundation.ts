@@ -45,7 +45,7 @@ Keep it under 120 lines. The remaining foundation checks will fill in the sectio
 1. Remove verbose examples - one BAD/GOOD pair per concept is enough
 2. Replace explanatory paragraphs with terse bullet points
 3. Collapse tables where a one-liner suffices
-4. Move reference material to \`ai-docs/\` and link from the router table
+4. Move reference material to \`.goat-flow/\` and link from the router table
 
 Hard limit: 150 lines. Target: under 120.`,
   },
@@ -219,8 +219,8 @@ Over budget = re-classify before continuing.`,
 
 | File | When to update |
 |------|---------------|
-| \\\`ai-docs/lessons/\\\` or \\\`.goat-flow/lessons/\\\` | Behavioural mistake |
-| \\\`ai-docs/footguns/\\\` or \\\`.goat-flow/footguns/\\\` | Cross-doc architectural trap |
+| \\\`.goat-flow/lessons/\\\` | Behavioural mistake |
+| \\\`.goat-flow/footguns/\\\` | Cross-doc architectural trap |
 
 Lessons use category files such as \\\`verification.md\\\` with frontmatter \\\`category\\\`, then \\\`## Lesson:\\\` / \\\`## Pattern:\\\` entries inside.
 Footguns use category files such as \\\`hooks.md\\\` with frontmatter \\\`category\\\`, then \\\`## Footgun:\\\` entries with Status/Created/Evidence type inside.
@@ -236,13 +236,11 @@ Footguns use category files such as \\\`hooks.md\\\` with frontmatter \\\`catego
 \`\`\`yaml
 version: "1.0.0"
 footguns:
-  committed: ai-docs/footguns/
-  local: .goat-flow/footguns/
+  path: .goat-flow/footguns/
 lessons:
-  committed: ai-docs/lessons/
-  local: .goat-flow/lessons/
+  path: .goat-flow/lessons/
 decisions:
-  path: ai-docs/decisions/
+  path: .goat-flow/decisions/
 tasks:
   path: .goat-flow/tasks/
 logs:
@@ -267,23 +265,7 @@ Also create \`.goat-flow/config.local.yaml\` (gitignored - personal overrides):
 
 Ensure \`.goat-flow/config.local.yaml\` is gitignored (the default \`.goat-flow/.gitignore\` pattern \`*\` handles this).`,
   },
-  {
-    key: 'create-config-local',
-    phase: 'foundation',
-    category: 'Project Config',
-    kind: 'fix',
-    instruction: `Create \`.goat-flow/config.local.yaml\` for personal overrides (gitignored):
-
-\`\`\`yaml
-# Local overrides - this file is gitignored.
-# Values here merge on top of config.yaml.
-# Uncomment and edit as needed.
-
-# userRole: investigator
-\`\`\`
-
-This file is automatically gitignored by the \`.goat-flow/.gitignore\` pattern.`,
-  },
+  // create-config-local removed - check 1.5.7 removed.
   {
     key: 'fix-goat-flow-config',
     phase: 'foundation',
@@ -292,8 +274,8 @@ This file is automatically gitignored by the \`.goat-flow/.gitignore\` pattern.`
     instruction: `Fix \`.goat-flow/config.yaml\` so it is valid YAML and matches the supported schema:
 
 - \`version\`: string
-- \`footguns.committed\`, \`footguns.local\`: non-empty strings
-- \`lessons.committed\`, \`lessons.local\`: non-empty strings
+- \`footguns.path\`: non-empty string
+- \`lessons.path\`: non-empty string
 - \`decisions.path\`, \`tasks.path\`, \`logs.path\`: non-empty strings
 - \`agents\`: null or a non-empty array of \`claude\`, \`codex\`, \`gemini\`
 - \`skills.install\`: \`all\` or a non-empty array of skill names
@@ -425,7 +407,7 @@ After any rename, grep for the old pattern to confirm zero remaining references.
     kind: 'create',
     instruction: `Add the log-update gate to DoD in \`{{instructionFile}}\`:
 
-If VERIFY caught a failure or you corrected course: create a lesson entry in \`ai-docs/lessons/\` or \`.goat-flow/lessons/\` before DoD.`,
+If VERIFY caught a failure or you corrected course: create a lesson entry in \`.goat-flow/lessons/\` before DoD.`,
   },
 
   // === Enforcement ===

@@ -4,7 +4,7 @@
   "expected": {
     "claude": {
       "maxPercentage": 99,
-      "triggeredAntiPatterns": ["AP22"]
+      "triggeredAntiPatterns": []
     }
   }
 }

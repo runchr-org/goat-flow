@@ -40,9 +40,9 @@ If Step 0 footgun check matches a known trap: (1) surface match immediately, (2)
 
 ### Learning Loop
 After completing the skill, check if this run uncovered anything worth logging:
-- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `ai-docs/lessons/` or `.goat-flow/lessons/`
-- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `ai-docs/footguns/` or `.goat-flow/footguns/`
-- Route team-wide entries to `ai-docs/`; session-only entries to `.goat-flow/`
+- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `.goat-flow/lessons/`
+- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `.goat-flow/footguns/`
+- Route entries to `.goat-flow/lessons/` or `.goat-flow/footguns/`
 - Match entry format to existing entries in the target bucket file. Do not append to a monolithic log or directory README.
 
 ### Recovery
@@ -93,7 +93,7 @@ handling, when touching secrets/credentials, or for a security-focused audit.
 Present: "This is a [framework] project. I'll check [framework]'s built-in
 security features during verification."
 
-**Footgun check:** If `ai-docs/footguns/` or `.goat-flow/footguns/` exists, read entries mentioning the target area from both locations. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
+**Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
 **Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
 - "hotfix" but 5+ files affected → likely Standard or System

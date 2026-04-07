@@ -42,7 +42,7 @@ If the project has no goat-flow at all, use the fresh setup (`setup-claude.md` e
 - Update version header to current (e.g., `# CLAUDE.md - v1.1.0 (YYYY-MM-DD)`)
 - Replace enforcement language with advisory language
 - Update Working Memory section: milestone checkboxes replace todo.md/handoff.md
-- Update Router Table: remove Handoff entry, update canonical doc references (`ai-docs/architecture.md` replaces `docs/system-spec.md`)
+- Update Router Table: remove Handoff entry, update canonical doc references (`.goat-flow/architecture.md` replaces `docs/system-spec.md`)
 - Update examples to reference current paths (e.g., `workflow/setup/shared/execution-loop.md` not `docs/system-spec.md`)
 
 ---
@@ -51,7 +51,7 @@ If the project has no goat-flow at all, use the fresh setup (`setup-claude.md` e
 
 - Update hooks to current templates from `workflow/hooks/`
 - If hooks have project-specific customizations, merge — don't overwrite
-- If `.github/instructions/` exists and `ai-docs/coding-standards/conventions.md` doesn't: create the pointer file
+- If `.github/instructions/` exists and `.goat-flow/coding-standards/conventions.md` doesn't: create the pointer file
 
 ---
 
@@ -64,10 +64,9 @@ If the project has no goat-flow at all, use the fresh setup (`setup-claude.md` e
 
 ## What to never touch during upgrade
 
-- Footgun entries (ai-docs/footguns/) — this is the project's memory
-- Lesson entries (ai-docs/lessons/) — same
-- Eval scenarios (ai-docs/evals/) — regression tests for agent behavior
-- Architecture docs (ai-docs/architecture.md) — describes the project, not goat-flow
+- Footgun entries (ai-docs/footguns/ or .goat-flow/footguns/) — this is the project's memory
+- Lesson entries (ai-docs/lessons/ or .goat-flow/lessons/) — same
+- Architecture docs (ai-docs/architecture.md or .goat-flow/architecture.md) — describes the project, not goat-flow
 - Other agents' files (single-agent scoping)
 - `.github/instructions/` content — reference, don't duplicate
 

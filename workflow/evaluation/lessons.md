@@ -1,4 +1,4 @@
-# Prompt: Create ai-docs/lessons/
+# Prompt: Create .goat-flow/lessons/
 
 Paste this into your coding agent to create the lessons file for the
 learning loop. Lessons capture behavioural mistakes made by the agent so
@@ -9,14 +9,14 @@ the same failure mode does not repeat.
 ## The Prompt
 
 ```
-Create or update ai-docs/lessons/ for this project.
+Create or update .goat-flow/lessons/ for this project.
 
 This directory is for behavioural mistakes by the agent, not ordinary product
 bugs. Add entries only after a real mistake or correction happened.
 
 Use category bucket files, not one giant log and not one file per incident.
-Examples: `ai-docs/lessons/verification.md`, `ai-docs/lessons/workflow.md`,
-`ai-docs/lessons/coordination.md`.
+Examples: `.goat-flow/lessons/verification.md`, `.goat-flow/lessons/workflow.md`,
+`.goat-flow/lessons/coordination.md`.
 
 If a matching bucket does not exist, create one like this:
 
@@ -38,7 +38,7 @@ _Entries: [optional related titles]_
 Short synthesis of the repeated failure mode and the guardrail it implies.
 ```
 
-If ai-docs/lessons/ already exists:
+If .goat-flow/lessons/ already exists:
 - Keep existing entries intact
 - Add the new entry to the most relevant category bucket
 - Split a bucket when it grows too large (roughly >200 lines or >10 entries)
@@ -52,7 +52,7 @@ RULES:
 - Use the current repo format, not a temporary AI-generated placeholder
 
 VERIFICATION:
-- Verify ai-docs/lessons/ exists
+- Verify .goat-flow/lessons/ exists
 - Verify the bucket file has `category:` frontmatter
 - Verify every new entry has `## Lesson:` or `## Pattern:` plus Created/What happened/Prevention
 - Verify no fabricated entries were added

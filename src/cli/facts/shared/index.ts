@@ -1,21 +1,20 @@
 /**
  * Project-wide shared fact extractor - composes sub-extractors for learning-loop,
- * evals, local instructions, and project-level metadata into a single SharedFacts object.
+ * local instructions, and project-level metadata into a single SharedFacts object.
  */
 import type { SharedFacts, ReadonlyFS } from '../../types.js';
 import type { LoadedConfig } from '../../config/types.js';
 
 import { extractFootgunFacts, extractLessonsFacts } from './learning-loop.js';
-import { extractEvalFacts } from './evals.js';
 import { extractGitignoreFacts } from './ci.js';
 import { extractLocalInstructions } from './local-instructions.js';
 
 /** Extract existence and line-count facts for the architecture doc. */
 function extractArchitectureFacts(fs: ReadonlyFS): SharedFacts['architecture'] {
-  const exists = fs.exists('ai-docs/architecture.md');
+  const exists = fs.exists('.goat-flow/architecture.md');
   return {
     exists,
-    lineCount: exists ? fs.lineCount('ai-docs/architecture.md') : 0,
+    lineCount: exists ? fs.lineCount('.goat-flow/architecture.md') : 0,
   };
 }
 
@@ -61,7 +60,7 @@ function extractDecisionsFacts(
   return { dirExists, fileCount, path, hasRealContent };
 }
 
-/** Extract project-wide shared facts from docs, evals, CI, and config files. */
+/** Extract project-wide shared facts from docs, CI, and config files. */
 export function extractSharedFacts(
   fs: ReadonlyFS,
   configState: LoadedConfig,
@@ -80,7 +79,6 @@ export function extractSharedFacts(
       userRole: configState.config.userRole,
     },
     architecture: extractArchitectureFacts(fs),
-    evals: extractEvalFacts(fs, configState.config.evals.path),
     ignoreFiles: {
       copilotignore: fs.exists('.copilotignore'),
       cursorignore: fs.exists('.cursorignore'),

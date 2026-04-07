@@ -1,5 +1,5 @@
 /**
- * Local instruction fact extraction - analyzes ai-docs/coding-standards/ or .github/instructions/ directories.
+ * Local instruction fact extraction - analyzes .goat-flow/coding-standards/ or .github/instructions/ directories.
  * Validates router links, conventions content quality, and instruction file presence.
  */
 import type { SharedFacts, ReadonlyFS } from '../../types.js';
@@ -19,7 +19,7 @@ interface LocalInstructionFlags {
   hasGitCommit: boolean;
 }
 
-/** Result of validating router link references in ai-docs/README.md. */
+/** Result of validating router link references in .goat-flow/README.md. */
 interface RouterValidation {
   hasValidRouter: boolean;
   routerNeedsFix: string | null;
@@ -144,7 +144,7 @@ function extractRouterRefsFromMarkdown(content: string): string[] {
   return Array.from(refs);
 }
 
-/** Validate that `ai-docs/README.md` references only existing local instruction files. */
+/** Validate that `.goat-flow/README.md` references only existing local instruction files. */
 function validateRouterLinks(
   fs: ReadonlyFS,
   aiReadmeContent: string | null,
@@ -154,7 +154,7 @@ function validateRouterLinks(
       hasValidRouter: false,
       invalidRefs: [],
       routerNeedsFix:
-        'ai-docs/README.md missing - create it and reference existing coding standard files',
+        '.goat-flow/README.md missing - create it and reference existing coding standard files',
     };
   }
 
@@ -164,7 +164,7 @@ function validateRouterLinks(
       hasValidRouter: false,
       invalidRefs: [],
       routerNeedsFix:
-        'ai-docs/README.md should reference at least one instruction file (for example ai-docs/coding-standards/conventions.md).',
+        '.goat-flow/README.md should reference at least one instruction file (for example .goat-flow/coding-standards/conventions.md).',
     };
   }
 
@@ -173,7 +173,7 @@ function validateRouterLinks(
     return {
       hasValidRouter: false,
       invalidRefs,
-      routerNeedsFix: `ai-docs/README.md references missing paths: ${invalidRefs.join(', ')}`,
+      routerNeedsFix: `.goat-flow/README.md references missing paths: ${invalidRefs.join(', ')}`,
     };
   }
 
@@ -218,7 +218,7 @@ export function extractLocalInstructions(
   const aiDirExists = fs.exists(csPath);
   const githubDirExists = fs.exists('.github/instructions');
   // Detect duplicate instruction surfaces, but exempt pointer files.
-  // If ai-docs/coding-standards/conventions.md references .github/instructions/
+  // If .goat-flow/coding-standards/conventions.md references .github/instructions/
   // without substantial duplicated content, it's a pointer — not a duplicate.
   let duplicateSurfacePaths: string[] = [];
   if (aiDirExists && githubDirExists) {
@@ -247,10 +247,10 @@ export function extractLocalInstructions(
     csPath,
     flags.hasConventions,
   );
-  const hasRouter = location === 'ai' && fs.exists('ai-docs/README.md');
+  const hasRouter = location === 'ai' && fs.exists('.goat-flow/README.md');
   const routerValidation =
     location === 'ai'
-      ? validateRouterLinks(fs, fs.readFile('ai-docs/README.md'))
+      ? validateRouterLinks(fs, fs.readFile('.goat-flow/README.md'))
       : {
           hasValidRouter: true,
           routerNeedsFix: null,

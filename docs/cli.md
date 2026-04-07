@@ -49,15 +49,6 @@ List all anti-pattern deductions with ID, name, deduction value, and remediation
 goat-flow info anti-patterns
 ```
 
-### `goat-flow eval [path]`
-
-Parse and summarize agent evals in `ai-docs/evals/`.
-
-```bash
-goat-flow eval                    # Summarize evals
-goat-flow eval --format json      # JSON output
-```
-
 ### `goat-flow dashboard [path]`
 
 Launch the web dashboard for scanning, setup, and terminal management.

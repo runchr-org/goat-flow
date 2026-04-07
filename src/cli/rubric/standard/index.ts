@@ -8,7 +8,7 @@ import { localContextChecks } from './local-context.js';
 import { signalChecks } from './signals.js';
 
 /**
- * Tier 2 - Standard (58 pts on a fully configured project; varies with N/A checks)
+ * Tier 2 - Standard (varies with N/A checks)
  * Skills, hooks, learning loop, router, architecture, local context, signals.
  */
 export const standardChecks: CheckDef[] = [

@@ -53,6 +53,6 @@ flowchart TD
 Runs Investigate mode (I1-I3) with two additional phases:
 
 - **O1 (before I1):** Stack detection - languages, frameworks, build/test/lint commands
-- **O2 (after I3):** Glossary and instruction drafting - build `ai-docs/glossary.md` from codebase
+- **O2 (after I3):** Glossary and instruction drafting - build `.goat-flow/glossary.md` from codebase
 
 **Source:** `workflow/skills/goat-debug.md`

@@ -55,8 +55,8 @@ npm test
 
 | File | When to update |
 |------|---------------|
-| \`ai-docs/lessons/\` | Behavioural mistake |
-| \`ai-docs/footguns/\` | Architectural trap |
+| \`.goat-flow/lessons/\` | Behavioural mistake |
+| \`.goat-flow/footguns/\` | Architectural trap |
 
 ## Autonomy Tiers
 
@@ -70,7 +70,7 @@ npm test
 - [ ] Rollback command: [exact command]
 
 Boundaries:
-- \`ai-docs/architecture.md\` changes
+- \`.goat-flow/architecture.md\` changes
 - \`workflow/setup/\` prompt changes
 - Changes spanning 3+ documentation files
 
@@ -85,9 +85,9 @@ MUST confirm ALL: (1) shellcheck passes (2) no broken cross-references (3) no un
 | Resource | Path |
 |----------|------|
 | Skills | \`.claude/skills/\` |
-| Footguns | \`ai-docs/footguns/\` |
-| Lessons | \`ai-docs/lessons/\` |
-| Architecture | \`ai-docs/architecture.md\` |
+| Footguns | \`.goat-flow/footguns/\` |
+| Lessons | \`.goat-flow/lessons/\` |
+| Architecture | \`.goat-flow/architecture.md\` |
 | Config | \`.goat-flow/config.yaml\` |
 | Handoff | \`.goat-flow/tasks/handoff-template.md\` |
 `;
@@ -135,17 +135,10 @@ function buildFullProject() {
       '#!/usr/bin/env bash\necho "BLOCKED" >&2\nexit 2\n',
     '.claude/hooks/stop-lint.sh':
       '#!/usr/bin/env bash\nshellcheck changed.sh\nnpx tsc --noEmit\nexit 0\n',
-    'ai-docs/footguns/': '# Footguns\n\n- `src/auth.ts:42` - race\n',
-    'ai-docs/lessons/': '# Lessons\n\n### Entry 1\nStuff.\n',
-    'ai-docs/architecture.md': '# Architecture\n\nOverview.\n',
+    '.goat-flow/footguns/': '# Footguns\n\n- `src/auth.ts:42` - race\n',
+    '.goat-flow/lessons/': '# Lessons\n\n### Entry 1\nStuff.\n',
+    '.goat-flow/architecture.md': '# Architecture\n\nOverview.\n',
     'workflow/setup/README.md': '# Setup\n',
-    'ai-docs/evals/README.md': '# Evals\n',
-    'ai-docs/evals/eval-1.md':
-      '# E1\n\n**Origin:** real-incident\n\n## Replay Prompt\n\n```\nx\n```\n',
-    'ai-docs/evals/eval-2.md':
-      '# E2\n\n**Origin:** real-incident\n\n## Replay Prompt\n\n```\ny\n```\n',
-    'ai-docs/evals/eval-3.md':
-      '# E3\n\n**Origin:** real-incident\n\n## Replay Prompt\n\n```\nz\n```\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\n',
     '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
@@ -203,9 +196,9 @@ function buildTargetedUpgradeProject(extraFiles: Record<string, string> = {}) {
       '---\nname: goat-security\ngoat-flow-skill-version: "1.1.0"\n---\n# /goat-security\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
     '.claude/skills/goat-test/SKILL.md':
       '---\nname: goat-test\ngoat-flow-skill-version: "1.1.0"\n---\n# /goat-test\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
-    'ai-docs/footguns/': '# Footguns\n\n- `src/auth.ts:42` - race\n',
-    'ai-docs/lessons/': '# Lessons\n\n### Entry 1\nStuff.\n',
-    'ai-docs/architecture.md': '# Architecture\n\nOverview.\n',
+    '.goat-flow/footguns/': '# Footguns\n\n- `src/auth.ts:42` - race\n',
+    '.goat-flow/lessons/': '# Lessons\n\n### Entry 1\nStuff.\n',
+    '.goat-flow/architecture.md': '# Architecture\n\nOverview.\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\n',
     '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
@@ -538,10 +531,10 @@ describe('M2.11b: scanner fixes', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/lessons/README.md':
+      '.goat-flow/lessons/README.md':
         '# Lessons\n\nOne file per lesson.\n\n### Entry Format\n<!-- Describe what happened -->\n',
       '.goat-flow/config.yaml':
-        'version: "1.0.0"\nlessons:\n  committed: ai-docs/lessons/\n  local: .goat-flow/lessons/\nfootguns:\n  committed: ai-docs/footguns/\n  local: .goat-flow/footguns/\ndecisions:\n  path: ai-docs/decisions/\ntasks:\n  path: .goat-flow/tasks/\nskills:\n  install: all\n',
+        'version: "1.0.0"\nlessons:\n  path: .goat-flow/lessons/\nfootguns:\n  path: .goat-flow/footguns/\ndecisions:\n  path: .goat-flow/decisions/\ntasks:\n  path: .goat-flow/tasks/\nskills:\n  install: all\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const check = report.agents[0]?.checks.find((c) => c.id === '2.3.2a');
@@ -553,7 +546,7 @@ describe('M2.11b: scanner fixes', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/lessons/':
+      '.goat-flow/lessons/':
         '# Lessons\n\n### 2026-03-20: Auth migration broke staging\nRolled back because the migration assumed sequential IDs.\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
@@ -562,22 +555,7 @@ describe('M2.11b: scanner fixes', () => {
     assert.equal(check.status, 'pass', 'Real lessons entries should pass');
   });
 
-  it('AP11 fires when lessons is empty even if footguns has content', () => {
-    const fs = createMockFS({
-      'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
-      'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/lessons/': '# Lessons\n\nNo entries yet.\n',
-      'ai-docs/footguns/': '# Footguns\n\n- some pattern without evidence\n',
-    });
-    const report = scanProject(fs, '/test', { agentFilter: null });
-    const ap11 = report.agents[0]?.antiPatterns.find((ap) => ap.id === 'AP11');
-    assert.ok(ap11, 'AP11 should exist');
-    assert.equal(
-      ap11.triggered,
-      true,
-      'AP11 should fire when lessons is empty',
-    );
-  });
+  // AP11 (empty learning loop scaffolding) test removed - anti-pattern deleted.
 });
 
 // ─── variable substitution ──────────────────────────────────────────
@@ -702,7 +680,7 @@ describe('M2.13: AP12 stale ref filtering', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/footguns/': '# Footguns\n\n- `localhost:48101` - dev server port\n',
+      '.goat-flow/footguns/': '# Footguns\n\n- `localhost:48101` - dev server port\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find((ap) => ap.id === 'AP12');
@@ -720,7 +698,7 @@ describe('M2.13: AP12 stale ref filtering', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/footguns/': '# Footguns\n\n- `src/auth.ts:42` - race condition\n',
+      '.goat-flow/footguns/': '# Footguns\n\n- `src/auth.ts:42` - race condition\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find((ap) => ap.id === 'AP12');
@@ -837,7 +815,7 @@ describe('M2.13: --agent all dedup', () => {
     assert.equal(
       footgunsTaskCount,
       1,
-      `shared ai-docs/footguns/ task should appear once, got ${footgunsTaskCount}`,
+      `shared .goat-flow/footguns/ task should appear once, got ${footgunsTaskCount}`,
     );
     // Should have per-agent sections
     assert.ok(output.includes('Claude Code'), 'Should have Claude section');
@@ -921,7 +899,7 @@ describe('M2.14: hasEvidence filters URLs', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/footguns/':
+      '.goat-flow/footguns/':
         '# Footguns\n\n- `localhost:48101` - dev server port\n- `127.0.0.1:3000` - API\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
@@ -935,49 +913,7 @@ describe('M2.14: hasEvidence filters URLs', () => {
   });
 });
 
-describe('M2.14: eval format aliases', () => {
-  it('eval with ## Scenario passes replay prompt check', () => {
-    const fs = createMockFS({
-      'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
-      'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/evals/test-1.md':
-        '# E1\n\n**Origin:** real\n\n## Scenario\n\nDo X.\n',
-      'ai-docs/evals/test-2.md':
-        '# E2\n\n**Origin:** real\n\n## Scenario\n\nDo Y.\n',
-      'ai-docs/evals/test-3.md':
-        '# E3\n\n**Origin:** real\n\n## Scenario\n\nDo Z.\n',
-    });
-    const report = scanProject(fs, '/test', { agentFilter: null });
-    const check = report.agents[0]?.checks.find((c) => c.id === '3.1.4');
-    assert.ok(check, 'Check 3.1.4 should exist');
-    assert.equal(
-      check.status,
-      'pass',
-      'Evals with ## Scenario should pass replay prompt check',
-    );
-  });
-
-  it('eval with ## Origin section passes origin label check', () => {
-    const fs = createMockFS({
-      'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
-      'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/evals/test-1.md':
-        '# E1\n\n## Origin\n\nreal-incident\n\n## Replay Prompt\n\n```\nx\n```\n',
-      'ai-docs/evals/test-2.md':
-        '# E2\n\n## Origin\n\nreal-incident\n\n## Replay Prompt\n\n```\ny\n```\n',
-      'ai-docs/evals/test-3.md':
-        '# E3\n\n## Origin\n\nreal-incident\n\n## Replay Prompt\n\n```\nz\n```\n',
-    });
-    const report = scanProject(fs, '/test', { agentFilter: null });
-    const check = report.agents[0]?.checks.find((c) => c.id === '3.1.5');
-    assert.ok(check, 'Check 3.1.5 should exist');
-    assert.equal(
-      check.status,
-      'pass',
-      'Evals with ## Origin section should pass origin label check',
-    );
-  });
-});
+// M2.14 eval format aliases tests removed - evals system removed in v1.1.0 (M09).
 
 describe('M2.14: root-level AP12 refs', () => {
   it('AGENTS.md:42 is counted as valid ref when AGENTS.md exists', () => {
@@ -985,7 +921,7 @@ describe('M2.14: root-level AP12 refs', () => {
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'AGENTS.md': '# AGENTS.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/footguns/':
+      '.goat-flow/footguns/':
         '# Footguns\n\n- `AGENTS.md:42` - instruction file footgun\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
@@ -1003,7 +939,7 @@ describe('M2.14: root-level AP12 refs', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/footguns/': '# Footguns\n\n- `AGENTS.md:42` - stale ref\n',
+      '.goat-flow/footguns/': '# Footguns\n\n- `AGENTS.md:42` - stale ref\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find((ap) => ap.id === 'AP12');
@@ -1019,7 +955,7 @@ describe('M2.14: root-level AP12 refs', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/footguns/': '# Footguns\n\n- `webpack:123` - bundler warning\n',
+      '.goat-flow/footguns/': '# Footguns\n\n- `webpack:123` - bundler warning\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find((ap) => ap.id === 'AP12');
@@ -1036,7 +972,7 @@ describe('M2.14: root-level AP12 refs', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/footguns/': '# Footguns\n\n- `0.0.0.0:8080` - bind address\n',
+      '.goat-flow/footguns/': '# Footguns\n\n- `0.0.0.0:8080` - bind address\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
     const ap12 = report.agents[0]?.antiPatterns.find((ap) => ap.id === 'AP12');
@@ -1055,7 +991,7 @@ describe('M2.14: hasEvidence edge cases', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/footguns/':
+      '.goat-flow/footguns/':
         '# Footguns\n\n- `localhost:3000` - dev\n- `src/auth.ts:1` - real ref\n',
       'src/auth.ts': 'export const x = 1;\n',
     });
@@ -1073,7 +1009,7 @@ describe('M2.14: hasEvidence edge cases', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/footguns/':
+      '.goat-flow/footguns/':
         '# Footguns\n\nThe auth module (lines 42-50) has a race condition.\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
@@ -1090,7 +1026,7 @@ describe('M2.14: hasEvidence edge cases', () => {
     const fs = createMockFS({
       'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
       'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/footguns/':
+      '.goat-flow/footguns/':
         '# Footguns\n\n- `https://example.com:443` - API endpoint\n',
     });
     const report = scanProject(fs, '/test', { agentFilter: null });
@@ -1104,48 +1040,7 @@ describe('M2.14: hasEvidence edge cases', () => {
   });
 });
 
-describe('M2.14: preferred eval format (### Scenario H3)', () => {
-  it('eval with ### Scenario (H3) passes replay prompt check', () => {
-    const fs = createMockFS({
-      'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
-      'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/evals/test-1.md':
-        '# E1\n\n**Origin:** real\n\n### Scenario\n\nDo X.\n',
-      'ai-docs/evals/test-2.md':
-        '# E2\n\n**Origin:** real\n\n### Scenario\n\nDo Y.\n',
-      'ai-docs/evals/test-3.md':
-        '# E3\n\n**Origin:** real\n\n### Scenario\n\nDo Z.\n',
-    });
-    const report = scanProject(fs, '/test', { agentFilter: null });
-    const check = report.agents[0]?.checks.find((c) => c.id === '3.1.4');
-    assert.ok(check, 'Check 3.1.4 should exist');
-    assert.equal(
-      check.status,
-      'pass',
-      'Evals with ### Scenario (H3) should pass replay prompt check',
-    );
-  });
-
-  it('eval with YAML frontmatter origin passes origin check', () => {
-    const evalContent =
-      '---\nname: test\norigin: real-incident\nskill: goat-debug\n---\n# Test\n\n**Origin:** real-incident\n\n### Scenario\n\nDo X.\n';
-    const fs = createMockFS({
-      'CLAUDE.md': '# CLAUDE.md\n\nBasic.\n',
-      'package.json': JSON.stringify({ name: 'test' }),
-      'ai-docs/evals/test-1.md': evalContent,
-      'ai-docs/evals/test-2.md': evalContent.replace('test-1', 'test-2'),
-      'ai-docs/evals/test-3.md': evalContent.replace('test-1', 'test-3'),
-    });
-    const report = scanProject(fs, '/test', { agentFilter: null });
-    const originCheck = report.agents[0]?.checks.find((c) => c.id === '3.1.5');
-    assert.ok(originCheck, 'Check 3.1.5 should exist');
-    assert.equal(
-      originCheck.status,
-      'pass',
-      'YAML frontmatter evals with **Origin:** should pass',
-    );
-  });
-});
+// M2.14 preferred eval format tests removed - evals system removed in v1.1.0 (M09).
 
 describe('M2.14: placeholder npm script edge cases', () => {
   it('filters echo "Error: no test specified" && exit 1', () => {
@@ -1229,10 +1124,13 @@ describe('CLI: removed commands', () => {
     assert.throws(() => parseCLIArgs(['audit', '.']), /removed/i);
   });
 
+  it('eval produces helpful error', () => {
+    assert.throws(() => parseCLIArgs(['eval', '.']), /removed/i);
+  });
+
   it('valid commands do not throw', () => {
     assert.doesNotThrow(() => parseCLIArgs(['scan', '.']));
     assert.doesNotThrow(() => parseCLIArgs(['setup', '.']));
-    assert.doesNotThrow(() => parseCLIArgs(['eval', '.']));
   });
 });
 
@@ -1396,8 +1294,8 @@ describe('M19: setup redirect includes migration guidance', () => {
       'Should mention .github/instructions/ migration',
     );
     assert.ok(
-      output.includes('ai-docs/coding-standards/'),
-      'Should mention ai-docs/coding-standards/ as alternative',
+      output.includes('.goat-flow/coding-standards/'),
+      'Should mention .goat-flow/coding-standards/ as alternative',
     );
   });
 
@@ -1435,10 +1333,6 @@ describe('M19: setup redirect includes migration guidance', () => {
     assert.ok(
       output.includes('Migrate, don\'t duplicate'),
       'Should include migration guidance heading',
-    );
-    assert.ok(
-      output.includes('agent-evals/'),
-      'Should list eval duplicate path',
     );
   });
 

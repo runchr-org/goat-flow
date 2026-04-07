@@ -53,7 +53,7 @@ Every skill shares:
 - **Step 0** -- context gathering before any work begins
 - **BLOCKING GATEs** -- agent stops and waits for human decision
 - **CHECKPOINTs** -- agent reports status and continues unless interrupted
-- **Footgun check** -- cross-reference `ai-docs/footguns/` for known traps
+- **Footgun check** -- cross-reference `.goat-flow/footguns/` for known traps
 - **Learning loop** -- log lessons and footguns after completion
 - **Ceremony scaling** -- hotfixes skip ceremony, system changes get full treatment
 

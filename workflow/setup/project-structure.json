@@ -5,39 +5,29 @@
   "required_files": [
     ".goat-flow/config.yaml",
     ".goat-flow/skill-conventions.md",
-    ".goat-flow/README.md",
-    "ai-docs/README.md",
-    "ai-docs/architecture.md",
-    "ai-docs/glossary.md",
-    "ai-docs/coding-standards/conventions.md",
-    "ai-docs/decisions/ADR-000-template.md",
-    ".goat-flow/config.local.yaml"
+    ".goat-flow/architecture.md",
+    ".goat-flow/glossary.md",
+    ".goat-flow/coding-standards/conventions.md",
+    ".goat-flow/decisions/ADR-000-template.md"
   ],
 
   "required_dirs": [
-    "ai-docs/footguns/",
-    "ai-docs/lessons/",
-    "ai-docs/evals/",
-    "ai-docs/decisions/",
     ".goat-flow/footguns/",
     ".goat-flow/lessons/",
+    ".goat-flow/decisions/",
     ".goat-flow/tasks/",
     ".goat-flow/logs/sessions/"
   ],
 
   "optional_files": {
-    "_note": "Create only for gaps not already covered by existing project files (.github/instructions/, docs/, etc.). Lookup order: (1) check if the project already has equivalent content, (2) if yes, reference it from ai-docs/coding-standards/conventions.md as a pointer, (3) if no existing content, create using templates from workflow/coding-standards/ adapted to the project stack.",
-    "ai-docs/coding-standards/code-review.md": "workflow/coding-standards/code-review.md",
-    "ai-docs/coding-standards/git-commit.md": "workflow/coding-standards/git-commit.md",
-    "ai-docs/coding-standards/backend.md": "workflow/coding-standards/backend/",
-    "ai-docs/coding-standards/frontend.md": "workflow/coding-standards/frontend/",
-    "ai-docs/coding-standards/security.md": "workflow/coding-standards/security.md",
-    "ai-docs/coding-standards/testing.md": "workflow/coding-standards/testing.md"
+    "_note": "Create only for gaps not already covered by existing project files (.github/instructions/, docs/, etc.). Lookup order: (1) check if the project already has equivalent content, (2) if yes, reference it from .goat-flow/coding-standards/conventions.md as a pointer, (3) if no existing content, create using templates from workflow/coding-standards/ adapted to the project stack.",
+    ".goat-flow/coding-standards/backend.md": "workflow/coding-standards/backend/",
+    ".goat-flow/coding-standards/frontend.md": "workflow/coding-standards/frontend/",
+    ".goat-flow/coding-standards/security.md": "workflow/coding-standards/security.md",
+    ".goat-flow/coding-standards/testing.md": "workflow/coding-standards/testing.md"
   },
 
   "never_create": [
-    "ai-docs/domain-reference.md",
-    "ai-docs/guidelines-ownership-split.md",
     ".goat-flow/tasks/handoff-template.md",
     ".goat-flow/tasks/todo.md",
     ".goat-flow/tasks/handoff.md"
@@ -91,7 +81,7 @@
 
   "legacy_surfaces": {
     "v0.9": {
-      "migrate_to_ai_docs": [
+      "migrate_to_goat_flow": [
         "docs/footguns.md",
         "docs/lessons.md",
         "docs/architecture.md",

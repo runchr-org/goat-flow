@@ -152,19 +152,19 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
   /** Shared documentation and workflow refs for the standard phase */
   const sharedRefs: TemplateRef[] = [
     {
-      output: 'ai-docs/footguns/',
+      output: '.goat-flow/footguns/',
       template: 'workflow/setup/shared/phase-1.md',
       phase: 'standard',
       note: 'Real incidents only',
     },
     {
-      output: 'ai-docs/lessons/',
+      output: '.goat-flow/lessons/',
       template: 'workflow/setup/shared/phase-1.md',
       phase: 'standard',
       note: 'Seed from git history',
     },
     {
-      output: 'ai-docs/architecture.md',
+      output: '.goat-flow/architecture.md',
       template: 'workflow/setup/shared/architecture.md',
       phase: 'standard',
       note: 'Under 100 lines',
@@ -174,29 +174,18 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
   /** Role-specific coding-standards refs that the scanner checks for */
   const roleRefs: TemplateRef[] = [
     {
-      output: 'ai-docs/README.md',
+      output: '.goat-flow/README.md',
       template: 'workflow/setup/shared/phase-1.md',
       phase: 'standard',
-      note: 'Routing map for ai-docs/coding-standards/',
+      note: 'Routing map for .goat-flow/coding-standards/',
     },
     {
-      output: 'ai-docs/coding-standards/conventions.md',
+      output: '.goat-flow/coding-standards/conventions.md',
       template: 'workflow/coding-standards/conventions.md',
       phase: 'standard',
       note: 'Project-wide conventions',
     },
-    {
-      output: 'ai-docs/coding-standards/code-review.md',
-      template: 'workflow/coding-standards/code-review.md',
-      phase: 'standard',
-      note: 'Review standards',
-    },
-    {
-      output: 'ai-docs/coding-standards/git-commit.md',
-      template: 'workflow/coding-standards/git-commit.md',
-      phase: 'standard',
-      note: 'Commit conventions',
-    },
+    // code-review.md and git-commit.md removed from standard refs - checks 2.6.4/2.6.5 removed.
   ];
 
   return [...skillRefs, ...sharedRefs, ...roleRefs];
@@ -208,14 +197,7 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
 
 /** Return full-phase template refs for a specific agent */
 function getFullRefs(_agentId: AgentId): TemplateRef[] {
-  return [
-    {
-      output: 'ai-docs/evals/*.md (3+)',
-      template: 'workflow/evaluation/evals.md',
-      phase: 'full',
-      note: 'Real incidents preferred',
-    },
-  ];
+  return [];
 }
 
 // ---------------------------------------------------------------------------
@@ -299,22 +281,22 @@ interface SignalTemplateRefSpec {
 /** Signal-driven templates included for every project regardless of stack. */
 const ALWAYS_SIGNAL_TEMPLATES: SignalTemplateRefSpec[] = [
   {
-    output: 'ai-docs/coding-standards/security.md',
+    output: '.goat-flow/coding-standards/security.md',
     template: 'workflow/coding-standards/security.md',
     note: 'Security overview - adapt topics to detected stack',
   },
   {
-    output: 'ai-docs/coding-standards/testing.md',
+    output: '.goat-flow/coding-standards/testing.md',
     template: 'workflow/coding-standards/testing.md',
     note: 'Testing conventions',
   },
   {
-    output: 'ai-docs/coding-standards/secrets-management.md',
+    output: '.goat-flow/coding-standards/secrets-management.md',
     template: 'workflow/coding-standards/security/secrets-management.md',
     note: 'Secrets handling baseline',
   },
   {
-    output: 'ai-docs/coding-standards/supply-chain.md',
+    output: '.goat-flow/coding-standards/supply-chain.md',
     template: 'workflow/coding-standards/security/supply-chain.md',
     note: 'Dependency security',
   },
@@ -323,17 +305,17 @@ const ALWAYS_SIGNAL_TEMPLATES: SignalTemplateRefSpec[] = [
 /** Signal-driven templates added only for web-language projects. */
 const WEB_SIGNAL_TEMPLATES: SignalTemplateRefSpec[] = [
   {
-    output: 'ai-docs/coding-standards/api-auth.md',
+    output: '.goat-flow/coding-standards/api-auth.md',
     template: 'workflow/coding-standards/security/api-auth.md',
     note: 'Auth patterns for web projects',
   },
   {
-    output: 'ai-docs/coding-standards/file-upload.md',
+    output: '.goat-flow/coding-standards/file-upload.md',
     template: 'workflow/coding-standards/security/file-upload.md',
     note: 'Upload security for web projects',
   },
   {
-    output: 'ai-docs/coding-standards/sql-injection.md',
+    output: '.goat-flow/coding-standards/sql-injection.md',
     template: 'workflow/coding-standards/security/sql-injection.md',
     note: 'SQL injection prevention',
   },
@@ -422,7 +404,7 @@ function addLanguageTemplateRefs(
     pushIfUnseenTemplate(
       refs,
       seen,
-      `ai-docs/coding-standards/${getTemplateBasename(template)}.md`,
+      `.goat-flow/coding-standards/${getTemplateBasename(template)}.md`,
       template,
       `Detected: ${language}`,
     );
@@ -434,7 +416,7 @@ function addWebCommonTemplate(refs: TemplateRef[], languages: string[]): void {
   if (!languages.some((language) => WEB_LANGUAGES.has(language))) return;
   pushIfTemplateExists(
     refs,
-    'ai-docs/coding-standards/web-common.md',
+    '.goat-flow/coding-standards/web-common.md',
     'workflow/coding-standards/security/web-common.md',
     'Web security baseline',
   );
@@ -450,7 +432,7 @@ function addFrontendTemplateRef(
     if (!template || !templateExists(template)) continue;
     refs.push(
       buildStandardTemplateRef(
-        'ai-docs/coding-standards/frontend.md',
+        '.goat-flow/coding-standards/frontend.md',
         template,
         `Detected: ${language}`,
       ),
@@ -465,7 +447,7 @@ function addFrontendTemplateRef(
   ) {
     pushIfTemplateExists(
       refs,
-      'ai-docs/coding-standards/frontend.md',
+      '.goat-flow/coding-standards/frontend.md',
       FRONTEND_FALLBACK_TEMPLATE,
       'Detected: typescript/javascript (no framework detected)',
     );
@@ -483,7 +465,7 @@ function addBackendTemplateRef(refs: TemplateRef[], languages: string[]): void {
   if (!template) return;
   pushIfTemplateExists(
     refs,
-    'ai-docs/coding-standards/backend.md',
+    '.goat-flow/coding-standards/backend.md',
     template,
     `Detected: ${detectedBackend}`,
   );
@@ -501,7 +483,7 @@ function addSecurityFrameworkRefs(
     pushIfUnseenTemplate(
       refs,
       seen,
-      `ai-docs/coding-standards/security-${language}.md`,
+      `.goat-flow/coding-standards/security-${language}.md`,
       template,
       `Security: ${language}`,
     );
@@ -542,7 +524,7 @@ function addDeploySignalTemplates(
   if (signals.deployPlatforms.length === 0) return;
   pushIfTemplateExists(
     refs,
-    'ai-docs/coding-standards/infrastructure-security.md',
+    '.goat-flow/coding-standards/infrastructure-security.md',
     'workflow/coding-standards/security/infrastructure.md',
     `Deploy platforms: ${signals.deployPlatforms.join(', ')}`,
   );
@@ -550,7 +532,7 @@ function addDeploySignalTemplates(
   if (signals.deployPlatforms.includes('terraform')) {
     pushIfTemplateExists(
       refs,
-      'ai-docs/coding-standards/devops-terraform.md',
+      '.goat-flow/coding-standards/devops-terraform.md',
       'workflow/coding-standards/devops/terraform.md',
       'Terraform detected',
     );
@@ -565,7 +547,7 @@ function addComplianceSignalTemplate(
   if (!signals.complianceSignals) return;
   pushIfTemplateExists(
     refs,
-    'ai-docs/coding-standards/phi-compliance.md',
+    '.goat-flow/coding-standards/phi-compliance.md',
     'workflow/coding-standards/security/phi-compliance.md',
     'PHI/compliance signals detected',
   );
@@ -579,7 +561,7 @@ function addLlmSignalTemplate(
   if (!signals.llmIntegration) return;
   pushIfTemplateExists(
     refs,
-    'ai-docs/coding-standards/llm-security.md',
+    '.goat-flow/coding-standards/llm-security.md',
     'workflow/coding-standards/security/llm-security.md',
     'LLM integration detected',
   );
@@ -633,9 +615,6 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   'create-lessons': 'workflow/setup/shared/phase-1.md',
   'create-footguns': 'workflow/setup/shared/phase-1.md',
   'create-architecture': 'workflow/setup/shared/architecture.md',
-  'create-evals-dir': 'workflow/evaluation/evals.md',
-  'add-evals': 'workflow/evaluation/evals.md',
-
   // File-level creates - hooks/enforcement
   'create-deny-script': {
     claude: 'workflow/hooks/deny-dangerous.sh',
@@ -649,8 +628,8 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   },
   // File-level creates - coding standards
   'create-conventions-instructions': 'workflow/coding-standards/conventions.md',
-  'create-code-review-instructions': 'workflow/coding-standards/code-review.md',
-  'create-git-commit-instructions': 'workflow/coding-standards/git-commit.md',
+  // create-code-review-instructions removed - check 2.6.4 removed
+  // create-git-commit-instructions removed - check 2.6.5 removed
 
   // Section-level creates - execution loop steps (all point to same parent)
   'add-read-step': 'workflow/setup/shared/execution-loop.md',
@@ -676,7 +655,7 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   'add-skill-step0': 'workflow/skills/goat-debug.md',
   'add-skill-human-gates': 'workflow/skills/goat-debug.md',
   'add-skill-constraints': 'workflow/skills/goat-debug.md',
-  'add-skill-conversational': 'workflow/skills/goat-debug.md',
+  // add-skill-conversational removed - check 2.1.16 removed
   'add-skill-chaining': 'workflow/skills/goat-debug.md',
   'add-skill-choices': 'workflow/skills/goat-debug.md',
   'add-skill-phases': 'workflow/skills/goat-debug.md',
@@ -773,7 +752,7 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   'create-instructions-router': 'workflow/setup/shared/phase-1.md',
   'create-frontend-instructions':
     'workflow/coding-standards/frontend/typescript.md',
-  'create-github-git-commit': 'workflow/coding-standards/git-commit.md',
+  // create-github-git-commit removed - check 2.6.6 removed
 
   // Fix-kind - foundation (instruction file sections)
   'add-version-header': 'workflow/setup/shared/execution-loop.md',
@@ -800,17 +779,12 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   // add-rfc2119 intentionally excluded - inline instruction is self-contained
   'fix-execution-loop-sync': 'workflow/setup/shared/execution-loop.md',
 
-  // Fix-kind - evals
-  'add-replay-prompts': 'workflow/evaluation/evals.md',
-  'add-origin-labels': 'workflow/evaluation/evals.md',
-  'add-eval-skill-coverage': 'workflow/evaluation/evals.md',
-
   // Fix-kind - anti-patterns (ones with clear template sources)
-  'ap-add-footgun-evidence': 'workflow/setup/shared/phase-1.md',
-  'ap-fix-empty-scaffolding': 'workflow/setup/shared/phase-1.md',
-  'ap-fix-duplicate-learning-loop-surfaces': 'workflow/setup/shared/phase-1.md',
+  // ap-add-footgun-evidence removed - AP4 removed
+  // ap-fix-empty-scaffolding removed - AP11 removed
+  // ap-fix-duplicate-learning-loop-surfaces removed - AP22 removed
   'ap-fix-dangling-skill-refs': 'workflow/skills/goat-debug.md',
-  'ap-fix-adapt-comments': 'workflow/skills/goat-debug.md',
+  // ap-fix-adapt-comments removed - AP18 removed
   'ap-fix-hook-paths': 'workflow/hooks/README.md',
 };
 

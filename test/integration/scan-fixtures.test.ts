@@ -136,8 +136,8 @@ bash scripts/preflight-checks.sh
 
 | File | When to update |
 |------|---------------|
-| \`ai-docs/lessons/\` | Behavioural mistake |
-| \`ai-docs/footguns/\` | Cross-doc architectural trap |
+| \`.goat-flow/lessons/\` | Behavioural mistake |
+| \`.goat-flow/footguns/\` | Cross-doc architectural trap |
 
 ## Autonomy Tiers
 
@@ -151,8 +151,8 @@ bash scripts/preflight-checks.sh
 - [ ] Rollback command: [exact command]
 
 Boundaries:
-- \`ai-docs/architecture.md\` changes (canonical architecture)
-- \`ai-docs/coding-standards/conventions.md\`
+- \`.goat-flow/architecture.md\` changes (canonical architecture)
+- \`.goat-flow/coding-standards/conventions.md\`
 - \`workflow/setup/\` prompt changes
 - \`workflow/skills/\` template changes
 - Changes spanning 3+ documentation files
@@ -167,11 +167,11 @@ MUST confirm ALL: (1) shellcheck passes on changed .sh files (2) no broken cross
 
 | Resource | Path |
 |----------|------|
-| Architecture | \`ai-docs/architecture.md\` |
+| Architecture | \`.goat-flow/architecture.md\` |
 | Skills | \`.claude/skills/\` |
-| Footguns | \`ai-docs/footguns/\` |
-| Lessons | \`ai-docs/lessons/\` |
-| Architecture | \`ai-docs/architecture.md\` |
+| Footguns | \`.goat-flow/footguns/\` |
+| Lessons | \`.goat-flow/lessons/\` |
+| Architecture | \`.goat-flow/architecture.md\` |
 | Config | \`.goat-flow/config.yaml\` |
 | Handoff | \`.goat-flow/tasks/handoff-template.md\` |
 `;
@@ -245,7 +245,7 @@ goat-flow-skill-version: "${RUBRIC_VERSION}"
 - **Gates:** BLOCKING GATE = must stop for human. CHECKPOINT = report status, continue unless interrupted.
 - **Adaptive Step 0:** If context already provided, confirm it - don't re-ask. Only hard-block with zero context.
 - **Stuck:** 3 reads with no signal → present what you have, ask to redirect.
-- **Learning Loop:** Behavioural mistake → \`ai-docs/lessons/\`. Architectural trap → \`ai-docs/footguns/\`.
+- **Learning Loop:** Behavioural mistake → \`.goat-flow/lessons/\`. Architectural trap → \`.goat-flow/footguns/\`.
 - **Closing:** Commit or note working artifacts. Check learning loop. Suggest next skill.
 
 ## When to Use
@@ -398,34 +398,14 @@ describe('Fixture 4: full-claude', () => {
     '.claude/hooks/stop-lint.sh':
       '#!/usr/bin/env bash\nnpx eslint . --quiet\nexit 0\n',
     // Learning loop
-    'ai-docs/footguns/':
+    '.goat-flow/footguns/':
       '# Footguns\n\n## Footgun: Auth race\n\n**Evidence:**\n- `src/auth.ts:42` - race condition\n- `src/auth.ts:88` - missing lock\n',
     'src/auth.ts': '// auth module\nexport function login() {}\n',
-    'ai-docs/lessons/':
+    '.goat-flow/lessons/':
       '# Lessons\n\n## Entries\n\n### Entry 1\n**What happened:** broke prod\n\n### Entry 2\n**What happened:** missed test\n\n### Entry 3\n**What happened:** stale ref\n',
     // Architecture
-    'ai-docs/architecture.md':
+    '.goat-flow/architecture.md':
       '# Architecture\n\n' + 'System overview.\n'.repeat(10),
-    // Evals
-    'ai-docs/evals/README.md': '# Agent Evals\n',
-    'ai-docs/evals/eval-1.md':
-      '---\nname: eval-1\norigin: real-incident\nagents: all\nskill: goat-debug\n---\n\n### Scenario\n\n```\nDo the thing\n```\n',
-    'ai-docs/evals/eval-2.md':
-      '---\nname: eval-2\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nDo something\n```\n',
-    'ai-docs/evals/eval-3.md':
-      '---\nname: eval-3\norigin: synthetic-seed\nagents: claude\nskill: goat-plan\n---\n\n### Scenario\n\n```\nAnother prompt\n```\n',
-    'ai-docs/evals/eval-4.md':
-      '---\nname: eval-4\norigin: real-incident\nagents: all\nskill: goat-security\n---\n\n### Scenario\n\n```\nCheck auth\n```\n',
-    'ai-docs/evals/eval-5.md':
-      '---\nname: eval-5\norigin: real-incident\nagents: all\nskill: goat-debug\n---\n\n### Scenario\n\n```\nExplore module\n```\n',
-    'ai-docs/evals/eval-6.md':
-      '---\nname: eval-6\norigin: real-incident\nagents: all\nskill: goat-test\n---\n\n### Scenario\n\n```\nVerify changes\n```\n',
-    'ai-docs/evals/eval-7.md':
-      '---\nname: eval-7\norigin: real-incident\nagents: all\nskill: goat-plan\n---\n\n### Scenario\n\n```\nRename across files\n```\n',
-    'ai-docs/evals/eval-8.md':
-      '---\nname: eval-8\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nClean up naming\n```\n',
-    'ai-docs/evals/eval-9.md':
-      '---\nname: eval-9\norigin: real-incident\nagents: all\nskill: goat\n---\n\n### Scenario\n\n```\nRoute intent\n```\n',
     // CI
     '.github/workflows/context-validation.yml':
       'name: Context Validation\non: [push, pull_request]\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
@@ -521,16 +501,9 @@ describe('Fixture 5: full-multi-agent', () => {
     '.codex/config.toml':
       '[stop]\ncommand = ["scripts/stop-lint.sh"]\n',
     'scripts/stop-lint.sh': '#!/usr/bin/env bash\nnpx eslint . --quiet\nexit 0\n',
-    'ai-docs/footguns/': '# Footguns\n\n**Evidence:**\n- `src/a.ts:1`\n',
-    'ai-docs/lessons/': '# Lessons\n\n### Entry 1\n**What happened:** x\n',
-    'ai-docs/architecture.md': '# Architecture\n\nOverview.\n',
-    'ai-docs/evals/README.md': '# Evals\n',
-    'ai-docs/evals/eval-1.md':
-      '---\nname: e1\norigin: real-incident\nagents: all\n---\n\n### Scenario\n\n```\nx\n```\n',
-    'ai-docs/evals/eval-2.md':
-      '---\nname: e2\norigin: real-incident\nagents: all\n---\n\n### Scenario\n\n```\ny\n```\n',
-    'ai-docs/evals/eval-3.md':
-      '---\nname: e3\norigin: synthetic-seed\nagents: claude\n---\n\n### Scenario\n\n```\nz\n```\n',
+    '.goat-flow/footguns/': '# Footguns\n\n**Evidence:**\n- `src/a.ts:1`\n',
+    '.goat-flow/lessons/': '# Lessons\n\n### Entry 1\n**What happened:** x\n',
+    '.goat-flow/architecture.md': '# Architecture\n\nOverview.\n',
     '.github/workflows/context-validation.yml':
       'name: CV\non: [push, pull_request]\njobs:\n  v:\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\n',
@@ -587,8 +560,8 @@ describe('Fixture 6: N/A checks', () => {
         qualitySkill(s),
       ]),
     ),
-    'ai-docs/footguns/': '# Footguns\n\n- `src/index.ts:10` - gotcha\n',
-    'ai-docs/lessons/': '# Lessons\n\n### Entry 1\nStuff.\n',
+    '.goat-flow/footguns/': '# Footguns\n\n- `src/index.ts:10` - gotcha\n',
+    '.goat-flow/lessons/': '# Lessons\n\n### Entry 1\nStuff.\n',
   });
   const report = scanProject(fs, '/test/library', { agentFilter: null });
 
@@ -605,7 +578,7 @@ describe('Fixture 7: anti-patterns', () => {
       scripts: { start: 'node .' },
     }),
     '.claude/settings.json': '{ invalid json !!!',
-    'ai-docs/footguns/':
+    '.goat-flow/footguns/':
       '# Footguns\n\nSome footguns but no file:line evidence at all.\n',
     '.claude/skills/not-goat-prefixed/SKILL.md': '# bad skill\n',
   });
@@ -622,12 +595,7 @@ describe('Fixture 7: anti-patterns', () => {
     assert.equal(ap1.deduction, -3);
   });
 
-  it('triggers AP4 (footguns without evidence)', () => {
-    const ap4 = report.agents[0].antiPatterns.find((ap) => ap.id === 'AP4');
-    assert.ok(ap4, 'AP4 not found');
-    assert.ok(ap4.triggered, 'AP4 should be triggered (no file:line evidence)');
-    assert.equal(ap4.deduction, -5);
-  });
+  // AP4 (footguns without evidence) removed - anti-pattern deleted.
 
   it('triggers AP5 (invalid settings JSON)', () => {
     const ap5 = report.agents[0].antiPatterns.find((ap) => ap.id === 'AP5');
@@ -672,9 +640,9 @@ describe('Fixture 8: partial-setup', () => {
     '.claude/skills/goat-debug/SKILL.md': '# goat-debug\n',
     '.claude/skills/goat-review/SKILL.md': '# goat-review\n',
     // Learning loop - lessons exists but no footguns
-    'ai-docs/lessons/': '# Lessons\n\n### Entry 1\nSomething.\n',
+    '.goat-flow/lessons/': '# Lessons\n\n### Entry 1\nSomething.\n',
     // Architecture exists
-    'ai-docs/architecture.md': '# Architecture\n\nOverview.\n',
+    '.goat-flow/architecture.md': '# Architecture\n\nOverview.\n',
     '.gitignore': '.env\nnode_modules/\n',
   });
   const report = scanProject(fs, '/test/partial', { agentFilter: null });
@@ -729,9 +697,9 @@ describe('Fixture 9: allowed-missing (N/A checks)', () => {
         qualitySkill(s),
       ]),
     ),
-    'ai-docs/footguns/': '# Footguns\n\n- `src/a.ts:5` - evidence\n',
-    'ai-docs/lessons/': '# Lessons\n\n### E1\nStuff.\n',
-    'ai-docs/architecture.md': '# Arch\n\nOverview.\n',
+    '.goat-flow/footguns/': '# Footguns\n\n- `src/a.ts:5` - evidence\n',
+    '.goat-flow/lessons/': '# Lessons\n\n### E1\nStuff.\n',
+    '.goat-flow/architecture.md': '# Arch\n\nOverview.\n',
     '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': '.env\nsettings.local.json\n',
   });
@@ -766,7 +734,7 @@ describe('Fixture 9: allowed-missing (N/A checks)', () => {
   });
 });
 
-describe('Fixture 10a: project with ai-docs/coding-standards/', () => {
+describe('Fixture 10a: project with .goat-flow/coding-standards/', () => {
   const fs = createMockFS({
     'CLAUDE.md': FULL_CLAUDE_MD,
     'package.json': JSON.stringify({
@@ -777,14 +745,14 @@ describe('Fixture 10a: project with ai-docs/coding-standards/', () => {
       permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
     }),
     '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
-    'ai-docs/README.md':
-      '# Project Guidelines\n\nRead [conventions](ai-docs/coding-standards/conventions.md) first.\n',
-    'ai-docs/coding-standards/conventions.md':
+    '.goat-flow/README.md':
+      '# Project Guidelines\n\nRead [conventions](.goat-flow/coding-standards/conventions.md) first.\n',
+    '.goat-flow/coding-standards/conventions.md':
       "# Conventions\n\n## Commands\n\n```bash\nnpm test\nnpm run build\nnpm run lint\n```\n\n## Conventions\n\nDo: use early returns\nDon't: nest deeply\nDo: co-locate tests\nDon't: hardcode secrets\n",
-    'ai-docs/coding-standards/frontend.md': '# Frontend\n\nFrontend conventions.\n',
-    'ai-docs/coding-standards/code-review.md':
+    '.goat-flow/coding-standards/frontend.md': '# Frontend\n\nFrontend conventions.\n',
+    '.goat-flow/coding-standards/code-review.md':
       '# Code Review\n\nReview standards.\n',
-    'ai-docs/coding-standards/git-commit.md': '# Git Commit\n\nCommit format.\n',
+    '.goat-flow/coding-standards/git-commit.md': '# Git Commit\n\nCommit format.\n',
     '.github/git-commit-instructions.md': '# Git Commit\n\nCommit format.\n',
   });
   const report = scanProject(fs, '/test/ai-instructions', {
@@ -803,12 +771,12 @@ describe('Fixture 10a: project with ai-docs/coding-standards/', () => {
     );
   });
 
-  it('detects ai-docs/ location', () => {
+  it('detects .goat-flow/ location', () => {
     const dirCheck = report.agents[0].checks.find((c) => c.id === '2.6.1');
     assert.ok(dirCheck);
     assert.equal(dirCheck.status, 'pass');
     assert.ok(
-      dirCheck.message.includes('ai-docs/coding-standards'),
+      dirCheck.message.includes('.goat-flow/coding-standards'),
       dirCheck.message,
     );
   });
@@ -851,9 +819,9 @@ describe('Regression: duplicate local-instruction surfaces should fail', () => {
   const fs = createMockFS({
     'CLAUDE.md': MINIMAL_CLAUDE_MD,
     'package.json': JSON.stringify({ name: 'duplicate-instruction-surfaces' }),
-    'ai-docs/README.md':
-      '# Coding Guidelines\n\nSee [Conventions](ai-docs/coding-standards/conventions.md).\n',
-    'ai-docs/coding-standards/conventions.md':
+    '.goat-flow/README.md':
+      '# Coding Guidelines\n\nSee [Conventions](.goat-flow/coding-standards/conventions.md).\n',
+    '.goat-flow/coding-standards/conventions.md':
       '# Conventions\n\n## Commands\n\n```bash\nnpm test\n```\n\n## Conventions\n\nDo: use TypeScript\nDon\'t: use any\n\nLine.\n'.repeat(
         4,
       ),
@@ -864,11 +832,11 @@ describe('Regression: duplicate local-instruction surfaces should fail', () => {
     agentFilter: 'claude',
   });
 
-  it('fails 2.6.1a when both ai-docs/ and .github/instructions/ exist', () => {
+  it('fails 2.6.1a when both .goat-flow/ and .github/instructions/ exist', () => {
     const check = report.agents[0].checks.find((c) => c.id === '2.6.1a');
     assert.ok(check, 'Expected check 2.6.1a');
     assert.equal(check.status, 'fail');
-    assert.match(check.message, /ai-docs\/coding-standards/);
+    assert.match(check.message, /\.goat-flow\/coding-standards/);
     assert.match(check.message, /\.github\/instructions/);
   });
 });
@@ -895,8 +863,8 @@ describe('Fixture 10c: project without instructions', () => {
     );
     const failing = localChecks.filter((c) => c.status === 'fail');
     assert.ok(
-      failing.length >= 4,
-      `Expected 4+ failures, got ${failing.length}`,
+      failing.length >= 1,
+      `Expected 1+ failures, got ${failing.length}`,
     );
   });
 });
@@ -1084,65 +1052,7 @@ describe('Regression: post-turn hook swallowing failures should fail honesty che
   });
 });
 
-describe('Regression: broken ai-docs/README router should fail', () => {
-  const fs = createMockFS({
-    'CLAUDE.md': FULL_CLAUDE_MD,
-    'package.json': JSON.stringify({
-      name: 'broken-ai-router',
-      scripts: { test: 'node --test' },
-    }),
-    '.claude/settings.json': JSON.stringify({
-      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
-    }),
-    '.claude/hooks/deny-dangerous.sh': '#!/usr/bin/env bash\nexit 0\n',
-    'ai-docs/README.md':
-      '# Coding Guidelines\n\nSee [Conventions](ai-docs/coding-standards/missing.md).\n',
-    'ai-docs/coding-standards/conventions.md':
-      "# Conventions\n\n## Commands\n\n```bash\nnpm test\n```\n\n## Conventions\n\nDo: use early returns\nDon't: hardcode secrets\n" +
-      'Line.\n'.repeat(16),
-    'ai-docs/coding-standards/code-review.md':
-      '# Code Review\n\nReview checklist.\n',
-    'ai-docs/coding-standards/git-commit.md':
-      '# Git Commit\n\nCommit conventions.\n',
-    '.github/git-commit-instructions.md':
-      '# Git Commit\n\nCommit conventions.\n',
-  });
-  const report = scanProject(fs, '/test/broken-ai-router', {
-    agentFilter: 'claude',
-  });
-
-  it('fails the router validity check when ai-docs/README.md points at a missing file', () => {
-    const check = report.agents[0].checks.find((c) => c.id === '2.6.2');
-    assert.ok(check, 'Expected check 2.6.2');
-    assert.equal(check.status, 'fail');
-    assert.ok(
-      check.message.includes('references missing paths'),
-      check.message,
-    );
-    assert.ok(
-      check.message.includes('ai-docs/coding-standards/missing.md'),
-      check.message,
-    );
-  });
-
-  it('does not treat a broken ai-docs/README.md as a passing router', () => {
-    const localChecks = report.agents[0].checks.filter(
-      (c) => c.category === 'Local Instructions',
-    );
-    assert.ok(
-      localChecks.some(
-        (check) => check.id === '2.6.2' && check.status === 'fail',
-      ),
-    );
-  });
-
-  it('does not score as a perfect setup when the router is broken', () => {
-    assert.ok(
-      report.agents[0].score.percentage < 100,
-      `Expected score < 100, got ${report.agents[0].score.percentage}%`,
-    );
-  });
-});
+// Regression: broken .goat-flow/README router test removed - check 2.6.2 deleted.
 
 // CI validation regression tests removed - CI checks 3.2.x deleted.
 
@@ -1158,9 +1068,9 @@ describe('Regression: category bucket learning loop counts entries, not files', 
     }),
     'src/hook.ts': 'export const hook = true;\n',
     'src/router.ts': 'export const router = true;\n',
-    'ai-docs/lessons/verification.md':
+    '.goat-flow/lessons/verification.md':
       '---\ncategory: verification\n---\n\n## Lesson: First lesson\n**Created:** 2026-04-03\n**What happened:** Missed a real regression.\n**Evidence:** `src/hook.ts:1` - hook changed without a fixture.\n**Prevention:** Add the fixture first.\n\n## Lesson: Second lesson\n**Created:** 2026-04-03\n**What happened:** Trusted stale expectations.\n**Evidence:** `src/router.ts:1` - the routing contract had changed.\n**Prevention:** Re-run the scanner before updating fixtures.\n',
-    'ai-docs/footguns/hooks.md':
+    '.goat-flow/footguns/hooks.md':
       '---\ncategory: hooks\n---\n\n## Footgun: Hook payload mismatch\n**Status:** active\n**Created:** 2026-04-03\n**Evidence type:** ACTUAL_MEASURED\n**Symptoms:** Hook never sees the edited file.\n**Why it happens:** The wrong JSON field is parsed.\n**Evidence:**\n- `src/hook.ts:1` - hook consumes the wrong payload shape.\n**Prevention:** Read the actual runtime payload.\n\n## Footgun: Router drift\n**Status:** active\n**Created:** 2026-04-03\n**Evidence type:** ACTUAL_MEASURED\n**Symptoms:** Router docs and code diverge.\n**Why it happens:** One side changes without the other.\n**Evidence:**\n- `src/router.ts:1` - router behavior is the real contract.\n**Prevention:** Update both sides together.\n',
   });
   const report = scanProject(fs, '/test/category-buckets', {
@@ -1172,17 +1082,12 @@ describe('Regression: category bucket learning loop counts entries, not files', 
     assert.ok(check, 'Expected check 2.3.2a');
     assert.equal(check.status, 'pass');
     assert.ok(
-      check.message.includes('2 lesson entries (2 committed, 0 local)'),
+      check.message.includes('2 lesson entries in .goat-flow/lessons/'),
       check.message,
     );
   });
 
-  it('counts footgun evidence labels per entry, not per file', () => {
-    const check = report.agents[0].checks.find((c) => c.id === '2.3.5a');
-    assert.ok(check, 'Expected check 2.3.5a');
-    assert.equal(check.status, 'pass');
-    assert.ok(check.message.includes('2/2 footgun entries'), check.message);
-  });
+  // 2.3.5a (footgun evidence labels) removed - check deleted.
 });
 
 describe('Regression: footgun line refs must stay within file bounds', () => {
@@ -1196,7 +1101,7 @@ describe('Regression: footgun line refs must stay within file bounds', () => {
       permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
     }),
     'src/auth.ts': 'export function login() {}\n',
-    'ai-docs/footguns/hooks.md':
+    '.goat-flow/footguns/hooks.md':
       '---\ncategory: hooks\n---\n\n## Footgun: Out-of-range line ref\n**Status:** active\n**Created:** 2026-04-03\n**Evidence type:** ACTUAL_MEASURED\n**Symptoms:** Scanner trusted a stale line ref.\n**Why it happens:** The cited file changed after the incident was logged.\n**Evidence:**\n- `src/auth.ts:99` - no such line exists anymore.\n**Prevention:** Update the cited line after refactors.\n',
   });
   const report = scanProject(fs, '/test/footgun-line-bounds', {
@@ -1219,94 +1124,32 @@ describe('Regression: footgun line refs must stay within file bounds', () => {
   });
 });
 
-describe('Regression: duplicate legacy learning-loop surfaces trigger AP22', () => {
+// Regression: duplicate legacy learning-loop surfaces tests removed - AP22 and 2.3.5b deleted.
+
+// Regression: canonical learning-loop paths AP22/2.3.5b tests partially removed - AP22 and 2.3.5b deleted.
+describe('Regression: canonical learning-loop paths pass remaining checks', () => {
   const fs = createMockFS({
     'CLAUDE.md': FULL_CLAUDE_MD,
     'package.json': JSON.stringify({
-      name: 'duplicate-learning-loop-surfaces',
+      name: 'canonical-learning-loop',
       scripts: { test: 'node --test' },
     }),
     '.claude/settings.json': JSON.stringify({
       permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
     }),
     'src/auth.ts': 'export function login() {}\n',
-    'ai-docs/footguns/hooks.md':
-      '---\ncategory: hooks\n---\n\n## Footgun: Bucket entry\n**Status:** active\n**Created:** 2026-04-03\n**Evidence type:** ACTUAL_MEASURED\n**Evidence:**\n- `src/auth.ts:1` - current bucket evidence.\n',
-    'ai-docs/lessons/verification.md':
-      '---\ncategory: verification\n---\n\n## Lesson: Bucket entry\n**Created:** 2026-04-03\nUse the bucket layout.\n',
-    'docs/footguns.md':
-      '# Footguns\n\n## Footgun: Legacy duplicate\n\n**Evidence:**\n- `src/auth.ts:1` - old flat-file surface.\n',
-    'docs/lessons.md':
-      '# Lessons\n\n## Entries\n\n### Legacy duplicate\n**What happened:** old flat-file lesson still exists.\n',
-  });
-  const report = scanProject(fs, '/test/duplicate-learning-loop-surfaces', {
-    agentFilter: 'claude',
-  });
-
-  it('triggers AP22 for legacy flat files that compete with bucket dirs', () => {
-    const antiPattern = report.agents[0].antiPatterns.find(
-      (ap) => ap.id === 'AP22',
-    );
-    assert.ok(antiPattern, 'Expected anti-pattern AP22');
-    assert.equal(antiPattern.triggered, true);
-    assert.match(antiPattern.message, /docs\/footguns\.md/);
-    assert.match(antiPattern.message, /docs\/lessons\.md/);
-  });
-
-  it('fails 2.3.5b for the same duplicate learning-loop surfaces', () => {
-    const check = report.agents[0].checks.find((c) => c.id === '2.3.5b');
-    assert.ok(check, 'Expected check 2.3.5b');
-    assert.equal(check.status, 'fail');
-    assert.match(check.message, /docs\/footguns\.md/);
-    assert.match(check.message, /docs\/lessons\.md/);
-  });
-
-  it('adds the duplicate-surface recommendation', () => {
-    const recommendation = report.agents[0].recommendations.find(
-      (rec) => rec.key === 'ap-fix-duplicate-learning-loop-surfaces',
-    );
-    assert.ok(
-      recommendation,
-      'Expected duplicate learning-loop surfaces recommendation',
-    );
-  });
-});
-
-describe('Regression: committed plus local bucket split does not trigger AP22', () => {
-  const fs = createMockFS({
-    'CLAUDE.md': FULL_CLAUDE_MD,
-    'package.json': JSON.stringify({
-      name: 'canonical-learning-loop-split',
-      scripts: { test: 'node --test' },
-    }),
-    '.claude/settings.json': JSON.stringify({
-      permissions: { deny: ['Bash(git commit*)', 'Bash(git push*)'] },
-    }),
-    'src/auth.ts': 'export function login() {}\n',
-    'ai-docs/footguns/hooks.md':
+    '.goat-flow/footguns/hooks.md':
       '---\ncategory: hooks\n---\n\n## Footgun: Committed bucket\n**Status:** active\n**Created:** 2026-04-03\n**Evidence type:** ACTUAL_MEASURED\n**Evidence:**\n- `src/auth.ts:1` - committed evidence.\n',
-    '.goat-flow/footguns/local.md':
-      '---\ncategory: local\n---\n\n## Footgun: Local bucket\n**Status:** active\n**Created:** 2026-04-03\n**Evidence type:** ACTUAL_MEASURED\n**Evidence:**\n- `src/auth.ts:1` - local evidence.\n',
-    'ai-docs/lessons/verification.md':
+    '.goat-flow/lessons/verification.md':
       '---\ncategory: verification\n---\n\n## Lesson: Committed bucket\n**Created:** 2026-04-03\nCommitted lesson.\n',
-    '.goat-flow/lessons/local.md':
-      '---\ncategory: local\n---\n\n## Lesson: Local bucket\n**Created:** 2026-04-03\nLocal-only lesson.\n',
   });
-  const report = scanProject(fs, '/test/canonical-learning-loop-split', {
+  const report = scanProject(fs, '/test/canonical-learning-loop', {
     agentFilter: 'claude',
   });
 
-  it('keeps AP22 clear when only the configured committed/local split exists', () => {
-    const antiPattern = report.agents[0].antiPatterns.find(
-      (ap) => ap.id === 'AP22',
-    );
-    assert.ok(antiPattern, 'Expected anti-pattern AP22');
-    assert.equal(antiPattern.triggered, false);
-  });
-
-  it('passes 2.3.5b when only the configured committed/local split exists', () => {
-    const check = report.agents[0].checks.find((c) => c.id === '2.3.5b');
-    assert.ok(check, 'Expected check 2.3.5b');
+  it('passes 2.3.4 when footguns have valid evidence', () => {
+    const check = report.agents[0].checks.find((c) => c.id === '2.3.4');
+    assert.ok(check, 'Expected check 2.3.4');
     assert.equal(check.status, 'pass');
   });
 });
@@ -1398,22 +1241,14 @@ describe('Fixture 10: self-goat-flow (score snapshot)', () => {
       '# execpolicy\n# deny git commit\n# deny git push\n',
     'scripts/stop-lint.sh': '#!/usr/bin/env bash\nexit 0\n',
     // Learning loop
-    'ai-docs/footguns/':
+    '.goat-flow/footguns/':
       '# Footguns\n\n## Footgun: Auth\n\n**Evidence:**\n- `src/auth.ts:42` - broke login\n- `src/auth.ts:88` - missing lock\n',
     'src/auth.ts': '// auth module\n',
-    'ai-docs/lessons/':
+    '.goat-flow/lessons/':
       '# Lessons\n\n## Entries\n\n### Entry 1\n**What happened:** something\n\n### Entry 2\n**What happened:** missed test\n\n### Entry 3\n**What happened:** stale ref\n',
     // Architecture
-    'ai-docs/architecture.md':
+    '.goat-flow/architecture.md':
       '# Architecture\n\n' + 'System overview.\n'.repeat(10),
-    // Evals
-    'ai-docs/evals/README.md': '# Agent Evals\n',
-    'ai-docs/evals/eval-1.md':
-      '---\nname: eval-1\norigin: real-incident\nagents: all\n---\n\n### Scenario\n\n```\nDo the thing\n```\n',
-    'ai-docs/evals/eval-2.md':
-      '---\nname: eval-2\norigin: real-incident\nagents: all\n---\n\n### Scenario\n\n```\nDo another thing\n```\n',
-    'ai-docs/evals/eval-3.md':
-      '---\nname: eval-3\norigin: synthetic-seed\nagents: claude\n---\n\n### Scenario\n\n```\nThird eval\n```\n',
     // CI
     '.github/workflows/context-validation.yml':
       'name: CV\non: [push, pull_request]\njobs:\n  v:\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n',
@@ -1480,7 +1315,7 @@ describe('Regression: full project score stability', () => {
     `
 \`\`\`
 BAD:  "The spec says 100 lines for apps" (guessed without reading)
-GOOD: Read ai-docs/architecture.md:14 → "Target 120 lines. Hard limit 150."
+GOOD: Read .goat-flow/architecture.md:14 → "Target 120 lines. Hard limit 150."
 \`\`\`
 
 \`\`\`
@@ -1530,44 +1365,25 @@ GOOD: Inline format. Extract when second format needed
       '#!/usr/bin/env bash\nset -euo pipefail\nINPUT=$(cat)\nCMD=$(echo "$INPUT" | jq -r .command // empty)\ncase "$CMD" in *rm\\ -rf*|*--force*|*chmod\\ 777*) exit 2;; esac\nexit 0\n',
     '.claude/hooks/stop-lint.sh':
       '#!/usr/bin/env bash\nnpx eslint . --quiet\nexit 0\n',
-    'ai-docs/footguns/':
+    '.goat-flow/footguns/':
       '# Footguns\n\n## Footgun: Auth race\n\n**Evidence type:** ACTUAL_MEASURED\n\n**Evidence:**\n- `src/auth.ts:42` - race condition\n- `src/auth.ts:88` - missing lock\n',
     'src/auth.ts': '// auth module\n',
-    'ai-docs/lessons/':
+    '.goat-flow/lessons/':
       '# Lessons\n\n## Entries\n\n### Entry 1\n**What happened:** broke prod deploy\n\n### Entry 2\n**What happened:** missed test coverage\n\n### Entry 3\n**What happened:** stale ref after rename\n',
-    'ai-docs/architecture.md':
+    '.goat-flow/architecture.md':
       '# Architecture\n\n' + 'System overview line.\n'.repeat(8),
-    'ai-docs/evals/README.md': '# Agent Evals\n',
-    'ai-docs/evals/eval-1.md':
-      '---\nname: eval-1\norigin: real-incident\nagents: all\nskill: goat-debug\n---\n\n### Scenario\n\n```\nDo the thing\n```\n',
-    'ai-docs/evals/eval-2.md':
-      '---\nname: eval-2\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nDo something\n```\n',
-    'ai-docs/evals/eval-3.md':
-      '---\nname: eval-3\norigin: synthetic-seed\nagents: claude\nskill: goat-plan\n---\n\n### Scenario\n\n```\nAnother prompt\n```\n',
-    'ai-docs/evals/eval-4.md':
-      '---\nname: eval-4\norigin: real-incident\nagents: all\nskill: goat-security\n---\n\n### Scenario\n\n```\nCheck auth\n```\n',
-    'ai-docs/evals/eval-5.md':
-      '---\nname: eval-5\norigin: real-incident\nagents: all\nskill: goat-debug\n---\n\n### Scenario\n\n```\nExplore module\n```\n',
-    'ai-docs/evals/eval-6.md':
-      '---\nname: eval-6\norigin: real-incident\nagents: all\nskill: goat-test\n---\n\n### Scenario\n\n```\nVerify changes\n```\n',
-    'ai-docs/evals/eval-7.md':
-      '---\nname: eval-7\norigin: real-incident\nagents: all\nskill: goat-plan\n---\n\n### Scenario\n\n```\nRename across files\n```\n',
-    'ai-docs/evals/eval-8.md':
-      '---\nname: eval-8\norigin: real-incident\nagents: all\nskill: goat-review\n---\n\n### Scenario\n\n```\nClean up naming\n```\n',
-    'ai-docs/evals/eval-9.md':
-      '---\nname: eval-9\norigin: real-incident\nagents: all\nskill: goat\n---\n\n### Scenario\n\n```\nRoute intent\n```\n',
     'scripts/preflight-checks.sh': '#!/usr/bin/env bash\necho "preflight"\n',
     'scripts/context-validate.sh': '#!/usr/bin/env bash\necho "validate"\n',
     '.goat-flow/tasks/handoff-template.md': HANDOFF_TEMPLATE,
     '.gitignore': '.env\nsettings.local.json\nnode_modules/\n',
-    'ai-docs/README.md':
-      '# Coding Guidelines\n\nSee [Conventions](ai-docs/coding-standards/conventions.md) and [Code Review](ai-docs/coding-standards/code-review.md).\n',
-    'ai-docs/coding-standards/conventions.md':
+    '.goat-flow/README.md':
+      '# Coding Guidelines\n\nSee [Conventions](.goat-flow/coding-standards/conventions.md) and [Code Review](.goat-flow/coding-standards/code-review.md).\n',
+    '.goat-flow/coding-standards/conventions.md':
       "# Conventions\n\n## Commands\n\n```bash\nnpm test\n```\n\n## Conventions\n\nDo: use TypeScript\nDon't: use any\n\n" +
       'Line.\n'.repeat(10),
-    'ai-docs/coding-standards/code-review.md':
+    '.goat-flow/coding-standards/code-review.md':
       '# Code Review\n\nReview checklist.\n',
-    'ai-docs/coding-standards/git-commit.md':
+    '.goat-flow/coding-standards/git-commit.md':
       '# Git Commit\n\nCommit conventions.\n',
     'CHANGELOG.md': '# Changelog\n\n## v1.0\n\nInitial setup.\n',
     '.goat-flow/config.yaml': 'version: "1.0.0"\nuserRole: developer\n',
@@ -1637,7 +1453,7 @@ npm test
 \`\`\`
 
 BAD:  "The spec says 100 lines for apps" (guessed without reading)
-GOOD: Read \`ai-docs/architecture.md:14\` → "Target 120 lines. Hard limit 150."
+GOOD: Read \`.goat-flow/architecture.md:14\` → "Target 120 lines. Hard limit 150."
 `,
     'package.json': JSON.stringify({ name: 'test' }),
   });
@@ -1682,7 +1498,7 @@ describe('Regression: 1.1.5a requires 2+ resolvable project paths', () => {
 
 | Resource | Path |
 |----------|------|
-| Docs | \`ai-docs/architecture.md\` |
+| Docs | \`.goat-flow/architecture.md\` |
 | Config | \`.goat-flow/config.yaml\` |
 
 ## Autonomy Tiers
@@ -1693,7 +1509,7 @@ describe('Regression: 1.1.5a requires 2+ resolvable project paths', () => {
 **Never:** Delete .env
 `,
     'package.json': JSON.stringify({ name: 'test' }),
-    'ai-docs/architecture.md': '# Arch\n',
+    '.goat-flow/architecture.md': '# Arch\n',
     'src/auth.ts': '// auth\n',
   });
   const passReport = scanProject(passFs, '/test/1.1.5a-pass', { agentFilter: 'claude' });
@@ -1734,12 +1550,12 @@ describe('Regression: 1.2.6 LOG step paths must exist on disk', () => {
 
 | File | When |
 |------|------|
-| \`ai-docs/lessons/\` | mistakes |
-| \`ai-docs/footguns/\` | traps |
+| \`.goat-flow/lessons/\` | mistakes |
+| \`.goat-flow/footguns/\` | traps |
 `,
     'package.json': JSON.stringify({ name: 'test' }),
-    'ai-docs/lessons/': '# Lessons\n\n### E1\nStuff.\n',
-    'ai-docs/footguns/': '# Footguns\n\n- `src/x.ts:1` - evidence\n',
+    '.goat-flow/lessons/': '# Lessons\n\n### E1\nStuff.\n',
+    '.goat-flow/footguns/': '# Footguns\n\n- `src/x.ts:1` - evidence\n',
   });
   const passReport = scanProject(passFs, '/test/1.2.6-pass', { agentFilter: 'claude' });
 

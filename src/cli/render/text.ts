@@ -240,7 +240,7 @@ export function renderText(report: ScanReport, verbose: boolean): string {
     lines.push(`Stack: ${report.stack.languages.join(', ')}`);
   }
   lines.push(
-    `Learning loop: footguns ${report.meta.learningLoop.footguns.committed} committed / ${report.meta.learningLoop.footguns.local} local | lessons ${report.meta.learningLoop.lessons.committed} committed / ${report.meta.learningLoop.lessons.local} local`,
+    `Learning loop: footguns ${report.meta.learningLoop.footguns.count} | lessons ${report.meta.learningLoop.lessons.count}`,
   );
   lines.push(
     `Config: ${report.meta.config.exists ? (report.meta.config.valid ? '.goat-flow/config.yaml valid' : '.goat-flow/config.yaml invalid') : '.goat-flow/config.yaml missing (defaults active)'}`,

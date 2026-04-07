@@ -24,11 +24,6 @@ Launch: `goat-flow dashboard` (or `goat-flow dashboard --dev` for live reload)
 - Agent selector
 - Setup prompt preview with "Run in Terminal" launcher
 
-### Settings
-- Project path configuration
-- User role selection (developer/investigator/tester)
-- Dark/light theme toggle
-
 ## Terminal
 
 - Supports Claude, Codex, Gemini, Copilot runners
@@ -45,4 +40,3 @@ Launch: `goat-flow dashboard` (or `goat-flow dashboard --dev` for live reload)
 | `/api/setup` | POST | Generate setup prompt |
 | `/api/terminal/create` | POST | Start a terminal session |
 | `/api/terminal/kill` | POST | End a terminal session |
-| `/api/config` | GET/POST | Read/update project config |

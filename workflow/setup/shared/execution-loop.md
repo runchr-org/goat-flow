@@ -11,7 +11,7 @@ a) Version header (v1.0 - YYYY-MM-DD)
 b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
    - READ: read relevant files first, never fabricate codebase facts
      (include BAD/GOOD example)
-     Cross-doc: MUST read ai-docs/footguns/ before modifying files
+     Cross-doc: MUST read .goat-flow/footguns/ before modifying files
      listed in the Ask First boundaries. Known traps prevent repeat mistakes.
    - CLASSIFY: three signals before acting:
      1. Intent: question (answer it) vs directive (act on it)
@@ -36,15 +36,15 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
    - LOG: MUST update when tripped (DoD gate #4). Use category bucket
      files - do NOT append to a monolithic log and do NOT create one
      file per incident forever.
-     Lessons: `ai-docs/lessons/` or `.goat-flow/lessons/` category files.
-     Footguns: `ai-docs/footguns/` or `.goat-flow/footguns/` category files.
-     Decisions: `ai-docs/decisions/`.
+     Lessons: `.goat-flow/lessons/` category files.
+     Footguns: `.goat-flow/footguns/` category files.
+     Decisions: `.goat-flow/decisions/`.
      When-to-use table. Footgun propagation rule.
      Context-based loading rules.
      MECHANICAL TRIGGER (non-negotiable):
-     - VERIFY caught a failure in your code → `ai-docs/lessons/` entry BEFORE DoD
-     - Human corrected agent behaviour → `ai-docs/lessons/` entry IMMEDIATELY
-     - Discovered architectural trap with file:line evidence → `ai-docs/footguns/`
+     - VERIFY caught a failure in your code → `.goat-flow/lessons/` entry BEFORE DoD
+     - Human corrected agent behaviour → `.goat-flow/lessons/` entry IMMEDIATELY
+     - Discovered architectural trap with file:line evidence → `.goat-flow/footguns/`
      Skip = DoD gate #4 blocks completion. This is not optional.
      Session logs: write a summary to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`
      at the end of every significant session. Include: what happened, files changed,
@@ -103,9 +103,9 @@ g) Communication When Blocked: one question with recommended default
 
 h) Router table: MUST include at minimum:
      - All 6 skill directories (Claude/Gemini/Codex/Copilot: .claude/skills/, .agents/skills/, .github/skills/)
-     - Learning loop directories (`ai-docs/footguns/`, `.goat-flow/footguns/`, `ai-docs/lessons/`, `.goat-flow/lessons/`)
-     - Architecture doc, agent evals
-     - Project guidelines: `ai-docs/README.md`
+     - Learning loop directories (`.goat-flow/footguns/`, `.goat-flow/lessons/`)
+     - Architecture doc
+     - Project guidelines: `.goat-flow/README.md`
      - Any playbooks, profiles, or domain docs relevant to project
      Dual-agent projects: router MUST include the other agent's
      instruction file (AGENTS.md or CLAUDE.md).

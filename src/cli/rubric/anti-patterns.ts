@@ -9,11 +9,12 @@ import type {
   FactContext,
   AntiPatternResult,
 } from '../types.js';
-import { SKILL_VERSION, SKILL_NAMES } from '../constants.js';
+import { SKILL_VERSION } from '../constants.js';
+import { getProjectStructure } from '../paths.js';
 
 /** Regex matching backtick-wrapped project paths in instruction file content. */
 const INSTRUCTION_PATH_PATTERN =
-  /`((?:src|config|templates?|app|apps|lib|docs|scripts|setup|workflow|ai|agent-evals|\.claude|\.agents|\.github)\/[^`]+)`/g;
+  /`((?:src|config|templates?|app|apps|lib|docs|scripts|setup|workflow|ai|\.claude|\.agents|\.github)\/[^`]+)`/g;
 
 /** Find stale instruction refs. */
 function findStaleInstructionRefs(ctx: FactContext): string[] {
@@ -62,63 +63,9 @@ export const antiPatterns: AntiPatternDef[] = [
     recommendationKey: 'ap-compress-instruction-file',
   },
   // AP2 removed - penalized project-specific skills (e.g., deploy/, preflight/) by assuming all skills need goat- prefix.
-  // See ai-docs/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
-  {
-    id: 'AP3',
-    name: 'DoD in both instruction file and guidelines',
-    deduction: -3,
-    confidence: 'low',
-    evaluate: (ctx: FactContext): AntiPatternResult => {
-      // Only count real DoD section duplication, not incidental mentions of the phrase.
-      const DOD_SECTION = /^#+\s*definition of done/im;
-      const instructionContent = ctx.agentFacts.instruction.content;
-      const conventionsContent =
-        ctx.facts.shared.localInstructions.conventionsContent;
-      const inInstruction =
-        instructionContent !== null && DOD_SECTION.test(instructionContent);
-      const inConventions =
-        conventionsContent !== null && DOD_SECTION.test(conventionsContent);
-      const triggered = inInstruction && inConventions;
-      return {
-        id: 'AP3',
-        name: 'DoD in both instruction file and guidelines',
-        triggered,
-        deduction: triggered ? -3 : 0,
-        confidence: 'low',
-        message: triggered
-          ? 'DoD appears in both instruction file and conventions.md - risk of conflicting definitions'
-          : 'No DoD duplication detected',
-      };
-    },
-    recommendation: 'Remove DoD from guidelines file',
-    recommendationKey: 'ap-fix-dod-overlap',
-  },
-
-  // === AP4-AP6: Settings and Hooks Anti-Patterns ===
-  {
-    id: 'AP4',
-    name: 'Footguns without file:line evidence',
-    deduction: -5,
-    confidence: 'high',
-    evaluate: (ctx: FactContext): AntiPatternResult => {
-      const { exists, hasEvidence } = ctx.facts.shared.footguns;
-      const triggered = exists && hasEvidence === false;
-      return {
-        id: 'AP4',
-        name: 'Footguns without file:line evidence',
-        triggered,
-        deduction: triggered ? -5 : 0,
-        confidence: 'high',
-        message: triggered
-          ? 'footguns.md has no file:line evidence'
-          : exists
-            ? 'Footguns have evidence'
-            : 'No footguns.md',
-      };
-    },
-    recommendation: 'Add file:line evidence to all footgun entries',
-    recommendationKey: 'ap-add-footgun-evidence',
-  },
+  // See .goat-flow/footguns/ "Scanner AP2 penalizes project-specific skills" (2026-04-01, RESOLVED).
+  // AP3 (DoD in both instruction file and guidelines) removed - low confidence, DoD location is a style choice not a defect.
+  // AP4 (Footguns without file:line evidence) removed - already covered by rubric check 2.3.4. Anti-pattern was double-penalizing.
   {
     id: 'AP5',
     name: 'settings.json invalid JSON',
@@ -184,37 +131,7 @@ export const antiPatterns: AntiPatternDef[] = [
   },
 
   // === AP7-AP9: Local Files and Gitignore Anti-Patterns ===
-  {
-    id: 'AP7',
-    name: 'Local per-directory instruction file over 20 lines',
-    deduction: -2,
-    confidence: 'high',
-    evaluate: (ctx: FactContext): AntiPatternResult => {
-      // Only check per-directory local files (e.g., src/api/CLAUDE.md)
-      // EXCLUDE ai-docs/coding-standards/ and .github/instructions/ - those are cold-path files meant to be 40-60 lines
-      const oversize = ctx.facts.shared.localInstructions.localFileSizes
-        .filter(
-          (f) =>
-            f.path.includes(ctx.facts.shared.localInstructions.path) ===
-              false && f.path.includes('.github/instructions/') === false,
-        )
-        .filter((f) => f.lines > 20);
-      const triggered = oversize.length > 0;
-      const message = triggered
-        ? `Oversize local files: ${oversize.map((f) => `${f.path} (${f.lines} lines)`).join(', ')}`
-        : 'All local per-directory instruction files are 20 lines or fewer';
-      return {
-        id: 'AP7',
-        name: 'Local per-directory instruction file over 20 lines',
-        triggered,
-        deduction: triggered ? -2 : 0,
-        confidence: 'high',
-        message,
-      };
-    },
-    recommendation: 'Compress local instruction files to under 20 lines',
-    recommendationKey: 'ap-compress-local-files',
-  },
+  // AP7 (Local per-directory instruction file over 20 lines) removed - arbitrary line limit. AP1 already covers the main file.
   {
     id: 'AP8',
     name: 'Generic Ask First boundaries',
@@ -286,36 +203,7 @@ export const antiPatterns: AntiPatternDef[] = [
     recommendationKey: 'ap-gitignore-settings-local',
   },
   // AP10 removed - settings.local.json is a personal preference file, not a project quality signal.
-  // === AP11-AP12: Quality Anti-Patterns ===
-  {
-    id: 'AP11',
-    name: 'Empty learning loop scaffolding',
-    deduction: 0, // v1.1.0: structure presence = pass, content is a maturity indicator not a setup gate
-    confidence: 'high',
-    evaluate: (ctx: FactContext): AntiPatternResult => {
-      const { lessons, footguns } = ctx.facts.shared;
-      const lessonsEmpty = lessons.exists && !lessons.hasEntries;
-      const footgunsEmpty = footguns.exists && !footguns.hasEvidence;
-      const triggered = lessonsEmpty || footgunsEmpty;
-      const parts: string[] = [];
-      if (lessonsEmpty) parts.push('lessons directory has no entries yet');
-      if (footgunsEmpty) parts.push('footguns directory has no evidence yet');
-      const message = triggered
-        ? `Learning loop directories exist but have no content yet (normal for new projects): ${parts.join(', ')}`
-        : 'Learning loop files have content';
-      return {
-        id: 'AP11',
-        name: 'Empty learning loop scaffolding',
-        triggered,
-        deduction: 0, // No penalty — empty directories are correctly set up projects
-        confidence: 'high',
-        message,
-      };
-    },
-    recommendation:
-      'Content accumulates through real work, not setup. Add entries when real incidents occur.',
-    recommendationKey: 'ap-fix-empty-scaffolding',
-  },
+  // AP11 (Empty learning loop scaffolding) removed - was already 0 deduction. Empty dirs are valid for new projects.
   {
     id: 'AP12',
     name: 'Stale file references in footguns.md',
@@ -349,33 +237,7 @@ export const antiPatterns: AntiPatternDef[] = [
       'Update or remove stale file:line references in footguns.md',
     recommendationKey: 'ap-fix-stale-references',
   },
-  {
-    id: 'AP22',
-    name: 'Duplicate learning-loop surfaces',
-    deduction: -3,
-    confidence: 'high',
-    evaluate: (ctx: FactContext): AntiPatternResult => {
-      const evidence = [
-        ...ctx.facts.shared.footguns.duplicateSurfacePaths,
-        ...ctx.facts.shared.lessons.duplicateSurfacePaths,
-      ].sort((a, b) => a.localeCompare(b));
-      const triggered = evidence.length > 0;
-      return {
-        id: 'AP22',
-        name: 'Duplicate learning-loop surfaces',
-        triggered,
-        deduction: triggered ? -3 : 0,
-        confidence: 'high',
-        message: triggered
-          ? `Competing learning-loop surfaces found alongside the configured bucket layout: ${evidence.join(', ')}`
-          : 'No competing legacy learning-loop surfaces detected',
-        evidence: triggered ? evidence.join(', ') : undefined,
-      };
-    },
-    recommendation:
-      'Remove or migrate legacy lessons/footguns surfaces so only the configured bucket paths remain',
-    recommendationKey: 'ap-fix-duplicate-learning-loop-surfaces',
-  },
+  // AP22 (Duplicate learning-loop surfaces) removed - duplicate surfaces are already caught by the canonical layout check in 2.3.5b (also now removed). Legacy cleanup is handled by the upgrade path.
 
   // === AP13-AP15: New anti-patterns (B3-B5) ===
   {
@@ -504,29 +366,7 @@ export const antiPatterns: AntiPatternDef[] = [
       'Fix or remove dangling file paths in skill SKILL.md files. Every backtick-wrapped path reference should point to an existing file.',
     recommendationKey: 'ap-fix-dangling-skill-refs',
   },
-  {
-    id: 'AP18',
-    name: 'Unanswered ADAPT comments in skills',
-    deduction: -2,
-    confidence: 'high',
-    evaluate: (ctx: FactContext): AntiPatternResult => {
-      const { adaptCommentCount } = ctx.agentFacts.skills.quality;
-      const triggered = adaptCommentCount > 0;
-      return {
-        id: 'AP18',
-        name: 'Unanswered ADAPT comments in skills',
-        triggered,
-        deduction: triggered ? -2 : 0,
-        confidence: 'high',
-        message: triggered
-          ? `${adaptCommentCount} remaining <!-- ADAPT: --> comment(s) in skill files. These are unanswered template questions that should be replaced with project-specific content.`
-          : 'All ADAPT comments resolved',
-      };
-    },
-    recommendation:
-      "Replace remaining <!-- ADAPT: --> comments in skill files with project-specific content. These mark template questions that need your project's real examples.",
-    recommendationKey: 'ap-fix-adapt-comments',
-  },
+  // AP18 (Unanswered ADAPT comments in skills) removed - ADAPT comments were removed from skill templates in M08.
   {
     id: 'AP19',
     name: 'Hardcoded absolute paths in hooks',
@@ -557,14 +397,20 @@ export const antiPatterns: AntiPatternDef[] = [
     deduction: -3,
     confidence: 'high',
     evaluate: (ctx: FactContext): AntiPatternResult => {
-      const canonicalSet = new Set<string>(SKILL_NAMES);
+      // Dynamic: read canonical list from project-structure.json instead of hardcoding
+      const structure = getProjectStructure();
+      const skills = structure.skills as { canonical?: string[]; stale_generic?: string[] } | undefined;
+      const canonicalList: string[] = skills?.canonical ?? [];
+      const staleGenericList: string[] = skills?.stale_generic ?? [];
+      const canonicalSet = new Set<string>(canonicalList);
+      // Any goat-prefixed skill directory NOT in the canonical list is non-canonical
       const nonCanonical = ctx.agentFacts.skills.installedDirs.filter(
         (s) => (s.startsWith('goat-') || s === 'goat') && !canonicalSet.has(s),
       );
-      // Also flag known legacy skill names that aren't goat-* prefixed
-      const legacyNames = ['audit', 'review', 'preflight'];
+      // Also flag known stale generic skill names from project-structure.json
+      const staleGenericSet = new Set<string>(staleGenericList);
       const legacyFound = ctx.agentFacts.skills.installedDirs.filter((s) =>
-        legacyNames.includes(s),
+        staleGenericSet.has(s),
       );
       const allStale = [...new Set([...nonCanonical, ...legacyFound])].sort();
       const triggered = allStale.length > 0;

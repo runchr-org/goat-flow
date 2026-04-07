@@ -10,28 +10,11 @@ export const architectureChecks: CheckDef[] = [
     pts: 1,
     confidence: 'high',
     priority: 'recommended',
-    detect: { type: 'file_exists', path: 'ai-docs/architecture.md' },
-    recommendation: 'Create ai-docs/architecture.md',
+    detect: { type: 'file_exists', path: '.goat-flow/architecture.md' },
+    recommendation: 'Create .goat-flow/architecture.md',
     recommendationKey: 'create-architecture',
   },
-  {
-    id: '2.5.2',
-    name: 'architecture.md under 100 lines',
-    tier: 'standard',
-    category: 'Architecture',
-    pts: 1,
-    confidence: 'high',
-    priority: 'optional',
-    na: (ctx) => ctx.facts.shared.architecture.exists === false,
-    detect: {
-      type: 'line_count',
-      path: 'ai-docs/architecture.md',
-      pass: 100,
-      fail: 150,
-    },
-    recommendation: 'Compress ai-docs/architecture.md below 100 lines',
-    recommendationKey: 'compress-architecture',
-  },
+  // 2.5.2 (architecture.md under 100 lines) removed - arbitrary line limit contradicts real-world needs.
   {
     id: '2.5.3',
     name: 'decisions dir has real ADR content',
@@ -76,7 +59,7 @@ export const architectureChecks: CheckDef[] = [
       },
     },
     recommendation:
-      'Create ai-docs/decisions/ with at least 1 ADR containing real Context and Decision sections',
+      'Create .goat-flow/decisions/ with at least 1 ADR containing real Context and Decision sections',
     recommendationKey: 'create-decisions-dir',
   },
 ];

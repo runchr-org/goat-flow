@@ -44,8 +44,6 @@ export {
 
 export { getFragmentsByPhase } from './prompt/registry.js';
 
-export type { EvalScore, EvalResult } from './evals/types.js';
-
 export { mapSignalsToTemplates } from './prompt/template-refs.js';
 export { appendScanHistory } from './telemetry/scan-logger.js';
 export type { ScanHistoryEntry } from './telemetry/scan-logger.js';

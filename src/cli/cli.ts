@@ -2,7 +2,7 @@
 
 /**
  * Command-line entry point for goat-flow.
- * Handles argv parsing, command dispatch, exit codes, and on-disk output for scan, eval, setup, dashboard, and migration workflows.
+ * Handles argv parsing, command dispatch, exit codes, and on-disk output for scan, setup, dashboard, and migration workflows.
  */
 
 import { parseArgs } from 'node:util';
@@ -36,7 +36,6 @@ Usage:
 Commands:
   scan              Score a project (default)
   setup             Generate setup prompt (adapts to project state)
-  eval              Parse and summarize agent evals
   status            Show project state (bare/partial/v0.9/v1.0/v1.1)
   info rubrics      List all rubric checks (filter: --tier foundation|standard|full)
   info anti-patterns List all anti-pattern deductions
@@ -66,8 +65,6 @@ Examples:
   goat-flow --min-score 75           CI gate: fail if below 75%
   goat-flow --format markdown        PR-comment friendly output
   goat-flow --output report.json     Write results to file
-  goat-flow eval                     Summarize agent evals
-  goat-flow eval --format json       Eval summary as JSON
 `);
 }
 
@@ -77,12 +74,12 @@ function printVersion(): void {
 }
 
 /** Supported CLI subcommand names */
-type Command = 'scan' | 'setup' | 'eval' | 'dashboard' | 'info' | 'status';
+type Command = 'scan' | 'setup' | 'dashboard' | 'info' | 'status';
 
 /** List of recognized CLI subcommands */
-const COMMANDS: Command[] = ['scan', 'setup', 'eval', 'dashboard', 'info', 'status'];
+const COMMANDS: Command[] = ['scan', 'setup', 'dashboard', 'info', 'status'];
 /** Previously valid commands that now produce a helpful deprecation error */
-const REMOVED_COMMANDS = ['fix', 'audit'];
+const REMOVED_COMMANDS = ['fix', 'audit', 'eval'];
 /** Accepted values for the --format flag */
 const VALID_FORMATS = ['json', 'text', 'html', 'markdown'] as const;
 /** Accepted values for the --agent flag */
@@ -277,33 +274,6 @@ async function handleStatusCommand(options: ParsedCLI): Promise<void> {
   console.log(`  State:   ${color}${result.state}${reset}`);
   console.log(`  Action:  ${result.action}`);
   console.log(`  Details: ${result.details}`);
-}
-
-/** Handle the eval command: load, summarize, and output agent eval results */
-async function handleEvalCommand(options: ParsedCLI): Promise<void> {
-  const { loadEvals, summarize, formatSummaryText, formatSummaryJson } =
-    await import('./evals/loader.js');
-  const { createFS } = await import('./facts/fs.js');
-  /** Virtual filesystem scoped to the target project path */
-  const fs = createFS(options.projectPath);
-  const { loadConfig } = await import('./config/reader.js');
-  /** Resolved evals path from config (defaults to ai-docs/evals/) */
-  const evalsDir = resolve(
-    options.projectPath,
-    loadConfig(options.projectPath, fs).config.evals.path,
-  );
-  const { evals, errors } = loadEvals(fs, evalsDir);
-  /** Aggregated eval summary grouped by skill, agent, difficulty, and origin */
-  const summary = summarize(evals, errors);
-  /** Formatted output string in the requested format */
-  const output =
-    options.format === 'json'
-      ? formatSummaryJson(summary)
-      : formatSummaryText(summary);
-  process.stdout.write(output + '\n');
-  if (errors.length > 0) {
-    throw new CLIError('Eval completed with errors', 1);
-  }
 }
 
 /** Pick the agent list for setup output from the CLI override or scan report. */
@@ -530,10 +500,6 @@ async function main(): Promise<void> {
   }
   if (options.command === 'status') {
     await handleStatusCommand(options);
-    return;
-  }
-  if (options.command === 'eval') {
-    await handleEvalCommand(options);
     return;
   }
   if (options.command === 'dashboard') {
