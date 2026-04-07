@@ -1,6 +1,6 @@
 # Go Coding Standards
 
-Reference for generating `ai-docs/coding-standards/backend.md` in Go projects.
+Reference for generating `.goat-flow/coding-standards/backend.md` in Go projects.
 
 ## Project Layout
 

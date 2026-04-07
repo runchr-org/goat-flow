@@ -1,6 +1,6 @@
 # Laravel + Eloquent Coding Standards
 
-Reference for generating `ai-docs/coding-standards/backend.md` in Laravel projects.
+Reference for generating `.goat-flow/coding-standards/backend.md` in Laravel projects.
 
 ## Architecture
 
