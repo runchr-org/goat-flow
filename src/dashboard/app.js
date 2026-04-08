@@ -48,6 +48,7 @@ function app() {
     availableRunners: [],
     _terminalWs: null,
     _terminalXterm: null,
+    _projectSessions: {},  // projectPath → { sessionId, startTime, prompt, agent }
     _xtermLoaded: false,
 
     // --- Projects state ---
@@ -175,7 +176,11 @@ function app() {
       const updateTitle = () => { document.title = `${this.projectName} | GOAT Flow`; };
       this.$watch('projectPath', (newPath, oldPath) => {
         updateTitle();
-        if (oldPath && newPath !== oldPath) this.detachTerminal();
+        if (oldPath && newPath !== oldPath) {
+          this.detachTerminal();
+          this.reconnectTerminal();
+          this.updateSessionCount();
+        }
       });
       updateTitle();
       // Sync initial state (anti-FOUC script may have added 'dark' before Alpine)
@@ -366,6 +371,7 @@ function app() {
         for (const session of (data.sessions || [])) {
           await fetch(`/api/terminal/${session.id}`, { method: 'DELETE' });
         }
+        this._projectSessions = {};
         this.terminalSessionId = null;
         this.terminalEnded = true;
         this.terminalConnected = false;
@@ -414,8 +420,16 @@ function app() {
       await this.launchInTerminal(adapted, runner || this.activeRunner);
     },
     detachTerminal() {
-      if (this._terminalWs) { this._terminalWs.close(); this._terminalWs = null; }
-      if (this._terminalXterm) { this._terminalXterm.dispose(); this._terminalXterm = null; }
+      // Save current session to project map before detaching
+      if (this.terminalSessionId && !this.terminalEnded) {
+        this._projectSessions[this.projectPath] = {
+          sessionId: this.terminalSessionId,
+          startTime: this._terminalStartTime,
+          prompt: this.lastRunPrompt,
+          agent: this.lastRunAgent,
+        };
+      }
+      if (this._terminalCleanup) { this._terminalCleanup(); this._terminalCleanup = null; }
       if (this._ageInterval) { clearInterval(this._ageInterval); this._ageInterval = null; }
       this.terminalSessionId = null;
       this.terminalConnected = false;
@@ -425,6 +439,33 @@ function app() {
       this.lastRunPrompt = null;
       this.lastRunAgent = null;
       this.promptRunStates = {};
+    },
+    async reconnectTerminal() {
+      const saved = this._projectSessions[this.projectPath];
+      if (!saved) return false;
+      // Verify session is still alive on the backend
+      try {
+        const res = await fetch('/api/terminal/sessions');
+        const data = await res.json();
+        const alive = (data.sessions || []).find(s => s.id === saved.sessionId);
+        if (!alive) {
+          delete this._projectSessions[this.projectPath];
+          return false;
+        }
+      } catch { delete this._projectSessions[this.projectPath]; return false; }
+      // Reconnect
+      await this.loadXterm();
+      this.terminalSessionId = saved.sessionId;
+      this.terminalEnded = false;
+      this._terminalStartTime = saved.startTime;
+      this.lastRunPrompt = saved.prompt;
+      this.lastRunAgent = saved.agent;
+      this.activeView = 'workspace';
+      this.workspacePanel = 'terminal';
+      await this.$nextTick();
+      this.connectTerminal(`/ws/terminal/${saved.sessionId}`);
+      this.updateSessionCount();
+      return true;
     },
     async launchInTerminal(prompt, runner = 'claude') {
       if (this.terminalSessionId && !this.terminalEnded) {
@@ -529,6 +570,7 @@ function app() {
           if (msg.type === 'output') term.write(msg.data);
           else if (msg.type === 'exit') {
             this.terminalEnded = true; this.terminalConnected = false;
+            delete this._projectSessions[this.projectPath];
             const runningId = Object.entries(this.promptRunStates).find(([_, s]) => s === 'running')?.[0];
             if (runningId) this.promptRunStates[runningId] = 'pass';
             this.updateSessionCount();
@@ -575,6 +617,8 @@ function app() {
       if (this.terminalSessionId && !this.terminalEnded) {
         fetch(`/api/terminal/${this.terminalSessionId}`, { method: 'DELETE' }).catch(() => {});
       }
+      // Remove from project sessions map
+      delete this._projectSessions[this.projectPath];
       if (this._terminalCleanup) { this._terminalCleanup(); this._terminalCleanup = null; }
       if (this._ageInterval) { clearInterval(this._ageInterval); this._ageInterval = null; }
       this.terminalSessionId = null;
