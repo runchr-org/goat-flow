@@ -171,9 +171,12 @@ function app() {
           });
         }
       });
-      // Dynamic browser tab title
+      // Dynamic browser tab title + terminal detach on project switch
       const updateTitle = () => { document.title = `${this.projectName} | GOAT Flow`; };
-      this.$watch('projectPath', updateTitle);
+      this.$watch('projectPath', (newPath, oldPath) => {
+        updateTitle();
+        if (oldPath && newPath !== oldPath) this.detachTerminal();
+      });
       updateTitle();
       // Sync initial state (anti-FOUC script may have added 'dark' before Alpine)
       document.documentElement.classList.toggle('dark', this.darkMode);
@@ -232,13 +235,7 @@ function app() {
       } catch { this.showToast('Browse failed', true); }
     },
     selectDir(dir) {
-      if (dir.isProject) {
-        const switching = this.projectPath !== dir.path;
-        this.projectPath = dir.path;
-        this.showBrowser = false;
-        if (switching) this.detachTerminal();
-        this.runScan();
-      }
+      if (dir.isProject) { this.projectPath = dir.path; this.showBrowser = false; this.runScan(); }
       else this.browseTo(dir.path);
     },
 
