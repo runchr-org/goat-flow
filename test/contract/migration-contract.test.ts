@@ -80,30 +80,30 @@ describe('Config.yaml paths match filesystem reality', () => {
 // ---------------------------------------------------------------
 // 3. Setup templates describe migration, not duplication
 // ---------------------------------------------------------------
-describe('Setup templates mention migration behavior', () => {
-  const setupSharedDir = join(ROOT, 'workflow/setup/shared');
+describe('Setup templates use new numbered structure', () => {
+  const setupDir = join(ROOT, 'workflow/setup');
 
-  it('workflow/setup/shared directory exists', () => {
-    assert.ok(existsSync(setupSharedDir));
+  it('workflow/setup/shared directory does NOT exist (moved to numbered files)', () => {
+    assert.ok(!existsSync(join(setupDir, 'shared')), 'shared/ should be deleted — content moved to numbered files and execution-loop.md');
   });
 
-  // eval path duplicate test removed - evals system removed in v1.1.0 (M09).
+  it('workflow/setup/execution-loop.md exists (reference template)', () => {
+    assert.ok(existsSync(join(setupDir, 'execution-loop.md')));
+  });
 
-  it('setup templates do not hardcode both flat footguns and directory footguns', () => {
-    const sharedFiles = readdirSync(setupSharedDir).filter((f) =>
-      f.endsWith('.md') && f !== 'system-overview.md', // system-overview.md deliberately mentions both for migration context
-    );
-    for (const file of sharedFiles) {
-      const content = readFileSync(join(setupSharedDir, file), 'utf-8');
-      // Check for the flat file reference alongside directory reference
-      const hasFlatFootguns = /docs\/footguns\.md(?!\/)/.test(content);
-      const hasDirFootguns = content.includes('.goat-flow/footguns/');
-      if (hasFlatFootguns && hasDirFootguns) {
-        assert.fail(
-          `${file} references both docs/footguns.md and .goat-flow/footguns/. ` +
-            'Templates should use the canonical directory path.',
-        );
-      }
+  it('numbered setup files exist (01 through 11)', () => {
+    for (let i = 1; i <= 11; i++) {
+      const prefix = String(i).padStart(2, '0');
+      const files = readdirSync(setupDir).filter((f) => f.startsWith(`${prefix}-`));
+      assert.ok(files.length > 0, `Expected a file starting with ${prefix}-`);
+    }
+  });
+
+  it('agent config files exist', () => {
+    const agentsDir = join(setupDir, 'agents');
+    assert.ok(existsSync(agentsDir), 'agents/ directory should exist');
+    for (const agent of ['claude.md', 'codex.md', 'gemini.md', 'copilot.md']) {
+      assert.ok(existsSync(join(agentsDir, agent)), `agents/${agent} should exist`);
     }
   });
 });

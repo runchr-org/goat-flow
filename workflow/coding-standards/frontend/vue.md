@@ -1,6 +1,6 @@
 # Vue 3 Coding Standards (TypeScript-First)
 
-Reference for generating `ai-docs/coding-standards/frontend.md` in Vue projects.
+Reference for generating `.goat-flow/coding-standards/frontend.md` in Vue projects.
 Assume TypeScript for new code; if the project is JavaScript-only, keep the same
 Composition API, state, and testing rules and drop the type syntax.
 

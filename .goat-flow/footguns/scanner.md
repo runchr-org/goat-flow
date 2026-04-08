@@ -40,17 +40,15 @@ category: scanner
 **Status:** open | **Created:** 2026-04-03 | **Evidence:** ACTUAL_MEASURED
 
 The scanner awards 100% (A grade) to projects that have:
-- Broken `ai-docs/README.md:3` (invalid content)
 - `settings.json` missing hook registration that the rubric claims exists (`src/cli/facts/agent/hooks.ts:479`, `src/cli/rubric/standard/hooks.ts:55` check file existence only)
 - Physically broken skill files (`.claude/skills/goat-plan/SKILL.md:182` - stale tail, `:198` - references deleted goat-investigate)
-- Malformed eval frontmatter (duplicate YAML blocks)
 - CI workflow containing literal scanner-bait comments (`.github/workflows/context-validation.yml:40`)
 
-**Evidence:** Found by Codex on strands-php-client (100% score, broken ai-docs/README.md), blundergoat-platform (100% score, broken goat-plan SKILL.md + unregistered hook), ambient-scribe (duplicate eval frontmatter).
+**Evidence:** Found by Codex on blundergoat-platform (100% score, broken goat-plan SKILL.md + unregistered hook), strands-php-client (100% score with structural issues).
 
 **Impact:** The scanner rewards formatting compliance, not functional correctness. Users trust A/100 as "setup is good" when it means "setup matches regex patterns."
 
-**Fix:** M18 in `.goat-flow/tasks/0.10.0/M18-scanner-ux.md`. Add semantic validation: verify hook registration, validate skill file content, parse eval frontmatter, check ai-docs/README.md references resolve.
+**Fix:** Add semantic validation: verify hook registration, validate skill file content.
 
 ---
 

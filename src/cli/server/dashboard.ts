@@ -433,9 +433,9 @@ export function serveDashboard(
         } catch { /* unreadable */ }
       }
 
-      existing.instructions = existsSync(join(projectPath, '.goat-flow', 'coding-standards')) || existsSync(join(projectPath, 'ai-docs')) || existsSync(join(projectPath, 'ai'));
-      existing.lessons = existsSync(join(projectPath, '.goat-flow', 'lessons')) || existsSync(join(projectPath, 'ai', 'lessons')) || existsSync(join(projectPath, 'ai-docs', 'lessons'));
-      existing.footguns = existsSync(join(projectPath, '.goat-flow', 'footguns')) || existsSync(join(projectPath, 'docs', 'footguns')) || existsSync(join(projectPath, 'ai-docs', 'footguns'));
+      existing.instructions = existsSync(join(projectPath, '.goat-flow', 'coding-standards')) || existsSync(join(projectPath, 'ai'));
+      existing.lessons = existsSync(join(projectPath, '.goat-flow', 'lessons')) || existsSync(join(projectPath, 'ai', 'lessons'));
+      existing.footguns = existsSync(join(projectPath, '.goat-flow', 'footguns')) || existsSync(join(projectPath, 'docs', 'footguns'));
       existing.config = existsSync(join(projectPath, '.goat-flow', 'config.yaml'));
 
       return existing;
@@ -666,7 +666,7 @@ export function serveDashboard(
           recommendation: ap.recommendation,
         }));
         jsonResponse(res, 200, { checks, antiPatterns: aps });
-      }).catch((err) => {
+      }).catch((err: unknown) => {
         jsonResponse(res, 500, {
           error: err instanceof Error ? err.message : String(err),
         });

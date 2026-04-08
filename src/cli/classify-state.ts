@@ -5,19 +5,19 @@
  */
 
 /** Minimal filesystem interface needed for project state detection. */
-export interface StateFS {
+interface StateFS {
   exists(path: string): boolean;
   readFile(path: string): string | null;
 }
 
 /** Recognised adoption states for a project. */
-export type ProjectStateName = 'bare' | 'partial' | 'v0.9' | 'v1.0' | 'v1.1' | 'error';
+type ProjectStateName = 'bare' | 'partial' | 'v0.9' | 'v1.0' | 'v1.1' | 'error';
 
 /** Recommended next action for a given project state. */
-export type ProjectAction = 'setup' | 'migration' | 'upgrade' | 'fix' | 'healthy' | 'none';
+type ProjectAction = 'setup' | 'migration' | 'upgrade' | 'fix' | 'healthy' | 'none';
 
 /** Classification result for a single project directory. */
-export interface ProjectState {
+interface ProjectState {
   state: ProjectStateName;
   action: ProjectAction;
   details: string;

@@ -233,8 +233,8 @@ describe('composeSetup (reference-based)', () => {
     const output = composeSetup(report, 'claude');
     assert.ok(output);
     assert.ok(
-      output.includes('setup-claude.md'),
-      'Should redirect to setup-claude.md',
+      output.includes('agents/claude.md'),
+      'Should redirect to agents/claude.md',
     );
     assert.ok(
       output.includes('needs a full setup'),
@@ -248,8 +248,8 @@ describe('composeSetup (reference-based)', () => {
     const output = composeSetup(report, 'claude');
     assert.ok(output);
     assert.ok(
-      output.includes('setup-claude.md'),
-      'Should reference setup-claude.md',
+      output.includes('agents/claude.md'),
+      'Should reference agents/claude.md',
     );
     assert.ok(output.includes('Claude Code'), 'Should mention Claude Code');
   });
@@ -260,8 +260,8 @@ describe('composeSetup (reference-based)', () => {
     const output = composeSetup(report, 'codex');
     assert.ok(output);
     assert.ok(
-      output.includes('setup-codex.md'),
-      'Should reference setup-codex.md',
+      output.includes('agents/codex.md'),
+      'Should reference agents/codex.md',
     );
     assert.ok(output.includes('Codex'), 'Should mention Codex');
   });
@@ -272,7 +272,7 @@ describe('composeSetup (reference-based)', () => {
     const output = composeSetup(report, 'claude');
     assert.ok(output);
     assert.ok(
-      output.includes('setup-claude.md'),
+      output.includes('agents/claude.md'),
       'Should redirect to setup file',
     );
     assert.ok(output.includes('100%'), 'Should mention 100% target');
@@ -297,7 +297,7 @@ describe('composeSetup (reference-based)', () => {
     const output = composeSetup(report, 'claude');
     assert.ok(output);
     assert.ok(
-      output.includes('/workflow/setup/setup-claude.md'),
+      output.includes('/workflow/setup/agents/claude.md'),
       'Setup redirect should have absolute path to setup file',
     );
   });
@@ -486,8 +486,8 @@ describe('M2.11b: setup prompt improvements', () => {
     const output = composeSetup(report, 'claude');
     assert.ok(output);
     assert.ok(
-      output.includes('setup-claude.md'),
-      'Should redirect to setup-claude.md',
+      output.includes('agents/claude.md'),
+      'Should redirect to agents/claude.md',
     );
   });
 
@@ -638,12 +638,12 @@ describe('composeSetup mode selection', () => {
     const output = composeSetup(report, 'claude');
     assert.ok(output);
     assert.ok(
-      output.includes('setup-claude.md'),
-      'Should redirect to setup-claude.md',
+      output.includes('agents/claude.md'),
+      'Should redirect to agents/claude.md',
     );
     assert.ok(
-      output.includes('Deeply review and implement'),
-      'Should instruct to follow the setup file',
+      output.includes('numbered setup steps'),
+      'Should instruct to follow the numbered setup steps',
     );
   });
 
@@ -715,7 +715,7 @@ describe('M2.13: dedup template refs in targeted setup', () => {
     assert.ok(output);
     // Low-scoring projects should redirect to setup file, not generate inline tasks
     assert.ok(
-      output.includes('setup-claude.md'),
+      output.includes('agents/claude.md'),
       'Should redirect to setup file',
     );
     assert.ok(!output.includes('### Task'), 'Should not have inline tasks');
@@ -742,14 +742,14 @@ describe('M2.13: short-fix mode text', () => {
 });
 
 describe('M2.13: Codex template map', () => {
-  it('Codex setup maps enforcement fragments to setup-codex.md', async () => {
+  it('Codex setup maps enforcement fragments to agents/codex.md', async () => {
     const { getFragmentTemplate } =
       await import('../../src/cli/prompt/template-refs.js');
     const denyTemplate = getFragmentTemplate('create-deny-script', 'codex');
     assert.ok(denyTemplate, 'Should have a template for create-deny-script');
     assert.ok(
-      denyTemplate.includes('setup-codex'),
-      `Expected setup-codex.md, got ${denyTemplate}`,
+      denyTemplate.includes('agents/codex'),
+      `Expected agents/codex.md, got ${denyTemplate}`,
     );
     assert.ok(
       !denyTemplate.includes('enforcement'),
@@ -810,7 +810,7 @@ describe('M2.13: --agent all dedup', () => {
     assert.ok(output);
     // Shared tasks should be listed once, not repeated per agent
     const footgunsTaskCount = (
-      output.match(/### Task \d+: Create `ai-docs\/footguns\/`/g) || []
+      output.match(/### Task \d+: Create `\.goat-flow\/footguns\/`/g) || []
     ).length;
     assert.equal(
       footgunsTaskCount,

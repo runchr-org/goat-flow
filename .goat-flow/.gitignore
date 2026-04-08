@@ -1,3 +1,21 @@
-# Only gitignore ephemeral files — everything else in .goat-flow/ is committed
-logs/
-config.local.yaml
+# Ignore everything by default
+*
+
+# Committed goat-flow files
+!.gitignore
+!config.yaml
+!skill-conventions.md
+!architecture.md
+!glossary.md
+
+# Committed goat-flow directories
+!coding-standards/
+!coding-standards/**
+!decisions/
+!decisions/**
+!footguns/
+!footguns/**
+!lessons/
+!lessons/**
+!tasks/
+!tasks/**

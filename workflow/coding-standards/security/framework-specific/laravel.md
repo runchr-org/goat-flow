@@ -1,6 +1,6 @@
 # Laravel Security Standards
 
-Reference for generating `ai-docs/coding-standards/security.md` in Laravel projects.
+Reference for generating `.goat-flow/coding-standards/security.md` in Laravel projects.
 
 ## CSRF Protection
 

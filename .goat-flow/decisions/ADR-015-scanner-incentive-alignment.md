@@ -20,7 +20,7 @@ Heuristic: if a backtick-wrapped path matches any of these patterns, skip the pa
 - Matches a known deny-list pattern (`.env*`, `*.pem`, `*.key`, `*.secret`, `*.credentials`)
 - Contains glob wildcards (`*`, `?`) - already partially implemented
 
-AP13 only performs path resolution on paths with directory separators that look like actual project file references (e.g., `src/config/database.ts`, `ai-docs/footguns/`).
+AP13 only performs path resolution on paths with directory separators that look like actual project file references (e.g., `src/config/database.ts`, `.goat-flow/footguns/`).
 
 ## Consequences
 

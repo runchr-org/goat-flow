@@ -58,9 +58,9 @@ assert.equal(result.deduction, -N);
 
 ## Adding a Behavioral Journey
 
-Behavioral journeys validate agent workflow contracts from `ai-docs/evals/`.
+Behavioral journeys validate agent workflow contracts from `.goat-flow/evals/`.
 
-1. Create an eval in `ai-docs/evals/` following `FORMAT.md`:
+1. Create an eval in `.goat-flow/evals/` following `FORMAT.md`:
    - YAML frontmatter with `name`, `origin`, `agents`, `skill`
    - `### Scenario` with a code-fenced prompt
    - `### Expected Behavior` with checkbox gates (`- [ ] Agent does X`)

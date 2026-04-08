@@ -1,80 +1,123 @@
-# Upgrade v1.0.0 → Current
+# Upgrade v1.0.0 → v1.1.0
 
-Read `shared/system-overview.md` first if you haven't already.
+Read `01-system-overview.md` first if you haven't already.
 
-These projects have the goat-flow structure but need template updates for v1.1.0.
+## Before and after
+
+**Before (v1.0.0):**
+- `.goat-flow/config.yaml` with version < 1.1.0
+- Current skill names but inlined shared conventions (~150 lines per skill)
+- Learning loop may be in `ai-docs/` or `.goat-flow/`
+- No `.goat-flow/skill-conventions.md`
+
+**After (v1.1.0):**
+- `.goat-flow/config.yaml` with version 1.1.0
+- Skills with 7-line inline fallback referencing `.goat-flow/skill-conventions.md`
+- All learning loop content in `.goat-flow/` (no `ai-docs/` remnant)
+- `.goat-flow/architecture.md`, `.goat-flow/glossary.md`, `.goat-flow/coding-standards/`
 
 ---
 
 ## Step 1 — Confirm v1.0 state
 
-You're in the right place if the project has:
-- `.goat-flow/config.yaml` with `version: "1.0.0"` (or any version < 1.1.0)
-- Current skill names (goat-debug, goat-plan, goat-review, goat-security, goat-test)
-- Inlined shared conventions (~150 lines) in each skill file
+You're in the right place if the project has `.goat-flow/config.yaml` with version < 1.1.0.
 
-If the project has old skill names (goat-audit, goat-investigate, etc.), use `upgrade-0.9.x.md` instead.
-If the project has no goat-flow at all, use the fresh setup (`setup-claude.md` etc.).
+- If old skill names (goat-audit, goat-investigate, etc.) → use `upgrade-0.9.x.md` instead
+- If no goat-flow at all → use fresh setup (`agents/claude.md` etc.)
+
+**Verification:** `.goat-flow/config.yaml` exists with version < 1.1.0.
 
 ---
 
-## Step 2 — Skills
+## Step 2 — Migrate ai-docs/ to .goat-flow/
 
-- Update all 5 skill templates to current version (check `goat-flow-skill-version` tag in frontmatter)
+If `ai-docs/` exists, move all content into `.goat-flow/`:
+
+- `ai-docs/architecture.md` → `.goat-flow/architecture.md`
+- `ai-docs/glossary.md` → `.goat-flow/glossary.md`
+- `ai-docs/coding-standards/` → `.goat-flow/coding-standards/`
+- `ai-docs/decisions/` → `.goat-flow/decisions/`
+- `ai-docs/footguns/` → `.goat-flow/footguns/`
+- `ai-docs/lessons/` → `.goat-flow/lessons/`
+
+If footguns/lessons are flat files (not directories), split into category bucket files during migration. Format per `.goat-flow/skill-conventions.md` Learning Loop section.
+
+Rework `.goat-flow/.gitignore` to denylist approach: gitignore `logs/` and `config.local.yaml`, commit everything else.
+
+Delete `ai-docs/` after verified migration.
+
+**Verification:** `ls ai-docs/ 2>&1` — "No such file". All content exists in `.goat-flow/`.
+
+---
+
+## Step 3 — Update skills
+
+- Update all 5 skill templates to current version (check `goat-flow-skill-version` tag)
 - Replace inlined shared conventions (~150 lines) with the 7-line fallback referencing `.goat-flow/skill-conventions.md`
 - Install `.goat-flow/skill-conventions.md` from `workflow/skills/reference/shared-preamble.md`
 - Install or update the `/goat` dispatcher from `workflow/skills/goat.md`
 
+**Verification:** All 6 skills have `goat-flow-skill-version: "1.1.0"`. No skill file exceeds 200 lines.
+
 ---
 
-## Step 3 — Remove deprecated artifacts
+## Step 4 — Remove deprecated artifacts
 
 - Delete `.goat-flow/tasks/handoff-template.md` if it exists
-- Delete `tasks/handoff.md`, `tasks/todo.md` if they exist. If they have content, preserve in `.goat-flow/logs/sessions/` first.
-- Remove `todo.md` and `handoff.md` entries from `.goat-flow/tasks/.gitignore`
-- Remove handoff/todo references from instruction file Working Memory section
-- Remove Handoff row from instruction file Router Table
+- Delete `tasks/handoff.md`, `tasks/todo.md` if they exist (preserve content in `.goat-flow/logs/sessions/` first)
+- Remove handoff/todo references from instruction file
+- Delete `ai-docs/evals/` if it wasn't already removed in step 2
+
+**Verification:** No handoff-template.md. No evals directory.
 
 ---
 
-## Step 4 — Instruction file updates
+## Step 5 — Instruction file updates
 
-- Update version header to current (e.g., `# CLAUDE.md - v1.1.0 (YYYY-MM-DD)`)
-- Replace enforcement language with advisory language
-- Update Working Memory section: milestone checkboxes replace todo.md/handoff.md
-- Update Router Table: remove Handoff entry, update canonical doc references (`.goat-flow/architecture.md` replaces `docs/system-spec.md`)
-- Update examples to reference current paths (e.g., `workflow/setup/shared/execution-loop.md` not `docs/system-spec.md`)
+Use the reorganise approach (not copy-and-replace):
+1. Read the existing instruction file completely
+2. Separate domain knowledge from agent instructions
+3. Move domain knowledge → `.goat-flow/architecture.md` + `.goat-flow/glossary.md`
+4. Keep behavioral rules in the instruction file
+5. Add missing goat-flow sections (see `03-reorganise-instruction-file.md`)
+6. Update version header to v1.1.0
+7. Update Router Table: all paths should reference `.goat-flow/` (not `ai-docs/`)
+8. Update examples to reference current paths (e.g., `workflow/setup/execution-loop.md`)
+
+**Verification:** Instruction file under 120 lines. No `ai-docs/` references. Domain content preserved in `.goat-flow/`.
 
 ---
 
-## Step 5 — Hooks and settings
+## Step 6 — Hooks, settings, config
 
 - Update hooks to current templates from `workflow/hooks/`
 - If hooks have project-specific customizations, merge — don't overwrite
-- If `.github/instructions/` exists and `.goat-flow/coding-standards/conventions.md` doesn't: create the pointer file
-
----
-
-## Step 6 — Config
-
-- Update `.goat-flow/config.yaml` version to current
+- Update `.goat-flow/config.yaml` version to 1.1.0
 - Verify all paths in config resolve to real directories
 
+**Verification:** Config version is 1.1.0. All paths resolve.
+
 ---
 
-## What to never touch during upgrade
+## What to never touch
 
-- Footgun entries (ai-docs/footguns/ or .goat-flow/footguns/) — this is the project's memory
-- Lesson entries (ai-docs/lessons/ or .goat-flow/lessons/) — same
-- Architecture docs (ai-docs/architecture.md or .goat-flow/architecture.md) — describes the project, not goat-flow
+- Footgun entries (`.goat-flow/footguns/`) — this is the project's memory
+- Lesson entries (`.goat-flow/lessons/`) — same
+- Architecture docs (`.goat-flow/architecture.md`) — describes the project, not goat-flow
 - Other agents' files (single-agent scoping)
 - `.github/instructions/` content — reference, don't duplicate
+- Existing hooks with project-specific rules — merge, don't overwrite
 
 ---
 
 ## Post-upgrade verification
 
-1. Run `scripts/context-validate.sh` if it exists
-2. Run `goat-flow scan . --agent {agent}` — target 100%
-3. Verify project build/test/lint still passes
-4. Review git diff — every change should be intentional
+1. `goat-flow scan . --agent {agent}` — target 100%
+2. Verify project build/test/lint still passes
+3. Review git diff — every change should be intentional
+4. `grep -r "ai-docs" .` — should return zero matches (outside git history)
+
+**Session log:** Append to `.goat-flow/logs/sessions/YYYY-MM-DD-upgrade.md`:
+- **Step:** upgrade from v1.0.0
+- **What was done:** (ai-docs migrated, skills updated, instruction file reorganised)
+- **Self-critique:** (honest assessment)

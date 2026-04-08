@@ -24,7 +24,7 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 
 ```
 User runs `npx goat-flow setup .` or reads workflow/setup/
-  -> Chooses agent (setup-claude.md, setup-gemini.md, setup-codex.md, or setup-copilot.md)
+  -> Chooses agent (agents/claude.md, agents/codex.md, agents/gemini.md, or agents/copilot.md)
   -> Follows numbered setup steps (shared/ templates) via their agent
   -> Agent reads workflow/setup/shared/ (system-overview.md, execution-loop.md)
   -> Agent generates project-specific files (CLAUDE.md, hooks, skills, etc.)
@@ -58,13 +58,13 @@ src/dashboard/
 
 ## Key Constraints
 
-- **Setup shared templates are canonical.** `workflow/setup/shared/execution-loop.md` defines the execution loop; `workflow/setup/shared/system-overview.md` defines the layer architecture and design intent. ADRs in `ai-docs/decisions/` capture specific design decisions.
+- **Setup shared templates are canonical.** `workflow/setup/execution-loop.md` defines the execution loop; `workflow/setup/01-system-overview.md` defines the layer architecture and design intent. ADRs in `.goat-flow/decisions/` capture specific design decisions.
 - **Cross-references are fragile.** 60+ markdown files with dense internal linking. File renames require repo-wide grep.
 - **Real evidence only.** All examples, footguns, and anti-patterns must trace to real incidents with file:line references.
 
 ## Hot Path / Cold Path
 
-Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- loaded every turn, under 120 lines. `ai-docs/coding-standards/` is the cold path -- domain-specific coding guidelines loaded on demand via `ai-docs/README.md` router.
+Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- loaded every turn, under 120 lines. `.goat-flow/coding-standards/` is the cold path -- domain-specific coding guidelines loaded on demand via `.goat-flow/README.md` router.
 
 ## Deliberate Trade-offs
 

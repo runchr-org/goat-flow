@@ -8,14 +8,14 @@ category: setup
 
 **Symptoms:** Agents implementing GOAT Flow produce a CLAUDE.md with the old 5-step loop (READ → CLASSIFY → ACT → VERIFY → LOG), missing SCOPE and complexity budgets. Cascades into missing sections (f)-(g) because agents under line pressure cut what the spec doesn't reinforce.
 
-**Why it happens:** `workflow/setup/setup-claude.md` previously told agents to "Read docs/system-spec.md" FIRST. If system-spec.md showed a different loop than `workflow/setup/shared/execution-loop.md`, agents absorbed whichever they read first and couldn't reconcile the contradiction. This caused 7 of 8 gaps in the sus-form-detector implementation.
+**Why it happens:** `workflow/setup/agents/claude.md` previously told agents to "Read docs/system-spec.md" FIRST. If system-spec.md showed a different loop than `workflow/setup/execution-loop.md`, agents absorbed whichever they read first and couldn't reconcile the contradiction. This caused 7 of 8 gaps in the sus-form-detector implementation.
 
 **Evidence:**
-- `docs/system-spec.md` → loop definition in Layer 1 architecture diagram and execution loop section (file retired in v1.1.0, see `workflow/setup/shared/execution-loop.md`)
-- `workflow/setup/shared/execution-loop.md` → updated loop definition (authoritative)
-- `workflow/setup/setup-claude.md` → previously "Read docs/system-spec.md" as first instruction (now points to `workflow/setup/shared/system-overview.md`)
+- `docs/system-spec.md` → loop definition in Layer 1 architecture diagram and execution loop section (file retired in v1.1.0, see `workflow/setup/execution-loop.md`)
+- `workflow/setup/execution-loop.md` → updated loop definition (authoritative)
+- `workflow/setup/agents/claude.md` → previously "Read docs/system-spec.md" as first instruction (now points to `workflow/setup/01-system-overview.md`)
 
-**Prevention:** `workflow/setup/shared/execution-loop.md` is the single authoritative source for the execution loop. `docs/system-spec.md` and `docs/five-layers.md` have been retired (v1.1.0), eliminating the duplication that caused this footgun. If the loop definition is ever duplicated again, this footgun will recur.
+**Prevention:** `workflow/setup/execution-loop.md` is the single authoritative source for the execution loop. `docs/system-spec.md` and `docs/five-layers.md` have been retired (v1.1.0), eliminating the duplication that caused this footgun. If the loop definition is ever duplicated again, this footgun will recur.
 
 ---
 
@@ -25,14 +25,14 @@ category: setup
 
 **Symptoms:** Gemini CLI rejects hook event names with "Invalid hook event name" warnings. Hooks silently don't run. Users get a working `.claude/` setup but broken `.gemini/` setup from the same instructions.
 
-**Why it happens:** `workflow/setup/setup-gemini.md` was derived from `workflow/setup/setup-claude.md` by substituting paths (`.claude/` → `.gemini/`, `CLAUDE.md` → `GEMINI.md`) but CLI-specific vocabulary wasn't translated. Each CLI uses different hook event names:
+**Why it happens:** `workflow/setup/agents/gemini.md` was derived from `workflow/setup/agents/claude.md` by substituting paths (`.claude/` → `.gemini/`, `CLAUDE.md` → `GEMINI.md`) but CLI-specific vocabulary wasn't translated. Each CLI uses different hook event names:
 - Claude Code: `PreToolUse`, `PostToolUse`, `Stop`
 - Gemini CLI: `BeforeTool`, `AfterTool`, `AfterAgent`, `SessionEnd`
 
 Hook script comments also carried over Claude-specific language ("runs after every Claude turn").
 
 **Evidence:**
-- `workflow/setup/setup-gemini.md` → Gemini CLI event reference block (BeforeTool, AfterTool, SessionEnd)
+- `workflow/setup/agents/gemini.md` → Gemini CLI event reference block (BeforeTool, AfterTool, SessionEnd)
 - `.gemini/hooks/deny-dangerous.sh` → updated to "BeforeTool hook"
 - `.gemini/settings.json` → updated to `BeforeTool` and `AfterAgent` event names
 
@@ -100,9 +100,9 @@ Hook script comments also carried over Claude-specific language ("runs after eve
 When a project already has learning-loop artifacts, setup creates NEW parallel surfaces instead of using the existing ones:
 
 - `tasks/` AND `.goat-flow/tasks/` both created
-- `docs/footguns.md` (flat) AND `ai-docs/footguns/` (directory) both created
-- `docs/lessons.md` AND `ai-docs/lessons/` both created
-- `ai/instructions/` AND `ai-docs/coding-standards/` both created with overlapping content
+- `docs/footguns.md` (flat) AND `.goat-flow/footguns/` (directory) both created
+- `docs/lessons.md` AND `.goat-flow/lessons/` both created
+- `ai/instructions/` AND `.goat-flow/coding-standards/` both created with overlapping content
 
 **Evidence:** Found by Codex on ambient-scribe (4 duplicate surfaces), blundergoat-platform (context-validate.sh:105 requires BOTH old and new), healthkit (contradictory paths in CLAUDE.md vs config.yaml vs skills).
 

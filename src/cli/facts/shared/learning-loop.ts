@@ -82,13 +82,11 @@ interface FootgunRefSummary {
 /** Known filesystem locations where footgun artifacts may appear. */
 const FOOTGUN_SURFACE_CANDIDATES = [
   '.goat-flow/footguns/',
-  'ai-docs/footguns/',
   'docs/footguns.md',
 ];
 /** Known filesystem locations where lesson artifacts may appear. */
 const LESSON_SURFACE_CANDIDATES = [
   '.goat-flow/lessons/',
-  'ai-docs/lessons/',
   'docs/lessons/',
   'docs/lessons.md',
 ];

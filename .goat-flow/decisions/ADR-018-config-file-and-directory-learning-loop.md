@@ -13,11 +13,9 @@ Cross-repository review during the milestone planning showed recurring pressure 
 
 Adopt a YAML config file at `.goat-flow/config.yaml` with explicit paths for learning-loop sources:
 
-- `footguns.committed`: canonical, committed entries (default `ai-docs/footguns/`)
-- `footguns.local`: session-local entries (default `.goat-flow/footguns/`)
-- `lessons.committed`: canonical, committed entries (default `ai-docs/lessons/`)
-- `lessons.local`: session-local entries (default `.goat-flow/lessons/`)
-- `decisions.path`: decision directory (`ai-docs/decisions/`)
+- `footguns.path`: footgun entries (default `.goat-flow/footguns/`)
+- `lessons.path`: lesson entries (default `.goat-flow/lessons/`)
+- `decisions.path`: decision directory (`.goat-flow/decisions/`)
 - `tasks.path`: task workspace (`.goat-flow/tasks/`)
 - `agents`: detected agent list or explicit override
 - `skills.install`: explicit skill list or `all`
@@ -26,8 +24,7 @@ Replace monolithic `docs/footguns.md` and `ai/lessons.md` with directory formats
 
 - One entry per file with YAML frontmatter
 - Directory-level `README.md` containing any preamble
-- `ai-docs/footguns/` and `ai-docs/lessons/` for committed entries
-- `.goat-flow/footguns/` and `.goat-flow/lessons/` for local entries
+- `.goat-flow/footguns/` and `.goat-flow/lessons/` for all entries
 - Migration in both directions via `split*` and `merge*` functions in `src/cli/migrate/`
 
 Add `.goat-flow/` to the template `.gitignore` and scaffolding so per-session artifacts are gitignored:

@@ -1,6 +1,6 @@
 # TypeScript Node.js Coding Standards (Express / Fastify oriented; adapt for Nest)
 
-Reference for generating `ai-docs/coding-standards/backend.md` in Node.js backend projects.
+Reference for generating `.goat-flow/coding-standards/backend.md` in Node.js backend projects.
 
 This file is strongest for Express and Fastify services. If the repo uses Nest,
 keep the validation, env, testing, and contract guidance, but map request

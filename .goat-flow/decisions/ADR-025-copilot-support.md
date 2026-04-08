@@ -20,12 +20,12 @@ Add Copilot as a fourth supported agent in the dashboard, with partial support:
 
 **Not supported (yet):**
 - Scanner doesn't scan copilot (no `.goat-flow/config.yaml` agents entry, no rubric for copilot-specific instruction files)
-- Setup wizard doesn't generate copilot setup prompts (`workflow/setup/setup-copilot.md` exists but VALID_AGENTS excludes copilot)
+- Setup wizard doesn't generate copilot setup prompts (`workflow/setup/agents/copilot.md` exists but VALID_AGENTS excludes copilot)
 - VALID_AGENTS for `/api/setup` still excludes copilot
 
 ## Consequences
 
 - Copilot shows in the dashboard but with a dimmed "not scanned" state in scanner cards
 - Users can open a Copilot terminal session from the home page
-- To add full scanner support, create `workflow/setup/setup-copilot.md` and add copilot-specific rubric checks
+- To add full scanner support, create `workflow/setup/agents/copilot.md` and add copilot-specific rubric checks
 - The copilot instruction file is `.github/copilot-instructions.md` (detected by `detectAgents()` in dashboard.ts)

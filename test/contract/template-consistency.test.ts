@@ -6,7 +6,7 @@ import { join } from 'node:path';
 const ROOT = join(import.meta.dirname, '../..');
 const WORKFLOW_SKILLS_DIR = join(ROOT, 'workflow/skills');
 const INSTALLED_SKILLS_DIR = join(ROOT, '.claude/skills');
-const SETUP_SHARED_DIR = join(ROOT, 'workflow/setup/shared');
+const SETUP_DIR = join(ROOT, 'workflow/setup');
 const EVALUATION_DIR = join(ROOT, 'workflow/evaluation');
 
 const DELETED_SKILLS = [
@@ -123,10 +123,10 @@ describe('Evaluation template: footguns.md', () => {
 // 6. execution-loop.md mentions "3x" or "re-classify"
 // ---------------------------------------------------------------
 describe('Execution loop: dynamic read budgets', () => {
-  const execLoopPath = join(SETUP_SHARED_DIR, 'execution-loop.md');
+  const execLoopPath = join(SETUP_DIR, 'execution-loop.md');
 
   it('exists', () => {
-    assert.ok(existsSync(execLoopPath), 'workflow/setup/shared/execution-loop.md should exist');
+    assert.ok(existsSync(execLoopPath), 'workflow/setup/execution-loop.md should exist');
   });
 
   it('mentions "3x" or "re-classify" instead of fixed read budgets', () => {
@@ -145,7 +145,7 @@ describe('Execution loop: dynamic read budgets', () => {
 // ---------------------------------------------------------------
 describe('Execution loop: session logs', () => {
   it('mentions "session logs" or "logs/sessions"', () => {
-    const content = readFileSync(join(SETUP_SHARED_DIR, 'execution-loop.md'), 'utf-8');
+    const content = readFileSync(join(SETUP_DIR, 'execution-loop.md'), 'utf-8');
     const hasSessionLogs = content.toLowerCase().includes('session logs');
     const hasLogsSessions = content.includes('logs/sessions');
     assert.ok(
@@ -156,101 +156,50 @@ describe('Execution loop: session logs', () => {
 });
 
 // ---------------------------------------------------------------
-// 8. All workflow/setup/shared/*.md files reference .goat-flow/ paths consistently
+// 8. execution-loop.md references .goat-flow/ paths consistently
 // ---------------------------------------------------------------
-describe('workflow/setup/shared/*.md .goat-flow/ path consistency', () => {
-  const sharedFiles = readdirSync(SETUP_SHARED_DIR)
-    .filter((f) => f.endsWith('.md'));
+describe('workflow/setup/execution-loop.md .goat-flow/ path consistency', () => {
+  const execLoopPath = join(SETUP_DIR, 'execution-loop.md');
 
-  assert.ok(sharedFiles.length > 0, 'Should find workflow/setup/shared/*.md files');
-
-  // Collect all .goat-flow/ subpath prefixes used across shared files
-  // to detect disagreement (e.g., .goat-flow/logs vs .goat-flow/tasks/logs)
   it('no disagreement on log paths (.goat-flow/logs vs .goat-flow/tasks/logs)', () => {
-    let usesGoatFlowLogs = false;
-    let usesGoatFlowTasksLogs = false;
-    const evidence: string[] = [];
-
-    for (const file of sharedFiles) {
-      const content = readFileSync(join(SETUP_SHARED_DIR, file), 'utf-8');
-      if (/\.goat-flow\/logs\//.test(content)) {
-        usesGoatFlowLogs = true;
-      }
-      if (/\.goat-flow\/tasks\/logs\//.test(content)) {
-        usesGoatFlowTasksLogs = true;
-        evidence.push(file);
-      }
-    }
+    const content = readFileSync(execLoopPath, 'utf-8');
+    const usesGoatFlowLogs = /\.goat-flow\/logs\//.test(content);
+    const usesGoatFlowTasksLogs = /\.goat-flow\/tasks\/logs\//.test(content);
 
     // If both patterns exist, there is a disagreement
     assert.ok(
       !(usesGoatFlowLogs && usesGoatFlowTasksLogs),
-      `Path disagreement: .goat-flow/logs/ and .goat-flow/tasks/logs/ both used. ` +
-        `tasks/logs found in: ${evidence.join(', ')}`,
+      `Path disagreement in execution-loop.md: .goat-flow/logs/ and .goat-flow/tasks/logs/ both used`,
     );
   });
 
-  it('all files that reference .goat-flow/tasks/ use consistent subpaths', () => {
-    // Collect the distinct .goat-flow/ second-level dirs from each file
-    const pathSets = new Map<string, Set<string>>();
-
-    for (const file of sharedFiles) {
-      const content = readFileSync(join(SETUP_SHARED_DIR, file), 'utf-8');
-      const matches = content.match(/\.goat-flow\/[a-z]+\//g);
-      if (matches) {
-        pathSets.set(file, new Set(matches));
-      }
-    }
-
-    // For each .goat-flow/ subpath, verify it appears consistently
-    // (e.g., if one file says .goat-flow/tasks/ and another says
-    // .goat-flow/workspace/, that is a disagreement for the same concept)
-    const allPaths = new Set<string>();
-    for (const paths of pathSets.values()) {
-      for (const p of paths) {
-        allPaths.add(p);
-      }
-    }
-
-    // Verify local .goat-flow/ learning-loop paths have been removed
-    for (const file of sharedFiles) {
-      const content = readFileSync(join(SETUP_SHARED_DIR, file), 'utf-8');
-      assert.ok(
-        !content.includes('.goat-flow/lessons/'),
-        `${file} still references removed path .goat-flow/lessons/`,
-      );
-      assert.ok(
-        !content.includes('.goat-flow/footguns/'),
-        `${file} still references removed path .goat-flow/footguns/`,
-      );
-    }
+  it('references canonical .goat-flow/lessons/ and .goat-flow/footguns/ paths', () => {
+    const content = readFileSync(execLoopPath, 'utf-8');
+    assert.ok(
+      content.includes('.goat-flow/lessons/'),
+      'execution-loop.md should reference canonical .goat-flow/lessons/ path',
+    );
+    assert.ok(
+      content.includes('.goat-flow/footguns/'),
+      'execution-loop.md should reference canonical .goat-flow/footguns/ path',
+    );
   });
 });
 
 // ---------------------------------------------------------------
-// 9. No workflow/setup/shared/*.md file references deleted skill names
+// 9. execution-loop.md does not reference deleted skill names
 // ---------------------------------------------------------------
-describe('No setup/shared references to deleted skills', () => {
-  const sharedFiles = readdirSync(SETUP_SHARED_DIR).filter((f) =>
-    f.endsWith('.md'),
-  );
+describe('No setup/execution-loop references to deleted skills', () => {
+  const execLoopPath = join(SETUP_DIR, 'execution-loop.md');
+  const content = readFileSync(execLoopPath, 'utf-8');
 
-  // phase-1.md and system-overview.md document migration history and upgrade
-  // routing. These intentionally mention old skill names, not active skill usage.
-  const MIGRATION_HISTORY_FILES = new Set(['phase-1.md', 'system-overview.md']);
-
-  for (const file of sharedFiles) {
-    if (MIGRATION_HISTORY_FILES.has(file)) continue;
-    const content = readFileSync(join(SETUP_SHARED_DIR, file), 'utf-8');
-
-    for (const deleted of DELETED_SKILLS) {
-      it(`${file} does not reference deleted skill ${deleted}`, () => {
-        assert.ok(
-          !content.includes(deleted),
-          `workflow/setup/shared/${file} still references deleted skill "${deleted}"`,
-        );
-      });
-    }
+  for (const deleted of DELETED_SKILLS) {
+    it(`execution-loop.md does not reference deleted skill ${deleted}`, () => {
+      assert.ok(
+        !content.includes(deleted),
+        `workflow/setup/execution-loop.md still references deleted skill "${deleted}"`,
+      );
+    });
   }
 });
 
@@ -283,7 +232,7 @@ describe('No installed skill references to deleted skills', () => {
 // ---------------------------------------------------------------
 describe('Execution loop matches CLAUDE.md complexity tiers', () => {
   const claudeMdPath = join(ROOT, 'CLAUDE.md');
-  const execLoopPath = join(SETUP_SHARED_DIR, 'execution-loop.md');
+  const execLoopPath = join(SETUP_DIR, 'execution-loop.md');
 
   it('CLAUDE.md has complexity tiers', () => {
     const content = readFileSync(claudeMdPath, 'utf-8');
@@ -323,22 +272,18 @@ describe('Execution loop matches CLAUDE.md complexity tiers', () => {
 });
 
 // ---------------------------------------------------------------
-// 12. workflow/setup/shared/*.md all reference .goat-flow/logs/sessions/ consistently
+// 12. execution-loop.md references .goat-flow/logs/sessions/ consistently
 // ---------------------------------------------------------------
 describe('Session log path consistency in setup templates', () => {
-  const sharedFiles = readdirSync(SETUP_SHARED_DIR).filter((f) =>
-    f.endsWith('.md'),
-  );
+  const execLoopPath = join(SETUP_DIR, 'execution-loop.md');
 
-  it('files referencing session logs use logs/sessions/ (not tasks/logs/)', () => {
-    for (const file of sharedFiles) {
-      const content = readFileSync(join(SETUP_SHARED_DIR, file), 'utf-8');
-      if (content.includes('session')) {
-        assert.ok(
-          !content.includes('.goat-flow/tasks/logs/sessions'),
-          `${file} uses wrong path .goat-flow/tasks/logs/sessions - should be .goat-flow/logs/sessions/`,
-        );
-      }
+  it('execution-loop.md uses logs/sessions/ (not tasks/logs/)', () => {
+    const content = readFileSync(execLoopPath, 'utf-8');
+    if (content.includes('session')) {
+      assert.ok(
+        !content.includes('.goat-flow/tasks/logs/sessions'),
+        'execution-loop.md uses wrong path .goat-flow/tasks/logs/sessions - should be .goat-flow/logs/sessions/',
+      );
     }
   });
 });

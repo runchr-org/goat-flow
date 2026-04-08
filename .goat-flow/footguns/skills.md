@@ -8,12 +8,12 @@ category: skills
 
 **Symptoms:** Shared documentation files (`docs/`, `workflow/`) contain references to only one agent's hook names, paths, or terminology. Other agents reading these docs get incorrect instructions. Tables lose rows for other agents.
 
-**Why it happens:** When an agent is asked to set up or update its platform support, it replaces existing references wholesale instead of adding multi-agent support. The agent treats the task as find-and-replace: `.claude/` → `.gemini/`, `PreToolUse` → `BeforeTool`, "Every Claude turn" → "Every Gemini turn". It does not distinguish between agent-specific files (`workflow/setup/setup-gemini.md`) and shared files (e.g. `workflow/setup/shared/`; originally `docs/system-spec.md`, retired in v1.1.0).
+**Why it happens:** When an agent is asked to set up or update its platform support, it replaces existing references wholesale instead of adding multi-agent support. The agent treats the task as find-and-replace: `.claude/` → `.gemini/`, `PreToolUse` → `BeforeTool`, "Every Claude turn" → "Every Gemini turn". It does not distinguish between agent-specific files (`workflow/setup/agents/gemini.md`) and shared files (e.g. `workflow/setup/shared/`; originally `docs/system-spec.md`, retired in v1.1.0).
 
 **Evidence:**
-- `docs/system-spec.md` → "Every Gemini turn" replaced "Every Claude turn" (should be agent-neutral) (file retired in v1.1.0, see `workflow/setup/shared/system-overview.md`)
-- `docs/five-layers.md` → Claude Code row deleted from skills table, replaced with Gemini CLI only (file retired in v1.1.0, see `workflow/setup/shared/system-overview.md`)
-- `docs/system-spec.md` → Claude Code hook example replaced with Gemini, not added alongside (file retired in v1.1.0, see `workflow/setup/shared/system-overview.md`)
+- `docs/system-spec.md` → "Every Gemini turn" replaced "Every Claude turn" (should be agent-neutral) (file retired in v1.1.0, see `workflow/setup/01-system-overview.md`)
+- `docs/five-layers.md` → Claude Code row deleted from skills table, replaced with Gemini CLI only (file retired in v1.1.0, see `workflow/setup/01-system-overview.md`)
+- `docs/system-spec.md` → Claude Code hook example replaced with Gemini, not added alongside (file retired in v1.1.0, see `workflow/setup/01-system-overview.md`)
 - `workflow/runtime/enforcement.md` → all `.claude/` paths replaced with `.gemini/`, creating hybrid state (file retired in v1.1.0, see `workflow/hooks/`)
 
 **Prevention:**

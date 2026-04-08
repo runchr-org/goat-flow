@@ -35,5 +35,5 @@ Every rule MUST apply to every session. Situation-specific guidance belongs in s
 
 - Hard 150-line limit enforced by scanner (AP1: -3 deduction if exceeded)
 - Setup templates generate instruction files targeting 120 lines
-- Domain knowledge that doesn't fit moves to ai-docs/ cold path
+- Domain knowledge that doesn't fit moves to .goat-flow/ cold path
 - Skills load on demand (not every turn), preserving budget for core behavior rules

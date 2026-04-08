@@ -54,8 +54,8 @@ GOOD: grep old paths after every rename
 
 Boundaries:
 - `.goat-flow/architecture.md`
-- `workflow/skills/README.md`
-- `workflow/setup/shared/execution-loop.md`
+- `.goat-flow/coding-standards/conventions.md`
+- `src/`
 
 **Never:** Delete docs without replacement, edit secrets, push to main, force push, overwrite files without checking.
 

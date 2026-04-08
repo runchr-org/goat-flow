@@ -209,6 +209,26 @@ function analyzeConventionsContent(
   };
 }
 
+/** Resolve router file existence and validate its links. */
+function resolveRouterValidation(
+  fs: ReadonlyFS,
+  location: 'ai' | 'github',
+): {
+  hasRouter: boolean;
+  routerValidation: {
+    hasValidRouter: boolean;
+    routerNeedsFix: string | null;
+    invalidRefs: string[];
+  };
+} {
+  const hasRouter = location === 'ai' && fs.exists('.goat-flow/README.md');
+  const routerValidation =
+    location === 'ai'
+      ? validateRouterLinks(fs, fs.readFile('.goat-flow/README.md'))
+      : { hasValidRouter: true, routerNeedsFix: null, invalidRefs: [] };
+  return { hasRouter, routerValidation };
+}
+
 /** Detect and analyze local instruction files from coding-standards dir or .github/instructions/. */
 export function extractLocalInstructions(
   fs: ReadonlyFS,
@@ -247,15 +267,7 @@ export function extractLocalInstructions(
     csPath,
     flags.hasConventions,
   );
-  const hasRouter = location === 'ai' && fs.exists('.goat-flow/README.md');
-  const routerValidation =
-    location === 'ai'
-      ? validateRouterLinks(fs, fs.readFile('.goat-flow/README.md'))
-      : {
-          hasValidRouter: true,
-          routerNeedsFix: null,
-          invalidRefs: [],
-        };
+  const { hasRouter, routerValidation } = resolveRouterValidation(fs, location);
 
   return {
     dirExists: true,

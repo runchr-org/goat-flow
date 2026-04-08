@@ -5,7 +5,7 @@
 
 ## Context
 
-ADR-003 removed confusion-log.md from the workflow template in v0.5.0. The file was never created on any of the 7+ real implementations - the "create on first use" trigger never fired. Structural navigation confusion is already addressed by the router table and `ai-docs/architecture.md`.
+ADR-003 removed confusion-log.md from the workflow template in v0.5.0. The file was never created on any of the 7+ real implementations - the "create on first use" trigger never fired. Structural navigation confusion is already addressed by the router table and `.goat-flow/architecture.md`.
 
 However, existing projects still carry stale confusion-log files. rampart has 1 entry that duplicates content already present in both footguns.md and lessons.md - triple redundancy for the same incident. The question is whether to enforce removal, merge content elsewhere, or leave the files alone.
 
@@ -16,7 +16,7 @@ This ADR also addresses the broader question of whether the two-file learning lo
 Do NOT resurrect confusion-log.md. ADR-003's decision stands and is extended:
 
 - Projects that still have the file may keep it, but it is not required or scored by the scanner
-- Any content in existing confusion-log files should be merged into `ai-docs/lessons/` with a note indicating the original entry type (e.g., "Originally logged as navigation confusion")
+- Any content in existing confusion-log files should be merged into `.goat-flow/lessons/` with a note indicating the original entry type (e.g., "Originally logged as navigation confusion")
 - The two-file loop (footguns for architectural traps with file:line evidence, lessons for behavioral mistakes) is the practical minimum and the framework standard
 - No scanner check will penalize the absence or presence of confusion-log.md
 

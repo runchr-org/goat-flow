@@ -72,10 +72,10 @@ SBAO Phase 3, dashboard redesign, rubric priority grading, security hardening, c
 **Presets** - all 19 rewritten to `/goat [plain language]`. Guided forms removed.
 **Rubric** - priority field (required/recommended/optional) on all checks. Grade: A=all req+rec, B=all req+80% rec, C=all req. Full tier bonus-only. 24 checks hidden. `telemetry` in KNOWN_TOP_LEVEL_KEYS.
 **Scanner** - hook honesty, router validation, severity-grouped output. GOAT_FLOW_INLINE_SETUP dead code removed.
-**CLI** - 48 files refactored, 45→0 complexity violations. `setup/`→`workflow/setup/`, `ai/`→`ai-docs/`. Server logging (errors, host blocks, dev request log).
+**CLI** - 48 files refactored, 45→0 complexity violations. `setup/`→`workflow/setup/`, `ai/`→`.goat-flow/`. Server logging (errors, host blocks, dev request log).
 **Learning Loop** - category bucket files (ADR-021). Alpine.js `:style` footgun documented. SBAO agent structure lesson (3 recurrences). Checkbox discipline lesson (3 recurrences).
 **Tests** - 275→1,166. Terminal idle timeout updated for session deletion. Tautological/dead assertions fixed. deny-dangerous.sh hardened (long-form flags, pipe-to-interpreter).
-**Structure** - `docs/skills/` with Mermaid diagrams, `ai-docs/glossary.md`, preflight with decimal timing. Footer: "Built by BlunderGOAT · v0.10.0".
+**Structure** - `docs/skills/` with Mermaid diagrams, `.goat-flow/glossary.md`, preflight with decimal timing. Footer: "Built by BlunderGOAT · v0.10.0".
 
 ## v0.9.4 - 2026-04-02
 
@@ -83,7 +83,7 @@ Scanner honesty, config file, directory restructure, embedded terminal, dashboar
 
 **Scanner** - stop faking Codex enforcement facts, remove harmful AP2, fix goat-goat derivation bug, new AP20/AP21, `.env` Edit/Write deny check, devDeps-only JS detection
 **Config** - `.goat-flow/config.yaml` with `js-yaml`, directory-based footguns/lessons (YAML frontmatter entries), committed vs local split, migration scripts
-**Restructure** - `docs/lessons/`→`ai-docs/lessons/`, `docs/decisions/`→`ai-docs/decisions/`, `agent-evals/`→`ai-docs/evals/`, `ai/instructions/`→`ai-docs/coding-standards/`, `tasks/`→`.goat-flow/tasks/` (gitignored)
+**Restructure** - `docs/lessons/`→`.goat-flow/lessons/`, `docs/decisions/`→`.goat-flow/decisions/`, `agent-evals/`→`.goat-flow/evals/`, `ai/instructions/`→`.goat-flow/coding-standards/`, `tasks/`→`.goat-flow/tasks/` (gitignored)
 **Skills** - all 5 check footguns in Step 0, dispatcher enriched with modes/chaining, version sync to 0.9.4
 **Setup** - stale skill cleanup (8 old names), router rewrite, static CI template, format hook wires into settings.json
 **Terminal** - `node-pty` + `ws` as optionalDeps, `TerminalManager` with multi-runner (claude/codex/gemini), REST API (create/list/delete/health), WebSocket streaming, idle timeout, Origin check. xterm.js lazy-loaded from CDN, Launch button on preset cards, Setup Launcher panel (pick agent + runner), session indicator, Ctrl+Shift+D exit
@@ -182,7 +182,7 @@ All 7 skills rewritten with conversational structure. 84 checks. All 3 agents sc
 CLI scanner + prompt generator, local context system. 80 checks. All 6 projects score A (93-98%).
 
 **Scanner** - 80-check rubric (3 tiers + 9 APs), 90 prompt fragments. `scan`/`fix`/`setup`/`audit` commands. `--min-score` CI gate. 78 tests.
-**Local Context** - `ai-docs/coding-standards/` with router. Copilot bridge files. 11 workflow templates. Migration guide.
+**Local Context** - `.goat-flow/coding-standards/` with router. Copilot bridge files. 11 workflow templates. Migration guide.
 **Fixes** - 9 new quality checks. Phantom paths, stale refs fixed across 6 projects. ProjectShape/confusion-log removed.
 
 ---

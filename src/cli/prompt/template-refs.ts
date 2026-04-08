@@ -30,13 +30,13 @@ function getFoundationRefs(agentId: AgentId): TemplateRef[] {
   const shared: TemplateRef[] = [
     {
       output: '.goat-flow/config.yaml',
-      template: 'workflow/setup/shared/execution-loop.md',
+      template: 'workflow/setup/execution-loop.md',
       phase: 'foundation',
       note: 'Create config file with default paths and detected agents',
     },
     {
       output: p.instructionFile,
-      template: 'workflow/setup/shared/execution-loop.md',
+      template: 'workflow/setup/execution-loop.md',
       phase: 'foundation',
       note: 'Adapt BAD/GOOD examples',
     },
@@ -77,19 +77,19 @@ function getFoundationHooks(agentId: AgentId): TemplateRef[] {
       return [
         {
           output: '.codex/config.toml',
-          template: 'workflow/setup/setup-codex.md',
+          template: 'workflow/setup/agents/codex.md',
           phase: 'foundation',
           note: 'Section: hooks + execpolicy (line 111+)',
         },
         {
           output: '.codex/rules/deny-dangerous.star',
-          template: 'workflow/setup/setup-codex.md',
+          template: 'workflow/setup/agents/codex.md',
           phase: 'foundation',
           note: 'Starlark execpolicy (line 120+)',
         },
         {
           output: 'scripts/stop-lint.sh',
-          template: 'workflow/setup/setup-codex.md',
+          template: 'workflow/setup/agents/codex.md',
           phase: 'foundation',
           note: 'Section: verification scripts (line 131+)',
         },
@@ -99,19 +99,19 @@ function getFoundationHooks(agentId: AgentId): TemplateRef[] {
       return [
         {
           output: '.gemini/settings.json',
-          template: 'workflow/setup/setup-gemini.md',
+          template: 'workflow/setup/agents/gemini.md',
           phase: 'foundation',
           note: 'Use detected stack commands',
         },
         {
           output: '.gemini/hooks/deny-dangerous.sh',
-          template: 'workflow/setup/setup-gemini.md',
+          template: 'workflow/setup/agents/gemini.md',
           phase: 'foundation',
           note: 'Gemini BeforeTool hook',
         },
         {
           output: '.gemini/hooks/stop-lint.sh',
-          template: 'workflow/setup/setup-gemini.md',
+          template: 'workflow/setup/agents/gemini.md',
           phase: 'foundation',
           note: 'Gemini AfterAgent hook',
         },
@@ -153,19 +153,19 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
   const sharedRefs: TemplateRef[] = [
     {
       output: '.goat-flow/footguns/',
-      template: 'workflow/setup/shared/phase-1.md',
+      template: 'workflow/setup/09-customise-to-project.md',
       phase: 'standard',
       note: 'Real incidents only',
     },
     {
       output: '.goat-flow/lessons/',
-      template: 'workflow/setup/shared/phase-1.md',
+      template: 'workflow/setup/09-customise-to-project.md',
       phase: 'standard',
       note: 'Seed from git history',
     },
     {
       output: '.goat-flow/architecture.md',
-      template: 'workflow/setup/shared/architecture.md',
+      template: 'workflow/setup/07-setup-architecture.md',
       phase: 'standard',
       note: 'Under 100 lines',
     },
@@ -175,7 +175,7 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
   const roleRefs: TemplateRef[] = [
     {
       output: '.goat-flow/README.md',
-      template: 'workflow/setup/shared/phase-1.md',
+      template: 'workflow/setup/09-customise-to-project.md',
       phase: 'standard',
       note: 'Routing map for .goat-flow/coding-standards/',
     },
@@ -206,9 +206,9 @@ function getFullRefs(_agentId: AgentId): TemplateRef[] {
 
 /** Map each agent to its dedicated setup guide template */
 const SETUP_GUIDE_TEMPLATES: Record<AgentId, string> = {
-  claude: 'workflow/setup/setup-claude.md',
-  codex: 'workflow/setup/setup-codex.md',
-  gemini: 'workflow/setup/setup-gemini.md',
+  claude: 'workflow/setup/agents/claude.md',
+  codex: 'workflow/setup/agents/codex.md',
+  gemini: 'workflow/setup/agents/gemini.md',
 };
 
 /** Return the per-phase setup guide refs for a specific agent */
@@ -611,20 +611,20 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   'create-skill-test': 'workflow/skills/goat-test.md',
 
   // File-level creates - instruction file and docs
-  'create-instruction-file': 'workflow/setup/shared/execution-loop.md',
-  'create-lessons': 'workflow/setup/shared/phase-1.md',
-  'create-footguns': 'workflow/setup/shared/phase-1.md',
-  'create-architecture': 'workflow/setup/shared/architecture.md',
+  'create-instruction-file': 'workflow/setup/execution-loop.md',
+  'create-lessons': 'workflow/setup/09-customise-to-project.md',
+  'create-footguns': 'workflow/setup/09-customise-to-project.md',
+  'create-architecture': 'workflow/setup/07-setup-architecture.md',
   // File-level creates - hooks/enforcement
   'create-deny-script': {
     claude: 'workflow/hooks/deny-dangerous.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   'create-stop-lint': {
     claude: 'workflow/hooks/stop-lint.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   // File-level creates - coding standards
   'create-conventions-instructions': 'workflow/coding-standards/conventions.md',
@@ -632,23 +632,23 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   // create-git-commit-instructions removed - check 2.6.5 removed
 
   // Section-level creates - execution loop steps (all point to same parent)
-  'add-read-step': 'workflow/setup/shared/execution-loop.md',
-  'add-classify-step': 'workflow/setup/shared/execution-loop.md',
-  'add-scope-step': 'workflow/setup/shared/execution-loop.md',
-  'add-act-step': 'workflow/setup/shared/execution-loop.md',
-  'add-verify-step': 'workflow/setup/shared/execution-loop.md',
-  'add-log-step': 'workflow/setup/shared/execution-loop.md',
+  'add-read-step': 'workflow/setup/execution-loop.md',
+  'add-classify-step': 'workflow/setup/execution-loop.md',
+  'add-scope-step': 'workflow/setup/execution-loop.md',
+  'add-act-step': 'workflow/setup/execution-loop.md',
+  'add-verify-step': 'workflow/setup/execution-loop.md',
+  'add-log-step': 'workflow/setup/execution-loop.md',
 
   // Section-level creates - autonomy tiers
-  'add-autonomy-tiers': 'workflow/setup/shared/execution-loop.md',
-  'add-never-guards': 'workflow/setup/shared/execution-loop.md',
-  'add-micro-checklist': 'workflow/setup/shared/execution-loop.md',
+  'add-autonomy-tiers': 'workflow/setup/execution-loop.md',
+  'add-never-guards': 'workflow/setup/execution-loop.md',
+  'add-micro-checklist': 'workflow/setup/execution-loop.md',
 
   // Section-level creates - definition of done
-  'add-dod': 'workflow/setup/shared/execution-loop.md',
-  'add-dod-gates': 'workflow/setup/shared/execution-loop.md',
-  'add-grep-gate': 'workflow/setup/shared/execution-loop.md',
-  'add-log-gate': 'workflow/setup/shared/execution-loop.md',
+  'add-dod': 'workflow/setup/execution-loop.md',
+  'add-dod-gates': 'workflow/setup/execution-loop.md',
+  'add-grep-gate': 'workflow/setup/execution-loop.md',
+  'add-log-gate': 'workflow/setup/execution-loop.md',
 
   // Fix-kind - skill quality (all templates demonstrate these sections)
   'create-all-skills': 'workflow/skills/goat-debug.md',
@@ -664,59 +664,59 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   // Fix-kind - hook hardening (agent-specific)
   'add-deny-blocks': {
     claude: 'workflow/hooks/deny-dangerous.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   'fix-deny-json-parsing': {
     claude: 'workflow/hooks/deny-dangerous.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   'fix-deny-chaining': {
     claude: 'workflow/hooks/deny-dangerous.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   'fix-deny-rm-rf': {
     claude: 'workflow/hooks/deny-dangerous.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   'fix-deny-force-push': {
     claude: 'workflow/hooks/deny-dangerous.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   'fix-deny-chmod': {
     claude: 'workflow/hooks/deny-dangerous.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   'fix-deny-pipe-to-shell': {
     claude: 'workflow/hooks/deny-dangerous.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   'fix-read-deny-secrets': {
     claude: 'workflow/hooks/deny-dangerous.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   'add-stop-lint-validation': {
     claude: 'workflow/hooks/stop-lint.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   'add-compaction-hook': {
     claude: 'workflow/hooks/README.md',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
 
   // Fix-kind - learning loop
-  'seed-lessons': 'workflow/setup/shared/phase-1.md',
-  'seed-lessons-minimum': 'workflow/setup/shared/phase-1.md',
-  'add-footgun-evidence': 'workflow/setup/shared/phase-1.md',
+  'seed-lessons': 'workflow/setup/09-customise-to-project.md',
+  'seed-lessons-minimum': 'workflow/setup/09-customise-to-project.md',
+  'add-footgun-evidence': 'workflow/setup/09-customise-to-project.md',
 
   // File-level creates - security, testing, devops, domain
   'create-security-instructions': 'workflow/coding-standards/security.md',
@@ -748,36 +748,36 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   // Fix-kind - local instructions
   'improve-conventions-instructions':
     'workflow/coding-standards/conventions.md',
-  'create-instructions-dir': 'workflow/setup/shared/phase-1.md',
-  'create-instructions-router': 'workflow/setup/shared/phase-1.md',
+  'create-instructions-dir': 'workflow/setup/09-customise-to-project.md',
+  'create-instructions-router': 'workflow/setup/09-customise-to-project.md',
   'create-frontend-instructions':
     'workflow/coding-standards/frontend/typescript.md',
   // create-github-git-commit removed - check 2.6.6 removed
 
   // Fix-kind - foundation (instruction file sections)
-  'add-version-header': 'workflow/setup/shared/execution-loop.md',
-  'add-essential-commands': 'workflow/setup/shared/execution-loop.md',
-  'add-concrete-examples': 'workflow/setup/shared/execution-loop.md',
-  'add-classify-budgets': 'workflow/setup/shared/execution-loop.md',
-  'add-router': 'workflow/setup/shared/execution-loop.md',
-  'route-skills': 'workflow/setup/shared/execution-loop.md',
+  'add-version-header': 'workflow/setup/execution-loop.md',
+  'add-essential-commands': 'workflow/setup/execution-loop.md',
+  'add-concrete-examples': 'workflow/setup/execution-loop.md',
+  'add-classify-budgets': 'workflow/setup/execution-loop.md',
+  'add-router': 'workflow/setup/execution-loop.md',
+  'route-skills': 'workflow/setup/execution-loop.md',
   'add-deny-mechanism': {
     claude: 'workflow/hooks/deny-dangerous.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   'block-git-commit': {
     claude: 'workflow/hooks/deny-dangerous.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   'block-git-push': {
     claude: 'workflow/hooks/deny-dangerous.sh',
-    codex: 'workflow/setup/setup-codex.md',
-    gemini: 'workflow/setup/setup-gemini.md',
+    codex: 'workflow/setup/agents/codex.md',
+    gemini: 'workflow/setup/agents/gemini.md',
   },
   // add-rfc2119 intentionally excluded - inline instruction is self-contained
-  'fix-execution-loop-sync': 'workflow/setup/shared/execution-loop.md',
+  'fix-execution-loop-sync': 'workflow/setup/execution-loop.md',
 
   // Fix-kind - anti-patterns (ones with clear template sources)
   // ap-add-footgun-evidence removed - AP4 removed

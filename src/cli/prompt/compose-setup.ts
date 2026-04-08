@@ -891,9 +891,9 @@ export function composeMultiAgentSetup(
 
 /** Lookup from agent ID to its setup guide in the goat-flow templates directory. */
 const SETUP_FILES: Record<AgentId, string> = {
-  claude: 'workflow/setup/setup-claude.md',
-  codex: 'workflow/setup/setup-codex.md',
-  gemini: 'workflow/setup/setup-gemini.md',
+  claude: 'workflow/setup/agents/claude.md',
+  codex: 'workflow/setup/agents/codex.md',
+  gemini: 'workflow/setup/agents/gemini.md',
 };
 
 /** Render setup redirect. */
@@ -1219,30 +1219,32 @@ function renderSetupRedirect(
   lines.push('## Setup instructions');
   lines.push('');
   lines.push(
-    'FIRST, read `workflow/setup/shared/system-overview.md` to understand the design intent.',
+    `FIRST, read \`${setupFile}\` for agent-specific paths and configuration.`,
   );
   lines.push('');
   lines.push(
-    `Deeply review and implement the instructions in: \`${setupFile}\``,
+    'Then follow the numbered setup steps in `workflow/setup/` one at a time:',
   );
   lines.push('');
-  lines.push('That file walks through:');
   lines.push(
-    '- **Phase 1a:** Instruction file, docs seed files, local instruction files',
+    '- **01-system-overview.md** — Design intent, state check, route to 02 or 03',
   );
   lines.push(
-    '- **Phase 1b:** 6 skills (5 goat-* skills + /goat dispatcher) adapted for this project',
+    '- **02 or 03** — Create or reorganise instruction file',
   );
   lines.push(
-    '- **Phase 1c:** Advisory hooks, deny patterns, coding guidelines',
+    '- **04–08** — Execution loop, skills, coding guidelines, architecture, code map',
   );
   lines.push(
-    '- **Phase 1d:** Hygiene (RFC 2119 pass)',
+    '- **09** — Customise to project (deep codebase read, real footguns/lessons)',
   );
-  lines.push('- **Final Verification:** Verify 100% on the CLI scan');
+  lines.push(
+    '- **10** — Polish (RFC 2119 pass, compression)',
+  );
+  lines.push('- **11** — Final verification (scanner 100%, build/test/lint)');
   lines.push('');
   lines.push(
-    '**Read `workflow/setup/shared/system-overview.md` first** to understand the design intent behind the goat-flow system.',
+    'Each step is self-contained with a verification gate. Complete one step before moving to the next.',
   );
   lines.push(
     'Install the full system for every project. Do not skip components based on project size.',

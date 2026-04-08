@@ -1,30 +1,44 @@
-# Upgrade v0.9.x → Current
+# Upgrade v0.9.x → v1.1.0
 
-Read `shared/system-overview.md` first if you haven't already.
+Read `01-system-overview.md` first if you haven't already.
 
-These projects have 10 old skills and learning loop content in `docs/` not `.goat-flow/`.
+## Before and after
+
+**Before (v0.9.x):**
+- Old skill names: goat-audit, goat-investigate, goat-onboard, goat-reflect, goat-resume, goat-context, goat-simplify, goat-refactor
+- No `.goat-flow/config.yaml`
+- Learning loop in `docs/footguns.md` and `docs/lessons.md` (flat files, not directories)
+- No `.goat-flow/skill-conventions.md`
+
+**After (v1.1.0):**
+- 6 skills: goat, goat-debug, goat-plan, goat-review, goat-security, goat-test
+- `.goat-flow/config.yaml` with version 1.1.0
+- Learning loop in `.goat-flow/footguns/` and `.goat-flow/lessons/` (category bucket directories)
+- `.goat-flow/skill-conventions.md` shared across all skills
+- `.goat-flow/architecture.md`, `.goat-flow/glossary.md`, `.goat-flow/coding-standards/`
 
 ---
 
 ## Step 1 — Confirm v0.9 state
 
-You're in the right place if the project has:
-- Old skill names: goat-audit, goat-investigate, goat-onboard, goat-reflect, goat-resume, goat-context, goat-simplify, goat-refactor
-- No `.goat-flow/config.yaml`
-- Learning loop in `docs/footguns.md` and `docs/lessons.md` (flat files, not directories)
+You're in the right place if the project has old skill names and no `.goat-flow/config.yaml`.
 
-If the project has `.goat-flow/config.yaml` with a version, use `upgrade-1.0.0.md` instead.
-If the project has no goat-flow at all, use the fresh setup (`setup-claude.md` etc.).
+- If `.goat-flow/config.yaml` exists with a version → use `upgrade-1.0.0.md` instead
+- If no goat-flow at all → use fresh setup (`agents/claude.md` etc.)
+
+**Verification:** List detected old skill directories. Confirm no config.yaml.
 
 ---
 
-## Step 2 — Skills
+## Step 2 — Delete old skills
 
-- Delete old skills from ALL agent skill directories (`.claude/skills/`, `.agents/skills/`, `.gemini/skills/`):
-  goat-audit, goat-investigate, goat-onboard, goat-reflect, goat-resume, goat-context, goat-simplify, goat-refactor
-- Also delete generic pre-goat skills if present: `audit/`, `review/`, `preflight/`
-- Install current 5 + dispatcher from `workflow/skills/goat-*.md` templates
-- Each skill gets the 7-line inline fallback referencing `.goat-flow/skill-conventions.md`
+Delete from ALL agent skill directories (`.claude/skills/`, `.agents/skills/`, `.github/skills/`):
+
+**Delete these:** goat-audit, goat-investigate, goat-onboard, goat-reflect, goat-resume, goat-context, goat-simplify, goat-refactor
+
+Also delete generic pre-goat skills if present: `audit/`, `review/`, `preflight/`
+
+**Verification:** No old skill directories remain. `ls {skills-dir}` shows no goat-audit etc.
 
 ---
 
@@ -32,45 +46,65 @@ If the project has no goat-flow at all, use the fresh setup (`setup-claude.md` e
 
 These files contain real project memory. Migrate the content, don't discard it.
 
-- If `docs/footguns.md` exists: migrate entries into `.goat-flow/footguns/` category bucket files. After migration is verified, delete `docs/footguns.md`.
-- If `docs/lessons.md` exists: migrate entries into `.goat-flow/lessons/` category bucket files. After migration is verified, delete `docs/lessons.md`.
-- If `agent-evals/` exists: delete it (evals system removed in v1.1.0).
-- If `docs/architecture.md` exists: move to `.goat-flow/architecture.md`. Delete the source.
-- If `docs/decisions/` exists: move to `.goat-flow/decisions/`. Delete the source.
-- If `docs/guidelines-ownership-split.md` exists: delete it (superseded by ADR-031 file ownership rules).
+**Footguns:** If `docs/footguns.md` exists:
+1. Read the content
+2. Group entries by topic (e.g., hooks, setup, scanner)
+3. Create `.goat-flow/footguns/` category bucket files with one `## Footgun: <name>` entry per trap
+4. Format per `.goat-flow/skill-conventions.md` Learning Loop section
+5. After verifying all entries migrated, delete `docs/footguns.md`
 
-**Parallel surfaces are an anti-pattern.** Do not leave old `docs/` files alongside new `.goat-flow/` equivalents. The scanner penalizes this (AP22).
+**Lessons:** If `docs/lessons.md` exists:
+1. Same process → `.goat-flow/lessons/` category bucket files
+2. Each entry: `## Lesson: <name>` with Created, What happened, Prevention
+3. After verifying, delete `docs/lessons.md`
+
+**Other migrations:**
+- `agent-evals/` → delete entirely (evals system removed in v1.1.0)
+- `docs/architecture.md` → move to `.goat-flow/architecture.md`
+- `docs/decisions/` → move to `.goat-flow/decisions/`
+- `docs/system-spec.md`, `docs/five-layers.md`, `docs/design-rationale.md` → delete (retired in v1.1.0)
+- `tasks/handoff-template.md`, `tasks/handoff.md`, `tasks/todo.md` → if content exists, preserve in `.goat-flow/logs/sessions/`, then delete
+
+**Parallel surfaces are an anti-pattern.** Do not leave old `docs/` files alongside new `.goat-flow/` equivalents.
+
+**Verification:** `ls docs/footguns.md docs/lessons.md 2>&1` — "No such file". `.goat-flow/footguns/` and `.goat-flow/lessons/` exist with migrated content.
 
 ---
 
-## Step 4 — Delete legacy artifacts
+## Step 4 — Create goat-flow infrastructure
 
-- Delete `tasks/handoff-template.md`, `tasks/handoff.md`, `tasks/todo.md` if they exist. If they have content, preserve in `.goat-flow/logs/sessions/` as a migration artifact first.
-- Delete `docs/system-spec.md`, `docs/five-layers.md`, `docs/design-rationale.md` if they exist (retired in v1.1.0).
-- Do NOT create handoff-template.md or todo.md (removed in v1.1.0).
+- Create `.goat-flow/config.yaml` with version 1.1.0
+- Create `.goat-flow/skill-conventions.md` from `workflow/skills/reference/shared-preamble.md`
+- Create `.goat-flow/glossary.md` with project-specific terms
+- If `.github/instructions/` exists: create `.goat-flow/coding-standards/conventions.md` as a pointer file. Do NOT duplicate content.
+
+**Verification:** `.goat-flow/config.yaml` exists. `skill-conventions.md` exists.
 
 ---
 
-## Step 5 — Create goat-flow infrastructure
+## Step 5 — Install current skills
 
-- Create `.goat-flow/config.yaml` with current version
-- Copy `workflow/skills/reference/shared-preamble.md` → `.goat-flow/skill-conventions.md`
-- Create `.goat-flow/glossary.md`
-- Install hooks from `workflow/hooks/`
-- If `.github/instructions/` exists: create `.goat-flow/coding-standards/conventions.md` as a pointer file referencing those files. Do NOT duplicate their content.
+Install the 6 current skills from `workflow/skills/goat-*.md` templates into the agent's skills directory. Each skill must have `goat-flow-skill-version: "1.1.0"` in frontmatter.
+
+Check expected version: `workflow/skills/goat-debug.md` line 4.
+
+**Verification:** All 6 skills present. All version tags match.
 
 ---
 
 ## Step 6 — Instruction file
 
-Follow the agent-specific setup file (e.g., `setup-claude.md`) for:
-- Creating or rewriting the instruction file (CLAUDE.md etc.)
-- Installing hooks and settings
-- Human checklist
+Follow the numbered setup steps for instruction file creation:
+- If no instruction file exists → `02-create-instruction-file.md`, then `04-setup-execution-loop.md` through `11-final-verification.md`
+- If instruction file exists → `03-reorganise-instruction-file.md`, then `04` through `11`
+
+The agent config file (`agents/claude.md`, `agents/codex.md`, etc.) has agent-specific hooks and settings to wire after step 05.
+
+**Verification:** Instruction file under 120 lines with all required sections.
 
 ---
 
-## What to never touch during upgrade
+## What to never touch
 
 - Existing project source code, configs, scripts
 - Other agents' files (single-agent scoping)
@@ -81,8 +115,12 @@ Follow the agent-specific setup file (e.g., `setup-claude.md`) for:
 
 ## Post-upgrade verification
 
-1. Run `scripts/context-validate.sh` if it exists
-2. Run `goat-flow scan . --agent {agent}` — target 100%
-3. Verify project build/test/lint still passes
-4. Review git diff — every change should be intentional
-5. Confirm no parallel surfaces: `docs/footguns.md` + `.goat-flow/footguns/` should not both exist
+1. `goat-flow scan . --agent {agent}` — target 100%
+2. Verify project build/test/lint still passes
+3. Review git diff — every change should be intentional
+4. Confirm no parallel surfaces exist
+
+**Session log:** Append to `.goat-flow/logs/sessions/YYYY-MM-DD-upgrade.md`:
+- **Step:** upgrade from v0.9.x
+- **What was done:** (skills migrated, learning loop migrated, infrastructure created)
+- **Self-critique:** (honest assessment)

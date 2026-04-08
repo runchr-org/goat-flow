@@ -217,8 +217,8 @@ info "Codex scripts are executable"
 # Validate template consistency for deduplicated execution-loop + execution docs
 template_errors=0
 
-if [[ ! -f workflow/setup/shared/execution-loop.md ]]; then
-    warn "Missing template file: workflow/setup/shared/execution-loop.md"
+if [[ ! -f workflow/setup/execution-loop.md ]]; then
+    warn "Missing template file: workflow/setup/execution-loop.md"
     template_errors=1
 fi
 

@@ -6,7 +6,7 @@ category: setup-and-migration
 
 **Created:** 2026-03-21
 
-**What happened:** Gemini CLI was asked to set up GOAT Flow. It modified 6 shared documentation files, including several retired pre-v1.1 architecture docs now superseded by `workflow/setup/shared/system-overview.md`, plus the old getting-started and enforcement docs that now live under `workflow/setup/` and `workflow/hooks/`. Those edits replaced Claude Code references with Gemini-specific equivalents. One of the retired architecture docs lost its Claude Code skills row entirely. The enforcement template ended up in a hybrid state - half `.claude/` paths, half `.gemini/` paths.
+**What happened:** Gemini CLI was asked to set up GOAT Flow. It modified 6 shared documentation files, including several retired pre-v1.1 architecture docs now superseded by `workflow/setup/01-system-overview.md`, plus the old getting-started and enforcement docs that now live under `workflow/setup/` and `workflow/hooks/`. Those edits replaced Claude Code references with Gemini-specific equivalents. One of the retired architecture docs lost its Claude Code skills row entirely. The enforcement template ended up in a hybrid state - half `.claude/` paths, half `.gemini/` paths.
 
 **Prevention:** Agent setup prompts must include explicit scope constraints. For Gemini: "Only create/modify files under `.gemini/` and `GEMINI.md`. Do NOT modify `docs/`, `workflow/`, or any file outside the `.gemini/` directory." For any agent: treat shared documentation as a boundary that requires Ask First permission.
 
@@ -16,8 +16,8 @@ category: setup-and-migration
 
 **Created:** 2026-03-22
 
-**What happened:** Rampart's CLAUDE.md had `redaction.rs` (doesn't exist - redaction is Python only). Blundergoat's CLAUDE.md had a stale web middleware path pointing at `middleware.ts` instead of `proxy.ts`, plus a stale API SQL directory pointing at `migrations/` instead of `schema/`. Sub-agents creating `ai-docs/coding-standards/` read these wrong paths from the existing instruction files and copied them into the new cold-path files, propagating the error.
-**Root cause:** The verification gate said "verify paths in ai-docs/coding-standards/" but didn't say "also audit the existing instruction file you're reading from." Agents trust the hot-path file as authoritative without checking.
+**What happened:** Rampart's CLAUDE.md had `redaction.rs` (doesn't exist - redaction is Python only). Blundergoat's CLAUDE.md had a stale web middleware path pointing at `middleware.ts` instead of `proxy.ts`, plus a stale API SQL directory pointing at `migrations/` instead of `schema/`. Sub-agents creating `.goat-flow/coding-standards/` read these wrong paths from the existing instruction files and copied them into the new cold-path files, propagating the error.
+**Root cause:** The verification gate said "verify paths in .goat-flow/coding-standards/" but didn't say "also audit the existing instruction file you're reading from." Agents trust the hot-path file as authoritative without checking.
 **Fix:** Added "ALSO AUDIT EXISTING INSTRUCTION FILES" gate to docs-seed.md - verify Ask First paths exist, check router entries resolve, fix stale paths before copying them into cold-path files.
 
 ---
@@ -28,7 +28,7 @@ category: setup-and-migration
 
 **What happened:** Both rampart and sus-form-detector agents dropped Sub-Agent Objectives (f) and Communication When Blocked (g) when compressing CLAUDE.md toward the line target. The instructions said "Do NOT skip sections (f)-(i)" but only in Prompt B - Prompt A (used for new projects) didn't have this warning.
 
-**Prevention:** Every constraint that agents are likely to cut under pressure must appear in BOTH the template (execution-loop.md) AND the prompt that invokes it (Prompt A in setup-claude.md). A rule in only one place is a rule that gets missed.
+**Prevention:** Every constraint that agents are likely to cut under pressure must appear in BOTH the template (execution-loop.md) AND the prompt that invokes it (Prompt A in agents/claude.md). A rule in only one place is a rule that gets missed.
 
 ---
 
@@ -36,7 +36,7 @@ category: setup-and-migration
 
 **Created:** 2026-03-20
 
-**What happened:** A retired pre-v1.1 system-spec document showed the old 5-step execution loop while `workflow/setup/shared/execution-loop.md` had the updated 6-step version with SCOPE. The setup prompt told agents to read the retired spec first. Both rampart and sus-form-detector agents absorbed the stale loop and either didn't notice or couldn't override the newer execution-loop file. 7 of 8 gaps in sus-form-detector traced to this single contradiction.
+**What happened:** A retired pre-v1.1 system-spec document showed the old 5-step execution loop while `workflow/setup/execution-loop.md` had the updated 6-step version with SCOPE. The setup prompt told agents to read the retired spec first. Both rampart and sus-form-detector agents absorbed the stale loop and either didn't notice or couldn't override the newer execution-loop file. 7 of 8 gaps in sus-form-detector traced to this single contradiction.
 
 **Prevention:** When updating any concept that appears in multiple files, update the file agents read FIRST before or at the same time as the authoritative source. Never assume agents will reconcile contradictions - they follow the first version they encounter. Retiring the old system-spec doc in v1.1.0 removes this specific duplication, but the general principle remains.
 

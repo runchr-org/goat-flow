@@ -1,6 +1,6 @@
 # Secrets Management
 
-Reference for generating `ai-docs/coding-standards/security.md` in projects handling credentials, tokens, or API keys.
+Reference for generating `.goat-flow/coding-standards/security.md` in projects handling credentials, tokens, or API keys.
 
 ## Environment Variables
 

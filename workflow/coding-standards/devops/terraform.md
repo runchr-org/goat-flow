@@ -1,6 +1,6 @@
 # Terraform Coding Standards
 
-Reference for generating `ai-docs/coding-standards/devops.md` in projects using Terraform.
+Reference for generating `.goat-flow/coding-standards/devops.md` in projects using Terraform.
 
 ## Version Pinning
 
