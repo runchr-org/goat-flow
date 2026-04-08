@@ -39,6 +39,9 @@ const RUNNER_BINARIES: Record<Runner, string> = {
   copilot: 'copilot',
 };
 
+/** Maximum output to buffer while a session is detached (characters). */
+const DETACH_BUFFER_LIMIT = 512 * 1024; // 512KB
+
 /** Internal state for a single PTY terminal session */
 interface TerminalSession {
   id: string;
@@ -50,6 +53,10 @@ interface TerminalSession {
   pty: IPty | null;
   ws: WebSocket | null;
   idleTimer: ReturnType<typeof setTimeout> | null;
+  /** Buffered PTY output accumulated while no WebSocket is attached. */
+  detachBuffer: string[];
+  /** Total character count in detachBuffer (for limit enforcement). */
+  detachBufferSize: number;
 }
 
 /** Resolve the absolute path to a CLI binary. Returns null if not found. */
@@ -187,7 +194,20 @@ export class TerminalManager {
       pty,
       ws: null,
       idleTimer: null,
+      detachBuffer: [],
+      detachBufferSize: 0,
     };
+
+    // Wire PTY output at creation — routes to WebSocket if attached, buffer if detached
+    pty.onData((data: string) => {
+      this.resetIdleTimer(session);
+      if (session.ws) {
+        sendMessage(session.ws, { type: 'output', data });
+      } else if (session.detachBufferSize < DETACH_BUFFER_LIMIT) {
+        session.detachBuffer.push(data);
+        session.detachBufferSize += data.length;
+      }
+    });
 
     pty.onExit(({ exitCode, signal }) => {
       session.status = 'terminated';
@@ -223,12 +243,21 @@ export class TerminalManager {
       return;
     }
 
+    // Close previous WebSocket if still open (e.g. stale connection)
+    if (session.ws) {
+      try { session.ws.close(); } catch { /* already closed */ }
+    }
+
     session.ws = ws;
 
-    session.pty!.onData((data: string) => {
-      sendMessage(ws, { type: 'output', data });
-      this.resetIdleTimer(session);
-    });
+    // Replay buffered output accumulated while detached
+    if (session.detachBuffer.length > 0) {
+      for (const chunk of session.detachBuffer) {
+        sendMessage(ws, { type: 'output', data: chunk });
+      }
+      session.detachBuffer = [];
+      session.detachBufferSize = 0;
+    }
 
     ws.on('message', (raw: Buffer | string) => {
       let msg: ClientMessage;
@@ -250,9 +279,9 @@ export class TerminalManager {
       }
     });
 
+    // Detach on WebSocket close — session keeps running
     ws.on('close', () => {
       session.ws = null;
-      this.killSession(session);
     });
   }
 
