@@ -9,7 +9,7 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | Setup prompts | `workflow/setup/` | Agent-specific setup instructions, upgrade guides, project-structure.json |
-| Shared setup | `workflow/setup/shared/` | Cross-agent setup fragments (system-overview, execution-loop, phase-1, coding-standards) |
+| Setup steps | `workflow/setup/01-*.md` | Numbered setup steps (system-overview, execution-loop, skills, coding-standards) |
 | Skill templates | `workflow/skills/` | Reference prompts for the 6 goat-flow skill templates |
 | Hook scripts | `workflow/hooks/` | Copyable hook scripts (deny-dangerous.sh, stop-lint.sh) + per-agent config templates |
 | Playbook templates | `workflow/playbooks/` | Planning (feature brief, SBAO) and testing methodology |
@@ -25,8 +25,8 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 ```
 User runs `npx goat-flow setup .` or reads workflow/setup/
   -> Chooses agent (agents/claude.md, agents/codex.md, agents/gemini.md, or agents/copilot.md)
-  -> Follows numbered setup steps (shared/ templates) via their agent
-  -> Agent reads workflow/setup/shared/ (system-overview.md, execution-loop.md)
+  -> Follows numbered setup steps (01-11) via their agent config
+  -> Agent reads workflow/setup/ (01-system-overview.md, execution-loop.md)
   -> Agent generates project-specific files (CLAUDE.md, hooks, skills, etc.)
 ```
 
@@ -64,7 +64,7 @@ src/dashboard/
 
 ## Hot Path / Cold Path
 
-Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- loaded every turn, under 120 lines. `.goat-flow/coding-standards/` is the cold path -- domain-specific coding guidelines loaded on demand via `.goat-flow/README.md` router.
+Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- loaded every turn, under 120 lines. `.goat-flow/coding-standards/` is the cold path -- domain-specific coding guidelines loaded on demand via the instruction file's Router Table.
 
 ## Deliberate Trade-offs
 

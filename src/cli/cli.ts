@@ -445,7 +445,7 @@ async function handleInfoCommand(options: ParsedCLI): Promise<void> {
 
   // The subcommand is the first positional arg after 'info'.
   // parseCLIArgs resolves projectPath to an absolute path, so extract the basename.
-  const sub = options.projectPath.split("/").pop() ?? "";
+  const sub = options.projectPath.split(/[/\\]/).pop() ?? "";
 
   if (sub === "rubrics") {
     const tiers = ["foundation", "standard", "full"] as const;

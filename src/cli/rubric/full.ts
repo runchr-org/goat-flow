@@ -107,7 +107,7 @@ export const fullChecks: CheckDef[] = [
         return {
           id: "3.3.4",
           name: "Execution loop consistent across agents",
-          tier: "full",
+          tier: "standard",
           category: "Dual-Agent Consistency",
           status: "fail",
           points: 0,
