@@ -48,12 +48,6 @@ security features during verification."
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
-**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
-- "hotfix" but 5+ files affected → likely Standard or System
-- "small feature" but crosses 3+ boundaries → likely System
-- "quick test" but 20+ functions in target → warn scope is larger than implied
-Surface the mismatch, suggest re-classification. Don't silently proceed.
-
 **Before proceeding:** present what you know (threat model, framework, auth boundaries) and what you still need. Wait for the user to confirm before entering Phase 1.
 
 ## Phase 1 - Threat Surface Scan
@@ -119,6 +113,26 @@ Remove confirmed false positives. Flag partial mitigations as findings.
 (b) check a different attack surface
 (c) test an edge case
 (d) proceed to ranking
+
+## Phase 2.5 - Confidence Classification
+
+Classify every finding from Phase 2 before presenting:
+
+**CONFIRMED** — Attacker-controlled input traced from entry point to sink.
+- Show data flow: `[entry] → [transform] → ... → [sink]`
+- Tag: `OBSERVED`
+
+**PROBABLE** — Vulnerable pattern found, input source unclear or partially traced.
+- Show pattern, identify missing trace element
+- Tag: `INFERRED`
+
+**THEORETICAL** — Best-practice violation or defence-in-depth gap, no confirmed exploit path.
+- Show gap and what controls would need to fail
+- Tag: `INFERRED`
+
+**Reporting defaults:**
+- Standard report: CONFIRMED only. PROBABLE in "Needs Verification" section. THEORETICAL omitted.
+- Full report ("thorough" / "full audit"): All findings, labelled by confidence.
 
 ## Phase 3 - Exploitability Ranking
 
@@ -208,6 +222,10 @@ Present compliance gaps ordered by risk:
 - MUST skip irrelevant categories based on threat model
 - MUST NOT fabricate file paths or function names
 - MUST re-verify Critical and High findings before presenting
+- MUST classify every finding as CONFIRMED, PROBABLE, or THEORETICAL
+- MUST show data flow path for CONFIRMED findings
+- MUST identify missing trace element for PROBABLE findings
+- MUST default to standard report (CONFIRMED only) unless user requests full
 
 ## Output Format
 
@@ -229,14 +247,24 @@ Present compliance gaps ordered by risk:
 | CORS/CSP | ... | ... |
 | Permission escalation | ... | ... |
 
-## Findings (by exploitability)
+## Findings (by exploitability × confidence)
+<!-- Order: [CRITICAL/CONFIRMED] > [CRITICAL/PROBABLE] > [HIGH/CONFIRMED] > [HIGH/PROBABLE] > [MEDIUM/CONFIRMED] > etc. -->
 
 ### Critical (exploitable without auth)
-- **[title]** - `file:line`
+- **[CRITICAL/CONFIRMED] [title]** - `file:line`
+  **Data flow:** `[entry] → [transform] → ... → [sink]`
   **Attack scenario:** An [attacker] can [action] via [vector], resulting in [impact]
   **Framework mitigation:** [not mitigated | mitigated by X - downgraded]
 
 ### High / Medium / Low
+
+## Needs Verification
+<!-- PROBABLE findings: vulnerable pattern found, input source unclear -->
+- **[HIGH/PROBABLE] [title]** - `file:line`
+  **Pattern:** [vulnerable pattern found]
+  **Missing trace:** [what input source or intermediate step is unconfirmed]
+
+<!-- Standard mode: N theoretical findings omitted. Request "full audit" to include. -->
 
 ## Framework Mitigations Verified
 | Feature | Installed | Configured | Applied to routes |

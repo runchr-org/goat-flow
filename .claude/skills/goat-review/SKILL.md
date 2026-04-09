@@ -23,6 +23,8 @@ after major changes, or when code quality is uncertain.
 Also use for reviewing instruction files for staleness - see modes below.
 Also use for improving readability, naming, and code clarity - see Simplify Mode.
 
+**Boundary with /goat-security:** goat-review owns: code quality, style, hook correctness, instruction staleness. goat-security owns: threat models, compliance (HIPAA/GDPR), dependency CVEs, auth/authz boundaries. If you find a security issue during review, flag it and suggest `/goat-security` for deeper assessment.
+
 **NOT this skill:**
 - OWASP-driven security assessment → /goat-security
 - Understanding unfamiliar code before changing it → /goat-debug (investigate mode)
@@ -35,9 +37,10 @@ Also use for improving readability, naming, and code clarity - see Simplify Mode
 2. What's the concern? (performance, security, correctness, readability - or "general review")
 3. Diff review or full audit? (I'll auto-detect from whether changes exist)
 
-**Project-specific questions:**
-4. Is this responding to a Codex critique, scanner regression, or dashboard bug report?
+**Illustrative questions (adapt):**
+4. Is this responding to external feedback? (another agent, team review, etc.)
 5. Riskiest change first, or full sweep?
+6. Are there requirements for this work? (file path, pasted issue/ticket content, or skip)
 
 **Escape hatch:** If the user says "just review what changed" or provides minimal info, auto-detect scope from `git diff --stat` and proceed.
 
@@ -57,19 +60,7 @@ review standards alongside these defaults.
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
-**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
-- "hotfix" but 5+ files affected → likely Standard or System
-- "small feature" but crosses 3+ boundaries → likely System
-- "quick test" but 20+ functions in target → warn scope is larger than implied
-Surface the mismatch, suggest re-classification. Don't silently proceed.
-
 **Before proceeding:** present what you know and what you still need. Wait for the user to confirm scope, mode, and concerns before entering Phase 1.
-
-## Phase 0 - Spec Compliance (conditional)
-
-If a feature requirements document, milestone file, or task file exists for the feature
-being reviewed, check each acceptance criterion against the implementation.
-If no spec exists, skip this phase - zero cost.
 
 ## Phase 1 - Scope Confirmation
 
@@ -99,6 +90,8 @@ pre-existing issues as part of this change - note them separately.
 - Test execution gaps: tests exist but weren't run against the changed path (different from "no test exists")
 - Glossary consistency: if `.goat-flow/glossary.md` exists, flag terms used inconsistently in the diff (different name for same concept)
 
+**Requirements cross-reference:** If requirements were provided in Step 0, cross-reference acceptance criteria against the implementation. Flag unmet criteria as MUST-fix findings.
+
 **Self-check:** Before presenting, re-verify `file:line` references for all MUST-fix findings.
 
 ## Phase 3 - Present Findings
@@ -126,9 +119,9 @@ Use the Output Format template below. Additional required sections for reviews:
 ## Phase 4 - DoD Gate Check
 
 Verify the project's Definition of Done against this change:
-1. `shellcheck` passes on changed `.sh` files
+1. Tests/lint pass on changed files
 2. No broken cross-references introduced
-3. No unapproved boundary changes (see CLAUDE.md Ask First list)
+3. No unapproved boundary changes
 4. Logs updated if VERIFY caught a failure
 5. Working notes current
 6. Grep old pattern after renames - zero remaining
@@ -145,7 +138,7 @@ or when code quality is uncertain.
 
 **Phase A1 - Scan:**
 
-Scan categories, weighted by audit purpose. GOAT Flow priorities: cross-reference accuracy, rubric-to-fact alignment, template-to-installed drift.
+Scan categories, weighted by audit purpose:
 
 | Category | Security audit | Consistency audit | General |
 |----------|---------------|-------------------|---------|
@@ -158,7 +151,6 @@ Scan categories, weighted by audit purpose. GOAT Flow priorities: cross-referenc
 | Style | Low | Low | Low |
 
 For each finding, log: category, `file:line`, description, severity.
-Use sub-agents for independent audit areas (e.g., rubric checks, skill templates, setup prompts in parallel).
 
 **Recurrence check:** Before reporting, search `.goat-flow/footguns/` for entries
 in the scanned area. Cross-reference findings with known footguns.
@@ -210,7 +202,6 @@ Gather observable signals (not conversation memory - agents can't read prior ses
 - `git log --oneline -20` for recent activity patterns
 - Read `.goat-flow/lessons/` for entries since last instruction update
 - Read `.goat-flow/footguns/` for entries in areas governed by the instructions
-
 
 **Phase 2i - Instruction Audit:**
 For each instruction file, check:

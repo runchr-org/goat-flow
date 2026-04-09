@@ -1,7 +1,7 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 interface Preset {
   id: string;
@@ -13,22 +13,22 @@ interface Preset {
 
 const PRESETS_PATH = join(
   import.meta.dirname,
-  '..',
-  '..',
-  'src',
-  'dashboard',
-  'presets.js',
+  "..",
+  "..",
+  "src",
+  "dashboard",
+  "presets.js",
 );
 
 function loadPresets(): Preset[] {
-  const content = readFileSync(PRESETS_PATH, 'utf-8');
-  return eval(content + '; PRESETS') as Preset[];
+  const content = readFileSync(PRESETS_PATH, "utf-8");
+  return eval(content + "; PRESETS") as Preset[];
 }
 
-describe('Dashboard presets have valid structure', () => {
+describe("Dashboard presets have valid structure", () => {
   const presets = loadPresets();
 
-  it('all presets have required fields', () => {
+  it("all presets have required fields", () => {
     for (const preset of presets) {
       assert.ok(preset.id, `Preset missing id`);
       assert.ok(preset.name, `${preset.id}: missing name`);
@@ -37,9 +37,9 @@ describe('Dashboard presets have valid structure', () => {
     }
   });
 
-  it('no duplicate preset IDs', () => {
-    const ids = presets.map(p => p.id);
+  it("no duplicate preset IDs", () => {
+    const ids = presets.map((p) => p.id);
     const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
-    assert.equal(dupes.length, 0, `Duplicate IDs: ${dupes.join(', ')}`);
+    assert.equal(dupes.length, 0, `Duplicate IDs: ${dupes.join(", ")}`);
   });
 });

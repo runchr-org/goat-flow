@@ -22,7 +22,7 @@ Read `01-system-overview.md` first if you haven't already.
 
 You're in the right place if the project has `.goat-flow/config.yaml` with version < 1.1.0.
 
-- If old skill names (goat-audit, goat-investigate, etc.) → use `upgrade-0.9.x.md` instead
+- If old skill names (goat-audit, goat-investigate, etc.) → use `upgrade-from-0.9.x.md` instead
 - If no goat-flow at all → use fresh setup (`agents/claude.md` etc.)
 
 **Verification:** `.goat-flow/config.yaml` exists with version < 1.1.0.

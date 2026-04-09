@@ -3,100 +3,100 @@
  * and M12 (userRole) prerequisites. These tests verify SKILL.md content
  * contains the patterns required for each feature.
  */
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
-const SKILLS_DIR = join(import.meta.dirname, '../../.claude/skills');
+const SKILLS_DIR = join(import.meta.dirname, "../../.claude/skills");
 const PREAMBLE_PATH = join(
   import.meta.dirname,
-  '../../workflow/skills/reference/shared-preamble.md',
+  "../../workflow/skills/reference/shared-preamble.md",
 );
 const CONVENTIONS_PATH = join(
   import.meta.dirname,
-  '../../.goat-flow/skill-conventions.md',
+  "../../.goat-flow/skill-conventions.md",
 );
 
 function readSkill(name: string): string {
-  return readFileSync(join(SKILLS_DIR, name, 'SKILL.md'), 'utf-8');
+  return readFileSync(join(SKILLS_DIR, name, "SKILL.md"), "utf-8");
 }
 
-const preamble = readFileSync(PREAMBLE_PATH, 'utf-8');
-const conventions = readFileSync(CONVENTIONS_PATH, 'utf-8');
+const preamble = readFileSync(PREAMBLE_PATH, "utf-8");
+const conventions = readFileSync(CONVENTIONS_PATH, "utf-8");
 const ALL_SKILLS = [
-  'goat-debug',
-  'goat-plan',
-  'goat-review',
-  'goat-security',
-  'goat-test',
+  "goat-debug",
+  "goat-plan",
+  "goat-review",
+  "goat-security",
+  "goat-test",
 ];
 
 // === M11: Autonomous mode prerequisites ===
 
-describe('M11: autonomous mode structural checks', () => {
-  it('shared preamble has CHECKPOINT definition', () => {
+describe("M11: autonomous mode structural checks", () => {
+  it("shared preamble has CHECKPOINT definition", () => {
     assert.ok(
-      preamble.includes('CHECKPOINT'),
-      'Shared preamble should define CHECKPOINT behavior',
+      preamble.includes("CHECKPOINT"),
+      "Shared preamble should define CHECKPOINT behavior",
     );
   });
 
-  it('shared preamble has BLOCKING GATE definition', () => {
+  it("shared preamble has BLOCKING GATE definition", () => {
     assert.ok(
-      preamble.includes('BLOCKING GATE'),
-      'Shared preamble should define BLOCKING GATE behavior',
+      preamble.includes("BLOCKING GATE"),
+      "Shared preamble should define BLOCKING GATE behavior",
     );
   });
 
-  it('shared preamble has ceremony level table', () => {
+  it("shared preamble has ceremony level table", () => {
     assert.ok(
-      preamble.includes('Ceremony Level') || preamble.includes('Ceremony:'),
-      'Shared preamble should have ceremony level guidance',
+      preamble.includes("Ceremony Level") || preamble.includes("Ceremony:"),
+      "Shared preamble should have ceremony level guidance",
     );
     assert.ok(
-      preamble.includes('Hotfix'),
-      'Ceremony should reference Hotfix complexity',
-    );
-  });
-
-  it('shared preamble has sub-agent mode handling', () => {
-    assert.ok(
-      preamble.includes('Sub-agent mode') || preamble.includes('sub-agent'),
-      'Shared preamble should document sub-agent mode behavior',
+      preamble.includes("Hotfix"),
+      "Ceremony should reference Hotfix complexity",
     );
   });
 
-  it('shared preamble has recovery section', () => {
+  it("shared preamble has sub-agent mode handling", () => {
     assert.ok(
-      preamble.includes('Recovery'),
-      'Shared preamble should have recovery guidance',
-    );
-    assert.ok(
-      preamble.includes('Partial completion'),
-      'Recovery should cover partial completion',
-    );
-    assert.ok(
-      preamble.includes('Missing artifacts'),
-      'Recovery should cover missing artifacts',
+      preamble.includes("Sub-agent mode") || preamble.includes("sub-agent"),
+      "Shared preamble should document sub-agent mode behavior",
     );
   });
 
-  it('shared preamble has checkpoint-based recovery for autonomous mode', () => {
+  it("shared preamble has recovery section", () => {
     assert.ok(
-      preamble.includes('checkbox') || preamble.includes('milestone'),
-      'Recovery should mention milestone checkboxes for context preservation (handoff replaced in v1.1.0)',
+      preamble.includes("Recovery"),
+      "Shared preamble should have recovery guidance",
+    );
+    assert.ok(
+      preamble.includes("Partial completion"),
+      "Recovery should cover partial completion",
+    );
+    assert.ok(
+      preamble.includes("Missing artifacts"),
+      "Recovery should cover missing artifacts",
     );
   });
 
-  it('skill-conventions.md has ceremony-conditional content', () => {
+  it("shared preamble has checkpoint-based recovery for autonomous mode", () => {
     assert.ok(
-      conventions.includes('Ceremony Level'),
-      'skill-conventions.md should have Ceremony Level section',
+      preamble.includes("checkbox") || preamble.includes("milestone"),
+      "Recovery should mention milestone checkboxes for context preservation (handoff replaced in v1.1.0)",
+    );
+  });
+
+  it("skill-conventions.md has ceremony-conditional content", () => {
+    assert.ok(
+      conventions.includes("Ceremony Level"),
+      "skill-conventions.md should have Ceremony Level section",
     );
     assert.ok(
-      conventions.includes('Hotfix'),
-      'Ceremony should reference Hotfix complexity',
+      conventions.includes("Hotfix"),
+      "Ceremony should reference Hotfix complexity",
     );
   });
 
@@ -104,7 +104,7 @@ describe('M11: autonomous mode structural checks', () => {
     it(`${name} delegates ceremony to skill-conventions.md`, () => {
       const content = readSkill(name);
       assert.ok(
-        content.includes('skill-conventions.md'),
+        content.includes("skill-conventions.md"),
         `${name} should reference skill-conventions.md for ceremony conventions`,
       );
     });
@@ -112,7 +112,7 @@ describe('M11: autonomous mode structural checks', () => {
     it(`${name} has CHECKPOINT mentions (autonomous support)`, () => {
       const content = readSkill(name);
       assert.ok(
-        content.includes('CHECKPOINT') || content.includes('Checkpoint'),
+        content.includes("CHECKPOINT") || content.includes("Checkpoint"),
         `${name} should have CHECKPOINT for autonomous mode`,
       );
     });
@@ -121,234 +121,231 @@ describe('M11: autonomous mode structural checks', () => {
 
 // === M14: Auto-mode selection prerequisites ===
 
-describe('M14: auto-mode selection structural checks', () => {
-  it('goat-review has scope detection priority', () => {
-    const content = readSkill('goat-review');
+describe("M14: auto-mode selection structural checks", () => {
+  it("goat-review has scope detection priority", () => {
+    const content = readSkill("goat-review");
     assert.ok(
-      content.includes('Scope detection priority') ||
-        content.includes('scope detection'),
-      'goat-review should have scope detection priority order',
+      content.includes("Scope detection priority") ||
+        content.includes("scope detection"),
+      "goat-review should have scope detection priority order",
     );
   });
 
-  it('goat-review auto-detects Standard vs Audit', () => {
-    const content = readSkill('goat-review');
+  it("goat-review auto-detects Standard vs Audit", () => {
+    const content = readSkill("goat-review");
     assert.ok(
-      content.includes('Standard mode'),
-      'goat-review should mention Standard mode',
+      content.includes("Standard mode"),
+      "goat-review should mention Standard mode",
     );
     assert.ok(
-      content.includes('Audit mode'),
-      'goat-review should mention Audit mode',
-    );
-  });
-
-  it('goat-review handles dirty worktree', () => {
-    const content = readSkill('goat-review');
-    assert.ok(
-      content.includes('20+ changed files') || content.includes('very dirty'),
-      'goat-review should handle dirty worktree edge case',
+      content.includes("Audit mode"),
+      "goat-review should mention Audit mode",
     );
   });
 
-  it('goat-review supports explicit override', () => {
-    const content = readSkill('goat-review');
+  it("goat-review handles dirty worktree", () => {
+    const content = readSkill("goat-review");
     assert.ok(
-      content.includes('respect override') ||
-        content.includes('explicitly says'),
-      'goat-review should support explicit mode override',
+      content.includes("20+ changed files") || content.includes("very dirty"),
+      "goat-review should handle dirty worktree edge case",
     );
   });
 
-  it('goat-test has scope detection priority', () => {
-    const content = readSkill('goat-test');
+  it("goat-review supports explicit override", () => {
+    const content = readSkill("goat-review");
     assert.ok(
-      content.includes('Scope detection priority') ||
-        content.includes('scope detection'),
-      'goat-test should have scope detection priority order',
+      content.includes("respect override") ||
+        content.includes("explicitly says"),
+      "goat-review should support explicit mode override",
     );
   });
 
-  it('goat-test auto-detects Standard vs Audit', () => {
-    const content = readSkill('goat-test');
+  it("goat-test has scope detection priority", () => {
+    const content = readSkill("goat-test");
     assert.ok(
-      content.includes('Standard mode'),
-      'goat-test should mention Standard mode',
-    );
-    assert.ok(
-      content.includes('Audit mode'),
-      'goat-test should mention Audit mode',
+      content.includes("Scope detection priority") ||
+        content.includes("scope detection"),
+      "goat-test should have scope detection priority order",
     );
   });
 
-  it('goat-test audit mode skips Phase 0', () => {
-    const content = readSkill('goat-test');
+  it("goat-test auto-detects Standard vs Audit", () => {
+    const content = readSkill("goat-test");
     assert.ok(
-      content.includes('skip Phase 0') ||
-        content.includes('gap analysis'),
-      'goat-test Audit mode should skip Phase 0 or go to gap analysis',
+      content.includes("Standard mode"),
+      "goat-test should mention Standard mode",
+    );
+    assert.ok(
+      content.includes("Audit mode"),
+      "goat-test should mention Audit mode",
     );
   });
 
-  for (const name of ALL_SKILLS) {
-    it(`${name} has contradiction check`, () => {
-      const content = readSkill(name);
-      assert.ok(
-        content.includes('Contradiction check'),
-        `${name} should have contradiction detection in Step 0`,
-      );
-    });
+  it("goat-test audit mode skips Phase 0", () => {
+    const content = readSkill("goat-test");
+    assert.ok(
+      content.includes("skip Phase 0") || content.includes("gap analysis"),
+      "goat-test Audit mode should skip Phase 0 or go to gap analysis",
+    );
+  });
 
-    it(`${name} contradiction check flags hotfix scope mismatch`, () => {
-      const content = readSkill(name);
-      const contradictionSection = content.match(
-        /Contradiction check[\s\S]*?(?=\n\*\*|$)/,
-      );
-      assert.ok(contradictionSection, `${name} should have contradiction section`);
-      assert.ok(
-        contradictionSection[0].includes('hotfix') ||
-          contradictionSection[0].includes('Hotfix'),
-        `${name} contradiction should flag hotfix scope mismatch`,
-      );
-    });
-  }
+  it("contradiction check lives in skill-conventions.md (deduplicated from individual skills)", () => {
+    assert.ok(
+      conventions.includes("Contradiction Check") ||
+        conventions.includes("Contradiction check"),
+      "skill-conventions.md should have the contradiction check (moved from individual skills in 10n)",
+    );
+    const contradictionSection = conventions.match(
+      /[Cc]ontradiction [Cc]heck[\s\S]*?(?=\n## |$)/,
+    );
+    assert.ok(contradictionSection, "should have contradiction section");
+    assert.ok(
+      contradictionSection[0].includes("hotfix") ||
+        contradictionSection[0].includes("Hotfix"),
+      "contradiction check should flag hotfix scope mismatch",
+    );
+  });
 });
 
 // === M12: Persona prerequisites ===
 
-describe('M12: userRole structural checks', () => {
-  it('config reader defaults userRole to developer when not set', () => {
+describe("M12: userRole structural checks", () => {
+  it("config reader defaults userRole to developer when not set", () => {
     const readerContent = readFileSync(
-      join(import.meta.dirname, '../../src/cli/config/reader.ts'),
-      'utf-8',
+      join(import.meta.dirname, "../../src/cli/config/reader.ts"),
+      "utf-8",
     );
     assert.ok(
-      readerContent.includes("userRole: 'developer'"),
-      'CONFIG_DEFAULTS should set userRole to developer',
+      readerContent.includes('userRole: "developer"'),
+      "CONFIG_DEFAULTS should set userRole to developer",
     );
   });
 
-  it('config types define valid userRole options', () => {
+  it("config types define valid userRole options", () => {
     const typesContent = readFileSync(
-      join(import.meta.dirname, '../../src/cli/config/types.ts'),
-      'utf-8',
+      join(import.meta.dirname, "../../src/cli/config/types.ts"),
+      "utf-8",
     );
     assert.ok(
-      typesContent.includes('developer'),
-      'config types should include developer role',
+      typesContent.includes("developer"),
+      "config types should include developer role",
     );
     assert.ok(
-      typesContent.includes('investigator'),
-      'config types should include investigator role',
+      typesContent.includes("investigator"),
+      "config types should include investigator role",
     );
   });
 
-  it('investigation-mode skills are read-only by design', () => {
+  it("investigation-mode skills are read-only by design", () => {
     // goat-review and goat-security are read-only skills - no implementation phases
-    const review = readSkill('goat-review');
-    const security = readSkill('goat-security');
+    const review = readSkill("goat-review");
+    const security = readSkill("goat-security");
 
     // These skills should NOT have implementation/edit phases
     assert.ok(
-      !review.includes('## Phase.*Implement'),
-      'goat-review should not have implementation phases',
+      !review.includes("## Phase.*Implement"),
+      "goat-review should not have implementation phases",
     );
     assert.ok(
-      !security.includes('## Phase.*Implement'),
-      'goat-security should not have implementation phases',
+      !security.includes("## Phase.*Implement"),
+      "goat-security should not have implementation phases",
     );
   });
 
   it('goat-debug D2 gate offers "just report findings" option', () => {
-    const content = readSkill('goat-debug');
+    const content = readSkill("goat-debug");
     assert.ok(
-      content.includes('just report findings') ||
-        content.includes('report findings') ||
-        content.includes('stop here'),
-      'goat-debug D2 gate should offer investigation-only exit',
+      content.includes("just report findings") ||
+        content.includes("report findings") ||
+        content.includes("stop here"),
+      "goat-debug D2 gate should offer investigation-only exit",
     );
   });
 });
 
 // === M12 manual test coverage: userRole routing behavior ===
 
-describe('M12: userRole routing behavior (contract verification)', () => {
-  it('goat-debug investigate mode is structurally read-only (no fix phases)', () => {
-    const content = readSkill('goat-debug');
+describe("M12: userRole routing behavior (contract verification)", () => {
+  it("goat-debug investigate mode is structurally read-only (no fix phases)", () => {
+    const content = readSkill("goat-debug");
     // Extract investigate mode section
     const investigateSection = content.match(
       /## Investigate Mode[\s\S]*?(?=\n## [A-Z]|\n---\n## )/,
     );
-    assert.ok(investigateSection, 'goat-debug should have Investigate Mode section');
+    assert.ok(
+      investigateSection,
+      "goat-debug should have Investigate Mode section",
+    );
     // Investigate mode should NOT contain fix/implement/edit language
     assert.ok(
-      !investigateSection[0].includes('implement the fix') &&
-        !investigateSection[0].includes('apply the change'),
-      'Investigate mode should not contain implementation language',
+      !investigateSection[0].includes("implement the fix") &&
+        !investigateSection[0].includes("apply the change"),
+      "Investigate mode should not contain implementation language",
     );
     // It should have a report phase, not a fix phase
     assert.ok(
-      investigateSection[0].includes('Report') || investigateSection[0].includes('I3'),
-      'Investigate mode should end with a report phase',
+      investigateSection[0].includes("Report") ||
+        investigateSection[0].includes("I3"),
+      "Investigate mode should end with a report phase",
     );
   });
 
-  it('goat-debug diagnose mode has fix gate requiring approval', () => {
-    const content = readSkill('goat-debug');
+  it("goat-debug diagnose mode has fix gate requiring approval", () => {
+    const content = readSkill("goat-debug");
     // The D2→D3 gate should require human approval before any fix
     assert.ok(
-      content.includes('BLOCKING GATE') && content.includes('propose a fix'),
-      'Diagnose mode should have a blocking gate before fix proposal',
+      content.includes("BLOCKING GATE") && content.includes("propose a fix"),
+      "Diagnose mode should have a blocking gate before fix proposal",
     );
     // Phase D3 should only activate after approval
     assert.ok(
-      content.includes('Only if human approved') ||
-        content.includes('if approved') ||
-        content.includes('If yes'),
-      'Fix phase should be gated on human approval',
+      content.includes("Only if human approved") ||
+        content.includes("if approved") ||
+        content.includes("If yes"),
+      "Fix phase should be gated on human approval",
     );
   });
 
-  it('goat-debug has mode selection in Step 0 that routes by intent', () => {
-    const content = readSkill('goat-debug');
+  it("goat-debug has mode selection in Step 0 that routes by intent", () => {
+    const content = readSkill("goat-debug");
     assert.ok(
-      content.includes('Mode selection') || content.includes('mode routing'),
-      'Step 0 should have explicit mode selection/routing',
+      content.includes("Mode selection") || content.includes("mode routing"),
+      "Step 0 should have explicit mode selection/routing",
     );
     assert.ok(
-      content.includes('Diagnose mode') &&
-        content.includes('Investigate mode') &&
-        content.includes('Onboard mode'),
-      'Step 0 should list all three modes',
+      content.includes("Diagnose mode") &&
+        content.includes("Investigate mode") &&
+        content.includes("Onboard mode"),
+      "Step 0 should list all three modes",
     );
   });
 
-  it('goat-plan has implementation gated on approval', () => {
-    const content = readSkill('goat-plan');
+  it("goat-plan has implementation gated on approval", () => {
+    const content = readSkill("goat-plan");
     // Phase 4 milestones should have a blocking gate
     assert.ok(
-      content.includes('Approve and start implementing') ||
-        content.includes('approve'),
-      'Milestones should gate implementation on approval',
+      content.includes("Approve and start implementing") ||
+        content.includes("approve"),
+      "Milestones should gate implementation on approval",
     );
   });
 });
 
 // === M11 manual test coverage: recovery and checkpoint behavior ===
 
-describe('M11: recovery and checkpoint behavior (contract verification)', () => {
-  it('skill-conventions.md has recovery procedures', () => {
+describe("M11: recovery and checkpoint behavior (contract verification)", () => {
+  it("skill-conventions.md has recovery procedures", () => {
     assert.ok(
-      conventions.includes('## Recovery'),
-      'skill-conventions.md should have Recovery section',
+      conventions.includes("## Recovery"),
+      "skill-conventions.md should have Recovery section",
     );
     assert.ok(
-      conventions.includes('Partial completion'),
-      'Recovery should handle partial completion',
+      conventions.includes("Partial completion"),
+      "Recovery should handle partial completion",
     );
     assert.ok(
-      conventions.includes('resume from next'),
-      'Recovery should describe how to resume',
+      conventions.includes("resume from next"),
+      "Recovery should describe how to resume",
     );
   });
 
@@ -356,7 +353,7 @@ describe('M11: recovery and checkpoint behavior (contract verification)', () => 
     it(`${name} references skill-conventions.md for shared conventions`, () => {
       const content = readSkill(name);
       assert.ok(
-        content.includes('skill-conventions.md'),
+        content.includes("skill-conventions.md"),
         `${name} should reference .goat-flow/skill-conventions.md (v1.1.0: conventions extracted from inline)`,
       );
     });
@@ -364,24 +361,30 @@ describe('M11: recovery and checkpoint behavior (contract verification)', () => 
     it(`${name} has inline fallback for shared conventions`, () => {
       const content = readSkill(name);
       assert.ok(
-        content.includes('If unavailable, use these essentials') || content.includes('SECURITY > CORRECTNESS'),
+        content.includes("If unavailable, use these essentials") ||
+          content.includes("SECURITY > CORRECTNESS"),
         `${name} should have inline fallback in case skill-conventions.md is missing`,
       );
     });
   }
 
-  it('shared preamble recovery covers sub-agent mode', () => {
+  it("shared preamble recovery covers sub-agent mode", () => {
     assert.ok(
-      preamble.includes('Sub-agent') || preamble.includes('sub-agent') || preamble.includes('checkpoint') || preamble.includes('milestone'),
-      'Recovery should cover sub-agent/autonomous recovery via milestone checkboxes',
+      preamble.includes("Sub-agent") ||
+        preamble.includes("sub-agent") ||
+        preamble.includes("checkpoint") ||
+        preamble.includes("milestone"),
+      "Recovery should cover sub-agent/autonomous recovery via milestone checkboxes",
     );
   });
 
-  it('task tracking enforces checkbox ticking for plans', () => {
+  it("task tracking enforces checkbox ticking for plans", () => {
     assert.ok(
-      preamble.includes('tick') || preamble.includes('Tick') ||
-        preamble.includes('checkbox') || preamble.includes('immediately when completed'),
-      'Task Tracking section should enforce checkpoint ticking (replaced flush protocol in v1.1.0)',
+      preamble.includes("tick") ||
+        preamble.includes("Tick") ||
+        preamble.includes("checkbox") ||
+        preamble.includes("immediately when completed"),
+      "Task Tracking section should enforce checkpoint ticking (replaced flush protocol in v1.1.0)",
     );
   });
 });

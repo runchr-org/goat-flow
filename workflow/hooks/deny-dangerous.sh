@@ -30,7 +30,8 @@ if command -v jq >/dev/null 2>&1; then
   COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null || echo "$INPUT")
 else
   # Fallback: extract with sed (less reliable but works without jq)
-  COMMAND=$(echo "$INPUT" | sed -n 's/.*"command"\s*:\s*"\([^"]*\)".*/\1/p' | head -1)
+  # Handle escaped quotes (\") inside the JSON string value
+  COMMAND=$(echo "$INPUT" | sed -n 's/.*"command"\s*:\s*"\(.*\)".*/\1/p' | head -1 | sed 's/\\"/"/g')
   [[ -z "$COMMAND" ]] && COMMAND="$INPUT"
 fi
 

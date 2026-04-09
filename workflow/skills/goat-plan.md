@@ -25,8 +25,8 @@ Use before non-trivial implementation or cross-file restructuring.
 
 **Complexity routing (plan mode):**
 - **Hotfix** → Phase 1 brief only (3-5 lines), skip Phases 2-4
-- **Small Feature** → Phase 1 compressed brief (Problem/Solution/Scope/Success all at once), skip Phases 2-3, 1-2 milestones max
-- **Standard** → Phase 1 brief + Phase 4 milestones. SHOULD skip Phase 2-3 (only use if approach is genuinely uncertain).
+- **Small Feature** → Phase 1 compressed brief (Problem/Solution/Scope/Success all at once), Phases 2-3 user-prompted after Phase 1, 1-2 milestones max
+- **Standard** → Phase 1 brief + Phase 4 milestones. Phases 2-3 offered after Phase 1.
 - **System** → Full 4-phase process with human gates
 - **Infrastructure** → Full process + rollback planning
 
@@ -66,12 +66,6 @@ helps frame the planning.
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
-**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
-- "hotfix" but 5+ files affected → likely Standard or System
-- "small feature" but crosses 3+ boundaries → likely System
-- "quick test" but 20+ functions in target → warn scope is larger than implied
-Surface the mismatch, suggest re-classification. Don't silently proceed.
-
 **Before proceeding:** present what you know (feature, complexity, constraints, kill criteria) and what you still need. Wait for the user to confirm before entering Phase 1.
 
 ## Phase 1 - Feature Brief
@@ -95,6 +89,8 @@ brief are defined. If new terms appear, add them: `| term | definition | canonic
 
 **BLOCKING GATE:** Present complete brief. "Approve, or adjust?"
 
+"Want to run Mob Elaboration (sharp questions) or SBAO (multi-perspective critique)? Or skip straight to milestones?"
+
 ## Phase 2 - Mob Elaboration
 
 Generate 3-5 sharp questions about the brief - questions that could change
@@ -112,11 +108,9 @@ Repeat until the user says "locked in" or 3 rounds complete (whichever first).
 
 ## Phase 3 - Signal-Based Adaptive Orchestration (SBAO)
 
-**Skip Phases 2-4 for Hotfix, Small Feature, and Standard complexity.** Proceed directly from Phase 1 brief to milestone writing. Only System and Infrastructure complexity warrant the full SBAO orchestration below.
+**For Hotfix:** skip directly to Phase 4 milestones. **For all other complexities:** the user chose to run SBAO in Phase 1's gate.
 
 **SBAO agents: 2 with core trio + 1 fresh-context. Never split SKEPTIC/ANALYST/STRATEGIST into separate agents.**
-
-**For Hotfix / Small Feature:** "SBAO launches 3 sub-agents - that's heavy for a small change. Skip to Phase 4, or run SBAO anyway?" Let the user decide.
 
 Critique and improve the plan from Phase 1-2 using multiple perspectives.
 The **core trio** (SKEPTIC / ANALYST / STRATEGIST) provides adversarial tension.
@@ -133,7 +127,7 @@ then produces plan improvement ideas.
 > Review this plan as a SKEPTIC, ANALYST, and STRATEGIST. Generate 2-3 alternative approaches. For each, evaluate risk, effort, speed to feedback, and reversibility. Propose specific improvements.
 
 **Sub-agent C (fresh context - control group):**
-> Without reading any prior discussion, review the codebase and these requirements: [brief]. What's your technical plan? What would you do differently from this existing plan? (This agent has NO context from Phases 1-2 - it's a litmus test for context drift.)
+> Without reading any prior discussion, review the codebase and these requirements: [brief]. What's your technical plan? What would you do differently from this existing plan? (This agent has NO context from Phases 1-2 - it's a litmus test for context drift.) This sub-agent MUST NOT receive any context from Phases 1-2 or prior conversation. Pass ONLY the requirements and file paths.
 
 The main agent does NOT use the core trio - it already has existing context and
 would just reinforce its own assumptions.
@@ -271,6 +265,7 @@ Comprehensive verification after all changes:
 - MUST NOT answer your own elaboration questions (plan mode)
 - MUST surface kill criteria in Phase 1, not defer to Phase 4
 - MUST tag low-confidence decisions as Decision Debt
+- SBAO MUST use Agent tool calls, not inline role-play (repeated failure — see `.goat-flow/lessons/agent-behavior.md`)
 - MUST re-read next milestone after completing each one
 - MUST read both sides of every interface before changing either (refactor mode)
 - MUST grep for old names after EVERY rename, not just at end (refactor mode)

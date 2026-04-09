@@ -2,25 +2,25 @@
  * In-memory `ReadonlyFS` implementation for unit-style scanner tests.
  * It synthesizes files, directories, and common GOAT Flow docs so extraction code can run without real I/O.
  */
-import type { ReadonlyFS } from '../../src/cli/types.js';
+import type { ReadonlyFS } from "../../src/cli/types.js";
 
 /** Strip leading heading. */
 function stripLeadingHeading(content: string): string {
-  return content.replace(/^# [^\n]+\n+/m, '').trim();
+  return content.replace(/^# [^\n]+\n+/m, "").trim();
 }
 
-const LEGACY_FOOTGUNS_FILE = ['docs', 'footguns.md'].join('/');
-const LEGACY_LESSONS_FILE = ['docs', 'lessons.md'].join('/');
-const LEGACY_FOOTGUNS_DIR = ['.goat-flow', 'footguns/'].join('/');
-const LEGACY_LESSONS_DIR = ['.goat-flow', 'lessons/'].join('/');
+const LEGACY_FOOTGUNS_FILE = ["docs", "footguns.md"].join("/");
+const LEGACY_LESSONS_FILE = ["docs", "lessons.md"].join("/");
+const LEGACY_FOOTGUNS_DIR = [".goat-flow", "footguns/"].join("/");
+const LEGACY_LESSONS_DIR = [".goat-flow", "lessons/"].join("/");
 
 /** Convert a label into a slug-safe file name fragment. */
 function slugify(value: string): string {
   return value
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .replace(/-+/g, '-');
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-+/g, "-");
 }
 
 /** Generate a unique markdown filename within a synthetic fixture directory. */
@@ -30,7 +30,7 @@ function uniqueName(base: string, used: Set<string>): string {
     return base;
   }
 
-  const stem = base.replace(/\.md$/, '');
+  const stem = base.replace(/\.md$/, "");
   let suffix = 2;
   while (used.has(`${stem}-${suffix}.md`)) suffix += 1;
   const name = `${stem}-${suffix}.md`;
@@ -45,11 +45,11 @@ function splitLegacyFootgunDir(content: string): {
 } {
   const firstIndex = content.search(/^##\s*Footgun:/m);
   const preamble =
-    firstIndex >= 0 ? content.slice(0, firstIndex).trim() : '# Footguns';
+    firstIndex >= 0 ? content.slice(0, firstIndex).trim() : "# Footguns";
 
   if (firstIndex < 0) {
     return {
-      preamble: preamble || '# Footguns',
+      preamble: preamble || "# Footguns",
       entries: [content],
     };
   }
@@ -59,7 +59,7 @@ function splitLegacyFootgunDir(content: string): {
     .split(/^##\s*Footgun:\s*/m)
     .filter(Boolean);
   return {
-    preamble: preamble || '# Footguns',
+    preamble: preamble || "# Footguns",
     entries: raw,
   };
 }
@@ -71,14 +71,14 @@ function splitLegacyLessonDir(content: string): {
 } {
   const entriesIndex = content.search(/^##\s*Entries\b/im);
   const preamble =
-    entriesIndex >= 0 ? content.slice(0, entriesIndex).trim() : '# Lessons';
+    entriesIndex >= 0 ? content.slice(0, entriesIndex).trim() : "# Lessons";
   const source = entriesIndex >= 0 ? content.slice(entriesIndex) : content;
   const headings = [...source.matchAll(/^###\s+(.+)$/gm)];
   if (headings.length === 0) {
     return {
-      preamble: preamble || '# Lessons',
+      preamble: preamble || "# Lessons",
       entries: [
-        { heading: 'Legacy lesson fixture', body: source, isPattern: false },
+        { heading: "Legacy lesson fixture", body: source, isPattern: false },
       ],
     };
   }
@@ -101,15 +101,15 @@ function splitLegacyLessonDir(content: string): {
 
   if (blocks.length === 0) {
     return {
-      preamble: preamble || '# Lessons',
+      preamble: preamble || "# Lessons",
       entries: [
-        { heading: 'Legacy lesson fixture', body: source, isPattern: false },
+        { heading: "Legacy lesson fixture", body: source, isPattern: false },
       ],
     };
   }
 
   return {
-    preamble: preamble || '# Lessons',
+    preamble: preamble || "# Lessons",
     entries: blocks,
   };
 }
@@ -129,23 +129,23 @@ function maybeSplitLegacyLearningLoopFolders(
   if (split[LEGACY_FOOTGUNS_DIR] && !hasNestedPath(LEGACY_FOOTGUNS_DIR)) {
     const raw = split[LEGACY_FOOTGUNS_DIR];
     const looksLikeLegacyFootgunDir =
-      raw.includes('## Footgun:') ||
-      raw.includes('**Evidence') ||
-      raw.includes('`') ||
+      raw.includes("## Footgun:") ||
+      raw.includes("**Evidence") ||
+      raw.includes("`") ||
       /lines?\s+[0-9]+/i.test(raw);
 
     if (raw && looksLikeLegacyFootgunDir) {
       const used = new Set<string>();
       const { preamble, entries } = splitLegacyFootgunDir(raw);
-      split[`${LEGACY_FOOTGUNS_DIR}README.md`] = preamble || '# Footguns';
+      split[`${LEGACY_FOOTGUNS_DIR}README.md`] = preamble || "# Footguns";
 
       for (const rawEntry of entries) {
-        const firstLineEnd = rawEntry.indexOf('\n');
+        const firstLineEnd = rawEntry.indexOf("\n");
         const nameRaw =
           firstLineEnd >= 0
             ? rawEntry.slice(0, firstLineEnd).trim()
-            : 'Legacy footgun fixture';
-        const name = nameRaw || 'Legacy footgun fixture';
+            : "Legacy footgun fixture";
+        const name = nameRaw || "Legacy footgun fixture";
         let body =
           firstLineEnd >= 0 ? rawEntry.slice(firstLineEnd + 1) : rawEntry;
         const statusMatch = body.match(/^\*\*Status:\*\*\s*(.+)\n?/im);
@@ -154,31 +154,31 @@ function maybeSplitLegacyLearningLoopFolders(
         const status = statusMatch?.[1]
           ?.trim()
           .toLowerCase()
-          .startsWith('resolved')
-          ? 'resolved'
-          : 'active';
-        const created = createdMatch?.[1]?.trim() ?? '';
+          .startsWith("resolved")
+          ? "resolved"
+          : "active";
+        const created = createdMatch?.[1]?.trim() ?? "";
         const evidenceType = evidenceMatch?.[1]?.trim();
 
         body = body
-          .replace(/^\*\*Status:\*\*.*/im, '')
-          .replace(/^\*\*Created:\*\*.+/im, '')
-          .replace(/^\*\*Evidence type:\*\*.+/im, '')
-          .replace(/\n{3,}/g, '\n\n')
+          .replace(/^\*\*Status:\*\*.*/im, "")
+          .replace(/^\*\*Created:\*\*.+/im, "")
+          .replace(/^\*\*Evidence type:\*\*.+/im, "")
+          .replace(/\n{3,}/g, "\n\n")
           .trim();
 
         const frontmatter = [
-          '---',
+          "---",
           `name: ${name}`,
           `status: ${status}`,
           ...(created ? [`created: ${created}`] : []),
           ...(evidenceType ? [`evidence_type: ${evidenceType}`] : []),
-          '---',
-          '',
-        ].join('\n');
+          "---",
+          "",
+        ].join("\n");
         const file = uniqueName(`${slugify(name)}.md`, used);
         split[`${LEGACY_FOOTGUNS_DIR}${file}`] =
-          `${frontmatter}${body ? `${body}\n` : ''}`.trimEnd() + '\n';
+          `${frontmatter}${body ? `${body}\n` : ""}`.trimEnd() + "\n";
       }
       delete split[LEGACY_FOOTGUNS_DIR];
     }
@@ -189,40 +189,40 @@ function maybeSplitLegacyLearningLoopFolders(
     if (raw) {
       const used = new Set<string>();
       const parsed = splitLegacyLessonDir(raw);
-      const preamble = parsed.preamble || '# Lessons';
+      const preamble = parsed.preamble || "# Lessons";
       split[`${LEGACY_LESSONS_DIR}README.md`] = preamble;
 
       for (const entry of parsed.entries) {
         const heading =
-          entry.heading.replace(/^Pattern:\s*/i, '').trim() ||
-          'Legacy lesson fixture';
+          entry.heading.replace(/^Pattern:\s*/i, "").trim() ||
+          "Legacy lesson fixture";
         let body = entry.body;
         const createdMatch =
           body.match(/^\*\*created_at:\*\*\s*(.+)\n?/im) ??
           body.match(/^created_at:\s*(.+)\n?/im);
-        const created = createdMatch?.[1]?.trim() ?? '';
+        const created = createdMatch?.[1]?.trim() ?? "";
         const file = entry.isPattern
           ? `pattern-${slugify(heading)}.md`
-          : `${created ? `${created}-` : 'unknown-'}${slugify(heading)}.md`;
+          : `${created ? `${created}-` : "unknown-"}${slugify(heading)}.md`;
         const frontmatter = [
-          '---',
+          "---",
           `name: ${heading}`,
           ...(created ? [`created: ${created}`] : []),
-          ...(entry.isPattern ? ['type: pattern'] : []),
-          '---',
-          '',
-        ].join('\n');
+          ...(entry.isPattern ? ["type: pattern"] : []),
+          "---",
+          "",
+        ].join("\n");
 
         body = body
-          .replace(/^\*\*created_at:\*\*.+/im, '')
-          .replace(/^created_at:\s*.+/im, '')
-          .replace(/^_Entries:\s*.+_/im, '')
-          .replace(/\n{3,}/g, '\n\n')
+          .replace(/^\*\*created_at:\*\*.+/im, "")
+          .replace(/^created_at:\s*.+/im, "")
+          .replace(/^_Entries:\s*.+_/im, "")
+          .replace(/\n{3,}/g, "\n\n")
           .trim();
 
         const filename = uniqueName(file, used);
         split[`${LEGACY_LESSONS_DIR}${filename}`] =
-          `${frontmatter}${body ? `${body}\n` : ''}`.trimEnd() + '\n';
+          `${frontmatter}${body ? `${body}\n` : ""}`.trimEnd() + "\n";
       }
       delete split[LEGACY_LESSONS_DIR];
     }
@@ -235,20 +235,20 @@ function maybeSplitLegacyLearningLoopFolders(
 function detectAgents(files: Record<string, string>): string[] {
   const agents: string[] = [];
   if (
-    'CLAUDE.md' in files ||
-    Object.keys(files).some((k) => k.startsWith('.claude/'))
+    "CLAUDE.md" in files ||
+    Object.keys(files).some((k) => k.startsWith(".claude/"))
   )
-    agents.push('claude');
+    agents.push("claude");
   if (
-    'AGENTS.md' in files ||
-    Object.keys(files).some((k) => k.startsWith('.agents/'))
+    "AGENTS.md" in files ||
+    Object.keys(files).some((k) => k.startsWith(".agents/"))
   )
-    agents.push('codex');
+    agents.push("codex");
   if (
-    'GEMINI.md' in files ||
-    Object.keys(files).some((k) => k.startsWith('.gemini/'))
+    "GEMINI.md" in files ||
+    Object.keys(files).some((k) => k.startsWith(".gemini/"))
   )
-    agents.push('gemini');
+    agents.push("gemini");
   return agents;
 }
 
@@ -260,47 +260,47 @@ function normalizeLearningLoop(
 
   if (
     normalized[LEGACY_FOOTGUNS_FILE] &&
-    !Object.keys(normalized).some((k) => k.startsWith('.goat-flow/footguns/'))
+    !Object.keys(normalized).some((k) => k.startsWith(".goat-flow/footguns/"))
   ) {
-    normalized['.goat-flow/footguns/README.md'] =
-      '# Footguns\n\nLegacy test fixture imported into directory layout.\n';
-    normalized['.goat-flow/footguns/legacy-entry.md'] =
+    normalized[".goat-flow/footguns/README.md"] =
+      "# Footguns\n\nLegacy test fixture imported into directory layout.\n";
+    normalized[".goat-flow/footguns/legacy-entry.md"] =
       `---\nname: Legacy footgun fixture\nstatus: active\ncreated: 2026-01-01\nevidence_type: ACTUAL_MEASURED\n---\n\n${stripLeadingHeading(normalized[LEGACY_FOOTGUNS_FILE])}\n`;
   }
 
   if (
     normalized[LEGACY_LESSONS_FILE] &&
-    !Object.keys(normalized).some((k) => k.startsWith('.goat-flow/lessons/'))
+    !Object.keys(normalized).some((k) => k.startsWith(".goat-flow/lessons/"))
   ) {
-    normalized['.goat-flow/lessons/README.md'] =
-      '# Lessons\n\nLegacy test fixture imported into directory layout.\n';
-    normalized['.goat-flow/lessons/legacy-entry.md'] =
+    normalized[".goat-flow/lessons/README.md"] =
+      "# Lessons\n\nLegacy test fixture imported into directory layout.\n";
+    normalized[".goat-flow/lessons/legacy-entry.md"] =
       `---\nname: Legacy lesson fixture\ncreated: 2026-01-01\n---\n\n${stripLeadingHeading(normalized[LEGACY_LESSONS_FILE])}\n`;
   }
 
   const hasLearningLoop =
-    Object.keys(normalized).some((k) => k.startsWith('.goat-flow/footguns/')) ||
-    Object.keys(normalized).some((k) => k.startsWith('.goat-flow/lessons/'));
+    Object.keys(normalized).some((k) => k.startsWith(".goat-flow/footguns/")) ||
+    Object.keys(normalized).some((k) => k.startsWith(".goat-flow/lessons/"));
 
-  if (hasLearningLoop && !('.goat-flow/config.yaml' in normalized)) {
+  if (hasLearningLoop && !(".goat-flow/config.yaml" in normalized)) {
     const agents = detectAgents(normalized);
-    normalized['.goat-flow/config.yaml'] = [
+    normalized[".goat-flow/config.yaml"] = [
       'version: "1.0.0"',
-      'footguns:',
-      '  path: .goat-flow/footguns/',
-      'lessons:',
-      '  path: .goat-flow/lessons/',
-      'decisions:',
-      '  path: .goat-flow/decisions/',
-      'tasks:',
-      '  path: .goat-flow/tasks/',
+      "footguns:",
+      "  path: .goat-flow/footguns/",
+      "lessons:",
+      "  path: .goat-flow/lessons/",
+      "decisions:",
+      "  path: .goat-flow/decisions/",
+      "tasks:",
+      "  path: .goat-flow/tasks/",
       ...(agents.length > 0
-        ? ['agents:', ...agents.map((agent) => `  - ${agent}`)]
+        ? ["agents:", ...agents.map((agent) => `  - ${agent}`)]
         : []),
-      'skills:',
-      '  install: all',
-      '',
-    ].join('\n');
+      "skills:",
+      "  install: all",
+      "",
+    ].join("\n");
   }
 
   return normalized;
@@ -314,7 +314,7 @@ export function createMockFS(files: Record<string, string>): ReadonlyFS {
 
   /** Check whether any synthetic files live underneath the requested directory prefix. */
   function hasDirEntries(dir: string): boolean {
-    const prefix = dir.endsWith('/') ? dir : dir + '/';
+    const prefix = dir.endsWith("/") ? dir : dir + "/";
     for (const key of fileMap.keys()) {
       if (key.startsWith(prefix)) return true;
     }
@@ -336,7 +336,7 @@ export function createMockFS(files: Record<string, string>): ReadonlyFS {
     lineCount(path: string): number {
       const content = fileMap.get(path);
       if (!content) return 0;
-      return content.split('\n').length;
+      return content.split("\n").length;
     },
 
     /** Parse a synthetic JSON file, returning null on missing or invalid input. */
@@ -352,12 +352,12 @@ export function createMockFS(files: Record<string, string>): ReadonlyFS {
 
     /** List direct child entries under a synthetic directory path. */
     listDir(path: string): string[] {
-      const prefix = path.endsWith('/') ? path : path + '/';
+      const prefix = path.endsWith("/") ? path : path + "/";
       const entries = new Set<string>();
       for (const key of fileMap.keys()) {
         if (key.startsWith(prefix)) {
           const rest = key.slice(prefix.length);
-          const firstPart = rest.split('/')[0];
+          const firstPart = rest.split("/")[0];
           if (firstPart) entries.add(firstPart);
         }
       }
@@ -368,19 +368,19 @@ export function createMockFS(files: Record<string, string>): ReadonlyFS {
     isExecutable(path: string): boolean {
       const content = fileMap.get(path);
       if (!content) return false;
-      return content.startsWith('#!');
+      return content.startsWith("#!");
     },
 
     /** Expand a simplified glob pattern over the synthetic fixture file map. */
     glob(pattern: string): string[] {
       const regex = new RegExp(
-        '^' +
+        "^" +
           pattern
-            .replace(/\./g, '\\.')
-            .replace(/\*\*/g, '{{GLOBSTAR}}')
-            .replace(/\*/g, '[^/]*')
-            .replace(/\{\{GLOBSTAR\}\}/g, '.*') +
-          '$',
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "{{GLOBSTAR}}")
+            .replace(/\*/g, "[^/]*")
+            .replace(/\{\{GLOBSTAR\}\}/g, ".*") +
+          "$",
       );
       return [...fileMap.keys()].filter((key) => regex.test(key));
     },

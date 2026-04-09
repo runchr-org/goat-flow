@@ -20,8 +20,8 @@ GOOD: Read workflow/setup/shared/execution-loop.md:3 → "Target: under 120 line
 
 | Complexity | Guideline | Ceremony |
 |------------|-----------|----------|
-| Hotfix | 1-2 files. If you need more, re-classify. | Minimal - skip goat-plan Phases 2-3, skip closing ceremony |
-| Small Feature | Compressed brief (Problem/Solution/Scope/Success all at once). | Light - skip mob elaboration and triangular tension |
+| Hotfix | 1-2 files. If you need more, re-classify. | Minimal - skip goat-plan Phases 2-4, skip closing ceremony |
+| Small Feature | Compressed brief (Problem/Solution/Scope/Success all at once). | Light - goat-plan Phases 2-3 user-prompted after Phase 1 |
 | Standard | No fixed cap. If reads exceed 3x your initial estimate, re-classify. | Full phases, gates at major decisions |
 | System Change | No fixed cap. Same re-classification trigger. | Full phases + cross-boundary verification |
 | Infrastructure | No fixed cap. Same re-classification trigger. | Full phases + rollback planning + multi-agent coordination |
@@ -103,7 +103,6 @@ If working from a plan/milestone file, tick `- [x]` on each completed task immed
 | Architecture | `.goat-flow/architecture.md` |
 | CLI scanner/prompt code | `src/cli/` |
 | Scripts | `scripts/` |
-<!-- goat-flow:router:start -->
 | Skills | `.claude/skills/` |
 | Project guidelines | `.goat-flow/coding-standards/conventions.md` |
 | Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
@@ -111,4 +110,3 @@ If working from a plan/milestone file, tick `- [x]` on each completed task immed
 | Coding standards | `.goat-flow/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
 | Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
-<!-- goat-flow:router:end -->

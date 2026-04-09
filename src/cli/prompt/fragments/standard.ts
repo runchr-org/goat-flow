@@ -2,7 +2,7 @@
  * Static prompt fragments for standard-tier requirements.
  * These snippets cover skills, hooks, learning-loop files, router tables, and local-context structure.
  */
-import type { Fragment } from '../types.js';
+import type { Fragment } from "../types.js";
 
 /**
  * Tier 2 - Standard fragments
@@ -10,11 +10,11 @@ import type { Fragment } from '../types.js';
  */
 export const standardFragments: Fragment[] = [
   // === Skills (5 individual + dispatcher + 1 completeness + 7 quality + 2 cross-cutting) ===
-  ...['debug', 'review', 'plan', 'security', 'test'].map((skill) => ({
+  ...["debug", "review", "plan", "security", "test"].map((skill) => ({
     key: `create-skill-${skill}`,
-    phase: 'standard' as const,
-    category: 'Skills',
-    kind: 'create' as const,
+    phase: "standard" as const,
+    category: "Skills",
+    kind: "create" as const,
     instruction: `Create \`{{skillsDir}}/goat-${skill}/SKILL.md\`.
 
 Use this structure:
@@ -43,10 +43,10 @@ Refer to the goat-flow documentation for the full skill template.`,
   })),
   // Skill quality fragments
   {
-    key: 'add-skill-step0',
-    phase: 'standard',
-    category: 'Skills',
-    kind: 'fix',
+    key: "add-skill-step0",
+    phase: "standard",
+    category: "Skills",
+    kind: "fix",
     instruction: `Most skills should include a Step 0 that gathers context before acting. Add to each skill:
 
 \`\`\`markdown
@@ -62,10 +62,10 @@ Do NOT start until the user has answered.
 This prevents blind execution - the agent asks before it acts.`,
   },
   {
-    key: 'add-skill-human-gates',
-    phase: 'standard',
-    category: 'Skills',
-    kind: 'fix',
+    key: "add-skill-human-gates",
+    phase: "standard",
+    category: "Skills",
+    kind: "fix",
     instruction: `Skills should include HUMAN GATE checkpoints where the agent pauses for review before proceeding to the next phase. Add to each skill between major phases:
 
 \`\`\`markdown
@@ -75,10 +75,10 @@ This prevents blind execution - the agent asks before it acts.`,
 This prevents the agent from auto-advancing through diagnosis → fix → deploy without human review.`,
   },
   {
-    key: 'add-skill-constraints',
-    phase: 'standard',
-    category: 'Skills',
-    kind: 'fix',
+    key: "add-skill-constraints",
+    phase: "standard",
+    category: "Skills",
+    kind: "fix",
     instruction: `Skills should use MUST/MUST NOT constraints to enforce boundaries. Add a Constraints section:
 
 \`\`\`markdown
@@ -94,10 +94,10 @@ Use RFC 2119 language. MUST = blocking, SHOULD = recommended, MAY = optional.`,
   },
   // add-skill-conversational removed - check 2.1.16 removed (unverifiable, covered by human gates + choices).
   {
-    key: 'add-skill-chaining',
-    phase: 'standard',
-    category: 'Skills',
-    kind: 'fix',
+    key: "add-skill-chaining",
+    phase: "standard",
+    category: "Skills",
+    kind: "fix",
     instruction: `Skills should include a "Chains with" footer linking to related skills. Add to each skill:
 
 \`\`\`markdown
@@ -114,10 +114,10 @@ Common chains:
 - plan → test (verify implementation against plan)`,
   },
   {
-    key: 'add-skill-choices',
-    phase: 'standard',
-    category: 'Skills',
-    kind: 'fix',
+    key: "add-skill-choices",
+    phase: "standard",
+    category: "Skills",
+    kind: "fix",
     instruction: `Skills should offer structured choices at phase transitions instead of binary yes/no gates. Replace:
 
 \`\`\`
@@ -137,10 +137,10 @@ With:
 The human drives direction, not just pace.`,
   },
   {
-    key: 'add-skill-phases',
-    phase: 'standard',
-    category: 'Skills',
-    kind: 'fix',
+    key: "add-skill-phases",
+    phase: "standard",
+    category: "Skills",
+    kind: "fix",
     instruction: `Skills should have a phased process that prevents step-skipping. Structure as:
 
 \`\`\`markdown
@@ -157,10 +157,10 @@ The human drives direction, not just pace.`,
 Each phase should have a clear entry condition (what must be done before starting it).`,
   },
   {
-    key: 'create-all-skills',
-    phase: 'standard',
-    category: 'Skills',
-    kind: 'create',
+    key: "create-all-skills",
+    phase: "standard",
+    category: "Skills",
+    kind: "create",
     instruction: `Ensure all 6 GOAT Flow skills (5 + dispatcher) are present under \`{{skillsDir}}/\`:
 
 - goat (dispatcher), goat-debug, goat-review, goat-plan, goat-security, goat-test
@@ -168,10 +168,10 @@ Each phase should have a clear entry condition (what must be done before startin
 Each skill needs a \`SKILL.md\` with: name, description, When to Use, Process, Output sections.`,
   },
   {
-    key: 'add-skill-output-format',
-    phase: 'standard',
-    category: 'Skills',
-    kind: 'fix',
+    key: "add-skill-output-format",
+    phase: "standard",
+    category: "Skills",
+    kind: "fix",
     instruction: `Skills should include an Output or Output Format section that defines what the agent produces. Add to each skill:
 
 \`\`\`markdown
@@ -183,10 +183,10 @@ Each skill needs a \`SKILL.md\` with: name, description, When to Use, Process, O
 Without an output format, agents produce inconsistent deliverables and the human cannot predict what to expect.`,
   },
   {
-    key: 'create-skill-goat',
-    phase: 'standard',
-    category: 'Skills',
-    kind: 'create',
+    key: "create-skill-goat",
+    phase: "standard",
+    category: "Skills",
+    kind: "create",
     instruction: `Install the \`goat\` dispatcher skill - the 6th canonical skill that routes to the other 5.
 
 Copy \`workflow/skills/goat.md\` to \`{{skillsDir}}/goat/SKILL.md\`.
@@ -196,10 +196,10 @@ The dispatcher routes natural language to the correct skill - users type \`/goat
   // add-skill-shared-conventions removed - check 2.1.21 removed (copy-paste debt).
 
   {
-    key: 'fix-lesson-stale-refs',
-    phase: 'standard',
-    category: 'Learning Loop',
-    kind: 'fix',
+    key: "fix-lesson-stale-refs",
+    phase: "standard",
+    category: "Learning Loop",
+    kind: "fix",
     instruction: `Lesson bucket files under \`.goat-flow/lessons/\` contain file path references that no longer exist on disk. For each stale reference:
 1. If the file was **renamed**: update the path in the affected entry file
 2. If the file was **deleted**: remove the reference or note it as historical
@@ -208,10 +208,10 @@ The dispatcher routes natural language to the correct skill - users type \`/goat
 
   // === Hooks ===
   {
-    key: 'add-deny-blocks',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
+    key: "add-deny-blocks",
+    phase: "standard",
+    category: "Hooks",
+    kind: "fix",
     instruction: `The deny hook exists but has no real blocking logic. A deny hook that just \`exit 0\` provides no protection.
 
 Add blocking patterns for dangerous commands. The hook should \`exit 2\` (with a message to stderr) for:
@@ -226,10 +226,10 @@ Add blocking patterns for dangerous commands. The hook should \`exit 2\` (with a
 See \`workflow/hooks/deny-dangerous.sh\` for the full deny pattern list.`,
   },
   {
-    key: 'add-compaction-hook',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'create',
+    key: "add-compaction-hook",
+    phase: "standard",
+    category: "Hooks",
+    kind: "create",
     instruction: `Register a Notification hook that fires after context compaction to re-inject key context.
 
 Add to \`{{settingsFile}}\` hooks array:
@@ -245,10 +245,10 @@ Add to \`{{settingsFile}}\` hooks array:
 This preserves context during long sessions - the agent gets reminded of current task, modified files, and constraints after compaction.`,
   },
   {
-    key: 'fix-deny-json-parsing',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
+    key: "fix-deny-json-parsing",
+    phase: "standard",
+    category: "Hooks",
+    kind: "fix",
     instruction: `The deny hook uses \`grep -P\` for JSON parsing, which is not available on macOS. Replace with \`jq\`:
 
 \`\`\`bash
@@ -262,10 +262,10 @@ COMMAND=$(echo "$INPUT" | grep -oP '"command"\\s*:\\s*"([^"]*)"')
 If jq may not be installed, add a sed fallback after the jq attempt.`,
   },
   {
-    key: 'fix-deny-chaining',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
+    key: "fix-deny-chaining",
+    phase: "standard",
+    category: "Hooks",
+    kind: "fix",
     instruction: `The deny hook does not handle command chaining. An input like \`echo hello && rm -rf /\` bypasses all pattern checks because the dangerous command is after \`&&\`.
 
 Split the command on chaining operators before checking patterns:
@@ -279,10 +279,10 @@ done
 \`\`\``,
   },
   {
-    key: 'fix-deny-rm-rf',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
+    key: "fix-deny-rm-rf",
+    phase: "standard",
+    category: "Hooks",
+    kind: "fix",
     instruction: `The deny hook MUST block \`rm -rf\` (and \`rm -fr\`). This is the most dangerous destructive command an agent can execute.
 
 \`\`\`bash
@@ -296,10 +296,10 @@ fi
 \`\`\``,
   },
   {
-    key: 'fix-deny-force-push',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
+    key: "fix-deny-force-push",
+    phase: "standard",
+    category: "Hooks",
+    kind: "fix",
     instruction: `The deny hook MUST block force push. Force pushing can destroy shared branch history and lose other developers' work.
 
 \`\`\`bash
@@ -312,10 +312,10 @@ fi
 Also block in settings.json deny list: \`"Bash(git push --force*)"\`, \`"Bash(git push -f*)"\`.`,
   },
   {
-    key: 'fix-deny-chmod',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
+    key: "fix-deny-chmod",
+    phase: "standard",
+    category: "Hooks",
+    kind: "fix",
     instruction: `The deny hook MUST block \`chmod 777\`. World-writable permissions are a security vulnerability - any process can read, write, and execute the file.
 
 \`\`\`bash
@@ -328,10 +328,10 @@ fi
 Also block in settings.json deny list: \`"Bash(chmod 777*)"\`.`,
   },
   {
-    key: 'fix-deny-pipe-to-shell',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
+    key: "fix-deny-pipe-to-shell",
+    phase: "standard",
+    category: "Hooks",
+    kind: "fix",
     instruction: `The deny hook MUST block pipe-to-shell patterns such as \`curl | bash\` and \`wget | sh\`. These commands execute remote code without inspection.
 
 \`\`\`bash
@@ -344,10 +344,10 @@ fi
 Safer alternative: download the script first, inspect it, then run it explicitly if it is trusted.`,
   },
   {
-    key: 'fix-read-deny-secrets',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
+    key: "fix-read-deny-secrets",
+    phase: "standard",
+    category: "Hooks",
+    kind: "fix",
     instruction: `The settings permissions.deny list is missing read protection for common sensitive paths. Add these patterns:
 
 \`\`\`json
@@ -371,10 +371,10 @@ Safer alternative: download the script first, inspect it, then run it explicitly
 These prevent agents from reading SSH keys, cloud credentials, certificates, and secret files.`,
   },
   {
-    key: 'fix-edit-write-deny-env',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
+    key: "fix-edit-write-deny-env",
+    phase: "standard",
+    category: "Hooks",
+    kind: "fix",
     instruction: `Read deny exists for .env files but Edit/Write deny is missing. Agents can still modify secrets even though they can't read them. Add these patterns to permissions.deny:
 
 \`\`\`json
@@ -385,10 +385,10 @@ These prevent agents from reading SSH keys, cloud credentials, certificates, and
 Place them alongside the existing \`Read(**/.env*)\` deny rule.`,
   },
   {
-    key: 'add-stop-lint-validation',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
+    key: "add-stop-lint-validation",
+    phase: "standard",
+    category: "Hooks",
+    kind: "fix",
     instruction: `The post-turn hook (stop-lint.sh) exists but has no actual validation logic. It should run checks after each agent turn:
 
 - Shellcheck on changed \`.sh\` files
@@ -401,17 +401,17 @@ The hook MUST exit 0 even if checks fail (non-zero causes infinite loops). Repor
 See \`workflow/hooks/stop-lint.sh\` for the full stop-lint template.`,
   },
   {
-    key: 'fix-settings-json',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
+    key: "fix-settings-json",
+    phase: "standard",
+    category: "Hooks",
+    kind: "fix",
     instruction: `\`{{settingsFile}}\` is invalid JSON. Open it, find the syntax error, and fix it. Common issues: trailing commas, missing quotes, unescaped characters.`,
   },
   {
-    key: 'create-stop-lint',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'create',
+    key: "create-stop-lint",
+    phase: "standard",
+    category: "Hooks",
+    kind: "create",
     instruction: `Create a post-turn verification hook for {{agentName}}.`,
     agentOverrides: {
       claude: `Create \`.claude/hooks/stop-lint.sh\`:
@@ -441,10 +441,10 @@ exit 0
     },
   },
   {
-    key: 'fix-hook-exit',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'fix',
+    key: "fix-hook-exit",
+    phase: "standard",
+    category: "Hooks",
+    kind: "fix",
     instruction: `The post-turn hook (stop-lint.sh) is swallowing validation failures with \`|| true\`.
 
 Open the hook script and remove \`|| true\` from lint, typecheck, and format commands so real failures are surfaced. Keep intentional guards for optional discovery commands (for example \`grep ... || true\` when checking if files exist), but do not suppress the actual validation command itself.`,
@@ -454,10 +454,10 @@ Open the hook script and remove \`|| true\` from lint, typecheck, and format com
 
   // === Learning Loop ===
   {
-    key: 'create-lessons',
-    phase: 'standard',
-    category: 'Learning Loop',
-    kind: 'create',
+    key: "create-lessons",
+    phase: "standard",
+    category: "Learning Loop",
+    kind: "create",
     instruction: `Create committed lessons as a directory, not a single file.
 
 Create \`.goat-flow/lessons/README.md\`:
@@ -472,10 +472,10 @@ Inside each bucket, add \`## Lesson:\` or \`## Pattern:\` entries with \`**Creat
   },
   // seed-lessons removed - merged into seed-lessons-minimum after 2.3.2 was removed as duplicate of 2.3.2a.
   {
-    key: 'create-footguns',
-    phase: 'standard',
-    category: 'Learning Loop',
-    kind: 'create',
+    key: "create-footguns",
+    phase: "standard",
+    category: "Learning Loop",
+    kind: "create",
     instruction: `Create committed footguns as a directory, not a single file.
 
 Create \`.goat-flow/footguns/README.md\`:
@@ -514,10 +514,10 @@ category: docs
 Every footgun MUST have file:line evidence. No hypotheticals.`,
   },
   {
-    key: 'add-footgun-evidence',
-    phase: 'standard',
-    category: 'Learning Loop',
-    kind: 'fix',
+    key: "add-footgun-evidence",
+    phase: "standard",
+    category: "Learning Loop",
+    kind: "fix",
     instruction: `Footgun bucket files under \`.goat-flow/footguns/\` are missing \`file:line\` evidence. Update each affected entry:
 
 **Before:** "Auth module has race conditions"
@@ -527,10 +527,10 @@ Every footgun entry MUST have at least one \`file:line\` reference.`,
   },
   // add-footgun-labels removed - check 2.3.5a removed.
   {
-    key: 'add-session-logs',
-    phase: 'standard',
-    category: 'Learning Loop',
-    kind: 'fix',
+    key: "add-session-logs",
+    phase: "standard",
+    category: "Learning Loop",
+    kind: "fix",
     instruction: `Add session log path to the LOG step and router table in \`{{instructionFile}}\`:
 
 1. In the LOG step's "when to update" table, add:
@@ -542,49 +542,48 @@ Every footgun entry MUST have at least one \`file:line\` reference.`,
 Session logs capture what happened in a session so the next agent can pick up context. Format: \`YYYY-MM-DD-slug.md\` with sections for Current State, Decisions, Errors, Learnings, Next Steps.`,
   },
   {
-    key: 'route-learning-loop',
-    phase: 'standard',
-    category: 'Router Table',
-    kind: 'fix',
+    key: "route-learning-loop",
+    phase: "standard",
+    category: "Router Table",
+    kind: "fix",
     instruction:
-      'Add \`.goat-flow/lessons/\` and \`.goat-flow/footguns/\` to the router table in \`{{instructionFile}}\`.',
+      "Add \`.goat-flow/lessons/\` and \`.goat-flow/footguns/\` to the router table in \`{{instructionFile}}\`.",
   },
   {
-    key: 'route-architecture',
-    phase: 'standard',
-    category: 'Router Table',
-    kind: 'fix',
+    key: "route-architecture",
+    phase: "standard",
+    category: "Router Table",
+    kind: "fix",
     instruction:
-      'Add \`.goat-flow/architecture.md\` to the router table in \`{{instructionFile}}\`.',
+      "Add \`.goat-flow/architecture.md\` to the router table in \`{{instructionFile}}\`.",
   },
   {
-    key: 'route-config',
-    phase: 'standard',
-    category: 'Router Table',
-    kind: 'fix',
+    key: "route-config",
+    phase: "standard",
+    category: "Router Table",
+    kind: "fix",
     instruction:
-      'Add \`.goat-flow/config.yaml\` to the router table in \`{{instructionFile}}\`.',
+      "Add \`.goat-flow/config.yaml\` to the router table in \`{{instructionFile}}\`.",
   },
   {
-    key: 'fix-duplicate-instruction-surfaces',
-    phase: 'standard',
-    category: 'Local Instructions',
-    kind: 'fix',
+    key: "fix-duplicate-instruction-surfaces",
+    phase: "standard",
+    category: "Local Instructions",
+    kind: "fix",
     instruction:
-      'Keep one canonical local-instructions surface. Prefer `.goat-flow/coding-standards/` for goat-flow-managed docs, migrate any useful files from `.github/instructions/`, then delete the duplicate directory so agents do not have to choose between two competing instruction trees.',
+      "Keep one canonical local-instructions surface. Prefer `.goat-flow/coding-standards/` for goat-flow-managed docs, migrate any useful files from `.github/instructions/`, then delete the duplicate directory so agents do not have to choose between two competing instruction trees.",
   },
   // === Router Table ===
   {
-    key: 'add-router',
-    phase: 'standard',
-    category: 'Router Table',
-    kind: 'create',
-    instruction: `Add a Router Table section to \`{{instructionFile}}\`. The goat-flow-owned rows go inside markers so \`goat-flow setup\` can safely regenerate them later:
+    key: "add-router",
+    phase: "standard",
+    category: "Router Table",
+    kind: "create",
+    instruction: `Add a Router Table section to \`{{instructionFile}}\`:
 
 \`\`\`markdown
 ## Router Table
 
-<!-- goat-flow:router:start -->
 | Resource | Path |
 |----------|------|
 | Skills | \\\`{{skillsDir}}/\\\` |
@@ -594,16 +593,15 @@ Session logs capture what happened in a session so the next agent can pick up co
 | Coding standards | \\\`.goat-flow/coding-standards/\\\` |
 | Config | \\\`.goat-flow/config.yaml\\\` |
 | Local workspace | \\\`.goat-flow/tasks/\\\`, \\\`.goat-flow/logs/\\\` |
-<!-- goat-flow:router:end -->
 \`\`\`
 
-Add your project-specific rows (system spec, architecture, scripts, etc.) OUTSIDE the markers. Every path in the router MUST resolve to an existing file or directory.`,
+Add your project-specific rows (system spec, architecture, scripts, etc.). Every path in the router MUST resolve to an existing file or directory.`,
   },
   {
-    key: 'fix-router-refs',
-    phase: 'standard',
-    category: 'Router Table',
-    kind: 'fix',
+    key: "fix-router-refs",
+    phase: "standard",
+    category: "Router Table",
+    kind: "fix",
     instruction: `Some router table paths in \`{{instructionFile}}\` don't resolve. For each broken reference:
 
 1. Check if the file was renamed - update the path
@@ -613,10 +611,10 @@ Add your project-specific rows (system spec, architecture, scripts, etc.) OUTSID
 Every router path MUST point to something that exists.`,
   },
   {
-    key: 'route-skills',
-    phase: 'standard',
-    category: 'Router Table',
-    kind: 'create',
+    key: "route-skills",
+    phase: "standard",
+    category: "Router Table",
+    kind: "create",
     instruction: `Add skill directories to the router table in \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -628,10 +626,10 @@ Use the skills root, not \`goat-*/\`, so the router covers both the \`goat/\` di
 
   // === Architecture ===
   {
-    key: 'create-architecture',
-    phase: 'standard',
-    category: 'Architecture',
-    kind: 'create',
+    key: "create-architecture",
+    phase: "standard",
+    category: "Architecture",
+    kind: "create",
     instruction: `Create \`.goat-flow/architecture.md\` - a concise system overview:
 
 \`\`\`markdown
@@ -652,10 +650,10 @@ Keep under 100 lines. This is for agent orientation, not exhaustive documentatio
   // compress-architecture removed - check 2.5.2 removed.
   // === Local Instructions (cold path) ===
   {
-    key: 'create-instructions-dir',
-    phase: 'standard',
-    category: 'Local Instructions',
-    kind: 'create',
+    key: "create-instructions-dir",
+    phase: "standard",
+    category: "Local Instructions",
+    kind: "create",
     instruction: `Create the \`.goat-flow/coding-standards/\` directory and \`.goat-flow/README.md\` router:
 
 \`\`\`markdown
@@ -682,17 +680,17 @@ Only load files that exist.
 Add rows for domain files as you create them (frontend.md, backend.md, security.md, testing.md).`,
   },
   {
-    key: 'create-instructions-router',
-    phase: 'standard',
-    category: 'Local Instructions',
-    kind: 'create',
+    key: "create-instructions-router",
+    phase: "standard",
+    category: "Local Instructions",
+    kind: "create",
     instruction: `Create \`.goat-flow/README.md\` as the routing map for instruction files. This tells agents which files to load for which tasks. See the \`.goat-flow/coding-standards/\` directory for the files it references.`,
   },
   {
-    key: 'create-conventions-instructions',
-    phase: 'standard',
-    category: 'Local Instructions',
-    kind: 'create',
+    key: "create-conventions-instructions",
+    phase: "standard",
+    category: "Local Instructions",
+    kind: "create",
     instruction: `Create \`.goat-flow/coding-standards/conventions.md\` - the universal project contract. Include:
 
 - What the repo is (one line)
@@ -705,10 +703,10 @@ Add rows for domain files as you create them (frontend.md, backend.md, security.
 Keep it concrete: "Use \`sqlc.arg(name)\` in queries" not "write clean SQL".`,
   },
   {
-    key: 'improve-conventions-instructions',
-    phase: 'standard',
-    category: 'Local Instructions',
-    kind: 'fix',
+    key: "improve-conventions-instructions",
+    phase: "standard",
+    category: "Local Instructions",
+    kind: "fix",
     instruction: `\`.goat-flow/coding-standards/conventions.md\` exists but lacks real content. A stub file is not useful. Add:
 
 1. **Commands section** with actual build/test/lint commands in a bash code block
@@ -718,10 +716,10 @@ Keep it concrete: "Use \`sqlc.arg(name)\` in queries" not "write clean SQL".`,
 The agent should be able to read this file and immediately know how to build, test, and follow project conventions.`,
   },
   {
-    key: 'create-frontend-instructions',
-    phase: 'standard',
-    category: 'Local Instructions',
-    kind: 'create',
+    key: "create-frontend-instructions",
+    phase: "standard",
+    category: "Local Instructions",
+    kind: "create",
     instruction: `Create \`.goat-flow/coding-standards/frontend.md\` - frontend-specific coding conventions for the detected UI stack (React, Vue, Angular, Blade, Twig, ERB, Jinja, Blazor, Swift/iOS, or plain TS/JS). Include:
 
 - Component/template patterns (naming, structure, composition)
@@ -733,10 +731,10 @@ The agent should be able to read this file and immediately know how to build, te
 Only include rules specific to frontend/UI work. Shared rules belong in \`conventions.md\`.`,
   },
   {
-    key: 'create-backend-instructions',
-    phase: 'standard',
-    category: 'Local Instructions',
-    kind: 'create',
+    key: "create-backend-instructions",
+    phase: "standard",
+    category: "Local Instructions",
+    kind: "create",
     instruction: `Create \`.goat-flow/coding-standards/backend.md\` - backend-specific coding conventions. Include:
 
 - API design patterns (request/response, error handling)
@@ -751,10 +749,10 @@ Only include rules specific to backend work. Shared rules belong in \`convention
   // create-git-commit-instructions removed - check 2.6.5 removed.
   // create-github-git-commit removed - check 2.6.6 removed.
   {
-    key: 'create-copilot-bridge',
-    phase: 'standard',
-    category: 'Local Instructions',
-    kind: 'create',
+    key: "create-copilot-bridge",
+    phase: "standard",
+    category: "Local Instructions",
+    kind: "create",
     instruction: `Create \`.github/instructions/\` bridge files for GitHub Copilot. For each file in \`.goat-flow/coding-standards/\`, create a matching \`.instructions.md\` file with:
 
 1. \`applyTo\` frontmatter scoping it to the relevant paths
@@ -771,10 +769,10 @@ applyTo: "src/frontend/**"
   },
   // === Learning Loop Depth ===
   {
-    key: 'seed-lessons-minimum',
-    phase: 'standard',
-    category: 'Learning Loop',
-    kind: 'fix',
+    key: "seed-lessons-minimum",
+    phase: "standard",
+    category: "Learning Loop",
+    kind: "fix",
     instruction: `\`.goat-flow/lessons/\` has no lesson entries. Target 3-5 real incidents - at least 1 is required.
 
 Option A - pull from git history:
@@ -808,22 +806,21 @@ Project is new. Add entries after the first agent mistake or correction.
 Do NOT invent hypothetical lessons.`,
   },
   {
-    key: 'create-decisions-dir',
-    phase: 'standard',
-    category: 'Architecture',
-    kind: 'create',
+    key: "create-decisions-dir",
+    phase: "standard",
+    category: "Architecture",
+    kind: "create",
     instruction: `Create \`.goat-flow/decisions/\` and seed it with an ADR template.
 
 Copy \`workflow/setup/ADR-000-template.md\` to \`.goat-flow/decisions/ADR-000-template.md\`. Real ADRs are added when significant architectural decisions are made - name them \`ADR-NNN-short-title.md\`.`,
   },
   // Ask First enforcement hook removed - see ADR-006.
 
-
   {
-    key: 'create-ignore-files',
-    phase: 'standard',
-    category: 'Hooks',
-    kind: 'create',
+    key: "create-ignore-files",
+    phase: "standard",
+    category: "Hooks",
+    kind: "create",
     instruction: `Create agent ignore files to prevent reading sensitive files:
 
 For Copilot - create \`.copilotignore\`:
@@ -843,10 +840,10 @@ For Claude Code - add Read deny patterns to .claude/settings.json:
 
   // === Signal Follow-Through ===
   {
-    key: 'fix-llm-signal-followthrough',
-    phase: 'standard',
-    category: 'Signal Follow-Through',
-    kind: 'fix',
+    key: "fix-llm-signal-followthrough",
+    phase: "standard",
+    category: "Signal Follow-Through",
+    kind: "fix",
     instruction: `LLM integration detected but instruction file doesn't address it. Add to the instruction file:
 1. Prompt/template file paths in the Router Table
 2. "Prompt changes require scenario testing" in Ask First boundaries

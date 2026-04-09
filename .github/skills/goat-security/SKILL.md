@@ -7,67 +7,20 @@ goat-flow-skill-version: "1.1.0"
 
 ## Shared Conventions
 
-### Severity & Evidence
-- **Severity order:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE. Order findings by severity, not by file or discovery order.
-- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (directly verified in code) or INFERRED (deduced - state what direct evidence is missing). Before presenting findings, re-read each cited `file:line` to confirm accuracy. MUST NOT fabricate file paths, function names, or behaviour.
-
-### Human Gates
-- **BLOCKING GATE** - agent MUST stop and wait for human decision. Used for: scope approval, phase transitions, final output review. Do NOT auto-advance.
-- **CHECKPOINT** - agent presents status and continues unless interrupted. Used for: progress reports, intermediate findings. Format: "Phase N complete. [summary]. Continuing to Phase N+1."
-
-### Adaptive Step 0
-1. Read the user's invocation for context already provided
-2. For each Step 0 question: if answer is clear from context → **confirm** ("I see [answer]. Correct?"). Otherwise → **ask**
-3. If ALL questions answered by invocation → condensed confirmation, proceed
-4. If user says "skip Step 0" → confirm understanding, proceed
-
-**Gate rule:** Step 0 MUST end with the agent presenting its understanding and waiting for the user before Phase 1. Auto-detect pre-fills context - it does not replace confirmation. Bare invocation = zero context = ask all structural questions and wait.
-
-### Stuck Protocol
-If 3 consecutive reads produce no new signal: (1) present what you have so far, (2) state what you were looking for and didn't find, (3) ask to redirect, narrow scope, or close.
-
-### Ceremony Level
-| Complexity | Ceremony |
-|------------|----------|
-| Hotfix / Small Feature | Skip: closing ceremony, footgun annotations, goat-plan Phases 2-3 |
-| Standard | Full phases, gates at major decisions |
-| System / Infrastructure | Full phases + cross-boundary verification + rollback planning |
-
-**Sub-agent mode:** GATEs become CHECKPOINTs automatically. Step 0 proceeds with auto-detected scope.
-
-### Footgun Fast-Path
-If Step 0 footgun check matches a known trap: (1) surface match immediately, (2) offer mitigation path from the entry, (3) still require READ + VERIFY on actual files - footguns are incident records, not executable specs, (4) do NOT skip to implementation on a match alone.
-
-### Learning Loop
-After completing the skill, check if this run uncovered anything worth logging:
-- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `.goat-flow/lessons/`
-- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `.goat-flow/footguns/`
-- Route entries to `.goat-flow/lessons/` or `.goat-flow/footguns/`
-- Match entry format to existing entries in the target bucket file. Do not append to a monolithic log or directory README.
-
-### Recovery
-When a skill fails mid-execution (context limit, sub-agent dies, tool error):
-- Partial completion → identify last completed step (last `[x]` checkbox), resume from next
-- Missing artifacts → return to the step that generates them, re-execute
-- User wants restart → re-run from Step 0
-- User wants to skip → document skip reason in output, proceed to closing
-
-### Working Memory
-For tasks exceeding 5 turns: maintain state in the active milestone file under `.goat-flow/tasks/`. If interrupted or compacted, write a session log to `.goat-flow/logs/sessions/`.
-
-### Autonomy Awareness
-Before proposing actions that change files, check the instruction file's Ask First boundaries. If the proposed change crosses a boundary, flag it: "This change touches [boundary]. Proceeding requires approval per Ask First rules."
-
-### Closing Protocol
-1. If incomplete → write a session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` (Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files)
-2. Check Learning Loop for anything worth logging
-3. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` (what happened, files changed, decisions, learnings)
-4. Suggest most relevant next skill (see Chains With)
+Read `.goat-flow/skill-conventions.md` for full shared conventions.
+If unavailable, use these essentials:
+- Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
+- Evidence: every finding MUST include file:line, tag OBSERVED vs INFERRED
+- Learning loop: check .goat-flow/lessons/ and .goat-flow/footguns/ after completion
+- Gates: BLOCKING GATE = stop and wait. CHECKPOINT = continue unless interrupted.
+- Task tracking: tick checkboxes immediately when completed, not at the end.
 
 ## When to Use
 
 Use when assessing security posture: before deployment, after adding auth/input
 handling, when touching secrets/credentials, or for a security-focused audit.
+
+**Boundary with /goat-review:** goat-security owns: threat models, compliance frameworks (HIPAA/GDPR), dependency CVEs, auth/authz boundaries. goat-review owns: code quality, style, hook correctness, instruction staleness. If you find a code quality issue during security assessment, flag it and suggest `/goat-review`.
 
 **NOT this skill:**
 - General code quality sweep → /goat-review (audit mode)
@@ -83,8 +36,8 @@ handling, when touching secrets/credentials, or for a security-focused audit.
 3. Any specific threat concern? (injection, auth bypass, data exposure - or "general audit")
 
 **Illustrative questions (adapt):**
-4. What auth boundaries exist? (dashboard server has no auth, CLI runs locally, no user-facing auth)
-5. Any known vulnerabilities to skip? (e.g., dashboard runs on localhost only, no external API calls)
+4. What auth boundaries exist? (OAuth, JWT, session, API key, none)
+5. Any known vulnerabilities to skip? (already tracked, being fixed separately)
 6. What framework are you using? (I'll check its built-in security features in Phase 2)
 
 **Escape hatch:** If the user says "just scan everything" or provides minimal info, auto-detect framework from package files and run a broad threat surface scan.
@@ -94,12 +47,6 @@ Present: "This is a [framework] project. I'll check [framework]'s built-in
 security features during verification."
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
-
-**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
-- "hotfix" but 5+ files affected → likely Standard or System
-- "small feature" but crosses 3+ boundaries → likely System
-- "quick test" but 20+ functions in target → warn scope is larger than implied
-Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 **Before proceeding:** present what you know (threat model, framework, auth boundaries) and what you still need. Wait for the user to confirm before entering Phase 1.
 
@@ -113,17 +60,22 @@ on Step 0 threat model (a CLI tool doesn't need CORS/CSP checks).
 | Input validation | User input reaches backend without sanitization | No user input (library) | `req.body.name` passed directly to SQL |
 | Auth/authz | Missing or bypassable authentication on sensitive routes | No HTTP endpoints | Session token in URL, missing CSRF on POST |
 | Secret handling | Hardcoded secrets, .env committed, secrets in logs | No secrets in codebase | API key in source, token in error message |
-| SQL injection | User input in raw queries without parameterization | No database (goat-flow has none) | `db.query("SELECT * FROM users WHERE id=" + id)` |
+| SQL injection | User input in raw queries without parameterization | No database | `db.query("SELECT * FROM users WHERE id=" + id)` |
 | XSS | User input rendered without escaping | No HTML output | `innerHTML = userInput`, unescaped template |
 | Command injection | User input in shell commands | No shell execution | `exec("convert " + filename)`, unsanitized args |
 | Path traversal | User input in file paths | No file system access | `fs.readFile(basePath + userInput)` |
 | Dependency CVEs | Known vulnerabilities in dependencies | - | Run audit command below |
 | CORS/CSP | Misconfigured cross-origin policies | No HTTP server | `Access-Control-Allow-Origin: *` |
-| Permission escalation | Role/privilege checks missing or bypassable | Single-role system (goat-flow CLI is single-user) | Admin routes without role check |
+| Permission escalation | Role/privilege checks missing or bypassable | Single-role system | Admin routes without role check |
 
 **Dependency audit commands:**
 ```bash
-npm audit              # Node.js (goat-flow uses npm)
+npm audit              # Node.js
+pip-audit              # Python
+cargo audit            # Rust
+composer audit          # PHP
+bundler-audit check    # Ruby
+dotnet list package --vulnerable  # .NET
 ```
 
 Log every finding with `file:line` evidence.
@@ -134,15 +86,20 @@ Log every finding with `file:line` evidence.
 framework already mitigates it. Attempt to DISPROVE each finding - the adversarial
 framing catches more false positives than "check if it's handled."
 
-**Framework verification examples (goat-flow stack):**
+**Framework verification examples:**
 
-| Component | Feature | What it mitigates | How to verify |
+| Framework | Feature | What it mitigates | How to verify |
 |-----------|---------|-------------------|---------------|
-| Node.js `http` | localhost-only binding | Remote access to dashboard | Check `server.listen()` binds to `127.0.0.1`, not `0.0.0.0` |
-| TypeScript | Strict mode | Type confusion, null errors | Check `tsconfig.json` has `strict: true` |
-| Bash scripts | `shellcheck` linting | Injection, quoting bugs, globbing | Run `shellcheck scripts/*.sh` - zero warnings |
-| File I/O | Path validation | Path traversal in scanner/facts | Check user-supplied paths are validated before `fs.readFile` |
-| Dashboard | Static HTML+JS | XSS via injected content | Check no `innerHTML` with unsanitized data in `src/dashboard/` |
+| Express | `helmet()` middleware | XSS, clickjacking, MIME sniffing | Check `app.use(helmet())` exists AND is before route handlers |
+| Express | `csurf` / `csrf()` | CSRF attacks | Check middleware registered on state-changing routes |
+| Django | ORM queries | SQL injection | Check no `.raw()` or `.extra()` with user input |
+| Django | `CsrfViewMiddleware` | CSRF | Check not in `CSRF_EXEMPT` for sensitive views |
+| Rails | `strong_parameters` | Mass assignment | Check `params.require(:model).permit(...)` on controllers |
+| Rails | Auto-escaping in ERB | XSS | Check no `raw()` or `.html_safe` on user content |
+| React | JSX auto-escaping | XSS | Check no `dangerouslySetInnerHTML` with user content |
+| Next.js | Server actions | CSRF, input validation | Check server actions validate input, don't trust client |
+| Symfony | CSRF token component | CSRF | Check forms include `csrf_token()` |
+| Spring | Security filter chain | Auth bypass | Check `SecurityFilterChain` covers the route |
 
 **Verification protocol:**
 For each finding: Is the mitigation (a) installed, (b) configured, (c) applied
@@ -156,6 +113,26 @@ Remove confirmed false positives. Flag partial mitigations as findings.
 (b) check a different attack surface
 (c) test an edge case
 (d) proceed to ranking
+
+## Phase 2.5 - Confidence Classification
+
+Classify every finding from Phase 2 before presenting:
+
+**CONFIRMED** — Attacker-controlled input traced from entry point to sink.
+- Show data flow: `[entry] → [transform] → ... → [sink]`
+- Tag: `OBSERVED`
+
+**PROBABLE** — Vulnerable pattern found, input source unclear or partially traced.
+- Show pattern, identify missing trace element
+- Tag: `INFERRED`
+
+**THEORETICAL** — Best-practice violation or defence-in-depth gap, no confirmed exploit path.
+- Show gap and what controls would need to fail
+- Tag: `INFERRED`
+
+**Reporting defaults:**
+- Standard report: CONFIRMED only. PROBABLE in "Needs Verification" section. THEORETICAL omitted.
+- Full report ("thorough" / "full audit"): All findings, labelled by confidence.
 
 ## Phase 3 - Exploitability Ranking
 
@@ -203,7 +180,7 @@ Identify which regulations apply from project context:
 
 If unclear, ask: "Which regulatory framework applies? (HIPAA, GDPR, SOC2, PCI-DSS, or tell me more)"
 
-Load relevant coding standards if they exist in the project's coding standards directory.
+Load relevant coding standards if they exist: `.goat-flow/coding-standards/security.md` and framework-specific security files.
 
 ### Phase C2 - Compliance Scan
 
@@ -245,6 +222,10 @@ Present compliance gaps ordered by risk:
 - MUST skip irrelevant categories based on threat model
 - MUST NOT fabricate file paths or function names
 - MUST re-verify Critical and High findings before presenting
+- MUST classify every finding as CONFIRMED, PROBABLE, or THEORETICAL
+- MUST show data flow path for CONFIRMED findings
+- MUST identify missing trace element for PROBABLE findings
+- MUST default to standard report (CONFIRMED only) unless user requests full
 
 ## Output Format
 
@@ -266,14 +247,24 @@ Present compliance gaps ordered by risk:
 | CORS/CSP | ... | ... |
 | Permission escalation | ... | ... |
 
-## Findings (by exploitability)
+## Findings (by exploitability × confidence)
+<!-- Order: [CRITICAL/CONFIRMED] > [CRITICAL/PROBABLE] > [HIGH/CONFIRMED] > [HIGH/PROBABLE] > [MEDIUM/CONFIRMED] > etc. -->
 
 ### Critical (exploitable without auth)
-- **[title]** - `file:line`
+- **[CRITICAL/CONFIRMED] [title]** - `file:line`
+  **Data flow:** `[entry] → [transform] → ... → [sink]`
   **Attack scenario:** An [attacker] can [action] via [vector], resulting in [impact]
   **Framework mitigation:** [not mitigated | mitigated by X - downgraded]
 
 ### High / Medium / Low
+
+## Needs Verification
+<!-- PROBABLE findings: vulnerable pattern found, input source unclear -->
+- **[HIGH/PROBABLE] [title]** - `file:line`
+  **Pattern:** [vulnerable pattern found]
+  **Missing trace:** [what input source or intermediate step is unconfirmed]
+
+<!-- Standard mode: N theoretical findings omitted. Request "full audit" to include. -->
 
 ## Framework Mitigations Verified
 | Feature | Installed | Configured | Applied to routes |

@@ -105,7 +105,6 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 |----------|------|
 | Architecture | `.goat-flow/architecture.md` |
 | Scripts | `scripts/` |
-<!-- goat-flow:router:start -->
 | Skills | `.agents/skills/` |
 | Project guidelines | `.goat-flow/coding-standards/conventions.md` |
 | Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
@@ -113,4 +112,3 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 | Coding standards | `.goat-flow/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
 | Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
-<!-- goat-flow:router:end -->

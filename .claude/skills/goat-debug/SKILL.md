@@ -19,6 +19,8 @@ If unavailable, use these essentials:
 
 Use when diagnosing a bug, understanding unfamiliar code, or onboarding to a new project.
 
+**Complexity classification:** A 1-2 file bug fix is a Hotfix — minimal ceremony. A cross-system investigation is Standard. Don't over-classify: if you can describe the fix in one sentence, it's a Hotfix regardless of project size.
+
 **Mode routing:**
 - Has a specific bug/symptom → **Diagnose mode** (Phases D1-D4)
 - Exploring unfamiliar code, no bug → **Investigate mode** (Phases I1-I3)
@@ -39,8 +41,8 @@ That's the failure mode this skill exists to prevent.
 2. If bug: What's the symptom? (error message, unexpected behaviour, test failure)
 3. If explore: What area? How deep? (surface scan / full trace)
 
-**Illustrative questions:**
-4. Which area? (e.g., scanner rubric checks, fact extractors, setup prompt generation, dashboard server, CLI entry point, skill templates, bash maintenance scripts, cross-reference validation)
+**Illustrative questions (adapt):**
+4. Which area of the codebase is involved?
 5. What have you already tried? (so I don't repeat dead ends)
 6. How urgent? Default: 10 turns. After that, present what you have even if incomplete.
 
@@ -56,12 +58,6 @@ If the user said `/goat-debug the test in auth.test.ts fails with TypeError`,
 confirm: "Symptom: TypeError in auth.test.ts. I'll start with that file. Correct?"
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. Also check `.goat-flow/lessons/` for recurrence. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
-
-**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
-- "hotfix" but 5+ files affected → likely Standard or System
-- "small feature" but crosses 3+ boundaries → likely System
-- "quick test" but 20+ functions in target → warn scope is larger than implied
-Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 **Before proceeding:** present what you know, the selected mode, and what you still need. Wait for user to confirm.
 
@@ -124,11 +120,6 @@ Only if human approved. Propose a fix plan (not the fix itself):
 - **Blast radius:** what else could break
 - **Architecture check:** verify fix doesn't violate constraints in `.goat-flow/architecture.md`
 - **Verification:** how to confirm the fix worked (specific test or command)
-
-**Verification commands:**
-```bash
-npm test && npx tsc --noEmit && bash scripts/preflight-checks.sh
-```
 
 "Should I implement this fix?"
 
@@ -203,7 +194,7 @@ Present: "This project uses [languages] with [frameworks]. Build: [cmd], Test: [
 
 ### Phase O2 - Glossary & Instruction Drafting (after I3)
 
-**Glossary:** Read `.goat-flow/glossary.md` for project terminology. If new terms are discovered during onboarding, add them.
+**Glossary:** If `.goat-flow/glossary.md` exists, read it. If not, build one from codebase.
 
 **Instruction Drafting (if requested):** Present all content inline BEFORE writing files. Source of truth is code, not docs. MUST NOT include aspirational content.
 

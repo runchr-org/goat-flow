@@ -8,10 +8,10 @@ import {
   mkdtempSync,
   rmSync,
   writeFileSync,
-} from 'node:fs';
-import { spawnSync } from 'node:child_process';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+} from "node:fs";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 
 export interface HookRunResult {
   status: number;
@@ -35,7 +35,7 @@ export interface TempCommandDir {
 /** Write a UTF-8 text file after creating its parent directory tree. */
 export function writeWorkspaceFile(filePath: string, content: string): string {
   mkdirSync(dirname(filePath), { recursive: true });
-  writeFileSync(filePath, content, 'utf8');
+  writeFileSync(filePath, content, "utf8");
   return filePath;
 }
 
@@ -45,30 +45,30 @@ export function runHookScript(
   input: string,
   options: HookRunOptions = {},
 ): HookRunResult {
-  const result = spawnSync('bash', [scriptPath], {
+  const result = spawnSync("bash", [scriptPath], {
     cwd: options.cwd,
     env: options.env,
     input,
-    encoding: 'utf8',
+    encoding: "utf8",
     timeout: options.timeoutMs ?? 5000,
     maxBuffer: 10 * 1024 * 1024,
   });
 
   return {
     status: result.status ?? 0,
-    stdout: result.stdout ?? '',
-    stderr: result.stderr ?? '',
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
   };
 }
 
 /** Create a temporary bin directory and prepend it to PATH for hook stubs. */
 export function createTempCommandDir(
-  prefix = 'goat-flow-hook-bin-',
+  prefix = "goat-flow-hook-bin-",
 ): TempCommandDir {
   const dir = mkdtempSync(join(tmpdir(), prefix));
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    PATH: `${dir}${process.env.PATH ? `:${process.env.PATH}` : ''}`,
+    PATH: `${dir}${process.env.PATH ? `:${process.env.PATH}` : ""}`,
   };
 
   return {
@@ -78,7 +78,7 @@ export function createTempCommandDir(
     /** Write an executable command stub into the temporary bin directory. */
     writeCommand(name: string, body: string): string {
       const path = join(dir, name);
-      writeFileSync(path, body, 'utf8');
+      writeFileSync(path, body, "utf8");
       chmodSync(path, 0o755);
       return path;
     },
@@ -88,6 +88,6 @@ export function createTempCommandDir(
 /** Create an empty log file in the temporary command directory. */
 export function touchTempCommandFile(dir: string, name: string): string {
   const path = join(dir, name);
-  writeFileSync(path, '', 'utf8');
+  writeFileSync(path, "", "utf8");
   return path;
 }

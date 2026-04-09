@@ -40,6 +40,7 @@ Also use for improving readability, naming, and code clarity - see Simplify Mode
 **Illustrative questions (adapt):**
 4. Is this responding to external feedback? (another agent, team review, etc.)
 5. Riskiest change first, or full sweep?
+6. Are there requirements for this work? (file path, pasted issue/ticket content, or skip)
 
 **Escape hatch:** If the user says "just review what changed" or provides minimal info, auto-detect scope from `git diff --stat` and proceed.
 
@@ -59,19 +60,7 @@ review standards alongside these defaults.
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
-**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
-- "hotfix" but 5+ files affected → likely Standard or System
-- "small feature" but crosses 3+ boundaries → likely System
-- "quick test" but 20+ functions in target → warn scope is larger than implied
-Surface the mismatch, suggest re-classification. Don't silently proceed.
-
 **Before proceeding:** present what you know and what you still need. Wait for the user to confirm scope, mode, and concerns before entering Phase 1.
-
-## Phase 0 - Spec Compliance (conditional)
-
-If a feature requirements document, milestone file, or task file exists for the feature
-being reviewed, check each acceptance criterion against the implementation.
-If no spec exists, skip this phase - zero cost.
 
 ## Phase 1 - Scope Confirmation
 
@@ -100,6 +89,8 @@ pre-existing issues as part of this change - note them separately.
 - Downstream impact: "What breaks if this change has a bug?" - map the cascade
 - Test execution gaps: tests exist but weren't run against the changed path (different from "no test exists")
 - Glossary consistency: if `.goat-flow/glossary.md` exists, flag terms used inconsistently in the diff (different name for same concept)
+
+**Requirements cross-reference:** If requirements were provided in Step 0, cross-reference acceptance criteria against the implementation. Flag unmet criteria as MUST-fix findings.
 
 **Self-check:** Before presenting, re-verify `file:line` references for all MUST-fix findings.
 

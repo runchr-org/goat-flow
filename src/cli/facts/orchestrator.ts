@@ -2,12 +2,12 @@
  * Coordinates full fact extraction for a scan.
  * It combines stack detection, shared project facts, and per-agent facts into the `ProjectFacts` object used by scoring.
  */
-import type { ProjectFacts, ReadonlyFS, AgentId } from '../types.js';
-import type { LoadedConfig } from '../config/types.js';
-import { detectAgents } from '../detect/agents.js';
-import { detectStack } from '../detect/project-stack.js';
-import { extractSharedFacts } from './shared/index.js';
-import { extractAgentFacts } from './agent/index.js';
+import type { ProjectFacts, ReadonlyFS, AgentId } from "../types.js";
+import type { LoadedConfig } from "../config/types.js";
+import { detectAgents } from "../detect/agents.js";
+import { detectStack } from "../detect/project-stack.js";
+import { extractSharedFacts } from "./shared/index.js";
+import { extractAgentFacts } from "./agent/index.js";
 
 /** Configuration for extracting project facts during a scan run. */
 interface ExtractOptions {
@@ -66,7 +66,7 @@ export function extractProjectFacts(
   });
 
   return {
-    root: options.projectPath ?? '.',
+    root: options.projectPath ?? ".",
     stack,
     agents: agentFacts,
     shared,

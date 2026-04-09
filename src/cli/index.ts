@@ -29,21 +29,21 @@ export type {
   ScanReport,
   ReadonlyFS,
   CLIOptions,
-} from './types.js';
+} from "./types.js";
 
-export { scanProject } from './scanner/scan.js';
-export type { ScanOptions } from './scanner/scan.js';
+export { scanProject } from "./scanner/scan.js";
+export type { ScanOptions } from "./scanner/scan.js";
 
-export { createFS } from './facts/fs.js';
+export { createFS } from "./facts/fs.js";
 
 export {
   getCheck,
   getChecksByTier,
   getChecksByCategory,
-} from './rubric/registry.js';
+} from "./rubric/registry.js";
 
-export { getFragmentsByPhase } from './prompt/registry.js';
+export { getFragmentsByPhase } from "./prompt/registry.js";
 
-export { mapSignalsToTemplates } from './prompt/template-refs.js';
-export { appendScanHistory } from './telemetry/scan-logger.js';
-export type { ScanHistoryEntry } from './telemetry/scan-logger.js';
+export { mapSignalsToTemplates } from "./prompt/template-refs.js";
+export { appendScanHistory } from "./telemetry/scan-logger.js";
+export type { ScanHistoryEntry } from "./telemetry/scan-logger.js";

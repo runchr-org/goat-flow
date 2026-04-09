@@ -1,26 +1,26 @@
 /**
  * Shared render utilities used by both text and markdown renderers.
  */
-import type { CheckResult, AgentReport, AntiPatternResult } from '../types.js';
+import type { CheckResult, AgentReport, AntiPatternResult } from "../types.js";
 
 /** Severity level assigned to a check for display grouping */
-type CheckSeverity = 'critical' | 'high' | 'medium' | 'low';
+type CheckSeverity = "critical" | "high" | "medium" | "low";
 
 /** Map a rubric tier to the severity used in output. */
 function checkSeverityFromTier(tier: string): CheckSeverity {
-  if (tier === 'foundation') return 'critical';
-  if (tier === 'standard') return 'high';
-  return 'medium';
+  if (tier === "foundation") return "critical";
+  if (tier === "standard") return "high";
+  return "medium";
 }
 
 /** Derive the display severity for a failed or partial check. */
 export function getCheckSeverity(check: CheckResult): CheckSeverity {
-  if (check.status === 'partial' && check.tier === 'full') return 'low';
+  if (check.status === "partial" && check.tier === "full") return "low";
   return checkSeverityFromTier(check.tier);
 }
 
 /** Summarize pass/fail counts and severity totals for an agent's checks. */
-export function collectCheckFailureSummary(checks: AgentReport['checks']): {
+export function collectCheckFailureSummary(checks: AgentReport["checks"]): {
   fail: number;
   partial: number;
   pass: number;
@@ -37,17 +37,17 @@ export function collectCheckFailureSummary(checks: AgentReport['checks']): {
   };
 
   for (const check of checks) {
-    if (check.status === 'fail') {
+    if (check.status === "fail") {
       summary.fail += 1;
       summary.severityCounts[getCheckSeverity(check)] += 1;
       continue;
     }
-    if (check.status === 'partial') {
+    if (check.status === "partial") {
       summary.partial += 1;
       summary.severityCounts[getCheckSeverity(check)] += 1;
       continue;
     }
-    if (check.status === 'pass') summary.pass += 1;
+    if (check.status === "pass") summary.pass += 1;
   }
 
   return summary;
@@ -91,7 +91,7 @@ export function collectDiagnosticImpacts(
     impacts.push({
       label: `${antiPattern.id}: ${antiPattern.name}`,
       points: Math.abs(antiPattern.deduction),
-      priority: 'critical',
+      priority: "critical",
     });
   }
 

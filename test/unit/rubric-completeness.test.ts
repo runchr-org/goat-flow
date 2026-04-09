@@ -4,15 +4,15 @@
  * This catches: missing fact fields, runtime errors, invalid status values,
  * and checks that crash instead of returning na/fail.
  */
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
-import { allChecks, allAntiPatterns } from '../../src/cli/rubric/registry.js';
-import { runChecks, runAntiPatterns } from '../../src/cli/scoring/calculate.js';
-import { createMockContext } from '../helpers/mock-context.js';
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { allChecks, allAntiPatterns } from "../../src/cli/rubric/registry.js";
+import { runChecks, runAntiPatterns } from "../../src/cli/scoring/calculate.js";
+import { createMockContext } from "../helpers/mock-context.js";
 
-const VALID_STATUSES = new Set(['pass', 'partial', 'fail', 'na']);
+const VALID_STATUSES = new Set(["pass", "partial", "fail", "na"]);
 
-describe('All registered checks produce valid results against default mock', () => {
+describe("All registered checks produce valid results against default mock", () => {
   const ctx = createMockContext();
 
   for (const check of allChecks) {
@@ -41,17 +41,21 @@ describe('All registered checks produce valid results against default mock', () 
 
       // Message must be a non-empty string
       assert.ok(
-        typeof result.message === 'string' && result.message.length > 0,
+        typeof result.message === "string" && result.message.length > 0,
         `${check.id}: empty or missing message`,
       );
 
       // ID must match the check definition
-      assert.equal(result.id, check.id, `Result ID mismatch: ${result.id} vs ${check.id}`);
+      assert.equal(
+        result.id,
+        check.id,
+        `Result ID mismatch: ${result.id} vs ${check.id}`,
+      );
     });
   }
 });
 
-describe('All registered anti-patterns produce valid results against default mock', () => {
+describe("All registered anti-patterns produce valid results against default mock", () => {
   const ctx = createMockContext();
 
   for (const ap of allAntiPatterns) {
@@ -61,7 +65,11 @@ describe('All registered anti-patterns produce valid results against default moc
       const result = results[0];
 
       // triggered must be boolean
-      assert.equal(typeof result.triggered, 'boolean', `${ap.id}: triggered is not boolean`);
+      assert.equal(
+        typeof result.triggered,
+        "boolean",
+        `${ap.id}: triggered is not boolean`,
+      );
 
       // deduction must be <= 0
       assert.ok(
@@ -72,64 +80,76 @@ describe('All registered anti-patterns produce valid results against default moc
       // If not triggered, deduction must be 0
       if (!result.triggered) {
         assert.equal(
-          result.deduction, 0,
+          result.deduction,
+          0,
           `${ap.id}: not triggered but deduction is ${result.deduction}`,
         );
       }
 
       // Message must exist
       assert.ok(
-        typeof result.message === 'string' && result.message.length > 0,
+        typeof result.message === "string" && result.message.length > 0,
         `${ap.id}: empty or missing message`,
       );
 
       // ID must match
-      assert.equal(result.id, ap.id, `Result ID mismatch: ${result.id} vs ${ap.id}`);
+      assert.equal(
+        result.id,
+        ap.id,
+        `Result ID mismatch: ${result.id} vs ${ap.id}`,
+      );
     });
   }
 });
 
-describe('Rubric integrity', () => {
-  it('has no duplicate check IDs', () => {
-    const ids = allChecks.map(c => c.id);
+describe("Rubric integrity", () => {
+  it("has no duplicate check IDs", () => {
+    const ids = allChecks.map((c) => c.id);
     const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
-    assert.equal(dupes.length, 0, `Duplicate IDs: ${dupes.join(', ')}`);
+    assert.equal(dupes.length, 0, `Duplicate IDs: ${dupes.join(", ")}`);
   });
 
-  it('has no duplicate anti-pattern IDs', () => {
-    const ids = allAntiPatterns.map(ap => ap.id);
+  it("has no duplicate anti-pattern IDs", () => {
+    const ids = allAntiPatterns.map((ap) => ap.id);
     const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
-    assert.equal(dupes.length, 0, `Duplicate AP IDs: ${dupes.join(', ')}`);
+    assert.equal(dupes.length, 0, `Duplicate AP IDs: ${dupes.join(", ")}`);
   });
 
-  it('all checks have recommendation text', () => {
-    const missing = allChecks.filter(c => !c.recommendation || c.recommendation.length === 0);
+  it("all checks have recommendation text", () => {
+    const missing = allChecks.filter(
+      (c) => !c.recommendation || c.recommendation.length === 0,
+    );
     assert.equal(
-      missing.length, 0,
-      `${missing.length} checks missing recommendations: ${missing.map(c => c.id).join(', ')}`,
+      missing.length,
+      0,
+      `${missing.length} checks missing recommendations: ${missing.map((c) => c.id).join(", ")}`,
     );
   });
 
-  it('all checks have recommendationKey', () => {
-    const missing = allChecks.filter(c => !c.recommendationKey);
+  it("all checks have recommendationKey", () => {
+    const missing = allChecks.filter((c) => !c.recommendationKey);
     assert.equal(
-      missing.length, 0,
-      `${missing.length} checks missing recommendationKey: ${missing.map(c => c.id).join(', ')}`,
+      missing.length,
+      0,
+      `${missing.length} checks missing recommendationKey: ${missing.map((c) => c.id).join(", ")}`,
     );
   });
 
-  it('all anti-patterns have recommendation text', () => {
-    const missing = allAntiPatterns.filter(ap => !ap.recommendation);
+  it("all anti-patterns have recommendation text", () => {
+    const missing = allAntiPatterns.filter((ap) => !ap.recommendation);
     assert.equal(
-      missing.length, 0,
-      `${missing.length} APs missing recommendations: ${missing.map(ap => ap.id).join(', ')}`,
+      missing.length,
+      0,
+      `${missing.length} APs missing recommendations: ${missing.map((ap) => ap.id).join(", ")}`,
     );
   });
 
-  it('default mock passes at least 65% of checks (custom fn checks pass, file_exists/grep checks may not)', () => {
+  it("default mock passes at least 65% of checks (custom fn checks pass, file_exists/grep checks may not)", () => {
     const ctx = createMockContext();
     const results = runChecks(allChecks, ctx);
-    const passing = results.filter(r => r.status === 'pass' || r.status === 'na');
+    const passing = results.filter(
+      (r) => r.status === "pass" || r.status === "na",
+    );
     const ratio = passing.length / results.length;
     assert.ok(
       ratio >= 0.65,
@@ -137,13 +157,14 @@ describe('Rubric integrity', () => {
     );
   });
 
-  it('default mock triggers zero anti-patterns', () => {
+  it("default mock triggers zero anti-patterns", () => {
     const ctx = createMockContext();
     const results = runAntiPatterns(allAntiPatterns, ctx);
-    const triggered = results.filter(r => r.triggered);
+    const triggered = results.filter((r) => r.triggered);
     assert.equal(
-      triggered.length, 0,
-      `Default mock triggers ${triggered.length} APs: ${triggered.map(r => `${r.id} (${r.message})`).join(', ')}`,
+      triggered.length,
+      0,
+      `Default mock triggers ${triggered.length} APs: ${triggered.map((r) => `${r.id} (${r.message})`).join(", ")}`,
     );
   });
 });

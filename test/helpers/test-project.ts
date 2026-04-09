@@ -2,17 +2,17 @@
  * Temporary on-disk project builder for integration tests.
  * Use it when a test needs real files, directories, and shell-visible paths rather than the mock filesystem.
  */
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
 
 const EXPECTED_SKILLS = [
-  'preflight',
-  'debug',
-  'audit',
-  'review',
-  'plan',
-  'test',
+  "preflight",
+  "debug",
+  "audit",
+  "review",
+  "plan",
+  "test",
 ] as const;
 
 /**
@@ -29,30 +29,30 @@ export class TestProject {
 
   /** Add the root instruction file for the requested agent. */
   withInstructionFile(
-    agent: 'claude' | 'codex' | 'gemini',
+    agent: "claude" | "codex" | "gemini",
     content: string,
   ): this {
     const filename = {
-      claude: 'CLAUDE.md',
-      codex: 'AGENTS.md',
-      gemini: 'GEMINI.md',
+      claude: "CLAUDE.md",
+      codex: "AGENTS.md",
+      gemini: "GEMINI.md",
     }[agent];
     return this.withFile(filename, content);
   }
 
   /** Add a JSON settings file for agents that support one. */
-  withSettings(agent: 'claude' | 'gemini', settings: object): this {
+  withSettings(agent: "claude" | "gemini", settings: object): this {
     const path =
-      agent === 'claude' ? '.claude/settings.json' : '.gemini/settings.json';
+      agent === "claude" ? ".claude/settings.json" : ".gemini/settings.json";
     return this.withFile(path, JSON.stringify(settings, null, 2));
   }
 
   /** Add a minimal installed-skill set for the requested agent. */
   withSkills(
-    agent: 'claude' | 'codex' | 'gemini',
+    agent: "claude" | "codex" | "gemini",
     names?: readonly string[],
   ): this {
-    const dir = agent === 'claude' ? '.claude/skills' : '.agents/skills';
+    const dir = agent === "claude" ? ".claude/skills" : ".agents/skills";
     const skillNames = names ?? EXPECTED_SKILLS;
     for (const name of skillNames) {
       this.withFile(
@@ -64,28 +64,28 @@ export class TestProject {
   }
 
   /** Add minimal deny and post-turn hooks for the requested agent. */
-  withHooks(agent: 'claude' | 'gemini'): this {
-    const dir = agent === 'claude' ? '.claude/hooks' : '.gemini/hooks';
-    this.withFile(`${dir}/deny-dangerous.sh`, '#!/usr/bin/env bash\nexit 0\n');
-    this.withFile(`${dir}/stop-lint.sh`, '#!/usr/bin/env bash\nexit 0\n');
+  withHooks(agent: "claude" | "gemini"): this {
+    const dir = agent === "claude" ? ".claude/hooks" : ".gemini/hooks";
+    this.withFile(`${dir}/deny-dangerous.sh`, "#!/usr/bin/env bash\nexit 0\n");
+    this.withFile(`${dir}/stop-lint.sh`, "#!/usr/bin/env bash\nexit 0\n");
     return this;
   }
 
   /** Add the minimal goat-flow config, footguns, and lessons needed by scanner tests. */
   withLearningLoop(): this {
     this.withFile(
-      '.goat-flow/config.yaml',
+      ".goat-flow/config.yaml",
       'version: "1.0.0"\nfootguns:\n  path: .goat-flow/footguns/\nlessons:\n  path: .goat-flow/lessons/\ndecisions:\n  path: .goat-flow/decisions/\ntasks:\n  path: .goat-flow/tasks/\nskills:\n  install: all\n',
     );
-    this.withFile('.goat-flow/footguns/README.md', '# Footguns\n');
+    this.withFile(".goat-flow/footguns/README.md", "# Footguns\n");
     this.withFile(
-      '.goat-flow/footguns/example.md',
-      '---\nname: Example footgun\nstatus: active\ncreated: 2026-01-01\nevidence_type: ACTUAL_MEASURED\n---\n\n**Evidence:**\n- `src/auth.ts:42` - broke login\n',
+      ".goat-flow/footguns/example.md",
+      "---\nname: Example footgun\nstatus: active\ncreated: 2026-01-01\nevidence_type: ACTUAL_MEASURED\n---\n\n**Evidence:**\n- `src/auth.ts:42` - broke login\n",
     );
-    this.withFile('.goat-flow/lessons/README.md', '# Lessons\n');
+    this.withFile(".goat-flow/lessons/README.md", "# Lessons\n");
     this.withFile(
-      '.goat-flow/lessons/2026-01-01-entry-1.md',
-      '---\nname: Entry 1\ncreated: 2026-01-01\n---\n\n**What happened:** something\n',
+      ".goat-flow/lessons/2026-01-01-entry-1.md",
+      "---\nname: Entry 1\ncreated: 2026-01-01\n---\n\n**What happened:** something\n",
     );
     return this;
   }
@@ -93,22 +93,22 @@ export class TestProject {
   /** Add a non-trivial architecture document. */
   withArchitecture(): this {
     return this.withFile(
-      '.goat-flow/architecture.md',
-      '# Architecture\n\n' + 'System overview.\n'.repeat(10),
+      ".goat-flow/architecture.md",
+      "# Architecture\n\n" + "System overview.\n".repeat(10),
     );
   }
 
   /** Add the shared handoff template expected by scanner checks. */
   withHandoff(): this {
     return this.withFile(
-      '.goat-flow/tasks/handoff-template.md',
-      '# Handoff Template\n\n## Date\n\n## Status\n\n## Current State\n\n## Key Decisions\n\n## Errors & Corrections\n\n## Learnings\n\n## Known Risks\n\n## Next Step\n\n## Context Files\n',
+      ".goat-flow/tasks/handoff-template.md",
+      "# Handoff Template\n\n## Date\n\n## Status\n\n## Current State\n\n## Key Decisions\n\n## Errors & Corrections\n\n## Learnings\n\n## Known Risks\n\n## Next Step\n\n## Context Files\n",
     );
   }
 
   /** Materialize the queued files into a temporary directory and return a cleanup hook. */
   create(): { root: string; cleanup: () => void } {
-    const root = mkdtempSync(join(tmpdir(), 'goat-flow-test-'));
+    const root = mkdtempSync(join(tmpdir(), "goat-flow-test-"));
 
     for (const [path, content] of this.files) {
       const fullPath = join(root, path);

@@ -7,19 +7,15 @@ import type {
   AgentId,
   AgentReport,
   ProjectSignals,
-} from '../types.js';
-import { SKILL_NAMES } from '../constants.js';
-import type {
-  PromptVariables,
-  FragmentPhase,
-  SetupTask,
-} from './types.js';
-import { getFragment } from './registry.js';
-import { extractTemplateVars, fillTemplate } from './template-filler.js';
-import { PROFILES } from '../detect/agents.js';
-import { getTemplatePath, getCliCommand } from '../paths.js';
-import { classifyProjectState } from '../classify-state.js';
-import { createFS } from '../facts/fs.js';
+} from "../types.js";
+import { SKILL_NAMES } from "../constants.js";
+import type { PromptVariables, FragmentPhase, SetupTask } from "./types.js";
+import { getFragment } from "./registry.js";
+import { extractTemplateVars, fillTemplate } from "./template-filler.js";
+import { PROFILES } from "../detect/agents.js";
+import { getTemplatePath, getCliCommand } from "../paths.js";
+import { classifyProjectState } from "../classify-state.js";
+import { createFS } from "../facts/fs.js";
 import {
   getAgentTemplates,
   validateTemplateRefs,
@@ -27,7 +23,7 @@ import {
   mapSignalsToTemplates,
   getFragmentTemplate,
   getLanguageTemplate,
-} from './template-refs.js';
+} from "./template-refs.js";
 
 /** Projects at or above this percentage get the short fix list instead of targeted fix */
 const SHORT_FIX_THRESHOLD = 90;
@@ -44,17 +40,17 @@ function formatStaticAnalysisTools(
         ? `${signal.tool} level ${signal.level}`
         : `${signal.tool} (${signal.level})`;
     })
-    .join(', ');
+    .join(", ");
 }
 
 /** Collect signal summary parts. */
 function collectSignalSummaryParts(signals: ProjectSignals): string[] {
   const parts: string[] = [];
   if (signals.codeGenTools.length > 0)
-    parts.push(`**Code gen:** ${signals.codeGenTools.join(', ')}`);
+    parts.push(`**Code gen:** ${signals.codeGenTools.join(", ")}`);
   if (signals.deployPlatforms.length > 0)
-    parts.push(`**Deploy:** ${signals.deployPlatforms.join(', ')}`);
-  if (signals.llmIntegration) parts.push('**LLM integration detected**');
+    parts.push(`**Deploy:** ${signals.deployPlatforms.join(", ")}`);
+  if (signals.llmIntegration) parts.push("**LLM integration detected**");
   if (signals.staticAnalysis.length > 0)
     parts.push(
       `**Static analysis:** ${formatStaticAnalysisTools(signals, false)}`,
@@ -83,31 +79,31 @@ function collectSignalActionLines(signals: ProjectSignals): string[] {
 function renderSignals(lines: string[], signals: ProjectSignals): void {
   const parts = collectSignalSummaryParts(signals);
   if (parts.length > 0) {
-    lines.push('');
-    lines.push(parts.join(' | '));
+    lines.push("");
+    lines.push(parts.join(" | "));
   }
 
   const actions = collectSignalActionLines(signals);
   if (actions.length > 0) {
-    lines.push('');
-    lines.push('**Signal-driven setup tasks:**');
+    lines.push("");
+    lines.push("**Signal-driven setup tasks:**");
     lines.push(...actions);
   }
 }
 
 /** Anti-patterns are rendered before tiers so critical issues surface at the top of the fix list. */
 const PHASE_ORDER: FragmentPhase[] = [
-  'anti-pattern',
-  'foundation',
-  'standard',
-  'full',
+  "anti-pattern",
+  "foundation",
+  "standard",
+  "full",
 ];
 /** Human-readable heading text for each setup phase. */
 const PHASE_HEADINGS: Record<FragmentPhase, string> = {
-  'anti-pattern': 'Critical: Anti-Pattern Fixes',
-  foundation: 'Phase 1: Foundation',
-  standard: 'Phase 2: Standard',
-  full: 'Phase 3: Full',
+  "anti-pattern": "Critical: Anti-Pattern Fixes",
+  foundation: "Phase 1: Foundation",
+  standard: "Phase 2: Standard",
+  full: "Phase 3: Full",
 };
 
 /**
@@ -157,51 +153,51 @@ function renderAllPass(
   const profile = PROFILES[agentId];
   const lines: string[] = [];
   lines.push(`# GOAT Flow Setup - ${profile.name}`);
-  lines.push('');
+  lines.push("");
   lines.push(
     `All checks pass (${agentReport.score.grade}, ${agentReport.score.percentage}%).`,
   );
-  lines.push('');
+  lines.push("");
 
   // Summary of what's installed
   const facts = report?.agents.find((a) => a.agent === agentId);
   if (facts) {
     const checks = agentReport.checks;
     const skillCount = checks.filter(
-      (c) => c.category === 'Skills' && c.status === 'pass',
+      (c) => c.category === "Skills" && c.status === "pass",
     ).length;
     const hookCount = [
-      checks.find((c) => c.id === '2.2.1')?.status === 'pass',
-      checks.find((c) => c.id === '2.2.3')?.status === 'pass',
-      checks.find((c) => c.id === '2.2.4')?.status === 'pass',
+      checks.find((c) => c.id === "2.2.1")?.status === "pass",
+      checks.find((c) => c.id === "2.2.3")?.status === "pass",
+      checks.find((c) => c.id === "2.2.4")?.status === "pass",
     ].filter(Boolean).length;
 
-    lines.push('**Installed:**');
+    lines.push("**Installed:**");
     if (skillCount > 0) lines.push(`- ${skillCount} skill checks passing`);
     if (hookCount > 0)
       lines.push(`- ${hookCount} hooks (deny, stop-lint, format)`);
     lines.push(
       `- Score: ${agentReport.score.tiers.foundation.earned}/${agentReport.score.tiers.foundation.available} foundation, ${agentReport.score.tiers.standard.earned}/${agentReport.score.tiers.standard.available} standard, ${agentReport.score.tiers.full.earned}/${agentReport.score.tiers.full.available} full`,
     );
-    lines.push('');
+    lines.push("");
   }
 
-  lines.push('**Maintenance:**');
+  lines.push("**Maintenance:**");
   lines.push(
-    '- After upgrading goat-flow, re-run `goat-flow setup` to check for new checks',
+    "- After upgrading goat-flow, re-run `goat-flow setup` to check for new checks",
   );
-  lines.push('- Run `goat-flow scan --min-score 90` in CI to catch drift');
+  lines.push("- Run `goat-flow scan --min-score 90` in CI to catch drift");
   lines.push(
-    '- Review `.goat-flow/footguns/` and `.goat-flow/lessons/` after incidents',
+    "- Review `.goat-flow/footguns/` and `.goat-flow/lessons/` after incidents",
   );
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /** Return triggered anti patterns. */
 function getTriggeredAntiPatterns(
   agentReport: AgentReport,
-): AgentReport['antiPatterns'] {
+): AgentReport["antiPatterns"] {
   return agentReport.antiPatterns.filter((ap) => ap.triggered);
 }
 
@@ -241,10 +237,10 @@ function renderShortFixItem(
   vars: PromptVariables,
 ): string | null {
   const fragment = getFragment(key);
-  if (!fragment || fragment.phase === 'anti-pattern') return null;
+  if (!fragment || fragment.phase === "anti-pattern") return null;
 
   const isSkillQuality =
-    key.startsWith('add-skill-') || key === 'create-all-skills';
+    key.startsWith("add-skill-") || key === "create-all-skills";
   const templatePath = isSkillQuality
     ? null
     : getFragmentTemplate(key, agentId);
@@ -259,7 +255,7 @@ function renderShortFixItem(
 
   const override = fragment.agentOverrides?.[agentId];
   const instruction = fillTemplate(override ?? fragment.instruction, vars);
-  return `- **${fragment.category}**: ${instruction.split('\n')[0] ?? ''}`;
+  return `- **${fragment.category}**: ${instruction.split("\n")[0] ?? ""}`;
 }
 
 /** Render short fix items. */
@@ -279,15 +275,15 @@ function renderShortFixItems(
 /** Render triggered anti pattern fixes. */
 function renderTriggeredAntiPatternFixes(
   lines: string[],
-  triggered: AgentReport['antiPatterns'],
+  triggered: AgentReport["antiPatterns"],
   agentId: AgentId,
   vars: PromptVariables,
 ): void {
   if (triggered.length === 0) return;
 
-  lines.push('');
-  lines.push('**Anti-patterns to fix:**');
-  lines.push('');
+  lines.push("");
+  lines.push("**Anti-patterns to fix:**");
+  lines.push("");
   for (const antiPattern of triggered) {
     const fragment = antiPattern.recommendationKey
       ? getFragment(antiPattern.recommendationKey)
@@ -302,13 +298,13 @@ function renderTriggeredAntiPatternFixes(
     lines.push(
       `### ${antiPattern.id}: ${antiPattern.name} (${antiPattern.deduction} pts)`,
     );
-    lines.push('');
+    lines.push("");
     if (antiPattern.evidence) {
       lines.push(`**Evidence:** ${antiPattern.evidence}`);
-      lines.push('');
+      lines.push("");
     }
     lines.push(instruction);
-    lines.push('');
+    lines.push("");
   }
 }
 
@@ -329,29 +325,29 @@ function renderShortFix(
   const triggered = getTriggeredAntiPatterns(agentReport);
 
   lines.push(`# GOAT Flow Setup - ${profile.name}`);
-  lines.push('');
+  lines.push("");
   lines.push(
     renderShortFixSummaryLine(agentReport, vars.failedCount, triggered.length),
   );
   renderSignals(lines, report.stack.signals);
-  lines.push('');
+  lines.push("");
 
   if (neededKeys.size === 0 && triggered.length === 0) {
-    lines.push('No actionable fixes found.');
-    return lines.join('\n');
+    lines.push("No actionable fixes found.");
+    return lines.join("\n");
   }
 
   renderShortFixItems(lines, neededKeys, agentId, agentReport, vars);
   renderTriggeredAntiPatternFixes(lines, triggered, agentId, vars);
 
-  lines.push('');
+  lines.push("");
   lines.push(`**Target: 100% with zero anti-pattern deductions.**`);
   lines.push(`Re-run: \`${getCliCommand()} scan . --agent ${agentId}\``);
   lines.push(
     `If not 100%, run \`${getCliCommand()} setup . --agent ${agentId}\` for fix instructions. Repeat until 100% (max 3 cycles).`,
   );
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -375,7 +371,7 @@ interface TargetedInlineFragment {
 function buildCommandSummary(
   parts: Array<string | false | null | undefined>,
 ): string {
-  return parts.filter(Boolean).join(' | ');
+  return parts.filter(Boolean).join(" | ");
 }
 
 /** Render targeted fix header. */
@@ -386,14 +382,14 @@ function renderTargetedFixHeader(
   vars: PromptVariables,
 ): void {
   lines.push(`# GOAT Flow Setup - ${profileName}`);
-  lines.push('');
+  lines.push("");
   lines.push(
     `This project scores **${agentReport.score.grade}** (${agentReport.score.percentage}%) for ${profileName}.`,
   );
   lines.push(
     `**${vars.failedCount}** checks need attention out of ${vars.totalCount} total.`,
   );
-  lines.push('');
+  lines.push("");
   lines.push(`**Stack:** ${vars.languages}`);
   const commands = buildCommandSummary([
     vars.buildCommand && `**Build:** \`${vars.buildCommand}\``,
@@ -401,7 +397,7 @@ function renderTargetedFixHeader(
     vars.lintCommand && `**Lint:** \`${vars.lintCommand}\``,
   ]);
   if (commands) lines.push(commands);
-  lines.push('');
+  lines.push("");
 }
 
 /** Collect phase fixes. */
@@ -455,14 +451,14 @@ function renderSkillTemplateTasks(
   lines.push(
     `**Missing Skills (${refs.length} of ${SKILL_NAMES.length})** - create in \`${PROFILES[agentId].skillsDir}/{skill-name}/SKILL.md\``,
   );
-  lines.push('');
+  lines.push("");
   let taskNum = 1;
 
   for (const ref of refs) {
     const name =
-      ref.key === 'create-skill-goat'
-        ? 'goat'
-        : ref.key.replace('create-skill-', 'goat-');
+      ref.key === "create-skill-goat"
+        ? "goat"
+        : ref.key.replace("create-skill-", "goat-");
     const outputPath = `${PROFILES[agentId].skillsDir}/${name}/SKILL.md`;
     lines.push(
       renderTask({
@@ -473,7 +469,7 @@ function renderSkillTemplateTasks(
         verify: defaultVerify(outputPath),
       }),
     );
-    lines.push('');
+    lines.push("");
   }
 
   return taskNum;
@@ -489,11 +485,11 @@ function renderNonSkillTemplateTasks(
   let taskNum = startTaskNum;
 
   for (const ref of refs) {
-    if (ref.key.startsWith('add-skill-') || ref.key === 'create-all-skills')
+    if (ref.key.startsWith("add-skill-") || ref.key === "create-all-skills")
       continue;
     const outputPath =
       getFragment(ref.key)?.category ??
-      ref.key.replace(/^create-/, '').replace(/-/g, '/');
+      ref.key.replace(/^create-/, "").replace(/-/g, "/");
     lines.push(
       renderTask({
         num: taskNum++,
@@ -503,7 +499,7 @@ function renderNonSkillTemplateTasks(
         verify: defaultVerify(ref.key),
       }),
     );
-    lines.push('');
+    lines.push("");
   }
 }
 
@@ -514,7 +510,7 @@ function renderInlineTargetedFragments(
 ): void {
   for (const fragment of fragments) {
     lines.push(fragment.instruction);
-    lines.push('');
+    lines.push("");
   }
 }
 
@@ -524,17 +520,17 @@ function renderStandardPhaseNotes(
   phase: FragmentPhase,
   vars: PromptVariables,
 ): void {
-  if (phase !== 'standard') return;
+  if (phase !== "standard") return;
 
   lines.push(
-    '**Skill quality check** - every skill MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**, **Chaining**. No placeholder text.',
+    "**Skill quality check** - every skill MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**, **Chaining**. No placeholder text.",
   );
-  lines.push('');
-  if (vars.languages && vars.languages !== 'unknown') {
+  lines.push("");
+  if (vars.languages && vars.languages !== "unknown") {
     lines.push(
       `**Adaptation for this project:** Replace template Step 0 questions with questions about ${vars.languages} patterns. Replace template examples with patterns from this codebase. Do NOT leave placeholder text like "[Step 1]" or "[describe X]".`,
     );
-    lines.push('');
+    lines.push("");
   }
 }
 
@@ -544,9 +540,9 @@ function renderPhaseGate(
   phase: FragmentPhase,
   agentId: AgentId,
 ): void {
-  if (phase === 'anti-pattern') return;
+  if (phase === "anti-pattern") return;
   lines.push(`**GATE:** Run \`${getCliCommand()} scan . --agent ${agentId}\``);
-  lines.push('');
+  lines.push("");
 }
 
 /** Render targeted phase. */
@@ -561,12 +557,12 @@ function renderTargetedPhase(
   if (templateRefs.length === 0 && inlineFragments.length === 0) return;
 
   lines.push(`## ${PHASE_HEADINGS[phase]}`);
-  lines.push('');
+  lines.push("");
   const skillRefs = templateRefs.filter((ref) =>
-    ref.key.startsWith('create-skill-'),
+    ref.key.startsWith("create-skill-"),
   );
   const nonSkillRefs = templateRefs.filter(
-    (ref) => !ref.key.startsWith('create-skill-'),
+    (ref) => !ref.key.startsWith("create-skill-"),
   );
   const nextTaskNum = renderSkillTemplateTasks(
     lines,
@@ -610,24 +606,24 @@ function renderTargetedFix(
     );
   }
 
-  lines.push('---');
-  lines.push('');
+  lines.push("---");
+  lines.push("");
   lines.push(
     `After completing fixes, re-run \`${getCliCommand()} setup . --agent ${agentId}\` to check for remaining issues.`,
   );
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /** Format a task as a numbered markdown block with read/adapt/verify steps, used inside phase sections. */
 function renderTask(task: SetupTask): string {
   const lines: string[] = [];
   lines.push(`### Task ${task.num}: Create \`${task.outputPath}\``);
-  lines.push('');
+  lines.push("");
   lines.push(`1. **Read template:** ${task.templatePath}`);
   lines.push(`2. **Adapt:** ${task.adapt}`);
   lines.push(`3. **Verify:** ${task.verify}`);
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /** Return human-readable adapt instructions for a task, choosing path-specific guidance (skills, config, footguns, etc.) or falling back to a generic message. */
@@ -637,40 +633,40 @@ function defaultAdaptGuidance(
   languages: string,
 ): string {
   // Path-specific guidance takes precedence over generic notes
-  if (output.includes('/skills/'))
+  if (output.includes("/skills/"))
     return `Replace template Step 0 questions and examples with ${languages} patterns from this project`;
-  if (output === '.goat-flow/config.yaml')
-    return 'Use the default directory paths unless this project already needs explicit overrides.';
-  if (output === '.goat-flow/footguns/')
-    return 'Seed `.goat-flow/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals. For EVERY cited file:line: read the actual code and verify the claim - does the method exist? Does the exception type match? Does the risk description match actual behavior? Flag any footgun where cited behavior does not match the code as UNVERIFIED';
-  if (output === '.goat-flow/lessons/')
-    return 'Seed `.goat-flow/lessons/` with category bucket files. Use `category:` frontmatter on the file and `## Lesson:` / `## Pattern:` entries from real incidents';
-  if (output === '.goat-flow/architecture.md')
-    return 'Read project entry points and main directories. Document what exists - under 100 lines, no aspirational content';
-  if (output.includes('instructions/'))
+  if (output === ".goat-flow/config.yaml")
+    return "Use the default directory paths unless this project already needs explicit overrides.";
+  if (output === ".goat-flow/footguns/")
+    return "Seed `.goat-flow/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals. For EVERY cited file:line: read the actual code and verify the claim - does the method exist? Does the exception type match? Does the risk description match actual behavior? Flag any footgun where cited behavior does not match the code as UNVERIFIED";
+  if (output === ".goat-flow/lessons/")
+    return "Seed `.goat-flow/lessons/` with category bucket files. Use `category:` frontmatter on the file and `## Lesson:` / `## Pattern:` entries from real incidents";
+  if (output === ".goat-flow/architecture.md")
+    return "Read project entry points and main directories. Document what exists - under 100 lines, no aspirational content";
+  if (output.includes("instructions/"))
     return `Adapt for this project's ${languages} patterns. Replace generic examples with real patterns from the codebase`;
   // Fall back to template ref note or generic
   if (note) return note;
-  return 'Adapt template for this project - replace generic examples with real project patterns';
+  return "Adapt template for this project - replace generic examples with real project patterns";
 }
 
 /** Return the verify instruction shown in step 3 of a task, matched to output type (skill, config, shell, JSON, etc.). */
 function defaultVerify(output: string): string {
-  if (output.includes('/skills/'))
-    return 'File has: When to Use, Process with human gates, Constraints, Output Format, Chaining sections';
-  if (output === '.goat-flow/config.yaml')
-    return 'File exists, parses as YAML, and includes version plus footguns/lessons/decisions/tasks/logs/agents/skills settings';
-  if (output === '.goat-flow/footguns/')
-    return 'Directory exists with README.md plus 1+ category bucket files using `category:` frontmatter and `path:line` evidence inside `## Footgun:` entries';
-  if (output === '.goat-flow/lessons/')
-    return 'Directory exists with README.md plus 1+ category bucket files using `category:` frontmatter and `## Lesson:` / `## Pattern:` entries';
-  if (output === '.goat-flow/architecture.md')
-    return 'File exists and is under 100 lines';
-  if (output.endsWith('.sh'))
-    return '`bash -n <file>` passes (no syntax errors)';
-  if (output.endsWith('.json')) return 'Valid JSON (no parse errors)';
-  if (output.endsWith('.yml')) return 'Valid YAML';
-  return 'File exists and has project-specific content (not placeholder text)';
+  if (output.includes("/skills/"))
+    return "File has: When to Use, Process with human gates, Constraints, Output Format, Chaining sections";
+  if (output === ".goat-flow/config.yaml")
+    return "File exists, parses as YAML, and includes version plus footguns/lessons/decisions/tasks/logs/agents/skills settings";
+  if (output === ".goat-flow/footguns/")
+    return "Directory exists with README.md plus 1+ category bucket files using `category:` frontmatter and `path:line` evidence inside `## Footgun:` entries";
+  if (output === ".goat-flow/lessons/")
+    return "Directory exists with README.md plus 1+ category bucket files using `category:` frontmatter and `## Lesson:` / `## Pattern:` entries";
+  if (output === ".goat-flow/architecture.md")
+    return "File exists and is under 100 lines";
+  if (output.endsWith(".sh"))
+    return "`bash -n <file>` passes (no syntax errors)";
+  if (output.endsWith(".json")) return "Valid JSON (no parse errors)";
+  if (output.endsWith(".yml")) return "Valid YAML";
+  return "File exists and has project-specific content (not placeholder text)";
 }
 
 // renderFullSetup removed - all new/low-scoring projects use renderSetupRedirect
@@ -687,7 +683,7 @@ function validateMultiAgentTemplateRefs(agentIds: AgentId[]): void {
     if (missing.length === 0) continue;
     const list = missing
       .map((path) => `  - ${getTemplatePath(path)}`)
-      .join('\n');
+      .join("\n");
     throw new Error(
       `Missing template files for ${id} setup:\n${list}\nRe-install goat-flow or check the installation.`,
     );
@@ -697,7 +693,7 @@ function validateMultiAgentTemplateRefs(agentIds: AgentId[]): void {
 /** Render multi agent intro. */
 function renderMultiAgentIntro(lines: string[], report: ScanReport): string {
   const stack = report.stack;
-  const languages = stack.languages.join(', ') || 'unknown';
+  const languages = stack.languages.join(", ") || "unknown";
   const commands = buildCommandSummary([
     stack.buildCommand && `Build: ${stack.buildCommand}`,
     stack.testCommand && `Test: ${stack.testCommand}`,
@@ -705,36 +701,36 @@ function renderMultiAgentIntro(lines: string[], report: ScanReport): string {
     stack.formatCommand && `Format: ${stack.formatCommand}`,
   ]);
 
-  lines.push('# GOAT Flow Setup - All Agents');
-  lines.push('');
+  lines.push("# GOAT Flow Setup - All Agents");
+  lines.push("");
   lines.push(`Stack: ${languages}`);
   if (commands) lines.push(commands);
   renderSignals(lines, stack.signals);
-  lines.push('');
-  lines.push('## How this works');
-  lines.push('');
+  lines.push("");
+  lines.push("## How this works");
+  lines.push("");
   lines.push(
-    'This prompt references template files in the goat-flow project. For each phase:',
+    "This prompt references template files in the goat-flow project. For each phase:",
   );
-  lines.push('1. Read the referenced template file');
+  lines.push("1. Read the referenced template file");
   lines.push(
-    '2. Adapt it for THIS project (use the detected stack info above)',
+    "2. Adapt it for THIS project (use the detected stack info above)",
   );
-  lines.push('3. Create the output file in THIS project');
+  lines.push("3. Create the output file in THIS project");
   lines.push("4. Verify it meets the template's requirements");
-  lines.push('');
+  lines.push("");
   lines.push(
     `If any template path below is missing, run \`${getCliCommand()} setup\` again to get updated paths.`,
   );
-  lines.push('');
+  lines.push("");
 
   return languages;
 }
 
 /** Normalize shared output path. */
 function normalizeSharedOutputPath(output: string): string {
-  return output.includes('/skills/')
-    ? output.replace(/\.[^/]+\/skills\//, '{skills_dir}/')
+  return output.includes("/skills/")
+    ? output.replace(/\.[^/]+\/skills\//, "{skills_dir}/")
     : output;
 }
 
@@ -756,7 +752,7 @@ function renderMultiAgentTaskList(
         verify: defaultVerify(output),
       }),
     );
-    lines.push('');
+    lines.push("");
   }
 }
 
@@ -770,14 +766,14 @@ function renderMultiAgentFoundationSections(
     const profile = PROFILES[agentId];
     const templates = getAgentTemplates(agentId);
     const foundationRefs = templates.filter(
-      (ref) => ref.phase === 'foundation' && !ref.output.startsWith('('),
+      (ref) => ref.phase === "foundation" && !ref.output.startsWith("("),
     );
     const guideRef = templates.find(
-      (ref) => ref.output.startsWith('(') && ref.phase === 'foundation',
+      (ref) => ref.output.startsWith("(") && ref.phase === "foundation",
     );
 
     lines.push(`## ${profile.name} - Foundation`);
-    lines.push('');
+    lines.push("");
     let taskNum = 1;
     for (const ref of foundationRefs) {
       lines.push(
@@ -789,13 +785,13 @@ function renderMultiAgentFoundationSections(
           verify: defaultVerify(ref.output),
         }),
       );
-      lines.push('');
+      lines.push("");
     }
     if (guideRef) {
       lines.push(
         `> **Agent-specific details:** Also read ${getTemplatePath(guideRef.template)} (foundation section)`,
       );
-      lines.push('');
+      lines.push("");
     }
   }
 }
@@ -810,20 +806,20 @@ function renderMultiAgentSharedSection(
   includeSkillNote: boolean,
 ): void {
   lines.push(heading);
-  lines.push('');
+  lines.push("");
   renderMultiAgentTaskList(lines, refs, languages);
   if (includeSkillNote) {
     lines.push(
       "Skills go in each agent's skills directory: `.claude/skills/`, `.agents/skills/`",
     );
-    lines.push('');
+    lines.push("");
     lines.push(
-      '**Skill quality check** - every skill file MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**, **Chaining**. No placeholder text.',
+      "**Skill quality check** - every skill file MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**, **Chaining**. No placeholder text.",
     );
-    lines.push('');
+    lines.push("");
   }
   lines.push(gateText);
-  lines.push('');
+  lines.push("");
 }
 
 /**
@@ -840,7 +836,7 @@ export function composeMultiAgentSetup(
   const lines: string[] = [];
   const languages = renderMultiAgentIntro(lines, report);
   const firstId = agentIds[0];
-  if (!firstId) return lines.join('\n');
+  if (!firstId) return lines.join("\n");
   const allRefs = getAgentTemplates(firstId);
   const languageRefs = mapLanguagesToTemplates(report.stack.languages);
   const signalRefs = mapSignalsToTemplates(
@@ -848,20 +844,20 @@ export function composeMultiAgentSetup(
     report.stack.languages,
   );
   const standardShared = allRefs.filter(
-    (r) => r.phase === 'standard' && !r.output.startsWith('('),
+    (r) => r.phase === "standard" && !r.output.startsWith("("),
   );
   const fullShared = allRefs.filter(
-    (r) => r.phase === 'full' && !r.output.startsWith('('),
+    (r) => r.phase === "full" && !r.output.startsWith("("),
   );
 
   renderMultiAgentFoundationSections(lines, agentIds, languages);
   lines.push(
     `**GATE:** Run \`${getCliCommand()} scan .\` - foundation tier must be 100% for all agents.`,
   );
-  lines.push('');
+  lines.push("");
   renderMultiAgentSharedSection(
     lines,
-    '## Standard (shared across all agents)',
+    "## Standard (shared across all agents)",
     [...standardShared, ...languageRefs, ...signalRefs],
     languages,
     `**GATE:** Run \`${getCliCommand()} scan .\` - standard tier must be 100% for all agents.`,
@@ -869,20 +865,20 @@ export function composeMultiAgentSetup(
   );
   renderMultiAgentSharedSection(
     lines,
-    '## Full (shared across all agents)',
+    "## Full (shared across all agents)",
     fullShared,
     languages,
     `**GATE:** Run \`${getCliCommand()} scan .\` - target 100% across all agents.`,
     false,
   );
 
-  lines.push('---');
-  lines.push('');
+  lines.push("---");
+  lines.push("");
   lines.push(
     `After completing all phases, run \`${getCliCommand()} setup .\` to check for remaining issues.`,
   );
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -891,9 +887,9 @@ export function composeMultiAgentSetup(
 
 /** Lookup from agent ID to its setup guide in the goat-flow templates directory. */
 const SETUP_FILES: Record<AgentId, string> = {
-  claude: 'workflow/setup/agents/claude.md',
-  codex: 'workflow/setup/agents/codex.md',
-  gemini: 'workflow/setup/agents/gemini.md',
+  claude: "workflow/setup/agents/claude.md",
+  codex: "workflow/setup/agents/codex.md",
+  gemini: "workflow/setup/agents/gemini.md",
 };
 
 /** Render setup redirect. */
@@ -906,46 +902,42 @@ function renderSetupRedirect(
   const profile = PROFILES[agentId];
   const setupFile = getTemplatePath(SETUP_FILES[agentId]);
   const stack = report.stack;
-  const languages = stack.languages.join(', ') || 'unknown';
+  const languages = stack.languages.join(", ") || "unknown";
   const lines: string[] = [];
 
   // State-aware routing: classify project and branch on adoption state
   const projectFS = createFS(report.target);
   const projectState = classifyProjectState(projectFS);
 
-  if (projectState.state === 'v1.1') {
+  if (projectState.state === "v1.1") {
     // Current version — just scan and fix
     lines.push(`# GOAT Flow Setup - ${profile.name}`);
-    lines.push('');
-    lines.push('## This project is already on the current goat-flow version');
-    lines.push('');
+    lines.push("");
+    lines.push("## This project is already on the current goat-flow version");
+    lines.push("");
     lines.push(
       `Run \`${getCliCommand()} scan . --agent ${agentId}\` and fix any failing checks.`,
     );
-    lines.push('No setup changes needed — the project is up to date.');
-    lines.push('');
-    return lines.join('\n');
+    lines.push("No setup changes needed — the project is up to date.");
+    lines.push("");
+    return lines.join("\n");
   }
 
-  if (projectState.state === 'v1.0') {
+  if (projectState.state === "v1.0") {
     lines.push(`# GOAT Flow Upgrade - ${profile.name}`);
-    lines.push('');
-    lines.push('## Upgrade from v1.0 to current');
-    lines.push('');
+    lines.push("");
+    lines.push("## Upgrade from v1.0 to current");
+    lines.push("");
+    lines.push("This project has goat-flow v1.0. Follow the upgrade path:");
+    lines.push("Read and implement `workflow/setup/upgrade-from-1.0.x.md`.");
+    lines.push("");
     lines.push(
-      'This project has goat-flow v1.0. Follow the upgrade path:',
+      "Key changes: install `.goat-flow/skill-conventions.md`, update skills to use 7-line fallback,",
     );
     lines.push(
-      'Read and implement `workflow/setup/upgrade-1.0.0.md`.',
+      "remove handoff-template.md/todo.md/handoff.md, update instruction file Working Memory section.",
     );
-    lines.push('');
-    lines.push(
-      'Key changes: install `.goat-flow/skill-conventions.md`, update skills to use 7-line fallback,',
-    );
-    lines.push(
-      'remove handoff-template.md/todo.md/handoff.md, update instruction file Working Memory section.',
-    );
-    lines.push('');
+    lines.push("");
     lines.push(`**Stack:** ${languages}`);
     const v10Cmds = [
       stack.buildCommand && `**Build:** \`${stack.buildCommand}\``,
@@ -953,45 +945,43 @@ function renderSetupRedirect(
       stack.lintCommand && `**Lint:** \`${stack.lintCommand}\``,
     ]
       .filter(Boolean)
-      .join(' | ');
+      .join(" | ");
     if (v10Cmds) lines.push(v10Cmds);
     renderSignals(lines, stack.signals);
-    lines.push('');
+    lines.push("");
     if (report.stack.signals?.llmIntegration === true) {
       lines.push(
-        '**LLM integration detected.** Ensure Ask First boundaries and router table include prompt/template files.',
+        "**LLM integration detected.** Ensure Ask First boundaries and router table include prompt/template files.",
       );
-      lines.push('');
+      lines.push("");
     }
     const v10SetupFile = SETUP_FILES[agentId];
     if (v10SetupFile) {
       lines.push(
         `For ${profile.name}-specific hooks and settings, also read: \`${v10SetupFile}\``,
       );
-      lines.push('');
+      lines.push("");
     }
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
-  if (projectState.state === 'v0.9') {
+  if (projectState.state === "v0.9") {
     lines.push(`# GOAT Flow Migration - ${profile.name}`);
-    lines.push('');
-    lines.push('## Migration from v0.9 to current');
-    lines.push('');
+    lines.push("");
+    lines.push("## Migration from v0.9 to current");
+    lines.push("");
     lines.push(
-      'This project has old goat-flow skills (v0.9 era). Follow the migration path:',
+      "This project has old goat-flow skills (v0.9 era). Follow the migration path:",
+    );
+    lines.push("Read and implement `workflow/setup/upgrade-from-0.9.x.md`.");
+    lines.push("");
+    lines.push(
+      "Key changes: consolidate 10 old skills to 5+dispatcher, migrate docs/footguns.md → .goat-flow/footguns/,",
     );
     lines.push(
-      'Read and implement `workflow/setup/upgrade-0.9.x.md`.',
+      "docs/lessons.md → .goat-flow/lessons/, create .goat-flow/config.yaml, install skill-conventions.md.",
     );
-    lines.push('');
-    lines.push(
-      'Key changes: consolidate 10 old skills to 5+dispatcher, migrate docs/footguns.md → .goat-flow/footguns/,',
-    );
-    lines.push(
-      'docs/lessons.md → .goat-flow/lessons/, create .goat-flow/config.yaml, install skill-conventions.md.',
-    );
-    lines.push('');
+    lines.push("");
     lines.push(`**Stack:** ${languages}`);
     const v09Cmds = [
       stack.buildCommand && `**Build:** \`${stack.buildCommand}\``,
@@ -999,34 +989,34 @@ function renderSetupRedirect(
       stack.lintCommand && `**Lint:** \`${stack.lintCommand}\``,
     ]
       .filter(Boolean)
-      .join(' | ');
+      .join(" | ");
     if (v09Cmds) lines.push(v09Cmds);
     renderSignals(lines, stack.signals);
-    lines.push('');
+    lines.push("");
     if (report.stack.signals?.llmIntegration === true) {
       lines.push(
-        '**LLM integration detected.** Ensure Ask First boundaries and router table include prompt/template files.',
+        "**LLM integration detected.** Ensure Ask First boundaries and router table include prompt/template files.",
       );
-      lines.push('');
+      lines.push("");
     }
     const v09SetupFile = SETUP_FILES[agentId];
     if (v09SetupFile) {
       lines.push(
         `For ${profile.name}-specific hooks and settings, also read: \`${v09SetupFile}\``,
       );
-      lines.push('');
+      lines.push("");
     }
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   // For bare/partial/error states, render the standard header
   if (
-    projectState.state === 'bare' ||
-    projectState.state === 'partial' ||
-    projectState.state === 'error'
+    projectState.state === "bare" ||
+    projectState.state === "partial" ||
+    projectState.state === "error"
   ) {
     lines.push(`# GOAT Flow Setup - ${profile.name}`);
-    lines.push('');
+    lines.push("");
     if (agentReport) {
       lines.push(
         `This project scores **${agentReport.score.grade}** (${agentReport.score.percentage}%) - it needs a full setup pass.`,
@@ -1036,7 +1026,7 @@ function renderSetupRedirect(
         `No ${profile.name} configuration detected - this project needs a full setup.`,
       );
     }
-    lines.push('');
+    lines.push("");
   }
 
   // Project context - detected stack info
@@ -1047,244 +1037,234 @@ function renderSetupRedirect(
     stack.lintCommand && `**Lint:** \`${stack.lintCommand}\``,
   ]
     .filter(Boolean)
-    .join(' | ');
+    .join(" | ");
   if (cmds) lines.push(cmds);
   renderSignals(lines, stack.signals);
-  lines.push('');
+  lines.push("");
 
   // Check for LLM integration signal
   const hasLLM = report.stack.signals?.llmIntegration === true;
   if (hasLLM) {
-    lines.push('## LLM Integration Detected');
-    lines.push('');
+    lines.push("## LLM Integration Detected");
+    lines.push("");
     lines.push(
-      'This project integrates with LLM providers (Anthropic, OpenAI, Strands, LangChain, or similar).',
+      "This project integrates with LLM providers (Anthropic, OpenAI, Strands, LangChain, or similar).",
     );
-    lines.push('Setup MUST account for this:');
-    lines.push('');
+    lines.push("Setup MUST account for this:");
+    lines.push("");
     lines.push(
-      '1. **Ask First boundaries** in the instruction file MUST include prompt/template files,',
-    );
-    lines.push(
-      '   system prompts, and agent configuration files. Prompt changes are behavioral changes.',
+      "1. **Ask First boundaries** in the instruction file MUST include prompt/template files,",
     );
     lines.push(
-      '2. **Router table** MUST include paths to prompt files, system prompts, and agent configs.',
+      "   system prompts, and agent configuration files. Prompt changes are behavioral changes.",
     );
     lines.push(
-      '   Agents need to know where the sensitive LLM-facing files are.',
+      "2. **Router table** MUST include paths to prompt files, system prompts, and agent configs.",
     );
     lines.push(
-      '3. **goat-security** is especially important — the threat model should cover:',
+      "   Agents need to know where the sensitive LLM-facing files are.",
     );
     lines.push(
-      '   prompt injection, output validation, credential exposure, and LLM cost controls.',
+      "3. **goat-security** is especially important — the threat model should cover:",
     );
     lines.push(
-      '4. **Footguns** should document any coupling between prompt templates and code logic',
+      "   prompt injection, output validation, credential exposure, and LLM cost controls.",
     );
     lines.push(
-      '   (e.g., if changing a system prompt breaks JSON parsing downstream).',
+      "4. **Footguns** should document any coupling between prompt templates and code logic",
     );
-    lines.push('');
+    lines.push(
+      "   (e.g., if changing a system prompt breaks JSON parsing downstream).",
+    );
+    lines.push("");
   }
 
   // Pre-instructions — only for bare/partial/error states
   // (v0.9 and v1.0 already have their upgrade header with specific instructions)
   if (
-    projectState.state === 'bare' ||
-    projectState.state === 'partial' ||
-    projectState.state === 'error'
+    projectState.state === "bare" ||
+    projectState.state === "partial" ||
+    projectState.state === "error"
   ) {
-    lines.push('## Before you start');
-    lines.push('');
-    lines.push('**Step 0 - Clean up stale artifacts (if upgrading):**');
-    lines.push('');
+    lines.push("## Before you start");
+    lines.push("");
+    lines.push("**Step 0 - Clean up stale artifacts (if upgrading):**");
+    lines.push("");
     lines.push(
-      '**Skills:** The 6 canonical skills are: `goat`, `goat-debug`, `goat-plan`, `goat-review`, `goat-security`, `goat-test`.',
+      "**Skills:** The 6 canonical skills are: `goat`, `goat-debug`, `goat-plan`, `goat-review`, `goat-security`, `goat-test`.",
     );
-    lines.push('');
+    lines.push("");
+    lines.push("Check the skills directory for stale or duplicate entries:");
     lines.push(
-      'Check the skills directory for stale or duplicate entries:',
-    );
-    lines.push(
-      '- Delete stale `goat-*` directories: `goat-investigate`, `goat-audit`, `goat-onboard`, `goat-reflect`, `goat-resume`, `goat-simplify`, `goat-refactor`, `goat-context`',
+      "- Delete stale `goat-*` directories: `goat-investigate`, `goat-audit`, `goat-onboard`, `goat-reflect`, `goat-resume`, `goat-simplify`, `goat-refactor`, `goat-context`",
     );
     lines.push(
-      '- Check for generic skill directories: `audit/`, `review/`, `preflight/`, `debug/`, `plan/`, `test/`, `security/`',
+      "- Check for generic skill directories: `audit/`, `review/`, `preflight/`, `debug/`, `plan/`, `test/`, `security/`",
     );
     lines.push(
-      '  If any exist alongside the `goat-*` version: (a) migrate unique content into the goat-* version, (b) delete the generic directory, or (c) skip if it\'s a project-specific skill unrelated to goat-flow',
+      "  If any exist alongside the `goat-*` version: (a) migrate unique content into the goat-* version, (b) delete the generic directory, or (c) skip if it's a project-specific skill unrelated to goat-flow",
     );
-    lines.push('');
+    lines.push("");
     lines.push(
-      '**Multi-agent consistency:** If multiple agent skill directories exist (`.claude/skills/`, `.agents/skills/`, `.gemini/skills/`), clean stale dirs from ALL of them - not just the agent being set up. Also update `GEMINI.md` and `AGENTS.md` if they reference deleted skills.',
+      "**Multi-agent consistency:** If multiple agent skill directories exist (`.claude/skills/`, `.agents/skills/`, `.gemini/skills/`), clean stale dirs from ALL of them - not just the agent being set up. Also update `GEMINI.md` and `AGENTS.md` if they reference deleted skills.",
     );
-    lines.push('');
+    lines.push("");
     lines.push(
-      '**Instruction files:** Check if `.github/instructions/` exists before creating `.goat-flow/coding-standards/`.',
-    );
-    lines.push(
-      '  If both would exist: (a) migrate `.github/instructions/` content into `.goat-flow/coding-standards/`, (b) replace `.github/instructions/` files with one-line imports pointing to `.goat-flow/coding-standards/`, or (c) keep `.github/instructions/` as canonical and skip `.goat-flow/coding-standards/` creation. Do NOT create overlapping content in both locations.',
-    );
-    lines.push('');
-    lines.push(
-      '**Router table:** Rewrite the Router Table in the instruction file. Remove entries pointing to deleted skills. If `.goat-flow/README.md` exists, include it as the Project Guidelines entry.',
-    );
-    lines.push('');
-    lines.push(
-      '**Dispatcher:** Replace the `/goat` dispatcher skill entirely from the goat-flow template.',
+      "**Instruction files:** Check if `.github/instructions/` exists before creating `.goat-flow/coding-standards/`.",
     );
     lines.push(
-      'Read the template at `workflow/skills/goat.md` and write it to the agent skills dir.',
+      "  If both would exist: (a) migrate `.github/instructions/` content into `.goat-flow/coding-standards/`, (b) replace `.github/instructions/` files with one-line imports pointing to `.goat-flow/coding-standards/`, or (c) keep `.github/instructions/` as canonical and skip `.goat-flow/coding-standards/` creation. Do NOT create overlapping content in both locations.",
+    );
+    lines.push("");
+    lines.push(
+      "**Router table:** Rewrite the Router Table in the instruction file. Remove entries pointing to deleted skills. If `.goat-flow/README.md` exists, include it as the Project Guidelines entry.",
+    );
+    lines.push("");
+    lines.push(
+      "**Dispatcher:** Replace the `/goat` dispatcher skill entirely from the goat-flow template.",
     );
     lines.push(
-      'Preserve any project-specific disambiguation examples the existing dispatcher may have.',
-    );
-    lines.push('');
-    lines.push(
-      '**Step 0b - Migrate, don\'t duplicate (check BEFORE creating files):**',
-    );
-    lines.push('');
-    lines.push(
-      'Before creating any artifact, check if an equivalent already exists. Do NOT create parallel surfaces.',
-    );
-    lines.push('');
-    lines.push('| Artifact | If this exists... | Do NOT also create... |');
-    lines.push('|----------|-------------------|----------------------|');
-    lines.push(
-      '| Tasks | `tasks/` | `.goat-flow/tasks/` (or vice versa) |',
+      "Read the template at `workflow/skills/goat.md` and write it to the agent skills dir.",
     );
     lines.push(
-      '| Footguns | `docs/footguns.md` (flat file) | `.goat-flow/footguns/` (directory) |',
+      "Preserve any project-specific disambiguation examples the existing dispatcher may have.",
+    );
+    lines.push("");
+    lines.push(
+      "**Step 0b - Migrate, don't duplicate (check BEFORE creating files):**",
+    );
+    lines.push("");
+    lines.push(
+      "Before creating any artifact, check if an equivalent already exists. Do NOT create parallel surfaces.",
+    );
+    lines.push("");
+    lines.push("| Artifact | If this exists... | Do NOT also create... |");
+    lines.push("|----------|-------------------|----------------------|");
+    lines.push("| Tasks | `tasks/` | `.goat-flow/tasks/` (or vice versa) |");
+    lines.push(
+      "| Footguns | `docs/footguns.md` (flat file) | `.goat-flow/footguns/` (directory) |",
     );
     lines.push(
-      '| Lessons | `docs/lessons.md` (flat file) | `.goat-flow/lessons/` (directory) |',
+      "| Lessons | `docs/lessons.md` (flat file) | `.goat-flow/lessons/` (directory) |",
     );
     lines.push(
-      '| Coding standards | `ai/instructions/` or `.github/instructions/` | `.goat-flow/coding-standards/` with overlapping content |',
+      "| Coding standards | `ai/instructions/` or `.github/instructions/` | `.goat-flow/coding-standards/` with overlapping content |",
     );
-    lines.push('');
+    lines.push("");
     lines.push(
-      'For each artifact type: (1) use the EXISTING path as canonical, (2) update `.goat-flow/config.yaml` to point there, (3) list what you chose NOT to create and why.',
+      "For each artifact type: (1) use the EXISTING path as canonical, (2) update `.goat-flow/config.yaml` to point there, (3) list what you chose NOT to create and why.",
     );
-    lines.push('');
+    lines.push("");
     lines.push(
-      'Examples: If `.github/instructions/` exists with coding standards, do NOT create `.goat-flow/coding-standards/` with overlapping content — reference the existing files from `.goat-flow/README.md`. If `docs/footguns.md` exists, migrate its entries to `.goat-flow/footguns/` instead of creating a parallel surface.',
+      "Examples: If `.github/instructions/` exists with coding standards, do NOT create `.goat-flow/coding-standards/` with overlapping content — reference the existing files from `.goat-flow/README.md`. If `docs/footguns.md` exists, migrate its entries to `.goat-flow/footguns/` instead of creating a parallel surface.",
     );
-    lines.push('');
+    lines.push("");
     lines.push(
-      '1. Verify the detected stack above is correct. If not, the setup file will',
+      "1. Verify the detected stack above is correct. If not, the setup file will",
     );
     lines.push(
-      '   ask you to detect it from the actual codebase (package.json, composer.json, etc.)',
+      "   ask you to detect it from the actual codebase (package.json, composer.json, etc.)",
     );
     lines.push(
       '2. "Adapt" means: replace generic examples with THIS project\'s real examples.',
     );
     lines.push(
-      '   Skills: replace generic Step 0 questions with questions specific to this stack.',
+      "   Skills: replace generic Step 0 questions with questions specific to this stack.",
     );
     lines.push(
-      '   Footguns: only real traps from THIS codebase with `file:line` evidence.',
+      "   Footguns: only real traps from THIS codebase with `file:line` evidence.",
     );
     lines.push(
-      '   Conventions: real build/test/lint commands, real file naming patterns.',
+      "   Conventions: real build/test/lint commands, real file naming patterns.",
     );
     lines.push(
       '3. Do NOT copy templates verbatim. If a template says "[describe X]", describe X for THIS project.',
     );
     lines.push(
-      '4. Check for existing permission restrictions: if `.claude/settings.local.json` (or equivalent)',
+      "4. Check for existing permission restrictions: if `.claude/settings.local.json` (or equivalent)",
     );
     lines.push(
-      '   exists and limits allowed tools/commands, the setup may fail to create files.',
+      "   exists and limits allowed tools/commands, the setup may fail to create files.",
     );
     lines.push(
-      '   Read it first. If it restricts Bash or Write, work single-threaded instead of spawning sub-agents.',
+      "   Read it first. If it restricts Bash or Write, work single-threaded instead of spawning sub-agents.",
     );
     lines.push(
-      '5. **Deny rule escape hatch:** The default deny pattern `Bash(*git commit*)` blocks ALL commits.',
+      "5. **Deny rule escape hatch:** The default deny pattern `Bash(*git commit*)` blocks ALL commits.",
     );
     lines.push(
-      '   To relax specific rules after setup, add allow overrides in `.claude/settings.local.json` (gitignored).',
+      "   To relax specific rules after setup, add allow overrides in `.claude/settings.local.json` (gitignored).",
     );
     lines.push(
-      '   See `workflow/hooks/README.md` for hook configuration details.',
+      "   See `workflow/hooks/README.md` for hook configuration details.",
     );
-    lines.push('');
+    lines.push("");
   } // end: "Before you start" section (bare/partial/error only)
 
   // Main instruction
-  lines.push('## Setup instructions');
-  lines.push('');
+  lines.push("## Setup instructions");
+  lines.push("");
   lines.push(
     `FIRST, read \`${setupFile}\` for agent-specific paths and configuration.`,
   );
-  lines.push('');
+  lines.push("");
   lines.push(
-    'Then follow the numbered setup steps in `workflow/setup/` one at a time:',
+    "Then follow the numbered setup steps in `workflow/setup/` one at a time:",
   );
-  lines.push('');
+  lines.push("");
   lines.push(
-    '- **01-system-overview.md** — Design intent, state check, route to 02 or 03',
+    "- **01-system-overview.md** — Design intent, state check, route to 02 or 03",
   );
+  lines.push("- **02 or 03** — Create or reorganise instruction file");
   lines.push(
-    '- **02 or 03** — Create or reorganise instruction file',
-  );
-  lines.push(
-    '- **04–08** — Execution loop, skills, coding guidelines, architecture, code map',
+    "- **04–08** — Execution loop, skills, coding guidelines, architecture, code map",
   );
   lines.push(
-    '- **09** — Customise to project (deep codebase read, real footguns/lessons)',
+    "- **09** — Customise to project (deep codebase read, real footguns/lessons)",
+  );
+  lines.push("- **10** — Polish (RFC 2119 pass, compression)");
+  lines.push("- **11** — Final verification (scanner 100%, build/test/lint)");
+  lines.push("");
+  lines.push(
+    "Each step is self-contained with a verification gate. Complete one step before moving to the next.",
   );
   lines.push(
-    '- **10** — Polish (RFC 2119 pass, compression)',
+    "Install the full system for every project. Do not skip components based on project size.",
   );
-  lines.push('- **11** — Final verification (scanner 100%, build/test/lint)');
-  lines.push('');
-  lines.push(
-    'Each step is self-contained with a verification gate. Complete one step before moving to the next.',
-  );
-  lines.push(
-    'Install the full system for every project. Do not skip components based on project size.',
-  );
-  lines.push('');
+  lines.push("");
 
   // Post-setup verification
-  lines.push('## Post-setup verification');
-  lines.push('');
-  lines.push('**Hook smoke-test** (run after creating hook scripts):');
-  lines.push('```bash');
-  lines.push('# Syntax check every hook script');
+  lines.push("## Post-setup verification");
+  lines.push("");
+  lines.push("**Hook smoke-test** (run after creating hook scripts):");
+  lines.push("```bash");
+  lines.push("# Syntax check every hook script");
   lines.push(
     `for f in ${profile.hooksDir}/*.sh; do bash -n "$f" || echo "FAIL: $f"; done`,
   );
-  lines.push('# Shellcheck if available');
+  lines.push("# Shellcheck if available");
   lines.push(
     `command -v shellcheck >/dev/null && shellcheck ${profile.hooksDir}/*.sh`,
   );
-  lines.push('```');
+  lines.push("```");
   lines.push(
-    'If any hook fails syntax check: fix it before declaring setup complete.',
+    "If any hook fails syntax check: fix it before declaring setup complete.",
   );
-  lines.push('');
+  lines.push("");
   lines.push(
-    '**File creation checklist:** After setup, verify all expected files exist. Report any you could not create (permission denied, path conflict) with the reason.',
+    "**File creation checklist:** After setup, verify all expected files exist. Report any you could not create (permission denied, path conflict) with the reason.",
   );
-  lines.push('');
+  lines.push("");
 
   // Scan + iterate
-  lines.push(
-    `**Scan:** Run \`${getCliCommand()} scan . --agent ${agentId}\``,
-  );
-  lines.push('');
-  lines.push('**Target: 100% with zero anti-pattern deductions.**');
+  lines.push(`**Scan:** Run \`${getCliCommand()} scan . --agent ${agentId}\``);
+  lines.push("");
+  lines.push("**Target: 100% with zero anti-pattern deductions.**");
   lines.push(
     `If not 100%, run \`${getCliCommand()} setup . --agent ${agentId}\` for remaining fix instructions. Repeat until 100% (max 3 cycles).`,
   );
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -1296,7 +1276,7 @@ function collectNeededKeys(agentReport: AgentReport): Set<string> {
   const neededKeys = new Set<string>();
   for (const check of agentReport.checks) {
     if (
-      (check.status === 'fail' || check.status === 'partial') &&
+      (check.status === "fail" || check.status === "partial") &&
       check.recommendationKey
     ) {
       neededKeys.add(check.recommendationKey);
@@ -1309,4 +1289,3 @@ function collectNeededKeys(agentReport: AgentReport): Set<string> {
   }
   return neededKeys;
 }
-

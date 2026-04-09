@@ -7,9 +7,9 @@ import {
   appendFileSync,
   readFileSync,
   writeFileSync,
-} from 'node:fs';
-import { join } from 'node:path';
-import type { ScanReport, AgentId, Grade } from '../types.js';
+} from "node:fs";
+import { join } from "node:path";
+import type { ScanReport, AgentId, Grade } from "../types.js";
 
 /** Flattened per-agent scan entry for the JSONL telemetry log */
 export interface ScanHistoryEntry {
@@ -36,9 +36,9 @@ export interface ScanHistoryEntry {
 
 /** Count check outcomes for one agent so the JSONL log stays compact. */
 function countChecks(
-  agent: ScanReport['agents'][number],
-): ScanHistoryEntry['checks'] {
-  const checks: ScanHistoryEntry['checks'] = {
+  agent: ScanReport["agents"][number],
+): ScanHistoryEntry["checks"] {
+  const checks: ScanHistoryEntry["checks"] = {
     pass: 0,
     partial: 0,
     fail: 0,
@@ -47,15 +47,15 @@ function countChecks(
   };
 
   for (const check of agent.checks) {
-    if (check.status === 'pass') {
+    if (check.status === "pass") {
       checks.pass++;
       continue;
     }
-    if (check.status === 'partial') {
+    if (check.status === "partial") {
       checks.partial++;
       continue;
     }
-    if (check.status === 'fail') {
+    if (check.status === "fail") {
       checks.fail++;
       continue;
     }
@@ -68,7 +68,7 @@ function countChecks(
 /** Flatten one agent report into the JSONL entry written to scan history. */
 function buildScanHistoryEntry(
   report: ScanReport,
-  agent: ScanReport['agents'][number],
+  agent: ScanReport["agents"][number],
   date: string,
 ): ScanHistoryEntry {
   return {
@@ -103,10 +103,10 @@ function buildScanHistoryEntry(
 /** Trim the scan-history log so it only keeps the most recent entries. */
 function rotateScanHistory(logPath: string): void {
   try {
-    const content = readFileSync(logPath, 'utf-8');
-    const allLines = content.trim().split('\n');
+    const content = readFileSync(logPath, "utf-8");
+    const allLines = content.trim().split("\n");
     if (allLines.length > 500) {
-      writeFileSync(logPath, allLines.slice(-500).join('\n') + '\n');
+      writeFileSync(logPath, allLines.slice(-500).join("\n") + "\n");
     }
   } catch {
     // Rotation is best-effort.
@@ -123,7 +123,7 @@ export function appendScanHistory(
   projectPath: string,
 ): void {
   try {
-    const logsDir = join(projectPath, '.goat-flow', 'logs');
+    const logsDir = join(projectPath, ".goat-flow", "logs");
     mkdirSync(logsDir, { recursive: true });
 
     const now = new Date().toISOString();
@@ -134,8 +134,8 @@ export function appendScanHistory(
     }
 
     if (lines.length > 0) {
-      const logPath = join(logsDir, 'scan-history.jsonl');
-      appendFileSync(logPath, lines.join('\n') + '\n');
+      const logPath = join(logsDir, "scan-history.jsonl");
+      appendFileSync(logPath, lines.join("\n") + "\n");
       rotateScanHistory(logPath);
     }
   } catch {

@@ -6,16 +6,16 @@
  * EXPENSIVE: ~$0.50-2.00 per test. Only runs when GOAT_SMOKE=1 is set.
  * CI runs these on release branches only.
  */
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 
-const SMOKE_ENABLED = process.env.GOAT_SMOKE === '1';
+const SMOKE_ENABLED = process.env.GOAT_SMOKE === "1";
 
-describe('Smoke tests', { skip: !SMOKE_ENABLED }, () => {
-  it('placeholder: smoke test infrastructure exists', () => {
+describe("Smoke tests", { skip: !SMOKE_ENABLED }, () => {
+  it("placeholder: smoke test infrastructure exists", () => {
     // This test validates the skip mechanism works.
     // When GOAT_SMOKE=1, real agent tests will run here.
-    assert.ok(true, 'Smoke test infrastructure ready');
+    assert.ok(true, "Smoke test infrastructure ready");
   });
 
   // Future smoke tests will follow this pattern:

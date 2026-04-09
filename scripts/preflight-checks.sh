@@ -128,7 +128,7 @@ section "Version Consistency"
 if [[ -f package.json ]] && [[ -f src/cli/rubric/version.ts ]]; then
     pkg_version=$(node -e "console.log(require('./package.json').version)")
     rubric_version="$pkg_version"  # RUBRIC_VERSION derives from package.json since v1.1.0
-    schema_version=$(grep "SCHEMA_VERSION" src/cli/rubric/version.ts | grep -oE "'[^']+'" | tr -d "'")
+    schema_version=$(grep "SCHEMA_VERSION" src/cli/rubric/version.ts | grep -oE "['\"][^'\"]+['\"]" | tr -d "'\"")
 
     pass "package.json ($pkg_version)"
 
@@ -274,6 +274,19 @@ if [[ -f tsconfig.json ]]; then
         fi
     else
         skip "Knip (not installed)"
+    fi
+
+    # Prettier format check
+    if command -v npx >/dev/null 2>&1 && [[ -f node_modules/.bin/prettier ]]; then
+        prettier_output=$(bash scripts/prettier-check.sh 2>&1) && prettier_exit=0 || prettier_exit=$?
+        if [[ "$prettier_exit" -eq 0 ]]; then
+            pass "Prettier (all formatted)"
+        else
+            unformatted=$(echo "$prettier_output" | grep -c '^\[warn\]' || echo "?")
+            fail "Prettier ($unformatted unformatted files) - run npm run format"
+        fi
+    else
+        skip "Prettier (not installed)"
     fi
 
     # Quality checks (warnings, not failures)

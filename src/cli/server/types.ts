@@ -4,21 +4,21 @@
  */
 /** Messages sent from the browser terminal to the WebSocket server. */
 export type ClientMessage =
-  | { type: 'input'; data: string }
-  | { type: 'resize'; cols: number; rows: number };
+  | { type: "input"; data: string }
+  | { type: "resize"; cols: number; rows: number };
 
 /** Messages sent from the WebSocket server to the browser terminal. */
 export type ServerMessage =
-  | { type: 'output'; data: string }
-  | { type: 'exit'; code: number; signal: string | null }
-  | { type: 'error'; message: string }
-  | { type: 'shutdown' };
+  | { type: "output"; data: string }
+  | { type: "exit"; code: number; signal: string | null }
+  | { type: "error"; message: string }
+  | { type: "shutdown" };
 
 /** Lifecycle state of a terminal session. */
-export type SessionStatus = 'starting' | 'active' | 'terminated';
+export type SessionStatus = "starting" | "active" | "terminated";
 
 /** Supported CLI runners that can be spawned in a terminal session. */
-export type Runner = 'claude' | 'codex' | 'gemini' | 'copilot';
+export type Runner = "claude" | "codex" | "gemini" | "copilot";
 
 /** Metadata for an active or recently terminated terminal session. */
 export interface SessionInfo {

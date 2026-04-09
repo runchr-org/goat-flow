@@ -2,9 +2,9 @@
  * Fills prompt templates with agent- and project-specific path variables.
  * This keeps template text declarative while centralizing variable derivation and fallback formatting.
  */
-import type { ScanReport, AgentReport, AgentId } from '../types.js';
-import type { PromptVariables } from './types.js';
-import { PROFILES } from '../detect/agents.js';
+import type { ScanReport, AgentReport, AgentId } from "../types.js";
+import type { PromptVariables } from "./types.js";
+import { PROFILES } from "../detect/agents.js";
 
 /** Derive prompt-facing path variables from the canonical PROFILES.
  *  Settings/hooks may differ from detection paths (e.g. Codex has no JSON settings). */
@@ -12,9 +12,9 @@ function getAgentPaths(id: AgentId) {
   const p = PROFILES[id];
   return {
     instructionFile: p.instructionFile,
-    settingsFile: p.settingsFile ?? '(none)',
+    settingsFile: p.settingsFile ?? "(none)",
     skillsDir: p.skillsDir,
-    hooksDir: p.hooksDir ?? '(none)',
+    hooksDir: p.hooksDir ?? "(none)",
   };
 }
 
@@ -27,11 +27,11 @@ function countCheckStatuses(agentReport: AgentReport): {
   let passed = 0;
 
   for (const check of agentReport.checks) {
-    if (check.status === 'pass') {
+    if (check.status === "pass") {
       passed++;
       continue;
     }
-    if (check.status === 'fail' || check.status === 'partial') failed++;
+    if (check.status === "fail" || check.status === "partial") failed++;
   }
 
   return { failed, passed };
@@ -97,11 +97,11 @@ export function extractTemplateVars(
     settingsFile: paths.settingsFile,
     skillsDir: paths.skillsDir,
     hooksDir: paths.hooksDir,
-    languages: report.stack.languages.join(', ') || 'unknown',
-    buildCommand: report.stack.buildCommand ?? '',
-    testCommand: report.stack.testCommand ?? '',
-    lintCommand: report.stack.lintCommand ?? '',
-    formatCommand: report.stack.formatCommand ?? '',
+    languages: report.stack.languages.join(", ") || "unknown",
+    buildCommand: report.stack.buildCommand ?? "",
+    testCommand: report.stack.testCommand ?? "",
+    lintCommand: report.stack.lintCommand ?? "",
+    formatCommand: report.stack.formatCommand ?? "",
     grade: agentReport.score.grade,
     percentage: String(agentReport.score.percentage),
     failedCount: String(checkCounts.failed),
@@ -120,13 +120,13 @@ export function extractTemplateVars(
 export function fillTemplate(template: string, vars: PromptVariables): string {
   return template.replace(/\{\{([\w.:-]+)\}\}/g, (_match, name: string) => {
     // Dotted access: {{evidence.some-key}}
-    if (name.startsWith('evidence.')) {
-      const evidenceKey = name.slice('evidence.'.length);
-      return vars.evidence[evidenceKey] ?? '';
+    if (name.startsWith("evidence.")) {
+      const evidenceKey = name.slice("evidence.".length);
+      return vars.evidence[evidenceKey] ?? "";
     }
     if (name in vars) {
       const val = vars[name as keyof PromptVariables];
-      return typeof val === 'string' ? val : '';
+      return typeof val === "string" ? val : "";
     }
     return `[UNFILLED: ${name}]`;
   });

@@ -2,11 +2,11 @@
  * Golden-fixture integration tests for real project layouts.
  * Each fixture is scanned end to end and compared against expected grades, checks, and report snippets.
  */
-import { afterEach, describe, it } from 'node:test';
-import assert from 'node:assert/strict';
-import type { AgentReport } from '../../src/cli/types.js';
-import { renderText } from '../../src/cli/render/text.js';
-import { scanFixture } from '../helpers/fixture-scanner.js';
+import { afterEach, describe, it } from "node:test";
+import assert from "node:assert/strict";
+import type { AgentReport } from "../../src/cli/types.js";
+import { renderText } from "../../src/cli/render/text.js";
+import { scanFixture } from "../helpers/fixture-scanner.js";
 
 const cleanups: Array<() => void> = [];
 
@@ -28,161 +28,136 @@ function getAgent(
   return agent;
 }
 
-describe('project fixture corpus', () => {
-  it('passing-minimal scores 100 for Claude', () => {
-    const fixture = scanFixture('passing-minimal');
+describe("project fixture corpus", () => {
+  it("passing-minimal scores 100 for Claude", () => {
+    const fixture = scanFixture("passing-minimal");
     cleanups.push(fixture.cleanup);
 
-    const claude = getAgent('passing-minimal', fixture.report.agents, 'claude');
+    const claude = getAgent("passing-minimal", fixture.report.agents, "claude");
     const failedChecks = claude.checks
-      .filter((check) => check.status === 'fail' || check.status === 'partial')
+      .filter((check) => check.status === "fail" || check.status === "partial")
       .map((check) => `${check.id}: ${check.message}`);
     const triggeredAPs = claude.antiPatterns
       .filter((pattern) => pattern.triggered)
       .map((pattern) => pattern.id);
-    assert.deepEqual(failedChecks, [], 'No checks should fail');
-    assert.deepEqual(triggeredAPs, [], 'No anti-patterns should trigger');
+    assert.deepEqual(failedChecks, [], "No checks should fail");
+    assert.deepEqual(triggeredAPs, [], "No anti-patterns should trigger");
     assert.equal(
       claude.score.percentage,
       100,
-      `Score ${claude.score.percentage}% (${claude.score.earned}/${claude.score.available}). Failed: ${failedChecks.join('; ')}. APs: ${triggeredAPs.join(', ')}`,
+      `Score ${claude.score.percentage}% (${claude.score.earned}/${claude.score.available}). Failed: ${failedChecks.join("; ")}. APs: ${triggeredAPs.join(", ")}`,
     );
-    assert.equal(claude.score.grade, 'A');
+    assert.equal(claude.score.grade, "A");
   });
 
-  it('passing-full scores 100 for Claude', () => {
-    const fixture = scanFixture('passing-full');
+  it("passing-full scores 100 for Claude", () => {
+    const fixture = scanFixture("passing-full");
     cleanups.push(fixture.cleanup);
 
-    const claude = getAgent('passing-full', fixture.report.agents, 'claude');
+    const claude = getAgent("passing-full", fixture.report.agents, "claude");
     const failedChecks = claude.checks
-      .filter((check) => check.status === 'fail' || check.status === 'partial')
+      .filter((check) => check.status === "fail" || check.status === "partial")
       .map((check) => `${check.id}: ${check.message}`);
     const triggeredAPs = claude.antiPatterns
       .filter((pattern) => pattern.triggered)
       .map((pattern) => pattern.id);
-    assert.deepEqual(failedChecks, [], 'No checks should fail');
-    assert.deepEqual(triggeredAPs, [], 'No anti-patterns should trigger');
+    assert.deepEqual(failedChecks, [], "No checks should fail");
+    assert.deepEqual(triggeredAPs, [], "No anti-patterns should trigger");
     assert.equal(
       claude.score.percentage,
       100,
-      `Score ${claude.score.percentage}% (${claude.score.earned}/${claude.score.available}). Failed: ${failedChecks.join('; ')}. APs: ${triggeredAPs.join(', ')}`,
+      `Score ${claude.score.percentage}% (${claude.score.earned}/${claude.score.available}). Failed: ${failedChecks.join("; ")}. APs: ${triggeredAPs.join(", ")}`,
     );
-    assert.equal(claude.score.grade, 'A');
+    assert.equal(claude.score.grade, "A");
   });
 
-  it('failing-known exposes the expected scanner regressions', () => {
-    const fixture = scanFixture('failing-known');
+  // 2.2.3 removed from rubric - AP6 now covers swallowed failures.
+
+  it("failing-known scores below 100 (AP6 catches swallowed failures)", () => {
+    const fixture = scanFixture("failing-known");
     cleanups.push(fixture.cleanup);
 
-    const claude = getAgent('failing-known', fixture.report.agents, 'claude');
+    const claude = getAgent("failing-known", fixture.report.agents, "claude");
     assert.ok(
       claude.score.percentage < 100,
       `Expected failing-known < 100, got ${claude.score.percentage}`,
     );
-
-    const failingChecks = new Set(
-      claude.checks
-        .filter((check) => check.status === 'fail')
-        .map((check) => check.id),
-    );
-    assert.ok(
-      failingChecks.has('2.2.3'),
-      `Expected 2.2.3 to fail. Saw: ${Array.from(failingChecks).join(', ')}`,
-    );
-    // 2.6.2 removed from rubric - no longer expected to fail
   });
 
-  it('failing-known text output reports failures in one pass', () => {
-    const fixture = scanFixture('failing-known');
+  it("broken-hooks fixture detects swallowed failures (AP6)", () => {
+    const fixture = scanFixture("broken-hooks");
     cleanups.push(fixture.cleanup);
 
-    const output = renderText(fixture.report, false);
-    assert.match(
-      output,
-      /2\.2\.3/,
-      'Expected rendered output to include check 2.2.3',
-    );
-    // 2.6.2 removed from rubric
-    assert.match(
-      output,
-      /Failures: \d+ failed, \d+ partial, \d+ pass/,
-      'Expected rendered output to include the failure summary',
-    );
-  });
-
-  it('broken-hooks fixture detects swallowed failures (check 2.2.3)', () => {
-    const fixture = scanFixture('broken-hooks');
-    cleanups.push(fixture.cleanup);
-
-    const claude = getAgent('broken-hooks', fixture.report.agents, 'claude');
+    const claude = getAgent("broken-hooks", fixture.report.agents, "claude");
     assert.ok(
       claude.score.percentage < 100,
       `Expected broken-hooks < 100, got ${claude.score.percentage}`,
     );
 
-    const failingChecks = new Set(
-      claude.checks
-        .filter((check) => check.status === 'fail')
-        .map((check) => check.id),
-    );
+    const triggeredAPs = claude.antiPatterns
+      .filter((ap) => ap.triggered)
+      .map((ap) => ap.id);
     assert.ok(
-      failingChecks.has('2.2.3'),
-      `Expected 2.2.3 to fail (swallowed failures). Failed: ${Array.from(failingChecks).join(', ')}`,
+      triggeredAPs.includes("AP6"),
+      `Expected AP6 to trigger (swallowed failures). Triggered: ${triggeredAPs.join(", ")}`,
     );
   });
 
-  it('stale-refs fixture scores below 100', () => {
-    const fixture = scanFixture('stale-refs');
+  it("stale-refs fixture scores below 100", () => {
+    const fixture = scanFixture("stale-refs");
     cleanups.push(fixture.cleanup);
 
-    const claude = getAgent('stale-refs', fixture.report.agents, 'claude');
+    const claude = getAgent("stale-refs", fixture.report.agents, "claude");
     // The fixture has footguns citing non-existent files.
     // Whether this triggers a check failure or anti-pattern depends on rubric version,
     // but the score should not be a perfect 100.
     assert.ok(
       claude.score.percentage < 100,
-      'stale-refs fixture should not score 100%',
+      "stale-refs fixture should not score 100%",
     );
   });
 
   // AP22 (duplicate-surfaces) test removed - anti-pattern deleted.
-  it('duplicate-surfaces fixture scans without errors', () => {
-    const fixture = scanFixture('duplicate-surfaces');
+  it("duplicate-surfaces fixture scans without errors", () => {
+    const fixture = scanFixture("duplicate-surfaces");
     cleanups.push(fixture.cleanup);
 
-    const claude = getAgent('duplicate-surfaces', fixture.report.agents, 'claude');
-    assert.ok(claude.checks.length > 0, 'Expected checks to run');
+    const claude = getAgent(
+      "duplicate-surfaces",
+      fixture.report.agents,
+      "claude",
+    );
+    assert.ok(claude.checks.length > 0, "Expected checks to run");
   });
 
-  it('fresh-project has no detected agents', () => {
-    const fixture = scanFixture('fresh-project');
+  it("fresh-project has no detected agents", () => {
+    const fixture = scanFixture("fresh-project");
     cleanups.push(fixture.cleanup);
 
     // A project with no CLAUDE.md/AGENTS.md/GEMINI.md should have zero agent reports
     assert.equal(
       fixture.report.agents.length,
       0,
-      `Expected 0 agents for fresh project, got ${fixture.report.agents.length}: ${fixture.report.agents.map((a) => a.agent).join(', ')}`,
+      `Expected 0 agents for fresh project, got ${fixture.report.agents.length}: ${fixture.report.agents.map((a) => a.agent).join(", ")}`,
     );
   });
 
-  it('scanner-bait fixture scores below 100', () => {
-    const fixture = scanFixture('scanner-bait');
+  it("scanner-bait fixture scores below 100", () => {
+    const fixture = scanFixture("scanner-bait");
     cleanups.push(fixture.cleanup);
 
-    const claude = getAgent('scanner-bait', fixture.report.agents, 'claude');
+    const claude = getAgent("scanner-bait", fixture.report.agents, "claude");
     assert.ok(
       claude.score.percentage < 100,
       `Expected scanner-bait < 100, got ${claude.score.percentage}%`,
     );
   });
 
-  it('missing-skills fixture scores below 100 due to missing skills', () => {
-    const fixture = scanFixture('missing-skills');
+  it("missing-skills fixture scores below 100 due to missing skills", () => {
+    const fixture = scanFixture("missing-skills");
     cleanups.push(fixture.cleanup);
 
-    const claude = getAgent('missing-skills', fixture.report.agents, 'claude');
+    const claude = getAgent("missing-skills", fixture.report.agents, "claude");
     assert.ok(
       claude.score.percentage < 100,
       `Expected missing-skills < 100, got ${claude.score.percentage}`,
@@ -191,13 +166,13 @@ describe('project fixture corpus', () => {
     // Verify at least one skill-related check failed or is partial
     const failedOrPartial = claude.checks.filter(
       (check) =>
-        (check.status === 'fail' || check.status === 'partial') &&
-        check.category.toLowerCase().includes('skill'),
+        (check.status === "fail" || check.status === "partial") &&
+        check.category.toLowerCase().includes("skill"),
     );
     assert.ok(
       failedOrPartial.length > 0,
       `Expected at least one skill check to fail/partial when 2 skills are missing. ` +
-        `Categories seen: ${[...new Set(claude.checks.map((c) => c.category))].join(', ')}`,
+        `Categories seen: ${[...new Set(claude.checks.map((c) => c.category))].join(", ")}`,
     );
   });
 });

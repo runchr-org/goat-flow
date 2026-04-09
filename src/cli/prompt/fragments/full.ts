@@ -2,7 +2,7 @@
  * Static prompt fragments for full-tier requirements.
  * They cover CI wiring and mature-adoption hygiene tasks.
  */
-import type { Fragment } from '../types.js';
+import type { Fragment } from "../types.js";
 
 /**
  * Tier 3 - Full fragments
@@ -16,10 +16,10 @@ export const fullFragments: Fragment[] = [
   // === Hygiene ===
   // create-handoff-template and fix-handoff-sections removed - handoff is workspace-level, not a rubric concern.
   {
-    key: 'create-logs-dir',
-    phase: 'full',
-    category: 'Hygiene',
-    kind: 'create',
+    key: "create-logs-dir",
+    phase: "full",
+    category: "Hygiene",
+    kind: "create",
     instruction: `Create the telemetry logs directory for session tracking:
 
 \`\`\`bash
@@ -36,10 +36,10 @@ Add to \`.gitignore\`:
 This enables the skill session logging protocol (Shared Conventions closing step) and telemetry from \`goat-flow scan\`.`,
   },
   {
-    key: 'add-rfc2119',
-    phase: 'full',
-    category: 'Hygiene',
-    kind: 'create',
+    key: "add-rfc2119",
+    phase: "full",
+    category: "Hygiene",
+    kind: "create",
     instruction: `Use RFC 2119 language in \`{{instructionFile}}\`: MUST, SHOULD, MAY.
 
 - **MUST** - requirement, blocking
@@ -51,10 +51,10 @@ Ensure at least 3 instances across the instruction file. Use MUST for DoD gates 
   // add-changelog removed - CHANGELOG.md is a project-level concern, not an AI workflow artifact.
   // === Execution Loop Sync ===
   {
-    key: 'fix-execution-loop-sync',
-    phase: 'full',
-    category: 'Hygiene',
-    kind: 'fix',
+    key: "fix-execution-loop-sync",
+    phase: "full",
+    category: "Hygiene",
+    kind: "fix",
     instruction: `Multiple agent instruction files have diverged execution loops. When CLAUDE.md, AGENTS.md, and/or GEMINI.md all contain the execution loop (READ→CLASSIFY→SCOPE→ACT→VERIFY→LOG), changes must be propagated to all copies.
 
 1. Diff the execution loop sections across all agent instruction files
@@ -67,11 +67,11 @@ Note: the execution loop MUST be duplicated (each file is loaded independently).
 
   // === Skill Conventions ===
   {
-    key: 'create-skill-conventions',
-    phase: 'full',
-    category: 'Skill Conventions',
-    kind: 'create',
+    key: "create-skill-conventions",
+    phase: "full",
+    category: "Skill Conventions",
+    kind: "create",
     instruction:
-      'Create `.goat-flow/skill-conventions.md` with project-specific shared preamble for skills. Copy from `workflow/skills/reference/shared-preamble.md` and adapt to your project.',
+      "Create `.goat-flow/skill-conventions.md` with project-specific shared preamble for skills. Copy from `workflow/skills/reference/shared-preamble.md` and adapt to your project.",
   },
 ];

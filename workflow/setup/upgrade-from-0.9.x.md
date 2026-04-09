@@ -23,7 +23,7 @@ Read `01-system-overview.md` first if you haven't already.
 
 You're in the right place if the project has old skill names and no `.goat-flow/config.yaml`.
 
-- If `.goat-flow/config.yaml` exists with a version → use `upgrade-1.0.0.md` instead
+- If `.goat-flow/config.yaml` exists with a version → use `upgrade-from-1.0.x.md` instead
 - If no goat-flow at all → use fresh setup (`agents/claude.md` etc.)
 
 **Verification:** List detected old skill directories. Confirm no config.yaml.

@@ -11,8 +11,8 @@ import type {
   FactContext,
   CheckDef,
   AntiPatternDef,
-} from '../types.js';
-import { evaluateCheck } from '../scanner/evaluate-check.js';
+} from "../types.js";
+import { evaluateCheck } from "../scanner/evaluate-check.js";
 
 /** Percentage thresholds mapped to letter grades (legacy, kept for reference) */
 // const GRADE_THRESHOLDS: [number, Grade][] = [
@@ -34,11 +34,11 @@ export function runChecks(checks: CheckDef[], ctx: FactContext): CheckResult[] {
         name: check.name,
         tier: check.tier,
         category: check.category,
-        status: 'na' as const,
+        status: "na" as const,
         points: 0,
         maxPoints: 0,
         confidence: check.confidence,
-        message: 'Not applicable',
+        message: "Not applicable",
         recommendationKey: check.recommendationKey,
         hidden: check.hidden,
       };
@@ -59,6 +59,10 @@ export function runChecks(checks: CheckDef[], ctx: FactContext): CheckResult[] {
       );
       result.recommendationKey = check.recommendationKey;
       result.hidden = check.hidden;
+      // Attach fix guidance for non-passing checks so renderers can show contextual help
+      if (result.status !== "pass") {
+        result.recommendation = check.recommendation;
+      }
       return result;
     } catch (err) {
       return {
@@ -66,13 +70,14 @@ export function runChecks(checks: CheckDef[], ctx: FactContext): CheckResult[] {
         name: check.name,
         tier: check.tier,
         category: check.category,
-        status: 'fail' as const,
+        status: "fail" as const,
         points: 0,
         maxPoints: check.pts,
         confidence: check.confidence,
         message: `Check crashed: ${err instanceof Error ? err.message : String(err)}`,
         recommendationKey: check.recommendationKey,
         hidden: check.hidden,
+        recommendation: check.recommendation,
       };
     }
   });
@@ -91,7 +96,7 @@ export function runAntiPatterns(
         triggered: false,
         deduction: 0,
         confidence: antiPattern.confidence,
-        message: 'Not applicable',
+        message: "Not applicable",
       };
     }
     try {
@@ -123,11 +128,11 @@ export function computeScore(
   checkDefs?: CheckDef[],
 ): ScoreSummary {
   /** Foundation tier score */
-  const foundation = scoreTier(checkResults, 'foundation');
+  const foundation = scoreTier(checkResults, "foundation");
   /** Standard tier score */
-  const standard = scoreTier(checkResults, 'standard');
+  const standard = scoreTier(checkResults, "standard");
   /** Full tier score */
-  const full = scoreTier(checkResults, 'full');
+  const full = scoreTier(checkResults, "full");
 
   /** Total earned points across all tiers */
   const earned = foundation.earned + standard.earned + full.earned;
@@ -147,7 +152,7 @@ export function computeScore(
   const percentage = available > 0 ? Math.round((raw / available) * 100) : 0;
 
   /** Number of checks that are not N/A */
-  const applicableChecks = checkResults.filter((c) => c.status !== 'na').length;
+  const applicableChecks = checkResults.filter((c) => c.status !== "na").length;
   /** Ratio of applicable checks to total, used for inflation guard */
   const applicableRatio =
     totalCheckCount > 0 ? applicableChecks / totalCheckCount : 0;
@@ -158,7 +163,7 @@ export function computeScore(
   /** Letter grade based on priority thresholds, or insufficient-data if too few checks */
   const grade =
     applicableRatio < INFLATION_THRESHOLD
-      ? ('insufficient-data' as Grade)
+      ? ("insufficient-data" as Grade)
       : computePriorityGrade(priorityCounts);
 
   return {
@@ -178,7 +183,7 @@ export function computeScore(
 /** Calculate earned and available points for a single scoring tier */
 function scoreTier(
   results: CheckResult[],
-  tier: 'foundation' | 'standard' | 'full',
+  tier: "foundation" | "standard" | "full",
 ): TierScore {
   /** Check results that belong to this tier */
   const tierResults = results.filter((r) => r.tier === tier);
@@ -191,7 +196,7 @@ function scoreTier(
   for (const r of tierResults) {
     /** Confidence-based weight: medium/low checks count at half value */
     const weight =
-      r.confidence === 'medium' || r.confidence === 'low' ? 0.5 : 1.0;
+      r.confidence === "medium" || r.confidence === "low" ? 0.5 : 1.0;
     rawEarned += r.points * weight;
     rawAvailable += r.maxPoints * weight;
   }
@@ -219,8 +224,10 @@ interface PriorityCounts {
  * N/A checks are excluded from both numerator and denominator.
  */
 /** Build a lookup from check ID to priority, falling back to tier-based defaults. */
-function buildPriorityMap(checkDefs?: CheckDef[]): Map<string, 'required' | 'recommended' | 'optional'> {
-  const map = new Map<string, 'required' | 'recommended' | 'optional'>();
+function buildPriorityMap(
+  checkDefs?: CheckDef[],
+): Map<string, "required" | "recommended" | "optional"> {
+  const map = new Map<string, "required" | "recommended" | "optional">();
   if (checkDefs) {
     for (const def of checkDefs) map.set(def.id, def.priority);
   }
@@ -230,14 +237,17 @@ function buildPriorityMap(checkDefs?: CheckDef[]): Map<string, 'required' | 'rec
 /** Resolve the effective priority for a check result. */
 function resolvePriority(
   result: CheckResult,
-  priorityMap: Map<string, 'required' | 'recommended' | 'optional'>,
-): 'required' | 'recommended' | 'optional' {
-  return priorityMap.get(result.id) ?? (result.tier === 'foundation' ? 'required' : 'recommended');
+  priorityMap: Map<string, "required" | "recommended" | "optional">,
+): "required" | "recommended" | "optional" {
+  return (
+    priorityMap.get(result.id) ??
+    (result.tier === "foundation" ? "required" : "recommended")
+  );
 }
 
 /** Whether a check result counts as passing (pass or partial). */
 function isPassing(result: CheckResult): boolean {
-  return result.status === 'pass' || result.status === 'partial';
+  return result.status === "pass" || result.status === "partial";
 }
 
 function countByPriority(
@@ -250,14 +260,16 @@ function countByPriority(
   let recommendedTotal = 0;
 
   const priorityMap = buildPriorityMap(checkDefs);
-  const gradeable = checkResults.filter(r => r.status !== 'na' && r.tier !== 'full');
+  const gradeable = checkResults.filter(
+    (r) => r.status !== "na" && r.tier !== "full",
+  );
 
   for (const result of gradeable) {
     const priority = resolvePriority(result, priorityMap);
-    if (priority === 'required') {
+    if (priority === "required") {
       requiredTotal++;
       if (isPassing(result)) requiredPassed++;
-    } else if (priority === 'recommended') {
+    } else if (priority === "recommended") {
       recommendedTotal++;
       if (isPassing(result)) recommendedPassed++;
     }
@@ -275,16 +287,19 @@ function countByPriority(
  * - F: <60% required pass
  */
 function computePriorityGrade(counts: PriorityCounts): Grade {
-  const { requiredPassed, requiredTotal, recommendedPassed, recommendedTotal } = counts;
+  const { requiredPassed, requiredTotal, recommendedPassed, recommendedTotal } =
+    counts;
 
   // Edge case: no required checks at all (everything optional/recommended)
-  const allRequiredPass = requiredTotal === 0 || requiredPassed === requiredTotal;
+  const allRequiredPass =
+    requiredTotal === 0 || requiredPassed === requiredTotal;
   const requiredRatio = requiredTotal > 0 ? requiredPassed / requiredTotal : 1;
-  const recommendedRatio = recommendedTotal > 0 ? recommendedPassed / recommendedTotal : 1;
+  const recommendedRatio =
+    recommendedTotal > 0 ? recommendedPassed / recommendedTotal : 1;
 
-  if (allRequiredPass && recommendedRatio >= 1) return 'A';
-  if (allRequiredPass && recommendedRatio >= 0.8) return 'B';
-  if (allRequiredPass) return 'C';
-  if (requiredRatio >= 0.6) return 'D';
-  return 'F';
+  if (allRequiredPass && recommendedRatio >= 1) return "A";
+  if (allRequiredPass && recommendedRatio >= 0.8) return "B";
+  if (allRequiredPass) return "C";
+  if (requiredRatio >= 0.6) return "D";
+  return "F";
 }

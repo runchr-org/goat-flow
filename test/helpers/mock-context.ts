@@ -2,7 +2,11 @@
  * Factory function for building mock FactContext objects for rubric check unit tests.
  * Provides sensible defaults matching a passing-minimal project, with overrides for testing specific failures.
  */
-import type { FactContext, AgentFacts, SharedFacts } from '../../src/cli/types.js';
+import type {
+  FactContext,
+  AgentFacts,
+  SharedFacts,
+} from "../../src/cli/types.js";
 
 type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
@@ -18,10 +22,10 @@ function deepMerge<T extends Record<string, unknown>>(
     const val = overrides[key];
     if (
       val !== null &&
-      typeof val === 'object' &&
+      typeof val === "object" &&
       !Array.isArray(val) &&
       !(val instanceof Map) &&
-      typeof base[key] === 'object' &&
+      typeof base[key] === "object" &&
       base[key] !== null &&
       !Array.isArray(base[key]) &&
       !(base[key] instanceof Map)
@@ -53,7 +57,7 @@ function defaultSharedFacts(): SharedFacts {
       totalRefs: 1,
       validRefs: 1,
       formatDiagnostic: null,
-      path: '.goat-flow/footguns/',
+      path: ".goat-flow/footguns/",
     },
     lessons: {
       exists: true,
@@ -62,12 +66,12 @@ function defaultSharedFacts(): SharedFacts {
       staleRefs: [],
       duplicateSurfacePaths: [],
       formatDiagnostic: null,
-      path: '.goat-flow/lessons/',
+      path: ".goat-flow/lessons/",
     },
     decisions: {
       dirExists: true,
       fileCount: 1,
-      path: '.goat-flow/decisions/',
+      path: ".goat-flow/decisions/",
       hasRealContent: true,
     },
     config: {
@@ -91,8 +95,8 @@ function defaultSharedFacts(): SharedFacts {
     skillConventions: { exists: false },
     localInstructions: {
       dirExists: true,
-      location: 'ai' as const,
-      path: '.goat-flow/coding-standards/',
+      location: "ai" as const,
+      path: ".goat-flow/coding-standards/",
       hasValidRouter: true,
       hasConventions: true,
       hasConventionsContent: true,
@@ -106,56 +110,76 @@ function defaultSharedFacts(): SharedFacts {
 function defaultAgentFacts(): AgentFacts {
   return {
     agent: {
-      id: 'claude' as const,
-      name: 'Claude Code',
-      instructionFile: 'CLAUDE.md',
-      settingsFile: '.claude/settings.json',
-      skillsDir: '.claude/skills',
-      hooksDir: '.claude/hooks',
+      id: "claude" as const,
+      name: "Claude Code",
+      instructionFile: "CLAUDE.md",
+      settingsFile: ".claude/settings.json",
+      skillsDir: ".claude/skills",
+      hooksDir: ".claude/hooks",
       denyMechanism: {
-        type: 'deny-script' as const,
-        path: '.claude/hooks/deny-dangerous.sh',
-        settingsPath: '.claude/settings.json',
+        type: "deny-script" as const,
+        path: ".claude/hooks/deny-dangerous.sh",
+        settingsPath: ".claude/settings.json",
       },
     },
     instruction: {
       exists: true,
-      content: '# CLAUDE.md\n\n## Execution Loop\n\nREAD CLASSIFY SCOPE ACT VERIFY LOG\n',
+      content:
+        "# CLAUDE.md\n\n## Execution Loop\n\nREAD CLASSIFY SCOPE ACT VERIFY LOG\n",
       lineCount: 100,
       sections: new Map([
-        ['execution loop', 'READ CLASSIFY SCOPE ACT VERIFY LOG'],
-        ['autonomy tiers', 'Always Ask First Never'],
-        ['definition of done', 'shellcheck cross-references'],
-        ['router table', '| Skills | `.claude/skills/` |'],
+        ["execution loop", "READ CLASSIFY SCOPE ACT VERIFY LOG"],
+        ["autonomy tiers", "Always Ask First Never"],
+        ["definition of done", "shellcheck cross-references"],
+        ["router table", "| Skills | `.claude/skills/` |"],
       ]),
     },
     settings: {
       exists: true,
       valid: true,
       parsed: {
-        permissions: { deny: ['Bash(rm -rf *)'] },
+        permissions: { deny: ["Bash(rm -rf *)"] },
         hooks: {
-          Stop: [{ hooks: [{ type: 'command', command: '.claude/hooks/stop-lint.sh' }] }],
+          Stop: [
+            {
+              hooks: [
+                { type: "command", command: ".claude/hooks/stop-lint.sh" },
+              ],
+            },
+          ],
         },
       },
       hasDenyPatterns: true,
     },
     skills: {
-      installedDirs: ['goat', 'goat-debug', 'goat-plan', 'goat-review', 'goat-security', 'goat-test'],
-      found: ['goat', 'goat-debug', 'goat-plan', 'goat-review', 'goat-security', 'goat-test'],
+      installedDirs: [
+        "goat",
+        "goat-debug",
+        "goat-plan",
+        "goat-review",
+        "goat-security",
+        "goat-test",
+      ],
+      found: [
+        "goat",
+        "goat-debug",
+        "goat-plan",
+        "goat-review",
+        "goat-security",
+        "goat-test",
+      ],
       missing: [],
       allPresent: true,
       versions: {
-        goat: '1.0.0',
-        'goat-debug': '1.0.0',
-        'goat-plan': '1.0.0',
-        'goat-review': '1.0.0',
-        'goat-security': '1.0.0',
-        'goat-test': '1.0.0',
+        goat: "1.0.0",
+        "goat-debug": "1.0.0",
+        "goat-plan": "1.0.0",
+        "goat-review": "1.0.0",
+        "goat-security": "1.0.0",
+        "goat-test": "1.0.0",
       },
       outdatedCount: 0,
       hasDispatcher: true,
-      danglingRefs: [],
       quality: {
         withStep0: 5,
         withHumanGate: 5,
@@ -185,7 +209,7 @@ function defaultAgentFacts(): AgentFacts {
       denyBlocksCloudDestructive: false,
       postTurnExists: true,
       postTurnRegistered: true,
-      postTurnRegisteredPath: '.claude/hooks/stop-lint.sh',
+      postTurnRegisteredPath: ".claude/hooks/stop-lint.sh",
       postTurnExitsZero: true,
       postTurnHasValidation: true,
       postTurnSwallowsFailures: false,
@@ -231,13 +255,13 @@ export function createMockContext(overrides?: {
 
   return {
     facts: {
-      root: '/tmp/mock-project',
+      root: "/tmp/mock-project",
       stack: {
-        languages: ['typescript'],
-        buildCommand: 'npx tsc',
-        testCommand: 'npm test',
-        lintCommand: 'npx eslint .',
-        formatCommand: 'npx prettier --write .',
+        languages: ["typescript"],
+        buildCommand: "npx tsc",
+        testCommand: "npm test",
+        lintCommand: "npx eslint .",
+        formatCommand: "npx prettier --write .",
         signals: {
           codeGenTools: [],
           deployPlatforms: [],

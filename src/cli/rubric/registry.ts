@@ -2,11 +2,11 @@
  * Registry that assembles every rubric check and anti-pattern into the canonical scan order.
  * Higher-level modules should import from here instead of stitching tiers together themselves.
  */
-import type { CheckDef, AntiPatternDef } from '../types.js';
-import { foundationChecks } from './foundation.js';
-import { standardChecks } from './standard/index.js';
-import { fullChecks } from './full.js';
-import { antiPatterns } from './anti-patterns.js';
+import type { CheckDef, AntiPatternDef } from "../types.js";
+import { foundationChecks } from "./foundation.js";
+import { standardChecks } from "./standard/index.js";
+import { fullChecks } from "./full.js";
+import { antiPatterns } from "./anti-patterns.js";
 
 // Combined array of all rubric checks across all three tiers
 const allChecks: CheckDef[] = [
@@ -39,7 +39,7 @@ export function getCheck(id: string): CheckDef | undefined {
  * Return all check definitions belonging to the specified scoring tier.
  */
 export function getChecksByTier(
-  tier: 'foundation' | 'standard' | 'full',
+  tier: "foundation" | "standard" | "full",
 ): CheckDef[] {
   return allChecks.filter((c) => c.tier === tier);
 }

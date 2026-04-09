@@ -2,18 +2,18 @@
  * Consistency checks for prompt fragment coverage.
  * These tests fail when rubric checks or anti-patterns lose their matching fragment entries.
  */
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   getAllFragments,
   getFragment,
   hasFragment,
   getFragmentKeys,
-} from '../../src/cli/prompt/registry.js';
-import { allChecks, allAntiPatterns } from '../../src/cli/rubric/registry.js';
+} from "../../src/cli/prompt/registry.js";
+import { allChecks, allAntiPatterns } from "../../src/cli/rubric/registry.js";
 
-describe('Fragment registry', () => {
-  it('has fragments for all check recommendationKeys', () => {
+describe("Fragment registry", () => {
+  it("has fragments for all check recommendationKeys", () => {
     const missing: string[] = [];
     for (const check of allChecks) {
       if (!hasFragment(check.recommendationKey)) {
@@ -23,11 +23,11 @@ describe('Fragment registry', () => {
     assert.equal(
       missing.length,
       0,
-      `Missing fragments for checks:\n  ${missing.join('\n  ')}`,
+      `Missing fragments for checks:\n  ${missing.join("\n  ")}`,
     );
   });
 
-  it('has fragments for all anti-pattern recommendationKeys', () => {
+  it("has fragments for all anti-pattern recommendationKeys", () => {
     const missing: string[] = [];
     for (const ap of allAntiPatterns) {
       if (!hasFragment(ap.recommendationKey)) {
@@ -37,11 +37,11 @@ describe('Fragment registry', () => {
     assert.equal(
       missing.length,
       0,
-      `Missing fragments for anti-patterns:\n  ${missing.join('\n  ')}`,
+      `Missing fragments for anti-patterns:\n  ${missing.join("\n  ")}`,
     );
   });
 
-  it('has no duplicate fragment keys', () => {
+  it("has no duplicate fragment keys", () => {
     const keys = getFragmentKeys();
     const seen = new Set<string>();
     const dupes: string[] = [];
@@ -52,11 +52,11 @@ describe('Fragment registry', () => {
     assert.equal(
       dupes.length,
       0,
-      `Duplicate fragment keys: ${dupes.join(', ')}`,
+      `Duplicate fragment keys: ${dupes.join(", ")}`,
     );
   });
 
-  it('every fragment has non-empty instruction', () => {
+  it("every fragment has non-empty instruction", () => {
     for (const fragment of getAllFragments()) {
       assert.ok(
         fragment.instruction.trim().length > 0,
@@ -65,8 +65,8 @@ describe('Fragment registry', () => {
     }
   });
 
-  it('every fragment has a valid phase', () => {
-    const validPhases = ['foundation', 'standard', 'full', 'anti-pattern'];
+  it("every fragment has a valid phase", () => {
+    const validPhases = ["foundation", "standard", "full", "anti-pattern"];
     for (const fragment of getAllFragments()) {
       assert.ok(
         validPhases.includes(fragment.phase),
@@ -75,7 +75,7 @@ describe('Fragment registry', () => {
     }
   });
 
-  it('every fragment has a category', () => {
+  it("every fragment has a category", () => {
     for (const fragment of getAllFragments()) {
       assert.ok(
         fragment.category.length > 0,
@@ -84,23 +84,23 @@ describe('Fragment registry', () => {
     }
   });
 
-  it('every fragment has a valid kind', () => {
+  it("every fragment has a valid kind", () => {
     for (const fragment of getAllFragments()) {
       assert.ok(
-        fragment.kind === 'create' || fragment.kind === 'fix',
+        fragment.kind === "create" || fragment.kind === "fix",
         `Fragment '${fragment.key}' has invalid kind '${fragment.kind}'`,
       );
     }
   });
 
-  it('getFragment returns correct fragment', () => {
-    const f = getFragment('create-instruction-file');
+  it("getFragment returns correct fragment", () => {
+    const f = getFragment("create-instruction-file");
     assert.ok(f);
-    assert.equal(f.key, 'create-instruction-file');
-    assert.equal(f.phase, 'foundation');
+    assert.equal(f.key, "create-instruction-file");
+    assert.equal(f.phase, "foundation");
   });
 
-  it('getFragment returns undefined for unknown key', () => {
-    assert.equal(getFragment('nonexistent-key'), undefined);
+  it("getFragment returns undefined for unknown key", () => {
+    assert.equal(getFragment("nonexistent-key"), undefined);
   });
 });

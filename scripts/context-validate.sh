@@ -145,11 +145,8 @@ if [[ -f CLAUDE.md ]]; then
         fi
     done < <(
         awk '
-            /<!-- goat-flow:router:start -->/ { in_router=1; next }
-            /<!-- goat-flow:router:end -->/ { in_router=0 }
-            !in_router && /^## Router Table/ { in_router=1; next }
-            !in_router { next }
-            /^## / && in_router { in_router=0; next }
+            /^## Router Table/ { in_router=1; next }
+            /^## / && in_router { in_router=0 }
             in_router { print }
         ' CLAUDE.md | grep -oE "$backtick_ref_pattern" | tr -d '`'
     )

@@ -7,6 +7,10 @@ canonical source - update here first, then propagate to skill templates.
 
 ---
 
+## Execution Loop Integration
+
+When a goat-* skill is active, the skill's Step 0 satisfies READ/CLASSIFY/SCOPE. Resume the loop at ACT.
+
 ## Severity Scale
 
 SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
@@ -79,7 +83,18 @@ Skills that gather context before acting follow this pattern:
 
 **The gate rule:** Step 0 MUST end with the agent presenting its understanding and waiting for the user before proceeding to Phase 1. Auto-detect pre-fills context - it does not replace human confirmation. Bare invocation with no arguments = zero context = ask all structural questions and wait.
 
+**Dispatcher invocation:** When a skill is invoked via `/goat`, Step 0 is the single entry gate. The dispatcher already announced the skill — Step 0 goes straight to its questions without re-announcing. There is no double-gate: one announcement from the dispatcher, one gate (Step 0) in the skill.
+
 Never hard-block when context is already available. The goal is to start moving, not to interrogate.
+
+## Contradiction Check
+
+If the user's stated complexity doesn't match the actual scope, flag it:
+- "hotfix" but 5+ files affected → likely Standard or System
+- "small feature" but crosses 3+ boundaries → likely System
+- "quick test" but 20+ functions in target → warn scope is larger than implied
+
+Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 ## Stuck Protocol
 

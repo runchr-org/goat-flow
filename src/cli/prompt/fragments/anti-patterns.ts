@@ -2,18 +2,18 @@
  * Static prompt fragments for anti-pattern fixes.
  * Each entry maps a triggered anti-pattern to reusable setup or remediation guidance.
  */
-import type { Fragment } from '../types.js';
-import { SKILL_VERSION } from '../../constants.js';
+import type { Fragment } from "../types.js";
+import { SKILL_VERSION } from "../../constants.js";
 
 /**
  * Anti-pattern fix fragments
  */
 export const antiPatternFragments: Fragment[] = [
   {
-    key: 'ap-compress-instruction-file',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
+    key: "ap-compress-instruction-file",
+    phase: "anti-pattern",
+    category: "Anti-Pattern Fix",
+    kind: "fix",
     instruction: `**CRITICAL:** \`{{instructionFile}}\` is over 150 lines (hard limit). This is an anti-pattern that costs -3 points.
 
 Immediate actions:
@@ -29,10 +29,10 @@ Target: under 120 lines. Hard limit: 150.`,
   // ap-fix-dod-overlap removed - AP3 removed.
   // ap-add-footgun-evidence removed - AP4 removed (duplicate of rubric check 2.3.4).
   {
-    key: 'ap-fix-settings-json',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
+    key: "ap-fix-settings-json",
+    phase: "anti-pattern",
+    category: "Anti-Pattern Fix",
+    kind: "fix",
     instruction: `**CRITICAL:** \`{{settingsFile}}\` is invalid JSON. This is an anti-pattern that costs -5 points.
 
 1. Open the file and find the syntax error
@@ -40,20 +40,20 @@ Target: under 120 lines. Hard limit: 150.`,
 3. Validate with: \`node -e "JSON.parse(require('fs').readFileSync('{{settingsFile}}', 'utf8'))"\``,
   },
   {
-    key: 'ap-fix-hook-exit',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
+    key: "ap-fix-hook-exit",
+    phase: "anti-pattern",
+    category: "Anti-Pattern Fix",
+    kind: "fix",
     instruction: `**CRITICAL:** The post-turn hook (stop-lint.sh) swallows validation failures with \`|| true\`. This hides lint/typecheck errors and costs -5 points.
 
 Fix: remove \`|| true\` from the real validation commands. Keep optional discovery guards if needed, but do not suppress the actual \`shellcheck\`, \`eslint\`, \`tsc\`, or formatter invocation.`,
   },
   // ap-compress-local-files removed - AP7 removed.
   {
-    key: 'ap-fix-generic-ask-first',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
+    key: "ap-fix-generic-ask-first",
+    phase: "anti-pattern",
+    category: "Anti-Pattern Fix",
+    kind: "fix",
     instruction: `The Ask First section contains generic template text like "auth, routing, deployment, API, DB". This is an anti-pattern that costs -2 points.
 
 Replace with project-specific boundaries using actual file paths:
@@ -65,10 +65,10 @@ Replace with project-specific boundaries using actual file paths:
 - \`migrations/\` - database migrations`,
   },
   {
-    key: 'ap-gitignore-settings-local',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
+    key: "ap-gitignore-settings-local",
+    phase: "anti-pattern",
+    category: "Anti-Pattern Fix",
+    kind: "fix",
     instruction: `\`settings.local.json\` should be in \`.gitignore\` to prevent committing personal settings.
 
 Add to \`.gitignore\`:
@@ -80,10 +80,10 @@ settings.local.json
   // AP10 (ap-prune-settings-local) removed - settings.local.json is personal preference.
   // ap-fix-empty-scaffolding removed - AP11 removed (was already 0 deduction).
   {
-    key: 'ap-fix-stale-references',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
+    key: "ap-fix-stale-references",
+    phase: "anti-pattern",
+    category: "Anti-Pattern Fix",
+    kind: "fix",
     instruction: `Footgun entries contain file:line references to files that no longer exist. Stale references mislead agents.
 
 **Stale refs found:** {{evidence.ap-fix-stale-references}}
@@ -97,10 +97,10 @@ Every file:line reference must point to a real file on disk.`,
   },
   // ap-fix-duplicate-learning-loop-surfaces removed - AP22 removed.
   {
-    key: 'ap-fix-stale-instruction-refs',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
+    key: "ap-fix-stale-instruction-refs",
+    phase: "anti-pattern",
+    category: "Anti-Pattern Fix",
+    kind: "fix",
     instruction: `\`{{instructionFile}}\` contains backtick-wrapped code paths that don't exist on disk.
 
 **Stale refs found:** {{evidence.ap-fix-stale-instruction-refs}}
@@ -113,10 +113,10 @@ For each stale reference:
 Every code path in the instruction file should resolve to a real file.`,
   },
   {
-    key: 'ap-fix-duplicate-skills',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
+    key: "ap-fix-duplicate-skills",
+    phase: "anti-pattern",
+    category: "Anti-Pattern Fix",
+    kind: "fix",
     instruction: `This project has both generic and goat-prefixed versions of the same skill. This causes agent confusion about which to invoke.
 
 For each duplicate pair:
@@ -126,10 +126,10 @@ For each duplicate pair:
 4. Delete the generic skill directory`,
   },
   {
-    key: 'ap-fix-outdated-skills',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
+    key: "ap-fix-outdated-skills",
+    phase: "anti-pattern",
+    category: "Anti-Pattern Fix",
+    kind: "fix",
     instruction: `Some skills have outdated or missing version tags. Skills should include \`goat-flow-skill-version\` in their YAML frontmatter to track compatibility.
 
 **Outdated skills:** {{evidence.ap-fix-outdated-skills}}
@@ -150,26 +150,13 @@ goat-flow-skill-version: "${SKILL_VERSION}"
 After updating all skills:
 5. Verify the router table in CLAUDE.md (and AGENTS.md/GEMINI.md) references all 6 canonical skills and no non-existent paths`,
   },
-  {
-    key: 'ap-fix-dangling-skill-refs',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
-    instruction: `Some skill files reference file paths that do not exist in the project.
-
-**Dangling references:** {{evidence.ap-fix-dangling-skill-refs}}
-
-For each dangling reference:
-1. Check if the file was renamed or moved - update the path if so
-2. Check if the file was deleted - remove the reference
-3. If the reference is aspirational (file should exist but doesn't), either create the file or remove the reference`,
-  },
+  // ap-fix-dangling-skill-refs removed - AP17 removed.
   // ap-fix-adapt-comments removed - AP18 removed.
   {
-    key: 'ap-fix-hook-paths',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
+    key: "ap-fix-hook-paths",
+    phase: "anti-pattern",
+    category: "Anti-Pattern Fix",
+    kind: "fix",
     instruction: `Hook scripts contain hardcoded absolute paths that break when the repo is cloned elsewhere.
 
 Replace all absolute paths with \`$(git rev-parse --show-toplevel)\`:
@@ -179,10 +166,10 @@ Replace all absolute paths with \`$(git rev-parse --show-toplevel)\`:
 \`\`\``,
   },
   {
-    key: 'ap-remove-stale-skills',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
+    key: "ap-remove-stale-skills",
+    phase: "anti-pattern",
+    category: "Anti-Pattern Fix",
+    kind: "fix",
     instruction: `Non-canonical goat-flow skill directories were found. These are from a previous version and confuse agents - they load the wrong skill file.
 
 Delete these directories and keep only the 6 canonical skills: \`goat\`, \`goat-debug\`, \`goat-plan\`, \`goat-review\`, \`goat-security\`, \`goat-test\`.
@@ -200,18 +187,12 @@ Common stale directories to remove:
 
 After deleting, update the router table in your instruction file to reference only the 6 canonical skills.`,
   },
+  // ap-fix-stale-router-markers removed - marker system removed.
   {
-    key: 'ap-fix-stale-router-markers',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
-    instruction: `Some paths inside the goat-flow router marker block point to non-existent resources. Run \`goat-flow setup\` to regenerate the marker block, or manually update the paths between \`<!-- goat-flow:router:start -->\` and \`<!-- goat-flow:router:end -->\`.`,
-  },
-  {
-    key: 'ap-fix-broad-deny-patterns',
-    phase: 'anti-pattern',
-    category: 'Anti-Pattern Fix',
-    kind: 'fix',
+    key: "ap-fix-broad-deny-patterns",
+    phase: "anti-pattern",
+    category: "Anti-Pattern Fix",
+    kind: "fix",
     instruction: `Overly broad deny patterns block legitimate commands. Replace patterns like \`Bash(*git*)\` with specific ones:
 
 - \`Bash(*git commit*)\` - blocks commits (not all git commands)

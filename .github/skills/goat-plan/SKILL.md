@@ -7,62 +7,13 @@ goat-flow-skill-version: "1.1.0"
 
 ## Shared Conventions
 
-### Severity & Evidence
-- **Severity order:** SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE. Order findings by severity, not by file or discovery order.
-- **Evidence:** Every finding needs `file:line`. Tag as OBSERVED (directly verified in code) or INFERRED (deduced - state what direct evidence is missing). Before presenting findings, re-read each cited `file:line` to confirm accuracy. MUST NOT fabricate file paths, function names, or behaviour.
-
-### Human Gates
-- **BLOCKING GATE** - agent MUST stop and wait for human decision. Used for: scope approval, phase transitions, final output review. Do NOT auto-advance.
-- **CHECKPOINT** - agent presents status and continues unless interrupted. Used for: progress reports, intermediate findings. Format: "Phase N complete. [summary]. Continuing to Phase N+1."
-
-### Adaptive Step 0
-1. Read the user's invocation for context already provided
-2. For each Step 0 question: if answer is clear from context → **confirm** ("I see [answer]. Correct?"). Otherwise → **ask**
-3. If ALL questions answered by invocation → condensed confirmation, proceed
-4. If user says "skip Step 0" → confirm understanding, proceed
-
-**Gate rule:** Step 0 MUST end with the agent presenting its understanding and waiting for the user before Phase 1. Auto-detect pre-fills context - it does not replace confirmation. Bare invocation = zero context = ask all structural questions and wait.
-
-### Stuck Protocol
-If 3 consecutive reads produce no new signal: (1) present what you have so far, (2) state what you were looking for and didn't find, (3) ask to redirect, narrow scope, or close.
-
-### Ceremony Level
-| Complexity | Ceremony |
-|------------|----------|
-| Hotfix / Small Feature | Skip: closing ceremony, footgun annotations, goat-plan Phases 2-3 |
-| Standard | Full phases, gates at major decisions |
-| System / Infrastructure | Full phases + cross-boundary verification + rollback planning |
-
-**Sub-agent mode:** GATEs become CHECKPOINTs automatically. Step 0 proceeds with auto-detected scope.
-
-### Footgun Fast-Path
-If Step 0 footgun check matches a known trap: (1) surface match immediately, (2) offer mitigation path from the entry, (3) still require READ + VERIFY on actual files - footguns are incident records, not executable specs, (4) do NOT skip to implementation on a match alone.
-
-### Learning Loop
-After completing the skill, check if this run uncovered anything worth logging:
-- Behavioural mistake → add `## Lesson:` or `## Pattern:` entry to relevant category bucket in `.goat-flow/lessons/`
-- Architectural trap with `file:line` evidence → add `## Footgun:` entry to relevant category bucket in `.goat-flow/footguns/`
-- Route entries to `.goat-flow/lessons/` or `.goat-flow/footguns/`
-- Match entry format to existing entries in the target bucket file. Do not append to a monolithic log or directory README.
-
-### Recovery
-When a skill fails mid-execution (context limit, sub-agent dies, tool error):
-- Partial completion → identify last completed step (last `[x]` checkbox), resume from next
-- Missing artifacts → return to the step that generates them, re-execute
-- User wants restart → re-run from Step 0
-- User wants to skip → document skip reason in output, proceed to closing
-
-### Working Memory
-For tasks exceeding 5 turns: maintain state in the active milestone file under `.goat-flow/tasks/`. If interrupted or compacted, write a session log to `.goat-flow/logs/sessions/`.
-
-### Autonomy Awareness
-Before proposing actions that change files, check the instruction file's Ask First boundaries. If the proposed change crosses a boundary, flag it: "This change touches [boundary]. Proceeding requires approval per Ask First rules."
-
-### Closing Protocol
-1. If incomplete → write a session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` (Date, Status, Current State, Key Decisions, Errors & Corrections, Learnings, Known Risks, Next Step, Context Files)
-2. Check Learning Loop for anything worth logging
-3. Write session log to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` (what happened, files changed, decisions, learnings)
-4. Suggest most relevant next skill (see Chains With)
+Read `.goat-flow/skill-conventions.md` for full shared conventions.
+If unavailable, use these essentials:
+- Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
+- Evidence: every finding MUST include file:line, tag OBSERVED vs INFERRED
+- Learning loop: check .goat-flow/lessons/ and .goat-flow/footguns/ after completion
+- Gates: BLOCKING GATE = stop and wait. CHECKPOINT = continue unless interrupted.
+- Task tracking: tick checkboxes immediately when completed, not at the end.
 
 ## When to Use
 
@@ -74,10 +25,12 @@ Use before non-trivial implementation or cross-file restructuring.
 
 **Complexity routing (plan mode):**
 - **Hotfix** → Phase 1 brief only (3-5 lines), skip Phases 2-4
-- **Small Feature** → Phase 1 compressed brief (Problem/Solution/Scope/Success all at once), skip Phases 2-3, 1-2 milestones max
-- **Standard** → Phase 1 brief + Phase 4 milestones. SHOULD skip Phase 2-3 (only use if approach is genuinely uncertain).
+- **Small Feature** → Phase 1 compressed brief (Problem/Solution/Scope/Success all at once), Phases 2-3 user-prompted after Phase 1, 1-2 milestones max
+- **Standard** → Phase 1 brief + Phase 4 milestones. Phases 2-3 offered after Phase 1.
 - **System** → Full 4-phase process with human gates
 - **Infrastructure** → Full process + rollback planning
+
+**Classification reminder:** A 1-2 file change is a Hotfix even in a 500-file project. Only classify as Standard when the approach is genuinely uncertain or multiple components are involved.
 
 **NOT this skill:**
 - Diagnosing a bug → /goat-debug
@@ -101,9 +54,9 @@ If matches found: "Branch [name] modified [files] [N] days ago. Coordinate?"
 2. If new: What complexity? (Hotfix / Small Feature / Standard / System / Infrastructure) → Plan mode
 3. If restructure: What's the scope? (rename, extract, move, interface change) → Refactor mode
 
-**Illustrative questions:**
-5. What's the riskiest part? (e.g., rubric check changes, cross-reference renames, skill template updates, setup prompt changes, scanner refactors)
-6. Any constraints? (e.g., must pass preflight, no broken cross-refs, shellcheck clean, no new `_v2`/`_backup` file variants)
+**Illustrative questions (adapt):**
+5. What's the riskiest part of this change?
+6. Any constraints? (timeline, backwards compatibility, performance budget)
 
 **Escape hatch:** If the user says "I'll figure it out from the code" or provides minimal info, infer scope from `git diff`, named files, or the project structure and confirm before proceeding.
 
@@ -112,12 +65,6 @@ Even a vague answer ("if it takes more than a week" or "if it breaks the existin
 helps frame the planning.
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
-
-**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
-- "hotfix" but 5+ files affected → likely Standard or System
-- "small feature" but crosses 3+ boundaries → likely System
-- "quick test" but 20+ functions in target → warn scope is larger than implied
-Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 **Before proceeding:** present what you know (feature, complexity, constraints, kill criteria) and what you still need. Wait for the user to confirm before entering Phase 1.
 
@@ -137,10 +84,12 @@ then present the next. Do NOT dump all 8 sections at once.
 
 Ask the question whose answer could invalidate the approach FIRST.
 
-**Glossary check:** Verify all domain terms in the brief are defined in `.goat-flow/glossary.md`.
-If new terms appear, add them: `| term | definition | canonical file | aliases |`
+**Glossary check:** If `.goat-flow/glossary.md` exists, verify all domain terms in the
+brief are defined. If new terms appear, add them: `| term | definition | canonical file | aliases |`
 
 **BLOCKING GATE:** Present complete brief. "Approve, or adjust?"
+
+"Want to run Mob Elaboration (sharp questions) or SBAO (multi-perspective critique)? Or skip straight to milestones?"
 
 ## Phase 2 - Mob Elaboration
 
@@ -159,11 +108,9 @@ Repeat until the user says "locked in" or 3 rounds complete (whichever first).
 
 ## Phase 3 - Signal-Based Adaptive Orchestration (SBAO)
 
-**Skip Phases 2-4 for Hotfix, Small Feature, and Standard complexity.** Proceed directly from Phase 1 brief to milestone writing. Only System and Infrastructure complexity warrant the full SBAO orchestration below.
+**For Hotfix:** skip directly to Phase 4 milestones. **For all other complexities:** the user chose to run SBAO in Phase 1's gate.
 
 **SBAO agents: 2 with core trio + 1 fresh-context. Never split SKEPTIC/ANALYST/STRATEGIST into separate agents.**
-
-**For Hotfix / Small Feature:** "SBAO launches 3 sub-agents - that's heavy for a small change. Skip to Phase 4, or run SBAO anyway?" Let the user decide.
 
 Critique and improve the plan from Phase 1-2 using multiple perspectives.
 The **core trio** (SKEPTIC / ANALYST / STRATEGIST) provides adversarial tension.
@@ -180,7 +127,7 @@ then produces plan improvement ideas.
 > Review this plan as a SKEPTIC, ANALYST, and STRATEGIST. Generate 2-3 alternative approaches. For each, evaluate risk, effort, speed to feedback, and reversibility. Propose specific improvements.
 
 **Sub-agent C (fresh context - control group):**
-> Without reading any prior discussion, review the codebase and these requirements: [brief]. What's your technical plan? What would you do differently from this existing plan? (This agent has NO context from Phases 1-2 - it's a litmus test for context drift.)
+> Without reading any prior discussion, review the codebase and these requirements: [brief]. What's your technical plan? What would you do differently from this existing plan? (This agent has NO context from Phases 1-2 - it's a litmus test for context drift.) This sub-agent MUST NOT receive any context from Phases 1-2 or prior conversation. Pass ONLY the requirements and file paths.
 
 The main agent does NOT use the core trio - it already has existing context and
 would just reinforce its own assumptions.
@@ -215,7 +162,7 @@ After answers, synthesize a prime plan that:
 
 ## Phase 4 - Milestones
 
-Structure implementation as milestones using these archetypes (write to `.goat-flow/tasks/<version>/M<NN>-<slug>.md`):
+Structure implementation as milestones using these archetypes:
 1. **Prove It Works** - smallest slice that validates the approach
 2. **Make It Real** - core functionality, happy path complete
 3. **Make It Solid** - error handling, edge cases, tests
@@ -231,7 +178,15 @@ After completing each milestone, re-read the NEXT milestone and rewrite it
 based on what you learned. Plans evolve - the Phase 4 milestones written
 before implementation are hypotheses, not commitments.
 
-**BLOCKING GATE:** Present milestones. "Approve and start implementing?"
+**BLOCKING GATE:** Before presenting full milestones, generate a **10-bullet TL;DR summary** of the plan. Each bullet = one sentence covering a key decision, scope boundary, or deliverable.
+
+Present the summary: "Does this capture the right approach? Say 'yes' to confirm, or flag which bullets need changing."
+
+On confirmation: add the confirmed bullets as a `## TL;DR` section at the top of the plan file. This becomes the contract — the human approved THESE bullets.
+
+Then present the full milestones: "Approve and start implementing?"
+
+Skip the 10-bullet step for Hotfix and Small Feature complexity.
 
 ---
 
@@ -310,6 +265,7 @@ Comprehensive verification after all changes:
 - MUST NOT answer your own elaboration questions (plan mode)
 - MUST surface kill criteria in Phase 1, not defer to Phase 4
 - MUST tag low-confidence decisions as Decision Debt
+- SBAO MUST use Agent tool calls, not inline role-play (repeated failure — see `.goat-flow/lessons/agent-behavior.md`)
 - MUST re-read next milestone after completing each one
 - MUST read both sides of every interface before changing either (refactor mode)
 - MUST grep for old names after EVERY rename, not just at end (refactor mode)

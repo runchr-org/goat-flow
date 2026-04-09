@@ -1,45 +1,88 @@
-    <!-- ═══ Workspace View (split-pane: prompts left, terminal right) ═══ -->
-    <div x-show="activeView === 'workspace'" x-cloak class="flex" style="height: calc(100vh - 5rem)">
+<!-- ═══ Workspace View (split-pane: prompts left, terminal right) ═══ -->
+<div
+  x-show="activeView === 'workspace'"
+  x-cloak
+  class="flex"
+  style="height: calc(100vh - 5rem)"
+>
+  <!-- Mobile sub-tab toggle -->
+  <div
+    class="md:hidden flex border-b border-gray-200 dark:border-gray-700 absolute top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900"
+  >
+    <button
+      @click="workspacePanel = 'prompts'"
+      :class="workspacePanel === 'prompts' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'"
+      class="flex-1 py-2 text-xs font-medium border-b-2 transition-colors"
+    >
+      Prompts
+    </button>
+    <button
+      @click="workspacePanel = 'terminal'"
+      :class="workspacePanel === 'terminal' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'"
+      class="flex-1 py-2 text-xs font-medium border-b-2 transition-colors relative"
+    >
+      Terminal
+      <span
+        x-show="terminalSessionId && !terminalEnded"
+        class="absolute top-1 right-4 w-2 h-2 rounded-full bg-green-500 animate-pulse"
+      ></span>
+    </button>
+  </div>
 
-      <!-- Mobile sub-tab toggle -->
-      <div class="md:hidden flex border-b border-gray-200 dark:border-gray-700 absolute top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900">
-        <button @click="workspacePanel = 'prompts'" :class="workspacePanel === 'prompts' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'"
-          class="flex-1 py-2 text-xs font-medium border-b-2 transition-colors">Prompts</button>
-        <button @click="workspacePanel = 'terminal'" :class="workspacePanel === 'terminal' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'"
-          class="flex-1 py-2 text-xs font-medium border-b-2 transition-colors relative">Terminal
-          <span x-show="terminalSessionId && !terminalEnded" class="absolute top-1 right-4 w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+  <!-- Left Panel: Prompts -->
+  <div
+    x-show="!sidebarCollapsed"
+    x-transition:enter="transition-all duration-200"
+    x-transition:leave="transition-all duration-200"
+    :class="workspacePanel === 'prompts' ? '' : 'hidden md:flex'"
+    class="w-full md:w-72 lg:w-80 shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col overflow-hidden md:pt-0 pt-10"
+  >
+    <!-- Search + Category filters (sticky) -->
+    <div
+      class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-10 space-y-1.5"
+    >
+      <div class="relative">
+        <input
+          type="text"
+          x-model="presetSearch"
+          placeholder="Search prompts..."
+          x-ref="presetSearchInput"
+          class="w-full px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 focus:ring-1 focus:ring-blue-500 pr-12"
+        />
+        <span
+          class="absolute right-6 top-1/2 -translate-y-1/2 text-xs text-gray-300 dark:text-gray-600 pointer-events-none"
+          >/</span
+        >
+        <button
+          x-show="presetSearch"
+          @click="presetSearch = ''"
+          class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+        >
+          &times;
         </button>
       </div>
+    </div>
+    <div
+      class="px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 flex flex-wrap gap-1 bg-white dark:bg-gray-800 sticky top-8 z-10"
+    >
+      <template x-for="cat in presetCats" :key="cat.id">
+        <button
+          @click="presetFilter = cat.id"
+          :class="presetFilter === cat.id ? (cat.id === 'plan' ? 'text-gray-900' : 'text-white') : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+          :style="presetFilter === cat.id ? 'background:' + ({'all':'#4ade80','favorites':'#4ade80','debug & explore':'#60a5fa','review':'#c084fc','plan':'#fbbf24','test':'#4ade80','security':'#f87171'}[cat.id] || '#4ade80') : ''"
+          class="px-2 py-0.5 text-xs font-medium rounded-full transition-colors"
+          x-text="cat.label + (cat.id !== 'all' && cat.id !== 'favorites' ? ' (' + presets.filter(p => p.cat === cat.id).length + ')' : '')"
+        ></button>
+      </template>
+    </div>
 
-      <!-- Left Panel: Prompts -->
-      <div x-show="!sidebarCollapsed" x-transition:enter="transition-all duration-200" x-transition:leave="transition-all duration-200"
-        :class="workspacePanel === 'prompts' ? '' : 'hidden md:flex'"
-        class="w-full md:w-72 lg:w-80 shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col overflow-hidden md:pt-0 pt-10">
-
-        <!-- Search + Category filters (sticky) -->
-        <div class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-10 space-y-1.5">
-          <div class="relative">
-            <input type="text" x-model="presetSearch" placeholder="Search prompts..."
-              x-ref="presetSearchInput"
-              class="w-full px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 focus:ring-1 focus:ring-blue-500 pr-12">
-            <span class="absolute right-6 top-1/2 -translate-y-1/2 text-xs text-gray-300 dark:text-gray-600 pointer-events-none">/</span>
-            <button x-show="presetSearch" @click="presetSearch = ''" class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">&times;</button>
-          </div>
-        </div>
-        <div class="px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 flex flex-wrap gap-1 bg-white dark:bg-gray-800 sticky top-8 z-10">
-          <template x-for="cat in presetCats" :key="cat.id">
-            <button @click="presetFilter = cat.id"
-              :class="presetFilter === cat.id ? (cat.id === 'plan' ? 'text-gray-900' : 'text-white') : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
-              :style="presetFilter === cat.id ? 'background:' + ({'all':'#4ade80','favorites':'#4ade80','debug & explore':'#60a5fa','review':'#c084fc','plan':'#fbbf24','test':'#4ade80','security':'#f87171'}[cat.id] || '#4ade80') : ''"
-              class="px-2 py-0.5 text-xs font-medium rounded-full transition-colors" x-text="cat.label + (cat.id !== 'all' && cat.id !== 'favorites' ? ' (' + presets.filter(p => p.cat === cat.id).length + ')' : '')"></button>
-          </template>
-        </div>
-
-        <!-- Prompt list (scrollable) -->
-        <div class="flex-1 overflow-y-auto pb-16">
-          <template x-for="preset in filteredPresets" :key="preset.id">
-            <div @click="selectedPreset = preset" class="border-b border-gray-100 dark:border-gray-700 border-l-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700/50 flex items-start gap-2 cursor-pointer transition-all"
-              :class="{
+    <!-- Prompt list (scrollable) -->
+    <div class="flex-1 overflow-y-auto pb-16">
+      <template x-for="preset in filteredPresets" :key="preset.id">
+        <div
+          @click="selectedPreset = preset"
+          class="border-b border-gray-100 dark:border-gray-700 border-l-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700/50 flex items-start gap-2 cursor-pointer transition-all"
+          :class="{
                 'ring-1 ring-emerald-500/50': selectedPreset?.id === preset.id,
                 'border-l-amber-400 bg-amber-900/20': promptRunStates[preset.id] === 'running',
                 'border-l-emerald-400': promptRunStates[preset.id] === 'pass',
@@ -49,141 +92,335 @@
                 'border-l-amber-400': !promptRunStates[preset.id] && preset.cat === 'plan',
                 'border-l-green-400': !promptRunStates[preset.id] && preset.cat === 'test',
                 'border-l-red-400': !promptRunStates[preset.id] && preset.cat === 'security'
-              }">
-              <button @click.stop="toggleFavorite(preset.id)" class="shrink-0 text-sm transition-colors"
-                :class="isFavorite(preset.id) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600 hover:text-yellow-300'"
-                x-text="isFavorite(preset.id) ? '★' : '☆'"
-                :title="isFavorite(preset.id) ? 'Remove from favorites' : 'Add to favorites'"></button>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" x-text="preset.name"></p>
-                <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2" x-text="preset.desc"></p>
-                <span class="text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block"
-                  :class="{
+              }"
+        >
+          <button
+            @click.stop="toggleFavorite(preset.id)"
+            class="shrink-0 text-sm transition-colors"
+            :class="isFavorite(preset.id) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600 hover:text-yellow-300'"
+            x-text="isFavorite(preset.id) ? '★' : '☆'"
+            :title="isFavorite(preset.id) ? 'Remove from favorites' : 'Add to favorites'"
+          ></button>
+          <div class="flex-1 min-w-0">
+            <p
+              class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate"
+              x-text="preset.name"
+            ></p>
+            <p
+              class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2"
+              x-text="preset.desc"
+            ></p>
+            <span
+              class="text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block"
+              :class="{
                     'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400': preset.cat === 'debug & explore',
                     'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400': preset.cat === 'review',
                     'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400': preset.cat === 'plan',
                     'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400': preset.cat === 'test',
                     'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400': preset.cat === 'security'
-                  }" x-text="preset.cat"></span>
-              </div>
-              <button x-data="{ copied: false }" @click="copyPreset(preset.prompt); copied = true; setTimeout(() => copied = false, 1000)"
-                class="shrink-0 p-1.5 transition-colors" :class="copied ? 'text-green-500' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'" title="Copy prompt to clipboard">
-                <svg x-show="!copied" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                <svg x-show="copied" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-              </button>
-              <button x-show="terminalAvailable && (!terminalSessionId || terminalEnded)"
-                @click="launchPreset(preset.prompt, activeRunner); workspacePanel = 'terminal'"
-                class="shrink-0 p-1.5 rounded-full bg-transparent text-gray-400 border border-[#3f3f46] hover:text-emerald-400 hover:border-emerald-600 transition-colors"
-                title="Launch in terminal">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
-              </button>
-              <button x-show="terminalSessionId && !terminalEnded"
-                @click="sendToTerminal(preset.prompt); workspacePanel = 'terminal'"
-                class="shrink-0 p-1.5 rounded-full bg-transparent text-emerald-400 border border-emerald-600 hover:bg-emerald-900/30 transition-colors"
-                title="Send to terminal">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95l15.556-6.374a.75.75 0 000-1.374L3.105 2.289z"/></svg>
-              </button>
-            </div>
-          </template>
-          <p x-show="filteredPresets.length === 0 && presetFilter === 'favorites'" class="text-xs text-gray-400 p-3 text-center">No favorites yet. Click &#9733; on any prompt to pin it here.</p>
-          <p x-show="filteredPresets.length === 0 && presetFilter !== 'favorites'" class="text-xs text-gray-400 p-3 text-center">No presets in this category.</p>
+                  }"
+              x-text="preset.cat"
+            ></span>
+          </div>
+          <button
+            x-data="{ copied: false }"
+            @click="copyPreset(preset.prompt); copied = true; setTimeout(() => copied = false, 1000)"
+            class="shrink-0 p-1.5 transition-colors"
+            :class="copied ? 'text-green-500' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+            title="Copy prompt to clipboard"
+          >
+            <svg
+              x-show="!copied"
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" />
+              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+            </svg>
+            <svg
+              x-show="copied"
+              x-cloak
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M4.5 12.75l6 6 9-13.5"
+              />
+            </svg>
+          </button>
+          <button
+            x-show="terminalAvailable && (!terminalSessionId || terminalEnded)"
+            @click="launchPreset(preset.prompt, activeRunner); workspacePanel = 'terminal'"
+            class="shrink-0 p-1.5 rounded-full bg-transparent text-gray-400 border border-[#3f3f46] hover:text-emerald-400 hover:border-emerald-600 transition-colors"
+            title="Launch in terminal"
+          >
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"
+              />
+            </svg>
+          </button>
+          <button
+            x-show="terminalSessionId && !terminalEnded"
+            @click="sendToTerminal(preset.prompt); workspacePanel = 'terminal'"
+            class="shrink-0 p-1.5 rounded-full bg-transparent text-emerald-400 border border-emerald-600 hover:bg-emerald-900/30 transition-colors"
+            title="Send to terminal"
+          >
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95l15.556-6.374a.75.75 0 000-1.374L3.105 2.289z"
+              />
+            </svg>
+          </button>
         </div>
-      </div>
+      </template>
+      <p
+        x-show="filteredPresets.length === 0 && presetFilter === 'favorites'"
+        class="text-xs text-gray-400 p-3 text-center"
+      >
+        No favorites yet. Click &#9733; on any prompt to pin it here.
+      </p>
+      <p
+        x-show="filteredPresets.length === 0 && presetFilter !== 'favorites'"
+        class="text-xs text-gray-400 p-3 text-center"
+      >
+        No presets in this category.
+      </p>
+    </div>
+  </div>
 
-      <!-- Sidebar toggle -->
-      <button @click="sidebarCollapsed = !sidebarCollapsed"
-        class="hidden md:flex items-center justify-center shrink-0 w-5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer border-r border-gray-200 dark:border-gray-700"
-        :title="sidebarCollapsed ? 'Show prompts' : 'Hide prompts'"
-        style="background: transparent; border-left: none; border-top: none; border-bottom: none;">
-        <svg :style="sidebarCollapsed ? 'transform: rotate(180deg)' : ''" style="width: 12px; height: 12px; color: #71717a; transition: transform 0.2s;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-        </svg>
-      </button>
+  <!-- Sidebar toggle -->
+  <button
+    @click="sidebarCollapsed = !sidebarCollapsed"
+    class="hidden md:flex items-center justify-center shrink-0 w-5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer border-r border-gray-200 dark:border-gray-700"
+    :title="sidebarCollapsed ? 'Show prompts' : 'Hide prompts'"
+    style="
+      background: transparent;
+      border-left: none;
+      border-top: none;
+      border-bottom: none;
+    "
+  >
+    <svg
+      :style="sidebarCollapsed ? 'transform: rotate(180deg)' : ''"
+      style="
+        width: 12px;
+        height: 12px;
+        color: #71717a;
+        transition: transform 0.2s;
+      "
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M15 19l-7-7 7-7"
+      />
+    </svg>
+  </button>
 
-      <!-- Right Panel: Terminal -->
-      <div :class="workspacePanel === 'terminal' ? '' : 'hidden md:flex'"
-        class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 md:pt-0 pt-10">
-
-        <!-- node-pty missing -->
-        <div x-show="!terminalAvailable" class="flex-1 flex items-center justify-center">
-          <div class="text-center space-y-4 max-w-md">
-            <div class="text-4xl">&#9000;</div>
-            <h2 class="text-xl font-semibold text-gray-600 dark:text-gray-300">Terminal not available</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Requires <strong>node-pty</strong>. Common with pnpm.</p>
-            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 text-left space-y-2">
-              <code class="block text-xs font-mono text-gray-700 dark:text-gray-300">npm install node-pty</code>
-              <code class="block text-xs font-mono text-gray-700 dark:text-gray-300">pnpm approve-builds</code>
-            </div>
-          </div>
+  <!-- Right Panel: Terminal -->
+  <div
+    :class="workspacePanel === 'terminal' ? '' : 'hidden md:flex'"
+    class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 md:pt-0 pt-10"
+  >
+    <!-- node-pty missing -->
+    <div
+      x-show="!terminalAvailable"
+      class="flex-1 flex items-center justify-center"
+    >
+      <div class="text-center space-y-4 max-w-md">
+        <div class="text-4xl">&#9000;</div>
+        <h2 class="text-xl font-semibold text-gray-600 dark:text-gray-300">
+          Terminal not available
+        </h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          Requires <strong>node-pty</strong>. Common with pnpm.
+        </p>
+        <div
+          class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 text-left space-y-2"
+        >
+          <code class="block text-xs font-mono text-gray-700 dark:text-gray-300"
+            >npm install node-pty</code
+          >
+          <code class="block text-xs font-mono text-gray-700 dark:text-gray-300"
+            >pnpm approve-builds</code
+          >
         </div>
-
-        <!-- No session: prompt preview OR empty state -->
-        <div x-show="terminalAvailable && !terminalSessionId && selectedPreset" class="flex-1 flex flex-col overflow-hidden">
-          <div class="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0">
-            <span class="text-sm font-semibold gf-text-primary truncate" x-text="selectedPreset?.name"></span>
-            <div class="flex items-center gap-2 shrink-0">
-              <button x-data="{ copied: false }" @click="copyPreset(selectedPreset?.prompt); copied = true; setTimeout(() => copied = false, 1000)"
-                class="gf-btn-copy" :style="copied ? 'background:#14532d;color:#4ade80;border-color:#166534' : ''"
-                x-text="copied ? 'Copied!' : 'Copy'"></button>
-              <button @click="launchPreset(selectedPreset?.prompt, activeRunner); workspacePanel = 'terminal'"
-                class="gf-btn-terminal">Launch</button>
-            </div>
-          </div>
-          <div class="flex-1 overflow-y-auto" style="background: #0f1729;">
-            <pre class="p-4 text-sm font-mono leading-relaxed whitespace-pre-wrap" style="color: #e4e4e7;" x-text="adaptPrompt(selectedPreset?.prompt)"></pre>
-          </div>
-          <div class="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0">
-            <span class="text-xs gf-text-muted">Will run with: <strong x-text="activeRunner"></strong></span>
-          </div>
-        </div>
-
-        <div x-show="terminalAvailable && !terminalSessionId && !selectedPreset" class="flex-1 flex items-center justify-center">
-          <div class="text-center space-y-3">
-            <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            <p class="text-sm text-gray-400 dark:text-gray-500">No active terminal session</p>
-            <p class="text-xs text-gray-400 dark:text-gray-500">Click a prompt to preview, or <strong>Launch</strong> to start a session.</p>
-          </div>
-        </div>
-
-        <!-- Active session -->
-        <template x-if="terminalAvailable && terminalSessionId">
-          <div class="flex flex-col flex-1 overflow-hidden">
-            <div class="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0">
-              <div class="flex items-center gap-3">
-                <span x-show="lastRunPrompt" class="text-sm font-semibold" style="color: #fbbf24;" x-text="`Running: ${lastRunPrompt}`"></span>
-                <span x-show="!lastRunPrompt" class="text-sm font-bold">Terminal</span>
-                <span class="flex items-center gap-1.5 text-xs">
-                  <span class="w-2 h-2 rounded-full" :class="terminalConnected ? 'bg-green-500' : 'bg-red-500'"></span>
-                  <span x-text="terminalConnected ? 'Connected' : 'Disconnected'" class="text-gray-400"></span>
-                </span>
-                <span class="text-xs" style="color: #52525b;" x-show="lastRunAgent" x-text="lastRunAgent"></span>
-                <span x-show="terminalSessionId && !terminalEnded" class="text-xs text-gray-400 font-mono"
-                      x-text="terminalAge"></span>
-              </div>
-              <div class="flex items-center gap-2">
-                <button x-show="terminalSessionCount > 1"
-                        @click="if(confirm('End all ' + terminalSessionCount + ' sessions?')) endAllSessions()"
-                        class="text-xs text-red-500 hover:underline">
-                  End all sessions
-                </button>
-                <span class="text-xs text-gray-400">Ctrl+Shift+D</span>
-                <button @click="exitTerminal()" class="px-2 py-1 text-xs font-medium rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                  End Session
-                </button>
-              </div>
-            </div>
-            <div class="flex-1 relative">
-              <div x-ref="terminalContainer" class="terminal-container"></div>
-              <div x-show="terminalEnded" class="terminal-overlay">
-                <div class="text-center space-y-3">
-                  <p class="text-white text-lg font-semibold">Session ended</p>
-                  <button @click="exitTerminal()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
-                    New Session
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </template>
       </div>
     </div>
+
+    <!-- No session: prompt preview OR empty state -->
+    <div
+      x-show="terminalAvailable && !terminalSessionId && selectedPreset"
+      class="flex-1 flex flex-col overflow-hidden"
+    >
+      <div
+        class="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0"
+      >
+        <span
+          class="text-sm font-semibold gf-text-primary truncate"
+          x-text="selectedPreset?.name"
+        ></span>
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            x-data="{ copied: false }"
+            @click="copyPreset(selectedPreset?.prompt); copied = true; setTimeout(() => copied = false, 1000)"
+            class="gf-btn-copy"
+            :style="copied ? 'background:#14532d;color:#4ade80;border-color:#166534' : ''"
+            x-text="copied ? 'Copied!' : 'Copy'"
+          ></button>
+          <button
+            @click="launchPreset(selectedPreset?.prompt, activeRunner); workspacePanel = 'terminal'"
+            class="gf-btn-terminal"
+          >
+            Launch
+          </button>
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto" style="background: #0f1729">
+        <pre
+          class="p-4 text-sm font-mono leading-relaxed whitespace-pre-wrap"
+          style="color: #e4e4e7"
+          x-text="adaptPrompt(selectedPreset?.prompt)"
+        ></pre>
+      </div>
+      <div
+        class="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0"
+      >
+        <span class="text-xs gf-text-muted"
+          >Will run with: <strong x-text="activeRunner"></strong
+        ></span>
+      </div>
+    </div>
+
+    <div
+      x-show="terminalAvailable && !terminalSessionId && !selectedPreset"
+      class="flex-1 flex items-center justify-center"
+    >
+      <div class="text-center space-y-3">
+        <svg
+          class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+            d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+        <p class="text-sm text-gray-400 dark:text-gray-500">
+          No active terminal session
+        </p>
+        <p class="text-xs text-gray-400 dark:text-gray-500">
+          Click a prompt to preview, or <strong>Launch</strong> to start a
+          session.
+        </p>
+      </div>
+    </div>
+
+    <!-- Active session -->
+    <template x-if="terminalAvailable && terminalSessionId">
+      <div class="flex flex-col flex-1 overflow-hidden">
+        <div
+          class="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0"
+        >
+          <div class="flex items-center gap-3">
+            <span
+              x-show="lastRunPrompt"
+              class="text-sm font-semibold"
+              style="color: #fbbf24"
+              x-text="`Running: ${lastRunPrompt}`"
+            ></span>
+            <span x-show="!lastRunPrompt" class="text-sm font-bold"
+              >Terminal</span
+            >
+            <span class="flex items-center gap-1.5 text-xs">
+              <span
+                class="w-2 h-2 rounded-full"
+                :class="terminalConnected ? 'bg-green-500' : 'bg-red-500'"
+              ></span>
+              <span
+                x-text="terminalConnected ? 'Connected' : (_projectSessions[projectPath] ? 'Detached' : 'Disconnected')"
+                class="text-gray-400"
+              ></span>
+            </span>
+            <span
+              class="text-xs"
+              style="color: #52525b"
+              x-show="lastRunAgent"
+              x-text="lastRunAgent"
+            ></span>
+            <span
+              x-show="terminalSessionId && !terminalEnded"
+              class="text-xs text-gray-400 font-mono"
+              x-text="terminalAge"
+            ></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              x-show="terminalSessionCount > 1"
+              @click="if(confirm('End all ' + terminalSessionCount + ' sessions?')) endAllSessions()"
+              class="text-xs text-red-500 hover:underline"
+            >
+              End all sessions
+            </button>
+            <span class="text-xs text-gray-400">Ctrl+Shift+D</span>
+            <button
+              @click="exitTerminal()"
+              class="px-2 py-1 text-xs font-medium rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+              End Session
+            </button>
+          </div>
+        </div>
+        <div class="flex-1 relative">
+          <div x-ref="terminalContainer" class="terminal-container"></div>
+          <div x-show="terminalEnded" class="terminal-overlay">
+            <div class="text-center space-y-3">
+              <p
+                class="text-white text-lg font-semibold"
+                x-text="_projectSessions[projectPath] ? 'Session detached' : 'Session ended'"
+              ></p>
+              <p
+                x-show="_projectSessions[projectPath]"
+                class="text-gray-400 text-sm"
+              >
+                Still running in background
+              </p>
+              <div class="flex gap-2 justify-center">
+                <button
+                  x-show="_projectSessions[projectPath]"
+                  @click="reconnectTerminal()"
+                  class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Reconnect
+                </button>
+                <button
+                  @click="exitTerminal()"
+                  class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  New Session
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>

@@ -2,13 +2,13 @@
  * Type contracts for prompt fragments and composed setup output.
  * These interfaces let prompt composition stay structured until the final render step.
  */
-import type { AgentId, Tier } from '../types.js';
+import type { AgentId, Tier } from "../types.js";
 
 /** Phase a fragment belongs to: one of the scoring tiers or anti-pattern */
-export type FragmentPhase = Tier | 'anti-pattern';
+export type FragmentPhase = Tier | "anti-pattern";
 
 /** Whether a fragment creates new content or fixes existing content */
-export type FragmentKind = 'create' | 'fix';
+export type FragmentKind = "create" | "fix";
 
 /** A structured prompt fragment with recommendation key, phase, and instruction. */
 export interface Fragment {

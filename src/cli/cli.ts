@@ -5,12 +5,12 @@
  * Handles argv parsing, command dispatch, exit codes, and on-disk output for scan, setup, dashboard, and migration workflows.
  */
 
-import { parseArgs } from 'node:util';
-import { resolve, dirname, join } from 'node:path';
-import { writeFileSync, mkdirSync } from 'node:fs';
-import type { CLIOptions, Grade, AgentId, ScanReport, Tier } from './types.js';
+import { parseArgs } from "node:util";
+import { resolve, dirname, join } from "node:path";
+import { writeFileSync, mkdirSync } from "node:fs";
+import type { CLIOptions, Grade, AgentId, ScanReport, Tier } from "./types.js";
 
-import { getPackageVersion } from './paths.js';
+import { getPackageVersion } from "./paths.js";
 
 /** Current package version used in --version output */
 const PACKAGE_VERSION = getPackageVersion();
@@ -74,22 +74,22 @@ function printVersion(): void {
 }
 
 /** Supported CLI subcommand names */
-type Command = 'scan' | 'setup' | 'dashboard' | 'info' | 'status';
+type Command = "scan" | "setup" | "dashboard" | "info" | "status";
 
 /** List of recognized CLI subcommands */
-const COMMANDS: Command[] = ['scan', 'setup', 'dashboard', 'info', 'status'];
+const COMMANDS: Command[] = ["scan", "setup", "dashboard", "info", "status"];
 /** Previously valid commands that now produce a helpful deprecation error */
-const REMOVED_COMMANDS = ['fix', 'audit', 'eval'];
+const REMOVED_COMMANDS = ["fix", "audit", "eval"];
 /** Accepted values for the --format flag */
-const VALID_FORMATS = ['json', 'text', 'html', 'markdown'] as const;
+const VALID_FORMATS = ["json", "text", "html", "markdown"] as const;
 /** Accepted values for the --agent flag */
-const VALID_AGENTS: AgentId[] = ['claude', 'codex', 'gemini'];
+const VALID_AGENTS: AgentId[] = ["claude", "codex", "gemini"];
 /** Banner text warning that multi-agent setup output must stay in sync */
 const MULTI_AGENT_SYNC_BANNER = [
-  '**Multi-agent sync:** This prompt generates setup for multiple agents. The execution loop',
-  '(READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG), autonomy tiers, and Definition of Done',
-  'MUST be identical across all instruction files. Write these sections for the first agent,',
-  'then COPY THEM VERBATIM to the other instruction files. Do not rephrase.',
+  "**Multi-agent sync:** This prompt generates setup for multiple agents. The execution loop",
+  "(READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG), autonomy tiers, and Definition of Done",
+  "MUST be identical across all instruction files. Write these sections for the first agent,",
+  "then COPY THEM VERBATIM to the other instruction files. Do not rephrase.",
 ];
 
 /** Fully resolved CLI options including the dispatched command */
@@ -117,14 +117,14 @@ function parseCommand(argv: string[]): {
   ) {
     return { command: filteredArgs.shift() as Command, filteredArgs };
   }
-  return { command: 'scan', filteredArgs };
+  return { command: "scan", filteredArgs };
 }
 
 /** Parse the `--format` flag, defaulting to text on TTYs and JSON otherwise. */
-function parseFormatArg(value: string | undefined): CLIOptions['format'] {
-  const defaultFormat: CLIOptions['format'] = process.stdout.isTTY
-    ? 'text'
-    : 'json';
+function parseFormatArg(value: string | undefined): CLIOptions["format"] {
+  const defaultFormat: CLIOptions["format"] = process.stdout.isTTY
+    ? "text"
+    : "json";
   if (!value) return defaultFormat;
   if (!VALID_FORMATS.includes(value as (typeof VALID_FORMATS)[number])) {
     throw new CLIError(
@@ -132,13 +132,13 @@ function parseFormatArg(value: string | undefined): CLIOptions['format'] {
       2,
     );
   }
-  return value as CLIOptions['format'];
+  return value as CLIOptions["format"];
 }
 
 /** Parse the `--agent` flag and reject deprecated aggregate agent modes. */
 function parseAgentArg(value: string | undefined): AgentId | null {
   if (!value) return null;
-  if (value === 'all') {
+  if (value === "all") {
     throw new CLIError(
       `--agent all is no longer supported. Run setup separately for each agent: --agent claude, --agent codex, --agent gemini`,
       2,
@@ -164,7 +164,7 @@ function parseMinScoreArg(value: string | undefined): number | null {
 }
 
 /** Accepted values for the --tier flag */
-const VALID_TIERS: Tier[] = ['foundation', 'standard', 'full'];
+const VALID_TIERS: Tier[] = ["foundation", "standard", "full"];
 
 /** Parse the `--tier` flag for filtering rubric checks by tier. */
 function parseTierArg(value: string | undefined): Tier | null {
@@ -182,7 +182,7 @@ function parseTierArg(value: string | undefined): Tier | null {
 function parseMinGradeArg(value: string | undefined): Grade | null {
   if (!value) return null;
   const normalized = value.toUpperCase();
-  const valid: Grade[] = ['A', 'B', 'C', 'D'];
+  const valid: Grade[] = ["A", "B", "C", "D"];
   if (!valid.includes(normalized as Grade)) {
     throw new CLIError(`Invalid min-grade: ${value}. Use: A, B, C, D`, 2);
   }
@@ -195,11 +195,11 @@ function resolveOutputPath(
   positionals: string[],
 ): string | null {
   if (!output) return null;
-  const projectRoot = positionals[0] ?? '.';
+  const projectRoot = positionals[0] ?? ".";
   return resolve(
-    output.includes('/') || output.includes('\\')
+    output.includes("/") || output.includes("\\")
       ? output
-      : join(projectRoot, '.goat-flow', output),
+      : join(projectRoot, ".goat-flow", output),
   );
 }
 
@@ -211,17 +211,17 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
   const { values, positionals } = parseArgs({
     args: filteredArgs,
     options: {
-      format: { type: 'string' },
-      agent: { type: 'string' },
-      verbose: { type: 'boolean', default: false },
-      'min-score': { type: 'string' },
-      'min-grade': { type: 'string' },
-      output: { type: 'string', short: 'o' },
-      guide: { type: 'boolean', default: false },
-      tier: { type: 'string' },
-      dev: { type: 'boolean', default: false },
-      help: { type: 'boolean', short: 'h', default: false },
-      version: { type: 'boolean', short: 'v', default: false },
+      format: { type: "string" },
+      agent: { type: "string" },
+      verbose: { type: "boolean", default: false },
+      "min-score": { type: "string" },
+      "min-grade": { type: "string" },
+      output: { type: "string", short: "o" },
+      guide: { type: "boolean", default: false },
+      tier: { type: "string" },
+      dev: { type: "boolean", default: false },
+      help: { type: "boolean", short: "h", default: false },
+      version: { type: "boolean", short: "v", default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -229,12 +229,12 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
 
   return {
     command,
-    projectPath: resolve(positionals[0] ?? '.'),
+    projectPath: resolve(positionals[0] ?? "."),
     format: parseFormatArg(values.format),
     agent: parseAgentArg(values.agent),
     verbose: values.verbose === true,
-    minScore: parseMinScoreArg(values['min-score']),
-    minGrade: parseMinGradeArg(values['min-grade']),
+    minScore: parseMinScoreArg(values["min-score"]),
+    minGrade: parseMinGradeArg(values["min-grade"]),
     output: resolveOutputPath(values.output, positionals),
     guide: values.guide === true,
     tier: parseTierArg(values.tier),
@@ -246,29 +246,29 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
 
 /** Handle the status command: classify and display project adoption state */
 async function handleStatusCommand(options: ParsedCLI): Promise<void> {
-  const { createFS } = await import('./facts/fs.js');
-  const { classifyProjectState } = await import('./classify-state.js');
+  const { createFS } = await import("./facts/fs.js");
+  const { classifyProjectState } = await import("./classify-state.js");
 
   const fs = createFS(options.projectPath);
   const result = classifyProjectState(fs);
 
-  if (options.format === 'json') {
+  if (options.format === "json") {
     process.stdout.write(
-      JSON.stringify({ path: options.projectPath, ...result }, null, 2) + '\n',
+      JSON.stringify({ path: options.projectPath, ...result }, null, 2) + "\n",
     );
     return;
   }
 
   const stateColors: Record<string, string> = {
-    bare: '\x1b[90m',      // gray
-    partial: '\x1b[33m',   // yellow
-    'v0.9': '\x1b[31m',    // red
-    'v1.0': '\x1b[36m',    // cyan
-    'v1.1': '\x1b[32m',    // green
-    error: '\x1b[31m',     // red
+    bare: "\x1b[90m", // gray
+    partial: "\x1b[33m", // yellow
+    "v0.9": "\x1b[31m", // red
+    "v1.0": "\x1b[36m", // cyan
+    "v1.1": "\x1b[32m", // green
+    error: "\x1b[31m", // red
   };
-  const reset = '\x1b[0m';
-  const color = stateColors[result.state] || '';
+  const reset = "\x1b[0m";
+  const color = stateColors[result.state] || "";
 
   console.log(`  Path:    ${options.projectPath}`);
   console.log(`  State:   ${color}${result.state}${reset}`);
@@ -284,9 +284,9 @@ function getSetupAgentIds(options: ParsedCLI, report: ScanReport): AgentId[] {
 /** Print the banner that warns multi-agent setup output must stay in sync. */
 function writeMultiAgentSyncBanner(withDivider: boolean): void {
   const lines = withDivider
-    ? [...MULTI_AGENT_SYNC_BANNER, '', '---', '']
-    : [...MULTI_AGENT_SYNC_BANNER, '', ''];
-  process.stdout.write(lines.join('\n'));
+    ? [...MULTI_AGENT_SYNC_BANNER, "", "---", ""]
+    : [...MULTI_AGENT_SYNC_BANNER, "", ""];
+  process.stdout.write(lines.join("\n"));
 }
 
 /** Decide whether setup output should be merged across multiple detected agents. */
@@ -318,12 +318,12 @@ async function handleSetupCommand(
   report: ScanReport,
 ): Promise<void> {
   const { composeSetup, composeMultiAgentSetup } =
-    await import('./prompt/compose-setup.js');
+    await import("./prompt/compose-setup.js");
 
   const agentIds = getSetupAgentIds(options, report);
   if (agentIds.length === 0) {
     throw new CLIError(
-      'No agents detected. Use --agent claude, --agent codex, or --agent gemini',
+      "No agents detected. Use --agent claude, --agent codex, or --agent gemini",
       1,
     );
   }
@@ -331,7 +331,7 @@ async function handleSetupCommand(
   if (shouldUseMultiAgentSetup(agentIds, report)) {
     writeMultiAgentSyncBanner(false);
     const output = composeMultiAgentSetup(report, agentIds);
-    process.stdout.write(output + '\n');
+    process.stdout.write(output + "\n");
     return;
   }
 
@@ -342,8 +342,8 @@ async function handleSetupCommand(
   for (const agentId of agentIds) {
     const output = renderSetupOutput(report, agentId, composeSetup);
     if (output) {
-      process.stdout.write(output + '\n');
-      if (agentIds.length > 1) process.stdout.write('\n---\n\n');
+      process.stdout.write(output + "\n");
+      if (agentIds.length > 1) process.stdout.write("\n---\n\n");
     }
   }
 }
@@ -359,7 +359,7 @@ function handleCIGate(options: ParsedCLI, report: ScanReport): void {
     C: 3,
     D: 2,
     F: 1,
-    'insufficient-data': 0,
+    "insufficient-data": 0,
   };
 
   // Iterate over each agent report to check against CI gate thresholds
@@ -393,23 +393,23 @@ async function renderScanOutput(
   options: ParsedCLI,
   report: ScanReport,
 ): Promise<string> {
-  const { renderJson } = await import('./render/json.js');
-  const { renderText } = await import('./render/text.js');
+  const { renderJson } = await import("./render/json.js");
+  const { renderText } = await import("./render/text.js");
 
   if (options.guide) {
-    const { renderGuide } = await import('./render/guide.js');
+    const { renderGuide } = await import("./render/guide.js");
     return renderGuide(report);
   }
 
-  if (options.format === 'html') {
-    const { renderHtml } = await import('./render/html.js');
+  if (options.format === "html") {
+    const { renderHtml } = await import("./render/html.js");
     return renderHtml(report);
   }
-  if (options.format === 'markdown') {
-    const { renderMarkdown } = await import('./render/markdown.js');
+  if (options.format === "markdown") {
+    const { renderMarkdown } = await import("./render/markdown.js");
     return renderMarkdown(report);
   }
-  if (options.format === 'text') {
+  if (options.format === "text") {
     return renderText(report, options.verbose);
   }
   return renderJson(report);
@@ -419,12 +419,12 @@ async function renderScanOutput(
 function writeScanOutput(options: ParsedCLI, rendered: string): void {
   if (options.output) {
     mkdirSync(dirname(options.output), { recursive: true });
-    writeFileSync(options.output, rendered + '\n', 'utf-8');
+    writeFileSync(options.output, rendered + "\n", "utf-8");
     console.error(`Written to ${options.output}`);
     return;
   }
 
-  process.stdout.write(rendered + '\n');
+  process.stdout.write(rendered + "\n");
 }
 
 /** Run the main scan flow, render the report, and append scan history. */
@@ -435,55 +435,53 @@ async function handleScanCommand(
   const rendered = await renderScanOutput(options, report);
   writeScanOutput(options, rendered);
 
-  const { appendScanHistory } = await import('./telemetry/scan-logger.js');
+  const { appendScanHistory } = await import("./telemetry/scan-logger.js");
   appendScanHistory(report, options.projectPath);
 }
 
 /** Handle the info command: list rubric checks or anti-pattern deductions */
 async function handleInfoCommand(options: ParsedCLI): Promise<void> {
-  const { allChecks, allAntiPatterns } = await import(
-    './rubric/registry.js'
-  );
+  const { allChecks, allAntiPatterns } = await import("./rubric/registry.js");
 
   // The subcommand is the first positional arg after 'info'.
   // parseCLIArgs resolves projectPath to an absolute path, so extract the basename.
-  const sub = options.projectPath.split('/').pop() ?? '';
+  const sub = options.projectPath.split("/").pop() ?? "";
 
-  if (sub === 'rubrics') {
-    const tiers = ['foundation', 'standard', 'full'] as const;
+  if (sub === "rubrics") {
+    const tiers = ["foundation", "standard", "full"] as const;
     const tiersToShow = options.tier ? [options.tier] : tiers;
 
     for (const t of tiersToShow) {
       const tierChecks = allChecks.filter((c) => c.tier === t);
       if (tierChecks.length === 0) continue;
-      console.log(
-        `\n## ${t.charAt(0).toUpperCase() + t.slice(1)} Tier\n`,
-      );
-      console.log('| ID | Name | Points | Description |');
-      console.log('|----|------|--------|-------------|');
+      console.log(`\n## ${t.charAt(0).toUpperCase() + t.slice(1)} Tier\n`);
+      console.log("| ID | Name | Points | Description |");
+      console.log("|----|------|--------|-------------|");
       for (const c of tierChecks) {
         console.log(`| ${c.id} | ${c.name} | ${c.pts} | ${c.recommendation} |`);
       }
     }
-  } else if (sub === 'anti-patterns') {
-    console.log('\n## Anti-Patterns\n');
-    console.log('| ID | Name | Deduction | Remediation |');
-    console.log('|----|------|-----------|-------------|');
+  } else if (sub === "anti-patterns") {
+    console.log("\n## Anti-Patterns\n");
+    console.log("| ID | Name | Deduction | Remediation |");
+    console.log("|----|------|-----------|-------------|");
     for (const ap of allAntiPatterns) {
-      console.log(`| ${ap.id} | ${ap.name} | ${ap.deduction} | ${ap.recommendation} |`);
+      console.log(
+        `| ${ap.id} | ${ap.name} | ${ap.deduction} | ${ap.recommendation} |`,
+      );
     }
   } else {
-    console.log('Usage: goat-flow info <rubrics|anti-patterns>');
-    console.log('  rubrics         List all rubric checks');
-    console.log('  anti-patterns   List all anti-pattern deductions');
+    console.log("Usage: goat-flow info <rubrics|anti-patterns>");
+    console.log("  rubrics         List all rubric checks");
+    console.log("  anti-patterns   List all anti-pattern deductions");
   }
 }
 
 /** Entry point that dispatches to the appropriate command handler */
 async function main(): Promise<void> {
   // Gracefully handle EPIPE (e.g., output piped to `head`)
-  process.stdout.on('error', (err: NodeJS.ErrnoException) => {
-    if (err.code === 'EPIPE') process.exit(0);
+  process.stdout.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EPIPE") process.exit(0);
     throw err;
   });
 
@@ -498,31 +496,31 @@ async function main(): Promise<void> {
     printVersion();
     return;
   }
-  if (options.command === 'status') {
+  if (options.command === "status") {
     await handleStatusCommand(options);
     return;
   }
-  if (options.command === 'dashboard') {
-    const { serveDashboard } = await import('./server/dashboard.js');
+  if (options.command === "dashboard") {
+    const { serveDashboard } = await import("./server/dashboard.js");
     await serveDashboard({
       projectPath: options.projectPath,
       dev: options.dev,
     });
     return;
   }
-  if (options.command === 'info') {
+  if (options.command === "info") {
     await handleInfoCommand(options);
     return;
   }
 
-  const { createFS } = await import('./facts/fs.js');
-  const { scanProject } = await import('./scanner/scan.js');
+  const { createFS } = await import("./facts/fs.js");
+  const { scanProject } = await import("./scanner/scan.js");
   const fs = createFS(options.projectPath);
   const report = scanProject(fs, options.projectPath, {
     agentFilter: options.agent ?? null,
   });
 
-  if (options.command === 'scan') {
+  if (options.command === "scan") {
     await handleScanCommand(options, report);
   } else {
     await handleSetupCommand(options, report);

@@ -5,19 +5,19 @@
 // === Agent Types ===
 
 /** Supported AI coding agent identifiers */
-export type AgentId = 'claude' | 'codex' | 'gemini';
+export type AgentId = "claude" | "codex" | "gemini";
 
 /** Rubric scoring tier, ordered from baseline to advanced */
-export type Tier = 'foundation' | 'standard' | 'full';
+export type Tier = "foundation" | "standard" | "full";
 
 /** Outcome status for a single rubric check */
-export type CheckStatus = 'pass' | 'partial' | 'fail' | 'na';
+export type CheckStatus = "pass" | "partial" | "fail" | "na";
 
 /** Signal strength for how reliably a check can be evaluated */
-export type Confidence = 'high' | 'medium' | 'low';
+export type Confidence = "high" | "medium" | "low";
 
 /** Letter grade derived from overall score percentage */
-export type Grade = 'A' | 'B' | 'C' | 'D' | 'F' | 'insufficient-data';
+export type Grade = "A" | "B" | "C" | "D" | "F" | "insufficient-data";
 
 // === Agent Profile ===
 
@@ -45,9 +45,9 @@ export interface AgentProfile {
  * Agents may use settings-based deny, a deny script, or both.
  */
 export type DenyMechanism =
-  | { type: 'settings-deny'; path: string }
-  | { type: 'deny-script'; path: string }
-  | { type: 'both'; settingsPath: string; scriptPath: string };
+  | { type: "settings-deny"; path: string }
+  | { type: "deny-script"; path: string }
+  | { type: "both"; settingsPath: string; scriptPath: string };
 
 /** Hook event file names specific to each agent runtime */
 export interface HookEvents {
@@ -62,11 +62,11 @@ export interface HookEvents {
  * Each variant maps to a different detection strategy in the scan engine.
  */
 export type Detection =
-  | { type: 'file_exists'; path: string }
-  | { type: 'dir_exists'; path: string }
-  | { type: 'grep'; path: string; pattern: string; section?: string }
+  | { type: "file_exists"; path: string }
+  | { type: "dir_exists"; path: string }
+  | { type: "grep"; path: string; pattern: string; section?: string }
   | {
-      type: 'grep_count';
+      type: "grep_count";
       path: string;
       pattern: string;
       min: number;
@@ -74,24 +74,24 @@ export type Detection =
       section?: string;
     }
   | {
-      type: 'line_count';
+      type: "line_count";
       path: string;
       pass?: number;
       partial?: number;
       fail?: number;
     }
-  | { type: 'json_valid'; path: string }
-  | { type: 'json_contains'; path: string; field: string; pattern?: string }
+  | { type: "json_valid"; path: string }
+  | { type: "json_contains"; path: string; field: string; pattern?: string }
   | {
-      type: 'count_items';
+      type: "count_items";
       path: string;
       pattern: string;
       pass: number;
       partial?: number;
       section?: string;
     }
-  | { type: 'composite'; checks: Detection[]; mode: 'all' | 'any' }
-  | { type: 'custom'; fn: (ctx: FactContext) => CheckResult };
+  | { type: "composite"; checks: Detection[]; mode: "all" | "any" }
+  | { type: "custom"; fn: (ctx: FactContext) => CheckResult };
 
 // === Check Definition ===
 
@@ -116,7 +116,7 @@ export interface CheckDef {
   recommendationKey: string;
   confidence: Confidence;
   // Grading priority: required checks gate the letter grade, recommended improve it, optional are bonus
-  priority: 'required' | 'recommended' | 'optional';
+  priority: "required" | "recommended" | "optional";
   // If true, check runs and contributes to score but doesn't appear in scanner output
   hidden?: boolean;
 }
@@ -156,6 +156,8 @@ export interface CheckResult {
   recommendationKey?: string;
   // If true, check ran but should not appear in scanner output
   hidden?: boolean;
+  // Human-readable fix guidance from the check definition (populated for non-pass results)
+  recommendation?: string;
 }
 
 /** Result of evaluating a single anti-pattern against a project */
@@ -251,7 +253,7 @@ export interface SharedFacts {
     parseError: string | null;
     lineLimits: { target: number; limit: number };
     configLocalExists: boolean;
-    userRole: 'developer' | 'investigator' | 'tester';
+    userRole: "developer" | "investigator" | "tester";
   };
   architecture: { exists: boolean; lineCount: number };
   // evals removed - evals system removed in v1.1.0 (M09).
@@ -269,7 +271,7 @@ export interface SharedFacts {
   localInstructions: {
     dirExists: boolean;
     // Which directory convention is used: ai/ or .github/
-    location: 'ai' | 'github' | null;
+    location: "ai" | "github" | null;
     aiDirExists: boolean;
     githubDirExists: boolean;
     duplicateSurfacePaths: string[];
@@ -321,8 +323,6 @@ export interface AgentFacts {
     outdatedCount: number;
     /** Whether the goat dispatcher skill is installed */
     hasDispatcher: boolean;
-    /** Dangling file path references found in skill content */
-    danglingRefs: string[];
     quality: {
       withStep0: number;
       withHumanGate: number;
@@ -375,9 +375,6 @@ export interface AgentFacts {
     paths: string[];
     resolved: number;
     unresolved: string[];
-    hasMarkers: boolean;
-    markerPaths: string[];
-    staleMarkerPaths: string[];
   };
   askFirst: {
     exists: boolean;
@@ -430,7 +427,7 @@ export interface ScoreSummary {
 
 /** A prioritized action item generated from a failed or partial check */
 export interface Recommendation {
-  priority: 'critical' | 'high' | 'medium' | 'low';
+  priority: "critical" | "high" | "medium" | "low";
   checkId: string;
   category: string;
   message: string;
@@ -499,7 +496,7 @@ export interface ReadonlyFS {
 /** Parsed command-line arguments for the goat-flow scan command */
 export interface CLIOptions {
   projectPath: string;
-  format: 'json' | 'text' | 'html' | 'markdown';
+  format: "json" | "text" | "html" | "markdown";
   // Null means scan all detected agents
   agent: AgentId | null;
   verbose: boolean;

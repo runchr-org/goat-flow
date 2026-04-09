@@ -2,7 +2,7 @@
  * Project stack detector for languages, frameworks, and workflow signals.
  * The setup pipeline and scanner rely on this file to infer commands and template routing from repository contents.
  */
-import type { StackInfo, ProjectSignals, ReadonlyFS } from '../types.js';
+import type { StackInfo, ProjectSignals, ReadonlyFS } from "../types.js";
 
 /** Partial detection result from a single language detector */
 interface DetectorResult {
@@ -15,93 +15,93 @@ interface DetectorResult {
 
 /** Node.js framework indicators matched against package dependencies */
 const NODE_FRAMEWORKS = [
-  { language: 'react', packages: ['react', 'react-dom', 'next'] },
-  { language: 'vue', packages: ['vue', 'nuxt'] },
-  { language: 'angular', packages: ['@angular/core'] },
-  { language: 'svelte', packages: ['svelte', '@sveltejs/kit'] },
-  { language: 'express', packages: ['express'] },
-  { language: 'cypress', packages: ['cypress'] },
+  { language: "react", packages: ["react", "react-dom", "next"] },
+  { language: "vue", packages: ["vue", "nuxt"] },
+  { language: "angular", packages: ["@angular/core"] },
+  { language: "svelte", packages: ["svelte", "@sveltejs/kit"] },
+  { language: "express", packages: ["express"] },
+  { language: "cypress", packages: ["cypress"] },
 ] as const;
 
 /** Additional language/template indicators beyond primary manifest detection */
 const EXTRA_LANGUAGE_SIGNALS = [
-  { language: 'blade', paths: [], globs: ['**/*.blade.php'] },
-  { language: 'twig', paths: [], globs: ['**/*.twig'] },
-  { language: 'erb', paths: [], globs: ['**/*.erb', '**/*.html.erb'] },
-  { language: 'jinja', paths: [], globs: ['**/*.jinja2', '**/*.html'] },
+  { language: "blade", paths: [], globs: ["**/*.blade.php"] },
+  { language: "twig", paths: [], globs: ["**/*.twig"] },
+  { language: "erb", paths: [], globs: ["**/*.erb", "**/*.html.erb"] },
+  { language: "jinja", paths: [], globs: ["**/*.jinja2", "**/*.html"] },
   {
-    language: 'swift',
-    paths: ['Package.swift'],
-    globs: ['**/*.xcodeproj', '**/*.swift'],
+    language: "swift",
+    paths: ["Package.swift"],
+    globs: ["**/*.xcodeproj", "**/*.swift"],
   },
-  { language: 'blazor', paths: [], globs: ['**/*.razor'] },
+  { language: "blazor", paths: [], globs: ["**/*.razor"] },
 ] as const;
 
 /** Code generation tool indicators detected from config files */
 const CODE_GEN_SIGNALS = [
-  { tool: 'sqlc', paths: ['sqlc.yaml', 'sqlc.yml'], globs: [] },
-  { tool: 'hygen', paths: ['_templates'], globs: ['**/.hygen.js'] },
-  { tool: 'protobuf', paths: ['buf.yaml', 'buf.gen.yaml'], globs: [] },
+  { tool: "sqlc", paths: ["sqlc.yaml", "sqlc.yml"], globs: [] },
+  { tool: "hygen", paths: ["_templates"], globs: ["**/.hygen.js"] },
+  { tool: "protobuf", paths: ["buf.yaml", "buf.gen.yaml"], globs: [] },
   {
-    tool: 'openapi',
+    tool: "openapi",
     paths: [],
-    globs: ['**/openapi-generator*', '**/openapi*.yaml'],
+    globs: ["**/openapi-generator*", "**/openapi*.yaml"],
   },
 ] as const;
 
 /** Deployment platform indicators detected from config files */
 const DEPLOY_SIGNALS = [
-  { tool: 'amplify', paths: ['amplify.yml', 'amplify'], globs: [] },
+  { tool: "amplify", paths: ["amplify.yml", "amplify"], globs: [] },
   {
-    tool: 'docker',
-    paths: ['Dockerfile', 'docker-compose.yml', 'docker-compose.yaml'],
+    tool: "docker",
+    paths: ["Dockerfile", "docker-compose.yml", "docker-compose.yaml"],
     globs: [],
   },
-  { tool: 'fly', paths: ['fly.toml'], globs: [] },
-  { tool: 'vercel', paths: ['vercel.json'], globs: [] },
-  { tool: 'terraform', paths: ['terraform'], globs: ['**/main.tf', '**/*.tf'] },
-  { tool: 'packer', paths: ['packer.json'], globs: ['**/*.pkr.hcl'] },
+  { tool: "fly", paths: ["fly.toml"], globs: [] },
+  { tool: "vercel", paths: ["vercel.json"], globs: [] },
+  { tool: "terraform", paths: ["terraform"], globs: ["**/main.tf", "**/*.tf"] },
+  { tool: "packer", paths: ["packer.json"], globs: ["**/*.pkr.hcl"] },
 ] as const;
 
 /** Root-level files that indicate a Python project */
 const ROOT_PYTHON_FILES = [
-  'pyproject.toml',
-  'setup.py',
-  'requirements.txt',
+  "pyproject.toml",
+  "setup.py",
+  "requirements.txt",
 ] as const;
 /** Glob patterns for detecting Python projects in subdirectories */
-const SUBDIR_PYTHON_GLOBS = ['*/pyproject.toml', '*/requirements.txt'] as const;
+const SUBDIR_PYTHON_GLOBS = ["*/pyproject.toml", "*/requirements.txt"] as const;
 /** Build manifest paths read to detect Java framework dependencies */
 const JAVA_MANIFEST_PATHS = [
-  'pom.xml',
-  'build.gradle',
-  'build.gradle.kts',
+  "pom.xml",
+  "build.gradle",
+  "build.gradle.kts",
 ] as const;
 /** Environment files checked for LLM provider API key variables */
-const LLM_ENV_FILES = ['.env.example', '.env.sample', '.env'] as const;
+const LLM_ENV_FILES = [".env.example", ".env.sample", ".env"] as const;
 /** Dependency files checked for LLM SDK references */
 const LLM_DEP_FILES = [
-  'requirements.txt',
-  'pyproject.toml',
-  'package.json',
+  "requirements.txt",
+  "pyproject.toml",
+  "package.json",
 ] as const;
 /** Files checked for compliance-related keywords (HIPAA, GDPR, etc.) */
 const COMPLIANCE_DOCS = [
-  'README.md',
-  '.goat-flow/architecture.md',
-  '.github/instructions/security.instructions.md',
+  "README.md",
+  ".goat-flow/architecture.md",
+  ".github/instructions/security.instructions.md",
 ] as const;
 /** Maps languages to their known formatter tool names for gap detection */
 const FORMATTER_MAP: Record<string, string[]> = {
-  typescript: ['prettier', 'biome', 'dprint'],
-  javascript: ['prettier', 'biome', 'dprint'],
-  php: ['php-cs-fixer', 'phpcbf', 'pint'],
-  python: ['black', 'ruff', 'yapf', 'autopep8'],
-  rust: ['rustfmt'],
-  go: ['gofmt', 'goimports'],
-  bash: ['shfmt'],
-  ruby: ['rubocop'],
-  java: ['google-java-format', 'spotless'],
+  typescript: ["prettier", "biome", "dprint"],
+  javascript: ["prettier", "biome", "dprint"],
+  php: ["php-cs-fixer", "phpcbf", "pint"],
+  python: ["black", "ruff", "yapf", "autopep8"],
+  rust: ["rustfmt"],
+  go: ["gofmt", "goimports"],
+  bash: ["shfmt"],
+  ruby: ["rubocop"],
+  java: ["google-java-format", "spotless"],
 };
 
 /** Check if an npm script command is a placeholder (npm init default) */
@@ -119,7 +119,7 @@ function extractNodeCommands(
   scripts: Record<string, string>,
 ): Pick<
   DetectorResult,
-  'buildCommand' | 'testCommand' | 'lintCommand' | 'formatCommand'
+  "buildCommand" | "testCommand" | "lintCommand" | "formatCommand"
 > {
   /** Drop empty or intentionally placeholder script commands from detection output. */
   /** Keep only real script commands that should survive stack detection. */
@@ -131,12 +131,12 @@ function extractNodeCommands(
   let testCommand = filterPlaceholder(scripts.test);
   if (!testCommand) {
     const testPatterns = [
-      'e2e',
-      'cypress',
-      'spec',
-      'test:unit',
-      'test:e2e',
-      'test:integration',
+      "e2e",
+      "cypress",
+      "spec",
+      "test:unit",
+      "test:e2e",
+      "test:integration",
     ];
     for (const pattern of testPatterns) {
       if (scripts[pattern] && !isPlaceholderScript(scripts[pattern])) {
@@ -148,7 +148,7 @@ function extractNodeCommands(
     if (!testCommand) {
       const testKey = Object.keys(scripts).find(
         (k) =>
-          k.includes('test') &&
+          k.includes("test") &&
           scripts[k] !== undefined &&
           !isPlaceholderScript(scripts[k]),
       );
@@ -160,15 +160,15 @@ function extractNodeCommands(
     buildCommand: filterPlaceholder(scripts.build),
     testCommand,
     lintCommand: filterPlaceholder(scripts.lint),
-    formatCommand: filterPlaceholder(scripts.format ?? scripts['format:check']),
+    formatCommand: filterPlaceholder(scripts.format ?? scripts["format:check"]),
   };
 }
 
 /** Check if TypeScript is present in subdirectories (monorepo) */
 function hasSubdirTypeScript(fs: ReadonlyFS): boolean {
   return (
-    fs.glob('*/tsconfig.json').length > 0 ||
-    fs.glob('*/*/tsconfig.json').length > 0
+    fs.glob("*/tsconfig.json").length > 0 ||
+    fs.glob("*/*/tsconfig.json").length > 0
   );
 }
 
@@ -190,9 +190,9 @@ function hasAnyDependency(
 /** Detect common JavaScript or TypeScript source roots without package metadata. */
 function hasNodeSourceFiles(fs: ReadonlyFS): boolean {
   return (
-    fs.glob('src/**/*.ts').length > 0 ||
-    fs.glob('src/**/*.js').length > 0 ||
-    fs.glob('lib/**/*.js').length > 0
+    fs.glob("src/**/*.ts").length > 0 ||
+    fs.glob("src/**/*.js").length > 0 ||
+    fs.glob("lib/**/*.js").length > 0
   );
 }
 
@@ -205,13 +205,13 @@ function collectNodeLanguages(
   const languages: string[] = [];
   const hasRuntimeDeps =
     runtimeDeps !== undefined && Object.keys(runtimeDeps).length > 0;
-  const hasTypeScript = 'typescript' in deps || fs.exists('tsconfig.json');
+  const hasTypeScript = "typescript" in deps || fs.exists("tsconfig.json");
 
   if (hasRuntimeDeps || hasNodeSourceFiles(fs) || hasTypeScript) {
-    addLanguageIfMissing(languages, 'javascript');
+    addLanguageIfMissing(languages, "javascript");
   }
   if (hasTypeScript) {
-    addLanguageIfMissing(languages, 'typescript');
+    addLanguageIfMissing(languages, "typescript");
   }
   for (const detector of NODE_FRAMEWORKS) {
     if (hasAnyDependency(deps, detector.packages)) {
@@ -242,23 +242,23 @@ function detectRootNodeStack(
 /** Detect subdirectory package manifests for monorepo-style Node projects. */
 function hasSubdirNodePackage(fs: ReadonlyFS): boolean {
   return (
-    fs.glob('*/package.json').length > 0 ||
-    fs.glob('*/*/package.json').length > 0
+    fs.glob("*/package.json").length > 0 ||
+    fs.glob("*/*/package.json").length > 0
   );
 }
 
 /** Detect Node.js / TypeScript from package.json (root or subdirectory) */
 function detectNodeStack(fs: ReadonlyFS): DetectorResult {
-  const pkg = fs.readJson('package.json') as Record<string, unknown> | null;
+  const pkg = fs.readJson("package.json") as Record<string, unknown> | null;
   if (pkg) {
     return detectRootNodeStack(fs, pkg);
   }
 
   // Monorepo: check subdirectory manifests if not detected at root
   if (hasSubdirNodePackage(fs)) {
-    const languages: string[] = ['javascript'];
+    const languages: string[] = ["javascript"];
     if (hasSubdirTypeScript(fs)) {
-      languages.push('typescript');
+      languages.push("typescript");
     }
     return { languages };
   }
@@ -269,16 +269,16 @@ function detectNodeStack(fs: ReadonlyFS): DetectorResult {
 /** Detect Go from go.mod (root or subdirectory, up to 2 levels deep) */
 function detectGoStack(fs: ReadonlyFS): DetectorResult {
   if (
-    fs.exists('go.mod') ||
-    fs.glob('*/go.mod').length > 0 ||
-    fs.glob('*/*/go.mod').length > 0
+    fs.exists("go.mod") ||
+    fs.glob("*/go.mod").length > 0 ||
+    fs.glob("*/*/go.mod").length > 0
   ) {
     return {
-      languages: ['go'],
-      buildCommand: 'go build ./...',
-      testCommand: 'go test ./...',
-      lintCommand: 'go vet ./...',
-      formatCommand: 'gofmt -l .',
+      languages: ["go"],
+      buildCommand: "go build ./...",
+      testCommand: "go test ./...",
+      lintCommand: "go vet ./...",
+      formatCommand: "gofmt -l .",
     };
   }
   return {};
@@ -286,13 +286,13 @@ function detectGoStack(fs: ReadonlyFS): DetectorResult {
 
 /** Detect Rust from Cargo.toml (root or subdirectory) */
 function detectRustStack(fs: ReadonlyFS): DetectorResult {
-  if (fs.exists('Cargo.toml') || fs.glob('*/Cargo.toml').length > 0) {
+  if (fs.exists("Cargo.toml") || fs.glob("*/Cargo.toml").length > 0) {
     return {
-      languages: ['rust'],
-      buildCommand: 'cargo build',
-      testCommand: 'cargo test',
-      lintCommand: 'cargo clippy',
-      formatCommand: 'cargo fmt --check',
+      languages: ["rust"],
+      buildCommand: "cargo build",
+      testCommand: "cargo test",
+      lintCommand: "cargo clippy",
+      formatCommand: "cargo fmt --check",
     };
   }
   return {};
@@ -322,11 +322,11 @@ function readFirstExistingFile(
 
 /** Detect python languages. */
 function detectPythonLanguages(fs: ReadonlyFS): string[] {
-  const languages: string[] = ['python'];
+  const languages: string[] = ["python"];
   const pyContent =
-    fs.readFile('requirements.txt') ?? fs.readFile('pyproject.toml') ?? '';
-  if (/\bdjango\b/i.test(pyContent)) languages.push('django');
-  if (/\bfastapi\b/i.test(pyContent)) languages.push('fastapi');
+    fs.readFile("requirements.txt") ?? fs.readFile("pyproject.toml") ?? "";
+  if (/\bdjango\b/i.test(pyContent)) languages.push("django");
+  if (/\bfastapi\b/i.test(pyContent)) languages.push("fastapi");
   return languages;
 }
 
@@ -340,7 +340,7 @@ function detectPythonStack(fs: ReadonlyFS): DetectorResult {
 
   const languages = detectPythonLanguages(fs);
   return hasRootPython
-    ? { languages, testCommand: 'pytest', lintCommand: 'ruff check' }
+    ? { languages, testCommand: "pytest", lintCommand: "ruff check" }
     : { languages };
 }
 
@@ -349,15 +349,15 @@ function detectPHPLanguages(
   fs: ReadonlyFS,
   composer: Record<string, unknown>,
 ): string[] {
-  const languages: string[] = ['php'];
+  const languages: string[] = ["php"];
   const require = composer.require as Record<string, string> | undefined;
 
-  if (require && 'laravel/framework' in require)
-    addLanguageIfMissing(languages, 'laravel');
-  if (require && 'symfony/framework-bundle' in require)
-    addLanguageIfMissing(languages, 'symfony');
-  if (fs.exists('artisan')) addLanguageIfMissing(languages, 'laravel');
-  if (fs.exists('symfony.lock')) addLanguageIfMissing(languages, 'symfony');
+  if (require && "laravel/framework" in require)
+    addLanguageIfMissing(languages, "laravel");
+  if (require && "symfony/framework-bundle" in require)
+    addLanguageIfMissing(languages, "symfony");
+  if (fs.exists("artisan")) addLanguageIfMissing(languages, "laravel");
+  if (fs.exists("symfony.lock")) addLanguageIfMissing(languages, "symfony");
 
   return languages;
 }
@@ -378,18 +378,18 @@ function firstDefinedScript(
 /** Extract php commands from scripts. */
 function extractPHPCommandsFromScripts(
   scripts: Record<string, string>,
-): Pick<DetectorResult, 'testCommand' | 'lintCommand' | 'formatCommand'> {
+): Pick<DetectorResult, "testCommand" | "lintCommand" | "formatCommand"> {
   return {
     testCommand: scripts.test ?? null,
-    lintCommand: firstDefinedScript(scripts, ['analyse', 'lint']),
-    formatCommand: firstDefinedScript(scripts, ['cs:check', 'cs:fix']),
+    lintCommand: firstDefinedScript(scripts, ["analyse", "lint"]),
+    formatCommand: firstDefinedScript(scripts, ["cs:check", "cs:fix"]),
   };
 }
 
 /** Extract php commands. */
 function extractPHPCommands(
   composer: Record<string, unknown>,
-): Pick<DetectorResult, 'testCommand' | 'lintCommand' | 'formatCommand'> {
+): Pick<DetectorResult, "testCommand" | "lintCommand" | "formatCommand"> {
   const scripts = composer.scripts as Record<string, string> | undefined;
   return scripts
     ? extractPHPCommandsFromScripts(scripts)
@@ -402,7 +402,7 @@ function extractPHPCommands(
 
 /** Detect PHP projects from root or subdirectory composer manifests. */
 function detectPHPStack(fs: ReadonlyFS): DetectorResult {
-  const composer = fs.readJson('composer.json') as Record<
+  const composer = fs.readJson("composer.json") as Record<
     string,
     unknown
   > | null;
@@ -414,24 +414,24 @@ function detectPHPStack(fs: ReadonlyFS): DetectorResult {
   }
 
   // Monorepo: check subdirectory manifests if not detected at root
-  if (fs.glob('*/composer.json').length > 0) {
-    return { languages: ['php'] };
+  if (fs.glob("*/composer.json").length > 0) {
+    return { languages: ["php"] };
   }
   return {};
 }
 
 /** Detect Ruby from Gemfile */
 function detectRubyStack(fs: ReadonlyFS): DetectorResult {
-  if (fs.exists('Gemfile') || fs.glob('*/Gemfile').length > 0) {
-    const languages: string[] = ['ruby'];
-    const gemfile = fs.readFile('Gemfile') ?? '';
-    if (/gem\s+['"]rails['"]/.test(gemfile) || fs.exists('bin/rails')) {
-      languages.push('rails');
+  if (fs.exists("Gemfile") || fs.glob("*/Gemfile").length > 0) {
+    const languages: string[] = ["ruby"];
+    const gemfile = fs.readFile("Gemfile") ?? "";
+    if (/gem\s+['"]rails['"]/.test(gemfile) || fs.exists("bin/rails")) {
+      languages.push("rails");
     }
     return {
       languages,
-      testCommand: 'bundle exec rspec',
-      lintCommand: 'bundle exec rubocop',
+      testCommand: "bundle exec rspec",
+      lintCommand: "bundle exec rubocop",
     };
   }
   return {};
@@ -439,9 +439,9 @@ function detectRubyStack(fs: ReadonlyFS): DetectorResult {
 
 /** Detect java languages. */
 function detectJavaLanguages(manifest: string): string[] {
-  const languages: string[] = ['java'];
+  const languages: string[] = ["java"];
   if (/spring-boot/i.test(manifest)) {
-    languages.push('spring');
+    languages.push("spring");
   }
   return languages;
 }
@@ -449,23 +449,23 @@ function detectJavaLanguages(manifest: string): string[] {
 /** Return java commands. */
 function getJavaCommands(
   hasMaven: boolean,
-): Pick<DetectorResult, 'buildCommand' | 'testCommand'> {
+): Pick<DetectorResult, "buildCommand" | "testCommand"> {
   return hasMaven
-    ? { buildCommand: 'mvn package', testCommand: 'mvn test' }
-    : { buildCommand: 'gradle build', testCommand: 'gradle test' };
+    ? { buildCommand: "mvn package", testCommand: "mvn test" }
+    : { buildCommand: "gradle build", testCommand: "gradle test" };
 }
 
 /** Detect Java from pom.xml or build.gradle */
 function detectJavaStack(fs: ReadonlyFS): DetectorResult {
-  const hasMaven = fs.exists('pom.xml') || fs.glob('*/pom.xml').length > 0;
+  const hasMaven = fs.exists("pom.xml") || fs.glob("*/pom.xml").length > 0;
   const hasGradle =
-    fs.glob('build.gradle*').length > 0 ||
-    fs.glob('*/build.gradle*').length > 0;
+    fs.glob("build.gradle*").length > 0 ||
+    fs.glob("*/build.gradle*").length > 0;
   if (!hasMaven && !hasGradle) {
     return {};
   }
 
-  const manifest = readFirstExistingFile(fs, JAVA_MANIFEST_PATHS) ?? '';
+  const manifest = readFirstExistingFile(fs, JAVA_MANIFEST_PATHS) ?? "";
   return {
     languages: detectJavaLanguages(manifest),
     ...getJavaCommands(hasMaven),
@@ -474,11 +474,11 @@ function detectJavaStack(fs: ReadonlyFS): DetectorResult {
 
 /** Detect .NET from *.csproj or *.sln */
 function detectDotnetStack(fs: ReadonlyFS): DetectorResult {
-  if (fs.glob('**/*.csproj').length > 0 || fs.glob('*.sln').length > 0) {
+  if (fs.glob("**/*.csproj").length > 0 || fs.glob("*.sln").length > 0) {
     return {
-      languages: ['csharp'],
-      buildCommand: 'dotnet build',
-      testCommand: 'dotnet test',
+      languages: ["csharp"],
+      buildCommand: "dotnet build",
+      testCommand: "dotnet test",
     };
   }
   return {};
@@ -486,16 +486,16 @@ function detectDotnetStack(fs: ReadonlyFS): DetectorResult {
 
 /** Detect shell scripts */
 function detectShellScripts(fs: ReadonlyFS): DetectorResult {
-  if (fs.glob('**/*.sh').length > 0) {
-    return { languages: ['bash'] };
+  if (fs.glob("**/*.sh").length > 0) {
+    return { languages: ["bash"] };
   }
   return {};
 }
 
 /** Detect markdown-only (docs) project - only when no other languages found */
 function detectMarkdownOnly(fs: ReadonlyFS): DetectorResult {
-  if (fs.glob('**/*.md').length > 5) {
-    return { languages: ['markdown'] };
+  if (fs.glob("**/*.md").length > 5) {
+    return { languages: ["markdown"] };
   }
   return {};
 }
@@ -520,7 +520,7 @@ function mergeCommands(
   result: DetectorResult,
   commands: Pick<
     StackInfo,
-    'buildCommand' | 'testCommand' | 'lintCommand' | 'formatCommand'
+    "buildCommand" | "testCommand" | "lintCommand" | "formatCommand"
   >,
 ): void {
   commands.buildCommand = firstDetectedCommand(
@@ -544,11 +544,11 @@ function mergeCommands(
 /** Combine detector outputs into the final stack info shape. */
 function mergeDetectorResults(
   detectors: DetectorResult[],
-): Omit<StackInfo, 'signals' | 'sourceFileCount'> {
+): Omit<StackInfo, "signals" | "sourceFileCount"> {
   const languages: string[] = [];
   const commands: Pick<
     StackInfo,
-    'buildCommand' | 'testCommand' | 'lintCommand' | 'formatCommand'
+    "buildCommand" | "testCommand" | "lintCommand" | "formatCommand"
   > = {
     buildCommand: null,
     testCommand: null,
@@ -567,8 +567,8 @@ function mergeDetectorResults(
 /** Detect template-only Jinja usage that would not show up as a normal manifest. */
 function hasJinjaSignal(fs: ReadonlyFS): boolean {
   return (
-    fs.glob('**/*.jinja2').length > 0 ||
-    fs.glob('**/*.html').some((file) => /templates\//.test(file))
+    fs.glob("**/*.jinja2").length > 0 ||
+    fs.glob("**/*.html").some((file) => /templates\//.test(file))
   );
 }
 
@@ -577,7 +577,7 @@ function detectExtraLanguages(fs: ReadonlyFS): string[] {
   const languages: string[] = [];
 
   for (const signal of EXTRA_LANGUAGE_SIGNALS) {
-    if (signal.language === 'jinja') {
+    if (signal.language === "jinja") {
       if (hasJinjaSignal(fs)) languages.push(signal.language);
       continue;
     }
@@ -631,10 +631,10 @@ export function detectStack(fs: ReadonlyFS): StackInfo {
 /** Count approximate source files (excludes generated/vendor/build dirs). */
 function countSourceFiles(fs: ReadonlyFS): number {
   const patterns = [
-    'src/**/*.*',
-    'lib/**/*.*',
-    'app/**/*.*',
-    'packages/**/*.*',
+    "src/**/*.*",
+    "lib/**/*.*",
+    "app/**/*.*",
+    "packages/**/*.*",
   ];
   const seen = new Set<string>();
   for (const pattern of patterns) {
@@ -696,18 +696,18 @@ function detectStaticAnalysis(
 ): Array<{ tool: string; level: string | null }> {
   const staticAnalysis: Array<{ tool: string; level: string | null }> = [];
   const phpstanConfig =
-    fs.readFile('phpstan.neon') ?? fs.readFile('phpstan.neon.dist');
-  const mypyConfig = fs.readFile('mypy.ini') ?? fs.readFile('setup.cfg');
+    fs.readFile("phpstan.neon") ?? fs.readFile("phpstan.neon.dist");
+  const mypyConfig = fs.readFile("mypy.ini") ?? fs.readFile("setup.cfg");
 
   if (phpstanConfig) {
     const levelMatch = phpstanConfig.match(/level:\s*(\d+|max)/);
-    staticAnalysis.push({ tool: 'phpstan', level: levelMatch?.[1] ?? null });
+    staticAnalysis.push({ tool: "phpstan", level: levelMatch?.[1] ?? null });
   }
   if (mypyConfig && /\[mypy\]/i.test(mypyConfig)) {
     const strictMatch = mypyConfig.match(/strict\s*=\s*(true|false)/i);
     staticAnalysis.push({
-      tool: 'mypy',
-      level: strictMatch?.[1] === 'true' ? 'strict' : null,
+      tool: "mypy",
+      level: strictMatch?.[1] === "true" ? "strict" : null,
     });
   }
 
@@ -724,18 +724,16 @@ function detectComplianceSignals(fs: ReadonlyFS): boolean {
 }
 
 /** Combine formatter-related commands into one searchable string. */
-function getFormatterSources(
-  formatCommand: string | null,
-): string {
-  return (formatCommand ?? '').toLowerCase();
+function getFormatterSources(formatCommand: string | null): string {
+  return (formatCommand ?? "").toLowerCase();
 }
 
 /** Decide whether formatter-gap checks should apply to the given language. */
 function shouldCheckFormatter(lang: string, languages: string[]): boolean {
-  if (lang !== 'bash') return true;
+  if (lang !== "bash") return true;
   return (
-    languages[0] === 'bash' ||
-    (languages.includes('bash') && languages.length <= 2)
+    languages[0] === "bash" ||
+    (languages.includes("bash") && languages.length <= 2)
   );
 }
 

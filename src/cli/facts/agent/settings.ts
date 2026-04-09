@@ -1,7 +1,7 @@
 /**
  * Agent settings fact extraction - parses settings.json for deny patterns and read-deny coverage.
  */
-import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
+import type { AgentProfile, AgentFacts, ReadonlyFS } from "../../types.js";
 
 /** Check whether the agent's deny mechanism blocks git commit and/or git push. */
 export function checkDenyPatterns(
@@ -11,7 +11,7 @@ export function checkDenyPatterns(
   /** Deny mechanism configuration for this agent */
   const deny = agent.denyMechanism;
 
-  if (deny.type === 'settings-deny') {
+  if (deny.type === "settings-deny") {
     /** Parsed JSON from the settings deny file */
     const parsed = fs.readJson(deny.path) as Record<string, unknown> | null;
     if (parsed == null)
@@ -23,14 +23,16 @@ export function checkDenyPatterns(
     /** Raw deny array from permissions */
     const rawDeny = permissions?.deny;
     /** Deny patterns as a string array, filtering non-strings for safety */
-    const denyList = Array.isArray(rawDeny) ? rawDeny.filter((p): p is string => typeof p === 'string') : [];
+    const denyList = Array.isArray(rawDeny)
+      ? rawDeny.filter((p): p is string => typeof p === "string")
+      : [];
     return {
-      gitCommitBlocked: denyList.some((p) => p.includes('git commit')),
-      gitPushBlocked: denyList.some((p) => p.includes('git push')),
+      gitCommitBlocked: denyList.some((p) => p.includes("git commit")),
+      gitPushBlocked: denyList.some((p) => p.includes("git push")),
     };
   }
 
-  if (deny.type === 'deny-script') {
+  if (deny.type === "deny-script") {
     /** Content of the deny hook script */
     const content = fs.readFile(deny.path);
     if (content == null)
@@ -45,12 +47,12 @@ export function checkDenyPatterns(
   /** Deny results from the settings-based mechanism */
   const settings = checkDenyPatterns(fs, {
     ...agent,
-    denyMechanism: { type: 'settings-deny', path: deny.settingsPath },
+    denyMechanism: { type: "settings-deny", path: deny.settingsPath },
   });
   /** Deny results from the script-based mechanism */
   const script = checkDenyPatterns(fs, {
     ...agent,
-    denyMechanism: { type: 'deny-script', path: deny.scriptPath },
+    denyMechanism: { type: "deny-script", path: deny.scriptPath },
   });
   return {
     gitCommitBlocked: settings.gitCommitBlocked || script.gitCommitBlocked,
@@ -58,19 +60,18 @@ export function checkDenyPatterns(
   };
 }
 
-
 /** Extract settings facts including deny patterns and read-deny secret coverage. */
 export function extractSettingsFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,
-): AgentFacts['settings'] & { readDenyCoversSecrets: boolean } {
+): AgentFacts["settings"] & { readDenyCoversSecrets: boolean } {
   /** Whether the agent's settings file exists on disk */
   const exists = agent.settingsFile ? fs.exists(agent.settingsFile) : false;
   let valid = false;
   let parsed: unknown = null;
   let hasDenyPatterns = false;
   if (agent.settingsFile) {
-    if (agent.settingsFile.endsWith('.toml')) {
+    if (agent.settingsFile.endsWith(".toml")) {
       // TOML (Codex config.toml) -- read as text, not JSON
       /** Raw TOML content read as plain text */
       const tomlContent = fs.readFile(agent.settingsFile);
@@ -115,7 +116,7 @@ function checkReadDenyCoversSecrets(
   const denyArr = perms?.deny;
   if (!Array.isArray(denyArr)) return false;
   /** All deny patterns concatenated into a single string for regex matching */
-  const denyStr = (denyArr as string[]).join(' ');
+  const denyStr = (denyArr as string[]).join(" ");
   /** Whether .env paths are covered by deny rules */
   const hasEnv = /Read\(.*\.env/.test(denyStr);
   /** Whether .ssh paths are covered by deny rules */
@@ -128,4 +129,3 @@ function checkReadDenyCoversSecrets(
     /Read\(.*credentials/.test(denyStr);
   return hasEnv && hasSsh && hasAws && hasKeys;
 }
-

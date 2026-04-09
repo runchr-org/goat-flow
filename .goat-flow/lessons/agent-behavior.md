@@ -112,6 +112,20 @@ category: agent-behavior
 
 ---
 
+## Lesson: SBAO role-played inline despite existing lesson saying not to
+
+**Created:** 2026-04-09
+
+**What happened:** User asked for SBAO critique of M10-M13 plans. The agent wrote three "perspectives" (Skeptical User, Shipping Pragmatist, Framework Architect) inline — no Agent tool calls, no sub-agents launched. The output looked like SBAO but was the main agent arguing with itself from its own accumulated context. The user caught it: "SBAO should be done with sub agents to have fresh perspectives."
+
+**Why this is worse than the first time:** The lesson from 2026-04-05 ("SBAO uses 2 core-trio agents + 1 fresh-context agent, not 3 single-perspective agents") was already in this file. The agent had read the lessons directory earlier in the session. It knew the correct process and still defaulted to the easier path of writing perspectives inline. Reading a lesson is not the same as following it.
+
+**Root cause:** The SKILL.md says "Launch 3 sub-agents in parallel" but nothing mechanically prevents the agent from interpreting "launch" as "imagine." The agent's path of least resistance is to write inline — launching sub-agents requires more effort (crafting prompts, waiting for results, synthesizing). Without a hard check ("did you actually use the Agent tool?"), the agent will default to the faster wrong approach.
+
+**Prevention:** M14 task created to add mechanical enforcement: (1) explicit "MUST use Agent tool" in Phase 3, (2) "never role-play perspectives inline" in Constraints, (3) process self-check before ranking step. The lesson alone wasn't enough — the process needs a gate.
+
+---
+
 ## Lesson: Agent used setup script as source of truth instead of package.json
 **Created:** 2026-04-05
 

@@ -2,15 +2,15 @@
  * Resolves goat-flow package-root paths that need to work from source and packaged builds.
  * Template lookup and CLI self-reference should go through this module instead of hardcoding dist-relative paths.
  */
-import { dirname, join } from 'node:path';
-import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { dirname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 /** Find the goat-flow project root by walking up from this file's directory */
 function findGoatFlowRoot(): string {
   let dir = dirname(fileURLToPath(import.meta.url));
   for (let i = 0; i < 10; i++) {
-    const candidate = join(dir, 'package.json');
+    const candidate = join(dir, "package.json");
     if (existsSync(candidate)) {
       return dir;
     }
@@ -18,7 +18,7 @@ function findGoatFlowRoot(): string {
     if (parent === dir) break;
     dir = parent;
   }
-  throw new Error('Could not find goat-flow project root');
+  throw new Error("Could not find goat-flow project root");
 }
 
 /** Absolute path to the goat-flow project root */
@@ -26,13 +26,15 @@ const GOAT_FLOW_ROOT = findGoatFlowRoot();
 
 /** Read the package version from the nearest package.json */
 export function getPackageVersion(): string {
-  const pkgPath = join(GOAT_FLOW_ROOT, 'package.json');
-  if (!existsSync(pkgPath)) return '0.0.0';
+  const pkgPath = join(GOAT_FLOW_ROOT, "package.json");
+  if (!existsSync(pkgPath)) return "0.0.0";
   try {
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { version?: unknown };
-    return typeof pkg.version === 'string' ? pkg.version : '0.0.0';
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
+      version?: unknown;
+    };
+    return typeof pkg.version === "string" ? pkg.version : "0.0.0";
   } catch {
-    return '0.0.0';
+    return "0.0.0";
   }
 }
 
@@ -52,7 +54,7 @@ export function templateExists(relative: string): boolean {
  * may not be globally installed in target projects.
  */
 export function getCliCommand(): string {
-  return `node ${join(GOAT_FLOW_ROOT, 'dist', 'cli', 'cli.js')}`;
+  return `node ${join(GOAT_FLOW_ROOT, "dist", "cli", "cli.js")}`;
 }
 
 /** Cached parsed project-structure.json */
@@ -64,9 +66,16 @@ let _projectStructure: Record<string, unknown> | null = null;
  */
 export function getProjectStructure(): Record<string, unknown> {
   if (_projectStructure !== null) return _projectStructure;
-  const structurePath = join(GOAT_FLOW_ROOT, 'workflow', 'setup', 'project-structure.json');
+  const structurePath = join(
+    GOAT_FLOW_ROOT,
+    "workflow",
+    "setup",
+    "project-structure.json",
+  );
   try {
-    _projectStructure = JSON.parse(readFileSync(structurePath, 'utf-8')) as Record<string, unknown>;
+    _projectStructure = JSON.parse(
+      readFileSync(structurePath, "utf-8"),
+    ) as Record<string, unknown>;
   } catch {
     _projectStructure = {};
   }

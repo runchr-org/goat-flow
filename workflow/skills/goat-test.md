@@ -61,12 +61,6 @@ Scope detection priority: (1) explicit user input, (2) staged changes, (3) unsta
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the changed area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant to your test plan?"
 
-**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
-- "hotfix" but 5+ files affected → likely Standard or System
-- "small feature" but crosses 3+ boundaries → likely System
-- "quick test" but 20+ functions in target → warn scope is larger than implied
-Surface the mismatch, suggest re-classification. Don't silently proceed.
-
 **Before proceeding:** present what you know (what changed, risk level, test stack) and what you still need. Wait for the user to confirm before entering Phase 0.
 
 ## Phase 0 - Change Manifest

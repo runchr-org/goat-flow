@@ -35,6 +35,11 @@ CLAUDE.md, GEMINI.md, `.claude/`, `.gemini/`.
 After completing step 05 (skills):
 - Copy hook scripts from `workflow/hooks/` to `.codex/hooks/` and `scripts/`
 - Apply `workflow/hooks/agent-config/codex.toml` as the base for `.codex/config.toml`
+- After copying hook scripts, adapt the `# CUSTOMIZE` sections in stop-lint.sh:
+  1. Read package manifests (`package.json`, `composer.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `Gemfile`, `build.gradle`/`pom.xml`) to discover available lint/type-check tools
+  2. Check for tool config files that indicate which tools are active (`.eslintrc*`, `phpstan.neon`, `.rubocop.yml`, `pyproject.toml [tool.ruff]`, `golangci.yml`, `biome.json`)
+  3. Use local binaries over global (`vendor/bin/phpstan` not `phpstan`, `node_modules/.bin/eslint` not `eslint`)
+  4. Match the tool to what the project actually uses — don't add phpstan to a project that uses psalm
 - Create `.codex/rules/deny-dangerous.star` (Starlark execpolicy):
   - `forbidden`: rm -rf (unscoped), git push main/master, force push, chmod 777, pipe-to-shell, .env mods, --no-verify
   - `prompt`: git commit, git push (non-main), sudo, scoped rm -rf

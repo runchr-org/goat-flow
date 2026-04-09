@@ -1,24 +1,23 @@
 /**
  * Hook check helpers - builders for deny, post-turn, and registration checks.
  */
-import type { FactContext, CheckResult } from '../../types.js';
-
+import type { FactContext, CheckResult } from "../../types.js";
 
 /** Build a standard-tier hook check result with shared Hooks category metadata. */
 export function buildHooksCheckResult(
   id: string,
   name: string,
-  status: CheckResult['status'],
+  status: CheckResult["status"],
   points: number,
   maxPoints: number,
-  confidence: CheckResult['confidence'],
+  confidence: CheckResult["confidence"],
   message: string,
 ): CheckResult {
   return {
     id,
     name,
-    tier: 'standard',
-    category: 'Hooks',
+    tier: "standard",
+    category: "Hooks",
     status,
     points,
     maxPoints,
@@ -49,7 +48,7 @@ export function getEnvDenyCoverage(denyPatterns: string[]): {
   hasEditEnv: boolean;
   hasWriteEnv: boolean;
 } {
-  const denyText = denyPatterns.join(' ');
+  const denyText = denyPatterns.join(" ");
   return {
     hasReadEnv: /Read\(.*\.env/.test(denyText),
     hasEditEnv: /Edit\(.*\.env/.test(denyText),
@@ -63,20 +62,20 @@ export function formatMissingEnvDenyActions(
   hasWriteEnv: boolean,
 ): string {
   const missing: string[] = [];
-  if (!hasEditEnv) missing.push('Edit(.env)');
-  if (!hasWriteEnv) missing.push('Write(.env)');
-  return missing.join(' and ');
+  if (!hasEditEnv) missing.push("Edit(.env)");
+  if (!hasWriteEnv) missing.push("Write(.env)");
+  return missing.join(" and ");
 }
 
 /** Return the settings path that should contain hook registrations for this agent. */
 function getHookSettingsPath(ctx: FactContext): string {
-  return ctx.agentFacts.agent.settingsFile ?? 'agent hook config';
+  return ctx.agentFacts.agent.settingsFile ?? "agent hook config";
 }
 
 /** Build the failure message for a missing hook registration. */
 function formatMissingHookRegistrationMessage(
   ctx: FactContext,
-  hookKind: 'post-turn',
+  hookKind: "post-turn",
   eventName: string,
   expectedPath: string,
 ): string {
@@ -112,9 +111,9 @@ export function getPostTurnHookMessage(
   if (status.registered === false) {
     return formatMissingHookRegistrationMessage(
       ctx,
-      'post-turn',
+      "post-turn",
       ctx.agentFacts.agent.hookEvents.postTurn,
-      `${ctx.agentFacts.agent.hooksDir ?? '.'}/stop-lint.sh`,
+      `${ctx.agentFacts.agent.hooksDir ?? "."}/stop-lint.sh`,
     );
   }
 

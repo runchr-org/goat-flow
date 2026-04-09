@@ -40,6 +40,10 @@ In the same pass:
 
 Add agent-local settings to .gitignore if not already there (e.g., `.claude/settings.local.json`).
 
+## Formatter ignore
+
+If the project uses a code formatter (prettier, biome, etc.), add `.goat-flow/skill-conventions.md` and `.goat-flow/**/*.md` to the formatter's ignore file (`.prettierignore`, `biome.json` ignores, etc.). Verify YAML examples in skill-conventions.md still use `---` delimiters after formatting.
+
 ---
 
 **Verification gate:**

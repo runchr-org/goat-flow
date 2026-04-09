@@ -27,8 +27,8 @@
       "agent": "claude",
       "agentName": "Claude Code",
       "score": {
-        "earned": 131,
-        "available": 124,
+        "earned": 128,
+        "available": 121,
         "deductions": 0,
         "percentage": 99,
         "grade": "A",
@@ -41,8 +41,8 @@
           },
           "standard": {
             "tier": "standard",
-            "earned": 64,
-            "available": 64,
+            "earned": 61,
+            "available": 61,
             "percentage": 100
           },
           "full": {
@@ -52,7 +52,7 @@
             "percentage": 100
           }
         },
-        "maxPoints": 132
+        "maxPoints": 129
       },
       "checks": [
         {
@@ -585,18 +585,6 @@
           "recommendationKey": "add-skill-output-format"
         },
         {
-          "id": "2.1.20",
-          "name": "Dispatcher skill (goat) installed",
-          "tier": "standard",
-          "category": "Skills",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": ".claude/skills/goat/SKILL.md exists",
-          "recommendationKey": "install-dispatcher-skill"
-        },
-        {
           "id": "2.1.21",
           "name": "Skills have Shared Conventions block",
           "tier": "standard",
@@ -609,19 +597,6 @@
           "recommendationKey": "add-skill-shared-conventions"
         },
         {
-          "id": "2.2.1",
-          "name": "Settings/config valid",
-          "tier": "standard",
-          "category": "Hooks",
-          "confidence": "high",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "message": ".claude/settings.json is valid JSON",
-          "evidence": ".claude/settings.json",
-          "recommendationKey": "fix-settings-json"
-        },
-        {
           "id": "2.2.2",
           "name": "Post-turn hook registered",
           "tier": "standard",
@@ -632,18 +607,6 @@
           "confidence": "high",
           "message": "Post-turn hook exists",
           "recommendationKey": "create-stop-lint"
-        },
-        {
-          "id": "2.2.3",
-          "name": "Post-turn hook exits 0",
-          "tier": "standard",
-          "category": "Hooks",
-          "status": "pass",
-          "points": 1,
-          "maxPoints": 1,
-          "confidence": "high",
-          "message": "Post-turn hook exits 0",
-          "recommendationKey": "fix-hook-exit"
         },
         {
           "id": "2.2.4",
@@ -1402,23 +1365,14 @@
           "confidence": "high",
           "message": "All 6 skills at version 0.9.1",
           "recommendationKey": "ap-fix-outdated-skills"
-        },
-        {
-          "id": "AP17",
-          "name": "Dangling file references in skills",
-          "triggered": false,
-          "deduction": 0,
-          "confidence": "medium",
-          "message": "All skill file references resolve",
-          "recommendationKey": "ap-fix-dangling-skill-refs"
         }
       ],
       "recommendations": []
     }
   ],
   "meta": {
-    "checkCount": 99,
-    "antiPatternCount": 16,
+    "checkCount": 96,
+    "antiPatternCount": 15,
     "timestamp": "2026-03-29T07:12:38.200Z"
   }
 }

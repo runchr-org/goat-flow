@@ -11,7 +11,7 @@ Route to the right skill in one step. Type `/goat` followed by what you need.
 
 1. Read the user's input
 2. Match intent to a skill using the table below
-3. Announce: **"Running /goat-{skill}."** (Say "stop" or name a different skill to override.)
+3. Hand off: say **"Running /goat-{skill}."** and proceed directly to the target skill's Step 0. No confirmation, no override prompt.
 4. Load and execute the target skill's full process (Step 0, phases, gates)
 
 The other 5 skills remain directly invocable. `/goat` is a convenience layer, not a replacement.
@@ -20,18 +20,18 @@ The other 5 skills remain directly invocable. `/goat` is a convenience layer, no
 
 | If the input mentions... | Route to | Mode |
 |--------------------------|----------|------|
-| bug, error, broken, crash, exception, symptom, trace | **/goat-debug** | Diagnose |
-| understand, explore, how does, new to this, onboard | **/goat-debug** | Investigate / Onboard |
+| bug, error, broken, crash, exception, symptom, trace, fix, failing, flaky, wrong, not working, issue, regression | **/goat-debug** | Diagnose |
+| understand, explore, how does, new to this, onboard, explain, what does, walk through, show me how | **/goat-debug** | Investigate / Onboard |
 | review, PR, diff, merge, check changes, code review | **/goat-review** | Standard |
 | audit, quality sweep, instruction staleness | **/goat-review** | Audit / Instruction |
-| simplify, readability, clean up, naming, messy | **/goat-review** | Simplify |
-| security, vulnerability, CVE, CVEs, auth bypass, injection, OWASP | **/goat-security** | Threat model |
+| simplify, readability, clean up, naming, messy, clean, tidy | **/goat-review** | Simplify |
+| security, vulnerability, CVE, CVEs, auth bypass, injection, OWASP, secrets, credentials, XSS, SQL injection, pentest, permissions, access control | **/goat-security** | Threat model |
 | HIPAA, GDPR, PHI, compliance, regulation | **/goat-security** | Compliance |
-| dependencies, outdated packages, supply chain, dependency audit | **/goat-security** | Dependency audit |
-| plan, design, feature, architect, build (new thing) | **/goat-plan** | Plan |
+| dependencies, outdated packages, supply chain, dependency audit, dependabot | **/goat-security** | Dependency audit |
+| plan, design, feature, architect, build (new thing), implement, approach, how should, migrate, spike, proposal | **/goat-plan** | Plan |
 | SBAO, critique a plan, sub-agents, core trio, triangular tension | **/goat-plan** | SBAO (Phase 3) |
 | rename, move, extract, restructure, refactor, cross-file | **/goat-plan** | Refactor |
-| test, testing, verification, coverage, test plan | **/goat-test** | - |
+| test, testing, verification, coverage, test plan, spec, edge case, regression test | **/goat-test** | - |
 
 ## Disambiguation
 
@@ -92,21 +92,10 @@ If the user names a skill explicitly, respect it:
 
 ## Output Format
 
-The dispatcher's output is the routing announcement + handoff to the target skill. No standalone deliverable.
-
-Conversational: announce the selected skill, wait for override, then hand off to the target skill's Step 0.
-
-## Transparency
-
-**BLOCKING GATE:** ALWAYS announce the selected skill and mode before executing:
-
-> **Running /goat-debug (investigate mode).** (Say "stop" or name a different skill to override.)
-
-Then proceed directly to the target skill's Step 0. Do NOT add a second round of context gathering. Offer: (a) proceed, (b) name a different skill.
+The dispatcher announces the skill and hands off. No standalone deliverable.
 
 ## Constraints
 
-- MUST announce which skill and mode was selected before executing
 - MUST NOT add questions beyond the target skill's own Step 0
 - MUST NOT load two skills simultaneously - dispatch to one
 - MUST present disambiguation options when 2+ skills match equally

@@ -2,14 +2,14 @@
  * Helper utilities for scanning disk-backed project fixtures.
  * The helpers copy fixtures into temporary workspaces so tests can mutate them without touching checked-in data.
  */
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { createFS } from '../../src/cli/facts/fs.js';
-import { scanProject } from '../../src/cli/scanner/scan.js';
-import type { AgentId, Grade, ScanReport } from '../../src/cli/types.js';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { createFS } from "../../src/cli/facts/fs.js";
+import { scanProject } from "../../src/cli/scanner/scan.js";
+import type { AgentId, Grade, ScanReport } from "../../src/cli/types.js";
 
-const FIXTURE_ROOT = resolve('test/fixtures/projects');
+const FIXTURE_ROOT = resolve("test/fixtures/projects");
 
 interface FixtureExpectation {
   percentage?: number;
@@ -36,8 +36,8 @@ export interface ScannedFixture {
 
 /** Read the manifest that describes how a disk-backed fixture should be scanned. */
 function readManifest(fixtureDir: string): FixtureManifest {
-  const manifestPath = join(fixtureDir, 'fixture.json');
-  return JSON.parse(readFileSync(manifestPath, 'utf-8')) as FixtureManifest;
+  const manifestPath = join(fixtureDir, "fixture.json");
+  return JSON.parse(readFileSync(manifestPath, "utf-8")) as FixtureManifest;
 }
 
 /** Copy a fixture layer and any inherited base layers into a temp workspace. */
@@ -51,7 +51,7 @@ function copyFixtureLayer(sourceDir: string, destDir: string): void {
   cpSync(sourceDir, destDir, {
     recursive: true,
     force: true,
-    filter: (source) => source !== join(sourceDir, 'fixture.json'),
+    filter: (source) => source !== join(sourceDir, "fixture.json"),
   });
 }
 
@@ -90,7 +90,7 @@ export function getFixtureRoot(name: string): string {
 
 /** Return the manifest file path for a named project fixture. */
 export function getFixtureManifestPath(name: string): string {
-  return join(getFixtureRoot(name), 'fixture.json');
+  return join(getFixtureRoot(name), "fixture.json");
 }
 
 /** Return the source directory that owns a fixture manifest. */

@@ -7,7 +7,7 @@ import type {
   CheckResult,
   FactContext,
   Confidence,
-} from '../types.js';
+} from "../types.js";
 
 /**
  * Evaluate a Detection against extracted facts.
@@ -16,7 +16,7 @@ import type {
 export function evaluateCheck(
   id: string,
   name: string,
-  tier: 'foundation' | 'standard' | 'full',
+  tier: "foundation" | "standard" | "full",
   category: string,
   pts: number,
   partialPts: number | undefined,
@@ -27,12 +27,12 @@ export function evaluateCheck(
   /** Common fields shared by all check results */
   const base = { id, name, tier, category, confidence };
 
-  if (detect.type === 'custom') return detect.fn(ctx);
+  if (detect.type === "custom") return detect.fn(ctx);
   if (
-    detect.type === 'json_valid' ||
-    detect.type === 'json_contains' ||
-    detect.type === 'count_items' ||
-    detect.type === 'composite'
+    detect.type === "json_valid" ||
+    detect.type === "json_contains" ||
+    detect.type === "count_items" ||
+    detect.type === "composite"
   ) {
     return evaluateSecondaryCheck(
       base,
@@ -50,7 +50,7 @@ export function evaluateCheck(
 interface CheckBase {
   id: string;
   name: string;
-  tier: 'foundation' | 'standard' | 'full';
+  tier: "foundation" | "standard" | "full";
   category: string;
   confidence: Confidence;
 }
@@ -63,21 +63,21 @@ function evaluatePrimaryCheck(
   detect: Extract<
     Detection,
     {
-      type: 'file_exists' | 'dir_exists' | 'line_count' | 'grep' | 'grep_count';
+      type: "file_exists" | "dir_exists" | "line_count" | "grep" | "grep_count";
     }
   >,
   ctx: FactContext,
 ): CheckResult {
   switch (detect.type) {
-    case 'file_exists':
+    case "file_exists":
       return evalFileExists(base, pts, detect, ctx);
-    case 'dir_exists':
+    case "dir_exists":
       return evalDirExists(base, pts, detect, ctx);
-    case 'line_count':
+    case "line_count":
       return evalLineCount(base, pts, partialPts, detect, ctx);
-    case 'grep':
+    case "grep":
       return evalGrep(base, pts, detect, ctx);
-    case 'grep_count':
+    case "grep_count":
       return evalGrepCount(base, pts, partialPts, detect, ctx);
   }
 }
@@ -89,19 +89,19 @@ function evaluateSecondaryCheck(
   partialPts: number | undefined,
   detect: Extract<
     Detection,
-    { type: 'json_valid' | 'json_contains' | 'count_items' | 'composite' }
+    { type: "json_valid" | "json_contains" | "count_items" | "composite" }
   >,
   confidence: Confidence,
   ctx: FactContext,
 ): CheckResult {
   switch (detect.type) {
-    case 'json_valid':
+    case "json_valid":
       return evalJsonValid(base, pts, detect, ctx);
-    case 'json_contains':
+    case "json_contains":
       return evalJsonContains(base, pts, detect, ctx);
-    case 'count_items':
+    case "count_items":
       return evalCountItems(base, pts, partialPts, detect, ctx);
-    case 'composite':
+    case "composite":
       return evalComposite(base, pts, partialPts, detect, confidence, ctx);
   }
 }
@@ -109,25 +109,25 @@ function evaluateSecondaryCheck(
 /** Resolve template placeholders in a path using agent facts. */
 function resolvePath(path: string, ctx: FactContext): string {
   return path
-    .replace('{instruction_file}', ctx.agentFacts.agent.instructionFile)
-    .replace('{settings_file}', ctx.agentFacts.agent.settingsFile ?? '')
-    .replace('{skills_dir}', ctx.agentFacts.agent.skillsDir)
-    .replace('{hooks_dir}', ctx.agentFacts.agent.hooksDir ?? '')
-    .replace('{footguns_committed_dir}', ctx.facts.shared.footguns.path)
-    .replace('{footguns_local_dir}', '')
-    .replace('{lessons_committed_dir}', ctx.facts.shared.lessons.path)
-    .replace('{lessons_local_dir}', '')
-    .replace('{decisions_dir}', ctx.facts.shared.decisions.path)
-    .replace('{coding_standards_dir}', ctx.facts.shared.localInstructions.path)
-    .replace('{deny_path}', getDenyPath(ctx));
+    .replace("{instruction_file}", ctx.agentFacts.agent.instructionFile)
+    .replace("{settings_file}", ctx.agentFacts.agent.settingsFile ?? "")
+    .replace("{skills_dir}", ctx.agentFacts.agent.skillsDir)
+    .replace("{hooks_dir}", ctx.agentFacts.agent.hooksDir ?? "")
+    .replace("{footguns_committed_dir}", ctx.facts.shared.footguns.path)
+    .replace("{footguns_local_dir}", "")
+    .replace("{lessons_committed_dir}", ctx.facts.shared.lessons.path)
+    .replace("{lessons_local_dir}", "")
+    .replace("{decisions_dir}", ctx.facts.shared.decisions.path)
+    .replace("{coding_standards_dir}", ctx.facts.shared.localInstructions.path)
+    .replace("{deny_path}", getDenyPath(ctx));
 }
 
 /** Return the concrete path that backs the current agent's deny mechanism. */
 function getDenyPath(ctx: FactContext): string {
   /** Deny mechanism configuration for the current agent */
   const deny = ctx.agentFacts.agent.denyMechanism;
-  if (deny.type === 'settings-deny') return deny.path;
-  if (deny.type === 'deny-script') return deny.path;
+  if (deny.type === "settings-deny") return deny.path;
+  if (deny.type === "deny-script") return deny.path;
   return deny.settingsPath;
 }
 
@@ -171,7 +171,7 @@ function getSectionContent(
 function evalFileExists(
   base: CheckBase,
   pts: number,
-  detect: Extract<Detection, { type: 'file_exists' }>,
+  detect: Extract<Detection, { type: "file_exists" }>,
   ctx: FactContext,
 ): CheckResult {
   /** Resolved target file path */
@@ -190,7 +190,7 @@ function evalFileExists(
 
   return {
     ...base,
-    status: exists ? 'pass' : 'fail',
+    status: exists ? "pass" : "fail",
     points: exists ? pts : 0,
     maxPoints: pts,
     message: exists ? `${path} exists` : `${path} not found`,
@@ -202,7 +202,7 @@ function evalFileExists(
 function evalDirExists(
   base: CheckBase,
   pts: number,
-  detect: Extract<Detection, { type: 'dir_exists' }>,
+  detect: Extract<Detection, { type: "dir_exists" }>,
   ctx: FactContext,
 ): CheckResult {
   /** Resolved target directory path */
@@ -221,7 +221,7 @@ function evalDirExists(
 
   return {
     ...base,
-    status: exists ? 'pass' : 'fail',
+    status: exists ? "pass" : "fail",
     points: exists ? pts : 0,
     maxPoints: pts,
     message: exists ? `${path}/ exists` : `${path}/ not found`,
@@ -240,7 +240,7 @@ function getLineCountInfo(
       lineCount: ctx.agentFacts.instruction.lineCount,
     };
   }
-  if (path === '.goat-flow/architecture.md') {
+  if (path === ".goat-flow/architecture.md") {
     return {
       exists: ctx.facts.shared.architecture.exists,
       lineCount: ctx.facts.shared.architecture.lineCount,
@@ -254,7 +254,7 @@ function formatLineCountResult(
   base: CheckBase,
   pts: number,
   partialPts: number | undefined,
-  detect: Extract<Detection, { type: 'line_count' }>,
+  detect: Extract<Detection, { type: "line_count" }>,
   path: string,
   lineCount: number,
 ): CheckResult {
@@ -265,7 +265,7 @@ function formatLineCountResult(
   if (lineCount <= passThreshold) {
     return {
       ...base,
-      status: 'pass',
+      status: "pass",
       points: pts,
       maxPoints: pts,
       message: `${lineCount} lines (at or under ${passThreshold} target)`,
@@ -275,7 +275,7 @@ function formatLineCountResult(
   if (detect.partial && partialPts && lineCount <= failThreshold) {
     return {
       ...base,
-      status: 'partial',
+      status: "partial",
       points: partialPts,
       maxPoints: pts,
       message: `${lineCount} lines found. Expected at or under ${passThreshold}; currently still under the ${failThreshold}-line hard limit. Trim ${lineCount - passThreshold} lines to get back under target.`,
@@ -284,7 +284,7 @@ function formatLineCountResult(
   }
   return {
     ...base,
-    status: 'fail',
+    status: "fail",
     points: 0,
     maxPoints: pts,
     message: `${lineCount} lines (over ${failThreshold} limit)`,
@@ -297,7 +297,7 @@ function evalLineCount(
   base: CheckBase,
   pts: number,
   partialPts: number | undefined,
-  detect: Extract<Detection, { type: 'line_count' }>,
+  detect: Extract<Detection, { type: "line_count" }>,
   ctx: FactContext,
 ): CheckResult {
   const path = resolvePath(detect.path, ctx);
@@ -305,7 +305,7 @@ function evalLineCount(
   if (lineCountInfo.exists === false) {
     return {
       ...base,
-      status: 'fail',
+      status: "fail",
       points: 0,
       maxPoints: pts,
       message: `${path} not found`,
@@ -325,7 +325,7 @@ function evalLineCount(
 function evalGrep(
   base: CheckBase,
   pts: number,
-  detect: Extract<Detection, { type: 'grep' }>,
+  detect: Extract<Detection, { type: "grep" }>,
   ctx: FactContext,
 ): CheckResult {
   /** Content from the target file or section */
@@ -333,21 +333,21 @@ function evalGrep(
   if (content == null) {
     return {
       ...base,
-      status: 'fail',
+      status: "fail",
       points: 0,
       maxPoints: pts,
-      message: 'Content not available',
+      message: "Content not available",
     };
   }
 
   /** Case-insensitive multiline regex from the detection pattern */
-  const regex = new RegExp(detect.pattern, 'im');
+  const regex = new RegExp(detect.pattern, "im");
   /** Whether the pattern was found in the content */
   const match = regex.test(content);
 
   return {
     ...base,
-    status: match ? 'pass' : 'fail',
+    status: match ? "pass" : "fail",
     points: match ? pts : 0,
     maxPoints: pts,
     message: match
@@ -364,7 +364,7 @@ function evalGrepCount(
   base: CheckBase,
   pts: number,
   partialPts: number | undefined,
-  detect: Extract<Detection, { type: 'grep_count' }>,
+  detect: Extract<Detection, { type: "grep_count" }>,
   ctx: FactContext,
 ): CheckResult {
   /** Content from the target file or section */
@@ -372,15 +372,15 @@ function evalGrepCount(
   if (content == null) {
     return {
       ...base,
-      status: 'fail',
+      status: "fail",
       points: 0,
       maxPoints: pts,
-      message: 'Content not available',
+      message: "Content not available",
     };
   }
 
   /** Global case-insensitive regex from the detection pattern */
-  const regex = new RegExp(detect.pattern, 'gim');
+  const regex = new RegExp(detect.pattern, "gim");
   /** All regex matches found in the content */
   const matches = content.match(regex);
   /** Total number of matches found */
@@ -391,7 +391,7 @@ function evalGrepCount(
   if (count >= min) {
     return {
       ...base,
-      status: 'pass',
+      status: "pass",
       points: pts,
       maxPoints: pts,
       message: `Found ${count} matches (need ${min}+)`,
@@ -400,7 +400,7 @@ function evalGrepCount(
   if (partialPts && count > 0) {
     return {
       ...base,
-      status: 'partial',
+      status: "partial",
       points: partialPts,
       maxPoints: pts,
       message: `Found ${count} matches (need ${min}+)`,
@@ -408,7 +408,7 @@ function evalGrepCount(
   }
   return {
     ...base,
-    status: 'fail',
+    status: "fail",
     points: 0,
     maxPoints: pts,
     message: `Found ${count} matches (need ${min}+)`,
@@ -419,7 +419,7 @@ function evalGrepCount(
 function evalJsonValid(
   base: CheckBase,
   pts: number,
-  detect: Extract<Detection, { type: 'json_valid' }>,
+  detect: Extract<Detection, { type: "json_valid" }>,
   ctx: FactContext,
 ): CheckResult {
   /** Resolved target file path */
@@ -429,15 +429,15 @@ function evalJsonValid(
     if (ctx.agentFacts.settings.exists === false) {
       return {
         ...base,
-        status: 'na',
+        status: "na",
         points: 0,
         maxPoints: 0,
-        message: 'No settings file for this agent',
+        message: "No settings file for this agent",
       };
     }
     return {
       ...base,
-      status: ctx.agentFacts.settings.valid ? 'pass' : 'fail',
+      status: ctx.agentFacts.settings.valid ? "pass" : "fail",
       points: ctx.agentFacts.settings.valid ? pts : 0,
       maxPoints: pts,
       message: ctx.agentFacts.settings.valid
@@ -449,7 +449,7 @@ function evalJsonValid(
 
   return {
     ...base,
-    status: 'fail',
+    status: "fail",
     points: 0,
     maxPoints: pts,
     message: `JSON check not implemented for ${path}`,
@@ -476,10 +476,10 @@ function resolveJsonFieldValue(
 ): unknown {
   let current: unknown = obj;
 
-  for (const field of fieldPath.split('.')) {
+  for (const field of fieldPath.split(".")) {
     if (
       current &&
-      typeof current === 'object' &&
+      typeof current === "object" &&
       field in (current as Record<string, unknown>)
     ) {
       current = (current as Record<string, unknown>)[field];
@@ -493,15 +493,15 @@ function resolveJsonFieldValue(
 
 /** Convert a JSON field value into the comparable string form used by checks. */
 function stringifyJsonValue(value: unknown): string {
-  if (Array.isArray(value)) return value.join(' ');
-  return typeof value === 'string' ? value : JSON.stringify(value);
+  if (Array.isArray(value)) return value.join(" ");
+  return typeof value === "string" ? value : JSON.stringify(value);
 }
 
 /** Evaluate whether a JSON file exposes a field, optionally matching a value pattern. */
 function evalJsonContains(
   base: CheckBase,
   pts: number,
-  detect: Extract<Detection, { type: 'json_contains' }>,
+  detect: Extract<Detection, { type: "json_contains" }>,
   ctx: FactContext,
 ): CheckResult {
   const path = resolvePath(detect.path, ctx);
@@ -509,7 +509,7 @@ function evalJsonContains(
   if (obj === null)
     return {
       ...base,
-      status: 'fail',
+      status: "fail",
       points: 0,
       maxPoints: pts,
       message: `Cannot check ${path}`,
@@ -519,7 +519,7 @@ function evalJsonContains(
   if (current === undefined) {
     return {
       ...base,
-      status: 'fail',
+      status: "fail",
       points: 0,
       maxPoints: pts,
       message: `${detect.field} not found in ${path}`,
@@ -528,18 +528,18 @@ function evalJsonContains(
   if (!detect.pattern) {
     return {
       ...base,
-      status: 'pass',
+      status: "pass",
       points: pts,
       maxPoints: pts,
       message: `${detect.field} exists in ${path}`,
     };
   }
 
-  const regex = new RegExp(detect.pattern, 'i');
+  const regex = new RegExp(detect.pattern, "i");
   const match = regex.test(stringifyJsonValue(current));
   return {
     ...base,
-    status: match ? 'pass' : 'fail',
+    status: match ? "pass" : "fail",
     points: match ? pts : 0,
     maxPoints: pts,
     message: match
@@ -554,7 +554,7 @@ function evalCountItems(
   base: CheckBase,
   pts: number,
   partialPts: number | undefined,
-  detect: Extract<Detection, { type: 'count_items' }>,
+  detect: Extract<Detection, { type: "count_items" }>,
   ctx: FactContext,
 ): CheckResult {
   /** Content from the target file or section */
@@ -562,15 +562,15 @@ function evalCountItems(
   if (content == null) {
     return {
       ...base,
-      status: 'fail',
+      status: "fail",
       points: 0,
       maxPoints: pts,
-      message: 'Content not available',
+      message: "Content not available",
     };
   }
 
   /** Global case-insensitive regex from the detection pattern */
-  const regex = new RegExp(detect.pattern, 'gim');
+  const regex = new RegExp(detect.pattern, "gim");
   /** All items matching the pattern */
   const matches = content.match(regex);
   /** Total number of matching items found */
@@ -581,7 +581,7 @@ function evalCountItems(
   if (count >= pass) {
     return {
       ...base,
-      status: 'pass',
+      status: "pass",
       points: pts,
       maxPoints: pts,
       message: `Found ${count} items (need ${pass}+)`,
@@ -590,7 +590,7 @@ function evalCountItems(
   if (detect.partial && partialPts && count >= detect.partial) {
     return {
       ...base,
-      status: 'partial',
+      status: "partial",
       points: partialPts,
       maxPoints: pts,
       message: `Found ${count} items (need ${pass}+, partial at ${detect.partial}+)`,
@@ -598,7 +598,7 @@ function evalCountItems(
   }
   return {
     ...base,
-    status: 'fail',
+    status: "fail",
     points: 0,
     maxPoints: pts,
     message: `Found ${count} items (need ${pass}+)`,
@@ -610,17 +610,17 @@ function evalComposite(
   base: CheckBase,
   pts: number,
   partialPts: number | undefined,
-  detect: Extract<Detection, { type: 'composite' }>,
+  detect: Extract<Detection, { type: "composite" }>,
   confidence: Confidence,
   ctx: FactContext,
 ): CheckResult {
   if (detect.checks.length === 0) {
     return {
       ...base,
-      status: 'fail',
+      status: "fail",
       points: 0,
       maxPoints: pts,
-      message: 'Composite check has no sub-checks',
+      message: "Composite check has no sub-checks",
     };
   }
 
@@ -640,15 +640,15 @@ function evalComposite(
   );
 
   /** Number of sub-checks that passed */
-  const passed = results.filter((r) => r.status === 'pass').length;
+  const passed = results.filter((r) => r.status === "pass").length;
   /** Total number of sub-checks */
   const total = results.length;
 
-  if (detect.mode === 'all') {
+  if (detect.mode === "all") {
     if (passed === total) {
       return {
         ...base,
-        status: 'pass',
+        status: "pass",
         points: pts,
         maxPoints: pts,
         message: `All ${total} sub-checks pass`,
@@ -657,7 +657,7 @@ function evalComposite(
     if (partialPts && passed > 0) {
       return {
         ...base,
-        status: 'partial',
+        status: "partial",
         points: partialPts,
         maxPoints: pts,
         message: `${passed}/${total} sub-checks pass`,
@@ -665,7 +665,7 @@ function evalComposite(
     }
     return {
       ...base,
-      status: 'fail',
+      status: "fail",
       points: 0,
       maxPoints: pts,
       message: `${passed}/${total} sub-checks pass`,
@@ -676,7 +676,7 @@ function evalComposite(
   if (passed > 0) {
     return {
       ...base,
-      status: 'pass',
+      status: "pass",
       points: pts,
       maxPoints: pts,
       message: `${passed}/${total} sub-checks pass`,
@@ -684,7 +684,7 @@ function evalComposite(
   }
   return {
     ...base,
-    status: 'fail',
+    status: "fail",
     points: 0,
     maxPoints: pts,
     message: `0/${total} sub-checks pass`,
@@ -697,37 +697,37 @@ function evalComposite(
 function checkSharedPath(path: string, ctx: FactContext): boolean {
   /** Shared facts covering docs, CI, and other project-wide resources */
   const shared = ctx.facts.shared;
-  const normalizedDecisionsPath = shared.decisions.path.replace(/\/$/, '');
+  const normalizedDecisionsPath = shared.decisions.path.replace(/\/$/, "");
   /** Map of known paths to their existence status from shared facts */
   const pathMap: Record<string, boolean> = {
     [shared.footguns.path]: shared.footguns.exists,
     [shared.lessons.path]: shared.lessons.exists,
-    '.goat-flow/architecture.md': shared.architecture.exists,
-    '.goat-flow/skill-conventions.md': shared.skillConventions.exists,
-    '.copilotignore': shared.ignoreFiles.copilotignore,
-    '.cursorignore': shared.ignoreFiles.cursorignore,
-    '.geminiignore': shared.ignoreFiles.geminiignore,
+    ".goat-flow/architecture.md": shared.architecture.exists,
+    ".goat-flow/skill-conventions.md": shared.skillConventions.exists,
+    ".copilotignore": shared.ignoreFiles.copilotignore,
+    ".cursorignore": shared.ignoreFiles.cursorignore,
+    ".geminiignore": shared.ignoreFiles.geminiignore,
     // CI workflow removed - project-level concern.
-    '.gitignore': shared.gitignore.exists,
-    '.goat-flow/config.yaml': shared.config.exists,
-    'scripts/preflight-checks.sh': shared.preflightScript.exists,
-    'scripts/context-validate.sh': shared.contextValidation.exists,
+    ".gitignore": shared.gitignore.exists,
+    ".goat-flow/config.yaml": shared.config.exists,
+    "scripts/preflight-checks.sh": shared.preflightScript.exists,
+    "scripts/context-validate.sh": shared.contextValidation.exists,
     [shared.decisions.path]: shared.decisions.dirExists,
     [normalizedDecisionsPath]: shared.decisions.dirExists,
     // CHANGELOG.md removed - project-level concern.
     [shared.localInstructions.path]:
       shared.localInstructions.dirExists &&
-      shared.localInstructions.location === 'ai',
-    [shared.localInstructions.path.replace(/\/$/, '')]:
+      shared.localInstructions.location === "ai",
+    [shared.localInstructions.path.replace(/\/$/, "")]:
       shared.localInstructions.dirExists &&
-      shared.localInstructions.location === 'ai',
-    '.goat-flow/README.md':
+      shared.localInstructions.location === "ai",
+    ".goat-flow/README.md":
       shared.localInstructions.hasValidRouter &&
-      shared.localInstructions.location === 'ai',
-    '.github/instructions':
+      shared.localInstructions.location === "ai",
+    ".github/instructions":
       shared.localInstructions.dirExists &&
-      shared.localInstructions.location === 'github',
-    '.github/git-commit-instructions.md': shared.gitCommitInstructions.exists,
+      shared.localInstructions.location === "github",
+    ".github/git-commit-instructions.md": shared.gitCommitInstructions.exists,
   };
 
   if (path in pathMap) {
@@ -739,7 +739,7 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
   // Skill paths are inferred from the installed skill inventory rather than disk reads.
   if (path.startsWith(ctx.agentFacts.agent.skillsDir)) {
     /** Skill directory name extracted from the path (e.g. "goat-security") */
-    const skillName = path.split('/').slice(-2, -1)[0];
+    const skillName = path.split("/").slice(-2, -1)[0];
     if (skillName === undefined) return false;
     return ctx.agentFacts.skills.found.includes(skillName);
   }

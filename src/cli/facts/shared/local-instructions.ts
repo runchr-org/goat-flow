@@ -2,11 +2,11 @@
  * Local instruction fact extraction - analyzes .goat-flow/coding-standards/ or .github/instructions/ directories.
  * Validates router links, conventions content quality, and instruction file presence.
  */
-import type { SharedFacts, ReadonlyFS } from '../../types.js';
+import type { SharedFacts, ReadonlyFS } from "../../types.js";
 
 /** Resolved local instruction directory with its source location tag. */
 interface LocalInstructionDir {
-  location: 'ai' | 'github';
+  location: "ai" | "github";
   dir: string;
 }
 
@@ -32,16 +32,16 @@ function resolveLocalInstructionDir(
   githubDirExists: boolean,
   csPath: string,
 ): LocalInstructionDir | null {
-  if (aiDirExists) return { location: 'ai', dir: csPath };
+  if (aiDirExists) return { location: "ai", dir: csPath };
   if (githubDirExists)
-    return { location: 'github', dir: '.github/instructions' };
+    return { location: "github", dir: ".github/instructions" };
   return null;
 }
 
 /** Build the empty local-instructions result used when no instruction directory exists. */
 function createEmptyLocalInstructions(
   csPath: string,
-): SharedFacts['localInstructions'] {
+): SharedFacts["localInstructions"] {
   return {
     dirExists: false,
     location: null,
@@ -75,11 +75,11 @@ function hasInstructionFile(files: string[], baseName: string): boolean {
 /** Collect presence flags for the key local-instruction documents. */
 function collectLocalInstructionFlags(files: string[]): LocalInstructionFlags {
   return {
-    hasConventions: hasInstructionFile(files, 'conventions'),
-    hasFrontend: hasInstructionFile(files, 'frontend'),
-    hasBackend: hasInstructionFile(files, 'backend'),
-    hasCodeReview: hasInstructionFile(files, 'code-review'),
-    hasGitCommit: hasInstructionFile(files, 'git-commit'),
+    hasConventions: hasInstructionFile(files, "conventions"),
+    hasFrontend: hasInstructionFile(files, "frontend"),
+    hasBackend: hasInstructionFile(files, "backend"),
+    hasCodeReview: hasInstructionFile(files, "code-review"),
+    hasGitCommit: hasInstructionFile(files, "git-commit"),
   };
 }
 
@@ -100,7 +100,7 @@ function hasConventionsContent(content: string): boolean {
   const hasCommands = /##.*command|```bash|```sh/i.test(content);
   const hasConventionRules =
     /##.*convention|do.*don't|do:.*don't:|good.*bad/i.test(content);
-  const lineCount = content.split('\n').length;
+  const lineCount = content.split("\n").length;
   return hasCommands && hasConventionRules && lineCount > 15;
 }
 
@@ -108,17 +108,19 @@ function hasConventionsContent(content: string): boolean {
 function isReadableRouterRef(rawRef: string): boolean {
   const ref = rawRef.trim();
   if (!ref) return false;
-  if (ref.startsWith('http://') || ref.startsWith('https://')) return false;
-  if (ref.startsWith('$')) return false;
-  if (!ref.includes('/') && /\b(README|docs|command|format|lint)\b/i.test(ref))
+  if (ref.startsWith("http://") || ref.startsWith("https://")) return false;
+  if (ref.startsWith("$")) return false;
+  if (!ref.includes("/") && /\b(README|docs|command|format|lint)\b/i.test(ref))
     return false;
-  if (ref.includes(' ')) return false;
-  return /(?:^\.\/|^\.\.\/|^[\w-]+\/|^[a-zA-Z0-9._-]+\.[a-zA-Z0-9]+$)/.test(ref);
+  if (ref.includes(" ")) return false;
+  return /(?:^\.\/|^\.\.\/|^[\w-]+\/|^[a-zA-Z0-9._-]+\.[a-zA-Z0-9]+$)/.test(
+    ref,
+  );
 }
 
 /** Remove any markdown anchor fragment from a router reference. */
 function stripRouterAnchor(ref: string): string {
-  const anchorIndex = ref.indexOf('#');
+  const anchorIndex = ref.indexOf("#");
   if (anchorIndex === -1) return ref.trim();
   return ref.slice(0, anchorIndex).trim();
 }
@@ -154,7 +156,7 @@ function validateRouterLinks(
       hasValidRouter: false,
       invalidRefs: [],
       routerNeedsFix:
-        '.goat-flow/README.md missing - create it and reference existing coding standard files',
+        ".goat-flow/README.md missing - create it and reference existing coding standard files",
     };
   }
 
@@ -164,7 +166,7 @@ function validateRouterLinks(
       hasValidRouter: false,
       invalidRefs: [],
       routerNeedsFix:
-        '.goat-flow/README.md should reference at least one instruction file (for example .goat-flow/coding-standards/conventions.md).',
+        ".goat-flow/README.md should reference at least one instruction file (for example .goat-flow/coding-standards/conventions.md).",
     };
   }
 
@@ -173,7 +175,7 @@ function validateRouterLinks(
     return {
       hasValidRouter: false,
       invalidRefs,
-      routerNeedsFix: `.goat-flow/README.md references missing paths: ${invalidRefs.join(', ')}`,
+      routerNeedsFix: `.goat-flow/README.md references missing paths: ${invalidRefs.join(", ")}`,
     };
   }
 
@@ -187,20 +189,20 @@ function validateRouterLinks(
 /** Load and grade the conventions document for the active local-instructions location. */
 function analyzeConventionsContent(
   fs: ReadonlyFS,
-  location: LocalInstructionDir['location'],
+  location: LocalInstructionDir["location"],
   csPath: string,
   hasConventions: boolean,
 ): Pick<
-  SharedFacts['localInstructions'],
-  'conventionsContent' | 'conventionsHasContent'
+  SharedFacts["localInstructions"],
+  "conventionsContent" | "conventionsHasContent"
 > {
   if (!hasConventions)
     return { conventionsContent: null, conventionsHasContent: false };
 
   const conventionsPath =
-    location === 'ai'
+    location === "ai"
       ? `${csPath}/conventions.md`
-      : '.github/instructions/conventions.instructions.md';
+      : ".github/instructions/conventions.instructions.md";
   const conventionsContent = fs.readFile(conventionsPath);
   return {
     conventionsContent,
@@ -212,7 +214,7 @@ function analyzeConventionsContent(
 /** Resolve router file existence and validate its links. */
 function resolveRouterValidation(
   fs: ReadonlyFS,
-  location: 'ai' | 'github',
+  location: "ai" | "github",
 ): {
   hasRouter: boolean;
   routerValidation: {
@@ -221,10 +223,10 @@ function resolveRouterValidation(
     invalidRefs: string[];
   };
 } {
-  const hasRouter = location === 'ai' && fs.exists('.goat-flow/README.md');
+  const hasRouter = location === "ai" && fs.exists(".goat-flow/README.md");
   const routerValidation =
-    location === 'ai'
-      ? validateRouterLinks(fs, fs.readFile('.goat-flow/README.md'))
+    location === "ai"
+      ? validateRouterLinks(fs, fs.readFile(".goat-flow/README.md"))
       : { hasValidRouter: true, routerNeedsFix: null, invalidRefs: [] };
   return { hasRouter, routerValidation };
 }
@@ -233,10 +235,10 @@ function resolveRouterValidation(
 export function extractLocalInstructions(
   fs: ReadonlyFS,
   rawCsPath: string,
-): SharedFacts['localInstructions'] {
-  const csPath = rawCsPath.replace(/\/$/, '');
+): SharedFacts["localInstructions"] {
+  const csPath = rawCsPath.replace(/\/$/, "");
   const aiDirExists = fs.exists(csPath);
-  const githubDirExists = fs.exists('.github/instructions');
+  const githubDirExists = fs.exists(".github/instructions");
   // Detect duplicate instruction surfaces, but exempt pointer files.
   // If .goat-flow/coding-standards/conventions.md references .github/instructions/
   // without substantial duplicated content, it's a pointer — not a duplicate.
@@ -246,9 +248,9 @@ export function extractLocalInstructions(
     const isPointerFile =
       conventionsContent !== null &&
       /\.github\/instructions\//.test(conventionsContent) &&
-      conventionsContent.split('\n').length < 50;
+      conventionsContent.split("\n").length < 50;
     if (!isPointerFile) {
-      duplicateSurfacePaths = [csPath, '.github/instructions'];
+      duplicateSurfacePaths = [csPath, ".github/instructions"];
     }
   }
   const localInstructionDir = resolveLocalInstructionDir(
@@ -259,7 +261,7 @@ export function extractLocalInstructions(
   if (localInstructionDir === null) return createEmptyLocalInstructions(csPath);
 
   const { dir, location } = localInstructionDir;
-  const files = fs.listDir(dir).filter((file) => file.endsWith('.md'));
+  const files = fs.listDir(dir).filter((file) => file.endsWith(".md"));
   const flags = collectLocalInstructionFlags(files);
   const conventions = analyzeConventionsContent(
     fs,

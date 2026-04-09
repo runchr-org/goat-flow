@@ -58,6 +58,37 @@ goat-flow dashboard               # Launch on default port
 goat-flow dashboard --dev         # Live reload mode
 ```
 
+## Workflow Examples
+
+Common tasks and the commands to run:
+
+| I want to... | Command |
+|--------------|---------|
+| Check if my project is ready | `goat-flow scan .` |
+| Set up a new project | `goat-flow setup . --agent claude` |
+| See what checks exist | `goat-flow info rubrics` |
+| Use this in CI | `goat-flow scan . --min-score 80 --format json` |
+| Get verbose output | `goat-flow scan . --verbose` |
+| Open the dashboard | `goat-flow dashboard .` |
+
+**CI pipeline example:**
+
+```bash
+# Fail the build if score drops below 80
+goat-flow scan . --min-score 80 --format json --output report.json
+```
+
+**First-time setup:**
+
+```bash
+# 1. See where your project stands
+goat-flow scan .
+# 2. Generate a setup prompt for your agent
+goat-flow setup . --agent claude
+# 3. Open the dashboard for guided setup
+goat-flow dashboard .
+```
+
 ## Global flags
 
 | Flag | Description |

@@ -52,6 +52,8 @@
     "preflight": "bash scripts/preflight-checks.sh",
     "validate": "bash scripts/context-validate.sh",
     "check-versions": "node scripts/check-versions.mjs",
+    "format": "prettier --write \"src/**/*.{ts,js,html}\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,html}\" \"test/**/*.ts\"",
     "prepublishOnly": "npm run build && npm run check-versions"
   },
   "keywords": [
@@ -79,6 +81,7 @@
     "@types/ws": "^8.18.1",
     "eslint": "^10.1.0",
     "knip": "^6.0.2",
+    "prettier": "^3.8.1",
     "tsx": "^4.0.0",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.57.1"

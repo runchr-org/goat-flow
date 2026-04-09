@@ -1,12 +1,12 @@
 /**
  * Per-agent fact extractor - thin composer that delegates to sub-extractors.
  */
-import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
-import { extractInstructionFacts } from './instruction.js';
-import { extractSettingsFacts, checkDenyPatterns } from './settings.js';
-import { extractSkillFacts } from './skills.js';
-import { extractRouterFacts, extractAskFirstFacts } from './routing.js';
-import { extractHookFacts } from './hooks.js';
+import type { AgentProfile, AgentFacts, ReadonlyFS } from "../../types.js";
+import { extractInstructionFacts } from "./instruction.js";
+import { extractSettingsFacts, checkDenyPatterns } from "./settings.js";
+import { extractSkillFacts } from "./skills.js";
+import { extractRouterFacts, extractAskFirstFacts } from "./routing.js";
+import { extractHookFacts } from "./hooks.js";
 
 /** Collect all facts for a single agent by delegating to sub-extractors. */
 export function extractAgentFacts(
@@ -28,7 +28,7 @@ export function extractAgentFacts(
   const askFirst = extractAskFirstFacts(fs, instruction.content);
 
   /** All files matching the agent's local instruction pattern */
-  const localFiles = agent.localPattern.includes('*')
+  const localFiles = agent.localPattern.includes("*")
     ? fs.glob(agent.localPattern)
     : [];
   /** Local context files excluding the root instruction file */

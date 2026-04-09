@@ -2,11 +2,11 @@
  * Registry that flattens all prompt fragment catalogs into a single lookup surface.
  * Use this module when mapping failed checks or anti-patterns to prompt content.
  */
-import type { Fragment, FragmentPhase } from './types.js';
-import { foundationFragments } from './fragments/foundation.js';
-import { standardFragments } from './fragments/standard.js';
-import { fullFragments } from './fragments/full.js';
-import { antiPatternFragments } from './fragments/anti-patterns.js';
+import type { Fragment, FragmentPhase } from "./types.js";
+import { foundationFragments } from "./fragments/foundation.js";
+import { standardFragments } from "./fragments/standard.js";
+import { fullFragments } from "./fragments/full.js";
+import { antiPatternFragments } from "./fragments/anti-patterns.js";
 
 /** Combined array of all prompt fragments across every phase */
 const allFragments: Fragment[] = [

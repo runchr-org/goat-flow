@@ -6,6 +6,8 @@ Verify and refine the execution loop in the instruction file. Steps 02 or 03 cre
 
 Read `workflow/setup/execution-loop.md` as the authoritative reference. The instruction file MUST have all 6 steps:
 
+When a goat-* skill is active, the skill's Step 0 satisfies READ/CLASSIFY/SCOPE. Resume the loop at ACT.
+
 1. **READ** — Read relevant files first, never fabricate codebase facts. Cross-doc: MUST read `.goat-flow/footguns/` before modifying Ask First files. Include BAD/GOOD example.
 
 2. **CLASSIFY** — Three signals before acting:
@@ -23,6 +25,7 @@ Read `workflow/setup/execution-loop.md` as the authoritative reference. The inst
    - VERIFY caught a failure → `.goat-flow/lessons/` entry BEFORE DoD
    - Human corrected agent → `.goat-flow/lessons/` entry IMMEDIATELY
    - Architectural trap with file:line evidence → `.goat-flow/footguns/`
+   Threshold for trigger #1: log when the failure has a non-obvious root cause, the same mistake happened twice, or the impact crossed a boundary. Don't log routine type errors, lint fixes, typos, or anything the linter/compiler would have caught on the next run anyway.
    - Session logs to `.goat-flow/logs/sessions/`
 
 ## Check completeness

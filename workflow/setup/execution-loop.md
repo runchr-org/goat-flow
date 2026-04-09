@@ -9,6 +9,7 @@ These sections go in the project's instruction file. Target: under 120 lines. Ha
 a) Version header (v1.0 - YYYY-MM-DD)
 
 b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
+   When a goat-* skill is active, the skill's Step 0 satisfies READ/CLASSIFY/SCOPE. Resume the loop at ACT.
    - READ: read relevant files first, never fabricate codebase facts
      (include BAD/GOOD example)
      Cross-doc: MUST read .goat-flow/footguns/ before modifying files
@@ -46,6 +47,10 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
      - Human corrected agent behaviour → `.goat-flow/lessons/` entry IMMEDIATELY
      - Discovered architectural trap with file:line evidence → `.goat-flow/footguns/`
      Skip = DoD gate #4 blocks completion. This is not optional.
+     Threshold for trigger #1: log when the failure has a non-obvious root
+     cause, the same mistake happened twice, or the impact crossed a boundary.
+     Don't log routine type errors, lint fixes, typos, or anything the
+     linter/compiler would have caught on the next run anyway.
      Session logs: write a summary to `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`
      at the end of every significant session. Include: what happened, files changed,
      decisions made, errors, learnings, next steps.

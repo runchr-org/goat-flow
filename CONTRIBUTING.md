@@ -1,37 +1,86 @@
 # Contributing to GOAT Flow
 
-Thanks for your interest in contributing. This guide covers the basics.
+Thanks for your interest in contributing. This guide covers environment setup, project layout, and PR workflow.
+
+## Dev Environment Setup
+
+Requires Node.js 20+ and Bash.
+
+```bash
+npm install          # install dependencies
+npm run build        # compile TypeScript (tsc)
+npm test             # run the full test suite (960+ tests, node:test)
+npm run format       # auto-format with Prettier
+```
+
+## Running the Scanner Locally
+
+After building, scan the current project:
+
+```bash
+npm run scan                      # shorthand
+node dist/cli/cli.js scan .       # direct invocation (accepts any path)
+```
+
+## Running the Dashboard in Dev Mode
+
+```bash
+npm run dev    # builds, then launches the browser dashboard with --dev flag
+```
+
+## Running Preflight Checks
+
+The preflight gate runs typecheck, tests, shellcheck, version consistency, and ADR enforcement:
+
+```bash
+bash scripts/preflight-checks.sh
+```
+
+For shell scripts only: `shellcheck scripts/maintenance/*.sh`
+
+## Project Structure
+
+| Directory | What lives there |
+|-----------|-----------------|
+| `src/cli/` | CLI scanner, rubric checks (`rubric/`), stack detector (`detect/`), setup prompt generator |
+| `src/dashboard/` | Browser-based dashboard — HTML + Alpine.js + vanilla JS |
+| `workflow/` | Setup templates, skill templates, hooks, coding standards |
+| `.goat-flow/` | Project-specific config, architecture, decisions, footguns, lessons |
+| `scripts/` | Shell scripts for validation, maintenance, publishing |
+| `test/` | Unit, integration, contract, and smoke tests (uses `node:test`) |
+
+## How to Add a New Rubric Check
+
+Rubric checks live in `src/cli/rubric/`. The `standard/` subdirectory contains individual check modules; `registry.ts` wires them together. Add your check function, register it, and bump `RUBRIC_VERSION` in `src/cli/rubric/version.ts` if you change scoring.
+
+## How to Add a New Skill Template
+
+Skill templates live in `workflow/skills/`. Each skill has a reference copy in `workflow/skills/reference/` and a user-facing template. The setup process uses a 3-way copy pattern: reference -> project `.claude/skills/` -> user customization. Add your template in both locations and register it in the setup flow.
+
+## How to Add a New Stack to the Detector
+
+Stack detection lives in `src/cli/detect/project-stack.ts`. Add a new detection case that inspects project files (package.json, config files, etc.) and returns the appropriate stack identifier.
 
 ## How to Contribute
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b my-change`)
+2. Create a feature branch off `dev` (`git checkout -b my-change`)
 3. Make your changes
-4. Run the checks (see below)
-5. Open a pull request against `main`
+4. Run the checks: `bash scripts/preflight-checks.sh`
+5. Open a pull request against `dev` (not `main`)
+
+## PR Conventions
+
+- Single-line summary, plain English — no `feat:`/`fix:` prefixes
+- Multi-line body when spanning multiple areas (blank line after summary)
+- Before opening: `npm run typecheck`, `npm test`, and `shellcheck` on any changed `.sh` files must all pass
+- See `.goat-flow/coding-standards/git-commit.md` for full conventions
 
 ## Code Style
 
-- **Markdown** for documentation (the bulk of the project)
+- **Markdown** for documentation (target ~120-line files)
 - **Bash** for maintenance and validation scripts (`scripts/`)
-- **TypeScript** for the scanner CLI (`src/cli/`)
-
-Keep documentation concise. GOAT Flow targets ~120-line instruction files -- the same discipline applies to contributions.
-
-## Testing
-
-Before submitting a PR, run:
-
-```bash
-# Full preflight gate (scripts, structure, cross-references)
-bash scripts/preflight-checks.sh
-
-# Scanner tests (167 tests)
-npm test
-
-# Lint shell scripts
-shellcheck scripts/maintenance/*.sh
-```
+- **TypeScript** for the scanner CLI (`src/cli/`) and dashboard server
 
 ## AI Assistance Disclosure
 

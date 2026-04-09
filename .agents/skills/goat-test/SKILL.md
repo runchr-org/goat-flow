@@ -17,6 +17,8 @@ If unavailable, use these essentials:
 
 ## When to Use
 
+**Before generating a test plan:** Consider whether this change needs automated tests at all. goat-flow follows Development Driven Testing (DDT): code first, verify manually, let preflight checks and static analysis catch what they catch, then decide if automated tests add value. If the code is readable, preflight checks pass, and static analysis covers the risk surface — that may be sufficient. goat-test is for when automated tests genuinely add value: complex business logic, cross-service integration, or locking in a bug fix. Don't generate test plans as ceremony.
+
 Use after a coding milestone or every 30-60 minutes of implementation to
 generate testing instructions. Testing after 30-60 min keeps the blast radius
 narrow enough that failures point to a specific change.
@@ -53,19 +55,11 @@ Scope detection priority: (1) explicit user input, (2) staged changes, (3) unsta
 - User says "quick" → **Quick mode** (most recent commit only)
 - User explicitly says "audit" or "standard" → respect override
 
-**Test stack:** `node --test` (Node built-in runner), `node:assert/strict`, test files at `test/{category}/{name}.test.ts`, fixtures at `test/fixtures/projects/`, shell linting via `shellcheck` and `bash -n`.
-
 **Escape hatch:** If the user says "just test what changed" or provides minimal info, auto-detect scope from `git diff --stat` and existing test files, then proceed with confirmation.
 
 **Pattern read:** Before generating test instructions, read 1-2 existing test files in the affected area. Match the project's assertion style, selector patterns, and fixture conventions exactly. Generate tests that look like the ones already there - not textbook examples.
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the changed area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant to your test plan?"
-
-**Contradiction check:** If the user's stated complexity doesn't match the actual scope, flag it:
-- "hotfix" but 5+ files affected → likely Standard or System
-- "small feature" but crosses 3+ boundaries → likely System
-- "quick test" but 20+ functions in target → warn scope is larger than implied
-Surface the mismatch, suggest re-classification. Don't silently proceed.
 
 **Before proceeding:** present what you know (what changed, risk level, test stack) and what you still need. Wait for the user to confirm before entering Phase 0.
 
@@ -92,22 +86,8 @@ corresponding change."
 Generate commands for the coding agent to run:
 ```bash
 # Run relevant test suite
-npm test
 
-# Type-check
-npx tsc --noEmit
-
-# Lint TypeScript
-npx eslint src/cli/
-
-# Lint shell scripts
-shellcheck scripts/*.sh
-
-# Syntax-check shell scripts
-bash -n scripts/maintenance/*.sh
-
-# Run full preflight gate
-bash scripts/preflight-checks.sh
+# Run full preflight if available
 ```
 
 **Phase 1 executor:** The coding agent runs these commands. Phase 2 and 3 are
@@ -136,17 +116,13 @@ bias toward its own work. Recommend a different model for verification.
 **If Phase 2 will be skipped:** Note it explicitly in "What ISN'T Tested":
 "AI verification not performed - [reason]. Coverage relies on automated tests
 (Phase 1) and human testing (Phase 3) only. Cross-model blind spots are NOT covered."
-Use sub-agents for independent Phase 2 verification areas (e.g., rubric checks, fact extraction, setup prompt validation in parallel) instead of requiring a separate session.
 
 **Failure Signatures:**
 | If this breaks... | You'll see... |
 |-------------------|---------------|
-| Rubric check change broken | `npm test` fails in `test/unit/rubric*.test.ts` with assertion mismatch |
-| Fact extractor change broken | `npm test` fails in `test/unit/fact*.test.ts`, extracted facts don't match expected |
-| Cross-reference rename missed | `grep` for old pattern still returns hits in `.md` files |
-| Shell script syntax error | `bash -n` or `shellcheck` exits non-zero on changed script |
-| TypeScript build regression | `npx tsc --noEmit` exits non-zero, type errors in `src/cli/` |
-| Dashboard render broken | HTML structure tests fail in `test/unit/dashboard*.test.ts` |
+| Auth change broken | 401 responses on `/api/user` |
+| Migration failed | Missing columns in `users` table |
+| Build regression | `npm run build` exits non-zero |
 
 ## Phase 3 - Human Testing
 
@@ -198,11 +174,7 @@ Explicitly list coverage gaps. Be honest about what's NOT verified:
 
 ## Phase 1: Automated Tests
 ```bash
-npm test
-npx tsc --noEmit
-npx eslint src/cli/
-shellcheck scripts/*.sh
-bash scripts/preflight-checks.sh
+# Commands for the coding agent to run
 ```
 
 ### Integration Gaps

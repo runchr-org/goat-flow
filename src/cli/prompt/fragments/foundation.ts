@@ -2,7 +2,7 @@
  * Static prompt fragments for foundation-tier requirements.
  * These snippets back generated setup prompts for instruction files, enforcement, and execution-loop basics.
  */
-import type { Fragment } from '../types.js';
+import type { Fragment } from "../types.js";
 
 /**
  * Tier 1 - Foundation fragments (23 check keys)
@@ -11,10 +11,10 @@ import type { Fragment } from '../types.js';
 export const foundationFragments: Fragment[] = [
   // === Instruction File ===
   {
-    key: 'create-instruction-file',
-    phase: 'foundation',
-    category: 'Instruction File',
-    kind: 'create',
+    key: "create-instruction-file",
+    phase: "foundation",
+    category: "Instruction File",
+    kind: "create",
     instruction: `Create \`{{instructionFile}}\` at the project root. This is the primary instruction file for {{agentName}}.
 
 Start with this skeleton:
@@ -36,10 +36,10 @@ Start with this skeleton:
 Keep it under 120 lines. The remaining foundation checks will fill in the sections.`,
   },
   {
-    key: 'compress-instruction-file',
-    phase: 'foundation',
-    category: 'Instruction File',
-    kind: 'fix',
+    key: "compress-instruction-file",
+    phase: "foundation",
+    category: "Instruction File",
+    kind: "fix",
     instruction: `\`{{instructionFile}}\` is over the 120-line target. Compress it:
 
 1. Remove verbose examples - one BAD/GOOD pair per concept is enough
@@ -50,10 +50,10 @@ Keep it under 120 lines. The remaining foundation checks will fill in the sectio
 Hard limit: 150 lines. Target: under 120.`,
   },
   {
-    key: 'add-version-header',
-    phase: 'foundation',
-    category: 'Instruction File',
-    kind: 'create',
+    key: "add-version-header",
+    phase: "foundation",
+    category: "Instruction File",
+    kind: "create",
     instruction: `Add a version header to line 1 of \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -61,10 +61,10 @@ Hard limit: 150 lines. Target: under 120.`,
 \`\`\``,
   },
   {
-    key: 'add-essential-commands',
-    phase: 'foundation',
-    category: 'Instruction File',
-    kind: 'create',
+    key: "add-essential-commands",
+    phase: "foundation",
+    category: "Instruction File",
+    kind: "create",
     instruction: `Add an Essential Commands section to \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -81,10 +81,10 @@ List only commands the agent will actually run. Skip "none".`,
   },
 
   {
-    key: 'add-concrete-examples',
-    phase: 'foundation',
-    category: 'Instruction File',
-    kind: 'create',
+    key: "add-concrete-examples",
+    phase: "foundation",
+    category: "Instruction File",
+    kind: "create",
     instruction: `Add concrete BAD/GOOD or DO/DON'T examples to \`{{instructionFile}}\`. Agents follow examples better than abstract rules.
 
 \`\`\`markdown
@@ -95,10 +95,10 @@ GOOD: Read workflow/setup/execution-loop.md → "Target 120 lines. Hard limit 15
 Include at least 2 example pairs showing right vs wrong approaches for your most important rules.`,
   },
   {
-    key: 'add-resolvable-paths',
-    phase: 'foundation',
-    category: 'Instruction File',
-    kind: 'fix',
+    key: "add-resolvable-paths",
+    phase: "foundation",
+    category: "Instruction File",
+    kind: "fix",
     instruction: `Your instruction file should reference at least 2 real project file paths that exist on disk. Add backtick-wrapped paths in the Router Table and Ask First sections:
 
 \`\`\`markdown
@@ -121,10 +121,10 @@ These paths must point to files or directories that actually exist in your proje
 
   // === Execution Loop ===
   {
-    key: 'add-read-step',
-    phase: 'foundation',
-    category: 'Execution Loop',
-    kind: 'create',
+    key: "add-read-step",
+    phase: "foundation",
+    category: "Execution Loop",
+    kind: "create",
     instruction: `Add the READ step to \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -134,10 +134,10 @@ These paths must point to files or directories that actually exist in your proje
 This is the first step of the execution loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG.`,
   },
   {
-    key: 'add-classify-step',
-    phase: 'foundation',
-    category: 'Execution Loop',
-    kind: 'create',
+    key: "add-classify-step",
+    phase: "foundation",
+    category: "Execution Loop",
+    kind: "create",
     instruction: `Add the CLASSIFY step to \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -151,10 +151,10 @@ This is the first step of the execution loop: READ → CLASSIFY → SCOPE → AC
 \`\`\``,
   },
   {
-    key: 'add-classify-budgets',
-    phase: 'foundation',
-    category: 'Execution Loop',
-    kind: 'fix',
+    key: "add-classify-budgets",
+    phase: "foundation",
+    category: "Execution Loop",
+    kind: "fix",
     instruction: `The CLASSIFY step exists but lacks numeric budgets. Add a complexity budget table with concrete read/turn limits:
 
 \`\`\`markdown
@@ -169,10 +169,10 @@ This is the first step of the execution loop: READ → CLASSIFY → SCOPE → AC
 Over budget = re-classify before continuing.`,
   },
   {
-    key: 'add-scope-step',
-    phase: 'foundation',
-    category: 'Execution Loop',
-    kind: 'create',
+    key: "add-scope-step",
+    phase: "foundation",
+    category: "Execution Loop",
+    kind: "create",
     instruction: `Add the SCOPE step to \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -180,10 +180,10 @@ Over budget = re-classify before continuing.`,
 \`\`\``,
   },
   {
-    key: 'add-act-step',
-    phase: 'foundation',
-    category: 'Execution Loop',
-    kind: 'create',
+    key: "add-act-step",
+    phase: "foundation",
+    category: "Execution Loop",
+    kind: "create",
     instruction: `Add the ACT step to \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -197,10 +197,10 @@ Over budget = re-classify before continuing.`,
 \`\`\``,
   },
   {
-    key: 'add-verify-step',
-    phase: 'foundation',
-    category: 'Execution Loop',
-    kind: 'create',
+    key: "add-verify-step",
+    phase: "foundation",
+    category: "Execution Loop",
+    kind: "create",
     instruction: `Add the VERIFY step to \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -208,10 +208,10 @@ Over budget = re-classify before continuing.`,
 \`\`\``,
   },
   {
-    key: 'add-log-step',
-    phase: 'foundation',
-    category: 'Execution Loop',
-    kind: 'create',
+    key: "add-log-step",
+    phase: "foundation",
+    category: "Execution Loop",
+    kind: "create",
     instruction: `Add the LOG step to \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -227,10 +227,10 @@ Footguns use category files such as \\\`hooks.md\\\` with frontmatter \\\`catego
 \`\`\``,
   },
   {
-    key: 'create-goat-flow-config',
-    phase: 'foundation',
-    category: 'Project Config',
-    kind: 'create',
+    key: "create-goat-flow-config",
+    phase: "foundation",
+    category: "Project Config",
+    kind: "create",
     instruction: `Create \`.goat-flow/config.yaml\`:
 
 \`\`\`yaml
@@ -267,10 +267,10 @@ Ensure \`.goat-flow/config.local.yaml\` is gitignored (the default \`.goat-flow/
   },
   // create-config-local removed - check 1.5.7 removed.
   {
-    key: 'fix-goat-flow-config',
-    phase: 'foundation',
-    category: 'Project Config',
-    kind: 'fix',
+    key: "fix-goat-flow-config",
+    phase: "foundation",
+    category: "Project Config",
+    kind: "fix",
     instruction: `Fix \`.goat-flow/config.yaml\` so it is valid YAML and matches the supported schema:
 
 - \`version\`: string
@@ -285,10 +285,10 @@ Unknown keys are warnings, not fatal.`,
 
   // === Autonomy Tiers ===
   {
-    key: 'add-autonomy-tiers',
-    phase: 'foundation',
-    category: 'Autonomy Tiers',
-    kind: 'create',
+    key: "add-autonomy-tiers",
+    phase: "foundation",
+    category: "Autonomy Tiers",
+    kind: "create",
     instruction: `Add three autonomy tiers to \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -304,10 +304,10 @@ Unknown keys are warnings, not fatal.`,
 \`\`\``,
   },
   {
-    key: 'project-specific-ask-first',
-    phase: 'foundation',
-    category: 'Autonomy Tiers',
-    kind: 'fix',
+    key: "project-specific-ask-first",
+    phase: "foundation",
+    category: "Autonomy Tiers",
+    kind: "fix",
     instruction: `The Ask First section in \`{{instructionFile}}\` is too generic. Replace template boundaries with real project paths:
 
 **Instead of:** "auth, routing, deployment, API, DB"
@@ -316,10 +316,10 @@ Unknown keys are warnings, not fatal.`,
 List 3-7 specific boundaries with actual file paths from this project.`,
   },
   {
-    key: 'fix-ask-first-paths',
-    phase: 'foundation',
-    category: 'Autonomy Tiers',
-    kind: 'fix',
+    key: "fix-ask-first-paths",
+    phase: "foundation",
+    category: "Autonomy Tiers",
+    kind: "fix",
     instruction: `The Ask First section in \`{{instructionFile}}\` references file paths that don't exist on disk. For each broken path:
 
 1. Check if the file was renamed - update to the new path
@@ -331,10 +331,10 @@ List 3-7 specific boundaries with actual file paths from this project.`,
 Run \`ls\` on each backtick-wrapped path to verify.`,
   },
   {
-    key: 'add-never-guards',
-    phase: 'foundation',
-    category: 'Autonomy Tiers',
-    kind: 'create',
+    key: "add-never-guards",
+    phase: "foundation",
+    category: "Autonomy Tiers",
+    kind: "create",
     instruction: `Add destructive guards to the Never tier in \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -342,10 +342,10 @@ Run \`ls\` on each backtick-wrapped path to verify.`,
 \`\`\``,
   },
   {
-    key: 'add-micro-checklist',
-    phase: 'foundation',
-    category: 'Autonomy Tiers',
-    kind: 'create',
+    key: "add-micro-checklist",
+    phase: "foundation",
+    category: "Autonomy Tiers",
+    kind: "create",
     instruction: `Add the Ask First checklist to \`{{instructionFile}}\`. Choose the short form (recommended) or full form (for high-risk/PHI codebases):
 
 **Short form (2 questions):**
@@ -368,10 +368,10 @@ Run \`ls\` on each backtick-wrapped path to verify.`,
 
   // === Definition of Done ===
   {
-    key: 'add-dod',
-    phase: 'foundation',
-    category: 'Definition of Done',
-    kind: 'create',
+    key: "add-dod",
+    phase: "foundation",
+    category: "Definition of Done",
+    kind: "create",
     instruction: `Add a Definition of Done section to \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -381,10 +381,10 @@ MUST confirm ALL before marking complete.
 \`\`\``,
   },
   {
-    key: 'add-dod-gates',
-    phase: 'foundation',
-    category: 'Definition of Done',
-    kind: 'create',
+    key: "add-dod-gates",
+    phase: "foundation",
+    category: "Definition of Done",
+    kind: "create",
     instruction: `Add 6 explicit gates to the DoD section in \`{{instructionFile}}\`:
 
 \`\`\`markdown
@@ -392,19 +392,19 @@ MUST confirm ALL: (1) tests pass on changed files (2) no broken cross-references
 \`\`\``,
   },
   {
-    key: 'add-grep-gate',
-    phase: 'foundation',
-    category: 'Definition of Done',
-    kind: 'create',
+    key: "add-grep-gate",
+    phase: "foundation",
+    category: "Definition of Done",
+    kind: "create",
     instruction: `Add the grep-after-rename gate to DoD in \`{{instructionFile}}\`:
 
 After any rename, grep for the old pattern to confirm zero remaining references.`,
   },
   {
-    key: 'add-log-gate',
-    phase: 'foundation',
-    category: 'Definition of Done',
-    kind: 'create',
+    key: "add-log-gate",
+    phase: "foundation",
+    category: "Definition of Done",
+    kind: "create",
     instruction: `Add the log-update gate to DoD in \`{{instructionFile}}\`:
 
 If VERIFY caught a failure or you corrected course: create a lesson entry in \`.goat-flow/lessons/\` before DoD.`,
@@ -412,10 +412,10 @@ If VERIFY caught a failure or you corrected course: create a lesson entry in \`.
 
   // === Enforcement ===
   {
-    key: 'add-deny-mechanism',
-    phase: 'foundation',
-    category: 'Enforcement',
-    kind: 'create',
+    key: "add-deny-mechanism",
+    phase: "foundation",
+    category: "Enforcement",
+    kind: "create",
     instruction: `Create a deny mechanism for {{agentName}}. This prevents the agent from running destructive commands.`,
     agentOverrides: {
       claude: `Create \`.claude/settings.json\` with deny patterns:
@@ -456,10 +456,10 @@ def check(command):
     },
   },
   {
-    key: 'block-git-commit',
-    phase: 'foundation',
-    category: 'Enforcement',
-    kind: 'create',
+    key: "block-git-commit",
+    phase: "foundation",
+    category: "Enforcement",
+    kind: "create",
     instruction: `Add \`git commit\` to the deny list in {{settingsFile}}.
 
 > **Note:** This blocks ALL commits, including when the user explicitly asks to commit. Once trust is established, move \`git commit\` to \`settings.local.json\` allow list to reduce friction on feature branches.`,
@@ -473,10 +473,10 @@ def check(command):
     },
   },
   {
-    key: 'block-git-push',
-    phase: 'foundation',
-    category: 'Enforcement',
-    kind: 'create',
+    key: "block-git-push",
+    phase: "foundation",
+    category: "Enforcement",
+    kind: "create",
     instruction: `Add \`git push\` to the deny list in {{settingsFile}}.`,
     agentOverrides: {
       claude:
@@ -488,10 +488,10 @@ def check(command):
     },
   },
   {
-    key: 'create-deny-script',
-    phase: 'foundation',
-    category: 'Enforcement',
-    kind: 'create',
+    key: "create-deny-script",
+    phase: "foundation",
+    category: "Enforcement",
+    kind: "create",
     instruction: `Create the deny hook/script for {{agentName}}.`,
     agentOverrides: {
       claude: `Create \`.claude/hooks/deny-dangerous.sh\`:

@@ -8,16 +8,16 @@ import type {
   Recommendation,
   CheckDef,
   AntiPatternDef,
-} from '../types.js';
+} from "../types.js";
 
 /** Shorthand alias for the priority union type */
-type Priority = Recommendation['priority'];
+type Priority = Recommendation["priority"];
 
 /** Default priority assigned to failed checks based on their tier */
 const TIER_PRIORITY: Record<string, Priority> = {
-  foundation: 'critical',
-  standard: 'high',
-  full: 'medium',
+  foundation: "critical",
+  standard: "high",
+  full: "medium",
 };
 
 /** Numeric sort order for recommendation priorities (lower = more urgent) */
@@ -33,16 +33,16 @@ function createCheckRecommendation(
   result: CheckResult,
   checkDefs: CheckDef[],
 ): Recommendation | null {
-  if (result.status === 'pass' || result.status === 'na') return null;
+  if (result.status === "pass" || result.status === "na") return null;
 
   const definition = checkDefs.find((check) => check.id === result.id);
   if (definition === undefined) return null;
 
   return {
     priority:
-      result.status === 'partial'
-        ? 'low'
-        : (TIER_PRIORITY[result.tier] ?? 'medium'),
+      result.status === "partial"
+        ? "low"
+        : (TIER_PRIORITY[result.tier] ?? "medium"),
     checkId: result.id,
     category: result.category,
     message: result.message,
@@ -64,9 +64,9 @@ function createAntiPatternRecommendation(
   if (definition === undefined) return null;
 
   return {
-    priority: Math.abs(definition.deduction) >= 5 ? 'critical' : 'high',
+    priority: Math.abs(definition.deduction) >= 5 ? "critical" : "high",
     checkId: result.id,
-    category: 'Anti-Pattern',
+    category: "Anti-Pattern",
     message: result.message,
     action: definition.recommendation,
     key: definition.recommendationKey,
