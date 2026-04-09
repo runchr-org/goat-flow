@@ -188,11 +188,11 @@ button, select, summary, label, [role="button"] { cursor: pointer; }
 .gf-header-proj { font-size: 13px; font-weight: 500; margin-left: 6px; color: #4ade80; }
 .gf-nav-wrap { position: absolute; left: 50%; transform: translateX(-50%); }
 .gf-nav { display: flex; border-radius: 6px; padding: 2px; gap: 2px; }
-.gf-nb { font-size: 13px; padding: 4px 10px; border-radius: 5px; cursor: pointer; white-space: nowrap; font-weight: 500; color: #71717a; background: none; border: none; }
+.gf-nb { font-size: 13px; padding: 4px 10px; border-radius: 5px; cursor: pointer; white-space: nowrap; font-weight: 500; color: #a1a1aa; background: none; border: none; }
 .gf-nb:hover { color: #e4e4e7; }
 .gf-nb-active { color: #e4e4e7; font-weight: 600; }
 .gf-asel { display: flex; border-radius: 6px; overflow: hidden; border: 1px solid #3f3f46; }
-.gf-ab { font-size: 11px; padding: 5px 12px; cursor: pointer; color: #71717a; border: none; border-right: 1px solid #3f3f46; background: none; }
+.gf-ab { font-size: 11px; padding: 5px 12px; cursor: pointer; color: #a1a1aa; border: none; border-right: 1px solid #3f3f46; background: none; }
 .gf-ab:disabled { opacity: 0.4; cursor: not-allowed; }
 .gf-ab:last-child { border-right: none; }
 .gf-ab:hover { color: #a1a1aa; background: #27272a; }
