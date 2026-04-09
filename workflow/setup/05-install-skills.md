@@ -23,7 +23,7 @@ Each SKILL.md MUST include:
 - `goat-flow-skill-version:` in YAML frontmatter matching the current goat-flow version
 - Sections: When to Use, Step 0 / Gather Context, Process with phased steps, Constraints, Output Format, Chaining
 
-Adapt all examples for THIS project's tech stack. Do NOT leave placeholder text.
+**IMPORTANT: Install skills VERBATIM from the templates. Do NOT adapt, compress, rewrite, or remove any sections.** Skills are the same for every project — project-specific context comes from CLAUDE.md, `.goat-flow/footguns/`, and `.goat-flow/coding-standards/`, which skills read at runtime. Cutting or rewriting skill content causes more damage than generic examples ever will.
 
 ## Version check
 

@@ -4,6 +4,7 @@ function app() {
     report: window.__GOAT_FLOW_REPORT__ || null,
     selectedAgent: window.__GOAT_FLOW_REPORT__?.agents?.[0]?.agent || null,
     projectPath: window.__GOAT_FLOW_DEFAULT_PATH__ || ".",
+    dashboardVersion: window.__GOAT_FLOW_VERSION__ || "0.0.0",
     darkMode:
       localStorage.getItem("gf-dark") === "true" ||
       (!localStorage.getItem("gf-dark") &&

@@ -21,6 +21,7 @@ import { createFS } from "../facts/fs.js";
 import { classifyProjectState } from "../classify-state.js";
 import { scanProject } from "../scanner/scan.js";
 import { renderJson } from "../render/json.js";
+import { getPackageVersion } from "../paths.js";
 import type { AgentId } from "../types.js";
 import type { Runner } from "./types.js";
 import type { TerminalManager } from "./terminal.js";
@@ -32,6 +33,8 @@ const VALID_AGENTS = new Set<string>(["claude", "codex", "gemini"]);
 const VALID_RUNNERS = new Set<string>(["claude", "codex", "gemini", "copilot"]);
 /** Maximum request body size accepted by POST endpoints */
 const MAX_BODY_BYTES = 64 * 1024; // 64 KB
+/** Current goat-flow package version for dashboard UI */
+const PACKAGE_VERSION = getPackageVersion();
 
 /** Resolve the absolute path to a file in the package root by walking up */
 function resolvePackageFile(name: string): string {
@@ -171,7 +174,7 @@ export function serveDashboard(
     function handleHtmlRequest(url: URL, res: ServerResponse): boolean {
       if (url.pathname !== "/") return false;
 
-      const injection = `<script>window.__GOAT_FLOW_DEFAULT_PATH__ = ${JSON.stringify(absDefault)};</script>`;
+      const injection = `<script>window.__GOAT_FLOW_DEFAULT_PATH__ = ${JSON.stringify(absDefault)}; window.__GOAT_FLOW_VERSION__ = ${JSON.stringify(PACKAGE_VERSION)};</script>`;
       const liveReloadScript = devMode
         ? `<script>(function(){var ws=new WebSocket('ws://'+location.host+'/ws/livereload');ws.onmessage=function(){location.reload()};ws.onclose=function(){setTimeout(function(){location.reload()},1000)}})()</script>`
         : "";
