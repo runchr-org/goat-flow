@@ -242,7 +242,7 @@ function app() {
       this.$watch("projectPath", (newPath, oldPath) => {
         updateTitle();
         if (oldPath && newPath !== oldPath) {
-          this.detachTerminal();
+          this.detachTerminal(oldPath);
           this.reconnectTerminal();
           this.updateSessionCount();
         }
@@ -644,12 +644,14 @@ function app() {
       }
       await this.launchInTerminal(adapted, runner || this.activeRunner);
     },
-    detachTerminal() {
+    detachTerminal(forProjectPath) {
       // Flag prevents ws.onclose from setting terminalEnded during intentional detach
       this._detaching = true;
-      // Save current session to project map before detaching
+      // Save current session to project map before detaching.
+      // Use forProjectPath when provided (project switch — projectPath already updated).
+      const savePath = forProjectPath || this.projectPath;
       if (this.terminalSessionId && !this.terminalEnded) {
-        this._projectSessions[this.projectPath] = {
+        this._projectSessions[savePath] = {
           sessionId: this.terminalSessionId,
           startTime: this._terminalStartTime,
           prompt: this.lastRunPrompt,
