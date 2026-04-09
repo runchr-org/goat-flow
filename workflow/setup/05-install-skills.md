@@ -13,7 +13,7 @@ Read the detailed templates in `workflow/skills/goat-*.md` before creating. Crea
 1. **goat-debug/SKILL.md** — Diagnosis-first debugging. Hypothesis tracking, recurrence checks. Includes investigate and onboard modes.
 2. **goat-review/SKILL.md** — Structured code review + quality audit + simplify mode. RFC 2119 severity, footgun matching.
 3. **goat-security/SKILL.md** — Threat-model-driven security assessment. Exploitability ranking, dependency auditing.
-4. **goat-plan/SKILL.md** — 4-phase planning with complexity routing. Kill criteria, milestone archetypes. Includes refactor planning mode.
+4. **goat-plan/SKILL.md** — Planning with SBAO (multi-perspective sub-agent critique) and Mob Elaboration. Kill criteria, milestone archetypes. Includes refactor planning mode.
 5. **goat-test/SKILL.md** — 3-phase test plan generation. Doer-verifier principle.
 6. **goat/SKILL.md** — Dispatcher. Routes natural language to the right skill. Required — scanner checks for it (check 2.1.20).
 
