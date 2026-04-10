@@ -1,10 +1,35 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC2148
+# validate-goat-flow-setup.sh
+#
+# GOAT-Flow setup validation entrypoint.
+# Verifies repository governance and onboarding invariants used by the
+# goat-flow scanner, including:
+#   - Router wiring in instruction files
+#   - Required skill files and facts used by the CLI
+#   - Learning-loop surfaces (lessons / footguns / decisions)
+#   - Setup template composition and consistency checks
+#
+# Usage:
+#   bash scripts/validate-goat-flow-setup.sh
+#
+# Exit behavior:
+#   - 0: all checks passed
+#   - 1: one or more checks failed (ERROR/WARN emitted and script exits)
+#
+# Notes:
+#   - Run from repository root or from anywhere (script resolves repo root itself).
+#   - Required tools: git, awk, grep, sed, find, bash.
+#   - Optional: node (for CLI template-reference validation).
+
 set -euo pipefail
 
+# Always execute from repository root so all relative checks are stable.
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT_DIR"
 
+# Lightweight logger helpers: keep all validation output machine- and human-readable.
 info() {
     echo "INFO: $1"
 }
@@ -18,24 +43,32 @@ fail() {
     exit 1
 }
 
-# shellcheck disable=SC2016
+# Regex for extracting backtick-quoted references in router sections.
+# shellcheck disable=SC2016  # pattern contains shell metacharacters by design
 backtick_ref_pattern='`[^`]+`'
+
+# Regex for evidence markers in lessons/footguns, e.g. `file.md` or `path/to/file.ts:12`.
 # shellcheck disable=SC2016
-# Accept both file:line refs and bare file paths as evidence
 evidence_ref_pattern='`[^`]+\.[a-zA-Z]+`'
 
+# Foundation validation: AGENTS.md must exist before deeper checks.
 [[ -f AGENTS.md ]] || fail "Missing AGENTS.md"
 
+# Enforce line target for the instruction file to keep execution-loop lightweight.
 agents_lines=$(wc -l < AGENTS.md)
 if (( agents_lines > 135 )); then
     fail "AGENTS.md exceeds 135-line target ($agents_lines)"
 fi
 info "AGENTS.md line count: $agents_lines"
 
+# trim_yaml_value is intentionally separate so config value parsing stays readable and
+# testable in place. It strips inline comments and quotes.
 trim_yaml_value() {
     sed -E 's/[[:space:]]+#.*$//' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | sed -E "s/^'(.*)'$/\\1/; s/^\"(.*)\"$/\\1/"
 }
 
+# Read a single key from .goat-flow/config.yaml safely. If config doesn't exist
+# yet (fresh project), fall back to the caller-provided default.
 config_path() {
     local section=$1
     local key=$2
@@ -76,17 +109,25 @@ warn_if_legacy_surface_exists() {
     fi
 }
 
+# Resolve canonical directories from config, with sensible defaults when config absent.
+# This lets validation run in partially bootstrapped states.
 footguns_dir="$(config_path footguns path ".goat-flow/footguns/")"
 lessons_dir="$(config_path lessons path ".goat-flow/lessons/")"
 tasks_dir="$(config_path tasks path ".goat-flow/tasks/")"
 logs_dir="$(config_path logs path ".goat-flow/logs/")"
 
+# Some paths are intentionally allowed to be missing because they are created lazily.
 allowed_missing_paths=(
     ".goat-flow/decisions/"
     "$tasks_dir"
     "$logs_dir"
 )
 
+# Validate AGENTS.md Router Table references:
+# - parse each path between router headings
+# - ignore empty lines and wildcards
+# - allow known create-on-first-use buckets
+# - hard-fail on any other missing path
 router_errors=0
 while IFS= read -r ref; do
     [[ -z "$ref" ]] && continue
@@ -120,7 +161,8 @@ done < <(
 (( router_errors == 0 )) || fail "AGENTS.md router table contains missing required paths"
 info "AGENTS.md router table references resolve"
 
-# Validate CLAUDE.md router table if it exists
+# Optional CLAUDE.md validation:
+# if present, apply the same router path rules as AGENTS.md.
 if [[ -f CLAUDE.md ]]; then
     claude_router_errors=0
     while IFS= read -r ref; do
@@ -155,29 +197,40 @@ if [[ -f CLAUDE.md ]]; then
     info "CLAUDE.md router table references resolve"
 fi
 
+# Canonical skill files required by setup.
+# This list is the single source for what this repo expects to be installed.
 required_skills=(
     ".agents/skills/goat-security/SKILL.md"
     ".agents/skills/goat-debug/SKILL.md"
     ".agents/skills/goat-review/SKILL.md"
     ".agents/skills/goat-plan/SKILL.md"
+    ".agents/skills/goat-sbao/SKILL.md"
     ".agents/skills/goat-test/SKILL.md"
     ".agents/skills/goat/SKILL.md"
 )
 
+# For each required skill, validate presence plus required structure.
+# The dispatcher (`goat`) intentionally has a different top-level section label.
 for skill in "${required_skills[@]}"; do
     [[ -f "$skill" ]] || fail "Missing skill: $skill"
+    # Every skill must advertise when to call it; dispatcher is allowed to use
+    # "How It Works" because it has a different doc shape.
     # Dispatcher uses 'How It Works' instead of 'When to Use' - accept either
     grep -Eq '^## (When to Use|How It Works)' "$skill" || fail "Missing '## When to Use' (or '## How It Works' for dispatcher) in $skill"
+    # "Constraints"/"Process"/"Phase" ensures each skill documents execution guidance.
     grep -Eq '^## (Constraints|Process|Phase)' "$skill" || fail "Missing '## Constraints', '## Process', or '## Phase' in $skill"
+    # Canonical non-dispatcher skills must include an explicit output contract.
     # Dispatcher has no Output section - only require it for canonical skills
     if [[ "$skill" != *"/goat/SKILL.md" ]]; then
         grep -Eq '^## Output' "$skill" || fail "Missing '## Output' or '## Output Format' in $skill"
     fi
+    # Frontmatter must define stable identifiers for scanner + docs alignment.
     grep -q '^name:' "$skill" || fail "Missing YAML frontmatter 'name:' in $skill"
     grep -q '^description:' "$skill" || fail "Missing YAML frontmatter 'description:' in $skill"
 done
-info "All 6 skills (5 + dispatcher) exist with required sections and frontmatter"
+info "All 7 skills (6 functional + dispatcher) exist with required sections and frontmatter"
 
+# Validate category buckets for lessons; keep legacy flat files as warnings only.
 if [[ -d "$lessons_dir" ]]; then
     mapfile -t lesson_entries < <(find "$lessons_dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | sort)
     if (( ${#lesson_entries[@]} == 0 )); then
@@ -190,6 +243,8 @@ else
 fi
 warn_if_legacy_surface_exists "docs/lessons.md" "$lessons_dir" "lesson"
 
+# Validate category buckets for footguns and enforce evidence requirement.
+# The special-case "none confirmed yet" allows a placeholder acknowledgement.
 if [[ -d "$footguns_dir" ]]; then
     mapfile -t footgun_entries < <(find "$footguns_dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | sort)
     if (( ${#footgun_entries[@]} == 0 )); then
@@ -206,12 +261,15 @@ else
 fi
 warn_if_legacy_surface_exists "docs/footguns.md" "$footguns_dir" "footgun"
 
-for script in scripts/preflight-checks.sh scripts/context-validate.sh scripts/deny-dangerous.sh; do
+# Validate utility scripts remain executable for CI and local command usage.
+    for script in scripts/preflight-checks.sh scripts/validate-goat-flow-setup.sh scripts/deny-dangerous.sh; do
     [[ -x "$script" ]] || fail "Script is not executable: $script"
 done
 info "Codex scripts are executable"
 
-# Validate template consistency for deduplicated execution-loop + execution docs
+# Validate template consistency for setup reference docs:
+# - execution-loop must exist
+# - lesson/footgun evaluation templates must exist and declare category semantics.
 template_errors=0
 
 if [[ ! -f workflow/setup/reference/execution-loop.md ]]; then
@@ -220,17 +278,21 @@ if [[ ! -f workflow/setup/reference/execution-loop.md ]]; then
 fi
 
 if [[ ! -f workflow/evaluation/lessons.md ]]; then
+    # Lessons template defines category buckets; missing this breaks the migration model.
     warn "Missing template file: workflow/evaluation/lessons.md"
     template_errors=1
 elif ! grep -Fq 'category: verification' workflow/evaluation/lessons.md; then
+    # This exact marker is used by setup checks to classify lesson content.
     warn "workflow/evaluation/lessons.md should describe the category-bucket format"
     template_errors=1
 fi
 
 if [[ ! -f workflow/evaluation/footguns.md ]]; then
+    # Footgun template includes required evidence and severity conventions.
     warn "Missing template file: workflow/evaluation/footguns.md"
     template_errors=1
 elif ! grep -Fq 'category: hooks' workflow/evaluation/footguns.md; then
+    # Keep the template in sync with the scanner's category expectation.
     warn "workflow/evaluation/footguns.md should describe the category-bucket format"
     template_errors=1
 fi
@@ -240,8 +302,8 @@ if [[ "$template_errors" -ne 0 ]]; then
 fi
 info "Template consistency checks passed"
 
-# Validate setup prompt template refs (M2.11)
-# Uses the built CLI to check all template paths referenced by the setup renderer
+# Validate setup prompt template refs from the built CLI index (M2.11):
+# this keeps file existence checks aligned with runtime template resolution.
 if [[ -f dist/cli/prompt/template-refs.js ]]; then
     template_errors=0
     while IFS= read -r tmpl; do
@@ -271,4 +333,5 @@ else
     warn "dist/cli/prompt/template-refs.js not built - skipping template ref validation"
 fi
 
+# Final output only appears when all required checks have passed.
 info "Context validation passed"
