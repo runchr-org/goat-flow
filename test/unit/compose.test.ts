@@ -416,36 +416,16 @@ describe("mapLanguagesToTemplates", () => {
     return mod.mapLanguagesToTemplates;
   };
 
-  it("maps typescript + bash to correct templates", async () => {
+  it("returns no setup-owned local-instruction refs", async () => {
     const mapLanguagesToTemplates = await getMapper();
     const refs = mapLanguagesToTemplates(["typescript", "bash"]);
-    const templates = refs.map((r) => r.template);
-    assert.ok(
-      templates.some((t) => t.includes("typescript-node")),
-      "Should include typescript-node",
-    );
-    assert.ok(
-      templates.some((t) => t.includes("bash")),
-      "Should include bash",
-    );
-    assert.ok(
-      templates.some((t) => t.includes("web-common")),
-      "Should include web-common for web languages",
-    );
+    assert.equal(refs.length, 0);
   });
 
-  it("maps go to go.md + web-common", async () => {
+  it("returns empty for backend-only stacks too", async () => {
     const mapLanguagesToTemplates = await getMapper();
     const refs = mapLanguagesToTemplates(["go"]);
-    const templates = refs.map((r) => r.template);
-    assert.ok(
-      templates.some((t) => t.includes("/go.md")),
-      "Should include go.md",
-    );
-    assert.ok(
-      templates.some((t) => t.includes("web-common")),
-      "Should include web-common",
-    );
+    assert.equal(refs.length, 0);
   });
 
   it("returns empty for markdown-only", async () => {
@@ -460,11 +440,10 @@ describe("mapLanguagesToTemplates", () => {
     assert.equal(refs.length, 0);
   });
 
-  it("deduplicates typescript + javascript (same template)", async () => {
+  it("returns empty even when multiple languages are detected", async () => {
     const mapLanguagesToTemplates = await getMapper();
     const refs = mapLanguagesToTemplates(["typescript", "javascript"]);
-    const tsRefs = refs.filter((r) => r.template.includes("typescript-node"));
-    assert.equal(tsRefs.length, 1, "Should not duplicate typescript-node.md");
+    assert.equal(refs.length, 0);
   });
 });
 
@@ -1295,8 +1274,8 @@ describe("M19: setup redirect includes migration guidance", () => {
       "Should mention .github/instructions/ migration",
     );
     assert.ok(
-      output.includes(".goat-flow/coding-standards/"),
-      "Should mention .goat-flow/coding-standards/ as alternative",
+      output.includes("optional later optimisation"),
+      "Should describe local instructions as a later optimisation",
     );
   });
 

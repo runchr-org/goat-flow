@@ -12,19 +12,18 @@ Domain-specific terms for new contributors. Standard programming terms are exclu
 | Ceremony | The amount of planning process required for a task, ranging from Minimal (hotfix) to Full (system change/infrastructure). | `CLAUDE.md` | -- |
 | Cold Path | Documentation loaded on demand (coding standards, playbooks) rather than every session. | `workflow/setup/01-system-overview.md` | -- |
 | Definition of Done | Six explicit gates that must all pass before a task is considered complete. | `workflow/setup/execution-loop.md` | DoD |
-| Development Driven Testing | Testing philosophy where development drives the tests, not the other way around. The loop: plan → code → manually test → preflight checks → self review → decide if automated test needed → commit. Static analysis and type checking catch what TDD used to require unit tests for. Automated tests focus on business logic, integration boundaries, and regression prevention. | `workflow/coding-standards/testing.md` | DDT |
 | Doer-Verifier | The principle that the agent which wrote the code must not be the one that verifies it. | `workflow/skills/goat-test.md` | -- |
 | Enforcement Gradient | Three-layer enforcement stack: permissions deny (hardest) > hooks > CLAUDE.md rules (softest). | `workflow/hooks/README.md` | -- |
 | Evidence Standard | The requirement that every finding must include `file:line` references and be tagged OBSERVED or INFERRED. | `workflow/skills/reference/shared-preamble.md` | -- |
 | Execution Loop | The six-step agent workflow: READ, CLASSIFY, SCOPE, ACT, VERIFY, LOG. | `workflow/setup/execution-loop.md` | Default loop |
-| Footgun | A documented architectural trap with `file:line` evidence stored in category bucket files under `.goat-flow/footguns/`. | `workflow/setup/09-customise-to-project.md` | Architectural landmine |
+| Footgun | A documented architectural trap with `file:line` evidence stored in category bucket files under `.goat-flow/footguns/`. | `workflow/setup/05-customise-to-project.md` | Architectural landmine |
 | Guide Mode | A scanner rendering mode that turns the CLI scanner into an interactive setup assistant. | `src/cli/render/guide.ts` | -- |
 | Handoff | Deprecated in v1.1.0. Replaced by milestone files with ticked checkboxes as the continuity mechanism. See Task Tracking in `.goat-flow/skill-conventions.md`. | `.goat-flow/skill-conventions.md` | -- |
 | Hot Path | Instruction content loaded every session (CLAUDE.md, local instruction files) with a strict line budget. | `workflow/setup/01-system-overview.md` | -- |
 | Instruction Budget | The practical limit (~100-150 instructions) an agent can follow reliably; exceeding it degrades all instructions uniformly. | `.goat-flow/decisions/ADR-029-instruction-budget-constraint.md` | Line budget |
-| Layer 1-5 | The five-layer architecture: Runtime (always on), Local Context (auto-load), Skills (on demand), Playbooks (on demand), Evaluation (on demand). | `workflow/setup/01-system-overview.md` | 5-layer system |
-| Learning Loop | The feedback cycle where agent mistakes become permanent project knowledge via lesson and footgun entries. | `workflow/setup/09-customise-to-project.md` | -- |
-| Lesson | A documented behavioural mistake stored in category bucket files under `.goat-flow/lessons/`. | `workflow/setup/09-customise-to-project.md` | -- |
+| Three Layers | The current setup model: instruction file (hot path), skills (on demand), and the `.goat-flow/` learning loop with optional local instruction files. | `workflow/setup/01-system-overview.md` | Layer model |
+| Learning Loop | The feedback cycle where agent mistakes become permanent project knowledge via lesson and footgun entries. | `workflow/setup/05-customise-to-project.md` | -- |
+| Lesson | A documented behavioural mistake stored in category bucket files under `.goat-flow/lessons/`. | `workflow/setup/05-customise-to-project.md` | -- |
 | Mob Elaboration | A Layer 4 playbook phase where a feature brief is stress-tested from multiple perspectives before implementation. | `workflow/playbooks/planning/mob-elaboration.md` | Playbook 02 |
 | Revert-and-Rescope | A three-step recovery tactic (Esc + restate, git revert + rescope, /clear + handoff) used when two corrections fail on the same approach. | `workflow/setup/execution-loop.md` | -- |
 | Router Table | An index at the end of CLAUDE.md pointing to all project resources; tools listed here get 160x more agent usage. | `workflow/setup/execution-loop.md` | -- |

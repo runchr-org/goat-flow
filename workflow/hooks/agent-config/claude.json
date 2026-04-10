@@ -39,16 +39,17 @@
       }
     ],
 
-    // Stop: fires after every agent turn. MUST exit 0 (non-zero = infinite loop).
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/stop-lint.sh\""
-          }
-        ]
-      }
-    ]
+    // Recommended addition: post-turn validation hook.
+    // Keep it advisory by default; set GOAT_LINT_ENFORCE=1 if you want non-zero exits.
+    // "Stop": [
+    //   {
+    //     "hooks": [
+    //       {
+    //         "type": "command",
+    //         "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/stop-lint.sh\""
+    //       }
+    //     ]
+    //   }
+    // ]
   }
 }

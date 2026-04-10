@@ -21,11 +21,12 @@ AGENTS.md, GEMINI.md, `.agents/`, `.gemini/`, `.codex/`, `.github/copilot-instru
 
 ### Hooks
 
-After completing step 05 (skills), wire hooks:
-- Copy scripts from `workflow/hooks/` to `.claude/hooks/`: `deny-dangerous.sh` (required), `stop-lint.sh` (required)
-- Copy `workflow/hooks/agent-config/claude.json` as the base for `.claude/settings.json`. Customise deny patterns and hook paths for this project.
+After completing step 03 (skills), wire hooks:
+- Copy scripts from `workflow/hooks/` to `.claude/hooks/`: `deny-dangerous.sh` (required)
+- Copy `workflow/hooks/agent-config/claude.json` as the base for `.claude/settings.json`. The default template keeps secret deny patterns plus git commit/push blocking.
+- Optional recommended addition: copy `stop-lint.sh` to `.claude/hooks/` and enable the commented `Stop` block if you want post-turn validation feedback.
 - If hooks already exist in `.claude/settings.json`, migrate inline commands to external scripts under `.claude/hooks/` before adding new hooks.
-- After copying hook scripts, adapt the `# CUSTOMIZE` sections in stop-lint.sh:
+- If you enable `stop-lint.sh`, adapt the `# CUSTOMIZE` sections:
   1. Read package manifests (`package.json`, `composer.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `Gemfile`, `build.gradle`/`pom.xml`) to discover available lint/type-check tools
   2. Check for tool config files that indicate which tools are active (`.eslintrc*`, `phpstan.neon`, `.rubocop.yml`, `pyproject.toml [tool.ruff]`, `golangci.yml`, `biome.json`)
   3. Use local binaries over global (`vendor/bin/phpstan` not `phpstan`, `node_modules/.bin/eslint` not `eslint`)
@@ -47,7 +48,7 @@ Only Claude Code supports this syntax.
 - `.claude/settings.json` is valid JSON
 - `bash -n` passes on each hook script
 - deny-dangerous.sh blocks: rm -rf, git push main, --force, chmod 777
-- stop-lint.sh exits 0 even when errors found
+- If `stop-lint.sh` is installed, it reports errors by default and `GOAT_LINT_ENFORCE=1` makes it exit non-zero
 
 ---
 

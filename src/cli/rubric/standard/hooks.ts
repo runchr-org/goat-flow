@@ -7,7 +7,8 @@ import {
   getPostTurnHookStatus,
   getPostTurnHookMessage,
   getMissingRegisteredHookPaths,
-  countExistingRegisteredHookPaths,
+  getNonExecutableRegisteredHookPaths,
+  countUsableRegisteredHookPaths,
 } from "./hook-helpers.js";
 
 /** Standard-tier checks for hook registration and behavior (2.2.x). */
@@ -29,16 +30,16 @@ export const hookChecks: CheckDef[] = [
         return buildHooksCheckResult(
           "2.2.2",
           "Post-turn hook registered and enforces validation",
-          status.passes ? "pass" : "fail",
+          status.notConfigured ? "na" : status.passes ? "pass" : "fail",
           status.passes ? 2 : 0,
-          2,
+          status.notConfigured ? 0 : 2,
           "high",
           getPostTurnHookMessage(ctx, status),
         );
       },
     },
     recommendation:
-      "Without a post-turn hook running real validation (lint, typecheck, format-check), agents can complete turns with broken code and you won't know until you manually check. A registered hook catches syntax errors, type mismatches, and formatting issues automatically after every agent action.",
+      "Post-turn hooks are optional. If you configure one, make it run real validation (lint, typecheck, format-check) so the hook provides trustworthy feedback instead of a no-op wrapper.",
     recommendationKey: "create-stop-lint",
   },
   {
@@ -67,16 +68,29 @@ export const hookChecks: CheckDef[] = [
         }
 
         const missing = getMissingRegisteredHookPaths(ctx);
+        const nonExecutable = getNonExecutableRegisteredHookPaths(ctx);
         if (missing.length === 0) {
-          const existingCount = countExistingRegisteredHookPaths(ctx);
+          if (nonExecutable.length === 0) {
+            const usableCount = countUsableRegisteredHookPaths(ctx);
+            return buildHooksCheckResult(
+              "2.2.2a",
+              "Registered hook paths exist",
+              "pass",
+              1,
+              1,
+              "high",
+              `All ${usableCount} registered hook paths resolve on disk and are executable`,
+            );
+          }
+
           return buildHooksCheckResult(
             "2.2.2a",
             "Registered hook paths exist",
-            "pass",
-            1,
+            "fail",
+            0,
             1,
             "high",
-            `All ${existingCount} registered hook paths resolve on disk`,
+            `Hook registration points at non-executable script files: ${nonExecutable.join(", ")}. Fix permissions with chmod +x so the registered hook can actually run.`,
           );
         }
 
@@ -92,7 +106,7 @@ export const hookChecks: CheckDef[] = [
       },
     },
     recommendation:
-      "A hook registration pointing at a missing script silently fails -- the agent gets no validation feedback and you think enforcement is active when it isn't. Ensure every registered hook path points to an existing script.",
+      "A hook registration pointing at a missing or non-executable script silently fails -- the agent gets no validation feedback and you think enforcement is active when it isn't. Ensure every registered hook path points to an existing executable script.",
     recommendationKey: "create-stop-lint",
   },
   // 2.2.3 (Post-turn hook does not swallow failures) removed - redundant with AP6 (-5 for swallowed failures). Double-penalization flagged by SBAO audit.

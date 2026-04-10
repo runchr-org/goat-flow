@@ -15,7 +15,7 @@ Read `01-system-overview.md` first if you haven't already.
 - `.goat-flow/config.yaml` with version 1.1.0
 - Learning loop in `.goat-flow/footguns/` and `.goat-flow/lessons/` (category bucket directories)
 - `.goat-flow/skill-conventions.md` shared across all skills
-- `.goat-flow/architecture.md`, `.goat-flow/glossary.md`, `.goat-flow/coding-standards/`
+- `.goat-flow/architecture.md` and `.goat-flow/glossary.md`
 
 ---
 
@@ -76,7 +76,7 @@ These files contain real project memory. Migrate the content, don't discard it.
 - Create `.goat-flow/config.yaml` with version 1.1.0
 - Create `.goat-flow/skill-conventions.md` from `workflow/skills/reference/shared-preamble.md`
 - Create `.goat-flow/glossary.md` with project-specific terms
-- If `.github/instructions/` exists: create `.goat-flow/coding-standards/conventions.md` as a pointer file. Do NOT duplicate content.
+- Create or enhance `.goat-flow/architecture.md`
 
 **Verification:** `.goat-flow/config.yaml` exists. `skill-conventions.md` exists.
 
@@ -94,11 +94,9 @@ Check expected version: `workflow/skills/goat-debug.md` line 4.
 
 ## Step 6 — Instruction file
 
-Follow the numbered setup steps for instruction file creation:
-- If no instruction file exists → `02-create-instruction-file.md`, then `04-setup-execution-loop.md` through `11-final-verification.md`
-- If instruction file exists → `03-reorganise-instruction-file.md`, then `04` through `11`
+Follow the numbered setup steps starting at `02-instruction-file.md`, then continue through `03-install-skills.md` to `06-final-verification.md`.
 
-The agent config file (`agents/claude.md`, `agents/codex.md`, etc.) has agent-specific hooks and settings to wire after step 05.
+The agent config file (`agents/claude.md`, `agents/codex.md`, etc.) has agent-specific hooks and settings to wire after step 03.
 
 **Verification:** Instruction file under 120 lines with all required sections.
 
@@ -116,7 +114,7 @@ The agent config file (`agents/claude.md`, `agents/codex.md`, etc.) has agent-sp
 ## Post-upgrade verification
 
 1. `goat-flow scan . --agent {agent}` — target 100%
-2. Verify project build/test/lint still passes
+2. Verify required goat-flow files and directories exist
 3. Review git diff — every change should be intentional
 4. Confirm no parallel surfaces exist
 

@@ -15,7 +15,7 @@ The critique methodology was flawed: it evaluated SBAO/Mob as mandatory overhead
 
 1. **SBAO and Mob Elaboration are never removed, demoted, or auto-skipped.** They are the product.
 2. **Improvements reduce ceremony AROUND SBAO/Mob** (lighter Step 0, fewer pre-gates), not ceremony OF SBAO/Mob.
-3. **Skills are installed verbatim** to prevent setup agents from cutting SBAO/Mob sections during adaptation (05-install-skills.md updated).
+3. **Skills are installed verbatim** to prevent setup agents from cutting SBAO/Mob sections during adaptation (`workflow/setup/03-install-skills.md` updated).
 4. **The dispatcher should route users TO goat-plan's SBAO/Mob faster**, not away from them.
 5. **Future critique methodology must evaluate SBAO/Mob as a feature**, not as overhead. Score "how well does SBAO improve plan quality" not "how much time does SBAO add."
 

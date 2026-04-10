@@ -147,3 +147,78 @@ describe("config userRole parsing", () => {
     );
   });
 });
+
+describe("config toolchain + ask_first parsing", () => {
+  it("parses toolchain command arrays", () => {
+    const fs = createMockFS({
+      ".goat-flow/config.yaml": [
+        "toolchain:",
+        "  test:",
+        "    - npm test",
+        "  lint:",
+        "    - npm run lint",
+        "  build:",
+        "    - npm run build",
+        "  package:",
+        "    - npm pack",
+        "  format:",
+        "    - npm run format",
+      ].join("\n"),
+    });
+
+    const loaded = loadConfig("/test", fs);
+    assert.equal(loaded.valid, true);
+    assert.deepEqual(loaded.config.toolchain, {
+      test: ["npm test"],
+      lint: ["npm run lint"],
+      build: ["npm run build"],
+      package: ["npm pack"],
+      format: ["npm run format"],
+    });
+  });
+
+  it("parses ask_first entries", () => {
+    const fs = createMockFS({
+      ".goat-flow/config.yaml": [
+        "ask_first:",
+        "  - path: workflow/setup/**",
+        "    reason: Setup templates affect generated output",
+        "  - path: .github/workflows/**",
+        "    reason: CI changes alter validation behavior",
+      ].join("\n"),
+    });
+
+    const loaded = loadConfig("/test", fs);
+    assert.equal(loaded.valid, true);
+    assert.deepEqual(loaded.config.askFirst, [
+      {
+        path: "workflow/setup/**",
+        reason: "Setup templates affect generated output",
+      },
+      {
+        path: ".github/workflows/**",
+        reason: "CI changes alter validation behavior",
+      },
+    ]);
+  });
+
+  it("rejects non-array toolchain slots", () => {
+    const result = validateConfig({
+      toolchain: {
+        test: "npm test",
+      },
+    });
+
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some((e) => e.path === "toolchain.test"));
+  });
+
+  it("rejects malformed ask_first entries", () => {
+    const result = validateConfig({
+      ask_first: [{ path: "workflow/setup/**", reason: 42 }],
+    });
+
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some((e) => e.path === "ask_first[0].reason"));
+  });
+});

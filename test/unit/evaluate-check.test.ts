@@ -62,13 +62,33 @@ describe("Check 2.2.2: Post-turn hook registered", () => {
     assert.equal(result.points, check.pts);
   });
 
-  it("fails when hook exists but is not registered in settings", () => {
+  it("returns na when no post-turn hook is configured", () => {
     const ctx = createMockContext({
       agentFacts: {
         hooks: {
-          postTurnExists: true,
+          postTurnExists: false,
           postTurnRegistered: false,
-          postTurnHasValidation: true,
+          postTurnRegisteredPath: null,
+          postTurnHasValidation: false,
+        },
+      },
+    });
+    const result = runSingleCheck(check, ctx);
+    assert.equal(
+      result.status,
+      "na",
+      `Expected na, got ${result.status}: ${result.message}`,
+    );
+  });
+
+  it("fails when hook is registered but the script does not exist", () => {
+    const ctx = createMockContext({
+      agentFacts: {
+        hooks: {
+          postTurnExists: false,
+          postTurnRegistered: true,
+          postTurnRegisteredPath: ".claude/hooks/stop-lint.sh",
+          postTurnHasValidation: false,
         },
       },
     });
@@ -78,24 +98,42 @@ describe("Check 2.2.2: Post-turn hook registered", () => {
       "fail",
       `Expected fail, got ${result.status}: ${result.message}`,
     );
-    assert.equal(result.points, 0);
   });
+});
 
-  it("fails when hook does not exist", () => {
+describe("Check 2.2.2a: Registered hook paths exist", () => {
+  const check = getCheck("2.2.2a");
+  assert.ok(check, "Check 2.2.2a should exist in the registry");
+
+  it("passes when the registered hook path exists and is executable", () => {
     const ctx = createMockContext({
       agentFacts: {
         hooks: {
-          postTurnExists: false,
-          postTurnRegistered: false,
-          postTurnHasValidation: false,
+          postTurnRegistered: true,
+          postTurnRegisteredPath: ".claude/hooks/stop-lint.sh",
+          postTurnExists: true,
+          postTurnExecutable: true,
         },
       },
     });
     const result = runSingleCheck(check, ctx);
-    assert.ok(
-      result.status === "fail" || result.status === "na",
-      `Expected fail or na, got ${result.status}: ${result.message}`,
-    );
+    assert.equal(result.status, "pass");
+  });
+
+  it("fails when the registered hook script exists but is not executable", () => {
+    const ctx = createMockContext({
+      agentFacts: {
+        hooks: {
+          postTurnRegistered: true,
+          postTurnRegisteredPath: ".claude/hooks/stop-lint.sh",
+          postTurnExists: true,
+          postTurnExecutable: false,
+        },
+      },
+    });
+    const result = runSingleCheck(check, ctx);
+    assert.equal(result.status, "fail");
+    assert.match(result.message, /non-executable|chmod \+x/i);
   });
 });
 
@@ -150,7 +188,7 @@ describe("Check 2.3.7: Session logs referenced", () => {
   });
 });
 
-// 1.5.7 (config.local.yaml exists) removed - check deleted.
+// 1.5.7 (local-only config file exists) removed - check deleted.
 
 // ---------------------------------------------------------------
 // 2.4.3 - Skills referenced in router (caught the goat-* glob bug)
@@ -1316,12 +1354,12 @@ describe("Check 2.6.1: Instructions directory exists", () => {
     assert.equal(result.status, "pass", result.message);
   });
 
-  it("fails when no instructions dir", () => {
+  it("is N/A when no instructions dir", () => {
     const ctx = createMockContext({
       shared: { localInstructions: { dirExists: false } },
     });
     const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, "fail", result.message);
+    assert.equal(result.status, "na", result.message);
   });
 });
 
@@ -1335,6 +1373,14 @@ describe("Check 2.6.3: Instructions have valid router", () => {
     const ctx = createMockContext();
     const result = runSingleCheck(check, ctx);
     assert.equal(result.status, "pass", result.message);
+  });
+
+  it("is N/A when no instructions dir", () => {
+    const ctx = createMockContext({
+      shared: { localInstructions: { dirExists: false } },
+    });
+    const result = runSingleCheck(check, ctx);
+    assert.equal(result.status, "na", result.message);
   });
 });
 

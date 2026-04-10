@@ -364,28 +364,17 @@ else
     skip "GOAT Flow Scan (dist/cli/cli.js not built)"
 fi
 
-# ── Coding Standards ─────────────────────────────────────────────────
-section "Coding Standards"
+# ── Workflow References ──────────────────────────────────────────────
+section "Workflow References"
 
-cs_dir="workflow/coding-standards"
-
-# Check that every backend .md file has ## Common Footguns and ## Primary Sources
-if compgen -G "$cs_dir/backend/*.md" >/dev/null; then
-    for bf in "$cs_dir"/backend/*.md; do
-        bname="$(basename "$bf")"
-        if ! grep -q '^## Common Footguns' "$bf"; then
-            note "backend/$bname: missing '## Common Footguns' heading"
-        fi
-        if ! grep -q '^## Primary Sources' "$bf"; then
-            note "backend/$bname: missing '## Primary Sources' heading"
-        fi
-    done
-    pass "backend/*.md mandatory heading check ($(find "$cs_dir/backend" -name '*.md' | wc -l) files)"
+ref_dir="workflow/reference/security"
+if [[ -d "$ref_dir" ]]; then
+    pass "security reference library ($(find "$ref_dir" -name '*.md' | wc -l) files)"
 else
-    skip "No backend coding standards found"
+    fail "Missing workflow/reference/security reference library"
 fi
 
-# Check template-refs.ts doesn't reference deleted templates
+# Check template-refs.ts doesn't reference missing workflow docs
 if [[ -f src/cli/prompt/template-refs.ts ]]; then
     stale_refs=0
     while IFS= read -r template_path; do
@@ -393,9 +382,9 @@ if [[ -f src/cli/prompt/template-refs.ts ]]; then
             fail "template-refs.ts references missing: $template_path"
             stale_refs=1
         fi
-    done < <(grep -v '^\s*//' src/cli/prompt/template-refs.ts | grep -oE "workflow/coding-standards/[^'\"]*\.md" | sort -u)
+    done < <(grep -v '^\s*//' src/cli/prompt/template-refs.ts | grep -oE "workflow/[^'\"]*\.md" | sort -u)
     if [[ "$stale_refs" -eq 0 ]]; then
-        pass "template-refs.ts: all referenced coding standards exist"
+        pass "template-refs.ts: all referenced workflow docs exist"
     fi
 fi
 

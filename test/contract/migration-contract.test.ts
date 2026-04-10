@@ -92,13 +92,22 @@ describe("Setup templates use new numbered structure", () => {
     assert.ok(existsSync(join(setupDir, "execution-loop.md")));
   });
 
-  it("numbered setup files exist (01 through 11)", () => {
-    for (let i = 1; i <= 11; i++) {
+  it("numbered setup files exist (01 through 06)", () => {
+    for (let i = 1; i <= 6; i++) {
       const prefix = String(i).padStart(2, "0");
       const files = readdirSync(setupDir).filter((f) =>
         f.startsWith(`${prefix}-`),
       );
       assert.ok(files.length > 0, `Expected a file starting with ${prefix}-`);
+    }
+  });
+
+  it("reference setup docs exist for optional follow-on work", () => {
+    for (const file of [
+      "reference-coding-guidelines.md",
+      "reference-polish.md",
+    ]) {
+      assert.ok(existsSync(join(setupDir, file)), `Expected ${file}`);
     }
   });
 

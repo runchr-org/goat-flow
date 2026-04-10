@@ -81,7 +81,7 @@ function defaultSharedFacts(): SharedFacts {
       errorCount: 0,
       parseError: null,
       lineLimits: { target: 120, limit: 150 },
-      configLocalExists: true,
+      userRole: "developer",
     },
     architecture: { exists: true, lineCount: 30 },
     ignoreFiles: {
@@ -210,6 +210,7 @@ function defaultAgentFacts(): AgentFacts {
       postTurnExists: true,
       postTurnRegistered: true,
       postTurnRegisteredPath: ".claude/hooks/stop-lint.sh",
+      postTurnExecutable: true,
       postTurnExitsZero: true,
       postTurnHasValidation: true,
       postTurnSwallowsFailures: false,

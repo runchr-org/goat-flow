@@ -331,145 +331,15 @@ describe("detectStack", () => {
   });
 });
 
-describe("mapLanguagesToTemplates - frontend routing", () => {
-  it("routes React to react.md", () => {
+describe("mapLanguagesToTemplates", () => {
+  it("returns no setup-owned local-instruction refs for frontend stacks", () => {
     const refs = mapLanguagesToTemplates(["javascript", "react"]);
-    const frontend = refs.find(
-      (r) => r.output === ".goat-flow/coding-standards/frontend.md",
-    );
-    assert.ok(frontend, "Expected frontend.md ref");
-    assert.ok(frontend.template.endsWith("/react.md"));
+    assert.equal(refs.length, 0);
   });
 
-  it("routes Vue to vue.md", () => {
-    const refs = mapLanguagesToTemplates(["javascript", "vue"]);
-    const frontend = refs.find(
-      (r) => r.output === ".goat-flow/coding-standards/frontend.md",
-    );
-    assert.ok(frontend, "Expected frontend.md ref");
-    assert.ok(frontend.template.endsWith("/vue.md"));
-  });
-
-  it("routes Angular to angular.md", () => {
-    const refs = mapLanguagesToTemplates(["javascript", "angular"]);
-    const frontend = refs.find(
-      (r) => r.output === ".goat-flow/coding-standards/frontend.md",
-    );
-    assert.ok(frontend, "Expected frontend.md ref");
-    assert.ok(frontend.template.endsWith("/angular.md"));
-  });
-
-  it("does not route removed template engines (blade, twig, erb, jinja, blazor, swift)", () => {
-    for (const lang of ["blade", "twig", "erb", "jinja", "blazor", "swift"]) {
-      const refs = mapLanguagesToTemplates([lang]);
-      const frontend = refs.find(
-        (r) => r.output === ".goat-flow/coding-standards/frontend.md",
-      );
-      assert.ok(
-        !frontend,
-        `${lang} should not produce a frontend template (template removed)`,
-      );
-    }
-  });
-
-  it("falls back to typescript.md for TS without framework", () => {
-    const refs = mapLanguagesToTemplates(["javascript", "typescript"]);
-    const frontend = refs.find(
-      (r) => r.output === ".goat-flow/coding-standards/frontend.md",
-    );
-    assert.ok(frontend, "Expected frontend.md ref");
-    assert.ok(frontend.template.endsWith("/typescript.md"));
-  });
-
-  it("framework takes priority over TS fallback", () => {
-    const refs = mapLanguagesToTemplates(["javascript", "typescript", "react"]);
-    const frontend = refs.find(
-      (r) => r.output === ".goat-flow/coding-standards/frontend.md",
-    );
-    assert.ok(frontend, "Expected frontend.md ref");
-    assert.ok(
-      frontend.template.endsWith("/react.md"),
-      `Got ${frontend.template}`,
-    );
-  });
-
-  it("first detected framework wins", () => {
-    const refs = mapLanguagesToTemplates(["javascript", "react", "vue"]);
-    const frontendRefs = refs.filter(
-      (r) => r.output === ".goat-flow/coding-standards/frontend.md",
-    );
-    assert.equal(
-      frontendRefs.length,
-      1,
-      "Should produce exactly one frontend ref",
-    );
-    assert.ok(frontendRefs[0].template.endsWith("/react.md"));
-  });
-
-  it("no frontend ref for Go-only project", () => {
-    const refs = mapLanguagesToTemplates(["go"]);
-    const frontend = refs.find(
-      (r) => r.output === ".goat-flow/coding-standards/frontend.md",
-    );
-    assert.equal(frontend, undefined, "Go-only should not get frontend.md");
-  });
-});
-
-describe("mapLanguagesToTemplates - backend framework routing", () => {
-  it("routes Laravel over generic PHP for backend.md", () => {
-    const refs = mapLanguagesToTemplates(["php", "laravel"]);
-    const backend = refs.find(
-      (r) => r.output === ".goat-flow/coding-standards/backend.md",
-    );
-    assert.ok(backend, "Expected backend.md ref");
-    assert.ok(
-      backend.template.endsWith("/php-laravel.md"),
-      `Got ${backend.template}`,
-    );
-  });
-
-  it("routes Django over generic Python for backend.md", () => {
+  it("returns no setup-owned local-instruction refs for backend stacks", () => {
     const refs = mapLanguagesToTemplates(["python", "django"]);
-    const backend = refs.find(
-      (r) => r.output === ".goat-flow/coding-standards/backend.md",
-    );
-    assert.ok(backend, "Expected backend.md ref");
-    assert.ok(
-      backend.template.endsWith("/python-django.md"),
-      `Got ${backend.template}`,
-    );
-  });
-
-  it("routes generic Python when no framework detected", () => {
-    const refs = mapLanguagesToTemplates(["python"]);
-    const backend = refs.find(
-      (r) => r.output === ".goat-flow/coding-standards/backend.md",
-    );
-    assert.ok(backend, "Expected backend.md ref");
-    assert.ok(
-      backend.template.endsWith("/python.md"),
-      `Got ${backend.template}`,
-    );
-  });
-
-  it("adds security framework template for detected framework", () => {
-    const refs = mapLanguagesToTemplates(["php", "laravel"]);
-    const sec = refs.find(
-      (r) => r.output === ".goat-flow/coding-standards/security-laravel.md",
-    );
-    assert.ok(sec, "Expected security-laravel.md ref");
-    assert.ok(sec.template.includes("framework-specific/laravel.md"));
-  });
-
-  it("does not add web-common for Ruby projects (template removed)", () => {
-    const refs = mapLanguagesToTemplates(["ruby"]);
-    const webCommon = refs.find(
-      (r) => r.output === ".goat-flow/coding-standards/web-common.md",
-    );
-    assert.ok(
-      !webCommon,
-      "Ruby template removed - should not get web-common.md",
-    );
+    assert.equal(refs.length, 0);
   });
 });
 
@@ -483,94 +353,20 @@ describe("mapSignalsToTemplates", () => {
     formatterGaps: [],
   };
 
-  it("always includes security.md and testing.md", () => {
+  it("returns no setup-owned signal refs", () => {
     const refs = mapSignalsToTemplates(emptySignals);
-    assert.ok(
-      refs.find((r) => r.output === ".goat-flow/coding-standards/security.md"),
-      "Expected security.md",
-    );
-    assert.ok(
-      refs.find((r) => r.output === ".goat-flow/coding-standards/testing.md"),
-      "Expected testing.md",
-    );
+    assert.equal(refs.length, 0);
   });
 
-  it("always includes secrets-management and supply-chain", () => {
-    const refs = mapSignalsToTemplates(emptySignals);
-    assert.ok(
-      refs.find(
-        (r) => r.output === ".goat-flow/coding-standards/secrets-management.md",
-      ),
+  it("stays empty even when languages and deploy signals are present", () => {
+    const refs = mapSignalsToTemplates(
+      {
+        ...emptySignals,
+        deployPlatforms: ["terraform"],
+        llmIntegration: true,
+      },
+      ["typescript"],
     );
-    assert.ok(
-      refs.find(
-        (r) => r.output === ".goat-flow/coding-standards/supply-chain.md",
-      ),
-    );
-  });
-
-  it("adds web security templates for web languages", () => {
-    const refs = mapSignalsToTemplates(emptySignals, ["typescript"]);
-    assert.ok(
-      refs.find((r) => r.output === ".goat-flow/coding-standards/api-auth.md"),
-      "Expected api-auth.md",
-    );
-    assert.ok(
-      refs.find(
-        (r) => r.output === ".goat-flow/coding-standards/file-upload.md",
-      ),
-      "Expected file-upload.md",
-    );
-    assert.ok(
-      refs.find(
-        (r) => r.output === ".goat-flow/coding-standards/sql-injection.md",
-      ),
-      "Expected sql-injection.md",
-    );
-  });
-
-  it("skips web security templates for non-web languages", () => {
-    const refs = mapSignalsToTemplates(emptySignals, ["bash"]);
-    assert.equal(
-      refs.find((r) => r.output === ".goat-flow/coding-standards/api-auth.md"),
-      undefined,
-    );
-  });
-
-  it("adds infrastructure-security for deploy platforms", () => {
-    const refs = mapSignalsToTemplates({
-      ...emptySignals,
-      deployPlatforms: ["docker"],
-    });
-    assert.ok(
-      refs.find(
-        (r) =>
-          r.output === ".goat-flow/coding-standards/infrastructure-security.md",
-      ),
-    );
-  });
-
-  it("adds terraform template when terraform detected", () => {
-    const refs = mapSignalsToTemplates({
-      ...emptySignals,
-      deployPlatforms: ["terraform"],
-    });
-    assert.ok(
-      refs.find(
-        (r) => r.output === ".goat-flow/coding-standards/devops-terraform.md",
-      ),
-    );
-  });
-
-  it("does not add packer template (removed)", () => {
-    const refs = mapSignalsToTemplates({
-      ...emptySignals,
-      deployPlatforms: ["packer"],
-    });
-    assert.ok(
-      !refs.find(
-        (r) => r.output === ".goat-flow/coding-standards/devops-packer.md",
-      ),
-    );
+    assert.equal(refs.length, 0);
   });
 });

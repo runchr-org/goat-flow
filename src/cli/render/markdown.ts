@@ -103,9 +103,7 @@ export function renderMarkdown(report: ScanReport): string {
   for (const agent of report.agents) {
     const { score } = agent;
     if (score.grade === "insufficient-data") {
-      lines.push(
-        `| ${agent.agentName} | N/A | Insufficient data | - | - |`,
-      );
+      lines.push(`| ${agent.agentName} | N/A | Insufficient data | - | - |`);
       continue;
     }
     const { foundation, standard } = score.tiers;

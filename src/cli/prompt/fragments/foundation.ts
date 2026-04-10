@@ -244,26 +244,25 @@ decisions:
 tasks:
   path: .goat-flow/tasks/
 logs:
-  path: .goat-flow/tasks/logs/
+  path: .goat-flow/logs/
 agents:
   - {{agentId}}
 skills:
   install: all
+toolchain:
+  test: []
+  lint: []
+  build: []
+  package: []
+  format: []
+ask_first: []
 \`\`\`
 
 If you want auto-detection, omit \`agents\`. If multiple agents are installed, list them explicitly.
 
-Also create \`.goat-flow/config.local.yaml\` (gitignored - personal overrides):
+Use \`toolchain\` for real project commands and \`ask_first\` for structured high-risk boundaries. Do not invent commands or fake paths.
 
-\`\`\`yaml
-# Local overrides - this file is gitignored.
-# Values here merge on top of config.yaml.
-# Uncomment and edit as needed.
-
-# userRole: investigator
-\`\`\`
-
-Ensure \`.goat-flow/config.local.yaml\` is gitignored (the default \`.goat-flow/.gitignore\` pattern \`*\` handles this).`,
+Personal preferences do **not** belong in a second config file. Use \`.goat-flow/personal-preferences.md\` (gitignored) for local style and communication preferences instead.`,
   },
   // create-config-local removed - check 1.5.7 removed.
   {
@@ -279,6 +278,9 @@ Ensure \`.goat-flow/config.local.yaml\` is gitignored (the default \`.goat-flow/
 - \`decisions.path\`, \`tasks.path\`, \`logs.path\`: non-empty strings
 - \`agents\`: null or a non-empty array of \`claude\`, \`codex\`, \`gemini\`
 - \`skills.install\`: \`all\` or a non-empty array of skill names
+- \`toolchain.{test,lint,build,package,format}\`: arrays of command strings
+- \`ask_first\`: array of \`{ path, reason }\` objects
+- \`userRole\`: optional string (\`developer\`, \`investigator\`, \`tester\`)
 
 Unknown keys are warnings, not fatal.`,
   },

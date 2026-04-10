@@ -1,4 +1,4 @@
-# Step 05 — Install Skills
+# Step 03 — Install Skills
 
 Install the 6 goat-flow skills (5 functional + 1 dispatcher) in the agent's skills directory.
 
@@ -23,7 +23,7 @@ Each SKILL.md MUST include:
 - `goat-flow-skill-version:` in YAML frontmatter matching the current goat-flow version
 - Sections: When to Use, Step 0 / Gather Context, Process with phased steps, Constraints, Output Format, Chaining
 
-**IMPORTANT: Install skills VERBATIM from the templates. Do NOT adapt, compress, rewrite, or remove any sections.** Skills are the same for every project — project-specific context comes from CLAUDE.md, `.goat-flow/footguns/`, and `.goat-flow/coding-standards/`, which skills read at runtime. Cutting or rewriting skill content causes more damage than generic examples ever will.
+**IMPORTANT: Install skills VERBATIM from the templates. Do NOT adapt, compress, rewrite, or remove any sections.** Skills are the same for every project — project-specific context comes from the instruction file, `.goat-flow/footguns/`, `.goat-flow/lessons/`, and any optional local instruction files the project already has. Cutting or rewriting skill content causes more damage than generic examples ever will.
 
 ## Version check
 
@@ -37,9 +37,7 @@ After installing, verify each SKILL.md frontmatter has the correct `goat-flow-sk
 - [ ] All 6 skills have matching `goat-flow-skill-version` tags
 - [ ] Instruction file router table references the skills directory
 
-**Session log:** Append to `.goat-flow/logs/sessions/YYYY-MM-DD-setup.md`:
-- **Step:** 05-install-skills
-- **What was done:** (skills created/updated, version tag)
-- **Self-critique:** (honest assessment)
+**Progress marker:** Append one line to the shared setup session log:
+- `Step 03 complete: 6 skills installed`
 
-NEXT: proceed to `06-setup-coding-guidelines.md`
+NEXT: proceed to `04-architecture-code-map.md`

@@ -86,7 +86,11 @@ const SKILL_QUALITY_PATTERNS: Array<{
     key: "withChaining",
     pattern: /chains?\s*with|related\s*skills?|next.*skill|→.*goat-/i,
   },
-  { key: "withChoices", pattern: /\(a\)|\(b\)|\(c\)|want me to.*\n.*\n/i },
+  {
+    key: "withChoices",
+    pattern:
+      /\(a\)|\(b\)|\(c\)|want me to|offer:|\bquick\b[\s\S]{0,160}\bfull\b|drill into|go deeper|check (?:a|the) (?:related|different)|switch to|adjust scope|redirect the review|proceed to ranking|or close/i,
+  },
   { key: "withOutputFormat", pattern: /##\s*(Output|Output Format)/i },
   { key: "withSharedConventions", pattern: /^##\s+shared conventions/im },
 ] as const;
@@ -116,7 +120,9 @@ function updateSkillQualityCounts(
     if (check.key === "withConversational") {
       if (
         /blocking\s*gate|human\s*gate/i.test(content) &&
-        /\(a\)|want me to|offer:|proceed\?/i.test(content)
+        /\(a\)|want me to|offer:|\bquick\b[\s\S]{0,160}\bfull\b|drill into|go deeper|switch to|adjust scope|redirect|or close/i.test(
+          content,
+        )
       ) {
         quality[check.key]++;
       }

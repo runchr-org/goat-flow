@@ -957,7 +957,7 @@ export const foundationChecks: CheckDef[] = [
       "An invalid config.yaml silently falls back to defaults, meaning your custom line limits and path overrides are ignored without warning. Fix the YAML so the scanner uses your intended settings.",
     recommendationKey: "fix-goat-flow-config",
   },
-  // 1.5.7 (config.local.yaml exists) removed - personal preference file, not a project quality signal.
+  // 1.5.7 (local-only preferences file exists) removed - personal preference files are not a project quality signal.
 ];
 
 /**

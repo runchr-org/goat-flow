@@ -83,7 +83,6 @@ export function extractSharedFacts(
       errorCount: configState.errors.length,
       parseError: configState.parseError,
       lineLimits: configState.config.lineLimits,
-      configLocalExists: fs.exists(".goat-flow/config.local.yaml"),
       userRole: configState.config.userRole,
     },
     architecture: extractArchitectureFacts(fs),

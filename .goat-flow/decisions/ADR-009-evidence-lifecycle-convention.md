@@ -15,7 +15,7 @@ Define a three-state lifecycle for footgun and lesson entries: **ACTIVE** (defau
 
 Resolved entries stay in-place with a `**Status: RESOLVED**` line and the commit ref that fixed them - the same pattern footgun #3 already uses. Do not move resolved entries to a separate file or collapsed section. In-place markers are the lightest-weight option and match what ambient-scribe's MITIGATED annotations already approximate.
 
-This is a framework-wide convention. The canonical description originally lived in `docs/system-spec.md` under the learning loop section (retired in v1.1.0; see `workflow/setup/09-customise-to-project.md` for learning loop guidance).
+This is a framework-wide convention. The canonical description originally lived in `docs/system-spec.md` under the learning loop section (retired in v1.1.0; see `workflow/setup/05-customise-to-project.md` for learning loop guidance).
 
 ## Consequences
 

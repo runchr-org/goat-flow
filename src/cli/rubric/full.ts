@@ -40,10 +40,10 @@ export const fullChecks: CheckDef[] = [
           const readMatch = content.match(/(?:###?\s+|\*\*)READ\b/i);
           if (!readMatch) return "";
           const start = readMatch.index!;
-          /** Find the end marker AFTER the READ match - Autonomy Tiers, Router Table, Hard Rules, or Working Memory */
+          /** Find the end marker AFTER the READ match - Autonomy Tiers, Router Table, Hard Rules, or Definition of Done */
           const afterRead = content.slice(start);
           const endMatch = afterRead.match(
-            /^##\s+(Autonomy|Router|Hard Rules|Working Memory|Definition of Done)\b/im,
+            /^##\s+(Autonomy|Router|Hard Rules|Definition of Done)\b/im,
           );
           const end = endMatch ? start + endMatch.index! : content.length;
           return content.slice(start, end).replace(/\s+/g, " ").trim();

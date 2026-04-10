@@ -1,7 +1,7 @@
 /**
  * Hook tests for the stop-lint Stop hook.
- * The hook always exits 0 (to prevent infinite loops) but reports errors to stderr.
- * Tests verify that it detects shellcheck issues in staged .sh files and reports them.
+ * Advisory mode reports errors and exits 0; enforce mode exits non-zero when
+ * GOAT_LINT_ENFORCE=1 and validation finds issues.
  */
 import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -61,33 +61,10 @@ function writeAndStage(root: string, path: string, content: string): void {
 }
 
 /** Run the stop-lint hook in a given working directory. */
-function runStopLint(cwd: string): {
-  status: number;
-  stdout: string;
-  stderr: string;
-} {
-  try {
-    const result = execSync(`bash "${HOOK_PATH}" 2>&1`, {
-      cwd,
-      stdio: ["pipe", "pipe", "pipe"],
-      timeout: 10000,
-      env: { ...process.env, STOP_HOOK_ACTIVE: "" },
-      encoding: "utf8",
-    });
-    return { status: 0, stdout: result ?? "", stderr: "" };
-  } catch (err: unknown) {
-    const e = err as { status: number; stdout?: string; stderr?: string };
-    // The hook always exits 0, but just in case:
-    return {
-      status: e.status ?? 1,
-      stdout: e.stdout ?? "",
-      stderr: e.stderr ?? "",
-    };
-  }
-}
-
-/** Run the stop-lint hook capturing stdout and stderr separately. */
-function runStopLintSplit(cwd: string): {
+function runStopLint(
+  cwd: string,
+  envOverrides: NodeJS.ProcessEnv = {},
+): {
   status: number;
   stdout: string;
   stderr: string;
@@ -96,7 +73,7 @@ function runStopLintSplit(cwd: string): {
     cwd,
     encoding: "utf8",
     timeout: 10000,
-    env: { ...process.env, STOP_HOOK_ACTIVE: "" },
+    env: { ...process.env, STOP_HOOK_ACTIVE: "", ...envOverrides },
   });
   return {
     status: result.status ?? 0,
@@ -132,7 +109,7 @@ describe("stop-lint.sh hook source integrity", () => {
 });
 
 describe("stop-lint.sh hook", () => {
-  it("always exits 0 even when shellcheck finds issues", () => {
+  it("stays advisory by default even when validation finds issues", () => {
     const root = createGitRepo();
 
     // Write a .sh file with a shellcheck issue (unused variable)
@@ -156,7 +133,7 @@ describe("stop-lint.sh hook", () => {
       "#!/usr/bin/env bash\nif [ true\necho done\n",
     );
 
-    const result = runStopLintSplit(root);
+    const result = runStopLint(root);
     assert.equal(result.status, 0, "Stop hook must always exit 0");
     // The hook reports errors to stderr; check combined output
     const combined = result.stdout + result.stderr;
@@ -169,6 +146,40 @@ describe("stop-lint.sh hook", () => {
       hasErrorReport,
       `Expected output to mention broken.sh or syntax error, got stdout: "${result.stdout}", stderr: "${result.stderr}"`,
     );
+  });
+
+  it("exits non-zero in enforce mode when validation finds issues", () => {
+    const root = createGitRepo();
+
+    writeAndStage(
+      root,
+      "scripts/broken.sh",
+      "#!/usr/bin/env bash\nif [ true\necho done\n",
+    );
+
+    const result = runStopLint(root, { GOAT_LINT_ENFORCE: "1" });
+    assert.equal(
+      result.status,
+      1,
+      "Enforce mode should fail on validation errors",
+    );
+    assert.ok(
+      (result.stdout + result.stderr).includes("Stop hook found issues"),
+      "Expected enforce mode to still report the collected errors",
+    );
+  });
+
+  it("stays zero in enforce mode when validation finds no issues", () => {
+    const root = createGitRepo();
+
+    writeAndStage(
+      root,
+      "scripts/clean.sh",
+      '#!/usr/bin/env bash\nset -euo pipefail\necho "clean"\n',
+    );
+
+    const result = runStopLint(root, { GOAT_LINT_ENFORCE: "1" });
+    assert.equal(result.status, 0);
   });
 
   it("produces no errors for clean staged .sh files", () => {

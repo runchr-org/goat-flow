@@ -39,17 +39,18 @@
       }
     ],
 
-    // AfterAgent: fires after every agent turn. MUST exit 0.
+    // Recommended addition: post-turn validation hook.
+    // Keep it advisory by default; set GOAT_LINT_ENFORCE=1 if you want non-zero exits.
     // Equivalent to Claude's Stop.
-    "AfterAgent": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.gemini/hooks/stop-lint.sh\""
-          }
-        ]
-      }
-    ]
+    // "AfterAgent": [
+    //   {
+    //     "hooks": [
+    //       {
+    //         "type": "command",
+    //         "command": "bash \"$(git rev-parse --show-toplevel)/.gemini/hooks/stop-lint.sh\""
+    //       }
+    //     ]
+    //   }
+    // ]
   }
 }

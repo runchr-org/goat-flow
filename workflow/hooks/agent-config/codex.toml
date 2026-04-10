@@ -10,11 +10,11 @@
 # Each rule returns: allow, prompt, or forbidden.
 # See Codex docs for the Starlark rule API.
 
-# --- Stop Hook ----------------------------------------------------------------
-# Fires after every agent turn. Runs lint/type checks on changed files.
-# MUST exit 0 (non-zero causes infinite loops).
-[hooks.stop]
-command = "bash .codex/hooks/stop-lint.sh"
+# --- Optional Stop Hook -------------------------------------------------------
+# Recommended addition if you want post-turn validation feedback.
+# Leave it advisory by default; set GOAT_LINT_ENFORCE=1 if you want non-zero exits.
+# [hooks.stop]
+# command = "bash .codex/hooks/stop-lint.sh"
 
 # --- SessionStart Hook --------------------------------------------------------
 # Fires once when a session opens. Use for environment verification,

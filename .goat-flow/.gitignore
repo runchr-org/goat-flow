@@ -1,5 +1,6 @@
 # Ignore everything by default
 *
+personal-preferences.md
 
 # Committed goat-flow files
 !.gitignore
@@ -7,6 +8,7 @@
 !skill-conventions.md
 !architecture.md
 !glossary.md
+!patterns.md
 
 # Committed goat-flow directories
 !coding-standards/

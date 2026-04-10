@@ -186,7 +186,10 @@ export const skillChecks: CheckDef[] = [
       if (quality.total === 0) return false;
       const step0Ratio = quality.withStep0 / quality.total;
       const constraintsRatio = quality.withConstraints / quality.total;
-      return step0Ratio >= SKILL_QUALITY_THRESHOLD && constraintsRatio >= SKILL_QUALITY_THRESHOLD;
+      return (
+        step0Ratio >= SKILL_QUALITY_THRESHOLD &&
+        constraintsRatio >= SKILL_QUALITY_THRESHOLD
+      );
     },
     detect: {
       type: "custom",
@@ -292,7 +295,7 @@ export const skillChecks: CheckDef[] = [
       "Without explicit phases, agents collapse multi-step workflows into a single pass -- skipping investigation before planning, or jumping to implementation before the design is approved. Phased execution (Phase 1, Phase 2, etc.) creates natural checkpoints where each phase's output feeds the next, preventing critical steps from being skipped.",
     recommendationKey: "add-skill-phases",
   },
-  // 2.1.16 (Skills are conversational) removed - "conversational" is unverifiable. Already covered by 2.1.13 (human gates) + 2.1.18 (structured choices).
+  // 2.1.16 (Skills are conversational) removed - "conversational" is unverifiable. The concrete proxy is steering choices at key transitions.
   {
     id: "2.1.17",
     name: "Skills have chaining",
@@ -387,7 +390,7 @@ export const skillChecks: CheckDef[] = [
             points: 1,
             maxPoints: 1,
             confidence: "medium",
-            message: `${quality.withChoices}/${quality.total} skills offer choices at phase transitions`,
+            message: `${quality.withChoices}/${quality.total} skills offer steering choices at key transitions`,
           };
         }
         return {
@@ -399,12 +402,12 @@ export const skillChecks: CheckDef[] = [
           points: 0,
           maxPoints: 1,
           confidence: "medium",
-          message: `Only ${quality.withChoices}/${quality.total} skills have structured choices - use (a)/(b)/(c) options, not yes/no gates`,
+          message: `Only ${quality.withChoices}/${quality.total} skills offer steering choices - add quick/full depth choices or plain-language next-step options instead of binary yes/no gates`,
         };
       },
     },
     recommendation:
-      'Yes/no gates create a bottleneck where the only options are "continue" or "abort" -- there\'s no way to redirect. Structured choices like (a) proceed / (b) adjust scope / (c) switch approach give the human real steering power at phase transitions instead of a binary accept/reject.',
+      'Binary yes/no gates create a bottleneck where the only options are "continue" or "abort" -- there is no way to redirect. Give the human real steering power with quick/full depth choices up front or plain-language next-step options like "drill deeper", "check a related area", or "close" at phase transitions.',
     recommendationKey: "add-skill-choices",
   },
 

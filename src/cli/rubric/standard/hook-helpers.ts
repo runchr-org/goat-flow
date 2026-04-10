@@ -89,16 +89,20 @@ export function getPostTurnHookStatus(ctx: FactContext): {
   exists: boolean;
   hasValidation: boolean;
   registeredPath: string | null;
+  notConfigured: boolean;
   passes: boolean;
 } {
   const registered = ctx.agentFacts.hooks.postTurnRegistered;
   const exists = ctx.agentFacts.hooks.postTurnExists;
   const hasValidation = ctx.agentFacts.hooks.postTurnHasValidation;
+  const registeredPath = ctx.agentFacts.hooks.postTurnRegisteredPath;
+  const notConfigured = registered === false && registeredPath === null;
   return {
     registered,
     exists,
     hasValidation,
-    registeredPath: ctx.agentFacts.hooks.postTurnRegisteredPath,
+    registeredPath,
+    notConfigured,
     passes: registered && exists && hasValidation,
   };
 }
@@ -108,6 +112,10 @@ export function getPostTurnHookMessage(
   ctx: FactContext,
   status: ReturnType<typeof getPostTurnHookStatus>,
 ): string {
+  if (status.notConfigured) {
+    return "No post-turn hook configured. That's acceptable if validation happens elsewhere (CI, pre-commit, or manual verification).";
+  }
+
   if (status.registered === false) {
     return formatMissingHookRegistrationMessage(
       ctx,
@@ -143,12 +151,31 @@ export function getMissingRegisteredHookPaths(ctx: FactContext): string[] {
   return missing;
 }
 
-/** Count the registered hook paths that already resolve on disk. */
-export function countExistingRegisteredHookPaths(ctx: FactContext): number {
+/** Return the list of registered hook paths that exist but are not executable. */
+export function getNonExecutableRegisteredHookPaths(
+  ctx: FactContext,
+): string[] {
+  const nonExecutable: string[] = [];
+
+  if (
+    ctx.agentFacts.hooks.postTurnRegistered &&
+    ctx.agentFacts.hooks.postTurnExists &&
+    ctx.agentFacts.hooks.postTurnExecutable === false &&
+    ctx.agentFacts.hooks.postTurnRegisteredPath
+  ) {
+    nonExecutable.push(`Stop: ${ctx.agentFacts.hooks.postTurnRegisteredPath}`);
+  }
+
+  return nonExecutable;
+}
+
+/** Count the registered hook paths that both exist and are executable. */
+export function countUsableRegisteredHookPaths(ctx: FactContext): number {
   let count = 0;
   if (
     ctx.agentFacts.hooks.postTurnRegistered &&
-    ctx.agentFacts.hooks.postTurnExists
+    ctx.agentFacts.hooks.postTurnExists &&
+    ctx.agentFacts.hooks.postTurnExecutable
   ) {
     count++;
   }

@@ -1,0 +1,100 @@
+# Step 05 — Customise to Project
+
+Steps 02–04 created the structure. This step makes it useful. Stop following templates and start reading the actual codebase to write project-specific content.
+
+This step should take the longest — it's doing real work, not copying templates.
+
+## First: resume project context
+
+- Read the 2-3 most recent files in `.goat-flow/logs/sessions/` if they exist
+- Check whether `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns.md`, or `.goat-flow/personal-preferences.md` already exist
+- Merge with what's there — do not replace existing project memory
+
+## Config sync — populate structured context
+
+Update `.goat-flow/config.yaml` with real project data:
+
+- `toolchain:` — populate `test`, `lint`, `build`, `package`, and `format` arrays from the commands you detected in Step 02 or from the actual manifests/scripts
+- `ask_first:` — copy the instruction file's real Ask First boundaries into structured `{ path, reason }` entries
+
+Use empty arrays only when the project truly has no command for that slot. Do not invent tool commands.
+
+## Footguns — find real traps in the code
+
+```bash
+grep -rn 'TODO\|FIXME\|HACK\|XXX' src/ --include='*.ts' --include='*.php' --include='*.py' | head -20
+git log --oneline -50 | grep -iE 'fix|revert|hotfix|bug|broke|rollback'
+```
+
+- Read config files for stale project names, hardcoded paths, outdated references
+- Write findings to `.goat-flow/footguns/` bucket files with real file paths as evidence
+- Every entry MUST cite specific file paths. Use `ACTUAL_MEASURED` evidence labels.
+- Add `hallucination-risk: high` when the area is easy to misread from names alone (generated code, env-specific config, external contracts)
+- If `.goat-flow/footguns/` already has entries, MERGE — do not replace
+
+## Lessons — extract from git history
+
+- Use the same `git log` scan — for each incident, what was the root cause and what should have been done differently?
+- Write to `.goat-flow/lessons/` category bucket files
+- If `.goat-flow/lessons/` already has entries, MERGE — do not replace
+
+## Auto-seed the learning loop from strong git signals
+
+After creating or merging the manual entries, seed 2-3 strong candidates from git history:
+
+- High churn (5+ commits) → candidate footgun
+- 2+ revert/fix/rollback commits touching the same area → candidate lesson
+- 3+ files repeatedly co-committed → candidate coupling footgun
+
+Rules:
+
+- Evidence format for auto-seeded entries is **file path + commit hash**, not fabricated line numbers
+- Mark each generated entry with `**Source:** git history (auto-seeded)`
+- Only seed strong signals. Skip noisy one-off commits
+
+Examples:
+
+- `` `src/auth/login.ts` (12 commits in 30 days, last: abc123) ``
+- `` `src/api/users.ts` + `src/db/users.ts` (co-committed 4 times, last: def456) ``
+
+## Patterns and preferences — capture memory beyond mistakes
+
+- Ensure `.goat-flow/patterns.md` exists. Use it for successful repeatable approaches, not incidents
+- Create `.goat-flow/personal-preferences.md` if it does not exist. This file is gitignored and local-only — create the template, but do NOT fill it out for the user
+
+## Architecture and code map — make them real
+
+- Review `.goat-flow/architecture.md` and `.goat-flow/code-map.md` created in step 04
+- Is it generic or does it reflect the actual system?
+- Add: data flows, non-obvious constraints, deliberate trade-offs, deployment topology
+- Remove anything that reads like template fill
+
+## Glossary — add real domain terms
+
+- Read the codebase for domain-specific terminology (model names, service names, acronyms)
+- Update `.goat-flow/glossary.md` with terms a new contributor would need
+
+## Instruction file — adapt Ask First boundaries
+
+- Review the Ask First section. Are the boundaries specific to this project's real risk areas?
+- Are there directories with complex ownership, migration scripts, config that shouldn't be touched?
+- Update with real paths and real reasons
+- Keep `.goat-flow/config.yaml` `ask_first:` in sync with the final instruction file wording
+
+---
+
+**Verification gate:**
+- [ ] `.goat-flow/config.yaml` has real `toolchain:` and `ask_first:` entries
+- [ ] Every footgun entry references a real file path in this project
+- [ ] Every lesson references a real git commit or incident
+- [ ] Auto-seeded entries use file path + commit hash evidence (no fabricated line numbers) and include `**Source:** git history (auto-seeded)`
+- [ ] `.goat-flow/patterns.md` exists
+- [ ] `.goat-flow/personal-preferences.md` exists locally and remains gitignored
+- [ ] architecture.md mentions at least 2 real components by name
+- [ ] glossary.md has at least 3 project-specific terms
+- [ ] Ask First boundaries reference real directories that exist on disk
+
+**Progress marker:** Append one line to the shared setup session log:
+- `Step 05 complete: project-specific context added`
+
+NEXT: proceed to `06-final-verification.md`

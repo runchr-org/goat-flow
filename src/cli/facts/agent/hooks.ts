@@ -245,6 +245,7 @@ type PostTurnFacts = Pick<
   | "postTurnExists"
   | "postTurnRegistered"
   | "postTurnRegisteredPath"
+  | "postTurnExecutable"
   | "postTurnExitsZero"
   | "postTurnHasValidation"
   | "postTurnSwallowsFailures"
@@ -627,11 +628,16 @@ function extractCodexPostTurnFacts(
     registration.postTurnRegistered &&
     postTurnRegisteredPath !== null &&
     fs.exists(postTurnRegisteredPath);
+  const postTurnExecutable =
+    postTurnExists && postTurnRegisteredPath !== null
+      ? fs.isExecutable(postTurnRegisteredPath)
+      : false;
 
   return {
     postTurnRegistered: registration.postTurnRegistered,
     postTurnRegisteredPath,
     postTurnExists,
+    postTurnExecutable,
     ...(postTurnExists && postTurnRegisteredPath
       ? analyzeHookScriptAtPath(fs, postTurnRegisteredPath)
       : {
@@ -652,11 +658,16 @@ function extractDirectoryPostTurnFacts(
     registration.postTurnRegistered &&
     postTurnRegisteredPath !== null &&
     fs.exists(postTurnRegisteredPath);
+  const postTurnExecutable =
+    postTurnExists && postTurnRegisteredPath !== null
+      ? fs.isExecutable(postTurnRegisteredPath)
+      : false;
 
   return {
     postTurnRegistered: registration.postTurnRegistered,
     postTurnRegisteredPath,
     postTurnExists,
+    postTurnExecutable,
     ...(postTurnExists && postTurnRegisteredPath
       ? analyzeHookScriptAtPath(fs, postTurnRegisteredPath)
       : {
@@ -685,6 +696,7 @@ function extractPostTurnFacts(
     postTurnRegistered: false,
     postTurnRegisteredPath: null,
     postTurnExists: false,
+    postTurnExecutable: false,
     postTurnExitsZero: false,
     postTurnHasValidation: false,
     postTurnSwallowsFailures: false,

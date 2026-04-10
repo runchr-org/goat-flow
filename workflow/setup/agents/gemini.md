@@ -24,10 +24,11 @@ CLAUDE.md, AGENTS.md, `.claude/`, `.codex/`.
 
 ### Hooks
 
-After completing step 05 (skills):
-- Copy scripts from `workflow/hooks/` to `.gemini/hooks/`
+After completing step 03 (skills):
+- Copy scripts from `workflow/hooks/` to `.gemini/hooks/`: `deny-dangerous.sh` (required)
 - Copy `workflow/hooks/agent-config/gemini.json` as base for `.gemini/settings.json`
-- After copying hook scripts, adapt the `# CUSTOMIZE` sections in stop-lint.sh:
+- Optional recommended addition: copy `stop-lint.sh` to `.gemini/hooks/` and enable the commented `AfterAgent` block if you want post-turn validation feedback.
+- If you enable `stop-lint.sh`, adapt the `# CUSTOMIZE` sections:
   1. Read package manifests (`package.json`, `composer.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `Gemfile`, `build.gradle`/`pom.xml`) to discover available lint/type-check tools
   2. Check for tool config files that indicate which tools are active (`.eslintrc*`, `phpstan.neon`, `.rubocop.yml`, `pyproject.toml [tool.ruff]`, `golangci.yml`, `biome.json`)
   3. Use local binaries over global (`vendor/bin/phpstan` not `phpstan`, `node_modules/.bin/eslint` not `eslint`)
@@ -38,7 +39,7 @@ After completing step 05 (skills):
 
 - `.gemini/settings.json` is valid JSON
 - `bash -n` passes on each hook script
-- stop-lint.sh exits 0 even when errors found
+- If `stop-lint.sh` is installed, it reports errors by default and `GOAT_LINT_ENFORCE=1` makes it exit non-zero
 
 ---
 

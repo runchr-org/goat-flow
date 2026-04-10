@@ -252,7 +252,6 @@ export interface SharedFacts {
     errorCount: number;
     parseError: string | null;
     lineLimits: { target: number; limit: number };
-    configLocalExists: boolean;
     userRole: "developer" | "investigator" | "tester";
   };
   architecture: { exists: boolean; lineCount: number };
@@ -358,6 +357,7 @@ export interface AgentFacts {
     postTurnExists: boolean;
     postTurnRegistered: boolean;
     postTurnRegisteredPath: string | null;
+    postTurnExecutable: boolean;
     postTurnExitsZero: boolean;
     postTurnHasValidation: boolean;
     postTurnSwallowsFailures: boolean;

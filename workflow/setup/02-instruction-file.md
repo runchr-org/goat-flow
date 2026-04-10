@@ -22,8 +22,9 @@ Read it completely before changing anything. Then:
 
 1. **Do not change the existing content** unless it's obviously an existing goat-flow instruction file from a previous setup. The user wrote this file — respect it.
 2. **Add a goat-flow section at the top** with any missing required sections from the list below. The existing content stays below it unchanged. Top-of-file survives context compaction.
-3. If it IS an existing goat-flow instruction file (has execution loop, autonomy tiers, router table already), update it in place — fix stale paths, update version header, add missing sections.
-4. Do NOT create "original-*" backup files. Git history preserves the original.
+3. If the existing file mixes project/domain knowledge into the hot path, move that material to `.goat-flow/architecture.md` and/or `.goat-flow/glossary.md`. Keep behavioral rules in the instruction file.
+4. If it IS an existing goat-flow instruction file (has execution loop, autonomy tiers, router table already), update it in place — fix stale paths, update version header, add missing sections.
+5. Do NOT create "original-*" backup files. Git history preserves the original.
 
 ## Required sections (both paths)
 
@@ -36,7 +37,7 @@ The instruction file MUST include these sections. Use `workflow/setup/execution-
 - (e) Router table
 - (f) Essential commands
 
-Adapt all examples, Ask First boundaries, and essential commands for THIS project's real codebase. Use real file paths, real commands, real boundaries.
+Adapt all examples, Ask First boundaries, and essential commands for THIS project's real codebase. Use real file paths, real commands, real boundaries. Preserve the composition rule: when a goat-* skill is active, the skill's Step 0 satisfies READ/CLASSIFY/SCOPE and the instruction file resumes at ACT.
 
 ## Optional: project infrastructure
 
@@ -48,6 +49,7 @@ After writing/updating the instruction file:
 
 - Add agent-local settings to `.gitignore` if not already there (e.g., `.claude/settings.local.json`)
 - If the project uses a code formatter (prettier, biome, etc.), add `.goat-flow/**/*.md` to the formatter's ignore file (`.prettierignore`, `biome.json` ignores, etc.)
+- Keep the goat-flow section concise. Fold compression and RFC 2119 cleanup into this step instead of creating a separate polish pass.
 
 ---
 
@@ -57,5 +59,8 @@ After writing/updating the instruction file:
 - [ ] Examples and boundaries reference real project files
 - [ ] If Path B: no useful existing content was lost
 - [ ] `.gitignore` updated for agent-local files
+
+**Progress marker:** Append one line to the shared setup session log:
+- `Step 02 complete: instruction file created/updated`
 
 NEXT: proceed to `03-install-skills.md`

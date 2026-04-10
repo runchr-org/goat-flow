@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Stop hook: runs after every Claude turn.
-# MUST exit 0 even on errors (non-zero causes infinite loops).
-# Errors go to stderr as informational feedback.
+# stop-lint.sh - Post-turn hook: runs lint/type checks after every agent turn.
+# Advisory mode (default): reports errors, exits 0.
+# Enforce mode: exits non-zero on errors (set GOAT_LINT_ENFORCE=1).
+# Default stays advisory to prevent infinite fix loops.
 
 # Infinite loop guard (convention from enforcement.md)
 if [ "${STOP_HOOK_ACTIVE:-}" = "1" ]; then
@@ -17,6 +18,7 @@ fi
 cd "$ROOT" || exit 0
 
 ERRORS=""
+ERROR_COUNT=0
 
 # Check which file types were modified
 CHANGED_SH=$(git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null | grep '\.sh$') || CHANGED_SH=""
@@ -30,12 +32,14 @@ if [ -n "$CHANGED_SH" ]; then
       # Syntax check
       if ! bash -n "$f" 2>/dev/null; then
         ERRORS="${ERRORS}Syntax error in $f\n"
+        ERROR_COUNT=$((ERROR_COUNT + 1))
       fi
 
       # Shellcheck (if available)
       if command -v shellcheck >/dev/null 2>&1; then
         if ! SC_OUT=$(shellcheck "$f" 2>&1); then
           ERRORS="${ERRORS}shellcheck issues in $f:\n${SC_OUT}\n"
+          ERROR_COUNT=$((ERROR_COUNT + 1))
         fi
       fi
     fi
@@ -48,15 +52,21 @@ if [ -n "$CHANGED_TS" ] && [ -f "tsconfig.json" ]; then
     if ! TSC_OUT=$(npx tsc --noEmit 2>&1); then
       if [ -n "$TSC_OUT" ]; then
         ERRORS="${ERRORS}TypeScript errors:\n${TSC_OUT}\n"
+        ERROR_COUNT=$((ERROR_COUNT + 1))
       fi
     fi
   fi
 fi
 
-# Report errors to stderr (informational, not imperative)
+# Report errors to stderr (informational by default)
 if [ -n "$ERRORS" ]; then
-  echo -e "Stop hook found issues:\n$ERRORS" >&2
+  printf '%b' "Stop hook found issues:\n$ERRORS" >&2
 fi
 
-# MUST exit 0 to prevent infinite loops
+# Optional enforce mode
+if [ "${GOAT_LINT_ENFORCE:-0}" = "1" ] && [ "$ERROR_COUNT" -gt 0 ]; then
+  exit 1
+fi
+
+# Default advisory exit
 exit 0

@@ -7,7 +7,7 @@ Copyable hook scripts and agent-config templates for the GOAT Flow enforcement l
 | Script | Event | Required? | Purpose |
 |--------|-------|-----------|---------|
 | `deny-dangerous.sh` | PreToolUse | Required | Blocks rm -rf, git push main, force push, chmod 777, pipe-to-shell, .env edits, --no-verify |
-| `stop-lint.sh` | Stop | Required | Stack-adaptive lint/type checks after each turn. Exits 0 always. |
+| `stop-lint.sh` | Stop / AfterAgent | Recommended | Stack-adaptive lint/type checks after each turn. Advisory by default; set `GOAT_LINT_ENFORCE=1` to exit non-zero on errors. |
 
 ## Agent Event Name Mapping
 
@@ -20,8 +20,8 @@ Copyable hook scripts and agent-config templates for the GOAT Flow enforcement l
 
 ## Setup
 
-1. Copy the hook scripts to your agent's hooks directory (e.g., `.claude/hooks/`).
-2. Copy the matching template from `agent-config/` to your settings file (e.g., `.claude/settings.json`).
-3. Customize `stop-lint.sh` for your stack (the CUSTOMIZE comments mark the extension points).
+1. Copy the required hook script to your agent's hooks directory: `deny-dangerous.sh`.
+2. Copy the matching template from `agent-config/` to your settings file (e.g., `.claude/settings.json`). The templates also keep git commit/push blocking and secret deny patterns in the default config.
+3. Optional but recommended: copy `stop-lint.sh`, register its commented hook block, then customize it for your stack (the `# CUSTOMIZE` comments mark the extension points).
 
 All hook paths use `$(git rev-parse --show-toplevel)` so they work regardless of the agent's working directory.

@@ -37,13 +37,25 @@ for the user to execute or delegate.
 **Quick path:** For changes touching ≤2 files with no interface changes:
 Phase 1 only + abbreviated Phase 3 (1-2 manual checks). Skip Phase 2.
 
-## Step 0 - Gather Context
+## Step 0 - Choose Depth and Frame the Verification Work
 
-**Structural questions (always ask or confirm):**
-1. What changed? (or I'll run `git diff` to find it)
-2. What's the risk? (what could break if this is wrong?)
-3. What's already tested? (existing test files, manual checks done)
-4. What's the risk level? (Hotfix / Standard / System)
+Start with the depth choice, not a checklist.
+
+Default opener:
+> "Testing [X] — do you want a quick test plan, or the full plan with change manifest, AI verification, and human checklist?"
+
+**Adaptive Step 0:**
+- If the user already says "quick", "full", "audit", or names a specific test scope, confirm and continue.
+- If the request is vague, ask one natural follow-up that covers what changed, what specifically should be verified, the risk if it breaks, and what is already tested.
+- If the user says "just test what changed" or provides minimal info, auto-detect scope from `git diff --stat` and existing test files, then continue with confirmation.
+
+**Quick test-plan path:**
+- Gather what changed, the main risk, and current coverage in one short exchange.
+- Produce Phase 1 commands, the biggest coverage gaps, and a short human check list without extra gating.
+
+**Full plan path:**
+- Confirm the change set, risk level, existing coverage, and mode.
+- Run the complete workflow: change manifest → automated tests → AI verification → human testing.
 
 **Auto-detect mode (unless user explicitly specifies):**
 
@@ -55,13 +67,11 @@ Scope detection priority: (1) explicit user input, (2) staged changes, (3) unsta
 - User says "quick" → **Quick mode** (most recent commit only)
 - User explicitly says "audit" or "standard" → respect override
 
-**Escape hatch:** If the user says "just test what changed" or provides minimal info, auto-detect scope from `git diff --stat` and existing test files, then proceed with confirmation.
-
 **Pattern read:** Before generating test instructions, read 1-2 existing test files in the affected area. Match the project's assertion style, selector patterns, and fixture conventions exactly. Generate tests that look like the ones already there - not textbook examples.
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the changed area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant to your test plan?"
 
-**Before proceeding:** present what you know (what changed, risk level, test stack) and what you still need. Wait for the user to confirm before entering Phase 0.
+**Before proceeding:** present what you know (what changed, risk, selected depth, test stack, what is already tested) and what you still need. For the full path, wait for the user to confirm before Phase 0. For the quick path, confirm and continue unless the user stops you.
 
 ## Phase 0 - Change Manifest
 
@@ -141,11 +151,7 @@ Explicitly list coverage gaps. Be honest about what's NOT verified:
 
 ## Closing
 
-**BLOCKING GATE:** Present full test plan. Offer:
-(a) run Phase 1 commands now
-(b) adjust scope or coverage
-(c) found an issue → /goat-debug
-(d) close
+**BLOCKING GATE:** Present the full test plan, then pause so the human can run Phase 1 commands, adjust scope or coverage, switch to `/goat-debug` if a failure appears, or close.
 
 ## Common Failure Modes
 

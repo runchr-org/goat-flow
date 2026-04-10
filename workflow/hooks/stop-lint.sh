@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # =============================================================================
-# stop-lint.sh - Stop hook: runs lint/type checks after every agent turn
+# stop-lint.sh - Post-turn hook: runs lint/type checks after every agent turn
 # =============================================================================
 # Event:  Stop (Claude & Codex), AfterAgent (Gemini)
 # Match:  No matcher needed (fires after every turn)
-# MUST exit 0 even when errors are found - non-zero causes infinite fix loops.
-# Errors go to stderr as informational feedback to the agent.
+# Advisory mode (default): reports errors, exits 0.
+# Enforce mode: exits non-zero on errors (set GOAT_LINT_ENFORCE=1).
+# Default stays advisory to prevent infinite fix loops.
 #
 # Install (Claude): copy to .claude/hooks/stop-lint.sh
 # Register in .claude/settings.json:
@@ -31,6 +32,7 @@ fi
 cd "$ROOT" || exit 0
 
 ERRORS=""
+ERROR_COUNT=0
 
 # --- Detect changed file types ------------------------------------------------
 # Only lint files that actually changed this turn. Avoids running expensive
@@ -53,11 +55,13 @@ if [ -n "$CHANGED_SH" ]; then
       # Syntax check (always available)
       if ! bash -n "$f" 2>/dev/null; then
         ERRORS="${ERRORS}Syntax error in $f\n"
+        ERROR_COUNT=$((ERROR_COUNT + 1))
       fi
       # Shellcheck (if installed)
       if command -v shellcheck >/dev/null 2>&1; then
         if ! SC_OUT=$(shellcheck "$f" 2>&1); then
           ERRORS="${ERRORS}shellcheck issues in $f:\n${SC_OUT}\n"
+          ERROR_COUNT=$((ERROR_COUNT + 1))
         fi
       fi
     fi
@@ -71,6 +75,7 @@ if [ -n "$CHANGED_TS" ] && [ -f "tsconfig.json" ]; then
     if ! TSC_OUT=$(npx tsc --noEmit 2>&1); then
       if [ -n "$TSC_OUT" ]; then
         ERRORS="${ERRORS}TypeScript errors:\n${TSC_OUT}\n"
+        ERROR_COUNT=$((ERROR_COUNT + 1))
       fi
     fi
   fi
@@ -87,6 +92,7 @@ if [ -n "$CHANGED_PY" ]; then
       if [ -f "$f" ]; then
         if ! RUFF_OUT=$(ruff check "$f" 2>&1); then
           ERRORS="${ERRORS}ruff issues in $f:\n${RUFF_OUT}\n"
+          ERROR_COUNT=$((ERROR_COUNT + 1))
         fi
       fi
     done <<< "$CHANGED_PY"
@@ -101,15 +107,21 @@ if [ -n "$CHANGED_PHP" ]; then
     if [ -f "$f" ]; then
       if ! PHP_OUT=$(php -l "$f" 2>&1); then
         ERRORS="${ERRORS}PHP syntax error in $f:\n${PHP_OUT}\n"
+        ERROR_COUNT=$((ERROR_COUNT + 1))
       fi
     fi
   done <<< "$CHANGED_PHP"
 fi
 
-# --- Report errors to stderr (informational only) ----------------------------
+# --- Report errors to stderr (informational by default) ----------------------
 if [ -n "$ERRORS" ]; then
-  echo -e "Stop hook found issues:\n$ERRORS" >&2
+  printf '%b' "Stop hook found issues:\n$ERRORS" >&2
 fi
 
-# --- MUST exit 0 to prevent infinite loops ------------------------------------
+# --- Optional enforce mode ----------------------------------------------------
+if [ "${GOAT_LINT_ENFORCE:-0}" = "1" ] && [ "$ERROR_COUNT" -gt 0 ]; then
+  exit 1
+fi
+
+# --- Default advisory exit ----------------------------------------------------
 exit 0

@@ -100,6 +100,18 @@ function app() {
     wizardGenerating: false,
     wizardSetupOutputs: {},
 
+    // --- Preferences state ---
+    preferencesLoading: false,
+    preferencesSaving: false,
+    preferencesExists: false,
+    preferencesLoadedForPath: null,
+    preferencesForm: {
+      codingStyle: "",
+      reviewPreferences: "",
+      planningDepth: "",
+      communication: "",
+    },
+
     // --- Launcher state ---
     presets: PRESETS,
     presetFilter: "all",
@@ -246,6 +258,8 @@ function app() {
           this.detachTerminal(oldPath);
           this.reconnectTerminal();
           this.updateSessionCount();
+          this.preferencesLoadedForPath = null;
+          if (this.activeView === "preferences") this.loadPreferences();
         }
       });
       updateTitle();
@@ -422,6 +436,93 @@ function app() {
         this.showToast(err.message || "Generation failed", true);
       }
       this.wizardGenerating = false;
+    },
+
+    // -- Preferences --
+    extractPreferenceSection(content, heading) {
+      const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const match = content.match(
+        new RegExp(`## ${escaped}\\n([\\s\\S]*?)(?=\\n## |$)`),
+      );
+      return match ? match[1].trim() : "";
+    },
+    renderPreferencesMarkdown() {
+      return [
+        "# Personal Preferences",
+        "",
+        "This file is gitignored — it's personal to you, not shared with the team.",
+        "Edit this to teach your coding agent your style. Examples:",
+        "",
+        "## Coding style",
+        this.preferencesForm.codingStyle.trim() ||
+          "<!-- e.g., prefer early returns, minimal comments, small functions, specific naming conventions -->",
+        "",
+        "## Review preferences",
+        this.preferencesForm.reviewPreferences.trim() ||
+          "<!-- e.g., focus on correctness over style, prefer terse findings, skip praise -->",
+        "",
+        "## Planning depth",
+        this.preferencesForm.planningDepth.trim() ||
+          "<!-- e.g., always run SBAO for features, skip Mob for hotfixes, prefer detailed milestones -->",
+        "",
+        "## Communication",
+        this.preferencesForm.communication.trim() ||
+          "<!-- e.g., be concise, don't summarise what you just did, skip preamble -->",
+        "",
+      ].join("\n");
+    },
+    async loadPreferences() {
+      this.preferencesLoading = true;
+      try {
+        const res = await fetch(
+          `/api/preferences?path=${encodeURIComponent(this.projectPath)}`,
+        );
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        const content = data.content || "";
+        this.preferencesExists = Boolean(data.exists);
+        this.preferencesLoadedForPath = this.projectPath;
+        this.preferencesForm.codingStyle = this.extractPreferenceSection(
+          content,
+          "Coding style",
+        );
+        this.preferencesForm.reviewPreferences = this.extractPreferenceSection(
+          content,
+          "Review preferences",
+        );
+        this.preferencesForm.planningDepth = this.extractPreferenceSection(
+          content,
+          "Planning depth",
+        );
+        this.preferencesForm.communication = this.extractPreferenceSection(
+          content,
+          "Communication",
+        );
+      } catch (err) {
+        this.showToast(err.message || "Failed to load preferences", true);
+      }
+      this.preferencesLoading = false;
+    },
+    async savePreferences() {
+      this.preferencesSaving = true;
+      try {
+        const res = await fetch("/api/preferences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            path: this.projectPath,
+            content: this.renderPreferencesMarkdown(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || "Save failed");
+        this.preferencesExists = true;
+        this.preferencesLoadedForPath = this.projectPath;
+        this.showToast("Preferences saved");
+      } catch (err) {
+        this.showToast(err.message || "Failed to save preferences", true);
+      }
+      this.preferencesSaving = false;
     },
 
     // -- Projects --

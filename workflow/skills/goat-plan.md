@@ -37,28 +37,46 @@ Use before non-trivial implementation or cross-file restructuring.
 - Reviewing an existing change → /goat-review
 - Generating test instructions → /goat-test
 
-## Step 0 - Where Are We?
+## Step 0 - Choose Depth and Frame the Plan
+
+Start with the depth choice, not a questionnaire.
+
+Default opener:
+> "Planning [X] — do you want a quick plan, or the full plan with Mob questions and SBAO critique?"
+
+**Adaptive Step 0:**
+- If the user already says "quick", "full", "Mob", or "SBAO", confirm and keep moving.
+- If the request is vague, ask one natural follow-up that covers the missing pieces: what problem we are solving, what scope or restructure is in play, and how big this is (Hotfix / Small Feature / Standard / System / Infrastructure).
+- If the user names a rename, extract, move, or interface change, switch to **Refactor Planning Mode**.
+- If the user says "I'll figure it out from the code" or provides minimal info, infer scope from `git diff`, named files, or project structure and confirm before proceeding.
+
+**Quick plan path:**
+- Gather the problem, scope, riskiest part, constraints, and kill criteria in one short exchange.
+- Produce a compressed brief and milestones without formal gates. Keep moving unless the user interrupts.
+- Do NOT auto-run Mob or SBAO on the quick path. The user can still ask for them.
+
+**Full plan path:**
+- Confirm feature or refactor mode, complexity, constraints, and kill criteria.
+- Run the complete workflow: Phase 1 brief → Mob Elaboration → SBAO critique → milestones.
+- SBAO and Mob stay intact. This is the premium path, not optional scaffolding.
 
 **Continuation detection:** Before starting fresh, check for existing planning artifacts:
 - `.goat-flow/tasks/**` (milestone files, plans, requirements)
 - `.goat-flow/logs/sessions/*.md` (recent session summaries if no active plan file)
 
-If found: "I found [artifact] from [date]. Want to: (a) resume from here, (b) start fresh, (c) jump to a specific phase?"
+If found: "I found [artifact] from [date]. Should we resume it, restart, or jump to a specific phase?"
 
 **Concurrent work check:** Before planning, check if other branches touch the same area:
 `git log --all --oneline --since='3 days ago' -- <target-files-or-dirs>`
 If matches found: "Branch [name] modified [files] [N] days ago. Coordinate?"
 
-**Structural questions (always ask or confirm):**
+**Planning signals to confirm:**
 1. What are we doing? (new feature, refactor, infrastructure change)
-2. If new: What complexity? (Hotfix / Small Feature / Standard / System / Infrastructure) → Plan mode
-3. If restructure: What's the scope? (rename, extract, move, interface change) → Refactor mode
-
-**Illustrative questions (adapt):**
+2. What problem are we solving?
+3. What complexity fits best? (Hotfix / Small Feature / Standard / System / Infrastructure)
+4. What's the scope? (rename, extract, move, interface change, or bounded feature area)
 5. What's the riskiest part of this change?
 6. Any constraints? (timeline, backwards compatibility, performance budget)
-
-**Escape hatch:** If the user says "I'll figure it out from the code" or provides minimal info, infer scope from `git diff`, named files, or the project structure and confirm before proceeding.
 
 **Kill criteria (surface early):** "What would make us abandon this entirely?"
 Even a vague answer ("if it takes more than a week" or "if it breaks the existing API")
@@ -66,11 +84,13 @@ helps frame the planning.
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
-**Before proceeding:** present what you know (feature, complexity, constraints, kill criteria) and what you still need. Wait for the user to confirm before entering Phase 1.
+**Before proceeding:** present what you know (problem, scope, selected depth, selected mode, complexity, constraints, kill criteria) and what you still need. For the full path, wait for confirmation before Phase 1. For the quick path, confirm and continue unless the user stops you.
 
 ## Phase 1 - Feature Brief
 
-Walk through each section ONE AT A TIME. Present one, wait for confirmation,
+**Quick plan:** compress Problem, Proposed Solution, Risks, Scope, and Success Criteria into one short brief, then continue to Phase 4 unless the user asks for more depth.
+
+**Full plan:** walk through each section ONE AT A TIME. Present one, wait for confirmation,
 then present the next. Do NOT dump all 8 sections at once.
 
 1. **Problem** - what's wrong or missing (1-2 sentences)
@@ -87,9 +107,9 @@ Ask the question whose answer could invalidate the approach FIRST.
 **Glossary check:** If `.goat-flow/glossary.md` exists, verify all domain terms in the
 brief are defined. If new terms appear, add them: `| term | definition | canonical file | aliases |`
 
-**BLOCKING GATE:** Present complete brief. "Approve, or adjust?"
+**Full-path gate:** Present the complete brief and wait: "Approve or adjust the brief."
 
-"Want to run Mob Elaboration (sharp questions) or SBAO (multi-perspective critique)? Or skip straight to milestones?"
+After approval, ask in plain language whether to run Mob Elaboration, run SBAO, or go straight to milestones.
 
 ## Phase 2 - Mob Elaboration
 
@@ -158,7 +178,7 @@ After answers, synthesize a prime plan that:
 - **Drops** the ideas the human rejected
 - **Decides** the open trade-offs with reasoned recommendations
 
-**BLOCKING GATE:** "Here's the improved plan. Approve, adjust, or re-run SBAO with different sub-agent prompts?"
+**BLOCKING GATE:** Present the improved plan and wait for the human to approve it, adjust it, or ask for another SBAO pass with different prompts.
 
 ## Phase 4 - Milestones
 
@@ -208,7 +228,7 @@ Before changing anything:
    If moving: read every importer AND the module.
    If changing an API: read server AND all clients.
 
-3. **Auto-detect scope:** `grep -rn 'OldName' --include='*.{ts,py,go,php,rs}' | wc -l`
+3. **Auto-detect scope:** `rg -n 'OldName' -g '*.ts' -g '*.py' -g '*.go' -g '*.php' -g '*.rs' | wc -l`
 
 4. **Check autonomy tiers:** Flag Ask First boundary crossings.
 

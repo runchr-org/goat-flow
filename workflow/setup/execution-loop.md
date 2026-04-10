@@ -29,6 +29,10 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
      Anti-planning-loop rule. Anti-BDUF guard with BAD/GOOD example
    - VERIFY: continuous test loop. Stop-the-line with two-level
      escalation. Revert-and-rescope tactic.
+     Before presenting findings, re-read every `file:line` you plan to cite.
+     If you cannot re-read it, mark the claim UNVERIFIED.
+     If the instruction file mentions `stop-lint.sh`, describe it honestly:
+     it reports errors by default and only enforces with `GOAT_LINT_ENFORCE=1`.
      Plan tracking: if working from a plan/milestone file, tick each
      checkbox (`- [x]`) as the task is completed - not at the end.
      Recovery protocols: include 2-3 common failure patterns with fixes
@@ -38,12 +42,14 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
      files - do NOT append to a monolithic log and do NOT create one
      file per incident forever.
      Lessons: `.goat-flow/lessons/` category files.
+     Patterns: `.goat-flow/patterns.md`.
      Footguns: `.goat-flow/footguns/` category files.
      Decisions: `.goat-flow/decisions/`.
      When-to-use table. Footgun propagation rule.
      Context-based loading rules.
      MECHANICAL TRIGGER (non-negotiable):
      - VERIFY caught a failure in your code → `.goat-flow/lessons/` entry BEFORE DoD
+     - A reusable approach worked well → `.goat-flow/patterns.md` entry before closing
      - Human corrected agent behaviour → `.goat-flow/lessons/` entry IMMEDIATELY
      - Discovered architectural trap with file:line evidence → `.goat-flow/footguns/`
      Skip = DoD gate #4 blocks completion. This is not optional.
@@ -86,27 +92,10 @@ d) Definition of Done: 6 gates
    (2) no broken cross-references introduced
    (3) no unapproved boundary changes
    (4) logs updated if tripped
-   (5) working notes current
+   (5) current state recorded before stopping incomplete work
    (6) grep old pattern after renames
 
-e) Working Memory:
-   Progress tracking: use milestone file checkboxes (`- [x]`) to track
-   task completion. This is the primary mechanism for multi-turn work.
-   Session logs: write to `.goat-flow/logs/sessions/` on /compact or at
-   session end. Include current task state, modified files, next steps.
-   Multi-task sessions: re-read the instruction file constraints before starting.
-   Context health: compact at 60% utilization (not 90%). Remove
-   failed attempts and superseded reasoning before compacting (noise
-   pruning). Clear context between unrelated tasks when the agent supports it.
-   Agent-local settings (e.g., .claude/settings.local.json): review
-   quarterly, prune session artifacts.
-
-f) Sub-Agent Objectives: one focused objective, structured return,
-   5-call budget
-
-g) Communication When Blocked: one question with recommended default
-
-h) Router table: MUST include at minimum:
+e) Router table: MUST include at minimum:
      - All 6 skill directories (Claude/Gemini/Codex/Copilot: .claude/skills/, .agents/skills/, .github/skills/)
      - Learning loop directories (`.goat-flow/footguns/`, `.goat-flow/lessons/`)
      - Architecture doc
@@ -117,8 +106,8 @@ h) Router table: MUST include at minimum:
      (Unrouted files are invisible to the agent - 160x usage uplift
      for referenced tools)
 
-i) Essential commands
+f) Essential commands
 
 If you must weaken a MUST to meet the line target, the target is
 wrong - raise it, don't weaken the rule.
-Do NOT skip sections (f)-(i) - they are small but required.
+Do NOT skip sections (e)-(f) - they are small but required.

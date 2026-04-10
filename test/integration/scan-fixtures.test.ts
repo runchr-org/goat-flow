@@ -872,19 +872,28 @@ describe("Fixture 10c: project without instructions", () => {
     agentFilter: null,
   });
 
-  it("local instruction checks fail", () => {
+  it("local instruction checks are optional when absent", () => {
     const localChecks = report.agents[0].checks.filter(
       (c) => c.category === "Local Instructions",
     );
     const failing = localChecks.filter((c) => c.status === "fail");
-    assert.ok(
-      failing.length >= 1,
-      `Expected 1+ failures, got ${failing.length}`,
+    assert.equal(
+      failing.length,
+      0,
+      `Expected 0 failures, got ${failing.length}`,
     );
+    const dirCheck = report.agents[0].checks.find((c) => c.id === "2.6.1");
+    const conventionsCheck = report.agents[0].checks.find(
+      (c) => c.id === "2.6.3",
+    );
+    assert.ok(dirCheck);
+    assert.ok(conventionsCheck);
+    assert.equal(dirCheck.status, "na");
+    assert.equal(conventionsCheck.status, "na");
   });
 });
 
-describe("Regression: hooks exist without registration should fail", () => {
+describe("Regression: missing post-turn hook should not penalize the project", () => {
   const fs = createMockFS({
     "CLAUDE.md": FULL_CLAUDE_MD,
     "package.json": JSON.stringify({
@@ -902,16 +911,11 @@ describe("Regression: hooks exist without registration should fail", () => {
     agentFilter: "claude",
   });
 
-  it("fails post-turn registration when hook file exists but not registered", () => {
+  it("marks 2.2.2 as n/a when no post-turn hook is configured", () => {
     const check = report.agents[0].checks.find((c) => c.id === "2.2.2");
     assert.ok(check, "Expected check 2.2.2");
-    assert.equal(check.status, "fail");
-    assert.ok(check.message.includes(".claude/settings.json"), check.message);
-    assert.ok(check.message.includes('"Stop"'), check.message);
-    assert.ok(
-      check.message.includes(".claude/hooks/stop-lint.sh"),
-      check.message,
-    );
+    assert.equal(check.status, "na");
+    assert.match(check.message, /No post-turn hook configured/i);
   });
 });
 
@@ -947,6 +951,38 @@ describe("Regression: registered hook paths must exist on disk", () => {
     assert.ok(check, "Expected check 2.2.2a");
     assert.equal(check.status, "fail");
     assert.match(check.message, /missing-stop-lint\.sh/);
+  });
+});
+
+describe("Regression: registered hook scripts must be executable", () => {
+  const fs = createMockFS({
+    "CLAUDE.md": FULL_CLAUDE_MD,
+    "package.json": JSON.stringify({
+      name: "registered-hook-not-executable",
+      scripts: { test: "node --test" },
+    }),
+    ".claude/settings.json": JSON.stringify({
+      permissions: { deny: ["Bash(git commit*)", "Bash(git push*)"] },
+      hooks: {
+        Stop: [
+          {
+            hooks: [{ type: "command", command: ".claude/hooks/stop-lint.sh" }],
+          },
+        ],
+      },
+    }),
+    ".claude/hooks/stop-lint.sh":
+      'set -euo pipefail\necho "missing shebang means not executable in mock fs"\n',
+  });
+  const report = scanProject(fs, "/test/registered-hook-not-executable", {
+    agentFilter: "claude",
+  });
+
+  it("fails check 2.2.2a when a registered hook script is not executable", () => {
+    const check = report.agents[0].checks.find((c) => c.id === "2.2.2a");
+    assert.ok(check, "Expected check 2.2.2a");
+    assert.equal(check.status, "fail");
+    assert.match(check.message, /non-executable|chmod \+x/i);
   });
 });
 
@@ -1407,8 +1443,6 @@ GOOD: Inline format. Extract when second format needed
       "# Git Commit\n\nCommit conventions.\n",
     "CHANGELOG.md": "# Changelog\n\n## v1.0\n\nInitial setup.\n",
     ".goat-flow/config.yaml": 'version: "1.0.0"\nuserRole: developer\n',
-    ".goat-flow/config.local.yaml":
-      "# Local overrides\n# userRole: investigator\n",
   });
   const report = scanProject(fs, "/test/regression", { agentFilter: null });
 

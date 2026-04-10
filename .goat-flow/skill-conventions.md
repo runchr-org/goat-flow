@@ -23,14 +23,19 @@ Order findings by severity, not by file or discovery order.
 - MUST NOT fabricate file paths, function names, or behaviour
 - Before presenting findings, re-read each cited `file:line` to confirm accuracy
 - Tag evidence quality where applicable: **OBSERVED** (directly verified in code) vs **INFERRED** (deduced but not directly confirmed - state what direct evidence is missing)
+- If you cannot re-read the cited evidence before responding, mark the claim **UNVERIFIED**
+- Before citing a function or symbol name, verify it exists with a repo search
+- Before citing a CLI flag, verify it with `--help` or the command's docs
+- Before citing a config key, read the actual config file first
 
 ## Learning Loop
 
 After completing the skill, check if this run uncovered anything worth logging:
-- Behavioural mistake (agent did something wrong) → add a `## Lesson:` or `## Pattern:` entry to the relevant category bucket in `.goat-flow/lessons/`
+- Behavioural mistake (agent did something wrong) → add a `## Lesson:` entry to the relevant category bucket in `.goat-flow/lessons/`
+- Successful repeatable approach → add a `## Pattern:` entry to `.goat-flow/patterns.md`
 - Architectural trap with `file:line` evidence → add a `## Footgun:` entry to the relevant category bucket in `.goat-flow/footguns/`
 
-Do not append to a monolithic log or directory README. Route entries to `.goat-flow/lessons/` or `.goat-flow/footguns/`.
+Do not append to a monolithic log or directory README. Route entries to `.goat-flow/lessons/`, `.goat-flow/patterns.md`, or `.goat-flow/footguns/`.
 Bucket conventions:
 - Lessons: `verification.md`, `workflow.md`, `coordination.md`
 - Footguns: `hooks.md`, `setup.md`, `scanner.md`
@@ -59,11 +64,22 @@ category: hooks
 **Status:** active
 **Created:** YYYY-MM-DD
 **Evidence type:** ACTUAL_MEASURED
+**hallucination-risk:** high
 **Symptoms:** [what breaks]
 **Why it happens:** [root cause]
 **Evidence:** `file:line` - [what was found]
 **Prevention:** [rule to prevent recurrence]
 ```
+
+```markdown
+# Successful Patterns
+
+## Pattern: [Name]
+**Context:** [when this approach works]
+**Approach:** [what to do]
+```
+
+The `hallucination-risk` field is optional. Use it when an area is easy to misread from names alone, such as generated code, environment-specific config, or external API contracts.
 
 ## Human Gates
 
@@ -73,6 +89,16 @@ category: hooks
 Do NOT auto-advance past any BLOCKING GATE. CHECKPOINTs auto-advance by default.
 
 ## Adaptive Step 0
+
+Before Step 0:
+
+- If `.goat-flow/config.yaml` defines `toolchain`, prefer those commands over guessed defaults
+- If `.goat-flow/config.yaml` defines `ask_first`, use it as structured boundary context alongside the instruction file
+- If `.goat-flow/personal-preferences.md` exists, read it and adapt your style accordingly
+- Read the 2-3 most recent files in `.goat-flow/logs/sessions/` when the task overlaps recent work
+- If a recent session log already covers the same area, prefer building on that context instead of re-deriving it
+
+Then continue with the normal Step 0 flow:
 
 Skills that gather context before acting follow this pattern:
 
@@ -120,8 +146,9 @@ Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
 If Step 0's footgun check produces a direct match with a documented trap:
 1. Surface the match immediately: "This matches known footgun X."
 2. Offer the standard mitigation path from the footgun entry
-3. Still require READ and VERIFY on the actual target files - footguns are incident records, not executable specs
-4. Do NOT skip straight to implementation based on a footgun match alone
+3. If the entry carries `hallucination-risk: high`, re-read the live file/config before trusting names or inferred behavior
+4. Still require READ and VERIFY on the actual target files - footguns are incident records, not executable specs
+5. Do NOT skip straight to implementation based on a footgun match alone
 
 ## Task Tracking
 
@@ -132,6 +159,12 @@ When working from a plan or milestone file in `.goat-flow/tasks/`:
 - If you completed a task 3 steps ago and forgot to tick it — go tick it NOW before continuing
 
 On `/compact` with no active milestone file: write a session log to `.goat-flow/logs/sessions/` summarizing current state. Milestone files are the primary continuity mechanism; session logs are the fallback.
+
+Use `.goat-flow/logs/sessions/` for session summaries. Compact at ~60% context.
+
+Sub-agents: one objective, structured return, 5-call budget.
+
+When blocked: ask one question with a recommended default.
 
 ## Recovery
 

@@ -6,15 +6,14 @@ Read `01-system-overview.md` first if you haven't already.
 
 **Before (v1.0.0):**
 - `.goat-flow/config.yaml` with version < 1.1.0
-- Current skill names but inlined shared conventions (~150 lines per skill)
-- Learning loop may be in `ai-docs/` or `.goat-flow/`
+- Current skill names but older dispatcher / skill templates
 - No `.goat-flow/skill-conventions.md`
 
 **After (v1.1.0):**
 - `.goat-flow/config.yaml` with version 1.1.0
-- Skills with 7-line inline fallback referencing `.goat-flow/skill-conventions.md`
-- All learning loop content in `.goat-flow/` (no `ai-docs/` remnant)
-- `.goat-flow/architecture.md`, `.goat-flow/glossary.md`, `.goat-flow/coding-standards/`
+- Skills installed verbatim from the current templates
+- `.goat-flow/skill-conventions.md` shared across all skills
+- 6-step setup flow (`01` through `06`)
 
 ---
 
@@ -29,35 +28,24 @@ You're in the right place if the project has `.goat-flow/config.yaml` with versi
 
 ---
 
-## Step 2 — Migrate ai-docs/ to .goat-flow/
+## Step 2 — Update shared goat-flow surfaces
 
-If `ai-docs/` exists, move all content into `.goat-flow/`:
+- Install or update `.goat-flow/skill-conventions.md` from `workflow/skills/reference/shared-preamble.md`
+- Ensure learning-loop content lives under `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/decisions/`
+- Update `.goat-flow/architecture.md` and `.goat-flow/glossary.md` if the older setup left them thin or stale
 
-- `ai-docs/architecture.md` → `.goat-flow/architecture.md`
-- `ai-docs/glossary.md` → `.goat-flow/glossary.md`
-- `ai-docs/coding-standards/` → `.goat-flow/coding-standards/`
-- `ai-docs/decisions/` → `.goat-flow/decisions/`
-- `ai-docs/footguns/` → `.goat-flow/footguns/`
-- `ai-docs/lessons/` → `.goat-flow/lessons/`
-
-If footguns/lessons are flat files (not directories), split into category bucket files during migration. Format per `.goat-flow/skill-conventions.md` Learning Loop section.
-
-Rework `.goat-flow/.gitignore` to denylist approach: gitignore `logs/` and `config.local.yaml`, commit everything else.
-
-Delete `ai-docs/` after verified migration.
-
-**Verification:** `ls ai-docs/ 2>&1` — "No such file". All content exists in `.goat-flow/`.
+**Verification:** shared goat-flow docs exist and point only at current `.goat-flow/` surfaces.
 
 ---
 
 ## Step 3 — Update skills
 
 - Update all 5 skill templates to current version (check `goat-flow-skill-version` tag)
-- Replace inlined shared conventions (~150 lines) with the 7-line fallback referencing `.goat-flow/skill-conventions.md`
+- Install skills verbatim from the current `workflow/skills/goat-*.md` templates
 - Install `.goat-flow/skill-conventions.md` from `workflow/skills/reference/shared-preamble.md`
 - Install or update the `/goat` dispatcher from `workflow/skills/goat.md`
 
-**Verification:** All 6 skills have `goat-flow-skill-version: "1.1.0"`. No skill file exceeds 200 lines.
+**Verification:** All 6 skills have `goat-flow-skill-version: "1.1.0"`.
 
 ---
 
@@ -66,9 +54,8 @@ Delete `ai-docs/` after verified migration.
 - Delete `.goat-flow/tasks/handoff-template.md` if it exists
 - Delete `tasks/handoff.md`, `tasks/todo.md` if they exist (preserve content in `.goat-flow/logs/sessions/` first)
 - Remove handoff/todo references from instruction file
-- Delete `ai-docs/evals/` if it wasn't already removed in step 2
 
-**Verification:** No handoff-template.md. No evals directory.
+**Verification:** No handoff-template.md. No handoff/todo residue remains.
 
 ---
 
@@ -79,12 +66,12 @@ Use the reorganise approach (not copy-and-replace):
 2. Separate domain knowledge from agent instructions
 3. Move domain knowledge → `.goat-flow/architecture.md` + `.goat-flow/glossary.md`
 4. Keep behavioral rules in the instruction file
-5. Add missing goat-flow sections (see `03-reorganise-instruction-file.md`)
+5. Add missing goat-flow sections (see `02-instruction-file.md`)
 6. Update version header to v1.1.0
-7. Update Router Table: all paths should reference `.goat-flow/` (not `ai-docs/`)
+7. Update Router Table: all paths should reference current goat-flow surfaces
 8. Update examples to reference current paths (e.g., `workflow/setup/execution-loop.md`)
 
-**Verification:** Instruction file under 120 lines. No `ai-docs/` references. Domain content preserved in `.goat-flow/`.
+**Verification:** Instruction file under 120 lines. Domain content preserved in `.goat-flow/`.
 
 ---
 
@@ -113,11 +100,11 @@ Use the reorganise approach (not copy-and-replace):
 ## Post-upgrade verification
 
 1. `goat-flow scan . --agent {agent}` — target 100%
-2. Verify project build/test/lint still passes
+2. Verify required goat-flow files and directories exist
 3. Review git diff — every change should be intentional
-4. `grep -r "ai-docs" .` — should return zero matches (outside git history)
+4. `grep -r "handoff-template\\|todo\\.md\\|handoff\\.md" .` — should return zero matches outside known historical notes
 
 **Session log:** Append to `.goat-flow/logs/sessions/YYYY-MM-DD-upgrade.md`:
 - **Step:** upgrade from v1.0.0
-- **What was done:** (ai-docs migrated, skills updated, instruction file reorganised)
+- **What was done:** (shared surfaces updated, skills updated, instruction file reorganised)
 - **Self-critique:** (honest assessment)

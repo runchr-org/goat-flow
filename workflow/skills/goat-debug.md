@@ -34,24 +34,31 @@ That's the failure mode this skill exists to prevent.
 - Generating test instructions → /goat-test
 - Planning a new feature → /goat-plan
 
-## Step 0 - Gather Context
+## Step 0 - Choose Depth and Frame the Debugging Work
 
-**Structural questions (always ask or confirm):**
-1. What's the goal? (diagnose a bug, explore an area, onboard to the project)
-2. If bug: What's the symptom? (error message, unexpected behaviour, test failure)
-3. If explore: What area? How deep? (surface scan / full trace)
+Start with the depth choice, not a long intake.
 
-**Illustrative questions (adapt):**
-4. Which area of the codebase is involved?
-5. What have you already tried? (so I don't repeat dead ends)
-6. How urgent? Default: 10 turns. After that, present what you have even if incomplete.
+Default opener:
+> "Debugging [X] — do you want a quick diagnosis, or the full investigation with a hypothesis table and deeper trace?"
+
+**Adaptive Step 0:**
+- If the user already says "quick", "full", "diagnose", "investigate", or "onboard", confirm and continue.
+- If the request is vague, ask one natural follow-up that covers the goal, the symptom or error, what area is involved, and what the user was doing when it broke.
+- If the user says "I'll figure it out from the code" or provides minimal info, auto-detect from error output, `git diff`, or named files and confirm.
+
+**Quick diagnosis path:**
+- Gather the goal, symptom, error, area, and anything already tried in one short exchange.
+- Diagnose the issue and, if the user wants implementation, carry straight into the fix plan and verification.
+- Keep the conversation moving unless the user interrupts.
+
+**Full investigation path:**
+- Confirm the goal, symptom, area, urgency, and mode.
+- Run the complete Diagnose, Investigate, or Onboard workflow with the full hypothesis table and trace depth.
 
 **Mode selection:**
-- Bug/symptom/error/crash → Diagnose mode
-- Explore/understand/how does/new to → Investigate mode
-- Onboard/new project/set up instructions → Onboard mode
-
-**Escape hatch:** If the user says "I'll figure it out from the code" or provides minimal info, proceed with what you have - auto-detect from error output, `git diff`, or named files.
+- Bug, symptom, error, crash, or failing test → **Diagnose mode**
+- Explore, understand, how does, or unfamiliar area → **Investigate mode**
+- Onboard, new project, or set up instructions → **Onboard mode**
 
 **Auto-detect:** Read the error message or test output if provided inline.
 If the user said `/goat-debug the test in auth.test.ts fails with TypeError`,
@@ -59,7 +66,7 @@ confirm: "Symptom: TypeError in auth.test.ts. I'll start with that file. Correct
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. Also check `.goat-flow/lessons/` for recurrence. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
-**Before proceeding:** present what you know, the selected mode, and what you still need. Wait for user to confirm.
+**Before proceeding:** present what you know (goal, symptom, area, selected depth, selected mode) and what you still need. For the full path, wait for confirmation. For the quick path, confirm and continue unless the user stops you.
 
 ---
 
@@ -104,14 +111,9 @@ Present findings using the Output Format template below:
 Return to Phase D1 for deeper investigation, or present partial findings and ask
 the user whether to proceed or dig deeper.
 
-**BLOCKING GATE:** Present diagnosis. Offer:
-(a) investigate deeper
-(b) propose a fix plan (→ Phase D3)
-(c) this matches a known issue - close
-(d) switch to investigate mode for deeper exploration
-(e) just report findings - don't fix (stop here)
+**BLOCKING GATE:** Present diagnosis, then pause. If the human wants deeper investigation, keep digging. If they want you to propose a fix plan, move to Phase D3. If this matches a known issue or they want to just report findings, stop here. If the better next step is broader exploration, switch to Investigate mode.
 
-If the user's original intent was "just diagnose" or "investigate" (no implementation verbs), default to (e).
+If the user's original intent was "just diagnose" or "investigate" (no implementation verbs), default to just report findings and stop here without proposing a fix.
 
 ### Phase D3 - Fix Plan
 
@@ -170,11 +172,7 @@ Produce investigation report. Required sections:
 - **Current vs Expected State** - what IS vs what SHOULD BE.
 - **Evidence tags** - OBSERVED for verified, INFERRED for deductions (state what's missing).
 
-**BLOCKING GATE:** Present report. Offer:
-(a) go deeper into a specific area
-(b) check a boundary I didn't cross
-(c) switch to diagnose mode (found a bug)
-(d) close
+**BLOCKING GATE:** Present the report, then pause so the human can go deeper into a specific area, check a boundary you did not cross, switch to Diagnose mode if a bug emerged, or close.
 
 ---
 

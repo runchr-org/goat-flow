@@ -32,6 +32,37 @@ line-limits:
   target: 120
   limit: 150
 
+# ── Toolchain ─────────────────────────────────
+toolchain:
+  test:
+    - npm test
+  lint:
+    - bash scripts/preflight-checks.sh
+    - bash scripts/context-validate.sh
+    - shellcheck workflow/hooks/*.sh scripts/*.sh
+  build:
+    - npm run build
+    - npx tsc --noEmit
+  package:
+    - npm pack
+  format:
+    - npm run format
+
+# ── Ask First Boundaries ──────────────────────
+ask_first:
+  - path: .goat-flow/architecture.md
+    reason: Canonical architecture source; changes can alter repo-wide guidance.
+  - path: CLAUDE.md
+    reason: Shared Claude runtime instructions affect every Claude session.
+  - path: workflow/setup/**
+    reason: Setup templates change generated output across consumer projects.
+  - path: workflow/skills/**
+    reason: Skill templates are source of truth for installed copies.
+  - path: .github/workflows/**
+    reason: CI workflow changes can alter validation and release behavior.
+  - path: .claude/**
+    reason: Claude-specific runtime files are user-facing and should only change intentionally.
+
 # ── Committed Paths (.goat-flow/) ─────────────────
 lessons:
   path: .goat-flow/lessons/
@@ -46,6 +77,8 @@ footguns:
   path: .goat-flow/footguns/
 
 # ── Ephemeral Paths (.goat-flow/) ───────────────
+# Milestones, plans, and workspace-local task artifacts live here.
+# Do NOT recreate todo.md or handoff.md.
 tasks:
   path: .goat-flow/tasks/
 

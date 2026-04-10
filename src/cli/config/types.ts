@@ -2,6 +2,19 @@
  * Shared type contracts for the goat-flow config file.
  * These interfaces describe the normalized shape used after YAML parsing and validation.
  */
+export interface GoatFlowToolchain {
+  test: string[];
+  lint: string[];
+  build: string[];
+  package: string[];
+  format: string[];
+}
+
+export interface GoatFlowAskFirstBoundary {
+  path: string;
+  reason: string;
+}
+
 /** Normalized config shape after parsing and validating .goat-flow/config.yaml. */
 export interface GoatFlowConfig {
   version: string;
@@ -17,6 +30,10 @@ export interface GoatFlowConfig {
   skills: { install: string[] | "all" };
   /** Instruction-file line limits: target for setup, hard limit for CI gate */
   lineLimits: { target: number; limit: number };
+  /** Project commands grouped by purpose so agents stop guessing tool names */
+  toolchain: GoatFlowToolchain;
+  /** Structured high-risk boundaries mirrored from the instruction file */
+  askFirst: GoatFlowAskFirstBoundary[];
   /** User role that controls read-only vs read-write mode */
   userRole: "developer" | "investigator" | "tester";
   /** Opt-in skill usage telemetry (logs invocations to .goat-flow/logs/skill-usage.jsonl) */

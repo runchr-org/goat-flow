@@ -19,18 +19,18 @@ export const localContextChecks: CheckDef[] = [
           name: "Instructions directory exists",
           tier: "standard",
           category: "Local Instructions",
-          status: dirExists ? "pass" : "fail",
+          status: dirExists ? "pass" : "na",
           points: dirExists ? 1 : 0,
-          maxPoints: 1,
+          maxPoints: dirExists ? 1 : 0,
           confidence: "high",
           message: dirExists
             ? `Found at ${location === "ai" ? ".goat-flow/coding-standards/" : ".github/instructions/"}`
-            : "No .goat-flow/coding-standards/ or .github/instructions/ directory",
+            : "No local instructions directory - optional later optimisation",
         };
       },
     },
     recommendation:
-      "Without a coding-standards directory, agents apply their own conventions -- inconsistent naming, different error handling patterns, varying import styles. A shared coding-standards directory gives agents project-specific rules so every session produces code that matches your team's standards.",
+      "Optional later optimisation: add a canonical local-instructions surface if you need project-specific coding rules beyond the hot-path instruction file.",
     recommendationKey: "create-instructions-dir",
   },
   {
@@ -66,7 +66,7 @@ export const localContextChecks: CheckDef[] = [
       },
     },
     recommendation:
-      "Duplicate instruction surfaces (.goat-flow/coding-standards/ and .github/instructions/) will inevitably drift out of sync, giving agents contradictory rules depending on which one they read. Keep one canonical surface and remove the duplicate so there's a single source of truth.",
+      "Duplicate instruction surfaces (.goat-flow/coding-standards/ and .github/instructions/) will inevitably drift out of sync, giving agents contradictory rules depending on which one they read. Keep one canonical surface so there's a single source of truth.",
     recommendationKey: "fix-duplicate-instruction-surfaces",
   },
   // 2.6.2 (.goat-flow/README.md router exists) removed - ceremony. Agents navigate via the instruction file router table.
@@ -89,11 +89,11 @@ export const localContextChecks: CheckDef[] = [
             name: "conventions.md exists",
             tier: "standard",
             category: "Local Instructions",
-            status: "fail",
+            status: "na",
             points: 0,
-            maxPoints: 1,
+            maxPoints: 0,
             confidence: "high",
-            message: "No instructions directory",
+            message: "No local instructions directory",
           };
         }
         return {

@@ -118,7 +118,7 @@ Common chains:
     phase: "standard",
     category: "Skills",
     kind: "fix",
-    instruction: `Skills should offer structured choices at phase transitions instead of binary yes/no gates. Replace:
+    instruction: `Skills should offer steering choices at phase transitions instead of binary yes/no gates. Prefer quick/full depth choices or plain-language next-step options over lettered menus. Replace:
 
 \`\`\`
 "Does this look right?" → proceed
@@ -127,11 +127,9 @@ Common chains:
 With:
 
 \`\`\`
-"Want me to:
-  (a) [drill deeper on specific area]
-  (b) [check related concern]
-  (c) [shift focus]
-  (d) [proceed to next phase]"
+"Reviewing X — do you want a quick review, or the full review with audit depth?"
+
+"I found the issue. I can drill deeper, check a related concern, or stop here."
 \`\`\`
 
 The human drives direction, not just pace.`,
@@ -571,7 +569,7 @@ Session logs capture what happened in a session so the next agent can pick up co
     category: "Local Instructions",
     kind: "fix",
     instruction:
-      "Keep one canonical local-instructions surface. Prefer `.goat-flow/coding-standards/` for goat-flow-managed docs, migrate any useful files from `.github/instructions/`, then delete the duplicate directory so agents do not have to choose between two competing instruction trees.",
+      "Keep one canonical local-instructions surface. If `.github/instructions/` is already established, keep it canonical. If `.goat-flow/coding-standards/` is the canonical source, bridge from it. Do not keep both as competing instruction trees.",
   },
   // === Router Table ===
   {
@@ -590,7 +588,6 @@ Session logs capture what happened in a session so the next agent can pick up co
 | Footguns | \\\`.goat-flow/footguns/\\\` |
 | Lessons | \\\`.goat-flow/lessons/\\\` |
 | Decisions | \\\`.goat-flow/decisions/\\\` |
-| Coding standards | \\\`.goat-flow/coding-standards/\\\` |
 | Config | \\\`.goat-flow/config.yaml\\\` |
 | Local workspace | \\\`.goat-flow/tasks/\\\`, \\\`.goat-flow/logs/\\\` |
 \`\`\`

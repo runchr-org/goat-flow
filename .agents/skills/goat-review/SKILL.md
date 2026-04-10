@@ -30,19 +30,26 @@ Also use for improving readability, naming, and code clarity - see Simplify Mode
 - Understanding unfamiliar code before changing it → /goat-debug (investigate mode)
 - Generating test instructions → /goat-test
 
-## Step 0 - Gather Context
+## Step 0 - Choose Depth and Lock Scope
 
-**Structural questions (always ask or confirm):**
-1. Which files or area? (or I'll run `git diff` to find recent changes)
-2. What's the concern? (performance, security, correctness, readability - or "general review")
-3. Diff review or full audit? (I'll auto-detect from whether changes exist)
+Start with the depth choice, not a checklist.
 
-**Illustrative questions (adapt):**
-4. Is this responding to external feedback? (another agent, team review, etc.)
-5. Riskiest change first, or full sweep?
-6. Are there requirements for this work? (file path, pasted issue/ticket content, or skip)
+Default opener:
+> "Reviewing [X] — do you want a quick review, or the full review with audit depth, footgun matching, and DoD cross-checks?"
 
-**Escape hatch:** If the user says "just review what changed" or provides minimal info, auto-detect scope from `git diff --stat` and proceed.
+**Adaptive Step 0:**
+- If the user already says "quick", "full", "audit", "instruction review", or "simplify", confirm and continue.
+- If the request is vague, ask one natural follow-up that covers which files or area, what specifically concerns them, and whether this is a diff review, full audit, instruction review, or readability cleanup.
+- If the user says "just review what changed" or provides minimal info, auto-detect scope from `git diff --stat` and continue with confirmation.
+
+**Quick review path:**
+- Gather the scope, concern, and review type in one short exchange.
+- Read the diff or named files, present findings inline, and keep moving unless the user interrupts.
+- Use the same severity ordering and footgun matching, just without extra gating.
+
+**Full review path:**
+- Confirm scope, concern, review mode, and any requirements.
+- Run the complete workflow for Standard, Audit, Instruction Review, or Simplify mode.
 
 **Auto-detect mode (unless user explicitly specifies):**
 
@@ -60,7 +67,7 @@ review standards alongside these defaults.
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
-**Before proceeding:** present what you know and what you still need. Wait for the user to confirm scope, mode, and concerns before entering Phase 1.
+**Before proceeding:** present what you know (scope, concern, selected depth, selected mode) and what you still need. For the full path, wait for confirmation before Phase 1. For the quick path, confirm and continue unless the user stops you.
 
 ## Phase 1 - Scope Confirmation
 
@@ -110,11 +117,7 @@ Use the Output Format template below. Additional required sections for reviews:
 **What's Good:**
 - Specific positive observations (not generic praise)
 
-**BLOCKING GATE:** Present findings. Offer:
-(a) drill into a specific finding
-(b) review a related area
-(c) check test coverage
-(d) something else
+**BLOCKING GATE:** Present findings, then pause for the human to drill into a specific finding, review a related area, check test coverage, or redirect the review.
 
 ## Phase 4 - DoD Gate Check
 
@@ -186,11 +189,7 @@ in a separate section - don't bury them, but don't let them dilute the audit.
 **Anti-fix discipline:** Audit findings report problems - they don't propose fixes.
 Review your output for fix language. Rephrase any recommendations as findings.
 
-**BLOCKING GATE:** Present findings using the Output Format template below. Offer:
-(a) drill into a specific finding
-(b) expand to a related area
-(c) check a specific category more deeply
-(d) close the audit
+**BLOCKING GATE:** Present findings using the Output Format template below, then pause so the human can drill into a specific finding, expand to a related area, check a category more deeply, or close the audit.
 
 ## Instruction Review Mode
 
@@ -254,7 +253,7 @@ Scan by impact:
 ### Phase S3 - Self-Check & Present
 Re-read each `file:line`. Is the suggested rename safe? Remove findings where evidence doesn't hold.
 
-Present ordered by impact. **BLOCKING GATE:** (a) implement all, (b) implement selectively, (c) drill in, (d) close
+Present ordered by impact. **BLOCKING GATE:** Pause for the human to choose whether to implement all findings, implement selectively, drill into one, or close.
 
 ### Phase S4 - Implement (if approved)
 Apply one file at a time. After each:

@@ -1,5 +1,7 @@
 ## ADR-026: userRole is local-only config, not committed
 
+**Supersession note (M13):** The old gitignored local config file was removed in M13. `config.yaml` is now the only machine-readable config file, and non-schema personal preferences moved to `.goat-flow/personal-preferences.md` (gitignored).
+
 **Status:** accepted
 **Created:** 2026-04-05
 
@@ -12,7 +14,7 @@ This broke CI because `userRole` was intentionally removed from the committed co
 ### Decision
 
 - `userRole` is optional in `config.yaml`. When absent, the config reader defaults to `'developer'`.
-- `userRole` belongs in `.goat-flow/config.local.yaml` (gitignored), not in the committed `config.yaml`.
+- Prior to M13, `userRole` was intended to live in a gitignored local config file. That file no longer exists.
 - Contract tests verify that the config reader supports `userRole` and defaults correctly - they do NOT assert that the project config file contains the field.
 
 ### Consequences
@@ -20,3 +22,4 @@ This broke CI because `userRole` was intentionally removed from the committed co
 - Users set `userRole` locally without affecting the team's committed config.
 - The config reader (`src/cli/config/reader.ts`) owns the default, not the config file.
 - Tests that check config shape must distinguish between "reader supports X" and "project file contains X".
+- Local personal preferences now belong in `.goat-flow/personal-preferences.md`, not in a second config file.

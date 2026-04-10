@@ -9,12 +9,12 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | Setup prompts | `workflow/setup/` | Agent-specific setup instructions, upgrade guides, project-structure.json |
-| Setup steps | `workflow/setup/01-*.md` | Numbered setup steps (system-overview, execution-loop, skills, coding-standards) |
+| Setup steps | `workflow/setup/0*.md` | Six numbered setup steps (system overview, instruction file, skills, architecture + code map, customise, final verification) |
 | Skill templates | `workflow/skills/` | Reference prompts for the 6 goat-flow skill templates |
 | Hook scripts | `workflow/hooks/` | Copyable hook scripts (deny-dangerous.sh, stop-lint.sh) + per-agent config templates |
 | Playbook templates | `workflow/playbooks/` | Planning (feature brief, SBAO) and testing methodology |
 | Evaluation templates | `workflow/evaluation/` | Footguns/lessons templates |
-| Coding standards | `workflow/coding-standards/` | Best-practice templates for backend, frontend, security, testing |
+| Reference library | `workflow/reference/security/` | Security reference material used later for project-specific guidance |
 | Docs | `docs/` | CLI usage, dashboard guide |
 | CLI scanner | `src/cli/` | 112 scanner checks + 19 anti-patterns (19 hidden), fragment-based prompts, multi-agent scoring |
 | Dashboard | `src/cli/server/dashboard.ts` (server), `src/dashboard/` (HTML + views) | HTML dashboard with views for home, scanner, settings, wizard, workspace |
@@ -25,8 +25,8 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 ```
 User runs `npx goat-flow setup .` or reads workflow/setup/
   -> Chooses agent (agents/claude.md, agents/codex.md, agents/gemini.md, or agents/copilot.md)
-  -> Follows numbered setup steps (01-11) via their agent config
-  -> Agent reads workflow/setup/ (01-system-overview.md, execution-loop.md)
+  -> Follows numbered setup steps (01-06) via their agent config
+  -> Agent reads workflow/setup/ (01-system-overview.md, 02-instruction-file.md, execution-loop.md)
   -> Agent generates project-specific files (CLAUDE.md, hooks, skills, etc.)
 ```
 
@@ -64,7 +64,7 @@ src/dashboard/
 
 ## Hot Path / Cold Path
 
-Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- loaded every turn, under 120 lines. `.goat-flow/coding-standards/` is the cold path -- domain-specific coding guidelines loaded on demand via the instruction file's Router Table.
+Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- loaded every turn, under 120 lines. Optional local instruction files such as `.goat-flow/coding-standards/` are cold path -- loaded later on demand when a project chooses to add them.
 
 ## Deliberate Trade-offs
 

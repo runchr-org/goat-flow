@@ -41,7 +41,11 @@ describe("Journey: scan-broken-project", () => {
     const guide = renderGuide(fixture.report);
     assert.ok(guide.length > 0, "Guide output should not be empty");
     // With 2.2.3 removed, only AP6 triggers. Guide focuses on checks, not anti-patterns.
-    assert.match(guide, /checks pass|items to fix/i, "Guide should report status");
+    assert.match(
+      guide,
+      /checks pass|items to fix/i,
+      "Guide should report status",
+    );
   });
 
   it("stale-refs fixture produces output mentioning stale references", () => {

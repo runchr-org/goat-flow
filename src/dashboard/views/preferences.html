@@ -1,0 +1,159 @@
+<!-- ═══ Preferences View ═══ -->
+<div
+  x-show="activeView === 'preferences'"
+  x-cloak
+  x-effect="if (activeView === 'preferences' && preferencesLoadedForPath !== projectPath && !preferencesLoading) loadPreferences()"
+  style="height: calc(100vh - 5rem); overflow-y: auto"
+>
+  <div style="max-width: 900px; margin: 0 auto; padding: 18px 28px 28px">
+    <div style="display: flex; align-items: flex-start; gap: 16px">
+      <div style="flex: 1; min-width: 0">
+        <div class="gf-text-primary" style="font-size: 22px; font-weight: 600">
+          Personal Preferences
+        </div>
+        <p
+          style="
+            margin-top: 6px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--gf-text-secondary);
+            max-width: 720px;
+          "
+        >
+          This writes <code>.goat-flow/personal-preferences.md</code> for the
+          current project. It is local-only and gitignored, so you can tune
+          tone, planning depth, and review style without changing the shared
+          repo.
+        </p>
+      </div>
+      <div style="display: flex; gap: 8px; flex-shrink: 0">
+        <button
+          @click="loadPreferences()"
+          class="gf-action-btn"
+          style="padding: 8px 12px"
+          :disabled="preferencesLoading || preferencesSaving"
+        >
+          Reload
+        </button>
+        <button
+          @click="savePreferences()"
+          class="gf-action-btn"
+          style="padding: 8px 12px; border-color: #166534"
+          :disabled="preferencesLoading || preferencesSaving"
+        >
+          <span x-show="!preferencesSaving">Save</span>
+          <span x-show="preferencesSaving" x-cloak>Saving...</span>
+        </button>
+      </div>
+    </div>
+
+    <div
+      class="gf-banner-row gf-banner-pass"
+      style="margin-top: 18px; align-items: center"
+    >
+      <div class="gf-banner-icon" style="width: 28px; height: 28px">i</div>
+      <div style="flex: 1; min-width: 0">
+        <div class="gf-banner-title" style="font-size: 14px">
+          Guided local memory
+        </div>
+        <div class="gf-banner-sub" style="font-size: 12px; margin-top: 2px">
+          <span
+            x-text="preferencesExists ? 'Existing preferences loaded from disk.' : 'No preferences file yet — saving will create one.'"
+          ></span>
+          Agents that follow the M13 conventions will read this file before they
+          start work.
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; gap: 16px; margin-top: 18px">
+      <label style="display: block">
+        <div class="gf-text-primary" style="font-size: 14px; font-weight: 600">
+          Coding Style
+        </div>
+        <textarea
+          x-model="preferencesForm.codingStyle"
+          rows="5"
+          placeholder="Prefer early returns, small functions, minimal comments, explicit naming..."
+          style="
+            width: 100%;
+            margin-top: 8px;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--gf-border);
+            background: var(--gf-surface-2);
+            color: var(--gf-text-primary);
+            font: inherit;
+            resize: vertical;
+          "
+        ></textarea>
+      </label>
+
+      <label style="display: block">
+        <div class="gf-text-primary" style="font-size: 14px; font-weight: 600">
+          Review Preferences
+        </div>
+        <textarea
+          x-model="preferencesForm.reviewPreferences"
+          rows="5"
+          placeholder="Focus on correctness first, terse findings, include file references, skip praise..."
+          style="
+            width: 100%;
+            margin-top: 8px;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--gf-border);
+            background: var(--gf-surface-2);
+            color: var(--gf-text-primary);
+            font: inherit;
+            resize: vertical;
+          "
+        ></textarea>
+      </label>
+
+      <label style="display: block">
+        <div class="gf-text-primary" style="font-size: 14px; font-weight: 600">
+          Planning Depth
+        </div>
+        <textarea
+          x-model="preferencesForm.planningDepth"
+          rows="4"
+          placeholder="Always run SBAO for features, prefer milestone files for cross-file work, skip Mob for tiny edits..."
+          style="
+            width: 100%;
+            margin-top: 8px;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--gf-border);
+            background: var(--gf-surface-2);
+            color: var(--gf-text-primary);
+            font: inherit;
+            resize: vertical;
+          "
+        ></textarea>
+      </label>
+
+      <label style="display: block">
+        <div class="gf-text-primary" style="font-size: 14px; font-weight: 600">
+          Communication
+        </div>
+        <textarea
+          x-model="preferencesForm.communication"
+          rows="4"
+          placeholder="Be concise, skip summary repetition, call out risks directly, no motivational filler..."
+          style="
+            width: 100%;
+            margin-top: 8px;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--gf-border);
+            background: var(--gf-surface-2);
+            color: var(--gf-text-primary);
+            font: inherit;
+            resize: vertical;
+          "
+        ></textarea>
+      </label>
+    </div>
+  </div>
+</div>

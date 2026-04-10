@@ -28,6 +28,8 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "agents",
   "skills",
   "line-limits",
+  "toolchain",
+  "ask_first",
   "userRole",
   "telemetry",
 ]);
@@ -44,6 +46,14 @@ export const CONFIG_DEFAULTS: GoatFlowConfig = {
   agents: null,
   skills: { install: "all" },
   lineLimits: { target: 120, limit: 150 },
+  toolchain: {
+    test: [],
+    lint: [],
+    build: [],
+    package: [],
+    format: [],
+  },
+  askFirst: [],
   userRole: "developer",
   telemetry: false,
 };
@@ -61,6 +71,14 @@ function cloneDefaults(): GoatFlowConfig {
     agents: CONFIG_DEFAULTS.agents,
     skills: { install: CONFIG_DEFAULTS.skills.install },
     lineLimits: { ...CONFIG_DEFAULTS.lineLimits },
+    toolchain: {
+      test: [...CONFIG_DEFAULTS.toolchain.test],
+      lint: [...CONFIG_DEFAULTS.toolchain.lint],
+      build: [...CONFIG_DEFAULTS.toolchain.build],
+      package: [...CONFIG_DEFAULTS.toolchain.package],
+      format: [...CONFIG_DEFAULTS.toolchain.format],
+    },
+    askFirst: CONFIG_DEFAULTS.askFirst.map((entry) => ({ ...entry })),
     userRole: CONFIG_DEFAULTS.userRole,
     telemetry: CONFIG_DEFAULTS.telemetry,
   };
@@ -113,6 +131,39 @@ function mergeSkills(value: unknown, merged: GoatFlowConfig): void {
   }
 }
 
+/** Normalize one raw command list into a filtered string array. */
+function normalizeCommandList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is string =>
+      typeof item === "string" && item.trim().length > 0,
+  );
+}
+
+/** Apply toolchain command arrays from the raw config. */
+function mergeToolchain(value: unknown, merged: GoatFlowConfig): void {
+  if (!isRecord(value)) return;
+  merged.toolchain.test = normalizeCommandList(value.test);
+  merged.toolchain.lint = normalizeCommandList(value.lint);
+  merged.toolchain.build = normalizeCommandList(value.build);
+  merged.toolchain.package = normalizeCommandList(value.package);
+  merged.toolchain.format = normalizeCommandList(value.format);
+}
+
+/** Apply ask_first path/reason entries from the raw config. */
+function mergeAskFirst(value: unknown, merged: GoatFlowConfig): void {
+  if (!Array.isArray(value)) return;
+  merged.askFirst = value
+    .filter(isRecord)
+    .map((entry) => ({
+      path: typeof entry.path === "string" ? entry.path : "",
+      reason: typeof entry.reason === "string" ? entry.reason : "",
+    }))
+    .filter(
+      (entry) => entry.path.trim().length > 0 && entry.reason.trim().length > 0,
+    );
+}
+
 /** Valid userRole values accepted in the config file. */
 const KNOWN_USER_ROLES = new Set(["developer", "investigator", "tester"]);
 
@@ -150,6 +201,8 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
 
   // YAML key is `line-limits` (kebab-case), TypeScript field is `lineLimits` (camelCase)
   mergeLineLimits(raw["line-limits"], merged);
+  mergeToolchain(raw.toolchain, merged);
+  mergeAskFirst(raw.ask_first, merged);
   mergeUserRole(raw.userRole, merged);
   if (typeof raw.telemetry === "boolean") merged.telemetry = raw.telemetry;
 
@@ -262,6 +315,23 @@ function validatePositiveNumber(
   }
 }
 
+/** Require a string array for command-list config fields. */
+function validateStringArray(
+  value: unknown,
+  path: string,
+  errors: ValidationIssue[],
+): void {
+  if (!Array.isArray(value)) {
+    pushError(errors, path, "must be an array");
+    return;
+  }
+  for (const [index, item] of value.entries()) {
+    if (typeof item !== "string" || item.trim().length === 0) {
+      pushError(errors, `${path}[${index}]`, "must be a non-empty string");
+    }
+  }
+}
+
 /** Validate version field. */
 function validateVersionField(
   raw: RawConfig,
@@ -346,6 +416,64 @@ function validateLogsField(
   errors: ValidationIssue[],
 ): void {
   validateSinglePathSection(raw, "logs", errors);
+}
+
+/** Validate the toolchain command arrays. */
+function validateToolchainField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  validateObjectField(raw, "toolchain", errors, (value) => {
+    if ("test" in value)
+      validateStringArray(value.test, "toolchain.test", errors);
+    if ("lint" in value)
+      validateStringArray(value.lint, "toolchain.lint", errors);
+    if ("build" in value)
+      validateStringArray(value.build, "toolchain.build", errors);
+    if ("package" in value)
+      validateStringArray(value.package, "toolchain.package", errors);
+    if ("format" in value)
+      validateStringArray(value.format, "toolchain.format", errors);
+  });
+}
+
+/** Validate the structured ask_first boundaries. */
+function validateAskFirstField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  if (!("ask_first" in raw)) return;
+  const value = raw.ask_first;
+  if (!Array.isArray(value)) {
+    pushError(errors, "ask_first", "must be an array");
+    return;
+  }
+  for (const [index, entry] of value.entries()) {
+    if (!isRecord(entry)) {
+      pushError(errors, `ask_first[${index}]`, "must be an object");
+      continue;
+    }
+    if (!("path" in entry)) {
+      pushError(
+        errors,
+        `ask_first[${index}].path`,
+        "must be a non-empty string",
+      );
+    } else {
+      validateStringPath(entry.path, `ask_first[${index}].path`, errors);
+    }
+    if (!("reason" in entry)) {
+      pushError(
+        errors,
+        `ask_first[${index}].reason`,
+        "must be a non-empty string",
+      );
+    } else {
+      validateStringPath(entry.reason, `ask_first[${index}].reason`, errors);
+    }
+  }
 }
 
 /** Validate an explicit list of enabled agents. */
@@ -456,6 +584,8 @@ const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateLogsField,
   validateAgentsField,
   validateSkillsField,
+  validateToolchainField,
+  validateAskFirstField,
   validateUserRoleField,
 ];
 

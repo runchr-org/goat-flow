@@ -7,7 +7,7 @@
     ".goat-flow/skill-conventions.md",
     ".goat-flow/architecture.md",
     ".goat-flow/glossary.md",
-    ".goat-flow/coding-standards/conventions.md",
+    ".goat-flow/patterns.md",
     ".goat-flow/decisions/ADR-000-template.md"
   ],
 
@@ -19,19 +19,23 @@
     ".goat-flow/logs/sessions/"
   ],
 
-  "optional_files": {
-    "_note": "Create only for gaps not already covered by existing project files (.github/instructions/, docs/, etc.). Lookup order: (1) check if the project already has equivalent content, (2) if yes, reference it from .goat-flow/coding-standards/conventions.md as a pointer, (3) if no existing content, create using templates from workflow/coding-standards/ adapted to the project stack.",
-    ".goat-flow/coding-standards/backend.md": "workflow/coding-standards/backend/",
-    ".goat-flow/coding-standards/frontend.md": "workflow/coding-standards/frontend/",
-    ".goat-flow/coding-standards/security.md": "workflow/coding-standards/security.md",
-    ".goat-flow/coding-standards/testing.md": "workflow/coding-standards/testing.md"
+  "directory_purposes": {
+    ".goat-flow/tasks/": "Milestone files, plans, and workspace-local task artifacts. Do not recreate the legacy todo or handoff scratch files."
   },
 
-  "never_create": [
-    ".goat-flow/tasks/handoff-template.md",
-    ".goat-flow/tasks/todo.md",
-    ".goat-flow/tasks/handoff.md"
-  ],
+  "optional_files": {
+    "_note": "Optional local instructions are a later optimisation pass, not base setup. Prefer existing project docs first; otherwise derive these files from observed codebase patterns rather than generic templates.",
+    ".goat-flow/personal-preferences.md": "Optional gitignored local preferences for coding style, review tone, planning depth, and communication.",
+    ".goat-flow/code-map.md": "Optional quick-reference tree for repo navigation.",
+    ".goat-flow/README.md": "Optional router for local instruction files if the project later adds them.",
+    ".goat-flow/coding-standards/conventions.md": "Optional universal project contract added after setup.",
+    ".goat-flow/coding-standards/backend.md": "Optional backend-specific conventions added after setup.",
+    ".goat-flow/coding-standards/frontend.md": "Optional frontend-specific conventions added after setup.",
+    ".goat-flow/coding-standards/security.md": "Optional project-local security rules added after setup.",
+    ".goat-flow/coding-standards/testing.md": "Optional project-local testing rules added after setup."
+  },
+
+  "never_create": [],
 
   "skills": {
     "canonical": ["goat", "goat-debug", "goat-plan", "goat-review", "goat-security", "goat-test"],
@@ -45,7 +49,7 @@
       "skills_dir": ".claude/skills/",
       "hooks_dir": ".claude/hooks/",
       "settings": ".claude/settings.json",
-      "hooks": ["deny-dangerous.sh", "stop-lint.sh"]
+      "hooks": ["deny-dangerous.sh"]
     },
     "codex": {
       "instruction_file": "AGENTS.md",
@@ -73,10 +77,23 @@
       "Execution Loop",
       "Autonomy Tiers",
       "Definition of Done",
-      "Working Memory",
       "Router Table"
     ],
     "version_header_pattern": "# {FILE} - v{VERSION} ({DATE})"
+  },
+
+  "config_schema": {
+    "toolchain": {
+      "description": "Detected project commands grouped by purpose. Each field is an array of shell commands.",
+      "fields": ["build", "test", "lint", "format", "package"]
+    },
+    "ask_first": {
+      "description": "Structured high-risk boundaries for dispatcher and setup context.",
+      "entry_shape": {
+        "path": "repo path or glob",
+        "reason": "why human confirmation is required"
+      }
+    }
   },
 
   "legacy_surfaces": {
@@ -94,10 +111,7 @@
         "docs/architecture.md",
         "docs/decisions/",
         "docs/guidelines-ownership-split.md",
-        "agent-evals/",
-        "tasks/handoff-template.md",
-        "tasks/handoff.md",
-        "tasks/todo.md"
+        "agent-evals/"
       ]
     }
   }

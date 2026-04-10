@@ -28,19 +28,25 @@ handling, when touching secrets/credentials, or for a security-focused audit.
 - Diagnosing a specific vulnerability → /goat-debug
 - Understanding code before securing it → /goat-debug (investigate mode)
 
-## Step 0 - Gather Context
+## Step 0 - Choose Depth and Frame the Assessment
 
-**Structural questions (always ask or confirm):**
-1. Which component or area? (or I'll scan the full project)
-2. What's the deployment context? (user-facing web app, internal tool, CLI, library, API)
-3. Any specific threat concern? (injection, auth bypass, data exposure - or "general audit")
+Start with the depth choice, not a checklist.
 
-**Illustrative questions (adapt):**
-4. What auth boundaries exist? (OAuth, JWT, session, API key, none)
-5. Any known vulnerabilities to skip? (already tracked, being fixed separately)
-6. What framework are you using? (I'll check its built-in security features in Phase 2)
+Default opener:
+> "Assessing [X] — do you want a quick scan, or the full assessment with threat model, framework verification, confidence classification, and dependency audit?"
 
-**Escape hatch:** If the user says "just scan everything" or provides minimal info, auto-detect framework from package files and run a broad threat surface scan.
+**Adaptive Step 0:**
+- If the user already says "quick", "full", "compliance", or names a specific threat concern, confirm and continue.
+- If the request is vague, ask one natural follow-up that covers the component, threat model or concern, deployment context, and framework.
+- If the user says "just scan everything" or provides minimal info, auto-detect the framework from package files and run a broad threat surface scan with confirmation.
+
+**Quick scan path:**
+- Gather the component, deployment context, threat concern, and framework in one short exchange.
+- Run the threat surface scan, call out the highest-risk findings, and keep moving unless the user interrupts.
+
+**Full assessment path:**
+- Confirm the component, threat model, auth boundaries, framework, and any known issues to skip.
+- Run the complete workflow: threat surface scan → framework verification → confidence classification → exploitability ranking → self-check.
 
 **Auto-detect:** Read package.json/composer.json/go.mod to identify framework.
 Present: "This is a [framework] project. I'll check [framework]'s built-in
@@ -48,7 +54,7 @@ security features during verification."
 
 **Footgun check:** If `.goat-flow/footguns/` exists, read entries mentioning the target area. If a match is found, present it: "This area has a known issue: [footgun]. Relevant?"
 
-**Before proceeding:** present what you know (threat model, framework, auth boundaries) and what you still need. Wait for the user to confirm before entering Phase 1.
+**Before proceeding:** present what you know (component, threat model, framework, selected depth, auth boundaries) and what you still need. For the full path, wait for the user to confirm before Phase 1. For the quick path, confirm and continue unless the user stops you.
 
 ## Phase 1 - Threat Surface Scan
 
@@ -102,17 +108,13 @@ framing catches more false positives than "check if it's handled."
 | Spring | Security filter chain | Auth bypass | Check `SecurityFilterChain` covers the route |
 
 **Verification protocol:**
-For each finding: Is the mitigation (a) installed, (b) configured, (c) applied
+For each finding: is the mitigation installed, configured, and applied
 to the specific route/endpoint? Flag partial mitigation: "helmet() is installed
 but `contentSecurityPolicy` is disabled."
 
 Remove confirmed false positives. Flag partial mitigations as findings.
 
-**BLOCKING GATE:** Present verified findings. Offer:
-(a) verify a specific finding against the framework
-(b) check a different attack surface
-(c) test an edge case
-(d) proceed to ranking
+**BLOCKING GATE:** Present verified findings, then pause so the human can verify a specific finding against the framework, check a different attack surface, test an edge case, or proceed to ranking.
 
 ## Phase 2.5 - Confidence Classification
 
@@ -199,11 +201,7 @@ Present compliance gaps ordered by risk:
 - **Partially compliant:** Implementation exists but is incomplete or misconfigured.
 - **Not assessed:** Requires access/context the agent doesn't have (e.g., infrastructure config, vendor agreements).
 
-**BLOCKING GATE:** Present compliance report. Offer:
-(a) drill into a specific finding
-(b) check a different regulation
-(c) proceed to exploitability ranking (Phase 3) for technical findings
-(d) close
+**BLOCKING GATE:** Present the compliance report, then pause so the human can drill into a specific finding, check a different regulation, proceed to exploitability ranking for technical findings, or close.
 
 ---
 

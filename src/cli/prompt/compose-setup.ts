@@ -636,7 +636,7 @@ function defaultAdaptGuidance(
   if (output.includes("/skills/"))
     return `Replace template Step 0 questions and examples with ${languages} patterns from this project`;
   if (output === ".goat-flow/config.yaml")
-    return "Use the default directory paths unless this project already needs explicit overrides.";
+    return "Use the default directory paths unless this project already needs explicit overrides. Populate `toolchain` from real commands and `ask_first` from the instruction file's actual boundaries.";
   if (output === ".goat-flow/footguns/")
     return "Seed `.goat-flow/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals. For EVERY cited file:line: read the actual code and verify the claim - does the method exist? Does the exception type match? Does the risk description match actual behavior? Flag any footgun where cited behavior does not match the code as UNVERIFIED";
   if (output === ".goat-flow/lessons/")
@@ -655,7 +655,7 @@ function defaultVerify(output: string): string {
   if (output.includes("/skills/"))
     return "File has: When to Use, Process with human gates, Constraints, Output Format, Chaining sections";
   if (output === ".goat-flow/config.yaml")
-    return "File exists, parses as YAML, and includes version plus footguns/lessons/decisions/tasks/logs/agents/skills settings";
+    return "File exists, parses as YAML, and includes version plus footguns/lessons/decisions/tasks/logs/agents/skills/toolchain/ask_first settings";
   if (output === ".goat-flow/footguns/")
     return "Directory exists with README.md plus 1+ category bucket files using `category:` frontmatter and `path:line` evidence inside `## Footgun:` entries";
   if (output === ".goat-flow/lessons/")
@@ -824,7 +824,7 @@ function renderMultiAgentSharedSection(
 
 /**
  * Compose a deduplicated setup for multiple agents.
- * Shared files (docs, skills, coding-standards, CI) appear once.
+ * Shared files (docs, skills, shared setup files, CI) appear once.
  * Per-agent files (instruction file, settings, hooks) appear in agent sections.
  */
 export function composeMultiAgentSetup(
@@ -932,10 +932,10 @@ function renderSetupRedirect(
     lines.push("Read and implement `workflow/setup/upgrade-from-1.0.x.md`.");
     lines.push("");
     lines.push(
-      "Key changes: install `.goat-flow/skill-conventions.md`, update skills to use 7-line fallback,",
+      "Key changes: install `.goat-flow/skill-conventions.md`, refresh skills and dispatcher from current templates,",
     );
     lines.push(
-      "remove handoff-template.md/todo.md/handoff.md, update instruction file Working Memory section.",
+      "remove handoff-template.md/todo.md/handoff.md, and collapse setup to the 6-step flow.",
     );
     lines.push("");
     lines.push(`**Stack:** ${languages}`);
@@ -1110,10 +1110,7 @@ function renderSetupRedirect(
     );
     lines.push("");
     lines.push(
-      "**Instruction files:** Check if `.github/instructions/` exists before creating `.goat-flow/coding-standards/`.",
-    );
-    lines.push(
-      "  If both would exist: (a) migrate `.github/instructions/` content into `.goat-flow/coding-standards/`, (b) replace `.github/instructions/` files with one-line imports pointing to `.goat-flow/coding-standards/`, or (c) keep `.github/instructions/` as canonical and skip `.goat-flow/coding-standards/` creation. Do NOT create overlapping content in both locations.",
+      "**Local instructions:** If `.github/instructions/` already exists, leave it as the canonical local-instructions surface during base setup. `.goat-flow/coding-standards/` is now an optional later optimisation, not a required setup artifact.",
     );
     lines.push("");
     lines.push(
@@ -1148,7 +1145,7 @@ function renderSetupRedirect(
       "| Lessons | `docs/lessons.md` (flat file) | `.goat-flow/lessons/` (directory) |",
     );
     lines.push(
-      "| Coding standards | `ai/instructions/` or `.github/instructions/` | `.goat-flow/coding-standards/` with overlapping content |",
+      "| Local instructions | `.github/instructions/` | `.goat-flow/coding-standards/` with overlapping content |",
     );
     lines.push("");
     lines.push(
@@ -1156,7 +1153,7 @@ function renderSetupRedirect(
     );
     lines.push("");
     lines.push(
-      "Examples: If `.github/instructions/` exists with coding standards, do NOT create `.goat-flow/coding-standards/` with overlapping content — reference the existing files from `.goat-flow/README.md`. If `docs/footguns.md` exists, migrate its entries to `.goat-flow/footguns/` instead of creating a parallel surface.",
+      "Examples: If `.github/instructions/` exists, keep it canonical during base setup instead of creating overlapping `.goat-flow/coding-standards/`. If `docs/footguns.md` exists, migrate its entries to `.goat-flow/footguns/` instead of creating a parallel surface.",
     );
     lines.push("");
     lines.push(
@@ -1175,7 +1172,7 @@ function renderSetupRedirect(
       "   Footguns: only real traps from THIS codebase with `file:line` evidence.",
     );
     lines.push(
-      "   Conventions: real build/test/lint commands, real file naming patterns.",
+      "   Local instructions added later: derive them from real build/test/lint commands and codebase patterns.",
     );
     lines.push(
       '3. Do NOT copy templates verbatim. If a template says "[describe X]", describe X for THIS project.',
@@ -1213,17 +1210,23 @@ function renderSetupRedirect(
   );
   lines.push("");
   lines.push(
-    "- **01-system-overview.md** — Design intent, state check, route to 02 or 03",
-  );
-  lines.push("- **02 or 03** — Create or reorganise instruction file");
-  lines.push(
-    "- **04–08** — Execution loop, skills, coding guidelines, architecture, code map",
+    "- **01-system-overview.md** — Design intent, state check, session-log setup",
   );
   lines.push(
-    "- **09** — Customise to project (deep codebase read, real footguns/lessons)",
+    "- **02-instruction-file.md** — Create or update the instruction file",
   );
-  lines.push("- **10** — Polish (RFC 2119 pass, compression)");
-  lines.push("- **11** — Final verification (scanner 100%, build/test/lint)");
+  lines.push(
+    "- **03-install-skills.md** — Install the 6 verbatim skill templates",
+  );
+  lines.push(
+    "- **04-architecture-code-map.md** — Create architecture and code map docs",
+  );
+  lines.push(
+    "- **05-customise-to-project.md** — Deep codebase read, real footguns/lessons, auto-seeded git signals, and `toolchain` / `ask_first` config sync",
+  );
+  lines.push(
+    "- **06-final-verification.md** — Scanner 100%, stale-ref check, file manifest, command smoke test",
+  );
   lines.push("");
   lines.push(
     "Each step is self-contained with a verification gate. Complete one step before moving to the next.",
