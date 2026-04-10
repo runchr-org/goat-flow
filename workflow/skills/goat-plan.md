@@ -7,13 +7,13 @@ goat-flow-skill-version: "1.1.0"
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-conventions.md` for full shared conventions.
+Read `.goat-flow/skill-conventions.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-conventions-full.md`.
 If unavailable, use these essentials:
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- Evidence: every finding MUST include file:line, tag OBSERVED vs INFERRED
+- Evidence: every finding MUST include file or file:line, tag OBSERVED vs INFERRED
 - Learning loop: check .goat-flow/lessons/ and .goat-flow/footguns/ after completion
 - Gates: BLOCKING GATE = stop and wait. CHECKPOINT = continue unless interrupted.
-- Task tracking: tick checkboxes immediately when completed, not at the end.
 
 ## When to Use
 
@@ -77,6 +77,10 @@ Read `.goat-flow/playbooks/planning/milestone-planning.md` for milestone archety
 - MUST NOT fabricate file paths or function names
 - Refactor mode: MUST read both sides of every interface, grep old names after EVERY rename, change one layer at a time
 
+## Quick Output Format
+
+Brief + scope + go.
+
 ## Output Format
 
 ```markdown
@@ -92,9 +96,3 @@ Read `.goat-flow/playbooks/planning/milestone-planning.md` for milestone archety
 ## Success Criteria
 ## Open Questions
 ```
-
-## Chains With
-
-- /goat-debug — need to understand code before planning → investigate mode
-- /goat-test — milestones/refactor needs verification plan
-- /goat-review — plan or refactor result needs review before merge

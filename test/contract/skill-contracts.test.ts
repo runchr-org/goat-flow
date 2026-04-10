@@ -8,6 +8,10 @@ const CONVENTIONS_PATH = join(
   import.meta.dirname,
   "../../.goat-flow/skill-conventions.md",
 );
+const CONVENTIONS_FULL_PATH = join(
+  import.meta.dirname,
+  "../../.goat-flow/skill-conventions-full.md",
+);
 const SKILL_NAMES = [
   "goat-debug",
   "goat-plan",
@@ -21,6 +25,8 @@ function readSkill(name: string): string {
 }
 
 const conventions = readFileSync(CONVENTIONS_PATH, "utf-8");
+const conventionsFull = readFileSync(CONVENTIONS_FULL_PATH, "utf-8");
+const conventionsCombined = conventions + "\n" + conventionsFull;
 
 describe("Skill content contracts", () => {
   for (const name of SKILL_NAMES) {
@@ -168,39 +174,47 @@ describe("Skill content contracts", () => {
   }
 });
 
-describe("Shared skill-conventions.md content", () => {
-  it("has ceremony level section", () => {
+describe("Shared skill-conventions content (essential + full)", () => {
+  it("has ceremony level section in full reference", () => {
     assert.ok(
-      conventions.includes("Ceremony Level"),
-      "skill-conventions.md should have Ceremony Level section",
+      conventionsFull.includes("Ceremony Level"),
+      "skill-conventions-full.md should have Ceremony Level section",
     );
   });
 
-  it("has footgun fast-path", () => {
+  it("has footgun fast-path in full reference", () => {
     assert.ok(
-      conventions.includes("Footgun Fast-Path"),
-      "skill-conventions.md should have Footgun Fast-Path section",
+      conventionsFull.includes("Footgun Fast-Path"),
+      "skill-conventions-full.md should have Footgun Fast-Path section",
     );
   });
 
-  it("has learning loop reference", () => {
+  it("has learning loop reference in essential", () => {
     assert.ok(
       conventions.includes("Learning Loop"),
       "skill-conventions.md should have Learning Loop section",
     );
   });
 
-  it("has session log in closing", () => {
+  it("has session log in full reference closing", () => {
     assert.ok(
-      conventions.includes("logs/sessions"),
-      "skill-conventions.md should reference session logs in closing protocol",
+      conventionsCombined.includes("logs/sessions"),
+      "skill-conventions should reference session logs",
     );
   });
 
-  it("has category bucket format for lessons/footguns", () => {
+  it("has category bucket format for lessons/footguns in full reference", () => {
     assert.ok(
-      conventions.includes("## Lesson:") || conventions.includes("## Footgun:"),
-      "skill-conventions.md should have category bucket entry format examples",
+      conventionsFull.includes("## Lesson:") || conventionsFull.includes("## Footgun:"),
+      "skill-conventions-full.md should have category bucket entry format examples",
+    );
+  });
+
+  it("essential file is under 50 lines", () => {
+    const lineCount = conventions.split("\n").length;
+    assert.ok(
+      lineCount < 50,
+      `skill-conventions.md should be under 50 lines (essential only), got ${lineCount}`,
     );
   });
 });

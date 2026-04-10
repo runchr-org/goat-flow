@@ -311,52 +311,73 @@ describe("Session log path consistency in setup templates", () => {
 });
 
 // ---------------------------------------------------------------
-// 13. skill-conventions.md has required sections
+// 13. skill-conventions (essential + full) have required sections
 // ---------------------------------------------------------------
 describe("Shared preamble required sections", () => {
-  const preamblePath = join(
+  const essentialPath = join(
     WORKFLOW_SKILLS_DIR,
     "reference/skill-conventions.md",
   );
+  const fullPath = join(
+    WORKFLOW_SKILLS_DIR,
+    "reference/skill-conventions-full.md",
+  );
 
-  it("exists", () => {
+  it("essential file exists", () => {
     assert.ok(
-      existsSync(preamblePath),
+      existsSync(essentialPath),
       "workflow/skills/reference/skill-conventions.md should exist",
     );
   });
 
-  const content = readFileSync(preamblePath, "utf-8");
-
-  it("has Ceremony Level section", () => {
+  it("full reference file exists", () => {
     assert.ok(
-      content.includes("Ceremony Level"),
-      'skill-conventions.md should have a "Ceremony Level" section',
+      existsSync(fullPath),
+      "workflow/skills/reference/skill-conventions-full.md should exist",
     );
   });
 
-  it("has Footgun Fast-Path section", () => {
+  const essential = readFileSync(essentialPath, "utf-8");
+  const full = readFileSync(fullPath, "utf-8");
+
+  it("has Ceremony Level section in full reference", () => {
     assert.ok(
-      content.includes("Footgun Fast-Path"),
-      'skill-conventions.md should have a "Footgun Fast-Path" section',
+      full.includes("Ceremony Level"),
+      'skill-conventions-full.md should have a "Ceremony Level" section',
     );
   });
 
-  it("has Recovery section", () => {
+  it("has Footgun Fast-Path section in full reference", () => {
     assert.ok(
-      content.includes("## Recovery"),
-      'skill-conventions.md should have a "Recovery" section',
+      full.includes("Footgun Fast-Path"),
+      'skill-conventions-full.md should have a "Footgun Fast-Path" section',
     );
   });
 
-  it("has Session Log reference", () => {
+  it("has Recovery section in full reference", () => {
+    assert.ok(
+      full.includes("## Recovery"),
+      'skill-conventions-full.md should have a "Recovery" section',
+    );
+  });
+
+  it("has Session Log reference in full reference", () => {
+    const combined = essential + "\n" + full;
     const hasSessionLog =
-      content.includes("Session Log") ||
-      content.includes("session log") ||
-      content.includes("logs/sessions");
+      combined.includes("Session Log") ||
+      combined.includes("session log") ||
+      combined.includes("logs/sessions");
     assert.ok(
       hasSessionLog,
-      "skill-conventions.md should reference session logs (Session Log section or logs/sessions path)",
+      "skill-conventions should reference session logs",
+    );
+  });
+
+  it("essential file is under 50 lines", () => {
+    const lineCount = essential.split("\n").length;
+    assert.ok(
+      lineCount < 50,
+      `skill-conventions.md should be under 50 lines (essential only), got ${lineCount}`,
     );
   });
 });

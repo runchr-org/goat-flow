@@ -7,13 +7,13 @@ goat-flow-skill-version: "1.1.0"
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-conventions.md` for full shared conventions.
+Read `.goat-flow/skill-conventions.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-conventions-full.md`.
 If unavailable, use these essentials:
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- Evidence: every finding MUST include file:line, tag OBSERVED vs INFERRED
+- Evidence: every finding MUST include file or file:line, tag OBSERVED vs INFERRED
 - Learning loop: check .goat-flow/lessons/ and .goat-flow/footguns/ after completion
 - Gates: BLOCKING GATE = stop and wait. CHECKPOINT = continue unless interrupted.
-- Task tracking: tick checkboxes immediately when completed, not at the end.
 
 ## When to Use
 
@@ -86,6 +86,10 @@ Compliance checks are opt-in. Only activate when the user explicitly mentions HI
 - MUST show data flow path for CONFIRMED findings
 - MUST default to standard report (CONFIRMED only) unless user requests full
 
+## Quick Output Format
+
+TL;DR → top findings → framework mitigations.
+
 ## Output Format
 
 ```markdown
@@ -98,10 +102,3 @@ Compliance checks are opt-in. Only activate when the user explicitly mentions HI
 ## Framework Mitigations Verified - | Feature | Installed | Configured | Applied |
 ## What I Didn't Check
 ```
-
-## Chains With
-
-- /goat-review - security findings feed into change review
-- /goat-debug - specific vulnerability needs deeper diagnosis
-
-**Handoff shape:** `{threat_model, findings_by_exploitability, framework_mitigations, dependency_audit_results}`

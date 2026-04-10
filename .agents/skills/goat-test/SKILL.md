@@ -7,13 +7,13 @@ goat-flow-skill-version: "1.1.0"
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-conventions.md` for full shared conventions.
+Read `.goat-flow/skill-conventions.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-conventions-full.md`.
 If unavailable, use these essentials:
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- Evidence: every finding MUST include file:line, tag OBSERVED vs INFERRED
+- Evidence: every finding MUST include file or file:line, tag OBSERVED vs INFERRED
 - Learning loop: check .goat-flow/lessons/ and .goat-flow/footguns/ after completion
 - Gates: BLOCKING GATE = stop and wait. CHECKPOINT = continue unless interrupted.
-- Task tracking: tick checkboxes immediately when completed, not at the end.
 
 ## When to Use
 
@@ -74,6 +74,10 @@ Read `.goat-flow/playbooks/testing/testing-workflow.md` for the complete 3-phase
 - MUST note which tests use mocks and what they can't catch
 - MUST NOT fabricate file paths or function names
 
+## Quick Output Format
+
+Commands + gaps.
+
 ## Output Format
 
 ```markdown
@@ -87,11 +91,3 @@ Read `.goat-flow/playbooks/testing/testing-workflow.md` for the complete 3-phase
 ## What ISN'T Tested
 <!-- Explicit gaps -->
 ```
-
-## Chains With
-
-- /goat-debug - test reveals a failure, diagnosis needed
-- /goat-plan - test verifies milestone criteria
-- /goat-review - test results inform review decisions
-
-**Handoff shape:** `{change_manifest, test_commands, coverage_gaps}`

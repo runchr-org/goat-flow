@@ -21,13 +21,15 @@ Read the detailed templates in `workflow/skills/goat-*.md` before creating. Crea
 
 Each SKILL.md MUST include:
 - `goat-flow-skill-version:` in YAML frontmatter matching the current goat-flow version
-- Sections: When to Use, Step 0 / Gather Context, Process with phased steps, Constraints, Output Format, Chaining
+- Sections: When to Use, Step 0 / Gather Context, Process with phased steps, Constraints, Quick Output Format, Output Format
 
 **IMPORTANT: Install skills VERBATIM from the templates. Do NOT adapt, compress, rewrite, or remove any sections.** Skills are the same for every project — project-specific context comes from the instruction file, `.goat-flow/footguns/`, `.goat-flow/lessons/`, and any optional local instruction files the project already has. Cutting or rewriting skill content causes more damage than generic examples ever will.
 
 ## Skill conventions
 
-Install `.goat-flow/skill-conventions.md` from `workflow/skills/reference/skill-conventions.md`. This is the shared preamble that all skills reference for evidence format, confidence markers, and learning loop triggers.
+Install both convention files from `workflow/skills/reference/`:
+- `.goat-flow/skill-conventions.md` from `workflow/skills/reference/skill-conventions.md` — essential conventions read on every skill invocation
+- `.goat-flow/skill-conventions-full.md` from `workflow/skills/reference/skill-conventions-full.md` — full reference read only on full-depth invocations
 
 ## Version check
 
@@ -40,6 +42,7 @@ After installing, verify each SKILL.md frontmatter has the correct `goat-flow-sk
 - [ ] goat/SKILL.md (dispatcher) exists
 - [ ] All 6 skills have matching `goat-flow-skill-version` tags
 - [ ] `.goat-flow/skill-conventions.md` exists
+- [ ] `.goat-flow/skill-conventions-full.md` exists
 - [ ] Instruction file router table references the skills directory
 
 **Progress marker:** Append one line to the shared setup session log:

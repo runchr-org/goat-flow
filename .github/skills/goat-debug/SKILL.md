@@ -7,13 +7,13 @@ goat-flow-skill-version: "1.1.0"
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-conventions.md` for full shared conventions.
+Read `.goat-flow/skill-conventions.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-conventions-full.md`.
 If unavailable, use these essentials:
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- Evidence: every finding MUST include file:line, tag OBSERVED vs INFERRED
+- Evidence: every finding MUST include file or file:line, tag OBSERVED vs INFERRED
 - Learning loop: check .goat-flow/lessons/ and .goat-flow/footguns/ after completion
 - Gates: BLOCKING GATE = stop and wait. CHECKPOINT = continue unless interrupted.
-- Task tracking: tick checkboxes immediately when completed, not at the end.
 
 ## When to Use
 
@@ -97,6 +97,10 @@ Required: **What I Didn't Read** (skipped files + reasons), **Current vs Expecte
 - MUST NOT fabricate file paths or function names
 - MUST verify fix doesn't violate architecture constraints
 
+## Quick Output Format
+
+TL;DR (root cause + confidence) → fix if approved.
+
 ## Output Format
 
 ```markdown
@@ -106,12 +110,3 @@ Required: **What I Didn't Read** (skipped files + reasons), **Current vs Expecte
 ## Reproduction Steps  <!-- numbered, with Expected vs Actual -->
 ## Fix Plan    <!-- only if human approved D3 -->
 ```
-
-## Chains With
-
-- /goat-test - bug fixed, need verification plan
-- /goat-review - fix ready, needs review
-- /goat-plan - investigation reveals need for planning
-- /goat-security - investigation reveals security concerns
-
-**Handoff shape:** `{mode, bug_description?, root_cause?, confidence?, scope?, components?, risks?, open_questions?}`

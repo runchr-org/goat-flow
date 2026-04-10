@@ -847,12 +847,10 @@ describe("Regression: duplicate local-instruction surfaces should fail", () => {
     agentFilter: "claude",
   });
 
-  it("fails 2.6.1a when both .goat-flow/ and .github/instructions/ exist", () => {
+  it("passes 2.6.1a when both .goat-flow/ and .github/instructions/ exist (coexistence allowed)", () => {
     const check = report.agents[0].checks.find((c) => c.id === "2.6.1a");
     assert.ok(check, "Expected check 2.6.1a");
-    assert.equal(check.status, "fail");
-    assert.match(check.message, /\.goat-flow\/coding-standards/);
-    assert.match(check.message, /\.github\/instructions/);
+    assert.equal(check.status, "pass");
   });
 });
 

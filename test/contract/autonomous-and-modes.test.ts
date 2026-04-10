@@ -13,9 +13,17 @@ const PREAMBLE_PATH = join(
   import.meta.dirname,
   "../../workflow/skills/reference/skill-conventions.md",
 );
+const PREAMBLE_FULL_PATH = join(
+  import.meta.dirname,
+  "../../workflow/skills/reference/skill-conventions-full.md",
+);
 const CONVENTIONS_PATH = join(
   import.meta.dirname,
   "../../.goat-flow/skill-conventions.md",
+);
+const CONVENTIONS_FULL_PATH = join(
+  import.meta.dirname,
+  "../../.goat-flow/skill-conventions-full.md",
 );
 
 function readSkill(name: string): string {
@@ -23,7 +31,11 @@ function readSkill(name: string): string {
 }
 
 const preamble = readFileSync(PREAMBLE_PATH, "utf-8");
+const preambleFull = readFileSync(PREAMBLE_FULL_PATH, "utf-8");
+const preambleCombined = preamble + "\n" + preambleFull;
 const conventions = readFileSync(CONVENTIONS_PATH, "utf-8");
+const conventionsFull = readFileSync(CONVENTIONS_FULL_PATH, "utf-8");
+const conventionsCombined = conventions + "\n" + conventionsFull;
 const ALL_SKILLS = [
   "goat-debug",
   "goat-plan",
@@ -49,53 +61,53 @@ describe("M11: autonomous mode structural checks", () => {
     );
   });
 
-  it("shared preamble has ceremony level table", () => {
+  it("shared preamble (combined) has ceremony level table", () => {
     assert.ok(
-      preamble.includes("Ceremony Level") || preamble.includes("Ceremony:"),
-      "Shared preamble should have ceremony level guidance",
+      preambleCombined.includes("Ceremony Level") || preambleCombined.includes("Ceremony:"),
+      "Shared conventions should have ceremony level guidance (in full reference)",
     );
     assert.ok(
-      preamble.includes("Hotfix"),
+      preambleCombined.includes("Hotfix"),
       "Ceremony should reference Hotfix complexity",
     );
   });
 
-  it("shared preamble has sub-agent mode handling", () => {
+  it("shared preamble (combined) has sub-agent mode handling", () => {
     assert.ok(
-      preamble.includes("Sub-agent mode") || preamble.includes("sub-agent"),
-      "Shared preamble should document sub-agent mode behavior",
+      preambleCombined.includes("Sub-agent mode") || preambleCombined.includes("sub-agent"),
+      "Shared conventions should document sub-agent mode behavior (in full reference)",
     );
   });
 
-  it("shared preamble has recovery section", () => {
+  it("shared preamble (combined) has recovery section", () => {
     assert.ok(
-      preamble.includes("Recovery"),
-      "Shared preamble should have recovery guidance",
+      preambleCombined.includes("Recovery"),
+      "Shared conventions should have recovery guidance (in full reference)",
     );
     assert.ok(
-      preamble.includes("Partial completion"),
+      preambleCombined.includes("Partial completion"),
       "Recovery should cover partial completion",
     );
     assert.ok(
-      preamble.includes("Missing artifacts"),
+      preambleCombined.includes("Missing artifacts"),
       "Recovery should cover missing artifacts",
     );
   });
 
-  it("shared preamble has checkpoint-based recovery for autonomous mode", () => {
+  it("shared preamble (combined) has checkpoint-based recovery for autonomous mode", () => {
     assert.ok(
-      preamble.includes("checkbox") || preamble.includes("milestone"),
+      preambleCombined.includes("checkbox") || preambleCombined.includes("milestone"),
       "Recovery should mention milestone checkboxes for context preservation (handoff replaced in v1.1.0)",
     );
   });
 
-  it("skill-conventions.md has ceremony-conditional content", () => {
+  it("skill-conventions (combined) has ceremony-conditional content", () => {
     assert.ok(
-      conventions.includes("Ceremony Level"),
-      "skill-conventions.md should have Ceremony Level section",
+      conventionsCombined.includes("Ceremony Level"),
+      "skill-conventions should have Ceremony Level section (in full reference)",
     );
     assert.ok(
-      conventions.includes("Hotfix"),
+      conventionsCombined.includes("Hotfix"),
       "Ceremony should reference Hotfix complexity",
     );
   });
@@ -195,13 +207,13 @@ describe("M14: auto-mode selection structural checks", () => {
     );
   });
 
-  it("contradiction check lives in skill-conventions.md (deduplicated from individual skills)", () => {
+  it("contradiction check lives in skill-conventions (deduplicated from individual skills)", () => {
     assert.ok(
-      conventions.includes("Contradiction Check") ||
-        conventions.includes("Contradiction check"),
-      "skill-conventions.md should have the contradiction check (moved from individual skills in 10n)",
+      conventionsCombined.includes("Contradiction Check") ||
+        conventionsCombined.includes("Contradiction check"),
+      "skill-conventions should have the contradiction check (in full reference)",
     );
-    const contradictionSection = conventions.match(
+    const contradictionSection = conventionsCombined.match(
       /[Cc]ontradiction [Cc]heck[\s\S]*?(?=\n## |$)/,
     );
     assert.ok(contradictionSection, "should have contradiction section");
@@ -348,17 +360,17 @@ describe("M12: userRole routing behavior (contract verification)", () => {
 // === M11 manual test coverage: recovery and checkpoint behavior ===
 
 describe("M11: recovery and checkpoint behavior (contract verification)", () => {
-  it("skill-conventions.md has recovery procedures", () => {
+  it("skill-conventions (combined) has recovery procedures", () => {
     assert.ok(
-      conventions.includes("## Recovery"),
-      "skill-conventions.md should have Recovery section",
+      conventionsCombined.includes("## Recovery"),
+      "skill-conventions should have Recovery section (in full reference)",
     );
     assert.ok(
-      conventions.includes("Partial completion"),
+      conventionsCombined.includes("Partial completion"),
       "Recovery should handle partial completion",
     );
     assert.ok(
-      conventions.includes("resume from next"),
+      conventionsCombined.includes("resume from next"),
       "Recovery should describe how to resume",
     );
   });
@@ -382,22 +394,22 @@ describe("M11: recovery and checkpoint behavior (contract verification)", () => 
     });
   }
 
-  it("shared preamble recovery covers sub-agent mode", () => {
+  it("shared preamble (combined) recovery covers sub-agent mode", () => {
     assert.ok(
-      preamble.includes("Sub-agent") ||
-        preamble.includes("sub-agent") ||
-        preamble.includes("checkpoint") ||
-        preamble.includes("milestone"),
+      preambleCombined.includes("Sub-agent") ||
+        preambleCombined.includes("sub-agent") ||
+        preambleCombined.includes("checkpoint") ||
+        preambleCombined.includes("milestone"),
       "Recovery should cover sub-agent/autonomous recovery via milestone checkboxes",
     );
   });
 
   it("task tracking enforces checkbox ticking for plans", () => {
     assert.ok(
-      preamble.includes("tick") ||
-        preamble.includes("Tick") ||
-        preamble.includes("checkbox") ||
-        preamble.includes("immediately when completed"),
+      preambleCombined.includes("tick") ||
+        preambleCombined.includes("Tick") ||
+        preambleCombined.includes("checkbox") ||
+        preambleCombined.includes("immediately when completed"),
       "Task Tracking section should enforce checkpoint ticking (replaced flush protocol in v1.1.0)",
     );
   });

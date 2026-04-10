@@ -7,13 +7,13 @@ goat-flow-skill-version: "1.1.0"
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-conventions.md` for full shared conventions.
+Read `.goat-flow/skill-conventions.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-conventions-full.md`.
 If unavailable, use these essentials:
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- Evidence: every finding MUST include file:line, tag OBSERVED vs INFERRED
+- Evidence: every finding MUST include file or file:line, tag OBSERVED vs INFERRED
 - Learning loop: check .goat-flow/lessons/ and .goat-flow/footguns/ after completion
 - Gates: BLOCKING GATE = stop and wait. CHECKPOINT = continue unless interrupted.
-- Task tracking: tick checkboxes immediately when completed, not at the end.
 
 ## When to Use
 
@@ -90,6 +90,10 @@ For readability improvement. MUST NOT change behavior. Scan for: cryptic names, 
 - MUST group 3+ related findings as systemic patterns
 - Conversational: present findings, then let human drill in
 
+## Quick Output Format
+
+TL;DR → findings by severity → what wasn't checked.
+
 ## Output Format
 
 ```markdown
@@ -100,12 +104,3 @@ For readability improvement. MUST NOT change behavior. Scan for: cryptic names, 
 ### MAY Fix - **[title]** `file:line` [desc]
 ## Pre-existing Issues | Breaking Changes | What's Good | What I Didn't Examine
 ```
-
-## Chains With
-
-- /goat-debug - review finds a bug -> diagnosis needed
-- /goat-plan - review reveals missing requirements -> planning needed
-- /goat-test - review finds coverage gaps -> test plan needed
-- /goat-security - review finds security concern -> deeper assessment
-
-**Handoff shape:** `{scope, mode, findings_by_severity, breaking_changes, coverage_gaps, patterns}`
