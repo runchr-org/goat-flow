@@ -8,6 +8,11 @@ Run `goat-flow scan . --agent {agent}` and fix all failures until 100%.
 
 No build/test/lint requirement. No separate human checklist. Fix scanner findings until the current combined scanner reaches 100%.
 
+**If a check cannot be fixed** (binary not installed locally, CI tool unavailable, platform constraint), document it as a known exception in the setup session log:
+> `Known exception: check [ID] — [reason it can't be fixed]. Follow-up: [action to resolve later, or "accepted as permanent exception"].`
+
+Do NOT silently skip unfixable checks. The exception must be visible in the session log so the next agent knows why the scanner isn't at 100%.
+
 ## Stale-reference reconciliation
 
 Before declaring setup complete, verify the generated surfaces do not reference dead files or old step names.

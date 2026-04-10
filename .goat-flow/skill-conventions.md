@@ -105,7 +105,7 @@ Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
 | Standard | goat-plan: full milestone breakdown with testing gates. Use goat-sbao if approach is genuinely uncertain. |
 | System / Infrastructure | goat-plan: full milestones + cross-boundary verification + rollback planning. goat-sbao strongly recommended. |
 
-**Sub-agent mode:** When invoked as a sub-agent (forked context), BLOCKING GATEs automatically become CHECKPOINTs (logged, not paused). Step 0 proceeds with auto-detected scope.
+**Sub-agent mode:** When invoked as a sub-agent (forked context), most BLOCKING GATEs become CHECKPOINTs (logged, not paused). Step 0 proceeds with auto-detected scope. **Exception:** safety-critical gates (goat-debug D2→D3 "human decides before fixing", goat-security final report) MUST remain blocking even in sub-agent mode — these exist to prevent auto-fixing without human review.
 
 ## Footgun Fast-Path
 

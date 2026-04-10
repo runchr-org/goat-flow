@@ -43,7 +43,7 @@ Use when diagnosing a bug or understanding unfamiliar code. For onboarding, use 
 
 ### D1 - Investigate (no fixes)
 
-After reading the primary file, write 2-3 hypotheses spanning at least 2 of: Data, Logic, Timing, Environment, Configuration. Include a boundary/counting hypothesis for loops/indices/pagination bugs. After tracing, mark each: CONFIRMED / ELIMINATED / UNRESOLVED with `file:line` evidence.
+After reading the primary file, write 2-3 hypotheses spanning at least 2 of: Data, Logic, Timing, Environment, Configuration. If the bug involves loops, indices, or pagination, include a boundary/counting hypothesis. After tracing, mark each: CONFIRMED / ELIMINATED / UNRESOLVED with `file:line` evidence.
 
 **Can't reproduce after 5 file reads?** Log what you checked, suggest logging additions, ask for more context.
 
