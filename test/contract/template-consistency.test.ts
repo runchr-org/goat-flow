@@ -316,11 +316,11 @@ describe("Session log path consistency in setup templates", () => {
 describe("Shared preamble required sections", () => {
   const essentialPath = join(
     WORKFLOW_SKILLS_DIR,
-    "reference/skill-conventions.md",
+    "reference/skill-preamble.md",
   );
   const fullPath = join(
     WORKFLOW_SKILLS_DIR,
-    "reference/skill-conventions-full.md",
+    "reference/skill-conventions.md",
   );
 
   it("essential file exists", () => {
@@ -333,7 +333,7 @@ describe("Shared preamble required sections", () => {
   it("full reference file exists", () => {
     assert.ok(
       existsSync(fullPath),
-      "workflow/skills/reference/skill-conventions-full.md should exist",
+      "workflow/skills/reference/skill-conventions.md should exist",
     );
   });
 
@@ -343,21 +343,21 @@ describe("Shared preamble required sections", () => {
   it("has Ceremony Level section in full reference", () => {
     assert.ok(
       full.includes("Ceremony Level"),
-      'skill-conventions-full.md should have a "Ceremony Level" section',
+      'skill-conventions.md should have a "Ceremony Level" section',
     );
   });
 
   it("has Footgun Fast-Path section in full reference", () => {
     assert.ok(
       full.includes("Footgun Fast-Path"),
-      'skill-conventions-full.md should have a "Footgun Fast-Path" section',
+      'skill-conventions.md should have a "Footgun Fast-Path" section',
     );
   });
 
   it("has Recovery section in full reference", () => {
     assert.ok(
       full.includes("## Recovery"),
-      'skill-conventions-full.md should have a "Recovery" section',
+      'skill-conventions.md should have a "Recovery" section',
     );
   });
 

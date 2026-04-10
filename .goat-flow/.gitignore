@@ -5,6 +5,7 @@ personal-preferences.md
 # Committed goat-flow files
 !.gitignore
 !config.yaml
+!skill-preamble.md
 !skill-conventions.md
 !architecture.md
 !glossary.md

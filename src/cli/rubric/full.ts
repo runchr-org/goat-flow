@@ -135,10 +135,10 @@ export const fullChecks: CheckDef[] = [
     priority: "optional",
     detect: {
       type: "file_exists",
-      path: ".goat-flow/skill-conventions.md",
+      path: ".goat-flow/skill-preamble.md",
     },
     recommendation:
-      "Without skill-conventions.md, each skill defines its own conventions inline, leading to drift -- different output formats, different gate styles, different constraint language across skills. A shared conventions file ensures all skills follow the same structural patterns, making them predictable and composable.",
+      "Without skill-preamble.md, each skill defines its own conventions inline, leading to drift -- different output formats, different gate styles, different constraint language across skills. A shared conventions file ensures all skills follow the same structural patterns, making them predictable and composable.",
     recommendationKey: "create-skill-conventions",
   },
 ];

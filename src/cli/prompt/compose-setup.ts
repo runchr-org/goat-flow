@@ -932,7 +932,7 @@ function renderSetupRedirect(
     lines.push("Read and implement `workflow/setup/upgrade-from-1.0.x.md`.");
     lines.push("");
     lines.push(
-      "Key changes: install `.goat-flow/skill-conventions.md`, refresh skills and dispatcher from current templates,",
+      "Key changes: install `.goat-flow/skill-preamble.md` and `.goat-flow/skill-conventions.md`, refresh skills and dispatcher from current templates,",
     );
     lines.push(
       "remove handoff-template.md/todo.md/handoff.md, and collapse setup to the 6-step flow.",
@@ -979,7 +979,7 @@ function renderSetupRedirect(
       "Key changes: consolidate 10 old skills to 5+dispatcher, migrate docs/footguns.md → .goat-flow/footguns/,",
     );
     lines.push(
-      "docs/lessons.md → .goat-flow/lessons/, create .goat-flow/config.yaml, install skill-conventions.md.",
+      "docs/lessons.md → .goat-flow/lessons/, create .goat-flow/config.yaml, install skill-preamble.md and skill-conventions.md.",
     );
     lines.push("");
     lines.push(`**Stack:** ${languages}`);

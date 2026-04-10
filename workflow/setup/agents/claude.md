@@ -31,7 +31,7 @@ After completing step 03 (skills), wire hooks:
   2. Check for tool config files that indicate which tools are active (`.eslintrc*`, `phpstan.neon`, `.rubocop.yml`, `pyproject.toml [tool.ruff]`, `golangci.yml`, `biome.json`)
   3. Use local binaries over global (`vendor/bin/phpstan` not `phpstan`, `node_modules/.bin/eslint` not `eslint`)
   4. Match the tool to what the project actually uses — don't add phpstan to a project that uses psalm
-- If the project uses a code formatter (prettier, biome, etc.), add `.goat-flow/skill-conventions.md` and `.goat-flow/**/*.md` to the formatter's ignore file (`.prettierignore`, `biome.json` ignores, etc.). Verify YAML examples in skill-conventions.md still use `---` delimiters after formatting.
+- If the project uses a code formatter (prettier, biome, etc.), add `.goat-flow/skill-preamble.md` and `.goat-flow/**/*.md` to the formatter's ignore file (`.prettierignore`, `biome.json` ignores, etc.). Verify YAML examples in skill-preamble.md still use `---` delimiters after formatting.
 
 ### Conditional rules
 

@@ -6,11 +6,11 @@ import { join } from "node:path";
 const SKILLS_DIR = join(import.meta.dirname, "../../.claude/skills");
 const CONVENTIONS_PATH = join(
   import.meta.dirname,
-  "../../.goat-flow/skill-conventions.md",
+  "../../.goat-flow/skill-preamble.md",
 );
 const CONVENTIONS_FULL_PATH = join(
   import.meta.dirname,
-  "../../.goat-flow/skill-conventions-full.md",
+  "../../.goat-flow/skill-conventions.md",
 );
 const SKILL_NAMES = [
   "goat-debug",
@@ -178,14 +178,14 @@ describe("Shared skill-conventions content (essential + full)", () => {
   it("has ceremony level section in full reference", () => {
     assert.ok(
       conventionsFull.includes("Ceremony Level"),
-      "skill-conventions-full.md should have Ceremony Level section",
+      "skill-conventions.md should have Ceremony Level section",
     );
   });
 
   it("has footgun fast-path in full reference", () => {
     assert.ok(
       conventionsFull.includes("Footgun Fast-Path"),
-      "skill-conventions-full.md should have Footgun Fast-Path section",
+      "skill-conventions.md should have Footgun Fast-Path section",
     );
   });
 
@@ -206,7 +206,7 @@ describe("Shared skill-conventions content (essential + full)", () => {
   it("has category bucket format for lessons/footguns in full reference", () => {
     assert.ok(
       conventionsFull.includes("## Lesson:") || conventionsFull.includes("## Footgun:"),
-      "skill-conventions-full.md should have category bucket entry format examples",
+      "skill-conventions.md should have category bucket entry format examples",
     );
   });
 

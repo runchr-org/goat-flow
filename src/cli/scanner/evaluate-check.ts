@@ -703,7 +703,7 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
     [shared.footguns.path]: shared.footguns.exists,
     [shared.lessons.path]: shared.lessons.exists,
     ".goat-flow/architecture.md": shared.architecture.exists,
-    ".goat-flow/skill-conventions.md": shared.skillConventions.exists,
+    ".goat-flow/skill-preamble.md": shared.skillConventions.exists,
     ".copilotignore": shared.ignoreFiles.copilotignore,
     ".cursorignore": shared.ignoreFiles.cursorignore,
     ".geminiignore": shared.ignoreFiles.geminiignore,

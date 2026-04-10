@@ -11,19 +11,19 @@ import { join } from "node:path";
 const SKILLS_DIR = join(import.meta.dirname, "../../.claude/skills");
 const PREAMBLE_PATH = join(
   import.meta.dirname,
-  "../../workflow/skills/reference/skill-conventions.md",
+  "../../workflow/skills/reference/skill-preamble.md",
 );
 const PREAMBLE_FULL_PATH = join(
   import.meta.dirname,
-  "../../workflow/skills/reference/skill-conventions-full.md",
+  "../../workflow/skills/reference/skill-conventions.md",
 );
 const CONVENTIONS_PATH = join(
   import.meta.dirname,
-  "../../.goat-flow/skill-conventions.md",
+  "../../.goat-flow/skill-preamble.md",
 );
 const CONVENTIONS_FULL_PATH = join(
   import.meta.dirname,
-  "../../.goat-flow/skill-conventions-full.md",
+  "../../.goat-flow/skill-conventions.md",
 );
 
 function readSkill(name: string): string {

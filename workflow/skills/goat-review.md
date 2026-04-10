@@ -7,8 +7,8 @@ goat-flow-skill-version: "1.1.0"
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-conventions.md` for shared conventions.
-On full-depth, also read `.goat-flow/skill-conventions-full.md`.
+Read `.goat-flow/skill-preamble.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-conventions.md`.
 If unavailable, use these essentials:
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - Evidence: every finding MUST include file or file:line, tag OBSERVED vs INFERRED

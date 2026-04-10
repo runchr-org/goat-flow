@@ -8,13 +8,13 @@ Read `01-system-overview.md` first if you haven't already.
 - Old skill names: goat-audit, goat-investigate, goat-onboard, goat-reflect, goat-resume, goat-context, goat-simplify, goat-refactor
 - No `.goat-flow/config.yaml`
 - Learning loop in `docs/footguns.md` and `docs/lessons.md` (flat files, not directories)
-- No `.goat-flow/skill-conventions.md`
+- No `.goat-flow/skill-preamble.md`
 
 **After (v1.1.0):**
 - 6 skills: goat, goat-debug, goat-plan, goat-review, goat-security, goat-test
 - `.goat-flow/config.yaml` with version 1.1.0
 - Learning loop in `.goat-flow/footguns/` and `.goat-flow/lessons/` (category bucket directories)
-- `.goat-flow/skill-conventions.md` shared across all skills
+- `.goat-flow/skill-preamble.md` shared across all skills
 - `.goat-flow/architecture.md` and `.goat-flow/glossary.md`
 
 ---
@@ -50,7 +50,7 @@ These files contain real project memory. Migrate the content, don't discard it.
 1. Read the content
 2. Group entries by topic (e.g., hooks, setup, scanner)
 3. Create `.goat-flow/footguns/` category bucket files with one `## Footgun: <name>` entry per trap
-4. Format per `.goat-flow/skill-conventions.md` Learning Loop section
+4. Format per `.goat-flow/skill-preamble.md` Learning Loop section
 5. After verifying all entries migrated, delete `docs/footguns.md`
 
 **Lessons:** If `docs/lessons.md` exists:
@@ -74,11 +74,11 @@ These files contain real project memory. Migrate the content, don't discard it.
 ## Step 4 — Create goat-flow infrastructure
 
 - Create `.goat-flow/config.yaml` with version 1.1.0
-- Create `.goat-flow/skill-conventions.md` from `workflow/skills/reference/skill-conventions.md`
+- Create `.goat-flow/skill-preamble.md` from `workflow/skills/reference/skill-preamble.md`
 - Create `.goat-flow/glossary.md` with project-specific terms
 - Create or enhance `.goat-flow/architecture.md`
 
-**Verification:** `.goat-flow/config.yaml` exists. `skill-conventions.md` exists.
+**Verification:** `.goat-flow/config.yaml` exists. `skill-preamble.md` exists.
 
 ---
 

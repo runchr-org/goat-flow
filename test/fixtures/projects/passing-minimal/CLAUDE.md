@@ -78,4 +78,4 @@ Boundaries:
 | Coding standards | `.goat-flow/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
 | Local workspace | `.goat-flow/tasks/`, `.goat-flow/logs/` |
-| Skill conventions | `.goat-flow/skill-conventions.md` |
+| Skill conventions | `.goat-flow/skill-preamble.md` |

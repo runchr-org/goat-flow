@@ -17,7 +17,7 @@ Check these surfaces:
 - The instruction file
 - All installed skill files
 - Agent settings / hook config files
-- `.goat-flow/skill-conventions.md`
+- `.goat-flow/skill-preamble.md`
 - `.goat-flow/config.yaml`
 
 For each backtick-wrapped path or hook path:
