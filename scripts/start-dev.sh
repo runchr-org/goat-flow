@@ -1,5 +1,25 @@
 #!/usr/bin/env bash
 
+# start-dev.sh
+#
+# Purpose:
+#   Boots a local development session and performs lightweight validation gates.
+#
+# Usage:
+#   bash scripts/start-dev.sh
+#
+# Behavior:
+#   - verifies Node/npm + minimum Node version
+#   - installs dependencies if missing
+#   - runs typecheck/tests when configured
+#   - runs preflight checks and optional self-scan
+#
+# Exit:
+#   0 when local dev bootstrap completes (including any non-fatal warnings), 1 on fatal setup failure.
+#
+# Requirements:
+#   - node, npm
+
 set -euo pipefail
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

@@ -6,7 +6,7 @@ Documentation framework for AI coding agent workflows. Markdown docs + Bash scri
 shellcheck scripts/maintenance/*.sh      # Lint shell scripts
 bash -n scripts/maintenance/*.sh          # Syntax-check scripts
 bash scripts/preflight-checks.sh         # Full preflight gate
-bash scripts/context-validate.sh         # Validate GOAT Flow structure
+bash scripts/validate-goat-flow-setup.sh         # Validate GOAT Flow structure
 ```
 ## Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
 

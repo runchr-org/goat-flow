@@ -1,4 +1,21 @@
 #!/usr/bin/env bash
+#
+# remove-zone-identifier.sh
+#
+# Purpose:
+#   Removes Windows ADS Zone.Identifier artifacts from directories.
+#
+# Usage:
+#   bash scripts/maintenance/remove-zone-identifier.sh [--dry-run] [PATH]
+#
+# Behavior:
+#   Finds and optionally deletes `Zone.Identifier` files recursively.
+#
+# Exit:
+#   0 on successful sweep (or dry-run), non-zero on traversal/permission errors.
+#
+# Requirements:
+#   - bash, find, git (for repo root fallback)
 
 set -euo pipefail
 

@@ -50,7 +50,7 @@
     "dev": "tsc && node dist/cli/cli.js dashboard . --dev",
     "dashboard": "node dist/cli/cli.js dashboard .",
     "preflight": "bash scripts/preflight-checks.sh",
-    "validate": "bash scripts/context-validate.sh",
+    "validate": "bash scripts/validate-goat-flow-setup.sh",
     "check-versions": "node scripts/check-versions.mjs",
     "format": "prettier --write \"src/**/*.{ts,js,html}\" \"test/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,js,html}\" \"test/**/*.ts\"",

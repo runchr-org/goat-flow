@@ -3,7 +3,7 @@ GOAT Flow documentation framework. Markdown docs + Bash validation scripts. This
 ## Essential Commands
 ```bash
 bash scripts/preflight-checks.sh
-bash scripts/context-validate.sh
+bash scripts/validate-goat-flow-setup.sh
 bash scripts/deny-dangerous.sh --self-test
 bash -n scripts/*.sh scripts/maintenance/*.sh
 shellcheck scripts/*.sh scripts/maintenance/*.sh
@@ -77,7 +77,7 @@ GOOD: Inline format. Extract when second format needed
 ## Definition of Done
 MUST confirm all 6 gates:
 1. `bash scripts/preflight-checks.sh` passes
-2. `bash scripts/context-validate.sh` passes
+2. `bash scripts/validate-goat-flow-setup.sh` passes
 3. No unapproved boundary changes
 4. Learning-loop files updated if tripped
 5. Current state recorded before stopping incomplete work

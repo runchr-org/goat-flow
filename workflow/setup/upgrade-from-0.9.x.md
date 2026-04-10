@@ -11,7 +11,7 @@ Read `01-system-overview.md` first if you haven't already.
 - No `.goat-flow/skill-preamble.md`
 
 **After (v1.1.0):**
-- 6 skills: goat, goat-debug, goat-plan, goat-review, goat-security, goat-test
+- 7 skills: goat, goat-debug, goat-plan, goat-review, goat-sbao, goat-security, goat-test
 - `.goat-flow/config.yaml` with version 1.1.0
 - Learning loop in `.goat-flow/footguns/` and `.goat-flow/lessons/` (category bucket directories)
 - `.goat-flow/skill-preamble.md` shared across all skills
@@ -84,11 +84,11 @@ These files contain real project memory. Migrate the content, don't discard it.
 
 ## Step 5 — Install current skills
 
-Install the 6 current skills from `workflow/skills/goat-*.md` templates into the agent's skills directory. Each skill must have `goat-flow-skill-version: "1.1.0"` in frontmatter.
+Install the 7 current skills from `workflow/skills/goat-*.md` templates into the agent's skills directory. Each skill must have `goat-flow-skill-version: "1.1.0"` in frontmatter.
 
 Check expected version: `workflow/skills/goat-debug.md` line 4.
 
-**Verification:** All 6 skills present. All version tags match.
+**Verification:** All 7 skills present. All version tags match.
 
 ---
 

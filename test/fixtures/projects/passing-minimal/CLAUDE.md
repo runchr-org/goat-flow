@@ -5,7 +5,7 @@ GOAT Flow test fixture.
 ```bash
 npm test
 bash scripts/preflight-checks.sh
-bash scripts/context-validate.sh
+bash scripts/validate-goat-flow-setup.sh
 ```
 
 ## Execution Loop: READ -> CLASSIFY -> SCOPE -> ACT -> VERIFY -> LOG
@@ -61,7 +61,7 @@ Boundaries:
 
 ## Definition of Done
 1. bash scripts/preflight-checks.sh passes
-2. bash scripts/context-validate.sh passes
+2. bash scripts/validate-goat-flow-setup.sh passes
 3. No unapproved boundary changes
 4. logs updated if tripped
 5. milestone checkboxes current

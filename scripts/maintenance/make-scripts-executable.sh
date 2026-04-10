@@ -1,4 +1,21 @@
 #!/usr/bin/env bash
+#
+# make-scripts-executable.sh
+#
+# Purpose:
+#   Ensures .sh files under the scripts tree are marked executable.
+#
+# Usage:
+#   bash scripts/maintenance/make-scripts-executable.sh [--dry-run]
+#
+# Behavior:
+#   Searches for shell scripts in `scripts/` and applies +x permissions, optionally as preview.
+#
+# Exit:
+#   0 on success, non-zero on search/permission failures.
+#
+# Requirements:
+#   - git, bash
 
 set -euo pipefail
 
@@ -39,7 +56,6 @@ EOF
 
 # Default values
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || git -C "$(dirname "$0")" rev-parse --show-toplevel 2>/dev/null || { cd "$(dirname "$0")/../.." && pwd; })"
-TARGET_PATH="${REPO_ROOT}"
 DRY_RUN=false
 
 # Parse command line arguments
@@ -66,19 +82,20 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Check if target path exists
-if [[ ! -d "$TARGET_PATH" ]]; then
-    err "Directory does not exist: $TARGET_PATH"
+SCRIPTS_DIR="${REPO_ROOT}/scripts"
+
+if [[ ! -d "$SCRIPTS_DIR" ]]; then
+    err "scripts/ directory does not exist: $SCRIPTS_DIR"
     exit 1
 fi
 
-info "Searching for .sh scripts in: $TARGET_PATH"
+info "Searching for .sh scripts in: $SCRIPTS_DIR"
 
 # Find all .sh files in scripts/ only
 SCRIPT_FILES=()
 while IFS= read -r -d '' file; do
     SCRIPT_FILES+=("$file")
-done < <(find "$TARGET_PATH" -name "*.sh" -type f -print0 2>/dev/null || true)
+done < <(find "$SCRIPTS_DIR" -name "*.sh" -type f -print0 2>/dev/null || true)
 
 if [[ ${#SCRIPT_FILES[@]} -eq 0 ]]; then
     info "No .sh or .py scripts found"

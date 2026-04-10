@@ -1,5 +1,25 @@
 #!/usr/bin/env bash
 
+# dependency-install.sh
+#
+# Purpose:
+#   Installs project dependencies (lockfile-first) and verifies baseline toolchain health.
+#
+# Usage:
+#   bash scripts/dependency-install.sh
+#
+# Behavior:
+#   1) validates node runtime
+#   2) runs npm ci (or npm install when lockfile absent)
+#   3) validates TypeScript availability and optional build/test smoke checks
+#
+# Exit:
+#   0 when installation and checks pass, non-zero when required prerequisites or validation fail.
+#
+# Requirements:
+#   - node v20+ (for this project path)
+#   - npm
+
 set -euo pipefail
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

@@ -110,6 +110,6 @@ jobs:
 
       - name: Validate Codex workflow
         run: |
-          if [ -f AGENTS.md ] && [ -f scripts/context-validate.sh ]; then
-            bash scripts/context-validate.sh
+          if [ -f AGENTS.md ] && [ -f scripts/validate-goat-flow-setup.sh ]; then
+            bash scripts/validate-goat-flow-setup.sh
           fi

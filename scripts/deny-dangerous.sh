@@ -1,4 +1,22 @@
 #!/usr/bin/env bash
+# deny-dangerous.sh
+#
+# Purpose:
+#   Implements a local denylist check for dangerous or policy-blocked commands.
+#
+# Usage:
+#   bash scripts/deny-dangerous.sh --check "<command>"
+#   bash scripts/deny-dangerous.sh --self-test
+#
+# Behavior:
+#   --check validates a provided command string and reports ALLOW/BLOCK.
+#   --self-test runs a small regression set against allow/block expectations.
+#
+# Exit:
+#   0 when checks pass or command is allowlisted, 1 on policy block/failure.
+#
+# Notes:
+#   This script is validation-only and does NOT intercept runtime command execution.
 
 set -euo pipefail
 

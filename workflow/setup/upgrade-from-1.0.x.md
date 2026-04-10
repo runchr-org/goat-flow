@@ -40,12 +40,12 @@ You're in the right place if the project has `.goat-flow/config.yaml` with versi
 
 ## Step 3 — Update skills
 
-- Update all 5 skill templates to current version (check `goat-flow-skill-version` tag)
+- Update all 7 skill templates to current version (check `goat-flow-skill-version` tag)
 - Install skills verbatim from the current `workflow/skills/goat-*.md` templates
 - Install `.goat-flow/skill-preamble.md` from `workflow/skills/reference/skill-preamble.md`
 - Install or update the `/goat` dispatcher from `workflow/skills/goat.md`
 
-**Verification:** All 6 skills have `goat-flow-skill-version: "1.1.0"`.
+**Verification:** All 7 skills have `goat-flow-skill-version: "1.1.0"`.
 
 ---
 

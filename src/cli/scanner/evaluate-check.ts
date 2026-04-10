@@ -711,7 +711,7 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
     ".gitignore": shared.gitignore.exists,
     ".goat-flow/config.yaml": shared.config.exists,
     "scripts/preflight-checks.sh": shared.preflightScript.exists,
-    "scripts/context-validate.sh": shared.contextValidation.exists,
+    "scripts/validate-goat-flow-setup.sh": shared.contextValidation.exists,
     [shared.decisions.path]: shared.decisions.dirExists,
     [normalizedDecisionsPath]: shared.decisions.dirExists,
     // CHANGELOG.md removed - project-level concern.

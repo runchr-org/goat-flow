@@ -6,9 +6,11 @@ These sections go in the project's instruction file. Target: under 120 lines. Ha
 
 ## Required Sections
 
-a) Version header (v1.0 - YYYY-MM-DD)
+a) Project identity — 1-2 lines: project name, domain, core technology, primary invariant
 
-b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
+b) Version header (v1.0 - YYYY-MM-DD)
+
+c) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
    When a goat-* skill is active, the skill's Step 0 satisfies READ/CLASSIFY/SCOPE. Resume the loop at ACT.
    - READ: read relevant files first, never fabricate codebase facts
      (include BAD/GOOD example)
@@ -62,7 +64,7 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
      Dual-agent projects: learning loop files are shared. Read the
      current file before appending to avoid duplicating entries.
 
-c) Autonomy Tiers: Always / Ask First / Never
+d) Autonomy Tiers: Always / Ask First / Never
    - Never tier MUST include:
      1. Overwrite existing files without checking destination (ls before
         mv/cp/Write; use mv -n). Data destruction from blind overwrites
@@ -86,7 +88,7 @@ c) Autonomy Tiers: Always / Ask First / Never
    double duty as execution protocol + domain reference - but watch the
    line budget.
 
-d) Definition of Done: 6 gates
+e) Definition of Done: 6 gates
    (1) lint/typecheck passes on changed files
    (2) no broken cross-references introduced
    (3) no unapproved boundary changes
@@ -94,19 +96,19 @@ d) Definition of Done: 6 gates
    (5) current state recorded before stopping incomplete work
    (6) After any rename or move, grep for the old name across ALL files (including .md, .json, .yaml, config). Zero remaining references = pass. This is the most common failure mode — stale cross-references after renames cause more bugs than any other single pattern.
 
-e) Router table: MUST include at minimum:
-     - All 6 skill directories (Claude/Gemini/Codex/Copilot: .claude/skills/, .agents/skills/, .github/skills/)
+f) Router table: MUST include at minimum:
+     - Skill directories (`.claude/skills/`, `.agents/skills/`, `.github/skills/`)
      - Learning loop directories (`.goat-flow/footguns/`, `.goat-flow/lessons/`)
      - Architecture doc (`.goat-flow/architecture.md`)
      - Config (`.goat-flow/config.yaml`)
-     - Any playbooks, profiles, or domain docs relevant to project
+     - Templates (`.goat-flow/templates/`) and any domain docs relevant to project
      Dual-agent projects: router MUST include the other agent's
      instruction file (AGENTS.md or CLAUDE.md).
      (Unrouted files are invisible to the agent - 160x usage uplift
      for referenced tools)
 
-f) Essential commands
+g) Essential commands
 
 If you must weaken a MUST to meet the line target, the target is
 wrong - raise it, don't weaken the rule.
-Do NOT skip sections (e)-(f) - they are small but required.
+Do NOT skip sections (f)-(g) - they are small but required.

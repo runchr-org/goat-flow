@@ -1,5 +1,24 @@
 #!/usr/bin/env bash
 
+# preflight-checks.sh
+#
+# Purpose:
+#   Runs the local pre-flight quality gate used before risky edits or releases.
+#
+# Usage:
+#   bash scripts/preflight-checks.sh
+#
+# Behavior:
+#   - validates setup/router conformance
+#   - runs shell and CLI syntax checks
+#   - checks formatting and project-specific quality signals
+#
+# Exit:
+#   0 when all checks pass, non-zero on any failing check.
+#
+# Requirements:
+#   - bash, node, npm, git
+
 set -euo pipefail
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -53,7 +72,7 @@ note()    { warnings=$((warnings + 1)); echo -e "  ${Y}⚠${RST} $1"; }
 
 # ── Context Validation ───────────────────────────────────────────────
 section "Context Validation"
-ctx_output=$(bash scripts/context-validate.sh 2>&1) && ctx_exit=0 || ctx_exit=$?
+ctx_output=$(bash scripts/validate-goat-flow-setup.sh 2>&1) && ctx_exit=0 || ctx_exit=$?
 if [[ "$ctx_exit" -eq 0 ]]; then
     pass "Router paths, skills, frontmatter"
 else

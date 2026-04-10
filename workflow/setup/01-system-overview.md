@@ -30,7 +30,7 @@ Every project gets the full system. The components are lightweight infrastructur
 Create `.goat-flow/logs/sessions/` if it doesn't exist, then use one shared file for the whole setup: `.goat-flow/logs/sessions/YYYY-MM-DD-setup.md`
 
 - If resuming after compaction, read the latest setup session log first and continue from the next incomplete step.
-- After each numbered step, append one progress marker line (for example: `Step 03 complete: 6 skills installed`).
+- After each numbered step, append one progress marker line (for example: `Step 03 complete: 7 skills installed`).
 - Step 06 finalises the same file with the scanner result, file manifest, time spent, and tokens if available.
 
 ## File ownership

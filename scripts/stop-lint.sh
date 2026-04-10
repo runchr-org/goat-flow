@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
-# Post-turn verification for Codex
-# Checks changed files for lint/type issues after each agent turn
-# MUST exit 0 - non-zero causes infinite retry loops
+#
+# stop-lint.sh
+#
+# Purpose:
+#   Post-turn guard that runs quick lint/type checks for recently modified files.
+#
+# Usage:
+#   bash scripts/stop-lint.sh
+#
+# Behavior:
+#   - collects changed .ts/.sh files from git diff and runs shellcheck/tsc where available
+#   - reports findings but does not fail the turn (intentionally exit 0)
+#
+# Exit:
+#   Always 0 (never blocks a turn; intended for telemetry and diagnostics).
+#
+# Notes:
+#   This intentionally never blocks automation due to `hooks` expectations.
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT_DIR" || exit 0

@@ -1,4 +1,23 @@
 #!/usr/bin/env bash
+#
+# scan-secrets.sh
+#
+# Purpose:
+#   Detects likely committed secrets and high-signal sensitive string matches.
+#
+# Usage:
+#   bash scripts/maintenance/scan-secrets.sh [--all|--staged] [--dry-run] [PATH]
+#
+# Behavior:
+#   Defaults to scanning all tracked files with optional gitleaks acceleration when installed,
+#   and falls back to pattern-based scanning.
+#
+# Exit:
+#   0 on scan completion, non-zero if command errors occur.
+#
+# Requirements:
+#   - bash, git
+#   - optional: gitleaks, rg/grep
 
 set -euo pipefail
 

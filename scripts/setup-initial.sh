@@ -1,5 +1,25 @@
 #!/usr/bin/env bash
 
+# setup-initial.sh
+#
+# Purpose:
+#   Performs first-time GOAT Flow setup for a repository.
+#
+# Usage:
+#   bash scripts/setup-initial.sh
+#
+# Behavior:
+#   - verifies Node.js version
+#   - installs dependencies
+#   - creates core GOAT Flow directories and .gitignore
+#   - makes known shell scripts executable
+#
+# Exit:
+#   0 on successful bootstrap, non-zero if mandatory checks fail.
+#
+# Requirements:
+#   - node v20+ and npm
+
 set -euo pipefail
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

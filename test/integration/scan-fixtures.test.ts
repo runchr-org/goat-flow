@@ -415,10 +415,10 @@ describe("Fixture 4: full-claude", () => {
       "# Architecture\n\n" + "System overview.\n".repeat(10),
     // CI
     ".github/workflows/context-validation.yml":
-      "name: Context Validation\non: [push, pull_request]\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n",
+      "name: Context Validation\non: [push, pull_request]\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/validate-goat-flow-setup.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n",
     // Preflight + validation
     "scripts/preflight-checks.sh": '#!/usr/bin/env bash\necho "preflight"\n',
-    "scripts/context-validate.sh": '#!/usr/bin/env bash\necho "validate"\n',
+    "scripts/validate-goat-flow-setup.sh": '#!/usr/bin/env bash\necho "validate"\n',
     // Handoff
     ".goat-flow/tasks/handoff-template.md": HANDOFF_TEMPLATE,
     // Gitignore
@@ -518,9 +518,9 @@ describe("Fixture 5: full-multi-agent", () => {
     ".goat-flow/lessons/": "# Lessons\n\n### Entry 1\n**What happened:** x\n",
     ".goat-flow/architecture.md": "# Architecture\n\nOverview.\n",
     ".github/workflows/context-validation.yml":
-      "name: CV\non: [push, pull_request]\njobs:\n  v:\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n",
+      "name: CV\non: [push, pull_request]\njobs:\n  v:\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/validate-goat-flow-setup.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n",
     "scripts/preflight-checks.sh": "#!/usr/bin/env bash\n",
-    "scripts/context-validate.sh": "#!/usr/bin/env bash\n",
+    "scripts/validate-goat-flow-setup.sh": "#!/usr/bin/env bash\n",
     ".goat-flow/tasks/handoff-template.md": HANDOFF_TEMPLATE,
     ".gitignore": ".env\nsettings.local.json\n",
   });
@@ -1300,10 +1300,10 @@ describe("Fixture 10: self-goat-flow (score snapshot)", () => {
       "# Architecture\n\n" + "System overview.\n".repeat(10),
     // CI
     ".github/workflows/context-validation.yml":
-      "name: CV\non: [push, pull_request]\njobs:\n  v:\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/context-validate.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n",
+      "name: CV\non: [push, pull_request]\njobs:\n  v:\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/validate-goat-flow-setup.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n",
     // Scripts
     "scripts/preflight-checks.sh": "#!/usr/bin/env bash\n",
-    "scripts/context-validate.sh": "#!/usr/bin/env bash\n",
+    "scripts/validate-goat-flow-setup.sh": "#!/usr/bin/env bash\n",
     // Misc
     ".goat-flow/tasks/handoff-template.md": HANDOFF_TEMPLATE,
     ".gitignore": ".env\nsettings.local.json\nnode_modules/\n",
@@ -1427,7 +1427,7 @@ GOOD: Inline format. Extract when second format needed
     ".goat-flow/architecture.md":
       "# Architecture\n\n" + "System overview line.\n".repeat(8),
     "scripts/preflight-checks.sh": '#!/usr/bin/env bash\necho "preflight"\n',
-    "scripts/context-validate.sh": '#!/usr/bin/env bash\necho "validate"\n',
+    "scripts/validate-goat-flow-setup.sh": '#!/usr/bin/env bash\necho "validate"\n',
     ".goat-flow/tasks/handoff-template.md": HANDOFF_TEMPLATE,
     ".gitignore": ".env\nsettings.local.json\nnode_modules/\n",
     ".goat-flow/README.md":

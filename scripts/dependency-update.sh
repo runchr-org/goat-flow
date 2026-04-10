@@ -1,5 +1,25 @@
 #!/usr/bin/env bash
 
+# dependency-update.sh
+#
+# Purpose:
+#   Audits outdated dependencies, applies safe updates, and validates the result.
+#
+# Usage:
+#   bash scripts/dependency-update.sh
+#
+# Behavior:
+#   1) prints outdated packages
+#   2) runs npm update and npm audit
+#   3) validates typecheck and tests when project scripts/files are present
+#   4) prints a diff summary for review
+#
+# Exit:
+#   0 on successful audit/update/verification flow, non-zero on any verification failure.
+#
+# Requirements:
+#   - npm, node, git
+
 set -euo pipefail
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

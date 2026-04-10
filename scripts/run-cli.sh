@@ -1,5 +1,25 @@
 #!/usr/bin/env bash
 
+# run-cli.sh
+#
+# Purpose:
+#   Small wrapper to execute the local goat-flow CLI with common command shortcuts.
+#
+# Usage:
+#   bash scripts/run-cli.sh <command> [path] [flags]
+#
+# Behavior:
+#   - builds CLI assets when stale or missing
+#   - renders command output with bounded previews for terminal readability
+#   - supports scan/setup/test-all workflows defined by the CLI
+#
+# Exit:
+#   0 when requested command succeeds, non-zero on CLI command failure.
+#
+# Requirements:
+#   - node, npm
+#   - built CLI available or build tooling installed
+
 set -euo pipefail
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -56,13 +76,21 @@ show() {
         return
     fi
 
+    indent_lines() {
+        local indent="$1"
+        local lines="$2"
+        while IFS= read -r line; do
+            printf '%s%s\n' "$indent" "$line"
+        done <<< "$lines"
+    }
+
     local total_lines
     total_lines=$(wc -l <<< "$output")
 
     if [[ "$total_lines" -le "$max_lines" ]]; then
-        sed 's/^/  /' <<< "$output"
+        indent_lines "  " "$output"
     else
-        head -"$max_lines" <<< "$output" | sed 's/^/  /'
+        indent_lines "  " "$(head -"$max_lines" <<< "$output")"
         printf "  \033[2m... +%d lines (pipe to less or use --format json > file.json)\033[0m\n" $((total_lines - max_lines))
     fi
 }
