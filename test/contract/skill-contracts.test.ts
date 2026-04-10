@@ -115,42 +115,28 @@ describe("Skill content contracts", () => {
         );
       });
 
-      it("goat-plan has refactor mode", () => {
+      it("goat-plan has milestone archetypes", () => {
         if (name !== "goat-plan") return;
         assert.ok(
-          content.includes("Refactor Planning Mode") ||
-            content.includes("Refactor planning mode") ||
-            content.includes("refactor"),
-          "goat-plan should have Refactor Planning Mode (or playbook reference)",
-        );
-        // Blast radius analysis moved to playbook in M14
-        assert.ok(
-          content.includes("Blast Radius") ||
-            content.includes("blast radius") ||
-            content.includes("playbook"),
-          "Refactor mode should reference blast radius or playbook",
+          content.includes("Prove It Works") ||
+            content.includes("Make It Real"),
+          "goat-plan should have milestone archetypes",
         );
       });
 
-      it("goat-plan has Small Feature tier", () => {
+      it("goat-plan has testing gates", () => {
         if (name !== "goat-plan") return;
         assert.ok(
-          content.includes("Small Feature"),
-          "goat-plan should have Small Feature complexity tier",
+          content.includes("Testing Gate") || content.includes("testing gate"),
+          "goat-plan should enforce testing gates between milestones",
         );
       });
 
-      it("goat-plan Phase 2-3 are conditional", () => {
+      it("goat-plan has between-milestones phase", () => {
         if (name !== "goat-plan") return;
-        // In M14 lean format, the quick plan path implicitly skips Phases 2-3.
-        // The full plan path offers them conditionally via "Want to run Mob Elaboration, SBAO critique, or go straight to milestones?"
         assert.ok(
-          content.includes("skip Phases 2-3") ||
-            content.includes("skip Phases 2-4") ||
-            content.includes("skip Phase 2-3") ||
-            content.includes("Quick Plan") ||
-            content.includes("go straight to milestones"),
-          "goat-plan Phase 2-3 should be conditional on complexity (explicit skip or quick path)",
+          content.includes("Between Milestones"),
+          "goat-plan should have a Between Milestones phase",
         );
       });
 
@@ -163,11 +149,12 @@ describe("Skill content contracts", () => {
         );
       });
 
-      it("goat-test has auto-detect mode", () => {
+      it("goat-test has mode detection", () => {
         if (name !== "goat-test") return;
         assert.ok(
-          content.includes("Auto-detect mode"),
-          "goat-test should auto-detect Standard vs Audit",
+          content.includes("Mode detection") ||
+            content.includes("Changes exist"),
+          "goat-test should have mode detection for Standard vs Audit",
         );
       });
     });
@@ -205,7 +192,8 @@ describe("Shared skill-conventions content (essential + full)", () => {
 
   it("has category bucket format for lessons/footguns in full reference", () => {
     assert.ok(
-      conventionsFull.includes("## Lesson:") || conventionsFull.includes("## Footgun:"),
+      conventionsFull.includes("## Lesson:") ||
+        conventionsFull.includes("## Footgun:"),
       "skill-conventions.md should have category bucket entry format examples",
     );
   });

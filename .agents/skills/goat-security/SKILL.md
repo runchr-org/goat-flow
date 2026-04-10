@@ -21,7 +21,7 @@ Use when assessing security posture: before deployment, after adding auth/input 
 
 **Boundary:** goat-security owns threat models, compliance, dependency CVEs, auth/authz boundaries. goat-review owns code quality, style, correctness. If you find a code quality issue, flag it and suggest `/goat-review`.
 
-**NOT this skill:** Code quality sweep -> /goat-review. Reviewing a diff -> /goat-review. Diagnosing a vulnerability -> /goat-debug.
+**NOT this skill:** Code quality sweep → /goat-review. Reviewing a diff → /goat-review. Diagnosing a vulnerability → /goat-debug. Planning milestones → /goat-plan. Feature briefs → dispatcher Planning Route.
 
 ## Step 0 - Choose Depth
 

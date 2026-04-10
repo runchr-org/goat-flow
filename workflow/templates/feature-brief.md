@@ -1,7 +1,12 @@
 # Template: Feature Brief
 
-> **When to use:** At the start of any new feature or project, before involving AI agents. This is the human-only stage - the coding agent didn't attend your meetings, so this is how you tell it what matters.
-> For single-agent interactive planning, see /goat-plan Phase 1. This template is for human-authored briefs before involving agents.
+> **What this is:** A template for writing feature briefs before involving AI agents.
+> Copy this template into your project's `.goat-flow/tasks/` directory as
+> `requirements-<feature-name>.md` and fill it in.
+>
+> The goat dispatcher walks through these same sections interactively when
+> you ask it to plan a feature — you don't need to fill this out manually
+> unless you prefer to write the brief yourself first.
 
 Create a `requirements-<feature-name>.md` file using the template below. A brain dump is fine to start - the most important thing is capturing *why* this feature was requested and how it benefits users. For formal requirement tracking with REQ-IDs and acceptance tests, see `requirements-template.md`.
 

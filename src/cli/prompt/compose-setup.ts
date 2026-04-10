@@ -69,7 +69,7 @@ function collectSignalActionLines(signals: ProjectSignals): string[] {
   if (signals.staticAnalysis.length > 0) {
     const tools = formatStaticAnalysisTools(signals, true);
     actions.push(
-      `- **Static analysis (${tools}):** Verify the linter is enforced in hooks (stop-lint.sh), not just configured. Add \`<important if="editing source files">MUST maintain ${tools} compliance</important>\` to the instruction file (conditional tag keeps it contextual).`,
+      `- **Static analysis (${tools}):** Verify post-turn validation hooks run these checks, not just record commands in config. Add \`<important if="editing source files">MUST maintain ${tools} compliance</important>\` to the instruction file (conditional tag keeps it contextual).`,
     );
   }
   return actions;
@@ -175,7 +175,7 @@ function renderAllPass(
     lines.push("**Installed:**");
     if (skillCount > 0) lines.push(`- ${skillCount} skill checks passing`);
     if (hookCount > 0)
-      lines.push(`- ${hookCount} hooks (deny, stop-lint, format)`);
+      lines.push(`- ${hookCount} hooks (deny, post-turn, format)`);
     lines.push(
       `- Score: ${agentReport.score.tiers.foundation.earned}/${agentReport.score.tiers.foundation.available} foundation, ${agentReport.score.tiers.standard.earned}/${agentReport.score.tiers.standard.available} standard, ${agentReport.score.tiers.full.earned}/${agentReport.score.tiers.full.available} full`,
     );

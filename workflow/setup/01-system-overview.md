@@ -20,10 +20,10 @@ If the version is older, use the upgrade path instead:
 A framework that gives AI coding agents structured planning (with SBAO multi-perspective critique and Mob Elaboration), persistent memory across sessions, and mechanical safety guardrails. Three layers:
 
 1. **Instruction file** (CLAUDE.md / AGENTS.md / GEMINI.md) — The execution loop, autonomy tiers, definition of done, and router table. Loaded every turn.
-2. **Skills** (6 functional + 1 dispatcher) — Critique (SBAO multi-perspective analysis), plan, test, review, secure, debug. Loaded on demand via slash commands. Install verbatim from templates — do NOT adapt, compress, or rewrite skill content.
-3. **.goat-flow/ learning loop** — Footguns (architectural traps with file:line evidence), lessons (behavioural mistakes), decisions (ADRs), patterns (successful approaches), and optional local instruction files such as coding-standards. AI extended memory persisting across sessions.
+2. **Skills** (6 functional + 1 dispatcher) — Plan (milestone task files), critique (SBAO multi-perspective analysis), test, review, secure, debug. Feature briefs and mob elaboration are handled by the dispatcher's Planning Route. Loaded on demand via slash commands. Install verbatim from templates — do NOT adapt, compress, or rewrite skill content.
+3. **.goat-flow/ learning loop** — Footguns (architectural traps with file:line evidence), lessons (behavioural mistakes), decisions (ADRs), patterns (successful approaches), templates (standalone prompt templates for manual planning sessions), and optional local instruction files. AI extended memory persisting across sessions.
 
-Every project gets the full system. The components are lightweight infrastructure, not ceremony proportional to codebase size. SBAO and Mob Elaboration are the primary planning features — they are never removed, demoted, or auto-skipped.
+Every project gets the full system. The components are lightweight infrastructure, not ceremony proportional to codebase size.
 
 ## Setup session log
 

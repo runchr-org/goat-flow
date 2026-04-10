@@ -1,6 +1,6 @@
 # Requirements: {Feature Name}
 
-> For initial feature briefs before formal tracking, see `workflow/playbooks/planning/feature-brief.md`.
+> For initial feature briefs before formal tracking, see `workflow/templates/feature-brief.md`.
 
 **Milestone:** {milestone reference}
 **Created:** {date}

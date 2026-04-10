@@ -382,22 +382,7 @@ These prevent agents from reading SSH keys, cloud credentials, certificates, and
 
 Place them alongside the existing \`Read(**/.env*)\` deny rule.`,
   },
-  {
-    key: "add-stop-lint-validation",
-    phase: "standard",
-    category: "Hooks",
-    kind: "fix",
-    instruction: `The post-turn hook (stop-lint.sh) exists but has no actual validation logic. It should run checks after each agent turn:
-
-- Shellcheck on changed \`.sh\` files
-- Typecheck (\`tsc --noEmit\`) on changed \`.ts\` files
-- Lint check on changed files (language-appropriate)
-- Format check (if formatter configured)
-
-The hook MUST exit 0 even if checks fail (non-zero causes infinite loops). Report issues to stderr as informational feedback.
-
-See \`workflow/hooks/stop-lint.sh\` for the full stop-lint template.`,
-  },
+  // add-stop-lint-validation removed - stop-lint.sh removed from framework. Projects write their own post-turn hooks.
   {
     key: "fix-settings-json",
     phase: "standard",
@@ -405,45 +390,13 @@ See \`workflow/hooks/stop-lint.sh\` for the full stop-lint template.`,
     kind: "fix",
     instruction: `\`{{settingsFile}}\` is invalid JSON. Open it, find the syntax error, and fix it. Common issues: trailing commas, missing quotes, unescaped characters.`,
   },
-  {
-    key: "create-stop-lint",
-    phase: "standard",
-    category: "Hooks",
-    kind: "create",
-    instruction: `Create a post-turn verification hook for {{agentName}}.`,
-    agentOverrides: {
-      claude: `Create \`.claude/hooks/stop-lint.sh\`:
-
-\`\`\`bash
-#!/usr/bin/env bash
-# Stop hook - runs after each agent turn
-# Add lint checks, line count checks, etc.
-exit 0
-\`\`\`
-
-IMPORTANT: The script MUST end with \`exit 0\`. Non-zero exit causes infinite retry loops.`,
-      codex: `Create \`scripts/stop-lint.sh\`:
-
-\`\`\`bash
-#!/usr/bin/env bash
-# Post-turn verification for Codex
-exit 0
-\`\`\``,
-      gemini: `Create \`.gemini/hooks/stop-lint.sh\`:
-
-\`\`\`bash
-#!/usr/bin/env bash
-# AfterAgent hook - post-turn verification
-exit 0
-\`\`\``,
-    },
-  },
+  // create-stop-lint removed - stop-lint.sh removed from framework. Projects write their own post-turn hooks.
   {
     key: "fix-hook-exit",
     phase: "standard",
     category: "Hooks",
     kind: "fix",
-    instruction: `The post-turn hook (stop-lint.sh) is swallowing validation failures with \`|| true\`.
+    instruction: `The post-turn hook is swallowing validation failures with \`|| true\`.
 
 Open the hook script and remove \`|| true\` from lint, typecheck, and format commands so real failures are surfaced. Keep intentional guards for optional discovery commands (for example \`grep ... || true\` when checking if files exist), but do not suppress the actual validation command itself.`,
   },

@@ -3,18 +3,18 @@
   "scenarios": [
     {
       "vagueInput": "build a feature",
-      "expectedQuestions": ["what problem", "complexity", "scope"],
+      "expectedQuestions": ["building", "risk", "milestone"],
       "idealSpecificInput": "Plan a webhook notification system for the billing module. Users need real-time payment status updates. Done when: events fire on charge/refund/dispute, retries on failure, dashboard shows delivery status."
     },
     {
-      "vagueInput": "refactor this",
-      "expectedQuestions": ["scope", "what problem", "complexity"],
-      "idealSpecificInput": "Refactor the config reader from a single 500-line file into separate parse/validate/merge modules. Motivation: complexity exceeds ESLint threshold. Scope: src/cli/config/ only."
+      "vagueInput": "break this into milestones",
+      "expectedQuestions": ["building", "risk", "milestone"],
+      "idealSpecificInput": "Break the config refactor into milestones. Scope: src/cli/config/ only. Riskiest part: the merge logic. Kill criteria: if validation breaks existing configs."
     },
     {
-      "vagueInput": "make it better",
-      "expectedQuestions": ["what problem", "complexity", "scope"],
-      "idealSpecificInput": "Improve the dashboard load time - currently 3s on first paint. Target: under 1s. Focus on the preset list rendering and scan data fetch."
+      "vagueInput": "plan the work",
+      "expectedQuestions": ["building", "risk", "milestone"],
+      "idealSpecificInput": "Create milestone files for the dashboard load time improvement. Target: under 1s first paint. Focus on preset list rendering and scan data fetch."
     }
   ]
 }

@@ -121,12 +121,12 @@ export function getPostTurnHookMessage(
       ctx,
       "post-turn",
       ctx.agentFacts.agent.hookEvents.postTurn,
-      `${ctx.agentFacts.agent.hooksDir ?? "."}/stop-lint.sh`,
+      `${ctx.agentFacts.agent.hooksDir ?? "."}/post-turn-hook.sh`,
     );
   }
 
   if (status.exists === false) {
-    return `Post-turn hook is registered at ${status.registeredPath} but the script file does not exist. Registered hooks only count when the referenced stop-lint script resolves on disk.`;
+    return `Post-turn hook is registered at ${status.registeredPath} but the script file does not exist. Registered hooks only count when the referenced post-turn hook path resolves on disk.`;
   }
 
   if (status.hasValidation === false) {

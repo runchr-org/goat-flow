@@ -1,10 +1,16 @@
 # Prompt: SBAO Ranking
 
-> **This is the manual multi-session SBAO template.** Use this when orchestrating SBAO across
-> separate AI sessions with different providers or contexts.
+> **What this is:** The manual multi-session SBAO workflow. Use this when you want to
+> orchestrate competing plans across separate AI sessions with different providers or contexts.
+>
 > For automated sub-agent SBAO within a single session, use `/goat-sbao`.
-
-> **When to use:** After writing your [feature brief](feature-brief.md) and optionally running [Mob Elaboration](mob-elaboration.md). Use this to generate and refine a technical plan before breaking it into [milestones](milestone-planning.md).
+>
+> When to use this over `/goat-sbao`:
+> - You want to use multiple different AI providers (Claude + Gemini + ChatGPT)
+> - You want full human control over context given to each planner
+> - You want to run SBAO across separate CLI sessions with different models
+>
+> After writing your [feature brief](feature-brief.md), use this to generate and refine a technical plan before breaking it into [milestones](milestone-planning.md).
 
 Signal-Based Adaptive Orchestration: ask multiple agents for competing
 plans, then force comparison, critique, and synthesis instead of accepting

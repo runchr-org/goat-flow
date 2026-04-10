@@ -812,7 +812,11 @@ export function serveDashboard(
     }
 
     /** Server-side project list persistence file path. */
-    const projectsListFile = join(absDefault, ".goat-flow", "dashboard-projects.json");
+    const projectsListFile = join(
+      absDefault,
+      ".goat-flow",
+      "dashboard-projects.json",
+    );
 
     /** Save/load the project list to/from disk so it survives server restarts. */
     async function handleProjectsListRequest(
@@ -838,7 +842,9 @@ export function serveDashboard(
         const body = await readBody(req);
         try {
           const parsed = JSON.parse(body);
-          const paths: string[] = Array.isArray(parsed.paths) ? parsed.paths : [];
+          const paths: string[] = Array.isArray(parsed.paths)
+            ? parsed.paths
+            : [];
           const { mkdir, writeFile } = await import("node:fs/promises");
           await mkdir(join(absDefault, ".goat-flow"), { recursive: true });
           await writeFile(projectsListFile, JSON.stringify({ paths }, null, 2));

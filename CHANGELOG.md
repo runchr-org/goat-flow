@@ -37,7 +37,7 @@ Setup overhaul driven by 10 real-project reviews. Setup agents now understand de
 - Split `upgrade.md` into `upgrade-0.9.x.md` and `upgrade-1.0.0.md` with destructive migration instructions
 - Created `workflow/setup/reference/project-structure.json` — single source of truth for expected file layout
 - Scanner: removed CI Validation checks 3.2.1–3.2.5 (6pts, not AI workflow), fixed grep -P false positive (9/11 projects), fixed 2.6.1a pointer-file exemption (8/11 projects)
-- Removed format-file.sh and guard-write-size.sh from goat-flow system — only deny-dangerous.sh and stop-lint.sh ship
+- Removed format-file.sh and guard-write-size.sh from goat-flow system — only deny-dangerous.sh ships by default (`stop-lint` is now project-specific)
 - Skills: purged all stale v1.0 refs (todo.md, handoff.md, TODO_*_prime, flush), SBAO opt-in, compliance mode opt-in, fixed skill-conventions.md contradiction
 - Reduced default .goat-flow/ scaffold (no domain-reference.md, always glossary.md)
 - Dashboard: added /api/rubrics endpoint, light mode fix for setup page

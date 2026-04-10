@@ -22,7 +22,7 @@ Use when diagnosing a bug or understanding unfamiliar code. For onboarding, use 
 
 **If you want to "just try something" before tracing the code path, STOP.** That is the failure mode this skill exists to prevent.
 
-**NOT this skill:** Reviewing --> /goat-review. Test plans --> /goat-test. Planning --> /goat-plan.
+**NOT this skill:** Reviewing → /goat-review. Test plans → /goat-test. Planning milestones → /goat-plan. Feature briefs → dispatcher Planning Route.
 
 ## Step 0 - Choose Depth
 

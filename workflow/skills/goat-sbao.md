@@ -150,7 +150,7 @@ Decision Debt ships with the current work but must be revisited at a stated trig
 
 List these as "What Wasn't Critiqued." This section must never be empty — if everything was covered, state that explicitly.
 
-**BLOCKING GATE:** Present the synthesised critique. Human decides: apply recommendations, dig deeper, re-run with different framing, or close.
+**BLOCKING GATE:** Present the synthesised critique. Human decides: apply recommendations, dig deeper, re-run with different framing, or close. After critique of a plan, suggest `/goat-plan` to update milestones based on recommendations.
 
 ## Critique Rubrics
 

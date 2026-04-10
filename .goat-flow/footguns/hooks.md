@@ -20,11 +20,11 @@ goat-review (`.claude/skills/goat-review/SKILL.md:42`) and goat-test (`.claude/s
 
 ---
 
-## Footgun: stop-lint.sh swallows failures with || true
+## Footgun: post-turn hook swallows failures with || true
 
 **Status:** open | **Created:** 2026-04-03 | **Evidence:** ACTUAL_MEASURED
 
-Hook template `workflow/hooks/stop-lint.sh` uses `|| true` after lint/type-check commands. This means the hook NEVER exits non-zero, even when lint fails. CLAUDE.md claims PHPStan level 10 enforcement - the hook doesn't enforce it.
+Project post-turn hook scripts with `|| true` after lint/type-check commands never exit non-zero when validation fails, which hides lint failures. CLAUDE.md claims PHPStan level 10 enforcement, but the hook doesn't enforce it.
 
 **Evidence:** Found independently by Codex critiques on the-summit-chatroom (`.claude/hooks/stop-lint.sh:22`, `:29`, `:37` all swallow failure) and blundergoat-platform.
 

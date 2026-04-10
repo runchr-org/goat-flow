@@ -84,7 +84,7 @@ const SKILL_QUALITY_PATTERNS: Array<{
   {
     key: "withChoices",
     pattern:
-      /\(a\)|\(b\)|\(c\)|want me to|offer:|\bquick\b[\s\S]{0,160}\bfull\b|drill into|go deeper|check (?:a|the) (?:related|different)|switch to|adjust scope|redirect the review|proceed to ranking|or close/i,
+      /\(a\)|\(b\)|\(c\)|want me to|offer:|\bquick\b[\s\S]{0,160}\bfull\b|drill into|go deeper|check (?:a|the) (?:related|different)|switch to|adjust scope|redirect the review|proceed to ranking|or close|or adjust|start fresh|update milestones|dig deeper|re-run with/i,
   },
   { key: "withOutputFormat", pattern: /##\s*(Output|Output Format)/i },
   { key: "withSharedConventions", pattern: /^##\s+shared conventions/im },

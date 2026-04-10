@@ -44,7 +44,7 @@ Target: under 120 lines. Hard limit: 150.`,
     phase: "anti-pattern",
     category: "Anti-Pattern Fix",
     kind: "fix",
-    instruction: `**CRITICAL:** The post-turn hook (stop-lint.sh) swallows validation failures with \`|| true\`. This hides lint/typecheck errors and costs -5 points.
+    instruction: `**CRITICAL:** The post-turn hook swallows validation failures with \`|| true\`. This hides lint/typecheck errors and costs -5 points.
 
 Fix: remove \`|| true\` from the real validation commands. Keep optional discovery guards if needed, but do not suppress the actual \`shellcheck\`, \`eslint\`, \`tsc\`, or formatter invocation.`,
   },

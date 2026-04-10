@@ -19,8 +19,7 @@
     ".goat-flow/decisions/",
     ".goat-flow/tasks/",
     ".goat-flow/logs/sessions/",
-    ".goat-flow/playbooks/planning/",
-    ".goat-flow/playbooks/testing/"
+    ".goat-flow/templates/"
   ],
 
   "directory_purposes": {

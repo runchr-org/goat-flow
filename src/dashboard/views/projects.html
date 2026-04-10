@@ -64,10 +64,7 @@
           placeholder="/path/to/project"
           @keydown.enter="addProject()"
         />
-        <button
-          @click="addProject()"
-          class="gf-btn gf-btn-md gf-btn-scan"
-        >
+        <button @click="addProject()" class="gf-btn gf-btn-md gf-btn-scan">
           Add
         </button>
         <button
@@ -101,7 +98,7 @@
                 <span
                   x-show="col.key && projectsSortKey === col.key"
                   x-text="projectsSortAsc ? ' ▲' : ' ▼'"
-                  style="font-size: 9px; opacity: 0.6;"
+                  style="font-size: 9px; opacity: 0.6"
                 ></span>
               </th>
             </template>

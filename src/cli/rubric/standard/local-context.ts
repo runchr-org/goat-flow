@@ -58,8 +58,7 @@ export const localContextChecks: CheckDef[] = [
           points: 1,
           maxPoints: 1,
           confidence: "high",
-          message:
-            "At least one local-instructions surface is in use",
+          message: "At least one local-instructions surface is in use",
         };
       },
     },

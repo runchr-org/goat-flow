@@ -31,8 +31,6 @@ b) Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LO
      escalation. Revert-and-rescope tactic.
      Before presenting findings, re-read every `file:line` you plan to cite.
      If you cannot re-read it, mark the claim UNVERIFIED.
-     If the instruction file mentions `stop-lint.sh`, describe it honestly:
-     it reports errors by default and only enforces with `GOAT_LINT_ENFORCE=1`.
      Plan tracking: if working from a plan/milestone file, tick each
      checkbox (`- [x]`) as the task is completed - not at the end.
      Recovery protocols: include 2-3 common failure patterns with fixes

@@ -134,6 +134,8 @@ function hasAdaptiveBehavior(step0: string): boolean {
     lower.includes("already") ||
     lower.includes("unless user") ||
     lower.includes("if the user") ||
+    lower.includes("if found") ||
+    lower.includes("checkpoint") ||
     lower.includes("scope detection priority")
   );
 }

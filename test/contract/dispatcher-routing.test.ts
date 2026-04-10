@@ -40,25 +40,28 @@ describe("Dispatcher intake flow", () => {
     );
   });
 
-  it("offers one clarifying question for vague requests", () => {
+  it("has clarification rules with question budget", () => {
     assert.ok(
-      dispatcherContent.includes("one clarifying question"),
-      "Dispatcher should cap vague-intent clarification at one question",
+      dispatcherContent.includes("Zero questions") ||
+        dispatcherContent.includes("One question") ||
+        dispatcherContent.includes("Two questions"),
+      "Dispatcher should have clarification rules with question budget",
     );
     assert.ok(
-      dispatcherContent.includes("understand it, find a bug, review quality"),
-      "Dispatcher should include a conversational clarification example",
+      dispatcherContent.includes("Never three"),
+      "Dispatcher should cap at two clarifying questions maximum",
     );
   });
 
-  it("offers quick/full planning depth with Mob and SBAO", () => {
+  it("has Planning Route with feature briefs and mob elaboration", () => {
     assert.ok(
-      dispatcherContent.includes("quick plan"),
-      "Dispatcher should mention the quick plan path",
+      dispatcherContent.includes("Planning Route"),
+      "Dispatcher should have a Planning Route section",
     );
     assert.ok(
-      dispatcherContent.includes("Mob") && dispatcherContent.includes("SBAO"),
-      "Dispatcher should route planning requests toward Mob and SBAO",
+      dispatcherContent.includes("Mob Elaboration") ||
+        dispatcherContent.includes("mob elaboration"),
+      "Dispatcher should handle mob elaboration in Planning Route",
     );
   });
 
@@ -100,8 +103,9 @@ describe("Dispatcher intake flow", () => {
 describe("Dispatcher skill content contracts", () => {
   it("has escape hatch for simple questions", () => {
     assert.ok(
-      dispatcherContent.includes("Simple Questions"),
-      "Dispatcher should have an escape hatch for factual questions",
+      dispatcherContent.includes("Simple factual questions") ||
+        dispatcherContent.includes("answer directly"),
+      "Dispatcher should route simple factual questions to direct answers",
     );
   });
 

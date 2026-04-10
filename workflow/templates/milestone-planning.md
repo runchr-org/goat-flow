@@ -1,7 +1,12 @@
 # Prompt: Milestone Planning
 
-> **When to use:** After [SBAO](sbao-ranking.md) produces a prime plan. Use this to break that plan into phased milestones with clear exit criteria.
-> For single-agent interactive milestone planning, see /goat-plan Phase 4.
+> **What this is:** A prompt template for breaking a plan into phased milestones.
+> Use this by pasting it into a fresh AI session with your requirements attached,
+> or use `/goat-plan` to handle milestone planning interactively.
+>
+> `/goat-plan` already has the milestone archetypes, between-milestone protocol,
+> and kill criteria checking built in — this template is for manual use in
+> separate sessions or with different AI providers.
 >
 > **Input:** Attach your feature requirements document or milestone file from `.goat-flow/tasks/` at the end of this prompt.
 

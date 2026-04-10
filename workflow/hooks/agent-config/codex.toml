@@ -10,12 +10,6 @@
 # Each rule returns: allow, prompt, or forbidden.
 # See Codex docs for the Starlark rule API.
 
-# --- Optional Stop Hook -------------------------------------------------------
-# Recommended addition if you want post-turn validation feedback.
-# Leave it advisory by default; set GOAT_LINT_ENFORCE=1 if you want non-zero exits.
-# [hooks.stop]
-# command = "bash .codex/hooks/stop-lint.sh"
-
 # --- SessionStart Hook --------------------------------------------------------
 # Fires once when a session opens. Use for environment verification,
 # loading context, or checking prerequisites.

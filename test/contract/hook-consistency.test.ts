@@ -108,39 +108,14 @@ describe("Hook template consistency with workflow/hooks/", () => {
     });
   });
 
-  describe("stop-lint.sh", () => {
-    const hook = readHook("stop-lint.sh");
+  describe("Post-turn hook guidance", () => {
+    const hooksReadme = join(HOOKS_TEMPLATE_DIR, "README.md");
+    const readmeContent = existsSync(hooksReadme)
+      ? readFileSync(hooksReadme, "utf-8")
+      : "";
 
-    it("exists", () => {
-      assert.ok(hook, "stop-lint.sh should exist");
-    });
-
-    it("always exits 0 (matching enforcement.md)", () => {
-      assert.ok(hook);
-      // The last non-empty line should be exit 0
-      const lines = hook.trim().split("\n");
-      const lastLine = lines[lines.length - 1].trim();
-      assert.equal(
-        lastLine,
-        "exit 0",
-        "stop-lint.sh must end with exit 0 to prevent infinite loops",
-      );
-    });
-
-    it("has infinite loop guard (matching enforcement.md)", () => {
-      assert.ok(hook);
-      assert.ok(
-        hook.includes("STOP_HOOK_ACTIVE"),
-        "stop-lint.sh should have STOP_HOOK_ACTIVE infinite loop guard",
-      );
-    });
-
-    it("checks git diff for changed files", () => {
-      assert.ok(hook);
-      assert.ok(
-        hook.includes("git diff"),
-        "stop-lint.sh should check git diff for changed files",
-      );
+    it("explains project-specific post-turn validation setup", () => {
+      assert.ok(readmeContent.includes("project-specific"), readmeContent);
     });
   });
 });

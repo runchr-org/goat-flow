@@ -65,12 +65,6 @@ function getFoundationHooks(agentId: AgentId): TemplateRef[] {
           phase: "foundation",
           note: "Section: PreToolUse",
         },
-        {
-          output: ".claude/hooks/stop-lint.sh",
-          template: "workflow/hooks/stop-lint.sh",
-          phase: "foundation",
-          note: "Section: Stop hook",
-        },
       ];
 
     case "codex":
@@ -87,12 +81,6 @@ function getFoundationHooks(agentId: AgentId): TemplateRef[] {
           phase: "foundation",
           note: "Starlark execpolicy (line 120+)",
         },
-        {
-          output: "scripts/stop-lint.sh",
-          template: "workflow/setup/agents/codex.md",
-          phase: "foundation",
-          note: "Section: verification scripts (line 131+)",
-        },
       ];
 
     case "gemini":
@@ -108,12 +96,6 @@ function getFoundationHooks(agentId: AgentId): TemplateRef[] {
           template: "workflow/setup/agents/gemini.md",
           phase: "foundation",
           note: "Gemini BeforeTool hook",
-        },
-        {
-          output: ".gemini/hooks/stop-lint.sh",
-          template: "workflow/setup/agents/gemini.md",
-          phase: "foundation",
-          note: "Gemini AfterAgent hook",
         },
       ];
   }
@@ -256,11 +238,7 @@ const FRAGMENT_TEMPLATE_MAP: Record<
     codex: "workflow/setup/agents/codex.md",
     gemini: "workflow/setup/agents/gemini.md",
   },
-  "create-stop-lint": {
-    claude: "workflow/hooks/stop-lint.sh",
-    codex: "workflow/setup/agents/codex.md",
-    gemini: "workflow/setup/agents/gemini.md",
-  },
+  // create-stop-lint removed - stop-lint.sh removed from framework
   // File-level creates - optional local instructions
   "create-conventions-instructions":
     "workflow/setup/reference/reference-coding-guidelines.md",
@@ -338,11 +316,7 @@ const FRAGMENT_TEMPLATE_MAP: Record<
     codex: "workflow/setup/agents/codex.md",
     gemini: "workflow/setup/agents/gemini.md",
   },
-  "add-stop-lint-validation": {
-    claude: "workflow/hooks/stop-lint.sh",
-    codex: "workflow/setup/agents/codex.md",
-    gemini: "workflow/setup/agents/gemini.md",
-  },
+  // add-stop-lint-validation removed - stop-lint.sh removed from framework
   "add-compaction-hook": {
     claude: "workflow/hooks/README.md",
     codex: "workflow/setup/agents/codex.md",
@@ -358,8 +332,10 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   "create-security-instructions": "workflow/reference/security/README.md",
   "create-testing-instructions":
     "workflow/setup/reference/reference-coding-guidelines.md",
-  "create-copilot-bridge": "workflow/setup/reference/reference-coding-guidelines.md",
-  "create-domain-instructions": "workflow/setup/reference/reference-coding-guidelines.md",
+  "create-copilot-bridge":
+    "workflow/setup/reference/reference-coding-guidelines.md",
+  "create-domain-instructions":
+    "workflow/setup/reference/reference-coding-guidelines.md",
   "create-security-auth": "workflow/reference/security/api-auth.md",
   "create-security-upload": "workflow/reference/security/file-upload.md",
   "create-security-infra": "workflow/reference/security/infrastructure.md",

@@ -21,7 +21,7 @@ Use when reviewing a diff, PR, or set of changes. Also for quality audits of a c
 
 **Boundary:** goat-review owns code quality, style, correctness. goat-security owns threat models, compliance, CVEs, auth boundaries. If you find a security issue, flag it and suggest `/goat-security`.
 
-**NOT this skill:** OWASP assessment -> /goat-security. Understanding code -> /goat-debug. Generating tests -> /goat-test.
+**NOT this skill:** OWASP assessment → /goat-security. Understanding code → /goat-debug. Generating tests → /goat-test. Planning milestones → /goat-plan. Feature briefs → dispatcher Planning Route.
 
 ## Step 0 - Choose Depth
 
@@ -76,7 +76,7 @@ For reviewing instruction files (CLAUDE.md, project instruction surfaces, etc.).
 
 ## Simplify Mode
 
-For readability improvement. MUST NOT change behavior. Scan for: cryptic names, code needing comments to explain intent, deep nesting (>3 levels), magic numbers, dead code. Present ordered by impact. If a rename crosses file boundaries or changes a public API, redirect to /goat-plan. Apply changes one file at a time only after human approval; grep for old names after each rename.
+For readability improvement. MUST NOT change behavior. Scan for: cryptic names, code needing comments to explain intent, deep nesting (>3 levels), magic numbers, dead code. Present ordered by impact. If a rename crosses file boundaries or changes a public API, suggest reading the refactor planning template and following the blast radius analysis procedure before proceeding. Apply changes one file at a time only after human approval; grep for old names after each rename.
 
 ## Constraints
 

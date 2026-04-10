@@ -63,7 +63,8 @@ describe("M11: autonomous mode structural checks", () => {
 
   it("shared preamble (combined) has ceremony level table", () => {
     assert.ok(
-      preambleCombined.includes("Ceremony Level") || preambleCombined.includes("Ceremony:"),
+      preambleCombined.includes("Ceremony Level") ||
+        preambleCombined.includes("Ceremony:"),
       "Shared conventions should have ceremony level guidance (in full reference)",
     );
     assert.ok(
@@ -74,7 +75,8 @@ describe("M11: autonomous mode structural checks", () => {
 
   it("shared preamble (combined) has sub-agent mode handling", () => {
     assert.ok(
-      preambleCombined.includes("Sub-agent mode") || preambleCombined.includes("sub-agent"),
+      preambleCombined.includes("Sub-agent mode") ||
+        preambleCombined.includes("sub-agent"),
       "Shared conventions should document sub-agent mode behavior (in full reference)",
     );
   });
@@ -96,7 +98,8 @@ describe("M11: autonomous mode structural checks", () => {
 
   it("shared preamble (combined) has checkpoint-based recovery for autonomous mode", () => {
     assert.ok(
-      preambleCombined.includes("checkbox") || preambleCombined.includes("milestone"),
+      preambleCombined.includes("checkbox") ||
+        preambleCombined.includes("milestone"),
       "Recovery should mention milestone checkboxes for context preservation (handoff replaced in v1.1.0)",
     );
   });
@@ -177,13 +180,13 @@ describe("M14: auto-mode selection structural checks", () => {
     );
   });
 
-  it("goat-test has scope detection priority", () => {
+  it("goat-test has mode detection", () => {
     const content = readSkill("goat-test");
     assert.ok(
-      content.includes("Scope detection priority") ||
-        content.includes("scope detection") ||
-        content.includes("Auto-detect mode"),
-      "goat-test should have scope detection priority order",
+      content.includes("Mode detection") ||
+        content.includes("mode detection") ||
+        content.includes("Changes exist"),
+      "goat-test should have mode detection logic",
     );
   });
 
@@ -270,7 +273,7 @@ describe("M12: userRole structural checks", () => {
     );
   });
 
-  it('goat-debug D2 gate offers investigation-only exit', () => {
+  it("goat-debug D2 gate offers investigation-only exit", () => {
     const content = readSkill("goat-debug");
     assert.ok(
       content.includes("just report findings") ||

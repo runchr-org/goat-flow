@@ -24,13 +24,7 @@ AGENTS.md, GEMINI.md, `.agents/`, `.gemini/`, `.codex/`, `.github/copilot-instru
 After completing step 03 (skills), wire hooks:
 - Copy scripts from `workflow/hooks/` to `.claude/hooks/`: `deny-dangerous.sh` (required)
 - Copy `workflow/hooks/agent-config/claude.json` as the base for `.claude/settings.json`. The default template keeps secret deny patterns plus git commit/push blocking.
-- Optional recommended addition: copy `stop-lint.sh` to `.claude/hooks/` and enable the commented `Stop` block if you want post-turn validation feedback.
 - If hooks already exist in `.claude/settings.json`, migrate inline commands to external scripts under `.claude/hooks/` before adding new hooks.
-- If you enable `stop-lint.sh`, adapt the `# CUSTOMIZE` sections:
-  1. Read package manifests (`package.json`, `composer.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `Gemfile`, `build.gradle`/`pom.xml`) to discover available lint/type-check tools
-  2. Check for tool config files that indicate which tools are active (`.eslintrc*`, `phpstan.neon`, `.rubocop.yml`, `pyproject.toml [tool.ruff]`, `golangci.yml`, `biome.json`)
-  3. Use local binaries over global (`vendor/bin/phpstan` not `phpstan`, `node_modules/.bin/eslint` not `eslint`)
-  4. Match the tool to what the project actually uses — don't add phpstan to a project that uses psalm
 - If the project uses a code formatter (prettier, biome, etc.), add `.goat-flow/skill-preamble.md` and `.goat-flow/**/*.md` to the formatter's ignore file (`.prettierignore`, `biome.json` ignores, etc.). Verify YAML examples in skill-preamble.md still use `---` delimiters after formatting.
 
 ### Conditional rules
@@ -48,7 +42,6 @@ Only Claude Code supports this syntax.
 - `.claude/settings.json` is valid JSON
 - `bash -n` passes on each hook script
 - deny-dangerous.sh blocks: rm -rf, git push main, --force, chmod 777
-- If `stop-lint.sh` is installed, it reports errors by default and `GOAT_LINT_ENFORCE=1` makes it exit non-zero
 
 ---
 

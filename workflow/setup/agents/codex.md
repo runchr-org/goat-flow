@@ -34,12 +34,6 @@ CLAUDE.md, GEMINI.md, `.claude/`, `.gemini/`.
 
 After completing step 03 (skills):
 - Apply `workflow/hooks/agent-config/codex.toml` as the base for `.codex/config.toml`
-- Optional recommended addition: copy `stop-lint.sh` from `workflow/hooks/` to `.codex/hooks/`, then enable the commented `hooks.stop` block if you want post-turn validation feedback.
-- If you enable `stop-lint.sh`, adapt the `# CUSTOMIZE` sections:
-  1. Read package manifests (`package.json`, `composer.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `Gemfile`, `build.gradle`/`pom.xml`) to discover available lint/type-check tools
-  2. Check for tool config files that indicate which tools are active (`.eslintrc*`, `phpstan.neon`, `.rubocop.yml`, `pyproject.toml [tool.ruff]`, `golangci.yml`, `biome.json`)
-  3. Use local binaries over global (`vendor/bin/phpstan` not `phpstan`, `node_modules/.bin/eslint` not `eslint`)
-  4. Match the tool to what the project actually uses — don't add phpstan to a project that uses psalm
 - Create `.codex/rules/deny-dangerous.star` (Starlark execpolicy):
   - `forbidden`: rm -rf (unscoped), git push main/master, force push, chmod 777, pipe-to-shell, .env mods, --no-verify
   - `prompt`: git commit, git push (non-main), sudo, scoped rm -rf
@@ -59,7 +53,6 @@ If `.claude/` and `CLAUDE.md` exist, leave them untouched. AGENTS.md MUST refere
 - `.codex/config.toml` exists with the expected default registrations
 - `.codex/rules/deny-dangerous.star` exists with forbidden patterns
 - Hook scripts are executable
-- If `stop-lint.sh` is installed, it reports errors by default and `GOAT_LINT_ENFORCE=1` makes it exit non-zero
 
 ---
 

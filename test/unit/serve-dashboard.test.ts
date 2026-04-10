@@ -223,8 +223,6 @@ describe("serve-dashboard API", () => {
     assert.ok(Array.isArray(d.dirs));
   });
 
-
-
   it("GET /unknown returns 404", async () => {
     const { status } = await request(port, "GET", "/nonexistent");
     assert.equal(status, 404);

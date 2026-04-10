@@ -248,7 +248,6 @@ function app() {
           this.detachTerminal(oldPath);
           this.reconnectTerminal();
           this.updateSessionCount();
-
         }
       });
       updateTitle();
@@ -472,8 +471,14 @@ function app() {
       const key = this.projectsSortKey;
       const dir = this.projectsSortAsc ? 1 : -1;
       return [...this.projectsList].sort((a, b) => {
-        let av = key === "name" ? a.path.split("/").filter(Boolean).pop() || "" : (a[key] || "");
-        let bv = key === "name" ? b.path.split("/").filter(Boolean).pop() || "" : (b[key] || "");
+        let av =
+          key === "name"
+            ? a.path.split("/").filter(Boolean).pop() || ""
+            : a[key] || "";
+        let bv =
+          key === "name"
+            ? b.path.split("/").filter(Boolean).pop() || ""
+            : b[key] || "";
         return av.localeCompare(bv) * dir;
       });
     },
@@ -535,7 +540,9 @@ function app() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paths }),
-      }).catch(() => {/* silent */});
+      }).catch(() => {
+        /* silent */
+      });
     },
 
     // -- Rubrics --

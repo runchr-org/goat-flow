@@ -165,7 +165,10 @@ describe("Execution loop: dynamic read budgets", () => {
 // ---------------------------------------------------------------
 describe("Execution loop: session logs", () => {
   it('mentions "session logs" or "logs/sessions"', () => {
-    const content = readFileSync(join(SETUP_REF_DIR, "execution-loop.md"), "utf-8");
+    const content = readFileSync(
+      join(SETUP_REF_DIR, "execution-loop.md"),
+      "utf-8",
+    );
     const hasSessionLogs = content.toLowerCase().includes("session logs");
     const hasLogsSessions = content.includes("logs/sessions");
     assert.ok(
@@ -319,10 +322,7 @@ describe("Shared preamble required sections", () => {
     WORKFLOW_SKILLS_DIR,
     "reference/skill-preamble.md",
   );
-  const fullPath = join(
-    WORKFLOW_SKILLS_DIR,
-    "reference/skill-conventions.md",
-  );
+  const fullPath = join(WORKFLOW_SKILLS_DIR, "reference/skill-conventions.md");
 
   it("essential file exists", () => {
     assert.ok(
@@ -368,10 +368,7 @@ describe("Shared preamble required sections", () => {
       combined.includes("Session Log") ||
       combined.includes("session log") ||
       combined.includes("logs/sessions");
-    assert.ok(
-      hasSessionLog,
-      "skill-conventions should reference session logs",
-    );
+    assert.ok(hasSessionLog, "skill-conventions should reference session logs");
   });
 
   it("essential file is under 50 lines", () => {

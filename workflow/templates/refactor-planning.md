@@ -1,5 +1,12 @@
 # Refactor Planning
 
+> **What this is:** A reference template for planning code restructuring (renames,
+> extractions, moves, interface changes). Use when you need a structured approach
+> to a refactor that crosses multiple files or boundaries.
+>
+> The goat dispatcher can read this template and walk through it interactively
+> when you describe a restructuring task.
+
 Use when restructuring existing code: renames, extractions, moves, interface changes.
 
 ## Phase R1 — Blast Radius Analysis
