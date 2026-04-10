@@ -40,7 +40,7 @@ export const hookChecks: CheckDef[] = [
     },
     recommendation:
       "Post-turn hooks are optional. If you configure one, make it run real validation (lint, typecheck, format-check) so the hook provides trustworthy feedback instead of a no-op wrapper.",
-    recommendationKey: "create-stop-lint",
+    recommendationKey: "create-post-turn-hook",
   },
   {
     id: "2.2.2a",
@@ -107,7 +107,7 @@ export const hookChecks: CheckDef[] = [
     },
     recommendation:
       "A hook registration pointing at a missing or non-executable script silently fails -- the agent gets no validation feedback and you think enforcement is active when it isn't. Ensure every registered hook path points to an existing executable script.",
-    recommendationKey: "create-stop-lint",
+    recommendationKey: "create-post-turn-hook",
   },
   // 2.2.3 (Post-turn hook does not swallow failures) removed - redundant with AP6 (-5 for swallowed failures). Double-penalization flagged by SBAO audit.
   {
@@ -195,7 +195,7 @@ export const hookChecks: CheckDef[] = [
     },
     recommendation:
       "A post-turn hook that only does `exit 0` is a no-op wrapper -- it runs after every agent action but catches nothing. Replace it with real validation commands (shellcheck, tsc --noEmit, eslint, prettier --check) so code quality is enforced mechanically, not by hope.",
-    recommendationKey: "add-stop-lint-validation",
+    recommendationKey: "create-post-turn-hook",
   },
   {
     id: "2.2.4c",

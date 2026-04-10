@@ -382,7 +382,17 @@ These prevent agents from reading SSH keys, cloud credentials, certificates, and
 
 Place them alongside the existing \`Read(**/.env*)\` deny rule.`,
   },
-  // add-stop-lint-validation removed - stop-lint.sh removed from framework. Projects write their own post-turn hooks.
+  // add-stop-lint-validation removed - stop-lint.sh removed from framework.
+  {
+    key: "create-post-turn-hook",
+    phase: "standard",
+    category: "Hooks",
+    kind: "create",
+    instruction: `goat-flow does not ship a post-turn lint hook — every project has different linters, configs, and performance constraints. If you want post-turn validation, write a project-specific script for the Stop/AfterAgent event using your project's actual lint commands.
+
+See \`workflow/hooks/README.md\` for hook guidance. The script MUST exit 0 even if checks fail (non-zero causes infinite retry loops). Report issues to stderr as informational feedback.`,
+  },
+  // create-stop-lint removed - stop-lint.sh removed from framework.
   {
     key: "fix-settings-json",
     phase: "standard",

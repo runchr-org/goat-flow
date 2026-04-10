@@ -239,6 +239,7 @@ const FRAGMENT_TEMPLATE_MAP: Record<
     gemini: "workflow/setup/agents/gemini.md",
   },
   // create-stop-lint removed - stop-lint.sh removed from framework
+  "create-post-turn-hook": "workflow/hooks/README.md",
   // File-level creates - optional local instructions
   "create-conventions-instructions":
     "workflow/setup/reference/reference-coding-guidelines.md",
