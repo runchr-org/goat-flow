@@ -37,7 +37,7 @@ Use before non-trivial implementation or cross-file restructuring.
 - If the user names a rename, extract, move, or interface change → switch to **Refactor Planning Mode** (read the refactor playbook).
 - If arriving from the dispatcher with depth already chosen, skip the depth question.
 
-**Before proceeding:** check `.goat-flow/footguns/` for the target area. Check `.goat-flow/tasks/` for existing plans. Surface kill criteria early: "What would make us abandon this entirely?"
+**Before proceeding:** check `.goat-flow/footguns/` for the target area. Check the tasks directory (see config.yaml for path) for existing plans. Surface kill criteria early: "What would make us abandon this entirely?"
 
 ## Quick Plan
 
