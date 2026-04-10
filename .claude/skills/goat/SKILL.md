@@ -23,7 +23,7 @@ Conversational intake for all goat-flow skills. Use when the user describes an o
 2. **GATHER** - pull in project context automatically: Ask First boundaries, footguns, recent git, toolchain, and local instructions when relevant.
 3. **ROUTE** - hand off to the right skill with an enriched brief, or proceed directly with the execution loop if no skill is needed.
 
-The other 5 skills remain directly invocable. `/goat` is a smarter front door, not a replacement.
+The other 6 skills remain directly invocable. `/goat` is a smarter front door, not a replacement.
 
 ## UNDERSTAND
 
@@ -31,6 +31,7 @@ The other 5 skills remain directly invocable. `/goat` is a smarter front door, n
 - Clear planning or design request → **/goat-plan**
 - Clear bug, failure, or investigation request → **/goat-debug**
 - Clear quality review, audit, or simplify request → **/goat-review**
+- Clear request for critique, comparison, second opinion, or multi-perspective review → **/goat-sbao**
 - Clear security or compliance request → **/goat-security**
 - Clear testing or coverage request → **/goat-test**
 - Simple implementation requests like "rename X to Y", "add a log line", "move this constant", or "change the error text" → no skill; proceed directly with the execution loop
@@ -62,6 +63,7 @@ Build a short brief like:
 - **/goat-debug** for diagnosis, investigation, and onboarding
 - **/goat-review** for code review, audits, instruction-file review, and simplify work
 - **/goat-plan** for feature planning, refactor planning, Mob Elaboration, and SBAO
+- **/goat-sbao** for multi-perspective critique of any artifact — plans, assessments, hypotheses, findings, strategies
 - **/goat-security** for threat models, compliance work, dependency audits, and auth/authz assessment
 - **/goat-test** for test planning, coverage gaps, and verification workflows
 
@@ -87,6 +89,7 @@ Build a short brief like:
 | "refactor the tests" | plan vs test | "Are you restructuring test code, or do you want a test plan?" |
 | "review the security code" | review vs security | "Do you want a quality review, or a security assessment?" |
 | "audit the code" | review vs security | "Is this a code quality audit, or a security and dependency audit?" |
+| "get a second opinion on this" | goat-sbao vs goat-review | "Do you want structured multi-agent critique, or a single-pass code review?" |
 
 **Target-aware hints:** If the input includes a path, use it to bias the clarification:
 - `roadmap`, `plan`, `.goat-flow/tasks/`, `milestone` → plan vs review
@@ -103,6 +106,7 @@ If the user types just `/goat` with no arguments:
 > - `/goat plan the new feature` → plan
 > - `/goat check for security issues` → security
 > - `/goat make sure this is tested` → test
+> - `/goat critique this plan` → sbao
 > - `/goat rename this helper` → direct execution
 >
 > Or describe what you're working on and I'll route it."
@@ -132,7 +136,7 @@ The dispatcher announces the route and hands off. No standalone deliverable.
 - MUST gather Ask First, footgun, recent git, and toolchain context when relevant
 - MUST pass one enriched brief to one target skill
 - MUST respect explicit skill overrides
-- MUST leave the other 5 skills directly invocable
+- MUST leave the other 6 skills directly invocable
 
 ## Post-Dispatch Chaining
 
@@ -144,6 +148,7 @@ After the routed work closes, suggest the next likely move:
 | goat-review | "Need `/goat-debug` for a specific finding, or `/goat-test` for coverage gaps?" |
 | goat-plan | "Ready to implement, or do you want `/goat-test` to plan verification first?" |
 | goat-security | "Want `/goat-review` on the fixes, or `/goat-test` for mitigation checks?" |
+| goat-sbao | "Want to implement the recommendations, or run `/goat-review` on the updated artifact?" |
 | goat-test | "Want `/goat-review` on the test quality, or are you done here?" |
 
 Only suggest a next step if the user has not already moved on.

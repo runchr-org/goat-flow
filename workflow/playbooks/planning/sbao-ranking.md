@@ -1,5 +1,9 @@
 # Prompt: SBAO Ranking
 
+> **This is the manual multi-session SBAO template.** Use this when orchestrating SBAO across
+> separate AI sessions with different providers or contexts.
+> For automated sub-agent SBAO within a single session, use `/goat-sbao`.
+
 > **When to use:** After writing your [feature brief](feature-brief.md) and optionally running [Mob Elaboration](mob-elaboration.md). Use this to generate and refine a technical plan before breaking it into [milestones](milestone-planning.md).
 
 Signal-Based Adaptive Orchestration: ask multiple agents for competing

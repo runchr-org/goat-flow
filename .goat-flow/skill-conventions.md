@@ -60,7 +60,6 @@ Before Step 0:
 
 - If `.goat-flow/config.yaml` defines `toolchain`, prefer those commands over guessed defaults
 - If `.goat-flow/config.yaml` defines `ask_first`, use it as structured boundary context alongside the instruction file
-
 - Read the 2-3 most recent files in `.goat-flow/logs/sessions/` when the task overlaps recent work
 - If a recent session log already covers the same area, prefer building on that context instead of re-deriving it
 
@@ -101,9 +100,9 @@ Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
 
 | Complexity | Ceremony |
 |------------|----------|
-| Hotfix / Small Feature | Skip: closing ceremony, footgun MATCH/CLEAR annotations. Skip goat-plan Phases 2-3. |
-| Standard | Full phases, gates at major decisions. |
-| System / Infrastructure | Full phases + cross-boundary verification + rollback planning. |
+| Hotfix / Small Feature | Skip: closing ceremony, footgun MATCH/CLEAR annotations. Skip goat-plan Phases 2-3. Skip goat-sbao entirely. |
+| Standard | Full phases, gates at major decisions. goat-sbao: quick depth (2 sub-agents). |
+| System / Infrastructure | Full phases + cross-boundary verification + rollback planning. goat-sbao: full depth (3 sub-agents + cross-examination). |
 
 **Sub-agent mode:** When invoked as a sub-agent (forked context), BLOCKING GATEs automatically become CHECKPOINTs (logged, not paused). Step 0 proceeds with auto-detected scope.
 

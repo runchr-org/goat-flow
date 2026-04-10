@@ -10,7 +10,7 @@ import type { Fragment } from "../types.js";
  */
 export const standardFragments: Fragment[] = [
   // === Skills (5 individual + dispatcher + 1 completeness + 7 quality + 2 cross-cutting) ===
-  ...["debug", "review", "plan", "security", "test"].map((skill) => ({
+  ...["debug", "review", "plan", "sbao", "security", "test"].map((skill) => ({
     key: `create-skill-${skill}`,
     phase: "standard" as const,
     category: "Skills",
@@ -185,11 +185,11 @@ Without an output format, agents produce inconsistent deliverables and the human
     phase: "standard",
     category: "Skills",
     kind: "create",
-    instruction: `Install the \`goat\` dispatcher skill - the 6th canonical skill that routes to the other 5.
+    instruction: `Install the \`goat\` dispatcher skill - the 7th canonical skill that routes to the other 6.
 
 Copy \`workflow/skills/goat.md\` to \`{{skillsDir}}/goat/SKILL.md\`.
 
-The dispatcher routes natural language to the correct skill - users type \`/goat fix the login bug\` instead of needing to know the exact skill name. Without it, skill discoverability depends entirely on users memorising 5 command names.`,
+The dispatcher routes natural language to the correct skill - users type \`/goat fix the login bug\` instead of needing to know the exact skill name. Without it, skill discoverability depends entirely on users memorising 6 command names.`,
   },
   // add-skill-shared-conventions removed - check 2.1.21 removed (copy-paste debt).
 

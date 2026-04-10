@@ -398,17 +398,17 @@
                           :style="{ display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }"
                           >&#9656;</span
                         >
-                        <span x-text="expanded ? 'Less' : 'Why?'"></span>
+                        <span x-text="expanded ? 'Less' : 'Details'"></span>
                       </button>
                     </div>
                     <p
                       class="gf-text-muted"
                       style="font-size: 12px; margin-top: 2px"
-                      x-text="rec.action"
+                      x-text="rec.message"
                     ></p>
                   </div>
                 </div>
-                <!-- Expandable "Why this matters" detail -->
+                <!-- Expandable detail: rule, how to fix, why -->
                 <div
                   x-show="expanded"
                   x-transition:enter="transition ease-out duration-150"
@@ -424,35 +424,49 @@
                     padding: 10px 14px;
                     border-radius: 6px;
                     font-size: 12px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
                   "
                 >
-                  <div
-                    class="gf-text-muted"
-                    style="
-                      font-size: 10px;
-                      text-transform: uppercase;
-                      letter-spacing: 0.5px;
-                      margin-bottom: 6px;
-                      font-weight: 600;
-                    "
-                  >
-                    Why this matters
+                  <div>
+                    <div
+                      class="gf-text-muted"
+                      style="
+                        font-size: 10px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        margin-bottom: 4px;
+                        font-weight: 600;
+                      "
+                    >
+                      How to fix
+                    </div>
+                    <p
+                      class="gf-text-secondary"
+                      style="line-height: 1.5; margin: 0"
+                      x-text="`Run goat-flow setup to address check ${rec.checkId}. The setup wizard will generate the missing content.`"
+                    ></p>
                   </div>
-                  <p
-                    class="gf-text-secondary"
-                    style="line-height: 1.5; margin: 0"
-                    x-text="rec.message"
-                  ></p>
-                  <p
-                    class="gf-text-muted"
-                    style="
-                      margin-top: 8px;
-                      margin-bottom: 0;
-                      font-size: 11px;
-                      font-style: italic;
-                    "
-                    x-text="`Fix: run setup step ${rec.checkId}`"
-                  ></p>
+                  <div>
+                    <div
+                      class="gf-text-muted"
+                      style="
+                        font-size: 10px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        margin-bottom: 4px;
+                        font-weight: 600;
+                      "
+                    >
+                      Why this matters
+                    </div>
+                    <p
+                      class="gf-text-secondary"
+                      style="line-height: 1.5; margin: 0"
+                      x-text="rec.action"
+                    ></p>
+                  </div>
                 </div>
               </div>
             </template>

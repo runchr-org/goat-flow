@@ -10,7 +10,7 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 |-----------|----------|---------|
 | Setup prompts | `workflow/setup/` | Agent-specific setup instructions, upgrade guides, project-structure.json |
 | Setup steps | `workflow/setup/0*.md` | Six numbered setup steps (system overview, instruction file, skills, architecture + code map, customise, final verification) |
-| Skill templates | `workflow/skills/` | Reference prompts for the 6 goat-flow skill templates |
+| Skill templates | `workflow/skills/` | Reference prompts for the 7 goat-flow skill templates (6 functional + 1 dispatcher) |
 | Hook scripts | `workflow/hooks/` | Copyable hook scripts (deny-dangerous.sh, stop-lint.sh) + per-agent config templates |
 | Playbook templates | `workflow/playbooks/` | Planning (feature brief, SBAO) and testing methodology |
 | Evaluation templates | `workflow/evaluation/` | Footguns/lessons templates |

@@ -1091,7 +1091,7 @@ function renderSetupRedirect(
     lines.push("**Step 0 - Clean up stale artifacts (if upgrading):**");
     lines.push("");
     lines.push(
-      "**Skills:** The 6 canonical skills are: `goat`, `goat-debug`, `goat-plan`, `goat-review`, `goat-security`, `goat-test`.",
+      "**Skills:** The 7 canonical skills are: `goat`, `goat-debug`, `goat-plan`, `goat-review`, `goat-sbao`, `goat-security`, `goat-test`.",
     );
     lines.push("");
     lines.push("Check the skills directory for stale or duplicate entries:");

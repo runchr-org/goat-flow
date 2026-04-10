@@ -1109,11 +1109,7 @@ for (const { id, name, qualityKey } of [
     name: "Skills have phased process",
     qualityKey: "withPhases",
   },
-  {
-    id: "2.1.17",
-    name: "Skills suggest next skill",
-    qualityKey: "withChaining",
-  },
+  // 2.1.17 removed - chaining moved to dispatcher Post-Dispatch Chaining
   {
     id: "2.1.18",
     name: "Skills offer human choices",

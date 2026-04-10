@@ -23,7 +23,7 @@ export const skillChecks: CheckDef[] = [
   })),
   {
     id: "2.1.11",
-    name: "All 6 skills present",
+    name: "All 7 skills present",
     tier: "standard",
     category: "Skills",
     pts: 1,
@@ -33,7 +33,7 @@ export const skillChecks: CheckDef[] = [
       type: "custom",
       fn: (ctx: FactContext): CheckResult => ({
         id: "2.1.11",
-        name: "All 6 skills present",
+        name: "All 7 skills present",
         tier: "standard",
         category: "Skills",
         status: ctx.agentFacts.skills.allPresent ? "pass" : "fail",
@@ -41,12 +41,12 @@ export const skillChecks: CheckDef[] = [
         maxPoints: 1,
         confidence: "high",
         message: ctx.agentFacts.skills.allPresent
-          ? "All 6 skills present"
+          ? "All 7 skills present"
           : `Missing: ${ctx.agentFacts.skills.missing.join(", ")}`,
       }),
     },
     recommendation:
-      "Missing skills force agents to improvise workflows from scratch every time, producing inconsistent results. The 6 canonical skills (5 specialized + goat dispatcher) encode your team's best practices into repeatable processes that produce consistent output regardless of which agent or session runs them.",
+      "Missing skills force agents to improvise workflows from scratch every time, producing inconsistent results. The 7 canonical skills (6 specialized + goat dispatcher) encode your team's best practices into repeatable processes that produce consistent output regardless of which agent or session runs them.",
     recommendationKey: "create-all-skills",
   },
 
@@ -296,63 +296,7 @@ export const skillChecks: CheckDef[] = [
     recommendationKey: "add-skill-phases",
   },
   // 2.1.16 (Skills are conversational) removed - "conversational" is unverifiable. The concrete proxy is steering choices at key transitions.
-  {
-    id: "2.1.17",
-    name: "Skills have chaining",
-    tier: "standard",
-    category: "Skills",
-    pts: 1,
-    confidence: "medium",
-    priority: "optional",
-    hidden: true,
-    detect: {
-      type: "custom",
-      fn: (ctx: FactContext): CheckResult => {
-        const { quality } = ctx.agentFacts.skills;
-        if (quality.total === 0) {
-          return {
-            id: "2.1.17",
-            name: "Skills have chaining",
-            tier: "standard",
-            category: "Skills",
-            status: "fail",
-            points: 0,
-            maxPoints: 1,
-            confidence: "medium",
-            message: "No skills found",
-          };
-        }
-        const ratio = quality.withChaining / quality.total;
-        if (ratio >= SKILL_QUALITY_THRESHOLD) {
-          return {
-            id: "2.1.17",
-            name: "Skills have chaining",
-            tier: "standard",
-            category: "Skills",
-            status: "pass",
-            points: 1,
-            maxPoints: 1,
-            confidence: "medium",
-            message: `${quality.withChaining}/${quality.total} skills link to related skills`,
-          };
-        }
-        return {
-          id: "2.1.17",
-          name: "Skills have chaining",
-          tier: "standard",
-          category: "Skills",
-          status: "fail",
-          points: 0,
-          maxPoints: 1,
-          confidence: "medium",
-          message: `Only ${quality.withChaining}/${quality.total} skills have chaining - skills should link to related skills`,
-        };
-      },
-    },
-    recommendation:
-      'Without skill chaining, agents finish one workflow and stop -- the user must manually figure out which skill to invoke next. A "Chains with" footer tells the agent (and the user) the natural next step, e.g., /goat-plan chains into /goat-review, so workflows flow without manual routing.',
-    recommendationKey: "add-skill-chaining",
-  },
+  // 2.1.17 (Skills have chaining) removed - M15 moved chaining to the dispatcher's Post-Dispatch Chaining table. Individual skills no longer need "Chains With" sections.
   {
     id: "2.1.18",
     name: "Skills have structured choices",

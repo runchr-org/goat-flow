@@ -39,7 +39,7 @@
   "never_create": [],
 
   "skills": {
-    "canonical": ["goat", "goat-debug", "goat-plan", "goat-review", "goat-security", "goat-test"],
+    "canonical": ["goat", "goat-debug", "goat-plan", "goat-review", "goat-sbao", "goat-security", "goat-test"],
     "stale_names": ["goat-audit", "goat-investigate", "goat-onboard", "goat-reflect", "goat-resume", "goat-context", "goat-simplify", "goat-refactor"],
     "stale_generic": ["audit", "review", "preflight", "debug", "plan", "test", "security"]
   },

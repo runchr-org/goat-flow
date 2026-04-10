@@ -68,7 +68,7 @@ When target is a codebase area (not a diff). For >20 files, recommend splitting.
 
 Scan using severity ordering above. For each finding, run negative verification and fabrication self-check. Group 3+ findings sharing a root cause as systemic patterns. Report problems only -- do not propose fixes.
 
-**BLOCKING GATE:** Present findings, then pause.
+**BLOCKING GATE:** Present findings, then pause. If findings are contentious or severity ratings aren't confident, consider `/goat-sbao` to validate severity calibration.
 
 ## Instruction Review Mode
 

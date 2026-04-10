@@ -61,7 +61,7 @@ Read `.goat-flow/playbooks/testing/testing-workflow.md` for the complete 3-phase
 
 **What ISN'T Tested:** Explicitly list gaps -- what, why, risk level.
 
-**BLOCKING GATE:** Present the full plan, then pause. Human decides: run Phase 1, adjust scope, switch to /goat-debug, or close.
+**BLOCKING GATE:** Present the full plan, then pause. Human decides: run Phase 1, adjust scope, switch to /goat-debug, or close. For complex or cross-boundary changes, consider `/goat-sbao` to critique the test strategy before executing.
 
 ---
 

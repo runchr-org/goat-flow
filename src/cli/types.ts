@@ -328,7 +328,6 @@ export interface AgentFacts {
       withConstraints: number;
       withPhases: number;
       withConversational: number;
-      withChaining: number;
       withChoices: number;
       withOutputFormat: number;
       withSharedConventions: number;

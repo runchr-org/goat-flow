@@ -48,7 +48,6 @@ interface SkillQualityCounts {
   withConstraints: number;
   withPhases: number;
   withConversational: number;
-  withChaining: number;
   withChoices: number;
   withOutputFormat: number;
   withSharedConventions: number;
@@ -83,10 +82,6 @@ const SKILL_QUALITY_PATTERNS: Array<{
   { key: "withPhases", pattern: /##\s*(Phase|Step)\s+[0-9]/i },
   { key: "withConversational", pattern: /blocking\s*gate|human\s*gate/i },
   {
-    key: "withChaining",
-    pattern: /chains?\s*with|related\s*skills?|next.*skill|→.*goat-/i,
-  },
-  {
     key: "withChoices",
     pattern:
       /\(a\)|\(b\)|\(c\)|want me to|offer:|\bquick\b[\s\S]{0,160}\bfull\b|drill into|go deeper|check (?:a|the) (?:related|different)|switch to|adjust scope|redirect the review|proceed to ranking|or close/i,
@@ -103,7 +98,6 @@ function createSkillQualityCounts(): SkillQualityCounts {
     withConstraints: 0,
     withPhases: 0,
     withConversational: 0,
-    withChaining: 0,
     withChoices: 0,
     withOutputFormat: 0,
     withSharedConventions: 0,

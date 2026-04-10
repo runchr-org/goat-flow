@@ -68,7 +68,7 @@ Critical (no auth) > High (low-privilege) > Medium (specific conditions) > Low (
 
 Re-read `file:line` for Critical/High. Does code match the finding? Is the scenario realistic? Remove failures.
 
-**BLOCKING GATE:** Present final report.
+**BLOCKING GATE:** Present final report. If PROBABLE findings outnumber CONFIRMED, consider `/goat-sbao` to cross-examine PROBABLE findings before presenting to human.
 
 ## Compliance Mode
 

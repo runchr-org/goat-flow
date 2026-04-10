@@ -148,7 +148,7 @@ goat-flow-skill-version: "${SKILL_VERSION}"
 \`\`\`
 
 After updating all skills:
-5. Verify the router table in CLAUDE.md (and AGENTS.md/GEMINI.md) references all 6 canonical skills and no non-existent paths`,
+5. Verify the router table in CLAUDE.md (and AGENTS.md/GEMINI.md) references all 7 canonical skills and no non-existent paths`,
   },
   // ap-fix-dangling-skill-refs removed - AP17 removed.
   // ap-fix-adapt-comments removed - AP18 removed.
@@ -172,7 +172,7 @@ Replace all absolute paths with \`$(git rev-parse --show-toplevel)\`:
     kind: "fix",
     instruction: `Non-canonical goat-flow skill directories were found. These are from a previous version and confuse agents - they load the wrong skill file.
 
-Delete these directories and keep only the 6 canonical skills: \`goat\`, \`goat-debug\`, \`goat-plan\`, \`goat-review\`, \`goat-security\`, \`goat-test\`.
+Delete these directories and keep only the 7 canonical skills: \`goat\`, \`goat-debug\`, \`goat-plan\`, \`goat-review\`, \`goat-sbao\`, \`goat-security\`, \`goat-test\`.
 
 Common stale directories to remove:
 - \`goat-investigate\` → merged into goat-debug (investigate mode)
@@ -185,7 +185,7 @@ Common stale directories to remove:
 - \`goat-context\` → removed
 - \`audit/\`, \`review/\`, \`preflight/\` → replaced by goat-* skills
 
-After deleting, update the router table in your instruction file to reference only the 6 canonical skills.`,
+After deleting, update the router table in your instruction file to reference only the 7 canonical skills.`,
   },
   // ap-fix-stale-router-markers removed - marker system removed.
   {

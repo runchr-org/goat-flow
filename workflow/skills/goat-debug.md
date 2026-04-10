@@ -51,7 +51,7 @@ After reading the primary file, write 2-3 hypotheses spanning at least 2 of: Dat
 
 Present: root cause + confidence (HIGH = reproduced, MEDIUM = traced, LOW = inferred) + hypothesis table + reproduction steps. **Confidence floor:** All LOW --> return to D1 or present partial findings.
 
-**BLOCKING GATE:** Present diagnosis, then pause. Human decides: dig deeper, propose fix, or stop.
+**BLOCKING GATE:** Present diagnosis, then pause. Human decides: dig deeper, propose fix, or stop. If confidence is MEDIUM or LOW with multiple competing hypotheses, consider `/goat-sbao` to critique the hypothesis set before choosing a fix direction.
 
 ### D3 - Fix Plan (only if human approved)
 

@@ -2,12 +2,13 @@
  * Canonical cross-module constants for skills and version-aligned aliases.
  * Keep definitions here so detection, prompts, and scanner checks stay in sync.
  */
-/** Canonical list of all GOAT Flow skill names (5 specialized skills + dispatcher = 6) */
+/** Canonical list of all GOAT Flow skill names (6 specialized skills + dispatcher = 7) */
 export const SKILL_NAMES = [
   "goat",
   "goat-debug",
-  "goat-review",
   "goat-plan",
+  "goat-review",
+  "goat-sbao",
   "goat-security",
   "goat-test",
 ] as const;

@@ -518,7 +518,7 @@
                       >
                     </div>
 
-                    <!-- Expandable: "Why it matters" -->
+                    <!-- Expandable: rule details -->
                     <div
                       x-show="isCheckOpen(check.id)"
                       x-cloak
@@ -526,35 +526,19 @@
                     >
                       <div
                         class="gf-bg-elevated"
-                        style="padding: 10px 14px; border-radius: 6px"
+                        style="
+                          padding: 10px 14px;
+                          border-radius: 6px;
+                          display: flex;
+                          flex-direction: column;
+                          gap: 10px;
+                        "
                       >
-                        <div
-                          class="gf-text-muted"
-                          style="
-                            font-size: 11px;
-                            text-transform: uppercase;
-                            letter-spacing: 0.5px;
-                            margin-bottom: 4px;
-                          "
-                        >
-                          Why it matters
-                        </div>
-                        <p
-                          class="gf-text-secondary"
-                          style="font-size: 12px; line-height: 1.5; margin: 0"
-                          x-text="check.recommendation"
-                        ></p>
                         <!-- Scan evidence if available -->
                         <template
                           x-if="scanResult(check.id) && scanResult(check.id).message"
                         >
-                          <div
-                            style="
-                              margin-top: 8px;
-                              padding-top: 8px;
-                              border-top: 0.5px solid #3f3f46;
-                            "
-                          >
+                          <div>
                             <div
                               class="gf-text-muted"
                               style="
@@ -580,7 +564,45 @@
                             ></p>
                           </div>
                         </template>
-                        <div style="display: flex; gap: 8px; margin-top: 6px">
+                        <!-- How to fix -->
+                        <div>
+                          <div
+                            class="gf-text-muted"
+                            style="
+                              font-size: 11px;
+                              text-transform: uppercase;
+                              letter-spacing: 0.5px;
+                              margin-bottom: 4px;
+                            "
+                          >
+                            How to fix
+                          </div>
+                          <p
+                            class="gf-text-secondary"
+                            style="font-size: 12px; line-height: 1.5; margin: 0"
+                            x-text="`Run goat-flow setup to address check ${check.id}. The setup wizard will generate the missing content.`"
+                          ></p>
+                        </div>
+                        <!-- Why it matters -->
+                        <div>
+                          <div
+                            class="gf-text-muted"
+                            style="
+                              font-size: 11px;
+                              text-transform: uppercase;
+                              letter-spacing: 0.5px;
+                              margin-bottom: 4px;
+                            "
+                          >
+                            Why it matters
+                          </div>
+                          <p
+                            class="gf-text-secondary"
+                            style="font-size: 12px; line-height: 1.5; margin: 0"
+                            x-text="check.recommendation"
+                          ></p>
+                        </div>
+                        <div style="display: flex; gap: 8px">
                           <span
                             class="gf-text-disabled"
                             style="font-size: 11px"

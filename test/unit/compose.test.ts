@@ -194,6 +194,8 @@ function buildTargetedUpgradeProject(extraFiles: Record<string, string> = {}) {
       '---\nname: goat-review\ngoat-flow-skill-version: "1.1.0"\n---\n# /goat-review\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
     ".claude/skills/goat-security/SKILL.md":
       '---\nname: goat-security\ngoat-flow-skill-version: "1.1.0"\n---\n# /goat-security\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
+    ".claude/skills/goat-sbao/SKILL.md":
+      '---\nname: goat-sbao\ngoat-flow-skill-version: "1.1.0"\n---\n# /goat-sbao\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n',
     ".claude/skills/goat-test/SKILL.md":
       '---\nname: goat-test\ngoat-flow-skill-version: "1.1.0"\n---\n# /goat-test\n## Shared Conventions\n## Step 0\nFootgun check\n## Phase 1\n## Output Format\n## Chains With\n',
     ".goat-flow/footguns/": "# Footguns\n\n- `src/auth.ts:42` - race\n",
@@ -328,8 +330,8 @@ describe("composeSetup (reference-based)", () => {
       "Prompt should not fabricate goat-goat",
     );
     assert.ok(
-      output.includes("Missing Skills (1 of 6)"),
-      "Prompt should count the 6 canonical skills",
+      output.includes("Missing Skills (1 of 7)"),
+      "Prompt should count the 7 canonical skills",
     );
   });
 

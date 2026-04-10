@@ -186,7 +186,6 @@ function defaultAgentFacts(): AgentFacts {
         withConstraints: 5,
         withPhases: 5,
         withConversational: 5,
-        withChaining: 5,
         withChoices: 5,
         withOutputFormat: 5,
         withSharedConventions: 5,

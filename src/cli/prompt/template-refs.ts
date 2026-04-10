@@ -242,6 +242,7 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   "create-skill-debug": "workflow/skills/goat-debug.md",
   "create-skill-review": "workflow/skills/goat-review.md",
   "create-skill-plan": "workflow/skills/goat-plan.md",
+  "create-skill-sbao": "workflow/skills/goat-sbao.md",
   "create-skill-test": "workflow/skills/goat-test.md",
 
   // File-level creates - instruction file and docs
