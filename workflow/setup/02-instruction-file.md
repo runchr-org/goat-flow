@@ -21,6 +21,7 @@ Target: under 120 lines. Hard limit: 150. Keep it concise — the instruction fi
 Read it completely before changing anything. Then:
 
 1. **Do not change the existing content** unless it's obviously an existing goat-flow instruction file from a previous setup. The user wrote this file — respect it.
+   - **NEVER delete existing instruction files** (`.github/instructions/`, `ai/instructions/`, `docs/`) to satisfy the scanner or avoid "duplicate surfaces." If the scanner flags duplicate surfaces, add the existing surface to the goat-flow router table instead of deleting it. Existing instruction files are likely higher quality than anything setup can generate.
 2. **Add a goat-flow section at the top** with any missing required sections from the list below. The existing content stays below it unchanged. Top-of-file survives context compaction.
 3. If the existing file mixes project/domain knowledge into the hot path, move that material to `.goat-flow/architecture.md` and/or `.goat-flow/glossary.md`. Keep behavioral rules in the instruction file.
 4. If it IS an existing goat-flow instruction file (has execution loop, autonomy tiers, router table already), update it in place — fix stale paths, update version header, add missing sections.
@@ -32,7 +33,7 @@ Read it completely before changing anything. Then:
 
 The instruction file MUST include these sections. Use `workflow/setup/execution-loop.md` as the template:
 
-- (a) Version header
+- (a) Version header — set to the current goat-flow release version (match the `goat-flow-skill-version` in the installed skill files)
 - (b) Execution loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
 - (c) Autonomy tiers: Always / Ask First / Never
 - (d) Definition of Done

@@ -32,7 +32,7 @@ Use when reviewing a diff, PR, or set of changes. Also for quality audits of a c
 - If vague, ask one follow-up covering: which files, what concerns you, diff or audit.
 - Auto-detect scope: (1) explicit input, (2) staged changes, (3) unstaged changes, (4) git diff. If 20+ changed files, ask user to narrow.
 
-If `.goat-flow/coding-standards/code-review.md` exists, load and apply it.
+If a code-review instruction file exists in the project's instruction surface (check config.yaml or the router table), load and apply it.
 
 **Footgun check:** Read `.goat-flow/footguns/` for entries mentioning the target area. Present matches.
 
@@ -72,7 +72,7 @@ Scan using severity ordering above. For each finding, run negative verification 
 
 ## Instruction Review Mode
 
-For reviewing instruction files (CLAUDE.md, .goat-flow/coding-standards/, etc.). Gather signals from `git log`, `.goat-flow/lessons/`, `.goat-flow/footguns/`. Check for missing, misleading, stale, or outdated rules. Present proposals in a table for human approval. MUST NOT auto-edit instruction files.
+For reviewing instruction files (CLAUDE.md, project instruction surfaces, etc.). Gather signals from `git log`, `.goat-flow/lessons/`, `.goat-flow/footguns/`. Check for missing, misleading, stale, or outdated rules. Present proposals in a table for human approval. MUST NOT auto-edit instruction files.
 
 ## Simplify Mode
 

@@ -25,6 +25,9 @@ For each backtick-wrapped path or hook path:
 - Verify the file or directory exists on disk
 - If a file was renamed during setup, grep the old name across the repo and update every remaining reference
 - For registered hook scripts, verify the file exists and has execute permissions
+- Verify the instruction file version header matches the goat-flow release version
+- Verify `.goat-flow/config.yaml` version matches the goat-flow release version
+- For auto-seeded footgun entries, spot-check that each cited `file:line` actually shows the described trap. If the line is unrelated (a closing brace, an import, a comment), fix the reference or remove the line number
 
 ## File manifest
 

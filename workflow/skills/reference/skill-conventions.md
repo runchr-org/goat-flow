@@ -19,7 +19,7 @@ Order findings by severity, not by file or discovery order.
 
 ## Evidence Standard
 
-- Every finding MUST include `file:line` evidence
+- Every finding MUST include file evidence — either `file:line` when the specific line demonstrates the issue, or `file` when the trap is file-level. Path-only evidence is valid when a line number would be fabricated.
 - MUST NOT fabricate file paths, function names, or behaviour
 - Before presenting findings, re-read each cited `file:line` to confirm accuracy
 - Tag evidence quality where applicable: **OBSERVED** (directly verified in code) vs **INFERRED** (deduced but not directly confirmed - state what direct evidence is missing)
@@ -36,9 +36,9 @@ After completing the skill, check if this run uncovered anything worth logging:
 - Architectural trap with `file:line` evidence → add a `## Footgun:` entry to the relevant category bucket in `.goat-flow/footguns/`
 
 Do not append to a monolithic log or directory README. Route entries to `.goat-flow/lessons/`, `.goat-flow/patterns.md`, or `.goat-flow/footguns/`.
-Bucket conventions:
-- Lessons: `verification.md`, `workflow.md`, `coordination.md`
-- Footguns: `hooks.md`, `setup.md`, `scanner.md`
+Bucket conventions (examples — actual bucket names are project-specific):
+- Lessons: category files like `verification.md`, `workflow.md`, `coordination.md`
+- Footguns: category files like `runtime.md`, `integration.md`, `data-stores.md`
 
 Use the standard entry formats:
 ```markdown

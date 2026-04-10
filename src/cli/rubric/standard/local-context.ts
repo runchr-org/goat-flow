@@ -44,29 +44,27 @@ export const localContextChecks: CheckDef[] = [
     na: (ctx) => ctx.facts.shared.localInstructions.dirExists === false,
     detect: {
       type: "custom",
-      fn: (ctx: FactContext): CheckResult => {
-        const { duplicateSurfacePaths } = ctx.facts.shared.localInstructions;
-        const hasDuplicateSurfaces = duplicateSurfacePaths.length > 0;
+      fn: (_ctx: FactContext): CheckResult => {
+        // Coexistence of .github/instructions/ and .goat-flow/coding-standards/
+        // is acceptable — projects may have pre-existing instruction files that
+        // should be preserved. The scanner should verify at least one canonical
+        // surface exists, not that only one exists.
         return {
           id: "2.6.1a",
           name: "Instruction surfaces are canonical",
           tier: "standard",
           category: "Local Instructions",
-          status: hasDuplicateSurfaces ? "fail" : "pass",
-          points: hasDuplicateSurfaces ? 0 : 1,
+          status: "pass",
+          points: 1,
           maxPoints: 1,
           confidence: "high",
-          message: hasDuplicateSurfaces
-            ? `Duplicate instruction surfaces found: ${duplicateSurfacePaths.join(", ")}. Keep one canonical local-instructions surface instead of maintaining both.`
-            : "Exactly one local-instructions surface is in use",
-          evidence: hasDuplicateSurfaces
-            ? duplicateSurfacePaths.join(", ")
-            : undefined,
+          message:
+            "At least one local-instructions surface is in use",
         };
       },
     },
     recommendation:
-      "Duplicate instruction surfaces (.goat-flow/coding-standards/ and .github/instructions/) will inevitably drift out of sync, giving agents contradictory rules depending on which one they read. Keep one canonical surface so there's a single source of truth.",
+      "If both .goat-flow/coding-standards/ and .github/instructions/ exist, use one as the canonical source and reference it from the router table. Existing instruction files should be preserved — do not delete them to satisfy the scanner.",
     recommendationKey: "fix-duplicate-instruction-surfaces",
   },
   // 2.6.2 (.goat-flow/README.md router exists) removed - ceremony. Agents navigate via the instruction file router table.

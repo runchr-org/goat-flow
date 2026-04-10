@@ -224,7 +224,7 @@ button, select, summary, label, [role="button"] { cursor: pointer; }
 .gf-card:hover { border-color: var(--border-default); }
 
 /* --- Links --- */
-.gf-link { color: var(--accent); font-size: 13px; font-weight: 600; }
+.gf-link { color: var(--accent); font-size: 12px; font-weight: 500; }
 .gf-link:hover { opacity: 0.8; }
 
 /* --- Table --- */
@@ -338,7 +338,8 @@ button, select, summary, label, [role="button"] { cursor: pointer; }
 .gf-btn-terminal { font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer; background: var(--accent-border); color: var(--accent); font-weight: 500; border: none; }
 
 /* Convenience: Regenerate (small ghost) */
-.gf-btn-regen { font-size: 11px; cursor: pointer; color: var(--accent); background: none; border: none; }
+.gf-btn-regen { font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer; color: var(--accent); background: none; border: 0.5px solid var(--border-default); }
+.gf-btn-regen:hover { background: var(--surface-elevated); }
 
 /* Convenience: Terminal CTA (large primary) */
 .gf-terminal-cta { background: var(--green-950); border-bottom: 1px solid var(--border-subtle); }

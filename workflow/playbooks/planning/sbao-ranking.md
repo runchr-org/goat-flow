@@ -27,7 +27,7 @@ Suggested prompt:
 Read the current codebase and the attached requirements artifact.
 Produce a technical plan only. Do not write code.
 
-Write your output to `tasks/roadmaps/<feature-name>-plan-<agent>.md`.
+Write your output to the tasks directory (check config.yaml for path, default `.goat-flow/tasks/`) as `<feature-name>-plan-<agent>.md`.
 
 The plan must cover:
 - scope and non-goals
@@ -85,7 +85,7 @@ I've reviewed these competing plans. Here's what I like and don't like:
 **Drop:** [list what you disagree with or want to change]
 **Decide:** [list open questions or trade-offs you want the agent to weigh in on]
 
-Create a best-of-all-ideas plan in `tasks/roadmaps/<feature-name>-plan-prime.md` that incorporates the Keep items, avoids the Drop items, and makes a reasoned recommendation for each Decide item.
+Create a best-of-all-ideas plan in the tasks directory as `<feature-name>-plan-prime.md` that incorporates the Keep items, avoids the Drop items, and makes a reasoned recommendation for each Decide item.
 ```
 
 ## Quality Bar

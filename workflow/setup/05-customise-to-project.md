@@ -48,7 +48,8 @@ After creating or merging the manual entries, seed 2-3 strong candidates from gi
 
 Rules:
 
-- Evidence format for auto-seeded entries is **file path + commit hash**, not fabricated line numbers
+- Evidence format for auto-seeded entries is **file path + commit hash**, not fabricated line numbers. `src/auth.ts` is valid evidence. `src/auth.ts:65` pointing at a closing brace is fabricated evidence — never cite a line number unless you have verified it shows the actual trap.
+- If you cannot identify the specific code that demonstrates the trap, use the file path without a line number. Path-only evidence is honest; fake line numbers are not.
 - Mark each generated entry with `**Source:** git history (auto-seeded)`
 - Only seed strong signals. Skip noisy one-off commits
 
@@ -80,6 +81,7 @@ Examples:
 - Are there directories with complex ownership, migration scripts, config that shouldn't be touched?
 - Update with real paths and real reasons
 - Keep `.goat-flow/config.yaml` `ask_first:` in sync with the final instruction file wording
+- If existing instruction files exist in `.github/instructions/` or `ai/instructions/`, reference them from config.yaml and the router table. Do NOT create thin copies in `.goat-flow/coding-standards/` — the existing files are likely better than anything setup can generate
 
 ---
 
