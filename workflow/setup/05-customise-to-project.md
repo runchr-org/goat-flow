@@ -38,6 +38,15 @@ Use empty arrays only when the project truly has no command for that slot. Do no
 
 ## Footguns — find real traps in the code
 
+**Quality standard:** Every footgun entry MUST include:
+1. A `file:line` or file-path citation
+2. A non-obvious failure mode (what goes wrong and why it's not obvious)
+
+**Reject these as footguns:**
+- "This file changes a lot" — that's git log, not a footgun
+- "This module is complex" — that's obvious from reading it
+- "Tests are missing for X" — that's a known gap, not a footgun
+
 ```bash
 grep -rn 'TODO\|FIXME\|HACK\|XXX' src/ --include='*.ts' --include='*.php' --include='*.py' | head -20
 git log --oneline -50 | grep -iE 'fix|revert|hotfix|bug|broke|rollback'

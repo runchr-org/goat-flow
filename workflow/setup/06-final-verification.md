@@ -46,6 +46,14 @@ After generating footguns and the instruction file, re-verify the evidence:
 
 3. **Router table paths:** For every path in the instruction file's Router Table, verify it exists on disk. Remove entries that point to nonexistent files or directories.
 
+## Config ↔ instruction file sync — BLOCKING
+
+Compare:
+1. Ask First boundaries in instruction file vs `ask_first:` in config.yaml — must list same paths
+2. Essential Commands in instruction file vs `toolchain:` in config.yaml — must list same commands
+
+If they differ: update the instruction file to match config.yaml (config is canonical for structured data).
+
 ## Duplicate surface check
 
 Fail if BOTH of these exist with independent content for the same artifact type:

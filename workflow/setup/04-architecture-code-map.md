@@ -37,6 +37,19 @@ Create these directories and files if they don't already exist:
 - `.goat-flow/logs/sessions/` — for session logs (if not already created by step 01)
 - `.goat-flow/templates/` — copy from `workflow/templates/` verbatim. **Verify source exists before copying** — if `workflow/templates/` is missing from the goat-flow release, fail fast and report the missing source rather than silently skipping. These contain prompt templates for feature briefs, milestone planning, requirements tracking, refactor planning, and manual multi-session SBAO. Some skills reference specific templates on their full-depth path (e.g., feature-brief.md, compliance-checklist.md, flow-diagram-guide.md) — these must be installed.
 
+## Toolchain probe
+
+Before generating footguns, Ask First boundaries, or Essential Commands in step 05, run the project's actual toolchain:
+
+1. **Detect and run tests** — look for package.json scripts.test, pytest, go test, Makefile test target. Run it. Record pass/fail count.
+2. **Detect and run linter** — look for eslint, phpstan, pylint/ruff, golangci-lint. Run it. Record error count.
+3. **Detect and run build** — look for tsc, webpack, go build, make, cargo build. Run it. Record success/failure.
+
+Use results for step 05:
+- Essential Commands: only list commands that actually work
+- Footguns: derive from real test failures and build errors, not just git churn
+- Ask First boundaries: hot directories with failing tests are candidates
+
 ## Shared rules
 
 - Document the current implementation, not roadmap ideas

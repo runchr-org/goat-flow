@@ -8,7 +8,7 @@ bash -n scripts/maintenance/*.sh          # Syntax-check scripts
 bash scripts/preflight-checks.sh         # Full preflight gate
 bash scripts/validate-goat-flow-setup.sh         # Validate GOAT Flow structure
 ```
-## Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
+## Execution Rules: READ → SCOPE → ACT → VERIFY
 
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
 ```
@@ -16,43 +16,27 @@ BAD:  "The spec says 100 lines for apps" (guessed without reading)
 GOOD: Read workflow/setup/reference/execution-loop.md:3 → "Target: under 120 lines. Hard limit: 150."
 ```
 
-**CLASSIFY** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity (below). (3) Mode: Plan / Implement / Explain / Debug / Review.
+**SCOPE** - Classify intent (question → answer, directive → act), complexity, and mode. MUST declare before acting: files allowed to change, non-goals, max blast radius.
 
 | Complexity | Guideline | Ceremony |
 |------------|-----------|----------|
-| Hotfix | 1-2 files. If you need more, re-classify. | Minimal - skip goat-plan Phases 2-4, skip closing ceremony |
-| Small Feature | Compressed brief (Problem/Solution/Scope/Success all at once). | Light - goat-plan Phases 2-3 user-prompted after Phase 1 |
-| Standard | No fixed cap. If reads exceed 3x your initial estimate, re-classify. | Full phases, gates at major decisions |
+| Hotfix | 1-2 files. If you need more, re-classify. | Minimal |
+| Small Feature | Compressed brief. | Light |
+| Standard | No fixed cap. If reads exceed 3x estimate, re-classify. | Full phases, gates at major decisions |
 | System Change | No fixed cap. Same re-classification trigger. | Full phases + cross-boundary verification |
-| Infrastructure | No fixed cap. Same re-classification trigger. | Full phases + rollback planning + multi-agent coordination |
 
-Exceeding your estimate doesn't mean you're wrong - it means the task is bigger than classified. Stop, re-scope, continue.
+Expanding beyond scope = stop and re-scope with human.
 
-**SCOPE** - MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
-
-**ACT** - MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
-
-| Mode | Behaviour |
-|------|-----------|
-| Plan | Produce artefact only. No file edits. Exit on LGTM |
-| Implement | Edit in 2-3 turns. 4th read without writing = stop |
-| Explain | Walkthrough only. No changes unless asked |
-| Debug | Diagnosis with file:line first. Fixes after human reviews |
-| Review | Investigate first. Never blindly apply suggestions |
-
-```
-BAD:  Created abstract template system (one format exists)
-GOOD: Inline format. Extract when second format needed
-```
+**ACT** - Execute the work. Prefer in-place edits over new files. Extract abstractions only when a second use appears.
 
 **VERIFY** - MUST run `shellcheck` on .sh changes. MUST check cross-references after renames. If working from a plan/milestone file, MUST tick `- [x]` on each task as it's completed - not at the end.
 - Level 1 (isolated): note, continue. Level 2 (cross-doc, broken refs, evidence): MUST full stop, wait for human
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure or you corrected course: add an entry before DoD. After human correction: log immediately. Use **category bucket files** - NOT one file per incident, NOT a monolithic log.
-- Lessons: `.goat-flow/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content. Create new category file only if no existing category fits.
-- Footguns: `.goat-flow/footguns/` category bucket files (e.g. `hooks.md`, `scanner.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
+If VERIFY catches a failure or you corrected course, log it:
+- Lessons: `.goat-flow/lessons/` category bucket files (e.g. `verification.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD`.
+- Footguns: `.goat-flow/footguns/` category bucket files (e.g. `hooks.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED`.
 
 | File | When to update |
 |------|---------------|

@@ -50,16 +50,30 @@ Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
 - **Full:** all phases, SBAO/Mob if planning, full output format
 - If arriving from the dispatcher with depth already chosen, skip the depth question
 
-## Quick Route
+## Routing
 
-- Bug or symptom? → /goat-debug
-- Review a diff or code quality issue? → /goat-review
-- What's untested? → /goat-test
-- Security concern? → /goat-security
-- Need milestones? → /goat-plan
-- Want multi-perspective critique? → /goat-sbao
-- Planning a feature? → /goat
-- Simple implementation? no skill: READ → SCOPE → ACT → VERIFY
+When invoked via /goat or when intent is ambiguous:
+
+**Route by intent:**
+- Bug, failure, investigation → /goat-debug
+- Quality review, audit, simplify → /goat-review
+- Multi-perspective critique → /goat-sbao
+- Security, compliance, dependency audit → /goat-security
+- Testing gaps, coverage, verification → /goat-test
+- Feature planning, milestones → /goat-plan
+- Simple implementation (rename, add log, move constant) → no skill, use execution loop directly
+- Simple question → answer directly
+
+**Depth-aware routing:** If the user asks for a plan, offer quick/full before routing.
+**Clarification:** If ambiguous, ask ONE question.
+**Override:** If the user names a skill explicitly, respect it.
+
+| Input | Options |
+|-------|---------|
+| "check the auth code" | debug vs review vs security |
+| "analyse a plan" | review vs sbao |
+| "get a second opinion" | sbao vs review |
+| "refactor the tests" | plan vs test |
 
 ## No-Skill Fast Path
 

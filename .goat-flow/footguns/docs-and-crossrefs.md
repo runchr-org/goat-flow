@@ -77,7 +77,7 @@ category: docs-and-crossrefs
 - `README.md:89` — "Six structured workflows" (should be Seven)
 - `README.md:91` — overclaims post-turn hooks; `workflow/hooks/README.md:29` contradicts
 - `docs/skills/README.md:1` — "Five focused capabilities", diagram omits goat-sbao
-- `workflow/setup/04-architecture-code-map.md:38` — "Skills do NOT read templates at runtime" — contradicted by goat.md:71, goat-security.md:71, goat-test.md:108
+- `workflow/setup/04-architecture-code-map.md:38` — "Skills do NOT read templates at runtime" — contradicted by goat.md:25, goat-security.md:71, goat-test.md:108 (FIXED: step 04 now acknowledges runtime template usage)
 - `src/cli/prompt/fragments/standard.ts:617` — still creates `.goat-flow/coding-standards/` (removed in M13)
 - `src/cli/classify-state.ts:62` — marks "healthy" from config version alone
 - `src/cli/rubric/full.ts:129` — check named "Skill conventions" but checks `skill-preamble.md`
@@ -104,7 +104,7 @@ category: docs-and-crossrefs
 **Why it happens:** When content is extracted from skills to `workflow/templates/` in the goat-flow repo, the skill file references use the framework-local path (`workflow/templates/`) instead of the project-local path (`.goat-flow/templates/`). Skills are installed verbatim, so the framework path ships to every project.
 
 **Evidence:**
-- `workflow/skills/goat.md:71,74` — referenced `workflow/templates/feature-brief.md` and `workflow/templates/mob-elaboration.md`
+- `workflow/skills/goat.md:25,26` — now correctly references `.goat-flow/templates/feature-brief.md` and `.goat-flow/templates/mob-elaboration.md` (FIXED)
 - `workflow/skills/goat-security.md:71` — referenced `workflow/templates/compliance-checklist.md`
 - `workflow/skills/goat-test.md:108,145` — referenced `workflow/templates/flow-diagram-guide.md`
 - R9 critiques: 6/7 projects flagged broken template references as a top finding

@@ -271,7 +271,7 @@ export const foundationChecks: CheckDef[] = [
   },
   {
     id: "1.2.2a",
-    name: "CLASSIFY has budgets",
+    name: "Complexity tiers defined",
     tier: "foundation",
     category: "Execution Loop",
     pts: 1,
@@ -284,7 +284,7 @@ export const foundationChecks: CheckDef[] = [
         if (content === null) {
           return {
             id: "1.2.2a",
-            name: "CLASSIFY has budgets",
+            name: "Complexity tiers defined",
             tier: "foundation",
             category: "Execution Loop",
             status: "fail",
@@ -301,7 +301,7 @@ export const foundationChecks: CheckDef[] = [
         if (hasComplexityTiers) {
           return {
             id: "1.2.2a",
-            name: "CLASSIFY has complexity tiers",
+            name: "Complexity tiers defined",
             tier: "foundation",
             category: "Execution Loop",
             status: "pass",
@@ -309,19 +309,19 @@ export const foundationChecks: CheckDef[] = [
             maxPoints: 1,
             confidence: "medium",
             message:
-              "CLASSIFY section includes complexity tiers with re-classification trigger",
+              "SCOPE section includes complexity tiers with re-classification trigger",
           };
         }
         return {
           id: "1.2.2a",
-          name: "CLASSIFY has complexity tiers",
+          name: "Complexity tiers defined",
           tier: "foundation",
           category: "Execution Loop",
           status: "fail",
           points: 0,
           maxPoints: 1,
           confidence: "medium",
-          message: "CLASSIFY section has no complexity tiers",
+          message: "No complexity tiers found in SCOPE section",
         };
       },
     },
@@ -383,7 +383,7 @@ export const foundationChecks: CheckDef[] = [
   },
   {
     id: "1.2.6",
-    name: "LOG step",
+    name: "Learning loop triggers",
     tier: "foundation",
     category: "Execution Loop",
     pts: 2,
@@ -394,7 +394,7 @@ export const foundationChecks: CheckDef[] = [
       fn: (ctx: FactContext): CheckResult => {
         const base = {
           id: "1.2.6",
-          name: "LOG step",
+          name: "Learning loop triggers",
           tier: "foundation" as const,
           category: "Execution Loop",
           confidence: "medium" as const,
@@ -418,7 +418,7 @@ export const foundationChecks: CheckDef[] = [
             points: 0,
             maxPoints: 2,
             message:
-              "LOG step not found. Expected references to lessons/ or footguns/ directories.",
+              "Learning loop triggers not found. Expected references to lessons/ or footguns/ directories.",
           };
         }
         // Tightened: verify at least one referenced learning-loop directory exists
@@ -431,7 +431,7 @@ export const foundationChecks: CheckDef[] = [
             points: 2,
             maxPoints: 2,
             message:
-              "LOG step references learning-loop paths that exist on disk",
+              "Learning loop paths exist on disk",
           };
         }
         const missing = [
@@ -445,7 +445,7 @@ export const foundationChecks: CheckDef[] = [
           status: "fail",
           points: 0,
           maxPoints: 2,
-          message: `LOG step references learning-loop paths but ${missing} directory does not exist. Create it or update the paths.`,
+          message: `Learning loop paths referenced but ${missing} directory does not exist. Create it or update the paths.`,
         };
       },
     },
