@@ -26,11 +26,51 @@ Order findings by severity, not by file or discovery order.
 - Before citing a CLI flag, verify it with `--help` or the command's docs
 - Before citing a config key, read the actual config file first
 
+## Universal Constraints
+
+- MUST NOT fabricate file paths, function names, or artifact content
+- Before citing a function or symbol name, verify it exists with a repo search
+- Before citing a CLI flag, verify it with `--help` or docs
+- Before citing a config key, read the actual config file first
+
+## Ceremony Level
+
+Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
+
+| Complexity | Ceremony |
+|------------|----------|
+| Hotfix | Skip goat-plan — just implement directly. Skip goat-sbao entirely. |
+| Small Feature | goat-plan: 1-2 milestones, minimal ceremony. Skip goat-sbao. |
+| Standard | goat-plan: full milestone breakdown with testing gates. Use goat-sbao if approach is genuinely uncertain. |
+| System / Infrastructure | goat-plan: full milestones + cross-boundary verification + rollback planning. goat-sbao strongly recommended. |
+
 ## Depth Choice
 
 - **Quick:** compressed workflow, minimal ceremony, direct output
 - **Full:** all phases, SBAO/Mob if planning, full output format
 - If arriving from the dispatcher with depth already chosen, skip the depth question
+
+## Quick Route
+
+- Bug or symptom? → /goat-debug
+- Review a diff or code quality issue? → /goat-review
+- What's untested? → /goat-test
+- Security concern? → /goat-security
+- Need milestones? → /goat-plan
+- Want multi-perspective critique? → /goat-sbao
+- Planning a feature? → /goat
+- Simple implementation? no skill: READ → SCOPE → ACT → VERIFY
+
+## No-Skill Fast Path
+
+For Hotfix complexity (1-2 files, obvious change), skip skills entirely.
+Use direct execution: READ → SCOPE → ACT → VERIFY.
+
+## Footgun Fast-Path
+
+- If Step 0 footgun check surfaces a direct match: surface it immediately and map to the documented mitigation.
+- If the match has `hallucination-risk: high`, re-read the live file/config before trusting inferred behavior.
+- Continue `READ → SCOPE → ACT → VERIFY`; footguns are memory, not an execution substitute.
 
 ## Learning Loop
 

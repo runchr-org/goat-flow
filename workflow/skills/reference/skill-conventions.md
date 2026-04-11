@@ -94,27 +94,7 @@ If 3 consecutive file reads produce no new signal relevant to the current questi
 2. State what you were looking for and didn't find
 3. Ask the human to redirect, narrow scope, or close
 
-## Ceremony Level
-
-Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
-
-| Complexity | Ceremony |
-|------------|----------|
-| Hotfix | Skip goat-plan — just implement directly. Skip goat-sbao entirely. |
-| Small Feature | goat-plan: 1-2 milestones, minimal ceremony. Skip goat-sbao. |
-| Standard | goat-plan: full milestone breakdown with testing gates. Use goat-sbao if approach is genuinely uncertain. |
-| System / Infrastructure | goat-plan: full milestones + cross-boundary verification + rollback planning. goat-sbao strongly recommended. |
-
 **Sub-agent mode:** When invoked as a sub-agent (forked context), most BLOCKING GATEs become CHECKPOINTs (logged, not paused). Step 0 proceeds with auto-detected scope. **Exception:** safety-critical gates (goat-debug D2→D3 "human decides before fixing", goat-security final report) MUST remain blocking even in sub-agent mode — these exist to prevent auto-fixing without human review.
-
-## Footgun Fast-Path
-
-If Step 0's footgun check produces a direct match with a documented trap:
-1. Surface the match immediately: "This matches known footgun X."
-2. Offer the standard mitigation path from the footgun entry
-3. If the entry carries `hallucination-risk: high`, re-read the live file/config before trusting names or inferred behavior
-4. Still require READ and VERIFY on the actual target files - footguns are incident records, not executable specs
-5. Do NOT skip straight to implementation based on a footgun match alone
 
 ## Task Tracking
 
@@ -125,6 +105,18 @@ When working from a plan or milestone file:
 - If you completed a task 3 steps ago and forgot to tick it — go tick it NOW before continuing
 
 On `/compact` with no active milestone file: write a session log to `.goat-flow/logs/sessions/` summarizing current state. Milestone files are the primary continuity mechanism; session logs are the fallback.
+
+## Milestone Retrospective (goat-plan)
+
+When a milestone completes and testing passes:
+
+1. Record what was learned.
+2. Tick validated assumptions and flag invalidated ones.
+3. Re-read the next milestone and update it if assumptions, scope, or exit criteria changed.
+4. Update the completed milestone status to `complete`; next milestone to `in-progress`.
+5. Update the mission artifact before continuing.
+
+Write a session log entry for each completed milestone sequence.
 
 Use `.goat-flow/logs/sessions/` for session summaries. Compact at ~60% context.
 
@@ -140,6 +132,7 @@ When a skill fails mid-execution (context limit, sub-agent dies, tool error):
 |-----------|--------|
 | Partial completion | Identify last completed step (last `[x]` checkbox in milestone file), resume from next |
 | Missing artifacts | Return to the step that generates them, re-execute |
+| Corrected twice on same approach | STOP and rewind the current hypothesis; ask for a different debugging angle |
 | User wants restart | Re-run from Step 0 |
 | User wants to skip | Document skip reason in output, proceed to closing |
 

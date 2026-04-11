@@ -14,7 +14,7 @@ c) Default Execution Loop: READ → SCOPE → ACT → VERIFY
    When a goat-* skill is active, the skill's Step 0 satisfies READ/SCOPE. Resume at ACT.
    - READ: gather evidence from relevant files before any claim. Never fabricate codebase facts.
    - SCOPE: declare intent, complexity tier, mode, files allowed to change, non-goals, and blast radius.
-     This includes the old CLASSIFY signals (mode + complexity + intent) in a single step.
+   - Include complexity tier, mode, and intent in this one step.
    - ACT: behavior follows the chosen mode.
      - Mode transitions must be explicit when they happen.
      - Debug mode keeps the D2→D3 human-review gate.

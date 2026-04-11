@@ -8,7 +8,7 @@ goat-flow-skill-version: "1.1.0"
 ## Shared Conventions
 
 Read `.goat-flow/skill-preamble.md` for shared conventions.
-Also read `.goat-flow/skill-conventions.md`.
+On full-depth, also read `.goat-flow/skill-conventions.md`.
 If unavailable, use these essentials:
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - Evidence: every finding MUST include file or file:line, tag OBSERVED vs INFERRED
@@ -40,6 +40,7 @@ Use when work needs breaking into milestones with tracked progress. goat-plan cr
 - Read `.goat-flow/tasks/` for any existing milestone files
 - If found: "Milestone files exist for [feature]. Resume from here, update milestones, or start fresh?"
 - If found but stale: check `git log --since="2 weeks ago" -- .goat-flow/tasks/` — if code has moved on but milestones haven't been updated, flag it
+- Also check for legacy milestone files outside `.goat-flow/tasks/` (for example `milestones/`, `tasks/`). If found, note them so the user knows about existing planning artifacts.
 
 **If starting fresh:**
 1. What are we building? (Accept: a brief from the dispatcher, a requirements doc, a conversation summary, or just a description)
@@ -109,6 +110,17 @@ When an assumption is validated, tick it and note the evidence. When an assumpti
 
 ## Phase 2 — Write Milestone Files
 
+### Small-work Inline Mode
+
+For Hotfix / Small Feature scope (typically 1-2 milestones, low blast radius), you may deliver milestones inline.
+
+Use this prompt:
+
+> "Would you like milestones in inline form first, or written to `.goat-flow/tasks/` now?"
+
+If the user says proceed inline, present milestone tasks in the chat and continue from there.
+If the user prefers files or scope is Standard/System, write each milestone to `.goat-flow/tasks/` as separate files and continue in standard format.
+
 After approval, write each milestone to `.goat-flow/tasks/` as a separate file:
 
 **Filename format:** `M<NN>-<slug>.md`
@@ -152,62 +164,16 @@ After approval, write each milestone to `.goat-flow/tasks/` as a separate file:
 
 ## Phase 3 — Between Milestones
 
-This phase triggers automatically when a milestone's tasks and exit criteria are complete. It's the most important phase — this is where plans evolve.
+After each milestone, run the testing gate first; any failure is BLOCKING.
+Capture what was learned, then re-read the next milestone and update invalidated assumptions, tasks, or exit criteria.
+Set status: prior milestone `complete`, next milestone `in-progress`.
+**CHECKPOINT:** "Milestone gate passed. Do you want to proceed with M[N+1]?"
 
-### Testing Gate Enforcement
-
-Before starting the next milestone:
-
-1. **Run automated checks:** Execute the testing gate commands. All must pass.
-2. **Complete manual checks:** Verify each manual testing item. Record results.
-3. **Acceptance sign-off:** Whoever is designated must confirm.
-
-If the testing gate fails: STOP. Fix before proceeding. Do not start the next milestone with a broken foundation.
-
-### Milestone Retrospective
-
-After the testing gate passes:
-
-1. **What did we learn?** Anything surprising, harder than expected, or easier than expected?
-2. **Assumption check:** Tick validated assumptions. Flag invalidated ones.
-3. **Kill criteria check:** Has any kill criterion been triggered?
-   - If yes: **BLOCKING GATE.** Present the triggered criterion and evidence. Human decides: continue anyway, pivot, or abandon.
-4. **Re-read the next milestone.** Does what we learned invalidate any tasks, assumptions, or exit criteria?
-5. **Update before proceeding.** If the next milestone needs changes, update the file BEFORE starting work. Present changes to human.
-
-### Status Updates
-
-Update the completed milestone's status to `complete`. Update the next milestone's status to `in-progress`.
-
-### Session Log
-
-Write a session log entry: what was built, what was learned, what assumptions changed, what's next.
-
-**CHECKPOINT:** "M[N] complete. Testing gate passed. M[N+1] reviewed and [unchanged / updated]. Proceeding."
-
-## Updating Milestones Mid-Flight
-
-Milestones are hypotheses, not commitments. When new information arrives:
-
-**Triggers for update:**
-- Unexpected failure invalidates an assumption
-- Scope change from stakeholder
-- A task is much harder or easier than estimated
-- A dependency is blocked
-- goat-sbao critique recommends restructuring
-
-**Update protocol:**
-1. Read the current milestone file
-2. Identify what changed and why
-3. Update tasks, assumptions, exit criteria, or kill criteria as needed
-4. If the change affects future milestones, update those files too
-5. Present the diff to the human: "Milestone updated because [reason]. Changes: [summary]. Approve?"
-
-**Never silently change milestones.** The human must see and approve updates. The milestone files are the contract between human and agent.
+If updates are needed mid-flight, follow the detailed milestone retrospective protocol in `skill-conventions.md`; never change milestones silently.
 
 ## Constraints
 
-- MUST write milestone files to `.goat-flow/tasks/` — milestones without files don't exist
+- MUST write milestone files to `.goat-flow/tasks/` for Small Feature and above. For hotfix/small work, inline milestones are allowed.
 - MUST check for existing milestone files before creating new ones
 - MUST include a testing gate on every milestone — no milestone ships without verification
 - MUST re-read and potentially update the next milestone after completing each one
@@ -218,7 +184,7 @@ Milestones are hypotheses, not commitments. When new information arrives:
 - MUST ensure each task is completable in a single coding session — split if not
 - MUST NOT create vague tasks ("set up backend", "make it work", "research options")
 - MUST NOT skip the testing gate between milestones
-- MUST NOT fabricate file paths or function names
+- Universal constraints from skill-preamble.md apply.
 - MUST NOT continue building on an invalidated assumption — update the plan first
 - Status tracking: update milestone file status field as work progresses
 

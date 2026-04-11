@@ -13,7 +13,7 @@ Read `01-system-overview.md` first if you haven't already.
 - `.goat-flow/config.yaml` with version 1.1.0
 - Skills installed verbatim from the current templates
 - `.goat-flow/skill-preamble.md` shared across all skills
-- 6-step setup flow (`01` through `06`)
+- Setup flow updated to 4 steps (`READ → SCOPE → ACT → VERIFY`) in instruction files
 
 ---
 

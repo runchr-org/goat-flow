@@ -8,7 +8,7 @@ goat-flow-skill-version: "1.1.0"
 ## Shared Conventions
 
 Read `.goat-flow/skill-preamble.md` for shared conventions.
-Also read `.goat-flow/skill-conventions.md`.
+On full-depth, also read `.goat-flow/skill-conventions.md`.
 If unavailable, use these essentials:
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - Evidence: every finding MUST include file or file:line, tag OBSERVED vs INFERRED
@@ -32,20 +32,19 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 
 ## Step 0 — Intake
 
-Two intake modes:
-
-**Standalone** (`/goat-sbao` or routed from `/goat`): Ask what artifact to critique. Confirm scope: "Critiquing [artifact]. SBAO will spawn 3 sub-agents, rank and cross-examine findings, then ask you to resolve disputes before synthesis. Proceed?"
-
-**Skill-chained** (called from another goat-* skill): The calling skill passes the artifact and context. Skip the confirmation — go straight to footgun/lesson checks below, then Phase 1.
-
-For both modes:
-- Read `.goat-flow/footguns/` for entries relevant to the artifact's domain
-- Read `.goat-flow/lessons/` for past critique outcomes in this area
-- Identify the artifact type (plan, security assessment, hypothesis set, review findings, test strategy, architecture doc, other) — this determines the critique rubric
+Quick vs full mode (default: quick for Standard complexity):
+- `/goat-sbao` or router: confirm artifact and choose quick (2 agents, no cross-exam) or full (3 agents).
+- Quick: Agents B/C → Generate, Rank, Synthesise.
+- Full: Agents A/B/C → 5 phases.
+- Read relevant `.goat-flow/footguns/` and `.goat-flow/lessons/`.
+- Skill-chained: skip intake confirmation; use caller context and start at Phase 1.
 
 ## Phase 1 — Generate Competing Critiques
 
-Always spawn 3 sub-agents. Always run all 5 phases. Context varies intentionally — informational diversity catches more than tonal diversity.
+Quick mode: spawn 2 sub-agents.
+Full mode: spawn 3 sub-agents.
+
+Context varies intentionally — informational diversity catches more than tonal diversity.
 
 ### The Core Trio Lens
 
@@ -59,17 +58,9 @@ All three perspectives must appear in every critique from Agents A and B. The te
 
 ### Sub-Agent Definitions
 
-**Sub-agent A (Risk Focus — full project context):**
-Gets: artifact + architecture.md + footguns + lessons + critique rubric.
-Directive: "Apply the SKEPTIC/ANALYST/STRATEGIST lens. Focus on RISKS: what could go wrong, what the evidence says about cost/benefit, and what the fastest safe path forward looks like. Propose specific improvements."
-
-**Sub-agent B (Alternatives Focus — full project context):**
-Gets: artifact + architecture.md + footguns + lessons + critique rubric.
-Directive: "Apply the SKEPTIC/ANALYST/STRATEGIST lens. Focus on ALTERNATIVES: generate 2-3 different approaches to the key decisions. For each, evaluate risk (SKEPTIC), evidence (ANALYST), and delivery speed (STRATEGIST). Propose specific improvements."
-
-**Sub-agent C (Fresh Eyes — NO project context):**
-Gets: artifact + critique rubric ONLY. No architecture.md, no footguns, no lessons, no project history.
-Directive: "Critique this artifact as if you know nothing about the project. What's unclear? What assumptions aren't stated? What wouldn't make sense to a newcomer? What would you do differently?"
+**Sub-agent A:** artifact + architecture + footguns + lessons. Focus on risks and fastest safe path.
+**Sub-agent B:** same context. Focus on alternatives and tradeoffs.
+**Sub-agent C:** artifact + rubric only (fresh eyes). Flag assumption gaps and clarity issues.
 
 Each sub-agent MUST return:
 - 3-7 findings: title, severity (CRITICAL/HIGH/MEDIUM/LOW), evidence (file:line or artifact section reference), confidence (HIGH/MEDIUM/LOW), one-sentence rationale
@@ -80,26 +71,12 @@ MUST use Agent tool calls, not inline role-play. Sub-agents run in isolated cont
 
 ## Phase 2 — Rank and Compare
 
-Build a comparison matrix:
+Build a quick matrix and score by grounding/specificity/actionability/coverage/calibration.
+Label each finding as consensus / split / unique.
 
-| Finding | Agent A | Agent B | Agent C | Agreement |
-|---------|---------|---------|---------|-----------|
-| [finding] | [severity] | [severity or n/a] | [severity or n/a] | consensus / split / unique |
+**Control group delta:** For Agent C-only findings, mark each as CONTEXT DRIFT / READABILITY GAP / CONTEXT-LIMITED.
 
-Score each critique on: grounding, specificity, actionability, coverage, calibration.
-
-Highlight:
-- **Consensus** (2+ agents agree) — highest confidence
-- **Split** (agents disagree on severity/existence) — needs cross-examination
-- **Unique** (only one agent raised it) — may be insight or noise
-
-**Control group delta check:**
-Review Agent C's findings against Agents A and B. For each Agent C finding that no other agent raised:
-- If it identifies an unstated assumption → flag as **CONTEXT DRIFT** — the context-aware agents took this for granted
-- If it identifies a clarity problem → flag as **READABILITY GAP** — the artifact assumes knowledge it doesn't provide
-- If it's clearly wrong due to missing context → mark as **CONTEXT-LIMITED** — expected false positive, discard
-
-Present the delta: "Fresh eyes found [N] unique findings. [X] are context drift signals, [Y] are readability gaps, [Z] are context-limited false positives."
+Quick mode: skip **Phase 3 (Cross-Examine)** and **Phase 4 (Clarify)**. Proceed directly to **Phase 5 (Synthesise)** after Phase 2.
 
 ## Phase 3 — Cross-Examine
 
@@ -122,7 +99,8 @@ Format:
 > **Trade-off [N]:** [Option A] prioritises [X] at the cost of [Y]. [Option B] does the reverse. Which matters more here?
 > **Context drift [N]:** Fresh eyes found [assumption]. Is this intentional or an oversight?
 
-**BLOCKING GATE:** STOP and wait for answers. Do NOT synthesise until the human has resolved these.
+**If disputes exist or Decision Debt items need resolution:** BLOCKING GATE — STOP and present disputes for human resolution.
+**If all agents agree (no disputes):** CHECKPOINT — note consensus and proceed to synthesis.
 
 ## Phase 5 — Synthesise
 
@@ -133,15 +111,7 @@ Produce the prime critique:
 - Verified unique findings (survived cross-examination)
 - Retracted findings (listed so user sees what was considered and dismissed)
 
-**Decision Debt scan:** Review every recommendation. For any where:
-- The supporting evidence is tagged INFERRED, not OBSERVED
-- Only one sub-agent raised it and cross-examination was inconclusive
-- The recommendation depends on an unvalidated assumption
-
-Tag as Decision Debt:
-> **Decision Debt:** [recommendation] — Confidence: LOW/MEDIUM — Revisit when: [trigger condition]
-
-Decision Debt ships with the current work but must be revisited at a stated trigger. It is not the same as Open Questions (which block progress).
+Tag low-confidence recommendations as Decision Debt with confidence level and revisit trigger.
 
 **Blind spot check:** Before presenting, identify:
 - Sections of the artifact that no sub-agent addressed
@@ -166,24 +136,23 @@ The rubric determines what sub-agents evaluate. Match to artifact type:
 
 ## Constraints
 
-- MUST always spawn 3 sub-agents — Agent A (risk), Agent B (alternatives), Agent C (fresh eyes)
-- MUST always run all 5 phases — no quick/full distinction
+- Quick: 2 agents (B+C). Full: 3 agents (A+B+C).
+- Quick mode runs 3 phases (Generate, Rank, Synthesise). Full mode runs 5.
 - MUST use Agent tool calls for sub-agents, not inline role-play
-- MUST spawn sub-agents with isolated context (they cannot see each other's Phase 1 output)
-- MUST restrict Agent C (Fresh Eyes) to artifact + rubric only — no architecture.md, footguns, or lessons
+- MUST isolate Phase 1 contexts
+- MUST restrict Agent C (Fresh Eyes) to artifact + rubric only
 - MUST use SKEPTIC/ANALYST/STRATEGIST as a combined lens per agent — never split into separate roles
-- MUST differentiate Agent A (risk focus) from Agent B (alternatives focus) by question, not just tone
+- MUST differentiate Agent A (risk) from Agent B (alternatives) by instructions
 - MUST flag control group delta: CONTEXT DRIFT / READABILITY GAP / CONTEXT-LIMITED for each unique Agent C finding
 - MUST include critique rubric appropriate to artifact type
 - MUST present consensus/split/unique classification for every finding
 - MUST cross-examine split findings and unique HIGH/CRITICAL findings (Phase 3)
-- MUST stop and ask human to resolve disputes and trade-offs before synthesising (Phase 4)
-- MUST tag low-confidence recommendations as Decision Debt with revisit triggers
-- MUST populate "What Wasn't Critiqued" with blind spot check — never leave empty
-- MUST preserve "what the artifact gets right" — this is not a negativity engine
-- MUST NOT fabricate file paths, function names, or artifact content
+- MUST gate on unresolved disputes before synthesis
+- MUST tag low-confidence recommendations as Decision Debt
+- MUST always include "What Wasn't Critiqued"
+- Universal constraints from skill-preamble.md apply.
 - MUST NOT auto-apply recommendations — human gate required
-- Sub-agent budget: max 5 tool calls per sub-agent in Phase 1, max 3 per cross-examination in Phase 3
+- Sub-agent budget: max 5 tool calls per sub-agent in Phase 1, max 3 in cross-examination
 - Skill-chained: skip confirmation, still run footgun/lesson checks and rubric selection
 
 ## Output Format
