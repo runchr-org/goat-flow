@@ -34,7 +34,8 @@ Usage:
   goat-flow [command] [project-path] [flags]
 
 Commands:
-  scan              Score a project (default)
+  audit             Validate setup correctness (default)
+  scan              Score a project against the full rubric
   setup             Generate setup prompt (adapts to project state)
   status            Show project state (bare/partial/v0.9/v1.0/v1.1)
   info rubrics      List all rubric checks (filter: --tier foundation|standard)
@@ -44,8 +45,9 @@ Arguments:
   project-path    Target project directory (default: .)
 
 Flags:
-  --format <type>   Output format: json, text, markdown, html (default: auto)
+  --format <type>   Output format: json, text, markdown (default: auto)
   --agent <id>      Filter to one agent: claude, codex, gemini
+  --quality         Audit: add advisory quality scoring by harness concern
   --verbose         Show per-check details in text mode
   --min-score <n>   CI gate: exit 1 if score below threshold (0-100)
   --min-grade <g>   CI gate: exit 1 if grade below threshold (A, B, C, D)
@@ -56,12 +58,12 @@ Flags:
   --version, -v     Show version
 
 Examples:
-  goat-flow .                        Scan current directory
-  goat-flow scan --format json       Force JSON output
+  goat-flow .                        Audit current directory
+  goat-flow audit . --quality        Audit with advisory quality grades
+  goat-flow audit . --agent claude   Audit scoped to Claude
+  goat-flow scan --format json       Full rubric scan as JSON
   goat-flow scan --guide             Prioritized setup guidance
   goat-flow setup --agent claude     Setup prompt for Claude
-  goat-flow setup --agent codex      Setup prompt for Codex
-  goat-flow setup --agent gemini      Setup prompt for Gemini
   goat-flow --min-score 75           CI gate: fail if below 75%
   goat-flow --format markdown        PR-comment friendly output
   goat-flow --output report.json     Write results to file
@@ -74,12 +76,12 @@ function printVersion(): void {
 }
 
 /** Supported CLI subcommand names */
-type Command = "scan" | "setup" | "dashboard" | "info" | "status";
+type Command = "scan" | "setup" | "dashboard" | "info" | "status" | "audit";
 
 /** List of recognized CLI subcommands */
-const COMMANDS: Command[] = ["scan", "setup", "dashboard", "info", "status"];
+const COMMANDS: Command[] = ["scan", "setup", "dashboard", "info", "status", "audit"];
 /** Previously valid commands that now produce a helpful deprecation error */
-const REMOVED_COMMANDS = ["fix", "audit", "eval"];
+const REMOVED_COMMANDS = ["fix", "eval"];
 /** Accepted values for the --format flag */
 const VALID_FORMATS = ["json", "text", "html", "markdown"] as const;
 /** Accepted values for the --agent flag */
@@ -96,6 +98,7 @@ const MULTI_AGENT_SYNC_BANNER = [
 export interface ParsedCLI extends CLIOptions {
   command: Command;
   tier: Tier | null;
+  quality: boolean;
 }
 
 /** Parse the positional subcommand from raw CLI args, defaulting to `scan`. */
@@ -117,7 +120,7 @@ function parseCommand(argv: string[]): {
   ) {
     return { command: filteredArgs.shift() as Command, filteredArgs };
   }
-  return { command: "scan", filteredArgs };
+  return { command: "audit", filteredArgs };
 }
 
 /** Parse the `--format` flag, defaulting to text on TTYs and JSON otherwise. */
@@ -215,6 +218,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
       "min-grade": { type: "string" },
       output: { type: "string", short: "o" },
       guide: { type: "boolean", default: false },
+      quality: { type: "boolean", default: false },
       tier: { type: "string" },
       dev: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
@@ -234,6 +238,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     minGrade: parseMinGradeArg(values["min-grade"]),
     output: resolveOutputPath(values.output, positionals),
     guide: values.guide === true,
+    quality: values.quality === true,
     tier: parseTierArg(values.tier),
     dev: values.dev === true,
     help: values.help === true,
@@ -474,6 +479,38 @@ async function handleInfoCommand(options: ParsedCLI): Promise<void> {
   }
 }
 
+/** Run the audit command: validate setup correctness and optionally score quality. */
+async function handleAuditCommand(options: ParsedCLI): Promise<void> {
+  const { createFS } = await import("./facts/fs.js");
+  const { runAudit } = await import("./audit/audit.js");
+  const {
+    renderAuditText,
+    renderAuditJson,
+    renderAuditMarkdown,
+  } = await import("./audit/render.js");
+
+  const fs = createFS(options.projectPath);
+  const report = runAudit(fs, options.projectPath, {
+    agentFilter: options.agent ?? null,
+    quality: options.quality,
+  });
+
+  let rendered: string;
+  if (options.format === "json") {
+    rendered = renderAuditJson(report);
+  } else if (options.format === "markdown") {
+    rendered = renderAuditMarkdown(report);
+  } else {
+    rendered = renderAuditText(report);
+  }
+
+  writeScanOutput(options, rendered);
+
+  if (report.status === "fail") {
+    process.exitCode = 1;
+  }
+}
+
 /** Entry point that dispatches to the appropriate command handler */
 async function main(): Promise<void> {
   // Gracefully handle EPIPE (e.g., output piped to `head`)
@@ -491,6 +528,10 @@ async function main(): Promise<void> {
   }
   if (options.version) {
     printVersion();
+    return;
+  }
+  if (options.command === "audit") {
+    await handleAuditCommand(options);
     return;
   }
   if (options.command === "status") {

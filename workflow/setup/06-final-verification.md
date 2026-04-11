@@ -1,10 +1,10 @@
 # Step 06 - Final Verification
 
-This is the only setup gate. The goal is simple: `goat-flow scan . --agent {agent}` reaches 100% and the created file set matches `workflow/setup/reference/project-structure.json`.
+This is the only setup gate. The goal is simple: `goat-flow audit . --agent {agent}` passes and the created file set matches `workflow/setup/reference/project-structure.json`.
 
 ## Scanner
 
-Run `goat-flow scan . --agent {agent}` and fix all failures until 100%.
+Run `goat-flow audit . --agent {agent}` and fix all failures until it passes.
 
 The `--agent` flag scopes the scan to one agent's surfaces: it checks that agent's instruction file, skills directory, hooks, and settings. It does NOT check other agents' files. For multi-agent projects, run the scan once per agent.
 
@@ -117,7 +117,7 @@ Use one shared file: `.goat-flow/logs/sessions/YYYY-MM-DD-setup.md`
 ---
 
 **Verification gate:**
-- [ ] `goat-flow scan . --agent {agent}` passes at 100%
+- [ ] `goat-flow audit . --agent {agent}` passes
 - [ ] All required files and directories in `workflow/setup/reference/project-structure.json` exist
 - [ ] Stale-reference checks and Essential Commands smoke tests are complete
 - [ ] Shared setup session log finalised with time/tokens

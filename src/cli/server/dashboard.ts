@@ -21,6 +21,7 @@ import { createFS } from "../facts/fs.js";
 import { classifyProjectState } from "../classify-state.js";
 import { scanProject } from "../scanner/scan.js";
 import { renderJson } from "../render/json.js";
+import { runAudit } from "../audit/audit.js";
 import { getPackageVersion } from "../paths.js";
 import type { AgentId } from "../types.js";
 import type { Runner } from "./types.js";
@@ -117,7 +118,7 @@ interface DashboardServer {
 
 /**
  * Start a local dashboard server. Serves the HTML dashboard and
- * exposes /api/scan, /api/setup, /api/terminal/*, /api/health, and other endpoints.
+ * exposes /api/audit, /api/scan, /api/setup, /api/terminal/*, /api/health, and other endpoints.
  * Returns a handle for testing; callers that don't need it can ignore the return value.
  */
 export function serveDashboard(
@@ -217,6 +218,29 @@ export function serveDashboard(
         const fs = createFS(projectPath);
         const report = scanProject(fs, projectPath, { agentFilter: null });
         jsonResponse(res, 200, JSON.parse(renderJson(report)));
+      } catch (err) {
+        jsonResponse(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return true;
+    }
+
+    /** Run an audit for the requested path and return the JSON report. */
+    function handleAuditRequest(url: URL, res: ServerResponse): boolean {
+      if (url.pathname !== "/api/audit") return false;
+
+      const projectPath = safeResolvePath(url.searchParams.get("path"));
+      const quality = url.searchParams.get("quality") === "true";
+      const agentParam = url.searchParams.get("agent");
+      const agentFilter = agentParam && VALID_AGENTS.has(agentParam)
+        ? (agentParam as AgentId)
+        : null;
+
+      try {
+        const fs = createFS(projectPath);
+        const report = runAudit(fs, projectPath, { agentFilter, quality });
+        jsonResponse(res, 200, report);
       } catch (err) {
         jsonResponse(res, 500, {
           error: err instanceof Error ? err.message : String(err),
@@ -946,6 +970,7 @@ export function serveDashboard(
         () => Promise.resolve(handleHtmlRequest(url, res)),
         () => Promise.resolve(handleAssetRequest(url, res)),
         () => Promise.resolve(handleScanRequest(url, res)),
+        () => Promise.resolve(handleAuditRequest(url, res)),
         () => Promise.resolve(handleSetupDetectRequest(url, res)),
         () => handleSetupRequest(url, res),
 

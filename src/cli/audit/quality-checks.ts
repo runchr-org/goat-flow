@@ -1,0 +1,403 @@
+/**
+ * Quality checks for `goat-flow audit --quality`.
+ * Grouped by the 5 harness concerns: context, constraints, verification, recovery, feedback_loop.
+ * Quality checks are advisory - they produce scores and findings but never affect exit code.
+ */
+import type { QualityCheck, QualityCheckResult } from "./types.js";
+
+function pass(findings: string[]): QualityCheckResult {
+  return { score: 100, findings, recommendations: [] };
+}
+
+function partial(
+  score: number,
+  findings: string[],
+  recommendations: string[],
+): QualityCheckResult {
+  return { score, findings, recommendations };
+}
+
+function fail(
+  findings: string[],
+  recommendations: string[],
+): QualityCheckResult {
+  return { score: 0, findings, recommendations };
+}
+
+// === Context concern ===
+
+const instructionLineCount: QualityCheck = {
+  id: "instruction-line-count",
+  concern: "context",
+  weight: 2,
+  run: (ctx) => {
+    for (const af of ctx.agents) {
+      if (!af.instruction.exists) {
+        return fail(
+          [`${af.agent.id}: no instruction file`],
+          ["Create instruction file for each configured agent"],
+        );
+      }
+      const lines = af.instruction.lineCount;
+      const target = ctx.config.config.lineLimits.target;
+      const limit = ctx.config.config.lineLimits.limit;
+      if (lines > limit) {
+        return partial(
+          30,
+          [`${af.agent.id}: ${lines} lines (exceeds hard limit ${limit})`],
+          [`Reduce instruction file to under ${target} lines`],
+        );
+      }
+      if (lines > target) {
+        return partial(
+          70,
+          [`${af.agent.id}: ${lines} lines (over target ${target}, under limit ${limit})`],
+          [`Consider trimming to target ${target} lines`],
+        );
+      }
+      return pass([`${af.agent.id}: ${lines} lines (under target ${target})`]);
+    }
+    return pass(["No agents to check"]);
+  },
+};
+
+const routerTableResolves: QualityCheck = {
+  id: "router-table-resolves",
+  concern: "context",
+  weight: 2,
+  run: (ctx) => {
+    const findings: string[] = [];
+    const recs: string[] = [];
+    let totalPaths = 0;
+    let resolved = 0;
+    for (const af of ctx.agents) {
+      totalPaths += af.router.paths.length;
+      resolved += af.router.resolved;
+      if (af.router.unresolved.length > 0) {
+        findings.push(
+          `${af.agent.id}: ${af.router.unresolved.length} dead router paths`,
+        );
+      }
+    }
+    if (totalPaths === 0) {
+      return partial(50, ["No router table found"], ["Add a Router Table section to instruction file"]);
+    }
+    if (findings.length > 0) {
+      recs.push("Fix dead router table paths so agents can navigate the codebase");
+      const score = totalPaths > 0 ? Math.round((resolved / totalPaths) * 100) : 0;
+      return partial(score, findings, recs);
+    }
+    return pass([`All ${totalPaths} router table paths resolve`]);
+  },
+};
+
+const footgunEvidenceResolves: QualityCheck = {
+  id: "footgun-evidence",
+  concern: "context",
+  weight: 1,
+  run: (ctx) => {
+    const { footguns } = ctx.facts.shared;
+    if (!footguns.exists || footguns.entryCount === 0) {
+      return partial(50, ["No footgun entries"], ["Log footguns as they are discovered"]);
+    }
+    if (footguns.staleRefs.length > 0) {
+      return partial(
+        60,
+        [`${footguns.staleRefs.length} stale file:line references in footguns`],
+        ["Update stale footgun references to current file:line locations"],
+      );
+    }
+    return pass([`${footguns.entryCount} footgun entries with valid evidence`]);
+  },
+};
+
+const architectureExists: QualityCheck = {
+  id: "architecture-exists",
+  concern: "context",
+  weight: 1,
+  run: (ctx) => {
+    if (!ctx.facts.shared.architecture.exists) {
+      return fail(
+        ["architecture.md does not exist"],
+        ["Create .goat-flow/architecture.md describing the project structure"],
+      );
+    }
+    const lines = ctx.facts.shared.architecture.lineCount;
+    if (lines < 10) {
+      return partial(
+        40,
+        [`architecture.md is only ${lines} lines`],
+        ["Expand architecture.md with real project structure details"],
+      );
+    }
+    return pass([`architecture.md exists (${lines} lines)`]);
+  },
+};
+
+// === Constraints concern ===
+
+const denyCoversSecrets: QualityCheck = {
+  id: "deny-covers-secrets",
+  concern: "constraints",
+  weight: 2,
+  run: (ctx) => {
+    for (const af of ctx.agents) {
+      if (af.hooks.readDenyCoversSecrets) {
+        return pass([`${af.agent.id}: deny patterns cover secrets`]);
+      }
+    }
+    return partial(
+      30,
+      ["Deny patterns do not cover secret file reads"],
+      ["Add deny patterns for .env, credentials, and key files"],
+    );
+  },
+};
+
+const denyBlocksDangerous: QualityCheck = {
+  id: "deny-blocks-dangerous",
+  concern: "constraints",
+  weight: 2,
+  run: (ctx) => {
+    for (const af of ctx.agents) {
+      const { denyBlocksRmRf, denyBlocksForcePush, denyBlocksChmod } = af.hooks;
+      if (denyBlocksRmRf && denyBlocksForcePush && denyBlocksChmod) {
+        return pass([`${af.agent.id}: deny blocks rm -rf, force-push, chmod`]);
+      }
+      const missing: string[] = [];
+      if (!denyBlocksRmRf) missing.push("rm -rf");
+      if (!denyBlocksForcePush) missing.push("force-push");
+      if (!denyBlocksChmod) missing.push("chmod");
+      return partial(
+        50,
+        [`${af.agent.id}: deny missing coverage for ${missing.join(", ")}`],
+        ["Expand deny patterns to cover all destructive commands"],
+      );
+    }
+    return fail(["No agents to check"], ["Configure at least one agent"]);
+  },
+};
+
+const askFirstBoundaries: QualityCheck = {
+  id: "ask-first-boundaries",
+  concern: "constraints",
+  weight: 1,
+  run: (ctx) => {
+    const boundaries = ctx.config.config.askFirst;
+    if (boundaries.length === 0) {
+      return partial(
+        40,
+        ["No ask_first boundaries configured"],
+        ["Add ask_first entries in config.yaml for high-risk paths"],
+      );
+    }
+    return pass([`${boundaries.length} ask_first boundaries configured`]);
+  },
+};
+
+// === Verification concern ===
+
+const testCommandRunnable: QualityCheck = {
+  id: "test-command-configured",
+  concern: "verification",
+  weight: 3,
+  run: (ctx) => {
+    if (ctx.config.config.toolchain.test.length > 0) {
+      return pass([`Test command configured: ${ctx.config.config.toolchain.test[0]}`]);
+    }
+    return fail(
+      ["No test command configured"],
+      ["Add toolchain.test to config.yaml"],
+    );
+  },
+};
+
+const hooksRegisteredAndPresent: QualityCheck = {
+  id: "hooks-registered",
+  concern: "verification",
+  weight: 2,
+  run: (ctx) => {
+    const findings: string[] = [];
+    const recs: string[] = [];
+    for (const af of ctx.agents) {
+      if (af.hooks.postTurnRegistered && !af.hooks.postTurnExists) {
+        findings.push(`${af.agent.id}: post-turn hook registered but file missing`);
+        recs.push("Create the registered post-turn hook file");
+      }
+      if (af.hooks.postTurnExists && !af.hooks.postTurnRegistered) {
+        findings.push(`${af.agent.id}: post-turn hook file exists but not registered`);
+        recs.push("Register the post-turn hook in agent settings");
+      }
+    }
+    if (findings.length > 0) {
+      return partial(50, findings, recs);
+    }
+    return pass(["Hook registrations and files are in sync"]);
+  },
+};
+
+const commitGuidanceExists: QualityCheck = {
+  id: "commit-guidance",
+  concern: "verification",
+  weight: 1,
+  run: (ctx) => {
+    if (ctx.facts.shared.gitCommitInstructions.exists) {
+      return pass(["Commit guidance found"]);
+    }
+    return partial(
+      40,
+      ["No commit guidance detected"],
+      ["Add commit conventions to instruction file or .github/instructions/"],
+    );
+  },
+};
+
+// === Recovery concern ===
+
+const milestoneFilesExist: QualityCheck = {
+  id: "milestone-files",
+  concern: "recovery",
+  weight: 2,
+  run: (ctx) => {
+    const tasksDir = ".goat-flow/tasks";
+    let files: string[];
+    try {
+      files = ctx.fs.listDir(tasksDir);
+    } catch {
+      return partial(
+        30,
+        ["No milestone/task files found"],
+        ["Create milestone files in .goat-flow/tasks/ for work tracking"],
+      );
+    }
+    if (files.length === 0) {
+      return partial(
+        30,
+        ["Tasks directory empty"],
+        ["Create milestone files for current work"],
+      );
+    }
+    return pass([`${files.length} items in tasks directory`]);
+  },
+};
+
+const sessionLogsExist: QualityCheck = {
+  id: "session-logs",
+  concern: "recovery",
+  weight: 1,
+  run: (ctx) => {
+    const logsDir = ".goat-flow/logs/sessions";
+    let files: string[];
+    try {
+      files = ctx.fs.listDir(logsDir);
+    } catch {
+      return partial(
+        30,
+        ["No session logs directory"],
+        ["Log sessions to .goat-flow/logs/sessions/"],
+      );
+    }
+    if (files.length === 0) {
+      return partial(40, ["No session logs"], ["Start logging sessions"]);
+    }
+    return pass([`${files.length} session logs found`]);
+  },
+};
+
+// === Feedback Loop concern ===
+
+const footgunActivity: QualityCheck = {
+  id: "footgun-activity",
+  concern: "feedback_loop",
+  weight: 2,
+  run: (ctx) => {
+    const count = ctx.facts.shared.footguns.entryCount;
+    if (count === 0) {
+      return partial(
+        20,
+        ["No footgun entries logged"],
+        ["Start logging footguns as they are discovered"],
+      );
+    }
+    if (count < 3) {
+      return partial(
+        60,
+        [`Only ${count} footgun entries - low activity`],
+        ["Continue logging footguns to build institutional memory"],
+      );
+    }
+    return pass([`${count} footgun entries`]);
+  },
+};
+
+const lessonActivity: QualityCheck = {
+  id: "lesson-activity",
+  concern: "feedback_loop",
+  weight: 2,
+  run: (ctx) => {
+    const count = ctx.facts.shared.lessons.entryCount;
+    if (count === 0) {
+      return partial(
+        20,
+        ["No lesson entries logged"],
+        ["Start logging lessons from behavioral mistakes"],
+      );
+    }
+    if (count < 3) {
+      return partial(
+        60,
+        [`Only ${count} lesson entries - low activity`],
+        ["Continue capturing lessons to prevent repeat mistakes"],
+      );
+    }
+    return pass([`${count} lesson entries`]);
+  },
+};
+
+const decisionsTracked: QualityCheck = {
+  id: "decisions-tracked",
+  concern: "feedback_loop",
+  weight: 1,
+  run: (ctx) => {
+    const { decisions } = ctx.facts.shared;
+    if (!decisions.dirExists) {
+      return partial(
+        30,
+        ["No decisions directory"],
+        ["Create .goat-flow/decisions/ and log significant technical decisions"],
+      );
+    }
+    if (decisions.fileCount === 0) {
+      return partial(
+        40,
+        ["Decisions directory empty"],
+        ["Log architectural decisions with context and rationale"],
+      );
+    }
+    return pass([`${decisions.fileCount} decision records`]);
+  },
+};
+
+/** All quality checks grouped by concern */
+export const QUALITY_CHECKS: QualityCheck[] = [
+  // context
+  instructionLineCount,
+  routerTableResolves,
+  footgunEvidenceResolves,
+  architectureExists,
+  // constraints
+  denyCoversSecrets,
+  denyBlocksDangerous,
+  askFirstBoundaries,
+  // verification
+  testCommandRunnable,
+  hooksRegisteredAndPresent,
+  commitGuidanceExists,
+  // recovery
+  milestoneFilesExist,
+  sessionLogsExist,
+  // feedback_loop
+  footgunActivity,
+  lessonActivity,
+  decisionsTracked,
+];

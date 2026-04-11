@@ -130,7 +130,7 @@ The agent config file (`agents/claude.md`, `agents/codex.md`, etc.) has agent-sp
 
 ## Post-upgrade verification
 
-1. `goat-flow scan . --agent {agent}` - target 100%
+1. `goat-flow audit . --agent {agent}` - must pass
 2. Verify required goat-flow files and directories exist
 3. Review git diff - every change should be intentional
 4. Confirm no parallel surfaces exist
