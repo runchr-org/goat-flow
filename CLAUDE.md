@@ -90,6 +90,5 @@ If working from a plan/milestone file, tick `- [x]` on each completed task immed
 | Skills | `.claude/skills/` |
 | Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
 | Decisions | `.goat-flow/decisions/` |
-| Project guidelines | `.goat-flow/conventions.md` |
 | Config | `.goat-flow/config.yaml` |
 | Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |

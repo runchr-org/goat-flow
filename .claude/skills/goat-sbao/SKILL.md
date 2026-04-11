@@ -9,11 +9,6 @@ goat-flow-skill-version: "1.1.0"
 
 Read `.goat-flow/skill-preamble.md` for shared conventions.
 On full-depth, also read `.goat-flow/skill-conventions.md`.
-If unavailable, use these essentials:
-- Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- Evidence: every finding MUST include file or file:line, tag OBSERVED vs INFERRED
-- Learning loop: check .goat-flow/lessons/ and .goat-flow/footguns/ after completion
-- Gates: BLOCKING GATE = stop and wait. CHECKPOINT = continue unless interrupted.
 
 ## When to Use
 
@@ -32,10 +27,17 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 
 ## Step 0 — Intake
 
-Quick vs full mode (default: quick for Standard complexity):
-- `/goat-sbao` or router: confirm artifact and choose quick (2 agents, no cross-exam) or full (3 agents).
-- Quick: Agents B/C → Generate, Rank, Synthesise.
-- Full: Agents A/B/C → 5 phases.
+**Stake calibration (if user doesn't specify quick/full):**
+- What is the blast radius if this artifact is wrong?
+  - 1-2 files affected → quick mode is proportional
+  - 3-10 files or cross-boundary → quick mode default, offer full
+  - 10+ files, production systems, or security-critical → full mode default
+- Standard complexity → quick mode. System/Infrastructure → full mode.
+
+**Mode choice:**
+- Quick (default): Agents B/C → Generate, Rank, Synthesise. 2 agents, 3 phases.
+- Full: Agents A/B/C → 5 phases with cross-examination and human dispute resolution.
+- `/goat-sbao` or router: confirm artifact and present mode recommendation based on stake calibration.
 - Read relevant `.goat-flow/footguns/` and `.goat-flow/lessons/`.
 - Skill-chained: skip intake confirmation; use caller context and start at Phase 1.
 
@@ -58,9 +60,17 @@ All three perspectives must appear in every critique from Agents A and B. The te
 
 ### Sub-Agent Definitions
 
-**Sub-agent A:** artifact + architecture + footguns + lessons. Focus on risks and fastest safe path.
-**Sub-agent B:** same context. Focus on alternatives and tradeoffs.
-**Sub-agent C:** artifact + rubric only (fresh eyes). Flag assumption gaps and clarity issues.
+**Sub-agent A (Risk Focus — backward-looking context):**
+Gets: artifact + architecture.md + footguns + lessons + critique rubric.
+Directive: "Apply SKEPTIC/ANALYST/STRATEGIST. Focus on RISKS: what could go wrong, what the evidence says about cost/benefit, what the fastest safe path looks like. Your context includes past mistakes (footguns, lessons) — use them."
+
+**Sub-agent B (Alternatives Focus — current-state context):**
+Gets: artifact + architecture.md + recent git history (`git log --oneline -20`) + config.yaml + critique rubric.
+Directive: "Apply SKEPTIC/ANALYST/STRATEGIST. Focus on ALTERNATIVES: generate 2-3 different approaches to the key decisions. Your context includes how the project actually works right now (git history, config) — ground alternatives in real project patterns, not theory."
+
+**Sub-agent C (Fresh Eyes — NO project context):**
+Gets: artifact + critique rubric ONLY. No architecture, footguns, lessons, git, or config.
+Directive: "Critique this artifact as if you know nothing about the project. Flag every assumption the artifact makes without stating explicitly. If you find nothing confusing, note whether that's because the artifact is exceptionally clear or because you didn't probe hard enough. Your findings that overlap with other agents are convergent evidence, not redundancy."
 
 Each sub-agent MUST return:
 - 3-7 findings: title, severity (CRITICAL/HIGH/MEDIUM/LOW), evidence (file:line or artifact section reference), confidence (HIGH/MEDIUM/LOW), one-sentence rationale
@@ -111,7 +121,12 @@ Produce the prime critique:
 - Verified unique findings (survived cross-examination)
 - Retracted findings (listed so user sees what was considered and dismissed)
 
-Tag low-confidence recommendations as Decision Debt with confidence level and revisit trigger.
+**Decision Debt:** For any recommendation where supporting evidence is INFERRED, only one agent raised it and cross-examination was inconclusive, or the recommendation depends on an unvalidated assumption — tag as Decision Debt:
+
+> **Decision Debt:** [recommendation]
+> - Confidence: LOW/MEDIUM
+> - Evidence needed to resolve: [what specific evidence would settle this]
+> - Revisit when: [concrete trigger — next milestone, specific file change, before deploy]
 
 **Blind spot check:** Before presenting, identify:
 - Sections of the artifact that no sub-agent addressed

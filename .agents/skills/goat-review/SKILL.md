@@ -9,11 +9,6 @@ goat-flow-skill-version: "1.1.0"
 
 Read `.goat-flow/skill-preamble.md` for shared conventions.
 On full-depth, also read `.goat-flow/skill-conventions.md`.
-If unavailable, use these essentials:
-- Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- Evidence: every finding MUST include file or file:line, tag OBSERVED vs INFERRED
-- Learning loop: check .goat-flow/lessons/ and .goat-flow/footguns/ after completion
-- Gates: BLOCKING GATE = stop and wait. CHECKPOINT = continue unless interrupted.
 
 ## When to Use
 
