@@ -628,10 +628,9 @@ function extractCodexPostTurnFacts(
     registration.postTurnRegistered &&
     postTurnRegisteredPath !== null &&
     fs.exists(postTurnRegisteredPath);
-  const postTurnExecutable =
-    postTurnExists && postTurnRegisteredPath !== null
-      ? fs.isExecutable(postTurnRegisteredPath)
-      : false;
+  const postTurnExecutable = postTurnExists
+    ? fs.isExecutable(postTurnRegisteredPath)
+    : false;
 
   return {
     postTurnRegistered: registration.postTurnRegistered,
@@ -658,10 +657,9 @@ function extractDirectoryPostTurnFacts(
     registration.postTurnRegistered &&
     postTurnRegisteredPath !== null &&
     fs.exists(postTurnRegisteredPath);
-  const postTurnExecutable =
-    postTurnExists && postTurnRegisteredPath !== null
-      ? fs.isExecutable(postTurnRegisteredPath)
-      : false;
+  const postTurnExecutable = postTurnExists
+    ? fs.isExecutable(postTurnRegisteredPath)
+    : false;
 
   return {
     postTurnRegistered: registration.postTurnRegistered,

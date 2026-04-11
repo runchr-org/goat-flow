@@ -36,7 +36,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
 ]);
 
 /** Built-in default values used when config.yaml is missing or omits fields. */
-export const CONFIG_DEFAULTS: GoatFlowConfig = {
+const CONFIG_DEFAULTS: GoatFlowConfig = {
   version: RUBRIC_VERSION,
   footguns: { path: ".goat-flow/footguns/" },
   lessons: { path: ".goat-flow/lessons/" },
@@ -217,7 +217,9 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
 
   // YAML key is `skill-overrides` (kebab-case), TypeScript field is `skillOverrides` (camelCase)
   if (isRecord(raw["skill-overrides"])) {
-    merged.skillOverrides = { ...(raw["skill-overrides"] as Record<string, unknown>) };
+    merged.skillOverrides = {
+      ...raw["skill-overrides"],
+    };
   }
 
   return merged;
@@ -304,12 +306,7 @@ function validateOptionalStringField(
 /** Validate a `{ path }` section such as footguns, lessons, decisions, or logs. */
 function validateSinglePathSection(
   raw: RawConfig,
-  section:
-    | "footguns"
-    | "lessons"
-    | "decisions"
-    | "tasks"
-    | "logs",
+  section: "footguns" | "lessons" | "decisions" | "tasks" | "logs",
   errors: ValidationIssue[],
 ): void {
   validateObjectField(raw, section, errors, (value) => {
@@ -593,7 +590,7 @@ const CONFIG_VALIDATORS: ConfigValidator[] = [
 ];
 
 /** Validate a parsed config object and return structured warnings and errors. */
-export function validateConfig(raw: unknown): ValidationResult {
+function validateConfig(raw: unknown): ValidationResult {
   const warnings: ValidationIssue[] = [];
   const errors: ValidationIssue[] = [];
 
@@ -653,12 +650,4 @@ export function loadConfig(projectRoot: string, fs?: ReadonlyFS): LoadedConfig {
     errors: validation.errors,
     parseError: null,
   };
-}
-
-/** Return the normalized config object, falling back to defaults on failure. */
-export function readConfig(
-  projectRoot: string,
-  fs?: ReadonlyFS,
-): GoatFlowConfig {
-  return loadConfig(projectRoot, fs).config;
 }

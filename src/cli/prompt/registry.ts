@@ -30,18 +30,3 @@ export function getFragment(key: string): Fragment | undefined {
 export function getFragmentsByPhase(phase: FragmentPhase): Fragment[] {
   return allFragments.filter((f) => f.phase === phase);
 }
-
-/** Return every registered fragment */
-export function getAllFragments(): Fragment[] {
-  return allFragments;
-}
-
-/** Return the list of all registered fragment keys */
-export function getFragmentKeys(): string[] {
-  return [...fragmentMap.keys()];
-}
-
-/** Report whether a fragment key is registered in the flattened prompt catalog. */
-export function hasFragment(key: string): boolean {
-  return fragmentMap.has(key);
-}

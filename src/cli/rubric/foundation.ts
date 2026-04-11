@@ -357,7 +357,8 @@ export const foundationChecks: CheckDef[] = [
     detect: {
       type: "grep",
       path: "{instruction_file}",
-      pattern: "\\*\\*ACT\\*\\*|State:.*\\|.*Goal:|mode.*behaviour|Plan.*Implement.*Debug|Execute the work",
+      pattern:
+        "\\*\\*ACT\\*\\*|State:.*\\|.*Goal:|mode.*behaviour|Plan.*Implement.*Debug|Execute the work",
     },
     recommendation:
       "Without an ACT step, agents blur planning and implementation -- editing files while still exploring, or silently switching from debugging to refactoring. The ACT step makes the agent's current intent visible.",
@@ -430,8 +431,7 @@ export const foundationChecks: CheckDef[] = [
             status: "pass",
             points: 2,
             maxPoints: 2,
-            message:
-              "Learning loop paths exist on disk",
+            message: "Learning loop paths exist on disk",
           };
         }
         const missing = [

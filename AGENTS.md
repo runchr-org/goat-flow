@@ -77,7 +77,7 @@ MUST confirm all 6 gates:
 1. `bash scripts/preflight-checks.sh` passes
 2. `bash scripts/validate-goat-flow-setup.sh` passes
 3. No unapproved boundary changes
-4. Learning-loop files updated if tripped
+4. Logs updated if tripped
 5. Current state recorded before stopping incomplete work
 6. Grep old pattern/path after rename, move, or terminology change
 ## Working Memory

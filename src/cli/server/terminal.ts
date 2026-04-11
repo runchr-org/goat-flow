@@ -281,9 +281,9 @@ export class TerminalManager {
       if (msg.type === "input") {
         session.lastInputAt = Date.now();
         this.resetIdleTimer(session);
-        session.pty!.write(msg.data);
-      } else if (msg.type === "resize") {
-        session.pty!.resize(
+        session.pty?.write(msg.data);
+      } else {
+        session.pty?.resize(
           clampDim(msg.cols, 500, 80),
           clampDim(msg.rows, 200, 24),
         );

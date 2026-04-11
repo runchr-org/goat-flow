@@ -960,7 +960,7 @@ function renderSetupRedirect(
     if (v10Cmds) lines.push(v10Cmds);
     renderSignals(lines, stack.signals);
     lines.push("");
-    if (report.stack.signals?.llmIntegration === true) {
+    if (report.stack.signals.llmIntegration === true) {
       lines.push(
         "**LLM integration detected.** Ensure Ask First boundaries and router table include prompt/template files.",
       );
@@ -1004,7 +1004,7 @@ function renderSetupRedirect(
     if (v09Cmds) lines.push(v09Cmds);
     renderSignals(lines, stack.signals);
     lines.push("");
-    if (report.stack.signals?.llmIntegration === true) {
+    if (report.stack.signals.llmIntegration === true) {
       lines.push(
         "**LLM integration detected.** Ensure Ask First boundaries and router table include prompt/template files.",
       );
@@ -1054,7 +1054,7 @@ function renderSetupRedirect(
   lines.push("");
 
   // Check for LLM integration signal
-  const hasLLM = report.stack.signals?.llmIntegration === true;
+  const hasLLM = report.stack.signals.llmIntegration === true;
   if (hasLLM) {
     lines.push("## LLM Integration Detected");
     lines.push("");

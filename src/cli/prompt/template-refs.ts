@@ -7,7 +7,7 @@ import { PROFILES } from "../detect/agents.js";
 import { templateExists } from "../paths.js";
 
 /** Maps a target output file to its goat-flow template source */
-export interface TemplateRef {
+interface TemplateRef {
   /** File path to create in the target project */
   output: string;
   /** Relative path to the goat-flow template that sources this file */

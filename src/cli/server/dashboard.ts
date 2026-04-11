@@ -110,7 +110,7 @@ interface DashboardOptions {
 }
 
 /** Handle returned by serveDashboard for closing the server and reading the port */
-export interface DashboardServer {
+interface DashboardServer {
   close: () => Promise<void>;
   port: number;
 }

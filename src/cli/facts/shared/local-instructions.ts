@@ -33,7 +33,8 @@ function resolveLocalInstructionDir(
   githubDirExists: boolean,
 ): LocalInstructionDir | null {
   if (aiDirExists) return { location: "ai", dir: CODING_STANDARDS_DIR };
-  if (githubDirExists) return { location: "github", dir: GITHUB_INSTRUCTIONS_DIR };
+  if (githubDirExists)
+    return { location: "github", dir: GITHUB_INSTRUCTIONS_DIR };
   return null;
 }
 
@@ -221,7 +222,9 @@ export function extractLocalInstructions(
 
   let duplicateSurfacePaths: string[] = [];
   if (aiDirExists && githubDirExists) {
-    const conventionsContent = fs.readFile(`${CODING_STANDARDS_DIR}/conventions.md`);
+    const conventionsContent = fs.readFile(
+      `${CODING_STANDARDS_DIR}/conventions.md`,
+    );
     const isPointerFile =
       conventionsContent !== null &&
       /\.github\/instructions\//.test(conventionsContent) &&
@@ -231,7 +234,10 @@ export function extractLocalInstructions(
     }
   }
 
-  const localInstructionDir = resolveLocalInstructionDir(aiDirExists, githubDirExists);
+  const localInstructionDir = resolveLocalInstructionDir(
+    aiDirExists,
+    githubDirExists,
+  );
   if (localInstructionDir === null) return createEmptyLocalInstructions();
 
   const files = fs

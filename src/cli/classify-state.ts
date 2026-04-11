@@ -32,7 +32,11 @@ interface ProjectState {
 }
 
 const INSTRUCTION_FILES = ["CLAUDE.md", "AGENTS.md", "GEMINI.md"] as const;
-const SKILL_ROOTS = [".claude/skills", ".agents/skills", ".github/skills"] as const;
+const SKILL_ROOTS = [
+  ".claude/skills",
+  ".agents/skills",
+  ".github/skills",
+] as const;
 const OLD_SKILLS = ["goat-audit", "goat-investigate"] as const;
 
 function collectInstalledSkills(fs: StateFS): string[] {
@@ -57,13 +61,17 @@ function buildIncompleteDetails(
   hasPreamble: boolean,
 ): string {
   const missing: string[] = [];
-  const missingSkills = SKILL_NAMES.filter((skill) => !installedSkills.includes(skill));
+  const missingSkills = SKILL_NAMES.filter(
+    (skill) => !installedSkills.includes(skill),
+  );
 
   if (missingSkills.length > 0) {
     missing.push(`missing skills: ${missingSkills.join(", ")}`);
   }
   if (!hasInstructionFile) {
-    missing.push("missing instruction file (CLAUDE.md / AGENTS.md / GEMINI.md)");
+    missing.push(
+      "missing instruction file (CLAUDE.md / AGENTS.md / GEMINI.md)",
+    );
   }
   if (!hasPreamble) {
     missing.push("missing .goat-flow/skill-preamble.md");
@@ -81,16 +89,21 @@ export function classifyProjectState(fs: StateFS): ProjectState {
   const oldSkills = collectOldSkills(fs);
   const hasInstructionFile = hasAnyInstructionFile(fs);
   const hasPreamble = fs.exists(".goat-flow/skill-preamble.md");
-  const hasAIInstructions = fs.exists(".github/instructions") || hasInstructionFile;
+  const hasAIInstructions =
+    fs.exists(".github/instructions") || hasInstructionFile;
 
   if (hasConfig) {
     const configContent = fs.readFile(".goat-flow/config.yaml");
-    const versionMatch = configContent?.match(/version:\s*["']?(\d+\.\d+\.\d+)/);
+    const versionMatch = configContent?.match(
+      /version:\s*["']?(\d+\.\d+\.\d+)/,
+    );
     const version = versionMatch?.[1] || "0.0.0";
 
     if (version === "1.1.0") {
       const isHealthy =
-        currentSkillCount === SKILL_NAMES.length && hasInstructionFile && hasPreamble;
+        currentSkillCount === SKILL_NAMES.length &&
+        hasInstructionFile &&
+        hasPreamble;
       if (isHealthy) {
         return {
           state: "v1.1",
@@ -102,7 +115,11 @@ export function classifyProjectState(fs: StateFS): ProjectState {
       return {
         state: "v1.1",
         action: "incomplete",
-        details: buildIncompleteDetails(installedSkills, hasInstructionFile, hasPreamble),
+        details: buildIncompleteDetails(
+          installedSkills,
+          hasInstructionFile,
+          hasPreamble,
+        ),
       };
     }
 
