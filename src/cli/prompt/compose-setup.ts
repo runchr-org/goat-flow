@@ -910,17 +910,28 @@ function renderSetupRedirect(
   const projectState = classifyProjectState(projectFS);
 
   if (projectState.state === "v1.1") {
-    // Current version — just scan and fix
     lines.push(`# GOAT Flow Setup - ${profile.name}`);
     lines.push("");
-    lines.push("## This project is already on the current goat-flow version");
+
+    if (projectState.action === "healthy") {
+      lines.push("## This project is already on the current goat-flow version");
+      lines.push("");
+      lines.push(
+        `Run \`${getCliCommand()} scan . --agent ${agentId}\` and fix any failing checks.`,
+      );
+      lines.push("No setup changes needed — the project is up to date.");
+      lines.push("");
+      return lines.join("\n");
+    }
+
+    lines.push("## This project reports v1.1.0 but the install is incomplete");
+    lines.push("");
+    lines.push(projectState.details);
     lines.push("");
     lines.push(
-      `Run \`${getCliCommand()} scan . --agent ${agentId}\` and fix any failing checks.`,
+      `Repair the missing pieces, then run \`${getCliCommand()} scan . --agent ${agentId}\` to confirm the project is healthy.`,
     );
-    lines.push("No setup changes needed — the project is up to date.");
     lines.push("");
-    return lines.join("\n");
   }
 
   if (projectState.state === "v1.0") {
@@ -1110,7 +1121,7 @@ function renderSetupRedirect(
     );
     lines.push("");
     lines.push(
-      "**Local instructions:** If `.github/instructions/` already exists, leave it as the canonical local-instructions surface during base setup. `.goat-flow/coding-standards/` is now an optional later optimisation, not a required setup artifact.",
+      "**Local instructions:** If `.github/instructions/` already exists, keep it as the canonical local-instructions surface during base setup. Do not create `.goat-flow/coding-standards/`.",
     );
     lines.push("");
     lines.push(
@@ -1145,7 +1156,7 @@ function renderSetupRedirect(
       "| Lessons | `docs/lessons.md` (flat file) | `.goat-flow/lessons/` (directory) |",
     );
     lines.push(
-      "| Local instructions | `.github/instructions/` | `.goat-flow/coding-standards/` with overlapping content |",
+      "| Local instructions | `.github/instructions/` | any second local-instructions tree with overlapping content |",
     );
     lines.push("");
     lines.push(
@@ -1153,7 +1164,7 @@ function renderSetupRedirect(
     );
     lines.push("");
     lines.push(
-      "Examples: If `.github/instructions/` exists, keep it canonical during base setup instead of creating overlapping `.goat-flow/coding-standards/`. If `docs/footguns.md` exists, migrate its entries to `.goat-flow/footguns/` instead of creating a parallel surface.",
+      "Examples: If `.github/instructions/` exists, keep it canonical during base setup instead of creating a competing second instruction tree. If `docs/footguns.md` exists, migrate its entries to `.goat-flow/footguns/` instead of creating a parallel surface.",
     );
     lines.push("");
     lines.push(

@@ -241,19 +241,14 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   },
   // create-stop-lint removed - stop-lint.sh removed from framework
   "create-post-turn-hook": "workflow/hooks/README.md",
-  // DEPRECATED: local-instructions surfaces (coding-standards removed from base setup in M13)
-  "create-conventions-instructions":
-    "workflow/setup/reference/reference-coding-guidelines.md",
   // create-code-review-instructions removed - check 2.6.4 removed
   // create-git-commit-instructions removed - check 2.6.5 removed
 
   // Section-level creates - execution loop steps (all point to same parent)
   "add-read-step": "workflow/setup/reference/execution-loop.md",
-  "add-classify-step": "workflow/setup/reference/execution-loop.md",
   "add-scope-step": "workflow/setup/reference/execution-loop.md",
   "add-act-step": "workflow/setup/reference/execution-loop.md",
   "add-verify-step": "workflow/setup/reference/execution-loop.md",
-  "add-log-step": "workflow/setup/reference/execution-loop.md",
 
   // Section-level creates - autonomy tiers
   "add-autonomy-tiers": "workflow/setup/reference/execution-loop.md",
@@ -334,9 +329,6 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   "create-security-instructions": "workflow/reference/security/README.md",
   "create-testing-instructions":
     "workflow/setup/reference/reference-coding-guidelines.md",
-  // DEPRECATED: local-instructions surface (coding-standards removed from base setup in M13)
-  "create-copilot-bridge":
-    "workflow/setup/reference/reference-coding-guidelines.md",
   "create-domain-instructions":
     "workflow/setup/reference/reference-coding-guidelines.md",
   "create-security-auth": "workflow/reference/security/api-auth.md",
@@ -356,14 +348,6 @@ const FRAGMENT_TEMPLATE_MAP: Record<
     "workflow/reference/security/framework-specific/express-node.md",
   "create-security-go": "workflow/reference/security/framework-specific/go.md",
   "create-devops-terraform": "workflow/reference/security/infrastructure.md",
-
-  // DEPRECATED: local-instructions surfaces (coding-standards removed from base setup in M13)
-  "improve-conventions-instructions":
-    "workflow/setup/reference/reference-coding-guidelines.md",
-  "create-instructions-dir": "workflow/setup/05-customise-to-project.md",
-  "create-instructions-router": "workflow/setup/05-customise-to-project.md",
-  "create-frontend-instructions":
-    "workflow/setup/reference/reference-coding-guidelines.md",
   // create-github-git-commit removed - check 2.6.6 removed
 
   // Fix-kind - foundation (instruction file sections)
@@ -420,13 +404,9 @@ export function getFragmentTemplate(
  * provide a more specific template than the generic one in FRAGMENT_TEMPLATE_MAP.
  */
 export function getLanguageTemplate(
-  key: string,
+  _key: string,
   _languages: string[],
 ): string | null {
-  // DEPRECATED: local-instructions surface (coding-standards removed from base setup in M13)
-  if (key === "create-backend-instructions") {
-    return "workflow/setup/reference/reference-coding-guidelines.md";
-  }
   return null;
 }
 

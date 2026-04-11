@@ -22,7 +22,6 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "footguns",
   "lessons",
   "decisions",
-  "coding-standards",
   "tasks",
   "logs",
   "agents",
@@ -42,7 +41,6 @@ export const CONFIG_DEFAULTS: GoatFlowConfig = {
   footguns: { path: ".goat-flow/footguns/" },
   lessons: { path: ".goat-flow/lessons/" },
   decisions: { path: ".goat-flow/decisions/" },
-  codingStandards: { path: ".goat-flow/coding-standards/" },
   tasks: { path: ".goat-flow/tasks/" },
   logs: { path: ".goat-flow/logs/" },
   agents: null,
@@ -69,7 +67,6 @@ function cloneDefaults(): GoatFlowConfig {
     footguns: { ...CONFIG_DEFAULTS.footguns },
     lessons: { ...CONFIG_DEFAULTS.lessons },
     decisions: { ...CONFIG_DEFAULTS.decisions },
-    codingStandards: { ...CONFIG_DEFAULTS.codingStandards },
     tasks: { ...CONFIG_DEFAULTS.tasks },
     logs: { ...CONFIG_DEFAULTS.logs },
     agents: CONFIG_DEFAULTS.agents,
@@ -198,8 +195,6 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
   mergeSinglePath(raw.footguns, merged.footguns);
   mergeSinglePath(raw.lessons, merged.lessons);
   mergeSinglePath(raw.decisions, merged.decisions);
-  // YAML key is `coding-standards` (kebab-case), TypeScript field is `codingStandards` (camelCase)
-  mergeSinglePath(raw["coding-standards"], merged.codingStandards);
   mergeSinglePath(raw.tasks, merged.tasks);
   mergeSinglePath(raw.logs, merged.logs);
   mergeAgents(raw.agents, merged);
@@ -313,7 +308,6 @@ function validateSinglePathSection(
     | "footguns"
     | "lessons"
     | "decisions"
-    | "coding-standards"
     | "tasks"
     | "logs",
   errors: ValidationIssue[],
@@ -387,15 +381,6 @@ function validateDecisionsField(
   errors: ValidationIssue[],
 ): void {
   validateSinglePathSection(raw, "decisions", errors);
-}
-
-/** Validate the coding-standards path section. */
-function validateCodingStandardsField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validateSinglePathSection(raw, "coding-standards", errors);
 }
 
 /** Validate line-limit overrides and ensure target stays below limit. */
@@ -597,7 +582,6 @@ const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateFootgunsField,
   validateLessonsField,
   validateDecisionsField,
-  validateCodingStandardsField,
   validateLineLimitsField,
   validateTasksField,
   validateLogsField,

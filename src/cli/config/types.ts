@@ -21,7 +21,6 @@ export interface GoatFlowConfig {
   footguns: { path: string };
   lessons: { path: string };
   decisions: { path: string };
-  codingStandards: { path: string };
   tasks: { path: string };
   logs: { path: string };
   /** Detected agent IDs, or null if auto-detection should be used */

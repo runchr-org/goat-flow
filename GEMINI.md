@@ -16,7 +16,7 @@ bash scripts/validate-goat-flow-setup.sh         # Validate GOAT Flow structure
 4. Architecture (.goat-flow/architecture.md)
 5. Skills / playbooks (on-demand context)
 
-## Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
+## Execution Loop: READ → SCOPE → ACT → VERIFY
 
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
 ```
@@ -24,7 +24,7 @@ BAD:  "The spec says 100 lines for apps" (guessed without reading)
 GOOD: Read workflow/setup/reference/execution-loop.md:3 → "Target: under 120 lines. Hard limit: 150."
 ```
 
-**CLASSIFY** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review.
+**SCOPE** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review. MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
 
 | Complexity | Read budget | Turn budget |
 |------------|-------------|-------------|
@@ -34,8 +34,6 @@ GOOD: Read workflow/setup/reference/execution-loop.md:3 → "Target: under 120 l
 | Infrastructure | 8 reads | 25 turns |
 
 Over budget = re-classify before continuing.
-
-**SCOPE** - MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
 
 **ACT** - MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
 
@@ -57,7 +55,7 @@ GOOD: Inline format. Extract when second format needed
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure or you corrected course: add an entry before DoD. After human correction: log immediately. Use **category bucket files** - NOT one file per incident, NOT a monolithic log.
+If VERIFY caught a failure or you corrected course, update the learning loop before DoD:
 - Lessons: `.goat-flow/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content.
 - Footguns: `.goat-flow/footguns/` category bucket files (e.g. `hooks.md`, `scanner.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
 
@@ -76,7 +74,7 @@ GOOD: Inline format. Extract when second format needed
 - [ ] Boundary touched: [name]
 - [ ] Related code read: [yes/no]
 - [ ] Footgun entry checked: [relevant entry, or "none"]
-- [ ] Local instruction checked: [local GEMINI.md / .github/instructions/ / none]
+- [ ] Local instruction checked: [local GEMINI.md / .goat-flow/coding-standards/<file> / none]
 - [ ] Rollback command: [exact command]
 
 Boundaries: `.goat-flow/architecture.md`, `workflow/setup/`, `workflow/skills/`, renaming/moving files, 3+ doc file changes.
@@ -107,8 +105,8 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 | Scripts | `scripts/` |
 | Skills | `.agents/skills/` |
 | Project guidelines | `.goat-flow/coding-standards/conventions.md` |
+| Coding standards | `.goat-flow/coding-standards/` |
 | Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
 | Decisions | `.goat-flow/decisions/` |
-| Coding standards | `.goat-flow/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
 | Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |

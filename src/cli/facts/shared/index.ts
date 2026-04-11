@@ -18,16 +18,14 @@ function extractArchitectureFacts(fs: ReadonlyFS): SharedFacts["architecture"] {
   };
 }
 
-/** Count total markdown lines across coding-standards files. */
-function countCodingStandardsLines(fs: ReadonlyFS, rawCsPath: string): number {
-  const csPath = rawCsPath.replace(/\/$/, "");
-  if (!fs.exists(csPath)) return 0;
-  const files = fs.listDir(csPath).filter((f) => f.endsWith(".md"));
-  let total = 0;
-  for (const f of files) {
-    total += fs.lineCount(`${csPath}/${f}`);
-  }
-  return total;
+/** Count total markdown lines across canonical local-instruction files. */
+function countLocalInstructionLines(
+  localInstructions: SharedFacts["localInstructions"],
+): number {
+  return localInstructions.localFileSizes.reduce(
+    (total, file) => total + file.lines,
+    0,
+  );
 }
 
 /** Extract decisions directory facts: existence and file count. */
@@ -73,6 +71,8 @@ export function extractSharedFacts(
   fs: ReadonlyFS,
   configState: LoadedConfig,
 ): SharedFacts {
+  const localInstructions = extractLocalInstructions(fs);
+
   return {
     footguns: extractFootgunFacts(fs, configState),
     lessons: extractLessonsFacts(fs, configState),
@@ -99,16 +99,10 @@ export function extractSharedFacts(
     skillConventions: { exists: fs.exists(".goat-flow/skill-preamble.md") },
     // changelog removed - project-level concern, not AI workflow.
     decisions: extractDecisionsFacts(fs, configState.config.decisions.path),
-    localInstructions: extractLocalInstructions(
-      fs,
-      configState.config.codingStandards.path,
-    ),
+    localInstructions,
     gitCommitInstructions: {
       exists: fs.exists(".github/git-commit-instructions.md"),
     },
-    aiInstructionsLineCount: countCodingStandardsLines(
-      fs,
-      configState.config.codingStandards.path,
-    ),
+    localInstructionsLineCount: countLocalInstructionLines(localInstructions),
   };
 }

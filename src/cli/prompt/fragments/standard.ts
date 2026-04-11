@@ -492,9 +492,9 @@ Every footgun entry MUST have at least one \`file:line\` reference.`,
     phase: "standard",
     category: "Learning Loop",
     kind: "fix",
-    instruction: `Add session log path to the LOG step and router table in \`{{instructionFile}}\`:
+    instruction: `Add session log path to the VERIFY step learning-loop guidance and router table in \`{{instructionFile}}\`:
 
-1. In the LOG step's "when to update" table, add:
+1. In the VERIFY step's learning-loop/update guidance, add:
    \`| \`.goat-flow/logs/sessions/\` | End of every significant session - \`YYYY-MM-DD-slug.md\` summary |\`
 
 2. In the Router Table, add:
@@ -532,7 +532,7 @@ Session logs capture what happened in a session so the next agent can pick up co
     category: "Local Instructions",
     kind: "fix",
     instruction:
-      "Keep one canonical local-instructions surface. If `.github/instructions/` is already established, keep it canonical. If `.goat-flow/coding-standards/` is the canonical source, bridge from it. Do not keep both as competing instruction trees.",
+      "Use `.github/instructions/` as the only canonical local-instructions surface. Remove or archive any legacy `.goat-flow/coding-standards/` tree so agents do not see competing guidance.",
   },
   // === Router Table ===
   {
@@ -609,131 +609,7 @@ Keep under 100 lines. This is for agent orientation, not exhaustive documentatio
   },
   // compress-architecture removed - check 2.5.2 removed.
   // === Local Instructions (cold path) ===
-  // DEPRECATED: The following local-instructions fragments (create-instructions-dir,
-  // create-instructions-router, create-conventions-instructions,
-  // improve-conventions-instructions, create-frontend-instructions,
-  // create-backend-instructions, create-copilot-bridge) are legacy surfaces.
-  // Coding-standards was removed from base setup in M13 (see ADR / 05-customise-to-project.md).
-  // These fragments are retained only because rubric checks reference their keys.
-  // They fire only when the scanner detects an existing coding-standards surface to improve.
-  {
-    key: "create-instructions-dir",
-    phase: "standard",
-    category: "Local Instructions",
-    kind: "create",
-    instruction: `Create the \`.goat-flow/coding-standards/\` directory and \`.goat-flow/README.md\` router:
-
-\`\`\`markdown
-# Project Coding Guidelines
-
-Read \`instructions/conventions.md\` first for every task.
-
-Then load additional files based on the work:
-
-| Task | Load |
-|------|------|
-| Code review | \`instructions/code-review.md\` |
-| Committing code | \`instructions/git-commit.md\` |
-
-Precedence (highest first):
-1. security.md (if touching auth/secrets/validation)
-2. code-review.md (for review tasks only)
-3. domain file (frontend/backend)
-4. conventions.md (always loaded)
-
-Only load files that exist.
-\`\`\`
-
-Add rows for domain files as you create them (frontend.md, backend.md, security.md, testing.md).`,
-  },
-  {
-    key: "create-instructions-router",
-    phase: "standard",
-    category: "Local Instructions",
-    kind: "create",
-    instruction: `Create \`.goat-flow/README.md\` as the routing map for instruction files. This tells agents which files to load for which tasks. See the \`.goat-flow/coding-standards/\` directory for the files it references.`,
-  },
-  {
-    key: "create-conventions-instructions",
-    phase: "standard",
-    category: "Local Instructions",
-    kind: "create",
-    instruction: `Create \`.goat-flow/coding-standards/conventions.md\` - the universal project contract. Include:
-
-- What the repo is (one line)
-- Architecture overview (2-3 lines)
-- Build/test/lint commands
-- Coding conventions (5-8 concrete do/don't rules)
-- Generated files (never edit these)
-- Dangerous operations (list with reasons)
-
-Keep it concrete: "Use \`sqlc.arg(name)\` in queries" not "write clean SQL".`,
-  },
-  {
-    key: "improve-conventions-instructions",
-    phase: "standard",
-    category: "Local Instructions",
-    kind: "fix",
-    instruction: `\`.goat-flow/coding-standards/conventions.md\` exists but lacks real content. A stub file is not useful. Add:
-
-1. **Commands section** with actual build/test/lint commands in a bash code block
-2. **Conventions section** with concrete DO/DON'T rules extracted from the codebase
-3. At least 15 lines of substantive content
-
-The agent should be able to read this file and immediately know how to build, test, and follow project conventions.`,
-  },
-  {
-    key: "create-frontend-instructions",
-    phase: "standard",
-    category: "Local Instructions",
-    kind: "create",
-    instruction: `Create \`.goat-flow/coding-standards/frontend.md\` - frontend-specific coding conventions for the detected UI stack (React, Vue, Angular, Blade, Twig, ERB, Jinja, Blazor, Swift/iOS, or plain TS/JS). Include:
-
-- Component/template patterns (naming, structure, composition)
-- State management or data-binding conventions
-- Styling approach and file organization
-- Testing patterns for UI components or template rendering
-- Common anti-patterns to avoid
-
-Only include rules specific to frontend/UI work. Shared rules belong in \`conventions.md\`.`,
-  },
-  {
-    key: "create-backend-instructions",
-    phase: "standard",
-    category: "Local Instructions",
-    kind: "create",
-    instruction: `Create \`.goat-flow/coding-standards/backend.md\` - backend-specific coding conventions. Include:
-
-- API design patterns (request/response, error handling)
-- Database conventions (queries, migrations, naming)
-- Service layer structure
-- Authentication/authorization patterns
-- Testing patterns for backend code
-
-Only include rules specific to backend work. Shared rules belong in \`conventions.md\`.`,
-  },
-  // create-code-review-instructions removed - check 2.6.4 removed.
-  // create-git-commit-instructions removed - check 2.6.5 removed.
-  // create-github-git-commit removed - check 2.6.6 removed.
-  {
-    key: "create-copilot-bridge",
-    phase: "standard",
-    category: "Local Instructions",
-    kind: "create",
-    instruction: `Create \`.github/instructions/\` bridge files for GitHub Copilot. For each file in \`.goat-flow/coding-standards/\`, create a matching \`.instructions.md\` file with:
-
-1. \`applyTo\` frontmatter scoping it to the relevant paths
-2. The content from the source file (Copilot needs inline content, not links)
-
-Example:
-\`\`\`markdown
----
-applyTo: "src/frontend/**"
----
-<!-- Source: .goat-flow/coding-standards/frontend.md - keep in sync -->
-[content from .goat-flow/coding-standards/frontend.md]
-\`\`\``,
-  },
+  // Canonical local instructions live under `.github/instructions/`.
   // === Learning Loop Depth ===
   {
     key: "seed-lessons-minimum",

@@ -3,6 +3,7 @@
  * skill directories, and AI instruction markers. Used by both the dashboard
  * `/api/projects/status` endpoint and the `goat-flow status` CLI command.
  */
+import { SKILL_NAMES } from "./constants.js";
 
 /** Minimal filesystem interface needed for project state detection. */
 interface StateFS {
@@ -30,54 +31,81 @@ interface ProjectState {
   details: string;
 }
 
+const INSTRUCTION_FILES = ["CLAUDE.md", "AGENTS.md", "GEMINI.md"] as const;
+const SKILL_ROOTS = [".claude/skills", ".agents/skills", ".github/skills"] as const;
+const OLD_SKILLS = ["goat-audit", "goat-investigate"] as const;
+
+function collectInstalledSkills(fs: StateFS): string[] {
+  return SKILL_NAMES.filter((skill) =>
+    SKILL_ROOTS.some((root) => fs.exists(`${root}/${skill}/SKILL.md`)),
+  );
+}
+
+function hasAnyInstructionFile(fs: StateFS): boolean {
+  return INSTRUCTION_FILES.some((file) => fs.exists(file));
+}
+
+function collectOldSkills(fs: StateFS): string[] {
+  return OLD_SKILLS.filter((skill) =>
+    SKILL_ROOTS.some((root) => fs.exists(`${root}/${skill}/SKILL.md`)),
+  );
+}
+
+function buildIncompleteDetails(
+  installedSkills: string[],
+  hasInstructionFile: boolean,
+  hasPreamble: boolean,
+): string {
+  const missing: string[] = [];
+  const missingSkills = SKILL_NAMES.filter((skill) => !installedSkills.includes(skill));
+
+  if (missingSkills.length > 0) {
+    missing.push(`missing skills: ${missingSkills.join(", ")}`);
+  }
+  if (!hasInstructionFile) {
+    missing.push("missing instruction file (CLAUDE.md / AGENTS.md / GEMINI.md)");
+  }
+  if (!hasPreamble) {
+    missing.push("missing .goat-flow/skill-preamble.md");
+  }
+
+  return `Config says v1.1.0 but install is incomplete: ${missing.join("; ")}`;
+}
+
 /** Detect which adoption stage a project is at based on its on-disk artifacts. */
 // eslint-disable-next-line complexity -- intentionally branchy state machine
 export function classifyProjectState(fs: StateFS): ProjectState {
-  // Check for .goat-flow/config.yaml (v1.0+)
   const hasConfig = fs.exists(".goat-flow/config.yaml");
-
-  // Check for current goat skills
-  const hasCurrentSkills =
-    fs.exists(".claude/skills/goat-debug/SKILL.md") ||
-    fs.exists(".agents/skills/goat-debug/SKILL.md");
-
-  // Check for old/renamed skills (pre-v1.0)
-  const hasOldSkills =
-    fs.exists(".claude/skills/goat-audit/SKILL.md") ||
-    fs.exists(".agents/skills/goat-audit/SKILL.md") ||
-    fs.exists(".claude/skills/goat-investigate/SKILL.md") ||
-    fs.exists(".agents/skills/goat-investigate/SKILL.md");
-
-  // Check for generic AI agent instructions (not goat-flow specific)
-  const hasAIInstructions =
-    fs.exists(".github/instructions") ||
-    fs.exists("AGENTS.md") ||
-    fs.exists("CLAUDE.md");
+  const installedSkills = collectInstalledSkills(fs);
+  const currentSkillCount = installedSkills.length;
+  const oldSkills = collectOldSkills(fs);
+  const hasInstructionFile = hasAnyInstructionFile(fs);
+  const hasPreamble = fs.exists(".goat-flow/skill-preamble.md");
+  const hasAIInstructions = fs.exists(".github/instructions") || hasInstructionFile;
 
   if (hasConfig) {
     const configContent = fs.readFile(".goat-flow/config.yaml");
-    const versionMatch = configContent?.match(
-      /version:\s*["']?(\d+\.\d+\.\d+)/,
-    );
+    const versionMatch = configContent?.match(/version:\s*["']?(\d+\.\d+\.\d+)/);
     const version = versionMatch?.[1] || "0.0.0";
+
     if (version === "1.1.0") {
-      // Basic sanity checks beyond config version
-      const hasSkills =
-        fs.exists(".claude/skills/goat-debug/SKILL.md") ||
-        fs.exists(".agents/skills/goat-debug/SKILL.md");
-      const hasInstructionFile =
-        fs.exists("CLAUDE.md") ||
-        fs.exists("AGENTS.md") ||
-        fs.exists("GEMINI.md");
-      if (!hasSkills || !hasInstructionFile) {
+      const isHealthy =
+        currentSkillCount === SKILL_NAMES.length && hasInstructionFile && hasPreamble;
+      if (isHealthy) {
         return {
           state: "v1.1",
-          action: "incomplete",
-          details: "Config says v1.1.0 but skills or instruction file missing",
+          action: "healthy",
+          details: "Current version with canonical skill set installed",
         };
       }
-      return { state: "v1.1", action: "healthy", details: "Current version" };
+
+      return {
+        state: "v1.1",
+        action: "incomplete",
+        details: buildIncompleteDetails(installedSkills, hasInstructionFile, hasPreamble),
+      };
     }
+
     return {
       state: "v1.0",
       action: "upgrade",
@@ -85,18 +113,18 @@ export function classifyProjectState(fs: StateFS): ProjectState {
     };
   }
 
-  if (hasOldSkills) {
+  if (oldSkills.length > 0) {
     return {
       state: "v0.9",
       action: "migration",
-      details: "Old skill names found (goat-audit, goat-investigate, etc.)",
+      details: `Old skill names found (${oldSkills.join(", ")})`,
     };
   }
-  if (hasCurrentSkills) {
+  if (currentSkillCount > 0) {
     return {
       state: "v1.0",
       action: "upgrade",
-      details: "Skills found but no .goat-flow/ config",
+      details: `${currentSkillCount}/${SKILL_NAMES.length} canonical skills found but no .goat-flow/ config`,
     };
   }
   if (hasAIInstructions) {

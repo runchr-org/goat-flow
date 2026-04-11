@@ -4,7 +4,7 @@ Read this first. This is what you're installing and why.
 
 ## Before you begin
 
-1. Read your agent config file (`agents/claude.md`, `agents/codex.md`, etc.) for paths and agent-specific setup.
+1. Read your agent config file (`workflow/setup/agents/claude.md`, `workflow/setup/agents/codex.md`, etc.) for paths and agent-specific setup.
 2. This setup is for **ONE agent**. Only modify files belonging to the agent specified in the agent config file. Do not touch other agents' instruction files, skills, hooks, or settings.
 
 ## State check

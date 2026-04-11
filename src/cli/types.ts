@@ -289,8 +289,8 @@ export interface SharedFacts {
     path: string;
   };
   gitCommitInstructions: { exists: boolean };
-  /** Total line count across .goat-flow/coding-standards/ files (cold-path budget) */
-  aiInstructionsLineCount: number;
+  /** Total line count across canonical local-instruction files. */
+  localInstructionsLineCount: number;
 }
 
 /** Per-agent facts gathered from instruction files, settings, skills, and hooks */

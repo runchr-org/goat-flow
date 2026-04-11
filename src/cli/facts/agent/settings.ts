@@ -75,7 +75,8 @@ export function extractSettingsFacts(
       // TOML (Codex config.toml) -- read as text, not JSON
       /** Raw TOML content read as plain text */
       const tomlContent = fs.readFile(agent.settingsFile);
-      valid = tomlContent !== null && tomlContent.length > 0;
+      const hasKeyValue = /^\s*\w+\s*=/m.test(tomlContent ?? "");
+      valid = hasKeyValue;
       // settingsParsed stays null -- TOML is inspected via text regex, not parsed object
     } else {
       parsed = fs.readJson(agent.settingsFile);

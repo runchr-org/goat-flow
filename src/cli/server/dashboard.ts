@@ -506,9 +506,9 @@ export function serveDashboard(
         }
       }
 
-      existing.instructions =
-        existsSync(join(projectPath, ".goat-flow", "coding-standards")) ||
-        existsSync(join(projectPath, "ai"));
+      existing.instructions = existsSync(
+        join(projectPath, ".github", "instructions"),
+      );
       existing.lessons =
         existsSync(join(projectPath, ".goat-flow", "lessons")) ||
         existsSync(join(projectPath, "ai", "lessons"));

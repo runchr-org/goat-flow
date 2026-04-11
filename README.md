@@ -54,7 +54,7 @@ A local web UI opens with scanning, setup, and an integrated terminal.
 goat-flow scan .
 ```
 
-The scanner checks 79 rules across two tiers (Foundation, Standard) plus 12 anti-pattern deductions, and gives you a score. A fresh project scores 0% -- that's expected.
+The scanner checks 85 rules across two tiers (Foundation, Standard) plus 12 anti-pattern deductions, and gives you a score. A fresh project scores 0% -- that's expected.
 
 ### 4. Generate setup for your agent
 
@@ -92,13 +92,13 @@ Skills are structured workflows the agent follows. `/goat` auto-routes to the ri
 
 **Autonomy Tiers** -- Three-tier permission model (Always / Ask First / Never) built into the instruction file so agents know what they can do independently and what requires your approval.
 
-**Reference Templates** -- 36 language and framework-specific templates covering backend, frontend, security, and DevOps. Used by the scanner when it detects an existing coding-standards surface to improve.
+**Reference Templates** -- Security, DevOps, and planning templates used by setup and recommendations when the project needs concrete framework-specific guidance.
 
 ## Commands
 
 ```bash
 goat-flow dashboard .                  # Visual dashboard with integrated terminal
-goat-flow scan .                       # Score your project (79 checks + 12 anti-patterns)
+goat-flow scan .                       # Score your project (85 checks + 12 anti-patterns)
 goat-flow setup . --agent claude       # Generate setup prompt for Claude Code
 
 goat-flow scan . --format json         # JSON output for CI
@@ -116,7 +116,7 @@ Three first-class agents are supported by the CLI (`scan`, `setup`, `dashboard`)
 | | Claude Code | Gemini CLI | Codex |
 |---|---|---|---|
 | Instruction file | CLAUDE.md | GEMINI.md | AGENTS.md |
-| Skills | .claude/skills/ | .github/skills/ | .agents/skills/ |
+| Skills | .claude/skills/ | .agents/skills/ | .agents/skills/ |
 | Hooks | .claude/hooks/ | .gemini/hooks/ | .codex/hooks/ |
 
 **Copilot** is supported via `.github/copilot-instructions.md` bridge files only — it is not a first-class scanner/setup agent.

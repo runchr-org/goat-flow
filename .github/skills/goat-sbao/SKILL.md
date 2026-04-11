@@ -146,8 +146,8 @@ The rubric determines what sub-agents evaluate. Match to artifact type:
 - MUST flag control group delta: CONTEXT DRIFT / READABILITY GAP / CONTEXT-LIMITED for each unique Agent C finding
 - MUST include critique rubric appropriate to artifact type
 - MUST present consensus/split/unique classification for every finding
-- MUST cross-examine split findings and unique HIGH/CRITICAL findings (Phase 3)
-- MUST gate on unresolved disputes before synthesis
+- Full mode only: MUST cross-examine split findings and unique HIGH/CRITICAL findings (Phase 3)
+- Full mode only: MUST gate on unresolved disputes before synthesis (Phase 4)
 - MUST tag low-confidence recommendations as Decision Debt
 - MUST always include "What Wasn't Critiqued"
 - Universal constraints from skill-preamble.md apply.

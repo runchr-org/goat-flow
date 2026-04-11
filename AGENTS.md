@@ -8,7 +8,7 @@ bash scripts/deny-dangerous.sh --self-test
 bash -n scripts/*.sh scripts/maintenance/*.sh
 shellcheck scripts/*.sh scripts/maintenance/*.sh
 ```
-## Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
+## Execution Loop: READ → SCOPE → ACT → VERIFY
 
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
 ```
@@ -16,7 +16,7 @@ BAD:  "The spec says 100 lines for apps" (guessed without reading)
 GOOD: Read workflow/setup/reference/execution-loop.md:3 → "Target: under 120 lines. Hard limit: 150."
 ```
 
-**CLASSIFY** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review.
+**SCOPE** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review. MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
 
 | Complexity | Read budget | Turn budget |
 |------------|-------------|-------------|
@@ -26,8 +26,6 @@ GOOD: Read workflow/setup/reference/execution-loop.md:3 → "Target: under 120 l
 | Infrastructure | 8 reads | 25 turns |
 
 Over budget = re-classify before continuing.
-
-**SCOPE** - MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
 
 **ACT** - MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
 
@@ -49,7 +47,7 @@ GOOD: Inline format. Extract when second format needed
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-**LOG** - MUST update when tripped (DoD gate #4), SHOULD after routine sessions. If VERIFY caught a failure or you corrected course: add an entry before DoD. After human correction: log immediately. Use **category bucket files** - NOT one file per incident, NOT a monolithic log.
+If VERIFY caught a failure or you corrected course, update the learning loop before DoD:
 - Lessons: `.goat-flow/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content.
 - Footguns: `.goat-flow/footguns/` category bucket files (e.g. `hooks.md`, `scanner.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
 
@@ -65,7 +63,7 @@ GOOD: Inline format. Extract when second format needed
 1. Boundary touched: [name]
 2. Related code read: [yes/no]
 3. Footgun entry checked: [relevant entry, or "none"]
-4. Local instruction checked: [.github/instructions/<file> / CLAUDE.md / none]
+4. Local instruction checked: [.goat-flow/coding-standards/<file> / CLAUDE.md / none]
 5. Rollback command: [exact command]
 - `.goat-flow/architecture.md` or `CLAUDE.md`
 - `workflow/setup/` or `workflow/skills/` template changes affecting generated output
@@ -92,10 +90,10 @@ Sub-agents: ONE objective, structured return (paths, evidence, confidence, next 
 | Scripts | `scripts/` |
 | Skills | `.agents/skills/` |
 | Project guidelines | `.goat-flow/coding-standards/conventions.md` |
+| Coding standards | `.goat-flow/coding-standards/` |
 | Footguns | `.goat-flow/footguns/` |
 | Lessons | `.goat-flow/lessons/` |
 | Decisions | `.goat-flow/decisions/` |
-| Coding standards | `.goat-flow/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
 | Session logs | `.goat-flow/logs/sessions/` |
 | Local workspace | `.goat-flow/tasks/`, `.goat-flow/logs/` |

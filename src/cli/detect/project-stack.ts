@@ -566,10 +566,14 @@ function mergeDetectorResults(
 
 /** Detect template-only Jinja usage that would not show up as a normal manifest. */
 function hasJinjaSignal(fs: ReadonlyFS): boolean {
-  return (
-    fs.glob("**/*.jinja2").length > 0 ||
-    fs.glob("**/*.html").some((file) => /templates\//.test(file))
-  );
+  if (fs.glob("**/*.jinja2").length > 0) return true;
+  return fs
+    .glob("**/*.html")
+    .filter((file) => /templates\//.test(file))
+    .some((file) => {
+      const content = fs.readFile(file);
+      return content !== null && /\{[%{]/.test(content);
+    });
 }
 
 /** Detect extra languages. */

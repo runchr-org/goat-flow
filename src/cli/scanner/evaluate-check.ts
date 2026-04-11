@@ -118,7 +118,6 @@ function resolvePath(path: string, ctx: FactContext): string {
     .replace("{lessons_committed_dir}", ctx.facts.shared.lessons.path)
     .replace("{lessons_local_dir}", "")
     .replace("{decisions_dir}", ctx.facts.shared.decisions.path)
-    .replace("{coding_standards_dir}", ctx.facts.shared.localInstructions.path)
     .replace("{deny_path}", getDenyPath(ctx));
 }
 
@@ -699,6 +698,8 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
   /** Shared facts covering docs, CI, and other project-wide resources */
   const shared = ctx.facts.shared;
   const normalizedDecisionsPath = shared.decisions.path.replace(/\/$/, "");
+  const normalizedLocalInstructionsPath =
+    shared.localInstructions.path.replace(/\/$/, "");
   /** Map of known paths to their existence status from shared facts */
   const pathMap: Record<string, boolean> = {
     [shared.footguns.path]: shared.footguns.exists,
@@ -718,15 +719,8 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
     [shared.decisions.path]: shared.decisions.dirExists,
     [normalizedDecisionsPath]: shared.decisions.dirExists,
     // CHANGELOG.md removed - project-level concern.
-    [shared.localInstructions.path]:
-      shared.localInstructions.dirExists &&
-      shared.localInstructions.location === "ai",
-    [shared.localInstructions.path.replace(/\/$/, "")]:
-      shared.localInstructions.dirExists &&
-      shared.localInstructions.location === "ai",
-    ".goat-flow/README.md":
-      shared.localInstructions.hasValidRouter &&
-      shared.localInstructions.location === "ai",
+    [shared.localInstructions.path]: shared.localInstructions.dirExists,
+    [normalizedLocalInstructionsPath]: shared.localInstructions.dirExists,
     ".github/instructions":
       shared.localInstructions.dirExists &&
       shared.localInstructions.location === "github",

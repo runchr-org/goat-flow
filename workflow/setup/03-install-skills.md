@@ -16,13 +16,13 @@ Read the detailed templates in `workflow/skills/goat-*.md` before creating. Crea
 4. **goat-plan/SKILL.md** — Milestone task file generator and manager. Creates structured milestone files with testing gates and assumption tracking.
 5. **goat-sbao/SKILL.md** — Multi-perspective critique using sub-agent orchestration. 3 agents (risk, alternatives, fresh eyes), 5 phases, cross-examination, and synthesis.
 6. **goat-test/SKILL.md** — Testing gap analyser. Compares code changes against testing coverage to find undertested risks and misaligned test effort.
-7. **goat/SKILL.md** — Dispatcher. Routes natural language to the right skill. Required — scanner checks for it (check 2.1.20).
+7. **goat/SKILL.md** — Dispatcher. Routes natural language to the right skill. Required — scanner checks for it (check 2.1.1).
 
 ## Requirements for each skill
 
 Each SKILL.md MUST include:
 - `goat-flow-skill-version:` in YAML frontmatter matching the current goat-flow version
-- Sections: When to Use, Step 0 / Gather Context, Process with phased steps, Constraints, Quick Output Format, Output Format
+- Sections: When to Use, Step 0 / Gather Context, Process with phased steps, Constraints, Output Format
 
 **IMPORTANT: Install skills VERBATIM from the templates. Do NOT adapt, compress, rewrite, or remove any sections.** Skills are the same for every project — project-specific context comes from the instruction file, `.goat-flow/footguns/`, `.goat-flow/lessons/`, and any optional local instruction files the project already has. Cutting or rewriting skill content causes more damage than generic examples ever will.
 

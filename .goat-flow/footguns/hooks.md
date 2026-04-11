@@ -4,7 +4,9 @@ category: hooks
 
 ## Footgun: git diff --stat is unreliable for scope detection
 
-**Status:** open | **Created:** 2026-04-03 | **Evidence:** ACTUAL_MEASURED
+**Status:** resolved | **Created:** 2026-04-03 | **Evidence:** ACTUAL_MEASURED
+
+Skill templates rewritten in M17; this pattern no longer applies.
 
 goat-review (`.claude/skills/goat-review/SKILL.md:42`) and goat-test (`.claude/skills/goat-test/SKILL.md:45`) use `git diff --stat` to auto-detect what changed. In real local work this fails because:
 
