@@ -60,6 +60,42 @@ category: docs-and-crossrefs
 
 **Prevention:** Line target is 120 for all shapes, stated in `.goat-flow/decisions/ADR-029-instruction-budget-constraint.md` (`docs/system-spec.md` retired in v1.1.0). If this number appears differently in any other file, the ADR is canonical.
 
+## Footgun: Product surface count drift across code, docs, config, and tests
+
+**Status:** active | **Created:** 2026-04-11 | **Evidence:** OBSERVED
+
+**Symptoms:** The repo describes different skill counts in different places. Code says 7, config says 6, README says "Six", docs say "Five+dispatcher", tests say 5 or 6. External critics independently flagged this as a trust problem — the system sells coherence but can't maintain it internally.
+
+**Why it happens:** When a new skill is added (goat-sbao was extracted from goat-plan), the skill template file and constants.ts get updated, but secondary surfaces don't. These secondary surfaces have no automated check linking them to the canonical SKILL_NAMES constant.
+
+**Evidence (14 verified bugs, 2026-04-11):**
+- `src/cli/prompt/template-refs.ts:108` — SKILL_TEMPLATES has 6 entries, missing goat-sbao
+- `src/cli/prompt/fragments/foundation.ts:23,60,237` — hardcodes `v1.0` in a v1.1.0 release
+- `.goat-flow/config.yaml:12` — skills.install lists 6 skills, goat-sbao absent
+- `.goat-flow/config.yaml:40` — references `scripts/context-validate.sh` (renamed to `scripts/validate-goat-flow-setup.sh`)
+- `src/cli/config/reader.ts:20-35` — KNOWN_TOP_LEVEL_KEYS missing `known-gaps` and `skill-overrides`
+- `README.md:89` — "Six structured workflows" (should be Seven)
+- `README.md:91` — overclaims post-turn hooks; `workflow/hooks/README.md:29` contradicts
+- `docs/skills/README.md:1` — "Five focused capabilities", diagram omits goat-sbao
+- `workflow/setup/04-architecture-code-map.md:38` — "Skills do NOT read templates at runtime" — contradicted by goat.md:71, goat-security.md:71, goat-test.md:108
+- `src/cli/prompt/fragments/standard.ts:617` — still creates `.goat-flow/coding-standards/` (removed in M13)
+- `src/cli/classify-state.ts:62` — marks "healthy" from config version alone
+- `src/cli/rubric/full.ts:129` — check named "Skill conventions" but checks `skill-preamble.md`
+- `workflow/skills/goat-plan.md:115,175` — inline mode contradicts "MUST write" constraint
+- `src/cli/facts/shared/learning-loop.ts:112` — `listMarkdownEntries()` only handles directories, not flat files
+- `test/contract/skill-contracts.test.ts:15` — tests 5 skills (no goat, no goat-sbao)
+- `test/unit/evaluate-check.test.ts:270` — says "All 6 skills present"
+- `.goat-flow/architecture.md:27,55` — stale paths (`agents/claude.md`, `presets.js`)
+
+**Root cause:** No automated check validates that the canonical SKILL_NAMES is reflected consistently across README, docs, config, template-refs, test fixtures, and setup fragments. Each surface drifts silently.
+
+**Prevention:**
+1. Add a contract test: SKILL_NAMES.length must match README, docs/skills/README, SKILL_TEMPLATES, and config.yaml skills.install
+2. After adding/removing any skill, grep for the old count: `grep -rn "Six\|six\|5 focused\|6 skills\|All 6" --include="*.md" --include="*.ts"`
+3. `scripts/preflight-checks.sh` should verify SKILL_NAMES count across all surfaces
+
+---
+
 ## Footgun: Skill template paths use framework-local paths instead of project-local paths
 
 **Status:** active | **Created:** 2026-04-11 | **Evidence:** ACTUAL_MEASURED
