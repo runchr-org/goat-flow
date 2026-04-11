@@ -15,7 +15,6 @@ function checkSeverityFromTier(tier: string): CheckSeverity {
 
 /** Derive the display severity for a failed or partial check. */
 export function getCheckSeverity(check: CheckResult): CheckSeverity {
-  if (check.status === "partial" && check.tier === "full") return "low";
   return checkSeverityFromTier(check.tier);
 }
 

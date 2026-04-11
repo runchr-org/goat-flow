@@ -16,7 +16,7 @@ import type {
 export function evaluateCheck(
   id: string,
   name: string,
-  tier: "foundation" | "standard" | "full",
+  tier: "foundation" | "standard",
   category: string,
   pts: number,
   partialPts: number | undefined,
@@ -50,7 +50,7 @@ export function evaluateCheck(
 interface CheckBase {
   id: string;
   name: string;
-  tier: "foundation" | "standard" | "full";
+  tier: "foundation" | "standard";
   category: string;
   confidence: Confidence;
 }

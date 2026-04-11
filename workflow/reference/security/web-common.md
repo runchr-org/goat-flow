@@ -1,6 +1,6 @@
 # Universal Web Security Standards
 
-Reference for generating `.goat-flow/coding-standards/security.md` in any web project.
+Reference for generating project security guidelines in any web project.
 
 ## OWASP Top 10 Quick Reference
 

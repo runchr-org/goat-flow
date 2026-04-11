@@ -92,18 +92,12 @@ function renderSignals(lines: string[], signals: ProjectSignals): void {
 }
 
 /** Anti-patterns are rendered before tiers so critical issues surface at the top of the fix list. */
-const PHASE_ORDER: FragmentPhase[] = [
-  "anti-pattern",
-  "foundation",
-  "standard",
-  "full",
-];
+const PHASE_ORDER: FragmentPhase[] = ["anti-pattern", "foundation", "standard"];
 /** Human-readable heading text for each setup phase. */
 const PHASE_HEADINGS: Record<FragmentPhase, string> = {
   "anti-pattern": "Critical: Anti-Pattern Fixes",
   foundation: "Phase 1: Foundation",
   standard: "Phase 2: Standard",
-  full: "Phase 3: Full",
 };
 
 /**
@@ -184,7 +178,7 @@ function renderAllPass(
     if (hookCount > 0)
       lines.push(`- ${hookCount} hooks (deny, post-turn, format)`);
     lines.push(
-      `- Score: ${agentReport.score.tiers.foundation.earned}/${agentReport.score.tiers.foundation.available} foundation, ${agentReport.score.tiers.standard.earned}/${agentReport.score.tiers.standard.available} standard, ${agentReport.score.tiers.full.earned}/${agentReport.score.tiers.full.available} full`,
+      `- Score: ${agentReport.score.tiers.foundation.earned}/${agentReport.score.tiers.foundation.available} foundation, ${agentReport.score.tiers.standard.earned}/${agentReport.score.tiers.standard.available} standard`,
     );
     lines.push("");
   }
@@ -853,10 +847,6 @@ export function composeMultiAgentSetup(
   const standardShared = allRefs.filter(
     (r) => r.phase === "standard" && !r.output.startsWith("("),
   );
-  const fullShared = allRefs.filter(
-    (r) => r.phase === "full" && !r.output.startsWith("("),
-  );
-
   renderMultiAgentFoundationSections(lines, agentIds, languages);
   lines.push(
     `**GATE:** Run \`${getCliCommand()} scan .\` - foundation tier must be 100% for all agents.`,
@@ -867,16 +857,8 @@ export function composeMultiAgentSetup(
     "## Standard (shared across all agents)",
     [...standardShared, ...languageRefs, ...signalRefs],
     languages,
-    `**GATE:** Run \`${getCliCommand()} scan .\` - standard tier must be 100% for all agents.`,
-    true,
-  );
-  renderMultiAgentSharedSection(
-    lines,
-    "## Full (shared across all agents)",
-    fullShared,
-    languages,
     `**GATE:** Run \`${getCliCommand()} scan .\` - target 100% across all agents.`,
-    false,
+    true,
   );
 
   lines.push("---");
@@ -920,7 +902,7 @@ function renderSetupRedirect(
     lines.push(`# GOAT Flow Setup - ${profile.name}`);
     lines.push("");
 
-    if (projectState.action === "healthy") {
+    if (projectState.action === "audit") {
       lines.push("## This project is already on the current goat-flow version");
       lines.push("");
       lines.push(
@@ -947,7 +929,9 @@ function renderSetupRedirect(
     lines.push("## Upgrade from v1.0 to current");
     lines.push("");
     lines.push("This project has goat-flow v1.0. Follow the upgrade path:");
-    lines.push("Read and implement `workflow/setup/upgrade-from-1.0.x.md`.");
+    lines.push(
+      `Read and implement \`${getTemplatePath("workflow/setup/upgrade-from-1.0.x.md")}\`.`,
+    );
     lines.push("");
     lines.push(
       "Key changes: install `.goat-flow/skill-preamble.md` and `.goat-flow/skill-conventions.md`, refresh skills and dispatcher from current templates,",
@@ -991,7 +975,9 @@ function renderSetupRedirect(
     lines.push(
       "This project has old goat-flow skills (v0.9 era). Follow the migration path:",
     );
-    lines.push("Read and implement `workflow/setup/upgrade-from-0.9.x.md`.");
+    lines.push(
+      `Read and implement \`${getTemplatePath("workflow/setup/upgrade-from-0.9.x.md")}\`.`,
+    );
     lines.push("");
     lines.push(
       "Key changes: consolidate 10 old skills to 5+dispatcher, migrate docs/footguns.md → .goat-flow/footguns/,",
@@ -1139,7 +1125,7 @@ function renderSetupRedirect(
       "**Dispatcher:** Replace the `/goat` dispatcher skill entirely from the goat-flow template.",
     );
     lines.push(
-      "Read the template at `workflow/skills/goat.md` and write it to the agent skills dir.",
+      `Read the template at \`${getTemplatePath("workflow/skills/goat.md")}\` and write it to the agent skills dir.`,
     );
     lines.push(
       "Preserve any project-specific disambiguation examples the existing dispatcher may have.",
@@ -1224,7 +1210,7 @@ function renderSetupRedirect(
   );
   lines.push("");
   lines.push(
-    "Then follow the numbered setup steps in `workflow/setup/` one at a time:",
+    `Then follow the numbered setup steps in \`${getTemplatePath("workflow/setup/")}\` one at a time:`,
   );
   lines.push("");
   lines.push(

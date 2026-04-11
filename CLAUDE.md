@@ -101,6 +101,7 @@ If working from a plan/milestone file, tick `- [x]` on each completed task immed
 | CLI scanner/prompt code | `src/cli/` |
 | Scripts | `scripts/` |
 | Skills | `.claude/skills/` |
+| Templates | `.goat-flow/templates/` |
 | Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
 | Decisions | `.goat-flow/decisions/` |
 | Config | `.goat-flow/config.yaml` |

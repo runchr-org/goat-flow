@@ -31,10 +31,10 @@ const PRESETS = [
     cat: "review",
   },
   {
-    id: "simplify",
-    name: "Simplify Code",
-    desc: "Improve readability without changing behavior",
-    prompt: "/goat-review simplify the most-changed files",
+    id: "audit",
+    name: "Quality Audit",
+    desc: "Systematic quality scan of a codebase area",
+    prompt: "/goat-review audit the most-changed files",
     cat: "review",
   },
   {
@@ -48,7 +48,7 @@ const PRESETS = [
     id: "review-instructions",
     name: "Review Instructions",
     desc: "Check instruction files for staleness",
-    prompt: "/goat-review instruction review mode on CLAUDE.md",
+    prompt: "/goat-review audit CLAUDE.md for staleness and accuracy",
     cat: "review",
   },
   {

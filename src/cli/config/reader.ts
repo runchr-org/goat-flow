@@ -19,11 +19,6 @@ const KNOWN_AGENTS = new Set(["claude", "codex", "gemini"]);
 /** Top-level config keys recognized by the validator (others trigger warnings). */
 const KNOWN_TOP_LEVEL_KEYS = new Set([
   "version",
-  "footguns",
-  "lessons",
-  "decisions",
-  "tasks",
-  "logs",
   "agents",
   "skills",
   "line-limits",
@@ -102,13 +97,6 @@ function readConfigText(projectRoot: string, fs?: ReadonlyFS): string | null {
   const path = join(projectRoot, ".goat-flow", "config.yaml");
   if (!existsSync(path)) return null;
   return readFileSync(path, "utf8");
-}
-
-/** Apply a `path` override for a single-path config section. */
-function mergeSinglePath(value: unknown, target: { path: string }): void {
-  if (isRecord(value) && typeof value.path === "string") {
-    target.path = value.path;
-  }
 }
 
 /** Apply a config version override when the raw value is valid. */
@@ -192,11 +180,8 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
   if (!isRecord(raw)) return merged;
 
   mergeVersion(raw.version, merged);
-  mergeSinglePath(raw.footguns, merged.footguns);
-  mergeSinglePath(raw.lessons, merged.lessons);
-  mergeSinglePath(raw.decisions, merged.decisions);
-  mergeSinglePath(raw.tasks, merged.tasks);
-  mergeSinglePath(raw.logs, merged.logs);
+  // Path overrides for footguns/lessons/decisions/tasks/logs removed in v1.1.0.
+  // Canonical paths (.goat-flow/*) are always used.
   mergeAgents(raw.agents, merged);
   mergeSkills(raw.skills, merged);
 
@@ -291,29 +276,6 @@ function validateObjectField(
   onValid(value);
 }
 
-/** Validate an optional nested path field when it is present. */
-function validateOptionalStringField(
-  value: RawConfig,
-  key: string,
-  path: string,
-  errors: ValidationIssue[],
-): void {
-  if (key in value) {
-    validateStringPath(value[key], path, errors);
-  }
-}
-
-/** Validate a `{ path }` section such as footguns, lessons, decisions, or logs. */
-function validateSinglePathSection(
-  raw: RawConfig,
-  section: "footguns" | "lessons" | "decisions" | "tasks" | "logs",
-  errors: ValidationIssue[],
-): void {
-  validateObjectField(raw, section, errors, (value) => {
-    validateOptionalStringField(value, "path", `${section}.path`, errors);
-  });
-}
-
 /** Require a positive numeric value for a numeric config field. */
 function validatePositiveNumber(
   value: unknown,
@@ -353,33 +315,6 @@ function validateVersionField(
   }
 }
 
-/** Validate the footguns path section. */
-function validateFootgunsField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validateSinglePathSection(raw, "footguns", errors);
-}
-
-/** Validate the lessons path section. */
-function validateLessonsField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validateSinglePathSection(raw, "lessons", errors);
-}
-
-/** Validate the decisions path section. */
-function validateDecisionsField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validateSinglePathSection(raw, "decisions", errors);
-}
-
 /** Validate line-limit overrides and ensure target stays below limit. */
 function validateLineLimitsField(
   raw: RawConfig,
@@ -399,24 +334,6 @@ function validateLineLimitsField(
       pushError(errors, "line-limits", "target must be less than limit");
     }
   });
-}
-
-/** Validate the tasks path section. */
-function validateTasksField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validateSinglePathSection(raw, "tasks", errors);
-}
-
-/** Validate the logs path section. */
-function validateLogsField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validateSinglePathSection(raw, "logs", errors);
 }
 
 /** Validate the toolchain command arrays. */
@@ -576,12 +493,7 @@ function validateSkillsField(
 /** Ordered list of field-level validators applied during config validation. */
 const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateVersionField,
-  validateFootgunsField,
-  validateLessonsField,
-  validateDecisionsField,
   validateLineLimitsField,
-  validateTasksField,
-  validateLogsField,
   validateAgentsField,
   validateSkillsField,
   validateToolchainField,

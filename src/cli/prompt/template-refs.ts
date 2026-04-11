@@ -13,7 +13,7 @@ interface TemplateRef {
   /** Relative path to the goat-flow template that sources this file */
   template: string;
   /** Which setup phase this ref belongs to */
-  phase: "foundation" | "standard" | "full";
+  phase: "foundation" | "standard";
   /** Optional generation hint (e.g., "Adapt BAD/GOOD examples") */
   note?: string;
 }
@@ -158,15 +158,6 @@ function getStandardRefs(agentId: AgentId): TemplateRef[] {
 }
 
 // ---------------------------------------------------------------------------
-// Full refs - shared across all agents
-// ---------------------------------------------------------------------------
-
-/** Return full-phase template refs for a specific agent */
-function getFullRefs(_agentId: AgentId): TemplateRef[] {
-  return [];
-}
-
-// ---------------------------------------------------------------------------
 // Per-agent setup guide ref - one per phase
 // ---------------------------------------------------------------------------
 
@@ -181,7 +172,7 @@ const SETUP_GUIDE_TEMPLATES: Record<AgentId, string> = {
 function getSetupGuideRefs(agentId: AgentId): TemplateRef[] {
   const template = SETUP_GUIDE_TEMPLATES[agentId];
   const name = PROFILES[agentId].name;
-  return (["foundation", "standard", "full"] as const).map((phase) => ({
+  return (["foundation", "standard"] as const).map((phase) => ({
     output: `(${name} agent-specific setup)`,
     template,
     phase,
@@ -416,13 +407,12 @@ export function getLanguageTemplate(
 
 /**
  * Return the complete template ref table for one agent.
- * Combines foundation (agent-branched hooks), standard, and full refs.
+ * Combines foundation (agent-branched hooks) and standard refs.
  */
 export function getAgentTemplates(agentId: AgentId): TemplateRef[] {
   return [
     ...getFoundationRefs(agentId),
     ...getStandardRefs(agentId),
-    ...getFullRefs(agentId),
     ...getSetupGuideRefs(agentId),
   ];
 }

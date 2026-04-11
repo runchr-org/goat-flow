@@ -5,14 +5,14 @@ Read this first. This is what you're installing and why.
 ## Before you begin
 
 1. Read your agent config file (`workflow/setup/agents/claude.md`, `workflow/setup/agents/codex.md`, etc.) for paths and agent-specific setup.
-2. This setup is for **ONE agent**. Only modify files belonging to the agent specified in the agent config file. Do not touch other agents' instruction files, skills, hooks, or settings.
+2. This setup configures one agent. It may also clean stale skill directories across other agents to prevent confusion. Only modify instruction files, hooks, and settings belonging to the agent specified in the agent config file.
 
 ## State check
 
 If `.goat-flow/config.yaml` exists and its version matches the current goat-flow release, **STOP**. The project is already configured. Run `goat-flow scan . --agent {agent}` instead and fix any failing checks.
 
 If the version is older, use the upgrade path instead:
-- Old skill names (goat-audit, goat-investigate, etc.) or legacy `docs/footguns.md` / `tasks/todo.md` → run `bash /path/to/goat-flow/scripts/migrate-to-1.1.sh /path/to/project` first (dry-run by default, add `--execute` to apply), then continue with fresh setup
+- Old skill names (goat-audit, goat-investigate, etc.) or legacy `docs/footguns.md` / `tasks/todo.md` → run `bash "$(npm -g root)/@blundergoat/goat-flow/scripts/migrate-to-1.1.sh" .` first (dry-run by default, add `--execute` to apply), then continue with fresh setup
 - Version < current → `workflow/setup/upgrade-from-1.0.x.md`
 
 ## What goat-flow is

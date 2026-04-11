@@ -12,17 +12,15 @@ shellcheck scripts/*.sh scripts/maintenance/*.sh
 bash scripts/preflight-checks.sh
 ```
 
-## Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG
+## Execution Loop: READ → SCOPE → ACT → VERIFY
 
-The full step behavior is defined in `workflow/setup/reference/execution-loop.md`:
-`READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG`.
+**READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
 
-**READ** - MUST read relevant files before changes. Never fabricate codebase facts.
-**CLASSIFY** - Follow project complexity buckets and re-classify on drift.
-**SCOPE** - Declare files allowed to change, non-goals, max blast radius.
-**ACT** - Declare mode (Plan/Implement/Debug) with goal and exit condition.
-**VERIFY** - Run shellcheck on .sh changes. Check cross-references after renames. Two corrections on same approach = rewind.
-**LOG** - Update `.goat-flow/lessons/` (behavioral mistakes) or `.goat-flow/footguns/` (architectural traps) when tripped.
+**SCOPE** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets. (3) Mode: Plan / Implement / Explain / Debug / Review. MUST declare before acting: files allowed to change, non-goals, max blast radius.
+
+**ACT** - MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
+
+**VERIFY** - Run shellcheck on .sh changes. Check cross-references after renames. Two corrections on same approach = rewind. If VERIFY catches a failure, update `.goat-flow/lessons/` (behavioral mistakes) or `.goat-flow/footguns/` (architectural traps).
 
 ## Autonomy Tiers
 
@@ -53,11 +51,8 @@ One question with recommended default.
 | Resource | Path |
 |----------|------|
 | Architecture | `.goat-flow/architecture.md` |
-| Project guidelines | `.goat-flow/coding-standards/conventions.md` |
 | Skills | `.github/skills/`, `.claude/skills/` |
-| Footguns | `.goat-flow/footguns/` |
-| Lessons | `.goat-flow/lessons/` |
+| Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
 | Decisions | `.goat-flow/decisions/` |
-| Coding standards | `.goat-flow/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
-| Local workspace | `.goat-flow/tasks/`, `.goat-flow/logs/` |
+| Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |

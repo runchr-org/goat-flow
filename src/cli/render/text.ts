@@ -93,18 +93,13 @@ function appendSeverityGroupedFailingChecks(
 
 /** Append the per-tier score breakdown for one agent. */
 function appendTierScores(lines: string[], agent: AgentReport): void {
-  const { foundation, standard, full } = agent.score.tiers;
+  const { foundation, standard } = agent.score.tiers;
   lines.push(
     `  Foundation:  ${String(foundation.earned).padStart(3)}/${foundation.available}  ${progressBar(foundation.percentage)}  ${foundation.percentage}%`,
   );
   lines.push(
     `  Standard:    ${String(standard.earned).padStart(3)}/${standard.available}  ${progressBar(standard.percentage)}  ${standard.percentage}%`,
   );
-  if (full.available > 0) {
-    lines.push(
-      `  Full:        ${String(full.earned).padStart(3)}/${full.available}  ${progressBar(full.percentage)}  ${full.percentage}%`,
-    );
-  }
 }
 
 /** Append triggered anti-pattern deductions for one agent. */

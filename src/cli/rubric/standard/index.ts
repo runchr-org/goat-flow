@@ -6,10 +6,12 @@ import { routerChecks } from "./router.js";
 import { architectureChecks } from "./architecture.js";
 import { localContextChecks } from "./local-context.js";
 import { signalChecks } from "./signals.js";
+import { promotedChecks } from "./promoted.js";
 
 /**
- * Tier 2 - Standard (varies with N/A checks)
- * Skills, hooks, learning loop, router, architecture, local context, signals.
+ * Tier 2 - Standard
+ * Skills, hooks, learning loop, router, architecture, local context, signals,
+ * plus checks promoted from the former Full tier.
  */
 export const standardChecks: CheckDef[] = [
   ...skillChecks,
@@ -19,4 +21,5 @@ export const standardChecks: CheckDef[] = [
   ...architectureChecks,
   ...localContextChecks,
   ...signalChecks,
+  ...promotedChecks,
 ];

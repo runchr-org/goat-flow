@@ -20,7 +20,7 @@ type ProjectAction =
   | "migration"
   | "upgrade"
   | "fix"
-  | "healthy"
+  | "audit"
   | "incomplete"
   | "none";
 
@@ -89,14 +89,27 @@ function buildIncompleteDetails(
   return `Config says v1.1.x but install is incomplete: ${missing.join("; ")}`;
 }
 
+/** Map from agentId to that agent's instruction file. */
+const AGENT_INSTRUCTION_FILE: Record<string, string> = {
+  claude: "CLAUDE.md",
+  codex: "AGENTS.md",
+  gemini: "GEMINI.md",
+};
+
 /** Detect which adoption stage a project is at based on its on-disk artifacts. */
 // eslint-disable-next-line complexity -- intentionally branchy state machine
-export function classifyProjectState(fs: StateFS): ProjectState {
+export function classifyProjectState(
+  fs: StateFS,
+  agentId?: string,
+): ProjectState {
   const hasConfig = fs.exists(".goat-flow/config.yaml");
   const installedSkills = collectInstalledSkills(fs);
   const currentSkillCount = installedSkills.length;
   const oldSkills = collectOldSkills(fs);
-  const hasInstructionFile = hasAnyInstructionFile(fs);
+  const hasInstructionFile =
+    agentId && AGENT_INSTRUCTION_FILE[agentId]
+      ? fs.exists(AGENT_INSTRUCTION_FILE[agentId])
+      : hasAnyInstructionFile(fs);
   const hasPreamble = fs.exists(".goat-flow/skill-preamble.md");
   const hasAIInstructions =
     fs.exists(".github/instructions") || hasInstructionFile;
@@ -125,8 +138,9 @@ export function classifyProjectState(fs: StateFS): ProjectState {
       if (isHealthy) {
         return {
           state: "v1.1",
-          action: "healthy",
-          details: "Current version with canonical skill set installed",
+          action: "audit",
+          details:
+            "Current version - run `goat-flow audit` for full validation",
         };
       }
 
@@ -157,9 +171,9 @@ export function classifyProjectState(fs: StateFS): ProjectState {
   }
   if (currentSkillCount > 0) {
     return {
-      state: "v1.0",
-      action: "upgrade",
-      details: `${currentSkillCount}/${SKILL_NAMES.length} canonical skills found but no .goat-flow/ config`,
+      state: "partial",
+      action: "setup",
+      details: `${currentSkillCount}/${SKILL_NAMES.length} canonical skills found but no .goat-flow/ config - run setup to complete installation`,
     };
   }
   if (hasAIInstructions) {

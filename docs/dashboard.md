@@ -18,7 +18,7 @@ Split-pane layout. The left panel is a prompt library with category filters and 
 
 ### Rubrics
 
-Reference list of every rubric check and anti-pattern the scanner evaluates. Filter by tier (Foundation, Standard, Full) to see check IDs, point values, and descriptions. Useful for understanding exactly what the scanner scores and how to improve.
+Reference list of every rubric check and anti-pattern the scanner evaluates. Filter by tier (Foundation, Standard) to see check IDs, point values, and descriptions. Useful for understanding exactly what the scanner scores and how to improve.
 
 ### Projects
 
@@ -26,7 +26,7 @@ Multi-project browser. Lists all registered project paths with their latest scan
 
 ### Wizard
 
-Guided setup flow. Detects your project stack and existing configuration, lets you pick a target agent (Claude, Codex, Gemini, Copilot), then generates a setup prompt you can preview and launch directly in a terminal session.
+Guided setup flow. Detects your project stack and existing configuration, lets you pick a target agent (Claude, Codex, Gemini), then generates a setup prompt you can preview and launch directly in a terminal session.
 
 ## Help
 

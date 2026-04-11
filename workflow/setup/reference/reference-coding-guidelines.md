@@ -20,12 +20,11 @@ When generating local instructions, prefer this order:
 
 Do not create parallel surfaces that duplicate the same guidance in multiple places.
 
-## If you add `.goat-flow/coding-standards/`
+## If you add local instruction files
 
-- Start with `conventions.md` only
-- Add `frontend.md`, `backend.md`, `security.md`, or `testing.md` only when they reflect real project patterns
-- If `.github/instructions/` already exists, either keep it canonical or make `.goat-flow/coding-standards/` the canonical source and bridge from it
-- For Copilot, create `.github/instructions/*.instructions.md` bridge files only after the canonical local instruction files exist
+Use `.github/instructions/` as the canonical surface:
+- Start with `conventions.instructions.md` only
+- Add `frontend.instructions.md`, `backend.instructions.md`, etc. only when they reflect real project patterns
 
 ## What good local instructions look like
 

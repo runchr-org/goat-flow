@@ -21,7 +21,6 @@ skills:
 
 # ── Telemetry ─────────────────────────────────
 # Opt-in: logs skill invocations to .goat-flow/logs/skill-usage.jsonl
-# Requires the skill-telemetry.sh hook (see workflow/hooks/)
 telemetry: false
 
 # ── Scanner Thresholds ──────────────────────────
@@ -64,21 +63,5 @@ ask_first:
   - path: .claude/**
     reason: Claude-specific runtime files are user-facing and should only change intentionally.
 
-# ── Committed Paths (.goat-flow/) ─────────────────
-lessons:
-  path: .goat-flow/lessons/
-
-decisions:
-  path: .goat-flow/decisions/
-
-footguns:
-  path: .goat-flow/footguns/
-
-# ── Ephemeral Paths (.goat-flow/) ───────────────
-# Milestones, plans, and workspace-local task artifacts live here.
-# Do NOT recreate todo.md or handoff.md.
-tasks:
-  path: .goat-flow/tasks/
-
-logs:
-  path: .goat-flow/logs/
+# Canonical paths (.goat-flow/footguns/, .goat-flow/lessons/, etc.) are always used.
+# Path overrides were removed in v1.1.0 - no indirection needed.

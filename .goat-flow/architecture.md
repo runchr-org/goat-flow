@@ -64,7 +64,7 @@ src/dashboard/
 
 ## Hot Path / Cold Path
 
-Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- loaded every turn, under 120 lines. Optional local instruction files such as `.goat-flow/coding-standards/` are cold path -- loaded later on demand when a project chooses to add them.
+Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- loaded every turn, under 120 lines. Optional local instruction files (`.github/instructions/`) are cold path -- loaded later on demand when a project chooses to add them.
 
 ## Deliberate Trade-offs
 

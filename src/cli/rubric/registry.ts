@@ -5,15 +5,10 @@
 import type { CheckDef, AntiPatternDef } from "../types.js";
 import { foundationChecks } from "./foundation.js";
 import { standardChecks } from "./standard/index.js";
-import { fullChecks } from "./full.js";
 import { antiPatterns } from "./anti-patterns.js";
 
-// Combined array of all rubric checks across all three tiers
-const allChecks: CheckDef[] = [
-  ...foundationChecks,
-  ...standardChecks,
-  ...fullChecks,
-];
+// Combined array of all rubric checks across both tiers
+const allChecks: CheckDef[] = [...foundationChecks, ...standardChecks];
 
 // Guard: fail fast on duplicate check IDs (catches copy-paste errors at load time)
 const idSet = new Set<string>();
@@ -38,9 +33,7 @@ export function getCheck(id: string): CheckDef | undefined {
 /**
  * Return all check definitions belonging to the specified scoring tier.
  */
-export function getChecksByTier(
-  tier: "foundation" | "standard" | "full",
-): CheckDef[] {
+export function getChecksByTier(tier: "foundation" | "standard"): CheckDef[] {
   return allChecks.filter((c) => c.tier === tier);
 }
 

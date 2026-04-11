@@ -5,14 +5,14 @@
 import type { Fragment, FragmentPhase } from "./types.js";
 import { foundationFragments } from "./fragments/foundation.js";
 import { standardFragments } from "./fragments/standard.js";
-import { fullFragments } from "./fragments/full.js";
+import { promotedFragments } from "./fragments/full.js";
 import { antiPatternFragments } from "./fragments/anti-patterns.js";
 
 /** Combined array of all prompt fragments across every phase */
 const allFragments: Fragment[] = [
   ...foundationFragments,
   ...standardFragments,
-  ...fullFragments,
+  ...promotedFragments,
   ...antiPatternFragments,
 ];
 

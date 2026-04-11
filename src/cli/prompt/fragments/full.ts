@@ -1,14 +1,10 @@
 /**
- * Static prompt fragments for full-tier requirements.
- * They cover CI wiring and mature-adoption hygiene tasks.
+ * Prompt fragments promoted from the former Full tier into Standard.
+ * Hygiene, execution loop sync, skill conventions.
  */
 import type { Fragment } from "../types.js";
 
-/**
- * Tier 3 - Full fragments
- * CI validation, hygiene
- */
-export const fullFragments: Fragment[] = [
+export const promotedFragments: Fragment[] = [
   // Agent Evals fragments removed - evals system removed in v1.1.0 (M09).
 
   // CI Validation fragments removed - CI workflow is a project-level concern.
@@ -17,7 +13,7 @@ export const fullFragments: Fragment[] = [
   // create-handoff-template and fix-handoff-sections removed - handoff is workspace-level, not a rubric concern.
   {
     key: "create-logs-dir",
-    phase: "full",
+    phase: "standard",
     category: "Hygiene",
     kind: "create",
     instruction: `Create the telemetry logs directory for session tracking:
@@ -37,7 +33,7 @@ This enables the skill session logging protocol (Shared Conventions closing step
   },
   {
     key: "add-rfc2119",
-    phase: "full",
+    phase: "standard",
     category: "Hygiene",
     kind: "create",
     instruction: `Use RFC 2119 language in \`{{instructionFile}}\`: MUST, SHOULD, MAY.
@@ -52,7 +48,7 @@ Ensure at least 3 instances across the instruction file. Use MUST for DoD gates 
   // === Execution Loop Sync ===
   {
     key: "fix-execution-loop-sync",
-    phase: "full",
+    phase: "standard",
     category: "Hygiene",
     kind: "fix",
     instruction: `Multiple agent instruction files have diverged execution loops. When CLAUDE.md, AGENTS.md, and/or GEMINI.md all contain the execution loop (READ → SCOPE → ACT → VERIFY), changes must be propagated to all copies.
@@ -68,7 +64,7 @@ Note: the execution loop MUST be duplicated (each file is loaded independently).
   // === Skill Conventions ===
   {
     key: "create-skill-conventions",
-    phase: "full",
+    phase: "standard",
     category: "Skill Conventions",
     kind: "create",
     instruction:

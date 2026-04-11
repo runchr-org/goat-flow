@@ -22,6 +22,7 @@ c) Default Execution Loop: READ → SCOPE → ACT → VERIFY
      - Before presenting findings, re-read every `file:line` cited as evidence.
      - If evidence cannot be re-read, mark it UNVERIFIED.
      - **Rename sweep:** after any rename or move, grep old names across all files. Zero remaining references required.
+     - **Loop detection:** If you've edited the same file 5+ times in one session without tests passing, STOP. Present what's failing and ask for a different approach.
      - If a plan/milestone file is active, tick each `- [x]` task immediately as completed.
      - DoD verification triggers are conditional, not a separate execution step:
        - VERIFY caught a failure in your code → `.goat-flow/lessons/` entry

@@ -8,7 +8,7 @@
 export type AgentId = "claude" | "codex" | "gemini";
 
 /** Rubric scoring tier, ordered from baseline to advanced */
-export type Tier = "foundation" | "standard" | "full";
+export type Tier = "foundation" | "standard";
 
 /** Outcome status for a single rubric check */
 export type CheckStatus = "pass" | "partial" | "fail" | "na";
@@ -416,7 +416,6 @@ export interface ScoreSummary {
   tiers: {
     foundation: TierScore;
     standard: TierScore;
-    full: TierScore;
   };
   // Priority-based grading counters (excludes N/A checks)
   requiredPassed: number;

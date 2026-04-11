@@ -63,7 +63,7 @@ If VERIFY caught a failure or you corrected course, update the learning loop bef
 1. Boundary touched: [name]
 2. Related code read: [yes/no]
 3. Footgun entry checked: [relevant entry, or "none"]
-4. Local instruction checked: [.goat-flow/coding-standards/<file> / CLAUDE.md / none]
+4. Local instruction checked: [.github/instructions/ / CLAUDE.md / none]
 5. Rollback command: [exact command]
 - `.goat-flow/architecture.md` or `CLAUDE.md`
 - `workflow/setup/` or `workflow/skills/` template changes affecting generated output
@@ -89,10 +89,8 @@ Sub-agents: ONE objective, structured return (paths, evidence, confidence, next 
 | Architecture | `.goat-flow/architecture.md` |
 | Scripts | `scripts/` |
 | Skills | `.agents/skills/` |
-| Project guidelines | `.goat-flow/coding-standards/conventions.md` |
-| Coding standards | `.goat-flow/coding-standards/` |
-| Footguns | `.goat-flow/footguns/` |
-| Lessons | `.goat-flow/lessons/` |
+| Templates | `.goat-flow/templates/` |
+| Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
 | Decisions | `.goat-flow/decisions/` |
 | Config | `.goat-flow/config.yaml` |
 | Session logs | `.goat-flow/logs/sessions/` |

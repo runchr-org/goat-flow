@@ -1,8 +1,7 @@
 /**
  * Local instruction fact extraction - detects existing project-specific
- * guidance under `.goat-flow/coding-standards/` or `.github/instructions/`.
- * Goat Flow should not create generic coding-standard documents just to satisfy
- * the scanner; this surface is optional and project-owned.
+ * guidance under `.github/instructions/`.
+ * `.goat-flow/coding-standards/` is user-owned, not framework-managed - ignored here.
  */
 import type { SharedFacts, ReadonlyFS } from "../../types.js";
 
@@ -25,14 +24,11 @@ interface RouterValidation {
   invalidRefs: string[];
 }
 
-const CODING_STANDARDS_DIR = ".goat-flow/coding-standards";
 const GITHUB_INSTRUCTIONS_DIR = ".github/instructions";
 
 function resolveLocalInstructionDir(
-  aiDirExists: boolean,
   githubDirExists: boolean,
 ): LocalInstructionDir | null {
-  if (aiDirExists) return { location: "ai", dir: CODING_STANDARDS_DIR };
   if (githubDirExists)
     return { location: "github", dir: GITHUB_INSTRUCTIONS_DIR };
   return null;
@@ -57,7 +53,7 @@ function createEmptyLocalInstructions(): SharedFacts["localInstructions"] {
     hasGitCommit: false,
     conventionsContent: null,
     localFileSizes: [],
-    path: CODING_STANDARDS_DIR,
+    path: GITHUB_INSTRUCTIONS_DIR,
   };
 }
 
@@ -155,7 +151,7 @@ function validateRouterLinks(
       hasValidRouter: false,
       invalidRefs: [],
       routerNeedsFix:
-        ".goat-flow/README.md should reference at least one real project guidance file (for example .goat-flow/coding-standards/conventions.md).",
+        ".goat-flow/README.md should reference at least one real project guidance file.",
     };
   }
 
@@ -177,7 +173,7 @@ function validateRouterLinks(
 
 function analyzeConventionsContent(
   fs: ReadonlyFS,
-  location: LocalInstructionDir["location"],
+  _location: LocalInstructionDir["location"],
   hasConventions: boolean,
 ): Pick<
   SharedFacts["localInstructions"],
@@ -187,10 +183,7 @@ function analyzeConventionsContent(
     return { conventionsContent: null, conventionsHasContent: false };
   }
 
-  const conventionsPath =
-    location === "ai"
-      ? `${CODING_STANDARDS_DIR}/conventions.md`
-      : `${GITHUB_INSTRUCTIONS_DIR}/conventions.instructions.md`;
+  const conventionsPath = `${GITHUB_INSTRUCTIONS_DIR}/conventions.instructions.md`;
   const conventionsContent = fs.readFile(conventionsPath);
   return {
     conventionsContent,
@@ -217,27 +210,9 @@ function resolveRouterValidation(
 export function extractLocalInstructions(
   fs: ReadonlyFS,
 ): SharedFacts["localInstructions"] {
-  const aiDirExists = fs.exists(CODING_STANDARDS_DIR);
   const githubDirExists = fs.exists(GITHUB_INSTRUCTIONS_DIR);
 
-  let duplicateSurfacePaths: string[] = [];
-  if (aiDirExists && githubDirExists) {
-    const conventionsContent = fs.readFile(
-      `${CODING_STANDARDS_DIR}/conventions.md`,
-    );
-    const isPointerFile =
-      conventionsContent !== null &&
-      /\.github\/instructions\//.test(conventionsContent) &&
-      conventionsContent.split("\n").length < 50;
-    if (!isPointerFile) {
-      duplicateSurfacePaths = [CODING_STANDARDS_DIR, GITHUB_INSTRUCTIONS_DIR];
-    }
-  }
-
-  const localInstructionDir = resolveLocalInstructionDir(
-    aiDirExists,
-    githubDirExists,
-  );
+  const localInstructionDir = resolveLocalInstructionDir(githubDirExists);
   if (localInstructionDir === null) return createEmptyLocalInstructions();
 
   const files = fs
@@ -257,9 +232,9 @@ export function extractLocalInstructions(
   return {
     dirExists: true,
     location: localInstructionDir.location,
-    aiDirExists,
+    aiDirExists: false,
     githubDirExists,
-    duplicateSurfacePaths,
+    duplicateSurfacePaths: [],
     fileCount: files.length,
     hasRouter,
     hasValidRouter: routerValidation.hasValidRouter,

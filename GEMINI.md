@@ -12,9 +12,8 @@ bash scripts/validate-goat-flow-setup.sh         # Validate GOAT Flow structure
 
 1. User's explicit instruction (this session)
 2. Instruction file (GEMINI.md)
-3. Shared setup templates (setup/shared/)
-4. Architecture (.goat-flow/architecture.md)
-5. Skills / playbooks (on-demand context)
+3. Architecture (.goat-flow/architecture.md)
+4. Skills / templates (on-demand context)
 
 ## Execution Loop: READ → SCOPE → ACT → VERIFY
 
@@ -74,7 +73,7 @@ If VERIFY caught a failure or you corrected course, update the learning loop bef
 - [ ] Boundary touched: [name]
 - [ ] Related code read: [yes/no]
 - [ ] Footgun entry checked: [relevant entry, or "none"]
-- [ ] Local instruction checked: [local GEMINI.md / .goat-flow/coding-standards/<file> / none]
+- [ ] Local instruction checked: [local GEMINI.md / .github/instructions/ / none]
 - [ ] Rollback command: [exact command]
 
 Boundaries: `.goat-flow/architecture.md`, `workflow/setup/`, `workflow/skills/`, renaming/moving files, 3+ doc file changes.
@@ -104,8 +103,7 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 | Architecture | `.goat-flow/architecture.md` |
 | Scripts | `scripts/` |
 | Skills | `.agents/skills/` |
-| Project guidelines | `.goat-flow/coding-standards/conventions.md` |
-| Coding standards | `.goat-flow/coding-standards/` |
+| Templates | `.goat-flow/templates/` |
 | Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
 | Decisions | `.goat-flow/decisions/` |
 | Config | `.goat-flow/config.yaml` |

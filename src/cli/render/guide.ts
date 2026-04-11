@@ -55,7 +55,7 @@ function getEffort(
 
 /** Calculate sort priority from a check result (lower = higher priority) */
 function priorityFromCheck(check: CheckResult): number {
-  // Foundation checks first, then standard, then full
+  // Foundation checks first, then standard
   const tierWeight =
     check.tier === "foundation" ? 0 : check.tier === "standard" ? 100 : 200;
   // Higher maxPoints = higher priority within tier

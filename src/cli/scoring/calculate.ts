@@ -131,13 +131,11 @@ export function computeScore(
   const foundation = scoreTier(checkResults, "foundation");
   /** Standard tier score */
   const standard = scoreTier(checkResults, "standard");
-  /** Full tier score */
-  const full = scoreTier(checkResults, "full");
 
   /** Total earned points across all tiers */
-  const earned = foundation.earned + standard.earned + full.earned;
+  const earned = foundation.earned + standard.earned;
   /** Total available points across all tiers */
-  const available = foundation.available + standard.available + full.available;
+  const available = foundation.available + standard.available;
 
   /** Sum of deductions from all triggered anti-patterns before clamping */
   const rawDeductions = antiPatternResults
@@ -172,7 +170,7 @@ export function computeScore(
     deductions,
     percentage,
     grade,
-    tiers: { foundation, standard, full },
+    tiers: { foundation, standard },
     requiredPassed: priorityCounts.requiredPassed,
     requiredTotal: priorityCounts.requiredTotal,
     recommendedPassed: priorityCounts.recommendedPassed,
@@ -183,7 +181,7 @@ export function computeScore(
 /** Calculate earned and available points for a single scoring tier */
 function scoreTier(
   results: CheckResult[],
-  tier: "foundation" | "standard" | "full",
+  tier: "foundation" | "standard",
 ): TierScore {
   /** Check results that belong to this tier */
   const tierResults = results.filter((r) => r.tier === tier);
@@ -260,9 +258,7 @@ function countByPriority(
   let recommendedTotal = 0;
 
   const priorityMap = buildPriorityMap(checkDefs);
-  const gradeable = checkResults.filter(
-    (r) => r.status !== "na" && r.tier !== "full",
-  );
+  const gradeable = checkResults.filter((r) => r.status !== "na");
 
   for (const result of gradeable) {
     const priority = resolvePriority(result, priorityMap);

@@ -37,7 +37,7 @@ Commands:
   scan              Score a project (default)
   setup             Generate setup prompt (adapts to project state)
   status            Show project state (bare/partial/v0.9/v1.0/v1.1)
-  info rubrics      List all rubric checks (filter: --tier foundation|standard|full)
+  info rubrics      List all rubric checks (filter: --tier foundation|standard)
   info anti-patterns List all anti-pattern deductions
 
 Arguments:
@@ -164,16 +164,13 @@ function parseMinScoreArg(value: string | undefined): number | null {
 }
 
 /** Accepted values for the --tier flag */
-const VALID_TIERS: Tier[] = ["foundation", "standard", "full"];
+const VALID_TIERS: Tier[] = ["foundation", "standard"];
 
 /** Parse the `--tier` flag for filtering rubric checks by tier. */
 function parseTierArg(value: string | undefined): Tier | null {
   if (!value) return null;
   if (!VALID_TIERS.includes(value as Tier)) {
-    throw new CLIError(
-      `Invalid tier: ${value}. Use: foundation, standard, full`,
-      2,
-    );
+    throw new CLIError(`Invalid tier: ${value}. Use: foundation, standard`, 2);
   }
   return value as Tier;
 }
@@ -448,7 +445,7 @@ async function handleInfoCommand(options: ParsedCLI): Promise<void> {
   const sub = options.projectPath.split(/[/\\]/).pop() ?? "";
 
   if (sub === "rubrics") {
-    const tiers = ["foundation", "standard", "full"] as const;
+    const tiers = ["foundation", "standard"] as const;
     const tiersToShow = options.tier ? [options.tier] : tiers;
 
     for (const t of tiersToShow) {

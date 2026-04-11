@@ -532,7 +532,7 @@ Session logs capture what happened in a session so the next agent can pick up co
     category: "Local Instructions",
     kind: "fix",
     instruction:
-      "Use `.github/instructions/` as the only canonical local-instructions surface. Remove or archive any legacy `.goat-flow/coding-standards/` tree so agents do not see competing guidance.",
+      "Use `.github/instructions/` as the only canonical local-instructions surface.",
   },
   // === Router Table ===
   {

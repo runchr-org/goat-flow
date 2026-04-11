@@ -20,15 +20,7 @@ CLAUDE.md, AGENTS.md, GEMINI.md, `.claude/`, `.agents/`, `.gemini/`, `.codex/`.
 
 ### Bridge files
 
-Bridge files are no longer part of base setup. If the project later adds canonical local instruction files under `.goat-flow/coding-standards/`, create matching `.github/instructions/*.instructions.md` files for Copilot:
-
-```yaml
----
-applyTo: "src/frontend/**"
----
-```
-
-Then inline the content. Copilot needs inline content - it doesn't follow markdown links.
+Bridge files are no longer part of base setup. If the project has local instruction files under `.github/instructions/`, Copilot can use them directly. Copilot needs inline content - it doesn't follow markdown links.
 
 ### Copilot CLI skills
 
@@ -39,7 +31,7 @@ If the project uses Copilot CLI, create skills under `.github/skills/`:
 ### Verification
 
 - `.github/copilot-instructions.md` exists with execution loop, autonomy tiers, DoD, router table
-- If `.goat-flow/coding-standards/` exists, `.github/instructions/` bridge files reference its canonical content
+- If `.github/instructions/` exists, Copilot picks up the content
 - Open Copilot Chat and verify it picks up the instructions
 
 ---

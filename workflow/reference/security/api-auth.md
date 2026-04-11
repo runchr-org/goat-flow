@@ -1,6 +1,6 @@
 # Authentication & Authorization Standards
 
-Reference for generating `.goat-flow/coding-standards/security.md` in projects using JWT, OAuth, or session-based auth.
+Reference for generating project security guidelines in projects using JWT, OAuth, or session-based auth.
 
 ## JWT
 

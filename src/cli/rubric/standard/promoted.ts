@@ -1,18 +1,10 @@
 /**
- * Full-tier rubric checks for mature adoption.
- * These checks were originally in a separate "Full" tier but merged into Standard - they use N/A gating to self-select.
- */
-import type { CheckDef, FactContext, CheckResult } from "../types.js";
-// Confidence criteria:
-//   high   = deterministic (file exists, line count, JSON valid, exact match)
-//   medium = heuristic (regex pattern, ratio threshold, keyword detection)
-//   low    = semantic inference (content quality judgment)
-
-/**
- * Formerly Tier 3 (Full) - now part of Standard.
+ * Checks promoted from the former Full tier into Standard.
  * Dual-agent consistency, skill conventions hygiene.
  */
-export const fullChecks: CheckDef[] = [
+import type { CheckDef, FactContext, CheckResult } from "../../types.js";
+
+export const promotedChecks: CheckDef[] = [
   // 3.1.x Agent Evals removed - evals system removed in v1.1.0 (M09).
 
   // 3.2 CI Validation removed - CI workflow is a project-level concern, not an AI workflow check.

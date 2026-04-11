@@ -28,7 +28,6 @@ export interface ScanHistoryEntry {
   tiers: {
     foundation: { earned: number; available: number; percentage: number };
     standard: { earned: number; available: number; percentage: number };
-    full: { earned: number; available: number; percentage: number };
   };
   packageVersion: string;
   rubricVersion: string;
@@ -88,11 +87,6 @@ function buildScanHistoryEntry(
         earned: agent.score.tiers.standard.earned,
         available: agent.score.tiers.standard.available,
         percentage: agent.score.tiers.standard.percentage,
-      },
-      full: {
-        earned: agent.score.tiers.full.earned,
-        available: agent.score.tiers.full.available,
-        percentage: agent.score.tiers.full.percentage,
       },
     },
     packageVersion: report.packageVersion,
