@@ -84,11 +84,11 @@ Skills are structured workflows the agent follows. `/goat` auto-routes to the ri
 
 ## What You Get
 
-**Execution Loop** -- Every task follows READ, CLASSIFY, SCOPE, ACT, VERIFY, LOG. This prevents the agent from guessing at code it hasn't read, editing files outside its declared scope, or shipping without running checks.
+**Execution Loop** -- Two rules: read before you write, verify after you write. This prevents the agent from guessing at code it hasn't read or shipping without running checks.
 
-**Skills** -- Six structured workflows (`/goat-debug`, `/goat-review`, `/goat-plan`, `/goat-security`, `/goat-test`, `/goat`) with phases and human gates. The `/goat` dispatcher classifies your request and routes to the right skill automatically.
+**Skills** -- Seven structured workflows (`/goat-debug`, `/goat-review`, `/goat-plan`, `/goat-sbao`, `/goat-security`, `/goat-test`, `/goat`) with phases and human gates. The `/goat` dispatcher classifies your request and routes to the right skill automatically.
 
-**Enforcement Hooks** -- Pre-tool hooks intercept dangerous commands (`rm -rf`, force push, secret file access) and reject them with an explanation. Post-turn hooks run linting and type checking after every change. The deny-dangerous hook is advisory by default and blocking when registered as a pre-tool hook.
+**Enforcement Hooks** -- Pre-tool hooks intercept dangerous commands (`rm -rf`, force push, secret file access) and reject them with an explanation. Post-turn linting is project-specific -- goat-flow ships a deny-dangerous hook, not a lint hook.
 
 **Learning Loop** -- Agents record footguns, lessons, decisions, and session logs in `.goat-flow/`. Next session, they read these before acting. Mistakes stop repeating.
 
@@ -113,11 +113,15 @@ See [docs/cli.md](docs/cli.md) for the full command reference.
 
 ## Multi-Agent Support
 
-| | Claude Code | Gemini CLI | Codex | Copilot |
-|---|---|---|---|---|
-| Instruction file | CLAUDE.md | GEMINI.md | AGENTS.md | .github/copilot-instructions.md |
-| Skills | .claude/skills/ | .github/skills/ | .agents/skills/ | .github/skills/ |
-| Hooks | .claude/hooks/ | .gemini/hooks/ | .codex/hooks/ | - |
+Three first-class agents are supported by the CLI (`scan`, `setup`, `dashboard`):
+
+| | Claude Code | Gemini CLI | Codex |
+|---|---|---|---|
+| Instruction file | CLAUDE.md | GEMINI.md | AGENTS.md |
+| Skills | .claude/skills/ | .github/skills/ | .agents/skills/ |
+| Hooks | .claude/hooks/ | .gemini/hooks/ | .codex/hooks/ |
+
+**Copilot** is supported via `.github/copilot-instructions.md` bridge files only — it is not a first-class scanner/setup agent.
 
 All agents share the same execution loop, autonomy tiers, skills, and learning loop. The `setup` command generates agent-specific configuration.
 

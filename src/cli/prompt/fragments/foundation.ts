@@ -20,7 +20,7 @@ export const foundationFragments: Fragment[] = [
 Start with this skeleton:
 
 \`\`\`markdown
-# {{instructionFile}} - v1.0 ({{date}})
+# {{instructionFile}} - v1.1 ({{date}})
 
 [One-line project description]. Stack: {{languages}}.
 
@@ -57,7 +57,7 @@ Hard limit: 150 lines. Target: under 120.`,
     instruction: `Add a version header to line 1 of \`{{instructionFile}}\`:
 
 \`\`\`markdown
-# {{instructionFile}} - v1.0 (YYYY-MM-DD)
+# {{instructionFile}} - v1.1 (YYYY-MM-DD)
 \`\`\``,
   },
   {
@@ -131,42 +131,7 @@ These paths must point to files or directories that actually exist in your proje
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts.
 \`\`\`
 
-This is the first step of the execution loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG.`,
-  },
-  {
-    key: "add-classify-step",
-    phase: "foundation",
-    category: "Execution Loop",
-    kind: "create",
-    instruction: `Add the CLASSIFY step to \`{{instructionFile}}\`:
-
-\`\`\`markdown
-**CLASSIFY** - Three signals: (1) Intent: question → answer, directive → act. (2) Complexity + budgets. (3) Mode.
-
-| Complexity | Read budget | Turn budget |
-|------------|-------------|-------------|
-| Hotfix | 2 reads | 3 turns |
-| Standard Feature | 4 reads | 10 turns |
-| System Change | 6 reads | 20 turns |
-\`\`\``,
-  },
-  {
-    key: "add-classify-budgets",
-    phase: "foundation",
-    category: "Execution Loop",
-    kind: "fix",
-    instruction: `The CLASSIFY step exists but lacks numeric budgets. Add a complexity budget table with concrete read/turn limits:
-
-\`\`\`markdown
-| Complexity | Read budget | Turn budget |
-|------------|-------------|-------------|
-| Hotfix | 2 reads | 3 turns |
-| Standard Feature | 4 reads | 10 turns |
-| System Change | 6 reads | 20 turns |
-| Infrastructure | 8 reads | 25 turns |
-\`\`\`
-
-Over budget = re-classify before continuing.`,
+This is the first step of the execution loop: READ → SCOPE → ACT → VERIFY.`,
   },
   {
     key: "add-scope-step",
@@ -176,8 +141,16 @@ Over budget = re-classify before continuing.`,
     instruction: `Add the SCOPE step to \`{{instructionFile}}\`:
 
 \`\`\`markdown
-**SCOPE** - MUST declare before acting: files allowed to change, non-goals, max blast radius.
-\`\`\``,
+**SCOPE** - Classify intent (question → answer, directive → act), complexity, and mode. MUST declare before acting: files allowed to change, non-goals, max blast radius.
+
+| Complexity | Guideline | Ceremony |
+|------------|-----------|----------|
+| Hotfix | 1-2 files | Minimal |
+| Standard Feature | No fixed cap | Full phases |
+| System Change | No fixed cap | Full phases + cross-boundary verification |
+\`\`\`
+
+Expanding beyond scope = stop and re-scope with human.`,
   },
   {
     key: "add-act-step",
@@ -205,17 +178,8 @@ Over budget = re-classify before continuing.`,
 
 \`\`\`markdown
 **VERIFY** - MUST check cross-references after renames. Two corrections on same approach = MUST rewind.
-\`\`\``,
-  },
-  {
-    key: "add-log-step",
-    phase: "foundation",
-    category: "Execution Loop",
-    kind: "create",
-    instruction: `Add the LOG step to \`{{instructionFile}}\`:
 
-\`\`\`markdown
-**LOG** - MUST update when tripped. Use category bucket files - do not append to a monolithic log and do not create one file per incident forever.
+If VERIFY catches a failure or you corrected course, log it:
 
 | File | When to update |
 |------|---------------|
@@ -234,7 +198,7 @@ Footguns use category files such as \\\`hooks.md\\\` with frontmatter \\\`catego
     instruction: `Create \`.goat-flow/config.yaml\`:
 
 \`\`\`yaml
-version: "1.0.0"
+version: "1.1.0"
 footguns:
   path: .goat-flow/footguns/
 lessons:
@@ -409,7 +373,7 @@ After any rename, grep for the old pattern to confirm zero remaining references.
     kind: "create",
     instruction: `Add the log-update gate to DoD in \`{{instructionFile}}\`:
 
-If VERIFY caught a failure or you corrected course: create a lesson entry in \`.goat-flow/lessons/\` before DoD.`,
+If VERIFY triggered a log entry (failure or course correction): confirm the lesson/footgun entry exists in \`.goat-flow/lessons/\` or \`.goat-flow/footguns/\` before DoD.`,
   },
 
   // === Enforcement ===

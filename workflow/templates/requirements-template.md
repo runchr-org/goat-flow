@@ -1,6 +1,6 @@
 # Requirements: [feature name]
 
-> For initial feature briefs before formal tracking, see `workflow/templates/feature-brief.md`.
+> For initial feature briefs before formal tracking, see `.goat-flow/templates/feature-brief.md`.
 
 **Milestone:** [milestone reference]
 **Created:** [date]

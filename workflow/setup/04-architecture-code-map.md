@@ -35,7 +35,7 @@ Create these directories and files if they don't already exist:
 - `.goat-flow/decisions/` — for architecture decision records when needed. Do not pre-fill with a blank template.
 - `.goat-flow/tasks/` — for milestone and task tracking files
 - `.goat-flow/logs/sessions/` — for session logs (if not already created by step 01)
-- `.goat-flow/templates/` — copy from `workflow/templates/` verbatim. **Verify source exists before copying** — if `workflow/templates/` or `workflow/setup/reference/ADR-000-template.md` is missing from the goat-flow release, fail fast and report the missing source rather than silently skipping. These contain standalone prompt templates for feature briefs, milestone planning, requirements tracking, refactor planning, and manual multi-session SBAO. Skills and the dispatcher do NOT read these at runtime — they are reference material for humans who want to use the prompts in separate sessions or with different AI providers.
+- `.goat-flow/templates/` — copy from `workflow/templates/` verbatim. **Verify source exists before copying** — if `workflow/templates/` is missing from the goat-flow release, fail fast and report the missing source rather than silently skipping. These contain prompt templates for feature briefs, milestone planning, requirements tracking, refactor planning, and manual multi-session SBAO. Some skills reference specific templates on their full-depth path (e.g., feature-brief.md, compliance-checklist.md, flow-diagram-guide.md) — these must be installed.
 
 ## Shared rules
 

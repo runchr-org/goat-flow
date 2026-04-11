@@ -407,6 +407,16 @@ if [[ -f src/cli/prompt/template-refs.ts ]]; then
     fi
 fi
 
+# ── Path Integrity ───────────────────────────────────────────────────
+section "Path Integrity"
+if bash scripts/check-path-integrity.sh . >/dev/null 2>&1; then
+    pass "All internal path references resolve"
+else
+    bash scripts/check-path-integrity.sh . 2>&1 | grep "^FAIL:" | while IFS= read -r line; do
+        fail "$line"
+    done
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────
 # Print elapsed time for the last section
 echo -e "  ${DIM}($(fmt_elapsed $(( $(now_ms) - section_start ))))${RST}"

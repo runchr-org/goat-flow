@@ -32,6 +32,8 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "ask_first",
   "userRole",
   "telemetry",
+  "known-gaps",
+  "skill-overrides",
 ]);
 
 /** Built-in default values used when config.yaml is missing or omits fields. */

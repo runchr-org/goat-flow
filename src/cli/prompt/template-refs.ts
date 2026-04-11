@@ -30,7 +30,7 @@ function getFoundationRefs(agentId: AgentId): TemplateRef[] {
   const shared: TemplateRef[] = [
     {
       output: ".goat-flow/config.yaml",
-      template: "workflow/setup/reference/execution-loop.md",
+      template: "workflow/setup/05-customise-to-project.md",
       phase: "foundation",
       note: "Create config file with default paths and detected agents",
     },
@@ -105,12 +105,13 @@ function getFoundationHooks(agentId: AgentId): TemplateRef[] {
 // Standard refs - shared across all agents
 // ---------------------------------------------------------------------------
 
-/** Ordered list of the 6 goat-flow skill template sources (5 + dispatcher) */
+/** Ordered list of the 7 goat-flow skill template sources (6 + dispatcher) */
 const SKILL_TEMPLATES = [
   "workflow/skills/goat.md",
   "workflow/skills/goat-debug.md",
   "workflow/skills/goat-plan.md",
   "workflow/skills/goat-review.md",
+  "workflow/skills/goat-sbao.md",
   "workflow/skills/goat-security.md",
   "workflow/skills/goat-test.md",
 ] as const;

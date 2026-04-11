@@ -172,7 +172,7 @@ If updates are needed mid-flight, follow the detailed milestone retrospective pr
 
 ## Constraints
 
-- MUST write milestone files to `.goat-flow/tasks/` for Small Feature and above. For hotfix/small work, inline milestones are allowed.
+- MUST write milestone files to `.goat-flow/tasks/` for Standard complexity and above. Hotfix and Small Feature may use inline milestones.
 - MUST check for existing milestone files before creating new ones
 - MUST include a testing gate on every milestone — no milestone ships without verification
 - MUST re-read and potentially update the next milestone after completing each one

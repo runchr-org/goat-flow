@@ -1,6 +1,6 @@
 # Skills
 
-Five focused capabilities (plus dispatcher) loaded on demand. Each skill has a distinct artifact, a hard quality gate, and a repeatable output. Skills don't load unless invoked - they stay out of the instruction budget.
+Six focused capabilities (plus dispatcher) loaded on demand. Each skill has a distinct artifact, a hard quality gate, and a repeatable output. Skills don't load unless invoked - they stay out of the instruction budget.
 
 All skills use the `goat-` prefix to avoid conflicts with built-in agent commands.
 
@@ -12,6 +12,7 @@ flowchart LR
     Dispatcher --> Debug["/goat-debug"]
     Dispatcher --> Plan["/goat-plan"]
     Dispatcher --> Review["/goat-review"]
+    Dispatcher --> SBAO["/goat-sbao"]
     Dispatcher --> Test["/goat-test"]
     Dispatcher --> Security["/goat-security"]
 ```
@@ -19,11 +20,12 @@ flowchart LR
 | Skill | Purpose | Hard Gate | When to Use |
 |-------|---------|-----------|-------------|
 | [/goat](goat-dispatcher.md) | Route to the right skill | -- | Always (convenience layer) |
-| [/goat-security](goat-security.md) | Threat-model-driven security assessment | MUST rank findings by exploitability; framework-aware verification | Before releases, after dependency changes, during audits |
-| [/goat-debug](goat-debug.md) | Diagnosis-first debugging + investigate/onboard mode | No fixes until human reviews diagnosis; investigate: no planning until human reviews | Bug or test failure, exploring unfamiliar code, onboarding |
-| [/goat-review](goat-review.md) | Structured code review + quality audit + simplify mode | MUST read all files before commenting; simplify: MUST NOT change behavior | Before merging, quality audits, instruction staleness, readability improvement |
-| [/goat-plan](goat-plan.md) | 4-phase planning workflow + refactor planning mode | Human approval between each phase; refactor: grep-after-every-rename | Before non-trivial implementation, cross-file renames/restructuring |
-| [/goat-test](goat-test.md) | 3-phase test plan generation | Coding agent MUST NOT verify its own work (doer-verifier) | After a milestone or 30-60 min of coding |
+| [/goat-debug](goat-debug.md) | Diagnosis-first debugging + investigate/onboard mode | No fixes until human reviews diagnosis | Bug or test failure, exploring unfamiliar code |
+| [/goat-plan](goat-plan.md) | Milestone planning with testing gates | Human approval between milestones | Before non-trivial implementation |
+| [/goat-review](goat-review.md) | Structured code review + quality audit + simplify mode | MUST read all files before commenting | Before merging, quality audits, readability improvement |
+| [/goat-sbao](goat-sbao.md) | Multi-perspective critique of any artifact | Disputes resolved before synthesis | High-stakes decisions, plans, assessments |
+| [/goat-security](goat-security.md) | Threat-model-driven security assessment | MUST rank findings by exploitability | Before releases, after dependency changes, during audits |
+| [/goat-test](goat-test.md) | Testing gap analysis and verification planning | Agent may run fast local checks; deeper verification generated as plan | After a milestone or 30-60 min of coding |
 
 > **Consolidation (v0.8.0, finalized v0.9.3):** /goat-reflect merged into /goat-review (Instruction Review Mode). /goat-onboard merged into /goat-debug (Onboard Mode). /goat-audit merged into /goat-review (Audit Mode). /goat-context removed. /goat-investigate merged into /goat-debug (Investigate Mode). /goat-simplify merged into /goat-review (Simplify Mode). /goat-refactor merged into /goat-plan (Refactor Planning Mode). /goat dispatcher added in v0.9.0.
 
@@ -93,8 +95,8 @@ Skills are created during Phase 1b of the GOAT Flow setup. The skill templates i
 **Design:** 4-phase workflow with human gates. Feature brief -> Mob elaboration -> Triangular tension (SKEPTIC/ANALYST/STRATEGIST) -> Milestones with exit/kill criteria. Adapts depth to complexity tier. Refactor planning mode: both-sides-first reading, grep-after-every-rename, doc cross-reference check.
 
 ### /goat-test
-**Problem:** The coding agent verifies its own work and declares victory. Self-assessment is unreliable - the agent has blind spots for the same failure modes it introduced.
-**Design:** Generates test plans across three phases. The coding agent produces the plan but does NOT execute verification - separate agents and the human do (doer-verifier principle).
+**Problem:** Self-assessment alone is unreliable -- the agent has blind spots for the same failure modes it introduced.
+**Design:** The agent MAY run fast local checks (test/lint/build) as part of the execution loop VERIFY step. goat-test generates a deeper, independent verification plan for risky or complex changes. The doer-verifier principle applies to the full test plan, not to basic automated checks.
 
 ## Skill Justification Test
 

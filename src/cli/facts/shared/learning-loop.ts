@@ -108,8 +108,16 @@ function findCompetingArtifactSurfaces(
     .sort((a, b) => a.localeCompare(b));
 }
 
-/** List markdown files in a directory, reading each into a path+content pair. */
+/** List markdown files in a directory (or read a single flat .md file), returning path+content pairs. */
 function listMarkdownEntries(fs: ReadonlyFS, dir: string): EntryDir {
+  // Flat-file mode: config points at a single .md file instead of a directory
+  if (dir.endsWith(".md")) {
+    const exists = fs.exists(dir);
+    const content = exists ? fs.readFile(dir) : null;
+    const files = content !== null ? [{ path: dir, content }] : [];
+    return { path: dir, exists, files };
+  }
+
   const exists = fs.exists(dir);
   const files = exists
     ? fs

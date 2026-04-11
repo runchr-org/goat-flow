@@ -157,6 +157,7 @@ function defaultAgentFacts(): AgentFacts {
         "goat-debug",
         "goat-plan",
         "goat-review",
+        "goat-sbao",
         "goat-security",
         "goat-test",
       ],
@@ -165,34 +166,36 @@ function defaultAgentFacts(): AgentFacts {
         "goat-debug",
         "goat-plan",
         "goat-review",
+        "goat-sbao",
         "goat-security",
         "goat-test",
       ],
       missing: [],
       allPresent: true,
       versions: {
-        goat: "1.0.0",
-        "goat-debug": "1.0.0",
-        "goat-plan": "1.0.0",
-        "goat-review": "1.0.0",
-        "goat-security": "1.0.0",
-        "goat-test": "1.0.0",
+        goat: "1.1.0",
+        "goat-debug": "1.1.0",
+        "goat-plan": "1.1.0",
+        "goat-review": "1.1.0",
+        "goat-sbao": "1.1.0",
+        "goat-security": "1.1.0",
+        "goat-test": "1.1.0",
       },
       outdatedCount: 0,
       hasDispatcher: true,
       quality: {
-        withStep0: 5,
-        withHumanGate: 5,
-        withConstraints: 5,
-        withPhases: 5,
-        withConversational: 5,
-        withChoices: 5,
-        withOutputFormat: 5,
-        withSharedConventions: 5,
+        withStep0: 7,
+        withHumanGate: 7,
+        withConstraints: 7,
+        withPhases: 7,
+        withConversational: 7,
+        withChoices: 7,
+        withOutputFormat: 7,
+        withSharedConventions: 7,
         malformedFenceCount: 0,
         unadaptedCount: 0,
         adaptCommentCount: 0,
-        total: 5,
+        total: 7,
       },
     },
     hooks: {
@@ -253,7 +256,15 @@ export function createMockContext(overrides?: {
     ? deepMerge(defaultAgentFacts(), overrides.agentFacts)
     : defaultAgentFacts();
 
+  /** Minimal mock filesystem — all known paths "exist" */
+  const mockFs = {
+    exists: () => true,
+    readFile: () => null,
+    listDir: () => [],
+  };
+
   return {
+    fs: mockFs,
     facts: {
       root: "/tmp/mock-project",
       stack: {

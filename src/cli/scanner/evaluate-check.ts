@@ -694,6 +694,7 @@ function evalComposite(
 // === Helpers ===
 
 /** Look up whether a path exists in shared project facts. */
+// eslint-disable-next-line complexity -- lookup table, not real logic
 function checkSharedPath(path: string, ctx: FactContext): boolean {
   /** Shared facts covering docs, CI, and other project-wide resources */
   const shared = ctx.facts.shared;
@@ -704,6 +705,8 @@ function checkSharedPath(path: string, ctx: FactContext): boolean {
     [shared.lessons.path]: shared.lessons.exists,
     ".goat-flow/architecture.md": shared.architecture.exists,
     ".goat-flow/skill-preamble.md": shared.skillConventions.exists,
+    ".goat-flow/skill-conventions.md":
+      ctx.fs?.exists(".goat-flow/skill-conventions.md") ?? false,
     ".copilotignore": shared.ignoreFiles.copilotignore,
     ".cursorignore": shared.ignoreFiles.cursorignore,
     ".geminiignore": shared.ignoreFiles.geminiignore,

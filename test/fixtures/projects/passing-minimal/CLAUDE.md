@@ -56,6 +56,8 @@ Boundaries:
 - `.goat-flow/architecture.md`
 - `.goat-flow/coding-standards/conventions.md`
 - `src/`
+- `docs/`
+- `scripts/`
 
 **Never:** Delete docs without replacement, edit secrets, push to main, force push, overwrite files without checking.
 

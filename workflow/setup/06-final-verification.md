@@ -56,6 +56,12 @@ Fail if BOTH of these exist with independent content for the same artifact type:
 
 If duplicates exist, pick the one with better content as canonical, set it in config.yaml, and remove or bridge the other. The router table must NOT point to BOTH old and new surfaces for the same artifact type.
 
+## Path integrity check
+
+**CRITICAL:** Installed skill files must NEVER contain `workflow/` paths — those are framework-local and don't exist in target projects. Only `.goat-flow/` paths are valid.
+
+Verify: no `workflow/` path references in any installed skill file. Every `.goat-flow/` path in installed skills must resolve on disk.
+
 ## File manifest
 
 List every setup-owned file as one of:

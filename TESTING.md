@@ -5,13 +5,13 @@ Run all tests: `npm test`
 ## Test Layers
 
 ```
-Layer 1: Fixture Projects     test/fixtures/projects/    End-to-end scan against known states
-Layer 2: Rubric Check Tests   test/unit/evaluate-check   Each check with pass/fail mock context
-Layer 3: Hook Behavior Tests  test/hooks/                Pipe JSON, assert exit codes
-Layer 4: Setup Validation     test/contract/             Path resolution, skill integrity, migration
-Layer 5: Template Consistency test/templates/             Workflow templates match installed skills
-Layer 6: Journey Tests        test/journeys/             Multi-step scanner workflows on fixtures
-Layer 7: Agent Smoke Tests    test/smoke/                Real agent runs (CI-only, expensive)
+Layer 1: Fixture Projects     test/fixtures/projects/           End-to-end scan against known states
+Layer 2: Rubric Check Tests   test/unit/evaluate-check.test.ts  Individual rubric checks with pass/fail mock context
+Layer 3: Hook Behavior Tests  test/unit/deny-dangerous.test.ts  Hook and deny-policy behavior
+Layer 4: Contract Tests       test/contract/                   Path resolution, migration, and instruction-quality checks
+Layer 5: Integration Tests    test/integration/                In-memory and fixture-backed scanner/setup regressions
+Layer 6: Journey Tests        test/journeys/                   Behavioral eval parsing and journey coverage
+Layer 7: Agent Smoke Tests    test/smoke/                      Real agent runs (CI-only, expensive)
 ```
 
 ## Adding a Fixture Project
@@ -65,7 +65,7 @@ Behavioral journeys validate agent workflow contracts from `.goat-flow/evals/`.
    - `### Scenario` with a code-fenced prompt
    - `### Expected Behavior` with checkbox gates (`- [ ] Agent does X`)
    - `### Anti-Patterns` with failure modes to watch for
-2. The eval is automatically picked up by `test/journeys/behavioral-journeys.test.ts`
+2. The eval is automatically picked up by `test/journeys/scanner-journeys.test.ts`
 3. Layer 6 validates the eval is parseable and well-formed
 4. Layer 7 (smoke tests) runs the prompt against a real agent and scores gates
 
@@ -86,7 +86,6 @@ Cost: ~$0.50-2.00 per test. Only run locally when validating workflow changes.
 | `test/helpers/mock-fs.ts` | In-memory filesystem for isolated tests |
 | `test/helpers/hook-runner.ts` | Pipe JSON to hook scripts, capture results |
 | `test/helpers/fixture-scanner.ts` | Scan fixture projects in temp directories |
-| `test/helpers/test-project.ts` | Build real temp projects for integration tests |
 
 ## CI
 

@@ -20,6 +20,7 @@ type ProjectAction =
   | "upgrade"
   | "fix"
   | "healthy"
+  | "incomplete"
   | "none";
 
 /** Classification result for a single project directory. */
@@ -60,6 +61,21 @@ export function classifyProjectState(fs: StateFS): ProjectState {
     );
     const version = versionMatch?.[1] || "0.0.0";
     if (version === "1.1.0") {
+      // Basic sanity checks beyond config version
+      const hasSkills =
+        fs.exists(".claude/skills/goat-debug/SKILL.md") ||
+        fs.exists(".agents/skills/goat-debug/SKILL.md");
+      const hasInstructionFile =
+        fs.exists("CLAUDE.md") ||
+        fs.exists("AGENTS.md") ||
+        fs.exists("GEMINI.md");
+      if (!hasSkills || !hasInstructionFile) {
+        return {
+          state: "v1.1",
+          action: "incomplete",
+          details: "Config says v1.1.0 but skills or instruction file missing",
+        };
+      }
       return { state: "v1.1", action: "healthy", details: "Current version" };
     }
     return {

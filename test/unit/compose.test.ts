@@ -17,7 +17,7 @@ import { parseCLIArgs } from "../../src/cli/cli.js";
 
 // ─── Shared fixtures ────────────────────────────────────────────────
 
-const FULL_CLAUDE_MD = `# CLAUDE.md - v1.0 (2026-03-20)
+const FULL_CLAUDE_MD = `# CLAUDE.md - v1.1.0 (2026-04-06)
 
 Documentation framework.
 
@@ -51,7 +51,7 @@ npm test
 
 **VERIFY** - MUST run shellcheck. Two corrections on same approach = MUST rewind.
 
-**LOG** - MUST update when tripped. lessons.md entry required before DoD.
+**LOG** - MUST update when tripped. Use .goat-flow/lessons/, .goat-flow/footguns/, and .goat-flow/logs/sessions/ before DoD when applicable.
 
 | File | When to update |
 |------|---------------|
@@ -89,28 +89,7 @@ MUST confirm ALL: (1) shellcheck passes (2) no broken cross-references (3) no un
 | Lessons | \`.goat-flow/lessons/\` |
 | Architecture | \`.goat-flow/architecture.md\` |
 | Config | \`.goat-flow/config.yaml\` |
-| Handoff | \`.goat-flow/tasks/handoff-template.md\` |
-`;
-
-const HANDOFF_TEMPLATE = `# Handoff Template
-
-## Date
-
-## Status
-
-## Current State
-
-## Key Decisions
-
-## Errors & Corrections
-
-## Learnings
-
-## Known Risks
-
-## Next Step
-
-## Context Files
+| Session logs | \`.goat-flow/logs/sessions/\` |
 `;
 
 /** Build a well-configured mock project used by setup-composition tests. */
@@ -126,10 +105,15 @@ function buildFullProject() {
       permissions: { deny: ["Bash(git commit*)", "Bash(git push*)"] },
     }),
     ...Object.fromEntries(
-      ["preflight", "debug", "audit", "review", "plan", "test"].map((s) => [
-        `.claude/skills/goat-${s}/SKILL.md`,
-        `# goat-${s}\n`,
-      ]),
+      [
+        "goat",
+        "goat-debug",
+        "goat-plan",
+        "goat-review",
+        "goat-sbao",
+        "goat-security",
+        "goat-test",
+      ].map((name) => [`.claude/skills/${name}/SKILL.md`, `# ${name}\n`]),
     ),
     ".claude/hooks/deny-dangerous.sh":
       '#!/usr/bin/env bash\necho "BLOCKED" >&2\nexit 2\n',
@@ -141,7 +125,7 @@ function buildFullProject() {
     "workflow/setup/README.md": "# Setup\n",
     "scripts/preflight-checks.sh": "#!/usr/bin/env bash\n",
     "scripts/validate-goat-flow-setup.sh": "#!/usr/bin/env bash\n",
-    ".goat-flow/tasks/handoff-template.md": HANDOFF_TEMPLATE,
+    ".goat-flow/logs/sessions/": "# sessions\n",
     ".gitignore": ".env\nsettings.local.json\n",
     "CHANGELOG.md": "# Changelog\n",
   });
@@ -203,7 +187,7 @@ function buildTargetedUpgradeProject(extraFiles: Record<string, string> = {}) {
     ".goat-flow/architecture.md": "# Architecture\n\nOverview.\n",
     "scripts/preflight-checks.sh": "#!/usr/bin/env bash\n",
     "scripts/validate-goat-flow-setup.sh": "#!/usr/bin/env bash\n",
-    ".goat-flow/tasks/handoff-template.md": HANDOFF_TEMPLATE,
+    ".goat-flow/logs/sessions/": "# sessions\n",
     ".gitignore": "settings.local.json\n",
     ...extraFiles,
   });

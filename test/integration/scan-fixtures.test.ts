@@ -97,7 +97,7 @@ function assertValidReport(report: ScanReport, label: string) {
 
 // ─── Instruction file content builders ──────────────────────────────
 
-const FULL_CLAUDE_MD = `# CLAUDE.md - v1.0 (2026-03-20)
+const FULL_CLAUDE_MD = `# CLAUDE.md - v1.1.0 (2026-04-06)
 
 Documentation framework for AI coding agent workflows.
 
@@ -173,7 +173,7 @@ MUST confirm ALL: (1) shellcheck passes on changed .sh files (2) no broken cross
 | Lessons | \`.goat-flow/lessons/\` |
 | Architecture | \`.goat-flow/architecture.md\` |
 | Config | \`.goat-flow/config.yaml\` |
-| Handoff | \`.goat-flow/tasks/handoff-template.md\` |
+| Session logs | \`.goat-flow/logs/sessions/\` |
 `;
 
 const MINIMAL_CLAUDE_MD = `# CLAUDE.md
@@ -208,35 +208,25 @@ auth, routing, deployment, API, DB
 Shared sourced files, CONFIGURATION
 `;
 
-const HANDOFF_TEMPLATE = `# Handoff Template
-
-## Date
-
-## Status
-
-## Current State
-
-## Key Decisions
-
-## Errors & Corrections
-
-## Learnings
-
-## Known Risks
-
-## Next Step
-
-## Context Files
-`;
+const CANONICAL_SKILLS = [
+  "goat",
+  "goat-debug",
+  "goat-plan",
+  "goat-review",
+  "goat-sbao",
+  "goat-security",
+  "goat-test",
+] as const;
 
 // Quality skill content for fixtures that expect high scores
 function qualitySkill(name: string): string {
+  const skillName = name.startsWith("goat") ? name : `goat-${name}`;
   return `---
-name: goat-${name}
-description: "${name} skill"
+name: ${skillName}
+description: "${skillName} skill"
 goat-flow-skill-version: "${RUBRIC_VERSION}"
 ---
-# goat-${name}
+# ${skillName}
 
 ## Shared Conventions
 
@@ -250,7 +240,7 @@ goat-flow-skill-version: "${RUBRIC_VERSION}"
 
 ## When to Use
 
-Use for ${name} tasks.
+Use for ${skillName} tasks.
 
 ## Step 0 - Gather Context
 
@@ -393,11 +383,11 @@ describe("Fixture 4: full-claude", () => {
         ],
       },
     }),
-    // 6 skills (5 + dispatcher)
+    // 7 canonical skills
     ...Object.fromEntries(
-      ["debug", "review", "plan", "security", "test"].map((s) => [
-        `.claude/skills/goat-${s}/SKILL.md`,
-        qualitySkill(s),
+      CANONICAL_SKILLS.map((name) => [
+        `.claude/skills/${name}/SKILL.md`,
+        qualitySkill(name),
       ]),
     ),
     // Hooks
@@ -420,8 +410,8 @@ describe("Fixture 4: full-claude", () => {
     "scripts/preflight-checks.sh": '#!/usr/bin/env bash\necho "preflight"\n',
     "scripts/validate-goat-flow-setup.sh":
       '#!/usr/bin/env bash\necho "validate"\n',
-    // Handoff
-    ".goat-flow/tasks/handoff-template.md": HANDOFF_TEMPLATE,
+    // Session logs
+    ".goat-flow/logs/sessions/": "# sessions\n",
     // Gitignore
     ".gitignore": ".env\nsettings.local.json\nnode_modules/\n",
   });
@@ -469,9 +459,9 @@ describe("Fixture 4: full-claude", () => {
 
 describe("Fixture 5: full-multi-agent", () => {
   const skills = Object.fromEntries(
-    ["preflight", "debug", "audit", "review", "plan", "test"].flatMap((s) => [
-      [`.claude/skills/goat-${s}/SKILL.md`, qualitySkill(s)],
-      [`.agents/skills/goat-${s}/SKILL.md`, qualitySkill(s)],
+    CANONICAL_SKILLS.flatMap((name) => [
+      [`.claude/skills/${name}/SKILL.md`, qualitySkill(name)],
+      [`.agents/skills/${name}/SKILL.md`, qualitySkill(name)],
     ]),
   );
   const fs = createMockFS({
@@ -522,7 +512,7 @@ describe("Fixture 5: full-multi-agent", () => {
       "name: CV\non: [push, pull_request]\njobs:\n  v:\n    steps:\n      - run: wc -l CLAUDE.md\n      - run: bash scripts/validate-goat-flow-setup.sh\n      - run: ls .claude/skills/goat-debug/SKILL.md\n",
     "scripts/preflight-checks.sh": "#!/usr/bin/env bash\n",
     "scripts/validate-goat-flow-setup.sh": "#!/usr/bin/env bash\n",
-    ".goat-flow/tasks/handoff-template.md": HANDOFF_TEMPLATE,
+    ".goat-flow/logs/sessions/": "# sessions\n",
     ".gitignore": ".env\nsettings.local.json\n",
   });
   const report = scanProject(fs, "/test/multi", { agentFilter: null });
@@ -569,9 +559,9 @@ describe("Fixture 6: N/A checks", () => {
     }),
     ".claude/hooks/deny-dangerous.sh": "#!/usr/bin/env bash\nexit 0\n",
     ...Object.fromEntries(
-      ["preflight", "debug", "audit", "review", "plan", "test"].map((s) => [
-        `.claude/skills/goat-${s}/SKILL.md`,
-        qualitySkill(s),
+      CANONICAL_SKILLS.map((name) => [
+        `.claude/skills/${name}/SKILL.md`,
+        qualitySkill(name),
       ]),
     ),
     ".goat-flow/footguns/": "# Footguns\n\n- `src/index.ts:10` - gotcha\n",
@@ -706,15 +696,15 @@ describe("Fixture 9: allowed-missing (N/A checks)", () => {
     }),
     ".claude/hooks/deny-dangerous.sh": "#!/usr/bin/env bash\nexit 0\n",
     ...Object.fromEntries(
-      ["preflight", "debug", "audit", "review", "plan", "test"].map((s) => [
-        `.claude/skills/goat-${s}/SKILL.md`,
-        qualitySkill(s),
+      CANONICAL_SKILLS.map((name) => [
+        `.claude/skills/${name}/SKILL.md`,
+        qualitySkill(name),
       ]),
     ),
     ".goat-flow/footguns/": "# Footguns\n\n- `src/a.ts:5` - evidence\n",
     ".goat-flow/lessons/": "# Lessons\n\n### E1\nStuff.\n",
     ".goat-flow/architecture.md": "# Arch\n\nOverview.\n",
-    ".goat-flow/tasks/handoff-template.md": HANDOFF_TEMPLATE,
+    ".goat-flow/logs/sessions/": "# sessions\n",
     ".gitignore": ".env\nsettings.local.json\n",
   });
   const report = scanProject(fs, "/test/allowed-missing", {
@@ -1306,7 +1296,7 @@ describe("Fixture 10: self-goat-flow (score snapshot)", () => {
     "scripts/preflight-checks.sh": "#!/usr/bin/env bash\n",
     "scripts/validate-goat-flow-setup.sh": "#!/usr/bin/env bash\n",
     // Misc
-    ".goat-flow/tasks/handoff-template.md": HANDOFF_TEMPLATE,
+    ".goat-flow/logs/sessions/": "# sessions\n",
     ".gitignore": ".env\nsettings.local.json\nnode_modules/\n",
     "CHANGELOG.md": "# Changelog\n",
   });
@@ -1410,10 +1400,14 @@ GOOD: Inline format. Extract when second format needed
       },
     }),
     ...Object.fromEntries(
-      ["debug", "review", "plan", "security", "test"].map((s) => [
-        `.claude/skills/goat-${s}/SKILL.md`,
-        qualitySkill(s),
-      ]),
+      [
+        "goat-debug",
+        "goat-review",
+        "goat-plan",
+        "goat-sbao",
+        "goat-security",
+        "goat-test",
+      ].map((name) => [`.claude/skills/${name}/SKILL.md`, qualitySkill(name)]),
     ),
     ".claude/skills/goat/SKILL.md": `---\nname: goat\ndescription: "Dispatcher"\ngoat-flow-skill-version: "${RUBRIC_VERSION}"\n---\n# /goat\n\n## How It Works\n\nRoutes to the right skill.\n\n## Constraints\n\n- MUST announce selected skill\n`,
     ".claude/hooks/deny-dangerous.sh":
@@ -1430,7 +1424,7 @@ GOOD: Inline format. Extract when second format needed
     "scripts/preflight-checks.sh": '#!/usr/bin/env bash\necho "preflight"\n',
     "scripts/validate-goat-flow-setup.sh":
       '#!/usr/bin/env bash\necho "validate"\n',
-    ".goat-flow/tasks/handoff-template.md": HANDOFF_TEMPLATE,
+    ".goat-flow/logs/sessions/": "# sessions\n",
     ".gitignore": ".env\nsettings.local.json\nnode_modules/\n",
     ".goat-flow/README.md":
       "# Coding Guidelines\n\nSee [Conventions](.goat-flow/coding-standards/conventions.md) and [Code Review](.goat-flow/coding-standards/code-review.md).\n",
@@ -1441,8 +1435,8 @@ GOOD: Inline format. Extract when second format needed
       "# Code Review\n\nReview checklist.\n",
     ".goat-flow/coding-standards/git-commit.md":
       "# Git Commit\n\nCommit conventions.\n",
-    "CHANGELOG.md": "# Changelog\n\n## v1.0\n\nInitial setup.\n",
-    ".goat-flow/config.yaml": 'version: "1.0.0"\nuserRole: developer\n',
+    "CHANGELOG.md": "# Changelog\n\n## v1.1.0\n\nInitial setup.\n",
+    ".goat-flow/config.yaml": 'version: "1.1.0"\nuserRole: developer\n',
   });
   const report = scanProject(fs, "/test/regression", { agentFilter: null });
 
@@ -1499,7 +1493,7 @@ GOOD: Inline format. Extract when second format needed
 describe("Regression: 1.1.5 requires project paths in BAD/GOOD examples", () => {
   // PASS: has BAD/GOOD markers AND backtick-wrapped paths with /
   const passFs = createMockFS({
-    "CLAUDE.md": `# CLAUDE.md - v1.0
+    "CLAUDE.md": `# CLAUDE.md - v1.1.0
 
 ## Essential Commands
 
@@ -1524,7 +1518,7 @@ GOOD: Read \`.goat-flow/architecture.md:14\` → "Target 120 lines. Hard limit 1
 
   // FAIL: has BAD/GOOD markers but NO backtick-wrapped paths
   const failFs = createMockFS({
-    "CLAUDE.md": `# CLAUDE.md - v1.0
+    "CLAUDE.md": `# CLAUDE.md - v1.1.0
 
 ## Essential Commands
 
@@ -1551,7 +1545,7 @@ GOOD: Writing concise code
 describe("Regression: 1.1.5a requires 2+ resolvable project paths", () => {
   // PASS: router + ask-first have 2+ paths that exist
   const passFs = createMockFS({
-    "CLAUDE.md": `# CLAUDE.md - v1.0
+    "CLAUDE.md": `# CLAUDE.md - v1.1.0
 
 ## Router Table
 
@@ -1583,7 +1577,7 @@ describe("Regression: 1.1.5a requires 2+ resolvable project paths", () => {
 
   // FAIL: router paths don't resolve
   const failFs = createMockFS({
-    "CLAUDE.md": `# CLAUDE.md - v1.0
+    "CLAUDE.md": `# CLAUDE.md - v1.1.0
 
 ## Router Table
 
@@ -1607,7 +1601,7 @@ describe("Regression: 1.1.5a requires 2+ resolvable project paths", () => {
 describe("Regression: 1.2.6 LOG step paths must exist on disk", () => {
   // PASS: LOG mentions lessons/ and the dir exists
   const passFs = createMockFS({
-    "CLAUDE.md": `# CLAUDE.md - v1.0
+    "CLAUDE.md": `# CLAUDE.md - v1.1.0
 
 **LOG** - MUST update when tripped. lessons/ and footguns/ entries.
 
@@ -1632,7 +1626,7 @@ describe("Regression: 1.2.6 LOG step paths must exist on disk", () => {
 
   // FAIL: LOG mentions lessons/ but dirs don't exist
   const failFs = createMockFS({
-    "CLAUDE.md": `# CLAUDE.md - v1.0
+    "CLAUDE.md": `# CLAUDE.md - v1.1.0
 
 **LOG** - MUST update when tripped. lessons/ and footguns/ entries.
 `,

@@ -267,13 +267,13 @@ describe("Check 2.4.3: Skills referenced in router", () => {
 });
 
 // ---------------------------------------------------------------
-// 2.1.11 - All 6 skills present
+// 2.1.11 - All 7 skills present
 // ---------------------------------------------------------------
-describe("Check 2.1.11: All 6 skills present", () => {
+describe("Check 2.1.11: All 7 skills present", () => {
   const check = getCheck("2.1.11");
   assert.ok(check, "Check 2.1.11 should exist in the registry");
 
-  it("passes when all 6 skills are present", () => {
+  it("passes when all 7 skills are present", () => {
     const ctx = createMockContext(); // defaults have all skills
     const result = runSingleCheck(check, ctx);
     assert.equal(
@@ -288,7 +288,7 @@ describe("Check 2.1.11: All 6 skills present", () => {
       agentFacts: {
         skills: {
           found: ["goat", "goat-debug", "goat-plan", "goat-review"],
-          missing: ["goat-security", "goat-test"],
+          missing: ["goat-sbao", "goat-security", "goat-test"],
           allPresent: false,
         },
       },
@@ -1328,12 +1328,32 @@ describe("Check 2.3.2a: Footguns have entries", () => {
 
 // 2.3.5a (Footguns have evidence labels) removed - check deleted.
 
-describe("Check 2.3.6: Duplicate learning-loop surfaces", () => {
+describe("Check 2.3.6: Lessons file references resolve", () => {
   const check = getCheck("2.3.6");
   assert.ok(check, "Check 2.3.6 should exist");
 
-  it("exists in registry", () => {
-    assert.ok(check.id === "2.3.6");
+  it("returns na when lessons have no stale refs", () => {
+    const ctx = createMockContext({
+      shared: { lessons: { exists: true, staleRefs: [] } },
+    });
+    const result = runSingleCheck(check, ctx);
+    assert.equal(result.status, "na", result.message);
+  });
+
+  it("fails when lessons reference deleted files", () => {
+    const ctx = createMockContext({
+      shared: {
+        lessons: {
+          exists: true,
+          staleRefs: [
+            ".goat-flow/lessons/verification.md -> workflow/setup/shared/recovery.md",
+          ],
+        },
+      },
+    });
+    const result = runSingleCheck(check, ctx);
+    assert.equal(result.status, "fail", result.message);
+    assert.match(result.message, /stale refs/i);
   });
 });
 

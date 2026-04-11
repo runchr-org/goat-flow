@@ -285,7 +285,7 @@ function normalizeLearningLoop(
   if (hasLearningLoop && !(".goat-flow/config.yaml" in normalized)) {
     const agents = detectAgents(normalized);
     normalized[".goat-flow/config.yaml"] = [
-      'version: "1.0.0"',
+      'version: "1.1.0"',
       "footguns:",
       "  path: .goat-flow/footguns/",
       "lessons:",

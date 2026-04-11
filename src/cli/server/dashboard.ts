@@ -29,7 +29,8 @@ import type { WebSocketServer, WebSocket as WsWebSocket } from "ws";
 
 /** Recognized agent identifiers for the /api/setup endpoint */
 const VALID_AGENTS = new Set<string>(["claude", "codex", "gemini"]);
-/** Recognized runner identifiers for terminal session creation */
+/** Recognized runner identifiers for terminal session creation.
+ *  copilot is bridge-only (via .github/copilot-instructions.md), not a first-class agent. */
 const VALID_RUNNERS = new Set<string>(["claude", "codex", "gemini", "copilot"]);
 /** Maximum request body size accepted by POST endpoints */
 const MAX_BODY_BYTES = 64 * 1024; // 64 KB
@@ -469,7 +470,8 @@ export function serveDashboard(
       return commands;
     }
 
-    /** Detect which AI coding agents have config directories in the project. */
+    /** Detect which AI coding agents have config directories in the project.
+     *  copilot is bridge-only (not a first-class scanner/setup agent). */
     function detectAgents(projectPath: string): Record<string, boolean> {
       return {
         claude: existsSync(join(projectPath, ".claude")),

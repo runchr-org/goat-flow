@@ -254,7 +254,7 @@ export const foundationChecks: CheckDef[] = [
   },
   {
     id: "1.2.2",
-    name: "CLASSIFY step",
+    name: "Complexity classification",
     tier: "foundation",
     category: "Execution Loop",
     pts: 2,
@@ -266,8 +266,8 @@ export const foundationChecks: CheckDef[] = [
       pattern: "classify|complexity.*budget|Hotfix.*Standard",
     },
     recommendation:
-      "Without CLASSIFY, agents treat a 2-file hotfix and a cross-boundary refactor with the same ceremony -- either over-engineering small tasks or under-scoping large ones. Complexity budgets force the agent to right-size its approach before touching code.",
-    recommendationKey: "add-classify-step",
+      "Without complexity classification, agents treat a 2-file hotfix and a cross-boundary refactor with the same ceremony. Add complexity tiers (Hotfix / Standard / System) to the SCOPE step so agents right-size their approach.",
+    recommendationKey: "add-scope-step",
   },
   {
     id: "1.2.2a",
@@ -327,7 +327,7 @@ export const foundationChecks: CheckDef[] = [
     },
     recommendation:
       'Without explicit complexity tiers and a re-classification trigger, agents that discover a task is larger than expected will keep going instead of stopping to re-scope. Add Hotfix / Small Feature / Standard / System / Infrastructure tiers with a trigger like "if reads exceed 3x estimate, re-classify."',
-    recommendationKey: "add-classify-budgets",
+    recommendationKey: "add-scope-step",
   },
   {
     id: "1.2.3",
@@ -450,8 +450,8 @@ export const foundationChecks: CheckDef[] = [
       },
     },
     recommendation:
-      "Without a LOG step, hard-won debugging insights vanish when the session ends, and the next agent repeats the same mistake. The LOG step writes lessons and footguns so knowledge persists across sessions. Create the referenced directories so the paths resolve.",
-    recommendationKey: "add-log-step",
+      "Without learning-loop references, debugging insights vanish when the session ends. The VERIFY step should include conditional triggers for writing lessons and footguns so knowledge persists across sessions. Create the referenced directories so the paths resolve.",
+    recommendationKey: "add-verify-step",
   },
 
   // === 1.3 Autonomy Tiers (10 pts) ===

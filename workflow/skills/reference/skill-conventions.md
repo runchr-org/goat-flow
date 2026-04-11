@@ -72,11 +72,9 @@ Skills that gather context before acting follow this pattern:
 3. If ALL questions are answered by the invocation → present a condensed confirmation and proceed
 4. If the user says "skip Step 0" or provides a detailed brief → confirm understanding and proceed
 
-**The gate rule:** Step 0 MUST end with the agent presenting its understanding and waiting for the user before proceeding to Phase 1. Auto-detect pre-fills context - it does not replace human confirmation. Bare invocation with no arguments = zero context = ask all structural questions and wait.
+**The gate rule:** If intent, target, and boundary are clear from the user's request, proceed without asking. Ask only at a genuine fork where the user's preference is not obvious. Bare invocation with no arguments = zero context = ask all structural questions and wait.
 
 **Dispatcher invocation:** When a skill is invoked via `/goat`, Step 0 is the single entry gate. The dispatcher already announced the skill — Step 0 goes straight to its questions without re-announcing. There is no double-gate: one announcement from the dispatcher, one gate (Step 0) in the skill.
-
-Never hard-block when context is already available. The goal is to start moving, not to interrogate.
 
 ## Contradiction Check
 

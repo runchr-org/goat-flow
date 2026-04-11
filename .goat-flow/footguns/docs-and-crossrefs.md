@@ -83,7 +83,6 @@ category: docs-and-crossrefs
 - `src/cli/rubric/full.ts:129` — check named "Skill conventions" but checks `skill-preamble.md`
 - `workflow/skills/goat-plan.md:115,175` — inline mode contradicts "MUST write" constraint
 - `src/cli/facts/shared/learning-loop.ts:112` — `listMarkdownEntries()` only handles directories, not flat files
-- `test/contract/skill-contracts.test.ts:15` — tests 5 skills (no goat, no goat-sbao)
 - `test/unit/evaluate-check.test.ts:270` — says "All 6 skills present"
 - `.goat-flow/architecture.md:27,55` — stale paths (`agents/claude.md`, `presets.js`)
 

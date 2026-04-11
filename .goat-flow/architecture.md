@@ -24,7 +24,7 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 
 ```
 User runs `npx goat-flow setup .` or reads workflow/setup/
-  -> Chooses agent (agents/claude.md, agents/codex.md, agents/gemini.md, or agents/copilot.md)
+  -> Chooses agent (workflow/setup/agents/claude.md, workflow/setup/agents/codex.md, workflow/setup/agents/gemini.md)
   -> Follows numbered setup steps (01-06) via their agent config
   -> Agent reads workflow/setup/ (01-system-overview.md, 02-instruction-file.md, execution-loop.md)
   -> Agent generates project-specific files (CLAUDE.md, hooks, skills, etc.)
@@ -52,7 +52,7 @@ src/cli/
 
 src/dashboard/
   index.html          # Dashboard entry point
-  presets.js           # Preset configurations
+  preset-prompts.js    # Preset configurations
   views/              # Page views (home, scanner, settings, wizard, workspace)
 ```
 

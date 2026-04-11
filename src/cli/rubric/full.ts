@@ -127,7 +127,7 @@ export const fullChecks: CheckDef[] = [
   // === 3.5 Skill Conventions ===
   {
     id: "3.5.1",
-    name: "Skill conventions file exists",
+    name: "Skill preamble file exists",
     tier: "standard",
     category: "Skill Conventions",
     pts: 1,
@@ -139,6 +139,22 @@ export const fullChecks: CheckDef[] = [
     },
     recommendation:
       "Without skill-preamble.md, each skill defines its own conventions inline, leading to drift -- different output formats, different gate styles, different constraint language across skills. A shared conventions file ensures all skills follow the same structural patterns, making them predictable and composable.",
+    recommendationKey: "create-skill-conventions",
+  },
+  {
+    id: "3.5.2",
+    name: "Skill conventions file exists",
+    tier: "standard",
+    category: "Skill Conventions",
+    pts: 1,
+    confidence: "high",
+    priority: "optional",
+    detect: {
+      type: "file_exists",
+      path: ".goat-flow/skill-conventions.md",
+    },
+    recommendation:
+      "Without skill-conventions.md, full-depth conventions for skill authoring live only in individual skill files or developer memory. A dedicated conventions file provides the complete reference for skill structure, gate patterns, output formats, and composability rules -- ensuring new skills are consistent with existing ones.",
     recommendationKey: "create-skill-conventions",
   },
 ];

@@ -15,6 +15,7 @@ skills:
     - goat-debug
     - goat-plan
     - goat-review
+    - goat-sbao
     - goat-security
     - goat-test
 
@@ -38,7 +39,7 @@ toolchain:
     - npm test
   lint:
     - bash scripts/preflight-checks.sh
-    - bash scripts/context-validate.sh
+    - bash scripts/validate-goat-flow-setup.sh
     - shellcheck workflow/hooks/*.sh scripts/*.sh
   build:
     - npm run build

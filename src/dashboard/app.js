@@ -88,6 +88,7 @@ function app() {
       languages: [],
       frameworks: [],
       commands: { test: "", lint: "", build: "", format: "" },
+      // copilot is bridge-only (via .github/copilot-instructions.md), not a first-class agent
       agents: { claude: true, codex: false, gemini: false, copilot: false },
       existing: {
         skills: false,
@@ -383,6 +384,7 @@ function app() {
           build: "",
           format: "",
         };
+        // copilot is bridge-only (via .github/copilot-instructions.md), not a first-class agent
         this.wizardData.agents = data.agents || {
           claude: true,
           codex: false,

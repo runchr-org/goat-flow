@@ -5,8 +5,9 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { readConfig } from "../../src/cli/config/index.js";
 
 const ROOT = join(import.meta.dirname, "../..");
 
@@ -44,34 +45,24 @@ describe("Canonical path contract: no duplicate surfaces in goat-flow itself", (
 // ---------------------------------------------------------------
 describe("Config.yaml paths match filesystem reality", () => {
   const configPath = join(ROOT, ".goat-flow/config.yaml");
+  const config = readConfig(ROOT);
 
   it(".goat-flow/config.yaml exists", () => {
     assert.ok(existsSync(configPath), "Missing .goat-flow/config.yaml");
   });
 
   it("configured footguns path exists", () => {
-    const config = readFileSync(configPath, "utf-8");
-    const match = config.match(/^\s+committed:\s*(.+)$/m);
-    if (match) {
-      const committedPath = match[1].trim();
-      assert.ok(
-        existsSync(join(ROOT, committedPath)),
-        `Config footguns.committed path ${committedPath} does not exist on disk`,
-      );
-    }
+    assert.ok(
+      existsSync(join(ROOT, config.footguns.path)),
+      `Config footguns.path ${config.footguns.path} does not exist on disk`,
+    );
   });
 
   it("configured lessons path exists", () => {
-    const config = readFileSync(configPath, "utf-8");
-    // Find lessons section
-    const lessonsMatch = config.match(/lessons:\s*\n\s+committed:\s*(.+)/m);
-    if (lessonsMatch) {
-      const committedPath = lessonsMatch[1].trim();
-      assert.ok(
-        existsSync(join(ROOT, committedPath)),
-        `Config lessons.committed path ${committedPath} does not exist on disk`,
-      );
-    }
+    assert.ok(
+      existsSync(join(ROOT, config.lessons.path)),
+      `Config lessons.path ${config.lessons.path} does not exist on disk`,
+    );
   });
 });
 
