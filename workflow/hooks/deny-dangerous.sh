@@ -220,7 +220,7 @@ check_segment() {
   # 17. Command substitution (recursive check)
   if [[ "$cmd" =~ \$\( ]]; then
     local inner
-    inner=$(echo "$cmd" | grep -oP '\$\(\K[^)]+' 2>/dev/null || echo "")
+    inner=$(echo "$cmd" | sed -n 's/.*\$(\([^)]*\)).*/\1/p' 2>/dev/null || echo "")
     if [ -n "$inner" ]; then
       check_segment "$inner" $((depth + 1))
     fi

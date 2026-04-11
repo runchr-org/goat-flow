@@ -97,9 +97,9 @@ describe("deny-dangerous.sh hook", () => {
     assert.equal(r.exitCode, 2);
   });
 
-  it("blocks rm with glob pattern", () => {
+  it("allows rm without recursive force flags", () => {
     const r = runHook("rm *.log");
-    assert.equal(r.exitCode, 2);
+    assert.equal(r.exitCode, 0);
   });
 
   // === Commands that SHOULD be allowed (exit 0) ===

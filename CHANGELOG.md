@@ -2,45 +2,19 @@
 
 ---
 
-## v1.1.0 - 2026-04-06 (in progress)
+## v1.1.0 - 2026-04-11
 
-Setup overhaul driven by 10 real-project reviews. Setup agents now understand design intent, not just the checklist.
+1.1.0 is the setup and execution-loop recovery release after R8. Core behavior now emphasizes safer setup output, fewer setup-only footguns, and stronger evidence checks while keeping the existing scanner/rubric baseline stable.
 
-**M01 — Foundation**
-- `workflow/setup/shared/system-overview.md` — 58-line orientation doc read by setup agents first
-- ADR-028 (extract skill conventions), ADR-029 (instruction budget constraint), ADR-030 (skill consolidation 9→5+dispatcher)
-- ADR-031 (setup file ownership — never delete user code, single-agent scoping)
-- compose-setup.ts: removed wrong scaling table, fixed enforcement→advisory language, added anti-duplication examples
+### Completed
 
-**M02 — Skills & Scanner**
-- Extracted 152-line shared conventions from 5 skills to `.goat-flow/skill-conventions.md` with 7-line inline fallback (ADR-028 supersedes ADR-023)
-- Killed flush protocol, todo.md, handoff.md — milestone file checkboxes replace all three
-- Scanner: removed handoff checks (3.3.1, 3.3.1a, 2.4.7), AP11 no longer penalises empty learning loop, added skill-conventions.md check, removed guidelines-ownership-split checks
-- goat-plan: 10-bullet TL;DR summary confirmation step before milestone approval
-- goat-test: DDT (Development Driven Testing) guidance in Step 0
-- goat-review/goat-security: boundary notes clarifying ownership split
+- Foundation and setup flow were consolidated around a simpler execution loop and stronger migration/safety guardrails.
+- Skills were trimmed and routed to avoid duplicate/irrelevant modes, with quick/full modes added where appropriate.
+- `workflow/hooks/deny-dangerous.sh` supports both stdin and argv input and hardens branch-blocking behavior.
+- Scanner/path-reference checks were improved: setup template references, router consistency, and evidence quality checks were extended.
+- Setup now includes explicit evidence verification and gap reporting steps during finalization.
+- v1.1.0 references are propagated through installable instruction files and the 1.1.0 migration surface.
 
-**M03a — Setup Restructure**
-- Merged 7 shared setup files → 3 (phase-1.md, execution-loop.md + system-overview.md + coding-standards.md); phase-0.md was later removed
-- Created `workflow/hooks/` with copyable scripts + per-agent config templates (claude.json, codex.toml, gemini.json)
-- Rewrote 4 agent setup files: Claude 108→62, Codex 138→80, Gemini 98→46, Copilot 93→51 lines
-- All agents now have human checklists, reference system-overview.md, use workflow/hooks/
-
-**M03b — Doc Cleanup**
-- Deleted ~3,000 lines: system-spec.md, design-rationale.md, five-layers.md, rubrics.md, getting-started.md, cross-agent-comparison.md, using-skills.md, docs/examples/, workflow/runtime/, workflow/templates/
-- Updated 100+ cross-references across .goat-flow/, test fixtures, scanner code, instruction files
-- All workflow/** files updated with v1.1.0 references
-
-**M08 — Post-Critique Fixes** (driven by Codex implementing + critiquing v1.1.0 across 11 projects)
-- Setup guard: state gate in all 4 agent setup files + system-overview + phase-1 prevents rogue rewrites on current projects
-- compose-setup.ts: v0.9/v1.0 blocks return early — no more fall-through to fresh-install path that caused parallel surfaces on 5 projects
-- Split `upgrade.md` into `upgrade-0.9.x.md` and `upgrade-1.0.0.md` with destructive migration instructions
-- Created `workflow/setup/reference/project-structure.json` — single source of truth for expected file layout
-- Scanner: removed CI Validation checks 3.2.1–3.2.5 (6pts, not AI workflow), fixed grep -P false positive (9/11 projects), fixed 2.6.1a pointer-file exemption (8/11 projects)
-- Removed format-file.sh and guard-write-size.sh from goat-flow system — only deny-dangerous.sh ships by default (`stop-lint` is now project-specific)
-- Skills: purged all stale v1.0 refs (todo.md, handoff.md, TODO_*_prime, flush), SBAO opt-in, compliance mode opt-in, fixed skill-conventions.md contradiction
-- Reduced default .goat-flow/ scaffold (no domain-reference.md, always glossary.md)
-- Dashboard: added /api/rubrics endpoint, light mode fix for setup page
 
 ---
 
@@ -213,5 +187,5 @@ Workflow deployed across 7 projects. Multi-agent support. 11 diagnostic rounds.
 First release. Complete workflow system.
 
 **System** - 5-layer architecture. 6-step execution loop with SCOPE. 3-layer enforcement (permissions→hooks→rules). Autonomy tiers. DoD (6 gates). Doer-verifier testing.
-**Skills (6)** - preflight, debug, audit, research, review, plan. Planning playbooks (feature brief, mob elaboration, SBAO, milestones). Testing playbooks (doer-verifier, 3 tracks).
+**Skills (6)** - preflight, debug, audit, research, review, plan. Planning playbooks (feature brief, mob elaboration, SBAO, implementation checklists). Testing playbooks (doer-verifier, 3 tracks).
 **Docs** - system-spec, five-layers, six-steps, getting-started, design-rationale. Cross-agent comparison. CI context validation.
