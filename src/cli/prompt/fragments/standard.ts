@@ -159,9 +159,9 @@ Each phase should have a clear entry condition (what must be done before startin
     phase: "standard",
     category: "Skills",
     kind: "create",
-    instruction: `Ensure all 6 GOAT Flow skills (5 + dispatcher) are present under \`{{skillsDir}}/\`:
+    instruction: `Ensure all 7 GOAT Flow skills (6 + dispatcher) are present under \`{{skillsDir}}/\`:
 
-- goat (dispatcher), goat-debug, goat-review, goat-plan, goat-security, goat-test
+- goat (dispatcher), goat-debug, goat-review, goat-plan, goat-sbao, goat-security, goat-test
 
 Each skill needs a \`SKILL.md\` with: name, description, When to Use, Process, Output sections.`,
   },
@@ -609,6 +609,13 @@ Keep under 100 lines. This is for agent orientation, not exhaustive documentatio
   },
   // compress-architecture removed - check 2.5.2 removed.
   // === Local Instructions (cold path) ===
+  // DEPRECATED: The following local-instructions fragments (create-instructions-dir,
+  // create-instructions-router, create-conventions-instructions,
+  // improve-conventions-instructions, create-frontend-instructions,
+  // create-backend-instructions, create-copilot-bridge) are legacy surfaces.
+  // Coding-standards was removed from base setup in M13 (see ADR / 05-customise-to-project.md).
+  // These fragments are retained only because rubric checks reference their keys.
+  // They fire only when the scanner detects an existing coding-standards surface to improve.
   {
     key: "create-instructions-dir",
     phase: "standard",

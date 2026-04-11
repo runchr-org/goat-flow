@@ -120,7 +120,7 @@ export function getRouterSkillsCheckResult(ctx: FactContext): CheckResult {
       points: 1,
       maxPoints: 1,
       confidence: "high",
-      message: `Router points at ${expectedDir}/, covering both the \`goat/\` dispatcher and the 5 \`goat-*\` skills.`,
+      message: `Router points at ${expectedDir}/, covering both the \`goat/\` dispatcher and the 6 \`goat-*\` skills.`,
     };
   }
 
@@ -149,7 +149,7 @@ export function getRouterSkillsCheckResult(ctx: FactContext): CheckResult {
       points: 0,
       maxPoints: 1,
       confidence: "high",
-      message: `No skills directory path found in the Router Table. Add ${expectedDir}/ so agents can find the dispatcher and the 5 goat-* skills.`,
+      message: `No skills directory path found in the Router Table. Add ${expectedDir}/ so agents can find the dispatcher and the 6 goat-* skills.`,
     };
   }
 

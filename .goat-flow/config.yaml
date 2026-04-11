@@ -71,9 +71,6 @@ lessons:
 decisions:
   path: .goat-flow/decisions/
 
-coding-standards:
-  path: .goat-flow/coding-standards/
-
 footguns:
   path: .goat-flow/footguns/
 

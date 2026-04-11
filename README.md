@@ -94,7 +94,7 @@ Skills are structured workflows the agent follows. `/goat` auto-routes to the ri
 
 **Autonomy Tiers** -- Three-tier permission model (Always / Ask First / Never) built into the instruction file so agents know what they can do independently and what requires your approval.
 
-**Coding Standards** -- 36 language and framework-specific templates covering backend, frontend, security, and DevOps.
+**Reference Templates** -- 36 language and framework-specific templates covering backend, frontend, security, and DevOps. Used by the scanner when it detects an existing coding-standards surface to improve.
 
 ## Commands
 
@@ -138,7 +138,7 @@ Expected. Run `goat-flow setup . --agent claude` and paste the output into your 
 | Document | What it covers |
 |---|---|
 | [CLI Reference](docs/cli.md) | All commands, flags, and output formats |
-| [Skills Reference](docs/skills/README.md) | All 6 skills: modes, phases, gates, outputs |
+| [Skills Reference](docs/skills/README.md) | All 7 skills: modes, phases, gates, outputs |
 
 ## Author
 

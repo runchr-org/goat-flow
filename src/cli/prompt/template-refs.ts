@@ -241,7 +241,7 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   },
   // create-stop-lint removed - stop-lint.sh removed from framework
   "create-post-turn-hook": "workflow/hooks/README.md",
-  // File-level creates - optional local instructions
+  // DEPRECATED: local-instructions surfaces (coding-standards removed from base setup in M13)
   "create-conventions-instructions":
     "workflow/setup/reference/reference-coding-guidelines.md",
   // create-code-review-instructions removed - check 2.6.4 removed
@@ -334,6 +334,7 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   "create-security-instructions": "workflow/reference/security/README.md",
   "create-testing-instructions":
     "workflow/setup/reference/reference-coding-guidelines.md",
+  // DEPRECATED: local-instructions surface (coding-standards removed from base setup in M13)
   "create-copilot-bridge":
     "workflow/setup/reference/reference-coding-guidelines.md",
   "create-domain-instructions":
@@ -356,7 +357,7 @@ const FRAGMENT_TEMPLATE_MAP: Record<
   "create-security-go": "workflow/reference/security/framework-specific/go.md",
   "create-devops-terraform": "workflow/reference/security/infrastructure.md",
 
-  // Fix-kind - local instructions
+  // DEPRECATED: local-instructions surfaces (coding-standards removed from base setup in M13)
   "improve-conventions-instructions":
     "workflow/setup/reference/reference-coding-guidelines.md",
   "create-instructions-dir": "workflow/setup/05-customise-to-project.md",
@@ -422,6 +423,7 @@ export function getLanguageTemplate(
   key: string,
   _languages: string[],
 ): string | null {
+  // DEPRECATED: local-instructions surface (coding-standards removed from base setup in M13)
   if (key === "create-backend-instructions") {
     return "workflow/setup/reference/reference-coding-guidelines.md";
   }

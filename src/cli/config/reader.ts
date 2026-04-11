@@ -212,6 +212,19 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
   mergeUserRole(raw.userRole, merged);
   if (typeof raw.telemetry === "boolean") merged.telemetry = raw.telemetry;
 
+  // YAML key is `known-gaps` (kebab-case), TypeScript field is `knownGaps` (camelCase)
+  if (Array.isArray(raw["known-gaps"])) {
+    merged.knownGaps = (raw["known-gaps"] as unknown[]).filter(
+      (item): item is string =>
+        typeof item === "string" && item.trim().length > 0,
+    );
+  }
+
+  // YAML key is `skill-overrides` (kebab-case), TypeScript field is `skillOverrides` (camelCase)
+  if (isRecord(raw["skill-overrides"])) {
+    merged.skillOverrides = { ...(raw["skill-overrides"] as Record<string, unknown>) };
+  }
+
   return merged;
 }
 

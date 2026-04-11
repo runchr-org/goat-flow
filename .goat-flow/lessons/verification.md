@@ -200,6 +200,21 @@ Deny hooks block dangerous patterns, not all operations. When a command is block
 
 ---
 
+## Lesson: Blindly applying review feedback without verifying findings
+
+**Created:** 2026-04-11
+**What happened:** After receiving 8 critic reviews of the goat-flow framework, the agent started fixing every cited `file:line` without first checking whether the findings were still valid. Several of the cited issues had already been fixed by sub-agents earlier in the same session. The agent was about to edit files that were already correct, potentially reintroducing bugs or making nonsensical changes.
+
+**Root cause:** Treating review output as a task list instead of as claims to verify. The agent read "CLAUDE.md:11 still has 6-step loop" and jumped to editing without running `sed -n '11p' CLAUDE.md` first. Reviews are evidence-tagged opinions, not commands. The evidence can be stale by the time you read it — especially when multiple agents are editing the same repo in the same session.
+
+**Prevention:**
+1. Before acting on any review finding, verify the cited evidence is still current: read the actual file at the cited line
+2. Batch-verify all findings first (`grep`, `sed -n`, `head`), then fix only what's actually broken
+3. Reviews from agents that didn't run the latest code are particularly likely to cite stale evidence
+4. "8 critics agree" does not mean "8 critics are right" — they may all be reading the same stale state
+
+---
+
 ## Lesson: 14 self-dogfooding bugs survived 9 rounds of critique and 17 milestones
 
 **Created:** 2026-04-11

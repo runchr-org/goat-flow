@@ -26,7 +26,7 @@ export const fullFragments: Fragment[] = [
 mkdir -p .goat-flow/logs/sessions
 \`\`\`
 
-Copy the README from the goat-flow templates: \`workflow/evaluation/logs-README.md\` → \`.goat-flow/logs/README.md\`.
+Copy the README from the goat-flow templates: \`workflow/evaluation/README.md\` → \`.goat-flow/logs/README.md\`.
 
 Add to \`.gitignore\`:
 \`\`\`
@@ -55,7 +55,7 @@ Ensure at least 3 instances across the instruction file. Use MUST for DoD gates 
     phase: "full",
     category: "Hygiene",
     kind: "fix",
-    instruction: `Multiple agent instruction files have diverged execution loops. When CLAUDE.md, AGENTS.md, and/or GEMINI.md all contain the execution loop (READ→CLASSIFY→SCOPE→ACT→VERIFY→LOG), changes must be propagated to all copies.
+    instruction: `Multiple agent instruction files have diverged execution loops. When CLAUDE.md, AGENTS.md, and/or GEMINI.md all contain the execution loop (READ → SCOPE → ACT → VERIFY), changes must be propagated to all copies.
 
 1. Diff the execution loop sections across all agent instruction files
 2. Identify intentional differences (agent-specific adaptations) vs accidental drift

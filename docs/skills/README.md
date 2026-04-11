@@ -1,6 +1,6 @@
 # Skills
 
-Six focused capabilities (plus dispatcher) loaded on demand. Each skill has a distinct artifact, a hard quality gate, and a repeatable output. Skills don't load unless invoked - they stay out of the instruction budget.
+Seven focused capabilities (six plus dispatcher) loaded on demand. Each skill has a distinct artifact, a hard quality gate, and a repeatable output. Skills don't load unless invoked - they stay out of the instruction budget.
 
 All skills use the `goat-` prefix to avoid conflicts with built-in agent commands.
 
@@ -72,7 +72,7 @@ See `workflow/skills/reference/skill-preamble.md` for the canonical shared conve
 | Gemini CLI | `.agents/skills/goat-{name}/SKILL.md` |
 | Copilot CLI | `.github/skills/goat-{name}/SKILL.md` |
 
-Skills are created during Phase 1b of the GOAT Flow setup. The skill templates in `workflow/skills/` document the prompts used to create them.
+Skills are created during step 03 of the GOAT Flow setup. The skill templates in `workflow/skills/` document the prompts used to create them.
 
 ---
 

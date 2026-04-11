@@ -104,9 +104,7 @@ If working from a plan/milestone file, tick `- [x]` on each completed task immed
 | CLI scanner/prompt code | `src/cli/` |
 | Scripts | `scripts/` |
 | Skills | `.claude/skills/` |
-| Project guidelines | `.goat-flow/coding-standards/conventions.md` |
 | Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
 | Decisions | `.goat-flow/decisions/` |
-| Coding standards | `.goat-flow/coding-standards/` |
 | Config | `.goat-flow/config.yaml` |
 | Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |

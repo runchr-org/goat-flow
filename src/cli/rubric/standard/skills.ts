@@ -17,7 +17,7 @@ export const skillChecks: CheckDef[] = [
       path: `{skills_dir}/${skill}/SKILL.md`,
     },
     recommendation: `Missing ${skill} skill means agents must improvise that workflow from scratch each session, producing inconsistent and unrepeatable results. Create the skill so the process is encoded and reusable.`,
-    recommendationKey: `create-skill-${skill.replace("goat-", "")}`,
+    recommendationKey: skill === "goat" ? "create-skill-goat" : `create-skill-${skill.replace("goat-", "")}`,
     priority: "recommended" as const,
     hidden: true as const,
   })),
