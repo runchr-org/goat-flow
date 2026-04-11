@@ -1,14 +1,13 @@
 # /goat-debug
 
-Diagnosis-first debugging, codebase investigation, and project onboarding.
+Diagnosis-first debugging and codebase investigation.
 
 ## Modes
 
 | Mode | Trigger | What it does |
 |------|---------|-------------|
 | **Diagnose** | bug, error, crash, symptom | Hypothesis-driven debugging with confidence-gated fixes |
-| **Investigate** | explore, understand, how does | Deep codebase reading with progressive depth and evidence tags |
-| **Onboard** | new to this, onboard | Stack detection + guided codebase orientation |
+| **Investigate** | explore, understand, how does, new to this | Deep codebase reading with progressive depth and evidence tags |
 
 ## Diagnose Mode
 
@@ -18,18 +17,18 @@ flowchart TD
 
     subgraph Diagnose["Diagnose Mode"]
         D1["D1: Investigate\nHypotheses (2+ categories)\nTrace code paths"] --> D2
-        D2["D2: Diagnosis\nConfidence: LOW/MED/HIGH"]
+        D2["D2: Diagnosis\nConfidence: HIGH/MEDIUM/LOW"]
     end
 
     D2 -->|"BLOCKING GATE"| Decision{Human decision}
     Decision -->|"Fix it"| D3["D3: Fix Plan"]
     Decision -->|"Go deeper"| D1
     Decision -->|"Just report"| Close
-    D3 --> D4["D4: Post-Fix Verification\nTwo-corrections rule"]
+    D3 --> D4["D4: Post-Fix Verification"]
     D4 -->|"CHECKPOINT"| Close["Closing\nLearning loop"]
 ```
 
-**Key constraint:** No fixes until human reviews diagnosis. If confidence is LOW, the agent cannot propose a fix - must investigate further.
+**Key constraint:** No fixes until human reviews diagnosis (D2 → D3 gate). Confidence levels: HIGH = reproduced, MEDIUM = traced but not reproduced, LOW = inferred from code reading.
 
 ## Investigate Mode
 
@@ -48,11 +47,6 @@ flowchart TD
     I3 -->|"BLOCKING GATE"| Close["Go deeper / Switch to diagnose / Close"]
 ```
 
-## Onboard Mode
-
-Runs Investigate mode (I1-I3) with two additional phases:
-
-- **O1 (before I1):** Stack detection - languages, frameworks, build/test/lint commands
-- **O2 (after I3):** Glossary and instruction drafting - build `.goat-flow/glossary.md` from codebase
+For onboarding ("I'm new to this project"), use investigate mode — it covers stack detection and codebase orientation through progressive depth reading.
 
 **Source:** `workflow/skills/goat-debug.md`

@@ -67,6 +67,7 @@ section() {
 }
 pass()    { checks=$((checks + 1)); echo -e "  ${G}✓${RST} $1"; }
 fail()    { checks=$((checks + 1)); errors=$((errors + 1)); echo -e "  ${R}✗${RST} $1" >&2; }
+warn()    { checks=$((checks + 1)); warnings=$((warnings + 1)); echo -e "  ${Y}⚠${RST} $1"; }
 skip()    { echo -e "  ${DIM}⊘ $1 (skipped)${RST}"; }
 note()    { warnings=$((warnings + 1)); echo -e "  ${Y}⚠${RST} $1"; }
 
@@ -326,8 +327,10 @@ if [[ -f package.json ]] && grep -q '"test"' package.json; then
     pass_count=$(echo "$test_output" | grep '# pass' | grep -oE '[0-9]+' || echo "?")
     fail_count=$(echo "$test_output" | grep '# fail' | grep -oE '[0-9]+' || echo "0")
 
-    if [[ "$test_exit" -eq 0 ]]; then
+    if [[ "$test_exit" -eq 0 ]] && [[ "$test_count" != "0" ]] && [[ "$test_count" != "?" ]]; then
         pass "All passing ($pass_count/$test_count)"
+    elif [[ "$test_exit" -eq 0 ]] && [[ "$test_count" == "0" || "$test_count" == "?" ]]; then
+        warn "No tests found ($pass_count/$test_count) - test suite needs rebuilding (M23)"
     else
         fail "Tests failed ($fail_count/$test_count failures)"
         echo "$test_output" | grep 'not ok' | head -5 | sed 's/^/    /'

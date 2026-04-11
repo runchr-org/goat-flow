@@ -1,55 +1,30 @@
 # /goat-test
 
-Three-phase test plan generation using the doer-verifier principle.
+Testing gap analyser. Compares code changes against testing coverage to find undertested risks and misaligned test effort.
 
 ## Modes
 
 | Mode | Trigger | What it does |
 |------|---------|-------------|
-| **Standard** | test, coverage | Full 3-phase test plan for recent changes |
-| **Quick** | small change, hotfix | Abbreviated plan for 1-2 file changes |
-| **Audit** | test audit, coverage gaps | Audit existing test coverage without new changes |
+| **Standard** | test, verify, gaps | Risk-based gap analysis for recent changes |
+| **Audit** | test audit, coverage | Audit existing test coverage for a codebase area |
+| **Regression Guard** | after bug fix | Define invariants and assess coverage for a specific fix |
 
 ## Flow
 
 ```mermaid
 flowchart TD
-    S0["Step 0\nGather context\nAuto-detect mode"] --> P0
+    S0["Step 0\nGather scope\nConfirm mode"] --> P1
 
-    subgraph TestPlan["Test Plan Generation"]
-        P0["Phase 0: Change Manifest\nList every changed file\nVerification ratio by complexity"]
-        P0 --> P1["Phase 1: Automated Tests\nExact commands for coding agent\nPattern-match existing tests"]
-        P1 --> P2["Phase 2: AI Verification\nSelf-contained prompts for\nSEPARATE fresh agent session"]
-        P2 --> P3["Phase 3: Human Testing\nChecklist for developer\nUI, UX, integration points"]
+    subgraph GapAnalysis["Gap Analysis"]
+        P1["Phase 1: Change Risk Map\nRead actual diff, not just file names\nClassify: CRITICAL / HIGH / MEDIUM / LOW\nTrace blast radius for CRITICAL/HIGH"]
+        P1 -->|"CHECKPOINT"| P2["Phase 2: Gap Analysis\nCompare risk vs coverage\nUndertested risks + Misaligned effort"]
+        P2 -->|"BLOCKING GATE"| P3["Phase 3: Targeted Testing Plan\nMust test / Should test / Safe to skip\nTime estimates for manual items"]
     end
 
-    P3 --> NISNT["What ISN'T Tested\n(explicit gap list)"]
-    NISNT -->|"BLOCKING GATE"| Decision{Human decision}
-    Decision -->|"Run Phase 1"| Run["Agent runs automated tests"]
-    Decision -->|"Adjust plan"| P0
-    Decision -->|"Skip testing"| Close["Close"]
+    P3 -->|"CHECKPOINT"| Close["Closing"]
 ```
 
-## The Doer-Verifier Principle
-
-```mermaid
-flowchart LR
-    subgraph "Doer (coding agent)"
-        Write["Write code"] --> P1Run["Run Phase 1\nautomated tests"]
-    end
-
-    subgraph "Verifier (separate agent)"
-        P2Run["Run Phase 2\nAI verification prompts"]
-    end
-
-    subgraph "Human"
-        P3Run["Run Phase 3\nManual testing checklist"]
-    end
-
-    P1Run -.->|"MUST be different agent"| P2Run
-    P2Run -.->|"MUST be human"| P3Run
-```
-
-**Key constraint:** The coding agent MUST NOT verify its own work. Phase 2 prompts must be completely self-contained - the verifier agent starts fresh with no context from the coding session.
+**Key constraint:** goat-test is a gap ANALYSER — it finds mismatches between code changes and testing coverage. It does not write test code. It hands off testing tasks to the coding agent.
 
 **Source:** `workflow/skills/goat-test.md`

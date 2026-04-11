@@ -1,67 +1,36 @@
 # /goat-review
 
-Structured code review, quality audit, instruction review, and readability improvement.
+Structured code review and quality audit with negative verification.
 
 ## Modes
 
 | Mode | Trigger | What it does |
 |------|---------|-------------|
-| **Standard** | review, PR, diff | RFC 2119 severity review of changes |
-| **Audit** | audit, quality sweep | Systematic codebase quality scan with negative verification |
-| **Instruction** | instruction staleness | Audit CLAUDE.md/AGENTS.md for drift and missing rules |
-| **Simplify** | simplify, clean up, naming | Readability improvement without behavior change |
+| **Quick Review** | review, PR, diff | Severity-ordered scan of changes with negative verification |
+| **Audit** | audit, quality sweep | Systematic codebase area scan — findings only, no fixes |
 
-## Standard Review
+## Quick Review
 
 ```mermaid
 flowchart TD
-    S0["Step 0\nAuto-detect scope\nFootgun check"] --> P0
+    S0["Step 0\nAuto-detect scope\nFootgun check"] --> R1
 
-    subgraph Standard["Standard Review"]
-        P0["Phase 0: Spec Compliance\n(if spec/requirements exist)"]
-        P0 --> P1["Phase 1: Scope Confirmation"]
-        P1 -->|"CHECKPOINT"| P2["Phase 2: Review\nSeverity scan (MUST → SHOULD → MAY)\nCross-cutting checks\nFootgun match per finding"]
-        P2 --> P3["Phase 3: Present Findings"]
+    subgraph Review["Quick Review"]
+        R1["Severity-Ordered Scan\nSecurity > Correctness > Integration > Performance > Style"]
+        R1 --> R2["Negative Verification\nAttempt to DISPROVE each finding\nRemove false positives"]
+        R2 --> R3["Present Findings\nMUST / SHOULD / MAY Fix"]
     end
 
-    P3 -->|"BLOCKING GATE"| P4["Phase 4: DoD Gate Check"]
-    P4 -->|"CHECKPOINT"| Close["Closing"]
+    R3 -->|"BLOCKING GATE"| DoD["DoD Gate Check"]
+    DoD -->|"CHECKPOINT"| Close["Closing"]
 ```
+
+**Key constraint:** MUST NOT flag pre-existing issues as part of this change. MUST attempt to disprove each finding before presenting it.
 
 ## Audit Mode
 
-```mermaid
-flowchart TD
-    S0["Step 0"] --> A1
+For codebase areas (not a diff). Scan using severity ordering, run negative verification, group 3+ related findings as systemic patterns.
 
-    subgraph Audit["Audit Mode"]
-        A1["A1: Scan\nWeighted category scan\nSeverity-ordered"]
-        A1 --> A2["A2: Negative Verification\nAttempt to DISPROVE each finding\nFabrication self-check\n>50% removed = scan too noisy\n>20% fabricated = agent confabulating"]
-        A2 --> A3["A3: Report\nPattern rollup (3+ → pattern)\nMUST NOT propose fixes"]
-    end
-
-    A3 -->|"BLOCKING GATE"| Close["Close"]
-```
-
-**Key constraint:** In audit mode, MUST attempt to disprove each finding. MUST NOT propose fixes - findings only.
-
-## Simplify Mode
-
-```mermaid
-flowchart TD
-    S0["Step 0\nFootgun check"] --> S1
-
-    subgraph Simplify["Simplify Mode"]
-        S1["S1: Read & Assess\nNames, comments, control flow"]
-        S1 --> S2["S2: Identify Opportunities\nNaming → Self-doc → Comments → Complexity → Constants → Dead code"]
-        S2 --> S3["S3: Self-Check & Present\nRe-read file:line, remove unsupported findings"]
-    end
-
-    S3 -->|"BLOCKING GATE"| Decision{Implement?}
-    Decision -->|Yes| S4["S4: Implement\nOne file at a time\nGrep old names\nRevert on test failure"]
-    Decision -->|No| Close["Close"]
-```
-
-**Key constraint:** MUST NOT change behavior. If a rename crosses file boundaries or changes a public API, redirect to /goat-plan refactor mode.
+**Key constraint:** MUST NOT propose fixes in audit mode — findings only.
 
 **Source:** `workflow/skills/goat-review.md`

@@ -1,49 +1,31 @@
 # /goat-plan
 
-Structured planning for features and cross-file refactoring.
+Milestone task file generator and manager. Creates structured milestone files in `.goat-flow/tasks/` that track progress, enforce testing gates, and provide shared state between human and coding agent.
 
-## Modes
-
-| Mode | Trigger | What it does |
-|------|---------|-------------|
-| **Plan** | plan, design, architect, build | 4-phase feature planning with human gates |
-| **Refactor** | rename, move, extract, restructure | Blast radius analysis with grep-after-every-rename |
-
-## Plan Mode
+## Flow
 
 ```mermaid
 flowchart TD
-    S0["Step 0\nContinuation check\nConcurrent work check\nKill criteria"] --> P1
+    S0["Step 0\nCheck existing milestones\nIdentify riskiest part\nKill criteria"] --> P1
 
-    subgraph Plan["Plan Mode"]
-        P1["Phase 1: Feature Brief\n8 sections, one at a time"]
-        P1 -->|"BLOCKING GATE"| P2["Phase 2: Mob Elaboration\n3-5 sharp questions per round\nDo NOT self-answer"]
-        P2 -->|"CHECKPOINT"| P3["Phase 3: SBAO\nSub-agents use Core Trio\n(SKEPTIC/ANALYST/STRATEGIST)"]
-        P3 -->|"BLOCKING GATE"| P4["Phase 4: Milestones\nExit criteria + kill criteria per milestone"]
+    subgraph Plan["Milestone Breakdown"]
+        P1["Phase 1: Break into milestones\nArchetypes: Prove It Works → Make It Real\n→ Make It Solid → Make It Shine"]
     end
 
-    P4 -->|"BLOCKING GATE"| Decision{Approve?}
-    Decision -->|Yes| Implement["Phase 5: Execute\n(per milestone)"]
-    Decision -->|Adjust| P4
+    P1 -->|"BLOCKING GATE"| P2["Phase 2: Write milestone files\nto .goat-flow/tasks/"]
+    P2 -->|"CHECKPOINT"| P3["Phase 3: Between milestones\nRun testing gate\nCapture learnings\nUpdate next milestone"]
+    P3 -->|"CHECKPOINT"| Next{"Next milestone?"}
+    Next -->|Yes| P3
+    Next -->|No| Close["Complete"]
 ```
 
-**Key constraint:** Human approval between phases. Hotfixes skip Phases 2-3 and get a compressed 3-5 line brief.
+**Key features:**
+- **Milestone archetypes:** Prove It Works (spike the riskiest thing first) → Make It Real (end-to-end working) → Make It Solid (edge cases, security) → Make It Shine (polish, optional)
+- **Kill criteria:** What would make you stop at this milestone
+- **Assumption tracking:** Checkboxes with evidence when validated or invalidated
+- **Testing gates:** Between every milestone — automated + manual + acceptance
+- **Inline mode:** For Hotfix/Small Feature scope, milestones can be delivered inline rather than written to files
 
-## Refactor Planning Mode
-
-```mermaid
-flowchart TD
-    S0["Step 0\nFootgun check"] --> R1
-
-    subgraph Refactor["Refactor Mode"]
-        R1["R1: Blast Radius Analysis\nDeclare scope\nRead BOTH sides of every interface\nAuto-detect with grep"]
-        R1 -->|"BLOCKING GATE"| R2["R2: Execution Sequence\nOne layer at a time\nLint/test after each step"]
-        R2 --> R3["R3: Verification Plan\nGrep old names (target: ZERO)\nBuild check + doc cross-refs"]
-    end
-
-    R3 -->|"BLOCKING GATE"| Execute["Execute refactor"]
-```
-
-**Key constraint:** MUST read both sides of every interface before changing. MUST grep after every rename. MUST check docs, not just source.
+**Key constraint:** MUST check for existing milestone files before creating new ones. MUST include testing gates on every milestone. MUST NOT continue building on an invalidated assumption.
 
 **Source:** `workflow/skills/goat-plan.md`
