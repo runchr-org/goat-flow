@@ -39,6 +39,61 @@ export interface CreateResponse {
   wsUrl: string;
 }
 
+// === Dashboard audit response ===
+
+/** Per-agent scoring summary consumed by the Home page agent cards. */
+export interface DashboardAgentSummary {
+  agent: string;
+  agentName: string;
+  score: {
+    grade: string;
+    percentage: number;
+    earned: number;
+    available: number;
+    tiers: Record<string, { percentage: number; available: number }>;
+  };
+  checks: { id: string; status: string; hidden?: boolean }[];
+  antiPatterns: { id: string; triggered: boolean; deduction: number }[];
+  recommendations: { priority: string; message: string }[];
+}
+
+/** Combined response from /api/audit consumed by all dashboard views.
+ * Merges per-agent scoring (Home page) with scope-based audit results (Audit detail). */
+export interface DashboardReport {
+  // Per-agent scoring — Home page agent cards, banner counts
+  agents: DashboardAgentSummary[];
+  // Scope-based audit — Audit detail view
+  status: "pass" | "fail";
+  scopes: Record<
+    string,
+    {
+      status: string;
+      failures: { check: string; message: string; howToFix?: string }[];
+      summary: Record<string, string>;
+    }
+  >;
+  overall: {
+    status: string;
+    grade: string | null;
+    qualityScore: number | null;
+  };
+  concerns: Record<
+    string,
+    {
+      score: number;
+      findings: string[];
+      recommendations: string[];
+      howToFix?: string[];
+    }
+  > | null;
+  // Metadata
+  rubricVersion: string;
+  packageVersion: string;
+  target: string;
+  // Stack detection — Wizard view
+  stack?: { languages?: string[] };
+}
+
 /** Response body from the GET /api/health endpoint. */
 export interface HealthResponse {
   /** Server uptime in seconds */

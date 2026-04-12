@@ -22,9 +22,9 @@ import { classifyProjectState } from "../classify-state.js";
 import { scanProject } from "../scanner/scan.js";
 import { runAudit } from "../audit/audit.js";
 import { getPackageVersion } from "../paths.js";
-import type { AgentId } from "../types.js";
+import type { AgentId, ScanReport } from "../types.js";
 import type { AuditReport } from "../audit/types.js";
-import type { Runner } from "./types.js";
+import type { DashboardReport, Runner } from "./types.js";
 import type { TerminalManager } from "./terminal.js";
 import type { WebSocketServer, WebSocket as WsWebSocket } from "ws";
 
@@ -209,10 +209,57 @@ export function serveDashboard(
       return true;
     }
 
-    /** Run an audit for the requested path and return a merged report.
-     * The dashboard Home page needs per-agent scoring from the scanner,
-     * while the Audit detail page needs scope-based results from the auditor.
-     * This endpoint runs both and merges the results. */
+    /** Build a DashboardReport from scanner + auditor results.
+     * The Home page needs per-agent scoring (scanner), the Audit detail
+     * page needs scope-based results (auditor). This adapter produces
+     * a single typed response covering both views. */
+    function buildDashboardReport(
+      scanRpt: ScanReport,
+      auditRpt: AuditReport,
+    ): DashboardReport {
+      return {
+        agents: scanRpt.agents.map((a) => ({
+          agent: a.agent,
+          agentName: a.agentName,
+          score: {
+            grade: a.score.grade,
+            percentage: a.score.percentage,
+            earned: a.score.earned,
+            available: a.score.available,
+            tiers: Object.fromEntries(
+              Object.entries(a.score.tiers).map(([k, t]) => [
+                k,
+                { percentage: t.percentage, available: t.available },
+              ]),
+            ),
+          },
+          checks: a.checks.map((c) => ({
+            id: c.id,
+            status: c.status,
+            ...(c.hidden ? { hidden: true } : {}),
+          })),
+          antiPatterns: a.antiPatterns.map((p) => ({
+            id: p.id,
+            triggered: p.triggered,
+            deduction: p.deduction,
+          })),
+          recommendations: a.recommendations.map((r) => ({
+            priority: r.priority,
+            message: r.message,
+          })),
+        })),
+        status: auditRpt.status,
+        scopes: auditRpt.scopes,
+        overall: auditRpt.overall,
+        concerns: auditRpt.concerns,
+        rubricVersion: scanRpt.rubricVersion,
+        packageVersion: scanRpt.packageVersion,
+        target: scanRpt.target,
+        stack: scanRpt.stack,
+      };
+    }
+
+    /** Run both evaluation systems and return a typed DashboardReport. */
     function handleAuditRequest(url: URL, res: ServerResponse): boolean {
       if (url.pathname !== "/api/audit") return false;
 
@@ -226,9 +273,9 @@ export function serveDashboard(
 
       try {
         const fs = createFS(projectPath);
-        const scanReport = scanProject(fs, projectPath, { agentFilter });
-        const auditReport = runAudit(fs, projectPath, { agentFilter, quality });
-        jsonResponse(res, 200, { ...scanReport, ...auditReport });
+        const scanRpt = scanProject(fs, projectPath, { agentFilter });
+        const auditRpt = runAudit(fs, projectPath, { agentFilter, quality });
+        jsonResponse(res, 200, buildDashboardReport(scanRpt, auditRpt));
       } catch (err) {
         jsonResponse(res, 500, {
           error: err instanceof Error ? err.message : String(err),
