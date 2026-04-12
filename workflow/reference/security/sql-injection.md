@@ -1,6 +1,6 @@
 # SQL Injection Prevention
 
-Reference for generating `.goat-flow/coding-standards/security.md` in projects using SQL databases.
+Reference for generating `docs/coding-standards/security.md` in projects using SQL databases.
 
 ## Parameterized Queries by ORM
 

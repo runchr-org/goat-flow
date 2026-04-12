@@ -1,6 +1,6 @@
 # Go Security Standards
 
-Reference for generating `.goat-flow/coding-standards/security.md` in Go projects.
+Reference for generating `docs/coding-standards/security.md` in Go projects.
 
 ## Cryptographic Randomness
 

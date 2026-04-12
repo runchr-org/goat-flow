@@ -1,6 +1,6 @@
 # workflow/hooks/
 
-Copyable hook scripts and agent-config templates for the GOAT Flow enforcement layer. These replace the prose instructions in `workflow/runtime/enforcement.md` with actual scripts you can drop into your project.
+Copyable hook scripts and agent-config templates for the GOAT Flow enforcement layer.
 
 ## Hook Scripts
 

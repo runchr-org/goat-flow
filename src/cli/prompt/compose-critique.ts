@@ -29,8 +29,8 @@ const AGENT_LABELS: Record<AgentId, string> = {
 
 const AGENT_SKILL_DIRS: Record<AgentId, string> = {
   claude: ".claude/skills",
-  codex: ".codex/skills",
-  gemini: ".gemini/skills",
+  codex: ".agents/skills",
+  gemini: ".agents/skills",
 };
 
 const AGENT_SETTINGS: Record<AgentId, string> = {

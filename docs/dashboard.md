@@ -1,16 +1,16 @@
 # Dashboard Reference
 
-Launch: `goat-flow dashboard` (or `goat-flow dashboard --dev` for live reload)
+Launch: `goat-flow dashboard .` (or `goat-flow dashboard . --dev` for live reload)
 
 ## Views
 
 ### Home
 
-Overview landing page. Shows "What to do next" action cards based on your latest scan results, per-agent score bars broken down by tier, and quick-launch buttons for the setup wizard and terminal. When all agents score an A, the action cards are replaced with a success banner.
+Overview landing page. Shows "What to do next" action cards based on your latest audit results, per-agent status indicators, and quick-launch buttons for the setup wizard and terminal. When all agents pass audit, the action cards are replaced with a success banner.
 
-### Scanner
+### Audit
 
-Scan results in a single scrollable page. Each rubric check shows pass/fail with a severity badge and can be expanded inline for details. Recommendations are clickable and link directly to setup guidance. Run a new scan or re-scan after changes without leaving the page.
+Audit results in a single scrollable page. Each scope (setup, project, integration) shows pass/fail status and can be expanded inline for details. Failures include actionable fix instructions. Run a new audit or re-audit after changes without leaving the page.
 
 ### Workspace
 
@@ -18,19 +18,19 @@ Split-pane layout. The left panel is a prompt library with category filters and 
 
 ### Rubrics
 
-Reference list of every rubric check and anti-pattern the scanner evaluates. Filter by tier (Foundation, Standard) to see check IDs, point values, and descriptions. Useful for understanding exactly what the scanner scores and how to improve.
+Reference list of every rubric check and anti-pattern the auditor evaluates. Filter by tier (Foundation, Standard) to see check IDs, point values, and descriptions. Useful for understanding exactly what the auditor checks and how to improve.
 
 ### Projects
 
-Multi-project browser. Lists all registered project paths with their latest scan grade and score. "Scan All" re-scans every project in one click. Select a project to switch context and view its results in the Scanner view.
+Multi-project browser. Lists all registered project paths with their latest audit status. "Audit All" re-audits every project in one click. Select a project to switch context and view its results in the Audit view.
 
 ### Wizard
 
 Guided setup flow. Detects your project stack and existing configuration, lets you pick a target agent (Claude, Codex, Gemini), then generates a setup prompt you can preview and launch directly in a terminal session.
 
-## Help
+### Help
 
-Getting-started page for new users. Explains what goat-flow is, how scoring works, what skills and hooks do, the learning loop, and the execution loop. Accessible from the "?" button in the nav bar.
+Getting-started page for new users. Explains what goat-flow is, the audit/critique model, what skills and hooks do, the learning loop, and the execution loop. Accessible from the "?" button in the nav bar.
 
 ## Terminal
 
@@ -44,7 +44,8 @@ Getting-started page for new users. Explains what goat-flow is, how scoring work
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/scan` | GET | Run scan, return JSON results |
+| `/api/audit` | POST | Run audit, return JSON results |
 | `/api/setup` | POST | Generate setup prompt |
+| `/api/critique` | POST | Generate critique prompt |
 | `/api/terminal/create` | POST | Start a terminal session |
 | `/api/terminal/kill` | POST | End a terminal session |

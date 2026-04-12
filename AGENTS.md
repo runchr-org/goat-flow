@@ -63,7 +63,7 @@ If VERIFY caught a failure or you corrected course, update the learning loop bef
 1. Boundary touched: [name]
 2. Related code read: [yes/no]
 3. Footgun entry checked: [relevant entry, or "none"]
-4. Local instruction checked: [.github/instructions/ / CLAUDE.md / none]
+4. Local instruction checked: [.github/instructions/ / AGENTS.md / none]
 5. Rollback command: [exact command]
 - `.goat-flow/architecture.md` or `CLAUDE.md`
 - `workflow/setup/` or `workflow/skills/` template changes affecting generated output

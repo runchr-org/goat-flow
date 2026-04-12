@@ -1,6 +1,6 @@
 # Git Commit Instructions
 
-<!-- Source: .goat-flow/coding-standards/git-commit.md - keep in sync -->
+<!-- Source: docs/coding-standards/git-commit.md - keep in sync -->
 
 ## Commit Message Format
 

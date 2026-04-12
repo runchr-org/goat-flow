@@ -226,7 +226,7 @@ export const learningLoopChecks: CheckDef[] = [
       pattern: "logs/sessions|session.log|session.*summary",
     },
     recommendation:
-      "Without session logs, there's no audit trail of what each session accomplished, what decisions were made, or what was left incomplete. Adding a session log path (`.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`) to the LOG step and router table gives agents a place to write summaries and gives humans a way to review session-level progress.",
+      "Without session logs, there's no audit trail of what each session accomplished, what decisions were made, or what was left incomplete. Adding a session log path (`.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`) to the router table gives agents a place to write summaries and gives humans a way to review session-level progress.",
     recommendationKey: "add-session-logs",
   },
 ];

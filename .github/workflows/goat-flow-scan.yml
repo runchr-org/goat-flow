@@ -1,4 +1,4 @@
-name: GOAT Flow Scan
+name: GOAT Flow Audit
 on:
   pull_request:
     branches: [main, dev]
@@ -8,7 +8,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  scan:
+  audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -16,5 +16,3 @@ jobs:
         run: |
           mkdir -p .goat-flow/footguns .goat-flow/lessons .goat-flow/tasks .goat-flow/logs/sessions
       - uses: ./.github/actions/goat-flow-scan
-        with:
-          min-score: '100'

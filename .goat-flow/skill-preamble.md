@@ -56,7 +56,7 @@ When invoked via /goat or when intent is ambiguous:
 
 **Route by intent:**
 - Bug, failure, investigation → /goat-debug
-- Quality review, audit, simplify → /goat-review
+- Quality review, audit → /goat-review
 - Multi-perspective critique → /goat-sbao
 - Security, compliance, dependency audit → /goat-security
 - Testing gaps, coverage, verification → /goat-test

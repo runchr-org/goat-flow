@@ -20,7 +20,7 @@ const EFFORT_OVERRIDES: Record<string, "trivial" | "moderate" | "complex"> = {
   // Foundation checks that are actually moderate (need content, not just file creation)
   "1.1.5": "moderate", // Concrete examples require BAD/GOOD pairs with real paths
   "1.1.5a": "moderate", // Path resolution requires real project paths in instruction file
-  "1.2.6": "moderate", // LOG step needs footguns/lessons dirs AND content
+  "1.2.6": "moderate", // VERIFY step needs footguns/lessons dirs AND content
   "1.3.2": "moderate", // Ask First boundaries need project-specific paths
 
   // Standard checks that are actually trivial (one-line fixes)

@@ -31,7 +31,7 @@ Create `.goat-flow/logs/sessions/` if it doesn't exist, then use one shared file
 
 - If resuming after compaction, read the latest setup session log first and continue from the next incomplete step.
 - After each numbered step, append one progress marker line (for example: `Step 03 complete: 7 skills installed`).
-- Step 06 finalises the same file with the scanner result, file manifest, time spent, and tokens if available.
+- Step 06 finalises the same file with the audit result, file manifest, time spent, and tokens if available.
 
 ## File ownership
 

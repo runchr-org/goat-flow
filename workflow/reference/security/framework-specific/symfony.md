@@ -1,6 +1,6 @@
 # Symfony Security Standards
 
-Reference for generating `.goat-flow/coding-standards/security.md` in Symfony projects.
+Reference for generating `docs/coding-standards/security.md` in Symfony projects.
 
 ## CSRF Protection
 

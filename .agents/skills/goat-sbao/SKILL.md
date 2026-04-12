@@ -77,7 +77,7 @@ Each sub-agent MUST return:
 - Overall assessment: STRONG / ADEQUATE / WEAK / FLAWED
 - One thing the artifact gets RIGHT that should be preserved
 
-MUST use Agent tool calls, not inline role-play. Sub-agents run in isolated context.
+MUST use Agent tool calls, not inline role-play. Sub-agents run in isolated context. If isolated sub-agent tools are unavailable, simulate isolation by processing each perspective sequentially with explicit context boundaries - do not let findings from one perspective leak into another's analysis.
 
 ## Phase 2 - Rank and Compare
 

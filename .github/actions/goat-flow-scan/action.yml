@@ -1,12 +1,12 @@
-name: 'GOAT Flow Scan'
-description: 'Score AI workflow quality and comment results on PRs'
+name: 'GOAT Flow Audit'
+description: 'Validate AI workflow setup quality and comment results on PRs'
 inputs:
-  min-score:
-    description: 'Minimum passing score (0-100). PR fails if any agent scores below this.'
+  quality:
+    description: 'Include advisory quality scoring (true/false)'
     required: false
-    default: '0'
+    default: 'false'
   path:
-    description: 'Path to scan (defaults to repo root)'
+    description: 'Path to audit (defaults to repo root)'
     required: false
     default: '.'
 runs:
@@ -18,90 +18,96 @@ runs:
     - name: Install dependencies
       shell: bash
       run: cd ${{ github.action_path }}/../../.. && npm ci
-    - name: Build scanner
+    - name: Build CLI
       shell: bash
       run: cd ${{ github.action_path }}/../../.. && npx tsc
-    - name: Create config.local.yaml if missing
-      shell: bash
-      run: |
-        CONFIG_LOCAL="${{ inputs.path }}/.goat-flow/config.local.yaml"
-        if [ ! -f "$CONFIG_LOCAL" ]; then
-          mkdir -p "$(dirname "$CONFIG_LOCAL")"
-          echo "# Local overrides - this file is gitignored." > "$CONFIG_LOCAL"
-        fi
-    - name: Run scan
-      id: scan
+    - name: Run audit
+      id: audit
       shell: bash
       env:
-        SCAN_PATH: ${{ inputs.path }}
-        MIN_SCORE: ${{ inputs.min-score }}
+        AUDIT_PATH: ${{ inputs.path }}
+        QUALITY: ${{ inputs.quality }}
       run: |
         set -euo pipefail
         cd "${{ github.action_path }}/../../.."
         STDERR_FILE=$(mktemp)
         trap 'rm -f "$STDERR_FILE"' EXIT
 
+        QUALITY_FLAG=""
+        if [[ "$QUALITY" == "true" ]]; then
+          QUALITY_FLAG="--quality"
+        fi
+
         # Capture JSON on stdout only; stderr (deprecations, etc.) must not corrupt json.load
-        if ! output=$(node dist/cli/cli.js scan "$SCAN_PATH" 2>"$STDERR_FILE"); then
-          echo "::error::goat-flow scan failed"
+        if ! output=$(node dist/cli/cli.js audit "$AUDIT_PATH" $QUALITY_FLAG --format json 2>"$STDERR_FILE"); then
+          echo "::error::goat-flow audit failed"
           cat "$STDERR_FILE" >&2 || true
-          exit 1
+          # Still parse output for PR comment if available
+          if [[ -n "$output" ]]; then
+            echo "raw_output<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$output" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          fi
+          echo "audit_pass=false" >> "$GITHUB_OUTPUT"
+          exit 0  # Don't fail yet - let the gate step handle it
         fi
         if [[ -s "$STDERR_FILE" ]]; then
-          echo "::warning::Scan wrote to stderr (warnings only; JSON parsed from stdout)" >&2
+          echo "::warning::Audit wrote to stderr (warnings only; JSON parsed from stdout)" >&2
           cat "$STDERR_FILE" >&2
         fi
 
-        # MIN_SCORE from env - never interpolate inputs into inline Python (injection-safe)
         summary=$(printf '%s\n' "$output" | python3 -c "
-        import json, sys, os, re
-        ms = os.environ.get('MIN_SCORE', '0').strip()
-        if not re.fullmatch(r'[0-9]{1,3}', ms) or int(ms) > 100:
-            raise SystemExit('MIN_SCORE must be an integer 0-100')
-        min_score = int(ms)
+        import json, sys
         data = json.load(sys.stdin)
         lines = []
-        for a in data['agents']:
-            s = a['score']
-            emoji = ':white_check_mark:' if s['percentage'] >= min_score else ':x:'
-            lines.append(f'| {emoji} {a[\"agentName\"]} | {s[\"grade\"]} | {s[\"percentage\"]}% | {s[\"earned\"]}/{s[\"available\"]} |')
-            fails = [c for c in a['checks'] if c['status'] == 'fail']
-            for f in fails:
-                lines.append(f'|  | | :x: {f[\"id\"]} | {f[\"name\"]} |')
+        status = data.get('status', 'unknown')
+        emoji = ':white_check_mark:' if status == 'pass' else ':x:'
+        lines.append(f'**Overall: {emoji} {status.upper()}**')
+        lines.append('')
+        scopes = data.get('scopes', {})
+        for scope_name, scope_data in scopes.items():
+            s = scope_data.get('status', 'unknown')
+            se = ':white_check_mark:' if s == 'pass' else ':x:'
+            summary = scope_data.get('summary', {})
+            detail = ', '.join(f'{k}: {v}' for k, v in summary.items()) if summary else ''
+            lines.append(f'| {se} {scope_name} | {s} | {detail} |')
+            for f in scope_data.get('failures', []):
+                lines.append(f'|  | :x: | {f.get(\"check\", \"\")} — {f.get(\"message\", \"\")} |')
+        concerns = data.get('concerns')
+        if concerns:
+            grade = data.get('overall', {}).get('grade', '?')
+            score = data.get('overall', {}).get('qualityScore', '?')
+            lines.append(f'')
+            lines.append(f'**Quality: {grade} ({score}%)**')
         print('\n'.join(lines))
         ")
 
-        all_pass=$(printf '%s\n' "$output" | python3 -c "
-        import json, sys, os, re
-        ms = os.environ.get('MIN_SCORE', '0').strip()
-        if not re.fullmatch(r'[0-9]{1,3}', ms) or int(ms) > 100:
-            raise SystemExit('MIN_SCORE must be an integer 0-100')
-        min_score = int(ms)
+        audit_pass=$(printf '%s\n' "$output" | python3 -c "
+        import json, sys
         data = json.load(sys.stdin)
-        all_pass = all(a['score']['percentage'] >= min_score for a in data['agents'])
-        print('true' if all_pass else 'false')
+        print('true' if data.get('status') == 'pass' else 'false')
         ")
 
         echo "summary<<EOF" >> "$GITHUB_OUTPUT"
         echo "$summary" >> "$GITHUB_OUTPUT"
         echo "EOF" >> "$GITHUB_OUTPUT"
-        echo "all_pass=$all_pass" >> "$GITHUB_OUTPUT"
+        echo "audit_pass=$audit_pass" >> "$GITHUB_OUTPUT"
     - name: Comment on PR
       if: github.event_name == 'pull_request'
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       env:
-        SCAN_SUMMARY: ${{ steps.scan.outputs.summary }}
+        AUDIT_SUMMARY: ${{ steps.audit.outputs.summary }}
       with:
         script: |
-          const summary = process.env.SCAN_SUMMARY ?? '';
+          const summary = process.env.AUDIT_SUMMARY ?? '';
           const body = [
-            '## GOAT Flow Scan Results',
+            '## GOAT Flow Audit Results',
             '',
-            '| Agent | Grade | Score | Details |',
-            '|-------|-------|-------|---------|',
+            '| Scope | Status | Details |',
+            '|-------|--------|---------|',
             summary,
             '',
-            '<sub>Scanned by [GOAT Flow](https://github.com/blundergoat/goat-flow)</sub>'
+            '<sub>Audited by [GOAT Flow](https://github.com/blundergoat/goat-flow)</sub>'
           ].join('\n');
 
           await github.rest.issues.createComment({
@@ -110,11 +116,9 @@ runs:
             repo: context.repo.repo,
             body
           });
-    - name: Enforce min-score gate
-      if: steps.scan.outputs.all_pass == 'false'
+    - name: Enforce audit gate
+      if: steps.audit.outputs.audit_pass == 'false'
       shell: bash
-      env:
-        MIN_SCORE: ${{ inputs.min-score }}
       run: |
-        echo "::error::One or more agents scored below the minimum threshold (${MIN_SCORE}%)"
+        echo "::error::goat-flow audit failed — one or more scopes did not pass"
         exit 1

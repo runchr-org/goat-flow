@@ -38,7 +38,7 @@ src/cli/
   telemetry/          # Scan logging (scan-logger.ts)
 scripts/
   preflight-checks.sh  # Full preflight gate (shellcheck, tsc, tests, version, ADR)
-  context-validate.sh  # Validate GOAT Flow structure (router paths, skills, frontmatter)
+  validate-goat-flow-setup.sh  # Validate GOAT Flow structure (router paths, skills, frontmatter)
   deny-dangerous.sh    # Codex deny policy with --self-test
   maintenance/         # Utility scripts (git-cleanup, scan-secrets, etc.)
 test/
@@ -57,12 +57,12 @@ test/
 npm run build          # tsc -> dist/
 npm run test           # node --import tsx --test 'test/**/*.test.ts'
 npm run typecheck      # tsc --noEmit
-npm run scan           # node dist/cli/cli.js scan .
+npm run audit          # node dist/cli/cli.js audit .
 
 shellcheck scripts/maintenance/*.sh      # Lint shell scripts
 bash -n scripts/maintenance/*.sh          # Syntax-check scripts
 bash scripts/preflight-checks.sh         # Full preflight gate
-bash scripts/context-validate.sh         # Validate GOAT Flow structure
+bash scripts/validate-goat-flow-setup.sh # Validate GOAT Flow structure
 
 # CLI commands (after build)
 goat-flow audit .                        # Validate setup correctness

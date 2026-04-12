@@ -10,13 +10,13 @@ If non-goat-prefixed skills exist (e.g., audit/, review/, preflight/), IGNORE th
 
 Read the detailed templates in `workflow/skills/goat-*.md` before creating. Create or update these 7 skills in the agent's skills directory (see agent config file for path):
 
-1. **goat-debug/SKILL.md** - Diagnosis-first debugging. Hypothesis tracking, recurrence checks. Includes investigate and onboard modes.
-2. **goat-review/SKILL.md** - Structured code review + quality audit + simplify mode. RFC 2119 severity, footgun matching.
+1. **goat-debug/SKILL.md** - Diagnosis-first debugging. Hypothesis tracking, recurrence checks. Includes investigate mode for code exploration.
+2. **goat-review/SKILL.md** - Structured code review + quality audit. RFC 2119 severity, negative verification, footgun matching.
 3. **goat-security/SKILL.md** - Threat-model-driven security assessment. Exploitability ranking, dependency auditing.
 4. **goat-plan/SKILL.md** - Milestone task file generator and manager. Creates structured milestone files with testing gates and assumption tracking.
 5. **goat-sbao/SKILL.md** - Multi-perspective critique using sub-agent orchestration. 3 agents (risk, alternatives, fresh eyes), 5 phases, cross-examination, and synthesis.
 6. **goat-test/SKILL.md** - Testing gap analyser. Compares code changes against testing coverage to find undertested risks and misaligned test effort.
-7. **goat/SKILL.md** - Dispatcher. Routes natural language to the right skill. Required - scanner checks for it (check 2.1.1).
+7. **goat/SKILL.md** - Dispatcher. Routes natural language to the right skill. Required - audit checks for it (check 2.1.1).
 
 ## Requirements for each skill
 
@@ -44,7 +44,7 @@ Do NOT delete non-goat-prefixed skills (e.g., `audit/`, `review/`, `migration-de
 
 ## Version check
 
-After installing, verify each SKILL.md frontmatter has the correct `goat-flow-skill-version` key. Compare against the version in any `workflow/skills/goat-*.md` template frontmatter. Mismatched versions will cause the scanner to flag them.
+After installing, verify each SKILL.md frontmatter has the correct `goat-flow-skill-version` key. Compare against the version in any `workflow/skills/goat-*.md` template frontmatter. Mismatched versions will cause the auditor to flag them.
 
 ---
 

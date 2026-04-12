@@ -74,7 +74,7 @@ Stack detection lives in `src/cli/detect/project-stack.ts`. Add a new detection 
 - Single-line summary, plain English - no `feat:`/`fix:` prefixes
 - Multi-line body when spanning multiple areas (blank line after summary)
 - Before opening: `npm run typecheck`, `npm test`, and `shellcheck` on any changed `.sh` files must all pass
-- See `.goat-flow/coding-standards/git-commit.md` for full conventions
+- See `docs/coding-standards/git-commit.md` for full conventions
 
 ## Code Style
 

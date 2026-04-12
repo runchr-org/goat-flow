@@ -23,7 +23,7 @@ skills:
 # Opt-in: logs skill invocations to .goat-flow/logs/skill-usage.jsonl
 telemetry: false
 
-# ── Scanner Thresholds ──────────────────────────
+# ── Line Limits ──────────────────────────────────
 # Adjust for project complexity:
 #   Small CLI: target 80, limit 120
 #   Standard:  target 120, limit 150 (default)

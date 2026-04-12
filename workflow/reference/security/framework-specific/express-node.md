@@ -1,6 +1,6 @@
 # Express/Node.js Security Standards
 
-Reference for generating `.goat-flow/coding-standards/security.md` in Express or Node.js API projects.
+Reference for generating `docs/coding-standards/security.md` in Express or Node.js API projects.
 
 ## Helmet Middleware
 

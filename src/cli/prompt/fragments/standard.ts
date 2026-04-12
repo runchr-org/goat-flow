@@ -581,7 +581,7 @@ Every router path MUST point to something that exists.`,
 | Skills | \\\`{{skillsDir}}/\\\` |
 \`\`\`
 
-Use the skills root, not \`goat-*/\`, so the router covers both the \`goat/\` dispatcher and the 5 \`goat-*\` skills.`,
+Use the skills root, not \`goat-*/\`, so the router covers both the \`goat/\` dispatcher and the 6 \`goat-*\` skills.`,
   },
 
   // === Architecture ===

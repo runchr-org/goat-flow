@@ -342,7 +342,7 @@ function renderShortFix(
   lines.push(`**Target: audit passes with zero failures.**`);
   lines.push(`Re-run: \`${getCliCommand()} audit . --agent ${agentId}\``);
   lines.push(
-    `If not 100%, run \`${getCliCommand()} setup . --agent ${agentId}\` for fix instructions. Repeat until 100% (max 3 cycles).`,
+    `If audit fails, run \`${getCliCommand()} setup . --agent ${agentId}\` for fix instructions. Repeat until audit passes (max 3 cycles).`,
   );
 
   return lines.join("\n");
@@ -1223,7 +1223,7 @@ function renderSetupRedirect(
     "- **05-customise-to-project.md** - Deep codebase read, real footguns/lessons, auto-seeded git signals, and `toolchain` / `ask_first` config sync",
   );
   lines.push(
-    "- **06-final-verification.md** - Scanner 100%, stale-ref check, file manifest, command smoke test",
+    "- **06-final-verification.md** - Audit passes, stale-ref check, file manifest, command smoke test",
   );
   lines.push("");
   lines.push(
@@ -1262,7 +1262,7 @@ function renderSetupRedirect(
   lines.push("");
   lines.push("**Target: audit passes with zero failures.**");
   lines.push(
-    `If not 100%, run \`${getCliCommand()} setup . --agent ${agentId}\` for remaining fix instructions. Repeat until 100% (max 3 cycles).`,
+    `If audit fails, run \`${getCliCommand()} setup . --agent ${agentId}\` for remaining fix instructions. Repeat until audit passes (max 3 cycles).`,
   );
 
   return lines.join("\n");

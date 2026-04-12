@@ -1,6 +1,6 @@
 # Supply Chain Security
 
-Reference for generating `.goat-flow/coding-standards/security.md` in projects with third-party dependencies.
+Reference for generating `docs/coding-standards/security.md` in projects with third-party dependencies.
 
 ## Lockfile Integrity
 

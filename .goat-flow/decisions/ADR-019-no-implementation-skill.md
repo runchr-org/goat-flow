@@ -32,7 +32,7 @@ Three changes:
 
 ## Consequences
 
-- Supersedes ADR-016's canonical skill count. Dispatcher is now "5 skills + dispatcher alias"
+- Supersedes ADR-016's canonical skill count. Dispatcher is now "6 skills + dispatcher" (7 total: goat-debug, goat-plan, goat-review, goat-sbao, goat-security, goat-test + goat dispatcher)
 - goat-plan grows by ~15 lines (Phase 5)
 - Dispatcher routing table gains implementation-intent rows
 - .goat-flow/config.yaml gains `persona` field
