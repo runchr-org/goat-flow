@@ -62,7 +62,7 @@ category: docs-and-crossrefs
 
 ## Footgun: Product surface count drift across code, docs, config, and tests
 
-**Status:** active | **Created:** 2026-04-11 | **Evidence:** OBSERVED
+**Status:** mostly resolved (12/14 fixed, 2 remaining) | **Created:** 2026-04-11 | **Updated:** 2026-04-13 | **Evidence:** OBSERVED
 
 **Symptoms:** The repo describes different skill counts in different places. Code says 7, config says 6, README says "Six", docs say "Five+dispatcher", tests say 5 or 6. External critics independently flagged this as a trust problem - the system sells coherence but can't maintain it internally.
 
@@ -92,6 +92,24 @@ category: docs-and-crossrefs
 1. Add a contract test: SKILL_NAMES.length must match README, docs/skills/README, SKILL_TEMPLATES, and config.yaml skills.install
 2. After adding/removing any skill, grep for the old count: `grep -rn "Six\|six\|5 focused\|6 skills\|All 6" --include="*.md" --include="*.ts"`
 3. `scripts/preflight-checks.sh` should verify SKILL_NAMES count across all surfaces
+
+---
+
+## Footgun: CONTRIBUTING.md directs contributors to the wrong subsystem
+
+**Status:** active | **Created:** 2026-04-13 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A contributor reads "How to Add a New Rubric Check" in CONTRIBUTING.md and adds their check to `src/cli/rubric/`. The check has no effect on `goat-flow audit` output. The contributor doesn't understand why.
+
+**Why it happens:** `CONTRIBUTING.md:54` says "Rubric checks live in `src/cli/rubric/`." This is the internal scoring system used by setup. The user-facing audit checks live in `src/cli/audit/build-checks.ts` (15 build checks, public gate) and `src/cli/audit/quality-checks.ts` (25 quality checks, advisory). The two systems are architecturally separate with no bridge documented.
+
+**Evidence:**
+- `CONTRIBUTING.md:54` — "Rubric checks live in `src/cli/rubric/`"
+- `src/cli/audit/build-checks.ts` — 15 checks that power `goat-flow audit`
+- `src/cli/audit/quality-checks.ts` — 25 checks that power `goat-flow audit --quality`
+- `src/cli/rubric/` — internal scoring used by `scanProject()` for setup prompts only
+
+**Fix:** Rewrite the contributor section to distinguish: (a) build checks in `src/cli/audit/build-checks.ts` (public gate), (b) quality checks in `src/cli/audit/quality-checks.ts` (advisory scoring), (c) rubric checks in `src/cli/rubric/` (internal scoring for setup prompt generation only).
 
 ---
 

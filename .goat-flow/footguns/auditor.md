@@ -52,6 +52,44 @@ The scanner awards 100% (A grade) to projects that have:
 
 ---
 
+## Footgun: Audit passes when configured agent's instruction file is missing
+
+**Status:** active | **Created:** 2026-04-13 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** `audit --agent codex` returns PASS on a project where AGENTS.md doesn't exist. Aggregate `audit .` also passes. The configured agent is invisible to all checks. Dashboard only builds per-agent cards for detected agents, so the missing agent disappears from the UI too.
+
+**Why it happens:** `detect/agents.ts:62` only adds agents whose instruction files exist on disk. `orchestrator.ts:29` filters detected agents by `agentFilter` — filtering for a missing agent produces an empty list. `build-checks.ts:175` (instruction-files check) iterates `ctx.agents` — empty list = vacuous pass. The audit uses instruction-file presence as the source of truth for which agents to check, creating a circular dependency where missing files can't be detected.
+
+**Evidence:**
+- `src/cli/detect/agents.ts:62` — existence gate: `if (fs.exists(profile.instructionFile))`
+- `src/cli/facts/orchestrator.ts:29` — filter on detected: `agents = agents.filter(a => a.id === options.agentFilter)`
+- `src/cli/audit/build-checks.ts:175` — iterates ctx.agents, never sees the missing agent
+- `src/cli/audit/build-checks.ts:99` — agents-supported only validates names against known set, doesn't cross-reference with detected agents
+- Reproduced by external critique on temp copy with AGENTS.md deleted: both aggregate and `--agent codex` returned PASS
+
+**Fix:** Cross-reference `config.yaml` configured agents list with detected agents. If a configured agent's instruction file is missing, inject the agent profile anyway so the instruction-files check can report the failure. Design intent: setup should CREATE the instruction file if missing, or EDIT it to add goat-flow sections if it exists.
+
+---
+
+## Footgun: Setup reports scanner metrics as audit results
+
+**Status:** active | **Created:** 2026-04-13 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** `setup --agent claude` says "All audit checks pass" and "14 hooks (deny, post-turn, format)" on a repo with 2 hook files and 3 hook events. The numbers don't match any real count. On broken repos, setup drops into scanner vocabulary ("5 checks need attention out of 79 total", "Critical: Anti-Pattern Fixes") — a completely different model from the documented 10 setup + 5 harness checks.
+
+**Why it happens:** `cli.ts:494` calls `scanProject()` (not `runAudit()`) for the setup command. `compose-setup.ts:172-174` counts passing scanner rubric checks in the "Hooks" category, not actual hook files. The success branch at `compose-setup.ts:153` says "All audit checks pass" but is evaluating scanner results.
+
+**Evidence:**
+- `src/cli/cli.ts:494` — setup calls `scanProject()`
+- `src/cli/prompt/compose-setup.ts:153` — renderAllPass says "All audit checks pass"
+- `src/cli/prompt/compose-setup.ts:172-174` — `checks.filter(c => c.category === "Hooks" && c.status === "pass").length` = 14 (rubric hits, not files)
+- Observed setup output: "14 hooks" vs `ls .claude/hooks/` showing 2 files
+- On broken repo (config.yaml removed): setup emits "5 checks need attention out of 79 total" — scanner vocabulary, not audit vocabulary
+
+**Fix:** Either migrate setup to use `runAudit()` for its pass/fail decisions, or explicitly label the output as scanner-based. Replace hook count with actual file/event count from facts extraction.
+
+---
+
 ## Footgun: Scanner validates hook file content but not hook runtime behavior
 
 **Status:** open | **Created:** 2026-04-05 | **Evidence:** ACTUAL_MEASURED
