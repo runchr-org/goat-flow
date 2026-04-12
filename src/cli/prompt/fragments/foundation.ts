@@ -199,16 +199,6 @@ Footguns use category files such as \\\`hooks.md\\\` with frontmatter \\\`catego
 
 \`\`\`yaml
 version: "1.1.0"
-footguns:
-  path: .goat-flow/footguns/
-lessons:
-  path: .goat-flow/lessons/
-decisions:
-  path: .goat-flow/decisions/
-tasks:
-  path: .goat-flow/tasks/
-logs:
-  path: .goat-flow/logs/
 agents:
   - {{agentId}}
 skills:
@@ -226,6 +216,8 @@ If you want auto-detection, omit \`agents\`. If multiple agents are installed, l
 
 Use \`toolchain\` for real project commands and \`ask_first\` for structured high-risk boundaries. Do not invent commands or fake paths.
 
+Learning loop paths (\`.goat-flow/footguns/\`, \`.goat-flow/lessons/\`, etc.) are canonical and cannot be overridden. Do not add path fields to the config.
+
 Personal preferences do **not** belong in a second config file.`,
   },
   // create-config-local removed - check 1.5.7 removed.
@@ -237,9 +229,6 @@ Personal preferences do **not** belong in a second config file.`,
     instruction: `Fix \`.goat-flow/config.yaml\` so it is valid YAML and matches the supported schema:
 
 - \`version\`: string
-- \`footguns.path\`: non-empty string
-- \`lessons.path\`: non-empty string
-- \`decisions.path\`, \`tasks.path\`, \`logs.path\`: non-empty strings
 - \`agents\`: null or a non-empty array of \`claude\`, \`codex\`, \`gemini\`
 - \`skills.install\`: \`all\` or a non-empty array of skill names
 - \`toolchain.{test,lint,build,package,format}\`: arrays of command strings

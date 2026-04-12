@@ -64,7 +64,7 @@ Fail if BOTH of these exist with independent content for the same artifact type:
 - `docs/architecture.md` AND `.goat-flow/architecture.md` (both with real content)
 - `docs/decisions/` AND `.goat-flow/decisions/` (both with real ADRs)
 
-If duplicates exist, pick the one with better content as canonical, set it in config.yaml, and remove or bridge the other. The router table must NOT point to BOTH old and new surfaces for the same artifact type.
+If duplicates exist, migrate the better content to the canonical `.goat-flow/` path and remove or bridge the other. The router table must NOT point to BOTH old and new surfaces for the same artifact type.
 
 ## Path integrity check
 

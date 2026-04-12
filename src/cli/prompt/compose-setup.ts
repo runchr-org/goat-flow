@@ -1149,7 +1149,7 @@ function renderSetupRedirect(
     );
     lines.push("");
     lines.push(
-      "For each artifact type: (1) use the EXISTING path as canonical, (2) update `.goat-flow/config.yaml` to point there, (3) list what you chose NOT to create and why.",
+      "For each artifact type: (1) use the canonical `.goat-flow/` path, (2) migrate existing content there if needed, (3) list what you chose NOT to create and why.",
     );
     lines.push("");
     lines.push(
