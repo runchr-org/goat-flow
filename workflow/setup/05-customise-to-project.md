@@ -99,7 +99,7 @@ Examples:
 - Are there directories with complex ownership, migration scripts, config that shouldn't be touched?
 - Update with real paths and real reasons
 - Keep `.goat-flow/config.yaml` `ask_first:` in sync with the final instruction file wording
-- If existing instruction files exist in `.github/instructions/` or `ai/instructions/`, reference them from the router table. Keep them as the canonical local-instructions surface.
+- If existing instruction files exist in `.github/instructions/`, reference them from the router table. Keep them as the canonical local-instructions surface.
 
 ---
 

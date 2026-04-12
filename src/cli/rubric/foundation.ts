@@ -921,7 +921,7 @@ export const foundationChecks: CheckDef[] = [
     priority: "optional",
     detect: { type: "file_exists", path: ".goat-flow/config.yaml" },
     recommendation:
-      "Without .goat-flow/config.yaml, the scanner uses built-in defaults for line limits, paths, and thresholds. A project config lets you tune these to your codebase so checks reflect your actual standards, not generic ones.",
+      "Without .goat-flow/config.yaml, the auditor uses built-in defaults for line limits, paths, and thresholds. A project config lets you tune these to your codebase so checks reflect your actual standards, not generic ones.",
     recommendationKey: "create-goat-flow-config",
   },
   {
@@ -954,7 +954,7 @@ export const foundationChecks: CheckDef[] = [
       },
     },
     recommendation:
-      "An invalid config.yaml silently falls back to defaults, meaning your custom line limits and path overrides are ignored without warning. Fix the YAML so the scanner uses your intended settings.",
+      "An invalid config.yaml silently falls back to defaults, meaning your custom line limits and path overrides are ignored without warning. Fix the YAML so the auditor uses your intended settings.",
     recommendationKey: "fix-goat-flow-config",
   },
   // 1.5.7 (local-only preferences file exists) removed - personal preference files are not a project quality signal.

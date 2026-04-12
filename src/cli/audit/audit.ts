@@ -57,24 +57,24 @@ function buildScope(
   };
 }
 
-/** Build summary details for the setup scope */
+/** Build summary details for the setup scope (worst-case across all agents). */
 function setupSummary(ctx: AuditContext): Record<string, string> {
   const totalSkills = ctx.structure.skills.canonical.length;
-  let installedSkills = 0;
+  let minSkills = totalSkills;
+  let maxLines = 0;
   for (const af of ctx.agents) {
-    installedSkills = af.skills.found.length;
-    break;
+    minSkills = Math.min(minSkills, af.skills.found.length);
+    maxLines = Math.max(maxLines, af.instruction.lineCount);
   }
   const configValid = ctx.config.exists && ctx.config.valid;
   const configVersion = ctx.config.config.version;
-  const instructionLines = ctx.agents[0]?.instruction.lineCount ?? 0;
 
   return {
-    skills: `${installedSkills}/${totalSkills} installed`,
+    skills: `${minSkills}/${totalSkills} installed`,
     config: configValid
       ? `valid, version ${configVersion}`
       : "invalid or missing",
-    instructionFile: `${instructionLines} lines`,
+    instructionFile: `${maxLines} lines`,
   };
 }
 

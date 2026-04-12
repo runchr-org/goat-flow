@@ -40,6 +40,14 @@ goat-flow setup --agent claude    # Claude setup/upgrade prompt
 goat-flow setup --agent codex     # Codex setup/upgrade prompt
 ```
 
+### `goat-flow status [path]`
+
+Show project adoption state (`bare`, `partial`, `v0.9`, `v1.0`, `v1.1`) and recommended next action (`setup`, `migration`, `upgrade`, `audit`).
+
+```bash
+goat-flow status .                    # Check current project state
+```
+
 ### `goat-flow info rubrics`
 
 List all rubric checks with ID, name, tier, points, and description. Reads directly from code - always current.

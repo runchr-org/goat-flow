@@ -42,9 +42,10 @@ Hook script comments also carried over Claude-specific language ("runs after eve
 
 ## Footgun: Deduplicated multi-agent setup drifts from per-agent setup rules
 
-**Status:** resolved | **Created:** 2026-03-25 | **Evidence:** ACTUAL_MEASURED
+**Status:** active | **Created:** 2026-03-25 | **Evidence:** ACTUAL_MEASURED
 
-**Resolution:** `--agent all` was removed from the CLI. Multi-agent setup now runs per-agent prompts individually. The `composeMultiAgentSetup()` code path no longer exists.
+**Symptoms:** `--agent all` was removed, but `composeMultiAgentSetup()` still exists at `src/cli/prompt/compose-setup.ts:825` and is called by `src/cli/cli.ts:314` when auto-detection finds multiple instruction files (e.g., both CLAUDE.md and AGENTS.md). The multi-agent prompt may contain stale skill section requirements that don't match the dispatcher template.
+**Prevention:** Either remove `composeMultiAgentSetup()` entirely, or align its skill section requirements with the current templates.
 
 ---
 

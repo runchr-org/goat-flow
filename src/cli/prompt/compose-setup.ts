@@ -173,7 +173,10 @@ function renderAllPass(
     ].filter(Boolean).length;
 
     lines.push("**Installed:**");
-    if (skillCount > 0) lines.push(`- ${skillCount} skill checks passing`);
+    if (skillCount > 0)
+      lines.push(
+        `- ${SKILL_NAMES.length}/${SKILL_NAMES.length} skills installed`,
+      );
     if (hookCount > 0)
       lines.push(`- ${hookCount} hooks (deny, post-turn, format)`);
     lines.push("- Audit: all build checks passing");
@@ -974,7 +977,7 @@ function renderSetupRedirect(
     );
     lines.push("");
     lines.push(
-      "Key changes: consolidate 10 old skills to 5+dispatcher, migrate docs/footguns.md → .goat-flow/footguns/,",
+      "Key changes: consolidate old skills to the 7 canonical skills (6 specialized + dispatcher), migrate docs/footguns.md → .goat-flow/footguns/,",
     );
     lines.push(
       "docs/lessons.md → .goat-flow/lessons/, create .goat-flow/config.yaml, install skill-preamble.md and skill-conventions.md.",
@@ -1166,9 +1169,6 @@ function renderSetupRedirect(
       '2. "Adapt" means: replace generic examples with THIS project\'s real examples.',
     );
     lines.push(
-      "   Skills: replace generic Step 0 questions with questions specific to this stack.",
-    );
-    lines.push(
       "   Footguns: only real traps from THIS codebase with `file:line` evidence.",
     );
     lines.push(
@@ -1178,7 +1178,7 @@ function renderSetupRedirect(
       '3. Do NOT copy customization templates (architecture, footguns, code-map) verbatim. If a template says "[describe X]", describe X for THIS project. Note: skill SKILL.md files ARE installed verbatim — this rule applies to Step 04-05 artifacts only.',
     );
     lines.push(
-      "4. Check for existing permission restrictions: if `.claude/settings.local.json` (or equivalent)",
+      `4. Check for existing permission restrictions: if \`${profile.settingsFile}\``,
     );
     lines.push(
       "   exists and limits allowed tools/commands, the setup may fail to create files.",
@@ -1186,12 +1186,22 @@ function renderSetupRedirect(
     lines.push(
       "   Read it first. If it restricts Bash or Write, work single-threaded instead of spawning sub-agents.",
     );
-    lines.push(
-      "5. **Deny rule escape hatch:** The default deny pattern `Bash(*git commit*)` blocks ALL commits.",
-    );
-    lines.push(
-      "   To relax specific rules after setup, add allow overrides in `.claude/settings.local.json` (gitignored).",
-    );
+    if (agentId === "claude") {
+      lines.push(
+        "5. **Deny rule escape hatch:** The default deny pattern `Bash(*git commit*)` blocks ALL commits.",
+      );
+      lines.push(
+        "   To relax specific rules after setup, add allow overrides in `.claude/settings.local.json` (gitignored).",
+      );
+    } else if (agentId === "codex") {
+      lines.push(
+        "5. **Deny rules:** Codex uses execpolicy rules in `.codex/rules/deny-dangerous.star`. Review before setup to ensure setup commands are not blocked.",
+      );
+    } else {
+      lines.push(
+        `5. **Deny rules:** Review deny patterns in \`${profile.settingsFile}\` before setup to ensure setup commands are not blocked.`,
+      );
+    }
     lines.push(
       "   See `workflow/hooks/README.md` for hook configuration details.",
     );

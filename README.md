@@ -100,11 +100,11 @@ GOAT Flow's quality audit (`goat-flow audit . --quality`) evaluates your project
 
 | Concern | Question | What GOAT Flow checks |
 |---------|----------|----------------------|
-| **Context** | Is the agent's context accurate, lean, and useful? | Instruction file specificity, architecture doc freshness, router table validity, footgun evidence quality |
-| **Constraints** | Do deterministic rules catch failures before the LLM runs? | Deny patterns, Ask First boundaries, registered project linters, unregistered constraint detection |
-| **Verification** | Can the agent verify its work, and does failure feed back? | Test commands, testing gates in milestones, hook registration, silent-on-success verification |
-| **Recovery** | Can the agent resume after crash or interruption? | Milestone file activity, session log recency, loop detection guidance |
-| **Feedback Loop** | Is the harness getting smarter from failures over time? | Footgun/lesson recency, evidence of loop closure (footgun → constraint) |
+| **Context** | Is the agent's context accurate, lean, and useful? | Instruction file line count vs target, router table path resolution, footgun file:line evidence freshness, architecture doc existence (10+ lines) |
+| **Constraints** | Do deterministic rules catch failures before the LLM runs? | Deny patterns cover secrets and dangerous commands, Ask First boundary count |
+| **Verification** | Can the agent verify its work, and does failure feed back? | Test command configured, hook registrations in sync with hook files, commit guidance present |
+| **Recovery** | Can the agent resume after crash or interruption? | Milestone file count in .goat-flow/tasks/, session log count in .goat-flow/logs/sessions/ |
+| **Feedback Loop** | Is the harness getting smarter from failures over time? | Footgun entry count (3+ threshold), lesson entry count (3+ threshold), decisions directory activity |
 
 These aren't a proprietary model - they're a synthesis of consensus across the harness engineering field. See [docs/audit-and-critique.md](docs/audit-and-critique.md) for the full framework and sources.
 
