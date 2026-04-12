@@ -6,6 +6,7 @@
 import type { AgentId } from "../types.js";
 import type { AuditReport, AuditConcernKey } from "../audit/types.js";
 import { SKILL_NAMES } from "../constants.js";
+import { getPackageVersion } from "../paths.js";
 
 interface CritiqueInput {
   agent: AgentId;
@@ -122,7 +123,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
 
   // Preamble
   lines.push(
-    "Critique the goat-flow v1.1.0 setup on this project. Be thorough, honest, and specific. Do NOT be polite or generous - I want real problems identified with evidence.",
+    `Critique the goat-flow v${getPackageVersion()} setup on this project. Be thorough, honest, and specific. Do NOT be polite or generous - I want real problems identified with evidence.`,
   );
   lines.push("");
   lines.push(
@@ -223,7 +224,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("");
   lines.push(`- Count skill directories - expect 7: ${SKILL_NAMES.join(", ")}`);
   lines.push(
-    "- If >7, list stale names (goat-audit, goat-investigate, goat-onboard, goat-reflect, goat-resume, goat-simplify, goat-refactor, goat-context are known stale)",
+    "- If >7, list stale names (goat-audit, goat-investigate, goat-onboard, goat-reflect, goat-resume, goat-simplify, goat-refactor, goat-context, goat-preflight, goat-research are known stale)",
   );
   lines.push("- `.goat-flow/skill-preamble.md` exists?");
   lines.push("- `.goat-flow/skill-conventions.md` exists?");

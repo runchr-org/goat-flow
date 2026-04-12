@@ -9,7 +9,7 @@ Read this first. This is what you're installing and why.
 
 ## State check
 
-If `.goat-flow/config.yaml` exists and its version matches the current goat-flow release, **STOP**. The project is already configured. Run `goat-flow audit . --agent {agent}` instead and fix any failing checks.
+If `.goat-flow/config.yaml` exists and its version matches the current goat-flow release, AND `goat-flow audit . --agent {agent}` passes, **STOP**. The project is already configured — fix any failing audit checks if needed. If the version matches but audit fails or skills/instruction file/preamble are missing, continue with setup to repair the incomplete install.
 
 If the version is older, use the upgrade path instead:
 - Old skill names (goat-audit, goat-investigate, etc.) or legacy `docs/footguns.md` / `tasks/todo.md` → run `bash "$(npm -g root)/@blundergoat/goat-flow/scripts/migrate-to-1.1.sh" .` first (dry-run by default, add `--execute` to apply), then continue with fresh setup

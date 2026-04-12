@@ -449,12 +449,6 @@ function app() {
       this.critiqueCopyLabel = "Copied!";
       setTimeout(() => (this.critiqueCopyLabel = "Copy"), 2000);
     },
-    runCritiqueInTerminal() {
-      if (!this.critiqueResult?.prompt) return;
-      this.sendToTerminal(this.critiqueResult.prompt);
-      this.activeView = "workspace";
-    },
-
     // -- Preferences --
     // -- Projects --
     async addProject() {
@@ -1002,10 +996,6 @@ function app() {
     /** Selected audit scope for detail view */
     auditDetailScope: null,
     auditDetailAgent: null,
-    get currentScope() {
-      if (!this.report?.scopes || !this.auditDetailScope) return null;
-      return this.report.scopes[this.auditDetailScope] || null;
-    },
     // -- Helpers --
     formatTimeAgo(date) {
       if (!date) return "";

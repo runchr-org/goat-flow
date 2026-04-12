@@ -3,7 +3,11 @@
  * Grouped by the 5 harness concerns: context, constraints, verification, recovery, feedback_loop.
  * Quality checks are advisory - they produce scores and findings but never affect exit code.
  */
-import type { QualityCheck, QualityCheckResult } from "./types.js";
+import type {
+  AuditContext,
+  QualityCheck,
+  QualityCheckResult,
+} from "./types.js";
 
 function pass(findings: string[]): QualityCheckResult {
   return { score: 100, findings, recommendations: [] };
@@ -411,6 +415,26 @@ const askFirstBoundaries: QualityCheck = {
   },
 };
 
+/** Resolve lint commands to a searchable string, expanding wrapper scripts. */
+function resolveLintCommands(
+  ctx: AuditContext,
+  lintCommands: string[],
+): string {
+  const joined = lintCommands.join(" ").toLowerCase();
+  let resolved = joined;
+  for (const cmd of lintCommands) {
+    const scriptMatch = cmd.match(
+      /bash\s+(\S+\.sh)|sh\s+(\S+\.sh)|\.\/(\S+\.sh)/,
+    );
+    const scriptPath = scriptMatch?.[1] ?? scriptMatch?.[2] ?? scriptMatch?.[3];
+    if (scriptPath) {
+      const content = ctx.fs.readFile(`${ctx.projectPath}/${scriptPath}`);
+      if (content) resolved += " " + content.toLowerCase();
+    }
+  }
+  return resolved;
+}
+
 const linterRegistered: QualityCheck = {
   id: "linter-registered",
   concern: "constraints",
@@ -442,12 +466,11 @@ const linterRegistered: QualityCheck = {
         ],
       );
     }
-    // Check which detected tools appear in lint commands
-    const lintJoined = lintCommands.join(" ").toLowerCase();
+    const resolvedJoined = resolveLintCommands(ctx, lintCommands);
     const registered: string[] = [];
     const unregistered: string[] = [];
     for (const tool of detected) {
-      if (lintJoined.includes(tool.tool.toLowerCase())) {
+      if (resolvedJoined.includes(tool.tool.toLowerCase())) {
         registered.push(tool.tool);
       } else {
         unregistered.push(tool.tool);
@@ -645,6 +668,14 @@ const hookHonestFailures: QualityCheck = {
         );
         recs.push(
           `Remove || true from ${af.agent.id} post-turn hook so failures surface`,
+        );
+        allGood = false;
+      } else if (af.hooks.postTurnExitsZero && af.hooks.postTurnHasValidation) {
+        findings.push(
+          `${af.agent.id}: post-turn hook runs validation but always exits 0 (advisory mode)`,
+        );
+        recs.push(
+          `Set ${af.agent.id} post-turn hook to exit non-zero on validation failure, or set GOAT_LINT_ENFORCE=1`,
         );
         allGood = false;
       } else {

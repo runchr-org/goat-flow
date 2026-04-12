@@ -36,7 +36,7 @@ Risks of blindly implementing critique feedback:
 
 ## Pattern: Dispatcher is a first-class skill, not a helper
 
-**Created:**
+**Created:** 2026-04-08
 
 **Status:** RESOLVED in v0.9.3. Dispatcher added to SKILL_NAMES. All counts updated to 6 (5 + dispatcher).
 

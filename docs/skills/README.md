@@ -98,7 +98,7 @@ Skills are created during step 03 of the GOAT Flow setup. The skill templates in
 
 ## Skill Justification Test
 
-A skill earns its place if it meets ALL of:
+A skill earns its place if it meets at least one of:
 
 1. **Distinct artifact** - produces something the execution loop doesn't
 2. **Hard quality gate** - has pass/fail criteria, not subjective

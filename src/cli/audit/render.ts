@@ -19,8 +19,9 @@ function statusBadge(status: "pass" | "fail"): string {
 
 function renderTextScope(name: string, scope: AuditScope): string {
   const lines: string[] = [];
+  const scoreSuffix = scope.score != null ? ` (${scope.score}%)` : "";
   lines.push(
-    `${name}:${" ".repeat(Math.max(1, 20 - name.length))}${statusBadge(scope.status)}`,
+    `${name}:${" ".repeat(Math.max(1, 20 - name.length))}${statusBadge(scope.status)}${scoreSuffix}`,
   );
   for (const [key, value] of Object.entries(scope.summary)) {
     const label = key.charAt(0).toUpperCase() + key.slice(1);
@@ -116,7 +117,8 @@ function mdScopeStatus(status: "pass" | "fail"): string {
 
 function renderMdScope(name: string, scope: AuditScope): string {
   const lines: string[] = [];
-  lines.push(`### ${name}: ${mdScopeStatus(scope.status)}`);
+  const scoreSuffix = scope.score != null ? ` (${scope.score}%)` : "";
+  lines.push(`### ${name}: ${mdScopeStatus(scope.status)}${scoreSuffix}`);
   for (const [key, value] of Object.entries(scope.summary)) {
     lines.push(`- **${key}**: ${value}`);
   }

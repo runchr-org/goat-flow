@@ -209,9 +209,9 @@ export function serveDashboard(
       return true;
     }
 
-    /** Build a DashboardReport from scanner + auditor results.
-     * The Home page needs per-agent scoring (scanner), the Audit detail
-     * page needs scope-based results (auditor). This adapter produces
+    /** Build a DashboardReport from per-agent audit results.
+     * The Home page uses per-agent harness scores, the Audit detail
+     * page uses scope-based check results. This adapter produces
      * a single typed response covering both views. */
     const AGENT_NAMES: Record<string, string> = {
       claude: "Claude Code",
@@ -294,7 +294,14 @@ export function serveDashboard(
       if (url.pathname !== "/api/setup") return false;
 
       const projectPath = safeResolvePath(url.searchParams.get("path"));
-      const agentParam = url.searchParams.get("agent") || "claude";
+      const agentParam = url.searchParams.get("agent");
+      if (!agentParam) {
+        jsonResponse(res, 400, {
+          error:
+            "Missing required parameter: agent. Valid: claude, codex, gemini",
+        });
+        return true;
+      }
       if (!VALID_AGENTS.has(agentParam)) {
         jsonResponse(res, 400, {
           error: `Invalid agent: ${agentParam}. Valid: claude, codex, gemini`,

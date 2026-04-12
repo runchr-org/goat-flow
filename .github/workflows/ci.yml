@@ -34,6 +34,12 @@ jobs:
       - name: Lint
         run: npx eslint src/cli/
 
+      - name: Format check
+        run: npx prettier --check 'src/**/*.ts' 'src/**/*.html' 'src/**/*.js' 'src/**/*.css'
+
+      - name: GOAT Flow Audit
+        run: node dist/cli/cli.js audit .
+
       - name: Shellcheck
         run: |
           sudo apt-get install -y shellcheck
@@ -73,7 +79,8 @@ jobs:
           if [ -f .goat-flow/config.yaml ]; then
             config_version=$(grep '^version:' .goat-flow/config.yaml | grep -oE '"[^"]+"' | tr -d '"' || true)
             if [ -n "$config_version" ] && [ "$config_version" != "$pkg_version" ]; then
-              echo "::warning::.goat-flow/config.yaml version ($config_version) does not match package.json ($pkg_version)"
+              echo "::error::.goat-flow/config.yaml version ($config_version) does not match package.json ($pkg_version)"
+                exit 1
             fi
           fi
 
@@ -92,7 +99,8 @@ jobs:
             fi
           done
 
-          for dir in .claude/skills .agents/skills .github/skills; do
+          # .github/skills/ excluded: copilot is bridge-only, not covered by audit system
+          for dir in .claude/skills .agents/skills; do
             if [ -d "$dir" ]; then
               for f in $(find "$dir" -name 'SKILL.md'); do
                 ver=$(grep -o 'goat-flow-skill-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)

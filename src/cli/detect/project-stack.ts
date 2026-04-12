@@ -695,6 +695,7 @@ function detectLLMIntegration(fs: ReadonlyFS): boolean {
 }
 
 /** Detect static analysis. */
+// eslint-disable-next-line complexity -- detection covers many tool/config combos; extracting would fragment the detector
 function detectStaticAnalysis(
   fs: ReadonlyFS,
 ): Array<{ tool: string; level: string | null }> {
@@ -753,7 +754,11 @@ function detectStaticAnalysis(
   }
 
   // Go: golangci-lint
-  if (fs.exists(".golangci.yml") || fs.exists(".golangci.yaml") || fs.exists(".golangci.toml")) {
+  if (
+    fs.exists(".golangci.yml") ||
+    fs.exists(".golangci.yaml") ||
+    fs.exists(".golangci.toml")
+  ) {
     staticAnalysis.push({ tool: "golangci-lint", level: null });
   }
 

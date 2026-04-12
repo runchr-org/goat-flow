@@ -53,7 +53,7 @@ Delete from ALL agent skill directories (`.claude/skills/`, `.agents/skills/`, `
 
 **Delete these:** goat-audit, goat-investigate, goat-onboard, goat-reflect, goat-resume, goat-context, goat-simplify, goat-refactor
 
-Also delete these older goat-prefixed skills if present: `goat-audit/`, `goat-review/`, `goat-preflight/`
+Also delete these older goat-prefixed skills if present: `goat-audit/`, `goat-preflight/`
 
 **Verification:** No old skill directories remain. `ls {skills-dir}` shows no goat-audit etc.
 

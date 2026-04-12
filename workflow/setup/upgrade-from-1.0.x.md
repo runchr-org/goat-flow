@@ -13,7 +13,7 @@ Read `01-system-overview.md` first if you haven't already.
 - `.goat-flow/config.yaml` with version 1.1.0
 - Skills installed verbatim from the current templates
 - `.goat-flow/skill-preamble.md` shared across all skills
-- Setup flow updated to 4 steps (`READ → SCOPE → ACT → VERIFY`) in instruction files
+- Instruction file execution loop updated to 4 steps (`READ → SCOPE → ACT → VERIFY`)
 
 ---
 
@@ -69,7 +69,7 @@ Use the reorganise approach (not copy-and-replace):
 5. Add missing goat-flow sections (see `02-instruction-file.md`)
 6. Update version header to v1.1.0
 7. Update Router Table: all paths should reference current goat-flow surfaces
-8. Update examples to reference current paths (e.g., `workflow/setup/reference/execution-loop.md`)
+8. Update examples to reference current goat-flow surfaces (e.g., `.goat-flow/architecture.md`, `.goat-flow/templates/`)
 
 **Verification:** Instruction file under 120 lines. Domain content preserved in `.goat-flow/`.
 

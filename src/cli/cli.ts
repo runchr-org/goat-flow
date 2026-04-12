@@ -40,8 +40,8 @@ Commands:
   setup             Generate setup prompt (adapts to project state)
   status            Show project state (bare/partial/v0.9/v1.0/v1.1)
   dashboard         Launch browser dashboard with audit, setup, and terminal
-  info rubrics      List all rubric checks (filter: --tier foundation|standard)
-  info anti-patterns List all anti-pattern deductions
+  info rubrics      List internal rubric checks (filter: --tier foundation|standard)
+  info anti-patterns List internal anti-pattern deductions
 
 Arguments:
   project-path    Target project directory (default: .)

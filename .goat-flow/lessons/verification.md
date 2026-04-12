@@ -14,7 +14,7 @@ category: verification
 
 ## Pattern: Verification scope must match change scope
 
-**Created:**
+**Created:** 2026-04-08
 
 When the change is code-only, running tests is sufficient. When the change touches docs, setup prompts, or workflow templates, verification must read those files too. The verification scope must match the blast radius of the change. When building on existing files, audit them first - errors in source files propagate to everything built on top.
 
@@ -89,7 +89,7 @@ When the change is code-only, running tests is sufficient. When the change touch
 
 ## Pattern: End-of-task rules get skipped
 
-**Created:**
+**Created:** 2026-04-08
 
 Rules that fire after the agent has delivered its primary output have near-zero compliance. The agent's attention is on the deliverable, not the closing checklist. Session logging, learning loop updates, and handoff notes all suffer from this. Prevention must be structural: either make the closing step part of the output format (so it happens DURING delivery, not after), or enforce it via hooks/DoD gates that block completion.
 
@@ -97,7 +97,7 @@ Rules that fire after the agent has delivered its primary output have near-zero 
 
 ## Pattern: Blocked ≠ impossible
 
-**Created:**
+**Created:** 2026-04-08
 
 Deny hooks block dangerous patterns, not all operations. When a command is blocked, spend 2 seconds thinking about the safe alternative before asking the user or giving up.
 

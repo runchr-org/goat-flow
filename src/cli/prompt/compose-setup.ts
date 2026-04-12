@@ -169,11 +169,9 @@ function renderAllPass(
     const skillCount = checks.filter(
       (c) => c.category === "Skills" && c.status === "pass",
     ).length;
-    const hookCount = [
-      checks.find((c) => c.id === "2.2.1")?.status === "pass",
-      checks.find((c) => c.id === "2.2.3")?.status === "pass",
-      checks.find((c) => c.id === "2.2.4")?.status === "pass",
-    ].filter(Boolean).length;
+    const hookCount = checks.filter(
+      (c) => c.category === "Hooks" && c.status === "pass",
+    ).length;
 
     lines.push("**Installed:**");
     if (skillCount > 0)
@@ -653,6 +651,8 @@ function defaultAdaptGuidance(
 
 /** Return the verify instruction shown in step 3 of a task, matched to output type (skill, config, shell, JSON, etc.). */
 function defaultVerify(output: string): string {
+  if (output.includes("/skills/goat/"))
+    return "File has: How It Works, Constraints sections (dispatcher uses different structure)";
   if (output.includes("/skills/"))
     return "File has: When to Use, Process with human gates, Constraints, Output Format sections";
   if (output === ".goat-flow/config.yaml")
@@ -815,7 +815,7 @@ function renderMultiAgentSharedSection(
     );
     lines.push("");
     lines.push(
-      "**Skill quality check** - every skill file MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**, **Chaining**. No placeholder text.",
+      "**Skill quality check** - every functional skill file MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**. The dispatcher (`goat/SKILL.md`) uses **How It Works** instead and has no Output Format. No placeholder text.",
     );
     lines.push("");
   }

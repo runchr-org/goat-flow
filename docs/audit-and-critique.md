@@ -25,7 +25,7 @@ Validates that the project's agent harness is structurally correct and optionall
 
 ### Build mode (default)
 
-Binary pass/fail. This is the setup gate - Step 06 and preflight use `audit`.
+Binary pass/fail. This is the structural setup gate — it validates that files, config, skills, and hooks are correctly installed. It does not execute configured toolchain commands (lint, test, build). Step 06 uses `audit` as the minimum gate; preflight runs `audit` plus additional checks including ESLint, Prettier, and version consistency.
 
 Build checks are grouped by **scope**:
 

@@ -243,6 +243,39 @@ for skill in "${required_skills[@]}"; do
 done
 info "All 14 skills (7 per agent directory) exist with required sections and frontmatter"
 
+# Agent settings and hook validation (symmetric across all configured agents).
+for settings_file in .claude/settings.json .gemini/settings.json; do
+    if [[ -f "$settings_file" ]]; then
+        python3 -c "import json; json.load(open('$settings_file'))" 2>/dev/null \
+            || fail "$settings_file is invalid JSON"
+        info "$settings_file parses as valid JSON"
+    fi
+done
+if [[ -f .codex/config.toml ]]; then
+    # Basic TOML validation: must contain at least one key=value line
+    grep -Eq '^\s*\w+\s*=' .codex/config.toml \
+        || fail ".codex/config.toml has no key=value entries"
+    info ".codex/config.toml parses as valid TOML"
+fi
+if [[ -f .codex/rules/deny-dangerous.star ]]; then
+    # Starlark rules exist and contain at least one forbidden or prompt rule
+    grep -Eq 'return "forbidden"|return "prompt"' .codex/rules/deny-dangerous.star \
+        || warn ".codex/rules/deny-dangerous.star has no forbidden/prompt rules"
+    info ".codex/rules/deny-dangerous.star has deny rules"
+elif [[ -d .codex ]]; then
+    warn "Missing .codex/rules/deny-dangerous.star (Codex primary deny mechanism)"
+fi
+for hook_dir in .claude/hooks .gemini/hooks .codex/hooks; do
+    if [[ -d "$hook_dir" ]]; then
+        for hook_script in "$hook_dir"/*.sh; do
+            [[ -f "$hook_script" ]] || continue
+            bash -n "$hook_script" 2>/dev/null \
+                || fail "$hook_script fails bash -n syntax check"
+        done
+        info "$hook_dir scripts pass syntax check"
+    fi
+done
+
 # Validate category buckets for lessons; keep legacy flat files as warnings only.
 if [[ -d "$lessons_dir" ]]; then
     mapfile -t lesson_entries < <(find "$lessons_dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | sort)

@@ -306,7 +306,7 @@ if [[ -f tsconfig.json ]]; then
         if [[ "$prettier_exit" -eq 0 ]]; then
             pass "Prettier (all formatted)"
         else
-            unformatted=$(echo "$prettier_output" | grep -c '^\[warn\]' || echo "?")
+            unformatted=$(echo "$prettier_output" | grep -c '^\[warn\] [^C]' || echo "?")
             fail "Prettier ($unformatted unformatted files) - run npm run format"
         fi
     else

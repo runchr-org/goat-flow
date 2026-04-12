@@ -123,10 +123,7 @@
             <div class="gf-detect-row">
               <span class="gf-detect-label">Languages</span>
               <div class="gf-tags" style="margin-top: 0">
-                <template
-                  x-for="lang in (report?.stack?.languages || wizardData.languages)"
-                  :key="lang"
-                >
+                <template x-for="lang in wizardData.languages" :key="lang">
                   <span class="gf-tag" x-text="lang"></span>
                 </template>
                 <span

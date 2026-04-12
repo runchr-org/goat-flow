@@ -28,7 +28,7 @@ This is a **Node.js CLI tool** (not a browser app, not React/Vue). Pure TypeScri
 
 ## Scanner Check Pattern
 
-Each rubric check is a `CheckDef` object in `src/cli/rubric/{foundation,standard,full}.ts`:
+Each rubric check is a `CheckDef` object in `src/cli/rubric/{foundation.ts,standard/,anti-patterns.ts}`:
 
 ```typescript
 {

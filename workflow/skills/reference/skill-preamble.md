@@ -26,13 +26,6 @@ Order findings by severity, not by file or discovery order.
 - Before citing a CLI flag, verify it with `--help` or the command's docs
 - Before citing a config key, read the actual config file first
 
-## Universal Constraints
-
-- MUST NOT fabricate file paths, function names, or artifact content
-- Before citing a function or symbol name, verify it exists with a repo search
-- Before citing a CLI flag, verify it with `--help` or docs
-- Before citing a config key, read the actual config file first
-
 ## Ceremony Level
 
 Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.

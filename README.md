@@ -70,7 +70,7 @@ This prints a setup prompt. Paste it into Claude Code and let the agent configur
 goat-flow audit .
 ```
 
-Your project passes. Add `--quality` to see advisory scoring across the 5 harness concerns.
+Your project passes the structural setup checks. Add `--quality` to see advisory scoring across the 5 harness concerns. Note: audit validates setup correctness (files, config, skills, hooks), not code quality — run your project's lint and test commands separately.
 
 ### 6. Try a skill
 
@@ -115,11 +115,14 @@ goat-flow audit .                          # Validate setup correctness (pass/fa
 goat-flow audit . --quality                # Build + advisory quality scoring
 goat-flow critique . --agent claude        # Generate agent critique prompt
 goat-flow setup . --agent claude           # Generate setup prompt for Claude Code
+goat-flow status .                         # Show project state (bare/partial/v0.9/v1.0/v1.1)
 goat-flow dashboard .                      # Visual dashboard with integrated terminal
 
 goat-flow audit . --format json            # JSON output for CI
 goat-flow setup . --agent gemini           # Gemini CLI setup
 goat-flow setup . --agent codex            # Codex setup
+goat-flow info rubrics                     # List internal rubric checks
+goat-flow info anti-patterns               # List internal anti-pattern deductions
 ```
 
 See [docs/cli.md](docs/cli.md) for the full command reference.
@@ -153,6 +156,7 @@ Expected. Run `goat-flow setup . --agent claude` and paste the output into your 
 | [CLI Reference](docs/cli.md) | All commands, flags, and output formats |
 | [Skills Reference](docs/skills/README.md) | All 7 skills: modes, phases, gates, outputs |
 | [Audit & Critique](docs/audit-and-critique.md) | The two evaluation commands, 5 harness concerns, and when to use each |
+| [Dashboard](docs/dashboard.md) | Views, terminal, API endpoints |
 
 ## Author
 
