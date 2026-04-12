@@ -209,7 +209,10 @@ export function serveDashboard(
       return true;
     }
 
-    /** Run an audit for the requested path and return the JSON report. */
+    /** Run an audit for the requested path and return a merged report.
+     * The dashboard Home page needs per-agent scoring from the scanner,
+     * while the Audit detail page needs scope-based results from the auditor.
+     * This endpoint runs both and merges the results. */
     function handleAuditRequest(url: URL, res: ServerResponse): boolean {
       if (url.pathname !== "/api/audit") return false;
 
@@ -223,8 +226,9 @@ export function serveDashboard(
 
       try {
         const fs = createFS(projectPath);
-        const report = runAudit(fs, projectPath, { agentFilter, quality });
-        jsonResponse(res, 200, report);
+        const scanReport = scanProject(fs, projectPath, { agentFilter });
+        const auditReport = runAudit(fs, projectPath, { agentFilter, quality });
+        jsonResponse(res, 200, { ...scanReport, ...auditReport });
       } catch (err) {
         jsonResponse(res, 500, {
           error: err instanceof Error ? err.message : String(err),
