@@ -597,6 +597,10 @@ function app() {
     async loadRubrics() {
       try {
         const res = await fetch("/api/rubrics");
+        if (!res.ok) {
+          this.showToast(`Failed to load rubrics (${res.status})`, true);
+          return;
+        }
         const data = await res.json();
         this.rubricChecks = data.checks || [];
         this.antiPatterns = data.antiPatterns || [];

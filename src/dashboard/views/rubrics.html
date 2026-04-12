@@ -15,7 +15,7 @@
 
     /** Group checks by tier, then by category within each tier */
     groupedByTier() {
-      const tiers = ['foundation', 'standard', 'full'];
+      const tiers = ['foundation', 'standard'];
       const result = {};
       for (const tier of tiers) {
         const tierChecks = this.filteredRubricChecks.filter(c => c.tier === tier);
@@ -99,7 +99,7 @@
     <div
       style="
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 12px;
         margin-bottom: 20px;
       "
@@ -189,50 +189,6 @@
           class="gf-text-muted"
           style="font-size: 11px; margin-top: 6px"
           x-text="tierCheckCount('standard') + ' checks'"
-        ></div>
-      </div>
-
-      <!-- Full -->
-      <div
-        class="gf-card"
-        style="
-          padding: 14px 16px;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: border-color 0.1s;
-        "
-        :style="rubricFilter === 'full' ? 'border-color: #818cf8' : ''"
-        @click="rubricFilter = rubricFilter === 'full' ? 'all' : 'full'"
-      >
-        <div
-          style="
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 8px;
-          "
-        >
-          <span style="font-size: 16px">&#x1F680;</span>
-          <span
-            class="gf-text-primary"
-            style="font-size: 13px; font-weight: 600"
-            >Full</span
-          >
-        </div>
-        <div
-          style="font-size: 20px; font-weight: 500; color: #818cf8"
-          x-text="tierTotalPts('full') + ' pts'"
-        ></div>
-        <div
-          class="gf-text-muted"
-          style="font-size: 11px; margin-top: 4px; line-height: 1.4"
-        >
-          Full adoption
-        </div>
-        <div
-          class="gf-text-muted"
-          style="font-size: 11px; margin-top: 6px"
-          x-text="tierCheckCount('full') + ' checks'"
         ></div>
       </div>
 
@@ -326,8 +282,7 @@
     <template
       x-for="tierInfo in [
       { id: 'foundation', label: 'Foundation', color: '#4ade80', bg: 'rgba(74,222,128,0.12)' },
-      { id: 'standard', label: 'Standard', color: '#facc15', bg: 'rgba(250,204,21,0.12)' },
-      { id: 'full', label: 'Full', color: '#818cf8', bg: 'rgba(129,140,248,0.12)' }
+      { id: 'standard', label: 'Standard', color: '#facc15', bg: 'rgba(250,204,21,0.12)' }
     ]"
       :key="tierInfo.id"
     >

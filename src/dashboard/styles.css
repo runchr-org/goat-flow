@@ -861,9 +861,16 @@ label,
   color: var(--accent);
 }
 .gf-nav-wrap {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.gf-nav-wrap::-webkit-scrollbar {
+  display: none;
 }
 .gf-nav {
   display: flex;

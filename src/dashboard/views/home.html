@@ -249,7 +249,7 @@
         "
       >
         <span class="gf-text-primary" style="font-size: 20px; font-weight: 600"
-          >Audit</span
+          >Agent Scores</span
         >
         <button
           @click="runAudit()"
@@ -265,12 +265,16 @@
         <template x-for="agent in (report?.agents || [])" :key="agent.agent">
           <button
             @click="activeView = 'audit'; auditDetailAgent = agent.agent; selectedAgent = agent.agent"
-            class="gf-card"
+            class="gf-card gf-card-clickable"
             style="
               padding: 20px 24px;
               cursor: pointer;
-              transition: border-color 0.1s;
+              transition:
+                border-color 0.15s ease,
+                transform 0.1s ease;
             "
+            @mouseenter="$el.style.borderColor = 'var(--accent-border)'"
+            @mouseleave="$el.style.borderColor = ''"
           >
             <div
               style="
@@ -313,7 +317,7 @@
             </div>
             <div style="display: flex; flex-direction: column; gap: 8px">
               <template
-                x-for="tier in ['foundation', 'standard', 'full'].filter(t => agent.score.tiers[t]?.available > 0)"
+                x-for="tier in ['foundation', 'standard'].filter(t => agent.score.tiers[t]?.available > 0)"
                 :key="agent.agent + '-' + tier"
               >
                 <div style="display: flex; align-items: center; gap: 8px">
@@ -364,12 +368,11 @@
                 style="font-size: 16px; font-weight: 600"
                 x-text="{ claude: 'Claude Code', codex: 'Codex', gemini: 'Gemini CLI', copilot: 'Copilot' }[agent.id] || agent.id"
               ></span>
-              <span class="gf-grade gf-grade-na">&mdash;</span>
             </div>
             <div
               class="gf-text-disabled"
               style="font-size: 11px; font-style: italic"
-              x-text="agent.version || 'not audited'"
+              x-text="agent.version ? agent.version + ' (no audit support)' : 'No audit support'"
             ></div>
           </div>
         </template>

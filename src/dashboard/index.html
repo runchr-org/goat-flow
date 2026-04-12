@@ -51,7 +51,7 @@
       x-transition:leave="transition ease-in duration-150"
       x-transition:leave-start="opacity-100 translate-y-0"
       x-transition:leave-end="opacity-0 translate-y-2"
-      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 bg-red-600 text-white"
+      class="fixed bottom-14 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 bg-red-600 text-white"
     >
       <svg
         class="w-4 h-4 shrink-0"
@@ -99,6 +99,20 @@
               Audit
             </button>
             <button
+              @click="activeView = 'rubrics'; loadRubrics()"
+              class="gf-nb"
+              :class="activeView === 'rubrics' && 'gf-nb-active'"
+            >
+              Rubrics
+            </button>
+            <button
+              @click="activeView = 'wizard'; detectStack()"
+              class="gf-nb"
+              :class="activeView === 'wizard' && 'gf-nb-active'"
+            >
+              Setup
+            </button>
+            <button
               @click="activeView = 'workspace'"
               class="gf-nb"
               :class="activeView === 'workspace' && 'gf-nb-active'"
@@ -117,17 +131,6 @@
                   background: #4ade80;
                 "
               ></span>
-              <span
-                x-show="terminalSessionCount > 0"
-                x-cloak
-                class="ml-1 px-1.5 py-0.5 rounded-full text-xs font-mono"
-                :class="{
-            'bg-green-100 text-green-800': terminalSessionCount === 1,
-            'bg-yellow-100 text-yellow-800': terminalSessionCount === 2,
-            'bg-red-100 text-red-800': terminalSessionCount >= 3,
-          }"
-                x-text="terminalSessionCount + '/3'"
-              ></span>
             </button>
             <button
               @click="activeView = 'projects'"
@@ -135,20 +138,6 @@
               :class="activeView === 'projects' && 'gf-nb-active'"
             >
               Projects
-            </button>
-            <button
-              @click="activeView = 'rubrics'; loadRubrics()"
-              class="gf-nb"
-              :class="activeView === 'rubrics' && 'gf-nb-active'"
-            >
-              Rubrics
-            </button>
-            <button
-              @click="activeView = 'wizard'; detectStack()"
-              class="gf-nb"
-              :class="activeView === 'wizard' && 'gf-nb-active'"
-            >
-              Setup
             </button>
             <button
               @click="activeView = 'critique'"
@@ -159,10 +148,6 @@
             </button>
           </div>
         </div>
-        <div style="flex: 1"></div>
-        <span style="font-size: 11px; margin-right: 4px; color: #a1a1aa"
-          >Terminal:</span
-        >
         <div class="gf-asel">
           <template x-for="agent in installedAgents" :key="agent.id">
             <button
