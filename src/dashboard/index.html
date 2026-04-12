@@ -141,12 +141,12 @@
             </button>
           </div>
         </div>
-        <div class="gf-asel" style="display: flex; align-items: center; gap: 0">
-          <span
-            class="gf-text-muted"
-            style="font-size: 11px; margin-right: 6px; white-space: nowrap"
-            >Terminal:</span
-          >
+        <span
+          class="gf-text-muted"
+          style="font-size: 11px; margin-right: 6px; white-space: nowrap"
+          >Terminal:</span
+        >
+        <div class="gf-asel">
           <template x-for="agent in installedAgents" :key="agent.id">
             <button
               @click="activeRunner = agent.id"

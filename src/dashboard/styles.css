@@ -1034,6 +1034,13 @@ label,
   border: 0.5px solid var(--border-subtle);
   position: relative;
 }
+.gf-loader-overlay {
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
 .gf-prompt-hdr {
   display: flex !important;
   align-items: center;

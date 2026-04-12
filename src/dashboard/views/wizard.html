@@ -264,14 +264,8 @@
           <!-- Generating state -->
           <div
             x-show="wizardGenerating"
-            style="
-              position: absolute;
-              inset: 0;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              gap: 8px;
-            "
+            :style="wizardGenerating && 'display:flex'"
+            class="gf-loader-overlay"
           >
             <svg
               class="animate-spin"

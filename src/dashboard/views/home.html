@@ -176,8 +176,8 @@
       </button>
     </div>
 
-    <!-- Scope cards (matching Audit page layout) -->
-    <div x-show="report" style="margin-bottom: 20px">
+    <!-- GOAT Flow Setup -->
+    <div x-show="report" style="margin-bottom: 12px">
       <div
         style="
           display: flex;
@@ -197,16 +197,64 @@
           <span x-text="auditing ? 'Auditing...' : 'Re-audit'"></span>
         </button>
       </div>
+      <button
+        @click="activeView = 'audit'; auditDetailScope = 'setup'"
+        class="gf-card gf-card-clickable"
+        style="
+          padding: 16px 24px;
+          cursor: pointer;
+          transition: border-color 0.15s ease;
+          width: 100%;
+          text-align: left;
+        "
+        @mouseenter="$el.style.borderColor = 'var(--accent-border)'"
+        @mouseleave="$el.style.borderColor = ''"
+      >
+        <div style="display: flex; align-items: center; justify-content: space-between">
+          <div>
+            <span class="gf-text-primary" style="font-size: 16px; font-weight: 600"
+              >GOAT Flow Setup</span
+            >
+            <span
+              class="gf-text-secondary"
+              style="font-size: 12px; margin-left: 12px"
+              x-text="`${(report?.scopes?.setup?.checks || []).filter(c => c.status === 'pass').length}/${(report?.scopes?.setup?.checks || []).length} checks passed`"
+            ></span>
+          </div>
+          <span
+            style="
+              font-size: 13px;
+              font-weight: 600;
+              padding: 2px 8px;
+              border-radius: 4px;
+            "
+            :style="{
+              background: report?.scopes?.setup?.status === 'pass' ? '#14532d' : '#7f1d1d',
+              color: report?.scopes?.setup?.status === 'pass' ? '#4ade80' : '#f87171',
+            }"
+            x-text="report?.scopes?.setup?.status === 'pass' ? 'PASS' : 'FAIL'"
+          ></span>
+        </div>
+      </button>
+    </div>
+
+    <!-- Per-agent AI Harness Score -->
+    <div x-show="report?.agentScores?.length > 0" style="margin-bottom: 20px">
       <div
-        x-data="{ scopeNames: { setup: 'GOAT Flow Setup', harness: 'AI Harness Score' } }"
-        style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px"
+        class="gf-text-primary"
+        style="font-size: 20px; font-weight: 600; margin-bottom: 10px"
+      >
+        AI Harness Score
+      </div>
+      <div
+        style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px"
       >
         <template
-          x-for="scopeName in ['setup', 'harness']"
-          :key="'home-' + scopeName"
+          x-for="agent in (report?.agentScores || [])"
+          :key="'harness-' + agent.id"
         >
           <button
-            @click="activeView = 'audit'; auditDetailScope = scopeName"
+            @click="activeView = 'audit'; auditDetailScope = 'harness'"
             class="gf-card gf-card-clickable"
             style="
               padding: 20px 24px;
@@ -227,51 +275,23 @@
               <span
                 class="gf-text-primary"
                 style="font-size: 16px; font-weight: 600"
-                x-text="scopeNames[scopeName]"
+                x-text="agent.name"
               ></span>
-              <!-- Setup: pass/fail badge -->
               <span
-                x-show="scopeName === 'setup'"
-                style="
-                  font-size: 13px;
-                  font-weight: 600;
-                  padding: 2px 8px;
-                  border-radius: 4px;
-                "
-                :style="{
-                  background: report?.scopes?.setup?.status === 'pass' ? '#14532d' : '#7f1d1d',
-                  color: report?.scopes?.setup?.status === 'pass' ? '#4ade80' : '#f87171',
-                }"
-                x-text="report?.scopes?.setup?.status === 'pass' ? 'PASS' : 'FAIL'"
-              ></span>
-              <!-- Harness: percentage score -->
-              <span
-                x-show="scopeName === 'harness'"
                 style="font-size: 18px; font-weight: 700"
                 :style="{
-                  color: (report?.scopes?.harness?.score ?? 0) >= 80 ? '#4ade80' :
-                         (report?.scopes?.harness?.score ?? 0) >= 60 ? '#fb923c' : '#f87171'
+                  color: (agent.harness.score ?? 0) >= 80 ? '#4ade80' :
+                         (agent.harness.score ?? 0) >= 60 ? '#fb923c' : '#f87171'
                 }"
-                x-text="`${report?.scopes?.harness?.score ?? 0}%`"
+                x-text="`${agent.harness.score ?? 0}%`"
               ></span>
             </div>
-            <!-- Check count -->
-            <div class="gf-text-muted" style="font-size: 12px; margin-top: 2px">
+            <div class="gf-text-muted" style="font-size: 12px">
               <span
                 class="gf-text-secondary"
-                x-text="`${(report?.scopes?.[scopeName]?.checks || []).filter(c => c.status === 'pass').length}/${(report?.scopes?.[scopeName]?.checks || []).length} checks passed`"
+                x-text="`${agent.harness.checks.filter(c => c.status === 'pass').length}/${agent.harness.checks.length} checks`"
               ></span>
             </div>
-            <!-- Summary -->
-            <template
-              x-for="[key, value] in Object.entries(report?.scopes?.[scopeName]?.summary || {})"
-              :key="'home-' + scopeName + '-' + key"
-            >
-              <div class="gf-text-muted" style="font-size: 12px; margin-top: 2px">
-                <span style="text-transform: capitalize" x-text="key"></span>:
-                <span class="gf-text-secondary" x-text="value"></span>
-              </div>
-            </template>
           </button>
         </template>
       </div>
