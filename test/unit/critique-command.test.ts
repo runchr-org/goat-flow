@@ -141,10 +141,7 @@ describe("critique with audit data", () => {
       result.prompt.includes("## Audit Summary"),
       "Should contain audit summary section",
     );
-    assert.ok(
-      result.prompt.includes("setup"),
-      "Should mention setup scope",
-    );
+    assert.ok(result.prompt.includes("setup"), "Should mention setup scope");
     assert.ok(
       result.prompt.includes("project"),
       "Should mention project scope",
@@ -191,7 +188,10 @@ describe("critique payload contract", () => {
       ["pass", "fail", "unavailable"].includes(result.auditStatus),
       "auditStatus should be pass, fail, or unavailable",
     );
-    assert.ok(typeof result.auditSummary === "string", "auditSummary should be string");
+    assert.ok(
+      typeof result.auditSummary === "string",
+      "auditSummary should be string",
+    );
     assert.ok(typeof result.prompt === "string", "prompt should be string");
     assert.ok(result.prompt.length > 0, "prompt should not be empty");
   });

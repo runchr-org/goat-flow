@@ -9,6 +9,7 @@ import { parseArgs } from "node:util";
 import { resolve, dirname, join } from "node:path";
 import { writeFileSync, mkdirSync } from "node:fs";
 import type { CLIOptions, AgentId, ScanReport, Tier } from "./types.js";
+import type { AuditReport } from "./audit/types.js";
 
 import { getPackageVersion } from "./paths.js";
 
@@ -75,7 +76,14 @@ function printVersion(): void {
 type Command = "setup" | "dashboard" | "info" | "status" | "audit" | "critique";
 
 /** List of recognized CLI subcommands */
-const COMMANDS: Command[] = ["setup", "dashboard", "info", "status", "audit", "critique"];
+const COMMANDS: Command[] = [
+  "setup",
+  "dashboard",
+  "info",
+  "status",
+  "audit",
+  "critique",
+];
 /** Previously valid commands that now produce a helpful removal error */
 const REMOVED_COMMANDS: Record<string, string> = {
   fix: '"fix" was removed. Use "setup" instead - it adapts to your project\'s state.',
@@ -374,11 +382,8 @@ async function handleInfoCommand(options: ParsedCLI): Promise<void> {
 async function handleAuditCommand(options: ParsedCLI): Promise<void> {
   const { createFS } = await import("./facts/fs.js");
   const { runAudit } = await import("./audit/audit.js");
-  const {
-    renderAuditText,
-    renderAuditJson,
-    renderAuditMarkdown,
-  } = await import("./audit/render.js");
+  const { renderAuditText, renderAuditJson, renderAuditMarkdown } =
+    await import("./audit/render.js");
 
   const fs = createFS(options.projectPath);
   const report = runAudit(fs, options.projectPath, {
@@ -418,7 +423,7 @@ async function handleCritiqueCommand(options: ParsedCLI): Promise<void> {
   const fs = createFS(options.projectPath);
 
   // Run audit but don't fail if it errors - critique works even when audit is failing
-  let auditReport: import("./audit/types.js").AuditReport | null = null;
+  let auditReport: AuditReport | null = null;
   try {
     auditReport = runAudit(fs, options.projectPath, {
       agentFilter: options.agent,

@@ -38,7 +38,9 @@ const instructionLineCount: QualityCheck = {
         return fail(
           [`${af.agent.id}: no instruction file`],
           ["Create instruction file for each configured agent"],
-          [`Create ${af.agent.instructionFile} by running \`goat-flow setup\`.`],
+          [
+            `Create ${af.agent.instructionFile} by running \`goat-flow setup\`.`,
+          ],
         );
       }
       const lines = af.instruction.lineCount;
@@ -49,15 +51,21 @@ const instructionLineCount: QualityCheck = {
           30,
           [`${af.agent.id}: ${lines} lines (exceeds hard limit ${limit})`],
           [`Reduce instruction file to under ${target} lines`],
-          [`Trim ${af.agent.instructionFile} to under ${target} lines. Move detailed reference material to .goat-flow/architecture.md.`],
+          [
+            `Trim ${af.agent.instructionFile} to under ${target} lines. Move detailed reference material to .goat-flow/architecture.md.`,
+          ],
         );
       }
       if (lines > target) {
         return partial(
           70,
-          [`${af.agent.id}: ${lines} lines (over target ${target}, under limit ${limit})`],
+          [
+            `${af.agent.id}: ${lines} lines (over target ${target}, under limit ${limit})`,
+          ],
           [`Consider trimming to target ${target} lines`],
-          [`Trim ${af.agent.instructionFile} by moving verbose sections to .goat-flow/ reference files.`],
+          [
+            `Trim ${af.agent.instructionFile} by moving verbose sections to .goat-flow/ reference files.`,
+          ],
         );
       }
       return pass([`${af.agent.id}: ${lines} lines (under target ${target})`]);
@@ -85,12 +93,24 @@ const routerTableResolves: QualityCheck = {
       }
     }
     if (totalPaths === 0) {
-      return partial(50, ["No router table found"], ["Add a Router Table section to instruction file"], ["Add a Router Table section to the instruction file mapping resource names to file paths."]);
+      return partial(
+        50,
+        ["No router table found"],
+        ["Add a Router Table section to instruction file"],
+        [
+          "Add a Router Table section to the instruction file mapping resource names to file paths.",
+        ],
+      );
     }
     if (findings.length > 0) {
-      recs.push("Fix dead router table paths so agents can navigate the codebase");
-      const score = totalPaths > 0 ? Math.round((resolved / totalPaths) * 100) : 0;
-      return partial(score, findings, recs, ["Update or remove dead paths in the instruction file's Router Table section."]);
+      recs.push(
+        "Fix dead router table paths so agents can navigate the codebase",
+      );
+      const score =
+        totalPaths > 0 ? Math.round((resolved / totalPaths) * 100) : 0;
+      return partial(score, findings, recs, [
+        "Update or remove dead paths in the instruction file's Router Table section.",
+      ]);
     }
     return pass([`All ${totalPaths} router table paths resolve`]);
   },
@@ -103,14 +123,23 @@ const footgunEvidenceResolves: QualityCheck = {
   run: (ctx) => {
     const { footguns } = ctx.facts.shared;
     if (!footguns.exists || footguns.entryCount === 0) {
-      return partial(50, ["No footgun entries"], ["Log footguns as they are discovered"], ["Add entries to .goat-flow/footguns/ bucket files as architectural traps are discovered."]);
+      return partial(
+        50,
+        ["No footgun entries"],
+        ["Log footguns as they are discovered"],
+        [
+          "Add entries to .goat-flow/footguns/ bucket files as architectural traps are discovered.",
+        ],
+      );
     }
     if (footguns.staleRefs.length > 0) {
       return partial(
         60,
         [`${footguns.staleRefs.length} stale file:line references in footguns`],
         ["Update stale footgun references to current file:line locations"],
-        ["Update stale file:line references in .goat-flow/footguns/ to match current source locations."],
+        [
+          "Update stale file:line references in .goat-flow/footguns/ to match current source locations.",
+        ],
       );
     }
     return pass([`${footguns.entryCount} footgun entries with valid evidence`]);
@@ -126,7 +155,9 @@ const architectureExists: QualityCheck = {
       return fail(
         ["architecture.md does not exist"],
         ["Create .goat-flow/architecture.md describing the project structure"],
-        ["Create .goat-flow/architecture.md with the project's key modules, dependencies, and data flow."],
+        [
+          "Create .goat-flow/architecture.md with the project's key modules, dependencies, and data flow.",
+        ],
       );
     }
     const lines = ctx.facts.shared.architecture.lineCount;
@@ -135,7 +166,9 @@ const architectureExists: QualityCheck = {
         40,
         [`architecture.md is only ${lines} lines`],
         ["Expand architecture.md with real project structure details"],
-        ["Expand .goat-flow/architecture.md with module descriptions, entry points, and key patterns."],
+        [
+          "Expand .goat-flow/architecture.md with module descriptions, entry points, and key patterns.",
+        ],
       );
     }
     return pass([`architecture.md exists (${lines} lines)`]);
@@ -163,7 +196,9 @@ const denyCoversSecrets: QualityCheck = {
         30,
         ["Deny patterns do not cover secret file reads"],
         ["Add deny patterns for .env, credentials, and key files"],
-        ["Add deny patterns for .env, .credentials, *.key, and *.pem files in the agent's deny configuration."],
+        [
+          "Add deny patterns for .env, .credentials, *.key, and *.pem files in the agent's deny configuration.",
+        ],
       );
     }
     if (uncovered.length > 0) {
@@ -173,8 +208,12 @@ const denyCoversSecrets: QualityCheck = {
           `${covered.join(", ")}: deny patterns cover secrets`,
           `${uncovered.join(", ")}: deny patterns missing secret file coverage`,
         ],
-        [`Add deny patterns for .env, credentials, and key files to ${uncovered.join(", ")}`],
-        [`Add deny patterns for .env, .credentials, *.key, and *.pem files to ${uncovered.join(", ")} agent configuration.`],
+        [
+          `Add deny patterns for .env, credentials, and key files to ${uncovered.join(", ")}`,
+        ],
+        [
+          `Add deny patterns for .env, .credentials, *.key, and *.pem files to ${uncovered.join(", ")} agent configuration.`,
+        ],
       );
     }
     return pass([`${covered.join(", ")}: deny patterns cover secrets`]);
@@ -203,9 +242,15 @@ const denyBlocksDangerous: QualityCheck = {
         if (!denyBlocksRmRf) missing.push("rm -rf");
         if (!denyBlocksForcePush) missing.push("force-push");
         if (!denyBlocksChmod) missing.push("chmod");
-        findings.push(`${af.agent.id}: deny missing coverage for ${missing.join(", ")}`);
-        recs.push(`Add deny patterns for ${missing.join(", ")} to ${af.agent.id}`);
-        fixes.push(`Add deny patterns for ${missing.join(", ")} in ${af.agent.id} agent configuration.`);
+        findings.push(
+          `${af.agent.id}: deny missing coverage for ${missing.join(", ")}`,
+        );
+        recs.push(
+          `Add deny patterns for ${missing.join(", ")} to ${af.agent.id}`,
+        );
+        fixes.push(
+          `Add deny patterns for ${missing.join(", ")} in ${af.agent.id} agent configuration.`,
+        );
       }
     }
     if (allPass) {
@@ -226,7 +271,9 @@ const askFirstBoundaries: QualityCheck = {
         40,
         ["No ask_first boundaries configured"],
         ["Add ask_first entries in config.yaml for high-risk paths"],
-        ["Add ask_first entries in .goat-flow/config.yaml for high-risk paths like deployment configs and security files."],
+        [
+          "Add ask_first entries in .goat-flow/config.yaml for high-risk paths like deployment configs and security files.",
+        ],
       );
     }
     return pass([`${boundaries.length} ask_first boundaries configured`]);
@@ -241,12 +288,16 @@ const testCommandRunnable: QualityCheck = {
   weight: 3,
   run: (ctx) => {
     if (ctx.config.config.toolchain.test.length > 0) {
-      return pass([`Test command configured: ${ctx.config.config.toolchain.test[0]}`]);
+      return pass([
+        `Test command configured: ${ctx.config.config.toolchain.test[0]}`,
+      ]);
     }
     return fail(
       ["No test command configured"],
       ["Add toolchain.test to config.yaml"],
-      ["Add `test:` to the toolchain section of .goat-flow/config.yaml with your test runner command."],
+      [
+        "Add `test:` to the toolchain section of .goat-flow/config.yaml with your test runner command.",
+      ],
     );
   },
 };
@@ -261,12 +312,18 @@ const hooksRegisteredAndPresent: QualityCheck = {
     const fixes: string[] = [];
     for (const af of ctx.agents) {
       if (af.hooks.postTurnRegistered && !af.hooks.postTurnExists) {
-        findings.push(`${af.agent.id}: post-turn hook registered but file missing`);
+        findings.push(
+          `${af.agent.id}: post-turn hook registered but file missing`,
+        );
         recs.push("Create the registered post-turn hook file");
-        fixes.push(`Create the post-turn hook file at the path specified in ${af.agent.settingsFile}.`);
+        fixes.push(
+          `Create the post-turn hook file at the path specified in ${af.agent.settingsFile}.`,
+        );
       }
       if (af.hooks.postTurnExists && !af.hooks.postTurnRegistered) {
-        findings.push(`${af.agent.id}: post-turn hook file exists but not registered`);
+        findings.push(
+          `${af.agent.id}: post-turn hook file exists but not registered`,
+        );
         recs.push("Register the post-turn hook in agent settings");
         fixes.push(`Register the post-turn hook in ${af.agent.settingsFile}.`);
       }
@@ -290,7 +347,9 @@ const commitGuidanceExists: QualityCheck = {
       40,
       ["No commit guidance detected"],
       ["Add commit conventions to instruction file or .github/instructions/"],
-      ["Add commit conventions to the instruction file or create .github/instructions/git-commit.md."],
+      [
+        "Add commit conventions to the instruction file or create .github/instructions/git-commit.md.",
+      ],
     );
   },
 };
@@ -311,7 +370,9 @@ const milestoneFilesExist: QualityCheck = {
         30,
         ["No milestone/task files found"],
         ["Create milestone files in .goat-flow/tasks/ for work tracking"],
-        ["Create milestone files in .goat-flow/tasks/ to track work and enable session recovery."],
+        [
+          "Create milestone files in .goat-flow/tasks/ to track work and enable session recovery.",
+        ],
       );
     }
     if (files.length === 0) {
@@ -340,11 +401,20 @@ const sessionLogsExist: QualityCheck = {
         30,
         ["No session logs directory"],
         ["Log sessions to .goat-flow/logs/sessions/"],
-        ["Create .goat-flow/logs/sessions/ and start logging sessions for continuity between conversations."],
+        [
+          "Create .goat-flow/logs/sessions/ and start logging sessions for continuity between conversations.",
+        ],
       );
     }
     if (files.length === 0) {
-      return partial(40, ["No session logs"], ["Start logging sessions"], ["Start logging sessions to .goat-flow/logs/sessions/ for work continuity."]);
+      return partial(
+        40,
+        ["No session logs"],
+        ["Start logging sessions"],
+        [
+          "Start logging sessions to .goat-flow/logs/sessions/ for work continuity.",
+        ],
+      );
     }
     return pass([`${files.length} session logs found`]);
   },
@@ -363,7 +433,9 @@ const footgunActivity: QualityCheck = {
         20,
         ["No footgun entries logged"],
         ["Start logging footguns as they are discovered"],
-        ["Add entries to .goat-flow/footguns/ bucket files as architectural traps are discovered."],
+        [
+          "Add entries to .goat-flow/footguns/ bucket files as architectural traps are discovered.",
+        ],
       );
     }
     if (count < 3) {
@@ -371,7 +443,9 @@ const footgunActivity: QualityCheck = {
         60,
         [`Only ${count} footgun entries - low activity`],
         ["Continue logging footguns to build institutional memory"],
-        ["Add more entries to .goat-flow/footguns/ to build institutional memory."],
+        [
+          "Add more entries to .goat-flow/footguns/ to build institutional memory.",
+        ],
       );
     }
     return pass([`${count} footgun entries`]);
@@ -389,7 +463,9 @@ const lessonActivity: QualityCheck = {
         20,
         ["No lesson entries logged"],
         ["Start logging lessons from behavioral mistakes"],
-        ["Add entries to .goat-flow/lessons/ bucket files when behavioral mistakes are identified."],
+        [
+          "Add entries to .goat-flow/lessons/ bucket files when behavioral mistakes are identified.",
+        ],
       );
     }
     if (count < 3) {
@@ -414,8 +490,12 @@ const decisionsTracked: QualityCheck = {
       return partial(
         30,
         ["No decisions directory"],
-        ["Create .goat-flow/decisions/ and log significant technical decisions"],
-        ["Create .goat-flow/decisions/ and log significant technical decisions with context and rationale."],
+        [
+          "Create .goat-flow/decisions/ and log significant technical decisions",
+        ],
+        [
+          "Create .goat-flow/decisions/ and log significant technical decisions with context and rationale.",
+        ],
       );
     }
     if (decisions.fileCount === 0) {
@@ -423,7 +503,9 @@ const decisionsTracked: QualityCheck = {
         40,
         ["Decisions directory empty"],
         ["Log architectural decisions with context and rationale"],
-        ["Add decision records to .goat-flow/decisions/ with rationale and alternatives considered."],
+        [
+          "Add decision records to .goat-flow/decisions/ with rationale and alternatives considered.",
+        ],
       );
     }
     return pass([`${decisions.fileCount} decision records`]);

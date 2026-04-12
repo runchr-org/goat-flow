@@ -1049,7 +1049,7 @@ function app() {
       if (!this.report?.scopes) return [];
       const failures = [];
       for (const [scope, data] of Object.entries(this.report.scopes)) {
-        for (const f of (data.failures || [])) {
+        for (const f of data.failures || []) {
           failures.push({ ...f, scope });
         }
       }

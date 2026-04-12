@@ -23,6 +23,7 @@ import { scanProject } from "../scanner/scan.js";
 import { runAudit } from "../audit/audit.js";
 import { getPackageVersion } from "../paths.js";
 import type { AgentId } from "../types.js";
+import type { AuditReport } from "../audit/types.js";
 import type { Runner } from "./types.js";
 import type { TerminalManager } from "./terminal.js";
 import type { WebSocketServer, WebSocket as WsWebSocket } from "ws";
@@ -215,9 +216,10 @@ export function serveDashboard(
       const projectPath = safeResolvePath(url.searchParams.get("path"));
       const quality = url.searchParams.get("quality") === "true";
       const agentParam = url.searchParams.get("agent");
-      const agentFilter = agentParam && VALID_AGENTS.has(agentParam)
-        ? (agentParam as AgentId)
-        : null;
+      const agentFilter =
+        agentParam && VALID_AGENTS.has(agentParam)
+          ? (agentParam as AgentId)
+          : null;
 
       try {
         const fs = createFS(projectPath);
@@ -283,9 +285,10 @@ export function serveDashboard(
       const agent = agentParam as AgentId;
 
       try {
-        const { composeCritique } = await import("../prompt/compose-critique.js");
+        const { composeCritique } =
+          await import("../prompt/compose-critique.js");
 
-        let auditReport: import("../audit/types.js").AuditReport | null = null;
+        let auditReport: AuditReport | null = null;
         try {
           const fs = createFS(projectPath);
           auditReport = runAudit(fs, projectPath, {

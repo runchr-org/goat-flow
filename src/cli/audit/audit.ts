@@ -20,7 +20,7 @@ import type {
   ProjectStructure,
 } from "./types.js";
 
-export interface AuditOptions {
+interface AuditOptions {
   agentFilter: AgentId | null;
   quality: boolean;
 }
@@ -41,8 +41,7 @@ function parseProjectStructure(raw: Record<string, unknown>): ProjectStructure {
         ((raw.skills as Record<string, unknown> | undefined)
           ?.stale_generic as string[]) ?? [],
     },
-    agents:
-      (raw.agents as ProjectStructure["agents"] | undefined) ?? {},
+    agents: (raw.agents as ProjectStructure["agents"] | undefined) ?? {},
   };
 }
 
@@ -72,7 +71,9 @@ function setupSummary(ctx: AuditContext): Record<string, string> {
 
   return {
     skills: `${installedSkills}/${totalSkills} installed`,
-    config: configValid ? `valid, version ${configVersion}` : "invalid or missing",
+    config: configValid
+      ? `valid, version ${configVersion}`
+      : "invalid or missing",
     instructionFile: `${instructionLines} lines`,
   };
 }
@@ -85,7 +86,8 @@ function projectSummary(ctx: AuditContext): Record<string, string> {
   if (tc.lint.length > 0) parts.push("lint");
   if (tc.build.length > 0) parts.push("build");
   return {
-    toolchain: parts.length > 0 ? parts.join(" + ") + " configured" : "none configured",
+    toolchain:
+      parts.length > 0 ? parts.join(" + ") + " configured" : "none configured",
   };
 }
 
@@ -111,7 +113,12 @@ function computeConcerns(
     constraints: { score: 0, findings: [], recommendations: [], howToFix: [] },
     verification: { score: 0, findings: [], recommendations: [], howToFix: [] },
     recovery: { score: 0, findings: [], recommendations: [], howToFix: [] },
-    feedback_loop: { score: 0, findings: [], recommendations: [], howToFix: [] },
+    feedback_loop: {
+      score: 0,
+      findings: [],
+      recommendations: [],
+      howToFix: [],
+    },
   };
 
   const weights: Record<AuditConcernKey, number> = {

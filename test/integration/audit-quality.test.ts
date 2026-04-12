@@ -17,12 +17,18 @@ describe("quality concern scores", () => {
   it("all concern scores are 0-100", () => {
     const projectPath = resolve(import.meta.dirname, "..", "..");
     const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, { agentFilter: "claude", quality: true });
+    const report = runAudit(fs, projectPath, {
+      agentFilter: "claude",
+      quality: true,
+    });
 
     assert.notEqual(report.concerns, null);
     for (const key of Object.keys(report.concerns!) as AuditConcernKey[]) {
       const score = report.concerns![key].score;
-      assert.ok(score >= 0 && score <= 100, `${key} score ${score} should be 0-100`);
+      assert.ok(
+        score >= 0 && score <= 100,
+        `${key} score ${score} should be 0-100`,
+      );
     }
   });
 });
@@ -34,13 +40,32 @@ describe("quality does not affect build result", () => {
   it("same build status with and without quality", () => {
     const projectPath = resolve(import.meta.dirname, "..", "..");
     const fs = createFS(projectPath);
-    const buildOnly = runAudit(fs, projectPath, { agentFilter: "claude", quality: false });
-    const withQuality = runAudit(fs, projectPath, { agentFilter: "claude", quality: true });
+    const buildOnly = runAudit(fs, projectPath, {
+      agentFilter: "claude",
+      quality: false,
+    });
+    const withQuality = runAudit(fs, projectPath, {
+      agentFilter: "claude",
+      quality: true,
+    });
 
-    assert.equal(buildOnly.status, withQuality.status, "Build status must not change with quality");
-    assert.equal(buildOnly.scopes.setup.status, withQuality.scopes.setup.status);
-    assert.equal(buildOnly.scopes.project.status, withQuality.scopes.project.status);
-    assert.equal(buildOnly.scopes.integration.status, withQuality.scopes.integration.status);
+    assert.equal(
+      buildOnly.status,
+      withQuality.status,
+      "Build status must not change with quality",
+    );
+    assert.equal(
+      buildOnly.scopes.setup.status,
+      withQuality.scopes.setup.status,
+    );
+    assert.equal(
+      buildOnly.scopes.project.status,
+      withQuality.scopes.project.status,
+    );
+    assert.equal(
+      buildOnly.scopes.integration.status,
+      withQuality.scopes.integration.status,
+    );
   });
 });
 
@@ -71,6 +96,9 @@ describe("quality howToFix", () => {
         totalHowToFix += result.howToFix.length;
       }
     }
-    assert.ok(totalHowToFix > 0, "At least some quality checks should produce howToFix entries");
+    assert.ok(
+      totalHowToFix > 0,
+      "At least some quality checks should produce howToFix entries",
+    );
   });
 });

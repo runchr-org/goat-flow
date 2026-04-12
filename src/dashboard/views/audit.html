@@ -47,7 +47,13 @@
         >
         <span
           x-show="report?.status"
-          style="margin-left: 12px; font-size: 13px; font-weight: 600; padding: 2px 10px; border-radius: 4px"
+          style="
+            margin-left: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 2px 10px;
+            border-radius: 4px;
+          "
           :style="{
             background: report?.status === 'pass' ? '#14532d' : '#7f1d1d',
             color: report?.status === 'pass' ? '#4ade80' : '#f87171',
@@ -68,7 +74,10 @@
     <div
       style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px"
     >
-      <template x-for="scopeName in ['setup', 'project', 'integration']" :key="scopeName">
+      <template
+        x-for="scopeName in ['setup', 'project', 'integration']"
+        :key="scopeName"
+      >
         <button
           @click="auditDetailScope = (auditDetailScope === scopeName ? null : scopeName)"
           class="gf-card"
@@ -89,11 +98,20 @@
           >
             <span
               class="gf-text-primary"
-              style="font-size: 16px; font-weight: 600; text-transform: capitalize"
+              style="
+                font-size: 16px;
+                font-weight: 600;
+                text-transform: capitalize;
+              "
               x-text="scopeName"
             ></span>
             <span
-              style="font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 4px"
+              style="
+                font-size: 13px;
+                font-weight: 600;
+                padding: 2px 8px;
+                border-radius: 4px;
+              "
               :style="{
                 background: report?.scopes?.[scopeName]?.status === 'pass' ? '#14532d' : '#7f1d1d',
                 color: report?.scopes?.[scopeName]?.status === 'pass' ? '#4ade80' : '#f87171',
@@ -102,7 +120,10 @@
             ></span>
           </div>
           <!-- Summary -->
-          <template x-for="[key, value] in Object.entries(report?.scopes?.[scopeName]?.summary || {})" :key="scopeName + '-' + key">
+          <template
+            x-for="[key, value] in Object.entries(report?.scopes?.[scopeName]?.summary || {})"
+            :key="scopeName + '-' + key"
+          >
             <div class="gf-text-muted" style="font-size: 12px; margin-top: 2px">
               <span style="text-transform: capitalize" x-text="key"></span>:
               <span class="gf-text-secondary" x-text="value"></span>
@@ -138,7 +159,11 @@
         >
           <div
             class="gf-text-primary"
-            style="font-size: 18px; font-weight: 500; text-transform: capitalize"
+            style="
+              font-size: 18px;
+              font-weight: 500;
+              text-transform: capitalize;
+            "
             x-text="auditDetailScope"
           ></div>
           <template x-if="lastAuditTime">
@@ -187,7 +212,9 @@
                     font-size: 13px;
                   "
                 >
-                  <span style="color: #f87171; flex-shrink: 0; font-weight: 600">x</span>
+                  <span style="color: #f87171; flex-shrink: 0; font-weight: 600"
+                    >x</span
+                  >
                   <div style="flex: 1; min-width: 0">
                     <span
                       class="gf-text-primary"
@@ -299,10 +326,7 @@
             x-for="concernKey in ['context', 'constraints', 'verification', 'recovery', 'feedback_loop']"
             :key="concernKey"
           >
-            <div
-              class="gf-card"
-              style="border-radius: 8px; padding: 14px 18px"
-            >
+            <div class="gf-card" style="border-radius: 8px; padding: 14px 18px">
               <div
                 style="
                   display: flex;
@@ -313,7 +337,11 @@
               >
                 <span
                   class="gf-text-primary"
-                  style="font-size: 14px; font-weight: 500; text-transform: capitalize"
+                  style="
+                    font-size: 14px;
+                    font-weight: 500;
+                    text-transform: capitalize;
+                  "
                   x-text="concernKey.replace('_', ' ')"
                 ></span>
                 <span
@@ -326,13 +354,30 @@
                 ></span>
               </div>
               <!-- Findings -->
-              <template x-for="(finding, fi) in report.concerns[concernKey].findings" :key="concernKey + '-f-' + fi">
-                <div class="gf-text-muted" style="font-size: 12px; margin-bottom: 4px" x-text="finding"></div>
+              <template
+                x-for="(finding, fi) in report.concerns[concernKey].findings"
+                :key="concernKey + '-f-' + fi"
+              >
+                <div
+                  class="gf-text-muted"
+                  style="font-size: 12px; margin-bottom: 4px"
+                  x-text="finding"
+                ></div>
               </template>
               <!-- Recommendations with howToFix -->
-              <template x-for="(rec, ri) in report.concerns[concernKey].recommendations" :key="concernKey + '-r-' + ri">
+              <template
+                x-for="(rec, ri) in report.concerns[concernKey].recommendations"
+                :key="concernKey + '-r-' + ri"
+              >
                 <div style="margin-top: 6px">
-                  <div style="display: flex; align-items: flex-start; gap: 6px; font-size: 12px">
+                  <div
+                    style="
+                      display: flex;
+                      align-items: flex-start;
+                      gap: 6px;
+                      font-size: 12px;
+                    "
+                  >
                     <span style="color: #fb923c; flex-shrink: 0">-></span>
                     <span class="gf-text-secondary" x-text="rec"></span>
                   </div>
@@ -347,7 +392,9 @@
                       font-size: 11px;
                     "
                   >
-                    <span class="gf-text-muted" style="font-weight: 600">Fix: </span>
+                    <span class="gf-text-muted" style="font-weight: 600"
+                      >Fix:
+                    </span>
                     <span
                       class="gf-text-secondary"
                       x-text="report.concerns[concernKey].howToFix?.[ri]"

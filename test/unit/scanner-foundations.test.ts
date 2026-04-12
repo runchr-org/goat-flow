@@ -15,9 +15,18 @@ import { allChecks } from "../../src/cli/rubric/registry.js";
 // ---------------------------------------------------------------------------
 describe("SKILL_NAMES contract", () => {
   it("matches the skill template directories in workflow/skills/", () => {
-    const skillsDir = join(import.meta.dirname, "..", "..", "workflow", "skills");
+    const skillsDir = join(
+      import.meta.dirname,
+      "..",
+      "..",
+      "workflow",
+      "skills",
+    );
     const dirs = readdirSync(skillsDir, { withFileTypes: true })
-      .filter((d) => d.isFile() && d.name.startsWith("goat") && d.name.endsWith(".md"))
+      .filter(
+        (d) =>
+          d.isFile() && d.name.startsWith("goat") && d.name.endsWith(".md"),
+      )
       .map((d) => d.name.replace(".md", ""));
 
     assert.deepStrictEqual(
@@ -33,10 +42,7 @@ describe("SKILL_NAMES contract", () => {
 // ---------------------------------------------------------------------------
 describe("Registry check count", () => {
   it("has a stable count of registered checks", () => {
-    assert.ok(
-      allChecks.length > 0,
-      "Registry should have at least one check",
-    );
+    assert.ok(allChecks.length > 0, "Registry should have at least one check");
     // All checks should be foundation or standard (no full tier)
     for (const check of allChecks) {
       assert.ok(
@@ -68,17 +74,21 @@ describe("classify-state", () => {
     }
 
     const result = classifyProjectState(makeFS(files));
-    assert.equal(result.action, "audit", "healthy v1.1 project should get 'audit' action");
+    assert.equal(
+      result.action,
+      "audit",
+      "healthy v1.1 project should get 'audit' action",
+    );
     assert.equal(result.state, "v1.1");
   });
 
-  it('returns action "fix" for unparseable config version', () => {
+  it('returns action "setup" for unparseable config version', () => {
     const result = classifyProjectState(
       makeFS({
         ".goat-flow/config.yaml": "no-version-here: true",
       }),
     );
-    assert.equal(result.action, "fix");
+    assert.equal(result.action, "setup");
     assert.equal(result.state, "error");
   });
 

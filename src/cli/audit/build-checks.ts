@@ -104,7 +104,8 @@ const agentsSupportedValues: BuildCheck = {
     return {
       check: "Configured agents",
       message: `Unsupported agent values: ${unknown.join(", ")}`,
-      howToFix: "Remove unsupported values from the agents list in .goat-flow/config.yaml. Supported: claude, codex, gemini.",
+      howToFix:
+        "Remove unsupported values from the agents list in .goat-flow/config.yaml. Supported: claude, codex, gemini.",
     };
   },
 };
@@ -129,7 +130,8 @@ const canonicalSkillsExist: BuildCheck = {
       check: "Canonical skills",
       message: `Missing skill files: ${missingByAgent.join(", ")}`,
       evidence: missingByAgent[0],
-      howToFix: "Install missing skills by running `goat-flow setup` or creating the SKILL.md files in the agent's skills directory.",
+      howToFix:
+        "Install missing skills by running `goat-flow setup` or creating the SKILL.md files in the agent's skills directory.",
     };
   },
 };
@@ -151,7 +153,8 @@ const skillVersionsPresent: BuildCheck = {
       check: "Skill versions",
       message: `Missing goat-flow-skill-version: ${noVersion.join(", ")}`,
       evidence: noVersion[0],
-      howToFix: "Add a `goat-flow-skill-version: X.Y.Z` header to each SKILL.md that is missing one.",
+      howToFix:
+        "Add a `goat-flow-skill-version: X.Y.Z` header to each SKILL.md that is missing one.",
     };
   },
 };
@@ -163,16 +166,15 @@ const instructionFilesExist: BuildCheck = {
     const missing: string[] = [];
     for (const af of ctx.agents) {
       if (!af.instruction.exists) {
-        missing.push(
-          `${af.agent.id} (${af.agent.instructionFile})`,
-        );
+        missing.push(`${af.agent.id} (${af.agent.instructionFile})`);
       }
     }
     if (missing.length === 0) return null;
     return {
       check: "Instruction files",
       message: `Missing: ${missing.join(", ")}`,
-      howToFix: "Create the instruction file by running `goat-flow setup` or creating it manually.",
+      howToFix:
+        "Create the instruction file by running `goat-flow setup` or creating it manually.",
     };
   },
 };
@@ -229,7 +231,8 @@ const noWorkflowPathLeaks: BuildCheck = {
       check: "Path integrity",
       message: `Skills containing workflow/ paths: ${leaks.join(", ")}`,
       evidence: leaks[0],
-      howToFix: "Replace workflow/ paths in skill files with .goat-flow/ paths. Workflow paths are framework-internal and don't exist in target projects.",
+      howToFix:
+        "Replace workflow/ paths in skill files with .goat-flow/ paths. Workflow paths are framework-internal and don't exist in target projects.",
     };
   },
 };
@@ -289,7 +292,8 @@ const hookFilesExist: BuildCheck = {
     return {
       check: "Hook files",
       message: `Missing hook files: ${missing.join(", ")}`,
-      howToFix: "Create a deny hook file or add deny patterns to the agent's settings file.",
+      howToFix:
+        "Create a deny hook file or add deny patterns to the agent's settings file.",
     };
   },
 };
@@ -345,7 +349,8 @@ const denyPatternsRegistered: BuildCheck = {
     return {
       check: "Deny patterns",
       message: `No deny patterns registered for: ${noDeny.join(", ")}`,
-      howToFix: "Register deny patterns in the agent's settings file or create a deny hook script in the agent's hooks directory.",
+      howToFix:
+        "Register deny patterns in the agent's settings file or create a deny hook script in the agent's hooks directory.",
     };
   },
 };

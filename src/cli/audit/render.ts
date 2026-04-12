@@ -14,17 +14,19 @@ const BOLD = "\x1b[1m";
 const RESET = "\x1b[0m";
 
 function statusBadge(status: "pass" | "fail"): string {
-  return status === "pass"
-    ? `${GREEN}PASS${RESET}`
-    : `${RED}FAIL${RESET}`;
+  return status === "pass" ? `${GREEN}PASS${RESET}` : `${RED}FAIL${RESET}`;
 }
 
 function renderTextScope(name: string, scope: AuditScope): string {
   const lines: string[] = [];
-  lines.push(`${name}:${" ".repeat(Math.max(1, 20 - name.length))}${statusBadge(scope.status)}`);
+  lines.push(
+    `${name}:${" ".repeat(Math.max(1, 20 - name.length))}${statusBadge(scope.status)}`,
+  );
   for (const [key, value] of Object.entries(scope.summary)) {
     const label = key.charAt(0).toUpperCase() + key.slice(1);
-    lines.push(`  ${label}:${" ".repeat(Math.max(1, 18 - label.length))}${value}`);
+    lines.push(
+      `  ${label}:${" ".repeat(Math.max(1, 18 - label.length))}${value}`,
+    );
   }
   for (const f of scope.failures) {
     lines.push(`  ${RED}x ${f.check}: ${f.message}${RESET}`);
@@ -74,7 +76,9 @@ export function renderAuditText(report: AuditReport): string {
       const concern = report.concerns[key];
       const label = CONCERN_LABELS[key];
       const color = scoreColor(concern.score);
-      lines.push(`  ${CYAN}${label}${RESET} (${color}${concern.score}%${RESET})`);
+      lines.push(
+        `  ${CYAN}${label}${RESET} (${color}${concern.score}%${RESET})`,
+      );
       for (const finding of concern.findings) {
         lines.push(`    ${DIM}${finding}${RESET}`);
       }

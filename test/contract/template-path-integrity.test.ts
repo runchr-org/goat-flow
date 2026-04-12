@@ -61,7 +61,11 @@ describe("skill templates path integrity", () => {
         // Skip comment lines and frontmatter
         if (line.startsWith("#") || line.startsWith("---")) continue;
         // Check for raw workflow/ paths that would be copied verbatim
-        if (/\bworkflow\//.test(line) && !line.includes("<!-- ") && !line.includes("template")) {
+        if (
+          /\bworkflow\//.test(line) &&
+          !line.includes("<!-- ") &&
+          !line.includes("template")
+        ) {
           leaks.push(`${file}:${i + 1}: ${line.trim()}`);
         }
       }

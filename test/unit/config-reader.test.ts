@@ -8,8 +8,10 @@ import type { ReadonlyFS } from "../../src/cli/types.js";
 
 function configFS(content: string | null): ReadonlyFS {
   return {
-    exists: (path: string) => path === ".goat-flow/config.yaml" && content !== null,
-    readFile: (path: string) => path === ".goat-flow/config.yaml" ? content : null,
+    exists: (path: string) =>
+      path === ".goat-flow/config.yaml" && content !== null,
+    readFile: (path: string) =>
+      path === ".goat-flow/config.yaml" ? content : null,
     lineCount: () => 0,
     readJson: () => null,
     listDir: () => [],

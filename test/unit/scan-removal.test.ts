@@ -89,7 +89,15 @@ describe("removed flags rejected", () => {
 // ---------------------------------------------------------------------------
 describe("backwards compatibility", () => {
   it("audit command parses correctly with all valid flags", () => {
-    const parsed = parseCLIArgs(["audit", ".", "--quality", "--agent", "claude", "--format", "json"]);
+    const parsed = parseCLIArgs([
+      "audit",
+      ".",
+      "--quality",
+      "--agent",
+      "claude",
+      "--format",
+      "json",
+    ]);
     assert.equal(parsed.command, "audit");
     assert.equal(parsed.quality, true);
     assert.equal(parsed.agent, "claude");

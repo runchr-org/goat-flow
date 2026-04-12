@@ -124,9 +124,9 @@ export function classifyProjectState(
     if (!version) {
       return {
         state: "error" as ProjectStateName,
-        action: "fix" as ProjectAction,
+        action: "setup" as ProjectAction,
         details:
-          "Config exists but version could not be parsed from .goat-flow/config.yaml",
+          "Config exists but version could not be parsed from .goat-flow/config.yaml. Run setup to regenerate.",
       };
     }
 

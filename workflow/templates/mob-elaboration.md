@@ -1,6 +1,6 @@
 # Template: Mob Elaboration
 
-> This is a reference template. Not installed to projects by default.
+> Reference template. Installed to `.goat-flow/templates/` during setup.
 
 Use this template for second-pass requirements sharpening after a feature brief.
 

@@ -367,7 +367,7 @@ function summarizeLessonEntries(
     const { content, path } = entry;
     entryCount += countLessonEntries(content);
     const pathPattern =
-      /`((?:src|config|app|apps|lib|docs|scripts|setup|workflow|strands_agents|agents|\.goat-flow)\/[^`]+)`/g;
+      /`((?:src|config|app|apps|lib|docs|scripts|setup|workflow|agents|\.goat-flow)\/[^`]+)`/g;
     for (const match of content.matchAll(pathPattern)) {
       const ref = match[1];
       if (ref === undefined || /[*?{}]/.test(ref)) continue;

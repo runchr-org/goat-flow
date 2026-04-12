@@ -1,6 +1,6 @@
 # Template: Testing Flow Diagram Guide
 
-> This is a reference template. Not installed to projects by default.
+> Reference template. Installed to `.goat-flow/templates/` during setup.
 
 ## Inputs
 

@@ -75,13 +75,13 @@ category: docs-and-crossrefs
 - ~~`.goat-flow/config.yaml:40` - references `scripts/context-validate.sh`~~ FIXED: config no longer references this
 - ~~`src/cli/config/reader.ts:20-35` - KNOWN_TOP_LEVEL_KEYS missing `known-gaps` and `skill-overrides`~~ FIXED
 - ~~`README.md:89` - "Six structured workflows"~~ FIXED: now says "Seven"
-- `README.md:91` - overclaims post-turn hooks; `workflow/hooks/README.md:29` contradicts — STILL ACTIVE
+- ~~`README.md:91` - overclaims post-turn hooks; `workflow/hooks/README.md:29` contradicts~~ FIXED: README now accurately describes deny-dangerous.sh only
 - ~~`docs/skills/README.md:1` - "Five focused capabilities", diagram omits goat-sbao~~ FIXED: now says "Seven"
 - ~~`workflow/setup/04-architecture-code-map.md:38` - "Skills do NOT read templates at runtime"~~ FIXED
-- `src/cli/prompt/fragments/standard.ts:617` - still creates `.goat-flow/coding-standards/` — NEEDS VERIFICATION
-- `src/cli/classify-state.ts:62` - marks "healthy" from config version alone — DESIGN CHOICE (shallow but intentional)
-- ~~`src/cli/rubric/full.ts:129` - check named "Skill conventions" but checks `skill-preamble.md`~~ FIXED: file restructured to standard/promoted.ts
-- `workflow/skills/goat-plan.md:115,175` - inline mode contradicts "MUST write" constraint — STILL ACTIVE
+- ~~`src/cli/prompt/fragments/standard.ts:617` - still creates `.goat-flow/coding-standards/`~~ FIXED: line 617 is now learning-loop code, not coding-standards creation
+- `src/cli/classify-state.ts:133-145` - marks "healthy" from config version + skills + instruction + preamble — DESIGN CHOICE (shallow but intentional)
+- ~~rubric/full.ts:129 - check named "Skill conventions" but checks skill-preamble.md~~ FIXED: file restructured to standard/promoted.ts
+- ~~`workflow/skills/goat-plan.md:115,175` - inline mode contradicts "MUST write" constraint~~ FIXED: inline is for Hotfix/Small Feature only; Standard+ requires files. No contradiction.
 - ~~`src/cli/facts/shared/learning-loop.ts:112` - `listMarkdownEntries()` only handles directories, not flat files~~ FIXED
 - ~~`test/unit/evaluate-check.test.ts` - skill count updated to 7~~ FIXED
 - ~~`.goat-flow/architecture.md:27,55` - stale paths~~ FIXED: paths now current
@@ -97,16 +97,16 @@ category: docs-and-crossrefs
 
 ## Footgun: Skill template paths use framework-local paths instead of project-local paths
 
-**Status:** active | **Created:** 2026-04-11 | **Evidence:** ACTUAL_MEASURED
+**Status:** resolved | **Created:** 2026-04-11 | **Resolved:** 2026-04-12 | **Evidence:** ACTUAL_MEASURED
 
 **Symptoms:** Installed skills reference `workflow/templates/*.md` which only exists in the goat-flow repo, not in projects where skills are installed. The dispatcher's Planning Route hits dead ends. Security and test skills can't find their extracted mode templates.
 
 **Why it happens:** When content is extracted from skills to `workflow/templates/` in the goat-flow repo, the skill file references use the framework-local path (`workflow/templates/`) instead of the project-local path (`.goat-flow/templates/`). Skills are installed verbatim, so the framework path ships to every project.
 
 **Evidence:**
-- `workflow/skills/goat.md:25,26` - now correctly references `.goat-flow/templates/feature-brief.md` and `.goat-flow/templates/mob-elaboration.md` (FIXED)
-- `workflow/skills/goat-security.md:71` - referenced `workflow/templates/compliance-checklist.md`
-- `workflow/skills/goat-test.md:108,145` - referenced `workflow/templates/flow-diagram-guide.md`
+- ~~`workflow/skills/goat.md:25,26` - referenced `workflow/templates/`~~ FIXED: now uses `.goat-flow/templates/`
+- ~~`workflow/skills/goat-security.md:71` - referenced `workflow/templates/compliance-checklist.md`~~ FIXED: now uses `.goat-flow/templates/`
+- ~~`workflow/skills/goat-test.md:108,145` - referenced `workflow/templates/flow-diagram-guide.md`~~ FIXED: now uses `.goat-flow/templates/`
 - R9 critiques: 6/7 projects flagged broken template references as a top finding
 
 **Prevention:** After ANY content extraction to `workflow/templates/`, grep all skill files for `workflow/templates/` and replace with `.goat-flow/templates/`. The rule: skill files must only reference paths that exist on the PROJECT, not paths that exist in the goat-flow REPO.

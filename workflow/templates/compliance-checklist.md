@@ -1,6 +1,6 @@
 # Template: Compliance Checklist
 
-> This is a reference template. Not installed to projects by default.
+> Reference template. Installed to `.goat-flow/templates/` during setup.
 
 ## Compliance Checks
 

@@ -2,9 +2,20 @@
  * Shared test fixtures for audit/critique tests.
  * Exports stubFS, stubConfig, stubAgentFacts, and pre-built project fixtures.
  */
-import type { ReadonlyFS, ProjectFacts, AgentFacts, AgentProfile } from "../../../src/cli/types.js";
-import type { LoadedConfig, GoatFlowConfig } from "../../../src/cli/config/types.js";
-import type { AuditContext, ProjectStructure } from "../../../src/cli/audit/types.js";
+import type {
+  ReadonlyFS,
+  ProjectFacts,
+  AgentFacts,
+  AgentProfile,
+} from "../../../src/cli/types.js";
+import type {
+  LoadedConfig,
+  GoatFlowConfig,
+} from "../../../src/cli/config/types.js";
+import type {
+  AuditContext,
+  ProjectStructure,
+} from "../../../src/cli/audit/types.js";
 import { SKILL_NAMES } from "../../../src/cli/constants.js";
 
 export function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
@@ -20,7 +31,9 @@ export function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
   };
 }
 
-export function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
+export function stubConfig(
+  overrides: Partial<GoatFlowConfig> = {},
+): LoadedConfig {
   return {
     exists: true,
     valid: true,
@@ -34,7 +47,13 @@ export function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfi
       agents: null,
       skills: { install: "all" },
       lineLimits: { target: 120, limit: 150 },
-      toolchain: { test: ["npm test"], lint: ["eslint ."], build: ["tsc"], package: [], format: [] },
+      toolchain: {
+        test: ["npm test"],
+        lint: ["eslint ."],
+        build: ["tsc"],
+        package: [],
+        format: [],
+      },
       askFirst: [],
       userRole: "developer",
       telemetry: false,
@@ -60,10 +79,17 @@ export const STUB_AGENT_PROFILE: AgentProfile = {
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
 };
 
-export function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
+export function stubAgentFacts(
+  overrides: Partial<AgentFacts> = {},
+): AgentFacts {
   return {
     agent: STUB_AGENT_PROFILE,
-    instruction: { exists: true, content: "# Test", lineCount: 50, sections: new Map() },
+    instruction: {
+      exists: true,
+      content: "# Test",
+      lineCount: 50,
+      sections: new Map(),
+    },
     settings: { exists: true, valid: true, parsed: {}, hasDenyPatterns: true },
     skills: {
       installedDirs: [],
@@ -74,19 +100,41 @@ export function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts 
       outdatedCount: 0,
       hasDispatcher: true,
       quality: {
-        withStep0: 0, withHumanGate: 0, withConstraints: 0, withPhases: 0,
-        withConversational: 0, withChoices: 0, withOutputFormat: 0, withSharedConventions: 0,
-        malformedFenceCount: 0, unadaptedCount: 0, adaptCommentCount: 0, total: 0,
+        withStep0: 0,
+        withHumanGate: 0,
+        withConstraints: 0,
+        withPhases: 0,
+        withConversational: 0,
+        withChoices: 0,
+        withOutputFormat: 0,
+        withSharedConventions: 0,
+        malformedFenceCount: 0,
+        unadaptedCount: 0,
+        adaptCommentCount: 0,
+        total: 0,
       },
     },
     hooks: {
-      denyExists: true, denyHasBlocks: true, denyIsConfigBased: false,
-      denyUsesJq: false, denyHandlesChaining: false, denyBlocksRmRf: true,
-      denyBlocksForcePush: true, denyBlocksChmod: true, denyBlocksPipeToShell: false,
-      denyBlocksCloudDestructive: false, postTurnExists: false, postTurnRegistered: false,
-      postTurnRegisteredPath: null, postTurnExecutable: false, postTurnExitsZero: false,
-      postTurnHasValidation: false, postTurnSwallowsFailures: false,
-      compactionHookExists: false, absolutePathHooks: [], readDenyCoversSecrets: false,
+      denyExists: true,
+      denyHasBlocks: true,
+      denyIsConfigBased: false,
+      denyUsesJq: false,
+      denyHandlesChaining: false,
+      denyBlocksRmRf: true,
+      denyBlocksForcePush: true,
+      denyBlocksChmod: true,
+      denyBlocksPipeToShell: false,
+      denyBlocksCloudDestructive: false,
+      postTurnExists: false,
+      postTurnRegistered: false,
+      postTurnRegisteredPath: null,
+      postTurnExecutable: false,
+      postTurnExitsZero: false,
+      postTurnHasValidation: false,
+      postTurnSwallowsFailures: false,
+      compactionHookExists: false,
+      absolutePathHooks: [],
+      readDenyCoversSecrets: false,
     },
     deny: { gitCommitBlocked: false, gitPushBlocked: false },
     router: { exists: true, paths: [], resolved: 0, unresolved: [] },
@@ -110,29 +158,73 @@ export const STUB_STRUCTURE: ProjectStructure = {
 export function makeSharedFacts(): ProjectFacts["shared"] {
   return {
     footguns: {
-      exists: true, hasEvidence: false, entryCount: 0, labelCount: 0,
-      hasEvidenceLabels: false, dirMentions: new Map(), staleRefs: [],
-      invalidLineRefs: [], duplicateSurfacePaths: [], totalRefs: 0,
-      validRefs: 0, formatDiagnostic: null, path: ".goat-flow/footguns/",
+      exists: true,
+      hasEvidence: false,
+      entryCount: 0,
+      labelCount: 0,
+      hasEvidenceLabels: false,
+      dirMentions: new Map(),
+      staleRefs: [],
+      invalidLineRefs: [],
+      duplicateSurfacePaths: [],
+      totalRefs: 0,
+      validRefs: 0,
+      formatDiagnostic: null,
+      path: ".goat-flow/footguns/",
     },
     lessons: {
-      exists: true, hasEntries: false, entryCount: 0, staleRefs: [],
-      duplicateSurfacePaths: [], formatDiagnostic: null, path: ".goat-flow/lessons/",
+      exists: true,
+      hasEntries: false,
+      entryCount: 0,
+      staleRefs: [],
+      duplicateSurfacePaths: [],
+      formatDiagnostic: null,
+      path: ".goat-flow/lessons/",
     },
-    decisions: { dirExists: true, fileCount: 0, path: ".goat-flow/decisions/", hasRealContent: false },
-    config: { exists: true, valid: true, warningCount: 0, errorCount: 0, parseError: null, lineLimits: { target: 120, limit: 150 }, userRole: "developer" },
+    decisions: {
+      dirExists: true,
+      fileCount: 0,
+      path: ".goat-flow/decisions/",
+      hasRealContent: false,
+    },
+    config: {
+      exists: true,
+      valid: true,
+      warningCount: 0,
+      errorCount: 0,
+      parseError: null,
+      lineLimits: { target: 120, limit: 150 },
+      userRole: "developer",
+    },
     architecture: { exists: true, lineCount: 50 },
-    ignoreFiles: { copilotignore: false, cursorignore: false, geminiignore: false },
+    ignoreFiles: {
+      copilotignore: false,
+      cursorignore: false,
+      geminiignore: false,
+    },
     gitignore: { exists: true, hasRequiredEntries: true },
     preflightScript: { exists: false },
     contextValidation: { exists: false },
     skillConventions: { exists: true },
     localInstructions: {
-      dirExists: false, location: null, aiDirExists: false, githubDirExists: false,
-      duplicateSurfacePaths: [], fileCount: 0, hasRouter: false, hasValidRouter: false,
-      routerNeedsFix: null, hasConventions: false, conventionsHasContent: false,
-      hasFrontend: false, hasBackend: false, hasCodeReview: false, hasGitCommit: false,
-      conventionsContent: null, localFileSizes: [], path: "",
+      dirExists: false,
+      location: null,
+      aiDirExists: false,
+      githubDirExists: false,
+      duplicateSurfacePaths: [],
+      fileCount: 0,
+      hasRouter: false,
+      hasValidRouter: false,
+      routerNeedsFix: null,
+      hasConventions: false,
+      conventionsHasContent: false,
+      hasFrontend: false,
+      hasBackend: false,
+      hasCodeReview: false,
+      hasGitCommit: false,
+      conventionsContent: null,
+      localFileSizes: [],
+      path: "",
     },
     gitCommitInstructions: { exists: false },
     localInstructionsLineCount: 0,
@@ -145,11 +237,19 @@ export function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
     facts: {
       root: "/tmp/test-project",
       stack: {
-        languages: [], buildCommand: null, testCommand: null,
-        lintCommand: null, formatCommand: null, sourceFileCount: 0,
+        languages: [],
+        buildCommand: null,
+        testCommand: null,
+        lintCommand: null,
+        formatCommand: null,
+        sourceFileCount: 0,
         signals: {
-          codeGenTools: [], deployPlatforms: [], llmIntegration: false,
-          staticAnalysis: [], complianceSignals: false, formatterGaps: [],
+          codeGenTools: [],
+          deployPlatforms: [],
+          llmIntegration: false,
+          staticAnalysis: [],
+          complianceSignals: false,
+          formatterGaps: [],
         },
       },
       agents: [],

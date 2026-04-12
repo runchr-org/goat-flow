@@ -4,7 +4,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { BUILD_CHECKS } from "../../src/cli/audit/build-checks.js";
-import { makeCtx, stubFS, stubAgentFacts, stubConfig } from "../fixtures/projects/index.js";
+import {
+  makeCtx,
+  stubFS,
+  stubAgentFacts,
+  stubConfig,
+} from "../fixtures/projects/index.js";
 
 // ---------------------------------------------------------------------------
 // All three scopes pass when project is well-configured
@@ -14,7 +19,11 @@ describe("audit build: all scopes pass on healthy project", () => {
     const ctx = makeCtx();
     for (const check of BUILD_CHECKS) {
       const result = check.run(ctx);
-      assert.equal(result, null, `Check ${check.id} should pass but got: ${result?.message}`);
+      assert.equal(
+        result,
+        null,
+        `Check ${check.id} should pass but got: ${result?.message}`,
+      );
     }
   });
 });
@@ -26,12 +35,23 @@ describe("audit build: setup scope fails on missing instruction file", () => {
   it("instruction-files check fails when instruction file is missing", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "instruction-files")!;
     const ctx = makeCtx({
-      agents: [stubAgentFacts({
-        instruction: { exists: false, content: null, lineCount: 0, sections: new Map() },
-      })],
+      agents: [
+        stubAgentFacts({
+          instruction: {
+            exists: false,
+            content: null,
+            lineCount: 0,
+            sections: new Map(),
+          },
+        }),
+      ],
     });
     const result = check.run(ctx);
-    assert.notEqual(result, null, "Should fail when instruction file is missing");
+    assert.notEqual(
+      result,
+      null,
+      "Should fail when instruction file is missing",
+    );
     assert.equal(check.scope, "setup");
     assert.ok(result!.howToFix, "Should include howToFix");
   });
@@ -44,12 +64,17 @@ describe("audit build: project scope fails on missing toolchain", () => {
   it("toolchain-commands check fails when no commands configured", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "toolchain-commands")!;
     const ctx = makeCtx({
-      config: stubConfig({ toolchain: { test: [], lint: [], build: [], package: [], format: [] } }),
+      config: stubConfig({
+        toolchain: { test: [], lint: [], build: [], package: [], format: [] },
+      }),
     });
     const result = check.run(ctx);
     assert.notEqual(result, null, "Should fail when toolchain is empty");
     assert.equal(check.scope, "project");
-    assert.ok(result!.message.includes("test"), "Should mention missing test command");
+    assert.ok(
+      result!.message.includes("test"),
+      "Should mention missing test command",
+    );
     assert.ok(result!.howToFix, "Should include howToFix");
   });
 });
@@ -61,13 +86,20 @@ describe("audit build: integration scope fails on missing deny", () => {
   it("deny-patterns check fails when no deny configured", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "deny-patterns")!;
     const ctx = makeCtx({
-      agents: [stubAgentFacts({
-        settings: { exists: true, valid: true, parsed: {}, hasDenyPatterns: false },
-        hooks: {
-          ...stubAgentFacts().hooks,
-          denyExists: false,
-        },
-      })],
+      agents: [
+        stubAgentFacts({
+          settings: {
+            exists: true,
+            valid: true,
+            parsed: {},
+            hasDenyPatterns: false,
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyExists: false,
+          },
+        }),
+      ],
     });
     const result = check.run(ctx);
     assert.notEqual(result, null, "Should fail when no deny patterns");
@@ -84,6 +116,9 @@ describe("audit build: scope coverage", () => {
     const scopes = new Set(BUILD_CHECKS.map((c) => c.scope));
     assert.ok(scopes.has("setup"), "Should have setup scope checks");
     assert.ok(scopes.has("project"), "Should have project scope checks");
-    assert.ok(scopes.has("integration"), "Should have integration scope checks");
+    assert.ok(
+      scopes.has("integration"),
+      "Should have integration scope checks",
+    );
   });
 });

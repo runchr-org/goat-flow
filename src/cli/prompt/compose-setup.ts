@@ -1017,7 +1017,9 @@ function renderSetupRedirect(
     lines.push("");
     if (agentReport) {
       lines.push(
-        "This project has setup issues - it needs a full setup pass. Run `" + getCliCommand() + " audit .` after fixing to verify.",
+        "This project has setup issues - it needs a full setup pass. Run `" +
+          getCliCommand() +
+          " audit .` after fixing to verify.",
       );
     } else {
       lines.push(
@@ -1104,7 +1106,7 @@ function renderSetupRedirect(
     );
     lines.push("");
     lines.push(
-      "**Multi-agent consistency:** If multiple agent skill directories exist (`.claude/skills/`, `.agents/skills/`, `.gemini/skills/`), clean stale dirs from ALL of them - not just the agent being set up. Also update `GEMINI.md` and `AGENTS.md` if they reference deleted skills.",
+      "**Multi-agent consistency:** If multiple agent skill directories exist (`.claude/skills/`, `.agents/skills/`), clean stale dirs from ALL of them - not just the agent being set up. Also update `GEMINI.md` and `AGENTS.md` if they reference deleted skills.",
     );
     lines.push("");
     lines.push(
@@ -1173,7 +1175,7 @@ function renderSetupRedirect(
       "   Local instructions added later: derive them from real build/test/lint commands and codebase patterns.",
     );
     lines.push(
-      '3. Do NOT copy templates verbatim. If a template says "[describe X]", describe X for THIS project.',
+      '3. Do NOT copy customization templates (architecture, footguns, code-map) verbatim. If a template says "[describe X]", describe X for THIS project. Note: skill SKILL.md files ARE installed verbatim — this rule applies to Step 04-05 artifacts only.',
     );
     lines.push(
       "4. Check for existing permission restrictions: if `.claude/settings.local.json` (or equivalent)",
@@ -1258,7 +1260,9 @@ function renderSetupRedirect(
   lines.push("");
 
   // Scan + iterate
-  lines.push(`**Audit:** Run \`${getCliCommand()} audit . --agent ${agentId}\``);
+  lines.push(
+    `**Audit:** Run \`${getCliCommand()} audit . --agent ${agentId}\``,
+  );
   lines.push("");
   lines.push("**Target: audit passes with zero failures.**");
   lines.push(

@@ -19,7 +19,7 @@ import {
 import { generateRecommendations } from "../scoring/recommendations.js";
 
 /** Options for the scan orchestrator */
-export interface ScanOptions {
+interface ScanOptions {
   agentFilter: AgentId | null;
 }
 

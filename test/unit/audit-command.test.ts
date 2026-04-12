@@ -8,9 +8,20 @@ import { runAudit } from "../../src/cli/audit/audit.js";
 import { BUILD_CHECKS } from "../../src/cli/audit/build-checks.js";
 import { QUALITY_CHECKS } from "../../src/cli/audit/quality-checks.js";
 import { createFS } from "../../src/cli/facts/fs.js";
-import type { AuditContext, ProjectStructure } from "../../src/cli/audit/types.js";
-import type { ReadonlyFS, ProjectFacts, AgentFacts, AgentProfile } from "../../src/cli/types.js";
-import type { LoadedConfig, GoatFlowConfig } from "../../src/cli/config/types.js";
+import type {
+  AuditContext,
+  ProjectStructure,
+} from "../../src/cli/audit/types.js";
+import type {
+  ReadonlyFS,
+  ProjectFacts,
+  AgentFacts,
+  AgentProfile,
+} from "../../src/cli/types.js";
+import type {
+  LoadedConfig,
+  GoatFlowConfig,
+} from "../../src/cli/config/types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers: minimal mock context for targeted build-check tests
@@ -43,7 +54,13 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
       agents: null,
       skills: { install: "all" },
       lineLimits: { target: 120, limit: 150 },
-      toolchain: { test: ["npm test"], lint: ["eslint ."], build: ["tsc"], package: [], format: [] },
+      toolchain: {
+        test: ["npm test"],
+        lint: ["eslint ."],
+        build: ["tsc"],
+        package: [],
+        format: [],
+      },
       askFirst: [],
       userRole: "developer",
       telemetry: false,
@@ -72,30 +89,65 @@ const STUB_AGENT_PROFILE: AgentProfile = {
 function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
   return {
     agent: STUB_AGENT_PROFILE,
-    instruction: { exists: true, content: "# Test", lineCount: 50, sections: new Map() },
+    instruction: {
+      exists: true,
+      content: "# Test",
+      lineCount: 50,
+      sections: new Map(),
+    },
     settings: { exists: true, valid: true, parsed: {}, hasDenyPatterns: true },
     skills: {
       installedDirs: [],
-      found: ["goat", "goat-debug", "goat-plan", "goat-review", "goat-sbao", "goat-security", "goat-test"],
+      found: [
+        "goat",
+        "goat-debug",
+        "goat-plan",
+        "goat-review",
+        "goat-sbao",
+        "goat-security",
+        "goat-test",
+      ],
       missing: [],
       allPresent: true,
       versions: {},
       outdatedCount: 0,
       hasDispatcher: true,
       quality: {
-        withStep0: 0, withHumanGate: 0, withConstraints: 0, withPhases: 0,
-        withConversational: 0, withChoices: 0, withOutputFormat: 0, withSharedConventions: 0,
-        malformedFenceCount: 0, unadaptedCount: 0, adaptCommentCount: 0, total: 0,
+        withStep0: 0,
+        withHumanGate: 0,
+        withConstraints: 0,
+        withPhases: 0,
+        withConversational: 0,
+        withChoices: 0,
+        withOutputFormat: 0,
+        withSharedConventions: 0,
+        malformedFenceCount: 0,
+        unadaptedCount: 0,
+        adaptCommentCount: 0,
+        total: 0,
       },
     },
     hooks: {
-      denyExists: true, denyHasBlocks: true, denyIsConfigBased: false,
-      denyUsesJq: false, denyHandlesChaining: false, denyBlocksRmRf: true,
-      denyBlocksForcePush: true, denyBlocksChmod: true, denyBlocksPipeToShell: false,
-      denyBlocksCloudDestructive: false, postTurnExists: false, postTurnRegistered: false,
-      postTurnRegisteredPath: null, postTurnExecutable: false, postTurnExitsZero: false,
-      postTurnHasValidation: false, postTurnSwallowsFailures: false,
-      compactionHookExists: false, absolutePathHooks: [], readDenyCoversSecrets: false,
+      denyExists: true,
+      denyHasBlocks: true,
+      denyIsConfigBased: false,
+      denyUsesJq: false,
+      denyHandlesChaining: false,
+      denyBlocksRmRf: true,
+      denyBlocksForcePush: true,
+      denyBlocksChmod: true,
+      denyBlocksPipeToShell: false,
+      denyBlocksCloudDestructive: false,
+      postTurnExists: false,
+      postTurnRegistered: false,
+      postTurnRegisteredPath: null,
+      postTurnExecutable: false,
+      postTurnExitsZero: false,
+      postTurnHasValidation: false,
+      postTurnSwallowsFailures: false,
+      compactionHookExists: false,
+      absolutePathHooks: [],
+      readDenyCoversSecrets: false,
     },
     deny: { gitCommitBlocked: false, gitPushBlocked: false },
     router: { exists: true, paths: [], resolved: 0, unresolved: [] },
@@ -109,7 +161,15 @@ const STUB_STRUCTURE: ProjectStructure = {
   required_files: [".goat-flow/config.yaml", ".goat-flow/architecture.md"],
   required_dirs: [".goat-flow/footguns/", ".goat-flow/lessons/"],
   skills: {
-    canonical: ["goat", "goat-debug", "goat-plan", "goat-review", "goat-sbao", "goat-security", "goat-test"],
+    canonical: [
+      "goat",
+      "goat-debug",
+      "goat-plan",
+      "goat-review",
+      "goat-sbao",
+      "goat-security",
+      "goat-test",
+    ],
     stale_names: ["goat-audit", "goat-investigate"],
     stale_generic: ["audit", "review"],
   },
@@ -122,39 +182,91 @@ function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
     facts: {
       root: "/tmp/test-project",
       stack: {
-        languages: [], buildCommand: null, testCommand: null,
-        lintCommand: null, formatCommand: null, sourceFileCount: 0,
+        languages: [],
+        buildCommand: null,
+        testCommand: null,
+        lintCommand: null,
+        formatCommand: null,
+        sourceFileCount: 0,
         signals: {
-          codeGenTools: [], deployPlatforms: [], llmIntegration: false,
-          staticAnalysis: [], complianceSignals: false, formatterGaps: [],
+          codeGenTools: [],
+          deployPlatforms: [],
+          llmIntegration: false,
+          staticAnalysis: [],
+          complianceSignals: false,
+          formatterGaps: [],
         },
       },
       agents: [],
       shared: {
         footguns: {
-          exists: true, hasEvidence: false, entryCount: 0, labelCount: 0,
-          hasEvidenceLabels: false, dirMentions: new Map(), staleRefs: [],
-          invalidLineRefs: [], duplicateSurfacePaths: [], totalRefs: 0,
-          validRefs: 0, formatDiagnostic: null, path: ".goat-flow/footguns/",
+          exists: true,
+          hasEvidence: false,
+          entryCount: 0,
+          labelCount: 0,
+          hasEvidenceLabels: false,
+          dirMentions: new Map(),
+          staleRefs: [],
+          invalidLineRefs: [],
+          duplicateSurfacePaths: [],
+          totalRefs: 0,
+          validRefs: 0,
+          formatDiagnostic: null,
+          path: ".goat-flow/footguns/",
         },
         lessons: {
-          exists: true, hasEntries: false, entryCount: 0, staleRefs: [],
-          duplicateSurfacePaths: [], formatDiagnostic: null, path: ".goat-flow/lessons/",
+          exists: true,
+          hasEntries: false,
+          entryCount: 0,
+          staleRefs: [],
+          duplicateSurfacePaths: [],
+          formatDiagnostic: null,
+          path: ".goat-flow/lessons/",
         },
-        decisions: { dirExists: true, fileCount: 0, path: ".goat-flow/decisions/", hasRealContent: false },
-        config: { exists: true, valid: true, warningCount: 0, errorCount: 0, parseError: null, lineLimits: { target: 120, limit: 150 }, userRole: "developer" },
+        decisions: {
+          dirExists: true,
+          fileCount: 0,
+          path: ".goat-flow/decisions/",
+          hasRealContent: false,
+        },
+        config: {
+          exists: true,
+          valid: true,
+          warningCount: 0,
+          errorCount: 0,
+          parseError: null,
+          lineLimits: { target: 120, limit: 150 },
+          userRole: "developer",
+        },
         architecture: { exists: true, lineCount: 50 },
-        ignoreFiles: { copilotignore: false, cursorignore: false, geminiignore: false },
+        ignoreFiles: {
+          copilotignore: false,
+          cursorignore: false,
+          geminiignore: false,
+        },
         gitignore: { exists: true, hasRequiredEntries: true },
         preflightScript: { exists: false },
         contextValidation: { exists: false },
         skillConventions: { exists: true },
         localInstructions: {
-          dirExists: false, location: null, aiDirExists: false, githubDirExists: false,
-          duplicateSurfacePaths: [], fileCount: 0, hasRouter: false, hasValidRouter: false,
-          routerNeedsFix: null, hasConventions: false, conventionsHasContent: false,
-          hasFrontend: false, hasBackend: false, hasCodeReview: false, hasGitCommit: false,
-          conventionsContent: null, localFileSizes: [], path: "",
+          dirExists: false,
+          location: null,
+          aiDirExists: false,
+          githubDirExists: false,
+          duplicateSurfacePaths: [],
+          fileCount: 0,
+          hasRouter: false,
+          hasValidRouter: false,
+          routerNeedsFix: null,
+          hasConventions: false,
+          conventionsHasContent: false,
+          hasFrontend: false,
+          hasBackend: false,
+          hasCodeReview: false,
+          hasGitCommit: false,
+          conventionsContent: null,
+          localFileSizes: [],
+          path: "",
         },
         gitCommitInstructions: { exists: false },
         localInstructionsLineCount: 0,
@@ -176,10 +288,21 @@ describe("audit on well-configured project", () => {
   it("passes on this repo", () => {
     const projectPath = resolve(import.meta.dirname, "..", "..");
     const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, { agentFilter: "claude", quality: false });
+    const report = runAudit(fs, projectPath, {
+      agentFilter: "claude",
+      quality: false,
+    });
     assert.equal(report.command, "audit");
-    assert.equal(report.status, "pass", `Expected pass but got failures: ${JSON.stringify(report.scopes)}`);
-    assert.equal(report.scopes.setup.status, "pass", `Setup failures: ${JSON.stringify(report.scopes.setup.failures)}`);
+    assert.equal(
+      report.status,
+      "pass",
+      `Expected pass but got failures: ${JSON.stringify(report.scopes)}`,
+    );
+    assert.equal(
+      report.scopes.setup.status,
+      "pass",
+      `Setup failures: ${JSON.stringify(report.scopes.setup.failures)}`,
+    );
   });
 });
 
@@ -192,12 +315,15 @@ describe("audit fails on missing required directory", () => {
     const ctx = makeCtx({
       fs: stubFS({
         exists: (path: string) => path !== ".goat-flow/footguns",
-        listDir: (path: string) => path.includes("footguns") ? [] : ["file"],
+        listDir: (path: string) => (path.includes("footguns") ? [] : ["file"]),
       }),
     });
     const result = check.run(ctx);
     assert.notEqual(result, null, "Should fail when required dir is missing");
-    assert.ok(result!.message.includes("footguns"), `Failure should mention missing dir: ${result!.message}`);
+    assert.ok(
+      result!.message.includes("footguns"),
+      `Failure should mention missing dir: ${result!.message}`,
+    );
   });
 });
 
@@ -208,16 +334,21 @@ describe("audit fails on stale skill directory", () => {
   it("fails stale-skill-dirs check when stale dir is present", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "stale-skill-dirs")!;
     const ctx = makeCtx({
-      agents: [stubAgentFacts({
-        skills: {
-          ...stubAgentFacts().skills,
-          installedDirs: [".claude/skills/goat", ".claude/skills/goat-audit"],
-        },
-      })],
+      agents: [
+        stubAgentFacts({
+          skills: {
+            ...stubAgentFacts().skills,
+            installedDirs: [".claude/skills/goat", ".claude/skills/goat-audit"],
+          },
+        }),
+      ],
     });
     const result = check.run(ctx);
     assert.notEqual(result, null, "Should fail when stale skill dir exists");
-    assert.ok(result!.message.includes("goat-audit"), `Failure should mention stale dir: ${result!.message}`);
+    assert.ok(
+      result!.message.includes("goat-audit"),
+      `Failure should mention stale dir: ${result!.message}`,
+    );
   });
 });
 
@@ -235,16 +366,21 @@ describe("audit fails on workflow path leak", () => {
             ? "Read workflow/setup/reference/template.md first"
             : null,
       }),
-      agents: [stubAgentFacts({
-        skills: {
-          ...stubAgentFacts().skills,
-          found: ["goat"],
-        },
-      })],
+      agents: [
+        stubAgentFacts({
+          skills: {
+            ...stubAgentFacts().skills,
+            found: ["goat"],
+          },
+        }),
+      ],
     });
     const result = check.run(ctx);
     assert.notEqual(result, null, "Should fail when skill has workflow/ path");
-    assert.ok(result!.message.includes("workflow/"), `Failure should mention workflow: ${result!.message}`);
+    assert.ok(
+      result!.message.includes("workflow/"),
+      `Failure should mention workflow: ${result!.message}`,
+    );
   });
 });
 
@@ -255,22 +391,51 @@ describe("audit --quality", () => {
   it("produces concerns output without affecting exit code", () => {
     const projectPath = resolve(import.meta.dirname, "..", "..");
     const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, { agentFilter: "claude", quality: true });
+    const report = runAudit(fs, projectPath, {
+      agentFilter: "claude",
+      quality: true,
+    });
 
     // Build result should still pass (same checks, quality doesn't affect it)
-    assert.equal(report.status, "pass", `Build should pass: ${JSON.stringify(report.scopes)}`);
+    assert.equal(
+      report.status,
+      "pass",
+      `Build should pass: ${JSON.stringify(report.scopes)}`,
+    );
 
     // Quality concerns should be populated
-    assert.notEqual(report.concerns, null, "concerns should be populated with --quality");
-    assert.ok(report.concerns!.context !== undefined, "context concern should exist");
-    assert.ok(report.concerns!.constraints !== undefined, "constraints concern should exist");
-    assert.ok(report.concerns!.verification !== undefined, "verification concern should exist");
-    assert.ok(report.concerns!.recovery !== undefined, "recovery concern should exist");
-    assert.ok(report.concerns!.feedback_loop !== undefined, "feedback_loop concern should exist");
+    assert.notEqual(
+      report.concerns,
+      null,
+      "concerns should be populated with --quality",
+    );
+    assert.ok(
+      report.concerns!.context !== undefined,
+      "context concern should exist",
+    );
+    assert.ok(
+      report.concerns!.constraints !== undefined,
+      "constraints concern should exist",
+    );
+    assert.ok(
+      report.concerns!.verification !== undefined,
+      "verification concern should exist",
+    );
+    assert.ok(
+      report.concerns!.recovery !== undefined,
+      "recovery concern should exist",
+    );
+    assert.ok(
+      report.concerns!.feedback_loop !== undefined,
+      "feedback_loop concern should exist",
+    );
 
     // Grade and score should be present
     assert.ok(report.overall.grade !== null, "grade should be present");
-    assert.ok(report.overall.qualityScore !== null, "qualityScore should be present");
+    assert.ok(
+      report.overall.qualityScore !== null,
+      "qualityScore should be present",
+    );
     assert.ok(
       typeof report.overall.qualityScore === "number" &&
         report.overall.qualityScore >= 0 &&
@@ -287,7 +452,10 @@ describe("audit JSON contract", () => {
   it("has correct shape for build-only mode", () => {
     const projectPath = resolve(import.meta.dirname, "..", "..");
     const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, { agentFilter: "claude", quality: false });
+    const report = runAudit(fs, projectPath, {
+      agentFilter: "claude",
+      quality: false,
+    });
 
     // Top-level keys
     assert.equal(report.command, "audit");
@@ -297,33 +465,69 @@ describe("audit JSON contract", () => {
     // Scopes structure
     for (const scope of ["setup", "project", "integration"] as const) {
       const s = report.scopes[scope];
-      assert.ok(["pass", "fail"].includes(s.status), `${scope}.status should be pass or fail`);
-      assert.ok(Array.isArray(s.failures), `${scope}.failures should be an array`);
+      assert.ok(
+        ["pass", "fail"].includes(s.status),
+        `${scope}.status should be pass or fail`,
+      );
+      assert.ok(
+        Array.isArray(s.failures),
+        `${scope}.failures should be an array`,
+      );
     }
 
     // Concerns null in build-only mode
-    assert.equal(report.concerns, null, "concerns should be null without --quality");
+    assert.equal(
+      report.concerns,
+      null,
+      "concerns should be null without --quality",
+    );
 
     // Overall
     assert.ok(["pass", "fail"].includes(report.overall.status));
-    assert.equal(report.overall.grade, null, "grade should be null without --quality");
-    assert.equal(report.overall.qualityScore, null, "qualityScore should be null without --quality");
+    assert.equal(
+      report.overall.grade,
+      null,
+      "grade should be null without --quality",
+    );
+    assert.equal(
+      report.overall.qualityScore,
+      null,
+      "qualityScore should be null without --quality",
+    );
   });
 
   it("has correct shape for quality mode", () => {
     const projectPath = resolve(import.meta.dirname, "..", "..");
     const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, { agentFilter: "claude", quality: true });
+    const report = runAudit(fs, projectPath, {
+      agentFilter: "claude",
+      quality: true,
+    });
 
     assert.equal(report.quality, true);
     assert.notEqual(report.concerns, null);
 
-    for (const key of ["context", "constraints", "verification", "recovery", "feedback_loop"] as const) {
+    for (const key of [
+      "context",
+      "constraints",
+      "verification",
+      "recovery",
+      "feedback_loop",
+    ] as const) {
       const c = report.concerns![key];
       assert.ok(typeof c.score === "number", `${key}.score should be a number`);
-      assert.ok(Array.isArray(c.findings), `${key}.findings should be an array`);
-      assert.ok(Array.isArray(c.recommendations), `${key}.recommendations should be an array`);
-      assert.ok(Array.isArray(c.howToFix), `${key}.howToFix should be an array`);
+      assert.ok(
+        Array.isArray(c.findings),
+        `${key}.findings should be an array`,
+      );
+      assert.ok(
+        Array.isArray(c.recommendations),
+        `${key}.recommendations should be an array`,
+      );
+      assert.ok(
+        Array.isArray(c.howToFix),
+        `${key}.howToFix should be an array`,
+      );
     }
 
     assert.ok(report.overall.grade !== null);
@@ -340,13 +544,16 @@ describe("build failure howToFix", () => {
     const ctx = makeCtx({
       fs: stubFS({
         exists: (path: string) => path !== ".goat-flow/footguns",
-        listDir: (path: string) => path.includes("footguns") ? [] : ["file"],
+        listDir: (path: string) => (path.includes("footguns") ? [] : ["file"]),
       }),
     });
     const result = check.run(ctx);
     assert.notEqual(result, null, "Should fail when required dir is missing");
     assert.ok(result!.howToFix, "Failure should include howToFix");
-    assert.ok(result!.howToFix!.includes("mkdir"), `howToFix should reference mkdir: ${result!.howToFix}`);
+    assert.ok(
+      result!.howToFix!.includes("mkdir"),
+      `howToFix should reference mkdir: ${result!.howToFix}`,
+    );
   });
 });
 
@@ -368,6 +575,9 @@ describe("quality recommendation howToFix", () => {
     const result = check.run(ctx);
     assert.ok(result.howToFix, "Quality result should include howToFix");
     assert.ok(result.howToFix!.length > 0, "howToFix should have entries");
-    assert.ok(result.howToFix![0].includes(".goat-flow/"), `howToFix should reference .goat-flow/ path: ${result.howToFix![0]}`);
+    assert.ok(
+      result.howToFix![0].includes(".goat-flow/"),
+      `howToFix should reference .goat-flow/ path: ${result.howToFix![0]}`,
+    );
   });
 });

@@ -18,7 +18,9 @@ const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 // ---------------------------------------------------------------------------
 describe("version alignment", () => {
   it("package.json version matches RUBRIC_VERSION", () => {
-    const pkg = JSON.parse(readFileSync(resolve(PROJECT_ROOT, "package.json"), "utf-8"));
+    const pkg = JSON.parse(
+      readFileSync(resolve(PROJECT_ROOT, "package.json"), "utf-8"),
+    );
     assert.equal(
       pkg.version,
       RUBRIC_VERSION,
@@ -50,7 +52,11 @@ describe("build check IDs", () => {
   it("all build check IDs are unique", () => {
     const ids = BUILD_CHECKS.map((c) => c.id);
     const unique = new Set(ids);
-    assert.equal(ids.length, unique.size, `Duplicate build check IDs: ${ids.filter((id, i) => ids.indexOf(id) !== i)}`);
+    assert.equal(
+      ids.length,
+      unique.size,
+      `Duplicate build check IDs: ${ids.filter((id, i) => ids.indexOf(id) !== i)}`,
+    );
   });
 });
 
@@ -64,6 +70,9 @@ describe("quality check concern coverage", () => {
     assert.ok(concerns.has("constraints"), "Should have constraints checks");
     assert.ok(concerns.has("verification"), "Should have verification checks");
     assert.ok(concerns.has("recovery"), "Should have recovery checks");
-    assert.ok(concerns.has("feedback_loop"), "Should have feedback_loop checks");
+    assert.ok(
+      concerns.has("feedback_loop"),
+      "Should have feedback_loop checks",
+    );
   });
 });

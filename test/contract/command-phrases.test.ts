@@ -5,7 +5,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { renderAuditText, renderAuditMarkdown } from "../../src/cli/audit/render.js";
+import {
+  renderAuditText,
+  renderAuditMarkdown,
+} from "../../src/cli/audit/render.js";
 import type { AuditReport } from "../../src/cli/audit/types.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
@@ -17,9 +20,21 @@ function makePassingReport(): AuditReport {
     status: "pass",
     target: "/tmp/test",
     scopes: {
-      setup: { status: "pass", failures: [], summary: { skills: "7/7 installed" } },
-      project: { status: "pass", failures: [], summary: { toolchain: "test + lint configured" } },
-      integration: { status: "pass", failures: [], summary: { hooks: "claude:deny installed" } },
+      setup: {
+        status: "pass",
+        failures: [],
+        summary: { skills: "7/7 installed" },
+      },
+      project: {
+        status: "pass",
+        failures: [],
+        summary: { toolchain: "test + lint configured" },
+      },
+      integration: {
+        status: "pass",
+        failures: [],
+        summary: { hooks: "claude:deny installed" },
+      },
     },
     concerns: null,
     overall: { status: "pass", grade: null, qualityScore: null },
@@ -32,12 +47,18 @@ function makePassingReport(): AuditReport {
 describe("audit text output has no scan references", () => {
   it("renderAuditText does not mention scan", () => {
     const text = renderAuditText(makePassingReport());
-    assert.ok(!/ scan /i.test(text), `Audit text should not reference "scan": ${text}`);
+    assert.ok(
+      !/ scan /i.test(text),
+      `Audit text should not reference "scan": ${text}`,
+    );
   });
 
   it("renderAuditMarkdown does not mention scan", () => {
     const md = renderAuditMarkdown(makePassingReport());
-    assert.ok(!/ scan /i.test(md), `Audit markdown should not reference "scan": ${md}`);
+    assert.ok(
+      !/ scan /i.test(md),
+      `Audit markdown should not reference "scan": ${md}`,
+    );
   });
 });
 
@@ -50,9 +71,18 @@ describe("step 06 references audit", () => {
       resolve(PROJECT_ROOT, "workflow/setup/06-final-verification.md"),
       "utf-8",
     );
-    assert.ok(!content.includes("## Scanner"), "Should not have ## Scanner heading");
-    assert.ok(!content.includes("scanner reaches 100%"), "Should not reference scanner reaches 100%");
+    assert.ok(
+      !content.includes("## Scanner"),
+      "Should not have ## Scanner heading",
+    );
+    assert.ok(
+      !content.includes("scanner reaches 100%"),
+      "Should not reference scanner reaches 100%",
+    );
     assert.ok(content.includes("## Audit"), "Should have ## Audit heading");
-    assert.ok(content.includes("goat-flow audit"), "Should reference goat-flow audit");
+    assert.ok(
+      content.includes("goat-flow audit"),
+      "Should reference goat-flow audit",
+    );
   });
 });

@@ -3,7 +3,12 @@
  * Audit validates setup correctness (build checks) and optionally scores
  * project quality (--quality) grouped by harness concerns.
  */
-import type { AgentFacts, AgentId, ProjectFacts, ReadonlyFS } from "../types.js";
+import type {
+  AgentFacts,
+  AgentId,
+  ProjectFacts,
+  ReadonlyFS,
+} from "../types.js";
 import type { LoadedConfig } from "../config/types.js";
 
 // === JSON contract types (stable public API) ===
