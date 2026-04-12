@@ -27,7 +27,6 @@
 
   "optional_files": {
     "_note": "Optional files created when the project needs them, not during base setup.",
-    ".copilotignore": "Excludes secret/sensitive paths from Copilot context.",
     ".cursorignore": "Excludes secret/sensitive paths from Cursor context.",
     ".geminiignore": "Excludes secret/sensitive paths from Gemini context."
   },
@@ -59,11 +58,6 @@
       "skills_dir": ".agents/skills/",
       "hooks_dir": ".gemini/hooks/",
       "settings": ".gemini/settings.json"
-    },
-    "copilot": {
-      "bridge_only": true,
-      "description": "Bridge-only agent. Gets copilot-instructions.md referencing the main instruction file. No own skills, hooks, or audit coverage. .github/skills/ exists but is optional/unsupported.",
-      "instruction_file": ".github/copilot-instructions.md"
     }
   },
 

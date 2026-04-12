@@ -16,7 +16,7 @@ Read the detailed templates in `workflow/skills/goat-*.md` before creating. Crea
 4. **goat-plan/SKILL.md** - Milestone task file generator and manager. Creates structured milestone files with testing gates and assumption tracking.
 5. **goat-sbao/SKILL.md** - Multi-perspective critique using sub-agent orchestration. 3 agents (risk, alternatives, fresh eyes), 5 phases, cross-examination, and synthesis.
 6. **goat-test/SKILL.md** - Testing gap analyser. Compares code changes against testing coverage to find undertested risks and misaligned test effort.
-7. **goat/SKILL.md** - Dispatcher. Routes natural language to the right skill. Required - audit checks for it (check 2.1.1).
+7. **goat/SKILL.md** - Dispatcher. Routes natural language to the right skill. Required - audit checks for it (audit check: canonical-skills).
 
 ## Requirements for each skill
 

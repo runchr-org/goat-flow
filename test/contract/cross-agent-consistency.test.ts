@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { SKILL_NAMES } from "../../src/cli/constants.js";
-import { RUBRIC_VERSION } from "../../src/cli/rubric/version.js";
+import { RUBRIC_VERSION } from "../../src/cli/constants.js";
 import { getProjectStructure } from "../../src/cli/paths.js";
 import { BUILD_CHECKS } from "../../src/cli/audit/build-checks.js";
 import { QUALITY_CHECKS } from "../../src/cli/audit/quality-checks.js";

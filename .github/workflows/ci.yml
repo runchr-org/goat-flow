@@ -43,7 +43,7 @@ jobs:
       - name: Shellcheck
         run: |
           sudo apt-get install -y shellcheck
-          shellcheck --exclude=SC2001 scripts/*.sh
+          shellcheck --exclude=SC2001 scripts/*.sh scripts/maintenance/*.sh
 
       - name: Shell syntax
         run: bash -n scripts/*.sh

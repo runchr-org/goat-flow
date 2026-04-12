@@ -45,7 +45,7 @@ You're in the right place if the project has `.goat-flow/config.yaml` with versi
 - Install `.goat-flow/skill-preamble.md` from `workflow/skills/reference/skill-preamble.md`
 - Install or update the `/goat` dispatcher from `workflow/skills/goat.md`
 
-**Verification:** All 7 skills have `goat-flow-skill-version: "1.1.0"`.
+**Verification:** All 7 skills have `goat-flow-skill-version:` matching the current goat-flow version.
 
 ---
 
@@ -79,7 +79,7 @@ Use the reorganise approach (not copy-and-replace):
 
 - Update hooks to current templates from `workflow/hooks/`
 - If hooks have project-specific customizations, merge - don't overwrite
-- Update `.goat-flow/config.yaml` version to 1.1.0
+- Update `.goat-flow/config.yaml` version to the current goat-flow version
 - Verify all paths in config resolve to real directories
 
 **Verification:** Config version is 1.1.0. All paths resolve.

@@ -12,21 +12,21 @@ Overview landing page. Shows "What to do next" action cards based on your latest
 
 Audit results in a single scrollable page. Each scope (GOAT Flow Setup, AI Harness Score) shows pass/fail status and can be expanded inline for details. Per-agent harness cards show individual agent scores. Failures include actionable fix instructions. Run a new audit or re-audit after changes without leaving the page.
 
-### Workspace
+### Critique
 
-Split-pane layout. The left panel is a prompt library with category filters and search -- select a prompt to preview it or send it straight to the terminal. The right panel is a live terminal session (xterm.js over WebSocket) where you run agent commands. On mobile the panels collapse into a tab toggle.
+Generate and view agent critique prompts. Select a target agent, generate the critique, and preview the full prompt with embedded audit results.
+
+### Setup
+
+Guided setup flow. Detects your project stack and existing configuration, lets you pick a target agent (Claude, Codex, Gemini), then generates a setup prompt you can preview and launch directly in a terminal session.
 
 ### Projects
 
 Multi-project browser. Lists all registered project paths with their latest audit status. "Audit All" re-audits every project in one click. Select a project to switch context and view its results in the Audit view.
 
-### Wizard
+### Workspace
 
-Guided setup flow. Detects your project stack and existing configuration, lets you pick a target agent (Claude, Codex, Gemini), then generates a setup prompt you can preview and launch directly in a terminal session.
-
-### Critique
-
-Generate and view agent critique prompts. Select a target agent, generate the critique, and preview the full prompt with embedded audit results.
+Split-pane layout. The left panel is a prompt library with category filters and search -- select a prompt to preview it or send it straight to the terminal. The right panel is a live terminal session (xterm.js over WebSocket) where you run agent commands. On mobile the panels collapse into a tab toggle.
 
 ### Help
 
@@ -34,7 +34,7 @@ Getting-started page for new users. Explains what goat-flow is, the audit/critiq
 
 ## Terminal
 
-- Supports Claude, Codex, Gemini, Copilot runners
+- Supports Claude, Codex, Gemini runners
 - WebSocket-based PTY sessions via xterm.js
 - 60-minute idle timeout with auto-kill
 - Maximum 3 concurrent sessions

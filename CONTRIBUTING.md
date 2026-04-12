@@ -42,16 +42,19 @@ For shell scripts only: `shellcheck scripts/maintenance/*.sh`
 
 | Directory | What lives there |
 |-----------|-----------------|
-| `src/cli/` | CLI auditor, rubric checks (`rubric/`), stack detector (`detect/`), setup prompt generator |
+| `src/cli/` | CLI auditor, audit checks (`audit/`), stack detector (`detect/`), setup prompt generator |
 | `src/dashboard/` | Browser-based dashboard - HTML + Alpine.js + vanilla JS |
 | `workflow/` | Setup templates, skill templates, hooks, coding standards |
 | `.goat-flow/` | Project-specific config, architecture, decisions, footguns, lessons |
 | `scripts/` | Shell scripts for validation, maintenance, publishing |
 | `test/` | Unit, integration, contract, and smoke tests (uses `node:test`) |
 
-## How to Add a New Rubric Check
+## How to Add a New Audit Check
 
-Rubric checks live in `src/cli/rubric/`. The `standard/` subdirectory contains individual check modules; `registry.ts` wires them together. Add your check function and register it. `RUBRIC_VERSION` is derived from `package.json` automatically.
+There are two check systems — pick the right one:
+
+- **Build checks** (`src/cli/audit/build-checks.ts`) — 16 checks that gate CI pass/fail. Adding here makes it a blocking audit requirement.
+- **Quality checks** (`src/cli/audit/quality-checks.ts`) — 27 advisory checks grouped by concern. Adding here adds a non-blocking quality signal.
 
 ## How to Add a New Skill Template
 
@@ -71,7 +74,7 @@ Stack detection lives in `src/cli/detect/project-stack.ts`. Add a new detection 
 
 ## PR Conventions
 
-- Single-line summary, plain English - no `feat:`/`fix:` prefixes
+- Conventional commit format: `type(scope): description` — e.g., `refactor(ci): enhance CI workflow`, `feat(dashboard): improve UX`
 - Multi-line body when spanning multiple areas (blank line after summary)
 - Before opening: `npm run typecheck`, `npm test`, and `shellcheck` on any changed `.sh` files must all pass
 - See `docs/coding-standards/git-commit.md` for full conventions

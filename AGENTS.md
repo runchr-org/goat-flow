@@ -4,10 +4,18 @@ GOAT Flow documentation framework. Markdown docs + Bash validation scripts. This
 ```bash
 bash scripts/preflight-checks.sh
 bash scripts/validate-goat-flow-setup.sh
-bash scripts/deny-dangerous.sh --self-test
+bash scripts/deny-dangerous.sh --self-test  # Codex: verify deny patterns registered
 bash -n scripts/*.sh scripts/maintenance/*.sh
 shellcheck scripts/*.sh scripts/maintenance/*.sh
+npm test                                    # Run test suite
 ```
+## Truth Order
+
+1. User's explicit instruction (this session)
+2. Instruction file (AGENTS.md)
+3. Architecture (.goat-flow/architecture.md)
+4. Skills / templates (on-demand context)
+
 ## Execution Loop: READ → SCOPE → ACT → VERIFY
 
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
@@ -90,18 +98,22 @@ Sub-agents: ONE objective, structured return (paths, evidence, confidence, next 
 |----------|------|
 | Architecture | `.goat-flow/architecture.md` |
 | Claude instructions | `CLAUDE.md` |
+| CLI auditor/prompt code | `src/cli/` |
 | Scripts | `scripts/` |
-| Skills | `.agents/skills/` |
+| Skills | `.agents/skills/` (goat, goat-debug, goat-plan, goat-review, goat-sbao, goat-security, goat-test) |
 | Templates | `.goat-flow/templates/` |
 | Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
 | Decisions | `.goat-flow/decisions/` |
 | Config | `.goat-flow/config.yaml` |
+| Dashboard source | `src/dashboard/` |
+| Documentation | `docs/` |
 | Session logs | `.goat-flow/logs/sessions/` |
 | Local workspace | `.goat-flow/tasks/`, `.goat-flow/logs/` |
 
 ## Hard Rules
-
+- If file exists, modify in-place. NEVER create `_modified`, `_new`, `_backup`, `_v2` variants.
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - MUST maintain cross-file consistency: same concept, same description everywhere
 - MUST preserve file:line evidence format in footguns and examples
 - MUST use real incidents, never hypothetical. `.goat-flow/architecture.md` is canonical source of truth
+- Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.

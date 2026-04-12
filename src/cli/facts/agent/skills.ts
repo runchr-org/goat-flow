@@ -2,7 +2,10 @@
  * Skill fact extraction - inventories installed skills, measures quality signals, and detects unadapted content.
  */
 import type { AgentProfile, AgentFacts, ReadonlyFS } from "../../types.js";
-import { SKILL_NAMES, SKILL_VERSION } from "../../constants.js";
+import {
+  SKILL_NAMES,
+  RUBRIC_VERSION as SKILL_VERSION,
+} from "../../constants.js";
 import { extractSection } from "./instruction.js";
 
 /** Compute Jaccard similarity between two strings by comparing word sets. */

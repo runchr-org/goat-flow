@@ -16,7 +16,6 @@ When generating local instructions, prefer this order:
 
 1. Existing project docs such as `.github/instructions/`, `docs/`, or team playbooks
 2. Real patterns observed in the codebase
-3. The security reference library under `workflow/reference/security/` for topic coverage
 
 Do not create parallel surfaces that duplicate the same guidance in multiple places.
 

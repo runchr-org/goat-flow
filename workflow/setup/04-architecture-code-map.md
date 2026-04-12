@@ -35,7 +35,7 @@ Create these directories and files if they don't already exist:
 - `.goat-flow/decisions/` - for architecture decision records when needed. Do not pre-fill with a blank template.
 - `.goat-flow/tasks/` - for milestone and task tracking files
 - `.goat-flow/logs/sessions/` - for session logs (if not already created by step 01)
-- `.goat-flow/templates/` - copy from `workflow/templates/` verbatim. **Verify source exists before copying** - if `workflow/templates/` is missing from the goat-flow release, fail fast and report the missing source rather than silently skipping. These contain prompt templates for feature briefs, milestone planning, requirements tracking, refactor planning, and manual multi-session SBAO. Some skills reference specific templates on their full-depth path (e.g., feature-brief.md, compliance-checklist.md, flow-diagram-guide.md) - these must be installed.
+- `.goat-flow/templates/` - copy from `workflow/templates/` verbatim. **Verify source exists before copying** - if `workflow/templates/` is missing from the goat-flow release, fail fast and report the missing source rather than silently skipping. These contain prompt templates used by skills: feature briefs (feature-brief.md), requirements tracking (requirements-template.md), mob elaboration (mob-elaboration.md), compliance checklists (compliance-checklist.md), and flow diagrams (flow-diagram-guide.md). Some skills reference specific templates on their full-depth path (e.g., feature-brief.md, compliance-checklist.md, flow-diagram-guide.md) - these must be installed.
 
 ## Toolchain probe
 

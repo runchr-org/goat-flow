@@ -1,6 +1,6 @@
 /**
  * Read-only filesystem adapter over Node's `fs` APIs.
- * The rest of the scanner targets this interface so tests can swap in mock filesystems without touching extraction logic.
+ * Audit checks and fact extractors target this interface so tests can swap in mock filesystems without touching extraction logic.
  */
 import {
   readFileSync,

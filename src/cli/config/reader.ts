@@ -1,12 +1,12 @@
 /**
  * Loads and validates `.goat-flow/config.yaml`.
- * Owns defaults, schema-level validation, and the normalized `LoadedConfig` returned to scanners and prompt builders.
+ * Owns defaults, schema-level validation, and the normalized `LoadedConfig` returned to audit and prompt builders.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { load } from "js-yaml";
 import type { ReadonlyFS } from "../types.js";
-import { RUBRIC_VERSION } from "../rubric/version.js";
+import { RUBRIC_VERSION } from "../constants.js";
 import type {
   GoatFlowConfig,
   LoadedConfig,
@@ -248,7 +248,7 @@ type ConfigValidator = (
   errors: ValidationIssue[],
 ) => void;
 
-/** Warn when the config contains top-level keys the scanner does not understand. */
+/** Warn when the config contains top-level keys that are not understood. */
 function validateUnknownTopLevelKeys(
   raw: RawConfig,
   warnings: ValidationIssue[],

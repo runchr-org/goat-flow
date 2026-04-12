@@ -1,6 +1,6 @@
 /**
- * Coordinates full fact extraction for a scan.
- * It combines stack detection, shared project facts, and per-agent facts into the `ProjectFacts` object used by scoring.
+ * Coordinates full fact extraction for a project.
+ * It combines stack detection, shared project facts, and per-agent facts into the `ProjectFacts` object used by audit and setup.
  */
 import type { ProjectFacts, ReadonlyFS, AgentId } from "../types.js";
 import type { LoadedConfig } from "../config/types.js";

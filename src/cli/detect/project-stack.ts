@@ -1,6 +1,6 @@
 /**
  * Project stack detector for languages, frameworks, and workflow signals.
- * The setup pipeline and scanner rely on this file to infer commands and template routing from repository contents.
+ * The setup pipeline and audit checks rely on this file to infer commands and template routing from repository contents.
  */
 import type { StackInfo, ProjectSignals, ReadonlyFS } from "../types.js";
 

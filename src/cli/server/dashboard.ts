@@ -19,7 +19,6 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { createFS } from "../facts/fs.js";
 import { classifyProjectState } from "../classify-state.js";
-import { scanProject } from "../scanner/scan.js";
 import { runAudit } from "../audit/audit.js";
 import { getPackageVersion } from "../paths.js";
 import type { AgentId } from "../types.js";
@@ -30,9 +29,8 @@ import type { WebSocketServer, WebSocket as WsWebSocket } from "ws";
 
 /** Recognized agent identifiers for the /api/setup endpoint */
 const VALID_AGENTS = new Set<string>(["claude", "codex", "gemini"]);
-/** Recognized runner identifiers for terminal session creation.
- *  copilot is bridge-only (via .github/copilot-instructions.md), not a first-class agent. */
-const VALID_RUNNERS = new Set<string>(["claude", "codex", "gemini", "copilot"]);
+/** Recognized runner identifiers for terminal session creation. */
+const VALID_RUNNERS = new Set<string>(["claude", "codex", "gemini"]);
 /** Maximum request body size accepted by POST endpoints */
 const MAX_BODY_BYTES = 64 * 1024; // 64 KB
 /** Current goat-flow package version for dashboard UI */
@@ -234,7 +232,6 @@ export function serveDashboard(
         status: auditRpt.status,
         scopes: auditRpt.scopes,
         overall: auditRpt.overall,
-        concerns: auditRpt.concerns,
         target: auditRpt.target,
       };
     }
@@ -312,9 +309,21 @@ export function serveDashboard(
       const agent = agentParam as AgentId;
       try {
         const fs = createFS(projectPath);
-        const report = scanProject(fs, projectPath, { agentFilter: agent });
+        const { loadConfig } = await import("../config/reader.js");
+        const { extractProjectFacts } =
+          await import("../facts/orchestrator.js");
+        const configState = loadConfig(projectPath, fs);
+        const facts = extractProjectFacts(fs, {
+          agentFilter: agent,
+          projectPath,
+          configState,
+        });
+        const auditReport = runAudit(fs, projectPath, {
+          agentFilter: agent,
+          quality: false,
+        });
         const { composeSetup } = await import("../prompt/compose-setup.js");
-        const output = composeSetup(report, agent);
+        const output = composeSetup(auditReport, facts, agent);
         jsonResponse(res, 200, {
           output: output ?? "No setup output generated.",
         });
@@ -581,16 +590,12 @@ export function serveDashboard(
       return commands;
     }
 
-    /** Detect which AI coding agents have config directories in the project.
-     *  copilot is bridge-only (not a first-class audit/setup agent). */
+    /** Detect which AI coding agents have config directories in the project. */
     function detectAgents(projectPath: string): Record<string, boolean> {
       return {
         claude: existsSync(join(projectPath, ".claude")),
         codex: existsSync(join(projectPath, ".codex")),
         gemini: existsSync(join(projectPath, ".gemini")),
-        copilot: existsSync(
-          join(projectPath, ".github", "copilot-instructions.md"),
-        ),
       };
     }
 
@@ -643,10 +648,6 @@ export function serveDashboard(
       const nonGoatFlow: string[] = [];
       const checks: [string[], string][] = [
         [[".github", "instructions"], ".github/instructions/"],
-        [
-          [".github", "copilot-instructions.md"],
-          ".github/copilot-instructions.md",
-        ],
         [["CLAUDE.md"], "CLAUDE.md"],
         [["AGENTS.md"], "AGENTS.md"],
         [["CODEX.md"], "CODEX.md"],
@@ -732,7 +733,7 @@ export function serveDashboard(
     function handleAgentDetectRequest(url: URL, res: ServerResponse): boolean {
       if (url.pathname !== "/api/agents/installed") return false;
 
-      const agents = ["claude", "codex", "gemini", "copilot"].map((name) => {
+      const agents = ["claude", "codex", "gemini"].map((name) => {
         try {
           const whichCmd = process.platform === "win32" ? "where" : "which";
           execFileSync(whichCmd, [name], { timeout: 3000, stdio: "pipe" });

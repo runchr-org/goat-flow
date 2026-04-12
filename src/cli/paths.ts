@@ -43,11 +43,6 @@ export function getTemplatePath(relative: string): string {
   return join(GOAT_FLOW_ROOT, relative);
 }
 
-/** Resolve a template path and report whether the packaged source file exists. */
-export function templateExists(relative: string): boolean {
-  return existsSync(getTemplatePath(relative));
-}
-
 /**
  * Build the CLI command string that can run goat-flow from any project directory.
  * Returns the absolute `node /path/to/dist/cli/cli.js` form since goat-flow

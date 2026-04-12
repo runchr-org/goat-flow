@@ -1,33 +1,19 @@
 /**
- * Composes setup and redirect prompts from internal scan results.
- * This is the main policy layer that turns rubric failures, detected signals, and template refs into agent-facing task lists.
- * User-facing output references `goat-flow audit` as the verification command.
+ * Composes setup prompts from audit results and project facts.
+ * Routes by project state: bare/partial → full setup guide,
+ * v0.9/v1.0 → upgrade redirect, v1.1 → audit-driven pass/fail.
  */
-import type {
-  ScanReport,
-  AgentId,
-  AgentReport,
-  ProjectSignals,
-} from "../types.js";
+import type { AuditReport } from "../audit/types.js";
+import type { AgentId, ProjectFacts, ProjectSignals } from "../types.js";
 import { SKILL_NAMES } from "../constants.js";
-import type { PromptVariables, FragmentPhase, SetupTask } from "./types.js";
-import { getFragment } from "./registry.js";
-import { extractTemplateVars, fillTemplate } from "./template-filler.js";
 import { PROFILES } from "../detect/agents.js";
 import { getTemplatePath, getCliCommand } from "../paths.js";
 import { classifyProjectState } from "../classify-state.js";
 import { createFS } from "../facts/fs.js";
-import {
-  getAgentTemplates,
-  validateTemplateRefs,
-  mapLanguagesToTemplates,
-  mapSignalsToTemplates,
-  getFragmentTemplate,
-  getLanguageTemplate,
-} from "./template-refs.js";
 
-/** Projects at or above this percentage get the short fix list instead of targeted fix */
-const SHORT_FIX_THRESHOLD = 90;
+// ----------------------------------------------------------------
+// Signal helpers
+// ----------------------------------------------------------------
 
 /** Format static analysis tools. */
 function formatStaticAnalysisTools(
@@ -76,14 +62,13 @@ function collectSignalActionLines(signals: ProjectSignals): string[] {
   return actions;
 }
 
-/** Append signal-specific lines (code gen, deploy, LLM, compliance) and actionable follow-up tasks to the prompt output. */
+/** Append signal-specific lines and actionable follow-up tasks to the prompt output. */
 function renderSignals(lines: string[], signals: ProjectSignals): void {
   const parts = collectSignalSummaryParts(signals);
   if (parts.length > 0) {
     lines.push("");
     lines.push(parts.join(" | "));
   }
-
   const actions = collectSignalActionLines(signals);
   if (actions.length > 0) {
     lines.push("");
@@ -92,94 +77,69 @@ function renderSignals(lines: string[], signals: ProjectSignals): void {
   }
 }
 
-/** Anti-patterns are rendered before tiers so critical issues surface at the top of the fix list. */
-const PHASE_ORDER: FragmentPhase[] = ["anti-pattern", "foundation", "standard"];
-/** Human-readable heading text for each setup phase. */
-const PHASE_HEADINGS: Record<FragmentPhase, string> = {
-  "anti-pattern": "Critical: Anti-Pattern Fixes",
-  foundation: "Phase 1: Foundation",
-  standard: "Phase 2: Standard",
+// ----------------------------------------------------------------
+// Setup-step references
+// ----------------------------------------------------------------
+
+/** Maps audit check IDs to the setup step that fixes them. */
+const CHECK_TO_STEP: Record<string, string> = {
+  "required-files": "Step 02 (instruction file) or Step 04 (architecture)",
+  "required-dirs": "Step 04 (project scaffolding)",
+  "config-parses": "Step 02 or Step 05 (config.yaml)",
+  "config-version": "Step 05 (config version field)",
+  "agents-supported": "Step 05 (config.yaml agents list)",
+  "canonical-skills": "Step 03 (install skills)",
+  "skill-versions": "Step 03 (version tags)",
+  "configured-agent-present": "Step 02 (instruction file for agent)",
+  "instruction-files": "Step 02 (create/update instruction file)",
+  "stale-skill-dirs": "Step 03 (clean up stale skills)",
+  "workflow-path-leaks":
+    "Step 03 (skill files must reference .goat-flow/ not workflow/)",
+  "toolchain-commands": "Step 05 (config.yaml toolchain)",
+  "agent-settings-parse": "Step 04 (hooks/settings)",
+  "hook-files-exist": "Step 04 (configure hooks)",
+  "hook-syntax": "Step 04 (hook scripts)",
+  "deny-patterns": "Step 04 (deny mechanism)",
 };
 
-/**
- * Compose a setup prompt that adapts to the project's state.
- *
- * - No agents or 0%  → full reference-based setup
- * - 1-89%            → targeted fix (template refs for creates, inline for fixes)
- * - 90-99%           → short fix list (just remaining issues)
- * - 100%             → all-pass message
- */
-export function composeSetup(
-  report: ScanReport,
-  agentId: AgentId,
-): string | null {
-  const agentReport = report.agents.find((a) => a.agent === agentId);
+/** Lookup from agent ID to its agent-specific setup guide. */
+const SETUP_FILES: Record<AgentId, string> = {
+  claude: "workflow/setup/agents/claude.md",
+  codex: "workflow/setup/agents/codex.md",
+  gemini: "workflow/setup/agents/gemini.md",
+};
 
-  // No agents detected → redirect to setup guide
-  if (!agentReport) {
-    return renderSetupRedirect(report, agentId, null);
-  }
+// ----------------------------------------------------------------
+// Mode: Audit pass (v1.1, all build checks passing)
+// ----------------------------------------------------------------
 
-  // State-aware routing: v1.0/v0.9 projects need upgrade guidance regardless of score
-  const projectFS = createFS(report.target);
-  const projectState = classifyProjectState(projectFS);
-  if (projectState.state === "v1.0" || projectState.state === "v0.9") {
-    return renderSetupRedirect(report, agentId, agentReport);
-  }
-
-  const percentage = agentReport.score.percentage;
-  const allPass = agentReport.checks.every(
-    (c) => c.status === "pass" || c.status === "na",
-  );
-
-  if (percentage === 100 && allPass) {
-    return renderAllPass(agentId, agentReport, report);
-  }
-  if (percentage >= SHORT_FIX_THRESHOLD) {
-    return renderShortFix(report, agentId, agentReport);
-  }
-  if (percentage >= 50) {
-    return renderTargetedFix(report, agentId, agentReport);
-  }
-  // Under 50% - too many issues for targeted fixes, redirect to full setup guide
-  return renderSetupRedirect(report, agentId, agentReport);
-}
-
-// ---------------------------------------------------------------------------
-// Mode: All pass (100%)
-// ---------------------------------------------------------------------------
-
-/** Render congratulatory message when all checks pass (100%). */
-function renderAllPass(
-  agentId: AgentId,
-  agentReport: AgentReport,
-  report?: ScanReport,
-): string {
+function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
   const profile = PROFILES[agentId];
+  const agentFacts = facts.agents.find((af) => af.agent.id === agentId);
   const lines: string[] = [];
+
   lines.push(`# GOAT Flow Setup - ${profile.name}`);
   lines.push("");
   lines.push("All audit checks pass.");
   lines.push("");
 
-  // Summary of what's installed
-  const facts = report?.agents.find((a) => a.agent === agentId);
-  if (facts) {
-    const checks = agentReport.checks;
-    const skillCount = checks.filter(
-      (c) => c.category === "Skills" && c.status === "pass",
-    ).length;
-    const hookCount = checks.filter(
-      (c) => c.category === "Hooks" && c.status === "pass",
-    ).length;
+  if (agentFacts) {
+    const skillCount = agentFacts.skills.found.length;
+    const hookScripts: string[] = [];
+    if (agentFacts.hooks.denyExists) hookScripts.push("deny");
+    if (agentFacts.hooks.postTurnExists) hookScripts.push("post-turn");
+    if (agentFacts.hooks.compactionHookExists) hookScripts.push("compaction");
+    const hooksDir = profile.hooksDir ?? "hooks";
 
     lines.push("**Installed:**");
-    if (skillCount > 0)
+    lines.push(
+      `- ${skillCount}/${SKILL_NAMES.length} skills installed (in ${profile.skillsDir}/)`,
+    );
+    if (hookScripts.length > 0) {
       lines.push(
-        `- ${SKILL_NAMES.length}/${SKILL_NAMES.length} skills installed`,
+        `- ${hookScripts.length} hook scripts (${hookScripts.join(", ")}) in ${hooksDir}/`,
       );
-    if (hookCount > 0)
-      lines.push(`- ${hookCount} hooks (deny, post-turn, format)`);
+    }
     lines.push("- Audit: all build checks passing");
     lines.push("");
   }
@@ -196,153 +156,47 @@ function renderAllPass(
   return lines.join("\n");
 }
 
-/** Return triggered anti patterns. */
-function getTriggeredAntiPatterns(
-  agentReport: AgentReport,
-): AgentReport["antiPatterns"] {
-  return agentReport.antiPatterns.filter((ap) => ap.triggered);
-}
+// ----------------------------------------------------------------
+// Mode: Audit fail (v1.1, some build checks failing)
+// ----------------------------------------------------------------
 
-/** Render short fix summary line. */
-function renderShortFixSummaryLine(
-  _agentReport: AgentReport,
-  failedCount: string,
-  triggeredCount: number,
-): string {
-  const countText =
-    triggeredCount > 0
-      ? `${failedCount} checks + ${triggeredCount} anti-patterns remaining.`
-      : `${failedCount} checks remaining.`;
-  return `${countText} Run \`${getCliCommand()} audit .\` after fixing to verify.`;
-}
-
-/** Find recommendation action. */
-function findRecommendationAction(
-  agentReport: AgentReport,
-  key: string,
-): string | null {
-  const recommendation = agentReport.recommendations.find(
-    (item) =>
-      item.checkId &&
-      agentReport.checks.some(
-        (check) => check.id === item.checkId && check.recommendationKey === key,
-      ),
-  );
-  return recommendation?.action ?? null;
-}
-
-/** Render short fix item. */
-function renderShortFixItem(
-  key: string,
+function renderAuditFail(
+  auditReport: AuditReport,
+  _facts: ProjectFacts,
   agentId: AgentId,
-  agentReport: AgentReport,
-  vars: PromptVariables,
-): string | null {
-  const fragment = getFragment(key);
-  if (!fragment || fragment.phase === "anti-pattern") return null;
-
-  const isSkillQuality =
-    key.startsWith("add-skill-") || key === "create-all-skills";
-  const templatePath = isSkillQuality
-    ? null
-    : getFragmentTemplate(key, agentId);
-  if (templatePath) {
-    return `- **${fragment.category}**: Adapt from ${getTemplatePath(templatePath)}`;
-  }
-
-  const recommendationAction = findRecommendationAction(agentReport, key);
-  if (recommendationAction) {
-    return `- **${fragment.category}**: ${recommendationAction}`;
-  }
-
-  const override = fragment.agentOverrides?.[agentId];
-  const instruction = fillTemplate(override ?? fragment.instruction, vars);
-  return `- **${fragment.category}**: ${instruction.split("\n")[0] ?? ""}`;
-}
-
-/** Render short fix items. */
-function renderShortFixItems(
-  lines: string[],
-  neededKeys: Set<string>,
-  agentId: AgentId,
-  agentReport: AgentReport,
-  vars: PromptVariables,
-): void {
-  for (const key of neededKeys) {
-    const line = renderShortFixItem(key, agentId, agentReport, vars);
-    if (line) lines.push(line);
-  }
-}
-
-/** Render triggered anti pattern fixes. */
-function renderTriggeredAntiPatternFixes(
-  lines: string[],
-  triggered: AgentReport["antiPatterns"],
-  agentId: AgentId,
-  vars: PromptVariables,
-): void {
-  if (triggered.length === 0) return;
-
-  lines.push("");
-  lines.push("**Anti-patterns to fix:**");
-  lines.push("");
-  for (const antiPattern of triggered) {
-    const fragment = antiPattern.recommendationKey
-      ? getFragment(antiPattern.recommendationKey)
-      : undefined;
-    if (!fragment) {
-      lines.push(`- **${antiPattern.id}**: ${antiPattern.message}`);
-      continue;
-    }
-
-    const override = fragment.agentOverrides?.[agentId];
-    const instruction = fillTemplate(override ?? fragment.instruction, vars);
-    lines.push(
-      `### ${antiPattern.id}: ${antiPattern.name} (${antiPattern.deduction} pts)`,
-    );
-    lines.push("");
-    if (antiPattern.evidence) {
-      lines.push(`**Evidence:** ${antiPattern.evidence}`);
-      lines.push("");
-    }
-    lines.push(instruction);
-    lines.push("");
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Mode: Short fix (90-99%)
-// ---------------------------------------------------------------------------
-
-/** Compose a short fix prompt for projects scoring 90-99%. */
-function renderShortFix(
-  report: ScanReport,
-  agentId: AgentId,
-  agentReport: AgentReport,
 ): string {
   const profile = PROFILES[agentId];
-  const vars = extractTemplateVars(report, agentReport);
   const lines: string[] = [];
-  const neededKeys = collectNeededKeys(agentReport);
-  const triggered = getTriggeredAntiPatterns(agentReport);
+
+  const failedChecks = [
+    ...auditReport.scopes.setup.checks.filter((c) => c.status === "fail"),
+    ...auditReport.scopes.harness.checks.filter((c) => c.status === "fail"),
+  ];
 
   lines.push(`# GOAT Flow Setup - ${profile.name}`);
   lines.push("");
   lines.push(
-    renderShortFixSummaryLine(agentReport, vars.failedCount, triggered.length),
+    `${failedChecks.length} audit ${failedChecks.length === 1 ? "check" : "checks"} failed:`,
   );
-  renderSignals(lines, report.stack.signals);
   lines.push("");
 
-  if (neededKeys.size === 0 && triggered.length === 0) {
-    lines.push("No actionable fixes found.");
-    return lines.join("\n");
+  let num = 1;
+  for (const check of failedChecks) {
+    const failure = check.failure;
+    if (!failure) continue;
+    const step = CHECK_TO_STEP[check.id] ?? "relevant setup step";
+
+    lines.push(`${num++}. **${failure.check}** — FAIL`);
+    lines.push(`   ${failure.message}`);
+    if (failure.evidence) lines.push(`   Evidence: ${failure.evidence}`);
+    if (failure.howToFix) {
+      lines.push(`   Fix: ${failure.howToFix} (see ${step})`);
+    } else {
+      lines.push(`   See ${step}`);
+    }
+    lines.push("");
   }
 
-  renderShortFixItems(lines, neededKeys, agentId, agentReport, vars);
-  renderTriggeredAntiPatternFixes(lines, triggered, agentId, vars);
-
-  lines.push("");
   lines.push(`**Target: audit passes with zero failures.**`);
   lines.push(`Re-run: \`${getCliCommand()} audit . --agent ${agentId}\``);
   lines.push(
@@ -352,578 +206,21 @@ function renderShortFix(
   return lines.join("\n");
 }
 
-// ---------------------------------------------------------------------------
-// Mode: Targeted fix (1-89%)
-// ---------------------------------------------------------------------------
+// ----------------------------------------------------------------
+// Mode: Upgrade redirect (v0.9 or v1.0 projects)
+// ----------------------------------------------------------------
 
-/** Template reference used in targeted fix mode. */
-interface TargetedTemplateRef {
-  category: string;
-  key: string;
-  template: string;
-}
-
-/** Inline fragment rendered directly in targeted fix mode. */
-interface TargetedInlineFragment {
-  category: string;
-  instruction: string;
-}
-
-/** Build command summary. */
-function buildCommandSummary(
-  parts: Array<string | false | null | undefined>,
-): string {
-  return parts.filter(Boolean).join(" | ");
-}
-
-/** Render targeted fix header. */
-function renderTargetedFixHeader(
-  lines: string[],
-  profileName: string,
-  _agentReport: AgentReport,
-  vars: PromptVariables,
-): void {
-  lines.push(`# GOAT Flow Setup - ${profileName}`);
-  lines.push("");
-  lines.push(
-    `**${vars.failedCount}** checks need attention out of ${vars.totalCount} total. Run \`${getCliCommand()} audit .\` after fixing to verify.`,
-  );
-  lines.push("");
-  lines.push(`**Stack:** ${vars.languages}`);
-  const commands = buildCommandSummary([
-    vars.buildCommand && `**Build:** \`${vars.buildCommand}\``,
-    vars.testCommand && `**Test:** \`${vars.testCommand}\``,
-    vars.lintCommand && `**Lint:** \`${vars.lintCommand}\``,
-  ]);
-  if (commands) lines.push(commands);
-  lines.push("");
-}
-
-/** Collect phase fixes. */
-function collectPhaseFixes(
-  neededKeys: Set<string>,
-  phase: FragmentPhase,
-  languages: string[],
+function renderUpgradeRedirect(
+  facts: ProjectFacts,
   agentId: AgentId,
-  vars: PromptVariables,
-): {
-  templateRefs: TargetedTemplateRef[];
-  inlineFragments: TargetedInlineFragment[];
-} {
-  const templateRefs: TargetedTemplateRef[] = [];
-  const inlineFragments: TargetedInlineFragment[] = [];
-
-  for (const key of neededKeys) {
-    const fragment = getFragment(key);
-    if (!fragment || fragment.phase !== phase) continue;
-
-    const langTemplate = getLanguageTemplate(key, languages);
-    const templatePath = langTemplate ?? getFragmentTemplate(key, agentId);
-    if (templatePath) {
-      templateRefs.push({
-        category: fragment.category,
-        key,
-        template: templatePath,
-      });
-      continue;
-    }
-
-    const override = fragment.agentOverrides?.[agentId];
-    inlineFragments.push({
-      category: fragment.category,
-      instruction: fillTemplate(override ?? fragment.instruction, vars),
-    });
-  }
-
-  return { templateRefs, inlineFragments };
-}
-
-/** Render skill template tasks. */
-function renderSkillTemplateTasks(
-  lines: string[],
-  refs: TargetedTemplateRef[],
-  agentId: AgentId,
-  languages: string,
-): number {
-  if (refs.length === 0) return 1;
-
-  lines.push(
-    `**Missing Skills (${refs.length} of ${SKILL_NAMES.length})** - create in \`${PROFILES[agentId].skillsDir}/{skill-name}/SKILL.md\``,
-  );
-  lines.push("");
-  let taskNum = 1;
-
-  for (const ref of refs) {
-    const name =
-      ref.key === "create-skill-goat"
-        ? "goat"
-        : ref.key.replace("create-skill-", "goat-");
-    const outputPath = `${PROFILES[agentId].skillsDir}/${name}/SKILL.md`;
-    lines.push(
-      renderTask({
-        num: taskNum++,
-        outputPath,
-        templatePath: getTemplatePath(ref.template),
-        adapt: defaultAdaptGuidance(outputPath, undefined, languages),
-        verify: defaultVerify(outputPath),
-      }),
-    );
-    lines.push("");
-  }
-
-  return taskNum;
-}
-
-/** Render non skill template tasks. */
-function renderNonSkillTemplateTasks(
-  lines: string[],
-  refs: TargetedTemplateRef[],
-  startTaskNum: number,
-  languages: string,
-): void {
-  let taskNum = startTaskNum;
-
-  for (const ref of refs) {
-    if (ref.key.startsWith("add-skill-") || ref.key === "create-all-skills")
-      continue;
-    const outputPath =
-      getFragment(ref.key)?.category ??
-      ref.key.replace(/^create-/, "").replace(/-/g, "/");
-    lines.push(
-      renderTask({
-        num: taskNum++,
-        outputPath,
-        templatePath: getTemplatePath(ref.template),
-        adapt: defaultAdaptGuidance(ref.key, undefined, languages),
-        verify: defaultVerify(ref.key),
-      }),
-    );
-    lines.push("");
-  }
-}
-
-/** Render inline targeted fragments. */
-function renderInlineTargetedFragments(
-  lines: string[],
-  fragments: TargetedInlineFragment[],
-): void {
-  for (const fragment of fragments) {
-    lines.push(fragment.instruction);
-    lines.push("");
-  }
-}
-
-/** Render standard phase notes. */
-function renderStandardPhaseNotes(
-  lines: string[],
-  phase: FragmentPhase,
-  vars: PromptVariables,
-): void {
-  if (phase !== "standard") return;
-
-  lines.push(
-    "**Skill quality check** - every skill MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**. No placeholder text.",
-  );
-  lines.push("");
-  if (vars.languages && vars.languages !== "unknown") {
-    lines.push(
-      `**Adaptation note:** For non-skill surfaces (instruction file, config, architecture doc), adapt examples for ${vars.languages} patterns from this codebase. Skill files are installed verbatim — do NOT modify skill content.`,
-    );
-    lines.push("");
-  }
-}
-
-/** Render phase gate. */
-function renderPhaseGate(
-  lines: string[],
-  phase: FragmentPhase,
-  agentId: AgentId,
-): void {
-  if (phase === "anti-pattern") return;
-  lines.push(`**GATE:** Run \`${getCliCommand()} audit . --agent ${agentId}\``);
-  lines.push("");
-}
-
-/** Render targeted phase. */
-function renderTargetedPhase(
-  lines: string[],
-  phase: FragmentPhase,
-  templateRefs: TargetedTemplateRef[],
-  inlineFragments: TargetedInlineFragment[],
-  agentId: AgentId,
-  vars: PromptVariables,
-): void {
-  if (templateRefs.length === 0 && inlineFragments.length === 0) return;
-
-  lines.push(`## ${PHASE_HEADINGS[phase]}`);
-  lines.push("");
-  const skillRefs = templateRefs.filter((ref) =>
-    ref.key.startsWith("create-skill-"),
-  );
-  const nonSkillRefs = templateRefs.filter(
-    (ref) => !ref.key.startsWith("create-skill-"),
-  );
-  const nextTaskNum = renderSkillTemplateTasks(
-    lines,
-    skillRefs,
-    agentId,
-    vars.languages,
-  );
-  renderNonSkillTemplateTasks(lines, nonSkillRefs, nextTaskNum, vars.languages);
-  renderInlineTargetedFragments(lines, inlineFragments);
-  renderStandardPhaseNotes(lines, phase, vars);
-  renderPhaseGate(lines, phase, agentId);
-}
-
-/** Render targeted fix. */
-function renderTargetedFix(
-  report: ScanReport,
-  agentId: AgentId,
-  agentReport: AgentReport,
+  version: "v0.9" | "v1.0",
 ): string {
   const profile = PROFILES[agentId];
-  const vars = extractTemplateVars(report, agentReport);
-  const lines: string[] = [];
-  const neededKeys = collectNeededKeys(agentReport);
-  renderTargetedFixHeader(lines, profile.name, agentReport, vars);
-
-  for (const phase of PHASE_ORDER) {
-    const phaseFixes = collectPhaseFixes(
-      neededKeys,
-      phase,
-      report.stack.languages,
-      agentId,
-      vars,
-    );
-    renderTargetedPhase(
-      lines,
-      phase,
-      phaseFixes.templateRefs,
-      phaseFixes.inlineFragments,
-      agentId,
-      vars,
-    );
-  }
-
-  lines.push("---");
-  lines.push("");
-  lines.push(
-    `After completing fixes, re-run \`${getCliCommand()} audit . --agent ${agentId}\` to check for remaining issues.`,
-  );
-
-  return lines.join("\n");
-}
-
-/** Format a task as a numbered markdown block with read/adapt/verify steps, used inside phase sections. */
-function renderTask(task: SetupTask): string {
-  const lines: string[] = [];
-  lines.push(`### Task ${task.num}: Create \`${task.outputPath}\``);
-  lines.push("");
-  lines.push(`1. **Read template:** ${task.templatePath}`);
-  lines.push(`2. **Adapt:** ${task.adapt}`);
-  lines.push(`3. **Verify:** ${task.verify}`);
-  return lines.join("\n");
-}
-
-/** Return human-readable adapt instructions for a task, choosing path-specific guidance (skills, config, footguns, etc.) or falling back to a generic message. */
-function defaultAdaptGuidance(
-  output: string,
-  note: string | undefined,
-  languages: string,
-): string {
-  // Path-specific guidance takes precedence over generic notes
-  if (output.includes("/skills/"))
-    return "Install verbatim from the template. Do NOT adapt, compress, or rewrite skill content";
-  if (output === ".goat-flow/config.yaml")
-    return "Use the default directory paths unless this project already needs explicit overrides. Populate `toolchain` from real commands and `ask_first` from the instruction file's actual boundaries.";
-  if (output === ".goat-flow/footguns/")
-    return "Seed `.goat-flow/footguns/` with category bucket files. Use `category:` frontmatter on the file and `## Footgun:` entries with `file:line` evidence. No hypotheticals. For EVERY cited file:line: read the actual code and verify the claim - does the method exist? Does the exception type match? Does the risk description match actual behavior? Flag any footgun where cited behavior does not match the code as UNVERIFIED";
-  if (output === ".goat-flow/lessons/")
-    return "Seed `.goat-flow/lessons/` with category bucket files. Use `category:` frontmatter on the file and `## Lesson:` / `## Pattern:` entries from real incidents";
-  if (output === ".goat-flow/architecture.md")
-    return "Read project entry points and main directories. Document what exists - under 100 lines, no aspirational content";
-  if (output.includes("instructions/"))
-    return `Adapt for this project's ${languages} patterns. Replace generic examples with real patterns from the codebase`;
-  // Fall back to template ref note or generic
-  if (note) return note;
-  return "Adapt template for this project - replace generic examples with real project patterns";
-}
-
-/** Return the verify instruction shown in step 3 of a task, matched to output type (skill, config, shell, JSON, etc.). */
-function defaultVerify(output: string): string {
-  if (output.includes("/skills/goat/"))
-    return "File has: How It Works, Constraints sections (dispatcher uses different structure)";
-  if (output.includes("/skills/"))
-    return "File has: When to Use, Process with human gates, Constraints, Output Format sections";
-  if (output === ".goat-flow/config.yaml")
-    return "File exists, parses as YAML, and includes version plus footguns/lessons/decisions/tasks/logs/agents/skills/toolchain/ask_first settings";
-  if (output === ".goat-flow/footguns/")
-    return "Directory exists with README.md plus 1+ category bucket files using `category:` frontmatter and `path:line` evidence inside `## Footgun:` entries";
-  if (output === ".goat-flow/lessons/")
-    return "Directory exists with README.md plus 1+ category bucket files using `category:` frontmatter and `## Lesson:` / `## Pattern:` entries";
-  if (output === ".goat-flow/architecture.md")
-    return "File exists and is under 100 lines";
-  if (output.endsWith(".sh"))
-    return "`bash -n <file>` passes (no syntax errors)";
-  if (output.endsWith(".json")) return "Valid JSON (no parse errors)";
-  if (output.endsWith(".yml")) return "Valid YAML";
-  return "File exists and has project-specific content (not placeholder text)";
-}
-
-// renderFullSetup removed - all new/low-scoring projects use renderSetupRedirect
-// which points agents at setup/setup-{agent}.md instead of generating inline tasks.
-
-// ---------------------------------------------------------------------------
-// Mode: Multi-agent deduplicated setup
-// ---------------------------------------------------------------------------
-
-/** Validate that all referenced template files exist for each agent. */
-function validateMultiAgentTemplateRefs(agentIds: AgentId[]): void {
-  for (const id of agentIds) {
-    const missing = validateTemplateRefs(id);
-    if (missing.length === 0) continue;
-    const list = missing
-      .map((path) => `  - ${getTemplatePath(path)}`)
-      .join("\n");
-    throw new Error(
-      `Missing template files for ${id} setup:\n${list}\nRe-install goat-flow or check the installation.`,
-    );
-  }
-}
-
-/** Render multi agent intro. */
-function renderMultiAgentIntro(lines: string[], report: ScanReport): string {
-  const stack = report.stack;
-  const languages = stack.languages.join(", ") || "unknown";
-  const commands = buildCommandSummary([
-    stack.buildCommand && `Build: ${stack.buildCommand}`,
-    stack.testCommand && `Test: ${stack.testCommand}`,
-    stack.lintCommand && `Lint: ${stack.lintCommand}`,
-    stack.formatCommand && `Format: ${stack.formatCommand}`,
-  ]);
-
-  lines.push("# GOAT Flow Setup - All Agents");
-  lines.push("");
-  lines.push(`Stack: ${languages}`);
-  if (commands) lines.push(commands);
-  renderSignals(lines, stack.signals);
-  lines.push("");
-  lines.push("## How this works");
-  lines.push("");
-  lines.push(
-    "This prompt references template files in the goat-flow project. For each phase:",
-  );
-  lines.push("1. Read the referenced template file");
-  lines.push(
-    "2. Adapt it for THIS project (use the detected stack info above)",
-  );
-  lines.push("3. Create the output file in THIS project");
-  lines.push("4. Verify it meets the template's requirements");
-  lines.push("");
-  lines.push(
-    `If any template path below is missing, run \`${getCliCommand()} setup\` again to get updated paths.`,
-  );
-  lines.push("");
-
-  return languages;
-}
-
-/** Normalize shared output path. */
-function normalizeSharedOutputPath(output: string): string {
-  return output.includes("/skills/")
-    ? output.replace(/\.[^/]+\/skills\//, "{skills_dir}/")
-    : output;
-}
-
-/** Render multi agent task list. */
-function renderMultiAgentTaskList(
-  lines: string[],
-  refs: Array<{ output: string; template: string; note?: string }>,
-  languages: string,
-): void {
-  let taskNum = 1;
-  for (const ref of refs) {
-    const output = normalizeSharedOutputPath(ref.output);
-    lines.push(
-      renderTask({
-        num: taskNum++,
-        outputPath: output,
-        templatePath: getTemplatePath(ref.template),
-        adapt: defaultAdaptGuidance(output, ref.note, languages),
-        verify: defaultVerify(output),
-      }),
-    );
-    lines.push("");
-  }
-}
-
-/** Render multi agent foundation sections. */
-function renderMultiAgentFoundationSections(
-  lines: string[],
-  agentIds: AgentId[],
-  languages: string,
-): void {
-  for (const agentId of agentIds) {
-    const profile = PROFILES[agentId];
-    const templates = getAgentTemplates(agentId);
-    const foundationRefs = templates.filter(
-      (ref) => ref.phase === "foundation" && !ref.output.startsWith("("),
-    );
-    const guideRef = templates.find(
-      (ref) => ref.output.startsWith("(") && ref.phase === "foundation",
-    );
-
-    lines.push(`## ${profile.name} - Foundation`);
-    lines.push("");
-    let taskNum = 1;
-    for (const ref of foundationRefs) {
-      lines.push(
-        renderTask({
-          num: taskNum++,
-          outputPath: ref.output,
-          templatePath: getTemplatePath(ref.template),
-          adapt: defaultAdaptGuidance(ref.output, ref.note, languages),
-          verify: defaultVerify(ref.output),
-        }),
-      );
-      lines.push("");
-    }
-    if (guideRef) {
-      lines.push(
-        `> **Agent-specific details:** Also read ${getTemplatePath(guideRef.template)} (foundation section)`,
-      );
-      lines.push("");
-    }
-  }
-}
-
-/** Render multi agent shared section. */
-function renderMultiAgentSharedSection(
-  lines: string[],
-  heading: string,
-  refs: Array<{ output: string; template: string; note?: string }>,
-  languages: string,
-  gateText: string,
-  includeSkillNote: boolean,
-): void {
-  lines.push(heading);
-  lines.push("");
-  renderMultiAgentTaskList(lines, refs, languages);
-  if (includeSkillNote) {
-    lines.push(
-      "Skills go in each agent's skills directory: `.claude/skills/`, `.agents/skills/`",
-    );
-    lines.push("");
-    lines.push(
-      "**Skill quality check** - every functional skill file MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**. The dispatcher (`goat/SKILL.md`) uses **How It Works** instead and has no Output Format. No placeholder text.",
-    );
-    lines.push("");
-  }
-  lines.push(gateText);
-  lines.push("");
-}
-
-/**
- * Compose a deduplicated setup for multiple agents.
- * Shared files (docs, skills, shared setup files, CI) appear once.
- * Per-agent files (instruction file, settings, hooks) appear in agent sections.
- */
-export function composeMultiAgentSetup(
-  report: ScanReport,
-  agentIds: AgentId[],
-): string {
-  validateMultiAgentTemplateRefs(agentIds);
-
-  const lines: string[] = [];
-  const languages = renderMultiAgentIntro(lines, report);
-  const firstId = agentIds[0];
-  if (!firstId) return lines.join("\n");
-  const allRefs = getAgentTemplates(firstId);
-  const languageRefs = mapLanguagesToTemplates(report.stack.languages);
-  const signalRefs = mapSignalsToTemplates(
-    report.stack.signals,
-    report.stack.languages,
-  );
-  const standardShared = allRefs.filter(
-    (r) => r.phase === "standard" && !r.output.startsWith("("),
-  );
-  renderMultiAgentFoundationSections(lines, agentIds, languages);
-  lines.push(
-    `**GATE:** Run \`${getCliCommand()} audit .\` - all foundation checks must pass for all agents.`,
-  );
-  lines.push("");
-  renderMultiAgentSharedSection(
-    lines,
-    "## Standard (shared across all agents)",
-    [...standardShared, ...languageRefs, ...signalRefs],
-    languages,
-    `**GATE:** Run \`${getCliCommand()} audit .\` - all checks must pass across all agents.`,
-    true,
-  );
-
-  lines.push("---");
-  lines.push("");
-  lines.push(
-    `After completing all phases, run \`${getCliCommand()} audit .\` to verify all checks pass.`,
-  );
-
-  return lines.join("\n");
-}
-
-// ---------------------------------------------------------------------------
-// Mode: Setup redirect (under 50% - too many issues for inline fixes)
-// ---------------------------------------------------------------------------
-
-/** Lookup from agent ID to its setup guide in the goat-flow templates directory. */
-const SETUP_FILES: Record<AgentId, string> = {
-  claude: "workflow/setup/agents/claude.md",
-  codex: "workflow/setup/agents/codex.md",
-  gemini: "workflow/setup/agents/gemini.md",
-};
-
-/** Render setup redirect. */
-// eslint-disable-next-line complexity -- state-aware routing requires many branches
-function renderSetupRedirect(
-  report: ScanReport,
-  agentId: AgentId,
-  agentReport: AgentReport | null,
-): string {
-  const profile = PROFILES[agentId];
-  const setupFile = getTemplatePath(SETUP_FILES[agentId]);
-  const stack = report.stack;
+  const stack = facts.stack;
   const languages = stack.languages.join(", ") || "unknown";
   const lines: string[] = [];
 
-  // State-aware routing: classify project and branch on adoption state
-  const projectFS = createFS(report.target);
-  const projectState = classifyProjectState(projectFS);
-
-  if (projectState.state === "v1.1") {
-    lines.push(`# GOAT Flow Setup - ${profile.name}`);
-    lines.push("");
-
-    if (projectState.action === "audit") {
-      lines.push("## This project is already on the current goat-flow version");
-      lines.push("");
-      lines.push(
-        `Run \`${getCliCommand()} audit . --agent ${agentId}\` and fix any failing checks.`,
-      );
-      lines.push("No setup changes needed - the project is up to date.");
-      lines.push("");
-      return lines.join("\n");
-    }
-
-    lines.push("## This project reports v1.1.0 but the install is incomplete");
-    lines.push("");
-    lines.push(projectState.details);
-    lines.push("");
-    lines.push(
-      `Repair the missing pieces, then run \`${getCliCommand()} audit . --agent ${agentId}\` to confirm the project is healthy.`,
-    );
-    lines.push("");
-  }
-
-  if (projectState.state === "v1.0") {
+  if (version === "v1.0") {
     lines.push(`# GOAT Flow Upgrade - ${profile.name}`);
     lines.push("");
     lines.push("## Upgrade from v1.0 to current");
@@ -939,35 +236,7 @@ function renderSetupRedirect(
     lines.push(
       "remove handoff-template.md/todo.md/handoff.md, and collapse setup to the 6-step flow.",
     );
-    lines.push("");
-    lines.push(`**Stack:** ${languages}`);
-    const v10Cmds = [
-      stack.buildCommand && `**Build:** \`${stack.buildCommand}\``,
-      stack.testCommand && `**Test:** \`${stack.testCommand}\``,
-      stack.lintCommand && `**Lint:** \`${stack.lintCommand}\``,
-    ]
-      .filter(Boolean)
-      .join(" | ");
-    if (v10Cmds) lines.push(v10Cmds);
-    renderSignals(lines, stack.signals);
-    lines.push("");
-    if (report.stack.signals.llmIntegration === true) {
-      lines.push(
-        "**LLM integration detected.** Ensure Ask First boundaries and router table include prompt/template files.",
-      );
-      lines.push("");
-    }
-    const v10SetupFile = SETUP_FILES[agentId];
-    if (v10SetupFile) {
-      lines.push(
-        `For ${profile.name}-specific hooks and settings, also read: \`${v10SetupFile}\``,
-      );
-      lines.push("");
-    }
-    return lines.join("\n");
-  }
-
-  if (projectState.state === "v0.9") {
+  } else {
     lines.push(`# GOAT Flow Migration - ${profile.name}`);
     lines.push("");
     lines.push("## Migration from v0.9 to current");
@@ -985,57 +254,9 @@ function renderSetupRedirect(
     lines.push(
       "docs/lessons.md → .goat-flow/lessons/, create .goat-flow/config.yaml, install skill-preamble.md and skill-conventions.md.",
     );
-    lines.push("");
-    lines.push(`**Stack:** ${languages}`);
-    const v09Cmds = [
-      stack.buildCommand && `**Build:** \`${stack.buildCommand}\``,
-      stack.testCommand && `**Test:** \`${stack.testCommand}\``,
-      stack.lintCommand && `**Lint:** \`${stack.lintCommand}\``,
-    ]
-      .filter(Boolean)
-      .join(" | ");
-    if (v09Cmds) lines.push(v09Cmds);
-    renderSignals(lines, stack.signals);
-    lines.push("");
-    if (report.stack.signals.llmIntegration === true) {
-      lines.push(
-        "**LLM integration detected.** Ensure Ask First boundaries and router table include prompt/template files.",
-      );
-      lines.push("");
-    }
-    const v09SetupFile = SETUP_FILES[agentId];
-    if (v09SetupFile) {
-      lines.push(
-        `For ${profile.name}-specific hooks and settings, also read: \`${v09SetupFile}\``,
-      );
-      lines.push("");
-    }
-    return lines.join("\n");
   }
 
-  // For bare/partial/error states, render the standard header
-  if (
-    projectState.state === "bare" ||
-    projectState.state === "partial" ||
-    projectState.state === "error"
-  ) {
-    lines.push(`# GOAT Flow Setup - ${profile.name}`);
-    lines.push("");
-    if (agentReport) {
-      lines.push(
-        "This project has setup issues - it needs a full setup pass. Run `" +
-          getCliCommand() +
-          " audit .` after fixing to verify.",
-      );
-    } else {
-      lines.push(
-        `No ${profile.name} configuration detected - this project needs a full setup.`,
-      );
-    }
-    lines.push("");
-  }
-
-  // Project context - detected stack info
+  lines.push("");
   lines.push(`**Stack:** ${languages}`);
   const cmds = [
     stack.buildCommand && `**Build:** \`${stack.buildCommand}\``,
@@ -1048,9 +269,63 @@ function renderSetupRedirect(
   renderSignals(lines, stack.signals);
   lines.push("");
 
-  // Check for LLM integration signal
-  const hasLLM = report.stack.signals.llmIntegration === true;
-  if (hasLLM) {
+  if (stack.signals.llmIntegration) {
+    lines.push(
+      "**LLM integration detected.** Ensure Ask First boundaries and router table include prompt/template files.",
+    );
+    lines.push("");
+  }
+
+  const setupFile = SETUP_FILES[agentId];
+  if (setupFile) {
+    lines.push(
+      `For ${profile.name}-specific hooks and settings, also read: \`${setupFile}\``,
+    );
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+// ----------------------------------------------------------------
+// Mode: Full setup (bare or partial projects)
+// ----------------------------------------------------------------
+
+// eslint-disable-next-line complexity -- state-aware setup guide requires many agent/stack branches
+function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
+  const profile = PROFILES[agentId];
+  const setupFile = getTemplatePath(SETUP_FILES[agentId]);
+  const stack = facts.stack;
+  const languages = stack.languages.join(", ") || "unknown";
+  const lines: string[] = [];
+
+  const agentFacts = facts.agents.find((af) => af.agent.id === agentId);
+  lines.push(`# GOAT Flow Setup - ${profile.name}`);
+  lines.push("");
+  if (agentFacts) {
+    lines.push(
+      `This project has setup issues - it needs a full setup pass. Run \`${getCliCommand()} audit .\` after fixing to verify.`,
+    );
+  } else {
+    lines.push(
+      `No ${profile.name} configuration detected - this project needs a full setup.`,
+    );
+  }
+  lines.push("");
+
+  lines.push(`**Stack:** ${languages}`);
+  const cmds = [
+    stack.buildCommand && `**Build:** \`${stack.buildCommand}\``,
+    stack.testCommand && `**Test:** \`${stack.testCommand}\``,
+    stack.lintCommand && `**Lint:** \`${stack.lintCommand}\``,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+  if (cmds) lines.push(cmds);
+  renderSignals(lines, stack.signals);
+  lines.push("");
+
+  if (stack.signals.llmIntegration) {
     lines.push("## LLM Integration Detected");
     lines.push("");
     lines.push(
@@ -1085,133 +360,127 @@ function renderSetupRedirect(
     lines.push("");
   }
 
-  // Pre-instructions - only for bare/partial/error states
-  // (v0.9 and v1.0 already have their upgrade header with specific instructions)
-  if (
-    projectState.state === "bare" ||
-    projectState.state === "partial" ||
-    projectState.state === "error"
-  ) {
-    lines.push("## Before you start");
-    lines.push("");
-    lines.push("**Step 0 - Clean up stale artifacts (if upgrading):**");
-    lines.push("");
+  lines.push("## Before you start");
+  lines.push("");
+  lines.push("**Step 0 - Clean up stale artifacts (if upgrading):**");
+  lines.push("");
+  lines.push(
+    "**Skills:** The 7 canonical skills are: `goat`, `goat-debug`, `goat-plan`, `goat-review`, `goat-sbao`, `goat-security`, `goat-test`.",
+  );
+  lines.push("");
+  lines.push("Check the skills directory for stale or duplicate entries:");
+  lines.push(
+    "- Delete stale `goat-*` directories: `goat-investigate`, `goat-audit`, `goat-onboard`, `goat-reflect`, `goat-resume`, `goat-simplify`, `goat-refactor`, `goat-context`",
+  );
+  lines.push(
+    "- Check for generic skill directories: `audit/`, `review/`, `preflight/`, `debug/`, `plan/`, `test/`, `security/`",
+  );
+  lines.push(
+    "  If any exist alongside the `goat-*` version: (a) migrate unique content into the goat-* version, (b) delete the generic directory, or (c) skip if it's a project-specific skill unrelated to goat-flow",
+  );
+  lines.push("");
+  lines.push(
+    "**Multi-agent consistency:** If multiple agent skill directories exist (`.claude/skills/`, `.agents/skills/`), clean stale dirs from ALL of them - not just the agent being set up. Also update `GEMINI.md` and `AGENTS.md` if they reference deleted skills.",
+  );
+  lines.push("");
+  lines.push(
+    "**Local instructions:** If `.github/instructions/` already exists, keep it as the canonical local-instructions surface during base setup. Do not create `.goat-flow/coding-standards/`.",
+  );
+  lines.push("");
+  lines.push(
+    "**Router table:** Rewrite the Router Table in the instruction file. Remove entries pointing to deleted skills. If `.goat-flow/README.md` exists, include it as the Project Guidelines entry.",
+  );
+  lines.push("");
+  lines.push(
+    "**Dispatcher:** Replace the `/goat` dispatcher skill entirely from the goat-flow template.",
+  );
+  lines.push(
+    `Read the template at \`${getTemplatePath("workflow/skills/goat.md")}\` and write it to the agent skills dir.`,
+  );
+  lines.push(
+    "Preserve any project-specific disambiguation examples the existing dispatcher may have.",
+  );
+  lines.push("");
+  lines.push(
+    "**Step 0b - Migrate, don't duplicate (check BEFORE creating files):**",
+  );
+  lines.push("");
+  lines.push(
+    "Before creating any artifact, check if an equivalent already exists. Do NOT create parallel surfaces.",
+  );
+  lines.push("");
+  lines.push("| Artifact | If this exists... | Do NOT also create... |");
+  lines.push("|----------|-------------------|----------------------|");
+  lines.push("| Tasks | `tasks/` | `.goat-flow/tasks/` (or vice versa) |");
+  lines.push(
+    "| Footguns | `docs/footguns.md` (flat file) | `.goat-flow/footguns/` (directory) |",
+  );
+  lines.push(
+    "| Lessons | `docs/lessons.md` (flat file) | `.goat-flow/lessons/` (directory) |",
+  );
+  lines.push(
+    "| Local instructions | `.github/instructions/` | any second local-instructions tree with overlapping content |",
+  );
+  lines.push("");
+  lines.push(
+    "For each artifact type: (1) use the canonical `.goat-flow/` path, (2) migrate existing content there if needed, (3) list what you chose NOT to create and why.",
+  );
+  lines.push("");
+  lines.push(
+    "Examples: If `.github/instructions/` exists, keep it canonical during base setup instead of creating a competing second instruction tree. If `docs/footguns.md` exists, migrate its entries to `.goat-flow/footguns/` instead of creating a parallel surface.",
+  );
+  lines.push("");
+  lines.push(
+    "1. Verify the detected stack above is correct. If not, the setup file will",
+  );
+  lines.push(
+    "   ask you to detect it from the actual codebase (package.json, composer.json, etc.)",
+  );
+  lines.push(
+    '2. "Adapt" means: replace generic examples with THIS project\'s real examples.',
+  );
+  lines.push(
+    "   Footguns: only real traps from THIS codebase with `file:line` evidence.",
+  );
+  lines.push(
+    "   Local instructions added later: derive them from real build/test/lint commands and codebase patterns.",
+  );
+  lines.push(
+    '3. Do NOT copy customization templates (architecture, footguns, code-map) verbatim. If a template says "[describe X]", describe X for THIS project. Note: skill SKILL.md files ARE installed verbatim — this rule applies to Step 04-05 artifacts only.',
+  );
+  const settingsRef = profile.settingsFile
+    ? `\`${profile.settingsFile}\``
+    : "the agent's settings file";
+  lines.push(
+    `4. Check for existing permission restrictions: if ${settingsRef}`,
+  );
+  lines.push(
+    "   exists and limits allowed tools/commands, the setup may fail to create files.",
+  );
+  lines.push(
+    "   Read it first. If it restricts Bash or Write, work single-threaded instead of spawning sub-agents.",
+  );
+  if (agentId === "claude") {
     lines.push(
-      "**Skills:** The 7 canonical skills are: `goat`, `goat-debug`, `goat-plan`, `goat-review`, `goat-sbao`, `goat-security`, `goat-test`.",
-    );
-    lines.push("");
-    lines.push("Check the skills directory for stale or duplicate entries:");
-    lines.push(
-      "- Delete stale `goat-*` directories: `goat-investigate`, `goat-audit`, `goat-onboard`, `goat-reflect`, `goat-resume`, `goat-simplify`, `goat-refactor`, `goat-context`",
+      "5. **Deny rule escape hatch:** The default deny pattern `Bash(*git commit*)` blocks ALL commits.",
     );
     lines.push(
-      "- Check for generic skill directories: `audit/`, `review/`, `preflight/`, `debug/`, `plan/`, `test/`, `security/`",
+      "   To relax specific rules after setup, add allow overrides in `.claude/settings.local.json` (gitignored).",
     );
+  } else if (agentId === "codex") {
     lines.push(
-      "  If any exist alongside the `goat-*` version: (a) migrate unique content into the goat-* version, (b) delete the generic directory, or (c) skip if it's a project-specific skill unrelated to goat-flow",
+      "5. **Deny rules:** Codex uses execpolicy rules in `.codex/rules/deny-dangerous.star`. Review before setup to ensure setup commands are not blocked.",
     );
-    lines.push("");
+  } else {
     lines.push(
-      "**Multi-agent consistency:** If multiple agent skill directories exist (`.claude/skills/`, `.agents/skills/`), clean stale dirs from ALL of them - not just the agent being set up. Also update `GEMINI.md` and `AGENTS.md` if they reference deleted skills.",
+      `5. **Deny rules:** Review deny patterns in ${settingsRef} before setup to ensure setup commands are not blocked.`,
     );
-    lines.push("");
-    lines.push(
-      "**Local instructions:** If `.github/instructions/` already exists, keep it as the canonical local-instructions surface during base setup. Do not create `.goat-flow/coding-standards/`.",
-    );
-    lines.push("");
-    lines.push(
-      "**Router table:** Rewrite the Router Table in the instruction file. Remove entries pointing to deleted skills. If `.goat-flow/README.md` exists, include it as the Project Guidelines entry.",
-    );
-    lines.push("");
-    lines.push(
-      "**Dispatcher:** Replace the `/goat` dispatcher skill entirely from the goat-flow template.",
-    );
-    lines.push(
-      `Read the template at \`${getTemplatePath("workflow/skills/goat.md")}\` and write it to the agent skills dir.`,
-    );
-    lines.push(
-      "Preserve any project-specific disambiguation examples the existing dispatcher may have.",
-    );
-    lines.push("");
-    lines.push(
-      "**Step 0b - Migrate, don't duplicate (check BEFORE creating files):**",
-    );
-    lines.push("");
-    lines.push(
-      "Before creating any artifact, check if an equivalent already exists. Do NOT create parallel surfaces.",
-    );
-    lines.push("");
-    lines.push("| Artifact | If this exists... | Do NOT also create... |");
-    lines.push("|----------|-------------------|----------------------|");
-    lines.push("| Tasks | `tasks/` | `.goat-flow/tasks/` (or vice versa) |");
-    lines.push(
-      "| Footguns | `docs/footguns.md` (flat file) | `.goat-flow/footguns/` (directory) |",
-    );
-    lines.push(
-      "| Lessons | `docs/lessons.md` (flat file) | `.goat-flow/lessons/` (directory) |",
-    );
-    lines.push(
-      "| Local instructions | `.github/instructions/` | any second local-instructions tree with overlapping content |",
-    );
-    lines.push("");
-    lines.push(
-      "For each artifact type: (1) use the canonical `.goat-flow/` path, (2) migrate existing content there if needed, (3) list what you chose NOT to create and why.",
-    );
-    lines.push("");
-    lines.push(
-      "Examples: If `.github/instructions/` exists, keep it canonical during base setup instead of creating a competing second instruction tree. If `docs/footguns.md` exists, migrate its entries to `.goat-flow/footguns/` instead of creating a parallel surface.",
-    );
-    lines.push("");
-    lines.push(
-      "1. Verify the detected stack above is correct. If not, the setup file will",
-    );
-    lines.push(
-      "   ask you to detect it from the actual codebase (package.json, composer.json, etc.)",
-    );
-    lines.push(
-      '2. "Adapt" means: replace generic examples with THIS project\'s real examples.',
-    );
-    lines.push(
-      "   Footguns: only real traps from THIS codebase with `file:line` evidence.",
-    );
-    lines.push(
-      "   Local instructions added later: derive them from real build/test/lint commands and codebase patterns.",
-    );
-    lines.push(
-      '3. Do NOT copy customization templates (architecture, footguns, code-map) verbatim. If a template says "[describe X]", describe X for THIS project. Note: skill SKILL.md files ARE installed verbatim — this rule applies to Step 04-05 artifacts only.',
-    );
-    lines.push(
-      `4. Check for existing permission restrictions: if \`${profile.settingsFile}\``,
-    );
-    lines.push(
-      "   exists and limits allowed tools/commands, the setup may fail to create files.",
-    );
-    lines.push(
-      "   Read it first. If it restricts Bash or Write, work single-threaded instead of spawning sub-agents.",
-    );
-    if (agentId === "claude") {
-      lines.push(
-        "5. **Deny rule escape hatch:** The default deny pattern `Bash(*git commit*)` blocks ALL commits.",
-      );
-      lines.push(
-        "   To relax specific rules after setup, add allow overrides in `.claude/settings.local.json` (gitignored).",
-      );
-    } else if (agentId === "codex") {
-      lines.push(
-        "5. **Deny rules:** Codex uses execpolicy rules in `.codex/rules/deny-dangerous.star`. Review before setup to ensure setup commands are not blocked.",
-      );
-    } else {
-      lines.push(
-        `5. **Deny rules:** Review deny patterns in \`${profile.settingsFile}\` before setup to ensure setup commands are not blocked.`,
-      );
-    }
-    lines.push(
-      "   See `workflow/hooks/README.md` for hook configuration details.",
-    );
-    lines.push("");
-  } // end: "Before you start" section (bare/partial/error only)
+  }
+  lines.push(
+    "   See `workflow/hooks/README.md` for hook configuration details.",
+  );
+  lines.push("");
 
-  // Main instruction
   lines.push("## Setup instructions");
   lines.push("");
   lines.push(
@@ -1249,19 +518,17 @@ function renderSetupRedirect(
   );
   lines.push("");
 
-  // Post-setup verification
   lines.push("## Post-setup verification");
   lines.push("");
   lines.push("**Hook smoke-test** (run after creating hook scripts):");
   lines.push("```bash");
   lines.push("# Syntax check every hook script");
+  const hooksDir = profile.hooksDir ?? ".agent/hooks";
   lines.push(
-    `for f in ${profile.hooksDir}/*.sh; do bash -n "$f" || echo "FAIL: $f"; done`,
+    `for f in ${hooksDir}/*.sh; do bash -n "$f" || echo "FAIL: $f"; done`,
   );
   lines.push("# Shellcheck if available");
-  lines.push(
-    `command -v shellcheck >/dev/null && shellcheck ${profile.hooksDir}/*.sh`,
-  );
+  lines.push(`command -v shellcheck >/dev/null && shellcheck ${hooksDir}/*.sh`);
   lines.push("```");
   lines.push(
     "If any hook fails syntax check: fix it before declaring setup complete.",
@@ -1272,7 +539,6 @@ function renderSetupRedirect(
   );
   lines.push("");
 
-  // Scan + iterate
   lines.push(
     `**Audit:** Run \`${getCliCommand()} audit . --agent ${agentId}\``,
   );
@@ -1285,25 +551,40 @@ function renderSetupRedirect(
   return lines.join("\n");
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+// ----------------------------------------------------------------
+// Main entry point
+// ----------------------------------------------------------------
 
-/** Gather fragment keys from all non-passing checks and triggered anti-patterns so the prompt only renders fixes the project actually needs. */
-function collectNeededKeys(agentReport: AgentReport): Set<string> {
-  const neededKeys = new Set<string>();
-  for (const check of agentReport.checks) {
-    if (
-      (check.status === "fail" || check.status === "partial") &&
-      check.recommendationKey
-    ) {
-      neededKeys.add(check.recommendationKey);
-    }
+/**
+ * Compose a setup prompt for the given agent.
+ *
+ * Routing:
+ * - bare/partial/error → full setup guide (step references)
+ * - v0.9/v1.0         → upgrade/migration redirect
+ * - v1.1 + audit pass → success with real counts from facts
+ * - v1.1 + audit fail → failing checks with howToFix + step references
+ */
+export function composeSetup(
+  auditReport: AuditReport,
+  facts: ProjectFacts,
+  agentId: AgentId,
+): string | null {
+  const projectFS = createFS(facts.root);
+  const projectState = classifyProjectState(projectFS, agentId);
+
+  if (
+    projectState.state === "bare" ||
+    projectState.state === "partial" ||
+    projectState.state === "error"
+  ) {
+    return renderFullSetup(facts, agentId);
   }
-  for (const ap of agentReport.antiPatterns) {
-    if (ap.triggered && ap.recommendationKey) {
-      neededKeys.add(ap.recommendationKey);
-    }
+  if (projectState.state === "v0.9" || projectState.state === "v1.0") {
+    return renderUpgradeRedirect(facts, agentId, projectState.state);
   }
-  return neededKeys;
+  // v1.1: audit-driven
+  if (auditReport.status === "pass") {
+    return renderAuditPass(facts, agentId);
+  }
+  return renderAuditFail(auditReport, facts, agentId);
 }

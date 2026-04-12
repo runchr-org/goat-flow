@@ -230,7 +230,7 @@
       <button
         @click="runAudit()"
         :disabled="auditing"
-        class="gf-btn gf-btn-md gf-btn-scan"
+        class="gf-btn gf-btn-md gf-btn-audit"
       >
         <span x-text="auditing ? 'Auditing...' : 'Run Audit'"></span>
       </button>
@@ -252,7 +252,7 @@
         <button
           @click="runAudit()"
           :disabled="auditing"
-          class="gf-btn gf-btn-md gf-btn-scan"
+          class="gf-btn gf-btn-md gf-btn-audit"
         >
           <span x-text="auditing ? 'Auditing...' : 'Re-audit'"></span>
         </button>
@@ -428,7 +428,7 @@
                 <button
                   x-show="agent.installed && terminalAvailable"
                   @click="activeRunner = agent.id; launchInTerminal('', agent.id)"
-                  class="gf-btn gf-btn-sm gf-btn-scan"
+                  class="gf-btn gf-btn-sm gf-btn-audit"
                 >
                   Terminal
                 </button>

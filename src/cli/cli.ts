@@ -8,7 +8,7 @@
 import { parseArgs } from "node:util";
 import { resolve, dirname, join } from "node:path";
 import { writeFileSync, mkdirSync } from "node:fs";
-import type { CLIOptions, AgentId, ScanReport, Tier } from "./types.js";
+import type { CLIOptions, AgentId, ProjectFacts } from "./types.js";
 import type { AuditReport } from "./audit/types.js";
 
 import { getPackageVersion } from "./paths.js";
@@ -40,9 +40,6 @@ Commands:
   setup             Generate setup prompt (adapts to project state)
   status            Show project state (bare/partial/v0.9/v1.0/v1.1)
   dashboard         Launch browser dashboard with audit, setup, and terminal
-  info rubrics      List internal rubric checks (filter: --tier foundation|standard)
-  info anti-patterns List internal anti-pattern deductions
-
 Arguments:
   project-path    Target project directory (default: .)
 
@@ -106,7 +103,6 @@ const MULTI_AGENT_SYNC_BANNER = [
 /** Fully resolved CLI options including the dispatched command */
 export interface ParsedCLI extends CLIOptions {
   command: Command;
-  tier: Tier | null;
   quality: boolean;
 }
 
@@ -162,18 +158,6 @@ function parseAgentArg(value: string | undefined): AgentId | null {
   return value as AgentId;
 }
 
-/** Accepted values for the --tier flag */
-const VALID_TIERS: Tier[] = ["foundation", "standard"];
-
-/** Parse the `--tier` flag for filtering rubric checks by tier. */
-function parseTierArg(value: string | undefined): Tier | null {
-  if (!value) return null;
-  if (!VALID_TIERS.includes(value as Tier)) {
-    throw new CLIError(`Invalid tier: ${value}. Use: foundation, standard`, 2);
-  }
-  return value as Tier;
-}
-
 /** Resolve `--output`, defaulting bare file names into `.goat-flow/` under the target repo. */
 function resolveOutputPath(
   output: string | undefined,
@@ -201,7 +185,6 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
       verbose: { type: "boolean", default: false },
       output: { type: "string", short: "o" },
       quality: { type: "boolean", default: false },
-      tier: { type: "string" },
       dev: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
       version: { type: "boolean", short: "v", default: false },
@@ -218,7 +201,6 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     verbose: values.verbose === true,
     output: resolveOutputPath(values.output, positionals),
     quality: values.quality === true,
-    tier: parseTierArg(values.tier),
     dev: values.dev === true,
     help: values.help === true,
     version: values.version === true,
@@ -257,9 +239,11 @@ async function handleStatusCommand(options: ParsedCLI): Promise<void> {
   console.log(`  Details: ${result.details}`);
 }
 
-/** Pick the agent list for setup output from the CLI override or scan report. */
-function getSetupAgentIds(options: ParsedCLI, report: ScanReport): AgentId[] {
-  return options.agent ? [options.agent] : report.agents.map((a) => a.agent);
+/** Pick the agent list for setup output from the CLI override or extracted facts. */
+function getSetupAgentIds(options: ParsedCLI, facts: ProjectFacts): AgentId[] {
+  return options.agent
+    ? [options.agent]
+    : facts.agents.map((af) => af.agent.id);
 }
 
 /** Print the banner that warns multi-agent setup output must stay in sync. */
@@ -270,38 +254,15 @@ function writeMultiAgentSyncBanner(withDivider: boolean): void {
   process.stdout.write(lines.join("\n"));
 }
 
-/** Decide whether setup output should be merged across multiple detected agents. */
-function shouldUseMultiAgentSetup(
-  agentIds: AgentId[],
-  report: ScanReport,
-): boolean {
-  return (
-    agentIds.length > 1 &&
-    agentIds.every((id) => {
-      const agentReport = report.agents.find((a) => a.agent === id);
-      return !agentReport || agentReport.score.percentage === 0;
-    })
-  );
-}
-
-/** Compose setup output for one agent. */
-function renderSetupOutput(
-  report: ScanReport,
-  agentId: AgentId,
-  composeSetup: (report: ScanReport, agent: AgentId) => string | null,
-): string | null {
-  return composeSetup(report, agentId);
-}
-
 /** Handle the setup command: compose and render setup prompts per agent */
 async function handleSetupCommand(
   options: ParsedCLI,
-  report: ScanReport,
+  auditReport: AuditReport,
+  facts: ProjectFacts,
 ): Promise<void> {
-  const { composeSetup, composeMultiAgentSetup } =
-    await import("./prompt/compose-setup.js");
+  const { composeSetup } = await import("./prompt/compose-setup.js");
 
-  const agentIds = getSetupAgentIds(options, report);
+  const agentIds = getSetupAgentIds(options, facts);
   if (agentIds.length === 0) {
     throw new CLIError(
       "No agents detected. Use --agent claude, --agent codex, or --agent gemini",
@@ -309,19 +270,12 @@ async function handleSetupCommand(
     );
   }
 
-  if (shouldUseMultiAgentSetup(agentIds, report)) {
-    writeMultiAgentSyncBanner(false);
-    const output = composeMultiAgentSetup(report, agentIds);
-    process.stdout.write(output + "\n");
-    return;
-  }
-
   if (agentIds.length > 1) {
     writeMultiAgentSyncBanner(true);
   }
 
   for (const agentId of agentIds) {
-    const output = renderSetupOutput(report, agentId, composeSetup);
+    const output = composeSetup(auditReport, facts, agentId);
     if (output) {
       process.stdout.write(output + "\n");
       if (agentIds.length > 1) process.stdout.write("\n---\n\n");
@@ -341,42 +295,23 @@ function writeOutput(options: ParsedCLI, rendered: string): void {
   process.stdout.write(rendered + "\n");
 }
 
-/** Handle the info command: list rubric checks or anti-pattern deductions */
-async function handleInfoCommand(options: ParsedCLI): Promise<void> {
-  const { allChecks, allAntiPatterns } = await import("./rubric/registry.js");
-
+/** Handle the info command: rubrics and anti-patterns were removed in v1.1.0. */
+function handleInfoCommand(options: ParsedCLI): void {
   // The subcommand is the first positional arg after 'info'.
   // parseCLIArgs resolves projectPath to an absolute path, so extract the basename.
   const sub = options.projectPath.split(/[/\\]/).pop() ?? "";
 
-  if (sub === "rubrics") {
-    const tiers = ["foundation", "standard"] as const;
-    const tiersToShow = options.tier ? [options.tier] : tiers;
-
-    for (const t of tiersToShow) {
-      const tierChecks = allChecks.filter((c) => c.tier === t);
-      if (tierChecks.length === 0) continue;
-      console.log(`\n## ${t.charAt(0).toUpperCase() + t.slice(1)} Tier\n`);
-      console.log("| ID | Name | Points | Description |");
-      console.log("|----|------|--------|-------------|");
-      for (const c of tierChecks) {
-        console.log(`| ${c.id} | ${c.name} | ${c.pts} | ${c.recommendation} |`);
-      }
-    }
-  } else if (sub === "anti-patterns") {
-    console.log("\n## Anti-Patterns\n");
-    console.log("| ID | Name | Deduction | Remediation |");
-    console.log("|----|------|-----------|-------------|");
-    for (const ap of allAntiPatterns) {
-      console.log(
-        `| ${ap.id} | ${ap.name} | ${ap.deduction} | ${ap.recommendation} |`,
-      );
-    }
-  } else {
-    console.log("Usage: goat-flow info <rubrics|anti-patterns>");
-    console.log("  rubrics         List all rubric checks");
-    console.log("  anti-patterns   List all anti-pattern deductions");
+  if (sub === "rubrics" || sub === "anti-patterns") {
+    throw new CLIError(
+      `"info ${sub}" was removed. Use "audit" for setup validation or "audit --quality" for advisory scoring.`,
+      2,
+    );
   }
+
+  throw new CLIError(
+    'Usage: goat-flow info <rubrics|anti-patterns>\n  Both subcommands were removed in v1.1.0. Use "audit" instead.',
+    2,
+  );
 }
 
 /** Run the audit command: validate setup correctness and optionally score quality. */
@@ -487,19 +422,28 @@ async function main(): Promise<void> {
     return;
   }
   if (options.command === "info") {
-    await handleInfoCommand(options);
+    handleInfoCommand(options);
     return;
   }
 
-  // Remaining command: setup (uses scanner internally to gather project facts)
+  // Remaining command: setup (uses audit + facts to compose setup guidance)
   const { createFS } = await import("./facts/fs.js");
-  const { scanProject } = await import("./scanner/scan.js");
+  const { runAudit } = await import("./audit/audit.js");
+  const { extractProjectFacts } = await import("./facts/orchestrator.js");
+  const { loadConfig } = await import("./config/reader.js");
   const fs = createFS(options.projectPath);
-  const report = scanProject(fs, options.projectPath, {
+  const configState = loadConfig(options.projectPath, fs);
+  const facts = extractProjectFacts(fs, {
     agentFilter: options.agent ?? null,
+    projectPath: options.projectPath,
+    configState,
+  });
+  const auditReport = runAudit(fs, options.projectPath, {
+    agentFilter: options.agent ?? null,
+    quality: false,
   });
 
-  await handleSetupCommand(options, report);
+  await handleSetupCommand(options, auditReport, facts);
 }
 
 main().catch((err: unknown) => {

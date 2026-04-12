@@ -2,7 +2,7 @@
 
 ## What It Is
 
-A documentation framework that provides structured AI coding agent workflows. Primarily a methodology and set of templates that users copy into their projects and run via setup prompts. The CLI auditor (`src/cli/`) validates implementations against the rubric.
+A documentation framework that provides structured AI coding agent workflows. Primarily a methodology and set of templates that users copy into their projects and run via setup prompts. The CLI auditor (`src/cli/`) validates implementations against the audit checks.
 
 ## Major Components
 
@@ -14,10 +14,9 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 | Hook scripts | `workflow/hooks/` | Copyable hook scripts (deny-dangerous.sh) + per-agent config templates |
 | Templates | `workflow/templates/` | Standalone prompt templates for planning (feature brief, milestones, SBAO) and refactoring |
 | Evaluation templates | `workflow/evaluation/` | Footguns/lessons templates |
-| Reference library | `workflow/reference/security/` | Security reference material used later for project-specific guidance |
 | Docs | `docs/` | CLI usage, dashboard guide |
-| CLI auditor | `src/cli/` | ~165 rubric checks + 32 anti-patterns (internal scoring), 15 build + 25 quality checks (public audit, 2 scopes: setup + harness), fragment-based prompts, multi-agent support |
-| Dashboard | `src/cli/server/dashboard.ts` (server), `src/dashboard/` (HTML + views) | HTML dashboard with views for audit, critique, help, home, projects, wizard, workspace |
+| CLI auditor | `src/cli/` | 16 build + 27 quality checks (public audit, 2 scopes: setup + harness), audit-driven setup prompts, multi-agent support |
+| Dashboard | `src/cli/server/dashboard.ts` (server), `src/dashboard/` (HTML + views) | HTML dashboard with views for audit, critique, help, home, projects, setup, workspace |
 | Maintenance scripts | `scripts/maintenance/` | Repo hygiene: git cleanup, secret scanning, Zone.Identifier removal |
 
 ## Data Flow
@@ -42,10 +41,7 @@ src/cli/
   config/             # Configuration (reader.ts, types.ts)
   detect/             # Agent and stack detection (agents.ts, project-stack.ts)
   facts/              # Fact extraction (orchestrator.ts, fs.ts, agent/, shared/)
-  scanner/            # Internal scoring engine (evaluate-check.ts, scan.ts)
-  rubric/             # Check definitions (foundation.ts, standard/, anti-patterns.ts, registry.ts, version.ts)
-  scoring/            # Score computation (calculate.ts, recommendations.ts)
-  prompt/             # Prompt generation (compose-setup.ts, template-filler.ts, registry.ts, fragments/)
+  prompt/             # Prompt generation (compose-setup.ts, compose-critique.ts)
   audit/              # Build checks, quality checks, render (text.ts, json.ts, markdown.ts)
   server/             # Dashboard server (dashboard.ts, terminal.ts, types.ts)
 
@@ -68,4 +64,4 @@ Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- lo
 ## Deliberate Trade-offs
 
 - **Redundancy across docs** - The same concepts appear in multiple files (spec, layers, steps, rationale) for different audiences. This is intentional: each file serves a different reading path. The cost is maintenance burden on edits.
-- **CLI validates the methodology** - The auditor (`src/cli/`) scores projects against the rubric, confirming the workflow produces measurable results. The dashboard (`goat-flow dashboard .`) serves an HTML interface for audit results and guided setup.
+- **CLI validates the methodology** - The auditor (`src/cli/`) runs audit checks against projects, confirming the workflow produces measurable results. The dashboard (`goat-flow dashboard .`) serves an HTML interface for audit results and guided setup.

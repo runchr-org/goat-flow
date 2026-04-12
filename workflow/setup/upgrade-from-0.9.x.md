@@ -65,7 +65,7 @@ These files contain real project memory. Migrate the content, don't discard it.
 
 **Footguns:** If `docs/footguns.md` exists:
 1. Read the content
-2. Group entries by topic (e.g., hooks, setup, scanner)
+2. Group entries by topic (e.g., hooks, setup, auditor)
 3. Create `.goat-flow/footguns/` category bucket files with one `## Footgun: <name>` entry per trap
 4. Format per `.goat-flow/skill-preamble.md` Learning Loop section
 5. After verifying all entries migrated, delete `docs/footguns.md`
@@ -90,7 +90,7 @@ These files contain real project memory. Migrate the content, don't discard it.
 
 ## Step 4 - Create goat-flow infrastructure
 
-- Create `.goat-flow/config.yaml` with version 1.1.0
+- Create `.goat-flow/config.yaml` with the current goat-flow version (run `goat-flow --version` to check)
 - Create `.goat-flow/skill-preamble.md` from `workflow/skills/reference/skill-preamble.md`
 - Create `.goat-flow/glossary.md` with project-specific terms
 - Create or enhance `.goat-flow/architecture.md`
@@ -101,7 +101,7 @@ These files contain real project memory. Migrate the content, don't discard it.
 
 ## Step 5 - Install current skills
 
-Install the 7 current skills from `workflow/skills/goat-*.md` templates into the agent's skills directory. Each skill must have `goat-flow-skill-version: "1.1.0"` in frontmatter.
+Install the 7 current skills from `workflow/skills/goat-*.md` templates into the agent's skills directory. Each skill must have `goat-flow-skill-version:` in frontmatter matching the current goat-flow version (run `goat-flow --version` to check).
 
 Check expected version: `workflow/skills/goat-debug.md` line 4.
 

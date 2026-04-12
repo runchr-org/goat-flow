@@ -1,0 +1,77 @@
+# Code Map
+
+Quick orientation for agents working on the goat-flow codebase.
+
+## src/cli/ -- TypeScript CLI auditor and dashboard
+
+```
+cli.ts                     # Entry point: command parser (audit, setup, dashboard, critique, info)
+classify-state.ts          # Project adoption classifier (bare/partial/v0.9/v1.0/v1.1/error)
+constants.ts               # SKILL_NAMES, RUBRIC_VERSION
+types.ts                   # Shared types: AgentId, ReadonlyFS, CLIOptions, core interfaces
+
+config/
+  reader.ts                # Loads and validates .goat-flow/config.yaml
+  types.ts                 # GoatFlowConfig, LoadedConfig interfaces
+
+facts/                     # Fact extractors -- gather project state for audit checks
+  orchestrator.ts          # Runs all extractors, builds ProjectFacts
+  fs.ts                    # Filesystem adapter for testing
+  agent/                   # Agent-specific facts (hooks, instruction file, routing, skills)
+  shared/                  # Shared facts (CI, learning loop, local instructions)
+
+audit/
+  audit.ts                 # Public audit command: build checks + optional quality scoring
+  build-checks.ts          # 10 setup + 6 harness build checks (gate CI pass/fail)
+  quality-checks.ts        # 27 advisory quality checks grouped by concern
+  render.ts                # Output formatters (text, json, markdown)
+  types.ts                 # Audit-specific types (AuditReport, CheckResult, AuditFailure)
+
+prompt/
+  compose-setup.ts         # Generates audit-driven setup prompts for agents
+  compose-critique.ts      # Generates critique prompts for agents
+
+server/
+  dashboard.ts             # HTTP server for dashboard + API
+  terminal.ts              # WebSocket PTY sessions (xterm.js backend)
+```
+
+## workflow/ -- Setup templates, skills, and reference docs
+
+```
+setup/
+  01-system-overview.md    # What goat-flow is, state check
+  02-instruction-file.md   # How to write the instruction file
+  03-install-skills.md     # Skill installation + cross-agent cleanup
+  04-architecture-code-map.md  # Architecture doc and code map creation
+  05-customise-to-project.md   # Learning loop, hooks, config
+  06-final-verification.md # Post-setup verification and audit gate
+  agents/                  # Agent-specific config (claude.md, codex.md, gemini.md)
+  reference/               # execution-loop.md, coding guidelines, security refs
+
+skills/
+  goat.md                  # Dispatcher skill template
+  goat-debug.md            # Debug + investigate skill template
+  goat-plan.md             # Milestone planning skill template
+  goat-review.md           # Code review + audit skill template
+  goat-sbao.md             # Multi-perspective critique skill template
+  goat-security.md         # Security assessment skill template
+  goat-test.md             # Testing gap analysis skill template
+  reference/               # skill-preamble.md, skill-conventions.md
+
+hooks/                     # Hook templates (deny-dangerous.sh, etc.)
+templates/                 # Standalone prompt templates (feature-brief, mob-elaboration, etc.)
+evaluation/                # Critique prompt templates
+reference/security/        # Security reference docs (api-auth.md, web-common.md)
+```
+
+## scripts/ -- Shell scripts
+
+```
+preflight-checks.sh        # Pre-commit/CI gate: lint, typecheck, cross-ref checks
+validate-goat-flow-setup.sh  # Validates .goat-flow/ structure
+setup-initial.sh           # First-time project scaffolding
+migrate-to-1.1.sh          # Migration from pre-1.1 layouts
+deny-dangerous.sh          # Hook: blocks destructive commands
+maintenance/               # Git cleanup, secret scanning, formatting
+```

@@ -48,23 +48,6 @@ Show project adoption state (`bare`, `partial`, `v0.9`, `v1.0`, `v1.1`) and reco
 goat-flow status .                    # Check current project state
 ```
 
-### `goat-flow info rubrics`
-
-List all rubric checks with ID, name, tier, points, and description. Reads directly from code - always current.
-
-```bash
-goat-flow info rubrics                    # All checks
-goat-flow info rubrics --tier foundation  # Foundation tier only
-```
-
-### `goat-flow info anti-patterns`
-
-List all anti-pattern deductions with ID, name, deduction value, and remediation.
-
-```bash
-goat-flow info anti-patterns
-```
-
 ### `goat-flow dashboard [path]`
 
 Launch the web dashboard for auditing, setup, and terminal management.
@@ -84,7 +67,6 @@ Common tasks and the commands to run:
 | See advisory quality scores | `goat-flow audit . --quality` |
 | Get a critique prompt | `goat-flow critique . --agent claude` |
 | Set up a new project | `goat-flow setup . --agent claude` |
-| See what checks exist | `goat-flow info rubrics` |
 | Use this in CI | `goat-flow audit . --format json` |
 | Open the dashboard | `goat-flow dashboard .` |
 

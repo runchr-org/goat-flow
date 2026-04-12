@@ -7,7 +7,15 @@ shellcheck scripts/*.sh scripts/maintenance/*.sh      # Lint shell scripts
 bash -n scripts/*.sh scripts/maintenance/*.sh          # Syntax-check scripts
 bash scripts/preflight-checks.sh         # Full preflight gate
 bash scripts/validate-goat-flow-setup.sh         # Validate GOAT Flow structure
+npm test                                          # Run test suite
 ```
+## Truth Order
+
+1. User's explicit instruction (this session)
+2. Instruction file (CLAUDE.md)
+3. Architecture (.goat-flow/architecture.md)
+4. Skills / templates (on-demand context)
+
 ## Execution Loop: READ → SCOPE → ACT → VERIFY
 
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
@@ -73,6 +81,8 @@ Boundaries:
 - `workflow/setup/` prompt changes (affects what users generate)
 - `workflow/skills/` template changes (affects user skill creation)
 - `.goat-flow/architecture.md` (core architecture doc)
+- `.github/workflows/**` (CI changes alter validation and release behavior)
+- `.claude/**` (Claude runtime files are user-facing; only change intentionally)
 - Adding, removing, or renaming any file (breaks cross-references)
 - Changes spanning 3+ documentation files
 
@@ -100,9 +110,11 @@ If working from a plan/milestone file, tick `- [x]` on each completed task immed
 | Architecture | `.goat-flow/architecture.md` |
 | CLI auditor/prompt code | `src/cli/` |
 | Scripts | `scripts/` |
-| Skills | `.claude/skills/` |
+| Skills | `.claude/skills/` (goat, goat-debug, goat-plan, goat-review, goat-sbao, goat-security, goat-test) |
 | Templates | `.goat-flow/templates/` |
 | Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
 | Decisions | `.goat-flow/decisions/` |
 | Config | `.goat-flow/config.yaml` |
+| Dashboard source | `src/dashboard/` |
+| Documentation | `docs/` |
 | Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |

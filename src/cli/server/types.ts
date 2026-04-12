@@ -96,15 +96,6 @@ export interface DashboardReport {
     grade: string | null;
     qualityScore: number | null;
   };
-  concerns: Record<
-    string,
-    {
-      score: number;
-      findings: string[];
-      recommendations: string[];
-      howToFix?: string[];
-    }
-  > | null;
   // Metadata
   target: string;
 }

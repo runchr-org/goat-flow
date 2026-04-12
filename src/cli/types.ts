@@ -1,23 +1,10 @@
 /**
  * Core shared types for goat-flow.
- * This file defines the scanner's domain model so detection, scoring, rendering, and tests all speak the same contracts.
  */
 // === Agent Types ===
 
 /** Supported AI coding agent identifiers */
 export type AgentId = "claude" | "codex" | "gemini";
-
-/** Rubric scoring tier, ordered from baseline to advanced */
-export type Tier = "foundation" | "standard";
-
-/** Outcome status for a single rubric check */
-export type CheckStatus = "pass" | "partial" | "fail" | "na";
-
-/** Signal strength for how reliably a check can be evaluated */
-export type Confidence = "high" | "medium" | "low";
-
-/** Letter grade derived from overall score percentage */
-export type Grade = "A" | "B" | "C" | "D" | "F" | "insufficient-data";
 
 // === Agent Profile ===
 
@@ -55,126 +42,9 @@ export interface HookEvents {
   postTurn: string;
 }
 
-// === Detection (discriminated union - each variant carries only its required fields) ===
-
-/**
- * Discriminated union describing how a rubric check detects pass/fail.
- * Each variant maps to a different detection strategy in the scan engine.
- */
-export type Detection =
-  | { type: "file_exists"; path: string }
-  | { type: "dir_exists"; path: string }
-  | { type: "grep"; path: string; pattern: string; section?: string }
-  | {
-      type: "grep_count";
-      path: string;
-      pattern: string;
-      min: number;
-      partial?: number;
-      section?: string;
-    }
-  | {
-      type: "line_count";
-      path: string;
-      pass?: number;
-      partial?: number;
-      fail?: number;
-    }
-  | { type: "json_valid"; path: string }
-  | { type: "json_contains"; path: string; field: string; pattern?: string }
-  | {
-      type: "count_items";
-      path: string;
-      pattern: string;
-      pass: number;
-      partial?: number;
-      section?: string;
-    }
-  | { type: "composite"; checks: Detection[]; mode: "all" | "any" }
-  | { type: "custom"; fn: (ctx: FactContext) => CheckResult };
-
-// === Check Definition ===
-
-/**
- * A single rubric check definition with scoring, detection, and recommendation.
- * Each check belongs to a tier and category for grouped reporting.
- */
-export interface CheckDef {
-  id: string;
-  name: string;
-  tier: Tier;
-  category: string;
-  // Points awarded on full pass
-  pts: number;
-  // Points awarded on partial pass (undefined means no partial credit)
-  partialPts?: number;
-  detect: Detection;
-  // Returns true when the check does not apply to this project
-  na?: (ctx: FactContext) => boolean;
-  recommendation: string;
-  // Stable key for deduplicating recommendations across checks
-  recommendationKey: string;
-  confidence: Confidence;
-  // Grading priority: required checks gate the letter grade, recommended improve it, optional are bonus
-  priority: "required" | "recommended" | "optional";
-  // If true, check runs and contributes to score but doesn't appear in scanner output
-  hidden?: boolean;
-}
-
-/**
- * An anti-pattern definition that applies point deductions.
- * Anti-patterns are evaluated after positive checks and reduce the total score.
- */
-export interface AntiPatternDef {
-  id: string;
-  name: string;
-  // Negative number representing the point penalty
-  deduction: number;
-  evaluate: (ctx: FactContext) => AntiPatternResult;
-  // Returns true when the anti-pattern does not apply
-  na?: (ctx: FactContext) => boolean;
-  recommendation: string;
-  recommendationKey: string;
-  confidence: Confidence;
-}
-
-// === Check Results ===
-
-/** Result of evaluating a single rubric check against a project */
-export interface CheckResult {
-  id: string;
-  name: string;
-  tier: Tier;
-  category: string;
-  status: CheckStatus;
-  points: number;
-  maxPoints: number;
-  confidence: Confidence;
-  message: string;
-  // File path or description pointing to what was found or missing
-  evidence?: string;
-  recommendationKey?: string;
-  // If true, check ran but should not appear in scanner output
-  hidden?: boolean;
-  // Human-readable fix guidance from the check definition (populated for non-pass results)
-  recommendation?: string;
-}
-
-/** Result of evaluating a single anti-pattern against a project */
-export interface AntiPatternResult {
-  id: string;
-  name: string;
-  triggered: boolean;
-  deduction: number;
-  confidence: Confidence;
-  message: string;
-  evidence?: string;
-  recommendationKey?: string;
-}
-
 // === Facts ===
 
-/** Top-level fact container gathered by the scan engine before scoring */
+/** Top-level fact container gathered by the fact extractors */
 export interface ProjectFacts {
   // Absolute path to the project root
   root: string;
@@ -386,91 +256,6 @@ export interface AgentFacts {
     // Files that should exist based on project stack
     warranted: string[];
     missing: string[];
-  };
-}
-
-/** Binds project-wide facts with a specific agent's facts for check evaluation */
-export interface FactContext {
-  facts: ProjectFacts;
-  agentFacts: AgentFacts;
-  fs: ReadonlyFS;
-}
-
-// === Scoring ===
-
-/** Score breakdown for a single rubric tier */
-export interface TierScore {
-  tier: Tier;
-  earned: number;
-  available: number;
-  percentage: number;
-}
-
-/** Aggregate score summary across all tiers and anti-pattern deductions */
-export interface ScoreSummary {
-  earned: number;
-  available: number;
-  deductions: number;
-  percentage: number;
-  grade: Grade;
-  tiers: {
-    foundation: TierScore;
-    standard: TierScore;
-  };
-  // Priority-based grading counters (excludes N/A checks)
-  requiredPassed: number;
-  requiredTotal: number;
-  recommendedPassed: number;
-  recommendedTotal: number;
-}
-
-/** A prioritized action item generated from a failed or partial check */
-export interface Recommendation {
-  priority: "critical" | "high" | "medium" | "low";
-  checkId: string;
-  category: string;
-  message: string;
-  action: string;
-  // Stable key for deduplication
-  key: string;
-}
-
-// === Report ===
-
-/** Scan results for a single agent within a project */
-export interface AgentReport {
-  agent: AgentId;
-  agentName: string;
-  score: ScoreSummary;
-  checks: CheckResult[];
-  antiPatterns: AntiPatternResult[];
-  recommendations: Recommendation[];
-}
-
-/** Complete scan report covering all detected agents in a project */
-export interface ScanReport {
-  schemaVersion: string;
-  packageVersion: string;
-  rubricVersion: string;
-  // Absolute path to the scanned project
-  target: string;
-  stack: StackInfo;
-  agents: AgentReport[];
-  meta: {
-    checkCount: number;
-    antiPatternCount: number;
-    // ISO 8601 timestamp of when the scan completed
-    timestamp: string;
-    versions: {
-      schema: string;
-      package: string;
-      rubric: string;
-    };
-    config: { exists: boolean; valid: boolean };
-    learningLoop: {
-      footguns: { count: number };
-      lessons: { count: number };
-    };
   };
 }
 

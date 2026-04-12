@@ -6,7 +6,7 @@
 import { execSync } from "node:child_process";
 import { join } from "node:path";
 import type { BuildCheck } from "./types.js";
-import { RUBRIC_VERSION } from "../rubric/version.js";
+import { RUBRIC_VERSION } from "../constants.js";
 
 // === Setup scope checks ===
 
@@ -162,6 +162,28 @@ const skillVersionsPresent: BuildCheck = {
       evidence: noVersion[0],
       howToFix:
         "Add a `goat-flow-skill-version: X.Y.Z` header to each SKILL.md that is missing one.",
+    };
+  },
+};
+
+/** Fails when --agent filter targets an agent whose instruction file is absent.
+ *  Without this check, detectAgents() silently omits missing agents and all
+ *  per-agent checks vacuously pass (empty ctx.agents → 0 failures). */
+const requestedAgentPresent: BuildCheck = {
+  id: "configured-agent-present",
+  name: "Requested agent configured",
+  scope: "setup",
+  run: (ctx) => {
+    if (!ctx.agentFilter) return null;
+    const found = ctx.agents.some((af) => af.agent.id === ctx.agentFilter);
+    if (found) return null;
+    const profile = ctx.structure.agents[ctx.agentFilter];
+    const instructionFile =
+      profile?.instruction_file ?? `${ctx.agentFilter} instruction file`;
+    return {
+      check: "Requested agent configured",
+      message: `Missing: ${ctx.agentFilter} (${instructionFile})`,
+      howToFix: `Create ${instructionFile} by running \`goat-flow setup --agent ${ctx.agentFilter}\`.`,
     };
   },
 };
@@ -378,6 +400,7 @@ export const BUILD_CHECKS: BuildCheck[] = [
   agentsSupportedValues,
   canonicalSkillsExist,
   skillVersionsPresent,
+  requestedAgentPresent,
   instructionFilesExist,
   noStaleSkillDirs,
   noWorkflowPathLeaks,

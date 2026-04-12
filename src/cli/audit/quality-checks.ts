@@ -310,6 +310,63 @@ const architectureRefsResolve: QualityCheck = {
   },
 };
 
+const docPathsResolve: QualityCheck = {
+  id: "doc-paths-resolve",
+  concern: "context",
+  weight: 1,
+  run: (ctx) => {
+    const targetFiles = [
+      "CONTRIBUTING.md",
+      ".goat-flow/code-map.md",
+      "docs/cli.md",
+      "docs/audit-and-critique.md",
+    ];
+    let totalPaths = 0;
+    let resolvedCount = 0;
+    const unresolved: string[] = [];
+
+    for (const file of targetFiles) {
+      const content = ctx.fs.readFile(file);
+      if (!content) continue;
+      const paths = extractBacktickPaths(content);
+      totalPaths += paths.length;
+      for (const p of paths) {
+        if (ctx.fs.exists(p)) {
+          resolvedCount++;
+        } else {
+          unresolved.push(`${file}: ${p}`);
+        }
+      }
+    }
+
+    if (totalPaths === 0) {
+      return partial(
+        60,
+        ["No backtick paths found in documentation files to validate"],
+        [
+          "Add backtick-quoted file paths to doc files so the audit can detect drift",
+        ],
+      );
+    }
+    if (unresolved.length === 0) {
+      return pass([`All ${totalPaths} doc file paths resolve`]);
+    }
+    const score = Math.round((resolvedCount / totalPaths) * 100);
+    return partial(
+      score,
+      [
+        `${unresolved.length}/${totalPaths} doc file paths are stale: ${unresolved.slice(0, 3).join(", ")}`,
+      ],
+      [
+        "Update stale paths in documentation files to match current file locations",
+      ],
+      [
+        "Update or remove dead paths in CONTRIBUTING.md, .goat-flow/code-map.md, docs/cli.md, or docs/audit-and-critique.md.",
+      ],
+    );
+  },
+};
+
 // === Constraints concern ===
 
 const denyCoversSecrets: QualityCheck = {
@@ -412,6 +469,53 @@ const askFirstBoundaries: QualityCheck = {
       );
     }
     return pass([`${boundaries.length} ask_first boundaries configured`]);
+  },
+};
+
+const askFirstStructuralSync: QualityCheck = {
+  id: "ask-first-structural-sync",
+  concern: "constraints",
+  weight: 1,
+  run: (ctx) => {
+    const boundaries = ctx.config.config.askFirst;
+    if (boundaries.length === 0) {
+      return pass(["No ask_first paths in config to sync"]);
+    }
+    const configPaths = boundaries.map((b) => b.path);
+
+    const findings: string[] = [];
+    const recs: string[] = [];
+    let allSynced = true;
+
+    for (const af of ctx.agents) {
+      if (!af.instruction.exists || !af.instruction.content) {
+        findings.push(`${af.agent.id}: no instruction file to check`);
+        allSynced = false;
+        continue;
+      }
+      const lower = af.instruction.content.toLowerCase();
+      const notMentioned = configPaths.filter(
+        (p) => !lower.includes(p.toLowerCase()),
+      );
+      if (notMentioned.length === 0) {
+        findings.push(
+          `${af.agent.id}: all ${configPaths.length} ask_first paths mentioned`,
+        );
+      } else {
+        findings.push(
+          `${af.agent.id}: ${notMentioned.length} ask_first paths not in instruction file: ${notMentioned.slice(0, 3).join(", ")}`,
+        );
+        recs.push(
+          `Sync ask_first boundaries in ${af.agent.instructionFile} to match config.yaml`,
+        );
+        allSynced = false;
+      }
+    }
+
+    if (allSynced) return pass(findings);
+    return partial(40, findings, recs, [
+      "Add missing ask_first paths from config.yaml to the Ask First / Autonomy Tiers section of the instruction file. Config is canonical — update the instruction file to match.",
+    ]);
   },
 };
 
@@ -664,10 +768,10 @@ const hookHonestFailures: QualityCheck = {
       anyHook = true;
       if (af.hooks.postTurnSwallowsFailures) {
         findings.push(
-          `${af.agent.id}: post-turn hook swallows failures (|| true)`,
+          `${af.agent.id}: post-turn hook always exits 0 (advisory mode)`,
         );
         recs.push(
-          `Remove || true from ${af.agent.id} post-turn hook so failures surface`,
+          `Set GOAT_LINT_ENFORCE=1 in ${af.agent.id} post-turn hook to enable enforcement, or accept advisory mode.`,
         );
         allGood = false;
       } else if (af.hooks.postTurnExitsZero && af.hooks.postTurnHasValidation) {
@@ -693,7 +797,7 @@ const hookHonestFailures: QualityCheck = {
     }
     if (allGood) return pass(findings);
     return partial(20, findings, recs, [
-      "Remove || true and similar failure-swallowing patterns from hook scripts. Silent on success, loud on failure.",
+      "Post-turn hooks exit 0 by default (advisory). Set GOAT_LINT_ENFORCE=1 in the hook script to make them exit non-zero on failures.",
     ]);
   },
 };
@@ -1083,10 +1187,12 @@ export const QUALITY_CHECKS: QualityCheck[] = [
   footgunEvidenceResolves,
   architectureExists,
   architectureRefsResolve,
+  docPathsResolve,
   // constraints
   denyCoversSecrets,
   denyBlocksDangerous,
   askFirstBoundaries,
+  askFirstStructuralSync,
   linterRegistered,
   denyBlocksPipeToShell,
   // verification

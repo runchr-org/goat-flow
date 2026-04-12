@@ -6,10 +6,10 @@
 <summary of what changed and why>
 ```
 
-Single-line summary. No prefix convention (no `feat:`, `fix:`, etc.). Describe the change concisely -- past commits use plain English:
-- "Add CLI scanner (M1), prompt generator (M2), restructure cli/ to root"
-- "Fix 12 scanner/prompt bugs, remove local context heuristic, add M2.6 plan"
-- "Refactor preflight checks for improved output and structure"
+Conventional commit format: `type(scope): description`. Use lowercase. Examples from recent git log:
+- `refactor(ci): enhance CI workflow with format checks and audit validation`
+- `feat(dashboard): improve projects page UX`
+- `refactor(architecture): update documentation for clarity and consistency`
 
 Multi-line body when the commit spans multiple areas. Separate summary from body with a blank line.
 

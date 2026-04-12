@@ -127,7 +127,7 @@ else
 
     # Installed skill copies must also match
     installed_fail=0
-    for dir in .claude/skills .agents/skills .github/skills; do
+    for dir in .claude/skills .agents/skills; do
         if [[ -d "$dir" ]]; then
             while IFS= read -r -d '' f; do
                 ver=$(grep -o 'goat-flow-skill-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)
@@ -376,14 +376,66 @@ else
     skip "GOAT Flow Audit (dist/cli/cli.js not built)"
 fi
 
-# ── Workflow References ──────────────────────────────────────────────
-section "Workflow References"
+# ── Doc/Code Drift ───────────────────────────────────────────────────
+if [[ -f dist/cli/audit/build-checks.js ]]; then
+    section "Doc/Code Drift"
 
-ref_dir="workflow/reference/security"
-if [[ -d "$ref_dir" ]]; then
-    pass "security reference library ($(find "$ref_dir" -name '*.md' | wc -l) files)"
-else
-    fail "Missing workflow/reference/security reference library"
+    # B.8a: Architecture count validation
+    build_count=$(node --input-type=module -e "const b=await import('./dist/cli/audit/build-checks.js');console.log(b.BUILD_CHECKS.length)" 2>/dev/null || echo "")
+    quality_count=$(node --input-type=module -e "const q=await import('./dist/cli/audit/quality-checks.js');console.log(q.QUALITY_CHECKS.length)" 2>/dev/null || echo "")
+    rubric_count=$(node --input-type=module -e "const f=await import('./dist/cli/rubric/foundation.js');const s=await import('./dist/cli/rubric/standard/index.js');console.log(f.foundationChecks.length+s.standardChecks.length)" 2>/dev/null || echo "")
+    ap_count=$(node --input-type=module -e "const a=await import('./dist/cli/rubric/anti-patterns.js');console.log(a.antiPatterns.length)" 2>/dev/null || echo "")
+
+    arch_counts_ok=true
+    if [[ -f .goat-flow/architecture.md ]] && [[ -n "$build_count" ]] && [[ -n "$quality_count" ]]; then
+        arch_line=$(grep "rubric checks" .goat-flow/architecture.md || true)
+        if [[ -n "$arch_line" ]]; then
+            echo "$arch_line" | grep -q "${build_count} build" || { fail "architecture.md build check count (${build_count} actual) doesn't match"; arch_counts_ok=false; }
+            echo "$arch_line" | grep -q "${quality_count} quality" || { fail "architecture.md quality check count (${quality_count} actual) doesn't match"; arch_counts_ok=false; }
+            if [[ -n "$rubric_count" ]]; then
+                echo "$arch_line" | grep -q "${rubric_count} rubric checks" || { fail "architecture.md rubric count (${rubric_count} actual) doesn't match"; arch_counts_ok=false; }
+            fi
+            if [[ -n "$ap_count" ]]; then
+                echo "$arch_line" | grep -q "${ap_count} anti-patterns" || { fail "architecture.md anti-pattern count (${ap_count} actual) doesn't match"; arch_counts_ok=false; }
+            fi
+            if $arch_counts_ok; then
+                pass "Architecture doc counts match code (build: ${build_count}, quality: ${quality_count})"
+            fi
+        else
+            skip "Architecture count validation (no 'rubric checks' line in architecture.md)"
+        fi
+    else
+        skip "Architecture count validation (dist/ not fully built or architecture.md missing)"
+    fi
+
+    # B.8b: Setup doc check ID validation
+    if [[ -n "$build_count" ]]; then
+        check_ids=$(node --input-type=module -e "const b=await import('./dist/cli/audit/build-checks.js');b.BUILD_CHECKS.forEach(c=>console.log(c.id))" 2>/dev/null || echo "")
+        b8b_ok=true
+        while IFS= read -r ref; do
+            id=$(echo "$ref" | grep -oP '[\w.-]+' | tail -1)
+            if [[ -n "$id" ]] && ! echo "$check_ids" | grep -q "^${id}$"; then
+                fail "Setup doc references non-existent check ID: $id"
+                b8b_ok=false
+            fi
+        done < <(grep -ohP '\(check [\w.-]+\)' workflow/setup/*.md 2>/dev/null || true)
+        if $b8b_ok; then
+            pass "Setup doc check IDs are valid"
+        fi
+    fi
+
+    # B.8c: Template inventory validation
+    b8c_ok=true
+    while IFS= read -r tmpl; do
+        [[ -z "$tmpl" ]] && continue
+        if ! grep -rql "$tmpl" workflow/skills/ workflow/setup/ 2>/dev/null; then
+            warn "Template $tmpl.md exists but is not referenced in any skill or setup doc"
+            b8c_ok=false
+        fi
+    done < <(find workflow/templates -maxdepth 1 -name '*.md' -exec basename {} .md \; 2>/dev/null | sort)
+    if $b8c_ok; then
+        pass "All workflow templates referenced in skills or setup docs"
+    fi
 fi
 
 # Check template-refs.ts doesn't reference missing workflow docs

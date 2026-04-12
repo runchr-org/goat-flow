@@ -7,6 +7,7 @@ shellcheck scripts/*.sh scripts/maintenance/*.sh      # Lint shell scripts
 bash -n scripts/*.sh scripts/maintenance/*.sh          # Syntax-check scripts
 bash scripts/preflight-checks.sh         # Full preflight gate
 bash scripts/validate-goat-flow-setup.sh         # Validate GOAT Flow structure
+npm test                                          # Run test suite
 ```
 ## Truth Order
 
@@ -76,7 +77,7 @@ If VERIFY caught a failure or you corrected course, update the learning loop bef
 - [ ] Local instruction checked: [local GEMINI.md / .github/instructions/ / none]
 - [ ] Rollback command: [exact command]
 
-Boundaries: `.goat-flow/architecture.md`, `workflow/setup/`, `workflow/skills/`, renaming/moving files, 3+ doc file changes.
+Boundaries: `.goat-flow/architecture.md`, `CLAUDE.md`, `workflow/setup/**`, `workflow/skills/**`, `.github/workflows/**`, `.claude/**`, renaming/moving files, 3+ doc file changes.
 
 **Never:** Delete docs without replacement. Modify secrets/.env. Push to main. Change security config. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`)
 
@@ -87,10 +88,12 @@ MUST confirm ALL: (1) shellcheck passes (2) no broken cross-refs (3) no unapprov
 Sub-agents: ONE objective, structured return, 5-call budget. When blocked: one question + default.
 
 ## Hard Rules
+- If file exists, modify in-place. NEVER create `_modified`, `_new`, `_backup`, `_v2` variants.
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - MUST maintain cross-file consistency: same concept, same description everywhere
 - MUST preserve file:line evidence format in footguns and examples
 - MUST use real incidents, never hypothetical. `.goat-flow/architecture.md` is canonical source of truth
+- Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.
 
 ## Working Memory
 If working from a plan/milestone file, tick `- [x]` on each completed task immediately - not at the end.
@@ -101,10 +104,13 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 | Resource | Path |
 |----------|------|
 | Architecture | `.goat-flow/architecture.md` |
+| CLI auditor/prompt code | `src/cli/` |
 | Scripts | `scripts/` |
-| Skills | `.agents/skills/` |
+| Skills | `.agents/skills/` (goat, goat-debug, goat-plan, goat-review, goat-sbao, goat-security, goat-test) |
 | Templates | `.goat-flow/templates/` |
 | Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
 | Decisions | `.goat-flow/decisions/` |
 | Config | `.goat-flow/config.yaml` |
+| Dashboard source | `src/dashboard/` |
+| Documentation | `docs/` |
 | Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |

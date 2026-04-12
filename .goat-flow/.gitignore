@@ -7,10 +7,13 @@
 !skill-preamble.md
 !skill-conventions.md
 !architecture.md
+!code-map.md
 !glossary.md
 !patterns.md
 
 # Committed goat-flow directories
+!templates/
+!templates/**
 !decisions/
 !decisions/**
 !footguns/

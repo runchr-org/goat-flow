@@ -76,7 +76,7 @@ category: docs-and-crossrefs
 - ~~`src/cli/config/reader.ts:20-35` - KNOWN_TOP_LEVEL_KEYS missing `known-gaps` and `skill-overrides`~~ FIXED
 - ~~`README.md:89` - "Six structured workflows"~~ FIXED: now says "Seven"
 - ~~`README.md:91` - overclaims post-turn hooks; `workflow/hooks/README.md:29` contradicts~~ FIXED: README now accurately describes deny-dangerous.sh only
-- ~~`docs/skills/README.md:1` - "Five focused capabilities", diagram omits goat-sbao~~ FIXED: now says "Seven"
+- ~~`docs/skills.md.md:1` - "Five focused capabilities", diagram omits goat-sbao~~ FIXED: now says "Seven"
 - ~~`workflow/setup/04-architecture-code-map.md:38` - "Skills do NOT read templates at runtime"~~ FIXED
 - ~~`src/cli/prompt/fragments/standard.ts:617` - still creates `.goat-flow/coding-standards/`~~ FIXED: line 617 is now learning-loop code, not coding-standards creation
 - `src/cli/classify-state.ts:133-145` - marks "healthy" from config version + skills + instruction + preamble — DESIGN CHOICE (shallow but intentional)
@@ -89,7 +89,7 @@ category: docs-and-crossrefs
 **Root cause:** No automated check validates that the canonical SKILL_NAMES is reflected consistently across README, docs, config, template-refs, test fixtures, and setup fragments. Each surface drifts silently.
 
 **Prevention:**
-1. Add a contract test: SKILL_NAMES.length must match README, docs/skills/README, SKILL_TEMPLATES, and config.yaml skills.install
+1. Add a contract test: SKILL_NAMES.length must match README, docs/skills.md, SKILL_TEMPLATES, and config.yaml skills.install
 2. After adding/removing any skill, grep for the old count: `grep -rn "Six\|six\|5 focused\|6 skills\|All 6" --include="*.md" --include="*.ts"`
 3. `scripts/preflight-checks.sh` should verify SKILL_NAMES count across all surfaces
 

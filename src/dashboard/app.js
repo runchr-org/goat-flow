@@ -86,12 +86,10 @@ function app() {
       languages: [],
       frameworks: [],
       commands: { test: "", lint: "", build: "", format: "" },
-      // copilot is bridge-only (via .github/copilot-instructions.md), not a first-class agent
-      agents: { claude: true, codex: false, gemini: false, copilot: false },
+      agents: { claude: true, codex: false, gemini: false },
       existing: {
         skills: false,
         instructions: false,
-        evals: false,
         lessons: false,
         footguns: false,
         config: false,
@@ -379,19 +377,16 @@ function app() {
           build: "",
           format: "",
         };
-        // copilot is bridge-only (via .github/copilot-instructions.md), not a first-class agent
         this.wizardData.agents = data.agents || {
           claude: true,
           codex: false,
           gemini: false,
-          copilot: false,
         };
         if (!Object.values(this.wizardData.agents).some((v) => v))
           this.wizardData.agents.claude = true;
         this.wizardData.existing = data.existing || {
           skills: false,
           instructions: false,
-          evals: false,
           lessons: false,
           footguns: false,
           config: false,

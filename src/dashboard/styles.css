@@ -727,7 +727,7 @@ label,
 }
 
 /* Variant: Outline (green border, transparent bg) */
-.gf-btn-scan {
+.gf-btn-audit {
   border: 0.5px solid var(--accent-border);
   background: none;
   color: var(--accent);
@@ -735,7 +735,7 @@ label,
     background 0.1s,
     border-color 0.1s;
 }
-.gf-btn-scan:hover {
+.gf-btn-audit:hover {
   background: var(--accent-bg);
   border-color: var(--accent);
 }

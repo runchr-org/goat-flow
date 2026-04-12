@@ -2,7 +2,7 @@
 
 A structured workflow system for AI coding agents, built on harness engineering principles.
 
-AI coding agents are powerful but unreliable. They skip verification steps, create duplicate files instead of editing in place, ignore project conventions, and repeat the same mistakes across sessions. GOAT Flow fixes this by giving agents a concrete operating system: an execution loop that enforces READ before writing, VERIFY before committing, and a learning loop that captures mistakes so they never repeat. It works with Claude Code, Gemini CLI, Codex, and Copilot.
+AI coding agents are powerful but unreliable. They skip verification steps, create duplicate files instead of editing in place, ignore project conventions, and repeat the same mistakes across sessions. GOAT Flow fixes this by giving agents a concrete operating system: an execution loop that enforces READ before writing, VERIFY before committing, and a learning loop that captures mistakes so they never repeat. It works with Claude Code, Gemini CLI, and Codex.
 
 ## Before and After
 
@@ -137,8 +137,6 @@ Three first-class agents are supported by the CLI (`audit`, `critique`, `setup`,
 | Skills | .claude/skills/ | .agents/skills/ | .agents/skills/ |
 | Hooks | .claude/hooks/ | .gemini/hooks/ | .codex/hooks/ |
 
-**Copilot** is supported via `.github/copilot-instructions.md` bridge files only - it is not a first-class audit/setup agent.
-
 All agents share the same execution loop, autonomy tiers, skills, and learning loop. The `setup` command generates agent-specific configuration.
 
 ## Troubleshooting
@@ -154,7 +152,7 @@ Expected. Run `goat-flow setup . --agent claude` and paste the output into your 
 | Document | What it covers |
 |---|---|
 | [CLI Reference](docs/cli.md) | All commands, flags, and output formats |
-| [Skills Reference](docs/skills/README.md) | All 7 skills: modes, phases, gates, outputs |
+| [Skills Reference](docs/skills.md) | All 7 skills: modes, phases, gates, outputs |
 | [Audit & Critique](docs/audit-and-critique.md) | The two evaluation commands, 5 harness concerns, and when to use each |
 | [Dashboard](docs/dashboard.md) | Views, terminal, API endpoints |
 
