@@ -107,11 +107,11 @@ function computeConcerns(
   ctx: AuditContext,
 ): Record<AuditConcernKey, AuditConcern> {
   const concerns: Record<AuditConcernKey, AuditConcern> = {
-    context: { score: 0, findings: [], recommendations: [] },
-    constraints: { score: 0, findings: [], recommendations: [] },
-    verification: { score: 0, findings: [], recommendations: [] },
-    recovery: { score: 0, findings: [], recommendations: [] },
-    feedback_loop: { score: 0, findings: [], recommendations: [] },
+    context: { score: 0, findings: [], recommendations: [], howToFix: [] },
+    constraints: { score: 0, findings: [], recommendations: [], howToFix: [] },
+    verification: { score: 0, findings: [], recommendations: [], howToFix: [] },
+    recovery: { score: 0, findings: [], recommendations: [], howToFix: [] },
+    feedback_loop: { score: 0, findings: [], recommendations: [], howToFix: [] },
   };
 
   const weights: Record<AuditConcernKey, number> = {
@@ -134,6 +134,7 @@ function computeConcerns(
     const concern = concerns[check.concern];
     concern.findings.push(...result.findings);
     concern.recommendations.push(...result.recommendations);
+    if (result.howToFix) concern.howToFix.push(...result.howToFix);
     weights[check.concern] += check.weight;
     weighted[check.concern] += result.score * check.weight;
   }

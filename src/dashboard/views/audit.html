@@ -41,9 +41,20 @@
         margin-bottom: 16px;
       "
     >
-      <span class="gf-text-primary" style="font-size: 20px; font-weight: 500"
-        >Audit</span
-      >
+      <div>
+        <span class="gf-text-primary" style="font-size: 20px; font-weight: 500"
+          >Audit</span
+        >
+        <span
+          x-show="report?.status"
+          style="margin-left: 12px; font-size: 13px; font-weight: 600; padding: 2px 10px; border-radius: 4px"
+          :style="{
+            background: report?.status === 'pass' ? '#14532d' : '#7f1d1d',
+            color: report?.status === 'pass' ? '#4ade80' : '#f87171',
+          }"
+          x-text="report?.status === 'pass' ? 'PASS' : 'FAIL'"
+        ></span>
+      </div>
       <button
         @click="runAudit()"
         :disabled="auditing"
@@ -53,116 +64,62 @@
       </button>
     </div>
 
-    <!-- Agent cards grid -->
+    <!-- Scope cards grid -->
     <div
       style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px"
     >
-      <template x-for="agent in (report?.agents || [])" :key="agent.agent">
+      <template x-for="scopeName in ['setup', 'project', 'integration']" :key="scopeName">
         <button
-          @click="auditDetailAgent = (auditDetailAgent === agent.agent ? null : agent.agent); selectedAgent = agent.agent"
+          @click="auditDetailScope = (auditDetailScope === scopeName ? null : scopeName)"
           class="gf-card"
           style="
             padding: 20px 24px;
             cursor: pointer;
             transition: border-color 0.1s;
           "
-          :style="{ borderColor: auditDetailAgent === agent.agent ? '#4ade80' : '' }"
+          :style="{ borderColor: auditDetailScope === scopeName ? '#4ade80' : '' }"
         >
           <div
             style="
               display: flex;
               align-items: center;
               justify-content: space-between;
-              margin-bottom: 12px;
+              margin-bottom: 8px;
             "
           >
             <span
               class="gf-text-primary"
-              style="font-size: 16px; font-weight: 600"
-              x-text="agent.agentName"
+              style="font-size: 16px; font-weight: 600; text-transform: capitalize"
+              x-text="scopeName"
             ></span>
             <span
-              style="font-size: 20px; font-weight: 500"
-              :style="{ color: gradeColor(agent.score.grade) }"
-              x-text="agent.score.grade === 'insufficient-data' ? '?' : agent.score.grade"
+              style="font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 4px"
+              :style="{
+                background: report?.scopes?.[scopeName]?.status === 'pass' ? '#14532d' : '#7f1d1d',
+                color: report?.scopes?.[scopeName]?.status === 'pass' ? '#4ade80' : '#f87171',
+              }"
+              x-text="report?.scopes?.[scopeName]?.status === 'pass' ? 'PASS' : 'FAIL'"
             ></span>
           </div>
+          <!-- Summary -->
+          <template x-for="[key, value] in Object.entries(report?.scopes?.[scopeName]?.summary || {})" :key="scopeName + '-' + key">
+            <div class="gf-text-muted" style="font-size: 12px; margin-top: 2px">
+              <span style="text-transform: capitalize" x-text="key"></span>:
+              <span class="gf-text-secondary" x-text="value"></span>
+            </div>
+          </template>
+          <!-- Failure count -->
           <div
-            style="
-              display: flex;
-              align-items: baseline;
-              gap: 8px;
-              margin-bottom: 12px;
-            "
-          >
-            <span
-              style="font-size: 16px; font-weight: 600"
-              :style="{ color: gradeColor(agent.score.grade) }"
-              x-text="`${agent.score.percentage}%`"
-            ></span>
-            <span
-              class="gf-text-secondary"
-              style="font-size: 12px"
-              x-text="`${agent.checks.filter(c => !c.hidden && c.status !== 'na').length} checks`"
-            ></span>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 8px">
-            <template
-              x-for="tier in ['foundation', 'standard', 'full'].filter(t => agent.score.tiers[t]?.available > 0)"
-              :key="agent.agent + '-' + tier"
-            >
-              <div style="display: flex; align-items: center; gap: 8px">
-                <span
-                  class="gf-text-secondary"
-                  style="font-size: 12px; width: 70px"
-                  x-text="tier"
-                ></span>
-                <div
-                  class="gf-bar-track"
-                  style="
-                    flex: 1;
-                    height: 4px;
-                    border-radius: 2px;
-                    overflow: hidden;
-                  "
-                >
-                  <div
-                    :style="`width:${agent.score.tiers[tier].percentage}%;height:4px;border-radius:2px;background:${agent.score.tiers[tier].percentage > 80 ? '#4ade80' : agent.score.tiers[tier].percentage >= 50 ? '#fb923c' : '#f87171'}`"
-                  ></div>
-                </div>
-                <span
-                  class="gf-text-muted"
-                  style="font-size: 12px; width: 32px; text-align: right"
-                  x-text="`${agent.score.tiers[tier].percentage}%`"
-                ></span>
-              </div>
-            </template>
-          </div>
+            x-show="(report?.scopes?.[scopeName]?.failures || []).length > 0"
+            style="font-size: 12px; margin-top: 6px; color: #f87171"
+            x-text="`${(report?.scopes?.[scopeName]?.failures || []).length} failure${(report?.scopes?.[scopeName]?.failures || []).length === 1 ? '' : 's'}`"
+          ></div>
         </button>
       </template>
     </div>
 
-    <!-- No agents detected -->
-    <div
-      x-show="report?.agents?.length === 0"
-      style="padding: 64px 0; text-align: center"
-    >
-      <p class="gf-text-muted" style="font-size: 16px">No agents detected</p>
-      <p class="gf-text-disabled" style="font-size: 13px; margin-top: 4px">
-        Click
-        <button
-          @click="activeView = 'wizard'; detectStack()"
-          class="gf-link"
-          style="background: none; border: none; padding: 0; cursor: pointer"
-        >
-          Setup
-        </button>
-        to generate setup instructions.
-      </p>
-    </div>
-
-    <!-- Inline detail panel (appears below grid when an agent is selected) -->
-    <template x-if="auditDetailAgent && currentAgent">
+    <!-- Scope detail panel -->
+    <template x-if="auditDetailScope && report?.scopes?.[auditDetailScope]">
       <div
         style="
           margin-top: 20px;
@@ -170,111 +127,34 @@
           padding-top: 20px;
         "
       >
-        <!-- Agent name + grade -->
+        <!-- Scope header -->
         <div
           style="
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 20px;
+            align-items: center;
+            margin-bottom: 16px;
           "
         >
-          <div>
-            <div
-              class="gf-text-primary"
-              style="font-size: 20px; font-weight: 500"
-              x-text="currentAgent.agentName"
-            ></div>
-            <div class="gf-text-muted" style="font-size: 12px; margin-top: 4px">
-              <span
-                x-text="`${currentAgent.checks.filter(c => !c.hidden && c.status !== 'na').length} checks`"
-              ></span>
-              -
-              <span
-                x-text="`${currentAgent.antiPatterns.filter(a => a.triggered).length} anti-patterns`"
-              ></span>
-              <template x-if="lastAuditTime">
-                <span
-                  x-text="' - Last audited ' + formatTimeAgo(lastAuditTime)"
-                ></span>
-              </template>
-            </div>
-          </div>
           <div
-            style="
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 4px;
-            "
-          >
+            class="gf-text-primary"
+            style="font-size: 18px; font-weight: 500; text-transform: capitalize"
+            x-text="auditDetailScope"
+          ></div>
+          <template x-if="lastAuditTime">
             <span
-              class="gf-grade"
-              :class="'gf-grade-' + (currentAgent.score.grade || '').toLowerCase()"
-              style="width: 40px; height: 40px; font-size: 24px"
-              x-text="currentAgent.score.grade === 'insufficient-data' ? '?' : currentAgent.score.grade"
+              class="gf-text-muted"
+              style="font-size: 12px"
+              x-text="'Last audited ' + formatTimeAgo(lastAuditTime)"
             ></span>
-            <span
-              class="gf-text-secondary"
-              style="font-size: 14px"
-              x-text="`${currentAgent.score.percentage}%`"
-            ></span>
-          </div>
-        </div>
-
-        <!-- Tier stat cards -->
-        <div
-          style="
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 20px;
-          "
-        >
-          <template
-            x-for="tier in ['foundation', 'standard', 'full'].filter(t => agent.score.tiers[t]?.available > 0)"
-            :key="tier"
-          >
-            <div
-              class="gf-bg-elevated"
-              style="border-radius: 8px; padding: 12px 16px"
-            >
-              <div
-                class="gf-text-muted"
-                style="
-                  font-size: 11px;
-                  text-transform: uppercase;
-                  letter-spacing: 0.5px;
-                "
-                x-text="tier"
-              ></div>
-              <div
-                class="gf-text-primary"
-                style="font-size: 16px; font-weight: 500; margin-top: 2px"
-                x-text="`${currentAgent.score.tiers[tier].earned} / ${currentAgent.score.tiers[tier].available}`"
-              ></div>
-              <div
-                class="gf-bar-track"
-                style="
-                  height: 4px;
-                  border-radius: 2px;
-                  margin-top: 8px;
-                  overflow: hidden;
-                "
-              >
-                <div
-                  :style="`width:${currentAgent.score.tiers[tier].percentage}%;height:4px;border-radius:2px;background:${currentAgent.score.tiers[tier].percentage > 80 ? '#4ade80' : currentAgent.score.tiers[tier].percentage >= 50 ? '#fb923c' : '#f87171'}`"
-                ></div>
-              </div>
-            </div>
           </template>
         </div>
 
-        <!-- AP Deductions -->
+        <!-- Failures list -->
         <div
+          x-show="(report.scopes[auditDetailScope].failures || []).length > 0"
           class="gf-card"
           style="border-radius: 8px; padding: 16px 20px; margin-bottom: 16px"
-          x-show="triggeredAPs.length > 0"
         >
           <h3
             class="gf-text-muted"
@@ -285,195 +165,69 @@
               margin-bottom: 12px;
             "
           >
-            Anti-Pattern Deductions
+            Failures
             <span
               style="color: #f87171; margin-left: 4px"
-              x-text="`(${currentAgent.score.deductions} pts)`"
+              x-text="`(${(report.scopes[auditDetailScope].failures || []).length})`"
             ></span>
           </h3>
-          <div style="display: flex; flex-direction: column; gap: 8px">
-            <template x-for="ap in triggeredAPs" :key="ap.id">
-              <div
-                style="
-                  display: flex;
-                  align-items: flex-start;
-                  gap: 10px;
-                  font-size: 13px;
-                "
-              >
-                <span
-                  class="gf-badge-ap"
-                  style="
-                    flex-shrink: 0;
-                    padding: 1px 6px;
-                    border-radius: 4px;
-                    font-size: 11px;
-                    font-weight: 600;
-                  "
-                  x-text="ap.deduction"
-                ></span>
-                <div>
-                  <span
-                    class="gf-text-primary"
-                    style="font-weight: 500"
-                    x-text="`${ap.id}: ${ap.name}`"
-                  ></span>
-                  <p
-                    class="gf-text-muted"
-                    style="font-size: 12px; margin-top: 2px"
-                    x-text="ap.message"
-                    x-show="ap.evidence"
-                  ></p>
-                </div>
-              </div>
-            </template>
-          </div>
-        </div>
-
-        <!-- Recommendations -->
-        <div
-          class="gf-card"
-          style="border-radius: 8px; padding: 16px 20px; margin-bottom: 16px"
-          x-show="currentAgent.recommendations.length > 0"
-        >
-          <h3
-            class="gf-text-muted"
-            style="
-              font-size: 11px;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-              margin-bottom: 12px;
-            "
-          >
-            Recommendations
-            <span
-              style="color: #71717a; margin-left: 4px"
-              x-text="`(${currentAgent.recommendations.length})`"
-            ></span>
-          </h3>
-          <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; flex-direction: column; gap: 10px">
             <template
-              x-for="rec in currentAgent.recommendations"
-              :key="rec.key"
+              x-for="(failure, idx) in (report.scopes[auditDetailScope].failures || [])"
+              :key="auditDetailScope + '-fail-' + idx"
             >
               <div
-                x-data="{ expanded: false }"
-                style="padding-bottom: 8px; border-bottom: 0.5px solid #2a2a2e"
+                style="padding-bottom: 10px; border-bottom: 0.5px solid #2a2a2e"
               >
                 <div
                   style="
                     display: flex;
                     align-items: flex-start;
-                    gap: 10px;
+                    gap: 8px;
                     font-size: 13px;
                   "
                 >
-                  <span
-                    style="
-                      flex-shrink: 0;
-                      padding: 1px 6px;
-                      border-radius: 4px;
-                      font-size: 11px;
-                      font-weight: 600;
-                    "
-                    :class="'gf-badge-' + rec.priority"
-                    x-text="rec.priority.toUpperCase()"
-                  ></span>
+                  <span style="color: #f87171; flex-shrink: 0; font-weight: 600">x</span>
                   <div style="flex: 1; min-width: 0">
-                    <div style="display: flex; align-items: center; gap: 6px">
-                      <span
-                        class="gf-text-primary"
-                        style="font-weight: 500"
-                        x-text="`${rec.checkId}: ${rec.category}`"
-                      ></span>
-                      <button
-                        @click="expanded = !expanded"
-                        class="gf-text-muted"
-                        style="
-                          background: none;
-                          border: none;
-                          cursor: pointer;
-                          font-size: 11px;
-                          padding: 0 4px;
-                          opacity: 0.7;
-                          transition: opacity 0.15s;
-                        "
-                        @mouseenter="$el.style.opacity='1'"
-                        @mouseleave="$el.style.opacity='0.7'"
-                        :title="expanded ? 'Collapse detail' : 'Why this matters'"
-                      >
-                        <span
-                          :style="{ display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }"
-                          >&#9656;</span
-                        >
-                        <span x-text="expanded ? 'Less' : 'Details'"></span>
-                      </button>
-                    </div>
+                    <span
+                      class="gf-text-primary"
+                      style="font-weight: 500"
+                      x-text="failure.check"
+                    ></span>
                     <p
                       class="gf-text-muted"
                       style="font-size: 12px; margin-top: 2px"
-                      x-text="rec.message"
+                      x-text="failure.message"
                     ></p>
-                  </div>
-                </div>
-                <!-- Expandable detail: rule, how to fix, why -->
-                <div
-                  x-show="expanded"
-                  x-transition:enter="transition ease-out duration-150"
-                  x-transition:enter-start="opacity-0"
-                  x-transition:enter-end="opacity-100"
-                  x-transition:leave="transition ease-in duration-100"
-                  x-transition:leave-start="opacity-100"
-                  x-transition:leave-end="opacity-0"
-                  class="gf-bg-elevated"
-                  style="
-                    margin-top: 8px;
-                    margin-left: 36px;
-                    padding: 10px 14px;
-                    border-radius: 6px;
-                    font-size: 12px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 10px;
-                  "
-                >
-                  <div>
+                    <!-- How to fix -->
                     <div
-                      class="gf-text-muted"
+                      x-show="failure.howToFix"
+                      class="gf-bg-elevated"
                       style="
-                        font-size: 10px;
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                        margin-bottom: 4px;
-                        font-weight: 600;
+                        margin-top: 8px;
+                        padding: 8px 12px;
+                        border-radius: 6px;
+                        font-size: 12px;
                       "
                     >
-                      How to fix
+                      <div
+                        class="gf-text-muted"
+                        style="
+                          font-size: 10px;
+                          text-transform: uppercase;
+                          letter-spacing: 0.5px;
+                          margin-bottom: 4px;
+                          font-weight: 600;
+                        "
+                      >
+                        How to fix
+                      </div>
+                      <p
+                        class="gf-text-secondary"
+                        style="line-height: 1.5; margin: 0"
+                        x-text="failure.howToFix"
+                      ></p>
                     </div>
-                    <p
-                      class="gf-text-secondary"
-                      style="line-height: 1.5; margin: 0"
-                      x-text="`Run goat-flow setup to address check ${rec.checkId}. The setup wizard will generate the missing content.`"
-                    ></p>
-                  </div>
-                  <div>
-                    <div
-                      class="gf-text-muted"
-                      style="
-                        font-size: 10px;
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                        margin-bottom: 4px;
-                        font-weight: 600;
-                      "
-                    >
-                      Why this matters
-                    </div>
-                    <p
-                      class="gf-text-secondary"
-                      style="line-height: 1.5; margin: 0"
-                      x-text="rec.action"
-                    ></p>
                   </div>
                 </div>
               </div>
@@ -481,11 +235,11 @@
           </div>
         </div>
 
-        <!-- All checks pass -->
+        <!-- All checks pass for this scope -->
         <div
           class="gf-card"
           style="border-radius: 8px; padding: 16px 20px"
-          x-show="currentAgent.recommendations.length === 0 && triggeredAPs.length === 0"
+          x-show="(report.scopes[auditDetailScope].failures || []).length === 0"
         >
           <div
             style="
@@ -518,6 +272,95 @@
       </div>
     </template>
 
+    <!-- Quality concerns (shown when quality mode is used) -->
+    <template x-if="report?.concerns">
+      <div
+        style="
+          margin-top: 20px;
+          border-top: 0.5px solid #2a2a2e;
+          padding-top: 20px;
+        "
+      >
+        <h3
+          class="gf-text-primary"
+          style="font-size: 18px; font-weight: 500; margin-bottom: 16px"
+        >
+          Quality
+          <span
+            x-show="report.overall?.grade"
+            class="gf-text-secondary"
+            style="font-size: 14px; font-weight: 400; margin-left: 8px"
+            x-text="`${report.overall.grade} (${report.overall.qualityScore}%)`"
+          ></span>
+        </h3>
+
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <template
+            x-for="concernKey in ['context', 'constraints', 'verification', 'recovery', 'feedback_loop']"
+            :key="concernKey"
+          >
+            <div
+              class="gf-card"
+              style="border-radius: 8px; padding: 14px 18px"
+            >
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  margin-bottom: 8px;
+                "
+              >
+                <span
+                  class="gf-text-primary"
+                  style="font-size: 14px; font-weight: 500; text-transform: capitalize"
+                  x-text="concernKey.replace('_', ' ')"
+                ></span>
+                <span
+                  style="font-size: 13px; font-weight: 600"
+                  :style="{
+                    color: report.concerns[concernKey].score >= 80 ? '#4ade80' :
+                           report.concerns[concernKey].score >= 60 ? '#fb923c' : '#f87171'
+                  }"
+                  x-text="`${report.concerns[concernKey].score}%`"
+                ></span>
+              </div>
+              <!-- Findings -->
+              <template x-for="(finding, fi) in report.concerns[concernKey].findings" :key="concernKey + '-f-' + fi">
+                <div class="gf-text-muted" style="font-size: 12px; margin-bottom: 4px" x-text="finding"></div>
+              </template>
+              <!-- Recommendations with howToFix -->
+              <template x-for="(rec, ri) in report.concerns[concernKey].recommendations" :key="concernKey + '-r-' + ri">
+                <div style="margin-top: 6px">
+                  <div style="display: flex; align-items: flex-start; gap: 6px; font-size: 12px">
+                    <span style="color: #fb923c; flex-shrink: 0">-></span>
+                    <span class="gf-text-secondary" x-text="rec"></span>
+                  </div>
+                  <div
+                    x-show="report.concerns[concernKey].howToFix?.[ri]"
+                    class="gf-bg-elevated"
+                    style="
+                      margin-top: 4px;
+                      margin-left: 18px;
+                      padding: 6px 10px;
+                      border-radius: 4px;
+                      font-size: 11px;
+                    "
+                  >
+                    <span class="gf-text-muted" style="font-weight: 600">Fix: </span>
+                    <span
+                      class="gf-text-secondary"
+                      x-text="report.concerns[concernKey].howToFix?.[ri]"
+                    ></span>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
     <!-- Footer -->
     <div
       class="gf-footer"
@@ -530,7 +373,7 @@
         class="gf-footer-link"
         >BlunderGOAT</a
       >
-      · <span x-text="report ? `v${report.rubricVersion}` : ''"></span>
+      · <span x-text="dashboardVersion ? `v${dashboardVersion}` : ''"></span>
     </div>
   </div>
 </div>

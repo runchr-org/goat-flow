@@ -519,7 +519,7 @@ export function serveDashboard(
     }
 
     /** Detect which AI coding agents have config directories in the project.
-     *  copilot is bridge-only (not a first-class scanner/setup agent). */
+     *  copilot is bridge-only (not a first-class audit/setup agent). */
     function detectAgents(projectPath: string): Record<string, boolean> {
       return {
         claude: existsSync(join(projectPath, ".claude")),

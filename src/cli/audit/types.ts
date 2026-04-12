@@ -12,6 +12,7 @@ export interface AuditFailure {
   check: string;
   message: string;
   evidence?: string;
+  howToFix?: string;
 }
 
 export interface AuditScope {
@@ -24,6 +25,7 @@ export interface AuditConcern {
   score: number;
   findings: string[];
   recommendations: string[];
+  howToFix: string[];
 }
 
 export type AuditConcernKey =
@@ -106,4 +108,5 @@ export interface QualityCheckResult {
   score: number;
   findings: string[];
   recommendations: string[];
+  howToFix?: string[];
 }

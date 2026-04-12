@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { runAudit } from "../../src/cli/audit/audit.js";
 import { BUILD_CHECKS } from "../../src/cli/audit/build-checks.js";
+import { QUALITY_CHECKS } from "../../src/cli/audit/quality-checks.js";
 import { createFS } from "../../src/cli/facts/fs.js";
 import type { AuditContext, ProjectStructure } from "../../src/cli/audit/types.js";
 import type { ReadonlyFS, ProjectFacts, AgentFacts, AgentProfile } from "../../src/cli/types.js";
@@ -322,9 +323,51 @@ describe("audit JSON contract", () => {
       assert.ok(typeof c.score === "number", `${key}.score should be a number`);
       assert.ok(Array.isArray(c.findings), `${key}.findings should be an array`);
       assert.ok(Array.isArray(c.recommendations), `${key}.recommendations should be an array`);
+      assert.ok(Array.isArray(c.howToFix), `${key}.howToFix should be an array`);
     }
 
     assert.ok(report.overall.grade !== null);
     assert.ok(typeof report.overall.qualityScore === "number");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Test 7: build failure howToFix - required-dirs check includes actionable fix
+// ---------------------------------------------------------------------------
+describe("build failure howToFix", () => {
+  it("required-dirs failure includes howToFix with mkdir instruction", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "required-dirs")!;
+    const ctx = makeCtx({
+      fs: stubFS({
+        exists: (path: string) => path !== ".goat-flow/footguns",
+        listDir: (path: string) => path.includes("footguns") ? [] : ["file"],
+      }),
+    });
+    const result = check.run(ctx);
+    assert.notEqual(result, null, "Should fail when required dir is missing");
+    assert.ok(result!.howToFix, "Failure should include howToFix");
+    assert.ok(result!.howToFix!.includes("mkdir"), `howToFix should reference mkdir: ${result!.howToFix}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Test 8: quality recommendation howToFix - architecture-exists includes path
+// ---------------------------------------------------------------------------
+describe("quality recommendation howToFix", () => {
+  it("architecture-exists failure includes howToFix with .goat-flow/ path", () => {
+    const check = QUALITY_CHECKS.find((c) => c.id === "architecture-exists")!;
+    const ctx = makeCtx({
+      facts: {
+        ...makeCtx().facts,
+        shared: {
+          ...makeCtx().facts.shared,
+          architecture: { exists: false, lineCount: 0 },
+        },
+      },
+    });
+    const result = check.run(ctx);
+    assert.ok(result.howToFix, "Quality result should include howToFix");
+    assert.ok(result.howToFix!.length > 0, "howToFix should have entries");
+    assert.ok(result.howToFix![0].includes(".goat-flow/"), `howToFix should reference .goat-flow/ path: ${result.howToFix![0]}`);
   });
 });

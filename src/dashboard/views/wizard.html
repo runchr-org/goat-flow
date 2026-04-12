@@ -31,7 +31,7 @@
             style="font-size: 20px; font-weight: 500"
             x-text="
                 !report ? 'Setup GOAT Flow' :
-                report.agents.some(a => a.score.percentage < 100) ? 'Fix Issues' :
+                report.status === 'fail' ? 'Fix Issues' :
                 'GOAT Flow is up to date'
               "
           ></div>
@@ -40,7 +40,7 @@
             style="font-size: 12px; margin-top: 3px"
             x-text="
                 !report ? 'Configure GOAT Flow for this project' :
-                report.agents.some(a => a.score.percentage < 100) ? 'Your setup has issues - generate a fix prompt' :
+                report.status === 'fail' ? 'Audit has failures - generate a fix prompt' :
                 'All checks passing - generate maintenance prompt'
               "
           ></div>
@@ -67,10 +67,8 @@
               ></div>
               <div
                 style="font-size: 11px; margin-top: 2px"
-                x-text="report?.agents?.find(a => a.agent === agentId) ?
-                      report.agents.find(a => a.agent === agentId).score.grade + ' ' + report.agents.find(a => a.agent === agentId).score.percentage + '%' :
-                      'Not scanned'"
-                :style="{ color: report?.agents?.find(a => a.agent === agentId) ? '#4ade80' : '#52525b' }"
+                x-text="report ? (report.status === 'pass' ? 'Passing' : 'Failing') : 'Not audited'"
+                :style="{ color: report ? (report.status === 'pass' ? '#4ade80' : '#f87171') : '#52525b' }"
               ></div>
             </div>
           </template>

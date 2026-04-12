@@ -1,6 +1,7 @@
 /**
- * Composes setup, fix, and redirect prompts from scan results.
+ * Composes setup, fix, and redirect prompts from internal scan results.
  * This is the main policy layer that turns rubric failures, detected signals, and template refs into agent-facing task lists.
+ * User-facing output references `goat-flow audit` as the verification command.
  */
 import type {
   ScanReport,
@@ -155,9 +156,7 @@ function renderAllPass(
   const lines: string[] = [];
   lines.push(`# GOAT Flow Setup - ${profile.name}`);
   lines.push("");
-  lines.push(
-    `All checks pass (${agentReport.score.grade}, ${agentReport.score.percentage}%).`,
-  );
+  lines.push("All audit checks pass.");
   lines.push("");
 
   // Summary of what's installed
@@ -177,9 +176,7 @@ function renderAllPass(
     if (skillCount > 0) lines.push(`- ${skillCount} skill checks passing`);
     if (hookCount > 0)
       lines.push(`- ${hookCount} hooks (deny, post-turn, format)`);
-    lines.push(
-      `- Score: ${agentReport.score.tiers.foundation.earned}/${agentReport.score.tiers.foundation.available} foundation, ${agentReport.score.tiers.standard.earned}/${agentReport.score.tiers.standard.available} standard`,
-    );
+    lines.push("- Audit: all build checks passing");
     lines.push("");
   }
 
@@ -204,7 +201,7 @@ function getTriggeredAntiPatterns(
 
 /** Render short fix summary line. */
 function renderShortFixSummaryLine(
-  agentReport: AgentReport,
+  _agentReport: AgentReport,
   failedCount: string,
   triggeredCount: number,
 ): string {
@@ -212,7 +209,7 @@ function renderShortFixSummaryLine(
     triggeredCount > 0
       ? `${failedCount} checks + ${triggeredCount} anti-patterns remaining.`
       : `${failedCount} checks remaining.`;
-  return `This project scores **${agentReport.score.grade}** (${agentReport.score.percentage}%). ${countText}`;
+  return `${countText} Run \`${getCliCommand()} audit .\` after fixing to verify.`;
 }
 
 /** Find recommendation action. */
@@ -379,16 +376,13 @@ function buildCommandSummary(
 function renderTargetedFixHeader(
   lines: string[],
   profileName: string,
-  agentReport: AgentReport,
+  _agentReport: AgentReport,
   vars: PromptVariables,
 ): void {
   lines.push(`# GOAT Flow Setup - ${profileName}`);
   lines.push("");
   lines.push(
-    `This project scores **${agentReport.score.grade}** (${agentReport.score.percentage}%) for ${profileName}.`,
-  );
-  lines.push(
-    `**${vars.failedCount}** checks need attention out of ${vars.totalCount} total.`,
+    `**${vars.failedCount}** checks need attention out of ${vars.totalCount} total. Run \`${getCliCommand()} audit .\` after fixing to verify.`,
   );
   lines.push("");
   lines.push(`**Stack:** ${vars.languages}`);
@@ -849,7 +843,7 @@ export function composeMultiAgentSetup(
   );
   renderMultiAgentFoundationSections(lines, agentIds, languages);
   lines.push(
-    `**GATE:** Run \`${getCliCommand()} scan .\` - foundation tier must be 100% for all agents.`,
+    `**GATE:** Run \`${getCliCommand()} audit .\` - all foundation checks must pass for all agents.`,
   );
   lines.push("");
   renderMultiAgentSharedSection(
@@ -857,7 +851,7 @@ export function composeMultiAgentSetup(
     "## Standard (shared across all agents)",
     [...standardShared, ...languageRefs, ...signalRefs],
     languages,
-    `**GATE:** Run \`${getCliCommand()} scan .\` - target 100% across all agents.`,
+    `**GATE:** Run \`${getCliCommand()} audit .\` - all checks must pass across all agents.`,
     true,
   );
 
@@ -1023,7 +1017,7 @@ function renderSetupRedirect(
     lines.push("");
     if (agentReport) {
       lines.push(
-        `This project scores **${agentReport.score.grade}** (${agentReport.score.percentage}%) - it needs a full setup pass.`,
+        "This project has setup issues - it needs a full setup pass. Run `" + getCliCommand() + " audit .` after fixing to verify.",
       );
     } else {
       lines.push(

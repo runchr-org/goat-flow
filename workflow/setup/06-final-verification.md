@@ -2,18 +2,20 @@
 
 This is the only setup gate. The goal is simple: `goat-flow audit . --agent {agent}` passes and the created file set matches `workflow/setup/reference/project-structure.json`.
 
-## Scanner
+## Audit
 
 Run `goat-flow audit . --agent {agent}` and fix all failures until it passes.
 
-The `--agent` flag scopes the scan to one agent's surfaces: it checks that agent's instruction file, skills directory, hooks, and settings. It does NOT check other agents' files. For multi-agent projects, run the scan once per agent.
+The `--agent` flag scopes the audit to one agent's surfaces: it checks that agent's instruction file, skills directory, hooks, and settings. It does NOT check other agents' files. For multi-agent projects, run the audit once per agent.
 
-No build/test/lint requirement. No separate human checklist. Fix scanner findings until the current combined scanner reaches 100%.
+No build/test/lint requirement. No separate human checklist. Fix audit failures until `goat-flow audit .` passes.
+
+`goat-flow critique` is optional - it generates an agent-driven review prompt but is not required for setup completion. `goat-flow audit --quality` is also optional - it provides advisory quality scores but does not affect the pass/fail result.
 
 **If a check cannot be fixed** (binary not installed locally, CI tool unavailable, platform constraint), document it as a known exception in the setup session log:
 > `Known exception: check [ID] - [reason it can't be fixed]. Follow-up: [action to resolve later, or "accepted as permanent exception"].`
 
-Do NOT silently skip unfixable checks. The exception must be visible in the session log so the next agent knows why the scanner isn't at 100%.
+Do NOT silently skip unfixable checks. The exception must be visible in the session log so the next agent knows why the audit isn't passing.
 
 ## Stale-reference reconciliation
 
@@ -110,7 +112,7 @@ For each detected language with source files but no test files, note it in the g
 Use one shared file: `.goat-flow/logs/sessions/YYYY-MM-DD-setup.md`
 
 - Earlier step markers stay in this file
-- Finalise it here with the scanner score, any fixes made, the file manifest summary, the gap report, and remaining follow-ups
+- Finalise it here with the audit result, any fixes made, the file manifest summary, the gap report, and remaining follow-ups
 - Record time and tokens using this format:
   - `**Time:** [elapsed] | **Tokens:** [count or unavailable]`
 

@@ -28,6 +28,9 @@ function renderTextScope(name: string, scope: AuditScope): string {
   }
   for (const f of scope.failures) {
     lines.push(`  ${RED}x ${f.check}: ${f.message}${RESET}`);
+    if (f.howToFix) {
+      lines.push(`    ${CYAN}-> ${f.howToFix}${RESET}`);
+    }
   }
   return lines.join("\n");
 }
@@ -76,8 +79,11 @@ export function renderAuditText(report: AuditReport): string {
         lines.push(`    ${DIM}${finding}${RESET}`);
       }
       if (concern.recommendations.length > 0) {
-        for (const rec of concern.recommendations) {
-          lines.push(`    ${YELLOW}-> ${rec}${RESET}`);
+        for (let i = 0; i < concern.recommendations.length; i++) {
+          lines.push(`    ${YELLOW}-> ${concern.recommendations[i]}${RESET}`);
+          if (concern.howToFix[i]) {
+            lines.push(`       ${CYAN}Fix: ${concern.howToFix[i]}${RESET}`);
+          }
         }
       }
       lines.push("");
@@ -114,6 +120,9 @@ function renderMdScope(name: string, scope: AuditScope): string {
   }
   for (const f of scope.failures) {
     lines.push(`- :x: **${f.check}**: ${f.message}`);
+    if (f.howToFix) {
+      lines.push(`  - *Fix:* ${f.howToFix}`);
+    }
   }
   return lines.join("\n");
 }
@@ -143,8 +152,11 @@ export function renderAuditMarkdown(report: AuditReport): string {
       for (const finding of concern.findings) {
         lines.push(`- ${finding}`);
       }
-      for (const rec of concern.recommendations) {
-        lines.push(`- *Recommendation:* ${rec}`);
+      for (let i = 0; i < concern.recommendations.length; i++) {
+        lines.push(`- *Recommendation:* ${concern.recommendations[i]}`);
+        if (concern.howToFix[i]) {
+          lines.push(`  - *Fix:* ${concern.howToFix[i]}`);
+        }
       }
       lines.push("");
     }

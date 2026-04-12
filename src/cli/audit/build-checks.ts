@@ -22,6 +22,7 @@ const requiredFilesExist: BuildCheck = {
       check: "Required files",
       message: `Missing: ${missing.join(", ")}`,
       evidence: missing[0],
+      howToFix: `Create ${missing.join(", ")} by running \`goat-flow setup\` or creating them manually.`,
     };
   },
 };
@@ -39,6 +40,7 @@ const requiredDirsExist: BuildCheck = {
       check: "Required directories",
       message: `Missing: ${missing.join(", ")}`,
       evidence: missing[0],
+      howToFix: `Create the missing ${missing.length === 1 ? "directory" : "directories"}: ${missing.map((d) => `\`mkdir -p ${d}\``).join(", ")}.`,
     };
   },
 };
@@ -51,6 +53,7 @@ const configExistsAndParses: BuildCheck = {
       return {
         check: "Config file",
         message: ".goat-flow/config.yaml does not exist",
+        howToFix: "Create .goat-flow/config.yaml by running `goat-flow setup`.",
       };
     }
     if (ctx.config.parseError) {
@@ -58,6 +61,7 @@ const configExistsAndParses: BuildCheck = {
         check: "Config file",
         message: `Parse error: ${ctx.config.parseError}`,
         evidence: ".goat-flow/config.yaml",
+        howToFix: "Fix the YAML syntax error in .goat-flow/config.yaml.",
       };
     }
     return null;
@@ -74,12 +78,14 @@ const configVersionCurrent: BuildCheck = {
       return {
         check: "Config version",
         message: "version field missing from config.yaml",
+        howToFix: `Add \`version: "${RUBRIC_VERSION}"\` to .goat-flow/config.yaml.`,
       };
     }
     if (version !== RUBRIC_VERSION) {
       return {
         check: "Config version",
         message: `Config version ${version} does not match current ${RUBRIC_VERSION}`,
+        howToFix: `Update the version field in .goat-flow/config.yaml to "${RUBRIC_VERSION}".`,
       };
     }
     return null;
@@ -98,6 +104,7 @@ const agentsSupportedValues: BuildCheck = {
     return {
       check: "Configured agents",
       message: `Unsupported agent values: ${unknown.join(", ")}`,
+      howToFix: "Remove unsupported values from the agents list in .goat-flow/config.yaml. Supported: claude, codex, gemini.",
     };
   },
 };
@@ -122,6 +129,7 @@ const canonicalSkillsExist: BuildCheck = {
       check: "Canonical skills",
       message: `Missing skill files: ${missingByAgent.join(", ")}`,
       evidence: missingByAgent[0],
+      howToFix: "Install missing skills by running `goat-flow setup` or creating the SKILL.md files in the agent's skills directory.",
     };
   },
 };
@@ -143,6 +151,7 @@ const skillVersionsPresent: BuildCheck = {
       check: "Skill versions",
       message: `Missing goat-flow-skill-version: ${noVersion.join(", ")}`,
       evidence: noVersion[0],
+      howToFix: "Add a `goat-flow-skill-version: X.Y.Z` header to each SKILL.md that is missing one.",
     };
   },
 };
@@ -163,6 +172,7 @@ const instructionFilesExist: BuildCheck = {
     return {
       check: "Instruction files",
       message: `Missing: ${missing.join(", ")}`,
+      howToFix: "Create the instruction file by running `goat-flow setup` or creating it manually.",
     };
   },
 };
@@ -185,10 +195,16 @@ const noStaleSkillDirs: BuildCheck = {
       }
     }
     if (staleFound.length === 0) return null;
+    const stalePaths = staleFound.map((s) => {
+      const [agent, name] = s.split(":");
+      const af = ctx.agents.find((a) => a.agent.id === agent);
+      return af ? `${af.agent.skillsDir}/${name}` : name;
+    });
     return {
       check: "Stale skill directories",
       message: `Found stale directories: ${staleFound.join(", ")}`,
       evidence: staleFound[0],
+      howToFix: `Remove the stale ${staleFound.length === 1 ? "directory" : "directories"}: ${stalePaths.map((p) => `\`rm -rf ${p}\``).join(", ")}.`,
     };
   },
 };
@@ -213,6 +229,7 @@ const noWorkflowPathLeaks: BuildCheck = {
       check: "Path integrity",
       message: `Skills containing workflow/ paths: ${leaks.join(", ")}`,
       evidence: leaks[0],
+      howToFix: "Replace workflow/ paths in skill files with .goat-flow/ paths. Workflow paths are framework-internal and don't exist in target projects.",
     };
   },
 };
@@ -232,6 +249,7 @@ const toolchainPresent: BuildCheck = {
     return {
       check: "Toolchain commands",
       message: `Missing toolchain commands: ${missing.join(", ")}`,
+      howToFix: `Add the missing ${missing.join(", ")} ${missing.length === 1 ? "command" : "commands"} to the toolchain section of .goat-flow/config.yaml.`,
     };
   },
 };
@@ -250,6 +268,7 @@ const agentSettingsParse: BuildCheck = {
     return {
       check: "Agent settings",
       message: `Invalid settings for: ${invalid.join(", ")}`,
+      howToFix: `Fix the JSON syntax in the settings file for ${invalid.join(", ")}.`,
     };
   },
 };
@@ -270,6 +289,7 @@ const hookFilesExist: BuildCheck = {
     return {
       check: "Hook files",
       message: `Missing hook files: ${missing.join(", ")}`,
+      howToFix: "Create a deny hook file or add deny patterns to the agent's settings file.",
     };
   },
 };
@@ -306,6 +326,7 @@ const hookScriptsSyntaxValid: BuildCheck = {
       check: "Hook syntax",
       message: `bash -n failed: ${failures.join(", ")}`,
       evidence: failures[0],
+      howToFix: `Fix the bash syntax errors in ${failures.join(", ")}. Run \`bash -n <file>\` to see details.`,
     };
   },
 };
@@ -324,6 +345,7 @@ const denyPatternsRegistered: BuildCheck = {
     return {
       check: "Deny patterns",
       message: `No deny patterns registered for: ${noDeny.join(", ")}`,
+      howToFix: "Register deny patterns in the agent's settings file or create a deny hook script in the agent's hooks directory.",
     };
   },
 };

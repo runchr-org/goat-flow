@@ -1044,6 +1044,23 @@ function app() {
         this.currentAgent?.antiPatterns?.filter((ap) => ap.triggered) || []
       );
     },
+    /** Collect all failures across scopes for the audit detail view */
+    get allAuditFailures() {
+      if (!this.report?.scopes) return [];
+      const failures = [];
+      for (const [scope, data] of Object.entries(this.report.scopes)) {
+        for (const f of (data.failures || [])) {
+          failures.push({ ...f, scope });
+        }
+      }
+      return failures;
+    },
+    /** Selected audit scope for detail view */
+    auditDetailScope: null,
+    get currentScope() {
+      if (!this.report?.scopes || !this.auditDetailScope) return null;
+      return this.report.scopes[this.auditDetailScope] || null;
+    },
     get filteredRubricChecks() {
       return this.rubricChecks.filter((c) => {
         if (this.rubricFilter !== "all" && c.tier !== this.rubricFilter)

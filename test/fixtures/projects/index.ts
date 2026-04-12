@@ -1,0 +1,165 @@
+/**
+ * Shared test fixtures for audit/critique tests.
+ * Exports stubFS, stubConfig, stubAgentFacts, and pre-built project fixtures.
+ */
+import type { ReadonlyFS, ProjectFacts, AgentFacts, AgentProfile } from "../../../src/cli/types.js";
+import type { LoadedConfig, GoatFlowConfig } from "../../../src/cli/config/types.js";
+import type { AuditContext, ProjectStructure } from "../../../src/cli/audit/types.js";
+import { SKILL_NAMES } from "../../../src/cli/constants.js";
+
+export function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
+  return {
+    exists: () => true,
+    readFile: () => null,
+    lineCount: () => 0,
+    readJson: () => null,
+    listDir: () => [],
+    isExecutable: () => false,
+    glob: () => [],
+    ...overrides,
+  };
+}
+
+export function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
+  return {
+    exists: true,
+    valid: true,
+    config: {
+      version: "1.1.0",
+      footguns: { path: ".goat-flow/footguns/" },
+      lessons: { path: ".goat-flow/lessons/" },
+      decisions: { path: ".goat-flow/decisions/" },
+      tasks: { path: ".goat-flow/tasks/" },
+      logs: { path: ".goat-flow/logs/" },
+      agents: null,
+      skills: { install: "all" },
+      lineLimits: { target: 120, limit: 150 },
+      toolchain: { test: ["npm test"], lint: ["eslint ."], build: ["tsc"], package: [], format: [] },
+      askFirst: [],
+      userRole: "developer",
+      telemetry: false,
+      knownGaps: [],
+      skillOverrides: {},
+      ...overrides,
+    },
+    warnings: [],
+    errors: [],
+    parseError: null,
+  };
+}
+
+export const STUB_AGENT_PROFILE: AgentProfile = {
+  id: "claude",
+  name: "Claude Code",
+  instructionFile: "CLAUDE.md",
+  settingsFile: ".claude/settings.json",
+  skillsDir: ".claude/skills",
+  hooksDir: ".claude/hooks",
+  denyMechanism: { type: "settings-deny", path: ".claude/settings.json" },
+  localPattern: "*/CLAUDE.md",
+  hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
+};
+
+export function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
+  return {
+    agent: STUB_AGENT_PROFILE,
+    instruction: { exists: true, content: "# Test", lineCount: 50, sections: new Map() },
+    settings: { exists: true, valid: true, parsed: {}, hasDenyPatterns: true },
+    skills: {
+      installedDirs: [],
+      found: [...SKILL_NAMES],
+      missing: [],
+      allPresent: true,
+      versions: {},
+      outdatedCount: 0,
+      hasDispatcher: true,
+      quality: {
+        withStep0: 0, withHumanGate: 0, withConstraints: 0, withPhases: 0,
+        withConversational: 0, withChoices: 0, withOutputFormat: 0, withSharedConventions: 0,
+        malformedFenceCount: 0, unadaptedCount: 0, adaptCommentCount: 0, total: 0,
+      },
+    },
+    hooks: {
+      denyExists: true, denyHasBlocks: true, denyIsConfigBased: false,
+      denyUsesJq: false, denyHandlesChaining: false, denyBlocksRmRf: true,
+      denyBlocksForcePush: true, denyBlocksChmod: true, denyBlocksPipeToShell: false,
+      denyBlocksCloudDestructive: false, postTurnExists: false, postTurnRegistered: false,
+      postTurnRegisteredPath: null, postTurnExecutable: false, postTurnExitsZero: false,
+      postTurnHasValidation: false, postTurnSwallowsFailures: false,
+      compactionHookExists: false, absolutePathHooks: [], readDenyCoversSecrets: false,
+    },
+    deny: { gitCommitBlocked: false, gitPushBlocked: false },
+    router: { exists: true, paths: [], resolved: 0, unresolved: [] },
+    askFirst: { exists: false, paths: [], resolved: 0, unresolved: [] },
+    localContext: { files: [], warranted: [], missing: [] },
+    ...overrides,
+  };
+}
+
+export const STUB_STRUCTURE: ProjectStructure = {
+  required_files: [".goat-flow/config.yaml", ".goat-flow/architecture.md"],
+  required_dirs: [".goat-flow/footguns/", ".goat-flow/lessons/"],
+  skills: {
+    canonical: [...SKILL_NAMES],
+    stale_names: ["goat-audit", "goat-investigate"],
+    stale_generic: ["audit", "review"],
+  },
+  agents: {},
+};
+
+export function makeSharedFacts(): ProjectFacts["shared"] {
+  return {
+    footguns: {
+      exists: true, hasEvidence: false, entryCount: 0, labelCount: 0,
+      hasEvidenceLabels: false, dirMentions: new Map(), staleRefs: [],
+      invalidLineRefs: [], duplicateSurfacePaths: [], totalRefs: 0,
+      validRefs: 0, formatDiagnostic: null, path: ".goat-flow/footguns/",
+    },
+    lessons: {
+      exists: true, hasEntries: false, entryCount: 0, staleRefs: [],
+      duplicateSurfacePaths: [], formatDiagnostic: null, path: ".goat-flow/lessons/",
+    },
+    decisions: { dirExists: true, fileCount: 0, path: ".goat-flow/decisions/", hasRealContent: false },
+    config: { exists: true, valid: true, warningCount: 0, errorCount: 0, parseError: null, lineLimits: { target: 120, limit: 150 }, userRole: "developer" },
+    architecture: { exists: true, lineCount: 50 },
+    ignoreFiles: { copilotignore: false, cursorignore: false, geminiignore: false },
+    gitignore: { exists: true, hasRequiredEntries: true },
+    preflightScript: { exists: false },
+    contextValidation: { exists: false },
+    skillConventions: { exists: true },
+    localInstructions: {
+      dirExists: false, location: null, aiDirExists: false, githubDirExists: false,
+      duplicateSurfacePaths: [], fileCount: 0, hasRouter: false, hasValidRouter: false,
+      routerNeedsFix: null, hasConventions: false, conventionsHasContent: false,
+      hasFrontend: false, hasBackend: false, hasCodeReview: false, hasGitCommit: false,
+      conventionsContent: null, localFileSizes: [], path: "",
+    },
+    gitCommitInstructions: { exists: false },
+    localInstructionsLineCount: 0,
+  };
+}
+
+export function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
+  return {
+    projectPath: "/tmp/test-project",
+    facts: {
+      root: "/tmp/test-project",
+      stack: {
+        languages: [], buildCommand: null, testCommand: null,
+        lintCommand: null, formatCommand: null, sourceFileCount: 0,
+        signals: {
+          codeGenTools: [], deployPlatforms: [], llmIntegration: false,
+          staticAnalysis: [], complianceSignals: false, formatterGaps: [],
+        },
+      },
+      agents: [],
+      shared: makeSharedFacts(),
+    } as ProjectFacts,
+    config: stubConfig(),
+    fs: stubFS(),
+    structure: STUB_STRUCTURE,
+    agents: [stubAgentFacts()],
+    agentFilter: null,
+    ...overrides,
+  };
+}
