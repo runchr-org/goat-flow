@@ -13,7 +13,6 @@ import type {
   AuditContext,
   AuditConcern,
   AuditConcernKey,
-  AuditFailure,
   AuditReport,
   AuditScope,
   AuditScopeName,

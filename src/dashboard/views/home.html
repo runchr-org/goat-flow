@@ -176,7 +176,7 @@
       </button>
     </div>
 
-    <!-- Agent cards -->
+    <!-- Audit scope cards -->
     <div x-show="report" style="margin-bottom: 20px">
       <div
         style="
@@ -187,7 +187,7 @@
         "
       >
         <span class="gf-text-primary" style="font-size: 20px; font-weight: 600"
-          >Agent Scores</span
+          >Audit</span
         >
         <button
           @click="runAudit()"
@@ -198,18 +198,19 @@
         </button>
       </div>
       <div
-        style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px"
+        style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px"
       >
-        <template x-for="agent in (report?.agents || [])" :key="agent.agent">
+        <template
+          x-for="scopeName in ['setup', 'project', 'integration']"
+          :key="'home-' + scopeName"
+        >
           <button
-            @click="activeView = 'audit'; auditDetailAgent = agent.agent; selectedAgent = agent.agent"
+            @click="activeView = 'audit'; auditDetailScope = scopeName"
             class="gf-card gf-card-clickable"
             style="
               padding: 20px 24px;
               cursor: pointer;
-              transition:
-                border-color 0.15s ease,
-                transform 0.1s ease;
+              transition: border-color 0.15s ease;
             "
             @mouseenter="$el.style.borderColor = 'var(--accent-border)'"
             @mouseleave="$el.style.borderColor = ''"
@@ -219,100 +220,46 @@
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                margin-bottom: 12px;
+                margin-bottom: 8px;
               "
             >
               <span
                 class="gf-text-primary"
-                style="font-size: 16px; font-weight: 600"
-                x-text="agent.agentName"
+                style="font-size: 16px; font-weight: 600; text-transform: capitalize"
+                x-text="scopeName"
               ></span>
               <span
-                class="gf-grade"
-                :class="agent.score.grade === 'insufficient-data' ? 'gf-grade-na' : 'gf-grade-' + (agent.score.grade || '').toLowerCase()"
-                style="width: 32px; height: 32px; font-size: 24px"
-                x-text="agent.score.grade === 'insufficient-data' ? '?' : agent.score.grade"
+                style="
+                  font-size: 13px;
+                  font-weight: 600;
+                  padding: 2px 8px;
+                  border-radius: 4px;
+                "
+                :style="{
+                  background: report?.scopes?.[scopeName]?.status === 'pass' ? '#14532d' : '#7f1d1d',
+                  color: report?.scopes?.[scopeName]?.status === 'pass' ? '#4ade80' : '#f87171',
+                }"
+                x-text="report?.scopes?.[scopeName]?.status === 'pass' ? 'PASS' : 'FAIL'"
               ></span>
             </div>
-            <div
-              style="
-                display: flex;
-                align-items: baseline;
-                gap: 8px;
-                margin-bottom: 12px;
-              "
-            >
-              <span
-                style="font-size: 16px; font-weight: 600"
-                :style="{ color: gradeColor(agent.score.grade) }"
-                x-text="`${agent.score.percentage}%`"
-              ></span>
+            <!-- Check count -->
+            <div class="gf-text-muted" style="font-size: 12px; margin-top: 2px">
               <span
                 class="gf-text-secondary"
-                style="font-size: 12px"
-                x-text="`${agent.checks.filter(c => !c.hidden && c.status !== 'na').length} checks`"
+                x-text="`${(report?.scopes?.[scopeName]?.checks || []).filter(c => c.status === 'pass').length}/${(report?.scopes?.[scopeName]?.checks || []).length} checks passed`"
               ></span>
             </div>
-            <div style="display: flex; flex-direction: column; gap: 8px">
-              <template
-                x-for="tier in ['foundation', 'standard'].filter(t => agent.score.tiers[t]?.available > 0)"
-                :key="agent.agent + '-' + tier"
-              >
-                <div style="display: flex; align-items: center; gap: 8px">
-                  <span
-                    class="gf-text-secondary"
-                    style="font-size: 12px; width: 70px"
-                    x-text="tier"
-                  ></span>
-                  <div
-                    class="gf-bar-track"
-                    style="
-                      flex: 1;
-                      height: 4px;
-                      border-radius: 2px;
-                      overflow: hidden;
-                    "
-                  >
-                    <div
-                      :style="`width:${agent.score.tiers[tier].percentage}%;height:4px;border-radius:2px;background:${agent.score.tiers[tier].percentage > 80 ? '#4ade80' : agent.score.tiers[tier].percentage >= 50 ? '#fb923c' : '#f87171'}`"
-                    ></div>
-                  </div>
-                  <span
-                    class="gf-text-muted"
-                    style="font-size: 12px; width: 32px; text-align: right"
-                    x-text="`${agent.score.tiers[tier].percentage}%`"
-                  ></span>
-                </div>
-              </template>
-            </div>
-          </button>
-        </template>
-        <!-- Unscanned installed agents (e.g. Copilot) -->
-        <template
-          x-for="agent in allAgents.filter(a => a.installed && !(report?.agents || []).find(r => r.agent === a.id))"
-          :key="agent.id"
-        >
-          <div class="gf-card" style="padding: 20px 24px; opacity: 0.5">
-            <div
-              style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 12px;
-              "
+            <!-- Summary -->
+            <template
+              x-for="[key, value] in Object.entries(report?.scopes?.[scopeName]?.summary || {})"
+              :key="'home-' + scopeName + '-' + key"
             >
-              <span
-                class="gf-text-disabled"
-                style="font-size: 16px; font-weight: 600"
-                x-text="{ claude: 'Claude Code', codex: 'Codex', gemini: 'Gemini CLI', copilot: 'Copilot' }[agent.id] || agent.id"
-              ></span>
-            </div>
-            <div
-              class="gf-text-disabled"
-              style="font-size: 11px; font-style: italic"
-              x-text="agent.version ? agent.version + ' (no audit support)' : 'No audit support'"
-            ></div>
-          </div>
+              <div class="gf-text-muted" style="font-size: 12px; margin-top: 2px">
+                <span style="text-transform: capitalize" x-text="key"></span>:
+                <span class="gf-text-secondary" x-text="value"></span>
+              </div>
+            </template>
+          </button>
         </template>
       </div>
     </div>

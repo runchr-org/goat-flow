@@ -2,7 +2,6 @@ function app() {
   return {
     // --- Core state ---
     report: window.__GOAT_FLOW_REPORT__ || null,
-    selectedAgent: window.__GOAT_FLOW_REPORT__?.agents?.[0]?.agent || null,
     projectPath: window.__GOAT_FLOW_DEFAULT_PATH__ || ".",
     dashboardVersion: window.__GOAT_FLOW_VERSION__ || "0.0.0",
     darkMode:
@@ -21,7 +20,6 @@ function app() {
     userRole: "",
     workspacePanel: "prompts",
     sidebarCollapsed: false,
-    auditDetailAgent: null,
     get projectName() {
       return (
         this.projectPath.split("/").filter(Boolean).pop() || this.projectPath
@@ -320,11 +318,7 @@ function app() {
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         this.report = data;
-        this.selectedAgent = data.agents?.[0]?.agent || null;
         this.lastAuditTime = new Date();
-        if (!this.auditDetailAgent) {
-          this.auditDetailAgent = data.agents?.[0]?.agent || null;
-        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         this.showToast(
@@ -604,15 +598,6 @@ function app() {
       this.toast = msg;
       this.toastError = isError;
       setTimeout(() => (this.toast = ""), 4000);
-    },
-
-    // -- Fix prompts --
-    buildFixPrompt(rec) {
-      return `Fix ${rec.checkId} (${rec.category}): ${rec.action}\n\nVerify: goat-flow audit ${this.projectPath} --agent ${this.selectedAgent}`;
-    },
-    copyFixPrompt(rec) {
-      this.copyText(this.buildFixPrompt(rec));
-      // copied - button gives inline feedback
     },
 
     // -- Terminal --
@@ -1014,29 +999,6 @@ function app() {
     },
 
     // -- Computed Properties --
-    get currentAgent() {
-      return (
-        this.report?.agents?.find(
-          (a) => a.agent === (this.auditDetailAgent || this.selectedAgent),
-        ) || null
-      );
-    },
-    get triggeredAPs() {
-      return (
-        this.currentAgent?.antiPatterns?.filter((ap) => ap.triggered) || []
-      );
-    },
-    /** Collect all failures across scopes for the audit detail view */
-    get allAuditFailures() {
-      if (!this.report?.scopes) return [];
-      const failures = [];
-      for (const [scope, data] of Object.entries(this.report.scopes)) {
-        for (const f of data.failures || []) {
-          failures.push({ ...f, scope });
-        }
-      }
-      return failures;
-    },
     /** Selected audit scope for detail view */
     auditDetailScope: null,
     get currentScope() {
@@ -1044,18 +1006,6 @@ function app() {
       return this.report.scopes[this.auditDetailScope] || null;
     },
     // -- Helpers --
-    gradeColor(grade) {
-      return (
-        {
-          A: "#4ade80",
-          B: "#facc15",
-          C: "#fb923c",
-          D: "#f87171",
-          F: "#f87171",
-          "insufficient-data": "#71717a",
-        }[grade] || "#71717a"
-      );
-    },
     formatTimeAgo(date) {
       if (!date) return "";
       const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);

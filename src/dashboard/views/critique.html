@@ -1,133 +1,263 @@
-<!-- Critique View -->
+<!-- ═══ Critique View ═══ -->
 <div
   x-show="activeView === 'critique'"
   x-cloak
-  class="h-full overflow-y-auto p-6"
+  style="height: calc(100vh - 3.5rem); overflow-y: auto"
 >
-  <div class="max-w-4xl mx-auto space-y-6">
-    <div>
-      <h2
-        class="text-xl font-bold mb-1"
-        :style="darkMode ? 'color:#e4e4e7' : 'color:#18181b'"
-      >
-        Critique
-      </h2>
-      <p class="text-sm" :style="darkMode ? 'color:#a1a1aa' : 'color:#71717a'">
-        Generate a structured critique prompt for a selected agent to evaluate
-        goat-flow quality and usefulness on this project. This is
-        opinion-gathering, not machine validation.
-      </p>
-    </div>
-
-    <!-- Agent Picker + Generate -->
-    <div class="flex items-center gap-3 flex-wrap">
-      <label
-        class="text-sm font-medium"
-        :style="darkMode ? 'color:#d4d4d8' : 'color:#3f3f46'"
-        >Agent:</label
-      >
-      <div class="gf-asel">
-        <template x-for="a in ['claude', 'codex', 'gemini']" :key="a">
-          <button
-            @click="critiqueAgent = a"
-            class="gf-ab"
-            :class="critiqueAgent === a && 'gf-ab-active'"
-            x-text="a"
-          ></button>
-        </template>
-      </div>
-      <button
-        @click="generateCritique()"
-        :disabled="critiqueLoading"
-        class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-        :style="darkMode
-          ? 'background:#3b82f6;color:#fff;'
-          : 'background:#2563eb;color:#fff;'"
-        :class="critiqueLoading && 'opacity-50 cursor-not-allowed'"
-      >
-        <span x-show="!critiqueLoading">Generate</span>
-        <span x-show="critiqueLoading" x-cloak>Generating...</span>
-      </button>
-      <button
-        x-show="critiqueResult"
-        x-cloak
-        @click="generateCritique()"
-        :disabled="critiqueLoading"
-        class="px-3 py-1.5 rounded-lg text-sm transition-colors"
-        :style="darkMode
-          ? 'background:#27272a;color:#a1a1aa;border:1px solid #3f3f46;'
-          : 'background:#f4f4f5;color:#71717a;border:1px solid #e4e4e7;'"
-      >
-        Regenerate
-      </button>
-    </div>
-
-    <!-- Audit Summary Badge -->
-    <div x-show="critiqueResult" x-cloak>
-      <div class="flex items-center gap-2 text-sm">
-        <span
-          class="font-medium"
-          :style="darkMode ? 'color:#d4d4d8' : 'color:#3f3f46'"
-          >Audit:</span
-        >
-        <span
-          class="px-2 py-0.5 rounded text-xs font-mono"
-          :class="{
-            'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400': critiqueResult?.auditStatus === 'pass',
-            'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400': critiqueResult?.auditStatus === 'fail',
-            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400': critiqueResult?.auditStatus === 'unavailable',
-          }"
-          x-text="critiqueResult?.auditStatus?.toUpperCase()"
-        ></span>
-      </div>
-    </div>
-
-    <!-- Prompt Output -->
-    <div x-show="critiqueResult" x-cloak>
-      <!-- Action Bar -->
-      <div class="flex items-center gap-2 mb-2">
-        <button
-          @click="copyCritique()"
-          class="px-3 py-1 rounded text-sm transition-colors"
-          :style="darkMode
-            ? 'background:#27272a;color:#d4d4d8;border:1px solid #3f3f46;'
-            : 'background:#f4f4f5;color:#3f3f46;border:1px solid #e4e4e7;'"
-        >
-          <span x-text="critiqueCopyLabel"></span>
-        </button>
-        <button
-          @click="runCritiqueInTerminal()"
-          class="px-3 py-1 rounded text-sm transition-colors"
-          :style="darkMode
-            ? 'background:#27272a;color:#d4d4d8;border:1px solid #3f3f46;'
-            : 'background:#f4f4f5;color:#3f3f46;border:1px solid #e4e4e7;'"
-        >
-          Run in Terminal
-        </button>
-      </div>
-
-      <!-- Prompt Text -->
-      <pre
-        class="text-xs leading-relaxed p-4 rounded-lg overflow-x-auto whitespace-pre-wrap"
-        :style="darkMode
-          ? 'background:#0a0a0a;color:#d4d4d8;border:1px solid #27272a;'
-          : 'background:#fafafa;color:#3f3f46;border:1px solid #e4e4e7;'"
-        style="max-height: 70vh; overflow-y: auto"
-        x-text="critiqueResult?.prompt"
-      ></pre>
-    </div>
-
-    <!-- Empty state -->
+  <div style="max-width: 1100px; margin: 0 auto; padding: 20px 24px">
     <div
-      x-show="!critiqueResult && !critiqueLoading"
-      class="text-center py-16"
-      :style="darkMode ? 'color:#52525b' : 'color:#a1a1aa'"
+      class="gf-text-primary"
+      style="font-size: 20px; font-weight: 500; margin-bottom: 16px"
     >
-      <p class="text-lg mb-2">Click Generate to create a critique prompt</p>
-      <p class="text-sm">
-        The critique prompt asks the agent to test each skill on real code and
-        report findings with evidence.
-      </p>
+      Critique
+    </div>
+
+    <!-- Two columns -->
+    <div style="display: flex; gap: 16px; height: calc(100vh - 10rem)">
+      <!-- Left: Description + Agent selector + Audit status -->
+      <div
+        class="gf-card"
+        style="
+          width: 50%;
+          flex-shrink: 0;
+          padding: 16px 20px;
+          align-self: flex-start;
+        "
+      >
+        <!-- Description -->
+        <div style="margin-bottom: 16px">
+          <div
+            class="gf-text-primary"
+            style="font-size: 20px; font-weight: 500"
+          >
+            Generate Critique
+          </div>
+          <div
+            class="gf-text-muted"
+            style="font-size: 12px; margin-top: 3px"
+          >
+            Generate a structured critique prompt for a selected agent to evaluate goat-flow quality. This is opinion-gathering, not machine validation.
+          </div>
+        </div>
+
+        <!-- Agent selector strip -->
+        <div
+          class="gf-agent-strip"
+          style="padding: 0; border-top: none; margin-bottom: 16px"
+        >
+          <template
+            x-for="agentId in ['claude', 'codex', 'gemini']"
+            :key="'critique-' + agentId"
+          >
+            <div
+              @click="critiqueAgent = agentId"
+              class="gf-agent-card"
+              :class="critiqueAgent === agentId && 'gf-agent-card-sel'"
+            >
+              <div
+                class="gf-text-primary"
+                style="font-size: 13px; font-weight: 500"
+                x-text="agentId === 'claude' ? 'Claude Code' : agentId === 'codex' ? 'Codex' : 'Gemini CLI'"
+              ></div>
+              <div
+                style="font-size: 11px; margin-top: 2px"
+                x-text="report ? (report.status === 'pass' ? 'Passing' : 'Failing') : 'Not audited'"
+                :style="{ color: report ? (report.status === 'pass' ? '#4ade80' : '#f87171') : '#52525b' }"
+              ></div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Audit status summary -->
+        <div x-show="report">
+          <div
+            class="gf-text-secondary"
+            style="font-size: 13px; font-weight: 500; margin-bottom: 12px"
+          >
+            Audit status
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <template
+              x-for="scopeName in ['setup', 'project', 'integration']"
+              :key="'critique-scope-' + scopeName"
+            >
+              <div class="gf-detect-row">
+                <span
+                  class="gf-detect-label"
+                  style="text-transform: capitalize"
+                  x-text="scopeName"
+                ></span>
+                <span
+                  style="font-size: 12px; font-weight: 600"
+                  :style="{ color: report?.scopes?.[scopeName]?.status === 'pass' ? '#4ade80' : '#f87171' }"
+                  x-text="(() => { const sc = report?.scopes?.[scopeName]; if (!sc?.checks) return ''; const p = sc.checks.filter(c => c.status === 'pass').length; return p + '/' + sc.checks.length + ' passed'; })()"
+                ></span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Prompt card -->
+      <div
+        style="flex: 1; min-width: 0; display: flex; flex-direction: column"
+        x-effect="if (activeView === 'critique' && critiqueAgent && !critiqueResult && !critiqueLoading) { generateCritique(); }"
+      >
+        <div class="gf-prompt-card">
+          <!-- Header -->
+          <div class="gf-prompt-hdr">
+            <span
+              class="gf-text-primary"
+              style="font-size: 16px; font-weight: 600"
+              >Critique prompt</span
+            >
+            <div style="display: flex; align-items: center; gap: 8px">
+              <template x-if="!critiqueLoading && critiqueResult">
+                <div style="display: flex; gap: 8px">
+                  <button
+                    x-data="{ copied: false }"
+                    @click="copyCritique(); copied = true; setTimeout(() => copied = false, 1500)"
+                    class="gf-btn-copy"
+                    :style="{ background: copied ? '#14532d' : '', color: copied ? '#4ade80' : '', borderColor: copied ? '#166534' : '' }"
+                  >
+                    <span x-text="copied ? 'Copied' : 'Copy'"></span>
+                  </button>
+                  <button @click="generateCritique()" class="gf-btn-regen">
+                    Regenerate
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Terminal CTA -->
+          <template
+            x-if="!critiqueLoading && critiqueResult && terminalAvailable"
+          >
+            <div
+              class="gf-terminal-cta"
+              style="padding: 16px; border-radius: 0"
+            >
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 12px;
+                  margin-bottom: 8px;
+                "
+              >
+                <button
+                  @click="launchPreset(critiqueResult.prompt, activeRunner); activeView = 'workspace'"
+                  :disabled="launching || (terminalSessionId && !terminalEnded)"
+                  class="gf-btn-terminal-cta"
+                >
+                  <svg
+                    style="width: 16px; height: 16px"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8 5l8 7-8 7"
+                    />
+                  </svg>
+                  Run Critique in Terminal
+                </button>
+              </div>
+              <div
+                class="gf-text-muted"
+                style="font-size: 12px; line-height: 1.4"
+              >
+                Launches
+                <span
+                  x-text="activeRunner"
+                  class="gf-text-secondary"
+                  style="font-weight: 500"
+                ></span>
+                to critique the goat-flow setup on this project - tests each skill on real code and reports findings with evidence.
+              </div>
+            </div>
+          </template>
+
+          <!-- Generating state -->
+          <div
+            x-show="critiqueLoading"
+            style="
+              position: absolute;
+              inset: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 8px;
+            "
+          >
+            <svg
+              class="animate-spin"
+              style="width: 16px; height: 16px; color: #4ade80"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            <span class="gf-text-muted" style="font-size: 12px"
+              >Generating...</span
+            >
+          </div>
+
+          <!-- Prompt content -->
+          <template x-if="!critiqueLoading && critiqueResult">
+            <pre
+              class="gf-prompt-body"
+              x-text="critiqueResult.prompt"
+            ></pre>
+          </template>
+
+          <!-- Empty state -->
+          <p
+            x-show="!critiqueLoading && !critiqueResult"
+            class="gf-text-disabled"
+            style="
+              flex: 1;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 12px;
+            "
+          >
+            Select an agent to auto-generate the critique prompt.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div
+      class="gf-footer"
+      style="text-align: center; font-size: 11px; padding: 12px 0"
+    >
+      Built by
+      <a
+        href="https://www.blundergoat.com"
+        target="_blank"
+        class="gf-footer-link"
+        >BlunderGOAT</a
+      >
+      · <span x-text="dashboardVersion ? `v${dashboardVersion}` : ''"></span>
     </div>
   </div>
 </div>

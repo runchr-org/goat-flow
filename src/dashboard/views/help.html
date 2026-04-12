@@ -614,27 +614,6 @@
         </div>
         <div style="display: flex; gap: 10px; align-items: baseline">
           <button
-            @click="activeView = 'rubrics'; loadRubrics()"
-            class="gf-link"
-            style="
-              font-size: 12px;
-              font-weight: 500;
-              width: 100px;
-              flex-shrink: 0;
-              background: none;
-              border: none;
-              text-align: left;
-              padding: 0;
-            "
-          >
-            Rubrics
-          </button>
-          <span class="gf-text-muted" style="font-size: 12px"
-            >Browse all rubric checks and anti-patterns with tier filters</span
-          >
-        </div>
-        <div style="display: flex; gap: 10px; align-items: baseline">
-          <button
             @click="activeView = 'wizard'; detectStack()"
             class="gf-link"
             style="
