@@ -39,7 +39,7 @@
     ]
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/dashboard dist/",
     "test": "node --import tsx --test test/*/*.test.ts",
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/warn-node-pty.mjs",

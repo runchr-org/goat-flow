@@ -90,13 +90,10 @@ goat-flow's quality audit evaluates each concern and scores it independently.
 The agent can only work with what it sees. Stale architecture docs, dead router table paths, generic instruction files, and bloated context surfaces all degrade performance. The quality audit checks whether context surfaces are current, specific to this project, and referencing real files.
 
 **What goat-flow checks:**
-- Instruction file line count vs target (120) and hard limit (150)
-- Instruction file uses real project paths, not generic template fill
-- BAD/GOOD examples reference real project patterns
-- Architecture doc matches actual codebase structure
+- Instruction file line count vs configured target and hard limit (all configured agents)
 - Router table paths all resolve to real files
-- Footgun entries cite file:line evidence that still resolves
-- Lesson entries reference real incidents, not hypotheticals
+- Footgun entries cite file:line evidence where cited files still exist
+- Architecture doc exists and has substantive content (10+ lines)
 
 **Sources:**
 - Every source agrees context quality matters
@@ -111,11 +108,9 @@ The agent can only work with what it sees. Stale architecture docs, dead router 
 Constraints are the cheapest, most reliable layer of the harness. They cost zero tokens, produce zero false positives when well-designed, and prevent entire failure categories without any LLM involvement. Most teams skip this layer entirely.
 
 **What goat-flow checks:**
-- Ask First boundaries reference specific project risk areas (not generic boilerplate)
-- Deny patterns cover secrets and dangerous commands
-- Config has registered project-specific constraints (if the constraint framework is adopted)
-- **Detect unregistered linters from package manifests** - e.g. eslint in package.json, PHPStan in composer.json, or tsc in tsconfig.json but not registered as constraints. This is often the single most actionable finding: deterministic verification the project already has but isn't using.
-- No duplicate canonical surfaces creating split-brain guidance
+- Deny patterns cover secret file reads (per agent)
+- Deny patterns block rm -rf, force-push, chmod 777 (per agent)
+- Ask First boundaries configured (count > 0)
 
 **Sources:**
 - OpenAI Codex team: custom linters with error messages that include remediation instructions
@@ -129,11 +124,9 @@ Constraints are the cheapest, most reliable layer of the harness. They cost zero
 Verification loops are consistently reported as the single highest-impact harness pattern. An agent that can check its own output - run tests, validate schemas, lint code - before presenting results catches silent failures that otherwise compound through multi-step execution.
 
 **What goat-flow checks:**
-- Test command configured and runnable
-- Testing gates defined in milestone files
-- Commit and review guidance exists
-- Hooks registered AND present (no orphans, no stale registrations)
-- Verification hooks follow the "silent on success, loud on failure" pattern
+- Test command configured in config.yaml toolchain
+- Hook registrations and hook files are in sync (no orphans, no stale registrations)
+- Commit guidance exists in instruction file or project docs
 
 **Sources:**
 - Mitchell Hashimoto: "anytime you find an agent makes a mistake, you take the time to engineer a solution such that the agent never makes that mistake again"
@@ -148,10 +141,8 @@ Verification loops are consistently reported as the single highest-impact harnes
 Agents that run for minutes or hours need durable state. If the harness crashes mid-task, can the agent resume from where it left off, or does it restart from scratch? Without recovery mechanisms, long-running tasks become fragile and expensive.
 
 **What goat-flow checks:**
-- Milestone files exist and have recent checkbox activity (checked via git history)
-- Session logs exist and are recent
-- Handoff mechanism present for session continuity
-- Loop detection guidance present in execution loop (edit-same-file threshold prevents doom loops)
+- Milestone/task files exist in .goat-flow/tasks/ (count > 0)
+- Session logs exist in .goat-flow/logs/sessions/ (count > 0)
 
 **Sources:**
 - Anthropic: session durability and checkpoint-resume with external event log
@@ -165,10 +156,9 @@ Agents that run for minutes or hours need durable state. If the harness crashes 
 A harness that never learns is a harness that keeps making the same mistakes. The feedback loop is the mechanism that turns individual failures into permanent improvements - a footgun entry that leads to a new constraint, a lesson that changes the instruction file.
 
 **What goat-flow checks:**
-- Footgun entry count and recency relative to project age - a 6-month project with zero entries means the loop isn't running
-- Lesson entry count and recency
-- Footgun entries have corresponding Ask First boundaries or constraint registrations (checkable proxy for "loop closure")
-- Patterns documented and current
+- Footgun entry count (3+ entries for full score)
+- Lesson entry count (3+ entries for full score)
+- Decision records exist (1+ files for full score)
 
 **Sources:**
 - Mitchell Hashimoto: the core principle - "never make that mistake again"

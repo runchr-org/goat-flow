@@ -28,6 +28,14 @@ Multi-project browser. Lists all registered project paths with their latest audi
 
 Guided setup flow. Detects your project stack and existing configuration, lets you pick a target agent (Claude, Codex, Gemini), then generates a setup prompt you can preview and launch directly in a terminal session.
 
+### Critique
+
+Generate and view agent critique prompts. Select a target agent, generate the critique, and preview the full prompt with embedded audit results.
+
+### Settings
+
+Project settings and configuration viewer.
+
 ### Help
 
 Getting-started page for new users. Explains what goat-flow is, the audit/critique model, what skills and hooks do, the learning loop, and the execution loop. Accessible from the "?" button in the nav bar.
@@ -44,8 +52,16 @@ Getting-started page for new users. Explains what goat-flow is, the audit/critiq
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/audit` | POST | Run audit, return JSON results |
-| `/api/setup` | POST | Generate setup prompt |
-| `/api/critique` | POST | Generate critique prompt |
+| `/api/audit` | GET | Run audit, return JSON results |
+| `/api/setup` | GET | Generate setup prompt |
+| `/api/critique` | GET | Generate critique prompt |
+| `/api/setup/detect` | GET | Detect project stack and agents |
+| `/api/health` | GET | Health check |
+| `/api/rubrics` | GET | List all rubric checks and anti-patterns |
+| `/api/agents/installed` | GET | Detect installed agent runtimes |
+| `/api/projects/list` | GET | List registered projects |
+| `/api/projects/status` | GET | Project state classification |
 | `/api/terminal/create` | POST | Start a terminal session |
-| `/api/terminal/kill` | POST | End a terminal session |
+| `/api/terminal/list` | GET | List active terminal sessions |
+| `/api/terminal/sessions` | GET | Session metadata |
+| `/api/terminal/:id` | DELETE | End a terminal session |

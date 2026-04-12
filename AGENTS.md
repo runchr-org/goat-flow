@@ -87,6 +87,7 @@ Sub-agents: ONE objective, structured return (paths, evidence, confidence, next 
 | Resource | Path |
 |----------|------|
 | Architecture | `.goat-flow/architecture.md` |
+| Claude instructions | `CLAUDE.md` |
 | Scripts | `scripts/` |
 | Skills | `.agents/skills/` |
 | Templates | `.goat-flow/templates/` |

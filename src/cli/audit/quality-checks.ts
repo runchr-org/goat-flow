@@ -33,44 +33,58 @@ const instructionLineCount: QualityCheck = {
   concern: "context",
   weight: 2,
   run: (ctx) => {
+    const findings: string[] = [];
+    const recs: string[] = [];
+    const fixes: string[] = [];
+    let worstScore = 100;
     for (const af of ctx.agents) {
       if (!af.instruction.exists) {
-        return fail(
-          [`${af.agent.id}: no instruction file`],
-          ["Create instruction file for each configured agent"],
-          [
-            `Create ${af.agent.instructionFile} by running \`goat-flow setup\`.`,
-          ],
+        findings.push(`${af.agent.id}: no instruction file`);
+        recs.push(`Create ${af.agent.instructionFile}`);
+        fixes.push(
+          `Create ${af.agent.instructionFile} by running \`goat-flow setup\`.`,
         );
+        worstScore = 0;
+        continue;
       }
       const lines = af.instruction.lineCount;
       const target = ctx.config.config.lineLimits.target;
       const limit = ctx.config.config.lineLimits.limit;
       if (lines > limit) {
-        return partial(
-          30,
-          [`${af.agent.id}: ${lines} lines (exceeds hard limit ${limit})`],
-          [`Reduce instruction file to under ${target} lines`],
-          [
-            `Trim ${af.agent.instructionFile} to under ${target} lines. Move detailed reference material to .goat-flow/architecture.md.`,
-          ],
+        findings.push(
+          `${af.agent.id}: ${lines} lines (exceeds hard limit ${limit})`,
+        );
+        recs.push(
+          `Reduce ${af.agent.instructionFile} to under ${target} lines`,
+        );
+        fixes.push(
+          `Trim ${af.agent.instructionFile} to under ${target} lines. Move detailed reference material to .goat-flow/architecture.md.`,
+        );
+        worstScore = Math.min(worstScore, 30);
+      } else if (lines > target) {
+        findings.push(
+          `${af.agent.id}: ${lines} lines (over target ${target}, under limit ${limit})`,
+        );
+        recs.push(
+          `Consider trimming ${af.agent.instructionFile} to target ${target} lines`,
+        );
+        fixes.push(
+          `Trim ${af.agent.instructionFile} by moving verbose sections to .goat-flow/ reference files.`,
+        );
+        worstScore = Math.min(worstScore, 70);
+      } else {
+        findings.push(
+          `${af.agent.id}: ${lines} lines (under target ${target})`,
         );
       }
-      if (lines > target) {
-        return partial(
-          70,
-          [
-            `${af.agent.id}: ${lines} lines (over target ${target}, under limit ${limit})`,
-          ],
-          [`Consider trimming to target ${target} lines`],
-          [
-            `Trim ${af.agent.instructionFile} by moving verbose sections to .goat-flow/ reference files.`,
-          ],
-        );
-      }
-      return pass([`${af.agent.id}: ${lines} lines (under target ${target})`]);
     }
-    return pass(["No agents to check"]);
+    if (findings.length === 0) {
+      return pass(["No agents to check"]);
+    }
+    if (worstScore === 100) {
+      return pass(findings);
+    }
+    return partial(worstScore, findings, recs, fixes);
   },
 };
 

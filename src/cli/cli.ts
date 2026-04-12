@@ -39,6 +39,7 @@ Commands:
   critique          Generate agent critique prompt (requires --agent)
   setup             Generate setup prompt (adapts to project state)
   status            Show project state (bare/partial/v0.9/v1.0/v1.1)
+  dashboard         Launch browser dashboard with audit, setup, and terminal
   info rubrics      List all rubric checks (filter: --tier foundation|standard)
   info anti-patterns List all anti-pattern deductions
 
@@ -91,7 +92,7 @@ const REMOVED_COMMANDS: Record<string, string> = {
   scan: '"scan" was removed. Use "audit" for setup validation or "critique --agent <id>" for agent review.',
 };
 /** Accepted values for the --format flag */
-const VALID_FORMATS = ["json", "text", "html", "markdown"] as const;
+const VALID_FORMATS = ["json", "text", "markdown"] as const;
 /** Accepted values for the --agent flag */
 const VALID_AGENTS: AgentId[] = ["claude", "codex", "gemini"];
 /** Banner text warning that multi-agent setup output must stay in sync */
@@ -136,7 +137,7 @@ function parseFormatArg(value: string | undefined): CLIOptions["format"] {
   if (!value) return defaultFormat;
   if (!VALID_FORMATS.includes(value as (typeof VALID_FORMATS)[number])) {
     throw new CLIError(
-      `Invalid format: ${value}. Use: json, text, html, markdown`,
+      `Invalid format: ${value}. Use: json, text, markdown`,
       2,
     );
   }

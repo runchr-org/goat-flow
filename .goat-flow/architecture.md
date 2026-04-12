@@ -46,9 +46,8 @@ src/cli/
   rubric/             # Check definitions (foundation.ts, standard/, anti-patterns.ts, registry.ts, version.ts)
   scoring/            # Score computation (calculate.ts, recommendations.ts)
   prompt/             # Prompt generation (compose-setup.ts, template-filler.ts, registry.ts, fragments/)
-  render/             # Output formatters (text.ts, html.ts, json.ts, markdown.ts, guide.ts, shared.ts)
+  audit/              # Build checks, quality checks, render (text.ts, json.ts, markdown.ts)
   server/             # Dashboard server (dashboard.ts, terminal.ts, types.ts)
-  telemetry/          # Audit logging
 
 src/dashboard/
   index.html          # Dashboard entry point

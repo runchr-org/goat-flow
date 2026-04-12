@@ -54,12 +54,16 @@ evidence_ref_pattern='`[^`]+\.[a-zA-Z]+`'
 # Foundation validation: AGENTS.md must exist before deeper checks.
 [[ -f AGENTS.md ]] || fail "Missing AGENTS.md"
 
-# Enforce line target for the instruction file to keep execution-loop lightweight.
-agents_lines=$(wc -l < AGENTS.md)
-if (( agents_lines > 135 )); then
-    fail "AGENTS.md exceeds 135-line target ($agents_lines)"
-fi
-info "AGENTS.md line count: $agents_lines"
+# Enforce line limits for instruction files (target: 120, hard limit: 150).
+for instrfile in AGENTS.md CLAUDE.md GEMINI.md; do
+    if [[ -f "$instrfile" ]]; then
+        instr_lines=$(wc -l < "$instrfile")
+        if (( instr_lines > 150 )); then
+            fail "$instrfile exceeds 150-line hard limit ($instr_lines)"
+        fi
+        info "$instrfile line count: $instr_lines"
+    fi
+done
 
 # trim_yaml_value is intentionally separate so config value parsing stays readable and
 # testable in place. It strips inline comments and quotes.
@@ -161,41 +165,42 @@ done < <(
 (( router_errors == 0 )) || fail "AGENTS.md router table contains missing required paths"
 info "AGENTS.md router table references resolve"
 
-# Optional CLAUDE.md validation:
-# if present, apply the same router path rules as AGENTS.md.
-if [[ -f CLAUDE.md ]]; then
-    claude_router_errors=0
-    while IFS= read -r ref; do
-        [[ -z "$ref" ]] && continue
-        [[ "$ref" == *"*"* ]] && continue
+# Validate CLAUDE.md and GEMINI.md router tables if present.
+for extra_instrfile in CLAUDE.md GEMINI.md; do
+    if [[ -f "$extra_instrfile" ]]; then
+        extra_router_errors=0
+        while IFS= read -r ref; do
+            [[ -z "$ref" ]] && continue
+            [[ "$ref" == *"*"* ]] && continue
 
-        if [[ -e "$ref" ]]; then
-            continue
-        fi
-
-        allowed=0
-        for allowed_ref in "${allowed_missing_paths[@]}"; do
-            if [[ "$ref" == "$allowed_ref" ]]; then
-                allowed=1
-                break
+            if [[ -e "$ref" ]]; then
+                continue
             fi
-        done
 
-        if (( allowed == 0 )); then
-            warn "Missing CLAUDE.md router path: $ref"
-            claude_router_errors=1
-        fi
-    done < <(
-        awk '
-            /^## Router Table/ { in_router=1; next }
-            /^## / && in_router { in_router=0 }
-            in_router { print }
-        ' CLAUDE.md | grep -oE "$backtick_ref_pattern" | tr -d '`'
-    )
+            allowed=0
+            for allowed_ref in "${allowed_missing_paths[@]}"; do
+                if [[ "$ref" == "$allowed_ref" ]]; then
+                    allowed=1
+                    break
+                fi
+            done
 
-    (( claude_router_errors == 0 )) || fail "CLAUDE.md router table contains missing required paths"
-    info "CLAUDE.md router table references resolve"
-fi
+            if (( allowed == 0 )); then
+                warn "Missing $extra_instrfile router path: $ref"
+                extra_router_errors=1
+            fi
+        done < <(
+            awk '
+                /^## Router Table/ { in_router=1; next }
+                /^## / && in_router { in_router=0 }
+                in_router { print }
+            ' "$extra_instrfile" | grep -oE "$backtick_ref_pattern" | tr -d '`'
+        )
+
+        (( extra_router_errors == 0 )) || fail "$extra_instrfile router table contains missing required paths"
+        info "$extra_instrfile router table references resolve"
+    fi
+done
 
 # Canonical skill files required by setup.
 # This list is the single source for what this repo expects to be installed.
@@ -265,7 +270,7 @@ warn_if_legacy_surface_exists "docs/footguns.md" "$footguns_dir" "footgun"
     for script in scripts/preflight-checks.sh scripts/validate-goat-flow-setup.sh scripts/deny-dangerous.sh; do
     [[ -x "$script" ]] || fail "Script is not executable: $script"
 done
-info "Codex scripts are executable"
+info "Required scripts are executable"
 
 # Validate template consistency for setup reference docs:
 # - execution-loop must exist

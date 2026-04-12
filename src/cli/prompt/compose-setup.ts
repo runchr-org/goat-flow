@@ -1,5 +1,5 @@
 /**
- * Composes setup, fix, and redirect prompts from internal scan results.
+ * Composes setup and redirect prompts from internal scan results.
  * This is the main policy layer that turns rubric failures, detected signals, and template refs into agent-facing task lists.
  * User-facing output references `goat-flow audit` as the verification command.
  */
@@ -518,12 +518,12 @@ function renderStandardPhaseNotes(
   if (phase !== "standard") return;
 
   lines.push(
-    "**Skill quality check** - every skill MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**, **Chaining**. No placeholder text.",
+    "**Skill quality check** - every skill MUST have: **When to Use**, **Process** (phased + human gates), **Constraints**, **Output Format**. No placeholder text.",
   );
   lines.push("");
   if (vars.languages && vars.languages !== "unknown") {
     lines.push(
-      `**Adaptation for this project:** Replace template Step 0 questions with questions about ${vars.languages} patterns. Replace template examples with patterns from this codebase. Do NOT leave placeholder text like "[Step 1]" or "[describe X]".`,
+      `**Adaptation note:** For non-skill surfaces (instruction file, config, architecture doc), adapt examples for ${vars.languages} patterns from this codebase. Skill files are installed verbatim — do NOT modify skill content.`,
     );
     lines.push("");
   }
@@ -629,7 +629,7 @@ function defaultAdaptGuidance(
 ): string {
   // Path-specific guidance takes precedence over generic notes
   if (output.includes("/skills/"))
-    return `Replace template Step 0 questions and examples with ${languages} patterns from this project`;
+    return "Install verbatim from the template. Do NOT adapt, compress, or rewrite skill content";
   if (output === ".goat-flow/config.yaml")
     return "Use the default directory paths unless this project already needs explicit overrides. Populate `toolchain` from real commands and `ask_first` from the instruction file's actual boundaries.";
   if (output === ".goat-flow/footguns/")
@@ -648,7 +648,7 @@ function defaultAdaptGuidance(
 /** Return the verify instruction shown in step 3 of a task, matched to output type (skill, config, shell, JSON, etc.). */
 function defaultVerify(output: string): string {
   if (output.includes("/skills/"))
-    return "File has: When to Use, Process with human gates, Constraints, Output Format, Chaining sections";
+    return "File has: When to Use, Process with human gates, Constraints, Output Format sections";
   if (output === ".goat-flow/config.yaml")
     return "File exists, parses as YAML, and includes version plus footguns/lessons/decisions/tasks/logs/agents/skills/toolchain/ask_first settings";
   if (output === ".goat-flow/footguns/")

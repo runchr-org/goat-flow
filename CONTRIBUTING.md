@@ -51,11 +51,11 @@ For shell scripts only: `shellcheck scripts/maintenance/*.sh`
 
 ## How to Add a New Rubric Check
 
-Rubric checks live in `src/cli/rubric/`. The `standard/` subdirectory contains individual check modules; `registry.ts` wires them together. Add your check function, register it, and bump `RUBRIC_VERSION` in `src/cli/rubric/version.ts` if you change scoring.
+Rubric checks live in `src/cli/rubric/`. The `standard/` subdirectory contains individual check modules; `registry.ts` wires them together. Add your check function and register it. `RUBRIC_VERSION` is derived from `package.json` automatically.
 
 ## How to Add a New Skill Template
 
-Skill templates live in `workflow/skills/`. Each skill has a reference copy in `workflow/skills/reference/` and a user-facing template. The setup process uses a 3-way copy pattern: reference -> project `.claude/skills/` -> user customization. Add your template in both locations and register it in the setup flow.
+Skill templates live in `workflow/skills/`. Shared conventions are in `workflow/skills/reference/` (skill-preamble.md and skill-conventions.md). Skills are installed verbatim from templates to project skill directories (e.g., `.claude/skills/`). Add your template and register it in the setup flow.
 
 ## How to Add a New Stack to the Detector
 

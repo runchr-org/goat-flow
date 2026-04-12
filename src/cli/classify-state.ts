@@ -46,6 +46,8 @@ const OLD_SKILLS = [
   "goat-onboard",
   "goat-reflect",
   "goat-resume",
+  "goat-preflight",
+  "goat-research",
 ] as const;
 
 function collectInstalledSkills(fs: StateFS): string[] {
