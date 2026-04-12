@@ -32,11 +32,10 @@
           >
             Generate Critique
           </div>
-          <div
-            class="gf-text-muted"
-            style="font-size: 12px; margin-top: 3px"
-          >
-            Generate a structured critique prompt for a selected agent to evaluate goat-flow quality. This is opinion-gathering, not machine validation.
+          <div class="gf-text-muted" style="font-size: 12px; margin-top: 3px">
+            Generate a structured critique prompt for a selected agent to
+            evaluate goat-flow quality. This is opinion-gathering, not machine
+            validation.
           </div>
         </div>
 
@@ -122,7 +121,10 @@
                   >
                     <span x-text="copied ? 'Copied' : 'Copy'"></span>
                   </button>
-                  <button @click="generateCritique()" class="gf-btn gf-btn-md gf-btn-scan">
+                  <button
+                    @click="generateCritique()"
+                    class="gf-btn gf-btn-md gf-btn-scan"
+                  >
                     Regenerate
                   </button>
                 </div>
@@ -177,7 +179,8 @@
                   class="gf-text-secondary"
                   style="font-weight: 500"
                 ></span>
-                to critique the goat-flow setup on this project - tests each skill on real code and reports findings with evidence.
+                to critique the goat-flow setup on this project - tests each
+                skill on real code and reports findings with evidence.
               </div>
             </div>
           </template>
@@ -214,10 +217,7 @@
 
           <!-- Prompt content -->
           <template x-if="!critiqueLoading && critiqueResult">
-            <pre
-              class="gf-prompt-body"
-              x-text="critiqueResult.prompt"
-            ></pre>
+            <pre class="gf-prompt-body" x-text="critiqueResult.prompt"></pre>
           </template>
 
           <!-- Empty state -->

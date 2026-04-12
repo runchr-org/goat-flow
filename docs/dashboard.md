@@ -10,15 +10,11 @@ Overview landing page. Shows "What to do next" action cards based on your latest
 
 ### Audit
 
-Audit results in a single scrollable page. Each scope (setup, project, integration) shows pass/fail status and can be expanded inline for details. Failures include actionable fix instructions. Run a new audit or re-audit after changes without leaving the page.
+Audit results in a single scrollable page. Each scope (GOAT Flow Setup, AI Harness Score) shows pass/fail status and can be expanded inline for details. Per-agent harness cards show individual agent scores. Failures include actionable fix instructions. Run a new audit or re-audit after changes without leaving the page.
 
 ### Workspace
 
 Split-pane layout. The left panel is a prompt library with category filters and search -- select a prompt to preview it or send it straight to the terminal. The right panel is a live terminal session (xterm.js over WebSocket) where you run agent commands. On mobile the panels collapse into a tab toggle.
-
-### Rubrics
-
-Reference list of every rubric check and anti-pattern the auditor evaluates. Filter by tier (Foundation, Standard) to see check IDs, point values, and descriptions. Useful for understanding exactly what the auditor checks and how to improve.
 
 ### Projects
 
@@ -31,10 +27,6 @@ Guided setup flow. Detects your project stack and existing configuration, lets y
 ### Critique
 
 Generate and view agent critique prompts. Select a target agent, generate the critique, and preview the full prompt with embedded audit results.
-
-### Settings
-
-Project settings and configuration viewer.
 
 ### Help
 
@@ -57,7 +49,6 @@ Getting-started page for new users. Explains what goat-flow is, the audit/critiq
 | `/api/critique` | GET | Generate critique prompt |
 | `/api/setup/detect` | GET | Detect project stack and agents |
 | `/api/health` | GET | Health check |
-| `/api/rubrics` | GET | List all rubric checks and anti-patterns |
 | `/api/agents/installed` | GET | Detect installed agent runtimes |
 | `/api/projects/list` | GET | List registered projects |
 | `/api/projects/status` | GET | Project state classification |

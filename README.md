@@ -54,7 +54,7 @@ A local web UI opens with auditing, setup, and an integrated terminal.
 goat-flow audit .
 ```
 
-The auditor validates goat-flow setup correctness across three scopes (setup, project, integration) and reports pass/fail. A fresh project fails -- that's expected.
+The auditor validates goat-flow setup correctness across two scopes -- GOAT Flow Setup (pass/fail) and AI Harness Score (per-agent percentage) -- and reports pass/fail. A fresh project fails -- that's expected.
 
 ### 4. Generate setup for your agent
 

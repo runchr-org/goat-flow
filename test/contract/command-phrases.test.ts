@@ -22,18 +22,19 @@ function makePassingReport(): AuditReport {
     scopes: {
       setup: {
         status: "pass",
+        checks: [],
         failures: [],
         summary: { skills: "7/7 installed" },
       },
-      project: {
+      harness: {
         status: "pass",
+        checks: [],
         failures: [],
-        summary: { toolchain: "test + lint configured" },
-      },
-      integration: {
-        status: "pass",
-        failures: [],
-        summary: { hooks: "claude:deny installed" },
+        summary: {
+          toolchain: "test + lint configured",
+          hooks: "claude:deny installed",
+        },
+        score: 100,
       },
     },
     concerns: null,

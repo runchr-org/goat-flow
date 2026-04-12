@@ -27,9 +27,9 @@ Validates that the project's agent harness is structurally correct and optionall
 
 Binary pass/fail. This is the setup gate - Step 06, preflight, and CI all use `audit`.
 
-Build checks are grouped by **scope** (who owns the fix):
+Build checks are grouped by **scope**:
 
-**setup scope** - goat-flow-owned surfaces:
+**setup scope** (GOAT Flow Setup) - goat-flow-owned surfaces:
 - Required files and directories from the project manifest exist
 - Config parses and version is current
 - All 7 canonical skills installed with matching version tags
@@ -38,11 +38,9 @@ Build checks are grouped by **scope** (who owns the fix):
 - No `workflow/` paths leaked into installed skill files
 - Preamble and conventions files installed
 
-**project scope** - project-owned surfaces:
+**harness scope** (AI Harness Score) - project integration surfaces:
 - Toolchain commands configured (test, lint, build)
 - Agent settings/config files parse
-
-**integration scope** - wiring between goat-flow and project:
 - Hook files exist for configured agents
 - Hook scripts pass syntax check (`bash -n`)
 - Deny patterns registered in agent settings

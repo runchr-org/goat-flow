@@ -25,7 +25,7 @@ flowchart LR
 | [/goat-review](goat-review.md) | Structured code review + quality audit | MUST read all files before commenting | Before merging, quality audits |
 | [/goat-sbao](goat-sbao.md) | Multi-perspective critique of any artifact | Disputes resolved before synthesis | High-stakes decisions, plans, assessments |
 | [/goat-security](goat-security.md) | Threat-model-driven security assessment | MUST rank findings by exploitability | Before releases, after dependency changes, during audits |
-| [/goat-test](goat-test.md) | Testing gap analysis and verification planning | Agent may run fast local checks; deeper verification generated as plan | After a milestone or 30-60 min of coding |
+| [/goat-test](goat-test.md) | Testing gap analysis and verification planning | Does not run or write tests; generates gap analysis and testing plan | After a milestone or 30-60 min of coding |
 
 > **Consolidation history (v0.8.0-v1.1.0):** Nine skills were consolidated into the current seven. Former standalone skills were absorbed into existing skills or removed. See ADR-030 for the full rationale. goat-sbao was later extracted as a standalone critique skill in v1.1.0 (ADR-033).
 

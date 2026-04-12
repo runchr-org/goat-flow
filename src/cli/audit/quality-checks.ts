@@ -34,7 +34,7 @@ function parseCreatedDates(content: string): Date[] {
   const dates: Date[] = [];
   let m;
   while ((m = pattern.exec(content))) {
-    const d = new Date(m[1] + "T00:00:00");
+    const d = new Date(m[1]! + "T00:00:00");
     if (!isNaN(d.getTime())) dates.push(d);
   }
   return dates;
@@ -290,8 +290,9 @@ const architectureRefsResolve: QualityCheck = {
         `All ${paths.length} architecture.md path references resolve`,
       ]);
     }
-    const score =
-      Math.round(((paths.length - unresolved.length) / paths.length) * 100);
+    const score = Math.round(
+      ((paths.length - unresolved.length) / paths.length) * 100,
+    );
     return partial(
       score,
       [
@@ -422,7 +423,9 @@ const linterRegistered: QualityCheck = {
       return partial(
         50,
         ["No static analysis tools detected in project manifests"],
-        ["Install a linter (eslint, phpstan, ruff, etc.) and register it in config.yaml toolchain.lint"],
+        [
+          "Install a linter (eslint, phpstan, ruff, etc.) and register it in config.yaml toolchain.lint",
+        ],
         [
           "Install a linter for your project and add it to toolchain.lint in .goat-flow/config.yaml.",
         ],
@@ -455,17 +458,11 @@ const linterRegistered: QualityCheck = {
         `${registered.join(", ")} detected and registered in toolchain.lint`,
       ]);
     }
-    const score = Math.round(
-      (registered.length / detected.length) * 100,
-    );
+    const score = Math.round((registered.length / detected.length) * 100);
     return partial(
       Math.max(score, 30),
-      [
-        `${unregistered.join(", ")} installed but not in toolchain.lint`,
-      ],
-      [
-        `Add ${unregistered.join(", ")} to toolchain.lint in config.yaml`,
-      ],
+      [`${unregistered.join(", ")} installed but not in toolchain.lint`],
+      [`Add ${unregistered.join(", ")} to toolchain.lint in config.yaml`],
       [
         `Add lint commands for ${unregistered.join(", ")} to the toolchain.lint array in .goat-flow/config.yaml.`,
       ],
@@ -488,7 +485,9 @@ const denyBlocksPipeToShell: QualityCheck = {
       }
     }
     if (uncovered.length === 0) {
-      return pass([`${covered.join(", ")}: deny blocks pipe-to-shell (curl | bash)`]);
+      return pass([
+        `${covered.join(", ")}: deny blocks pipe-to-shell (curl | bash)`,
+      ]);
     }
     if (covered.length === 0) {
       return partial(
@@ -502,12 +501,8 @@ const denyBlocksPipeToShell: QualityCheck = {
     }
     return partial(
       60,
-      [
-        `${uncovered.join(", ")}: pipe-to-shell not blocked`,
-      ],
-      [
-        `Add pipe-to-shell deny pattern to ${uncovered.join(", ")}`,
-      ],
+      [`${uncovered.join(", ")}: pipe-to-shell not blocked`],
+      [`Add pipe-to-shell deny pattern to ${uncovered.join(", ")}`],
       [
         `Add deny patterns for curl|bash and wget|sh to ${uncovered.join(", ")} agent configuration.`,
       ],
@@ -603,13 +598,9 @@ const hookHasValidation: QualityCheck = {
       if (!af.hooks.postTurnExists) continue;
       anyHook = true;
       if (af.hooks.postTurnHasValidation) {
-        findings.push(
-          `${af.agent.id}: post-turn hook runs validation`,
-        );
+        findings.push(`${af.agent.id}: post-turn hook runs validation`);
       } else {
-        findings.push(
-          `${af.agent.id}: post-turn hook has no validation logic`,
-        );
+        findings.push(`${af.agent.id}: post-turn hook has no validation logic`);
         recs.push(
           `Add validation commands (lint, typecheck, shellcheck) to ${af.agent.id} post-turn hook`,
         );
@@ -620,7 +611,9 @@ const hookHasValidation: QualityCheck = {
       return partial(
         30,
         ["No post-turn hooks found to evaluate"],
-        ["Create a post-turn hook that runs validation after each agent action"],
+        [
+          "Create a post-turn hook that runs validation after each agent action",
+        ],
         [
           "Create a post-turn hook script that runs linting, typechecking, or other validation.",
         ],
@@ -775,9 +768,7 @@ const compactionHookPresent: QualityCheck = {
       }
     }
     if (uncovered.length === 0) {
-      return pass([
-        `${covered.join(", ")}: compaction hook registered`,
-      ]);
+      return pass([`${covered.join(", ")}: compaction hook registered`]);
     }
     if (covered.length === 0) {
       return partial(
@@ -802,16 +793,44 @@ const compactionHookPresent: QualityCheck = {
   },
 };
 
+/** Collect .md files from a directory tree (one level deep). */
+function collectMarkdownFiles(
+  fs: { listDir(p: string): string[] },
+  dir: string,
+): string[] {
+  const mdFiles: string[] = [];
+  let entries: string[];
+  try {
+    entries = fs.listDir(dir);
+  } catch {
+    return mdFiles;
+  }
+  for (const entry of entries) {
+    const entryPath = `${dir}/${entry}`;
+    if (entry.endsWith(".md")) {
+      mdFiles.push(entryPath);
+    } else {
+      try {
+        for (const sf of fs.listDir(entryPath)) {
+          if (sf.endsWith(".md")) mdFiles.push(`${entryPath}/${sf}`);
+        }
+      } catch {
+        // Not a directory, skip
+      }
+    }
+  }
+  return mdFiles;
+}
+
 const milestoneHasCheckboxes: QualityCheck = {
   id: "milestone-has-checkboxes",
   concern: "recovery",
   weight: 2,
   run: (ctx) => {
     const tasksDir = ".goat-flow/tasks";
-    let files: string[];
-    try {
-      files = ctx.fs.listDir(tasksDir);
-    } catch {
+    const mdFiles = collectMarkdownFiles(ctx.fs, tasksDir);
+
+    if (mdFiles.length === 0 && !ctx.fs.exists(tasksDir)) {
       return partial(
         20,
         ["No tasks directory found"],
@@ -820,27 +839,6 @@ const milestoneHasCheckboxes: QualityCheck = {
           "Create milestone files in .goat-flow/tasks/ with - [ ] checkbox items for trackable progress.",
         ],
       );
-    }
-
-    // Collect all markdown files, including from subdirectories
-    const mdFiles: string[] = [];
-    for (const entry of files) {
-      const entryPath = `${tasksDir}/${entry}`;
-      if (entry.endsWith(".md")) {
-        mdFiles.push(entryPath);
-      } else {
-        // Check subdirectories
-        try {
-          const subFiles = ctx.fs.listDir(entryPath);
-          for (const sf of subFiles) {
-            if (sf.endsWith(".md")) {
-              mdFiles.push(`${entryPath}/${sf}`);
-            }
-          }
-        } catch {
-          // Not a directory, skip
-        }
-      }
     }
 
     if (mdFiles.length === 0) {
@@ -971,38 +969,33 @@ const decisionsTracked: QualityCheck = {
   },
 };
 
+/** Parse **Created:** dates from all .md files in a directory. */
+function collectDatesFromDir(
+  fs: { listDir(p: string): string[]; readFile(p: string): string | null },
+  dirPath: string,
+): Date[] {
+  const dates: Date[] = [];
+  try {
+    for (const f of fs.listDir(dirPath)) {
+      if (!f.endsWith(".md")) continue;
+      const content = fs.readFile(`${dirPath}/${f}`);
+      if (content) dates.push(...parseCreatedDates(content));
+    }
+  } catch {
+    // Directory doesn't exist
+  }
+  return dates;
+}
+
 const feedbackRecency: QualityCheck = {
   id: "feedback-recency",
   concern: "feedback_loop",
   weight: 2,
   run: (ctx) => {
-    const allDates: Date[] = [];
-
-    // Parse dates from footgun files
-    const footgunPath = ctx.config.config.footguns.path;
-    try {
-      const footgunFiles = ctx.fs.listDir(footgunPath);
-      for (const f of footgunFiles) {
-        if (!f.endsWith(".md")) continue;
-        const content = ctx.fs.readFile(`${footgunPath}/${f}`);
-        if (content) allDates.push(...parseCreatedDates(content));
-      }
-    } catch {
-      // Directory doesn't exist
-    }
-
-    // Parse dates from lesson files
-    const lessonPath = ctx.config.config.lessons.path;
-    try {
-      const lessonFiles = ctx.fs.listDir(lessonPath);
-      for (const f of lessonFiles) {
-        if (!f.endsWith(".md")) continue;
-        const content = ctx.fs.readFile(`${lessonPath}/${f}`);
-        if (content) allDates.push(...parseCreatedDates(content));
-      }
-    } catch {
-      // Directory doesn't exist
-    }
+    const allDates: Date[] = [
+      ...collectDatesFromDir(ctx.fs, ctx.config.config.footguns.path),
+      ...collectDatesFromDir(ctx.fs, ctx.config.config.lessons.path),
+    ];
 
     if (allDates.length === 0) {
       return partial(
@@ -1035,7 +1028,9 @@ const feedbackRecency: QualityCheck = {
         [
           `${allDates.length} dated entries but none in last 90 days (newest: ${daysAgo} days ago)`,
         ],
-        ["Capture recent footguns and lessons to keep the feedback loop active"],
+        [
+          "Capture recent footguns and lessons to keep the feedback loop active",
+        ],
         [
           "Add new footgun or lesson entries from recent work to .goat-flow/footguns/ and .goat-flow/lessons/.",
         ],

@@ -1,7 +1,7 @@
 /**
  * Build checks for `goat-flow audit`.
  * Each check returns null on pass or an AuditFailure on fail.
- * Checks are grouped by scope: setup, project, integration.
+ * Checks are grouped by scope: setup, harness.
  */
 import { execSync } from "node:child_process";
 import { join } from "node:path";

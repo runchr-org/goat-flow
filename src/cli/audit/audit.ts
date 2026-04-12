@@ -50,9 +50,7 @@ function buildScope(
   checks: CheckResult[],
   summary: Record<string, string>,
 ): AuditScope {
-  const failures = checks
-    .filter((c) => c.failure)
-    .map((c) => c.failure!);
+  const failures = checks.filter((c) => c.failure).map((c) => c.failure!);
   return {
     status: failures.length === 0 ? "pass" : "fail",
     checks,
@@ -204,10 +202,7 @@ export function runAudit(
 
   const setupScope = buildScope(scopeChecks.setup, setupSummary(ctx));
 
-  const harnessScope = buildScope(
-    scopeChecks.harness,
-    harnessSummary(ctx),
-  );
+  const harnessScope = buildScope(scopeChecks.harness, harnessSummary(ctx));
   // Compute percentage score for harness
   const harnessTotal = harnessScope.checks.length;
   const harnessPassed = harnessScope.checks.filter(

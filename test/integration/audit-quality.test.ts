@@ -59,12 +59,8 @@ describe("quality does not affect build result", () => {
       withQuality.scopes.setup.status,
     );
     assert.equal(
-      buildOnly.scopes.project.status,
-      withQuality.scopes.project.status,
-    );
-    assert.equal(
-      buildOnly.scopes.integration.status,
-      withQuality.scopes.integration.status,
+      buildOnly.scopes.harness.status,
+      withQuality.scopes.harness.status,
     );
   });
 });

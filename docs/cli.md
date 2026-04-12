@@ -4,7 +4,7 @@
 
 ### `goat-flow audit [path] [flags]`
 
-Validate setup correctness across three scopes (setup, project, integration). Default command when run without arguments.
+Validate setup correctness across two scopes: GOAT Flow Setup (pass/fail) and AI Harness Score (per-agent percentage). Default command when run without arguments.
 
 | Flag | Description |
 |------|-------------|

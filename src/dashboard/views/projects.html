@@ -46,8 +46,17 @@
 >
   <div style="max-width: 880px; margin: 0 auto; padding: 12px 28px 24px">
     <!-- Header -->
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px">
-      <span class="gf-text-primary" style="font-size: 20px; font-weight: 500">Projects</span>
+    <div
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      "
+    >
+      <span class="gf-text-primary" style="font-size: 20px; font-weight: 500"
+        >Projects</span
+      >
       <div style="display: flex; gap: 8px">
         <button
           @click="auditAllProjects()"
@@ -69,11 +78,25 @@
     <div
       x-show="projectsList.length > 0"
       class="gf-text-muted"
-      style="font-size: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap"
+      style="
+        font-size: 12px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      "
     >
-      <span x-text="`${projectsList.length} project${projectsList.length !== 1 ? 's' : ''}`" class="gf-text-secondary" style="font-weight: 500"></span>
+      <span
+        x-text="`${projectsList.length} project${projectsList.length !== 1 ? 's' : ''}`"
+        class="gf-text-secondary"
+        style="font-weight: 500"
+      ></span>
       <span style="opacity: 0.4">&#8212;</span>
-      <template x-for="[action, count] in Object.entries(stateCounts())" :key="'sum-' + action">
+      <template
+        x-for="[action, count] in Object.entries(stateCounts())"
+        :key="'sum-' + action"
+      >
         <span>
           <span x-text="count" style="font-weight: 600"></span>
           <span x-text="action"></span>
@@ -88,7 +111,13 @@
         type="text"
         x-model="projectSearch"
         class="gf-input"
-        style="width: 100%; font-size: 12px; padding: 7px 12px; border-radius: 6px; outline: none"
+        style="
+          width: 100%;
+          font-size: 12px;
+          padding: 7px 12px;
+          border-radius: 6px;
+          outline: none;
+        "
         placeholder="Filter projects..."
       />
     </div>
@@ -100,7 +129,10 @@
       class="gf-card"
       style="padding: 14px 16px; margin-bottom: 16px"
     >
-      <div class="gf-text-secondary" style="font-size: 12px; font-weight: 500; margin-bottom: 8px">
+      <div
+        class="gf-text-secondary"
+        style="font-size: 12px; font-weight: 500; margin-bottom: 8px"
+      >
         Add project path
       </div>
       <div style="display: flex; gap: 8px">
@@ -109,16 +141,27 @@
           x-model="newProjectPath"
           x-ref="addProjectInput"
           class="gf-input"
-          style="flex: 1; font-family: var(--font-mono); font-size: 12px; padding: 6px 10px; border-radius: 6px; outline: none"
+          style="
+            flex: 1;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            outline: none;
+          "
           placeholder="/path/to/project"
           @keydown.enter="addProject()"
         />
-        <button @click="addProject()" class="gf-btn gf-btn-md gf-btn-primary">Add</button>
+        <button @click="addProject()" class="gf-btn gf-btn-md gf-btn-primary">
+          Add
+        </button>
         <button
           @click="showAddProject = false; newProjectPath = ''"
           class="gf-btn gf-btn-md"
           style="background: none; border: none; color: var(--text-muted)"
-        >Cancel</button>
+        >
+          Cancel
+        </button>
       </div>
     </div>
 
@@ -156,19 +199,46 @@
               <td class="gf-td">
                 <button
                   @click="projectPath = project.path; activeView = 'audit'; runAudit()"
-                  style="background: none; border: none; padding: 0; cursor: pointer; text-align: left; color: var(--text-primary); font-size: 12px; font-family: var(--font-mono)"
+                  style="
+                    background: none;
+                    border: none;
+                    padding: 0;
+                    cursor: pointer;
+                    text-align: left;
+                    color: var(--text-primary);
+                    font-size: 12px;
+                    font-family: var(--font-mono);
+                  "
                   @mouseenter="$el.style.color = 'var(--accent)'"
                   @mouseleave="$el.style.color = 'var(--text-primary)'"
                 >
-                  <span x-text="project.path.split('/').filter(Boolean).pop()"></span>
+                  <span
+                    x-text="project.path.split('/').filter(Boolean).pop()"
+                  ></span>
                 </button>
-                <div class="gf-text-muted" style="font-size: 10px; margin-top: 1px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
-                  x-text="project.path" :title="project.path"></div>
+                <div
+                  class="gf-text-muted"
+                  style="
+                    font-size: 10px;
+                    margin-top: 1px;
+                    max-width: 200px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                  "
+                  x-text="project.path"
+                  :title="project.path"
+                ></div>
               </td>
               <!-- State badge (color-coded) -->
               <td class="gf-td">
                 <span
-                  style="padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600"
+                  style="
+                    padding: 1px 6px;
+                    border-radius: 4px;
+                    font-size: 11px;
+                    font-weight: 600;
+                  "
                   :class="stateBadge(project)"
                   x-text="project.state"
                 ></span>
@@ -177,7 +247,15 @@
               <td class="gf-td">
                 <button
                   @click="doAction(project)"
-                  style="background: none; border: none; padding: 0; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--accent)"
+                  style="
+                    background: none;
+                    border: none;
+                    padding: 0;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: var(--accent);
+                  "
                   @mouseenter="$el.style.textDecoration = 'underline'"
                   @mouseleave="$el.style.textDecoration = 'none'"
                   x-text="project.action"
@@ -187,7 +265,14 @@
               <td class="gf-td">
                 <span
                   class="gf-text-muted"
-                  style="font-size: 11px; display: block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
+                  style="
+                    font-size: 11px;
+                    display: block;
+                    max-width: 220px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                  "
                   x-text="project.details"
                   :title="project.details"
                 ></span>
@@ -207,24 +292,45 @@
                   x-show="confirmRemovePath !== project.path"
                   @click="confirmRemovePath = project.path"
                   class="gf-btn gf-btn-sm"
-                  style="background: none; border: none; color: var(--text-muted); font-size: 11px; padding: 2px 6px"
+                  style="
+                    background: none;
+                    border: none;
+                    color: var(--text-muted);
+                    font-size: 11px;
+                    padding: 2px 6px;
+                  "
                   @mouseenter="$el.style.color = 'var(--red-400)'"
                   @mouseleave="$el.style.color = 'var(--text-muted)'"
                 >
                   Remove
                 </button>
-                <span x-show="confirmRemovePath === project.path" style="display: inline-flex; align-items: center; gap: 4px">
-                  <span class="gf-text-muted" style="font-size: 11px">Remove?</span>
+                <span
+                  x-show="confirmRemovePath === project.path"
+                  style="display: inline-flex; align-items: center; gap: 4px"
+                >
+                  <span class="gf-text-muted" style="font-size: 11px"
+                    >Remove?</span
+                  >
                   <button
                     @click="removeProject(project.path); confirmRemovePath = null"
                     class="gf-btn gf-btn-sm gf-btn-danger"
                     style="font-size: 11px; padding: 1px 6px"
-                  >Yes</button>
+                  >
+                    Yes
+                  </button>
                   <button
                     @click="confirmRemovePath = null"
                     class="gf-btn gf-btn-sm"
-                    style="background: none; border: none; color: var(--text-muted); font-size: 11px; padding: 1px 6px"
-                  >No</button>
+                    style="
+                      background: none;
+                      border: none;
+                      color: var(--text-muted);
+                      font-size: 11px;
+                      padding: 1px 6px;
+                    "
+                  >
+                    No
+                  </button>
                 </span>
               </td>
             </tr>
@@ -236,7 +342,9 @@
         x-show="projectSearch && filteredProjects.length === 0"
         style="padding: 16px; text-align: center"
       >
-        <span class="gf-text-muted" style="font-size: 12px">No projects match filter</span>
+        <span class="gf-text-muted" style="font-size: 12px"
+          >No projects match filter</span
+        >
       </div>
     </div>
 
@@ -244,7 +352,12 @@
     <div
       x-show="projectsList.length === 0"
       class="gf-surface"
-      style="border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 20px"
+      style="
+        border-radius: 8px;
+        padding: 24px;
+        text-align: center;
+        margin-bottom: 20px;
+      "
     >
       <p class="gf-text-muted" style="font-size: 13px">
         No projects added. Click "Add Project" to monitor a project directory.
@@ -252,9 +365,17 @@
     </div>
 
     <!-- Footer -->
-    <div class="gf-footer" style="text-align: center; font-size: 11px; padding: 16px 0 8px">
+    <div
+      class="gf-footer"
+      style="text-align: center; font-size: 11px; padding: 16px 0 8px"
+    >
       Built by
-      <a href="https://www.blundergoat.com" target="_blank" class="gf-footer-link">BlunderGOAT</a>
+      <a
+        href="https://www.blundergoat.com"
+        target="_blank"
+        class="gf-footer-link"
+        >BlunderGOAT</a
+      >
       · <span x-text="dashboardVersion ? `v${dashboardVersion}` : ''"></span>
     </div>
   </div>

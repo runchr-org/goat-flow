@@ -16,8 +16,8 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 | Evaluation templates | `workflow/evaluation/` | Footguns/lessons templates |
 | Reference library | `workflow/reference/security/` | Security reference material used later for project-specific guidance |
 | Docs | `docs/` | CLI usage, dashboard guide |
-| CLI auditor | `src/cli/` | 79 rubric checks + 12 anti-patterns (internal scoring), 15 build + 15 quality checks (public audit), fragment-based prompts, multi-agent support |
-| Dashboard | `src/cli/server/dashboard.ts` (server), `src/dashboard/` (HTML + views) | HTML dashboard with views for audit, critique, help, home, projects, rubrics, settings, wizard, workspace |
+| CLI auditor | `src/cli/` | 79 rubric checks + 12 anti-patterns (internal scoring), 15 build + 15 quality checks (public audit, 2 scopes: setup + harness), fragment-based prompts, multi-agent support |
+| Dashboard | `src/cli/server/dashboard.ts` (server), `src/dashboard/` (HTML + views) | HTML dashboard with views for audit, critique, help, home, projects, wizard, workspace |
 | Maintenance scripts | `scripts/maintenance/` | Repo hygiene: git cleanup, secret scanning, Zone.Identifier removal |
 
 ## Data Flow
