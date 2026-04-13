@@ -92,7 +92,7 @@ function renderDegradedNote(): string {
     "",
     "> **Note:** The automated audit could not complete on this project.",
     "> This may indicate missing config, broken setup, or an incomplete install.",
-    "> Proceed with the critique anyway — your assessment may catch what the audit could not.",
+    "> Proceed with the critique anyway - your assessment may catch what the audit could not.",
     "",
   ].join("\n");
 }

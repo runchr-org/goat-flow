@@ -60,7 +60,7 @@ If they differ: update the instruction file to match config.yaml (config is cano
 
 ## Hook enforcement mode
 
-Hooks ship in advisory mode by default (they exit 0 even on failures so they never block the agent). This is intentional — mandatory failures during early setup can be disruptive.
+Hooks ship in advisory mode by default (they exit 0 even on failures so they never block the agent). This is intentional - mandatory failures during early setup can be disruptive.
 
 After confirming the hooks work correctly, **enable enforcement** by setting `GOAT_LINT_ENFORCE=1` in the hook script (or as an environment variable). With `GOAT_LINT_ENFORCE=1`, the post-turn hook exits non-zero when linting fails, which causes the agent to see the failure.
 

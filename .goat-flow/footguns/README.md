@@ -4,7 +4,7 @@
 
 If the agent did something wrong → `.goat-flow/lessons/` instead.
 
-Every entry MUST include file path evidence. Line numbers are optional historical context - they rot and don't need updating.
+Every entry MUST include file path evidence. Line numbers should be kept current - the quality audit penalizes stale file:line refs in its context score.
 
 Prefer category bucket files such as `hooks.md`, `setup.md`, or `auditor.md` with file-level frontmatter:
 

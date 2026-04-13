@@ -43,7 +43,7 @@ export interface CreateResponse {
 
 /** Combined response from /api/audit consumed by all dashboard views. */
 export interface DashboardReport {
-  // Per-agent AI Harness Score — Audit view agent cards
+  // Per-agent AI Harness Score - Audit view agent cards
   agentScores: {
     id: string;
     name: string;
@@ -74,7 +74,7 @@ export interface DashboardReport {
       qualityScore: number | null;
     };
   }[];
-  // Scope-based audit — Audit detail view
+  // Scope-based audit - Audit detail view
   status: "pass" | "fail";
   scopes: Record<
     string,

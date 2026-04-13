@@ -25,7 +25,7 @@ Validates that the project's agent harness is structurally correct and optionall
 
 ### Build mode (default)
 
-Binary pass/fail. This is the structural setup gate — it validates that files, config, skills, and hooks are correctly installed. It does not execute configured toolchain commands (lint, test, build). Step 06 uses `audit` as the minimum gate; preflight runs `audit` plus additional checks including ESLint, Prettier, and version consistency.
+Binary pass/fail. This is the structural setup gate - it validates that files, config, skills, and hooks are correctly installed. It does not execute configured toolchain commands (lint, test, build). Step 06 uses `audit` as the minimum gate; preflight runs `audit` plus additional checks including ESLint, Prettier, and version consistency.
 
 Build checks are grouped by **scope**:
 
@@ -36,6 +36,8 @@ Build checks are grouped by **scope**:
 - Instruction file exists for configured agents
 - No stale skill directories (goat-audit, goat-investigate, etc.)
 - No `workflow/` paths leaked into installed skill files
+- Agent filter resolves to a present instruction file (`configured-agent-present` - closes vacuous-pass on `--agent` filter)
+- Agent artifacts (hooks/settings) are consistent with instruction file presence (`agent-artifacts-consistent` - closes aggregate vacuous-pass)
 - Preamble and conventions files installed
 
 **harness scope** (AI Harness Score) - project integration surfaces:
@@ -45,7 +47,7 @@ Build checks are grouped by **scope**:
 - Hook scripts pass syntax check (`bash -n`)
 - Deny patterns registered in agent settings
 
-**What 100% harness score means:** hooks are correctly installed and syntactically valid. It does not mean hooks are actively enforcing — hooks ship in advisory mode by default (always exit 0, never block the agent). Use `goat-flow audit . --quality` to see the verification concern score, which checks whether enforcement mode is enabled.
+**What 100% harness score means:** hooks are correctly installed and syntactically valid. It does not mean hooks are actively enforcing - hooks ship in advisory mode by default (always exit 0, never block the agent). Use `goat-flow audit . --quality` to see the verification concern score, which checks whether enforcement mode is enabled.
 
 **Agent detection:** `audit` detects which agents are configured from the presence of instruction files (CLAUDE.md, AGENTS.md, GEMINI.md). Use `--agent claude|codex|gemini` to scope checks to a single agent.
 
@@ -53,7 +55,7 @@ Build checks are grouped by **scope**:
 
 Advisory scoring on top of build checks. Never blocks CI. Never affects the exit code.
 
-Quality findings are grouped by **concern** — the five things every major harness engineering source agrees matter for agent effectiveness. See [harness-concerns.md](harness-concerns.md) for what each concern means and what goat-flow checks.
+Quality findings are grouped by **concern** - the five things every major harness engineering source agrees matter for agent effectiveness. See [harness-concerns.md](harness-concerns.md) for what each concern means and what goat-flow checks.
 
 Sample quality output:
 
@@ -151,4 +153,4 @@ Typical workflow after setup:
 
 ## Further reading
 
-- [The five harness concerns](harness-concerns.md) — what each concern means, what goat-flow checks for it, and the sources behind the model
+- [The five harness concerns](harness-concerns.md) - what each concern means, what goat-flow checks for it, and the sources behind the model

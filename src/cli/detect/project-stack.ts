@@ -762,7 +762,7 @@ function detectStaticAnalysis(
     staticAnalysis.push({ tool: "golangci-lint", level: null });
   }
 
-  // Rust: clippy (detected via Cargo.toml presence — clippy ships with rustup)
+  // Rust: clippy (detected via Cargo.toml presence - clippy ships with rustup)
   if (fs.exists("Cargo.toml")) {
     staticAnalysis.push({ tool: "clippy", level: null });
   }

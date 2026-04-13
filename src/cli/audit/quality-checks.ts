@@ -106,6 +106,8 @@ const instructionLineCount: QualityCheck = {
           `Trim ${af.agent.instructionFile} by moving verbose sections to .goat-flow/ reference files.`,
         );
         worstScore = Math.min(worstScore, 70);
+      } else if (lines === target) {
+        findings.push(`${af.agent.id}: ${lines} lines (at target ${target})`);
       } else {
         findings.push(
           `${af.agent.id}: ${lines} lines (under target ${target})`,
@@ -518,7 +520,7 @@ const askFirstStructuralSync: QualityCheck = {
 
     if (allSynced) return pass(findings);
     return partial(40, findings, recs, [
-      "Add missing ask_first paths from config.yaml to the Ask First / Autonomy Tiers section of the instruction file. Config is canonical — update the instruction file to match.",
+      "Add missing ask_first paths from config.yaml to the Ask First / Autonomy Tiers section of the instruction file. Config is canonical - update the instruction file to match.",
     ]);
   },
 };

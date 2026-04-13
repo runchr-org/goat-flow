@@ -5,11 +5,11 @@ Read this first. This is what you're installing and why.
 ## Before you begin
 
 1. Read your agent config file (`workflow/setup/agents/claude.md`, `workflow/setup/agents/codex.md`, etc.) for paths and agent-specific setup.
-2. This setup configures one agent. Only modify instruction files, hooks, and settings belonging to the agent specified in the agent config file. **Exception:** Step 03 includes a narrow cross-agent task — deleting stale goat-flow skill directories from other agents and removing references to deleted skills from their instruction files. This is cleanup only (deletion of known-stale artifacts), not creation or modification of other agents' active surfaces.
+2. This setup configures one agent. Only modify instruction files, hooks, and settings belonging to the agent specified in the agent config file. **Exception:** Step 03 includes a narrow cross-agent task - deleting stale goat-flow skill directories from other agents and removing references to deleted skills from their instruction files. This is cleanup only (deletion of known-stale artifacts), not creation or modification of other agents' active surfaces.
 
 ## State check
 
-If `.goat-flow/config.yaml` exists and its version matches the current goat-flow release, AND `goat-flow audit . --agent {agent}` passes, **STOP**. The project is already configured — fix any failing audit checks if needed. If the version matches but audit fails or skills/instruction file/preamble are missing, continue with setup to repair the incomplete install.
+If `.goat-flow/config.yaml` exists and its version matches the current goat-flow release, AND `goat-flow audit . --agent {agent}` passes, **STOP**. The project is already configured - fix any failing audit checks if needed. If the version matches but audit fails or skills/instruction file/preamble are missing, continue with setup to repair the incomplete install.
 
 If the version is older, use the upgrade path instead:
 - Old skill names (goat-audit, goat-investigate, etc.) or legacy `docs/footguns.md` / `tasks/todo.md` → run the migration script first (dry-run by default, add `--execute` to apply), then continue with fresh setup:

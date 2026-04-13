@@ -91,6 +91,8 @@ const CHECK_TO_STEP: Record<string, string> = {
   "canonical-skills": "Step 03 (install skills)",
   "skill-versions": "Step 03 (version tags)",
   "configured-agent-present": "Step 02 (instruction file for agent)",
+  "agent-artifacts-consistent":
+    "Step 02 (create instruction file for listed agents) or Step 04 (remove stale agent directories)",
   "instruction-files": "Step 02 (create/update instruction file)",
   "stale-skill-dirs": "Step 03 (clean up stale skills)",
   "workflow-path-leaks":
@@ -146,7 +148,7 @@ function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
 
   lines.push("**Next step (recommended):**");
   lines.push(
-    `- Run \`${getCliCommand()} audit . --quality\` for advisory quality scores across 5 harness concerns (context, constraints, verification, recovery, feedback loop). Never blocks CI — surfaces improvements only.`,
+    `- Run \`${getCliCommand()} audit . --quality\` for advisory quality scores across 5 harness concerns (context, constraints, verification, recovery, feedback loop). Never blocks CI - surfaces improvements only.`,
   );
   lines.push("");
   lines.push("**Maintenance:**");
@@ -191,7 +193,7 @@ function renderAuditFail(
     if (!failure) continue;
     const step = CHECK_TO_STEP[check.id] ?? "relevant setup step";
 
-    lines.push(`${num++}. **${failure.check}** — FAIL`);
+    lines.push(`${num++}. **${failure.check}** - FAIL`);
     lines.push(`   ${failure.message}`);
     if (failure.evidence) lines.push(`   Evidence: ${failure.evidence}`);
     if (failure.howToFix) {
@@ -281,7 +283,7 @@ function renderUpgradeRedirect(
     lines.push("");
   }
 
-  const setupFile = SETUP_FILES[agentId];
+  const setupFile = getTemplatePath(SETUP_FILES[agentId]);
   if (setupFile) {
     lines.push(
       `For ${profile.name}-specific hooks and settings, also read: \`${setupFile}\``,
@@ -451,7 +453,7 @@ function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
     "   Local instructions added later: derive them from real build/test/lint commands and codebase patterns.",
   );
   lines.push(
-    '3. Do NOT copy customization templates (architecture, footguns, code-map) verbatim. If a template says "[describe X]", describe X for THIS project. Note: skill SKILL.md files ARE installed verbatim — this rule applies to Step 04-05 artifacts only.',
+    '3. Do NOT copy customization templates (architecture, footguns, code-map) verbatim. If a template says "[describe X]", describe X for THIS project. Note: skill SKILL.md files ARE installed verbatim - this rule applies to Step 04-05 artifacts only.',
   );
   const settingsRef = profile.settingsFile
     ? `\`${profile.settingsFile}\``

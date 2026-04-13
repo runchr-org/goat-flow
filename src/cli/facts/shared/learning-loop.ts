@@ -227,7 +227,10 @@ function summarizeFootgunRefs(
     totalRefs: 0,
     validRefs: 0,
   };
-  const fileRefs = content.matchAll(/`([^`]+):([0-9]+(?:[-,][0-9]+)*)`/g);
+  const cleanedContent = content.replace(/~~[^~]+~~/g, "");
+  const fileRefs = cleanedContent.matchAll(
+    /`([^`]+):([0-9]+(?:[-,][0-9]+)*)`/g,
+  );
 
   for (const match of fileRefs) {
     const filePath = match[1];

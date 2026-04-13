@@ -58,7 +58,7 @@ Scanner and rubric changes can invalidate "known failing" fixture expectations e
 
 **Created:** 2026-04-13
 
-**What happened:** architecture.md claimed "~165 rubric checks + 32 anti-patterns" but actual code had 79 rubric checks and 12 active anti-patterns. code-map.md said "AP1-AP23" implying 23 when only 12 are active. The counts changed as checks were removed/consolidated across milestones but docs were never updated. Seven-agent critique independently flagged this as a trust problem — the "canonical source of truth" file had wrong numbers.
+**What happened:** architecture.md claimed "~165 rubric checks + 32 anti-patterns" but actual code had 79 rubric checks and 12 active anti-patterns. code-map.md said "AP1-AP23" implying 23 when only 12 are active. The counts changed as checks were removed/consolidated across milestones but docs were never updated. Seven-agent critique independently flagged this as a trust problem - the "canonical source of truth" file had wrong numbers.
 
 **Root cause:** No automated validation links count claims in docs to actual code. Each milestone that removed anti-patterns (AP2, AP3, AP4, AP7, AP10, AP11, AP17, AP18, AP21, AP22) updated the code but not the architecture doc.
 

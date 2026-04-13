@@ -70,7 +70,7 @@ goat-flow critique . --agent claude      # Generate critique prompt
 - No `any` types. Minimize `as` casts. Use `unknown` and narrow.
 - All types in `src/cli/types.ts`. Prompt-specific types in `src/cli/prompt/types.ts`.
 - AUDIT_VERSION lives in `src/cli/constants.ts`, derived from `package.json` at runtime (single source of truth)
-- Skill frontmatter must embed AUDIT_VERSION — CI enforces this in the "Skill template versions" step
+- Skill frontmatter must embed AUDIT_VERSION - CI enforces this in the "Skill template versions" step
 - `ReadonlyFS` interface for filesystem access -- auditor never writes to disk
 - Zero runtime dependencies. Dev-only: typescript, tsx, @types/node
 

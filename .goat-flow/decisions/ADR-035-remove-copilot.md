@@ -7,12 +7,12 @@
 
 Seven-agent critique of goat-flow v1.1.0 independently flagged Copilot support as an unresolved inconsistency. The repo simultaneously tells four different Copilot stories:
 
-1. **README.md** — says Copilot is "bridge-only" and not a first-class audit/setup agent
-2. **project-structure.json** — says `.github/skills/` is optional/unsupported
-3. **workflow/setup/agents/copilot.md** — exists as a full setup guide, and `docs/skills/README.md` documents Copilot skill paths
-4. **Installed surfaces** — the repo ships full `.github/skills/goat-*` directories, and `preflight-checks.sh` validates `.github/skills/` version parity
+1. **README.md** - says Copilot is "bridge-only" and not a first-class audit/setup agent
+2. **project-structure.json** - says `.github/skills/` is optional/unsupported
+3. **workflow/setup/agents/copilot.md** - exists as a full setup guide, and `docs/skills/README.md` documents Copilot skill paths
+4. **Installed surfaces** - the repo ships full `.github/skills/goat-*` directories, and `preflight-checks.sh` validates `.github/skills/` version parity
 
-Meanwhile, the audit system (`config.yaml`) only supports claude, codex, gemini. `.github/skills/` drifts outside the public audit model — an installed surface with no validation coverage beyond version parity in preflight.
+Meanwhile, the audit system (`config.yaml`) only supports claude, codex, gemini. `.github/skills/` drifts outside the public audit model - an installed surface with no validation coverage beyond version parity in preflight.
 
 `validate-goat-flow-setup.sh` ignores `.github/skills/` entirely, creating asymmetric validation.
 

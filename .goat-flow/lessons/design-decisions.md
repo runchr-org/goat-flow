@@ -60,7 +60,7 @@ The goat dispatcher was treated as secondary to the "real" skills - excluded fro
 
 **Created:** 2026-04-13
 
-**What happened:** A 7-agent critique of goat-flow v1.1.0 produced ~35 verified findings. The initial milestone (M25) combined all of them — doc fixes, code bugs, dashboard cleanup, Copilot removal, and scanner system removal — into one file. It took 3 rounds of expansion and eventually split into 3 milestones (M25 docs, M26 code, M27 scanner removal). The first drafts had task descriptions but no file:line references, no current content, no replacement text, and no verification commands. A fresh agent would have had to re-discover everything.
+**What happened:** A 7-agent critique of goat-flow v1.1.0 produced ~35 verified findings. The initial milestone (M25) combined all of them - doc fixes, code bugs, dashboard cleanup, Copilot removal, and scanner system removal - into one file. It took 3 rounds of expansion and eventually split into 3 milestones (M25 docs, M26 code, M27 scanner removal). The first drafts had task descriptions but no file:line references, no current content, no replacement text, and no verification commands. A fresh agent would have had to re-discover everything.
 
 Five specific patterns emerged:
 
@@ -70,7 +70,7 @@ Five specific patterns emerged:
 
 3. **No validator catches doc/code drift.** architecture.md had wrong counts for weeks. CONTRIBUTING.md pointed to the wrong subsystem. Dashboard docs listed wrong view names. The audit validates structural setup but not content truthfulness. Quality checks should validate numeric claims in architecture.md against code.
 
-4. **Footgun/lesson entries should be written when the issue is introduced, not when a review catches it.** Five footguns and two lessons were missing at critique time. The VERIFY step's learning-loop gate needs a stronger trigger — if you changed something that could surprise a future reader, document it now.
+4. **Footgun/lesson entries should be written when the issue is introduced, not when a review catches it.** Five footguns and two lessons were missing at critique time. The VERIFY step's learning-loop gate needs a stronger trigger - if you changed something that could surprise a future reader, document it now.
 
 5. **Milestone files need cold-start detail.** The bar is "can a fresh agent session execute this without re-discovering context?" That means: file:line references, current content quoted, replacement text specified, verification commands you can copy-paste, read-first file lists, execution order guidance.
 

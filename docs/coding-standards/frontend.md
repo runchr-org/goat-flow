@@ -56,7 +56,7 @@ Each quality check is a `QualityCheck` object in `src/cli/audit/quality-checks.t
 
 `QualityCheckResult`: `{ score: number (0-100), findings: string[], recommendations: string[], howToFix?: string[] }`
 
-Quality checks are advisory — they never affect exit code.
+Quality checks are advisory - they never affect exit code.
 
 ## Key Patterns
 

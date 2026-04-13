@@ -8,16 +8,16 @@
 
 goat-flow has two separate evaluation engines:
 
-1. **Scanner/rubric** (`src/cli/rubric/`, `src/cli/scanner/`, `src/cli/scoring/`) — 79 rubric checks (28 foundation + 51 standard) + 12 anti-patterns. Point-based scoring with tiers, categories, and deductions. Originally the only evaluation system. The `scan` command was removed in v1.1.0 but the engine remains, called by `setup` (`cli.ts:496` → `scanProject()`), `info rubrics`, `info anti-patterns`, and the dashboard `/api/setup` endpoint.
+1. **Scanner/rubric** (`src/cli/rubric/`, `src/cli/scanner/`, `src/cli/scoring/`) - 79 rubric checks (28 foundation + 51 standard) + 12 anti-patterns. Point-based scoring with tiers, categories, and deductions. Originally the only evaluation system. The `scan` command was removed in v1.1.0 but the engine remains, called by `setup` (`cli.ts:496` → `scanProject()`), `info rubrics`, `info anti-patterns`, and the dashboard `/api/setup` endpoint.
 
-2. **Audit** (`src/cli/audit/`) — 15 build checks (10 setup + 5 harness, pass/fail) + 25 quality checks (advisory percentage). Deterministic. User-facing via `goat-flow audit`. Powers CI gates, dashboard `/api/audit`, and critique prompt generation.
+2. **Audit** (`src/cli/audit/`) - 15 build checks (10 setup + 5 harness, pass/fail) + 25 quality checks (advisory percentage). Deterministic. User-facing via `goat-flow audit`. Powers CI gates, dashboard `/api/audit`, and critique prompt generation.
 
 Seven-agent critique exposed the consequences of running both:
 - Setup says "All audit checks pass" while running scanner checks (`compose-setup.ts:153` vs `cli.ts:496`)
 - Setup reports "14 hooks" by counting scanner rubric category hits, not actual hook files (`compose-setup.ts:172`)
-- On broken repos, setup drops into scanner vocabulary ("5 checks need attention out of 79 total", "Anti-Pattern Fixes") — different from the audit model users see everywhere else
+- On broken repos, setup drops into scanner vocabulary ("5 checks need attention out of 79 total", "Anti-Pattern Fixes") - different from the audit model users see everywhere else
 - CONTRIBUTING.md sends contributors to `src/cli/rubric/` when they want `src/cli/audit/`
-- `info rubrics` outputs 79 checks while `audit` shows 15+25 — no doc bridges these
+- `info rubrics` outputs 79 checks while `audit` shows 15+25 - no doc bridges these
 - architecture.md claims "~165 rubric checks" (stale count) alongside "15 build + 25 quality checks" (correct) on the same line
 
 The scanner served its purpose as the original evaluation engine. The audit system replaced it for all public-facing use. The scanner is now dead weight that creates confusion.
@@ -47,8 +47,8 @@ setup --agent claude
 ## Dependency Analysis
 
 **scanProject() call sites (only 2):**
-- `src/cli/cli.ts:496` — setup command
-- `src/cli/server/dashboard.ts:315` — `/api/setup` endpoint
+- `src/cli/cli.ts:496` - setup command
+- `src/cli/server/dashboard.ts:315` - `/api/setup` endpoint
 
 **RUBRIC_VERSION dependency:** `src/cli/audit/build-checks.ts:9` imports `RUBRIC_VERSION` from `rubric/version.ts`. This is the only audit→rubric dependency. Fix: derive version from `package.json` (already done at runtime) or move constant to `src/cli/constants.ts`.
 
@@ -59,14 +59,14 @@ setup --agent claude
 ## What Gets Removed
 
 **Directories (3):**
-- `src/cli/rubric/` — foundation.ts, standard/, anti-patterns.ts, registry.ts, version.ts
-- `src/cli/scanner/` — scan.ts, evaluate-check.ts
-- `src/cli/scoring/` — calculate.ts, recommendations.ts
+- `src/cli/rubric/` - foundation.ts, standard/, anti-patterns.ts, registry.ts, version.ts
+- `src/cli/scanner/` - scan.ts, evaluate-check.ts
+- `src/cli/scoring/` - calculate.ts, recommendations.ts
 
 **Prompt fragments (3 files):**
-- `src/cli/prompt/fragments/foundation.ts` — rubric-tied fix fragments
-- `src/cli/prompt/fragments/standard.ts` — rubric-tied fix fragments
-- `src/cli/prompt/fragments/anti-patterns.ts` — anti-pattern fix fragments
+- `src/cli/prompt/fragments/foundation.ts` - rubric-tied fix fragments
+- `src/cli/prompt/fragments/standard.ts` - rubric-tied fix fragments
+- `src/cli/prompt/fragments/anti-patterns.ts` - anti-pattern fix fragments
 
 **CLI commands (2):**
 - `info rubrics` (with helpful removal message)
@@ -78,7 +78,7 @@ setup --agent claude
 - CheckStatus, Tier, Confidence, Grade (scanner-specific)
 
 **Test files:**
-- `test/unit/scanner-foundations.test.ts` — tests rubric registry
+- `test/unit/scanner-foundations.test.ts` - tests rubric registry
 - Scanner-related assertions in other test files
 
 **Exports from `src/cli/index.ts`:**
@@ -111,12 +111,12 @@ setup --agent claude
 
 ## What Stays Unchanged
 
-- `src/cli/audit/` — build-checks.ts, quality-checks.ts, audit.ts, render.ts, types.ts
-- `src/cli/facts/` — orchestrator.ts, fs.ts, agent/, shared/ (shared infrastructure)
-- `src/cli/detect/` — agents.ts, project-stack.ts (shared infrastructure)
-- `src/cli/config/` — reader.ts, types.ts
-- `src/cli/prompt/fragments/full.ts` — promoted fragments (generic instructions, not rubric-tied)
-- `src/cli/prompt/registry.ts` — fragment lookup (may need simplification)
+- `src/cli/audit/` - build-checks.ts, quality-checks.ts, audit.ts, render.ts, types.ts
+- `src/cli/facts/` - orchestrator.ts, fs.ts, agent/, shared/ (shared infrastructure)
+- `src/cli/detect/` - agents.ts, project-stack.ts (shared infrastructure)
+- `src/cli/config/` - reader.ts, types.ts
+- `src/cli/prompt/fragments/full.ts` - promoted fragments (generic instructions, not rubric-tied)
+- `src/cli/prompt/registry.ts` - fragment lookup (may need simplification)
 - `goat-flow audit`, `goat-flow critique`, `goat-flow status`, `goat-flow dashboard`
 - All existing audit and contract tests
 
@@ -125,7 +125,7 @@ setup --agent claude
 - **One truth.** Users, contributors, and agents should see one evaluation model.
 - **Setup should speak audit.** When a user runs `audit` and sees 10 setup checks, then runs `setup`, the repair guidance should reference those same 10 checks.
 - **The scanner's granularity isn't needed.** Audit's `howToFix` + the 6 numbered setup steps provide the repair guidance. The 25 quality checks provide advisory depth. Between them, they cover what the scanner covered.
-- **Facts extraction carries the context.** Stack detection, agent enumeration, and configuration state all come from `extractProjectFacts()` which is independent of both systems. Setup never needed the scanner for context — only for scoring.
+- **Facts extraction carries the context.** Stack detection, agent enumeration, and configuration state all come from `extractProjectFacts()` which is independent of both systems. Setup never needed the scanner for context - only for scoring.
 - **Massive simplification.** compose-setup.ts collapses from 5 percentage-based modes with 100+ fragment lookups to 3 state-based modes with direct howToFix rendering.
 
 ## Risks

@@ -237,7 +237,7 @@ for skill in "${required_skills[@]}"; do
     if [[ "$skill" != *"/goat/SKILL.md" ]]; then
         grep -Eq '^## Output' "$skill" || fail "Missing '## Output' or '## Output Format' in $skill"
     fi
-    # Frontmatter must define stable identifiers for scanner + docs alignment.
+    # Frontmatter must define stable identifiers for auditor + docs alignment.
     grep -q '^name:' "$skill" || fail "Missing YAML frontmatter 'name:' in $skill"
     grep -q '^description:' "$skill" || fail "Missing YAML frontmatter 'description:' in $skill"
 done
@@ -258,6 +258,8 @@ if [[ -f .codex/config.toml ]]; then
     info ".codex/config.toml parses as valid TOML"
 fi
 if [[ -f .codex/rules/deny-dangerous.star ]]; then
+    # Intentional asymmetry: Codex deny mechanism uses .star file (different from
+    # Claude/Gemini settings.json deny list). warn-only is correct here.
     # Starlark rules exist and contain at least one forbidden or prompt rule
     grep -Eq 'return "forbidden"|return "prompt"' .codex/rules/deny-dangerous.star \
         || warn ".codex/rules/deny-dangerous.star has no forbidden/prompt rules"
@@ -338,7 +340,7 @@ if [[ ! -f workflow/evaluation/footguns.md ]]; then
     warn "Missing template file: workflow/evaluation/footguns.md"
     template_errors=1
 elif ! grep -Fq 'category: hooks' workflow/evaluation/footguns.md; then
-    # Keep the template in sync with the scanner's category expectation.
+    # Keep the template in sync with the auditor's category expectations.
     warn "workflow/evaluation/footguns.md should describe the category-bucket format"
     template_errors=1
 fi
@@ -348,36 +350,6 @@ if [[ "$template_errors" -ne 0 ]]; then
 fi
 info "Template consistency checks passed"
 
-# Validate setup prompt template refs from the built CLI index (M2.11):
-# this keeps file existence checks aligned with runtime template resolution.
-if [[ -f dist/cli/prompt/template-refs.js ]]; then
-    template_errors=0
-    while IFS= read -r tmpl; do
-        if [[ ! -f "$tmpl" ]]; then
-            warn "Missing setup template: $tmpl"
-            template_errors=1
-        fi
-    done < <(
-        node -e "
-import('./dist/cli/prompt/template-refs.js').then(m => {
-  for (const agent of ['claude', 'codex', 'gemini']) {
-    const refs = m.getAgentTemplates(agent);
-    const seen = new Set();
-    for (const ref of refs) {
-      if (!seen.has(ref.template)) {
-        seen.add(ref.template);
-        console.log(ref.template);
-      }
-    }
-  }
-});
-" 2>/dev/null
-    )
-    (( template_errors == 0 )) || fail "Setup template references contain missing files"
-    info "Setup template references all resolve"
-else
-    warn "dist/cli/prompt/template-refs.js not built - skipping template ref validation"
-fi
 
 # Final output only appears when all required checks have passed.
 info "Context validation passed"

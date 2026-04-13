@@ -1,6 +1,6 @@
 # Skills
 
-Seven focused capabilities (six plus dispatcher) loaded on demand. Each skill has a distinct artifact, a hard quality gate, and a repeatable output. Skills don't load unless invoked — they stay out of the instruction budget.
+Seven focused capabilities (six plus dispatcher) loaded on demand. Each skill has a distinct artifact, a hard quality gate, and a repeatable output. Skills don't load unless invoked - they stay out of the instruction budget.
 
 All skills use the `goat-` prefix to avoid conflicts with built-in agent commands.
 
@@ -43,7 +43,7 @@ flowchart LR
 
 ---
 
-## /goat — Dispatcher
+## /goat - Dispatcher
 
 Route to the right skill in one step. Type `/goat` followed by what you need.
 
@@ -56,7 +56,7 @@ flowchart TD
     Announce --> Execute["Load target skill's Step 0"]
 ```
 
-The dispatcher classifies intent conversationally — not by keyword lookup. It asks 0-2 clarification questions max and routes with a stated assumption if still ambiguous.
+The dispatcher classifies intent conversationally - not by keyword lookup. It asks 0-2 clarification questions max and routes with a stated assumption if still ambiguous.
 
 | Intent | Skill |
 |--------|-------|
@@ -120,7 +120,7 @@ flowchart TD
     I3 -->|"BLOCKING GATE"| Close["Go deeper / Switch to diagnose / Close"]
 ```
 
-For onboarding ("I'm new to this project"), use investigate mode — covers stack detection and codebase orientation through progressive depth reading.
+For onboarding ("I'm new to this project"), use investigate mode - covers stack detection and codebase orientation through progressive depth reading.
 
 ---
 
@@ -156,7 +156,7 @@ Structured code review and quality audit with negative verification.
 | Mode | Trigger | What it does |
 |------|---------|-------------|
 | **Quick Review** | review, PR, diff | Severity-ordered scan of changes with negative verification |
-| **Audit** | audit, quality sweep | Systematic codebase area scan — findings only, no fixes |
+| **Audit** | audit, quality sweep | Systematic codebase area scan - findings only, no fixes |
 
 **Quick Review:**
 
@@ -176,7 +176,7 @@ flowchart TD
 
 MUST NOT flag pre-existing issues as part of this change. MUST attempt to disprove each finding before presenting it.
 
-**Audit mode:** For codebase areas (not a diff). Scan using severity ordering, run negative verification, group 3+ related findings as systemic patterns. MUST NOT propose fixes in audit mode — findings only.
+**Audit mode:** For codebase areas (not a diff). Scan using severity ordering, run negative verification, group 3+ related findings as systemic patterns. MUST NOT propose fixes in audit mode - findings only.
 
 ---
 
@@ -196,7 +196,7 @@ flowchart TD
     subgraph Generate["Phase 1: Generate"]
         A["Agent A (Risk Focus)\nSKEPTIC/ANALYST/STRATEGIST\n+ footguns + lessons"]
         B["Agent B (Alternatives Focus)\nSKEPTIC/ANALYST/STRATEGIST\n+ git history + config"]
-        C["Agent C (Fresh Eyes)\nArtifact + rubric ONLY\nNo project context"]
+        C["Agent C (Fresh Eyes)\nArtifact + evaluation criteria ONLY\nNo project context"]
     end
 
     P1 --> Generate
@@ -206,9 +206,9 @@ flowchart TD
     P4 -->|"BLOCKING GATE"| P5["Phase 5: Synthesise\nConsensus + Resolved + Verified + Retracted\n+ Decision Debt + What Wasn't Critiqued"]
 ```
 
-Quick mode skips Phases 3 and 4 — goes directly from Rank to Synthesise.
+Quick mode skips Phases 3 and 4 - goes directly from Rank to Synthesise.
 
-**Key constraints:** MUST use Agent tool calls for sub-agents, not inline role-play. MUST restrict Agent C to artifact + rubric only (no project context). MUST include "What Wasn't Critiqued" section (never empty). MUST tag low-confidence recommendations as Decision Debt.
+**Key constraints:** MUST use Agent tool calls for sub-agents, not inline role-play. MUST restrict Agent C to artifact + evaluation criteria only (no project context). MUST include "What Wasn't Critiqued" section (never empty). MUST tag low-confidence recommendations as Decision Debt.
 
 ---
 
@@ -252,7 +252,7 @@ MUST check framework built-in mitigations before flagging. A finding mitigated b
 
 ## /goat-test
 
-Testing gap analyser. Compares code changes against testing coverage to find undertested risks and misaligned test effort. Does not write test code — hands off to the coding agent.
+Testing gap analyser. Compares code changes against testing coverage to find undertested risks and misaligned test effort. Does not write test code - hands off to the coding agent.
 
 | Mode | Trigger | What it does |
 |------|---------|-------------|
@@ -278,12 +278,12 @@ flowchart TD
 ## Shared Conventions
 
 Every skill shares:
-- **Step 0** — context gathering before any work begins
-- **BLOCKING GATEs** — agent stops and waits for human decision
-- **CHECKPOINTs** — agent reports status and continues unless interrupted
-- **Footgun check** — cross-reference `.goat-flow/footguns/` for known traps
-- **Learning loop** — log lessons and footguns after completion
-- **Ceremony scaling** — hotfixes skip ceremony, system changes get full treatment
+- **Step 0** - context gathering before any work begins
+- **BLOCKING GATEs** - agent stops and waits for human decision
+- **CHECKPOINTs** - agent reports status and continues unless interrupted
+- **Footgun check** - cross-reference `.goat-flow/footguns/` for known traps
+- **Learning loop** - log lessons and footguns after completion
+- **Ceremony scaling** - hotfixes skip ceremony, system changes get full treatment
 
 See `.goat-flow/skill-preamble.md` (installed) or `workflow/skills/reference/skill-preamble.md` (source template) for the canonical shared conventions.
 

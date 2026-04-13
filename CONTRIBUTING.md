@@ -53,7 +53,7 @@ For shell scripts only: `shellcheck scripts/maintenance/*.sh`
 
 There are two check systems — pick the right one:
 
-- **Build checks** (`src/cli/audit/build-checks.ts`) — 16 checks that gate CI pass/fail. Adding here makes it a blocking audit requirement.
+- **Build checks** (`src/cli/audit/build-checks.ts`) — 17 checks that gate CI pass/fail. Adding here makes it a blocking audit requirement.
 - **Quality checks** (`src/cli/audit/quality-checks.ts`) — 27 advisory checks grouped by concern. Adding here adds a non-blocking quality signal.
 
 ## How to Add a New Skill Template

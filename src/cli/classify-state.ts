@@ -134,6 +134,9 @@ export function classifyProjectState(
     }
 
     if (version.startsWith("1.1.")) {
+      // Skill check is OR-union across roots - fast pre-check only.
+      // A "healthy" classification here does not guarantee per-agent audit passes.
+      // Run `goat-flow audit` for authoritative validation.
       const isHealthy =
         currentSkillCount === SKILL_NAMES.length &&
         hasInstructionFile &&

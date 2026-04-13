@@ -149,7 +149,7 @@ if [[ -f package.json ]]; then
     pkg_version=$(node -e "console.log(require('./package.json').version)")
     pass "package.json ($pkg_version)"
 
-    # AUDIT_VERSION derives from package.json — no separate version.ts to check
+    # AUDIT_VERSION derives from package.json - no separate version.ts to check
 
     # .goat-flow/config.yaml version should match package version
     if [[ -f .goat-flow/config.yaml ]]; then
@@ -346,7 +346,7 @@ if [[ -f dist/cli/audit/build-checks.js ]]; then
         if grep -q "${build_count} build" .goat-flow/architecture.md && grep -q "${quality_count} quality" .goat-flow/architecture.md; then
             pass "Architecture doc counts match code (build: ${build_count}, quality: ${quality_count})"
         else
-            fail "Architecture doc check counts mismatch — expected ${build_count} build + ${quality_count} quality in .goat-flow/architecture.md"
+            fail "Architecture doc check counts mismatch - expected ${build_count} build + ${quality_count} quality in .goat-flow/architecture.md"
         fi
     else
         skip "Architecture count validation (dist/ not fully built or architecture.md missing)"

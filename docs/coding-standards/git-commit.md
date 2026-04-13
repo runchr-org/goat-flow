@@ -38,4 +38,4 @@ Multi-line body when the commit spans multiple areas. Separate summary from body
 
 When bumping the version, update `package.json` `"version"` field. Package version is read from `package.json` at runtime (single source of truth).
 
-AUDIT_VERSION derives from `package.json` automatically — no manual bump needed for check changes.
+AUDIT_VERSION derives from `package.json` automatically - no manual bump needed for check changes.
