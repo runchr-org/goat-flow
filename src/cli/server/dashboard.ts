@@ -20,7 +20,6 @@ import { execFileSync } from "node:child_process";
 import { createFS } from "../facts/fs.js";
 import { classifyProjectState } from "../classify-state.js";
 import { runAudit } from "../audit/audit.js";
-import { loadConfig } from "../config/index.js";
 import { getPackageVersion } from "../paths.js";
 import type { AgentId } from "../types.js";
 import type { AuditReport } from "../audit/types.js";
@@ -252,20 +251,14 @@ export function serveDashboard(
         const fs = createFS(projectPath);
         const auditRpt = runAudit(fs, projectPath, { agentFilter, quality });
 
-        // Run per-agent audits for harness scores (only configured agents)
+        // Run per-agent audits for harness scores (all detected agents)
         const agentInstructionFiles: [string, string][] = [
           ["claude", "CLAUDE.md"],
           ["codex", "AGENTS.md"],
           ["gemini", "GEMINI.md"],
         ];
-        const configState = loadConfig(projectPath, fs);
-        const configuredAgentIds = configState.config.agents;
         const configAgents = agentInstructionFiles
-          .filter(
-            ([id, file]) =>
-              fs.exists(file) &&
-              (!configuredAgentIds || configuredAgentIds.includes(id)),
-          )
+          .filter(([, file]) => fs.exists(file))
           .map(([id]) => id);
         const perAgentAudits: { id: string; audit: AuditReport }[] = [];
         for (const agentId of configAgents) {

@@ -10,7 +10,7 @@ At the time of this decision, goat-flow had two separate evaluation engines:
 
 1. **Scanner/rubric** (`src/cli/rubric/`, `src/cli/scanner/`, `src/cli/scoring/`, now removed) — 79 rubric checks (28 foundation + 51 standard) + 12 anti-patterns. Point-based scoring with tiers, categories, and deductions. Originally the only evaluation system. The `scan` command was removed first, but the engine continued to be called by `setup`, `info rubrics`, `info anti-patterns`, and the dashboard `/api/setup` endpoint.
 
-2. **Audit** (`src/cli/audit/`) — 17 build checks (12 setup + 5 harness, pass/fail) + 27 quality checks (advisory percentage). Deterministic. User-facing via `goat-flow audit`. Powers CI gates, dashboard `/api/audit`, and critique prompt generation.
+2. **Audit** (`src/cli/audit/`) — 17 build checks (7 project setup + 10 per-agent, pass/fail) + 27 quality checks (advisory percentage). Deterministic. User-facing via `goat-flow audit`. Powers CI gates, dashboard `/api/audit`, and critique prompt generation.
 
 Seven-agent critique exposed the consequences of running both:
 - Setup reported "All audit checks pass" while actually running scanner checks

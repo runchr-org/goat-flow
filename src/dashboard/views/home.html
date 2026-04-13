@@ -53,7 +53,7 @@
             const fails = (a.harness.failures || []).map(f => `${num++}. **${f.check}** - ${f.message}\n   Fix: ${f.howToFix || 'See harness documentation for this check.'}`).join('\n');
             sections.push(`**${label}:**\n${fails}`);
           }
-          return `Fix these agent harness failures:\n\n` + sections.join('\n\n') + '\n\nTarget: all 5 harness checks passing for each agent.';
+          return `Fix these agent setup check failures:\n\n` + sections.join('\n\n') + '\n\nTarget: all 10 agent setup checks passing for each agent.';
         },
         qualityFixPrompt() {
           const concernLabels = { context: 'Context', constraints: 'Constraints', verification: 'Verification', recovery: 'Recovery', feedback_loop: 'Feedback Loop' };

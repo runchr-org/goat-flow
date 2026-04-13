@@ -28,9 +28,9 @@ describe("audit build: all scopes pass on healthy project", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Setup scope: missing instruction file
+// Harness scope: missing instruction file
 // ---------------------------------------------------------------------------
-describe("audit build: setup scope fails on missing instruction file", () => {
+describe("audit build: harness scope fails on missing instruction file", () => {
   it("instruction-files check fails when instruction file is missing", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "instruction-files")!;
     const ctx = makeCtx({
@@ -51,7 +51,7 @@ describe("audit build: setup scope fails on missing instruction file", () => {
       null,
       "Should fail when instruction file is missing",
     );
-    assert.equal(check.scope, "setup");
+    assert.equal(check.scope, "harness");
     assert.ok(result!.howToFix, "Should include howToFix");
   });
 });

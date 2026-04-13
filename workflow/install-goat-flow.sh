@@ -174,7 +174,9 @@ else
 version: "$VERSION"
 
 agents:
-  - $AGENT
+  - claude
+  - codex
+  - gemini
 
 skills:
   install: all

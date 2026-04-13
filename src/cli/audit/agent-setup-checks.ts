@@ -119,7 +119,7 @@ const agentsSupportedValues: BuildCheck = {
 const canonicalSkillsExist: BuildCheck = {
   id: "canonical-skills",
   name: "Canonical skills",
-  scope: "setup",
+  scope: "harness",
   run: (ctx) => {
     const canonical = ctx.structure.skills.canonical;
     const missingByAgent: string[] = [];
@@ -146,7 +146,7 @@ const canonicalSkillsExist: BuildCheck = {
 const skillVersionsPresent: BuildCheck = {
   id: "skill-versions",
   name: "Skill versions",
-  scope: "setup",
+  scope: "harness",
   run: (ctx) => {
     const noVersion: string[] = [];
     for (const af of ctx.agents) {
@@ -229,7 +229,7 @@ const agentArtifactsWithoutInstructionFile: BuildCheck = {
 const instructionFilesExist: BuildCheck = {
   id: "instruction-files",
   name: "Instruction files",
-  scope: "setup",
+  scope: "harness",
   run: (ctx) => {
     const missing: string[] = [];
     for (const af of ctx.agents) {
@@ -250,7 +250,7 @@ const instructionFilesExist: BuildCheck = {
 const noStaleSkillDirs: BuildCheck = {
   id: "stale-skill-dirs",
   name: "No stale skill directories",
-  scope: "setup",
+  scope: "harness",
   run: (ctx) => {
     const staleNames = new Set([
       ...ctx.structure.skills.stale_names,
@@ -283,7 +283,7 @@ const noStaleSkillDirs: BuildCheck = {
 const noWorkflowPathLeaks: BuildCheck = {
   id: "workflow-path-leaks",
   name: "Path integrity",
-  scope: "setup",
+  scope: "harness",
   run: (ctx) => {
     const leaks: string[] = [];
     for (const af of ctx.agents) {
