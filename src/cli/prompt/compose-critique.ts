@@ -131,6 +131,28 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   );
   lines.push("");
 
+  // Rules (moved to top, was "How to review" at bottom)
+  lines.push("## Rules");
+  lines.push("");
+  lines.push("These apply to EVERY finding you report:");
+  lines.push("");
+  lines.push(
+    "- **Negative verification is mandatory.** Before reporting any finding, try to disprove it. Re-read the cited file. Check if surrounding context resolves it. Only report findings that survive disproval.",
+  );
+  lines.push(
+    '- **Evidence-based only.** No fabricated line numbers - say "approximate" or cite file without a line number. No padding, no softened findings.',
+  );
+  lines.push(
+    '- **Content over existence.** Do not reduce the review to "does the file exist?" - check whether the CONTENT is correct, specific, and useful for THIS project.',
+  );
+  lines.push(
+    "- **Command output wins.** If a command's output contradicts a doc, the command wins.",
+  );
+  lines.push(
+    "- **Judge the current state.** Not what it was, not what it could be. What it IS right now.",
+  );
+  lines.push("");
+
   // Context
   lines.push("## Context");
   lines.push("");
@@ -189,118 +211,136 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   }
   lines.push("");
 
-  // Read first
+  // Step 0 — Ground yourself (CLI version: audit already injected)
   lines.push("---");
   lines.push("");
-  lines.push("## Read first");
+  lines.push("## Step 0 — Ground yourself");
   lines.push("");
-  lines.push("Read ALL of these before writing any findings:");
+  lines.push(
+    "Audit results are included above in the Audit Summary section. Before reading any file, run these additional commands. Save the output. All findings must be grounded in what commands actually produce.",
+  );
   lines.push("");
-  lines.push(`- The instruction file: \`${instructionFile}\``);
+  lines.push("```bash");
+  lines.push("# 1. Run the essential commands from the instruction file");
+  lines.push(
+    `#    Copy the commands from the "Essential Commands" section of \`${instructionFile}\` and run each one.`,
+  );
+  lines.push("#    Record: which pass, which fail, which don't exist.");
+  lines.push("");
+  lines.push(
+    "# 2. Hook self-test (if deny-dangerous.sh exists in your hooks directory)",
+  );
+  lines.push(`bash <your-hooks-dir>/deny-dangerous.sh --self-test`);
+  lines.push("");
+  lines.push("# 3. Quick structural checks");
+  lines.push(
+    `wc -l ${instructionFile}                          # target: under 120 lines`,
+  );
+  lines.push(
+    `ls ${skillsDir}/                                  # expect 7 goat-* directories`,
+  );
+  lines.push(
+    "cat .goat-flow/config.yaml                        # should have version, agents, toolchain",
+  );
+  lines.push("```");
+  lines.push("");
+
+  // Read next
+  lines.push("---");
+  lines.push("");
+  lines.push("## Read next");
+  lines.push("");
+  lines.push("After Step 0, read ALL of these before writing any findings:");
+  lines.push("");
+  lines.push(`- Your instruction file: \`${instructionFile}\``);
   lines.push("- `.goat-flow/config.yaml`");
   lines.push("- `.goat-flow/skill-preamble.md`");
   lines.push("- `.goat-flow/skill-conventions.md`");
   lines.push("- `.goat-flow/architecture.md`");
-  lines.push("- `.goat-flow/code-map.md` (if it exists)");
-  lines.push("- `.goat-flow/glossary.md` (if it exists)");
-  lines.push("- `.goat-flow/patterns.md` (if it exists)");
+  lines.push(
+    "- `.goat-flow/code-map.md`, `.goat-flow/glossary.md`, `.goat-flow/patterns.md` (if they exist)",
+  );
   lines.push(
     `- All installed skills - every \`goat-*/SKILL.md\` in \`${skillsDir}\``,
   );
   lines.push(`- Agent settings: \`${settingsFile}\``);
   lines.push("- All hook scripts in your agent's hooks directory");
   lines.push(
-    "- `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/decisions/` (list and review what exists)",
+    "- `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/decisions/` (list and scan what exists)",
   );
-  lines.push("- `.goat-flow/templates/` (list and review what exists)");
+  lines.push("- `.goat-flow/templates/` (list and scan what exists)");
   lines.push("");
 
-  // Part 1: Pre-check
+  // Part 1: Pre-check (reorganized into subsections, router table moved here)
   lines.push("---");
   lines.push("");
   lines.push("## Part 1: Pre-check");
   lines.push("");
-  lines.push("Answer these immediately after reading:");
+  lines.push("Answer these after reading. Quick pass/fail:");
   lines.push("");
-  lines.push(`- Count skill directories - expect 7: ${SKILL_NAMES.join(", ")}`);
+  lines.push("**Structure:**");
   lines.push(
-    "- If >7, list stale names (goat-audit, goat-investigate, goat-onboard, goat-reflect, goat-resume, goat-simplify, goat-refactor, goat-context, goat-preflight, goat-research are known stale)",
+    `- Count skill directories - expect exactly 7: ${SKILL_NAMES.join(", ")}`,
+  );
+  lines.push(
+    "- If >7, list extras. Known stale names: goat-audit, goat-investigate, goat-onboard, goat-reflect, goat-resume, goat-simplify, goat-refactor, goat-context, goat-preflight, goat-research",
   );
   lines.push("- `.goat-flow/skill-preamble.md` exists?");
   lines.push("- `.goat-flow/skill-conventions.md` exists?");
-  lines.push("- `.goat-flow/config.yaml` exists and readable?");
+  lines.push("- `.goat-flow/config.yaml` exists and parseable?");
   lines.push(
-    "- `.goat-flow/templates/` exists? (no `playbooks/` directory - that's legacy)",
+    "- `.goat-flow/templates/` exists? (no `playbooks/` - that's legacy)",
   );
   lines.push(
     "- No `todo.md`, `handoff.md`, or `handoff-template.md` in project root or `.goat-flow/`?",
   );
+  lines.push("");
+  lines.push("**Instruction file (from Step 0 output):**");
+  lines.push("- Line count (target: under 120, hard limit: 150)?");
   lines.push(
-    `- Instruction file has: project identity, execution loop, autonomy tiers, definition of done, router table, essential commands?`,
+    "- Has required sections: project identity, execution loop (4-step READ->SCOPE->ACT->VERIFY), autonomy tiers, definition of done, router table, essential commands?",
   );
-  lines.push("- Instruction file line count (target: under 120)?");
+  lines.push("- References real project paths or generic template fill?");
+  lines.push("");
+  lines.push("**Router table integrity:**");
   lines.push(
-    "- Does the instruction file reference real project paths, or is it generic template fill?",
+    "- For EVERY path in the router table, verify the file/directory exists. List any that don't resolve.",
   );
   lines.push(
-    "- Does the router table include `.goat-flow/templates/` and `.goat-flow/footguns/`?",
+    "- Does it include `.goat-flow/templates/` and `.goat-flow/footguns/`?",
   );
   lines.push("");
 
-  // Part 2: Skill testing
+  // Part 2: Setup quality (was Part 3, with config/hook checks merged from old Part 6)
   lines.push("---");
   lines.push("");
+  lines.push("## Part 2: Setup quality");
+  lines.push("");
+  lines.push("Evaluate how well goat-flow was adapted to THIS project:");
+  lines.push("");
+  lines.push("**Adaptation quality:**");
   lines.push(
-    "## Part 2: Skill testing - try each on REAL code in this project",
+    "- Was the instruction file written for this project's actual stack and domain? Or is it generic boilerplate that could apply to any repo?",
+  );
+  lines.push(
+    "- Are Ask First boundaries specific to real risk areas in THIS codebase? Or generic placeholders?",
+  );
+  lines.push(
+    "- Are the BAD/GOOD examples (in the instruction file's READ section) drawn from this project? Or template fill?",
+  );
+  lines.push(
+    "- Does the architecture doc (`.goat-flow/architecture.md`) describe the CURRENT system accurately? Read the actual codebase and compare.",
   );
   lines.push("");
+  lines.push("**Evidence quality - spot-check 3-5 entries:**");
   lines.push(
-    "For each skill, use it on actual project files. Not hypothetical requests - real modules, real code, real concerns.",
+    "- Pick 3-5 footgun entries from `.goat-flow/footguns/`. Read the cited `file:line`. Does the evidence still hold? Are they real traps or fabricated?",
+  );
+  lines.push(
+    "- Pick 2-3 lesson entries from `.goat-flow/lessons/`. Are they from real incidents or synthetic?",
   );
   lines.push("");
-  lines.push(
-    "1. **`/goat`** (dispatcher) - send 3 different requests. Does routing work? Does the Planning Route handle briefs correctly? Does it route milestones to `/goat-plan` and critique to `/goat-sbao`?",
-  );
-  lines.push(
-    "2. **`/goat-debug`** - investigate a real module or risky pattern in this codebase",
-  );
-  lines.push(
-    "3. **`/goat-plan`** - break a small improvement into milestone task files with testing gates",
-  );
-  lines.push(
-    "4. **`/goat-review`** - review a real source file for quality issues",
-  );
-  lines.push(
-    "5. **`/goat-sbao`** - critique one of the other probe outputs (e.g., the goat-plan milestones or goat-security assessment)",
-  );
-  lines.push(
-    "6. **`/goat-security`** - threat-model one component (auth, API, hooks, config)",
-  );
-  lines.push(
-    "7. **`/goat-test`** - find testing gaps in recent changes or audit coverage for an area",
-  );
-  lines.push("");
-  lines.push(
-    "For each skill write: (a) what worked, (b) what was confusing or failed, (c) what was useless ceremony. Cite `file:line` where possible.",
-  );
-  lines.push("");
-
-  // Part 3: Setup quality critique
-  lines.push("---");
-  lines.push("");
-  lines.push("## Part 3: Setup quality critique");
-  lines.push("");
-  lines.push("Evaluate how well goat-flow was set up on THIS project:");
-  lines.push("");
-  lines.push(
-    "- Was the instruction file adapted to this project's actual stack and domain, or is it generic?",
-  );
-  lines.push(
-    "- Are the BAD/GOOD examples real and project-specific, or template fill?",
-  );
-  lines.push(
-    "- Are Ask First boundaries specific to real risk areas in THIS codebase, or generic boilerplate?",
-  );
+  lines.push("**Setup hygiene:**");
   lines.push(
     "- Were existing project files (`.github/instructions/`, `docs/`, etc.) respected or overwritten?",
   );
@@ -308,63 +348,106 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     "- Did setup create duplicate surfaces (e.g., both `docs/footguns.md` and `.goat-flow/footguns/`)?",
   );
   lines.push(
-    "- Are footgun entries real traps with file:line evidence, or fabricated/generic? Check 3-5 citations - do they point to real code?",
+    "- Were templates copied to `.goat-flow/templates/`? Are they the v1.1.0 set (feature-brief, mob-elaboration, compliance-checklist, flow-diagram-guide, requirements-template)?",
   );
-  lines.push("- Are lesson entries from real incidents, or synthetic?");
+  lines.push("");
+  lines.push("**Config reality:**");
   lines.push(
-    "- Does the architecture doc describe the CURRENT system accurately?",
-  );
-  lines.push(
-    "- Is the router table complete - do all paths resolve to real files?",
-  );
-  lines.push("- Are essential commands correct - do they actually run?");
-  lines.push(
-    "- Were hook scripts installed and registered correctly? Does deny-dangerous.sh work?",
+    "- Does `.goat-flow/config.yaml` have real toolchain commands (test, lint, build)? Run them - do they work?",
   );
   lines.push(
-    "- Does `.goat-flow/config.yaml` have real toolchain commands (test, lint, build), or placeholders?",
+    "- Does `config.yaml` have `ask_first` entries? Do they match the Ask First boundaries in the instruction file?",
   );
-  lines.push("- Were templates copied to `.goat-flow/templates/`?");
+  lines.push(
+    `- Were hook scripts installed and registered in \`${settingsFile}\`?`,
+  );
+  lines.push(
+    "- Did deny-dangerous.sh pass the self-test in Step 0? If not, what failed?",
+  );
   lines.push("");
 
-  // Part 4: System critique
+  // Part 3: Skill testing (was Part 2, added "if context is limited" guidance)
+  lines.push("---");
+  lines.push("");
+  lines.push("## Part 3: Skill testing - try each on REAL code");
+  lines.push("");
+  lines.push(
+    "For each skill, invoke it on actual project files. Not hypothetical requests - real modules, real code, real concerns from THIS codebase.",
+  );
+  lines.push("");
+  lines.push(
+    "1. **`/goat`** (dispatcher) - send 3 different requests. Does routing work? Does the Planning Route handle briefs? Does it route milestones to `/goat-plan` and critique to `/goat-sbao`?",
+  );
+  lines.push(
+    "2. **`/goat-debug`** - investigate a real module or risky pattern in this codebase",
+  );
+  lines.push(
+    "3. **`/goat-plan`** - break a small real improvement into milestone task files with testing gates",
+  );
+  lines.push(
+    "4. **`/goat-review`** - review a real source file for quality issues",
+  );
+  lines.push(
+    "5. **`/goat-sbao`** - critique one of the other probe outputs (e.g., goat-plan milestones or goat-security assessment)",
+  );
+  lines.push(
+    "6. **`/goat-security`** - threat-model one real component (auth, API, hooks, config, or whatever is riskiest)",
+  );
+  lines.push(
+    "7. **`/goat-test`** - find testing gaps in recent changes or audit coverage for a module",
+  );
+  lines.push("");
+  lines.push(
+    "For each skill report: (a) what worked, (b) what was confusing or failed, (c) what was useless ceremony. Cite `file:line` where possible.",
+  );
+  lines.push("");
+  lines.push(
+    "**If context is limited:** At minimum test `/goat` (routing), `/goat-review` (most common use), and `/goat-sbao` (highest-cost skill). Note which skills you skipped.",
+  );
+  lines.push("");
+
+  // Part 4: System critique (unchanged except reference to Part 3)
   lines.push("---");
   lines.push("");
   lines.push("## Part 4: System critique - is goat-flow itself good?");
   lines.push("");
-  lines.push("Answer these with evidence from your testing in Part 2:");
+  lines.push("Answer with evidence from your testing in Part 3:");
   lines.push("");
   lines.push(
-    "- Is the execution loop (READ -> SCOPE -> ACT -> VERIFY) useful or ceremonial overhead?",
+    "- Is the execution loop (READ -> SCOPE -> ACT -> VERIFY) useful or ceremonial overhead? Did you actually follow it during skill testing?",
   );
   lines.push(
     "- Are 7 skills the right number? Which overlap? Which have gaps between them?",
   );
-  lines.push("- Does the dispatcher add value or just add a routing step?");
+  lines.push(
+    "- Does the dispatcher (`/goat`) add value or just add a routing step?",
+  );
   lines.push(
     "- Does the Planning Route (feature briefs, mob elaboration) work in practice?",
   );
   lines.push("- Is the Definition of Done practical or checkbox theater?");
   lines.push(
-    "- Is `skill-preamble.md` (loaded every invocation) worth its weight? Is `skill-conventions.md` (loaded on full-depth) referenced when it should be?",
+    "- Is `skill-preamble.md` (loaded every invocation) worth its token cost? Is `skill-conventions.md` (loaded on full-depth) referenced when it should be?",
   );
   lines.push(
-    "- Are footguns/lessons actually useful during skill execution, or noise?",
+    "- Are footguns/lessons actually consulted during skill execution, or ignored noise?",
   );
   lines.push(
-    "- Are the BLOCKING GATEs placed at the right moments, or do they interrupt flow?",
+    "- Are the BLOCKING GATEs placed at the right moments, or do they interrupt productive flow?",
   );
   lines.push(
-    "- Are the quick/full depth choices useful, or does everyone just pick one and ignore the other?",
+    "- Are the quick/full depth choices meaningfully different? Or does everyone just pick one?",
   );
-  lines.push("- Is goat-sbao worth its cost for this project?");
+  lines.push(
+    "- Is `/goat-sbao` worth its cost (spawns sub-agents) for this project's scale?",
+  );
   lines.push(
     "- What's missing that this codebase needs but goat-flow doesn't provide?",
   );
   lines.push("- What should be removed to reduce noise?");
   lines.push("");
 
-  // Part 5: Contradictions and false paths
+  // Part 5: Contradictions and false paths (added cross-agent consistency check)
   lines.push("---");
   lines.push("");
   lines.push("## Part 5: Contradictions and false paths");
@@ -381,59 +464,41 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     "- Any skill that references `.goat-flow/templates/` files that weren't installed",
   );
   lines.push(
-    "- Any skill that references `workflow/` paths - those only exist in the goat-flow repo, not in target projects",
+    "- Any skill that references `workflow/` paths - those are framework-internal and don't exist in target projects",
   );
   lines.push(
-    '- Any stale references to removed concepts: "playbooks", "coding-standards" as a first-class framework surface, "shapes", old skill names, "handoff.md", "todo.md", old execution loop steps (CLASSIFY, LOG as separate steps)',
+    '- Any stale references to removed concepts: "playbooks", "coding-standards" as a first-class surface, "shapes", old skill names, "handoff.md", "todo.md", old execution loop steps (CLASSIFY, LOG as separate steps)',
   );
   lines.push(
-    "- Does the instruction file execution loop match the skill-preamble's description of the loop?",
+    "- Does the instruction file execution loop match the skill-preamble's description?",
   );
   lines.push(
     '- Do the skills\' "NOT this skill" boundaries leave gaps? Is there any request that NO skill would handle?',
   );
   lines.push("");
-
-  // Part 6: Specific things to verify
-  lines.push("---");
-  lines.push("");
-  lines.push("## Part 6: Specific things to verify");
-  lines.push("");
   lines.push(
-    "1. **Skill template integrity:** Do the installed skill files match what you'd expect from a v1.1.0 install? Are there any signs of truncation, merging, or adaptation that broke the structure?",
+    "**Cross-agent consistency** (if multiple agent configs exist - check for CLAUDE.md, AGENTS.md, GEMINI.md):",
   );
+  lines.push("- Are deny patterns equivalent across agents?");
+  lines.push("- Are skills identical across agent skill directories?");
   lines.push(
-    "2. **Config reality:** Does config.yaml's toolchain section (test, lint, build) contain commands that actually work? Run them.",
-  );
-  lines.push(
-    "3. **Hook behavior:** Does deny-dangerous.sh actually block dangerous commands? Try: `rm -rf /`, `git push --force`, `chmod 777` in a hypothetical.",
-  );
-  lines.push(
-    "4. **Router completeness:** For every path in the router table, verify the file/directory exists.",
-  );
-  lines.push(
-    "5. **Evidence quality:** Pick 3-5 footgun or lesson entries. Read the cited file:line. Does the evidence still hold?",
-  );
-  lines.push(
-    '6. **Depth choice coherence:** Invoke one skill with "quick" and one with "full." Is the experience meaningfully different?',
+    "- Are instruction files structurally consistent (same execution loop, same sections)?",
   );
   lines.push("");
 
-  // How to review
+  // Part 6: Skill template integrity (new focused section from old Part 6 remnants)
   lines.push("---");
   lines.push("");
-  lines.push("## How to review");
+  lines.push("## Part 6: Skill template integrity");
   lines.push("");
-  lines.push("- Judge the current project state on its own merits.");
-  lines.push("- Prefer correctness over style comments.");
   lines.push(
-    "- Negative verification: for every suspected issue, try to disprove it before reporting it.",
+    "1. **Version tags:** Do all installed SKILL.md files have a `goat-flow-skill-version` header? Does it match the config.yaml version?",
   );
   lines.push(
-    '- Do not reduce the review to "does the file exist?" - check whether the CONTENT is correct, specific, and useful.',
+    "2. **Truncation or corruption:** Do the installed skill files look complete? Are there any signs of truncation, merging, or adaptation that broke the structure? (Skills should be installed verbatim from templates - they should NOT be adapted.)",
   );
   lines.push(
-    "- Do not fabricate evidence. If you can't verify a file:line reference, say so.",
+    '3. **Depth choice coherence:** Invoke one skill with "quick" and one with "full." Is the experience meaningfully different?',
   );
   lines.push("");
 
@@ -444,17 +509,19 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("");
 
   lines.push("### Pre-check Results");
-  lines.push("Pass/fail for each item from Part 1.");
+  lines.push(
+    "Pass/fail for each item from Part 1. Include Step 0 command output summary.",
+  );
   lines.push("");
 
   lines.push("### Skill Testing Results");
   lines.push(
-    "For each of the 7 skills: what worked, what failed, what was ceremony.",
+    "For each of the 7 skills (or subset tested): what worked, what failed, what was ceremony.",
   );
   lines.push("");
 
   lines.push("### Findings");
-  lines.push("Ordered by severity. For each finding:");
+  lines.push("Ordered by severity. For each:");
   lines.push("- Severity: `BLOCKER`, `MAJOR`, or `MINOR`");
   lines.push(
     "- Type: `setup quality`, `skill flaw`, `contradiction`, `false path`, `content quality`, or `framework flaw`",
@@ -462,7 +529,9 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("- Exact `file:line` reference(s)");
   lines.push("- What is wrong");
   lines.push("- Why it matters");
-  lines.push("- Evidence quality: `OBSERVED` or `INFERRED`");
+  lines.push(
+    "- Evidence quality: `OBSERVED` (verified in code/output) or `INFERRED` (state what's missing)",
+  );
   lines.push("");
 
   lines.push("### Setup Quality");
@@ -511,6 +580,12 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("1. What to change");
   lines.push("2. Evidence from your testing (cite `file:line`)");
   lines.push("3. Expected impact on the ratings");
+  lines.push("");
+
+  lines.push("### What You Did Not Verify");
+  lines.push(
+    "Be explicit about remaining uncertainty. List skipped skills, untested commands, unverified claims.",
+  );
   lines.push("");
 
   lines.push("---");
