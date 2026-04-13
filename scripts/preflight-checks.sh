@@ -145,26 +145,11 @@ fi
 
 # ── Version Consistency ──────────────────────────────────────────────
 section "Version Consistency"
-if [[ -f package.json ]] && [[ -f src/cli/rubric/version.ts ]]; then
+if [[ -f package.json ]]; then
     pkg_version=$(node -e "console.log(require('./package.json').version)")
-    rubric_version="$pkg_version"  # RUBRIC_VERSION derives from package.json since v1.1.0
-    schema_version=$(grep "SCHEMA_VERSION" src/cli/rubric/version.ts | grep -oE "['\"][^'\"]+['\"]" | tr -d "'\"")
-
     pass "package.json ($pkg_version)"
 
-    # RUBRIC_VERSION should be valid semver and ≤ package version
-    if [[ -n "$rubric_version" ]]; then
-        pass "RUBRIC_VERSION ($rubric_version)"
-    else
-        fail "RUBRIC_VERSION not found in version.ts"
-    fi
-
-    # SCHEMA_VERSION should be a positive integer
-    if [[ "$schema_version" =~ ^[0-9]+$ ]] && [[ "$schema_version" -gt 0 ]]; then
-        pass "SCHEMA_VERSION ($schema_version)"
-    else
-        fail "SCHEMA_VERSION invalid: '$schema_version' (expected positive integer)"
-    fi
+    # AUDIT_VERSION derives from package.json — no separate version.ts to check
 
     # .goat-flow/config.yaml version should match package version
     if [[ -f .goat-flow/config.yaml ]]; then
@@ -180,24 +165,6 @@ if [[ -f package.json ]] && [[ -f src/cli/rubric/version.ts ]]; then
         fi
     fi
 
-    # CHANGELOG.md newest version should match package.json + RUBRIC_VERSION
-    if [[ -f CHANGELOG.md ]]; then
-        changelog_version=$(grep -oE '^## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | head -1 | sed 's/^## v//')
-        if [[ -n "$changelog_version" ]]; then
-            pass "CHANGELOG.md newest entry (v${changelog_version})"
-            if [[ "$pkg_version" != "$changelog_version" ]]; then
-                fail "package.json ($pkg_version) does not match CHANGELOG.md newest (v${changelog_version})"
-            fi
-            if [[ -n "$rubric_version" ]] && [[ "$rubric_version" != "$changelog_version" ]]; then
-                note "RUBRIC_VERSION ($rubric_version) differs from CHANGELOG.md newest (v${changelog_version}) - bump if rubric changed"
-            fi
-        else
-            fail "CHANGELOG.md has no version entry matching '## vX.Y.Z'"
-        fi
-    else
-        note "No CHANGELOG.md found"
-    fi
-
     # Instruction file headers must match package version
     for ifile in CLAUDE.md AGENTS.md GEMINI.md; do
         if [[ -f "$ifile" ]]; then
@@ -207,17 +174,8 @@ if [[ -f package.json ]] && [[ -f src/cli/rubric/version.ts ]]; then
             fi
         fi
     done
-
-    # Warn if rubric files changed but RUBRIC_VERSION didn't
-    if command -v git >/dev/null 2>&1; then
-        rubric_changed=$(git diff --name-only src/cli/rubric/ 2>/dev/null | grep -v version.ts | head -1 || true)
-        version_changed=$(git diff --name-only src/cli/rubric/version.ts 2>/dev/null || true)
-        if [[ -n "$rubric_changed" ]] && [[ -z "$version_changed" ]]; then
-            note "Rubric files changed but RUBRIC_VERSION unchanged - consider bumping"
-        fi
-    fi
 else
-    skip "Version check (missing package.json or version.ts)"
+    skip "Version check (missing package.json)"
 fi
 
 # ── Cross-Agent Loop Consistency ─────────────────────────────────────

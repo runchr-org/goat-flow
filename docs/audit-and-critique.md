@@ -56,21 +56,42 @@ Quality findings are grouped by **concern** — the five things every major harn
 Sample quality output:
 
 ```
-Build: PASS
+GOAT Flow Setup:     PASS
+  Skills:            7/7 installed
+  Config:            valid, version 1.1.0
+  InstructionFile:   118 lines
+
+AI Harness Score:    PASS (100%)
+  Toolchain:         test + lint + build configured
+  Hooks:             claude:deny installed, codex:deny installed, gemini:deny installed
+
+Result: PASS
 
 Quality by harness concern:
 
-| Concern | Score | Key Finding |
-|---------|-------|-------------|
-| Context | 75% | architecture.md 3 months stale, 2 dead router table paths |
-| Constraints | 30% | PHPStan installed but not registered as a constraint |
-| Verification | 60% | Tests exist but no testing gates in milestone files |
-| Recovery | 80% | Milestone files active, session logs current |
-| Feedback Loop | 40% | 2 footguns in 4 months, no lessons since Feb |
+  Context (75%)
+    architecture.md exists but was last updated 3 months ago
+    2 dead router table paths detected
+    -> Update stale file:line references in .goat-flow/footguns/
+
+  Constraints (30%)
+    PHPStan detected but not registered in toolchain.lint
+    -> Register PHPStan as a constraint in config.yaml
+
+  Verification (60%)
+    Test command configured: npm test
+    No testing gates found in .goat-flow/tasks/ milestone files
+    -> Add testing gates to active milestone files
+
+  Recovery (80%)
+    Milestone files active, session logs current
+
+  Feedback Loop (40%)
+    2 footguns added in 4 months
+    No lessons since Feb
+    -> Add retrospective entries to .goat-flow/lessons/ after incidents
 
 Overall Quality: C (57%)
-
-Top recommendation: Register PHPStan as a constraint in config.yaml
 ```
 
 ---

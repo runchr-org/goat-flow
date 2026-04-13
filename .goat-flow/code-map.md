@@ -5,9 +5,9 @@ Quick orientation for agents working on the goat-flow codebase.
 ## src/cli/ -- TypeScript CLI auditor and dashboard
 
 ```
-cli.ts                     # Entry point: command parser (audit, setup, dashboard, critique, info)
+cli.ts                     # Entry point: command parser (audit, setup, dashboard, critique)
 classify-state.ts          # Project adoption classifier (bare/partial/v0.9/v1.0/v1.1/error)
-constants.ts               # SKILL_NAMES, RUBRIC_VERSION
+constants.ts               # SKILL_NAMES, AUDIT_VERSION
 types.ts                   # Shared types: AgentId, ReadonlyFS, CLIOptions, core interfaces
 
 config/
@@ -22,7 +22,7 @@ facts/                     # Fact extractors -- gather project state for audit c
 
 audit/
   audit.ts                 # Public audit command: build checks + optional quality scoring
-  build-checks.ts          # 10 setup + 6 harness build checks (gate CI pass/fail)
+  build-checks.ts          # 11 setup + 5 harness build checks (gate CI pass/fail)
   quality-checks.ts        # 27 advisory quality checks grouped by concern
   render.ts                # Output formatters (text, json, markdown)
   types.ts                 # Audit-specific types (AuditReport, CheckResult, AuditFailure)

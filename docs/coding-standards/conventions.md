@@ -16,25 +16,16 @@ src/cli/
   cli.ts              # Entry point, arg parsing (node:util parseArgs)
   index.ts            # Library re-exports
   types.ts            # All type definitions
-  constants.ts        # Shared constants
+  constants.ts        # Shared constants (AUDIT_VERSION, SKILL_NAMES, etc.)
   paths.ts            # Path resolution utilities
+  classify-state.ts   # Classify project setup state for prompt generation
   config/             # Configuration (index.ts, reader.ts, types.ts)
   detect/             # Agent and stack detection (agents.ts, project-stack.ts)
   facts/              # Fact extraction (orchestrator.ts, fs.ts, agent/, shared/)
-  scanner/            # Check evaluators (evaluate-check.ts, scan.ts)
-  rubric/             # Check definitions by tier:
-    foundation.ts     #   Foundation tier checks
-    standard/         #   Standard tier (skills.ts, hooks.ts, learning-loop.ts, router.ts, architecture.ts, local-context.ts, signals.ts, helpers, index.ts)
-    anti-patterns.ts  #   Anti-pattern deductions
-    registry.ts       #   Assembles all checks into canonical scan order
-    version.ts        #   RUBRIC_VERSION and SCHEMA_VERSION
-  scoring/            # Score computation (calculate.ts, recommendations.ts)
-  prompt/             # Prompt generation (compose-setup.ts, template-filler.ts, template-refs.ts, registry.ts)
-  prompt/fragments/   # Per-check fix/setup instructions (foundation.ts, standard.ts, full.ts, anti-patterns.ts)
-  prompt/types.ts     # Fragment, ComposedPrompt, PromptVariables
-  render/             # Output formatters (text.ts, html.ts, json.ts, markdown.ts, guide.ts, shared.ts)
+  audit/              # Audit engine (audit.ts, build-checks.ts, quality-checks.ts, render.ts, types.ts)
+  prompt/             # Prompt generation (compose-setup.ts, compose-critique.ts)
   server/             # Dashboard server (dashboard.ts, terminal.ts, types.ts)
-  telemetry/          # Scan logging (scan-logger.ts)
+src/dashboard/        # Dashboard UI (views/, static assets)
 scripts/
   preflight-checks.sh  # Full preflight gate (shellcheck, tsc, tests, version, ADR)
   validate-goat-flow-setup.sh  # Validate GOAT Flow structure (router paths, skills, frontmatter)
@@ -78,8 +69,8 @@ goat-flow critique . --agent claude      # Generate critique prompt
 - Strict TypeScript: `"strict": true` in tsconfig.json
 - No `any` types. Minimize `as` casts. Use `unknown` and narrow.
 - All types in `src/cli/types.ts`. Prompt-specific types in `src/cli/prompt/types.ts`.
-- RUBRIC_VERSION and SCHEMA_VERSION live in `src/cli/rubric/version.ts`. Package version reads from `package.json` at runtime.
-- RUBRIC_VERSION must be bumped when checks/points/detection logic change
+- AUDIT_VERSION lives in `src/cli/constants.ts`, derived from `package.json` at runtime (single source of truth)
+- Skill frontmatter must embed AUDIT_VERSION — CI enforces this in the "Skill template versions" step
 - `ReadonlyFS` interface for filesystem access -- auditor never writes to disk
 - Zero runtime dependencies. Dev-only: typescript, tsx, @types/node
 
@@ -89,17 +80,16 @@ goat-flow critique . --agent claude      # Generate critique prompt
 - Run `shellcheck` after shell script changes
 - Run `npm test` after touching `src/cli/` or `test/`
 - Run `bash scripts/preflight-checks.sh` before considering work complete
-- Keep rubric checks as typed data (`CheckDef` objects), not imperative code
-- Use `custom` detection type with typed `fn` when declarative detection is insufficient
-- Tag prompt fragments with `kind: 'create'` or `kind: 'fix'`
-- Import version from `rubric/version.ts`, never hardcode
+- Write build checks as `BuildCheck` objects (id, name, scope, run) in `audit/build-checks.ts`
+- Write quality checks as `QualityCheck` objects (id, concern, weight, run) in `audit/quality-checks.ts`
+- Import AUDIT_VERSION from `constants.ts`, never hardcode
 
 ## DON'T
 
 - Don't add runtime dependencies (the auditor must stay zero-dep)
-- Don't use `console.log` outside `cli.ts` and `render/` (preflight warns)
-- Don't put types outside the two type files (types.ts, prompt/types.ts)
-- Don't hardcode version strings (import from version.ts)
+- Don't use `console.log` outside `cli.ts` and `audit/render.ts` (preflight warns)
+- Don't put types outside `types.ts` or `audit/types.ts`
+- Don't hardcode version strings (derive from package.json via constants.ts)
 - Don't use hypothetical examples in docs -- real incidents only
 - Don't reference removed ADR patterns (see `scripts/preflight-checks.sh` for the enforced list)
 - Don't create `_modified`, `_new`, `_backup`, `_v2` file variants - modify files in-place
@@ -114,5 +104,5 @@ These files are high-risk because other files reference them or users depend on 
 - `workflow/setup/` -- numbered setup steps (01-system-overview.md through 06-final-verification.md) plus reference docs, referenced by 10+ docs
 - `workflow/setup/` -- prompt changes affect what users generate
 - `workflow/skills/` -- template changes affect user skill creation
-- `src/cli/rubric/version.ts` -- must stay in sync with package.json
+- `src/cli/constants.ts` -- AUDIT_VERSION must match package.json
 - Any file rename (breaks cross-references; CLAUDE.md DoD requires grep-after-rename)

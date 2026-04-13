@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { SKILL_NAMES } from "../../src/cli/constants.js";
-import { RUBRIC_VERSION } from "../../src/cli/constants.js";
+import { AUDIT_VERSION } from "../../src/cli/constants.js";
 import { getProjectStructure } from "../../src/cli/paths.js";
 import { BUILD_CHECKS } from "../../src/cli/audit/build-checks.js";
 import { QUALITY_CHECKS } from "../../src/cli/audit/quality-checks.js";
@@ -14,17 +14,17 @@ import { QUALITY_CHECKS } from "../../src/cli/audit/quality-checks.js";
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 
 // ---------------------------------------------------------------------------
-// Package version matches RUBRIC_VERSION
+// Package version matches AUDIT_VERSION
 // ---------------------------------------------------------------------------
 describe("version alignment", () => {
-  it("package.json version matches RUBRIC_VERSION", () => {
+  it("package.json version matches AUDIT_VERSION", () => {
     const pkg = JSON.parse(
       readFileSync(resolve(PROJECT_ROOT, "package.json"), "utf-8"),
     );
     assert.equal(
       pkg.version,
-      RUBRIC_VERSION,
-      `package.json (${pkg.version}) must match RUBRIC_VERSION (${RUBRIC_VERSION})`,
+      AUDIT_VERSION,
+      `package.json (${pkg.version}) must match AUDIT_VERSION (${AUDIT_VERSION})`,
     );
   });
 });

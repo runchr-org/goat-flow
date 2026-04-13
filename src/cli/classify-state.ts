@@ -32,11 +32,7 @@ interface ProjectState {
 }
 
 const INSTRUCTION_FILES = ["CLAUDE.md", "AGENTS.md", "GEMINI.md"] as const;
-const SKILL_ROOTS = [
-  ".claude/skills",
-  ".agents/skills",
-  ".github/skills",
-] as const;
+const SKILL_ROOTS = [".claude/skills", ".agents/skills"] as const;
 const OLD_SKILLS = [
   "goat-audit",
   "goat-investigate",
@@ -70,6 +66,7 @@ function buildIncompleteDetails(
   installedSkills: string[],
   hasInstructionFile: boolean,
   hasPreamble: boolean,
+  hasConventions: boolean,
 ): string {
   const missing: string[] = [];
   const missingSkills = SKILL_NAMES.filter(
@@ -86,6 +83,9 @@ function buildIncompleteDetails(
   }
   if (!hasPreamble) {
     missing.push("missing .goat-flow/skill-preamble.md");
+  }
+  if (!hasConventions) {
+    missing.push("missing .goat-flow/skill-conventions.md");
   }
 
   return `Config says v1.1.x but install is incomplete: ${missing.join("; ")}`;
@@ -113,6 +113,7 @@ export function classifyProjectState(
       ? fs.exists(AGENT_INSTRUCTION_FILE[agentId])
       : hasAnyInstructionFile(fs);
   const hasPreamble = fs.exists(".goat-flow/skill-preamble.md");
+  const hasConventions = fs.exists(".goat-flow/skill-conventions.md");
   const hasAIInstructions =
     fs.exists(".github/instructions") || hasInstructionFile;
 
@@ -136,7 +137,8 @@ export function classifyProjectState(
       const isHealthy =
         currentSkillCount === SKILL_NAMES.length &&
         hasInstructionFile &&
-        hasPreamble;
+        hasPreamble &&
+        hasConventions;
       if (isHealthy) {
         return {
           state: "v1.1",
@@ -153,6 +155,7 @@ export function classifyProjectState(
           installedSkills,
           hasInstructionFile,
           hasPreamble,
+          hasConventions,
         ),
       };
     }

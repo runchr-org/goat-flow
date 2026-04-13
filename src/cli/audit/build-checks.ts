@@ -6,7 +6,7 @@
 import { execSync } from "node:child_process";
 import { join } from "node:path";
 import type { BuildCheck } from "./types.js";
-import { RUBRIC_VERSION } from "../constants.js";
+import { AUDIT_VERSION } from "../constants.js";
 
 // === Setup scope checks ===
 
@@ -82,14 +82,14 @@ const configVersionCurrent: BuildCheck = {
       return {
         check: "Config version",
         message: "version field missing from config.yaml",
-        howToFix: `Add \`version: "${RUBRIC_VERSION}"\` to .goat-flow/config.yaml.`,
+        howToFix: `Add \`version: "${AUDIT_VERSION}"\` to .goat-flow/config.yaml.`,
       };
     }
-    if (version !== RUBRIC_VERSION) {
+    if (version !== AUDIT_VERSION) {
       return {
         check: "Config version",
-        message: `Config version ${version} does not match current ${RUBRIC_VERSION}`,
-        howToFix: `Update the version field in .goat-flow/config.yaml to "${RUBRIC_VERSION}".`,
+        message: `Config version ${version} does not match current ${AUDIT_VERSION}`,
+        howToFix: `Update the version field in .goat-flow/config.yaml to "${AUDIT_VERSION}".`,
       };
     }
     return null;

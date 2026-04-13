@@ -482,6 +482,10 @@ const askFirstStructuralSync: QualityCheck = {
       return pass(["No ask_first paths in config to sync"]);
     }
     const configPaths = boundaries.map((b) => b.path);
+    // Normalize glob patterns before comparing against instruction file content.
+    // Config paths may include /** or trailing / that instruction files omit.
+    const normalizePath = (p: string) =>
+      p.replace(/\/\*\*$/, "").replace(/\/$/, "");
 
     const findings: string[] = [];
     const recs: string[] = [];
@@ -495,7 +499,7 @@ const askFirstStructuralSync: QualityCheck = {
       }
       const lower = af.instruction.content.toLowerCase();
       const notMentioned = configPaths.filter(
-        (p) => !lower.includes(p.toLowerCase()),
+        (p) => !lower.includes(normalizePath(p).toLowerCase()),
       );
       if (notMentioned.length === 0) {
         findings.push(

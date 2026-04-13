@@ -191,7 +191,8 @@ function enrichDenyFromSettings(
   applySettingsDenyOverrides(denyStr, hook);
 }
 
-/** Apply Codex execpolicy Starlark rules to deny hook facts. */
+/** Apply Codex execpolicy Starlark rules to deny hook facts.
+ * Returns true if the star file covers the required secret file patterns. */
 function enrichDenyFromExecpolicy(
   fs: ReadonlyFS,
   hook: {
@@ -205,13 +206,13 @@ function enrichDenyFromExecpolicy(
     denyBlocksChmod: boolean;
     denyBlocksPipeToShell: boolean;
   },
-): void {
+): boolean {
   /** Path to the Codex execpolicy Starlark rule file */
   const execpolicyPath = ".codex/rules/deny-dangerous.star";
-  if (!fs.exists(execpolicyPath)) return;
+  if (!fs.exists(execpolicyPath)) return false;
   /** Raw content of the Starlark rule file */
   const ruleContent = fs.readFile(execpolicyPath);
-  if (!ruleContent) return;
+  if (!ruleContent) return false;
   hook.denyExists = true;
   hook.denyHasBlocks =
     /forbidden|prompt/i.test(ruleContent) && ruleContent.split("\n").length > 5;
@@ -222,6 +223,12 @@ function enrichDenyFromExecpolicy(
     /curl.*\|\s*(ba)?sh|wget.*\|\s*(ba)?sh|pipe-to-shell/i.test(ruleContent);
   // Execpolicy is config-based - jq/chaining checks are not applicable
   hook.denyIsConfigBased = true;
+  // Detect secret-file coverage from Starlark rules
+  const hasEnv = /\.env/.test(ruleContent);
+  const hasSsh = /\.ssh/.test(ruleContent);
+  const hasAws = /\.aws|credentials/.test(ruleContent);
+  const hasKeys = /\.pem|\.key|\.pfx/.test(ruleContent);
+  return hasEnv && hasSsh && hasAws && hasKeys;
 }
 
 /** Subset of hook facts describing deny-hook blocking behavior. */
@@ -444,23 +451,17 @@ function buildHookRegistration(
 
 /** Detect whether the current agent has a compaction/session-start hook configured. */
 function detectCompactionHookExists(
-  fs: ReadonlyFS,
   agent: AgentProfile,
   settingsParsed: unknown,
   settingsValid: boolean,
 ): boolean {
-  const compactionHookExists = checkCompactionHook(
-    settingsParsed,
-    settingsValid,
-  );
-  if (compactionHookExists || agent.id !== "codex") {
-    return compactionHookExists;
+  // Codex's session_start hook fires at session start, not after context compression.
+  // It does not satisfy the compaction hook requirement (re-inject task context after
+  // window compression). Return false for Codex rather than using session_start as a proxy.
+  if (agent.id === "codex") {
+    return false;
   }
-
-  const configContent = fs.readFile(".codex/config.toml");
-  return Boolean(
-    configContent && /\[hooks\.session_start\]/.test(configContent),
-  );
+  return checkCompactionHook(settingsParsed, settingsValid);
 }
 
 /** Resolve the deny hook script path for the current agent, if it has one. */
@@ -562,9 +563,10 @@ export function extractHookFacts(
   settingsParsed: unknown,
   hasDenyPatterns: boolean,
   settingsValid: boolean,
-): Omit<AgentFacts["hooks"], "readDenyCoversSecrets"> {
+): Omit<AgentFacts["hooks"], "readDenyCoversSecrets"> & {
+  execpolicyCoversSecrets: boolean;
+} {
   const compactionHookExists = detectCompactionHookExists(
-    fs,
     agent,
     settingsParsed,
     settingsValid,
@@ -578,9 +580,10 @@ export function extractHookFacts(
   // Second: also check settings.json Bash deny patterns
   enrichDenyFromSettings(settingsParsed, hasDenyPatterns, hook);
 
-  // For Codex: also check execpolicy rules
+  // For Codex: also check execpolicy rules; capture secret coverage result
+  let execpolicyCoversSecrets = false;
   if (agent.id === "codex") {
-    enrichDenyFromExecpolicy(fs, hook);
+    execpolicyCoversSecrets = enrichDenyFromExecpolicy(fs, hook);
   }
 
   const postTurn = extractPostTurnFacts(fs, agent, registration);
@@ -590,6 +593,7 @@ export function extractHookFacts(
     ...postTurn,
     compactionHookExists,
     absolutePathHooks,
+    execpolicyCoversSecrets,
   };
 }
 

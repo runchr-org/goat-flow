@@ -611,7 +611,7 @@ export function serveDashboard(
         config: false,
       };
 
-      const skillRoots = [".claude/skills", ".agents/skills", ".github/skills"];
+      const skillRoots = [".claude/skills", ".agents/skills"];
       for (const root of skillRoots) {
         const skillsDir = join(projectPath, root);
         if (existsSync(skillsDir)) {

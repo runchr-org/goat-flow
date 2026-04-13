@@ -1,0 +1,104 @@
+<!-- ═══ Settings View ═══ -->
+<div
+  x-show="activeView === 'settings'"
+  x-cloak
+  style="height: calc(100vh - 5rem); overflow-y: auto"
+>
+  <div style="max-width: 880px; margin: 0 auto; padding: 12px 28px 24px">
+    <!-- Header -->
+    <div style="margin-bottom: 20px">
+      <span class="gf-text-primary" style="font-size: 20px; font-weight: 600"
+        >Settings</span
+      >
+    </div>
+
+    <!-- Agents table -->
+    <div
+      class="gf-card"
+      style="border-radius: 8px; overflow: hidden; margin-bottom: 20px"
+    >
+      <div
+        class="gf-card-header"
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 16px;
+        "
+      >
+        <span class="gf-text-primary" style="font-size: 16px; font-weight: 600"
+          >Agents</span
+        >
+      </div>
+      <table style="width: 100%; border-collapse: collapse">
+        <thead>
+          <tr>
+            <template x-for="col in ['Agent', 'Version', 'Status', '']">
+              <th class="gf-th" x-text="col"></th>
+            </template>
+          </tr>
+        </thead>
+        <tbody>
+          <template
+            x-for="agent in allAgents.map(a => ({ ...a, name: { claude: 'Claude Code', codex: 'Codex', gemini: 'Gemini CLI' }[a.id] || a.id }))"
+            :key="agent.id"
+          >
+            <tr class="gf-tr">
+              <td class="gf-td">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <span
+                    class="gf-dot"
+                    :class="agent.installed ? 'gf-dot-on' : 'gf-dot-off'"
+                  ></span>
+                  <span
+                    style="font-size: 13px; font-weight: 500"
+                    :class="agent.installed ? 'gf-text-primary' : 'gf-text-disabled'"
+                    x-text="agent.name"
+                  ></span>
+                </div>
+              </td>
+              <td class="gf-td">
+                <span
+                  :class="agent.installed ? 'gf-text-muted' : 'gf-text-disabled'"
+                  :style="'font-size:11px;font-family:JetBrains Mono,Fira Code,monospace;' + (!agent.installed ? 'font-style:italic;' : '')"
+                  x-text="agent.version || (agent.installed ? '' : 'not installed')"
+                ></span>
+              </td>
+              <td class="gf-td">
+                <span
+                  style="font-size: 11px"
+                  :class="agent.installed ? 'gf-text-secondary' : 'gf-text-disabled'"
+                  x-text="agent.installed ? 'Installed' : 'Not found'"
+                ></span>
+              </td>
+              <td class="gf-td" style="text-align: right">
+                <button
+                  x-show="agent.installed && terminalAvailable"
+                  @click="activeRunner = agent.id; launchInTerminal('', agent.id)"
+                  class="gf-btn gf-btn-sm gf-btn-audit"
+                >
+                  Terminal
+                </button>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div
+      class="gf-footer"
+      style="text-align: center; font-size: 11px; padding: 16px 0 8px"
+    >
+      Built by
+      <a
+        href="https://www.blundergoat.com"
+        target="_blank"
+        class="gf-footer-link"
+        >BlunderGOAT</a
+      >
+      · <span x-text="dashboardVersion ? `v${dashboardVersion}` : ''"></span>
+    </div>
+  </div>
+</div>

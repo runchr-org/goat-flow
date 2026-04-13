@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { load } from "js-yaml";
 import type { ReadonlyFS } from "../types.js";
-import { RUBRIC_VERSION } from "../constants.js";
+import { AUDIT_VERSION } from "../constants.js";
 import type {
   GoatFlowConfig,
   LoadedConfig,
@@ -32,7 +32,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
 
 /** Built-in default values used when config.yaml is missing or omits fields. */
 const CONFIG_DEFAULTS: GoatFlowConfig = {
-  version: RUBRIC_VERSION,
+  version: AUDIT_VERSION,
   footguns: { path: ".goat-flow/footguns/" },
   lessons: { path: ".goat-flow/lessons/" },
   decisions: { path: ".goat-flow/decisions/" },

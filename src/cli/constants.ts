@@ -16,7 +16,7 @@ export const SKILL_NAMES = [
 ] as const;
 
 /**
- * Current rubric/audit version - derived from package.json so it stays in sync automatically.
+ * Current audit version - derived from package.json so it stays in sync automatically.
  * Skills embed this as `goat-flow-skill-version: X` in their YAML frontmatter.
  */
-export const RUBRIC_VERSION = getPackageVersion();
+export const AUDIT_VERSION = getPackageVersion();

@@ -121,8 +121,6 @@ goat-flow dashboard .                      # Visual dashboard with integrated te
 goat-flow audit . --format json            # JSON output for CI
 goat-flow setup . --agent gemini           # Gemini CLI setup
 goat-flow setup . --agent codex            # Codex setup
-goat-flow info rubrics                     # List internal rubric checks
-goat-flow info anti-patterns               # List internal anti-pattern deductions
 ```
 
 See [docs/cli.md](docs/cli.md) for the full command reference.
@@ -142,7 +140,7 @@ All agents share the same execution loop, autonomy tiers, skills, and learning l
 ## Troubleshooting
 
 **Terminal not showing in dashboard?**
-node-pty didn't compile. Run `pnpm approve-builds` (select node-pty) or `npm rebuild node-pty`.
+node-pty didn't compile. Run `npm rebuild node-pty`. If using pnpm: `pnpm approve-builds` (select node-pty).
 
 **Audit fails on a fresh project?**
 Expected. Run `goat-flow setup . --agent claude` and paste the output into your agent.

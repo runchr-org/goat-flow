@@ -42,7 +42,7 @@ src/cli/
   detect/             # Agent and stack detection (agents.ts, project-stack.ts)
   facts/              # Fact extraction (orchestrator.ts, fs.ts, agent/, shared/)
   prompt/             # Prompt generation (compose-setup.ts, compose-critique.ts)
-  audit/              # Build checks, quality checks, render (text.ts, json.ts, markdown.ts)
+  audit/              # Build checks, quality checks, render.ts (output formatters: text, json, markdown)
   server/             # Dashboard server (dashboard.ts, terminal.ts, types.ts)
 
 src/dashboard/

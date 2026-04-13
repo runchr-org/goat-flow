@@ -26,60 +26,47 @@ This is a **Node.js CLI tool** (not a browser app, not React/Vue). Pure TypeScri
 - `createMockFS()` from `test/helpers/mock-fs.ts` for filesystem tests -- never touch real disk
 - `createTestProject()` from `test/helpers/test-project.ts` for integration fixtures
 
-## Scanner Check Pattern
+## Build Check Pattern
 
-Each rubric check is a `CheckDef` object in `src/cli/rubric/{foundation.ts,standard/,anti-patterns.ts}`:
+Each build check is a `BuildCheck` object in `src/cli/audit/build-checks.ts`:
 
 ```typescript
 {
-  id: string,              // e.g. '1.1.1', '2.1.5'
+  id: string,              // kebab-case identifier
   name: string,            // Human-readable check name
-  tier: Tier,              // 'foundation' | 'standard' | 'full'
-  category: string,        // Grouping label
-  pts: number,             // Points awarded on pass
-  partialPts?: number,     // Points for partial pass
-  confidence: Confidence,  // 'high' | 'medium' | 'low' (affects score weighting)
-  detect: Detection,       // Declarative detection config
-  na?: (ctx) => boolean,   // Optional N/A condition
-  recommendation: string,  // Human-readable fix suggestion
-  recommendationKey: string, // Links to Fragment.key in prompt/fragments/
+  scope: 'setup' | 'harness',  // Which audit scope this belongs to
+  run: (ctx: AuditContext) => AuditFailure | null,  // null = pass
 }
 ```
 
-Detection types: `file_exists`, `dir_exists`, `line_count`, `grep`, `grep_count`, `json_valid`, `json_contains`, `count_items`, `composite`, `custom`.
+`AuditContext` provides: `projectPath`, `facts`, `config`, `fs`, `structure`, `agents`, `agentFilter`.
 
-Use declarative detection when possible. Use `custom` with a typed `fn: (ctx: FactContext) => CheckResult` when declarative is insufficient.
+## Quality Check Pattern
 
-## Fragment Pattern
-
-Each fragment in `src/cli/prompt/fragments/{foundation,standard,full,anti-patterns}.ts`:
+Each quality check is a `QualityCheck` object in `src/cli/audit/quality-checks.ts`:
 
 ```typescript
 {
-  key: string,             // Must match a CheckDef.recommendationKey
-  phase: FragmentPhase,    // 'foundation' | 'standard' | 'full' | 'anti-pattern'
-  category: string,        // Same as CheckDef.category
-  kind: FragmentKind,      // 'create' (setup) or 'fix' (repair)
-  instruction: string,     // Markdown instruction with {{variables}}
-  agentOverrides?: {},     // Per-agent instruction variants
+  id: string,              // kebab-case identifier
+  concern: AuditConcernKey,  // 'context' | 'constraints' | 'verification' | 'recovery' | 'feedback_loop'
+  weight: number,          // Relative weight within concern
+  run: (ctx: AuditContext) => QualityCheckResult,
 }
 ```
 
-Template variables: `{{instructionFile}}`, `{{agentName}}`, `{{languages}}`, `{{buildCommand}}`, `{{testCommand}}`, `{{lintCommand}}`, `{{date}}`, `{{grade}}`, `{{percentage}}`.
+`QualityCheckResult`: `{ score: number (0-100), findings: string[], recommendations: string[], howToFix?: string[] }`
+
+Quality checks are advisory — they never affect exit code.
 
 ## Key Patterns
 
-- `CheckResult`: returned by all evaluators. Fields: id, name, tier, category, status, points, maxPoints, confidence, message, evidence, recommendationKey
-- `FactContext`: `{ facts: ProjectFacts, agentFacts: AgentFacts }` -- passed to every check function
-- `ReadonlyFS`: filesystem abstraction (exists, readFile, lineCount, readJson, listDir, isExecutable, glob). Scanner never writes.
-- `SKILL_QUALITY_THRESHOLD = 0.8` in `rubric/standard.ts`: skills must meet 80% quality criteria
-- Anti-patterns cap at `MAX_DEDUCTION = -15` in `scoring/scorer.ts`
+- `AuditFailure`: returned by failing build checks. Fields: `check`, `message`, `evidence?`, `howToFix?`
+- `ReadonlyFS`: filesystem abstraction (exists, readFile, lineCount, readJson, listDir, isExecutable, glob). Auditor never writes.
 - Grade thresholds: A >= 90, B >= 75, C >= 60, D >= 40, F < 40
-- `INFLATION_THRESHOLD = 0.10`: fewer than 10% applicable checks = 'insufficient-data' grade
 
 ## File Organization
 
-- New check? Add `CheckDef` to the appropriate tier file in `rubric/`, add matching `Fragment` in `prompt/fragments/`
-- New detection type? Add to `DetectionType` union in `types.ts`, implement in `scanner/evaluate-check.ts`
-- New fact? Add to `SharedFacts` or `AgentFacts` in `types.ts`, extract in `facts/shared.ts` or `facts/agent.ts`
+- New build check? Add `BuildCheck` to `audit/build-checks.ts`
+- New quality check? Add `QualityCheck` to `audit/quality-checks.ts` under the right concern
+- New fact? Add to `SharedFacts` or `AgentFacts` in `types.ts`, extract in `facts/shared/` or `facts/agent/`
 - New CLI command? Add to `Command` union and `COMMANDS` array in `cli.ts`

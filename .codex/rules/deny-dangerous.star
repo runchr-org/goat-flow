@@ -107,7 +107,7 @@ def check(command):
         return "prompt"
 
     # Secrets access (read or write sensitive credential files)
-    for secret in [".pem", ".key", ".ssh/", ".aws/credentials", ".gnupg/"]:
+    for secret in [".pem", ".key", ".ssh/", ".aws/credentials", ".gnupg/", ".env", ".credentials"]:
         if secret in cmd:
             return "forbidden"
 

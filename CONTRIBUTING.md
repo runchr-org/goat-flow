@@ -44,7 +44,7 @@ For shell scripts only: `shellcheck scripts/maintenance/*.sh`
 |-----------|-----------------|
 | `src/cli/` | CLI auditor, audit checks (`audit/`), stack detector (`detect/`), setup prompt generator |
 | `src/dashboard/` | Browser-based dashboard - HTML + Alpine.js + vanilla JS |
-| `workflow/` | Setup templates, skill templates, hooks, coding standards |
+| `workflow/` | Setup templates, skill templates, hooks |
 | `.goat-flow/` | Project-specific config, architecture, decisions, footguns, lessons |
 | `scripts/` | Shell scripts for validation, maintenance, publishing |
 | `test/` | Unit, integration, contract, and smoke tests (uses `node:test`) |

@@ -26,7 +26,7 @@ err() { echo "FAIL: $1" >&2; errors=$((errors + 1)); }
 # installed skills. In the goat-flow repo, those paths resolve - so a
 # naive "does it exist?" check would miss the bug. Any workflow/ path
 # in installed skill files is an error regardless of resolution.
-for agent_dir in ".claude/skills" ".agents/skills" ".github/skills"; do
+for agent_dir in ".claude/skills" ".agents/skills"; do
     dir="${root}/${agent_dir}"
     [[ -d "$dir" ]] || continue
     while IFS= read -r match; do
@@ -36,7 +36,7 @@ for agent_dir in ".claude/skills" ".agents/skills" ".github/skills"; do
 done
 
 # ── 2. .goat-flow/ paths in installed skills must resolve ───────────
-for agent_dir in ".claude/skills" ".agents/skills" ".github/skills"; do
+for agent_dir in ".claude/skills" ".agents/skills"; do
     dir="${root}/${agent_dir}"
     [[ -d "$dir" ]] || continue
     while IFS= read -r ref_path; do
@@ -111,7 +111,7 @@ done
 
 # ── 7. No stale skill names ─────────────────────────────────────────
 stale_skills="goat-preflight goat-research goat-audit goat-investigate goat-onboard goat-reflect goat-resume"
-for agent_dir in ".claude/skills" ".agents/skills" ".github/skills"; do
+for agent_dir in ".claude/skills" ".agents/skills"; do
     dir="${root}/${agent_dir}"
     [[ -d "$dir" ]] || continue
     for stale in $stale_skills; do

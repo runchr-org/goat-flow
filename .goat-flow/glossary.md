@@ -4,7 +4,7 @@ Domain-specific terms for new contributors. Standard programming terms are exclu
 
 | Term | Definition | Canonical File | Aliases |
 |------|-----------|----------------|---------|
-| Anti-Pattern Deduction | A scored penalty (up to -15 total) applied when a project violates structural rules such as oversized instruction files or empty learning loops. | `src/cli/rubric/anti-patterns.ts` | AP1-AP23 |
+| Anti-Pattern Deduction | Removed in v1.1.0. Was a scored penalty system (AP1-AP23) applied by the scanner/rubric engine. Replaced by advisory quality checks in `src/cli/audit/quality-checks.ts`. | — | — |
 | Ask First | The middle autonomy tier requiring the agent to pause and confirm with the human before touching high-risk boundaries. | `workflow/setup/reference/execution-loop.md` | Micro-checklist |
 | Autonomy Tiers | Three-level permission system (Always / Ask First / Never) controlling what the agent can do without human approval. | `workflow/setup/reference/execution-loop.md` | -- |
 | Blast Radius | The declared maximum scope of files and systems a task is allowed to touch before the agent must stop and re-scope. | `workflow/setup/reference/execution-loop.md` | -- |

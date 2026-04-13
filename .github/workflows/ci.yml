@@ -51,15 +51,15 @@ jobs:
       - name: Version consistency
         run: |
           pkg_version=$(node -e "console.log(require('./package.json').version)")
-          # RUBRIC_VERSION derives from package.json since v1.1.0
-          rubric_version="$pkg_version"
+          # AUDIT_VERSION derives from package.json since v1.1.0
+          audit_version="$pkg_version"
 
           echo "package.json: $pkg_version"
-          echo "RUBRIC_VERSION: $rubric_version"
+          echo "AUDIT_VERSION: $audit_version"
 
-          # RUBRIC_VERSION should be valid
-          if [ -z "$rubric_version" ]; then
-            echo "::error::RUBRIC_VERSION not found in version.ts"
+          # AUDIT_VERSION should be valid
+          if [ -z "$audit_version" ]; then
+            echo "::error::AUDIT_VERSION not found — check package.json version field"
             exit 1
           fi
 
@@ -86,7 +86,7 @@ jobs:
 
       - name: Skill template versions
         run: |
-          # RUBRIC_VERSION derives from package.json since v1.1.0
+          # AUDIT_VERSION derives from package.json since v1.1.0
           skill_version=$(node -e "console.log(require('./package.json').version)")
           echo "Expected skill version: $skill_version"
 

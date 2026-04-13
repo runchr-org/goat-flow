@@ -144,6 +144,11 @@ function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
     lines.push("");
   }
 
+  lines.push("**Next step (optional):**");
+  lines.push(
+    `- Run \`${getCliCommand()} audit . --quality\` for advisory quality scores across 5 harness concerns (context, constraints, verification, recovery, feedback loop). Never blocks CI — surfaces improvements only.`,
+  );
+  lines.push("");
   lines.push("**Maintenance:**");
   lines.push(
     "- After upgrading goat-flow, re-run `goat-flow audit` to check for new checks",
@@ -523,7 +528,7 @@ function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
   lines.push("**Hook smoke-test** (run after creating hook scripts):");
   lines.push("```bash");
   lines.push("# Syntax check every hook script");
-  const hooksDir = profile.hooksDir ?? ".agent/hooks";
+  const hooksDir = profile.hooksDir ?? ".agents/hooks";
   lines.push(
     `for f in ${hooksDir}/*.sh; do bash -n "$f" || echo "FAIL: $f"; done`,
   );

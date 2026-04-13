@@ -1,11 +1,13 @@
 /**
  * Skill fact extraction - inventories installed skills, measures quality signals, and detects unadapted content.
  */
+import { readFileSync } from "node:fs";
 import type { AgentProfile, AgentFacts, ReadonlyFS } from "../../types.js";
 import {
   SKILL_NAMES,
-  RUBRIC_VERSION as SKILL_VERSION,
+  AUDIT_VERSION as SKILL_VERSION,
 } from "../../constants.js";
+import { getTemplatePath } from "../../paths.js";
 import { extractSection } from "./instruction.js";
 
 /** Compute Jaccard similarity between two strings by comparing word sets. */
@@ -242,7 +244,17 @@ function countUnadaptedSkills(
     const skillPath = `${agent.skillsDir}/${skill}/SKILL.md`;
     const installed = fs.readFile(skillPath);
     const templateName = skill.replace(/^goat-/, "");
-    const template = fs.readFile(`workflow/skills/goat-${templateName}.md`);
+    // Templates live in the goat-flow package root, not the project being audited.
+    // Use getTemplatePath + readFileSync so this works in user projects too.
+    let template: string | null = null;
+    try {
+      template = readFileSync(
+        getTemplatePath(`workflow/skills/goat-${templateName}.md`),
+        "utf-8",
+      );
+    } catch {
+      // Template missing (e.g. custom skill with no goat-flow template) - skip
+    }
     if (!installed || !template) continue;
 
     const installedStep0 = extractSection(installed, "Step 0");

@@ -15,8 +15,7 @@ All must pass before approving:
 - `shellcheck scripts/maintenance/*.sh` clean (if .sh files changed)
 - `bash scripts/preflight-checks.sh` passes
 - No broken cross-references introduced (paths in docs, router tables, Ask First boundaries)
-- Version consistency: `RUBRIC_VERSION` in `src/cli/rubric/version.ts` bumped if checks/points changed
-- Every new `CheckDef.recommendationKey` has a matching `Fragment.key` in `prompt/fragments/`
+- Version consistency: AUDIT_VERSION in `src/cli/constants.ts` matches `package.json`
 
 ## Anti-Patterns to Flag
 
@@ -24,7 +23,7 @@ All must pass before approving:
 - **Duplicated content**: same instructions in both CLAUDE.md and a doc file (causes drift)
 - **Generic Ask First boundaries**: template text like "auth, routing, deployment, API, DB" instead of actual project paths
 - **Removed patterns**: references to removed ADR concepts (see `scripts/preflight-checks.sh` for the enforced list)
-- **Hardcoded versions**: version strings should import from `src/cli/rubric/version.ts`
+- **Hardcoded versions**: AUDIT_VERSION must derive from `package.json` via `constants.ts`
 - **console.log outside cli.ts/render/**: preflight warns on this; flag it in review
 - **Explicit `any` types**: use `unknown` and narrow instead
 - **Missing .js in imports**: NodeNext requires `.js` extensions on relative imports

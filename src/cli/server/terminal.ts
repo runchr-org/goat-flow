@@ -36,7 +36,6 @@ const RUNNER_BINARIES: Record<Runner, string> = {
   claude: "claude",
   codex: "codex",
   gemini: "gemini",
-  copilot: "copilot",
 };
 
 /** Maximum output to buffer while a session is detached (characters). */

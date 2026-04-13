@@ -14,10 +14,7 @@ If `.goat-flow/config.yaml` exists and its version matches the current goat-flow
 If the version is older, use the upgrade path instead:
 - Old skill names (goat-audit, goat-investigate, etc.) or legacy `docs/footguns.md` / `tasks/todo.md` → run the migration script first (dry-run by default, add `--execute` to apply), then continue with fresh setup:
   ```bash
-  # npm global install:
   bash "$(npm -g root)/@blundergoat/goat-flow/scripts/migrate-to-1.1.sh" .
-  # pnpm / yarn / npx fallback:
-  npx @blundergoat/goat-flow migrate-to-1.1 .
   # or locate via: node -e "require.resolve('@blundergoat/goat-flow')" | xargs dirname
   ```
 - Version < current → `workflow/setup/upgrade-from-1.0.x.md`

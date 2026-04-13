@@ -76,7 +76,7 @@ function setupSummary(ctx: AuditContext): Record<string, string> {
     config: configValid
       ? `valid, version ${configVersion}`
       : "invalid or missing",
-    instructionFile: `${maxLines} lines`,
+    instructionFile: `${maxLines} lines (max across agents)`,
   };
 }
 

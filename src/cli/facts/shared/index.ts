@@ -101,7 +101,10 @@ export function extractSharedFacts(
     decisions: extractDecisionsFacts(fs, configState.config.decisions.path),
     localInstructions,
     gitCommitInstructions: {
-      exists: fs.exists(".github/git-commit-instructions.md"),
+      exists:
+        fs.exists(".github/git-commit-instructions.md") ||
+        fs.exists(".github/instructions/git-commit.md") ||
+        fs.exists("docs/coding-standards/git-commit.md"),
     },
     localInstructionsLineCount: countLocalInstructionLines(localInstructions),
   };
