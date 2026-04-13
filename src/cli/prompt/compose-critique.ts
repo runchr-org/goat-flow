@@ -140,6 +140,9 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     "- **Read-only only.** Do NOT edit, create, rename, move, or delete files. Do NOT use write commands, redirection, or patch tools. If a skill probe tries to make changes, stop and report that as a critique finding.",
   );
   lines.push(
+    "- **No mutation commands.** When testing toolchain commands, use `--check`, `--dry-run`, or read-only flags. Use `format:check` not `format`. Use `eslint` not `eslint --fix`. If unsure, run the tool with `--help` first to find the read-only flag.",
+  );
+  lines.push(
     "- **Negative verification is mandatory.** Before reporting any finding, try to disprove it. Re-read the cited file. Check if surrounding context resolves it. Only report findings that survive disproval.",
   );
   lines.push(
@@ -202,8 +205,11 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     lines.push(`**Overall: ${overallStatus}**`);
     lines.push("");
     lines.push(auditSummaryText);
+    lines.push("");
+    lines.push(
+      "> **Note:** Audit checks structure, not content. PASS means files exist and parse correctly. It does NOT mean documentation is accurate, footguns are current, or numeric claims match code. Your critique must go deeper than the audit.",
+    );
     if (auditReport.status === "fail") {
-      lines.push("");
       lines.push(
         "> The setup has failures. Factor these into your critique - are they real problems or false positives?",
       );
@@ -214,10 +220,10 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   }
   lines.push("");
 
-  // Step 0 — Ground yourself (CLI version: audit already injected)
+  // Step 0 - Ground yourself (CLI version: audit already injected)
   lines.push("---");
   lines.push("");
-  lines.push("## Step 0 — Ground yourself");
+  lines.push("## Step 0 - Ground yourself");
   lines.push("");
   lines.push(
     "Audit results are included above in the Audit Summary section. Before reading any file, run these additional commands. Save the output. All findings must be grounded in what commands actually produce.",
@@ -332,12 +338,12 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     "- Are the BAD/GOOD examples (in the instruction file's READ section) drawn from this project? Or template fill?",
   );
   lines.push(
-    "- Does the architecture doc (`.goat-flow/architecture.md`) describe the CURRENT system accurately? Read the actual codebase and compare.",
+    "- Does the architecture doc (`.goat-flow/architecture.md`) describe the CURRENT system accurately? Read the actual codebase and compare. **Verify numeric claims** (check counts, skill counts, file counts) against actual code exports or constants — numeric claims are the most common doc-code drift.",
   );
   lines.push("");
   lines.push("**Evidence quality - spot-check 3-5 entries:**");
   lines.push(
-    "- Pick 3-5 footgun entries from `.goat-flow/footguns/`. Read the cited `file:line`. Does the evidence still hold? Are they real traps or fabricated?",
+    "- Pick 3-5 footgun entries from `.goat-flow/footguns/`. For each: (a) read the cited `file:line` — does the code still exhibit the described behavior? (b) Is the `Status` field (active/resolved) accurate? An entry marked `active` that describes fixed behavior is a stale entry — report it. (c) Do the line numbers match the current file?",
   );
   lines.push(
     "- Pick 2-3 lesson entries from `.goat-flow/lessons/`. Are they from real incidents or synthetic?",
@@ -356,7 +362,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("");
   lines.push("**Config reality:**");
   lines.push(
-    "- Does `.goat-flow/config.yaml` have real toolchain commands (test, lint, build)? Run them - do they work?",
+    "- Does `.goat-flow/config.yaml` have real toolchain commands (test, lint, build)? Run the **project's own commands** first (from config.yaml or package.json scripts). If you also run the tool at broader scope (e.g., `npx eslint .` vs the project's scoped command), note whether the project intentionally scopes narrower — that's a design choice, not a finding, unless it hides real problems. Beware that `.claude/worktrees/`, `node_modules/`, and `dist/` can pollute unscoped tool runs.",
   );
   lines.push(
     "- Does `config.yaml` have `ask_first` entries? Do they match the Ask First boundaries in the instruction file?",
@@ -375,8 +381,17 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("## Part 3: Skill testing - try each on REAL code");
   lines.push("");
   lines.push(
-    "For each skill, invoke it on actual project files in READ-ONLY mode. Not hypothetical requests - use real modules, real code, and real concerns from THIS codebase, but do NOT allow the skill to modify anything.",
+    "For each skill, assess it against actual project code. Two approaches, in order of preference:",
   );
+  lines.push("");
+  lines.push(
+    "**Option A (preferred): File analysis.** Read each SKILL.md and evaluate its structure, constraints, routing logic, cross-references, and coherence against the codebase. This is safe for read-only critiques and covers most quality signals.",
+  );
+  lines.push(
+    "**Option B (if context allows): Live invocation.** Invoke the skill via the Skill tool on a real target. Monitor for file-write attempts — stop immediately if the skill tries to create or modify files. This tests runtime behavior but costs significant context.",
+  );
+  lines.push("");
+  lines.push("Either approach is acceptable. State which you used.");
   lines.push("");
   lines.push(
     "1. **`/goat`** (dispatcher) - send 3 different read-only requests. Does routing work? Does the Planning Route handle briefs without pushing toward file creation? Does it route critique to `/goat-sbao` and planning questions to `/goat-plan` appropriately?",
@@ -528,7 +543,9 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
 
   lines.push("### Findings");
   lines.push("Ordered by severity. For each:");
-  lines.push("- Severity: `BLOCKER`, `MAJOR`, or `MINOR`");
+  lines.push(
+    "- Severity: `BLOCKER` (prevents work or creates safety risk), `MAJOR` (framework violates its own stated standards or a documented quality gate fails), or `MINOR` (suboptimal but not actively harmful)",
+  );
   lines.push(
     "- Type: `setup quality`, `skill flaw`, `contradiction`, `false path`, `content quality`, or `framework flaw`",
   );

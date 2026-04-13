@@ -360,8 +360,15 @@ describe("config.agents filtering", () => {
       fs: fsWithMissingCodexSkills,
     });
     const resultWithCodex = check.run(ctxWithCodex);
-    assert.notEqual(resultWithCodex, null, "Should fail when codex skill files missing");
-    assert.ok(resultWithCodex!.message.includes("codex:"), "Failure should mention codex");
+    assert.notEqual(
+      resultWithCodex,
+      null,
+      "Should fail when codex skill files missing",
+    );
+    assert.ok(
+      resultWithCodex!.message.includes("codex:"),
+      "Failure should mention codex",
+    );
 
     // With only claude in ctx.agents (config filter applied upstream), check passes
     const ctxClaudeOnly = makeCtx({
@@ -369,7 +376,11 @@ describe("config.agents filtering", () => {
       fs: fsWithMissingCodexSkills,
     });
     const resultClaudeOnly = check.run(ctxClaudeOnly);
-    assert.equal(resultClaudeOnly, null, "Should pass when only configured agent (claude) is checked");
+    assert.equal(
+      resultClaudeOnly,
+      null,
+      "Should pass when only configured agent (claude) is checked",
+    );
   });
 });
 

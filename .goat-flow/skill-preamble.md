@@ -64,8 +64,9 @@ When invoked via /goat or when intent is ambiguous:
 | Input | Options |
 |-------|---------|
 | "check the auth code" | debug vs review vs security |
-| "analyse a plan" | review vs sbao |
+| "analyse/evaluate/critique this" | review vs sbao vs plan (depends on artifact type) |
 | "get a second opinion" | sbao vs review |
+| "assess the setup" | review vs security (depends on concern) |
 | "refactor the tests" | plan vs test |
 
 ## No-Skill Fast Path

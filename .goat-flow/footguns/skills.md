@@ -45,7 +45,7 @@ category: skills
 
 ## Footgun: Dispatcher intent mapping has no coverage for analysis/evaluation verbs
 
-**Status:** active | **Created:** 2026-03-30 | **Evidence:** ACTUAL_MEASURED
+**Status:** resolved | **Created:** 2026-03-30 | **Resolved:** 2026-04-14 | **Evidence:** ACTUAL_MEASURED
 
 **Symptoms:** User asks `/goat analyse this plan` or `/goat evaluate the setup`. Dispatcher auto-routes to goat-review without disambiguating. User expected goat-plan (or wanted to choose). The wrong skill loads and the entire interaction is wasted.
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # stop-lint.sh - Post-turn hook: runs lint/type checks after every agent turn.
-# Advisory mode (default): reports errors, exits 0.
-# Enforce mode: exits non-zero on errors (set GOAT_LINT_ENFORCE=1).
-# Default stays advisory to prevent infinite fix loops.
+# Enforce mode (default): exits non-zero on errors.
+# Advisory mode: set GOAT_LINT_ENFORCE=0 to report without blocking.
+# Default is enforce to catch regressions immediately.
 
 # Infinite loop guard (convention from enforcement.md)
 if [ "${STOP_HOOK_ACTIVE:-}" = "1" ]; then

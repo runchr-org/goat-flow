@@ -83,7 +83,7 @@ Compare risk vs coverage in both directions:
 
 For CRITICAL items with no coverage, annotate why: new path / missed coverage on existing path / hard-to-test.
 
-**Multi-model verification:** When possible, use a DIFFERENT model for verification than the coding agent. Cross-model verification catches model-specific blind spots.
+**Cross-agent verification:** Suggest the user run verification with a different agent or model. Cross-agent verification catches blind spots that same-agent testing misses.
 
 **BLOCKING GATE:** Present the gap analysis. "Here are the testing gaps. Want me to produce a targeted testing plan, a QA flow diagram, or both?" After gap analysis, suggest `/goat-plan` to add testing tasks to the current milestone.
 

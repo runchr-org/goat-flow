@@ -120,7 +120,10 @@
                   style="font-size: 12px; font-weight: 500; margin-bottom: 8px"
                   x-text="`${selectedAgent.name} Harness Score`"
                 ></div>
-                <div class="gf-card" style="padding: 16px 18px; text-align: left">
+                <div
+                  class="gf-card"
+                  style="padding: 16px 18px; text-align: left"
+                >
                   <div
                     style="
                       display: flex;
@@ -165,8 +168,13 @@
                     x-text="`${selectedAgent.harness.checks.filter(c => c.status === 'pass').length}/${selectedAgent.harness.checks.length} agent setup checks passed`"
                   ></div>
                   <template x-if="selectedAgent.concerns">
-                    <div style="display: flex; flex-direction: column; gap: 4px">
-                      <template x-for="ck in concernKeys" :key="selectedAgent.id + '-critique-bar-' + ck">
+                    <div
+                      style="display: flex; flex-direction: column; gap: 4px"
+                    >
+                      <template
+                        x-for="ck in concernKeys"
+                        :key="selectedAgent.id + '-critique-bar-' + ck"
+                      >
                         <div
                           style="
                             display: flex;

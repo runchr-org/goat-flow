@@ -919,7 +919,7 @@ const compactionHookPresent: QualityCheck = {
         30,
         ["No compaction hooks registered"],
         [
-          "codex: context compaction not supported — this recommendation does not apply",
+          "codex: context compaction not supported - this recommendation does not apply",
         ],
       );
     }
@@ -938,7 +938,7 @@ const compactionHookPresent: QualityCheck = {
     if (codexUncovered.length > 0) {
       findings.push(`codex: no compaction hook registered`);
       recs.push(
-        "codex: context compaction not supported — this recommendation does not apply",
+        "codex: context compaction not supported - this recommendation does not apply",
       );
     }
     return partial(60, findings, recs, howToFix);

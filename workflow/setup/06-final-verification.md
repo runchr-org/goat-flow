@@ -56,7 +56,7 @@ Compare:
 1. Ask First boundaries in instruction file vs `ask_first:` in config.yaml - must list same paths
 2. Essential Commands in instruction file vs `toolchain:` in config.yaml - must list same commands
 
-If they differ: update the instruction file to match config.yaml (config is canonical for structured data). Verify sync with `goat-flow audit . --harness` — the constraints concern flags unsynced ask_first paths.
+If they differ: update the instruction file to match config.yaml (config is canonical for structured data). Verify sync with `goat-flow audit . --harness` - the constraints concern flags unsynced ask_first paths.
 
 ## Hook enforcement mode
 

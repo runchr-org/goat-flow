@@ -19,7 +19,7 @@ import { createFS } from "../facts/fs.js";
 const CHECK_TO_STEP: Record<string, string> = {
   "required-files": "Step 02 (instruction file) or Step 04 (architecture)",
   "required-dirs":
-    "Step 04 (architecture and code map — creates .goat-flow/ directories)",
+    "Step 04 (architecture and code map - creates .goat-flow/ directories)",
   "config-parses": "Step 02 or Step 05 (config.yaml)",
   "config-version": "Step 05 (config version field)",
   "agents-supported": "Step 05 (config.yaml agents list)",
@@ -33,10 +33,10 @@ const CHECK_TO_STEP: Record<string, string> = {
   "workflow-path-leaks":
     "Step 03 (skill files must reference .goat-flow/ not workflow/)",
   "toolchain-commands": "Step 05 (config.yaml toolchain)",
-  "agent-settings-parse": "Step 05 (customise — hooks and settings)",
-  "hook-files-exist": "Step 05 (customise — install hook scripts)",
-  "hook-syntax": "Step 05 (customise — hook script syntax)",
-  "deny-patterns": "Step 05 (customise — deny mechanism)",
+  "agent-settings-parse": "Step 05 (customise - hooks and settings)",
+  "hook-files-exist": "Step 05 (customise - install hook scripts)",
+  "hook-syntax": "Step 05 (customise - hook script syntax)",
+  "deny-patterns": "Step 05 (customise - deny mechanism)",
 };
 
 /** Lookup from agent ID to its agent-specific setup guide. */
@@ -256,7 +256,7 @@ function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
   lines.push("");
 
   lines.push(
-    "Do NOT copy customization templates (architecture, footguns, code-map) verbatim. If a template says \"[describe X]\", describe X for THIS project. Skill SKILL.md files ARE installed verbatim - this rule applies to Step 04-05 artifacts only.",
+    'Do NOT copy customization templates (architecture, footguns, code-map) verbatim. If a template says "[describe X]", describe X for THIS project. Skill SKILL.md files ARE installed verbatim - this rule applies to Step 04-05 artifacts only.',
   );
   lines.push("");
 

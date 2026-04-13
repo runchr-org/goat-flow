@@ -22,34 +22,28 @@ goat-review (`.claude/skills/goat-review/SKILL.md:42`) and goat-test (`.claude/s
 
 ---
 
-## Footgun: Advisory hooks create unfixable quality warning after setup
+## Footgun: Advisory hooks create unfixable quality warning after setup (RESOLVED)
 
-**Status:** active | **Created:** 2026-04-13 | **Evidence:** ACTUAL_MEASURED
+**Status:** resolved | **Created:** 2026-04-13 | **Resolved:** 2026-04-14 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** Users complete all 6 setup steps correctly. They run `audit --harness` and immediately see verification at 85% with recommendation "Set claude post-turn hook to exit non-zero on validation failure, or set GOAT_LINT_ENFORCE=1." They were never told about `GOAT_LINT_ENFORCE` during setup. The framework audits its own shipped default as a deficiency with no setup-path resolution.
+**Symptoms:** Users complete all 6 setup steps correctly. They run `audit --harness` and immediately see verification at 85% with recommendation "Set claude post-turn hook to exit non-zero on validation failure, or set GOAT_LINT_ENFORCE=1."
 
-**Why it happens:** Hook scripts ship in advisory mode (exit 0 always via `|| true` patterns). The quality auditor correctly detects this. But `GOAT_LINT_ENFORCE` appears in `stop-lint.sh` and `harness-checks.ts` only - it's never mentioned in setup steps 01-06, hook configuration docs, or the setup prompt generator.
-
-**Evidence:**
-- `.claude/hooks/stop-lint.sh` - exits 0 regardless of validation results
-- `src/cli/audit/harness-checks.ts` - flags advisory mode, recommends GOAT_LINT_ENFORCE=1
-- `grep GOAT_LINT_ENFORCE workflow/setup/` - 0 matches
-- `audit --harness --agent claude` output: verification 85%, overall 97 (A)
-
-**Fix:** Either ship hooks in enforce mode with an opt-out, or add an explicit Step 04/06 note about `GOAT_LINT_ENFORCE=1` so users know how to reach 100% verification.
+**Resolution:** Hook scripts now ship in enforce mode by default (`GOAT_LINT_ENFORCE` defaults to 1). Users can opt out with `GOAT_LINT_ENFORCE=0`. The quality auditor correctly detects enforce vs advisory mode.
 
 ---
 
 ## Footgun: post-turn hook swallows failures with || true
 
-**Status:** open | **Created:** 2026-04-03 | **Evidence:** ACTUAL_MEASURED
+**Status:** resolved (goat-flow) / active (consumer projects) | **Created:** 2026-04-03 | **Updated:** 2026-04-14 | **Evidence:** ACTUAL_MEASURED
 
-Project post-turn hook scripts with `|| true` after lint/type-check commands never exit non-zero when validation fails, which hides lint failures. CLAUDE.md claims PHPStan level 10 enforcement, but the hook doesn't enforce it.
+Consumer project post-turn hook scripts with `|| true` after lint/type-check commands never exit non-zero when validation fails, which hides lint failures.
 
-**Evidence:** Found independently by Codex critiques on the-summit-chatroom (`.claude/hooks/stop-lint.sh:22`, `:29`, `:37` all swallow failure) and blundergoat-platform.
+**Evidence (cross-project — not goat-flow's own hooks):** Found independently by Codex critiques on the-summit-chatroom (`.claude/hooks/stop-lint.sh:22`, `:29`, `:37` all swallow failure) and blundergoat-platform. Note: these line numbers are from those projects' hooks, not goat-flow's.
 
-**Related:** `deny-dangerous.sh` parses `.command // .input` but template says `.tool_input.command` per `workflow/hooks/deny-dangerous.sh` (originally enforcement.md:69). (format-file.sh was removed from goat-flow core in v1.1.0 as a project-specific preference.)
+**goat-flow status:** Resolved. goat-flow's own `stop-lint.sh` defaults to enforce mode (`GOAT_LINT_ENFORCE` defaults to 1) since v1.1.0.
 
-**Impact:** The entire hook enforcement layer is dishonest. Projects pass the audit's verification concern while hooks never actually block anything.
+**Consumer project status:** Still active for projects set up before the enforce-by-default change.
 
-**Fix:** M19 in `.goat-flow/tasks/0.10.0/M19-setup-reliability.md`. Remove `|| true`, fix JSON key mismatches, add smoke-test to setup completion.
+**Related:** `deny-dangerous.sh` parses `.command // .input` but template says `.tool_input.command` per `workflow/hooks/deny-dangerous.sh`. (format-file.sh was removed from goat-flow core in v1.1.0 as a project-specific preference.)
+
+**Prevention:** Setup templates now ship enforce-by-default hooks. Existing consumer projects should update their `stop-lint.sh` to default `GOAT_LINT_ENFORCE` to 1.

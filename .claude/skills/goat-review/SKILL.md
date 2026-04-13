@@ -27,8 +27,6 @@ Use when reviewing a diff, PR, or set of changes. Also for quality audits of a c
 - If vague, ask one follow-up covering: which files, what concerns you, diff or audit.
 - Auto-detect scope: (1) explicit input, (2) staged changes, (3) unstaged changes, (4) git diff. If 20+ changed files, ask user to narrow.
 
-If a code-review instruction file exists in the project's instruction surface (check config.yaml or the router table), load and apply it.
-
 **Footgun check:** Read `.goat-flow/footguns/` for entries mentioning the target area. Present matches.
 
 ## Quick Review Path
