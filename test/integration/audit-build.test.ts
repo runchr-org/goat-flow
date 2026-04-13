@@ -57,28 +57,6 @@ describe("audit build: harness scope fails on missing instruction file", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Harness scope: missing toolchain commands
-// ---------------------------------------------------------------------------
-describe("audit build: harness scope fails on missing toolchain", () => {
-  it("toolchain-commands check fails when no commands configured", () => {
-    const check = BUILD_CHECKS.find((c) => c.id === "toolchain-commands")!;
-    const ctx = makeCtx({
-      config: stubConfig({
-        toolchain: { test: [], lint: [], build: [], package: [], format: [] },
-      }),
-    });
-    const result = check.run(ctx);
-    assert.notEqual(result, null, "Should fail when toolchain is empty");
-    assert.equal(check.scope, "harness");
-    assert.ok(
-      result!.message.includes("test"),
-      "Should mention missing test command",
-    );
-    assert.ok(result!.howToFix, "Should include howToFix");
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Harness scope: missing deny patterns
 // ---------------------------------------------------------------------------
 describe("audit build: harness scope fails on missing deny", () => {

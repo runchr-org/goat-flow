@@ -2,18 +2,23 @@
 
 ---
 
-## v1.1.0 - 2026-04-11
+## v1.1.0 - 2026-04-14
 
-1.1.0 is the setup and execution-loop recovery release after R8. Core behavior now emphasizes safer setup output, fewer setup-only footguns, and stronger evidence checks while keeping the existing scanner/rubric baseline stable.
+Scanner/rubric system removed. Replaced by deterministic audit with 17 build checks (7 project setup + 10 per-agent) and 27 advisory quality checks across 5 harness concerns. Deterministic install script. Dashboard overhaul with dynamic recommended actions. 528 files changed.
 
-### Completed
-
-- Foundation and setup flow were consolidated around a simpler execution loop and stronger migration/safety guardrails.
-- Skills were trimmed and routed to avoid duplicate/irrelevant modes, with quick/full modes added where appropriate.
-- `workflow/hooks/deny-dangerous.sh` supports both stdin and argv input and hardens branch-blocking behavior.
-- Scanner/path-reference checks were improved: setup template references, router consistency, and evidence quality checks were extended.
-- Setup now includes explicit evidence verification and gap reporting steps during finalization.
-- v1.1.0 references are propagated through installable instruction files and the 1.1.0 migration surface.
+**Audit System** - Replaced scanner/rubric engine (79 checks + 12 anti-patterns, point-based scoring) with audit system. 7 project-wide setup checks (config, directories, required files) are agent-agnostic. 10 per-agent checks (skills, versions, path integrity, hooks, deny patterns) run independently per agent. Advisory quality scoring (`--harness`) grades 5 concerns: context, constraints, verification, recovery, feedback loop. ADR-036.
+**Install Script** - `workflow/install-goat-flow.sh` handles all mechanical file copying: 7 skill templates, hooks, settings, templates, reference files, config scaffold. Deterministic, agent-aware (`--agent claude|codex|gemini`), idempotent. Migration script moved to `workflow/install-migrate-to-1.1.sh`.
+**Setup Prompts** - Stripped stack/toolchain info, signal-driven tasks, stale artifact cleanup, multi-agent consistency directives. Setup prompt now: run install script → follow numbered setup steps → verify with audit. Upgrade prompt (v0.9/v1.0) structured as numbered steps with scripts first.
+**Dashboard** - Dynamic recommended actions panel: setup failing → fix wizard + fix agent buttons; harness checks failing → fix harness buttons; quality < 100% → fix harness buttons with per-concern recommendations; healthy → review/test/security presets. Per-agent harness score cards with grade, concern bars, and expandable recommendations. Projects page sorts alphabetically, clicks navigate to home view.
+**Config Agent Filtering** - Auditor respects `config.yaml` agents list. Project setup checks are agent-agnostic. Per-agent checks only run for agents with instruction files present. Config always lists all three agents (claude, codex, gemini) — setup is per-agent, not project-locked.
+**CLI Renames** - `--quality` → `--harness`. `quality-checks.ts` → `harness-checks.ts`. `build-checks.ts` → `agent-setup-checks.ts`. Dashboard label "AI Harness Checks" → "Agent Setup Checks".
+**Critique** - `goat-flow critique . --agent claude` generates agent-driven review prompts from audit data. Separate from audit (subjective vs deterministic).
+**Security** - `execSync` → `execFileSync` in hook syntax validator (shell injection fix). Host header validation on all dashboard API routes.
+**Skills** - 7 canonical skills (goat, goat-debug, goat-plan, goat-review, goat-sbao, goat-security, goat-test). Quick/full depth modes. Conversational structure with Step 0 adaptive gate. Skills installed verbatim from templates — project-specific context comes from instruction file and `.goat-flow/` docs.
+**Setup Flow** - 6 numbered steps (system overview → instruction file → install skills → architecture/code-map → customise → verification). Agent-specific configs in `workflow/setup/agents/`. Upgrade paths for v0.9 and v1.0 projects.
+**Hooks** - `deny-dangerous.sh` supports stdin and argv input, `--self-test` flag, blocks `rm -rf`, force push, `--no-verify`, `chmod 777`, pipe-to-interpreter patterns. Advisory mode by default (exit 0).
+**Templates** - 5 project templates: feature-brief, mob-elaboration, compliance-checklist, flow-diagram-guide, requirements-template. Installed to `.goat-flow/templates/`.
+**Tests** - 51 tests across unit, integration, and contract suites. Config filtering, scope coverage, quality concern coverage, cross-agent consistency.
 
 
 ---

@@ -309,25 +309,6 @@ const noWorkflowPathLeaks: BuildCheck = {
 
 // === Harness scope checks ===
 
-const toolchainPresent: BuildCheck = {
-  id: "toolchain-commands",
-  name: "Toolchain commands",
-  scope: "harness",
-  run: (ctx) => {
-    const tc = ctx.config.config.toolchain;
-    const missing: string[] = [];
-    if (tc.test.length === 0) missing.push("test");
-    if (tc.lint.length === 0) missing.push("lint");
-    if (tc.build.length === 0) missing.push("build");
-    if (missing.length === 0) return null;
-    return {
-      check: "Toolchain commands",
-      message: `Missing toolchain commands: ${missing.join(", ")}`,
-      howToFix: `Add the missing ${missing.join(", ")} ${missing.length === 1 ? "command" : "commands"} to the toolchain section of .goat-flow/config.yaml.`,
-    };
-  },
-};
-
 const agentSettingsParse: BuildCheck = {
   id: "agent-settings-parse",
   name: "Agent settings",
@@ -444,7 +425,6 @@ export const BUILD_CHECKS: BuildCheck[] = [
   noStaleSkillDirs,
   noWorkflowPathLeaks,
   // harness
-  toolchainPresent,
   agentSettingsParse,
   hookFilesExist,
   hookScriptsSyntaxValid,
