@@ -51,6 +51,33 @@ describe("critique produces prompt output", () => {
 // Test 3: Generated prompt contains skill testing section and ratings request
 // ---------------------------------------------------------------------------
 describe("critique prompt content", () => {
+  it("states critique is strictly read-only", () => {
+    const result = composeCritique({
+      agent: "claude",
+      projectPath: "/tmp/test-project",
+      auditReport: null,
+    });
+
+    assert.ok(
+      result.prompt.includes("READ-ONLY CRITIQUE MODE."),
+      "Should explicitly mark critique mode as read-only",
+    );
+    assert.ok(
+      result.prompt.includes(
+        "DO NOT EDIT ANY FILES. ONLY READ, INSPECT, AND REPORT.",
+      ),
+      "Should end with a strong do-not-edit instruction",
+    );
+    assert.ok(
+      result.prompt.includes("Do NOT run write commands or apply patches."),
+      "Should forbid write commands and patches",
+    );
+    assert.ok(
+      !result.prompt.includes("milestone task files"),
+      "Should not ask critique to create milestone task files",
+    );
+  });
+
   it("contains skill testing section", () => {
     const result = composeCritique({
       agent: "claude",
@@ -85,6 +112,12 @@ describe("critique prompt content", () => {
     assert.ok(
       result.prompt.includes("/goat-test"),
       "Should reference goat-test skill",
+    );
+    assert.ok(
+      result.prompt.includes(
+        "ask for a milestone/task breakdown in the response only",
+      ),
+      "Should keep goat-plan probe read-only",
     );
   });
 

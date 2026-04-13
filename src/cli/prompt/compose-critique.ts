@@ -127,7 +127,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   );
   lines.push("");
   lines.push(
-    "Respond directly with your findings, ratings, and recommendations. Do not write to any files.",
+    "READ-ONLY CRITIQUE MODE. Do NOT edit, create, rename, move, or delete any files. Do NOT run write commands or apply patches. Only read files, run read-only inspection commands, and report your findings, ratings, and recommendations in the response.",
   );
   lines.push("");
 
@@ -136,6 +136,9 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("");
   lines.push("These apply to EVERY finding you report:");
   lines.push("");
+  lines.push(
+    "- **Read-only only.** Do NOT edit, create, rename, move, or delete files. Do NOT use write commands, redirection, or patch tools. If a skill probe tries to make changes, stop and report that as a critique finding.",
+  );
   lines.push(
     "- **Negative verification is mandatory.** Before reporting any finding, try to disprove it. Re-read the cited file. Check if surrounding context resolves it. Only report findings that survive disproval.",
   );
@@ -372,33 +375,36 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("## Part 3: Skill testing - try each on REAL code");
   lines.push("");
   lines.push(
-    "For each skill, invoke it on actual project files. Not hypothetical requests - real modules, real code, real concerns from THIS codebase.",
+    "For each skill, invoke it on actual project files in READ-ONLY mode. Not hypothetical requests - use real modules, real code, and real concerns from THIS codebase, but do NOT allow the skill to modify anything.",
   );
   lines.push("");
   lines.push(
-    "1. **`/goat`** (dispatcher) - send 3 different requests. Does routing work? Does the Planning Route handle briefs? Does it route milestones to `/goat-plan` and critique to `/goat-sbao`?",
+    "1. **`/goat`** (dispatcher) - send 3 different read-only requests. Does routing work? Does the Planning Route handle briefs without pushing toward file creation? Does it route critique to `/goat-sbao` and planning questions to `/goat-plan` appropriately?",
   );
   lines.push(
     "2. **`/goat-debug`** - investigate a real module or risky pattern in this codebase",
   );
   lines.push(
-    "3. **`/goat-plan`** - break a small real improvement into milestone task files with testing gates",
+    "3. **`/goat-plan`** - ask for a milestone/task breakdown in the response only. Do NOT let it write milestone files; if it tries to, report that as a failure of critique-safe behavior.",
   );
   lines.push(
     "4. **`/goat-review`** - review a real source file for quality issues",
   );
   lines.push(
-    "5. **`/goat-sbao`** - critique one of the other probe outputs (e.g., goat-plan milestones or goat-security assessment)",
+    "5. **`/goat-sbao`** - critique one of the other probe outputs in the response only (e.g., goat-plan breakdown or goat-security assessment)",
   );
   lines.push(
-    "6. **`/goat-security`** - threat-model one real component (auth, API, hooks, config, or whatever is riskiest)",
+    "6. **`/goat-security`** - threat-model one real component (auth, API, hooks, config, or whatever is riskiest) without making changes",
   );
   lines.push(
-    "7. **`/goat-test`** - find testing gaps in recent changes or audit coverage for a module",
+    "7. **`/goat-test`** - find testing gaps in recent changes or audit coverage for a module without creating new tests",
   );
   lines.push("");
   lines.push(
     "For each skill report: (a) what worked, (b) what was confusing or failed, (c) what was useless ceremony. Cite `file:line` where possible.",
+  );
+  lines.push(
+    "If any skill attempts to edit files, create artifacts, or otherwise leave read-only mode, stop that probe immediately and report it as a critique finding.",
   );
   lines.push("");
   lines.push(
@@ -498,7 +504,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     "2. **Truncation or corruption:** Do the installed skill files look complete? Are there any signs of truncation, merging, or adaptation that broke the structure? (Skills should be installed verbatim from templates - they should NOT be adapted.)",
   );
   lines.push(
-    '3. **Depth choice coherence:** Invoke one skill with "quick" and one with "full." Is the experience meaningfully different?',
+    '3. **Depth choice coherence:** Invoke one skill with "quick" and one with "full" in read-only mode. Is the experience meaningfully different?',
   );
   lines.push("");
 
@@ -591,7 +597,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("---");
   lines.push("");
   lines.push(
-    "**IMPORTANT:** Respond directly with all findings. Do not write files. Do not summarise - give the full critique with evidence, ratings, and recommendations in your response.",
+    "**IMPORTANT:** Respond directly with all findings. DO NOT EDIT ANY FILES. ONLY READ, INSPECT, AND REPORT. Do not summarise - give the full critique with evidence, ratings, and recommendations in your response.",
   );
 
   const prompt = lines.join("\n");

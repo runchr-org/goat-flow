@@ -68,29 +68,168 @@
         </div>
 
         <!-- Audit status summary -->
-        <div x-show="report">
+        <div
+          x-show="report"
+          x-data="{
+            concernMeta: {
+              context:       { label: 'Context' },
+              constraints:   { label: 'Constraints' },
+              verification:  { label: 'Verification' },
+              recovery:      { label: 'Recovery' },
+              feedback_loop: { label: 'Feedback Loop' }
+            },
+            concernKeys: ['context', 'constraints', 'verification', 'recovery', 'feedback_loop'],
+            scoreColor(s) { return s >= 80 ? 'var(--green-400)' : s >= 60 ? 'var(--orange-400)' : 'var(--red-400)' },
+            barBg(s) { return s >= 80 ? 'var(--green-900)' : s >= 60 ? 'var(--amber-950)' : 'var(--red-950)' },
+            barFill(s) { return s >= 80 ? 'var(--green-600)' : s >= 60 ? 'var(--orange-700)' : 'var(--red-700)' },
+            gradeColor(g) { return g === 'A' ? 'var(--green-400)' : g === 'B' ? 'var(--green-500)' : g === 'C' ? 'var(--orange-400)' : g === 'D' ? 'var(--orange-400)' : 'var(--red-400)' },
+            get selectedAgent() {
+              return report?.agentScores?.find(a => a.id === critiqueAgent) || null;
+            },
+            recommendationSummary(agent) {
+              if (!agent) return 'Not audited';
+              if (!agent.concerns) {
+                const passed = agent.harness.checks.filter(c => c.status === 'pass').length;
+                return `${passed}/${agent.harness.checks.length} checks passed`;
+              }
+              const recs = this.concernKeys.reduce((n, k) => n + (agent.concerns[k]?.recommendations?.length || 0), 0);
+              return recs === 0 ? 'All quality checks passing' : `${recs} recommendation${recs !== 1 ? 's' : ''}`;
+            }
+          }"
+        >
           <div
             class="gf-text-secondary"
             style="font-size: 13px; font-weight: 500; margin-bottom: 12px"
           >
             Audit status
           </div>
-          <div style="display: flex; flex-direction: column; gap: 4px">
-            <template
-              x-for="scopeName in ['setup', 'harness']"
-              :key="'critique-scope-' + scopeName"
-            >
+          <div style="display: flex; flex-direction: column; gap: 12px">
+            <div class="gf-detect-row">
+              <span class="gf-detect-label">GOAT Flow Setup</span>
+              <span
+                style="font-size: 12px; font-weight: 600"
+                :style="{ color: report?.scopes?.setup?.status === 'pass' ? '#4ade80' : '#f87171' }"
+                x-text="(() => { const sc = report?.scopes?.setup; if (!sc?.checks) return ''; const p = sc.checks.filter(c => c.status === 'pass').length; return p + '/' + sc.checks.length + ' passed'; })()"
+              ></span>
+            </div>
+
+            <template x-if="selectedAgent">
+              <div>
+                <div
+                  class="gf-text-secondary"
+                  style="font-size: 12px; font-weight: 500; margin-bottom: 8px"
+                  x-text="`${selectedAgent.name} Harness Score`"
+                ></div>
+                <div class="gf-card" style="padding: 16px 18px; text-align: left">
+                  <div
+                    style="
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                      margin-bottom: 2px;
+                    "
+                  >
+                    <span
+                      class="gf-text-primary"
+                      style="font-size: 15px; font-weight: 600"
+                      x-text="selectedAgent.name"
+                    ></span>
+                    <div
+                      x-show="selectedAgent.quality?.grade"
+                      style="display: flex; align-items: baseline; gap: 4px"
+                    >
+                      <span
+                        style="
+                          font-size: 20px;
+                          font-weight: 700;
+                          letter-spacing: -1px;
+                        "
+                        :style="{ color: gradeColor(selectedAgent.quality?.grade) }"
+                        x-text="selectedAgent.quality?.grade"
+                      ></span>
+                      <span
+                        class="gf-text-muted"
+                        style="font-size: 11px"
+                        x-text="`${selectedAgent.quality?.qualityScore}%`"
+                      ></span>
+                    </div>
+                  </div>
+                  <div
+                    class="gf-text-muted"
+                    style="font-size: 11px; margin-bottom: 10px"
+                    x-text="recommendationSummary(selectedAgent)"
+                  ></div>
+                  <div
+                    class="gf-text-muted"
+                    style="font-size: 11px; margin-bottom: 10px"
+                    x-text="`${selectedAgent.harness.checks.filter(c => c.status === 'pass').length}/${selectedAgent.harness.checks.length} agent setup checks passed`"
+                  ></div>
+                  <template x-if="selectedAgent.concerns">
+                    <div style="display: flex; flex-direction: column; gap: 4px">
+                      <template x-for="ck in concernKeys" :key="selectedAgent.id + '-critique-bar-' + ck">
+                        <div
+                          style="
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                            padding: 2px 0;
+                          "
+                        >
+                          <span
+                            class="gf-text-muted"
+                            style="
+                              font-size: 10px;
+                              width: 62px;
+                              flex-shrink: 0;
+                              text-align: right;
+                            "
+                            x-text="concernMeta[ck].label"
+                          ></span>
+                          <div
+                            style="
+                              flex: 1;
+                              height: 4px;
+                              border-radius: 2px;
+                              overflow: hidden;
+                            "
+                            :style="{ background: barBg(selectedAgent.concerns[ck].score) }"
+                          >
+                            <div
+                              style="
+                                height: 100%;
+                                border-radius: 2px;
+                                transition: width 0.3s ease;
+                              "
+                              :style="{
+                                width: selectedAgent.concerns[ck].score + '%',
+                                background: barFill(selectedAgent.concerns[ck].score)
+                              }"
+                            ></div>
+                          </div>
+                          <span
+                            style="
+                              font-size: 10px;
+                              font-weight: 600;
+                              width: 28px;
+                              text-align: right;
+                            "
+                            :style="{ color: scoreColor(selectedAgent.concerns[ck].score) }"
+                            x-text="`${selectedAgent.concerns[ck].score}%`"
+                          ></span>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <template x-if="!selectedAgent">
               <div class="gf-detect-row">
-                <span
-                  class="gf-detect-label"
-                  style="text-transform: capitalize"
-                  x-text="{ setup: 'GOAT Flow Setup', harness: 'AI Harness Score' }[scopeName]"
-                ></span>
-                <span
-                  style="font-size: 12px; font-weight: 600"
-                  :style="{ color: report?.scopes?.[scopeName]?.status === 'pass' ? '#4ade80' : '#f87171' }"
-                  x-text="(() => { const sc = report?.scopes?.[scopeName]; if (!sc?.checks) return ''; const p = sc.checks.filter(c => c.status === 'pass').length; return p + '/' + sc.checks.length + ' passed'; })()"
-                ></span>
+                <span class="gf-detect-label">Selected agent</span>
+                <span class="gf-text-muted" style="font-size: 12px"
+                  >Not audited</span
+                >
               </div>
             </template>
           </div>
@@ -179,8 +318,9 @@
                   class="gf-text-secondary"
                   style="font-weight: 500"
                 ></span>
-                to critique the goat-flow setup on this project - tests each
-                skill on real code and reports findings with evidence.
+                in read-only critique mode to inspect the goat-flow setup on
+                this project, probe critique-safe skill behavior on real code,
+                and report findings with evidence. Do not edit files.
               </div>
             </div>
           </template>
