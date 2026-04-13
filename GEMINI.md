@@ -72,7 +72,7 @@ If VERIFY caught a failure or you corrected course, update the learning loop bef
 - [ ] Local instruction checked: [local GEMINI.md / .github/instructions/ / none]
 - [ ] Rollback command: [exact command]
 
-Boundaries: `.goat-flow/architecture.md`, `GEMINI.md`, `workflow/setup/**`, `workflow/skills/**`, `.github/workflows/**`, `.gemini/**`, `.agents/skills/`, renaming/moving files, 3+ doc file changes.
+Boundaries: `.goat-flow/architecture.md`, `CLAUDE.md`, `GEMINI.md`, `workflow/setup/**`, `workflow/skills/**`, `.github/workflows/**`, `.claude/**`, `.gemini/**`, `.agents/skills/`, renaming/moving files, 3+ doc file changes.
 
 **Never:** Delete docs without replacement. Modify secrets/.env. Push to main. Change security config. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`)
 

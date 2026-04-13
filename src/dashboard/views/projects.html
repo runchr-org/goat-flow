@@ -61,13 +61,13 @@
         <button
           @click="auditAllProjects()"
           :disabled="projectsAuditing"
-          class="gf-btn gf-btn-md gf-btn-primary"
+          class="gf-btn gf-btn-md gf-btn-audit"
         >
           <span x-text="projectsAuditing ? 'Auditing...' : 'Audit All'"></span>
         </button>
         <button
           @click="showAddProject = true; $nextTick(() => $refs.addProjectInput?.focus())"
-          class="gf-btn gf-btn-md gf-btn-primary"
+          class="gf-btn gf-btn-md gf-btn-audit"
         >
           Add Project
         </button>

@@ -59,15 +59,17 @@ if [ -n "$CHANGED_TS" ] && [ -f "tsconfig.json" ]; then
   fi
 fi
 
-# Report errors to stderr (informational by default)
+# Report errors to stderr
 if [ -n "$ERRORS" ]; then
   printf '%b' "Stop hook found issues:\n$ERRORS" >&2
 fi
 
-# Optional enforce mode
-if [ "${GOAT_LINT_ENFORCE:-0}" = "1" ] && [ "$ERROR_COUNT" -gt 0 ]; then
-  exit 1
+# Advisory mode — set GOAT_LINT_ENFORCE=0 to report without blocking
+if [ "${GOAT_LINT_ENFORCE:-1}" = "0" ]; then
+  exit 0
 fi
 
-# Default advisory exit
-exit 0
+# Default: enforce — exit non-zero when validation fails
+if [ "$ERROR_COUNT" -gt 0 ]; then
+  exit 1
+fi

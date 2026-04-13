@@ -64,6 +64,20 @@ function app() {
     _terminalXterm: null,
     _projectSessions: {}, // projectPath → { sessionId, startTime, prompt, agent }
     _xtermLoaded: false,
+    terminalAuditActions: [
+      {
+        id: "audit-setup",
+        label: "Audit Setup",
+        command: "npx goat-flow audit .",
+        description: "Run the build checks for the current workspace.",
+      },
+      {
+        id: "audit-harness",
+        label: "Audit Harness",
+        command: "npx goat-flow audit . --harness",
+        description: "Run the advisory harness quality checks.",
+      },
+    ],
 
     // --- Projects state ---
     projectsList: [],
@@ -165,21 +179,36 @@ function app() {
     copyPreset(prompt) {
       this.copyText(this.adaptPrompt(prompt));
     },
-    sendToTerminal(text) {
+    sendToTerminal(text, { adapt = true } = {}) {
       if (!this._terminalWs || this._terminalWs.readyState !== WebSocket.OPEN) {
         this.showToast("No active terminal session", true);
-        return;
+        return false;
       }
       // Use bracketed paste mode so the terminal receives the entire text as a single paste,
       // not as individual keystrokes that trigger line-by-line execution.
       // \x1b[200~ = start bracketed paste, \x1b[201~ = end bracketed paste
-      const adapted = this.adaptPrompt(text);
-      const escaped = adapted.replace(/\r?\n/g, " ");
+      const prepared = adapt ? this.adaptPrompt(text) : text;
+      const escaped = prepared.replace(/\r?\n/g, " ");
       this._terminalWs.send(
         JSON.stringify({ type: "input", data: escaped + "\r" }),
       );
       this._lastInputTime = Date.now();
       if (this._terminalXterm) this._terminalXterm.focus();
+      return true;
+    },
+    async runTerminalAuditCommand(action) {
+      if (!action?.command) return;
+      this.activeView = "workspace";
+      this.workspacePanel = "terminal";
+      if (this.terminalSessionId && !this.terminalEnded) {
+        if (this.sendToTerminal(action.command, { adapt: false })) {
+          this.showToast(`Sent ${action.command} to terminal`);
+        }
+        return;
+      }
+      this.lastRunPrompt = action.label;
+      this.lastRunAgent = this.activeRunner;
+      await this.launchInTerminal(action.command, this.activeRunner);
     },
 
     // --- Init ---

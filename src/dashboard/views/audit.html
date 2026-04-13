@@ -24,6 +24,28 @@
       >
         Audit
       </button>
+      <div
+        x-show="terminalAvailable"
+        style="
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 8px;
+          margin-top: 8px;
+        "
+      >
+        <template
+          x-for="action in terminalAuditActions"
+          :key="'empty-' + action.id"
+        >
+          <button
+            @click="runTerminalAuditCommand(action)"
+            :title="action.description"
+            class="gf-btn gf-btn-md gf-btn-audit"
+            x-text="action.command"
+          ></button>
+        </template>
+      </div>
     </div>
   </div>
 
@@ -68,6 +90,37 @@
       >
         <span x-text="auditing ? 'Auditing...' : 'Re-audit'"></span>
       </button>
+    </div>
+    <div
+      x-show="terminalAvailable"
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: var(--surface-elevated);
+      "
+    >
+      <div class="gf-text-muted" style="font-size: 12px">
+        Send common audit commands to the workspace terminal.
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <template
+          x-for="action in terminalAuditActions"
+          :key="'report-' + action.id"
+        >
+          <button
+            @click="runTerminalAuditCommand(action)"
+            :title="action.description"
+            class="gf-btn gf-btn-md gf-btn-audit"
+            x-text="action.command"
+          ></button>
+        </template>
+      </div>
     </div>
 
     <!-- GOAT Flow Setup card -->

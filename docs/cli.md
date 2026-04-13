@@ -15,11 +15,11 @@ Validate setup correctness across two scopes: GOAT Flow Setup (pass/fail) and AI
 | `--output <file>` | Write to file instead of stdout |
 
 ```bash
-goat-flow audit .                          # Audit current directory
-goat-flow audit . --harness                # Build + advisory quality grades
-goat-flow audit . --agent claude           # Audit scoped to Claude
-goat-flow audit . --format json            # JSON output for CI
-goat-flow audit . --output report.json     # Write to file
+npx goat-flow audit .                      # Audit current directory
+npx goat-flow audit . --harness            # Build + advisory quality grades
+npx goat-flow audit . --agent claude       # Audit scoped to Claude
+npx goat-flow audit . --format json        # JSON output for CI
+npx goat-flow audit . --output report.json # Write to file
 ```
 
 ### `goat-flow critique [path] --agent <id>`
@@ -63,25 +63,25 @@ Common tasks and the commands to run:
 
 | I want to... | Command |
 |--------------|---------|
-| Check if my project is ready | `goat-flow audit .` |
-| See advisory quality scores | `goat-flow audit . --harness` |
+| Check if my project is ready | `npx goat-flow audit .` |
+| See advisory quality scores | `npx goat-flow audit . --harness` |
 | Get a critique prompt | `goat-flow critique . --agent claude` |
 | Set up a new project | `goat-flow setup . --agent claude` |
-| Use this in CI | `goat-flow audit . --format json` |
+| Use this in CI | `npx goat-flow audit . --format json` |
 | Open the dashboard | `goat-flow dashboard .` |
 
 **CI pipeline example:**
 
 ```bash
 # Fail the build if audit doesn't pass
-goat-flow audit . --format json --output report.json
+npx goat-flow audit . --format json --output report.json
 ```
 
 **First-time setup:**
 
 ```bash
 # 1. See where your project stands
-goat-flow audit .
+npx goat-flow audit .
 # 2. Generate a setup prompt for your agent
 goat-flow setup . --agent claude
 # 3. Open the dashboard for guided setup

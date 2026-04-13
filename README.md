@@ -51,7 +51,7 @@ A local web UI opens with auditing, setup, and an integrated terminal.
 ### 3. Audit your project
 
 ```bash
-goat-flow audit .
+npx goat-flow audit .
 ```
 
 The auditor validates goat-flow setup correctness across two scopes -- GOAT Flow Setup (pass/fail) and AI Harness Score (per-agent percentage) -- and reports pass/fail. A fresh project fails -- that's expected.
@@ -67,7 +67,7 @@ This prints a setup prompt. Paste it into Claude Code and let the agent configur
 ### 5. Re-audit and see the difference
 
 ```bash
-goat-flow audit .
+npx goat-flow audit .
 ```
 
 Your project passes the structural setup checks. Add `--harness` to see advisory scoring across the 5 harness concerns. Note: audit validates setup correctness (files, config, skills, hooks), not code quality — run your project's lint and test commands separately.
@@ -96,7 +96,7 @@ Skills are structured workflows the agent follows. `/goat` auto-routes to the ri
 
 ## The Five Harness Concerns
 
-GOAT Flow's quality audit (`goat-flow audit . --harness`) evaluates your project's agent harness against 5 concerns - the things every major harness engineering source agrees matter for agent effectiveness.
+GOAT Flow's quality audit (`npx goat-flow audit . --harness`) evaluates your project's agent harness against 5 concerns - the things every major harness engineering source agrees matter for agent effectiveness.
 
 | Concern | Question | What GOAT Flow checks |
 |---------|----------|----------------------|
@@ -111,14 +111,14 @@ These aren't a proprietary model - they're a synthesis of consensus across the h
 ## Commands
 
 ```bash
-goat-flow audit .                          # Validate setup correctness (pass/fail)
-goat-flow audit . --harness                # Build + advisory quality scoring
+npx goat-flow audit .                      # Validate setup correctness (pass/fail)
+npx goat-flow audit . --harness            # Build + advisory quality scoring
 goat-flow critique . --agent claude        # Generate agent critique prompt
 goat-flow setup . --agent claude           # Generate setup prompt for Claude Code
 goat-flow status .                         # Show project state (bare/partial/v0.9/v1.0/v1.1)
 goat-flow dashboard .                      # Visual dashboard with integrated terminal
 
-goat-flow audit . --format json            # JSON output for CI
+npx goat-flow audit . --format json        # JSON output for CI
 goat-flow setup . --agent gemini           # Gemini CLI setup
 goat-flow setup . --agent codex            # Codex setup
 ```
