@@ -7,7 +7,7 @@ also read `skill-conventions.md`.
 
 ## Execution Loop Integration
 
-When a goat-* skill is active, the skill's Step 0 satisfies READ/SCOPE. Resume the loop at ACT.
+When a goat-* skill is active, the skill's Step 0 satisfies SCOPE. READ happens within the skill's process steps.
 
 ## Severity Scale
 
