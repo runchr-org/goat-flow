@@ -328,7 +328,53 @@ describe("audit fails on missing required directory", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test 3: audit fails when a stale skill directory exists
+// Test 3: config.agents filters which agents are checked
+// ---------------------------------------------------------------------------
+describe("config.agents filtering", () => {
+  it("canonical-skills skips agents not listed in config.agents", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "canonical-skills")!;
+    const codexProfile: AgentProfile = {
+      id: "codex",
+      name: "Codex",
+      instructionFile: "AGENTS.md",
+      settingsFile: ".codex/config.toml",
+      skillsDir: ".agents/skills",
+      hooksDir: ".codex/hooks",
+      denyMechanism: {
+        type: "deny-script",
+        path: ".codex/rules/deny-dangerous.star",
+      },
+      localPattern: ".github/instructions/*.md",
+      hookEvents: { preTool: "", postTurn: "stop" },
+    };
+    const codexFacts = stubAgentFacts({ agent: codexProfile });
+
+    // FS where claude skills exist but codex skills don't
+    const fsWithMissingCodexSkills = stubFS({
+      exists: (path: string) => !path.startsWith(".agents/skills/"),
+    });
+
+    // With codex in ctx.agents, check fails (codex skill files missing from disk)
+    const ctxWithCodex = makeCtx({
+      agents: [stubAgentFacts(), codexFacts],
+      fs: fsWithMissingCodexSkills,
+    });
+    const resultWithCodex = check.run(ctxWithCodex);
+    assert.notEqual(resultWithCodex, null, "Should fail when codex skill files missing");
+    assert.ok(resultWithCodex!.message.includes("codex:"), "Failure should mention codex");
+
+    // With only claude in ctx.agents (config filter applied upstream), check passes
+    const ctxClaudeOnly = makeCtx({
+      agents: [stubAgentFacts()],
+      fs: fsWithMissingCodexSkills,
+    });
+    const resultClaudeOnly = check.run(ctxClaudeOnly);
+    assert.equal(resultClaudeOnly, null, "Should pass when only configured agent (claude) is checked");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Test 4: audit fails when a stale skill directory exists
 // ---------------------------------------------------------------------------
 describe("audit fails on stale skill directory", () => {
   it("fails stale-skill-dirs check when stale dir is present", () => {

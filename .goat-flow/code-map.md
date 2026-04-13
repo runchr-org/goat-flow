@@ -71,7 +71,6 @@ reference/security/        # Security reference docs (api-auth.md, web-common.md
 preflight-checks.sh        # Pre-commit/CI gate: lint, typecheck, cross-ref checks
 validate-goat-flow-setup.sh  # Validates .goat-flow/ structure
 setup-initial.sh           # First-time project scaffolding
-migrate-to-1.1.sh          # Migration from pre-1.1 layouts
 deny-dangerous.sh          # Hook: blocks destructive commands
 maintenance/               # Git cleanup, secret scanning, formatting
 ```

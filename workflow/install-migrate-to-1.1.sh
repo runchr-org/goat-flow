@@ -2,7 +2,7 @@
 # =============================================================================
 # migrate-to-1.1.sh - Migrate goat-flow 0.9/1.0 projects to 1.1.0 layout
 # =============================================================================
-# Usage: bash /path/to/goat-flow/scripts/migrate-to-1.1.sh /path/to/project
+# Usage: bash /path/to/goat-flow/workflow/install-migrate-to-1.1.sh /path/to/project
 #
 # What it does:
 # 1. Migrates docs/footguns.md → .goat-flow/footguns/ (category bucket)

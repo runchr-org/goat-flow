@@ -25,10 +25,10 @@ Before doing anything manually, run the migration script. It handles most of the
 
 ```bash
 # Dry-run first (safe, shows what would change):
-bash /path/to/goat-flow/scripts/migrate-to-1.1.sh /path/to/project
+bash /path/to/goat-flow/workflow/install-migrate-to-1.1.sh /path/to/project
 
 # If the dry-run looks right, execute:
-bash /path/to/goat-flow/scripts/migrate-to-1.1.sh /path/to/project --execute
+bash /path/to/goat-flow/workflow/install-migrate-to-1.1.sh /path/to/project --execute
 ```
 
 The script migrates docs/ surfaces to .goat-flow/, deletes stale skills, removes legacy task files, and backs up everything to `.goat-flow/_migrated-from-0.9/`. After running it, continue with Step 1 below to verify and finish the setup.

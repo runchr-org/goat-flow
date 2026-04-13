@@ -24,9 +24,14 @@ export function extractProjectFacts(
   /** All detected agent profiles in the project */
   let agents = detectAgents(fs);
 
-  // Filter to specific agent if requested
+  // Filter to specific agent if requested via --agent flag
   if (options.agentFilter) {
     agents = agents.filter((a) => a.id === options.agentFilter);
+  }
+  // When config.yaml lists specific agents, restrict to that set
+  else if (options.configState.config.agents) {
+    const configured = new Set(options.configState.config.agents);
+    agents = agents.filter((a) => configured.has(a.id));
   }
 
   /** Detected technology stack (language, framework, etc.) */
