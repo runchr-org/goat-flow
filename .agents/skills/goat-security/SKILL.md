@@ -63,7 +63,7 @@ Re-read `file:line` for Critical/High. Does code match the finding? Is the scena
 
 ## Compliance Mode
 
-For compliance checks, read `.goat-flow/templates/compliance-checklist.md`.
+For compliance checks, present gaps as: non-compliant, partially compliant, or not assessed. Include direct citations to relevant clauses where possible.
 
 ## Constraints
 

@@ -8,8 +8,11 @@ import { resolve } from "node:path";
 import { SKILL_NAMES } from "../../src/cli/constants.js";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
 import { getProjectStructure } from "../../src/cli/paths.js";
-import { BUILD_CHECKS } from "../../src/cli/audit/agent-setup-checks.js";
-import { QUALITY_CHECKS } from "../../src/cli/audit/harness-checks.js";
+import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
+import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
+import { QUALITY_CHECKS } from "../../src/cli/audit/harness/index.js";
+
+const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 
@@ -30,17 +33,17 @@ describe("version alignment", () => {
 });
 
 // ---------------------------------------------------------------------------
-// SKILL_NAMES count matches project-structure.json canonical skills
+// SKILL_NAMES count matches manifest.json canonical skills
 // ---------------------------------------------------------------------------
 describe("skill count alignment", () => {
-  it("SKILL_NAMES matches project-structure.json canonical skills", () => {
+  it("SKILL_NAMES matches manifest.json canonical skills", () => {
     const structure = getProjectStructure();
     const skills = structure.skills as { canonical: string[] } | undefined;
     const canonical = skills?.canonical ?? [];
     assert.deepStrictEqual(
       [...SKILL_NAMES].sort(),
       [...canonical].sort(),
-      `SKILL_NAMES (${SKILL_NAMES.length}) must match project-structure.json canonical (${canonical.length})`,
+      `SKILL_NAMES (${SKILL_NAMES.length}) must match manifest.json canonical (${canonical.length})`,
     );
   });
 });

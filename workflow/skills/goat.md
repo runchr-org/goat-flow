@@ -22,8 +22,6 @@ Use when the user describes an outcome and wants the right workflow chosen.
 ## Planning Route
 
 For planning requests, check `.goat-flow/tasks/` for existing plans first.
-- Feature brief: use `.goat-flow/templates/feature-brief.md`
-- Mob elaboration: use `.goat-flow/templates/mob-elaboration.md` only if requirements sharpening is needed
 
 | Complexity | Approach |
 |------------|----------|

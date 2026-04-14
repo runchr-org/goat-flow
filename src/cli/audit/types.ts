@@ -69,7 +69,7 @@ export interface AuditReport {
 
 // === Internal types (check definitions and context) ===
 
-/** Parsed subset of project-structure.json used by audit checks */
+/** Parsed subset of manifest.json used by audit checks */
 export interface ProjectStructure {
   required_files: string[];
   required_dirs: string[];

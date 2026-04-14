@@ -3,27 +3,25 @@
   "version": "1.1.0",
 
   "required_files": [
+    ".goat-flow/.gitignore",
     ".goat-flow/config.yaml",
+    ".goat-flow/tasks/.gitignore",
+    ".goat-flow/lessons/README.md",
+    ".goat-flow/footguns/README.md",
     ".goat-flow/skill-preamble.md",
     ".goat-flow/skill-conventions.md",
     ".goat-flow/architecture.md",
     ".goat-flow/code-map.md",
     ".goat-flow/glossary.md",
-    ".goat-flow/patterns.md",
-    ".goat-flow/templates/mob-elaboration.md",
-    ".goat-flow/templates/feature-brief.md",
-    ".goat-flow/templates/compliance-checklist.md",
-    ".goat-flow/templates/flow-diagram-guide.md",
-    ".goat-flow/templates/requirements-template.md"
+    ".goat-flow/patterns.md"
   ],
 
   "required_dirs": [
+    ".goat-flow/decisions/",
     ".goat-flow/footguns/",
     ".goat-flow/lessons/",
-    ".goat-flow/decisions/",
-    ".goat-flow/tasks/",
     ".goat-flow/logs/sessions/",
-    ".goat-flow/templates/"
+    ".goat-flow/tasks/"
   ],
 
   "directory_purposes": {

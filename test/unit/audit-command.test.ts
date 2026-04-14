@@ -5,8 +5,11 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { runAudit } from "../../src/cli/audit/audit.js";
-import { BUILD_CHECKS } from "../../src/cli/audit/agent-setup-checks.js";
-import { QUALITY_CHECKS } from "../../src/cli/audit/harness-checks.js";
+import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
+import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
+import { QUALITY_CHECKS } from "../../src/cli/audit/harness/index.js";
+
+const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
 import { createFS } from "../../src/cli/facts/fs.js";
 import type {
   AuditContext,
@@ -331,8 +334,8 @@ describe("audit fails on missing required directory", () => {
 // Test 3: config.agents filters which agents are checked
 // ---------------------------------------------------------------------------
 describe("config.agents filtering", () => {
-  it("canonical-skills skips agents not listed in config.agents", () => {
-    const check = BUILD_CHECKS.find((c) => c.id === "canonical-skills")!;
+  it("agent-skills check validates skills for filtered agent", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-skills")!;
     const codexProfile: AgentProfile = {
       id: "codex",
       name: "Codex",
@@ -356,6 +359,7 @@ describe("config.agents filtering", () => {
 
     // With codex in ctx.agents, check fails (codex skill files missing from disk)
     const ctxWithCodex = makeCtx({
+      agentFilter: "codex",
       agents: [stubAgentFacts(), codexFacts],
       fs: fsWithMissingCodexSkills,
     });
@@ -372,6 +376,7 @@ describe("config.agents filtering", () => {
 
     // With only claude in ctx.agents (config filter applied upstream), check passes
     const ctxClaudeOnly = makeCtx({
+      agentFilter: "claude",
       agents: [stubAgentFacts()],
       fs: fsWithMissingCodexSkills,
     });
@@ -388,9 +393,10 @@ describe("config.agents filtering", () => {
 // Test 4: audit fails when a stale skill directory exists
 // ---------------------------------------------------------------------------
 describe("audit fails on stale skill directory", () => {
-  it("fails stale-skill-dirs check when stale dir is present", () => {
-    const check = BUILD_CHECKS.find((c) => c.id === "stale-skill-dirs")!;
+  it("agent-skills check fails when deprecated skill dir is present", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-skills")!;
     const ctx = makeCtx({
+      agentFilter: "claude",
       agents: [
         stubAgentFacts({
           skills: {
@@ -405,38 +411,6 @@ describe("audit fails on stale skill directory", () => {
     assert.ok(
       result!.message.includes("goat-audit"),
       `Failure should mention stale dir: ${result!.message}`,
-    );
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Test 4: audit fails when installed skill contains workflow/ paths
-// ---------------------------------------------------------------------------
-describe("audit fails on workflow path leak", () => {
-  it("fails workflow-path-leaks check when skill has workflow/ path", () => {
-    const check = BUILD_CHECKS.find((c) => c.id === "workflow-path-leaks")!;
-    const ctx = makeCtx({
-      fs: stubFS({
-        exists: () => true,
-        readFile: (path: string) =>
-          path.includes("SKILL.md")
-            ? "Read workflow/setup/reference/template.md first"
-            : null,
-      }),
-      agents: [
-        stubAgentFacts({
-          skills: {
-            ...stubAgentFacts().skills,
-            found: ["goat"],
-          },
-        }),
-      ],
-    });
-    const result = check.run(ctx);
-    assert.notEqual(result, null, "Should fail when skill has workflow/ path");
-    assert.ok(
-      result!.message.includes("workflow/"),
-      `Failure should mention workflow: ${result!.message}`,
     );
   });
 });
@@ -615,11 +589,11 @@ describe("build failure howToFix", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test 8: quality recommendation howToFix - architecture-exists includes path
+// Test 8: quality recommendation howToFix includes actionable path
 // ---------------------------------------------------------------------------
 describe("quality recommendation howToFix", () => {
-  it("architecture-exists failure includes howToFix with .goat-flow/ path", () => {
-    const check = QUALITY_CHECKS.find((c) => c.id === "architecture-exists")!;
+  it("doc-paths-resolve findings mention architecture.md when missing", () => {
+    const check = QUALITY_CHECKS.find((c) => c.id === "doc-paths-resolve")!;
     const ctx = makeCtx({
       facts: {
         ...makeCtx().facts,
@@ -630,11 +604,9 @@ describe("quality recommendation howToFix", () => {
       },
     });
     const result = check.run(ctx);
-    assert.ok(result.howToFix, "Quality result should include howToFix");
-    assert.ok(result.howToFix!.length > 0, "howToFix should have entries");
     assert.ok(
-      result.howToFix![0].includes(".goat-flow/"),
-      `howToFix should reference .goat-flow/ path: ${result.howToFix![0]}`,
+      result.findings.some((f) => f.includes("architecture.md")),
+      `Findings should mention architecture.md: ${result.findings.join(", ")}`,
     );
   });
 });

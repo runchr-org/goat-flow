@@ -1,6 +1,6 @@
 /**
  * Contract tests: template paths never leak workflow/ references into installed content,
- * and project-structure.json uses canonical .goat-flow/ paths.
+ * and manifest.json uses canonical .goat-flow/ paths.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -11,9 +11,9 @@ import { getProjectStructure } from "../../src/cli/paths.js";
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 
 // ---------------------------------------------------------------------------
-// project-structure.json required paths use .goat-flow/ prefix
+// manifest.json required paths use .goat-flow/ prefix
 // ---------------------------------------------------------------------------
-describe("project-structure.json paths", () => {
+describe("manifest.json paths", () => {
   it("required files use .goat-flow/ prefix", () => {
     const structure = getProjectStructure();
     const files = (structure.required_files as string[]) ?? [];
@@ -74,7 +74,6 @@ describe("skill templates path integrity", () => {
     // This test flags them for review, not as hard failures.
     if (leaks.length > 0) {
       // Warn but don't fail - templates may reference workflow/ for valid reasons
-      // The build check "workflow-path-leaks" catches installed skill files
     }
   });
 });

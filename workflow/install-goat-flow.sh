@@ -102,7 +102,7 @@ cd "$PROJECT"
 # 1. Create .goat-flow/ directories
 # ==========================================================================
 echo "Directories:"
-for dir in .goat-flow/footguns .goat-flow/lessons .goat-flow/decisions .goat-flow/tasks .goat-flow/logs/sessions .goat-flow/templates; do
+for dir in .goat-flow/footguns .goat-flow/lessons .goat-flow/decisions .goat-flow/tasks .goat-flow/logs/sessions; do
   if [[ ! -d "$dir" ]]; then
     mkdir -p "$dir"
     echo "  ✓ $dir/"
@@ -113,21 +113,21 @@ done
 echo ""
 
 # ==========================================================================
-# 2. Copy shared reference files (always overwrite - verbatim copies)
+# 2. Copy .gitignore (always overwrite)
+# ==========================================================================
+echo "Gitignore + READMEs:"
+copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/goat-flow-gitignore" ".goat-flow/.gitignore"
+copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/tasks-gitignore" ".goat-flow/tasks/.gitignore"
+copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/lessons-readme.md" ".goat-flow/lessons/README.md"
+copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/footguns-readme.md" ".goat-flow/footguns/README.md"
+echo ""
+
+# ==========================================================================
+# 3. Copy shared reference files (always overwrite - verbatim copies)
 # ==========================================================================
 echo "Reference files:"
 copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-preamble.md" ".goat-flow/skill-preamble.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-conventions.md" ".goat-flow/skill-conventions.md"
-echo ""
-
-# ==========================================================================
-# 3. Copy templates (always overwrite - verbatim copies)
-# ==========================================================================
-echo "Templates:"
-for src in "$GOAT_FLOW_ROOT"/workflow/templates/*.md; do
-  name=$(basename "$src")
-  copy_file "$src" ".goat-flow/templates/$name"
-done
 echo ""
 
 # ==========================================================================

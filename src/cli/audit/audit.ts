@@ -7,8 +7,9 @@ import type { AgentId, ReadonlyFS } from "../types.js";
 import { loadConfig } from "../config/index.js";
 import { extractProjectFacts } from "../facts/orchestrator.js";
 import { getProjectStructure } from "../paths.js";
-import { BUILD_CHECKS } from "./agent-setup-checks.js";
-import { QUALITY_CHECKS } from "./harness-checks.js";
+import { SETUP_CHECKS } from "./check-goat-flow.js";
+import { AGENT_CHECKS } from "./check-agent-setup.js";
+import { QUALITY_CHECKS } from "./harness/index.js";
 import type {
   AuditContext,
   AuditConcern,
@@ -25,7 +26,7 @@ interface AuditOptions {
   quality: boolean;
 }
 
-/** Parse the raw project-structure.json into the typed subset audit needs. */
+/** Parse the raw manifest.json into the typed subset audit needs. */
 function parseProjectStructure(raw: Record<string, unknown>): ProjectStructure {
   return {
     required_files: (raw.required_files as string[] | undefined) ?? [],
@@ -190,6 +191,7 @@ export function runAudit(
     setup: [],
     harness: [],
   };
+  const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
   for (const check of BUILD_CHECKS) {
     const failure = check.run(ctx);
     scopeChecks[check.scope].push({

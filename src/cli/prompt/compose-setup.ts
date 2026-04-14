@@ -22,21 +22,10 @@ const CHECK_TO_STEP: Record<string, string> = {
     "Step 04 (architecture and code map - creates .goat-flow/ directories)",
   "config-parses": "Step 02 or Step 05 (config.yaml)",
   "config-version": "Step 05 (config version field)",
-  "agents-supported": "Step 05 (config.yaml agents list)",
-  "canonical-skills": "Step 03 (install skills)",
-  "skill-versions": "Step 03 (version tags)",
-  "configured-agent-present": "Step 02 (instruction file for agent)",
-  "agent-artifacts-consistent":
-    "Step 02 (create instruction file for listed agents) or Step 04 (remove stale agent directories)",
-  "instruction-files": "Step 02 (create/update instruction file)",
-  "stale-skill-dirs": "Step 03 (clean up stale skills)",
-  "workflow-path-leaks":
-    "Step 03 (skill files must reference .goat-flow/ not workflow/)",
-  "toolchain-commands": "Step 05 (config.yaml toolchain)",
-  "agent-settings-parse": "Step 05 (customise - hooks and settings)",
-  "hook-files-exist": "Step 05 (customise - install hook scripts)",
-  "hook-syntax": "Step 05 (customise - hook script syntax)",
-  "deny-patterns": "Step 05 (customise - deny mechanism)",
+  "agent-instruction": "Step 02 (instruction file for agent)",
+  "agent-skills": "Step 03 (install skills)",
+  "agent-settings": "Step 05 (customise - settings file)",
+  "agent-deny-hook": "Step 05 (customise - deny hook)",
 };
 
 /** Lookup from agent ID to its agent-specific setup guide. */

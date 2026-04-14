@@ -60,7 +60,7 @@ skills/
   reference/               # skill-preamble.md, skill-conventions.md
 
 hooks/                     # Hook templates (deny-dangerous.sh, etc.)
-templates/                 # Standalone prompt templates (feature-brief, mob-elaboration, etc.)
+templates/                 # Standalone prompt templates used by skills
 evaluation/                # Critique prompt templates
 reference/security/        # Security reference docs (api-auth.md, web-common.md)
 ```

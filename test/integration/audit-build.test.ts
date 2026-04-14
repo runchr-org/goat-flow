@@ -3,7 +3,10 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { BUILD_CHECKS } from "../../src/cli/audit/agent-setup-checks.js";
+import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
+import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
+
+const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
 import {
   makeCtx,
   stubAgentFacts,
@@ -28,41 +31,14 @@ describe("audit build: all scopes pass on healthy project", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Harness scope: missing instruction file
-// ---------------------------------------------------------------------------
-describe("audit build: harness scope fails on missing instruction file", () => {
-  it("instruction-files check fails when instruction file is missing", () => {
-    const check = BUILD_CHECKS.find((c) => c.id === "instruction-files")!;
-    const ctx = makeCtx({
-      agents: [
-        stubAgentFacts({
-          instruction: {
-            exists: false,
-            content: null,
-            lineCount: 0,
-            sections: new Map(),
-          },
-        }),
-      ],
-    });
-    const result = check.run(ctx);
-    assert.notEqual(
-      result,
-      null,
-      "Should fail when instruction file is missing",
-    );
-    assert.equal(check.scope, "harness");
-    assert.ok(result!.howToFix, "Should include howToFix");
-  });
-});
-
 // ---------------------------------------------------------------------------
 // Harness scope: missing deny patterns
 // ---------------------------------------------------------------------------
 describe("audit build: harness scope fails on missing deny", () => {
-  it("deny-patterns check fails when no deny configured", () => {
-    const check = BUILD_CHECKS.find((c) => c.id === "deny-patterns")!;
+  it("agent-deny-hook check fails when no deny configured", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-deny-hook")!;
     const ctx = makeCtx({
+      agentFilter: "claude",
       agents: [
         stubAgentFacts({
           settings: {

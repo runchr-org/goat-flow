@@ -356,9 +356,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push(
     "- Did setup create duplicate surfaces (e.g., both `docs/footguns.md` and `.goat-flow/footguns/`)?",
   );
-  lines.push(
-    "- Were templates copied to `.goat-flow/templates/`? Are they the v1.1.0 set (feature-brief, mob-elaboration, compliance-checklist, flow-diagram-guide, requirements-template)?",
-  );
+  lines.push("- Does `.goat-flow/templates/` exist?");
   lines.push("");
   lines.push("**Config reality:**");
   lines.push(

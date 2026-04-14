@@ -8,14 +8,14 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| Setup prompts | `workflow/setup/` | Agent-specific setup instructions, upgrade guides, project-structure.json |
+| Setup prompts | `workflow/setup/` | Agent-specific setup instructions, upgrade guides |
 | Setup steps | `workflow/setup/0*.md` | Six numbered setup steps (system overview, instruction file, skills, architecture + code map, customise, final verification) |
 | Skill templates | `workflow/skills/` | Reference prompts for the 7 goat-flow skill templates (6 functional + 1 dispatcher) |
 | Hook scripts | `workflow/hooks/` | Copyable hook scripts (deny-dangerous.sh) + per-agent config templates |
 | Templates | `workflow/templates/` | Standalone prompt templates for planning (feature brief, milestones, SBAO) and refactoring |
 | Evaluation templates | `workflow/evaluation/` | Footguns/lessons templates |
 | Docs | `docs/` | CLI usage, dashboard guide |
-| CLI auditor | `src/cli/` | 16 build checks (7 setup scope + 9 harness scope) + 27 quality checks (advisory), audit-driven setup prompts, multi-agent support |
+| CLI auditor | `src/cli/` | 8 build checks (4 setup scope + 4 harness scope) + 18 quality checks (advisory), audit-driven setup prompts, multi-agent support |
 | Dashboard | `src/cli/server/dashboard.ts` (server), `src/dashboard/` (HTML + views) | HTML dashboard with views for audit, critique, help, home, projects, settings, wizard, workspace |
 | Maintenance scripts | `scripts/maintenance/` | Repo hygiene: git cleanup, secret scanning, Zone.Identifier removal |
 

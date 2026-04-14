@@ -186,3 +186,33 @@ category: agent-behavior
 - Confirming what passes without probing what might be broken
 
 **Prevention:** Scope reviews explicitly: source code, docs, CI, bash scripts, installed outputs. Unscopped reviews bias toward whatever is easiest to check. Cross-check scores against first-discovery list before weighting findings by reviewer confidence.
+
+---
+
+## Lesson: Don't overcomplicate clear requests — a spec is not ambiguous
+
+**Created:** 2026-04-14
+
+**What happened:** User asked to list all audit checks in config.yaml. Simple task. Instead of writing it once correctly, the agent: (1) added preflight checks the user never asked for, (2) used wrong section names that didn't match the dashboard, (3) put it in config.yaml as comments, (4) tried to move it into an existing doc instead of the requested new file, (5) entered plan mode for a follow-up dashboard task where the user had already given the exact spec, (6) wrote a memory file while still in plan mode. A task that should have been one turn took 5-10 turns and multiple corrections.
+
+**Root cause:** The agent treated a clear directive as ambiguous. The user said "add all the checks" — the agent added checks the user didn't ask for (preflight). The user pasted an exact 3-section dashboard mockup — the agent entered plan mode instead of implementing. Each time the user corrected, the agent made a different wrong assumption instead of asking or doing exactly what was said.
+
+**Prevention:**
+1. When the user gives a clear spec, implement it literally. Don't add scope. Don't reinterpret.
+2. A detailed mockup IS the plan. Don't enter plan mode when the user already told you what to build.
+3. If you're unsure what the user wants, ask one question. Don't guess across multiple turns.
+4. Never edit files in plan mode (except the plan file).
+
+---
+
+## Lesson: Agreeing with contradictory statements instead of holding a position
+
+**Created:** 2026-04-14
+
+**What happened:** User said preflight-checks.sh shouldn't validate goat-flow audit checks. Agent agreed and suggested moving them to the CLI audit. User said they don't belong in the CLI either. Agent immediately reversed and agreed they belong in preflight after all — contradicting what it said 1 message earlier. The agent had no position; it just agreed with whatever the user last said.
+
+**Why this matters:** The user was making a specific point: preflight is a repo-level dev script (shellcheck, TypeScript, tests, formatting). The goat-flow-specific checks in preflight (doc/code drift, dashboard concern sync, architecture counts, skill version matching) are internal consistency checks for the goat-flow repo — they validate that the framework's own docs match its own code. That IS a preflight concern because preflight gates commits to this repo. The CLI audit validates consumer project installs — completely different scope. Both statements were correct but the agent couldn't hold both in its head.
+
+**The correct answer was:** Preflight is the right place for goat-flow repo internal consistency checks. The CLI audit is the right place for consumer project validation. These are different scopes serving different users. The user's point was that the CLI shouldn't contain repo-internal checks — not that preflight was wrong to have them.
+
+**Prevention:** When the user corrects you, understand what they're actually saying before reversing. If you already had the right answer, don't abandon it just because the user pushed back on a different claim. Ask for clarification instead of reflexively agreeing.

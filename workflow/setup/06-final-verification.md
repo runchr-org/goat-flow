@@ -91,7 +91,7 @@ List every setup-owned file as one of:
 - `skipped`
 - `failed`
 
-Compare that manifest against `workflow/setup/reference/project-structure.json`:
+Compare that manifest against `workflow/manifest.json`:
 
 - Every `required_file` must exist
 - Every `required_dir` must exist
@@ -130,6 +130,6 @@ Use one shared file: `.goat-flow/logs/sessions/YYYY-MM-DD-setup.md`
 
 **Verification gate:**
 - [ ] `goat-flow audit . --agent {agent}` passes
-- [ ] All required files and directories in `workflow/setup/reference/project-structure.json` exist
+- [ ] All required files and directories in `workflow/manifest.json` exist
 - [ ] Stale-reference checks and Essential Commands smoke tests are complete
 - [ ] Shared setup session log finalised with time/tokens

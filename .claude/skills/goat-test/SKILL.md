@@ -100,7 +100,7 @@ Based on the gaps, produce a focused plan and order by risk.
 
 ## Phase 4 - Flow Diagram
 
-For flow diagrams, read the flow diagram guide in `.goat-flow/templates/flow-diagram-guide.md`.
+For flow diagrams, use Mermaid flowcharts with 8-15 nodes per diagram, happy path first, then branch points for error states and edge cases.
 
 ---
 
@@ -137,7 +137,7 @@ After a bug fix: define 1-2 invariants, assess coverage of each invariant, then 
 - MUST NOT generate test code - hand off to the coding agent
 - Universal constraints from skill-preamble.md apply.
 - Audit mode: MUST include gap report with risk-of-gap ratings
-- If flow diagrams are requested, follow `.goat-flow/templates/flow-diagram-guide.md`.
+- If flow diagrams are requested, use Mermaid flowcharts (8-15 nodes, happy path first, annotate gap status per node).
 - Regression guard: MUST state invariants as human-readable sentences
 
 ## Output Format

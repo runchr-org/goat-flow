@@ -25,10 +25,10 @@ Tests live in `test/` with subdirectories:
 - Audit output has no scan references
 - Step 06 references audit (not scanner)
 - package.json version matches RUBRIC_VERSION
-- SKILL_NAMES matches project-structure.json canonical skills
+- SKILL_NAMES matches manifest.json canonical skills
 - Build check IDs are unique
 - Quality checks cover all 5 harness concerns
-- project-structure.json paths use .goat-flow/ prefix
+- manifest.json paths use .goat-flow/ prefix
 - Skill templates do not reference workflow/ in install sections
 - Build/quality checks produce correct results on healthy and broken projects
 - Config reader handles valid YAML, invalid YAML, and missing files

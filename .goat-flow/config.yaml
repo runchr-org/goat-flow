@@ -39,7 +39,7 @@ toolchain:
   lint:
     - bash scripts/preflight-checks.sh
     - bash scripts/validate-goat-flow-setup.sh
-    - shellcheck workflow/hooks/*.sh scripts/*.sh .claude/hooks/*.sh .gemini/hooks/*.sh
+    - shellcheck workflow/hooks/*.sh scripts/*.sh .claude/hooks/*.sh .gemini/hooks/*.sh .codex/hooks/*.sh
   build:
     - npm run build
     - npx tsc --noEmit
