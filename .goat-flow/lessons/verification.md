@@ -248,3 +248,20 @@ Deny hooks block dangerous patterns, not all operations. When a command is block
 2. After any rename, grep ALL file types (not just `.ts` and `.md` - also `.yaml`, `.json`, `.sh`)
 3. Periodically invite external review of the goat-flow repo itself, not just installed output
 4. `preflight-checks.sh` should verify SKILL_NAMES count consistency across surfaces
+
+---
+
+## Lesson: Blindly applying critique recommendations without verifying claims
+
+**Created:** 2026-04-14
+
+**What happened:** A critique agent claimed `.goat-flow/architecture.md:18` had the wrong build-check breakdown: "says 7+9, actual code shows 12+4." The claim was accepted at face value and the doc was changed from "7 project setup + 9 per-agent" to "12 setup scope + 4 harness scope." A subsequent self-critique ran `BUILD_CHECKS` and confirmed the actual breakdown is **7 setup + 9 harness** — the original numbers were correct and the "fix" made the doc more wrong. The preflight's "Architecture doc counts match code" check only validates the total (16), not the sub-breakdown, so the error passed all automated gates.
+
+**Root cause:** The first critique agent likely miscounted or read a stale build of the code. The claim was plausible (it got the total right), which made it easy to accept without running the verification command. The same session also changed `code-map.md` correctly for a different issue, creating a false sense that all claims were verified.
+
+**Evidence:** `node --input-type=module -e "const b=await import('./dist/cli/audit/agent-setup-checks.js'); b.BUILD_CHECKS.forEach(c => console.log(c.scope, c.id))"` — outputs 7 setup + 9 harness.
+
+**Prevention:**
+1. Before changing any numeric claim in a canonical doc, run the verification command yourself — never trust a critique's count.
+2. The preflight should validate sub-breakdowns, not just totals.
+3. Treat external critique findings as hypotheses, not facts. Verify each one independently before applying.

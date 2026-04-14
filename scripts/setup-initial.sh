@@ -12,6 +12,7 @@
 #   - verifies Node.js version
 #   - installs dependencies
 #   - creates core GOAT Flow directories and .gitignore
+#   - installs shellcheck if missing
 #   - makes known shell scripts executable
 #
 # Exit:
@@ -71,12 +72,28 @@ GITIGNORE
     info "Created .gitignore"
 fi
 
-# 5. Ensure scripts are executable
+# 5. Install shellcheck if missing
+if ! command -v shellcheck >/dev/null 2>&1; then
+    if command -v apt-get >/dev/null 2>&1; then
+        info "Installing shellcheck via apt-get..."
+        sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+    elif command -v brew >/dev/null 2>&1; then
+        info "Installing shellcheck via brew..."
+        brew install shellcheck
+    else
+        warn "shellcheck not found — install manually: https://github.com/koalaman/shellcheck#installing"
+    fi
+fi
+if command -v shellcheck >/dev/null 2>&1; then
+    info "shellcheck $(shellcheck --version | grep '^version:' | cut -d' ' -f2) available"
+fi
+
+# 6. Ensure scripts are executable
 for script in scripts/*.sh scripts/maintenance/*.sh; do
     [[ -f "$script" ]] && chmod +x "$script"
 done
 
-# 6. Summary
+# 7. Summary
 echo ""
 info "=== Setup Complete ==="
 info "Next steps:"

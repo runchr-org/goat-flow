@@ -84,28 +84,61 @@ fi
 # ── Shell Scripts ────────────────────────────────────────────────────
 section "Shell Scripts"
 if bash -n scripts/*.sh scripts/maintenance/*.sh 2>/dev/null; then
-    pass "Bash syntax"
+    pass "Bash syntax (scripts/)"
 else
-    fail "Bash syntax check"
+    fail "Bash syntax check (scripts/)"
 fi
+
+# Also syntax-check installed hooks
+for hookdir in .claude/hooks .gemini/hooks .codex/hooks; do
+    if compgen -G "$hookdir/*.sh" >/dev/null 2>&1; then
+        if bash -n "$hookdir"/*.sh 2>/dev/null; then
+            pass "Bash syntax ($hookdir/)"
+        else
+            fail "Bash syntax check ($hookdir/)"
+        fi
+    fi
+done
 
 if command -v shellcheck >/dev/null 2>&1; then
     if shellcheck --exclude=SC2001 scripts/*.sh scripts/maintenance/*.sh >/dev/null 2>&1; then
-        pass "Shellcheck"
+        pass "Shellcheck (scripts/)"
     else
-        fail "Shellcheck - run shellcheck scripts/*.sh for details"
+        fail "Shellcheck (scripts/) - run shellcheck scripts/*.sh for details"
     fi
+
+    # Also shellcheck installed hooks (SC2016 excluded: sed patterns intentionally use single quotes)
+    for hookdir in .claude/hooks .gemini/hooks .codex/hooks; do
+        if compgen -G "$hookdir/*.sh" >/dev/null 2>&1; then
+            if shellcheck --exclude=SC2001,SC2016 "$hookdir"/*.sh >/dev/null 2>&1; then
+                pass "Shellcheck ($hookdir/)"
+            else
+                fail "Shellcheck ($hookdir/) - run shellcheck $hookdir/*.sh for details"
+            fi
+        fi
+    done
 else
-    skip "Shellcheck (not installed)"
+    warn "Shellcheck not installed — run: bash scripts/setup-initial.sh"
 fi
 
 # ── Deny Policy ──────────────────────────────────────────────────────
 section "Deny Policy"
 if bash scripts/deny-dangerous.sh --self-test >/dev/null 2>&1; then
-    pass "Self-test ($(bash scripts/deny-dangerous.sh --self-test 2>&1 | grep -c PASS) assertions)"
+    pass "scripts/deny-dangerous.sh ($(bash scripts/deny-dangerous.sh --self-test 2>&1 | grep -c PASS) assertions)"
 else
-    fail "Deny policy self-test"
+    fail "scripts/deny-dangerous.sh self-test"
 fi
+
+# Also self-test installed hooks
+for hookdir in .claude/hooks .gemini/hooks; do
+    if [[ -f "$hookdir/deny-dangerous.sh" ]]; then
+        if bash "$hookdir/deny-dangerous.sh" --self-test >/dev/null 2>&1; then
+            pass "$hookdir/deny-dangerous.sh self-test"
+        else
+            fail "$hookdir/deny-dangerous.sh self-test"
+        fi
+    fi
+done
 
 # ── Skill Template Versions ──────────────────────────────────────────
 section "Skill Template Versions"

@@ -90,7 +90,7 @@ Sub-agents: ONE objective, structured return (paths, evidence, confidence, next 
 | Scripts | `scripts/` |
 | Skills | `.agents/skills/` (goat, goat-debug, goat-plan, goat-review, goat-sbao, goat-security, goat-test) |
 | Templates | `.goat-flow/templates/` |
-| Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
+| Footguns, lessons, patterns | `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns.md` |
 | Decisions | `.goat-flow/decisions/` |
 | Config | `.goat-flow/config.yaml` |
 | Dashboard source | `src/dashboard/` |

@@ -2,9 +2,9 @@
 category: setup
 ---
 
-## Footgun: Setup instructions contradict spec on execution loop steps
+## Footgun: Setup instructions contradict spec on execution loop steps (RESOLVED)
 
-**Status:** active | **Created:** 2026-03-20 | **Evidence:** ACTUAL_MEASURED
+**Status:** resolved | **Created:** 2026-03-20 | **Resolved:** 2026-04-14 | **Evidence:** ACTUAL_MEASURED
 
 **Symptoms:** Agents implementing GOAT Flow produce a CLAUDE.md with the old 5-step loop (READ → CLASSIFY → ACT → VERIFY → LOG), missing SCOPE and complexity budgets. Cascades into missing sections (f)-(g) because agents under line pressure cut what the spec doesn't reinforce.
 
@@ -15,13 +15,13 @@ category: setup
 - `workflow/setup/reference/execution-loop.md` → updated loop definition (authoritative)
 - `workflow/setup/agents/claude.md` → previously "Read docs/system-spec.md" as first instruction (now points to `workflow/setup/01-system-overview.md`)
 
-**Prevention:** `workflow/setup/reference/execution-loop.md` is the single authoritative source for the execution loop. `docs/system-spec.md` and `docs/five-layers.md` have been retired (v1.1.0), eliminating the duplication that caused this footgun. If the loop definition is ever duplicated again, this footgun will recur.
+**Resolution:** `docs/system-spec.md` and `docs/five-layers.md` retired in v1.1.0, eliminating the duplication. `workflow/setup/reference/execution-loop.md` is now the single authoritative source. The conflicting files no longer exist.
 
 ---
 
-## Footgun: Multi-agent setup files share structure but not vocabulary
+## Footgun: Multi-agent setup files share structure but not vocabulary (RESOLVED)
 
-**Status:** active | **Created:** 2026-03-21 | **Evidence:** ACTUAL_MEASURED
+**Status:** resolved | **Created:** 2026-03-21 | **Resolved:** 2026-04-14 | **Evidence:** ACTUAL_MEASURED
 
 **Symptoms:** Gemini CLI rejects hook event names with "Invalid hook event name" warnings. Hooks silently don't run. Users get a working `.claude/` setup but broken `.gemini/` setup from the same instructions.
 
@@ -29,12 +29,7 @@ category: setup
 - Claude Code: `PreToolUse`, `PostToolUse`, `Stop`
 - Gemini CLI: `BeforeTool`, `AfterTool`, `AfterAgent`, `SessionEnd`
 
-Hook script comments also carried over Claude-specific language ("runs after every Claude turn").
-
-**Evidence:**
-- `workflow/setup/agents/gemini.md` → Gemini CLI event reference block (BeforeTool, AfterTool, SessionEnd)
-- `.gemini/hooks/deny-dangerous.sh` → updated to "BeforeTool hook"
-- `.gemini/settings.json` → updated to `BeforeTool` and `AfterAgent` event names
+**Resolution:** `.gemini/hooks/deny-dangerous.sh` updated with "BeforeTool hook" label, `.gemini/settings.json` uses correct `BeforeTool` and `AfterAgent` event names, `workflow/hooks/agent-config/gemini.json` template documents the event name mapping between CLIs.
 
 **Prevention:** When creating or updating a setup file for a new CLI, diff it against the source file and check every CLI-specific term - not just paths. Maintain the event name reference block at the top of each CLI's Phase 1c section.
 
@@ -95,7 +90,7 @@ Hook script comments also carried over Claude-specific language ("runs after eve
 
 ## Footgun: Setup creates parallel surfaces instead of migrating existing ones
 
-**Status:** open | **Created:** 2026-04-03 | **Evidence:** ACTUAL_MEASURED
+**Status:** active | **Created:** 2026-04-03 | **Evidence:** ACTUAL_MEASURED
 
 When a project already has learning-loop artifacts, setup creates NEW parallel surfaces instead of using the existing ones:
 
@@ -108,7 +103,7 @@ When a project already has learning-loop artifacts, setup creates NEW parallel s
 
 **Impact:** Agents receive contradictory instructions about where to write lessons and footguns. The same information ends up in multiple places and drifts. Users can't tell which is canonical.
 
-**Fix:** M19 in `.goat-flow/tasks/0.10.0/M19-setup-reliability.md`. Setup must detect existing artifact locations and use them, not create parallel ones.
+**Prevention:** Setup must detect existing artifact locations and use them, not create parallel ones.
 
 ---
 

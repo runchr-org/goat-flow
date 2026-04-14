@@ -2,21 +2,17 @@
 category: docs-and-crossrefs
 ---
 
-## Footgun: Concept duplication across core docs
+## Footgun: Concept duplication across core docs (RESOLVED)
 
-**Status:** active | **Created:** 2026-03-18 | **Evidence:** ACTUAL_MEASURED
+**Status:** resolved | **Created:** 2026-03-18 | **Resolved:** 2026-04-14 | **Evidence:** ACTUAL_MEASURED
 
 **Symptoms:** A user reads conflicting descriptions of the same concept in different files. An agent follows a rule from one file that contradicts another.
 
-**Why it happens:** The execution loop, autonomy tiers, anti-pattern table, and other core concepts were historically described in `docs/system-spec.md`, `docs/five-layers.md`, `docs/getting-started.md`, and `docs/design-rationale.md` (all retired in v1.1.0). Updating one without updating the others created drift. The same risk applies to their replacements.
+**Why it happens:** The execution loop, autonomy tiers, anti-pattern table, and other core concepts were historically described in `docs/system-spec.md`, `docs/five-layers.md`, `docs/getting-started.md`, and `docs/design-rationale.md` (all retired in v1.1.0). Updating one without updating the others created drift.
 
-**Evidence:**
-- `docs/system-spec.md` → execution loop definition (file retired in v1.1.0, see `workflow/setup/reference/execution-loop.md`)
-- `docs/system-spec.md` → execution loop definition, detailed version (file retired in v1.1.0, see `workflow/setup/reference/execution-loop.md`)
-- `docs/getting-started.md` → execution loop summary (file retired in v1.1.0, see `workflow/setup/`)
-- `docs/design-rationale.md` → execution loop rationale with repeated content (file retired in v1.1.0, see `workflow/setup/01-system-overview.md`)
+**Resolution:** All four conflicting files retired in v1.1.0. `workflow/setup/reference/execution-loop.md` is now the single authoritative source for the execution loop; `workflow/setup/01-system-overview.md` for design intent. The risk of duplication in the replacement structure remains in principle, but the specific multi-file drift described here is eliminated.
 
-**Prevention:** When editing a core concept, grep for the concept name across all docs and update every occurrence. `workflow/setup/reference/execution-loop.md` is the canonical source for the execution loop; `workflow/setup/01-system-overview.md` for design intent.
+**Prevention:** When editing a core concept, grep for the concept name across all docs and update every occurrence.
 
 ---
 
@@ -58,7 +54,7 @@ category: docs-and-crossrefs
 
 ## Footgun: Product surface count drift across code, docs, config, and tests
 
-**Status:** mostly resolved (12/14 fixed, 2 remaining) | **Created:** 2026-04-11 | **Updated:** 2026-04-13 | **Evidence:** OBSERVED
+**Status:** resolved | **Created:** 2026-04-11 | **Resolved:** 2026-04-14 | **Evidence:** OBSERVED
 
 **Symptoms:** The repo describes different skill counts in different places. Code says 7, config says 6, README says "Six", docs say "Five+dispatcher", tests say 5 or 6. External critics independently flagged this as a trust problem - the system sells coherence but can't maintain it internally.
 
@@ -137,9 +133,9 @@ scripts/preflight-checks.sh:148 now gates only on package.json (not rubric/versi
 
 ---
 
-## Footgun: Partial feature removal leaves type and detection artifacts
+## Footgun: Partial feature removal leaves type and detection artifacts (RESOLVED)
 
-**Status:** active | **Created:** 2026-04-13 | **Evidence:** ACTUAL_MEASURED
+**Status:** resolved | **Created:** 2026-04-13 | **Resolved:** 2026-04-14 | **Evidence:** ACTUAL_MEASURED
 
 **Symptoms:** Copilot was removed as a supported agent but artifacts remain in five places. The `.github/skills` detection path in classify-state.ts and dashboard.ts is the dangerous one: a project with `.github/skills/goat-debug/SKILL.md` gets partial-state credit for a skill "installed" for an agent that doesn't exist in the audit system. State detection reports "partial" based on a path no supported agent ever populates.
 
@@ -162,6 +158,22 @@ scripts/preflight-checks.sh:148 now gates only on package.json (not rubric/versi
 - [x] Remove from UI name mappers
 
 **All five items fixed in codebase by 2026-04-13.** Confirmed: `grep -rn "copilot" src/ --include="*.ts" --include="*.html"` returns only copilotignore detection lines.
+
+---
+
+## Footgun: Preflight validates doc totals but not sub-breakdowns
+
+**Status:** active | **Created:** 2026-04-14 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A doc claim like "16 build checks (12 setup + 4 harness)" passes the preflight because the total (16) is correct, even though the breakdown (12+4) is wrong (actual: 7+9). The sub-breakdown can be changed to any pair that sums to 16 and no automated check catches it.
+
+**Why it happens:** `scripts/preflight-checks.sh` Doc/Code Drift section greps for `${build_count} build` in `.goat-flow/architecture.md` — a total-only check. There is no extraction or validation of the `(N scope + M scope)` parenthetical. This means the most useful part of the claim (the breakdown) is the least validated.
+
+**Evidence:**
+- `scripts/preflight-checks.sh:346` — `grep -q "${build_count} build" .goat-flow/architecture.md` validates total only
+- `.goat-flow/architecture.md:18` — was changed from "7+9" (correct) to "12+4" (wrong) on 2026-04-14. Preflight passed. Self-critique caught it.
+
+**Prevention:** Add sub-breakdown validation: extract the `(N setup scope + M harness scope)` claim and validate N and M against `BUILD_CHECKS.filter(c => c.scope === 'setup').length` and `BUILD_CHECKS.filter(c => c.scope === 'harness').length`.
 
 ---
 

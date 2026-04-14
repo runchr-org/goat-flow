@@ -20,8 +20,8 @@ npm test                                          # Run test suite
 
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
 ```
-BAD:  "The spec says 100 lines for apps" (guessed without reading)
-GOOD: Read workflow/setup/reference/execution-loop.md:3 → "Target: under 120 lines. Hard limit: 150."
+BAD:  "The CLI has 20 audit checks" (guessed without reading)
+GOOD: Read src/cli/audit/agent-setup-checks.ts → 16 build checks (12 setup + 4 harness)
 ```
 
 **SCOPE** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review. MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
@@ -106,7 +106,7 @@ If working from a plan/milestone file, tick `- [x]` on each completed task immed
 | Scripts | `scripts/` |
 | Skills | `.claude/skills/` (goat, goat-debug, goat-plan, goat-review, goat-sbao, goat-security, goat-test) |
 | Templates | `.goat-flow/templates/` |
-| Footguns, lessons | `.goat-flow/footguns/`, `.goat-flow/lessons/` |
+| Footguns, lessons, patterns | `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns.md` |
 | Decisions | `.goat-flow/decisions/` |
 | Config | `.goat-flow/config.yaml` |
 | Dashboard source | `src/dashboard/` |

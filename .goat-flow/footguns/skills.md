@@ -61,25 +61,23 @@ category: skills
 
 ---
 
-## Footgun: CI template derives skill names by prefixing instead of listing them
+## Footgun: CI template derives skill names by prefixing instead of listing them (RESOLVED)
 
-**Status:** active | **Created:** 2026-04-01 | **Evidence:** ACTUAL_MEASURED
+**Status:** resolved | **Created:** 2026-04-01 | **Resolved:** 2026-04-14 | **Evidence:** ACTUAL_MEASURED
 
 **Symptoms:** Consumer project CI workflow checks for `goat-investigate`, `goat-refactor`, `goat-simplify` (all stale) and misses the `goat` dispatcher entirely. When an agent adapts the pattern to include the dispatcher, it prefixes `goat-` to the name `goat`, producing `goat-goat`. The CI check permanently fails for the dispatcher.
 
 **Why it happens:** `src/cli/prompt/fragments/full.ts` CI template had `for skill in security debug investigate review plan test refactor simplify; do` and constructed `goat-$skill`. This design assumes all skill names follow the `goat-{suffix}` pattern, but the dispatcher is just `goat`. The suffix list was also never updated after the 9→6 consolidation - 3 stale suffixes remained.
 
-**Evidence:**
-- `src/cli/prompt/fragments/full.ts` → CI template skill loop with stale suffixes and derivation pattern
-- halaxy-agents-lab `.github/workflows/context-validation.yml` → `CANONICAL_SKILLS="goat-debug goat-review goat-plan goat-security goat-test goat-goat"` (permanently broken)
+**Resolution:** The entire `src/cli/prompt/fragments/` directory was removed in the v1.1.0 scanner/rubric removal. CI template generation no longer exists in the codebase. Consumer projects that already have the broken pattern need manual cleanup.
 
-**Prevention:** Always iterate canonical skill names directly (`goat goat-debug goat-plan goat-review goat-security goat-test`), never derive them by prefixing. Import from `SKILL_NAMES` in code, or list literal names in templates. The dispatcher name breaks the `goat-{suffix}` pattern.
+**Prevention:** Always iterate canonical skill names directly (`goat goat-debug goat-plan goat-review goat-security goat-test`), never derive them by prefixing. Import from `SKILL_NAMES` in code, or list literal names in templates.
 
 ---
 
 ## Footgun: Skills have phase gates but no time/call budget for context gathering
 
-**Status:** open | **Created:** 2026-04-05 | **Evidence:** ACTUAL_MEASURED
+**Status:** active | **Created:** 2026-04-05 | **Evidence:** ACTUAL_MEASURED
 
 Skills enforce phase gates (Step 0 must complete before Phase 1, gates pause for human approval) but have no budget for how long Step 0 can take. Claude can spend an entire session reading templates, exploring the codebase, and gathering context without ever producing output or asking a question.
 

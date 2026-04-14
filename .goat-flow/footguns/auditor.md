@@ -43,7 +43,7 @@ agent-setup-checks.ts:173–226 adds configured-agent-present (closes --agent fi
 
 ## Footgun: Audit validates hook file content but not hook runtime behavior
 
-**Status:** open | **Created:** 2026-04-05 | **Evidence:** ACTUAL_MEASURED
+**Status:** active | **Created:** 2026-04-05 | **Evidence:** ACTUAL_MEASURED
 
 The audit checks that hook files exist and pass `bash -n` syntax check, but never verifies hooks actually execute. A hook with correct syntax but wrong permissions, missing dependencies (jq not installed), or broken JSON field paths passes the audit at 100% while providing zero enforcement at runtime.
 
