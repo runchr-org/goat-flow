@@ -64,6 +64,18 @@ category: setup-and-migration
 
 ---
 
+## Lesson: Optional setup fields need harness verification too
+
+**Created:** 2026-04-15
+
+**What happened:** `toolchain` and `ask_first` were removed from the shipped 1.1.0 config scaffold and setup flow to keep base setup smaller, and a 1.2.0 revisit task was added. The initial verification pass checked the installer, setup docs, prompts, and the full test suite. A later "double check" read the harness code and found `audit --harness` still penalized projects that correctly omitted those fields.
+
+**Root cause:** Treated the change as "simplify scaffold/docs" instead of "change the semantics of a public config concept." The same concept also lived in advisory harness checks, summary copy, and recommendations.
+
+**Prevention:** When removing or downgrading a config concept, audit these surfaces together: config scaffold, setup docs, prompt text, harness checks, harness summaries, and focused regressions. Always run `goat-flow audit . --harness --format json` after the edit to confirm the user-facing contract matches the docs.
+
+---
+
 ## Lesson: mv/rename overwrites destination file without checking if it exists
 
 **Created:** 2026-03-21

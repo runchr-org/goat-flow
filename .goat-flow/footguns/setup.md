@@ -113,6 +113,25 @@ When a project already has learning-loop artifacts, setup creates NEW parallel s
 
 ---
 
+## Footgun: Base setup simplification can leave harness checks enforcing removed config fields (RESOLVED)
+
+**Status:** resolved | **Created:** 2026-04-15 | **Resolved:** 2026-04-15 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A repo with a valid 1.1.0 `.goat-flow/config.yaml` that omits `toolchain:` and `ask_first:` passes base audit, but `audit --harness` still tells the user to add `toolchain.test` and `ask_first` back into config. The scaffold says "optional/deferred"; the harness says "missing."
+
+**Why it happens:** The simplification removed the fields from the shipped config scaffold, installer, and setup prompts, but the advisory harness still treated empty `toolchain.test` and `askFirst` as missing setup. The summary string in `audit.ts` also said `none configured`, which reads like an omission rather than an intentional absence.
+
+**Evidence:**
+- `.goat-flow/config.yaml:4-33` - shipped config omits `toolchain:` and `ask_first:`
+- `src/cli/audit/harness/check-verification.ts:13-19` - missing `toolchain.test` now treated as optional
+- `src/cli/audit/harness/check-constraints.ts:135-141` - missing `ask_first` now treated as optional
+- `src/cli/audit/audit.ts:96-101` - harness summary now reports `not configured (optional)`
+- `test/unit/audit-command.test.ts:622` - regression coverage for the optional calibration case
+
+**Fix:** `check-verification.ts` and `check-constraints.ts` now pass with explanatory findings when those fields are absent, and `audit.ts` labels the summary as optional. Confirmed with `node --import tsx src/cli/cli.ts audit . --harness --format json`.
+
+---
+
 ## Footgun: Deduplicated multi-agent setup drifts from per-agent setup rules (RESOLVED)
 
 **Status:** resolved | **Created:** 2026-03-25 | **Resolved:** 2026-04-13 | **Evidence:** ACTUAL_MEASURED

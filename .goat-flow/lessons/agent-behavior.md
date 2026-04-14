@@ -216,3 +216,15 @@ category: agent-behavior
 **The correct answer was:** Preflight is the right place for goat-flow repo internal consistency checks. The CLI audit is the right place for consumer project validation. These are different scopes serving different users. The user's point was that the CLI shouldn't contain repo-internal checks — not that preflight was wrong to have them.
 
 **Prevention:** When the user corrects you, understand what they're actually saying before reversing. If you already had the right answer, don't abandon it just because the user pushed back on a different claim. Ask for clarification instead of reflexively agreeing.
+
+---
+
+## Lesson: Verify agent capabilities against official docs, not assumptions
+
+**Created:** 2026-04-15
+
+**What happened:** The Codex agent profile in `src/cli/detect/agents.ts` had `preTool: ""` (empty string), implying Codex had no PreToolUse support. This was assumed without checking the Codex docs. When asked to verify, a web search of `developers.openai.com/codex/hooks` confirmed Codex DOES support PreToolUse (WIP, Bash-only). The empty string caused two downstream problems: (1) deny-dangerous.sh was copied to `.codex/hooks/` but never registered in hooks.json for PreToolUse, making it dead code; (2) an entire parallel deny mechanism (Starlark execpolicy) was built and maintained unnecessarily.
+
+**Root cause:** The original Codex profile was written based on an early understanding of Codex capabilities. Nobody re-checked when the hooks engine shipped. The assumption propagated through templates, install scripts, fact extraction, and setup guides unchallenged.
+
+**Prevention:** When a profile field says an agent "can't" do something, verify against the current docs before building workarounds. Capabilities evolve — a limitation at setup time may not still hold.

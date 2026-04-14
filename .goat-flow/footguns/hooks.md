@@ -63,3 +63,37 @@ Codex hook registrations (`[hooks.stop]`, `[hooks.session_start]`, `[hooks.after
 **Fix:** Moved hook definitions to `.codex/hooks.json`. Updated fact extraction (`src/cli/facts/agent/hooks.ts`) to read hooks.json for Codex using the same `readHooksObject` + `normalizeEventConfig` functions Claude/Gemini use. Removed TOML hook parsing functions. Updated template, install script, and setup guide.
 
 **Prevention:** When adding agent-specific features, verify against the agent's official documentation — not assumptions from other agents' patterns. The fact that Claude uses settings.json for hooks doesn't mean Codex uses config.toml for hooks.
+
+---
+
+## Footgun: Codex hook migrations drift across live files, templates, installer, and docs (RESOLVED)
+
+**Status:** resolved | **Created:** 2026-04-15 | **Resolved:** 2026-04-15 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Codex appears fully migrated to `hooks.json`, but one surface is still stale. The live repo can ship a `.codex/hooks.json` registration pointing at `.codex/hooks/deny-dangerous.sh` while the file is missing, or the installer/docs can describe a different set of hooks than the shipped template actually registers.
+
+**Why it happens:** Codex hook support spans four independently edited surfaces:
+
+1. live repo files under `.codex/`
+2. shipped templates under `workflow/hooks/agent-config/`
+3. installer copy logic in `workflow/install-goat-flow.sh`
+4. shared docs/setup guides
+
+Changing only some of those surfaces creates hybrid state: runtime registrations point at one file, templates describe another, and docs still carry the old mental model.
+
+**Evidence:**
+- `.codex/hooks.json:3-25` is the live Codex hook surface and registers both `PreToolUse` and `Stop`
+- `workflow/hooks/agent-config/codex-hooks.json:1-15` ships only the `PreToolUse` deny hook, so template and live repo are expected to differ once a project adds a Stop hook
+- `workflow/setup/agents/codex.md:37-39,52-55` and `docs/deny-dangerous.md:19,43` both require `.codex/hooks/deny-dangerous.sh` to exist as live runtime state
+- Observed on 2026-04-15 before repair: `.codex/hooks.json` referenced `.codex/hooks/deny-dangerous.sh`, but `.codex/hooks/` only contained `stop-lint.sh`
+
+**Impact:** The migration can look complete in config and docs while Codex command blocking is dead at runtime. Static checks and surface-level review miss it unless someone verifies the registered target file exists and smoke-tests the actual hook.
+
+**Resolution:** Restored `.codex/hooks/deny-dangerous.sh` from `workflow/hooks/deny-dangerous.sh`, corrected shared docs to describe Codex as `config.toml` + `hooks.json`, and fixed the installer/template comments so goat-flow core clearly ships the PreToolUse deny hook while Stop hooks remain project-specific.
+
+**Prevention:** After any Codex hook migration, verify all four surfaces together and run a runtime smoke test:
+
+1. confirm `.codex/hooks.json` target paths exist
+2. confirm templates describe the same installation model
+3. confirm installer comments and copy logic match the shipped templates
+4. pipe a known-blocked command payload into the installed hook and verify exit code `2`
