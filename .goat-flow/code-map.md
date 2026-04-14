@@ -22,8 +22,9 @@ facts/                     # Fact extractors -- gather project state for audit c
 
 audit/
   audit.ts                 # Public audit command: build checks + optional quality scoring
-  agent-setup-checks.ts    # 16 build checks (7 setup + 9 harness scope, gate CI pass/fail)
-  harness-checks.ts        # 27 advisory quality checks grouped by concern
+  check-goat-flow.ts       # 4 setup build checks (gate CI pass/fail)
+  check-agent-setup.ts     # 4 agent build checks (gate CI pass/fail)
+  harness/                 # 18 advisory quality checks grouped by concern (5 files + helpers + index)
   render.ts                # Output formatters (text, json, markdown)
   types.ts                 # Audit-specific types (AuditReport, CheckResult, AuditFailure)
 

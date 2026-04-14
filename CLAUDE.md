@@ -21,7 +21,7 @@ npm test                                          # Run test suite
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept.
 ```
 BAD:  "The CLI has 20 audit checks" (guessed without reading)
-GOOD: Read src/cli/audit/agent-setup-checks.ts → 16 build checks (12 setup + 4 harness)
+GOOD: Read src/cli/audit/check-goat-flow.ts → 8 build checks (4 setup + 4 agent)
 ```
 
 **SCOPE** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review. MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.

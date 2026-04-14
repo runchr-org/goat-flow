@@ -28,7 +28,7 @@ This is a **Node.js CLI tool** (not a browser app, not React/Vue). Pure TypeScri
 
 ## Build Check Pattern
 
-Each build check is a `BuildCheck` object in `src/cli/audit/agent-setup-checks.ts`:
+Each build check is a `BuildCheck` object in `src/cli/audit/check-goat-flow.ts` or `check-agent-setup.ts`:
 
 ```typescript
 {
@@ -43,7 +43,7 @@ Each build check is a `BuildCheck` object in `src/cli/audit/agent-setup-checks.t
 
 ## Quality Check Pattern
 
-Each quality check is a `QualityCheck` object in `src/cli/audit/harness-checks.ts`:
+Each quality check is a `QualityCheck` object in the `src/cli/audit/harness/` directory:
 
 ```typescript
 {
@@ -66,7 +66,7 @@ Quality checks are advisory - they never affect exit code.
 
 ## File Organization
 
-- New build check? Add `BuildCheck` to `audit/agent-setup-checks.ts`
-- New quality check? Add `QualityCheck` to `audit/harness-checks.ts` under the right concern
+- New build check? Add `BuildCheck` to `audit/check-goat-flow.ts` or `audit/check-agent-setup.ts`
+- New quality check? Add `QualityCheck` to the appropriate file in `audit/harness/`
 - New fact? Add to `SharedFacts` or `AgentFacts` in `types.ts`, extract in `facts/shared/` or `facts/agent/`
 - New CLI command? Add to `Command` union and `COMMANDS` array in `cli.ts`

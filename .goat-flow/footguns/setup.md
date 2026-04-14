@@ -45,7 +45,7 @@ category: setup
 
 **Evidence:**
 - `src/cli/classify-state.ts:36-47` - `OLD_SKILLS` list: goat-audit, goat-investigate, goat-refactor, goat-simplify, goat-context, goat-onboard, goat-reflect, goat-resume, goat-preflight, goat-research
-- `src/cli/audit/agent-setup-checks.ts` - `stale-skill-dirs` check catches this in audit
+- `src/cli/audit/check-goat-flow.ts` - `stale-skill-dirs` check catches this in audit
 - devgoat-bash-scripts: 13 skills after upgrade (7 stale at v0.9.0)
 - blundergoat-platform: 13 skills after upgrade (same pattern)
 
@@ -81,10 +81,10 @@ category: setup
 **Evidence:**
 - `.goat-flow/config.yaml:52-64` - 6 entries with `/**` glob syntax (workflow/setup/\*\*, etc.)
 - CLAUDE.md Ask First - paths written without glob (`workflow/setup/`, `workflow/skills/`)
-- `src/cli/audit/harness-checks.ts:497-499` - `includes(p.toLowerCase())` with raw config path including `/**`
+- harness quality checks (now in `src/cli/audit/harness/`) - `includes(p.toLowerCase())` with raw config path including `/**`
 - `workflow/setup/06-final-verification.md` - calls sync "blocking", says config is canonical; audit never blocks on this
 
-**Fix:** `normalizePath()` added at `src/cli/audit/harness-checks.ts:489-504` normalises glob-suffixed paths before comparison. Step 06 "BLOCKING" language downgraded to advisory (M30 A6). Confirmed: constraints score 100%.
+**Fix:** `normalizePath()` added in `src/cli/audit/harness/` normalises glob-suffixed paths before comparison. Step 06 "BLOCKING" language downgraded to advisory (M30 A6). Confirmed: constraints score 100%.
 
 ---
 

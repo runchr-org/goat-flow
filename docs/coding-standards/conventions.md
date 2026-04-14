@@ -22,7 +22,7 @@ src/cli/
   config/             # Configuration (index.ts, reader.ts, types.ts)
   detect/             # Agent and stack detection (agents.ts, project-stack.ts)
   facts/              # Fact extraction (orchestrator.ts, fs.ts, agent/, shared/)
-  audit/              # Audit engine (audit.ts, agent-setup-checks.ts, harness-checks.ts, render.ts, types.ts)
+  audit/              # Audit engine (audit.ts, check-goat-flow.ts, check-agent-setup.ts, harness/, render.ts, types.ts)
   prompt/             # Prompt generation (compose-setup.ts, compose-critique.ts)
   server/             # Dashboard server (dashboard.ts, terminal.ts, types.ts)
 src/dashboard/        # Dashboard UI (views/, static assets)
@@ -80,8 +80,8 @@ goat-flow critique . --agent claude      # Generate critique prompt
 - Run `shellcheck` after shell script changes
 - Run `npm test` after touching `src/cli/` or `test/`
 - Run `bash scripts/preflight-checks.sh` before considering work complete
-- Write build checks as `BuildCheck` objects (id, name, scope, run) in `audit/agent-setup-checks.ts`
-- Write quality checks as `QualityCheck` objects (id, concern, weight, run) in `audit/harness-checks.ts`
+- Write build checks as `BuildCheck` objects (id, name, scope, run) in `audit/check-goat-flow.ts` or `audit/check-agent-setup.ts`
+- Write quality checks as `QualityCheck` objects (id, concern, weight, run) in `audit/harness/`
 - Import AUDIT_VERSION from `constants.ts`, never hardcode
 
 ## DON'T

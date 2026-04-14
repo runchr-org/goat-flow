@@ -259,7 +259,7 @@ Deny hooks block dangerous patterns, not all operations. When a command is block
 
 **Root cause:** The first critique agent likely miscounted or read a stale build of the code. The claim was plausible (it got the total right), which made it easy to accept without running the verification command. The same session also changed `code-map.md` correctly for a different issue, creating a false sense that all claims were verified.
 
-**Evidence:** `node --input-type=module -e "const b=await import('./dist/cli/audit/agent-setup-checks.js'); b.BUILD_CHECKS.forEach(c => console.log(c.scope, c.id))"` — outputs 7 setup + 9 harness.
+**Evidence:** `node --input-type=module -e "const a=await import('./dist/cli/audit/check-goat-flow.js'); const b=await import('./dist/cli/audit/check-agent-setup.js'); [...a.BUILD_CHECKS,...b.BUILD_CHECKS].forEach(c => console.log(c.scope, c.id))"` — outputs 4 setup + 4 agent (8 total after refactor; original pre-refactor count was 7 setup + 9 harness = 16).
 
 **Prevention:**
 1. Before changing any numeric claim in a canonical doc, run the verification command yourself — never trust a critique's count.
