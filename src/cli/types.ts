@@ -223,6 +223,9 @@ export interface AgentFacts {
     denyBlocksChmod: boolean;
     denyBlocksPipeToShell: boolean;
     denyBlocksCloudDestructive: boolean;
+    /** True when the deny hook is registered as a pre-tool-use hook in agent settings */
+    denyIsRegistered: boolean;
+    denyRegisteredPath: string | null;
     postTurnExists: boolean;
     postTurnRegistered: boolean;
     postTurnRegisteredPath: string | null;

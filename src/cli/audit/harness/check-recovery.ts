@@ -23,7 +23,7 @@ const milestoneTracking: HarnessCheck = {
     }
     const mdFiles = collectMarkdownFiles(ctx.fs, tasksDir);
     if (mdFiles.length === 0) {
-      return pass(["Tasks directory exists (empty — valid for new projects)"]);
+      return pass(["Tasks directory exists (empty - valid for new projects)"]);
     }
     const checkboxPattern = /- \[[ x]\]/;
     let withCheckboxes = 0;
@@ -85,7 +85,7 @@ const compactionHook: HarnessCheck = {
       findings.push(`${covered.join(", ")}: compaction hook registered`);
     }
     if (codexUncovered.length > 0) {
-      findings.push("codex: context compaction not supported — not checked");
+      findings.push("codex: context compaction not supported - not checked");
     }
 
     if (nonCodexUncovered.length > 0) {

@@ -53,13 +53,13 @@ Checks are grouped by **scope**:
 
 ### Harness mode (`--harness`)
 
-Adds 15 pass/fail checks across the five harness concerns on top of the default build checks. These check AI harness completeness -- whether the project has the structures that make agents effective. Like all audit checks, they are deterministic and affect the exit code.
+Adds 16 pass/fail checks across the five harness concerns on top of the default build checks. These check AI harness completeness -- whether the project has the structures that make agents effective. Like all audit checks, they are deterministic and affect the exit code.
 
 Harness checks are grouped by **concern** -- the five things every major harness engineering source agrees matter for agent effectiveness. See [harness-engineering.md](harness-engineering.md) for what each concern means and the sources behind the model.
 
-**harness scope** (AI Harness Completeness) - 15 checks across 5 concerns:
+**harness scope** (AI Harness Completeness) - 16 checks across 5 concerns:
 - **Context** (3) - instruction file within line limit, execution loop present, doc paths resolve
-- **Constraints** (3) - deny covers secrets, deny blocks dangerous commands, deny blocks pipe-to-shell
+- **Constraints** (4) - deny covers secrets, deny blocks dangerous commands, deny blocks pipe-to-shell, deny hook registered in agent settings
 - **Verification** (4) - test runner configured, hooks in sync, commit guidance, post-turn hook integrity
 - **Recovery** (3) - milestone tracking, session logs, compaction hook
 - **Feedback Loop** (2) - feedback loop directories exist, decisions tracked
@@ -78,7 +78,7 @@ Agent Setup:              PASS
 
 AI Harness Completeness:  PASS
   Context:                PASS (3/3)
-  Constraints:            FAIL (2/3) - pipe-to-shell not blocked for codex
+  Constraints:            FAIL (3/4) - pipe-to-shell not blocked for codex
   Verification:           PASS (4/4)
   Recovery:               PASS (3/3)
   Feedback Loop:          PASS (2/2)

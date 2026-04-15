@@ -19,6 +19,8 @@ import type {
   AuditScope,
   AuditScopeName,
   CheckResult,
+  HarnessCheck,
+  HarnessCheckResult,
   ProjectStructure,
 } from "./types.js";
 
@@ -103,6 +105,27 @@ function agentSummary(ctx: AuditContext): Record<string, string> {
   };
 }
 
+/** Convert a harness check + its result into a CheckResult for the scope. */
+function toCheckResult(
+  check: HarnessCheck,
+  result: HarnessCheckResult,
+): CheckResult {
+  return {
+    id: check.id,
+    name: check.name,
+    status: result.status,
+    failure:
+      result.status === "fail"
+        ? {
+            check: check.name,
+            message:
+              result.recommendations[0] ?? result.findings[0] ?? "Check failed",
+            howToFix: result.howToFix?.[0],
+          }
+        : undefined,
+  };
+}
+
 /** Run harness completeness checks and return scope + concerns. */
 function computeHarness(ctx: AuditContext): {
   scope: AuditScope;
@@ -157,22 +180,7 @@ function computeHarness(ctx: AuditContext): {
 
   for (const check of HARNESS_CHECKS) {
     const result = check.run(ctx);
-    checks.push({
-      id: check.id,
-      name: check.name,
-      status: result.status,
-      failure:
-        result.status === "fail"
-          ? {
-              check: check.name,
-              message:
-                result.recommendations[0] ??
-                result.findings[0] ??
-                "Check failed",
-              howToFix: result.howToFix?.[0],
-            }
-          : undefined,
-    });
+    checks.push(toCheckResult(check, result));
     const concern = concerns[check.concern];
     concern.findings.push(...result.findings);
     concern.recommendations.push(...result.recommendations);

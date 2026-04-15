@@ -8,7 +8,11 @@ import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
 import { runAudit } from "../../src/cli/audit/audit.js";
 import { createFS } from "../../src/cli/facts/fs.js";
 import type { AuditConcernKey } from "../../src/cli/audit/types.js";
-import { makeCtx, makeSharedFacts } from "../fixtures/projects/index.js";
+import {
+  makeCtx,
+  makeSharedFacts,
+  stubAgentFacts,
+} from "../fixtures/projects/index.js";
 
 // ---------------------------------------------------------------------------
 // Harness concerns produce pass/fail status
@@ -93,6 +97,52 @@ describe("harness howToFix", () => {
       totalHowToFix > 0,
       "At least some harness checks should produce howToFix entries",
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Deny hook registration check
+// ---------------------------------------------------------------------------
+describe("deny-hook-registered harness check", () => {
+  const denyRegisteredCheck = HARNESS_CHECKS.find(
+    (c) => c.id === "deny-hook-registered",
+  );
+
+  it("fails when deny exists but is not registered", () => {
+    assert.ok(denyRegisteredCheck, "deny-hook-registered check must exist");
+    const ctx = makeCtx({
+      agents: [
+        stubAgentFacts({
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyExists: true,
+            denyIsRegistered: false,
+            denyRegisteredPath: null,
+          },
+        }),
+      ],
+    });
+    const result = denyRegisteredCheck.run(ctx);
+    assert.equal(result.status, "fail");
+    assert.ok(result.recommendations.length > 0);
+  });
+
+  it("passes when deny exists and is registered", () => {
+    assert.ok(denyRegisteredCheck, "deny-hook-registered check must exist");
+    const ctx = makeCtx({
+      agents: [
+        stubAgentFacts({
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyExists: true,
+            denyIsRegistered: true,
+            denyRegisteredPath: ".claude/hooks/deny-dangerous.sh",
+          },
+        }),
+      ],
+    });
+    const result = denyRegisteredCheck.run(ctx);
+    assert.equal(result.status, "pass");
   });
 });
 

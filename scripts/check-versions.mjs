@@ -4,24 +4,24 @@
  * Run: node scripts/check-versions.mjs
  * Called by: npm run check-versions (and prepublishOnly)
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync } from "node:fs";
 
-const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const version = pkg.version;
 
 const templates = [
-  'workflow/skills/goat-debug.md',
-  'workflow/skills/goat-plan.md',
-  'workflow/skills/goat-review.md',
-  'workflow/skills/goat-sbao.md',
-  'workflow/skills/goat-security.md',
-  'workflow/skills/goat-test.md',
-  'workflow/skills/goat.md',
+  "workflow/skills/goat-debug.md",
+  "workflow/skills/goat-plan.md",
+  "workflow/skills/goat-review.md",
+  "workflow/skills/goat-sbao.md",
+  "workflow/skills/goat-security.md",
+  "workflow/skills/goat-test.md",
+  "workflow/skills/goat.md",
 ];
 
 let ok = true;
 for (const f of templates) {
-  const content = readFileSync(f, 'utf8');
+  const content = readFileSync(f, "utf8");
   if (!content.includes(version)) {
     console.error(`Version mismatch: ${f} does not contain ${version}`);
     ok = false;
@@ -29,7 +29,9 @@ for (const f of templates) {
 }
 
 if (!ok) {
-  console.error(`\nFix: update goat-flow-skill-version in the files above to "${version}"`);
+  console.error(
+    `\nFix: update goat-flow-skill-version in the files above to "${version}"`,
+  );
   process.exit(1);
 }
 console.log(`All template versions match ${version}`);

@@ -212,7 +212,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     lines.push(auditSummaryText);
     lines.push("");
     lines.push(
-      "> **Note:** The audit checks structural completeness only (pass/fail per concern). PASS means files exist, paths resolve, and patterns are registered. It does NOT mean documentation is accurate, footguns are current, or content is appropriate for this project. Your critique must assess quality — what the audit cannot.",
+      "> **Note:** The audit checks structural completeness only (pass/fail per concern). PASS means files exist, paths resolve, and patterns are registered. It does NOT mean documentation is accurate, footguns are current, or content is appropriate for this project. Your critique must assess quality - what the audit cannot.",
     );
     if (auditReport.status === "fail") {
       lines.push(
@@ -236,7 +236,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("");
   lines.push("```bash");
   lines.push(
-    "# 1. Run read-only validation commands (do NOT run preflight-checks.sh — it writes to dist/)",
+    "# 1. Run read-only validation commands (do NOT run preflight-checks.sh - it writes to dist/)",
   );
   lines.push(
     `#    Run shellcheck and bash -n on shell scripts listed in ${instructionFile}.`,
@@ -340,12 +340,12 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     "- Are the BAD/GOOD examples (in the instruction file's READ section) drawn from this project? Or template fill?",
   );
   lines.push(
-    "- Does the architecture doc (`.goat-flow/architecture.md`) describe the CURRENT system accurately? Read the actual codebase and compare. **Verify numeric claims** (check counts, skill counts, file counts) against actual code exports or constants — numeric claims are the most common doc-code drift.",
+    "- Does the architecture doc (`.goat-flow/architecture.md`) describe the CURRENT system accurately? Read the actual codebase and compare. **Verify numeric claims** (check counts, skill counts, file counts) against actual code exports or constants - numeric claims are the most common doc-code drift.",
   );
   lines.push("");
   lines.push("**Evidence quality - spot-check 3-5 entries:**");
   lines.push(
-    "- Pick 3-5 footgun entries from `.goat-flow/footguns/`. For each: (a) read the cited `file:line` — does the code still exhibit the described behavior? (b) Is the `Status` field (active/resolved) accurate? An entry marked `active` that describes fixed behavior is a stale entry — report it. (c) Do the line numbers match the current file?",
+    "- Pick 3-5 footgun entries from `.goat-flow/footguns/`. For each: (a) read the cited `file:line` - does the code still exhibit the described behavior? (b) Is the `Status` field (active/resolved) accurate? An entry marked `active` that describes fixed behavior is a stale entry - report it. (c) Do the line numbers match the current file?",
   );
   lines.push(
     "- Pick 2-3 lesson entries from `.goat-flow/lessons/`. Are they from real incidents or synthetic?",
@@ -362,7 +362,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("");
   lines.push("**Config reality:**");
   lines.push(
-    "- Does `.goat-flow/config.yaml` stay lean and accurate for this project? If it includes optional project-calibration fields like `toolchain`, verify the commands are real before treating them as authoritative. If you also run the tool at broader scope (e.g., `npx eslint .` vs a project's scoped command), note whether the project intentionally scopes narrower — that's a design choice, not a finding, unless it hides real problems. Beware that `.claude/worktrees/`, `node_modules/`, and `dist/` can pollute unscoped tool runs.",
+    "- Does `.goat-flow/config.yaml` stay lean and accurate for this project? If it includes optional project-calibration fields like `toolchain`, verify the commands are real before treating them as authoritative. If you also run the tool at broader scope (e.g., `npx eslint .` vs a project's scoped command), note whether the project intentionally scopes narrower - that's a design choice, not a finding, unless it hides real problems. Beware that `.claude/worktrees/`, `node_modules/`, and `dist/` can pollute unscoped tool runs.",
   );
   lines.push(
     `- Were hook scripts installed and registered in \`${settingsFile}\`?`,
@@ -385,7 +385,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     "**Option A (preferred): File analysis.** Read each SKILL.md and evaluate its structure, constraints, routing logic, cross-references, and coherence against the codebase. This is safe for read-only critiques and covers most quality signals.",
   );
   lines.push(
-    "**Option B (if context allows): Live invocation.** Invoke the skill via the Skill tool on a real target. Monitor for file-write attempts — stop immediately if the skill tries to create or modify files. This tests runtime behavior but costs significant context.",
+    "**Option B (if context allows): Live invocation.** Invoke the skill via the Skill tool on a real target. Monitor for file-write attempts - stop immediately if the skill tries to create or modify files. This tests runtime behavior but costs significant context.",
   );
   lines.push("");
   lines.push("Either approach is acceptable. State which you used.");

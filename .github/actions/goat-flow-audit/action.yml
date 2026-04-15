@@ -1,20 +1,20 @@
-name: 'GOAT Flow Audit'
-description: 'Validate AI workflow setup quality and comment results on PRs'
+name: "GOAT Flow Audit"
+description: "Validate AI workflow setup quality and comment results on PRs"
 inputs:
   quality:
-    description: 'Include advisory quality scoring (true/false)'
+    description: "Include advisory quality scoring (true/false)"
     required: false
-    default: 'false'
+    default: "false"
   path:
-    description: 'Path to audit (defaults to repo root)'
+    description: "Path to audit (defaults to repo root)"
     required: false
-    default: '.'
+    default: "."
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
-        node-version: '20'
+        node-version: "20"
     - name: Install dependencies
       shell: bash
       run: cd ${{ github.action_path }}/../../.. && npm ci

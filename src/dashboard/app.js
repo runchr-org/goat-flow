@@ -188,10 +188,8 @@ function app() {
       // not as individual keystrokes that trigger line-by-line execution.
       // \x1b[200~ = start bracketed paste, \x1b[201~ = end bracketed paste
       const prepared = adapt ? this.adaptPrompt(text) : text;
-      const escaped = prepared.replace(/\r?\n/g, " ");
-      this._terminalWs.send(
-        JSON.stringify({ type: "input", data: escaped + "\r" }),
-      );
+      const pasteData = "\x1b[200~" + prepared + "\x1b[201~" + "\r";
+      this._terminalWs.send(JSON.stringify({ type: "input", data: pasteData }));
       this._lastInputTime = Date.now();
       if (this._terminalXterm) this._terminalXterm.focus();
       return true;

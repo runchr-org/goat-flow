@@ -361,7 +361,49 @@
       </div>
     </div>
 
-    <!-- Health banner -->
+    <!-- Terminal audit commands -->
+    <div x-show="report && terminalAvailable" style="margin-bottom: 16px">
+      <div class="gf-text-muted" style="font-size: 12px; margin-bottom: 8px">
+        Run audit commands in the workspace terminal.
+      </div>
+      <div
+        style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px"
+      >
+        <template
+          x-for="action in terminalAuditActions"
+          :key="'home-audit-' + action.id"
+        >
+          <button
+            @click="runTerminalAuditCommand(action)"
+            :title="action.description"
+            class="gf-action-btn"
+            style="
+              text-align: left;
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            "
+          >
+            <span class="gf-play-icon">
+              <svg
+                width="12"
+                height="12"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"
+                />
+              </svg>
+            </span>
+            <div style="flex: 1; min-width: 0">
+              <div class="gf-action-title" x-text="action.command"></div>
+              <div class="gf-action-desc" x-text="action.description"></div>
+            </div>
+          </button>
+        </template>
+      </div>
+    </div>
 
     <!-- No audit data -->
     <div
@@ -433,7 +475,7 @@
             <span
               class="gf-text-secondary"
               style="font-size: 12px; margin-left: 12px"
-              x-text="`${(report?.scopes?.setup?.checks || []).filter(c => c.status === 'pass').length}/${(report?.scopes?.setup?.checks || []).length} checks passed`"
+              x-text="`${(report?.scopes?.setup?.checks || []).filter(c => c.status === 'pass').length}/${(report?.scopes?.setup?.checks || []).length} installed`"
             ></span>
           </div>
           <span
@@ -447,7 +489,7 @@
               background: report?.scopes?.setup?.status === 'pass' ? '#14532d' : '#7f1d1d',
               color: report?.scopes?.setup?.status === 'pass' ? '#4ade80' : '#f87171',
             }"
-            x-text="report?.scopes?.setup?.status === 'pass' ? 'PASS' : 'FAIL'"
+            x-text="report?.scopes?.setup?.status === 'pass' ? 'INSTALLED' : 'NOT INSTALLED'"
           ></span>
         </div>
       </button>
@@ -455,7 +497,99 @@
 
     <!-- Setup detail panel (inline, toggled by clicking Setup card) -->
     <template x-if="auditDetailScope === 'setup' && report?.scopes?.setup">
-      <div style="margin-bottom: 16px">
+      <div
+        style="margin-bottom: 16px"
+        x-data="{
+          benefits: {
+            'lessons':        'Agents learn from past mistakes and don\'t repeat them',
+            'footguns':       'Known traps are surfaced before agents hit them',
+            'architecture':   'Agents understand how your system fits together',
+            'code-map':       'Agents find the right files without guessing',
+            'glossary':       'Agents use your project\'s terminology correctly',
+            'patterns':       'Proven approaches are reused instead of reinvented',
+            'decisions':      'Agents know why past choices were made',
+            'session-logs':   'Work survives context compaction and session crashes',
+            'tasks':          'Progress is tracked and resumable between sessions',
+            'other-files':    'Skill preamble, conventions, and config are in place',
+            'config-parses':  'goat-flow knows your project\'s toolchain and agents',
+            'config-version': 'Config matches the current goat-flow release',
+          }
+        }"
+      >
+        <!-- Capabilities summary when fully installed -->
+        <template x-if="report.scopes.setup.status === 'pass'">
+          <div
+            class="gf-card"
+            style="
+              border-radius: 8px;
+              padding: 14px 20px;
+              margin-bottom: 12px;
+              border-color: #14532d;
+            "
+          >
+            <div
+              style="
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px 24px;
+                font-size: 12px;
+              "
+            >
+              <span class="gf-text-secondary"
+                ><span style="color: #4ade80; margin-right: 4px">&#9679;</span>
+                Context-aware AI</span
+              >
+              <span class="gf-text-secondary"
+                ><span style="color: #4ade80; margin-right: 4px">&#9679;</span>
+                Safe execution guardrails</span
+              >
+              <span class="gf-text-secondary"
+                ><span style="color: #4ade80; margin-right: 4px">&#9679;</span>
+                Self-verifying outputs</span
+              >
+              <span class="gf-text-secondary"
+                ><span style="color: #4ade80; margin-right: 4px">&#9679;</span>
+                Learns from mistakes</span
+              >
+            </div>
+          </div>
+        </template>
+        <!-- Single setup CTA when checks are failing -->
+        <template x-if="report.scopes.setup.status === 'fail'">
+          <div
+            class="gf-card"
+            style="
+              border-radius: 8px;
+              padding: 14px 20px;
+              margin-bottom: 12px;
+              border-color: #7f1d1d;
+            "
+          >
+            <p
+              class="gf-text-primary"
+              style="font-size: 13px; font-weight: 500; margin: 0 0 6px 0"
+            >
+              Fix everything in one step
+            </p>
+            <p
+              class="gf-text-secondary"
+              style="font-size: 12px; line-height: 1.5; margin: 0 0 10px 0"
+            >
+              Run the setup prompt through your agent. It creates all missing
+              files with real content adapted to your project.
+            </p>
+            <code
+              class="gf-text-secondary"
+              style="
+                font-size: 12px;
+                background: rgba(255, 255, 255, 0.05);
+                padding: 4px 8px;
+                border-radius: 4px;
+              "
+              >goat-flow setup . --agent claude</code
+            >
+          </div>
+        </template>
         <div class="gf-card" style="border-radius: 8px; padding: 16px 20px">
           <h3
             class="gf-text-muted"
@@ -470,7 +604,7 @@
             <span
               class="gf-text-secondary"
               style="margin-left: 4px"
-              x-text="`(${report.scopes.setup.checks.filter(c => c.status === 'pass').length}/${report.scopes.setup.checks.length} passed)`"
+              x-text="`(${report.scopes.setup.checks.filter(c => c.status === 'pass').length}/${report.scopes.setup.checks.length} installed)`"
             ></span>
           </h3>
           <div style="display: flex; flex-direction: column; gap: 4px">
@@ -503,11 +637,20 @@
                     :style="{ color: check.status === 'pass' ? '#4ade80' : '#f87171' }"
                     x-html="check.status === 'pass' ? '&#10003;' : '&#10005;'"
                   ></span>
-                  <span
-                    class="gf-text-primary"
-                    style="font-weight: 500"
-                    x-text="check.name"
-                  ></span>
+                  <div>
+                    <span
+                      class="gf-text-primary"
+                      style="font-weight: 500"
+                      x-text="check.name"
+                    ></span>
+                    <template x-if="benefits[check.id]">
+                      <span
+                        class="gf-text-muted"
+                        style="font-size: 12px; margin-left: 6px"
+                        x-text="'— ' + benefits[check.id]"
+                      ></span>
+                    </template>
+                  </div>
                 </div>
                 <template x-if="check.failure">
                   <div style="margin-left: 22px">
@@ -516,34 +659,6 @@
                       style="font-size: 12px; margin-top: 2px"
                       x-text="check.failure.message"
                     ></p>
-                    <div
-                      x-show="check.failure.howToFix"
-                      class="gf-bg-elevated"
-                      style="
-                        margin-top: 8px;
-                        padding: 8px 12px;
-                        border-radius: 6px;
-                        font-size: 12px;
-                      "
-                    >
-                      <div
-                        class="gf-text-muted"
-                        style="
-                          font-size: 10px;
-                          text-transform: uppercase;
-                          letter-spacing: 0.5px;
-                          margin-bottom: 4px;
-                          font-weight: 600;
-                        "
-                      >
-                        How to fix
-                      </div>
-                      <p
-                        class="gf-text-secondary"
-                        style="line-height: 1.5; margin: 0"
-                        x-text="check.failure.howToFix"
-                      ></p>
-                    </div>
                   </div>
                 </template>
               </div>
@@ -572,11 +687,10 @@
         agentScore(agent) { if (!agent.harness) return null; const t = agent.harness.checks.length; return t ? Math.round(agent.harness.checks.filter(c => c.status === 'pass').length / t * 100) : null; },
         toGrade(s) { if (s >= 90) return 'A'; if (s >= 80) return 'B'; if (s >= 70) return 'C'; if (s >= 60) return 'D'; return 'F'; },
         checkDescriptions: {
-          'toolchain-commands': 'test, lint, and build commands are defined in config.yaml - agents call these to verify their own changes',
-          'agent-settings-parse': 'settings/config file parses when present (JSON for Claude/Gemini, TOML for Codex) - parse errors silently disable hook configuration and permissions',
-          'hook-files-exist': 'a deny mechanism exists (hook script or settings deny list) to block dangerous tool calls',
-          'hook-syntax': 'hook shell scripts pass bash -n - syntax errors cause hooks to silently exit 0, bypassing all guards',
-          'deny-patterns': 'at least one tool-call deny pattern is registered - an empty deny list permits every tool call'
+          'agent-instruction': 'The agent has a project-specific instruction file',
+          'agent-skills': 'All 7 goat-flow skills are installed with matching versions',
+          'agent-settings': 'Agent settings file parses correctly',
+          'agent-deny-dangerous': 'Deny hook blocks destructive commands before they run'
         }
       }"
     >
@@ -679,7 +793,11 @@
                       "
                     >
                       <div
-                        style="height: 100%; border-radius: 2px; transition: width 0.3s"
+                        style="
+                          height: 100%;
+                          border-radius: 2px;
+                          transition: width 0.3s;
+                        "
                         :style="{ width: agent.concerns[ck].score + '%', background: scoreColor(agent.concerns[ck].score) }"
                       ></div>
                     </div>
@@ -756,11 +874,11 @@
                   margin-bottom: 12px;
                 "
               >
-                Agent Setup Checks
+                Agent Setup
                 <span
                   class="gf-text-secondary"
                   style="margin-left: 4px"
-                  x-text="`(${agent.agent.checks.filter(c => c.status === 'pass').length}/${agent.agent.checks.length} passed)`"
+                  x-text="`(${agent.agent.checks.filter(c => c.status === 'pass').length}/${agent.agent.checks.length} installed)`"
                 ></span>
               </h3>
               <div style="display: flex; flex-direction: column; gap: 4px">
@@ -793,22 +911,21 @@
                         :style="{ color: check.status === 'pass' ? 'var(--green-400)' : 'var(--red-400)' }"
                         x-html="check.status === 'pass' ? '&#10003;' : '&#10005;'"
                       ></span>
-                      <span
-                        class="gf-text-primary"
-                        style="font-weight: 500"
-                        x-text="check.name"
-                      ></span>
+                      <div>
+                        <span
+                          class="gf-text-primary"
+                          style="font-weight: 500"
+                          x-text="check.name"
+                        ></span>
+                        <template x-if="checkDescriptions[check.id]">
+                          <span
+                            class="gf-text-muted"
+                            style="font-size: 12px; margin-left: 6px"
+                            x-text="'— ' + checkDescriptions[check.id]"
+                          ></span>
+                        </template>
+                      </div>
                     </div>
-                    <p
-                      x-show="checkDescriptions[check.id]"
-                      class="gf-text-muted"
-                      style="
-                        font-size: 11px;
-                        margin: 2px 0 0 22px;
-                        line-height: 1.4;
-                      "
-                      x-text="checkDescriptions[check.id]"
-                    ></p>
                     <template x-if="check.failure">
                       <div style="margin-left: 22px">
                         <p
@@ -816,34 +933,6 @@
                           style="font-size: 12px; margin-top: 2px"
                           x-text="check.failure.message"
                         ></p>
-                        <div
-                          x-show="check.failure.howToFix"
-                          class="gf-bg-elevated"
-                          style="
-                            margin-top: 8px;
-                            padding: 8px 12px;
-                            border-radius: 6px;
-                            font-size: 12px;
-                          "
-                        >
-                          <div
-                            class="gf-text-muted"
-                            style="
-                              font-size: 10px;
-                              text-transform: uppercase;
-                              letter-spacing: 0.5px;
-                              margin-bottom: 4px;
-                              font-weight: 600;
-                            "
-                          >
-                            How to fix
-                          </div>
-                          <p
-                            class="gf-text-secondary"
-                            style="line-height: 1.5; margin: 0"
-                            x-text="check.failure.howToFix"
-                          ></p>
-                        </div>
                       </div>
                     </template>
                   </div>

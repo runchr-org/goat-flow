@@ -92,13 +92,6 @@
               Home
             </button>
             <button
-              @click="activeView = 'audit'"
-              class="gf-nb"
-              :class="activeView === 'audit' && 'gf-nb-active'"
-            >
-              Audit
-            </button>
-            <button
               @click="activeView = 'critique'"
               class="gf-nb"
               :class="activeView === 'critique' && 'gf-nb-active'"
@@ -286,7 +279,6 @@
         </div>
 
         <!-- View fragments (assembled server-side) -->
-        <!-- include: views/audit.html -->
         <!-- include: views/workspace.html -->
 
         <!-- include: views/critique.html -->

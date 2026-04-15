@@ -9,7 +9,7 @@
 import type { BuildCheck } from "./types.js";
 import { AUDIT_VERSION } from "../constants.js";
 
-// Paths covered by named checks — excluded from the catch-all.
+// Paths covered by named checks - excluded from the catch-all.
 // config.yaml is also excluded (covered by config-parses).
 const NAMED_PATHS = new Set([
   ".goat-flow/lessons/",

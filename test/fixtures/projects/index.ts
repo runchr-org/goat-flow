@@ -124,6 +124,8 @@ export function stubAgentFacts(
       denyBlocksChmod: true,
       denyBlocksPipeToShell: false,
       denyBlocksCloudDestructive: false,
+      denyIsRegistered: true,
+      denyRegisteredPath: ".claude/hooks/deny-dangerous.sh",
       postTurnExists: false,
       postTurnRegistered: false,
       postTurnRegisteredPath: null,

@@ -141,8 +141,61 @@ const denyBlocksPipeToShell: HarnessCheck = {
   },
 };
 
+const denyHookRegistered: HarnessCheck = {
+  id: "deny-hook-registered",
+  name: "Deny hook registered in agent settings",
+  concern: "constraints",
+  run: (ctx) => {
+    const registered: string[] = [];
+    const unregistered: string[] = [];
+    const noDeny: string[] = [];
+    for (const af of ctx.agents) {
+      if (!af.hooks.denyExists && !af.hooks.denyIsConfigBased) {
+        noDeny.push(af.agent.id);
+        continue;
+      }
+      if (af.hooks.denyIsRegistered) {
+        registered.push(af.agent.id);
+      } else {
+        unregistered.push(af.agent.id);
+      }
+    }
+    if (unregistered.length > 0) {
+      return fail(
+        [
+          ...registered.map(
+            (id) =>
+              `${id}: deny hook registered as ${ctx.agents.find((a) => a.agent.id === id)?.agent.hookEvents.preTool ?? "pre-tool"} hook`,
+          ),
+          ...unregistered.map(
+            (id) =>
+              `${id}: deny hook exists but is NOT registered as a ${ctx.agents.find((a) => a.agent.id === id)?.agent.hookEvents.preTool ?? "pre-tool"} hook`,
+          ),
+        ],
+        [`Register the deny hook in ${unregistered.join(", ")} agent settings`],
+        [
+          `Add a ${unregistered.map((id) => ctx.agents.find((a) => a.agent.id === id)?.agent.hookEvents.preTool ?? "PreToolUse").join("/")} hook entry in agent settings that runs deny-dangerous.sh.`,
+        ],
+      );
+    }
+    const findings = [
+      ...registered.map(
+        (id) =>
+          `${id}: deny hook registered as ${ctx.agents.find((a) => a.agent.id === id)?.agent.hookEvents.preTool ?? "pre-tool"} hook`,
+      ),
+      ...noDeny.map(
+        (id) => `${id}: no deny mechanism (registration check skipped)`,
+      ),
+    ];
+    return pass(
+      findings.length > 0 ? findings : ["No agents with deny hooks to check"],
+    );
+  },
+};
+
 export const CONSTRAINTS_CHECKS: HarnessCheck[] = [
   denyCoversSecrets,
   denyBlocksDangerous,
   denyBlocksPipeToShell,
+  denyHookRegistered,
 ];

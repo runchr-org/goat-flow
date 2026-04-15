@@ -502,6 +502,17 @@ else
     done
 fi
 
+# ── Markdown Links ───────────────────────────────────────────────────
+section "Markdown Links"
+if bash scripts/check-markdown-links.sh . 2>&1 | grep -q "^All"; then
+    link_count=$(bash scripts/check-markdown-links.sh . 2>&1 | grep -oP '\d+' | head -1)
+    pass "All $link_count markdown links resolve"
+else
+    bash scripts/check-markdown-links.sh . 2>&1 | grep "^BROKEN" | while IFS= read -r line; do
+        fail "$line"
+    done
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────
 # Print elapsed time for the last section
 echo -e "  ${DIM}($(fmt_elapsed $(( $(now_ms) - section_start ))))${RST}"

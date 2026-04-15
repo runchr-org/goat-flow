@@ -366,6 +366,25 @@ function buildHookRegistration(
   };
 }
 
+/** Check whether the deny hook is registered as a pre-tool-use hook in settings. */
+function buildDenyRegistration(
+  agent: AgentProfile,
+  settingsParsed: unknown,
+  codexHooksJson: unknown,
+): { denyIsRegistered: boolean; denyRegisteredPath: string | null } {
+  const source = agent.id === "codex" ? codexHooksJson : settingsParsed;
+  const hooks = readHooksObject(source);
+  if (!hooks) {
+    return { denyIsRegistered: false, denyRegisteredPath: null };
+  }
+
+  const preTool = normalizeEventConfig(hooks, agent.hookEvents.preTool);
+  return {
+    denyIsRegistered: preTool.registered,
+    denyRegisteredPath: preTool.path,
+  };
+}
+
 /** Detect whether the current agent has a compaction/session-start hook configured. */
 function detectCompactionHookExists(
   agent: AgentProfile,
@@ -495,6 +514,11 @@ export function extractHookFacts(
   );
   const hook = analyzeDenyHookPath(fs, resolveDenyHookPath(fs, agent));
   const absolutePathHooks = findAbsolutePathHooks(fs, agent.hooksDir);
+  const denyRegistration = buildDenyRegistration(
+    agent,
+    settingsParsed,
+    codexHooksJson,
+  );
 
   // Second: also check settings.json Bash deny patterns
   enrichDenyFromSettings(settingsParsed, hasDenyPatterns, hook);
@@ -503,6 +527,7 @@ export function extractHookFacts(
 
   return {
     ...hook,
+    ...denyRegistration,
     ...postTurn,
     compactionHookExists,
     absolutePathHooks,

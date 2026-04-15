@@ -4,16 +4,8 @@
  */
 import { getPackageVersion } from "./paths.js";
 
-/** Canonical list of all GOAT Flow skill names (6 specialized skills + dispatcher = 7) */
-export const SKILL_NAMES = [
-  "goat",
-  "goat-debug",
-  "goat-plan",
-  "goat-review",
-  "goat-sbao",
-  "goat-security",
-  "goat-test",
-] as const;
+/** Canonical list of all GOAT Flow skill names (single mono-skill dispatcher) */
+export const SKILL_NAMES = ["goat"] as const;
 
 /**
  * Current audit version - derived from package.json so it stays in sync automatically.
