@@ -26,12 +26,12 @@ Consumer project post-turn hook scripts with `|| true` after lint/type-check com
 
 **Symptoms:** Harmless inspection commands are blocked because the command text contains a dangerous pattern as data (search term, string literal, regex), not as a shell action. Agent workflows stall on read-only audit/debug tasks.
 
-**Why it happens:** `deny-dangerous.sh` matches dangerous patterns (e.g. `rm -rf`, `chmod 777`, `git push origin main`) via regex on the raw command string at `.claude/hooks/deny-dangerous.sh:122-128`. It does not distinguish between shell actions and string data. A grep searching for the text `rm -rf` or a `printf` printing `chmod 777` triggers the same block as the real dangerous command.
+**Why it happens:** `deny-dangerous.sh` matches dangerous patterns (e.g. `rm -rf`, `chmod 777`, `git push origin main`) via regex on the raw command string. The pattern matching block (search: `rm[[:space:]]+-` in `deny-dangerous.sh`) does not distinguish between shell actions and string data. A grep searching for the text `rm -rf` or a `printf` printing `chmod 777` triggers the same block as the real dangerous command.
 
 **Evidence:**
 - Live block during 8-critique analysis (2026-04-15): `grep -A3 "rm -rf\|howToFix" src/cli/audit/check-agent-setup.ts` was blocked because the search pattern contained `rm -rf` as a literal string
-- `deny-dangerous.sh` self-test (`.claude/hooks/deny-dangerous.sh:77-87`) has zero false-positive test cases — it only tests that safe commands pass and dangerous commands block, never that benign commands containing dangerous substrings pass
-- The hook's own header (lines 3-8) acknowledges "Best-effort pattern matching on literal shell commands" but does not list false positives as a known limitation
+- `deny-dangerous.sh` self-test (search: `run_self_test` in `deny-dangerous.sh`) has zero false-positive test cases — it only tests that safe commands pass and dangerous commands block, never that benign commands containing dangerous substrings pass
+- The hook's own header acknowledges "Best-effort pattern matching on literal shell commands" but does not list false positives as a known limitation
 
 **Impact:** Agents resort to workarounds (using the Grep tool instead of grep, rephrasing commands) or ask the user to run commands manually. This is especially problematic during code review and security audit where searching for dangerous patterns is the primary task.
 

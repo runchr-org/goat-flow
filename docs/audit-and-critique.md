@@ -29,22 +29,25 @@ Binary pass/fail. This is the structural setup gate - it validates that files, c
 
 Checks are grouped by **scope**:
 
-**setup scope** (GOAT Flow Setup) - goat-flow-owned surfaces:
-- Required files and directories from the project manifest exist
-- Config parses and version is current
-- All 7 canonical skills installed with matching version tags
-- Instruction file exists for configured agents
-- No stale skill directories (goat-audit, goat-investigate, etc.)
-- No `workflow/` paths leaked into installed skill files
-- Agent filter resolves to a present instruction file (`configured-agent-present` - closes vacuous-pass on `--agent` filter)
-- Agent artifacts (hooks/settings) are consistent with instruction file presence (`agent-artifacts-consistent` - closes aggregate vacuous-pass)
-- Preamble and conventions files present (enforced via `required-files` check)
+**setup scope** (GOAT Flow Setup) - 12 checks on goat-flow-owned surfaces:
+- `lessons` - `.goat-flow/lessons/` directory exists
+- `footguns` - `.goat-flow/footguns/` directory exists
+- `architecture` - `.goat-flow/architecture.md` exists
+- `code-map` - `.goat-flow/code-map.md` exists
+- `glossary` - `.goat-flow/glossary.md` exists
+- `patterns` - `.goat-flow/patterns.md` exists
+- `decisions` - `.goat-flow/decisions/` directory exists
+- `session-logs` - `.goat-flow/logs/sessions/` directory exists
+- `tasks` - `.goat-flow/tasks/` directory exists
+- `other-files` - Other required files from the project manifest exist (preamble, conventions, config)
+- `config-parses` - `.goat-flow/config.yaml` parses and has required fields
+- `config-version` - Config version matches current release
 
-**agent scope** (Agent Setup) - per-agent integration surfaces:
-- Agent instruction file exists
-- Agent skills installed with correct versions
-- Agent settings/config files parse
-- Deny patterns registered in agent settings
+**agent scope** (Agent Setup) - 4 checks per configured agent:
+- `agent-instruction` - Agent instruction file exists (CLAUDE.md, AGENTS.md, GEMINI.md)
+- `agent-skills` - Agent skills installed with correct versions, no deprecated skill directories
+- `agent-settings` - Agent settings/config file parses correctly
+- `agent-deny-dangerous` - Deny hook file exists or deny patterns registered in agent settings
 
 **Agent detection:** `audit` detects which agents are configured from the presence of instruction files (CLAUDE.md, AGENTS.md, GEMINI.md). Use `--agent claude|codex|gemini` to scope checks to a single agent.
 

@@ -68,8 +68,15 @@ evaluation/                # Critique prompt templates
 
 ```
 preflight-checks.sh        # Pre-commit/CI gate: lint, typecheck, cross-ref checks
-validate-goat-flow-setup.sh  # Validates .goat-flow/ structure
 setup-initial.sh           # First-time project scaffolding
 deny-dangerous.sh          # Hook: blocks destructive commands
 maintenance/               # Git cleanup, secret scanning, formatting
+```
+
+## workflow/ -- Setup templates, skills, and reference docs
+
+Note: `validate-goat-flow-setup.sh` lives here, not in `scripts/`.
+
+```
+validate-goat-flow-setup.sh  # Validates .goat-flow/ structure
 ```

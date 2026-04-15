@@ -7,7 +7,7 @@ Documentation framework for AI coding agent workflows. Two parts:
 - **Markdown docs** (`docs/`, `workflow/`, `workflow/setup/`): framework documentation and agent templates
 - **Shell scripts** (`scripts/`): maintenance, preflight checks, deny policy
 
-Package: `@blundergoat/goat-flow`. Node >= 20.11.0. Zero runtime dependencies.
+Package: `@blundergoat/goat-flow`. Node >= 20.11.0. Runtime dependencies: `js-yaml`, `ws`.
 
 ## Architecture
 
@@ -71,11 +71,11 @@ goat-flow critique . --agent claude      # Generate critique prompt
 - `node:test` + `node:assert/strict` for testing (not Jest, not Vitest)
 - Strict TypeScript: `"strict": true` in tsconfig.json
 - No `any` types. Minimize `as` casts. Use `unknown` and narrow.
-- All types in `src/cli/types.ts`. Prompt-specific types in `src/cli/prompt/types.ts`.
+- All types in `src/cli/types.ts`. Audit-specific types in `src/cli/audit/types.ts`.
 - AUDIT_VERSION lives in `src/cli/constants.ts`, derived from `package.json` at runtime (single source of truth)
 - Skill frontmatter must embed AUDIT_VERSION - CI enforces this in the "Skill template versions" step
 - `ReadonlyFS` interface for filesystem access -- auditor never writes to disk
-- Zero runtime dependencies. Dev-only: typescript, tsx, @types/node
+- Minimal runtime dependencies (js-yaml, ws). Dev-only: typescript, tsx, @types/node
 
 ## DO
 
@@ -89,7 +89,7 @@ goat-flow critique . --agent claude      # Generate critique prompt
 
 ## DON'T
 
-- Don't add runtime dependencies (the auditor must stay zero-dep)
+- Don't add unnecessary runtime dependencies (keep the dependency footprint minimal)
 - Don't use `console.log` outside `cli.ts` and `audit/render.ts` (preflight warns)
 - Don't put types outside `types.ts` or `audit/types.ts`
 - Don't hardcode version strings (derive from package.json via constants.ts)

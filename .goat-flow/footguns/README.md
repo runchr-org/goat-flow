@@ -4,9 +4,12 @@
 
 If the agent did something wrong → `.goat-flow/lessons/` instead.
 
-Every entry MUST include file path evidence. Line numbers should be kept current - the quality audit penalizes stale file:line refs in its context score.
+Every entry MUST include file path evidence with a **grep-friendly semantic anchor** — a function name, unique string, section heading, or search pattern that survives refactors. Line numbers go stale on every edit; semantic anchors don't.
 
-Each file:line ref must be in its own backtick span. Do not combine multiple refs inside a single backtick (e.g. `` `file1:N, file2:M` `` fails the staleness checker — use `` `file1:N` `` and `` `file2:M` `` separately).
+**Good:** `check-agent-setup.ts` (search: `howToFix.*deprecated`) — emits blocked commands
+**Bad:** `check-agent-setup.ts:142` — stale tomorrow
+
+Line numbers are optional convenience. If included, treat as approximate snapshot, not verification target. Each file ref must be in its own backtick span.
 
 Agents should scan only entries above the `## Resolved Entries` section. Resolved entries are historical record, not active traps.
 

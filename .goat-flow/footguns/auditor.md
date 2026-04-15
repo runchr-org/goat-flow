@@ -27,10 +27,10 @@ The audit checks that hook files exist and pass `bash -n` syntax check, but neve
 
 **Symptoms:** Running `goat-flow audit` and following its fix suggestions triggers deny-hook blocks. The framework's repair guidance contradicts its own safety layer.
 
-**Why it happens:** `src/cli/audit/check-agent-setup.ts:142` generates howToFix text containing `` `rm -rf ${path}` `` for deprecated skill directories. The deny hook at `.claude/hooks/deny-dangerous.sh:122-128` blocks `rm -rf` unless the target is scoped (e.g. `./node_modules`). The howToFix emits paths like `.claude/skills/goat-audit` which don't match the scoping allowlist.
+**Why it happens:** `check-agent-setup.ts` (search: `howToFix.*deprecated`) generates howToFix text containing `` `rm -rf ${path}` `` for deprecated skill directories. The deny hook (search: `rm[[:space:]]+-` in `deny-dangerous.sh`) blocks `rm -rf` unless the target is scoped (e.g. `./node_modules`). The howToFix emits paths like `.claude/skills/goat-audit` which don't match the scoping allowlist.
 
 **Evidence:**
-- `src/cli/audit/check-agent-setup.ts:142` — ``howToFix: `Remove the deprecated ${found.length === 1 ? "directory" : "directories"}: ${paths.map((p) => `\`rm -rf ${p}\``).join(", ")}.` ``
+- `src/cli/audit/check-agent-setup.ts` (search: `howToFix.*deprecated`) — emits `rm -rf ${path}` in fix guidance
 - Live block confirmed: attempting the suggested fix was blocked by the deny hook with "BLOCKED: rm -rf without safe scoping"
 
 **Prevention:**
@@ -46,12 +46,11 @@ The audit checks that hook files exist and pass `bash -n` syntax check, but neve
 
 **Symptoms:** A project can pass the harness audit at 100% without the deny hook being wired to PreToolUse. The actual safety layer for dangerous shell commands is not verified.
 
-**Why it happens:** `src/cli/audit/harness/check-verification.ts:23-54` (`hooksRegistered` check) only examines `postTurnRegistered` and `postTurnExists`. It does not check whether the deny hook is registered in the agent's PreToolUse hook configuration. The build checks in `check-agent-setup.ts` verify deny file/pattern presence but not the PreToolUse registration wiring.
+**Why it happens:** `check-verification.ts` (search: `hooksRegistered` in `src/cli/audit/harness/`) only examines `postTurnRegistered` and `postTurnExists`. It does not check whether the deny hook is registered in the agent's PreToolUse hook configuration. The build checks in `check-agent-setup.ts` verify deny file/pattern presence but not the PreToolUse registration wiring.
 
 **Evidence:**
-- `src/cli/audit/harness/check-verification.ts:33` — `if (af.hooks.postTurnRegistered && !af.hooks.postTurnExists)` — only post-turn
-- `src/cli/audit/harness/check-verification.ts:43` — `if (af.hooks.postTurnExists && !af.hooks.postTurnRegistered)` — only post-turn
-- This repo happens to be correctly wired (`.claude/settings.json:51-60`) but the framework does not prove that
+- `src/cli/audit/harness/check-verification.ts` (search: `postTurnRegistered`) — only checks post-turn hook sync, not PreToolUse
+- This repo happens to be correctly wired (`.claude/settings.json`, search: `PreToolUse`) but the framework does not prove that
 
 **Prevention:**
 1. Add a harness check that verifies PreToolUse registration for deny hooks, not just deny file existence

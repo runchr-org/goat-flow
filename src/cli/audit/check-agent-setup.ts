@@ -139,7 +139,7 @@ function checkDeprecatedSkills(ctx: AuditContext): AuditFailure | null {
     check: "Agent skills",
     message: `Deprecated skill directories found: ${found.join(", ")}`,
     evidence: found[0],
-    howToFix: `Remove the deprecated ${found.length === 1 ? "directory" : "directories"}: ${paths.map((p) => `\`rm -rf ${p}\``).join(", ")}.`,
+    howToFix: `Remove the deprecated ${found.length === 1 ? "directory" : "directories"}: ${paths.join(", ")}. Delete the SKILL.md inside each, then remove the empty directory.`,
   };
 }
 

@@ -46,6 +46,12 @@ const AGENT_INSTRUCTION: Record<AgentId, string> = {
   gemini: "GEMINI.md",
 };
 
+const AGENT_HOOKS_DIR: Record<AgentId, string> = {
+  claude: ".claude/hooks",
+  codex: ".codex/hooks",
+  gemini: ".gemini/hooks",
+};
+
 function renderAuditSummary(report: AuditReport): string {
   const lines: string[] = [];
   const scopes: [string, string][] = [
@@ -240,7 +246,8 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push(
     "# 2. Hook self-test (if deny-dangerous.sh exists in your hooks directory)",
   );
-  lines.push(`bash <your-hooks-dir>/deny-dangerous.sh --self-test`);
+  const hooksDir = AGENT_HOOKS_DIR[agent];
+  lines.push(`bash ${hooksDir}/deny-dangerous.sh --self-test`);
   lines.push("");
   lines.push("# 3. Quick structural checks");
   lines.push(

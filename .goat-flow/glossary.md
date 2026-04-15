@@ -18,7 +18,7 @@ Domain-specific terms for new contributors. Standard programming terms are exclu
 | Execution Loop | The four-step agent workflow: READ, SCOPE, ACT, VERIFY. | `workflow/setup/reference/execution-loop.md` | Default loop |
 | Footgun | A documented architectural trap with `file:line` evidence stored in category bucket files under `.goat-flow/footguns/`. | `workflow/setup/05-customise-to-project.md` | Architectural landmine |
 | Guide Mode | Deprecated. Was a rendering mode that turned the CLI into an interactive setup assistant. Replaced by the dashboard wizard. | Removed in v1.1.0 | -- |
-| Handoff | Deprecated in v1.1.0. Replaced by milestone files with ticked checkboxes as the continuity mechanism. See Task Tracking in `.goat-flow/skill-preamble.md`. | `.goat-flow/skill-preamble.md` | -- |
+| Handoff | Deprecated in v1.1.0. Replaced by milestone files with ticked checkboxes as the continuity mechanism. See Task Tracking in `.goat-flow/skill-conventions.md`. | `.goat-flow/skill-conventions.md` | -- |
 | Hot Path | Instruction content loaded every session (CLAUDE.md, local instruction files) with a strict line budget. | `workflow/setup/01-system-overview.md` | -- |
 | Instruction Budget | The practical limit (~100-150 instructions) an agent can follow reliably; exceeding it degrades all instructions uniformly. | `.goat-flow/decisions/ADR-029-instruction-budget-constraint.md` | Line budget |
 | Three Layers | The current setup model: instruction file (hot path), skills (on demand), and the `.goat-flow/` learning loop with optional local instruction files. | `workflow/setup/01-system-overview.md` | Layer model |
@@ -35,4 +35,4 @@ Domain-specific terms for new contributors. Standard programming terms are exclu
 | State Declaration | The required format (`State: [MODE] \| Goal: [one line] \| Exit: [condition]`) an agent must announce before acting. | `workflow/setup/reference/execution-loop.md` | -- |
 | Stop-the-Line | A Level 2 VERIFY escalation requiring the agent to fully stop, preserve error output, and wait for human review. | `workflow/setup/reference/execution-loop.md` | Level 2 escalation |
 | Triangular Tension | Deprecated in v1.1.0. Was a mob elaboration technique. Now part of goat-sbao's SKEPTIC/ANALYST/STRATEGIST core trio. | — | — |
-| Working Memory | Progress tracking via milestone file checkboxes (`.goat-flow/tasks/`). On `/compact`, session log written to `.goat-flow/logs/sessions/`. | `.goat-flow/skill-preamble.md` | Working Notes |
+| Working Memory | Progress tracking via milestone file checkboxes (`.goat-flow/tasks/`). On `/compact`, session log written to `.goat-flow/logs/sessions/`. | `.goat-flow/skill-conventions.md` | Working Notes |
