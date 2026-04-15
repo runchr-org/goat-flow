@@ -8,7 +8,7 @@ category: docs-and-crossrefs
 
 **Symptoms:** A renamed or moved file breaks links in multiple documents. Users following getting-started.md hit dead references.
 
-**Why it happens:** Documentation files reference each other by relative path. The project has 60+ markdown files with dense cross-referencing. Renaming one file can break references in 5-10 others.
+**Why it happens:** Documentation files reference each other by relative path. The project has 400+ markdown files with dense cross-referencing. Renaming one file can break references in 5-10 others.
 
 **Evidence:**
 - `docs/getting-started.md` → referenced stale paths to old workflow directory (file retired in v1.1.0, see `workflow/setup/`)
@@ -38,10 +38,37 @@ category: docs-and-crossrefs
 **Why it happens:** `scripts/preflight-checks.sh` Doc/Code Drift section greps for `${build_count} build` in `.goat-flow/architecture.md` — a total-only check. There is no extraction or validation of the `(N scope + M scope)` parenthetical. This means the most useful part of the claim (the breakdown) is the least validated.
 
 **Evidence:**
-- `scripts/preflight-checks.sh:346` — `grep -q "${build_count} build" .goat-flow/architecture.md` validates total only
+- `scripts/preflight-checks.sh:397` — `grep -q "${build_count} build" .goat-flow/architecture.md` validates total only
 - `.goat-flow/architecture.md:18` — was changed from "7+9" to "12+4" on 2026-04-14. Preflight passed because the total (16) was still correct. Current verified breakdown is 12 setup + 4 agent (via `SETUP_CHECKS.length` and `AGENT_CHECKS.length`).
 
 **Prevention:** Add sub-breakdown validation: extract the `(N setup + M agent)` claim and validate N and M against `SETUP_CHECKS.length` and `AGENT_CHECKS.length`.
+
+---
+
+## Footgun: Cold-path docs drift while structural audit passes
+
+**Status:** active | **Created:** 2026-04-15 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** The CLI audit reports PASS while cold-path documentation contains false claims, wrong check descriptions, dead paths, and glossary misdirections. Contributors reading docs instead of code form incorrect mental models of what the system does.
+
+**Why it happens:** The audit validates structure (files exist, paths resolve, versions match) but not content accuracy. Cold-path docs are updated manually and drift as code changes. No automated check compares doc descriptions against actual code behavior.
+
+**Evidence (verified by 8 independent critiques, 2026-04-15):**
+- `docs/audit-and-critique.md:38-47` — describes checks (`configured-agent-present`, `agent-artifacts-consistent`, workflow leak checks) that no longer exist in `src/cli/audit/check-goat-flow.ts` or `src/cli/audit/check-agent-setup.ts`
+- `docs/coding-standards/conventions.md:10` — claims "Zero runtime dependencies" but `package.json` has `js-yaml` and `ws` as runtime deps
+- `docs/coding-standards/conventions.md:74` — claims `src/cli/prompt/types.ts` exists; the file does not exist
+- `.goat-flow/glossary.md:21` — Handoff entry says "See Task Tracking in `.goat-flow/skill-preamble.md`" but the Task Tracking section is in `.goat-flow/skill-conventions.md:96-104`
+- `.goat-flow/glossary.md:38` — Working Memory points to `skill-preamble.md`; detailed task tracking instructions are in `skill-conventions.md`
+- `.goat-flow/code-map.md:71` — lists `validate-goat-flow-setup.sh` under `scripts/` section but the file is at `workflow/validate-goat-flow-setup.sh`
+- `src/cli/prompt/compose-critique.ts:243` — ships literal placeholder `<your-hooks-dir>` instead of resolving the actual hooks directory
+
+**Impact:** The framework demands "real evidence only" and "MUST maintain cross-file consistency" while its own cold-path surfaces violate both rules. Agents consulting docs for orientation get wrong information. The audit's PASS stamp creates false confidence.
+
+**Prevention:**
+1. Add content-drift checks to preflight: compare doc check descriptions against exported check names from code
+2. Extend path-integrity checks to cover code-map, glossary canonical-file paths, and convention claims
+3. Consider auto-generating audit docs from check code to prevent drift permanently
+4. Change Step 01 early-stop rule (`workflow/setup/01-system-overview.md:12`) to require content-drift checks, not just structural audit pass
 
 ---
 

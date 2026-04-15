@@ -25,11 +25,13 @@ category: skills
 
 **Why it happens:** When an agent is asked to set up or update its platform support, it replaces existing references wholesale instead of adding multi-agent support. The agent treats the task as find-and-replace: `.claude/` → `.gemini/`, `PreToolUse` → `BeforeTool`, "Every Claude turn" → "Every Gemini turn". It does not distinguish between agent-specific files (`workflow/setup/agents/gemini.md`) and shared files (e.g. `workflow/setup/shared/`; originally `docs/system-spec.md`, retired in v1.1.0).
 
-**Evidence:**
+**Evidence (all from files retired in v1.1.0 — retained as behavioral pattern prevention):**
 - `docs/system-spec.md` → "Every Gemini turn" replaced "Every Claude turn" (should be agent-neutral) (file retired in v1.1.0, see `workflow/setup/01-system-overview.md`)
 - `docs/five-layers.md` → Claude Code row deleted from skills table, replaced with Gemini CLI only (file retired in v1.1.0, see `workflow/setup/01-system-overview.md`)
 - `docs/system-spec.md` → Claude Code hook example replaced with Gemini, not added alongside (file retired in v1.1.0, see `workflow/setup/01-system-overview.md`)
 - `workflow/runtime/enforcement.md` → all `.claude/` paths replaced with `.gemini/`, creating hybrid state (file retired in v1.1.0, see `workflow/hooks/`)
+
+**Note (2026-04-15):** All 4 evidence items are from retired files. The behavioral pattern (agents replacing rather than adding when given multi-agent tasks) remains a live trap — current shared docs in `workflow/setup/` and `docs/` were verified multi-agent and current as of 2026-04-15. This entry is retained as prevention guidance, not current-state evidence. If the pattern recurs in current files, add fresh evidence here.
 
 **Prevention:**
 - Agent-specific files (`workflow/setup/setup-*.md`, `.claude/`, `.gemini/`) - edits fine

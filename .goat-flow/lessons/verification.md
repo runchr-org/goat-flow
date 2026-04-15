@@ -195,8 +195,26 @@ category: verification
 
 **Created:** 2026-04-15
 
-**What happened:** While renaming the scratch workspace directory to `scratchpad`, the first reference scan used `rg --hidden` and incorrectly appeared clean. A follow-up scan with `rg -uu` found the real remaining self-reference in `commit.md:12`.
+**What happened:** While renaming the scratch workspace directory to `scratchpad`, the first reference scan used `rg --hidden` and incorrectly appeared clean. A follow-up scan with `rg -uu` found the real remaining self-reference in `commit.md:12` (note: `commit.md` was later edited to 9 lines, making this line reference stale — exactly the drift pattern this lesson exists to prevent).
 
 **Root cause:** `--hidden` includes hidden files but still respects ignore rules. For `.goat-flow` verification work, that can hide the exact content being checked.
 
 **Prevention:** For path-renames or cross-reference checks that target ignored workspace state, use `rg -uu` from the start and grep both the old and new patterns before declaring the rename verified.
+
+---
+
+## Lesson: Structural audit passing hides cold-path content drift (8-critique finding)
+
+**Created:** 2026-04-15
+
+**What happened:** Eight independent critiques (3 Claude, 5 Codex) reviewed the goat-flow v1.1.0 setup on its own repo. All 8 confirmed structural integrity: 7 skills matched templates, 57 tests passed, all router paths resolved, deny hook self-test passed, architecture doc numeric claims verified. Despite this, the 8 critiques collectively found 20+ verified content-accuracy failures in cold-path surfaces that no automated check caught. Examples: `docs/audit-and-critique.md:38-47` describing checks that no longer exist in code; `docs/coding-standards/conventions.md:10` claiming zero runtime deps when `package.json` has js-yaml and ws; `.goat-flow/glossary.md:21` pointing Task Tracking at the wrong file; `.goat-flow/code-map.md:71` listing a script under the wrong directory; `scripts/stop-lint.sh` existing despite ADR-040 saying it was removed; `.goat-flow/tasks/.gitignore:2` ignoring all milestone files while goat-plan claims durable shared state. Setup scored 58-90/100 across the 8 critiques — the range itself shows the split between structural soundness and content accuracy.
+
+**Root cause:** The audit validates structure (files exist, versions match, paths resolve) but not content truth. Preflight validates some doc/code counts but not descriptions, claims, or cross-file consistency. Cold-path docs are updated manually and drift as code changes. The Step 01 early-stop rule (`workflow/setup/01-system-overview.md:12`) says stop when audit passes, hardening stale content into "done."
+
+**Evidence:** All findings verified with direct file reads and command output during the critique session. The critique convergence table documents which critiques found which findings.
+
+**Prevention:**
+1. Add content-drift checks to preflight or audit: doc check descriptions match code, convention claims match package.json, glossary canonical files exist
+2. Change Step 01 early-stop to require content-drift checks, not just structural audit pass
+3. Add a cold-path truth audit step to the release process: verify footguns, docs, coding-standards, glossary, and code-map against actual code before each release
+4. Consider auto-generating audit docs from check code exports to prevent drift permanently

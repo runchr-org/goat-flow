@@ -20,6 +20,36 @@ Consumer project post-turn hook scripts with `|| true` after lint/type-check com
 
 ---
 
+## Footgun: Deny hook blocks read-only commands containing dangerous string literals
+
+**Status:** active | **Created:** 2026-04-15 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Harmless inspection commands are blocked because the command text contains a dangerous pattern as data (search term, string literal, regex), not as a shell action. Agent workflows stall on read-only audit/debug tasks.
+
+**Why it happens:** `deny-dangerous.sh` matches dangerous patterns (e.g. `rm -rf`, `chmod 777`, `git push origin main`) via regex on the raw command string at `.claude/hooks/deny-dangerous.sh:122-128`. It does not distinguish between shell actions and string data. A grep searching for the text `rm -rf` or a `printf` printing `chmod 777` triggers the same block as the real dangerous command.
+
+**Evidence:**
+- Live block during 8-critique analysis (2026-04-15): `grep -A3 "rm -rf\|howToFix" src/cli/audit/check-agent-setup.ts` was blocked because the search pattern contained `rm -rf` as a literal string
+- `deny-dangerous.sh` self-test (`.claude/hooks/deny-dangerous.sh:77-87`) has zero false-positive test cases — it only tests that safe commands pass and dangerous commands block, never that benign commands containing dangerous substrings pass
+- The hook's own header (lines 3-8) acknowledges "Best-effort pattern matching on literal shell commands" but does not list false positives as a known limitation
+
+**Impact:** Agents resort to workarounds (using the Grep tool instead of grep, rephrasing commands) or ask the user to run commands manually. This is especially problematic during code review and security audit where searching for dangerous patterns is the primary task.
+
+**Prevention:**
+1. Add false-positive test cases to self-test: `printf '%s\n' 'rm -rf'` should pass, `grep "rm -rf" file.ts` should pass
+2. Consider token-aware matching: only match dangerous patterns when they appear as the command verb, not inside quoted strings or as arguments to read-only tools
+3. At minimum, whitelist common read-only tools (grep, rg, cat, head, printf, echo) when the dangerous pattern appears only in their arguments
+
+---
+
+## Footgun: Codex has no compaction notification hook
+
+**Status:** active (platform limitation) | **Created:** 2026-04-15 | **Evidence:** ACTUAL_MEASURED
+
+Codex `hooks.json` only supports `PreToolUse`. Claude and Gemini have `Notification` hooks on `compact` that help with context recovery. Codex agents lose this signal after compaction. Not fixable until Codex adds Notification hook support.
+
+---
+
 ## Resolved Entries
 
 > Historical record. These entries are no longer active traps.
@@ -28,4 +58,3 @@ Consumer project post-turn hook scripts with `|| true` after lint/type-check com
 - **Advisory hooks create unfixable quality warning after setup** (resolved 2026-04-14) — Hook scripts now ship in enforce mode by default (`GOAT_LINT_ENFORCE` defaults to 1).
 - **Codex hooks registered in config.toml instead of hooks.json** (resolved 2026-04-15) — Moved hook definitions to `.codex/hooks.json` per official Codex docs; TOML hook sections were silently ignored.
 - **Codex hook migrations drift across live files, templates, installer, and docs** (resolved 2026-04-15) — Restored missing `.codex/hooks/deny-dangerous.sh` and aligned all four Codex hook surfaces (live files, templates, installer, docs).
-- **Codex has no compaction notification hook** (active, platform limitation, 2026-04-15) — Codex `hooks.json` only supports `PreToolUse`. Claude and Gemini have `Notification` hooks on `compact` that help with context recovery. Codex agents lose this signal after compaction. Not fixable until Codex adds Notification hook support.

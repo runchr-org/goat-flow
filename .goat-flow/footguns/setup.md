@@ -27,6 +27,29 @@ When a project already has learning-loop artifacts, setup creates NEW parallel s
 
 ---
 
+## Footgun: Tasks .gitignore silently ignores all new milestone files
+
+**Status:** active | **Created:** 2026-04-15 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** `/goat-plan` creates milestone files in `.goat-flow/tasks/` as "durable shared state between human and coding agent," but the files are never committed to git. They don't appear in PRs, don't survive `git clone`, and could vanish on branch cleanup. The planning skill's continuity model (resume from last `[x]` checkbox) fails across git operations.
+
+**Why it happens:** `.goat-flow/tasks/.gitignore:2` contains `*` with only `!.gitignore` excluded. This ignores ALL new files. The .gitignore comment says "v1.1 tracks committed task docs and ignores scratch continuity files" but the `*` rule ignores everything — the comment describes intent that doesn't match implementation.
+
+**Evidence:**
+- `.goat-flow/tasks/.gitignore:2` — `*` (ignores all files)
+- `git check-ignore -v .goat-flow/tasks/1.2.0/M22-optional-project-calibration-config.md` returns `.goat-flow/tasks/.gitignore:2:*` — confirmed ignored
+- `git ls-files .goat-flow/tasks/` returns only `.gitignore` — no milestone files are tracked
+- `.claude/skills/goat-plan/SKILL.md:15` — "Creates structured milestone files in .goat-flow/tasks/ that track progress, enforce testing gates, and provide shared state between human and coding agent"
+
+**Impact:** 20+ milestone files exist locally but are invisible to git. The 4x-recurring lesson about agents not ticking checkboxes (`.goat-flow/lessons/verification.md:15-26`) is compounded: agents fail to tick checkboxes in files that aren't even committed.
+
+**Prevention:**
+1. Change `.gitignore` to track milestone files by default: ignore only scratch/temp patterns (e.g. `*.tmp`, `*.scratch`), not everything
+2. Or explicitly track milestone files with `!M*.md` and `!*/M*.md` exceptions
+3. If task files are intentionally ephemeral, update goat-plan SKILL.md to stop claiming "durable shared state"
+
+---
+
 ## Resolved Entries
 
 > Historical record. These entries are no longer active traps.
