@@ -1026,7 +1026,7 @@ label,
 .gf-detect-label {
   font-size: 12px;
   font-weight: 500;
-  width: 90px;
+  width: 110px;
   flex-shrink: 0;
   color: var(--text-muted);
 }
