@@ -1,9 +1,0 @@
-{
-  "name": "fresh-project",
-  "version": "1.0.0",
-  "description": "A project with no goat-flow setup",
-  "scripts": {
-    "test": "echo 'no tests'",
-    "lint": "echo 'no lint'"
-  }
-}

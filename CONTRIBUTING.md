@@ -1,37 +1,93 @@
 # Contributing to GOAT Flow
 
-Thanks for your interest in contributing. This guide covers the basics.
+Thanks for your interest in contributing. This guide covers environment setup, project layout, and PR workflow.
+
+## Dev Environment Setup
+
+Requires Node.js 20+ and Bash.
+
+```bash
+npm install          # install dependencies
+npm run build        # compile TypeScript (tsc)
+npm test             # run the test suite (node:test)
+npm run format       # auto-format with Prettier
+```
+
+## Running the Auditor Locally
+
+After building, audit the current project:
+
+```bash
+npm run audit                     # shorthand
+node dist/cli/cli.js audit .      # direct invocation (accepts any path)
+```
+
+## Running the Dashboard in Dev Mode
+
+```bash
+npm run dev    # builds, then launches the browser dashboard with --dev flag
+```
+
+## Running Preflight Checks
+
+The preflight gate runs typecheck, tests, shellcheck, version consistency, and ADR enforcement:
+
+```bash
+bash scripts/preflight-checks.sh
+```
+
+For shell scripts only: `shellcheck scripts/maintenance/*.sh`
+
+ESLint is scoped to `src/cli/` - the dashboard TypeScript files (`src/dashboard/app.ts`, `src/dashboard/preset-prompts.ts`) are compiled separately via `tsconfig.dashboard.json` and will produce parse errors if included in the main ESLint scope.
+
+Do not run `npm run build` and `preflight-checks.sh` concurrently - the build's `rm -rf dist/` will cause preflight to skip the audit check.
+
+## Project Structure
+
+| Directory | What lives there |
+|-----------|-----------------|
+| `src/cli/` | CLI auditor, audit checks (`audit/`), stack detector (`detect/`), setup prompt generator |
+| `src/dashboard/` | Browser-based dashboard - HTML + Alpine.js + vanilla JS |
+| `workflow/` | Setup templates, skill templates, hooks |
+| `.goat-flow/` | Project-specific config, architecture, decisions, footguns, lessons |
+| `scripts/` | Shell scripts for validation, maintenance, publishing |
+| `test/` | Unit, integration, contract, and smoke tests (uses `node:test`) |
+
+## How to Add a New Audit Check
+
+There are two check systems - pick the right one:
+
+- **Build checks** (`src/cli/audit/check-goat-flow.ts` + `check-agent-setup.ts`) - 16 checks (12 setup scope + 4 agent scope) that gate CI pass/fail. Adding here makes it a blocking audit requirement.
+- **Quality checks** (`src/cli/audit/harness/`) - 16 checks grouped by 5 concerns. Gating when `--harness` is passed; not included in this repo's default CI.
+
+## How to Add a New Skill Template
+
+Skill templates live in `workflow/skills/` as directories (e.g., `workflow/skills/goat-debug/SKILL.md`), mirroring the installed layout (e.g., `.claude/skills/goat-debug/SKILL.md`). Shared conventions are in `workflow/skills/reference/` (skill-preamble.md and skill-conventions.md). Skills are installed verbatim from templates to project skill directories. Add your template directory and register it in the setup flow.
+
+## How to Add a New Stack to the Detector
+
+Stack detection lives in `src/cli/detect/project-stack.ts`. Add a new detection case that inspects project files (package.json, config files, etc.) and returns the appropriate stack identifier.
 
 ## How to Contribute
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b my-change`)
+2. Create a feature branch off `dev` (`git checkout -b my-change`)
 3. Make your changes
-4. Run the checks (see below)
-5. Open a pull request against `main`
+4. Run the checks: `bash scripts/preflight-checks.sh`
+5. Open a pull request against `dev` (not `main`)
+
+## PR Conventions
+
+- Conventional commit format: `type(scope): description` - e.g., `refactor(ci): enhance CI workflow`, `feat(dashboard): improve UX`
+- Multi-line body when spanning multiple areas (blank line after summary)
+- Before opening: `npm run typecheck`, `npm test`, and `shellcheck` on any changed `.sh` files must all pass
+- See `docs/coding-standards/git-commit.md` for full conventions
 
 ## Code Style
 
-- **Markdown** for documentation (the bulk of the project)
+- **Markdown** for documentation (target ~120-line files)
 - **Bash** for maintenance and validation scripts (`scripts/`)
-- **TypeScript** for the scanner CLI (`src/cli/`)
-
-Keep documentation concise. GOAT Flow targets ~120-line instruction files -- the same discipline applies to contributions.
-
-## Testing
-
-Before submitting a PR, run:
-
-```bash
-# Full preflight gate (scripts, structure, cross-references)
-bash scripts/preflight-checks.sh
-
-# Scanner tests (167 tests)
-npm test
-
-# Lint shell scripts
-shellcheck scripts/maintenance/*.sh
-```
+- **TypeScript** for the CLI auditor (`src/cli/`) and dashboard server
 
 ## AI Assistance Disclosure
 

@@ -1,5 +1,25 @@
 #!/usr/bin/env bash
 
+# run-cli.sh
+#
+# Purpose:
+#   Small wrapper to execute the local goat-flow CLI with common command shortcuts.
+#
+# Usage:
+#   bash scripts/run-cli.sh <command> [path] [flags]
+#
+# Behavior:
+#   - builds CLI assets when stale or missing
+#   - renders command output with bounded previews for terminal readability
+#   - supports audit/setup/test-all workflows defined by the CLI
+#
+# Exit:
+#   0 when requested command succeeds, non-zero on CLI command failure.
+#
+# Requirements:
+#   - node, npm
+#   - built CLI available or build tooling installed
+
 set -euo pipefail
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -18,17 +38,15 @@ usage() {
   Usage: scripts/run-cli.sh <command> [path] [flags]
 
   Commands:
-    scan [path] [flags]     Score a project (default: .)
+    audit [path] [flags]    Validate setup correctness (default: .)
     setup [path] [flags]    Generate setup prompt (adapts to project state)
-    eval                    List agent evals and show how to run them
     test-all                Run all human testing gate checks
     test-all --full         Run all checks, show full output
 
   Examples:
-    scripts/run-cli.sh scan .
-    scripts/run-cli.sh scan . --agent claude
+    scripts/run-cli.sh audit .
+    scripts/run-cli.sh audit . --agent claude
     scripts/run-cli.sh setup . --agent claude
-    scripts/run-cli.sh eval
     scripts/run-cli.sh test-all
 
 EOF
@@ -57,13 +75,21 @@ show() {
         return
     fi
 
+    indent_lines() {
+        local indent="$1"
+        local lines="$2"
+        while IFS= read -r line; do
+            printf '%s%s\n' "$indent" "$line"
+        done <<< "$lines"
+    }
+
     local total_lines
     total_lines=$(wc -l <<< "$output")
 
     if [[ "$total_lines" -le "$max_lines" ]]; then
-        sed 's/^/  /' <<< "$output"
+        indent_lines "  " "$output"
     else
-        head -"$max_lines" <<< "$output" | sed 's/^/  /'
+        indent_lines "  " "$(head -"$max_lines" <<< "$output")"
         printf "  \033[2m... +%d lines (pipe to less or use --format json > file.json)\033[0m\n" $((total_lines - max_lines))
     fi
 }
@@ -108,25 +134,24 @@ if [[ -z "$cmd" ]]; then
     echo ""
     printf "  \033[1m🐐  GOAT Flow CLI\033[0m\n"
     echo ""
-    printf "  \033[2mScan\033[0m\n"
-    printf "  \033[36m1\033[0m  scan .                          Score all agents\n"
-    printf "  \033[36m2\033[0m  scan . --format text --verbose  Full report with per-check details\n"
-    printf "  \033[36m3\033[0m  scan . --agent claude           Score one agent only\n"
+    printf "  \033[2mAudit\033[0m\n"
+    printf "  \033[36m1\033[0m  audit .                         Audit current directory\n"
+    printf "  \033[36m2\033[0m  audit . --harness               Advisory quality grades\n"
+    printf "  \033[36m3\033[0m  audit . --agent claude           Audit one agent only\n"
     echo ""
     printf "  \033[2mGenerate\033[0m\n"
     printf "  \033[36m4\033[0m  setup .                          Setup prompt (adapts to project state)\n"
-    printf "  \033[36m5\033[0m  eval                            List agent evals\n"
     echo ""
     printf "  \033[2mTest\033[0m\n"
-    printf "  \033[36m6\033[0m  test-all                        Run all human testing gates\n"
+    printf "  \033[36m5\033[0m  test-all                        Run all human testing gates\n"
     printf "  \033[36mh\033[0m  help                            Show full usage + examples\n"
     echo ""
     printf "  \033[1mPick:\033[0m "
     read -r choice
     case "$choice" in
-        1) cli scan . ;;
-        2) cli scan . --format text --verbose ;;
-        3) cli scan . --agent claude --format text ;;
+        1) cli audit . ;;
+        2) cli audit . --harness ;;
+        3) cli audit . --agent claude ;;
         4)
             echo ""
             printf "  Which agent to set up?\n"
@@ -142,12 +167,11 @@ if [[ -z "$cmd" ]]; then
                 *) echo "Invalid choice"; exit 1 ;;
             esac
             ;;
-        5) cmd="eval" ;;
-        6) cmd="test-all" ;;
+        5) cmd="test-all" ;;
         h|H) usage; exit 0 ;;
         *) echo "Invalid choice"; exit 1 ;;
     esac
-    [[ "${cmd:-}" != "test-all" ]] && [[ "${cmd:-}" != "eval" ]] && exit 0
+    [[ "${cmd:-}" != "test-all" ]] && exit 0
 fi
 
 shift
@@ -173,33 +197,8 @@ case "$cmd" in
             esac
         fi
         ;;
-    scan)
+    audit)
         cli "$cmd" "$@"
-        ;;
-    fix|audit)
-        echo "\"$cmd\" was removed. Use \"setup\" instead - it adapts to your project's state."
-        exit 2
-        ;;
-    eval)
-        echo ""
-        printf "\033[1m  GOAT Flow - Agent Evals\033[0m\n"
-        echo ""
-        if [[ -d "ai-docs/evals" ]]; then
-            mapfile -t eval_files < <(find ai-docs/evals -maxdepth 1 -name "*.md" ! -name "README.md" ! -name "FORMAT.md" | sort)
-            printf "  \033[2m%d eval files in ai-docs/evals/\033[0m\n" "${#eval_files[@]}"
-            echo ""
-            for f in "${eval_files[@]}"; do
-                printf "    %s\n" "$f"
-            done
-            echo ""
-            printf "  \033[2mEvals are manually reviewed - paste the ## Scenario into your agent\033[0m\n"
-            printf "  \033[2mand check ## Expected Behavior gates against the response.\033[0m\n"
-            printf "  \033[2mSee ai-docs/evals/FORMAT.md for format details.\033[0m\n"
-        else
-            printf "  \033[31mNo ai-docs/evals/ directory found.\033[0m\n"
-            printf "  \033[2mCreate ai-docs/evals/ to track expected agent behaviors.\033[0m\n"
-        fi
-        echo ""
         ;;
     test-all)
         full_mode=0
@@ -210,8 +209,8 @@ case "$cmd" in
             echo ""
             printf "\033[1m  GOAT Flow CLI - Full Output\033[0m\n"
 
-            show "1. JSON output" 9999 cli scan . --format json --agent claude
-            show "2. Text + verbose" 9999 cli scan . --format text --verbose --agent claude
+            show "1. JSON output" 9999 cli audit . --format json --agent claude
+            show "2. Quality audit" 9999 cli audit . --harness --agent claude
             show "3. Setup prompt" 9999 cli setup . --agent claude
             echo ""
         else
@@ -223,22 +222,22 @@ case "$cmd" in
             printf "\033[1m  GOAT Flow CLI - Human Testing Gate\033[0m\n"
             echo ""
 
-            printf "\033[1m  Scanner\033[0m\n"
+            printf "\033[1m  Audit\033[0m\n"
 
             check 1 "JSON output valid" 3 \
-                cli scan . --format json
+                cli audit . --format json
 
-            check 2 "Text + verbose renders" 8 \
-                cli scan . --format text --verbose
+            check 2 "Quality audit renders" 8 \
+                cli audit . --harness
 
             tmp=$(mktemp -d)
             echo '{"name":"empty"}' > "$tmp/package.json"
             check 3 "No-setup project handled" 3 \
-                cli scan "$tmp" --format text
+                cli audit "$tmp" --format text
             rm -r "$tmp"
 
             check 4 "Agent filter (claude only)" 4 \
-                cli scan . --agent claude --format text
+                cli audit . --agent claude --format text
 
             echo ""
             printf "\033[1m  Prompts\033[0m\n"

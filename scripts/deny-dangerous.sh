@@ -1,4 +1,27 @@
 #!/usr/bin/env bash
+# deny-dangerous.sh — Simplified distribution template
+#
+# The full implementation with JSON parsing, self-test suite, read-only tool
+# whitelist, and 17 pattern checks is installed at .claude/hooks/deny-dangerous.sh
+# by the setup flow. This file is a standalone validation tool for use outside
+# the agent hook system.
+#
+# Purpose:
+#   Implements a local denylist check for dangerous or policy-blocked commands.
+#
+# Usage:
+#   bash scripts/deny-dangerous.sh --check "<command>"
+#   bash scripts/deny-dangerous.sh --self-test
+#
+# Behavior:
+#   --check validates a provided command string and reports ALLOW/BLOCK.
+#   --self-test runs a small regression set against allow/block expectations.
+#
+# Exit:
+#   0 when checks pass or command is allowlisted, 1 on policy block/failure.
+#
+# Notes:
+#   This script is validation-only and does NOT intercept runtime command execution.
 
 set -euo pipefail
 
@@ -8,9 +31,10 @@ Usage:
   bash scripts/deny-dangerous.sh --check "<command>"
   bash scripts/deny-dangerous.sh --self-test
 
-This script documents the Codex deny policy and can verify whether a
-command string would be blocked. It does NOT intercept commands at
-runtime; Codex has no hook system.
+This script is a standalone validator that documents the shared deny
+policy and verifies whether a command string would be blocked. It does
+NOT intercept commands at runtime. For runtime enforcement, use the
+per-agent hooks (.claude/hooks/, .codex/hooks/, .gemini/hooks/).
 EOF
 }
 

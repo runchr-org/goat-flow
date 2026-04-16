@@ -2,8 +2,8 @@
  * Footgun and lesson fact extractors for the learning-loop system.
  * Analyzes category-bucket markdown files for evidence quality, entry counts, and stale references.
  */
-import type { SharedFacts, ReadonlyFS } from '../../types.js';
-import type { LoadedConfig } from '../../config/types.js';
+import type { SharedFacts, ReadonlyFS } from "../../types.js";
+import type { LoadedConfig } from "../../config/types.js";
 
 /**
  * Matches file path evidence in multiple formats:
@@ -28,7 +28,7 @@ function isFileRef(filePath: string): boolean {
   )
     return false;
   // Paths with '/' are clearly file paths
-  if (filePath.includes('/')) return true;
+  if (filePath.includes("/")) return true;
   // Root-level files with extensions (e.g., AGENTS.md:42) are valid refs
   // Bare names without extensions (e.g., webpack:123) are ambiguous - skip
   return /\.[a-zA-Z0-9]+$/.test(filePath);
@@ -43,7 +43,7 @@ function isFileRef(filePath: string): boolean {
  * extension without '/', skip it rather than reporting a false stale ref.
  */
 function isCheckableForStaleness(filePath: string, fs: ReadonlyFS): boolean {
-  if (filePath.includes('/')) return true;
+  if (filePath.includes("/")) return true;
   // If it exists at root, it's checkable regardless of extension
   if (fs.exists(filePath)) return true;
   // Bare source filenames that don't exist at root are likely shorthand
@@ -80,27 +80,20 @@ interface FootgunRefSummary {
 }
 
 /** Known filesystem locations where footgun artifacts may appear. */
-const FOOTGUN_SURFACE_CANDIDATES = [
-  'ai-docs/footguns/',
-  '.goat-flow/footguns/',
-  'docs/footguns.md',
-  '.goat-flow/footguns.md',
-];
+const FOOTGUN_SURFACE_CANDIDATES = [".goat-flow/footguns/", "docs/footguns.md"];
 /** Known filesystem locations where lesson artifacts may appear. */
 const LESSON_SURFACE_CANDIDATES = [
-  'ai-docs/lessons/',
-  '.goat-flow/lessons/',
-  'docs/lessons/',
-  'docs/lessons.md',
-  '.goat-flow/lessons.md',
+  ".goat-flow/lessons/",
+  "docs/lessons/",
+  "docs/lessons.md",
 ];
 
 /** Normalize a surface path so trailing slashes do not affect comparisons. */
 function normalizeSurfacePath(path: string): string {
-  return path.replace(/\/$/, '');
+  return path.replace(/\/$/, "");
 }
 
-/** Detect competing artifact surfaces outside the configured committed/local split. */
+/** Detect competing artifact surfaces outside the configured canonical path. */
 function findCompetingArtifactSurfaces(
   fs: ReadonlyFS,
   canonicalPaths: string[],
@@ -115,16 +108,24 @@ function findCompetingArtifactSurfaces(
     .sort((a, b) => a.localeCompare(b));
 }
 
-/** List markdown files in a directory, reading each into a path+content pair. */
+/** List markdown files in a directory (or read a single flat .md file), returning path+content pairs. */
 function listMarkdownEntries(fs: ReadonlyFS, dir: string): EntryDir {
+  // Flat-file mode: config points at a single .md file instead of a directory
+  if (dir.endsWith(".md")) {
+    const exists = fs.exists(dir);
+    const content = exists ? fs.readFile(dir) : null;
+    const files = content !== null ? [{ path: dir, content }] : [];
+    return { path: dir, exists, files };
+  }
+
   const exists = fs.exists(dir);
   const files = exists
     ? fs
         .listDir(dir)
-        .filter((file) => file.endsWith('.md') && file !== 'README.md')
+        .filter((file) => file.endsWith(".md") && file !== "README.md")
         .sort((a, b) => a.localeCompare(b))
         .flatMap((file) => {
-          const path = dir.endsWith('/') ? `${dir}${file}` : `${dir}/${file}`;
+          const path = dir.endsWith("/") ? `${dir}${file}` : `${dir}/${file}`;
           const content = fs.readFile(path);
           if (content === null) return [];
           return [{ path, content }];
@@ -140,7 +141,7 @@ function parseMarkdownFrontmatter(content: string): {
 } {
   const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
   if (!match) return { frontmatter: null, body: content };
-  return { frontmatter: match[1] ?? '', body: match[2] ?? '' };
+  return { frontmatter: match[1] ?? "", body: match[2] ?? "" };
 }
 
 /** Count all regex matches within a string. */
@@ -177,11 +178,11 @@ function countFootgunLabels(content: string): number {
 
 /** Accumulate directory mention counts from file references in markdown content. */
 function mergeDirMentions(target: Map<string, number>, content: string): void {
-  const pathRefs = content.matchAll(new RegExp(FILE_REF_REGEX.source, 'g'));
+  const pathRefs = content.matchAll(new RegExp(FILE_REF_REGEX.source, "g"));
   for (const match of pathRefs) {
     const group = match[1];
     if (group === undefined || !isFileRef(group)) continue;
-    const dir = group.split('/').slice(0, -1).join('/');
+    const dir = group.split("/").slice(0, -1).join("/");
     if (!dir) continue;
     target.set(dir, (target.get(dir) ?? 0) + 1);
   }
@@ -200,7 +201,9 @@ function hasEvidenceLabel(content: string): boolean {
 
 /** Detect whether markdown content cites at least one file reference. */
 function hasFileEvidence(content: string): boolean {
-  const refs = content.matchAll(/`([^`]+\.[a-zA-Z]{1,10}:[0-9]+(?:[-,][0-9]+)*)`/g);
+  const refs = content.matchAll(
+    /`([^`]+\.[a-zA-Z]{1,10}:[0-9]+(?:[-,][0-9]+)*)`/g,
+  );
   for (const match of refs) {
     if (match[1] !== undefined && isFileRef(match[1])) return true;
   }
@@ -224,7 +227,8 @@ function summarizeFootgunRefs(
     totalRefs: 0,
     validRefs: 0,
   };
-  const fileRefs = content.matchAll(
+  const cleanedContent = content.replace(/~~[^~]+~~/g, "");
+  const fileRefs = cleanedContent.matchAll(
     /`([^`]+):([0-9]+(?:[-,][0-9]+)*)`/g,
   );
 
@@ -301,16 +305,16 @@ function summarizeFootgunEntries(
   fs: ReadonlyFS,
   entries: MarkdownEntry[],
 ): Pick<
-  SharedFacts['footguns'],
-  | 'hasEvidence'
-  | 'entryCount'
-  | 'labelCount'
-  | 'dirMentions'
-  | 'staleRefs'
-  | 'invalidLineRefs'
-  | 'totalRefs'
-  | 'validRefs'
-  | 'formatDiagnostic'
+  SharedFacts["footguns"],
+  | "hasEvidence"
+  | "entryCount"
+  | "labelCount"
+  | "dirMentions"
+  | "staleRefs"
+  | "invalidLineRefs"
+  | "totalRefs"
+  | "validRefs"
+  | "formatDiagnostic"
 > {
   const dirMentions = new Map<string, number>();
   const staleRefs: string[] = [];
@@ -346,7 +350,7 @@ function summarizeFootgunEntries(
     invalidLineRefs,
     totalRefs,
     validRefs,
-    formatDiagnostic: diagnostics.length > 0 ? diagnostics.join('; ') : null,
+    formatDiagnostic: diagnostics.length > 0 ? diagnostics.join("; ") : null,
   };
 }
 
@@ -355,8 +359,8 @@ function summarizeLessonEntries(
   fs: ReadonlyFS,
   entries: MarkdownEntry[],
 ): Pick<
-  SharedFacts['lessons'],
-  'entryCount' | 'staleRefs' | 'formatDiagnostic'
+  SharedFacts["lessons"],
+  "entryCount" | "staleRefs" | "formatDiagnostic"
 > {
   const staleRefs: string[] = [];
   const diagnostics: string[] = [];
@@ -366,11 +370,11 @@ function summarizeLessonEntries(
     const { content, path } = entry;
     entryCount += countLessonEntries(content);
     const pathPattern =
-      /`((?:src|config|app|apps|lib|docs|scripts|setup|workflow|strands_agents|agents|\.goat-flow)\/[^`]+)`/g;
+      /`((?:src|config|app|apps|lib|docs|scripts|setup|workflow|agents|\.goat-flow)\/[^`]+)`/g;
     for (const match of content.matchAll(pathPattern)) {
       const ref = match[1];
       if (ref === undefined || /[*?{}]/.test(ref)) continue;
-      const filePath = ref.replace(/:[0-9]+(?:[-,][0-9]+)*$/, '');
+      const filePath = ref.replace(/:[0-9]+(?:[-,][0-9]+)*$/, "");
       if (!fs.exists(filePath)) staleRefs.push(filePath);
     }
     const diagnostic = getMissingFrontmatterDiagnostic(path, content);
@@ -380,7 +384,7 @@ function summarizeLessonEntries(
   return {
     entryCount,
     staleRefs,
-    formatDiagnostic: diagnostics.length > 0 ? diagnostics.join('; ') : null,
+    formatDiagnostic: diagnostics.length > 0 ? diagnostics.join("; ") : null,
   };
 }
 
@@ -388,32 +392,18 @@ function summarizeLessonEntries(
 export function extractFootgunFacts(
   fs: ReadonlyFS,
   configState: LoadedConfig,
-): SharedFacts['footguns'] {
-  const committed = listMarkdownEntries(
-    fs,
-    configState.config.footguns.committed,
-  );
-  const local = listMarkdownEntries(fs, configState.config.footguns.local);
-  const allEntries = [...committed.files, ...local.files];
-  const summary = summarizeFootgunEntries(fs, allEntries);
-  const committedCount = summarizeFootgunEntries(
-    fs,
-    committed.files,
-  ).entryCount;
-  const localCount = summarizeFootgunEntries(fs, local.files).entryCount;
+): SharedFacts["footguns"] {
+  const dir = listMarkdownEntries(fs, configState.config.footguns.path);
+  const summary = summarizeFootgunEntries(fs, dir.files);
   const formatDiagnostic =
-    summary.entryCount === 0 && (committed.exists || local.exists)
-      ? 'Footgun directories exist but contain 0 entries'
+    summary.entryCount === 0 && dir.exists
+      ? "Footgun directory exists but contains 0 entries"
       : summary.formatDiagnostic;
 
   return {
-    exists: committed.exists || local.exists,
-    committedExists: committed.exists,
-    localExists: local.exists,
+    exists: dir.exists,
     hasEvidence: summary.hasEvidence,
     entryCount: summary.entryCount,
-    committedCount,
-    localCount,
     labelCount: summary.labelCount,
     hasEvidenceLabels:
       summary.entryCount > 0 && summary.labelCount >= summary.entryCount,
@@ -422,16 +412,13 @@ export function extractFootgunFacts(
     invalidLineRefs: summary.invalidLineRefs,
     duplicateSurfacePaths: findCompetingArtifactSurfaces(
       fs,
-      [configState.config.footguns.committed, configState.config.footguns.local],
+      [configState.config.footguns.path],
       FOOTGUN_SURFACE_CANDIDATES,
     ),
     totalRefs: summary.totalRefs,
     validRefs: summary.validRefs,
     formatDiagnostic,
-    paths: {
-      committed: configState.config.footguns.committed,
-      local: configState.config.footguns.local,
-    },
+    path: configState.config.footguns.path,
   };
 }
 
@@ -439,39 +426,25 @@ export function extractFootgunFacts(
 export function extractLessonsFacts(
   fs: ReadonlyFS,
   configState: LoadedConfig,
-): SharedFacts['lessons'] {
-  const committed = listMarkdownEntries(
-    fs,
-    configState.config.lessons.committed,
-  );
-  const local = listMarkdownEntries(fs, configState.config.lessons.local);
-  const allEntries = [...committed.files, ...local.files];
-  const summary = summarizeLessonEntries(fs, allEntries);
-  const committedCount = summarizeLessonEntries(fs, committed.files).entryCount;
-  const localCount = summarizeLessonEntries(fs, local.files).entryCount;
+): SharedFacts["lessons"] {
+  const dir = listMarkdownEntries(fs, configState.config.lessons.path);
+  const summary = summarizeLessonEntries(fs, dir.files);
   const formatDiagnostic =
-    summary.entryCount === 0 && (committed.exists || local.exists)
-      ? 'Lesson directories exist but contain 0 entries'
+    summary.entryCount === 0 && dir.exists
+      ? "Lesson directory exists but contains 0 entries"
       : summary.formatDiagnostic;
 
   return {
-    exists: committed.exists || local.exists,
-    committedExists: committed.exists,
-    localExists: local.exists,
+    exists: dir.exists,
     hasEntries: summary.entryCount > 0,
     entryCount: summary.entryCount,
-    committedCount,
-    localCount,
     staleRefs: summary.staleRefs,
     duplicateSurfacePaths: findCompetingArtifactSurfaces(
       fs,
-      [configState.config.lessons.committed, configState.config.lessons.local],
+      [configState.config.lessons.path],
       LESSON_SURFACE_CANDIDATES,
     ),
     formatDiagnostic,
-    paths: {
-      committed: configState.config.lessons.committed,
-      local: configState.config.lessons.local,
-    },
+    path: configState.config.lessons.path,
   };
 }

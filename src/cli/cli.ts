@@ -2,15 +2,16 @@
 
 /**
  * Command-line entry point for goat-flow.
- * Handles argv parsing, command dispatch, exit codes, and on-disk output for scan, eval, setup, dashboard, and migration workflows.
+ * Handles argv parsing, command dispatch, exit codes, and on-disk output for audit, critique, setup, dashboard, and info workflows.
  */
 
-import { parseArgs } from 'node:util';
-import { resolve, dirname, join } from 'node:path';
-import { writeFileSync, mkdirSync } from 'node:fs';
-import type { CLIOptions, Grade, AgentId, ScanReport } from './types.js';
+import { parseArgs } from "node:util";
+import { resolve, dirname, join } from "node:path";
+import { writeFileSync, mkdirSync } from "node:fs";
+import type { CLIOptions, AgentId, ProjectFacts } from "./types.js";
+import type { AuditReport } from "./audit/types.js";
 
-import { getPackageVersion } from './paths.js';
+import { getPackageVersion } from "./paths.js";
 
 /** Current package version used in --version output */
 const PACKAGE_VERSION = getPackageVersion();
@@ -28,43 +29,39 @@ class CLIError extends Error {
 /** Print usage instructions and available commands to stdout */
 function printHelp(): void {
   console.log(`
-goat-flow - GOAT Flow CLI Auditor + Scoring Engine
+goat-flow - GOAT Flow CLI Auditor
 
 Usage:
   goat-flow [command] [project-path] [flags]
 
 Commands:
-  scan              Score a project (default)
+  audit             Deterministic pass/fail: GOAT Flow Setup + Agent Setup (add --harness for AI Harness Completeness)
+  critique          Agent-driven quality assessment prompt (requires --agent)
   setup             Generate setup prompt (adapts to project state)
-  eval              Parse and summarize agent evals
-
+  status            Show project state (bare/partial/v0.9/v1.0/v1.1)
+  dashboard         Launch browser dashboard with audit, setup, and terminal
 Arguments:
   project-path    Target project directory (default: .)
 
 Flags:
-  --format <type>   Output format: json, text, markdown, html (default: auto)
+  --format <type>   Output format: json, text, markdown (omit for auto-detect: text in terminal, json otherwise)
   --agent <id>      Filter to one agent: claude, codex, gemini
-  --verbose         Show per-check details in text mode
-  --min-score <n>   CI gate: exit 1 if score below threshold (0-100)
-  --min-grade <g>   CI gate: exit 1 if grade below threshold (A, B, C, D)
+  --harness         Audit: add AI Harness Completeness scope (16 pass/fail checks across 5 concerns)
+  --verbose         Show per-check details
   --output <file>   Write output to file instead of stdout
-  --guide           Show prioritized setup guidance instead of scores
   --dev             Dashboard: live reload on file changes
   --help, -h        Show this help
   --version, -v     Show version
 
 Examples:
-  goat-flow .                        Scan current directory
-  goat-flow scan --format json       Force JSON output
-  goat-flow scan --guide             Prioritized setup guidance
-  goat-flow setup --agent claude     Setup prompt for Claude
-  goat-flow setup --agent codex      Setup prompt for Codex
-  goat-flow setup --agent gemini      Setup prompt for Gemini
-  goat-flow --min-score 75           CI gate: fail if below 75%
-  goat-flow --format markdown        PR-comment friendly output
-  goat-flow --output report.json     Write results to file
-  goat-flow eval                     Summarize agent evals
-  goat-flow eval --format json       Eval summary as JSON
+  goat-flow .                          Audit current directory
+  goat-flow audit . --harness          Audit with AI harness completeness checks
+  goat-flow audit . --agent claude     Audit scoped to Claude
+  goat-flow audit . --format json      JSON output for CI
+  goat-flow setup --agent claude       Setup prompt for Claude
+  goat-flow critique . --agent claude  Critique prompt for Claude
+  goat-flow --format markdown          PR-comment friendly output
+  goat-flow --output report.json       Write results to file
 `);
 }
 
@@ -74,41 +71,50 @@ function printVersion(): void {
 }
 
 /** Supported CLI subcommand names */
-type Command = 'scan' | 'setup' | 'eval' | 'dashboard';
+type Command = "setup" | "dashboard" | "info" | "status" | "audit" | "critique";
 
 /** List of recognized CLI subcommands */
-const COMMANDS: Command[] = ['scan', 'setup', 'eval', 'dashboard'];
-/** Previously valid commands that now produce a helpful deprecation error */
-const REMOVED_COMMANDS = ['fix', 'audit'];
+const COMMANDS: Command[] = [
+  "setup",
+  "dashboard",
+  "info",
+  "status",
+  "audit",
+  "critique",
+];
+/** Previously valid commands that now produce a helpful removal error */
+const REMOVED_COMMANDS: Record<string, string> = {
+  fix: '"fix" was removed. Use "setup" instead - it adapts to your project\'s state.',
+  eval: '"eval" was removed. Use "setup" instead - it adapts to your project\'s state.',
+  scan: '"scan" was removed. Use "audit" for setup validation or "critique --agent <id>" for agent review.',
+};
 /** Accepted values for the --format flag */
-const VALID_FORMATS = ['json', 'text', 'html', 'markdown'] as const;
+const VALID_FORMATS = ["json", "text", "markdown"] as const;
 /** Accepted values for the --agent flag */
-const VALID_AGENTS: AgentId[] = ['claude', 'codex', 'gemini'];
+const VALID_AGENTS: AgentId[] = ["claude", "codex", "gemini"];
 /** Banner text warning that multi-agent setup output must stay in sync */
 const MULTI_AGENT_SYNC_BANNER = [
-  '**Multi-agent sync:** This prompt generates setup for multiple agents. The execution loop',
-  '(READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG), autonomy tiers, and Definition of Done',
-  'MUST be identical across all instruction files. Write these sections for the first agent,',
-  'then COPY THEM VERBATIM to the other instruction files. Do not rephrase.',
+  "**Multi-agent sync:** This prompt generates setup for multiple agents. The execution loop",
+  "(READ → SCOPE → ACT → VERIFY), autonomy tiers, and Definition of Done",
+  "MUST be identical across all instruction files. Write these sections for the first agent,",
+  "then COPY THEM VERBATIM to the other instruction files. Do not rephrase.",
 ];
 
 /** Fully resolved CLI options including the dispatched command */
 export interface ParsedCLI extends CLIOptions {
   command: Command;
+  harness: boolean;
 }
 
-/** Parse the positional subcommand from raw CLI args, defaulting to `scan`. */
+/** Parse the positional subcommand from raw CLI args, defaulting to `audit`. */
 function parseCommand(argv: string[]): {
   command: Command;
   filteredArgs: string[];
 } {
   const filteredArgs = [...argv];
   const first = filteredArgs[0];
-  if (first !== undefined && REMOVED_COMMANDS.includes(first)) {
-    throw new CLIError(
-      `"${first}" was removed. Use "setup" instead - it adapts to your project's state.`,
-      2,
-    );
+  if (first !== undefined && Object.hasOwn(REMOVED_COMMANDS, first)) {
+    throw new CLIError(REMOVED_COMMANDS[first]!, 2);
   }
   if (
     filteredArgs.length > 0 &&
@@ -116,28 +122,28 @@ function parseCommand(argv: string[]): {
   ) {
     return { command: filteredArgs.shift() as Command, filteredArgs };
   }
-  return { command: 'scan', filteredArgs };
+  return { command: "audit", filteredArgs };
 }
 
 /** Parse the `--format` flag, defaulting to text on TTYs and JSON otherwise. */
-function parseFormatArg(value: string | undefined): CLIOptions['format'] {
-  const defaultFormat: CLIOptions['format'] = process.stdout.isTTY
-    ? 'text'
-    : 'json';
+function parseFormatArg(value: string | undefined): CLIOptions["format"] {
+  const defaultFormat: CLIOptions["format"] = process.stdout.isTTY
+    ? "text"
+    : "json";
   if (!value) return defaultFormat;
   if (!VALID_FORMATS.includes(value as (typeof VALID_FORMATS)[number])) {
     throw new CLIError(
-      `Invalid format: ${value}. Use: json, text, html, markdown`,
+      `Invalid format: ${value}. Use: json, text, markdown`,
       2,
     );
   }
-  return value as CLIOptions['format'];
+  return value as CLIOptions["format"];
 }
 
 /** Parse the `--agent` flag and reject deprecated aggregate agent modes. */
 function parseAgentArg(value: string | undefined): AgentId | null {
   if (!value) return null;
-  if (value === 'all') {
+  if (value === "all") {
     throw new CLIError(
       `--agent all is no longer supported. Run setup separately for each agent: --agent claude, --agent codex, --agent gemini`,
       2,
@@ -152,38 +158,17 @@ function parseAgentArg(value: string | undefined): AgentId | null {
   return value as AgentId;
 }
 
-/** Parse the `--min-score` threshold and keep it within the 0-100 range. */
-function parseMinScoreArg(value: string | undefined): number | null {
-  if (!value) return null;
-  const minScore = parseInt(value, 10);
-  if (isNaN(minScore) || minScore < 0 || minScore > 100) {
-    throw new CLIError(`Invalid min-score: ${value}. Use: 0-100`, 2);
-  }
-  return minScore;
-}
-
-/** Parse the `--min-grade` threshold using the supported letter grades. */
-function parseMinGradeArg(value: string | undefined): Grade | null {
-  if (!value) return null;
-  const normalized = value.toUpperCase();
-  const valid: Grade[] = ['A', 'B', 'C', 'D'];
-  if (!valid.includes(normalized as Grade)) {
-    throw new CLIError(`Invalid min-grade: ${value}. Use: A, B, C, D`, 2);
-  }
-  return normalized as Grade;
-}
-
 /** Resolve `--output`, defaulting bare file names into `.goat-flow/` under the target repo. */
 function resolveOutputPath(
   output: string | undefined,
   positionals: string[],
 ): string | null {
   if (!output) return null;
-  const projectRoot = positionals[0] ?? '.';
+  const projectRoot = positionals[0] ?? ".";
   return resolve(
-    output.includes('/') || output.includes('\\')
+    output.includes("/") || output.includes("\\")
       ? output
-      : join(projectRoot, '.goat-flow', output),
+      : join(projectRoot, ".goat-flow", output),
   );
 }
 
@@ -195,16 +180,14 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
   const { values, positionals } = parseArgs({
     args: filteredArgs,
     options: {
-      format: { type: 'string' },
-      agent: { type: 'string' },
-      verbose: { type: 'boolean', default: false },
-      'min-score': { type: 'string' },
-      'min-grade': { type: 'string' },
-      output: { type: 'string', short: 'o' },
-      guide: { type: 'boolean', default: false },
-      dev: { type: 'boolean', default: false },
-      help: { type: 'boolean', short: 'h', default: false },
-      version: { type: 'boolean', short: 'v', default: false },
+      format: { type: "string" },
+      agent: { type: "string" },
+      verbose: { type: "boolean", default: false },
+      output: { type: "string", short: "o" },
+      harness: { type: "boolean", default: false },
+      dev: { type: "boolean", default: false },
+      help: { type: "boolean", short: "h", default: false },
+      version: { type: "boolean", short: "v", default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -212,104 +195,79 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
 
   return {
     command,
-    projectPath: resolve(positionals[0] ?? '.'),
+    projectPath: resolve(positionals[0] ?? "."),
     format: parseFormatArg(values.format),
     agent: parseAgentArg(values.agent),
     verbose: values.verbose === true,
-    minScore: parseMinScoreArg(values['min-score']),
-    minGrade: parseMinGradeArg(values['min-grade']),
     output: resolveOutputPath(values.output, positionals),
-    guide: values.guide === true,
+    harness: values.harness === true,
     dev: values.dev === true,
     help: values.help === true,
     version: values.version === true,
   };
 }
 
-/** Handle the eval command: load, summarize, and output agent eval results */
-async function handleEvalCommand(options: ParsedCLI): Promise<void> {
-  const { loadEvals, summarize, formatSummaryText, formatSummaryJson } =
-    await import('./evals/loader.js');
-  const { createFS } = await import('./facts/fs.js');
-  /** Virtual filesystem scoped to the target project path */
+/** Handle the status command: classify and display project adoption state */
+async function handleStatusCommand(options: ParsedCLI): Promise<void> {
+  const { createFS } = await import("./facts/fs.js");
+  const { classifyProjectState } = await import("./classify-state.js");
+
   const fs = createFS(options.projectPath);
-  const { loadConfig } = await import('./config/reader.js');
-  /** Resolved evals path from config (defaults to ai-docs/evals/) */
-  const evalsDir = resolve(
-    options.projectPath,
-    loadConfig(options.projectPath, fs).config.evals.path,
-  );
-  const { evals, errors } = loadEvals(fs, evalsDir);
-  /** Aggregated eval summary grouped by skill, agent, difficulty, and origin */
-  const summary = summarize(evals, errors);
-  /** Formatted output string in the requested format */
-  const output =
-    options.format === 'json'
-      ? formatSummaryJson(summary)
-      : formatSummaryText(summary);
-  process.stdout.write(output + '\n');
-  if (errors.length > 0) {
-    throw new CLIError('Eval completed with errors', 1);
+  const result = classifyProjectState(fs);
+
+  if (options.format === "json") {
+    process.stdout.write(
+      JSON.stringify({ path: options.projectPath, ...result }, null, 2) + "\n",
+    );
+    return;
   }
+
+  const stateColors: Record<string, string> = {
+    bare: "\x1b[90m", // gray
+    partial: "\x1b[33m", // yellow
+    "v0.9": "\x1b[31m", // red
+    "v1.0": "\x1b[36m", // cyan
+    "v1.1": "\x1b[32m", // green
+    error: "\x1b[31m", // red
+  };
+  const reset = "\x1b[0m";
+  const color = stateColors[result.state] || "";
+
+  console.log(`  Path:    ${options.projectPath}`);
+  console.log(`  State:   ${color}${result.state}${reset}`);
+  console.log(`  Action:  ${result.action}`);
+  console.log(`  Details: ${result.details}`);
 }
 
-/** Pick the agent list for setup output from the CLI override or scan report. */
-function getSetupAgentIds(options: ParsedCLI, report: ScanReport): AgentId[] {
-  return options.agent ? [options.agent] : report.agents.map((a) => a.agent);
+/** Pick the agent list for setup output from the CLI override or extracted facts. */
+function getSetupAgentIds(options: ParsedCLI, facts: ProjectFacts): AgentId[] {
+  return options.agent
+    ? [options.agent]
+    : facts.agents.map((af) => af.agent.id);
 }
 
 /** Print the banner that warns multi-agent setup output must stay in sync. */
 function writeMultiAgentSyncBanner(withDivider: boolean): void {
   const lines = withDivider
-    ? [...MULTI_AGENT_SYNC_BANNER, '', '---', '']
-    : [...MULTI_AGENT_SYNC_BANNER, '', ''];
-  process.stdout.write(lines.join('\n'));
-}
-
-/** Decide whether setup output should be merged across multiple detected agents. */
-function shouldUseMultiAgentSetup(
-  agentIds: AgentId[],
-  report: ScanReport,
-): boolean {
-  return (
-    agentIds.length > 1 &&
-    agentIds.every((id) => {
-      const agentReport = report.agents.find((a) => a.agent === id);
-      return !agentReport || agentReport.score.percentage === 0;
-    })
-  );
-}
-
-/** Compose setup output for one agent. */
-function renderSetupOutput(
-  report: ScanReport,
-  agentId: AgentId,
-  composeSetup: (report: ScanReport, agent: AgentId) => string | null,
-): string | null {
-  return composeSetup(report, agentId);
+    ? [...MULTI_AGENT_SYNC_BANNER, "", "---", ""]
+    : [...MULTI_AGENT_SYNC_BANNER, "", ""];
+  process.stdout.write(lines.join("\n"));
 }
 
 /** Handle the setup command: compose and render setup prompts per agent */
 async function handleSetupCommand(
   options: ParsedCLI,
-  report: ScanReport,
+  auditReport: AuditReport,
+  facts: ProjectFacts,
 ): Promise<void> {
-  const { composeSetup, composeMultiAgentSetup } =
-    await import('./prompt/compose-setup.js');
+  const { composeSetup } = await import("./prompt/compose-setup.js");
 
-  const agentIds = getSetupAgentIds(options, report);
+  const agentIds = getSetupAgentIds(options, facts);
   if (agentIds.length === 0) {
     throw new CLIError(
-      'No agents detected. Use --agent claude, --agent codex, or --agent gemini',
+      "No agents detected. Use --agent claude, --agent codex, or --agent gemini",
       1,
     );
-  }
-
-  if (shouldUseMultiAgentSetup(agentIds, report)) {
-    writeMultiAgentSyncBanner(false);
-    const output = composeMultiAgentSetup(report, agentIds);
-    process.stdout.write(output + '\n');
-    return;
   }
 
   if (agentIds.length > 1) {
@@ -317,115 +275,125 @@ async function handleSetupCommand(
   }
 
   for (const agentId of agentIds) {
-    const output = renderSetupOutput(report, agentId, composeSetup);
+    const output = composeSetup(auditReport, facts, agentId);
     if (output) {
-      process.stdout.write(output + '\n');
-      if (agentIds.length > 1) process.stdout.write('\n---\n\n');
+      process.stdout.write(output + "\n");
+      if (agentIds.length > 1) process.stdout.write("\n---\n\n");
     }
   }
 }
 
-/** Check CI gate thresholds and throw if any agent fails to meet them */
-function handleCIGate(options: ParsedCLI, report: ScanReport): void {
-  if (options.minScore === null && options.minGrade === null) return;
-
-  /** Numeric ordering of grades for comparison (higher is better) */
-  const gradeOrder: Record<string, number> = {
-    A: 5,
-    B: 4,
-    C: 3,
-    D: 2,
-    F: 1,
-    'insufficient-data': 0,
-  };
-
-  // Iterate over each agent report to check against CI gate thresholds
-  for (const agent of report.agents) {
-    if (
-      options.minScore !== null &&
-      agent.score.percentage < options.minScore
-    ) {
-      throw new CLIError(
-        `CI gate failed: ${agent.agent} score ${agent.score.percentage}% below threshold ${options.minScore}%`,
-        1,
-      );
-    }
-    if (options.minGrade !== null) {
-      /** Numeric value of the agent's grade for threshold comparison */
-      const agentGradeValue = gradeOrder[agent.score.grade] ?? 0;
-      /** Numeric value of the minimum required grade */
-      const minGradeValue = gradeOrder[options.minGrade] ?? 0;
-      if (agentGradeValue < minGradeValue) {
-        throw new CLIError(
-          `CI gate failed: ${agent.agent} grade ${agent.score.grade} below threshold ${options.minGrade}`,
-          1,
-        );
-      }
-    }
-  }
-}
-
-/** Render scan output. */
-async function renderScanOutput(
-  options: ParsedCLI,
-  report: ScanReport,
-): Promise<string> {
-  const { renderJson } = await import('./render/json.js');
-  const { renderText } = await import('./render/text.js');
-
-  if (options.guide) {
-    const { renderGuide } = await import('./render/guide.js');
-    return renderGuide(report);
-  }
-
-  if (options.format === 'html') {
-    const { renderHtml } = await import('./render/html.js');
-    return renderHtml(report);
-  }
-  if (options.format === 'markdown') {
-    const { renderMarkdown } = await import('./render/markdown.js');
-    return renderMarkdown(report);
-  }
-  if (options.format === 'text') {
-    return renderText(report, options.verbose);
-  }
-  return renderJson(report);
-}
-
-/** Write scan output. */
-function writeScanOutput(options: ParsedCLI, rendered: string): void {
+/** Write rendered output to file or stdout. */
+function writeOutput(options: ParsedCLI, rendered: string): void {
   if (options.output) {
     mkdirSync(dirname(options.output), { recursive: true });
-    writeFileSync(options.output, rendered + '\n', 'utf-8');
+    writeFileSync(options.output, rendered + "\n", "utf-8");
     console.error(`Written to ${options.output}`);
     return;
   }
 
-  process.stdout.write(rendered + '\n');
+  process.stdout.write(rendered + "\n");
 }
 
-/** Run the main scan flow, render the report, and append scan history. */
-async function handleScanCommand(
-  options: ParsedCLI,
-  report: ScanReport,
-): Promise<void> {
-  const rendered = await renderScanOutput(options, report);
-  writeScanOutput(options, rendered);
+/** Handle the info command: rubrics and anti-patterns were removed in v1.1.0. */
+function handleInfoCommand(options: ParsedCLI): void {
+  // The subcommand is the first positional arg after 'info'.
+  // parseCLIArgs resolves projectPath to an absolute path, so extract the basename.
+  const sub = options.projectPath.split(/[/\\]/).pop() ?? "";
 
-  const { appendScanHistory } = await import('./telemetry/scan-logger.js');
-  appendScanHistory(report, options.projectPath);
+  if (sub === "rubrics" || sub === "anti-patterns") {
+    throw new CLIError(
+      `"info ${sub}" was removed. Use "audit" for setup validation or "audit --harness" for advisory scoring.`,
+      2,
+    );
+  }
+
+  throw new CLIError(
+    'Usage: goat-flow info <rubrics|anti-patterns>\n  Both subcommands were removed in v1.1.0. Use "audit" instead.',
+    2,
+  );
+}
+
+/** Run the audit command: validate setup correctness and optionally check harness completeness. */
+async function handleAuditCommand(options: ParsedCLI): Promise<void> {
+  const { createFS } = await import("./facts/fs.js");
+  const { runAudit } = await import("./audit/audit.js");
+  const { renderAuditText, renderAuditJson, renderAuditMarkdown } =
+    await import("./audit/render.js");
+
+  const fs = createFS(options.projectPath);
+  const report = runAudit(fs, options.projectPath, {
+    agentFilter: options.agent ?? null,
+    harness: options.harness,
+  });
+
+  let rendered: string;
+  if (options.format === "json") {
+    rendered = renderAuditJson(report);
+  } else if (options.format === "markdown") {
+    rendered = renderAuditMarkdown(report);
+  } else {
+    rendered = renderAuditText(report);
+  }
+
+  writeOutput(options, rendered);
+
+  if (report.status === "fail") {
+    process.exitCode = 1;
+  }
+}
+
+/** Handle the critique command: generate a structured critique prompt for a selected agent. */
+async function handleCritiqueCommand(options: ParsedCLI): Promise<void> {
+  if (!options.agent) {
+    throw new CLIError(
+      "critique requires --agent. Usage: goat-flow critique . --agent claude",
+      2,
+    );
+  }
+
+  const { createFS } = await import("./facts/fs.js");
+  const { runAudit } = await import("./audit/audit.js");
+  const { composeCritique } = await import("./prompt/compose-critique.js");
+
+  const fs = createFS(options.projectPath);
+
+  // Run audit but don't fail if it errors - critique works even when audit is failing
+  let auditReport: AuditReport | null = null;
+  try {
+    auditReport = runAudit(fs, options.projectPath, {
+      agentFilter: options.agent,
+      harness: true,
+    });
+  } catch {
+    // Audit failure is fine - critique generates with degraded context
+  }
+
+  const result = composeCritique({
+    agent: options.agent,
+    projectPath: options.projectPath,
+    auditReport,
+  });
+
+  if (options.format === "json") {
+    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+  } else {
+    process.stdout.write(result.prompt + "\n");
+  }
 }
 
 /** Entry point that dispatches to the appropriate command handler */
 async function main(): Promise<void> {
   // Gracefully handle EPIPE (e.g., output piped to `head`)
-  process.stdout.on('error', (err: NodeJS.ErrnoException) => {
-    if (err.code === 'EPIPE') process.exit(0);
+  process.stdout.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EPIPE") process.exit(0);
     throw err;
   });
 
-  /** Parsed CLI options derived from process.argv */
-  const options = parseCLIArgs(process.argv.slice(2));
+  const rawArgs = process.argv.slice(2);
+
+  // Preserve the documented CLI contract: empty argv defaults to `audit`.
+  const options = parseCLIArgs(rawArgs);
 
   if (options.help) {
     printHelp();
@@ -435,33 +403,49 @@ async function main(): Promise<void> {
     printVersion();
     return;
   }
-  if (options.command === 'eval') {
-    await handleEvalCommand(options);
+  if (options.command === "audit") {
+    await handleAuditCommand(options);
     return;
   }
-  if (options.command === 'dashboard') {
-    const { serveDashboard } = await import('./server/dashboard.js');
+  if (options.command === "critique") {
+    await handleCritiqueCommand(options);
+    return;
+  }
+  if (options.command === "status") {
+    await handleStatusCommand(options);
+    return;
+  }
+  if (options.command === "dashboard") {
+    const { serveDashboard } = await import("./server/dashboard.js");
     await serveDashboard({
       projectPath: options.projectPath,
       dev: options.dev,
     });
     return;
   }
-
-  const { createFS } = await import('./facts/fs.js');
-  const { scanProject } = await import('./scanner/scan.js');
-  const fs = createFS(options.projectPath);
-  const report = scanProject(fs, options.projectPath, {
-    agentFilter: options.agent ?? null,
-  });
-
-  if (options.command === 'scan') {
-    await handleScanCommand(options, report);
-  } else {
-    await handleSetupCommand(options, report);
+  if (options.command === "info") {
+    handleInfoCommand(options);
+    return;
   }
 
-  handleCIGate(options, report);
+  // Remaining command: setup (uses audit + facts to compose setup guidance)
+  const { createFS } = await import("./facts/fs.js");
+  const { runAudit } = await import("./audit/audit.js");
+  const { extractProjectFacts } = await import("./facts/orchestrator.js");
+  const { loadConfig } = await import("./config/reader.js");
+  const fs = createFS(options.projectPath);
+  const configState = loadConfig(options.projectPath, fs);
+  const facts = extractProjectFacts(fs, {
+    agentFilter: options.agent ?? null,
+    projectPath: options.projectPath,
+    configState,
+  });
+  const auditReport = runAudit(fs, options.projectPath, {
+    agentFilter: options.agent ?? null,
+    harness: false,
+  });
+
+  await handleSetupCommand(options, auditReport, facts);
 }
 
 main().catch((err: unknown) => {

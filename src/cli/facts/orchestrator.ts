@@ -1,13 +1,13 @@
 /**
- * Coordinates full fact extraction for a scan.
- * It combines stack detection, shared project facts, and per-agent facts into the `ProjectFacts` object used by scoring.
+ * Coordinates full fact extraction for a project.
+ * It combines stack detection, shared project facts, and per-agent facts into the `ProjectFacts` object used by audit and setup.
  */
-import type { ProjectFacts, ReadonlyFS, AgentId } from '../types.js';
-import type { LoadedConfig } from '../config/types.js';
-import { detectAgents } from '../detect/agents.js';
-import { detectStack } from '../detect/project-stack.js';
-import { extractSharedFacts } from './shared/index.js';
-import { extractAgentFacts } from './agent/index.js';
+import type { ProjectFacts, ReadonlyFS, AgentId } from "../types.js";
+import type { LoadedConfig } from "../config/types.js";
+import { detectAgents } from "../detect/agents.js";
+import { detectStack } from "../detect/project-stack.js";
+import { extractSharedFacts } from "./shared/index.js";
+import { extractAgentFacts } from "./agent/index.js";
 
 /** Configuration for extracting project facts during a scan run. */
 interface ExtractOptions {
@@ -24,15 +24,20 @@ export function extractProjectFacts(
   /** All detected agent profiles in the project */
   let agents = detectAgents(fs);
 
-  // Filter to specific agent if requested
+  // Filter to specific agent if requested via --agent flag
   if (options.agentFilter) {
     agents = agents.filter((a) => a.id === options.agentFilter);
+  }
+  // When config.yaml lists specific agents, restrict to that set
+  else if (options.configState.config.agents) {
+    const configured = new Set(options.configState.config.agents);
+    agents = agents.filter((a) => configured.has(a.id));
   }
 
   /** Detected technology stack (language, framework, etc.) */
   const stack = detectStack(fs);
 
-  /** Shared facts covering docs, evals, CI, and other project-wide resources */
+  /** Shared facts covering docs, CI, and other project-wide resources */
   const shared = extractSharedFacts(fs, options.configState);
 
   /** Per-agent facts including instruction, settings, skills, and hooks */
@@ -66,7 +71,7 @@ export function extractProjectFacts(
   });
 
   return {
-    root: options.projectPath ?? '.',
+    root: options.projectPath ?? ".",
     stack,
     agents: agentFacts,
     shared,

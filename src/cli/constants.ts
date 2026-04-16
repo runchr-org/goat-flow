@@ -1,24 +1,22 @@
 /**
  * Canonical cross-module constants for skills and version-aligned aliases.
- * Keep definitions here so detection, prompts, and scanner checks stay in sync.
+ * Keep definitions here so detection, prompts, and audit checks stay in sync.
  */
-/** Canonical list of all GOAT Flow skill names (5 specialized skills + dispatcher = 6) */
+import { getPackageVersion } from "./paths.js";
+
+/** Canonical list of all GOAT Flow skill names */
 export const SKILL_NAMES = [
-  'goat',
-  'goat-debug',
-  'goat-review',
-  'goat-plan',
-  'goat-security',
-  'goat-test',
+  "goat",
+  "goat-debug",
+  "goat-plan",
+  "goat-review",
+  "goat-sbao",
+  "goat-security",
+  "goat-test",
 ] as const;
 
-/** Type derived from the canonical skill list */
-export type SkillName = (typeof SKILL_NAMES)[number];
-
 /**
- * Current skill template version - matches the package/rubric version.
+ * Current audit version - derived from package.json so it stays in sync automatically.
  * Skills embed this as `goat-flow-skill-version: X` in their YAML frontmatter.
- * The scanner compares the embedded version against this constant.
- * Re-exported from version.ts to keep a single source of truth.
  */
-export { RUBRIC_VERSION as SKILL_VERSION } from './rubric/version.js';
+export const AUDIT_VERSION = getPackageVersion();

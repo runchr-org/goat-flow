@@ -1,24 +1,28 @@
 /**
  * Skill fact extraction - inventories installed skills, measures quality signals, and detects unadapted content.
  */
-import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
-import { SKILL_NAMES, SKILL_VERSION } from '../../constants.js';
-import { extractSection } from './instruction.js';
-import { pushUniquePath } from './routing.js';
+import { readFileSync } from "node:fs";
+import type { AgentProfile, AgentFacts, ReadonlyFS } from "../../types.js";
+import {
+  SKILL_NAMES,
+  AUDIT_VERSION as SKILL_VERSION,
+} from "../../constants.js";
+import { getTemplatePath } from "../../paths.js";
+import { extractSection } from "./instruction.js";
 
 /** Compute Jaccard similarity between two strings by comparing word sets. */
 function jaccardSimilarity(a: string, b: string): number {
   const wordsA = new Set(
     a
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/[^a-z0-9\s]/g, "")
       .split(/\s+/)
       .filter((w) => w.length > 2),
   );
   const wordsB = new Set(
     b
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/[^a-z0-9\s]/g, "")
       .split(/\s+/)
       .filter((word) => word.length > 2),
   );
@@ -49,7 +53,6 @@ interface SkillQualityCounts {
   withConstraints: number;
   withPhases: number;
   withConversational: number;
-  withChaining: number;
   withChoices: number;
   withOutputFormat: number;
   withSharedConventions: number;
@@ -72,24 +75,24 @@ const SKILL_QUALITY_PATTERNS: Array<{
   pattern: RegExp;
 }> = [
   {
-    key: 'withStep0',
+    key: "withStep0",
     pattern: /step\s*0|gather\s*context|ask.*before|ask\s+the\s+user/i,
   },
   {
-    key: 'withHumanGate',
+    key: "withHumanGate",
     pattern:
       /human\s*gate|blocking\s*gate|wait.*approv|wait.*confirm|do\s+not\s+proceed|does this.*look right|does this.*match/i,
   },
-  { key: 'withConstraints', pattern: /MUST\s+NOT|MUST\s+/m },
-  { key: 'withPhases', pattern: /##\s*(Phase|Step)\s+[0-9]/i },
-  { key: 'withConversational', pattern: /blocking\s*gate|human\s*gate/i },
+  { key: "withConstraints", pattern: /MUST\s+NOT|MUST\s+/m },
+  { key: "withPhases", pattern: /##\s*(Phase|Step)\s+[0-9]/i },
+  { key: "withConversational", pattern: /blocking\s*gate|human\s*gate/i },
   {
-    key: 'withChaining',
-    pattern: /chains?\s*with|related\s*skills?|next.*skill|→.*goat-/i,
+    key: "withChoices",
+    pattern:
+      /\(a\)|\(b\)|\(c\)|want me to|offer:|\bquick\b[\s\S]{0,160}\bfull\b|drill into|go deeper|check (?:a|the) (?:related|different)|switch to|adjust scope|redirect the review|proceed to ranking|or close|or adjust|start fresh|update milestones|dig deeper|re-run with/i,
   },
-  { key: 'withChoices', pattern: /\(a\)|\(b\)|\(c\)|want me to.*\n.*\n/i },
-  { key: 'withOutputFormat', pattern: /##\s*(Output|Output Format)/i },
-  { key: 'withSharedConventions', pattern: /^##\s+shared conventions/im },
+  { key: "withOutputFormat", pattern: /##\s*(Output|Output Format)/i },
+  { key: "withSharedConventions", pattern: /^##\s+shared conventions/im },
 ] as const;
 
 /** Build the zeroed accumulator used while scoring installed skill quality. */
@@ -100,7 +103,6 @@ function createSkillQualityCounts(): SkillQualityCounts {
     withConstraints: 0,
     withPhases: 0,
     withConversational: 0,
-    withChaining: 0,
     withChoices: 0,
     withOutputFormat: 0,
     withSharedConventions: 0,
@@ -114,10 +116,12 @@ function updateSkillQualityCounts(
   quality: SkillQualityCounts,
 ): void {
   for (const check of SKILL_QUALITY_PATTERNS) {
-    if (check.key === 'withConversational') {
+    if (check.key === "withConversational") {
       if (
         /blocking\s*gate|human\s*gate/i.test(content) &&
-        /\(a\)|want me to|offer:|proceed\?/i.test(content)
+        /\(a\)|want me to|offer:|\bquick\b[\s\S]{0,160}\bfull\b|drill into|go deeper|switch to|adjust scope|redirect|or close/i.test(
+          content,
+        )
       ) {
         quality[check.key]++;
       }
@@ -136,7 +140,7 @@ function countAdaptComments(content: string): number {
 
 /** Count malformed markdown fence blocks (unclosed or improperly nested triple-backtick regions). */
 function countMalformedFences(content: string): number {
-  const lines = content.split('\n');
+  const lines = content.split("\n");
   let openFences = 0;
   let malformed = 0;
   for (const line of lines) {
@@ -239,12 +243,21 @@ function countUnadaptedSkills(
   for (const skill of found) {
     const skillPath = `${agent.skillsDir}/${skill}/SKILL.md`;
     const installed = fs.readFile(skillPath);
-    const templateName = skill.replace(/^goat-/, '');
-    const template = fs.readFile(`workflow/skills/goat-${templateName}.md`);
+    // Templates live in the goat-flow package root, not the project being audited.
+    // Use getTemplatePath + readFileSync so this works in user projects too.
+    let template: string | null = null;
+    try {
+      template = readFileSync(
+        getTemplatePath(`workflow/skills/${skill}/SKILL.md`),
+        "utf-8",
+      );
+    } catch {
+      // Template missing (e.g. custom skill with no goat-flow template) - skip
+    }
     if (!installed || !template) continue;
 
-    const installedStep0 = extractSection(installed, 'Step 0');
-    const templateStep0 = extractSection(template, 'Step 0');
+    const installedStep0 = extractSection(installed, "Step 0");
+    const templateStep0 = extractSection(template, "Step 0");
     if (
       installedStep0 &&
       templateStep0 &&
@@ -257,57 +270,15 @@ function countUnadaptedSkills(
   return unadaptedCount;
 }
 
-/** Ignore placeholder or intentionally external refs when checking dangling skill links. */
-function shouldIgnoreDanglingSkillRef(ref: string): boolean {
-  if (/^https?:/.test(ref)) return true;
-  if (/\{|YYYY|file:line|path\/to|monitoring\//i.test(ref)) return true;
-  if (
-    /^(?:\.goat-flow\/)?tasks\/(handoff|todo|commit|release|scratchpad|improvement)/.test(
-      ref,
-    )
-  )
-    return true;
-  if (/^(src\/api|config\/|docs\/glossary)/.test(ref)) return true;
-  return false;
-}
-
-/** Collect skill-local path references that no longer resolve on disk. */
-function extractDanglingSkillRefs(
-  fs: ReadonlyFS,
-  agent: AgentProfile,
-  found: string[],
-): string[] {
-  const danglingRefs: string[] = [];
-  const pathRefPattern =
-    /`((?:[a-zA-Z0-9._-]+\/)+[a-zA-Z0-9._-]+(?::[0-9]+)?)`/g;
-
-  for (const skill of found) {
-    const content = fs.readFile(`${agent.skillsDir}/${skill}/SKILL.md`);
-    if (!content) continue;
-    for (const match of content.matchAll(pathRefPattern)) {
-      const rawRef = match[1];
-      if (rawRef === undefined) continue;
-      const ref = rawRef.replace(/:[0-9]+$/, '');
-      if (shouldIgnoreDanglingSkillRef(ref)) continue;
-      if (!fs.exists(ref)) {
-        pushUniquePath(danglingRefs, ref);
-      }
-    }
-  }
-
-  return danglingRefs;
-}
-
 /** Extract skill presence, version drift, and quality facts for one agent. */
 export function extractSkillFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,
-): AgentFacts['skills'] {
+): AgentFacts["skills"] {
   const installedDirs = collectInstalledSkillDirs(fs, agent);
   const inventory = scanExpectedSkills(fs, agent);
   const unadaptedCount = countUnadaptedSkills(fs, agent, inventory.found);
   const hasDispatcher = fs.exists(`${agent.skillsDir}/goat/SKILL.md`);
-  const danglingRefs = extractDanglingSkillRefs(fs, agent, inventory.found);
 
   return {
     installedDirs,
@@ -317,7 +288,6 @@ export function extractSkillFacts(
     versions: inventory.versions,
     outdatedCount: inventory.outdatedCount,
     hasDispatcher,
-    danglingRefs,
     quality: {
       ...inventory.quality,
       unadaptedCount,
@@ -326,4 +296,3 @@ export function extractSkillFacts(
     },
   };
 }
-

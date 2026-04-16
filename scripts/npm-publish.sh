@@ -1,4 +1,24 @@
 #!/usr/bin/env bash
+# npm-publish.sh
+#
+# Purpose:
+#   Release goat-flow to npm with a preflight check and human confirmation.
+#
+# Usage:
+#   bash scripts/npm-publish.sh
+#
+# Behavior:
+#   1) reads package.json version
+#   2) runs build and tests
+#   3) prints a dry-run publish summary
+#   4) asks for manual confirmation before `npm publish`
+#
+# Exit:
+#   0 if published or explicitly aborted, non-zero on failed build/test/publish.
+#
+# Requirements:
+#   - node, npm
+#   - package.json and build/test scripts configured for the project
 set -euo pipefail
 
 # Publish @blundergoat/goat-flow to npm

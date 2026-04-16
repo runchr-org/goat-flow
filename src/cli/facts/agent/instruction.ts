@@ -1,15 +1,15 @@
 /**
  * Instruction file fact extraction - parses heading sections and gathers instruction-level metadata.
  */
-import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
+import type { AgentProfile, AgentFacts, ReadonlyFS } from "../../types.js";
 
 /** Parse markdown content into a map of lowercase heading names to their body text. */
 function parseSections(content: string): Map<string, string> {
   /** Accumulated heading-to-content mapping */
   const sections = new Map<string, string>();
   /** Input split into individual lines */
-  const lines = content.split('\n');
-  let currentHeading = '';
+  const lines = content.split("\n");
+  let currentHeading = "";
   let currentContent: string[] = [];
 
   // Iterate over lines to group content under markdown headings
@@ -18,7 +18,7 @@ function parseSections(content: string): Map<string, string> {
     const headingMatch = line.match(/^#{1,3}\s+(.+)/);
     if (headingMatch) {
       if (currentHeading) {
-        sections.set(currentHeading.toLowerCase(), currentContent.join('\n'));
+        sections.set(currentHeading.toLowerCase(), currentContent.join("\n"));
       }
       const captured = headingMatch[1];
       if (captured === undefined) continue;
@@ -29,17 +29,19 @@ function parseSections(content: string): Map<string, string> {
     }
   }
   if (currentHeading) {
-    sections.set(currentHeading.toLowerCase(), currentContent.join('\n'));
+    sections.set(currentHeading.toLowerCase(), currentContent.join("\n"));
   }
 
   return sections;
 }
 
-
 /** Extract the body text of a named markdown section, or null if not found. */
-export function extractSection(content: string, sectionName: string): string | null {
+export function extractSection(
+  content: string,
+  sectionName: string,
+): string | null {
   /** Input split into individual lines */
-  const lines = content.split('\n');
+  const lines = content.split("\n");
   let inSection = false;
   /** Lines collected while inside the target section */
   const sectionLines: string[] = [];
@@ -60,28 +62,26 @@ export function extractSection(content: string, sectionName: string): string | n
     }
   }
 
-  return sectionLines.length > 0 ? sectionLines.join('\n') : null;
+  return sectionLines.length > 0 ? sectionLines.join("\n") : null;
 }
 
 // ─── Focused extraction functions ────────────────────────────────────
-
 
 /** Extract instruction file facts: existence, content, line count, and parsed sections. */
 export function extractInstructionFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,
-): AgentFacts['instruction'] {
+): AgentFacts["instruction"] {
   /** Raw content of the agent's instruction file (null if missing) */
   const content = fs.readFile(agent.instructionFile);
   /** Whether the instruction file exists on disk */
   const exists = content !== null;
   /** Number of lines in the instruction file */
   const lineCount = exists
-    ? content.split('\n').length - (content.endsWith('\n') ? 1 : 0)
+    ? content.split("\n").length - (content.endsWith("\n") ? 1 : 0)
     : 0;
   /** Parsed heading-to-content sections from the instruction file */
   const sections = exists ? parseSections(content) : new Map<string, string>();
 
   return { exists, content, lineCount, sections };
 }
-

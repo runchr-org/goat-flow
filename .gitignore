@@ -75,6 +75,10 @@ TODO_*.md
 docs_*.md
 # .goat-flow/ managed by its own .gitignore (config.yaml is committed, everything else ignored)
 
+# Test fixtures may include tracked goat-flow runtime artifacts.
+!test/fixtures/projects/**/.goat-flow/logs/
+!test/fixtures/projects/**/.goat-flow/logs/**
+
 # Build output
 dist
 

@@ -1,0 +1,558 @@
+<!-- ═══ Projects View ═══ -->
+<div
+  x-show="activeView === 'projects'"
+  x-cloak
+  style="height: calc(100vh - 3.5rem); overflow-y: auto"
+  x-data="{
+    projectSearch: '',
+    confirmRemovePath: null,
+    stateBadge(project) {
+      if (project.action === 'audit') return 'gf-badge-pass';
+      if (project.action === 'upgrade') return 'gf-badge-warn';
+      if (project.action === 'migration') return 'gf-badge-high';
+      if (project.action === 'setup') return 'gf-badge-ap';
+      if (project.action === 'fix') return 'gf-badge-ap';
+      return 'gf-badge-muted';
+    },
+    get filteredProjects() {
+      const q = this.projectSearch.toLowerCase().trim();
+      const list = this.sortedProjectsList;
+      if (!q) return list;
+      return list.filter(p => {
+        const name = p.path.split('/').filter(Boolean).pop() || '';
+        return name.toLowerCase().includes(q) || (p.state || '').toLowerCase().includes(q) || (p.action || '').toLowerCase().includes(q);
+      });
+    },
+    stateCounts() {
+      const counts = {};
+      for (const p of this.projectsList) {
+        const key = p.action || 'unknown';
+        counts[key] = (counts[key] || 0) + 1;
+      }
+      return counts;
+    },
+    doAction(project) {
+      if (project.action === 'audit') {
+        this.projectPath = project.path; this.activeView = 'home'; this.runAudit();
+      } else if (project.action === 'setup') {
+        this.projectPath = project.path; this.activeView = 'wizard'; this.detectStack();
+      } else if (project.action === 'migration' || project.action === 'upgrade') {
+        this.projectPath = project.path; this.activeView = 'wizard'; this.detectStack();
+      } else {
+        this.projectPath = project.path; this.activeView = 'home'; this.runAudit();
+      }
+    }
+  }"
+>
+  <div style="max-width: 1080px; margin: 0 auto; padding: 12px 28px 24px">
+    <!-- Header -->
+    <div
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      "
+    >
+      <span class="gf-text-primary" style="font-size: 20px; font-weight: 500"
+        >Projects</span
+      >
+      <div style="display: flex; gap: 8px">
+        <button
+          @click="auditAllProjects()"
+          :disabled="projectsAuditing"
+          class="gf-btn gf-btn-md gf-btn-audit"
+        >
+          <span x-text="projectsAuditing ? 'Auditing...' : 'Audit All'"></span>
+        </button>
+        <button
+          @click="showAddProject = true; $nextTick(() => $refs.addProjectInput?.focus())"
+          class="gf-btn gf-btn-md gf-btn-audit"
+        >
+          Add Project
+        </button>
+      </div>
+    </div>
+
+    <!-- Summary bar -->
+    <div
+      x-show="projectsList.length > 0"
+      class="gf-text-muted"
+      style="
+        font-size: 12px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      "
+    >
+      <span
+        x-text="`${projectsList.length} project${projectsList.length !== 1 ? 's' : ''}`"
+        class="gf-text-secondary"
+        style="font-weight: 500"
+      ></span>
+      <span style="opacity: 0.4">&#8212;</span>
+      <template
+        x-for="[action, count] in Object.entries(stateCounts())"
+        :key="'sum-' + action"
+      >
+        <span>
+          <span x-text="count" style="font-weight: 600"></span>
+          <span x-text="action"></span>
+          <span style="opacity: 0.3; margin: 0 2px">&#183;</span>
+        </span>
+      </template>
+    </div>
+
+    <!-- Search filter -->
+    <div x-show="projectsList.length > 3" style="margin-bottom: 12px">
+      <input
+        type="text"
+        x-model="projectSearch"
+        class="gf-input"
+        style="
+          width: 100%;
+          font-size: 12px;
+          padding: 7px 12px;
+          border-radius: 6px;
+          outline: none;
+        "
+        placeholder="Filter projects..."
+      />
+    </div>
+
+    <!-- Add project panel -->
+    <div
+      x-show="showAddProject"
+      x-cloak
+      class="gf-card"
+      style="padding: 14px 16px; margin-bottom: 16px"
+    >
+      <div
+        class="gf-text-secondary"
+        style="font-size: 12px; font-weight: 500; margin-bottom: 8px"
+      >
+        Add project path
+      </div>
+      <div style="display: flex; gap: 8px">
+        <input
+          type="text"
+          x-model="newProjectPath"
+          x-ref="addProjectInput"
+          class="gf-input"
+          style="
+            flex: 1;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            outline: none;
+          "
+          placeholder="/path/to/project"
+          @keydown.enter="addProject()"
+        />
+        <button @click="addProject()" class="gf-btn gf-btn-md gf-btn-primary">
+          Add
+        </button>
+        <button
+          @click="showAddProject = false; newProjectPath = ''"
+          class="gf-btn gf-btn-md"
+          style="background: none; border: none; color: var(--text-muted)"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+
+    <!-- Projects table -->
+    <div
+      x-show="projectsList.length > 0"
+      class="gf-card"
+      style="border-radius: 8px; overflow: hidden; margin-bottom: 20px"
+    >
+      <table style="width: 100%; border-collapse: collapse">
+        <thead>
+          <tr>
+            <template
+              x-for="col in [{label: 'Project', key: 'name'}, {label: 'State', key: 'state'}, {label: 'Action', key: 'action'}, {label: 'Details', key: 'details'}, {label: '', key: null}]"
+            >
+              <th
+                class="gf-th"
+                :style="col.key ? 'cursor: pointer; user-select: none;' : ''"
+                @click="col.key && sortProjects(col.key)"
+              >
+                <span x-text="col.label"></span>
+                <span
+                  x-show="col.key && projectsSortKey === col.key"
+                  x-text="projectsSortAsc ? ' ▲' : ' ▼'"
+                  style="font-size: 9px; opacity: 0.6"
+                ></span>
+              </th>
+            </template>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="project in filteredProjects" :key="project.path">
+            <tr class="gf-tr">
+              <!-- Project name (clickable → home view) -->
+              <td class="gf-td">
+                <button
+                  @click="projectPath = project.path; activeView = 'home'; runAudit()"
+                  style="
+                    background: none;
+                    border: none;
+                    padding: 0;
+                    cursor: pointer;
+                    text-align: left;
+                    color: var(--text-primary);
+                    font-size: 12px;
+                    font-family: var(--font-mono);
+                  "
+                  @mouseenter="$el.style.color = 'var(--accent)'"
+                  @mouseleave="$el.style.color = 'var(--text-primary)'"
+                >
+                  <span
+                    x-text="project.path.split('/').filter(Boolean).pop()"
+                  ></span>
+                </button>
+                <div
+                  class="gf-text-muted"
+                  style="
+                    font-size: 10px;
+                    margin-top: 1px;
+                    max-width: 200px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                  "
+                  x-text="project.path"
+                  :title="project.path"
+                ></div>
+              </td>
+              <!-- State badge (color-coded) -->
+              <td class="gf-td">
+                <span
+                  style="
+                    padding: 1px 6px;
+                    border-radius: 4px;
+                    font-size: 11px;
+                    font-weight: 600;
+                  "
+                  :class="stateBadge(project)"
+                  x-text="project.state"
+                ></span>
+              </td>
+              <!-- Action (clickable button) -->
+              <td class="gf-td">
+                <button
+                  @click="doAction(project)"
+                  style="
+                    background: none;
+                    border: none;
+                    padding: 0;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: var(--accent);
+                  "
+                  @mouseenter="$el.style.textDecoration = 'underline'"
+                  @mouseleave="$el.style.textDecoration = 'none'"
+                  x-text="project.action"
+                ></button>
+              </td>
+              <!-- Details (truncated, full text in tooltip) -->
+              <td class="gf-td">
+                <span
+                  class="gf-text-muted"
+                  style="
+                    font-size: 11px;
+                    display: block;
+                    max-width: 220px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                  "
+                  x-text="project.details"
+                  :title="project.details"
+                ></span>
+              </td>
+              <!-- Actions -->
+              <td class="gf-td" style="text-align: right; white-space: nowrap">
+                <button
+                  @click="projectPath = project.path; activeView = 'workspace'"
+                  x-show="terminalAvailable"
+                  class="gf-btn gf-btn-sm gf-btn-ghost"
+                  style="margin-right: 4px"
+                >
+                  Terminal
+                </button>
+                <!-- Remove with confirmation -->
+                <button
+                  x-show="confirmRemovePath !== project.path"
+                  @click="confirmRemovePath = project.path"
+                  class="gf-btn gf-btn-sm"
+                  style="
+                    background: none;
+                    border: none;
+                    color: var(--text-muted);
+                    font-size: 11px;
+                    padding: 2px 6px;
+                  "
+                  @mouseenter="$el.style.color = 'var(--red-400)'"
+                  @mouseleave="$el.style.color = 'var(--text-muted)'"
+                >
+                  Remove
+                </button>
+                <span
+                  x-show="confirmRemovePath === project.path"
+                  style="display: inline-flex; align-items: center; gap: 4px"
+                >
+                  <span class="gf-text-muted" style="font-size: 11px"
+                    >Remove?</span
+                  >
+                  <button
+                    @click="removeProject(project.path); confirmRemovePath = null"
+                    class="gf-btn gf-btn-sm gf-btn-danger"
+                    style="font-size: 11px; padding: 1px 6px"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    @click="confirmRemovePath = null"
+                    class="gf-btn gf-btn-sm"
+                    style="
+                      background: none;
+                      border: none;
+                      color: var(--text-muted);
+                      font-size: 11px;
+                      padding: 1px 6px;
+                    "
+                  >
+                    No
+                  </button>
+                </span>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <!-- No search results -->
+      <div
+        x-show="projectSearch && filteredProjects.length === 0"
+        style="padding: 16px; text-align: center"
+      >
+        <span class="gf-text-muted" style="font-size: 12px"
+          >No projects match filter</span
+        >
+      </div>
+    </div>
+
+    <!-- Running Terminals -->
+    <div
+      x-show="terminalAvailable && serverSessions.length > 0"
+      style="margin-bottom: 20px"
+    >
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        "
+      >
+        <span class="gf-text-primary" style="font-size: 14px; font-weight: 500"
+          >Running Terminals</span
+        >
+        <span
+          class="gf-text-muted"
+          style="font-size: 11px; font-weight: 600"
+          :style="{ color: serverSessions.length >= 3 ? 'var(--red-400)' : 'var(--text-muted)' }"
+          x-text="`${serverSessions.length}/3`"
+        ></span>
+      </div>
+      <div class="gf-card" style="border-radius: 8px; overflow: hidden">
+        <template x-for="s in serverSessions" :key="s.id">
+          <div
+            class="gf-tr"
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 10px 16px;
+              gap: 12px;
+              border-bottom: 1px solid var(--border);
+            "
+          >
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                min-width: 0;
+                flex: 1;
+              "
+            >
+              <span
+                style="
+                  width: 7px;
+                  height: 7px;
+                  border-radius: 50%;
+                  flex-shrink: 0;
+                "
+                :style="{ background: s.status === 'active' ? '#4ade80' : '#9ca3af' }"
+              ></span>
+              <span
+                class="gf-text-secondary"
+                style="font-size: 12px; font-weight: 600; flex-shrink: 0"
+                x-text="s.runner"
+              ></span>
+              <span
+                class="gf-text-muted"
+                style="
+                  font-size: 11px;
+                  font-family: var(--font-mono);
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
+                "
+                x-text="s.projectName"
+                :title="s.projectPath"
+              ></span>
+              <span
+                class="gf-text-muted"
+                style="font-size: 11px; flex-shrink: 0"
+                x-text="(() => {
+                  const m = Math.floor((s.age || 0) / 60);
+                  const h = Math.floor(m / 60);
+                  return h > 0 ? h + 'h ' + (m % 60) + 'm' : m + 'm';
+                })()"
+              ></span>
+            </div>
+            <div style="display: flex; gap: 6px; flex-shrink: 0">
+              <button
+                @click="openServerSession(s)"
+                class="gf-btn gf-btn-sm gf-btn-ghost"
+                style="font-size: 11px"
+              >
+                Open
+              </button>
+              <button
+                @click="endServerSession(s.id)"
+                class="gf-btn gf-btn-sm"
+                style="
+                  background: none;
+                  border: none;
+                  color: var(--text-muted);
+                  font-size: 11px;
+                  padding: 2px 6px;
+                "
+                @mouseenter="$el.style.color = 'var(--red-400)'"
+                @mouseleave="$el.style.color = 'var(--text-muted)'"
+              >
+                End
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div
+      x-show="projectsList.length === 0"
+      class="gf-surface"
+      style="
+        border-radius: 8px;
+        padding: 24px;
+        text-align: center;
+        margin-bottom: 20px;
+      "
+    >
+      <p class="gf-text-muted" style="font-size: 13px">
+        No projects added. Click "Add Project" to monitor a project directory.
+      </p>
+    </div>
+
+    <!-- Max sessions modal -->
+    <div
+      x-show="showMaxSessionsModal"
+      x-cloak
+      @click.self="showMaxSessionsModal = false"
+      @keydown.escape.window="showMaxSessionsModal = false"
+      style="
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(2px);
+      "
+    >
+      <div
+        class="gf-card"
+        style="
+          padding: 24px 28px;
+          max-width: 380px;
+          text-align: center;
+          border-radius: 12px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        "
+      >
+        <div style="font-size: 28px; margin-bottom: 12px">&#9888;</div>
+        <h3
+          class="gf-text-primary"
+          style="font-size: 16px; font-weight: 600; margin: 0 0 6px"
+        >
+          Session Limit Reached
+        </h3>
+        <p
+          class="gf-text-muted"
+          style="font-size: 13px; line-height: 1.5; margin: 0 0 16px"
+        >
+          Maximum of 3 terminal sessions. End an existing session from the
+          <button
+            @click="showMaxSessionsModal = false; activeView = 'projects'"
+            style="
+              background: none;
+              border: none;
+              padding: 0;
+              color: var(--accent);
+              cursor: pointer;
+              font-weight: 500;
+              text-decoration: underline;
+              font-size: inherit;
+            "
+          >
+            Projects
+          </button>
+          page to start a new one.
+        </p>
+        <button
+          @click="showMaxSessionsModal = false"
+          class="gf-btn gf-btn-md gf-btn-primary"
+          style="min-width: 100px"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div
+      class="gf-footer"
+      style="text-align: center; font-size: 11px; padding: 16px 0 8px"
+    >
+      Built by
+      <a
+        href="https://www.blundergoat.com"
+        target="_blank"
+        class="gf-footer-link"
+        >BlunderGOAT</a
+      >
+      · <span x-text="dashboardVersion ? `v${dashboardVersion}` : ''"></span>
+    </div>
+  </div>
+</div>

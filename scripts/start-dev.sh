@@ -1,5 +1,25 @@
 #!/usr/bin/env bash
 
+# start-dev.sh
+#
+# Purpose:
+#   Boots a local development session and performs lightweight validation gates.
+#
+# Usage:
+#   bash scripts/start-dev.sh
+#
+# Behavior:
+#   - verifies Node/npm + minimum Node version
+#   - installs dependencies if missing
+#   - runs typecheck/tests when configured
+#   - runs preflight checks and optional self-scan
+#
+# Exit:
+#   0 when local dev bootstrap completes (including any non-fatal warnings), 1 on fatal setup failure.
+#
+# Requirements:
+#   - node, npm
+
 set -euo pipefail
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -45,10 +65,10 @@ if [[ -x scripts/preflight-checks.sh ]]; then
     bash scripts/preflight-checks.sh || warn "Preflight checks had issues"
 fi
 
-# 6. Self-scan
-if [[ -f package.json ]] && grep -q '"self-scan"' package.json 2>/dev/null; then
-    info "Running self-scan..."
-    npm run self-scan -- --format text 2>/dev/null || warn "Self-scan not available yet"
+# 6. Self-audit
+if [[ -f package.json ]] && [[ "$(npm pkg get scripts.audit 2>/dev/null)" != "null" ]]; then
+    info "Running self-audit..."
+    npm run audit 2>/dev/null || warn "Self-audit not available yet"
 fi
 
 echo ""
@@ -57,4 +77,4 @@ info "Commands:"
 info "  npm run build       - Compile TypeScript"
 info "  npm test            - Run tests"
 info "  npm run typecheck   - Type-check without emitting"
-info "  npm run self-scan   - Scan this repo with goat-flow"
+info "  npm run audit       - Audit this repo with goat-flow"

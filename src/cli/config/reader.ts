@@ -1,53 +1,56 @@
 /**
  * Loads and validates `.goat-flow/config.yaml`.
- * Owns defaults, schema-level validation, and the normalized `LoadedConfig` returned to scanners and prompt builders.
+ * Owns defaults, schema-level validation, and the normalized `LoadedConfig` returned to audit and prompt builders.
  */
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { load } from 'js-yaml';
-import type { ReadonlyFS } from '../types.js';
-import { RUBRIC_VERSION } from '../rubric/version.js';
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { load } from "js-yaml";
+import type { ReadonlyFS } from "../types.js";
+import { AUDIT_VERSION } from "../constants.js";
 import type {
   GoatFlowConfig,
   LoadedConfig,
   ValidationIssue,
   ValidationResult,
-} from './types.js';
+} from "./types.js";
 
 /** Agent identifiers accepted in the config's `agents` field. */
-const KNOWN_AGENTS = new Set(['claude', 'codex', 'gemini']);
+const KNOWN_AGENTS = new Set(["claude", "codex", "gemini"]);
 /** Top-level config keys recognized by the validator (others trigger warnings). */
 const KNOWN_TOP_LEVEL_KEYS = new Set([
-  'version',
-  'footguns',
-  'lessons',
-  'decisions',
-  'evals',
-  'coding-standards',
-  'tasks',
-  'logs',
-  'agents',
-  'skills',
-  'line-limits',
-  'userRole',
-  'telemetry',
+  "version",
+  "agents",
+  "skills",
+  "line-limits",
+  "toolchain",
+  "userRole",
+  "telemetry",
+  "known-gaps",
+  "skill-overrides",
 ]);
 
 /** Built-in default values used when config.yaml is missing or omits fields. */
-export const CONFIG_DEFAULTS: GoatFlowConfig = {
-  version: RUBRIC_VERSION,
-  footguns: { committed: 'ai-docs/footguns/', local: '.goat-flow/footguns/' },
-  lessons: { committed: 'ai-docs/lessons/', local: '.goat-flow/lessons/' },
-  decisions: { path: 'ai-docs/decisions/' },
-  evals: { path: 'ai-docs/evals/' },
-  codingStandards: { path: 'ai-docs/coding-standards/' },
-  tasks: { path: '.goat-flow/tasks/' },
-  logs: { path: '.goat-flow/logs/' },
+const CONFIG_DEFAULTS: GoatFlowConfig = {
+  version: AUDIT_VERSION,
+  footguns: { path: ".goat-flow/footguns/" },
+  lessons: { path: ".goat-flow/lessons/" },
+  decisions: { path: ".goat-flow/decisions/" },
+  tasks: { path: ".goat-flow/tasks/" },
+  logs: { path: ".goat-flow/logs/" },
   agents: null,
-  skills: { install: 'all' },
+  skills: { install: "all" },
   lineLimits: { target: 120, limit: 150 },
-  userRole: 'developer',
+  toolchain: {
+    test: [],
+    lint: [],
+    build: [],
+    package: [],
+    format: [],
+  },
+  userRole: "developer",
   telemetry: false,
+  knownGaps: [],
+  skillOverrides: {},
 };
 
 /** Clone the default config object so callers can mutate it safely. */
@@ -57,15 +60,22 @@ function cloneDefaults(): GoatFlowConfig {
     footguns: { ...CONFIG_DEFAULTS.footguns },
     lessons: { ...CONFIG_DEFAULTS.lessons },
     decisions: { ...CONFIG_DEFAULTS.decisions },
-    evals: { ...CONFIG_DEFAULTS.evals },
-    codingStandards: { ...CONFIG_DEFAULTS.codingStandards },
     tasks: { ...CONFIG_DEFAULTS.tasks },
     logs: { ...CONFIG_DEFAULTS.logs },
     agents: CONFIG_DEFAULTS.agents,
     skills: { install: CONFIG_DEFAULTS.skills.install },
     lineLimits: { ...CONFIG_DEFAULTS.lineLimits },
+    toolchain: {
+      test: [...CONFIG_DEFAULTS.toolchain.test],
+      lint: [...CONFIG_DEFAULTS.toolchain.lint],
+      build: [...CONFIG_DEFAULTS.toolchain.build],
+      package: [...CONFIG_DEFAULTS.toolchain.package],
+      format: [...CONFIG_DEFAULTS.toolchain.format],
+    },
     userRole: CONFIG_DEFAULTS.userRole,
     telemetry: CONFIG_DEFAULTS.telemetry,
+    knownGaps: [...CONFIG_DEFAULTS.knownGaps],
+    skillOverrides: { ...CONFIG_DEFAULTS.skillOverrides },
   };
 }
 
@@ -73,39 +83,22 @@ function cloneDefaults(): GoatFlowConfig {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return (
     value !== null &&
-    typeof value === 'object' &&
+    typeof value === "object" &&
     Array.isArray(value) === false
   );
 }
 
 /** Read raw config YAML from the project root or injected test filesystem. */
 function readConfigText(projectRoot: string, fs?: ReadonlyFS): string | null {
-  if (fs) return fs.readFile('.goat-flow/config.yaml');
-  const path = join(projectRoot, '.goat-flow', 'config.yaml');
+  if (fs) return fs.readFile(".goat-flow/config.yaml");
+  const path = join(projectRoot, ".goat-flow", "config.yaml");
   if (!existsSync(path)) return null;
-  return readFileSync(path, 'utf8');
-}
-
-/** Apply committed/local path overrides for a two-path config section. */
-function mergePairPaths(
-  value: unknown,
-  target: { committed: string; local: string },
-): void {
-  if (!isRecord(value)) return;
-  if (typeof value.committed === 'string') target.committed = value.committed;
-  if (typeof value.local === 'string') target.local = value.local;
-}
-
-/** Apply a `path` override for a single-path config section. */
-function mergeSinglePath(value: unknown, target: { path: string }): void {
-  if (isRecord(value) && typeof value.path === 'string') {
-    target.path = value.path;
-  }
+  return readFileSync(path, "utf8");
 }
 
 /** Apply a config version override when the raw value is valid. */
 function mergeVersion(value: unknown, merged: GoatFlowConfig): void {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     merged.version = value;
   }
 }
@@ -121,27 +114,46 @@ function mergeAgents(value: unknown, merged: GoatFlowConfig): void {
 function mergeSkills(value: unknown, merged: GoatFlowConfig): void {
   if (!isRecord(value)) return;
   const { install } = value;
-  if (install === 'all' || Array.isArray(install)) {
-    merged.skills.install = install as string[] | 'all';
+  if (install === "all" || Array.isArray(install)) {
+    merged.skills.install = install as string[] | "all";
   }
 }
 
+/** Normalize one raw command list into a filtered string array. */
+function normalizeCommandList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is string =>
+      typeof item === "string" && item.trim().length > 0,
+  );
+}
+
+/** Apply toolchain command arrays from the raw config. */
+function mergeToolchain(value: unknown, merged: GoatFlowConfig): void {
+  if (!isRecord(value)) return;
+  merged.toolchain.test = normalizeCommandList(value.test);
+  merged.toolchain.lint = normalizeCommandList(value.lint);
+  merged.toolchain.build = normalizeCommandList(value.build);
+  merged.toolchain.package = normalizeCommandList(value.package);
+  merged.toolchain.format = normalizeCommandList(value.format);
+}
+
 /** Valid userRole values accepted in the config file. */
-const KNOWN_USER_ROLES = new Set(['developer', 'investigator', 'tester']);
+const KNOWN_USER_ROLES = new Set(["developer", "investigator", "tester"]);
 
 /** Apply a valid userRole override from the raw config. */
 function mergeUserRole(value: unknown, merged: GoatFlowConfig): void {
-  if (typeof value === 'string' && KNOWN_USER_ROLES.has(value)) {
-    merged.userRole = value as GoatFlowConfig['userRole'];
+  if (typeof value === "string" && KNOWN_USER_ROLES.has(value)) {
+    merged.userRole = value as GoatFlowConfig["userRole"];
   }
 }
 
 /** Apply positive line-limit overrides from the raw config. */
 function mergeLineLimits(value: unknown, merged: GoatFlowConfig): void {
   if (!isRecord(value)) return;
-  if (typeof value.target === 'number' && value.target > 0)
+  if (typeof value.target === "number" && value.target > 0)
     merged.lineLimits.target = value.target;
-  if (typeof value.limit === 'number' && value.limit > 0)
+  if (typeof value.limit === "number" && value.limit > 0)
     merged.lineLimits.limit = value.limit;
 }
 
@@ -151,22 +163,31 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
   if (!isRecord(raw)) return merged;
 
   mergeVersion(raw.version, merged);
-  mergePairPaths(raw.footguns, merged.footguns);
-  mergePairPaths(raw.lessons, merged.lessons);
-  mergeSinglePath(raw.decisions, merged.decisions);
-  mergeSinglePath(raw.evals, merged.evals);
-
-  // YAML key is `coding-standards` (kebab-case), TypeScript field is `codingStandards` (camelCase)
-  mergeSinglePath(raw['coding-standards'], merged.codingStandards);
-  mergeSinglePath(raw.tasks, merged.tasks);
-  mergeSinglePath(raw.logs, merged.logs);
+  // Path overrides for footguns/lessons/decisions/tasks/logs removed in v1.1.0.
+  // Canonical paths (.goat-flow/*) are always used.
   mergeAgents(raw.agents, merged);
   mergeSkills(raw.skills, merged);
 
   // YAML key is `line-limits` (kebab-case), TypeScript field is `lineLimits` (camelCase)
-  mergeLineLimits(raw['line-limits'], merged);
+  mergeLineLimits(raw["line-limits"], merged);
+  mergeToolchain(raw.toolchain, merged);
   mergeUserRole(raw.userRole, merged);
-  if (typeof raw.telemetry === 'boolean') merged.telemetry = raw.telemetry;
+  if (typeof raw.telemetry === "boolean") merged.telemetry = raw.telemetry;
+
+  // YAML key is `known-gaps` (kebab-case), TypeScript field is `knownGaps` (camelCase)
+  if (Array.isArray(raw["known-gaps"])) {
+    merged.knownGaps = (raw["known-gaps"] as unknown[]).filter(
+      (item): item is string =>
+        typeof item === "string" && item.trim().length > 0,
+    );
+  }
+
+  // YAML key is `skill-overrides` (kebab-case), TypeScript field is `skillOverrides` (camelCase)
+  if (isRecord(raw["skill-overrides"])) {
+    merged.skillOverrides = {
+      ...raw["skill-overrides"],
+    };
+  }
 
   return merged;
 }
@@ -177,7 +198,7 @@ function pushError(
   path: string,
   message: string,
 ): void {
-  errors.push({ level: 'error', path, message });
+  errors.push({ level: "error", path, message });
 }
 
 /** Append a config validation warning with its source path. */
@@ -186,18 +207,7 @@ function pushWarning(
   path: string,
   message: string,
 ): void {
-  warnings.push({ level: 'warning', path, message });
-}
-
-/** Require a non-empty string wherever the schema expects a path value. */
-function validateStringPath(
-  value: unknown,
-  path: string,
-  errors: ValidationIssue[],
-): void {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    pushError(errors, path, 'must be a non-empty string');
-  }
+  warnings.push({ level: "warning", path, message });
 }
 
 /** Shorthand for a loosely-typed parsed YAML config object. */
@@ -209,14 +219,14 @@ type ConfigValidator = (
   errors: ValidationIssue[],
 ) => void;
 
-/** Warn when the config contains top-level keys the scanner does not understand. */
+/** Warn when the config contains top-level keys that are not understood. */
 function validateUnknownTopLevelKeys(
   raw: RawConfig,
   warnings: ValidationIssue[],
 ): void {
   for (const key of Object.keys(raw)) {
     if (!KNOWN_TOP_LEVEL_KEYS.has(key)) {
-      pushWarning(warnings, key, 'unknown top-level key');
+      pushWarning(warnings, key, "unknown top-level key");
     }
   }
 }
@@ -231,50 +241,10 @@ function validateObjectField(
   if (!(key in raw)) return;
   const value = raw[key];
   if (!isRecord(value)) {
-    pushError(errors, key, 'must be an object');
+    pushError(errors, key, "must be an object");
     return;
   }
   onValid(value);
-}
-
-/** Validate an optional nested path field when it is present. */
-function validateOptionalStringField(
-  value: RawConfig,
-  key: string,
-  path: string,
-  errors: ValidationIssue[],
-): void {
-  if (key in value) {
-    validateStringPath(value[key], path, errors);
-  }
-}
-
-/** Validate a `{ committed, local }` path section such as footguns or lessons. */
-function validatePairPathSection(
-  raw: RawConfig,
-  section: 'footguns' | 'lessons',
-  errors: ValidationIssue[],
-): void {
-  validateObjectField(raw, section, errors, (value) => {
-    validateOptionalStringField(
-      value,
-      'committed',
-      `${section}.committed`,
-      errors,
-    );
-    validateOptionalStringField(value, 'local', `${section}.local`, errors);
-  });
-}
-
-/** Validate a `{ path }` section such as decisions, evals, or logs. */
-function validateSinglePathSection(
-  raw: RawConfig,
-  section: 'decisions' | 'evals' | 'coding-standards' | 'tasks' | 'logs',
-  errors: ValidationIssue[],
-): void {
-  validateObjectField(raw, section, errors, (value) => {
-    validateOptionalStringField(value, 'path', `${section}.path`, errors);
-  });
 }
 
 /** Require a positive numeric value for a numeric config field. */
@@ -283,8 +253,25 @@ function validatePositiveNumber(
   path: string,
   errors: ValidationIssue[],
 ): void {
-  if (typeof value !== 'number' || value <= 0) {
-    pushError(errors, path, 'must be a positive number');
+  if (typeof value !== "number" || value <= 0) {
+    pushError(errors, path, "must be a positive number");
+  }
+}
+
+/** Require a string array for command-list config fields. */
+function validateStringArray(
+  value: unknown,
+  path: string,
+  errors: ValidationIssue[],
+): void {
+  if (!Array.isArray(value)) {
+    pushError(errors, path, "must be an array");
+    return;
+  }
+  for (const [index, item] of value.entries()) {
+    if (typeof item !== "string" || item.trim().length === 0) {
+      pushError(errors, `${path}[${index}]`, "must be a non-empty string");
+    }
   }
 }
 
@@ -294,54 +281,9 @@ function validateVersionField(
   _warnings: ValidationIssue[],
   errors: ValidationIssue[],
 ): void {
-  if ('version' in raw && typeof raw.version !== 'string') {
-    pushError(errors, 'version', 'must be a string');
+  if ("version" in raw && typeof raw.version !== "string") {
+    pushError(errors, "version", "must be a string");
   }
-}
-
-/** Validate the footguns path section. */
-function validateFootgunsField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validatePairPathSection(raw, 'footguns', errors);
-}
-
-/** Validate the lessons path section. */
-function validateLessonsField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validatePairPathSection(raw, 'lessons', errors);
-}
-
-/** Validate the decisions path section. */
-function validateDecisionsField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validateSinglePathSection(raw, 'decisions', errors);
-}
-
-/** Validate the evals path section. */
-function validateEvalsField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validateSinglePathSection(raw, 'evals', errors);
-}
-
-/** Validate the coding-standards path section. */
-function validateCodingStandardsField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validateSinglePathSection(raw, 'coding-standards', errors);
 }
 
 /** Validate line-limit overrides and ensure target stays below limit. */
@@ -350,37 +292,39 @@ function validateLineLimitsField(
   _warnings: ValidationIssue[],
   errors: ValidationIssue[],
 ): void {
-  validateObjectField(raw, 'line-limits', errors, (value) => {
-    if ('target' in value)
-      validatePositiveNumber(value.target, 'line-limits.target', errors);
-    if ('limit' in value)
-      validatePositiveNumber(value.limit, 'line-limits.limit', errors);
+  validateObjectField(raw, "line-limits", errors, (value) => {
+    if ("target" in value)
+      validatePositiveNumber(value.target, "line-limits.target", errors);
+    if ("limit" in value)
+      validatePositiveNumber(value.limit, "line-limits.limit", errors);
     if (
-      typeof value.target === 'number' &&
-      typeof value.limit === 'number' &&
+      typeof value.target === "number" &&
+      typeof value.limit === "number" &&
       value.target >= value.limit
     ) {
-      pushError(errors, 'line-limits', 'target must be less than limit');
+      pushError(errors, "line-limits", "target must be less than limit");
     }
   });
 }
 
-/** Validate the tasks path section. */
-function validateTasksField(
+/** Validate the toolchain command arrays. */
+function validateToolchainField(
   raw: RawConfig,
   _warnings: ValidationIssue[],
   errors: ValidationIssue[],
 ): void {
-  validateSinglePathSection(raw, 'tasks', errors);
-}
-
-/** Validate the logs path section. */
-function validateLogsField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validateSinglePathSection(raw, 'logs', errors);
+  validateObjectField(raw, "toolchain", errors, (value) => {
+    if ("test" in value)
+      validateStringArray(value.test, "toolchain.test", errors);
+    if ("lint" in value)
+      validateStringArray(value.lint, "toolchain.lint", errors);
+    if ("build" in value)
+      validateStringArray(value.build, "toolchain.build", errors);
+    if ("package" in value)
+      validateStringArray(value.package, "toolchain.package", errors);
+    if ("format" in value)
+      validateStringArray(value.format, "toolchain.format", errors);
+  });
 }
 
 /** Validate an explicit list of enabled agents. */
@@ -392,20 +336,20 @@ function validateAgentList(
   if (agents.length === 0) {
     pushError(
       errors,
-      'agents',
-      'cannot be empty; omit the field to auto-detect',
+      "agents",
+      "cannot be empty; omit the field to auto-detect",
     );
   }
   for (const [index, value] of agents.entries()) {
-    if (typeof value !== 'string') {
-      pushError(errors, `agents[${index}]`, 'must be a string');
+    if (typeof value !== "string") {
+      pushError(errors, `agents[${index}]`, "must be a string");
       continue;
     }
     if (!KNOWN_AGENTS.has(value)) {
       pushWarning(
         warnings,
         `agents[${index}]`,
-        `unknown agent "${value}" - known agents: ${Array.from(KNOWN_AGENTS).join(', ')}`,
+        `unknown agent "${value}" - known agents: ${Array.from(KNOWN_AGENTS).join(", ")}`,
       );
     }
   }
@@ -417,10 +361,10 @@ function validateAgentsField(
   warnings: ValidationIssue[],
   errors: ValidationIssue[],
 ): void {
-  if (!('agents' in raw)) return;
+  if (!("agents" in raw)) return;
   const { agents } = raw;
   if (agents !== null && !Array.isArray(agents)) {
-    pushError(errors, 'agents', 'must be null or an array');
+    pushError(errors, "agents", "must be null or an array");
     return;
   }
   if (Array.isArray(agents)) {
@@ -434,11 +378,11 @@ function validateSkillInstallList(
   errors: ValidationIssue[],
 ): void {
   if (install.length === 0) {
-    pushError(errors, 'skills.install', 'cannot be empty');
+    pushError(errors, "skills.install", "cannot be empty");
   }
   for (const [index, value] of install.entries()) {
-    if (typeof value !== 'string') {
-      pushError(errors, `skills.install[${index}]`, 'must be a string');
+    if (typeof value !== "string") {
+      pushError(errors, `skills.install[${index}]`, "must be a string");
     }
   }
 }
@@ -449,13 +393,13 @@ function validateUserRoleField(
   _warnings: ValidationIssue[],
   errors: ValidationIssue[],
 ): void {
-  if (!('userRole' in raw)) return;
+  if (!("userRole" in raw)) return;
   const { userRole } = raw;
-  if (typeof userRole !== 'string' || !KNOWN_USER_ROLES.has(userRole)) {
+  if (typeof userRole !== "string" || !KNOWN_USER_ROLES.has(userRole)) {
     pushError(
       errors,
-      'userRole',
-      `must be one of: ${Array.from(KNOWN_USER_ROLES).join(', ')}`,
+      "userRole",
+      `must be one of: ${Array.from(KNOWN_USER_ROLES).join(", ")}`,
     );
   }
 }
@@ -466,11 +410,11 @@ function validateSkillsField(
   _warnings: ValidationIssue[],
   errors: ValidationIssue[],
 ): void {
-  validateObjectField(raw, 'skills', errors, (value) => {
-    if (!('install' in value)) return;
+  validateObjectField(raw, "skills", errors, (value) => {
+    if (!("install" in value)) return;
     const { install } = value;
-    if (install !== 'all' && !Array.isArray(install)) {
-      pushError(errors, 'skills.install', 'must be "all" or an array');
+    if (install !== "all" && !Array.isArray(install)) {
+      pushError(errors, "skills.install", 'must be "all" or an array');
       return;
     }
     if (Array.isArray(install)) {
@@ -482,26 +426,20 @@ function validateSkillsField(
 /** Ordered list of field-level validators applied during config validation. */
 const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateVersionField,
-  validateFootgunsField,
-  validateLessonsField,
-  validateDecisionsField,
-  validateEvalsField,
-  validateCodingStandardsField,
   validateLineLimitsField,
-  validateTasksField,
-  validateLogsField,
   validateAgentsField,
   validateSkillsField,
+  validateToolchainField,
   validateUserRoleField,
 ];
 
 /** Validate a parsed config object and return structured warnings and errors. */
-export function validateConfig(raw: unknown): ValidationResult {
+function validateConfig(raw: unknown): ValidationResult {
   const warnings: ValidationIssue[] = [];
   const errors: ValidationIssue[] = [];
 
   if (!isRecord(raw)) {
-    pushError(errors, 'config', 'must be a YAML object');
+    pushError(errors, "config", "must be a YAML object");
     return { valid: false, warnings, errors };
   }
 
@@ -538,8 +476,8 @@ export function loadConfig(projectRoot: string, fs?: ReadonlyFS): LoadedConfig {
       warnings: [],
       errors: [
         {
-          level: 'error',
-          path: '.goat-flow/config.yaml',
+          level: "error",
+          path: ".goat-flow/config.yaml",
           message: error instanceof Error ? error.message : String(error),
         },
       ],
@@ -556,12 +494,4 @@ export function loadConfig(projectRoot: string, fs?: ReadonlyFS): LoadedConfig {
     errors: validation.errors,
     parseError: null,
   };
-}
-
-/** Return the normalized config object, falling back to defaults on failure. */
-export function readConfig(
-  projectRoot: string,
-  fs?: ReadonlyFS,
-): GoatFlowConfig {
-  return loadConfig(projectRoot, fs).config;
 }

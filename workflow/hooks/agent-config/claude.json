@@ -1,0 +1,42 @@
+{
+  // Claude Code settings template - copy to .claude/settings.json
+  // Paths use $(git rev-parse --show-toplevel) for portability.
+  // NEVER hardcode absolute paths - they break when the repo is cloned elsewhere.
+
+  // --- Permissions Deny List ---------------------------------------------------
+  // Glob substring matches: Bash(*git commit*) blocks ANY Bash command containing
+  // "git commit". Broad matching is intentional (safety-first). False positives
+  // can be overridden in settings.local.json with an "allow" entry.
+  "permissions": {
+    "deny": [
+      "Bash(*git commit*)",
+      "Bash(*git push*)",
+      "Read(**/.env*)",
+      "Edit(**/.env*)",
+      "Write(**/.env*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/.ssh/**)",
+      "Read(**/.aws/**)",
+      "Read(**/credentials*)"
+    ]
+  },
+
+  // --- Hook Registrations ------------------------------------------------------
+  // Each hook is an external script. Inline commands work but are harder to
+  // maintain and debug. One script per hook, one concern per script.
+  "hooks": {
+    // PreToolUse: fires BEFORE the tool executes. Exit 2 = block.
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-dangerous.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

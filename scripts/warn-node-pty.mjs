@@ -1,15 +1,15 @@
 // Skip in CI - node-pty is intentionally absent in CI environments
 if (process.env.CI) process.exit(0);
 
-import { createRequire } from 'node:module';
+import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const userAgent = process.env.npm_config_user_agent ?? '';
-const isPnpmInstall = userAgent.includes('pnpm/');
+const userAgent = process.env.npm_config_user_agent ?? "";
+const isPnpmInstall = userAgent.includes("pnpm/");
 
 function hasNodePty() {
   try {
-    require('node-pty');
+    require("node-pty");
     return true;
   } catch {
     return false;
@@ -17,10 +17,10 @@ function hasNodePty() {
 }
 
 if (!hasNodePty()) {
-  console.log('Note: node-pty is not available for this install.');
+  console.log("Note: node-pty is not available for this install.");
   if (isPnpmInstall) {
-    console.log('  Run: pnpm approve-builds');
-    console.log('  Then select: node-pty');
+    console.log("  Run: pnpm approve-builds");
+    console.log("  Then select: node-pty");
   }
-  console.log('Alternative: npm install node-pty');
+  console.log("Alternative: npm install node-pty");
 }

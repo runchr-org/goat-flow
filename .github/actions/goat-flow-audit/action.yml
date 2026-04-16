@@ -1,0 +1,137 @@
+name: "GOAT Flow Audit"
+description: "Validate AI workflow setup quality and comment results on PRs"
+inputs:
+  quality:
+    description: "Include advisory quality scoring (true/false)"
+    required: false
+    default: "false"
+  path:
+    description: "Path to audit (defaults to repo root)"
+    required: false
+    default: "."
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: "20"
+    - name: Install dependencies
+      shell: bash
+      run: cd ${{ github.action_path }}/../../.. && npm ci
+    - name: Build CLI
+      shell: bash
+      run: cd ${{ github.action_path }}/../../.. && npx tsc
+    - name: Run audit
+      id: audit
+      shell: bash
+      env:
+        AUDIT_PATH: ${{ inputs.path }}
+        QUALITY: ${{ inputs.quality }}
+      run: |
+        set -euo pipefail
+        cd "${{ github.action_path }}/../../.."
+        STDERR_FILE=$(mktemp)
+        trap 'rm -f "$STDERR_FILE"' EXIT
+
+        QUALITY_FLAG=""
+        if [[ "$QUALITY" == "true" ]]; then
+          QUALITY_FLAG="--harness"
+        fi
+
+        # Capture JSON on stdout only; stderr (deprecations, etc.) must not corrupt json.load
+        if ! output=$(node dist/cli/cli.js audit "$AUDIT_PATH" $QUALITY_FLAG --format json 2>"$STDERR_FILE"); then
+          echo "::error::goat-flow audit failed"
+          cat "$STDERR_FILE" >&2 || true
+          # Still parse output for PR comment if available
+          if [[ -n "$output" ]]; then
+            echo "raw_output<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$output" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          fi
+          echo "audit_pass=false" >> "$GITHUB_OUTPUT"
+          exit 0  # Don't fail yet - let the gate step handle it
+        fi
+        if [[ -s "$STDERR_FILE" ]]; then
+          echo "::warning::Audit wrote to stderr (warnings only; JSON parsed from stdout)" >&2
+          cat "$STDERR_FILE" >&2
+        fi
+
+        summary=$(printf '%s\n' "$output" | python3 -c "
+        import json, sys
+        try:
+            data = json.load(sys.stdin)
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f'goat-flow audit output could not be parsed: {e}', file=sys.stderr)
+            data = {'status': 'error', 'message': 'Audit output was not valid JSON - see workflow logs'}
+        lines = []
+        status = data.get('status', 'unknown')
+        emoji = ':white_check_mark:' if status == 'pass' else ':x:'
+        lines.append(f'**Overall: {emoji} {status.upper()}**')
+        if status == 'error':
+            lines.append(data.get('message', ''))
+        else:
+            lines.append('')
+            scopes = data.get('scopes', {})
+            for scope_name, scope_data in scopes.items():
+                if scope_data is None:
+                    continue
+                s = scope_data.get('status', 'unknown')
+                se = ':white_check_mark:' if s == 'pass' else ':x:'
+                summary = scope_data.get('summary', {})
+                detail = ', '.join(f'{k}: {v}' for k, v in summary.items()) if summary else ''
+                lines.append(f'| {se} {scope_name} | {s} | {detail} |')
+                for f in scope_data.get('failures', []):
+                    lines.append(f'|  | :x: | {f.get(\"check\", \"\")} - {f.get(\"message\", \"\")} |')
+            concerns = data.get('concerns')
+            if concerns:
+                grade = data.get('overall', {}).get('grade', '?')
+                score = data.get('overall', {}).get('qualityScore', '?')
+                lines.append(f'')
+                lines.append(f'**Quality: {grade} ({score}%)**')
+        print('\n'.join(lines))
+        ")
+
+        audit_pass=$(printf '%s\n' "$output" | python3 -c "
+        import json, sys
+        try:
+            data = json.load(sys.stdin)
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f'goat-flow audit output could not be parsed: {e}', file=sys.stderr)
+            data = {'status': 'error', 'message': 'Audit output was not valid JSON - see workflow logs'}
+        print('true' if data.get('status') == 'pass' else 'false')
+        ")
+
+        echo "summary<<EOF" >> "$GITHUB_OUTPUT"
+        echo "$summary" >> "$GITHUB_OUTPUT"
+        echo "EOF" >> "$GITHUB_OUTPUT"
+        echo "audit_pass=$audit_pass" >> "$GITHUB_OUTPUT"
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      env:
+        AUDIT_SUMMARY: ${{ steps.audit.outputs.summary }}
+      with:
+        script: |
+          const summary = process.env.AUDIT_SUMMARY ?? '';
+          const body = [
+            '## GOAT Flow Audit Results',
+            '',
+            '| Scope | Status | Details |',
+            '|-------|--------|---------|',
+            summary,
+            '',
+            '<sub>Audited by [GOAT Flow](https://github.com/blundergoat/goat-flow)</sub>'
+          ].join('\n');
+
+          await github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body
+          });
+    - name: Enforce audit gate
+      if: steps.audit.outputs.audit_pass == 'false'
+      shell: bash
+      run: |
+        echo "::error::goat-flow audit failed - one or more scopes did not pass"
+        exit 1

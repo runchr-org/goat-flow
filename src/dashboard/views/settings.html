@@ -1,144 +1,104 @@
-    <!-- ═══ Config View ═══ -->
-    <div x-show="activeView === 'settings'" x-cloak style="height: calc(100vh - 3.5rem); overflow-y: auto;">
-      <div style="max-width: 960px; margin: 0 auto; padding: 20px 24px;">
-
-        <div class="gf-text-primary" style="font-size: 20px; font-weight: 500; margin-bottom: 16px;">Config</div>
-
-        <!-- Top row: path (1fr) + role (2fr) -->
-        <div class="gf-top-row">
-
-          <!-- Project path card -->
-          <div class="gf-card" style="padding: 14px 16px;">
-            <div class="gf-text-secondary" style="font-size: 12px; font-weight: 500; margin-bottom: 8px;">Project path</div>
-            <div style="display: flex; gap: 0;" class="gf-detect-row">
-              <input type="text" x-model="projectPath"
-                class="gf-input" style="flex: 1; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; padding: 6px 10px; border-radius: 6px 0 0 6px; outline: none;"
-                placeholder="/path/to/project" @keydown.enter="runScan()">
-              <button @click="openBrowser()"
-                class="gf-input-btn" style="padding: 6px 10px; font-size: 12px; border-radius: 0 6px 6px 0; cursor: pointer; border-left: none;"
-                title="Browse folders">...</button>
-            </div>
-            <!-- Folder browser dropdown -->
-            <div x-show="showBrowser" x-cloak @click.outside="showBrowser = false" style="position: relative;">
-              <div class="gf-dropdown" style="position: absolute; top: 4px; left: 0; right: 0; z-index: 50; border-radius: 6px; max-height: 200px; overflow-y: auto;">
-                <div style="padding: 6px 10px; border-bottom: 0.5px solid #2a2a2e; display: flex; align-items: center; gap: 6px;">
-                  <button @click="browseTo(browserParent)" style="font-size: 11px; color: #4ade80; background: none; border: none; cursor: pointer;">&uarr; Up</button>
-                  <span class="gf-text-muted" style="font-size: 11px; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" x-text="browserCurrent"></span>
-                </div>
-                <template x-for="dir in browserDirs" :key="dir.path">
-                  <button @click="selectDir(dir)"
-                    style="width: 100%; text-align: left; padding: 4px 10px; font-size: 11px; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px;"
-                    :style="{ color: dir.isProject ? '#e4e4e7' : '#71717a' }"
-                    class="gf-dropdown-row">
-                    <span x-text="dir.name"></span>
-                    <span x-show="dir.isProject" style="margin-left: auto; font-size: 10px; color: #4ade80;">project</span>
-                  </button>
-                </template>
-                <p x-show="browserDirs.length === 0" class="gf-text-muted" style="font-size: 11px; padding: 8px 10px;">No subdirectories</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- User role card -->
-          <div class="gf-card" style="padding: 14px 16px;" x-data="{
-            get currentRole() {
-              const match = (localConfigYaml || '').match(/^\s*userRole:\s*(\w+)/m);
-              return match && ['developer', 'investigator', 'tester'].includes(match[1]) ? match[1] : '';
-            },
-            toggleRole(role) {
-              if (userRole === role) {
-                // Deselect: remove userRole line from yaml
-                let yaml = localConfigYaml || '';
-                yaml = yaml.replace(/^\s*userRole:\s*\w+\n?/m, '');
-                localConfigYaml = yaml;
-                userRole = '';
-                configDirty = true;
-              } else {
-                // Select: set userRole in yaml
-                let yaml = localConfigYaml || '';
-                if (/^\s*userRole:\s*\w+/m.test(yaml)) {
-                  yaml = yaml.replace(/^\s*userRole:\s*\w+/m, 'userRole: ' + role);
-                } else if (/^#\s*userRole:/m.test(yaml)) {
-                  yaml = yaml.replace(/^#\s*userRole:\s*\w+/m, 'userRole: ' + role);
-                } else {
-                  yaml = yaml.trimEnd() + '\nuserRole: ' + role + '\n';
-                }
-                localConfigYaml = yaml;
-                userRole = role;
-                configDirty = true;
-              }
-            }
-          }">
-            <div class="gf-text-secondary" style="font-size: 12px; font-weight: 500; margin-bottom: 8px;">User role <span class="gf-text-disabled" style="font-weight: 400;">- injected into terminal sessions</span></div>
-            <div class="gf-role-strip">
-              <template x-for="r in [
-                { id: 'developer', name: 'Developer', desc: 'Investigate, plan, and implement' },
-                { id: 'investigator', name: 'Investigator', desc: 'Investigate and plan only' },
-                { id: 'tester', name: 'Tester', desc: 'Test plans, coverage, QA' }
-              ]" :key="r.id">
-                <div @click="toggleRole(r.id)" class="gf-role-btn" :class="currentRole === r.id && 'gf-role-btn-sel'">
-                  <div class="gf-role-name" x-text="r.name"></div>
-                  <div class="gf-role-desc" x-text="r.desc"></div>
-                </div>
-              </template>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Config panels: 50/50 grid -->
-        <div class="gf-config-grid">
-
-          <!-- Left: config.yaml (read-only) -->
-          <div class="gf-config-panel gf-config-readonly">
-            <div class="gf-panel-hdr">
-              <div>
-                <div class="gf-text-primary" style="font-size: 13px; font-weight: 500;">config.yaml</div>
-                <div class="gf-text-disabled" style="font-size: 10px; font-family: 'JetBrains Mono', monospace; margin-top: 1px;">.goat-flow/config.yaml (committed)</div>
-              </div>
-              <span class="gf-badge-ro">read-only</span>
-            </div>
-            <template x-if="configNote">
-              <div class="flex items-center justify-center h-32 text-center">
-                <div>
-                  <p class="gf-text-muted" style="font-size: 12px;" x-text="configNote"></p>
-                  <button @click="activeView = 'wizard'; detectStack()" class="gf-btn-scan" style="padding: 6px 16px; font-size: 12px; border-radius: 6px; cursor: pointer; font-weight: 500; margin-top: 12px;">Open Setup Wizard</button>
-                </div>
-              </div>
-            </template>
-            <template x-if="!configNote">
-              <pre class="gf-panel-body" x-text="configYaml"></pre>
-            </template>
-          </div>
-
-          <!-- Right: config.local.yaml (editable) -->
-          <div class="gf-config-panel" style="display: flex; flex-direction: column;">
-            <div class="gf-panel-hdr">
-              <div>
-                <div class="gf-text-primary" style="font-size: 13px; font-weight: 500;">config.local.yaml <span x-show="configDirty" style="color: #facc15; margin-left: 4px;">*</span></div>
-                <div class="gf-text-disabled" style="font-size: 10px; font-family: 'JetBrains Mono', monospace; margin-top: 1px;">.goat-flow/config.local.yaml (gitignored, local only)</div>
-              </div>
-              <div style="display: flex; gap: 6px;">
-                <div x-data="{ confirming: false }">
-                  <button x-show="!confirming" @click="confirming = true" class="gf-btn-reset">Reset</button>
-                  <span x-show="confirming" x-cloak style="display: inline-flex; gap: 4px;">
-                    <button @click="resetLocalConfig(); confirming = false" style="font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer; background: #450a0a; color: #f87171; border: none;">Confirm</button>
-                    <button @click="confirming = false" style="font-size: 11px; padding: 4px 8px; cursor: pointer; background: none; border: none; color: #71717a;">Cancel</button>
-                  </span>
-                </div>
-                <button @click="saveLocalConfig()" class="gf-btn-save">Save</button>
-              </div>
-            </div>
-            <textarea class="gf-yaml-edit" x-model="localConfigYaml" @input="configDirty = true; _parseUserRole()" spellcheck="false" placeholder="# Local overrides"></textarea>
-            <div class="gf-panel-note">Saved to config.local.yaml (gitignored) - not shared with the team.</div>
-          </div>
-
-        </div>
-
-        <!-- Footer -->
-        <div class="gf-footer" style="text-align: center; font-size: 11px; padding: 12px 0;">
-          Built by <a href="https://www.blundergoat.com" target="_blank" class="gf-footer-link">BlunderGOAT</a> · <span x-text="report ? `v${report.rubricVersion}` : ''"></span>
-        </div>
-
-      </div>
+<!-- ═══ Settings View ═══ -->
+<div
+  x-show="activeView === 'settings'"
+  x-cloak
+  style="height: calc(100vh - 5rem); overflow-y: auto"
+>
+  <div style="max-width: 880px; margin: 0 auto; padding: 12px 28px 24px">
+    <!-- Header -->
+    <div style="margin-bottom: 20px">
+      <span class="gf-text-primary" style="font-size: 20px; font-weight: 600"
+        >Settings</span
+      >
     </div>
+
+    <!-- Agents table -->
+    <div
+      class="gf-card"
+      style="border-radius: 8px; overflow: hidden; margin-bottom: 20px"
+    >
+      <div
+        class="gf-card-header"
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 16px;
+        "
+      >
+        <span class="gf-text-primary" style="font-size: 16px; font-weight: 600"
+          >Agents</span
+        >
+      </div>
+      <table style="width: 100%; border-collapse: collapse">
+        <thead>
+          <tr>
+            <template x-for="col in ['Agent', 'Version', 'Status', '']">
+              <th class="gf-th" x-text="col"></th>
+            </template>
+          </tr>
+        </thead>
+        <tbody>
+          <template
+            x-for="agent in allAgents.map(a => ({ ...a, name: { claude: 'Claude Code', codex: 'Codex', gemini: 'Gemini CLI' }[a.id] || a.id }))"
+            :key="agent.id"
+          >
+            <tr class="gf-tr">
+              <td class="gf-td">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <span
+                    class="gf-dot"
+                    :class="agent.installed ? 'gf-dot-on' : 'gf-dot-off'"
+                  ></span>
+                  <span
+                    style="font-size: 13px; font-weight: 500"
+                    :class="agent.installed ? 'gf-text-primary' : 'gf-text-disabled'"
+                    x-text="agent.name"
+                  ></span>
+                </div>
+              </td>
+              <td class="gf-td">
+                <span
+                  :class="agent.installed ? 'gf-text-muted' : 'gf-text-disabled'"
+                  :style="'font-size:11px;font-family:JetBrains Mono,Fira Code,monospace;' + (!agent.installed ? 'font-style:italic;' : '')"
+                  x-text="agent.version || (agent.installed ? '' : 'not installed')"
+                ></span>
+              </td>
+              <td class="gf-td">
+                <span
+                  style="font-size: 11px"
+                  :class="agent.installed ? 'gf-text-secondary' : 'gf-text-disabled'"
+                  x-text="agent.installed ? 'Installed' : 'Not found'"
+                ></span>
+              </td>
+              <td class="gf-td" style="text-align: right">
+                <button
+                  x-show="agent.installed && terminalAvailable"
+                  @click="activeRunner = agent.id; launchInTerminal('', agent.id)"
+                  class="gf-btn gf-btn-sm gf-btn-audit"
+                >
+                  Terminal
+                </button>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div
+      class="gf-footer"
+      style="text-align: center; font-size: 11px; padding: 16px 0 8px"
+    >
+      Built by
+      <a
+        href="https://www.blundergoat.com"
+        target="_blank"
+        class="gf-footer-link"
+        >BlunderGOAT</a
+      >
+      · <span x-text="dashboardVersion ? `v${dashboardVersion}` : ''"></span>
+    </div>
+  </div>
+</div>

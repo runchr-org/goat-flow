@@ -1,4 +1,4 @@
-# Prompt: Create or Seed ai-docs/footguns/
+# Prompt: Create or Seed .goat-flow/footguns/
 
 Paste this into your coding agent to create or update the footguns file.
 Footguns are codebase-specific traps where a local-looking change breaks a
@@ -9,18 +9,18 @@ different part of the system through hidden coupling or stale assumptions.
 ## The Prompt
 
 ```
-Create or update `ai-docs/footguns/` for this project.
+Create or update `.goat-flow/footguns/` for this project.
 
 Use category bucket files, not one giant log and not one file per trap.
-Examples: `ai-docs/footguns/hooks.md`, `ai-docs/footguns/setup.md`,
-`ai-docs/footguns/scanner.md`.
+Examples: `.goat-flow/footguns/hooks.md`, `.goat-flow/footguns/setup.md`,
+`.goat-flow/footguns/auditor.md`.
 
-IF ai-docs/footguns/ already exists:
+IF .goat-flow/footguns/ already exists:
   MERGE with it carefully. Keep existing confirmed entries unless newer
   evidence shows the footgun is resolved. Prefer appending a Status note
   over deleting history.
 
-IF ai-docs/footguns/ does NOT exist:
+IF .goat-flow/footguns/ does NOT exist:
   Create the directory and seed with category bucket files for real,
   code-proven footguns.
 
@@ -71,7 +71,7 @@ If a directory has 2+ footgun entries, note this - a local CLAUDE.md
 file may be needed for that directory (Layer 2 local context).
 
 VERIFICATION:
-- Verify ai-docs/footguns/ exists
+- Verify .goat-flow/footguns/ exists
 - Verify the bucket file has `category:` frontmatter
 - Verify every entry has file path references under Evidence
 - Verify every new entry has Status, Created, Evidence type, Symptoms,

@@ -1,8 +1,8 @@
 /**
- * Hook fact extraction - analyzes deny hooks, post-turn hooks, post-tool hooks, and hook registration.
+ * Hook fact extraction - analyzes deny hooks, post-turn hooks, and hook registration.
  */
-import type { AgentProfile, AgentFacts, ReadonlyFS } from '../../types.js';
-import { pushUniquePath } from './routing.js';
+import type { AgentProfile, AgentFacts, ReadonlyFS } from "../../types.js";
+import { pushUniquePath } from "./routing.js";
 
 /** Check whether the agent settings include a compaction/notification hook matching 'compact'. */
 function checkCompactionHook(
@@ -15,14 +15,14 @@ function checkCompactionHook(
   const settings = settingsParsed as Record<string, unknown>;
   /** Hooks configuration from settings */
   const hooks = settings.hooks as Record<string, unknown> | undefined;
-  if (!hooks || typeof hooks !== 'object') return false;
+  if (!hooks || typeof hooks !== "object") return false;
 
   if (Array.isArray(hooks)) {
     // Array format: hooks: [{type: "Notification", matcher: "compact"}]
     return (hooks as Array<Record<string, unknown>>).some(
       (h) =>
-        h.type === 'Notification' &&
-        (typeof h.matcher === 'string' ? h.matcher : '').includes('compact'),
+        h.type === "Notification" &&
+        (typeof h.matcher === "string" ? h.matcher : "").includes("compact"),
     );
   }
   // Nested format: hooks.Notification[{matcher: "compact"}]
@@ -32,7 +32,7 @@ function checkCompactionHook(
     | undefined;
   if (Array.isArray(notifHooks)) {
     return notifHooks.some((h) =>
-      (typeof h.matcher === 'string' ? h.matcher : '').includes('compact'),
+      (typeof h.matcher === "string" ? h.matcher : "").includes("compact"),
     );
   }
   return false;
@@ -44,8 +44,8 @@ const POST_TURN_VALIDATION_COMMAND_PATTERN =
 
 /** Detect shell lines that intentionally mask validation failures with `|| true`. */
 function lineSwallowsValidationFailure(line: string): boolean {
-  if (line.includes('|| true') === false) return false;
-  if (line.trimStart().startsWith('#')) return false;
+  if (line.includes("|| true") === false) return false;
+  if (line.trimStart().startsWith("#")) return false;
   if (/\bcommand\s+-v\b/.test(line)) return false;
   return POST_TURN_VALIDATION_COMMAND_PATTERN.test(line);
 }
@@ -53,9 +53,9 @@ function lineSwallowsValidationFailure(line: string): boolean {
 /** Detect whether a post-turn hook runs real lint, typecheck, or format-check commands. */
 function hasPostTurnValidationCommands(hookContent: string): boolean {
   return hookContent
-    .split('\n')
+    .split("\n")
     .map((line) => line.trim())
-    .filter((line) => line.length > 0 && line.startsWith('#') === false)
+    .filter((line) => line.length > 0 && line.startsWith("#") === false)
     .some((line) => POST_TURN_VALIDATION_COMMAND_PATTERN.test(line));
 }
 
@@ -68,12 +68,12 @@ function analyzePostTurnScript(hookContent: string): {
   /** Non-empty, non-comment lines from the hook script */
   const lines = hookContent
     .trim()
-    .split('\n')
-    .filter((l) => l.trim() && l.trim().startsWith('#') === false);
+    .split("\n")
+    .filter((l) => l.trim() && l.trim().startsWith("#") === false);
   /** Last meaningful line of the hook script */
   const lastLine = lines[lines.length - 1];
   return {
-    exitsZero: lastLine !== undefined && lastLine.trim() === 'exit 0',
+    exitsZero: lastLine !== undefined && lastLine.trim() === "exit 0",
     hasValidation: hasPostTurnValidationCommands(hookContent),
     swallowsFailures: lines.some(lineSwallowsValidationFailure),
   };
@@ -93,9 +93,15 @@ function analyzeDenyScript(denyContent: string): {
   return {
     hasBlocks:
       /exit\s+2|block|BLOCK/i.test(denyContent) &&
-      denyContent.split('\n').length > 5,
+      denyContent.split("\n").length > 5,
     usesJq:
-      /\bjq\b/.test(denyContent) && !/grep\s+-[a-zA-Z]*P/.test(denyContent),
+      /\bjq\b/.test(denyContent) &&
+      !/grep\s+-[a-zA-Z]*P/.test(
+        denyContent
+          .split("\n")
+          .filter((l) => !l.trimStart().startsWith("#"))
+          .join("\n"),
+      ),
     handlesChaining:
       /&&|\|\||;/.test(denyContent) && /split|segment|chain/i.test(denyContent),
     blocksRmRf: /rm\s*.*-.*r.*f|rm\s*-rf/i.test(denyContent),
@@ -128,7 +134,7 @@ function applySettingsDenyOverrides(
   },
 ): void {
   // Settings deny counts as a deny mechanism existing
-  if (hook.denyExists === false && denyStr.includes('Bash(')) {
+  if (hook.denyExists === false && denyStr.includes("Bash(")) {
     hook.denyExists = true;
     // settings.json deny is mechanical blocking
     hook.denyHasBlocks = true;
@@ -181,79 +187,41 @@ function enrichDenyFromSettings(
   const rawDeny = perms?.deny;
   if (!Array.isArray(rawDeny)) return;
   /** All deny patterns concatenated for pattern matching */
-  const denyStr = (rawDeny as string[]).join(' ');
+  const denyStr = (rawDeny as string[]).join(" ");
   applySettingsDenyOverrides(denyStr, hook);
-}
-
-/** Apply Codex execpolicy Starlark rules to deny hook facts. */
-function enrichDenyFromExecpolicy(
-  fs: ReadonlyFS,
-  hook: {
-    denyExists: boolean;
-    denyHasBlocks: boolean;
-    denyIsConfigBased: boolean;
-    denyUsesJq: boolean;
-    denyHandlesChaining: boolean;
-    denyBlocksRmRf: boolean;
-    denyBlocksForcePush: boolean;
-    denyBlocksChmod: boolean;
-    denyBlocksPipeToShell: boolean;
-  },
-): void {
-  /** Path to the Codex execpolicy Starlark rule file */
-  const execpolicyPath = '.codex/rules/deny-dangerous.star';
-  if (!fs.exists(execpolicyPath)) return;
-  /** Raw content of the Starlark rule file */
-  const ruleContent = fs.readFile(execpolicyPath);
-  if (!ruleContent) return;
-  hook.denyExists = true;
-  hook.denyHasBlocks =
-    /forbidden|prompt/i.test(ruleContent) && ruleContent.split('\n').length > 5;
-  hook.denyBlocksRmRf = /rm.*-.*rf|rm.*-.*fr/i.test(ruleContent);
-  hook.denyBlocksForcePush = /force.*push|--force/i.test(ruleContent);
-  hook.denyBlocksChmod = /chmod.*777/.test(ruleContent);
-  hook.denyBlocksPipeToShell =
-    /curl.*\|\s*(ba)?sh|wget.*\|\s*(ba)?sh|pipe-to-shell/i.test(ruleContent);
-  // Execpolicy is config-based - jq/chaining checks are not applicable
-  hook.denyIsConfigBased = true;
 }
 
 /** Subset of hook facts describing deny-hook blocking behavior. */
 type HookDenyFacts = Pick<
-  AgentFacts['hooks'],
-  | 'denyExists'
-  | 'denyHasBlocks'
-  | 'denyIsConfigBased'
-  | 'denyUsesJq'
-  | 'denyHandlesChaining'
-  | 'denyBlocksRmRf'
-  | 'denyBlocksForcePush'
-  | 'denyBlocksChmod'
-  | 'denyBlocksPipeToShell'
-  | 'denyBlocksCloudDestructive'
+  AgentFacts["hooks"],
+  | "denyExists"
+  | "denyHasBlocks"
+  | "denyIsConfigBased"
+  | "denyUsesJq"
+  | "denyHandlesChaining"
+  | "denyBlocksRmRf"
+  | "denyBlocksForcePush"
+  | "denyBlocksChmod"
+  | "denyBlocksPipeToShell"
+  | "denyBlocksCloudDestructive"
 >;
 
-/** Subset of hook facts describing post-turn and post-tool hook registration and behavior. */
+/** Subset of hook facts describing post-turn hook registration and behavior. */
 type PostTurnFacts = Pick<
-  AgentFacts['hooks'],
-  | 'postTurnExists'
-  | 'postTurnRegistered'
-  | 'postTurnRegisteredPath'
-  | 'postTurnExitsZero'
-  | 'postTurnHasValidation'
-  | 'postTurnSwallowsFailures'
-  | 'postToolRegistered'
-  | 'postToolRegisteredPath'
-  | 'postToolExists'
+  AgentFacts["hooks"],
+  | "postTurnExists"
+  | "postTurnRegistered"
+  | "postTurnRegisteredPath"
+  | "postTurnExecutable"
+  | "postTurnExitsZero"
+  | "postTurnHasValidation"
+  | "postTurnSwallowsFailures"
 >;
 
-/** Subset of hook facts describing post-turn and post-tool registration state. */
+/** Subset of hook facts describing post-turn registration state. */
 type HookRegistrationFacts = Pick<
-  AgentFacts['hooks'],
-  | 'postTurnRegistered'
-  | 'postTurnRegisteredPath'
-  | 'postToolRegistered'
-  | 'postToolRegisteredPath'
+  AgentFacts["hooks"],
+  "postTurnRegistered" | "postTurnRegisteredPath"
 >;
 
 /** Result of resolving one hook event to its registered script path. */
@@ -267,13 +235,13 @@ function normalizeHookPath(candidate: string): string | null {
   if (!candidate) return null;
   let path = candidate.trim();
   if (!path) return null;
-  path = path.replace(/^['"`]|['"`]$/g, '');
+  path = path.replace(/^['"`]|['"`]$/g, "");
   // Common Claude/Gemini pattern: bash "$(git rev-parse --show-toplevel)/.../script.sh"
   const substitutionMatch = path.match(/\$\([^)]*\)\/(.*\.sh)$/);
   if (substitutionMatch && substitutionMatch[1]) {
     path = substitutionMatch[1];
   }
-  if (!path.endsWith('.sh')) return null;
+  if (!path.endsWith(".sh")) return null;
   return path;
 }
 
@@ -314,23 +282,23 @@ function firstHookPathFromCommands(commands: string[]): string | null {
 function readHooksObject(
   settingsParsed: unknown,
 ): Record<string, unknown> | null {
-  if (!settingsParsed || typeof settingsParsed !== 'object') return null;
+  if (!settingsParsed || typeof settingsParsed !== "object") return null;
   const hooks = (settingsParsed as Record<string, unknown>).hooks;
-  if (!hooks || typeof hooks !== 'object') return null;
+  if (!hooks || typeof hooks !== "object") return null;
   return hooks as Record<string, unknown>;
 }
 
 /** Extract the shell command from one hook entry when it uses command mode. */
 function extractCommandFromHook(hook: unknown): string | null {
-  if (!hook || typeof hook !== 'object') return null;
+  if (!hook || typeof hook !== "object") return null;
   const hookObj = hook as Record<string, unknown>;
-  if (hookObj.type !== 'command') return null;
-  return typeof hookObj.command === 'string' ? hookObj.command : null;
+  if (hookObj.type !== "command") return null;
+  return typeof hookObj.command === "string" ? hookObj.command : null;
 }
 
 /** Extract all shell commands declared inside one event registration entry. */
 function extractCommandsFromEventEntry(entry: unknown): string[] {
-  if (!entry || typeof entry !== 'object') return [];
+  if (!entry || typeof entry !== "object") return [];
   const eventHooks = (entry as Record<string, unknown>).hooks;
   if (!Array.isArray(eventHooks)) return [];
 
@@ -360,121 +328,76 @@ function normalizeEventConfig(
   return { registered: path !== null, path };
 }
 
-/** Extract one `[hooks.<section>]` block from the Codex TOML config. */
-function extractTomlSection(config: string, section: string): string | null {
-  const header = `[hooks.${section}]`;
-  const start = config.indexOf(header);
-  if (start < 0) return null;
-
-  const sectionTail = config.slice(start + header.length);
-  const nextHeader = sectionTail.indexOf('\n[');
-  return (
-    nextHeader < 0 ? sectionTail : sectionTail.slice(0, nextHeader)
-  ).trim();
-}
-
-/** Extract command strings from a Codex TOML hook section. */
-function extractTomlCommandValues(section: string): string[] {
-  const commandMatch = section.match(/command\s*=\s*\[(.*?)\]/s);
-  if (commandMatch?.[1]) {
-    return Array.from(commandMatch[1].matchAll(/"([^"\\]*)"|'([^'\\]*)'/g))
-      .map((m) => m[1] ?? m[2])
-      .filter(
-        (value): value is string =>
-          typeof value === 'string' && value.length > 0,
-      );
-  }
-
-  const inlineMatch = section.match(/command\s*=\s*["']([^"']+)["']/);
-  return inlineMatch?.[1] ? [inlineMatch[1]] : [];
-}
-
-/** Normalize Codex TOML hook config into a simple registered/path pair. */
-function normalizeCodexHookRegistration(
-  config: string,
-  section: string,
-): HookRegistrationMatch {
-  const sectionText = extractTomlSection(config, section);
-  if (sectionText === null) return { registered: false, path: null };
-
-  const commands = extractTomlCommandValues(sectionText);
-  const path = firstHookPathFromCommands(commands);
-  return { registered: path !== null, path };
-}
-
-/** Collect registered post-turn and post-tool hook paths for the current agent. */
+/** Collect registered post-turn hook paths for the current agent. */
 function buildHookRegistration(
   agent: AgentProfile,
   settingsParsed: unknown,
-  configText: string | null,
+  codexHooksJson: unknown,
 ): {
   postTurnRegistered: boolean;
   postTurnRegisteredPath: string | null;
-  postToolRegistered: boolean;
-  postToolRegisteredPath: string | null;
 } {
-  if (agent.id === 'codex') {
-    if (configText == null) {
-      return {
-        postTurnRegistered: false,
-        postTurnRegisteredPath: null,
-        postToolRegistered: false,
-        postToolRegisteredPath: null,
-      };
+  // Codex: hooks live in .codex/hooks.json (same JSON structure as Claude/Gemini settings)
+  if (agent.id === "codex") {
+    const hooks = readHooksObject(codexHooksJson);
+    if (!hooks) {
+      return { postTurnRegistered: false, postTurnRegisteredPath: null };
     }
-
-    const stop = normalizeCodexHookRegistration(configText, 'stop');
-    const afterTool = normalizeCodexHookRegistration(
-      configText,
-      'after_tool_use',
-    );
+    const stop = normalizeEventConfig(hooks, "Stop");
     return {
       postTurnRegistered: stop.registered,
       postTurnRegisteredPath: stop.path,
-      postToolRegistered: afterTool.registered,
-      postToolRegisteredPath: afterTool.path,
     };
   }
 
+  // Claude/Gemini: hooks live in settings.json
   const hooks = readHooksObject(settingsParsed);
   if (!hooks) {
     return {
       postTurnRegistered: false,
       postTurnRegisteredPath: null,
-      postToolRegistered: false,
-      postToolRegisteredPath: null,
     };
   }
 
   const postTurn = normalizeEventConfig(hooks, agent.hookEvents.postTurn);
-  const postTool = normalizeEventConfig(hooks, agent.hookEvents.postTool);
   return {
     postTurnRegistered: postTurn.registered,
     postTurnRegisteredPath: postTurn.path,
-    postToolRegistered: postTool.registered,
-    postToolRegisteredPath: postTool.path,
+  };
+}
+
+/** Check whether the deny hook is registered as a pre-tool-use hook in settings. */
+function buildDenyRegistration(
+  agent: AgentProfile,
+  settingsParsed: unknown,
+  codexHooksJson: unknown,
+): { denyIsRegistered: boolean; denyRegisteredPath: string | null } {
+  const source = agent.id === "codex" ? codexHooksJson : settingsParsed;
+  const hooks = readHooksObject(source);
+  if (!hooks) {
+    return { denyIsRegistered: false, denyRegisteredPath: null };
+  }
+
+  const preTool = normalizeEventConfig(hooks, agent.hookEvents.preTool);
+  return {
+    denyIsRegistered: preTool.registered,
+    denyRegisteredPath: preTool.path,
   };
 }
 
 /** Detect whether the current agent has a compaction/session-start hook configured. */
 function detectCompactionHookExists(
-  fs: ReadonlyFS,
   agent: AgentProfile,
   settingsParsed: unknown,
   settingsValid: boolean,
 ): boolean {
-  const compactionHookExists = checkCompactionHook(
-    settingsParsed,
-    settingsValid,
-  );
-  if (compactionHookExists || agent.id !== 'codex') {
-    return compactionHookExists;
+  // Codex's session_start hook fires at session start, not after context compression.
+  // It does not satisfy the compaction hook requirement (re-inject task context after
+  // window compression). Return false for Codex rather than using session_start as a proxy.
+  if (agent.id === "codex") {
+    return false;
   }
-
-  const configContent = fs.readFile('.codex/config.toml');
-  return Boolean(
-    configContent && /\[hooks\.session_start\]/.test(configContent),
-  );
+  return checkCompactionHook(settingsParsed, settingsValid);
 }
 
 /** Resolve the deny hook script path for the current agent, if it has one. */
@@ -485,10 +408,10 @@ function resolveDenyHookPath(
   if (agent.hooksDir && fs.exists(`${agent.hooksDir}/deny-dangerous.sh`)) {
     return `${agent.hooksDir}/deny-dangerous.sh`;
   }
-  if (agent.denyMechanism.type === 'deny-script') {
+  if (agent.denyMechanism.type === "deny-script") {
     return agent.denyMechanism.path;
   }
-  if (agent.denyMechanism.type === 'both') {
+  if (agent.denyMechanism.type === "both") {
     return agent.denyMechanism.scriptPath;
   }
   return null;
@@ -543,7 +466,7 @@ function analyzeDenyHookPath(
 /** Detect hardcoded absolute paths inside shell hook lines. */
 function lineHasAbsolutePath(line: string): boolean {
   return (
-    !line.trimStart().startsWith('#') &&
+    !line.trimStart().startsWith("#") &&
     !/\$\(git rev-parse/.test(line) &&
     /\/(home|Users|tmp|var|opt)\/\w+\//.test(line)
   );
@@ -558,10 +481,10 @@ function findAbsolutePathHooks(
   const absolutePathHooks: string[] = [];
 
   for (const hookFile of fs.listDir(hooksDir)) {
-    if (!hookFile.endsWith('.sh')) continue;
+    if (!hookFile.endsWith(".sh")) continue;
     const hookContent = fs.readFile(`${hooksDir}/${hookFile}`);
     if (!hookContent) continue;
-    if (hookContent.split('\n').some(lineHasAbsolutePath)) {
+    if (hookContent.split("\n").some(lineHasAbsolutePath)) {
       absolutePathHooks.push(hookFile);
     }
   }
@@ -569,91 +492,43 @@ function findAbsolutePathHooks(
   return absolutePathHooks;
 }
 
-/** Detect Claude's top-level `.file_path` field usage in a post-tool hook. */
-function usesClaudeTopLevelFilePath(hookContent: string): boolean {
-  return /(^|[^A-Za-z0-9_])\.file_path\b/.test(hookContent);
-}
-
-/** Detect whether a post-tool hook skips agent-managed config directories before formatting. */
-function skipsAgentConfigDirectories(hookContent: string): boolean {
-  const nonCommentContent = hookContent
-    .split('\n')
-    .filter((line) => line.trimStart().startsWith('#') === false)
-    .join('\n');
-  return (
-    /\.claude\//.test(nonCommentContent) &&
-    /\.agents\//.test(nonCommentContent) &&
-    /\.gemini\//.test(nonCommentContent) &&
-    /exit 0/.test(nonCommentContent)
-  );
-}
-
-/** Detect whether Claude post-tool hooks read the expected top-level `.file_path` field. */
-function detectPostToolPathField(
-  fs: ReadonlyFS,
-  agent: AgentProfile,
-  registeredPath: string | null,
-): boolean {
-  if (agent.id !== 'claude') return true;
-  if (registeredPath === null || !fs.exists(registeredPath)) return false;
-  const hookContent = fs.readFile(registeredPath);
-  if (!hookContent) return false;
-  return usesClaudeTopLevelFilePath(hookContent);
-}
-
-/** Detect whether a registered post-tool hook skips agent config directories. */
-function detectPostToolConfigSkip(
-  fs: ReadonlyFS,
-  registeredPath: string | null,
-): boolean {
-  if (registeredPath === null || !fs.exists(registeredPath)) return false;
-  const hookContent = fs.readFile(registeredPath);
-  if (!hookContent) return false;
-  return skipsAgentConfigDirectories(hookContent);
-}
-
-/** Extract all hook-related facts: deny hooks, post-turn, post-tool, compaction. */
+/** Extract all hook-related facts: deny hooks, post-turn, compaction. */
 export function extractHookFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,
   settingsParsed: unknown,
   hasDenyPatterns: boolean,
   settingsValid: boolean,
-): Omit<AgentFacts['hooks'], 'readDenyCoversSecrets'> {
+): Omit<AgentFacts["hooks"], "readDenyCoversSecrets"> {
   const compactionHookExists = detectCompactionHookExists(
-    fs,
     agent,
     settingsParsed,
     settingsValid,
   );
-  const configText =
-    agent.id === 'codex' ? fs.readFile('.codex/config.toml') : null;
-  const registration = buildHookRegistration(agent, settingsParsed, configText);
+  const codexHooksJson =
+    agent.id === "codex" ? fs.readJson(".codex/hooks.json") : null;
+  const registration = buildHookRegistration(
+    agent,
+    settingsParsed,
+    codexHooksJson,
+  );
   const hook = analyzeDenyHookPath(fs, resolveDenyHookPath(fs, agent));
   const absolutePathHooks = findAbsolutePathHooks(fs, agent.hooksDir);
+  const denyRegistration = buildDenyRegistration(
+    agent,
+    settingsParsed,
+    codexHooksJson,
+  );
 
   // Second: also check settings.json Bash deny patterns
   enrichDenyFromSettings(settingsParsed, hasDenyPatterns, hook);
-
-  // For Codex: also check execpolicy rules
-  if (agent.id === 'codex') {
-    enrichDenyFromExecpolicy(fs, hook);
-  }
 
   const postTurn = extractPostTurnFacts(fs, agent, registration);
 
   return {
     ...hook,
+    ...denyRegistration,
     ...postTurn,
-    postToolUsesExpectedPathField: detectPostToolPathField(
-      fs,
-      agent,
-      registration.postToolRegisteredPath,
-    ),
-    postToolSkipsAgentConfigPaths: detectPostToolConfigSkip(
-      fs,
-      registration.postToolRegisteredPath,
-    ),
     compactionHookExists,
     absolutePathHooks,
   };
@@ -665,7 +540,7 @@ function analyzeHookScriptAtPath(
   scriptPath: string,
 ): Pick<
   PostTurnFacts,
-  'postTurnExitsZero' | 'postTurnHasValidation' | 'postTurnSwallowsFailures'
+  "postTurnExitsZero" | "postTurnHasValidation" | "postTurnSwallowsFailures"
 > {
   const hookContent = fs.readFile(scriptPath);
   if (!hookContent) {
@@ -684,29 +559,25 @@ function analyzeHookScriptAtPath(
   };
 }
 
-/** Extract post-turn and post-tool facts from Codex hook registration. */
+/** Extract post-turn facts from Codex hook registration. */
 function extractCodexPostTurnFacts(
   fs: ReadonlyFS,
   registration: HookRegistrationFacts,
 ): PostTurnFacts {
   const postTurnRegisteredPath = registration.postTurnRegisteredPath;
-  const postToolRegisteredPath = registration.postToolRegisteredPath;
   const postTurnExists =
     registration.postTurnRegistered &&
     postTurnRegisteredPath !== null &&
     fs.exists(postTurnRegisteredPath);
-  const postToolExists =
-    registration.postToolRegistered &&
-    postToolRegisteredPath !== null &&
-    fs.exists(postToolRegisteredPath);
+  const postTurnExecutable = postTurnExists
+    ? fs.isExecutable(postTurnRegisteredPath)
+    : false;
 
   return {
     postTurnRegistered: registration.postTurnRegistered,
     postTurnRegisteredPath,
-    postToolRegistered: registration.postToolRegistered,
-    postToolRegisteredPath,
     postTurnExists,
-    postToolExists,
+    postTurnExecutable,
     ...(postTurnExists && postTurnRegisteredPath
       ? analyzeHookScriptAtPath(fs, postTurnRegisteredPath)
       : {
@@ -717,29 +588,25 @@ function extractCodexPostTurnFacts(
   };
 }
 
-/** Extract post-turn and post-tool facts from shell hook directories. */
+/** Extract post-turn facts from shell hook directories. */
 function extractDirectoryPostTurnFacts(
   fs: ReadonlyFS,
   registration: HookRegistrationFacts,
 ): PostTurnFacts {
   const postTurnRegisteredPath = registration.postTurnRegisteredPath;
-  const postToolRegisteredPath = registration.postToolRegisteredPath;
   const postTurnExists =
     registration.postTurnRegistered &&
     postTurnRegisteredPath !== null &&
     fs.exists(postTurnRegisteredPath);
-  const postToolExists =
-    registration.postToolRegistered &&
-    postToolRegisteredPath !== null &&
-    fs.exists(postToolRegisteredPath);
+  const postTurnExecutable = postTurnExists
+    ? fs.isExecutable(postTurnRegisteredPath)
+    : false;
 
   return {
     postTurnRegistered: registration.postTurnRegistered,
     postTurnRegisteredPath,
-    postToolRegistered: registration.postToolRegistered,
-    postToolRegisteredPath,
     postTurnExists,
-    postToolExists,
+    postTurnExecutable,
     ...(postTurnExists && postTurnRegisteredPath
       ? analyzeHookScriptAtPath(fs, postTurnRegisteredPath)
       : {
@@ -756,7 +623,7 @@ function extractPostTurnFacts(
   agent: AgentProfile,
   registration: HookRegistrationFacts,
 ): PostTurnFacts {
-  if (agent.id === 'codex') {
+  if (agent.id === "codex") {
     return extractCodexPostTurnFacts(fs, registration);
   }
 
@@ -767,13 +634,10 @@ function extractPostTurnFacts(
   return {
     postTurnRegistered: false,
     postTurnRegisteredPath: null,
-    postToolRegistered: false,
-    postToolRegisteredPath: null,
     postTurnExists: false,
+    postTurnExecutable: false,
     postTurnExitsZero: false,
     postTurnHasValidation: false,
     postTurnSwallowsFailures: false,
-    postToolExists: false,
   };
 }
-

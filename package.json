@@ -1,7 +1,7 @@
 {
   "name": "@blundergoat/goat-flow",
-  "version": "1.0.0",
-  "description": "CLI scanner, dashboard, and setup generator for GOAT Flow AI coding agent workflows",
+  "version": "1.1.0",
+  "description": "CLI auditor, dashboard, and setup generator for GOAT Flow AI coding agent workflows",
   "author": {
     "name": "Matthew Hansen",
     "url": "https://www.blundergoat.com"
@@ -25,15 +25,6 @@
   "files": [
     "dist",
     "!dist/**/*.map",
-    "src/dashboard",
-    "docs/getting-started.md",
-    "docs/system-spec.md",
-    "docs/using-skills.md",
-    "docs/five-layers.md",
-    "docs/design-rationale.md",
-    "docs/cross-agent-comparison.md",
-    "docs/rubrics.md",
-    "docs/examples",
     "docs/skills",
     "scripts/warn-node-pty.mjs",
     "workflow"
@@ -47,19 +38,23 @@
     ]
   },
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist/ && tsc && npm run build:dashboard",
+    "build:dashboard": "tsc -p tsconfig.dashboard.json && mkdir -p dist/dashboard && cp src/dashboard/index.html src/dashboard/styles.css dist/dashboard/ && rm -rf dist/dashboard/views && cp -r src/dashboard/views dist/dashboard/views",
     "test": "node --import tsx --test test/*/*.test.ts",
-    "typecheck": "tsc --noEmit",
+    "test:coverage": "node --import tsx --experimental-test-coverage --test test/*/*.test.ts",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.dashboard.json --noEmit",
     "postinstall": "node scripts/warn-node-pty.mjs",
-    "scan": "node dist/cli/cli.js scan .",
-    "scan:verbose": "node dist/cli/cli.js scan . --verbose",
-    "scan:json": "node dist/cli/cli.js scan . --format json",
-    "setup": "node dist/cli/cli.js setup . --agent claude",
-    "dev": "tsc && node dist/cli/cli.js dashboard . --dev",
-    "dashboard": "node dist/cli/cli.js dashboard .",
+    "goat-flow:cli": "node dist/cli/cli.js",
+    "audit": "node dist/cli/cli.js audit .",
+    "audit:harness": "node dist/cli/cli.js audit . --harness",
+    "audit:json": "node dist/cli/cli.js audit . --format json",
+    "dev": "tsc && npm run build:dashboard && node dist/cli/cli.js dashboard . --dev",
+    "dashboard": "npm run build && node dist/cli/cli.js dashboard .",
     "preflight": "bash scripts/preflight-checks.sh",
-    "validate": "bash scripts/context-validate.sh",
+    "validate": "bash workflow/validate-goat-flow-setup.sh",
     "check-versions": "node scripts/check-versions.mjs",
+    "format": "prettier --write --no-error-on-unmatched-pattern \"src/**/*.{ts,js,html}\" \"test/**/*.ts\"",
+    "format:check": "prettier --check --no-error-on-unmatched-pattern \"src/**/*.{ts,js,html}\" \"test/**/*.ts\"",
     "prepublishOnly": "npm run build && npm run check-versions"
   },
   "keywords": [
@@ -74,7 +69,7 @@
     "dashboard",
     "gemini",
     "llm",
-    "scanner",
+    "auditor",
     "workflow"
   ],
   "dependencies": {
@@ -87,6 +82,7 @@
     "@types/ws": "^8.18.1",
     "eslint": "^10.1.0",
     "knip": "^6.0.2",
+    "prettier": "^3.8.1",
     "tsx": "^4.0.0",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.57.1"

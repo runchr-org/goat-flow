@@ -1,0 +1,9 @@
+# Prettier ignore - files that should not be auto-formatted.
+# Globs for files that ARE formatted live in package.json (format/format:check scripts).
+
+dist/
+node_modules/
+
+# Markdown has intentional formatting (tables, code blocks, frontmatter)
+# that Prettier rewrites aggressively. See ADR-032.
+*.md

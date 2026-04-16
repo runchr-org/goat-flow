@@ -1,94 +1,36 @@
 # Testing
 
-Run all tests: `npm test`
+The test suite uses Node's built-in test runner (`node:test` + `node:assert`). No external test framework.
 
-## Test Layers
-
-```
-Layer 1: Fixture Projects     test/fixtures/projects/    End-to-end scan against known states
-Layer 2: Rubric Check Tests   test/unit/evaluate-check   Each check with pass/fail mock context
-Layer 3: Hook Behavior Tests  test/hooks/                Pipe JSON, assert exit codes
-Layer 4: Setup Validation     test/contract/             Path resolution, skill integrity, migration
-Layer 5: Template Consistency test/templates/             Workflow templates match installed skills
-Layer 6: Journey Tests        test/journeys/             Multi-step scanner workflows on fixtures
-Layer 7: Agent Smoke Tests    test/smoke/                Real agent runs (CI-only, expensive)
-```
-
-## Adding a Fixture Project
-
-1. Create `test/fixtures/projects/<name>/` with the project files
-2. Add `fixture.json` with expected results:
-   ```json
-   {
-     "agentFilter": "claude",
-     "expected": { "claude": { "percentage": 100, "grade": "A" } }
-   }
-   ```
-3. Overlay fixtures use `"extends": "../base-fixture"` to inherit files
-4. Add a test in `test/integration/project-fixtures.test.ts`
-
-## Adding a Rubric Check Test
-
-```typescript
-import { getCheck } from '../../src/cli/rubric/registry.js';
-import { createMockContext } from '../helpers/mock-context.js';
-
-describe('Check X.Y.Z: Name', () => {
-  const check = getCheck('X.Y.Z');
-  assert.ok(check);
-
-  it('passes when ...', () => {
-    const ctx = createMockContext({ agentFacts: { /* overrides */ } });
-    const result = runSingleCheck(check, ctx);
-    assert.equal(result.status, 'pass');
-  });
-});
-```
-
-The `createMockContext()` defaults match a passing-minimal project. Override only the fields under test.
-
-## Adding an Anti-Pattern Test
-
-```typescript
-const ap = getAntiPattern('APXX');
-const result = runSingleAntiPattern(ap, ctx);
-assert.equal(result.triggered, true);
-assert.equal(result.deduction, -N);
-```
-
-## Adding a Behavioral Journey
-
-Behavioral journeys validate agent workflow contracts from `ai-docs/evals/`.
-
-1. Create an eval in `ai-docs/evals/` following `FORMAT.md`:
-   - YAML frontmatter with `name`, `origin`, `agents`, `skill`
-   - `### Scenario` with a code-fenced prompt
-   - `### Expected Behavior` with checkbox gates (`- [ ] Agent does X`)
-   - `### Anti-Patterns` with failure modes to watch for
-2. The eval is automatically picked up by `test/journeys/behavioral-journeys.test.ts`
-3. Layer 6 validates the eval is parseable and well-formed
-4. Layer 7 (smoke tests) runs the prompt against a real agent and scores gates
-
-## Running Smoke Tests (Layer 7)
+## Running tests
 
 ```bash
-# Requires ANTHROPIC_API_KEY
-GOAT_SMOKE=1 npm test -- test/smoke/
+npm test                          # Run all tests
+npx tsc --noEmit                  # Type-check without emitting
+npx eslint src/cli/               # Lint
+bash scripts/preflight-checks.sh  # Full preflight gate (includes all of the above)
 ```
 
-Cost: ~$0.50-2.00 per test. Only run locally when validating workflow changes.
+## Test structure
 
-## Test Helpers
+Tests live in `test/` with subdirectories:
 
-| Helper | Purpose |
-|--------|---------|
-| `test/helpers/mock-context.ts` | Build mock `FactContext` with defaults |
-| `test/helpers/mock-fs.ts` | In-memory filesystem for isolated tests |
-| `test/helpers/hook-runner.ts` | Pipe JSON to hook scripts, capture results |
-| `test/helpers/fixture-scanner.ts` | Scan fixture projects in temp directories |
-| `test/helpers/test-project.ts` | Build real temp projects for integration tests |
+- `unit/` - config reader, classify-state, CLI parsing, skill constants, rubric registry
+- `integration/` - audit (build + quality), audit on well-configured projects, critique with audit data
+- `contract/` - cross-surface consistency (skill count, version alignment, no-scan phrasing, JSON shape)
+- `fixtures/` - test data for isolated check evaluation
 
-## CI
+## What the tests guard
 
-Layers 1-6 run on every PR via `.github/workflows/ci.yml`.
-Layer 7 (smoke tests) runs on release branches only.
+- Audit output has no scan references
+- Step 06 references audit (not scanner)
+- package.json version matches AUDIT_VERSION
+- SKILL_NAMES matches manifest.json canonical skills
+- Build check IDs are unique
+- Quality checks cover all 5 harness concerns
+- manifest.json paths use .goat-flow/ prefix
+- Skill templates do not reference workflow/ in install sections
+- Build/quality checks produce correct results on healthy and broken projects
+- Config reader handles valid YAML, invalid YAML, and missing files
+- CLI parsing: audit is default, scan is rejected, removed flags rejected
+- Critique generates non-empty prompts with required sections

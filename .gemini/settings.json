@@ -21,7 +21,31 @@
       "Read(**/.pypirc)",
       "Read(**/*.pfx)",
       "Read(**/credentials*)",
-      "Read(**/.kube/config)"
+      "Read(**/.kube/config)",
+      "Write(**/secrets/**)",
+      "Write(**/*.pem)",
+      "Write(**/*.key)",
+      "Write(**/.ssh/**)",
+      "Write(**/.aws/**)",
+      "Write(**/.docker/config.json)",
+      "Write(**/.gnupg/**)",
+      "Write(**/.npmrc)",
+      "Write(**/.pypirc)",
+      "Write(**/*.pfx)",
+      "Write(**/credentials*)",
+      "Write(**/.kube/config)",
+      "Edit(**/secrets/**)",
+      "Edit(**/*.pem)",
+      "Edit(**/*.key)",
+      "Edit(**/.ssh/**)",
+      "Edit(**/.aws/**)",
+      "Edit(**/.docker/config.json)",
+      "Edit(**/.gnupg/**)",
+      "Edit(**/.npmrc)",
+      "Edit(**/.pypirc)",
+      "Edit(**/*.pfx)",
+      "Edit(**/credentials*)",
+      "Edit(**/.kube/config)"
     ]
   },
   "hooks": {
@@ -36,24 +60,13 @@
         ]
       }
     ],
-    "AfterAgent": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.gemini/hooks/stop-lint.sh\""
-          }
-        ]
-      }
-    ],
     "Notification": [
       {
         "matcher": "compact",
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'CONTEXT AFTER COMPACTION:' && echo 'Modified files:' && git diff --name-only 2>/dev/null && echo '---' && cat .goat-flow/tasks/todo.md 2>/dev/null || echo 'No active tasks' && echo '---' && echo 'Constraints: read GEMINI.md Autonomy Tiers before proceeding'"
+            "command": "echo 'CONTEXT AFTER COMPACTION:' && echo 'Modified files:' && git diff --name-only 2>/dev/null && echo '---' && echo 'Check milestone files in .goat-flow/tasks/ for progress' && echo '---' && echo 'Constraints: read GEMINI.md Autonomy Tiers before proceeding'"
           }
         ]
       }

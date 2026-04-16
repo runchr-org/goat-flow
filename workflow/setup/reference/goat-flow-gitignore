@@ -1,0 +1,26 @@
+# Ignore everything by default
+*
+
+# Committed goat-flow files
+!.gitignore
+!config.yaml
+!skill-preamble.md
+!skill-conventions.md
+!architecture.md
+!code-map.md
+!glossary.md
+!patterns.md
+
+# Committed goat-flow directories
+!decisions/
+!decisions/**
+!footguns/
+!footguns/**
+!lessons/
+!lessons/**
+!tasks/
+!tasks/**
+!logs/
+!logs/sessions/
+!logs/sessions/.gitkeep
+logs/sessions/*.md

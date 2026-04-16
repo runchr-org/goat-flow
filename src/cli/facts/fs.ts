@@ -1,6 +1,6 @@
 /**
  * Read-only filesystem adapter over Node's `fs` APIs.
- * The rest of the scanner targets this interface so tests can swap in mock filesystems without touching extraction logic.
+ * Audit checks and fact extractors target this interface so tests can swap in mock filesystems without touching extraction logic.
  */
 import {
   readFileSync,
@@ -9,9 +9,9 @@ import {
   accessSync,
   constants,
   type Dirent,
-} from 'node:fs';
-import { resolve, relative, join } from 'node:path';
-import type { ReadonlyFS } from '../types.js';
+} from "node:fs";
+import { resolve, relative, join } from "node:path";
+import type { ReadonlyFS } from "../types.js";
 
 /** Read directory entries, returning an empty list when the path is missing. */
 function readDirEntries(path: string): Dirent[] {
@@ -25,7 +25,7 @@ function readDirEntries(path: string): Dirent[] {
 /** Convert one glob segment into the regex used by the filesystem walker. */
 function buildGlobRegex(part: string): RegExp {
   return new RegExp(
-    '^' + part.replace(/\./g, '\\.').replace(/\*/g, '[^/]*') + '$',
+    "^" + part.replace(/\./g, "\\.").replace(/\*/g, "[^/]*") + "$",
   );
 }
 
@@ -42,7 +42,7 @@ function walkGlob(
 
   const part = parts[patternIndex];
   if (part === undefined) return;
-  if (part === '**') {
+  if (part === "**") {
     walkGlobStar(root, resolvePath, parts, dir, patternIndex, results);
     return;
   }
@@ -127,7 +127,7 @@ export function createFS(rootPath: string): ReadonlyFS {
     /** Read a UTF-8 file under the project root. */
     readFile(path: string): string | null {
       try {
-        return readFileSync(resolvePath(path), 'utf-8');
+        return readFileSync(resolvePath(path), "utf-8");
       } catch {
         return null;
       }
@@ -136,8 +136,8 @@ export function createFS(rootPath: string): ReadonlyFS {
     /** Count newline-delimited lines in a UTF-8 file. */
     lineCount(path: string): number {
       try {
-        const content = readFileSync(resolvePath(path), 'utf-8');
-        return content.split('\n').length - (content.endsWith('\n') ? 1 : 0);
+        const content = readFileSync(resolvePath(path), "utf-8");
+        return content.split("\n").length - (content.endsWith("\n") ? 1 : 0);
       } catch {
         return 0;
       }
@@ -146,7 +146,7 @@ export function createFS(rootPath: string): ReadonlyFS {
     /** Read and parse a JSON file under the project root. */
     readJson(path: string): unknown {
       try {
-        const content = readFileSync(resolvePath(path), 'utf-8');
+        const content = readFileSync(resolvePath(path), "utf-8");
         return JSON.parse(content);
       } catch {
         return null;
@@ -171,10 +171,10 @@ export function createFS(rootPath: string): ReadonlyFS {
         return true;
       } catch {
         // On Windows, check for shebang instead
-        if (process.platform === 'win32') {
+        if (process.platform === "win32") {
           try {
-            const content = readFileSync(resolvePath(path), 'utf-8');
-            return content.startsWith('#!');
+            const content = readFileSync(resolvePath(path), "utf-8");
+            return content.startsWith("#!");
           } catch {
             return false;
           }
@@ -190,8 +190,8 @@ export function createFS(rootPath: string): ReadonlyFS {
       /** Accumulated matching file paths */
       const results: string[] = [];
       /** Pattern split into path segments for incremental matching */
-      const parts = pattern.split('/');
-      walkGlob(root, resolvePath, parts, '.', 0, results);
+      const parts = pattern.split("/");
+      walkGlob(root, resolvePath, parts, ".", 0, results);
       return results;
     },
   };
@@ -199,18 +199,18 @@ export function createFS(rootPath: string): ReadonlyFS {
 
 /** Directory names to skip during recursive glob traversal */
 const IGNORED_DIRS = new Set([
-  '.git',
-  'node_modules',
-  'dist',
-  'build',
-  'coverage',
-  '.next',
-  '.turbo',
-  'vendor',
-  '.venv',
-  '__pycache__',
-  '.idea',
-  '.vscode',
+  ".git",
+  "node_modules",
+  "dist",
+  "build",
+  "coverage",
+  ".next",
+  ".turbo",
+  "vendor",
+  ".venv",
+  "__pycache__",
+  ".idea",
+  ".vscode",
 ]);
 
 /** Skip heavyweight or generated directories during recursive glob walking. */

@@ -1,4 +1,3 @@
-# Track the handoff template (shared). Ignore working files (personal).
+# Task files are local working state, not committed.
 *
 !.gitignore
-!handoff-template.md

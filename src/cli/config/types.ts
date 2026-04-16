@@ -2,31 +2,43 @@
  * Shared type contracts for the goat-flow config file.
  * These interfaces describe the normalized shape used after YAML parsing and validation.
  */
+export interface GoatFlowToolchain {
+  test: string[];
+  lint: string[];
+  build: string[];
+  package: string[];
+  format: string[];
+}
+
 /** Normalized config shape after parsing and validating .goat-flow/config.yaml. */
 export interface GoatFlowConfig {
   version: string;
-  footguns: { committed: string; local: string };
-  lessons: { committed: string; local: string };
+  footguns: { path: string };
+  lessons: { path: string };
   decisions: { path: string };
-  evals: { path: string };
-  codingStandards: { path: string };
   tasks: { path: string };
   logs: { path: string };
   /** Detected agent IDs, or null if auto-detection should be used */
   agents: string[] | null;
   /** Which skills to install: explicit list or 'all' for the full set */
-  skills: { install: string[] | 'all' };
+  skills: { install: string[] | "all" };
   /** Instruction-file line limits: target for setup, hard limit for CI gate */
   lineLimits: { target: number; limit: number };
+  /** Project commands grouped by purpose so agents stop guessing tool names */
+  toolchain: GoatFlowToolchain;
   /** User role that controls read-only vs read-write mode */
-  userRole: 'developer' | 'investigator' | 'tester';
+  userRole: "developer" | "investigator" | "tester";
   /** Opt-in skill usage telemetry (logs invocations to .goat-flow/logs/skill-usage.jsonl) */
   telemetry: boolean;
+  /** Declared gaps that persist across sessions (e.g., "zero Python tests"). Readable by skills during Step 0. */
+  knownGaps: string[];
+  /** Placeholder for per-project skill customisation (M18). */
+  skillOverrides: Record<string, unknown>;
 }
 
 /** A single validation warning or error found during config parsing. */
 export interface ValidationIssue {
-  level: 'warning' | 'error';
+  level: "warning" | "error";
   /** Dot-separated config key path where the issue was found */
   path: string;
   message: string;

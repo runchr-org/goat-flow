@@ -1,4 +1,23 @@
 #!/usr/bin/env bash
+#
+# git-cleanup.sh
+#
+# Purpose:
+#   Cleans up local git branches that have already been merged.
+#
+# Usage:
+#   bash scripts/maintenance/git-cleanup.sh [--dry-run] [--remote]
+#
+# Behavior:
+#   - identifies merged branches relative to main/master
+#   - skips protected branches (main, master, develop)
+#   - optionally removes remote-tracking branches with --remote
+#
+# Exit:
+#   0 on successful cleanup (or dry-run), non-zero on git/precondition failures.
+#
+# Requirements:
+#   - git, bash
 
 set -euo pipefail
 

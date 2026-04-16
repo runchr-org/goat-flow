@@ -3,17 +3,16 @@ name: Context Validation
 on:
   pull_request:
     paths:
-      - 'CLAUDE.md'
-      - 'AGENTS.md'
-      - 'GEMINI.md'
-      - '.claude/**'
-      - '.gemini/**'
-      - 'docs/**'
-      - 'setup/**'
-      - 'workflow/**'
-      - 'scripts/**'
-      - '.agents/**'
-      - 'ai-docs/evals/**'
+      - "CLAUDE.md"
+      - "AGENTS.md"
+      - "GEMINI.md"
+      - ".claude/**"
+      - ".gemini/**"
+      - "docs/**"
+      - "setup/**"
+      - "workflow/**"
+      - "scripts/**"
+      - ".agents/**"
 
 jobs:
   validate:
@@ -54,7 +53,7 @@ jobs:
 
       - name: Check skills exist
         run: |
-          EXPECTED_SKILLS="goat goat-debug goat-review goat-plan goat-security goat-test"
+          EXPECTED_SKILLS="goat goat-debug goat-review goat-plan goat-sbao goat-security goat-test"
           # Check Claude Code skills
           if [ -d ".claude/skills" ]; then
             for skill in $EXPECTED_SKILLS; do
@@ -63,7 +62,7 @@ jobs:
                 exit 1
               fi
             done
-            echo "All 6 Claude skills present"
+            echo "All 7 Claude skills present"
           fi
           # Check shared skills (Codex + Gemini)
           if [ -d ".agents/skills" ]; then
@@ -73,7 +72,7 @@ jobs:
                 exit 1
               fi
             done
-            echo "All 6 shared skills present"
+            echo "All 7 shared skills present"
           fi
 
       - name: Check local CLAUDE.md file sizes
@@ -81,13 +80,13 @@ jobs:
           find . -name 'CLAUDE.md' -not -path './CLAUDE.md' -not -path './.git/*' | while read -r f; do
             LINES=$(wc -l < "$f")
             if [ "$LINES" -gt 20 ]; then
-              echo "::warning::Local instruction file $f exceeds 20 lines ($LINES). Anti-pattern AP7."
+              echo "::warning::Local instruction file $f exceeds 20 lines ($LINES)."
             fi
           done
 
       - name: Check for unreviewed AI-generated entries
         run: |
-          if grep -r 'AI-GENERATED: UNVERIFIED' ai-docs/footguns/ ai-docs/lessons/ 2>/dev/null; then
+          if grep -r 'AI-GENERATED: UNVERIFIED' .goat-flow/footguns/ .goat-flow/lessons/ 2>/dev/null; then
             echo "::error::Unreviewed AI-generated entries found in learning loop files"
             exit 1
           fi
@@ -108,31 +107,12 @@ jobs:
       - name: Create gitignored workspace dirs
         run: |
           mkdir -p .goat-flow/footguns .goat-flow/lessons .goat-flow/tasks .goat-flow/logs/sessions
-          if [ ! -f .goat-flow/tasks/handoff-template.md ]; then
-            printf '%s\n' \
-              '# Agent Session Handoff Template' \
-              '' \
-              '## Date' \
-              '' \
-              '## Status' \
-              '' \
-              '## Current State' \
-              '' \
-              '## Key Decisions Made' \
-              '' \
-              '## Errors & Corrections' \
-              '' \
-              '## Learnings' \
-              '' \
-              '## Known Risks' \
-              '' \
-              '## Next Step' \
-              '' \
-              '## Context Files' > .goat-flow/tasks/handoff-template.md
-          fi
 
       - name: Validate Codex workflow
         run: |
-          if [ -f AGENTS.md ] && [ -f scripts/context-validate.sh ]; then
-            bash scripts/context-validate.sh
+          if [ -f AGENTS.md ] && [ -f scripts/validate-goat-flow-setup.sh ]; then
+            bash scripts/validate-goat-flow-setup.sh
           fi
+
+      - name: Check markdown links
+        run: bash scripts/check-markdown-links.sh
