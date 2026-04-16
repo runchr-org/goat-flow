@@ -47,7 +47,9 @@ category: docs-and-crossrefs
 
 **Why it happens:** The audit validates structure (files exist, paths resolve, versions match) but not content accuracy. Cold-path docs are updated manually and drift as code changes. No automated check compares doc descriptions against actual code behavior.
 
-**Evidence (verified by 8 independent critiques, 2026-04-15):**
+**Evidence (verified by 8 independent critiques, 2026-04-15; recurrence confirmed by 4-critique cross-review, 2026-04-16):**
+
+*Round 1 (2026-04-15, all resolved):*
 - ~~`docs/audit-and-critique.md:38-47` - describes checks that no longer exist~~ (resolved 2026-04-15: check descriptions updated to match current code)
 - ~~`docs/coding-standards/conventions.md:10` - claims "Zero runtime dependencies"~~ (resolved 2026-04-15: now says "Runtime dependencies: js-yaml, ws")
 - ~~`docs/coding-standards/conventions.md:74` - claims `src/cli/prompt/types.ts` exists~~ (resolved 2026-04-15: reference removed)
@@ -55,6 +57,16 @@ category: docs-and-crossrefs
 - ~~`.goat-flow/glossary.md:38` - Working Memory points to `skill-preamble.md`~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`)
 - ~~`.goat-flow/code-map.md:71` - lists `validate-goat-flow-setup.sh` under `scripts/`~~ (resolved 2026-04-16: code-map now lists it under `workflow/` with explanatory note)
 - ~~`src/cli/prompt/compose-critique.ts:243` - ships literal placeholder `<your-hooks-dir>`~~ (resolved 2026-04-16: placeholder removed)
+
+*Round 2 (2026-04-16, all resolved — same pattern recurred after dashboard TS migration and skill directory restructure):*
+- ~~`CONTRIBUTING.md:60-61` - claimed "8 build checks" and "18 advisory checks"; actual: 16 and 16~~ (resolved 2026-04-16)
+- ~~`CONTRIBUTING.md:41` - referenced `app.js` and `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
+- ~~`.goat-flow/code-map.md:27` - claimed 15 harness checks; actual: 16~~ (resolved 2026-04-16)
+- ~~`.goat-flow/code-map.md:54-60` - showed flat skill file structure after directory restructure~~ (resolved 2026-04-16)
+- ~~`.goat-flow/architecture.md:49` - referenced `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
+- ~~`src/cli/cli.ts:49` - help text said 15 harness checks; actual: 16~~ (resolved 2026-04-16)
+- ~~`workflow/setup/03-install-skills.md:11` - referenced old flat skill file names~~ (resolved 2026-04-16)
+- ~~`workflow/setup/upgrade-from-0.9.x.md:104` - referenced `goat-debug.md` instead of `goat-debug/SKILL.md`~~ (resolved 2026-04-16)
 
 **Impact:** The framework demands "real evidence only" and "MUST maintain cross-file consistency" while its own cold-path surfaces violate both rules. Agents consulting docs for orientation get wrong information. The audit's PASS stamp creates false confidence.
 

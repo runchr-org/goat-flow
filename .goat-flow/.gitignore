@@ -24,3 +24,5 @@
 !logs/sessions/
 !logs/sessions/.gitkeep
 logs/sessions/*.md
+!scratchpad/
+!scratchpad/.gitkeep

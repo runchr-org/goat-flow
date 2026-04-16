@@ -283,3 +283,20 @@ category: verification
 1. For every dashboard route that accepts a filesystem path, add at least one invalid-path test alongside the happy path.
 2. Treat `fetch().json()` shape assertions as necessary but insufficient - contract tests also need status-code assertions for malformed or nonexistent inputs.
 3. When a route wraps shared project helpers, validate the path at the HTTP boundary instead of assuming downstream code will reject it consistently.
+
+---
+
+## Lesson: Cross-critique review catches cold-path drift that single reviews and preflight miss
+
+**Created:** 2026-04-16
+
+**What happened:** A single diff review of 89 files on feat/1.1.0 found 2 cross-reference breakages (setup prompt, code-map skill tree). Then 4 independent coding agent critiques were run. Together they surfaced 15 additional cold-path issues: wrong check counts in CONTRIBUTING.md (8 vs 16), stale .js extensions in architecture.md and code-map, CLI help text with wrong harness count (15 vs 16), 6 stale footgun entries, and footgun file ordering that violated the scan contract. One critique (Critique 4) also produced a false positive (PreToolUse blind spot) that was disproved by finding the check in a different file (check-constraints.ts).
+
+**Root cause:** Cold-path docs (CONTRIBUTING.md, code-map, architecture, footguns, CLI help text) are not validated by preflight for content accuracy -- only for structural presence and path resolution. A single reviewer reads the diff but not the surrounding docs. Multiple independent reviewers each read different files and catch different drift. The cold-path drift footgun already documented this pattern but the footgun's own evidence list had gone stale, demonstrating the recursive nature of the problem.
+
+**Fix:** Applied all 15 fixes. Updated cold-path drift footgun with Round 2 evidence. Preflight now passes (33 checks, 0 errors).
+
+**Prevention:**
+1. After any rename, count change, or structural reorganization, grep for the old names/numbers across ALL docs, not just the files in the diff.
+2. Run multi-agent critique on release branches -- the cross-review pattern (compare findings across 3+ independent reviewers, verify each, disprove false positives) is the most effective cold-path drift detector available.
+3. Consider automating: extract check counts from code exports and validate against doc claims in preflight.
