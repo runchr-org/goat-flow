@@ -4,26 +4,73 @@ A structured workflow system for AI coding agents, built on harness engineering 
 
 AI coding agents are powerful but unreliable. They skip verification steps, create duplicate files instead of editing in place, ignore project conventions, and repeat the same mistakes across sessions. GOAT Flow fixes this by giving agents a concrete operating system: an execution loop that enforces READ before writing, VERIFY before committing, and a learning loop that captures mistakes so they never repeat. It works with Claude Code, Gemini CLI, and Codex.
 
-## Before and After
+## What You Get
 
-**Without GOAT Flow** -- you ask the agent to fix a bug in `src/auth.ts`:
+**Execution Loop** -- READ → SCOPE → ACT → VERIFY. Read before you write. Verify after you write. This prevents the agent from guessing at code it hasn't read or shipping without running checks.
+
+**Skills** -- Seven structured workflows (`/goat-debug`, `/goat-review`, `/goat-plan`, `/goat-sbao`, `/goat-security`, `/goat-test`, `/goat`) with phases and human gates. The `/goat` dispatcher classifies your request and routes to the right skill automatically.
+
+**Enforcement Hooks** -- Pre-tool hooks intercept dangerous commands (`rm -rf`, force push, secret file access) and reject them with an explanation. goat-flow ships `deny-dangerous.sh` - project-specific linting and constraints are registered in `config.yaml`.
+
+**Learning Loop** -- Agents record footguns, lessons, decisions, and session logs in `.goat-flow/`. Next session, they read these before acting. Mistakes stop repeating.
+
+**Autonomy Tiers** -- Three-tier permission model (Always / Ask First / Never) built into the instruction file so agents know what they can do independently and what requires your approval.
+
+**Reference Templates** -- Planning, security, and compliance templates used by skills and setup to provide concrete, framework-specific guidance.
+
+## See it in 30 seconds
+
+A fresh repo fails the audit. That's the baseline:
 
 ```
-Agent reads one file, guesses the fix, edits three files it shouldn't,
-skips linting, creates auth_fixed.ts instead of editing in place,
-and pushes broken code. Next session, it makes the same mistake.
+$ npx @blundergoat/goat-flow@latest audit .
+GOAT Flow Audit: .
+
+GOAT Flow Setup:         FAIL
+  Skills:                7/7 installed
+  Config:                invalid or missing
+  InstructionFile:       0 lines (max across agents)
+  x Lessons: Missing: .goat-flow/lessons/
+  x Footguns: Missing: .goat-flow/footguns/
+  x Architecture: Missing: .goat-flow/architecture.md
+  ... 9 more failures
+
+Result: FAIL
 ```
 
-**With GOAT Flow** -- same request:
+Run setup, paste the prompt into your agent, re-audit:
 
 ```
-READ    → Agent reads auth.ts, related tests, and known footguns
-SCOPE   → Routes as "hotfix" - editing auth.ts only, running existing tests
-ACT     → Applies the fix in place
-VERIFY  → Runs linter + tests, catches a type error, fixes it, logs a footgun
+$ goat-flow audit .
+GOAT Flow Audit: /your/project
+
+GOAT Flow Setup:         PASS
+  Skills:                7/7 installed
+  Config:                valid, version 1.1.0
+  InstructionFile:       118 lines (max across agents)
+
+Agent Setup:             PASS
+  Hooks:                 claude:deny installed
+
+Result: PASS
 ```
 
-The agent follows the loop because it's built into the instruction file, enforced by hooks, and validated by the auditor.
+## A real session
+
+Captured trace from `.goat-flow/logs/sessions/2026-04-16-v1.1.0-review-and-cold-path-fixes.md`:
+
+```
+READ    → 89-file diff, 4 independent agent critiques cross-referenced
+SCOPE   → "review" mode, no edits; fix scope declared after triage
+ACT     → Fixed 3 broken cross-references:
+          - 03-install-skills.md (stale flat file names)
+          - code-map.md (wrong harness count 15→16, stale skill tree)
+          - upgrade-from-0.9.x.md (goat-debug.md → goat-debug/SKILL.md)
+          Marked 6 stale footgun entries resolved.
+VERIFY  → Preflight: 33 checks, 0 errors, 9 warnings. Tests: 92/92 passing.
+```
+
+Every edit is auditable against the loop, after the fact, from the log alone.
 
 ## Getting Started
 
@@ -48,13 +95,15 @@ A local web UI opens with auditing, setup, and an integrated terminal.
 
 ![Dashboard](docs/assets/dashboard-preview.png)
 
+*Dashboard home: audit status per agent, setup entry points, and a terminal wired to the project root.*
+
 ### 3. Audit your project
 
 ```bash
-npx goat-flow audit .
+goat-flow audit .
 ```
 
-The auditor validates goat-flow setup correctness across two scopes -- GOAT Flow Setup (pass/fail) and AI Harness Score (per-agent percentage) -- and reports pass/fail. A fresh project fails -- that's expected.
+Validates setup correctness across two scopes -- GOAT Flow Setup and Agent Setup -- and prints pass/fail per scope with actionable fix hints. A fresh project fails; that's the baseline you'll re-measure against in step 5. Audit checks setup files, config, skills, and hooks -- not code quality. Run your project's lint and test commands separately.
 
 ### 4. Generate setup for your agent
 
@@ -62,15 +111,15 @@ The auditor validates goat-flow setup correctness across two scopes -- GOAT Flow
 goat-flow setup . --agent claude
 ```
 
-This prints a setup prompt. Paste it into Claude Code and let the agent configure your project: instruction file, skills, hooks, and learning loop.
+Prints a setup prompt. Paste it into Claude Code and let the agent configure your project: instruction file, skills, hooks, and learning loop.
 
-### 5. Re-audit and see the difference
+### 5. Re-audit
 
 ```bash
-npx goat-flow audit .
+goat-flow audit .
 ```
 
-Your project passes the structural setup checks. Add `--harness` to see advisory scoring across the 5 harness concerns. Note: audit validates setup correctness (files, config, skills, hooks), not code quality - run your project's lint and test commands separately.
+Now passes. Add `--harness` to see advisory scoring across the 5 harness concerns (Context, Constraints, Verification, Recovery, Feedback Loop).
 
 ### 6. Try a skill
 
@@ -78,25 +127,11 @@ Your project passes the structural setup checks. Add `--harness` to see advisory
 /goat review src/auth.ts
 ```
 
-Skills are structured workflows the agent follows. `/goat` auto-routes to the right one -- debug, review, plan, security audit, or test gap analysis.
-
-## What You Get
-
-**Execution Loop** -- READ → SCOPE → ACT → VERIFY. Read before you write. Verify after you write. This prevents the agent from guessing at code it hasn't read or shipping without running checks.
-
-**Skills** -- Seven structured workflows (`/goat-debug`, `/goat-review`, `/goat-plan`, `/goat-sbao`, `/goat-security`, `/goat-test`, `/goat`) with phases and human gates. The `/goat` dispatcher classifies your request and routes to the right skill automatically.
-
-**Enforcement Hooks** -- Pre-tool hooks intercept dangerous commands (`rm -rf`, force push, secret file access) and reject them with an explanation. goat-flow ships `deny-dangerous.sh` - project-specific linting and constraints are registered in `config.yaml`.
-
-**Learning Loop** -- Agents record footguns, lessons, decisions, and session logs in `.goat-flow/`. Next session, they read these before acting. Mistakes stop repeating.
-
-**Autonomy Tiers** -- Three-tier permission model (Always / Ask First / Never) built into the instruction file so agents know what they can do independently and what requires your approval.
-
-**Reference Templates** -- Planning, security, and compliance templates used by skills and setup to provide concrete, framework-specific guidance.
+Skills are structured workflows the agent follows. `/goat` auto-routes to the right one -- debug, review, plan, security audit, test gap analysis, or multi-perspective critique (`/goat-sbao`).
 
 ## The Five Harness Concerns
 
-GOAT Flow's quality audit (`npx goat-flow audit . --harness`) evaluates your project's agent harness against 5 concerns - the things every major harness engineering source agrees matter for agent effectiveness.
+GOAT Flow's quality audit (`goat-flow audit . --harness`) evaluates your project's agent harness against 5 concerns - the things every major harness engineering source agrees matter for agent effectiveness.
 
 | Concern | Question | What GOAT Flow checks |
 |---------|----------|----------------------|
@@ -111,16 +146,15 @@ These aren't a proprietary model - they're a synthesis of consensus across the h
 ## Commands
 
 ```bash
-npx goat-flow audit .                      # Validate setup correctness (pass/fail)
-npx goat-flow audit . --harness            # Build + advisory quality scoring
-goat-flow critique . --agent claude        # Generate agent critique prompt
-goat-flow setup . --agent claude           # Generate setup prompt for Claude Code
-goat-flow status .                         # Show project state (bare/partial/v0.9/v1.0/v1.1)
-goat-flow dashboard .                      # Visual dashboard with integrated terminal
-
-npx goat-flow audit . --format json        # JSON output for CI
-goat-flow setup . --agent gemini           # Gemini CLI setup
-goat-flow setup . --agent codex            # Codex setup
+goat-flow audit .                      # Validate setup correctness (pass/fail)
+goat-flow audit . --harness            # Add advisory harness-quality scoring
+goat-flow audit . --format json        # JSON output for CI
+goat-flow critique . --agent claude    # Generate agent critique prompt
+goat-flow setup . --agent claude       # Generate setup prompt for Claude Code
+goat-flow setup . --agent gemini       # Gemini CLI setup
+goat-flow setup . --agent codex        # Codex setup
+goat-flow status .                     # Show project state (bare/partial/v0.9/v1.0/v1.1)
+goat-flow dashboard .                  # Visual dashboard with integrated terminal
 ```
 
 See [docs/cli.md](docs/cli.md) for the full command reference.
@@ -144,6 +178,15 @@ node-pty didn't compile. Run `npm rebuild node-pty`. If using pnpm: `pnpm approv
 
 **Audit fails on a fresh project?**
 Expected. Run `goat-flow setup . --agent claude` and paste the output into your agent.
+
+**Audit still fails after setup?**
+Re-run `goat-flow audit . --verbose` to see which check failed. The `howToFix` hint on each failure points at the missing file or config key. If hooks show as uninstalled, check `.claude/hooks/` (or `.gemini/hooks/`, `.codex/hooks/`) exists and contains `deny-dangerous.sh`.
+
+**Agent isn't following the execution loop?**
+Restart the agent session after setup so it re-reads the instruction file (CLAUDE.md, GEMINI.md, or AGENTS.md). Agents only pick up instruction-file changes on session start.
+
+**Not sure which agent to pick?**
+Pick the one you're already using. All three agents share the same skills, execution loop, and learning loop -- only the instruction filename and hook directory differ. See the [Multi-Agent Support](#multi-agent-support) table.
 
 ## Documentation
 
