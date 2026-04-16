@@ -8,7 +8,7 @@ category: docs-and-crossrefs
 
 **Symptoms:** A renamed or moved file breaks links in multiple documents. Users following getting-started.md hit dead references.
 
-**Why it happens:** Documentation files reference each other by relative path. The project has 400+ markdown files with dense cross-referencing. Renaming one file can break references in 5-10 others.
+**Why it happens:** Documentation files reference each other by relative path. The project has 120+ markdown files with dense cross-referencing. Renaming one file can break references in 5-10 others.
 
 **Evidence:**
 - `docs/getting-started.md` → referenced stale paths to old workflow directory (file retired in v1.1.0, see `workflow/setup/`)

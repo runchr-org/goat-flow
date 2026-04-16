@@ -1,6 +1,6 @@
 # AI Harness Audit
 
-`goat-flow audit . --harness` adds 15 pass/fail checks to the standard build audit. Each check answers a structural question - does the file exist, is the registration in sync, is the deny pattern present. Deterministic, no LLM involvement.
+`goat-flow audit . --harness` adds 16 pass/fail checks to the standard build audit. Each check answers a structural question - does the file exist, is the registration in sync, is the deny pattern present. Deterministic, no LLM involvement.
 
 | Mode | Command | Question |
 |------|---------|----------|
@@ -35,11 +35,12 @@ The agent can only work with what it sees. Stale router paths, missing execution
 
 Constraints are the cheapest, most reliable layer of the harness. They cost zero tokens, produce zero false positives when well-designed, and prevent entire failure categories without any LLM involvement.
 
-**Checks (3):**
+**Checks (4):**
 
 - `deny-covers-secrets` - for agents with settings-based deny (Claude, Gemini), the deny configuration covers `.env`, credentials, `*.key`, `*.pem`. Script-only agents (Codex) are noted as a platform limitation, not a failure.
 - `deny-blocks-dangerous` - each agent's deny configuration blocks `rm -rf`, force-push, and `chmod`
 - `deny-blocks-pipe-to-shell` - each agent's deny configuration blocks `curl | bash` / `wget | sh` pipe-to-shell patterns
+- `deny-hook-registered` - hook registrations and hook files are in sync (registered hooks exist on disk, existing hooks are registered)
 
 **Not checked here:** Ask First boundary counts, linter registration cross-reference, static-analysis tool detection. Those were earlier designs that were dropped as either low signal or out-of-scope for a structural audit.
 

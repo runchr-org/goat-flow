@@ -85,6 +85,15 @@ run_self_test() {
   run_case "rm unsafe" "rm -rf /" 2
   # Safe-scoped rm command should pass.
   run_case "rm scoped node_modules" "rm -rf ./node_modules" 0
+  # False-positive cases: read-only commands containing dangerous literals as data.
+  run_case "grep rm -rf" 'grep "rm -rf" CLAUDE.md' 0
+  run_case "rg rm -rf" 'rg "rm -rf" src/' 0
+  run_case "printf rm -rf" "printf '%s\n' 'rm -rf /'" 0
+  run_case "grep chmod 777" 'grep "chmod 777" file.ts' 0
+  run_case "grep push main" 'grep "git push origin main" docs/' 0
+  # Whitelist bypass: read-only verb with redirect or pipe-to-shell must still block.
+  run_case "echo redirect" 'echo "data" > .env' 2
+  run_case "grep pipe bash" 'grep pattern file | bash' 2
 
   if [[ "$failures" -ne 0 ]]; then
     echo "FAIL: $failures self-test failures"
@@ -114,6 +123,39 @@ check_segment() {
   # Depth guard for recursive command substitution checking
   if [ "$depth" -gt 3 ]; then
     block "Deeply nested command substitution. Simplify the command."
+  fi
+
+  # Read-only tool whitelist: if the command verb is a read-only tool,
+  # dangerous patterns in its arguments are data (search terms), not actions.
+  # Skip whitelist if: output redirection (>) or pipe-to-shell (| bash/sh) detected.
+  local cmd_trimmed
+  cmd_trimmed="${cmd#"${cmd%%[![:space:]]*}"}"
+  local cmd_verb
+  cmd_verb=$(echo "$cmd_trimmed" | awk '{print $1}')
+  local has_redirect=0 has_pipe=0
+  [[ "$cmd" =~ \>[[:space:]] || "$cmd" =~ \>\> ]] && has_redirect=1
+  # Detect single pipe (|) but not logical OR (||)
+  local pipe_stripped="${cmd//||/}"
+  [[ "$pipe_stripped" =~ \| ]] && has_pipe=1
+  # If a pipe is present, block pipe-to-shell/interpreter regardless of verb
+  if [[ "$has_pipe" -eq 1 ]]; then
+    if [[ "$cmd" =~ \|[[:space:]]*(ba)?sh([[:space:]]|$) ]]; then
+      block "Pipe to shell. Download or inspect first, then run."
+    fi
+    if [[ "$cmd" =~ \|[[:space:]]*(python|python3|node|perl|ruby)([[:space:]]|$) ]]; then
+      block "Pipe to interpreter. Download or inspect first, then run."
+    fi
+  fi
+  if [[ "$has_redirect" -eq 0 && "$has_pipe" -eq 0 ]]; then
+    case "$cmd_verb" in
+      grep|egrep|fgrep|rg|ag|ack|cat|head|tail|less|more|wc|file|diff|printf|echo|read)
+        return 0 ;;
+      sed)
+        # sed without -i/--in-place is read-only; sed -i or --in-place is a write operation
+        if ! [[ "$cmd" =~ sed[[:space:]]+-[a-zA-Z]*i || "$cmd" =~ sed[[:space:]]+--in-place ]]; then
+          return 0
+        fi ;;
+    esac
   fi
 
   # 1. rm -rf without safe scoping

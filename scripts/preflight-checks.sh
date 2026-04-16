@@ -452,13 +452,13 @@ if [[ -f src/cli/prompt/template-refs.ts ]]; then
 fi
 
 # B.8d: Dashboard concern key sync
-if [[ -f dist/cli/audit/harness/index.js ]] && [[ -f src/dashboard/views/audit.html ]]; then
+if [[ -f dist/cli/audit/harness/index.js ]] && [[ -f src/dashboard/views/home.html ]]; then
     code_keys=$(node --input-type=module -e "
       const q=await import('./dist/cli/audit/harness/index.js');
       const keys=[...new Set(q.HARNESS_CHECKS.map(c=>c.concern))].sort();
       console.log(keys.join(','))
     " 2>/dev/null || echo "")
-    html_keys=$(grep -oP "concernKeys:\s*\[([^\]]+)\]" src/dashboard/views/audit.html \
+    html_keys=$(grep -oP "concernKeys:\s*\[([^\]]+)\]" src/dashboard/views/home.html \
         | head -1 | grep -oP "'[^']+'" | tr -d "'" | sort | paste -sd, 2>/dev/null || echo "")
     if [[ -n "$code_keys" ]] && [[ -n "$html_keys" ]]; then
         if [[ "$code_keys" == "$html_keys" ]]; then

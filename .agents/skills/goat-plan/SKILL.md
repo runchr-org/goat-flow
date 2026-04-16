@@ -191,7 +191,7 @@ If updates are needed mid-flight, follow the detailed milestone retrospective pr
 
 ## Constraints
 
-- MUST write milestone files to `.goat-flow/tasks/` for Standard complexity and above, **unless the user requests read-only/analysis mode**. Hotfix and Small Feature may use inline milestones.
+- Default to inline/read-only milestones unless the user explicitly requests file creation. Offer to write milestone files to `.goat-flow/tasks/` when scope is Standard or above, but do not write without confirmation.
 - MUST check for existing milestone files before creating new ones
 - MUST include a testing gate on every milestone - no milestone ships without verification
 - MUST re-read and potentially update the next milestone after completing each one

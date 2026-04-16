@@ -9,7 +9,7 @@ Read this first. This is what you're installing and why.
 
 ## State check
 
-If `.goat-flow/config.yaml` exists and its version matches the current goat-flow release, AND `goat-flow audit . --agent {agent}` passes, **STOP**. The project is already configured - fix any failing audit checks if needed. If the version matches but audit fails or skills/instruction file/preamble are missing, continue with setup to repair the incomplete install.
+If `.goat-flow/config.yaml` exists and its version matches the current goat-flow release, AND `goat-flow audit . --agent {agent}` passes, AND `goat-flow audit . --agent {agent} --harness` passes, verify cold-path truth before stopping: spot-check that architecture doc claims match code reality (dashboard views, check counts, component paths). If structural audit + harness + cold-path spot-check all pass, **STOP**. If the version matches but audit fails or skills/instruction file/preamble are missing, continue with setup to repair the incomplete install.
 
 If the version is older, use the upgrade path instead:
 - Old skill names (goat-audit, goat-investigate, etc.) or legacy `docs/footguns.md` / `tasks/todo.md` → run the migration script first (dry-run by default, add `--execute` to apply), then continue with fresh setup:

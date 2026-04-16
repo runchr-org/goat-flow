@@ -243,6 +243,39 @@ function checkDenyPatterns(ctx: AuditContext): AuditFailure | null {
   return null;
 }
 
+function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
+  for (const af of ctx.agents) {
+    if (!af.agent.hooksDir) continue;
+    const denyPath = join(
+      ctx.projectPath,
+      af.agent.hooksDir,
+      "deny-dangerous.sh",
+    );
+    try {
+      ctx.fs.readFile(
+        join(af.agent.hooksDir, "deny-dangerous.sh"),
+      );
+    } catch {
+      continue; // no deny hook to self-test
+    }
+    try {
+      execFileSync("bash", [denyPath, "--self-test"], {
+        stdio: "pipe",
+        timeout: 10000,
+      });
+    } catch {
+      return {
+        check: "Agent deny mechanism",
+        message: `deny-dangerous.sh --self-test failed for ${af.agent.id}`,
+        evidence: `${af.agent.hooksDir}/deny-dangerous.sh`,
+        howToFix:
+          "Run `bash <hooks-dir>/deny-dangerous.sh --self-test` to see which cases fail.",
+      };
+    }
+  }
+  return null;
+}
+
 const agentDenyMechanism: BuildCheck = {
   id: "agent-deny-dangerous",
   name: "Agent deny mechanism",
@@ -252,7 +285,8 @@ const agentDenyMechanism: BuildCheck = {
     return (
       checkDenyHookPresent(ctx) ??
       checkHookSyntax(ctx) ??
-      checkDenyPatterns(ctx)
+      checkDenyPatterns(ctx) ??
+      checkHookSelfTest(ctx)
     );
   },
 };

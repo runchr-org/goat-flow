@@ -118,7 +118,7 @@ category: verification
 
 **Created:** 2026-04-11
 **What happened:** M17a extracted skill modes into the repository template directory and left repository-local template references in the skill files. Skills are installed verbatim, so every project received instructions that pointed back into the goat-flow repo instead of the installed project. R9 scored system avg 42 (down from 53.7) largely because of this single bug.
-**Evidence:** R9 critiques - 6 of 7 projects flagged broken template references. `workflow/skills/goat.md:71,74`, `workflow/skills/goat-security.md:71`, `workflow/skills/goat-test.md:108,145` all used repository-local template paths instead of installed-project template paths.
+**Evidence:** R9 critiques - 6 of 7 projects flagged broken template references. `workflow/skills/goat/SKILL.md`, `workflow/skills/goat-security/SKILL.md`, `workflow/skills/goat-test/SKILL.md` all used repository-local template paths instead of installed-project template paths. (Paths updated from retired flat-file layout to current directory structure.)
 **Prevention:** After editing any skill file that references a path, verify the path exists from the PROJECT's perspective, not the goat-flow repo's perspective. Add to DoD: "grep skill files for repository-local template paths and replace them with the installed project-local equivalent before shipping."
 
 ---
@@ -246,7 +246,7 @@ category: verification
 
 **Root cause:** Two compounding failures. First, the install script was never updated to copy RULES.md when the audit check was added - the check and the installer were authored independently. Second, the resulting test failures were dismissed as background noise instead of investigated. Every test run showed "62 pass / 2 fail" and the response was "same 2 pre-existing failures, not from my change" - a correct but useless observation that prevented anyone from reading the actual failure messages.
 
-**Fix:** Created `workflow/skills/goat-rules.md` as the canonical template. Updated install script to copy it for the goat skill. Copied to `.claude/skills/goat/` in the repo.
+**Fix:** Created a rules template for the goat skill (now part of `workflow/skills/goat/SKILL.md`). Updated install script to copy it for the goat skill. Copied to `.claude/skills/goat/` in the repo. (Path updated from retired flat-file `goat-rules.md` to current directory structure.)
 
 **Prevention:**
 1. Never dismiss test failures as "pre-existing" without reading what they actually assert. If 2 tests fail, read the 2 failure messages.
