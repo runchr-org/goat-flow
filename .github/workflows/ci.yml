@@ -26,7 +26,7 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npx tsc && cp -r src/dashboard dist/
+        run: npm run build
 
       - name: Test
         run: node --import tsx --test --test-reporter=spec test/*/*.test.ts
