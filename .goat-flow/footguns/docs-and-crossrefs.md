@@ -23,22 +23,6 @@ category: docs-and-crossrefs
 
 ---
 
-## Footgun: Preflight validates doc totals but not sub-breakdowns
-
-**Status:** active | **Created:** 2026-04-14 | **Evidence:** ACTUAL_MEASURED
-
-**Symptoms:** A doc claim like "16 build checks (12 setup + 4 harness)" passes the preflight because the total (16) is correct, even though the breakdown (12+4) could be wrong. The sub-breakdown can be changed to any pair that sums to 16 and no automated check catches it.
-
-**Why it happens:** `scripts/preflight-checks.sh` Doc/Code Drift section greps for `${build_count} build` in `.goat-flow/architecture.md` - a total-only check. There is no extraction or validation of the `(N scope + M scope)` parenthetical. This means the most useful part of the claim (the breakdown) is the least validated.
-
-**Evidence:**
-- `scripts/preflight-checks.sh` (search: `build_count.*build.*architecture`) - `grep -q "${build_count} build" .goat-flow/architecture.md` validates total only
-- `.goat-flow/architecture.md:18` - was changed from "7+9" to "12+4" on 2026-04-14. Preflight passed because the total (16) was still correct. Current verified breakdown is 12 setup + 4 agent (via `SETUP_CHECKS.length` and `AGENT_CHECKS.length`).
-
-**Prevention:** Add sub-breakdown validation: extract the `(N setup + M agent)` claim and validate N and M against `SETUP_CHECKS.length` and `AGENT_CHECKS.length`.
-
----
-
 ## Footgun: Cold-path docs drift while structural audit passes
 
 **Status:** active | **Created:** 2026-04-15 | **Evidence:** ACTUAL_MEASURED
@@ -90,3 +74,4 @@ category: docs-and-crossrefs
 - **Line target inconsistency for project shapes** (resolved 2026-03-18) - Line target canonicalized to 120 for all shapes in ADR-029.
 - **CONTRIBUTING.md directs contributors to the wrong subsystem** (resolved 2026-04-13) - Rewritten to describe build checks in `check-goat-flow.ts` + `check-agent-setup.ts` and quality checks in `src/cli/audit/harness/`.
 - **Stale references from old project structure** (resolved 2026-04-15) - `ai-workflow-framework` no longer appears anywhere in the repo (verified by `rg "ai-workflow-framework"`).
+- **Preflight validates doc totals but not sub-breakdowns** (resolved 2026-04-17) - `scripts/preflight-checks.sh:412-419` now extracts `setup_count` and `agent_count` from the audit modules and validates the `(N setup + M agent)` breakdown claim in `.goat-flow/architecture.md`, not just the total. Verified by grep of preflight source.

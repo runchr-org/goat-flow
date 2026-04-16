@@ -31,9 +31,10 @@ Usage:
   bash scripts/deny-dangerous.sh --check "<command>"
   bash scripts/deny-dangerous.sh --self-test
 
-This script documents the Codex deny policy and can verify whether a
-command string would be blocked. It does NOT intercept commands at
-runtime; Codex has no hook system.
+This script is a standalone validator that documents the shared deny
+policy and verifies whether a command string would be blocked. It does
+NOT intercept commands at runtime. For runtime enforcement, use the
+per-agent hooks (.claude/hooks/, .codex/hooks/, .gemini/hooks/).
 EOF
 }
 

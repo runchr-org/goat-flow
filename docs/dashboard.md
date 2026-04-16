@@ -6,11 +6,7 @@ Launch: `goat-flow dashboard .` (or `goat-flow dashboard . --dev` for live reloa
 
 ### Home
 
-Overview landing page. Shows "What to do next" action cards based on your latest audit results, per-agent status indicators, and quick-launch buttons for the setup wizard and terminal. When all agents pass audit, the action cards are replaced with a success banner.
-
-### Audit
-
-Audit results in a single scrollable page. Each scope (GOAT Flow Setup, Agent Setup, AI Harness Completeness) shows pass/fail status and can be expanded inline for details. Per-agent cards show individual pass/fail results. Failures include actionable fix instructions. Run a new audit or re-audit after changes without leaving the page. Also accessible from action cards on the Home view.
+Overview landing page. Shows "What to do next" action cards based on your latest audit results, per-agent status indicators, and quick-launch buttons for the setup wizard and terminal. Full audit results render inline on this page: each scope (GOAT Flow Setup, Agent Setup, AI Harness Completeness) shows pass/fail status and can be expanded for details, with per-agent cards and actionable fix instructions. Run a new audit or re-audit after changes without leaving the page. When all agents pass audit, the action cards are replaced with a success banner.
 
 ### Critique
 
@@ -22,7 +18,7 @@ Guided setup flow. Detects your project stack and existing configuration, lets y
 
 ### Projects
 
-Multi-project browser. Lists all registered project paths with their latest audit status. "Audit All" re-audits every project in one click. Select a project to switch context and view its results in the Audit view.
+Multi-project browser. Lists all registered project paths with their latest audit status. "Audit All" re-audits every project in one click. Select a project to switch context and view its results on the Home view.
 
 ### Workspace
 
