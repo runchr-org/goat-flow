@@ -29,7 +29,10 @@ const milestoneTracking: HarnessCheck = {
       if (milestonePattern.test(name)) return true;
       // Also include files that contain milestone structure (checkboxes + exit criteria)
       const content = ctx.fs.readFile(f);
-      return content ? /- \[[ x]\]/.test(content) && /exit criter|testing gate/i.test(content) : false;
+      return content
+        ? /- \[[ x]\]/.test(content) &&
+            /exit criter|testing gate/i.test(content)
+        : false;
     });
     if (allMdFiles.length === 0) {
       return pass(["Tasks directory exists (empty - valid for new projects)"]);
@@ -43,7 +46,8 @@ const milestoneTracking: HarnessCheck = {
       }
     }
     const extra = allMdFiles.length - mdFiles.length;
-    const extraNote = extra > 0 ? ` (${extra} non-milestone .md files ignored)` : "";
+    const extraNote =
+      extra > 0 ? ` (${extra} non-milestone .md files ignored)` : "";
     return pass([
       `${withCheckboxes}/${mdFiles.length} milestone files have trackable checkbox items${extraNote}`,
     ]);
