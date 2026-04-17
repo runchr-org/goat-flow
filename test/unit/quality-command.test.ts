@@ -1,42 +1,42 @@
 /**
- * Critique command tests - prompt generation, payload contract, audit embedding.
+ * Quality command tests - prompt generation, payload contract, audit embedding.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { parseCLIArgs } from "../../src/cli/cli.js";
-import { composeCritique } from "../../src/cli/prompt/compose-critique.js";
+import { composeQuality } from "../../src/cli/prompt/compose-quality.js";
 import { runAudit } from "../../src/cli/audit/audit.js";
 import { createFS } from "../../src/cli/facts/fs.js";
 
 // ---------------------------------------------------------------------------
-// Test 1: critique without --agent exits with usage error
+// Test 1: quality without --agent exits with usage error
 // ---------------------------------------------------------------------------
-describe("critique requires --agent", () => {
-  it("parses critique command without agent as null agent", () => {
-    const parsed = parseCLIArgs(["critique", "."]);
-    assert.equal(parsed.command, "critique");
+describe("quality requires --agent", () => {
+  it("parses quality command without agent as null agent", () => {
+    const parsed = parseCLIArgs(["quality", "."]);
+    assert.equal(parsed.command, "quality");
     assert.equal(parsed.agent, null, "agent should be null when not provided");
     // The CLI handler checks for null agent and throws CLIError - tested at integration level
   });
 });
 
 // ---------------------------------------------------------------------------
-// Test 2: critique --agent claude produces prompt output (not empty, not a score)
+// Test 2: quality --agent claude produces prompt output (not empty, not a score)
 // ---------------------------------------------------------------------------
-describe("critique produces prompt output", () => {
+describe("quality produces prompt output", () => {
   it("generates non-empty prompt text without scores", () => {
-    const result = composeCritique({
+    const result = composeQuality({
       agent: "claude",
       projectPath: "/tmp/test-project",
       auditReport: null,
     });
 
-    assert.equal(result.command, "critique");
+    assert.equal(result.command, "quality");
     assert.equal(result.agent, "claude");
     assert.ok(result.prompt.length > 100, "Prompt should be substantial");
     assert.ok(
-      result.prompt.includes("# GOAT Flow Critique - Claude Code"),
+      result.prompt.includes("# GOAT Flow Quality Assessment - Claude Code"),
       "Should have title with agent name",
     );
     // Must NOT contain percentage scores or grades
@@ -50,17 +50,17 @@ describe("critique produces prompt output", () => {
 // ---------------------------------------------------------------------------
 // Test 3: Generated prompt contains skill testing section and ratings request
 // ---------------------------------------------------------------------------
-describe("critique prompt content", () => {
-  it("states critique is strictly read-only", () => {
-    const result = composeCritique({
+describe("quality prompt content", () => {
+  it("states the assessment is strictly read-only", () => {
+    const result = composeQuality({
       agent: "claude",
       projectPath: "/tmp/test-project",
       auditReport: null,
     });
 
     assert.ok(
-      result.prompt.includes("READ-ONLY CRITIQUE MODE."),
-      "Should explicitly mark critique mode as read-only",
+      result.prompt.includes("READ-ONLY ASSESSMENT MODE."),
+      "Should explicitly mark assessment mode as read-only",
     );
     assert.ok(
       result.prompt.includes(
@@ -74,12 +74,12 @@ describe("critique prompt content", () => {
     );
     assert.ok(
       !result.prompt.includes("milestone task files"),
-      "Should not ask critique to create milestone task files",
+      "Should not ask assessment to create milestone task files",
     );
   });
 
   it("contains skill testing section", () => {
-    const result = composeCritique({
+    const result = composeQuality({
       agent: "claude",
       projectPath: "/tmp/test-project",
       auditReport: null,
@@ -122,7 +122,7 @@ describe("critique prompt content", () => {
   });
 
   it("contains ratings request with sub-scores", () => {
-    const result = composeCritique({
+    const result = composeQuality({
       agent: "claude",
       projectPath: "/tmp/test-project",
       auditReport: null,
@@ -154,7 +154,7 @@ describe("critique prompt content", () => {
 // ---------------------------------------------------------------------------
 // Test 4: Generated prompt contains audit summary when audit data is available
 // ---------------------------------------------------------------------------
-describe("critique with audit data", () => {
+describe("quality with audit data", () => {
   it("includes audit summary in prompt", () => {
     const projectPath = resolve(import.meta.dirname, "..", "..");
     const fs = createFS(projectPath);
@@ -163,7 +163,7 @@ describe("critique with audit data", () => {
       harness: true,
     });
 
-    const result = composeCritique({
+    const result = composeQuality({
       agent: "claude",
       projectPath,
       auditReport,
@@ -182,7 +182,7 @@ describe("critique with audit data", () => {
   });
 
   it("includes degraded context note when audit is unavailable", () => {
-    const result = composeCritique({
+    const result = composeQuality({
       agent: "claude",
       projectPath: "/tmp/nonexistent",
       auditReport: null,
@@ -203,15 +203,15 @@ describe("critique with audit data", () => {
 // ---------------------------------------------------------------------------
 // Test 5: Machine-readable payload has correct shape
 // ---------------------------------------------------------------------------
-describe("critique payload contract", () => {
+describe("quality payload contract", () => {
   it("has required fields", () => {
-    const result = composeCritique({
+    const result = composeQuality({
       agent: "codex",
       projectPath: "/tmp/test-project",
       auditReport: null,
     });
 
-    assert.equal(result.command, "critique");
+    assert.equal(result.command, "quality");
     assert.equal(result.agent, "codex");
     assert.ok(
       ["pass", "fail", "unavailable"].includes(result.auditStatus),

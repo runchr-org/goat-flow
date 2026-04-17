@@ -1,6 +1,6 @@
 /**
  * HTTP server for the local goat-flow dashboard.
- * It serves the frontend shell, exposes audit, critique, setup, and terminal endpoints.
+ * It serves the frontend shell, exposes audit, quality, setup, and terminal endpoints.
  */
 import {
   createServer,
@@ -116,7 +116,7 @@ interface DashboardServer {
 
 /**
  * Start a local dashboard server. Serves the HTML dashboard and
- * exposes /api/audit, /api/critique, /api/setup, /api/terminal/*, /api/health, and other endpoints.
+ * exposes /api/audit, /api/quality, /api/setup, /api/terminal/*, /api/health, and other endpoints.
  * Returns a handle for testing; callers that don't need it can ignore the return value.
  */
 export function serveDashboard(
@@ -350,17 +350,17 @@ export function serveDashboard(
       return true;
     }
 
-    /** Generate a critique prompt for a selected agent and return it to the dashboard. */
-    async function handleCritiqueRequest(
+    /** Generate a quality-assessment prompt for a selected agent and return it to the dashboard. */
+    async function handleQualityRequest(
       url: URL,
       res: ServerResponse,
     ): Promise<boolean> {
-      if (url.pathname !== "/api/critique") return false;
+      if (url.pathname !== "/api/quality") return false;
 
       const agentParam = url.searchParams.get("agent");
       if (!agentParam || !VALID_AGENTS.has(agentParam)) {
         jsonResponse(res, 400, {
-          error: `critique requires --agent. Valid: claude, codex, gemini`,
+          error: `quality requires --agent. Valid: claude, codex, gemini`,
         });
         return true;
       }
@@ -370,8 +370,8 @@ export function serveDashboard(
 
       try {
         requireProjectDirectory(projectPath);
-        const { composeCritique } =
-          await import("../prompt/compose-critique.js");
+        const { composeQuality } =
+          await import("../prompt/compose-quality.js");
 
         let auditReport: AuditReport | null = null;
         try {
@@ -381,10 +381,10 @@ export function serveDashboard(
             harness: true,
           });
         } catch {
-          // Audit failure is fine - critique generates with degraded context
+          // Audit failure is fine - quality prompt generates with degraded context
         }
 
-        const result = composeCritique({ agent, projectPath, auditReport });
+        const result = composeQuality({ agent, projectPath, auditReport });
         jsonResponse(res, 200, result);
       } catch (err) {
         jsonResponse(res, 500, {
@@ -1048,7 +1048,7 @@ export function serveDashboard(
         () => Promise.resolve(handleAuditRequest(url, res)),
         () => Promise.resolve(handleSetupDetectRequest(url, res)),
         () => handleSetupRequest(url, res),
-        () => handleCritiqueRequest(url, res),
+        () => handleQualityRequest(url, res),
 
         () => Promise.resolve(handleBrowseRequest(url, res)),
         () => Promise.resolve(handleAgentDetectRequest(url, res)),

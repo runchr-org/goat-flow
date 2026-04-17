@@ -1,7 +1,10 @@
 # Changelog
 
-## v1.1.0 - 2026-04-17
+## Unreleased
 
+- **critique renamed to quality** - CLI command, dashboard view, `/api/critique` → `/api/quality`, prompt title, docs (`docs/audit-and-quality.md`, `docs/harness-quality.md`). Pairs cleanly with `audit`: audit answers "is it installed?", quality answers "is it any good?".
+
+## v1.1.0 - 2026-04-17
 
 Scanner/rubric system removed. Replaced by deterministic audit with 16 build checks (12 project setup + 4 per-agent) and 16 advisory harness checks across 5 concerns. Deterministic install script. Dashboard overhaul with dynamic recommended actions. 528 files changed.
 - 

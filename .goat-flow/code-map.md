@@ -5,7 +5,7 @@ Quick orientation for agents working on the goat-flow codebase.
 ## src/cli/ -- TypeScript CLI auditor and dashboard
 
 ```
-cli.ts                     # Entry point: command parser (audit, setup, dashboard, critique)
+cli.ts                     # Entry point: command parser (audit, setup, dashboard, quality)
 classify-state.ts          # Project adoption classifier (bare/partial/v0.9/v1.0/v1.1/error)
 constants.ts               # SKILL_NAMES, AUDIT_VERSION
 types.ts                   # Shared types: AgentId, ReadonlyFS, CLIOptions, core interfaces
@@ -30,7 +30,7 @@ audit/
 
 prompt/
   compose-setup.ts         # Generates audit-driven setup prompts for agents
-  compose-critique.ts      # Generates critique prompts for agents
+  compose-quality.ts       # Generates quality-assessment prompts for agents
 
 server/
   dashboard.ts             # HTTP server for dashboard + API
@@ -61,7 +61,7 @@ skills/
   reference/               # skill-preamble.md, skill-conventions.md
 
 hooks/                     # Hook templates (deny-dangerous.sh, etc.)
-evaluation/                # Critique prompt templates
+evaluation/                # Quality-assessment prompt templates
 validate-goat-flow-setup.sh  # Validates .goat-flow/ structure (lives here, not in scripts/)
 ```
 

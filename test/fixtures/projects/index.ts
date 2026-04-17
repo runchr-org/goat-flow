@@ -1,5 +1,5 @@
 /**
- * Shared test fixtures for audit/critique tests.
+ * Shared test fixtures for audit/quality tests.
  * Exports stubFS, stubConfig, stubAgentFacts, and pre-built project fixtures.
  */
 import type {

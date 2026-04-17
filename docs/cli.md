@@ -22,13 +22,13 @@ npx goat-flow audit . --format json        # JSON output for CI
 npx goat-flow audit . --output report.json # Write to file
 ```
 
-### `goat-flow critique [path] --agent <id>`
+### `goat-flow quality [path] --agent <id>`
 
-Generate a structured critique prompt for a selected agent. Requires `--agent`.
+Generate a structured quality-assessment prompt for a selected agent. Requires `--agent`.
 
 ```bash
-goat-flow critique . --agent claude        # Critique prompt for Claude
-goat-flow critique . --agent codex         # Critique prompt for Codex
+goat-flow quality . --agent claude         # Quality prompt for Claude
+goat-flow quality . --agent codex          # Quality prompt for Codex
 ```
 
 ### `goat-flow setup [path] --agent <id>`
@@ -65,7 +65,7 @@ Common tasks and the commands to run:
 |--------------|---------|
 | Check if my project is ready | `npx goat-flow audit .` |
 | Check harness completeness | `npx goat-flow audit . --harness` |
-| Get a critique prompt | `goat-flow critique . --agent claude` |
+| Get a quality prompt | `goat-flow quality . --agent claude` |
 | Set up a new project | `goat-flow setup . --agent claude` |
 | Use this in CI | `npx goat-flow audit . --format json` |
 | Open the dashboard | `goat-flow dashboard .` |

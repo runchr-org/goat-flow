@@ -307,21 +307,21 @@ function readServerSessionInfo(value: unknown): ServerSessionInfo | null {
   };
 }
 
-function readCritiqueResult(value: unknown): CritiqueResult {
-  const payload = readRecord(value, "Critique response");
+function readQualityResult(value: unknown): QualityResult {
+  const payload = readRecord(value, "Quality response");
   const agent = readRunnerId(payload.agent);
   const auditStatus = readAuditStatus(payload.auditStatus);
   const command = readString(payload.command);
   if (
     !agent ||
     (!auditStatus && payload.auditStatus !== "unavailable") ||
-    command !== "critique"
+    command !== "quality"
   ) {
-    throw new Error("Critique response returned an invalid payload");
+    throw new Error("Quality response returned an invalid payload");
   }
 
   return {
-    command: "critique",
+    command: "quality",
     agent,
     auditStatus: auditStatus ?? "unavailable",
     auditSummary: readString(payload.auditSummary),
@@ -466,11 +466,11 @@ function app() {
     projectsSortAsc: true,
     newProjectPath: "",
 
-    // --- Critique state ---
-    critiqueAgent: "claude" as RunnerId,
-    critiqueLoading: false,
-    critiqueResult: null as CritiqueResult | null,
-    critiqueCopyLabel: "Copy",
+    // --- Quality state ---
+    qualityAgent: "claude" as RunnerId,
+    qualityLoading: false,
+    qualityResult: null as QualityResult | null,
+    qualityCopyLabel: "Copy",
 
     // --- Wizard state ---
     wizardDetecting: false,
@@ -902,33 +902,33 @@ function app() {
       this.wizardGenerating = false;
     },
 
-    // -- Critique --
-    async generateCritique() {
-      this.critiqueLoading = true;
-      this.critiqueResult = null;
-      this.critiqueCopyLabel = "Copy";
+    // -- Quality --
+    async generateQuality() {
+      this.qualityLoading = true;
+      this.qualityResult = null;
+      this.qualityCopyLabel = "Copy";
       try {
         const res = await fetch(
-          `/api/critique?path=${encodeURIComponent(this.projectPath)}&agent=${encodeURIComponent(this.critiqueAgent)}`,
+          `/api/quality?path=${encodeURIComponent(this.projectPath)}&agent=${encodeURIComponent(this.qualityAgent)}`,
         );
-        const payload = readRecord(await res.json(), "Critique response");
+        const payload = readRecord(await res.json(), "Quality response");
         const error = readErrorMessage(payload);
         if (error) {
           this.showToast(error, true);
         } else {
-          this.critiqueResult = readCritiqueResult(payload);
+          this.qualityResult = readQualityResult(payload);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        this.showToast(msg || "Critique generation failed", true);
+        this.showToast(msg || "Quality prompt generation failed", true);
       }
-      this.critiqueLoading = false;
+      this.qualityLoading = false;
     },
-    copyCritique() {
-      if (!this.critiqueResult?.prompt) return;
-      this.copyText(this.critiqueResult.prompt);
-      this.critiqueCopyLabel = "Copied!";
-      setTimeout(() => (this.critiqueCopyLabel = "Copy"), 2000);
+    copyQuality() {
+      if (!this.qualityResult?.prompt) return;
+      this.copyText(this.qualityResult.prompt);
+      this.qualityCopyLabel = "Copied!";
+      setTimeout(() => (this.qualityCopyLabel = "Copy"), 2000);
     },
 
     // -- Projects --

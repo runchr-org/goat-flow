@@ -147,7 +147,7 @@ GOAT Flow's quality audit (`npx goat-flow audit . --harness`) evaluates your pro
 | **Recovery** | Can the agent resume after crash or interruption? | Milestone file count in .goat-flow/tasks/, session log count in .goat-flow/logs/sessions/ |
 | **Feedback Loop** | Is the harness getting smarter from failures over time? | Footgun entry count (3+ threshold), lesson entry count (3+ threshold), decisions directory activity |
 
-These aren't a proprietary model - they're a synthesis of consensus across the harness engineering field. See [docs/audit-and-critique.md](docs/audit-and-critique.md) for the full framework and sources.
+These aren't a proprietary model - they're a synthesis of consensus across the harness engineering field. See [docs/audit-and-quality.md](docs/audit-and-quality.md) for the full framework and sources.
 
 ## Commands
 
@@ -155,7 +155,7 @@ These aren't a proprietary model - they're a synthesis of consensus across the h
 npx goat-flow audit .                      # Validate setup correctness (pass/fail)
 npx goat-flow audit . --harness            # Add advisory harness-quality scoring
 npx goat-flow audit . --format json        # JSON output for CI
-npx goat-flow critique . --agent claude    # Generate agent critique prompt
+npx goat-flow quality . --agent claude     # Generate agent quality-assessment prompt
 npx goat-flow setup . --agent claude       # Generate setup prompt for Claude Code
 npx goat-flow setup . --agent gemini       # Gemini CLI setup
 npx goat-flow setup . --agent codex        # Codex setup
@@ -167,7 +167,7 @@ See [docs/cli.md](docs/cli.md) for the full command reference.
 
 ## Multi-Agent Support
 
-Three first-class agents are supported by the CLI (`audit`, `critique`, `setup`, `dashboard`):
+Three first-class agents are supported by the CLI (`audit`, `quality`, `setup`, `dashboard`):
 
 | | Claude Code | Gemini CLI | Codex |
 |---|---|---|---|
@@ -200,7 +200,7 @@ Pick the one you're already using. All three agents share the same skills, execu
 |---|---|
 | [CLI Reference](docs/cli.md) | All commands, flags, and output formats |
 | [Skills Reference](docs/skills.md) | All 7 skills: modes, phases, gates, outputs |
-| [Audit & Critique](docs/audit-and-critique.md) | The two evaluation commands, 5 harness concerns, and when to use each |
+| [Audit & Quality](docs/audit-and-quality.md) | The two evaluation commands, 5 harness concerns, and when to use each |
 | [Dashboard](docs/dashboard.md) | Views, terminal, API endpoints |
 
 ## Author

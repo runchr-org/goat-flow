@@ -180,11 +180,11 @@
               Home
             </button>
             <button
-              @click="activeView = 'critique'"
+              @click="activeView = 'quality'"
               class="gf-nb"
-              :class="activeView === 'critique' && 'gf-nb-active'"
+              :class="activeView === 'quality' && 'gf-nb-active'"
             >
-              Critique
+              Quality
             </button>
             <button
               @click="activeView = 'wizard'; detectStack()"
@@ -370,7 +370,7 @@
         <!-- View fragments (assembled server-side) -->
         <!-- include: views/workspace.html -->
 
-        <!-- include: views/critique.html -->
+        <!-- include: views/quality.html -->
         <!-- include: views/wizard.html -->
         <!-- include: views/home.html -->
         <!-- include: views/projects.html -->

@@ -35,15 +35,15 @@ describe("default command is audit", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test 3: --help output contains audit and critique, does not contain scan
+// Test 3: --help output contains audit and quality, does not contain scan
 // ---------------------------------------------------------------------------
 describe("CLI help text", () => {
-  it("audit and critique are recognized commands", () => {
+  it("audit and quality are recognized commands", () => {
     const auditParsed = parseCLIArgs(["audit", "."]);
     assert.equal(auditParsed.command, "audit");
 
-    const critiqueParsed = parseCLIArgs(["critique", ".", "--agent", "claude"]);
-    assert.equal(critiqueParsed.command, "critique");
+    const qualityParsed = parseCLIArgs(["quality", ".", "--agent", "claude"]);
+    assert.equal(qualityParsed.command, "quality");
   });
 
   it("scan is in removed commands, not active commands", () => {
@@ -104,9 +104,9 @@ describe("backwards compatibility", () => {
     assert.equal(parsed.format, "json");
   });
 
-  it("critique command parses correctly", () => {
-    const parsed = parseCLIArgs(["critique", ".", "--agent", "gemini"]);
-    assert.equal(parsed.command, "critique");
+  it("quality command parses correctly", () => {
+    const parsed = parseCLIArgs(["quality", ".", "--agent", "gemini"]);
+    assert.equal(parsed.command, "quality");
     assert.equal(parsed.agent, "gemini");
   });
 

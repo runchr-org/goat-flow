@@ -359,23 +359,23 @@ describe("dashboard /api/setup", () => {
   }
 });
 
-describe("dashboard /api/critique", () => {
+describe("dashboard /api/quality", () => {
   it("returns 400 without agent", async () => {
     const { res } = await fetchJson(
-      `/api/critique?path=${encodeURIComponent(PROJECT_PATH)}`,
+      `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}`,
     );
     assert.equal(res.status, 400);
   });
 
   for (const agent of ["claude", "codex", "gemini"] as const) {
-    it(`generates critique output for ${agent}`, async () => {
+    it(`generates quality output for ${agent}`, async () => {
       const { res, body } = await fetchJson(
-        `/api/critique?path=${encodeURIComponent(PROJECT_PATH)}&agent=${agent}`,
+        `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=${agent}`,
       );
       assert.equal(res.status, 200);
 
-      const data = expectRecord(body, "Critique response");
-      assert.equal(data.command, "critique");
+      const data = expectRecord(body, "Quality response");
+      assert.equal(data.command, "quality");
       assert.equal(data.agent, agent);
       assert.match(String(data.auditStatus), /^(pass|fail|unavailable)$/);
       assert.equal(typeof data.auditSummary, "string");

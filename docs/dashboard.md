@@ -8,9 +8,9 @@ Launch: `goat-flow dashboard .` (or `goat-flow dashboard . --dev` for live reloa
 
 Overview landing page. Shows "What to do next" action cards based on your latest audit results, per-agent status indicators, and quick-launch buttons for the setup wizard and terminal. Full audit results render inline on this page: each scope (GOAT Flow Setup, Agent Setup, AI Harness Completeness) shows pass/fail status and can be expanded for details, with per-agent cards and actionable fix instructions. Run a new audit or re-audit after changes without leaving the page. When all agents pass audit, the action cards are replaced with a success banner.
 
-### Critique
+### Quality
 
-Generate and view agent critique prompts. Select a target agent, generate the critique, and preview the full prompt with embedded audit results.
+Generate and view agent quality-assessment prompts. Select a target agent, generate the prompt, and preview the full output with embedded audit results.
 
 ### Setup
 
@@ -30,7 +30,7 @@ Configuration view. Manage registered project paths, dashboard preferences, and 
 
 ### Help
 
-Getting-started page for new users. Explains what goat-flow is, the audit/critique model, what skills and hooks do, the learning loop, and the execution loop. Accessible from the "?" button in the nav bar.
+Getting-started page for new users. Explains what goat-flow is, the audit/quality model, what skills and hooks do, the learning loop, and the execution loop. Accessible from the "?" button in the nav bar.
 
 ## Terminal
 
@@ -46,7 +46,7 @@ Getting-started page for new users. Explains what goat-flow is, the audit/critiq
 |----------|--------|-------------|
 | `/api/audit` | GET | Run audit, return JSON results |
 | `/api/setup` | GET | Generate setup prompt |
-| `/api/critique` | GET | Generate critique prompt |
+| `/api/quality` | GET | Generate quality-assessment prompt |
 | `/api/setup/detect` | GET | Detect project stack and agents |
 | `/api/health` | GET | Health check |
 | `/api/agents/installed` | GET | Detect installed agent runtimes |

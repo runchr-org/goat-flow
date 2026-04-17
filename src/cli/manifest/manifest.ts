@@ -7,7 +7,7 @@
  * a `ManifestValidationError` when a static fact has drifted from what the
  * code actually exposes — that is the entire point of the module.
  *
- * Used by `composeCritique` and `composeSetup` to avoid hardcoded counts, and
+ * Used by `composeQuality` and `composeSetup` to avoid hardcoded counts, and
  * by the `goat-flow manifest` CLI command.
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";

@@ -15,7 +15,7 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 | Evaluation templates | `workflow/evaluation/` | Footguns/lessons templates |
 | Docs | `docs/` | CLI usage, dashboard guide |
 | CLI auditor | `src/cli/` | 17 build checks (13 setup scope + 4 agent scope) + 16 AI harness installation checks (5 concerns), audit-driven setup prompts, multi-agent support |
-| Dashboard | `src/cli/server/dashboard.ts` (server), `src/dashboard/` (HTML + views) | HTML dashboard with views for critique, help, home, projects, settings, wizard, workspace |
+| Dashboard | `src/cli/server/dashboard.ts` (server), `src/dashboard/` (HTML + views) | HTML dashboard with views for help, home, projects, quality, settings, wizard, workspace |
 | Maintenance scripts | `scripts/maintenance/` | Repo hygiene: git cleanup, secret scanning, Zone.Identifier removal |
 
 ## Data Flow
@@ -40,14 +40,14 @@ src/cli/
   config/             # Configuration (reader.ts, types.ts)
   detect/             # Agent and stack detection (agents.ts, project-stack.ts)
   facts/              # Fact extraction (orchestrator.ts, fs.ts, agent/, shared/)
-  prompt/             # Prompt generation (compose-setup.ts, compose-critique.ts)
+  prompt/             # Prompt generation (compose-setup.ts, compose-quality.ts)
   audit/              # Build checks, quality checks, render.ts (output formatters: text, json, markdown)
   server/             # Dashboard server (dashboard.ts, terminal.ts, types.ts)
 
 src/dashboard/
   index.html          # Dashboard entry point
   preset-prompts.ts    # Preset configurations
-  views/              # Page views (critique, help, home, projects, settings, wizard, workspace)
+  views/              # Page views (help, home, projects, quality, settings, wizard, workspace)
 ```
 
 ## Key Constraints

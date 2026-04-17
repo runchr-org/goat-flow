@@ -1,6 +1,6 @@
-<!-- ═══ Critique View ═══ -->
+<!-- ═══ Quality View ═══ -->
 <div
-  x-show="activeView === 'critique'"
+  x-show="activeView === 'quality'"
   x-cloak
   style="height: calc(100vh - 3.5rem); overflow-y: auto"
 >
@@ -9,7 +9,7 @@
       class="gf-text-primary"
       style="font-size: 20px; font-weight: 500; margin-bottom: 16px"
     >
-      Critique
+      Quality
     </div>
 
     <!-- Two columns -->
@@ -30,12 +30,12 @@
             class="gf-text-primary"
             style="font-size: 20px; font-weight: 500"
           >
-            Generate Critique
+            Generate Quality Assessment
           </div>
           <div class="gf-text-muted" style="font-size: 12px; margin-top: 3px">
-            Generate a structured critique prompt for a selected agent to
-            evaluate goat-flow quality. This is opinion-gathering, not machine
-            validation.
+            Generate a structured quality-assessment prompt for a selected
+            agent to evaluate goat-flow quality. This is opinion-gathering,
+            not machine validation.
           </div>
         </div>
 
@@ -46,12 +46,12 @@
         >
           <template
             x-for="agentId in ['claude', 'codex', 'gemini']"
-            :key="'critique-' + agentId"
+            :key="'quality-' + agentId"
           >
             <div
-              @click="critiqueAgent = agentId"
+              @click="qualityAgent = agentId"
               class="gf-agent-card"
-              :class="critiqueAgent === agentId && 'gf-agent-card-sel'"
+              :class="qualityAgent === agentId && 'gf-agent-card-sel'"
             >
               <div
                 class="gf-text-primary"
@@ -85,7 +85,7 @@
             agentScore(agent) { if (!agent?.harness) return null; const t = agent.harness.checks.length; return t ? Math.round(agent.harness.checks.filter(c => c.status === 'pass').length / t * 100) : null; },
             toGrade(s) { if (s >= 90) return 'A'; if (s >= 80) return 'B'; if (s >= 70) return 'C'; if (s >= 60) return 'D'; return 'F'; },
             get selectedAgent() {
-              return report?.agentScores?.find(a => a.id === critiqueAgent) || null;
+              return report?.agentScores?.find(a => a.id === qualityAgent) || null;
             },
             recommendationSummary(agent) {
               if (!agent) return 'Not audited';
@@ -170,7 +170,7 @@
                     >
                       <template
                         x-for="ck in concernKeys"
-                        :key="selectedAgent.id + '-critique-bar-' + ck"
+                        :key="selectedAgent.id + '-quality-bar-' + ck"
                       >
                         <div
                           style="
@@ -242,7 +242,7 @@
       <!-- Right: Prompt card -->
       <div
         style="flex: 1; min-width: 0; display: flex; flex-direction: column"
-        x-effect="if (activeView === 'critique' && critiqueAgent && projectPath) { generateCritique(); }"
+        x-effect="if (activeView === 'quality' && qualityAgent && projectPath) { generateQuality(); }"
       >
         <div class="gf-prompt-card">
           <!-- Header -->
@@ -250,21 +250,21 @@
             <span
               class="gf-text-primary"
               style="font-size: 16px; font-weight: 600"
-              >Critique prompt</span
+              >Quality prompt</span
             >
             <div style="display: flex; align-items: center; gap: 8px">
-              <template x-if="!critiqueLoading && critiqueResult">
+              <template x-if="!qualityLoading && qualityResult">
                 <div style="display: flex; gap: 8px">
                   <button
                     x-data="{ copied: false }"
-                    @click="copyCritique(); copied = true; setTimeout(() => copied = false, 1500)"
+                    @click="copyQuality(); copied = true; setTimeout(() => copied = false, 1500)"
                     class="gf-btn-copy"
                     :style="{ background: copied ? '#14532d' : '', color: copied ? '#4ade80' : '', borderColor: copied ? '#166534' : '' }"
                   >
                     <span x-text="copied ? 'Copied' : 'Copy'"></span>
                   </button>
                   <button
-                    @click="generateCritique()"
+                    @click="generateQuality()"
                     class="gf-btn gf-btn-md gf-btn-audit"
                   >
                     Regenerate
@@ -276,7 +276,7 @@
 
           <!-- Terminal CTA -->
           <template
-            x-if="!critiqueLoading && critiqueResult && terminalAvailable"
+            x-if="!qualityLoading && qualityResult && terminalAvailable"
           >
             <div
               class="gf-terminal-cta"
@@ -291,7 +291,7 @@
                 "
               >
                 <button
-                  @click="(terminalSessionId && !terminalEnded) ? (sendToTerminal(critiqueResult.prompt), activeView = 'workspace') : (launchPreset(critiqueResult.prompt, activeRunner), activeView = 'workspace')"
+                  @click="(terminalSessionId && !terminalEnded) ? (sendToTerminal(qualityResult.prompt), activeView = 'workspace') : (launchPreset(qualityResult.prompt, activeRunner), activeView = 'workspace')"
                   :disabled="launching"
                   class="gf-btn-terminal-cta"
                 >
@@ -309,7 +309,7 @@
                     />
                   </svg>
                   <span
-                    x-text="(terminalSessionId && !terminalEnded) ? 'Send Critique to Running Terminal' : 'Run Critique in Terminal'"
+                    x-text="(terminalSessionId && !terminalEnded) ? 'Send Quality Prompt to Running Terminal' : 'Run Quality Assessment in Terminal'"
                   ></span>
                 </button>
               </div>
@@ -325,14 +325,14 @@
                       class="gf-text-secondary"
                       style="font-weight: 500"
                     ></span>
-                    in read-only critique mode to inspect the goat-flow setup on
-                    this project, probe critique-safe skill behavior on real
-                    code, and report findings with evidence. Do not edit files.
+                    in read-only assessment mode to inspect the goat-flow
+                    setup on this project, probe skill behavior on real code,
+                    and report findings with evidence. Do not edit files.
                   </span>
                 </template>
                 <template x-if="terminalSessionId && !terminalEnded">
                   <span>
-                    Pastes the critique prompt into the running
+                    Pastes the quality-assessment prompt into the running
                     <span
                       x-text="lastRunAgent || activeRunner"
                       class="gf-text-secondary"
@@ -350,7 +350,7 @@
           <!-- Generating state -->
           <div
             class="gf-loader-overlay"
-            :class="!critiqueLoading && 'gf-hidden'"
+            :class="!qualityLoading && 'gf-hidden'"
           >
             <svg
               class="animate-spin"
@@ -378,13 +378,13 @@
           </div>
 
           <!-- Prompt content -->
-          <template x-if="!critiqueLoading && critiqueResult">
-            <pre class="gf-prompt-body" x-text="critiqueResult.prompt"></pre>
+          <template x-if="!qualityLoading && qualityResult">
+            <pre class="gf-prompt-body" x-text="qualityResult.prompt"></pre>
           </template>
 
           <!-- Empty state -->
           <p
-            x-show="!critiqueLoading && !critiqueResult"
+            x-show="!qualityLoading && !qualityResult"
             class="gf-text-disabled"
             style="
               flex: 1;
@@ -394,7 +394,7 @@
               font-size: 12px;
             "
           >
-            Select an agent to auto-generate the critique prompt.
+            Select an agent to auto-generate the quality prompt.
           </p>
         </div>
       </div>

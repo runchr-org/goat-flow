@@ -34,7 +34,7 @@ never from a literal.
 
 | Consumer file | Fact(s) read |
 |---------------|--------------|
-| `src/cli/prompt/compose-critique.ts` | `facts.skills.total`, `facts.skills.functional_count`, `facts.skills.dispatcher`, `facts.skills.names`, `facts.skills.stale_names` |
+| `src/cli/prompt/compose-quality.ts` | `facts.skills.total`, `facts.skills.functional_count`, `facts.skills.dispatcher`, `facts.skills.names`, `facts.skills.stale_names` |
 | `src/cli/prompt/compose-setup.ts` | `facts.skills.total`, `facts.skills.names` |
 | `src/cli/cli.ts` (`goat-flow manifest`) | full `Manifest` |
 

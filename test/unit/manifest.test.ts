@@ -47,7 +47,7 @@ function fixtureJson(
     instruction_file: {},
     legacy_surfaces: {},
     facts: {
-      dashboard_views: ["critique", "help", "home"],
+      dashboard_views: ["quality", "help", "home"],
       presets_count: 3,
       ...overrides,
     },
@@ -58,7 +58,7 @@ function fixtureObserved(
   overrides: Partial<ObservedFacts> = {},
 ): ObservedFacts {
   return {
-    views: ["critique", "help", "home"],
+    views: ["quality", "help", "home"],
     presetsCount: 3,
     skills: [...SKILL_NAMES],
     setupChecks: 12,
@@ -104,15 +104,15 @@ describe("composeManifest", () => {
 
   it("sorts dashboard view names and exposes count", () => {
     const json = fixtureJson({
-      dashboard_views: ["workspace", "home", "critique"],
+      dashboard_views: ["workspace", "home", "quality"],
     });
     const observed = fixtureObserved({
-      views: ["critique", "home", "workspace"],
+      views: ["quality", "home", "workspace"],
     });
     const m = composeManifest(json, observed);
     assert.deepEqual(
       [...m.facts.dashboard_views.names],
-      ["critique", "home", "workspace"],
+      ["home", "quality", "workspace"],
     );
     assert.equal(m.facts.dashboard_views.count, 3);
   });
@@ -157,8 +157,8 @@ describe("validateManifest (missing key)", () => {
 
 describe("validateManifest (drifted count)", () => {
   it("throws on dashboard_views list drift", () => {
-    const json = fixtureJson({ dashboard_views: ["critique", "help"] });
-    const observed = fixtureObserved({ views: ["critique", "help", "home"] });
+    const json = fixtureJson({ dashboard_views: ["quality", "help"] });
+    const observed = fixtureObserved({ views: ["quality", "help", "home"] });
     assert.throws(
       () => validateManifest(json, observed),
       (err: unknown) =>
@@ -191,7 +191,7 @@ describe("validateManifest (drifted count)", () => {
 
   it("reports multiple findings in a single throw", () => {
     const json = fixtureJson({
-      dashboard_views: ["critique"],
+      dashboard_views: ["quality"],
       presets_count: 99,
     });
     const observed = fixtureObserved();
@@ -206,10 +206,10 @@ describe("validateManifest (drifted count)", () => {
 
   it("allows dashboard_views list to be in any order", () => {
     const json = fixtureJson({
-      dashboard_views: ["home", "critique", "help"],
+      dashboard_views: ["home", "quality", "help"],
     });
     const observed = fixtureObserved({
-      views: ["critique", "help", "home"],
+      views: ["quality", "help", "home"],
     });
     assert.doesNotThrow(() => validateManifest(json, observed));
   });

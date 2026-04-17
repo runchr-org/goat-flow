@@ -1,8 +1,8 @@
 /**
  * Context concern: Is the agent's map accurate and structurally complete?
  * 3 deterministic integrity checks (instruction size, execution loop, doc paths).
- * Content-quality judgments (e.g. footgun evidence currency) live in critique,
- * not here.
+ * Content-quality judgments (e.g. footgun evidence currency) live in the
+ * `quality` assessment prompt, not here.
  */
 import type { AuditContext, HarnessCheck } from "../types.js";
 import { pass, fail, extractBacktickPaths } from "./helpers.js";
@@ -132,7 +132,7 @@ function checkAllDocPaths(ctx: AuditContext) {
     "CONTRIBUTING.md",
     ".goat-flow/code-map.md",
     "docs/cli.md",
-    "docs/audit-and-critique.md",
+    "docs/audit-and-quality.md",
   ];
   for (const file of docFiles) {
     const content = ctx.fs.readFile(file);

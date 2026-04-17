@@ -1,21 +1,20 @@
 /**
- * Composes a structured critique prompt for a selected agent.
- * Mirrors the critique template (.goat-flow/tasks/1.1.0/critique-self-goat-flow-prompt.md)
- * and embeds live audit results when available.
+ * Composes a structured quality-assessment prompt for a selected agent.
+ * Embeds live audit results when available.
  */
 import type { AgentId } from "../types.js";
 import type { AuditReport, AuditConcernKey } from "../audit/types.js";
 import { loadManifest } from "../manifest/manifest.js";
 import { getPackageVersion } from "../paths.js";
 
-interface CritiqueInput {
+interface QualityInput {
   agent: AgentId;
   projectPath: string;
   auditReport: AuditReport | null;
 }
 
-interface CritiquePayload {
-  command: "critique";
+interface QualityPayload {
+  command: "quality";
   agent: AgentId;
   auditStatus: "pass" | "fail" | "unavailable";
   auditSummary: string;
@@ -97,20 +96,20 @@ function renderDegradedNote(): string {
     "",
     "> **Note:** The automated audit could not complete on this project.",
     "> This may indicate missing config, broken setup, or an incomplete install.",
-    "> Proceed with the critique anyway - your assessment may catch what the audit could not.",
+    "> Proceed with the assessment anyway - your findings may catch what the audit could not.",
     "",
   ].join("\n");
 }
 
-/** Compose the critique prompt for the selected agent. */
-export function composeCritique(input: CritiqueInput): CritiquePayload {
+/** Compose the quality-assessment prompt for the selected agent. */
+export function composeQuality(input: QualityInput): QualityPayload {
   const { agent, projectPath, auditReport } = input;
   const agentLabel = AGENT_LABELS[agent];
   const skillsDir = AGENT_SKILL_DIRS[agent];
   const settingsFile = AGENT_SETTINGS[agent];
   const instructionFile = AGENT_INSTRUCTION[agent];
 
-  const auditStatus: CritiquePayload["auditStatus"] = auditReport
+  const auditStatus: QualityPayload["auditStatus"] = auditReport
     ? auditReport.status
     : "unavailable";
 
@@ -126,16 +125,16 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   const lines: string[] = [];
 
   // Title
-  lines.push(`# GOAT Flow Critique - ${agentLabel}`);
+  lines.push(`# GOAT Flow Quality Assessment - ${agentLabel}`);
   lines.push("");
 
   // Preamble
   lines.push(
-    `Critique the goat-flow v${getPackageVersion()} setup on this project. Be thorough, honest, and specific. Do NOT be polite or generous - I want real problems identified with evidence.`,
+    `Assess the quality of the goat-flow v${getPackageVersion()} setup on this project. Be thorough, honest, and specific. Do NOT be polite or generous - I want real problems identified with evidence.`,
   );
   lines.push("");
   lines.push(
-    "READ-ONLY CRITIQUE MODE. Do NOT edit, create, rename, move, or delete any files. Do NOT run write commands or apply patches. Only read files, run read-only inspection commands, and report your findings, ratings, and recommendations in the response.",
+    "READ-ONLY ASSESSMENT MODE. Do NOT edit, create, rename, move, or delete any files. Do NOT run write commands or apply patches. Only read files, run read-only inspection commands, and report your findings, ratings, and recommendations in the response.",
   );
   lines.push("");
 
@@ -145,7 +144,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("These apply to EVERY finding you report:");
   lines.push("");
   lines.push(
-    "- **Read-only only.** Do NOT edit, create, rename, move, or delete files. Do NOT use write commands, redirection, or patch tools. If a skill probe tries to make changes, stop and report that as a critique finding.",
+    "- **Read-only only.** Do NOT edit, create, rename, move, or delete files. Do NOT use write commands, redirection, or patch tools. If a skill probe tries to make changes, stop and report that as a finding.",
   );
   lines.push(
     "- **No mutation commands.** When testing toolchain commands, use `--check`, `--dry-run`, or read-only flags. Use `format:check` not `format`. Use `eslint` not `eslint --fix`. If unsure, run the tool with `--help` first to find the read-only flag.",
@@ -225,11 +224,11 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     lines.push(auditSummaryText);
     lines.push("");
     lines.push(
-      "> **Note:** The audit checks structural completeness only (pass/fail per concern). PASS means files exist, paths resolve, and patterns are registered. It does NOT mean documentation is accurate, footguns are current, or content is appropriate for this project. Your critique must assess quality - what the audit cannot.",
+      "> **Note:** The audit checks structural completeness only (pass/fail per concern). PASS means files exist, paths resolve, and patterns are registered. It does NOT mean documentation is accurate, footguns are current, or content is appropriate for this project. Your assessment must judge quality - what the audit cannot.",
     );
     if (auditReport.status === "fail") {
       lines.push(
-        "> The setup has failures. Factor these into your critique - are they real problems or false positives?",
+        "> The setup has failures. Factor these into your assessment - are they real problems or false positives?",
       );
     }
   } else {
@@ -244,7 +243,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("## Step 0 - Ground yourself");
   lines.push("");
   lines.push(
-    "Audit results are included above in the Audit Summary section. Run these additional read-only commands to ground your critique. Save the output. All findings must be grounded in what commands actually produce.",
+    "Audit results are included above in the Audit Summary section. Run these additional read-only commands to ground your assessment. Save the output. All findings must be grounded in what commands actually produce.",
   );
   lines.push("");
   lines.push("```bash");
@@ -395,7 +394,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   );
   lines.push("");
   lines.push(
-    "**Option A (preferred): File analysis.** Read each SKILL.md and evaluate its structure, constraints, routing logic, cross-references, and coherence against the codebase. This is safe for read-only critiques and covers most quality signals.",
+    "**Option A (preferred): File analysis.** Read each SKILL.md and evaluate its structure, constraints, routing logic, cross-references, and coherence against the codebase. This is safe for read-only assessment and covers most quality signals.",
   );
   lines.push(
     "**Option B (if context allows): Live invocation.** Invoke the skill via the Skill tool on a real target. Monitor for file-write attempts - stop immediately if the skill tries to create or modify files. This tests runtime behavior but costs significant context.",
@@ -404,13 +403,13 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("Either approach is acceptable. State which you used.");
   lines.push("");
   lines.push(
-    "1. **`/goat`** (dispatcher) - send 3 different read-only requests. Does routing work? Does the Planning Route handle briefs without pushing toward file creation? Does it route critique to `/goat-sbao` and planning questions to `/goat-plan` appropriately?",
+    "1. **`/goat`** (dispatcher) - send 3 different read-only requests. Does routing work? Does the Planning Route handle briefs without pushing toward file creation? Does it route critique requests to `/goat-sbao` and planning questions to `/goat-plan` appropriately?",
   );
   lines.push(
     "2. **`/goat-debug`** - investigate a real module or risky pattern in this codebase",
   );
   lines.push(
-    "3. **`/goat-plan`** - ask for a milestone/task breakdown in the response only. Do NOT let it write milestone files; if it tries to, report that as a failure of critique-safe behavior.",
+    "3. **`/goat-plan`** - ask for a milestone/task breakdown in the response only. Do NOT let it write milestone files; if it tries to, report that as a failure of read-only assessment behavior.",
   );
   lines.push(
     "4. **`/goat-review`** - review a real source file for quality issues",
@@ -429,7 +428,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     "For each skill report: (a) what worked, (b) what was confusing or failed, (c) what was useless ceremony. Cite `file:line` where possible.",
   );
   lines.push(
-    "If any skill attempts to edit files, create artifacts, or otherwise leave read-only mode, stop that probe immediately and report it as a critique finding.",
+    "If any skill attempts to edit files, create artifacts, or otherwise leave read-only mode, stop that probe immediately and report it as a finding.",
   );
   lines.push("");
   lines.push(
@@ -437,10 +436,10 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   );
   lines.push("");
 
-  // Part 4: System critique (unchanged except reference to Part 3)
+  // Part 4: System assessment
   lines.push("---");
   lines.push("");
-  lines.push("## Part 4: System critique - is goat-flow itself good?");
+  lines.push("## Part 4: System assessment - is goat-flow itself good?");
   lines.push("");
   lines.push("Answer with evidence from your testing in Part 3:");
   lines.push("");
@@ -508,7 +507,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   );
   lines.push("");
   lines.push(
-    `**Note:** Cross-agent consistency checks (deny patterns, skill parity, instruction structure) belong in the deterministic audit, not this per-agent critique. Focus on ${agentLabel}'s surfaces only.`,
+    `**Note:** Cross-agent consistency checks (deny patterns, skill parity, instruction structure) belong in the deterministic audit, not this per-agent assessment. Focus on ${agentLabel}'s surfaces only.`,
   );
   lines.push("");
 
@@ -619,13 +618,13 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("---");
   lines.push("");
   lines.push(
-    "**IMPORTANT:** Respond directly with all findings. DO NOT EDIT ANY FILES. ONLY READ, INSPECT, AND REPORT. Do not summarise - give the full critique with evidence, ratings, and recommendations in your response.",
+    "**IMPORTANT:** Respond directly with all findings. DO NOT EDIT ANY FILES. ONLY READ, INSPECT, AND REPORT. Do not summarise - give the full assessment with evidence, ratings, and recommendations in your response.",
   );
 
   const prompt = lines.join("\n");
 
   return {
-    command: "critique",
+    command: "quality",
     agent,
     auditStatus,
     auditSummary: auditSummaryText,

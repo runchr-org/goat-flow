@@ -97,9 +97,9 @@ interface ProjectEntry {
   details: string;
 }
 
-/** Critique prompt payload returned by `/api/critique`. */
-interface CritiqueResult {
-  command: "critique";
+/** Quality-assessment prompt payload returned by `/api/quality`. */
+interface QualityResult {
+  command: "quality";
   agent: RunnerId;
   auditStatus: AuditStatus | "unavailable";
   auditSummary: string;

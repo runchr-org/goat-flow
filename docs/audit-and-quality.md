@@ -1,6 +1,6 @@
-# Audit & Critique
+# Audit & Quality
 
-goat-flow has two evaluation commands. `audit` is deterministic - it runs checks and reports findings. `critique` is inferential - it generates a prompt for an agent to evaluate quality.
+goat-flow has two evaluation commands. `audit` is deterministic - it runs checks and reports findings. `quality` is inferential - it generates a prompt for an agent to evaluate quality.
 
 ## Quick reference
 
@@ -8,14 +8,14 @@ goat-flow has two evaluation commands. `audit` is deterministic - it runs checks
 goat-flow audit .                              # Build correctness (pass/fail)
 goat-flow audit . --harness                    # Include AI harness completeness checks
 goat-flow audit . --agent claude               # Scope to one agent
-goat-flow critique . --agent claude            # Generate critique prompt for Claude
+goat-flow quality . --agent claude             # Generate quality-assessment prompt for Claude
 ```
 
 | Command | Output | Deterministic? | Gates CI? | Requires --agent? |
 |---------|--------|---------------|-----------|-------------------|
 | `audit` | Pass/fail per scope | Yes | Yes - exit 1 on failure | No (checks all configured agents) |
 | `audit --harness` | Pass/fail per harness concern | Yes | Yes - exit 1 on failure | No |
-| `critique` | Prompt for an agent | No - generates a prompt | Never | Yes |
+| `quality` | Prompt for an agent | No - generates a prompt | Never | Yes |
 
 ---
 
@@ -89,12 +89,12 @@ Result: FAIL (Constraints)
 
 ---
 
-## `goat-flow critique`
+## `goat-flow quality`
 
-Generates a structured critique prompt for a coding agent to evaluate goat-flow quality and usefulness on the current project. This is fundamentally different from `audit` - it produces a prompt, not findings.
+Generates a structured quality-assessment prompt for a coding agent to evaluate goat-flow quality and usefulness on the current project. This is fundamentally different from `audit` - it produces a prompt, not findings.
 
 ```bash
-goat-flow critique . --agent claude
+goat-flow quality . --agent claude
 ```
 
 The generated prompt asks the agent to:
@@ -105,22 +105,22 @@ The generated prompt asks the agent to:
 4. **Identify false paths** - references to files that don't exist, stale concepts, dead modes
 5. **Rate the system** - setup accuracy/relevance/completeness/friction + system usefulness/signal-to-noise/adaptability/learnability
 
-**Time and cost expectation:** A full critique runs 7 skill invocations (goat-sbao alone may spawn 2-3 sub-agents). Expect 30-60 minutes and moderate token usage. For a lighter pass, the prompt can be edited to skip goat-sbao and goat-plan.
+**Time and cost expectation:** A full assessment runs 7 skill invocations (goat-sbao alone may spawn 2-3 sub-agents). Expect 30-60 minutes and moderate token usage. For a lighter pass, the prompt can be edited to skip goat-sbao and goat-plan.
 
 The prompt includes the current `audit` summary so the agent knows what's already passing or failing. If audit is failing, the prompt explicitly asks the agent to assess the incomplete setup.
 
-### When to use critique
+### When to use quality
 
 - After setup is complete and audit passes - "is this actually good?"
 - After significant changes - "did we break anything the auditor can't see?"
 - Periodically - "has the harness drifted?"
 - When onboarding - "does this make sense to a fresh agent?"
 
-### When NOT to use critique
+### When NOT to use quality
 
 - As a setup gate (use `audit`)
 - As a CI check (use `audit`)
-- As a replacement for `audit --harness` (critique is subjective; harness completeness checks are deterministic)
+- As a replacement for `audit --harness` (quality is subjective; harness completeness checks are deterministic)
 
 ---
 
@@ -129,13 +129,13 @@ The prompt includes the current `audit` summary so the agent knows what's alread
 ```
 goat-flow audit .              →  "Is it installed correctly?"        →  Fix structural issues
 goat-flow audit . --harness    →  "Is the harness complete?"          →  Fix failing concerns
-goat-flow critique . --agent X →  "What does an agent actually think?" →  Get fresh perspective
+goat-flow quality . --agent X  →  "What does an agent actually think?" →  Get fresh perspective
 ```
 
 Typical workflow after setup:
 1. Run `audit` - fix any build failures
 2. Run `audit --harness` - fix any failing harness completeness checks
-3. Run `critique` - paste into an agent session, get a subjective review
+3. Run `quality` - paste into an agent session, get a subjective review
 4. Feed findings back into the harness (footguns, lessons, constraints) - the feedback loop
 
 ---

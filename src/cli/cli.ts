@@ -2,7 +2,7 @@
 
 /**
  * Command-line entry point for goat-flow.
- * Handles argv parsing, command dispatch, exit codes, and on-disk output for audit, critique, setup, dashboard, and info workflows.
+ * Handles argv parsing, command dispatch, exit codes, and on-disk output for audit, quality, setup, dashboard, and info workflows.
  */
 
 import { parseArgs } from "node:util";
@@ -36,7 +36,7 @@ Usage:
 
 Commands:
   audit             Deterministic pass/fail: GOAT Flow Setup + Agent Setup (add --harness for AI Harness Completeness)
-  critique          Agent-driven quality assessment prompt (requires --agent)
+  quality           Agent-driven quality assessment prompt (requires --agent)
   setup             Generate setup prompt (adapts to project state)
   status            Show project state (bare/partial/v0.9/v1.0/v1.1)
   dashboard         Launch browser dashboard with audit, setup, and terminal
@@ -63,7 +63,7 @@ Examples:
   goat-flow audit . --agent claude     Audit scoped to Claude
   goat-flow audit . --format json      JSON output for CI
   goat-flow setup --agent claude       Setup prompt for Claude
-  goat-flow critique . --agent claude  Critique prompt for Claude
+  goat-flow quality . --agent claude   Quality assessment prompt for Claude
   goat-flow manifest                   Print the resolved manifest
   goat-flow manifest --check           Verify the manifest is consistent with code
   goat-flow --format markdown          PR-comment friendly output
@@ -83,7 +83,7 @@ type Command =
   | "info"
   | "status"
   | "audit"
-  | "critique"
+  | "quality"
   | "manifest";
 
 /** List of recognized CLI subcommands */
@@ -93,14 +93,15 @@ const COMMANDS: Command[] = [
   "info",
   "status",
   "audit",
-  "critique",
+  "quality",
   "manifest",
 ];
 /** Previously valid commands that now produce a helpful removal error */
 const REMOVED_COMMANDS: Record<string, string> = {
   fix: '"fix" was removed. Use "setup" instead - it adapts to your project\'s state.',
   eval: '"eval" was removed. Use "setup" instead - it adapts to your project\'s state.',
-  scan: '"scan" was removed. Use "audit" for setup validation or "critique --agent <id>" for agent review.',
+  scan: '"scan" was removed. Use "audit" for setup validation or "quality --agent <id>" for agent assessment.',
+  critique: '"critique" was renamed to "quality". Use "goat-flow quality . --agent <id>".',
 };
 /** Accepted values for the --format flag */
 const VALID_FORMATS = ["json", "text", "markdown"] as const;
@@ -368,22 +369,22 @@ async function handleAuditCommand(options: ParsedCLI): Promise<void> {
   }
 }
 
-/** Handle the critique command: generate a structured critique prompt for a selected agent. */
-async function handleCritiqueCommand(options: ParsedCLI): Promise<void> {
+/** Handle the quality command: generate a structured quality-assessment prompt for a selected agent. */
+async function handleQualityCommand(options: ParsedCLI): Promise<void> {
   if (!options.agent) {
     throw new CLIError(
-      "critique requires --agent. Usage: goat-flow critique . --agent claude",
+      "quality requires --agent. Usage: goat-flow quality . --agent claude",
       2,
     );
   }
 
   const { createFS } = await import("./facts/fs.js");
   const { runAudit } = await import("./audit/audit.js");
-  const { composeCritique } = await import("./prompt/compose-critique.js");
+  const { composeQuality } = await import("./prompt/compose-quality.js");
 
   const fs = createFS(options.projectPath);
 
-  // Run audit but don't fail if it errors - critique works even when audit is failing
+  // Run audit but don't fail if it errors - quality prompt works even when audit is failing
   let auditReport: AuditReport | null = null;
   try {
     auditReport = runAudit(fs, options.projectPath, {
@@ -391,10 +392,10 @@ async function handleCritiqueCommand(options: ParsedCLI): Promise<void> {
       harness: true,
     });
   } catch {
-    // Audit failure is fine - critique generates with degraded context
+    // Audit failure is fine - quality prompt generates with degraded context
   }
 
-  const result = composeCritique({
+  const result = composeQuality({
     agent: options.agent,
     projectPath: options.projectPath,
     auditReport,
@@ -462,7 +463,7 @@ async function runSetupPipeline(options: ParsedCLI): Promise<void> {
  *  the complexity ceiling as new subcommands land. */
 async function dispatchCommand(options: ParsedCLI): Promise<void> {
   if (options.command === "audit") return handleAuditCommand(options);
-  if (options.command === "critique") return handleCritiqueCommand(options);
+  if (options.command === "quality") return handleQualityCommand(options);
   if (options.command === "manifest") return handleManifestCommand(options);
   if (options.command === "status") return handleStatusCommand(options);
   if (options.command === "dashboard") {

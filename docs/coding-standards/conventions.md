@@ -23,7 +23,7 @@ src/cli/
   detect/             # Agent and stack detection (agents.ts, project-stack.ts)
   facts/              # Fact extraction (orchestrator.ts, fs.ts, agent/, shared/)
   audit/              # Audit engine (audit.ts, check-goat-flow.ts, check-agent-setup.ts, harness/, render.ts, types.ts)
-  prompt/             # Prompt generation (compose-setup.ts, compose-critique.ts)
+  prompt/             # Prompt generation (compose-setup.ts, compose-quality.ts)
   server/             # Dashboard server (dashboard.ts, terminal.ts, types.ts)
 src/dashboard/        # Dashboard UI (views/, static assets)
 workflow/
@@ -61,7 +61,7 @@ bash workflow/validate-goat-flow-setup.sh # Validate GOAT Flow setup scope
 goat-flow audit .                        # Validate setup correctness
 goat-flow audit . --harness              # AI harness completeness checks
 goat-flow setup --agent claude           # Generate setup prompt
-goat-flow critique . --agent claude      # Generate critique prompt
+goat-flow quality . --agent claude       # Generate quality-assessment prompt
 ```
 
 ## Conventions

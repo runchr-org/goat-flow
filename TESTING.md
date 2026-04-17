@@ -16,7 +16,7 @@ bash scripts/preflight-checks.sh  # Full preflight gate (includes all of the abo
 Tests live in `test/` with subdirectories:
 
 - `unit/` - config reader, classify-state, CLI parsing, skill constants, rubric registry
-- `integration/` - audit (build + quality), audit on well-configured projects, critique with audit data
+- `integration/` - audit (build + quality), audit on well-configured projects, quality prompt with audit data
 - `contract/` - cross-surface consistency (skill count, version alignment, no-scan phrasing, JSON shape)
 - `fixtures/` - test data for isolated check evaluation
 
@@ -33,4 +33,4 @@ Tests live in `test/` with subdirectories:
 - Build/quality checks produce correct results on healthy and broken projects
 - Config reader handles valid YAML, invalid YAML, and missing files
 - CLI parsing: audit is default, scan is rejected, removed flags rejected
-- Critique generates non-empty prompts with required sections
+- Quality prompt generates non-empty output with required sections

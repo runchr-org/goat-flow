@@ -6,9 +6,9 @@
 |------|---------|----------|
 | Build | `goat-flow audit .` | Is it installed correctly? |
 | **Harness** | **`goat-flow audit . --harness`** | **Is each concern structurally installed?** |
-| Critique | `goat-flow critique . --agent X` | Does this make sense to a fresh agent? |
+| Quality | `goat-flow quality . --agent X` | Does this make sense to a fresh agent? |
 
-Harness checks are grouped by the 5 concerns that every major source in the field agrees matter for agent effectiveness. The audit checks whether the structural wiring for each concern is in place. It does not judge content quality - that's what [critique](harness-critique-quality.md) is for. See [harness-engineering.md](harness-engineering.md) for the sources behind the model.
+Harness checks are grouped by the 5 concerns that every major source in the field agrees matter for agent effectiveness. The audit checks whether the structural wiring for each concern is in place. It does not judge content quality - that's what [quality](harness-quality.md) is for. See [harness-engineering.md](harness-engineering.md) for the sources behind the model.
 
 ## Check types
 
@@ -51,15 +51,15 @@ Only `advisory`-typed checks can be acknowledged. Integrity checks have no opt-o
 
 **Question:** Is the agent's context structurally complete and pointing at real files?
 
-The agent can only work with what it sees. Stale router paths, missing execution loops, and oversized instruction files all degrade performance. The audit checks structural wiring only; use `critique` to assess whether the content is actually useful for this project.
+The agent can only work with what it sees. Stale router paths, missing execution loops, and oversized instruction files all degrade performance. The audit checks structural wiring only; use `quality` to assess whether the content is actually useful for this project.
 
 **Checks (3):**
 
 - `instruction-line-count` - each configured agent's instruction file is within the configured hard limit (`line-limits.limit` in `config.yaml`)
 - `execution-loop-present` - instruction file contains at least 2 of the 4 READ / SCOPE / ACT / VERIFY keywords
-- `doc-paths-resolve` - router-table paths, architecture.md backtick paths, and backtick paths in a small set of doc files (`CONTRIBUTING.md`, `.goat-flow/code-map.md`, `docs/cli.md`, `docs/audit-and-critique.md`) all resolve to real files on disk
+- `doc-paths-resolve` - router-table paths, architecture.md backtick paths, and backtick paths in a small set of doc files (`CONTRIBUTING.md`, `.goat-flow/code-map.md`, `docs/cli.md`, `docs/audit-and-quality.md`) all resolve to real files on disk
 
-**Not checked here (belongs in critique):** whether instructions are specific to this project, whether footgun evidence is current, whether documentation content is accurate.
+**Not checked here (belongs in quality):** whether instructions are specific to this project, whether footgun evidence is current, whether documentation content is accurate.
 
 
 ---
@@ -124,12 +124,12 @@ Agents that run for minutes or hours need durable state. Without recovery mechan
 
 **Question:** Are the feedback-loop directories wired up?
 
-A fresh install with zero footguns and zero lessons is a valid PASS. The audit only checks that the infrastructure exists; `critique` assesses whether the content is high-quality and actively maintained.
+A fresh install with zero footguns and zero lessons is a valid PASS. The audit only checks that the infrastructure exists; `quality` assesses whether the content is high-quality and actively maintained.
 
 **Checks (2):**
 
 - `feedback-loop-active` - `.goat-flow/footguns/` and `.goat-flow/lessons/` directories both exist. Entry count is reported but never used as a failure condition.
 - `decisions-tracked` - `.goat-flow/decisions/` directory exists. Record count is reported informationally.
 
-**Not checked here:** entry counts, recency (`**Created:**` dates), content accuracy, staleness of `file:line` references in footgun entries, whether active/resolved statuses are accurate. All of these are content-quality judgments that belong in `critique`.
+**Not checked here:** entry counts, recency (`**Created:**` dates), content accuracy, staleness of `file:line` references in footgun entries, whether active/resolved statuses are accurate. All of these are content-quality judgments that belong in `quality`.
 
