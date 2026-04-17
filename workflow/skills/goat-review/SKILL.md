@@ -1,6 +1,6 @@
 ---
 name: goat-review
-description: "Structured code review with two-pass blind→grounded reading, severity+action tagging, size-aware chunking, milestone spec-drift cross-check, footgun matching, and Review Integrity confidence reporting."
+description: "Use when reviewing a diff, PR, or set of code changes, or auditing a codebase area for quality issues. Triggers: 'review this', 'code review', 'audit X', 'look at these changes'."
 goat-flow-skill-version: "1.1.0"
 ---
 # /goat-review
@@ -42,9 +42,13 @@ The review runs two sequential passes. This is a deliberate reading discipline, 
 Read the diff **without opening full files**. The point is to see what the diff itself reveals before the author's surrounding code anchors you.
 
 Scan for:
-- **Severity cues:** auth/permission checks, secret handling, SQL/shell/API calls, data mutation, state transitions, API contract shifts
-- **Edge-case sweep (mechanical):** boundary conditions, null / undefined / default branches, timeouts and retries, race windows and shared state, off-by-one on indices or pagination, empty collections, integer overflow, concurrent access, silent exception swallowing
-- **Contract changes:** signature / return type / error channel / status code / event shape
+- **Severity cues:** auth/permission checks, secret handling, SQL/shell/API calls, data mutation, state transitions
+- **Edge-case sweep — 5 meta-categories, specifics bubble up as the diff warrants:**
+  - *Boundary conditions* — off-by-one, pagination/index bounds, empty collections, integer overflow
+  - *Nullish values* — null / undefined / default branches, missing optional fields
+  - *Concurrency* — race windows, shared state, concurrent access
+  - *Error handling* — timeouts, retries/backoff, silent exception swallowing
+  - *Contract changes* — signature, return type, error channel, status code, event shape
 
 Write raw suspicions with `file:line` drawn from the diff. Do NOT verify, confirm, or dismiss in this pass. Over-capture is fine; Pass 2 filters.
 
@@ -96,13 +100,13 @@ When the target is a codebase area (not a diff). For >20 files, recommend splitt
 
 ## Spec Drift (opt-in)
 
-Only emitted when the Step 0 prompt was accepted and a live milestone file was found. Reads the milestone's **Exit Criteria** and **Assumptions** blocks, then:
+Only emitted when the Step 0 prompt was accepted and a live milestone file was found. Reads the milestone's **Exit Criteria** and **Assumptions** blocks, then splits output by direction — the two cases surface under different sections and carry different weight:
 
-- Maps which Exit Criteria are evidenced by the diff
-- Flags criteria already marked `- [x]` (done) in the milestone but not actually present in the diff (drift)
-- Flags any Assumptions the diff now invalidates
+- **Exit-criteria drift → advisory, no severity tag.** A criterion is marked `- [x]` (done) in the milestone but the diff does not support it. The *milestone* is stale. Surface under `## Spec Drift` prefixed `[advisory]`. Do NOT tag MUST/SHOULD/MAY — this is milestone hygiene for the human to reconcile, not a code defect.
+- **Assumption invalidation → review finding with severity.** The diff makes a milestone Assumption false. The *plan* is now broken and the human must choose (update the assumption, fix the diff, or abandon). Surface under `## Findings` as `[MUST:needs-decision]`, **not** under `## Spec Drift`.
+- **Open criterion now satisfied → ready-to-tick note.** An open `- [ ]` criterion is now supported by the diff. Surface under `## Spec Drift` prefixed `[ready-to-tick]`. Advisory only — human ticks the milestone file.
 
-Emit as `## Spec Drift`. If no criteria drift and no assumption invalidation, still emit the section with "No drift detected against M[NN]" so the reader knows the check ran.
+If no drift, no invalidation, and no ready-to-tick criteria, still emit the section with "No drift detected against M[NN]" so the reader knows the check ran.
 
 ## Review Integrity (confidence signal)
 
@@ -135,6 +139,7 @@ Never leave this section empty. "confident — no degradation flags" is the mini
 - MUST emit Review Integrity on every run
 - MUST propose chunking when the diff exceeds 20 files OR 3000 changed lines
 - MUST emit Spec Drift only when opt-in triggered; if skipped, log `spec-drift-skipped` in Review Integrity
+- MUST split Spec Drift output by direction: exit-criteria drift as `[advisory]` (no severity tag), assumption invalidation as `[MUST:needs-decision]` under `## Findings`, open-criterion satisfaction as `[ready-to-tick]`
 - MUST attempt to disprove each Pass-1 suspicion during Pass 2
 - MUST group 3+ related findings as systemic patterns
 - MUST NOT make file edits in review or audit mode unless the user says "implement"
@@ -166,6 +171,9 @@ Never leave this section empty. "confident — no degradation flags" is the mini
 - [MAY:patch] ...
 
 ## Spec Drift   <!-- only when opt-in triggered; otherwise omit and log spec-drift-skipped -->
+<!-- advisory-only entries (exit-criteria drift, ready-to-tick); assumption invalidation goes under ## Findings as [MUST:needs-decision] -->
+- [advisory] **[criterion title]** — claimed done in M[NN] but not supported by diff
+- [ready-to-tick] **[criterion title]** — now satisfied by diff, milestone still shows `- [ ]`
 
 ## Pre-existing Nearby  <!-- in-function only; one-liners; no blocking tags -->
 
