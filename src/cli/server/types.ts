@@ -77,6 +77,12 @@ export interface DashboardReport {
         findings: string[];
         recommendations: string[];
         howToFix?: string[];
+        integrityPass: number;
+        integrityFail: number;
+        advisoryPass: number;
+        advisoryFail: number;
+        advisoryAcknowledged: number;
+        metrics: number;
       }
     > | null;
   }[];

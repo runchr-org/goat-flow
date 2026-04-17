@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
-import { runAudit } from "../../src/cli/audit/audit.js";
+import { runAudit, computeHarness } from "../../src/cli/audit/audit.js";
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
@@ -68,6 +68,7 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
       telemetry: false,
       knownGaps: [],
       skillOverrides: {},
+      harness: { acknowledge: [] },
       ...overrides,
     },
     warnings: [],
@@ -665,6 +666,172 @@ describe("harness check howToFix", () => {
     assert.ok(
       result.findings.some((f) => f.includes("architecture.md")),
       `Findings should mention architecture.md: ${result.findings.join(", ")}`,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M01: Harness check type tagging + acknowledge-based scoring
+// ---------------------------------------------------------------------------
+describe("M01 harness check type tagging", () => {
+  it("every harness check declares a valid type", () => {
+    const valid = new Set(["integrity", "advisory", "metric"]);
+    for (const check of HARNESS_CHECKS) {
+      assert.ok(
+        valid.has(check.type),
+        `${check.id} has invalid or missing type: ${check.type}`,
+      );
+    }
+  });
+
+  it("matches the locked M01 distribution (9 integrity, 5 advisory, 2 metric)", () => {
+    const byType = { integrity: 0, advisory: 0, metric: 0 } as Record<
+      string,
+      number
+    >;
+    for (const check of HARNESS_CHECKS) byType[check.type]!++;
+    assert.deepStrictEqual(byType, { integrity: 9, advisory: 5, metric: 2 });
+  });
+
+  it("known-integrity ids are tagged integrity", () => {
+    const integrityIds = new Set([
+      "doc-paths-resolve",
+      "deny-covers-secrets",
+      "deny-blocks-dangerous",
+      "deny-hook-registered",
+      "hooks-registered",
+      "milestone-tracking",
+      "session-logs",
+      "feedback-loop-active",
+      "decisions-tracked",
+    ]);
+    for (const check of HARNESS_CHECKS) {
+      if (integrityIds.has(check.id)) {
+        assert.equal(
+          check.type,
+          "integrity",
+          `${check.id} should be integrity`,
+        );
+      }
+    }
+  });
+
+  it("known-metric ids are tagged metric", () => {
+    const metricIds = new Set([
+      "test-runner-configured",
+      "post-turn-hook-integrity",
+    ]);
+    for (const check of HARNESS_CHECKS) {
+      if (metricIds.has(check.id)) {
+        assert.equal(check.type, "metric", `${check.id} should be metric`);
+      }
+    }
+  });
+});
+
+describe("M01 scoring model", () => {
+  // Stub context where every integrity check passes; compaction-hook (advisory)
+  // fails because stubAgentFacts defaults compactionHookExists to false.
+  function wellSetupButMissingCompaction(overrides: {
+    acknowledge?: string[];
+  }) {
+    return makeCtx({
+      config: stubConfig({
+        harness: { acknowledge: overrides.acknowledge ?? [] },
+      }),
+    });
+  }
+
+  it("unacknowledged advisory fail flips concern.status to fail", () => {
+    const ctx = wellSetupButMissingCompaction({});
+    const { concerns } = computeHarness(ctx);
+    // compaction-hook is advisory + recovery concern; failure should flip status.
+    assert.equal(concerns.recovery.status, "fail");
+    assert.equal(concerns.recovery.advisoryFail, 1);
+    assert.equal(concerns.recovery.advisoryAcknowledged, 0);
+  });
+
+  it("acknowledged advisory fail does NOT flip the owning concern's status", () => {
+    // Recovery concern contains compaction-hook (advisory) + milestone-tracking
+    // (integrity) + session-logs (integrity). With the default stubFS the two
+    // integrity checks pass, so acknowledging compaction-hook should make
+    // recovery.status = pass.
+    const ctx = wellSetupButMissingCompaction({
+      acknowledge: ["compaction-hook"],
+    });
+    const { concerns } = computeHarness(ctx);
+    assert.equal(concerns.recovery.status, "pass");
+    assert.equal(concerns.recovery.advisoryFail, 0);
+    assert.equal(concerns.recovery.advisoryAcknowledged, 1);
+    assert.equal(concerns.recovery.integrityPass, 2);
+  });
+
+  it("acknowledged advisory does not add to scope.failures", () => {
+    const ctx = wellSetupButMissingCompaction({
+      acknowledge: ["compaction-hook"],
+    });
+    const { scope } = computeHarness(ctx);
+    assert.ok(
+      !scope.failures.some((f) => f.check.toLowerCase().includes("compaction")),
+      `Acknowledged compaction-hook should not appear in scope.failures: ${JSON.stringify(scope.failures)}`,
+    );
+  });
+
+  it("acknowledge silences exactly the listed id, not other advisories", () => {
+    // Craft a scenario where two advisory checks fail: compaction-hook and
+    // deny-blocks-pipe-to-shell. Acknowledge only compaction-hook.
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      compactionHookExists: false,
+      denyBlocksPipeToShell: false,
+    } as AgentFacts["hooks"];
+    const ctx = makeCtx({
+      config: stubConfig({
+        harness: { acknowledge: ["compaction-hook"] },
+      }),
+      agents: [stubAgentFacts({ hooks })],
+    });
+    const { concerns } = computeHarness(ctx);
+    // Recovery fail is acknowledged → pass; constraints fail is NOT acknowledged → fail.
+    assert.equal(concerns.recovery.status, "pass");
+    assert.equal(concerns.recovery.advisoryAcknowledged, 1);
+    assert.equal(concerns.constraints.status, "fail");
+    assert.equal(concerns.constraints.advisoryFail, 1);
+  });
+
+  it("metric checks never flip concern.status (always pass) and are counted", () => {
+    const ctx = makeCtx();
+    const { concerns } = computeHarness(ctx);
+    // verification concern contains both metric checks (test-runner-configured,
+    // post-turn-hook-integrity). They never fail in the current implementation.
+    assert.equal(concerns.verification.metrics, 2);
+  });
+
+  it("CheckResult carries type and acknowledged fields", () => {
+    const ctx = wellSetupButMissingCompaction({
+      acknowledge: ["compaction-hook"],
+    });
+    const { scope } = computeHarness(ctx);
+    const compaction = scope.checks.find((c) => c.id === "compaction-hook")!;
+    assert.equal(compaction.type, "advisory");
+    assert.equal(compaction.acknowledged, true);
+    const docs = scope.checks.find((c) => c.id === "doc-paths-resolve")!;
+    assert.equal(docs.type, "integrity");
+    assert.equal(docs.acknowledged, undefined);
+  });
+
+  it("advisory failure emits WHY-not-integrity evidence with the check id", () => {
+    const ctx = wellSetupButMissingCompaction({});
+    const { scope } = computeHarness(ctx);
+    const compaction = scope.checks.find((c) => c.id === "compaction-hook")!;
+    assert.ok(compaction.failure, "advisory failure should have a failure obj");
+    assert.ok(
+      compaction.failure!.evidence?.includes("Advisory"),
+      `evidence should explain advisory framing: ${compaction.failure!.evidence}`,
+    );
+    assert.ok(
+      compaction.failure!.evidence?.includes("compaction-hook"),
+      `evidence should reference the check id: ${compaction.failure!.evidence}`,
     );
   });
 });

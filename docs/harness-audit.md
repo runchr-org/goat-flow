@@ -10,6 +10,41 @@
 
 Harness checks are grouped by the 5 concerns that every major source in the field agrees matter for agent effectiveness. The audit checks whether the structural wiring for each concern is in place. It does not judge content quality - that's what [critique](harness-critique-quality.md) is for. See [harness-engineering.md](harness-engineering.md) for the sources behind the model.
 
+## Check types
+
+Each harness check carries a `type` tag that determines whether (and how) a failure affects the concern's status:
+
+| Type | Meaning | Scored? | Opt-out |
+|------|---------|---------|---------|
+| **integrity** | Drift from install state (e.g., a router-table path that no longer resolves). Must be fixed. | Yes — fails concern. | No. |
+| **advisory** | Best practice most projects should adopt (e.g., a compaction hook). | Yes — fails concern unless acknowledged. | Yes, via `harness.acknowledge: [<check-id>]` in `.goat-flow/config.yaml`. Acknowledged advisory failures render as `acknowledged` and do not flip status. |
+| **metric** | Workflow maturity signal (e.g., checkbox coverage on milestones). Count-only, never scored. | No. | N/A. |
+
+### Scoring model
+
+- A concern `status` is `pass` iff every `integrity` check passes AND every `advisory` check either passes or is acknowledged.
+- `metric` checks never affect concern status; they are reported as counts.
+- Overall harness `status` is `pass` iff every concern's `status` is `pass`.
+
+### Acknowledging an advisory check
+
+```yaml
+# .goat-flow/config.yaml
+harness:
+  acknowledge:
+    - compaction-hook
+```
+
+Listing a check id silences that check. The finding still appears in audit output (so the project's opt-outs stay visible), but it is counted as `acknowledged` rather than `fail` and does not flip the concern's status.
+
+Only `advisory`-typed checks can be acknowledged. Integrity checks have no opt-out; metrics are already un-scored.
+
+### The 16 checks by type
+
+- **integrity (9):** `doc-paths-resolve`, `deny-covers-secrets`, `deny-blocks-dangerous`, `deny-hook-registered`, `hooks-registered`, `milestone-tracking`, `session-logs`, `feedback-loop-active`, `decisions-tracked`
+- **advisory (5):** `instruction-line-count`, `execution-loop-present`, `deny-blocks-pipe-to-shell`, `commit-guidance`, `compaction-hook`
+- **metric (2):** `test-runner-configured`, `post-turn-hook-integrity`
+
 ---
 
 ## 1. Context

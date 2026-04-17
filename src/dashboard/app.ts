@@ -141,12 +141,20 @@ function readAuditConcern(value: unknown): AuditConcern | null {
   const status = readAuditStatus(value.status);
   if (!status || typeof value.score !== "number") return null;
 
+  const readCount = (v: unknown): number => (typeof v === "number" ? v : 0);
+
   return {
     status,
     score: value.score,
     findings: readStringArray(value.findings),
     recommendations: readStringArray(value.recommendations),
     howToFix: readStringArray(value.howToFix),
+    integrityPass: readCount(value.integrityPass),
+    integrityFail: readCount(value.integrityFail),
+    advisoryPass: readCount(value.advisoryPass),
+    advisoryFail: readCount(value.advisoryFail),
+    advisoryAcknowledged: readCount(value.advisoryAcknowledged),
+    metrics: readCount(value.metrics),
   };
 }
 

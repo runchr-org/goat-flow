@@ -10,6 +10,7 @@ const milestoneTracking: HarnessCheck = {
   id: "milestone-tracking",
   name: "Milestone tracking configured",
   concern: "recovery",
+  type: "integrity",
   run: (ctx) => {
     const tasksDir = ".goat-flow/tasks";
     if (!ctx.fs.exists(tasksDir)) {
@@ -58,6 +59,7 @@ const sessionLogs: HarnessCheck = {
   id: "session-logs",
   name: "Session logs directory",
   concern: "recovery",
+  type: "integrity",
   run: (ctx) => {
     const logsDir = ".goat-flow/logs/sessions";
     try {
@@ -79,6 +81,7 @@ const compactionHook: HarnessCheck = {
   id: "compaction-hook",
   name: "Compaction hook registered",
   concern: "recovery",
+  type: "advisory",
   run: (ctx) => {
     const covered: string[] = [];
     const uncovered: string[] = [];

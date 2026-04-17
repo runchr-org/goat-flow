@@ -42,6 +42,12 @@ interface AuditConcern {
   findings: string[];
   recommendations: string[];
   howToFix: string[];
+  integrityPass: number;
+  integrityFail: number;
+  advisoryPass: number;
+  advisoryFail: number;
+  advisoryAcknowledged: number;
+  metrics: number;
 }
 
 /** Per-agent audit summary shown on the Home and Audit views. */

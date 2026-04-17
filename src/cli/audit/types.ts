@@ -27,6 +27,10 @@ export interface CheckResult {
   name: string;
   status: "pass" | "fail";
   failure?: AuditFailure;
+  /** Harness-check classification; absent for build checks. */
+  type?: HarnessCheckType;
+  /** True when an advisory failure is silenced by `harness.acknowledge` in config. */
+  acknowledged?: boolean;
 }
 
 export interface AuditScope {
@@ -43,6 +47,18 @@ export interface AuditConcern {
   findings: string[];
   recommendations: string[];
   howToFix: string[];
+  /** Count of passing integrity checks. */
+  integrityPass: number;
+  /** Count of failing integrity checks. */
+  integrityFail: number;
+  /** Count of passing advisory checks. */
+  advisoryPass: number;
+  /** Count of failing advisory checks that are not acknowledged in config. */
+  advisoryFail: number;
+  /** Count of failing advisory checks silenced by `harness.acknowledge`. */
+  advisoryAcknowledged: number;
+  /** Count of metric checks (never scored, always informational). */
+  metrics: number;
 }
 
 export type AuditConcernKey =
@@ -111,11 +127,21 @@ export interface BuildCheck {
   run: (ctx: AuditContext) => AuditFailure | null;
 }
 
+/**
+ * Harness check classification (M01):
+ * - `integrity`: drift from install state; failing integrity gates concern status.
+ * - `advisory`: best practice; failing advisory gates concern status unless
+ *   the check id is listed in `harness.acknowledge` in config.yaml.
+ * - `metric`: workflow maturity signal; never affects status.
+ */
+export type HarnessCheckType = "integrity" | "advisory" | "metric";
+
 /** A single harness completeness check (deterministic pass/fail) */
 export interface HarnessCheck {
   id: string;
   name: string;
   concern: AuditConcernKey;
+  type: HarnessCheckType;
   run: (ctx: AuditContext) => HarnessCheckResult;
 }
 

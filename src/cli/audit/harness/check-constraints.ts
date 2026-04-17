@@ -25,6 +25,7 @@ const denyCoversSecrets: HarnessCheck = {
   id: "deny-covers-secrets",
   name: "Deny covers secret files",
   concern: "constraints",
+  type: "integrity",
   run: (ctx) => {
     const { covered, uncovered, scriptOnly } = classifySecretDeny(ctx);
 
@@ -69,6 +70,7 @@ const denyBlocksDangerous: HarnessCheck = {
   id: "deny-blocks-dangerous",
   name: "Deny blocks dangerous commands",
   concern: "constraints",
+  type: "integrity",
   run: (ctx) => {
     if (ctx.agents.length === 0) {
       return fail(["No agents to check"], ["Configure at least one agent"]);
@@ -107,6 +109,7 @@ const denyBlocksPipeToShell: HarnessCheck = {
   id: "deny-blocks-pipe-to-shell",
   name: "Deny blocks pipe-to-shell",
   concern: "constraints",
+  type: "advisory",
   run: (ctx) => {
     const covered: string[] = [];
     const uncovered: string[] = [];
@@ -145,6 +148,7 @@ const denyHookRegistered: HarnessCheck = {
   id: "deny-hook-registered",
   name: "Deny hook registered in agent settings",
   concern: "constraints",
+  type: "integrity",
   run: (ctx) => {
     const registered: string[] = [];
     const unregistered: string[] = [];

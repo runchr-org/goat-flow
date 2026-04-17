@@ -17,6 +17,22 @@
           if (agents.length === 0) return false;
           return agents.some(a => a.concerns && Object.values(a.concerns).some(c => c.status === 'fail'));
         },
+        integrityFailTotal() {
+          let n = 0;
+          for (const a of (report?.agentScores || [])) {
+            if (!a.concerns) continue;
+            for (const ck of Object.keys(a.concerns)) n += (a.concerns[ck].integrityFail || 0);
+          }
+          return n;
+        },
+        advisoryFailTotal() {
+          let n = 0;
+          for (const a of (report?.agentScores || [])) {
+            if (!a.concerns) continue;
+            for (const ck of Object.keys(a.concerns)) n += (a.concerns[ck].advisoryFail || 0);
+          }
+          return n;
+        },
         priority() {
           if (this.hasSetupFail()) return 'setup';
           if (this.hasHarnessFail()) return 'harness';
@@ -24,14 +40,19 @@
           return 'healthy';
         },
         heading() {
-          const h = { setup: 'Setup needs attention', harness: 'Agent harness needs fixing', completeness: 'AI harness has failing concerns', healthy: 'Recommended actions' };
+          if (this.priority() === 'completeness') {
+            const i = this.integrityFailTotal();
+            const a = this.advisoryFailTotal();
+            return `Workflow quality: ${i} integrity issue${i !== 1 ? 's' : ''}, ${a} advisory improvement${a !== 1 ? 's' : ''}`;
+          }
+          const h = { setup: 'Setup needs attention', harness: 'Agent harness needs fixing', healthy: 'Recommended actions' };
           return h[this.priority()] || 'Recommended actions';
         },
         subtext() {
           const s = {
             setup: 'Setup checks are failing - fix these before running quality prompts.',
             harness: 'Agent harness checks are failing - resolve these to unblock concern checks.',
-            completeness: 'Some AI harness concerns are failing - fix the recommendations to reach all-pass.',
+            completeness: 'Integrity issues are install drift (must fix). Advisory items are best practice - fix or add the check id to harness.acknowledge in .goat-flow/config.yaml.',
             healthy: 'All checks passing - these are your highest-leverage next actions.'
           };
           return s[this.priority()] || '';
@@ -56,22 +77,41 @@
           return `Fix these agent setup check failures:\n\n` + sections.join('\n\n') + `\n\nTarget: all ${totalChecks} agent setup checks passing for each agent.`;
         },
         qualityFixPrompt() {
-          const concernLabels = { context: 'Context', constraints: 'Constraints', verification: 'Verification', recovery: 'Recovery', feedback_loop: 'Feedback Loop' };
           const sections = [];
           for (const a of (report?.agentScores || [])) {
-            if (!a.concerns) continue;
+            if (!a.harness) continue;
             const label = a.id === 'claude' ? 'Claude Code' : a.id === 'codex' ? 'Codex' : 'Gemini CLI';
-            const items = [];
-            for (const [ck, cl] of Object.entries(concernLabels)) {
-              const c = a.concerns[ck];
-              if (!c || c.status === 'pass') continue;
-              const fixes = (c.howToFix || []).map(h => `   - ${h}`).join('\n');
-              const recs = (c.recommendations || []).map(r => `   - ${r}`).join('\n');
-              items.push(`  **${cl}** (FAIL):\n${fixes || recs}`);
+            const integrity = [];
+            const advisory = [];
+            for (const check of (a.harness.checks || [])) {
+              if (check.status !== 'fail' || check.acknowledged) continue;
+              if (check.type === 'integrity') integrity.push(check);
+              else if (check.type === 'advisory') advisory.push(check);
             }
-            if (items.length > 0) sections.push(`**${label}:**\n${items.join('\n')}`);
+            if (integrity.length === 0 && advisory.length === 0) continue;
+            const lines = [`**${label}:**`];
+            let n = 1;
+            if (integrity.length > 0) {
+              lines.push(`*Integrity (drift from install — must fix):*`);
+              for (const c of integrity) {
+                lines.push(`${n++}. **${c.name}** — ${c.failure?.message || ''}`);
+                if (c.failure?.howToFix) lines.push(`   Fix: ${c.failure.howToFix}`);
+                lines.push(`   Verify: \`npx goat-flow audit . --harness\` shows \`${c.id}\` passing`);
+              }
+            }
+            if (advisory.length > 0) {
+              lines.push(`*Advisory (best practice — fix or acknowledge):*`);
+              for (const c of advisory) {
+                lines.push(`${n++}. **${c.name}** — ${c.failure?.message || ''}`);
+                if (c.failure?.howToFix) lines.push(`   Fix: ${c.failure.howToFix}`);
+                lines.push(`   Or silence: add \`${c.id}\` to \`harness.acknowledge\` in \`.goat-flow/config.yaml\``);
+                lines.push(`   Verify: \`npx goat-flow audit . --harness\` shows \`${c.id}\` passing or acknowledged`);
+              }
+            }
+            sections.push(lines.join('\n'));
           }
-          return `Fix these failing AI harness concerns:\n\n` + sections.join('\n\n') + '\n\nTarget: all concerns passing for each agent.';
+          if (sections.length === 0) return '/goat audit harness';
+          return `Fix these harness check failures:\n\n` + sections.join('\n\n') + '\n\nTarget: all integrity checks passing, all advisory checks passing or acknowledged.';
         }
       }"
       style="margin-bottom: 20px"
@@ -642,6 +682,18 @@
         scoreColor(score) { return score >= 80 ? 'var(--green-400)' : score >= 70 ? 'var(--yellow-400, #facc15)' : score >= 60 ? 'var(--orange-400, #fb923c)' : 'var(--red-400)' },
         scoreBg(score) { return score >= 80 ? 'var(--green-900, #14532d)' : score >= 70 ? 'var(--yellow-900, #713f12)' : score >= 60 ? 'var(--orange-900, #7c2d12)' : 'var(--red-900, #7f1d1d)' },
         agentScore(agent) { if (!agent.harness) return null; const t = agent.harness.checks.length; return t ? Math.round(agent.harness.checks.filter(c => c.status === 'pass').length / t * 100) : null; },
+        concernBadge(c) {
+          const parts = [];
+          const iTotal = (c.integrityPass || 0) + (c.integrityFail || 0);
+          if (iTotal > 0) parts.push(`I ${c.integrityPass || 0}/${iTotal}`);
+          const aTotal = (c.advisoryPass || 0) + (c.advisoryFail || 0) + (c.advisoryAcknowledged || 0);
+          if (aTotal > 0) {
+            const ackPart = c.advisoryAcknowledged > 0 ? ` (${c.advisoryAcknowledged} ack)` : '';
+            parts.push(`A ${(c.advisoryPass || 0) + (c.advisoryAcknowledged || 0)}/${aTotal}${ackPart}`);
+          }
+          if (c.metrics > 0) parts.push(`m ${c.metrics}`);
+          return parts.join(' · ');
+        },
         toGrade(s) { if (s >= 90) return 'A'; if (s >= 80) return 'B'; if (s >= 70) return 'C'; if (s >= 60) return 'D'; return 'F'; },
         checkDescriptions: {
           'agent-instruction': 'The agent has a project-specific instruction file',
@@ -740,34 +792,27 @@
                       "
                       x-text="concernMeta[ck].label"
                     ></span>
-                    <div
+                    <span
+                      class="gf-text-secondary"
                       style="
                         flex: 1;
-                        height: 4px;
-                        background: var(--surface-elevated, #27272a);
-                        border-radius: 2px;
-                        overflow: hidden;
+                        font-size: 10px;
+                        font-variant-numeric: tabular-nums;
+                        letter-spacing: 0.2px;
                       "
-                    >
-                      <div
-                        style="
-                          height: 100%;
-                          border-radius: 2px;
-                          transition: width 0.3s;
-                        "
-                        :style="{ width: agent.concerns[ck].score + '%', background: scoreColor(agent.concerns[ck].score) }"
-                      ></div>
-                    </div>
+                      x-text="concernBadge(agent.concerns[ck])"
+                    ></span>
                     <span
                       style="
                         font-size: 10px;
-                        font-weight: 600;
-                        width: 32px;
+                        font-weight: 700;
+                        width: 40px;
                         flex-shrink: 0;
                         text-align: right;
+                        letter-spacing: 0.3px;
                       "
-                      :style="{ color: scoreColor(agent.concerns[ck].score) }"
-                      x-text="agent.concerns[ck].score + '%'"
+                      :style="{ color: statusColor(agent.concerns[ck].status) }"
+                      x-text="agent.concerns[ck].status === 'pass' ? 'PASS' : 'FAIL'"
                     ></span>
                   </div>
                 </template>
@@ -927,17 +972,35 @@
                         ></span>
                         <span
                           style="
-                            font-size: 13px;
-                            font-weight: 600;
-                            padding: 2px 8px;
-                            border-radius: 4px;
+                            display: inline-flex;
+                            gap: 8px;
+                            align-items: center;
                           "
-                          :style="{
-                            background: scoreBg(agent.concerns[ck].score),
-                            color: scoreColor(agent.concerns[ck].score)
-                          }"
-                          x-text="agent.concerns[ck].score + '%'"
-                        ></span>
+                        >
+                          <span
+                            class="gf-text-secondary"
+                            style="
+                              font-size: 11px;
+                              font-variant-numeric: tabular-nums;
+                              letter-spacing: 0.2px;
+                            "
+                            x-text="concernBadge(agent.concerns[ck])"
+                          ></span>
+                          <span
+                            style="
+                              font-size: 13px;
+                              font-weight: 700;
+                              padding: 2px 10px;
+                              border-radius: 4px;
+                              letter-spacing: 0.4px;
+                            "
+                            :style="{
+                              background: agent.concerns[ck].status === 'pass' ? 'var(--green-900, #14532d)' : 'var(--red-900, #7f1d1d)',
+                              color: statusColor(agent.concerns[ck].status)
+                            }"
+                            x-text="agent.concerns[ck].status === 'pass' ? 'PASS' : 'FAIL'"
+                          ></span>
+                        </span>
                       </div>
                       <p
                         class="gf-text-muted"

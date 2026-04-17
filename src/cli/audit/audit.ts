@@ -46,12 +46,18 @@ function parseProjectStructure(raw: Record<string, unknown>): ProjectStructure {
   };
 }
 
-/** Build a scope result from check results */
+/** Build a scope result from check results.
+ * Acknowledged advisory harness failures are excluded from the failures list
+ * and do not flip the scope status (the concern-level check already handled
+ * acknowledgment per M01 scoring model).
+ */
 function buildScope(
   checks: CheckResult[],
   summary: Record<string, string>,
 ): AuditScope {
-  const failures = checks.filter((c) => c.failure).map((c) => c.failure!);
+  const failures = checks
+    .filter((c) => c.failure && !c.acknowledged)
+    .map((c) => c.failure!);
   return {
     status: failures.length === 0 ? "pass" : "fail",
     checks,
@@ -109,67 +115,107 @@ function agentSummary(ctx: AuditContext): Record<string, string> {
 function toCheckResult(
   check: HarnessCheck,
   result: HarnessCheckResult,
+  acknowledged: boolean,
 ): CheckResult {
+  const baseFailure =
+    result.status === "fail"
+      ? {
+          check: check.name,
+          message:
+            result.recommendations[0] ?? result.findings[0] ?? "Check failed",
+          howToFix: result.howToFix?.[0],
+        }
+      : undefined;
+
+  const failure =
+    baseFailure && check.type === "advisory"
+      ? {
+          ...baseFailure,
+          evidence: acknowledged
+            ? `Advisory (acknowledged via harness.acknowledge: [${check.id}]). Best practice, not install drift.`
+            : `Advisory (best practice, not install drift). Silence with harness.acknowledge: [${check.id}] in .goat-flow/config.yaml, or fix to reach pass.`,
+        }
+      : baseFailure;
+
   return {
     id: check.id,
     name: check.name,
     status: result.status,
-    failure:
-      result.status === "fail"
-        ? {
-            check: check.name,
-            message:
-              result.recommendations[0] ?? result.findings[0] ?? "Check failed",
-            howToFix: result.howToFix?.[0],
-          }
-        : undefined,
+    failure,
+    type: check.type,
+    acknowledged: acknowledged || undefined,
   };
 }
 
-/** Run harness completeness checks and return scope + concerns. */
-function computeHarness(ctx: AuditContext): {
+/** Create an empty AuditConcern with zeroed counters. */
+function emptyConcern(): AuditConcern {
+  return {
+    status: "pass",
+    score: 0,
+    findings: [],
+    recommendations: [],
+    howToFix: [],
+    integrityPass: 0,
+    integrityFail: 0,
+    advisoryPass: 0,
+    advisoryFail: 0,
+    advisoryAcknowledged: 0,
+    metrics: 0,
+  };
+}
+
+/** Apply a single check result to its concern per the typed scoring model. */
+function applyCheckToConcern(
+  concern: AuditConcern,
+  check: HarnessCheck,
+  result: HarnessCheckResult,
+  acknowledged: boolean,
+): void {
+  concern.findings.push(...result.findings);
+  if (check.type === "metric") {
+    concern.metrics++;
+    return;
+  }
+  const pass = result.status === "pass";
+  if (check.type === "integrity") {
+    if (pass) concern.integrityPass++;
+    else concern.integrityFail++;
+  } else {
+    if (pass) concern.advisoryPass++;
+    else if (acknowledged) concern.advisoryAcknowledged++;
+    else concern.advisoryFail++;
+  }
+  if (!pass && !acknowledged) {
+    concern.status = "fail";
+    concern.recommendations.push(...result.recommendations);
+    if (result.howToFix) concern.howToFix.push(...result.howToFix);
+  }
+}
+
+/** Run harness completeness checks and return scope + concerns.
+ *
+ * Scoring model (M01 typed harness):
+ *   - integrity fail → concern.status = "fail" (no opt-out).
+ *   - advisory fail AND check.id in `config.harness.acknowledge` → silenced
+ *     (counted as `advisoryAcknowledged`, does not affect status).
+ *   - advisory fail NOT acknowledged → concern.status = "fail".
+ *   - metric checks never affect concern.status (counts only).
+ *
+ * Exported for unit testing against real and synthetic contexts.
+ */
+export function computeHarness(ctx: AuditContext): {
   scope: AuditScope;
   concerns: Record<AuditConcernKey, AuditConcern>;
 } {
+  const acknowledgeList = new Set(ctx.config.config.harness.acknowledge);
   const checks: CheckResult[] = [];
   const concerns: Record<AuditConcernKey, AuditConcern> = {
-    context: {
-      status: "pass",
-      score: 0,
-      findings: [],
-      recommendations: [],
-      howToFix: [],
-    },
-    constraints: {
-      status: "pass",
-      score: 0,
-      findings: [],
-      recommendations: [],
-      howToFix: [],
-    },
-    verification: {
-      status: "pass",
-      score: 0,
-      findings: [],
-      recommendations: [],
-      howToFix: [],
-    },
-    recovery: {
-      status: "pass",
-      score: 0,
-      findings: [],
-      recommendations: [],
-      howToFix: [],
-    },
-    feedback_loop: {
-      status: "pass",
-      score: 0,
-      findings: [],
-      recommendations: [],
-      howToFix: [],
-    },
+    context: emptyConcern(),
+    constraints: emptyConcern(),
+    verification: emptyConcern(),
+    recovery: emptyConcern(),
+    feedback_loop: emptyConcern(),
   };
-
   const counts: Record<AuditConcernKey, { total: number; passing: number }> = {
     context: { total: 0, passing: 0 },
     constraints: { total: 0, passing: 0 },
@@ -180,12 +226,12 @@ function computeHarness(ctx: AuditContext): {
 
   for (const check of HARNESS_CHECKS) {
     const result = check.run(ctx);
-    checks.push(toCheckResult(check, result));
-    const concern = concerns[check.concern];
-    concern.findings.push(...result.findings);
-    concern.recommendations.push(...result.recommendations);
-    if (result.howToFix) concern.howToFix.push(...result.howToFix);
-    if (result.status === "fail") concern.status = "fail";
+    const acknowledged =
+      check.type === "advisory" &&
+      result.status === "fail" &&
+      acknowledgeList.has(check.id);
+    checks.push(toCheckResult(check, result, acknowledged));
+    applyCheckToConcern(concerns[check.concern], check, result, acknowledged);
     counts[check.concern].total++;
     if (result.status === "pass") counts[check.concern].passing++;
   }

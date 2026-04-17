@@ -27,6 +27,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "telemetry",
   "known-gaps",
   "skill-overrides",
+  "harness",
 ]);
 
 /** Built-in default values used when config.yaml is missing or omits fields. */
@@ -51,6 +52,7 @@ const CONFIG_DEFAULTS: GoatFlowConfig = {
   telemetry: false,
   knownGaps: [],
   skillOverrides: {},
+  harness: { acknowledge: [] },
 };
 
 /** Clone the default config object so callers can mutate it safely. */
@@ -76,6 +78,7 @@ function cloneDefaults(): GoatFlowConfig {
     telemetry: CONFIG_DEFAULTS.telemetry,
     knownGaps: [...CONFIG_DEFAULTS.knownGaps],
     skillOverrides: { ...CONFIG_DEFAULTS.skillOverrides },
+    harness: { acknowledge: [...CONFIG_DEFAULTS.harness.acknowledge] },
   };
 }
 
@@ -189,7 +192,20 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
     };
   }
 
+  mergeHarness(raw.harness, merged);
+
   return merged;
+}
+
+/** Apply harness acknowledge list from the raw config. */
+function mergeHarness(value: unknown, merged: GoatFlowConfig): void {
+  if (!isRecord(value)) return;
+  if (Array.isArray(value.acknowledge)) {
+    merged.harness.acknowledge = value.acknowledge.filter(
+      (item): item is string =>
+        typeof item === "string" && item.trim().length > 0,
+    );
+  }
 }
 
 /** Append a config validation error with its source path. */
@@ -423,6 +439,18 @@ function validateSkillsField(
   });
 }
 
+/** Validate the harness acknowledge list when present. */
+function validateHarnessField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  validateObjectField(raw, "harness", errors, (value) => {
+    if (!("acknowledge" in value)) return;
+    validateStringArray(value.acknowledge, "harness.acknowledge", errors);
+  });
+}
+
 /** Ordered list of field-level validators applied during config validation. */
 const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateVersionField,
@@ -431,6 +459,7 @@ const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateSkillsField,
   validateToolchainField,
   validateUserRoleField,
+  validateHarnessField,
 ];
 
 /** Validate a parsed config object and return structured warnings and errors. */

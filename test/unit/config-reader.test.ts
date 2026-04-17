@@ -67,3 +67,43 @@ describe("config parse errors", () => {
     assert.ok(result.parseError !== null, "parseError should be set");
   });
 });
+
+// ---------------------------------------------------------------------------
+// M01: harness.acknowledge list
+// ---------------------------------------------------------------------------
+describe("harness.acknowledge in config", () => {
+  it("defaults to an empty list when absent", () => {
+    const result = loadConfig("/tmp", configFS(null));
+    assert.deepStrictEqual(result.config.harness.acknowledge, []);
+  });
+
+  it("parses an acknowledge list from YAML", () => {
+    const yaml = `
+version: "1.1.0"
+harness:
+  acknowledge:
+    - compaction-hook
+    - instruction-line-count
+`;
+    const result = loadConfig("/tmp", configFS(yaml));
+    assert.equal(result.valid, true);
+    assert.deepStrictEqual(result.config.harness.acknowledge, [
+      "compaction-hook",
+      "instruction-line-count",
+    ]);
+  });
+
+  it("errors when acknowledge is not an array", () => {
+    const yaml = `
+version: "1.1.0"
+harness:
+  acknowledge: compaction-hook
+`;
+    const result = loadConfig("/tmp", configFS(yaml));
+    assert.equal(result.valid, false);
+    assert.ok(
+      result.errors.some((e) => e.path === "harness.acknowledge"),
+      `errors should include harness.acknowledge: ${JSON.stringify(result.errors)}`,
+    );
+  });
+});

@@ -9,6 +9,7 @@ const testRunnerConfigured: HarnessCheck = {
   id: "test-runner-configured",
   name: "Test runner configured",
   concern: "verification",
+  type: "metric",
   run: (ctx) => {
     const tc = ctx.config.config.toolchain;
     if (tc.test.length > 0) {
@@ -24,6 +25,7 @@ const hooksRegistered: HarnessCheck = {
   id: "hooks-registered",
   name: "Hook registrations in sync",
   concern: "verification",
+  type: "integrity",
   run: (ctx) => {
     const findings: string[] = [];
     const recs: string[] = [];
@@ -58,6 +60,7 @@ const commitGuidance: HarnessCheck = {
   id: "commit-guidance",
   name: "Commit guidance present",
   concern: "verification",
+  type: "advisory",
   run: (ctx) => {
     if (ctx.facts.shared.gitCommitInstructions.exists) {
       return pass(["Commit guidance found"]);
@@ -77,6 +80,7 @@ const postTurnHookIntegrity: HarnessCheck = {
   id: "post-turn-hook-integrity",
   name: "Post-turn hook integrity",
   concern: "verification",
+  type: "metric",
   run: (ctx) => {
     const findings: string[] = [];
     let anyHook = false;

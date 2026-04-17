@@ -10,6 +10,7 @@ const feedbackLoopActive: HarnessCheck = {
   id: "feedback-loop-active",
   name: "Feedback loop directories exist",
   concern: "feedback_loop",
+  type: "integrity",
   run: (ctx) => {
     const findings: string[] = [];
     const missing: string[] = [];
@@ -60,6 +61,7 @@ const decisionsTracked: HarnessCheck = {
   id: "decisions-tracked",
   name: "Decisions directory exists",
   concern: "feedback_loop",
+  type: "integrity",
   run: (ctx) => {
     const { decisions } = ctx.facts.shared;
     if (!decisions.dirExists) {

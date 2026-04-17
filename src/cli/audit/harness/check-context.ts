@@ -11,6 +11,7 @@ const instructionLineCount: HarnessCheck = {
   id: "instruction-line-count",
   name: "Instruction file size",
   concern: "context",
+  type: "advisory",
   run: (ctx) => {
     const findings: string[] = [];
     const recs: string[] = [];
@@ -50,6 +51,7 @@ const executionLoopPresent: HarnessCheck = {
   id: "execution-loop-present",
   name: "Execution loop present",
   concern: "context",
+  type: "advisory",
   run: (ctx) => {
     const steps = ["read", "scope", "act", "verify"];
     const findings: string[] = [];
@@ -151,6 +153,7 @@ const docPathsResolve: HarnessCheck = {
   id: "doc-paths-resolve",
   name: "Documentation paths resolve",
   concern: "context",
+  type: "integrity",
   run: (ctx) => {
     const { totalPaths, resolvedCount, findings } = checkAllDocPaths(ctx);
 
