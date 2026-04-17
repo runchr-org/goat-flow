@@ -422,6 +422,27 @@ if [[ -f dist/cli/audit/check-goat-flow.js ]]; then
         skip "Architecture count validation (dist/ not fully built or architecture.md missing)"
     fi
 
+    # B.8a3: Downstream doc sub-breakdown drift
+    # Architecture.md validated above. This catches stale sub-breakdown numbers
+    # in other current-state docs that reference the same counts.
+    # Excludes: CHANGELOG.md and workflow/manifest-snapshots/** (frozen per
+    # release), .goat-flow/logs/ (historical), .goat-flow/scratchpad/ (WIP),
+    # .goat-flow/lessons/ (narrative may include historical numbers).
+    if [[ -n "$setup_count" ]]; then
+        b8a3_ok=true
+        for doc in CLAUDE.md AGENTS.md GEMINI.md .goat-flow/code-map.md CONTRIBUTING.md; do
+            [[ -f "$doc" ]] || continue
+            stale=$(grep -oE '[0-9]+ setup' "$doc" 2>/dev/null | grep -v "^${setup_count} setup$" | head -1 || true)
+            if [[ -n "$stale" ]]; then
+                fail "Downstream doc sub-breakdown drift in ${doc}: found '${stale}' (expected '${setup_count} setup')"
+                b8a3_ok=false
+            fi
+        done
+        if $b8a3_ok; then
+            pass "Downstream docs match setup sub-breakdown (${setup_count} setup)"
+        fi
+    fi
+
     # B.8b: Setup doc check ID validation
     if [[ -n "$build_count" ]]; then
         check_ids=$(node --input-type=module -e "const s=await import('./dist/cli/audit/check-goat-flow.js');const a=await import('./dist/cli/audit/check-agent-setup.js');[...s.SETUP_CHECKS,...a.AGENT_CHECKS].forEach(c=>console.log(c.id))" 2>/dev/null || echo "")

@@ -178,11 +178,11 @@ category: verification
 
 **Created:** 2026-04-14
 
-**What happened:** A critique agent claimed `.goat-flow/architecture.md:18` had the wrong build-check breakdown: "says 7+9, actual code shows 12+4." The claim was accepted at face value and the doc was changed. A subsequent refactor restructured the checks into `SETUP_CHECKS` (12 checks) and `AGENT_CHECKS` (4 checks), making the actual breakdown **12 setup + 4 agent** (16 total). The preflight's "Architecture doc counts match code" check only validates the total (16), not the sub-breakdown, so incorrect breakdowns pass all automated gates.
+**What happened:** A critique agent claimed `.goat-flow/architecture.md:18` had the wrong build-check breakdown: "says 7+9, actual code shows 12+4." The claim was accepted at face value and the doc was changed. A subsequent refactor restructured the checks into `SETUP_CHECKS` (13 checks) and `AGENT_CHECKS` (4 checks), making the actual breakdown **13 setup + 4 agent** (17 total). The preflight's "Architecture doc counts match code" check only validates the total (17), not the sub-breakdown, so incorrect breakdowns pass all automated gates.
 
 **Root cause:** The first critique agent likely miscounted or read a stale build of the code. The claim was plausible (it got the total right), which made it easy to accept without running the verification command. The same session also changed `code-map.md` correctly for a different issue, creating a false sense that all claims were verified.
 
-**Evidence:** `node --input-type=module -e "const a=await import('./dist/cli/audit/check-goat-flow.js'); const b=await import('./dist/cli/audit/check-agent-setup.js'); console.log('setup:', a.SETUP_CHECKS.length, 'agent:', b.AGENT_CHECKS.length)"` - outputs 12 setup + 4 agent (16 total).
+**Evidence:** `node --input-type=module -e "const a=await import('./dist/cli/audit/check-goat-flow.js'); const b=await import('./dist/cli/audit/check-agent-setup.js'); console.log('setup:', a.SETUP_CHECKS.length, 'agent:', b.AGENT_CHECKS.length)"` - outputs 13 setup + 4 agent (17 total).
 
 **Prevention:**
 1. Before changing any numeric claim in a canonical doc, run the verification command yourself - never trust a critique's count.

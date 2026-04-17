@@ -4,7 +4,8 @@ GOAT Flow documentation framework. Markdown docs + Bash validation scripts. This
 ```bash
 bash scripts/preflight-checks.sh
 bash workflow/validate-goat-flow-setup.sh
-bash scripts/deny-dangerous.sh --self-test  # Codex: verify deny patterns registered
+bash .codex/hooks/deny-dangerous.sh --self-test  # Codex: verify deny patterns registered (registered hook, not distributable copy)
+npm run typecheck                           # Type-check .ts (required by DoD)
 bash -n workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh
 shellcheck workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh
 npm test                                    # Run test suite
@@ -21,7 +22,7 @@ npm test                                    # Run test suite
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept. Check `.goat-flow/footguns/` for the target area.
 ```
 BAD:  "The CLI has 20 audit checks" (guessed without reading)
-GOOD: Read src/cli/audit/check-goat-flow.ts → 12 setup checks, check-agent-setup.ts → 4 agent checks (16 total)
+GOOD: Read src/cli/audit/check-goat-flow.ts → 13 setup checks, check-agent-setup.ts → 4 agent checks (17 total)
 ```
 
 **SCOPE** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review. MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
@@ -92,7 +93,7 @@ Boundaries:
 **Never:** Delete docs without replacement, invent incidents or evidence, edit secrets, commit or push unless asked, run destructive git commands, claim verification passed without running it. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`).
 
 ## Definition of Done
-MUST confirm ALL: (1) shellcheck passes on changed .sh files (2) no broken cross-references introduced (3) no unapproved boundary changes (4) logs updated if tripped (5) working notes current (6) grep old pattern after renames
+MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh, npm run typecheck on .ts) (2) no broken cross-references introduced (3) no unapproved boundary changes (4) logs updated if tripped (5) working notes current (6) grep old pattern after renames
 
 ## Working Memory
 If working from a plan/milestone file, tick `- [x]` on each completed task immediately - not at the end. If context drifts or two approaches fail, restate scope and start fresh.

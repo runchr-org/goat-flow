@@ -22,7 +22,7 @@ facts/                     # Fact extractors -- gather project state for audit c
 
 audit/
   audit.ts                 # Public audit command: build checks + optional harness completeness (--harness)
-  check-goat-flow.ts       # 12 setup build checks (gate CI pass/fail)
+  check-goat-flow.ts       # 13 setup build checks (gate CI pass/fail)
   check-agent-setup.ts     # 4 agent build checks (gate CI pass/fail)
   harness/                 # 16 pass/fail completeness checks grouped by concern (5 files + helpers + index)
   render.ts                # Output formatters (text, json, markdown)
