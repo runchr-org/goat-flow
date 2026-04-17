@@ -81,6 +81,8 @@ export interface AuditReport {
   concerns: Record<AuditConcernKey, AuditConcern> | null;
   /** Drift section, populated when --check-drift is set. */
   drift: DriftReport | null;
+  /** Content-lint section, populated when --check-content is set. */
+  content: ContentReport | null;
   overall: {
     status: "pass" | "fail";
   };
@@ -100,6 +102,33 @@ export interface DriftReport {
   status: "pass" | "fail";
   findings: DriftFinding[];
   checked: number;
+}
+
+// === Content lint (M05) ===
+
+/** WARNING findings fail the content scope; INFO findings are advisory. */
+export type ContentSeverity = "info" | "warning";
+
+export interface ContentFinding {
+  severity: ContentSeverity;
+  /** Stable rule id (e.g. "vague-term", "skill-count-drift"). */
+  rule: string;
+  /** File path relative to project root. */
+  path: string;
+  /** 1-indexed line number if applicable. */
+  line?: number;
+  message: string;
+  /** Actionable suggestion when available (e.g. "Use 'consistent 2-space indentation' instead of 'format properly'"). */
+  suggestion?: string;
+}
+
+export interface ContentReport {
+  status: "pass" | "fail";
+  findings: ContentFinding[];
+  warnings: number;
+  infos: number;
+  /** Number of target files scanned. */
+  filesScanned: number;
 }
 
 // === Internal types (check definitions and context) ===

@@ -1,0 +1,102 @@
+/**
+ * Unit tests for M05 provenance schema validator.
+ *
+ * The `source_type: "unknown"` + required `reason` contract is the SBAO-locked
+ * M11 escape hatch. Must be mechanically enforced so back-fill work can't
+ * silently ship without-reason unknowns.
+ */
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { validateProvenance } from "../../src/cli/audit/provenance-types.js";
+import type { CheckEvidence } from "../../src/cli/audit/provenance-types.js";
+import { CONTENT_QUALITY_EVIDENCE } from "../../src/cli/audit/check-content-quality.js";
+import { FACTUAL_CLAIMS_EVIDENCE } from "../../src/cli/audit/check-factual-claims.js";
+
+describe("validateProvenance", () => {
+  it("accepts a well-formed spec entry", () => {
+    const e: CheckEvidence = {
+      source_type: "spec",
+      source_urls: ["https://example.com/spec"],
+      verified_on: "2026-04-17",
+      normative_level: "MUST",
+    };
+    assert.deepEqual(validateProvenance(e), []);
+  });
+
+  it("rejects source_type 'unknown' without a reason", () => {
+    const e: CheckEvidence = {
+      source_type: "unknown",
+      source_urls: [],
+      verified_on: "2026-04-17",
+      normative_level: "BEST_PRACTICE",
+    };
+    const errs = validateProvenance(e);
+    assert.equal(errs.length, 1);
+    assert.match(errs[0]!, /unknown.*reason/i);
+  });
+
+  it("accepts source_type 'unknown' with a non-empty reason", () => {
+    const e: CheckEvidence = {
+      source_type: "unknown",
+      source_urls: [],
+      verified_on: "2026-04-17",
+      normative_level: "BEST_PRACTICE",
+      reason: "Pre-dates v1.1.0 cleanup, original evidence not preserved.",
+    };
+    assert.deepEqual(validateProvenance(e), []);
+  });
+
+  it("rejects unknown with an empty-string reason", () => {
+    const e: CheckEvidence = {
+      source_type: "unknown",
+      source_urls: [],
+      verified_on: "2026-04-17",
+      normative_level: "BEST_PRACTICE",
+      reason: "   ",
+    };
+    assert.equal(validateProvenance(e).length, 1);
+  });
+
+  it("rejects a malformed verified_on date", () => {
+    const e: CheckEvidence = {
+      source_type: "spec",
+      source_urls: ["https://example.com"],
+      verified_on: "April 17 2026",
+      normative_level: "MUST",
+    };
+    assert.match(validateProvenance(e)[0]!, /verified_on/);
+  });
+
+  it("accepts incident-typed evidence with only evidence_paths", () => {
+    const e: CheckEvidence = {
+      source_type: "incident",
+      source_urls: [],
+      verified_on: "2026-04-17",
+      normative_level: "MUST",
+      evidence_paths: [".goat-flow/lessons/verification.md"],
+    };
+    assert.deepEqual(validateProvenance(e), []);
+  });
+
+  it("rejects non-unknown source_type with neither urls nor evidence_paths", () => {
+    const e: CheckEvidence = {
+      source_type: "spec",
+      source_urls: [],
+      verified_on: "2026-04-17",
+      normative_level: "MUST",
+    };
+    const errs = validateProvenance(e);
+    assert.ok(errs.length >= 1);
+    assert.match(errs[0]!, /source_url|evidence_path/i);
+  });
+});
+
+describe("M05 check evidence constants validate", () => {
+  it("CONTENT_QUALITY_EVIDENCE satisfies the schema", () => {
+    assert.deepEqual(validateProvenance(CONTENT_QUALITY_EVIDENCE), []);
+  });
+
+  it("FACTUAL_CLAIMS_EVIDENCE satisfies the schema", () => {
+    assert.deepEqual(validateProvenance(FACTUAL_CLAIMS_EVIDENCE), []);
+  });
+});

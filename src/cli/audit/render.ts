@@ -5,6 +5,7 @@ import type {
   AuditConcernKey,
   AuditReport,
   AuditScope,
+  ContentReport,
   DriftReport,
 } from "./types.js";
 
@@ -104,7 +105,37 @@ export function renderAuditText(report: AuditReport): string {
     renderTextDriftFindings(report.drift, lines);
   }
 
+  if (report.content) {
+    lines.push("");
+    lines.push(
+      `${BOLD}Cold-Path Content Lint:${RESET}  ${statusBadge(report.content.status)}  ${DIM}(${report.content.warnings} warning(s), ${report.content.infos} info, ${report.content.filesScanned} file(s) scanned)${RESET}`,
+    );
+    lines.push("");
+    renderTextContentFindings(report.content, lines);
+  }
+
   return lines.join("\n");
+}
+
+function renderTextContentFindings(
+  content: ContentReport,
+  lines: string[],
+): void {
+  if (content.findings.length === 0) {
+    lines.push(`  ${DIM}No content issues detected.${RESET}`);
+    return;
+  }
+  for (const f of content.findings) {
+    const color = f.severity === "warning" ? RED : YELLOW;
+    const loc = f.line !== undefined ? `${f.path}:${f.line}` : f.path;
+    lines.push(
+      `  ${color}${f.severity.toUpperCase()} [${f.rule}] ${loc}${RESET}`,
+    );
+    lines.push(`    ${DIM}${f.message}${RESET}`);
+    if (f.suggestion) {
+      lines.push(`    ${CYAN}-> ${f.suggestion}${RESET}`);
+    }
+  }
 }
 
 function renderTextDriftFindings(drift: DriftReport, lines: string[]): void {
@@ -198,6 +229,26 @@ function renderMdDrift(drift: DriftReport, lines: string[]): void {
   lines.push("");
 }
 
+function renderMdContent(content: ContentReport, lines: string[]): void {
+  lines.push("");
+  lines.push(
+    `## Cold-Path Content Lint: ${mdScopeStatus(content.status)} (${content.warnings} warning(s), ${content.infos} info, ${content.filesScanned} file(s) scanned)`,
+  );
+  if (content.findings.length === 0) {
+    lines.push("");
+    lines.push("No content issues detected.");
+  } else {
+    for (const f of content.findings) {
+      const loc = f.line !== undefined ? `${f.path}:${f.line}` : f.path;
+      lines.push(
+        `- :x: **${f.severity.toUpperCase()} [${f.rule}]** \`${loc}\` — ${f.message}`,
+      );
+      if (f.suggestion) lines.push(`  - *Fix:* ${f.suggestion}`);
+    }
+  }
+  lines.push("");
+}
+
 export function renderAuditMarkdown(report: AuditReport): string {
   const lines: string[] = [];
   lines.push(`# GOAT Flow Audit: ${report.target}`);
@@ -209,5 +260,6 @@ export function renderAuditMarkdown(report: AuditReport): string {
   lines.push(renderMdScope("Agent Setup", report.scopes.agent));
   renderMdHarnessConcerns(report, lines);
   if (report.drift) renderMdDrift(report.drift, lines);
+  if (report.content) renderMdContent(report.content, lines);
   return lines.join("\n");
 }

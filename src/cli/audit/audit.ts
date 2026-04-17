@@ -12,6 +12,8 @@ import { SETUP_CHECKS } from "./check-goat-flow.js";
 import { AGENT_CHECKS } from "./check-agent-setup.js";
 import { HARNESS_CHECKS } from "./harness/index.js";
 import { checkDrift } from "./check-drift.js";
+import { runContentQualityChecks } from "./check-content-quality.js";
+import { runFactualClaimChecks } from "./check-factual-claims.js";
 import type {
   AuditContext,
   AuditConcern,
@@ -20,6 +22,7 @@ import type {
   AuditScope,
   AuditScopeName,
   CheckResult,
+  ContentReport,
   HarnessCheck,
   HarnessCheckResult,
   ProjectStructure,
@@ -30,6 +33,24 @@ interface AuditOptions {
   harness: boolean;
   /** Optional drift check (M04). Defaults to false when omitted. */
   checkDrift?: boolean;
+  /** Optional cold-path content lint (M05). Defaults to false when omitted. */
+  checkContent?: boolean;
+}
+
+/** Combine content-quality + factual-claim findings into a ContentReport. */
+function computeContent(ctx: AuditContext): ContentReport {
+  const quality = runContentQualityChecks(ctx);
+  const factual = runFactualClaimChecks(ctx);
+  const findings = [...quality.findings, ...factual.findings];
+  const warnings = findings.filter((f) => f.severity === "warning").length;
+  const infos = findings.filter((f) => f.severity === "info").length;
+  return {
+    status: warnings === 0 ? "pass" : "fail",
+    findings,
+    warnings,
+    infos,
+    filesScanned: quality.filesScanned + factual.filesScanned,
+  };
 }
 
 /** Parse the raw manifest.json into the typed subset audit needs. */
@@ -296,17 +317,21 @@ function buildAuditContext(
   };
 }
 
-/** Combine build + optional harness + optional drift statuses into an overall pass/fail. */
+/** Combine build + optional harness + optional drift + optional content statuses into an overall pass/fail. */
 function overallStatus(
   setup: AuditScope,
   agent: AuditScope,
   harness: ReturnType<typeof computeHarness> | null,
   drift: { status: "pass" | "fail" } | null,
+  content: ContentReport | null,
 ): "pass" | "fail" {
   const buildPassed = setup.status === "pass" && agent.status === "pass";
   const harnessPassed = !harness || harness.scope.status === "pass";
   const driftPassed = !drift || drift.status === "pass";
-  return buildPassed && harnessPassed && driftPassed ? "pass" : "fail";
+  const contentPassed = !content || content.status === "pass";
+  return buildPassed && harnessPassed && driftPassed && contentPassed
+    ? "pass"
+    : "fail";
 }
 
 /** Run the audit against a project and return the full report. */
@@ -319,7 +344,8 @@ export function runAudit(
   const { setup: setupScope, agent: agentScope } = runBuildChecks(ctx);
   const harness = options.harness ? computeHarness(ctx) : null;
   const drift = options.checkDrift ? checkDrift({ fs, projectPath }) : null;
-  const status = overallStatus(setupScope, agentScope, harness, drift);
+  const content = options.checkContent ? computeContent(ctx) : null;
+  const status = overallStatus(setupScope, agentScope, harness, drift, content);
 
   return {
     command: "audit",
@@ -333,6 +359,7 @@ export function runAudit(
     },
     concerns: harness?.concerns ?? null,
     drift,
+    content,
     overall: { status },
   };
 }

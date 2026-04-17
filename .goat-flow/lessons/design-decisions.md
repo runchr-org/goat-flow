@@ -59,3 +59,25 @@ Five specific patterns emerged:
 - Write footgun entries during the milestone that introduces the trap, not during the critique that discovers it.
 - Test milestone files by asking "could I hand this to a different agent with no prior context?"
 
+---
+
+## Lesson: Summary dashboards should not expose internal harness shorthand first
+
+**Created:** 2026-04-17
+
+**What happened:** The Home AI Harness redesign surfaced concern rows as internal counter strings like `I 1/1 · A 2/2 · m 2` and paired them with hard `PASS` / `FAIL` labels. The data was technically correct, but the first-glance card experience became harder to read. A user looking for "which agent is healthiest?" or "what needs attention next?" had to first decode goat-flow internals: `I` = integrity, `A` = advisory, `m` = metric. User feedback preferred the earlier summary-first presentation with a grade, percentage, recommendation count, and simple per-concern bars.
+
+**Root cause:** The UI was designed from the audit data model outward instead of from the user's decision flow inward. Internal taxonomy was treated as inherently useful because it was available and precise. That is the wrong default for a summary surface. Precision is not clarity when the user must learn the implementation vocabulary before they can understand the screen.
+
+**Decision:** On summary surfaces such as the Home dashboard, lead with human-readable outcomes:
+
+- overall grade / percentage
+- recommendation count or "All checks passing"
+- simple concern bars
+- plain-language status like `Healthy` or `Needs work`
+
+Keep internal audit taxonomy and counts in deeper diagnostic views, expanded sections, or raw audit outputs where users are already in investigation mode.
+
+**Trigger:** Any dashboard or status view that starts showing implementation shorthand, internal counters, or type-system vocabulary before it answers the basic user question.
+
+**Prevention:** If a label needs a glossary (`I`, `A`, `m`, "ack"), it probably does not belong in the first-glance card. Design summary UI from "what decision does the user need to make next?" and only then decide how much internal structure to expose.
