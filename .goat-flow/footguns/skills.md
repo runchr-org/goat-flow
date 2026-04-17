@@ -2,6 +2,19 @@
 category: skills
 ---
 
+## Footgun: Installed skill copies can drift on punctuation-only edits and fail unrelated test runs
+
+**Status:** active | **Created:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** `npm test` fails in `test/integration/audit-drift.test.ts` even when the code change did not touch skills, because the tracked installed copies under `.claude/skills/` and `.agents/skills/` no longer match the workflow template byte-for-byte.
+
+**Evidence:**
+- `workflow/skills/goat-plan/SKILL.md:15` uses ASCII hyphens in the "see Step 0" sentence, while `.claude/skills/goat-plan/SKILL.md:15` and `.agents/skills/goat-plan/SKILL.md:15` use Unicode em dashes.
+- `workflow/skills/goat-plan/SKILL.md:39` uses an ASCII hyphen in "only the `.active`-named subdir is", while `.claude/skills/goat-plan/SKILL.md:39` and `.agents/skills/goat-plan/SKILL.md:39` use Unicode em dashes.
+- `npm test` on 2026-04-18 failed `test/integration/audit-drift.test.ts` with drift findings for `.claude/skills/goat-plan/SKILL.md` and `.agents/skills/goat-plan/SKILL.md`.
+
+**Prevention:** When editing `workflow/skills/*/SKILL.md`, update the installed copies in `.claude/skills/` and `.agents/skills/` in the same change, or expect the drift check to fail before unrelated work can be verified cleanly.
+
 ## Footgun: Workflow template source and installed copy can silently diverge
 
 **Status:** resolved | **Created:** 2026-04-15 | **Resolved:** 2026-04-15 | **Updated:** 2026-04-17 | **Evidence:** ACTUAL_MEASURED
