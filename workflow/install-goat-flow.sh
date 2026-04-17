@@ -196,6 +196,36 @@ fi
 echo ""
 
 # ==========================================================================
+# 8. Write .active marker if exactly one version-named subdir exists
+# ==========================================================================
+# Convention: .goat-flow/tasks/.active is a one-line file naming the active
+# plan subdir (e.g. "1.2.0"). Skills (goat, goat-plan) read it to scope their
+# scan. See ADR-043. We only write it automatically when there is no ambiguity.
+echo "Active plan marker:"
+ACTIVE_FILE=".goat-flow/tasks/.active"
+if [[ -f "$ACTIVE_FILE" ]] && ! $FORCE; then
+  SKIPPED=$((SKIPPED + 1))
+  echo "  · $ACTIVE_FILE (exists, skipped)"
+else
+  shopt -s nullglob
+  version_subdirs=()
+  for d in .goat-flow/tasks/[0-9]*.[0-9]*.[0-9]*/; do
+    [[ -d "$d" ]] && version_subdirs+=("$(basename "$d")")
+  done
+  shopt -u nullglob
+  if [[ ${#version_subdirs[@]} -eq 1 ]]; then
+    echo "${version_subdirs[0]}" > "$ACTIVE_FILE"
+    COPIED=$((COPIED + 1))
+    echo "  ✓ $ACTIVE_FILE → ${version_subdirs[0]}"
+  elif [[ ${#version_subdirs[@]} -eq 0 ]]; then
+    echo "  · no version subdirs found, skipped (skills will fall back to asking)"
+  else
+    echo "  · ${#version_subdirs[@]} version subdirs found, skipped (skills will ask which is active)"
+  fi
+fi
+echo ""
+
+# ==========================================================================
 # Summary
 # ==========================================================================
 echo "─────────────────────────────────────────"

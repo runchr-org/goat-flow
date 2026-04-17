@@ -1,6 +1,6 @@
 ---
 name: goat-plan
-description: "Milestone task file generator and manager. Creates structured milestone files in .goat-flow/tasks/ that track progress, enforce testing gates, and provide local working state for the current session."
+description: "Milestone task file generator and manager. Reads .goat-flow/tasks/.active to find the active plan subdir, creates structured milestone files there, tracks progress, enforces testing gates, and provides local working state for the current session."
 goat-flow-skill-version: "1.1.0"
 ---
 # /goat-plan
@@ -12,7 +12,7 @@ On full-depth, also read `.goat-flow/skill-conventions.md`.
 
 ## When to Use
 
-Use when work needs breaking into milestones with tracked progress. goat-plan creates and manages milestone files in `.goat-flow/tasks/` - local working state for the current session. These files are gitignored and not committed; they exist to coordinate between the human and coding agent during a work session, not as permanent project artifacts.
+Use when work needs breaking into milestones with tracked progress. goat-plan creates and manages milestone files in the active plan subdir of `.goat-flow/tasks/` (named by `.goat-flow/tasks/.active` — see Step 0) — local working state for the current session. These files are gitignored and not committed; they exist to coordinate between the human and coding agent during a work session, not as permanent project artifacts.
 
 **Invoke when:**
 - A feature, project, or significant change needs structured milestones before implementation
@@ -32,10 +32,11 @@ Use when work needs breaking into milestones with tracked progress. goat-plan cr
 ## Step 0 - Intake
 
 **Check for existing milestones first:**
-- Read `.goat-flow/tasks/` for any existing milestone files
+- Read `.goat-flow/tasks/.active` (one-line file naming the active plan subdir, e.g. `1.2.0`) to identify which subdir holds the current plan. Scan only that subdir for milestone files.
+- If `.active` is missing: list top-level entries in `.goat-flow/tasks/`, ask the user which is the active plan, and offer to write `.active` for next time.
 - If found: "Milestone files exist for [feature]. Resume from here, update milestones, or start fresh?"
 - If found but stale: check whether code has moved on but milestones haven't been updated, flag it. Note: task files are gitignored, so `git log` won't track them - check file modification dates instead
-- Also check for legacy milestone files outside `.goat-flow/tasks/` (for example `milestones/`, `tasks/`). If found, note them so the user knows about existing planning artifacts.
+- Also check for legacy milestone files outside `.goat-flow/tasks/` (for example `milestones/`, `tasks/`). Sibling-version subdirs inside `.goat-flow/tasks/` (e.g. `1.4.0/`, `_archived/`) hold deferred or completed work and are NOT scanned by default — only the `.active`-named subdir is. If found, note them so the user knows about existing planning artifacts.
 
 **If starting fresh:**
 1. What are we building? (Accept: a brief from the dispatcher, a requirements doc, a conversation summary, or just a description)
@@ -47,7 +48,7 @@ Use when work needs breaking into milestones with tracked progress. goat-plan cr
 If the user's phrasing suggests analysis rather than implementation, offer read-only mode:
 - Analysis signals: "what would the milestones look like", "break this down for me", "plan this out", "how would you approach", "sketch the milestones", "walk me through the plan"
 - Implementation signals: "create milestones", "set up the plan", "write the milestone files", "start planning"
-- If analysis signals detected: "This sounds like a planning analysis. I can present milestones inline without writing files (read-only mode), or write them to `.goat-flow/tasks/`. Which do you prefer?"
+- If analysis signals detected: "This sounds like a planning analysis. I can present milestones inline without writing files (read-only mode), or write them to `.goat-flow/tasks/<active>/`. Which do you prefer?"
 - If ambiguous, default to asking.
 
 **Minimum viable input:** A clear description of what to build. Everything else can be inferred or asked during milestone creation.
@@ -118,10 +119,10 @@ For Hotfix / Small Feature scope (typically 1-2 milestones, low blast radius), y
 
 Use this prompt:
 
-> "Would you like milestones in inline form first, or written to `.goat-flow/tasks/` now?"
+> "Would you like milestones in inline form first, or written to `.goat-flow/tasks/<active>/` now?"
 
 If the user says proceed inline, present milestone tasks in the chat and continue from there.
-If the user prefers files or scope is Standard/System, write each milestone to `.goat-flow/tasks/` as separate files and continue in standard format.
+If the user prefers files or scope is Standard/System, write each milestone to `.goat-flow/tasks/<active>/` as separate files and continue in standard format.
 
 ### Read-Only / Analysis Mode
 
@@ -136,11 +137,11 @@ For planning analysis, critiques, brainstorming, or discussions where no files s
 - Skip Phase 3 (Between Milestones) - there are no files to update between milestones
 - Still include the summary format from Output Format at the end
 
-**Transition to file mode:** If the user later says "write these to files", "let's go ahead", or "create the milestones", write the already-approved milestones to `.goat-flow/tasks/` without re-running the breakdown. Treat the inline milestones as the approved output of Phase 1.
+**Transition to file mode:** If the user later says "write these to files", "let's go ahead", or "create the milestones", write the already-approved milestones to `.goat-flow/tasks/<active>/` without re-running the breakdown. Treat the inline milestones as the approved output of Phase 1.
 
 **CHECKPOINT:** "Here are the milestones for [feature] (read-only - no files written). Say 'write to files' to persist them, or adjust first."
 
-After approval, write each milestone to `.goat-flow/tasks/` as a separate file:
+After approval, write each milestone to `.goat-flow/tasks/<active>/` as a separate file:
 
 **Filename format:** `M<NN>-<slug>.md`
 - `M01-prove-api-integration.md`
@@ -178,7 +179,7 @@ After approval, write each milestone to `.goat-flow/tasks/` as a separate file:
 **Acceptance:** Developer self-check - demo to self before proceeding to M02
 ```
 
-**CHECKPOINT:** "Milestone files written to `.goat-flow/tasks/`. Ready to start implementation."
+**CHECKPOINT:** "Milestone files written to `.goat-flow/tasks/<active>/`. Ready to start implementation."
 
 ## Phase 3 - Between Milestones
 
@@ -191,7 +192,7 @@ If updates are needed mid-flight, follow the detailed milestone retrospective pr
 
 ## Constraints
 
-- Default to inline/read-only milestones unless the user explicitly requests file creation. Offer to write milestone files to `.goat-flow/tasks/` when scope is Standard or above, but do not write without confirmation.
+- Default to inline/read-only milestones unless the user explicitly requests file creation. Offer to write milestone files to `.goat-flow/tasks/<active>/` when scope is Standard or above, but do not write without confirmation.
 - MUST check for existing milestone files before creating new ones
 - MUST include a testing gate on every milestone - no milestone ships without verification
 - MUST re-read and potentially update the next milestone after completing each one

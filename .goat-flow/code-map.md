@@ -77,3 +77,27 @@ maintenance/               # Git cleanup, secret scanning, formatting
 ## docs/ -- Documentation
 
 
+## .goat-flow/ -- Framework state (mostly gitignored)
+
+```
+architecture.md            # Canonical architecture
+code-map.md                # This file
+glossary.md                # Domain terms
+patterns.md                # Successful repeatable approaches
+
+config.yaml                # Project config (version, agents, skills, line limits)
+skill-preamble.md          # Loaded by every goat-* skill invocation
+skill-conventions.md       # Loaded by full-depth skill invocations
+
+decisions/                 # ADRs (committed)
+footguns/                  # Architectural traps with file:line evidence (committed)
+lessons/                   # Behavioural mistake records (committed)
+
+tasks/                     # Milestone files (gitignored, local working state)
+  .active                  # One-line marker naming the active plan subdir (see ADR-043)
+  <version>/Mxx-*.md       # Active milestones live in the subdir named by .active
+  _archived/               # Prior plans + research; not scanned by skills
+logs/sessions/             # Session logs (gitignored)
+scratchpad/                # Ephemeral working notes (gitignored)
+```
+

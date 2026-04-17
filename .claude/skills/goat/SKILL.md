@@ -21,7 +21,7 @@ Use when the user describes an outcome and wants the right workflow chosen.
 
 ## Planning Route
 
-For planning requests, check `.goat-flow/tasks/` for existing plans first.
+For planning requests, read `.goat-flow/tasks/.active` to find the active plan subdir (one-line file naming a subdir like `1.2.0`), then scan that subdir for milestone files. If `.active` is missing, list top-level entries in `.goat-flow/tasks/` and ask the user which is current.
 
 | Complexity | Approach |
 |------------|----------|
