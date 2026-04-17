@@ -79,9 +79,27 @@ export interface AuditReport {
     harness: AuditScope | null;
   };
   concerns: Record<AuditConcernKey, AuditConcern> | null;
+  /** Drift section, populated when --check-drift is set. */
+  drift: DriftReport | null;
   overall: {
     status: "pass" | "fail";
   };
+}
+
+// === Drift check (M04) ===
+
+export type DriftFindingKind = "content" | "missing" | "orphan" | "deprecated";
+
+export interface DriftFinding {
+  kind: DriftFindingKind;
+  path: string;
+  message: string;
+}
+
+export interface DriftReport {
+  status: "pass" | "fail";
+  findings: DriftFinding[];
+  checked: number;
 }
 
 // === Internal types (check definitions and context) ===

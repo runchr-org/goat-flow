@@ -4,14 +4,16 @@ category: skills
 
 ## Footgun: Workflow template source and installed copy can silently diverge
 
-**Status:** resolved | **Created:** 2026-04-15 | **Resolved:** 2026-04-15 | **Evidence:** ACTUAL_MEASURED
+**Status:** resolved | **Created:** 2026-04-15 | **Resolved:** 2026-04-15 | **Updated:** 2026-04-17 | **Evidence:** ACTUAL_MEASURED
 
 **Symptoms:** Agents on consumer projects follow a different rule than agents on the goat-flow repo, because the workflow template (install source) says one thing and the installed copy says another. The divergence is invisible - both files exist, both parse correctly, and no automated check compares their content.
 
-**Resolution:** All three preventions implemented:
+**Resolution:** Four preventions implemented:
 1. Divergence fixed - both files now match (verified by diff).
-2. Preflight check added at `scripts/preflight-checks.sh:477-486` - diffs preamble and conventions against workflow templates, fails if they differ.
-3. Integration tests added at `test/integration/preamble-sync.test.ts` - verifies template/install parity.
+2. Preflight preamble/conventions check (search: `Preamble/Conventions Sync` in `scripts/preflight-checks.sh`) - byte-exact diff of preamble and conventions against workflow templates, fails if they differ.
+3. Preflight skill parity check (search: `Skill SKILL.md Parity` in `scripts/preflight-checks.sh`) - byte-exact diff of each workflow template vs `.claude/skills/` and `.agents/skills/` installed copies.
+4. CLI drift check (M04, 2026-04-17) via `goat-flow audit --check-drift` (search: `skillContentsEquivalent` in `src/cli/audit/check-drift.ts`) - YAML-aware normalisation so frontmatter key reorder and trailing whitespace do not false-positive; also detects orphan directories and deprecated skill names from `workflow/manifest.json:stale_names`.
+5. Integration tests: `test/integration/preamble-sync.test.ts` covers shared docs; `test/integration/audit-drift.test.ts` covers the CLI path with tmpdir fixtures.
 
 **Original evidence (historical):** `skill-preamble.md:10` diverged between template and installed copy, discovered 2026-04-15 by multi-agent critique.
 

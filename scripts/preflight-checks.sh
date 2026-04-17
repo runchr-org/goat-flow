@@ -512,6 +512,9 @@ else
 fi
 
 # ── Skill SKILL.md Parity ────────────────────────────────────────────
+# Byte-exact diff (bash) for speed. For semantic comparison (frontmatter key
+# reorder, trailing whitespace), see `goat-flow audit --check-drift` which
+# adds YAML-aware normalisation. Both paths coexist per M04.
 section "Skill SKILL.md Parity"
 skill_parity_ok=true
 for skill_dir in workflow/skills/goat*/; do

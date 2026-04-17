@@ -47,6 +47,7 @@ Flags:
   --format <type>   Output format: json, text, markdown (omit for auto-detect: text in terminal, json otherwise)
   --agent <id>      Filter to one agent: claude, codex, gemini
   --harness         Audit: add AI Harness Completeness scope (16 pass/fail checks across 5 concerns)
+  --check-drift     Audit: detect skill template-vs-installed drift and orphan directories
   --verbose         Show per-check details
   --output <file>   Write output to file instead of stdout
   --dev             Dashboard: live reload on file changes
@@ -104,6 +105,7 @@ const MULTI_AGENT_SYNC_BANNER = [
 export interface ParsedCLI extends CLIOptions {
   command: Command;
   harness: boolean;
+  checkDrift: boolean;
 }
 
 /** Parse the positional subcommand from raw CLI args, defaulting to `audit`. */
@@ -185,6 +187,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
       verbose: { type: "boolean", default: false },
       output: { type: "string", short: "o" },
       harness: { type: "boolean", default: false },
+      "check-drift": { type: "boolean", default: false },
       dev: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
       version: { type: "boolean", short: "v", default: false },
@@ -201,6 +204,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     verbose: values.verbose === true,
     output: resolveOutputPath(values.output, positionals),
     harness: values.harness === true,
+    checkDrift: values["check-drift"] === true,
     dev: values.dev === true,
     help: values.help === true,
     version: values.version === true,
@@ -325,6 +329,7 @@ async function handleAuditCommand(options: ParsedCLI): Promise<void> {
   const report = runAudit(fs, options.projectPath, {
     agentFilter: options.agent ?? null,
     harness: options.harness,
+    checkDrift: options.checkDrift,
   });
 
   let rendered: string;

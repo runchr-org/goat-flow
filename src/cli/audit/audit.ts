@@ -11,6 +11,7 @@ import { getProjectStructure } from "../paths.js";
 import { SETUP_CHECKS } from "./check-goat-flow.js";
 import { AGENT_CHECKS } from "./check-agent-setup.js";
 import { HARNESS_CHECKS } from "./harness/index.js";
+import { checkDrift } from "./check-drift.js";
 import type {
   AuditContext,
   AuditConcern,
@@ -27,6 +28,8 @@ import type {
 interface AuditOptions {
   agentFilter: AgentId | null;
   harness: boolean;
+  /** Optional drift check (M04). Defaults to false when omitted. */
+  checkDrift?: boolean;
 }
 
 /** Parse the raw manifest.json into the typed subset audit needs. */
@@ -269,12 +272,12 @@ function runBuildChecks(ctx: AuditContext): {
   };
 }
 
-/** Run the audit against a project and return the full report. */
-export function runAudit(
+/** Build the AuditContext from config, facts, and manifest structure. */
+function buildAuditContext(
   fs: ReadonlyFS,
   projectPath: string,
   options: AuditOptions,
-): AuditReport {
+): AuditContext {
   const configState = loadConfig(projectPath, fs);
   const facts = extractProjectFacts(fs, {
     agentFilter: options.agentFilter,
@@ -282,8 +285,7 @@ export function runAudit(
     configState,
   });
   const structure = parseProjectStructure(getProjectStructure());
-
-  const ctx: AuditContext = {
+  return {
     projectPath,
     facts,
     config: configState,
@@ -292,14 +294,32 @@ export function runAudit(
     agents: facts.agents,
     agentFilter: options.agentFilter,
   };
+}
 
+/** Combine build + optional harness + optional drift statuses into an overall pass/fail. */
+function overallStatus(
+  setup: AuditScope,
+  agent: AuditScope,
+  harness: ReturnType<typeof computeHarness> | null,
+  drift: { status: "pass" | "fail" } | null,
+): "pass" | "fail" {
+  const buildPassed = setup.status === "pass" && agent.status === "pass";
+  const harnessPassed = !harness || harness.scope.status === "pass";
+  const driftPassed = !drift || drift.status === "pass";
+  return buildPassed && harnessPassed && driftPassed ? "pass" : "fail";
+}
+
+/** Run the audit against a project and return the full report. */
+export function runAudit(
+  fs: ReadonlyFS,
+  projectPath: string,
+  options: AuditOptions,
+): AuditReport {
+  const ctx = buildAuditContext(fs, projectPath, options);
   const { setup: setupScope, agent: agentScope } = runBuildChecks(ctx);
   const harness = options.harness ? computeHarness(ctx) : null;
-
-  const buildPassed =
-    setupScope.status === "pass" && agentScope.status === "pass";
-  const harnessPassed = !harness || harness.scope.status === "pass";
-  const status = buildPassed && harnessPassed ? "pass" : "fail";
+  const drift = options.checkDrift ? checkDrift({ fs, projectPath }) : null;
+  const status = overallStatus(setupScope, agentScope, harness, drift);
 
   return {
     command: "audit",
@@ -312,6 +332,7 @@ export function runAudit(
       harness: harness?.scope ?? null,
     },
     concerns: harness?.concerns ?? null,
+    drift,
     overall: { status },
   };
 }

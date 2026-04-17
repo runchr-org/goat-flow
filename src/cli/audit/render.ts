@@ -1,7 +1,12 @@
 /**
  * Renderers for AuditReport: text (terminal), json (stable schema), markdown (PR comments).
  */
-import type { AuditConcernKey, AuditReport, AuditScope } from "./types.js";
+import type {
+  AuditConcernKey,
+  AuditReport,
+  AuditScope,
+  DriftReport,
+} from "./types.js";
 
 // === Text renderer ===
 
@@ -90,7 +95,35 @@ export function renderAuditText(report: AuditReport): string {
     );
   }
 
+  if (report.drift) {
+    lines.push("");
+    lines.push(
+      `${BOLD}Skill Template Drift:${RESET}  ${statusBadge(report.drift.status)}  ${DIM}(${report.drift.checked} comparison(s))${RESET}`,
+    );
+    lines.push("");
+    renderTextDriftFindings(report.drift, lines);
+  }
+
   return lines.join("\n");
+}
+
+function renderTextDriftFindings(drift: DriftReport, lines: string[]): void {
+  if (drift.findings.length === 0) {
+    lines.push(`  ${DIM}No drift detected.${RESET}`);
+    return;
+  }
+  for (const f of drift.findings) {
+    const tag =
+      f.kind === "content"
+        ? "drift"
+        : f.kind === "missing"
+          ? "missing"
+          : f.kind === "deprecated"
+            ? "deprecated"
+            : "orphan";
+    lines.push(`  ${RED}x [${tag}] ${f.path}${RESET}`);
+    lines.push(`    ${DIM}${f.message}${RESET}`);
+  }
 }
 
 // === JSON renderer ===
@@ -120,47 +153,61 @@ function renderMdScope(name: string, scope: AuditScope): string {
   return lines.join("\n");
 }
 
+function renderMdHarnessConcerns(report: AuditReport, lines: string[]): void {
+  if (!report.concerns || !report.scopes.harness) {
+    lines.push(
+      "> Tip: Run with --harness for AI harness completeness checks across 5 concerns.",
+    );
+    lines.push("");
+    return;
+  }
+  lines.push("");
+  lines.push(
+    `## AI Harness Completeness: ${mdScopeStatus(report.scopes.harness.status)}`,
+  );
+  lines.push("");
+  for (const key of Object.keys(report.concerns) as AuditConcernKey[]) {
+    const concern = report.concerns[key];
+    lines.push(`### ${CONCERN_LABELS[key]}: ${mdScopeStatus(concern.status)}`);
+    for (const finding of concern.findings) {
+      lines.push(`- ${finding}`);
+    }
+    for (let i = 0; i < concern.recommendations.length; i++) {
+      lines.push(`- *Recommendation:* ${concern.recommendations[i]}`);
+      if (concern.howToFix[i]) {
+        lines.push(`  - *Fix:* ${concern.howToFix[i]}`);
+      }
+    }
+    lines.push("");
+  }
+}
+
+function renderMdDrift(drift: DriftReport, lines: string[]): void {
+  lines.push("");
+  lines.push(
+    `## Skill Template Drift: ${mdScopeStatus(drift.status)} (${drift.checked} comparison(s))`,
+  );
+  if (drift.findings.length === 0) {
+    lines.push("");
+    lines.push("No drift detected.");
+  } else {
+    for (const f of drift.findings) {
+      lines.push(`- :x: **[${f.kind}]** \`${f.path}\` — ${f.message}`);
+    }
+  }
+  lines.push("");
+}
+
 export function renderAuditMarkdown(report: AuditReport): string {
   const lines: string[] = [];
   lines.push(`# GOAT Flow Audit: ${report.target}`);
   lines.push("");
   lines.push(`**Result: ${mdScopeStatus(report.status)}**`);
   lines.push("");
-
   lines.push(renderMdScope("GOAT Flow Setup", report.scopes.setup));
   lines.push("");
   lines.push(renderMdScope("Agent Setup", report.scopes.agent));
-
-  if (!report.concerns) {
-    lines.push(
-      "> Tip: Run with --harness for AI harness completeness checks across 5 concerns.",
-    );
-    lines.push("");
-  }
-
-  if (report.concerns && report.scopes.harness) {
-    lines.push("");
-    lines.push(
-      `## AI Harness Completeness: ${mdScopeStatus(report.scopes.harness.status)}`,
-    );
-    lines.push("");
-
-    for (const key of Object.keys(report.concerns) as AuditConcernKey[]) {
-      const concern = report.concerns[key];
-      const label = CONCERN_LABELS[key];
-      lines.push(`### ${label}: ${mdScopeStatus(concern.status)}`);
-      for (const finding of concern.findings) {
-        lines.push(`- ${finding}`);
-      }
-      for (let i = 0; i < concern.recommendations.length; i++) {
-        lines.push(`- *Recommendation:* ${concern.recommendations[i]}`);
-        if (concern.howToFix[i]) {
-          lines.push(`  - *Fix:* ${concern.howToFix[i]}`);
-        }
-      }
-      lines.push("");
-    }
-  }
-
+  renderMdHarnessConcerns(report, lines);
+  if (report.drift) renderMdDrift(report.drift, lines);
   return lines.join("\n");
 }

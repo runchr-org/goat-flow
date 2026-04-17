@@ -665,7 +665,7 @@
       </div>
     </template>
 
-    <!-- AI Harness Completeness (pass/fail cards with concern status) -->
+    <!-- AI Harness Completeness (human-friendly score cards) -->
     <div
       x-show="report?.agentScores?.length > 0"
       style="margin-bottom: 4px"
@@ -682,18 +682,32 @@
         scoreColor(score) { return score >= 80 ? 'var(--green-400)' : score >= 70 ? 'var(--yellow-400, #facc15)' : score >= 60 ? 'var(--orange-400, #fb923c)' : 'var(--red-400)' },
         scoreBg(score) { return score >= 80 ? 'var(--green-900, #14532d)' : score >= 70 ? 'var(--yellow-900, #713f12)' : score >= 60 ? 'var(--orange-900, #7c2d12)' : 'var(--red-900, #7f1d1d)' },
         agentScore(agent) { if (!agent.harness) return null; const t = agent.harness.checks.length; return t ? Math.round(agent.harness.checks.filter(c => c.status === 'pass').length / t * 100) : null; },
-        concernBadge(c) {
-          const parts = [];
-          const iTotal = (c.integrityPass || 0) + (c.integrityFail || 0);
-          if (iTotal > 0) parts.push(`I ${c.integrityPass || 0}/${iTotal}`);
-          const aTotal = (c.advisoryPass || 0) + (c.advisoryFail || 0) + (c.advisoryAcknowledged || 0);
-          if (aTotal > 0) {
-            const ackPart = c.advisoryAcknowledged > 0 ? ` (${c.advisoryAcknowledged} ack)` : '';
-            parts.push(`A ${(c.advisoryPass || 0) + (c.advisoryAcknowledged || 0)}/${aTotal}${ackPart}`);
+        recommendationSummary(agent) {
+          if (!agent?.concerns) {
+            return `${agent.agent.checks.filter(c => c.status === 'pass').length}/${agent.agent.checks.length} checks`;
           }
-          if (c.metrics > 0) parts.push(`m ${c.metrics}`);
-          return parts.join(' · ');
+          const recs = this.concernKeys.reduce((n, k) => n + (agent.concerns[k]?.recommendations?.length || 0), 0);
+          return recs === 0 ? 'All checks passing' : `${recs} recommendation${recs !== 1 ? 's' : ''}`;
         },
+        concernSummary(c) {
+          const recs = c.recommendations?.length || 0;
+          const ack = c.advisoryAcknowledged || 0;
+          if (recs > 0 && ack > 0) return `${recs} recommendation${recs !== 1 ? 's' : ''} · ${ack} advisory acknowledged`;
+          if (recs > 0) return `${recs} recommendation${recs !== 1 ? 's' : ''}`;
+          if (ack > 0) return `${ack} advisory acknowledged`;
+          return 'All checks passing';
+        },
+        concernProgress(c) {
+          const total = (c.integrityPass || 0) + (c.integrityFail || 0) + (c.advisoryPass || 0) + (c.advisoryFail || 0) + (c.advisoryAcknowledged || 0);
+          const satisfied = (c.integrityPass || 0) + (c.advisoryPass || 0) + (c.advisoryAcknowledged || 0);
+          const metricSuffix = c.metrics > 0 ? ` · ${c.metrics} signal${c.metrics !== 1 ? 's' : ''}` : '';
+          return total > 0
+            ? `${satisfied}/${total} scored checks satisfied${metricSuffix}`
+            : metricSuffix
+              ? metricSuffix.slice(3)
+              : 'No scored checks';
+        },
+        concernStatusText(status) { return status === 'pass' ? 'Healthy' : 'Needs work'; },
         toGrade(s) { if (s >= 90) return 'A'; if (s >= 80) return 'B'; if (s >= 70) return 'C'; if (s >= 60) return 'D'; return 'F'; },
         checkDescriptions: {
           'agent-instruction': 'The agent has a project-specific instruction file',
@@ -763,56 +777,61 @@
             <div
               class="gf-text-muted"
               style="font-size: 11px; margin-bottom: 10px"
-              x-text="agent.concerns
-                ? (() => { const recs = concernKeys.reduce((n, k) => n + (agent.concerns[k]?.recommendations?.length || 0), 0); return recs === 0 ? 'All checks passing' : recs + ' recommendation' + (recs !== 1 ? 's' : ''); })()
-                : `${agent.agent.checks.filter(c => c.status === 'pass').length}/${agent.agent.checks.length} checks`"
+              x-text="recommendationSummary(agent)"
             ></div>
-            <!-- Concern pass/fail indicators -->
+            <!-- Concern score bars -->
             <template x-if="agent.concerns">
-              <div style="display: flex; flex-direction: column; gap: 4px">
+              <div style="display: flex; flex-direction: column; gap: 8px">
                 <template
                   x-for="ck in concernKeys"
-                  :key="agent.id + '-status-' + ck"
+                  :key="agent.id + '-score-' + ck"
                 >
                   <div
                     style="
                       display: flex;
                       align-items: center;
                       gap: 8px;
-                      padding: 2px 0;
+                      padding: 1px 0;
                     "
                   >
                     <span
                       class="gf-text-muted"
                       style="
                         font-size: 10px;
-                        width: 62px;
+                        width: 74px;
                         flex-shrink: 0;
                         text-align: right;
                       "
                       x-text="concernMeta[ck].label"
                     ></span>
-                    <span
-                      class="gf-text-secondary"
+                    <div
                       style="
                         flex: 1;
-                        font-size: 10px;
-                        font-variant-numeric: tabular-nums;
-                        letter-spacing: 0.2px;
+                        height: 4px;
+                        background: var(--surface-elevated, #27272a);
+                        border-radius: 2px;
+                        overflow: hidden;
                       "
-                      x-text="concernBadge(agent.concerns[ck])"
-                    ></span>
+                    >
+                      <div
+                        style="
+                          height: 100%;
+                          border-radius: 2px;
+                          transition: width 0.3s;
+                        "
+                        :style="{ width: agent.concerns[ck].score + '%', background: scoreColor(agent.concerns[ck].score) }"
+                      ></div>
+                    </div>
                     <span
                       style="
                         font-size: 10px;
-                        font-weight: 700;
-                        width: 40px;
+                        font-weight: 600;
+                        width: 32px;
                         flex-shrink: 0;
                         text-align: right;
-                        letter-spacing: 0.3px;
                       "
-                      :style="{ color: statusColor(agent.concerns[ck].status) }"
-                      x-text="agent.concerns[ck].status === 'pass' ? 'PASS' : 'FAIL'"
+                      :style="{ color: scoreColor(agent.concerns[ck].score) }"
+                      x-text="agent.concerns[ck].score + '%'"
                     ></span>
                   </div>
                 </template>
@@ -957,40 +976,39 @@
                       margin-bottom: 10px;
                     "
                   >
-                    <div style="margin-bottom: 12px">
+                    <div style="margin-bottom: 14px">
                       <div
                         style="
                           display: flex;
-                          align-items: center;
+                          align-items: flex-start;
                           justify-content: space-between;
+                          gap: 12px;
                         "
                       >
-                        <span
-                          class="gf-text-primary"
-                          style="font-size: 14px; font-weight: 600"
-                          x-text="concernMeta[ck].label"
-                        ></span>
+                        <div style="flex: 1; min-width: 0">
+                          <span
+                            class="gf-text-primary"
+                            style="font-size: 14px; font-weight: 600"
+                            x-text="concernMeta[ck].label"
+                          ></span>
+                          <p
+                            class="gf-text-muted"
+                            style="font-size: 11px; margin-top: 2px"
+                            x-text="concernMeta[ck].subtitle"
+                          ></p>
+                        </div>
                         <span
                           style="
                             display: inline-flex;
-                            gap: 8px;
                             align-items: center;
+                            flex-shrink: 0;
                           "
                         >
                           <span
-                            class="gf-text-secondary"
                             style="
-                              font-size: 11px;
-                              font-variant-numeric: tabular-nums;
-                              letter-spacing: 0.2px;
-                            "
-                            x-text="concernBadge(agent.concerns[ck])"
-                          ></span>
-                          <span
-                            style="
-                              font-size: 13px;
+                              font-size: 12px;
                               font-weight: 700;
-                              padding: 2px 10px;
+                              padding: 4px 10px;
                               border-radius: 4px;
                               letter-spacing: 0.4px;
                             "
@@ -998,14 +1016,52 @@
                               background: agent.concerns[ck].status === 'pass' ? 'var(--green-900, #14532d)' : 'var(--red-900, #7f1d1d)',
                               color: statusColor(agent.concerns[ck].status)
                             }"
-                            x-text="agent.concerns[ck].status === 'pass' ? 'PASS' : 'FAIL'"
+                            x-text="concernStatusText(agent.concerns[ck].status)"
                           ></span>
                         </span>
                       </div>
+                      <div
+                        style="
+                          display: flex;
+                          align-items: center;
+                          gap: 10px;
+                          margin-top: 10px;
+                        "
+                      >
+                        <div
+                          style="
+                            flex: 1;
+                            height: 5px;
+                            background: var(--surface-elevated, #27272a);
+                            border-radius: 999px;
+                            overflow: hidden;
+                          "
+                        >
+                          <div
+                            style="
+                              height: 100%;
+                              border-radius: 999px;
+                              transition: width 0.3s;
+                            "
+                            :style="{ width: agent.concerns[ck].score + '%', background: scoreColor(agent.concerns[ck].score) }"
+                          ></div>
+                        </div>
+                        <span
+                          style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            width: 40px;
+                            flex-shrink: 0;
+                            text-align: right;
+                          "
+                          :style="{ color: scoreColor(agent.concerns[ck].score) }"
+                          x-text="agent.concerns[ck].score + '%'"
+                        ></span>
+                      </div>
                       <p
                         class="gf-text-muted"
-                        style="font-size: 11px; margin-top: 2px"
-                        x-text="concernMeta[ck].subtitle"
+                        style="font-size: 11px; margin-top: 6px"
+                        x-text="concernSummary(agent.concerns[ck]) + ' · ' + concernProgress(agent.concerns[ck])"
                       ></p>
                     </div>
 
