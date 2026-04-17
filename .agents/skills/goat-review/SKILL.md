@@ -1,6 +1,6 @@
 ---
 name: goat-review
-description: "Structured code review with severity-ordered scan, negative verification, and footgun matching."
+description: "Structured code review with two-pass blind→grounded reading, severity+action tagging, size-aware chunking, milestone spec-drift cross-check, footgun matching, and Review Integrity confidence reporting."
 goat-flow-skill-version: "1.1.0"
 ---
 # /goat-review
@@ -18,34 +18,71 @@ Use when reviewing a diff, PR, or set of changes. Also for quality audits of a c
 
 **NOT this skill:** OWASP assessment → /goat-security. Understanding code → /goat-debug. Generating tests → /goat-test. Planning milestones → /goat-plan. Feature briefs → dispatcher Planning Route.
 
-## Step 0 - Choose Depth
+## Step 0 - Scope, Size, Spec
 
 > "Reviewing [X] -- diff review (quick), or area audit with DoD cross-checks (full)?"
 
 - If user already says "quick" or "full", confirm and continue.
 - If arriving from the dispatcher with depth already chosen, skip the depth question.
 - If vague, ask one follow-up covering: which files, what concerns you, diff or audit.
-- Auto-detect scope: (1) explicit input, (2) staged changes, (3) unstaged changes, (4) git diff. If 20+ changed files, ask user to narrow.
+- Auto-detect scope: (1) explicit input, (2) staged changes, (3) unstaged changes, (4) git diff.
+
+**Size sizing (before Pass 1):** measure the diff. If it exceeds **20 files OR 3000 changed lines**, propose chunking by file group and ask. If the user proceeds un-chunked, record as `large-diff-unchunked` for Review Integrity.
+
+**Spec source (opt-in):** if `.goat-flow/tasks/.active` exists, read it to find the active plan subdir and scan for a milestone file with `Status: in-progress` or `testing-gate`. If found, offer: "Include Spec Drift check against M[NN] exit criteria?" Default: skip for quick, offer for full. Note the choice in Review Integrity.
 
 **Footgun check:** Read `.goat-flow/footguns/` for entries mentioning the target area. Present matches.
 
-## Diff Review (Quick)
+## Diff Review (Quick) — Two-Pass Discipline
 
-Read the diff and present findings by severity; keep moving unless user interrupts.
+The review runs two sequential passes. This is a deliberate reading discipline, not a doer-verifier split: you are the reviewer throughout, Pass 2 is the source of truth, and findings are only surfaced after Pass 2.
 
-### Severity-Ordered Scan
+### Pass 1 — Blind Suspicion (diff only)
 
-Read full files for context. Ignore pre-existing issues.
+Read the diff **without opening full files**. The point is to see what the diff itself reveals before the author's surrounding code anchors you.
 
-- Security: injection, auth bypass, secret exposure, permission escalation
-- Correctness: logic errors, edge cases, null/race errors
-- Integration: API contract changes, boundary effects, regressions
-- Performance: hot-path complexity and memory growth
-- Style: naming/formatting/conventions (lowest priority)
+Scan for:
+- **Severity cues:** auth/permission checks, secret handling, SQL/shell/API calls, data mutation, state transitions, API contract shifts
+- **Edge-case sweep (mechanical):** boundary conditions, null / undefined / default branches, timeouts and retries, race windows and shared state, off-by-one on indices or pagination, empty collections, integer overflow, concurrent access, silent exception swallowing
+- **Contract changes:** signature / return type / error channel / status code / event shape
 
-**Cross-cutting:** check each finding against `.goat-flow/footguns/`; if a direct match exists, include it. Omit footgun tags when none match.
+Write raw suspicions with `file:line` drawn from the diff. Do NOT verify, confirm, or dismiss in this pass. Over-capture is fine; Pass 2 filters.
 
-**Negative verification:** For each finding, attempt to DISPROVE it. Re-read `file:line`, look for contradicting evidence. Remove false positives. Re-verify every `file:line` reference exists.
+### Pass 2 — Grounded Verification (full files)
+
+Now read full files for context. For each Pass-1 suspicion:
+
+- **Try to DISPROVE it** (negative verification). Re-read the `file:line`, look for a guard, an upstream check, a framework mitigation, or a contract that removes the risk.
+- Mark each suspicion: **CONFIRMED** / **REFUTED** / **UNRESOLVED**. Drop REFUTED.
+- Add findings that only became visible with file context (integration breakage, call-site contract mismatch, regression in a sibling file).
+- Re-verify every `file:line` reference exists before writing the final output.
+
+### Severity + Action Tagging
+
+Every surfaced finding gets two orthogonal tags:
+
+| Severity | Meaning |
+|----------|---------|
+| MUST | fix before merge; blocks approval |
+| SHOULD | fix before merge unless disputed |
+| MAY | nice-to-have |
+
+| Action | Meaning |
+|--------|---------|
+| patch | fix direction is unambiguous — a coding agent can apply it |
+| needs-decision | correct fix requires human input (policy, product call, trade-off) |
+| pre-existing | bug exists in unchanged code (see separation below) |
+
+Finding line prefix: `[SEVERITY:ACTION]`. Example: `[MUST:needs-decision]`.
+
+### Pre-existing Separation
+
+- **Pre-existing Nearby** (in-scope surface): a pre-existing bug in the same function or tightly-coupled call-site the diff touches. Surface as a one-line pointer under `## Pre-existing Nearby`. Does not block.
+- **Pre-existing Issues** (out-of-scope): pre-existing bugs outside the diff's surface. List under `## Pre-existing Issues` without severity tags. Does not block.
+
+### Footgun Cross-Check
+
+Check each finding against `.goat-flow/footguns/`. When a direct match exists, include it. Omit the footgun tag when no direct match is found.
 
 **BLOCKING GATE:** Present findings using Output Format below, then pause for human to drill in.
 
@@ -53,38 +90,90 @@ Read full files for context. Ignore pre-existing issues.
 
 ## Area Audit (Full)
 
-When target is a codebase area (not a diff). For >20 files, recommend splitting.
-
-Scan using severity ordering above. Run negative verification and group linked findings as systemic patterns. Propose findings only, no fixes.
+When the target is a codebase area (not a diff). For >20 files, recommend splitting. Two-pass discipline still applies per file cluster: skim the surface for suspicions, then open files for verification. Pre-existing issues ARE in scope (they are the point of an area audit).
 
 **BLOCKING GATE:** Present findings and pause. If calibration is uncertain, consider `/goat-sbao`.
+
+## Spec Drift (opt-in)
+
+Only emitted when the Step 0 prompt was accepted and a live milestone file was found. Reads the milestone's **Exit Criteria** and **Assumptions** blocks, then:
+
+- Maps which Exit Criteria are evidenced by the diff
+- Flags criteria already marked `- [x]` (done) in the milestone but not actually present in the diff (drift)
+- Flags any Assumptions the diff now invalidates
+
+Emit as `## Spec Drift`. If no criteria drift and no assumption invalidation, still emit the section with "No drift detected against M[NN]" so the reader knows the check ran.
+
+## Review Integrity (confidence signal)
+
+Every review ends with this section. It is the anti-hallucination surface — the reader should be able to tell at a glance how confident the review is.
+
+List:
+- **Files opened in Pass 2:** count / total in diff. List paths that were read diff-only.
+- **Evidence tags:** N OBSERVED / M INFERRED across findings.
+- **Size:** lines changed, files changed. If chunked, state which group was reviewed and which are pending.
+- **Degradation flags** (any that apply): `chunked-partial`, `large-diff-unchunked`, `high-inference-ratio`, `files-not-opened`, `unfamiliar-area`, `missing-types`, `spec-drift-skipped`, `footguns-unread`.
+- **Conclusion:** `confident` | `coverage-degraded` | `high-inference` | `partial`.
+
+Never leave this section empty. "confident — no degradation flags" is the minimum.
 
 ## Constraints
 
 **Diff review (quick):**
-- MUST review diff for issues, read full files for context
-- MUST NOT flag pre-existing issues as part of this change
+- MUST run Pass 1 (diff only) before opening any full files in Pass 2
+- MUST NOT surface Pass-1 suspicions that Pass 2 refuted
+- MUST NOT flag pre-existing issues as blocking the change
 
 **Area audit (full):**
-- MUST scan the declared area for issues regardless of recent changes
-- Pre-existing issues ARE in scope (they are the point of an area audit)
+- MUST scan the declared area regardless of recent changes
+- Pre-existing issues ARE in scope
 
 **Both modes:**
-- MUST check each finding against `.goat-flow/footguns/` for matches. Omit footgun tags when no direct match is found.
+- MUST tag every surfaced finding with `[SEVERITY:ACTION]`
+- MUST check each finding against `.goat-flow/footguns/`; omit the tag when no direct match
 - MUST order findings by severity, not by file or discovery order
-- Universal constraints from skill-preamble.md apply.
-- MUST NOT make file edits in review or audit mode unless user says "implement"
-- MUST attempt to disprove each finding (negative verification)
+- MUST emit Review Integrity on every run
+- MUST propose chunking when the diff exceeds 20 files OR 3000 changed lines
+- MUST emit Spec Drift only when opt-in triggered; if skipped, log `spec-drift-skipped` in Review Integrity
+- MUST attempt to disprove each Pass-1 suspicion during Pass 2
 - MUST group 3+ related findings as systemic patterns
-- Conversational: present findings, then let human drill in
+- MUST NOT make file edits in review or audit mode unless the user says "implement"
+- MUST NOT frame Pass 1/Pass 2 as doer/verifier — same reviewer, structured reading discipline (ADR-019)
+- Universal constraints from skill-preamble.md apply.
 
 ## Output Format
 
 ```markdown
 ## TL;DR  <!-- what was reviewed, found, matters most -->
+
+## Review Integrity
+- Files opened in Pass 2: <k>/<n>  (diff-only: <list or "none">)
+- Evidence: <N> OBSERVED / <M> INFERRED
+- Size: <files> files, <lines> lines  (chunked: <group or "no">)
+- Degradation flags: <list or "none">
+- Conclusion: <confident | coverage-degraded | high-inference | partial>
+
 ## Findings
-### MUST Fix - **[title]** `file:line` [desc] | Footgun: [entry or none] | Evidence: OBSERVED/INFERRED
-### SHOULD Fix - **[title]** `file:line` [desc]
-### MAY Fix - **[title]** `file:line` [desc]
-## Pre-existing Issues | Breaking Changes | What's Good | What I Didn't Examine
+
+### MUST
+- [MUST:patch] **[title]** `file:line` — [desc] | Footgun: [entry or none] | Evidence: OBSERVED/INFERRED
+- [MUST:needs-decision] **[title]** `file:line` — [desc] | ...
+
+### SHOULD
+- [SHOULD:patch] ...
+
+### MAY
+- [MAY:patch] ...
+
+## Spec Drift   <!-- only when opt-in triggered; otherwise omit and log spec-drift-skipped -->
+
+## Pre-existing Nearby  <!-- in-function only; one-liners; no blocking tags -->
+
+## Pre-existing Issues  <!-- out-of-scope pre-existing bugs -->
+
+## Breaking Changes
+
+## What's Good
+
+## What I Didn't Examine
 ```
