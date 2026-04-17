@@ -30,6 +30,7 @@ Order findings by severity, not by file or discovery order.
 - Before citing a function or symbol name, verify it exists with a repo search
 - Before citing a CLI flag, verify it with `--help` or the command's docs
 - Before citing a config key, read the actual config file first
+- On completion claims, the 5 hallucination red-flags in your instruction file's VERIFY section apply verbatim — do not restate, just comply.
 
 ## Ceremony Level
 

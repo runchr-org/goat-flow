@@ -49,6 +49,14 @@ Over budget = re-classify before continuing. Complexity-class read budgets take 
 | Review | Investigate first. Never blindly apply suggestions |
 
 **VERIFY** - MUST run `shellcheck` on .sh changes. MUST check cross-references after renames. If working from a plan/milestone file, MUST tick `- [x]` on each task as it's completed - not at the end.
+
+**Hallucination red-flags:**
+1. **Tests pass.** Do not claim tests pass without showing the actual terminal output, or at minimum the literal pass/fail summary line copied verbatim from this session's run. A paraphrase, or a cached or prior-session pass, does not count.
+2. **Completion.** Do not claim completion without listing the specific files changed in this turn. If no files were changed, say so explicitly.
+3. **Fix verification.** Do not claim a fix works without running the reproduction steps that originally demonstrated the bug. "Looks correct" is not verification.
+4. **Hedged claims.** Do not use "should work", "probably fine", "looks good" as verification. These are guesses, not evidence.
+5. **Check passed.** Do not claim a check passed (shellcheck, typecheck, preflight, audit) without showing the command and its output in the same turn — verbatim output, or at minimum the literal pass/fail line copied from it.
+
 - Level 1 (isolated): note, continue. Level 2 (cross-doc, broken refs, evidence): MUST full stop, wait for human
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
