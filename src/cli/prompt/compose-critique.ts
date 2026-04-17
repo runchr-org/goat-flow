@@ -5,7 +5,7 @@
  */
 import type { AgentId } from "../types.js";
 import type { AuditReport, AuditConcernKey } from "../audit/types.js";
-import { SKILL_NAMES } from "../constants.js";
+import { loadManifest } from "../manifest/manifest.js";
 import { getPackageVersion } from "../paths.js";
 
 interface CritiqueInput {
@@ -118,7 +118,10 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     ? renderAuditSummary(auditReport)
     : "Audit data unavailable (audit could not complete).";
 
-  const skillList = SKILL_NAMES.map((s, i) => `${i + 1}. \`${s}\``).join(", ");
+  const skillFacts = loadManifest().facts.skills;
+  const skillList = skillFacts.names
+    .map((s, i) => `${i + 1}. \`${s}\``)
+    .join(", ");
 
   const lines: string[] = [];
 
@@ -185,7 +188,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     `1. **Instruction file** (\`${instructionFile}\`) - execution loop, autonomy tiers, definition of done, router table. Loaded every turn.`,
   );
   lines.push(
-    `2. **7 skills** (6 functional + 1 dispatcher) - ${skillList}. Loaded on demand via slash commands.`,
+    `2. **${skillFacts.total} skills** (${skillFacts.functional_count} functional + 1 dispatcher) - ${skillList}. Loaded on demand via slash commands.`,
   );
   lines.push("3. **Hook scripts** - deny-dangerous.sh for safety guardrails.");
   lines.push(
@@ -264,7 +267,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     `wc -l ${instructionFile}                          # target: under 120 lines`,
   );
   lines.push(
-    `ls ${skillsDir}/                                  # expect 7 goat-flow skill directories`,
+    `ls ${skillsDir}/                                  # expect ${skillFacts.total} goat-flow skill directories`,
   );
   lines.push(
     "cat .goat-flow/config.yaml                        # should have version, agents, skills, line-limits",
@@ -305,10 +308,10 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
   lines.push("");
   lines.push("**Structure:**");
   lines.push(
-    `- Count skill directories - expect exactly 7: ${SKILL_NAMES.join(", ")}`,
+    `- Count skill directories - expect exactly ${skillFacts.total}: ${skillFacts.names.join(", ")}`,
   );
   lines.push(
-    "- If >7, list extras. Known stale names: goat-audit, goat-investigate, goat-onboard, goat-reflect, goat-resume, goat-simplify, goat-refactor, goat-context, goat-preflight, goat-research",
+    `- If >${skillFacts.total}, list extras. Known stale names: ${skillFacts.stale_names.join(", ")}`,
   );
   lines.push("- `.goat-flow/skill-preamble.md` exists?");
   lines.push("- `.goat-flow/skill-conventions.md` exists?");
@@ -445,7 +448,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
     "- Is the execution loop (READ -> SCOPE -> ACT -> VERIFY) useful or ceremonial overhead? Did you actually follow it during skill testing?",
   );
   lines.push(
-    "- Are 7 skills the right number? Which overlap? Which have gaps between them?",
+    `- Are ${skillFacts.total} skills the right number? Which overlap? Which have gaps between them?`,
   );
   lines.push(
     "- Does the dispatcher (`/goat`) add value or just add a routing step?",
@@ -539,7 +542,7 @@ export function composeCritique(input: CritiqueInput): CritiquePayload {
 
   lines.push("### Skill Testing Results");
   lines.push(
-    "For each of the 7 skills (or subset tested): what worked, what failed, what was ceremony.",
+    `For each of the ${skillFacts.total} skills (or subset tested): what worked, what failed, what was ceremony.`,
   );
   lines.push("");
 

@@ -1,0 +1,265 @@
+/**
+ * Single-source-of-truth manifest loader (M06a).
+ *
+ * Reads `workflow/manifest.json` and returns a resolved `Manifest` where every
+ * `facts` field has been computed from canonical code sources (derived) or
+ * validated against observed on-disk reality (static). Loading fails hard with
+ * a `ManifestValidationError` when a static fact has drifted from what the
+ * code actually exposes — that is the entire point of the module.
+ *
+ * Used by `composeCritique` and `composeSetup` to avoid hardcoded counts, and
+ * by the `goat-flow manifest` CLI command.
+ */
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+import { SKILL_NAMES } from "../constants.js";
+import { SETUP_CHECKS } from "../audit/check-goat-flow.js";
+import { AGENT_CHECKS } from "../audit/check-agent-setup.js";
+import { HARNESS_CHECKS } from "../audit/harness/index.js";
+import { getPackageVersion, getTemplatePath } from "../paths.js";
+import type {
+  CheckFacts,
+  Manifest,
+  ManifestCheckReport,
+  ManifestJson,
+  ObservedFacts,
+  PresetFacts,
+  ResolvedFacts,
+  SkillFacts,
+} from "./types.js";
+import { ManifestValidationError } from "./types.js";
+
+/** goat-flow architectural fact: `goat` is the dispatcher, the rest are functional. */
+const DISPATCHER_NAME = "goat";
+
+/** Read the on-disk manifest JSON. Throws on missing or malformed file. */
+function readManifestJson(): ManifestJson {
+  const path = getTemplatePath("workflow/manifest.json");
+  const raw = readFileSync(path, "utf-8");
+  return JSON.parse(raw) as ManifestJson;
+}
+
+/** Enumerate dashboard view names by listing `src/dashboard/views/*.html`. */
+function readDashboardViewNames(): string[] {
+  const dir = getTemplatePath(join("src", "dashboard", "views"));
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".html"))
+    .map((f) => f.replace(/\.html$/, ""))
+    .sort();
+}
+
+/** Count preset objects in preset-prompts.ts by matching each top-level `id:` field. */
+function countPresetsFromSource(): number {
+  const file = getTemplatePath(join("src", "dashboard", "preset-prompts.ts"));
+  if (!existsSync(file)) return 0;
+  const text = readFileSync(file, "utf-8");
+  const matches = text.match(/^\s+id:\s*"[^"]+",/gm);
+  return matches ? matches.length : 0;
+}
+
+/** Compute derived skill facts from `SKILL_NAMES` and the manifest's stale list. */
+function computeSkills(
+  names: readonly string[],
+  staleNames: readonly string[],
+): SkillFacts {
+  return {
+    total: names.length,
+    names,
+    dispatcher: DISPATCHER_NAME,
+    functional_count: names.filter((n) => n !== DISPATCHER_NAME).length,
+    stale_names: staleNames,
+  };
+}
+
+/** Compute derived check counts from the three check arrays. */
+function computeChecks(o: ObservedFacts): CheckFacts {
+  return {
+    setup: o.setupChecks,
+    agent: o.agentChecks,
+    harness: o.harnessChecks,
+    total: o.setupChecks + o.agentChecks + o.harnessChecks,
+  };
+}
+
+/** Compare two string arrays for set-equality after sorting. */
+function sameSortedSet(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  for (let i = 0; i < sa.length; i++) {
+    if (sa[i] !== sb[i]) return false;
+  }
+  return true;
+}
+
+/**
+ * Validate the on-disk manifest's static facts against observed reality.
+ * Throws `ManifestValidationError` with one finding per drift.
+ */
+export function validateManifest(
+  json: ManifestJson,
+  observed: ObservedFacts,
+): void {
+  const findings: string[] = [];
+
+  if (!json.facts) {
+    const msg =
+      "workflow/manifest.json is missing the top-level `facts` key (M06 expected shape).";
+    throw new ManifestValidationError(msg, [msg]);
+  }
+
+  const declaredViews = json.facts.dashboard_views;
+  if (!sameSortedSet(declaredViews, observed.views)) {
+    findings.push(
+      `facts.dashboard_views drift: manifest declares [${[...declaredViews].sort().join(", ")}]; src/dashboard/views/ has [${observed.views.join(", ")}].`,
+    );
+  }
+
+  if (json.facts.presets_count !== observed.presetsCount) {
+    findings.push(
+      `facts.presets_count drift: manifest declares ${json.facts.presets_count}; src/dashboard/preset-prompts.ts defines ${observed.presetsCount}.`,
+    );
+  }
+
+  if (!sameSortedSet(json.skills.canonical, observed.skills)) {
+    findings.push(
+      `skills.canonical drift: manifest declares [${[...json.skills.canonical].sort().join(", ")}]; SKILL_NAMES exports [${[...observed.skills].sort().join(", ")}].`,
+    );
+  }
+
+  if (findings.length > 0) {
+    throw new ManifestValidationError(
+      `workflow/manifest.json has drifted from observed state (${findings.length} finding${findings.length === 1 ? "" : "s"}).`,
+      findings,
+    );
+  }
+}
+
+/** Build the resolved Manifest from validated inputs. Pure; used by loadManifest and tests.
+ *  Assumes `validateManifest` has already rejected manifests with a missing `facts` key. */
+export function composeManifest(
+  json: ManifestJson,
+  observed: ObservedFacts,
+): Manifest {
+  const jsonFacts = json.facts;
+  if (!jsonFacts) {
+    const msg =
+      "composeManifest called before validateManifest — json.facts missing.";
+    throw new ManifestValidationError(msg, [msg]);
+  }
+  const facts: ResolvedFacts = {
+    version: observed.version,
+    skills: computeSkills(observed.skills, json.skills.stale_names),
+    checks: computeChecks(observed),
+    dashboard_views: {
+      count: jsonFacts.dashboard_views.length,
+      names: [...jsonFacts.dashboard_views].sort(),
+    },
+    presets: { count: jsonFacts.presets_count } as PresetFacts,
+  };
+  return {
+    version: json.version,
+    skills: json.skills,
+    agents: json.agents,
+    facts,
+  };
+}
+
+let cached: Manifest | null = null;
+
+/**
+ * Resolve the live manifest. Reads `workflow/manifest.json`, computes derived
+ * facts from code constants, validates static facts against observed reality,
+ * and caches the result for the process lifetime.
+ *
+ * Throws `ManifestValidationError` when on-disk static facts have drifted.
+ */
+export function loadManifest(): Manifest {
+  if (cached) return cached;
+  const json = readManifestJson();
+  const observed: ObservedFacts = {
+    views: readDashboardViewNames(),
+    presetsCount: countPresetsFromSource(),
+    skills: SKILL_NAMES,
+    setupChecks: SETUP_CHECKS.length,
+    agentChecks: AGENT_CHECKS.length,
+    harnessChecks: HARNESS_CHECKS.length,
+    version: getPackageVersion(),
+  };
+  validateManifest(json, observed);
+  cached = composeManifest(json, observed);
+  return cached;
+}
+
+/** Clear the module-level cache (tests only). */
+export function resetManifestCache(): void {
+  cached = null;
+}
+
+/** Run internal consistency check and return a report. Used by `goat-flow manifest --check`. */
+export function checkManifest(): ManifestCheckReport {
+  try {
+    loadManifest();
+    return { status: "pass", findings: [] };
+  } catch (err) {
+    if (err instanceof ManifestValidationError) {
+      return {
+        status: "fail",
+        findings: err.findings.map((f) => ({
+          rule: "manifest-drift",
+          message: f,
+        })),
+      };
+    }
+    throw err;
+  }
+}
+
+/** Render the resolved manifest as a compact Markdown table. Used by `goat-flow manifest`. */
+export function renderManifestMarkdown(m: Manifest): string {
+  const lines: string[] = [];
+  lines.push("# goat-flow manifest");
+  lines.push("");
+  lines.push(`**Version:** ${m.facts.version}`);
+  lines.push("");
+  lines.push("| Fact | Value | Source |");
+  lines.push("|------|-------|--------|");
+  lines.push(
+    `| Setup checks | ${m.facts.checks.setup} | derived: \`SETUP_CHECKS.length\` |`,
+  );
+  lines.push(
+    `| Agent checks | ${m.facts.checks.agent} | derived: \`AGENT_CHECKS.length\` |`,
+  );
+  lines.push(
+    `| Harness checks | ${m.facts.checks.harness} | derived: \`HARNESS_CHECKS.length\` |`,
+  );
+  lines.push(
+    `| Total checks | ${m.facts.checks.total} | derived: sum of above |`,
+  );
+  lines.push(
+    `| Skills (total) | ${m.facts.skills.total} | derived: \`SKILL_NAMES.length\` |`,
+  );
+  lines.push(
+    `| Skills (functional) | ${m.facts.skills.functional_count} | derived: \`SKILL_NAMES\` minus dispatcher |`,
+  );
+  lines.push(
+    `| Dispatcher | \`${m.facts.skills.dispatcher}\` | architectural constant |`,
+  );
+  lines.push(
+    `| Dashboard views | ${m.facts.dashboard_views.count} | static: \`workflow/manifest.json\` (validated against \`src/dashboard/views/\`) |`,
+  );
+  lines.push(
+    `| Presets | ${m.facts.presets.count} | static: \`workflow/manifest.json\` (validated against \`src/dashboard/preset-prompts.ts\`) |`,
+  );
+  lines.push("");
+  lines.push(
+    `**Skills:** ${m.facts.skills.names.map((n) => `\`${n}\``).join(", ")}`,
+  );
+  lines.push("");
+  lines.push(
+    `**Dashboard views:** ${m.facts.dashboard_views.names.map((n) => `\`${n}\``).join(", ")}`,
+  );
+  return lines.join("\n");
+}

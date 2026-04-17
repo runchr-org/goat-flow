@@ -40,15 +40,17 @@ Commands:
   setup             Generate setup prompt (adapts to project state)
   status            Show project state (bare/partial/v0.9/v1.0/v1.1)
   dashboard         Launch browser dashboard with audit, setup, and terminal
+  manifest          Print the resolved single-source-of-truth manifest (--check validates consistency)
 Arguments:
   project-path    Target project directory (default: .)
 
 Flags:
   --format <type>   Output format: json, text, markdown (omit for auto-detect: text in terminal, json otherwise)
   --agent <id>      Filter to one agent: claude, codex, gemini
-  --harness         Audit: add AI Harness Completeness scope (16 pass/fail checks across 5 concerns)
+  --harness         Audit: add AI Harness Completeness scope (pass/fail checks across 5 concerns)
   --check-drift     Audit: detect skill template-vs-installed drift and orphan directories
   --check-content   Audit: cold-path content lint (vague terms, generic instructions, factual drift)
+  --check           Manifest: validate static-vs-observed consistency (exits non-zero on drift)
   --verbose         Show per-check details
   --output <file>   Write output to file instead of stdout
   --dev             Dashboard: live reload on file changes
@@ -62,6 +64,8 @@ Examples:
   goat-flow audit . --format json      JSON output for CI
   goat-flow setup --agent claude       Setup prompt for Claude
   goat-flow critique . --agent claude  Critique prompt for Claude
+  goat-flow manifest                   Print the resolved manifest
+  goat-flow manifest --check           Verify the manifest is consistent with code
   goat-flow --format markdown          PR-comment friendly output
   goat-flow --output report.json       Write results to file
 `);
@@ -73,7 +77,14 @@ function printVersion(): void {
 }
 
 /** Supported CLI subcommand names */
-type Command = "setup" | "dashboard" | "info" | "status" | "audit" | "critique";
+type Command =
+  | "setup"
+  | "dashboard"
+  | "info"
+  | "status"
+  | "audit"
+  | "critique"
+  | "manifest";
 
 /** List of recognized CLI subcommands */
 const COMMANDS: Command[] = [
@@ -83,6 +94,7 @@ const COMMANDS: Command[] = [
   "status",
   "audit",
   "critique",
+  "manifest",
 ];
 /** Previously valid commands that now produce a helpful removal error */
 const REMOVED_COMMANDS: Record<string, string> = {
@@ -108,6 +120,7 @@ export interface ParsedCLI extends CLIOptions {
   harness: boolean;
   checkDrift: boolean;
   checkContent: boolean;
+  check: boolean;
 }
 
 /** Parse the positional subcommand from raw CLI args, defaulting to `audit`. */
@@ -191,6 +204,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
       harness: { type: "boolean", default: false },
       "check-drift": { type: "boolean", default: false },
       "check-content": { type: "boolean", default: false },
+      check: { type: "boolean", default: false },
       dev: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
       version: { type: "boolean", short: "v", default: false },
@@ -209,6 +223,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     harness: values.harness === true,
     checkDrift: values["check-drift"] === true,
     checkContent: values["check-content"] === true,
+    check: values.check === true,
     dev: values.dev === true,
     help: values.help === true,
     version: values.version === true,
@@ -392,6 +407,80 @@ async function handleCritiqueCommand(options: ParsedCLI): Promise<void> {
   }
 }
 
+/** Handle the manifest command: resolve + print the single-source-of-truth manifest. */
+async function handleManifestCommand(options: ParsedCLI): Promise<void> {
+  const { loadManifest, checkManifest, renderManifestMarkdown } =
+    await import("./manifest/manifest.js");
+
+  if (options.check) {
+    const report = checkManifest();
+    if (options.format === "json") {
+      process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+    } else {
+      if (report.status === "pass") {
+        console.log("Manifest check: PASS");
+      } else {
+        console.log("Manifest check: FAIL");
+        for (const f of report.findings) {
+          console.log(`  - [${f.rule}] ${f.message}`);
+        }
+      }
+    }
+    if (report.status === "fail") process.exitCode = 1;
+    return;
+  }
+
+  const manifest = loadManifest();
+  if (options.format === "json") {
+    process.stdout.write(JSON.stringify(manifest, null, 2) + "\n");
+    return;
+  }
+  process.stdout.write(renderManifestMarkdown(manifest) + "\n");
+}
+
+/** Run the default `setup` command pipeline: facts + audit + compose. */
+async function runSetupPipeline(options: ParsedCLI): Promise<void> {
+  const { createFS } = await import("./facts/fs.js");
+  const { runAudit } = await import("./audit/audit.js");
+  const { extractProjectFacts } = await import("./facts/orchestrator.js");
+  const { loadConfig } = await import("./config/reader.js");
+  const fs = createFS(options.projectPath);
+  const configState = loadConfig(options.projectPath, fs);
+  const facts = extractProjectFacts(fs, {
+    agentFilter: options.agent ?? null,
+    projectPath: options.projectPath,
+    configState,
+  });
+  const auditReport = runAudit(fs, options.projectPath, {
+    agentFilter: options.agent ?? null,
+    harness: false,
+  });
+  await handleSetupCommand(options, auditReport, facts);
+}
+
+/** Dispatch one parsed command to its handler. Extracted to keep `main` below
+ *  the complexity ceiling as new subcommands land. */
+async function dispatchCommand(options: ParsedCLI): Promise<void> {
+  if (options.command === "audit") return handleAuditCommand(options);
+  if (options.command === "critique") return handleCritiqueCommand(options);
+  if (options.command === "manifest") return handleManifestCommand(options);
+  if (options.command === "status") return handleStatusCommand(options);
+  if (options.command === "dashboard") {
+    const { serveDashboard } = await import("./server/dashboard.js");
+    await serveDashboard({
+      projectPath: options.projectPath,
+      dev: options.dev,
+    });
+    return;
+  }
+  if (options.command === "info") {
+    handleInfoCommand(options);
+    return;
+  }
+  // Remaining command: setup (uses audit + facts to compose setup guidance).
+  await runSetupPipeline(options);
+}
+
 /** Entry point that dispatches to the appropriate command handler */
 async function main(): Promise<void> {
   // Gracefully handle EPIPE (e.g., output piped to `head`)
@@ -413,49 +502,8 @@ async function main(): Promise<void> {
     printVersion();
     return;
   }
-  if (options.command === "audit") {
-    await handleAuditCommand(options);
-    return;
-  }
-  if (options.command === "critique") {
-    await handleCritiqueCommand(options);
-    return;
-  }
-  if (options.command === "status") {
-    await handleStatusCommand(options);
-    return;
-  }
-  if (options.command === "dashboard") {
-    const { serveDashboard } = await import("./server/dashboard.js");
-    await serveDashboard({
-      projectPath: options.projectPath,
-      dev: options.dev,
-    });
-    return;
-  }
-  if (options.command === "info") {
-    handleInfoCommand(options);
-    return;
-  }
 
-  // Remaining command: setup (uses audit + facts to compose setup guidance)
-  const { createFS } = await import("./facts/fs.js");
-  const { runAudit } = await import("./audit/audit.js");
-  const { extractProjectFacts } = await import("./facts/orchestrator.js");
-  const { loadConfig } = await import("./config/reader.js");
-  const fs = createFS(options.projectPath);
-  const configState = loadConfig(options.projectPath, fs);
-  const facts = extractProjectFacts(fs, {
-    agentFilter: options.agent ?? null,
-    projectPath: options.projectPath,
-    configState,
-  });
-  const auditReport = runAudit(fs, options.projectPath, {
-    agentFilter: options.agent ?? null,
-    harness: false,
-  });
-
-  await handleSetupCommand(options, auditReport, facts);
+  await dispatchCommand(options);
 }
 
 main().catch((err: unknown) => {

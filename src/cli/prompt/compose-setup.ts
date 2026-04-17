@@ -5,7 +5,7 @@
  */
 import type { AuditReport } from "../audit/types.js";
 import type { AgentId, ProjectFacts } from "../types.js";
-import { SKILL_NAMES } from "../constants.js";
+import { loadManifest } from "../manifest/manifest.js";
 import { PROFILES } from "../detect/agents.js";
 import { getTemplatePath, getCliCommand } from "../paths.js";
 import { classifyProjectState } from "../classify-state.js";
@@ -58,6 +58,7 @@ function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
 
   if (agentFacts) {
     const skillCount = agentFacts.skills.found.length;
+    const totalSkills = loadManifest().facts.skills.total;
     const hookScripts: string[] = [];
     if (agentFacts.hooks.denyExists) hookScripts.push("deny");
     if (agentFacts.hooks.postTurnExists) hookScripts.push("post-turn");
@@ -66,7 +67,7 @@ function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
 
     lines.push("**Installed:**");
     lines.push(
-      `- ${skillCount}/${SKILL_NAMES.length} skills installed (in ${profile.skillsDir}/)`,
+      `- ${skillCount}/${totalSkills} skills installed (in ${profile.skillsDir}/)`,
     );
     if (hookScripts.length > 0) {
       lines.push(
@@ -202,7 +203,7 @@ function renderUpgradeRedirect(
     );
     lines.push("");
     lines.push(
-      "This installs the 7 canonical skills, hooks, settings, and reference files.",
+      `This installs the ${loadManifest().facts.skills.total} canonical skills, hooks, settings, and reference files.`,
     );
     lines.push("");
 
