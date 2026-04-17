@@ -32,6 +32,18 @@ Order findings by severity, not by file or discovery order.
 - Before citing a config key, read the actual config file first
 - On completion claims, the 5 hallucination red-flags in your instruction file's VERIFY section apply verbatim — do not restate, just comply.
 
+## Proof Gate
+
+Before any completion, fix, or "passing" claim:
+
+1. **Identify** the proof — the exact command, reproduction, diff, or artifact that would demonstrate the claim.
+2. **Run** it fresh in this session (not recalled, not from a prior turn, not paraphrased).
+3. **Read** the full output, including exit code.
+4. **Verify** the output demonstrates the specific claim, not an adjacent one.
+5. **Cite** `file:line` for code claims, or the literal pass/fail summary line for command claims.
+
+The red-flags name what NOT to claim; this gate names HOW to substantiate a claim. If you cannot run the proof in this session, mark the claim **UNVERIFIED** and state what evidence is missing. Never substitute "should work", "probably fine", "looks good", or a confidence score.
+
 ## Ceremony Level
 
 Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
@@ -58,7 +70,7 @@ When invoked via /goat or when intent is ambiguous:
 - Quality review, audit → /goat-review
 - Multi-perspective critique → /goat-sbao
 - Security, compliance, dependency audit → /goat-security
-- Testing gaps, coverage, verification → /goat-test
+- Testing gaps, coverage, verification planning → /goat-test
 - Feature planning, milestones → /goat-plan
 - Simple implementation (rename, add log, move constant) → no skill, use execution loop directly
 - Simple question → answer directly

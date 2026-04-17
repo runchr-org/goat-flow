@@ -137,6 +137,8 @@ List these as "What Wasn't Critiqued." This section must never be empty - if eve
 
 **BLOCKING GATE:** Present the synthesised critique. Human decides: apply recommendations, dig deeper, re-run with different framing, or close. After critique of a plan, suggest `/goat-plan` to update milestones based on recommendations.
 
+**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to every synthesised finding — sub-agent reports are inputs to verify, not evidence to launder. Re-read each surviving finding's `file:line` in this session before inclusion.
+
 ## Critique Rubrics
 
 The rubric determines what sub-agents evaluate. Match to artifact type:

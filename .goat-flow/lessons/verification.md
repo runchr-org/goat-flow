@@ -300,3 +300,23 @@ category: verification
 1. After any rename, count change, or structural reorganization, grep for the old names/numbers across ALL docs, not just the files in the diff.
 2. Run multi-agent critique on release branches -- the cross-review pattern (compare findings across 3+ independent reviewers, verify each, disprove false positives) is the most effective cold-path drift detector available.
 3. Consider automating: extract check counts from code exports and validate against doc claims in preflight.
+
+---
+
+## Lesson: Verification rationalization anti-patterns
+
+**Created:** 2026-04-18
+
+**What happens:** The 5 hallucination red-flags in AGENTS.md:51-58 forbid claims without evidence (tests pass, completion, fix verification, hedged claims, check passed). Agents still ship unverified claims under pressure by producing rationalizations that feel distinct from the forbidden claim but are logically equivalent to it. "I'm 95% confident", "the sub-agent said it passed", "the change looks correct" — each slips past the red-flags because the red-flags name the violation, not the specific excuse pattern.
+
+**Root cause:** The red-flags catalog what NOT to claim. They do not enumerate the specific rationalizations that convert "I didn't run the proof" into "it's fine." Under pressure (deadline, fatigue, long turn, trusted sub-agent report, partial run that "mostly worked"), the agent reaches for a rationalization the red-flags do not explicitly name, and the claim lands anyway.
+
+**Rationalizations to reject:**
+- "Confidence ≠ evidence" — high subjective confidence does not substitute for running the verification command in this message.
+- "Just this once" — partial compliance compounds into no compliance. There is no exemption for a single turn.
+- "The downstream agent said success, so it passes" — delegated claims are subject to the same red-flags; do not launder an unverified sub-agent output by restating it yourself.
+- "Partial check is enough" — a subset of tests is not the test suite. If the red-flag applies to the whole check, a partial run does not discharge it.
+- "Code changed, so probably fixed" — red-flag #3 requires re-running the reproduction that originally demonstrated the bug. "Probably fixed" is a hedged claim (red-flag #4).
+- "Looks correct to me" — structural inspection is not verification. If the red-flag demands output, reading code is not output.
+
+**Fix:** The Proof Gate in `skill-preamble.md` names the positive procedure (identify → run fresh → read → verify → cite). This lesson names the negative counterpart: the rationalization patterns that specifically defeat the red-flags. Before any completion, fix, or "passing" claim, check whether the next sentence you are about to write matches one of the patterns above. If it does, stop and satisfy the Proof Gate instead — or downgrade the claim to UNVERIFIED and state what evidence is still missing.

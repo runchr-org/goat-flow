@@ -109,3 +109,28 @@ describe("preamble/conventions sync: regression detection", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Proof Gate heading is present in both template and installed preamble (ADR-045)
+// ---------------------------------------------------------------------------
+describe("preamble/conventions sync: Proof Gate presence (ADR-045)", () => {
+  it("template skill-preamble.md contains '## Proof Gate' heading", () => {
+    if (!existsSync(TEMPLATE_PREAMBLE)) return;
+    const content = readFileSync(TEMPLATE_PREAMBLE, "utf-8");
+    assert.match(
+      content,
+      /^## Proof Gate\b/m,
+      "Template preamble must contain '## Proof Gate' heading",
+    );
+  });
+
+  it("installed skill-preamble.md contains '## Proof Gate' heading", () => {
+    if (!existsSync(INSTALLED_PREAMBLE)) return;
+    const content = readFileSync(INSTALLED_PREAMBLE, "utf-8");
+    assert.match(
+      content,
+      /^## Proof Gate\b/m,
+      "Installed preamble must contain '## Proof Gate' heading",
+    );
+  });
+});

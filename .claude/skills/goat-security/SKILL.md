@@ -65,6 +65,8 @@ Re-read `file:line` for Critical/High. Does code match the finding? Is the scena
 
 **BLOCKING GATE:** Present final report. If PROBABLE > CONFIRMED, run `/goat-sbao` cross-examination.
 
+**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` — every CONFIRMED finding must have a fresh `file:line` re-read in this session, and dependency-audit results must be from a tool run in this session, never paraphrased or fabricated.
+
 ## Compliance Mode
 
 For compliance checks, present gaps as: non-compliant, partially compliant, or not assessed. Include direct citations to relevant clauses where possible.

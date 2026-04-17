@@ -183,7 +183,7 @@ After approval, write each milestone to `.goat-flow/tasks/<active>/` as a separa
 
 ## Phase 3 - Between Milestones
 
-After each milestone, run the testing gate first; any failure is BLOCKING.
+After each milestone, run the testing gate first; any failure is BLOCKING. Apply the Proof Gate from `skill-preamble.md` — no milestone closes without fresh evidence of gate pass (command output, reproduction, or sign-off), not the agent's recollection.
 Capture what was learned, then re-read the next milestone and update invalidated assumptions, tasks, or exit criteria.
 Set status: prior milestone `complete`, next milestone `in-progress`.
 **CHECKPOINT:** "Milestone gate passed. Do you want to proceed with M[N+1]?"

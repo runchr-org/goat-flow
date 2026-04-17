@@ -25,7 +25,7 @@ Output: prioritized "must test / safe to skip / should test" guidance.
 - You want to find manual testing gaps before a release
 - You need a QA handoff artifact (flow diagram, risk matrix, manual test plan)
 
-**NOT this skill:** Running tests → just run them. Debugging test failures → /goat-debug. Code quality → /goat-review. Planning milestones → /goat-plan. Feature briefs → dispatcher Planning Route.
+**NOT this skill:** Running tests → just run them. Debugging test failures → /goat-debug. Code quality → /goat-review. Planning milestones → /goat-plan. Feature briefs → dispatcher Planning Route. Verifying a bug fix → /goat-debug. Verifying a diff/PR before merge → /goat-review. Certifying that work is complete → the Proof Gate in `skill-preamble.md`, applied by whoever makes the claim.
 
 ## Step 0 - Intake
 
@@ -33,7 +33,7 @@ Output: prioritized "must test / safe to skip / should test" guidance.
 
 - Changed files + no specific ask → offer standard or audit
 - "audit"/"coverage"/"gaps" → Audit mode (full depth)
-- "test this"/"verify"/"what's risky" or scoped files → Standard mode (quick depth)
+- "test this"/"verify coverage"/"what's risky" or scoped files → Standard mode (quick depth)
 
 **Depth mapping:** Standard mode = quick (analyse changed files). Audit mode = full (analyse a codebase area). If arriving from the dispatcher with depth pre-selected: quick → Standard, full → Audit.
 
@@ -135,6 +135,7 @@ After a bug fix: define 1-2 invariants, assess coverage of each invariant, then 
 - MUST find gaps in BOTH directions: undertested risks AND misaligned test effort
 - MUST produce "must test / should test / safe to skip" tiers with rationale for skips
 - MUST include Verification Integrity section
+- MUST apply the Proof Gate from `skill-preamble.md` to every claim made in the gap analysis or testing plan
 - MUST NOT generate test code - hand off to the coding agent
 - Universal constraints from skill-preamble.md apply.
 - Audit mode: MUST include gap report with risk-of-gap ratings

@@ -92,6 +92,8 @@ Check each finding against `.goat-flow/footguns/`. When a direct match exists, i
 
 **DoD gate:** (1) tests/lint pass (2) no broken cross-references (3) no unapproved boundary changes (4) grep old pattern after renames.
 
+**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to every surfaced finding — each `file:line` must be re-read fresh in this session before presentation; downgrade any finding whose evidence cannot be re-verified to UNVERIFIED.
+
 ## Area Audit (Full)
 
 When the target is a codebase area (not a diff). For >20 files, recommend splitting. Two-pass discipline still applies per file cluster: skim the surface for suspicions, then open files for verification. Pre-existing issues ARE in scope (they are the point of an area audit).

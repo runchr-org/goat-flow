@@ -34,11 +34,20 @@ If vague, ask about: goal, symptom/error message, area involved.
 
 After reading the primary file, write 2-3 hypotheses spanning at least 2 of: Data, Logic, Timing, Environment, Configuration. If the bug involves loops, indices, or pagination, include a boundary/counting hypothesis. After tracing, mark each: CONFIRMED / ELIMINATED / UNRESOLVED with `file:line` evidence.
 
+**Multi-component failures** (CI → build → deploy, request → middleware → handler → DB, etc.): instrument each boundary before proposing any fix. For each component boundary, log what data enters and what exits, run once to gather evidence showing WHERE the chain breaks, THEN investigate the specific failing component. Do not guess the failing layer.
+
 **Can't reproduce after 5 file reads?** Log what you checked, suggest logging additions, ask for more context.
 
 ### D2 - Diagnosis
 
 Present: root cause + confidence (HIGH = reproduced, MEDIUM = traced, LOW = inferred) + hypothesis table + reproduction steps. **Confidence floor:** All LOW --> return to D1 or present partial findings.
+
+**Root cause validation before claiming HIGH confidence.** For each candidate root cause, run a causation / necessity / sufficiency check:
+- **Causation** — does the proposed cause mechanically produce the observed symptom? Trace the path with `file:line`.
+- **Necessity** — without this cause, does the symptom still occur? If yes, the cause is insufficient or incomplete.
+- **Sufficiency** — is this cause alone enough, or are there co-factors? Name them.
+
+For high-stakes diagnoses, run a 5-Whys chain. Every "because" MUST cite `file:line` or a reproduction step, not just prose.
 
 **BLOCKING GATE:** Present diagnosis, then pause. Human decides: dig deeper, propose fix, or stop. If confidence is MEDIUM or LOW with multiple competing hypotheses, consider `/goat-sbao` to critique the hypothesis set before choosing a fix direction.
 
@@ -47,7 +56,11 @@ Present: root cause + confidence (HIGH = reproduced, MEDIUM = traced, LOW = infe
 What changes (files + functions), blast radius, architecture check (`.goat-flow/architecture.md`), verification method. "Should I implement?" If yes --> implement, then D4.
 
 ### D4 - Post-Fix Verification
-Run D3 verification, check regressions, and grep for old patterns after renames.
+Rerun the **original reproduction** from D2 — a code change is not a fix until the symptom is gone. Then run D3 verification, check adjacent regressions, and grep for old patterns after renames.
+
+**3-fix abort rule:** If three independent fixes have failed to resolve the symptom, STOP and reconsider whether the architecture or the root-cause hypothesis is wrong. Do not attempt a fourth patch without first re-entering D1 with a fresh hypothesis set.
+
+**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to the "fixed" claim — rerun the original repro, cite the literal output, and downgrade to **UNVERIFIED** if the session cannot execute the proof.
 
 ## Investigate Mode
 
