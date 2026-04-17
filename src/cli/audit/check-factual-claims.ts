@@ -17,6 +17,7 @@ import { SKILL_NAMES } from "../constants.js";
 import { SETUP_CHECKS } from "./check-goat-flow.js";
 import { AGENT_CHECKS } from "./check-agent-setup.js";
 import { HARNESS_CHECKS } from "./harness/index.js";
+import { loadManifest } from "../manifest/manifest.js";
 
 export const FACTUAL_CLAIMS_EVIDENCE: CheckEvidence = {
   source_type: "incident",
@@ -37,6 +38,27 @@ const PROSE_TARGETS = [
 ];
 
 const DOC_GLOB = "docs/*.md";
+
+/** Files where a loose `N views`/`N presets` pattern is safe because the file
+ *  is dashboard-specific. Outside these files, the pattern would false-positive
+ *  on generic prose, so we keep it scoped. */
+const DASHBOARD_SCOPED_TARGETS = ["docs/dashboard.md"];
+
+/** Looser view/preset patterns that only run against DASHBOARD_SCOPED_TARGETS. */
+const DASHBOARD_SCOPED_CHECKS: CountClaimCheck[] = [
+  {
+    rule: "dashboard-views-count-drift",
+    pattern: /\b(\d+)\s+views?\b/gi,
+    actual: () => loadManifest().facts.dashboard_views.count,
+    label: "views",
+  },
+  {
+    rule: "preset-count-drift",
+    pattern: /\b(\d+)\s+presets?\b/gi,
+    actual: () => loadManifest().facts.presets.count,
+    label: "presets",
+  },
+];
 
 /** Path-reference check runs only on these two files — they're the catalogues. */
 const PATH_REF_TARGETS = [
@@ -77,14 +99,30 @@ const COUNT_CHECKS: CountClaimCheck[] = [
     actual: () => SETUP_CHECKS.length,
     label: "setup checks on goat-flow-owned surfaces",
   },
+  {
+    rule: "dashboard-views-count-drift",
+    pattern: /\b(\d+)\s+dashboard\s+views?\b/gi,
+    actual: () => loadManifest().facts.dashboard_views.count,
+    label: "dashboard views",
+  },
+  {
+    rule: "preset-count-drift",
+    pattern: /\b(\d+)\s+workspace\s+presets?\b/gi,
+    actual: () => loadManifest().facts.presets.count,
+    label: "workspace presets",
+  },
 ];
 
 function isFenceLine(line: string): boolean {
   return /^\s*```/.test(line);
 }
 
-/** Scan one doc file for numeric-count drift. */
-export function scanCountClaims(path: string, text: string): ContentFinding[] {
+/** Scan one doc file for numeric-count drift using the provided check set. */
+export function scanCountClaims(
+  path: string,
+  text: string,
+  checks: CountClaimCheck[] = COUNT_CHECKS,
+): ContentFinding[] {
   const findings: ContentFinding[] = [];
   const lines = text.split(/\r?\n/);
   let inCodeBlock = false;
@@ -95,7 +133,7 @@ export function scanCountClaims(path: string, text: string): ContentFinding[] {
       continue;
     }
     if (inCodeBlock) continue;
-    for (const check of COUNT_CHECKS) {
+    for (const check of checks) {
       const rx = new RegExp(check.pattern.source, check.pattern.flags);
       let match: RegExpExecArray | null;
       while ((match = rx.exec(line)) !== null) {
@@ -198,6 +236,13 @@ export function runFactualClaimChecks(ctx: AuditContext): {
     if (text === null) continue;
     filesScanned++;
     findings.push(...scanCountClaims(rel, text));
+  }
+  // Dashboard-specific loose patterns (safe only on dashboard docs).
+  for (const rel of DASHBOARD_SCOPED_TARGETS) {
+    if (!ctx.fs.exists(rel)) continue;
+    const text = ctx.fs.readFile(rel);
+    if (text === null) continue;
+    findings.push(...scanCountClaims(rel, text, DASHBOARD_SCOPED_CHECKS));
   }
   for (const rel of PATH_REF_TARGETS) {
     if (!ctx.fs.exists(rel)) continue;

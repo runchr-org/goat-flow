@@ -11,6 +11,7 @@ import { validateProvenance } from "../../src/cli/audit/provenance-types.js";
 import type { CheckEvidence } from "../../src/cli/audit/provenance-types.js";
 import { CONTENT_QUALITY_EVIDENCE } from "../../src/cli/audit/check-content-quality.js";
 import { FACTUAL_CLAIMS_EVIDENCE } from "../../src/cli/audit/check-factual-claims.js";
+import { SNAPSHOT_CLAIMS_EVIDENCE } from "../../src/cli/audit/check-snapshot-claims.js";
 
 describe("validateProvenance", () => {
   it("accepts a well-formed spec entry", () => {
@@ -98,5 +99,9 @@ describe("M05 check evidence constants validate", () => {
 
   it("FACTUAL_CLAIMS_EVIDENCE satisfies the schema", () => {
     assert.deepEqual(validateProvenance(FACTUAL_CLAIMS_EVIDENCE), []);
+  });
+
+  it("SNAPSHOT_CLAIMS_EVIDENCE satisfies the schema", () => {
+    assert.deepEqual(validateProvenance(SNAPSHOT_CLAIMS_EVIDENCE), []);
   });
 });

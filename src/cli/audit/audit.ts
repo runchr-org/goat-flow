@@ -14,6 +14,7 @@ import { HARNESS_CHECKS } from "./harness/index.js";
 import { checkDrift } from "./check-drift.js";
 import { runContentQualityChecks } from "./check-content-quality.js";
 import { runFactualClaimChecks } from "./check-factual-claims.js";
+import { runSnapshotClaimChecks } from "./check-snapshot-claims.js";
 import type {
   AuditContext,
   AuditConcern,
@@ -37,11 +38,16 @@ interface AuditOptions {
   checkContent?: boolean;
 }
 
-/** Combine content-quality + factual-claim findings into a ContentReport. */
+/** Combine content-quality + factual-claim + snapshot-claim findings into a ContentReport. */
 function computeContent(ctx: AuditContext): ContentReport {
   const quality = runContentQualityChecks(ctx);
   const factual = runFactualClaimChecks(ctx);
-  const findings = [...quality.findings, ...factual.findings];
+  const snapshot = runSnapshotClaimChecks(ctx);
+  const findings = [
+    ...quality.findings,
+    ...factual.findings,
+    ...snapshot.findings,
+  ];
   const warnings = findings.filter((f) => f.severity === "warning").length;
   const infos = findings.filter((f) => f.severity === "info").length;
   return {
@@ -49,7 +55,8 @@ function computeContent(ctx: AuditContext): ContentReport {
     findings,
     warnings,
     infos,
-    filesScanned: quality.filesScanned + factual.filesScanned,
+    filesScanned:
+      quality.filesScanned + factual.filesScanned + snapshot.filesScanned,
   };
 }
 

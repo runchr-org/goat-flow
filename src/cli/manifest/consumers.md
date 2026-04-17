@@ -49,15 +49,21 @@ M12 (multi-agent support matrix) will extend `workflow/manifest.json`'s
 `agents:` block. M12 will add its own `facts.agents` resolution layer in this
 same module; keep M12's concerns out of `manifest.ts` until M12 ships.
 
-## M06b deferred work
+## M06b shipped (2026-04-17)
 
-M06b (1.2.x) will add:
-- `workflow/manifest-snapshots/vX.Y.Z.json` frozen copies per release.
-- CHANGELOG-scoped numeric claim lint that compares release-frozen numbers
-  against the matching snapshot.
-- Migration of the four specific R1 failures from the 2026-04-17 session into
-  manifest-aware lint entries.
+M06b landed in the same session as M06a:
 
-Numeric-claim drift detection in README, docs, and architecture.md is
-already shipped by M05 via `goat-flow audit --check-content` (see
-`src/cli/audit/check-factual-claims.ts`).
+- `workflow/manifest-snapshots/v1.1.0.json` — first frozen release snapshot.
+- `workflow/manifest-snapshots/README.md` — frozen-copy contract and the
+  cp-then-annotate procedure for release-time capture.
+- `src/cli/audit/check-snapshot-claims.ts` — CHANGELOG-section + release.md
+  whole-file lint against per-version snapshots. Wired into
+  `goat-flow audit --check-content` (and therefore `scripts/preflight-checks.sh`
+  via the existing "GOAT Flow Audit" section).
+- `src/cli/audit/check-factual-claims.ts` — extended with
+  `dashboard-views-count-drift` + `preset-count-drift` rules (tight patterns
+  + loose dashboard-scoped patterns for `docs/dashboard.md`). Reads actual
+  counts from `loadManifest().facts`.
+
+See `.goat-flow/logs/sessions/2026-04-17-M06-single-source-of-truth-manifest.md`
+for the full M06a + M06b implementation history and injection-matrix evidence.
