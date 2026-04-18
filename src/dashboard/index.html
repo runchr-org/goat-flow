@@ -75,6 +75,72 @@
       </button>
     </div>
 
+    <!-- ═══ Max Sessions Modal (global overlay; triggered from any view) ═══ -->
+    <div
+      x-show="showMaxSessionsModal"
+      x-cloak
+      @click.self="showMaxSessionsModal = false"
+      @keydown.escape.window="showMaxSessionsModal = false"
+      style="
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(2px);
+      "
+    >
+      <div
+        class="gf-card"
+        style="
+          padding: 24px 28px;
+          max-width: 380px;
+          text-align: center;
+          border-radius: 12px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        "
+      >
+        <div style="font-size: 28px; margin-bottom: 12px">&#9888;</div>
+        <h3
+          class="gf-text-primary"
+          style="font-size: 16px; font-weight: 600; margin: 0 0 6px"
+        >
+          Session Limit Reached
+        </h3>
+        <p
+          class="gf-text-muted"
+          style="font-size: 13px; line-height: 1.5; margin: 0 0 16px"
+        >
+          Maximum of 7 terminal sessions. End an existing session from the
+          <button
+            @click="showMaxSessionsModal = false; activeView = 'workspace'"
+            style="
+              background: none;
+              border: none;
+              padding: 0;
+              color: var(--accent);
+              cursor: pointer;
+              font-weight: 500;
+              text-decoration: underline;
+              font-size: inherit;
+            "
+          >
+            Workspace
+          </button>
+          sessions panel to start a new one.
+        </p>
+        <button
+          @click="showMaxSessionsModal = false"
+          class="gf-btn gf-btn-md gf-btn-primary"
+          style="min-width: 100px"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+
     <!-- ═══ Project Browser Overlay ═══ -->
     <div
       x-show="showBrowser"
@@ -199,6 +265,13 @@
               :class="activeView === 'projects' && 'gf-nb-active'"
             >
               Projects
+            </button>
+            <button
+              @click="activeView = 'prompts'"
+              class="gf-nb"
+              :class="activeView === 'prompts' && 'gf-nb-active'"
+            >
+              Prompts
             </button>
             <button
               @click="activeView = 'workspace'"
@@ -370,6 +443,7 @@
         <!-- View fragments (assembled server-side) -->
         <!-- include: views/workspace.html -->
 
+        <!-- include: views/prompts.html -->
         <!-- include: views/quality.html -->
         <!-- include: views/wizard.html -->
         <!-- include: views/home.html -->

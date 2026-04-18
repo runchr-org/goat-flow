@@ -1,208 +1,381 @@
-<!-- ═══ Workspace View (split-pane: prompts left, terminal right) ═══ -->
+<!-- ═══ Workspace View (Sessions rail + Terminal) ═══ -->
 <div
   x-show="activeView === 'workspace'"
   x-cloak
   class="flex"
   style="height: calc(100vh - 5rem)"
 >
-  <!-- Mobile sub-tab toggle -->
-  <div
-    class="md:hidden flex border-b border-gray-200 dark:border-gray-700 absolute top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900"
-  >
-    <button
-      @click="workspacePanel = 'prompts'"
-      :class="workspacePanel === 'prompts' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'"
-      class="flex-1 py-2 text-xs font-medium border-b-2 transition-colors"
-    >
-      Prompts
-    </button>
-    <button
-      @click="workspacePanel = 'terminal'"
-      :class="workspacePanel === 'terminal' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'"
-      class="flex-1 py-2 text-xs font-medium border-b-2 transition-colors relative"
-    >
-      Terminal
-      <span
-        x-show="terminalSessionId && !terminalEnded"
-        class="absolute top-1 right-4 w-2 h-2 rounded-full bg-green-500 animate-pulse"
-      ></span>
-    </button>
-  </div>
-
-  <!-- Left Panel: Prompts -->
-  <div
-    x-show="!sidebarCollapsed"
+  <!-- Left: Sessions rail -->
+  <aside
+    x-show="!sessionsCollapsed"
     x-transition:enter="transition-all duration-200"
+    x-transition:enter-start="opacity-0 -translate-x-2"
+    x-transition:enter-end="opacity-100 translate-x-0"
     x-transition:leave="transition-all duration-200"
-    :class="workspacePanel === 'prompts' ? '' : 'hidden md:flex'"
-    class="w-full md:w-72 lg:w-80 shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col overflow-hidden md:pt-0 pt-10"
+    x-transition:leave-start="opacity-100 translate-x-0"
+    x-transition:leave-end="opacity-0 -translate-x-2"
+    class="w-64 shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
   >
-    <!-- Search + Category filters (sticky) -->
+    <!-- Header + counter -->
     <div
-      class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-10 space-y-1.5"
+      class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0"
     >
-      <div class="relative">
-        <input
-          type="text"
-          x-model="presetSearch"
-          placeholder="Search prompts..."
-          x-ref="presetSearchInput"
-          class="w-full text-xs border focus:ring-1 focus:ring-blue-500 gf-input"
-          style="padding: 6px 48px 6px 10px; border-radius: 6px; outline: none"
-        />
-        <span
-          class="absolute right-6 top-1/2 -translate-y-1/2 text-xs text-gray-300 dark:text-gray-600 pointer-events-none"
-          >/</span
-        >
+      <span class="gf-text-primary" style="font-size: 14px; font-weight: 600"
+        >Sessions</span
+      >
+      <span
+        style="font-size: 11px; font-weight: 600"
+        :style="{ color: serverSessions.length >= 7 ? 'var(--red-400)' : 'var(--text-muted)' }"
+        x-text="serverSessions.length + '/7'"
+      ></span>
+    </div>
+
+    <!-- Max-sessions banner -->
+    <div
+      x-show="serverSessions.length >= 7"
+      class="px-3 py-2 border-b shrink-0 text-xs"
+      style="
+        background: rgba(248, 113, 113, 0.08);
+        border-color: rgba(248, 113, 113, 0.3);
+        color: var(--red-400);
+        line-height: 1.4;
+      "
+    >
+      Session limit reached (7/7). End one to launch another.
+    </div>
+
+    <!-- List area -->
+    <div class="flex-1 overflow-y-auto">
+      <!-- Empty state -->
+      <div
+        x-show="serverSessions.length === 0"
+        class="text-center"
+        style="padding: 24px 16px"
+      >
+        <p class="gf-text-muted" style="font-size: 12px; margin-bottom: 12px">
+          No running sessions.
+        </p>
         <button
-          x-show="presetSearch"
-          @click="presetSearch = ''"
-          class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+          @click="activeView = 'prompts'; $nextTick(() => { $refs.presetSearchInput && $refs.presetSearchInput.focus() })"
+          class="gf-btn gf-btn-sm gf-btn-primary"
+          style="font-size: 11px"
         >
-          &times;
+          + New session
         </button>
       </div>
-    </div>
-    <div
-      class="px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 flex flex-wrap gap-1 bg-white dark:bg-gray-800 sticky top-8 z-10"
-    >
-      <template x-for="cat in presetCats" :key="cat.id">
-        <button
-          @click="presetFilter = cat.id"
-          :class="presetFilter === cat.id ? (cat.id === 'plan' ? 'text-gray-900' : 'text-white') : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
-          :style="presetFilter === cat.id ? 'background:' + ({'all':'#4ade80','favorites':'#4ade80','debug':'#60a5fa','review':'#c084fc','plan':'#fbbf24','critique':'#a78bfa','qa':'#4ade80','security':'#f87171'}[cat.id] || '#4ade80') : ''"
-          class="px-2 py-0.5 text-xs font-medium rounded-full transition-colors"
-          x-text="cat.label + (cat.id !== 'all' && cat.id !== 'favorites' ? ' (' + presets.filter(p => p.cat === cat.id).length + ')' : '')"
-        ></button>
-      </template>
-    </div>
 
-    <!-- Prompt list (scrollable) -->
-    <div class="flex-1 overflow-y-auto pb-16">
-      <template x-for="preset in filteredPresets" :key="preset.id">
+      <!-- This project group -->
+      <div x-show="currentProjectSessions.length > 0">
         <div
-          @click="selectedPreset = preset"
-          class="border-b border-gray-100 dark:border-gray-700 border-l-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700/50 flex items-start gap-2 cursor-pointer transition-all"
-          :class="{
-                'ring-1 ring-emerald-500/50': selectedPreset?.id === preset.id,
-                'border-l-amber-400 bg-amber-900/20': promptRunStates[preset.id] === 'running',
-                'border-l-emerald-400': promptRunStates[preset.id] === 'pass',
-                'border-l-red-400': promptRunStates[preset.id] === 'fail',
-                'border-l-blue-400': !promptRunStates[preset.id] && preset.cat === 'debug',
-                'border-l-purple-400': !promptRunStates[preset.id] && preset.cat === 'review',
-                'border-l-amber-400': !promptRunStates[preset.id] && preset.cat === 'plan',
-                'border-l-green-400': !promptRunStates[preset.id] && preset.cat === 'qa',
-                'border-l-red-400': !promptRunStates[preset.id] && preset.cat === 'security'
-              }"
+          class="px-3 py-1 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 text-xs gf-text-muted"
+          style="font-weight: 600"
         >
-          <button
-            @click.stop="toggleFavorite(preset.id)"
-            class="shrink-0 text-sm transition-colors"
-            :class="isFavorite(preset.id) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600 hover:text-yellow-300'"
-            x-text="isFavorite(preset.id) ? '★' : '☆'"
-            :title="isFavorite(preset.id) ? 'Remove from favorites' : 'Add to favorites'"
-          ></button>
-          <div class="flex-1 min-w-0">
-            <p
-              class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate"
-              x-text="preset.name"
-            ></p>
-            <p
-              class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2"
-              x-text="preset.desc"
-            ></p>
-            <span
-              class="text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block"
-              :class="{
-                    'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400': preset.cat === 'debug',
-                    'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400': preset.cat === 'review',
-                    'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400': preset.cat === 'plan',
-                    'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400': preset.cat === 'qa',
-                    'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400': preset.cat === 'security'
-                  }"
-              x-text="preset.cat"
-            ></span>
-          </div>
-          <button
-            x-data="{ copied: false }"
-            @click="copyPreset(preset.prompt); copied = true; setTimeout(() => copied = false, 1000)"
-            class="shrink-0 p-1.5 transition-colors"
-            :class="copied ? 'text-green-500' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
-            title="Copy prompt to clipboard"
-          >
-            <svg
-              x-show="!copied"
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              viewBox="0 0 24 24"
-            >
-              <rect x="9" y="9" width="13" height="13" rx="2" />
-              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-            </svg>
-            <svg
-              x-show="copied"
-              x-cloak
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M4.5 12.75l6 6 9-13.5"
-              />
-            </svg>
-          </button>
-          <button
-            x-show="terminalAvailable && (!terminalSessionId || terminalEnded)"
-            @click="launchPreset(preset.prompt, activeRunner); workspacePanel = 'terminal'"
-            class="shrink-0 p-1.5 rounded-full bg-transparent text-gray-400 border border-[#3f3f46] hover:text-emerald-400 hover:border-emerald-600 transition-colors"
-            title="Launch in terminal"
-          >
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"
-              />
-            </svg>
-          </button>
-          <button
-            x-show="terminalSessionId && !terminalEnded"
-            @click="sendToTerminal(preset.prompt); workspacePanel = 'terminal'"
-            class="shrink-0 p-1.5 rounded-full bg-transparent text-emerald-400 border border-emerald-600 hover:bg-emerald-900/30 transition-colors"
-            title="Send to terminal"
-          >
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95l15.556-6.374a.75.75 0 000-1.374L3.105 2.289z"
-              />
-            </svg>
-          </button>
+          This project (<span x-text="currentProjectSessions.length"></span>)
         </div>
-      </template>
-      <p
-        x-show="filteredPresets.length === 0 && presetFilter === 'favorites'"
-        class="text-xs text-gray-400 p-3 text-center"
-      >
-        No favorites yet. Click &#9733; on any prompt to pin it here.
-      </p>
-      <p
-        x-show="filteredPresets.length === 0 && presetFilter !== 'favorites'"
-        class="text-xs text-gray-400 p-3 text-center"
-      >
-        No presets in this category.
-      </p>
-    </div>
-  </div>
+        <template x-for="s in currentProjectSessions" :key="'cur-' + s.id">
+          <div
+            @click="confirmEndSessionId === s.id ? null : (isSessionBoundLocally(s.id) ? (activeSessionId = s.id) : openServerSession(s))"
+            class="border-b border-l-2 px-3 py-2 cursor-pointer transition-colors"
+            style="border-color: var(--border)"
+            :class="{
+              'ring-1 ring-emerald-500/50 border-l-emerald-400': s.id === activeSessionId,
+              'border-l-transparent': s.id !== activeSessionId
+            }"
+            :style="confirmEndSessionId === s.id ? { background: 'rgba(248, 113, 113, 0.08)' } : {}"
+          >
+            <div
+              style="display: flex; align-items: center; gap: 8px; min-width: 0"
+            >
+              <span
+                style="
+                  width: 7px;
+                  height: 7px;
+                  border-radius: 50%;
+                  flex-shrink: 0;
+                "
+                :style="{ background: s.status === 'active' ? '#4ade80' : '#9ca3af' }"
+              ></span>
+              <span
+                style="
+                  font-size: 11px;
+                  font-weight: 600;
+                  padding: 1px 6px;
+                  border-radius: 4px;
+                  flex-shrink: 0;
+                "
+                :style="{
+                  background: ({ claude: 'rgba(251,146,60,0.15)', codex: 'rgba(74,222,128,0.15)', gemini: 'rgba(96,165,250,0.15)' }[s.runner] || 'rgba(160,160,160,0.15)'),
+                  color: ({ claude: '#fb923c', codex: '#4ade80', gemini: '#60a5fa' }[s.runner] || '#a0a0a0')
+                }"
+                x-text="s.runner"
+              ></span>
+              <span
+                class="gf-text-muted"
+                style="font-size: 11px; flex-shrink: 0"
+                x-text="(() => {
+                  const m = Math.floor((s.age || 0) / 60);
+                  const h = Math.floor(m / 60);
+                  return h > 0 ? h + 'h ' + (m % 60) + 'm' : m + 'm';
+                })()"
+              ></span>
+              <span
+                x-show="_projectSessions[s.projectPath] && _projectSessions[s.projectPath].sessionId === s.id && s.id !== activeSessionId"
+                class="gf-text-muted"
+                style="
+                  font-size: 10px;
+                  padding: 0 4px;
+                  border: 1px solid var(--border);
+                  border-radius: 3px;
+                  flex-shrink: 0;
+                "
+                >detached</span
+              >
+              <button
+                x-show="confirmEndSessionId !== s.id"
+                @click.stop="confirmEndSessionId = s.id"
+                class="gf-btn gf-btn-sm"
+                style="
+                  margin-left: auto;
+                  background: none;
+                  border: none;
+                  color: var(--text-muted);
+                  font-size: 11px;
+                  padding: 2px 6px;
+                "
+                @mouseenter="$el.style.color = 'var(--red-400)'"
+                @mouseleave="$el.style.color = 'var(--text-muted)'"
+                title="End session"
+              >
+                End
+              </button>
+              <span
+                x-show="confirmEndSessionId === s.id"
+                style="margin-left: auto; display: flex; gap: 4px"
+              >
+                <button
+                  @click.stop="endServerSession(s.id); confirmEndSessionId = null"
+                  class="gf-btn gf-btn-sm gf-btn-danger"
+                  style="font-size: 11px; padding: 1px 6px"
+                >
+                  Yes
+                </button>
+                <button
+                  @click.stop="confirmEndSessionId = null"
+                  class="gf-btn gf-btn-sm"
+                  style="
+                    background: none;
+                    border: none;
+                    color: var(--text-muted);
+                    font-size: 11px;
+                    padding: 1px 6px;
+                  "
+                >
+                  No
+                </button>
+              </span>
+            </div>
+            <div
+              x-show="isSessionBoundLocally(s.id) && sessions.find(x => x.id === s.id)?.promptLabel"
+              class="gf-text-muted"
+              style="
+                font-size: 10px;
+                margin-top: 4px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+              "
+              x-text="sessions.find(x => x.id === s.id)?.promptLabel"
+            ></div>
+            <div
+              x-show="s.idleDuration !== undefined && s.idleDuration >= 50 * 60"
+              style="margin-top: 4px"
+            >
+              <span
+                style="font-size: 10px; padding: 1px 5px; border-radius: 3px"
+                :style="s.idleDuration >= 58 * 60
+                  ? { background: 'rgba(248,113,113,0.15)', color: '#f87171' }
+                  : { background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }"
+                x-text="s.idleDuration >= 58 * 60
+                  ? 'Timeout in ' + Math.max(0, 60 - Math.floor(s.idleDuration / 60)) + 'm'
+                  : 'idle ' + Math.floor(s.idleDuration / 60) + 'm'"
+              ></span>
+            </div>
+          </div>
+        </template>
+      </div>
 
-  <!-- Sidebar toggle -->
+      <!-- Other projects group (collapsible) -->
+      <div x-show="otherProjectSessions.length > 0">
+        <div
+          @click="otherCollapsed = !otherCollapsed"
+          class="px-3 py-1 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 text-xs gf-text-muted cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+          style="
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          "
+        >
+          <span
+            >Other projects (<span x-text="otherProjectSessions.length"></span
+            >)</span
+          >
+          <span
+            x-text="otherCollapsed ? '+' : '−'"
+            style="font-size: 13px; font-family: monospace"
+          ></span>
+        </div>
+        <div x-show="!otherCollapsed">
+          <template x-for="s in otherProjectSessions" :key="'oth-' + s.id">
+            <div
+              @click="confirmEndSessionId === s.id ? null : (isSessionBoundLocally(s.id) ? (activeSessionId = s.id) : openServerSession(s))"
+              class="border-b border-l-2 px-3 py-2 cursor-pointer transition-colors"
+              style="border-color: var(--border)"
+              :class="{
+                'ring-1 ring-emerald-500/50 border-l-emerald-400': s.id === activeSessionId,
+                'border-l-transparent': s.id !== activeSessionId
+              }"
+              :style="confirmEndSessionId === s.id ? { background: 'rgba(248, 113, 113, 0.08)' } : {}"
+            >
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  min-width: 0;
+                "
+              >
+                <span
+                  style="
+                    width: 7px;
+                    height: 7px;
+                    border-radius: 50%;
+                    flex-shrink: 0;
+                  "
+                  :style="{ background: s.status === 'active' ? '#4ade80' : '#9ca3af' }"
+                ></span>
+                <span
+                  style="
+                    font-size: 11px;
+                    font-weight: 600;
+                    padding: 1px 6px;
+                    border-radius: 4px;
+                    flex-shrink: 0;
+                  "
+                  :style="{
+                    background: ({ claude: 'rgba(251,146,60,0.15)', codex: 'rgba(74,222,128,0.15)', gemini: 'rgba(96,165,250,0.15)' }[s.runner] || 'rgba(160,160,160,0.15)'),
+                    color: ({ claude: '#fb923c', codex: '#4ade80', gemini: '#60a5fa' }[s.runner] || '#a0a0a0')
+                  }"
+                  x-text="s.runner"
+                ></span>
+                <span
+                  class="gf-text-muted"
+                  style="font-size: 11px; flex-shrink: 0"
+                  x-text="(() => {
+                    const m = Math.floor((s.age || 0) / 60);
+                    const h = Math.floor(m / 60);
+                    return h > 0 ? h + 'h ' + (m % 60) + 'm' : m + 'm';
+                  })()"
+                ></span>
+                <button
+                  x-show="confirmEndSessionId !== s.id"
+                  @click.stop="confirmEndSessionId = s.id"
+                  class="gf-btn gf-btn-sm"
+                  style="
+                    margin-left: auto;
+                    background: none;
+                    border: none;
+                    color: var(--text-muted);
+                    font-size: 11px;
+                    padding: 2px 6px;
+                  "
+                  @mouseenter="$el.style.color = 'var(--red-400)'"
+                  @mouseleave="$el.style.color = 'var(--text-muted)'"
+                  title="End session"
+                >
+                  End
+                </button>
+                <span
+                  x-show="confirmEndSessionId === s.id"
+                  style="margin-left: auto; display: flex; gap: 4px"
+                >
+                  <button
+                    @click.stop="endServerSession(s.id); confirmEndSessionId = null"
+                    class="gf-btn gf-btn-sm gf-btn-danger"
+                    style="font-size: 11px; padding: 1px 6px"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    @click.stop="confirmEndSessionId = null"
+                    class="gf-btn gf-btn-sm"
+                    style="
+                      background: none;
+                      border: none;
+                      color: var(--text-muted);
+                      font-size: 11px;
+                      padding: 1px 6px;
+                    "
+                  >
+                    No
+                  </button>
+                </span>
+              </div>
+              <div
+                class="gf-text-muted"
+                style="
+                  font-size: 10px;
+                  margin-top: 4px;
+                  font-family: var(--font-mono);
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
+                "
+                x-text="s.projectName"
+                :title="s.projectPath"
+              ></div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer actions -->
+    <div
+      x-show="serverSessions.length > 0"
+      class="border-t border-gray-200 dark:border-gray-700 shrink-0"
+      style="padding: 8px; display: flex; gap: 6px; align-items: center"
+    >
+      <button
+        @click="activeView = 'prompts'; $nextTick(() => { $refs.presetSearchInput && $refs.presetSearchInput.focus() })"
+        class="gf-btn gf-btn-sm gf-btn-primary"
+        style="font-size: 11px; flex: 1"
+      >
+        + New session
+      </button>
+      <button
+        x-show="serverSessions.length > 1"
+        @click="if(confirm('End all ' + serverSessions.length + ' sessions?')) endAllSessions()"
+        class="gf-btn gf-btn-sm"
+        style="
+          font-size: 11px;
+          background: none;
+          border: 1px solid var(--border);
+          color: var(--text-muted);
+        "
+        @mouseenter="$el.style.color = 'var(--red-400)'; $el.style.borderColor = 'var(--red-400)'"
+        @mouseleave="$el.style.color = 'var(--text-muted)'; $el.style.borderColor = 'var(--border)'"
+      >
+        End all
+      </button>
+    </div>
+  </aside>
+
+  <!-- Sessions chevron toggle -->
   <button
-    @click="sidebarCollapsed = !sidebarCollapsed"
-    class="hidden md:flex items-center justify-center shrink-0 w-5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer border-r border-gray-200 dark:border-gray-700"
-    :title="sidebarCollapsed ? 'Show prompts' : 'Hide prompts'"
+    @click="sessionsCollapsed = !sessionsCollapsed"
+    class="flex items-center justify-center shrink-0 w-5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer border-r border-gray-200 dark:border-gray-700"
+    :title="sessionsCollapsed ? 'Show sessions' : 'Hide sessions'"
     style="
       background: transparent;
       border-left: none;
@@ -211,7 +384,7 @@
     "
   >
     <svg
-      :style="{ transform: sidebarCollapsed ? 'rotate(180deg)' : '' }"
+      :style="{ transform: sessionsCollapsed ? 'rotate(180deg)' : '' }"
       style="
         width: 12px;
         height: 12px;
@@ -232,10 +405,7 @@
   </button>
 
   <!-- Right Panel: Terminal -->
-  <div
-    :class="workspacePanel === 'terminal' ? '' : 'hidden md:flex'"
-    class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 md:pt-0 pt-10"
-  >
+  <div class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
     <!-- node-pty missing -->
     <div
       x-show="!terminalAvailable"
@@ -262,55 +432,12 @@
       </div>
     </div>
 
-    <!-- No session: prompt preview OR empty state -->
+    <!-- No session: empty state (prompt preview now lives on the Prompts page) -->
     <div
-      x-show="terminalAvailable && !terminalSessionId && selectedPreset"
-      class="flex-1 flex flex-col overflow-hidden"
-    >
-      <div
-        class="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0"
-      >
-        <span
-          class="text-sm font-semibold gf-text-primary truncate"
-          x-text="selectedPreset?.name"
-        ></span>
-        <div class="flex items-center gap-2 shrink-0">
-          <button
-            x-data="{ copied: false }"
-            @click="copyPreset(selectedPreset?.prompt); copied = true; setTimeout(() => copied = false, 1000)"
-            class="gf-btn-copy"
-            :style="copied ? 'background:#14532d;color:#4ade80;border-color:#166534' : ''"
-            x-text="copied ? 'Copied!' : 'Copy'"
-          ></button>
-          <button
-            @click="launchPreset(selectedPreset?.prompt, activeRunner); workspacePanel = 'terminal'"
-            class="gf-btn-terminal"
-          >
-            Launch
-          </button>
-        </div>
-      </div>
-      <div class="flex-1 overflow-y-auto" style="background: #0f1729">
-        <pre
-          class="p-4 text-sm font-mono leading-relaxed whitespace-pre-wrap"
-          style="color: #e4e4e7"
-          x-text="adaptPrompt(selectedPreset?.prompt)"
-        ></pre>
-      </div>
-      <div
-        class="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0"
-      >
-        <span class="text-xs gf-text-muted"
-          >Will run with: <strong x-text="activeRunner"></strong
-        ></span>
-      </div>
-    </div>
-
-    <div
-      x-show="terminalAvailable && !terminalSessionId && !selectedPreset"
+      x-show="terminalAvailable && !terminalSessionId"
       class="flex-1 flex items-center justify-center"
     >
-      <div class="text-center space-y-3">
+      <div class="text-center space-y-3 max-w-md px-4">
         <svg
           class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600"
           fill="none"
@@ -327,10 +454,12 @@
         <p class="text-sm text-gray-400 dark:text-gray-500">
           No active terminal session
         </p>
-        <p class="text-xs text-gray-400 dark:text-gray-500">
-          Click a prompt to preview, or <strong>Launch</strong> to start a
-          session.
-        </p>
+        <button
+          @click="activeView = 'prompts'; $nextTick(() => { $refs.presetSearchInput && $refs.presetSearchInput.focus() })"
+          class="gf-btn gf-btn-md gf-btn-primary"
+        >
+          Pick a prompt
+        </button>
       </div>
     </div>
 
@@ -374,13 +503,6 @@
             ></span>
           </div>
           <div class="flex items-center gap-2">
-            <button
-              x-show="terminalSessionCount > 1"
-              @click="if(confirm('End all ' + terminalSessionCount + ' sessions?')) endAllSessions()"
-              class="text-xs text-red-500 hover:underline"
-            >
-              End all sessions
-            </button>
             <span class="text-xs text-gray-400">Ctrl+Shift+D</span>
             <button
               @click="exitTerminal()"

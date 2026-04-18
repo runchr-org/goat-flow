@@ -460,7 +460,7 @@ describe("dashboard terminal endpoints", () => {
     const data = expectRecord(body, "Terminal sessions response");
     assert.ok(Array.isArray(data.sessions));
     assert.deepEqual(data.sessions, []);
-    assert.equal(data.maxSessions, 3);
+    assert.equal(data.maxSessions, 7);
     assert.equal(data.activeCount, 0);
   });
 });

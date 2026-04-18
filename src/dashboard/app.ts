@@ -370,8 +370,11 @@ function app() {
     allAgents: [] as AgentInfo[],
     activeRunner: "claude" as RunnerId,
     userRole: "",
-    workspacePanel: "prompts",
-    sidebarCollapsed: false,
+    workspacePanel: "terminal",
+    sessionsCollapsed: localStorage.getItem("gf-sessions-collapsed") === "true",
+    otherCollapsed: false,
+    confirmEndSessionId: null as string | null,
+    _workspacePoll: null as ReturnType<typeof setInterval> | null,
     get projectName(): string {
       return (
         this.projectPath.split("/").filter(Boolean).pop() || this.projectPath
@@ -404,7 +407,7 @@ function app() {
     showMaxSessionsModal: false,
     sessions: [] as LocalSession[],
     activeSessionId: null as string | null,
-    selectedPreset: null as string | null,
+    selectedPreset: null as Preset | null,
     promptRunStates: {} as Record<string, string>,
     launching: false,
     availableRunners: [] as RunnerId[],
@@ -443,6 +446,39 @@ function app() {
     get _terminalXterm(): XTermInstance | undefined {
       return this._terminalRefs[this.activeSessionId ?? ""]?.xterm;
     },
+    /** Sessions whose project matches the current projectPath, newest first. */
+    get currentProjectSessions(): ServerSessionInfo[] {
+      return this.serverSessions
+        .filter((s) => s.projectPath === this.projectPath)
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+    },
+    /** Sessions for other projects, grouped by project name then newest first. */
+    get otherProjectSessions(): ServerSessionInfo[] {
+      return this.serverSessions
+        .filter((s) => s.projectPath !== this.projectPath)
+        .sort((a, b) => {
+          const byName = (a.projectName || "").localeCompare(
+            b.projectName || "",
+          );
+          if (byName !== 0) return byName;
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        });
+    },
+    /** Active sessions for the current project; valid targets for `Send to active`. */
+    get sendTargetsInCurrentProject(): ServerSessionInfo[] {
+      return this.serverSessions.filter(
+        (s) => s.projectPath === this.projectPath && s.status === "active",
+      );
+    },
+    /** Whether a backend session is currently bound to a local xterm instance. */
+    isSessionBoundLocally(id: string): boolean {
+      return this.sessions.some((s) => s.id === id);
+    },
     terminalAuditActions: [
       {
         id: "audit-setup",
@@ -471,6 +507,21 @@ function app() {
     qualityLoading: false,
     qualityResult: null as QualityResult | null,
     qualityCopyLabel: "Copy",
+
+    /**
+     * Per-agent status summary used by the Setup page agent cards. Reflects
+     * audit outcomes, not whether the agent CLI is installed on the host.
+     */
+    wizardAgentStatus(agentId: RunnerId): { label: string; color: string } {
+      if (!this.report) return { label: "Not audited", color: "#52525b" };
+      const score = this.report.agentScores.find((s) => s.id === agentId);
+      if (!score) return { label: "Not audited", color: "#52525b" };
+      const agentPass = score.agent.status === "pass";
+      const harnessPass = !score.harness || score.harness.status === "pass";
+      if (agentPass && harnessPass) return { label: "Passing", color: "#4ade80" };
+      if (!agentPass) return { label: "Setup failing", color: "#f87171" };
+      return { label: "Harness failing", color: "#fbbf24" };
+    },
 
     // --- Wizard state ---
     wizardDetecting: false,
@@ -502,6 +553,27 @@ function app() {
     },
     isFavorite(id: string): boolean {
       return this.presetFavorites.includes(id);
+    },
+    /** Move the preview selection up (-1) or down (1) in screen order, with wrap. */
+    selectPresetByOffset(delta: number) {
+      const order = this.flatPresetOrder;
+      if (order.length === 0) return;
+      const currentId = this.selectedPreset?.id;
+      const currentIdx = currentId ? order.indexOf(currentId) : -1;
+      const nextIdx =
+        currentIdx === -1
+          ? delta > 0
+            ? 0
+            : order.length - 1
+          : (currentIdx + delta + order.length) % order.length;
+      const nextId = order[nextIdx];
+      const next = this.presets.find((p) => p.id === nextId);
+      if (!next) return;
+      this.selectedPreset = next;
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`preset-row-${nextId}`);
+        if (el) el.scrollIntoView({ block: "nearest" });
+      });
     },
     get presetCats(): Array<{ id: string; label: string }> {
       const cats = new Map<string, string>();
@@ -545,9 +617,85 @@ function app() {
       }
       return list;
     },
-    adaptPrompt(prompt: string): string {
-      if (this.activeRunner === "codex")
-        return prompt.replace(/^\/goat\b/, "$goat");
+    /** Presets grouped by category for the Prompts page grouped rendering. */
+    get presetsByCategory(): Array<{
+      id: string;
+      label: string;
+      items: Preset[];
+    }> {
+      const cats = this.presetCats.filter(
+        (c) => c.id !== "all" && c.id !== "favorites",
+      );
+      return cats.map((cat) => ({
+        id: cat.id,
+        label: cat.label,
+        items: this.presets.filter((p) => p.cat === cat.id),
+      }));
+    },
+    /**
+     * Unified sequence of entries for the Prompts page list: inserts category
+     * headers before each group in grouped mode, falls back to flat rows
+     * otherwise. Rendered with a single `template x-for` in prompts.html.
+     */
+    get renderedPresetEntries(): Array<
+      | { kind: "header"; id: string; label: string }
+      | { kind: "row"; preset: Preset }
+    > {
+      const entries: Array<
+        | { kind: "header"; id: string; label: string }
+        | { kind: "row"; preset: Preset }
+      > = [];
+      if (this.presetFilter === "all" && !this.presetSearch.trim()) {
+        for (const group of this.presetsByCategory) {
+          if (group.items.length === 0) continue;
+          entries.push({
+            kind: "header",
+            id: group.id,
+            label: `${group.label} (${group.items.length})`,
+          });
+          for (const p of group.items) entries.push({ kind: "row", preset: p });
+        }
+        return entries;
+      }
+      for (const p of this.filteredPresets)
+        entries.push({ kind: "row", preset: p });
+      return entries;
+    },
+    /**
+     * Flat list of preset IDs in screen order for keyboard nav. Uses grouped
+     * order when the list is grouped (filter=all + no search); otherwise
+     * falls back to filteredPresets order.
+     */
+    get flatPresetOrder(): string[] {
+      if (this.presetFilter === "all" && !this.presetSearch.trim()) {
+        const ids: string[] = [];
+        for (const group of this.presetsByCategory) {
+          for (const p of group.items) ids.push(p.id);
+        }
+        return ids;
+      }
+      return this.filteredPresets.map((p) => p.id);
+    },
+    /**
+     * Escaped, optionally search-highlighted HTML for the prompt preview.
+     * Escapes user-facing content before injecting <mark> tags so the preview
+     * stays safe when rendered via x-html.
+     */
+    get highlightedPromptHtml(): string {
+      const prompt = this.adaptPrompt(this.selectedPreset?.prompt ?? "");
+      const escaped = prompt
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      const query = this.presetSearch.trim();
+      if (!query) return escaped;
+      const qEscaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(qEscaped, "gi");
+      return escaped.replace(re, "<mark>$&</mark>");
+    },
+    adaptPrompt(prompt: string, runner?: RunnerId): string {
+      const r = runner ?? this.activeRunner;
+      if (r === "codex") return prompt.replace(/^\/goat\b/, "$goat");
       return prompt;
     },
     copyPreset(prompt: string) {
@@ -576,6 +724,39 @@ function app() {
       active.lastInputTime = Date.now();
       if (refs.xterm) refs.xterm.focus();
       return true;
+    },
+    /**
+     * Project-scoped send: resolve target to an active session in the current
+     * project, bind it if needed, then deliver the prompt once the WS is open.
+     * Use this from the Prompts page so send is always scoped to the project.
+     */
+    async sendToProjectTarget(prompt: string, target: ServerSessionInfo) {
+      if (target.projectPath !== this.projectPath) {
+        this.showToast("Target session is not in this project", true);
+        return;
+      }
+      if (this.isSessionBoundLocally(target.id)) {
+        this.activeSessionId = target.id;
+        this.activeView = "workspace";
+        this.workspacePanel = "terminal";
+      } else {
+        await this.openServerSession(target);
+      }
+      const prepared = this.adaptPrompt(prompt, target.runner);
+      const deliver = async (attempts: number): Promise<void> => {
+        const refs = this._terminalRefs[this.activeSessionId ?? ""];
+        if (refs?.ws && refs.ws.readyState === WebSocket.OPEN) {
+          this.sendToTerminal(prepared, { adapt: false });
+          return;
+        }
+        if (attempts > 20) {
+          this.showToast("Could not connect to terminal", true);
+          return;
+        }
+        await new Promise<void>((r) => setTimeout(r, 100));
+        return deliver(attempts + 1);
+      };
+      await deliver(0);
     },
     async runTerminalAuditCommand(action: AuditAction | null) {
       if (!action?.command) return;
@@ -676,7 +857,21 @@ function app() {
         });
       });
       self.$watch("activeView", (v: string) => {
-        if (v === "projects") this.updateSessionCount();
+        if (this._workspacePoll) {
+          clearInterval(this._workspacePoll);
+          this._workspacePoll = null;
+        }
+        if (v === "projects" || v === "workspace" || v === "prompts") {
+          this.updateSessionCount();
+        }
+        if (v === "workspace") {
+          this._workspacePoll = setInterval(() => {
+            this.updateSessionCount();
+          }, 10_000);
+        }
+      });
+      self.$watch("sessionsCollapsed", (v: boolean) => {
+        localStorage.setItem("gf-sessions-collapsed", String(v));
       });
       const updateTitle = (): void => {
         document.title = `${this.projectName} | GOAT Flow`;
@@ -739,11 +934,52 @@ function app() {
             document.activeElement?.tagName ?? "",
           )
         ) {
+          // Preserve focus inside an active terminal session.
+          if (
+            this.activeView === "workspace" &&
+            this.terminalSessionId &&
+            !this.terminalEnded
+          ) {
+            return;
+          }
           e.preventDefault();
-          const searchInput = self.$refs.presetSearchInput;
-          if (searchInput instanceof HTMLInputElement) {
-            this.activeView = "workspace";
-            self.$nextTick(() => searchInput.focus());
+          this.activeView = "prompts";
+          self.$nextTick(() => {
+            const searchInput = self.$refs.presetSearchInput;
+            if (searchInput instanceof HTMLInputElement) searchInput.focus();
+          });
+        }
+        if (this.activeView === "prompts") {
+          const inputFocused = ["INPUT", "TEXTAREA", "SELECT"].includes(
+            document.activeElement?.tagName ?? "",
+          );
+          if (!inputFocused) {
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              this.selectPresetByOffset(1);
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              this.selectPresetByOffset(-1);
+            } else if (e.key === "Enter") {
+              if (
+                this.selectedPreset &&
+                !this.launching &&
+                Math.max(this.sessions.length, this.serverSessions.length) < 7
+              ) {
+                e.preventDefault();
+                this.launchPreset(
+                  this.selectedPreset.prompt,
+                  this.activeRunner,
+                );
+              }
+            }
+          }
+          if (e.key === "Escape") {
+            if (this.presetSearch) {
+              this.presetSearch = "";
+            } else if (this.selectedPreset) {
+              this.selectedPreset = null;
+            }
           }
         }
       });
@@ -1307,7 +1543,7 @@ function app() {
         presetId = null,
       }: { promptLabel?: string | null; presetId?: string | null } = {},
     ) {
-      if (this.sessions.length >= 3) {
+      if (Math.max(this.sessions.length, this.serverSessions.length) >= 7) {
         this.showMaxSessionsModal = true;
         return;
       }

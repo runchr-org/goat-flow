@@ -20,9 +20,13 @@ Guided setup flow. Detects your project stack and existing configuration, lets y
 
 Multi-project browser. Lists all registered project paths with their latest audit status. "Audit All" re-audits every project in one click. Select a project to switch context and view its results on the Home view.
 
+### Prompts
+
+Dedicated prompt library. Two-pane layout: left pane is the list with search, category filters, favorites strip, and grouped-by-category rendering; right pane is the full prompt preview with search-match highlighting. Primary actions are `Copy`, `Launch in new terminal`, and `Send to active terminal` -- the last one is project-scoped and only appears when one or more active sessions exist for the current project (a picker is shown when multiple). Keyboard: `/` focuses search, `↑` / `↓` navigate, `Enter` launches the selected prompt, `Esc` clears the search or selection.
+
 ### Workspace
 
-Split-pane layout. The left panel is a prompt library with category filters and search -- select a prompt to preview it or send it straight to the terminal. The right panel is a live terminal session (xterm.js over WebSocket) where you run agent commands. On mobile the panels collapse into a tab toggle.
+Split layout focused on terminal work. The left **Sessions rail** lists all running terminal sessions (up to 3) grouped by current project first then other projects, with single-click session switching, runner/age/idle/detached indicators, inline-confirm `End`, an `End all` footer, and a `+ New session` shortcut that jumps to Prompts. The right pane is the active xterm.js terminal. The rail uses `x-transition` on collapse/expand.
 
 ### Settings
 
@@ -37,7 +41,7 @@ Getting-started page for new users. Explains what goat-flow is, the audit/qualit
 - Supports Claude, Codex, Gemini runners
 - WebSocket-based PTY sessions via xterm.js
 - 60-minute idle timeout with auto-kill
-- Maximum 3 concurrent sessions
+- Maximum 7 concurrent sessions
 - Session state: running / ended / error
 
 ## API Endpoints

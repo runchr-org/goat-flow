@@ -905,7 +905,7 @@ export function serveDashboard(
         }));
         jsonResponse(res, 200, {
           sessions: enriched,
-          maxSessions: 3,
+          maxSessions: 7,
           activeCount: sessions.length,
         });
       } catch (err) {

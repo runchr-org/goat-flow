@@ -67,8 +67,8 @@
               ></div>
               <div
                 style="font-size: 11px; margin-top: 2px"
-                x-text="report ? (report.status === 'pass' ? 'Passing' : 'Not installed') : 'Not audited'"
-                :style="{ color: report ? (report.status === 'pass' ? '#4ade80' : '#f87171') : '#52525b' }"
+                x-text="wizardAgentStatus(agentId).label"
+                :style="{ color: wizardAgentStatus(agentId).color }"
               ></div>
             </div>
           </template>

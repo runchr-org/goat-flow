@@ -291,8 +291,9 @@
                 "
               >
                 <button
-                  @click="(terminalSessionId && !terminalEnded) ? (sendToTerminal(qualityResult.prompt), activeView = 'workspace') : (launchPreset(qualityResult.prompt, activeRunner), activeView = 'workspace')"
-                  :disabled="launching"
+                  @click="launchPreset(qualityResult.prompt, activeRunner); activeView = 'workspace'"
+                  :disabled="launching || serverSessions.length >= 7"
+                  :title="serverSessions.length >= 7 ? 'Session limit reached (7/7). End one to launch another.' : 'Launch in a new terminal session.'"
                   class="gf-btn-terminal-cta"
                 >
                   <svg
@@ -308,9 +309,7 @@
                       d="M8 5l8 7-8 7"
                     />
                   </svg>
-                  <span
-                    x-text="(terminalSessionId && !terminalEnded) ? 'Send Quality Prompt to Running Terminal' : 'Run Quality Assessment in Terminal'"
-                  ></span>
+                  <span>Run Quality Assessment in Terminal</span>
                 </button>
               </div>
               <div
