@@ -9,7 +9,10 @@ Prefer category bucket files such as `verification.md`, `workflow.md`, or `coord
 ```yaml
 ---
 category: verification
+last_reviewed: 2026-04-18
 ---
 ```
+
+Both `category` and `last_reviewed` are required. `last_reviewed` must be a strict `YYYY-MM-DD` date (no timestamps). Bump it when you add an entry or materially edit the body; cosmetic edits (typos, whitespace) do not require a bump. `goat-flow stats --check` fails when the field is missing or malformed.
 
 Inside a bucket, add entries as `## Lesson:` or `## Pattern:` blocks. Legacy one-entry files still work during migration, but category buckets are the preferred format.

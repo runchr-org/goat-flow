@@ -8,6 +8,7 @@ bash -n scripts/*.sh scripts/maintenance/*.sh                                   
 bash scripts/preflight-checks.sh         # Full preflight gate
 npm run typecheck                                 # Type-check .ts (required by DoD)
 npm test                                          # Run test suite
+node --import tsx src/cli/cli.ts stats . --check  # Learning-loop health: last_reviewed + stale refs
 ```
 ## Truth Order
 

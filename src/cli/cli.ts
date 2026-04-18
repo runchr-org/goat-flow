@@ -418,9 +418,8 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
 async function handleStatsCommand(options: ParsedCLI): Promise<void> {
   const { createFS } = await import("./facts/fs.js");
   const { loadConfig } = await import("./config/reader.js");
-  const { extractFootgunFacts, extractLessonsFacts } = await import(
-    "./facts/shared/learning-loop.js"
-  );
+  const { extractFootgunFacts, extractLessonsFacts } =
+    await import("./facts/shared/learning-loop.js");
   const { buildStatsReport, checkStats } = await import("./stats/stats.js");
   const {
     renderStatsText,

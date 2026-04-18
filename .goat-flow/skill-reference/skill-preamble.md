@@ -109,6 +109,17 @@ After completing the skill, check if this run uncovered anything worth logging:
 - Successful repeatable approach → `## Pattern:` entry in `.goat-flow/patterns.md`
 - Architectural trap with file evidence → `## Footgun:` entry in `.goat-flow/footguns/` category bucket
 
+**Bucket file frontmatter.** Every footgun / lesson bucket file starts with:
+
+```yaml
+---
+category: <bucket-name>
+last_reviewed: YYYY-MM-DD
+---
+```
+
+When you add an entry or materially edit the body of a bucket file, bump `last_reviewed` to today's date. Cosmetic edits (typos, whitespace, link formatting) do not require a bump. `goat-flow stats --check` fails when `last_reviewed` is missing, not `YYYY-MM-DD`, or when the bucket contains stale file refs or out-of-bounds line refs.
+
 ## Human Gates
 
 - **BLOCKING GATE** - stop and wait for human decision. Used for: scope approval, phase transitions, final review.

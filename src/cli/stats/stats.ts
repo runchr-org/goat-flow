@@ -105,10 +105,7 @@ function collectFindings(section: BucketSection): StatsFinding[] {
       (f) => f.rule === "missing-last-reviewed",
     );
     for (const piece of section.formatDiagnostic.split("; ")) {
-      if (
-        alreadyReported &&
-        /missing frontmatter last_reviewed/.test(piece)
-      ) {
+      if (alreadyReported && /missing frontmatter last_reviewed/.test(piece)) {
         continue;
       }
       if (/invalid last_reviewed format/.test(piece)) {

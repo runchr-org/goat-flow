@@ -2,11 +2,7 @@
  * Footgun and lesson fact extractors for the learning-loop system.
  * Analyzes category-bucket markdown files for evidence quality, entry counts, and stale references.
  */
-import type {
-  SharedFacts,
-  ReadonlyFS,
-  BucketFreshness,
-} from "../../types.js";
+import type { SharedFacts, ReadonlyFS, BucketFreshness } from "../../types.js";
 import type { LoadedConfig } from "../../config/types.js";
 
 /** Strict YYYY-MM-DD format — rejects full ISO 8601 timestamps in `last_reviewed`. */
@@ -312,6 +308,48 @@ function summarizeFootgunRefs(
   return summary;
 }
 
+/** Append a category-missing diagnostic when the bucket body requires one. */
+function collectCategoryDiagnostic(
+  path: string,
+  body: string,
+  fields: Record<string, string>,
+  diagnostics: string[],
+): boolean {
+  const lessonBuckets = countMatches(body, /^##\s+(?:Lesson|Pattern):\s+/gm);
+  const footgunBuckets = countMatches(body, /^##\s+Footgun:\s+/gm);
+  const isBucket = lessonBuckets > 0 || footgunBuckets > 0;
+
+  if (!fields.category && lessonBuckets > 0) {
+    diagnostics.push(
+      `${path} is a lessons category bucket but missing frontmatter category`,
+    );
+  }
+  if (!fields.category && footgunBuckets > 0) {
+    diagnostics.push(
+      `${path} is a footguns category bucket but missing frontmatter category`,
+    );
+  }
+  return isBucket;
+}
+
+/** Append a last_reviewed diagnostic when the field is missing or malformed. */
+function collectLastReviewedDiagnostic(
+  path: string,
+  fields: Record<string, string>,
+  diagnostics: string[],
+): void {
+  const raw = fields.last_reviewed;
+  if (raw === undefined || raw === "") {
+    diagnostics.push(`${path} missing frontmatter last_reviewed`);
+    return;
+  }
+  if (!ISO_DATE_REGEX.test(raw)) {
+    diagnostics.push(
+      `${path} has invalid last_reviewed format "${raw}" (expected YYYY-MM-DD)`,
+    );
+  }
+}
+
 /** Return a format diagnostic when a lesson or footgun bucket is missing required frontmatter. */
 function getMissingFrontmatterDiagnostic(
   path: string,
@@ -322,33 +360,8 @@ function getMissingFrontmatterDiagnostic(
 
   const fields = parseFrontmatterFields(frontmatter);
   const diagnostics: string[] = [];
-  const lessonBucketCount = countMatches(
-    body,
-    /^##\s+(?:Lesson|Pattern):\s+/gm,
-  );
-  const footgunBucketCount = countMatches(body, /^##\s+Footgun:\s+/gm);
-  const isBucket = lessonBucketCount > 0 || footgunBucketCount > 0;
-
-  if (lessonBucketCount > 0 && !fields.category) {
-    diagnostics.push(
-      `${path} is a lessons category bucket but missing frontmatter category`,
-    );
-  }
-  if (footgunBucketCount > 0 && !fields.category) {
-    diagnostics.push(
-      `${path} is a footguns category bucket but missing frontmatter category`,
-    );
-  }
-  if (isBucket) {
-    const rawLastReviewed = fields.last_reviewed;
-    if (rawLastReviewed === undefined || rawLastReviewed === "") {
-      diagnostics.push(`${path} missing frontmatter last_reviewed`);
-    } else if (!ISO_DATE_REGEX.test(rawLastReviewed)) {
-      diagnostics.push(
-        `${path} has invalid last_reviewed format "${rawLastReviewed}" (expected YYYY-MM-DD)`,
-      );
-    }
-  }
+  const isBucket = collectCategoryDiagnostic(path, body, fields, diagnostics);
+  if (isBucket) collectLastReviewedDiagnostic(path, fields, diagnostics);
 
   return diagnostics.length === 0 ? null : diagnostics.join("; ");
 }

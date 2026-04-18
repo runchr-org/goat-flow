@@ -2,11 +2,7 @@
  * Output renderers for `goat-flow stats` — text, JSON, markdown.
  * Text is the default for terminals; JSON/markdown are for CI and PR comments.
  */
-import type {
-  BucketSection,
-  StatsCheckReport,
-  StatsReport,
-} from "./stats.js";
+import type { BucketSection, StatsCheckReport, StatsReport } from "./stats.js";
 
 const BAND_LABEL: Record<string, string> = {
   fresh: "fresh",
@@ -20,7 +16,9 @@ function formatDays(days: number | null): string {
 }
 
 function padRight(value: string, width: number): string {
-  return value.length >= width ? value : value + " ".repeat(width - value.length);
+  return value.length >= width
+    ? value
+    : value + " ".repeat(width - value.length);
 }
 
 function renderSectionText(name: string, section: BucketSection): string {
