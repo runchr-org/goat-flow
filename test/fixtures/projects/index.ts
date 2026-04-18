@@ -189,6 +189,7 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
       validRefs: 0,
       formatDiagnostic: null,
       path: ".goat-flow/footguns/",
+      buckets: [],
     },
     lessons: {
       exists: true,
@@ -198,6 +199,7 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
       duplicateSurfacePaths: [],
       formatDiagnostic: null,
       path: ".goat-flow/lessons/",
+      buckets: [],
     },
     decisions: {
       dirExists: true,
