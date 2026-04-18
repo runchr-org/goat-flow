@@ -7,7 +7,20 @@
  * + 2 config (config-parses, config-version)
  */
 import type { BuildCheck } from "./types.js";
+import type { CheckEvidence } from "./provenance-types.js";
 import { AUDIT_VERSION } from "../constants.js";
+
+const VERIFIED_ON = "2026-04-18";
+
+function setupSpecProvenance(paths: string[]): CheckEvidence {
+  return {
+    source_type: "spec",
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level: "MUST",
+    evidence_paths: paths,
+  };
+}
 
 // Paths covered by named checks - excluded from the catch-all.
 // config.yaml is also excluded (covered by config-parses).
@@ -40,6 +53,10 @@ const lessons: BuildCheck = {
   id: "lessons",
   name: "Lessons",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
   run: (ctx) => {
     const missing: string[] = [];
     if (!ctx.fs.exists(".goat-flow/lessons"))
@@ -61,6 +78,10 @@ const footguns: BuildCheck = {
   id: "footguns",
   name: "Footguns",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
   run: (ctx) => {
     const missing: string[] = [];
     if (!ctx.fs.exists(".goat-flow/footguns"))
@@ -82,6 +103,10 @@ const architecture: BuildCheck = {
   id: "architecture",
   name: "Architecture",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    "workflow/setup/04-architecture-and-code-map.md",
+  ]),
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/architecture.md")) return null;
     return {
@@ -98,6 +123,10 @@ const codeMap: BuildCheck = {
   id: "code-map",
   name: "Code map",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    "workflow/setup/04-architecture-and-code-map.md",
+  ]),
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/code-map.md")) return null;
     return {
@@ -113,6 +142,10 @@ const glossary: BuildCheck = {
   id: "glossary",
   name: "Glossary",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/glossary.md")) return null;
     return {
@@ -128,6 +161,10 @@ const patterns: BuildCheck = {
   id: "patterns",
   name: "Patterns",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/patterns.md")) return null;
     return {
@@ -143,6 +180,10 @@ const decisions: BuildCheck = {
   id: "decisions",
   name: "Decisions",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/decisions")) return null;
     return {
@@ -159,6 +200,10 @@ const sessionLogs: BuildCheck = {
   id: "session-logs",
   name: "Session logs",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/logs/sessions")) return null;
     return {
@@ -175,6 +220,11 @@ const tasks: BuildCheck = {
   id: "tasks",
   name: "Tasks",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+    ".goat-flow/tasks/README.md",
+  ]),
   run: (ctx) => {
     const missing: string[] = [];
     if (!ctx.fs.exists(".goat-flow/tasks")) missing.push(".goat-flow/tasks/");
@@ -197,6 +247,11 @@ const scratchpad: BuildCheck = {
   id: "scratchpad",
   name: "Scratchpad",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+    ".goat-flow/scratchpad/README.md",
+  ]),
   run: (ctx) => {
     const missing: string[] = [];
     if (!ctx.fs.exists(".goat-flow/scratchpad"))
@@ -222,6 +277,7 @@ const otherFiles: BuildCheck = {
   id: "other-files",
   name: "Other required files",
   scope: "setup",
+  provenance: setupSpecProvenance(["workflow/manifest.json"]),
   run: (ctx) => {
     const allRequired = [
       ...ctx.structure.required_files,
@@ -248,6 +304,10 @@ const configExistsAndParses: BuildCheck = {
   id: "config-parses",
   name: "Config file",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/config.yaml",
+  ]),
   run: (ctx) => {
     if (!ctx.config.exists) {
       return {
@@ -264,6 +324,19 @@ const configExistsAndParses: BuildCheck = {
         howToFix: "Fix the YAML syntax error in .goat-flow/config.yaml.",
       };
     }
+    if (!ctx.config.valid) {
+      const [firstError] = ctx.config.errors;
+      const detail = firstError
+        ? `${firstError.path}: ${firstError.message}`
+        : "validation failed";
+      return {
+        check: "Config file",
+        message: `Validation error: ${detail}`,
+        evidence: ".goat-flow/config.yaml",
+        howToFix:
+          "Fix the validation error in .goat-flow/config.yaml so it matches the manifest-backed config contract.",
+      };
+    }
     return null;
   },
 };
@@ -272,6 +345,10 @@ const configVersionCurrent: BuildCheck = {
   id: "config-version",
   name: "Config version",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    ".goat-flow/config.yaml",
+    "src/cli/constants.ts",
+  ]),
   run: (ctx) => {
     if (!ctx.config.exists) return null;
     const version = ctx.config.config.version;

@@ -4,6 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { loadConfig } from "../../src/cli/config/reader.js";
+import { getKnownAgentIds } from "../../src/cli/agents/registry.js";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
 import type { ReadonlyFS } from "../../src/cli/types.js";
 
@@ -54,6 +55,26 @@ toolchain:
     assert.deepStrictEqual(result.config.toolchain.test, ["npm test"]);
     assert.deepStrictEqual(result.config.toolchain.lint, ["eslint ."]);
     assert.deepStrictEqual(result.config.toolchain.build, ["tsc"]);
+  });
+});
+
+describe("config validates agent ids against the registry", () => {
+  it("errors with the manifest-backed supported-agent list", () => {
+    const yaml = `
+version: "${AUDIT_VERSION}"
+agents:
+  - cursor
+`;
+    const result = loadConfig("/tmp", configFS(yaml));
+    assert.equal(result.valid, false);
+    assert.ok(
+      result.errors.some(
+        (error) =>
+          error.path === "agents[0]" &&
+          error.message.includes(getKnownAgentIds().join(", ")),
+      ),
+      JSON.stringify(result.errors),
+    );
   });
 });
 

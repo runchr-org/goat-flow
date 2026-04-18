@@ -6,8 +6,31 @@
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import type { AuditFailure, BuildCheck, AuditContext } from "./types.js";
+import type { CheckEvidence } from "./provenance-types.js";
 import type { ReadonlyFS } from "../types.js";
 import { AUDIT_VERSION } from "../constants.js";
+
+const VERIFIED_ON = "2026-04-18";
+
+function specProvenance(paths: string[]): CheckEvidence {
+  return {
+    source_type: "spec",
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level: "MUST",
+    evidence_paths: paths,
+  };
+}
+
+function incidentProvenance(paths: string[]): CheckEvidence {
+  return {
+    source_type: "incident",
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level: "MUST",
+    evidence_paths: paths,
+  };
+}
 
 // === 1. Agent Instruction ===
 
@@ -60,6 +83,10 @@ const agentInstruction: BuildCheck = {
   id: "agent-instruction",
   name: "Agent instruction file",
   scope: "agent",
+  provenance: specProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
   run: (ctx) => {
     if (ctx.agentFilter) return checkInstructionPresent(ctx);
     return checkOrphanedArtifacts(ctx);
@@ -155,6 +182,10 @@ const agentSkills: BuildCheck = {
   id: "agent-skills",
   name: "Agent skills",
   scope: "agent",
+  provenance: specProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/footguns/skills.md",
+  ]),
   run: (ctx) => {
     if (!ctx.agentFilter) return null;
     return (
@@ -171,6 +202,10 @@ const agentSettings: BuildCheck = {
   id: "agent-settings",
   name: "Agent settings",
   scope: "agent",
+  provenance: specProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
   run: (ctx) => {
     if (!ctx.agentFilter) return null;
     const invalid: string[] = [];
@@ -286,6 +321,10 @@ const agentDenyMechanism: BuildCheck = {
   id: "agent-deny-dangerous",
   name: "Agent deny mechanism",
   scope: "agent",
+  provenance: incidentProvenance([
+    ".goat-flow/footguns/auditor.md",
+    ".goat-flow/footguns/hooks.md",
+  ]),
   run: (ctx) => {
     if (!ctx.agentFilter) return null;
     // Order the checks from cheapest/static to most expensive/runtime so we stop on

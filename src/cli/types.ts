@@ -18,13 +18,18 @@ export interface AgentProfile {
   instructionFile: string;
   // Null when the agent has no JSON settings mechanism (e.g., Codex)
   settingsFile: string | null;
+  // File that stores hook registrations when it differs from settingsFile.
+  hookConfigFile: string | null;
   skillsDir: string;
   // Null when the agent has no hook directory
   hooksDir: string | null;
   denyMechanism: DenyMechanism;
+  // Null when the agent has no on-disk deny hook script.
+  denyHookFile: string | null;
   // Glob pattern for agent-specific local instruction files
   localPattern: string;
   hookEvents: HookEvents;
+  capabilities: AgentCapabilities;
 }
 
 /**
@@ -39,7 +44,13 @@ export type DenyMechanism =
 /** Hook event file names specific to each agent runtime */
 export interface HookEvents {
   preTool: string;
-  postTurn: string;
+  // Null when the runtime exposes no post-turn hook event.
+  postTurn: string | null;
+}
+
+/** Framework-level capabilities independent of current project enablement. */
+export interface AgentCapabilities {
+  compactionSupport: "native" | "none";
 }
 
 // === Facts ===

@@ -1,0 +1,80 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import {
+  findUnknownConfiguredAgents,
+  getAgentProfile,
+  getAgentProfiles,
+  getConfiguredAgents,
+  getKnownAgentIds,
+} from "../../src/cli/agents/registry.js";
+import type { LoadedConfig } from "../../src/cli/config/types.js";
+import { AUDIT_VERSION } from "../../src/cli/constants.js";
+
+function stubConfig(agents: string[] | null): LoadedConfig {
+  return {
+    exists: true,
+    valid: true,
+    config: {
+      version: AUDIT_VERSION,
+      footguns: { path: ".goat-flow/footguns/" },
+      lessons: { path: ".goat-flow/lessons/" },
+      decisions: { path: ".goat-flow/decisions/" },
+      tasks: { path: ".goat-flow/tasks/" },
+      logs: { path: ".goat-flow/logs/" },
+      agents,
+      skills: { install: "all" },
+      lineLimits: { target: 120, limit: 150 },
+      toolchain: {
+        test: [],
+        lint: [],
+        build: [],
+        package: [],
+        format: [],
+      },
+      userRole: "developer",
+      telemetry: false,
+      knownGaps: [],
+      skillOverrides: {},
+      harness: { acknowledge: [] },
+    },
+    warnings: [],
+    errors: [],
+    parseError: null,
+  };
+}
+
+describe("agent registry", () => {
+  it("exposes the manifest-backed support set", () => {
+    assert.deepEqual(getKnownAgentIds(), ["claude", "codex", "gemini"]);
+    assert.deepEqual(
+      getAgentProfiles().map((agent) => agent.id),
+      ["claude", "codex", "gemini"],
+    );
+  });
+
+  it("keeps Codex hook config and compaction capability separate", () => {
+    const codex = getAgentProfile("codex");
+    assert.equal(codex.settingsFile, ".codex/config.toml");
+    assert.equal(codex.hookConfigFile, ".codex/hooks.json");
+    assert.equal(codex.denyHookFile, ".codex/hooks/deny-dangerous.sh");
+    assert.equal(codex.hookEvents.postTurn, null);
+    assert.equal(codex.capabilities.compactionSupport, "none");
+  });
+
+  it("returns configured-agent subsets from config.yaml state", () => {
+    assert.deepEqual(
+      getConfiguredAgents(stubConfig(["codex"])).map((agent) => agent.id),
+      ["codex"],
+    );
+    assert.deepEqual(
+      getConfiguredAgents(stubConfig(null)).map((agent) => agent.id),
+      ["claude", "codex", "gemini"],
+    );
+  });
+
+  it("reports unknown configured agents outside the manifest", () => {
+    assert.deepEqual(findUnknownConfiguredAgents(["codex", "cursor"]), [
+      "cursor",
+    ]);
+  });
+});

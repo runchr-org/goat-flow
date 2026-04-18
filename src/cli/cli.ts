@@ -12,6 +12,7 @@ import type { CLIOptions, AgentId, ProjectFacts } from "./types.js";
 import type { AuditReport } from "./audit/types.js";
 
 import { getPackageVersion } from "./paths.js";
+import { getKnownAgentIds } from "./agents/registry.js";
 
 /** Current package version used in --version output */
 const PACKAGE_VERSION = getPackageVersion();
@@ -47,7 +48,7 @@ Arguments:
 
 Flags:
   --format <type>   Output format: json, text, markdown (omit for auto-detect: text in terminal, json otherwise)
-  --agent <id>      Filter to one agent: claude, codex, gemini
+  --agent <id>      Filter to one agent: ${VALID_AGENT_LIST}
   --harness         Audit: add AI Harness Completeness scope (pass/fail checks across 5 concerns)
   --check-drift     Audit: detect skill template-vs-installed drift and orphan directories
   --check-content   Audit: cold-path content lint (vague terms, generic instructions, factual drift)
@@ -112,7 +113,11 @@ const REMOVED_COMMANDS: Record<string, string> = {
 /** Accepted values for the --format flag */
 const VALID_FORMATS = ["json", "text", "markdown"] as const;
 /** Accepted values for the --agent flag */
-const VALID_AGENTS: AgentId[] = ["claude", "codex", "gemini"];
+const VALID_AGENTS: AgentId[] = getKnownAgentIds();
+const VALID_AGENT_LIST = VALID_AGENTS.join(", ");
+const VALID_AGENT_FLAGS = VALID_AGENTS.map((agent) => `--agent ${agent}`).join(
+  ", ",
+);
 /** Banner text warning that multi-agent setup output must stay in sync */
 const MULTI_AGENT_SYNC_BANNER = [
   "**Multi-agent sync:** This prompt generates setup for multiple agents. The execution loop",
@@ -169,15 +174,12 @@ function parseAgentArg(value: string | undefined): AgentId | null {
   if (!value) return null;
   if (value === "all") {
     throw new CLIError(
-      `--agent all is no longer supported. Run setup separately for each agent: --agent claude, --agent codex, --agent gemini`,
+      `--agent all is no longer supported. Run setup separately for each agent: ${VALID_AGENT_FLAGS}`,
       2,
     );
   }
   if (!VALID_AGENTS.includes(value as AgentId)) {
-    throw new CLIError(
-      `Invalid agent: ${value}. Use: claude, codex, gemini`,
-      2,
-    );
+    throw new CLIError(`Invalid agent: ${value}. Use: ${VALID_AGENT_LIST}`, 2);
   }
   return value as AgentId;
 }
@@ -295,7 +297,7 @@ async function handleSetupCommand(
   const agentIds = getSetupAgentIds(options, facts);
   if (agentIds.length === 0) {
     throw new CLIError(
-      "No agents detected. Use --agent claude, --agent codex, or --agent gemini",
+      `No agents detected. Use one of: ${VALID_AGENT_FLAGS}`,
       1,
     );
   }
@@ -379,7 +381,7 @@ async function handleAuditCommand(options: ParsedCLI): Promise<void> {
 async function handleQualityCommand(options: ParsedCLI): Promise<void> {
   if (!options.agent) {
     throw new CLIError(
-      "quality requires --agent. Usage: goat-flow quality . --agent claude",
+      `quality requires --agent. Usage: goat-flow quality . --agent ${VALID_AGENTS[0] ?? "claude"}`,
       2,
     );
   }

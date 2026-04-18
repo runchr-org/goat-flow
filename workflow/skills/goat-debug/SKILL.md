@@ -34,7 +34,7 @@ If depth is pre-decided, proceed. Otherwise confirm quick vs full, or auto-detec
 If vague, ask about: goal, symptom/error message, area involved.
 
 **Quick path:** diagnose and report; **full path:** run D1–D4.
-**Footgun check:** Read `.goat-flow/footguns/` and `.goat-flow/lessons/` for the target area. Surface matches.
+**Footgun check:** Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/` and `.goat-flow/lessons/` for the target area. Surface matches or an explicit retrieval miss; do not broad-load either bucket.
 
 
 ## Diagnose Mode

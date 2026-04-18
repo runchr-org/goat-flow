@@ -15,6 +15,7 @@ import { checkDrift } from "./check-drift.js";
 import { runContentQualityChecks } from "./check-content-quality.js";
 import { runFactualClaimChecks } from "./check-factual-claims.js";
 import { runSnapshotClaimChecks } from "./check-snapshot-claims.js";
+import { validateProvenance } from "./provenance-types.js";
 import type {
   AuditContext,
   AuditConcern,
@@ -168,10 +169,27 @@ function toCheckResult(
     id: check.id,
     name: check.name,
     status: result.status,
+    provenance: check.provenance,
     failure,
     type: check.type,
     acknowledged: acknowledged || undefined,
   };
+}
+
+/** Validate provenance on every registered check once per process. */
+function validateRegisteredCheckProvenance(): void {
+  const checks = [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
+  const errors: string[] = [];
+  for (const check of checks) {
+    for (const error of validateProvenance(check.provenance)) {
+      errors.push(`${check.id}: ${error}`);
+    }
+  }
+  if (errors.length > 0) {
+    throw new Error(
+      `Invalid audit check provenance:\n- ${errors.join("\n- ")}`,
+    );
+  }
 }
 
 /** Create an empty AuditConcern with zeroed counters. */
@@ -277,6 +295,7 @@ function runBuildChecks(ctx: AuditContext): {
       id: check.id,
       name: check.name,
       status: failure ? "fail" : "pass",
+      provenance: check.provenance,
       failure: failure ?? undefined,
     });
   }
@@ -333,6 +352,7 @@ export function runAudit(
   projectPath: string,
   options: AuditOptions,
 ): AuditReport {
+  validateRegisteredCheckProvenance();
   const ctx = buildAuditContext(fs, projectPath, options);
   const { setup: setupScope, agent: agentScope } = runBuildChecks(ctx);
   const harness = options.harness ? computeHarness(ctx) : null;

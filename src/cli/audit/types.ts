@@ -12,6 +12,7 @@ import type {
   ReadonlyFS,
 } from "../types.js";
 import type { LoadedConfig } from "../config/types.js";
+import type { CheckEvidence } from "./provenance-types.js";
 
 // === JSON contract types (stable public API) ===
 
@@ -26,6 +27,7 @@ export interface CheckResult {
   id: string;
   name: string;
   status: "pass" | "fail";
+  provenance: CheckEvidence;
   failure?: AuditFailure;
   /** Harness-check classification; absent for build checks. */
   type?: HarnessCheckType;
@@ -171,6 +173,7 @@ export interface BuildCheck {
   id: string;
   name: string;
   scope: AuditScopeName;
+  provenance: CheckEvidence;
   run: (ctx: AuditContext) => AuditFailure | null;
 }
 
@@ -189,6 +192,7 @@ export interface HarnessCheck {
   name: string;
   concern: AuditConcernKey;
   type: HarnessCheckType;
+  provenance: CheckEvidence;
   run: (ctx: AuditContext) => HarnessCheckResult;
 }
 

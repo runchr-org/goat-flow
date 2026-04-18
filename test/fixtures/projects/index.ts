@@ -71,11 +71,14 @@ export const STUB_AGENT_PROFILE: AgentProfile = {
   name: "Claude Code",
   instructionFile: "CLAUDE.md",
   settingsFile: ".claude/settings.json",
+  hookConfigFile: ".claude/settings.json",
   skillsDir: ".claude/skills",
   hooksDir: ".claude/hooks",
   denyMechanism: { type: "settings-deny", path: ".claude/settings.json" },
+  denyHookFile: ".claude/hooks/deny-dangerous.sh",
   localPattern: "*/CLAUDE.md",
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
+  capabilities: { compactionSupport: "native" },
 };
 
 export function stubAgentFacts(

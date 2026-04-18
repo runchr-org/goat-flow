@@ -261,6 +261,9 @@ describe("renderManifestMarkdown", () => {
     assert.match(md, /^# goat-flow manifest/m);
     assert.match(md, /\| Setup checks \|/);
     assert.match(md, /\| Skills \(total\) \|/);
+    assert.match(md, /\*\*Agent registry authority:\*\*/);
+    assert.match(md, /^## Agents$/m);
+    assert.match(md, /\| Agent \| Instruction \| Settings \| Hook config \|/);
     assert.match(md, /\*\*Skills:\*\*/);
     assert.match(md, /\*\*Dashboard views:\*\*/);
   });

@@ -3,13 +3,39 @@
  * 4 checks: test-runner-configured, hooks-registered, commit-guidance, post-turn-hook-integrity.
  */
 import type { HarnessCheck } from "../types.js";
+import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
+
+const VERIFIED_ON = "2026-04-18";
+
+function verificationProvenance(
+  type: HarnessCheck["type"],
+  paths: string[],
+  sourceType: CheckEvidence["source_type"] = "spec",
+): CheckEvidence {
+  return {
+    source_type: sourceType,
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level:
+      type === "integrity"
+        ? "MUST"
+        : type === "advisory"
+          ? "SHOULD"
+          : "BEST_PRACTICE",
+    evidence_paths: paths,
+  };
+}
 
 const testRunnerConfigured: HarnessCheck = {
   id: "test-runner-configured",
   name: "Test runner configured",
   concern: "verification",
   type: "metric",
+  provenance: verificationProvenance("metric", [
+    "docs/harness-audit.md",
+    ".goat-flow/config.yaml",
+  ]),
   run: (ctx) => {
     const tc = ctx.config.config.toolchain;
     if (tc.test.length > 0) {
@@ -26,6 +52,15 @@ const hooksRegistered: HarnessCheck = {
   name: "Hook registrations in sync",
   concern: "verification",
   type: "integrity",
+  provenance: verificationProvenance(
+    "integrity",
+    [
+      "docs/harness-audit.md",
+      ".goat-flow/footguns/hooks.md",
+      ".goat-flow/footguns/auditor.md",
+    ],
+    "incident",
+  ),
   run: (ctx) => {
     const findings: string[] = [];
     const recs: string[] = [];
@@ -61,6 +96,10 @@ const commitGuidance: HarnessCheck = {
   name: "Commit guidance present",
   concern: "verification",
   type: "advisory",
+  provenance: verificationProvenance("advisory", [
+    "docs/harness-audit.md",
+    "docs/coding-standards/git-commit.md",
+  ]),
   run: (ctx) => {
     if (ctx.facts.shared.gitCommitInstructions.exists) {
       return pass(["Commit guidance found"]);
@@ -81,6 +120,10 @@ const postTurnHookIntegrity: HarnessCheck = {
   name: "Post-turn hook integrity",
   concern: "verification",
   type: "metric",
+  provenance: verificationProvenance("metric", [
+    "docs/harness-audit.md",
+    ".goat-flow/footguns/hooks.md",
+  ]),
   run: (ctx) => {
     const findings: string[] = [];
     let anyHook = false;

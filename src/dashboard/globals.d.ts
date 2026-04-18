@@ -4,7 +4,7 @@
  */
 
 type AuditStatus = "pass" | "fail";
-type RunnerId = "claude" | "codex" | "gemini";
+type RunnerId = string;
 type SessionStatus = "starting" | "active" | "terminated";
 
 // ---------------------------------------------------------------------------
@@ -19,11 +19,28 @@ interface AuditFailure {
   howToFix?: string;
 }
 
+/** Evidence provenance emitted for each registered audit check. */
+interface AuditCheckProvenance {
+  source_type:
+    | "spec"
+    | "vendor_docs"
+    | "paper"
+    | "incident"
+    | "community"
+    | "unknown";
+  source_urls: string[];
+  verified_on: string;
+  normative_level: "MUST" | "SHOULD" | "BEST_PRACTICE";
+  evidence_paths?: string[];
+  reason?: string;
+}
+
 /** Individual check result inside an audit scope. */
 interface AuditCheck {
   id: string;
   name: string;
   status: AuditStatus;
+  provenance: AuditCheckProvenance;
   failure?: AuditFailure;
 }
 
@@ -75,9 +92,14 @@ interface DashboardClientReport {
   target: string;
 }
 
-/** Agent detection info from `/api/agents/installed`. */
-interface AgentInfo {
+/** Supported agent metadata injected into the dashboard shell. */
+interface SupportedAgent {
   id: RunnerId;
+  name: string;
+}
+
+/** Agent detection info from `/api/agents/installed`. */
+interface AgentInfo extends SupportedAgent {
   installed: boolean;
   version: string | null;
 }
@@ -259,6 +281,7 @@ interface Window {
   __GOAT_FLOW_REPORT__?: DashboardClientReport | null;
   __GOAT_FLOW_DEFAULT_PATH__?: string;
   __GOAT_FLOW_VERSION__?: string;
+  __GOAT_FLOW_AGENTS__?: SupportedAgent[];
   Terminal?: new (options: Record<string, unknown>) => XTermInstance;
   FitAddon?: { FitAddon: new () => FitAddonInstance };
 }

@@ -88,11 +88,14 @@ const STUB_AGENT_PROFILE: AgentProfile = {
   name: "Claude Code",
   instructionFile: "CLAUDE.md",
   settingsFile: ".claude/settings.json",
+  hookConfigFile: ".claude/settings.json",
   skillsDir: ".claude/skills",
   hooksDir: ".claude/hooks",
   denyMechanism: { type: "settings-deny", path: ".claude/settings.json" },
+  denyHookFile: ".claude/hooks/deny-dangerous.sh",
   localPattern: "*/CLAUDE.md",
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
+  capabilities: { compactionSupport: "native" },
 };
 
 function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
@@ -427,14 +430,17 @@ describe("config.agents filtering", () => {
       name: "Codex",
       instructionFile: "AGENTS.md",
       settingsFile: ".codex/config.toml",
+      hookConfigFile: ".codex/hooks.json",
       skillsDir: ".agents/skills",
       hooksDir: ".codex/hooks",
       denyMechanism: {
         type: "deny-script",
         path: ".codex/hooks/deny-dangerous.sh",
       },
+      denyHookFile: ".codex/hooks/deny-dangerous.sh",
       localPattern: ".github/instructions/*.md",
       hookEvents: { preTool: "", postTurn: "stop" },
+      capabilities: { compactionSupport: "none" },
     };
     const codexFacts = stubAgentFacts({ agent: codexProfile });
 
@@ -472,6 +478,34 @@ describe("config.agents filtering", () => {
       null,
       "Should pass when only configured agent (claude) is checked",
     );
+  });
+});
+
+describe("config validation failures", () => {
+  it("fails config-parses when config.yaml has schema validation errors", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "config-parses")!;
+    const ctx = makeCtx({
+      config: {
+        ...stubConfig({ agents: ["cursor"] }),
+        valid: false,
+        errors: [
+          {
+            level: "error",
+            path: "agents[0]",
+            message:
+              'unknown agent "cursor" - known agents: claude, codex, gemini',
+          },
+        ],
+      },
+    });
+    const result = check.run(ctx);
+    assert.notEqual(
+      result,
+      null,
+      "config-parses should fail on invalid config",
+    );
+    assert.match(result!.message, /Validation error: agents\[0\]/);
+    assert.equal(result!.evidence, ".goat-flow/config.yaml");
   });
 });
 
@@ -872,6 +906,25 @@ describe("M01 scoring model", () => {
     );
   });
 
+  it("treats compaction support as framework capability, not project enablement", () => {
+    const ctx = makeCtx({
+      agents: [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          hooks: {
+            ...stubAgentFacts().hooks,
+            compactionHookExists: false,
+          },
+        }),
+      ],
+    });
+    const { concerns, scope } = computeHarness(ctx);
+    const compaction = scope.checks.find((c) => c.id === "compaction-hook")!;
+    assert.equal(concerns.recovery.status, "pass");
+    assert.equal(compaction.status, "pass");
+    assert.equal(compaction.failure, undefined);
+  });
+
   it("acknowledge silences exactly the listed id, not other advisories", () => {
     // Craft a scenario where two advisory checks fail: compaction-hook and
     // deny-blocks-pipe-to-shell. Acknowledge only compaction-hook.
@@ -902,7 +955,7 @@ describe("M01 scoring model", () => {
     assert.equal(concerns.verification.metrics, 2);
   });
 
-  it("CheckResult carries type and acknowledged fields", () => {
+  it("CheckResult carries type, acknowledged, and provenance fields", () => {
     const ctx = wellSetupButMissingCompaction({
       acknowledge: ["compaction-hook"],
     });
@@ -910,9 +963,11 @@ describe("M01 scoring model", () => {
     const compaction = scope.checks.find((c) => c.id === "compaction-hook")!;
     assert.equal(compaction.type, "advisory");
     assert.equal(compaction.acknowledged, true);
+    assert.equal(compaction.provenance.normative_level, "SHOULD");
     const docs = scope.checks.find((c) => c.id === "doc-paths-resolve")!;
     assert.equal(docs.type, "integrity");
     assert.equal(docs.acknowledged, undefined);
+    assert.equal(docs.provenance.normative_level, "MUST");
   });
 
   it("advisory failure emits WHY-not-integrity evidence with the check id", () => {

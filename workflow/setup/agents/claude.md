@@ -1,5 +1,7 @@
 # Agent Config - Claude Code
 
+> Canonical machine-readable source for these paths: `workflow/manifest.json` via `src/cli/agents/registry.ts`. If this doc drifts, the manifest-backed registry wins.
+
 ## Paths
 
 | Resource | Path |

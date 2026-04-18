@@ -21,16 +21,28 @@ import { createFS } from "../facts/fs.js";
 import { classifyProjectState } from "../classify-state.js";
 import { runAudit } from "../audit/audit.js";
 import { getPackageVersion } from "../paths.js";
+import {
+  getAgentProfileMap,
+  getAgentProfiles,
+  getKnownAgentIds,
+} from "../agents/registry.js";
+import { detectAgents as detectConfiguredAgents } from "../detect/agents.js";
 import type { AgentId } from "../types.js";
 import type { AuditReport } from "../audit/types.js";
 import type { DashboardReport, Runner } from "./types.js";
 import type { TerminalManager } from "./terminal.js";
 import type { WebSocketServer, WebSocket as WsWebSocket } from "ws";
 
-/** Recognized agent identifiers for the /api/setup endpoint */
-const VALID_AGENTS = new Set<string>(["claude", "codex", "gemini"]);
+const KNOWN_AGENT_IDS = getKnownAgentIds();
+const KNOWN_AGENT_LIST = KNOWN_AGENT_IDS.join(", ");
+const AGENT_PROFILES = getAgentProfiles();
+const AGENT_PROFILE_MAP = getAgentProfileMap();
+const SUPPORTED_AGENTS = AGENT_PROFILES.map(({ id, name }) => ({ id, name }));
+/** Recognized agent identifiers for the dashboard API. */
+const VALID_AGENTS = new Set<string>(KNOWN_AGENT_IDS);
 /** Recognized runner identifiers for terminal session creation. */
-const VALID_RUNNERS = new Set<string>(["claude", "codex", "gemini"]);
+const VALID_RUNNERS = new Set<string>(KNOWN_AGENT_IDS);
+const DEFAULT_RUNNER: Runner = KNOWN_AGENT_IDS[0] ?? "claude";
 /** Maximum request body size accepted by POST endpoints */
 const MAX_BODY_BYTES = 64 * 1024; // 64 KB
 /** Current goat-flow package version for dashboard UI */
@@ -177,7 +189,7 @@ export function serveDashboard(
     function handleHtmlRequest(url: URL, res: ServerResponse): boolean {
       if (url.pathname !== "/") return false;
 
-      const injection = `<script>window.__GOAT_FLOW_DEFAULT_PATH__ = ${JSON.stringify(absDefault)}; window.__GOAT_FLOW_VERSION__ = ${JSON.stringify(PACKAGE_VERSION)};</script>`;
+      const injection = `<script>window.__GOAT_FLOW_DEFAULT_PATH__ = ${JSON.stringify(absDefault)}; window.__GOAT_FLOW_VERSION__ = ${JSON.stringify(PACKAGE_VERSION)}; window.__GOAT_FLOW_AGENTS__ = ${JSON.stringify(SUPPORTED_AGENTS)};</script>`;
       const liveReloadScript = devMode
         ? `<script>(function(){var ws=new WebSocket('ws://'+location.host+'/ws/livereload');ws.onmessage=function(){location.reload()};ws.onclose=function(){setTimeout(function(){location.reload()},1000)}})()</script>`
         : "";
@@ -211,29 +223,22 @@ export function serveDashboard(
       return true;
     }
 
-    /** Build a DashboardReport from per-agent audit results.
-     * The Home page uses per-agent harness completeness, the Audit detail
-     * page uses scope-based check results. This adapter produces
-     * a single typed response covering both views. */
-    const AGENT_NAMES: Record<string, string> = {
-      claude: "Claude Code",
-      codex: "Codex",
-      gemini: "Gemini CLI",
-    };
-
     /** Build the dashboard API payload from aggregate and per-agent audit results. */
     function buildDashboardReport(
       auditRpt: AuditReport,
       perAgentAudits: { id: string; audit: AuditReport }[],
     ): DashboardReport {
       return {
-        agentScores: perAgentAudits.map((pa) => ({
-          id: pa.id,
-          name: AGENT_NAMES[pa.id] || pa.id,
-          agent: pa.audit.scopes.agent,
-          harness: pa.audit.scopes.harness,
-          concerns: pa.audit.concerns,
-        })),
+        agentScores: perAgentAudits.map((pa) => {
+          const agentId = pa.id as AgentId;
+          return {
+            id: pa.id,
+            name: AGENT_PROFILE_MAP[agentId].name,
+            agent: pa.audit.scopes.agent,
+            harness: pa.audit.scopes.harness,
+            concerns: pa.audit.concerns,
+          };
+        }),
         status: auditRpt.status,
         scopes: {
           setup: auditRpt.scopes.setup,
@@ -265,19 +270,14 @@ export function serveDashboard(
         const auditRpt = runAudit(fs, projectPath, { agentFilter, harness });
 
         // Run per-agent audits for harness completeness (all detected agents)
-        const agentInstructionFiles: [string, string][] = [
-          ["claude", "CLAUDE.md"],
-          ["codex", "AGENTS.md"],
-          ["gemini", "GEMINI.md"],
-        ];
-        const configAgents = agentInstructionFiles
-          .filter(([, file]) => fs.exists(file))
-          .map(([id]) => id);
+        const configAgents = detectConfiguredAgents(fs).map(
+          (agent) => agent.id,
+        );
         const perAgentAudits: { id: string; audit: AuditReport }[] = [];
         for (const agentId of configAgents) {
           try {
             const agentAudit = runAudit(fs, projectPath, {
-              agentFilter: agentId as AgentId,
+              agentFilter: agentId,
               harness,
             });
             perAgentAudits.push({ id: agentId, audit: agentAudit });
@@ -306,14 +306,13 @@ export function serveDashboard(
       const agentParam = url.searchParams.get("agent");
       if (!agentParam) {
         jsonResponse(res, 400, {
-          error:
-            "Missing required parameter: agent. Valid: claude, codex, gemini",
+          error: `Missing required parameter: agent. Valid: ${KNOWN_AGENT_LIST}`,
         });
         return true;
       }
       if (!VALID_AGENTS.has(agentParam)) {
         jsonResponse(res, 400, {
-          error: `Invalid agent: ${agentParam}. Valid: claude, codex, gemini`,
+          error: `Invalid agent: ${agentParam}. Valid: ${KNOWN_AGENT_LIST}`,
         });
         return true;
       }
@@ -358,7 +357,7 @@ export function serveDashboard(
       const agentParam = url.searchParams.get("agent");
       if (!agentParam || !VALID_AGENTS.has(agentParam)) {
         jsonResponse(res, 400, {
-          error: `quality requires --agent. Valid: claude, codex, gemini`,
+          error: `quality requires --agent. Valid: ${KNOWN_AGENT_LIST}`,
         });
         return true;
       }
@@ -604,13 +603,24 @@ export function serveDashboard(
       return commands;
     }
 
-    /** Detect which AI coding agents have config directories in the project. */
-    function detectAgents(projectPath: string): Record<string, boolean> {
-      return {
-        claude: existsSync(join(projectPath, ".claude")),
-        codex: existsSync(join(projectPath, ".codex")),
-        gemini: existsSync(join(projectPath, ".gemini")),
-      };
+    /** Detect which supported agent surfaces already exist in the project. */
+    function detectScaffoldedAgents(
+      projectPath: string,
+    ): Record<string, boolean> {
+      return Object.fromEntries(
+        AGENT_PROFILES.map((agent) => {
+          const markers = [
+            agent.instructionFile,
+            agent.settingsFile,
+            agent.hookConfigFile,
+            agent.hooksDir,
+          ].filter((value): value is string => typeof value === "string");
+          const present = markers.some((marker) =>
+            existsSync(join(projectPath, marker)),
+          );
+          return [agent.id, present];
+        }),
+      );
     }
 
     /** Detect existing goat-flow artifacts (skills, instructions, lessons, footguns, config). */
@@ -625,7 +635,9 @@ export function serveDashboard(
         config: false,
       };
 
-      const skillRoots = [".claude/skills", ".agents/skills"];
+      const skillRoots = [
+        ...new Set(AGENT_PROFILES.map((agent) => agent.skillsDir)),
+      ];
       for (const root of skillRoots) {
         const skillsDir = join(projectPath, root);
         if (existsSync(skillsDir)) {
@@ -685,7 +697,7 @@ export function serveDashboard(
           languages: detectLanguages(projectPath),
           frameworks: detectFrameworks(projectPath),
           commands: detectCommands(projectPath),
-          agents: detectAgents(projectPath),
+          agents: detectScaffoldedAgents(projectPath),
           existing: detectExistingArtifacts(projectPath),
           nonGoatFlow: detectNonGoatFlowConfig(projectPath),
         });
@@ -705,8 +717,7 @@ export function serveDashboard(
         "Cargo.toml",
         "composer.json",
         "pyproject.toml",
-        "CLAUDE.md",
-        "AGENTS.md",
+        ...AGENT_PROFILES.map((agent) => agent.instructionFile),
       ].some((file) => {
         try {
           statSync(join(dirPath, file));
@@ -748,14 +759,14 @@ export function serveDashboard(
     function handleAgentDetectRequest(url: URL, res: ServerResponse): boolean {
       if (url.pathname !== "/api/agents/installed") return false;
 
-      const agents = ["claude", "codex", "gemini"].map((name) => {
+      const agents = SUPPORTED_AGENTS.map(({ id, name }) => {
         try {
           const whichCmd = process.platform === "win32" ? "where" : "which";
-          execFileSync(whichCmd, [name], { timeout: 3000, stdio: "pipe" });
+          execFileSync(whichCmd, [id], { timeout: 3000, stdio: "pipe" });
           let version: string | null = null;
           try {
             version =
-              execFileSync(name, ["--version"], {
+              execFileSync(id, ["--version"], {
                 timeout: 5000,
                 stdio: "pipe",
               })
@@ -765,9 +776,9 @@ export function serveDashboard(
           } catch {
             /* version detection optional */
           }
-          return { id: name, installed: true, version };
+          return { id, name, installed: true, version };
         } catch {
-          return { id: name, installed: false, version: null };
+          return { id, name, installed: false, version: null };
         }
       });
 
@@ -804,7 +815,9 @@ export function serveDashboard(
           runner?: string;
         };
         const runner = (
-          body.runner && VALID_RUNNERS.has(body.runner) ? body.runner : "claude"
+          body.runner && VALID_RUNNERS.has(body.runner)
+            ? body.runner
+            : DEFAULT_RUNNER
         ) as Runner;
         const result = await manager.create(
           body.prompt ?? "",

@@ -38,7 +38,7 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 - Quick (default): Agents B/C → Generate, Rank, Synthesise. 2 agents, 3 phases.
 - Full: Agents A/B/C → 5 phases with cross-examination and human dispute resolution.
 - `/goat-critique` or router: confirm artifact and present mode recommendation based on stake calibration.
-- Read relevant `.goat-flow/footguns/` and `.goat-flow/lessons/`.
+- Use the preamble's grep-first learning-loop retrieval on relevant `.goat-flow/footguns/` and `.goat-flow/lessons/`; record explicit misses instead of broad-loading buckets.
 - Skill-chained: skip intake confirmation; use caller context and start at Phase 1.
 
 ## Phase 1 - Generate Competing Critiques

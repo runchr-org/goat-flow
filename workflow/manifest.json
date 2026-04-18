@@ -72,24 +72,71 @@
 
   "agents": {
     "claude": {
+      "name": "Claude Code",
       "instruction_file": "CLAUDE.md",
       "skills_dir": ".claude/skills/",
       "hooks_dir": ".claude/hooks/",
       "settings": ".claude/settings.json",
+      "hook_config_file": ".claude/settings.json",
+      "deny_hook": ".claude/hooks/deny-dangerous.sh",
+      "deny_mechanism": {
+        "type": "both",
+        "settings_path": ".claude/settings.json",
+        "script_path": ".claude/hooks/deny-dangerous.sh"
+      },
+      "local_pattern": "*/CLAUDE.md",
+      "hook_events": {
+        "pre_tool": "PreToolUse",
+        "post_turn": "Stop"
+      },
+      "capabilities": {
+        "compaction_support": "native"
+      },
       "hooks": ["deny-dangerous.sh"]
     },
     "codex": {
+      "name": "Codex",
       "instruction_file": "AGENTS.md",
       "skills_dir": ".agents/skills/",
       "hooks_dir": ".codex/hooks/",
       "settings": ".codex/config.toml",
+      "hook_config_file": ".codex/hooks.json",
+      "deny_hook": ".codex/hooks/deny-dangerous.sh",
+      "deny_mechanism": {
+        "type": "deny-script",
+        "path": ".codex/hooks/deny-dangerous.sh"
+      },
+      "local_pattern": ".github/instructions/*.md",
+      "hook_events": {
+        "pre_tool": "PreToolUse",
+        "post_turn": null
+      },
+      "capabilities": {
+        "compaction_support": "none"
+      },
       "hooks": ["deny-dangerous.sh"]
     },
     "gemini": {
+      "name": "Gemini CLI",
       "instruction_file": "GEMINI.md",
       "skills_dir": ".agents/skills/",
       "hooks_dir": ".gemini/hooks/",
       "settings": ".gemini/settings.json",
+      "hook_config_file": ".gemini/settings.json",
+      "deny_hook": ".gemini/hooks/deny-dangerous.sh",
+      "deny_mechanism": {
+        "type": "both",
+        "settings_path": ".gemini/settings.json",
+        "script_path": ".gemini/hooks/deny-dangerous.sh"
+      },
+      "local_pattern": "*/GEMINI.md",
+      "hook_events": {
+        "pre_tool": "BeforeTool",
+        "post_turn": "AfterAgent"
+      },
+      "capabilities": {
+        "compaction_support": "native"
+      },
       "hooks": ["deny-dangerous.sh"]
     }
   },

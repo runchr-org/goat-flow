@@ -45,23 +45,23 @@
           style="padding: 0; border-top: none; margin-bottom: 16px"
         >
           <template
-            x-for="agentId in ['claude', 'codex', 'gemini']"
-            :key="'quality-' + agentId"
+            x-for="agent in supportedAgents"
+            :key="'quality-' + agent.id"
           >
             <div
-              @click="qualityAgent = agentId"
+              @click="qualityAgent = agent.id"
               class="gf-agent-card"
-              :class="qualityAgent === agentId && 'gf-agent-card-sel'"
+              :class="qualityAgent === agent.id && 'gf-agent-card-sel'"
             >
               <div
                 class="gf-text-primary"
                 style="font-size: 13px; font-weight: 500"
-                x-text="agentId === 'claude' ? 'Claude Code' : agentId === 'codex' ? 'Codex' : 'Gemini CLI'"
+                x-text="agent.name"
               ></div>
               <div
                 style="font-size: 11px; margin-top: 2px"
-                x-text="(() => { const s = report?.agentScores?.find(a => a.id === agentId); if (!s?.harness) return 'Not audited'; const t = s.harness.checks.length; const pct = t ? Math.round(s.harness.checks.filter(c => c.status === 'pass').length / t * 100) : 0; return pct + '%'; })()"
-                :style="{ color: (() => { const s = report?.agentScores?.find(a => a.id === agentId); if (!s?.harness) return '#52525b'; const t = s.harness.checks.length; const pct = t ? Math.round(s.harness.checks.filter(c => c.status === 'pass').length / t * 100) : 0; return pct >= 80 ? '#4ade80' : pct >= 70 ? '#facc15' : pct >= 60 ? '#fb923c' : '#f87171'; })() }"
+                x-text="(() => { const s = report?.agentScores?.find(a => a.id === agent.id); if (!s?.harness) return 'Not audited'; const t = s.harness.checks.length; const pct = t ? Math.round(s.harness.checks.filter(c => c.status === 'pass').length / t * 100) : 0; return pct + '%'; })()"
+                :style="{ color: (() => { const s = report?.agentScores?.find(a => a.id === agent.id); if (!s?.harness) return '#52525b'; const t = s.harness.checks.length; const pct = t ? Math.round(s.harness.checks.filter(c => c.status === 'pass').length / t * 100) : 0; return pct >= 80 ? '#4ade80' : pct >= 70 ? '#facc15' : pct >= 60 ? '#fb923c' : '#f87171'; })() }"
               ></div>
             </div>
           </template>

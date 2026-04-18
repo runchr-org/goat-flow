@@ -5,13 +5,39 @@
  * `quality` assessment prompt, not here.
  */
 import type { AuditContext, HarnessCheck } from "../types.js";
+import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail, extractBacktickPaths } from "./helpers.js";
+
+const VERIFIED_ON = "2026-04-18";
+
+function contextProvenance(
+  type: HarnessCheck["type"],
+  paths: string[],
+  sourceType: CheckEvidence["source_type"] = "spec",
+): CheckEvidence {
+  return {
+    source_type: sourceType,
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level:
+      type === "integrity"
+        ? "MUST"
+        : type === "advisory"
+          ? "SHOULD"
+          : "BEST_PRACTICE",
+    evidence_paths: paths,
+  };
+}
 
 const instructionLineCount: HarnessCheck = {
   id: "instruction-line-count",
   name: "Instruction file size",
   concern: "context",
   type: "advisory",
+  provenance: contextProvenance("advisory", [
+    "docs/harness-audit.md",
+    "AGENTS.md",
+  ]),
   run: (ctx) => {
     const findings: string[] = [];
     const recs: string[] = [];
@@ -52,6 +78,10 @@ const executionLoopPresent: HarnessCheck = {
   name: "Execution loop present",
   concern: "context",
   type: "advisory",
+  provenance: contextProvenance("advisory", [
+    "docs/harness-audit.md",
+    "AGENTS.md",
+  ]),
   run: (ctx) => {
     const steps = ["read", "scope", "act", "verify"];
     const findings: string[] = [];
@@ -160,6 +190,15 @@ const docPathsResolve: HarnessCheck = {
   name: "Documentation paths resolve",
   concern: "context",
   type: "integrity",
+  provenance: contextProvenance(
+    "integrity",
+    [
+      "docs/harness-audit.md",
+      ".goat-flow/footguns/docs-and-crossrefs.md",
+      ".goat-flow/lessons/verification.md",
+    ],
+    "incident",
+  ),
   run: (ctx) => {
     const { totalPaths, resolvedCount, findings } = checkAllDocPaths(ctx);
 

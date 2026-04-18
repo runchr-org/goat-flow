@@ -25,7 +25,7 @@ Use when assessing security posture: before deployment, after adding auth/input 
 - If vague, ask one follow-up covering: component, threat concern, deployment context, framework.
 - Auto-detect framework from package files and state it briefly.
 
-**Footgun check:** Read `.goat-flow/footguns/` for entries mentioning the target area. Present matches.
+**Footgun check:** Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/` for the target area. Present matches or an explicit retrieval miss; do not broad-load the bucket.
 
 ## Quick Scan Path
 

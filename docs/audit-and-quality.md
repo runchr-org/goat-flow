@@ -41,7 +41,7 @@ Checks are grouped by **scope**:
 - `tasks` - `.goat-flow/tasks/` directory, `.gitignore`, and README exist (local-session state by design)
 - `scratchpad` - `.goat-flow/scratchpad/` directory, `.gitignore`, and README exist (local WIP by design)
 - `other-files` - Other required files from the project manifest exist (preamble, conventions, config)
-- `config-parses` - `.goat-flow/config.yaml` parses and has required fields
+- `config-parses` - `.goat-flow/config.yaml` parses and validates, including manifest-backed `agents:` ids
 - `config-version` - Config version matches current release
 
 **agent scope** (Agent Setup) - 4 checks per configured agent:
@@ -50,7 +50,7 @@ Checks are grouped by **scope**:
 - `agent-settings` - Agent settings/config file parses correctly
 - `agent-deny-dangerous` - Deny hook file exists or deny patterns registered in agent settings
 
-**Agent detection:** `audit` detects which agents are configured from the presence of instruction files (CLAUDE.md, AGENTS.md, GEMINI.md). Use `--agent claude|codex|gemini` to scope checks to a single agent.
+**Agent detection:** `audit` detects configured agents from the manifest-backed instruction-file registry (`workflow/manifest.json` via `src/cli/agents/registry.ts`). Run `goat-flow manifest` to inspect the current support matrix; use `--agent <id>` to scope checks to one supported runtime.
 
 ### Harness mode (`--harness`)
 

@@ -5,6 +5,7 @@
 import type { AgentId } from "../types.js";
 import type { AuditReport, AuditConcernKey } from "../audit/types.js";
 import { loadManifest } from "../manifest/manifest.js";
+import { getAgentProfile } from "../agents/registry.js";
 import { getPackageVersion } from "../paths.js";
 
 interface QualityInput {
@@ -20,36 +21,6 @@ interface QualityPayload {
   auditSummary: string;
   prompt: string;
 }
-
-const AGENT_LABELS: Record<AgentId, string> = {
-  claude: "Claude Code",
-  codex: "Codex",
-  gemini: "Gemini CLI",
-};
-
-const AGENT_SKILL_DIRS: Record<AgentId, string> = {
-  claude: ".claude/skills",
-  codex: ".agents/skills",
-  gemini: ".agents/skills",
-};
-
-const AGENT_SETTINGS: Record<AgentId, string> = {
-  claude: ".claude/settings.json",
-  codex: ".codex/config.toml",
-  gemini: ".gemini/settings.json",
-};
-
-const AGENT_INSTRUCTION: Record<AgentId, string> = {
-  claude: "CLAUDE.md",
-  codex: "AGENTS.md",
-  gemini: "GEMINI.md",
-};
-
-const AGENT_HOOKS_DIR: Record<AgentId, string> = {
-  claude: ".claude/hooks",
-  codex: ".codex/hooks",
-  gemini: ".gemini/hooks",
-};
 
 /** Render the audit summary block embedded in the quality prompt. */
 function renderAuditSummary(report: AuditReport): string {
@@ -104,12 +75,17 @@ function renderDegradedNote(): string {
 }
 
 /** Compose the quality-assessment prompt for the selected agent. */
+// eslint-disable-next-line complexity -- prompt assembly branches on audit availability and split hook-config surfaces
 export function composeQuality(input: QualityInput): QualityPayload {
   const { agent, projectPath, auditReport } = input;
-  const agentLabel = AGENT_LABELS[agent];
-  const skillsDir = AGENT_SKILL_DIRS[agent];
-  const settingsFile = AGENT_SETTINGS[agent];
-  const instructionFile = AGENT_INSTRUCTION[agent];
+  const profile = getAgentProfile(agent);
+  const agentLabel = profile.name;
+  const skillsDir = profile.skillsDir;
+  const settingsFile = profile.settingsFile ?? "(no settings file)";
+  const hookConfigFile = profile.hookConfigFile ?? settingsFile;
+  const instructionFile = profile.instructionFile;
+  const hooksDir = profile.hooksDir;
+  const denyHookFile = profile.denyHookFile;
 
   const auditStatus: QualityPayload["auditStatus"] = auditReport
     ? auditReport.status
@@ -175,7 +151,13 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push(`- **Agent:** ${agentLabel}`);
   lines.push(`- **Instruction file:** \`${instructionFile}\``);
   lines.push(`- **Skills directory:** \`${skillsDir}\``);
-  lines.push(`- **Settings:** \`${settingsFile}\``);
+  lines.push(`- **Settings file:** \`${settingsFile}\``);
+  if (hookConfigFile !== settingsFile) {
+    lines.push(`- **Hook registration file:** \`${hookConfigFile}\``);
+  }
+  if (hooksDir) {
+    lines.push(`- **Hooks directory:** \`${hooksDir}\``);
+  }
   lines.push("");
 
   // What goat-flow is
@@ -260,8 +242,11 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push(
     "# 2. Hook self-test (if deny-dangerous.sh exists in your hooks directory)",
   );
-  const hooksDir = AGENT_HOOKS_DIR[agent];
-  lines.push(`bash ${hooksDir}/deny-dangerous.sh --self-test`);
+  if (denyHookFile) {
+    lines.push(`bash ${denyHookFile} --self-test`);
+  } else {
+    lines.push("#    This agent has no on-disk deny hook script to self-test.");
+  }
   lines.push("");
   lines.push("# 3. Quick structural checks");
   lines.push(
@@ -293,7 +278,12 @@ export function composeQuality(input: QualityInput): QualityPayload {
   );
   lines.push(`- All installed skills - every \`SKILL.md\` in \`${skillsDir}\``);
   lines.push(`- Agent settings: \`${settingsFile}\``);
-  lines.push("- All hook scripts in your agent's hooks directory");
+  if (hookConfigFile !== settingsFile) {
+    lines.push(`- Hook registration file: \`${hookConfigFile}\``);
+  }
+  if (hooksDir) {
+    lines.push("- All hook scripts in your agent's hooks directory");
+  }
   lines.push(
     "- `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/decisions/` (list and scan what exists)",
   );
@@ -377,7 +367,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "- Does `.goat-flow/config.yaml` stay lean and accurate for this project? If it includes optional project-calibration fields like `toolchain`, verify the commands are real before treating them as authoritative. If you also run the tool at broader scope (e.g., `npx eslint .` vs a project's scoped command), note whether the project intentionally scopes narrower - that's a design choice, not a finding, unless it hides real problems. Beware that `.claude/worktrees/`, `node_modules/`, and `dist/` can pollute unscoped tool runs.",
   );
   lines.push(
-    `- Were hook scripts installed and registered in \`${settingsFile}\`?`,
+    `- Were hook scripts installed and registered in \`${hookConfigFile}\`?`,
   );
   lines.push(
     "- Did deny-dangerous.sh pass the self-test in Step 0? If not, what failed?",

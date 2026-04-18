@@ -51,24 +51,21 @@
           class="gf-agent-strip"
           style="padding: 0; border-top: none; margin-bottom: 16px"
         >
-          <template
-            x-for="agentId in ['claude', 'codex', 'gemini']"
-            :key="agentId"
-          >
+          <template x-for="agent in supportedAgents" :key="agent.id">
             <div
-              @click="wizardSelectedAgent = agentId"
+              @click="wizardSelectedAgent = agent.id"
               class="gf-agent-card"
-              :class="wizardSelectedAgent === agentId && 'gf-agent-card-sel'"
+              :class="wizardSelectedAgent === agent.id && 'gf-agent-card-sel'"
             >
               <div
                 class="gf-text-primary"
                 style="font-size: 13px; font-weight: 500"
-                x-text="agentId === 'claude' ? 'Claude Code' : agentId === 'codex' ? 'Codex' : 'Gemini CLI'"
+                x-text="agent.name"
               ></div>
               <div
                 style="font-size: 11px; margin-top: 2px"
-                x-text="wizardAgentStatus(agentId).label"
-                :style="{ color: wizardAgentStatus(agentId).color }"
+                x-text="wizardAgentStatus(agent.id).label"
+                :style="{ color: wizardAgentStatus(agent.id).color }"
               ></div>
             </div>
           </template>

@@ -6,6 +6,10 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import {
+  getAgentProfileMap,
+  getKnownAgentIds,
+} from "../../src/cli/agents/registry.js";
 
 const PROJECT_PATH = resolve(import.meta.dirname, "..", "..");
 const PROJECTS_LIST_PATH = resolve(
@@ -53,6 +57,26 @@ function assertJsonResponse(res: Response, context: string): void {
   );
 }
 
+function assertAuditCheckProvenance(value: unknown, context: string): void {
+  const provenance = expectRecord(value, context);
+  assert.match(
+    String(provenance.source_type),
+    /^(spec|vendor_docs|paper|incident|community|unknown)$/,
+    `${context}.source_type should be a valid provenance source`,
+  );
+  assert.equal(
+    Array.isArray(provenance.source_urls),
+    true,
+    `${context}.source_urls should be an array`,
+  );
+  assert.equal(typeof provenance.verified_on, "string");
+  assert.match(
+    String(provenance.normative_level),
+    /^(MUST|SHOULD|BEST_PRACTICE)$/,
+    `${context}.normative_level should be a valid provenance level`,
+  );
+}
+
 function assertAuditScope(value: unknown, context: string): void {
   const scope = expectRecord(value, context);
   assert.match(
@@ -64,6 +88,13 @@ function assertAuditScope(value: unknown, context: string): void {
     Array.isArray(scope.checks),
     `${context}.checks should be an array`,
   );
+  for (const [index, check] of (scope.checks as unknown[]).entries()) {
+    const entry = expectRecord(check, `${context}.checks[${index}]`);
+    assertAuditCheckProvenance(
+      entry.provenance,
+      `${context}.checks[${index}].provenance`,
+    );
+  }
   assert.ok(
     Array.isArray(scope.failures),
     `${context}.failures should be an array`,
@@ -146,6 +177,7 @@ describe("dashboard HTML", () => {
     const html = await res.text();
     assert.match(html, /__GOAT_FLOW_DEFAULT_PATH__/);
     assert.match(html, /__GOAT_FLOW_VERSION__/);
+    assert.match(html, /__GOAT_FLOW_AGENTS__/);
     assert.match(html, /alpinejs@3/i);
     assert.match(html, /\/assets\/preset-prompts\.js/);
     assert.match(html, /\/assets\/app\.js/);
@@ -196,8 +228,14 @@ describe("dashboard /api/audit", () => {
 
     for (const score of agentScores) {
       const entry = expectRecord(score, "Dashboard report agent score");
-      assert.match(String(entry.id), /^(claude|codex|gemini)$/);
-      assert.equal(typeof entry.name, "string");
+      const id = String(entry.id);
+      assert.ok(
+        getKnownAgentIds().includes(id as "claude" | "codex" | "gemini"),
+      );
+      assert.equal(
+        entry.name,
+        getAgentProfileMap()[id as "claude" | "codex" | "gemini"].name,
+      );
       assertAuditScope(entry.agent, "Dashboard report agentScores[].agent");
       if (entry.harness !== null) {
         assertAuditScope(
@@ -299,11 +337,20 @@ describe("dashboard /api/agents/installed", () => {
 
     const data = expectRecord(body, "Agent detection response");
     assert.ok(Array.isArray(data.agents));
-    assert.equal((data.agents as unknown[]).length, 3);
+    assert.equal((data.agents as unknown[]).length, getKnownAgentIds().length);
     const ids = (data.agents as Array<Record<string, unknown>>).map((agent) =>
       String(agent.id),
     );
-    assert.deepEqual(ids.sort(), ["claude", "codex", "gemini"]);
+    const names = (data.agents as Array<Record<string, unknown>>).map((agent) =>
+      String(agent.name),
+    );
+    assert.deepEqual(ids.sort(), [...getKnownAgentIds()].sort());
+    assert.deepEqual(
+      names.sort(),
+      getKnownAgentIds()
+        .map((id) => getAgentProfileMap()[id].name)
+        .sort(),
+    );
   });
 });
 
@@ -345,7 +392,7 @@ describe("dashboard /api/setup", () => {
     assert.match(String(data.error), /invalid/i);
   });
 
-  for (const agent of ["claude", "codex", "gemini"] as const) {
+  for (const agent of getKnownAgentIds()) {
     it(`generates setup output for ${agent}`, async () => {
       const { res, body } = await fetchJson(
         `/api/setup?path=${encodeURIComponent(PROJECT_PATH)}&agent=${agent}`,
@@ -367,7 +414,7 @@ describe("dashboard /api/quality", () => {
     assert.equal(res.status, 400);
   });
 
-  for (const agent of ["claude", "codex", "gemini"] as const) {
+  for (const agent of getKnownAgentIds()) {
     it(`generates quality output for ${agent}`, async () => {
       const { res, body } = await fetchJson(
         `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=${agent}`,

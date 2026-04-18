@@ -4,13 +4,38 @@
  * A fresh install with zero entries is a valid PASS.
  */
 import type { HarnessCheck } from "../types.js";
+import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
+
+const VERIFIED_ON = "2026-04-18";
+
+function feedbackProvenance(
+  type: HarnessCheck["type"],
+  paths: string[],
+): CheckEvidence {
+  return {
+    source_type: "spec",
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level:
+      type === "integrity"
+        ? "MUST"
+        : type === "advisory"
+          ? "SHOULD"
+          : "BEST_PRACTICE",
+    evidence_paths: paths,
+  };
+}
 
 const feedbackLoopActive: HarnessCheck = {
   id: "feedback-loop-active",
   name: "Feedback loop directories exist",
   concern: "feedback_loop",
   type: "integrity",
+  provenance: feedbackProvenance("integrity", [
+    "docs/harness-audit.md",
+    ".goat-flow/architecture.md",
+  ]),
   run: (ctx) => {
     const findings: string[] = [];
     const missing: string[] = [];
@@ -62,6 +87,10 @@ const decisionsTracked: HarnessCheck = {
   name: "Decisions directory exists",
   concern: "feedback_loop",
   type: "integrity",
+  provenance: feedbackProvenance("integrity", [
+    "docs/harness-audit.md",
+    ".goat-flow/architecture.md",
+  ]),
   run: (ctx) => {
     const { decisions } = ctx.facts.shared;
     if (!decisions.dirExists) {

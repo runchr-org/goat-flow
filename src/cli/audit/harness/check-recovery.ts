@@ -3,14 +3,41 @@
  * 3 checks: milestone-tracking, session-logs, compaction-hook.
  */
 import type { HarnessCheck } from "../types.js";
+import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
 import { collectMarkdownFiles } from "./helpers.js";
+
+const VERIFIED_ON = "2026-04-18";
+
+function recoveryProvenance(
+  type: HarnessCheck["type"],
+  paths: string[],
+  sourceType: CheckEvidence["source_type"] = "spec",
+): CheckEvidence {
+  return {
+    source_type: sourceType,
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level:
+      type === "integrity"
+        ? "MUST"
+        : type === "advisory"
+          ? "SHOULD"
+          : "BEST_PRACTICE",
+    evidence_paths: paths,
+  };
+}
 
 const milestoneTracking: HarnessCheck = {
   id: "milestone-tracking",
   name: "Milestone tracking configured",
   concern: "recovery",
   type: "integrity",
+  provenance: recoveryProvenance("integrity", [
+    "docs/harness-audit.md",
+    ".goat-flow/architecture.md",
+    ".goat-flow/tasks/README.md",
+  ]),
   run: (ctx) => {
     const tasksDir = ".goat-flow/tasks";
     if (!ctx.fs.exists(tasksDir)) {
@@ -60,6 +87,10 @@ const sessionLogs: HarnessCheck = {
   name: "Session logs directory",
   concern: "recovery",
   type: "integrity",
+  provenance: recoveryProvenance("integrity", [
+    "docs/harness-audit.md",
+    ".goat-flow/architecture.md",
+  ]),
   run: (ctx) => {
     const logsDir = ".goat-flow/logs/sessions";
     try {
@@ -82,10 +113,20 @@ const compactionHook: HarnessCheck = {
   name: "Compaction hook registered",
   concern: "recovery",
   type: "advisory",
+  provenance: recoveryProvenance(
+    "advisory",
+    ["docs/harness-audit.md", ".goat-flow/footguns/hooks.md"],
+    "incident",
+  ),
   run: (ctx) => {
     const covered: string[] = [];
     const uncovered: string[] = [];
+    const unsupported: string[] = [];
     for (const af of ctx.agents) {
+      if (af.agent.capabilities.compactionSupport === "none") {
+        unsupported.push(af.agent.id);
+        continue;
+      }
       if (af.hooks.compactionHookExists) {
         covered.push(af.agent.id);
       } else {
@@ -93,32 +134,35 @@ const compactionHook: HarnessCheck = {
       }
     }
     if (uncovered.length === 0) {
-      return pass([`${covered.join(", ")}: compaction hook registered`]);
+      const findings: string[] = [];
+      if (covered.length > 0) {
+        findings.push(`${covered.join(", ")}: compaction hook registered`);
+      }
+      if (unsupported.length > 0) {
+        findings.push(
+          `${unsupported.join(", ")}: context compaction not supported - not checked`,
+        );
+      }
+      return pass(findings);
     }
-    const nonCodexUncovered = uncovered.filter((id) => id !== "codex");
-    const codexUncovered = uncovered.filter((id) => id === "codex");
 
     const findings: string[] = [];
     if (covered.length > 0) {
       findings.push(`${covered.join(", ")}: compaction hook registered`);
     }
-    if (codexUncovered.length > 0) {
-      findings.push("codex: context compaction not supported - not checked");
-    }
-
-    if (nonCodexUncovered.length > 0) {
+    if (unsupported.length > 0) {
       findings.push(
-        `${nonCodexUncovered.join(", ")}: no compaction hook registered`,
-      );
-      return fail(
-        findings,
-        [`Add compaction hook for ${nonCodexUncovered.join(", ")}`],
-        [
-          `Register a compaction hook for ${nonCodexUncovered.join(", ")} that re-injects task state after context compression.`,
-        ],
+        `${unsupported.join(", ")}: context compaction not supported - not checked`,
       );
     }
-    return pass(findings);
+    findings.push(`${uncovered.join(", ")}: no compaction hook registered`);
+    return fail(
+      findings,
+      [`Add compaction hook for ${uncovered.join(", ")}`],
+      [
+        `Register a compaction hook for ${uncovered.join(", ")} that re-injects task state after context compression.`,
+      ],
+    );
   },
 };
 

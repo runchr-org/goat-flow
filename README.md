@@ -167,15 +167,9 @@ See [docs/cli.md](docs/cli.md) for the full command reference.
 
 ## Multi-Agent Support
 
-Three first-class agents are supported by the CLI (`audit`, `quality`, `setup`, `dashboard`):
+Framework support metadata is sourced from `workflow/manifest.json` through `src/cli/agents/registry.ts`. Run `goat-flow manifest` to inspect the live agent matrix that drives CLI validation, installer paths, and dashboard labels. In `v1.2.0` the shipped support set is Claude Code, Codex, and Gemini CLI.
 
-| | Claude Code | Gemini CLI | Codex |
-|---|---|---|---|
-| Instruction file | CLAUDE.md | GEMINI.md | AGENTS.md |
-| Skills | .claude/skills/ | .agents/skills/ | .agents/skills/ |
-| Hooks | .claude/hooks/ | .gemini/hooks/ | .codex/hooks/ |
-
-All agents share the same execution loop, autonomy tiers, skills, and learning loop. The `setup` command generates agent-specific configuration.
+All supported agents share the same execution loop, autonomy tiers, skills, and learning loop. The `setup` command generates the agent-specific configuration surfaces for the selected runtime.
 
 ## Troubleshooting
 

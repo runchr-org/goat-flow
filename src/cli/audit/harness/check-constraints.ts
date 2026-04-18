@@ -3,7 +3,29 @@
  * 3 checks: deny-covers-secrets, deny-blocks-dangerous, deny-blocks-pipe-to-shell.
  */
 import type { HarnessCheck, AuditContext } from "../types.js";
+import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
+
+const VERIFIED_ON = "2026-04-18";
+
+function constraintsProvenance(
+  type: HarnessCheck["type"],
+  paths: string[],
+  sourceType: CheckEvidence["source_type"] = "spec",
+): CheckEvidence {
+  return {
+    source_type: sourceType,
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level:
+      type === "integrity"
+        ? "MUST"
+        : type === "advisory"
+          ? "SHOULD"
+          : "BEST_PRACTICE",
+    evidence_paths: paths,
+  };
+}
 
 /** Classify each agent by whether its deny rules cover secret-bearing files. */
 function classifySecretDeny(ctx: Pick<AuditContext, "agents">) {
@@ -27,6 +49,10 @@ const denyCoversSecrets: HarnessCheck = {
   name: "Deny covers secret files",
   concern: "constraints",
   type: "integrity",
+  provenance: constraintsProvenance("integrity", [
+    "docs/harness-audit.md",
+    ".goat-flow/footguns/auditor.md",
+  ]),
   run: (ctx) => {
     const { covered, uncovered, scriptOnly } = classifySecretDeny(ctx);
 
@@ -72,6 +98,11 @@ const denyBlocksDangerous: HarnessCheck = {
   name: "Deny blocks dangerous commands",
   concern: "constraints",
   type: "integrity",
+  provenance: constraintsProvenance("integrity", [
+    "docs/harness-audit.md",
+    ".goat-flow/footguns/auditor.md",
+    ".goat-flow/footguns/hooks.md",
+  ]),
   run: (ctx) => {
     if (ctx.agents.length === 0) {
       return fail(["No agents to check"], ["Configure at least one agent"]);
@@ -111,6 +142,15 @@ const denyBlocksPipeToShell: HarnessCheck = {
   name: "Deny blocks pipe-to-shell",
   concern: "constraints",
   type: "advisory",
+  provenance: constraintsProvenance(
+    "advisory",
+    [
+      "docs/harness-audit.md",
+      ".goat-flow/footguns/auditor.md",
+      ".goat-flow/footguns/hooks.md",
+    ],
+    "incident",
+  ),
   run: (ctx) => {
     const covered: string[] = [];
     const uncovered: string[] = [];
@@ -150,6 +190,11 @@ const denyHookRegistered: HarnessCheck = {
   name: "Deny hook registered in agent settings",
   concern: "constraints",
   type: "integrity",
+  provenance: constraintsProvenance(
+    "integrity",
+    ["docs/harness-audit.md", ".goat-flow/footguns/auditor.md"],
+    "incident",
+  ),
   run: (ctx) => {
     const registered: string[] = [];
     const unregistered: string[] = [];

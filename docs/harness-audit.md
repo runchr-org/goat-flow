@@ -39,6 +39,12 @@ Listing a check id silences that check. The finding still appears in audit outpu
 
 Only `advisory`-typed checks can be acknowledged. Integrity checks have no opt-out; metrics are already un-scored.
 
+## Check provenance
+
+Every registered build and harness check now carries machine-readable `provenance` in `goat-flow audit . --format json`. The record includes `source_type`, `normative_level`, `verified_on`, and supporting `evidence_paths` / `source_urls`.
+
+1.2.0 keeps provenance JSON-only on purpose. Terminal and markdown renderers stay focused on status + remediation; if you need the justification trail for a check, inspect the per-check `provenance` object in JSON output.
+
 ### The 16 checks by type
 
 - **integrity (9):** `doc-paths-resolve`, `deny-covers-secrets`, `deny-blocks-dangerous`, `deny-hook-registered`, `hooks-registered`, `milestone-tracking`, `session-logs`, `feedback-loop-active`, `decisions-tracked`
@@ -132,4 +138,3 @@ A fresh install with zero footguns and zero lessons is a valid PASS. The audit o
 - `decisions-tracked` - `.goat-flow/decisions/` directory exists. Record count is reported informationally.
 
 **Not checked here:** entry counts, recency (`**Created:**` dates), content accuracy, staleness of `file:line` references in footgun entries, whether active/resolved statuses are accurate. All of these are content-quality judgments that belong in `quality`.
-

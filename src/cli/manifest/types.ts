@@ -13,12 +13,36 @@
  * `ManifestValidationError`.
  */
 
-/** The existing `agents:` block already shipped in `workflow/manifest.json`. */
+/** Manifest hook event names for one runtime. */
+export interface ManifestHookEvents {
+  pre_tool: string;
+  post_turn: string | null;
+}
+
+/** Manifest capability flags for one runtime. */
+export interface ManifestAgentCapabilities {
+  compaction_support: "native" | "none";
+}
+
+/** Manifest deny-mechanism metadata for one runtime. */
+export type ManifestDenyMechanism =
+  | { type: "settings-deny"; path: string }
+  | { type: "deny-script"; path: string }
+  | { type: "both"; settings_path: string; script_path: string };
+
+/** The manifest-backed framework-support record for one agent runtime. */
 export interface AgentProfile {
+  name: string;
   instruction_file: string;
   skills_dir: string;
   hooks_dir?: string;
   settings?: string;
+  hook_config_file?: string;
+  deny_hook?: string;
+  deny_mechanism: ManifestDenyMechanism;
+  local_pattern: string;
+  hook_events: ManifestHookEvents;
+  capabilities: ManifestAgentCapabilities;
   hooks?: string[];
 }
 

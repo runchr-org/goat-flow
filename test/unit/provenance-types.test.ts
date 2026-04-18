@@ -12,6 +12,9 @@ import type { CheckEvidence } from "../../src/cli/audit/provenance-types.js";
 import { CONTENT_QUALITY_EVIDENCE } from "../../src/cli/audit/check-content-quality.js";
 import { FACTUAL_CLAIMS_EVIDENCE } from "../../src/cli/audit/check-factual-claims.js";
 import { SNAPSHOT_CLAIMS_EVIDENCE } from "../../src/cli/audit/check-snapshot-claims.js";
+import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
+import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
+import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
 
 describe("validateProvenance", () => {
   it("accepts a well-formed spec entry", () => {
@@ -103,5 +106,17 @@ describe("M05 check evidence constants validate", () => {
 
   it("SNAPSHOT_CLAIMS_EVIDENCE satisfies the schema", () => {
     assert.deepEqual(validateProvenance(SNAPSHOT_CLAIMS_EVIDENCE), []);
+  });
+
+  it("all 33 registered build and harness checks satisfy the schema", () => {
+    const checks = [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
+    assert.equal(checks.length, 33);
+    for (const check of checks) {
+      assert.deepEqual(
+        validateProvenance(check.provenance),
+        [],
+        `check ${check.id} has invalid provenance`,
+      );
+    }
   });
 });

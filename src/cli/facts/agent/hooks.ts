@@ -313,8 +313,9 @@ function extractCommandsFromEventEntry(entry: unknown): string[] {
 /** Normalize one event's hook registration into a simple registered/path pair. */
 function normalizeEventConfig(
   hooks: Record<string, unknown>,
-  event: string,
+  event: string | null,
 ): HookRegistrationMatch {
+  if (!event) return { registered: false, path: null };
   const rawEvent = hooks[event];
   if (rawEvent === undefined) return { registered: false, path: null };
   if (!Array.isArray(rawEvent)) return { registered: false, path: null };
@@ -328,30 +329,32 @@ function normalizeEventConfig(
   return { registered: path !== null, path };
 }
 
+/** Load the hook-registration config for the current agent. */
+function readHookConfig(
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+  settingsParsed: unknown,
+  settingsValid: boolean,
+): { parsed: unknown; valid: boolean } {
+  if (!agent.hookConfigFile) {
+    return { parsed: null, valid: false };
+  }
+  if (agent.hookConfigFile === agent.settingsFile) {
+    return { parsed: settingsParsed, valid: settingsValid };
+  }
+  const parsed = fs.readJson(agent.hookConfigFile);
+  return { parsed, valid: parsed !== null };
+}
+
 /** Collect registered post-turn hook paths for the current agent. */
 function buildHookRegistration(
   agent: AgentProfile,
-  settingsParsed: unknown,
-  codexHooksJson: unknown,
+  hookConfigParsed: unknown,
 ): {
   postTurnRegistered: boolean;
   postTurnRegisteredPath: string | null;
 } {
-  // Codex: hooks live in .codex/hooks.json (same JSON structure as Claude/Gemini settings)
-  if (agent.id === "codex") {
-    const hooks = readHooksObject(codexHooksJson);
-    if (!hooks) {
-      return { postTurnRegistered: false, postTurnRegisteredPath: null };
-    }
-    const stop = normalizeEventConfig(hooks, "Stop");
-    return {
-      postTurnRegistered: stop.registered,
-      postTurnRegisteredPath: stop.path,
-    };
-  }
-
-  // Claude/Gemini: hooks live in settings.json
-  const hooks = readHooksObject(settingsParsed);
+  const hooks = readHooksObject(hookConfigParsed);
   if (!hooks) {
     return {
       postTurnRegistered: false,
@@ -369,11 +372,9 @@ function buildHookRegistration(
 /** Check whether the deny hook is registered as a pre-tool-use hook in settings. */
 function buildDenyRegistration(
   agent: AgentProfile,
-  settingsParsed: unknown,
-  codexHooksJson: unknown,
+  hookConfigParsed: unknown,
 ): { denyIsRegistered: boolean; denyRegisteredPath: string | null } {
-  const source = agent.id === "codex" ? codexHooksJson : settingsParsed;
-  const hooks = readHooksObject(source);
+  const hooks = readHooksObject(hookConfigParsed);
   if (!hooks) {
     return { denyIsRegistered: false, denyRegisteredPath: null };
   }
@@ -388,16 +389,13 @@ function buildDenyRegistration(
 /** Detect whether the current agent has a compaction/session-start hook configured. */
 function detectCompactionHookExists(
   agent: AgentProfile,
-  settingsParsed: unknown,
-  settingsValid: boolean,
+  hookConfigParsed: unknown,
+  hookConfigValid: boolean,
 ): boolean {
-  // Codex's session_start hook fires at session start, not after context compression.
-  // It does not satisfy the compaction hook requirement (re-inject task context after
-  // window compression). Return false for Codex rather than using session_start as a proxy.
-  if (agent.id === "codex") {
+  if (agent.capabilities.compactionSupport !== "native") {
     return false;
   }
-  return checkCompactionHook(settingsParsed, settingsValid);
+  return checkCompactionHook(hookConfigParsed, hookConfigValid);
 }
 
 /** Resolve the deny hook script path for the current agent, if it has one. */
@@ -405,6 +403,9 @@ function resolveDenyHookPath(
   fs: ReadonlyFS,
   agent: AgentProfile,
 ): string | null {
+  if (agent.denyHookFile && fs.exists(agent.denyHookFile)) {
+    return agent.denyHookFile;
+  }
   if (agent.hooksDir && fs.exists(`${agent.hooksDir}/deny-dangerous.sh`)) {
     return `${agent.hooksDir}/deny-dangerous.sh`;
   }
@@ -500,25 +501,16 @@ export function extractHookFacts(
   hasDenyPatterns: boolean,
   settingsValid: boolean,
 ): Omit<AgentFacts["hooks"], "readDenyCoversSecrets"> {
+  const hookConfig = readHookConfig(fs, agent, settingsParsed, settingsValid);
   const compactionHookExists = detectCompactionHookExists(
     agent,
-    settingsParsed,
-    settingsValid,
+    hookConfig.parsed,
+    hookConfig.valid,
   );
-  const codexHooksJson =
-    agent.id === "codex" ? fs.readJson(".codex/hooks.json") : null;
-  const registration = buildHookRegistration(
-    agent,
-    settingsParsed,
-    codexHooksJson,
-  );
+  const registration = buildHookRegistration(agent, hookConfig.parsed);
   const hook = analyzeDenyHookPath(fs, resolveDenyHookPath(fs, agent));
   const absolutePathHooks = findAbsolutePathHooks(fs, agent.hooksDir);
-  const denyRegistration = buildDenyRegistration(
-    agent,
-    settingsParsed,
-    codexHooksJson,
-  );
+  const denyRegistration = buildDenyRegistration(agent, hookConfig.parsed);
 
   // Second: also check settings.json Bash deny patterns
   enrichDenyFromSettings(settingsParsed, hasDenyPatterns, hook);

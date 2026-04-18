@@ -19,6 +19,22 @@ last_reviewed: 2026-04-18
 
 ---
 
+## Footgun: Weak retrieval cues cause learning-loop misses
+
+**Status:** active | **Created:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A grep-first retrieval returns zero hits even though a relevant footgun exists, because the first query uses roadmap or abstraction language instead of the concrete failure class stored in the bucket.
+
+**Why it happens:** The learning-loop buckets index real incidents and failure classes, not milestone names. Queries like "support matrix" or "registry canonicality" sound precise in planning context but do not match the actual wording of stored hook/platform incidents.
+
+**Evidence:**
+- `.goat-flow/tasks/1.2.0/M10-ab-log.md` run 3: `support matrix|agent matrix|registry canonicality` returned `0` hits, while the reworded query `Codex has no compaction notification hook` immediately hit `.goat-flow/footguns/hooks.md`.
+- `workflow/skills/reference/skill-preamble.md` now hard-codes the mitigation: derive 2-4 terms from target area + symptom + named file/tool, retry once, then record a miss instead of broad-loading a bucket.
+
+**Prevention:** Seed first-pass retrieval terms with the concrete symptom, platform, or file/tool name rather than milestone titles or abstract design labels. One reword is allowed; if the second query still misses, record the retrieval miss explicitly and move on. Broad-loading the bucket to compensate defeats the protocol.
+
+---
+
 ## Footgun: Installed skill copies can drift on punctuation-only edits and fail unrelated test runs
 
 **Status:** resolved | **Created:** 2026-04-18 | **Resolved:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED

@@ -42,7 +42,7 @@ Use when work needs breaking into milestones with tracked progress. goat-plan cr
 1. What are we building? (Accept: a brief from the dispatcher, a requirements doc, a conversation summary, or just a description)
 2. What's the riskiest part? (This determines which milestone comes first)
 3. What would make us abandon this entirely? (Kill criteria)
-4. Read `.goat-flow/footguns/` for the target area
+4. Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/` for the target area
 
 **Detect read-only intent:**
 If the user's phrasing suggests analysis rather than implementation, offer read-only mode:

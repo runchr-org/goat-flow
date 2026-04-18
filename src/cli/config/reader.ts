@@ -5,8 +5,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { load } from "js-yaml";
-import type { ReadonlyFS } from "../types.js";
+import type { AgentId, ReadonlyFS } from "../types.js";
 import { AUDIT_VERSION } from "../constants.js";
+import { getKnownAgentIds } from "../agents/registry.js";
 import type {
   GoatFlowConfig,
   LoadedConfig,
@@ -14,8 +15,9 @@ import type {
   ValidationResult,
 } from "./types.js";
 
-/** Agent identifiers accepted in the config's `agents` field. */
-const KNOWN_AGENTS = new Set(["claude", "codex", "gemini"]);
+/** Manifest-backed agent identifiers accepted in the config's `agents` field. */
+const KNOWN_AGENTS = new Set(getKnownAgentIds());
+const KNOWN_AGENT_LIST = Array.from(KNOWN_AGENTS).join(", ");
 /** Top-level config keys recognized by the validator (others trigger warnings). */
 const KNOWN_TOP_LEVEL_KEYS = new Set([
   "version",
@@ -346,7 +348,7 @@ function validateToolchainField(
 /** Validate an explicit list of enabled agents. */
 function validateAgentList(
   agents: unknown[],
-  warnings: ValidationIssue[],
+  _warnings: ValidationIssue[],
   errors: ValidationIssue[],
 ): void {
   if (agents.length === 0) {
@@ -361,11 +363,11 @@ function validateAgentList(
       pushError(errors, `agents[${index}]`, "must be a string");
       continue;
     }
-    if (!KNOWN_AGENTS.has(value)) {
-      pushWarning(
-        warnings,
+    if (!KNOWN_AGENTS.has(value as AgentId)) {
+      pushError(
+        errors,
         `agents[${index}]`,
-        `unknown agent "${value}" - known agents: ${Array.from(KNOWN_AGENTS).join(", ")}`,
+        `unknown agent "${value}" - known agents: ${KNOWN_AGENT_LIST}`,
       );
     }
   }

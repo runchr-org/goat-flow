@@ -31,7 +31,7 @@ Use when reviewing a diff, PR, or set of changes. Also for quality audits of a c
 
 **Spec source (opt-in):** if `.goat-flow/tasks/.active` exists, read it to find the active plan subdir and scan for a milestone file with `Status: in-progress` or `testing-gate`. If found, offer: "Include Spec Drift check against M[NN] exit criteria?" Default: skip for quick, offer for full. Note the choice in Review Integrity.
 
-**Footgun check:** Read `.goat-flow/footguns/` for entries mentioning the target area. Present matches.
+**Footgun check:** Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/` for the target area. Present matches or an explicit retrieval miss; do not broad-load the bucket.
 
 ## Diff Review (Quick) — Two-Pass Discipline
 
@@ -95,7 +95,7 @@ Finding line prefix: `[SEVERITY:ACTION]`. Example: `[MUST:needs-decision]`.
 
 ### Footgun Cross-Check
 
-Check each finding against `.goat-flow/footguns/`. When a direct match exists, include it. Omit the footgun tag when no direct match is found.
+Check each finding with targeted grep-first retrieval against `.goat-flow/footguns/`. When a direct match exists, include it. Omit the footgun tag when no direct match is found after the one allowed reword.
 
 **BLOCKING GATE:** Present findings using Output Format below, then pause for human to drill in.
 
@@ -145,7 +145,7 @@ Never leave this section empty. "confident — no degradation flags" is the mini
 
 **Both modes:**
 - MUST tag every surfaced finding with `[SEVERITY:ACTION]`
-- MUST check each finding against `.goat-flow/footguns/`; omit the tag when no direct match
+- MUST check each finding with targeted grep-first retrieval against `.goat-flow/footguns/`; omit the tag when no direct match after the allowed reword
 - MUST order findings by severity, not by file or discovery order
 - MUST emit Review Integrity on every run
 - MUST propose chunking when the diff exceeds 20 files OR 3000 changed lines

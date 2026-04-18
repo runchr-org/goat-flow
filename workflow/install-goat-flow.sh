@@ -18,6 +18,72 @@ set -euo pipefail
 # --- Resolve goat-flow root (directory containing this script's parent) ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GOAT_FLOW_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MANIFEST_PATH="$GOAT_FLOW_ROOT/workflow/manifest.json"
+
+manifest_eval() {
+  node - "$MANIFEST_PATH" "$@" <<'NODE'
+const fs = require("node:fs");
+
+const manifestPath = process.argv[2];
+const mode = process.argv[3];
+const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+const trimDir = (value) =>
+  typeof value === "string" ? value.replace(/\/$/, "") : "";
+const agentIds = Object.keys(manifest.agents || {});
+
+if (mode === "supported-agents") {
+  console.log(agentIds.join(","));
+  console.log(agentIds.join("|"));
+  process.exit(0);
+}
+
+if (mode === "agent-profile") {
+  const agentId = process.argv[4];
+  const agent = manifest.agents?.[agentId];
+  if (!agent) {
+    process.stderr.write(`unknown agent: ${agentId}\n`);
+    process.exit(2);
+  }
+
+  const settingsDst = typeof agent.settings === "string" ? agent.settings : "";
+  const settingsExt = settingsDst ? settingsDst.split(".").pop() : "";
+  const hookConfigDst =
+    typeof agent.hook_config_file === "string" &&
+    agent.hook_config_file !== settingsDst
+      ? agent.hook_config_file
+      : "";
+
+  const entries = {
+    skills_dir: trimDir(agent.skills_dir),
+    hooks_dir: trimDir(agent.hooks_dir),
+    settings_src: settingsDst
+      ? `workflow/hooks/agent-config/${agentId}.${settingsExt}`
+      : "",
+    settings_dst: settingsDst,
+    hook_config_src: hookConfigDst
+      ? `workflow/hooks/agent-config/${agentId}-hooks.json`
+      : "",
+    hook_config_dst: hookConfigDst,
+    deny_hook_dst:
+      typeof agent.deny_hook === "string" ? agent.deny_hook : "",
+    config_agents: agentIds.join(","),
+  };
+
+  for (const [key, value] of Object.entries(entries)) {
+    console.log(`${key}\t${value}`);
+  }
+  process.exit(0);
+}
+
+process.stderr.write(`unknown manifest_eval mode: ${mode}\n`);
+process.exit(1);
+NODE
+}
+
+readarray -t SUPPORTED_AGENT_LINES < <(manifest_eval supported-agents)
+SUPPORTED_AGENTS_CSV="${SUPPORTED_AGENT_LINES[0]:-}"
+SUPPORTED_AGENTS_PIPE="${SUPPORTED_AGENT_LINES[1]:-}"
+SUPPORTED_AGENTS_DISPLAY="${SUPPORTED_AGENTS_CSV//,/, }"
 
 # --- Parse arguments ---
 PROJECT=""
@@ -34,7 +100,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$PROJECT" ]]; then
-  echo "Usage: $0 /path/to/project --agent <claude|codex|gemini>"
+  echo "Usage: $0 /path/to/project --agent <${SUPPORTED_AGENTS_PIPE}>"
   exit 1
 fi
 
@@ -44,30 +110,28 @@ if [[ ! -d "$PROJECT" ]]; then
 fi
 
 # --- Agent profile ---
-case "$AGENT" in
-  claude)
-    SKILLS_DIR=".claude/skills"
-    HOOKS_DIR=".claude/hooks"
-    SETTINGS_SRC="workflow/hooks/agent-config/claude.json"
-    SETTINGS_DST=".claude/settings.json"
-    ;;
-  codex)
-    SKILLS_DIR=".agents/skills"
-    HOOKS_DIR=".codex/hooks"
-    SETTINGS_SRC="workflow/hooks/agent-config/codex.toml"
-    SETTINGS_DST=".codex/config.toml"
-    ;;
-  gemini)
-    SKILLS_DIR=".agents/skills"
-    HOOKS_DIR=".gemini/hooks"
-    SETTINGS_SRC="workflow/hooks/agent-config/gemini.json"
-    SETTINGS_DST=".gemini/settings.json"
-    ;;
-  *)
-    echo "ERROR: --agent must be claude, codex, or gemini (got: '${AGENT:-<empty>}')"
-    exit 1
-    ;;
-esac
+PROFILE_DATA="$(manifest_eval agent-profile "$AGENT")" || {
+  echo "ERROR: --agent must be ${SUPPORTED_AGENTS_DISPLAY} (got: '${AGENT:-<empty>}')"
+  exit 1
+}
+
+while IFS=$'\t' read -r key value; do
+  case "$key" in
+    skills_dir) SKILLS_DIR="$value" ;;
+    hooks_dir) HOOKS_DIR="$value" ;;
+    settings_src) SETTINGS_SRC="$value" ;;
+    settings_dst) SETTINGS_DST="$value" ;;
+    hook_config_src) HOOK_CONFIG_SRC="$value" ;;
+    hook_config_dst) HOOK_CONFIG_DST="$value" ;;
+    deny_hook_dst) DENY_HOOK_DST="$value" ;;
+    config_agents) CONFIG_AGENTS_CSV="$value" ;;
+  esac
+done <<< "$PROFILE_DATA"
+
+if [[ -z "${SKILLS_DIR:-}" || -z "${HOOKS_DIR:-}" || -z "${SETTINGS_SRC:-}" || -z "${SETTINGS_DST:-}" || -z "${DENY_HOOK_DST:-}" ]]; then
+  echo "ERROR: manifest profile for '$AGENT' is incomplete"
+  exit 1
+fi
 
 # --- Read version from package.json ---
 VERSION=$(
@@ -85,6 +149,11 @@ SKIPPED=0
 
 copy_file() {
   local src="$1" dst="$2"
+  if [[ ! -f "$src" ]]; then
+    echo "ERROR: missing installer template: $src"
+    echo "Manifest/template drift detected. Restore the referenced template before running install."
+    exit 1
+  fi
   mkdir -p "$(dirname "$dst")"
   cp "$src" "$dst"
   COPIED=$((COPIED + 1))
@@ -166,12 +235,11 @@ echo ""
 # 5. Install hooks (always overwrite - verbatim copy)
 # ==========================================================================
 echo "Hooks → $HOOKS_DIR/:"
-copy_file "$GOAT_FLOW_ROOT/workflow/hooks/deny-dangerous.sh" "$HOOKS_DIR/deny-dangerous.sh"
-chmod +x "$HOOKS_DIR/deny-dangerous.sh"
-# Codex: also install hooks.json (registers the PreToolUse deny hook in Codex format)
-if [[ "$AGENT" == "codex" ]]; then
+copy_file "$GOAT_FLOW_ROOT/workflow/hooks/deny-dangerous.sh" "$DENY_HOOK_DST"
+chmod +x "$DENY_HOOK_DST"
+if [[ -n "${HOOK_CONFIG_DST:-}" && -n "${HOOK_CONFIG_SRC:-}" ]]; then
   echo "Hooks config:"
-  copy_if_missing "$GOAT_FLOW_ROOT/workflow/hooks/agent-config/codex-hooks.json" ".codex/hooks.json"
+  copy_if_missing "$GOAT_FLOW_ROOT/$HOOK_CONFIG_SRC" "$HOOK_CONFIG_DST"
 fi
 echo ""
 
@@ -191,17 +259,14 @@ if [[ -f "$CONFIG_PATH" ]] && ! $FORCE; then
   SKIPPED=$((SKIPPED + 1))
   echo "  · $CONFIG_PATH (exists, skipped)"
 else
-  cat > "$CONFIG_PATH" <<YAML
-version: "$VERSION"
-
-agents:
-  - claude
-  - codex
-  - gemini
-
-skills:
-  install: all
-YAML
+  IFS=',' read -r -a CONFIG_AGENTS <<< "${CONFIG_AGENTS_CSV:-$SUPPORTED_AGENTS_CSV}"
+  config_agent_lines=""
+  for supported_agent in "${CONFIG_AGENTS[@]}"; do
+    config_agent_lines+="  - ${supported_agent}"$'\n'
+  done
+  printf 'version: "%s"\n\nagents:\n%s\nskills:\n  install: all\n' \
+    "$VERSION" \
+    "$config_agent_lines" > "$CONFIG_PATH"
   COPIED=$((COPIED + 1))
   echo "  ✓ $CONFIG_PATH (scaffolded)"
 fi

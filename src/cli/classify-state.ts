@@ -4,6 +4,7 @@
  * `/api/projects/status` endpoint and the `goat-flow status` CLI command.
  */
 import { AUDIT_VERSION, SKILL_NAMES } from "./constants.js";
+import { getAgentProfiles } from "./agents/registry.js";
 
 /** Minimal filesystem interface needed for project state detection. */
 interface StateFS {
@@ -40,8 +41,13 @@ interface ProjectState {
 
 const CURRENT_VERSION_FAMILY = AUDIT_VERSION.split(".").slice(0, 2).join(".");
 
-const INSTRUCTION_FILES = ["CLAUDE.md", "AGENTS.md", "GEMINI.md"] as const;
-const SKILL_ROOTS = [".claude/skills", ".agents/skills"] as const;
+const AGENT_PROFILES = getAgentProfiles();
+const INSTRUCTION_FILES = AGENT_PROFILES.map(
+  (profile) => profile.instructionFile,
+);
+const SKILL_ROOTS = [
+  ...new Set(AGENT_PROFILES.map((profile) => profile.skillsDir)),
+];
 const OLD_SKILLS = [
   "goat-audit",
   "goat-investigate",
@@ -105,11 +111,9 @@ function buildIncompleteDetails(
 }
 
 /** Map from agentId to that agent's instruction file. */
-const AGENT_INSTRUCTION_FILE: Record<string, string> = {
-  claude: "CLAUDE.md",
-  codex: "AGENTS.md",
-  gemini: "GEMINI.md",
-};
+const AGENT_INSTRUCTION_FILE = Object.fromEntries(
+  AGENT_PROFILES.map((profile) => [profile.id, profile.instructionFile]),
+) as Record<string, string>;
 
 /** Detect which adoption stage a project is at based on its on-disk artifacts. */
 // eslint-disable-next-line complexity -- intentionally branchy state machine

@@ -8,7 +8,7 @@ Validate setup correctness. The base audit runs two deterministic scopes (all pa
 
 | Flag | Description |
 |------|-------------|
-| `--agent <id>` | Filter to one agent: claude, codex, gemini |
+| `--agent <id>` | Filter to one manifest-backed agent id. Run `goat-flow manifest` to inspect the current registry. |
 | `--harness` | Add AI Harness Completeness scope (16 checks, installed/not-installed per concern) |
 | `--format <type>` | Output: json, text, markdown (default: auto) |
 | `--verbose` | Show per-check details |
@@ -34,6 +34,8 @@ goat-flow quality . --agent codex          # Quality prompt for Codex
 ### `goat-flow setup [path] --agent <id>`
 
 Generate a setup prompt adapted to the project's current state. Detects existing goat-flow installations and routes to upgrade path if appropriate.
+
+Supported agent ids are read from `workflow/manifest.json` via `src/cli/agents/registry.ts`, so the CLI help and validation stay aligned with the machine-readable support matrix.
 
 ```bash
 goat-flow setup --agent claude    # Claude setup/upgrade prompt

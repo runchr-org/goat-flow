@@ -14,12 +14,6 @@ const DEFAULT_WIZARD_COMMANDS: WizardCommands = {
   format: "",
 };
 
-const DEFAULT_WIZARD_AGENTS: WizardData["agents"] = {
-  claude: true,
-  codex: false,
-  gemini: false,
-};
-
 const DEFAULT_EXISTING_ARTIFACTS: ExistingArtifacts = {
   skills: false,
   instructions: false,
@@ -64,9 +58,21 @@ function readAuditStatus(value: unknown): AuditStatus | null {
 
 /** Read a runner ID from raw payload data. */
 function readRunnerId(value: unknown): RunnerId | null {
-  return value === "claude" || value === "codex" || value === "gemini"
-    ? value
-    : null;
+  const runner = readString(value).trim();
+  return runner.length > 0 ? runner : null;
+}
+
+/** Build the default wizard-agent selection from the injected support list. */
+function buildDefaultWizardAgents(
+  supportedAgents: SupportedAgent[],
+  defaultRunner: RunnerId,
+): WizardData["agents"] {
+  if (supportedAgents.length === 0) {
+    return { [defaultRunner]: true };
+  }
+  return Object.fromEntries(
+    supportedAgents.map((agent) => [agent.id, agent.id === defaultRunner]),
+  );
 }
 
 /** Read a terminal-session status from raw payload data. */
@@ -109,7 +115,46 @@ function readAuditCheck(value: unknown): AuditCheck | null {
   const status = readAuditStatus(value.status);
   if (!id || !name || !status) return null;
 
-  const check: AuditCheck = { id, name, status };
+  const provenanceValue = value.provenance;
+  if (!isRecord(provenanceValue)) return null;
+  const sourceType = readString(provenanceValue.source_type);
+  const verifiedOn = readString(provenanceValue.verified_on);
+  const normativeLevel = readString(provenanceValue.normative_level);
+  if (
+    ![
+      "spec",
+      "vendor_docs",
+      "paper",
+      "incident",
+      "community",
+      "unknown",
+    ].includes(sourceType) ||
+    !verifiedOn ||
+    !["MUST", "SHOULD", "BEST_PRACTICE"].includes(normativeLevel)
+  ) {
+    return null;
+  }
+
+  const check: AuditCheck = {
+    id,
+    name,
+    status,
+    provenance: {
+      source_type: sourceType as AuditCheckProvenance["source_type"],
+      source_urls: readStringArray(provenanceValue.source_urls),
+      verified_on: verifiedOn,
+      normative_level:
+        normativeLevel as AuditCheckProvenance["normative_level"],
+      ...(Array.isArray(provenanceValue.evidence_paths)
+        ? {
+            evidence_paths: readStringArray(provenanceValue.evidence_paths),
+          }
+        : {}),
+      ...(typeof provenanceValue.reason === "string"
+        ? { reason: provenanceValue.reason }
+        : {}),
+    },
+  };
   const failure = readAuditFailure(value.failure);
   if (failure) check.failure = failure;
   return check;
@@ -259,14 +304,34 @@ function readInjectedReport(): DashboardClientReport | null {
   }
 }
 
+/** Read one supported-agent record from dashboard shell injection. */
+function readSupportedAgent(value: unknown): SupportedAgent | null {
+  if (!isRecord(value)) return null;
+  const id = readRunnerId(value.id);
+  const name = readString(value.name);
+  if (!id || !name) return null;
+  return { id, name };
+}
+
+/** Read the supported agent list injected into the dashboard shell. */
+function readInjectedSupportedAgents(): SupportedAgent[] {
+  return Array.isArray(window.__GOAT_FLOW_AGENTS__)
+    ? window.__GOAT_FLOW_AGENTS__
+        .map((agent) => readSupportedAgent(agent))
+        .filter((agent): agent is SupportedAgent => agent !== null)
+    : [];
+}
+
 /** Read one installed-agent record from raw payload data. */
 function readAgentInfo(value: unknown): AgentInfo | null {
   if (!isRecord(value)) return null;
   const id = readRunnerId(value.id);
-  if (!id || typeof value.installed !== "boolean") return null;
+  const name = readString(value.name);
+  if (!id || !name || typeof value.installed !== "boolean") return null;
 
   return {
     id,
+    name,
     installed: value.installed,
     version: typeof value.version === "string" ? value.version : null,
   };
@@ -376,6 +441,12 @@ function getXtermConstructors(): {
 
 /** Alpine.js data factory for the dashboard shell. */
 function app() {
+  const supportedAgents = readInjectedSupportedAgents();
+  const defaultRunner = supportedAgents[0]?.id ?? "claude";
+  const defaultWizardAgents = buildDefaultWizardAgents(
+    supportedAgents,
+    defaultRunner,
+  );
   return {
     // --- Core state ---
     report: readInjectedReport(),
@@ -391,9 +462,10 @@ function app() {
     copyLabel: "Copy",
     srAnnouncement: "",
     activeView: "home",
+    supportedAgents,
     installedAgents: [] as AgentInfo[],
     allAgents: [] as AgentInfo[],
-    activeRunner: "claude" as RunnerId,
+    activeRunner: defaultRunner,
     userRole: "",
     workspacePanel: "terminal",
     sessionsCollapsed: localStorage.getItem("gf-sessions-collapsed") === "true",
@@ -528,10 +600,18 @@ function app() {
     newProjectPath: "",
 
     // --- Quality state ---
-    qualityAgent: "claude" as RunnerId,
+    qualityAgent: defaultRunner,
     qualityLoading: false,
     qualityResult: null as QualityResult | null,
     qualityCopyLabel: "Copy",
+
+    /** Resolve the current display name for one supported agent id. */
+    agentName(agentId: RunnerId): string {
+      return (
+        this.supportedAgents.find((agent) => agent.id === agentId)?.name ??
+        agentId
+      );
+    },
 
     /** Return the audit-based status shown on each Setup page agent card. */
     wizardAgentStatus(agentId: RunnerId): { label: string; color: string } {
@@ -548,12 +628,12 @@ function app() {
 
     // --- Wizard state ---
     wizardDetecting: false,
-    wizardSelectedAgent: "claude" as RunnerId,
+    wizardSelectedAgent: defaultRunner,
     wizardData: {
       languages: [],
       frameworks: [],
       commands: { ...DEFAULT_WIZARD_COMMANDS },
-      agents: { ...DEFAULT_WIZARD_AGENTS },
+      agents: { ...defaultWizardAgents },
       existing: { ...DEFAULT_EXISTING_ARTIFACTS },
       nonGoatFlow: [],
     } as WizardData,
@@ -930,6 +1010,12 @@ function app() {
                   .map((agent) => readAgentInfo(agent))
                   .filter((agent): agent is AgentInfo => agent !== null)
               : [];
+            if (this.supportedAgents.length === 0) {
+              this.supportedAgents = agents.map(({ id, name }) => ({
+                id,
+                name,
+              }));
+            }
             this.allAgents = agents;
             this.installedAgents = agents.filter((a) => a.installed);
             if (
@@ -1102,22 +1188,21 @@ function app() {
           build: readString(commands.build),
           format: readString(commands.format),
         };
-        this.wizardData.agents = {
-          claude:
-            typeof agents.claude === "boolean"
-              ? agents.claude
-              : DEFAULT_WIZARD_AGENTS.claude,
-          codex:
-            typeof agents.codex === "boolean"
-              ? agents.codex
-              : DEFAULT_WIZARD_AGENTS.codex,
-          gemini:
-            typeof agents.gemini === "boolean"
-              ? agents.gemini
-              : DEFAULT_WIZARD_AGENTS.gemini,
-        };
-        if (!Object.values(this.wizardData.agents).some((v) => v))
-          this.wizardData.agents.claude = true;
+        const defaultAgents = buildDefaultWizardAgents(
+          this.supportedAgents,
+          this.wizardSelectedAgent,
+        );
+        this.wizardData.agents = Object.fromEntries(
+          Object.keys(defaultAgents).map((agentId) => [
+            agentId,
+            typeof agents[agentId] === "boolean"
+              ? (agents[agentId] as boolean)
+              : (defaultAgents[agentId] ?? false),
+          ]),
+        );
+        if (!Object.values(this.wizardData.agents).some((v) => v)) {
+          this.wizardData.agents[this.wizardSelectedAgent] = true;
+        }
         this.wizardData.existing = {
           skills:
             typeof existing.skills === "boolean"
