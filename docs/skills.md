@@ -38,7 +38,9 @@ flowchart LR
 | "I'm new to this project" | /goat-debug (investigate mode) | Progressive depth reading + orientation |
 | "How should we build this feature?" | /goat-plan | Planning before implementing |
 | "Are these changes safe to merge?" | /goat-review | Reviewing changes, not finding new issues |
-| "How do we verify this work?" | /goat-qa | Risk-based testing gap analysis |
+| "How do we verify coverage for this work?" | /goat-qa | Risk-based testing gap analysis (planning, not execution) |
+| "Is this bug fix verified?" | /goat-debug | Re-run the original repro and adjacent regressions |
+| "Is this diff/PR verified?" | /goat-review | Two-pass review with Review Integrity |
 | "Is this plan/assessment sound?" | /goat-critique | Multi-perspective critique before shipping |
 
 ---
@@ -66,10 +68,10 @@ The dispatcher classifies intent conversationally - not by keyword lookup. It as
 | Quality sweep, audit | /goat-review (audit) |
 | Security, vulnerability, compliance | /goat-security |
 | Plan, design, build a feature | /goat-plan (via Planning Route) |
-| Test gaps, coverage, verify | /goat-qa |
+| Test gaps, coverage, verification planning | /goat-qa |
 | Critique a plan/assessment | /goat-critique |
 
-**Planning Route:** For planning requests, the dispatcher checks `.goat-flow/tasks/` for existing plans first, then routes based on complexity: Hotfix → direct execution; Small Feature → compressed brief → `/goat-plan`; Standard → feature brief → `/goat-plan`; System/Infrastructure → feature brief → `/goat-plan` → suggest `/goat-critique`.
+**Planning Route:** For planning requests, the dispatcher reads `.goat-flow/tasks/.active` (one-line marker naming the active plan subdir) to find existing plans, then routes based on complexity: Hotfix → direct execution; Small Feature → compressed brief → `/goat-plan`; Standard → feature brief → `/goat-plan`; System/Infrastructure → feature brief → `/goat-plan` → suggest `/goat-critique`. `/goat-plan` defaults to inline/read-only milestones unless file creation is explicitly requested.
 
 ---
 
@@ -256,7 +258,7 @@ Testing gap analyser. Compares code changes against testing coverage to find und
 
 | Mode | Trigger | What it does |
 |------|---------|-------------|
-| **Standard** | test, verify, gaps | Risk-based gap analysis for recent changes |
+| **Standard** | test, verify coverage, gaps | Risk-based gap analysis for recent changes |
 | **Audit** | test audit, coverage | Audit existing test coverage for a codebase area |
 | **Regression Guard** | after bug fix | Define invariants and assess coverage for a specific fix |
 

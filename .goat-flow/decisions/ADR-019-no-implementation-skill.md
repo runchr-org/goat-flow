@@ -1,6 +1,6 @@
 # ADR-019: No implementation skill - extend existing skills instead
 
-**Status:** Accepted
+**Status:** Accepted (partial). Core decision stands — no implementation skill was added. Phase 5 (Execute) in goat-plan and the `persona` config field in the "Consequences" section were never shipped. Implementation is handled in the ordinary ACT step per the execution loop; goat-plan remains planning-only and can deliver inline/read-only or file-based milestones without an execution phase.
 **Date:** 2026-04-03
 **Context:** Two independent Codex critiques (the-summit-chatroom, ambient-scribe) identified that "fix this bug" and "build this feature" have no routing destination. /goat-debug stops at diagnosis, /goat-plan stops at the plan. Six independent reviewers (3 sub-agents, Codex, Claude, Gemini) evaluated four options.
 
@@ -32,8 +32,8 @@ Three changes:
 
 ## Consequences
 
-- Supersedes ADR-016's canonical skill count. Dispatcher is now "6 skills + dispatcher" (7 total: goat-debug, goat-plan, goat-review, goat-critique, goat-security, goat-qa + goat dispatcher)
-- goat-plan grows by ~15 lines (Phase 5)
-- Dispatcher routing table gains implementation-intent rows
-- .goat-flow/config.yaml gains `persona` field
-- Historical note: the old gitignored override surface was removed in M13
+- Supersedes ADR-016's canonical skill count. Dispatcher is now "6 skills + dispatcher" (7 total: goat-debug, goat-plan, goat-review, goat-critique, goat-security, goat-qa + goat dispatcher).
+- Dispatcher routing table gains implementation-intent rows (shipped).
+- goat-plan **did not** gain Phase 5 (Execute). Implementation remains the ordinary ACT step in the execution loop; goat-plan ends at milestone approval. Users wanting carry-through either invoke the implementation directly after planning or use `/goat-debug` D3/D4 for bug-fix flows.
+- `.goat-flow/config.yaml` **did not** gain a `persona` field. Persona-based mode locking was scoped out; CLAUDE.md `Autonomy Tiers` plus `Ask First` boundaries cover the same ground without a machine-readable lockout.
+- Historical note: the old gitignored override surface was removed in M13.

@@ -2,7 +2,6 @@
 name: goat-qa
 description: "Use when evaluating test coverage gaps, planning test strategy, or assessing testing risk for code changes."
 goat-flow-skill-version: "1.2.0"
-tdd-log: ../../../.goat-flow/logs/sessions/2026-04-18-goat-qa-tdd.md
 ---
 # /goat-qa
 

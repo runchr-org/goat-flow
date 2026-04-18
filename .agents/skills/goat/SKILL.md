@@ -1,6 +1,6 @@
 ---
 name: goat
-description: "Single entry point that classifies intent and dispatches to the correct goat-* skill."
+description: "Use when you describe an outcome and need the right goat-* workflow chosen for you."
 goat-flow-skill-version: "1.2.0"
 ---
 # /goat

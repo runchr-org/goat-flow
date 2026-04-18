@@ -2,7 +2,6 @@
 name: goat-critique
 description: "Use when a decision or analysis needs independent perspectives from multiple viewpoints to avoid anchoring bias."
 goat-flow-skill-version: "1.2.0"
-tdd-log: ../../../.goat-flow/logs/sessions/2026-04-18-goat-critique-tdd.md
 ---
 # /goat-critique
 

@@ -4,30 +4,33 @@ category: skills
 
 ## Footgun: Workflow-summarising skill descriptions cause CSO shortcutting
 
-**Status:** active | **Created:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
+**Status:** active (rule is permanent; all current goat-* skills compliant as of 2026-04-18) | **Created:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
 
 **Symptoms:** Agents invoking a skill via `/<skill>` shortcut past the full `SKILL.md` body when the `description:` field summarises WHAT the skill does or HOW it works — the description becomes a substitute for reading the body.
 
 **Why it happens:** LLMs anchor on the description as a sufficient summary and skip expanding the full skill content. This is the Claude Search Optimization (CSO) failure class.
 
-**Evidence:** Original incident at `superpowers-skills/skills/meta/writing-skills/SKILL.md:134-172` — `subagent-driven-development`'s description said "dispatches subagent per task with code review between tasks" and Claude performed ONE review instead of the two-stage review defined in the body.
+**Evidence:**
+- Original incident at `superpowers-skills/skills/meta/writing-skills/SKILL.md:134-172` — `subagent-driven-development`'s description said "dispatches subagent per task with code review between tasks" and Claude performed ONE review instead of the two-stage review defined in the body.
+- Regression caught in goat-flow itself on 2026-04-18: the `goat` dispatcher description was "Single entry point that classifies intent and dispatches to the correct goat-* skill" — workflow-summary, not trigger-only. Rewritten to "Use when you describe an outcome and need the right goat-* workflow chosen for you."
 
-**Prevention:** Descriptions must be trigger-only — say WHEN to invoke the skill, never WHAT it does or HOW. M08 §1 rewrote all 5 CSO-violating goat-* descriptions on 2026-04-18 (`goat-review` was already trigger-only from commit `71aae9f`); dispatcher routing regression (7 intent prompts) passed post-rewrite; `goat-flow audit --check-drift` reported zero drift across 16 checked files.
+**Prevention:** Descriptions must be trigger-only — say WHEN to invoke the skill, never WHAT it does or HOW. All 7 current goat-* descriptions (including the dispatcher) are compliant as of 2026-04-18. When adding or editing a skill, the description field must pass the trigger-only test: if removing it and reading only the description tells you the skill's workflow steps or internal phases, it is a CSO violation regardless of how accurate it is.
 
 ---
 
 ## Footgun: Installed skill copies can drift on punctuation-only edits and fail unrelated test runs
 
-**Status:** active | **Created:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
+**Status:** resolved | **Created:** 2026-04-18 | **Resolved:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** `npm test` fails in `test/integration/audit-drift.test.ts` even when the code change did not touch skills, because the tracked installed copies under `.claude/skills/` and `.agents/skills/` no longer match the workflow template byte-for-byte.
+**Original symptoms:** `npm test` failed in `test/integration/audit-drift.test.ts` even when the code change did not touch skills, because the tracked installed copies under `.claude/skills/` and `.agents/skills/` had Unicode em dashes while `workflow/skills/` templates had ASCII hyphens.
 
-**Evidence:**
-- `workflow/skills/goat-plan/SKILL.md:15` uses ASCII hyphens in the "see Step 0" sentence, while `.claude/skills/goat-plan/SKILL.md:15` and `.agents/skills/goat-plan/SKILL.md:15` use Unicode em dashes.
-- `workflow/skills/goat-plan/SKILL.md:39` uses an ASCII hyphen in "only the `.active`-named subdir is", while `.claude/skills/goat-plan/SKILL.md:39` and `.agents/skills/goat-plan/SKILL.md:39` use Unicode em dashes.
-- `npm test` on 2026-04-18 failed `test/integration/audit-drift.test.ts` with drift findings for `.claude/skills/goat-plan/SKILL.md` and `.agents/skills/goat-plan/SKILL.md`.
+**Original evidence:**
+- `workflow/skills/goat-plan/SKILL.md:15` vs `.claude/skills/goat-plan/SKILL.md:15` (hyphen vs em dash)
+- `workflow/skills/goat-plan/SKILL.md:39` vs `.claude/skills/goat-plan/SKILL.md:39` (hyphen vs em dash)
 
-**Prevention:** When editing `workflow/skills/*/SKILL.md`, update the installed copies in `.claude/skills/` and `.agents/skills/` in the same change, or expect the drift check to fail before unrelated work can be verified cleanly.
+**Resolution:** Installed copies are now byte-identical with the workflow templates on the cited lines (verified by `diff` returning empty output against both `.claude/skills/goat-plan/SKILL.md:15` and `:39`). The drift check at `test/integration/audit-drift.test.ts` now passes on these files.
+
+**Prevention (retained):** When editing `workflow/skills/*/SKILL.md`, update the installed copies in `.claude/skills/` and `.agents/skills/` in the same change. The preflight `Skill SKILL.md Parity` check and `goat-flow audit --check-drift` both catch byte-level divergence before unrelated work is blocked by stale fixtures.
 
 ## Footgun: Release-version bumps can break skill-rename work through stale fixtures and hardcoded current-version routing
 

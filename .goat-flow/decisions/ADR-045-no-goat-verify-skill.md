@@ -14,7 +14,7 @@ During the v1.1.x review cycle the question arose whether goat-flow should add a
 
 All 5 analyses converged on rejecting option 1. Evidence:
 
-- Verification is already a first-class framework concern on the hot path (`AGENTS.md:51-58` hallucination red-flags + `AGENTS.md:95-96` DoD) and in cold-path shared doctrine (`.goat-flow/skill-preamble.md:23-33` Evidence Standard).
+- Verification is already a first-class framework concern on the hot path (`AGENTS.md:51-58` hallucination red-flags + `AGENTS.md:95-96` DoD) and in cold-path shared doctrine (`.goat-flow/skill-reference/skill-preamble.md:23-33` Evidence Standard).
 - Per-skill gates are domain-specific and heterogeneous by design: goat-debug confidence (HIGH/MEDIUM/LOW = reproduced/traced/inferred), goat-security confidence (CONFIRMED/PROBABLE/THEORETICAL), goat-review severity tags `[MUST/SHOULD/MAY:patch/needs-decision]`, goat-plan per-milestone testing gates, goat-qa must/should/skip tiers. Collapsing them into a generic verifier would destroy information tuned to different consumers.
 - There is no cross-skill verification routing today — each gate is bespoke and self-contained. A new routed skill would have no clean trigger space distinct from `/goat-debug` (bug-fix verification), `/goat-review` (diff/PR verification), `/goat-qa` (coverage verification), or the DoD, violating the CSO rule in `.goat-flow/glossary.md:16`.
 - Prior ADRs establish precedent against this pattern:
@@ -31,7 +31,7 @@ External pattern mining (superpowers/verification-before-completion, systematic-
 
 1. **No standalone `goat-verify` skill.** Skill count stays at 7. `workflow/manifest.json`, `src/cli/constants.ts`, `workflow/install-goat-flow.sh`, and the `test/integration/audit-drift.test.ts:76` literal count stay unchanged.
 
-2. **Shared Proof Gate in the preamble.** Add a `## Proof Gate` section to `workflow/skills/reference/skill-preamble.md` (and installed copy `.goat-flow/skill-preamble.md`) after `## Evidence Standard`. The Proof Gate names the positive procedure (Identify → Run fresh → Read → Verify → Cite) that substantiates claims. It is the complement to the 5 hallucination red-flags, which name the violations.
+2. **Shared Proof Gate in the preamble.** Add a `## Proof Gate` section to `workflow/skills/reference/skill-preamble.md` (and installed copy `.goat-flow/skill-reference/skill-preamble.md`) after `## Evidence Standard`. The Proof Gate names the positive procedure (Identify → Run fresh → Read → Verify → Cite) that substantiates claims. It is the complement to the 5 hallucination red-flags, which name the violations.
 
 3. **Routing hygiene — stop goat-qa from over-claiming "verify".** Update `skill-preamble.md` routing from "Testing gaps, coverage, verification → /goat-qa" to "Testing gaps, coverage, verification planning → /goat-qa". Update `goat-qa/SKILL.md` quick-mode trigger from `"verify"` to `"verify coverage"`. Add explicit redirection lines in `goat-qa`'s "NOT this skill" block: bug-fix verification → `/goat-debug`, diff/PR verification → `/goat-review`, completion certification → Proof Gate.
 
@@ -66,7 +66,7 @@ If any precondition fires, the new ADR's implementation must touch the 3 hardcod
 
 ## References
 
-- `.goat-flow/skill-preamble.md` — Proof Gate added after Evidence Standard; Routing line tightened to "verification planning".
+- `.goat-flow/skill-reference/skill-preamble.md` — Proof Gate added after Evidence Standard; Routing line tightened to "verification planning".
 - `workflow/skills/goat-debug/SKILL.md` — D1 boundary instrumentation, D2 causation/necessity/sufficiency + 5-Whys, D4 3-fix rule + Proof Gate reference.
 - `workflow/skills/goat-qa/SKILL.md` — trigger "verify" → "verify coverage"; expanded NOT-this-skill routing.
 - `workflow/skills/{goat, goat-plan, goat-review, goat-critique, goat-security}/SKILL.md` — Proof Gate one-line references.

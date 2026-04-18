@@ -25,7 +25,7 @@ If you have a skill draft and no failing-scenario log behind it: delete the draf
 - Tightening a rule that agents keep working around with the same rationalisation
 - After any learning-loop `.goat-flow/lessons/` entry that says "rule was ignored under pressure"
 
-If the skill you are editing has no `tdd-log` frontmatter field, it has never been pressure-tested — default to the full loop below, not a patch.
+A searchable TDD log at `.goat-flow/logs/sessions/YYYY-MM-DD-<skill>-tdd.md` is evidence a skill was pressure-tested. Absence of such a log is weak evidence it wasn't (the log may simply not have been written). When in doubt, default to the full loop below rather than a patch.
 
 ## Skill types and what to test
 
@@ -260,18 +260,9 @@ The response type names the fix:
 
 ## Iteration log
 
-Write the TDD log as a session log: `.goat-flow/logs/sessions/YYYY-MM-DD-<skill>-tdd.md`.
+Write the TDD log as a session log: `.goat-flow/logs/sessions/YYYY-MM-DD-<skill>-tdd.md`. The filename itself is the index — a skill named `goat-review` has its TDD history under `.goat-flow/logs/sessions/*-goat-review-tdd.md`. Session logs are gitignored in consumer projects by design; the log is evidence for the current checkout only.
 
-Reference it from the skill's frontmatter:
-
-```yaml
----
-name: goat-review
-description: "..."
-goat-flow-skill-version: "1.2.0"
-tdd-log: .goat-flow/logs/sessions/2026-04-12-goat-review-tdd.md
----
-```
+Do not add `tdd-log:` frontmatter to installed SKILL.md files. It leaks developer paths onto consumer installs where the log does not exist, and the filename convention above is already self-documenting for anyone searching `.goat-flow/logs/sessions/`.
 
 Log shape:
 
@@ -426,8 +417,8 @@ Every skill MUST pass this checklist before merging. Use TodoWrite to create tod
 
 **Deployment:**
 - [ ] Write TDD iteration log to `.goat-flow/logs/sessions/YYYY-MM-DD-<skill>-tdd.md`
-- [ ] Add `tdd-log:` frontmatter field pointing to the log
-- [ ] Cross-link into `workflow/skills/` siblings if relevant
+- [ ] Cross-reference the log filename in the relevant lesson or footgun entry (not in SKILL.md frontmatter — that leaks dev paths to consumer installs)
+- [ ] Cross-link into sibling SKILL.md files if relevant
 - [ ] Announce in commit message: which rationalisations were closed, which pressures tested
 
 ## STOP: before moving to the next skill
@@ -458,10 +449,10 @@ Deploying untested skills = deploying untested code. It's a violation of quality
 
 | Where | What |
 |-------|------|
-| `workflow/skills/goat-review/SKILL.md` | Zero-findings HALT — adversarial pattern in the wild |
-| `workflow/skills/goat-critique/SKILL.md` | Agent C fresh-eyes — parallel reviewer info asymmetry in the wild |
-| `workflow/skills/goat-qa/SKILL.md` | Structured-finding shape for gap output |
-| `workflow/skills/reference/skill-preamble.md` | Proof Gate, evidence standard, ceremony level — the loaded-every-invocation layer |
-| `workflow/skills/reference/skill-conventions.md` | Rationalisation table definition, task tracking, recovery protocols |
-| `.goat-flow/logs/sessions/` | TDD iteration logs live here; reference via `tdd-log:` frontmatter |
+| `.claude/skills/goat-review/SKILL.md` (or `workflow/skills/goat-review/SKILL.md` template) | Zero-findings HALT — adversarial pattern in the wild |
+| `.claude/skills/goat-critique/SKILL.md` (or `workflow/skills/goat-critique/SKILL.md` template) | Agent C fresh-eyes — parallel reviewer info asymmetry in the wild |
+| `.claude/skills/goat-qa/SKILL.md` (or `workflow/skills/goat-qa/SKILL.md` template) | Structured-finding shape for gap output |
+| `.goat-flow/skill-reference/skill-preamble.md` (or `workflow/skills/reference/skill-preamble.md` template) | Proof Gate, evidence standard, ceremony level — the loaded-every-invocation layer |
+| `.goat-flow/skill-reference/skill-conventions.md` (or `workflow/skills/reference/skill-conventions.md` template) | Rationalisation table definition, task tracking, recovery protocols |
+| `.goat-flow/logs/sessions/*-<skill>-tdd.md` | TDD iteration logs live here; filename convention is the index (no frontmatter cross-reference) |
 

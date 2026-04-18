@@ -1,4 +1,4 @@
-# ADR-028: Extract shared skill conventions to .goat-flow/skill-conventions.md
+# ADR-028: Extract shared skill conventions to .goat-flow/skill-reference/skill-conventions.md
 
 **Status:** Accepted (supersedes ADR-023, which superseded ADR-011)
 **Date:** 2026-04-06
@@ -11,13 +11,13 @@ By v1.1.0, the shared conventions had grown to 152 lines. With 5 functional skil
 
 ## Decision
 
-Extract shared conventions from inline in each skill to a single file: `.goat-flow/skill-conventions.md`. Setup copies this from `workflow/skills/reference/skill-conventions.md`.
+Extract shared conventions from inline in each skill to a single file: `.goat-flow/skill-reference/skill-conventions.md`. Setup copies this from `workflow/skills/reference/skill-conventions.md`.
 
 Each skill retains a 7-line inline fallback so skills degrade gracefully (not catastrophically) if the file is missing:
 
 ```
 ## Shared Conventions
-Read `.goat-flow/skill-conventions.md` for full shared conventions.
+Read `.goat-flow/skill-reference/skill-conventions.md` for full shared conventions.
 If unavailable, use these essentials:
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - Evidence: every finding MUST include file:line, tag OBSERVED vs INFERRED
@@ -32,5 +32,5 @@ If unavailable, use these essentials:
 - The inline fallback preserves the self-containment principle in spirit: skills still function (degraded) without the file
 - Updates to shared conventions are 1 file edit instead of 15
 - The drift surface drops from 2,280 lines to ~35 lines (7-line fallback × 5 skills)
-- Scanner gains a check for `.goat-flow/skill-conventions.md` existence
+- Scanner gains a check for `.goat-flow/skill-reference/skill-conventions.md` existence
 - `upgrade-0.9.x.md` and `upgrade-1.0.0.md` must include skill-conventions.md as an upgrade surface

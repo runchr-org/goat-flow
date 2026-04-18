@@ -2,7 +2,6 @@
 name: goat-review
 description: "Use when reviewing a diff, PR, or set of code changes, or auditing a codebase area for quality issues. Triggers: 'review this', 'code review', 'audit X', 'look at these changes'."
 goat-flow-skill-version: "1.2.0"
-tdd-log: ../../../.goat-flow/logs/sessions/2026-04-18-goat-review-tdd.md
 ---
 # /goat-review
 
@@ -147,6 +146,7 @@ Never leave this section empty. "confident — no degradation flags" is the mini
 - MUST group 3+ related findings as systemic patterns
 - MUST NOT make file edits in review or audit mode unless the user says "implement"
 - MUST NOT frame Pass 1/Pass 2 as doer/verifier — same reviewer, structured reading discipline (ADR-019)
+- **Zero-findings HALT:** If Pass 2 produces zero findings across MUST/SHOULD/MAY, do not silently approve. State explicitly what was checked (boundary conditions, null/undefined, concurrency, error handling, contract changes) and why no issues surfaced. Zero findings must be defended, not assumed.
 - Universal constraints from skill-preamble.md apply.
 
 ## Output Format

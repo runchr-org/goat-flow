@@ -37,7 +37,14 @@ const QUALITY_TARGETS = [
   "AGENTS.md",
   "GEMINI.md",
   ".goat-flow/architecture.md",
+  ".goat-flow/code-map.md",
+  ".goat-flow/glossary.md",
+  ".goat-flow/patterns.md",
   ".goat-flow/skill-reference/skill-preamble.md",
+  ".goat-flow/skill-reference/skill-conventions.md",
+  "docs/cli.md",
+  "docs/skills.md",
+  "docs/audit-and-quality.md",
 ] as const;
 
 const VAGUE_TERMS: { term: string; suggestion: (line: string) => string }[] = [

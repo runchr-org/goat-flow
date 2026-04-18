@@ -4,20 +4,22 @@ category: auditor
 
 ## Footgun: Audit validates hook file content but not hook runtime behavior
 
-**Status:** active | **Created:** 2026-04-05 | **Evidence:** ACTUAL_MEASURED
+**Status:** partially resolved | **Created:** 2026-04-05 | **Updated:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
 
-The audit checks that hook files exist and pass `bash -n` syntax check, but never verifies hooks actually execute. A hook with correct syntax but wrong permissions, missing dependencies (jq not installed), or broken JSON field paths passes the audit at 100% while providing zero enforcement at runtime.
+The audit checks that hook files exist and pass `bash -n` syntax check, but does not fully verify runtime behavior. A hook with correct syntax but wrong permissions, missing dependencies, or broken JSON field paths can still pass parts of the audit while providing degraded enforcement.
 
 **Evidence:**
 - 4+ sessions across 112 (Claude Insights data) derailed by sub-agent permission failures hitting hooks that the audit had already validated
-- `deny-dangerous.sh` sed fallback truncates commands with escaped quotes - audit checks syntax, not correctness
+- `deny-dangerous.sh` sed fallback still treats any `|` as a pipe and can false-positive on quoted regex alternation (e.g., `rg -n "foo|bar"` is blocked as pipe-to-shell) — observed this session.
 
-**Impact:** Users may trust a passing harness audit as "hooks are working" when it means "hooks exist and have valid bash syntax." The gap between file validation and runtime behavior is invisible.
+**Partial resolution (2026-04-18):**
+1. **Self-test now exists and runs.** `.claude/hooks/deny-dangerous.sh --self-test` covers 12 cases including 5 false-positive classes (read-only verbs containing dangerous string literals) and 2 bypass-attempt cases (redirect, pipe-to-shell). `check-agent-setup.ts` runs the self-test as part of the agent audit (search: `denyMechanismRuntime`).
+2. **Self-test is run from the agent-setup check.** The `agent-deny-dangerous` check in `src/cli/audit/check-agent-setup.ts` invokes the self-test rather than relying on `bash -n` alone.
 
-**Prevention:**
-1. Add a setup completion smoke test: pipe a known-blocked command through the deny hook and verify exit code 2
-2. Audit should verify hook registration matches hook files (file exists → must be registered, registered → file must exist)
-3. Consider a `goat-flow verify` command that does runtime checks vs the current `goat-flow audit` which does static checks
+**Still open:**
+1. Hook registration cross-check (file exists ↔ registered in settings). The `deny-hook-registered` check in `harness/check-constraints.ts` partially covers this but does not verify end-to-end that a blocked command actually fails with exit 2 under real invocation.
+2. Quoted-regex false-positive class is not covered by the self-test; see hook false-positive entry above.
+3. A dedicated `goat-flow verify` command for full runtime hook smoke-test is not yet built.
 
 ---
 
