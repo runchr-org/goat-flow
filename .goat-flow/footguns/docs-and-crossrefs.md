@@ -1,19 +1,20 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-04-15
+last_reviewed: 2026-04-18
 ---
 
 ## Footgun: Cross-reference fragility across docs
 
 **Status:** active | **Created:** 2026-03-18 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** A renamed or moved file breaks links in multiple documents. Users following getting-started.md hit dead references.
+**Symptoms:** A renamed or moved file breaks links in multiple documents. Dense pointer maps mean one stale path can mislead setup, glossary, or architecture readers at multiple entry points.
 
 **Why it happens:** Documentation files reference each other by relative path. The project has 120+ markdown files with dense cross-referencing. Renaming one file can break references in 5-10 others.
 
 **Evidence:**
-- `docs/getting-started.md` → referenced stale paths to old workflow directory (file retired in v1.1.0, see `workflow/setup/`)
-- `docs/five-layers.md` → referenced `FIVE_LAYER_SYSTEM.md` (old filename) (file retired in v1.1.0, see `workflow/setup/01-system-overview.md`)
+- `.goat-flow/glossary.md` → the Canonical File column is a dense pointer map into workflow/setup, skill-reference, and skill files. A single rename can invalidate multiple glossary entries at once.
+- `workflow/setup/01-system-overview.md` → `NEXT:` links and numbered-step references hard-link the setup flow across multiple files; renaming one step file breaks the flow.
+- `.goat-flow/architecture.md` → component/location tables point readers at concrete paths across `src/`, `workflow/`, and `.goat-flow/`; stale paths here become wrong architecture guidance, not cosmetic drift.
 
 ~~**Evidence (historical - resolved):**~~
 - ~~`.goat-flow/glossary.md:19` → still pointed at removed `workflow/setup/09-customise-to-project.md` after the M13 Phase 3 setup-step renumber~~ (resolved: now points to `workflow/setup/05-customise-to-project.md`)

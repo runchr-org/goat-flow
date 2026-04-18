@@ -253,7 +253,7 @@ The response type names the fix:
 
 1. Use the Agent tool. Each iteration = one Agent call with a self-contained prompt.
 2. **RED**: the subagent has **no access** to the skill under test. Zero skill context. The scenario prompt must say "IMPORTANT: This is a real scenario" so the subagent doesn't treat it as a quiz.
-3. **GREEN / REFACTOR**: include the SKILL.md content inline in the prompt (simulates the Skill tool load).
+3. **GREEN / REFACTOR**: include the SKILL.md content inline in the prompt (simulates runtime skill loading).
 4. **Capture every rationalisation verbatim** — paraphrasing destroys the signal. "Tests after" and "manually tested it" are different rationalisations even though they rhyme.
 5. **Track cost**: typical ~$0.07–0.09 per iteration. A full TDD pass on a nontrivial discipline skill: ~$0.50. Budget accordingly.
 6. **One subagent, one scenario.** Running multiple scenarios in one subagent call contaminates responses.
@@ -455,4 +455,3 @@ Deploying untested skills = deploying untested code. It's a violation of quality
 | `.goat-flow/skill-reference/skill-preamble.md` (or `workflow/skills/reference/skill-preamble.md` template) | Proof Gate, evidence standard, ceremony level — the loaded-every-invocation layer |
 | `.goat-flow/skill-reference/skill-conventions.md` (or `workflow/skills/reference/skill-conventions.md` template) | Rationalisation table definition, task tracking, recovery protocols |
 | `.goat-flow/logs/sessions/*-<skill>-tdd.md` | TDD iteration logs live here; filename convention is the index (no frontmatter cross-reference) |
-

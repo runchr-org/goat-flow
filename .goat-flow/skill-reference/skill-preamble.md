@@ -94,7 +94,7 @@ Use direct execution: READ → SCOPE → ACT → VERIFY. Still run the grep-firs
 
 ## Step 0 Budget
 
-If Step 0 exceeds 5 file reads without producing output or asking a question, stop and present what you know so far. Checkpoint mid-Step-0 for complex projects rather than silently reading indefinitely.
+If Step 0 exceeds 5 file reads without producing output or asking a question, checkpoint with what you know so far. Continue only when the task genuinely needs broader coverage. Checkpoint mid-Step-0 for complex projects rather than silently reading indefinitely.
 
 ## Learning-Loop Retrieval
 

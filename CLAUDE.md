@@ -29,14 +29,14 @@ GOOD: Read src/cli/audit/check-goat-flow.ts → 13 setup checks, check-agent-set
 
 **SCOPE** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review. MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
 
-| Complexity | Read budget | Turn budget |
+| Complexity | Typical read budget | Typical turn budget |
 |------------|-------------|-------------|
 | Hotfix | 2 reads | 3 turns |
 | Standard Feature | 4 reads | 10 turns |
 | System Change | 6 reads | 20 turns |
 | Infrastructure | 8 reads | 25 turns |
 
-Over budget = re-classify before continuing. Complexity-class read budgets take precedence over per-mode read counts.
+Over budget = checkpoint and re-classify before continuing. Complexity-class budgets are heuristics, not a hard stop when competent review needs broader coverage.
 
 **ACT** - MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
 

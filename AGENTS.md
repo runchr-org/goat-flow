@@ -1,9 +1,10 @@
 # AGENTS.md - v1.2.0 (2026-04-18)
-GOAT Flow documentation framework. Markdown docs + Bash validation scripts. This Codex layer supplements the existing Claude Code workflow; leave `CLAUDE.md` and `.claude/` untouched unless a task explicitly targets them.
+GOAT Flow documentation framework. TypeScript CLI auditor/dashboard + Markdown docs + Bash validation scripts. This Codex layer supplements the existing Claude Code workflow; leave `CLAUDE.md` and `.claude/` untouched unless a task explicitly targets them.
 ## Essential Commands
 ```bash
 bash scripts/preflight-checks.sh
 bash .codex/hooks/deny-dangerous.sh --self-test  # Codex: verify deny patterns registered (registered hook, not distributable copy)
+node --import tsx src/cli/cli.ts stats . --check  # Learning-loop health: last_reviewed + stale refs
 npm run typecheck                           # Type-check .ts (required by DoD)
 bash -n scripts/*.sh scripts/maintenance/*.sh
 shellcheck scripts/*.sh scripts/maintenance/*.sh
@@ -26,21 +27,21 @@ GOOD: Read src/cli/audit/check-goat-flow.ts → 13 setup checks, check-agent-set
 
 **SCOPE** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review. MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
 
-| Complexity | Read budget | Turn budget |
+| Complexity | Typical read budget | Typical turn budget |
 |------------|-------------|-------------|
 | Hotfix | 2 reads | 3 turns |
 | Standard Feature | 4 reads | 10 turns |
 | System Change | 6 reads | 20 turns |
 | Infrastructure | 8 reads | 25 turns |
 
-Over budget = re-classify before continuing.
+Over budget = checkpoint and re-classify before continuing. Budgets are planning heuristics, not a hard stop when competent review requires broader coverage.
 
 **ACT** - MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
 
 | Mode | Behaviour |
 |------|-----------|
 | Plan | Produce artefact only. No file edits. Exit on LGTM |
-| Implement | Edit in 2-3 turns. 4th read without writing = stop |
+| Implement | Edit in 2-3 turns. 4th read without writing = checkpoint or re-scope |
 | Explain | Walkthrough only. No changes unless asked |
 | Debug | Diagnosis with file:line first. Fixes after human reviews |
 | Review | Investigate first. Never blindly apply suggestions |
@@ -60,12 +61,12 @@ Over budget = re-classify before continuing.
 
 If VERIFY caught a failure or you corrected course, update the learning loop before DoD:
 - Lessons: `.goat-flow/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content.
-- Footguns: `.goat-flow/footguns/` category bucket files (e.g. `hooks.md`, `auditor.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
+- Footguns: `.goat-flow/footguns/` category bucket files (e.g. `hooks.md`, `auditor.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with grep-friendly file evidence (`file:line` when line-specific, `file` when file-level).
 
 | File | When to update |
 |------|---------------|
 | `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
-| `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
+| `.goat-flow/footguns/` | Cross-doc architectural trap (with grep-friendly file evidence) |
 | `.goat-flow/decisions/` | Significant technical decision with context/rationale |
 | `.goat-flow/logs/sessions/` | Workspace-local session notes and summaries. Gitignored by design; only the directory anchor is committed. |
 
@@ -118,6 +119,6 @@ Sub-agents: ONE objective, structured return (paths, evidence, confidence, next 
 - If file exists, modify in-place. NEVER create `_modified`, `_new`, `_backup`, `_v2` variants.
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - MUST maintain cross-file consistency: same concept, same description everywhere
-- MUST preserve file:line evidence format in footguns and examples
+- MUST preserve file evidence in footguns and examples. Prefer grep-friendly semantic anchors; use `file:line` only when the line is the proof.
 - MUST use real incidents, never hypothetical. `.goat-flow/architecture.md` is canonical source of truth
 - Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.

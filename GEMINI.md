@@ -8,6 +8,7 @@ bash -n scripts/*.sh scripts/maintenance/*.sh                                   
 npm run typecheck                                   # Type-check .ts (required by DoD)
 bash scripts/preflight-checks.sh         # Full preflight gate
 npm test                                          # Run test suite
+node --import tsx src/cli/cli.ts stats . --check  # Learning-loop health: last_reviewed + stale refs
 ```
 ## Truth Order
 
@@ -26,14 +27,14 @@ GOOD: Read src/cli/audit/check-goat-flow.ts → 13 setup checks, check-agent-set
 
 **SCOPE** - Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review. MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
 
-| Complexity | Read budget | Turn budget |
+| Complexity | Typical read budget | Typical turn budget |
 |------------|-------------|-------------|
 | Hotfix | 2 reads | 3 turns |
 | Standard Feature | 4 reads | 10 turns |
 | System Change | 6 reads | 20 turns |
 | Infrastructure | 8 reads | 25 turns |
 
-Over budget = re-classify before continuing.
+Over budget = checkpoint and re-classify before continuing. Budgets are heuristics, not a hard stop when competent review needs broader coverage.
 
 **ACT** - MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
 
@@ -94,7 +95,7 @@ Sub-agents: ONE objective, structured return, 5-call budget. When blocked: one q
 - If file exists, modify in-place. NEVER create `_modified`, `_new`, `_backup`, `_v2` variants.
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - MUST maintain cross-file consistency: same concept, same description everywhere
-- MUST preserve file:line evidence format in footguns and examples
+- MUST preserve file evidence in footguns and examples. Prefer grep-friendly semantic anchors; use `file:line` only when the line is the proof.
 - MUST use real incidents, never hypothetical. `.goat-flow/architecture.md` is canonical source of truth
 - Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.
 

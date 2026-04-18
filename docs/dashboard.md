@@ -26,7 +26,7 @@ Dedicated prompt library. Two-pane layout: left pane is the list with search, ca
 
 ### Workspace
 
-Split layout focused on terminal work. The left **Sessions rail** lists all running terminal sessions (up to 3) grouped by current project first then other projects, with single-click session switching, runner/age/idle/detached indicators, inline-confirm `End`, an `End all` footer, and a `+ New session` shortcut that jumps to Prompts. The right pane is the active xterm.js terminal. The rail uses `x-transition` on collapse/expand.
+Split layout focused on terminal work. The left **Sessions rail** lists all running terminal sessions (up to 7) grouped by current project first then other projects, with single-click session switching, runner/age/idle/detached indicators, inline-confirm `End`, an `End all` footer, and a `+ New session` shortcut that jumps to Prompts. The right pane is the active xterm.js terminal. The rail uses `x-transition` on collapse/expand.
 
 ### Settings
 
@@ -38,7 +38,7 @@ Getting-started page for new users. Explains what goat-flow is, the audit/qualit
 
 ## Terminal
 
-- Supports Claude, Codex, Gemini runners
+- Supports Claude, Codex, and Gemini runners from `workflow/manifest.json` in v1.2.0
 - WebSocket-based PTY sessions via xterm.js
 - 60-minute idle timeout with auto-kill
 - Maximum 7 concurrent sessions

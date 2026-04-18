@@ -1,6 +1,6 @@
-# ADR-020: Add Copilot CLI as a first-class supported agent
+# ADR-020: Defer Copilot CLI as a first-class supported agent
 
-**Status:** Accepted
+**Status:** Deferred
 **Date:** 2026-04-18
 
 ## Context
@@ -18,15 +18,14 @@ The framework has a single-source-of-truth path that prevents prior multi-source
 
 ## Decision
 
-Add `copilot` as a fourth first-class `AgentId`, at parity with `claude`, `codex`, and `gemini` across:
+Do **not** treat `copilot` as a first-class `AgentId` until runtime parity actually exists across the manifest, registry, setup flow, audit flow, and dashboard. Keep the live support matrix at `claude | codex | gemini` for now.
 
-1. **Type + runtime:** `AgentId` union in `src/cli/types.ts`, `VALID_AGENTS` in `src/cli/cli.ts` and `src/cli/server/dashboard.ts`, the iteration in `src/cli/detect/agents.ts`, and the agent-specific maps in `src/cli/prompt/compose-setup.ts` and `src/cli/prompt/compose-quality.ts`.
-2. **Manifest:** a `copilot` block in `workflow/manifest.json` pointing at `.github/copilot-instructions.md`, `.github/skills/`, `.github/hooks/hooks.json`, and (null) settings. The manifest is the audit's source of truth, so adding this row picks up audit coverage automatically.
-3. **Detection profile:** a Copilot entry in `src/cli/detect/agents.ts` with instruction file `.github/copilot-instructions.md` and hook events `preToolUse` / `postToolUse` (Copilot's native event names).
-4. **Setup surface:** a Copilot-specific workflow guide at `workflow/setup/agents/copilot.md` and a ≤120-line `.github/copilot-instructions.md` that complements, rather than duplicates, root `AGENTS.md`.
-5. **Skills install target:** `.github/skills/` added to the install set and to preflight parity checks (`diff -r .claude/skills .github/skills`), on the same basis as the other agents' install locations.
-6. **Hooks:** ship a single `.github/hooks/hooks.json` carrying the same deny-dangerous guardrail the other agents ship (mapping it to Copilot's `preToolUse` event), rather than pretending Copilot lacks a runtime hook surface.
-7. **Dashboard:** Copilot appears in the agent enumeration, setup wizard, quality-prompt flow, and audit filter paths without requiring new schema work.
+Copilot remains a tracked future direction, not a shipped support claim. The runtime and manifest must stay honest until all of the following land in one coherent change:
+
+1. `src/cli/types.ts`, `src/cli/agents/registry.ts`, `src/cli/detect/agents.ts`, and the dashboard all accept `copilot`.
+2. `workflow/manifest.json` includes a real `copilot` block with audited install surfaces.
+3. Setup ships a real Copilot guide plus concrete instruction / skills / hooks surfaces in `.github/`.
+4. Audit, setup prompts, quality prompts, and CI all stop describing Copilot as bridge-only or unsupported.
 
 ## Out of scope for this ADR
 
@@ -36,23 +35,20 @@ Add `copilot` as a fourth first-class `AgentId`, at parity with `claude`, `codex
 
 ## Consequences
 
-- **Positive:** goat-flow's agent model becomes `claude | codex | gemini | copilot`, matching the four CLIs users actually run. The audit, setup, and dashboard surfaces all stop silently dropping Copilot users with an "invalid agent" error.
-- **Positive:** `.github/skills/` becomes a maintained install location with drift and parity coverage, rather than an unvalidated surface.
-- **Positive:** Hooks become an honest first-class Copilot feature (`.github/hooks/hooks.json`) rather than a "Copilot is hookless" caveat.
-- **Negative:** Every place that enumerates agents or maps `AgentId` → path must grow a fourth entry. `workflow/manifest.json`, `src/cli/types.ts`, `src/cli/cli.ts`, `src/cli/server/dashboard.ts`, `src/cli/detect/agents.ts`, `src/cli/prompt/compose-setup.ts`, and `src/cli/prompt/compose-quality.ts` all need the Copilot row.
-- **Negative:** Instruction composition is more delicate than the other three agents. Copilot CLI loads root `AGENTS.md` *and* `.github/copilot-instructions.md` *and* any matching `.github/instructions/**/*.instructions.md` together, and the docs explicitly warn that conflicting guidance across those surfaces resolves non-deterministically. The setup guide must teach complementary, non-duplicative content across those files.
-- **Negative:** Adding a fourth skills install location widens the preflight parity surface. The `diff -r` / drift check now covers three installed copies instead of two.
-- **Neutral:** `/fleet` premium-request cost is a real Copilot tradeoff but is a user-configuration concern, not a framework concern.
+- **Positive:** The repo stops making a user-visible support claim that the runtime cannot honor.
+- **Positive:** The manifest, CLI, audit, dashboard, and docs stay aligned on the current three-agent reality.
+- **Negative:** Copilot remains out of scope for the current release until parity lands in code, not just in prose.
+- **Neutral:** The contextual research in this ADR still documents the likely future implementation surface when Copilot support is revived.
 
 ## Implementation track
 
-Full implementation is scoped under `.goat-flow/tasks/1.2.0-wave-6/` across five milestones (governance, runtime + dashboard + detection, setup + audit + instructions, skills parity + built-in-agent validation, end-to-end release readiness). That plan is the authoritative task breakdown; this ADR is the governance decision it executes against.
+No active implementation track. Any future Copilot work should restart from a new, parity-backed milestone set rather than treating this deferred ADR as already accepted.
 
 ## Related decisions
 
 - **ADR-009** — skill-consolidation doctrine. Any Copilot-specific skill divergence has to pass the same justification gate (distinct artefact, hard workflow gate, special failure mode, or repeatable structured output).
 - **ADR-013** — audit as the sole evaluation engine. Copilot must audit through the same `workflow/manifest.json`-driven path, not a second scoring lane.
-- **ADR-017** — active-plan marker. The Wave 6 track lives at `.goat-flow/tasks/1.2.0-wave-6/`, outside the `.active` marker, until it becomes the active plan.
+- **ADR-017** — active-plan marker. Any future Copilot work should live in a dedicated non-active plan directory until it becomes the active plan.
 
 ## Revisit Triggers
 

@@ -37,10 +37,8 @@ test/
   unit/                # Unit tests
   integration/         # Integration tests
   contract/            # Contract tests
-  journeys/            # Journey tests
   smoke/               # Smoke tests
   fixtures/            # Test fixtures
-  helpers/             # mock-fs.ts, test-project.ts
 ```
 
 ## Commands

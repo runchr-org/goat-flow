@@ -101,10 +101,11 @@ For each detected language with source files but no test files, note it in the g
 
 ## Shared setup session log
 
-Use one shared file: `.goat-flow/logs/sessions/YYYY-MM-DD-setup.md`
+Use one shared local continuity file: `.goat-flow/logs/sessions/YYYY-MM-DD-setup.md`
 
 - Earlier step markers stay in this file
 - Finalise it here with the audit result, any fixes made, the file manifest summary, the gap report, and remaining follow-ups
+- If any note deserves to survive beyond this checkout, promote it into lessons / footguns / decisions rather than treating the session log as durable project memory
 - Record time and tokens using this format:
   - `**Time:** [elapsed] | **Tokens:** [count or unavailable]`
 

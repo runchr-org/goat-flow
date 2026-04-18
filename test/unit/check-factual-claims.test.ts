@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import {
   scanCountClaims,
   scanPathReferences,
+  runFactualClaimChecks,
 } from "../../src/cli/audit/check-factual-claims.js";
 import { SKILL_NAMES } from "../../src/cli/constants.js";
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
@@ -27,6 +28,21 @@ function stubFS(existsSet: Set<string>): ReadonlyFS {
     listDir: () => [],
     isExecutable: () => false,
     glob: () => [],
+  };
+}
+
+function stubFSFromFiles(files: Record<string, string>): ReadonlyFS {
+  return {
+    exists: (p: string) => Object.prototype.hasOwnProperty.call(files, p),
+    readFile: (p: string) => files[p] ?? null,
+    lineCount: (p: string) => (files[p] ?? "").split(/\r?\n/).length,
+    readJson: () => null,
+    listDir: () => [],
+    isExecutable: () => false,
+    glob: (pattern: string) =>
+      pattern === "docs/*.md"
+        ? Object.keys(files).filter((path) => /^docs\/[^/]+\.md$/u.test(path))
+        : [],
   };
 }
 
@@ -134,6 +150,16 @@ describe("scanPathReferences", () => {
     assert.equal(findings.length, 0);
   });
 
+  it("skips templated path placeholders", () => {
+    const fs = stubFS(new Set());
+    const findings = scanPathReferences(
+      "docs/skills.md",
+      "Installed at `.agents/skills/goat-{name}/SKILL.md`.",
+      stubCtx(fs),
+    );
+    assert.equal(findings.length, 0);
+  });
+
   it("does not flag paths inside code blocks", () => {
     const fs = stubFS(new Set());
     const text = [
@@ -158,5 +184,83 @@ describe("scanPathReferences", () => {
       stubCtx(fs),
     );
     assert.equal(findings.length, 0);
+  });
+});
+
+describe("runFactualClaimChecks", () => {
+  it("scans docs/*.md path references, not just architecture/code-map", () => {
+    const fs: ReadonlyFS = {
+      exists: (p: string) => p === "docs/example.md",
+      readFile: (p: string) =>
+        p === "docs/example.md" ? "See `workflow/missing-doc.md`." : null,
+      lineCount: () => 0,
+      readJson: () => null,
+      listDir: () => [],
+      isExecutable: () => false,
+      glob: (pattern: string) =>
+        pattern === "docs/*.md" ? ["docs/example.md"] : [],
+    };
+    const { findings } = runFactualClaimChecks(stubCtx(fs));
+    assert.ok(findings.some((f) => f.rule === "path-ref-unresolved"));
+  });
+
+  it("flags stale classify-state summaries in code-map", () => {
+    const fs = stubFSFromFiles({
+      ".goat-flow/code-map.md":
+        "classify-state.ts          # Project adoption classifier (bare/partial/v0.9/v1.0/v1.1/error)\n",
+      "src/cli/classify-state.ts":
+        'export type ProjectStateName = "bare" | "partial" | "v0.9" | "outdated" | "current" | "error";\n',
+    });
+    const { findings } = runFactualClaimChecks(stubCtx(fs));
+    assert.ok(findings.some((f) => f.rule === "code-map-state-drift"));
+  });
+
+  it("flags stale dashboard session-cap claims", () => {
+    const fs = stubFSFromFiles({
+      "docs/dashboard.md":
+        "- Supports Claude, Codex, and Gemini runners\n- Sessions rail: up to 3\n",
+      "src/cli/server/terminal.ts": "const MAX_SESSIONS = 7;\n",
+    });
+    const { findings } = runFactualClaimChecks(stubCtx(fs));
+    assert.ok(findings.some((f) => f.rule === "dashboard-sessions-drift"));
+  });
+
+  it("does not flag the current dashboard runner list with natural-language commas", () => {
+    const fs = stubFSFromFiles({
+      "docs/dashboard.md":
+        "- Supports Claude, Codex, and Gemini runners\n- Sessions rail: up to 7\n",
+      "src/cli/server/terminal.ts": "const MAX_SESSIONS = 7;\n",
+    });
+    const { findings } = runFactualClaimChecks(stubCtx(fs));
+    assert.ok(!findings.some((f) => f.rule === "dashboard-runner-drift"));
+  });
+
+  it("flags stale public skill-contract phrases", () => {
+    const fs = stubFSFromFiles({
+      "docs/skills.md": [
+        "Reviewers MUST read all files before commenting.",
+        "Disputes resolved before synthesis.",
+        "This skill uses a 10-category checklist.",
+        "MUST rank findings by exploitability.",
+      ].join("\n"),
+    });
+    const { findings } = runFactualClaimChecks(stubCtx(fs));
+    assert.ok(findings.some((f) => f.rule === "skills-review-contract-drift"));
+    assert.ok(
+      findings.some((f) => f.rule === "skills-critique-contract-drift"),
+    );
+    assert.ok(
+      findings.some((f) => f.rule === "skills-security-contract-drift"),
+    );
+    assert.ok(findings.some((f) => f.rule === "skills-security-gate-drift"));
+  });
+
+  it("flags accepted ADR-020 while Copilot is not in the manifest-backed runtime", () => {
+    const fs = stubFSFromFiles({
+      ".goat-flow/decisions/ADR-020-add-copilot-cli.md":
+        "# ADR-020\n\n**Status:** Accepted\n",
+    });
+    const { findings } = runFactualClaimChecks(stubCtx(fs));
+    assert.ok(findings.some((f) => f.rule === "adr020-copilot-drift"));
   });
 });

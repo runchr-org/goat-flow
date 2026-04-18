@@ -20,7 +20,6 @@ This directory now has two live layers plus a historical summary:
 - `ADR-017` - active-plan marker
 - `ADR-018` - no standalone `goat-verify`
 - `ADR-019` - skill naming/routing cleanup
-- `ADR-020` - add Copilot CLI as a first-class agent
 
 ## Secondary ADRs
 
@@ -31,6 +30,7 @@ This directory now has two live layers plus a historical summary:
 - `ADR-011` - critique as a core feature
 - `ADR-012` - quality-check expansion
 - `ADR-015` - remove `stop-lint.sh` from core
+- `ADR-020` - deferred Copilot CLI first-class support
 
 ## Deleted Historical Topics
 

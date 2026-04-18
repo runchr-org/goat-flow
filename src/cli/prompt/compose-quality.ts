@@ -387,7 +387,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "**Option A (preferred): File analysis.** Read each SKILL.md and evaluate its structure, constraints, routing logic, cross-references, and coherence against the codebase. This is safe for read-only assessment and covers most quality signals.",
   );
   lines.push(
-    "**Option B (if context allows): Live invocation.** Invoke the skill via the Skill tool on a real target. Monitor for file-write attempts - stop immediately if the skill tries to create or modify files. This tests runtime behavior but costs significant context.",
+    "**Option B (if context allows): Live invocation.** Invoke the skill through the agent's normal slash-command/runtime path on a real target. Monitor for file-write attempts - stop immediately if the skill tries to create or modify files. This tests runtime behavior but costs significant context.",
   );
   lines.push("");
   lines.push("Either approach is acceptable. State which you used.");

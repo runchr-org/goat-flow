@@ -20,9 +20,9 @@ flowchart LR
 | [/goat](#goat--dispatcher) | Route to the right skill | -- | Always (convenience layer) |
 | [/goat-debug](#goat-debug) | Diagnosis-first debugging + investigate mode | No fixes until human reviews diagnosis | Bug or test failure, exploring unfamiliar code |
 | [/goat-plan](#goat-plan) | Milestone planning with testing gates | Human approval between milestones | Before non-trivial implementation |
-| [/goat-review](#goat-review) | Structured code review + quality audit | MUST read all files before commenting | Before merging, quality audits |
-| [/goat-critique](#goat-critique) | Multi-perspective critique of any artifact | Disputes resolved before synthesis | High-stakes decisions, plans, assessments |
-| [/goat-security](#goat-security) | Threat-model-driven security assessment | MUST rank findings by exploitability | Before releases, after dependency changes, during audits |
+| [/goat-review](#goat-review) | Structured code review + quality audit | Negative verification before presenting findings | Before merging, quality audits |
+| [/goat-critique](#goat-critique) | Multi-perspective critique of any artifact | Full mode blocks on unresolved disputes; quick mode has an inline fallback when delegation is unavailable | High-stakes decisions, plans, assessments |
+| [/goat-security](#goat-security) | Threat-model-driven security assessment | MUST re-check framework/tooling mitigations before flagging findings | Before releases, after dependency changes, during audits |
 | [/goat-qa](#goat-qa) | Testing gap analysis and verification planning | Does not run or write tests; generates gap analysis and testing plan | After a milestone or 30-60 min of coding |
 
 ---
@@ -184,12 +184,12 @@ MUST NOT flag pre-existing issues as part of this change. MUST attempt to dispro
 
 ## /goat-critique
 
-Multi-perspective critique using sub-agent orchestration. Takes any concrete artifact (plan, security assessment, debug hypothesis set, review findings, architecture proposal) and generates competing analyses from multiple perspectives.
+Multi-perspective critique for a concrete artifact (plan, security assessment, debug hypothesis set, review findings, architecture proposal). On Codex, quick mode has an inline fallback so the skill is still usable when the user has not explicitly authorized delegated sub-agents.
 
 | Mode | When | Agents | Phases |
 |------|------|--------|--------|
-| **Quick** (default) | Standard complexity, 1-10 files affected | 2 (Alternatives + Fresh Eyes) | 3: Generate → Rank → Synthesise |
-| **Full** | System/Infrastructure complexity, security-critical, 10+ files | 3 (Risk + Alternatives + Fresh Eyes) | 5: Generate → Rank → Cross-Examine → Clarify → Synthesise |
+| **Quick** (default) | Standard complexity, 1-10 files affected, or delegation not explicitly authorized | 0 delegated agents (inline multi-lens fallback) | 3: Generate → Rank → Synthesise |
+| **Full / Delegated** | System/Infrastructure complexity, security-critical, 10+ files, or explicit delegation request | 2-3 delegated agents | 5: Generate → Rank → Cross-Examine → Clarify → Synthesise |
 
 ```mermaid
 flowchart TD
@@ -210,13 +210,13 @@ flowchart TD
 
 Quick mode skips Phases 3 and 4 - goes directly from Rank to Synthesise.
 
-**Key constraints:** MUST use Agent tool calls for sub-agents, not inline role-play. MUST restrict Agent C to artifact + evaluation criteria only (no project context). MUST include "What Wasn't Critiqued" section (never empty). MUST tag low-confidence recommendations as Decision Debt.
+**Key constraints:** Full/delegated mode MUST use Agent tool calls for sub-agents, not inline role-play. When delegation is unavailable, quick mode falls back to an inline multi-lens critique and must say so explicitly. MUST restrict the fresh-eyes pass to artifact + evaluation criteria only (no project context). MUST include "What Wasn't Critiqued" section (never empty). MUST tag low-confidence recommendations as Decision Debt.
 
 ---
 
 ## /goat-security
 
-Threat-model-driven security assessment with framework-aware verification.
+Threat-model-driven security assessment with framework-aware verification. For CLI, tooling, and setup repos, prioritise shell execution, hooks, filesystem access, PTY/session management, local HTTP/WebSocket surfaces, prompt generation, and dependency supply-chain risk before defaulting to web-app categories.
 
 | Mode | Trigger | What it does |
 |------|---------|-------------|
@@ -231,7 +231,7 @@ flowchart TD
     S0["Step 0\nFramework auto-detect\nFootgun check"] --> P1
 
     subgraph ThreatModel["Threat Model Mode"]
-        P1["Phase 1: Threat Surface Scan\n10-category checklist\nSkip irrelevant categories"]
+        P1["Phase 1: Threat Surface Scan\nPick only categories that fit this repo:\nshell/hooks • secrets/filesystem • PTY/dashboard • prompt generation • dependencies"]
         P1 --> P2["Phase 2: Framework-Aware Verification\nFor each finding, check:\n(a) installed? (b) configured? (c) applied?"]
     end
 
@@ -240,15 +240,13 @@ flowchart TD
     P4 -->|"BLOCKING GATE"| Close["Present final report"]
 ```
 
-MUST check framework built-in mitigations before flagging. A finding mitigated by the framework's defaults is a false positive, not a finding. Confidence classification: CONFIRMED (entry-to-sink traced), PROBABLE (plausible, missing source trace), THEORETICAL (policy gap, no exploit path).
+MUST check built-in mitigations before flagging. A finding mitigated by the framework, runtime, or CLI guardrails is a false positive, not a finding. Confidence classification: CONFIRMED (entry-to-sink traced), PROBABLE (plausible, missing source trace), THEORETICAL (policy gap, no exploit path).
 
-| Framework | Check these mitigations first |
+| Repo type | Check these mitigations first |
 |-----------|------------------------------|
-| Laravel | CSRF middleware, mass assignment protection, Eloquent parameterization |
-| Django | CSRF middleware, ORM parameterization, `SECRET_KEY` rotation |
-| Express | Helmet headers, rate limiting, CORS configuration |
-| Spring | Spring Security filters, CSRF protection, parameter binding |
-| Go | `html/template` auto-escaping, `crypto/rand`, HTTP client timeouts |
+| Web app / API | CSRF/auth middleware, ORM parameterization, rate limiting, escaping defaults |
+| CLI / tooling repo | deny hooks, shell quoting, PTY/session limits, filesystem scope checks, local-server bind defaults |
+| Docs / setup framework | read-only defaults, no-write planning paths, prompt wording drift, installer no-clobber behavior, cross-reference checks |
 
 ---
 

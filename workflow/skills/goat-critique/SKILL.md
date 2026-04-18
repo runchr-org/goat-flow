@@ -15,7 +15,7 @@ On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 Use when a concrete artifact deserves multi-perspective critique before shipping. Takes ANY input artifact: a plan, security assessment, debug hypothesis set, review findings, test strategy, architecture proposal, or refactor approach.
 
 **Use when:**
-- The stakes justify spawning 3 sub-agents and 5 phases
+- The stakes justify structured critique before shipping
 - You have a concrete artifact to critique (not vague ideas)
 - You want competing perspectives, not just validation
 - Called by another goat-* skill or directly by the user
@@ -35,16 +35,18 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 - Standard complexity → quick mode. System/Infrastructure → full mode.
 
 **Mode choice:**
-- Quick (default): Agents B/C → Generate, Rank, Synthesise. 2 agents, 3 phases.
-- Full: Agents A/B/C → 5 phases with cross-examination and human dispute resolution.
+- Quick (default): inline multi-lens critique. No delegated sub-agents. 3 phases.
+- Full / delegated: Agents A/B/C → 5 phases with cross-examination and human dispute resolution.
+- Full / delegated mode is only valid when the user explicitly asks for delegation / parallel agents, or the caller already supplied that authorization.
+- If delegation is unavailable, stay in quick mode and say so explicitly.
 - `/goat-critique` or router: confirm artifact and present mode recommendation based on stake calibration.
 - Use the preamble's grep-first learning-loop retrieval on relevant `.goat-flow/footguns/` and `.goat-flow/lessons/`; record explicit misses instead of broad-loading buckets.
 - Skill-chained: skip intake confirmation; use caller context and start at Phase 1.
 
 ## Phase 1 - Generate Competing Critiques
 
-Quick mode: spawn 2 sub-agents.
-Full mode: spawn 3 sub-agents.
+Quick mode: run the alternatives pass and fresh-eyes pass inline.
+Full / delegated mode: spawn 2-3 sub-agents.
 
 Context varies intentionally - informational diversity catches more than tonal diversity.
 
@@ -58,7 +60,7 @@ Agents A and B both use the SKEPTIC/ANALYST/STRATEGIST combined lens. These thre
 
 All three perspectives must appear in every critique from Agents A and B. The tension between them is the point.
 
-### Sub-Agent Definitions
+### Delegated Sub-Agent Definitions
 
 **Sub-agent A (Risk Focus - backward-looking context):**
 Gets: artifact + architecture.md + footguns + lessons + critique rubric.
@@ -72,19 +74,19 @@ Directive: "Apply SKEPTIC/ANALYST/STRATEGIST. Focus on ALTERNATIVES: generate 2-
 Gets: artifact + critique rubric ONLY. No architecture, footguns, lessons, git, or config.
 Directive: "Critique this artifact as if you know nothing about the project. Flag every assumption the artifact makes without stating explicitly. If you find nothing confusing, note whether that's because the artifact is exceptionally clear or because you didn't probe hard enough. Your findings that overlap with other agents are convergent evidence, not redundancy."
 
-Each sub-agent MUST return:
+Each delegated sub-agent MUST return:
 - 3-7 findings: title, severity (CRITICAL/HIGH/MEDIUM/LOW), evidence (file:line or artifact section reference), confidence (HIGH/MEDIUM/LOW), one-sentence rationale
 - Overall assessment: STRONG / ADEQUATE / WEAK / FLAWED
 - One thing the artifact gets RIGHT that should be preserved
 
-MUST use Agent tool calls, not inline role-play. Sub-agents run in isolated context.
+Full / delegated mode MUST use Agent tool calls, not inline role-play. Delegated sub-agents run in isolated context.
 
 ## Phase 2 - Rank and Compare
 
 Build a quick matrix and score by grounding/specificity/actionability/coverage/calibration.
 Label each finding as consensus / split / unique.
 
-**Control group delta:** For Agent C-only findings, mark each as CONTEXT DRIFT / READABILITY GAP / CONTEXT-LIMITED.
+**Control group delta:** For fresh-eyes-only findings, mark each as CONTEXT DRIFT / READABILITY GAP / CONTEXT-LIMITED.
 
 Quick mode: skip **Phase 3 (Cross-Examine)** and **Phase 4 (Clarify)**. Proceed directly to **Phase 5 (Synthesise)** after Phase 2.
 
@@ -153,23 +155,23 @@ The rubric determines what sub-agents evaluate. Match to artifact type:
 
 ## Constraints
 
-- Quick: 2 agents (B+C). Full: 3 agents (A+B+C).
-- Quick mode runs 3 phases (Generate, Rank, Synthesise). Full mode runs 5.
-- MUST use Agent tool calls for sub-agents, not inline role-play
-- MUST isolate Phase 1 contexts
-- MUST restrict Agent C (Fresh Eyes) to artifact + rubric only
+- Quick: inline fallback, no delegated agents. Full / delegated: 2-3 agents.
+- Quick mode runs 3 phases (Generate, Rank, Synthesise). Full / delegated mode runs 5.
+- Full / delegated mode MUST use Agent tool calls for sub-agents, not inline role-play
+- Full / delegated mode MUST isolate Phase 1 contexts
+- Fresh-eyes analysis MUST be restricted to artifact + rubric only
 - MUST use SKEPTIC/ANALYST/STRATEGIST as a combined lens per agent - never split into separate roles
-- MUST differentiate Agent A (risk) from Agent B (alternatives) by instructions
-- MUST flag control group delta: CONTEXT DRIFT / READABILITY GAP / CONTEXT-LIMITED for each unique Agent C finding
+- Full / delegated mode MUST differentiate Agent A (risk) from Agent B (alternatives) by instructions
+- MUST flag control group delta: CONTEXT DRIFT / READABILITY GAP / CONTEXT-LIMITED for each unique fresh-eyes finding
 - MUST include critique rubric appropriate to artifact type
 - MUST present consensus/split/unique classification for every finding
-- Full mode only: MUST cross-examine split findings and unique HIGH/CRITICAL findings (Phase 3)
-- Full mode only: MUST gate on unresolved disputes before synthesis (Phase 4)
+- Full / delegated mode only: MUST cross-examine split findings and unique HIGH/CRITICAL findings (Phase 3)
+- Full / delegated mode only: MUST gate on unresolved disputes before synthesis (Phase 4)
 - MUST tag low-confidence recommendations as Decision Debt
 - MUST always include "What Wasn't Critiqued"
 - Universal constraints from skill-preamble.md apply.
 - MUST NOT auto-apply recommendations - human gate required
-- Sub-agent budget: max 5 tool calls per sub-agent in Phase 1, max 3 in cross-examination
+- Full / delegated mode sub-agent budget: max 5 tool calls per sub-agent in Phase 1, max 3 in cross-examination
 - Skill-chained: skip confirmation, still run footgun/lesson checks and rubric selection
 
 ## Output Format

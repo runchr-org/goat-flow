@@ -11,7 +11,7 @@ Every entry MUST include file path evidence with a **grep-friendly semantic anch
 
 Line numbers are optional convenience. If included, treat as approximate snapshot, not verification target. Each file ref must be in its own backtick span.
 
-Agents should scan only entries above the `## Resolved Entries` section. Resolved entries are historical record, not active traps.
+Agents should scan only entries above the `## Resolved Entries` section. Resolved entries are historical record, not active traps. Status values should stay machine-simple: `active` or `resolved`.
 
 Prefer category bucket files such as `hooks.md`, `setup.md`, or `auditor.md` with file-level frontmatter:
 

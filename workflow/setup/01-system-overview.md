@@ -18,25 +18,25 @@ If the version is older, there is no maintained in-place upgrade guide. Refresh 
   # or locate via: node -e "require.resolve('@blundergoat/goat-flow')" | xargs dirname
   ```
 - Then continue with `workflow/setup/02-instruction-file.md` and the remaining numbered setup steps.
-- If you encounter legacy flat learning-loop docs, old skill names, or legacy task-state files, preserve any useful content in `.goat-flow/logs/sessions/` before removing them.
+- If you encounter legacy flat learning-loop docs, old skill names, or legacy task-state files, promote durable content into `.goat-flow/lessons/`, `.goat-flow/footguns/`, or `.goat-flow/decisions/` before removing them. Session logs are local continuity only.
 
 ## What goat-flow is
 
-A framework that gives AI coding agents structured planning (with multi-perspective critique via `/goat-critique`), persistent memory across sessions, and mechanical safety guardrails. Three layers:
+A framework that gives AI coding agents structured planning (with multi-perspective critique via `/goat-critique`), durable project knowledge, local continuity notes, and mechanical safety guardrails. Three layers:
 
 1. **Instruction file** (CLAUDE.md / AGENTS.md / GEMINI.md) - The execution loop, autonomy tiers, definition of done, and router table. Loaded every turn.
 2. **Skills** (6 functional + 1 dispatcher) - Plan (milestone task files), critique (`/goat-critique` multi-perspective analysis), QA, review, secure, debug. Feature briefs are handled by the dispatcher's Planning Route. Loaded on demand via slash commands. Install verbatim from templates - do NOT adapt, compress, or rewrite skill content.
-3. **.goat-flow/ learning loop** - Footguns (architectural traps with file:line evidence), lessons (behavioural mistakes), decisions (ADRs), patterns (successful approaches), and optional local instruction files. AI extended memory persisting across sessions.
+3. **.goat-flow/ learning loop** - Footguns (architectural traps with file evidence), lessons (behavioural mistakes), decisions (ADRs), patterns (successful approaches), and optional local instruction files. Durable project knowledge lives in committed files; session logs and task files stay local to the checkout.
 
 Every project gets the full system. The components are lightweight infrastructure, not ceremony proportional to codebase size.
 
 ## Setup session log
 
-Create `.goat-flow/logs/sessions/` if it doesn't exist, then use one shared file for the whole setup: `.goat-flow/logs/sessions/YYYY-MM-DD-setup.md`
+Create `.goat-flow/logs/sessions/` if it doesn't exist, then use one shared local file for the whole setup: `.goat-flow/logs/sessions/YYYY-MM-DD-setup.md`
 
 - If resuming after compaction, read the latest setup session log first and continue from the next incomplete step.
 - After each numbered step, append one progress marker line (for example: `Step 03 complete: 7 skills installed`).
-- Step 06 finalises the same file with the audit result, file manifest, time spent, and tokens if available.
+- Step 06 finalises the same local continuity file with the audit result, file manifest, time spent, and tokens if available.
 
 ## File ownership
 

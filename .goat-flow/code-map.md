@@ -6,7 +6,7 @@ Quick orientation for agents working on the goat-flow codebase.
 
 ```
 cli.ts                     # Entry point: command parser (audit, setup, dashboard, quality)
-classify-state.ts          # Project adoption classifier (bare/partial/v0.9/v1.0/v1.1/error)
+classify-state.ts          # Project adoption classifier (bare/partial/v0.9/outdated/current/error)
 constants.ts               # SKILL_NAMES, AUDIT_VERSION
 types.ts                   # Shared types: AgentId, ReadonlyFS, CLIOptions, core interfaces
 

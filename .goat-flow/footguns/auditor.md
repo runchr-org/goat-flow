@@ -5,7 +5,7 @@ last_reviewed: 2026-04-18
 
 ## Footgun: Audit validates hook file content but not hook runtime behavior
 
-**Status:** partially resolved | **Created:** 2026-04-05 | **Updated:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
+**Status:** active | **Created:** 2026-04-05 | **Updated:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
 
 The audit checks that hook files exist and pass `bash -n` syntax check, but does not fully verify runtime behavior. A hook with correct syntax but wrong permissions, missing dependencies, or broken JSON field paths can still pass parts of the audit while providing degraded enforcement.
 
@@ -13,8 +13,8 @@ The audit checks that hook files exist and pass `bash -n` syntax check, but does
 - 4+ sessions across 112 (Claude Insights data) derailed by sub-agent permission failures hitting hooks that the audit had already validated
 - Before the self-test/runtime audit work landed, quoted-regex alternation false positives in `deny-dangerous.sh` were an unverified blind spot. That class is now covered by the self-test and direct runtime probes.
 
-**Partial resolution (2026-04-18):**
-1. **Self-test now exists and runs.** `.claude/hooks/deny-dangerous.sh --self-test` covers 12 cases including 5 false-positive classes (read-only verbs containing dangerous string literals) and 2 bypass-attempt cases (redirect, pipe-to-shell). `check-agent-setup.ts` runs the self-test as part of the agent audit (search: `denyMechanismRuntime`).
+**Mitigations landed (2026-04-18):**
+1. **Self-test now exists and runs.** `.codex/hooks/deny-dangerous.sh --self-test` covers 19 cases including quoted-alternation false-positive probes and pipe-to-shell / redirect bypass attempts. `check-agent-setup.ts` runs the self-test as part of the agent audit (search: `checkHookSelfTest`).
 2. **Self-test is run from the agent-setup check.** The `agent-deny-dangerous` check in `src/cli/audit/check-agent-setup.ts` invokes the self-test rather than relying on `bash -n` alone.
 3. **Quoted alternation is now covered.** `deny-dangerous.sh --self-test` includes both single-quoted and double-quoted alternation cases, and direct probes like `bash .gemini/hooks/deny-dangerous.sh 'rg -n "foo|bar" CLAUDE.md'` return exit 0.
 
@@ -54,6 +54,20 @@ The audit checks that hook files exist and pass `bash -n` syntax check, but does
 
 ---
 
+## Footgun: Structural Compliance Illusion
+
+**Status:** active | **Created:** 2026-04-16 | **Evidence:** ACTUAL_MEASURED
+
+Build checks in `src/cli/audit/check-goat-flow.ts` and `src/cli/audit/check-agent-setup.ts` prove the install shape is present, not that the cold-path docs are semantically true. A structural PASS without content verification still creates false confidence.
+
+**Evidence:**
+- `src/cli/audit/check-goat-flow.ts` and `src/cli/audit/check-agent-setup.ts` gate file existence / install structure.
+- `src/cli/audit/check-content-quality.ts` and `src/cli/audit/check-factual-claims.ts` exist because structural correctness alone did not catch cold-path truth drift.
+
+**Prevention:** Keep structural audit and content-truth checks separate and explicit. Never treat a build PASS as proof that docs, ADRs, or prompts are semantically current.
+
+---
+
 ## Resolved Entries
 
 > Historical record. These entries are no longer active traps.
@@ -64,11 +78,3 @@ The audit checks that hook files exist and pass `bash -n` syntax check, but does
 - **Scanner reports enforcement features it didn't detect** (resolved 2026-04-13) - Scanner removed in v1.1.0; hook facts now read from actual file content via `enrichDenyFromExecpolicy()`.
 - **Scanner gives 100% while generated files are broken** (resolved 2026-04-13) - Scanner/rubric engine removed in v1.1.0; replaced with structural build checks plus pass/fail harness completeness checks.
 - **Setup reports scanner metrics as audit results** (resolved 2026-04-13) - Scanner removed; `cli.ts` now calls `runAudit()` and reports actual hook file counts.
-
-## Footgun: Structural Compliance Illusion
-
-**Status:** active | **Created:** 2026-04-16 | **Evidence:** ACTUAL_MEASURED
-
-Competitive analysis of 13 agent frameworks (including agnix and cclint) shows that agents frequently "game" the scanner by creating validly-structured but empty or hallucinated documentation files. A 100% structural pass does NOT mean the harness is effective. Without line-level content verification or automated cross-referencing, the auditor measures file existence rather than governance quality.
-
-**Prevention:** Move toward line-level diagnostic precision (see agnix) and automated link verification (see cclint). Use M13's "Enforcement-in-code" pivot to bridge the gap between structure and signal.

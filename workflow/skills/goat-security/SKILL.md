@@ -12,7 +12,7 @@ On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 
 ## When to Use
 
-Use when assessing security posture: before deployment, after adding auth/input handling, when touching secrets/credentials, or for a security-focused audit.
+Use when assessing security posture: before deployment, after adding auth/input handling, when touching secrets/credentials, or for a security-focused audit. For CLI, tooling, and setup repos, prioritise shell execution, hooks, filesystem access, PTY/session management, prompt generation, and local HTTP/WebSocket surfaces before defaulting to web-app categories.
 
 **NOT this skill:** Code quality/design issues → /goat-review.
 
@@ -22,15 +22,15 @@ Use when assessing security posture: before deployment, after adding auth/input 
 
 - If user already names depth/concern, confirm and continue.
 - If arriving from the dispatcher with depth already chosen, skip the depth question.
-- If vague, ask one follow-up covering: component, threat concern, deployment context, framework.
-- Auto-detect framework from package files and state it briefly.
+- If vague, ask one follow-up covering: component, threat concern, deployment context, and repo type (web app / CLI-tooling / setup-docs).
+- Auto-detect framework or repo type from package files and state it briefly.
 
 **Footgun check:** Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/` for the target area. Present matches or an explicit retrieval miss; do not broad-load the bucket.
 
 ## Quick Scan Path
 
 1. Identify the framework and its built-in mitigations.
-2. Scan by severity: auth/secrets first, then injection, then config/exposure.
+2. Scan by severity using the repo's real threat surface: secrets/command execution first, then filesystem/config exposure, then PTY/dashboard/local-server risk, then dependency supply chain.
 3. For each finding, check if the framework already mitigates it - remove false positives.
 4. Present findings ordered by severity with `file:line` evidence.
 5. Note what wasn't checked.
@@ -39,7 +39,7 @@ Use when assessing security posture: before deployment, after adding auth/input 
 
 ### Phase 1 - Threat Surface Scan
 
-Scan applicable categories (validation/auth/input, secret handling, injections, CVEs) and log each finding with `file:line`.
+Scan only the categories that fit the repo. For web apps, that usually means auth/input/injection. For CLI/tooling/setup repos, prioritise shell execution, hooks, filesystem scope, PTY/session management, prompt generation, and dependency supply-chain risk. Log each finding with `file:line`.
 
 ### Phase 2 - Framework-Aware Verification
 
@@ -48,7 +48,7 @@ For each finding, re-check framework mitigations and remove false positives. Fla
 | Excuse | Reality |
 |--------|---------|
 | "Senior eyeballed it, says it's fine" | Authority pressure. Reviews are evidence about the reviewer, not the code. Re-scan regardless. |
-| "Framework handles CSRF and SQL — that's the big stuff" | Frameworks mitigate specific classes. Authorization (IDOR, privilege escalation) is your job, not the framework's. |
+| "Framework handles CSRF and SQL — that's the big stuff" | Frameworks mitigate specific classes. Tooling repos still need manual review of shell execution, hooks, filesystem scope, and local-server behavior. |
 | "`@login_required` (or equivalent) is probably enough" | Authentication is not authorization. Every object-id path/query parameter needs an explicit ownership or role check. |
 | "Release window means green-light if nothing obvious" | Time pressure never converts "haven't checked" into "verified safe". Mark claims UNVERIFIED, not CONFIRMED-safe. |
 | "Audit tool not installed, skip it quietly" | Silent skips or fabricated audit results corrupt the confidence classification. State the gap explicitly with the install command. |
@@ -70,6 +70,14 @@ Critical (no auth) > High (low-privilege) > Medium (specific conditions) > Low (
 Re-read `file:line` for Critical/High. Does code match the finding? Is the scenario realistic? Remove failures.
 
 **Dependency audit:** If the project uses dependency management (npm, pip, cargo, composer, etc.), check for known vulnerabilities using the project's audit tool. If the audit tool isn't installed (e.g., `pip-audit` for Python), note it as a gap: "Dependency audit skipped - [tool] not available. Install with [command] for future scans." Do NOT fabricate audit results.
+
+**CLI / tooling / setup repo checklist:** Prioritise these categories when applicable:
+- shell execution and quoting
+- hooks and command blocking
+- filesystem scope / unintended writes
+- PTY, dashboard, and local server exposure
+- prompt generation / unsafe automation guidance
+- dependency supply chain
 
 **BLOCKING GATE:** Present final report. If PROBABLE > CONFIRMED, run `/goat-critique` cross-examination.
 

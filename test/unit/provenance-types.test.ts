@@ -7,6 +7,7 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { resolve } from "node:path";
 import { validateProvenance } from "../../src/cli/audit/provenance-types.js";
 import type { CheckEvidence } from "../../src/cli/audit/provenance-types.js";
 import { CONTENT_QUALITY_EVIDENCE } from "../../src/cli/audit/check-content-quality.js";
@@ -15,6 +16,7 @@ import { SNAPSHOT_CLAIMS_EVIDENCE } from "../../src/cli/audit/check-snapshot-cla
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
+import { createFS } from "../../src/cli/facts/fs.js";
 
 describe("validateProvenance", () => {
   it("accepts a well-formed spec entry", () => {
@@ -93,6 +95,18 @@ describe("validateProvenance", () => {
     assert.ok(errs.length >= 1);
     assert.match(errs[0]!, /source_url|evidence_path/i);
   });
+
+  it("rejects missing evidence_paths when a filesystem resolver is provided", () => {
+    const e: CheckEvidence = {
+      source_type: "incident",
+      source_urls: [],
+      verified_on: "2026-04-18",
+      normative_level: "MUST",
+      evidence_paths: ["workflow/setup/definitely-missing.md"],
+    };
+    const errs = validateProvenance(e, () => false);
+    assert.ok(errs.some((err) => err.includes("evidence_path does not exist")));
+  });
 });
 
 describe("M05 check evidence constants validate", () => {
@@ -116,6 +130,18 @@ describe("M05 check evidence constants validate", () => {
         validateProvenance(check.provenance),
         [],
         `check ${check.id} has invalid provenance`,
+      );
+    }
+  });
+
+  it("all registered checks point at evidence paths that exist on disk", () => {
+    const checks = [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
+    const fs = createFS(resolve(import.meta.dirname, "..", ".."));
+    for (const check of checks) {
+      assert.deepEqual(
+        validateProvenance(check.provenance, fs.exists),
+        [],
+        `check ${check.id} points at missing evidence`,
       );
     }
   });

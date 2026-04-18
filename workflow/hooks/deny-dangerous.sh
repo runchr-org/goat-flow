@@ -2,17 +2,13 @@
 # =============================================================================
 # deny-dangerous.sh - PreToolUse hook: blocks dangerous commands before execution
 # =============================================================================
-# Event:  PreToolUse (Claude), BeforeTool (Gemini)
+# Event:  PreToolUse / equivalent pre-command hook for the current runtime
 # Match:  Bash tool calls
 # Exit 0: allow the command
 # Exit 2: block the command (stderr message shown to the agent as the reason)
 #
-# Install (Claude): copy to .claude/hooks/deny-dangerous.sh
-# Register in .claude/settings.json:
-#   "PreToolUse": [{ "matcher": "Bash", "hooks": [{
-#     "type": "command",
-#     "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-dangerous.sh\""
-#   }]}]
+# Install: place in the runtime's hooks directory and register it with the
+# runtime's pre-tool / pre-command hook config.
 #
 # Limitations:
 # - Best-effort pattern matching on literal shell commands
@@ -20,7 +16,7 @@
 #   commands, or `source .env`
 # - Deeply nested command substitution beyond 3 levels is blocked as a
 #   precaution rather than parsed
-# - Defense in depth: combine with settings.json deny patterns + CLAUDE.md rules
+# - Defense in depth: combine with runtime deny patterns + instruction-file rules
 # =============================================================================
 set -uo pipefail
 
