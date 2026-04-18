@@ -61,6 +61,15 @@ Now read full files for context. For each Pass-1 suspicion:
 - Add findings that only became visible with file context (integration breakage, call-site contract mismatch, regression in a sibling file).
 - Re-verify every `file:line` reference exists before writing the final output.
 
+| Excuse | Reality |
+|--------|---------|
+| "Trusted author wrote it, Pass 2 will just refute everything — skip it" | In-group trust has historically produced the worst misses in auth/signing/rate-limit code. Open the files. |
+| "CI is green, so boundary and signing edges are already covered" | CI tests what was thought of. Review looks for what wasn't. Green CI raises, not answers, the Pass-2 question. |
+| "N clean reviews of this author = pattern, this one is probably clean too" | Pattern matching on authorship is not evidence about this diff. Each Pass-1 suspicion still needs Pass-2 disprove. |
+| "Tight window + demo tomorrow — MAY-only cosmetic pass is proportionate" | An incomplete review merged into a demo window is worse than a `coverage-degraded` conclusion returned on time. |
+| "Findings would be zero anyway, so Review Integrity is paperwork" | Review Integrity IS the zero-findings signal. `files-not-opened` tells the reader you stopped early. |
+| "Footgun file is probably stale, reading it is ceremony" | Footguns are memory. Treating them as ceremony is how the same mistake ships twice. |
+
 ### Severity + Action Tagging
 
 Every surfaced finding gets two orthogonal tags:

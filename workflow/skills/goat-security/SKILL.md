@@ -45,6 +45,14 @@ Scan applicable categories (validation/auth/input, secret handling, injections, 
 
 For each finding, re-check framework mitigations and remove false positives. Flag partial mitigation and unresolved exposure.
 
+| Excuse | Reality |
+|--------|---------|
+| "Senior eyeballed it, says it's fine" | Authority pressure. Reviews are evidence about the reviewer, not the code. Re-scan regardless. |
+| "Framework handles CSRF and SQL — that's the big stuff" | Frameworks mitigate specific classes. Authorization (IDOR, privilege escalation) is your job, not the framework's. |
+| "`@login_required` (or equivalent) is probably enough" | Authentication is not authorization. Every object-id path/query parameter needs an explicit ownership or role check. |
+| "Release window means green-light if nothing obvious" | Time pressure never converts "haven't checked" into "verified safe". Mark claims UNVERIFIED, not CONFIRMED-safe. |
+| "Audit tool not installed, skip it quietly" | Silent skips or fabricated audit results corrupt the confidence classification. State the gap explicitly with the install command. |
+
 **BLOCKING GATE:** Present verified findings, then pause.
 
 ### Phase 3 - Confidence Classification
