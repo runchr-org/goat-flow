@@ -25,6 +25,12 @@ Verified drift found by the critiques:
 
 Accept that cold-path content requires automated truth-checking, not just manual maintenance. Implement in three tiers:
 
+The older evidence-lifecycle convention now folds into this ADR as the state model for footguns and lessons:
+
+- `ACTIVE` is the default for live warnings and lessons
+- `MITIGATED` marks a partial fix and must cite the change that reduced the risk
+- `RESOLVED` marks a fully fixed issue and should remain in place as historical evidence instead of being moved to a separate archive file
+
 ### Tier 1 - Immediate fixes (do now)
 - Fix all verified stale evidence in footguns and lessons
 - Delete `scripts/stop-lint.sh` (contradicts ADR-040)

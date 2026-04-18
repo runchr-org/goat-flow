@@ -21,7 +21,7 @@ All 5 analyses converged on rejecting option 1. Evidence:
   - **ADR-030** (skill consolidation) — new skills must have a distinct artifact or failure mode.
   - **ADR-019** (no implementation skill) — rejected the goat-doer / goat-verifier split; verification must come from fresh review/test invocations, not an artificial verifier layer over the same work.
   - **ADR-004** (replace preflight with security skill) — rejected "glorified checklist skill" in favour of strengthening real enforcement surfaces.
-  - **ADR-042** (remove RULES.md) — moved duplicated always-on rules into `skill-preamble.md`. This is the sanctioned pattern for cross-cutting doctrine.
+  - Prior v1.1.0 cleanup already established the relevant pattern: duplicated always-on rules belong in `skill-preamble.md`, not in a separate always-loaded file such as the retired `RULES.md`.
   - **ADR-030** (skill consolidation doctrine) — repo trends toward fewer skills, not more, and new skills must justify their existence.
 - Measured blast radius of a new canonical skill: 3 hardcoded surfaces (`workflow/install-goat-flow.sh:140` `SKILL_NAMES` string, `src/cli/constants.ts:8-16` `SKILL_NAMES` array, `workflow/manifest.json:45-52` canonical list), plus audit-drift test count bump (`test/integration/audit-drift.test.ts:76`), plus 3-way installed-copy parity (`.goat-flow/footguns/skills.md:5-16` documents real punctuation-only drift incidents that proved parity is not free).
 
@@ -50,7 +50,7 @@ External pattern mining (superpowers/verification-before-completion, systematic-
 ## Consequences
 
 - **Blast radius contained.** No canonical-skill-count changes. No edits to `workflow/install-goat-flow.sh`, `src/cli/constants.ts`, `workflow/manifest.json`, or `test/integration/audit-drift.test.ts:76`. The 3 hardest drift surfaces stay untouched.
-- **Hot/cold path distinction preserved.** Hot path (`AGENTS.md`) remains within its 150-line budget (`.goat-flow/architecture.md:59-61`). Cold-path shared doctrine (`skill-preamble.md`) absorbs the new Proof Gate following the ADR-042 pattern.
+- **Hot/cold path distinction preserved.** Hot path (`AGENTS.md`) remains within its 150-line budget (`.goat-flow/architecture.md:59-61`). Cold-path shared doctrine (`skill-preamble.md`) absorbs the new Proof Gate following the existing shared-preamble pattern.
 - **Verification discipline strengthens without routing complexity.** Every skill's output moment is governed by the Proof Gate via inheritance plus an explicit one-line reference, while each skill retains domain-specific gate semantics (confidence scales, severity tags, testing gates).
 - **Rollback is trivial.** Revert the preamble Proof Gate section, the one-line references in 7 skills, the goat-debug domain patches, the lesson entry, and this ADR. No persisted state (config, manifest, constants) to unwind. Single `git revert` discharges the change.
 
@@ -72,5 +72,5 @@ If any precondition fires, the new ADR's implementation must touch the 3 hardcod
 - `workflow/skills/{goat, goat-plan, goat-review, goat-critique, goat-security}/SKILL.md` — Proof Gate one-line references.
 - `.goat-flow/lessons/verification.md` — new `## Lesson: Verification rationalization anti-patterns` entry.
 - `test/integration/preamble-sync.test.ts`, `test/integration/verification-boundaries.test.ts` — contract tests.
-- Precedent: ADR-004, ADR-019, ADR-030, ADR-042.
+- Precedent: ADR-004, ADR-019, ADR-030, plus the earlier shared-preamble cleanup that retired `RULES.md`.
 - Drift-risk motivation: `.goat-flow/footguns/skills.md:5-16`.

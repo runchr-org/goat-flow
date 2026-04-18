@@ -22,6 +22,18 @@ Seven-agent critique exposed the consequences of running both:
 
 The scanner served its purpose as the original evaluation engine. The audit system replaced it for all public-facing use. The scanner had become dead weight creating confusion.
 
+Earlier scanner-era refinements that no longer warrant standalone ADR files are preserved in this historical line:
+
+- project-shape scoring was removed after it produced inconsistent results without delivering real rubric value
+- project-type handling was constrained to detection/guidance rather than rubric splits
+- AP13 had to learn the difference between real project paths and abstract deny-list patterns because the scanner was incentivising weaker security rules
+
+Later audit-era cleanup that also no longer needs standalone ADRs is preserved here as implementation history of the single-engine model:
+
+- agent setup checks were regrouped from 9 flat checks to 4 clearer audit surfaces (`agent-instruction`, `agent-skills`, `agent-settings`, `agent-deny-hook`)
+- dead agent checks (`agents-supported`, `instruction-files`, `workflow-path-leaks`) were removed instead of being carried forward into the audit era
+- the regrouping traded one-shot inventory completeness for clearer dashboard surfaces and simpler setup-step mapping, which fits the broader simplification goal of this ADR
+
 ## Decision
 
 Delete the scanner/rubric system entirely. Make audit the single evaluation engine driving all goat-flow commands including setup.

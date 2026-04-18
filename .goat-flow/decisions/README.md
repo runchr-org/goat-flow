@@ -1,12 +1,10 @@
 # Decision Records
 
-This directory now has three layers:
+This directory now has two live layers plus a historical summary:
 
 - **Core ADRs**: current architectural decisions that still define the framework.
 - **Secondary ADRs**: current but narrower repo, product-surface, or tooling decisions.
-- **Historical / debt records**: superseded decisions, merged records kept for stable links, and open decision-debt notes.
-
-`Merged into` means the surviving guidance lives in another ADR, but the old file remains as a short historical stub so existing links do not break.
+- **Deleted historical topics**: superseded, merged, or overly narrow records whose surviving meaning is summarized below and preserved in git history.
 
 ## Core ADRs
 
@@ -25,41 +23,29 @@ This directory now has three layers:
 
 ## Secondary ADRs
 
-- `ADR-001` - unified root layout
 - `ADR-003` - confusion-log removal
 - `ADR-004` - preflight skill replaced by security skill
-- `ADR-006` - remove ask-first guard hook
-- `ADR-009` - evidence lifecycle convention
-- `ADR-012` - canonical skill location / copy model
 - `ADR-019` - no implementation skill
 - `ADR-022` - autonomous skill mode
-- `ADR-027` - Node version source of truth
-- `ADR-032` - Prettier formatting
 - `ADR-033` - critique as a core feature
 - `ADR-034` - quality-check expansion
 - `ADR-035` - remove Copilot
-- `ADR-037` - skill-integrity public-audit gap
-- `ADR-038` - consolidate agent setup checks
 - `ADR-040` - remove `stop-lint.sh` from core
-- `ADR-042` - remove `RULES.md`
-- `ADR-044` - summary-first harness cards
 
-## Historical ADRs
+## Deleted Historical Topics
 
-- `ADR-002` - historical scanner-era simplification
-- `ADR-005` - historical superseded spec-artifact workflow
-- `ADR-010` - merged into `ADR-003`
-- `ADR-011` - merged into `ADR-028`
-- `ADR-014` - historical scanner-era project-type decision
-- `ADR-015` - historical scanner-era heuristic
-- `ADR-016` - merged into `ADR-030`
-- `ADR-017` - merged into `ADR-030`
-- `ADR-021` - merged into `ADR-018`
-- `ADR-023` - merged into `ADR-028`
-- `ADR-024` - merged into `ADR-028`
-- `ADR-026` - merged into `ADR-039`
+The following topics were removed as standalone ADR files on 2026-04-18 after their surviving guidance was folded into umbrella records:
 
-## Decision Debt
-
-- `2026-04-18-M08-skill-tdd-no-target-repro.md` - consolidated M08 RED-baseline no-repro record
-- The three original 2026-04-18 per-skill notes remain as historical stubs that point here.
+- confusion-log disposition now lives in `ADR-003`
+- shared-conventions history (keep inline / expand inline / flush-protocol enforcement) now lives in `ADR-028`
+- dispatcher counting and the original 9→6 consolidation pass now live in `ADR-030`
+- category-bucket learning-loop format now lives in `ADR-018`
+- local-only `userRole` config handling now lives in `ADR-039`
+- retired scanner-era simplifications and heuristics are preserved in `ADR-036` and git history
+- the retired spec-artifact workflow is preserved in git history; the current replacement is milestone files plus goat-review Spec Drift
+- evidence lifecycle state markers now live in `ADR-041`
+- dispatcher build history now lives in `ADR-030`
+- audit-era agent-check regrouping now lives in `ADR-036`
+- the shared-preamble pattern from the retired `RULES.md` cleanup now lives in `ADR-045`
+- repo-layout history, the ask-first hook lesson, the older skill-copy model, narrow tooling ADRs, and harness-card presentation are preserved in git history rather than the live ADR set
+- the deferred public-audit skill-integrity note was removed from the live ADR set; cold-path truth maintenance remains in `ADR-041`

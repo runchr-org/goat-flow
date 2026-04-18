@@ -9,6 +9,8 @@ Extracted from `docs/system-spec.md` (being retired in v1.1.0) to preserve desig
 
 Early versions had 8-10 skills. Each skill consumed instruction budget when loaded and created maintenance burden. At the same time, rubric, facts, fragments, and docs were inconsistent about whether the dispatcher counted as a canonical skill at all.
 
+Before the canonical-count question was settled, the framework first had to decide whether the dispatcher should exist at all. The original dispatcher build ADR concluded that keyword-first routing plus one-question disambiguation was cheaper than loading the wrong skill and bouncing through its "NOT this skill" block. That origin story now lives here because the durable question is not whether `/goat` was worth building once; it is whether routing deserves canonical skill status and how that status interacts with the consolidation doctrine.
+
 Cross-project reviews from 3 consumer projects (halaxy-cypress 66/100, blundergoat-platform 74/100, healthkit 68/100) made the usability pressure concrete:
 
 - "9 skills is too many for initial setup" (2/3 projects)
@@ -36,6 +38,7 @@ The dispatcher **does** count as canonical when it is shipped as a `SKILL.md` su
 - The dispatcher is canonical because it has its own failure modes (ambiguous intent, incorrect routing, missing override handling)
 - It produces structured output (skill announcement and disambiguation)
 - It has distinct constraints (must announce, must not load two skills, must present disambiguation)
+- The original build rationale also remains part of the record: keyword-first intent mapping covers the easy cases, one clarification question handles the ambiguous boundary, and direct invocation remains available for power users
 
 **9 → 6 consolidation (from ADR-017):**
 
