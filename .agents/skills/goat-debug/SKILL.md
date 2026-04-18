@@ -17,6 +17,15 @@ Use when diagnosing a bug or understanding unfamiliar code. For onboarding, use 
 
 **If you want to "just try something" before tracing the code path, STOP.** That is the failure mode this skill exists to prevent.
 
+| Excuse | Reality |
+|--------|---------|
+| "The user already diagnosed it, hypotheses are ceremony" | A confidently stated cause is data, not diagnosis. Trace it or eliminate it before acting. |
+| "Prod is on fire, D1 is a luxury" | Untraced fixes at 2am are how you get a 3-fix abort at 4am. D1 is the shortest path to a working fix. |
+| "Type/config mismatch is a really clean story" | Clean stories that don't mechanically match the symptom (e.g. value-dependent failure from a value-blind cause) are wrong stories. |
+| "The specific number in the bug report is probably just phrasing" | Treat every specific number, threshold, or boundary in a bug report as a clue, not rhetoric. |
+| "Reading the footgun during an incident looks like second-guessing" | Reading the footgun IS doing your job. Not reading it is what looks bad at post-mortem. |
+| "Adding the field is zero-risk — worst case we try the next thing" | This is how you enter the 3-fix abort loop. Hypothesis before code, always. |
+
 **NOT this skill:** Reviewing → /goat-review. Test plans → /goat-qa. Planning milestones → /goat-plan. Feature briefs → dispatcher Planning Route.
 
 ## Step 0 - Choose Depth

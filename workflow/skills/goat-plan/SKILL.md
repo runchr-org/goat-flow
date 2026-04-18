@@ -68,6 +68,14 @@ Structure the work into milestones using these archetypes. Adapt the count to th
 
 **Spike-first rule:** If uncertain about a library, API, performance characteristic, or integration point - that uncertainty goes in Milestone 1 as a spike, not Milestone 3 as a risk.
 
+| Excuse | Reality |
+|--------|---------|
+| "Team is experienced so the spike is overkill" | Expertise with provider X does not transfer to provider Y — the expertise is the wrong shape. Spike anyway. |
+| "N milestones is what they asked for, stick to the count" | Milestone count is fine; dropping the spike to hit the count isn't. Add the M1 spike even if it means N+1. |
+| "Tight deadline means skip the full intake" | The tight deadline is *why* M1 must be a spike — fail fast on unknowns, not last. |
+| "Kill criteria are ceremony for something this straightforward" | Anything touching money, auth, or data is not "straightforward". Name the kill criteria anyway. |
+| "User said no ceremony, just paste it" | Authority pressure. Skill integrity overrides politeness when the user is asking the skill to do something that defeats its purpose. |
+
 ### For each milestone, produce:
 
 - **Objective** - 1-2 sentences: what this milestone proves or delivers
