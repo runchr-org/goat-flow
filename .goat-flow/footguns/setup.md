@@ -35,15 +35,15 @@ When a project already has learning-loop artifacts, setup creates NEW parallel s
 
 **Status:** resolved | **Created:** 2026-04-16 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** `RULES.md` (432 words) in the goat dispatcher skill loaded on every `/goat` dispatch. 6 of 6 sections duplicated content already in CLAUDE.md and skill-preamble.md. Net unique content: ~30 words. Flagged by a coding agent critique of halaxy-cypress as a framework flaw.
+**Symptoms:** `RULES.md` (432 words) in the goat dispatcher skill loaded on every `/goat` dispatch. 6 of 6 sections duplicated content already in CLAUDE.md and the shared skill preamble. Net unique content: ~30 words. Flagged by a coding agent critique of halaxy-cypress as a framework flaw.
 
-**Why it happened:** RULES.md was created as a standalone "core mandates" file for the mono-skill dispatcher model. When the architecture split into 7 separate skills with a shared skill-preamble.md, the preamble absorbed the same rules but RULES.md was never removed.
+**Why it happened:** RULES.md was created as a standalone "core mandates" file for the mono-skill dispatcher model. When the architecture split into 7 separate skills with a shared preamble (now at `.goat-flow/skill-reference/skill-preamble.md`), the preamble absorbed the same rules but RULES.md was never removed.
 
-**Evidence:** `RULES.md` sections mapped 1:1 to existing surfaces: Evidence Standard = skill-preamble.md:18-27, Severity Scale = skill-preamble.md:14, Execution Loop = CLAUDE.md:5-29, Learning Loop = skill-preamble.md:87-93.
+**Evidence (historical, pre-subdir-move paths):** `RULES.md` sections mapped 1:1 to existing surfaces. Evidence Standard, Severity Scale, and Learning Loop all duplicated content already in the shared preamble; Execution Loop duplicated CLAUDE.md's loop section. Specific line numbers from 2026-04-16 are stale after the `.goat-flow/skill-reference/` subdir move and are no longer recorded here.
 
-**Resolution:** Deleted RULES.md (ADR-042). Moved 2 unique lines to skill-preamble.md "Engineering Standards" section.
+**Resolution:** Deleted RULES.md (ADR-042). Moved 2 unique lines into the shared preamble's "Engineering Standards" section.
 
-**Prevention:** When adding a new shared-context file, check whether its content already exists in CLAUDE.md or skill-preamble.md. Before promoting any file to "load on every invocation," verify it provides net-new signal per token.
+**Prevention:** When adding a new shared-context file, check whether its content already exists in CLAUDE.md or the shared preamble. Before promoting any file to "load on every invocation," verify it provides net-new signal per token.
 
 ---
 

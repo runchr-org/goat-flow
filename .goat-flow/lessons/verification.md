@@ -221,6 +221,18 @@ category: verification
 
 ---
 
+## Lesson: Backticks in shell grep patterns can fake a verification failure
+
+**Created:** 2026-04-18
+
+**What happened:** During rename verification for `.goat-flow/tasks/1.3.0` to `.goat-flow/tasks/1.2.0-wave-6`, a ripgrep command embedded backticks in the shell pattern. Bash treated ``1.3.0`` as command substitution and failed with `/bin/bash: line 1: 1.3.0: command not found`, which made the verification step noisy and ambiguous.
+
+**Root cause:** Mixed markdown-style quoting with shell quoting during a verification command. The search intent was correct, but the shell interpreted the pattern before `rg` saw it.
+
+**Fix:** For verification grep commands, use single-quoted patterns or plain escaped literals only. Do not put markdown backticks inside the shell command. When a verification command fails due to quoting, rerun a narrower path-only search before claiming the rename is verified.
+
+---
+
 ## Lesson: Manifest canonical vs stale_names misclassification silently broke skill installs
 
 **Created:** 2026-04-16

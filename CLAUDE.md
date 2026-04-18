@@ -60,54 +60,33 @@ Over budget = re-classify before continuing. Complexity-class read budgets take 
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-If VERIFY caught a failure or you corrected course, update the learning loop before DoD:
-- Lessons: `.goat-flow/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content.
-- Footguns: `.goat-flow/footguns/` category bucket files (e.g. `hooks.md`, `auditor.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
-
-| File | When to update |
-|------|---------------|
-| `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
-| `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
-| `.goat-flow/decisions/` | Significant technical decision with context/rationale |
-| `.goat-flow/logs/sessions/` | End of every significant session - `YYYY-MM-DD-slug.md` summary |
+**Learning loop** (update before DoD if VERIFY caught a failure or you corrected course):
+- `.goat-flow/lessons/<category>.md` — behavioural mistake. `## Lesson: <name>` + `**Created:** YYYY-MM-DD`.
+- `.goat-flow/footguns/<category>.md` — cross-doc architectural trap with file evidence. `## Footgun: <name>` + `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED`.
+- `.goat-flow/decisions/` — significant technical decision with context/rationale.
+- `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` — end-of-session summary.
 
 ## Autonomy Tiers
 
-**Always:** Read any file, lint scripts, edit within assigned scope, append to log files
+**Always:** Read any file, lint scripts, edit within assigned scope, append to log files.
 
-**Ask First** (MUST complete before proceeding):
-- [ ] Boundary touched: [name]
-- [ ] Related code read: [yes/no]
-- [ ] Footgun entry checked: [relevant entry, or "none"]
-- [ ] Local instruction checked: [local CLAUDE.md / .github/instructions/ / none]
-- [ ] Rollback command: [exact command]
+**Ask First** — before proceeding, state: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked, rollback command.
 
-Boundaries:
-- `workflow/setup/` prompt changes (affects what users generate)
-- `workflow/skills/` template changes (affects user skill creation)
-- `.goat-flow/architecture.md` (core architecture doc)
-- `.github/workflows/**` (CI changes alter validation and release behavior)
-- `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/**` (agent runtime files)
-- Other instruction files (`AGENTS.md`, `GEMINI.md`)
-- Adding, removing, or renaming any file (breaks cross-references)
-- Changes spanning 3+ documentation files
+Boundaries: `workflow/setup/`, `workflow/skills/`, `.goat-flow/architecture.md`, `.github/workflows/**`, `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/**`, `AGENTS.md`, `GEMINI.md`, any add/remove/rename (breaks cross-refs), changes spanning 3+ docs.
 
 **Never:** Delete docs without replacement. Modify .env/secrets. Push to main. Force push. Commit unless asked. Invent hypothetical examples. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`). Delete/move/overwrite 5+ files in one operation without listing targets and getting confirmation.
 
 ## Definition of Done
 
-MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh, npm run typecheck on .ts) (2) no broken cross-references introduced (3) no unapproved boundary changes (4) logs updated if tripped (5) working notes current (6) grep old pattern after renames
+MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh, npm run typecheck on .ts) (2) no broken cross-references (3) no unapproved boundary changes (4) logs updated if tripped (5) working notes current (6) grep old pattern after renames. If working from a milestone file, tick `- [x]` on each completed task immediately — not at the end. `/compact` after 15+ turns → split → `/clear` between unrelated tasks.
 
 ## Hard Rules
 - If file exists, modify in-place. NEVER create `_modified`, `_new`, `_backup`, `_v2` variants.
-- Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
-- MUST maintain cross-file consistency: same concept, same description everywhere
-- MUST preserve file-level evidence in footguns and examples. Prefer grep-friendly semantic anchors (function name, unique string, search pattern); bare line numbers are advisory only since they go stale on edits
-- MUST use real incidents, never hypothetical. `.goat-flow/architecture.md` is canonical source of truth
+- Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE.
+- MUST maintain cross-file consistency: same concept, same description everywhere.
+- MUST preserve file-level evidence in footguns and examples. Prefer grep-friendly semantic anchors (function name, unique string, search pattern); line numbers are advisory only since they go stale on edits.
+- MUST use real incidents, never hypothetical. `.goat-flow/architecture.md` is canonical source of truth.
 - Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.
-
-## Working Memory
-If working from a plan/milestone file, tick `- [x]` on each completed task immediately - not at the end. `/compact` after 15+ turns → split → `/clear` between unrelated tasks.
 
 ## Router Table
 | Resource | Path |

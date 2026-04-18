@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # =============================================================================
-# deny-dangerous.sh - BeforeTool hook: blocks dangerous commands before execution
+# deny-dangerous.sh - PreToolUse hook: blocks dangerous commands before execution
 # =============================================================================
-# Event:  BeforeTool (Gemini), PreToolUse (Claude)
+# Event:  PreToolUse (Claude), BeforeTool (Gemini)
 # Match:  Bash tool calls
 # Exit 0: allow the command
 # Exit 2: block the command (stderr message shown to the agent as the reason)
 #
-# Install (Gemini): copy to .gemini/hooks/deny-dangerous.sh
-# Register in .gemini/settings.json:
-#   "hooks": { "BeforeTool": [{ "matcher": "Bash", "hooks": [{
+# Install (Claude): copy to .claude/hooks/deny-dangerous.sh
+# Register in .claude/settings.json:
+#   "PreToolUse": [{ "matcher": "Bash", "hooks": [{
 #     "type": "command",
-#     "command": "bash \"$(git rev-parse --show-toplevel)/.gemini/hooks/deny-dangerous.sh\""
-#   }]}]}
+#     "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-dangerous.sh\""
+#   }]}]
 #
 # Limitations:
 # - Best-effort pattern matching on literal shell commands
@@ -91,6 +91,13 @@ run_self_test() {
   run_case "printf rm -rf" "printf '%s\n' 'rm -rf /'" 0
   run_case "grep chmod 777" 'grep "chmod 777" file.ts' 0
   run_case "grep push main" 'grep "git push origin main" docs/' 0
+  # Quoted alternation inside read-only commands must not trip pipe-to-shell detection.
+  run_case "rg quoted alternation" "rg -n 'shellcheck|bash -n|npm test' CLAUDE.md" 0
+  run_case "rg double-quoted alternation" 'rg -n "foo|bar" CLAUDE.md' 0
+  # Safe sh -c / bash -c wrappers around read-only commands should pass; dangerous ones still block.
+  run_case "xargs sh -c safe" "xargs -I {} sh -c 'echo {}'" 0
+  run_case "bash -c safe" 'bash -c "echo hello"' 0
+  run_case "bash -c dangerous" 'bash -c "rm -rf /"' 2
   # Whitelist bypass: read-only verb with redirect or pipe-to-shell must still block.
   run_case "echo redirect" 'echo "data" > .env' 2
   run_case "grep pipe bash" 'grep pattern file | bash' 2
@@ -132,17 +139,26 @@ check_segment() {
   cmd_trimmed="${cmd#"${cmd%%[![:space:]]*}"}"
   local cmd_verb
   cmd_verb=$(echo "$cmd_trimmed" | awk '{print $1}')
+
+  # Strip single- and double-quoted strings for structural (pipe/redirect/verb) pattern
+  # matching, so dangerous characters inside quoted arguments (e.g. rg 'a|b', awk "x>y")
+  # are treated as data, not control flow. This version is best-effort: it handles the
+  # common case of balanced quotes without escape processing.
+  local cmd_unquoted="$cmd"
+  cmd_unquoted="${cmd_unquoted//\'[^\']*\'/}"
+  cmd_unquoted=$(echo "$cmd_unquoted" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g")
+
   local has_redirect=0 has_pipe=0
-  [[ "$cmd" =~ \>[[:space:]] || "$cmd" =~ \>\> ]] && has_redirect=1
-  # Detect single pipe (|) but not logical OR (||)
-  local pipe_stripped="${cmd//||/}"
+  [[ "$cmd_unquoted" =~ \>[[:space:]] || "$cmd_unquoted" =~ \>\> ]] && has_redirect=1
+  # Detect single pipe (|) but not logical OR (||), outside of quoted strings
+  local pipe_stripped="${cmd_unquoted//||/}"
   [[ "$pipe_stripped" =~ \| ]] && has_pipe=1
-  # If a pipe is present, block pipe-to-shell/interpreter regardless of verb
+  # If a pipe is present (outside quotes), block pipe-to-shell/interpreter regardless of verb
   if [[ "$has_pipe" -eq 1 ]]; then
-    if [[ "$cmd" =~ \|[[:space:]]*(ba)?sh([[:space:]]|$) ]]; then
+    if [[ "$cmd_unquoted" =~ \|[[:space:]]*(ba)?sh([[:space:]]|$) ]]; then
       block "Pipe to shell. Download or inspect first, then run."
     fi
-    if [[ "$cmd" =~ \|[[:space:]]*(python|python3|node|perl|ruby)([[:space:]]|$) ]]; then
+    if [[ "$cmd_unquoted" =~ \|[[:space:]]*(python|python3|node|perl|ruby)([[:space:]]|$) ]]; then
       block "Pipe to interpreter. Download or inspect first, then run."
     fi
   fi
@@ -238,11 +254,17 @@ check_segment() {
   fi
 
   # 14. eval and indirect execution
-  if [[ "$cmd" =~ ^eval[[:space:]] ]] || [[ "$cmd" =~ [[:space:]]eval[[:space:]] ]]; then
+  if [[ "$cmd_unquoted" =~ ^eval[[:space:]] ]] || [[ "$cmd_unquoted" =~ [[:space:]]eval[[:space:]] ]]; then
     block "eval hides commands from safety checks. Write the command directly."
   fi
-  if [[ "$cmd" =~ (ba)?sh[[:space:]]+-c[[:space:]] ]]; then
-    block "bash -c hides commands from safety checks. Write the command directly."
+  # bash -c / sh -c: recurse into the -c argument instead of blanket-blocking, so
+  # xargs ... sh -c '<safe>' and similar legitimate patterns still work while
+  # dangerous commands inside -c still get caught by the rest of this function.
+  if [[ "$cmd" =~ (^|[[:space:]])(ba)?sh[[:space:]]+-c[[:space:]]+([\'\"])([^\'\"]*)([\'\"]) ]]; then
+    local inner_c="${BASH_REMATCH[4]}"
+    if [[ -n "$inner_c" ]]; then
+      check_segment "$inner_c" $((depth + 1))
+    fi
   fi
 
   # 15. File truncation
@@ -262,6 +284,7 @@ check_segment() {
   # 17. Command substitution (recursive check)
   if [[ "$cmd" =~ \$\( ]]; then
     local inner
+    # shellcheck disable=SC2016  # sed pattern intentionally matches literal $( inside single quotes
     inner=$(echo "$cmd" | sed -n 's/.*\$(\([^)]*\)).*/\1/p' 2>/dev/null || echo "")
     if [ -n "$inner" ]; then
       check_segment "$inner" $((depth + 1))
