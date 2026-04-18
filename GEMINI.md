@@ -1,10 +1,11 @@
 # GEMINI.md - v1.2.0 (2026-04-18)
-Documentation framework for AI coding agent workflows. Markdown docs + Bash maintenance scripts.
+Documentation framework for AI coding agent workflows. Markdown docs + Bash validation scripts + TypeScript CLI/dashboard.
 ## Essential Commands
 
 ```bash
 shellcheck scripts/*.sh scripts/maintenance/*.sh                                            # Lint shell scripts
 bash -n scripts/*.sh scripts/maintenance/*.sh                                                # Syntax-check scripts
+npm run typecheck                                   # Type-check .ts (required by DoD)
 bash scripts/preflight-checks.sh         # Full preflight gate
 npm test                                          # Run test suite
 ```
@@ -44,7 +45,7 @@ Over budget = re-classify before continuing.
 | Debug | Diagnosis with file:line first. Fixes after human reviews |
 | Review | Investigate first. Never blindly apply suggestions |
 
-**VERIFY** - MUST run `shellcheck` on .sh changes. MUST check cross-references after renames. If working from a plan/milestone file, MUST tick `- [x]` on each task as it's completed - not at the end.
+**VERIFY** - MUST run `shellcheck` on .sh changes and `npm run typecheck` on .ts changes. MUST check cross-references after renames. If working from a plan/milestone file, MUST tick `- [x]` on each task as it's completed - not at the end.
 
 **Hallucination red-flags:**
 1. **Tests pass.** Do not claim tests pass without showing the actual terminal output, or at minimum the literal pass/fail summary line copied verbatim from this session's run. A paraphrase, or a cached or prior-session pass, does not count.
@@ -85,7 +86,7 @@ Boundaries: `.goat-flow/architecture.md`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`,
 
 ## Definition of Done
 
-MUST confirm ALL: (1) shellcheck passes (2) no broken cross-refs (3) no unapproved boundary changes (4) logs updated if tripped (5) working notes current (6) grep old pattern after renames.
+MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh, npm run typecheck on .ts) (2) no broken cross-refs (3) no unapproved boundary changes (4) logs updated if tripped (5) working notes current (6) grep old pattern after renames.
 
 Sub-agents: ONE objective, structured return, 5-call budget. When blocked: one question + default.
 

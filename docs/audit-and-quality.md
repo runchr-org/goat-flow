@@ -8,7 +8,7 @@ goat-flow has two evaluation commands. `audit` is deterministic - it runs checks
 goat-flow audit .                              # Build correctness (pass/fail)
 goat-flow audit . --harness                    # Include AI harness completeness checks
 goat-flow audit . --agent claude               # Scope to one agent
-goat-flow quality . --agent claude             # Generate quality-assessment prompt for Claude
+goat-flow quality . --agent gemini             # Generate quality-assessment prompt for one agent
 ```
 
 | Command | Output | Deterministic? | Gates CI? | Requires --agent? |
@@ -25,7 +25,7 @@ Validates that the project's agent harness is structurally correct and complete.
 
 ### Build mode (default)
 
-Binary pass/fail. This is the structural setup gate - it validates that files, config, skills, and hooks are correctly installed. It does not execute configured toolchain commands (lint, test, build). Step 06 uses `audit` as the minimum gate; preflight runs `audit` plus additional checks including ESLint, Prettier, and version consistency.
+Binary pass/fail. This is the structural setup gate - it validates that required files/directories exist, config parses, skills are installed at the expected paths, and hooks are registered. It does not execute configured toolchain commands (lint, test, build). Step 06 uses `audit` as the minimum gate; preflight runs `audit` plus additional checks including ESLint, Prettier, and version consistency.
 
 Checks are grouped by **scope**:
 
@@ -47,7 +47,7 @@ Checks are grouped by **scope**:
 **agent scope** (Agent Setup) - 4 checks per configured agent:
 - `agent-instruction` - Agent instruction file exists (CLAUDE.md, AGENTS.md, GEMINI.md)
 - `agent-skills` - Agent skills installed with correct versions, no deprecated skill directories
-- `agent-settings` - Agent settings/config file parses correctly
+- `agent-settings` - Agent settings/config file parses as valid JSON or TOML
 - `agent-deny-dangerous` - Deny hook file exists or deny patterns registered in agent settings
 
 **Agent detection:** `audit` detects configured agents from the manifest-backed instruction-file registry (`workflow/manifest.json` via `src/cli/agents/registry.ts`). Run `goat-flow manifest` to inspect the current support matrix; use `--agent <id>` to scope checks to one supported runtime.
@@ -70,11 +70,11 @@ Sample harness output:
 ```
 GOAT Flow Setup:          PASS
   Skills:                 7/7 installed
-  Config:                 valid, version 1.1.0
+  Config:                 valid, version 1.2.0
   InstructionFile:        118 lines
 
 Agent Setup:              PASS
-  Toolchain:              test + lint + build configured
+  Toolchain:              not configured (optional)
   Hooks:                  claude:deny installed, codex:deny installed, gemini:deny installed
 
 AI Harness Completeness:  PASS
@@ -94,7 +94,7 @@ Result: FAIL (Constraints)
 Generates a structured quality-assessment prompt for a coding agent to evaluate goat-flow quality and usefulness on the current project. This is fundamentally different from `audit` - it produces a prompt, not findings.
 
 ```bash
-goat-flow quality . --agent claude
+goat-flow quality . --agent gemini
 ```
 
 The generated prompt asks the agent to:

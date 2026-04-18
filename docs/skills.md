@@ -128,7 +128,7 @@ For onboarding ("I'm new to this project"), use investigate mode - covers stack 
 
 ## /goat-plan
 
-Milestone task file generator and manager. Creates structured milestone files in `.goat-flow/tasks/` that track progress, enforce testing gates, and provide local working state for the current session.
+Milestone planner and manager. It breaks work into testing-gated milestones, defaults to inline/read-only output, and only writes files in `.goat-flow/tasks/` when the user explicitly asks for file creation.
 
 ```mermaid
 flowchart TD
@@ -138,16 +138,16 @@ flowchart TD
         P1["Phase 1: Break into milestones\nArchetypes: Prove It Works → Make It Real\n→ Make It Solid → Make It Shine"]
     end
 
-    P1 -->|"BLOCKING GATE"| P2["Phase 2: Write milestone files\nto .goat-flow/tasks/"]
+    P1 -->|"CHECKPOINT"| P2["Phase 2: Present inline plan\nor write milestone files if requested"]
     P2 -->|"CHECKPOINT"| P3["Phase 3: Between milestones\nRun testing gate\nCapture learnings\nUpdate next milestone"]
     P3 -->|"CHECKPOINT"| Next{"Next milestone?"}
     Next -->|Yes| P3
     Next -->|No| Close["Complete"]
 ```
 
-**Milestone archetypes:** Prove It Works (spike the riskiest part first) → Make It Real (end-to-end working) → Make It Solid (edge cases, security) → Make It Shine (polish, optional). Each milestone has kill criteria, assumption tracking, and a testing gate before the next begins. For Hotfix/Small Feature scope, milestones can be delivered inline rather than written to files.
+**Milestone archetypes:** Prove It Works (spike the riskiest part first) → Make It Real (end-to-end working) → Make It Solid (edge cases, security) → Make It Shine (polish, optional). Each milestone has kill criteria, assumption tracking, and a testing gate before the next begins. Read-only/analysis mode is available at any complexity level, and inline output is the default until file creation is explicitly approved.
 
-**Key constraints:** MUST check for existing milestone files before creating new ones. MUST include testing gates on every milestone. MUST NOT continue building on an invalidated assumption.
+**Key constraints:** MUST check for existing milestone files before creating new ones. MUST include testing gates on every milestone. MUST NOT continue building on an invalidated assumption. MUST NOT write milestone files unless the user explicitly asks for them.
 
 ---
 
@@ -299,4 +299,4 @@ See `.goat-flow/skill-reference/skill-preamble.md` (installed) or `workflow/skil
 
 Skills are created during step 03 of the GOAT Flow setup. The skill templates in `workflow/skills/` document the prompts used to create them.
 
-> **Consolidation history (v0.8.0-v1.1.0):** Nine skills were consolidated into the current seven. See ADR-009 for the full rationale. goat-critique was extracted as a standalone critique skill in v1.1.0, then renamed from goat-sbao in v1.2.0 (ADR-011).
+> **Consolidation history (v0.8.0-v1.1.0):** Nine skills were consolidated into the current seven. See ADR-009 for the full rationale. goat-critique was extracted as a standalone critique skill in v1.1.0, then renamed from goat-sbao in v1.2.0 (ADR-019).

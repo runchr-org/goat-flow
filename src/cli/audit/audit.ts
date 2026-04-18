@@ -176,12 +176,12 @@ function toCheckResult(
   };
 }
 
-/** Validate provenance on every registered check once per process. */
-function validateRegisteredCheckProvenance(): void {
+/** Validate provenance on every registered check against the current project tree. */
+function validateRegisteredCheckProvenance(fs: ReadonlyFS): void {
   const checks = [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
   const errors: string[] = [];
   for (const check of checks) {
-    for (const error of validateProvenance(check.provenance)) {
+    for (const error of validateProvenance(check.provenance, fs.exists)) {
       errors.push(`${check.id}: ${error}`);
     }
   }
@@ -352,8 +352,8 @@ export function runAudit(
   projectPath: string,
   options: AuditOptions,
 ): AuditReport {
-  validateRegisteredCheckProvenance();
   const ctx = buildAuditContext(fs, projectPath, options);
+  validateRegisteredCheckProvenance(ctx.fs);
   const { setup: setupScope, agent: agentScope } = runBuildChecks(ctx);
   const harness = options.harness ? computeHarness(ctx) : null;
   const drift = options.checkDrift ? checkDrift({ fs, projectPath }) : null;

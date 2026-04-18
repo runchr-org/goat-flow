@@ -50,8 +50,14 @@ export interface CheckEvidence {
   reason?: string;
 }
 
+/** Filesystem lookup used to verify repo-local evidence paths when available. */
+export type EvidencePathExists = (path: string) => boolean;
+
 /** Runtime check that a CheckEvidence satisfies the unknown-reason contract. */
-export function validateProvenance(e: CheckEvidence): string[] {
+export function validateProvenance(
+  e: CheckEvidence,
+  pathExists?: EvidencePathExists,
+): string[] {
   const errors: string[] = [];
   if (e.source_type === "unknown" && (!e.reason || e.reason.trim() === "")) {
     errors.push(
@@ -71,6 +77,13 @@ export function validateProvenance(e: CheckEvidence): string[] {
     errors.push(
       "non-unknown source_type must have at least one source_url or evidence_path",
     );
+  }
+  if (pathExists && e.evidence_paths) {
+    for (const evidencePath of e.evidence_paths) {
+      if (!pathExists(evidencePath)) {
+        errors.push(`evidence_path does not exist: ${evidencePath}`);
+      }
+    }
   }
   return errors;
 }

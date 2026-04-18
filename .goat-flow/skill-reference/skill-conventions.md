@@ -18,6 +18,7 @@ Use the standard entry formats:
 <!-- Lesson bucket -->
 ---
 category: verification
+last_reviewed: YYYY-MM-DD
 ---
 
 ## Lesson: [Title]
@@ -31,12 +32,11 @@ category: verification
 <!-- Footgun bucket -->
 ---
 category: hooks
+last_reviewed: YYYY-MM-DD
 ---
 
 ## Footgun: [Title]
-**Status:** active
-**Created:** YYYY-MM-DD
-**Evidence type:** ACTUAL_MEASURED
+**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED
 **hallucination-risk:** high
 **Symptoms:** [what breaks]
 **Why it happens:** [root cause]
@@ -95,7 +95,7 @@ If 3 consecutive file reads produce no new signal relevant to the current questi
 ## Task Tracking
 
 When working from a plan or milestone file:
-- Tick each task `- [x]` immediately when completed - not at the end of a batch, not when you remember, not in the closing protocol
+- Tick each task `- [x]` immediately when completed - not at the end of a batch, not later from memory, not in the closing protocol
 - The checkbox is the single source of truth for progress
 - If interrupted, compacted, or crashed, the checkboxes are how the next session knows where to resume
 - If you completed a task 3 steps ago and forgot to tick it - go tick it NOW before continuing
@@ -137,4 +137,3 @@ When a skill fails mid-execution (context limit, sub-agent dies, tool error):
 Before proposing actions that change files, check the instruction file's Ask First
 boundaries. If the proposed change crosses an Ask First boundary, flag it:
 "This change touches [boundary]. Proceeding requires approval per Ask First rules."
-

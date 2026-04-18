@@ -52,7 +52,8 @@ const PRESETS: Preset[] = [
     id: "review-instructions",
     name: "Review Instructions",
     desc: "Check instruction files for staleness",
-    prompt: "/goat-review audit CLAUDE.md for staleness and accuracy",
+    prompt:
+      "/goat-review audit AGENTS.md, CLAUDE.md, and GEMINI.md for staleness, contradictions, and missing verification gates",
     cat: "review",
   },
   {
@@ -60,7 +61,7 @@ const PRESETS: Preset[] = [
     name: "Critique GOAT Flow",
     desc: "Deep honest audit of goat-flow setup quality",
     prompt:
-      "/goat deeply critique the GOAT Flow setup in this project. Be thorough, honest, and specific. This is a READ-ONLY critique — do NOT write, create, or modify any files.\n\n1. Pre-check: count .claude/skills/goat* directories (should be 7: goat, goat-debug, goat-plan, goat-review, goat-critique, goat-security, goat-qa). Note stale ones.\n2. Read CLAUDE.md, all skills, hooks, settings.json. List what was created and what seems like noise.\n3. Assess each skill via file analysis on THIS codebase: /goat (routing logic), /goat-debug (diagnosis structure), /goat-plan (read-only analysis mode), /goat-review (review a real file), /goat-critique (critique structure), /goat-security (threat model applicability), /goat-qa (testing gap coverage).\n4. Critique: Is the execution loop useful or ceremonial? Are 7 skills the right number? What overlaps? What gaps? Any contradictions?\n5. Rate the system 0-100 (usefulness 0-25, signal-to-noise 0-25, adaptability 0-25, learnability 0-25). Rate the setup 0-100 (accuracy 0-25, relevance 0-25, completeness 0-25, friction 0-25).\n6. Top 5 highest-impact improvements with evidence.",
+      "/goat deeply critique the GOAT Flow setup in this project. Be thorough, honest, and specific. This is a READ-ONLY critique — do NOT write, create, or modify any files.\n\n1. Pre-check: count installed goat-flow skill directories in `.agents/skills/` and `.claude/skills/` if present (should be 7 canonical names: goat, goat-debug, goat-plan, goat-review, goat-critique, goat-security, goat-qa). Note stale ones.\n2. Read the instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`), installed skills, agent settings/hook files that exist, and the `.goat-flow/` docs. List what was created and what seems like noise.\n3. Assess each skill via file analysis on THIS codebase: /goat (routing logic), /goat-debug (diagnosis structure), /goat-plan (read-only analysis mode), /goat-review (review a real file), /goat-critique (critique structure), /goat-security (threat model applicability), /goat-qa (testing gap coverage).\n4. Critique: Is the execution loop useful or ceremonial? Are 7 skills the right number? What overlaps? What gaps? Any contradictions?\n5. Rate the system 0-100 (usefulness 0-25, signal-to-noise 0-25, adaptability 0-25, learnability 0-25). Rate the setup 0-100 (accuracy 0-25, relevance 0-25, completeness 0-25, friction 0-25).\n6. Top 5 highest-impact improvements with evidence.",
     cat: "review",
   },
 

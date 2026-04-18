@@ -105,7 +105,7 @@ const architecture: BuildCheck = {
   scope: "setup",
   provenance: setupSpecProvenance([
     "workflow/manifest.json",
-    "workflow/setup/04-architecture-and-code-map.md",
+    "workflow/setup/04-architecture-code-map.md",
   ]),
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/architecture.md")) return null;
@@ -125,7 +125,7 @@ const codeMap: BuildCheck = {
   scope: "setup",
   provenance: setupSpecProvenance([
     "workflow/manifest.json",
-    "workflow/setup/04-architecture-and-code-map.md",
+    "workflow/setup/04-architecture-code-map.md",
   ]),
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/code-map.md")) return null;

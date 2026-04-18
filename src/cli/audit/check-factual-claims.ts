@@ -60,12 +60,6 @@ const DASHBOARD_SCOPED_CHECKS: CountClaimCheck[] = [
   },
 ];
 
-/** Path-reference check runs only on these two files — they're the catalogues. */
-const PATH_REF_TARGETS = [
-  ".goat-flow/architecture.md",
-  ".goat-flow/code-map.md",
-];
-
 interface CountClaimCheck {
   rule: string;
   /** Regex with ONE capturing group for the claimed number. */
@@ -213,6 +207,8 @@ function looksLikeRepoPath(candidate: string): boolean {
   if (candidate.startsWith("http")) return false;
   // Glob patterns are not literal paths — skip them.
   if (candidate.includes("*") || candidate.includes("?")) return false;
+  // Template placeholders are not literal on-disk paths.
+  if (candidate.includes("{") || candidate.includes("}")) return false;
   return REPO_PATH_PREFIXES.some((p) => candidate.startsWith(p));
 }
 
@@ -240,6 +236,7 @@ export function runFactualClaimChecks(ctx: AuditContext): {
     if (text === null) continue;
     filesScanned++;
     findings.push(...scanCountClaims(rel, text));
+    findings.push(...scanPathReferences(rel, text, ctx));
   }
   // Dashboard-specific loose patterns (safe only on dashboard docs).
   for (const rel of DASHBOARD_SCOPED_TARGETS) {
@@ -247,12 +244,6 @@ export function runFactualClaimChecks(ctx: AuditContext): {
     const text = ctx.fs.readFile(rel);
     if (text === null) continue;
     findings.push(...scanCountClaims(rel, text, DASHBOARD_SCOPED_CHECKS));
-  }
-  for (const rel of PATH_REF_TARGETS) {
-    if (!ctx.fs.exists(rel)) continue;
-    const text = ctx.fs.readFile(rel);
-    if (text === null) continue;
-    findings.push(...scanPathReferences(rel, text, ctx));
   }
   return { findings, filesScanned };
 }

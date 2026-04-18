@@ -7,7 +7,7 @@ last_reviewed: 2026-04-05
 
 **Status:** active
 **Created:** 2026-04-05
-**Evidence type:** ACTUAL_MEASURED
+**Evidence:** ACTUAL_MEASURED
 
 **Symptoms:** Inline styles (padding, border-radius, font-size, background color) silently disappear at runtime. Elements render with browser defaults (no padding, no radius, wrong colors). The source HTML looks correct - the bug is invisible until you inspect the rendered DOM.
 
