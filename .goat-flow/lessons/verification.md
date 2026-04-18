@@ -164,7 +164,7 @@ category: verification
 1. **Tests validated shape, not truth.** Contract tests checked "does this section heading exist" not "is the skill count correct." `evaluate-check.test.ts:270` literally says "All 6 skills present" - nobody noticed when goat-sbao made it 7.
 2. **Self-critique was pipeline-focused.** Every milestone ran `tsc`, `npm test`, `scan`, `preflight`. All passed. None caught that README said "Six" or that foundation.ts hardcoded v1.0. The pipeline tests what it tests; it doesn't read prose.
 3. **No external review until R8+.** The first 7 rounds critiqued goat-flow as installed on OTHER projects. Nobody reviewed the goat-flow repo itself until round 8. Self-review is blind to self-consistency.
-4. **Rename survivors.** `context-validate.sh` was renamed to `validate-goat-flow-setup.sh` but config.yaml kept the old name. `presets.js` was renamed to `preset-prompts.js` but architecture.md kept the old name. No grep-after-rename discipline for config/docs (only code).
+4. **Rename survivors.** A setup-validator rename left config.yaml on the old path, and `presets.js` was renamed to `preset-prompts.js` while architecture.md kept the old name. No grep-after-rename discipline for config/docs (only code).
 
 **Prevention:**
 1. Add contract tests that link canonical constants to docs: `SKILL_NAMES.length` must match README, docs, config, SKILL_TEMPLATES, and test fixtures
@@ -332,3 +332,20 @@ category: verification
 **Root cause:** Assumed npm positional passthrough would replace the script's built-in test target. It only appends arguments, so any existing glob or file list in the script still runs unless the underlying command supports overriding it.
 
 **Fix:** For focused test verification in this repo, invoke the underlying command directly: `node --import tsx --test test/unit/quality-command.test.ts`. Reserve `npm test` for deliberate full-suite runs.
+
+---
+
+## Lesson: Repo-wide preflight can be blocked by unrelated formatter drift
+
+**Created:** 2026-04-18
+
+**What happened:** After deleting the dedicated setup validator and rewiring preflight around the remaining script surface, focused verification passed (`shellcheck`, `npm run typecheck`, targeted smoke/unit tests, and exact grep for the removed path). But `bash scripts/preflight-checks.sh` still failed because `scripts/prettier-check.sh` reported four unformatted files that were outside the change set: `src/cli/classify-state.ts`, `src/dashboard/app.ts`, `test/integration/preamble-sync.test.ts`, and `test/unit/quality-command.test.ts`.
+
+**Root cause:** Preflight is repo-wide, not diff-scoped. A local task can leave its own files clean and still inherit unrelated formatter debt already present in the worktree or committed baseline. If that debt is not separated from task-local regressions, the final report becomes ambiguous about whether the task itself broke verification.
+
+**Fix:** Format any touched files first, then rerun the focused checks. If preflight still fails, run the narrower verifier (`scripts/prettier-check.sh` or equivalent) to identify whether the remaining failures are in untouched files. Report that split explicitly instead of calling preflight a task regression.
+
+**Prevention:**
+1. When preflight fails, immediately identify whether the failing files are in `git status` for the current task.
+2. Treat repo-wide formatter failures in untouched files as residual baseline debt, not silent task fallout.
+3. Keep the final verification section split between "checks that passed for this change" and "repo-wide checks still blocked by unrelated drift."

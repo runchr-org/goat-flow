@@ -21,6 +21,7 @@ function agentArtifactsExist(
   return profile.settings !== undefined && fs.exists(profile.settings);
 }
 
+/** Check whether the selected agent has its instruction file installed. */
 function checkInstructionPresent(ctx: AuditContext): AuditFailure | null {
   const found = ctx.agents.some((af) => af.agent.id === ctx.agentFilter);
   if (found) return null;
@@ -34,6 +35,7 @@ function checkInstructionPresent(ctx: AuditContext): AuditFailure | null {
   };
 }
 
+/** Check for agent artifacts that remain after their instruction file was removed. */
 function checkOrphanedArtifacts(ctx: AuditContext): AuditFailure | null {
   if (!ctx.config.exists) return null;
   const missing: string[] = [];
@@ -85,6 +87,7 @@ function checkCanonicalSkills(ctx: AuditContext): AuditFailure | null {
   };
 }
 
+/** Check whether installed skills declare the current GOAT Flow version. */
 function checkSkillVersions(ctx: AuditContext): AuditFailure | null {
   const noVersion: string[] = [];
   const mismatch: string[] = [];
@@ -118,6 +121,7 @@ function checkSkillVersions(ctx: AuditContext): AuditFailure | null {
   return null;
 }
 
+/** Check for stale skill directories that still use deprecated names. */
 function checkDeprecatedSkills(ctx: AuditContext): AuditFailure | null {
   const staleNames = new Set(ctx.structure.skills.stale_names);
   const found: string[] = [];
@@ -196,6 +200,7 @@ function checkDenyHookPresent(ctx: AuditContext): AuditFailure | null {
   return null;
 }
 
+/** Check shell syntax for each installed agent hook script. */
 function checkHookSyntax(ctx: AuditContext): AuditFailure | null {
   const failures: string[] = [];
   for (const af of ctx.agents) {
@@ -229,6 +234,7 @@ function checkHookSyntax(ctx: AuditContext): AuditFailure | null {
   };
 }
 
+/** Check whether each agent has deny patterns registered somewhere. */
 function checkDenyPatterns(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
     if (!af.settings.hasDenyPatterns && !af.hooks.denyExists) {
@@ -243,6 +249,7 @@ function checkDenyPatterns(ctx: AuditContext): AuditFailure | null {
   return null;
 }
 
+/** Run each deny hook self-test when the script is present. */
 function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
     if (!af.agent.hooksDir) continue;

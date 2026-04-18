@@ -34,14 +34,7 @@ function isFileRef(filePath: string): boolean {
   return /\.[a-zA-Z0-9]+$/.test(filePath);
 }
 
-/**
- * Check if a file reference can be reliably validated for staleness.
- * Paths with '/' are resolvable relative to the project root.
- * Bare filenames with source-code extensions (e.g., `router.go`, `auth.ts`)
- * are ambiguous - they may exist deep in subdirectories. We try fs.exists()
- * at root first; if it resolves, it's checkable. If not, and it has a source
- * extension without '/', skip it rather than reporting a false stale ref.
- */
+/** Check whether a file reference can be validated for staleness without guessing. */
 function isCheckableForStaleness(filePath: string, fs: ReadonlyFS): boolean {
   if (filePath.includes("/")) return true;
   // If it exists at root, it's checkable regardless of extension

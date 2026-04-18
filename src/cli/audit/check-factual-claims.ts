@@ -113,6 +113,7 @@ const COUNT_CHECKS: CountClaimCheck[] = [
   },
 ];
 
+/** Check whether a line starts or ends a fenced code block. */
 function isFenceLine(line: string): boolean {
   return /^\s*```/.test(line);
 }
@@ -206,6 +207,7 @@ const REPO_PATH_PREFIXES = [
   ".github/",
 ];
 
+/** Check whether a token looks like a repo-local file path. */
 function looksLikeRepoPath(candidate: string): boolean {
   if (candidate.length < 3) return false;
   if (candidate.startsWith("http")) return false;
@@ -214,6 +216,7 @@ function looksLikeRepoPath(candidate: string): boolean {
   return REPO_PATH_PREFIXES.some((p) => candidate.startsWith(p));
 }
 
+/** Collect the files that factual-claim checks should scan. */
 function collectTargets(ctx: AuditContext): string[] {
   const targets: string[] = [];
   for (const rel of PROSE_TARGETS) {
@@ -225,6 +228,7 @@ function collectTargets(ctx: AuditContext): string[] {
   return targets;
 }
 
+/** Run factual-claim checks across the configured documentation targets. */
 export function runFactualClaimChecks(ctx: AuditContext): {
   findings: ContentFinding[];
   filesScanned: number;

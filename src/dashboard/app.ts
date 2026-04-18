@@ -32,10 +32,12 @@ const TERMINAL_REFIT_RETRY_DELAY_MS = 50;
 const TERMINAL_REFIT_MAX_ATTEMPTS = 20;
 const TERMINAL_INITIAL_FIT_DELAYS_MS = [50, 200, 500] as const;
 
+/** Check whether a value is a plain object record. */
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Read a plain object record from raw dashboard payload data. */
 function readRecord(value: unknown, context: string): JsonRecord {
   if (!isRecord(value)) {
     throw new Error(`${context} returned an invalid payload`);
@@ -43,40 +45,48 @@ function readRecord(value: unknown, context: string): JsonRecord {
   return value;
 }
 
+/** Read a string value with a safe fallback for invalid payload fields. */
 function readString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
+/** Read a string array from raw payload data. */
 function readStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === "string")
     : [];
 }
 
+/** Read an audit status from raw payload data. */
 function readAuditStatus(value: unknown): AuditStatus | null {
   return value === "pass" || value === "fail" ? value : null;
 }
 
+/** Read a runner ID from raw payload data. */
 function readRunnerId(value: unknown): RunnerId | null {
   return value === "claude" || value === "codex" || value === "gemini"
     ? value
     : null;
 }
 
+/** Read a terminal-session status from raw payload data. */
 function readSessionStatus(value: unknown): SessionStatus | null {
   return value === "starting" || value === "active" || value === "terminated"
     ? value
     : null;
 }
 
+/** Read an error message from a payload record. */
 function readErrorMessage(payload: JsonRecord): string | null {
   return typeof payload.error === "string" ? payload.error : null;
 }
 
+/** Collapse a project path down to the display name shown in the UI. */
 function getProjectDisplayName(path: string): string {
   return path.split("/").filter(Boolean).pop() || path;
 }
 
+/** Read one audit failure record from raw payload data. */
 function readAuditFailure(value: unknown): AuditFailure | null {
   if (!isRecord(value)) return null;
   const check = readString(value.check);
@@ -91,6 +101,7 @@ function readAuditFailure(value: unknown): AuditFailure | null {
   return failure;
 }
 
+/** Read one audit check record from raw payload data. */
 function readAuditCheck(value: unknown): AuditCheck | null {
   if (!isRecord(value)) return null;
   const id = readString(value.id);
@@ -104,6 +115,7 @@ function readAuditCheck(value: unknown): AuditCheck | null {
   return check;
 }
 
+/** Read a string-to-string map from raw payload data. */
 function readStringRecord(value: unknown): Record<string, string> {
   if (!isRecord(value)) return {};
 
@@ -113,6 +125,7 @@ function readStringRecord(value: unknown): Record<string, string> {
   return Object.fromEntries(entries);
 }
 
+/** Read one audit scope from raw payload data. */
 function readAuditScope(value: unknown, context: string): AuditScope {
   const payload = readRecord(value, context);
   const status = readAuditStatus(payload.status);
@@ -136,11 +149,13 @@ function readAuditScope(value: unknown, context: string): AuditScope {
   };
 }
 
+/** Read one harness concern from raw payload data. */
 function readAuditConcern(value: unknown): AuditConcern | null {
   if (!isRecord(value)) return null;
   const status = readAuditStatus(value.status);
   if (!status || typeof value.score !== "number") return null;
 
+  /** Read a numeric counter from raw payload data. */
   const readCount = (v: unknown): number => (typeof v === "number" ? v : 0);
 
   return {
@@ -158,6 +173,7 @@ function readAuditConcern(value: unknown): AuditConcern | null {
   };
 }
 
+/** Read one per-agent score from raw payload data. */
 function readAgentScore(value: unknown): AgentScore | null {
   if (!isRecord(value)) return null;
   const id = readRunnerId(value.id);
@@ -194,6 +210,7 @@ function readAgentScore(value: unknown): AgentScore | null {
   };
 }
 
+/** Read the full dashboard report from raw payload data. */
 function readDashboardReport(value: unknown): DashboardClientReport {
   const payload = readRecord(value, "Audit response");
   const status = readAuditStatus(payload.status);
@@ -232,6 +249,7 @@ function readDashboardReport(value: unknown): DashboardClientReport {
   };
 }
 
+/** Read the dashboard report injected into the page shell. */
 function readInjectedReport(): DashboardClientReport | null {
   if (window.__GOAT_FLOW_REPORT__ == null) return null;
   try {
@@ -241,6 +259,7 @@ function readInjectedReport(): DashboardClientReport | null {
   }
 }
 
+/** Read one installed-agent record from raw payload data. */
 function readAgentInfo(value: unknown): AgentInfo | null {
   if (!isRecord(value)) return null;
   const id = readRunnerId(value.id);
@@ -253,6 +272,7 @@ function readAgentInfo(value: unknown): AgentInfo | null {
   };
 }
 
+/** Read one directory entry from the project browser payload. */
 function readBrowseDir(value: unknown): BrowseDir | null {
   if (!isRecord(value)) return null;
   const name = readString(value.name);
@@ -262,6 +282,7 @@ function readBrowseDir(value: unknown): BrowseDir | null {
   return { name, path, isProject: value.isProject };
 }
 
+/** Read one saved project entry from persisted state. */
 function readProjectEntry(value: unknown): ProjectEntry | null {
   if (!isRecord(value)) return null;
   const path = readString(value.path);
@@ -275,6 +296,7 @@ function readProjectEntry(value: unknown): ProjectEntry | null {
   };
 }
 
+/** Read one backend terminal-session record from raw payload data. */
 function readServerSessionInfo(value: unknown): ServerSessionInfo | null {
   if (!isRecord(value)) return null;
   const id = readString(value.id);
@@ -307,6 +329,7 @@ function readServerSessionInfo(value: unknown): ServerSessionInfo | null {
   };
 }
 
+/** Read a quality-command response from raw payload data. */
 function readQualityResult(value: unknown): QualityResult {
   const payload = readRecord(value, "Quality response");
   const agent = readRunnerId(payload.agent);
@@ -329,6 +352,7 @@ function readQualityResult(value: unknown): QualityResult {
   };
 }
 
+/** Read a persisted string array from localStorage. */
 function readStoredStringArray(key: string): string[] {
   try {
     return readStringArray(JSON.parse(localStorage.getItem(key) || "[]"));
@@ -337,6 +361,7 @@ function readStoredStringArray(key: string): string[] {
   }
 }
 
+/** Read the loaded xterm.js constructors from window globals. */
 function getXtermConstructors(): {
   Terminal: NonNullable<Window["Terminal"]>;
   FitAddon: new () => FitAddonInstance;
@@ -508,17 +533,15 @@ function app() {
     qualityResult: null as QualityResult | null,
     qualityCopyLabel: "Copy",
 
-    /**
-     * Per-agent status summary used by the Setup page agent cards. Reflects
-     * audit outcomes, not whether the agent CLI is installed on the host.
-     */
+    /** Return the audit-based status shown on each Setup page agent card. */
     wizardAgentStatus(agentId: RunnerId): { label: string; color: string } {
       if (!this.report) return { label: "Not audited", color: "#52525b" };
       const score = this.report.agentScores.find((s) => s.id === agentId);
       if (!score) return { label: "Not audited", color: "#52525b" };
       const agentPass = score.agent.status === "pass";
       const harnessPass = !score.harness || score.harness.status === "pass";
-      if (agentPass && harnessPass) return { label: "Passing", color: "#4ade80" };
+      if (agentPass && harnessPass)
+        return { label: "Passing", color: "#4ade80" };
       if (!agentPass) return { label: "Setup failing", color: "#f87171" };
       return { label: "Harness failing", color: "#fbbf24" };
     },
@@ -542,6 +565,7 @@ function app() {
     presetFilter: "all",
     presetSearch: "",
     presetFavorites: readStoredStringArray("goat-flow-preset-favorites"),
+    /** Toggle a preset favorite state and persist it in localStorage. */
     toggleFavorite(id: string) {
       const idx = this.presetFavorites.indexOf(id);
       if (idx === -1) this.presetFavorites.push(id);
@@ -551,6 +575,7 @@ function app() {
         JSON.stringify(this.presetFavorites),
       );
     },
+    /** Check whether a preset is marked as a favorite. */
     isFavorite(id: string): boolean {
       return this.presetFavorites.includes(id);
     },
@@ -693,14 +718,17 @@ function app() {
       const re = new RegExp(qEscaped, "gi");
       return escaped.replace(re, "<mark>$&</mark>");
     },
+    /** Adapt a preset prompt to the syntax expected by the selected runner. */
     adaptPrompt(prompt: string, runner?: RunnerId): string {
       const r = runner ?? this.activeRunner;
       if (r === "codex") return prompt.replace(/^\/goat\b/, "$goat");
       return prompt;
     },
+    /** Copy a preset prompt after applying runner-specific syntax tweaks. */
     copyPreset(prompt: string) {
       this.copyText(this.adaptPrompt(prompt));
     },
+    /** Send text to the active terminal session and focus it. */
     sendToTerminal(
       text: string,
       { adapt = true }: { adapt?: boolean } = {},
@@ -725,11 +753,7 @@ function app() {
       if (refs.xterm) refs.xterm.focus();
       return true;
     },
-    /**
-     * Project-scoped send: resolve target to an active session in the current
-     * project, bind it if needed, then deliver the prompt once the WS is open.
-     * Use this from the Prompts page so send is always scoped to the project.
-     */
+    /** Send a preset prompt to an active session in the current project. */
     async sendToProjectTarget(prompt: string, target: ServerSessionInfo) {
       if (target.projectPath !== this.projectPath) {
         this.showToast("Target session is not in this project", true);
@@ -743,6 +767,7 @@ function app() {
         await this.openServerSession(target);
       }
       const prepared = this.adaptPrompt(prompt, target.runner);
+      /** Retry a project-scoped send until the target terminal is ready. */
       const deliver = async (attempts: number): Promise<void> => {
         const refs = this._terminalRefs[this.activeSessionId ?? ""];
         if (refs?.ws && refs.ws.readyState === WebSocket.OPEN) {
@@ -758,6 +783,7 @@ function app() {
       };
       await deliver(0);
     },
+    /** Run a predefined audit command in the workspace terminal. */
     async runTerminalAuditCommand(action: AuditAction | null) {
       if (!action?.command) return;
       this.activeView = "workspace";
@@ -786,6 +812,7 @@ function app() {
         const xterm = refs?.xterm;
         const fitAddon = xterm?._addonFit;
         if (!xterm || !fitAddon) return;
+        /** Resize the active terminal to match its container. */
         const refit = (): boolean => {
           const container = document.getElementById(
             `gf-terminal-${this.activeSessionId}`,
@@ -803,6 +830,7 @@ function app() {
           }
           return true;
         };
+        /** Retry terminal refits until the workspace view can measure the container. */
         const poll = (attempts = 0): void => {
           if (attempts > TERMINAL_REFIT_MAX_ATTEMPTS) return;
           requestAnimationFrame(() => {
@@ -873,6 +901,7 @@ function app() {
       self.$watch("sessionsCollapsed", (v: boolean) => {
         localStorage.setItem("gf-sessions-collapsed", String(v));
       });
+      /** Update the browser title to match the current project. */
       const updateTitle = (): void => {
         document.title = `${this.projectName} | GOAT Flow`;
       };
@@ -1010,10 +1039,12 @@ function app() {
       }
       this.auditing = false;
     },
+    /** Open the project browser at the current workspace path. */
     async openBrowser() {
       this.showBrowser = !this.showBrowser;
       if (this.showBrowser) await this.browseTo(this.projectPath);
     },
+    /** Load child directories for the requested browser path. */
     async browseTo(path: string) {
       try {
         const res = await fetch(`/api/browse?path=${encodeURIComponent(path)}`);
@@ -1034,6 +1065,7 @@ function app() {
         this.showToast("Browse failed", true);
       }
     },
+    /** Set a browsed directory as the active project. */
     selectDir(dir: BrowseDir) {
       if (dir.isProject) {
         this.projectPath = dir.path;
@@ -1115,6 +1147,7 @@ function app() {
       }
       this.wizardDetecting = false;
     },
+    /** Generate setup output for the agent selected in the wizard. */
     async generateWizardSetup() {
       this.wizardGenerating = true;
       this.wizardSetupOutputs = {};
@@ -1160,6 +1193,7 @@ function app() {
       }
       this.qualityLoading = false;
     },
+    /** Copy the current quality prompt to the clipboard. */
     copyQuality() {
       if (!this.qualityResult?.prompt) return;
       this.copyText(this.qualityResult.prompt);
@@ -1202,10 +1236,12 @@ function app() {
       this.newProjectPath = "";
       this._saveProjectsList();
     },
+    /** Remove a project from the saved workspace list. */
     removeProject(path: string) {
       this.projectsList = this.projectsList.filter((p) => p.path !== path);
       this._saveProjectsList();
     },
+    /** Sort saved projects by the active key and direction. */
     sortProjects(key: ProjectSortKey) {
       if (this.projectsSortKey === key) {
         this.projectsSortAsc = !this.projectsSortAsc;
@@ -1225,6 +1261,7 @@ function app() {
         return av.localeCompare(bv) * dir;
       });
     },
+    /** Refresh audit status for every saved project. */
     async auditAllProjects() {
       this.projectsAuditing = true;
       try {
@@ -1243,6 +1280,7 @@ function app() {
       }
       this.projectsAuditing = false;
     },
+    /** Load saved projects from localStorage into dashboard state. */
     async _loadSavedProjects() {
       let saved: string[] = [];
       try {
@@ -1272,6 +1310,7 @@ function app() {
         this._saveProjectsList();
       }
     },
+    /** Persist the current project list to localStorage. */
     _saveProjectsList() {
       const paths = [...new Set(this.projectsList.map((p) => p.path))];
       localStorage.setItem("goat-flow-projects", JSON.stringify(paths));
@@ -1295,6 +1334,7 @@ function app() {
       this.copyLabel = "Copied!";
       setTimeout(() => (this.copyLabel = "Copy"), 2000);
     },
+    /** Show a temporary toast message. */
     showToast(msg: string, isError?: boolean) {
       this.toast = msg;
       this.toastError = isError ?? false;
@@ -1323,6 +1363,7 @@ function app() {
       }
       this.updateSessionCount();
     },
+    /** Refresh terminal session state from the server. */
     async updateSessionCount() {
       try {
         const res = await fetch("/api/terminal/sessions");
@@ -1349,6 +1390,7 @@ function app() {
         /* ignore */
       }
     },
+    /** End every live terminal session for the current project. */
     async endAllSessions() {
       try {
         const res = await fetch("/api/terminal/sessions");
@@ -1427,6 +1469,7 @@ function app() {
       getXtermConstructors();
       this._xtermLoaded = true;
     },
+    /** Launch a preset prompt in the selected runner. */
     async launchPreset(prompt: string, runner?: RunnerId) {
       if (this.launching) return;
       const preset = this.presets.find(
@@ -1451,10 +1494,7 @@ function app() {
         presetId,
       });
     },
-    /**
-     * Drop the current browser-side terminal bindings while keeping enough metadata
-     * to reconnect when the user switches back to the same project.
-     */
+    /** Detach the current browser terminal while preserving reconnect metadata. */
     detachTerminal(forProjectPath?: string) {
       this._detaching = true;
       const savePath = forProjectPath || this.projectPath;
@@ -1477,10 +1517,7 @@ function app() {
       this.promptRunStates = {};
       this._detaching = false;
     },
-    /**
-     * Reattach to a live backend session that was previously detached during a
-     * project switch instead of creating a fresh runner process.
-     */
+    /** Reconnect the workspace to a saved backend terminal session for this project. */
     async reconnectTerminal(): Promise<boolean> {
       const saved = this._projectSessions[this.projectPath];
       if (!saved) return false;
@@ -1531,10 +1568,7 @@ function app() {
       this.updateSessionCount();
       return true;
     },
-    /**
-     * Create a new backend terminal session and make it the active workspace tab.
-     * Callers can pass a custom label so reconnect logic preserves the user-facing context.
-     */
+    /** Create a new backend terminal session and open it in the workspace. */
     async launchInTerminal(
       prompt: string,
       runner: RunnerId = "claude",
@@ -1603,10 +1637,7 @@ function app() {
       }
       this.launching = false;
     },
-    /**
-     * Bind a rendered terminal container to a backend PTY session over WebSocket.
-     * The returned Alpine object must stay plain so Alpine can wrap it in a reactive proxy.
-     */
+    /** Bind a browser xterm instance to a backend PTY session. */
     connectTerminal(sessionId: string, wsUrl: string) {
       const session = this.sessions.find((s) => s.id === sessionId);
       if (!session) return;
@@ -1638,6 +1669,7 @@ function app() {
       term.loadAddon(fitAddon);
       term.open(container);
       term._addonFit = fitAddon;
+      /** Fit the active xterm instance and report its size to the server. */
       const doFit = (): void => {
         if (!container.offsetWidth) return;
         fitAddon.fit();
@@ -1661,6 +1693,7 @@ function app() {
         doFit();
       });
       ro.observe(container);
+      /** Handle browser resizes for the active terminal. */
       const resizeHandler = (): void => {
         doFit();
       };
@@ -1770,6 +1803,7 @@ function app() {
         if (ws.readyState === WebSocket.OPEN)
           ws.send(JSON.stringify({ type: "resize", cols, rows }));
       });
+      /** Tear down dashboard resources before the page unloads. */
       const cleanup = (): void => {
         ro.disconnect();
         window.removeEventListener("resize", resizeHandler);
@@ -1793,6 +1827,7 @@ function app() {
       };
       term.focus();
     },
+    /** End a local terminal session and release its browser bindings. */
     endSession(sessionId: string) {
       const session = this.sessions.find((s) => s.id === sessionId);
       if (!session) return;
@@ -1819,13 +1854,16 @@ function app() {
       }
       this.updateSessionCount();
     },
+    /** Exit the active terminal session from the workspace view. */
     exitTerminal() {
       if (this.activeSessionId) this.endSession(this.activeSessionId);
     },
+    /** Switch the workspace to an existing local terminal session. */
     switchToSession(sessionId: string) {
       if (!this.sessions.find((s) => s.id === sessionId)) return;
       this.activeSessionId = sessionId;
     },
+    /** Attach the workspace to an existing backend terminal session. */
     async openServerSession(serverSession: ServerSessionInfo) {
       const local = this.sessions.find((s) => s.id === serverSession.id);
       if (local) {
@@ -1856,6 +1894,7 @@ function app() {
       await self.$nextTick();
       this.connectTerminal(session.id, `/ws/terminal/${serverSession.id}`);
     },
+    /** Terminate a backend terminal session by ID. */
     async endServerSession(sessionId: string) {
       const local = this.sessions.find((s) => s.id === sessionId);
       if (local) {

@@ -222,7 +222,6 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
     },
     gitignore: { exists: true, hasRequiredEntries: true },
     preflightScript: { exists: false },
-    contextValidation: { exists: false },
     skillConventions: { exists: true },
     localInstructions: {
       dirExists: false,

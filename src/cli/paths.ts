@@ -43,11 +43,7 @@ export function getTemplatePath(relative: string): string {
   return join(GOAT_FLOW_ROOT, relative);
 }
 
-/**
- * Build the CLI command string that can run goat-flow from any project directory.
- * Returns the absolute `node /path/to/dist/cli/cli.js` form since goat-flow
- * may not be globally installed in target projects.
- */
+/** Build the absolute CLI command used to run goat-flow from any project. */
 export function getCliCommand(): string {
   return `node ${join(GOAT_FLOW_ROOT, "dist", "cli", "cli.js")}`;
 }
@@ -55,10 +51,7 @@ export function getCliCommand(): string {
 /** Cached parsed manifest.json */
 let _projectStructure: Record<string, unknown> | null = null;
 
-/**
- * Read and cache the canonical manifest.json from goat-flow's workflow/ dir.
- * Returns the parsed JSON object, or an empty object if the file is missing or unparseable.
- */
+/** Read and cache the workflow manifest JSON from the package root. */
 export function getProjectStructure(): Record<string, unknown> {
   if (_projectStructure !== null) return _projectStructure;
   const structurePath = join(GOAT_FLOW_ROOT, "workflow", "manifest.json");

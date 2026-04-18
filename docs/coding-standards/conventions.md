@@ -28,7 +28,6 @@ src/cli/
 src/dashboard/        # Dashboard UI (views/, static assets)
 workflow/
   install-goat-flow.sh        # Install workflow assets into a target project
-  validate-goat-flow-setup.sh # Quick GOAT Flow setup validator (setup scope only)
   setup/                      # Agent setup docs and shared setup references
 scripts/
   preflight-checks.sh  # Full preflight gate (shellcheck, tsc, tests, version, ADR)
@@ -52,10 +51,9 @@ npm run test           # node --import tsx --test 'test/**/*.test.ts'
 npm run typecheck      # tsc --noEmit
 npm run audit          # node dist/cli/cli.js audit .
 
-shellcheck workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh      # Lint shell scripts
-bash -n workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh          # Syntax-check scripts
+shellcheck scripts/*.sh scripts/maintenance/*.sh                                            # Lint shell scripts
+bash -n scripts/*.sh scripts/maintenance/*.sh                                                # Syntax-check scripts
 bash scripts/preflight-checks.sh         # Full preflight gate
-bash workflow/validate-goat-flow-setup.sh # Validate GOAT Flow setup scope
 
 # CLI commands (after build)
 goat-flow audit .                        # Validate setup correctness

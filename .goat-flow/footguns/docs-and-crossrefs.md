@@ -39,7 +39,7 @@ category: docs-and-crossrefs
 - ~~`docs/coding-standards/conventions.md:74` - claims `src/cli/prompt/types.ts` exists~~ (resolved 2026-04-15: reference removed)
 - ~~`.goat-flow/glossary.md:21` - Handoff entry says "See Task Tracking in `.goat-flow/skill-preamble.md`"~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`; the reference was later moved to `.goat-flow/skill-reference/` as a subdir but that change is separate from this resolution)
 - ~~`.goat-flow/glossary.md:38` - Working Memory points to `skill-preamble.md`~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`)
-- ~~`.goat-flow/code-map.md:71` - lists `validate-goat-flow-setup.sh` under `scripts/`~~ (resolved 2026-04-16: code-map now lists it under `workflow/` with explanatory note)
+- ~~`.goat-flow/code-map.md:71` - listed a retired validator under `scripts/`~~ (resolved 2026-04-16: code-map moved that entry to `workflow/` with an explanatory note; the validator was later removed)
 - ~~`src/cli/prompt/compose-critique.ts:243` - ships literal placeholder `<your-hooks-dir>`~~ (resolved 2026-04-16: placeholder removed)
 
 *Round 2 (2026-04-16, all resolved — same pattern recurred after dashboard TS migration and skill directory restructure):*

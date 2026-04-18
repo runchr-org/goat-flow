@@ -19,10 +19,12 @@ const DIM = "\x1b[2m";
 const BOLD = "\x1b[1m";
 const RESET = "\x1b[0m";
 
+/** Render a colored pass-or-fail badge for terminal output. */
 function statusBadge(status: "pass" | "fail"): string {
   return status === "pass" ? `${GREEN}PASS${RESET}` : `${RED}FAIL${RESET}`;
 }
 
+/** Render one audit scope in the terminal text format. */
 function renderTextScope(name: string, scope: AuditScope): string {
   const lines: string[] = [];
   lines.push(
@@ -51,6 +53,7 @@ const CONCERN_LABELS: Record<AuditConcernKey, string> = {
   feedback_loop: "Feedback Loop",
 };
 
+/** Render the full audit report in the terminal text format. */
 export function renderAuditText(report: AuditReport): string {
   const lines: string[] = [];
   lines.push(`${BOLD}GOAT Flow Audit: ${report.target}${RESET}`);
@@ -117,6 +120,7 @@ export function renderAuditText(report: AuditReport): string {
   return lines.join("\n");
 }
 
+/** Render content-check findings in the terminal text format. */
 function renderTextContentFindings(
   content: ContentReport,
   lines: string[],
@@ -138,6 +142,7 @@ function renderTextContentFindings(
   }
 }
 
+/** Render drift findings in the terminal text format. */
 function renderTextDriftFindings(drift: DriftReport, lines: string[]): void {
   if (drift.findings.length === 0) {
     lines.push(`  ${DIM}No drift detected.${RESET}`);
@@ -169,6 +174,7 @@ function mdScopeStatus(status: "pass" | "fail"): string {
   return status === "pass" ? "PASS" : "FAIL";
 }
 
+/** Render one audit scope in markdown. */
 function renderMdScope(name: string, scope: AuditScope): string {
   const lines: string[] = [];
   lines.push(`### ${name}: ${mdScopeStatus(scope.status)}`);
@@ -184,6 +190,7 @@ function renderMdScope(name: string, scope: AuditScope): string {
   return lines.join("\n");
 }
 
+/** Render harness concerns in markdown. */
 function renderMdHarnessConcerns(report: AuditReport, lines: string[]): void {
   if (!report.concerns || !report.scopes.harness) {
     lines.push(
@@ -213,6 +220,7 @@ function renderMdHarnessConcerns(report: AuditReport, lines: string[]): void {
   }
 }
 
+/** Render drift findings in markdown. */
 function renderMdDrift(drift: DriftReport, lines: string[]): void {
   lines.push("");
   lines.push(
@@ -229,6 +237,7 @@ function renderMdDrift(drift: DriftReport, lines: string[]): void {
   lines.push("");
 }
 
+/** Render content-check findings in markdown. */
 function renderMdContent(content: ContentReport, lines: string[]): void {
   lines.push("");
   lines.push(
@@ -249,6 +258,7 @@ function renderMdContent(content: ContentReport, lines: string[]): void {
   lines.push("");
 }
 
+/** Render the full audit report in markdown. */
 export function renderAuditMarkdown(report: AuditReport): string {
   const lines: string[] = [];
   lines.push(`# GOAT Flow Audit: ${report.target}`);

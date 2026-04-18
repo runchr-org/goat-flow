@@ -77,11 +77,7 @@ function parseProjectStructure(raw: Record<string, unknown>): ProjectStructure {
   };
 }
 
-/** Build a scope result from check results.
- * Acknowledged advisory harness failures are excluded from the failures list
- * and do not flip the scope status (the concern-level check already handled
- * acknowledgment per M01 scoring model).
- */
+/** Build an audit scope from its checks, excluding acknowledged advisory failures. */
 function buildScope(
   checks: CheckResult[],
   summary: Record<string, string>,
@@ -223,17 +219,7 @@ function applyCheckToConcern(
   }
 }
 
-/** Run harness completeness checks and return scope + concerns.
- *
- * Scoring model (M01 typed harness):
- *   - integrity fail → concern.status = "fail" (no opt-out).
- *   - advisory fail AND check.id in `config.harness.acknowledge` → silenced
- *     (counted as `advisoryAcknowledged`, does not affect status).
- *   - advisory fail NOT acknowledged → concern.status = "fail".
- *   - metric checks never affect concern.status (counts only).
- *
- * Exported for unit testing against real and synthetic contexts.
- */
+/** Run harness checks and return the scope results plus per-concern scores. */
 export function computeHarness(ctx: AuditContext): {
   scope: AuditScope;
   concerns: Record<AuditConcernKey, AuditConcern>;

@@ -62,7 +62,6 @@ skills/
 
 hooks/                     # Hook templates (deny-dangerous.sh, etc.)
 evaluation/                # Quality-assessment prompt templates
-validate-goat-flow-setup.sh  # Validates .goat-flow/ structure (lives here, not in scripts/)
 ```
 
 ## scripts/ -- Shell scripts

@@ -55,22 +55,26 @@ const OLD_SKILLS = [
   "goat-research",
 ] as const;
 
+/** Collect canonical skills found in any supported skill root. */
 function collectInstalledSkills(fs: StateFS): string[] {
   return SKILL_NAMES.filter((skill) =>
     SKILL_ROOTS.some((root) => fs.exists(`${root}/${skill}/SKILL.md`)),
   );
 }
 
+/** Check whether any supported top-level instruction file exists. */
 function hasAnyInstructionFile(fs: StateFS): boolean {
   return INSTRUCTION_FILES.some((file) => fs.exists(file));
 }
 
+/** Collect deprecated skill directories still present in the project. */
 function collectOldSkills(fs: StateFS): string[] {
   return OLD_SKILLS.filter((skill) =>
     SKILL_ROOTS.some((root) => fs.exists(`${root}/${skill}/SKILL.md`)),
   );
 }
 
+/** Build the detail message for a current-but-incomplete installation. */
 function buildIncompleteDetails(
   installedSkills: string[],
   hasInstructionFile: boolean,
@@ -122,7 +126,9 @@ export function classifyProjectState(
       ? fs.exists(AGENT_INSTRUCTION_FILE[agentId])
       : hasAnyInstructionFile(fs);
   const hasPreamble = fs.exists(".goat-flow/skill-reference/skill-preamble.md");
-  const hasConventions = fs.exists(".goat-flow/skill-reference/skill-conventions.md");
+  const hasConventions = fs.exists(
+    ".goat-flow/skill-reference/skill-conventions.md",
+  );
   const hasAIInstructions =
     fs.exists(".github/instructions") || hasInstructionFile;
 

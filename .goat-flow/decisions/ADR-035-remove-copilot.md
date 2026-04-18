@@ -14,7 +14,7 @@ Seven-agent critique of goat-flow v1.1.0 independently flagged Copilot support a
 
 Meanwhile, the audit system (`config.yaml`) only supports claude, codex, gemini. `.github/skills/` drifts outside the public audit model - an installed surface with no validation coverage beyond version parity in preflight.
 
-`validate-goat-flow-setup.sh` ignores `.github/skills/` entirely, creating asymmetric validation.
+The retired private setup validator ignored `.github/skills/` entirely, creating asymmetric validation.
 
 ## Decision
 

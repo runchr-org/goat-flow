@@ -460,8 +460,7 @@ async function runSetupPipeline(options: ParsedCLI): Promise<void> {
   await handleSetupCommand(options, auditReport, facts);
 }
 
-/** Dispatch one parsed command to its handler. Extracted to keep `main` below
- *  the complexity ceiling as new subcommands land. */
+/** Dispatch one parsed CLI command to its handler. */
 async function dispatchCommand(options: ParsedCLI): Promise<void> {
   if (options.command === "audit") return handleAuditCommand(options);
   if (options.command === "quality") return handleQualityCommand(options);

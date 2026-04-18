@@ -32,6 +32,7 @@ import { SKILL_NAMES } from "../constants.js";
 import { getTemplatePath, getProjectStructure } from "../paths.js";
 import type { DriftFinding, DriftReport } from "./types.js";
 
+/** Remove nullish values from nested data before comparing manifests. */
 function stripNullish(value: unknown): unknown {
   if (value === null || value === undefined) return undefined;
   if (Array.isArray(value)) {
@@ -48,6 +49,7 @@ function stripNullish(value: unknown): unknown {
   return value;
 }
 
+/** Parse YAML frontmatter and body text from a markdown file. */
 export function parseMarkdownFrontmatter(raw: string): {
   frontmatter: unknown;
   body: string;
@@ -59,6 +61,7 @@ export function parseMarkdownFrontmatter(raw: string): {
   return { frontmatter: cleaned ?? {}, body: match[2] ?? "" };
 }
 
+/** Normalize markdown body text before drift comparisons. */
 function normalizeBody(body: string): string {
   return body.replace(/^\n+/, "").trimEnd() + "\n";
 }
@@ -111,6 +114,7 @@ const SHARED_FILES: SharedFileSpec[] = [
   },
 ];
 
+/** Read a workflow template file relative to the package root. */
 function readTemplate(templateRoot: string, relative: string): string | null {
   const abs = resolvePath(templateRoot, relative);
   if (!existsSync(abs)) return null;
@@ -121,6 +125,7 @@ function readTemplate(templateRoot: string, relative: string): string | null {
   }
 }
 
+/** Read the configured list of deprecated skill names. */
 function getStaleSkillNames(): Set<string> {
   const raw = getProjectStructure();
   const skills = raw.skills as { stale_names?: unknown } | undefined;
@@ -128,6 +133,7 @@ function getStaleSkillNames(): Set<string> {
   return new Set(Array.isArray(names) ? (names as string[]) : []);
 }
 
+/** Compare installed skills against their workflow templates for drift. */
 function compareSkills(
   fs: ReadonlyFS,
   templateRoot: string,
@@ -164,6 +170,7 @@ function compareSkills(
   return checked;
 }
 
+/** Compare shared setup files against their workflow templates for drift. */
 function compareSharedFiles(
   fs: ReadonlyFS,
   templateRoot: string,
@@ -195,6 +202,7 @@ function compareSharedFiles(
   return checked;
 }
 
+/** Find installed skill directories that are no longer canonical. */
 function findOrphans(fs: ReadonlyFS, findings: DriftFinding[]): void {
   const canonical = new Set<string>(SKILL_NAMES);
   const stale = getStaleSkillNames();

@@ -3,10 +3,12 @@
  */
 import type { HarnessCheckResult } from "../types.js";
 
+/** Build a passing harness-check result. */
 export function pass(findings: string[]): HarnessCheckResult {
   return { status: "pass", findings, recommendations: [] };
 }
 
+/** Build a failing harness-check result with recommendations. */
 export function fail(
   findings: string[],
   recommendations: string[],

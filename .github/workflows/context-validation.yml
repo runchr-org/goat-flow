@@ -108,11 +108,5 @@ jobs:
         run: |
           mkdir -p .goat-flow/footguns .goat-flow/lessons .goat-flow/tasks .goat-flow/logs/sessions
 
-      - name: Validate Codex workflow
-        run: |
-          if [ -f AGENTS.md ] && [ -f scripts/validate-goat-flow-setup.sh ]; then
-            bash scripts/validate-goat-flow-setup.sh
-          fi
-
       - name: Check markdown links
         run: bash scripts/check-markdown-links.sh

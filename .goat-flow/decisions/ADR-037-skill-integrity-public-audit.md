@@ -6,7 +6,7 @@
 
 ## Context
 
-`scripts/validate-goat-flow-setup.sh:205–243` validates real skill structure (required sections, frontmatter, content). `src/cli/facts/agent/skills.ts:49–299` extracts comparable facts. But `src/cli/audit/agent-setup-checks.ts` only checks skill-file existence and version tags - the richer structure data is extracted but unused by public checks.
+A retired private setup validator used to validate real skill structure (required sections, frontmatter, content). `src/cli/facts/agent/skills.ts:49–299` extracts comparable facts. But `src/cli/audit/agent-setup-checks.ts` only checks skill-file existence and version tags - the richer structure data is extracted but unused by public checks.
 
 ## Proposed Check
 

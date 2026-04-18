@@ -102,7 +102,6 @@ function validateProjectPath(projectPath: string): string {
   return resolved;
 }
 
-/** Send a terminal event to the browser when the socket is still open. */
 /** Clamp a terminal dimension to a safe integer range. */
 function clampDim(value: unknown, max: number, fallback: number): number {
   return Number.isInteger(value) &&
@@ -112,6 +111,7 @@ function clampDim(value: unknown, max: number, fallback: number): number {
     : fallback;
 }
 
+/** Send a terminal message when the browser socket is still open. */
 function sendMessage(ws: WebSocket, msg: ServerMessage): void {
   if (ws.readyState === 1) {
     // WebSocket.OPEN

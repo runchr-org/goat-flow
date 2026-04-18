@@ -253,7 +253,6 @@ function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
         },
         gitignore: { exists: true, hasRequiredEntries: true },
         preflightScript: { exists: false },
-        contextValidation: { exists: false },
         skillConventions: { exists: true },
         localInstructions: {
           dirExists: false,
@@ -1115,7 +1114,11 @@ describe("composeSetup routing", () => {
 
   it("uses the current numbered setup flow for outdated installs", async () => {
     const project = await makeTempProject(async (root) => {
-      await writeProjectFile(root, ".goat-flow/config.yaml", 'version: "1.1.0"\n');
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        'version: "1.1.0"\n',
+      );
       await writeProjectFile(root, "AGENTS.md", "# Codex\n");
       await writeProjectFile(
         root,
@@ -1166,7 +1169,9 @@ describe("composeSetup routing", () => {
       const retiredLegacyGuide = "upgrade-from-0" + ".9.x.md";
       const output = composeSetup(
         makeAuditReport(project.root, "fail"),
-        makeProjectFacts(project.root, [stubAgentFacts({ agent: PROFILES.codex })]),
+        makeProjectFacts(project.root, [
+          stubAgentFacts({ agent: PROFILES.codex }),
+        ]),
         "codex",
       );
 

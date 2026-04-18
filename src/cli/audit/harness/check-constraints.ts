@@ -5,6 +5,7 @@
 import type { HarnessCheck, AuditContext } from "../types.js";
 import { pass, fail } from "./helpers.js";
 
+/** Classify each agent by whether its deny rules cover secret-bearing files. */
 function classifySecretDeny(ctx: Pick<AuditContext, "agents">) {
   const covered: string[] = [];
   const uncovered: string[] = [];

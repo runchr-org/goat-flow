@@ -114,11 +114,7 @@ interface DashboardServer {
   port: number;
 }
 
-/**
- * Start a local dashboard server. Serves the HTML dashboard and
- * exposes /api/audit, /api/quality, /api/setup, /api/terminal/*, /api/health, and other endpoints.
- * Returns a handle for testing; callers that don't need it can ignore the return value.
- */
+/** Start the local dashboard server and expose its API endpoints. */
 export function serveDashboard(
   options: DashboardOptions,
 ): Promise<DashboardServer> {
@@ -129,6 +125,7 @@ export function serveDashboard(
     let cachedTemplate: string | null = devMode
       ? null
       : assembleHtml(shellPath);
+    /** Read the current dashboard HTML shell, using the cache when possible. */
     function getTemplate(): string {
       if (devMode) return assembleHtml(shellPath);
       if (!cachedTemplate) cachedTemplate = assembleHtml(shellPath);
@@ -224,6 +221,7 @@ export function serveDashboard(
       gemini: "Gemini CLI",
     };
 
+    /** Build the dashboard API payload from aggregate and per-agent audit results. */
     function buildDashboardReport(
       auditRpt: AuditReport,
       perAgentAudits: { id: string; audit: AuditReport }[],
@@ -417,6 +415,7 @@ export function serveDashboard(
         "build",
       ]);
 
+      /** Scan a project tree for source-file extensions when inferring languages. */
       const scanExtensions = (dir: string, depth: number): void => {
         if (depth > 3) return;
         try {
@@ -1084,6 +1083,7 @@ export function serveDashboard(
     let closeDevWatcher: (() => void) | null = null;
     if (devMode) {
       const dashDir = dirname(shellPath);
+      /** Notify live-reload clients that dashboard assets changed. */
       const notifyReload = (): void => {
         for (const client of liveReloadClients) {
           try {
@@ -1098,6 +1098,7 @@ export function serveDashboard(
         if (debounce) clearTimeout(debounce);
         debounce = setTimeout(notifyReload, 100);
       });
+      /** Close the dev-mode dashboard file watcher and release its process hook. */
       const closeWatcher = (): void => {
         watcher.close();
       };
@@ -1164,6 +1165,7 @@ export function serveDashboard(
 
     // Gracefully stop any live terminal sessions before the process exits.
     let closePromise: Promise<void> | null = null;
+    /** Close the dashboard server, watchers, and terminal sessions cleanly. */
     async function closeServer(): Promise<void> {
       if (closePromise) return closePromise;
 

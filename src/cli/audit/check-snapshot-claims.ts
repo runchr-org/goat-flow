@@ -163,6 +163,7 @@ export function loadSnapshotFacts(version: string): SnapshotFacts | null {
   }
 }
 
+/** Check whether a line starts or ends a fenced code block. */
 function isFenceLine(line: string): boolean {
   return /^\s*```/.test(line);
 }

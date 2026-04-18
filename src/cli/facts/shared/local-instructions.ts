@@ -26,6 +26,7 @@ interface RouterValidation {
 
 const GITHUB_INSTRUCTIONS_DIR = ".github/instructions";
 
+/** Resolve the active local instruction directory. */
 function resolveLocalInstructionDir(
   githubDirExists: boolean,
 ): LocalInstructionDir | null {
@@ -34,6 +35,7 @@ function resolveLocalInstructionDir(
   return null;
 }
 
+/** Create the empty local-instructions fact payload. */
 function createEmptyLocalInstructions(): SharedFacts["localInstructions"] {
   return {
     dirExists: false,
@@ -57,6 +59,7 @@ function createEmptyLocalInstructions(): SharedFacts["localInstructions"] {
   };
 }
 
+/** Check whether a basename exists in either supported instruction filename form. */
 function hasInstructionFile(files: string[], baseName: string): boolean {
   return files.some(
     (file) =>
@@ -64,6 +67,7 @@ function hasInstructionFile(files: string[], baseName: string): boolean {
   );
 }
 
+/** Collect local-instruction feature flags from the discovered files. */
 function collectLocalInstructionFlags(files: string[]): LocalInstructionFlags {
   return {
     hasConventions: hasInstructionFile(files, "conventions"),
@@ -74,6 +78,7 @@ function collectLocalInstructionFlags(files: string[]): LocalInstructionFlags {
   };
 }
 
+/** Collect line counts for the discovered local instruction files. */
 function collectLocalFileSizes(
   fs: ReadonlyFS,
   dir: string,
@@ -85,6 +90,7 @@ function collectLocalFileSizes(
   }));
 }
 
+/** Check whether a conventions file contains substantial project guidance. */
 function hasConventionsContent(content: string): boolean {
   const hasCommands = /##.*command|```bash|```sh/i.test(content);
   const hasConventionRules =
@@ -93,6 +99,7 @@ function hasConventionsContent(content: string): boolean {
   return hasCommands && hasConventionRules && lineCount > 15;
 }
 
+/** Check whether a README reference looks like a real repo path. */
 function isReadableRouterRef(rawRef: string): boolean {
   const ref = rawRef.trim();
   if (!ref) return false;
@@ -106,12 +113,14 @@ function isReadableRouterRef(rawRef: string): boolean {
   );
 }
 
+/** Remove any heading anchor from a router reference. */
 function stripRouterAnchor(ref: string): string {
   const anchorIndex = ref.indexOf("#");
   if (anchorIndex === -1) return ref.trim();
   return ref.slice(0, anchorIndex).trim();
 }
 
+/** Extract repo-local file references from markdown links and code spans. */
 function extractRouterRefsFromMarkdown(content: string): string[] {
   const refs = new Set<string>();
 
@@ -132,6 +141,7 @@ function extractRouterRefsFromMarkdown(content: string): string[] {
   return Array.from(refs);
 }
 
+/** Validate router references against files that actually exist. */
 function validateRouterLinks(
   fs: ReadonlyFS,
   aiReadmeContent: string | null,
@@ -171,6 +181,7 @@ function validateRouterLinks(
   };
 }
 
+/** Read the conventions file and score whether it has real content. */
 function analyzeConventionsContent(
   fs: ReadonlyFS,
   _location: LocalInstructionDir["location"],
@@ -192,6 +203,7 @@ function analyzeConventionsContent(
   };
 }
 
+/** Resolve router-validation facts for the active instruction surface. */
 function resolveRouterValidation(
   fs: ReadonlyFS,
   location: LocalInstructionDir["location"],
@@ -207,6 +219,7 @@ function resolveRouterValidation(
   return { hasRouter, routerValidation };
 }
 
+/** Extract local-instruction facts from the project instruction surface. */
 export function extractLocalInstructions(
   fs: ReadonlyFS,
 ): SharedFacts["localInstructions"] {

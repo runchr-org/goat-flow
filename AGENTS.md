@@ -3,11 +3,10 @@ GOAT Flow documentation framework. Markdown docs + Bash validation scripts. This
 ## Essential Commands
 ```bash
 bash scripts/preflight-checks.sh
-bash workflow/validate-goat-flow-setup.sh
 bash .codex/hooks/deny-dangerous.sh --self-test  # Codex: verify deny patterns registered (registered hook, not distributable copy)
 npm run typecheck                           # Type-check .ts (required by DoD)
-bash -n workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh
-shellcheck workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh
+bash -n scripts/*.sh scripts/maintenance/*.sh
+shellcheck scripts/*.sh scripts/maintenance/*.sh
 npm test                                    # Run test suite
 ```
 ## Truth Order

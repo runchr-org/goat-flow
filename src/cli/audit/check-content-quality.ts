@@ -143,6 +143,7 @@ function isFenceLine(line: string): boolean {
   return /^\s*```/.test(line);
 }
 
+/** Scan one line for vague, generic, or non-actionable guidance. */
 function scanLine(
   line: string,
   lineNumber: number,
@@ -220,6 +221,7 @@ function resolveTargets(): string[] {
   return targets;
 }
 
+/** Run content-quality checks across the configured documentation targets. */
 export function runContentQualityChecks(ctx: AuditContext): {
   findings: ContentFinding[];
   filesScanned: number;

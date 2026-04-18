@@ -3,10 +3,9 @@ Documentation framework for AI coding agent workflows. Markdown docs + Bash scri
 ## Essential Commands
 
 ```bash
-shellcheck workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh      # Lint shell scripts
-bash -n workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh          # Syntax-check scripts
+shellcheck scripts/*.sh scripts/maintenance/*.sh                                            # Lint shell scripts
+bash -n scripts/*.sh scripts/maintenance/*.sh                                                # Syntax-check scripts
 bash scripts/preflight-checks.sh         # Full preflight gate
-bash workflow/validate-goat-flow-setup.sh         # Validate GOAT Flow setup scope
 npm run typecheck                                 # Type-check .ts (required by DoD)
 npm test                                          # Run test suite
 ```

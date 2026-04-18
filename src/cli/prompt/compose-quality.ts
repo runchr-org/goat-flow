@@ -51,6 +51,7 @@ const AGENT_HOOKS_DIR: Record<AgentId, string> = {
   gemini: ".gemini/hooks",
 };
 
+/** Render the audit summary block embedded in the quality prompt. */
 function renderAuditSummary(report: AuditReport): string {
   const lines: string[] = [];
   const scopes: [string, string][] = [
@@ -91,6 +92,7 @@ function renderAuditSummary(report: AuditReport): string {
   return lines.join("\n");
 }
 
+/** Render the fallback note used when audit data is unavailable. */
 function renderDegradedNote(): string {
   return [
     "",

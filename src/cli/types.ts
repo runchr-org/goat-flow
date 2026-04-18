@@ -134,7 +134,6 @@ export interface SharedFacts {
   };
   gitignore: { exists: boolean; hasRequiredEntries: boolean };
   preflightScript: { exists: boolean };
-  contextValidation: { exists: boolean };
   skillConventions: { exists: boolean };
   // changelog removed - project-level concern, not AI workflow.
   localInstructions: {

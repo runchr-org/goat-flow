@@ -315,15 +315,7 @@ function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
 // Main entry point
 // ----------------------------------------------------------------
 
-/**
- * Compose a setup prompt for the given agent.
- *
- * Routing:
- * - bare/partial/error   → full setup guide (step references)
- * - v0.9/outdated       → upgrade/migration redirect
- * - current + audit pass → success with real counts from facts
- * - current + audit fail → failing checks with howToFix + step references
- */
+/** Compose the setup prompt that matches the project's current install state. */
 export function composeSetup(
   auditReport: AuditReport,
   facts: ProjectFacts,

@@ -94,10 +94,7 @@ function sameSortedSet(a: readonly string[], b: readonly string[]): boolean {
   return true;
 }
 
-/**
- * Validate the on-disk manifest's static facts against observed reality.
- * Throws `ManifestValidationError` with one finding per drift.
- */
+/** Validate manifest facts against the values observed from live code. */
 export function validateManifest(
   json: ManifestJson,
   observed: ObservedFacts,
@@ -137,8 +134,7 @@ export function validateManifest(
   }
 }
 
-/** Build the resolved Manifest from validated inputs. Pure; used by loadManifest and tests.
- *  Assumes `validateManifest` has already rejected manifests with a missing `facts` key. */
+/** Compose the resolved manifest from validated JSON and observed facts. */
 export function composeManifest(
   json: ManifestJson,
   observed: ObservedFacts,
@@ -169,13 +165,7 @@ export function composeManifest(
 
 let cached: Manifest | null = null;
 
-/**
- * Resolve the live manifest. Reads `workflow/manifest.json`, computes derived
- * facts from code constants, validates static facts against observed reality,
- * and caches the result for the process lifetime.
- *
- * Throws `ManifestValidationError` when on-disk static facts have drifted.
- */
+/** Load, validate, and cache the resolved workflow manifest. */
 export function loadManifest(): Manifest {
   if (cached) return cached;
   const json = readManifestJson();

@@ -9,7 +9,7 @@
 #   bash scripts/preflight-checks.sh
 #
 # Behavior:
-#   - validates setup/router conformance
+#   - runs project quality gates
 #   - runs shell and CLI syntax checks
 #   - checks formatting and project-specific quality signals
 #
@@ -71,22 +71,12 @@ warn()    { checks=$((checks + 1)); warnings=$((warnings + 1)); echo -e "  ${Y}�
 skip()    { echo -e "  ${DIM}⊘ $1 (skipped)${RST}"; }
 note()    { warnings=$((warnings + 1)); echo -e "  ${Y}⚠${RST} $1"; }
 
-# ── Setup Validation ─────────────────────────────────────────────────
-section "Setup Validation"
-ctx_output=$(bash workflow/validate-goat-flow-setup.sh 2>&1) && ctx_exit=0 || ctx_exit=$?
-if [[ "$ctx_exit" -eq 0 ]]; then
-    pass "GOAT Flow setup scope"
-else
-    fail "Setup validation failed:"
-    echo "$ctx_output" | grep -E 'FAIL:|ERROR:' | head -5 | sed 's/^/    /'
-fi
-
 # ── Shell Scripts ────────────────────────────────────────────────────
 section "Shell Scripts"
-if bash -n workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh 2>/dev/null; then
-    pass "Bash syntax (workflow + scripts)"
+if bash -n scripts/*.sh scripts/maintenance/*.sh 2>/dev/null; then
+    pass "Bash syntax (scripts)"
 else
-    fail "Bash syntax check (workflow + scripts)"
+    fail "Bash syntax check (scripts)"
 fi
 
 # Also syntax-check installed hooks
@@ -101,10 +91,10 @@ for hookdir in .claude/hooks .gemini/hooks .codex/hooks; do
 done
 
 if command -v shellcheck >/dev/null 2>&1; then
-    if shellcheck --exclude=SC2001 workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh >/dev/null 2>&1; then
-        pass "Shellcheck (workflow + scripts)"
+    if shellcheck --exclude=SC2001 scripts/*.sh scripts/maintenance/*.sh >/dev/null 2>&1; then
+        pass "Shellcheck (scripts)"
     else
-        fail "Shellcheck (workflow + scripts) - run shellcheck workflow/validate-goat-flow-setup.sh scripts/*.sh for details"
+        fail "Shellcheck (scripts) - run shellcheck scripts/*.sh scripts/maintenance/*.sh for details"
     fi
 
     # Also shellcheck installed hooks (SC2016 excluded: sed patterns intentionally use single quotes)
