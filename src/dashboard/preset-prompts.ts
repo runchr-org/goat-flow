@@ -102,6 +102,14 @@ const PRESETS: Preset[] = [
     prompt: "/goat-critique this artifact",
     cat: "critique",
   },
+  {
+    id: "skill-quality-test",
+    name: "Pressure-Test a Skill",
+    desc: "RED/GREEN/REFACTOR skill TDD using skill-quality-testing.md",
+    prompt:
+      "/goat-critique pressure-test a goat-flow skill using the methodology at `.goat-flow/skill-reference/skill-quality-testing.md`. First ask which skill to test. Then dispatch a fresh Agent sub-agent with a realistic high-pressure scenario (3+ combined pressures, target skill NOT loaded into the sub-agent's context) and capture RED rationalizations verbatim. Propose GREEN inline counters only for rationalization classes that actually reproduced in RED — do NOT pre-seed from example tables. Iterate RED → GREEN → REFACTOR until the skill reaches the bulletproof threshold (3 consecutive passes with zero captured rationalizations from the scenario's class) OR cap at 5 iterations and record Decision Debt in `.goat-flow/decisions/`. Propagate any SKILL.md edits to `.claude/skills/` and `.agents/skills/` with `ls` existence checks, then re-run `goat-flow audit --check-drift`.",
+    cat: "critique",
+  },
 
   // === QA ===
   {

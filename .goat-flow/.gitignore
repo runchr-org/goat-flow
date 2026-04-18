@@ -4,8 +4,6 @@
 # Committed goat-flow files
 !.gitignore
 !config.yaml
-!skill-preamble.md
-!skill-conventions.md
 !architecture.md
 !code-map.md
 !glossary.md
@@ -18,6 +16,8 @@
 !footguns/**
 !lessons/
 !lessons/**
+!skill-reference/
+!skill-reference/**
 # Keep the local-workspace directories themselves committed so tools can rely on the paths.
 # Their own nested .gitignore files decide which contents stay local-only.
 !tasks/
