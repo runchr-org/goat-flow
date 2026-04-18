@@ -945,12 +945,12 @@ describe("composeSetup routing", () => {
       );
       await writeProjectFile(
         root,
-        ".goat-flow/skill-preamble.md",
+        ".goat-flow/skill-reference/skill-preamble.md",
         "# Preamble\n",
       );
       await writeProjectFile(
         root,
-        ".goat-flow/skill-conventions.md",
+        ".goat-flow/skill-reference/skill-conventions.md",
         "# Conventions\n",
       );
       await writeProjectFile(root, "AGENTS.md", "# Codex\n");
@@ -1009,12 +1009,12 @@ describe("composeSetup routing", () => {
       );
       await writeProjectFile(
         root,
-        ".goat-flow/skill-preamble.md",
+        ".goat-flow/skill-reference/skill-preamble.md",
         "# Preamble\n",
       );
       await writeProjectFile(
         root,
-        ".goat-flow/skill-conventions.md",
+        ".goat-flow/skill-reference/skill-conventions.md",
         "# Conventions\n",
       );
       await writeProjectFile(root, "AGENTS.md", "# Codex\n");
@@ -1108,6 +1108,75 @@ describe("composeSetup routing", () => {
       assert.match(output, /## Step 2 - Create project-specific content/);
       assert.match(output, /## Step 3 - Verify/);
       assert.match(output, /workflow\/setup\/agents\/codex\.md/);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("uses the current numbered setup flow for outdated installs", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(root, ".goat-flow/config.yaml", 'version: "1.1.0"\n');
+      await writeProjectFile(root, "AGENTS.md", "# Codex\n");
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-preamble.md",
+        "# Preamble\n",
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-conventions.md",
+        "# Conventions\n",
+      );
+      for (const skill of SKILL_NAMES) {
+        await writeProjectFile(root, `.agents/skills/${skill}/SKILL.md`, "#\n");
+      }
+    });
+
+    try {
+      const retiredOutdatedGuide = "upgrade-from-1" + ".0.x.md";
+      const output = composeSetup(
+        makeAuditReport(project.root, "fail"),
+        makeProjectFacts(project.root, [
+          stubAgentFacts({
+            agent: PROFILES.codex,
+            skills: { ...stubAgentFacts().skills, found: [...SKILL_NAMES] },
+          }),
+        ]),
+        "codex",
+      );
+
+      assert.ok(output, "composeSetup should return upgrade guidance");
+      assert.match(output, /# GOAT Flow Upgrade - Codex/);
+      assert.match(output, /workflow\/install-goat-flow\.sh/);
+      assert.match(output, /workflow\/setup\/02-instruction-file\.md/);
+      assert.ok(!output.includes(retiredOutdatedGuide), output);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("uses manual cleanup guidance for v0.9 installs", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(root, "AGENTS.md", "# Codex\n");
+      await writeProjectFile(root, ".agents/skills/goat-audit/SKILL.md", "#\n");
+    });
+
+    try {
+      const retiredMigrationScript = "install-migrate-to-1" + ".1.sh";
+      const retiredLegacyGuide = "upgrade-from-0" + ".9.x.md";
+      const output = composeSetup(
+        makeAuditReport(project.root, "fail"),
+        makeProjectFacts(project.root, [stubAgentFacts({ agent: PROFILES.codex })]),
+        "codex",
+      );
+
+      assert.ok(output, "composeSetup should return migration guidance");
+      assert.match(output, /# GOAT Flow Migration - Codex/);
+      assert.match(output, /workflow\/install-goat-flow\.sh/);
+      assert.match(output, /Remove legacy surfaces manually/);
+      assert.match(output, /workflow\/setup\/02-instruction-file\.md/);
+      assert.ok(!output.includes(retiredMigrationScript), output);
+      assert.ok(!output.includes(retiredLegacyGuide), output);
     } finally {
       await project.cleanup();
     }

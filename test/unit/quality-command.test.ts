@@ -121,6 +121,32 @@ describe("quality prompt content", () => {
     );
   });
 
+  it("uses generic legacy task-state wording without naming removed files", () => {
+    const result = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/test-project",
+      auditReport: null,
+    });
+    const removedLegacyNames = [
+      "to" + "do.md",
+      "han" + "doff.md",
+      "han" + "doff-template.md",
+    ];
+
+    assert.ok(
+      result.prompt.includes("No legacy task-state residue from pre-v1.1 workflows?"),
+      "Should use generic wording for the pre-check",
+    );
+    assert.ok(
+      result.prompt.includes("removed legacy task-state surfaces"),
+      "Should use generic wording for stale-concept checks",
+    );
+    assert.ok(
+      removedLegacyNames.every((name) => !result.prompt.includes(name)),
+      "Should not mention the removed filenames in the live quality prompt",
+    );
+  });
+
   it("contains ratings request with sub-scores", () => {
     const result = composeQuality({
       agent: "claude",

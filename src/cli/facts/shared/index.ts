@@ -96,7 +96,7 @@ export function extractSharedFacts(
     contextValidation: {
       exists: fs.exists("workflow/validate-goat-flow-setup.sh"),
     },
-    skillConventions: { exists: fs.exists(".goat-flow/skill-preamble.md") },
+    skillConventions: { exists: fs.exists(".goat-flow/skill-reference/skill-preamble.md") },
     // changelog removed - project-level concern, not AI workflow.
     decisions: extractDecisionsFacts(fs, configState.config.decisions.path),
     localInstructions,

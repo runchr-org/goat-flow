@@ -1,14 +1,14 @@
 ---
 name: goat-plan
-description: "Milestone task file generator and manager. Reads .goat-flow/tasks/.active to find the active plan subdir, creates structured milestone files there, tracks progress, enforces testing gates, and provides local working state for the current session."
+description: "Use when starting a non-trivial implementation that needs structured task breakdown with progress tracking."
 goat-flow-skill-version: "1.2.0"
 ---
 # /goat-plan
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-preamble.md` for shared conventions.
-On full-depth, also read `.goat-flow/skill-conventions.md`.
+Read `.goat-flow/skill-reference/skill-preamble.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 
 ## When to Use
 

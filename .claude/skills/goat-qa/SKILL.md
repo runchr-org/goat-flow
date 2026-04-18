@@ -1,14 +1,15 @@
 ---
 name: goat-qa
-description: "Testing gap analyser. Compares code changes against testing coverage to find undertested risks and misaligned test effort."
+description: "Use when evaluating test coverage gaps, planning test strategy, or assessing testing risk for code changes."
 goat-flow-skill-version: "1.2.0"
+tdd-log: ../../../.goat-flow/logs/sessions/2026-04-18-goat-qa-tdd.md
 ---
 # /goat-qa
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-preamble.md` for shared conventions.
-On full-depth, also read `.goat-flow/skill-conventions.md`.
+Read `.goat-flow/skill-reference/skill-preamble.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 
 ## When to Use
 

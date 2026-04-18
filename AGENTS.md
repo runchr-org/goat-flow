@@ -68,7 +68,7 @@ If VERIFY caught a failure or you corrected course, update the learning loop bef
 | `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
 | `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
 | `.goat-flow/decisions/` | Significant technical decision with context/rationale |
-| `.goat-flow/logs/sessions/` | End of every significant session - `YYYY-MM-DD-slug.md` summary |
+| `.goat-flow/logs/sessions/` | Workspace-local session notes and summaries. Gitignored by design; only the directory anchor is committed. |
 
 ## Autonomy Tiers
 

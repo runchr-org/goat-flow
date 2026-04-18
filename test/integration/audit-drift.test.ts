@@ -35,6 +35,10 @@ function setupFixture(): string {
     join(root, "workflow", "skills", "reference", "skill-conventions.md"),
     SHARED_STUB,
   );
+  writeFileSync(
+    join(root, "workflow", "skills", "reference", "skill-quality-testing.md"),
+    SHARED_STUB,
+  );
   for (const name of SKILL_NAMES) {
     mkdirSync(join(root, "workflow", "skills", name), { recursive: true });
     writeFileSync(
@@ -49,9 +53,19 @@ function setupFixture(): string {
       writeFileSync(join(root, agentDir, name, "SKILL.md"), SKILL_STUB(name));
     }
   }
-  mkdirSync(join(root, ".goat-flow"), { recursive: true });
-  writeFileSync(join(root, ".goat-flow", "skill-preamble.md"), SHARED_STUB);
-  writeFileSync(join(root, ".goat-flow", "skill-conventions.md"), SHARED_STUB);
+  mkdirSync(join(root, ".goat-flow", "skill-reference"), { recursive: true });
+  writeFileSync(
+    join(root, ".goat-flow", "skill-reference", "skill-preamble.md"),
+    SHARED_STUB,
+  );
+  writeFileSync(
+    join(root, ".goat-flow", "skill-reference", "skill-conventions.md"),
+    SHARED_STUB,
+  );
+  writeFileSync(
+    join(root, ".goat-flow", "skill-reference", "skill-quality-testing.md"),
+    SHARED_STUB,
+  );
   return root;
 }
 
@@ -72,8 +86,8 @@ describe("checkDrift: clean fixture", () => {
     });
     assert.equal(report.status, "pass");
     assert.deepEqual(report.findings, []);
-    // 7 skills * 2 agent dirs + 2 shared files = 16 comparisons
-    assert.equal(report.checked, SKILL_NAMES.length * 2 + 2);
+    // 7 skills * 2 agent dirs + 3 shared files = 17 comparisons
+    assert.equal(report.checked, SKILL_NAMES.length * 2 + 3);
   });
 });
 

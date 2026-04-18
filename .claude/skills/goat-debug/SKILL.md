@@ -1,14 +1,14 @@
 ---
 name: goat-debug
-description: "Diagnosis-first debugging with hypothesis tracking and recurrence checks. Includes investigate mode for deep codebase exploration."
+description: "Use when diagnosing a bug, unexpected behaviour, or system failure that needs structured investigation."
 goat-flow-skill-version: "1.2.0"
 ---
 # /goat-debug
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-preamble.md` for shared conventions.
-On full-depth, also read `.goat-flow/skill-conventions.md`.
+Read `.goat-flow/skill-reference/skill-preamble.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 
 ## When to Use
 

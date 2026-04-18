@@ -179,10 +179,10 @@ function renderUpgradeRedirect(
     );
     lines.push("");
 
-    lines.push("## Step 2 - Upgrade project-specific content");
+    lines.push("## Step 2 - Rebuild project-specific content");
     lines.push("");
     lines.push(
-      `Read and follow \`${getTemplatePath("workflow/setup/upgrade-from-1.0.x.md")}\` for remaining changes (remove legacy files, update instruction file).`,
+      `Continue with \`${getTemplatePath("workflow/setup/02-instruction-file.md")}\` and then the remaining numbered setup docs to refresh the instruction file and local goat-flow content in place.`,
     );
   } else {
     lines.push(`# GOAT Flow Migration - ${profile.name}`);
@@ -190,18 +190,7 @@ function renderUpgradeRedirect(
     lines.push("This project has old goat-flow skills (v0.9 era).");
     lines.push("");
 
-    lines.push("## Step 1 - Migrate old layout");
-    lines.push("");
-    lines.push(
-      `Run: \`bash ${getTemplatePath("workflow/install-migrate-to-1.1.sh")} . --execute\``,
-    );
-    lines.push("");
-    lines.push(
-      "This migrates `docs/footguns.md` → `.goat-flow/footguns/`, `docs/lessons.md` → `.goat-flow/lessons/`, deletes stale skills, and removes legacy files.",
-    );
-    lines.push("");
-
-    lines.push("## Step 2 - Install files");
+    lines.push("## Step 1 - Install current files");
     lines.push("");
     lines.push(
       `Run: \`bash ${getTemplatePath("workflow/install-goat-flow.sh")} . --agent ${agentId}\``,
@@ -212,10 +201,17 @@ function renderUpgradeRedirect(
     );
     lines.push("");
 
-    lines.push("## Step 3 - Create project-specific content");
+    lines.push("## Step 2 - Remove legacy surfaces manually");
     lines.push("");
     lines.push(
-      `Read and follow \`${getTemplatePath("workflow/setup/upgrade-from-0.9.x.md")}\` for remaining changes (instruction file, architecture docs, config).`,
+      "Preserve any useful content in `.goat-flow/logs/sessions/`, then remove stale skill directories, flat learning-loop docs, and legacy task-state files if they still exist.",
+    );
+    lines.push("");
+
+    lines.push("## Step 3 - Rebuild project-specific content");
+    lines.push("");
+    lines.push(
+      `Continue with \`${getTemplatePath("workflow/setup/02-instruction-file.md")}\` and then the remaining numbered setup docs to rebuild the project-specific goat-flow surfaces on the current layout.`,
     );
   }
 

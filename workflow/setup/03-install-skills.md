@@ -31,8 +31,8 @@ Each SKILL.md MUST include:
 ## Skill conventions
 
 Install both convention files from `workflow/skills/reference/`:
-- `.goat-flow/skill-preamble.md` from `workflow/skills/reference/skill-preamble.md` - essential preamble read on every skill invocation
-- `.goat-flow/skill-conventions.md` from `workflow/skills/reference/skill-conventions.md` - full conventions reference read only on full-depth invocations
+- `.goat-flow/skill-reference/skill-preamble.md` from `workflow/skills/reference/skill-preamble.md` - essential preamble read on every skill invocation
+- `.goat-flow/skill-reference/skill-conventions.md` from `workflow/skills/reference/skill-conventions.md` - full conventions reference read only on full-depth invocations
 
 ## Clean stale cross-agent skills
 
@@ -54,8 +54,8 @@ After installing, verify each SKILL.md frontmatter has the correct `goat-flow-sk
 - [ ] All 7 skill files exist in the agent's skills directory
 - [ ] goat/SKILL.md (dispatcher) exists
 - [ ] All 7 skills have matching `goat-flow-skill-version` tags
-- [ ] `.goat-flow/skill-preamble.md` exists
-- [ ] `.goat-flow/skill-conventions.md` exists
+- [ ] `.goat-flow/skill-reference/skill-preamble.md` exists
+- [ ] `.goat-flow/skill-reference/skill-conventions.md` exists
 - [ ] Instruction file router table references the skills directory
 
 **Progress marker:** Append one line to the shared setup session log:

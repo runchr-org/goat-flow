@@ -38,13 +38,15 @@ Scanner and rubric changes can invalidate "known failing" fixture expectations e
 
 ---
 
-## Lesson: Upgrade docs with hardcoded versions guarantee doc-rot
+## Lesson: Unused upgrade docs with hardcoded versions guarantee doc-rot
 
 **Created:** 2026-04-13
 
-**What happened:** Both `upgrade-from-0.9.x.md` and `upgrade-from-1.0.x.md` hardcode `goat-flow-skill-version: "1.1.0"` and `version 1.1.0` throughout. On the next release, users following these docs will create configs and skills with stale versions that immediately fail the config-version audit check.
+**What happened:** Two maintained upgrade docs hardcoded `goat-flow-skill-version: "1.1.0"` and `version 1.1.0` throughout. On the next release, anyone following those docs would create configs and skills with stale versions that immediately fail the config-version audit check.
 
-**Prevention:** Replace hardcoded version strings with "use the current release version (run `goat-flow --version`)." Consider adding a CI grep that flags hardcoded version strings in upgrade docs after each release.
+**Resolution:** Deleted the unused upgrade docs on 2026-04-18 instead of continuing to maintain a stale path nobody uses.
+
+**Prevention:** If an upgrade path is still meant to be used, replace hardcoded version strings with "use the current release version (run `goat-flow --version`)." Otherwise delete the stale path rather than carrying doc-rot forward.
 
 ---
 

@@ -25,7 +25,7 @@ Read it completely before changing anything. Then:
 2. **Add a goat-flow section at the top** with any missing required sections from the list below. The existing content stays below it unchanged. Top-of-file survives context compaction.
 3. If the existing file mixes project/domain knowledge into the hot path, move that material to `.goat-flow/architecture.md` and/or `.goat-flow/glossary.md`. Keep behavioral rules in the instruction file.
 4. If it IS an existing goat-flow instruction file (has execution loop, autonomy tiers, router table already), update it in place - fix stale paths, update version header, add missing sections.
-5. **If the existing file references `tasks/todo.md` or `tasks/handoff.md`**, remove those references. goat-flow uses `.goat-flow/logs/sessions/` for session state - not todo/handoff files.
+5. **If the existing file references legacy task-state files**, remove those references. goat-flow uses `.goat-flow/logs/sessions/` for session state - not legacy task-state files.
 6. **After adding goat-flow sections, check total length.** If over 120 lines, compress: move domain knowledge to `.goat-flow/architecture.md` and/or `.goat-flow/glossary.md`, remove redundant sections, tighten prose. "Compress" means relocate verbose material, not delete it - the user's content is preserved in `.goat-flow/` files, just not in the hot-path instruction file.
 7. Do NOT create "original-*" backup files. Git history preserves the original.
 

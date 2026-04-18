@@ -12,7 +12,7 @@ All learning loop surfaces use canonical paths: `.goat-flow/footguns/`, `.goat-f
 
 ## Check compaction hooks for stale paths
 
-If existing `settings.json` notification hooks reference `tasks/todo.md`, `tasks/handoff.md`, or other legacy paths, update them to `.goat-flow/tasks/` or `.goat-flow/logs/sessions/`. Stale hook paths cause broken context recovery after compaction.
+If existing `settings.json` notification hooks reference legacy task-state files or other stale paths, update them to `.goat-flow/tasks/` or `.goat-flow/logs/sessions/`. Stale hook paths cause broken context recovery after compaction.
 
 ## First: resume project context
 
@@ -99,8 +99,8 @@ Examples:
 - [ ] Auto-seeded entries use file path + commit hash evidence (no fabricated line numbers) and include `**Source:** git history (auto-seeded)`
 - [ ] `.goat-flow/patterns.md` exists
 - [ ] If `docs/` surfaces exist, they are referenced (not duplicated) in `.goat-flow/`
-- [ ] Compaction hooks reference current paths (not legacy `tasks/todo.md`)
-- [ ] If `tasks/todo.md` or `tasks/handoff.md` exist as stale legacy files, they are reported in the session log
+- [ ] Compaction hooks reference current paths (not legacy task-state files)
+- [ ] If legacy task-state files exist, they are reported in the session log
 - [ ] architecture.md mentions at least 2 real components by name
 - [ ] glossary.md has at least 3 project-specific terms
 - [ ] Ask First boundaries reference real directories that exist on disk

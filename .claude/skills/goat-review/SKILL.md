@@ -2,13 +2,14 @@
 name: goat-review
 description: "Use when reviewing a diff, PR, or set of code changes, or auditing a codebase area for quality issues. Triggers: 'review this', 'code review', 'audit X', 'look at these changes'."
 goat-flow-skill-version: "1.2.0"
+tdd-log: ../../../.goat-flow/logs/sessions/2026-04-18-goat-review-tdd.md
 ---
 # /goat-review
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-preamble.md` for shared conventions.
-On full-depth, also read `.goat-flow/skill-conventions.md`.
+Read `.goat-flow/skill-reference/skill-preamble.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 
 ## When to Use
 

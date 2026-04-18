@@ -9,7 +9,7 @@ Domain-specific terms for new contributors. Standard programming terms are exclu
 | Ask First | The middle autonomy tier requiring the agent to pause and confirm with the human before touching high-risk boundaries. | `workflow/setup/reference/execution-loop.md` | Micro-checklist |
 | Autonomy Tiers | Three-level permission system (Always / Ask First / Never) controlling what the agent can do without human approval. | `workflow/setup/reference/execution-loop.md` | -- |
 | Blast Radius | The declared maximum scope of files and systems a task is allowed to touch before the agent must stop and re-scope. | `workflow/setup/reference/execution-loop.md` | -- |
-| Category Bucket | A markdown file grouping multiple related entries (lessons or footguns) by theme instead of one file per incident. | `.goat-flow/skill-preamble.md` | Bucket file |
+| Category Bucket | A markdown file grouping multiple related entries (lessons or footguns) by theme instead of one file per incident. | `.goat-flow/skill-reference/skill-preamble.md` | Bucket file |
 | Ceremony | The amount of planning process required for a task, ranging from Minimal (hotfix) to Full (system change/infrastructure). | `CLAUDE.md` | -- |
 | Cold Path | Documentation loaded on demand (skills, templates) rather than every session. | `workflow/setup/01-system-overview.md` | -- |
 | Concern | A grouping of related harness checks. Currently 5 concerns: context, constraints, verification, recovery, feedback-loop. Each concern's checks live in a matching file under `src/cli/audit/harness/`. | `docs/harness-audit.md` | Harness concern |
@@ -21,7 +21,7 @@ Domain-specific terms for new contributors. Standard programming terms are exclu
 | Execution Loop | The four-step agent workflow: READ, SCOPE, ACT, VERIFY. | `workflow/setup/reference/execution-loop.md` | Default loop |
 | Footgun | A documented architectural trap with `file:line` evidence stored in category bucket files under `.goat-flow/footguns/`. | `workflow/setup/05-customise-to-project.md` | Architectural landmine |
 | Guide Mode | Deprecated. Was a rendering mode that turned the CLI into an interactive setup assistant. Replaced by the dashboard wizard. | Removed in v1.1.0 | -- |
-| Handoff | Deprecated in v1.1.0. Replaced by milestone files with ticked checkboxes as the continuity mechanism. See Task Tracking in `.goat-flow/skill-conventions.md`. | `.goat-flow/skill-conventions.md` | -- |
+| Handoff | Deprecated in v1.1.0. Replaced by milestone files with ticked checkboxes as the continuity mechanism. See Task Tracking in `.goat-flow/skill-reference/skill-conventions.md`. | `.goat-flow/skill-reference/skill-conventions.md` | -- |
 | Harness | The AI Harness audit tier. Validates agent governance installation via 16 checks across 5 concerns (context, constraints, verification, recovery, feedback-loop). Separate from setup-scope (12 checks) and agent-scope (4 checks). Invoked via `goat-flow audit --harness`. | `docs/harness-audit.md` | AI Harness |
 | Hot Path | Instruction content loaded every session (CLAUDE.md, local instruction files) with a strict line budget. | `workflow/setup/01-system-overview.md` | -- |
 | Instruction Budget | The practical limit (~100-150 instructions) an agent can follow reliably; exceeding it degrades all instructions uniformly. | `.goat-flow/decisions/ADR-029-instruction-budget-constraint.md` | Line budget |
@@ -42,4 +42,4 @@ Domain-specific terms for new contributors. Standard programming terms are exclu
 | State Declaration | The required format (`State: [MODE] \| Goal: [one line] \| Exit: [condition]`) an agent must announce before acting. | `workflow/setup/reference/execution-loop.md` | -- |
 | Stop-the-Line | A Level 2 VERIFY escalation requiring the agent to fully stop, preserve error output, and wait for human review. | `workflow/setup/reference/execution-loop.md` | Level 2 escalation |
 | Triangular Tension | Deprecated in v1.1.0. Was a mob elaboration technique. Now part of goat-critique's SKEPTIC/ANALYST/STRATEGIST core trio. | - | - |
-| Working Memory | Progress tracking via milestone file checkboxes (`.goat-flow/tasks/`). On `/compact`, session log written to `.goat-flow/logs/sessions/`. | `.goat-flow/skill-conventions.md` | Working Notes |
+| Working Memory | Progress tracking via milestone file checkboxes (`.goat-flow/tasks/`). On `/compact`, session log written to `.goat-flow/logs/sessions/`. | `.goat-flow/skill-reference/skill-conventions.md` | Working Notes |

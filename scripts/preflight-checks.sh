@@ -513,23 +513,32 @@ fi
 
 # ── Preamble/Conventions Sync ────────────────────────────────────────
 section "Preamble/Conventions Sync"
-if [[ -f workflow/skills/reference/skill-preamble.md ]] && [[ -f .goat-flow/skill-preamble.md ]]; then
-    if diff -q workflow/skills/reference/skill-preamble.md .goat-flow/skill-preamble.md >/dev/null 2>&1; then
+if [[ -f workflow/skills/reference/skill-preamble.md ]] && [[ -f .goat-flow/skill-reference/skill-preamble.md ]]; then
+    if diff -q workflow/skills/reference/skill-preamble.md .goat-flow/skill-reference/skill-preamble.md >/dev/null 2>&1; then
         pass "skill-preamble.md: template and installed copy match"
     else
-        fail "skill-preamble.md: template (workflow/skills/reference/) and installed (.goat-flow/) differ"
+        fail "skill-preamble.md: template (workflow/skills/reference/) and installed (.goat-flow/skill-reference/) differ"
     fi
 else
     skip "skill-preamble.md sync (one or both files missing)"
 fi
-if [[ -f workflow/skills/reference/skill-conventions.md ]] && [[ -f .goat-flow/skill-conventions.md ]]; then
-    if diff -q workflow/skills/reference/skill-conventions.md .goat-flow/skill-conventions.md >/dev/null 2>&1; then
+if [[ -f workflow/skills/reference/skill-conventions.md ]] && [[ -f .goat-flow/skill-reference/skill-conventions.md ]]; then
+    if diff -q workflow/skills/reference/skill-conventions.md .goat-flow/skill-reference/skill-conventions.md >/dev/null 2>&1; then
         pass "skill-conventions.md: template and installed copy match"
     else
-        fail "skill-conventions.md: template (workflow/skills/reference/) and installed (.goat-flow/) differ"
+        fail "skill-conventions.md: template (workflow/skills/reference/) and installed (.goat-flow/skill-reference/) differ"
     fi
 else
     skip "skill-conventions.md sync (one or both files missing)"
+fi
+if [[ -f workflow/skills/reference/skill-quality-testing.md ]] && [[ -f .goat-flow/skill-reference/skill-quality-testing.md ]]; then
+    if diff -q workflow/skills/reference/skill-quality-testing.md .goat-flow/skill-reference/skill-quality-testing.md >/dev/null 2>&1; then
+        pass "skill-quality-testing.md: template and installed copy match"
+    else
+        fail "skill-quality-testing.md: template (workflow/skills/reference/) and installed (.goat-flow/skill-reference/) differ"
+    fi
+else
+    skip "skill-quality-testing.md sync (one or both files missing)"
 fi
 
 # ── Skill SKILL.md Parity ────────────────────────────────────────────

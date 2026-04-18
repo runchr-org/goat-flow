@@ -110,7 +110,7 @@ cd "$PROJECT"
 # 1. Create .goat-flow/ directories
 # ==========================================================================
 echo "Directories:"
-for dir in .goat-flow/footguns .goat-flow/lessons .goat-flow/decisions .goat-flow/tasks .goat-flow/scratchpad .goat-flow/logs/sessions; do
+for dir in .goat-flow/footguns .goat-flow/lessons .goat-flow/decisions .goat-flow/tasks .goat-flow/scratchpad .goat-flow/logs/sessions .goat-flow/skill-reference; do
   if [[ ! -d "$dir" ]]; then
     mkdir -p "$dir"
     echo "  ✓ $dir/"
@@ -136,9 +136,10 @@ echo ""
 # ==========================================================================
 # 3. Copy shared reference files (always overwrite - verbatim copies)
 # ==========================================================================
-echo "Reference files:"
-copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-preamble.md" ".goat-flow/skill-preamble.md"
-copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-conventions.md" ".goat-flow/skill-conventions.md"
+echo "Reference files → .goat-flow/skill-reference/:"
+copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-preamble.md" ".goat-flow/skill-reference/skill-preamble.md"
+copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-conventions.md" ".goat-flow/skill-reference/skill-conventions.md"
+copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-quality-testing.md" ".goat-flow/skill-reference/skill-quality-testing.md"
 echo ""
 
 # ==========================================================================

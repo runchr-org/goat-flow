@@ -1,14 +1,14 @@
 ---
 name: goat-security
-description: "Threat-model-driven security assessment with framework-aware verification, exploitability ranking, and confidence classification."
+description: "Use when assessing security implications of code changes, architecture decisions, or new features."
 goat-flow-skill-version: "1.2.0"
 ---
 # /goat-security
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-preamble.md` for shared conventions.
-On full-depth, also read `.goat-flow/skill-conventions.md`.
+Read `.goat-flow/skill-reference/skill-preamble.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 
 ## When to Use
 

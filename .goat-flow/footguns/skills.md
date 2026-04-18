@@ -2,6 +2,20 @@
 category: skills
 ---
 
+## Footgun: Workflow-summarising skill descriptions cause CSO shortcutting
+
+**Status:** active | **Created:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Agents invoking a skill via `/<skill>` shortcut past the full `SKILL.md` body when the `description:` field summarises WHAT the skill does or HOW it works — the description becomes a substitute for reading the body.
+
+**Why it happens:** LLMs anchor on the description as a sufficient summary and skip expanding the full skill content. This is the Claude Search Optimization (CSO) failure class.
+
+**Evidence:** Original incident at `superpowers-skills/skills/meta/writing-skills/SKILL.md:134-172` — `subagent-driven-development`'s description said "dispatches subagent per task with code review between tasks" and Claude performed ONE review instead of the two-stage review defined in the body.
+
+**Prevention:** Descriptions must be trigger-only — say WHEN to invoke the skill, never WHAT it does or HOW. M08 §1 rewrote all 5 CSO-violating goat-* descriptions on 2026-04-18 (`goat-review` was already trigger-only from commit `71aae9f`); dispatcher routing regression (7 intent prompts) passed post-rewrite; `goat-flow audit --check-drift` reported zero drift across 16 checked files.
+
+---
+
 ## Footgun: Installed skill copies can drift on punctuation-only edits and fail unrelated test runs
 
 **Status:** active | **Created:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
@@ -85,7 +99,7 @@ Moved to resolved: all evidence is from retired v1.1.0 files and current shared 
 
 Skills enforce phase gates (Step 0 must complete before Phase 1, gates pause for human approval) but have no budget for how long Step 0 can take. Claude can spend an entire session reading templates, exploring the codebase, and gathering context without ever producing output or asking a question.
 
-**Resolution:** Both preventions implemented in `.goat-flow/skill-preamble.md:77-79`:
+**Resolution:** Both preventions implemented in `.goat-flow/skill-reference/skill-preamble.md:77-79`:
 1. Step 0 budget: "If Step 0 exceeds 5 file reads without producing output or asking a question, stop and present what you know so far."
 2. Mid-Step-0 checkpointing: "Checkpoint mid-Step-0 for complex projects rather than silently reading indefinitely."
 

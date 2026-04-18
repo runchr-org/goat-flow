@@ -65,7 +65,7 @@ SCOPE   → "review" mode, no edits; fix scope declared after triage
 ACT     → Fixed 3 broken cross-references:
           - 03-install-skills.md (stale flat file names)
           - code-map.md (wrong harness count 15→16, stale skill tree)
-          - upgrade-from-0.9.x.md (goat-debug.md → goat-debug/SKILL.md)
+          - legacy upgrade guide entry (goat-debug.md → goat-debug/SKILL.md)
           Marked 6 stale footgun entries resolved.
 VERIFY  → Preflight: 33 checks, 0 errors, 9 warnings. Tests: 92/92 passing.
 ```

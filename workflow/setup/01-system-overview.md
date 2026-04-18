@@ -11,13 +11,14 @@ Read this first. This is what you're installing and why.
 
 If `.goat-flow/config.yaml` exists and its version matches the current goat-flow release, AND `goat-flow audit . --agent {agent}` passes, AND `goat-flow audit . --agent {agent} --harness` passes, verify cold-path truth before stopping: spot-check that architecture doc claims match code reality (dashboard views, check counts, component paths). If structural audit + harness + cold-path spot-check all pass, **STOP**. If the version matches but audit fails or skills/instruction file/preamble are missing, continue with setup to repair the incomplete install.
 
-If the version is older, use the upgrade path instead:
-- Old skill names (goat-audit, goat-investigate, etc.) or legacy `docs/footguns.md` / `tasks/todo.md` → run the migration script first (dry-run by default, add `--execute` to apply), then continue with fresh setup:
+If the version is older, there is no maintained in-place upgrade guide. Refresh the current agent files, then continue through the current numbered setup flow:
+- Run the current install script first:
   ```bash
-  bash "$(npm -g root)/@blundergoat/goat-flow/workflow/install-migrate-to-1.1.sh" .
+  bash "$(npm -g root)/@blundergoat/goat-flow/workflow/install-goat-flow.sh" . --agent {agent}
   # or locate via: node -e "require.resolve('@blundergoat/goat-flow')" | xargs dirname
   ```
-- Version < current → `workflow/setup/upgrade-from-1.0.x.md`
+- Then continue with `workflow/setup/02-instruction-file.md` and the remaining numbered setup steps.
+- If you encounter legacy flat learning-loop docs, old skill names, or legacy task-state files, preserve any useful content in `.goat-flow/logs/sessions/` before removing them.
 
 ## What goat-flow is
 

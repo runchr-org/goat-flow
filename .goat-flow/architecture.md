@@ -66,10 +66,10 @@ Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- lo
 
 | Tier | Paths | Committed? | Purpose |
 |------|-------|-----------|---------|
-| **Committed knowledge** | `architecture.md`, `code-map.md`, `glossary.md`, `patterns.md`, `skill-preamble.md`, `skill-conventions.md`, `config.yaml`, `decisions/`, `footguns/**`, `lessons/**`, `logs/sessions/` | Yes | Durable project record. Source of truth across sessions. |
-| **Local session state** | `tasks/**`, `scratchpad/**` | No (gitignored by design; only `README.md` and `.gitignore` are committed) | Personal WIP: milestone files, plan subdirs, throwaway notes. Coordinates a single work session — not project history. |
+| **Committed knowledge** | `architecture.md`, `code-map.md`, `glossary.md`, `patterns.md`, `skill-preamble.md`, `skill-conventions.md`, `config.yaml`, `decisions/`, `footguns/**`, `lessons/**` | Yes | Durable project record. Source of truth across sessions. |
+| **Local session state** | `tasks/**`, `scratchpad/**`, `logs/sessions/*.md` | No (gitignored by design; only anchor files such as `README.md`, `.gitignore`, and `.gitkeep` are committed) | Personal WIP: milestone files, plan subdirs, throwaway notes, and session continuity logs. Coordinates a single work session — not project history. |
 
-**Not a persistence gap.** If a `tasks/` or `scratchpad/` artifact deserves to survive the session, it's promoted to the committed tier: lesson → `lessons/`, trap → `footguns/`, decision → `decisions/`, wrap-up → `logs/sessions/`.
+**Not a persistence gap.** If a `tasks/`, `scratchpad/`, or `logs/sessions/` artifact deserves to survive the session, promote its durable content into the committed tier: lesson → `lessons/`, trap → `footguns/`, decision → `decisions/`. Session logs themselves are checkout-local continuity artifacts.
 
 ## Deliberate Trade-offs
 

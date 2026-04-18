@@ -194,7 +194,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "4. **Learning loop** (`.goat-flow/`) - config, architecture doc, footguns, lessons, decisions, session logs.",
   );
   lines.push(
-    "5. **Shared conventions** - skill-preamble.md (loaded every skill invocation), skill-conventions.md (loaded on full-depth).",
+    "5. **Shared reference** (under `.goat-flow/skill-reference/`) - skill-preamble.md (loaded every skill invocation), skill-conventions.md (loaded on full-depth), skill-quality-testing.md (full-depth authoring methodology for creating or hardening a skill).",
   );
   lines.push("");
   lines.push(
@@ -283,8 +283,8 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("");
   lines.push(`- Your instruction file: \`${instructionFile}\``);
   lines.push("- `.goat-flow/config.yaml`");
-  lines.push("- `.goat-flow/skill-preamble.md`");
-  lines.push("- `.goat-flow/skill-conventions.md`");
+  lines.push("- `.goat-flow/skill-reference/skill-preamble.md`");
+  lines.push("- `.goat-flow/skill-reference/skill-conventions.md`");
   lines.push("- `.goat-flow/architecture.md`");
   lines.push(
     "- `.goat-flow/code-map.md`, `.goat-flow/glossary.md`, `.goat-flow/patterns.md` (if they exist)",
@@ -312,13 +312,11 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push(
     `- If >${skillFacts.total}, list extras. Known stale names: ${skillFacts.stale_names.join(", ")}`,
   );
-  lines.push("- `.goat-flow/skill-preamble.md` exists?");
-  lines.push("- `.goat-flow/skill-conventions.md` exists?");
+  lines.push("- `.goat-flow/skill-reference/skill-preamble.md` exists?");
+  lines.push("- `.goat-flow/skill-reference/skill-conventions.md` exists?");
   lines.push("- `.goat-flow/config.yaml` exists and parseable?");
   lines.push("- No `playbooks/` directory (that's legacy)?");
-  lines.push(
-    "- No `todo.md`, `handoff.md`, or `handoff-template.md` in project root or `.goat-flow/`?",
-  );
+  lines.push("- No legacy task-state residue from pre-v1.1 workflows?");
   lines.push("");
   lines.push("**Instruction file (from Step 0 output):**");
   lines.push("- Line count (target: under 120, hard limit: 150)?");
@@ -457,7 +455,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   );
   lines.push("- Is the Definition of Done practical or checkbox theater?");
   lines.push(
-    "- Is `skill-preamble.md` (loaded every invocation) worth its token cost? Is `skill-conventions.md` (loaded on full-depth) referenced when it should be?",
+    "- Is `skill-preamble.md` (loaded every invocation) worth its token cost? Is `skill-conventions.md` (loaded on full-depth) referenced when it should be? Is `skill-quality-testing.md` consulted when skills are created or hardened, or does it sit unused?",
   );
   lines.push(
     "- Are footguns/lessons actually consulted during skill execution, or ignored noise?",
@@ -497,7 +495,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "- Any skill that references `workflow/` paths - those are framework-internal and don't exist in target projects",
   );
   lines.push(
-    '- Any stale references to removed concepts: "playbooks", "coding-standards" as a first-class surface, "shapes", old skill names, "handoff.md", "todo.md", old execution loop steps (CLASSIFY, LOG as separate steps)',
+    '- Any stale references to removed concepts: "playbooks", "coding-standards" as a first-class surface, "shapes", old skill names, removed legacy task-state surfaces, old execution loop steps (CLASSIFY, LOG as separate steps)',
   );
   lines.push(
     "- Does the instruction file execution loop match the skill-preamble's description?",

@@ -18,10 +18,14 @@
 !footguns/**
 !lessons/
 !lessons/**
+# Keep the local-workspace directories themselves committed so tools can rely on the paths.
+# Their own nested .gitignore files decide which contents stay local-only.
 !tasks/
 !tasks/**
 !scratchpad/
 !scratchpad/**
+# Keep the session-log path and anchor file, but ignore the actual markdown logs.
+# `logs/sessions/*.md` is workspace-local continuity state for the current checkout.
 !logs/
 !logs/sessions/
 !logs/sessions/.gitkeep

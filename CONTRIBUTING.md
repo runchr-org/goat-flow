@@ -62,7 +62,7 @@ There are two check systems - pick the right one:
 
 ## How to Add a New Skill Template
 
-Skill templates live in `workflow/skills/` as directories (e.g., `workflow/skills/goat-debug/SKILL.md`), mirroring the installed layout (e.g., `.claude/skills/goat-debug/SKILL.md`). Shared conventions are in `workflow/skills/reference/` (skill-preamble.md and skill-conventions.md). Skills are installed verbatim from templates to project skill directories. Add your template directory and register it in the setup flow.
+Skill templates live in `workflow/skills/` as directories (e.g., `workflow/skills/goat-debug/SKILL.md`), mirroring the installed layout (e.g., `.claude/skills/goat-debug/SKILL.md`). Shared conventions are in `workflow/skills/reference/` (skill-preamble.md, skill-conventions.md, and skill-quality-testing.md); setup copies these to `.goat-flow/skill-reference/` on install. Skills are installed verbatim from templates to project skill directories. Add your template directory and register it in the setup flow.
 
 ## How to Add a New Stack to the Detector
 

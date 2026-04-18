@@ -1,14 +1,15 @@
 ---
 name: goat-critique
-description: "Multi-perspective critique using sub-agent orchestration. Generates competing analyses, ranks them, cross-examines disagreements, and synthesises a prime output."
+description: "Use when a decision or analysis needs independent perspectives from multiple viewpoints to avoid anchoring bias."
 goat-flow-skill-version: "1.2.0"
+tdd-log: ../../../.goat-flow/logs/sessions/2026-04-18-goat-critique-tdd.md
 ---
 # /goat-critique
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-preamble.md` for shared conventions.
-On full-depth, also read `.goat-flow/skill-conventions.md`.
+Read `.goat-flow/skill-reference/skill-preamble.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 
 ## When to Use
 

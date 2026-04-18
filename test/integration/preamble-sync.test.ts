@@ -16,7 +16,7 @@ const TEMPLATE_PREAMBLE = resolve(
 );
 const INSTALLED_PREAMBLE = resolve(
   PROJECT_ROOT,
-  ".goat-flow/skill-preamble.md",
+  ".goat-flow/skill-reference/skill-preamble.md",
 );
 const TEMPLATE_CONVENTIONS = resolve(
   PROJECT_ROOT,
@@ -24,7 +24,15 @@ const TEMPLATE_CONVENTIONS = resolve(
 );
 const INSTALLED_CONVENTIONS = resolve(
   PROJECT_ROOT,
-  ".goat-flow/skill-conventions.md",
+  ".goat-flow/skill-reference/skill-conventions.md",
+);
+const TEMPLATE_QUALITY_TESTING = resolve(
+  PROJECT_ROOT,
+  "workflow/skills/reference/skill-quality-testing.md",
+);
+const INSTALLED_QUALITY_TESTING = resolve(
+  PROJECT_ROOT,
+  ".goat-flow/skill-reference/skill-quality-testing.md",
 );
 
 function diffQuiet(a: string, b: string): number {
@@ -63,6 +71,20 @@ describe("preamble/conventions sync: current state", () => {
       "skill-conventions.md: template and installed should match",
     );
   });
+
+  it("template and installed skill-quality-testing.md match", () => {
+    if (
+      !existsSync(TEMPLATE_QUALITY_TESTING) ||
+      !existsSync(INSTALLED_QUALITY_TESTING)
+    ) {
+      return; // Skip if either file is missing
+    }
+    assert.equal(
+      diffQuiet(TEMPLATE_QUALITY_TESTING, INSTALLED_QUALITY_TESTING),
+      0,
+      "skill-quality-testing.md: template and installed should match",
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -78,7 +100,7 @@ describe("preamble/conventions sync: regression detection", () => {
     const originalInstalled = readFileSync(INSTALLED_PREAMBLE);
 
     // Back up installed; modify it to diverge
-    const backup = resolve(PROJECT_ROOT, ".goat-flow/skill-preamble.md.bak");
+    const backup = resolve(PROJECT_ROOT, ".goat-flow/skill-reference/skill-preamble.md.bak");
     try {
       copyFileSync(INSTALLED_PREAMBLE, backup);
       writeFileSync(INSTALLED_PREAMBLE, originalInstalled + "\n# DIVERGED\n");

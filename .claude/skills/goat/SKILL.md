@@ -7,8 +7,8 @@ goat-flow-skill-version: "1.2.0"
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-preamble.md` for shared conventions.
-On full-depth, also read `.goat-flow/skill-conventions.md`.
+Read `.goat-flow/skill-reference/skill-preamble.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 Universal constraints from `skill-preamble.md` apply.
 
 Use when the user describes an outcome and wants the right workflow chosen.

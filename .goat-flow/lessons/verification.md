@@ -320,3 +320,15 @@ category: verification
 - "Looks correct to me" — structural inspection is not verification. If the red-flag demands output, reading code is not output.
 
 **Fix:** The Proof Gate in `skill-preamble.md` names the positive procedure (identify → run fresh → read → verify → cite). This lesson names the negative counterpart: the rationalization patterns that specifically defeat the red-flags. Before any completion, fix, or "passing" claim, check whether the next sentence you are about to write matches one of the patterns above. If it does, stop and satisfy the Proof Gate instead — or downgrade the claim to UNVERIFIED and state what evidence is still missing.
+
+---
+
+## Lesson: `npm test -- <file>` can still run the full suite
+
+**Created:** 2026-04-18
+
+**What happened:** A focused verification run used `npm test -- test/unit/quality-command.test.ts`, expecting only the quality prompt tests to run. In this repo, `package.json` defines `test` as `node --import tsx --test test/*/*.test.ts`, so npm appended the file argument without removing the existing glob. The command still executed the full suite and surfaced unrelated audit failures, obscuring whether the changed file actually passed its own regression.
+
+**Root cause:** Assumed npm positional passthrough would replace the script's built-in test target. It only appends arguments, so any existing glob or file list in the script still runs unless the underlying command supports overriding it.
+
+**Fix:** For focused test verification in this repo, invoke the underlying command directly: `node --import tsx --test test/unit/quality-command.test.ts`. Reserve `npm test` for deliberate full-suite runs.

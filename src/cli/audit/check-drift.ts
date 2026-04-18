@@ -9,9 +9,10 @@
  *       workflow/skills/<name>/SKILL.md  vs
  *       .claude/skills/<name>/SKILL.md
  *       .agents/skills/<name>/SKILL.md
- *   - Shared docs:
- *       workflow/skills/reference/skill-preamble.md  vs .goat-flow/skill-preamble.md
- *       workflow/skills/reference/skill-conventions.md vs .goat-flow/skill-conventions.md
+ *   - Shared docs (template → installed in .goat-flow/skill-reference/):
+ *       workflow/skills/reference/skill-preamble.md         vs .goat-flow/skill-reference/skill-preamble.md
+ *       workflow/skills/reference/skill-conventions.md      vs .goat-flow/skill-reference/skill-conventions.md
+ *       workflow/skills/reference/skill-quality-testing.md  vs .goat-flow/skill-reference/skill-quality-testing.md
  *   - Orphan directories under .claude/skills or .agents/skills whose
  *     name is not in SKILL_NAMES. Names that appear in manifest.stale_names
  *     are reported as deprecated instead of a plain orphan.
@@ -98,11 +99,15 @@ interface SharedFileSpec {
 const SHARED_FILES: SharedFileSpec[] = [
   {
     template: "workflow/skills/reference/skill-preamble.md",
-    installed: ".goat-flow/skill-preamble.md",
+    installed: ".goat-flow/skill-reference/skill-preamble.md",
   },
   {
     template: "workflow/skills/reference/skill-conventions.md",
-    installed: ".goat-flow/skill-conventions.md",
+    installed: ".goat-flow/skill-reference/skill-conventions.md",
+  },
+  {
+    template: "workflow/skills/reference/skill-quality-testing.md",
+    installed: ".goat-flow/skill-reference/skill-quality-testing.md",
   },
 ];
 

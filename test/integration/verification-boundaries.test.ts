@@ -41,7 +41,7 @@ describe("verification routing boundaries (ADR-045)", () => {
 
   it("skill-preamble.md routes 'verification planning' to /goat-qa, not bare 'verification'", () => {
     const content = readFileSync(
-      resolve(PROJECT_ROOT, ".goat-flow/skill-preamble.md"),
+      resolve(PROJECT_ROOT, ".goat-flow/skill-reference/skill-preamble.md"),
       "utf-8",
     );
     assert.match(

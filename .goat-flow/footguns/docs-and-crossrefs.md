@@ -37,7 +37,7 @@ category: docs-and-crossrefs
 - ~~`docs/audit-and-critique.md:38-47` - describes checks that no longer exist~~ (resolved 2026-04-15: check descriptions updated to match current code)
 - ~~`docs/coding-standards/conventions.md:10` - claims "Zero runtime dependencies"~~ (resolved 2026-04-15: now says "Runtime dependencies: js-yaml, ws")
 - ~~`docs/coding-standards/conventions.md:74` - claims `src/cli/prompt/types.ts` exists~~ (resolved 2026-04-15: reference removed)
-- ~~`.goat-flow/glossary.md:21` - Handoff entry says "See Task Tracking in `.goat-flow/skill-preamble.md`"~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`)
+- ~~`.goat-flow/glossary.md:21` - Handoff entry says "See Task Tracking in `.goat-flow/skill-preamble.md`"~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`; the reference was later moved to `.goat-flow/skill-reference/` as a subdir but that change is separate from this resolution)
 - ~~`.goat-flow/glossary.md:38` - Working Memory points to `skill-preamble.md`~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`)
 - ~~`.goat-flow/code-map.md:71` - lists `validate-goat-flow-setup.sh` under `scripts/`~~ (resolved 2026-04-16: code-map now lists it under `workflow/` with explanatory note)
 - ~~`src/cli/prompt/compose-critique.ts:243` - ships literal placeholder `<your-hooks-dir>`~~ (resolved 2026-04-16: placeholder removed)
@@ -50,7 +50,7 @@ category: docs-and-crossrefs
 - ~~`.goat-flow/architecture.md:49` - referenced `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
 - ~~`src/cli/cli.ts:49` - help text said 15 harness checks; actual: 16~~ (resolved 2026-04-16)
 - ~~`workflow/setup/03-install-skills.md:11` - referenced old flat skill file names~~ (resolved 2026-04-16)
-- ~~`workflow/setup/upgrade-from-0.9.x.md:104` - referenced `goat-debug.md` instead of `goat-debug/SKILL.md`~~ (resolved 2026-04-16)
+- ~~historical upgrade guide entry - referenced `goat-debug.md` instead of `goat-debug/SKILL.md`~~ (resolved 2026-04-16)
 
 **Impact:** The framework demands "real evidence only" and "MUST maintain cross-file consistency" while its own cold-path surfaces violate both rules. Agents consulting docs for orientation get wrong information. The audit's PASS stamp creates false confidence.
 
