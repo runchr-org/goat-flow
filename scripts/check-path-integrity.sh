@@ -41,12 +41,21 @@ for agent_dir in $skill_dirs; do
 done
 
 # ── 2. .goat-flow/ paths in installed skills must resolve ───────────
+# Exception: paths under .goat-flow/tasks/, .goat-flow/scratchpad/, and
+# .goat-flow/logs/ are intentionally gitignored (local session state per
+# .goat-flow/tasks/.gitignore). Skills reference them as navigation pointers
+# (e.g. `.goat-flow/tasks/.active` — the active-plan marker); treating
+# absence as drift false-positives on every clean checkout and CI run.
 for agent_dir in $skill_dirs; do
     dir="${root}/${agent_dir}"
     [[ -d "$dir" ]] || continue
     while IFS= read -r ref_path; do
         # Strip backticks and trailing punctuation
         clean=$(echo "$ref_path" | sed 's/[`'"'"'",;)]*$//' | sed 's/^[`'"'"'"]//')
+        # Skip intentionally-gitignored runtime-state paths.
+        case "$clean" in
+            .goat-flow/tasks/*|.goat-flow/scratchpad/*|.goat-flow/logs/*) continue ;;
+        esac
         if [[ "$clean" == .goat-flow/* ]] && [[ ! -e "${root}/${clean}" ]]; then
             err "Installed skill references missing path: ${clean}"
         fi

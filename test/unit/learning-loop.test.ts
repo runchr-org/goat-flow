@@ -239,6 +239,23 @@ describe("extractLessonsFacts freshness + placeholder filtering", () => {
     const facts = extractLessonsFacts(fs, stubConfig(), pinnedNow);
     assert.deepEqual(facts.staleRefs, []);
   });
+
+  it("does not flag gitignored-by-design paths as stale (.goat-flow/tasks, scratchpad, logs)", () => {
+    // .goat-flow/tasks/*, scratchpad/*, and logs/* are intentionally gitignored
+    // per .goat-flow/tasks/.gitignore — they're local session state. Lessons
+    // reference them as navigation pointers, not committed artifacts. On CI
+    // (fresh checkout) they don't exist, so treating absence as stale
+    // false-positived the learning-loop schema check until this guard landed.
+    const fs = stubFS(
+      {
+        [`${fixtureDir}verification.md`]:
+          "---\ncategory: verification\nlast_reviewed: 2026-04-18\n---\n\n## Lesson: nav\n\nPriors at `.goat-flow/tasks/1.2.0-wave-6/M01.md`, workspace at `.goat-flow/scratchpad/notes.md`, log at `.goat-flow/logs/sessions/old.md`.\n",
+      },
+      { [fixtureDir]: ["verification.md"] },
+    );
+    const facts = extractLessonsFacts(fs, stubConfig(), pinnedNow);
+    assert.deepEqual(facts.staleRefs, []);
+  });
 });
 
 describe("extractFootgunFacts search-anchor staleness", () => {

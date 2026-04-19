@@ -43,7 +43,21 @@ function isFileRef(filePath: string): boolean {
 }
 
 /** Check whether a file reference can be validated for staleness without guessing. */
+/** Paths under these dirs are intentionally gitignored per `.goat-flow/tasks/.gitignore`
+ *  (milestone files + plan subdirs + `.active` marker are local-session state by
+ *  design). References to them in lessons/footguns are navigation pointers,
+ *  not resolvable artifacts — treating absence as "stale" false-positives on
+ *  any clean checkout or CI run. Keep this list short and specific. */
+function isIntentionallyGitignored(filePath: string): boolean {
+  return (
+    filePath.startsWith(".goat-flow/tasks/") ||
+    filePath.startsWith(".goat-flow/scratchpad/") ||
+    filePath.startsWith(".goat-flow/logs/")
+  );
+}
+
 function isCheckableForStaleness(filePath: string, fs: ReadonlyFS): boolean {
+  if (isIntentionallyGitignored(filePath)) return false;
   if (filePath.includes("/")) return true;
   // If it exists at root, it's checkable regardless of extension
   if (fs.exists(filePath)) return true;
@@ -651,6 +665,9 @@ function summarizeLessonEntries(
       // these are concrete file refs that can be validated against the filesystem.
       if (ref === undefined || /[*?{}<>]|\.\.\./.test(ref)) continue;
       const filePath = ref.replace(/:[0-9]+(?:[-,][0-9]+)*$/, "");
+      // Gitignored-by-design paths (.goat-flow/tasks, scratchpad, logs) are
+      // navigation pointers, not committed artifacts — don't flag them stale.
+      if (isIntentionallyGitignored(filePath)) continue;
       if (!fs.exists(filePath)) bucketStaleRefs.push(filePath);
     }
     staleRefs.push(...bucketStaleRefs);
