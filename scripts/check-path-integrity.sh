@@ -132,6 +132,48 @@ for agent_dir in $skill_dirs; do
     done
 done
 
+# ── 8. Bare *.md cross-references in docs/*.md must resolve ────────
+# Catches doc-to-doc references like `harness-spec.md` in docs/*.md that point
+# at files which no longer exist. Scoped to `.md` extensions only — `.ts`/`.sh`
+# in coding-standards prose are usually conceptual identifiers, not literal
+# paths, so they would false-positive. Resolves relative to the doc's dir
+# first, then repo root, then by basename anywhere under the repo (catches
+# refs like `skill-preamble.md` that live under `.goat-flow/skill-reference/`).
+# Skips fenced code blocks.
+docs_dir="${root}/docs"
+if [[ -d "$docs_dir" ]]; then
+    while IFS= read -r -d '' docfile; do
+        docdir=$(dirname "$docfile")
+        while IFS= read -r ref; do
+            [[ -z "$ref" ]] && continue
+            # Skip glob-ish, URL-ish, and template-placeholder tokens.
+            [[ "$ref" == *'*'* || "$ref" == *'?'* ]] && continue
+            [[ "$ref" == *'<'* || "$ref" == *'>'* ]] && continue
+            [[ "$ref" == *'{'* || "$ref" == *'}'* ]] && continue
+            [[ "$ref" == http* ]] && continue
+            # Resolve relative to doc dir, then repo root.
+            if [[ -e "${docdir}/${ref}" ]]; then continue; fi
+            if [[ -e "${root}/${ref}" ]]; then continue; fi
+            # Fall back to basename lookup anywhere in the repo (excludes
+            # node_modules/.git for speed). A file with this basename existing
+            # anywhere means the ref is a conceptual cross-ref, not drift.
+            base=$(basename "$ref")
+            if find "$root" \
+                \( -path '*/node_modules' -o -path '*/.git' -o -path '*/dist' \) -prune -o \
+                -type f -name "$base" -print 2>/dev/null | grep -q .; then
+                continue
+            fi
+            err "${docfile#"${root}/"}: references missing file \`${ref}\`"
+        done < <(
+            # shellcheck disable=SC2016  # grep pattern matches literal backticks, not command substitution
+            awk '/^[[:space:]]*```/ { in_fence = !in_fence; next } !in_fence' "$docfile" \
+                | grep -oE '`[a-zA-Z0-9_./-]+\.md`' \
+                | tr -d '`' \
+                | sort -u
+        )
+    done < <(find "$docs_dir" -type f -name '*.md' -print0 2>/dev/null)
+fi
+
 # ── Result ──────────────────────────────────────────────────────────
 if [[ "$errors" -gt 0 ]]; then
     echo "Path integrity: ${errors} error(s) found" >&2

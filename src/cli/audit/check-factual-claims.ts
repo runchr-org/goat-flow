@@ -17,6 +17,11 @@ import { SKILL_NAMES } from "../constants.js";
 import { SETUP_CHECKS } from "./check-goat-flow.js";
 import { AGENT_CHECKS } from "./check-agent-setup.js";
 import { HARNESS_CHECKS } from "./harness/index.js";
+import { CONTEXT_CHECKS } from "./harness/check-context.js";
+import { CONSTRAINTS_CHECKS } from "./harness/check-constraints.js";
+import { VERIFICATION_CHECKS } from "./harness/check-verification.js";
+import { RECOVERY_CHECKS } from "./harness/check-recovery.js";
+import { FEEDBACK_LOOP_CHECKS } from "./harness/check-feedback-loop.js";
 import { loadManifest } from "../manifest/manifest.js";
 
 export const FACTUAL_CLAIMS_EVIDENCE: CheckEvidence = {
@@ -66,7 +71,89 @@ interface CountClaimCheck {
   pattern: RegExp;
   actual: () => number;
   label: string;
+  /** When true, the check is applied inside fenced code blocks too (for
+   *  catching sample-output drift like `Context: PASS (3/3)`). Default false. */
+  scanFenced?: boolean;
 }
+
+/** Per-concern count check: pattern has TWO capture groups — the concern name
+ *  (used to look up the authoritative count) and the claimed number. Lets one
+ *  entry cover all five concerns with a single regex instead of five. */
+interface ConcernCountCheck {
+  rule: string;
+  /** Regex with TWO capturing groups: (1) concern label, (2) claimed number. */
+  pattern: RegExp;
+  /** Authoritative count for the captured concern label, or undefined when
+   *  the label doesn't match a known concern (skips the finding). */
+  actualFor: (concern: string) => number | undefined;
+  label: string;
+  /** When true, apply inside fenced code blocks (sample-output drift). */
+  scanFenced?: boolean;
+}
+
+/** Live concern → check-count map, built from the harness check arrays that
+ *  are the single source of truth. Keyed by a normalised concern label so doc
+ *  phrasings like "Feedback Loop", "Feedback-Loop", and "feedback_loop" all
+ *  resolve to the same count. */
+const CONCERN_SIZES: Record<string, number> = {
+  context: CONTEXT_CHECKS.length,
+  constraints: CONSTRAINTS_CHECKS.length,
+  verification: VERIFICATION_CHECKS.length,
+  recovery: RECOVERY_CHECKS.length,
+  feedback_loop: FEEDBACK_LOOP_CHECKS.length,
+};
+
+/** Normalise a doc-style concern label ("Feedback Loop", "Feedback-Loop",
+ *  "feedback_loop") into the CONCERN_SIZES key form. */
+function normaliseConcern(raw: string): string {
+  return raw.toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function concernActualFor(raw: string): number | undefined {
+  return CONCERN_SIZES[normaliseConcern(raw)];
+}
+
+/** Alternation fragment shared by concern patterns. Kept in sync with the five
+ *  concern arrays imported above. */
+const CONCERN_ALTERNATION =
+  "Context|Constraints|Verification|Recovery|Feedback[\\s-]?Loop";
+
+/** Per-concern drift patterns. All three patterns catch drift in current or
+ *  M18-2-updated doc prose; the sample-output one scans fenced blocks because
+ *  the `audit-and-quality.md` sample lives inside a code fence. */
+const CONCERN_CHECKS: ConcernCountCheck[] = [
+  {
+    // Matches `**Context** (4)` bullet-list style (audit-and-quality.md:66)
+    rule: "concern-count-drift-bullet",
+    pattern: new RegExp(
+      `\\*\\*(${CONCERN_ALTERNATION})\\*\\*\\s*\\((\\d+)\\)`,
+      "g",
+    ),
+    actualFor: concernActualFor,
+    label: "concern bullet count",
+  },
+  {
+    // Matches `**Context checks (4):**` style (harness-audit.md once M18-2 lands)
+    rule: "concern-count-drift-checks-label",
+    pattern: new RegExp(
+      `\\*\\*(${CONCERN_ALTERNATION})\\s+checks?\\s*\\((\\d+)\\)`,
+      "gi",
+    ),
+    actualFor: concernActualFor,
+    label: "concern checks count",
+  },
+  {
+    // Matches `Context: PASS (3/3)` sample-output style inside fenced blocks
+    rule: "concern-sample-output-drift",
+    pattern: new RegExp(
+      `\\b(${CONCERN_ALTERNATION}):\\s+(?:PASS|FAIL)\\s+\\(\\d+\\/(\\d+)\\)`,
+      "g",
+    ),
+    actualFor: concernActualFor,
+    label: "concern sample-output total",
+    scanFenced: true,
+  },
+];
 
 const COUNT_CHECKS: CountClaimCheck[] = [
   {
@@ -184,7 +271,10 @@ export function scanRemovedCommands(
   return findings;
 }
 
-/** Scan one doc file for numeric-count drift using the provided check set. */
+/** Scan one doc file for numeric-count drift using the provided check set.
+ *  By default, fenced code blocks are skipped (prose code samples should not
+ *  be drift-matched). Individual checks can opt in via `scanFenced: true` to
+ *  catch structural drift in sample-output blocks. */
 export function scanCountClaims(
   path: string,
   text: string,
@@ -199,8 +289,8 @@ export function scanCountClaims(
       inCodeBlock = !inCodeBlock;
       continue;
     }
-    if (inCodeBlock) continue;
     for (const check of checks) {
+      if (inCodeBlock && !check.scanFenced) continue;
       const rx = new RegExp(check.pattern.source, check.pattern.flags);
       let match: RegExpExecArray | null;
       while ((match = rx.exec(line)) !== null) {
@@ -217,6 +307,64 @@ export function scanCountClaims(
           });
         }
       }
+    }
+  }
+  return findings;
+}
+
+/** Apply one concern-count check to one line; returns any drift findings.
+ *  Extracted from `scanConcernCountClaims` to keep the outer loop under the
+ *  eslint complexity cap. */
+function matchConcernCheckOnLine(
+  line: string,
+  lineNum: number,
+  path: string,
+  check: ConcernCountCheck,
+): ContentFinding[] {
+  const findings: ContentFinding[] = [];
+  const rx = new RegExp(check.pattern.source, check.pattern.flags);
+  let match: RegExpExecArray | null;
+  while ((match = rx.exec(line)) !== null) {
+    const concernRaw = match[1];
+    const claimedStr = match[2];
+    if (concernRaw === undefined || claimedStr === undefined) continue;
+    const actual = check.actualFor(concernRaw);
+    if (actual === undefined) continue;
+    const claimed = Number(claimedStr);
+    if (claimed === actual) continue;
+    findings.push({
+      severity: "warning",
+      rule: check.rule,
+      path,
+      line: lineNum,
+      message: `${check.label}: doc says ${concernRaw} has ${claimed}, code says ${actual}.`,
+      suggestion: `Update "${match[0]}" to match the ${concernRaw} concern's actual count (${actual}).`,
+    });
+  }
+  return findings;
+}
+
+/** Scan one doc file for per-concern count drift. Each check's pattern must
+ *  have two capture groups: (1) concern label, (2) claimed number. The
+ *  authoritative count is looked up via `actualFor`. Fenced code blocks are
+ *  skipped unless the check sets `scanFenced: true`. */
+export function scanConcernCountClaims(
+  path: string,
+  text: string,
+  checks: ConcernCountCheck[] = CONCERN_CHECKS,
+): ContentFinding[] {
+  const findings: ContentFinding[] = [];
+  const lines = text.split(/\r?\n/);
+  let inCodeBlock = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? "";
+    if (isFenceLine(line)) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    for (const check of checks) {
+      if (inCodeBlock && !check.scanFenced) continue;
+      findings.push(...matchConcernCheckOnLine(line, i + 1, path, check));
     }
   }
   return findings;
@@ -628,6 +776,7 @@ export function runFactualClaimChecks(ctx: AuditContext): {
     if (text === null) continue;
     filesScanned++;
     findings.push(...scanCountClaims(rel, text));
+    findings.push(...scanConcernCountClaims(rel, text));
     findings.push(...scanPathReferences(rel, text, ctx));
     findings.push(...scanRemovedCommands(rel, text));
   }

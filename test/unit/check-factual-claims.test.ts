@@ -9,6 +9,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   scanCountClaims,
+  scanConcernCountClaims,
   scanPathReferences,
   scanRemovedCommands,
   runFactualClaimChecks,
@@ -17,6 +18,7 @@ import { SKILL_NAMES } from "../../src/cli/constants.js";
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
+import { CONTEXT_CHECKS } from "../../src/cli/audit/harness/check-context.js";
 import type { AuditContext } from "../../src/cli/audit/types.js";
 import type { ReadonlyFS } from "../../src/cli/types.js";
 
@@ -115,6 +117,80 @@ describe("scanCountClaims: code-block guard", () => {
     ].join("\n");
     const findings = scanCountClaims("x.md", text);
     assert.equal(findings.length, 0);
+  });
+});
+
+describe("scanConcernCountClaims", () => {
+  it("flags drift in **Context** (N) bullet prose", () => {
+    const actual = CONTEXT_CHECKS.length;
+    const wrong = actual + 1;
+    const findings = scanConcernCountClaims(
+      "docs/audit-and-quality.md",
+      `- **Context** (${wrong}) - instruction file within limit, execution loop present`,
+    );
+    const drift = findings.find((f) => f.rule === "concern-count-drift-bullet");
+    assert.ok(drift, "expected bullet-style concern drift finding");
+    assert.match(drift!.message, /Context/);
+    assert.match(drift!.message, new RegExp(`${actual}`));
+  });
+
+  it("flags drift in **Context checks (N):** narrative prose", () => {
+    const actual = CONTEXT_CHECKS.length;
+    const wrong = actual - 1;
+    const findings = scanConcernCountClaims(
+      "docs/harness-audit.md",
+      `**Context checks (${wrong}):** here are the bullets.`,
+    );
+    assert.ok(
+      findings.some((f) => f.rule === "concern-count-drift-checks-label"),
+      "expected checks-label concern drift finding",
+    );
+  });
+
+  it("flags drift in `Context: PASS (N/M)` sample inside a fenced block", () => {
+    const actual = CONTEXT_CHECKS.length;
+    const wrong = actual - 1;
+    const text = [
+      "Sample output:",
+      "```",
+      `  Context:                PASS (${wrong}/${wrong})`,
+      "```",
+    ].join("\n");
+    const findings = scanConcernCountClaims("docs/audit-and-quality.md", text);
+    const drift = findings.find(
+      (f) => f.rule === "concern-sample-output-drift",
+    );
+    assert.ok(drift, "expected sample-output drift finding from fenced block");
+    assert.equal(drift!.line, 3);
+  });
+
+  it("does not flag matching concern counts", () => {
+    const actual = CONTEXT_CHECKS.length;
+    const text = [
+      `- **Context** (${actual}) - correct.`,
+      `**Context checks (${actual}):** also correct.`,
+      "```",
+      `Context: PASS (${actual}/${actual})`,
+      "```",
+    ].join("\n");
+    const findings = scanConcernCountClaims("docs/audit-and-quality.md", text);
+    assert.equal(findings.length, 0);
+  });
+
+  it("does not flag bullet-style drift inside a fenced block (scanFenced=false for that check)", () => {
+    const actual = CONTEXT_CHECKS.length;
+    const wrong = actual + 5;
+    const text = [
+      "```markdown",
+      `- **Context** (${wrong}) - this is an inert documentation example`,
+      "```",
+    ].join("\n");
+    const findings = scanConcernCountClaims("docs/example.md", text);
+    assert.equal(
+      findings.find((f) => f.rule === "concern-count-drift-bullet"),
+      undefined,
+      "bullet pattern must not fire inside fenced blocks",
+    );
   });
 });
 
