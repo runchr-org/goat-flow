@@ -14,13 +14,13 @@ When a project already has learning-loop artifacts at legacy paths, the installe
 - `docs/lessons.md` AND `.goat-flow/lessons/` both end up present
 
 **Evidence:**
-- `workflow/install-goat-flow.sh` (search: `# 1. Create .goat-flow/ directories`) unconditionally `mkdir -p`s the `.goat-flow/*` tree without checking for pre-existing legacy equivalents at `tasks/`, `docs/footguns.md`, `docs/lessons.md`.
+- `workflow/install-goat-flow.sh` (search: `# 0. Legacy surface detection`) now performs non-blocking detection and warns on `docs/footguns.md`, `docs/lessons.md`, `docs/lessons/`, and stale skill dirs before creating the `.goat-flow/*` tree. Detection landed 2026-04-18; auto-migration is still out of scope.
 - Found by Codex on consumer projects: ambient-scribe (4 duplicate surfaces), blundergoat-platform (context-validate.sh required BOTH old and new at the time), healthkit (contradictory paths in CLAUDE.md vs config.yaml vs skills).
 - `.goat-flow/coding-standards/` was historically part of this pattern in v0.9 installs. v1.1.0 removed `coding-standards` as a first-class surface (see `workflow/setup/05-customise-to-project.md` and `.goat-flow/glossary.md`), so it is no longer a live duplicate example but older consumer projects may still have it.
 
 **Impact:** Agents receive contradictory instructions about where to write lessons and footguns. The same information ends up in multiple places and drifts. Users can't tell which is canonical.
 
-**Prevention:** Setup must detect existing artifact locations and use them, not create parallel ones. The installer currently does not run this detection — consumer projects on legacy layouts need manual migration before running install, and this footgun stays active until installer-side detection lands.
+**Prevention:** The installer now detects legacy surfaces and emits a `Legacy surfaces detected:` warning block with per-file pointers. It does NOT auto-migrate — content-merge across versions is error-prone and schema-sensitive. Consumer projects on legacy layouts must read the warning, migrate content manually, then re-run `goat-flow audit --check-drift` to confirm the parallels are gone. The footgun stays active until auto-migration is feasible (not planned for 1.2.0).
 
 ---
 

@@ -36,6 +36,9 @@ interface QualityHistoryRow {
   blockerCount: number;
   majorCount: number;
   minorCount: number;
+  /** Distinct evidence methods used across this run's findings. Lets the
+   *  dashboard distinguish runtime-probe runs from static-only runs. */
+  evidenceMethods: SavedQualityFinding["evidence_method"][];
 }
 
 interface QualityDiffFindingRow {
@@ -220,6 +223,11 @@ export function buildQualityHistoryRows(
       blockerCount: countSeverity(entry.report, "BLOCKER"),
       majorCount: countSeverity(entry.report, "MAJOR"),
       minorCount: countSeverity(entry.report, "MINOR"),
+      evidenceMethods: Array.from(
+        new Set(
+          entry.report.findings.map((finding) => finding.evidence_method),
+        ),
+      ),
     };
   });
   if (options.limit === null) return rows;

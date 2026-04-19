@@ -57,13 +57,12 @@ describe("agent registry", () => {
     );
   });
 
-  it("keeps Codex hook config and compaction capability separate", () => {
+  it("keeps Codex hook config separate from post-turn event wiring", () => {
     const codex = getAgentProfile("codex");
     assert.equal(codex.settingsFile, ".codex/config.toml");
     assert.equal(codex.hookConfigFile, ".codex/hooks.json");
     assert.equal(codex.denyHookFile, ".codex/hooks/deny-dangerous.sh");
     assert.equal(codex.hookEvents.postTurn, null);
-    assert.equal(codex.capabilities.compactionSupport, "none");
   });
 
   it("returns configured-agent subsets from config.yaml state", () => {

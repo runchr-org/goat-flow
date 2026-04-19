@@ -3,24 +3,43 @@ category: auditor
 last_reviewed: 2026-04-19
 ---
 
+## Footgun: Settings.json Read() deny does not bind Bash shell reads of secret files
+
+**Status:** active | **Created:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED
+**hallucination-risk:** high — `Read(**/.env*)` in `settings.json` looks like a blanket secret-read deny, but it only binds the Read tool. A Bash payload like `cat .env`, `source .env`, `base64 ~/.aws/credentials` is not bound by any `Read(...)` pattern and silently succeeds unless the Bash hook blocks it explicitly.
+
+**Symptoms:** `goat-flow audit --harness` reports `deny-covers-secrets: pass` while a live Bash probe (`bash .claude/hooks/deny-dangerous.sh 'cat .env'`) returns exit 0. A quality-report agent running in runtime-probe mode catches this gap; static-analysis reports miss it because the settings.json Read() coverage LOOKS complete.
+
+**Why it happens:** `settings.json` `"permissions.deny"` entries are tool-scoped: `Read(...)`, `Edit(...)`, `Write(...)`, `Bash(...)` each bind only that tool. An agent using the Bash tool to run `cat .env` is never dispatched through the Read tool, so `Read(**/.env*)` is irrelevant. Two independent coverage layers are required: `Read()` denies for the Read tool path AND Bash-hook regex coverage for shell paths.
+
+**Evidence:**
+- `.claude/settings.json` (search: `"Read(**/.env*)"`) — tool-scoped deny patterns. Not applied to Bash.
+- `.claude/hooks/deny-dangerous.sh` (search: `is_secret_path_touch`) — the Bash-side sentinel function added 2026-04-19. Blocks `cat .env`, `source .env`, `cat ~/.ssh/id_rsa`, `cat ~/.aws/credentials`, `.pem/.key/.pfx` across all four agent hooks.
+- `src/cli/audit/harness/check-constraints.ts` (search: `bashDenyCoversSecrets`) — the harness now requires BOTH `readDenyCoversSecrets` (settings.json Read patterns) AND `bashDenyCoversSecrets` (Bash hook pattern) before classifying an agent as covered.
+- `src/cli/facts/agent/hooks.ts` (search: `detectBashDenyCoversSecrets`) — fact derivation: scans the deny hook file for `\.env`, `/\.ssh/`, `/\.aws/`, `\.(pem|key|pfx)` pattern tokens.
+- Runtime probe: `bash .claude/hooks/deny-dangerous.sh 'cat .env'` now returns exit 2 with `BLOCKED: Secret-file access (cat). Reading or editing .env / SSH/AWS/GCP keys / credentials through the agent is an exfil risk.`
+
+**Prevention:**
+1. For any new secret-path family added to the harness, extend BOTH `checkReadDenyCoversSecrets` in `src/cli/facts/agent/settings.ts` AND `detectBashDenyCoversSecrets` in `src/cli/facts/agent/hooks.ts`. A settings-only addition creates the same false-pass.
+2. Every hook `--self-test` must include `run_case "cat <secret>" "cat <secret>" 2` assertions; a structural PASS without live probes re-opens the gap.
+3. When reviewing a new agent's deny setup, run a runtime probe explicitly (e.g. `bash <hook> 'cat .env'`). Static inspection alone cannot distinguish tool-scoped deny from shell-scoped deny.
+
+---
+
 ## Footgun: Audit does not prove end-to-end deny enforcement at runtime
 
 **Status:** active | **Created:** 2026-04-05 | **Updated:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED
 
-The audit now validates hook syntax, self-test behavior, and registration, but does not prove that a blocked command actually fails with exit 2 under a real sub-agent invocation. The remaining gap is end-to-end deny enforcement — a hook that passes every static check can still fail to block at runtime if registration or environment are wrong.
+The audit validates hook syntax, self-test behavior, and registration, but does not prove that a blocked command actually fails with exit 2 under a real sub-agent invocation. A hook that passes every static check can still fail to block at runtime if registration or environment are wrong.
 
-**Evidence:**
-- 4+ sessions across 112 (Claude Insights data) derailed by sub-agent permission failures hitting hooks that the audit had already validated
-- Before the self-test/runtime audit work landed, quoted-regex alternation false positives in `deny-dangerous.sh` were an unverified blind spot. That class is now covered by the self-test and direct runtime probes.
+**Residual scope** (after 2026-04-18 `agent-deny-dangerous` check which invokes the hook's `--self-test` + covers quoted-alternation false positives):
 
-**Mitigations landed (2026-04-18):**
-1. **Self-test now exists and runs.** `.codex/hooks/deny-dangerous.sh --self-test` covers 19 cases including quoted-alternation false-positive probes and pipe-to-shell / redirect bypass attempts. `check-agent-setup.ts` runs the self-test as part of the agent audit (search: `checkHookSelfTest`).
-2. **Self-test is run from the agent-setup check.** The `agent-deny-dangerous` check in `src/cli/audit/check-agent-setup.ts` invokes the self-test rather than relying on `bash -n` alone.
-3. **Quoted alternation is now covered.** `deny-dangerous.sh --self-test` includes both single-quoted and double-quoted alternation cases, and direct probes like `bash .gemini/hooks/deny-dangerous.sh 'rg -n "foo|bar" CLAUDE.md'` return exit 0.
-
-**Still open:**
 1. Hook registration cross-check (file exists ↔ registered in settings). The `deny-hook-registered` check in `harness/check-constraints.ts` partially covers this but does not verify end-to-end that a blocked command actually fails with exit 2 under real invocation.
 2. A dedicated `goat-flow verify` command for full runtime hook smoke-test is not yet built.
+
+**Evidence:**
+- 4+ sessions across 112 (Claude Insights data) derailed by sub-agent permission failures hitting hooks that the audit had already validated.
+- The `agent-deny-dangerous` check in `src/cli/audit/check-agent-setup.ts` (search: `checkHookSelfTest`) invokes `--self-test` so quoted-alternation false positives and pipe-to-shell bypass attempts are exercised, not just parsed.
 
 ---
 

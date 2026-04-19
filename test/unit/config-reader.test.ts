@@ -104,13 +104,13 @@ describe("harness.acknowledge in config", () => {
 version: "${AUDIT_VERSION}"
 harness:
   acknowledge:
-    - compaction-hook
+    - deny-blocks-pipe-to-shell
     - instruction-line-count
 `;
     const result = loadConfig("/tmp", configFS(yaml));
     assert.equal(result.valid, true);
     assert.deepStrictEqual(result.config.harness.acknowledge, [
-      "compaction-hook",
+      "deny-blocks-pipe-to-shell",
       "instruction-line-count",
     ]);
   });
@@ -119,7 +119,7 @@ harness:
     const yaml = `
 version: "${AUDIT_VERSION}"
 harness:
-  acknowledge: compaction-hook
+  acknowledge: deny-blocks-pipe-to-shell
 `;
     const result = loadConfig("/tmp", configFS(yaml));
     assert.equal(result.valid, false);

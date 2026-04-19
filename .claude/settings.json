@@ -70,17 +70,6 @@
           }
         ]
       }
-    ],
-    "Notification": [
-      {
-        "matcher": "compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo 'CONTEXT AFTER COMPACTION:' && echo 'Modified files:' && git diff --name-only 2>/dev/null && echo '---' && echo 'Check milestone files in .goat-flow/tasks/ for progress' && echo '---' && echo 'Constraints: read CLAUDE.md Autonomy Tiers before proceeding'"
-          }
-        ]
-      }
     ]
   }
 }

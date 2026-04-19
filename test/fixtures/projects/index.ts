@@ -78,7 +78,6 @@ export const STUB_AGENT_PROFILE: AgentProfile = {
   denyHookFile: ".claude/hooks/deny-dangerous.sh",
   localPattern: "*/CLAUDE.md",
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
-  capabilities: { compactionSupport: "native" },
 };
 
 export function stubAgentFacts(
@@ -136,9 +135,9 @@ export function stubAgentFacts(
       postTurnExitsZero: false,
       postTurnHasValidation: false,
       postTurnSwallowsFailures: false,
-      compactionHookExists: false,
       absolutePathHooks: [],
-      readDenyCoversSecrets: false,
+      readDenyCoversSecrets: true,
+      bashDenyCoversSecrets: true,
     },
     deny: { gitCommitBlocked: false, gitPushBlocked: false },
     router: { exists: true, paths: [], resolved: 0, unresolved: [] },

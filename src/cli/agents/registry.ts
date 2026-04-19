@@ -60,9 +60,6 @@ function toRuntimeProfile(
       preTool: agent.hook_events.pre_tool,
       postTurn: agent.hook_events.post_turn ?? null,
     },
-    capabilities: {
-      compactionSupport: agent.capabilities.compaction_support,
-    },
   };
 }
 

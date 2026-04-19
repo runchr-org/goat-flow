@@ -138,6 +138,10 @@ interface LatestQualitySummary {
   blockerCount: number;
   majorCount: number;
   minorCount: number;
+  /** Distinct evidence methods used in the latest run's findings. */
+  evidenceMethods: string[];
+  /** Optional scope declaration from the report (framework-self vs consumer). */
+  scope: string | null;
 }
 
 function parseQualityHistoryLimit(param: string | null): number | null {
@@ -161,6 +165,10 @@ function buildLatestQualitySummary(
     blockerCount: findings.filter((f) => f.severity === "BLOCKER").length,
     majorCount: findings.filter((f) => f.severity === "MAJOR").length,
     minorCount: findings.filter((f) => f.severity === "MINOR").length,
+    evidenceMethods: Array.from(
+      new Set(findings.map((f) => f.evidence_method)),
+    ),
+    scope: entry.report.scope ?? null,
   };
 }
 

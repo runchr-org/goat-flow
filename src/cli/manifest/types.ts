@@ -19,11 +19,6 @@ export interface ManifestHookEvents {
   post_turn: string | null;
 }
 
-/** Manifest capability flags for one runtime. */
-export interface ManifestAgentCapabilities {
-  compaction_support: "native" | "none";
-}
-
 /** Manifest deny-mechanism metadata for one runtime. */
 export type ManifestDenyMechanism =
   | { type: "settings-deny"; path: string }
@@ -42,7 +37,6 @@ export interface AgentProfile {
   deny_mechanism: ManifestDenyMechanism;
   local_pattern: string;
   hook_events: ManifestHookEvents;
-  capabilities: ManifestAgentCapabilities;
   hooks?: string[];
 }
 

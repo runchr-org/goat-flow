@@ -1,6 +1,6 @@
 # AI Harness Audit
 
-`goat-flow audit . --harness` adds 16 structural installation checks to the standard build audit. Each check answers an installation question — is the file present, is the registration in sync, is the deny pattern installed. Deterministic, no LLM involvement. Harness results contribute to the overall audit status. Not all checks can reach "installed" on every platform (e.g., Codex lacks compaction hooks), but install as much as possible.
+`goat-flow audit . --harness` adds 16 structural installation checks to the standard build audit. Each check answers an installation question — is the file present, is the registration in sync, is the deny pattern installed. Deterministic, no LLM involvement. Harness results contribute to the overall audit status. Not all checks can reach "installed" on every platform (e.g., Codex has no settings-based Read deny coverage; its deny layer is script-only), but install as much as possible.
 
 | Mode | Command | Question |
 |------|---------|----------|
@@ -17,7 +17,7 @@ Each harness check carries a `type` tag that determines whether (and how) a fail
 | Type | Meaning | Scored? | Opt-out |
 |------|---------|---------|---------|
 | **integrity** | Drift from install state (e.g., a router-table path that no longer resolves). Must be fixed. | Yes — fails concern. | No. |
-| **advisory** | Best practice most projects should adopt (e.g., a compaction hook). | Yes — fails concern unless acknowledged. | Yes, via `harness.acknowledge: [<check-id>]` in `.goat-flow/config.yaml`. Acknowledged advisory failures render as `acknowledged` and do not flip status. |
+| **advisory** | Best practice most projects should adopt (e.g., blocking pipe-to-shell). | Yes — fails concern unless acknowledged. | Yes, via `harness.acknowledge: [<check-id>]` in `.goat-flow/config.yaml`. Acknowledged advisory failures render as `acknowledged` and do not flip status. |
 | **metric** | Workflow maturity signal (e.g., checkbox coverage on milestones). Count-only, never scored. | No. | N/A. |
 
 ### Scoring model
@@ -32,7 +32,7 @@ Each harness check carries a `type` tag that determines whether (and how) a fail
 # .goat-flow/config.yaml
 harness:
   acknowledge:
-    - compaction-hook
+    - deny-blocks-pipe-to-shell
 ```
 
 Listing a check id silences that check. The finding still appears in audit output (so the project's opt-outs stay visible), but it is counted as `acknowledged` rather than `fail` and does not flip the concern's status.
@@ -48,7 +48,7 @@ Every registered build and harness check now carries machine-readable `provenanc
 ### The 16 checks by type
 
 - **integrity (9):** `doc-paths-resolve`, `deny-covers-secrets`, `deny-blocks-dangerous`, `deny-hook-registered`, `hooks-registered`, `milestone-tracking`, `session-logs`, `feedback-loop-active`, `decisions-tracked`
-- **advisory (5):** `instruction-line-count`, `execution-loop-present`, `deny-blocks-pipe-to-shell`, `commit-guidance`, `compaction-hook`
+- **advisory (5):** `instruction-line-count`, `execution-loop-present`, `instruction-sections-present`, `deny-blocks-pipe-to-shell`, `commit-guidance`
 - **metric (2):** `test-runner-configured`, `post-turn-hook-integrity`
 
 ---
@@ -114,11 +114,10 @@ Verification loops are consistently reported as the single highest-impact harnes
 
 Agents that run for minutes or hours need durable state. Without recovery mechanisms, a crashed session means starting from scratch.
 
-**Checks (3):**
+**Checks (2):**
 
 - `milestone-tracking` - `.goat-flow/tasks/` directory exists. Passes if directory exists (even if empty - valid for fresh installs). Reports checkbox coverage informationally.
 - `session-logs` - `.goat-flow/logs/sessions/` directory exists. Does not count entries.
-- `compaction-hook` - compaction hook registered for each settings-capable agent (Claude, Gemini). Codex is noted as platform-unsupported, not a failure.
 
 **Not checked here:** entry counts, recency, content quality of task or session files. A fresh install passes.
 

@@ -202,6 +202,10 @@ export function composeQuality(input: QualityInput): QualityPayload {
   );
   lines.push("");
   lines.push(
+    "**Glossary (brief):** *Preflight* — the local umbrella validation script (`bash scripts/preflight-checks.sh`) that runs shellcheck, typecheck, ESLint, Prettier, tests, and project-specific drift checks. Preflight PASS is a hot-path DoD signal; a failing preflight is a real finding. *Audit* — `goat-flow audit` structural installation check (deterministic, no LLM). *Quality* — the agent-driven assessment this prompt generates.",
+  );
+  lines.push("");
+  lines.push(
     "**Design notes** (do NOT flag these as findings - they are intentional):",
   );
   lines.push(
@@ -737,6 +741,8 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push(`  "project_path": "${projectPath}",`);
   lines.push(`  "run_date": "${runDate}",`);
   lines.push(`  "audit_status": "${auditStatus}",`);
+  lines.push('  "scope": "framework-self | consumer",');
+  lines.push(`  "rubric_version": "${getPackageVersion()}",`);
   lines.push('  "scores": {');
   lines.push(
     '    "setup": { "total": 0, "accuracy": 0, "relevance": 0, "completeness": 0, "friction": 0 },',
@@ -751,7 +757,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     '      "type": "setup_quality", "severity": "MAJOR", "file": ".goat-flow/architecture.md", "line": 12,',
   );
   lines.push(
-    '      "summary": "One-line finding summary", "detail": "Why it matters", "evidence_quality": "OBSERVED", "delta_tag": null',
+    '      "summary": "One-line finding summary", "detail": "Why it matters", "evidence_quality": "OBSERVED", "evidence_method": "static-analysis", "delta_tag": null',
   );
   lines.push("    }");
   lines.push("  ]");
@@ -768,6 +774,15 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("- Allowed `severity` values: `BLOCKER`, `MAJOR`, `MINOR`.");
   lines.push(
     "- `evidence_quality` is REQUIRED on every finding. Allowed values: `OBSERVED` (verified in code/output), `INFERRED` (state what's missing). Omitting this field causes the report to be rejected.",
+  );
+  lines.push(
+    "- `evidence_method` is REQUIRED on every finding (schema v2, 2026-04-19+). Allowed values: `runtime-probe` (you invoked commands/tools to verify — e.g. `npx eslint`, `bash <hook>`), `static-analysis` (you read files only), `mixed` (both methods for this specific finding). A finding labelled `OBSERVED` via `static-analysis` can still miss runtime-only defects; labelling the method honestly lets cross-report triangulation flag methodology gaps.",
+  );
+  lines.push(
+    "- `scope` is REQUIRED at top level. Set `framework-self` if you detect this is the goat-flow repo itself (heuristic: `package.json` contains `\"name\": \"@blundergoat/goat-flow\"`). Otherwise set `consumer`.",
+  );
+  lines.push(
+    `- \`rubric_version\` is REQUIRED at top level; copy the template value (\`"${getPackageVersion()}"\`). The Rating bands section above is the rubric — future readers use this version tag to trace which band anchors produced your scores.`,
   );
   lines.push(
     "- `line` must be a positive integer OR `null`. Never `0`. For file-wide findings with no specific line, use `null`.",

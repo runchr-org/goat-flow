@@ -10,7 +10,7 @@
 | Settings | `.gemini/settings.json` |
 | Skills directory | `.agents/skills/` |
 | Hooks directory | `.gemini/hooks/` |
-| Hook events used by default template | `BeforeTool`, `Notification` (`compact`) |
+| Hook events used by default template | `BeforeTool` |
 
 ## Owns
 
@@ -28,7 +28,7 @@ CLAUDE.md, AGENTS.md, `.claude/`, `.codex/`.
 
 After completing step 03 (skills):
 - Copy scripts from `workflow/hooks/` to `.gemini/hooks/`: `deny-dangerous.sh` (required)
-- Copy `workflow/hooks/agent-config/gemini.json` as `.gemini/settings.json` (ships the deny list plus the default `Notification` compaction hook)
+- Copy `workflow/hooks/agent-config/gemini.json` as `.gemini/settings.json` (ships the deny list and the `BeforeTool` Bash deny-hook registration)
 - Create `.geminiignore` with secret patterns: `.env*`, `**/secrets/`, `**/*.pem`, `**/*.key`
 
 If the project later opts into post-turn validation hooks, Gemini's post-turn event is `AfterAgent`. The default goat-flow template does not install a post-turn hook.

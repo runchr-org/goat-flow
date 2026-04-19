@@ -63,7 +63,6 @@ function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
     const hookScripts: string[] = [];
     if (agentFacts.hooks.denyExists) hookScripts.push("deny");
     if (agentFacts.hooks.postTurnExists) hookScripts.push("post-turn");
-    if (agentFacts.hooks.compactionHookExists) hookScripts.push("compaction");
     const hooksDir = profile.hooksDir ?? "hooks";
 
     lines.push("**Installed:**");

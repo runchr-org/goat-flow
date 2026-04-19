@@ -57,6 +57,54 @@ describe("parseQualityReport", () => {
     assert.equal(parsed.report.findings[0]!.delta_tag, null);
   });
 
+  it("accepts v1 reports (no evidence_method) and defaults to static-analysis", () => {
+    // M17-6 backward-compat: existing reports under .goat-flow/logs/quality/
+    // pre-date the evidence_method field; they must still load cleanly.
+    const parsed = parseQualityReport(makeRawReport());
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok) return;
+    assert.equal(parsed.report.findings[0]!.evidence_method, "static-analysis");
+  });
+
+  it("accepts v2 reports (with evidence_method) and preserves the value", () => {
+    const report = makeRawReport();
+    const parsed = parseQualityReport({
+      ...report,
+      scope: "framework-self",
+      rubric_version: "1.2.0",
+      findings: [{ ...report.findings[0], evidence_method: "runtime-probe" }],
+    });
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok) return;
+    assert.equal(parsed.report.scope, "framework-self");
+    assert.equal(parsed.report.rubric_version, "1.2.0");
+    assert.equal(parsed.report.findings[0]!.evidence_method, "runtime-probe");
+  });
+
+  it("rejects invalid evidence_method values", () => {
+    const report = makeRawReport();
+    const parsed = parseQualityReport({
+      ...report,
+      findings: [{ ...report.findings[0], evidence_method: "speculation" }],
+    });
+    assert.equal(parsed.ok, false);
+    if (parsed.ok) return;
+    assert.match(
+      parsed.error,
+      /must be one of: runtime-probe, static-analysis, mixed/i,
+    );
+  });
+
+  it("rejects invalid scope values", () => {
+    const parsed = parseQualityReport({
+      ...makeRawReport(),
+      scope: "contributor",
+    });
+    assert.equal(parsed.ok, false);
+    if (parsed.ok) return;
+    assert.match(parsed.error, /must be one of: framework-self, consumer/i);
+  });
+
   it("rejects unknown top-level keys", () => {
     const parsed = parseQualityReport({
       ...makeRawReport(),

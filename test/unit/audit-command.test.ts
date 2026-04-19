@@ -95,7 +95,6 @@ const STUB_AGENT_PROFILE: AgentProfile = {
   denyHookFile: ".claude/hooks/deny-dangerous.sh",
   localPattern: "*/CLAUDE.md",
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
-  capabilities: { compactionSupport: "native" },
 };
 
 function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
@@ -150,6 +149,8 @@ function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
       denyBlocksChmod: true,
       denyBlocksPipeToShell: false,
       denyBlocksCloudDestructive: false,
+      denyIsRegistered: true,
+      denyRegisteredPath: ".claude/hooks/deny-dangerous.sh",
       postTurnExists: false,
       postTurnRegistered: false,
       postTurnRegisteredPath: null,
@@ -157,9 +158,9 @@ function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
       postTurnExitsZero: false,
       postTurnHasValidation: false,
       postTurnSwallowsFailures: false,
-      compactionHookExists: false,
       absolutePathHooks: [],
-      readDenyCoversSecrets: false,
+      readDenyCoversSecrets: true,
+      bashDenyCoversSecrets: true,
     },
     deny: { gitCommitBlocked: false, gitPushBlocked: false },
     router: { exists: true, paths: [], resolved: 0, unresolved: [] },
@@ -456,7 +457,6 @@ describe("config.agents filtering", () => {
       denyHookFile: ".codex/hooks/deny-dangerous.sh",
       localPattern: ".github/instructions/*.md",
       hookEvents: { preTool: "", postTurn: "stop" },
-      capabilities: { compactionSupport: "none" },
     };
     const codexFacts = stubAgentFacts({ agent: codexProfile });
 
@@ -829,13 +829,13 @@ describe("M01 harness check type tagging", () => {
     }
   });
 
-  it("matches the locked M01 distribution (9 integrity, 6 advisory, 2 metric)", () => {
+  it("matches the locked M01 distribution (9 integrity, 5 advisory, 2 metric)", () => {
     const byType = { integrity: 0, advisory: 0, metric: 0 } as Record<
       string,
       number
     >;
     for (const check of HARNESS_CHECKS) byType[check.type]!++;
-    assert.deepStrictEqual(byType, { integrity: 9, advisory: 6, metric: 2 });
+    assert.deepStrictEqual(byType, { integrity: 9, advisory: 5, metric: 2 });
   });
 
   it("known-integrity ids are tagged integrity", () => {
@@ -875,92 +875,110 @@ describe("M01 harness check type tagging", () => {
 });
 
 describe("M01 scoring model", () => {
-  // Stub context where every integrity check passes; compaction-hook (advisory)
-  // fails because stubAgentFacts defaults compactionHookExists to false.
-  function wellSetupButMissingCompaction(overrides: {
-    acknowledge?: string[];
-  }) {
-    return makeCtx({
-      config: stubConfig({
-        harness: { acknowledge: overrides.acknowledge ?? [] },
-      }),
-    });
-  }
-
   it("unacknowledged advisory fail flips concern.status to fail", () => {
-    const ctx = wellSetupButMissingCompaction({});
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      denyBlocksPipeToShell: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({ agents: [stubAgentFacts({ hooks })] });
     const { concerns } = computeHarness(ctx);
-    // compaction-hook is advisory + recovery concern; failure should flip status.
-    assert.equal(concerns.recovery.status, "fail");
-    assert.equal(concerns.recovery.advisoryFail, 1);
-    assert.equal(concerns.recovery.advisoryAcknowledged, 0);
+    // deny-blocks-pipe-to-shell is advisory + constraints concern.
+    assert.equal(concerns.constraints.status, "fail");
+    assert.equal(concerns.constraints.advisoryFail, 1);
+    assert.equal(concerns.constraints.advisoryAcknowledged, 0);
   });
 
   it("acknowledged advisory fail does NOT flip the owning concern's status", () => {
-    // Recovery concern contains compaction-hook (advisory) + milestone-tracking
-    // (integrity) + session-logs (integrity). With the default stubFS the two
-    // integrity checks pass, so acknowledging compaction-hook should make
-    // recovery.status = pass.
-    const ctx = wellSetupButMissingCompaction({
-      acknowledge: ["compaction-hook"],
-    });
-    const { concerns } = computeHarness(ctx);
-    assert.equal(concerns.recovery.status, "pass");
-    assert.equal(concerns.recovery.advisoryFail, 0);
-    assert.equal(concerns.recovery.advisoryAcknowledged, 1);
-    assert.equal(concerns.recovery.integrityPass, 2);
-  });
-
-  it("acknowledged advisory does not add to scope.failures", () => {
-    const ctx = wellSetupButMissingCompaction({
-      acknowledge: ["compaction-hook"],
-    });
-    const { scope } = computeHarness(ctx);
-    assert.ok(
-      !scope.failures.some((f) => f.check.toLowerCase().includes("compaction")),
-      `Acknowledged compaction-hook should not appear in scope.failures: ${JSON.stringify(scope.failures)}`,
-    );
-  });
-
-  it("treats compaction support as framework capability, not project enablement", () => {
-    const ctx = makeCtx({
-      agents: [
-        stubAgentFacts({
-          agent: PROFILES.codex,
-          hooks: {
-            ...stubAgentFacts().hooks,
-            compactionHookExists: false,
-          },
-        }),
-      ],
-    });
-    const { concerns, scope } = computeHarness(ctx);
-    const compaction = scope.checks.find((c) => c.id === "compaction-hook")!;
-    assert.equal(concerns.recovery.status, "pass");
-    assert.equal(compaction.status, "pass");
-    assert.equal(compaction.failure, undefined);
-  });
-
-  it("acknowledge silences exactly the listed id, not other advisories", () => {
-    // Craft a scenario where two advisory checks fail: compaction-hook and
-    // deny-blocks-pipe-to-shell. Acknowledge only compaction-hook.
     const hooks = {
       ...stubAgentFacts().hooks,
-      compactionHookExists: false,
       denyBlocksPipeToShell: false,
-    } as AgentFacts["hooks"];
+    } satisfies AgentFacts["hooks"];
     const ctx = makeCtx({
       config: stubConfig({
-        harness: { acknowledge: ["compaction-hook"] },
+        harness: { acknowledge: ["deny-blocks-pipe-to-shell"] },
       }),
       agents: [stubAgentFacts({ hooks })],
     });
     const { concerns } = computeHarness(ctx);
-    // Recovery fail is acknowledged → pass; constraints fail is NOT acknowledged → fail.
-    assert.equal(concerns.recovery.status, "pass");
-    assert.equal(concerns.recovery.advisoryAcknowledged, 1);
-    assert.equal(concerns.constraints.status, "fail");
-    assert.equal(concerns.constraints.advisoryFail, 1);
+    assert.equal(concerns.constraints.status, "pass");
+    assert.equal(concerns.constraints.advisoryFail, 0);
+    assert.equal(concerns.constraints.advisoryAcknowledged, 1);
+  });
+
+  it("acknowledged advisory does not add to scope.failures", () => {
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      denyBlocksPipeToShell: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({
+      config: stubConfig({
+        harness: { acknowledge: ["deny-blocks-pipe-to-shell"] },
+      }),
+      agents: [stubAgentFacts({ hooks })],
+    });
+    const { scope } = computeHarness(ctx);
+    assert.ok(
+      !scope.failures.some((f) =>
+        f.check.toLowerCase().includes("pipe-to-shell"),
+      ),
+      `Acknowledged advisory should not appear in scope.failures: ${JSON.stringify(scope.failures)}`,
+    );
+  });
+
+  it("acknowledge silences exactly the listed id, not other advisories", () => {
+    // Craft a scenario where two advisory checks fail and acknowledge only one.
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      denyBlocksPipeToShell: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({
+      config: stubConfig({
+        harness: { acknowledge: ["deny-blocks-pipe-to-shell"] },
+        instruction_file_line_target: 40,
+        instruction_file_line_limit: 45,
+      }),
+      agents: [stubAgentFacts({ hooks })],
+    });
+    const { concerns } = computeHarness(ctx);
+    // constraints fail is acknowledged → pass. instruction-line-count (advisory
+    // under context) will also fail because the stub instruction file is 50
+    // lines vs a 45-line limit — NOT acknowledged → context.status fail.
+    assert.equal(concerns.constraints.status, "pass");
+    assert.equal(concerns.constraints.advisoryAcknowledged, 1);
+    assert.equal(concerns.context.status, "fail");
+    assert.ok(concerns.context.advisoryFail >= 1);
+  });
+
+  it("deny-covers-secrets fails when settings Read deny is present but Bash hook lacks secret-path coverage", () => {
+    // Models the M17-1 gap: settings.json has Read(**/.env*) etc., but the Bash
+    // deny hook still allows `cat .env` / `source .env`. The harness must fail
+    // on this even though the old check classified the agent as "covered".
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      readDenyCoversSecrets: true,
+      bashDenyCoversSecrets: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({ agents: [stubAgentFacts({ hooks })] });
+    const { scope } = computeHarness(ctx);
+    const secrets = scope.checks.find((c) => c.id === "deny-covers-secrets");
+    assert.ok(secrets, "deny-covers-secrets check should be present");
+    assert.equal(
+      secrets.status,
+      "fail",
+      "deny-covers-secrets must fail when Bash hook has no secret-path coverage",
+    );
+  });
+
+  it("deny-covers-secrets passes when both settings Read deny and Bash hook cover secrets", () => {
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      readDenyCoversSecrets: true,
+      bashDenyCoversSecrets: true,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({ agents: [stubAgentFacts({ hooks })] });
+    const { scope } = computeHarness(ctx);
+    const secrets = scope.checks.find((c) => c.id === "deny-covers-secrets");
+    assert.equal(secrets?.status, "pass");
   });
 
   it("metric checks never flip concern.status (always pass) and are counted", () => {
@@ -972,14 +990,23 @@ describe("M01 scoring model", () => {
   });
 
   it("CheckResult carries type, acknowledged, and provenance fields", () => {
-    const ctx = wellSetupButMissingCompaction({
-      acknowledge: ["compaction-hook"],
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      denyBlocksPipeToShell: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({
+      config: stubConfig({
+        harness: { acknowledge: ["deny-blocks-pipe-to-shell"] },
+      }),
+      agents: [stubAgentFacts({ hooks })],
     });
     const { scope } = computeHarness(ctx);
-    const compaction = scope.checks.find((c) => c.id === "compaction-hook")!;
-    assert.equal(compaction.type, "advisory");
-    assert.equal(compaction.acknowledged, true);
-    assert.equal(compaction.provenance.normative_level, "SHOULD");
+    const advisory = scope.checks.find(
+      (c) => c.id === "deny-blocks-pipe-to-shell",
+    )!;
+    assert.equal(advisory.type, "advisory");
+    assert.equal(advisory.acknowledged, true);
+    assert.equal(advisory.provenance.normative_level, "SHOULD");
     const docs = scope.checks.find((c) => c.id === "doc-paths-resolve")!;
     assert.equal(docs.type, "integrity");
     assert.equal(docs.acknowledged, undefined);
@@ -987,17 +1014,23 @@ describe("M01 scoring model", () => {
   });
 
   it("advisory failure emits WHY-not-integrity evidence with the check id", () => {
-    const ctx = wellSetupButMissingCompaction({});
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      denyBlocksPipeToShell: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({ agents: [stubAgentFacts({ hooks })] });
     const { scope } = computeHarness(ctx);
-    const compaction = scope.checks.find((c) => c.id === "compaction-hook")!;
-    assert.ok(compaction.failure, "advisory failure should have a failure obj");
+    const advisory = scope.checks.find(
+      (c) => c.id === "deny-blocks-pipe-to-shell",
+    )!;
+    assert.ok(advisory.failure, "advisory failure should have a failure obj");
     assert.ok(
-      compaction.failure!.evidence?.includes("Advisory"),
-      `evidence should explain advisory framing: ${compaction.failure!.evidence}`,
+      advisory.failure!.evidence?.includes("Advisory"),
+      `evidence should explain advisory framing: ${advisory.failure!.evidence}`,
     );
     assert.ok(
-      compaction.failure!.evidence?.includes("compaction-hook"),
-      `evidence should reference the check id: ${compaction.failure!.evidence}`,
+      advisory.failure!.evidence?.includes("deny-blocks-pipe-to-shell"),
+      `evidence should reference the check id: ${advisory.failure!.evidence}`,
     );
   });
 });
@@ -1041,7 +1074,6 @@ describe("composeSetup routing", () => {
             ...stubAgentFacts().hooks,
             denyExists: true,
             postTurnExists: true,
-            compactionHookExists: true,
           },
         }),
       ]);
@@ -1058,7 +1090,7 @@ describe("composeSetup routing", () => {
       assert.match(output, /7\/7 skills installed \(in \.agents\/skills\/\)/);
       assert.match(
         output,
-        /3 hook scripts \(deny, post-turn, compaction\) in \.codex\/hooks\//,
+        /2 hook scripts \(deny, post-turn\) in \.codex\/hooks\//,
       );
       assert.match(output, /Run `goat-flow audit \. --harness`/);
       assert.ok(

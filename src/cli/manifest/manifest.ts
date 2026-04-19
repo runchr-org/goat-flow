@@ -329,14 +329,14 @@ export function renderManifestMarkdown(m: Manifest): string {
   lines.push("## Agents");
   lines.push("");
   lines.push(
-    "| Agent | Instruction | Settings | Hook config | Hooks | Skills | Compaction |",
+    "| Agent | Instruction | Settings | Hook config | Hooks | Skills |",
   );
   lines.push(
-    "|------|-------------|----------|-------------|-------|--------|------------|",
+    "|------|-------------|----------|-------------|-------|--------|",
   );
   for (const [id, agent] of Object.entries(m.agents)) {
     lines.push(
-      `| \`${id}\` (${agent.name}) | \`${agent.instruction_file}\` | \`${agent.settings ?? "n/a"}\` | \`${agent.hook_config_file ?? agent.settings ?? "n/a"}\` | \`${agent.hooks_dir ?? "n/a"}\` | \`${agent.skills_dir}\` | \`${agent.capabilities.compaction_support}\` |`,
+      `| \`${id}\` (${agent.name}) | \`${agent.instruction_file}\` | \`${agent.settings ?? "n/a"}\` | \`${agent.hook_config_file ?? agent.settings ?? "n/a"}\` | \`${agent.hooks_dir ?? "n/a"}\` | \`${agent.skills_dir}\` |`,
     );
   }
   lines.push("");

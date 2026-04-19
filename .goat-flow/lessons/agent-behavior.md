@@ -285,13 +285,15 @@ last_reviewed: 2026-04-19
 
 ---
 
-## Lesson: Skill session logs are never written
+## Lesson: Session-log contract is conditional, not per-skill-invocation
 
-**Created:** 2026-03-30
+**Created:** 2026-03-30 | **Updated:** 2026-04-19
 
-**What happened:** Every skill says "If `.goat-flow/logs/` exists → write session summary" in the closing protocol. The goat-review audit ran the full skill process but no session log was written. 0% compliance. The instruction fires at the END of a skill - after the agent has already delivered output and is mentally "done."
+**What happened:** Earlier skill templates said "If `.goat-flow/logs/` exists → write session summary" in a closing protocol that fired after every skill run. A goat-review audit ran the full skill process but no session log was written. 0% compliance. The instruction fired at the END of a skill — after the agent had already delivered output and was mentally "done."
 
-**Prevention:** The closing protocol needs mechanical enforcement, not just a rule. Options: add session logging to DoD gates, add a Stop hook, or make session logging the FIRST line of the output format.
+**Current contract** (per `skill-preamble.md` + `skill-conventions.md`, post-2026-04-18): session logs are OPTIONAL continuity notes. Write one only when (a) `/compact` fires without an active milestone file, or (b) a milestone sequence completes. Otherwise skip — the old blanket "every invocation" rule is retired.
+
+**Prevention:** Do not put a "write a session log" bullet in every skill's closing protocol. Keep the conditional phrasing in `skill-preamble.md` / `skill-conventions.md` and let skills opt in via the Milestone Retrospective pattern. The Notification/compact hook that was meant to mechanize this was silently dead (see `.goat-flow/footguns/hooks.md` Resolved Entries 2026-04-19) — don't revive that approach.
 
 ---
 

@@ -10,7 +10,7 @@ AI coding agents are powerful but unreliable. They skip verification steps, crea
 
 **Skills** -- Seven structured workflows (`/goat-debug`, `/goat-review`, `/goat-plan`, `/goat-critique`, `/goat-security`, `/goat-qa`, `/goat`) with phases and human gates. The `/goat` dispatcher classifies your request and routes to the right skill automatically.
 
-**Enforcement Hooks** -- Pre-tool hooks intercept dangerous commands (`rm -rf`, force push, secret file access) and reject them with an explanation. goat-flow ships `deny-dangerous.sh` - project-specific linting and constraints are registered in `config.yaml`.
+**Enforcement Hooks** -- Pre-tool hooks intercept dangerous commands (`rm -rf`, force push, secret file access) and reject them with an explanation. goat-flow ships `deny-dangerous.sh`; add project-specific hooks alongside it to cover local concerns.
 
 **Learning Loop** -- Agents record footguns, lessons, decisions, and session logs in `.goat-flow/`. Next session, they read these before acting. Mistakes stop repeating.
 

@@ -24,3 +24,7 @@ All checks are fully deterministic - no LLM calls, no randomness, no network I/O
 2. **Make feedback recency configurable** - Deferred. 90 days is generous. Can add config later if projects need different thresholds.
 
 3. **Add checks to the rubric system instead** - Rejected. The rubric and quality checks are separate systems. Quality checks (`--harness`) score the 5 concerns and never block CI. The rubric scores individual check definitions. The new checks belong in quality because they measure concern-level effectiveness, not individual check compliance.
+
+## Supersedes
+
+2026-04-19 (M17-2): `compactionHookExists` was removed from the facts system along with the `Notification`/`compact` hook machinery it detected. The matcher turned out to be dead on Claude Code (compaction fires `PreCompact` / `PostCompact`, not `Notification` + `"compact"`), so the fact was reporting false-positive coverage. The harness `compaction-hook` advisory check was deleted; the recovery concern is now 2 checks (milestone-tracking, session-logs) instead of 3. See `.goat-flow/tasks/1.2.0/M17-quality-report-followups.md` slice M17-2.

@@ -6,7 +6,7 @@ import type { HarnessCheck, AuditContext } from "../types.js";
 import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
 
-const VERIFIED_ON = "2026-04-18";
+const VERIFIED_ON = "2026-04-19";
 
 function constraintsProvenance(
   type: HarnessCheck["type"],
@@ -27,18 +27,33 @@ function constraintsProvenance(
   };
 }
 
-/** Classify each agent by whether its deny rules cover secret-bearing files. */
+/** Classify each agent by whether BOTH its settings.json Read deny rules AND its
+ *  Bash deny hook cover secret-bearing files. Settings.json Read() patterns only
+ *  bind the Read tool; Bash shell reads (cat/source/base64/etc.) bypass them
+ *  entirely, so Bash-side coverage is required for any non-script-only agent. */
 function classifySecretDeny(ctx: Pick<AuditContext, "agents">) {
   const covered: string[] = [];
   const uncovered: string[] = [];
   const scriptOnly: string[] = [];
   for (const af of ctx.agents) {
-    if (af.hooks.readDenyCoversSecrets) {
-      covered.push(af.agent.id);
-    } else if (af.agent.denyMechanism.type === "deny-script") {
-      scriptOnly.push(af.agent.id);
+    const bashOk = af.hooks.bashDenyCoversSecrets;
+    const readOk = af.hooks.readDenyCoversSecrets;
+    const isScriptOnly = af.agent.denyMechanism.type === "deny-script";
+
+    if (isScriptOnly) {
+      // Script-only agents (e.g. Copilot) rely entirely on the Bash hook.
+      if (bashOk) {
+        scriptOnly.push(af.agent.id);
+      } else {
+        uncovered.push(af.agent.id);
+      }
     } else {
-      uncovered.push(af.agent.id);
+      // Settings-based agents need BOTH settings.json Read deny AND Bash hook coverage.
+      if (readOk && bashOk) {
+        covered.push(af.agent.id);
+      } else {
+        uncovered.push(af.agent.id);
+      }
     }
   }
   return { covered, uncovered, scriptOnly };
@@ -68,24 +83,26 @@ const denyCoversSecrets: HarnessCheck = {
     }
     const findings: string[] = [];
     if (covered.length > 0) {
-      findings.push(`${covered.join(", ")}: deny patterns cover secrets`);
+      findings.push(
+        `${covered.join(", ")}: settings Read deny + Bash hook both cover secrets`,
+      );
     }
     if (scriptOnly.length > 0) {
       findings.push(
-        `${scriptOnly.join(", ")}: script-based deny only - file-read deny not available`,
+        `${scriptOnly.join(", ")}: script-only deny; Bash hook covers secret paths`,
       );
     }
     if (uncovered.length > 0) {
       findings.push(
-        `${uncovered.join(", ")}: deny patterns missing secret file coverage`,
+        `${uncovered.join(", ")}: secret-file coverage incomplete (either settings.json Read deny OR Bash hook pattern is missing)`,
       );
       return fail(
         findings,
         [
-          `Add deny patterns for .env, credentials, and key files to ${uncovered.join(", ")}`,
+          `Add secret-read coverage to ${uncovered.join(", ")}: settings.json Read() patterns for .env / .ssh / .aws / .pem / .key, AND the Bash deny hook must block cat/source/base64/etc. on the same paths.`,
         ],
         [
-          `Add deny patterns for .env, .credentials, *.key, and *.pem files to ${uncovered.join(", ")} agent configuration.`,
+          `${uncovered.join(", ")}: extend settings.json deny with Read() patterns for .env, .ssh, .aws, credentials, *.key, *.pem AND add an is_secret_path_touch (or equivalent) check in the Bash deny hook. Settings.json Read() deny alone does not bind Bash shell reads.`,
         ],
       );
     }

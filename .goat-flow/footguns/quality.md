@@ -21,4 +21,4 @@ last_reviewed: 2026-04-19
 2. If the agent replied with a fenced JSON block instead of writing a file, ask it to save the block to the expected path using its filesystem tool before closing the session.
 3. Only after the file exists on disk is `quality history` / `quality diff` meaningful — both silently return empty when nothing is saved, so a missing save looks identical to "no prior runs."
 
-See `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` for the direct-write design rationale and `.goat-flow/lessons/design-decisions.md` (2026-04-19 amendment under "Don't carve I/O side-effect exceptions into prompts that forbid I/O") for the historical thread that led here.
+See `.goat-flow/lessons/design-decisions.md` (2026-04-19 amendment under "Don't carve I/O side-effect exceptions into prompts that forbid I/O") for the historical thread that led here.

@@ -73,7 +73,7 @@ The audit checks whether files exist, paths resolve, and patterns are registered
 
 ### 4. Recovery
 
-**Audit checks:** tasks directory exists, session logs directory exists, compaction hook registered.
+**Audit checks:** tasks directory exists, session logs directory exists.
 
 **Quality evaluates:**
 - Do milestone files have trackable checkbox items with clear completion criteria?

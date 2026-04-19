@@ -17,6 +17,12 @@ const QUALITY_FINDING_TYPES = [
 
 const QUALITY_FINDING_SEVERITIES = ["BLOCKER", "MAJOR", "MINOR"] as const;
 const QUALITY_EVIDENCE_QUALITIES = ["OBSERVED", "INFERRED"] as const;
+const QUALITY_EVIDENCE_METHODS = [
+  "runtime-probe",
+  "static-analysis",
+  "mixed",
+] as const;
+const QUALITY_SCOPES = ["framework-self", "consumer"] as const;
 const QUALITY_DELTA_TAGS = ["new", "persisted"] as const;
 const QUALITY_AUDIT_STATUSES = ["pass", "fail", "unavailable"] as const;
 const QUALITY_SCORE_VALUES = [0, 5, 10, 15, 20, 25] as const;
@@ -26,6 +32,9 @@ export type QualityFindingSeverity =
   (typeof QUALITY_FINDING_SEVERITIES)[number];
 export type QualityEvidenceQuality =
   (typeof QUALITY_EVIDENCE_QUALITIES)[number];
+export type QualityEvidenceMethod =
+  (typeof QUALITY_EVIDENCE_METHODS)[number];
+export type QualityScope = (typeof QUALITY_SCOPES)[number];
 export type QualityDeltaTag = (typeof QUALITY_DELTA_TAGS)[number];
 export type QualityAuditStatus = (typeof QUALITY_AUDIT_STATUSES)[number];
 export type QualityAxisScore = (typeof QUALITY_SCORE_VALUES)[number];
@@ -59,6 +68,9 @@ export interface QualityFinding {
   summary: string;
   detail: string;
   evidence_quality: QualityEvidenceQuality;
+  /** How the finding was observed. Present on v2+ reports (2026-04-19+).
+   *  Absent on v1 reports, defaulted to "static-analysis" at parse time. */
+  evidence_method: QualityEvidenceMethod;
   delta_tag: QualityDeltaTag | null;
 }
 
@@ -73,6 +85,12 @@ export interface QualityReport {
   project_path: string;
   run_date: string;
   audit_status: QualityAuditStatus;
+  /** Optional: "framework-self" for a goat-flow-on-goat-flow review,
+   *  "consumer" for a review of a downstream project. Absent on v1 reports. */
+  scope?: QualityScope;
+  /** Optional: the rubric version under which scores were produced.
+   *  Lets readers trace score derivation. Absent on v1 reports. */
+  rubric_version?: string;
   scores: QualityScores;
   findings: QualityFinding[];
 }
@@ -327,6 +345,7 @@ function parseFinding(
         "summary",
         "detail",
         "evidence_quality",
+        "evidence_method",
         "delta_tag",
       ]
     : [
@@ -337,6 +356,7 @@ function parseFinding(
         "summary",
         "detail",
         "evidence_quality",
+        "evidence_method",
         "delta_tag",
       ];
   const unknownKeyError = rejectUnknownKeys(raw, allowedKeys, path);
@@ -377,6 +397,19 @@ function parseFinding(
   );
   if (!evidenceQuality.ok) return evidenceQuality;
 
+  // evidence_method: optional on v1 reports, defaulted to "static-analysis".
+  // Required on v2+ emissions (compose-quality.ts enforces at prompt level).
+  let evidenceMethod: QualityEvidenceMethod = "static-analysis";
+  if (Object.hasOwn(raw, "evidence_method")) {
+    const parsedMethod = expectEnumValue(
+      raw.evidence_method,
+      `${path}.evidence_method`,
+      QUALITY_EVIDENCE_METHODS,
+    );
+    if (!parsedMethod.ok) return parsedMethod;
+    evidenceMethod = parsedMethod.value;
+  }
+
   const deltaTagRaw = Object.hasOwn(raw, "delta_tag") ? raw.delta_tag : null;
   let deltaTag: QualityDeltaTag | null = null;
   if (deltaTagRaw !== null) {
@@ -397,6 +430,7 @@ function parseFinding(
     summary: summary.value,
     detail: detail.value,
     evidence_quality: evidenceQuality.value,
+    evidence_method: evidenceMethod,
     delta_tag: deltaTag,
   };
 
@@ -432,6 +466,8 @@ function parseReportInternal(
       "project_path",
       "run_date",
       "audit_status",
+      "scope",
+      "rubric_version",
       "scores",
       "findings",
     ],
@@ -480,6 +516,30 @@ function parseReportInternal(
     QUALITY_AUDIT_STATUSES,
   );
   if (!auditStatus.ok) return auditStatus;
+
+  // scope: optional on v1, enum-validated when present.
+  let scope: QualityScope | undefined;
+  if (Object.hasOwn(raw, "scope")) {
+    const parsedScope = expectEnumValue(
+      raw.scope,
+      "report.scope",
+      QUALITY_SCOPES,
+    );
+    if (!parsedScope.ok) return parsedScope;
+    scope = parsedScope.value;
+  }
+
+  // rubric_version: optional on v1, non-empty string when present.
+  let rubricVersion: string | undefined;
+  if (Object.hasOwn(raw, "rubric_version")) {
+    const parsedRubric = expectNonEmptyString(
+      raw.rubric_version,
+      "report.rubric_version",
+    );
+    if (!parsedRubric.ok) return parsedRubric;
+    rubricVersion = parsedRubric.value;
+  }
+
   const scores = parseScores(raw.scores, "report.scores");
   if (!scores.ok) return scores;
   if (!Array.isArray(raw.findings)) {
@@ -500,6 +560,8 @@ function parseReportInternal(
     project_path: projectPath.value,
     run_date: runDate.value,
     audit_status: auditStatus.value,
+    ...(scope !== undefined ? { scope } : {}),
+    ...(rubricVersion !== undefined ? { rubric_version: rubricVersion } : {}),
     scores: scores.scores,
   };
 

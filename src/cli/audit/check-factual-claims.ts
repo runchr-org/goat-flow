@@ -88,6 +88,31 @@ const COUNT_CHECKS: CountClaimCheck[] = [
     label: "harness checks across 5 concerns",
   },
   {
+    rule: "ai-harness-count-drift",
+    pattern: /\b(\d+)\s+AI\s+[Hh]arness\b/g,
+    actual: () => HARNESS_CHECKS.length,
+    label: "AI harness installation checks",
+  },
+  {
+    rule: "harness-structural-count-drift",
+    pattern: /\b(\d+)\s+structural\s+installation\s+checks?\b/gi,
+    actual: () => HARNESS_CHECKS.length,
+    label: "structural installation checks",
+  },
+  {
+    rule: "harness-scope-flag-count-drift",
+    pattern:
+      /AI\s+Harness\s+Completeness\s+scope\s*\((\d+)\s+checks?\b/gi,
+    actual: () => HARNESS_CHECKS.length,
+    label: "AI Harness Completeness scope",
+  },
+  {
+    rule: "harness-checks-by-type-drift",
+    pattern: /\bThe\s+(\d+)\s+checks?\s+by\s+type\b/gi,
+    actual: () => HARNESS_CHECKS.length,
+    label: "checks by type",
+  },
+  {
     rule: "setup-check-count-drift",
     pattern: /\b(\d+)\s+checks\s+on\s+goat-flow-owned\s+surfaces\b/gi,
     actual: () => SETUP_CHECKS.length,

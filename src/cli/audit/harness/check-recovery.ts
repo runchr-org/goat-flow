@@ -1,6 +1,6 @@
 /**
  * Recovery concern: Can the agent resume after crash or compaction?
- * 3 checks: milestone-tracking, session-logs, compaction-hook.
+ * 2 checks: milestone-tracking, session-logs.
  */
 import type { HarnessCheck } from "../types.js";
 import type { CheckEvidence } from "../provenance-types.js";
@@ -108,66 +108,4 @@ const sessionLogs: HarnessCheck = {
   },
 };
 
-const compactionHook: HarnessCheck = {
-  id: "compaction-hook",
-  name: "Compaction hook registered",
-  concern: "recovery",
-  type: "advisory",
-  provenance: recoveryProvenance(
-    "advisory",
-    ["docs/harness-audit.md", ".goat-flow/footguns/hooks.md"],
-    "incident",
-  ),
-  run: (ctx) => {
-    const covered: string[] = [];
-    const uncovered: string[] = [];
-    const unsupported: string[] = [];
-    for (const af of ctx.agents) {
-      if (af.agent.capabilities.compactionSupport === "none") {
-        unsupported.push(af.agent.id);
-        continue;
-      }
-      if (af.hooks.compactionHookExists) {
-        covered.push(af.agent.id);
-      } else {
-        uncovered.push(af.agent.id);
-      }
-    }
-    if (uncovered.length === 0) {
-      const findings: string[] = [];
-      if (covered.length > 0) {
-        findings.push(`${covered.join(", ")}: compaction hook registered`);
-      }
-      if (unsupported.length > 0) {
-        findings.push(
-          `${unsupported.join(", ")}: context compaction not supported - not checked`,
-        );
-      }
-      return pass(findings);
-    }
-
-    const findings: string[] = [];
-    if (covered.length > 0) {
-      findings.push(`${covered.join(", ")}: compaction hook registered`);
-    }
-    if (unsupported.length > 0) {
-      findings.push(
-        `${unsupported.join(", ")}: context compaction not supported - not checked`,
-      );
-    }
-    findings.push(`${uncovered.join(", ")}: no compaction hook registered`);
-    return fail(
-      findings,
-      [`Add compaction hook for ${uncovered.join(", ")}`],
-      [
-        `Register a compaction hook for ${uncovered.join(", ")} that re-injects task state after context compression.`,
-      ],
-    );
-  },
-};
-
-export const RECOVERY_CHECKS: HarnessCheck[] = [
-  milestoneTracking,
-  sessionLogs,
-  compactionHook,
-];
+export const RECOVERY_CHECKS: HarnessCheck[] = [milestoneTracking, sessionLogs];

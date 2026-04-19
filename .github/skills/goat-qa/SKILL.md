@@ -176,6 +176,10 @@ After a bug fix: define 1-2 invariants, assess coverage of each invariant, then 
 
 ## Output Format
 
+Output shape depends on the mode declared in Step 0. Pick the template that matches the mode you ran.
+
+### Standard mode (diff-driven)
+
 ```markdown
 ## TL;DR  <!-- what changed, what's at risk, biggest testing gaps -->
 
@@ -201,5 +205,34 @@ After a bug fix: define 1-2 invariants, assess coverage of each invariant, then 
 - Doer-verifier separation: [FULL / PARTIAL / NONE]
 
 ## Regression Guards  <!-- only if fixing a bug -->
+## Flow Diagram  <!-- only on request -->
+```
+
+### Audit mode (no diff — A1–A4 shape)
+
+```markdown
+## TL;DR  <!-- which files carry load-bearing behaviour, coverage shape, biggest gaps -->
+
+## Scope
+<!-- Declared boundary from A1: directory, module, or risk class. -->
+
+## Inventory and Risk Ranking
+| File | Role | Risk |
+<!-- Roles: load-bearing / interface boundary / integration glue / UI / support -->
+
+## Coverage Analysis
+| File | Test file | Coverage | Notes |
+<!-- Coverage: NONE | STRUCTURAL | PARTIAL-BEHAVIOURAL | BEHAVIOURAL -->
+
+## Gap Report
+### Blocking gaps  <!-- CRITICAL-risk + NONE/STRUCTURAL coverage -->
+### High-value additions  <!-- HIGH-risk + PARTIAL coverage -->
+### Defer  <!-- LOW-risk or well-covered -->
+
+## Verification Integrity
+
+- Assessed by: [agent]
+- Would-be testers: [who executes once gaps are filled]
+
 ## Flow Diagram  <!-- only on request -->
 ```

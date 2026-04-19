@@ -52,7 +52,7 @@ setup/
   04-architecture-code-map.md  # Architecture doc and code map creation
   05-customise-to-project.md   # Learning loop, hooks, config
   06-final-verification.md # Post-setup verification and audit gate
-  agents/                  # Agent-specific config (claude.md, codex.md, gemini.md)
+  agents/                  # Agent-specific config (claude.md, codex.md, gemini.md, copilot.md)
   reference/               # execution-loop.md, coding guidelines, security refs
 
 skills/
@@ -63,7 +63,7 @@ skills/
   goat-critique/SKILL.md   # Multi-perspective critique skill template
   goat-security/SKILL.md   # Security assessment skill template
   goat-qa/SKILL.md         # Testing gap analysis skill template
-  reference/               # skill-preamble.md, skill-conventions.md
+  reference/               # skill-preamble.md, skill-conventions.md, skill-quality-testing.md
 
 hooks/                     # Hook templates (deny-dangerous.sh, etc.)
 evaluation/                # Quality-assessment prompt templates

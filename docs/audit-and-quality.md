@@ -60,11 +60,11 @@ Adds 16 checks across the five harness concerns on top of the default build chec
 
 Harness checks are grouped by **concern** -- the five things every major harness engineering source agrees matter for agent effectiveness. See [harness-engineering.md](harness-engineering.md) for what each concern means and the sources behind the model.
 
-**harness scope** (AI Harness Completeness) - 17 checks across 5 concerns:
+**harness scope** (AI Harness Completeness) - 16 checks across 5 concerns:
 - **Context** (4) - instruction file within line limit, execution loop present, doc paths resolve, required instruction sections present (advisory)
 - **Constraints** (4) - deny covers secrets, deny blocks dangerous commands, deny blocks pipe-to-shell, deny hook registered in agent settings
 - **Verification** (4) - test runner configured, hooks in sync, commit guidance, post-turn hook integrity
-- **Recovery** (3) - milestone tracking, session logs, compaction hook
+- **Recovery** (2) - milestone tracking, session logs
 - **Feedback Loop** (2) - feedback loop directories exist, decisions tracked
 
 Sample harness output:
@@ -83,7 +83,7 @@ AI Harness Completeness:  PASS
   Context:                PASS (3/3)
   Constraints:            FAIL (3/4) - pipe-to-shell not blocked for codex
   Verification:           PASS (4/4)
-  Recovery:               PASS (3/3)
+  Recovery:               PASS (2/2)
   Feedback Loop:          PASS (2/2)
 
 Result: FAIL (Constraints)
