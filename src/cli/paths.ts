@@ -47,3 +47,17 @@ export function getTemplatePath(relative: string): string {
 export function getCliCommand(): string {
   return `node ${join(GOAT_FLOW_ROOT, "dist", "cli", "cli.js")}`;
 }
+
+/** True when goat-flow is running from a packaged install rather than a source
+ *  checkout. `package.json` `files` ships only `dist/` + `workflow/` (plus a
+ *  small set of runtime helpers), so consumer environments do not have `src/`
+ *  or `.goat-flow/*` present. Code that reads source files at runtime, or
+ *  validates evidence_paths that point at framework-repo docs, must gate on
+ *  this to avoid spurious failures on consumer installs.
+ *
+ *  Set `GOAT_FLOW_PACKAGED_MODE=1` to force-enable (tests use this).
+ */
+export function isPackagedInstall(): boolean {
+  if (process.env["GOAT_FLOW_PACKAGED_MODE"] === "1") return true;
+  return !existsSync(join(GOAT_FLOW_ROOT, "src", "dashboard"));
+}

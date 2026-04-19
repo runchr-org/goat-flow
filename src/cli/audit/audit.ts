@@ -8,7 +8,7 @@ import { existsSync } from "node:fs";
 import type { AgentId, ReadonlyFS } from "../types.js";
 import { loadConfig } from "../config/index.js";
 import { extractProjectFacts } from "../facts/orchestrator.js";
-import { getTemplatePath } from "../paths.js";
+import { getTemplatePath, isPackagedInstall } from "../paths.js";
 import { loadManifest } from "../manifest/manifest.js";
 import { SETUP_CHECKS } from "./check-goat-flow.js";
 import { AGENT_CHECKS } from "./check-agent-setup.js";
@@ -191,15 +191,22 @@ function toCheckResult(
   };
 }
 
-/** Validate provenance on every registered check against the target project or package root. */
+/** Validate provenance on every registered check against the target project or package root.
+ *
+ *  In packaged installs, `evidence_paths` pointing at framework-repo docs
+ *  (`.goat-flow/footguns/*`, `.goat-flow/lessons/*`, `docs/*`) can't be
+ *  resolved because those files aren't in `package.json` `files`. Skip the
+ *  existence check there — the paths are human-readable pointers for future
+ *  maintainers, not runtime contracts. In dev mode we keep the check so
+ *  stale provenance surfaces in preflight. */
 function validateRegisteredCheckProvenance(fs: ReadonlyFS): void {
   const checks = [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
   const errors: string[] = [];
+  const pathExists = isPackagedInstall()
+    ? undefined
+    : (p: string) => fs.exists(p) || existsSync(getTemplatePath(p));
   for (const check of checks) {
-    for (const error of validateProvenance(
-      check.provenance,
-      (p) => fs.exists(p) || existsSync(getTemplatePath(p)),
-    )) {
+    for (const error of validateProvenance(check.provenance, pathExists)) {
       errors.push(`${check.id}: ${error}`);
     }
   }

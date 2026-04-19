@@ -133,14 +133,20 @@ function getStaleSkillNames(): Set<string> {
   return new Set(loadManifest().facts.skills.stale_names);
 }
 
-/** Compare installed skills against their workflow templates for drift. */
+/** Compare installed skills against their workflow templates for drift.
+ *
+ *  The manifest declares every supported agent's `skills_dir`, but a given
+ *  consumer project may only have installed one agent (e.g. only `.claude/`).
+ *  Iterating over absent agent roots reports phantom drift ("file missing")
+ *  for every uninstalled tree. Filter to roots present on disk so single-
+ *  agent installs report honest results. */
 function compareSkills(
   fs: ReadonlyFS,
   templateRoot: string,
   findings: DriftFinding[],
 ): number {
   let checked = 0;
-  const skillRoots = getInstalledSkillRoots();
+  const skillRoots = getInstalledSkillRoots().filter((dir) => fs.exists(dir));
   for (const name of SKILL_NAMES) {
     for (const relativeFile of getSkillFiles(name)) {
       const templateRel = `workflow/skills/${name}/${relativeFile}`;

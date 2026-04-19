@@ -668,6 +668,11 @@ while IFS= read -r skill_name; do
             continue
         fi
         while IFS= read -r agent_dir; do
+            # Skip manifest-declared agent roots that aren't installed in this
+            # project. Single-agent consumer installs (only .claude/ or only
+            # .agents/) would otherwise get "Skill file missing" failures for
+            # every uninstalled agent tree — phantom drift.
+            [[ -d "$agent_dir" ]] || continue
             installed="${agent_dir}/${skill_name}/${relative_file}"
             if [[ ! -f "$installed" ]]; then
                 fail "Skill file missing: ${installed}"

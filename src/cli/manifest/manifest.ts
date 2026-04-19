@@ -17,7 +17,11 @@ import { SKILL_NAMES } from "../constants.js";
 import { SETUP_CHECKS } from "../audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../audit/harness/index.js";
-import { getPackageVersion, getTemplatePath } from "../paths.js";
+import {
+  getPackageVersion,
+  getTemplatePath,
+  isPackagedInstall,
+} from "../paths.js";
 import type {
   CheckFacts,
   Manifest,
@@ -146,7 +150,14 @@ function sameSortedSet(a: readonly string[], b: readonly string[]): boolean {
   return true;
 }
 
-/** Validate manifest facts against the values observed from live code. */
+/** Validate manifest facts against the values observed from live code.
+ *
+ *  In packaged installs the `src/` tree isn't shipped (package.json `files`
+ *  ships only `dist/` + `workflow/`), so source-derived drift checks
+ *  (`dashboard_views`, `presets_count`) would always trip against empty
+ *  observed values. Those facts were validated at publish time — here we
+ *  trust the manifest and skip them. Skill-canonical drift is still checked
+ *  because `SKILL_NAMES` lives in `constants.ts` which ships in `dist/`. */
 export function validateManifest(
   json: ManifestJson,
   observed: ObservedFacts,
@@ -159,17 +170,21 @@ export function validateManifest(
     throw new ManifestValidationError(msg, [msg]);
   }
 
-  const declaredViews = json.facts.dashboard_views;
-  if (!sameSortedSet(declaredViews, observed.views)) {
-    findings.push(
-      `facts.dashboard_views drift: manifest declares [${[...declaredViews].sort().join(", ")}]; src/dashboard/views/ has [${observed.views.join(", ")}].`,
-    );
-  }
+  const packaged = isPackagedInstall();
 
-  if (json.facts.presets_count !== observed.presetsCount) {
-    findings.push(
-      `facts.presets_count drift: manifest declares ${json.facts.presets_count}; src/dashboard/preset-prompts.ts defines ${observed.presetsCount}.`,
-    );
+  if (!packaged) {
+    const declaredViews = json.facts.dashboard_views;
+    if (!sameSortedSet(declaredViews, observed.views)) {
+      findings.push(
+        `facts.dashboard_views drift: manifest declares [${[...declaredViews].sort().join(", ")}]; src/dashboard/views/ has [${observed.views.join(", ")}].`,
+      );
+    }
+
+    if (json.facts.presets_count !== observed.presetsCount) {
+      findings.push(
+        `facts.presets_count drift: manifest declares ${json.facts.presets_count}; src/dashboard/preset-prompts.ts defines ${observed.presetsCount}.`,
+      );
+    }
   }
 
   if (!sameSortedSet(json.skills.canonical, observed.skills)) {
