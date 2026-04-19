@@ -203,6 +203,24 @@ run_self_test() {
   # Whitelist bypass: read-only verb with redirect or pipe-to-shell must still block.
   run_case "echo redirect" 'echo "data" > .env' 2
   run_case "grep pipe bash" 'grep pattern file | bash' 2
+  # Secret-file reads must block (Bash bypass of settings.json Read() deny).
+  run_case "cat .env" "cat .env" 2
+  run_case "source .env" "source .env" 2
+  run_case "dot-source .env" ". .env" 2
+  run_case "less .env.local" "less .env.local" 2
+  run_case "head .env.production" "head .env.production" 2
+  run_case "base64 .env" "base64 .env" 2
+  run_case "xxd pem" "xxd server.pem" 2
+  run_case "cat ssh key" "cat ~/.ssh/id_rsa" 2
+  run_case "cat aws config" "cat ~/.aws/config" 2
+  run_case "cat aws credentials" "cat ~/.aws/credentials" 2
+  run_case "cat gpg secring" "cat ~/.gnupg/secring.gpg" 2
+  run_case "cat credentials.json" "cat credentials.json" 2
+  run_case "cat npmrc" "cat ~/.npmrc" 2
+  # Code-search for env-related strings must still pass (no .env path touch).
+  run_case "grep env src" "grep env src/" 0
+  run_case "rg dotenv" "rg dotenv src/" 0
+  run_case "env pipe grep" "env | grep PATH" 0
   # Structured runtime payloads must parse both VS Code and Copilot CLI shapes.
   run_stdin_case \
     "vscode payload dangerous" \
@@ -244,6 +262,21 @@ fi
 
 # --- Pattern Checks ----------------------------------------------------------
 # Each function checks one dangerous pattern. Add project-specific blocks below.
+
+# Return 0 (match) if the command references a secret-bearing file path:
+# .env*, /.ssh/, /.aws/, /.gnupg/, /.docker/config.json, /.kube/config,
+# *.pem/*.key/*.pfx, credentials*, .npmrc, .pypirc. settings.json Read()
+# patterns only cover the Read tool — this check is the only line of
+# defence against shell-based secret exfil (cat/less/source/base64/etc.).
+is_secret_path_touch() {
+  local c="$1"
+  if [[ "$c" =~ (^|[[:space:]]|=|:|/)(\.env)([[:space:]]|$|\.[a-zA-Z0-9_-]+) ]]; then return 0; fi
+  if [[ "$c" =~ /\.ssh/|/\.aws/|/\.gnupg/|/\.docker/config\.json|/\.kube/config ]]; then return 0; fi
+  if [[ "$c" =~ (^|[[:space:]]|=|:)[^[:space:]]*\.(pem|key|pfx)([[:space:]]|$) ]]; then return 0; fi
+  if [[ "$c" =~ (^|[[:space:]]|=|:|/)(credentials|\.npmrc|\.pypirc)([[:space:]]|$|\.) ]]; then return 0; fi
+  return 1
+}
+
 check_segment() {
   local cmd="$1"
   local depth="${2:-0}"
@@ -269,6 +302,11 @@ check_segment() {
   cmd_unquoted="${cmd_unquoted//\'[^\']*\'/}"
   cmd_unquoted=$(echo "$cmd_unquoted" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g")
 
+  local touches_secret=0
+  if is_secret_path_touch "$cmd"; then
+    touches_secret=1
+  fi
+
   local has_redirect=0 has_pipe=0
   [[ "$cmd_unquoted" =~ \>[[:space:]] || "$cmd_unquoted" =~ \>\> ]] && has_redirect=1
   # Detect single pipe (|) but not logical OR (||), outside of quoted strings
@@ -283,7 +321,7 @@ check_segment() {
       block "Pipe to interpreter. Download or inspect first, then run."
     fi
   fi
-  if [[ "$has_redirect" -eq 0 && "$has_pipe" -eq 0 ]]; then
+  if [[ "$has_redirect" -eq 0 && "$has_pipe" -eq 0 && "$touches_secret" -eq 0 ]]; then
     case "$cmd_verb" in
       grep|egrep|fgrep|rg|ag|ack|cat|head|tail|less|more|wc|file|diff|printf|echo|read)
         return 0 ;;
@@ -347,11 +385,13 @@ check_segment() {
     block "Pipe-to-interpreter. Download first, inspect, then run."
   fi
 
-  # 9. .env file modifications
-  #    Block: any write operation targeting .env files
-  #    Allow: cat .env (read-only), grep .env, source .env
-  if [[ "$cmd" =~ (cp|mv|cat[[:space:]]+[^>]*\>|\>|\>\>|tee|sed[[:space:]]+-i|nano|vim?|code|echo[[:space:]]+.*\>)[[:space:]]+.*\.env($|[[:space:]]|\.) ]]; then
-    block ".env file modification. Edit .env files manually, not through the agent."
+  # 9. Secret-file access (reads AND writes)
+  #    Block: any command that touches .env / SSH/AWS/GCP credentials /
+  #    .pem / .key / .pfx / credentials / .npmrc / .pypirc. settings.json
+  #    Read() patterns only cover the Read tool, not Bash — so this rule
+  #    is the only line of defence against shell-based exfil.
+  if [[ "$touches_secret" -eq 1 ]]; then
+    block "Secret-file access ($cmd_verb). Reading or editing .env / SSH/AWS/GCP keys / credentials through the agent is an exfil risk."
   fi
 
   # 10. --no-verify bypass (skips git hooks)
