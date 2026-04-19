@@ -2,7 +2,7 @@
 
 Harness engineering is the practice of shaping what an AI coding agent sees, what it may do, how its work is checked, how state survives failure, and how recurring mistakes become structural fixes. The model is not the product. The harness around it is.
 
-goat-flow organises its audit surface around five concerns. Every check the scanner runs belongs to exactly one. Each concern has a conceptual definition, a set of failure modes, and a concrete goat-flow approach. This doc defines the concepts. The check inventory lives in `harness-spec.md`.
+goat-flow organises its audit surface around five concerns. Every harness check belongs to exactly one. Each concern has a conceptual definition, a set of failure modes, and a concrete goat-flow approach. This doc defines the concepts; the check inventory with per-concern IDs and semantics lives in [harness-audit.md](harness-audit.md).
 
 | Concern | One-line definition | Primary failure mode |
 |:--------|:--------------------|:---------------------|
@@ -20,7 +20,7 @@ The agent acts on what it reads. If the reading is wrong, the acting is wrong, a
 
 The failure modes are well-documented: agents read the first file that matches a keyword and stop, they over-read low-signal boilerplate and miss the one doc that mattered, and they get handed a sprawling instruction file that tells them everything and therefore nothing.
 
-**goat-flow's approach.** A small hot-path router (the top-level agent instruction file) points at cold-path domain docs on demand. The execution loop is explicit — READ → SCOPE → ACT → VERIFY — so the agent is structurally required to read before it plans, and plan before it writes. File references in the router must resolve; a broken link is an integrity failure, not a warning. Shared conventions are inlined into skills rather than stored as external references, because external references break when skills move between projects.
+**goat-flow's approach.** A small hot-path router (the top-level agent instruction file) points at cold-path domain docs on demand. The execution loop is explicit — READ → SCOPE → ACT → VERIFY — so the agent is structurally required to read before it plans, and plan before it writes. File references in the router must resolve; a broken link is an integrity failure, not a warning. Shared skill preamble and conventions live in extracted reference files at `.goat-flow/skill-reference/skill-preamble.md` (loaded on every skill invocation) and `skill-conventions.md` (loaded at full depth); each skill points at these rather than duplicating the same rules inline. The references are installed alongside the skills that read them, so cross-project portability holds without the copy-paste drift inlining would invite.
 
 **Sources:**
 - Every source agrees context quality matters
@@ -67,7 +67,7 @@ Recovery is what happens after state is lost. The distinction worth holding: *pr
 
 The naive approach is a compaction hook that re-injects rules at the compaction boundary. In practice these hooks fire unreliably, behave differently across runners, and only address one of several failure modes. The durable approach is file-based: artefacts that exist independently of the session, written during work, read at resume.
 
-**goat-flow's approach.** Task state lives in milestone files with trackable checkboxes — an agent resuming a session can reconstruct what was done and what's next by reading them. Handoff files capture the in-flight reasoning at risky transition points. Session logs provide the raw trail when milestone files aren't granular enough. The hot-path instruction file must reference these artefacts explicitly, because a recovery artefact nothing points at is inert — the same cold-path drift pattern seen elsewhere in the harness. A user-invokable re-orientation command is more reliable than any automatic hook, because the user can trigger it whenever drift is sensed rather than waiting for a boundary event that may never fire cleanly.
+**goat-flow's approach.** Task state lives in milestone files with trackable checkboxes — an agent resuming a session can reconstruct what was done and what's next by reading them (the handoff concept was deprecated in v1.1.0 in favour of ticked checkboxes as the continuity mechanism; see `.goat-flow/glossary.md`). Session logs provide the raw trail when milestone files aren't granular enough, and are written on `/compact` without an active milestone or after completed milestone sequences. The hot-path instruction file must reference these artefacts explicitly, because a recovery artefact nothing points at is inert — the same cold-path drift pattern seen elsewhere in the harness. A user-invokable re-orientation command is more reliable than any automatic hook, because the user can trigger it whenever drift is sensed rather than waiting for a boundary event that may never fire cleanly.
 
 **Sources:**
 - Anthropic: session durability and checkpoint-resume with external event log
