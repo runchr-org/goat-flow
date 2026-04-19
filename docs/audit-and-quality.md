@@ -25,6 +25,8 @@ goat-flow quality diff --agent gemini          # Compare the latest two saved ru
 
 Validates that the project's agent harness is structurally correct and complete. All checks are pass/fail.
 
+For the full deterministic inventory, including every check id and what it validates, see [Deterministic audit checks](audit-checks.md).
+
 ### Build mode (default)
 
 Binary pass/fail. This is the structural setup gate - it validates that required files/directories exist, config parses, skills are installed at the expected paths, and hooks are registered. It does not execute configured toolchain commands (lint, test, build). Step 06 uses `audit` as the minimum gate; preflight runs `audit` plus additional checks including ESLint, Prettier, and version consistency.
@@ -42,15 +44,15 @@ Checks are grouped by **scope**:
 - `session-logs` - `.goat-flow/logs/sessions/` directory exists
 - `tasks` - `.goat-flow/tasks/` directory, `.gitignore`, and README exist (local-session state by design)
 - `scratchpad` - `.goat-flow/scratchpad/` directory, `.gitignore`, and README exist (local WIP by design)
-- `other-files` - Other required files from the project manifest exist (preamble, conventions, config)
+- `other-files` - Other required manifest surfaces not already covered by named setup checks exist (for example skill-reference and quality-log paths)
 - `config-parses` - `.goat-flow/config.yaml` parses and validates, including manifest-backed `agents:` ids
 - `config-version` - Config version matches current release
 
-**agent scope** (Agent Setup) - 4 checks per configured agent:
-- `agent-instruction` - Agent instruction file exists (CLAUDE.md, AGENTS.md, GEMINI.md)
-- `agent-skills` - Agent skills installed with correct versions, no deprecated skill directories
-- `agent-settings` - Agent settings/config file parses as valid JSON or TOML
-- `agent-deny-dangerous` - Deny hook file exists or deny patterns registered in agent settings
+**agent scope** (Agent Setup) - 4 registered checks. In aggregate mode, only `agent-instruction` can actively fail without `--agent <id>`:
+- `agent-instruction` - selected agent instruction file exists; aggregate mode also detects orphaned agent artifacts whose instruction file is missing
+- `agent-skills` - selected agent has canonical skills installed with correct versions and no deprecated skill directories
+- `agent-settings` - selected agent settings/config file parses as valid JSON or TOML
+- `agent-deny-dangerous` - selected agent has a deny mechanism, shell-hook syntax is valid, deny patterns exist, and the deny self-test passes when the script exists
 
 **Agent detection:** `audit` detects configured agents from the manifest-backed instruction-file registry (`workflow/manifest.json` via `src/cli/agents/registry.ts`). Run `goat-flow manifest` to inspect the current support matrix; use `--agent <id>` to scope checks to one supported runtime.
 
