@@ -12,11 +12,13 @@
 #
 # Limitations:
 # - Best-effort pattern matching on literal shell commands
-# - Does NOT catch: variable indirection ($cmd), shell aliases, encoded
-#   commands, or `source .env`
+# - Does NOT catch: variable indirection ($cmd), shell aliases, or encoded
+#   commands (base64-decoded payloads, $'...' C-style escapes, etc.)
 # - Deeply nested command substitution beyond 3 levels is blocked as a
 #   precaution rather than parsed
 # - Defense in depth: combine with runtime deny patterns + instruction-file rules
+# NOTE: `source .env` and other shell-level secret reads ARE blocked — see
+#   `is_secret_path_touch` below and the self-test cases for the live contract.
 # =============================================================================
 set -uo pipefail
 
