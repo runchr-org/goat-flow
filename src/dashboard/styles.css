@@ -1115,6 +1115,24 @@ body {
 .gf-hidden {
   display: none !important;
 }
+.mono {
+  font-family: var(--font-mono);
+}
+@media (max-width: 900px) {
+  .gf-help-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .gf-help-toc {
+    display: none;
+  }
+  .gf-help-flow {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .gf-help-arrow {
+    display: none !important;
+  }
+}
 .gf-prompt-hdr {
   display: flex !important;
   align-items: center;
