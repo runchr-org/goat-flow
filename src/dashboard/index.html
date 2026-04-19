@@ -278,20 +278,18 @@
               @click="activeView = 'workspace'"
               class="gf-nb"
               :class="activeView === 'workspace' && 'gf-nb-active'"
-              style="position: relative"
+              style="display: inline-flex; align-items: center; gap: 5px"
             >
               Workspace
               <span
                 x-show="(terminalSessionId && !terminalEnded) || terminalSessionCount > 0"
                 title="Terminal session active"
                 style="
-                  position: absolute;
-                  top: 2px;
-                  right: 4px;
                   width: 6px;
                   height: 6px;
                   border-radius: 50%;
                   background: #4ade80;
+                  flex-shrink: 0;
                 "
               ></span>
             </button>
