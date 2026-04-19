@@ -1,13 +1,13 @@
 ---
 category: auditor
-last_reviewed: 2026-04-18
+last_reviewed: 2026-04-19
 ---
 
-## Footgun: Audit validates hook file content but not hook runtime behavior
+## Footgun: Audit does not prove end-to-end deny enforcement at runtime
 
-**Status:** active | **Created:** 2026-04-05 | **Updated:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
+**Status:** active | **Created:** 2026-04-05 | **Updated:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED
 
-The audit checks that hook files exist and pass `bash -n` syntax check, but does not fully verify runtime behavior. A hook with correct syntax but wrong permissions, missing dependencies, or broken JSON field paths can still pass parts of the audit while providing degraded enforcement.
+The audit now validates hook syntax, self-test behavior, and registration, but does not prove that a blocked command actually fails with exit 2 under a real sub-agent invocation. The remaining gap is end-to-end deny enforcement — a hook that passes every static check can still fail to block at runtime if registration or environment are wrong.
 
 **Evidence:**
 - 4+ sessions across 112 (Claude Insights data) derailed by sub-agent permission failures hitting hooks that the audit had already validated

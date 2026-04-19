@@ -69,6 +69,7 @@ Examples:
   goat-flow quality . --agent claude   Quality assessment prompt for Claude
   goat-flow quality history --agent claude
   goat-flow quality diff --agent claude
+  goat-flow quality validate <path>    Schema-check a freshly written report (exit 2 on any error)
   goat-flow manifest                   Print the resolved manifest
   goat-flow manifest --check           Verify the manifest is consistent with code
   goat-flow stats                      Learning-loop health report
@@ -94,7 +95,7 @@ type Command =
   | "manifest"
   | "stats";
 
-type QualitySubcommand = "prompt" | "history" | "diff";
+type QualitySubcommand = "prompt" | "history" | "diff" | "validate";
 
 /** List of recognized CLI subcommands */
 const COMMANDS: Command[] = [
@@ -157,6 +158,7 @@ export interface ParsedCLI extends CLIOptions {
   check: boolean;
   qualitySubcommand: QualitySubcommand;
   qualityDiffPair: string | null;
+  qualityValidatePath: string | null;
   all: boolean;
 }
 
@@ -222,10 +224,12 @@ function resolveOutputPath(
   );
 }
 
+// eslint-disable-next-line complexity -- quality subcommand dispatch is intentionally explicit: each branch has its own positional validation
 function parseQualityPositionals(positionals: string[]): {
   qualitySubcommand: QualitySubcommand;
   projectPath: string;
   qualityDiffPair: string | null;
+  qualityValidatePath: string | null;
 } {
   const [first, second, ...rest] = positionals;
 
@@ -247,6 +251,7 @@ function parseQualityPositionals(positionals: string[]): {
       qualitySubcommand: "history",
       projectPath: resolve("."),
       qualityDiffPair: null,
+      qualityValidatePath: null,
     };
   }
 
@@ -261,6 +266,22 @@ function parseQualityPositionals(positionals: string[]): {
       qualitySubcommand: "diff",
       projectPath: resolve("."),
       qualityDiffPair: second ?? null,
+      qualityValidatePath: null,
+    };
+  }
+
+  if (first === "validate") {
+    if (second === undefined || rest.length > 0) {
+      throw new CLIError(
+        "quality validate requires exactly one positional <path-to-report>.",
+        2,
+      );
+    }
+    return {
+      qualitySubcommand: "validate",
+      projectPath: resolve("."),
+      qualityDiffPair: null,
+      qualityValidatePath: resolve(second),
     };
   }
 
@@ -268,6 +289,7 @@ function parseQualityPositionals(positionals: string[]): {
     qualitySubcommand: "prompt",
     projectPath: resolve(first ?? "."),
     qualityDiffPair: null,
+    qualityValidatePath: null,
   };
 }
 
@@ -303,6 +325,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
           qualitySubcommand: "prompt" as QualitySubcommand,
           projectPath: resolve(positionals[0] ?? "."),
           qualityDiffPair: null,
+          qualityValidatePath: null,
         };
 
   if (command !== "quality" && values.all === true) {
@@ -322,6 +345,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     check: values.check === true,
     qualitySubcommand: qualityPositionals.qualitySubcommand,
     qualityDiffPair: qualityPositionals.qualityDiffPair,
+    qualityValidatePath: qualityPositionals.qualityValidatePath,
     all: values.all === true,
     dev: values.dev === true,
     help: values.help === true,
@@ -544,6 +568,39 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
     }
 
     writeOutput(options, renderQualityDiffText(diff.diff));
+    return;
+  }
+
+  if (options.qualitySubcommand === "validate") {
+    if (!options.qualityValidatePath) {
+      throw new CLIError(
+        "quality validate requires a path to the report file.",
+        2,
+      );
+    }
+    const { readFileSync, existsSync } = await import("node:fs");
+    const { parseQualityReport } = await import("./quality/schema.js");
+    const path = options.qualityValidatePath;
+    if (!existsSync(path)) {
+      throw new CLIError(`quality validate: file not found: ${path}`, 2);
+    }
+    let raw: unknown;
+    try {
+      raw = JSON.parse(readFileSync(path, "utf-8"));
+    } catch (error) {
+      throw new CLIError(
+        `quality validate: invalid JSON in ${path}: ${error instanceof Error ? error.message : String(error)}`,
+        2,
+      );
+    }
+    const parsed = parseQualityReport(raw);
+    if (!parsed.ok) {
+      throw new CLIError(
+        `quality validate: schema error in ${path}: ${parsed.error}`,
+        2,
+      );
+    }
+    writeOutput(options, `OK ${path}`);
     return;
   }
 

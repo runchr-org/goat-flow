@@ -5,7 +5,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: "Double check" means read the files, not re-run the tests
 
-**Created:** 2026-03-22
+**Status:** active | **Created:** 2026-03-22
 
 **What happened:** User asked to "double check" multiple times. Each time, re-ran typecheck + tests + scan. Never caught stale shape references, documentation inconsistencies, or content quality issues that three external agents found immediately by reading the actual files.
 **Root cause:** Interpreted verification as "run the pipeline" instead of "read what changed." Tests only cover what they test.
@@ -15,7 +15,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Agent doesn't tick milestone checkboxes (recurrence x4, unresolved)
 
-**Created:** 2026-03-31 | **Recurrences:** M1 (2026-03-31), M29 (2026-04-04), M32 (2026-04-05), M08 (2026-04-07)
+**Status:** active | **Created:** 2026-03-31 | **Recurrences:** M1 (2026-03-31), M29 (2026-04-04), M32 (2026-04-05), M08 (2026-04-07)
 
 **What happens:** The agent completes milestone tasks but ticks zero checkboxes. The user discovers it during review. CLAUDE.md VERIFY says "MUST tick `- [x]` on each task as it's completed - not at the end." The instruction exists in three places and is ignored every time.
 
@@ -29,7 +29,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Formatter verification must preserve repo style flags
 
-**Created:** 2026-04-03
+**Status:** active | **Created:** 2026-04-03
 
 **What happened:** While tightening scanner messages, verification included a `prettier --write` pass on three rubric files without the repo's single-quote flag. The code was still valid, but the formatter rewrote quote style across entire files and created a much larger diff than intended.
 **Root cause:** Treated formatting as a neutral cleanup step instead of part of the blast radius. The command matched the tool, but not the repo's existing style contract.
@@ -39,7 +39,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Workflow parser refactors need both fixture coverage and typecheck
 
-**Created:** 2026-04-03
+**Status:** active | **Created:** 2026-04-03
 
 **What happened:** While tightening CI-validation checks, the first pass on the workflow `run:` parser read the wrong regex capture group and then used a router heuristic that only matched commands containing the word `router`. The focused regression suite and `tsc` both failed before the broader test run finished.
 **Root cause:** Changed parsing and heuristics together without first validating the extracted command shape. The new regression covered the shell pattern, but the implementation still assumed the old capture layout and overfit to existing workflow wording.
@@ -49,7 +49,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Rubric honesty changes need both in-memory and disk-backed fixture sync
 
-**Created:** 2026-04-03
+**Status:** historical | **Created:** 2026-04-03 | **Reason:** Rubric/scanner system removed per ADR-013; specific check IDs no longer exist
 
 **What happened:** Tightened `2.2.2` so a registered stop hook only passes when it also runs real validation commands. The new focused regression passed immediately, but the disk-backed `failing-known` fixture still expected the old failure set and broke on the next verification step.
 **Root cause:** Updated the rubric logic and the in-memory regression corpus first, but forgot that `test/fixtures/projects/failing-known/fixture.json` and `test/fixtures/project-fixtures.test.ts` also encode expected failing check IDs. Scanner honesty work touches more than one fixture layer.
@@ -59,7 +59,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: New blocking checks can break passing fixtures even when the scanner is correct
 
-**Created:** 2026-04-03
+**Status:** historical | **Created:** 2026-04-03 | **Reason:** Scanner/rubric system removed per ADR-013
 
 **What happened:** Added a new deny-hook check for pipe-to-shell blocking. The focused scanner regression passed, but the next full-suite run dropped both disk-backed `passing-minimal` and `passing-full` from `100` to `99`.
 **Root cause:** The new rubric requirement was correct, but the "passing" fixture baseline still used settings-based deny rules that blocked `rm -rf`, force push, and `chmod 777` without also blocking `curl | bash` / `wget | sh`. Positive fixtures are just as sensitive to new honesty checks as failing fixtures.
@@ -69,7 +69,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Heading regexes can silently truncate router-table checks
 
-**Created:** 2026-04-03
+**Status:** historical | **Created:** 2026-04-03 | **Reason:** Rubric check 2.4.3 no longer exists (ADR-013); markdown-parsing principle survives in later parser lessons
 
 **What happened:** Tightened `2.4.3` to parse the Router Table directly, but the first extractor used a multiline regex with `$` in the lookahead. In JavaScript regexes, `$` under `/m` matches end-of-line, so the match stopped after the `## Router Table` heading and never included the rows below it. The new regression also referenced an undefined fixture constant, so the first focused test run broke twice before the real logic was verified.
 **Root cause:** Reached for a compact heading regex instead of reusing the repo’s line-based section parsing style, then wrote a regression that depended on a fixture helper that did not exist in that file.
@@ -79,7 +79,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Path normalization can invalidate later path-shape heuristics
 
-**Created:** 2026-04-03
+**Status:** historical | **Created:** 2026-04-03 | **Reason:** Rubric check 2.4.3 no longer exists (ADR-013); normalization-invariant principle applies to any parser
 
 **What happened:** After normalizing router references by trimming trailing slashes, the follow-up `2.4.3` filter still looked for the literal substring `/skills/`. That turned `.claude/skills/` into `.claude/skills`, so the canonical passing fixture dropped from `100` to `99` even though the router row was correct.
 **Root cause:** Mixed two phases of logic without rechecking the invariant after normalization. The filter assumed the original slash shape still existed after the normalizer had deliberately removed it.
@@ -89,7 +89,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Regressions caught too late - tests run at milestone granularity, not edit granularity
 
-**Created:** 2026-04-05
+**Status:** active | **Created:** 2026-04-05
 
 **What happened:** Claude Insights reported 68 buggy-code friction events across 112 sessions (61% of sessions had at least one). The `/goat-qa` skill generates test plans after implementation, and `stop-lint.sh` runs linting after every turn, but neither catches logic regressions mid-implementation. Tests only run when the user explicitly asks or when a milestone completes. Regressions introduced in turn 3 of a 10-turn implementation aren't caught until the end, when the debugging context is stale.
 
@@ -104,7 +104,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Parallel sessions (37% of messages) need concurrency-safe file patterns
 
-**Created:** 2026-04-05
+**Status:** active | **Created:** 2026-04-05
 
 **What happened:** Local Claude Insights instrumentation (external to this repo, not committed here) showed 75 overlap events across 77 sessions — 37% of all messages happened during parallel Claude sessions. Learning loop files (`.goat-flow/logs/`, `.goat-flow/lessons/`, `.goat-flow/footguns/`) are append-only by convention, but nothing prevents two agents from writing to the same file simultaneously. Session logs use date-slug filenames which reduces collisions, but category bucket files (e.g. `.goat-flow/lessons/verification.md`) are shared write targets. The 37% figure is an external measurement, not something repo grep can reproduce; the observed write-contention risk is the durable part.
 
@@ -117,7 +117,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Framework paths vs project paths in verbatim-installed skills
 
-**Created:** 2026-04-11
+**Status:** active | **Created:** 2026-04-11
 **What happened:** M17a extracted skill modes into the repository template directory and left repository-local template references in the skill files. Skills are installed verbatim, so every project received instructions that pointed back into the goat-flow repo instead of the installed project. A multi-agent critique pass ("R9" — the 9th run; transcripts are local-only, not committed) scored system avg 42 (down from 53.7) largely because of this single bug.
 **Evidence:** The R9 pass flagged broken template references in 6 of 7 reviewed consumer projects. `workflow/skills/goat/SKILL.md`, `workflow/skills/goat-security/SKILL.md`, `workflow/skills/goat-qa/SKILL.md` all used repository-local template paths instead of installed-project template paths. (Paths updated from retired flat-file layout to current directory structure; the 42-vs-53.7 scoreline is recalled from that local critique run, not reproducible from the repo today.)
 **Prevention:** After editing any skill file that references a path, verify the path exists from the PROJECT's perspective, not the goat-flow repo's perspective. Add to DoD: "grep skill files for repository-local template paths and replace them with the installed project-local equivalent before shipping."
@@ -126,7 +126,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Multi-agent critique finds findings single reviewers miss - but synthesis is the expensive part
 
-**Created:** 2026-04-13
+**Status:** active | **Created:** 2026-04-13
 
 **What happened:** 9 independent agent reviews of goat-flow v1.1.0 found 25 confirmed defects. No single reviewer found all 25. The Codex compaction hook false positive (M1) was found by 1 of 9 reviewers. The ask_first glob-unaware false positive (M8) was found by 1 of 9 reviewers. Both are MAJOR audit honesty issues. The first review established ~60-70% of findings; each additional review added diminishing but non-zero value, including MAJOR findings in reviews 6 and 9.
 
@@ -143,7 +143,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Blindly applying review feedback without verifying findings
 
-**Created:** 2026-04-11
+**Status:** active | **Created:** 2026-04-11
 **What happened:** After receiving 8 critic reviews of the goat-flow framework, the agent started fixing every cited `file:line` without first checking whether the findings were still valid. Several of the cited issues had already been fixed by sub-agents earlier in the same session. The agent was about to edit files that were already correct, potentially reintroducing bugs or making nonsensical changes.
 
 **Root cause:** Treating review output as a task list instead of as claims to verify. The agent read "CLAUDE.md:11 still has 6-step loop" and jumped to editing without running `sed -n '11p' CLAUDE.md` first. Reviews are evidence-tagged opinions, not commands. The evidence can be stale by the time you read it - especially when multiple agents are editing the same repo in the same session.
@@ -158,7 +158,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: 14 self-dogfooding bugs survived 9 rounds of critique and 17 milestones
 
-**Created:** 2026-04-11
+**Status:** active | **Created:** 2026-04-11
 **What happened:** After M17, 6 external critics independently reviewed the goat-flow framework itself (not installed projects). They found 14 verified bugs that had survived all prior milestones: foundation.ts emitting v1.0, SKILL_TEMPLATES missing goat-sbao, config.yaml referencing a renamed script, README overclaiming hooks, stale test fixtures encoding the wrong skill count, setup fragments still creating coding-standards (removed in M13), classify-state marking "healthy" from version alone, and more. Every bug was a 1-5 line fix.
 
 **Why these were missed:**
@@ -177,7 +177,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Blindly applying critique recommendations without verifying claims
 
-**Created:** 2026-04-14
+**Status:** active | **Created:** 2026-04-14
 
 **What happened:** A critique agent claimed `.goat-flow/architecture.md:18` had the wrong build-check breakdown: "says 7+9, actual code shows 12+4." The claim was accepted at face value and the doc was changed. A subsequent refactor restructured the checks into `SETUP_CHECKS` (13 checks) and `AGENT_CHECKS` (4 checks), making the actual breakdown **13 setup + 4 agent** (17 total). The preflight's "Architecture doc counts match code" check only validates the total (17), not the sub-breakdown, so incorrect breakdowns pass all automated gates.
 
@@ -194,7 +194,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Ignored `.goat-flow` paths need `rg -uu` during rename verification
 
-**Created:** 2026-04-15
+**Status:** active | **Created:** 2026-04-15
 
 **What happened:** While renaming the scratch workspace directory to `scratchpad`, the first reference scan used `rg --hidden` and incorrectly appeared clean. A follow-up scan with `rg -uu` found the real remaining self-reference in `commit.md:12` (note: `commit.md` was later edited to 9 lines, making this line reference stale - exactly the drift pattern this lesson exists to prevent).
 
@@ -206,7 +206,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Structural audit passing hides cold-path content drift (8-critique finding)
 
-**Created:** 2026-04-15
+**Status:** active | **Created:** 2026-04-15
 
 **What happened:** Eight independent critiques (3 Claude, 5 Codex) reviewed the goat-flow v1.1.0 setup on its own repo. All 8 confirmed structural integrity: 7 skills matched templates, 57 tests passed, all router paths resolved, deny hook self-test passed, architecture doc numeric claims verified. Despite this, the 8 critiques collectively found 20+ verified content-accuracy failures in cold-path surfaces that no automated check caught. Examples at the time (all since resolved or removed): ~~`docs/audit-and-critique.md:38-47`~~ describing checks that no longer exist in code; `docs/coding-standards/conventions.md:10` claiming zero runtime deps when `package.json` has js-yaml and ws; `.goat-flow/glossary.md:21` pointing Task Tracking at the wrong file; `.goat-flow/code-map.md:71` listing a script under the wrong directory; ~~`scripts/stop-lint.sh`~~ existing despite ADR-015 saying it was removed; `.goat-flow/tasks/.gitignore:2` ignoring all milestone files while goat-plan claims durable shared state. Setup scored 58-90/100 across the 8 critiques - the range itself shows the split between structural soundness and content accuracy.
 
@@ -224,7 +224,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Backticks in shell grep patterns can fake a verification failure
 
-**Created:** 2026-04-18
+**Status:** active | **Created:** 2026-04-18
 
 **What happened:** During rename verification for ~~`.goat-flow/tasks/1.3.0`~~ to `.goat-flow/tasks/1.2.0-wave-6` (old path no longer exists — historical context), a ripgrep command embedded backticks in the shell pattern. Bash treated ``1.3.0`` as command substitution and failed with `/bin/bash: line 1: 1.3.0: command not found`, which made the verification step noisy and ambiguous.
 
@@ -236,7 +236,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Manifest canonical vs stale_names misclassification silently broke skill installs
 
-**Created:** 2026-04-16
+**Status:** active | **Created:** 2026-04-16
 
 **What happened:** `workflow/manifest.json` listed only `"goat"` in `skills.canonical` and classified the other 6 active skills (goat-debug, goat-plan, goat-review, goat-critique, goat-security, goat-qa) as `stale_names`. `src/cli/constants.ts` `SKILL_NAMES` also said `["goat"]`. The install script (`workflow/install-goat-flow.sh:137`) correctly installs all 7, and the repo itself has all 7 in `.claude/skills/`. But the audit read `canonical` to determine expected count, so it reported "1/1 installed" on target projects. The dashboard and setup prompt both showed "1/1 skills installed" - which looked correct but was silently wrong. Target project `/srv/halaxy-cypress` only had the `goat` dispatcher installed; the other 6 functional skills were missing.
 
@@ -250,7 +250,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Missing RULES.md went undetected because failing tests were dismissed as pre-existing
 
-**Created:** 2026-04-16
+**Status:** historical | **Created:** 2026-04-16 | **Reason:** RULES.md deleted; "never dismiss test failures as pre-existing" rule survives as an active principle elsewhere in this file
 
 **What happened:** `RULES.md` existed in `.agents/skills/goat/` (codex/gemini) but was missing from `.claude/skills/goat/`. The audit code (`check-agent-setup.ts:76-82`) explicitly checks for it. The goat dispatcher's `SKILL.md` tells the agent to "Read RULES.md in this directory immediately." But:
 1. The install script (`install-goat-flow.sh`) only copied `SKILL.md` per skill - never copied `RULES.md`.
@@ -270,7 +270,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Redundant context files survive architecture changes because nobody measures token cost
 
-**Created:** 2026-04-16
+**Status:** active | **Created:** 2026-04-16
 
 **What happened:** RULES.md (432 words, 6 sections) loaded on every `/goat` dispatch was almost entirely duplicated from CLAUDE.md and skill-preamble.md. A coding agent critique flagged it: "432 words of token budget consumed for ~30 words of unique signal." The file had existed since the mono-skill dispatcher model. When the architecture split into 7 skills with a shared preamble, the preamble absorbed the same rules but nobody deleted RULES.md. Then an audit check was added requiring it, an install script clause was added to copy it, and a template was created for it - each reinforcing the file's perceived necessity.
 
@@ -284,7 +284,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Dashboard API reviews need invalid-path assertions, not just happy-path shape checks
 
-**Created:** 2026-04-16
+**Status:** active | **Created:** 2026-04-16
 
 **What happened:** The new dashboard HTTP integration suite initially focused on successful responses and basic endpoint reachability. When an explicit negative-path test for `GET /api/audit?path=/does/not/exist` was added, the route returned `200` with an audit-shaped payload instead of a JSON error. The same risk applied to setup, critique, and stack-detection routes because they accepted a `path` string but did not first verify that it existed and was a directory.
 
@@ -301,7 +301,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Cross-critique review catches cold-path drift that single reviews and preflight miss
 
-**Created:** 2026-04-16
+**Status:** active | **Created:** 2026-04-16
 
 **What happened:** A single diff review of 89 files on feat/1.1.0 found 2 cross-reference breakages (setup prompt, code-map skill tree). Then 4 independent coding agent critiques were run. Together they surfaced 15 additional cold-path issues: wrong check counts in CONTRIBUTING.md (8 vs 16), stale .js extensions in architecture.md and code-map, CLI help text with wrong harness count (15 vs 16), 6 stale footgun entries, and footgun file ordering that violated the scan contract. One critique (Critique 4) also produced a false positive (PreToolUse blind spot) that was disproved by finding the check in a different file (check-constraints.ts).
 
@@ -318,7 +318,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Verification rationalization anti-patterns
 
-**Created:** 2026-04-18
+**Status:** active | **Created:** 2026-04-18
 
 **What happens:** The 5 hallucination red-flags in AGENTS.md:51-58 forbid claims without evidence (tests pass, completion, fix verification, hedged claims, check passed). Agents still ship unverified claims under pressure by producing rationalizations that feel distinct from the forbidden claim but are logically equivalent to it. "I'm 95% confident", "the sub-agent said it passed", "the change looks correct" — each slips past the red-flags because the red-flags name the violation, not the specific excuse pattern.
 
@@ -338,7 +338,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: `npm test -- <file>` can still run the full suite
 
-**Created:** 2026-04-18
+**Status:** active | **Created:** 2026-04-18
 
 **What happened:** A focused verification run used `npm test -- test/unit/quality-command.test.ts`, expecting only the quality prompt tests to run. In this repo, `package.json` defines `test` as `node --import tsx --test test/*/*.test.ts`, so npm appended the file argument without removing the existing glob. The command still executed the full suite and surfaced unrelated audit failures, obscuring whether the changed file actually passed its own regression.
 
@@ -350,7 +350,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Repo-wide preflight can be blocked by unrelated formatter drift
 
-**Created:** 2026-04-18
+**Status:** active | **Created:** 2026-04-18
 
 **What happened:** After deleting the dedicated setup validator and rewiring preflight around the remaining script surface, focused verification passed (`shellcheck`, `npm run typecheck`, targeted smoke/unit tests, and exact grep for the removed path). But `bash scripts/preflight-checks.sh` still failed because `scripts/prettier-check.sh` reported four unformatted files that were outside the change set: `src/cli/classify-state.ts`, `src/dashboard/app.ts`, `test/integration/preamble-sync.test.ts`, and `test/unit/quality-command.test.ts`.
 
@@ -367,7 +367,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Semantic drift checks must normalize natural-language lists before claiming mismatch
 
-**Created:** 2026-04-18
+**Status:** active | **Created:** 2026-04-18
 
 **What happened:** A new semantic-drift check was added for the runner list in `docs/dashboard.md`. The first verification run still failed content audit even after the doc was corrected to "Claude, Codex, and Gemini". The checker split on commas before handling the Oxford-comma `and`, so it parsed the claim as `["Claude", "Codex", "and Gemini"]` and reported a false mismatch against the manifest-backed list.
 
@@ -384,7 +384,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Optional skill-path examples still need real targets or non-path phrasing
 
-**Created:** 2026-04-18
+**Status:** active | **Created:** 2026-04-18
 
 **What happened:** The first preflight run after M14/M15/Wave 6 landed failed path integrity on installed `goat-security` copies and blocked release verification. Two new lines in `workflow/skills/goat-security/SKILL.md` still referenced `workflow/skills/**`, and the new optional policy hook named `.goat-flow/security-policy.md` without shipping the file. Preflight reported the exact failures:
 
@@ -404,7 +404,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Temp-repo preflight harnesses inherit formatting debt from copied test files
 
-**Created:** 2026-04-19
+**Status:** active | **Created:** 2026-04-19
 
 **What happened:** The new M14 round-trip integration test cloned the repo into a tmpdir, patched the temp copy, and ran `bash scripts/preflight-checks.sh`. Installer, parity, and drift logic were correct, but the first verification run still failed because the cloned `test/integration/audit-drift.test.ts` was not formatted, and preflight's formatter gate checks `test/**/*.ts`, not just the files patched inside the tmp repo after cloning.
 
@@ -416,7 +416,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Renaming a tracked file requires manifest fact updates, not just cross-ref updates
 
-**Created:** 2026-04-19
+**Status:** active | **Created:** 2026-04-19
 
 **What happened:** Renamed the dashboard's old setup-view file to `setup.html` and updated the include in `index.html`. `npm run typecheck` passed. User ran `npm run dashboard` and the CLI threw `ManifestValidationError: workflow/manifest.json has drifted from observed state` at startup because `facts.dashboard_views` still listed `wizard` instead of `setup`.
 
@@ -433,7 +433,7 @@ last_reviewed: 2026-04-19
 
 ## Lesson: Filesystem validation does not prove commit state
 
-**Created:** 2026-04-19
+**Status:** active | **Created:** 2026-04-19
 
 **What happened:** Two separate fixes looked complete locally but were still absent from the repository state that collaborators and CI would see. `src/dashboard/views/setup.html` existed on disk and satisfied `workflow/manifest.json`'s `dashboard_views` fact check, but the file was untracked while `wizard.html` was deleted. `.goat-flow/security-policy.md` also existed locally and satisfied path-integrity expectations for `goat-security`, but the file was ignored by `.goat-flow/.gitignore` and therefore absent from git history.
 

@@ -418,6 +418,71 @@ function readQualityResult(value: unknown): QualityResult {
   };
 }
 
+/** Read one quality-history table row from raw payload data. */
+function readQualityHistoryRow(value: unknown): QualityHistoryRow | null {
+  if (!isRecord(value)) return null;
+  const id = readString(value.id);
+  const date = readString(value.date);
+  const agent = readRunnerId(value.agent);
+  if (
+    !id ||
+    !date ||
+    !agent ||
+    typeof value.setupTotal !== "number" ||
+    typeof value.systemTotal !== "number" ||
+    (value.setupDelta !== null && typeof value.setupDelta !== "number") ||
+    typeof value.blockerCount !== "number" ||
+    typeof value.majorCount !== "number" ||
+    typeof value.minorCount !== "number"
+  ) {
+    return null;
+  }
+  return {
+    id,
+    date,
+    agent,
+    setupTotal: value.setupTotal,
+    systemTotal: value.systemTotal,
+    setupDelta: value.setupDelta,
+    blockerCount: value.blockerCount,
+    majorCount: value.majorCount,
+    minorCount: value.minorCount,
+  };
+}
+
+/** Read the latest quality-history summary from raw payload data. */
+function readQualityHistoryLatest(value: unknown): QualityHistoryLatest | null {
+  if (!isRecord(value)) return null;
+  const id = readString(value.id);
+  const date = readString(value.date);
+  const time = readString(value.time);
+  const agent = readRunnerId(value.agent);
+  if (
+    !id ||
+    !date ||
+    !time ||
+    !agent ||
+    typeof value.setupTotal !== "number" ||
+    typeof value.systemTotal !== "number" ||
+    typeof value.blockerCount !== "number" ||
+    typeof value.majorCount !== "number" ||
+    typeof value.minorCount !== "number"
+  ) {
+    return null;
+  }
+  return {
+    id,
+    date,
+    time,
+    agent,
+    setupTotal: value.setupTotal,
+    systemTotal: value.systemTotal,
+    blockerCount: value.blockerCount,
+    majorCount: value.majorCount,
+    minorCount: value.minorCount,
+  };
+}
+
 /** Read a persisted string array from localStorage. */
 function readStoredStringArray(key: string): string[] {
   try {
@@ -608,6 +673,10 @@ function app() {
     qualityLoading: false,
     qualityResult: null as QualityResult | null,
     qualityCopyLabel: "Copy",
+    qualityHistoryLoading: false,
+    qualityHistoryRows: [] as QualityHistoryRow[],
+    qualityHistoryLatest: null as QualityHistoryLatest | null,
+    qualityHistoryWarnings: [] as string[],
 
     /** Resolve the current display name for one supported agent id. */
     agentName(agentId: RunnerId): string {
@@ -686,9 +755,10 @@ function app() {
     },
     get presetCats(): Array<{ id: string; label: string }> {
       const cats = new Map<string, string>();
+      const labelOverrides: Record<string, string> = { qa: "QA" };
       for (const p of this.presets)
         if (!cats.has(p.cat))
-          cats.set(p.cat, p.cat.charAt(0).toUpperCase() + p.cat.slice(1));
+          cats.set(p.cat, labelOverrides[p.cat] ?? p.cat.charAt(0).toUpperCase() + p.cat.slice(1));
       return [
         { id: "all", label: "All" },
         { id: "favorites", label: "\u2605 Favorites" },
@@ -981,6 +1051,20 @@ function app() {
             this.updateSessionCount();
           }, 10_000);
         }
+        if (v === "quality") {
+          this.generateQuality();
+          this.generateQualityHistory();
+        }
+        if (v === "setup") {
+          this.detectStack();
+          this.generateSetupPrompt();
+        }
+      });
+      self.$watch("qualityAgent", () => {
+        if (this.activeView === "quality") {
+          this.generateQuality();
+          this.generateQualityHistory();
+        }
       });
       self.$watch("sessionsCollapsed", (v: boolean) => {
         localStorage.setItem("gf-sessions-collapsed", String(v));
@@ -995,6 +1079,10 @@ function app() {
           this.detachTerminal(oldPath);
           this.reconnectTerminal();
           this.updateSessionCount();
+          if (this.activeView === "quality") {
+            this.generateQuality();
+            this.generateQualityHistory();
+          }
         }
       });
       updateTitle();
@@ -1280,12 +1368,42 @@ function app() {
           this.showToast(error, true);
         } else {
           this.qualityResult = readQualityResult(payload);
+          this.generateQualityHistory();
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         this.showToast(msg || "Quality prompt generation failed", true);
       }
       this.qualityLoading = false;
+    },
+    /** Load persisted quality-history rows for the selected project and agent. */
+    async generateQualityHistory() {
+      this.qualityHistoryLoading = true;
+      this.qualityHistoryRows = [];
+      this.qualityHistoryLatest = null;
+      this.qualityHistoryWarnings = [];
+      try {
+        const res = await fetch(
+          `/api/quality/history?path=${encodeURIComponent(this.projectPath)}&agent=${encodeURIComponent(this.qualityAgent)}&limit=20`,
+        );
+        const payload = readRecord(await res.json(), "Quality history response");
+        const error = readErrorMessage(payload);
+        if (error) {
+          this.showToast(error, true);
+        } else {
+          this.qualityHistoryRows = Array.isArray(payload.rows)
+            ? payload.rows
+                .map((row) => readQualityHistoryRow(row))
+                .filter((row): row is QualityHistoryRow => row !== null)
+            : [];
+          this.qualityHistoryLatest = readQualityHistoryLatest(payload.latest);
+          this.qualityHistoryWarnings = readStringArray(payload.warnings);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.showToast(msg || "Quality history loading failed", true);
+      }
+      this.qualityHistoryLoading = false;
     },
     /** Copy the current quality prompt to the clipboard. */
     copyQuality() {

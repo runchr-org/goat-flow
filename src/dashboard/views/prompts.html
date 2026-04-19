@@ -1,422 +1,205 @@
-<!-- ═══ Prompts View (two-pane: list left, preview right) ═══ -->
+<!-- ═══ Prompts View ═══ -->
 <div
   x-show="activeView === 'prompts'"
   x-cloak
-  class="flex"
-  style="height: calc(100vh - 5rem)"
-  x-data="{ sendPickerOpen: false }"
+  style="height: calc(100vh - 3.5rem); overflow-y: auto"
 >
-  <!-- Left pane: search, filters, favorites strip, list -->
-  <aside
-    class="w-full md:w-80 lg:w-96 shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
-  >
-    <!-- Search -->
-    <div
-      class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0"
-    >
-      <div class="relative">
-        <input
-          type="text"
-          x-model="presetSearch"
-          placeholder="Search prompts..."
-          x-ref="presetSearchInput"
-          class="w-full text-sm border focus:ring-1 focus:ring-blue-500 gf-input"
-          style="padding: 8px 48px 8px 12px; border-radius: 6px; outline: none"
-        />
-        <span
-          class="absolute right-6 top-1/2 -translate-y-1/2 text-xs text-gray-300 dark:text-gray-600 pointer-events-none"
-          >/</span
-        >
-        <button
-          x-show="presetSearch"
-          @click="presetSearch = ''"
-          class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm"
-        >
-          &times;
-        </button>
-      </div>
-      <div
-        class="mt-1.5 text-xs gf-text-muted"
-        x-text="presetSearch.trim() ? (filteredPresets.length + ' match' + (filteredPresets.length === 1 ? '' : 'es')) : (presets.length + ' prompts')"
-      ></div>
+  <div style="max-width: 1100px; margin: 0 auto; padding: 20px 24px 24px">
+    <div style="margin-bottom: 14px">
+      <h2 class="gf-text-primary" style="font-size: 18px; font-weight: 600; margin-bottom: 4px">
+        Prompts
+      </h2>
+      <p class="gf-text-muted" style="font-size: 14px; max-width: 760px">
+        Ready-made prompts for goat-flow skills. Pick one, optionally add context,
+        and launch it in the Runner selected above.
+      </p>
     </div>
 
-    <!-- Category pills -->
-    <div
-      class="px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 flex flex-wrap gap-1 bg-white dark:bg-gray-800 shrink-0"
-    >
-      <template x-for="cat in presetCats" :key="'pc-' + cat.id">
+    <div style="position: relative; margin-bottom: 10px">
+      <svg
+        style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-dim)"
+        width="14"
+        height="14"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+      </svg>
+      <input
+        x-model="presetSearch"
+        x-ref="presetSearchInput"
+        class="gf-input"
+        style="
+          width: 100%;
+          box-sizing: border-box;
+          padding: 9px 14px 9px 38px;
+          border-radius: 6px;
+          font-size: 14px;
+        "
+        placeholder="Search name, description, or prompt text..."
+      />
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 14px">
+      <button
+        class="gf-btn gf-btn-sm"
+        :style="presetFilter === 'favorites' ? { background: 'var(--accent-bg)', borderColor: 'var(--accent-border)', color: 'var(--accent)' } : {}"
+        @click="presetFilter = 'favorites'"
+      >
+        ★ Favourites <span x-text="presetFavorites.length"></span>
+      </button>
+      <template x-for="cat in presetCats" :key="'mock-cat-' + cat.id">
         <button
+          x-show="cat.id !== 'favorites'"
+          class="gf-btn gf-btn-sm"
           @click="presetFilter = cat.id"
-          :class="presetFilter === cat.id ? (cat.id === 'plan' ? 'text-gray-900' : 'text-white') : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
-          :style="presetFilter === cat.id ? { background: ({'all':'#4ade80','favorites':'#4ade80','debug':'#60a5fa','review':'#c084fc','plan':'#fbbf24','critique':'#a78bfa','qa':'#4ade80','security':'#f87171'}[cat.id] || '#4ade80') } : {}"
-          class="px-2 py-0.5 text-xs font-medium rounded-full transition-colors"
-          x-text="cat.label + (cat.id !== 'all' && cat.id !== 'favorites' ? ' (' + presets.filter(p => p.cat === cat.id).length + ')' : '')"
+          :style="presetFilter === cat.id ? { background: 'rgba(148,163,184,0.08)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' } : {}"
+          x-text="cat.id === 'all' ? `All ${presets.length}` : `${cat.label} ${(presets.filter(p => p.cat === cat.id).length)}`"
         ></button>
       </template>
     </div>
 
-    <!-- Favorites strip -->
-    <div
-      x-show="presetFavorites.length > 0 && presetFilter !== 'favorites' && !presetSearch.trim()"
-      class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 shrink-0"
-    >
-      <div
-        class="text-xs gf-text-muted"
-        style="font-weight: 600; margin-bottom: 6px"
-      >
-        ★ Favorites
-      </div>
-      <div
-        class="flex gap-1.5 overflow-x-auto"
-        style="scrollbar-width: thin; padding-bottom: 2px"
-      >
-        <template
-          x-for="p in presets.filter(p => presetFavorites.includes(p.id))"
-          :key="'fav-' + p.id"
-        >
-          <button
+    <div style="display: grid; grid-template-columns: minmax(0, 290px) minmax(0, 1fr); gap: 12px">
+      <!-- Left prompt list -->
+      <div style="display: flex; flex-direction: column; gap: 6px; max-height: 680px; overflow-y: auto; padding-right: 4px">
+        <template x-for="p in filteredPresets" :key="'mock-preset-' + p.id">
+          <div
             @click="selectedPreset = p"
-            class="shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors gf-text-secondary"
-            :class="selectedPreset?.id === p.id ? 'border-emerald-500' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'"
-            :style="selectedPreset?.id === p.id ? { background: 'rgba(16, 185, 129, 0.1)' } : {}"
-            x-text="p.name"
-            :title="p.desc"
-          ></button>
+            class="gf-card"
+            :style="selectedPreset?.id === p.id ? { borderColor: 'var(--accent-border)', background: 'rgba(74,222,128,0.04)' } : {}"
+            style="
+              text-align: left;
+              padding: 10px 12px;
+              display: flex;
+              gap: 10px;
+              align-items: flex-start;
+              cursor: pointer;
+            "
+          >
+            <button
+              @click.stop="toggleFavorite(p.id)"
+              style="background: transparent; border: none; color: var(--text-dim); padding: 0; margin-top: 2px; cursor: pointer"
+              :style="isFavorite(p.id) ? { color: 'var(--amber-400)' } : {}"
+              :title="isFavorite(p.id) ? 'Remove from favourites' : 'Add to favourites'"
+              x-text="isFavorite(p.id) ? '★' : '☆'"
+            ></button>
+            <div style="min-width: 0; flex: 1">
+              <div style="font-size: 13px; font-weight: 500" class="gf-text-primary" x-text="p.name"></div>
+              <p
+                class="gf-text-muted"
+                style="
+                  font-size: 12px;
+                  margin: 2px 0 6px;
+                  white-space: nowrap;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                "
+                x-text="p.desc"
+              ></p>
+              <div style="display: flex; align-items: center; gap: 6px">
+                <span
+                  class="gf-text-secondary"
+                  style="font-family: var(--font-mono); font-size: 10px; padding: 1px 6px; background: rgba(148,163,184,0.08); border-radius: 3px"
+                  x-text="p.prompt.startsWith('/') ? p.prompt.split(' ')[0] : 'direct'"
+                ></span>
+                <span class="gf-text-muted" style="font-size: 10px" x-text="p.cat"></span>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Right preview -->
+      <div class="gf-card" style="padding: 18px 20px; min-width: 0">
+        <template x-if="selectedPreset">
+          <div>
+            <div style="display: flex; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle)">
+              <button
+                x-data="{ copied: false }"
+                @click="copyPreset(selectedPreset.prompt); copied = true; setTimeout(() => copied = false, 1200)"
+                class="gf-btn gf-btn-md"
+              >
+                <span x-text="copied ? 'Copied' : 'Copy'"></span>
+              </button>
+              <div style="flex: 1"></div>
+              <button
+                @click="launchPreset(selectedPreset.prompt, activeRunner)"
+                :disabled="launching || serverSessions.length >= 10"
+                class="gf-btn gf-btn-md gf-btn-primary"
+              >
+                Launch with <span x-text="activeRunner"></span>
+              </button>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; gap: 12px; margin-top: 16px">
+              <div style="min-width: 0; flex: 1">
+                <h3 class="gf-text-primary" style="font-size: 16px; font-weight: 600; margin-bottom: 8px" x-text="selectedPreset.name"></h3>
+                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap">
+                  <span
+                    style="
+                      font-family: var(--font-mono);
+                      font-size: 10px;
+                      padding: 1px 6px;
+                      border-radius: 3px;
+                      background: var(--accent-bg);
+                      color: var(--accent);
+                      border: 1px solid var(--accent-border);
+                    "
+                    x-text="selectedPreset.prompt.startsWith('/') ? selectedPreset.prompt.split(' ')[0] : 'direct'"
+                  ></span>
+                  <span
+                    class="gf-text-muted"
+                    style="font-size: 11px; padding: 2px 10px; border-radius: 999px; background: rgba(148,163,184,0.08)"
+                    x-text="selectedPreset.cat"
+                  ></span>
+                </div>
+              </div>
+              <button
+                @click="toggleFavorite(selectedPreset.id)"
+                style="background: transparent; border: none; color: var(--amber-400); cursor: pointer"
+                :title="isFavorite(selectedPreset.id) ? 'Remove from favourites' : 'Add to favourites'"
+              >
+                <span x-text="isFavorite(selectedPreset.id) ? '★' : '☆'" style="font-size: 18px"></span>
+              </button>
+            </div>
+
+            <p class="gf-text-muted" style="font-size: 14px; margin-top: 14px; line-height: 1.6" x-text="selectedPreset.desc"></p>
+
+            <div style="margin-top: 16px">
+              <div class="section-label" style="margin-bottom: 8px">Prompt</div>
+              <pre
+                class="gf-prompt-body"
+                style="max-height: 260px; overflow-y: auto"
+                x-text="adaptPrompt(selectedPreset.prompt)"
+              ></pre>
+            </div>
+
+            <div style="margin-top: 14px" x-data="{ extraContext: '' }">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px">
+                <div class="section-label">
+                  Extra context
+                  <span style="text-transform: none; letter-spacing: 0; color: var(--text-dim); font-weight: 400">(optional)</span>
+                </div>
+                <span style="font-size: 11px; color: var(--text-dim)">Appended before launch</span>
+              </div>
+              <textarea
+                x-model="extraContext"
+                class="gf-input"
+                style="width: 100%; min-height: 92px; padding: 10px 12px; resize: vertical; font-family: var(--font-mono); font-size: 12.5px"
+                placeholder="e.g. Focus on dispatcher routes and ignore integration tests for now..."
+              ></textarea>
+            </div>
+          </div>
+        </template>
+
+        <template x-if="!selectedPreset">
+          <div style="height: 100%; min-height: 420px; display: flex; align-items: center; justify-content: center">
+            <p class="gf-text-muted">Select a prompt to preview it.</p>
+          </div>
         </template>
       </div>
     </div>
-
-    <!-- Main list (grouped or flat via renderedPresetEntries) -->
-    <div class="flex-1 overflow-y-auto">
-      <template
-        x-for="entry in renderedPresetEntries"
-        :key="entry.kind === 'header' ? 'h-' + entry.id : 'r-' + entry.preset.id"
-      >
-        <div>
-          <!-- Category header (grouped mode only) -->
-          <template x-if="entry.kind === 'header'">
-            <div
-              class="sticky top-0 z-10 px-3 py-1 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 text-xs gf-text-muted"
-              style="font-weight: 600"
-              x-text="entry.label"
-            ></div>
-          </template>
-          <!-- Preset row -->
-          <template x-if="entry.kind === 'row'">
-            <div
-              :id="'preset-row-' + entry.preset.id"
-              @click="selectedPreset = entry.preset"
-              class="border-b border-gray-100 dark:border-gray-700 border-l-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700/50 flex items-start gap-2 cursor-pointer transition-all group"
-              :class="{
-                'ring-1 ring-emerald-500/50': selectedPreset?.id === entry.preset.id,
-                'border-l-amber-400 bg-amber-900/20': promptRunStates[entry.preset.id] === 'running',
-                'border-l-emerald-400': promptRunStates[entry.preset.id] === 'pass',
-                'border-l-red-400': promptRunStates[entry.preset.id] === 'fail',
-                'border-l-blue-400': !promptRunStates[entry.preset.id] && entry.preset.cat === 'debug',
-                'border-l-purple-400': !promptRunStates[entry.preset.id] && (entry.preset.cat === 'review' || entry.preset.cat === 'critique'),
-                'border-l-amber-400': !promptRunStates[entry.preset.id] && entry.preset.cat === 'plan',
-                'border-l-green-400': !promptRunStates[entry.preset.id] && entry.preset.cat === 'qa',
-                'border-l-red-400': !promptRunStates[entry.preset.id] && entry.preset.cat === 'security'
-              }"
-            >
-              <button
-                @click.stop="toggleFavorite(entry.preset.id)"
-                class="shrink-0 text-sm transition-colors"
-                :class="isFavorite(entry.preset.id) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600 hover:text-yellow-300'"
-                x-text="isFavorite(entry.preset.id) ? '★' : '☆'"
-                :title="isFavorite(entry.preset.id) ? 'Remove from favorites' : 'Add to favorites'"
-              ></button>
-              <div class="flex-1 min-w-0">
-                <p
-                  class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate"
-                  x-text="entry.preset.name"
-                ></p>
-                <p
-                  class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2"
-                  x-text="entry.preset.desc"
-                ></p>
-                <span
-                  x-show="presetFilter !== 'all' || presetSearch.trim()"
-                  class="text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block"
-                  :class="{
-                    'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400': entry.preset.cat === 'debug',
-                    'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400': entry.preset.cat === 'review' || entry.preset.cat === 'critique',
-                    'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400': entry.preset.cat === 'plan',
-                    'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400': entry.preset.cat === 'qa',
-                    'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400': entry.preset.cat === 'security'
-                  }"
-                  x-text="entry.preset.cat"
-                ></span>
-              </div>
-              <button
-                x-data="{ copied: false }"
-                @click.stop="copyPreset(entry.preset.prompt); copied = true; setTimeout(() => copied = false, 1000)"
-                class="shrink-0 p-1.5 transition-opacity"
-                :class="copied ? 'text-green-500 opacity-100' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100'"
-                title="Copy prompt to clipboard"
-              >
-                <svg
-                  x-show="!copied"
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <rect x="9" y="9" width="13" height="13" rx="2" />
-                  <path
-                    d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"
-                  />
-                </svg>
-                <svg
-                  x-show="copied"
-                  x-cloak
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M4.5 12.75l6 6 9-13.5"
-                  />
-                </svg>
-              </button>
-            </div>
-          </template>
-        </div>
-      </template>
-      <p
-        x-show="renderedPresetEntries.length === 0 && presetFilter === 'favorites'"
-        class="text-xs text-gray-400 p-3 text-center"
-      >
-        No favorites yet. Click ☆ on any prompt to pin it here.
-      </p>
-      <p
-        x-show="renderedPresetEntries.length === 0 && presetFilter !== 'favorites'"
-        class="text-xs text-gray-400 p-3 text-center"
-      >
-        No prompts match your search.
-      </p>
-    </div>
-  </aside>
-
-  <!-- Right pane: preview + actions -->
-  <main
-    class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900"
-  >
-    <!-- Empty state -->
-    <div
-      x-show="!selectedPreset"
-      class="flex-1 flex items-center justify-center"
-    >
-      <div class="text-center space-y-3 max-w-md px-4">
-        <svg
-          class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="1.5"
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-        <p class="text-sm gf-text-muted">Select a prompt to preview it.</p>
-        <div
-          class="text-xs gf-text-muted space-y-1 pt-2"
-          style="line-height: 1.8"
-        >
-          <div>
-            <kbd
-              class="px-1.5 py-0.5 border rounded font-mono"
-              style="font-size: 10px"
-              >/</kbd
-            >
-            focus search
-          </div>
-          <div>
-            <kbd
-              class="px-1.5 py-0.5 border rounded font-mono"
-              style="font-size: 10px"
-              >↑ ↓</kbd
-            >
-            navigate
-          </div>
-          <div>
-            <kbd
-              class="px-1.5 py-0.5 border rounded font-mono"
-              style="font-size: 10px"
-              >Enter</kbd
-            >
-            launch selected
-          </div>
-          <div>
-            <kbd
-              class="px-1.5 py-0.5 border rounded font-mono"
-              style="font-size: 10px"
-              >Esc</kbd
-            >
-            clear
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Preview -->
-    <template x-if="selectedPreset">
-      <div class="flex-1 flex flex-col overflow-hidden">
-        <!-- Preview header -->
-        <div
-          class="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0 gap-3"
-        >
-          <div class="flex items-center gap-2 min-w-0 flex-1">
-            <button
-              @click="toggleFavorite(selectedPreset.id)"
-              class="shrink-0 text-base transition-colors"
-              :class="isFavorite(selectedPreset.id) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600 hover:text-yellow-300'"
-              x-text="isFavorite(selectedPreset.id) ? '★' : '☆'"
-              :title="isFavorite(selectedPreset.id) ? 'Remove from favorites' : 'Add to favorites'"
-            ></button>
-            <span
-              class="text-base font-semibold gf-text-primary truncate"
-              x-text="selectedPreset.name"
-            ></span>
-            <span
-              class="text-xs px-1.5 py-0.5 rounded-full shrink-0"
-              :class="{
-                'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400': selectedPreset.cat === 'debug',
-                'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400': selectedPreset.cat === 'review' || selectedPreset.cat === 'critique',
-                'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400': selectedPreset.cat === 'plan',
-                'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400': selectedPreset.cat === 'qa',
-                'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400': selectedPreset.cat === 'security'
-              }"
-              x-text="selectedPreset.cat"
-            ></span>
-          </div>
-          <span class="text-xs gf-text-muted shrink-0"
-            >Runs with
-            <strong class="gf-text-secondary" x-text="activeRunner"></strong
-          ></span>
-        </div>
-
-        <!-- Body: adapted prompt, search-highlighted -->
-        <div class="flex-1 overflow-y-auto" style="background: #0f1729">
-          <pre
-            class="p-4 text-sm font-mono leading-relaxed whitespace-pre-wrap"
-            style="color: #e4e4e7"
-            x-html="highlightedPromptHtml"
-          ></pre>
-        </div>
-
-        <!-- Action bar -->
-        <div
-          class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0 flex items-center justify-end gap-2 flex-wrap"
-        >
-          <button
-            x-data="{ copied: false }"
-            @click="copyPreset(selectedPreset.prompt); copied = true; setTimeout(() => copied = false, 1200)"
-            class="gf-btn-copy"
-            :style="copied ? { background: '#14532d', color: '#4ade80', borderColor: '#166534' } : {}"
-            x-text="copied ? 'Copied!' : 'Copy'"
-          ></button>
-
-          <!-- Send to active terminal (project-scoped) -->
-          <template x-if="sendTargetsInCurrentProject.length === 1">
-            <button
-              @click="sendToProjectTarget(selectedPreset.prompt, sendTargetsInCurrentProject[0])"
-              class="gf-btn-terminal"
-              :title="'Send to ' + sendTargetsInCurrentProject[0].runner + ' session'"
-            >
-              Send to
-              <span x-text="sendTargetsInCurrentProject[0].runner"></span>
-              terminal
-            </button>
-          </template>
-          <template x-if="sendTargetsInCurrentProject.length > 1">
-            <div class="relative">
-              <button
-                @click="sendPickerOpen = !sendPickerOpen"
-                class="gf-btn-terminal"
-              >
-                Send to… (<span
-                  x-text="sendTargetsInCurrentProject.length"
-                ></span
-                >)
-              </button>
-              <div
-                x-show="sendPickerOpen"
-                x-cloak
-                @click.outside="sendPickerOpen = false"
-                class="absolute gf-card shadow-lg z-20"
-                style="
-                  bottom: calc(100% + 4px);
-                  right: 0;
-                  min-width: 240px;
-                  border-radius: 6px;
-                  overflow: hidden;
-                "
-              >
-                <template
-                  x-for="target in sendTargetsInCurrentProject"
-                  :key="'pk-' + target.id"
-                >
-                  <button
-                    @click="sendPickerOpen = false; sendToProjectTarget(selectedPreset.prompt, target)"
-                    class="w-full text-left px-3 py-2 gf-text-primary hover:bg-gray-100 dark:hover:bg-gray-700/50 text-xs flex items-center gap-2"
-                    style="border-bottom: 1px solid var(--border)"
-                  >
-                    <span
-                      style="
-                        width: 7px;
-                        height: 7px;
-                        border-radius: 50%;
-                        flex-shrink: 0;
-                      "
-                      :style="{ background: target.status === 'active' ? '#4ade80' : '#9ca3af' }"
-                    ></span>
-                    <span
-                      class="gf-text-secondary"
-                      style="font-weight: 600"
-                      x-text="target.runner"
-                    ></span>
-                    <span
-                      class="gf-text-muted"
-                      x-text="(() => {
-                        const m = Math.floor((target.age || 0) / 60);
-                        const h = Math.floor(m / 60);
-                        return h > 0 ? h + 'h ' + (m % 60) + 'm' : m + 'm';
-                      })()"
-                    ></span>
-                    <span
-                      x-show="target.id === activeSessionId"
-                      class="text-xs"
-                      style="color: #4ade80; margin-left: auto"
-                      >● active</span
-                    >
-                  </button>
-                </template>
-              </div>
-            </div>
-          </template>
-
-          <!-- Launch in new terminal -->
-          <button
-            @click="launchPreset(selectedPreset.prompt, activeRunner)"
-            :disabled="launching || serverSessions.length >= 10"
-            class="gf-btn-terminal"
-            :title="serverSessions.length >= 10 ? 'Session limit reached (10/10). End one to launch another.' : 'Launch in a new terminal session.'"
-            :style="(serverSessions.length >= 10 || launching) ? { opacity: '0.5', cursor: 'not-allowed' } : {}"
-          >
-            Launch in new terminal
-          </button>
-        </div>
-      </div>
-    </template>
-  </main>
+  </div>
 </div>

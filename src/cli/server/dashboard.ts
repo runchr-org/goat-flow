@@ -403,6 +403,85 @@ export function serveDashboard(
       return true;
     }
 
+    /** Return persisted quality-history rows and latest trend summary for dashboard UI rendering. */
+    async function handleQualityHistoryRequest(
+      url: URL,
+      res: ServerResponse,
+    ): Promise<boolean> {
+      if (url.pathname !== "/api/quality/history") return false;
+
+      const projectPath = safeResolvePath(url.searchParams.get("path"));
+      const agentParam = url.searchParams.get("agent");
+      const limitParam = url.searchParams.get("limit");
+      const agent =
+        agentParam && VALID_AGENTS.has(agentParam)
+          ? (agentParam as AgentId)
+          : agentParam
+            ? null
+            : null;
+
+      if (agentParam && !agent) {
+        jsonResponse(res, 400, {
+          error: `quality history agent must be one of: ${KNOWN_AGENT_LIST}`,
+        });
+        return true;
+      }
+
+      let limit: number | null = 20;
+      if (limitParam !== null) {
+        const parsed = Number.parseInt(limitParam, 10);
+        limit =
+          Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 100) : null;
+      }
+
+      try {
+        requireProjectDirectory(projectPath);
+        const {
+          buildQualityHistoryRows,
+          getLatestQualityHistoryEntry,
+          loadQualityHistory,
+        } = await import("../quality/history.js");
+        const history = loadQualityHistory(projectPath);
+        const rows = buildQualityHistoryRows(history.entries, {
+          agent,
+          limit,
+        });
+        const latestEntry = agent
+          ? getLatestQualityHistoryEntry(history.entries, agent)
+          : history.entries[0] ?? null;
+        const latest = latestEntry
+          ? {
+              id: latestEntry.id,
+              date: latestEntry.date,
+              time: latestEntry.time,
+              agent: latestEntry.agent,
+              setupTotal: latestEntry.report.scores.setup.total,
+              systemTotal: latestEntry.report.scores.system.total,
+              blockerCount: latestEntry.report.findings.filter(
+                (finding) => finding.severity === "BLOCKER",
+              ).length,
+              majorCount: latestEntry.report.findings.filter(
+                (finding) => finding.severity === "MAJOR",
+              ).length,
+              minorCount: latestEntry.report.findings.filter(
+                (finding) => finding.severity === "MINOR",
+              ).length,
+            }
+          : null;
+
+        jsonResponse(res, 200, {
+          rows,
+          latest,
+          warnings: history.warnings,
+        });
+      } catch (err) {
+        jsonResponse(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return true;
+    }
+
     /** Detect languages by scanning file extensions, manifest files, and tsconfig. */
     function detectLanguages(projectPath: string): string[] {
       const extMap: Record<string, string> = {
@@ -1077,6 +1156,7 @@ export function serveDashboard(
         () => Promise.resolve(handleSetupDetectRequest(url, res)),
         () => handleSetupRequest(url, res),
         () => handleQualityRequest(url, res),
+        () => handleQualityHistoryRequest(url, res),
 
         () => Promise.resolve(handleBrowseRequest(url, res)),
         () => Promise.resolve(handleAgentDetectRequest(url, res)),

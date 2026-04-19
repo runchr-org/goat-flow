@@ -30,8 +30,8 @@
   </head>
   <body
     class="h-screen overflow-hidden"
-    style="background: #1a1a1e; color: #e4e4e7"
-    :style="darkMode ? { background: '#1a1a1e', color: '#e4e4e7' } : { background: '#fafafa', color: '#18181b' }"
+    style="background: #0b0f14; color: #e2e8f0"
+    :style="darkMode ? { background: '#0b0f14', color: '#e2e8f0' } : { background: '#fafbfc', color: '#0f172a' }"
   >
     <!-- Screen reader live region -->
     <div
@@ -254,7 +254,7 @@
               Quality
             </button>
             <button
-              @click="activeView = 'setup'; detectStack()"
+              @click="activeView = 'setup'"
               class="gf-nb"
               :class="activeView === 'setup' && 'gf-nb-active'"
             >
@@ -298,8 +298,8 @@
           </div>
         </div>
         <span
-          class="gf-text-muted"
-          style="font-size: 11px; margin-right: 6px; white-space: nowrap"
+          class="gf-text-muted gf-runner-label"
+          style="font-size: 12px; margin-right: 6px; white-space: nowrap; color: var(--text-disabled)"
           >Runner:</span
         >
         <div class="gf-asel">

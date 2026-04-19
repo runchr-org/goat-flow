@@ -766,7 +766,12 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "- Allowed `type` values: `setup_quality`, `skill_flaw`, `contradiction`, `false_path`, `content_quality`, `framework_flaw`.",
   );
   lines.push("- Allowed `severity` values: `BLOCKER`, `MAJOR`, `MINOR`.");
-  lines.push("- Allowed `evidence_quality` values: `OBSERVED`, `INFERRED`.");
+  lines.push(
+    "- `evidence_quality` is REQUIRED on every finding. Allowed values: `OBSERVED` (verified in code/output), `INFERRED` (state what's missing). Omitting this field causes the report to be rejected.",
+  );
+  lines.push(
+    "- `line` must be a positive integer OR `null`. Never `0`. For file-wide findings with no specific line, use `null`.",
+  );
   if (priorReport) {
     lines.push(
       '- `delta_tag` is REQUIRED on every current finding and must be either `"new"` or `"persisted"`.',
@@ -785,9 +790,24 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push(
     "- `summary` and `detail` MUST be single-line strings. No literal newlines, tabs, or other control characters. If you need to reference multi-line command output, summarise the outcome in prose — do NOT paste raw terminal blocks into JSON string fields. Pasted multi-line content produces unparseable JSON and the report is lost.",
   );
+  lines.push(
+    "- If you write the file via a bash heredoc, QUOTE the delimiter (`<<'EOF'`, not `<<EOF`). Unquoted delimiters make the shell interpret `` `backticks` `` as command substitution, which silently eats your inline code references.",
+  );
+  lines.push("");
+  lines.push("**Validate before confirming.** After writing the file, run:");
+  lines.push("");
+  lines.push("```bash");
+  lines.push(
+    'goat-flow quality validate "$FILE"   # or: node --import tsx src/cli/cli.ts quality validate "$FILE"',
+  );
+  lines.push("```");
   lines.push("");
   lines.push(
-    "**End of response:** After writing the file, confirm in prose with a single line: `Wrote quality report to .goat-flow/logs/quality/<your-filename>.json`. Do not include the JSON inline in your reply.",
+    "If validate exits non-zero, read the reported error, fix the JSON, and re-write the file. Do NOT emit the confirmation below until validate passes.",
+  );
+  lines.push("");
+  lines.push(
+    "**End of response:** After validate passes, confirm in prose with a single line: `Wrote quality report to .goat-flow/logs/quality/<your-filename>.json`. Do not include the JSON inline in your reply.",
   );
   lines.push("");
 

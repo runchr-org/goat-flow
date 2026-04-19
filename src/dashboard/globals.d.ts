@@ -128,6 +128,32 @@ interface QualityResult {
   prompt: string;
 }
 
+/** One row in the quality-history trend table from `/api/quality/history`. */
+interface QualityHistoryRow {
+  id: string;
+  date: string;
+  agent: RunnerId;
+  setupTotal: number;
+  systemTotal: number;
+  setupDelta: number | null;
+  blockerCount: number;
+  majorCount: number;
+  minorCount: number;
+}
+
+/** Latest quality-history summary payload from `/api/quality/history`. */
+interface QualityHistoryLatest {
+  id: string;
+  date: string;
+  time: string;
+  agent: RunnerId;
+  setupTotal: number;
+  systemTotal: number;
+  blockerCount: number;
+  majorCount: number;
+  minorCount: number;
+}
+
 // ---------------------------------------------------------------------------
 // Terminal types
 // ---------------------------------------------------------------------------
