@@ -47,4 +47,3 @@ export function getTemplatePath(relative: string): string {
 export function getCliCommand(): string {
   return `node ${join(GOAT_FLOW_ROOT, "dist", "cli", "cli.js")}`;
 }
-

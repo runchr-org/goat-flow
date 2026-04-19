@@ -101,8 +101,7 @@ const COUNT_CHECKS: CountClaimCheck[] = [
   },
   {
     rule: "harness-scope-flag-count-drift",
-    pattern:
-      /AI\s+Harness\s+Completeness\s+scope\s*\((\d+)\s+checks?\b/gi,
+    pattern: /AI\s+Harness\s+Completeness\s+scope\s*\((\d+)\s+checks?\b/gi,
     actual: () => HARNESS_CHECKS.length,
     label: "AI Harness Completeness scope",
   },
@@ -303,8 +302,10 @@ function readProjectStates(ctx: AuditContext): string[] {
   const source = ctx.fs.readFile("src/cli/classify-state.ts");
   if (source === null) return [];
   const block = source.match(/type ProjectStateName =([\s\S]*?);/);
-  if (!block) return [];
-  return Array.from(block[1]!.matchAll(/"([^"]+)"/g)).map((m) => m[1]!);
+  if (!block || block[1] === undefined) return [];
+  return Array.from(block[1].matchAll(/"([^"]+)"/g)).flatMap((m) =>
+    m[1] === undefined ? [] : [m[1]],
+  );
 }
 
 /** Extract the MAX_SESSIONS constant from the terminal server source. */

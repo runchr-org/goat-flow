@@ -50,7 +50,9 @@ function checkInstructionPresent(ctx: AuditContext): AuditFailure | null {
   if (found) return null;
   // In --agent mode we look up the expected instruction path from the detected
   // structure so the failure message stays specific even when the file is absent.
-  const profile = ctx.structure.agents[ctx.agentFilter!];
+  const profile = ctx.agentFilter
+    ? ctx.structure.agents[ctx.agentFilter]
+    : undefined;
   const instructionFile =
     profile?.instruction_file ?? `${ctx.agentFilter} instruction file`;
   return {

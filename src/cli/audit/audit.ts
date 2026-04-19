@@ -85,9 +85,7 @@ function buildProjectStructure(): ProjectStructure {
           ...(agent.hooks_dir !== undefined
             ? { hooks_dir: agent.hooks_dir }
             : {}),
-          ...(agent.settings !== undefined
-            ? { settings: agent.settings }
-            : {}),
+          ...(agent.settings !== undefined ? { settings: agent.settings } : {}),
           ...(agent.hooks !== undefined ? { hooks: agent.hooks } : {}),
         },
       ]),
@@ -100,9 +98,9 @@ function buildScope(
   checks: CheckResult[],
   summary: Record<string, string>,
 ): AuditScope {
-  const failures = checks
-    .filter((c) => c.failure && !c.acknowledged)
-    .map((c) => c.failure!);
+  const failures = checks.flatMap((c) =>
+    c.failure && !c.acknowledged ? [c.failure] : [],
+  );
   return {
     status: failures.length === 0 ? "pass" : "fail",
     checks,

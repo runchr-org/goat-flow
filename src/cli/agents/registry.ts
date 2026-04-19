@@ -13,18 +13,23 @@ import type {
 } from "../manifest/types.js";
 import type { AgentId, AgentProfile, DenyMechanism } from "../types.js";
 
+/** Canonical runtime authority for agent identity. Adding a fifth agent
+ *  requires updating this tuple AND the `AgentId` union in `src/cli/types.ts`.
+ *  See `.goat-flow/decisions/ADR-022-agent-authority-canonical-source.md`. */
+export const KNOWN_AGENT_IDS = [
+  "claude",
+  "codex",
+  "gemini",
+  "copilot",
+] as const satisfies readonly AgentId[];
+
 function trimDir(path: string | undefined): string | null {
   if (!path) return null;
   return path.replace(/\/$/, "");
 }
 
 function isAgentId(value: string): value is AgentId {
-  return (
-    value === "claude" ||
-    value === "codex" ||
-    value === "gemini" ||
-    value === "copilot"
-  );
+  return (KNOWN_AGENT_IDS as readonly string[]).includes(value);
 }
 
 function toDenyMechanism(deny: ManifestDenyMechanism): DenyMechanism {

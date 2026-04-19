@@ -70,8 +70,8 @@ const feedbackLoopActive: HarnessCheck = {
     }
 
     // Report stale references (informational, not a failure)
-    const footgunStale = ctx.facts.shared.footguns.staleRefs ?? [];
-    const lessonStale = ctx.facts.shared.lessons.staleRefs ?? [];
+    const footgunStale = ctx.facts.shared.footguns.staleRefs;
+    const lessonStale = ctx.facts.shared.lessons.staleRefs;
     const totalStale = footgunStale.length + lessonStale.length;
     if (totalStale > 0) {
       findings.push(

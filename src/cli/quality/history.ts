@@ -12,9 +12,11 @@ import type { AgentId } from "../types.js";
 import type { SavedQualityFinding, SavedQualityReport } from "./schema.js";
 import { parseQualityReport } from "./schema.js";
 import { attachFindingIds } from "./ids.js";
+import { KNOWN_AGENT_IDS } from "../agents/registry.js";
 
-const QUALITY_HISTORY_FILENAME =
-  /^(\d{4}-\d{2}-\d{2})-(\d{4})-(claude|codex|gemini|copilot)-([a-z0-9]{5})\.json$/;
+const QUALITY_HISTORY_FILENAME = new RegExp(
+  `^(\\d{4}-\\d{2}-\\d{2})-(\\d{4})-(${KNOWN_AGENT_IDS.join("|")})-([a-z0-9]{5})\\.json$`,
+);
 
 export interface QualityHistoryEntry {
   id: string;
@@ -111,12 +113,16 @@ function parseHistoryFilename(
 ): { date: string; time: string; agent: AgentId; randomId: string } | null {
   const match = QUALITY_HISTORY_FILENAME.exec(filename);
   if (!match) return null;
-  return {
-    date: match[1]!,
-    time: match[2]!,
-    agent: match[3] as AgentId,
-    randomId: match[4]!,
-  };
+  const [, date, time, agent, randomId] = match;
+  if (
+    date === undefined ||
+    time === undefined ||
+    agent === undefined ||
+    randomId === undefined
+  ) {
+    return null;
+  }
+  return { date, time, agent: agent as AgentId, randomId };
 }
 
 function getQualityLogsDir(projectPath: string): string {
@@ -254,10 +260,11 @@ function countConsecutivePresence(
   if (currentIndex === -1) return 0;
 
   let count = 0;
+  let previousEntry: QualityHistoryEntry | undefined;
   for (let index = currentIndex; index < sameAgent.length; index += 1) {
-    const entry = sameAgent[index]!;
-    if (index > currentIndex) {
-      const previousEntry = sameAgent[index - 1]!;
+    const entry = sameAgent[index];
+    if (entry === undefined) break;
+    if (previousEntry !== undefined) {
       if (
         daysBetween(previousEntry.report.run_date, entry.report.run_date) > 30
       ) {
@@ -269,6 +276,7 @@ function countConsecutivePresence(
     );
     if (!hasFinding) break;
     count += 1;
+    previousEntry = entry;
   }
   return count;
 }

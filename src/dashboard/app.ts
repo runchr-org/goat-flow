@@ -57,10 +57,16 @@ function readAuditStatus(value: unknown): AuditStatus | null {
   return value === "pass" || value === "fail" ? value : null;
 }
 
-/** Read a runner ID from raw payload data. */
+/** Known runner ids. Keep in sync with RunnerId in globals.d.ts. */
+const KNOWN_RUNNER_IDS = ["claude", "codex", "gemini", "copilot"] as const;
+
+/** Read a runner ID from raw payload data. Unknown values narrow to null so
+ *  the server's wire contract isn't silently widened to arbitrary strings. */
 function readRunnerId(value: unknown): RunnerId | null {
   const runner = readString(value).trim();
-  return runner.length > 0 ? runner : null;
+  return (KNOWN_RUNNER_IDS as readonly string[]).includes(runner)
+    ? (runner as RunnerId)
+    : null;
 }
 
 /** Build the default setup-agent selection from the injected support list. */
@@ -1290,7 +1296,7 @@ function app() {
           this.setupSelectedAgent,
         );
         this.setupData.agents = Object.fromEntries(
-          Object.keys(defaultAgents).map((agentId) => [
+          (Object.keys(defaultAgents) as RunnerId[]).map((agentId) => [
             agentId,
             typeof agents[agentId] === "boolean"
               ? (agents[agentId] as boolean)

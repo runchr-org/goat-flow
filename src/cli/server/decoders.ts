@@ -15,28 +15,28 @@
 import type { AgentId } from "../types.js";
 import type { ClientMessage, Runner } from "./types.js";
 
-export type DecodeResult<T> =
+type DecodeResult<T> =
   | { ok: true; value: T }
   | { ok: false; error: string; path: string };
 
-export interface TerminalCreateBody {
+interface TerminalCreateBody {
   prompt: string;
   projectPath: string;
   runner: Runner;
 }
 
-export interface ProjectsListBody {
+interface ProjectsListBody {
   paths: string[];
 }
 
-function err(path: string, message: string): { ok: false; error: string; path: string } {
+function err(
+  path: string,
+  message: string,
+): { ok: false; error: string; path: string } {
   return { ok: false, error: message, path };
 }
 
-function parseJson(
-  body: string,
-  path: string,
-): DecodeResult<unknown> {
+function parseJson(body: string, path: string): DecodeResult<unknown> {
   try {
     return { ok: true, value: JSON.parse(body) };
   } catch (e) {
@@ -119,9 +119,7 @@ export function decodeProjectsListBody(
 }
 
 /** Decode a WebSocket frame into a typed ClientMessage or a typed error. */
-export function decodeClientMessage(
-  raw: string,
-): DecodeResult<ClientMessage> {
+export function decodeClientMessage(raw: string): DecodeResult<ClientMessage> {
   const parsed = parseJson(raw, "message");
   if (!parsed.ok) return parsed;
   const obj = parsed.value;
@@ -140,7 +138,10 @@ export function decodeClientMessage(
     if (typeof obj.rows !== "number" || !Number.isFinite(obj.rows)) {
       return err("message.rows", "must be a finite number on resize messages");
     }
-    return { ok: true, value: { type: "resize", cols: obj.cols, rows: obj.rows } };
+    return {
+      ok: true,
+      value: { type: "resize", cols: obj.cols, rows: obj.rows },
+    };
   }
   return err(
     "message.type",

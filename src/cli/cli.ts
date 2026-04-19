@@ -170,7 +170,8 @@ function parseCommand(argv: string[]): {
   const filteredArgs = [...argv];
   const first = filteredArgs[0];
   if (first !== undefined && Object.hasOwn(REMOVED_COMMANDS, first)) {
-    throw new CLIError(REMOVED_COMMANDS[first]!, 2);
+    const message = REMOVED_COMMANDS[first];
+    if (message !== undefined) throw new CLIError(message, 2);
   }
   if (
     filteredArgs.length > 0 &&

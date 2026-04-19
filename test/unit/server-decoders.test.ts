@@ -28,17 +28,17 @@ describe("decodeTerminalCreateBody", () => {
   });
 
   it("defaults runner when absent or unknown", () => {
-    const r1 = decodeTerminalCreateBody(
-      JSON.stringify({ prompt: "x" }),
-      { validRunners: RUNNERS, defaultRunner: "claude" },
-    );
+    const r1 = decodeTerminalCreateBody(JSON.stringify({ prompt: "x" }), {
+      validRunners: RUNNERS,
+      defaultRunner: "claude",
+    });
     assert.equal(r1.ok, true);
     if (r1.ok) assert.equal(r1.value.runner, "claude");
 
-    const r2 = decodeTerminalCreateBody(
-      JSON.stringify({ runner: "cursor" }),
-      { validRunners: RUNNERS, defaultRunner: "claude" },
-    );
+    const r2 = decodeTerminalCreateBody(JSON.stringify({ runner: "cursor" }), {
+      validRunners: RUNNERS,
+      defaultRunner: "claude",
+    });
     assert.equal(r2.ok, true);
     if (r2.ok) assert.equal(r2.value.runner, "claude");
   });
@@ -55,10 +55,10 @@ describe("decodeTerminalCreateBody", () => {
   });
 
   it("rejects non-string prompt", () => {
-    const r = decodeTerminalCreateBody(
-      JSON.stringify({ prompt: 42 }),
-      { validRunners: RUNNERS, defaultRunner: "claude" },
-    );
+    const r = decodeTerminalCreateBody(JSON.stringify({ prompt: 42 }), {
+      validRunners: RUNNERS,
+      defaultRunner: "claude",
+    });
     assert.equal(r.ok, false);
     if (r.ok) return;
     assert.equal(r.path, "body.prompt");
@@ -67,9 +67,7 @@ describe("decodeTerminalCreateBody", () => {
 
 describe("decodeProjectsListBody", () => {
   it("returns typed paths on a valid payload", () => {
-    const r = decodeProjectsListBody(
-      JSON.stringify({ paths: ["/a", "/b/c"] }),
-    );
+    const r = decodeProjectsListBody(JSON.stringify({ paths: ["/a", "/b/c"] }));
     assert.equal(r.ok, true);
     if (!r.ok) return;
     assert.deepStrictEqual(r.value.paths, ["/a", "/b/c"]);
@@ -126,9 +124,7 @@ describe("decodeClientMessage", () => {
   });
 
   it("rejects non-string data on input", () => {
-    const r = decodeClientMessage(
-      JSON.stringify({ type: "input", data: 42 }),
-    );
+    const r = decodeClientMessage(JSON.stringify({ type: "input", data: 42 }));
     assert.equal(r.ok, false);
     if (r.ok) return;
     assert.equal(r.path, "message.data");

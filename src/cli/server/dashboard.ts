@@ -1327,8 +1327,8 @@ export function serveDashboard(
             if (err) rejectClose(err);
             else resolveClose();
           });
-          server.closeIdleConnections?.();
-          server.closeAllConnections?.();
+          server.closeIdleConnections();
+          server.closeAllConnections();
         });
       })();
 

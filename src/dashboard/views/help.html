@@ -20,7 +20,6 @@
   @scroll="onScroll"
 >
   <main style="max-width: 1100px; margin: 0 auto; padding: 32px 24px 0">
-
     <!-- ==== Hero ==== -->
     <section style="padding: 12px 0 40px">
       <div
@@ -31,7 +30,9 @@
           letter-spacing: 0.12em;
           font-weight: 500;
         "
-      >AI Harness Engineering</div>
+      >
+        AI Harness Engineering
+      </div>
       <h1
         class="gf-text-primary"
         style="
@@ -41,14 +42,18 @@
           letter-spacing: -0.01em;
           margin: 10px 0 14px;
         "
-      >Guardrails and memory<br />for your AI coding agent.</h1>
+      >
+        Guardrails and memory<br />for your AI coding agent.
+      </h1>
       <p
         class="gf-text-muted"
         style="font-size: 16px; line-height: 1.6; max-width: 640px; margin: 0"
       >
         AI coding agents skip verification, duplicate files instead of editing
         in place, and repeat the same mistakes every session.
-        <strong class="gf-text-primary" style="font-weight: 500">That's a harness problem.</strong>
+        <strong class="gf-text-primary" style="font-weight: 500"
+          >That's a harness problem.</strong
+        >
         goat-flow is an opinionated harness for Claude Code, Codex, Gemini CLI,
         and Copilot CLI: an audit that validates the setup, hooks that block
         dangerous commands, skills that replace free-form prompting, and a
@@ -62,8 +67,19 @@
           style="display: inline-flex; align-items: center; gap: 6px"
         >
           Take the tour
-          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          <svg
+            width="12"
+            height="12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M19 14l-7 7m0 0l-7-7m7 7V3"
+            />
           </svg>
         </button>
         <button @click="activeView = 'setup'" class="gf-btn gf-btn-md">
@@ -78,15 +94,37 @@
     <!-- ==== Layout: main + TOC ==== -->
     <div
       class="gf-help-layout"
-      style="display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: 48px"
+      style="
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 180px;
+        gap: 48px;
+      "
     >
       <div style="min-width: 0">
-
         <!-- ==== Why harness engineering? ==== -->
         <div class="gf-card" style="padding: 20px 22px; margin-bottom: 40px">
-          <div class="gf-text-disabled" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 10px">Why harness engineering?</div>
-          <h3 class="gf-text-primary" style="font-size: 17px; font-weight: 500; margin: 0 0 10px">The model isn't the product. The harness is.</h3>
-          <p class="gf-text-muted" style="font-size: 14px; line-height: 1.7; margin: 0">
+          <div
+            class="gf-text-disabled"
+            style="
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              font-weight: 500;
+              margin-bottom: 10px;
+            "
+          >
+            Why harness engineering?
+          </div>
+          <h3
+            class="gf-text-primary"
+            style="font-size: 17px; font-weight: 500; margin: 0 0 10px"
+          >
+            The model isn't the product. The harness is.
+          </h3>
+          <p
+            class="gf-text-muted"
+            style="font-size: 14px; line-height: 1.7; margin: 0"
+          >
             Every serious practitioner has converged on the same insight: the
             LLM is commodity, the scaffolding around it isn't. Files it can
             read, commands it can run, rules it must obey, memory it keeps
@@ -99,114 +137,306 @@
         <section id="help-concepts" style="margin-bottom: 52px">
           <h2
             class="gf-text-primary"
-            style="font-size: 22px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em"
-          >The four pieces</h2>
-          <p class="gf-text-muted" style="font-size: 15px; max-width: 640px; margin: 0 0 18px">
+            style="
+              font-size: 22px;
+              font-weight: 500;
+              margin: 0 0 6px;
+              letter-spacing: -0.01em;
+            "
+          >
+            The four pieces
+          </h2>
+          <p
+            class="gf-text-muted"
+            style="font-size: 15px; max-width: 640px; margin: 0 0 18px"
+          >
             Four parts working together. Audit tells you what's missing, skills
             give the agent workflows, hooks stop dangerous actions, and the
             learning loop remembers what happened.
           </p>
 
-          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 10px;
+            "
+          >
             <button
               @click="document.getElementById('help-audit')?.scrollIntoView({ behavior: 'smooth' })"
               class="gf-card"
               style="padding: 16px 18px; text-align: left; cursor: pointer"
             >
-              <div class="mono gf-text-disabled" style="font-size: 11px; margin-bottom: 8px">01</div>
-              <h3 class="gf-text-primary" style="font-size: 15px; font-weight: 500; margin: 0 0 4px">Audit</h3>
-              <p class="gf-text-muted" style="font-size: 13px; margin: 0; line-height: 1.55">
+              <div
+                class="mono gf-text-disabled"
+                style="font-size: 11px; margin-bottom: 8px"
+              >
+                01
+              </div>
+              <h3
+                class="gf-text-primary"
+                style="font-size: 15px; font-weight: 500; margin: 0 0 4px"
+              >
+                Audit
+              </h3>
+              <p
+                class="gf-text-muted"
+                style="font-size: 13px; margin: 0; line-height: 1.55"
+              >
                 Pass/fail checks for every file, skill, and hook the agent
-                needs. No scores to argue with: either it's there, or it
-                isn't.
+                needs. No scores to argue with: either it's there, or it isn't.
               </p>
-              <span style="color: #60a5fa; font-size: 12px; margin-top: 10px; display: inline-block">How it works ↓</span>
+              <span
+                style="
+                  color: #60a5fa;
+                  font-size: 12px;
+                  margin-top: 10px;
+                  display: inline-block;
+                "
+                >How it works ↓</span
+              >
             </button>
             <button
               @click="document.getElementById('help-skills')?.scrollIntoView({ behavior: 'smooth' })"
               class="gf-card"
               style="padding: 16px 18px; text-align: left; cursor: pointer"
             >
-              <div class="mono gf-text-disabled" style="font-size: 11px; margin-bottom: 8px">02</div>
-              <h3 class="gf-text-primary" style="font-size: 15px; font-weight: 500; margin: 0 0 4px">Skills</h3>
-              <p class="gf-text-muted" style="font-size: 13px; margin: 0; line-height: 1.55">
+              <div
+                class="mono gf-text-disabled"
+                style="font-size: 11px; margin-bottom: 8px"
+              >
+                02
+              </div>
+              <h3
+                class="gf-text-primary"
+                style="font-size: 15px; font-weight: 500; margin: 0 0 4px"
+              >
+                Skills
+              </h3>
+              <p
+                class="gf-text-muted"
+                style="font-size: 13px; margin: 0; line-height: 1.55"
+              >
                 Seven slash commands with structure. Debug, plan, review,
                 critique, security, QA, dispatch. Each one a workflow, not a
                 suggestion.
               </p>
-              <span style="color: #60a5fa; font-size: 12px; margin-top: 10px; display: inline-block">View skills ↓</span>
+              <span
+                style="
+                  color: #60a5fa;
+                  font-size: 12px;
+                  margin-top: 10px;
+                  display: inline-block;
+                "
+                >View skills ↓</span
+              >
             </button>
             <button
               @click="document.getElementById('help-hooks')?.scrollIntoView({ behavior: 'smooth' })"
               class="gf-card"
               style="padding: 16px 18px; text-align: left; cursor: pointer"
             >
-              <div class="mono gf-text-disabled" style="font-size: 11px; margin-bottom: 8px">03</div>
-              <h3 class="gf-text-primary" style="font-size: 15px; font-weight: 500; margin: 0 0 4px">Hooks</h3>
-              <p class="gf-text-muted" style="font-size: 13px; margin: 0; line-height: 1.55">
+              <div
+                class="mono gf-text-disabled"
+                style="font-size: 11px; margin-bottom: 8px"
+              >
+                03
+              </div>
+              <h3
+                class="gf-text-primary"
+                style="font-size: 15px; font-weight: 500; margin: 0 0 4px"
+              >
+                Hooks
+              </h3>
+              <p
+                class="gf-text-muted"
+                style="font-size: 13px; margin: 0; line-height: 1.55"
+              >
                 Pre- and post-action guards. Block destructive commands,
                 force-push, and secret exposure before the agent gets the
                 chance.
               </p>
-              <span style="color: #60a5fa; font-size: 12px; margin-top: 10px; display: inline-block">What hooks do ↓</span>
+              <span
+                style="
+                  color: #60a5fa;
+                  font-size: 12px;
+                  margin-top: 10px;
+                  display: inline-block;
+                "
+                >What hooks do ↓</span
+              >
             </button>
             <button
               @click="document.getElementById('help-learning-loop')?.scrollIntoView({ behavior: 'smooth' })"
               class="gf-card"
               style="padding: 16px 18px; text-align: left; cursor: pointer"
             >
-              <div class="mono gf-text-disabled" style="font-size: 11px; margin-bottom: 8px">04</div>
-              <h3 class="gf-text-primary" style="font-size: 15px; font-weight: 500; margin: 0 0 4px">Learning loop</h3>
-              <p class="gf-text-muted" style="font-size: 13px; margin: 0; line-height: 1.55">
+              <div
+                class="mono gf-text-disabled"
+                style="font-size: 11px; margin-bottom: 8px"
+              >
+                04
+              </div>
+              <h3
+                class="gf-text-primary"
+                style="font-size: 15px; font-weight: 500; margin: 0 0 4px"
+              >
+                Learning loop
+              </h3>
+              <p
+                class="gf-text-muted"
+                style="font-size: 13px; margin: 0; line-height: 1.55"
+              >
                 Four kinds of records that turn every session's mistakes into
                 next session's context. Footguns, lessons, decisions, logs.
               </p>
-              <span style="color: #60a5fa; font-size: 12px; margin-top: 10px; display: inline-block">See the records ↓</span>
+              <span
+                style="
+                  color: #60a5fa;
+                  font-size: 12px;
+                  margin-top: 10px;
+                  display: inline-block;
+                "
+                >See the records ↓</span
+              >
             </button>
           </div>
         </section>
 
         <!-- ==== Audit ==== -->
         <section id="help-audit" style="margin-bottom: 52px">
-          <div class="gf-text-disabled" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 8px">01 · Audit</div>
-          <h2 class="gf-text-primary" style="font-size: 22px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em">How the audit works</h2>
-          <p class="gf-text-muted" style="font-size: 15px; max-width: 640px; margin: 0 0 18px">
+          <div
+            class="gf-text-disabled"
+            style="
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              font-weight: 500;
+              margin-bottom: 8px;
+            "
+          >
+            01 · Audit
+          </div>
+          <h2
+            class="gf-text-primary"
+            style="
+              font-size: 22px;
+              font-weight: 500;
+              margin: 0 0 6px;
+              letter-spacing: -0.01em;
+            "
+          >
+            How the audit works
+          </h2>
+          <p
+            class="gf-text-muted"
+            style="font-size: 15px; max-width: 640px; margin: 0 0 18px"
+          >
             Three scopes, all pass/fail. No wiggle room: either the file is
             there, the hook is wired, the convention is followed, or it isn't.
           </p>
 
-          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              gap: 10px;
+            "
+          >
             <div class="gf-card" style="padding: 16px 18px">
-              <div class="gf-text-disabled" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 6px">Scope 1</div>
-              <h3 class="gf-text-primary" style="font-size: 15px; font-weight: 500; margin: 0 0 6px">GOAT Flow setup</h3>
-              <p class="gf-text-muted" style="font-size: 13px; margin: 0; line-height: 1.55">
+              <div
+                class="gf-text-disabled"
+                style="
+                  font-size: 11px;
+                  text-transform: uppercase;
+                  letter-spacing: 0.08em;
+                  font-weight: 500;
+                  margin-bottom: 6px;
+                "
+              >
+                Scope 1
+              </div>
+              <h3
+                class="gf-text-primary"
+                style="font-size: 15px; font-weight: 500; margin: 0 0 6px"
+              >
+                GOAT Flow setup
+              </h3>
+              <p
+                class="gf-text-muted"
+                style="font-size: 13px; margin: 0; line-height: 1.55"
+              >
                 Required files, config, skills, instruction files, preamble,
                 conventions.
               </p>
             </div>
             <div class="gf-card" style="padding: 16px 18px">
-              <div class="gf-text-disabled" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 6px">Scope 2</div>
-              <h3 class="gf-text-primary" style="font-size: 15px; font-weight: 500; margin: 0 0 6px">Agent setup</h3>
-              <p class="gf-text-muted" style="font-size: 13px; margin: 0; line-height: 1.55">
+              <div
+                class="gf-text-disabled"
+                style="
+                  font-size: 11px;
+                  text-transform: uppercase;
+                  letter-spacing: 0.08em;
+                  font-weight: 500;
+                  margin-bottom: 6px;
+                "
+              >
+                Scope 2
+              </div>
+              <h3
+                class="gf-text-primary"
+                style="font-size: 15px; font-weight: 500; margin: 0 0 6px"
+              >
+                Agent setup
+              </h3>
+              <p
+                class="gf-text-muted"
+                style="font-size: 13px; margin: 0; line-height: 1.55"
+              >
                 Per-agent checks: instruction file, skills, settings, deny
                 mechanism.
               </p>
             </div>
             <div class="gf-card" style="padding: 16px 18px">
-              <div class="gf-text-disabled" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 6px">Scope 3</div>
-              <h3 class="gf-text-primary" style="font-size: 15px; font-weight: 500; margin: 0 0 6px">AI harness completeness</h3>
-              <p class="gf-text-muted" style="font-size: 13px; margin: 0; line-height: 1.55">
+              <div
+                class="gf-text-disabled"
+                style="
+                  font-size: 11px;
+                  text-transform: uppercase;
+                  letter-spacing: 0.08em;
+                  font-weight: 500;
+                  margin-bottom: 6px;
+                "
+              >
+                Scope 3
+              </div>
+              <h3
+                class="gf-text-primary"
+                style="font-size: 15px; font-weight: 500; margin: 0 0 6px"
+              >
+                AI harness completeness
+              </h3>
+              <p
+                class="gf-text-muted"
+                style="font-size: 13px; margin: 0; line-height: 1.55"
+              >
                 With <span class="mono gf-text-primary">--harness</span>:
                 integrity checks across 5 concerns (context, constraints,
                 verification, recovery, feedback loop).
               </p>
             </div>
           </div>
-          <p class="gf-text-muted" style="font-size: 14px; margin-top: 16px; line-height: 1.65">
-            Run <span class="mono gf-text-primary">goat-flow audit --harness</span>
+          <p
+            class="gf-text-muted"
+            style="font-size: 14px; margin-top: 16px; line-height: 1.65"
+          >
+            Run
+            <span class="mono gf-text-primary">goat-flow audit --harness</span>
             for 27 advisory checks across five concerns:
-            <strong class="gf-text-primary" style="font-weight: 500">context, constraints, verification, recovery, feedback loop</strong>.
-            These five are the common ground across the public harness
+            <strong class="gf-text-primary" style="font-weight: 500"
+              >context, constraints, verification, recovery, feedback
+              loop</strong
+            >. These five are the common ground across the public harness
             engineering literature (Hashimoto, Fowler/Böckeler, Anthropic,
             HumanLayer). goat-flow picks them as the default audit lens.
           </p>
@@ -220,13 +450,39 @@
 
         <!-- ==== Skills ==== -->
         <section id="help-skills" style="margin-bottom: 52px">
-          <div class="gf-text-disabled" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 8px">02 · Skills</div>
-          <h2 class="gf-text-primary" style="font-size: 22px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em">Seven skills, one dispatcher</h2>
-          <p class="gf-text-muted" style="font-size: 15px; max-width: 640px; margin: 0 0 18px">
+          <div
+            class="gf-text-disabled"
+            style="
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              font-weight: 500;
+              margin-bottom: 8px;
+            "
+          >
+            02 · Skills
+          </div>
+          <h2
+            class="gf-text-primary"
+            style="
+              font-size: 22px;
+              font-weight: 500;
+              margin: 0 0 6px;
+              letter-spacing: -0.01em;
+            "
+          >
+            Seven skills, one dispatcher
+          </h2>
+          <p
+            class="gf-text-muted"
+            style="font-size: 15px; max-width: 640px; margin: 0 0 18px"
+          >
             Free-form prompting is how agents get lost. Skills are structured
             slash commands with defined phases, named artifacts, and clear
             stopping points. Seven ship with goat-flow. Use
-            <span class="mono" style="color: var(--accent); font-weight: 500">/goat</span>
+            <span class="mono" style="color: var(--accent); font-weight: 500"
+              >/goat</span
+            >
             as the default entry point and it routes to the right one.
           </p>
 
@@ -242,9 +498,28 @@
                 font-size: 13px;
               "
             >
-              <span class="mono" style="color: var(--accent); font-weight: 500; font-size: 12.5px">/goat</span>
-              <span class="gf-text-muted">Dispatcher that classifies your intent and routes to the right skill</span>
-              <span style="font-size: 10px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em">default</span>
+              <span
+                class="mono"
+                style="
+                  color: var(--accent);
+                  font-weight: 500;
+                  font-size: 12.5px;
+                "
+                >/goat</span
+              >
+              <span class="gf-text-muted"
+                >Dispatcher that classifies your intent and routes to the right
+                skill</span
+              >
+              <span
+                style="
+                  font-size: 10px;
+                  color: var(--accent);
+                  text-transform: uppercase;
+                  letter-spacing: 0.08em;
+                "
+                >default</span
+              >
             </div>
             <template
               x-for="row in [
@@ -268,9 +543,21 @@
                   font-size: 13px;
                 "
               >
-                <span class="mono gf-text-primary" style="font-size: 12.5px" x-text="row.cmd"></span>
+                <span
+                  class="mono gf-text-primary"
+                  style="font-size: 12.5px"
+                  x-text="row.cmd"
+                ></span>
                 <span class="gf-text-muted" x-text="row.desc"></span>
-                <span class="gf-text-disabled" style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em" x-text="row.badge"></span>
+                <span
+                  class="gf-text-disabled"
+                  style="
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.08em;
+                  "
+                  x-text="row.badge"
+                ></span>
               </div>
             </template>
           </div>
@@ -278,9 +565,33 @@
 
         <!-- ==== Hooks ==== -->
         <section id="help-hooks" style="margin-bottom: 52px">
-          <div class="gf-text-disabled" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 8px">03 · Hooks</div>
-          <h2 class="gf-text-primary" style="font-size: 22px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em">Safety nets that can't be skipped</h2>
-          <p class="gf-text-muted" style="font-size: 15px; max-width: 640px; margin: 0 0 18px">
+          <div
+            class="gf-text-disabled"
+            style="
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              font-weight: 500;
+              margin-bottom: 8px;
+            "
+          >
+            03 · Hooks
+          </div>
+          <h2
+            class="gf-text-primary"
+            style="
+              font-size: 22px;
+              font-weight: 500;
+              margin: 0 0 6px;
+              letter-spacing: -0.01em;
+            "
+          >
+            Safety nets that can't be skipped
+          </h2>
+          <p
+            class="gf-text-muted"
+            style="font-size: 15px; max-width: 640px; margin: 0 0 18px"
+          >
             Hooks fire before or after agent actions. One ships by default:
             <span class="mono gf-text-primary">deny-dangerous</span>. Projects
             can add their own alongside it, and all hooks run in parallel.
@@ -288,7 +599,16 @@
 
           <div class="gf-card" style="padding: 16px 18px">
             <div style="display: flex; gap: 14px; align-items: baseline">
-              <span class="mono" style="color: var(--accent); font-weight: 500; font-size: 13px; min-width: 140px">deny-dangerous</span>
+              <span
+                class="mono"
+                style="
+                  color: var(--accent);
+                  font-weight: 500;
+                  font-size: 13px;
+                  min-width: 140px;
+                "
+                >deny-dangerous</span
+              >
               <span class="gf-text-muted" style="font-size: 13px; flex: 1">
                 Blocks eight patterns by default:
                 <span class="mono gf-text-primary">rm -rf</span>, force-push
@@ -302,29 +622,65 @@
                 >, file truncation, and recursive command substitution.
               </span>
             </div>
-            <div style="height: 1px; background: var(--border-subtle); margin: 14px 0"></div>
+            <div
+              style="
+                height: 1px;
+                background: var(--border-subtle);
+                margin: 14px 0;
+              "
+            ></div>
             <p class="gf-text-muted" style="font-size: 13px; margin: 0">
-              <span class="gf-text-primary">Add your own.</span> Linters,
-              custom validators, format-on-save, project-specific rules. Drop
-              them in alongside
-              <span class="mono gf-text-primary">deny-dangerous</span> and
-              they register automatically.
+              <span class="gf-text-primary">Add your own.</span> Linters, custom
+              validators, format-on-save, project-specific rules. Drop them in
+              alongside
+              <span class="mono gf-text-primary">deny-dangerous</span> and they
+              register automatically.
             </p>
           </div>
         </section>
 
         <!-- ==== Learning Loop ==== -->
         <section id="help-learning-loop" style="margin-bottom: 52px">
-          <div class="gf-text-disabled" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 8px">04 · Learning loop</div>
-          <h2 class="gf-text-primary" style="font-size: 22px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em">Persistent memory across sessions</h2>
-          <p class="gf-text-muted" style="font-size: 15px; max-width: 640px; margin: 0 0 18px">
+          <div
+            class="gf-text-disabled"
+            style="
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              font-weight: 500;
+              margin-bottom: 8px;
+            "
+          >
+            04 · Learning loop
+          </div>
+          <h2
+            class="gf-text-primary"
+            style="
+              font-size: 22px;
+              font-weight: 500;
+              margin: 0 0 6px;
+              letter-spacing: -0.01em;
+            "
+          >
+            Persistent memory across sessions
+          </h2>
+          <p
+            class="gf-text-muted"
+            style="font-size: 15px; max-width: 640px; margin: 0 0 18px"
+          >
             Agents forget everything between runs. The learning loop gives them
             four kinds of persistent records so the same mistake doesn't happen
             twice. It's the compounding bet of the whole system: every session
             that hits a problem makes the next session a little harder to trip.
           </p>
 
-          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 10px;
+            "
+          >
             <template
               x-for="rec in [
                 { name: 'Footguns', desc: 'Architectural traps with file:line evidence. Stops the agent hitting the same code landmine twice.', path: '.goat-flow/footguns/' },
@@ -335,9 +691,21 @@
               :key="rec.name"
             >
               <div class="gf-card" style="padding: 12px 14px">
-                <h4 class="gf-text-primary" style="font-size: 13px; font-weight: 500; margin: 0 0 4px" x-text="rec.name"></h4>
-                <p class="gf-text-muted" style="font-size: 12.5px; margin: 0; line-height: 1.55" x-text="rec.desc"></p>
-                <div class="mono gf-text-disabled" style="font-size: 11px; margin-top: 6px" x-text="rec.path"></div>
+                <h4
+                  class="gf-text-primary"
+                  style="font-size: 13px; font-weight: 500; margin: 0 0 4px"
+                  x-text="rec.name"
+                ></h4>
+                <p
+                  class="gf-text-muted"
+                  style="font-size: 12.5px; margin: 0; line-height: 1.55"
+                  x-text="rec.desc"
+                ></p>
+                <div
+                  class="mono gf-text-disabled"
+                  style="font-size: 11px; margin-top: 6px"
+                  x-text="rec.path"
+                ></div>
               </div>
             </template>
           </div>
@@ -345,9 +713,33 @@
 
         <!-- ==== Execution Loop ==== -->
         <section id="help-execution-loop" style="margin-bottom: 52px">
-          <div class="gf-text-disabled" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 8px">Under the hood</div>
-          <h2 class="gf-text-primary" style="font-size: 22px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em">The execution loop</h2>
-          <p class="gf-text-muted" style="font-size: 15px; max-width: 640px; margin: 0 0 18px">
+          <div
+            class="gf-text-disabled"
+            style="
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              font-weight: 500;
+              margin-bottom: 8px;
+            "
+          >
+            Under the hood
+          </div>
+          <h2
+            class="gf-text-primary"
+            style="
+              font-size: 22px;
+              font-weight: 500;
+              margin: 0 0 6px;
+              letter-spacing: -0.01em;
+            "
+          >
+            The execution loop
+          </h2>
+          <p
+            class="gf-text-muted"
+            style="font-size: 15px; max-width: 640px; margin: 0 0 18px"
+          >
             Every agent action follows a four-step loop. Each step prevents a
             specific failure mode that free-running agents reliably hit.
           </p>
@@ -361,48 +753,203 @@
               align-items: stretch;
             "
           >
-            <div class="gf-card" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 4px">
-              <span class="mono" style="font-size: 12px; color: var(--accent); font-weight: 500; letter-spacing: 0.04em">READ</span>
-              <span class="gf-text-muted" style="font-size: 12.5px; line-height: 1.5">Load the relevant files first. Prevents fabrication: inventing APIs that don't exist.</span>
+            <div
+              class="gf-card"
+              style="
+                padding: 12px 14px;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+              "
+            >
+              <span
+                class="mono"
+                style="
+                  font-size: 12px;
+                  color: var(--accent);
+                  font-weight: 500;
+                  letter-spacing: 0.04em;
+                "
+                >READ</span
+              >
+              <span
+                class="gf-text-muted"
+                style="font-size: 12.5px; line-height: 1.5"
+                >Load the relevant files first. Prevents fabrication: inventing
+                APIs that don't exist.</span
+              >
             </div>
-            <div class="gf-help-arrow gf-text-disabled" style="display: flex; align-items: center">
-              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            <div
+              class="gf-help-arrow gf-text-disabled"
+              style="display: flex; align-items: center"
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M14 5l7 7m0 0l-7 7m7-7H3"
+                />
               </svg>
             </div>
-            <div class="gf-card" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 4px">
-              <span class="mono" style="font-size: 12px; color: var(--accent); font-weight: 500; letter-spacing: 0.04em">SCOPE</span>
-              <span class="gf-text-muted" style="font-size: 12.5px; line-height: 1.5">Declare which files will change, and which won't. Prevents scope creep: editing files the task never asked for.</span>
+            <div
+              class="gf-card"
+              style="
+                padding: 12px 14px;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+              "
+            >
+              <span
+                class="mono"
+                style="
+                  font-size: 12px;
+                  color: var(--accent);
+                  font-weight: 500;
+                  letter-spacing: 0.04em;
+                "
+                >SCOPE</span
+              >
+              <span
+                class="gf-text-muted"
+                style="font-size: 12.5px; line-height: 1.5"
+                >Declare which files will change, and which won't. Prevents
+                scope creep: editing files the task never asked for.</span
+              >
             </div>
-            <div class="gf-help-arrow gf-text-disabled" style="display: flex; align-items: center">
-              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            <div
+              class="gf-help-arrow gf-text-disabled"
+              style="display: flex; align-items: center"
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M14 5l7 7m0 0l-7 7m7-7H3"
+                />
               </svg>
             </div>
-            <div class="gf-card" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 4px">
-              <span class="mono" style="font-size: 12px; color: var(--accent); font-weight: 500; letter-spacing: 0.04em">ACT</span>
-              <span class="gf-text-muted" style="font-size: 12.5px; line-height: 1.5">Make changes within the declared scope. Prevents off-target edits: changes made because they seemed related.</span>
+            <div
+              class="gf-card"
+              style="
+                padding: 12px 14px;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+              "
+            >
+              <span
+                class="mono"
+                style="
+                  font-size: 12px;
+                  color: var(--accent);
+                  font-weight: 500;
+                  letter-spacing: 0.04em;
+                "
+                >ACT</span
+              >
+              <span
+                class="gf-text-muted"
+                style="font-size: 12.5px; line-height: 1.5"
+                >Make changes within the declared scope. Prevents off-target
+                edits: changes made because they seemed related.</span
+              >
             </div>
-            <div class="gf-help-arrow gf-text-disabled" style="display: flex; align-items: center">
-              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            <div
+              class="gf-help-arrow gf-text-disabled"
+              style="display: flex; align-items: center"
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M14 5l7 7m0 0l-7 7m7-7H3"
+                />
               </svg>
             </div>
-            <div class="gf-card" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 4px">
-              <span class="mono" style="font-size: 12px; color: var(--accent); font-weight: 500; letter-spacing: 0.04em">VERIFY</span>
-              <span class="gf-text-muted" style="font-size: 12.5px; line-height: 1.5">Run linters, re-read changed files, confirm nothing else drifted. Prevents silent breakage: passing the task but breaking the build.</span>
+            <div
+              class="gf-card"
+              style="
+                padding: 12px 14px;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+              "
+            >
+              <span
+                class="mono"
+                style="
+                  font-size: 12px;
+                  color: var(--accent);
+                  font-weight: 500;
+                  letter-spacing: 0.04em;
+                "
+                >VERIFY</span
+              >
+              <span
+                class="gf-text-muted"
+                style="font-size: 12.5px; line-height: 1.5"
+                >Run linters, re-read changed files, confirm nothing else
+                drifted. Prevents silent breakage: passing the task but breaking
+                the build.</span
+              >
             </div>
           </div>
         </section>
 
         <!-- ==== Further reading ==== -->
         <section id="help-further-reading" style="margin-bottom: 52px">
-          <div class="gf-text-disabled" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 8px">Background</div>
-          <h2 class="gf-text-primary" style="font-size: 22px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em">Further reading</h2>
-          <p class="gf-text-muted" style="font-size: 15px; max-width: 640px; margin: 0 0 18px">
+          <div
+            class="gf-text-disabled"
+            style="
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              font-weight: 500;
+              margin-bottom: 8px;
+            "
+          >
+            Background
+          </div>
+          <h2
+            class="gf-text-primary"
+            style="
+              font-size: 22px;
+              font-weight: 500;
+              margin: 0 0 6px;
+              letter-spacing: -0.01em;
+            "
+          >
+            Further reading
+          </h2>
+          <p
+            class="gf-text-muted"
+            style="font-size: 15px; max-width: 640px; margin: 0 0 18px"
+          >
             The literature goat-flow draws on. Every source proposes something
-            different, and no one owns a standard yet. These are the ones
-            worth reading.
+            different, and no one owns a standard yet. These are the ones worth
+            reading.
           </p>
 
           <!-- TODO: real URLs -->
@@ -427,13 +974,24 @@
                 "
                 :style="idx > 0 ? { borderTop: '1px solid var(--border-subtle)' } : {}"
               >
-                <a style="color: var(--accent); font-weight: 500; text-decoration: none; cursor: default" x-text="item.label"></a>
+                <a
+                  style="
+                    color: var(--accent);
+                    font-weight: 500;
+                    text-decoration: none;
+                    cursor: default;
+                  "
+                  x-text="item.label"
+                ></a>
                 <span class="gf-text-muted" x-text="item.desc"></span>
               </div>
             </template>
           </div>
 
-          <p class="gf-text-muted" style="font-size: 14px; margin-top: 16px; line-height: 1.65">
+          <p
+            class="gf-text-muted"
+            style="font-size: 14px; margin-top: 16px; line-height: 1.65"
+          >
             goat-flow synthesises these into a working system with strong
             defaults, rather than a framework you have to assemble yourself.
           </p>
@@ -441,9 +999,33 @@
 
         <!-- ==== Quick Links ==== -->
         <section id="help-quicklinks" style="margin-bottom: 52px">
-          <div class="gf-text-disabled" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 8px">Navigate</div>
-          <h2 class="gf-text-primary" style="font-size: 22px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em">Where to go next</h2>
-          <p class="gf-text-muted" style="font-size: 15px; max-width: 640px; margin: 0 0 18px">
+          <div
+            class="gf-text-disabled"
+            style="
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              font-weight: 500;
+              margin-bottom: 8px;
+            "
+          >
+            Navigate
+          </div>
+          <h2
+            class="gf-text-primary"
+            style="
+              font-size: 22px;
+              font-weight: 500;
+              margin: 0 0 6px;
+              letter-spacing: -0.01em;
+            "
+          >
+            Where to go next
+          </h2>
+          <p
+            class="gf-text-muted"
+            style="font-size: 15px; max-width: 640px; margin: 0 0 18px"
+          >
             Where to go next. Home is the usual starting point.
           </p>
 
@@ -472,7 +1054,16 @@
               >
                 <button
                   @click="activeView = link.view"
-                  style="background: none; border: none; padding: 0; text-align: left; color: var(--accent); font-weight: 500; cursor: pointer; font-size: 13px"
+                  style="
+                    background: none;
+                    border: none;
+                    padding: 0;
+                    text-align: left;
+                    color: var(--accent);
+                    font-weight: 500;
+                    cursor: pointer;
+                    font-size: 13px;
+                  "
                   x-text="link.label"
                 ></button>
                 <span class="gf-text-muted" x-text="link.desc"></span>
@@ -480,15 +1071,31 @@
             </template>
           </div>
         </section>
-
       </div>
 
       <!-- ==== On this page (sticky rail) ==== -->
       <aside
         class="gf-help-toc"
-        style="position: sticky; top: 24px; align-self: start; padding-left: 18px; border-left: 1px solid var(--border-subtle)"
+        style="
+          position: sticky;
+          top: 24px;
+          align-self: start;
+          padding-left: 18px;
+          border-left: 1px solid var(--border-subtle);
+        "
       >
-        <div class="gf-text-disabled" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 10px">On this page</div>
+        <div
+          class="gf-text-disabled"
+          style="
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 500;
+            margin-bottom: 10px;
+          "
+        >
+          On this page
+        </div>
         <ul style="list-style: none; padding: 0; margin: 0">
           <template
             x-for="item in [
@@ -506,7 +1113,16 @@
             <li style="margin-bottom: 7px">
               <button
                 @click="document.getElementById('help-' + item.id)?.scrollIntoView({ behavior: 'smooth' }); activeToc = item.id"
-                style="background: none; border: none; padding: 0; text-align: left; cursor: pointer; font-size: 13px; display: block; width: 100%"
+                style="
+                  background: none;
+                  border: none;
+                  padding: 0;
+                  text-align: left;
+                  cursor: pointer;
+                  font-size: 13px;
+                  display: block;
+                  width: 100%;
+                "
                 :style="activeToc === item.id ? { color: 'var(--accent)', fontWeight: 500 } : { color: 'var(--text-muted)' }"
                 x-text="item.label"
               ></button>
@@ -534,10 +1150,19 @@
           href="https://github.com/blundergoat/goat-flow"
           target="_blank"
           rel="noopener"
-          style="color: var(--accent); text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 6px"
+          style="
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+          "
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+            <path
+              d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+            />
           </svg>
           GitHub
         </a>
@@ -546,7 +1171,8 @@
           target="_blank"
           rel="noopener"
           style="color: var(--accent); text-decoration: none; font-weight: 500"
-        >CLI docs</a>
+          >CLI docs</a
+        >
       </div>
       <div class="gf-text-disabled" style="font-size: 12px">
         Built by
@@ -555,7 +1181,8 @@
           target="_blank"
           rel="noopener"
           style="color: var(--accent); text-decoration: none; font-weight: 500"
-        >BlunderGOAT</a>
+          >BlunderGOAT</a
+        >
         <span x-text="' · v' + dashboardVersion"></span>
       </div>
     </footer>

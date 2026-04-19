@@ -3,6 +3,7 @@
  */
 import { isAbsolute } from "node:path";
 import type { AgentId } from "../types.js";
+import { KNOWN_AGENT_IDS } from "../agents/registry.js";
 
 export const QUALITY_REPORT_KIND = "goat-flow-quality-report";
 
@@ -32,8 +33,7 @@ export type QualityFindingSeverity =
   (typeof QUALITY_FINDING_SEVERITIES)[number];
 export type QualityEvidenceQuality =
   (typeof QUALITY_EVIDENCE_QUALITIES)[number];
-export type QualityEvidenceMethod =
-  (typeof QUALITY_EVIDENCE_METHODS)[number];
+export type QualityEvidenceMethod = (typeof QUALITY_EVIDENCE_METHODS)[number];
 export type QualityScope = (typeof QUALITY_SCOPES)[number];
 export type QualityDeltaTag = (typeof QUALITY_DELTA_TAGS)[number];
 export type QualityAuditStatus = (typeof QUALITY_AUDIT_STATUSES)[number];
@@ -487,12 +487,7 @@ function parseReportInternal(
     "report.goat_flow_version",
   );
   if (!version.ok) return version;
-  const agent = expectEnumValue(raw.agent, "report.agent", [
-    "claude",
-    "codex",
-    "gemini",
-    "copilot",
-  ] satisfies readonly AgentId[]);
+  const agent = expectEnumValue(raw.agent, "report.agent", KNOWN_AGENT_IDS);
   if (!agent.ok) return agent;
   const projectPath = expectNonEmptyString(
     raw.project_path,

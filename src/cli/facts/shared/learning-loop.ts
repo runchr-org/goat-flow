@@ -368,7 +368,7 @@ function splitFootgunSections(body: string): FootgunSection[] {
     body.matchAll(/^##\s+Footgun:\s+(.+)$/gm),
     (match) => ({
       title: (match[1] ?? "").trim(),
-      start: match.index ?? 0,
+      start: match.index,
     }),
   );
   return headings.map((heading, index) => {

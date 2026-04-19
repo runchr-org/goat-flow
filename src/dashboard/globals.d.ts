@@ -4,7 +4,9 @@
  */
 
 type AuditStatus = "pass" | "fail";
-type RunnerId = string;
+/** Keep in sync with `AgentId` in `src/cli/types.ts`. M17-12 will introduce
+ *  a single canonical authority; until then, this is the manual mirror. */
+type RunnerId = "claude" | "codex" | "gemini" | "copilot";
 type SessionStatus = "starting" | "active" | "terminated";
 
 // ---------------------------------------------------------------------------
@@ -249,7 +251,7 @@ interface SetupData {
   languages: string[];
   frameworks: string[];
   commands: SetupCommands;
-  agents: Record<RunnerId, boolean>;
+  agents: Partial<Record<RunnerId, boolean>>;
   existing: ExistingArtifacts;
   nonGoatFlow: string[];
 }

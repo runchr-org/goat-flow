@@ -198,7 +198,7 @@ export class TerminalManager {
       env: {
         ...process.env,
         GOAT_RUNNER: cliPath,
-        GOAT_PROMPT: prompt ?? "",
+        GOAT_PROMPT: prompt,
         SHELL: shell,
       },
     });

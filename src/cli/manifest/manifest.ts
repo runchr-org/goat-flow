@@ -65,7 +65,7 @@ function validateOneSkillReference(
 }
 
 export function validateSkillReferenceSchema(json: ManifestJson): void {
-  const references = json.skills.references;
+  const references: unknown = json.skills.references;
   if (references === undefined) return;
   if (
     typeof references !== "object" ||
