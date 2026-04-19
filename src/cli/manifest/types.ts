@@ -113,6 +113,10 @@ export interface ResolvedFacts {
 /** Resolved manifest — on-disk JSON plus computed `facts`. */
 export interface Manifest {
   version: string;
+  /** Files the project must contain; validated against disk by audit checks. */
+  required_files: string[];
+  /** Directories the project must contain; validated against disk by audit checks. */
+  required_dirs: string[];
   skills: SkillsStructure;
   agents: Record<string, AgentProfile>;
   facts: ResolvedFacts;

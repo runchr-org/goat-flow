@@ -29,8 +29,12 @@ import { load } from "js-yaml";
 import { isDeepStrictEqual } from "node:util";
 import type { ReadonlyFS } from "../types.js";
 import { SKILL_NAMES } from "../constants.js";
-import { getTemplatePath, getProjectStructure } from "../paths.js";
-import { getInstalledSkillRoots, getSkillFiles } from "../manifest/manifest.js";
+import { getTemplatePath } from "../paths.js";
+import {
+  getInstalledSkillRoots,
+  getSkillFiles,
+  loadManifest,
+} from "../manifest/manifest.js";
 import type { DriftFinding, DriftReport } from "./types.js";
 
 /** Remove nullish values from nested data before comparing manifests. */
@@ -124,12 +128,9 @@ function readTemplate(templateRoot: string, relative: string): string | null {
   }
 }
 
-/** Read the configured list of deprecated skill names. */
+/** Read the configured list of deprecated skill names from the validated manifest. */
 function getStaleSkillNames(): Set<string> {
-  const raw = getProjectStructure();
-  const skills = raw.skills as { stale_names?: unknown } | undefined;
-  const names = skills?.stale_names;
-  return new Set(Array.isArray(names) ? (names as string[]) : []);
+  return new Set(loadManifest().facts.skills.stale_names);
 }
 
 /** Compare installed skills against their workflow templates for drift. */

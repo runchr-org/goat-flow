@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { getProjectStructure } from "../../src/cli/paths.js";
+import { loadManifest } from "../../src/cli/manifest/manifest.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 
@@ -15,8 +15,8 @@ const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 // ---------------------------------------------------------------------------
 describe("manifest.json paths", () => {
   it("required files use .goat-flow/ prefix", () => {
-    const structure = getProjectStructure();
-    const files = (structure.required_files as string[]) ?? [];
+    const structure = loadManifest();
+    const files = structure.required_files;
     for (const file of files) {
       assert.ok(
         file.startsWith(".goat-flow/"),
@@ -26,8 +26,8 @@ describe("manifest.json paths", () => {
   });
 
   it("required dirs use .goat-flow/ prefix", () => {
-    const structure = getProjectStructure();
-    const dirs = (structure.required_dirs as string[]) ?? [];
+    const structure = loadManifest();
+    const dirs = structure.required_dirs;
     for (const dir of dirs) {
       assert.ok(
         dir.startsWith(".goat-flow/"),

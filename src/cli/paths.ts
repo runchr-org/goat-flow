@@ -48,19 +48,3 @@ export function getCliCommand(): string {
   return `node ${join(GOAT_FLOW_ROOT, "dist", "cli", "cli.js")}`;
 }
 
-/** Cached parsed manifest.json */
-let _projectStructure: Record<string, unknown> | null = null;
-
-/** Read and cache the workflow manifest JSON from the package root. */
-export function getProjectStructure(): Record<string, unknown> {
-  if (_projectStructure !== null) return _projectStructure;
-  const structurePath = join(GOAT_FLOW_ROOT, "workflow", "manifest.json");
-  try {
-    _projectStructure = JSON.parse(
-      readFileSync(structurePath, "utf-8"),
-    ) as Record<string, unknown>;
-  } catch {
-    _projectStructure = {};
-  }
-  return _projectStructure;
-}

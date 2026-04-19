@@ -209,6 +209,8 @@ export function composeManifest(
   };
   return {
     version: json.version,
+    required_files: json.required_files,
+    required_dirs: json.required_dirs,
     skills: json.skills,
     agents: json.agents,
     facts,

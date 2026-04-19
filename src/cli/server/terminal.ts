@@ -12,10 +12,10 @@ import type {
   SessionStatus,
   CreateResponse,
   HealthResponse,
-  ClientMessage,
   ServerMessage,
   Runner,
 } from "./types.js";
+import { decodeClientMessage } from "./decoders.js";
 
 // node-pty types - optional dep, can't use static import
 /** Lazily imported node-pty module type */
@@ -283,15 +283,16 @@ export class TerminalManager {
     }
 
     ws.on("message", (raw: Buffer | string) => {
-      let msg: ClientMessage;
-      try {
-        msg = JSON.parse(
-          typeof raw === "string" ? raw : raw.toString("utf-8"),
-        ) as ClientMessage;
-      } catch {
-        sendMessage(ws, { type: "error", message: "Invalid JSON" });
+      const text = typeof raw === "string" ? raw : raw.toString("utf-8");
+      const decoded = decodeClientMessage(text);
+      if (!decoded.ok) {
+        sendMessage(ws, {
+          type: "error",
+          message: `${decoded.path}: ${decoded.error}`,
+        });
         return;
       }
+      const msg = decoded.value;
 
       if (msg.type === "input") {
         session.lastInputAt = Date.now();

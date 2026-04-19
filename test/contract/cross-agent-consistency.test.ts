@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { SKILL_NAMES } from "../../src/cli/constants.js";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
-import { getProjectStructure } from "../../src/cli/paths.js";
+import { loadManifest } from "../../src/cli/manifest/manifest.js";
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
@@ -37,9 +37,8 @@ describe("version alignment", () => {
 // ---------------------------------------------------------------------------
 describe("skill count alignment", () => {
   it("SKILL_NAMES matches manifest.json canonical skills", () => {
-    const structure = getProjectStructure();
-    const skills = structure.skills as { canonical: string[] } | undefined;
-    const canonical = skills?.canonical ?? [];
+    const structure = loadManifest();
+    const canonical = structure.skills.canonical;
     assert.deepStrictEqual(
       [...SKILL_NAMES].sort(),
       [...canonical].sort(),

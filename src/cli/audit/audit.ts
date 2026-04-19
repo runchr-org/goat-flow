@@ -8,7 +8,8 @@ import { existsSync } from "node:fs";
 import type { AgentId, ReadonlyFS } from "../types.js";
 import { loadConfig } from "../config/index.js";
 import { extractProjectFacts } from "../facts/orchestrator.js";
-import { getProjectStructure, getTemplatePath } from "../paths.js";
+import { getTemplatePath } from "../paths.js";
+import { loadManifest } from "../manifest/manifest.js";
 import { SETUP_CHECKS } from "./check-goat-flow.js";
 import { AGENT_CHECKS } from "./check-agent-setup.js";
 import { HARNESS_CHECKS } from "./harness/index.js";
@@ -62,24 +63,35 @@ function computeContent(ctx: AuditContext): ContentReport {
   };
 }
 
-/** Parse the raw manifest.json into the typed subset audit needs. */
-function parseProjectStructure(raw: Record<string, unknown>): ProjectStructure {
+/** Build the audit-facing `ProjectStructure` from the validated manifest.
+ *  Replaces the previous pass-through from raw JSON (`getProjectStructure()`),
+ *  which allowed malformed shapes to leak into audit logic. */
+function buildProjectStructure(): ProjectStructure {
+  const manifest = loadManifest();
   return {
-    required_files: (raw.required_files as string[] | undefined) ?? [],
-    required_dirs: (raw.required_dirs as string[] | undefined) ?? [],
+    required_files: manifest.required_files,
+    required_dirs: manifest.required_dirs,
     skills: {
-      canonical:
-        ((raw.skills as Record<string, unknown> | undefined)
-          ?.canonical as string[]) ?? [],
-      stale_names:
-        ((raw.skills as Record<string, unknown> | undefined)
-          ?.stale_names as string[]) ?? [],
-      references:
-        ((raw.skills as Record<string, unknown> | undefined)?.references as
-          | Record<string, string[]>
-          | undefined) ?? {},
+      canonical: [...manifest.facts.skills.names],
+      stale_names: [...manifest.facts.skills.stale_names],
+      references: manifest.skills.references ?? {},
     },
-    agents: (raw.agents as ProjectStructure["agents"] | undefined) ?? {},
+    agents: Object.fromEntries(
+      Object.entries(manifest.agents).map(([id, agent]) => [
+        id,
+        {
+          instruction_file: agent.instruction_file,
+          skills_dir: agent.skills_dir,
+          ...(agent.hooks_dir !== undefined
+            ? { hooks_dir: agent.hooks_dir }
+            : {}),
+          ...(agent.settings !== undefined
+            ? { settings: agent.settings }
+            : {}),
+          ...(agent.hooks !== undefined ? { hooks: agent.hooks } : {}),
+        },
+      ]),
+    ),
   };
 }
 
@@ -325,7 +337,7 @@ function buildAuditContext(
     projectPath,
     configState,
   });
-  const structure = parseProjectStructure(getProjectStructure());
+  const structure = buildProjectStructure();
   return {
     projectPath,
     facts,

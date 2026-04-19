@@ -923,19 +923,19 @@ export function serveDashboard(
 
       try {
         const manager = await getManager();
-        const body = JSON.parse(await readBody(req)) as {
-          prompt?: string;
-          projectPath?: string;
-          runner?: string;
-        };
-        const runner = (
-          body.runner && VALID_RUNNERS.has(body.runner)
-            ? body.runner
-            : DEFAULT_RUNNER
-        ) as Runner;
+        const { decodeTerminalCreateBody } = await import("./decoders.js");
+        const decoded = decodeTerminalCreateBody(await readBody(req), {
+          validRunners: VALID_RUNNERS,
+          defaultRunner: DEFAULT_RUNNER,
+        });
+        if (!decoded.ok) {
+          jsonResponse(res, 400, { error: decoded.error, path: decoded.path });
+          return true;
+        }
+        const { prompt, projectPath, runner } = decoded.value;
         const result = await manager.create(
-          body.prompt ?? "",
-          body.projectPath ?? absDefault,
+          prompt,
+          projectPath || absDefault,
           runner,
         );
         jsonResponse(res, 200, result);
@@ -1072,13 +1072,21 @@ export function serveDashboard(
       if (req.method === "POST") {
         const body = await readBody(req);
         try {
-          const parsed = JSON.parse(body);
-          const paths: string[] = Array.isArray(parsed.paths)
-            ? parsed.paths
-            : [];
+          const { decodeProjectsListBody } = await import("./decoders.js");
+          const decoded = decodeProjectsListBody(body);
+          if (!decoded.ok) {
+            jsonResponse(res, 400, {
+              error: decoded.error,
+              path: decoded.path,
+            });
+            return true;
+          }
           const { mkdir, writeFile } = await import("node:fs/promises");
           await mkdir(join(absDefault, ".goat-flow"), { recursive: true });
-          await writeFile(projectsListFile, JSON.stringify({ paths }, null, 2));
+          await writeFile(
+            projectsListFile,
+            JSON.stringify({ paths: decoded.value.paths }, null, 2),
+          );
           jsonResponse(res, 200, { ok: true });
         } catch (err) {
           jsonResponse(res, 400, { error: String(err) });

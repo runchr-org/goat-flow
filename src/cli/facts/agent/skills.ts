@@ -7,7 +7,8 @@ import {
   SKILL_NAMES,
   AUDIT_VERSION as SKILL_VERSION,
 } from "../../constants.js";
-import { getProjectStructure, getTemplatePath } from "../../paths.js";
+import { getTemplatePath } from "../../paths.js";
+import { getSkillFiles } from "../../manifest/manifest.js";
 import { extractSection } from "./instruction.js";
 
 /** Compute Jaccard similarity between two strings by comparing word sets. */
@@ -71,19 +72,7 @@ interface SkillInventory {
 
 /** Read optional manifest-backed reference files for one canonical skill. */
 function getExpectedSkillFiles(skill: string): string[] {
-  const rawSkills = getProjectStructure().skills as
-    | Record<string, unknown>
-    | undefined;
-  const references = rawSkills?.references as
-    | Record<string, unknown>
-    | undefined;
-  const files = references?.[skill];
-  return [
-    "SKILL.md",
-    ...(Array.isArray(files)
-      ? files.filter((file): file is string => typeof file === "string")
-      : []),
-  ];
+  return getSkillFiles(skill);
 }
 
 /** Mapping of quality signal names to their detection regex patterns. */

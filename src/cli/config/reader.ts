@@ -517,10 +517,14 @@ export function loadConfig(projectRoot: string, fs?: ReadonlyFS): LoadedConfig {
   }
 
   const validation = validateConfig(parsed);
+  // Fail closed: if validation failed, downstream consumers must NOT see the
+  // partially-merged malformed config. Return defaults instead so consumers
+  // see a known-safe shape. The errors array still carries the specific paths
+  // that failed so callers can surface them to the user.
   return {
     exists: true,
     valid: validation.valid,
-    config: mergeConfig(parsed),
+    config: validation.valid ? mergeConfig(parsed) : cloneDefaults(),
     warnings: validation.warnings,
     errors: validation.errors,
     parseError: null,
