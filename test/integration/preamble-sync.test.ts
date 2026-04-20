@@ -44,6 +44,18 @@ const INSTALLED_QUALITY_TESTING = resolve(
   PROJECT_ROOT,
   ".goat-flow/skill-reference/skill-quality-testing.md",
 );
+const TOPICAL_FILES = ["tdd-iteration", "adversarial-framing", "deployment"];
+const TOPICAL_PAIRS = TOPICAL_FILES.map((name) => ({
+  name,
+  template: resolve(
+    PROJECT_ROOT,
+    `workflow/skills/reference/skill-quality-testing/${name}.md`,
+  ),
+  installed: resolve(
+    PROJECT_ROOT,
+    `.goat-flow/skill-reference/skill-quality-testing/${name}.md`,
+  ),
+}));
 
 function diffQuiet(a: string, b: string): number {
   const r = spawnSync("diff", ["-q", a, b], {
@@ -95,6 +107,19 @@ describe("preamble/conventions sync: current state", () => {
       "skill-quality-testing.md: template and installed should match",
     );
   });
+
+  for (const pair of TOPICAL_PAIRS) {
+    it(`template and installed skill-quality-testing/${pair.name}.md match`, () => {
+      if (!existsSync(pair.template) || !existsSync(pair.installed)) {
+        return; // Skip if either file is missing
+      }
+      assert.equal(
+        diffQuiet(pair.template, pair.installed),
+        0,
+        `skill-quality-testing/${pair.name}.md: template and installed should match`,
+      );
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------

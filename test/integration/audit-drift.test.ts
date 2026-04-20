@@ -75,6 +75,27 @@ function setupFixture(): string {
     join(root, "workflow", "skills", "reference", "skill-quality-testing.md"),
     SHARED_STUB,
   );
+  mkdirSync(
+    join(root, "workflow", "skills", "reference", "skill-quality-testing"),
+    { recursive: true },
+  );
+  for (const topical of [
+    "tdd-iteration",
+    "adversarial-framing",
+    "deployment",
+  ]) {
+    writeFileSync(
+      join(
+        root,
+        "workflow",
+        "skills",
+        "reference",
+        "skill-quality-testing",
+        `${topical}.md`,
+      ),
+      SHARED_STUB,
+    );
+  }
   for (const name of SKILL_NAMES) {
     writeSkillFiles(root, join("workflow", "skills"), name);
   }
@@ -97,6 +118,26 @@ function setupFixture(): string {
     join(root, ".goat-flow", "skill-reference", "skill-quality-testing.md"),
     SHARED_STUB,
   );
+  mkdirSync(
+    join(root, ".goat-flow", "skill-reference", "skill-quality-testing"),
+    { recursive: true },
+  );
+  for (const topical of [
+    "tdd-iteration",
+    "adversarial-framing",
+    "deployment",
+  ]) {
+    writeFileSync(
+      join(
+        root,
+        ".goat-flow",
+        "skill-reference",
+        "skill-quality-testing",
+        `${topical}.md`,
+      ),
+      SHARED_STUB,
+    );
+  }
   return root;
 }
 
@@ -224,7 +265,7 @@ describe("checkDrift: clean fixture", () => {
         (total, name) => total + getSkillFiles(name).length,
         0,
       ) * getInstalledSkillRoots().length;
-    assert.equal(report.checked, expectedSkillComparisons + 3);
+    assert.equal(report.checked, expectedSkillComparisons + 6);
   });
 });
 

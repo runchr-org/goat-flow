@@ -59,6 +59,9 @@ const QUALITY_TARGETS = [
   ".goat-flow/skill-reference/skill-preamble.md",
   ".goat-flow/skill-reference/skill-conventions.md",
   ".goat-flow/skill-reference/skill-quality-testing.md",
+  ".goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md",
+  ".goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md",
+  ".goat-flow/skill-reference/skill-quality-testing/deployment.md",
   // Public docs
   "docs/cli.md",
   "docs/skills.md",

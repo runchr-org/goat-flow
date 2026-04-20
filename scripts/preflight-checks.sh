@@ -651,6 +651,19 @@ if [[ -f workflow/skills/reference/skill-quality-testing.md ]] && [[ -f .goat-fl
 else
     skip "skill-quality-testing.md sync (one or both files missing)"
 fi
+for topical in tdd-iteration adversarial-framing deployment; do
+    tpl="workflow/skills/reference/skill-quality-testing/${topical}.md"
+    inst=".goat-flow/skill-reference/skill-quality-testing/${topical}.md"
+    if [[ -f "$tpl" ]] && [[ -f "$inst" ]]; then
+        if diff -q "$tpl" "$inst" >/dev/null 2>&1; then
+            pass "skill-quality-testing/${topical}.md: template and installed copy match"
+        else
+            fail "skill-quality-testing/${topical}.md: template (workflow/skills/reference/skill-quality-testing/) and installed (.goat-flow/skill-reference/skill-quality-testing/) differ"
+        fi
+    else
+        skip "skill-quality-testing/${topical}.md sync (one or both files missing)"
+    fi
+done
 
 # ── Skill SKILL.md Parity ────────────────────────────────────────────
 # Byte-exact diff (bash) for speed. For semantic comparison (frontmatter key

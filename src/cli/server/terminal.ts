@@ -19,10 +19,10 @@ import { decodeClientMessage } from "./decoders.js";
 
 // node-pty types - optional dep, can't use static import
 /** Lazily imported node-pty module type */
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- node-pty is an optional runtime dep; a static type import would break installs that skip the native module
 type NodePtyModule = typeof import("node-pty");
 /** PTY process instance type from node-pty */
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- same optional-dep constraint as NodePtyModule above
 type IPty = ReturnType<typeof import("node-pty").spawn>;
 
 /** Maximum number of concurrent terminal sessions allowed.

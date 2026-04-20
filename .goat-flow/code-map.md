@@ -5,14 +5,36 @@ Quick orientation for agents working on the goat-flow codebase.
 ## src/cli/ -- TypeScript CLI auditor and dashboard
 
 ```
-cli.ts                     # Entry point: command parser (audit, setup, dashboard, quality)
+cli.ts                     # Entry point: command parser (audit, setup, dashboard, quality, stats)
 classify-state.ts          # Project adoption classifier (bare/partial/v0.9/outdated/current/error)
 constants.ts               # SKILL_NAMES, AUDIT_VERSION
+index.ts                   # Programmatic library entry: re-exports stable audit/prompt/config/utility APIs
+paths.ts                   # Package-root path resolution; works from source and packaged builds
 types.ts                   # Shared types: AgentId, ReadonlyFS, CLIOptions, core interfaces
+
+agents/
+  registry.ts              # Manifest-backed agent registry (M12); typed runtime facade for agent metadata
+
+audit/
+  audit.ts                 # Public audit command: build checks + optional harness completeness (--harness)
+  check-goat-flow.ts       # 13 setup build checks (gate CI pass/fail)
+  check-agent-setup.ts     # 4 agent build checks (gate CI pass/fail)
+  check-drift.ts           # Template-vs-installed skill drift detection (M04)
+  check-content-quality.ts # Cold-path content quality lint (vague terms, generic instructions)
+  check-factual-claims.ts  # Cold-path factual-claim extraction (skill/check counts, broken refs)
+  check-snapshot-claims.ts # Snapshot-claim lint for CHANGELOG / release-frozen docs (M06b)
+  provenance-types.ts      # Evidence-provenance schema for audit checks (M05)
+  harness/                 # 16 pass/fail completeness checks grouped by concern (5 files + helpers + index)
+  render.ts                # Output formatters (text, json, markdown)
+  types.ts                 # Audit-specific types (AuditReport, CheckResult, AuditFailure)
 
 config/
   reader.ts                # Loads and validates .goat-flow/config.yaml
   types.ts                 # GoatFlowConfig, LoadedConfig interfaces
+
+detect/
+  agents.ts                # Agent detection from installed artefacts
+  project-stack.ts         # Language/framework stack detection
 
 facts/                     # Fact extractors -- gather project state for audit checks
   orchestrator.ts          # Runs all extractors, builds ProjectFacts
@@ -20,13 +42,10 @@ facts/                     # Fact extractors -- gather project state for audit c
   agent/                   # Agent-specific facts (hooks, instruction file, routing, skills)
   shared/                  # Shared facts (CI, learning loop, local instructions)
 
-audit/
-  audit.ts                 # Public audit command: build checks + optional harness completeness (--harness)
-  check-goat-flow.ts       # 13 setup build checks (gate CI pass/fail)
-  check-agent-setup.ts     # 4 agent build checks (gate CI pass/fail)
-  harness/                 # 16 pass/fail completeness checks grouped by concern (5 files + helpers + index)
-  render.ts                # Output formatters (text, json, markdown)
-  types.ts                 # Audit-specific types (AuditReport, CheckResult, AuditFailure)
+manifest/
+  manifest.ts              # Single-source-of-truth manifest loader (M06a); validates static facts against code reality
+  consumers.md             # Documentation for manifest consumers
+  types.ts                 # Manifest schema types
 
 prompt/
   compose-setup.ts         # Generates audit-driven setup prompts for agents
@@ -40,6 +59,10 @@ quality/
 server/
   dashboard.ts             # HTTP server for dashboard + API
   terminal.ts              # WebSocket PTY sessions (xterm.js backend)
+
+stats/
+  stats.ts                 # Learning-loop health report (goat-flow stats); consumes SharedFacts pipeline
+  render.ts                # Stats command output rendering
 ```
 
 ## workflow/ -- Setup templates, skills, and reference docs
@@ -63,7 +86,7 @@ skills/
   goat-critique/SKILL.md   # Multi-perspective critique skill template
   goat-security/SKILL.md   # Security assessment skill template
   goat-qa/SKILL.md         # Testing gap analysis skill template
-  reference/               # skill-preamble.md, skill-conventions.md, skill-quality-testing.md
+  reference/               # skill-preamble.md, skill-conventions.md, skill-quality-testing.md + skill-quality-testing/{tdd-iteration,adversarial-framing,deployment}.md
 
 hooks/                     # Hook templates (deny-dangerous.sh, etc.)
 evaluation/                # Quality-assessment prompt templates
@@ -105,7 +128,11 @@ config.yaml                # Project config (version, agents, skills, line limit
 skill-reference/           # Shared skill doctrine (committed, install-copied from workflow/skills/reference/)
   skill-preamble.md        # Loaded by every goat-* skill invocation
   skill-conventions.md     # Loaded by full-depth skill invocations
-  skill-quality-testing.md # Authoring methodology for creating or hardening a skill
+  skill-quality-testing.md # Index for the authoring methodology (points at topical files below)
+  skill-quality-testing/   # Topical authoring files loaded on demand per ADR-023
+    tdd-iteration.md       # TDD loop, pressure types, scenarios, bulletproofing, persuasion
+    adversarial-framing.md # Review-class patterns: cynical-reviewer role, parallel reviewers, finding schema
+    deployment.md          # Skip-testing rationalisations, deployment checklist, STOP rule
 
 decisions/                 # ADRs (committed)
 footguns/                  # Architectural traps with file:line evidence (committed)

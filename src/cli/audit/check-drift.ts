@@ -115,6 +115,22 @@ const SHARED_FILES: SharedFileSpec[] = [
     template: "workflow/skills/reference/skill-quality-testing.md",
     installed: ".goat-flow/skill-reference/skill-quality-testing.md",
   },
+  {
+    template:
+      "workflow/skills/reference/skill-quality-testing/tdd-iteration.md",
+    installed:
+      ".goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md",
+  },
+  {
+    template:
+      "workflow/skills/reference/skill-quality-testing/adversarial-framing.md",
+    installed:
+      ".goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md",
+  },
+  {
+    template: "workflow/skills/reference/skill-quality-testing/deployment.md",
+    installed: ".goat-flow/skill-reference/skill-quality-testing/deployment.md",
+  },
 ];
 
 /** Read a workflow template file relative to the package root. */

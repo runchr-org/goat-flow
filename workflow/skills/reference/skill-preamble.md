@@ -17,7 +17,7 @@ Order findings by severity, not by file or discovery order.
 
 ## Engineering Standards
 
-- NEVER suppress linter warnings or bypass type systems (e.g., casts) unless explicitly instructed
+- NEVER suppress linter warnings or bypass type systems (e.g., casts) without a written `-- rationale` comment on the same line explaining why the suppression is load-bearing
 - Analyze surrounding files to ensure surgical, idiomatic updates that match existing conventions
 
 ## Evidence Standard

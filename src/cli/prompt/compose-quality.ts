@@ -194,7 +194,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "4. **Learning loop** (`.goat-flow/`) - config, architecture doc, footguns, lessons, decisions, session logs.",
   );
   lines.push(
-    "5. **Shared reference** (under `.goat-flow/skill-reference/`) - skill-preamble.md (loaded every skill invocation), skill-conventions.md (loaded on full-depth), skill-quality-testing.md (full-depth authoring methodology for creating or hardening a skill).",
+    "5. **Shared reference** (under `.goat-flow/skill-reference/`) - skill-preamble.md (loaded every skill invocation), skill-conventions.md (loaded on full-depth), skill-quality-testing.md + skill-quality-testing/{tdd-iteration,adversarial-framing,deployment}.md (full-depth authoring methodology split across an index and three topical files per ADR-023; load the topical file matching your skill type).",
   );
   lines.push("");
   lines.push(
@@ -513,7 +513,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   );
   lines.push("- Is the Definition of Done practical or checkbox theater?");
   lines.push(
-    "- Is `skill-preamble.md` (loaded every invocation) worth its token cost? Is `skill-conventions.md` (loaded on full-depth) referenced when it should be? Is `skill-quality-testing.md` consulted when skills are created or hardened, or does it sit unused?",
+    "- Is `skill-preamble.md` (loaded every invocation) worth its token cost? Is `skill-conventions.md` (loaded on full-depth) referenced when it should be? Are the `skill-quality-testing.md` index and its topical files (tdd-iteration / adversarial-framing / deployment) consulted when skills are created or hardened, or do they sit unused?",
   );
   lines.push(
     "- Are footguns/lessons actually consulted during skill execution, or ignored noise?",

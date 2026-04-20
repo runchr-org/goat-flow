@@ -102,11 +102,11 @@ last_reviewed: 2026-04-19
 
 ---
 
-## Lesson: Parallel sessions (37% of messages) need concurrency-safe file patterns
+## Lesson: Parallel sessions need concurrency-safe file patterns
 
 **Status:** active | **Created:** 2026-04-05
 
-**What happened:** Local Claude Insights instrumentation (external to this repo, not committed here) showed 75 overlap events across 77 sessions — 37% of all messages happened during parallel Claude sessions. Learning loop files (`.goat-flow/logs/`, `.goat-flow/lessons/`, `.goat-flow/footguns/`) are append-only by convention, but nothing prevents two agents from writing to the same file simultaneously. Session logs use date-slug filenames which reduces collisions, but category bucket files (e.g. `.goat-flow/lessons/verification.md`) are shared write targets. The 37% figure is an external measurement, not something repo grep can reproduce; the observed write-contention risk is the durable part.
+**What happened:** Observed during parallel Claude sessions: two agents writing to the same learning-loop file simultaneously. Learning loop files (`.goat-flow/logs/`, `.goat-flow/lessons/`, `.goat-flow/footguns/`) are append-only by convention, but nothing prevents concurrent writes. Session logs use date-slug filenames which reduces collisions, but category bucket files (e.g. `.goat-flow/lessons/verification.md`) are shared write targets.
 
 **Root cause:** goat-flow was designed for single-agent sessions. The category bucket format (multiple entries in one file) creates write contention that per-entry files (one file per lesson) wouldn't have.
 
@@ -118,8 +118,8 @@ last_reviewed: 2026-04-19
 ## Lesson: Framework paths vs project paths in verbatim-installed skills
 
 **Status:** active | **Created:** 2026-04-11
-**What happened:** M17a extracted skill modes into the repository template directory and left repository-local template references in the skill files. Skills are installed verbatim, so every project received instructions that pointed back into the goat-flow repo instead of the installed project. A multi-agent critique pass ("R9" — the 9th run; transcripts are local-only, not committed) scored system avg 42 (down from 53.7) largely because of this single bug.
-**Evidence:** The R9 pass flagged broken template references in 6 of 7 reviewed consumer projects. `workflow/skills/goat/SKILL.md`, `workflow/skills/goat-security/SKILL.md`, `workflow/skills/goat-qa/SKILL.md` all used repository-local template paths instead of installed-project template paths. (Paths updated from retired flat-file layout to current directory structure; the 42-vs-53.7 scoreline is recalled from that local critique run, not reproducible from the repo today.)
+**What happened:** M17a extracted skill modes into the repository template directory and left repository-local template references in the skill files. Skills are installed verbatim, so every project received instructions that pointed back into the goat-flow repo instead of the installed project. A subsequent multi-agent critique pass flagged the bug as the dominant cause of a system-wide quality regression.
+**Evidence:** The critique flagged broken template references in 6 of 7 reviewed consumer projects. `workflow/skills/goat/SKILL.md`, `workflow/skills/goat-security/SKILL.md`, `workflow/skills/goat-qa/SKILL.md` all used repository-local template paths instead of installed-project template paths.
 **Prevention:** After editing any skill file that references a path, verify the path exists from the PROJECT's perspective, not the goat-flow repo's perspective. Add to DoD: "grep skill files for repository-local template paths and replace them with the installed project-local equivalent before shipping."
 
 ---
