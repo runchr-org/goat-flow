@@ -26,6 +26,19 @@ interface QualityPayload {
   prompt: string;
 }
 
+/** Format one date using the local calendar day in YYYY-MM-DD form. */
+function formatLocalDate(date: Date = new Date()): string {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/** Render one JSON-safe string literal for the embedded example block. */
+function jsonString(value: string): string {
+  return JSON.stringify(value);
+}
+
 /** Render the audit summary block embedded in the quality prompt. */
 function renderAuditSummary(report: AuditReport): string {
   const lines: string[] = [];
@@ -93,7 +106,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     projectPath,
     auditReport,
     priorReport = null,
-    runDate = new Date().toISOString().slice(0, 10),
+    runDate = formatLocalDate(),
   } = input;
   const profile = getAgentProfile(agent);
   const agentLabel = profile.name;
@@ -736,14 +749,14 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("");
   lines.push("```json");
   lines.push("{");
-  lines.push(`  "report_kind": "${QUALITY_REPORT_KIND}",`);
-  lines.push(`  "goat_flow_version": "${getPackageVersion()}",`);
-  lines.push(`  "agent": "${agent}",`);
-  lines.push(`  "project_path": "${projectPath}",`);
-  lines.push(`  "run_date": "${runDate}",`);
-  lines.push(`  "audit_status": "${auditStatus}",`);
+  lines.push(`  "report_kind": ${jsonString(QUALITY_REPORT_KIND)},`);
+  lines.push(`  "goat_flow_version": ${jsonString(getPackageVersion())},`);
+  lines.push(`  "agent": ${jsonString(agent)},`);
+  lines.push(`  "project_path": ${jsonString(projectPath)},`);
+  lines.push(`  "run_date": ${jsonString(runDate)},`);
+  lines.push(`  "audit_status": ${jsonString(auditStatus)},`);
   lines.push('  "scope": "framework-self | consumer",');
-  lines.push(`  "rubric_version": "${getPackageVersion()}",`);
+  lines.push(`  "rubric_version": ${jsonString(getPackageVersion())},`);
   lines.push('  "scores": {');
   lines.push(
     '    "setup": { "total": 0, "accuracy": 0, "relevance": 0, "completeness": 0, "friction": 0 },',

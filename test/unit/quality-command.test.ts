@@ -1,15 +1,62 @@
 /**
  * Quality command tests - prompt generation, payload contract, audit embedding.
  */
-import { describe, it } from "node:test";
+import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { resolve } from "node:path";
+import { resolve, join } from "node:path";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
 import { parseCLIArgs } from "../../src/cli/cli.js";
 import { composeQuality } from "../../src/cli/prompt/compose-quality.js";
 import { runAudit } from "../../src/cli/audit/audit.js";
 import { createFS } from "../../src/cli/facts/fs.js";
 import type { QualityHistoryEntry } from "../../src/cli/quality/history.js";
 import { parseQualityReport } from "../../src/cli/quality/schema.js";
+
+const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
+const CLI_PATH = join(PROJECT_ROOT, "src", "cli", "cli.ts");
+const TSX_LOADER_PATH = join(
+  PROJECT_ROOT,
+  "node_modules",
+  "tsx",
+  "dist",
+  "loader.mjs",
+);
+const disposables: string[] = [];
+
+after(() => {
+  for (const dir of disposables) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function makeTempProject(): string {
+  const root = mkdtempSync(join(tmpdir(), "goat-flow-quality-command-"));
+  mkdirSync(join(root, ".goat-flow"), { recursive: true });
+  disposables.push(root);
+  return root;
+}
+
+function runCLI(
+  cwd: string,
+  args: string[],
+): { status: number | null; stdout: string; stderr: string } {
+  const result = spawnSync(
+    process.execPath,
+    ["--import", TSX_LOADER_PATH, CLI_PATH, ...args],
+    {
+      cwd,
+      encoding: "utf-8",
+      timeout: 20000,
+    },
+  );
+  return {
+    status: result.status,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+  };
+}
 
 /** Extract the first ```json fenced block from a prompt string.
  *  Returns the JSON body with the scope placeholder replaced by a valid
@@ -196,6 +243,54 @@ describe("quality prompt content", () => {
       result.prompt.includes("Usefulness __/25"),
       "Should have usefulness sub-score",
     );
+  });
+
+  it("defaults run_date from local calendar getters, not UTC ISO date", () => {
+    const RealDate = Date;
+    class FakeDate extends RealDate {
+      constructor(value?: string | number | Date) {
+        super(value ?? "2026-04-19T00:00:00.000Z");
+      }
+
+      override getFullYear(): number {
+        return 2026;
+      }
+
+      override getMonth(): number {
+        return 3;
+      }
+
+      override getDate(): number {
+        return 18;
+      }
+
+      override toISOString(): string {
+        return "2026-04-19T00:00:00.000Z";
+      }
+
+      static override now(): number {
+        return new RealDate("2026-04-19T00:00:00.000Z").getTime();
+      }
+    }
+
+    globalThis.Date = FakeDate as DateConstructor;
+    try {
+      const result = composeQuality({
+        agent: "claude",
+        projectPath: "/tmp/test-project",
+        auditReport: null,
+      });
+      assert.ok(
+        result.prompt.includes('"run_date": "2026-04-18"'),
+        "Default run_date should use local calendar getters",
+      );
+      assert.ok(
+        !result.prompt.includes('"run_date": "2026-04-19"'),
+        "Default run_date should not fall back to UTC ISO day",
+      );
+    } finally {
+      globalThis.Date = RealDate;
+    }
   });
 
   it("includes prior-report context and json contract guidance when history exists", () => {
@@ -409,6 +504,23 @@ describe("quality prompt JSON example parses through schema", () => {
       `with-prior-report example must parse: ${parsed.ok ? "" : parsed.error}`,
     );
   });
+
+  it("JSON-escapes Windows project paths in the example block", () => {
+    const result = composeQuality({
+      agent: "claude",
+      projectPath: "C:\\repo\\app",
+      auditReport: null,
+      runDate: "2026-04-20",
+    });
+    const json = extractExampleJson(result.prompt);
+    assert.match(
+      json,
+      /"project_path": "C:\\\\repo\\\\app"/,
+      "Windows backslashes should be escaped in the JSON example",
+    );
+    const parsed = JSON.parse(json) as { project_path: string };
+    assert.equal(parsed.project_path, "C:\\repo\\app");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -434,5 +546,62 @@ describe("quality payload contract", () => {
     );
     assert.ok(typeof result.prompt === "string", "prompt should be string");
     assert.ok(result.prompt.length > 0, "prompt should not be empty");
+  });
+});
+
+describe("quality CLI output contract", () => {
+  it("writes prompt output to --output instead of stdout", () => {
+    const root = makeTempProject();
+    const outputPath = join(root, ".goat-flow", "quality-prompt.txt");
+    const result = runCLI(root, [
+      "quality",
+      ".",
+      "--agent",
+      "claude",
+      "--output",
+      outputPath,
+    ]);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(
+      result.stdout,
+      "",
+      "Prompt output should be redirected to file",
+    );
+    assert.match(result.stderr, /Written to /);
+    assert.match(
+      readFileSync(outputPath, "utf-8"),
+      /# GOAT Flow Quality Assessment - Claude Code/,
+    );
+  });
+
+  it("writes JSON payload to --output instead of stdout", () => {
+    const root = makeTempProject();
+    const outputPath = join(root, ".goat-flow", "quality-payload.json");
+    const result = runCLI(root, [
+      "quality",
+      ".",
+      "--agent",
+      "claude",
+      "--format",
+      "json",
+      "--output",
+      outputPath,
+    ]);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "", "JSON output should be redirected to file");
+    assert.match(result.stderr, /Written to /);
+    const payload = JSON.parse(readFileSync(outputPath, "utf-8")) as {
+      command: string;
+      agent: string;
+      prompt: string;
+    };
+    assert.equal(payload.command, "quality");
+    assert.equal(payload.agent, "claude");
+    assert.match(
+      payload.prompt,
+      /# GOAT Flow Quality Assessment - Claude Code/,
+    );
   });
 });

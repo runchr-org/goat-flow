@@ -652,9 +652,9 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
   });
 
   if (options.format === "json") {
-    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    writeOutput(options, JSON.stringify(result, null, 2));
   } else {
-    process.stdout.write(result.prompt + "\n");
+    writeOutput(options, result.prompt);
   }
 }
 
