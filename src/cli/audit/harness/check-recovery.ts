@@ -9,6 +9,7 @@ import { collectMarkdownFiles } from "./helpers.js";
 
 const VERIFIED_ON = "2026-04-18";
 
+/** Return the recovery provenance. */
 function recoveryProvenance(
   type: HarnessCheck["type"],
   paths: string[],
@@ -38,6 +39,7 @@ const milestoneTracking: HarnessCheck = {
     ".goat-flow/architecture.md",
     ".goat-flow/tasks/README.md",
   ]),
+  /** Run the Milestone tracking configured check. */
   run: (ctx) => {
     const tasksDir = ".goat-flow/tasks";
     if (!ctx.fs.exists(tasksDir)) {
@@ -91,6 +93,7 @@ const sessionLogs: HarnessCheck = {
     "docs/harness-audit.md",
     ".goat-flow/architecture.md",
   ]),
+  /** Run the Session logs directory check. */
   run: (ctx) => {
     const logsDir = ".goat-flow/logs/sessions";
     try {

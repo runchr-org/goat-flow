@@ -144,12 +144,14 @@ interface LatestQualitySummary {
   scope: string | null;
 }
 
+/** Parse the quality history limit. */
 function parseQualityHistoryLimit(param: string | null): number | null {
   if (param === null) return 20;
   const parsed = Number.parseInt(param, 10);
   return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 100) : null;
 }
 
+/** Build the latest quality summary. */
 function buildLatestQualitySummary(
   entry: QualityHistoryEntry | null,
 ): LatestQualitySummary | null {
@@ -1239,6 +1241,7 @@ export function serveDashboard(
         watcher.close();
       };
       process.on("exit", closeWatcher);
+      /** Release the dev watcher and its exit hook. */
       closeDevWatcher = () => {
         process.off("exit", closeWatcher);
         closeWatcher();

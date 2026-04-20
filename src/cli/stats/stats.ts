@@ -44,6 +44,7 @@ export interface StatsCheckReport {
   findings: StatsFinding[];
 }
 
+/** Build one learning-loop section summary. */
 function buildSection(
   side: SharedFacts["footguns"] | SharedFacts["lessons"],
   totalInvalidLineRefs: number,
@@ -76,6 +77,7 @@ export function buildStatsReport(shared: {
   };
 }
 
+/** Check one bucket for stale or missing last_reviewed metadata. */
 function checkBucketLastReviewed(
   bucket: BucketSection["buckets"][number],
 ): StatsFinding | null {
@@ -99,6 +101,7 @@ function checkBucketLastReviewed(
   return null;
 }
 
+/** Collect bucket findings. */
 function collectBucketFindings(
   bucket: BucketSection["buckets"][number],
 ): StatsFinding[] {
@@ -122,6 +125,7 @@ function collectBucketFindings(
   return findings;
 }
 
+/** Collect findings. */
 function collectFindings(section: BucketSection): StatsFinding[] {
   const findings: StatsFinding[] = [];
   for (const bucket of section.buckets) {

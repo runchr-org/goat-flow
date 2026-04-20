@@ -122,9 +122,11 @@ const VALID_FORMATS = ["json", "text", "markdown"] as const;
  *  does not crash commands (like `--help` or `--version`) that do not need the
  *  agent list. Strict callers get the exception; help-text callers fall back. */
 let cachedValidAgents: AgentId[] | null = null;
+/** Return the cached list of valid agent IDs. */
 function validAgents(): AgentId[] {
   return (cachedValidAgents ??= getKnownAgentIds());
 }
+/** Return the valid agent IDs as help text. */
 function validAgentList(): string {
   try {
     return validAgents().join(", ");
@@ -132,6 +134,7 @@ function validAgentList(): string {
     return "run `goat-flow manifest` for the current list";
   }
 }
+/** Return the valid `--agent` flag examples. */
 function validAgentFlags(): string {
   try {
     return validAgents()
@@ -226,6 +229,7 @@ function resolveOutputPath(
 }
 
 // eslint-disable-next-line complexity -- quality subcommand dispatch is intentionally explicit: each branch has its own positional validation
+/** Parse quality subcommand positionals. */
 function parseQualityPositionals(positionals: string[]): {
   qualitySubcommand: QualitySubcommand;
   projectPath: string;
@@ -494,6 +498,7 @@ async function handleAuditCommand(options: ParsedCLI): Promise<void> {
 
 /** Handle the quality command: generate a structured quality-assessment prompt for a selected agent. */
 // eslint-disable-next-line complexity -- quality prompt, history, and diff intentionally share one command dispatcher
+/** Dispatch the quality subcommands. */
 async function handleQualityCommand(options: ParsedCLI): Promise<void> {
   if (options.qualitySubcommand === "history") {
     const {

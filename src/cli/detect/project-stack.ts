@@ -696,6 +696,7 @@ function detectLLMIntegration(fs: ReadonlyFS): boolean {
 
 /** Detect static analysis. */
 // eslint-disable-next-line complexity -- detection covers many tool/config combos; extracting would fragment the detector
+/** Detect static-analysis tooling from project files. */
 function detectStaticAnalysis(
   fs: ReadonlyFS,
 ): Array<{ tool: string; level: string | null }> {

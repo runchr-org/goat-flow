@@ -13,7 +13,7 @@ Security concerns here are primarily about:
 
 If you discover a security issue, please report it responsibly:
 
-- **Email:** security@mattyhansen.com
+- **Email:** hello@blundergoat.com
 - **GitHub Security Advisories:** Use the "Report a vulnerability" button on the [Security tab](../../security/advisories/new)
 
 Please do **not** open a public issue for security vulnerabilities.

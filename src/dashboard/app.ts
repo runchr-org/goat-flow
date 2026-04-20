@@ -544,6 +544,7 @@ function app() {
     otherCollapsed: false,
     confirmEndSessionId: null as string | null,
     _workspacePoll: null as ReturnType<typeof setInterval> | null,
+    /** Return the current project name. */
     get projectName(): string {
       return (
         this.projectPath.split("/").filter(Boolean).pop() || this.projectPath
@@ -591,30 +592,39 @@ function app() {
     // detachTerminal() flips this while it closes browser-side sockets so ws.onclose only
     // marks sessions ended when the runner actually exits on the backend.
     _detaching: false,
+    /** Return the active local session. */
     get _activeSession(): LocalSession | null {
       return this.sessions.find((s) => s.id === this.activeSessionId) || null;
     },
+    /** Return the active terminal session ID. */
     get terminalSessionId(): string | null {
       return this._activeSession?.id ?? null;
     },
+    /** Return whether the active terminal is connected. */
     get terminalConnected(): boolean {
       return this._activeSession?.connected ?? false;
     },
+    /** Return whether the active terminal has ended. */
     get terminalEnded(): boolean {
       return this._activeSession?.ended ?? false;
     },
+    /** Return the active terminal age label. */
     get terminalAge(): string {
       return this._activeSession?.age ?? "";
     },
+    /** Return the last run prompt label. */
     get lastRunPrompt(): string | null {
       return this._activeSession?.promptLabel ?? null;
     },
+    /** Return the last run agent ID. */
     get lastRunAgent(): RunnerId | null {
       return this._activeSession?.runner ?? null;
     },
+    /** Return the active terminal WebSocket reference. */
     get _terminalWs(): WebSocket | undefined {
       return this._terminalRefs[this.activeSessionId ?? ""]?.ws;
     },
+    /** Return the active xterm instance. */
     get _terminalXterm(): XTermInstance | undefined {
       return this._terminalRefs[this.activeSessionId ?? ""]?.xterm;
     },
@@ -759,6 +769,7 @@ function app() {
         if (el) el.scrollIntoView({ block: "nearest" });
       });
     },
+    /** Return the preset category filters. */
     get presetCats(): Array<{ id: string; label: string }> {
       const cats = new Map<string, string>();
       const labelOverrides: Record<string, string> = { qa: "QA" };
@@ -1669,11 +1680,13 @@ function app() {
         const script = document.createElement("script");
         script.src =
           "https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js";
+        /** Handle script load failures. */
         script.onerror = () => reject(new Error("xterm.js load failed"));
         const timer = setTimeout(
           () => reject(new Error("xterm.js load timeout")),
           5000,
         );
+        /** Handle successful script loads. */
         script.onload = () => {
           clearTimeout(timer);
           resolve();
@@ -1688,10 +1701,12 @@ function app() {
           () => reject(new Error("fit addon load timeout")),
           5000,
         );
+        /** Handle successful script loads. */
         script.onload = () => {
           clearTimeout(timer);
           resolve();
         };
+        /** Handle script load failures. */
         script.onerror = () => reject(new Error("fit addon load failed"));
         document.head.appendChild(script);
       });
@@ -1980,6 +1995,7 @@ function app() {
       const proto = location.protocol === "https:" ? "wss:" : "ws:";
       const ws = new WebSocket(`${proto}//${location.host}${wsUrl}`);
       let ageInterval: ReturnType<typeof setInterval> | null = null;
+      /** Handle the terminal WebSocket opening. */
       ws.onopen = () => {
         session.connected = true;
         setTimeout(doFit, TERMINAL_REFIT_RETRY_DELAY_MS);
@@ -2013,6 +2029,7 @@ function app() {
           this._terminalRefs[sessionId].ageInterval = ageInterval ?? undefined;
         }
       };
+      /** Handle incoming terminal WebSocket messages. */
       ws.onmessage = (event: MessageEvent) => {
         try {
           if (typeof event.data !== "string") return;
@@ -2041,10 +2058,12 @@ function app() {
           /* ignore malformed messages */
         }
       };
+      /** Handle the terminal WebSocket closing. */
       ws.onclose = () => {
         session.connected = false;
         if (!session.ended && !this._detaching) session.ended = true;
       };
+      /** Handle terminal WebSocket errors. */
       ws.onerror = () => {
         session.connected = false;
       };

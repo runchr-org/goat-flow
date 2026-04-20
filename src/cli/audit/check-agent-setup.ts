@@ -12,6 +12,7 @@ import { AUDIT_VERSION } from "../constants.js";
 
 const VERIFIED_ON = "2026-04-18";
 
+/** Return the spec provenance. */
 function specProvenance(paths: string[]): CheckEvidence {
   return {
     source_type: "spec",
@@ -22,6 +23,7 @@ function specProvenance(paths: string[]): CheckEvidence {
   };
 }
 
+/** Return the incident provenance. */
 function incidentProvenance(paths: string[]): CheckEvidence {
   return {
     source_type: "incident",
@@ -89,6 +91,7 @@ const agentInstruction: BuildCheck = {
     "workflow/manifest.json",
     ".goat-flow/architecture.md",
   ]),
+  /** Run the Agent instruction file check. */
   run: (ctx) => {
     if (ctx.agentFilter) return checkInstructionPresent(ctx);
     return checkOrphanedArtifacts(ctx);
@@ -194,6 +197,7 @@ const agentSkills: BuildCheck = {
     "workflow/manifest.json",
     ".goat-flow/footguns/skills.md",
   ]),
+  /** Run the Agent skills check. */
   run: (ctx) => {
     if (!ctx.agentFilter) return null;
     return (
@@ -214,6 +218,7 @@ const agentSettings: BuildCheck = {
     "workflow/manifest.json",
     ".goat-flow/architecture.md",
   ]),
+  /** Run the Agent settings check. */
   run: (ctx) => {
     if (!ctx.agentFilter) return null;
     const invalid: string[] = [];
@@ -333,6 +338,7 @@ const agentDenyMechanism: BuildCheck = {
     ".goat-flow/footguns/auditor.md",
     ".goat-flow/footguns/hooks.md",
   ]),
+  /** Run the Agent deny mechanism check. */
   run: (ctx) => {
     if (!ctx.agentFilter) return null;
     // Order the checks from cheapest/static to most expensive/runtime so we stop on

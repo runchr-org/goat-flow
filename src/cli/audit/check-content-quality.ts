@@ -122,6 +122,7 @@ const LEARNING_LOOP_DIRS = [
 const VAGUE_TERMS: { term: string; suggestion: (line: string) => string }[] = [
   {
     term: "properly",
+    /** Build the "properly" suggestion. */
     suggestion: (line) =>
       /format|style/i.test(line)
         ? "Specify the exact format or style guide (e.g. 'Follow Prettier defaults' or 'Use 2-space indentation')."
@@ -129,11 +130,13 @@ const VAGUE_TERMS: { term: string; suggestion: (line: string) => string }[] = [
   },
   {
     term: "correctly",
+    /** Build the "correctly" suggestion. */
     suggestion: (_line) =>
       "Define what 'correct' means with measurable criteria.",
   },
   {
     term: "appropriately",
+    /** Build the "appropriately" suggestion. */
     suggestion: (_line) =>
       "Describe the specific situation and the expected response.",
   },
@@ -144,6 +147,7 @@ const GENERIC_INSTRUCTIONS: PatternRule[] = [
     rule: "generic-best-practices",
     pattern: /follow\s+best\s+practices/i,
     severity: "warning",
+    /** Build the generic best practices finding message. */
     message: () =>
       "Avoid generic 'follow best practices'. Be specific about which practice applies here.",
   },
@@ -151,6 +155,7 @@ const GENERIC_INSTRUCTIONS: PatternRule[] = [
     rule: "generic-good-code",
     pattern: /write\s+good\s+code/i,
     severity: "warning",
+    /** Build the generic good code finding message. */
     message: () =>
       "Avoid vague 'write good code'. Be specific about the standards the reader must meet.",
   },
@@ -158,6 +163,7 @@ const GENERIC_INSTRUCTIONS: PatternRule[] = [
     rule: "generic-correct",
     pattern: /do\s+it\s+correctly/i,
     severity: "warning",
+    /** Build the generic correct finding message. */
     message: () =>
       "Avoid generic 'do it correctly'. Define what correct means with measurable criteria.",
   },
@@ -165,6 +171,7 @@ const GENERIC_INSTRUCTIONS: PatternRule[] = [
     rule: "generic-common-sense",
     pattern: /use\s+common\s+sense/i,
     severity: "warning",
+    /** Build the generic common sense finding message. */
     message: () =>
       "Avoid 'use common sense'. Document the specific decision criteria the reader should apply.",
   },
@@ -172,6 +179,7 @@ const GENERIC_INSTRUCTIONS: PatternRule[] = [
     rule: "generic-be-careful",
     pattern: /be\s+careful/i,
     severity: "warning",
+    /** Build the generic be careful finding message. */
     message: () =>
       "Instead of 'be careful', specify the exact risk and mitigation.",
   },
@@ -187,6 +195,7 @@ const NON_ACTIONABLE: PatternRule[] = [
     rule: "non-actionable-remember",
     pattern: /(?:\bremember\b|\bkeep in mind\b|\bdon'?t forget\b)(?!\s+to\s+)/i,
     severity: "info",
+    /** Build the non actionable remember finding message. */
     message: (match) =>
       `"${match}" without "to <verb>" has no action. State what the reader must do.`,
   },
@@ -194,6 +203,7 @@ const NON_ACTIONABLE: PatternRule[] = [
     rule: "non-actionable-important",
     pattern: /it'?s\s+important(?!\s+to\s+)/i,
     severity: "info",
+    /** Build the non actionable important finding message. */
     message: () =>
       '"it\'s important" without "to <verb>" leaves the expected action unspecified.',
   },
@@ -201,6 +211,7 @@ const NON_ACTIONABLE: PatternRule[] = [
     rule: "non-actionable-should-know",
     pattern: /you\s+should\s+know(?!\s+that\s+)/i,
     severity: "info",
+    /** Build the non actionable should know finding message. */
     message: () =>
       '"you should know" without "that <fact>" has no propositional content.',
   },

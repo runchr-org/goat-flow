@@ -117,6 +117,7 @@ const AGENT_INSTRUCTION_FILE = Object.fromEntries(
 
 /** Detect which adoption stage a project is at based on its on-disk artifacts. */
 // eslint-disable-next-line complexity -- intentionally branchy state machine
+/** Classify a project's GOAT Flow adoption state. */
 export function classifyProjectState(
   fs: StateFS,
   agentId?: string,

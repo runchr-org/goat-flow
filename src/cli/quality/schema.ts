@@ -101,10 +101,12 @@ export interface SavedQualityReport extends Omit<QualityReport, "findings"> {
 
 type ParseResult<T> = { ok: true; report: T } | { ok: false; error: string };
 
+/** Check whether a value is a record. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Reject unknown keys. */
 function rejectUnknownKeys(
   value: Record<string, unknown>,
   allowedKeys: readonly string[],
@@ -117,6 +119,7 @@ function rejectUnknownKeys(
   return `${path} has unknown key(s): ${unknown.join(", ")}`;
 }
 
+/** Expect string. */
 function expectString(
   value: unknown,
   path: string,
@@ -127,6 +130,7 @@ function expectString(
   return { ok: true, value };
 }
 
+/** Expect non empty string. */
 function expectNonEmptyString(
   value: unknown,
   path: string,
@@ -139,6 +143,7 @@ function expectNonEmptyString(
   return { ok: true, value: parsed.value };
 }
 
+/** Expect enum value. */
 function expectEnumValue<T extends string>(
   value: unknown,
   path: string,
@@ -153,6 +158,7 @@ function expectEnumValue<T extends string>(
   return { ok: true, value: value as T };
 }
 
+/** Expect nullable string. */
 function expectNullableString(
   value: unknown,
   path: string,
@@ -163,6 +169,7 @@ function expectNullableString(
   return { ok: true, value: parsed.value };
 }
 
+/** Expect nullable positive integer. */
 function expectNullablePositiveInteger(
   value: unknown,
   path: string,
@@ -174,6 +181,7 @@ function expectNullablePositiveInteger(
   return { ok: true, value: Number(value) };
 }
 
+/** Expect axis score. */
 function expectAxisScore(
   value: unknown,
   path: string,
@@ -190,6 +198,7 @@ function expectAxisScore(
   return { ok: true, value: Number(value) as QualityAxisScore };
 }
 
+/** Expect score total. */
 function expectScoreTotal(
   value: unknown,
   path: string,
@@ -200,6 +209,7 @@ function expectScoreTotal(
   return { ok: true, value: Number(value) };
 }
 
+/** Parse the setup scores. */
 function parseSetupScores(
   raw: unknown,
   path: string,
@@ -247,6 +257,7 @@ function parseSetupScores(
   };
 }
 
+/** Parse the system scores. */
 function parseSystemScores(
   raw: unknown,
   path: string,
@@ -303,6 +314,7 @@ function parseSystemScores(
   };
 }
 
+/** Parse the scores. */
 function parseScores(
   raw: unknown,
   path: string,
@@ -326,6 +338,7 @@ function parseScores(
 }
 
 // eslint-disable-next-line complexity -- finding validation is intentionally explicit so every rejected field gets a precise path-specific error
+/** Parse one quality finding payload. */
 function parseFinding(
   raw: unknown,
   index: number,
@@ -450,6 +463,7 @@ function parseFinding(
 }
 
 // eslint-disable-next-line complexity -- report validation stays fully expanded so schema errors name the exact failing field
+/** Parse a quality report with optional finding IDs. */
 function parseReportInternal(
   raw: unknown,
   allowFindingId: boolean,
@@ -579,12 +593,14 @@ function parseReportInternal(
   };
 }
 
+/** Parse the quality report. */
 export function parseQualityReport(raw: unknown): ParseResult<QualityReport> {
   const result = parseReportInternal(raw, false);
   if (!result.ok) return result;
   return { ok: true, report: result.report as QualityReport };
 }
 
+/** Parse the saved quality report. */
 export function parseSavedQualityReport(
   raw: unknown,
 ): ParseResult<SavedQualityReport> {

@@ -8,6 +8,7 @@ import { pass, fail } from "./helpers.js";
 
 const VERIFIED_ON = "2026-04-18";
 
+/** Return the verification provenance. */
 function verificationProvenance(
   type: HarnessCheck["type"],
   paths: string[],
@@ -36,6 +37,7 @@ const testRunnerConfigured: HarnessCheck = {
     "docs/harness-audit.md",
     ".goat-flow/config.yaml",
   ]),
+  /** Run the Test runner configured check. */
   run: (ctx) => {
     const tc = ctx.config.config.toolchain;
     if (tc.test.length > 0) {
@@ -61,6 +63,7 @@ const hooksRegistered: HarnessCheck = {
     ],
     "incident",
   ),
+  /** Run the Hook registrations in sync check. */
   run: (ctx) => {
     const findings: string[] = [];
     const recs: string[] = [];
@@ -100,6 +103,7 @@ const commitGuidance: HarnessCheck = {
     "docs/harness-audit.md",
     "docs/coding-standards/git-commit.md",
   ]),
+  /** Run the Commit guidance present check. */
   run: (ctx) => {
     if (ctx.facts.shared.gitCommitInstructions.exists) {
       return pass(["Commit guidance found"]);
@@ -124,6 +128,7 @@ const postTurnHookIntegrity: HarnessCheck = {
     "docs/harness-audit.md",
     ".goat-flow/footguns/hooks.md",
   ]),
+  /** Run the Post-turn hook integrity check. */
   run: (ctx) => {
     const findings: string[] = [];
     let anyHook = false;

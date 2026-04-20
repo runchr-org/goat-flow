@@ -274,6 +274,7 @@ function readHookCommand(hookObj: Record<string, unknown>): string | null {
     : null;
 }
 
+/** Extract command from hook. */
 function extractCommandFromHook(hook: unknown): string | null {
   if (!hook || typeof hook !== "object") return null;
   const hookObj = hook as Record<string, unknown>;

@@ -78,6 +78,7 @@ function renderDegradedNote(): string {
   ].join("\n");
 }
 
+/** Return the finding severity rank. */
 function findingSeverityRank(severity: "BLOCKER" | "MAJOR" | "MINOR"): number {
   if (severity === "BLOCKER") return 0;
   if (severity === "MAJOR") return 1;
@@ -86,6 +87,7 @@ function findingSeverityRank(severity: "BLOCKER" | "MAJOR" | "MINOR"): number {
 
 /** Compose the quality-assessment prompt for the selected agent. */
 // eslint-disable-next-line complexity -- prompt assembly branches on audit availability and split hook-config surfaces
+/** Compose the quality review prompt. */
 export function composeQuality(input: QualityInput): QualityPayload {
   const {
     agent,

@@ -8,6 +8,7 @@ import type {
   SavedQualityReport,
 } from "./schema.js";
 
+/** Build the slug for one finding file path. */
 function slugFindingFile(file: string | null): string {
   if (file === null) return "_";
   const slug = file
@@ -18,12 +19,14 @@ function slugFindingFile(file: string | null): string {
   return slug || "_";
 }
 
+/** Build the finding ID. */
 function buildFindingId(
   finding: Pick<QualityFinding, "type" | "file" | "line">,
 ): string {
   return `${finding.type}:${slugFindingFile(finding.file)}:${finding.line ?? "_"}`;
 }
 
+/** Attach finding IDs. */
 export function attachFindingIds(
   report: QualityReport,
 ): { ok: true; report: SavedQualityReport } | { ok: false; error: string } {

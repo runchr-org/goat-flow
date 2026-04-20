@@ -29,6 +29,7 @@ interface ProjectsListBody {
   paths: string[];
 }
 
+/** Build a decoder error result. */
 function err(
   path: string,
   message: string,
@@ -36,6 +37,7 @@ function err(
   return { ok: false, error: message, path };
 }
 
+/** Parse the JSON. */
 function parseJson(body: string, path: string): DecodeResult<unknown> {
   try {
     return { ok: true, value: JSON.parse(body) };
@@ -45,6 +47,7 @@ function parseJson(body: string, path: string): DecodeResult<unknown> {
   }
 }
 
+/** Check whether a value is a record. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

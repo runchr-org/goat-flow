@@ -61,12 +61,14 @@ interface QualityDiffResult {
   stuck: QualityDiffFindingRow[];
 }
 
+/** Return the numeric rank for one finding severity. */
 function severityRank(severity: SavedQualityFinding["severity"]): number {
   if (severity === "BLOCKER") return 0;
   if (severity === "MAJOR") return 1;
   return 2;
 }
 
+/** Compare diff rows by severity and finding ID. */
 function diffRowSort(
   left: QualityDiffFindingRow,
   right: QualityDiffFindingRow,
@@ -77,6 +79,7 @@ function diffRowSort(
   return left.id.localeCompare(right.id);
 }
 
+/** Compare history entries in descending recency order. */
 function compareEntriesDesc(
   left: QualityHistoryEntry,
   right: QualityHistoryEntry,
@@ -87,12 +90,14 @@ function compareEntriesDesc(
   return right.id.localeCompare(left.id);
 }
 
+/** Return the whole-day gap between two run dates. */
 function daysBetween(newerDate: string, olderDate: string): number {
   const newer = new Date(`${newerDate}T00:00:00Z`);
   const older = new Date(`${olderDate}T00:00:00Z`);
   return Math.round((newer.getTime() - older.getTime()) / 86_400_000);
 }
 
+/** Count findings at one severity level. */
 function countSeverity(
   report: SavedQualityReport,
   severity: SavedQualityFinding["severity"],
@@ -101,6 +106,7 @@ function countSeverity(
     .length;
 }
 
+/** Format the delta. */
 function formatDelta(delta: number | null): string {
   if (delta === null) return "";
   if (delta > 0) return ` (+${delta})`;
@@ -108,6 +114,7 @@ function formatDelta(delta: number | null): string {
   return " (+0)";
 }
 
+/** Parse the history filename. */
 function parseHistoryFilename(
   filename: string,
 ): { date: string; time: string; agent: AgentId; randomId: string } | null {
@@ -125,10 +132,12 @@ function parseHistoryFilename(
   return { date, time, agent: agent as AgentId, randomId };
 }
 
+/** Return the quality logs directory path. */
 function getQualityLogsDir(projectPath: string): string {
   return join(projectPath, ".goat-flow", "logs", "quality");
 }
 
+/** Load the quality history. */
 export function loadQualityHistory(projectPath: string): {
   entries: QualityHistoryEntry[];
   warnings: string[];
@@ -185,6 +194,7 @@ export function loadQualityHistory(projectPath: string): {
   return { entries, warnings };
 }
 
+/** Return the latest history entry for one agent. */
 export function getLatestQualityHistoryEntry(
   entries: QualityHistoryEntry[],
   agent: AgentId,
@@ -192,6 +202,7 @@ export function getLatestQualityHistoryEntry(
   return entries.find((entry) => entry.agent === agent) ?? null;
 }
 
+/** Select quality history entries. */
 export function selectQualityHistoryEntries(
   entries: QualityHistoryEntry[],
   options: { agent: AgentId | null; limit: number | null },
@@ -203,6 +214,7 @@ export function selectQualityHistoryEntries(
   return filtered.slice(0, options.limit);
 }
 
+/** Build the quality history rows. */
 export function buildQualityHistoryRows(
   entries: QualityHistoryEntry[],
   options: { agent: AgentId | null; limit: number | null },
@@ -240,12 +252,14 @@ export function buildQualityHistoryRows(
   return rows.slice(0, options.limit);
 }
 
+/** Build a finding map keyed by finding ID. */
 function getFindingMap(
   report: SavedQualityReport,
 ): Map<string, SavedQualityFinding> {
   return new Map(report.findings.map((finding) => [finding.id, finding]));
 }
 
+/** Count consecutive runs that contain one finding. */
 function countConsecutivePresence(
   entries: QualityHistoryEntry[],
   currentEntry: QualityHistoryEntry,
@@ -282,6 +296,7 @@ function countConsecutivePresence(
 }
 
 // eslint-disable-next-line complexity -- diff selection branches on implicit latest-vs-explicit pair resolution and validation
+/** Build the diff between two quality-history runs. */
 export function buildQualityDiff(
   entries: QualityHistoryEntry[],
   options: { agent: AgentId | null; pair: string | null },
@@ -398,6 +413,7 @@ export function buildQualityDiff(
   };
 }
 
+/** Render the quality history text. */
 export function renderQualityHistoryText(
   rows: QualityHistoryRow[],
   options: { agent: AgentId | null; all: boolean },
@@ -435,10 +451,12 @@ export function renderQualityHistoryText(
   return lines.join("\n");
 }
 
+/** Render the quality diff text. */
 export function renderQualityDiffText(diff: QualityDiffResult): string {
   const header = `Setup ${diff.from.report.scores.setup.total}/100 → ${diff.to.report.scores.setup.total}/100 (${diff.setupDelta >= 0 ? `+${diff.setupDelta}` : diff.setupDelta}). System ${diff.from.report.scores.system.total}/100 → ${diff.to.report.scores.system.total}/100 (${diff.systemDelta >= 0 ? `+${diff.systemDelta}` : diff.systemDelta}).`;
   const lines = [header, ""];
 
+  /** Render one labeled diff section. */
   const renderSection = (
     title: string,
     rows: QualityDiffFindingRow[],

@@ -53,6 +53,7 @@ export interface CheckEvidence {
 /** Filesystem lookup used to verify repo-local evidence paths when available. */
 type EvidencePathExists = (path: string) => boolean;
 
+/** Check that unknown-source evidence includes a reason. */
 function checkUnknownReason(e: CheckEvidence): string | null {
   if (e.source_type === "unknown" && (!e.reason || e.reason.trim() === "")) {
     return "source_type 'unknown' requires a non-empty `reason` explaining why provenance could not be reconstructed";
@@ -60,11 +61,13 @@ function checkUnknownReason(e: CheckEvidence): string | null {
   return null;
 }
 
+/** Check that `verified_on` uses YYYY-MM-DD. */
 function checkVerifiedOn(e: CheckEvidence): string | null {
   if (/^\d{4}-\d{2}-\d{2}$/.test(e.verified_on)) return null;
   return `verified_on must be ISO date YYYY-MM-DD, got ${JSON.stringify(e.verified_on)}`;
 }
 
+/** Check that required source metadata is present. */
 function checkSourceRequired(e: CheckEvidence): string | null {
   if (e.source_type === "unknown") return null;
   if (e.source_urls.length > 0) return null;
@@ -72,6 +75,7 @@ function checkSourceRequired(e: CheckEvidence): string | null {
   return "non-unknown source_type must have at least one source_url or evidence_path";
 }
 
+/** Check that every evidence path exists. */
 function checkEvidencePathsExist(
   e: CheckEvidence,
   pathExists: EvidencePathExists,

@@ -9,6 +9,7 @@ import { pass, fail } from "./helpers.js";
 
 const VERIFIED_ON = "2026-04-18";
 
+/** Return the feedback provenance. */
 function feedbackProvenance(
   type: HarnessCheck["type"],
   paths: string[],
@@ -36,6 +37,7 @@ const feedbackLoopActive: HarnessCheck = {
     "docs/harness-audit.md",
     ".goat-flow/architecture.md",
   ]),
+  /** Run the Feedback loop directories exist check. */
   run: (ctx) => {
     const findings: string[] = [];
     const missing: string[] = [];
@@ -91,6 +93,7 @@ const decisionsTracked: HarnessCheck = {
     "docs/harness-audit.md",
     ".goat-flow/architecture.md",
   ]),
+  /** Run the Decisions directory exists check. */
   run: (ctx) => {
     const { decisions } = ctx.facts.shared;
     if (!decisions.dirExists) {

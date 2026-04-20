@@ -16,6 +16,7 @@ const EXECUTION_LOOP_LABEL = "Execution Loop";
 
 const VERIFIED_ON = "2026-04-18";
 
+/** Return the context provenance. */
 function contextProvenance(
   type: HarnessCheck["type"],
   paths: string[],
@@ -44,6 +45,7 @@ const instructionLineCount: HarnessCheck = {
     "docs/harness-audit.md",
     "AGENTS.md",
   ]),
+  /** Run the Instruction file size check. */
   run: (ctx) => {
     const findings: string[] = [];
     const recs: string[] = [];
@@ -88,6 +90,7 @@ const executionLoopPresent: HarnessCheck = {
     "docs/harness-audit.md",
     "AGENTS.md",
   ]),
+  /** Run the Execution loop present check. */
   run: (ctx) => {
     const headingEntry = getRequiredInstructionSections().find(
       (s) => s.label === EXECUTION_LOOP_LABEL,
@@ -218,6 +221,7 @@ const docPathsResolve: HarnessCheck = {
     ],
     "incident",
   ),
+  /** Run the Documentation paths resolve check. */
   run: (ctx) => {
     const { totalPaths, resolvedCount, findings } = checkAllDocPaths(ctx);
 
@@ -254,6 +258,7 @@ const instructionSectionsPresent: HarnessCheck = {
     "CLAUDE.md",
     "AGENTS.md",
   ]),
+  /** Run the Instruction file required sections check. */
   run: (ctx) => {
     const findings: string[] = [];
     const recs: string[] = [];

@@ -54,12 +54,14 @@ const DASHBOARD_SCOPED_CHECKS: CountClaimCheck[] = [
   {
     rule: "dashboard-views-count-drift",
     pattern: /\b(\d+)\s+views?\b/gi,
+    /** Return the live views count. */
     actual: () => loadManifest().facts.dashboard_views.count,
     label: "views",
   },
   {
     rule: "preset-count-drift",
     pattern: /\b(\d+)\s+presets?\b/gi,
+    /** Return the live presets count. */
     actual: () => loadManifest().facts.presets.count,
     label: "presets",
   },
@@ -109,6 +111,7 @@ function normaliseConcern(raw: string): string {
   return raw.toLowerCase().replace(/[\s-]+/g, "_");
 }
 
+/** Return the live check count for one concern label. */
 function concernActualFor(raw: string): number | undefined {
   return CONCERN_SIZES[normaliseConcern(raw)];
 }
@@ -159,60 +162,70 @@ const COUNT_CHECKS: CountClaimCheck[] = [
   {
     rule: "skill-count-drift",
     pattern: /\b(\d+)\s+skills?\b/gi,
+    /** Return the live skills count. */
     actual: () => SKILL_NAMES.length,
     label: "skills",
   },
   {
     rule: "agent-check-count-drift",
     pattern: /\b(\d+)\s+checks?\s+per\s+(?:configured\s+)?agent\b/gi,
+    /** Return the live checks per configured agent count. */
     actual: () => AGENT_CHECKS.length,
     label: "checks per configured agent",
   },
   {
     rule: "harness-check-count-drift",
     pattern: /\b(\d+)\s+checks\s+across\s+\d+\s+concerns\b/gi,
+    /** Return the live harness checks across 5 concerns count. */
     actual: () => HARNESS_CHECKS.length,
     label: "harness checks across 5 concerns",
   },
   {
     rule: "ai-harness-count-drift",
     pattern: /\b(\d+)\s+AI\s+[Hh]arness\b/g,
+    /** Return the live AI harness installation checks count. */
     actual: () => HARNESS_CHECKS.length,
     label: "AI harness installation checks",
   },
   {
     rule: "harness-structural-count-drift",
     pattern: /\b(\d+)\s+structural\s+installation\s+checks?\b/gi,
+    /** Return the live structural installation checks count. */
     actual: () => HARNESS_CHECKS.length,
     label: "structural installation checks",
   },
   {
     rule: "harness-scope-flag-count-drift",
     pattern: /AI\s+Harness\s+Completeness\s+scope\s*\((\d+)\s+checks?\b/gi,
+    /** Return the live AI Harness Completeness scope count. */
     actual: () => HARNESS_CHECKS.length,
     label: "AI Harness Completeness scope",
   },
   {
     rule: "harness-checks-by-type-drift",
     pattern: /\bThe\s+(\d+)\s+checks?\s+by\s+type\b/gi,
+    /** Return the live checks by type count. */
     actual: () => HARNESS_CHECKS.length,
     label: "checks by type",
   },
   {
     rule: "setup-check-count-drift",
     pattern: /\b(\d+)\s+checks\s+on\s+goat-flow-owned\s+surfaces\b/gi,
+    /** Return the live setup checks on goat-flow-owned surfaces count. */
     actual: () => SETUP_CHECKS.length,
     label: "setup checks on goat-flow-owned surfaces",
   },
   {
     rule: "dashboard-views-count-drift",
     pattern: /\b(\d+)\s+dashboard\s+views?\b/gi,
+    /** Return the live dashboard views count. */
     actual: () => loadManifest().facts.dashboard_views.count,
     label: "dashboard views",
   },
   {
     rule: "preset-count-drift",
     pattern: /\b(\d+)\s+workspace\s+presets?\b/gi,
+    /** Return the live workspace presets count. */
     actual: () => loadManifest().facts.presets.count,
     label: "workspace presets",
   },
@@ -722,6 +735,7 @@ function scanSemanticDrift(ctx: AuditContext): {
   const findings: ContentFinding[] = [];
   const scanned = new Set<string>();
 
+  /** Read one doc and track that it was scanned. */
   const readAndTrack = (path: string): string | null => {
     const text = ctx.fs.readFile(path);
     if (text !== null) scanned.add(path);

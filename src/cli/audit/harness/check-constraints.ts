@@ -9,6 +9,7 @@ import { pass, fail } from "./helpers.js";
 
 const VERIFIED_ON = "2026-04-19";
 
+/** Return the constraints provenance. */
 function constraintsProvenance(
   type: HarnessCheck["type"],
   paths: string[],
@@ -69,6 +70,7 @@ const denyCoversSecrets: HarnessCheck = {
     "docs/harness-audit.md",
     ".goat-flow/footguns/auditor.md",
   ]),
+  /** Run the Deny covers secret files check. */
   run: (ctx) => {
     const { covered, uncovered, scriptOnly } = classifySecretDeny(ctx);
 
@@ -121,6 +123,7 @@ const denyBlocksDangerous: HarnessCheck = {
     ".goat-flow/footguns/auditor.md",
     ".goat-flow/footguns/hooks.md",
   ]),
+  /** Run the Deny blocks dangerous commands check. */
   run: (ctx) => {
     if (ctx.agents.length === 0) {
       return fail(["No agents to check"], ["Configure at least one agent"]);
@@ -169,6 +172,7 @@ const denyBlocksPipeToShell: HarnessCheck = {
     ],
     "incident",
   ),
+  /** Run the Deny blocks pipe-to-shell check. */
   run: (ctx) => {
     const covered: string[] = [];
     const uncovered: string[] = [];
@@ -213,6 +217,7 @@ const denyHookRegistered: HarnessCheck = {
     ["docs/harness-audit.md", ".goat-flow/footguns/auditor.md"],
     "incident",
   ),
+  /** Run the Deny hook registered in agent settings check. */
   run: (ctx) => {
     const registered: string[] = [];
     const unregistered: string[] = [];

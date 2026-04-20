@@ -56,6 +56,7 @@ function isIntentionallyGitignored(filePath: string): boolean {
   );
 }
 
+/** Check whether the file path is checkable for staleness. */
 function isCheckableForStaleness(filePath: string, fs: ReadonlyFS): boolean {
   if (isIntentionallyGitignored(filePath)) return false;
   if (filePath.includes("/")) return true;

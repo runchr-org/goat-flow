@@ -11,16 +11,19 @@ const BAND_LABEL: Record<string, string> = {
   unknown: "unknown",
 };
 
+/** Format the days. */
 function formatDays(days: number | null): string {
   return days === null ? "-" : `${days}d`;
 }
 
+/** Pad a string on the right to the target width. */
 function padRight(value: string, width: number): string {
   return value.length >= width
     ? value
     : value + " ".repeat(width - value.length);
 }
 
+/** Render the section text. */
 function renderSectionText(name: string, section: BucketSection): string {
   if (!section.exists) {
     return `${name} (${section.path}) - directory missing\n`;
@@ -47,6 +50,7 @@ function renderSectionText(name: string, section: BucketSection): string {
   return [header, summary, ...lines, ""].join("\n");
 }
 
+/** Return the last segment of a slash-delimited path. */
 function basename(path: string): string {
   const idx = path.lastIndexOf("/");
   return idx === -1 ? path : path.slice(idx + 1);
@@ -75,6 +79,7 @@ export function renderStatsMarkdown(report: StatsReport): string {
   return ["# Learning-loop stats", "", ...sections].join("\n");
 }
 
+/** Build the markdown section. */
 function markdownSection(name: string, section: BucketSection): string {
   if (!section.exists) {
     return `## ${name}\n\n_Directory missing: \`${section.path}\`_\n`;

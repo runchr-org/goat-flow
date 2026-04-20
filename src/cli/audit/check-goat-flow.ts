@@ -12,6 +12,7 @@ import { AUDIT_VERSION } from "../constants.js";
 
 const VERIFIED_ON = "2026-04-18";
 
+/** Return the setup spec provenance. */
 function setupSpecProvenance(paths: string[]): CheckEvidence {
   return {
     source_type: "spec",
@@ -57,6 +58,7 @@ const lessons: BuildCheck = {
     "workflow/manifest.json",
     ".goat-flow/architecture.md",
   ]),
+  /** Run the Lessons check. */
   run: (ctx) => {
     const missing: string[] = [];
     if (!ctx.fs.exists(".goat-flow/lessons"))
@@ -82,6 +84,7 @@ const footguns: BuildCheck = {
     "workflow/manifest.json",
     ".goat-flow/architecture.md",
   ]),
+  /** Run the Footguns check. */
   run: (ctx) => {
     const missing: string[] = [];
     if (!ctx.fs.exists(".goat-flow/footguns"))
@@ -107,6 +110,7 @@ const architecture: BuildCheck = {
     "workflow/manifest.json",
     "workflow/setup/04-architecture-code-map.md",
   ]),
+  /** Run the Architecture check. */
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/architecture.md")) return null;
     return {
@@ -127,6 +131,7 @@ const codeMap: BuildCheck = {
     "workflow/manifest.json",
     "workflow/setup/04-architecture-code-map.md",
   ]),
+  /** Run the Code map check. */
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/code-map.md")) return null;
     return {
@@ -146,6 +151,7 @@ const glossary: BuildCheck = {
     "workflow/manifest.json",
     ".goat-flow/architecture.md",
   ]),
+  /** Run the Glossary check. */
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/glossary.md")) return null;
     return {
@@ -165,6 +171,7 @@ const patterns: BuildCheck = {
     "workflow/manifest.json",
     ".goat-flow/architecture.md",
   ]),
+  /** Run the Patterns check. */
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/patterns.md")) return null;
     return {
@@ -184,6 +191,7 @@ const decisions: BuildCheck = {
     "workflow/manifest.json",
     ".goat-flow/architecture.md",
   ]),
+  /** Run the Decisions check. */
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/decisions")) return null;
     return {
@@ -204,6 +212,7 @@ const sessionLogs: BuildCheck = {
     "workflow/manifest.json",
     ".goat-flow/architecture.md",
   ]),
+  /** Run the Session logs check. */
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/logs/sessions")) return null;
     return {
@@ -225,6 +234,7 @@ const tasks: BuildCheck = {
     ".goat-flow/architecture.md",
     ".goat-flow/tasks/README.md",
   ]),
+  /** Run the Tasks check. */
   run: (ctx) => {
     const missing: string[] = [];
     if (!ctx.fs.exists(".goat-flow/tasks")) missing.push(".goat-flow/tasks/");
@@ -252,6 +262,7 @@ const scratchpad: BuildCheck = {
     ".goat-flow/architecture.md",
     ".goat-flow/scratchpad/README.md",
   ]),
+  /** Run the Scratchpad check. */
   run: (ctx) => {
     const missing: string[] = [];
     if (!ctx.fs.exists(".goat-flow/scratchpad"))
@@ -278,6 +289,7 @@ const otherFiles: BuildCheck = {
   name: "Other required files",
   scope: "setup",
   provenance: setupSpecProvenance(["workflow/manifest.json"]),
+  /** Run the Other required files check. */
   run: (ctx) => {
     const allRequired = [
       ...ctx.structure.required_files,
@@ -308,6 +320,7 @@ const configExistsAndParses: BuildCheck = {
     "workflow/manifest.json",
     ".goat-flow/config.yaml",
   ]),
+  /** Run the Config file check. */
   run: (ctx) => {
     if (!ctx.config.exists) {
       return {
@@ -349,6 +362,7 @@ const configVersionCurrent: BuildCheck = {
     ".goat-flow/config.yaml",
     "src/cli/constants.ts",
   ]),
+  /** Run the Config version check. */
   run: (ctx) => {
     if (!ctx.config.exists) return null;
     const version = ctx.config.config.version;

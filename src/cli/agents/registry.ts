@@ -23,15 +23,18 @@ export const KNOWN_AGENT_IDS = [
   "copilot",
 ] as const satisfies readonly AgentId[];
 
+/** Trim the trailing slash from a directory path. */
 function trimDir(path: string | undefined): string | null {
   if (!path) return null;
   return path.replace(/\/$/, "");
 }
 
+/** Check whether a value is an agent ID. */
 function isAgentId(value: string): value is AgentId {
   return (KNOWN_AGENT_IDS as readonly string[]).includes(value);
 }
 
+/** Convert manifest deny config into the runtime shape. */
 function toDenyMechanism(deny: ManifestDenyMechanism): DenyMechanism {
   if (deny.type === "settings-deny") {
     return { type: "settings-deny", path: deny.path };
@@ -46,6 +49,7 @@ function toDenyMechanism(deny: ManifestDenyMechanism): DenyMechanism {
   };
 }
 
+/** Convert a manifest agent entry into the runtime profile. */
 function toRuntimeProfile(
   id: AgentId,
   agent: ManifestAgentProfile,
