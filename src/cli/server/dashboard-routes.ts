@@ -1,0 +1,587 @@
+/**
+ * Non-terminal dashboard route handlers and their shared response shapers.
+ * The main dashboard server wires these into HTTP dispatch while keeping
+ * lifecycle, live-reload, and terminal state management local.
+ */
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { execFileSync } from "node:child_process";
+import { readdirSync, statSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { classifyProjectState } from "../classify-state.js";
+import { runAudit } from "../audit/audit.js";
+import type { AuditReport } from "../audit/types.js";
+import {
+  getAgentProfileMap,
+  getAgentProfiles,
+  getKnownAgentIds,
+} from "../agents/registry.js";
+import { detectAgents as detectConfiguredAgents } from "../detect/agents.js";
+import { createFS } from "../facts/fs.js";
+import type { QualityHistoryEntry } from "../quality/history.js";
+import type { AgentId } from "../types.js";
+import { loadDashboardAsset } from "./dashboard-assets.js";
+import { buildSetupDetectPayload, isProjectDirectory } from "./setup-detect.js";
+import type { DashboardReport } from "./types.js";
+
+const KNOWN_AGENT_IDS = getKnownAgentIds();
+const KNOWN_AGENT_LIST = KNOWN_AGENT_IDS.join(", ");
+const AGENT_PROFILE_MAP = getAgentProfileMap();
+const AGENT_PROFILES = getAgentProfiles();
+const SUPPORTED_AGENTS = AGENT_PROFILES.map(({ id, name }) => ({ id, name }));
+const VALID_AGENTS = new Set<string>(KNOWN_AGENT_IDS);
+
+interface DashboardPresetData {
+  id: string;
+  name: string;
+  desc: string;
+  prompt: string;
+  cat: string;
+}
+
+interface LatestQualitySummary {
+  id: string;
+  date: string;
+  time: string;
+  agent: AgentId;
+  setupTotal: number;
+  systemTotal: number;
+  blockerCount: number;
+  majorCount: number;
+  minorCount: number;
+  evidenceMethods: string[];
+  scope: string | null;
+}
+
+type JsonResponder = (
+  res: ServerResponse,
+  status: number,
+  body: unknown,
+) => void;
+
+type BodyReader = (req: IncomingMessage) => Promise<string>;
+
+interface DashboardRouteDependencies {
+  absDefault: string;
+  devMode: boolean;
+  getTemplate: () => string;
+  packageVersion: string;
+  dashboardPresets: ReadonlyArray<DashboardPresetData>;
+  jsonResponse: JsonResponder;
+  readBody: BodyReader;
+}
+
+/** Parse the quality history limit. */
+function parseQualityHistoryLimit(param: string | null): number | null {
+  if (param === null) return 20;
+  const parsed = Number.parseInt(param, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 100) : null;
+}
+
+/** Build the latest quality summary. */
+function buildLatestQualitySummary(
+  entry: QualityHistoryEntry | null,
+): LatestQualitySummary | null {
+  if (!entry) return null;
+  const findings = entry.report.findings;
+  return {
+    id: entry.id,
+    date: entry.date,
+    time: entry.time,
+    agent: entry.agent,
+    setupTotal: entry.report.scores.setup.total,
+    systemTotal: entry.report.scores.system.total,
+    blockerCount: findings.filter((f) => f.severity === "BLOCKER").length,
+    majorCount: findings.filter((f) => f.severity === "MAJOR").length,
+    minorCount: findings.filter((f) => f.severity === "MINOR").length,
+    evidenceMethods: Array.from(
+      new Set(findings.map((f) => f.evidence_method)),
+    ),
+    scope: entry.report.scope ?? null,
+  };
+}
+
+/** Build the dashboard API payload from aggregate and per-agent audit results. */
+function buildDashboardReport(
+  auditRpt: AuditReport,
+  perAgentAudits: { id: string; audit: AuditReport }[],
+): DashboardReport {
+  return {
+    agentScores: perAgentAudits.map((pa) => {
+      const agentId = pa.id as AgentId;
+      return {
+        id: pa.id,
+        name: AGENT_PROFILE_MAP[agentId].name,
+        agent: pa.audit.scopes.agent,
+        harness: pa.audit.scopes.harness,
+        concerns: pa.audit.concerns,
+      };
+    }),
+    status: auditRpt.status,
+    scopes: {
+      setup: auditRpt.scopes.setup,
+      agent: auditRpt.scopes.agent,
+      ...(auditRpt.scopes.harness ? { harness: auditRpt.scopes.harness } : {}),
+    },
+    overall: auditRpt.overall,
+    target: auditRpt.target,
+  };
+}
+
+/** Build the non-terminal dashboard route handlers for one server instance. */
+export function createDashboardRouteHandlers(
+  deps: DashboardRouteDependencies,
+): {
+  handleHtmlRequest: (url: URL, res: ServerResponse) => boolean;
+  handleAssetRequest: (url: URL, res: ServerResponse) => boolean;
+  handleAuditRequest: (url: URL, res: ServerResponse) => boolean;
+  handleSetupDetectRequest: (url: URL, res: ServerResponse) => boolean;
+  handleSetupRequest: (url: URL, res: ServerResponse) => Promise<boolean>;
+  handleQualityRequest: (url: URL, res: ServerResponse) => Promise<boolean>;
+  handleQualityHistoryRequest: (
+    url: URL,
+    res: ServerResponse,
+  ) => Promise<boolean>;
+  handleBrowseRequest: (url: URL, res: ServerResponse) => boolean;
+  handleAgentDetectRequest: (url: URL, res: ServerResponse) => boolean;
+  handleProjectsListRequest: (
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ) => Promise<boolean>;
+  handleProjectsStatusRequest: (url: URL, res: ServerResponse) => boolean;
+} {
+  const {
+    absDefault,
+    devMode,
+    getTemplate,
+    packageVersion,
+    dashboardPresets,
+    jsonResponse,
+    readBody,
+  } = deps;
+  const projectsListFile = join(
+    absDefault,
+    ".goat-flow",
+    "dashboard-projects.json",
+  );
+
+  /** Resolve a user-supplied path to an absolute path. */
+  function safeResolvePath(raw: string | null): string {
+    return resolve(raw || absDefault);
+  }
+
+  /** Fail fast when an endpoint expects a real project directory. */
+  function requireProjectDirectory(projectPath: string): void {
+    const stats = statSync(projectPath);
+    if (!stats.isDirectory()) {
+      throw new Error(`${projectPath} is not a directory`);
+    }
+  }
+
+  /** Serve the dashboard shell and inject the default workspace path. */
+  function handleHtmlRequest(url: URL, res: ServerResponse): boolean {
+    if (url.pathname !== "/") return false;
+
+    const injection = `<script>window.__GOAT_FLOW_DEFAULT_PATH__ = ${JSON.stringify(absDefault)}; window.__GOAT_FLOW_VERSION__ = ${JSON.stringify(packageVersion)}; window.__GOAT_FLOW_AGENTS__ = ${JSON.stringify(SUPPORTED_AGENTS)}; window.__GOAT_FLOW_RUNNER_IDS__ = ${JSON.stringify(KNOWN_AGENT_IDS)}; window.__GOAT_FLOW_PRESETS__ = ${JSON.stringify(dashboardPresets)};</script>`;
+    const liveReloadScript = devMode
+      ? `<script>(function(){var ws=new WebSocket('ws://'+location.host+'/ws/livereload');ws.onmessage=function(){location.reload()};ws.onclose=function(){setTimeout(function(){location.reload()},1000)}})()</script>`
+      : "";
+    const html = getTemplate().replace(
+      "</body>",
+      `${injection}\n${liveReloadScript}\n</body>`,
+    );
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(html);
+    return true;
+  }
+
+  /** Serve bundled dashboard assets from the compiled `dist/dashboard/` output. */
+  function handleAssetRequest(url: URL, res: ServerResponse): boolean {
+    if (!url.pathname.startsWith("/assets/")) return false;
+
+    const filename = url.pathname.slice("/assets/".length);
+    if (!/^[a-z0-9_-]+\.(js|css|json)$/i.test(filename)) return false;
+
+    const contentType = filename.endsWith(".css")
+      ? "text/css; charset=utf-8"
+      : filename.endsWith(".json")
+        ? "application/json; charset=utf-8"
+        : "application/javascript; charset=utf-8";
+    try {
+      const content = loadDashboardAsset(filename);
+      res.writeHead(200, { "Content-Type": contentType });
+      res.end(content);
+    } catch {
+      res.writeHead(404);
+      res.end("Not found");
+    }
+    return true;
+  }
+
+  /** Run both evaluation systems and return a typed DashboardReport. */
+  function handleAuditRequest(url: URL, res: ServerResponse): boolean {
+    if (url.pathname !== "/api/audit") return false;
+
+    const projectPath = safeResolvePath(url.searchParams.get("path"));
+    const harness = url.searchParams.get("quality") === "true";
+    const agentParam = url.searchParams.get("agent");
+    const agentFilter =
+      agentParam && VALID_AGENTS.has(agentParam)
+        ? (agentParam as AgentId)
+        : null;
+
+    try {
+      requireProjectDirectory(projectPath);
+      const fs = createFS(projectPath);
+      const auditRpt = runAudit(fs, projectPath, { agentFilter, harness });
+
+      const configAgents = detectConfiguredAgents(fs).map((agent) => agent.id);
+      const perAgentAudits: { id: string; audit: AuditReport }[] = [];
+      for (const agentId of configAgents) {
+        try {
+          const agentAudit = runAudit(fs, projectPath, {
+            agentFilter: agentId,
+            harness,
+          });
+          perAgentAudits.push({ id: agentId, audit: agentAudit });
+        } catch {
+          /* skip agents that fail to audit */
+        }
+      }
+
+      jsonResponse(res, 200, buildDashboardReport(auditRpt, perAgentAudits));
+    } catch (err) {
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
+  /** Detect project stack, commands, agents, and existing config for the setup view. */
+  function handleSetupDetectRequest(url: URL, res: ServerResponse): boolean {
+    if (url.pathname !== "/api/setup/detect") return false;
+
+    const projectPath = safeResolvePath(url.searchParams.get("path"));
+
+    try {
+      requireProjectDirectory(projectPath);
+      jsonResponse(res, 200, buildSetupDetectPayload(projectPath));
+    } catch (err) {
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
+  /** Compose setup output for one agent and return it to the dashboard. */
+  async function handleSetupRequest(
+    url: URL,
+    res: ServerResponse,
+  ): Promise<boolean> {
+    if (url.pathname !== "/api/setup") return false;
+
+    const projectPath = safeResolvePath(url.searchParams.get("path"));
+    const agentParam = url.searchParams.get("agent");
+    if (!agentParam) {
+      jsonResponse(res, 400, {
+        error: `Missing required parameter: agent. Valid: ${KNOWN_AGENT_LIST}`,
+      });
+      return true;
+    }
+    if (!VALID_AGENTS.has(agentParam)) {
+      jsonResponse(res, 400, {
+        error: `Invalid agent: ${agentParam}. Valid: ${KNOWN_AGENT_LIST}`,
+      });
+      return true;
+    }
+
+    const agent = agentParam as AgentId;
+    try {
+      requireProjectDirectory(projectPath);
+      const fs = createFS(projectPath);
+      const { loadConfig } = await import("../config/reader.js");
+      const { extractProjectFacts } = await import("../facts/orchestrator.js");
+      const configState = loadConfig(projectPath, fs);
+      const facts = extractProjectFacts(fs, {
+        agentFilter: agent,
+        projectPath,
+        configState,
+      });
+      const auditReport = runAudit(fs, projectPath, {
+        agentFilter: agent,
+        harness: false,
+      });
+      const { composeSetup } = await import("../prompt/compose-setup.js");
+      const output = composeSetup(auditReport, facts, agent);
+      jsonResponse(res, 200, {
+        output: output ?? "No setup output generated.",
+      });
+    } catch (err) {
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
+  /** Generate a quality-assessment prompt for a selected agent and return it to the dashboard. */
+  async function handleQualityRequest(
+    url: URL,
+    res: ServerResponse,
+  ): Promise<boolean> {
+    if (url.pathname !== "/api/quality") return false;
+
+    const agentParam = url.searchParams.get("agent");
+    if (!agentParam || !VALID_AGENTS.has(agentParam)) {
+      jsonResponse(res, 400, {
+        error: `quality requires --agent. Valid: ${KNOWN_AGENT_LIST}`,
+      });
+      return true;
+    }
+
+    const projectPath = safeResolvePath(url.searchParams.get("path"));
+    const agent = agentParam as AgentId;
+
+    try {
+      requireProjectDirectory(projectPath);
+      const { composeQuality } = await import("../prompt/compose-quality.js");
+      const { getLatestQualityHistoryEntry, loadQualityHistory } =
+        await import("../quality/history.js");
+
+      let auditReport: AuditReport | null = null;
+      try {
+        const fs = createFS(projectPath);
+        auditReport = runAudit(fs, projectPath, {
+          agentFilter: agent,
+          harness: true,
+        });
+      } catch {
+        /* audit failure is fine - quality prompt generates with degraded context */
+      }
+
+      const history = loadQualityHistory(projectPath);
+      const priorReport = getLatestQualityHistoryEntry(history.entries, agent);
+      const result = composeQuality({
+        agent,
+        projectPath,
+        auditReport,
+        priorReport,
+      });
+      jsonResponse(res, 200, result);
+    } catch (err) {
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
+  /** Return persisted quality-history rows and latest trend summary for dashboard UI rendering. */
+  async function handleQualityHistoryRequest(
+    url: URL,
+    res: ServerResponse,
+  ): Promise<boolean> {
+    if (url.pathname !== "/api/quality/history") return false;
+
+    const projectPath = safeResolvePath(url.searchParams.get("path"));
+    const agentParam = url.searchParams.get("agent");
+    const agent =
+      agentParam && VALID_AGENTS.has(agentParam)
+        ? (agentParam as AgentId)
+        : null;
+
+    if (agentParam && !agent) {
+      jsonResponse(res, 400, {
+        error: `quality history agent must be one of: ${KNOWN_AGENT_LIST}`,
+      });
+      return true;
+    }
+
+    const limit = parseQualityHistoryLimit(url.searchParams.get("limit"));
+
+    try {
+      requireProjectDirectory(projectPath);
+      const {
+        buildQualityHistoryRows,
+        getLatestQualityHistoryEntry,
+        loadQualityHistory,
+      } = await import("../quality/history.js");
+      const history = loadQualityHistory(projectPath);
+      const rows = buildQualityHistoryRows(history.entries, {
+        agent,
+        limit,
+      });
+      const latestEntry = agent
+        ? getLatestQualityHistoryEntry(history.entries, agent)
+        : (history.entries[0] ?? null);
+
+      jsonResponse(res, 200, {
+        rows,
+        latest: buildLatestQualitySummary(latestEntry),
+        warnings: history.warnings,
+      });
+    } catch (err) {
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
+  /** List child directories so the dashboard path picker can browse nearby repos. */
+  function handleBrowseRequest(url: URL, res: ServerResponse): boolean {
+    if (url.pathname !== "/api/browse") return false;
+
+    const dirPath = resolve(url.searchParams.get("path") || absDefault);
+    try {
+      const entries = readdirSync(dirPath, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
+        .map((entry) => entry.name)
+        .sort();
+      const dirs = entries.map((name) => {
+        const full = join(dirPath, name);
+        return { name, path: full, isProject: isProjectDirectory(full) };
+      });
+      jsonResponse(res, 200, {
+        current: dirPath,
+        parent: dirname(dirPath),
+        dirs,
+      });
+    } catch (err) {
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
+  /** Detect which coding agent CLIs are installed on the machine. */
+  function handleAgentDetectRequest(url: URL, res: ServerResponse): boolean {
+    if (url.pathname !== "/api/agents/installed") return false;
+
+    const agents = SUPPORTED_AGENTS.map(({ id, name }) => {
+      try {
+        const whichCmd = process.platform === "win32" ? "where" : "which";
+        execFileSync(whichCmd, [id], { timeout: 3000, stdio: "pipe" });
+        let version: string | null = null;
+        try {
+          version =
+            execFileSync(id, ["--version"], {
+              timeout: 5000,
+              stdio: "pipe",
+            })
+              .toString()
+              .trim()
+              .split("\n")[0] ?? null;
+        } catch {
+          /* version detection optional */
+        }
+        return { id, name, installed: true, version };
+      } catch {
+        return { id, name, installed: false, version: null };
+      }
+    });
+
+    jsonResponse(res, 200, { agents });
+    return true;
+  }
+
+  /** Save/load the project list to/from disk so it survives server restarts. */
+  async function handleProjectsListRequest(
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ): Promise<boolean> {
+    if (url.pathname !== "/api/projects/list") return false;
+
+    if (req.method === "GET") {
+      try {
+        const data = await import("node:fs/promises").then((fs) =>
+          fs.readFile(projectsListFile, "utf-8"),
+        );
+        jsonResponse(res, 200, JSON.parse(data));
+      } catch {
+        jsonResponse(res, 200, { paths: [] });
+      }
+      return true;
+    }
+
+    if (req.method === "POST") {
+      const body = await readBody(req);
+      try {
+        const { decodeProjectsListBody } = await import("./decoders.js");
+        const decoded = decodeProjectsListBody(body);
+        if (!decoded.ok) {
+          jsonResponse(res, 400, {
+            error: decoded.error,
+            path: decoded.path,
+          });
+          return true;
+        }
+        const { mkdir, writeFile } = await import("node:fs/promises");
+        await mkdir(join(absDefault, ".goat-flow"), { recursive: true });
+        await writeFile(
+          projectsListFile,
+          JSON.stringify({ paths: decoded.value.paths }, null, 2),
+        );
+        jsonResponse(res, 200, { ok: true });
+      } catch (err) {
+        jsonResponse(res, 400, { error: String(err) });
+      }
+      return true;
+    }
+
+    jsonResponse(res, 405, { error: "Method not allowed" });
+    return true;
+  }
+
+  /** Classify project adoption state for one or more paths. */
+  function handleProjectsStatusRequest(url: URL, res: ServerResponse): boolean {
+    if (url.pathname !== "/api/projects/status") return false;
+
+    const pathsParam = url.searchParams.get("paths");
+    if (!pathsParam) {
+      jsonResponse(res, 400, { error: "Missing paths parameter" });
+      return true;
+    }
+
+    const paths = pathsParam
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    const results = paths.map((p) => {
+      try {
+        const resolved = resolve(p);
+        const fs = createFS(resolved);
+        return { path: resolved, ...classifyProjectState(fs) };
+      } catch (err) {
+        return {
+          path: p,
+          state: "error" as const,
+          action: "none" as const,
+          details: String(err),
+        };
+      }
+    });
+
+    jsonResponse(res, 200, { projects: results });
+    return true;
+  }
+
+  return {
+    handleHtmlRequest,
+    handleAssetRequest,
+    handleAuditRequest,
+    handleSetupDetectRequest,
+    handleSetupRequest,
+    handleQualityRequest,
+    handleQualityHistoryRequest,
+    handleBrowseRequest,
+    handleAgentDetectRequest,
+    handleProjectsListRequest,
+    handleProjectsStatusRequest,
+  };
+}

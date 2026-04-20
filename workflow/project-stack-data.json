@@ -45,6 +45,22 @@
     },
     { "tool": "packer", "paths": ["packer.json"], "globs": ["**/*.pkr.hcl"] }
   ],
+  "setupFrameworkMarkers": [
+    { "name": "Next.js", "files": ["package.json"], "markers": ["\"next\""] },
+    { "name": "Nuxt", "files": ["package.json"], "markers": ["\"nuxt\""] },
+    {
+      "name": "Flask",
+      "files": ["requirements.txt", "pyproject.toml"],
+      "markers": ["flask"]
+    },
+    {
+      "name": "Actix",
+      "files": ["Cargo.toml"],
+      "markers": ["actix-web"]
+    },
+    { "name": "Gin", "files": ["go.mod"], "markers": ["gin-gonic"] },
+    { "name": "Echo", "files": ["go.mod"], "markers": ["labstack/echo"] }
+  ],
   "rootPythonFiles": ["pyproject.toml", "setup.py", "requirements.txt"],
   "subdirPythonGlobs": ["*/pyproject.toml", "*/requirements.txt"],
   "javaManifestPaths": ["pom.xml", "build.gradle", "build.gradle.kts"],

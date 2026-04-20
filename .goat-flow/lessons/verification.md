@@ -484,3 +484,22 @@ last_reviewed: 2026-04-20
 **Prevention:**
 1. After deleting or renaming a source file, scan repo tool configs (`knip.json`, eslint/prettier ignores, test fixtures) for stale path references before relying on preflight.
 2. After introducing a new exported symbol during a refactor, run `npx knip` before the full gate so unused exports are caught while the context is still local.
+
+---
+
+## Lesson: New server helper files still count as repo-wide formatting debt
+
+**Status:** active | **Created:** 2026-04-20
+
+**What happened:** Extracting setup-detection helpers out of `src/cli/server/dashboard.ts` passed `npm run typecheck` and the focused dashboard integration suite, but `bash scripts/preflight-checks.sh` still failed. The real checkout had three unformatted server files (`src/cli/server/dashboard.ts`, `src/cli/server/setup-detect.ts`, `src/cli/server/dashboard-assets.ts`), so preflight's Prettier gate failed locally and the installer round-trip fixture failed too because it clones the current checkout before running temp-repo preflight.
+
+**Root cause:** Treated the structural refactor like a code-only change and stopped at type/runtime verification. In this repo, formatting debt in the source checkout is not isolated: the round-trip fixture inherits it and replays the same formatter failure inside the temp clone.
+
+**Fix:** Run Prettier on every touched `src/**/*.ts` file before trusting preflight or fixture-backed drift tests. Re-run the focused failing test (`test/integration/audit-drift.test.ts`) after formatting, not just the original happy-path suite.
+
+**Prevention:**
+1. After adding a new TypeScript helper file, treat `prettier --check` as part of the focused verification, not only the final repo-wide gate.
+2. When preflight and the installer round-trip fixture fail together on formatting, fix the real checkout first; the temp fixture will usually heal with it.
+
+**Prevention update (2026-04-20):**
+1. This pattern recurred on the next dashboard-server split when `src/cli/server/dashboard-routes.ts` and the rewritten `dashboard.ts` were left unformatted. Treat any new `src/cli/server/*.ts` extraction as high-risk for this exact preflight + round-trip failure pair.
