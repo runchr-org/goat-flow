@@ -217,6 +217,34 @@ const NON_ACTIONABLE: PatternRule[] = [
   },
 ];
 
+/**
+ * Legacy v1.0 six-step Execution Loop drift (M19-9a). Matches only the
+ * arrow-sequence declaration, not incidental historical prose mentioning
+ * CLASSIFY or LOG. All four reviewed v1.2 consumer projects (ambient-scribe,
+ * sus-form-detector, blundergoat-platform, rampart) shipped AGENTS.md /
+ * GEMINI.md with the legacy six-step loop while CLAUDE.md + skill-preamble.md
+ * used the v1.2 four-step. See `.goat-flow/tasks/1.2.0/M19-setup-signal-hardening.md`
+ * slice M19-9a.
+ */
+const LEGACY_EXECUTION_LOOP: PatternRule[] = [
+  {
+    rule: "legacy-execution-loop-classify",
+    pattern: /\bREAD\s*(?:→|-+>)\s*CLASSIFY\s*(?:→|-+>)\s*SCOPE\b/i,
+    severity: "warning",
+    /** Build the legacy loop CLASSIFY finding message. */
+    message: () =>
+      "Legacy v1.0 Execution Loop detected (READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG). The v1.2 loop is four steps: READ → SCOPE → ACT → VERIFY. Rewrite per workflow/setup/reference/execution-loop.md.",
+  },
+  {
+    rule: "legacy-execution-loop-trailing-log",
+    pattern: /\bVERIFY\s*(?:→|-+>)\s*LOG\b/i,
+    severity: "warning",
+    /** Build the legacy loop trailing-LOG finding message. */
+    message: () =>
+      "Legacy 'VERIFY → LOG' step detected. The v1.2 Execution Loop ends at VERIFY; session logging is finalised at step-06, not as an inline loop step.",
+  },
+];
+
 export const CONTENT_QUALITY_EVIDENCE: CheckEvidence = {
   source_type: "community",
   source_urls: [
@@ -233,7 +261,50 @@ function isFenceLine(line: string): boolean {
   return /^\s*```/.test(line);
 }
 
-/** Scan one line for vague, generic, or non-actionable guidance. */
+/** Apply a PatternRule array to a line, accumulating any matches into findings. */
+function applyPatternRules(
+  rules: PatternRule[],
+  line: string,
+  lineNumber: number,
+  path: string,
+  findings: ContentFinding[],
+): void {
+  for (const rule of rules) {
+    const match = rule.pattern.exec(line);
+    if (!match) continue;
+    findings.push({
+      severity: rule.severity,
+      rule: rule.rule,
+      path,
+      line: lineNumber,
+      message: rule.message(match[0], line),
+    });
+  }
+}
+
+/** Apply vague-term detection to a line (full mode only). */
+function applyVagueTerms(
+  line: string,
+  lineNumber: number,
+  path: string,
+  findings: ContentFinding[],
+): void {
+  for (const { term, suggestion } of VAGUE_TERMS) {
+    const rx = new RegExp(`\\b${term}\\b`, "i");
+    const match = rx.exec(line);
+    if (!match) continue;
+    findings.push({
+      severity: "info",
+      rule: "vague-term",
+      path,
+      line: lineNumber,
+      message: `Vague term "${match[0]}" - no measurable standard.`,
+      suggestion: suggestion(line),
+    });
+  }
+}
+
+/** Scan one line for vague, generic, non-actionable, or legacy-loop guidance. */
 function scanLine(
   line: string,
   lineNumber: number,
@@ -242,45 +313,11 @@ function scanLine(
   mode: ScanMode = "full",
 ): void {
   if (mode === "full") {
-    for (const { term, suggestion } of VAGUE_TERMS) {
-      const rx = new RegExp(`\\b${term}\\b`, "i");
-      const match = rx.exec(line);
-      if (match) {
-        findings.push({
-          severity: "info",
-          rule: "vague-term",
-          path,
-          line: lineNumber,
-          message: `Vague term "${match[0]}" - no measurable standard.`,
-          suggestion: suggestion(line),
-        });
-      }
-    }
+    applyVagueTerms(line, lineNumber, path, findings);
   }
-  for (const rule of GENERIC_INSTRUCTIONS) {
-    const match = rule.pattern.exec(line);
-    if (match) {
-      findings.push({
-        severity: rule.severity,
-        rule: rule.rule,
-        path,
-        line: lineNumber,
-        message: rule.message(match[0], line),
-      });
-    }
-  }
-  for (const rule of NON_ACTIONABLE) {
-    const match = rule.pattern.exec(line);
-    if (match) {
-      findings.push({
-        severity: rule.severity,
-        rule: rule.rule,
-        path,
-        line: lineNumber,
-        message: rule.message(match[0], line),
-      });
-    }
-  }
+  applyPatternRules(GENERIC_INSTRUCTIONS, line, lineNumber, path, findings);
+  applyPatternRules(NON_ACTIONABLE, line, lineNumber, path, findings);
+  applyPatternRules(LEGACY_EXECUTION_LOOP, line, lineNumber, path, findings);
 }
 
 /** Scan one file. Returns zero or more findings, skipping fenced code blocks.

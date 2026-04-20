@@ -4,12 +4,13 @@
 
 If the trap is in the code itself → `.goat-flow/footguns/` instead.
 
-Prefer category bucket files such as `verification.md`, `workflow.md`, or `coordination.md` with file-level frontmatter:
+Prefer category bucket files such as `verification.md`, `workflow.md`, or `coordination.md`. Every bucket file MUST start with a YAML frontmatter block that includes BOTH a `category` and a `last_reviewed` date (ISO `YYYY-MM-DD`). `goat-flow stats --check` fails when `last_reviewed` is missing.
 
 ```yaml
 ---
 category: verification
+last_reviewed: 2026-04-20
 ---
 ```
 
-Inside a bucket, add entries as `## Lesson:` or `## Pattern:` blocks. Legacy one-entry files still work during migration, but category buckets are the preferred format.
+Inside a bucket, add entries as `## Lesson:` or `## Pattern:` blocks. Each entry SHOULD include a `**Created:**` line in `YYYY-MM-DD` form so tooling can detect stale content. Legacy one-entry files still work during migration, but category buckets with the frontmatter contract are the preferred and audited format.

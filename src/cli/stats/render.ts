@@ -116,5 +116,14 @@ export function renderStatsCheckText(check: StatsCheckReport): string {
   for (const f of check.findings) {
     lines.push(`  - [${f.rule}] ${f.message}`);
   }
+  const hasFrontmatterFindings = check.findings.some(
+    (f) =>
+      f.rule === "missing-last-reviewed" || f.rule === "invalid-last-reviewed",
+  );
+  if (hasFrontmatterFindings) {
+    lines.push(
+      "  Fix: bash scripts/maintenance/fix-bucket-frontmatter.sh [--dry-run]",
+    );
+  }
   return lines.join("\n") + "\n";
 }

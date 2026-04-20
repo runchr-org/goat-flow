@@ -371,6 +371,29 @@ function overallStatus(
     : "fail";
 }
 
+/**
+ * Decide whether drift should auto-run without --check-drift (M19-4).
+ *
+ * Multi-agent projects leave satellite skill dirs (`.agents/skills/`,
+ * `.gemini/skills/`, etc.) stale after a single-agent migration completes.
+ * The existing drift machinery detects `manifest.stale_names` orphans but
+ * is off by default, so `audit --agent claude` on a project that also ships
+ * AGENTS.md / GEMINI.md exits "pass" while the Codex / Gemini skill dirs
+ * still hold pre-v1.2 names. When more than one agent instruction file is
+ * present on disk we run drift automatically. Evidence: n=4 migrations
+ * reviewed 2026-04-20 all had stale satellite dirs surviving a "pass"
+ * audit — see `.goat-flow/tasks/1.2.0/M19-setup-signal-hardening.md`
+ * slice M19-4.
+ *
+ * Single-agent projects preserve the prior opt-in behaviour.
+ */
+function shouldAutoRunDrift(ctx: AuditContext): boolean {
+  const instructionFilesPresent = ctx.agents.filter(
+    (af) => af.instruction.exists,
+  ).length;
+  return instructionFilesPresent > 1;
+}
+
 /** Run the audit against a project and return the full report. */
 export function runAudit(
   fs: ReadonlyFS,
@@ -381,7 +404,8 @@ export function runAudit(
   validateRegisteredCheckProvenance(ctx.fs);
   const { setup: setupScope, agent: agentScope } = runBuildChecks(ctx);
   const harness = options.harness ? computeHarness(ctx) : null;
-  const drift = options.checkDrift ? checkDrift({ fs, projectPath }) : null;
+  const driftEnabled = options.checkDrift === true || shouldAutoRunDrift(ctx);
+  const drift = driftEnabled ? checkDrift({ fs, projectPath }) : null;
   const content = options.checkContent ? computeContent(ctx) : null;
   const status = overallStatus(setupScope, agentScope, harness, drift, content);
 

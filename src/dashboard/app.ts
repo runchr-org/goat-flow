@@ -759,15 +759,12 @@ function app() {
     presetFilter: "all",
     presetSearch: "",
     presetFavorites: readStoredStringArray("goat-flow-preset-favorites"),
-    /** Toggle a preset favorite state and persist it in localStorage. */
+    /** Toggle a preset favorite state and persist the combined dashboard state. */
     toggleFavorite(id: string) {
       const idx = this.presetFavorites.indexOf(id);
       if (idx === -1) this.presetFavorites.push(id);
       else this.presetFavorites.splice(idx, 1);
-      localStorage.setItem(
-        "goat-flow-preset-favorites",
-        JSON.stringify(this.presetFavorites),
-      );
+      this._saveDashboardState();
     },
     /** Check whether a preset is marked as a favorite. */
     isFavorite(id: string): boolean {
@@ -1133,7 +1130,7 @@ function app() {
       });
       updateTitle();
       document.documentElement.classList.toggle("dark", this.darkMode);
-      this._loadSavedProjects().then(() => {
+      this._loadSavedDashboardState().then(() => {
         if (this.projectsList.length > 0) this.auditAllProjects();
       });
       if (location.protocol === "http:" || location.protocol === "https:") {
@@ -1541,45 +1538,68 @@ function app() {
       }
       this.projectsAuditing = false;
     },
-    /** Load saved projects from localStorage into dashboard state. */
-    async _loadSavedProjects() {
-      let saved: string[] = [];
+    /** Load saved dashboard state from disk, with localStorage as a migration fallback. */
+    async _loadSavedDashboardState() {
+      let savedPaths: string[] = [];
+      let savedFavorites: string[] = [];
       try {
         const res = await fetch("/api/projects/list");
-        const payload = readRecord(await res.json(), "Projects list response");
+        const payload = readRecord(
+          await res.json(),
+          "Dashboard state response",
+        );
         const paths = readStringArray(payload.paths);
+        const favorites = readStringArray(payload.favorites);
         if (paths.length > 0) {
-          saved = paths;
+          savedPaths = paths;
+        }
+        if (favorites.length > 0) {
+          savedFavorites = favorites;
         }
       } catch {
         /* server unavailable */
       }
-      if (saved.length === 0) {
-        saved = readStoredStringArray("goat-flow-projects");
+      if (savedPaths.length === 0) {
+        savedPaths = readStoredStringArray("goat-flow-projects");
+      }
+      if (savedFavorites.length === 0) {
+        savedFavorites = readStoredStringArray("goat-flow-preset-favorites");
       }
       const launchPath = window.__GOAT_FLOW_DEFAULT_PATH__;
-      if (launchPath && !saved.includes(launchPath)) {
-        saved.unshift(launchPath);
+      if (launchPath && !savedPaths.includes(launchPath)) {
+        savedPaths.unshift(launchPath);
       }
-      if (saved.length > 0) {
-        this.projectsList = saved.map((path) => ({
+      this.presetFavorites = [...new Set(savedFavorites)];
+      if (savedPaths.length > 0) {
+        this.projectsList = savedPaths.map((path) => ({
           path,
           state: "...",
           action: "...",
           details: "Not audited",
         }));
-        this._saveProjectsList();
+      }
+      if (savedPaths.length > 0 || this.presetFavorites.length > 0) {
+        this._saveDashboardState();
       }
     },
-    /** Persist the current project list to localStorage. */
-    _saveProjectsList() {
+    /** Persist the current dashboard state to localStorage and the server store. */
+    _saveDashboardState() {
       const paths = [...new Set(this.projectsList.map((p) => p.path))];
+      const favorites = [...new Set(this.presetFavorites)];
       localStorage.setItem("goat-flow-projects", JSON.stringify(paths));
+      localStorage.setItem(
+        "goat-flow-preset-favorites",
+        JSON.stringify(favorites),
+      );
       fetch("/api/projects/list", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paths }),
+        body: JSON.stringify({ paths, favorites }),
       }).catch(() => {});
+    },
+    /** Persist the current project list through the shared dashboard state store. */
+    _saveProjectsList() {
+      this._saveDashboardState();
     },
 
     // -- Clipboard + Toast --

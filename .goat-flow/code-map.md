@@ -44,7 +44,6 @@ facts/                     # Fact extractors -- gather project state for audit c
 
 manifest/
   manifest.ts              # Single-source-of-truth manifest loader (M06a); validates static facts against code reality
-  consumers.md             # Documentation for manifest consumers
   types.ts                 # Manifest schema types
 
 prompt/

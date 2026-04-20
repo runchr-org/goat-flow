@@ -15,7 +15,12 @@ import { createFS } from "../../src/cli/facts/fs.js";
 import type { AgentId } from "../../src/cli/types.js";
 
 const PROJECT_PATH = resolve(import.meta.dirname, "..", "..");
-const PROJECTS_LIST_PATH = resolve(
+const DASHBOARD_STATE_PATH = resolve(
+  PROJECT_PATH,
+  ".goat-flow",
+  "dashboard-state.json",
+);
+const LEGACY_PROJECTS_LIST_PATH = resolve(
   PROJECT_PATH,
   ".goat-flow",
   "dashboard-projects.json",
@@ -24,7 +29,8 @@ const MISSING_PATH = resolve(PROJECT_PATH, "definitely-missing-dashboard-path");
 
 let server: { port: number; close: () => Promise<void> } | undefined;
 let baseUrl = "";
-let originalProjectsList: string | null = null;
+let originalDashboardState: string | null = null;
+let originalLegacyProjectsList: string | null = null;
 
 function withTimeout<T>(
   promise: Promise<T>,
@@ -147,9 +153,18 @@ async function fetchJson(
 
 before(async () => {
   try {
-    originalProjectsList = await readFile(PROJECTS_LIST_PATH, "utf-8");
+    originalDashboardState = await readFile(DASHBOARD_STATE_PATH, "utf-8");
   } catch {
-    originalProjectsList = null;
+    originalDashboardState = null;
+  }
+
+  try {
+    originalLegacyProjectsList = await readFile(
+      LEGACY_PROJECTS_LIST_PATH,
+      "utf-8",
+    );
+  } catch {
+    originalLegacyProjectsList = null;
   }
 
   const { serveDashboard } = await import("../../src/cli/server/dashboard.js");
@@ -163,10 +178,15 @@ after(async () => {
       await withTimeout(server.close(), 5000, "dashboard server shutdown");
     }
   } finally {
-    if (originalProjectsList === null) {
-      await rm(PROJECTS_LIST_PATH, { force: true });
+    if (originalDashboardState === null) {
+      await rm(DASHBOARD_STATE_PATH, { force: true });
     } else {
-      await writeFile(PROJECTS_LIST_PATH, originalProjectsList);
+      await writeFile(DASHBOARD_STATE_PATH, originalDashboardState);
+    }
+    if (originalLegacyProjectsList === null) {
+      await rm(LEGACY_PROJECTS_LIST_PATH, { force: true });
+    } else {
+      await writeFile(LEGACY_PROJECTS_LIST_PATH, originalLegacyProjectsList);
     }
   }
 });
@@ -441,19 +461,36 @@ describe("dashboard /api/quality", () => {
 });
 
 describe("dashboard /api/projects", () => {
-  it("persists the projects list roundtrip", async () => {
+  it("persists the dashboard state roundtrip", async () => {
     const nextPaths = [PROJECT_PATH, resolve(PROJECT_PATH, "src")];
+    const nextFavorites = ["goat-review", "goat-qa"];
     const post = await fetchJson("/api/projects/list", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paths: nextPaths }),
+      body: JSON.stringify({ paths: nextPaths, favorites: nextFavorites }),
     });
     assert.equal(post.res.status, 200);
     assert.deepEqual(post.body, { ok: true });
 
     const get = await fetchJson("/api/projects/list");
     assert.equal(get.res.status, 200);
-    assert.deepEqual(get.body, { paths: nextPaths });
+    assert.deepEqual(get.body, {
+      paths: nextPaths,
+      favorites: nextFavorites,
+    });
+  });
+
+  it("migrates the legacy projects file with empty favorites", async () => {
+    await rm(DASHBOARD_STATE_PATH, { force: true });
+    const nextPaths = [PROJECT_PATH, resolve(PROJECT_PATH, "docs")];
+    await writeFile(
+      LEGACY_PROJECTS_LIST_PATH,
+      JSON.stringify({ paths: nextPaths }, null, 2),
+    );
+
+    const get = await fetchJson("/api/projects/list");
+    assert.equal(get.res.status, 200);
+    assert.deepEqual(get.body, { paths: nextPaths, favorites: [] });
   });
 
   it("returns 400 for invalid project list JSON", async () => {

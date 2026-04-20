@@ -142,6 +142,16 @@ function renderTextContentFindings(
   }
 }
 
+/** Map a skill-dir path prefix to an install-goat-flow.sh --agent target.
+ *  Returns null when the path doesn't match a known satellite-agent dir. */
+function pathToAgentLabel(path: string): string | null {
+  if (path.startsWith(".agents/skills/")) return "codex";
+  if (path.startsWith(".gemini/skills/")) return "gemini";
+  if (path.startsWith(".claude/skills/")) return "claude";
+  if (path.startsWith(".github/skills/")) return "copilot";
+  return null;
+}
+
 /** Render drift findings in the terminal text format. */
 function renderTextDriftFindings(drift: DriftReport, lines: string[]): void {
   if (drift.findings.length === 0) {
@@ -159,6 +169,18 @@ function renderTextDriftFindings(drift: DriftReport, lines: string[]): void {
             : "orphan";
     lines.push(`  ${RED}x [${tag}] ${f.path}${RESET}`);
     lines.push(`    ${DIM}${f.message}${RESET}`);
+  }
+  const staleAgents = new Set<string>();
+  for (const f of drift.findings) {
+    if (f.kind !== "deprecated") continue;
+    const agent = pathToAgentLabel(f.path);
+    if (agent !== null) staleAgents.add(agent);
+  }
+  if (staleAgents.size > 0) {
+    const agentList = [...staleAgents].sort().join(" / ");
+    lines.push(
+      `  ${DIM}Multi-agent drift: run \`install-goat-flow.sh . --agent ${agentList}\` to migrate the remaining agent(s).${RESET}`,
+    );
   }
 }
 

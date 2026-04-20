@@ -27,6 +27,7 @@ interface TerminalCreateBody {
 
 interface ProjectsListBody {
   paths: string[];
+  favorites: string[];
 }
 
 /** Build a decoder error result. */
@@ -50,6 +51,33 @@ function parseJson(body: string, path: string): DecodeResult<unknown> {
 /** Check whether a value is a record. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Decode one string-array field from a JSON object. */
+function decodeStringArrayField(
+  raw: Record<string, unknown>,
+  key: "paths" | "favorites",
+  options?: { required?: boolean },
+): DecodeResult<string[]> {
+  if (!Object.hasOwn(raw, key)) {
+    return options?.required
+      ? err(`body.${key}`, "is required")
+      : {
+          ok: true,
+          value: [],
+        };
+  }
+  if (!Array.isArray(raw[key])) {
+    return err(`body.${key}`, "must be an array");
+  }
+  const values: string[] = [];
+  for (const [index, item] of raw[key].entries()) {
+    if (typeof item !== "string") {
+      return err(`body.${key}[${index}]`, "must be a string");
+    }
+    values.push(item);
+  }
+  return { ok: true, value: values };
 }
 
 /** Decode POST /api/terminal/create body.
@@ -104,21 +132,15 @@ export function decodeProjectsListBody(
   const raw = parsed.value;
   if (!isRecord(raw)) return err("body", "must be a JSON object");
 
-  if (!Object.hasOwn(raw, "paths")) {
-    return err("body.paths", "is required");
-  }
-  if (!Array.isArray(raw.paths)) {
-    return err("body.paths", "must be an array");
-  }
-  const paths: string[] = [];
-  for (const [index, item] of raw.paths.entries()) {
-    if (typeof item !== "string") {
-      return err(`body.paths[${index}]`, "must be a string");
-    }
-    paths.push(item);
-  }
+  const paths = decodeStringArrayField(raw, "paths", { required: true });
+  if (!paths.ok) return paths;
+  const favorites = decodeStringArrayField(raw, "favorites");
+  if (!favorites.ok) return favorites;
 
-  return { ok: true, value: { paths } };
+  return {
+    ok: true,
+    value: { paths: paths.value, favorites: favorites.value },
+  };
 }
 
 /** Decode a WebSocket frame into a typed ClientMessage or a typed error. */

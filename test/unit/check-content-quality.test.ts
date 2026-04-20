@@ -196,3 +196,83 @@ describe("scanContentQuality: restricted mode (learning-loop surfaces)", () => {
     );
   });
 });
+
+describe("scanContentQuality: legacy execution loop (M19-9a)", () => {
+  it("flags 'READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG' as WARNING", () => {
+    const findings = scanContentQuality(
+      "AGENTS.md",
+      "## Default Execution Loop: READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG",
+    );
+    const legacy = findings.find(
+      (f) => f.rule === "legacy-execution-loop-classify",
+    );
+    assert.ok(legacy, "expected legacy-execution-loop-classify finding");
+    assert.equal(legacy!.severity, "warning");
+    assert.match(legacy!.message, /v1\.2 loop is four steps/);
+  });
+
+  it("flags 'VERIFY → LOG' alone as WARNING even without CLASSIFY context", () => {
+    const findings = scanContentQuality(
+      "GEMINI.md",
+      "Close the loop at VERIFY → LOG.",
+    );
+    const legacy = findings.find(
+      (f) => f.rule === "legacy-execution-loop-trailing-log",
+    );
+    assert.ok(legacy, "expected legacy-execution-loop-trailing-log finding");
+    assert.equal(legacy!.severity, "warning");
+  });
+
+  it("flags ASCII arrows 'READ -> CLASSIFY -> SCOPE'", () => {
+    const findings = scanContentQuality(
+      "AGENTS.md",
+      "## Default Execution Loop: READ -> CLASSIFY -> SCOPE -> ACT -> VERIFY -> LOG",
+    );
+    assert.ok(
+      findings.some((f) => f.rule === "legacy-execution-loop-classify"),
+      "ASCII -> arrow variant should still trigger detection",
+    );
+  });
+
+  it("does NOT flag the v1.2 four-step loop", () => {
+    const findings = scanContentQuality(
+      "CLAUDE.md",
+      "## Execution Loop: READ → SCOPE → ACT → VERIFY",
+    );
+    assert.equal(
+      findings.filter((f) => f.rule.startsWith("legacy-execution-loop")).length,
+      0,
+      "four-step loop must not trigger the legacy-loop detectors",
+    );
+  });
+
+  it("does NOT flag historical prose mentioning CLASSIFY without arrow sequence", () => {
+    const findings = scanContentQuality(
+      ".goat-flow/lessons/execution-loop.md",
+      "The pre-v1.2 loop included a CLASSIFY step that was absorbed into SCOPE.",
+      "restricted",
+    );
+    assert.equal(
+      findings.filter((f) => f.rule === "legacy-execution-loop-classify")
+        .length,
+      0,
+      "prose-only mention of CLASSIFY without the arrow sequence must not fire",
+    );
+  });
+
+  it("does not flag inside a fenced code block", () => {
+    const text = [
+      "Real prose.",
+      "```",
+      "READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG",
+      "```",
+      "End.",
+    ].join("\n");
+    const findings = scanContentQuality("AGENTS.md", text);
+    assert.equal(
+      findings.filter((f) => f.rule.startsWith("legacy-execution-loop")).length,
+      0,
+      "fenced-code-block guard must keep the detector silent",
+    );
+  });
+});

@@ -38,6 +38,11 @@ interface DashboardPresetData {
   cat: string;
 }
 
+interface DashboardStateData {
+  paths: string[];
+  favorites: string[];
+}
+
 interface LatestQualitySummary {
   id: string;
   date: string;
@@ -159,7 +164,12 @@ export function createDashboardRouteHandlers(
     jsonResponse,
     readBody,
   } = deps;
-  const projectsListFile = join(
+  const dashboardStateFile = join(
+    absDefault,
+    ".goat-flow",
+    "dashboard-state.json",
+  );
+  const legacyProjectsListFile = join(
     absDefault,
     ".goat-flow",
     "dashboard-projects.json",
@@ -168,6 +178,51 @@ export function createDashboardRouteHandlers(
   /** Resolve a user-supplied path to an absolute path. */
   function safeResolvePath(raw: string | null): string {
     return resolve(raw || absDefault);
+  }
+
+  /** Read one optional string array property from a parsed dashboard state file. */
+  function readOptionalStringArrayProperty(
+    value: Record<string, unknown>,
+    key: string,
+  ): string[] | null {
+    const raw = value[key];
+    if (raw === undefined) return [];
+    if (!Array.isArray(raw)) return null;
+    const items: string[] = [];
+    for (const item of raw) {
+      if (typeof item !== "string") return null;
+      items.push(item);
+    }
+    return items;
+  }
+
+  /** Normalize parsed dashboard state JSON into the server's expected shape. */
+  function normalizeDashboardState(value: unknown): DashboardStateData | null {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return null;
+    }
+    const record = value as Record<string, unknown>;
+    const paths = readOptionalStringArrayProperty(record, "paths");
+    if (paths === null) return null;
+    const favorites = readOptionalStringArrayProperty(record, "favorites");
+    if (favorites === null) return null;
+    return { paths, favorites };
+  }
+
+  /** Read dashboard state from the new file first, then the legacy projects-only file. */
+  async function loadDashboardState(): Promise<DashboardStateData> {
+    const { readFile } = await import("node:fs/promises");
+    for (const filePath of [dashboardStateFile, legacyProjectsListFile]) {
+      try {
+        const parsed = normalizeDashboardState(
+          JSON.parse(await readFile(filePath, "utf-8")),
+        );
+        if (parsed) return parsed;
+      } catch {
+        /* try next location */
+      }
+    }
+    return { paths: [], favorites: [] };
   }
 
   /** Fail fast when an endpoint expects a real project directory. */
@@ -488,7 +543,7 @@ export function createDashboardRouteHandlers(
     return true;
   }
 
-  /** Save/load the project list to/from disk so it survives server restarts. */
+  /** Save/load the dashboard state to/from disk so it survives server restarts. */
   async function handleProjectsListRequest(
     req: IncomingMessage,
     url: URL,
@@ -497,14 +552,7 @@ export function createDashboardRouteHandlers(
     if (url.pathname !== "/api/projects/list") return false;
 
     if (req.method === "GET") {
-      try {
-        const data = await import("node:fs/promises").then((fs) =>
-          fs.readFile(projectsListFile, "utf-8"),
-        );
-        jsonResponse(res, 200, JSON.parse(data));
-      } catch {
-        jsonResponse(res, 200, { paths: [] });
-      }
+      jsonResponse(res, 200, await loadDashboardState());
       return true;
     }
 
@@ -520,12 +568,13 @@ export function createDashboardRouteHandlers(
           });
           return true;
         }
-        const { mkdir, writeFile } = await import("node:fs/promises");
+        const { mkdir, rm, writeFile } = await import("node:fs/promises");
         await mkdir(join(absDefault, ".goat-flow"), { recursive: true });
         await writeFile(
-          projectsListFile,
-          JSON.stringify({ paths: decoded.value.paths }, null, 2),
+          dashboardStateFile,
+          JSON.stringify(decoded.value, null, 2),
         );
+        await rm(legacyProjectsListFile, { force: true });
         jsonResponse(res, 200, { ok: true });
       } catch (err) {
         jsonResponse(res, 400, { error: String(err) });

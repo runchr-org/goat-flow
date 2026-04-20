@@ -66,11 +66,24 @@ describe("decodeTerminalCreateBody", () => {
 });
 
 describe("decodeProjectsListBody", () => {
-  it("returns typed paths on a valid payload", () => {
-    const r = decodeProjectsListBody(JSON.stringify({ paths: ["/a", "/b/c"] }));
+  it("returns typed dashboard state on a valid payload", () => {
+    const r = decodeProjectsListBody(
+      JSON.stringify({
+        paths: ["/a", "/b/c"],
+        favorites: ["goat-review", "goat-qa"],
+      }),
+    );
     assert.equal(r.ok, true);
     if (!r.ok) return;
     assert.deepStrictEqual(r.value.paths, ["/a", "/b/c"]);
+    assert.deepStrictEqual(r.value.favorites, ["goat-review", "goat-qa"]);
+  });
+
+  it("defaults favorites to an empty list when omitted", () => {
+    const r = decodeProjectsListBody(JSON.stringify({ paths: ["/a"] }));
+    assert.equal(r.ok, true);
+    if (!r.ok) return;
+    assert.deepStrictEqual(r.value.favorites, []);
   });
 
   it("rejects non-object body", () => {
@@ -92,6 +105,15 @@ describe("decodeProjectsListBody", () => {
     assert.equal(r.ok, false);
     if (r.ok) return;
     assert.equal(r.path, "body.paths[1]");
+  });
+
+  it("rejects non-string favorite", () => {
+    const r = decodeProjectsListBody(
+      JSON.stringify({ paths: ["/a"], favorites: ["goat", 42] }),
+    );
+    assert.equal(r.ok, false);
+    if (r.ok) return;
+    assert.equal(r.path, "body.favorites[1]");
   });
 });
 
