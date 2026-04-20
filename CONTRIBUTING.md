@@ -38,7 +38,7 @@ bash scripts/preflight-checks.sh
 
 For shell scripts only: `shellcheck scripts/maintenance/*.sh`
 
-ESLint is scoped to `src/cli/` - the dashboard script files (`src/dashboard/app.ts`, `src/dashboard/globals.d.ts`) are typechecked separately via `tsconfig.dashboard.json` and will produce parse errors if included in the main ESLint scope.
+ESLint covers both `src/cli/` and `src/dashboard/`. The config references both `tsconfig.json` and `tsconfig.dashboard.json` so each tree is typed-linted under its own compiler options.
 
 Do not run `npm run build` and `preflight-checks.sh` concurrently - the build's `rm -rf dist/` will cause preflight to skip the audit check.
 

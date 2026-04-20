@@ -75,11 +75,13 @@ interface DashboardRouteDependencies {
   readBody: BodyReader;
 }
 
-/** Parse the quality history limit. */
-function parseQualityHistoryLimit(param: string | null): number | null {
+/** Parse the quality history limit. Invalid input (non-numeric, zero, negative)
+ *  falls back to the default so callers can't bypass the cap with ?limit=0. */
+function parseQualityHistoryLimit(param: string | null): number {
   if (param === null) return 20;
   const parsed = Number.parseInt(param, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 100) : null;
+  if (!Number.isFinite(parsed) || parsed <= 0) return 20;
+  return Math.min(parsed, 100);
 }
 
 /** Build the latest quality summary. */

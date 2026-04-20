@@ -4,9 +4,10 @@
  */
 
 type AuditStatus = "pass" | "fail";
-/** Build-time dashboard runner union. Runtime validation uses
- *  `window.__GOAT_FLOW_RUNNER_IDS__` injected by the server. */
-type RunnerId = import("../cli/types.js").AgentId;
+/** Dashboard-local runner union. Keep this aligned with `src/cli/types.ts`.
+ *  Importing CLI types here causes the dashboard build to emit `src/cli/types.js`
+ *  back into the source tree, which then poisons lint/format/drift gates. */
+type RunnerId = "claude" | "codex" | "gemini" | "copilot";
 type SessionStatus = "starting" | "active" | "terminated";
 
 // ---------------------------------------------------------------------------

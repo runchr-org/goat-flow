@@ -257,6 +257,9 @@ function findOrphans(fs: ReadonlyFS, findings: DriftFinding[]): void {
     for (const entry of fs.listDir(agentDir)) {
       if (canonical.has(entry)) continue;
       const fullPath = `${agentDir}/${entry}`;
+      // Only flag real skill directories. listDir returns files too
+      // (.DS_Store, README.md, etc.); a skill is identified by SKILL.md.
+      if (!fs.exists(`${fullPath}/SKILL.md`)) continue;
       if (stale.has(entry)) {
         findings.push({
           kind: "deprecated",

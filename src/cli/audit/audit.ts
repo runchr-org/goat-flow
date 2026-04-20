@@ -385,12 +385,19 @@ function overallStatus(
  * audit — see `.goat-flow/tasks/1.2.0/M19-setup-signal-hardening.md`
  * slice M19-4.
  *
+ * The signal is computed from the manifest-backed instruction paths rather
+ * than `ctx.agents`, which has already been narrowed by `--agent` upstream.
+ * Using the filtered list would hide the multi-agent signal exactly when it
+ * matters — the single-agent-filter case is the one stale satellites exploit.
+ *
  * Single-agent projects preserve the prior opt-in behaviour.
  */
 function shouldAutoRunDrift(ctx: AuditContext): boolean {
-  const instructionFilesPresent = ctx.agents.filter(
-    (af) => af.instruction.exists,
-  ).length;
+  const manifest = loadManifest();
+  let instructionFilesPresent = 0;
+  for (const agent of Object.values(manifest.agents)) {
+    if (ctx.fs.exists(agent.instruction_file)) instructionFilesPresent++;
+  }
   return instructionFilesPresent > 1;
 }
 

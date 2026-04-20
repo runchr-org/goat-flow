@@ -1,6 +1,6 @@
 ---
 category: verification
-last_reviewed: 2026-04-20
+last_reviewed: 2026-04-21
 ---
 
 ## Lesson: "Double check" means read the files, not re-run the tests

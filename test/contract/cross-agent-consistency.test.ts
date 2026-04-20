@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { getKnownAgentIds } from "../../src/cli/agents/registry.js";
 import { SKILL_NAMES } from "../../src/cli/constants.js";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
 import { loadManifest } from "../../src/cli/manifest/manifest.js";
@@ -75,6 +76,35 @@ describe("harness check concern coverage", () => {
     assert.ok(
       concerns.has("feedback_loop"),
       "Should have feedback_loop checks",
+    );
+  });
+});
+
+describe("dashboard runner type alignment", () => {
+  it("keeps the dashboard RunnerId union local and aligned with CLI agent IDs", () => {
+    const globalsPath = resolve(PROJECT_ROOT, "src/dashboard/globals.d.ts");
+    const globals = readFileSync(globalsPath, "utf-8");
+
+    assert.doesNotMatch(
+      globals,
+      /\.\.\/cli\/types\.js/,
+      "dashboard globals must not import ../cli/types.js or the dashboard build emits source-shadow JS",
+    );
+
+    const runnerIdDeclaration = globals.match(/type RunnerId =([\s\S]*?);/);
+    assert.ok(
+      runnerIdDeclaration,
+      "src/dashboard/globals.d.ts should declare a RunnerId union",
+    );
+
+    const runnerIds = [...runnerIdDeclaration[1].matchAll(/"([^"]+)"/g)].map(
+      (match) => match[1],
+    );
+
+    assert.deepStrictEqual(
+      runnerIds,
+      getKnownAgentIds(),
+      "dashboard RunnerId union must stay aligned with the CLI agent list",
     );
   });
 });
