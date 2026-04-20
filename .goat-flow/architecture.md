@@ -44,6 +44,9 @@ src/cli/
   quality/            # Quality report schema, positional ids, history, and diff
   audit/              # Build checks, quality checks, render.ts (output formatters: text, json, markdown)
   server/             # Dashboard server (dashboard.ts, terminal.ts, types.ts)
+  agents/             # Manifest-backed agent registry (M12)
+  manifest/           # Single-source-of-truth manifest loader (M06a)
+  stats/              # Learning-loop health report (goat-flow stats)
 
 src/dashboard/
   index.html          # Dashboard entry point
@@ -67,7 +70,7 @@ Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- lo
 
 | Tier | Paths | Committed? | Purpose |
 |------|-------|-----------|---------|
-| **Committed knowledge** | `architecture.md`, `code-map.md`, `glossary.md`, `patterns.md`, `config.yaml`, `decisions/`, `footguns/**`, `lessons/**`, and the shared reference files at `.goat-flow/skill-reference/skill-preamble.md`, `.goat-flow/skill-reference/skill-conventions.md`, `.goat-flow/skill-reference/skill-quality-testing.md` (index) plus `.goat-flow/skill-reference/skill-quality-testing/{tdd-iteration,adversarial-framing,deployment}.md` (topical files per ADR-023) | Yes | Durable project record. Source of truth across sessions. |
+| **Committed knowledge** | `architecture.md`, `code-map.md`, `glossary.md`, `patterns.md`, `config.yaml`, `decisions/`, `footguns/**`, `lessons/**`, and the shared reference files at `.goat-flow/skill-reference/skill-preamble.md`, `.goat-flow/skill-reference/skill-conventions.md`, `.goat-flow/skill-reference/skill-quality-testing.md` (index) plus the topical files `.goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md`, `.goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md`, and `.goat-flow/skill-reference/skill-quality-testing/deployment.md` (per ADR-023) | Yes | Durable project record. Source of truth across sessions. |
 | **Local session state** | `tasks/**`, `scratchpad/**`, `.goat-flow/logs/sessions/*.md` | No (gitignored by design; only anchor files such as `README.md`, `.gitignore`, and `.gitkeep` are committed) | Personal WIP: milestone files, plan subdirs, throwaway notes, and session continuity logs. Coordinates a single work session — not project history. |
 | **Local report history** | `.goat-flow/logs/quality/*.json`, `.goat-flow/logs/quality/*.md` | No (gitignored by design; only the directory README is committed) | Saved agent quality reports plus captured prose. Feeds `goat-flow quality history`, `goat-flow quality diff`, and prior same-agent prompt context. |
 
