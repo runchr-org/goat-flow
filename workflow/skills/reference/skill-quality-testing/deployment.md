@@ -27,7 +27,7 @@ All of these mean: **test before deploying. No exceptions.**
 
 ## Skill deployment checklist
 
-Every skill MUST pass this checklist before merging. Use TodoWrite to create todos for each item.
+Every skill MUST pass this checklist before merging. Track each item as a todo in your agent's planning tool — don't work from memory.
 
 **RED phase — write failing test:**
 - [ ] Create pressure scenarios (3+ combined pressures for discipline skills)

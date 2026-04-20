@@ -1,5 +1,5 @@
-# AGENTS.md - v1.2.0 (2026-04-18)
-GOAT Flow documentation framework. TypeScript CLI auditor/dashboard + Markdown docs + Bash validation scripts. This Codex layer supplements the existing Claude Code workflow; leave `CLAUDE.md` and `.claude/` untouched unless a task explicitly targets them.
+# AGENTS.md - v1.2.0 (2026-04-20)
+Documentation framework for AI coding agent workflows. Markdown docs + Bash validation scripts + TypeScript CLI/dashboard.
 ## Essential Commands
 ```bash
 bash scripts/preflight-checks.sh
@@ -70,7 +70,7 @@ If VERIFY caught a failure or you corrected course, update the learning loop bef
 
 ## Autonomy Tiers
 
-**Always:** Read any file, run validation scripts, edit within declared scope, add Codex artifacts, update shared learning-loop files with evidence.
+**Always:** Read any file, run validation scripts, edit within declared scope, add Codex artifacts. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes — write one when `/compact` fires without an active milestone file, otherwise skip. Learning-loop updates (lessons/footguns/decisions) follow the conditional rule above: update only when VERIFY caught a failure or you corrected course.
 
 **Ask First** — before proceeding, state: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked (`.github/instructions/` / `AGENTS.md` / none), rollback command.
 

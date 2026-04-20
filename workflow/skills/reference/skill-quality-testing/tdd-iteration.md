@@ -24,7 +24,7 @@ If you have a skill draft and no failing-scenario log behind it: delete the draf
 
 ## When to use
 
-- Creating a new skill at `workflow/skills/<name>/SKILL.md`
+- Creating a new skill template
 - Hardening an existing skill that was bypassed under pressure
 - Tightening a rule that agents keep working around with the same rationalisation
 - After any learning-loop `.goat-flow/lessons/` entry that says "rule was ignored under pressure"

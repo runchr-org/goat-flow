@@ -235,6 +235,7 @@ legacy_warn() {
 [[ -f docs/footguns.md ]] && legacy_warn "docs/footguns.md exists — move entries into .goat-flow/footguns/<category>.md (category-bucket layout)"
 [[ -f docs/lessons.md ]] && legacy_warn "docs/lessons.md exists — move entries into .goat-flow/lessons/<category>.md"
 [[ -d docs/lessons ]] && legacy_warn "docs/lessons/ exists — move entries into .goat-flow/lessons/<category>.md"
+[[ -d tasks ]] && legacy_warn "tasks/ exists — move entries into .goat-flow/tasks/ (local working state; gitignored by design)"
 while IFS= read -r stale_name; do
   [[ -n "$stale_name" ]] || continue
   for agent_skills_dir in .claude/skills .codex/skills .gemini/skills .agents/skills .github/skills; do

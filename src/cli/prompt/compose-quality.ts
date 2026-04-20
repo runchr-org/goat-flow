@@ -607,7 +607,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "- Severity: `BLOCKER` (prevents work or creates safety risk), `MAJOR` (framework violates its own stated standards or a documented quality gate fails), or `MINOR` (suboptimal but not actively harmful)",
   );
   lines.push(
-    "- Type: `setup quality`, `skill flaw`, `contradiction`, `false path`, `content quality`, or `framework flaw`",
+    "- Type: `setup_quality`, `skill_flaw`, `contradiction`, `false_path`, `content_quality`, or `framework_flaw`",
   );
   lines.push("- Exact `file:line` reference(s)");
   lines.push("- What is wrong");

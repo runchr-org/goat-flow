@@ -60,6 +60,6 @@ Rules:
 
 | Where | What |
 |-------|------|
-| `.claude/skills/goat-review/SKILL.md` (or `workflow/skills/goat-review/SKILL.md` template) | Zero-findings HALT — adversarial pattern in the wild |
-| `.claude/skills/goat-critique/SKILL.md` (or `workflow/skills/goat-critique/SKILL.md` template) | Agent C fresh-eyes — parallel reviewer info asymmetry in the wild |
-| `.claude/skills/goat-qa/SKILL.md` (or `workflow/skills/goat-qa/SKILL.md` template) | Structured-finding shape for gap output |
+| `/goat-review` skill | Zero-findings HALT — adversarial pattern in the wild |
+| `/goat-critique` skill | Agent C fresh-eyes — parallel reviewer info asymmetry in the wild |
+| `/goat-qa` skill | Structured-finding shape for gap output |
