@@ -83,7 +83,11 @@ describe("scanCountClaims: skill count", () => {
       `Our product teaches ${wrong} skills to new users.`,
     );
     const drift = findings.find((f) => f.rule === "skill-count-drift");
-    assert.equal(drift, undefined, "skill-count-drift should not fire on README.md");
+    assert.equal(
+      drift,
+      undefined,
+      "skill-count-drift should not fire on README.md",
+    );
   });
 });
 
@@ -125,7 +129,7 @@ describe("scanCountClaims: code-block guard", () => {
       "",
       `Actual: ${SKILL_NAMES.length} skills.`,
     ].join("\n");
-    const findings = scanCountClaims("x.md", text);
+    const findings = scanCountClaims(".goat-flow/architecture.md", text);
     assert.equal(findings.length, 0);
   });
 });
