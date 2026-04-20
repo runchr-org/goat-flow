@@ -5,7 +5,7 @@
 import type { SharedFacts, ReadonlyFS, BucketFreshness } from "../../types.js";
 import type { LoadedConfig } from "../../config/types.js";
 
-/** Strict YYYY-MM-DD format — rejects full ISO 8601 timestamps in `last_reviewed`. */
+/** Strict YYYY-MM-DD format - rejects full ISO 8601 timestamps in `last_reviewed`. */
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -22,7 +22,7 @@ const EVIDENCE_PATTERN =
 /** Regex to extract file paths from backtick-wrapped references (with optional line numbers). */
 const FILE_REF_REGEX = /`([^`]+\.[a-zA-Z]{1,10})(?::[0-9]+(?:[-,][0-9]+)*)?`/g;
 
-/** Matches `` `<file>` (search: `<needle>`) `` — the footgun evidence form that
+/** Matches `` `<file>` (search: `<needle>`) `` - the footgun evidence form that
  *  cites a literal string to grep for inside the referenced file. */
 const SEARCH_ANCHOR_REGEX =
   /`([^`]+\.[a-zA-Z0-9]{1,10})`\s*\(search:\s*`([^`]+)`\)/g;
@@ -46,7 +46,7 @@ function isFileRef(filePath: string): boolean {
 /** Paths under these dirs are intentionally gitignored per `.goat-flow/tasks/.gitignore`
  *  (milestone files + plan subdirs + `.active` marker are local-session state by
  *  design). References to them in lessons/footguns are navigation pointers,
- *  not resolvable artifacts — treating absence as "stale" false-positives on
+ *  not resolvable artifacts - treating absence as "stale" false-positives on
  *  any clean checkout or CI run. Keep this list short and specific. */
 function isIntentionallyGitignored(filePath: string): boolean {
   return (
@@ -666,7 +666,7 @@ function summarizeLessonEntries(
       if (ref === undefined || /[*?{}<>]|\.\.\./.test(ref)) continue;
       const filePath = ref.replace(/:[0-9]+(?:[-,][0-9]+)*$/, "");
       // Gitignored-by-design paths (.goat-flow/tasks, scratchpad, logs) are
-      // navigation pointers, not committed artifacts — don't flag them stale.
+      // navigation pointers, not committed artifacts - don't flag them stale.
       if (isIntentionallyGitignored(filePath)) continue;
       if (!fs.exists(filePath)) bucketStaleRefs.push(filePath);
     }

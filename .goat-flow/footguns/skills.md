@@ -1,6 +1,6 @@
 ---
 category: skills
-last_reviewed: 2026-04-19
+last_reviewed: 2026-04-20
 ---
 
 ## Footgun: Weak retrieval cues cause learning-loop misses
@@ -12,8 +12,8 @@ last_reviewed: 2026-04-19
 **Why it happens:** The learning-loop buckets index real incidents and failure classes, not milestone names. Queries like "support matrix" or "registry canonicality" sound precise in planning context but do not match the actual wording of stored hook/platform incidents.
 
 **Evidence:**
-- Observed during M10 task planning: initial query `support matrix|agent matrix|registry canonicality` returned 0 hits against `.goat-flow/footguns/`, while the reworded query `Codex has no compaction notification hook` immediately hit `.goat-flow/footguns/hooks.md`. (Raw retrieval run recorded in a local-only task log.)
-- `workflow/skills/reference/skill-preamble.md` now hard-codes the mitigation: derive 2-4 terms from target area + symptom + named file/tool, retry once, then record a miss instead of broad-loading a bucket.
+- `.goat-flow/skill-reference/skill-preamble.md` (search: `Learning-Loop Retrieval`) hard-codes the mitigation: derive 2-4 terms from target area + symptom + named file/tool, reword once, then record a miss instead of broad-loading the bucket. The Excuse/Reality table in that same section (search: `Broad-loading recreates the context-bloat failure`) captures the specific rationalisations that produced the miss - those rows are the durable in-repo trace of the incident.
+- `workflow/skills/reference/skill-preamble.md` (search: `Learning-Loop Retrieval`) holds the template source that the installer copies from.
 
 **Prevention:** Seed first-pass retrieval terms with the concrete symptom, platform, or file/tool name rather than milestone titles or abstract design labels. One reword is allowed; if the second query still misses, record the retrieval miss explicitly and move on. Broad-loading the bucket to compensate defeats the protocol.
 
@@ -96,7 +96,7 @@ Skills enforce phase gates (Step 0 must complete before Phase 1, gates pause for
 
 > Historical record. These entries are no longer active traps.
 
-- **Workflow-summarising skill descriptions cause CSO shortcutting** (resolved 2026-04-19) — All 7 current goat-* descriptions (including the dispatcher) are compliant with the trigger-only rule ("Use when …"), not workflow summaries. The rule is enforced in `workflow/skills/reference/skill-quality-testing.md` GREEN-phase checklist ("`description` is CSO-optimised: 'Use when [trigger]', not a workflow summary"). Original incident was in the external `superpowers-skills` repo; the goat-flow regression was on the dispatcher description and was rewritten the same day it was caught.
+- **Workflow-summarising skill descriptions cause CSO shortcutting** (resolved 2026-04-19) - All 7 current goat-* descriptions (including the dispatcher) are compliant with the trigger-only rule ("Use when …"), not workflow summaries. The rule is enforced in `workflow/skills/reference/skill-quality-testing.md` GREEN-phase checklist ("`description` is CSO-optimised: 'Use when [trigger]', not a workflow summary"). Original incident was in the external `superpowers-skills` repo; the goat-flow regression was on the dispatcher description and was rewritten the same day it was caught.
 - **Dispatcher intent mapping has no coverage for analysis/evaluation verbs** (resolved 2026-04-14) - Added analysis/evaluation verbs to the dispatcher disambiguation table so ambiguous requests prompt skill selection instead of auto-routing.
 - **CI template derives skill names by prefixing instead of listing them** (resolved 2026-04-14) - Removed `src/cli/prompt/fragments/` directory in v1.1.0; CI template generation no longer exists.
 - **Blind mv/cp/Write can overwrite existing files** (resolved 2026-04-18) - Covered by the Never-tier no-clobber rule and destination-check guidance in the hot-path instruction files; no longer kept as an active architectural footgun.

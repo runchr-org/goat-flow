@@ -220,7 +220,7 @@
           style="font-size: 12px"
           x-show="setupFailed()"
         >
-          Scores reflect current install state — will improve after setup
+          Scores reflect current install state - will improve after setup
         </div>
       </div>
 
@@ -801,7 +801,7 @@
                     class="gf-text-muted"
                     style="font-size: 12px; margin-left: 2px"
                     x-show="checkDesc[check.name]"
-                    x-text="'— ' + (checkDesc[check.name] || '')"
+                    x-text="'- ' + (checkDesc[check.name] || '')"
                   ></span>
                 </div>
                 <template x-if="check.failure">
@@ -935,17 +935,17 @@
             const lines = [`**${label}:**`];
             let n = 1;
             if (integrity.length > 0) {
-              lines.push(`*Integrity (drift from install — must fix):*`);
+              lines.push(`*Integrity (drift from install - must fix):*`);
               for (const c of integrity) {
-                lines.push(`${n++}. **${c.name}** — ${c.failure?.message || ''}`);
+                lines.push(`${n++}. **${c.name}** - ${c.failure?.message || ''}`);
                 if (c.failure?.howToFix) lines.push(`   Fix: ${c.failure.howToFix}`);
                 lines.push(`   Verify: \`npx goat-flow audit . --harness\` shows \`${c.id}\` passing`);
               }
             }
             if (advisory.length > 0) {
-              lines.push(`*Advisory (best practice — fix or acknowledge):*`);
+              lines.push(`*Advisory (best practice - fix or acknowledge):*`);
               for (const c of advisory) {
-                lines.push(`${n++}. **${c.name}** — ${c.failure?.message || ''}`);
+                lines.push(`${n++}. **${c.name}** - ${c.failure?.message || ''}`);
                 if (c.failure?.howToFix) lines.push(`   Fix: ${c.failure.howToFix}`);
                 lines.push(`   Or silence: add \`${c.id}\` to \`harness.acknowledge\` in \`.goat-flow/config.yaml\``);
                 lines.push(`   Verify: \`npx goat-flow audit . --harness\` shows \`${c.id}\` passing or acknowledged`);

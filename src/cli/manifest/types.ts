@@ -7,7 +7,7 @@
  * SKILL_NAMES) or validated against observed on-disk state (dashboard views,
  * preset count).
  *
- * Derived values are never written into the JSON — they are computed at load
+ * Derived values are never written into the JSON - they are computed at load
  * time so `facts` cannot drift from code. Static values are written into the
  * JSON and validated against observed reality on load; a mismatch raises a
  * `ManifestValidationError`.
@@ -47,6 +47,17 @@ export interface SkillsStructure {
   references?: Record<string, string[]>;
 }
 
+/** Instruction-file contract declared by the manifest. `required_sections` is
+ *  the canonical list of hot-path headings each agent instruction file must
+ *  carry; harness checks build their regex patterns from these labels so the
+ *  harness cannot drift from the manifest. */
+export interface ManifestInstructionFile {
+  line_target: number;
+  line_limit: number;
+  required_sections: string[];
+  version_header_pattern: string;
+}
+
 /** On-disk shape of `workflow/manifest.json` after M06a extends it.
  *
  * `facts` is optional so the loader can detect pre-M06 manifests (missing key)
@@ -61,8 +72,7 @@ export interface ManifestJson {
   never_create: string[];
   skills: SkillsStructure;
   agents: Record<string, AgentProfile>;
-  instruction_file: Record<string, unknown>;
-  legacy_surfaces: Record<string, unknown>;
+  instruction_file: ManifestInstructionFile;
   /** Added by M06a. Only holds values that cannot be derived from code. */
   facts?: ManifestJsonFacts;
 }
@@ -110,7 +120,7 @@ export interface ResolvedFacts {
   presets: PresetFacts;
 }
 
-/** Resolved manifest — on-disk JSON plus computed `facts`. */
+/** Resolved manifest - on-disk JSON plus computed `facts`. */
 export interface Manifest {
   version: string;
   /** Files the project must contain; validated against disk by audit checks. */
@@ -119,6 +129,7 @@ export interface Manifest {
   required_dirs: string[];
   skills: SkillsStructure;
   agents: Record<string, AgentProfile>;
+  instruction_file: ManifestInstructionFile;
   facts: ResolvedFacts;
 }
 

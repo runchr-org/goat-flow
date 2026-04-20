@@ -196,7 +196,7 @@ function toCheckResult(
  *  In packaged installs, `evidence_paths` pointing at framework-repo docs
  *  (`.goat-flow/footguns/*`, `.goat-flow/lessons/*`, `docs/*`) can't be
  *  resolved because those files aren't in `package.json` `files`. Skip the
- *  existence check there — the paths are human-readable pointers for future
+ *  existence check there - the paths are human-readable pointers for future
  *  maintainers, not runtime contracts. In dev mode we keep the check so
  *  stale provenance surfaces in preflight. */
 function validateRegisteredCheckProvenance(fs: ReadonlyFS): void {

@@ -34,17 +34,17 @@ The two skill names being changed had different failure modes, but both were nam
 ## Alternatives considered
 
 - **`goat-sbao` shortlist**
-  - `/goat-panel` — rejected. It names a multi-agent mechanism but softens the disagreement-driven method in the wrong direction and has no existing vocabulary support across router, docs, glossary, or presets.
-  - `/goat-challenge` — rejected. It preserves the adversarial signal better than `/goat-critique`, but the system already teaches this workflow as critique on every major user-facing surface. The semantic gain did not justify rewriting the surrounding vocabulary.
-  - `/goat-crit` — rejected. It breaks the repo's whole-word naming pattern (`/goat-plan`, `/goat-review`, `/goat-debug`, `/goat-security`) and collides cognitively with the skill's own `CRITICAL` severity language.
+  - `/goat-panel` - rejected. It names a multi-agent mechanism but softens the disagreement-driven method in the wrong direction and has no existing vocabulary support across router, docs, glossary, or presets.
+  - `/goat-challenge` - rejected. It preserves the adversarial signal better than `/goat-critique`, but the system already teaches this workflow as critique on every major user-facing surface. The semantic gain did not justify rewriting the surrounding vocabulary.
+  - `/goat-crit` - rejected. It breaks the repo's whole-word naming pattern (`/goat-plan`, `/goat-review`, `/goat-debug`, `/goat-security`) and collides cognitively with the skill's own `CRITICAL` severity language.
 - **`goat-test` shortlist**
-  - `/goat-coverage` — rejected. It fits Audit mode's coverage analysis, but it misnames Regression Guard, Flow Diagram, and the risk-tiered testing-plan output. It also points users toward line/branch coverage tooling that this skill does not run.
-  - Status quo `/goat-test` — rejected. The command name promised execution while the skill body refused it (`.claude/skills/goat-qa/SKILL.md:15-19,28,130-139`). ADR-018 could narrow the routing language, but it could not remove the name-body contradiction without this rename.
+  - `/goat-coverage` - rejected. It fits Audit mode's coverage analysis, but it misnames Regression Guard, Flow Diagram, and the risk-tiered testing-plan output. It also points users toward line/branch coverage tooling that this skill does not run.
+  - Status quo `/goat-test` - rejected. The command name promised execution while the skill body refused it (`.claude/skills/goat-qa/SKILL.md:15-19,28,130-139`). ADR-018 could narrow the routing language, but it could not remove the name-body contradiction without this rename.
 
 ## Related decisions
 
-- **ADR-018** — no standalone `/goat-verify` skill; verification stays routed through existing skills and shared doctrine. This ADR continues ADR-018's scope-tightening for the former `goat-test` surface (`.goat-flow/decisions/ADR-018-no-goat-verify-skill.md:36-48`).
-- **ADR-011** — multi-perspective critique remains a core goat-flow feature. This rename changes the command name, not the feature's role in the system (`.goat-flow/decisions/ADR-011-critique-mob-core-features.md:14-34`).
+- **ADR-018** - no standalone `/goat-verify` skill; verification stays routed through existing skills and shared doctrine. This ADR continues ADR-018's scope-tightening for the former `goat-test` surface (`.goat-flow/decisions/ADR-018-no-goat-verify-skill.md:36-48`).
+- **ADR-011** - multi-perspective critique remains a core goat-flow feature. This rename changes the command name, not the feature's role in the system (`.goat-flow/decisions/ADR-011-critique-mob-core-features.md:14-34`).
 - **Prior CLI rename:** commit `054bde2` (`2026-04-18`) renamed the CLI subcommand `critique` to `quality`, freeing `critique` for skill use without a parallel CLI collision (`src/cli/cli.ts:84-104`).
 
 ## Revisit Triggers

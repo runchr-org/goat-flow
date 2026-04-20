@@ -50,7 +50,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** Decode POST /api/terminal/create body.
- *  Applies the `runner` fallback to the given default when absent or unknown —
+ *  Applies the `runner` fallback to the given default when absent or unknown -
  *  preserves existing server behaviour where a missing/bad runner was tolerated. */
 export function decodeTerminalCreateBody(
   body: string,

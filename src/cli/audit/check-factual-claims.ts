@@ -9,7 +9,7 @@
  *
  * Scope per milestone Assumption: `README.md`, `CONTRIBUTING.md`, `docs/*.md`,
  * `.goat-flow/architecture.md`, `.goat-flow/code-map.md`. Lesson and footgun
- * files legitimately discuss historical counts in prose — excluded.
+ * files legitimately discuss historical counts in prose - excluded.
  */
 import type { AuditContext, ContentFinding } from "./types.js";
 import type { CheckEvidence } from "./provenance-types.js";
@@ -76,7 +76,7 @@ interface CountClaimCheck {
   scanFenced?: boolean;
 }
 
-/** Per-concern count check: pattern has TWO capture groups — the concern name
+/** Per-concern count check: pattern has TWO capture groups - the concern name
  *  (used to look up the authoritative count) and the claimed number. Lets one
  *  entry cover all five concerns with a single regex instead of five. */
 interface ConcernCountCheck {
@@ -244,7 +244,7 @@ const REMOVED_COMMANDS: RemovedCommand[] = [
 ];
 
 /** Scan one doc file for references to removed CLI commands. Runs across every
- *  line including fenced code blocks — fenced command examples are the primary
+ *  line including fenced code blocks - fenced command examples are the primary
  *  leak path this check exists to catch. */
 export function scanRemovedCommands(
   path: string,
@@ -425,7 +425,7 @@ const REPO_PATH_PREFIXES = [
 function looksLikeRepoPath(candidate: string): boolean {
   if (candidate.length < 3) return false;
   if (candidate.startsWith("http")) return false;
-  // Glob patterns are not literal paths — skip them.
+  // Glob patterns are not literal paths - skip them.
   if (candidate.includes("*") || candidate.includes("?")) return false;
   // Template placeholders are not literal on-disk paths.
   if (candidate.includes("{") || candidate.includes("}")) return false;

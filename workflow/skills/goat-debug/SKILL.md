@@ -24,7 +24,7 @@ Use when diagnosing a bug or understanding unfamiliar code. For onboarding, use 
 | "Type/config mismatch is a really clean story" | Clean stories that don't mechanically match the symptom (e.g. value-dependent failure from a value-blind cause) are wrong stories. |
 | "The specific number in the bug report is probably just phrasing" | Treat every specific number, threshold, or boundary in a bug report as a clue, not rhetoric. |
 | "Reading the footgun during an incident looks like second-guessing" | Reading the footgun IS doing your job. Not reading it is what looks bad at post-mortem. |
-| "Adding the field is zero-risk — worst case we try the next thing" | This is how you enter the 3-fix abort loop. Hypothesis before code, always. |
+| "Adding the field is zero-risk - worst case we try the next thing" | This is how you enter the 3-fix abort loop. Hypothesis before code, always. |
 
 **NOT this skill:** Reviewing → /goat-review. Test plans → /goat-qa. Planning milestones → /goat-plan. Feature briefs → dispatcher Planning Route.
 
@@ -52,9 +52,9 @@ After reading the primary file, write 2-3 hypotheses spanning at least 2 of: Dat
 Present: root cause + confidence (HIGH = reproduced, MEDIUM = traced, LOW = inferred) + hypothesis table + reproduction steps. **Confidence floor:** All LOW --> return to D1 or present partial findings.
 
 **Root cause validation before claiming HIGH confidence.** For each candidate root cause, run a causation / necessity / sufficiency check:
-- **Causation** — does the proposed cause mechanically produce the observed symptom? Trace the path with `file:line`.
-- **Necessity** — without this cause, does the symptom still occur? If yes, the cause is insufficient or incomplete.
-- **Sufficiency** — is this cause alone enough, or are there co-factors? Name them.
+- **Causation** - does the proposed cause mechanically produce the observed symptom? Trace the path with `file:line`.
+- **Necessity** - without this cause, does the symptom still occur? If yes, the cause is insufficient or incomplete.
+- **Sufficiency** - is this cause alone enough, or are there co-factors? Name them.
 
 For high-stakes diagnoses, run a 5-Whys chain. Every "because" MUST cite `file:line` or a reproduction step, not just prose.
 
@@ -65,11 +65,11 @@ For high-stakes diagnoses, run a 5-Whys chain. Every "because" MUST cite `file:l
 What changes (files + functions), blast radius, architecture check (`.goat-flow/architecture.md`), verification method. "Should I implement?" If yes --> implement, then D4.
 
 ### D4 - Post-Fix Verification
-Rerun the **original reproduction** from D2 — a code change is not a fix until the symptom is gone. Then run D3 verification, check adjacent regressions, and grep for old patterns after renames.
+Rerun the **original reproduction** from D2 - a code change is not a fix until the symptom is gone. Then run D3 verification, check adjacent regressions, and grep for old patterns after renames.
 
 **3-fix abort rule:** If three independent fixes have failed to resolve the symptom, STOP and reconsider whether the architecture or the root-cause hypothesis is wrong. Do not attempt a fourth patch without first re-entering D1 with a fresh hypothesis set.
 
-**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to the "fixed" claim — rerun the original repro, cite the literal output, and downgrade to **UNVERIFIED** if the session cannot execute the proof.
+**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to the "fixed" claim - rerun the original repro, cite the literal output, and downgrade to **UNVERIFIED** if the session cannot execute the proof.
 
 ## Investigate Mode
 

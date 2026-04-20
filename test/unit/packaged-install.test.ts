@@ -15,7 +15,7 @@
  *   4. `isPackagedInstall` is overridable for deterministic testing
  *
  * (The preflight shell-script skill-parity loop is covered by an assertion in
- * the preflight script itself — see `scripts/preflight-checks.sh` the
+ * the preflight script itself - see `scripts/preflight-checks.sh` the
  * `[[ -d "$agent_dir" ]] || continue` guard before the installed-file check.)
  */
 import { describe, it } from "node:test";

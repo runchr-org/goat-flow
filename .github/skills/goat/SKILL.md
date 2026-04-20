@@ -35,7 +35,7 @@ For planning requests, read `.goat-flow/tasks/.active` to find the active plan s
 Pass the collected brief and any preselected depth to the target skill.
 If the user signals a re-route mid-workflow, preserve context and dispatch again.
 
-**Proof Gate:** Route rationales and dispatch claims in this skill's output must satisfy the Proof Gate in `skill-preamble.md` — cite the concrete signals (file, symptom, artifact) that justified the route.
+**Proof Gate:** Route rationales and dispatch claims in this skill's output must satisfy the Proof Gate in `skill-preamble.md` - cite the concrete signals (file, symptom, artifact) that justified the route.
 
 ## Constraints
 

@@ -21,7 +21,7 @@
 # - Deeply nested command substitution beyond 3 levels is blocked as a
 #   precaution rather than parsed
 # - Defense in depth: combine with settings.json deny patterns + CLAUDE.md rules
-# NOTE: `source .env` and other shell-level secret reads ARE blocked — see
+# NOTE: `source .env` and other shell-level secret reads ARE blocked - see
 #   `is_secret_path_touch` below and the self-test cases for the live contract.
 # =============================================================================
 set -uo pipefail

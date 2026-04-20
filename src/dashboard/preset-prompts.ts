@@ -9,7 +9,7 @@ const PRESETS: Preset[] = [
     name: "Explore Codebase",
     desc: "Investigate an unfamiliar area",
     prompt:
-      "/goat-debug investigate this codebase — ask me which area to focus on, or start with a high-level map",
+      "/goat-debug investigate this codebase - ask me which area to focus on, or start with a high-level map",
     cat: "debug",
   },
   {
@@ -17,7 +17,7 @@ const PRESETS: Preset[] = [
     name: "Diagnose Error",
     desc: "Diagnose mode: hypotheses → root cause, stop before fix",
     prompt:
-      "/goat-debug diagnose an error — ask me to paste the error message, stack trace, and what I was doing when it happened",
+      "/goat-debug diagnose an error - ask me to paste the error message, stack trace, and what I was doing when it happened",
     cat: "debug",
   },
   {
@@ -25,7 +25,7 @@ const PRESETS: Preset[] = [
     name: "Fix Bug",
     desc: "Diagnose mode, full path through to post-fix verification",
     prompt:
-      "/goat-debug fix a bug — ask me for expected vs actual behaviour and steps to reproduce, then run through to post-fix verification",
+      "/goat-debug fix a bug - ask me for expected vs actual behaviour and steps to reproduce, then run through to post-fix verification",
     cat: "debug",
   },
 
@@ -49,7 +49,7 @@ const PRESETS: Preset[] = [
     name: "Review Uncommitted",
     desc: "Pre-commit gate on uncommitted changes",
     prompt:
-      "/goat-review my uncommitted changes as a pre-commit gate — flag MUST findings only, skip MAY nitpicks",
+      "/goat-review my uncommitted changes as a pre-commit gate - flag MUST findings only, skip MAY nitpicks",
     cat: "review",
   },
   {
@@ -65,7 +65,7 @@ const PRESETS: Preset[] = [
     name: "Critique GOAT Flow",
     desc: "Area audit of the goat-flow installation",
     prompt:
-      "/goat-review audit the goat-flow setup in this project — read-only scope covers AGENTS.md, .github/copilot-instructions.md, .goat-flow/config.yaml, .goat-flow/skill-reference/, installed skills under .claude/skills/, .agents/skills/, .github/skills/, plus hooks and active-agent config surfaces. Report setup quality, skill usability, contradictions, and stale docs with evidence.",
+      "/goat-review audit the goat-flow setup in this project - read-only scope covers AGENTS.md, .github/copilot-instructions.md, .goat-flow/config.yaml, .goat-flow/skill-reference/, installed skills under .claude/skills/, .agents/skills/, .github/skills/, plus hooks and active-agent config surfaces. Report setup quality, skill usability, contradictions, and stale docs with evidence.",
     cat: "review",
   },
 
@@ -75,7 +75,7 @@ const PRESETS: Preset[] = [
     name: "Plan Feature",
     desc: "Feature brief → plan",
     prompt:
-      "/goat-plan a new feature — ask me for the feature brief (problem, users, success criteria)",
+      "/goat-plan a new feature - ask me for the feature brief (problem, users, success criteria)",
     cat: "plan",
   },
   {
@@ -83,7 +83,7 @@ const PRESETS: Preset[] = [
     name: "Break Into Milestones",
     desc: "Milestone task files with exit criteria",
     prompt:
-      "/goat-plan break this into milestones — ask me which feature or plan if not already in context",
+      "/goat-plan break this into milestones - ask me which feature or plan if not already in context",
     cat: "plan",
   },
   {
@@ -91,7 +91,7 @@ const PRESETS: Preset[] = [
     name: "Plan Refactor",
     desc: "Plan a refactor with blast-radius analysis",
     prompt:
-      "/goat-plan a refactor — ask me what to restructure and the expected blast radius (callers, tests, dependencies, config)",
+      "/goat-plan a refactor - ask me what to restructure and the expected blast radius (callers, tests, dependencies, config)",
     cat: "plan",
   },
 
@@ -108,7 +108,7 @@ const PRESETS: Preset[] = [
     name: "Critique an Artifact",
     desc: "Multi-lens critique of an assessment, strategy, or review findings",
     prompt:
-      "/goat-critique an artifact — ask me what to critique (assessment, strategy, review findings, test strategy, architecture proposal, etc.) if not already in context",
+      "/goat-critique an artifact - ask me what to critique (assessment, strategy, review findings, test strategy, architecture proposal, etc.) if not already in context",
     cat: "critique",
   },
   {
@@ -116,7 +116,7 @@ const PRESETS: Preset[] = [
     name: "Pressure-Test a Skill",
     desc: "RED/GREEN/REFACTOR skill TDD",
     prompt:
-      "/goat-critique pressure-test a goat-flow skill using .goat-flow/skill-reference/skill-quality-testing.md — ask me which skill, dispatch a fresh sub-agent with a realistic 3+ pressure scenario (target skill NOT pre-loaded), capture RED rationalizations verbatim, propose GREEN counters only for classes that reproduced, iterate RED → GREEN → REFACTOR to bulletproof (3 clean passes) or cap at 5 iterations with Decision Debt in .goat-flow/decisions/. Propagate edits to all skill dirs, then re-run goat-flow audit --check-drift.",
+      "/goat-critique pressure-test a goat-flow skill using .goat-flow/skill-reference/skill-quality-testing.md - ask me which skill, dispatch a fresh sub-agent with a realistic 3+ pressure scenario (target skill NOT pre-loaded), capture RED rationalizations verbatim, propose GREEN counters only for classes that reproduced, iterate RED → GREEN → REFACTOR to bulletproof (3 clean passes) or cap at 5 iterations with Decision Debt in .goat-flow/decisions/. Propagate edits to all skill dirs, then re-run goat-flow audit --check-drift.",
     cat: "critique",
   },
 
@@ -133,7 +133,7 @@ const PRESETS: Preset[] = [
     name: "Coverage Audit",
     desc: "Audit mode on a codebase area (not a diff)",
     prompt:
-      "/goat-qa audit test coverage in a codebase area — ask me which area (default: most-changed files)",
+      "/goat-qa audit test coverage in a codebase area - ask me which area (default: most-changed files)",
     cat: "qa",
   },
   {
@@ -141,7 +141,7 @@ const PRESETS: Preset[] = [
     name: "Regression Guard",
     desc: "Invariant for a recent bug fix",
     prompt:
-      "/goat-qa regression guard for my recent bug fix — ask me for the bug details if not in context",
+      "/goat-qa regression guard for my recent bug fix - ask me for the bug details if not in context",
     cat: "qa",
   },
   {
@@ -149,7 +149,7 @@ const PRESETS: Preset[] = [
     name: "User Flow Diagram",
     desc: "Mermaid flow diagram for QA handoff",
     prompt:
-      "/goat-qa produce a Mermaid user-flow diagram — ask me which feature",
+      "/goat-qa produce a Mermaid user-flow diagram - ask me which feature",
     cat: "qa",
   },
 
@@ -166,7 +166,7 @@ const PRESETS: Preset[] = [
     name: "Compliance Gap Check",
     desc: "Compliance-mode security assessment with clause citations",
     prompt:
-      "/goat-security compliance mode — ask me which framework (SOC 2, HIPAA, ISO 27001, PCI DSS, etc.), then present gaps as non-compliant / partially compliant / not assessed with clause citations",
+      "/goat-security compliance mode - ask me which framework (SOC 2, HIPAA, ISO 27001, PCI DSS, etc.), then present gaps as non-compliant / partially compliant / not assessed with clause citations",
     cat: "security",
   },
   {

@@ -8,12 +8,12 @@
 
 The `AgentId` union (`"claude" | "codex" | "gemini" | "copilot"`) is duplicated across several surfaces:
 
-- `src/cli/types.ts:7` — the compile-time union itself.
-- `src/cli/agents/registry.ts:88` — `getKnownAgentIds()` returns the runtime tuple, derived from `loadManifest().agents` keys.
-- `src/cli/quality/schema.ts:490-495` — inline array `["claude", "codex", "gemini", "copilot"] satisfies readonly AgentId[]` used for runtime validation.
-- `src/cli/quality/history.ts:17` — a regex literal with the four agent names baked in.
-- `src/cli/prompt/compose-setup.ts:39-44` — `Record<AgentId, string>` whose keys repeat the same four names.
-- `workflow/manifest.json` — the 4 agent blocks keyed by id.
+- `src/cli/types.ts:7` - the compile-time union itself.
+- `src/cli/agents/registry.ts:88` - `getKnownAgentIds()` returns the runtime tuple, derived from `loadManifest().agents` keys.
+- `src/cli/quality/schema.ts:490-495` - inline array `["claude", "codex", "gemini", "copilot"] satisfies readonly AgentId[]` used for runtime validation.
+- `src/cli/quality/history.ts:17` - a regex literal with the four agent names baked in.
+- `src/cli/prompt/compose-setup.ts:39-44` - `Record<AgentId, string>` whose keys repeat the same four names.
+- `workflow/manifest.json` - the 4 agent blocks keyed by id.
 
 Adding a fifth agent means touching all six sites. The critique in M17-12 asked for a single canonical authority.
 
@@ -25,11 +25,11 @@ Adding a fifth agent means touching all six sites. The critique in M17-12 asked 
 
 2. **`KNOWN_AGENT_IDS` const tuple lives in `src/cli/agents/registry.ts`** and becomes the runtime authority. Exported alongside the existing `getKnownAgentIds()` helper. The tuple is `as const` so its element types are literal-narrow.
 
-3. **`getKnownAgentIds()` continues to derive from `loadManifest().agents`** at runtime — that remains the cross-check between the compile-time union and the on-disk manifest.
+3. **`getKnownAgentIds()` continues to derive from `loadManifest().agents`** at runtime - that remains the cross-check between the compile-time union and the on-disk manifest.
 
 4. **Manifest validates against the union** at load time. If `workflow/manifest.json` gains an agent key that isn't in `AgentId`, `getKnownAgentIds()`'s `isAgentId` filter drops it and `loadManifest()` surfaces the mismatch via the existing `ManifestValidationError` path.
 
-5. **All hardcoded `["claude", "codex", "gemini", "copilot"]` literals** in non-type-position code migrate to `KNOWN_AGENT_IDS` or `getKnownAgentIds()`. Type-position uses (`Record<AgentId, X>`) stay as-is — they're already authority-driven via the union.
+5. **All hardcoded `["claude", "codex", "gemini", "copilot"]` literals** in non-type-position code migrate to `KNOWN_AGENT_IDS` or `getKnownAgentIds()`. Type-position uses (`Record<AgentId, X>`) stay as-is - they're already authority-driven via the union.
 
 ## Alternatives considered
 
@@ -42,7 +42,7 @@ Adding a fifth agent means touching all six sites. The critique in M17-12 asked 
 ## Consequences
 
 - Adding a fifth agent requires exactly two edits: `src/cli/types.ts` (extend the union) and `workflow/manifest.json` (add the agent block). Everything else flows from those.
-- `src/cli/quality/schema.ts` replaces its inline literal with `getKnownAgentIds()` — correctness-preserving refactor.
+- `src/cli/quality/schema.ts` replaces its inline literal with `getKnownAgentIds()` - correctness-preserving refactor.
 - `src/cli/quality/history.ts` builds the `QUALITY_HISTORY_FILENAME` regex dynamically from `KNOWN_AGENT_IDS` so it stays in sync.
 - `src/cli/prompt/compose-setup.ts:39-44` is already safe: `Record<AgentId, string>` forces TypeScript to require every union member. Keep as-is.
-- Dashboard-side `RunnerId` remains a manual mirror of `AgentId` (ambient `.d.ts`, can't import cross-module). Mirroring is documented at `src/dashboard/globals.d.ts:6-8` with a `keep in sync` pointer. Promoting the dashboard typings to a module (so it could `import type { AgentId }`) is deferred — out of M17-12 scope.
+- Dashboard-side `RunnerId` remains a manual mirror of `AgentId` (ambient `.d.ts`, can't import cross-module). Mirroring is documented at `src/dashboard/globals.d.ts:6-8` with a `keep in sync` pointer. Promoting the dashboard typings to a module (so it could `import type { AgentId }`) is deferred - out of M17-12 scope.

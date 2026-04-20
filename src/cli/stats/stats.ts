@@ -1,7 +1,7 @@
 /**
  * Learning-loop health report (`goat-flow stats`).
  *
- * Consumes the live `SharedFacts` pipeline — no second on-disk read path and no
+ * Consumes the live `SharedFacts` pipeline - no second on-disk read path and no
  * persisted derived counts. `--check` mode reuses the same report data to decide
  * pass/fail, so CI and the human-readable report never disagree.
  */

@@ -5,7 +5,7 @@
  * `facts` field has been computed from canonical code sources (derived) or
  * validated against observed on-disk reality (static). Loading fails hard with
  * a `ManifestValidationError` when a static fact has drifted from what the
- * code actually exposes — that is the entire point of the module.
+ * code actually exposes - that is the entire point of the module.
  *
  * Used by `composeQuality` and `composeSetup` to avoid hardcoded counts, and
  * by the `goat-flow manifest` CLI command.
@@ -155,7 +155,7 @@ function sameSortedSet(a: readonly string[], b: readonly string[]): boolean {
  *  In packaged installs the `src/` tree isn't shipped (package.json `files`
  *  ships only `dist/` + `workflow/`), so source-derived drift checks
  *  (`dashboard_views`, `presets_count`) would always trip against empty
- *  observed values. Those facts were validated at publish time — here we
+ *  observed values. Those facts were validated at publish time - here we
  *  trust the manifest and skip them. Skill-canonical drift is still checked
  *  because `SKILL_NAMES` lives in `constants.ts` which ships in `dist/`. */
 export function validateManifest(
@@ -209,7 +209,7 @@ export function composeManifest(
   const jsonFacts = json.facts;
   if (!jsonFacts) {
     const msg =
-      "composeManifest called before validateManifest — json.facts missing.";
+      "composeManifest called before validateManifest - json.facts missing.";
     throw new ManifestValidationError(msg, [msg]);
   }
   const facts: ResolvedFacts = {
@@ -228,8 +228,29 @@ export function composeManifest(
     required_dirs: json.required_dirs,
     skills: json.skills,
     agents: json.agents,
+    instruction_file: json.instruction_file,
     facts,
   };
+}
+
+/** Regex for a markdown heading whose text equals `label` (case-insensitive).
+ *  Used by harness checks to find required instruction-file sections. */
+function instructionSectionRegex(label: string): RegExp {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^#+\\s+${escaped}`, "im");
+}
+
+/** Resolved (label, pattern) pairs built from the manifest's required_sections.
+ *  Harness checks import this instead of hand-rolling their own section list. */
+export function getRequiredInstructionSections(): {
+  label: string;
+  pattern: RegExp;
+}[] {
+  const sections = loadManifest().instruction_file.required_sections;
+  return sections.map((label) => ({
+    label,
+    pattern: instructionSectionRegex(label),
+  }));
 }
 
 /** Return the canonical template-file list for one skill. */

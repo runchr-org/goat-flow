@@ -1,9 +1,9 @@
 # Manifest consumers (M06a)
 
 `workflow/manifest.json` is goat-flow's single source of truth for duplicated
-facts. `src/cli/manifest/manifest.ts` resolves it at load time — computing
+facts. `src/cli/manifest/manifest.ts` resolves it at load time - computing
 derived values from code constants and validating static values against
-observed on-disk reality — and exposes a `Manifest` object to callers.
+observed on-disk reality - and exposes a `Manifest` object to callers.
 
 ## Fact sources
 
@@ -53,14 +53,14 @@ same module; keep M12's concerns out of `manifest.ts` until M12 ships.
 
 M06b landed in the same session as M06a:
 
-- `workflow/manifest-snapshots/v1.1.0.json` — first frozen release snapshot.
-- `workflow/manifest-snapshots/README.md` — frozen-copy contract and the
+- `workflow/manifest-snapshots/v1.1.0.json` - first frozen release snapshot.
+- `workflow/manifest-snapshots/README.md` - frozen-copy contract and the
   cp-then-annotate procedure for release-time capture.
-- `src/cli/audit/check-snapshot-claims.ts` — CHANGELOG-section + release.md
+- `src/cli/audit/check-snapshot-claims.ts` - CHANGELOG-section + release.md
   whole-file lint against per-version snapshots. Wired into
   `goat-flow audit --check-content` (and therefore `scripts/preflight-checks.sh`
   via the existing "GOAT Flow Audit" section).
-- `src/cli/audit/check-factual-claims.ts` — extended with
+- `src/cli/audit/check-factual-claims.ts` - extended with
   `dashboard-views-count-drift` + `preset-count-drift` rules (tight patterns
   + loose dashboard-scoped patterns for `docs/dashboard.md`). Reads actual
   counts from `loadManifest().facts`.

@@ -4,15 +4,15 @@
  * Validates numeric claims inside release-frozen documents against the
  * matching `workflow/manifest-snapshots/vX.Y.Z.json` snapshot. Two surfaces:
  *
- * 1. `CHANGELOG.md` — parsed section-by-section via `## vX.Y.Z` headers; each
+ * 1. `CHANGELOG.md` - parsed section-by-section via `## vX.Y.Z` headers; each
  *    section validated against its own snapshot (sections without a snapshot
  *    are skipped).
- * 2. `.goat-flow/scratchpad/release.md` — single-version draft release notes;
+ * 2. `.goat-flow/scratchpad/release.md` - single-version draft release notes;
  *    version extracted from the `# GOAT Flow vX.Y.Z Release Notes` H1;
  *    validated against that version's snapshot.
  *
  * This is the M06b replacement for the rejected `scripts/lint-manifest-claims.sh`
- * — pure Node, no new runtime dep, wired into `goat-flow audit --check-content`
+ * - pure Node, no new runtime dep, wired into `goat-flow audit --check-content`
  * and `goat-flow manifest --check`.
  */
 import { existsSync, readFileSync } from "node:fs";
@@ -242,7 +242,7 @@ export function runSnapshotClaimChecks(ctx: AuditContext): {
   const findings: ContentFinding[] = [];
   let filesScanned = 0;
 
-  // 1. CHANGELOG.md — section-by-section.
+  // 1. CHANGELOG.md - section-by-section.
   const changelogRel = "CHANGELOG.md";
   if (ctx.fs.exists(changelogRel)) {
     const text = ctx.fs.readFile(changelogRel);
@@ -258,7 +258,7 @@ export function runSnapshotClaimChecks(ctx: AuditContext): {
     }
   }
 
-  // 2. .goat-flow/scratchpad/release.md — whole-file, version from H1.
+  // 2. .goat-flow/scratchpad/release.md - whole-file, version from H1.
   const releaseRel = ".goat-flow/scratchpad/release.md";
   if (ctx.fs.exists(releaseRel)) {
     const text = ctx.fs.readFile(releaseRel);

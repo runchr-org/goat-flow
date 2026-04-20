@@ -1,6 +1,6 @@
 # Quality Report History
 
-Saved agent quality reports land here. Agents write the JSON directly from the quality prompt — no `capture` step.
+Saved agent quality reports land here. Agents write the JSON directly from the quality prompt - no `capture` step.
 
 Committed:
 
@@ -8,7 +8,7 @@ Committed:
 
 Local-only (gitignored):
 
-- `<YYYY-MM-DD>-<HHMM>-<agent>-<rand5>.json` — validated quality report (positional finding ids attached at load time)
+- `<YYYY-MM-DD>-<HHMM>-<agent>-<rand5>.json` - validated quality report (positional finding ids attached at load time)
 - Any companion `.md` prose an agent chooses to save alongside
 
 Use:

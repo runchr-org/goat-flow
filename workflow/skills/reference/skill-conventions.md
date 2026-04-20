@@ -143,7 +143,7 @@ boundaries. If the proposed change crosses an Ask First boundary, flag it:
 When creating a new goat-* skill or materially hardening an existing one, consult
 `.goat-flow/skill-reference/skill-quality-testing.md` (short index) and then load
 the topical file(s) in `.goat-flow/skill-reference/skill-quality-testing/` named by
-the index — `tdd-iteration.md` for TDD methodology (load first), `adversarial-framing.md`
+the index - `tdd-iteration.md` for TDD methodology (load first), `adversarial-framing.md`
 for review-class skills, `deployment.md` for the deployment checklist. Together they
 document the skill-authoring methodology: pressure-testing prompts against known failure
 modes, recording Excuse/Reality rationalization tables from real incidents, and verifying

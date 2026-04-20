@@ -15,8 +15,8 @@ The audit validates hook syntax, self-test behavior, and registration, but does 
 2. A dedicated `goat-flow verify` command for full runtime hook smoke-test is not yet built.
 
 **Evidence:**
-- `src/cli/audit/harness/check-constraints.ts` (search: `deny-hook-registered`) — cross-checks hook file existence against settings.json registration, but does not drive a blocked command through the live agent runtime.
-- `src/cli/audit/check-agent-setup.ts` (search: `checkHookSelfTest`) — invokes the hook's `--self-test` so quoted-alternation false positives and pipe-to-shell bypass attempts are exercised, not just parsed. Does not verify end-to-end blocking through an actual sub-agent's Bash tool.
+- `src/cli/audit/harness/check-constraints.ts` (search: `deny-hook-registered`) - cross-checks hook file existence against settings.json registration, but does not drive a blocked command through the live agent runtime.
+- `src/cli/audit/check-agent-setup.ts` (search: `checkHookSelfTest`) - invokes the hook's `--self-test` so quoted-alternation false positives and pipe-to-shell bypass attempts are exercised, not just parsed. Does not verify end-to-end blocking through an actual sub-agent's Bash tool.
 
 ---
 

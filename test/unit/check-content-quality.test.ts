@@ -3,9 +3,9 @@
  *
  * Fixes pinned:
  *  - cclint ContentOrganizationRule.ts:163-166 bug: fence-line skip without
- *    state tracking — goat-flow must track `inCodeBlock`.
+ *    state tracking - goat-flow must track `inCodeBlock`.
  *  - cclint ContentAppropriatenessRule.ts:110-125 bug: no code-block guard
- *    at all — goat-flow applies the same `inCodeBlock` state.
+ *    at all - goat-flow applies the same `inCodeBlock` state.
  *  - `note` dropped from cclint's non-actionable term list (too-high FP
  *    rate on goat-flow's docs: label usage and direct-object verbs).
  */

@@ -24,7 +24,7 @@ Findings are severity-ranked (BLOCKER / MAJOR / MINOR) with evidence quality mar
 
 ## Persisting quality reports
 
-`goat-flow quality . --agent X` composes a prompt that instructs the agent to save its final JSON report directly to `.goat-flow/logs/quality/` — a gitignored path. No separate capture step: the agent owns the write, and `history` / `diff` read whatever the agent saved.
+`goat-flow quality . --agent X` composes a prompt that instructs the agent to save its final JSON report directly to `.goat-flow/logs/quality/` - a gitignored path. No separate capture step: the agent owns the write, and `history` / `diff` read whatever the agent saved.
 
 ```bash
 goat-flow quality . --agent claude    # Agent writes .goat-flow/logs/quality/<...>.json itself

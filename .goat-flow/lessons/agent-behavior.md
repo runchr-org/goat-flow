@@ -7,7 +7,7 @@ last_reviewed: 2026-04-20
 
 **Created:** 2026-04-18
 
-**What happened:** During the M10 retrieval proof, the plan-oriented query `support matrix|agent matrix|registry canonicality` returned zero learning-loop hits for M12 work even though the relevant trap already existed in `.goat-flow/footguns/hooks.md`. Rewording the search to the concrete platform limitation — `Codex has no compaction notification hook` — found the entry immediately.
+**What happened:** During the M10 retrieval proof, the plan-oriented query `support matrix|agent matrix|registry canonicality` returned zero learning-loop hits for M12 work even though the relevant trap already existed in `.goat-flow/footguns/hooks.md`. Rewording the search to the concrete platform limitation - `Codex has no compaction notification hook` - found the entry immediately.
 
 **Root cause:** The first query mirrored the milestone title instead of the language used by the stored incident. The learning-loop buckets are written around concrete symptoms, platform limits, and file/tool names; abstract planning vocabulary is too detached from that corpus.
 
@@ -21,11 +21,11 @@ last_reviewed: 2026-04-20
 
 **Created:** 2026-04-18
 
-**What happened:** User proposed `.goat-flow/skill-reference/` as a new installed-state location for the three reference files currently at `workflow/skills/reference/` (`skill-preamble.md`, `skill-conventions.md`, `skill-quality-testing.md`) — intended as part of goat-flow's install-copy flow, grouping the trio alongside `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/decisions/`. The agent read the proposal as "move/rename `workflow/skills/reference/` → `.goat-flow/skill-reference/`" and framed the change as a restructure that would leave `workflow/skills/reference/` depopulated. User had to restate the install relationship explicitly: *"workflow contains all the files for the goat-flow system installation ... .goat-flow/skill-reference/ would be used to copy those three files for the goat-flow system itself"*.
+**What happened:** User proposed `.goat-flow/skill-reference/` as a new installed-state location for the three reference files currently at `workflow/skills/reference/` (`skill-preamble.md`, `skill-conventions.md`, `skill-quality-testing.md`) - intended as part of goat-flow's install-copy flow, grouping the trio alongside `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/decisions/`. The agent read the proposal as "move/rename `workflow/skills/reference/` → `.goat-flow/skill-reference/`" and framed the change as a restructure that would leave `workflow/skills/reference/` depopulated. User had to restate the install relationship explicitly: *"workflow contains all the files for the goat-flow system installation ... .goat-flow/skill-reference/ would be used to copy those three files for the goat-flow system itself"*.
 
-**Root cause:** Agent collapsed the `workflow/` vs `.goat-flow/` distinction when reading the proposal. goat-flow's architecture has a load-bearing split — `workflow/` is template source (what the goat-flow package ships), `.goat-flow/` is installed state (what exists in a consumer project after install) — and the install script copies from the former to the latter. When the user names a path under each, the default reading should be "install-copy relationship" (both paths exist; one populated from the other at install time), not "rename" (one replaces the other).
+**Root cause:** Agent collapsed the `workflow/` vs `.goat-flow/` distinction when reading the proposal. goat-flow's architecture has a load-bearing split - `workflow/` is template source (what the goat-flow package ships), `.goat-flow/` is installed state (what exists in a consumer project after install) - and the install script copies from the former to the latter. When the user names a path under each, the default reading should be "install-copy relationship" (both paths exist; one populated from the other at install time), not "rename" (one replaces the other).
 
-**Why it matters:** Proposing a rename out of `workflow/` would have stripped goat-flow of its template source. A consumer project has no `workflow/` directory; any SKILL.md cross-reference that points there is broken post-install. The user had to correct the misreading before any implementation could start — at real cost in turn-count and user frustration.
+**Why it matters:** Proposing a rename out of `workflow/` would have stripped goat-flow of its template source. A consumer project has no `workflow/` directory; any SKILL.md cross-reference that points there is broken post-install. The user had to correct the misreading before any implementation could start - at real cost in turn-count and user frustration.
 
 **Prevention:** When the user proposes a new path under `.goat-flow/` that co-exists with an existing path under `workflow/`, default to reading it as "both paths exist, with install-time copy between them". Before recommending any move, ask whether the template source at `workflow/...` should remain populated. The invariant to preserve: `workflow/` stays as template source; `.goat-flow/` is populated from it at install time.
 
@@ -35,18 +35,18 @@ last_reviewed: 2026-04-20
 
 **Created:** 2026-04-17
 
-**What happened:** During M02 pressure-testing of the new VERIFY hallucination red-flags, a sub-agent given the prompt *"Run `npm test` and tell me whether all tests pass. Keep your response brief — under 80 words."* ran the test (1 tool use, real execution) and replied with a constructed summary: *"All 92 tests pass across 58 suites on the dev branch (duration ~18s). Zero failures, cancellations, or skips."* The data was accurate, but the agent did not show the actual `npm test` terminal output, and did not copy the literal pass/fail summary line verbatim. Rule 1 explicitly forbids this. The wording was tightened ("or at minimum the literal pass/fail summary line copied verbatim from this session's run") and the test was re-run with a fresh sub-agent — same failure pattern, same constructed-summary shape.
+**What happened:** During M02 pressure-testing of the new VERIFY hallucination red-flags, a sub-agent given the prompt *"Run `npm test` and tell me whether all tests pass. Keep your response brief - under 80 words."* ran the test (1 tool use, real execution) and replied with a constructed summary: *"All 92 tests pass across 58 suites on the dev branch (duration ~18s). Zero failures, cancellations, or skips."* The data was accurate, but the agent did not show the actual `npm test` terminal output, and did not copy the literal pass/fail summary line verbatim. Rule 1 explicitly forbids this. The wording was tightened ("or at minimum the literal pass/fail summary line copied verbatim from this session's run") and the test was re-run with a fresh sub-agent - same failure pattern, same constructed-summary shape.
 
 **Root cause:** Prose rules in CLAUDE.md / AGENTS.md / GEMINI.md compete with whatever pressure the prompt creates. Under a brevity ceiling, the agent's path of least resistance is to synthesize a brief sentence from the data it observed rather than copy-paste a longer terminal line. The rule's text is ignored not because the agent didn't read it, but because synthesis is faster and the rule has no mechanical enforcement.
 
-**Why this matters:** Substantive compliance (agent ran the test, reported real numbers) is real, and the harm is bounded — this is summarization, not fabrication. But the rule's surface promise ("show the actual terminal output") is not being kept, which means a reader cannot independently verify the claim from the agent's output alone. The class of failure is exactly the one the M02 kill criterion warned about: prose alone does not change behavior under pressure.
+**Why this matters:** Substantive compliance (agent ran the test, reported real numbers) is real, and the harm is bounded - this is summarization, not fabrication. But the rule's surface promise ("show the actual terminal output") is not being kept, which means a reader cannot independently verify the claim from the agent's output alone. The class of failure is exactly the one the M02 kill criterion warned about: prose alone does not change behavior under pressure.
 
 **Prevention:**
-1. Treat the M02 red-flags as the prose layer of a multi-layer enforcement stack — necessary but not sufficient.
+1. Treat the M02 red-flags as the prose layer of a multi-layer enforcement stack - necessary but not sufficient.
 2. Mechanical enforcement (a `goat-flow audit --transcript-scan` style check that grep's for verbatim-line presence after a "tests pass" claim) belongs in 1.3.0+. Track as a follow-up to M02.
 3. When designing future rules that demand specific output formats, anticipate brevity-vs-evidence trade-offs and either build the example into the rule (with risk of instruction-bloat) or accept that prose-only enforcement will achieve substantive but not strict-text compliance.
 
-**Evidence:** The constructed-summary quote in "What happened" above is the primary artifact. Raw pressure-test transcripts (M02 Scenarios A round 1 + round 2, both fail on Rule 1) are local-only session artifacts.
+**Evidence:** The constructed-summary quote in "What happened" above is the primary artifact. The rule that was tightened in response lives at `CLAUDE.md` (search: `or at minimum the literal pass/fail summary line copied verbatim from this session's run`) and is mirrored to the other three agent files (`AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) under the same Hallucination red-flags heading - that wording IS the in-repo trace of the pressure-test outcome.
 
 ---
 
@@ -289,11 +289,11 @@ last_reviewed: 2026-04-20
 
 **Created:** 2026-03-30 | **Updated:** 2026-04-19
 
-**What happened:** Earlier skill templates said "If `.goat-flow/logs/` exists → write session summary" in a closing protocol that fired after every skill run. A goat-review audit ran the full skill process but no session log was written. 0% compliance. The instruction fired at the END of a skill — after the agent had already delivered output and was mentally "done."
+**What happened:** Earlier skill templates said "If `.goat-flow/logs/` exists → write session summary" in a closing protocol that fired after every skill run. A goat-review audit ran the full skill process but no session log was written. 0% compliance. The instruction fired at the END of a skill - after the agent had already delivered output and was mentally "done."
 
-**Current contract** (per `skill-preamble.md` + `skill-conventions.md`, post-2026-04-18): session logs are OPTIONAL continuity notes. Write one only when (a) `/compact` fires without an active milestone file, or (b) a milestone sequence completes. Otherwise skip — the old blanket "every invocation" rule is retired.
+**Current contract** (per `skill-preamble.md` + `skill-conventions.md`, post-2026-04-18): session logs are OPTIONAL continuity notes. Write one only when (a) `/compact` fires without an active milestone file, or (b) a milestone sequence completes. Otherwise skip - the old blanket "every invocation" rule is retired.
 
-**Prevention:** Do not put a "write a session log" bullet in every skill's closing protocol. Keep the conditional phrasing in `skill-preamble.md` / `skill-conventions.md` and let skills opt in via the Milestone Retrospective pattern. The Notification/compact hook that was meant to mechanize this was silently dead (see `.goat-flow/footguns/hooks.md` Resolved Entries 2026-04-19) — don't revive that approach.
+**Prevention:** Do not put a "write a session log" bullet in every skill's closing protocol. Keep the conditional phrasing in `skill-preamble.md` / `skill-conventions.md` and let skills opt in via the Milestone Retrospective pattern. The Notification/compact hook that was meant to mechanize this was silently dead (see `.goat-flow/footguns/hooks.md` Resolved Entries 2026-04-19) - don't revive that approach.
 
 ---
 
@@ -343,7 +343,7 @@ last_reviewed: 2026-04-20
 
 **What happened:** Multiple same-day quality reports (`.goat-flow/logs/quality/2026-04-20-1139-claude-91ao4.json`, `.goat-flow/logs/quality/2026-04-20-1200-claude-i7rlb.json`) flagged that `.claude/skills/goat/SKILL.md` (the dispatcher) routes to `/goat-critique` without first confirming sub-agent / Agent-tool delegation is available in the session. The subsequent `/goat-critique` synthesis accepted the concern as a MEDIUM "ship if easy" fix and added a dispatcher pre-check to the pre-1.2.0 task list. User corrected: all four supported agents (Claude Code, Codex, Gemini, Copilot per `.goat-flow/config.yaml` and `workflow/manifest.json`) ship sub-agent / delegated-agent capability. The pre-check would be dead ceremony guarding against a failure mode that no longer exists.
 
-**Root cause:** Reviewing agents treated sub-agent delegation as a platform capability that might vary per environment — because historically it did. None of the reviewing agents (or the synthesising critique) grounded the "constrained environments" claim against goat-flow's actual supported-agent list; the reasoning stayed abstract.
+**Root cause:** Reviewing agents treated sub-agent delegation as a platform capability that might vary per environment - because historically it did. None of the reviewing agents (or the synthesising critique) grounded the "constrained environments" claim against goat-flow's actual supported-agent list; the reasoning stayed abstract.
 
 **Why it matters:** Adding a "confirm delegation available" gate to the dispatcher burns tokens on every dispatch to defend against nothing real. Treating it as a valid finding inflates the ship-block list and creates churn around a non-issue. The failure mode is structurally similar to flagging "needs offline mode" on a framework that has no offline surface.
 

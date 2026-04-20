@@ -91,7 +91,7 @@ describe("skill templates path integrity", () => {
     assert.equal(
       leaks.length,
       0,
-      `workflow/ paths found in installed skill content — these break in consumer projects:\n${leaks.join("\n")}`,
+      `workflow/ paths found in installed skill content - these break in consumer projects:\n${leaks.join("\n")}`,
     );
   });
 });

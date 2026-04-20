@@ -15,7 +15,7 @@
  * Both cclint code-block-skipping bugs are fixed here (ContentOrganizationRule
  * and ContentAppropriatenessRule both leak fenced-block content into their
  * matchers). A single `inCodeBlock` state machine is shared across all three
- * detector families — toggled on lines starting with ``` (after trimming).
+ * detector families - toggled on lines starting with ``` (after trimming).
  */
 import type { AuditContext } from "./types.js";
 import type { ContentFinding, ContentSeverity } from "./types.js";
@@ -43,7 +43,7 @@ type ScanMode = "full" | "restricted";
 
 /** Target scope for full content-quality checks: truth-bearing prose.
  *  Learning-loop buckets (footguns/lessons) are resolved separately at scan
- *  time and get restricted-mode treatment — see LEARNING_LOOP_DIRS. */
+ *  time and get restricted-mode treatment - see LEARNING_LOOP_DIRS. */
 const QUALITY_TARGETS = [
   // Hot-path instruction files
   "CLAUDE.md",
@@ -112,7 +112,7 @@ const QUALITY_TARGETS = [
 /** Learning-loop buckets. Scanned in restricted mode (no vague-term checks)
  *  because the Symptoms/Why/Evidence sections describe past incidents and
  *  legitimately use words like "correctly"/"properly". Generic-instruction and
- *  non-actionable detectors still apply — those patterns should never appear
+ *  non-actionable detectors still apply - those patterns should never appear
  *  in actionable Prevention blocks. */
 const LEARNING_LOOP_DIRS = [
   ".goat-flow/footguns/",
@@ -179,7 +179,7 @@ const GENERIC_INSTRUCTIONS: PatternRule[] = [
 
 const NON_ACTIONABLE: PatternRule[] = [
   {
-    // `note` dropped from cclint's term list — too many false positives on
+    // `note` dropped from cclint's term list - too many false positives on
     // goat-flow's own docs: label usage (`Note:`), direct-object verbs
     // (`note them`, `Note what X`) all match cclint's `(?!\s+to\s+)` guard
     // but are legitimate instructions. `remember | keep in mind | don't
@@ -240,7 +240,7 @@ function scanLine(
           rule: "vague-term",
           path,
           line: lineNumber,
-          message: `Vague term "${match[0]}" — no measurable standard.`,
+          message: `Vague term "${match[0]}" - no measurable standard.`,
           suggestion: suggestion(line),
         });
       }

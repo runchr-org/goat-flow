@@ -2,7 +2,7 @@
  * Unit tests for the M06a single-source-of-truth manifest.
  *
  * `composeManifest` / `validateManifest` are pure and tested with fixtures.
- * `loadManifest` / `checkManifest` are tested against the live repo — this
+ * `loadManifest` / `checkManifest` are tested against the live repo - this
  * both exercises the real disk path and asserts that `workflow/manifest.json`
  * is consistent with code at test time.
  */
@@ -15,6 +15,7 @@ import {
   loadManifest,
   checkManifest,
   getSkillFiles,
+  getRequiredInstructionSections,
   renderManifestMarkdown,
   resetManifestCache,
 } from "../../src/cli/manifest/manifest.js";
@@ -47,8 +48,18 @@ function fixtureJson(
       references: {},
     },
     agents: {},
-    instruction_file: {},
-    legacy_surfaces: {},
+    instruction_file: {
+      line_target: 120,
+      line_limit: 150,
+      required_sections: [
+        "Essential Commands",
+        "Execution Loop",
+        "Autonomy Tiers",
+        "Definition of Done",
+        "Router Table",
+      ],
+      version_header_pattern: "# {FILE} - v{VERSION} ({DATE})",
+    },
     facts: {
       dashboard_views: ["quality", "help", "home"],
       presets_count: 3,
@@ -297,7 +308,7 @@ describe("loadManifest (real repo)", () => {
     );
   });
 
-  it("is memoised — repeated calls return the same object", () => {
+  it("is memoised - repeated calls return the same object", () => {
     resetManifestCache();
     const m1 = loadManifest();
     const m2 = loadManifest();
@@ -311,6 +322,39 @@ describe("checkManifest (real repo)", () => {
     const report = checkManifest();
     assert.equal(report.status, "pass");
     assert.equal(report.findings.length, 0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getRequiredInstructionSections: manifest-sourced harness input (T1 pinning)
+// ---------------------------------------------------------------------------
+describe("getRequiredInstructionSections (real repo)", () => {
+  it("returns one entry per manifest required_sections label", () => {
+    resetManifestCache();
+    const sections = getRequiredInstructionSections();
+    const manifestLabels = loadManifest().instruction_file.required_sections;
+    assert.equal(sections.length, manifestLabels.length);
+    const labels = sections.map((s) => s.label);
+    assert.deepEqual(labels, manifestLabels);
+  });
+
+  it("each entry's regex matches a case-varied heading with its label", () => {
+    resetManifestCache();
+    for (const { label, pattern } of getRequiredInstructionSections()) {
+      assert.ok(
+        pattern.test(`## ${label}\n`),
+        `pattern for ${label} should match "## ${label}"`,
+      );
+      assert.ok(
+        pattern.test(`### ${label.toUpperCase()}\n`),
+        `pattern for ${label} should be case-insensitive`,
+      );
+      assert.equal(
+        pattern.test(`some prose that mentions ${label} inline`),
+        false,
+        `pattern for ${label} must not match inline prose`,
+      );
+    }
   });
 });
 

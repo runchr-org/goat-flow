@@ -1,6 +1,6 @@
 # AI Harness Audit
 
-`goat-flow audit . --harness` adds 16 structural installation checks to the standard build audit. Each check answers an installation question — is the file present, is the registration in sync, is the deny pattern installed. Deterministic, no LLM involvement. Harness results contribute to the overall audit status. Not all checks can reach "installed" on every platform (e.g., Codex has no settings-based Read deny coverage; its deny layer is script-only), but install as much as possible.
+`goat-flow audit . --harness` adds 16 structural installation checks to the standard build audit. Each check answers an installation question - is the file present, is the registration in sync, is the deny pattern installed. Deterministic, no LLM involvement. Harness results contribute to the overall audit status. Not all checks can reach "installed" on every platform (e.g., Codex has no settings-based Read deny coverage; its deny layer is script-only), but install as much as possible.
 
 | Mode | Command | Question |
 |------|---------|----------|
@@ -16,8 +16,8 @@ Each harness check carries a `type` tag that determines whether (and how) a fail
 
 | Type | Meaning | Scored? | Opt-out |
 |------|---------|---------|---------|
-| **integrity** | Drift from install state (e.g., a router-table path that no longer resolves). Must be fixed. | Yes — fails concern. | No. |
-| **advisory** | Best practice most projects should adopt (e.g., blocking pipe-to-shell). | Yes — fails concern unless acknowledged. | Yes, via `harness.acknowledge: [<check-id>]` in `.goat-flow/config.yaml`. Acknowledged advisory failures render as `acknowledged` and do not flip status. |
+| **integrity** | Drift from install state (e.g., a router-table path that no longer resolves). Must be fixed. | Yes - fails concern. | No. |
+| **advisory** | Best practice most projects should adopt (e.g., blocking pipe-to-shell). | Yes - fails concern unless acknowledged. | Yes, via `harness.acknowledge: [<check-id>]` in `.goat-flow/config.yaml`. Acknowledged advisory failures render as `acknowledged` and do not flip status. |
 | **metric** | Workflow maturity signal (e.g., checkbox coverage on milestones). Count-only, never scored. | No. | N/A. |
 
 ### Scoring model
@@ -64,7 +64,7 @@ The agent can only work with what it sees. Stale router paths, missing execution
 - `instruction-line-count` - each configured agent's instruction file is within the configured hard limit (`line-limits.limit` in `config.yaml`)
 - `execution-loop-present` - instruction file contains at least 2 of the 4 READ / SCOPE / ACT / VERIFY keywords
 - `doc-paths-resolve` - router-table paths, architecture.md backtick paths, and backtick paths in a small set of doc files (`CONTRIBUTING.md`, `.goat-flow/code-map.md`, `docs/cli.md`, `docs/audit-and-quality.md`) all resolve to real files on disk
-- `instruction-sections-present` - instruction file carries the hot-path contract headings (Truth Order, Execution Loop, Definition of Done, Router Table); advisory — skeleton overlays that defer to a shared instruction file will fail this check
+- `instruction-sections-present` - instruction file carries the hot-path contract headings (Truth Order, Execution Loop, Definition of Done, Router Table); advisory - skeleton overlays that defer to a shared instruction file will fail this check
 
 **Not checked here (belongs in quality):** whether instructions are specific to this project, whether footgun evidence is current, whether documentation content is accurate.
 

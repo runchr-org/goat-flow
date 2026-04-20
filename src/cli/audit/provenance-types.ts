@@ -22,7 +22,7 @@ export type ProvenanceSource =
   | "paper" // research paper with a URL
   | "incident" // real incident in this repo with a footgun/lesson trail
   | "community" // community post / blog / benchmark
-  | "unknown"; // reason required — escape hatch for M11 back-fill
+  | "unknown"; // reason required - escape hatch for M11 back-fill
 
 /**
  * Strength of the rule the check enforces.

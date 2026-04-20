@@ -51,9 +51,9 @@ Wave 6 (`.goat-flow/tasks/1.2.0-wave-6/`) is the implementation track that lands
 
 ## Related decisions
 
-- **ADR-009** — skill-consolidation doctrine. Copilot uses the same canonical skills; divergence still requires explicit justification.
-- **ADR-013** — audit as the sole evaluation engine. Copilot support lands through the same manifest-backed audit path, not a parallel scoring lane.
-- **ADR-017** — active-plan marker. Wave 6 stays a scoped plan bucket even though the runtime support is now shipped.
+- **ADR-009** - skill-consolidation doctrine. Copilot uses the same canonical skills; divergence still requires explicit justification.
+- **ADR-013** - audit as the sole evaluation engine. Copilot support lands through the same manifest-backed audit path, not a parallel scoring lane.
+- **ADR-017** - active-plan marker. Wave 6 stays a scoped plan bucket even though the runtime support is now shipped.
 
 ## Revisit Triggers
 

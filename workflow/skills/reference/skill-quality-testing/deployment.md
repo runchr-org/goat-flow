@@ -3,8 +3,8 @@
 The final-gate content: common rationalisations for skipping testing itself, the full deployment checklist, and the STOP rule that prevents batched untested skills from shipping.
 
 Companion files in this pack:
-- `tdd-iteration.md` — core TDD methodology (load first when authoring any skill)
-- `adversarial-framing.md` — review-class specific patterns
+- `tdd-iteration.md` - core TDD methodology (load first when authoring any skill)
+- `adversarial-framing.md` - review-class specific patterns
 
 Load this file when finalising any skill before merge.
 
@@ -27,25 +27,25 @@ All of these mean: **test before deploying. No exceptions.**
 
 ## Skill deployment checklist
 
-Every skill MUST pass this checklist before merging. Track each item as a todo in your agent's planning tool — don't work from memory.
+Every skill MUST pass this checklist before merging. Track each item as a todo in your agent's planning tool - don't work from memory.
 
-**RED phase — write failing test:**
+**RED phase - write failing test:**
 - [ ] Create pressure scenarios (3+ combined pressures for discipline skills)
-- [ ] Run scenarios WITHOUT skill — document baseline behaviour verbatim
+- [ ] Run scenarios WITHOUT skill - document baseline behaviour verbatim
 - [ ] Identify patterns in rationalisations / failures
 - [ ] Verify RED with a second subagent (scenario strength check)
 
-**GREEN phase — write minimal skill:**
+**GREEN phase - write minimal skill:**
 - [ ] Name describes what you DO or the core insight
 - [ ] Frontmatter has `goat-flow-skill-version: "1.2.0"` and trigger-only `description`
 - [ ] `description` is CSO-optimised: "Use when [trigger]", not a workflow summary
 - [ ] Keywords throughout for search (error messages, symptoms, tool names)
 - [ ] Overview states the core principle in 1–2 sentences
 - [ ] Addresses specific baseline failures identified in RED
-- [ ] One excellent example — not multi-language dilution
-- [ ] Run scenarios WITH skill — verify agents now comply
+- [ ] One excellent example - not multi-language dilution
+- [ ] Run scenarios WITH skill - verify agents now comply
 
-**REFACTOR phase — close loopholes:**
+**REFACTOR phase - close loopholes:**
 - [ ] Identify NEW rationalisations from GREEN testing
 - [ ] Add explicit counters inline beside the rules they defend
 - [ ] Build / extend the rationalisation table from all iterations
@@ -62,7 +62,7 @@ Every skill MUST pass this checklist before merging. Track each item as a todo i
 
 **Deployment:**
 - [ ] Write TDD iteration log to `.goat-flow/logs/sessions/YYYY-MM-DD-<skill>-tdd.md`
-- [ ] Cross-reference the log filename in the relevant lesson or footgun entry (not in SKILL.md frontmatter — that leaks dev paths to consumer installs)
+- [ ] Cross-reference the log filename in the relevant lesson or footgun entry (not in SKILL.md frontmatter - that leaks dev paths to consumer installs)
 - [ ] Cross-link into sibling SKILL.md files if relevant
 - [ ] Announce in commit message: which rationalisations were closed, which pressures tested
 
@@ -81,7 +81,7 @@ Deploying untested skills = deploying untested code. It's a violation of quality
 
 | Where | What |
 |-------|------|
-| `.goat-flow/skill-reference/skill-preamble.md` | Proof Gate, evidence standard, ceremony level — the loaded-every-invocation layer |
+| `.goat-flow/skill-reference/skill-preamble.md` | Proof Gate, evidence standard, ceremony level - the loaded-every-invocation layer |
 | `.goat-flow/skill-reference/skill-conventions.md` | Rationalisation table definition, task tracking, recovery protocols |
 | `.goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md` | Core TDD methodology |
 | `.goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md` | Review-class skill patterns |

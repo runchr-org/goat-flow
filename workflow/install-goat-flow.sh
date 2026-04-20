@@ -44,13 +44,6 @@ if (mode === "supported-skills") {
   process.exit(0);
 }
 
-if (mode === "stale-skills") {
-  for (const name of manifest.skills?.stale_names || []) {
-    console.log(name);
-  }
-  process.exit(0);
-}
-
 if (mode === "skill-files") {
   const skillName = process.argv[4];
   const canonical = manifest.skills?.canonical;
@@ -216,40 +209,6 @@ echo "goat-flow install: $(basename "$PROJECT") (agent: $AGENT)"
 echo ""
 
 cd "$PROJECT"
-
-# ==========================================================================
-# 0. Legacy surface detection (non-blocking — warnings only)
-# ==========================================================================
-# If the project predates goat-flow v1.x or was set up by hand, it may already
-# carry learning-loop or skill surfaces at old paths. We do NOT auto-migrate:
-# content merge across versions is error-prone and schema-sensitive. Instead
-# we report what we found and let the user consolidate manually.
-LEGACY_FOUND=0
-legacy_warn() {
-  if [[ "$LEGACY_FOUND" -eq 0 ]]; then
-    echo "Legacy surfaces detected:"
-    LEGACY_FOUND=1
-  fi
-  echo "  ⚠ $1"
-}
-[[ -f docs/footguns.md ]] && legacy_warn "docs/footguns.md exists — move entries into .goat-flow/footguns/<category>.md (category-bucket layout)"
-[[ -f docs/lessons.md ]] && legacy_warn "docs/lessons.md exists — move entries into .goat-flow/lessons/<category>.md"
-[[ -d docs/lessons ]] && legacy_warn "docs/lessons/ exists — move entries into .goat-flow/lessons/<category>.md"
-[[ -d tasks ]] && legacy_warn "tasks/ exists — move entries into .goat-flow/tasks/ (local working state; gitignored by design)"
-while IFS= read -r stale_name; do
-  [[ -n "$stale_name" ]] || continue
-  for agent_skills_dir in .claude/skills .codex/skills .gemini/skills .agents/skills .github/skills; do
-    if [[ -d "$agent_skills_dir/$stale_name" ]]; then
-      legacy_warn "$agent_skills_dir/$stale_name/ is a deprecated skill — delete after confirming the canonical replacement is installed"
-    fi
-  done
-done < <(manifest_eval stale-skills)
-if [[ "$LEGACY_FOUND" -eq 1 ]]; then
-  echo ""
-  echo "The installer will not auto-migrate these. Migrate content manually after install,"
-  echo "then re-run \`goat-flow audit --check-drift\` to confirm the parallels are gone."
-  echo ""
-fi
 
 # ==========================================================================
 # 1. Create .goat-flow/ directories

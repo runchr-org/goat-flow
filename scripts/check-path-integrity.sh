@@ -44,7 +44,7 @@ done
 # Exception: paths under .goat-flow/tasks/, .goat-flow/scratchpad/, and
 # .goat-flow/logs/ are intentionally gitignored (local session state per
 # .goat-flow/tasks/.gitignore). Skills reference them as navigation pointers
-# (e.g. `.goat-flow/tasks/.active` — the active-plan marker); treating
+# (e.g. `.goat-flow/tasks/.active` - the active-plan marker); treating
 # absence as drift false-positives on every clean checkout and CI run.
 for agent_dir in $skill_dirs; do
     dir="${root}/${agent_dir}"
@@ -143,7 +143,7 @@ done
 
 # ── 8. Bare *.md cross-references in docs/*.md must resolve ────────
 # Catches doc-to-doc references like `harness-spec.md` in docs/*.md that point
-# at files which no longer exist. Scoped to `.md` extensions only — `.ts`/`.sh`
+# at files which no longer exist. Scoped to `.md` extensions only - `.ts`/`.sh`
 # in coding-standards prose are usually conceptual identifiers, not literal
 # paths, so they would false-positive. Resolves relative to the doc's dir
 # first, then repo root, then by basename anywhere under the repo (catches

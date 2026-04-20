@@ -3,7 +3,7 @@
  * Verifies the diff-based check correctly detects when template and installed
  * copies of skill-preamble.md or skill-conventions.md diverge.
  *
- * Regression detection runs in a tmpdir — never mutates tracked repo files.
+ * Regression detection runs in a tmpdir - never mutates tracked repo files.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -124,7 +124,7 @@ describe("preamble/conventions sync: current state", () => {
 
 // ---------------------------------------------------------------------------
 // Regression: diverged files are detected (non-zero diff status).
-// Runs entirely in a tmpdir — never touches tracked repo files.
+// Runs entirely in a tmpdir - never touches tracked repo files.
 // ---------------------------------------------------------------------------
 describe("preamble/conventions sync: regression detection", () => {
   it("detects when installed skill-preamble.md diverges from template", () => {

@@ -291,7 +291,7 @@ if [[ -f package.json ]]; then
     fi
 
     # Instruction file headers must match package version
-    for ifile in CLAUDE.md AGENTS.md GEMINI.md; do
+    for ifile in CLAUDE.md AGENTS.md GEMINI.md .github/copilot-instructions.md; do
         if [[ -f "$ifile" ]]; then
             header_version=$(head -1 "$ifile" | grep -oE 'v[0-9]+\.[0-9]+(\.[0-9]+)?' | sed 's/^v//' || true)
             if [[ -n "$header_version" ]] && [[ "$header_version" != "$pkg_version" ]]; then
@@ -305,7 +305,7 @@ fi
 
 # ── Cross-Agent Loop Consistency ─────────────────────────────────────
 agent_files=()
-for af in CLAUDE.md AGENTS.md GEMINI.md; do
+for af in CLAUDE.md AGENTS.md GEMINI.md .github/copilot-instructions.md; do
     [[ -f "$af" ]] && agent_files+=("$af")
 done
 if [[ ${#agent_files[@]} -ge 2 ]]; then
@@ -684,7 +684,7 @@ while IFS= read -r skill_name; do
             # Skip manifest-declared agent roots that aren't installed in this
             # project. Single-agent consumer installs (only .claude/ or only
             # .agents/) would otherwise get "Skill file missing" failures for
-            # every uninstalled agent tree — phantom drift.
+            # every uninstalled agent tree - phantom drift.
             [[ -d "$agent_dir" ]] || continue
             installed="${agent_dir}/${skill_name}/${relative_file}"
             if [[ ! -f "$installed" ]]; then

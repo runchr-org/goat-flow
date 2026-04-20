@@ -1,5 +1,5 @@
 /**
- * Output renderers for `goat-flow stats` — text, JSON, markdown.
+ * Output renderers for `goat-flow stats` - text, JSON, markdown.
  * Text is the default for terminals; JSON/markdown are for CI and PR comments.
  */
 import type { BucketSection, StatsCheckReport, StatsReport } from "./stats.js";
@@ -12,7 +12,7 @@ const BAND_LABEL: Record<string, string> = {
 };
 
 function formatDays(days: number | null): string {
-  return days === null ? "—" : `${days}d`;
+  return days === null ? "-" : `${days}d`;
 }
 
 function padRight(value: string, width: number): string {
@@ -23,10 +23,10 @@ function padRight(value: string, width: number): string {
 
 function renderSectionText(name: string, section: BucketSection): string {
   if (!section.exists) {
-    return `${name} (${section.path}) — directory missing\n`;
+    return `${name} (${section.path}) - directory missing\n`;
   }
 
-  const header = `${name} (${section.path}) — ${section.buckets.length} bucket(s), ${section.totalEntries} entrie(s)`;
+  const header = `${name} (${section.path}) - ${section.buckets.length} bucket(s), ${section.totalEntries} entrie(s)`;
   const summary = `  Freshness: ${section.bands.fresh} fresh, ${section.bands.aging} aging, ${section.bands.stale} stale, ${section.bands.unknown} unknown | Refs: ${section.totalStaleRefs} stale, ${section.totalInvalidLineRefs} invalid-line`;
   if (section.buckets.length === 0) {
     return [header, summary, ""].join("\n");
@@ -38,7 +38,7 @@ function renderSectionText(name: string, section: BucketSection): string {
   );
   const lines = section.buckets.map((bucket) => {
     const display = basename(bucket.path);
-    const last = bucket.lastReviewed ?? "—";
+    const last = bucket.lastReviewed ?? "-";
     const days = formatDays(bucket.freshnessDays);
     const band = BAND_LABEL[bucket.freshnessBand] ?? bucket.freshnessBand;
     const refs = `${bucket.staleRefs.length}s/${bucket.invalidLineRefs.length}i`;
@@ -91,7 +91,7 @@ function markdownSection(name: string, section: BucketSection): string {
   if (section.buckets.length === 0) return head.join("\n");
   const rows = section.buckets.map(
     (bucket) =>
-      `| ${basename(bucket.path)} | ${bucket.lastReviewed ?? "—"} | ${formatDays(bucket.freshnessDays)} | ${bucket.freshnessBand} | ${bucket.entryCount} | ${bucket.staleRefs.length} | ${bucket.invalidLineRefs.length} |`,
+      `| ${basename(bucket.path)} | ${bucket.lastReviewed ?? "-"} | ${formatDays(bucket.freshnessDays)} | ${bucket.freshnessBand} | ${bucket.entryCount} | ${bucket.staleRefs.length} | ${bucket.invalidLineRefs.length} |`,
   );
   return [
     ...head,

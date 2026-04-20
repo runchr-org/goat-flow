@@ -74,7 +74,7 @@ For each finding, re-check framework mitigations and remove false positives. Fla
 | Excuse | Reality |
 |--------|---------|
 | "Senior eyeballed it, says it's fine" | Authority pressure. Reviews are evidence about the reviewer, not the code. Re-scan regardless. |
-| "Framework handles CSRF and SQL — that's the big stuff" | Frameworks mitigate specific classes. Tooling repos still need manual review of shell execution, hooks, filesystem scope, and local-server behavior. |
+| "Framework handles CSRF and SQL - that's the big stuff" | Frameworks mitigate specific classes. Tooling repos still need manual review of shell execution, hooks, filesystem scope, and local-server behavior. |
 | "`@login_required` (or equivalent) is probably enough" | Authentication is not authorization. Every object-id path/query parameter needs an explicit ownership or role check. |
 | "Release window means green-light if nothing obvious" | Time pressure never converts "haven't checked" into "verified safe". Mark claims UNVERIFIED, not CONFIRMED-safe. |
 | "Audit tool not installed, skip it quietly" | Silent skips or fabricated audit results corrupt the confidence classification. State the gap explicitly with the install command. |
@@ -145,7 +145,7 @@ Re-read `file:line` for Critical/High. Does the code or config still match the f
 
 **Dependency audit:** If the project uses dependency management, run the appropriate audit tool when available. If it is missing, note the gap with the install command. Do NOT fabricate results.
 
-**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` — every CONFIRMED finding must have a fresh `file:line` re-read in this session, and dependency-audit results must be from a tool run in this session, never paraphrased or fabricated.
+**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` - every CONFIRMED finding must have a fresh `file:line` re-read in this session, and dependency-audit results must be from a tool run in this session, never paraphrased or fabricated.
 
 If `PROBABLE > CONFIRMED`, run `/goat-critique` cross-examination before closing.
 

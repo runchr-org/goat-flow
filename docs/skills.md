@@ -184,7 +184,7 @@ MUST NOT flag pre-existing issues as part of this change. MUST attempt to dispro
 
 ## /goat-critique
 
-Multi-perspective critique for a concrete artifact (plan, security assessment, debug hypothesis set, review findings, architecture proposal). goat-critique runs in one mode: full delegated, 2-3 sub-agents, 5 phases. If delegated sub-agents are unavailable in the session, the skill does not run — it redirects to `/goat-review`. Rationale: `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md`.
+Multi-perspective critique for a concrete artifact (plan, security assessment, debug hypothesis set, review findings, architecture proposal). goat-critique runs in one mode: full delegated, 2-3 sub-agents, 5 phases. If delegated sub-agents are unavailable in the session, the skill does not run - it redirects to `/goat-review`. Rationale: `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md`.
 
 | Sub-agents | Phases |
 |------------|--------|

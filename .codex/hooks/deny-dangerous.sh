@@ -17,7 +17,7 @@
 # - Deeply nested command substitution beyond 3 levels is blocked as a
 #   precaution rather than parsed
 # - Defense in depth: combine with runtime deny patterns + instruction-file rules
-# NOTE: `source .env` and other shell-level secret reads ARE blocked — see
+# NOTE: `source .env` and other shell-level secret reads ARE blocked - see
 #   `is_secret_path_touch` below and the self-test cases for the live contract.
 # =============================================================================
 set -uo pipefail
@@ -143,7 +143,7 @@ block() {
 # Return 0 (match) if the command references a secret-bearing file path:
 # .env*, /.ssh/, /.aws/, /.gnupg/, /.docker/config.json, /.kube/config,
 # *.pem/*.key/*.pfx, credentials*, .npmrc, .pypirc. settings.json Read()
-# patterns only cover the Read tool — this check is the only line of
+# patterns only cover the Read tool - this check is the only line of
 # defence against shell-based secret exfil (cat/less/source/base64/etc.).
 is_secret_path_touch() {
   local c="$1"
@@ -265,7 +265,7 @@ check_segment() {
   # 9. Secret-file access (reads AND writes)
   #    Block: any command that touches .env / SSH/AWS/GCP credentials /
   #    .pem / .key / .pfx / credentials / .npmrc / .pypirc. settings.json
-  #    Read() patterns only cover the Read tool, not Bash — so this rule
+  #    Read() patterns only cover the Read tool, not Bash - so this rule
   #    is the only line of defence against shell-based exfil.
   if [[ "$touches_secret" -eq 1 ]]; then
     block "Secret-file access ($cmd_verb). Reading or editing .env / SSH/AWS/GCP keys / credentials through the agent is an exfil risk."

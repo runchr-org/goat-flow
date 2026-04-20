@@ -33,26 +33,26 @@ Use when reviewing a diff, PR, or set of changes. Also for quality audits of a c
 
 **Footgun check:** Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/` for the target area. Present matches or an explicit retrieval miss; do not broad-load the bucket.
 
-## Diff Review (Quick) — Two-Pass Discipline
+## Diff Review (Quick) - Two-Pass Discipline
 
 The review runs two sequential passes. This is a deliberate reading discipline, not a doer-verifier split: you are the reviewer throughout, Pass 2 is the source of truth, and findings are only surfaced after Pass 2.
 
-### Pass 1 — Blind Suspicion (diff only)
+### Pass 1 - Blind Suspicion (diff only)
 
 Read the diff **without opening full files**. The point is to see what the diff itself reveals before the author's surrounding code anchors you.
 
 Scan for:
 - **Severity cues:** auth/permission checks, secret handling, SQL/shell/API calls, data mutation, state transitions
-- **Edge-case sweep — 5 meta-categories, specifics bubble up as the diff warrants:**
-  - *Boundary conditions* — off-by-one, pagination/index bounds, empty collections, integer overflow
-  - *Nullish values* — null / undefined / default branches, missing optional fields
-  - *Concurrency* — race windows, shared state, concurrent access
-  - *Error handling* — timeouts, retries/backoff, silent exception swallowing
-  - *Contract changes* — signature, return type, error channel, status code, event shape
+- **Edge-case sweep - 5 meta-categories, specifics bubble up as the diff warrants:**
+  - *Boundary conditions* - off-by-one, pagination/index bounds, empty collections, integer overflow
+  - *Nullish values* - null / undefined / default branches, missing optional fields
+  - *Concurrency* - race windows, shared state, concurrent access
+  - *Error handling* - timeouts, retries/backoff, silent exception swallowing
+  - *Contract changes* - signature, return type, error channel, status code, event shape
 
 Write raw suspicions with `file:line` drawn from the diff. Do NOT verify, confirm, or dismiss in this pass. Over-capture is fine; Pass 2 filters.
 
-### Pass 2 — Grounded Verification (full files)
+### Pass 2 - Grounded Verification (full files)
 
 Now read full files for context. For each Pass-1 suspicion:
 
@@ -63,10 +63,10 @@ Now read full files for context. For each Pass-1 suspicion:
 
 | Excuse | Reality |
 |--------|---------|
-| "Trusted author wrote it, Pass 2 will just refute everything — skip it" | In-group trust has historically produced the worst misses in auth/signing/rate-limit code. Open the files. |
+| "Trusted author wrote it, Pass 2 will just refute everything - skip it" | In-group trust has historically produced the worst misses in auth/signing/rate-limit code. Open the files. |
 | "CI is green, so boundary and signing edges are already covered" | CI tests what was thought of. Review looks for what wasn't. Green CI raises, not answers, the Pass-2 question. |
 | "N clean reviews of this author = pattern, this one is probably clean too" | Pattern matching on authorship is not evidence about this diff. Each Pass-1 suspicion still needs Pass-2 disprove. |
-| "Tight window + demo tomorrow — MAY-only cosmetic pass is proportionate" | An incomplete review merged into a demo window is worse than a `coverage-degraded` conclusion returned on time. |
+| "Tight window + demo tomorrow - MAY-only cosmetic pass is proportionate" | An incomplete review merged into a demo window is worse than a `coverage-degraded` conclusion returned on time. |
 | "Findings would be zero anyway, so Review Integrity is paperwork" | Review Integrity IS the zero-findings signal. `files-not-opened` tells the reader you stopped early. |
 | "Footgun file is probably stale, reading it is ceremony" | Footguns are memory. Treating them as ceremony is how the same mistake ships twice. |
 
@@ -82,7 +82,7 @@ Every surfaced finding gets two orthogonal tags:
 
 | Action | Meaning |
 |--------|---------|
-| patch | fix direction is unambiguous — a coding agent can apply it |
+| patch | fix direction is unambiguous - a coding agent can apply it |
 | needs-decision | correct fix requires human input (policy, product call, trade-off) |
 | pre-existing | bug exists in unchanged code (see separation below) |
 
@@ -101,7 +101,7 @@ Check each finding with targeted grep-first retrieval against `.goat-flow/footgu
 
 **DoD gate:** (1) tests/lint pass (2) no broken cross-references (3) no unapproved boundary changes (4) grep old pattern after renames.
 
-**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to every surfaced finding — each `file:line` must be re-read fresh in this session before presentation; downgrade any finding whose evidence cannot be re-verified to UNVERIFIED.
+**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to every surfaced finding - each `file:line` must be re-read fresh in this session before presentation; downgrade any finding whose evidence cannot be re-verified to UNVERIFIED.
 
 ## Area Audit (Full)
 
@@ -111,17 +111,17 @@ When the target is a codebase area (not a diff). For >20 files, recommend splitt
 
 ## Spec Drift (opt-in)
 
-Only emitted when the Step 0 prompt was accepted and a live milestone file was found. Reads the milestone's **Exit Criteria** and **Assumptions** blocks, then splits output by direction — the two cases surface under different sections and carry different weight:
+Only emitted when the Step 0 prompt was accepted and a live milestone file was found. Reads the milestone's **Exit Criteria** and **Assumptions** blocks, then splits output by direction - the two cases surface under different sections and carry different weight:
 
-- **Exit-criteria drift → advisory, no severity tag.** A criterion is marked `- [x]` (done) in the milestone but the diff does not support it. The *milestone* is stale. Surface under `## Spec Drift` prefixed `[advisory]`. Do NOT tag MUST/SHOULD/MAY — this is milestone hygiene for the human to reconcile, not a code defect.
+- **Exit-criteria drift → advisory, no severity tag.** A criterion is marked `- [x]` (done) in the milestone but the diff does not support it. The *milestone* is stale. Surface under `## Spec Drift` prefixed `[advisory]`. Do NOT tag MUST/SHOULD/MAY - this is milestone hygiene for the human to reconcile, not a code defect.
 - **Assumption invalidation → review finding with severity.** The diff makes a milestone Assumption false. The *plan* is now broken and the human must choose (update the assumption, fix the diff, or abandon). Surface under `## Findings` as `[MUST:needs-decision]`, **not** under `## Spec Drift`.
-- **Open criterion now satisfied → ready-to-tick note.** An open `- [ ]` criterion is now supported by the diff. Surface under `## Spec Drift` prefixed `[ready-to-tick]`. Advisory only — human ticks the milestone file.
+- **Open criterion now satisfied → ready-to-tick note.** An open `- [ ]` criterion is now supported by the diff. Surface under `## Spec Drift` prefixed `[ready-to-tick]`. Advisory only - human ticks the milestone file.
 
 If no drift, no invalidation, and no ready-to-tick criteria, still emit the section with "No drift detected against M[NN]" so the reader knows the check ran.
 
 ## Review Integrity (confidence signal)
 
-Every review ends with this section. It is the anti-hallucination surface — the reader should be able to tell at a glance how confident the review is.
+Every review ends with this section. It is the anti-hallucination surface - the reader should be able to tell at a glance how confident the review is.
 
 List:
 - **Files opened in Pass 2:** count / total in diff. List paths that were read diff-only.
@@ -130,7 +130,7 @@ List:
 - **Degradation flags** (any that apply): `chunked-partial`, `large-diff-unchunked`, `high-inference-ratio`, `files-not-opened`, `unfamiliar-area`, `missing-types`, `spec-drift-skipped`, `footguns-unread`.
 - **Conclusion:** `confident` | `coverage-degraded` | `high-inference` | `partial`.
 
-Never leave this section empty. "confident — no degradation flags" is the minimum.
+Never leave this section empty. "confident - no degradation flags" is the minimum.
 
 ## Constraints
 
@@ -154,7 +154,7 @@ Never leave this section empty. "confident — no degradation flags" is the mini
 - MUST attempt to disprove each Pass-1 suspicion during Pass 2
 - MUST group 3+ related findings as systemic patterns
 - MUST NOT make file edits in review or audit mode unless the user says "implement"
-- MUST NOT frame Pass 1/Pass 2 as doer/verifier — same reviewer, structured reading discipline (ADR-005)
+- MUST NOT frame Pass 1/Pass 2 as doer/verifier - same reviewer, structured reading discipline (ADR-005)
 - **Zero-findings HALT:** If Pass 2 produces zero findings across MUST/SHOULD/MAY, do not silently approve. State explicitly what was checked (boundary conditions, null/undefined, concurrency, error handling, contract changes) and why no issues surfaced. Zero findings must be defended, not assumed.
 - Universal constraints from skill-preamble.md apply.
 
@@ -173,8 +173,8 @@ Never leave this section empty. "confident — no degradation flags" is the mini
 ## Findings
 
 ### MUST
-- [MUST:patch] **[title]** `file:line` — [desc] | Footgun: [entry or none] | Evidence: OBSERVED/INFERRED
-- [MUST:needs-decision] **[title]** `file:line` — [desc] | ...
+- [MUST:patch] **[title]** `file:line` - [desc] | Footgun: [entry or none] | Evidence: OBSERVED/INFERRED
+- [MUST:needs-decision] **[title]** `file:line` - [desc] | ...
 
 ### SHOULD
 - [SHOULD:patch] ...
@@ -184,8 +184,8 @@ Never leave this section empty. "confident — no degradation flags" is the mini
 
 ## Spec Drift   <!-- only when opt-in triggered; otherwise omit and log spec-drift-skipped -->
 <!-- advisory-only entries (exit-criteria drift, ready-to-tick); assumption invalidation goes under ## Findings as [MUST:needs-decision] -->
-- [advisory] **[criterion title]** — claimed done in M[NN] but not supported by diff
-- [ready-to-tick] **[criterion title]** — now satisfied by diff, milestone still shows `- [ ]`
+- [advisory] **[criterion title]** - claimed done in M[NN] but not supported by diff
+- [ready-to-tick] **[criterion title]** - now satisfied by diff, milestone still shows `- [ ]`
 
 ## Pre-existing Nearby  <!-- in-function only; one-liners; no blocking tags -->
 

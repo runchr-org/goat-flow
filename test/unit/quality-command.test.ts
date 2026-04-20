@@ -9,6 +9,21 @@ import { composeQuality } from "../../src/cli/prompt/compose-quality.js";
 import { runAudit } from "../../src/cli/audit/audit.js";
 import { createFS } from "../../src/cli/facts/fs.js";
 import type { QualityHistoryEntry } from "../../src/cli/quality/history.js";
+import { parseQualityReport } from "../../src/cli/quality/schema.js";
+
+/** Extract the first ```json fenced block from a prompt string.
+ *  Returns the JSON body with the scope placeholder replaced by a valid
+ *  value so the example parses through the strict schema. Any other
+ *  pipe-separated placeholder in the example will cause parse to fail,
+ *  which is the canary behaviour we want. */
+function extractExampleJson(prompt: string): string {
+  const match = prompt.match(/```json\n([\s\S]*?)\n```/);
+  if (!match) throw new Error("no ```json fenced block found in prompt");
+  return match[1].replace(
+    '"scope": "framework-self | consumer"',
+    '"scope": "framework-self"',
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Test 1: quality without --agent exits with usage error
@@ -310,6 +325,88 @@ describe("quality with audit data", () => {
     assert.ok(
       result.prompt.includes("audit could not complete"),
       "Should include degraded context note",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Test 4b: JSON example in the prompt parses through the strict schema
+// (guards against drift between the example and schema.ts - the lesson from
+// the 2026-04-20 copilot reports that flagged delta_tag:null as the wrong
+// example value when prior history exists)
+// ---------------------------------------------------------------------------
+describe("quality prompt JSON example parses through schema", () => {
+  it("no-prior-report example is schema-valid and uses delta_tag:null", () => {
+    const result = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/test-project",
+      auditReport: null,
+      runDate: "2026-04-20",
+    });
+    const json = extractExampleJson(result.prompt);
+    assert.match(
+      json,
+      /"delta_tag":\s*null/,
+      "no-prior-report example must use delta_tag: null",
+    );
+    const parsed = parseQualityReport(JSON.parse(json));
+    assert.ok(
+      parsed.ok,
+      `no-prior-report example must parse: ${parsed.ok ? "" : parsed.error}`,
+    );
+  });
+
+  it("with-prior-report example is schema-valid and uses delta_tag:new", () => {
+    const priorReport: QualityHistoryEntry = {
+      id: "2026-04-15-1000-claude-bbbbb",
+      path: "/tmp/test-project/.goat-flow/logs/quality/2026-04-15-1000-claude-bbbbb.json",
+      date: "2026-04-15",
+      time: "1000",
+      agent: "claude",
+      randomId: "bbbbb",
+      report: {
+        report_kind: "goat-flow-quality-report",
+        goat_flow_version: "1.2.0",
+        agent: "claude",
+        project_path: "/tmp/test-project",
+        run_date: "2026-04-15",
+        audit_status: "pass",
+        scores: {
+          setup: {
+            total: 80,
+            accuracy: 20,
+            relevance: 20,
+            completeness: 20,
+            friction: 20,
+          },
+          system: {
+            total: 75,
+            usefulness: 20,
+            signal_to_noise: 20,
+            adaptability: 20,
+            learnability: 15,
+          },
+        },
+        findings: [],
+      },
+    };
+    const result = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/test-project",
+      auditReport: null,
+      priorReport,
+      runDate: "2026-04-20",
+    });
+    const json = extractExampleJson(result.prompt);
+    assert.match(
+      json,
+      /"delta_tag":\s*"new"/,
+      'with-prior-report example must use delta_tag: "new"',
+    );
+    const parsed = parseQualityReport(JSON.parse(json));
+    assert.ok(
+      parsed.ok,
+      `with-prior-report example must parse: ${parsed.ok ? "" : parsed.error}`,
     );
   });
 });

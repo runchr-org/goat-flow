@@ -242,7 +242,7 @@ describe("extractLessonsFacts freshness + placeholder filtering", () => {
 
   it("does not flag gitignored-by-design paths as stale (.goat-flow/tasks, scratchpad, logs)", () => {
     // .goat-flow/tasks/*, scratchpad/*, and logs/* are intentionally gitignored
-    // per .goat-flow/tasks/.gitignore — they're local session state. Lessons
+    // per .goat-flow/tasks/.gitignore - they're local session state. Lessons
     // reference them as navigation pointers, not committed artifacts. On CI
     // (fresh checkout) they don't exist, so treating absence as stale
     // false-positived the learning-loop schema check until this guard landed.

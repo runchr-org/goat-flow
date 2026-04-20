@@ -66,11 +66,11 @@ Over budget = checkpoint and re-classify before continuing. Complexity-class bud
 - `.goat-flow/lessons/<category>.md` — behavioural mistake. `## Lesson: <name>` + `**Created:** YYYY-MM-DD`.
 - `.goat-flow/footguns/<category>.md` — cross-doc architectural trap with file evidence. `## Footgun: <name>` + `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED`.
 - `.goat-flow/decisions/` — significant technical decision with context/rationale.
-- `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` — optional continuity note written on `/compact` when no active milestone file exists, or when a milestone sequence completes; skip otherwise.
+- `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` — optional continuity note written on `/compact` when no active milestone file exists; skip otherwise.
 
 ## Autonomy Tiers
 
-**Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes — write one when `/compact` fires without an active milestone file, or when a milestone sequence completes; otherwise skip. Learning-loop updates (lessons/footguns/decisions) follow the conditional rules above: update only when VERIFY caught a failure or you corrected course.
+**Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes — write one when `/compact` fires without an active milestone file; otherwise skip. Learning-loop updates (lessons/footguns/decisions) follow the conditional rules above: update only when VERIFY caught a failure or you corrected course.
 
 **Ask First** — before proceeding, state: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked, rollback command.
 

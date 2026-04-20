@@ -6,21 +6,13 @@
  */
 import type { AuditContext, HarnessCheck } from "../types.js";
 import type { CheckEvidence } from "../provenance-types.js";
+import { getRequiredInstructionSections } from "../../manifest/manifest.js";
 import { pass, fail, extractBacktickPaths } from "./helpers.js";
 
-/** Instruction-file headings that every hot-path instruction file is expected
- *  to carry. The quality prompt enumerates these as the hot-path contract
- *  (`src/cli/prompt/compose-quality.ts` Pre-check: "Has required sections").
- *  Advisory rather than integrity: a skeleton/overlay instruction file (e.g.
- *  Copilot's current .github/copilot-instructions.md) deliberately defers to
- *  AGENTS.md and will fail this check. Advisory severity reports the drift
- *  without gating the main build. */
-const REQUIRED_INSTRUCTION_SECTIONS: { label: string; pattern: RegExp }[] = [
-  { label: "Truth Order", pattern: /^#+\s+Truth Order/im },
-  { label: "Execution Loop", pattern: /^#+\s+Execution Loop/im },
-  { label: "Definition of Done", pattern: /^#+\s+Definition of Done/im },
-  { label: "Router Table", pattern: /^#+\s+Router Table/im },
-];
+/** The execution-loop section label the manifest declares. Used by
+ *  `executionLoopPresent` to find the heading regex. Change here only if the
+ *  label itself changes; the regex is derived from the manifest, not literal. */
+const EXECUTION_LOOP_LABEL = "Execution Loop";
 
 const VERIFIED_ON = "2026-04-18";
 
@@ -97,7 +89,16 @@ const executionLoopPresent: HarnessCheck = {
     "AGENTS.md",
   ]),
   run: (ctx) => {
-    const steps = ["read", "scope", "act", "verify"];
+    const headingEntry = getRequiredInstructionSections().find(
+      (s) => s.label === EXECUTION_LOOP_LABEL,
+    );
+    if (!headingEntry) {
+      // Manifest doesn't require Execution Loop - nothing to enforce here.
+      return pass([
+        `manifest declares no "${EXECUTION_LOOP_LABEL}" section; check skipped`,
+      ]);
+    }
+    const stepWords = ["read", "scope", "act", "verify"];
     const findings: string[] = [];
     const recs: string[] = [];
     let anyFail = false;
@@ -108,29 +109,33 @@ const executionLoopPresent: HarnessCheck = {
         anyFail = true;
         continue;
       }
-      const lower = af.instruction.content.toLowerCase();
-      const found = steps.filter((s) => lower.includes(s));
-      const missing = steps.filter((s) => !found.includes(s));
-
-      if (missing.length === 0) {
-        findings.push(`${af.agent.id}: execution loop has all 4 steps`);
-      } else if (found.length >= 2) {
-        // Treat partial matches as an informative drift signal rather than a hard fail.
-        // Different instruction templates may phrase one or two steps indirectly.
+      const content = af.instruction.content;
+      const headingFound = headingEntry.pattern.test(content);
+      if (!headingFound) {
         findings.push(
-          `${af.agent.id}: execution loop found ${found.length}/4 steps (missing ${missing.join(", ")})`,
+          `${af.agent.id}: no "${EXECUTION_LOOP_LABEL}" heading detected`,
         );
-      } else {
-        findings.push(`${af.agent.id}: no execution loop detected`);
         recs.push(
-          `Add a READ → SCOPE → ACT → VERIFY execution loop to ${af.agent.instructionFile}`,
+          `Add a "${EXECUTION_LOOP_LABEL}" heading with READ → SCOPE → ACT → VERIFY steps to ${af.agent.instructionFile}`,
         );
         anyFail = true;
+        continue;
+      }
+      // Heading present - verify the four step words actually appear under it.
+      const lower = content.toLowerCase();
+      const foundSteps = stepWords.filter((s) => lower.includes(s));
+      const missingSteps = stepWords.filter((s) => !foundSteps.includes(s));
+      if (missingSteps.length === 0) {
+        findings.push(`${af.agent.id}: execution loop has all 4 steps`);
+      } else {
+        findings.push(
+          `${af.agent.id}: execution loop heading present but missing step words (${missingSteps.join(", ")})`,
+        );
       }
     }
     if (anyFail)
       return fail(findings, recs, [
-        "Add an execution loop section with READ, SCOPE, ACT, VERIFY steps to the instruction file.",
+        `Add an "${EXECUTION_LOOP_LABEL}" heading with READ, SCOPE, ACT, VERIFY steps to the instruction file.`,
       ]);
     return pass(findings);
   },
@@ -255,6 +260,7 @@ const instructionSectionsPresent: HarnessCheck = {
     const fixes: string[] = [];
     let anyFail = false;
 
+    const requiredSections = getRequiredInstructionSections();
     for (const af of ctx.agents) {
       if (!af.instruction.exists || !af.instruction.content) {
         findings.push(`${af.agent.id}: no instruction file to check`);
@@ -262,16 +268,16 @@ const instructionSectionsPresent: HarnessCheck = {
         continue;
       }
       const content = af.instruction.content;
-      const missing = REQUIRED_INSTRUCTION_SECTIONS.filter(
-        ({ pattern }) => !pattern.test(content),
-      ).map(({ label }) => label);
+      const missing = requiredSections
+        .filter(({ pattern }) => !pattern.test(content))
+        .map(({ label }) => label);
       if (missing.length === 0) {
         findings.push(
-          `${af.agent.id}: all ${REQUIRED_INSTRUCTION_SECTIONS.length} required sections present`,
+          `${af.agent.id}: all ${requiredSections.length} required sections present`,
         );
       } else {
         findings.push(
-          `${af.agent.id}: missing sections — ${missing.join(", ")}`,
+          `${af.agent.id}: missing sections - ${missing.join(", ")}`,
         );
         recs.push(
           `Add the missing hot-path sections to ${af.agent.instructionFile}: ${missing.join(", ")}`,

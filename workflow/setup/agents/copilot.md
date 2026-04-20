@@ -20,14 +20,14 @@
 
 `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.claude/`, `.codex/`, `.gemini/`, `.agents/`.
 
-Copilot runs on a standalone hot-path instruction file, not an overlay. `.github/copilot-instructions.md` carries its own Truth Order, Execution Loop, Definition of Done, Router Table, and Autonomy Tiers — the same contract CLAUDE.md / AGENTS.md / GEMINI.md ship. See `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` for the hot-path contract rationale more broadly; Copilot follows the same single-contract-per-agent model.
+Copilot runs on a standalone hot-path instruction file, not an overlay. `.github/copilot-instructions.md` carries its own Truth Order, Execution Loop, Definition of Done, Router Table, and Autonomy Tiers - the same contract CLAUDE.md / AGENTS.md / GEMINI.md ship. See `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` for the hot-path contract rationale more broadly; Copilot follows the same single-contract-per-agent model.
 
 ## Agent-specific setup
 
 ### Instruction composition
 
 - Keep `.github/copilot-instructions.md` at `<= 150` lines (hard limit) with `<= 120` as the target.
-- It MUST contain Truth Order, Execution Loop (READ → SCOPE → ACT → VERIFY), Definition of Done, Router Table, and Autonomy Tiers — the same hot-path sections as CLAUDE.md / AGENTS.md / GEMINI.md.
+- It MUST contain Truth Order, Execution Loop (READ → SCOPE → ACT → VERIFY), Definition of Done, Router Table, and Autonomy Tiers - the same hot-path sections as CLAUDE.md / AGENTS.md / GEMINI.md.
 - Add a **Copilot-Specific** section at the end for runtime specifics: built-in agents (`explore`, `task`, `general-purpose`, `code-review`), `/fleet` usage, `.github/hooks/hooks.json` guardrails, and `.copilotignore` hygiene.
 - Do NOT defer to AGENTS.md; Copilot is a peer, not an overlay consumer.
 

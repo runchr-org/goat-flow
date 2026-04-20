@@ -28,41 +28,41 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 
 ## Step 0 - Intake
 
-goat-critique runs in one mode: full delegated, 5 phases, 2-3 sub-agents. There is no quick/inline fallback — if the work does not justify sub-agent delegation, use `/goat-review` instead. See `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` for the rationale.
+goat-critique runs in one mode: full delegated, 5 phases, 2-3 sub-agents. There is no quick/inline fallback - if the work does not justify sub-agent delegation, use `/goat-review` instead. See `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` for the rationale.
 
 **Intake checklist:**
-- Confirm the artifact exists and is concrete (a file, a plan document, a specific set of findings — not a vague idea).
+- Confirm the artifact exists and is concrete (a file, a plan document, a specific set of findings - not a vague idea).
 - Confirm sub-agent delegation is available in this session. If it is not, stop and redirect the user to `/goat-review`.
 - Use the preamble's grep-first learning-loop retrieval on relevant `.goat-flow/footguns/` and `.goat-flow/lessons/`; record explicit misses instead of broad-loading buckets.
-- Skill-chained entry: skip intake confirmation, use caller context, start at Phase 1. Skill-chaining does not unlock a quick variant — all 5 phases still run.
+- Skill-chained entry: skip intake confirmation, use caller context, start at Phase 1. Skill-chaining does not unlock a quick variant - all 5 phases still run.
 
 ## Phase 1 - Generate Competing Critiques
 
 Spawn 2-3 sub-agents via the Agent tool. MUST NOT inline role-play as a substitute.
 
-Context varies intentionally — informational diversity catches more than tonal diversity.
+Context varies intentionally - informational diversity catches more than tonal diversity.
 
 ### The Core Trio Lens
 
-Agents A and B both use the SKEPTIC/ANALYST/STRATEGIST combined lens. These three perspectives work as a unit — never split them into separate agents:
+Agents A and B both use the SKEPTIC/ANALYST/STRATEGIST combined lens. These three perspectives work as a unit - never split them into separate agents:
 
-- **SKEPTIC** — "What could go wrong? What assumptions are unproven? What's the worst-case scenario?"
-- **ANALYST** — "What does the evidence actually say? What's the cost/benefit? What do the numbers and code paths tell us?"
-- **STRATEGIST** — "What's the fastest path to shipping? What can we defer? What's the highest-leverage change?"
+- **SKEPTIC** - "What could go wrong? What assumptions are unproven? What's the worst-case scenario?"
+- **ANALYST** - "What does the evidence actually say? What's the cost/benefit? What do the numbers and code paths tell us?"
+- **STRATEGIST** - "What's the fastest path to shipping? What can we defer? What's the highest-leverage change?"
 
 All three perspectives must appear in every critique from Agents A and B. The tension between them is the point.
 
 ### Sub-Agent Definitions
 
-**Sub-agent A (Risk Focus — backward-looking context):**
+**Sub-agent A (Risk Focus - backward-looking context):**
 Gets: artifact + architecture.md + footguns + lessons + critique rubric.
-Directive: "Apply SKEPTIC/ANALYST/STRATEGIST. Focus on RISKS: what could go wrong, what the evidence says about cost/benefit, what the fastest safe path looks like. Your context includes past mistakes (footguns, lessons) — use them."
+Directive: "Apply SKEPTIC/ANALYST/STRATEGIST. Focus on RISKS: what could go wrong, what the evidence says about cost/benefit, what the fastest safe path looks like. Your context includes past mistakes (footguns, lessons) - use them."
 
-**Sub-agent B (Alternatives Focus — current-state context):**
+**Sub-agent B (Alternatives Focus - current-state context):**
 Gets: artifact + architecture.md + recent git history (`git log --oneline -20`) + config.yaml + critique rubric.
-Directive: "Apply SKEPTIC/ANALYST/STRATEGIST. Focus on ALTERNATIVES: generate 2-3 different approaches to the key decisions. Your context includes how the project actually works right now (git history, config) — ground alternatives in real project patterns, not theory."
+Directive: "Apply SKEPTIC/ANALYST/STRATEGIST. Focus on ALTERNATIVES: generate 2-3 different approaches to the key decisions. Your context includes how the project actually works right now (git history, config) - ground alternatives in real project patterns, not theory."
 
-**Sub-agent C (Fresh Eyes — NO project context):**
+**Sub-agent C (Fresh Eyes - NO project context):**
 Gets: artifact + critique rubric ONLY. No architecture, footguns, lessons, git, or config.
 Directive: "Critique this artifact as if you know nothing about the project. Flag every assumption the artifact makes without stating explicitly. If you find nothing confusing, note whether that is because the artifact is exceptionally clear or because you didn't probe hard enough. Your findings that overlap with other agents are convergent evidence, not redundancy."
 
@@ -90,17 +90,17 @@ Mark each: RESOLVED (with winner) / STILL DISPUTED / RETRACTED (false positive c
 
 Before synthesising, present the unresolved items to the human:
 
-1. **Still-disputed findings** from Phase 3 — present both positions, ask which to adopt
-2. **Material trade-offs** — where two valid approaches exist, present the fork and ask which path
-3. **Context drift signals** — any CONTEXT DRIFT findings from Phase 2 that challenge the artifact's assumptions
+1. **Still-disputed findings** from Phase 3 - present both positions, ask which to adopt
+2. **Material trade-offs** - where two valid approaches exist, present the fork and ask which path
+3. **Context drift signals** - any CONTEXT DRIFT findings from Phase 2 that challenge the artifact's assumptions
 
 Format:
 > **Dispute [N]:** Agent A says [X], Agent B says [Y]. Cross-examination was inconclusive. Which position should the synthesis adopt?
 > **Trade-off [N]:** [Option A] prioritises [X] at the cost of [Y]. [Option B] does the reverse. Which matters more here?
 > **Context drift [N]:** Fresh eyes found [assumption]. Is this intentional or an oversight?
 
-**If disputes exist or Decision Debt items need resolution:** BLOCKING GATE — STOP and present disputes for human resolution.
-**If all agents agree (no disputes):** CHECKPOINT — note consensus and proceed to synthesis.
+**If disputes exist or Decision Debt items need resolution:** BLOCKING GATE - STOP and present disputes for human resolution.
+**If all agents agree (no disputes):** CHECKPOINT - note consensus and proceed to synthesis.
 
 ## Phase 5 - Synthesise
 
@@ -116,18 +116,18 @@ Produce the prime critique:
 > **Decision Debt:** [recommendation]
 > - Confidence: LOW/MEDIUM
 > - Evidence needed to resolve: [what specific evidence would settle this]
-> - Revisit when: [concrete trigger — next milestone, specific file change, before deploy]
+> - Revisit when: [concrete trigger - next milestone, specific file change, before deploy]
 
 **Blind spot check:** Before presenting, identify:
 - Sections of the artifact that no sub-agent addressed
 - Aspects of the critique rubric that no finding maps to
 - Files or systems referenced by the artifact that were not read by any sub-agent
 
-List these as "What Wasn't Critiqued." This section must never be empty — if everything was covered, state that explicitly.
+List these as "What Wasn't Critiqued." This section must never be empty - if everything was covered, state that explicitly.
 
 **BLOCKING GATE:** Present the synthesised critique. Human decides: apply recommendations, dig deeper, re-run with different framing, or close. After critique of a plan, suggest `/goat-plan` to update milestones based on recommendations.
 
-**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to every synthesised finding — sub-agent reports are inputs to verify, not evidence to launder. Re-read each surviving finding's `file:line` in this session before inclusion.
+**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to every synthesised finding - sub-agent reports are inputs to verify, not evidence to launder. Re-read each surviving finding's `file:line` in this session before inclusion.
 
 ## Critique Rubrics
 
@@ -147,7 +147,7 @@ The rubric determines what sub-agents evaluate. Match to artifact type:
 - MUST use Agent tool calls for sub-agents, not inline role-play
 - MUST isolate Phase 1 contexts per sub-agent
 - Fresh-eyes analysis MUST be restricted to artifact + rubric only
-- MUST use SKEPTIC/ANALYST/STRATEGIST as a combined lens per agent — never split into separate roles
+- MUST use SKEPTIC/ANALYST/STRATEGIST as a combined lens per agent - never split into separate roles
 - MUST differentiate Agent A (risk) from Agent B (alternatives) by instructions
 - MUST flag control group delta: CONTEXT DRIFT / READABILITY GAP / CONTEXT-LIMITED for each unique fresh-eyes finding
 - MUST include critique rubric appropriate to artifact type
@@ -157,7 +157,7 @@ The rubric determines what sub-agents evaluate. Match to artifact type:
 - MUST tag low-confidence recommendations as Decision Debt
 - MUST always include "What Wasn't Critiqued"
 - Universal constraints from skill-preamble.md apply.
-- MUST NOT auto-apply recommendations — human gate required
+- MUST NOT auto-apply recommendations - human gate required
 - Sub-agent budget: max 5 tool calls per sub-agent in Phase 1, max 3 in cross-examination
 - Skill-chained: skip confirmation, still run footgun/lesson checks and rubric selection; still run all 5 phases
 

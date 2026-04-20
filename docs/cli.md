@@ -4,7 +4,7 @@
 
 ### `goat-flow audit [path] [flags]`
 
-Validate setup correctness. The base audit runs two deterministic scopes (all pass/fail): GOAT Flow Setup and Agent Setup. Pass `--harness` to add the AI Harness Completeness scope (16 checks across 5 concerns — verifies structural installation of each concern). Harness results contribute to the overall audit status. Default command when run without arguments.
+Validate setup correctness. The base audit runs two deterministic scopes (all pass/fail): GOAT Flow Setup and Agent Setup. Pass `--harness` to add the AI Harness Completeness scope (16 checks across 5 concerns - verifies structural installation of each concern). Harness results contribute to the overall audit status. Default command when run without arguments.
 
 | Flag | Description |
 |------|-------------|
@@ -68,7 +68,7 @@ goat-flow manifest --check            # Fail if manifest disagrees with live fil
 
 ### `goat-flow stats [--check] [--format json|markdown]`
 
-Report learning-loop health: live entry counts by bucket, stale file refs, and `last_reviewed` freshness. Use `--check` in CI — it exits non-zero if any bucket is missing `last_reviewed`, uses a malformed date, or contains stale file references.
+Report learning-loop health: live entry counts by bucket, stale file refs, and `last_reviewed` freshness. Use `--check` in CI - it exits non-zero if any bucket is missing `last_reviewed`, uses a malformed date, or contains stale file references.
 
 ```bash
 goat-flow stats                       # Learning-loop health report

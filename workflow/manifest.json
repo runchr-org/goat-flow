@@ -184,26 +184,6 @@
     "version_header_pattern": "# {FILE} - v{VERSION} ({DATE})"
   },
 
-  "legacy_surfaces": {
-    "v0.9": {
-      "migrate_to_goat_flow": [
-        "docs/footguns.md",
-        "docs/lessons.md",
-        "docs/architecture.md",
-        "docs/decisions/",
-        "agent-evals/"
-      ],
-      "delete_after_migration": [
-        "docs/footguns.md",
-        "docs/lessons.md",
-        "docs/architecture.md",
-        "docs/decisions/",
-        "docs/guidelines-ownership-split.md",
-        "agent-evals/"
-      ]
-    }
-  },
-
   "facts": {
     "_note": "Static facts. Derived facts (check counts, skill names, version) are computed by src/cli/manifest/manifest.ts at load time. `goat-flow manifest --check` validates these against observed state (src/dashboard/views/*.html and src/dashboard/preset-prompts.ts).",
     "dashboard_views": [

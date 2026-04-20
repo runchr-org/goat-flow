@@ -58,7 +58,7 @@ Checks are grouped by **scope**:
 
 ### Harness mode (`--harness`)
 
-Adds 16 checks across the five harness concerns on top of the default build checks. These check AI harness completeness -- whether the project has the structures that make agents effective. Harness checks are deterministic but classified by type (see `HarnessCheckType` in `src/cli/audit/types.ts`): **integrity** (drift from install state — affects concern status), **advisory** (best practice — affects status unless the check id is listed in `harness.acknowledge` in `config.yaml`), and **metric** (workflow maturity signal — never affects status).
+Adds 16 checks across the five harness concerns on top of the default build checks. These check AI harness completeness -- whether the project has the structures that make agents effective. Harness checks are deterministic but classified by type (see `HarnessCheckType` in `src/cli/audit/types.ts`): **integrity** (drift from install state - affects concern status), **advisory** (best practice - affects status unless the check id is listed in `harness.acknowledge` in `config.yaml`), and **metric** (workflow maturity signal - never affects status).
 
 Harness checks are grouped by **concern** -- the five things every major harness engineering source agrees matter for agent effectiveness. See [harness-engineering.md](harness-engineering.md) for what each concern means and the sources behind the model.
 
@@ -115,7 +115,7 @@ The prompt includes the current `audit` summary so the agent knows what's alread
 
 ### Quality report lifecycle
 
-`goat-flow quality` composes the prompt and instructs the agent to write its final JSON report directly to `.goat-flow/logs/quality/<YYYY-MM-DD>-<HHMM>-<agent>-<rand5>.json` — a gitignored path. No separate capture step is needed; the agent owns the write, and `history` / `diff` operate on whatever the agent saved.
+`goat-flow quality` composes the prompt and instructs the agent to write its final JSON report directly to `.goat-flow/logs/quality/<YYYY-MM-DD>-<HHMM>-<agent>-<rand5>.json` - a gitignored path. No separate capture step is needed; the agent owns the write, and `history` / `diff` operate on whatever the agent saved.
 
 ```bash
 goat-flow quality . --agent gemini             # Compose prompt; agent writes its own JSON report

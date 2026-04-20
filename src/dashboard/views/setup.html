@@ -99,7 +99,7 @@
             >
               <span
                 style="color: var(--accent); font-size: 18px; font-weight: 600"
-                x-text="(() => { const s = report?.agentScores?.find(a => a.id === agent.id); if (!s?.harness) return '—'; const t = s.harness.checks.length; const pct = t ? Math.round((s.harness.checks.filter(c => c.status === 'pass').length / t) * 100) : 0; return pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : 'F'; })()"
+                x-text="(() => { const s = report?.agentScores?.find(a => a.id === agent.id); if (!s?.harness) return '-'; const t = s.harness.checks.length; const pct = t ? Math.round((s.harness.checks.filter(c => c.status === 'pass').length / t) * 100) : 0; return pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : 'F'; })()"
               ></span>
               <span
                 class="gf-text-muted"
@@ -193,7 +193,7 @@
               <span
                 class="gf-text-secondary mono"
                 style="font-size: 12.5px"
-                x-text="setupData.commands.build || '—'"
+                x-text="setupData.commands.build || '-'"
               ></span>
             </div>
             <div
@@ -208,7 +208,7 @@
               <span
                 class="gf-text-secondary mono"
                 style="font-size: 12.5px"
-                x-text="setupData.commands.test || '—'"
+                x-text="setupData.commands.test || '-'"
               ></span>
             </div>
             <div
@@ -223,7 +223,7 @@
               <span
                 class="gf-text-secondary mono"
                 style="font-size: 12.5px"
-                x-text="setupData.commands.lint || '—'"
+                x-text="setupData.commands.lint || '-'"
               ></span>
             </div>
             <div
@@ -240,7 +240,7 @@
               <span
                 class="gf-text-secondary mono"
                 style="font-size: 12.5px"
-                x-text="setupData.commands.format || '—'"
+                x-text="setupData.commands.format || '-'"
               ></span>
             </div>
           </div>

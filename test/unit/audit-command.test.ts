@@ -758,7 +758,7 @@ describe("scratchpad setup gate", () => {
     assert.notEqual(
       result,
       null,
-      "missing scratchpad/README.md should be flagged — it signals local-by-design intent",
+      "missing scratchpad/README.md should be flagged - it signals local-by-design intent",
     );
   });
 });
@@ -942,7 +942,7 @@ describe("M01 scoring model", () => {
     const { concerns } = computeHarness(ctx);
     // constraints fail is acknowledged → pass. instruction-line-count (advisory
     // under context) will also fail because the stub instruction file is 50
-    // lines vs a 45-line limit — NOT acknowledged → context.status fail.
+    // lines vs a 45-line limit - NOT acknowledged → context.status fail.
     assert.equal(concerns.constraints.status, "pass");
     assert.equal(concerns.constraints.advisoryAcknowledged, 1);
     assert.equal(concerns.context.status, "fail");

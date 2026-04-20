@@ -35,7 +35,7 @@ describe("verification routing boundaries (ADR-018)", () => {
     assert.doesNotMatch(
       triggerLine!,
       /"verify"/,
-      'goat-qa Standard-mode trigger must not contain bare quoted "verify" (use "verify coverage" instead) — see ADR-018',
+      'goat-qa Standard-mode trigger must not contain bare quoted "verify" (use "verify coverage" instead) - see ADR-018',
     );
   });
 

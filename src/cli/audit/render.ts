@@ -231,7 +231,7 @@ function renderMdDrift(drift: DriftReport, lines: string[]): void {
     lines.push("No drift detected.");
   } else {
     for (const f of drift.findings) {
-      lines.push(`- :x: **[${f.kind}]** \`${f.path}\` — ${f.message}`);
+      lines.push(`- :x: **[${f.kind}]** \`${f.path}\` - ${f.message}`);
     }
   }
   lines.push("");
@@ -250,7 +250,7 @@ function renderMdContent(content: ContentReport, lines: string[]): void {
     for (const f of content.findings) {
       const loc = f.line !== undefined ? `${f.path}:${f.line}` : f.path;
       lines.push(
-        `- :x: **${f.severity.toUpperCase()} [${f.rule}]** \`${loc}\` — ${f.message}`,
+        `- :x: **${f.severity.toUpperCase()} [${f.rule}]** \`${loc}\` - ${f.message}`,
       );
       if (f.suggestion) lines.push(`  - *Fix:* ${f.suggestion}`);
     }

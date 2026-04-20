@@ -30,13 +30,13 @@ Order findings by severity, not by file or discovery order.
 - Before citing a function or symbol name, verify it exists with a repo search
 - Before citing a CLI flag, verify it with `--help` or the command's docs
 - Before citing a config key, read the actual config file first
-- On completion claims, the 5 hallucination red-flags in your instruction file's VERIFY section apply verbatim — do not restate, just comply.
+- On completion claims, the 5 hallucination red-flags in your instruction file's VERIFY section apply verbatim - do not restate, just comply.
 
 ## Proof Gate
 
 Before any completion, fix, or "passing" claim:
 
-1. **Identify** the proof — the exact command, reproduction, diff, or artifact that would demonstrate the claim.
+1. **Identify** the proof - the exact command, reproduction, diff, or artifact that would demonstrate the claim.
 2. **Run** it fresh in this session (not recalled, not from a prior turn, not paraphrased).
 3. **Read** the full output, including exit code.
 4. **Verify** the output demonstrates the specific claim, not an adjacent one.
@@ -75,7 +75,7 @@ When invoked via /goat or when intent is ambiguous:
 - Simple implementation (rename, add log, move constant) → no skill, use execution loop directly
 - Simple question → answer directly
 
-**Planning intake:** Planning requests route directly to `/goat-plan`; the skill's Step 0 detects read-only-analysis vs file-write intent from the user's phrasing — no depth question at the dispatcher.
+**Planning intake:** Planning requests route directly to `/goat-plan`; the skill's Step 0 detects read-only-analysis vs file-write intent from the user's phrasing - no depth question at the dispatcher.
 **Clarification:** If ambiguous, ask ONE question.
 **Override:** If the user names a skill explicitly, respect it.
 

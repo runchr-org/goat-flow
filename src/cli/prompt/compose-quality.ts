@@ -128,7 +128,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   );
   lines.push("");
   lines.push(
-    "READ-ONLY ASSESSMENT MODE. Do NOT edit, create, rename, move, or delete any tracked files. Do NOT apply patches. Regenerable build artifacts written to gitignored paths (e.g. `dist/`, `node_modules/`, `.claude/worktrees/`) are fine — they don't change the repo's committed state. **Exception:** this prompt instructs you to write your final JSON report to `.goat-flow/logs/quality/<filename>.json` — that path is gitignored and that single write is expected. Do not write anywhere else.",
+    "READ-ONLY ASSESSMENT MODE. Do NOT edit, create, rename, move, or delete any tracked files. Do NOT apply patches. Regenerable build artifacts written to gitignored paths (e.g. `dist/`, `node_modules/`, `.claude/worktrees/`) are fine - they don't change the repo's committed state. **Exception:** this prompt instructs you to write your final JSON report to `.goat-flow/logs/quality/<filename>.json` - that path is gitignored and that single write is expected. Do not write anywhere else.",
   );
   lines.push("");
 
@@ -202,14 +202,14 @@ export function composeQuality(input: QualityInput): QualityPayload {
   );
   lines.push("");
   lines.push(
-    "**Glossary (brief):** *Preflight* — the local umbrella validation script (`bash scripts/preflight-checks.sh`) that runs shellcheck, typecheck, ESLint, Prettier, tests, and project-specific drift checks. Preflight PASS is a hot-path DoD signal; a failing preflight is a real finding. *Audit* — `goat-flow audit` structural installation check (deterministic, no LLM). *Quality* — the agent-driven assessment this prompt generates.",
+    "**Glossary (brief):** *Preflight* - the local umbrella validation script (`bash scripts/preflight-checks.sh`) that runs shellcheck, typecheck, ESLint, Prettier, tests, and project-specific drift checks. Preflight PASS is a hot-path DoD signal; a failing preflight is a real finding. *Audit* - `goat-flow audit` structural installation check (deterministic, no LLM). *Quality* - the agent-driven assessment this prompt generates.",
   );
   lines.push("");
   lines.push(
     "**Design notes** (do NOT flag these as findings - they are intentional):",
   );
   lines.push(
-    '- Session logs (`.goat-flow/logs/sessions/*.md`) and task/milestone files (`.goat-flow/tasks/`, scoped by the `.goat-flow/tasks/.active` marker — see ADR-017) are **intentionally gitignored**. They are local workspace artifacts, not committed content. This is by design - session logs should never be in version control. If the instruction file\'s DoD references session logs, it means "write them locally for the current agent\'s continuity," not "commit them."',
+    '- Session logs (`.goat-flow/logs/sessions/*.md`) and task/milestone files (`.goat-flow/tasks/`, scoped by the `.goat-flow/tasks/.active` marker - see ADR-017) are **intentionally gitignored**. They are local workspace artifacts, not committed content. This is by design - session logs should never be in version control. If the instruction file\'s DoD references session logs, it means "write them locally for the current agent\'s continuity," not "commit them."',
   );
   lines.push(
     "- `toolchain` and `ask_first` fields in `config.yaml` were removed from the base setup in v1.1.0 (see ADR-014). A lean config.yaml with only version, agents, and skills is correct - not a gap.",
@@ -295,7 +295,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("");
   lines.push("```bash");
   lines.push(
-    "# 1. Run read-only validation commands. If the project ships an umbrella script that ties shellcheck/typecheck/tests/audit together (e.g. `bash scripts/preflight-checks.sh`), run it — any writes land in gitignored build directories.",
+    "# 1. Run read-only validation commands. If the project ships an umbrella script that ties shellcheck/typecheck/tests/audit together (e.g. `bash scripts/preflight-checks.sh`), run it - any writes land in gitignored build directories.",
   );
   lines.push(
     `#    Otherwise, run shellcheck and bash -n on shell scripts listed in ${instructionFile}.`,
@@ -352,7 +352,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
 
   lines.push("");
   lines.push(
-    "For the learning loop — `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/decisions/` — DO NOT broad-load. Use grep-first retrieval per `skill-preamble.md` Learning-Loop Retrieval: derive 2-4 search terms from the target area and expected failure class, run `rg -n -i -S '<term1>|<term2>|<term3>' .goat-flow/footguns .goat-flow/lessons .goat-flow/decisions`, open only matching entries, reword once on zero hits, then record a retrieval miss. Broad-loading recreates the context-bloat failure this protocol exists to prevent.",
+    "For the learning loop - `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/decisions/` - DO NOT broad-load. Use grep-first retrieval per `skill-preamble.md` Learning-Loop Retrieval: derive 2-4 search terms from the target area and expected failure class, run `rg -n -i -S '<term1>|<term2>|<term3>' .goat-flow/footguns .goat-flow/lessons .goat-flow/decisions`, open only matching entries, reword once on zero hits, then record a retrieval miss. Broad-loading recreates the context-bloat failure this protocol exists to prevent.",
   );
 
   lines.push("");
@@ -705,7 +705,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("### Write the JSON report");
   lines.push("");
   lines.push(
-    "Do **not** emit the JSON as a fenced block in your reply. Write it as a file to `.goat-flow/logs/quality/` — that path is gitignored and expected, no other writes are permitted.",
+    "Do **not** emit the JSON as a fenced block in your reply. Write it as a file to `.goat-flow/logs/quality/` - that path is gitignored and expected, no other writes are permitted.",
   );
   lines.push("");
   lines.push("**Filename format:** `YYYY-MM-DD-HHMM-<agent>-<rand5>.json`");
@@ -757,7 +757,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     '      "type": "setup_quality", "severity": "MAJOR", "file": ".goat-flow/architecture.md", "line": 12,',
   );
   lines.push(
-    '      "summary": "One-line finding summary", "detail": "Why it matters", "evidence_quality": "OBSERVED", "evidence_method": "static-analysis", "delta_tag": null',
+    `      "summary": "One-line finding summary", "detail": "Why it matters", "evidence_quality": "OBSERVED", "evidence_method": "static-analysis", "delta_tag": ${priorReport ? '"new"' : "null"}`,
   );
   lines.push("    }");
   lines.push("  ]");
@@ -776,13 +776,13 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "- `evidence_quality` is REQUIRED on every finding. Allowed values: `OBSERVED` (verified in code/output), `INFERRED` (state what's missing). Omitting this field causes the report to be rejected.",
   );
   lines.push(
-    "- `evidence_method` is REQUIRED on every finding (schema v2, 2026-04-19+). Allowed values: `runtime-probe` (you invoked commands/tools to verify — e.g. `npx eslint`, `bash <hook>`), `static-analysis` (you read files only), `mixed` (both methods for this specific finding). A finding labelled `OBSERVED` via `static-analysis` can still miss runtime-only defects; labelling the method honestly lets cross-report triangulation flag methodology gaps.",
+    "- `evidence_method` is REQUIRED on every finding (schema v2, 2026-04-19+). Allowed values: `runtime-probe` (you invoked commands/tools to verify - e.g. `npx eslint`, `bash <hook>`), `static-analysis` (you read files only), `mixed` (both methods for this specific finding). A finding labelled `OBSERVED` via `static-analysis` can still miss runtime-only defects; labelling the method honestly lets cross-report triangulation flag methodology gaps.",
   );
   lines.push(
     '- `scope` is REQUIRED at top level. Set `framework-self` if you detect this is the goat-flow repo itself (heuristic: `package.json` contains `"name": "@blundergoat/goat-flow"`). Otherwise set `consumer`.',
   );
   lines.push(
-    `- \`rubric_version\` is REQUIRED at top level; copy the template value (\`"${getPackageVersion()}"\`). The Rating bands section above is the rubric — future readers use this version tag to trace which band anchors produced your scores.`,
+    `- \`rubric_version\` is REQUIRED at top level; copy the template value (\`"${getPackageVersion()}"\`). The Rating bands section above is the rubric - future readers use this version tag to trace which band anchors produced your scores.`,
   );
   lines.push(
     "- `line` must be a positive integer OR `null`. Never `0`. For file-wide findings with no specific line, use `null`.",
@@ -803,7 +803,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "- Do NOT include extra top-level keys or extra finding keys. Unknown keys are rejected.",
   );
   lines.push(
-    "- `summary` and `detail` MUST be single-line strings. No literal newlines, tabs, or other control characters. If you need to reference multi-line command output, summarise the outcome in prose — do NOT paste raw terminal blocks into JSON string fields. Pasted multi-line content produces unparseable JSON and the report is lost.",
+    "- `summary` and `detail` MUST be single-line strings. No literal newlines, tabs, or other control characters. If you need to reference multi-line command output, summarise the outcome in prose - do NOT paste raw terminal blocks into JSON string fields. Pasted multi-line content produces unparseable JSON and the report is lost.",
   );
   lines.push(
     "- If you write the file via a bash heredoc, QUOTE the delimiter (`<<'EOF'`, not `<<EOF`). Unquoted delimiters make the shell interpret `` `backticks` `` as command substitution, which silently eats your inline code references.",

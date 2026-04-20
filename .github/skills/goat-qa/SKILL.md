@@ -87,7 +87,7 @@ For CRITICAL items with no coverage, annotate why: new path / missed coverage on
 
 **Cross-agent verification:** Suggest the user run verification with a different agent or model. Cross-agent verification catches blind spots that same-agent testing misses.
 
-**BLOCKING GATE:** Present the gap analysis. "Here are the testing gaps. Want me to produce a targeted testing plan, a QA flow diagram, or both?" After gap analysis, suggest `/goat-plan` to add testing tasks to the current milestone.
+**BLOCKING GATE:** Present the gap analysis. "Here are the testing gaps. I'll continue to Phase 3 (targeted testing plan). Want a QA flow diagram for any CRITICAL item as well?" Phase 3 is always produced - the flow diagram is the optional add-on. After the testing plan, suggest `/goat-plan` to add testing tasks to the current milestone.
 
 ## Phase 3 - Targeted Testing Plan
 
@@ -108,14 +108,14 @@ For flow diagrams, use Mermaid flowcharts with 8-15 nodes per diagram, happy pat
 
 ## Audit Mode
 
-For a codebase area with no recent change. Audit mode analyses *what already exists* — which files carry load-bearing behaviour, which have test coverage, where that coverage is structural (import/construct only) versus behavioural (exercises real code paths). It does NOT read a diff; skip Phase 1 and its diff-specific constraints.
+For a codebase area with no recent change. Audit mode analyses *what already exists* - which files carry load-bearing behaviour, which have test coverage, where that coverage is structural (import/construct only) versus behavioural (exercises real code paths). It does NOT read a diff; skip Phase 1 and its diff-specific constraints.
 
 ### A1 - Scope
 
 Declare the audit boundary explicitly. Supported shapes:
-- A directory (e.g. `src/cli/audit/`) — every source file inside.
-- A module (e.g. `src/cli/quality/`) — the module's entry point and direct callees.
-- A risk class (e.g. "everything touching auth tokens") — files you would need to read to verify the claim.
+- A directory (e.g. `src/cli/audit/`) - every source file inside.
+- A module (e.g. `src/cli/quality/`) - the module's entry point and direct callees.
+- A risk class (e.g. "everything touching auth tokens") - files you would need to read to verify the claim.
 
 If unsure, ask the user before A2.
 
@@ -146,9 +146,9 @@ Record coverage as `NONE | STRUCTURAL | PARTIAL-BEHAVIOURAL | BEHAVIOURAL`.
 
 Rank gaps by `Risk × (1 - CoverageLevel)` descending. Output:
 
-- **Blocking gaps** — CRITICAL-risk file with NONE or STRUCTURAL coverage. One line per file: missing behaviour + the test the user should add.
-- **High-value additions** — HIGH-risk file with PARTIAL coverage. Describe the untested path.
-- **Defer** — LOW-risk or already well-covered files. Name them explicitly so the user sees what was considered and why.
+- **Blocking gaps** - CRITICAL-risk file with NONE or STRUCTURAL coverage. One line per file: missing behaviour + the test the user should add.
+- **High-value additions** - HIGH-risk file with PARTIAL coverage. Describe the untested path.
+- **Defer** - LOW-risk or already well-covered files. Name them explicitly so the user sees what was considered and why.
 
 **BLOCKING GATE:** Present gap report; wait for human decision before generating plan files.
 
@@ -166,7 +166,7 @@ After a bug fix: define 1-2 invariants, assess coverage of each invariant, then 
 - MUST apply the Proof Gate from `skill-preamble.md` to every claim made in the gap analysis or testing plan
 - MUST NOT generate test code - hand off to the coding agent
 - Universal constraints from skill-preamble.md apply.
-- Standard mode: MUST read the actual diff, not just file names — a one-line auth change outranks a 200-line CSS change
+- Standard mode: MUST read the actual diff, not just file names - a one-line auth change outranks a 200-line CSS change
 - Standard mode: MUST classify every change by risk level with plain-English description of what changed
 - Standard mode: MUST trace blast radius for CRITICAL/HIGH changes
 - Audit mode: MUST classify every in-scope file by role (load-bearing, interface, glue, UI, support), not by recency; MUST NOT read a diff or ask for one
@@ -208,7 +208,7 @@ Output shape depends on the mode declared in Step 0. Pick the template that matc
 ## Flow Diagram  <!-- only on request -->
 ```
 
-### Audit mode (no diff — A1–A4 shape)
+### Audit mode (no diff - A1–A4 shape)
 
 ```markdown
 ## TL;DR  <!-- which files carry load-bearing behaviour, coverage shape, biggest gaps -->

@@ -94,7 +94,7 @@ function loadReport(spec: Parameters<typeof makeFixtureRepo>[0]) {
   });
 }
 
-describe("goat-flow stats — happy path", () => {
+describe("goat-flow stats - happy path", () => {
   it("reports per-bucket freshness and live entry counts", () => {
     const report = loadReport({
       footguns: {

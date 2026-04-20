@@ -6,7 +6,7 @@
 ## Context
 
 - The skill previously shipped two modes: Quick (inline SKEPTIC/ANALYST/STRATEGIST lens passes in a single reviewer context) and Full / delegated (2-3 isolated sub-agents + cross-examination + dispute gating). Stake calibration defaulted Standard-complexity work to Quick (`.claude/skills/goat-critique/SKILL.md:30-42`).
-- Quick mode produced artifact-shaped output without the mechanism that makes the skill worth invoking. A single reviewer running three named lens passes in the same context is not multi-perspective critique — it is self-talk under three labels. Informational diversity, which the skill body itself names as the point of Phase 1 (`.claude/skills/goat-critique/SKILL.md:49-51`), disappears when all passes share one context.
+- Quick mode produced artifact-shaped output without the mechanism that makes the skill worth invoking. A single reviewer running three named lens passes in the same context is not multi-perspective critique - it is self-talk under three labels. Informational diversity, which the skill body itself names as the point of Phase 1 (`.claude/skills/goat-critique/SKILL.md:49-51`), disappears when all passes share one context.
 - The skill's own coherence already admitted this gap: under Quick mode, Phase 2 required that every split finding be tagged as Decision Debt "because cross-examination is skipped, there is no basis to pick a winner" (`.claude/skills/goat-critique/SKILL.md:91`). That rule is a concession that Quick mode cannot do the job the skill exists to do.
 - Low-ceremony multi-lens review is already covered elsewhere. `/goat-review` handles diff-level analysis, pre-existing separation, and single-reviewer quality questions without delegation. Users who want inline lens thinking have that surface; they do not need a Quick fallback inside goat-critique.
 - Recent in-repo experience (2026-04-19 session critiquing the 12-task fix plan derived from `.goat-flow/logs/quality/**`) ran in Quick mode because delegation authorization was implicit rather than explicit. The output was usable but structurally misrepresented the work done: section headings suggested multi-agent coverage while only one context was ever produced. Decision Debt tagging flagged the inconclusive findings, but the artifact shape still read like delegated critique on a quick scan.
@@ -18,7 +18,7 @@
 2. **If delegation is unavailable in the session, the skill does not run.** Step 0 stops and redirects the user to `/goat-review`. Inline lens passes are not an acceptable fallback.
 3. **Skill-chained entry still runs the full 5-phase flow.** The only concession granted by skill-chaining is skipping the intake confirmation; it does not unlock a quick variant.
 4. **`Output Format` ships one template.** The dual Quick/Full template is removed.
-5. **The `SKILLS_DOC_STALE_PHRASES` detector entry that asserts "quick mode skips cross-examination and clarification" (`src/cli/audit/check-factual-claims.ts:352-357` — `skills-critique-contract-drift`) is removed.** With Quick mode retired, the detector's own claim is no longer true; keeping it would false-positive on correct docs.
+5. **The `SKILLS_DOC_STALE_PHRASES` detector entry that asserts "quick mode skips cross-examination and clarification" (`src/cli/audit/check-factual-claims.ts:352-357` - `skills-critique-contract-drift`) is removed.** With Quick mode retired, the detector's own claim is no longer true; keeping it would false-positive on correct docs.
 
 ## Consequences
 
@@ -42,15 +42,15 @@
 
 ## Alternatives considered
 
-- **Keep Quick mode, strengthen the guardrails.** Reject. The structural problem is not guardrail strength — it is that inline lens passes cannot produce isolated-context diversity. A louder warning does not add agents.
+- **Keep Quick mode, strengthen the guardrails.** Reject. The structural problem is not guardrail strength - it is that inline lens passes cannot produce isolated-context diversity. A louder warning does not add agents.
 - **Rename Quick mode to `/goat-critique-inline` as a separate entry point.** Reject. Two entry points doubles the dispatcher decision surface, and the inline form is already covered by `/goat-review`.
 - **Default to Full, keep Quick as opt-in.** Reject. Prior wording already framed Full as opt-in by authorization, yet Quick was the routine behaviour. Making Quick opt-in does not change the default-path habit.
 - **Merge goat-critique into goat-review with a `--multi-agent` flag.** Reject. The two skills have materially different contracts: goat-review gates on diff scope, pre-existing separation, and blast radius; goat-critique gates on multi-perspective isolation and cross-examination. Merging flattens both contracts and weakens both.
 
 ## Related decisions
 
-- **ADR-011** — multi-perspective critique is a core goat-flow feature. This ADR does not revisit the feature's role; it constrains the implementation to the delegated-only form.
-- **ADR-019** — renamed `goat-sbao` to `goat-critique`. That rename aligned the skill's command name with its operation. This ADR aligns the operation with its mechanism.
+- **ADR-011** - multi-perspective critique is a core goat-flow feature. This ADR does not revisit the feature's role; it constrains the implementation to the delegated-only form.
+- **ADR-019** - renamed `goat-sbao` to `goat-critique`. That rename aligned the skill's command name with its operation. This ADR aligns the operation with its mechanism.
 
 ## Revisit Triggers
 

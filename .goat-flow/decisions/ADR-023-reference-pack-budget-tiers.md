@@ -22,8 +22,8 @@ All three violate the rule on disk. The violation surfaced as a MAJOR finding in
 
 **Why the single-budget model was wrong:** "Reference pack" conflates two distinct load patterns:
 
-1. **Always-loaded shared content** — read on *every* invocation of the owning skills. `skill-preamble.md` is loaded by all 7 SKILL.md files; `skill-conventions.md` is loaded on full-depth invocations. Their size is effectively part of the skill-loading overhead.
-2. **Progressive reference pack** — loaded on-demand from within a skill when that skill enters a specific mode (authoring, hardening, review-class work). `skill-quality-testing.md` is only read during skill authoring — not on every goat-* invocation.
+1. **Always-loaded shared content** - read on *every* invocation of the owning skills. `skill-preamble.md` is loaded by all 7 SKILL.md files; `skill-conventions.md` is loaded on full-depth invocations. Their size is effectively part of the skill-loading overhead.
+2. **Progressive reference pack** - loaded on-demand from within a skill when that skill enters a specific mode (authoring, hardening, review-class work). `skill-quality-testing.md` is only read during skill authoring - not on every goat-* invocation.
 
 A single 400-word cap is defensible for progressive packs (small, pick-one-of-many). It is unrealistic for always-loaded shared content that must carry enough context to be useful across all 7 skills.
 
@@ -60,11 +60,11 @@ The existing `skill-quality-testing.md` file stays at its current path but becom
 
 1. **Single-tier rewrite: raise the budget to ≥4000w.** Rejected. Acknowledges the violation without differentiating load patterns, so the two always-loaded files pay token cost every invocation with no discipline applied. Also allows future authoring-reference drift upward without friction.
 
-2. **Exempt the shared `skill-reference/` tier from any budget.** Rejected for the same reason — no discipline means the files can grow unboundedly, and the always-loaded files hit every skill run.
+2. **Exempt the shared `skill-reference/` tier from any budget.** Rejected for the same reason - no discipline means the files can grow unboundedly, and the always-loaded files hit every skill run.
 
 3. **Split without a budget rewrite (keep the 400w rule, create many small files).** Rejected. Produces one-paragraph files that fragment methodology across many hops, making authoring harder, not easier. The 400w cap was wrong for this class of content; raising it for the real load pattern is the honest fix.
 
-4. **Keep the monolith, defer split to a future milestone.** Rejected. The violation has persisted across four quality-review runs with the same MAJOR severity. Each run consumes the full 3893 words of the file on every authoring task — the compounding cost outweighs the one-time split work.
+4. **Keep the monolith, defer split to a future milestone.** Rejected. The violation has persisted across four quality-review runs with the same MAJOR severity. Each run consumes the full 3893 words of the file on every authoring task - the compounding cost outweighs the one-time split work.
 
 ## Consequences
 
@@ -72,5 +72,5 @@ The existing `skill-quality-testing.md` file stays at its current path but becom
 - Drift-check plumbing grows: `scripts/preflight-checks.sh`, `src/cli/audit/check-drift.ts` `SHARED_FILES` array, `workflow/install-goat-flow.sh`, `workflow/manifest.json`, and the `test/integration/audit-drift.test.ts` + `test/integration/preamble-sync.test.ts` fixture lists each gain the three new pairs.
 - `src/cli/audit/check-content-quality.ts` picks up the three new files so content-quality lint applies to the split content the same way it applied to the monolith.
 - Agents consulting `skill-quality-testing.md` for authoring guidance now read a short index, then load only the topical file their skill type needs (often just one).
-- The budget rule's new home is `deployment.md`. Cross-references that previously pointed at `skill-quality-testing.md` line 416 are forward-compatible because the file still exists (as the index) — but new cross-references should target `deployment.md` directly.
-- Future split work: if any of the three topical files exceeds 3000w, it splits further under the same model. `tdd-iteration.md` is the one to watch — it already sits at ~2800w carrying the bulk of the methodology, and any future content additions should be evaluated for whether they belong in a new topical file instead.
+- The budget rule's new home is `deployment.md`. Cross-references that previously pointed at `skill-quality-testing.md` line 416 are forward-compatible because the file still exists (as the index) - but new cross-references should target `deployment.md` directly.
+- Future split work: if any of the three topical files exceeds 3000w, it splits further under the same model. `tdd-iteration.md` is the one to watch - it already sits at ~2800w carrying the bulk of the methodology, and any future content additions should be evaluated for whether they belong in a new topical file instead.

@@ -132,10 +132,10 @@ last_reviewed: 2026-04-20
 
 **What this means for critique practice:**
 1. Multi-agent critique is worth doing for large surfaces. A single thorough review will miss things, and the things it misses can be important.
-2. Model diversity matters more than reviewer count. Different model families have different systematic blind spots — one family may under-weight documentation surfaces, another may miss integration glue. Mixing families covers more ground than stacking instances of one.
+2. Model diversity matters more than reviewer count. Different model families have different systematic blind spots - one family may under-weight documentation surfaces, another may miss integration glue. Mixing families covers more ground than stacking instances of one.
 3. The synthesis + verification layer is where the value is captured. A non-trivial share of raw multi-agent claims will be wrong or need active verification. Unverified multi-agent output is noisier, not more reliable.
 4. Sweet spot: several reviews from different model families for a framework/architecture audit; fewer for a feature or module.
-5. Score convergence across reviewers is the signal that coverage is adequate — not review count. High score variance means some reviewer missed a major category.
+5. Score convergence across reviewers is the signal that coverage is adequate - not review count. High score variance means some reviewer missed a major category.
 
 **Prevention:** When commissioning multi-agent critique, plan for synthesis work. Budget time to: (a) verify disputed claims against source code, (b) track first-discovery of each finding, (c) dispute false claims with evidence. The critique is an input that requires judgment, not a spec that gets executed.
 
@@ -226,7 +226,7 @@ last_reviewed: 2026-04-20
 
 **Status:** active | **Created:** 2026-04-18
 
-**What happened:** During rename verification for ~~`.goat-flow/tasks/1.3.0`~~ to `.goat-flow/tasks/1.2.0-wave-6` (old path no longer exists — historical context), a ripgrep command embedded backticks in the shell pattern. Bash treated ``1.3.0`` as command substitution and failed with `/bin/bash: line 1: 1.3.0: command not found`, which made the verification step noisy and ambiguous.
+**What happened:** During rename verification for ~~`.goat-flow/tasks/1.3.0`~~ to `.goat-flow/tasks/1.2.0-wave-6` (old path no longer exists - historical context), a ripgrep command embedded backticks in the shell pattern. Bash treated ``1.3.0`` as command substitution and failed with `/bin/bash: line 1: 1.3.0: command not found`, which made the verification step noisy and ambiguous.
 
 **Root cause:** Mixed markdown-style quoting with shell quoting during a verification command. The search intent was correct, but the shell interpreted the pattern before `rg` saw it.
 
@@ -320,19 +320,19 @@ last_reviewed: 2026-04-20
 
 **Status:** active | **Created:** 2026-04-18
 
-**What happens:** The 5 hallucination red-flags in AGENTS.md:51-58 forbid claims without evidence (tests pass, completion, fix verification, hedged claims, check passed). Agents still ship unverified claims under pressure by producing rationalizations that feel distinct from the forbidden claim but are logically equivalent to it. "I'm 95% confident", "the sub-agent said it passed", "the change looks correct" — each slips past the red-flags because the red-flags name the violation, not the specific excuse pattern.
+**What happens:** The 5 hallucination red-flags in AGENTS.md:51-58 forbid claims without evidence (tests pass, completion, fix verification, hedged claims, check passed). Agents still ship unverified claims under pressure by producing rationalizations that feel distinct from the forbidden claim but are logically equivalent to it. "I'm 95% confident", "the sub-agent said it passed", "the change looks correct" - each slips past the red-flags because the red-flags name the violation, not the specific excuse pattern.
 
 **Root cause:** The red-flags catalog what NOT to claim. They do not enumerate the specific rationalizations that convert "I didn't run the proof" into "it's fine." Under pressure (deadline, fatigue, long turn, trusted sub-agent report, partial run that "mostly worked"), the agent reaches for a rationalization the red-flags do not explicitly name, and the claim lands anyway.
 
 **Rationalizations to reject:**
-- "Confidence ≠ evidence" — high subjective confidence does not substitute for running the verification command in this message.
-- "Just this once" — partial compliance compounds into no compliance. There is no exemption for a single turn.
-- "The downstream agent said success, so it passes" — delegated claims are subject to the same red-flags; do not launder an unverified sub-agent output by restating it yourself.
-- "Partial check is enough" — a subset of tests is not the test suite. If the red-flag applies to the whole check, a partial run does not discharge it.
-- "Code changed, so probably fixed" — red-flag #3 requires re-running the reproduction that originally demonstrated the bug. "Probably fixed" is a hedged claim (red-flag #4).
-- "Looks correct to me" — structural inspection is not verification. If the red-flag demands output, reading code is not output.
+- "Confidence ≠ evidence" - high subjective confidence does not substitute for running the verification command in this message.
+- "Just this once" - partial compliance compounds into no compliance. There is no exemption for a single turn.
+- "The downstream agent said success, so it passes" - delegated claims are subject to the same red-flags; do not launder an unverified sub-agent output by restating it yourself.
+- "Partial check is enough" - a subset of tests is not the test suite. If the red-flag applies to the whole check, a partial run does not discharge it.
+- "Code changed, so probably fixed" - red-flag #3 requires re-running the reproduction that originally demonstrated the bug. "Probably fixed" is a hedged claim (red-flag #4).
+- "Looks correct to me" - structural inspection is not verification. If the red-flag demands output, reading code is not output.
 
-**Fix:** The Proof Gate in `skill-preamble.md` names the positive procedure (identify → run fresh → read → verify → cite). This lesson names the negative counterpart: the rationalization patterns that specifically defeat the red-flags. Before any completion, fix, or "passing" claim, check whether the next sentence you are about to write matches one of the patterns above. If it does, stop and satisfy the Proof Gate instead — or downgrade the claim to UNVERIFIED and state what evidence is still missing.
+**Fix:** The Proof Gate in `skill-preamble.md` names the positive procedure (identify → run fresh → read → verify → cite). This lesson names the negative counterpart: the rationalization patterns that specifically defeat the red-flags. Before any completion, fix, or "passing" claim, check whether the next sentence you are about to write matches one of the patterns above. If it does, stop and satisfy the Proof Gate instead - or downgrade the claim to UNVERIFIED and state what evidence is still missing.
 
 ---
 

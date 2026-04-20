@@ -300,7 +300,7 @@ describe("checkDrift: frontmatter key reorder is not a false positive", () => {
   let root: string;
   before(() => {
     root = setupFixture();
-    // Reorder frontmatter keys only — semantic equivalence must hold.
+    // Reorder frontmatter keys only - semantic equivalence must hold.
     writeFileSync(
       join(root, ".claude", "skills", "goat", "SKILL.md"),
       "---\ndescription: stub for drift test\nname: goat\n---\n# goat\nbody\n",
