@@ -8,7 +8,7 @@ Committed:
 
 Local-only (gitignored):
 
-- `<YYYY-MM-DD>-<artifact-slug>.md` - sub-agent summaries, comparison matrix, cross-examination outcomes, rubric coverage gaps
+- `<YYYY-MM-DD>-<HHMM>-<artifact-slug>-<rand5>.md` - sub-agent summaries, comparison matrix, cross-examination outcomes, rubric coverage gaps (`HHMM` + random suffix prevent collisions across concurrent agents)
 
 Use:
 

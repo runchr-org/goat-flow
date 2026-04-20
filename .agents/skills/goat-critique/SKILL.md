@@ -106,7 +106,7 @@ For unique HIGH/CRITICAL findings, spawn verification: "Only one critique raised
 
 Mark each: RESOLVED (with winner) / STILL DISPUTED / RETRACTED (false positive confirmed).
 
-**Persist before gate:** Before entering Phase 4, write Phase 3 results to `.goat-flow/logs/critiques/<YYYY-MM-DD-artifact-slug>.md` - sub-agent summaries, comparison matrix, cross-examination outcomes. If the session is interrupted at the Phase 4 gate, this file preserves the work done so far.
+**Persist before gate:** Before entering Phase 4, write Phase 3 results to `.goat-flow/logs/critiques/<YYYY-MM-DD>-<HHMM>-<artifact-slug>-<rand5>.md` - sub-agent summaries, comparison matrix, cross-examination outcomes. The `HHMM` timestamp and 5-character random suffix prevent filename collisions when multiple agents run critiques on the same artifact concurrently. If the session is interrupted at the Phase 4 gate, this file preserves the work done so far.
 
 ## Phase 4 - Clarify
 
