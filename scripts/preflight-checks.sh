@@ -493,20 +493,21 @@ if [[ -f dist/cli/audit/check-goat-flow.js ]]; then
     section "Doc/Code Drift"
 
     # B.8a: Architecture count validation
-    build_count=$(node --input-type=module -e "const s=await import('./dist/cli/audit/check-goat-flow.js');const a=await import('./dist/cli/audit/check-agent-setup.js');console.log(s.SETUP_CHECKS.length+a.AGENT_CHECKS.length)" 2>/dev/null || echo "")
-    quality_count=$(node --input-type=module -e "const q=await import('./dist/cli/audit/harness/index.js');console.log(q.HARNESS_CHECKS.length)" 2>/dev/null || echo "")
+    # Pipe through grep to strip any stray node diagnostics down to a bare number.
+    build_count=$(node --input-type=module -e "const s=await import('./dist/cli/audit/check-goat-flow.js');const a=await import('./dist/cli/audit/check-agent-setup.js');console.log(s.SETUP_CHECKS.length+a.AGENT_CHECKS.length)" 2>/dev/null | grep -oE '^[0-9]+$' | tail -1 || echo "")
+    quality_count=$(node --input-type=module -e "const q=await import('./dist/cli/audit/harness/index.js');console.log(q.HARNESS_CHECKS.length)" 2>/dev/null | grep -oE '^[0-9]+$' | tail -1 || echo "")
 
     if [[ -f .goat-flow/architecture.md ]] && [[ -n "$build_count" ]] && [[ -n "$quality_count" ]]; then
-        if grep -q "${build_count} build" .goat-flow/architecture.md && grep -q "${quality_count} AI harness" .goat-flow/architecture.md; then
+        if grep -Fq "${build_count} build" .goat-flow/architecture.md && grep -Fq "${quality_count} AI harness" .goat-flow/architecture.md; then
             pass "Architecture doc counts match code (build: ${build_count}, AI harness: ${quality_count})"
         else
             fail "Architecture doc check counts mismatch - expected ${build_count} build + ${quality_count} AI harness in .goat-flow/architecture.md"
         fi
         # B.8a2: Sub-breakdown validation (setup + agent)
-        setup_count=$(node --input-type=module -e "const s=await import('./dist/cli/audit/check-goat-flow.js');console.log(s.SETUP_CHECKS.length)" 2>/dev/null || echo "")
-        agent_count=$(node --input-type=module -e "const a=await import('./dist/cli/audit/check-agent-setup.js');console.log(a.AGENT_CHECKS.length)" 2>/dev/null || echo "")
+        setup_count=$(node --input-type=module -e "const s=await import('./dist/cli/audit/check-goat-flow.js');console.log(s.SETUP_CHECKS.length)" 2>/dev/null | grep -oE '^[0-9]+$' | tail -1 || echo "")
+        agent_count=$(node --input-type=module -e "const a=await import('./dist/cli/audit/check-agent-setup.js');console.log(a.AGENT_CHECKS.length)" 2>/dev/null | grep -oE '^[0-9]+$' | tail -1 || echo "")
         if [[ -n "$setup_count" ]] && [[ -n "$agent_count" ]]; then
-            if grep -q "${setup_count} setup" .goat-flow/architecture.md && grep -q "${agent_count} agent" .goat-flow/architecture.md; then
+            if grep -Fq "${setup_count} setup" .goat-flow/architecture.md && grep -Fq "${agent_count} agent" .goat-flow/architecture.md; then
                 pass "Architecture doc sub-breakdown matches code (setup: ${setup_count}, agent: ${agent_count})"
             else
                 fail "Architecture doc sub-breakdown mismatch - expected ${setup_count} setup + ${agent_count} agent in .goat-flow/architecture.md"
@@ -526,7 +527,7 @@ if [[ -f dist/cli/audit/check-goat-flow.js ]]; then
         b8a3_ok=true
         for doc in CLAUDE.md AGENTS.md GEMINI.md .goat-flow/code-map.md CONTRIBUTING.md; do
             [[ -f "$doc" ]] || continue
-            stale=$(grep -oE '[0-9]+ setup' "$doc" 2>/dev/null | grep -v "^${setup_count} setup$" | head -1 || true)
+            stale=$(grep -oE '[0-9]+ setup' "$doc" 2>/dev/null | grep -Fv "${setup_count} setup" | head -1 || true)
             if [[ -n "$stale" ]]; then
                 fail "Downstream doc sub-breakdown drift in ${doc}: found '${stale}' (expected '${setup_count} setup')"
                 b8a3_ok=false
