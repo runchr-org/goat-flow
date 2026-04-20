@@ -497,6 +497,7 @@ if [[ -f dist/cli/audit/check-goat-flow.js ]]; then
     build_count=$(node --input-type=module -e "const s=await import('./dist/cli/audit/check-goat-flow.js');const a=await import('./dist/cli/audit/check-agent-setup.js');console.log(s.SETUP_CHECKS.length+a.AGENT_CHECKS.length)" 2>/dev/null | grep -oE '^[0-9]+$' | tail -1 || echo "")
     quality_count=$(node --input-type=module -e "const q=await import('./dist/cli/audit/harness/index.js');console.log(q.HARNESS_CHECKS.length)" 2>/dev/null | grep -oE '^[0-9]+$' | tail -1 || echo "")
 
+    setup_count=""
     if [[ -f .goat-flow/architecture.md ]] && [[ -n "$build_count" ]] && [[ -n "$quality_count" ]]; then
         if grep -Fq "${build_count} build" .goat-flow/architecture.md && grep -Fq "${quality_count} AI harness" .goat-flow/architecture.md; then
             pass "Architecture doc counts match code (build: ${build_count}, AI harness: ${quality_count})"
