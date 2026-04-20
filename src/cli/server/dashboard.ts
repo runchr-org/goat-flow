@@ -31,7 +31,7 @@ import {
 } from "../agents/registry.js";
 import { detectAgents as detectConfiguredAgents } from "../detect/agents.js";
 import type { AgentId } from "../types.js";
-import { detectStack as detectCanonicalStack } from "../detect/project-stack.js";
+import { detectSetupStack } from "../detect/project-stack.js";
 import type { AuditReport } from "../audit/types.js";
 import type { QualityHistoryEntry } from "../quality/history.js";
 import type { DashboardReport, Runner } from "./types.js";
@@ -195,7 +195,9 @@ function loadDashboardPresets(): DashboardPreset[] {
       typeof entry.prompt !== "string" ||
       typeof entry.cat !== "string"
     ) {
-      throw new Error(`${relativePath} has an invalid preset at index ${index}`);
+      throw new Error(
+        `${relativePath} has an invalid preset at index ${index}`,
+      );
     }
     return entry;
   });
@@ -294,12 +296,13 @@ export function serveDashboard(
         const content =
           filename === "preset-prompts.json"
             ? readFileSync(
-                resolveFirstExistingPackagePath(
-                  DASHBOARD_PRESET_CATALOG_PATHS,
-                ),
+                resolveFirstExistingPackagePath(DASHBOARD_PRESET_CATALOG_PATHS),
                 "utf-8",
               )
-            : readFileSync(getTemplatePath(`dist/dashboard/${filename}`), "utf-8");
+            : readFileSync(
+                getTemplatePath(`dist/dashboard/${filename}`),
+                "utf-8",
+              );
         res.writeHead(200, { "Content-Type": contentType });
         res.end(content);
       } catch {
@@ -540,121 +543,6 @@ export function serveDashboard(
       return true;
     }
 
-    /** Detect frameworks by matching patterns against dependency file contents. */
-    function detectFrameworks(projectPath: string): string[] {
-      const frameworkPatterns: [string, RegExp][] = [
-        ["Symfony", /symfony\//i],
-        ["Laravel", /laravel\/framework/i],
-        ["Django", /django/i],
-        ["FastAPI", /fastapi/i],
-        ["Flask", /flask/i],
-        ["Express", /"express"/i],
-        ["React", /"react"/i],
-        ["Vue", /"vue"/i],
-        ["Angular", /@angular\/core/i],
-        ["Next.js", /"next"/i],
-        ["Nuxt", /"nuxt"/i],
-        ["Svelte", /"svelte"/i],
-        ["Rails", /rails/i],
-        ["Spring", /spring-boot/i],
-        ["Actix", /actix-web/i],
-        ["Gin", /gin-gonic/i],
-        ["Echo", /labstack\/echo/i],
-      ];
-
-      const depFiles = [
-        "package.json",
-        "composer.json",
-        "Gemfile",
-        "pyproject.toml",
-        "Cargo.toml",
-        "go.mod",
-      ];
-      let allDepsContent = "";
-      for (const df of depFiles) {
-        const fp = join(projectPath, df);
-        if (existsSync(fp)) {
-          try {
-            allDepsContent += readFileSync(fp, "utf-8") + "\n";
-          } catch {
-            /* skip */
-          }
-        }
-      }
-
-      const frameworks: string[] = [];
-      for (const [name, pattern] of frameworkPatterns) {
-        if (pattern.test(allDepsContent)) frameworks.push(name);
-      }
-      return frameworks;
-    }
-
-    /** Type for the detected command slots. */
-    type CommandSlots = {
-      test: string;
-      lint: string;
-      build: string;
-      format: string;
-    };
-
-    /** Display labels for canonical stack language ids shown in the setup UI. */
-    const SETUP_LANGUAGE_LABELS: Record<string, string> = {
-      javascript: "JavaScript",
-      typescript: "TypeScript",
-      php: "PHP",
-      python: "Python",
-      go: "Go",
-      rust: "Rust",
-      ruby: "Ruby",
-      java: "Java",
-      csharp: "C#",
-      bash: "Bash",
-      swift: "Swift",
-      kotlin: "Kotlin",
-      markdown: "Markdown",
-      blade: "Blade",
-      jinja: "Jinja",
-    };
-
-    /** Convert canonical stack command fields into setup-view command slots. */
-    function buildSetupCommands(stack: {
-      testCommand: string | null;
-      lintCommand: string | null;
-      buildCommand: string | null;
-      formatCommand: string | null;
-    }): CommandSlots {
-      return {
-        test: stack.testCommand ?? "",
-        lint: stack.lintCommand ?? "",
-        build: stack.buildCommand ?? "",
-        format: stack.formatCommand ?? "",
-      };
-    }
-
-    /** Convert canonical stack language ids into the setup-view display labels. */
-    function buildSetupLanguages(stackLanguages: readonly string[]): string[] {
-      const labels: string[] = [];
-      for (const language of stackLanguages) {
-        const display = SETUP_LANGUAGE_LABELS[language];
-        if (display && !labels.includes(display)) labels.push(display);
-      }
-      return labels;
-    }
-
-    /** Build the setup-view stack summary from canonical detection plus setup-only framework probing. */
-    function detectSetupStack(projectPath: string): {
-      languages: string[];
-      frameworks: string[];
-      commands: CommandSlots;
-    } {
-      const stack = detectCanonicalStack(createFS(projectPath));
-      return {
-        languages: buildSetupLanguages(stack.languages),
-        frameworks: detectFrameworks(projectPath),
-        commands: buildSetupCommands(stack),
-      };
-    }
-
     /** Detect which supported agent surfaces already exist in the project. */
     function detectScaffoldedAgents(
       projectPath: string,
@@ -749,7 +637,7 @@ export function serveDashboard(
 
       try {
         requireProjectDirectory(projectPath);
-        const stack = detectSetupStack(projectPath);
+        const stack = detectSetupStack(createFS(projectPath));
         jsonResponse(res, 200, {
           languages: stack.languages,
           frameworks: stack.frameworks,

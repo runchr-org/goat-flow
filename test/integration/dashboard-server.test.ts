@@ -10,6 +10,8 @@ import {
   getAgentProfileMap,
   getKnownAgentIds,
 } from "../../src/cli/agents/registry.js";
+import { detectSetupStack } from "../../src/cli/detect/project-stack.js";
+import { createFS } from "../../src/cli/facts/fs.js";
 import type { AgentId } from "../../src/cli/types.js";
 
 const PROJECT_PATH = resolve(import.meta.dirname, "..", "..");
@@ -360,12 +362,20 @@ describe("dashboard /api/setup/detect", () => {
     assert.equal(res.status, 200);
 
     const data = expectRecord(body, "Setup detect response");
+    const canonicalStack = detectSetupStack(createFS(PROJECT_PATH));
     assert.ok(Array.isArray(data.languages));
     assert.ok((data.languages as unknown[]).includes("TypeScript"));
     assert.ok(Array.isArray(data.frameworks));
-    expectRecord(data.commands, "Setup detect commands");
+    const commands = expectRecord(data.commands, "Setup detect commands");
+    assert.deepEqual(data.languages, canonicalStack.languages);
+    assert.deepEqual(data.frameworks, canonicalStack.frameworks);
+    assert.equal(commands.build, canonicalStack.commands.build);
+    assert.equal(commands.test, canonicalStack.commands.test);
+    assert.equal(commands.lint, canonicalStack.commands.lint);
+    assert.equal(commands.format, canonicalStack.commands.format);
     expectRecord(data.agents, "Setup detect agents");
     expectRecord(data.existing, "Setup detect existing");
+    assert.ok(Array.isArray(data.nonGoatFlow));
   });
 });
 

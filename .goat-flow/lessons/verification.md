@@ -412,6 +412,10 @@ last_reviewed: 2026-04-20
 
 **Fix:** For tmp-repo preflight coverage, either keep the source test file formatted in the real checkout before cloning or explicitly format any copied `src/**/*.ts` and `test/**/*.ts` files that changed in the source repo. Assume preflight sees the entire cloned repo, not only the temp patch set.
 
+**Prevention update (2026-04-20):**
+1. Treat any unformatted tracked file in the real checkout as a blocker for `checkDrift` round-trip fixtures, because the temp repo inherits that formatting debt before its own assertions run.
+2. After touching `src/**/*.ts` or `test/**/*.ts`, run the formatter before trusting installer/preflight round-trip tests as evidence about drift logic.
+
 ---
 
 ## Lesson: Renaming a tracked file requires manifest fact updates, not just cross-ref updates
@@ -462,3 +466,21 @@ last_reviewed: 2026-04-20
 1. After introducing a new dashboard static asset, verify both the build script path and the source-run server/test path.
 2. Treat `npm run typecheck` as schema coverage only; any new file-loading path still needs a runtime test.
 3. When the dashboard server reads shipped assets during startup, prefer a controlled fallback instead of assuming `dist/` is always populated in local verification flows.
+
+---
+
+## Lesson: Refactors that delete files also need tool-config cleanup
+
+**Status:** active | **Created:** 2026-04-20
+
+**What happened:** The setup-summary refactor passed `npm run typecheck` and the focused detector/dashboard tests, but full preflight still failed at the Knip gate. One failure was a stale ignore entry in `knip.json` for the old dashboard preset TypeScript module that had already been deleted; the other was an exported `SetupStackSummary` type that had no external consumer.
+
+**Root cause:** Verified runtime behavior first and only learned about tooling drift at the end. File deletions and new exports change cold-path tool surfaces (`knip.json`, unused-export analysis) even when app behavior and tests are correct.
+
+**Evidence:** `knip.json:3` - ignore list still carried the deleted dashboard preset TypeScript path; `src/cli/detect/project-stack.ts:27` - `SetupStackSummary` was exported even though only local consumers needed it.
+
+**Fix:** Remove the stale Knip ignore entry, de-export the setup-summary interface, then rerun `npx knip` before the final preflight pass.
+
+**Prevention:**
+1. After deleting or renaming a source file, scan repo tool configs (`knip.json`, eslint/prettier ignores, test fixtures) for stale path references before relying on preflight.
+2. After introducing a new exported symbol during a refactor, run `npx knip` before the full gate so unused exports are caught while the context is still local.

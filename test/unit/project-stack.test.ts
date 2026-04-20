@@ -4,7 +4,10 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { detectStack } from "../../src/cli/detect/project-stack.js";
+import {
+  detectSetupStack,
+  detectStack,
+} from "../../src/cli/detect/project-stack.js";
 import type { ReadonlyFS } from "../../src/cli/types.js";
 
 /** Build a minimal ReadonlyFS stub for stack-detection tests. */
@@ -85,5 +88,49 @@ describe("detectStack", () => {
     assert.deepEqual(stack.languages, ["markdown"]);
     assert.equal(stack.signals.codeGenTools.length, 0);
     assert.equal(stack.signals.deployPlatforms.length, 0);
+  });
+});
+
+describe("detectSetupStack", () => {
+  it("derives setup languages, frameworks, and commands from the canonical stack", () => {
+    const fs = stubFS({
+      exists: (path) => path === "tsconfig.json" || path === "sqlc.yaml",
+      readJson: (path) =>
+        path === "package.json"
+          ? {
+              dependencies: {
+                react: "^18.0.0",
+                "react-dom": "^18.0.0",
+                next: "^14.0.0",
+              },
+              devDependencies: { typescript: "^5.0.0" },
+              scripts: {
+                build: "next build",
+                lint: "next lint",
+                test: "vitest run",
+                format: "prettier --check .",
+              },
+            }
+          : null,
+      readFile: (path) => {
+        if (path === "README.md") return "HIPAA workflow";
+        return null;
+      },
+      glob: (pattern) => {
+        if (pattern === "src/**/*.ts") return ["src/app.ts"];
+        if (pattern === "src/**/*.*") return ["src/app.ts"];
+        return [];
+      },
+    });
+
+    const setup = detectSetupStack(fs);
+    assert.deepEqual(setup.languages, ["JavaScript", "TypeScript"]);
+    assert.deepEqual(setup.frameworks, ["React", "Next.js"]);
+    assert.deepEqual(setup.commands, {
+      build: "next build",
+      test: "vitest run",
+      lint: "next lint",
+      format: "prettier --check .",
+    });
   });
 });
