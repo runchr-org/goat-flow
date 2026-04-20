@@ -58,7 +58,7 @@ describe("scanCountClaims: skill count", () => {
     const actual = SKILL_NAMES.length;
     const wrong = actual + 2;
     const findings = scanCountClaims(
-      "README.md",
+      ".goat-flow/architecture.md",
       `We ship ${wrong} skills as of today.`,
     );
     const drift = findings.find((f) => f.rule === "skill-count-drift");
@@ -70,10 +70,20 @@ describe("scanCountClaims: skill count", () => {
 
   it("does not flag the correct skill count", () => {
     const findings = scanCountClaims(
-      "README.md",
+      ".goat-flow/architecture.md",
       `We ship ${SKILL_NAMES.length} skills.`,
     );
     assert.equal(findings.length, 0);
+  });
+
+  it("skips skill-count check on consumer docs outside goat-flow paths", () => {
+    const wrong = SKILL_NAMES.length + 5;
+    const findings = scanCountClaims(
+      "README.md",
+      `Our product teaches ${wrong} skills to new users.`,
+    );
+    const drift = findings.find((f) => f.rule === "skill-count-drift");
+    assert.equal(drift, undefined, "skill-count-drift should not fire on README.md");
   });
 });
 

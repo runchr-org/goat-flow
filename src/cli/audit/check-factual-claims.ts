@@ -299,6 +299,9 @@ export function scanCountClaims(
   checks: CountClaimCheck[] = COUNT_CHECKS,
 ): ContentFinding[] {
   const findings: ContentFinding[] = [];
+  const applicable = checks.filter(
+    (c) => !c.scopedTo || c.scopedTo.some((p) => path.startsWith(p)),
+  );
   const lines = text.split(/\r?\n/);
   let inCodeBlock = false;
   for (let i = 0; i < lines.length; i++) {
@@ -307,10 +310,8 @@ export function scanCountClaims(
       inCodeBlock = !inCodeBlock;
       continue;
     }
-    for (const check of checks) {
+    for (const check of applicable) {
       if (inCodeBlock && !check.scanFenced) continue;
-      if (check.scopedTo && !check.scopedTo.some((p) => path.startsWith(p)))
-        continue;
       const rx = new RegExp(check.pattern.source, check.pattern.flags);
       let match: RegExpExecArray | null;
       while ((match = rx.exec(line)) !== null) {
