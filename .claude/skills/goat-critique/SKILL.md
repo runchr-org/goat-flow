@@ -55,7 +55,7 @@ All three perspectives must appear in every critique from Agents A and B. The te
 
 **Sub-agent A (Risk Focus - backward-looking context):**
 Gets: artifact + architecture.md + footguns + lessons + critique rubric.
-Directive: "Apply SKEPTIC/ANALYST/STRATEGIST. Focus on RISKS: what could go wrong, what the evidence says about cost/benefit, what the fastest safe path looks like. Your context includes past mistakes (footguns, lessons) - use them."
+Directive: "Apply SKEPTIC/ANALYST/STRATEGIST. Focus on RISKS: what could go wrong, what the evidence says about cost/benefit, what the 2nd-order systemic impacts are (local fix → global break patterns), and what the fastest safe path looks like. For any 2nd-order claim, you MUST cite the downstream file or system by name — speculation without a named target gets retracted in Phase 3. Your context includes past mistakes (footguns, lessons) - use them."
 
 **Sub-agent B (Alternatives Focus - current-state context):**
 Gets: artifact + architecture.md + recent git history (`git log --oneline -20`) + config.yaml + critique rubric.
@@ -205,18 +205,17 @@ The rubric determines what sub-agents evaluate. Match to artifact type:
 
 ```markdown
 ## Verdict  <!-- STRONG / ADEQUATE / WEAK / FLAWED + risk level + top 1-3 blockers if any -->
-## TL;DR
 ## Critique Rubric  <!-- which rubric and why -->
 ## Sub-Agent Comparison Matrix  <!-- finding x agent grid -->
 ## Sub-Agent Rankings  <!-- grounding, specificity, actionability, coverage, calibration -->
 ## Rubric Coverage Gaps  <!-- auto-generated HIGH findings for unaddressed dimensions -->
 ## Control Group Delta  <!-- Agent C unique findings: context drift / readability gap / context-limited -->
-## Validated Findings  <!-- consensus + verified unique findings (survived cross-examination) -->
+## Validated Findings  <!-- consensus + verified unique findings (survived cross-examination); source pool for Recommended Changes below -->
 ## Cross-Examination Results
 ## Retracted Findings
 ## Human Decisions  <!-- Phase 4 responses and how they shaped the synthesis -->
 ## Strengths  <!-- what to preserve -->
-## Recommended Changes  <!-- ordered by severity, each with concrete action -->
+## Recommended Changes  <!-- subset of Validated Findings that need action, ordered by severity; each with concrete action -->
 ## Decision Debt  <!-- decisions with incomplete evidence, confidence, revisit trigger -->
 ## Open Questions  <!-- genuine unknowns that block progress -->
 ## What Wasn't Critiqued  <!-- blind spot check output -->
