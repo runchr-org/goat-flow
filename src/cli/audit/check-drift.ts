@@ -59,11 +59,18 @@ export function parseMarkdownFrontmatter(raw: string): {
   frontmatter: unknown;
   body: string;
 } {
-  const match = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!match) return { frontmatter: {}, body: raw };
-  const parsedRaw = load(match[1] ?? "") ?? {};
+  const rawFrontmatter = match[1] ?? "";
+  const body = match[2] ?? "";
+  let parsedRaw: unknown;
+  try {
+    parsedRaw = load(rawFrontmatter) ?? {};
+  } catch {
+    return { frontmatter: { __parseError: rawFrontmatter }, body };
+  }
   const cleaned = stripNullish(parsedRaw);
-  return { frontmatter: cleaned ?? {}, body: match[2] ?? "" };
+  return { frontmatter: cleaned ?? {}, body };
 }
 
 /** Normalize markdown body text before drift comparisons. */
@@ -211,7 +218,14 @@ function compareSharedFiles(
   let checked = 0;
   for (const spec of SHARED_FILES) {
     const template = readTemplate(templateRoot, spec.template);
-    if (template === null) continue;
+    if (template === null) {
+      findings.push({
+        kind: "missing",
+        path: spec.template,
+        message: `shared template missing: ${spec.template}`,
+      });
+      continue;
+    }
     checked++;
     if (!fs.exists(spec.installed)) {
       findings.push({

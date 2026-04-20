@@ -34,6 +34,23 @@ describe("parseMarkdownFrontmatter", () => {
     // `description:` parses as null and must not appear in the structural form.
     assert.deepEqual(frontmatter, { name: "goat" });
   });
+
+  it("parses CRLF frontmatter the same as LF", () => {
+    const raw =
+      "---\r\nname: goat\r\ndescription: dispatcher\r\n---\r\n# Body\r\n";
+    const { frontmatter, body } = parseMarkdownFrontmatter(raw);
+    assert.deepEqual(frontmatter, { name: "goat", description: "dispatcher" });
+    assert.equal(body, "# Body\r\n");
+  });
+
+  it("malformed YAML does not throw; preserves raw for downstream diff", () => {
+    const raw = "---\nname: goat\n  - broken: [unclosed\n---\n# Body\n";
+    const { frontmatter, body } = parseMarkdownFrontmatter(raw);
+    assert.deepEqual(frontmatter, {
+      __parseError: "name: goat\n  - broken: [unclosed",
+    });
+    assert.equal(body, "# Body\n");
+  });
 });
 
 describe("skillContentsEquivalent", () => {
