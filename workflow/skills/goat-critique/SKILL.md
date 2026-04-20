@@ -51,6 +51,14 @@ Agents A and B both use the SKEPTIC/ANALYST/STRATEGIST combined lens. These thre
 
 All three perspectives must appear in every critique from Agents A and B. The tension between them is the point.
 
+**Context split at a glance:**
+
+| Agent | Reads | Does NOT read |
+|---|---|---|
+| A (Risk) | artifact + architecture + footguns + lessons + rubric | git history, config.yaml |
+| B (Alternatives) | artifact + architecture + git history + config.yaml + rubric | footguns, lessons |
+| C (Fresh Eyes) | artifact + rubric ONLY | everything else (isolation enforced) |
+
 ### Sub-Agent Definitions
 
 **Sub-agent A (Risk Focus - backward-looking context):**
@@ -71,7 +79,7 @@ Each sub-agent MUST return:
   - **SKEPTIC:** one line - what could go wrong, worst case (or "N/A - [reason]" if genuinely inapplicable)
   - **ANALYST:** one line - what the evidence says, cost/benefit
   - **STRATEGIST:** one line - fastest path, what to defer, highest-leverage action
-  - The tension between lenses is the point. If all three agree, say so - forced disagreement is noise.
+  - The tension between lenses is the point. If all three agree, say so - forced disagreement is noise. Consensus across lenses is itself a valid finding; the mandate is that all three perspectives appear as labeled sub-fields, not that they must disagree.
 - Rubric dimensions covered: list which rubric dimensions this finding addresses (used by orchestrator for coverage-gap detection in Phase 2)
 - Overall assessment: STRONG / ADEQUATE / WEAK / FLAWED
 - One thing the artifact gets RIGHT that should be preserved
@@ -87,12 +95,17 @@ Build a comparison matrix and score each sub-agent's critique on five axes:
 
 Label each finding as consensus / split / unique:
 - **Consensus** - same finding raised by ≥2 agents, severity within ±1 level
-- **Split** - same finding raised by ≥2 agents, but severity differs by ≥2 levels or one agent dismisses what another flags as blocking
+- **Split** - same finding raised by ≥2 agents, but severity differs by ≥2 levels or one agent explicitly rejects what another flags as blocking (e.g., rates LOW/N/A while another rates CRITICAL/HIGH). Silence on a finding does not constitute a dismiss; treat the silent agent's omission as a Unique finding instead
 - **Unique** - raised by only one agent
 
-**Rubric coverage gates:** Compute `unaddressed = all rubric dimensions \ union(dimensions covered across all agents)`. For each unaddressed dimension, auto-generate a HIGH coverage-gap finding: "No sub-agent addressed [dimension]. This is a blind spot."
+**Rubric coverage gates:** Compute `unaddressed = rubric dimensions \ union(dimensions covered across all agents)`. For each unaddressed mandatory dimension (see Critique Rubrics below), auto-generate a HIGH coverage-gap finding: "No sub-agent addressed [dimension]. This is a blind spot." For each unaddressed optional dimension, auto-generate a MEDIUM coverage-gap finding.
 
-**Control group delta:** For fresh-eyes-only findings, mark each as CONTEXT DRIFT / READABILITY GAP / CONTEXT-LIMITED.
+**Orchestrator spot-check:** Before emitting coverage-gap findings, re-read one finding per agent and independently assess which rubric dimensions the finding actually addresses. If a sub-agent's self-declared dimension tags do not match the finding content, flag as miscalibrated and recompute coverage from orchestrator assessment. Sub-agent self-declarations are inputs, not trusted evidence.
+
+**Control group delta:** For fresh-eyes-only findings, the orchestrator (not Agent C) assigns one of these labels based on re-reading the artifact's cited reference:
+- **CONTEXT DRIFT** — concern is wrong because C lacks project context that would resolve it
+- **READABILITY GAP** — concern is valid for any reader regardless of project context
+- **CONTEXT-LIMITED** — concern may be valid but C cannot fully evaluate without project context
 
 ## Phase 3 - Cross-Examine
 
@@ -106,9 +119,9 @@ For unique HIGH/CRITICAL findings, spawn verification: "Only one critique raised
 
 Mark each: RESOLVED (with winner) / STILL DISPUTED / RETRACTED (false positive confirmed).
 
-**Persist before gate:** Before entering Phase 4, write Phase 3 results to `.goat-flow/logs/critiques/<YYYY-MM-DD>-<HHMM>-<artifact-slug>-<rand5>.md` - sub-agent summaries, comparison matrix, cross-examination outcomes. The `HHMM` timestamp and 5-character random suffix prevent filename collisions when multiple agents run critiques on the same artifact concurrently. If the session is interrupted at the Phase 4 gate, this file preserves the work done so far.
-
 ## Phase 4 - Clarify
+
+**Persist before gate:** Before evaluating clarification questions, write Phase 1-3 results to `.goat-flow/logs/critiques/<YYYY-MM-DD>-<HHMM>-<artifact-slug>-<rand5>.md` — sub-agent summaries, comparison matrix, cross-examination outcomes. The `HHMM` timestamp and 5-character random suffix prevent filename collisions when multiple agents run critiques on the same artifact concurrently. This runs regardless of whether Phase 3 took the early-exit branch. If the session is interrupted at the Phase 4 gate, this file preserves the work done so far.
 
 Before synthesising, present the unresolved items to the human conversationally.
 
@@ -164,19 +177,19 @@ List these as "What Wasn't Critiqued." This section must never be empty - if eve
 "Done. Options: (A) apply recommendations to the artifact, (B) dig deeper into [name top unresolved area], (C) re-run with different framing, (D) close - you apply manually. Default: D."
 After critique of a plan, suggest `/goat-plan` to update milestones based on recommendations.
 
-**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to every synthesised finding - sub-agent reports are inputs to verify, not evidence to launder. Re-read each surviving finding's `file:line` in this session before inclusion.
+**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to every synthesised finding - sub-agent reports are inputs to verify, not evidence to launder. Re-read each surviving finding's `file:line` or artifact section reference in this session before inclusion. Re-read applies to findings surviving to Phase 5 (typically 3-7 after Phase 3/4 filtering), not to all findings raised in Phase 1.
 
 ## Critique Rubrics
 
-The rubric determines what sub-agents evaluate. Match to artifact type:
+The rubric determines what sub-agents evaluate. Match to artifact type. Dimensions marked **[M]** are mandatory (unaddressed → auto-HIGH coverage-gap finding); dimensions marked **[O]** are optional (unaddressed → auto-MEDIUM).
 
-**Plan:** correctness against codebase, integration safety, sequencing quality, validation coverage, task specificity
-**Security assessment:** threat model completeness, framework mitigation accuracy, exploitability calibration, data flow quality, attack surface coverage
-**Debug hypotheses:** hypothesis diversity, evidence quality (OBSERVED vs INFERRED), elimination rigour, confidence calibration, reproduction completeness
-**Review findings:** severity calibration, false positive rate, pre-existing separation, cross-reference impact, diff coverage
-**Test strategy:** coverage gaps, doer-verifier separation, manual test specificity, mock awareness, risk-proportionate depth
-**Architecture/refactor:** blast radius accuracy, migration safety, backward compatibility, dependency impact, rollback feasibility
-**Generic (fallback):** internal consistency, evidence grounding, scope completeness, feasibility, risk identification. If using the generic rubric, state why no specific rubric matched and which was closest.
+**Plan:** correctness against codebase [M], integration safety [M], sequencing quality [M], validation coverage [O], task specificity [O]
+**Security assessment:** threat model completeness [M], exploitability calibration [M], attack surface coverage [M], framework mitigation accuracy [O], data flow quality [O]
+**Debug hypotheses:** hypothesis diversity [M], evidence quality (OBSERVED vs INFERRED) [M], elimination rigour [M], confidence calibration [O], reproduction completeness [O]
+**Review findings:** severity calibration [M], diff coverage [M], pre-existing separation [M], false positive rate [O], cross-reference impact [O]
+**Test strategy:** coverage gaps [M], risk-proportionate depth [M], doer-verifier separation [O], manual test specificity [O], mock awareness [O]
+**Architecture/refactor:** blast radius accuracy [M], migration safety [M], backward compatibility [M], dependency impact [O], rollback feasibility [O]
+**Generic (fallback):** internal consistency [M], evidence grounding [M], scope completeness [M], feasibility [M], risk identification [M]. All dimensions mandatory for the fallback rubric. If using the generic rubric, state why no specific rubric matched and which was closest.
 
 ## Constraints
 
@@ -184,14 +197,16 @@ The rubric determines what sub-agents evaluate. Match to artifact type:
 - MUST use Agent tool calls for sub-agents - spawn all three in a single parallel batch
 - MUST isolate Phase 1 contexts per sub-agent
 - Fresh-eyes (Agent C) MUST be restricted to artifact + rubric only; explicit negative directive on .goat-flow/*, architecture.md, config.yaml, git
+- Orchestrator MUST scan Agent C output for `.goat-flow/`, `goat-*`, `architecture.md`, `config.yaml`, or project-specific namespace references before Phase 2 proceeds; flag matches as CONTEXT LEAK. This layers on top of C's self-policing directive, not replaces it
 - MUST use SKEPTIC/ANALYST/STRATEGIST as explicit per-finding sub-fields (one line each) - never split into separate agents, never fold into undifferentiated prose
 - MUST differentiate Agent A (risk) from Agent B (alternatives) by instructions; B MUST surface at least one alternative even if artifact is mostly fine
 - MUST flag control group delta: CONTEXT DRIFT / READABILITY GAP / CONTEXT-LIMITED for each unique fresh-eyes finding
 - MUST select critique rubric at intake (Step 0) and include in all sub-agent prompts
 - MUST present consensus/split/unique classification for every finding (definitions in Phase 2)
-- MUST compute rubric coverage gates in Phase 2 - unaddressed dimensions auto-emit HIGH findings
+- MUST compute rubric coverage gates in Phase 2 — unaddressed mandatory dimensions auto-emit HIGH, optional dimensions auto-emit MEDIUM
+- MUST spot-check sub-agent dimension tags in Phase 2 by re-reading one finding per agent
 - MUST cross-examine split findings and unique HIGH/CRITICAL findings (Phase 3); max 3 cross-exam agents, batch if over
-- MUST persist Phase 3 results to `.goat-flow/logs/critiques/` before entering Phase 4
+- MUST persist Phase 1-3 results to `.goat-flow/logs/critiques/` as first action of Phase 4 (guarantees persistence on early-exit path)
 - MUST gate on unresolved disputes before synthesis (Phase 4) using recommendation-first format with explicit defaults
 - MUST lead synthesis with Verdict block (Phase 5)
 - MUST tag low-confidence recommendations as Decision Debt
@@ -208,7 +223,7 @@ The rubric determines what sub-agents evaluate. Match to artifact type:
 ## Critique Rubric  <!-- which rubric and why -->
 ## Sub-Agent Comparison Matrix  <!-- finding x agent grid -->
 ## Sub-Agent Rankings  <!-- grounding, specificity, actionability, coverage, calibration -->
-## Rubric Coverage Gaps  <!-- auto-generated HIGH findings for unaddressed dimensions -->
+## Rubric Coverage Gaps  <!-- auto-generated findings: HIGH for mandatory, MEDIUM for optional -->
 ## Control Group Delta  <!-- Agent C unique findings: context drift / readability gap / context-limited -->
 ## Validated Findings  <!-- consensus + verified unique findings (survived cross-examination); source pool for Recommended Changes below -->
 ## Cross-Examination Results
