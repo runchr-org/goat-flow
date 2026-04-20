@@ -1,5 +1,5 @@
 /**
- * Shared test fixtures for audit/critique tests.
+ * Shared test fixtures for audit/quality tests.
  * Exports stubFS, stubConfig, stubAgentFacts, and pre-built project fixtures.
  */
 import type {
@@ -16,7 +16,7 @@ import type {
   AuditContext,
   ProjectStructure,
 } from "../../../src/cli/audit/types.js";
-import { SKILL_NAMES } from "../../../src/cli/constants.js";
+import { AUDIT_VERSION, SKILL_NAMES } from "../../../src/cli/constants.js";
 
 export function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
   return {
@@ -38,7 +38,7 @@ export function stubConfig(
     exists: true,
     valid: true,
     config: {
-      version: "1.1.0",
+      version: AUDIT_VERSION,
       footguns: { path: ".goat-flow/footguns/" },
       lessons: { path: ".goat-flow/lessons/" },
       decisions: { path: ".goat-flow/decisions/" },
@@ -71,9 +71,11 @@ export const STUB_AGENT_PROFILE: AgentProfile = {
   name: "Claude Code",
   instructionFile: "CLAUDE.md",
   settingsFile: ".claude/settings.json",
+  hookConfigFile: ".claude/settings.json",
   skillsDir: ".claude/skills",
   hooksDir: ".claude/hooks",
   denyMechanism: { type: "settings-deny", path: ".claude/settings.json" },
+  denyHookFile: ".claude/hooks/deny-dangerous.sh",
   localPattern: "*/CLAUDE.md",
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
 };
@@ -133,9 +135,9 @@ export function stubAgentFacts(
       postTurnExitsZero: false,
       postTurnHasValidation: false,
       postTurnSwallowsFailures: false,
-      compactionHookExists: false,
       absolutePathHooks: [],
-      readDenyCoversSecrets: false,
+      readDenyCoversSecrets: true,
+      bashDenyCoversSecrets: true,
     },
     deny: { gitCommitBlocked: false, gitPushBlocked: false },
     router: { exists: true, paths: [], resolved: 0, unresolved: [] },
@@ -151,8 +153,8 @@ export const STUB_STRUCTURE: ProjectStructure = {
     ".goat-flow/tasks/.gitignore",
     ".goat-flow/lessons/README.md",
     ".goat-flow/footguns/README.md",
-    ".goat-flow/skill-preamble.md",
-    ".goat-flow/skill-conventions.md",
+    ".goat-flow/skill-reference/skill-preamble.md",
+    ".goat-flow/skill-reference/skill-conventions.md",
     ".goat-flow/architecture.md",
     ".goat-flow/code-map.md",
     ".goat-flow/glossary.md",
@@ -189,6 +191,7 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
       validRefs: 0,
       formatDiagnostic: null,
       path: ".goat-flow/footguns/",
+      buckets: [],
     },
     lessons: {
       exists: true,
@@ -198,6 +201,7 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
       duplicateSurfacePaths: [],
       formatDiagnostic: null,
       path: ".goat-flow/lessons/",
+      buckets: [],
     },
     decisions: {
       dirExists: true,
@@ -222,7 +226,6 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
     },
     gitignore: { exists: true, hasRequiredEntries: true },
     preflightScript: { exists: false },
-    contextValidation: { exists: false },
     skillConventions: { exists: true },
     localInstructions: {
       dirExists: false,

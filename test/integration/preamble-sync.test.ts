@@ -2,12 +2,22 @@
  * Regression test for the preflight preamble/conventions sync check.
  * Verifies the diff-based check correctly detects when template and installed
  * copies of skill-preamble.md or skill-conventions.md diverge.
+ *
+ * Regression detection runs in a tmpdir - never mutates tracked repo files.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, copyFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import {
+  readFileSync,
+  writeFileSync,
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  rmSync,
+} from "node:fs";
+import { resolve, join } from "node:path";
+import { tmpdir } from "node:os";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const TEMPLATE_PREAMBLE = resolve(
@@ -16,7 +26,7 @@ const TEMPLATE_PREAMBLE = resolve(
 );
 const INSTALLED_PREAMBLE = resolve(
   PROJECT_ROOT,
-  ".goat-flow/skill-preamble.md",
+  ".goat-flow/skill-reference/skill-preamble.md",
 );
 const TEMPLATE_CONVENTIONS = resolve(
   PROJECT_ROOT,
@@ -24,8 +34,28 @@ const TEMPLATE_CONVENTIONS = resolve(
 );
 const INSTALLED_CONVENTIONS = resolve(
   PROJECT_ROOT,
-  ".goat-flow/skill-conventions.md",
+  ".goat-flow/skill-reference/skill-conventions.md",
 );
+const TEMPLATE_QUALITY_TESTING = resolve(
+  PROJECT_ROOT,
+  "workflow/skills/reference/skill-quality-testing.md",
+);
+const INSTALLED_QUALITY_TESTING = resolve(
+  PROJECT_ROOT,
+  ".goat-flow/skill-reference/skill-quality-testing.md",
+);
+const TOPICAL_FILES = ["tdd-iteration", "adversarial-framing", "deployment"];
+const TOPICAL_PAIRS = TOPICAL_FILES.map((name) => ({
+  name,
+  template: resolve(
+    PROJECT_ROOT,
+    `workflow/skills/reference/skill-quality-testing/${name}.md`,
+  ),
+  installed: resolve(
+    PROJECT_ROOT,
+    `.goat-flow/skill-reference/skill-quality-testing/${name}.md`,
+  ),
+}));
 
 function diffQuiet(a: string, b: string): number {
   const r = spawnSync("diff", ["-q", a, b], {
@@ -63,10 +93,38 @@ describe("preamble/conventions sync: current state", () => {
       "skill-conventions.md: template and installed should match",
     );
   });
+
+  it("template and installed skill-quality-testing.md match", () => {
+    if (
+      !existsSync(TEMPLATE_QUALITY_TESTING) ||
+      !existsSync(INSTALLED_QUALITY_TESTING)
+    ) {
+      return; // Skip if either file is missing
+    }
+    assert.equal(
+      diffQuiet(TEMPLATE_QUALITY_TESTING, INSTALLED_QUALITY_TESTING),
+      0,
+      "skill-quality-testing.md: template and installed should match",
+    );
+  });
+
+  for (const pair of TOPICAL_PAIRS) {
+    it(`template and installed skill-quality-testing/${pair.name}.md match`, () => {
+      if (!existsSync(pair.template) || !existsSync(pair.installed)) {
+        return; // Skip if either file is missing
+      }
+      assert.equal(
+        diffQuiet(pair.template, pair.installed),
+        0,
+        `skill-quality-testing/${pair.name}.md: template and installed should match`,
+      );
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------
-// Regression: diverged files are detected (non-zero diff status)
+// Regression: diverged files are detected (non-zero diff status).
+// Runs entirely in a tmpdir - never touches tracked repo files.
 // ---------------------------------------------------------------------------
 describe("preamble/conventions sync: regression detection", () => {
   it("detects when installed skill-preamble.md diverges from template", () => {
@@ -74,38 +132,63 @@ describe("preamble/conventions sync: regression detection", () => {
       return;
     }
 
-    const originalTemplate = readFileSync(TEMPLATE_PREAMBLE);
-    const originalInstalled = readFileSync(INSTALLED_PREAMBLE);
-
-    // Back up installed; modify it to diverge
-    const backup = resolve(PROJECT_ROOT, ".goat-flow/skill-preamble.md.bak");
+    const tmp = mkdtempSync(join(tmpdir(), "goat-flow-preamble-sync-"));
     try {
-      copyFileSync(INSTALLED_PREAMBLE, backup);
-      writeFileSync(INSTALLED_PREAMBLE, originalInstalled + "\n# DIVERGED\n");
+      const tmpTemplate = join(tmp, "template-preamble.md");
+      const tmpInstalled = join(tmp, "installed-preamble.md");
+      copyFileSync(TEMPLATE_PREAMBLE, tmpTemplate);
+      copyFileSync(INSTALLED_PREAMBLE, tmpInstalled);
+
+      // Sanity: tmp copies match before divergence
+      assert.equal(
+        diffQuiet(tmpTemplate, tmpInstalled),
+        0,
+        "Tmp copies should match before induced divergence",
+      );
+
+      // Diverge the tmp installed copy
+      const original = readFileSync(tmpInstalled);
+      writeFileSync(tmpInstalled, original + "\n# DIVERGED\n");
 
       // diff should now report non-zero
       assert.notEqual(
-        diffQuiet(TEMPLATE_PREAMBLE, INSTALLED_PREAMBLE),
+        diffQuiet(tmpTemplate, tmpInstalled),
         0,
         "Diff should detect divergence",
       );
 
-      // Simulate the preflight sync check directly
       assert.notDeepStrictEqual(
-        readFileSync(TEMPLATE_PREAMBLE),
-        readFileSync(INSTALLED_PREAMBLE),
+        readFileSync(tmpTemplate),
+        readFileSync(tmpInstalled),
         "Files should differ after modification",
       );
     } finally {
-      // Restore
-      writeFileSync(INSTALLED_PREAMBLE, originalInstalled);
-      writeFileSync(TEMPLATE_PREAMBLE, originalTemplate);
-      // Clean up backup
-      try {
-        spawnSync("rm", ["-f", backup]);
-      } catch {
-        // ignore
-      }
+      rmSync(tmp, { recursive: true, force: true });
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Proof Gate heading is present in both template and installed preamble (ADR-018)
+// ---------------------------------------------------------------------------
+describe("preamble/conventions sync: Proof Gate presence (ADR-018)", () => {
+  it("template skill-preamble.md contains '## Proof Gate' heading", () => {
+    if (!existsSync(TEMPLATE_PREAMBLE)) return;
+    const content = readFileSync(TEMPLATE_PREAMBLE, "utf-8");
+    assert.match(
+      content,
+      /^## Proof Gate\b/m,
+      "Template preamble must contain '## Proof Gate' heading",
+    );
+  });
+
+  it("installed skill-preamble.md contains '## Proof Gate' heading", () => {
+    if (!existsSync(INSTALLED_PREAMBLE)) return;
+    const content = readFileSync(INSTALLED_PREAMBLE, "utf-8");
+    assert.match(
+      content,
+      /^## Proof Gate\b/m,
+      "Installed preamble must contain '## Proof Gate' heading",
+    );
   });
 });

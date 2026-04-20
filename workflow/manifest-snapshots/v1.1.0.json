@@ -1,0 +1,135 @@
+{
+  "_snapshot_note": "Frozen copy of workflow/manifest.json as it shipped at v1.1.0 release. Immutable. CHANGELOG lint compares version-tagged numeric claims against this file, not the live manifest. The live source of truth stays at workflow/manifest.json. See workflow/manifest-snapshots/README.md for the frozen-copy contract.",
+  "description": "Expected goat-flow project structure. Source of truth for setup, audit, and upgrade paths. Not a JSON Schema - this is a manifest of what should exist on disk.",
+  "version": "1.1.0",
+
+  "required_files": [
+    ".goat-flow/.gitignore",
+    ".goat-flow/config.yaml",
+    ".goat-flow/tasks/.gitignore",
+    ".goat-flow/lessons/README.md",
+    ".goat-flow/footguns/README.md",
+    ".goat-flow/skill-preamble.md",
+    ".goat-flow/skill-conventions.md",
+    ".goat-flow/architecture.md",
+    ".goat-flow/code-map.md",
+    ".goat-flow/glossary.md",
+    ".goat-flow/patterns.md"
+  ],
+
+  "required_dirs": [
+    ".goat-flow/decisions/",
+    ".goat-flow/footguns/",
+    ".goat-flow/lessons/",
+    ".goat-flow/logs/sessions/",
+    ".goat-flow/scratchpad/",
+    ".goat-flow/tasks/"
+  ],
+
+  "directory_purposes": {
+    ".goat-flow/scratchpad/": "Ephemeral working notes and temporary coordination artifacts.",
+    ".goat-flow/tasks/": "Milestone files, plans, and workspace-local task artifacts."
+  },
+
+  "optional_files": {
+    "_note": "Optional files created when the project needs them, not during base setup.",
+    ".cursorignore": "Excludes secret/sensitive paths from Cursor context.",
+    ".geminiignore": "Excludes secret/sensitive paths from Gemini context."
+  },
+
+  "never_create": [],
+
+  "skills": {
+    "canonical": [
+      "goat",
+      "goat-debug",
+      "goat-plan",
+      "goat-review",
+      "goat-sbao",
+      "goat-security",
+      "goat-test"
+    ],
+    "stale_names": [
+      "goat-audit",
+      "goat-investigate",
+      "goat-onboard",
+      "goat-reflect",
+      "goat-resume",
+      "goat-context",
+      "goat-simplify",
+      "goat-refactor",
+      "goat-preflight",
+      "goat-research"
+    ]
+  },
+
+  "agents": {
+    "claude": {
+      "instruction_file": "CLAUDE.md",
+      "skills_dir": ".claude/skills/",
+      "hooks_dir": ".claude/hooks/",
+      "settings": ".claude/settings.json",
+      "hooks": ["deny-dangerous.sh"]
+    },
+    "codex": {
+      "instruction_file": "AGENTS.md",
+      "skills_dir": ".agents/skills/",
+      "hooks_dir": ".codex/hooks/",
+      "settings": ".codex/config.toml",
+      "hooks": ["deny-dangerous.sh"]
+    },
+    "gemini": {
+      "instruction_file": "GEMINI.md",
+      "skills_dir": ".agents/skills/",
+      "hooks_dir": ".gemini/hooks/",
+      "settings": ".gemini/settings.json",
+      "hooks": ["deny-dangerous.sh"]
+    }
+  },
+
+  "instruction_file": {
+    "line_target": 120,
+    "line_limit": 150,
+    "required_sections": [
+      "Essential Commands",
+      "Execution Loop",
+      "Autonomy Tiers",
+      "Definition of Done",
+      "Router Table"
+    ],
+    "version_header_pattern": "# {FILE} - v{VERSION} ({DATE})"
+  },
+
+  "legacy_surfaces": {
+    "v0.9": {
+      "migrate_to_goat_flow": [
+        "docs/footguns.md",
+        "docs/lessons.md",
+        "docs/architecture.md",
+        "docs/decisions/",
+        "agent-evals/"
+      ],
+      "delete_after_migration": [
+        "docs/footguns.md",
+        "docs/lessons.md",
+        "docs/architecture.md",
+        "docs/decisions/",
+        "docs/guidelines-ownership-split.md",
+        "agent-evals/"
+      ]
+    }
+  },
+
+  "snapshot_facts": {
+    "_note": "Numeric facts as shipped at v1.1.0. Used by CHANGELOG lint to validate claims inside the `## v1.1.0` section of CHANGELOG.md. v1.1.0 shipped before M06 added the live `facts:` block; these values are captured here for historical lint only.",
+    "skills_total": 7,
+    "skills_functional_count": 6,
+    "checks_setup": 12,
+    "checks_agent": 4,
+    "checks_build": 16,
+    "checks_harness": 16,
+    "checks_total": 32,
+    "dashboard_views_count": 7,
+    "presets_count": 20
+  }
+}

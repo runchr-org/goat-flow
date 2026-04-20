@@ -6,8 +6,33 @@
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import type { AuditFailure, BuildCheck, AuditContext } from "./types.js";
+import type { CheckEvidence } from "./provenance-types.js";
 import type { ReadonlyFS } from "../types.js";
 import { AUDIT_VERSION } from "../constants.js";
+
+const VERIFIED_ON = "2026-04-18";
+
+/** Return the spec provenance. */
+function specProvenance(paths: string[]): CheckEvidence {
+  return {
+    source_type: "spec",
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level: "MUST",
+    evidence_paths: paths,
+  };
+}
+
+/** Return the incident provenance. */
+function incidentProvenance(paths: string[]): CheckEvidence {
+  return {
+    source_type: "incident",
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level: "MUST",
+    evidence_paths: paths,
+  };
+}
 
 // === 1. Agent Instruction ===
 
@@ -21,10 +46,15 @@ function agentArtifactsExist(
   return profile.settings !== undefined && fs.exists(profile.settings);
 }
 
+/** Check whether the selected agent has its instruction file installed. */
 function checkInstructionPresent(ctx: AuditContext): AuditFailure | null {
   const found = ctx.agents.some((af) => af.agent.id === ctx.agentFilter);
   if (found) return null;
-  const profile = ctx.structure.agents[ctx.agentFilter!];
+  // In --agent mode we look up the expected instruction path from the detected
+  // structure so the failure message stays specific even when the file is absent.
+  const profile = ctx.agentFilter
+    ? ctx.structure.agents[ctx.agentFilter]
+    : undefined;
   const instructionFile =
     profile?.instruction_file ?? `${ctx.agentFilter} instruction file`;
   return {
@@ -34,6 +64,7 @@ function checkInstructionPresent(ctx: AuditContext): AuditFailure | null {
   };
 }
 
+/** Check for agent artifacts that remain after their instruction file was removed. */
 function checkOrphanedArtifacts(ctx: AuditContext): AuditFailure | null {
   if (!ctx.config.exists) return null;
   const missing: string[] = [];
@@ -56,6 +87,11 @@ const agentInstruction: BuildCheck = {
   id: "agent-instruction",
   name: "Agent instruction file",
   scope: "agent",
+  provenance: specProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
+  /** Run the Agent instruction file check. */
   run: (ctx) => {
     if (ctx.agentFilter) return checkInstructionPresent(ctx);
     return checkOrphanedArtifacts(ctx);
@@ -67,11 +103,17 @@ const agentInstruction: BuildCheck = {
 function checkCanonicalSkills(ctx: AuditContext): AuditFailure | null {
   const canonical = ctx.structure.skills.canonical;
   const missing: string[] = [];
+  const references = ctx.structure.skills.references ?? {};
   for (const af of ctx.agents) {
     for (const skill of canonical) {
-      const skillPath = `${af.agent.skillsDir}/${skill}/SKILL.md`;
-      if (!ctx.fs.exists(skillPath)) {
-        missing.push(`${af.agent.id}:${skill}`);
+      const referenceFiles = Array.isArray(references[skill])
+        ? references[skill].filter((file) => typeof file === "string")
+        : [];
+      for (const relativeFile of ["SKILL.md", ...referenceFiles]) {
+        const skillPath = `${af.agent.skillsDir}/${skill}/${relativeFile}`;
+        if (!ctx.fs.exists(skillPath)) {
+          missing.push(`${af.agent.id}:${skill}:${relativeFile}`);
+        }
       }
     }
   }
@@ -85,6 +127,7 @@ function checkCanonicalSkills(ctx: AuditContext): AuditFailure | null {
   };
 }
 
+/** Check whether installed skills declare the current GOAT Flow version. */
 function checkSkillVersions(ctx: AuditContext): AuditFailure | null {
   const noVersion: string[] = [];
   const mismatch: string[] = [];
@@ -118,6 +161,7 @@ function checkSkillVersions(ctx: AuditContext): AuditFailure | null {
   return null;
 }
 
+/** Check for stale skill directories that still use deprecated names. */
 function checkDeprecatedSkills(ctx: AuditContext): AuditFailure | null {
   const staleNames = new Set(ctx.structure.skills.stale_names);
   const found: string[] = [];
@@ -130,6 +174,8 @@ function checkDeprecatedSkills(ctx: AuditContext): AuditFailure | null {
     }
   }
   if (found.length === 0) return null;
+  // Convert the compact agent:name identifiers back into filesystem paths so the
+  // remediation text points to concrete directories the user can remove.
   const paths = found.map((s) => {
     const [agent, name] = s.split(":");
     const af = ctx.agents.find((a) => a.agent.id === agent);
@@ -147,6 +193,11 @@ const agentSkills: BuildCheck = {
   id: "agent-skills",
   name: "Agent skills",
   scope: "agent",
+  provenance: specProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/footguns/skills.md",
+  ]),
+  /** Run the Agent skills check. */
   run: (ctx) => {
     if (!ctx.agentFilter) return null;
     return (
@@ -163,6 +214,11 @@ const agentSettings: BuildCheck = {
   id: "agent-settings",
   name: "Agent settings",
   scope: "agent",
+  provenance: specProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
+  /** Run the Agent settings check. */
   run: (ctx) => {
     if (!ctx.agentFilter) return null;
     const invalid: string[] = [];
@@ -196,6 +252,7 @@ function checkDenyHookPresent(ctx: AuditContext): AuditFailure | null {
   return null;
 }
 
+/** Check shell syntax for each installed agent hook script. */
 function checkHookSyntax(ctx: AuditContext): AuditFailure | null {
   const failures: string[] = [];
   for (const af of ctx.agents) {
@@ -209,6 +266,7 @@ function checkHookSyntax(ctx: AuditContext): AuditFailure | null {
     }
     for (const file of files) {
       if (!file.endsWith(".sh")) continue;
+      // ctx.fs may be backed by an in-memory fixture, but bash -n needs a real workspace path.
       const fullPath = join(ctx.projectPath, hooksDir, file);
       try {
         execFileSync("bash", ["-n", fullPath], {
@@ -229,6 +287,7 @@ function checkHookSyntax(ctx: AuditContext): AuditFailure | null {
   };
 }
 
+/** Check whether each agent has deny patterns registered somewhere. */
 function checkDenyPatterns(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
     if (!af.settings.hasDenyPatterns && !af.hooks.denyExists) {
@@ -243,12 +302,15 @@ function checkDenyPatterns(ctx: AuditContext): AuditFailure | null {
   return null;
 }
 
+/** Run each deny hook self-test when the script is present. */
 function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
     if (!af.agent.hooksDir) continue;
     const denyRelPath = join(af.agent.hooksDir, "deny-dangerous.sh");
     const content = ctx.fs.readFile(denyRelPath);
-    if (content === null) continue; // no deny hook file to self-test
+    // Config-based deny rules satisfy the deny-mechanism requirement, but only an
+    // on-disk shell hook can run the registered self-test.
+    if (content === null) continue;
     const denyPath = join(ctx.projectPath, denyRelPath);
     try {
       execFileSync("bash", [denyPath, "--self-test"], {
@@ -272,8 +334,15 @@ const agentDenyMechanism: BuildCheck = {
   id: "agent-deny-dangerous",
   name: "Agent deny mechanism",
   scope: "agent",
+  provenance: incidentProvenance([
+    ".goat-flow/footguns/auditor.md",
+    ".goat-flow/footguns/hooks.md",
+  ]),
+  /** Run the Agent deny mechanism check. */
   run: (ctx) => {
     if (!ctx.agentFilter) return null;
+    // Order the checks from cheapest/static to most expensive/runtime so we stop on
+    // the clearest failure before attempting shell execution.
     return (
       checkDenyHookPresent(ctx) ??
       checkHookSyntax(ctx) ??

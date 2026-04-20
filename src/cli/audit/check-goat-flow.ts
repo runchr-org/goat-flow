@@ -1,13 +1,27 @@
 /**
  * GOAT Flow Setup checks for `goat-flow audit`.
- * 12 setup-scope checks that validate project structure:
- *   9 named (lessons, footguns, architecture, code-map, glossary, patterns,
- *            decisions, session-logs, tasks)
+ * 13 setup-scope checks that validate project structure:
+ *   10 named (lessons, footguns, architecture, code-map, glossary, patterns,
+ *             decisions, session-logs, tasks, scratchpad)
  * + 1 catch-all (other-files)
  * + 2 config (config-parses, config-version)
  */
 import type { BuildCheck } from "./types.js";
+import type { CheckEvidence } from "./provenance-types.js";
 import { AUDIT_VERSION } from "../constants.js";
+
+const VERIFIED_ON = "2026-04-18";
+
+/** Return the setup spec provenance. */
+function setupSpecProvenance(paths: string[]): CheckEvidence {
+  return {
+    source_type: "spec",
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level: "MUST",
+    evidence_paths: paths,
+  };
+}
 
 // Paths covered by named checks - excluded from the catch-all.
 // config.yaml is also excluded (covered by config-parses).
@@ -24,6 +38,10 @@ const NAMED_PATHS = new Set([
   ".goat-flow/logs/sessions/",
   ".goat-flow/tasks/",
   ".goat-flow/tasks/.gitignore",
+  ".goat-flow/tasks/README.md",
+  ".goat-flow/scratchpad/",
+  ".goat-flow/scratchpad/.gitignore",
+  ".goat-flow/scratchpad/README.md",
   ".goat-flow/config.yaml",
 ]);
 
@@ -36,6 +54,11 @@ const lessons: BuildCheck = {
   id: "lessons",
   name: "Lessons",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
+  /** Run the Lessons check. */
   run: (ctx) => {
     const missing: string[] = [];
     if (!ctx.fs.exists(".goat-flow/lessons"))
@@ -57,6 +80,11 @@ const footguns: BuildCheck = {
   id: "footguns",
   name: "Footguns",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
+  /** Run the Footguns check. */
   run: (ctx) => {
     const missing: string[] = [];
     if (!ctx.fs.exists(".goat-flow/footguns"))
@@ -78,6 +106,11 @@ const architecture: BuildCheck = {
   id: "architecture",
   name: "Architecture",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    "workflow/setup/04-architecture-code-map.md",
+  ]),
+  /** Run the Architecture check. */
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/architecture.md")) return null;
     return {
@@ -94,6 +127,11 @@ const codeMap: BuildCheck = {
   id: "code-map",
   name: "Code map",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    "workflow/setup/04-architecture-code-map.md",
+  ]),
+  /** Run the Code map check. */
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/code-map.md")) return null;
     return {
@@ -109,6 +147,11 @@ const glossary: BuildCheck = {
   id: "glossary",
   name: "Glossary",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
+  /** Run the Glossary check. */
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/glossary.md")) return null;
     return {
@@ -124,6 +167,11 @@ const patterns: BuildCheck = {
   id: "patterns",
   name: "Patterns",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
+  /** Run the Patterns check. */
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/patterns.md")) return null;
     return {
@@ -139,6 +187,11 @@ const decisions: BuildCheck = {
   id: "decisions",
   name: "Decisions",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
+  /** Run the Decisions check. */
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/decisions")) return null;
     return {
@@ -155,6 +208,11 @@ const sessionLogs: BuildCheck = {
   id: "session-logs",
   name: "Session logs",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+  ]),
+  /** Run the Session logs check. */
   run: (ctx) => {
     if (ctx.fs.exists(".goat-flow/logs/sessions")) return null;
     return {
@@ -171,18 +229,55 @@ const tasks: BuildCheck = {
   id: "tasks",
   name: "Tasks",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+    ".goat-flow/tasks/README.md",
+  ]),
+  /** Run the Tasks check. */
   run: (ctx) => {
     const missing: string[] = [];
     if (!ctx.fs.exists(".goat-flow/tasks")) missing.push(".goat-flow/tasks/");
     if (!ctx.fs.exists(".goat-flow/tasks/.gitignore"))
       missing.push(".goat-flow/tasks/.gitignore");
+    if (!ctx.fs.exists(".goat-flow/tasks/README.md"))
+      missing.push(".goat-flow/tasks/README.md");
     if (missing.length === 0) return null;
     return {
       check: "Tasks",
       message: `Missing: ${missing.join(", ")}`,
       evidence: missing[0],
       howToFix:
-        "Create tasks directory by running `goat-flow setup` or `mkdir -p .goat-flow/tasks`.",
+        "Create tasks directory by running `goat-flow setup`. README.md signals the dir is local-session-state by design.",
+    };
+  },
+};
+
+const scratchpad: BuildCheck = {
+  id: "scratchpad",
+  name: "Scratchpad",
+  scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/architecture.md",
+    ".goat-flow/scratchpad/README.md",
+  ]),
+  /** Run the Scratchpad check. */
+  run: (ctx) => {
+    const missing: string[] = [];
+    if (!ctx.fs.exists(".goat-flow/scratchpad"))
+      missing.push(".goat-flow/scratchpad/");
+    if (!ctx.fs.exists(".goat-flow/scratchpad/.gitignore"))
+      missing.push(".goat-flow/scratchpad/.gitignore");
+    if (!ctx.fs.exists(".goat-flow/scratchpad/README.md"))
+      missing.push(".goat-flow/scratchpad/README.md");
+    if (missing.length === 0) return null;
+    return {
+      check: "Scratchpad",
+      message: `Missing: ${missing.join(", ")}`,
+      evidence: missing[0],
+      howToFix:
+        "Create scratchpad directory by running `goat-flow setup`. README.md signals the dir is local WIP by design.",
     };
   },
 };
@@ -193,6 +288,8 @@ const otherFiles: BuildCheck = {
   id: "other-files",
   name: "Other required files",
   scope: "setup",
+  provenance: setupSpecProvenance(["workflow/manifest.json"]),
+  /** Run the Other required files check. */
   run: (ctx) => {
     const allRequired = [
       ...ctx.structure.required_files,
@@ -219,6 +316,11 @@ const configExistsAndParses: BuildCheck = {
   id: "config-parses",
   name: "Config file",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    ".goat-flow/config.yaml",
+  ]),
+  /** Run the Config file check. */
   run: (ctx) => {
     if (!ctx.config.exists) {
       return {
@@ -235,6 +337,19 @@ const configExistsAndParses: BuildCheck = {
         howToFix: "Fix the YAML syntax error in .goat-flow/config.yaml.",
       };
     }
+    if (!ctx.config.valid) {
+      const [firstError] = ctx.config.errors;
+      const detail = firstError
+        ? `${firstError.path}: ${firstError.message}`
+        : "validation failed";
+      return {
+        check: "Config file",
+        message: `Validation error: ${detail}`,
+        evidence: ".goat-flow/config.yaml",
+        howToFix:
+          "Fix the validation error in .goat-flow/config.yaml so it matches the manifest-backed config contract.",
+      };
+    }
     return null;
   },
 };
@@ -243,6 +358,11 @@ const configVersionCurrent: BuildCheck = {
   id: "config-version",
   name: "Config version",
   scope: "setup",
+  provenance: setupSpecProvenance([
+    ".goat-flow/config.yaml",
+    "src/cli/constants.ts",
+  ]),
+  /** Run the Config version check. */
   run: (ctx) => {
     if (!ctx.config.exists) return null;
     const version = ctx.config.config.version;
@@ -264,7 +384,7 @@ const configVersionCurrent: BuildCheck = {
   },
 };
 
-/** 12 setup-scope build checks */
+/** 13 setup-scope build checks */
 export const SETUP_CHECKS: BuildCheck[] = [
   lessons,
   footguns,
@@ -275,6 +395,7 @@ export const SETUP_CHECKS: BuildCheck[] = [
   decisions,
   sessionLogs,
   tasks,
+  scratchpad,
   otherFiles,
   configExistsAndParses,
   configVersionCurrent,

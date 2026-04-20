@@ -10,7 +10,7 @@ The `--agent` flag scopes the audit to one agent's surfaces: it checks that agen
 
 The audit validates structural requirements: required files/dirs exist, config parses, skills installed with version tags, hooks present, deny patterns registered. It does NOT validate content quality (evidence citations, instruction-file specificity, duplicate surfaces). The checks below cover those content concerns.
 
-`goat-flow critique` is optional - it generates an agent-driven review prompt but is not required for setup completion. `goat-flow audit --harness` adds structural installation checks for 5 concerns (context, constraints, verification, recovery, feedback loop). Harness results contribute to the overall audit status — a harness failure is an audit failure. Not all checks can reach "installed" on every platform (e.g., Codex lacks compaction hooks), but install as much as possible.
+`goat-flow quality` is optional - it generates an agent-driven review prompt but is not required for setup completion. `goat-flow audit --harness` adds structural installation checks for 5 concerns (context, constraints, verification, recovery, feedback loop). Harness results contribute to the overall audit status - a harness failure is an audit failure. Not all checks can reach "installed" on every platform (e.g., Codex lacks compaction hooks), but install as much as possible.
 
 ## Manual verification (recommended, not gated by audit)
 
@@ -28,7 +28,7 @@ Check these surfaces:
 - The instruction file
 - All installed skill files
 - Agent settings / hook config files
-- `.goat-flow/skill-preamble.md`
+- `.goat-flow/skill-reference/skill-preamble.md`
 - `.goat-flow/config.yaml`
 
 For each backtick-wrapped path or hook path:
@@ -101,10 +101,11 @@ For each detected language with source files but no test files, note it in the g
 
 ## Shared setup session log
 
-Use one shared file: `.goat-flow/logs/sessions/YYYY-MM-DD-setup.md`
+Use one shared local continuity file: `.goat-flow/logs/sessions/YYYY-MM-DD-setup.md`
 
 - Earlier step markers stay in this file
 - Finalise it here with the audit result, any fixes made, the file manifest summary, the gap report, and remaining follow-ups
+- If any note deserves to survive beyond this checkout, promote it into lessons / footguns / decisions rather than treating the session log as durable project memory
 - Record time and tokens using this format:
   - `**Time:** [elapsed] | **Tokens:** [count or unavailable]`
 

@@ -5,7 +5,10 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        // Use explicit project list instead of projectService so dashboard
+        // files (compiled with a separate tsconfig.dashboard.json) are
+        // covered alongside the CLI sources.
+        project: ["./tsconfig.json", "./tsconfig.dashboard.json"],
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -53,13 +56,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: [
-      "dist/**",
-      "test/**",
-      "node_modules/**",
-      "src/dashboard/**",
-      "*.js",
-      "*.mjs",
-    ],
+    ignores: ["dist/**", "test/**", "node_modules/**", "*.js", "*.mjs"],
   },
 );

@@ -1,14 +1,14 @@
 ---
 name: goat
-description: "Single entry point that classifies intent and dispatches to the correct goat-* skill."
-goat-flow-skill-version: "1.1.0"
+description: "Use when you describe an outcome and need the right goat-* workflow chosen for you."
+goat-flow-skill-version: "1.2.0"
 ---
 # /goat
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-preamble.md` for shared conventions.
-On full-depth, also read `.goat-flow/skill-conventions.md`.
+Read `.goat-flow/skill-reference/skill-preamble.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 Universal constraints from `skill-preamble.md` apply.
 
 Use when the user describes an outcome and wants the right workflow chosen.
@@ -21,19 +21,21 @@ Use when the user describes an outcome and wants the right workflow chosen.
 
 ## Planning Route
 
-For planning requests, check `.goat-flow/tasks/` for existing plans first.
+For planning requests, read `.goat-flow/tasks/.active` to find the active plan subdir (one-line file naming a subdir like `1.2.0`), then scan that subdir for milestone files. If `.active` is missing, list top-level entries in `.goat-flow/tasks/` and ask the user which is current.
 
 | Complexity | Approach |
 |------------|----------|
 | Hotfix | Route to direct execution, no planning needed |
 | Small Feature | Compressed brief → `/goat-plan` for 1-2 milestones |
-| Standard | Feature brief → `/goat-plan` (suggest `/goat-sbao` if approach uncertain) |
-| System / Infrastructure | Feature brief → `/goat-plan` → `/goat-sbao` (recommended) |
+| Standard | Feature brief → `/goat-plan` (suggest `/goat-critique` if approach uncertain) |
+| System / Infrastructure | Feature brief → `/goat-plan` → `/goat-critique` (recommended) |
 
 ## Handoff
 
 Pass the collected brief and any preselected depth to the target skill.
 If the user signals a re-route mid-workflow, preserve context and dispatch again.
+
+**Proof Gate:** Route rationales and dispatch claims in this skill's output must satisfy the Proof Gate in `skill-preamble.md` - cite the concrete signals (file, symptom, artifact) that justified the route.
 
 ## Constraints
 

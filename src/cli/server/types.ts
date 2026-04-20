@@ -2,6 +2,8 @@
  * Shared wire types for dashboard terminal sessions.
  * Both the HTTP/WebSocket server and the frontend rely on these discriminated unions staying in sync.
  */
+import type { CheckEvidence } from "../audit/provenance-types.js";
+import type { AgentId } from "../types.js";
 /** Messages sent from the browser terminal to the WebSocket server. */
 export type ClientMessage =
   | { type: "input"; data: string }
@@ -18,7 +20,7 @@ export type ServerMessage =
 export type SessionStatus = "starting" | "active" | "terminated";
 
 /** Supported CLI runners that can be spawned in a terminal session. */
-export type Runner = "claude" | "codex" | "gemini";
+export type Runner = AgentId;
 
 /** Metadata for an active or recently terminated terminal session. */
 export interface SessionInfo {
@@ -53,9 +55,20 @@ export interface DashboardReport {
         id: string;
         name: string;
         status: string;
-        failure?: { check: string; message: string; howToFix?: string };
+        provenance: CheckEvidence;
+        failure?: {
+          check: string;
+          message: string;
+          evidence?: string;
+          howToFix?: string;
+        };
       }[];
-      failures: { check: string; message: string; howToFix?: string }[];
+      failures: {
+        check: string;
+        message: string;
+        evidence?: string;
+        howToFix?: string;
+      }[];
       summary: Record<string, string>;
     };
     harness: {
@@ -64,9 +77,20 @@ export interface DashboardReport {
         id: string;
         name: string;
         status: string;
-        failure?: { check: string; message: string; howToFix?: string };
+        provenance: CheckEvidence;
+        failure?: {
+          check: string;
+          message: string;
+          evidence?: string;
+          howToFix?: string;
+        };
       }[];
-      failures: { check: string; message: string; howToFix?: string }[];
+      failures: {
+        check: string;
+        message: string;
+        evidence?: string;
+        howToFix?: string;
+      }[];
       summary: Record<string, string>;
     } | null;
     concerns: Record<
@@ -77,6 +101,12 @@ export interface DashboardReport {
         findings: string[];
         recommendations: string[];
         howToFix?: string[];
+        integrityPass: number;
+        integrityFail: number;
+        advisoryPass: number;
+        advisoryFail: number;
+        advisoryAcknowledged: number;
+        metrics: number;
       }
     > | null;
   }[];
@@ -90,9 +120,20 @@ export interface DashboardReport {
         id: string;
         name: string;
         status: string;
-        failure?: { check: string; message: string; howToFix?: string };
+        provenance: CheckEvidence;
+        failure?: {
+          check: string;
+          message: string;
+          evidence?: string;
+          howToFix?: string;
+        };
       }[];
-      failures: { check: string; message: string; howToFix?: string }[];
+      failures: {
+        check: string;
+        message: string;
+        evidence?: string;
+        howToFix?: string;
+      }[];
       summary: Record<string, string>;
     }
   >;

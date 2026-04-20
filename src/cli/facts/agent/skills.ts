@@ -8,6 +8,7 @@ import {
   AUDIT_VERSION as SKILL_VERSION,
 } from "../../constants.js";
 import { getTemplatePath } from "../../paths.js";
+import { getSkillFiles } from "../../manifest/manifest.js";
 import { extractSection } from "./instruction.js";
 
 /** Compute Jaccard similarity between two strings by comparing word sets. */
@@ -67,6 +68,11 @@ interface SkillInventory {
   outdatedCount: number;
   quality: SkillQualityCounts;
   adaptCommentCount: number;
+}
+
+/** Read optional manifest-backed reference files for one canonical skill. */
+function getExpectedSkillFiles(skill: string): string[] {
+  return getSkillFiles(skill);
 }
 
 /** Mapping of quality signal names to their detection regex patterns. */
@@ -202,13 +208,18 @@ function scanExpectedSkills(
   let adaptCommentCount = 0;
 
   for (const skill of SKILL_NAMES) {
-    const skillPath = `${agent.skillsDir}/${skill}/SKILL.md`;
-    if (!fs.exists(skillPath)) {
+    const requiredFiles = getExpectedSkillFiles(skill);
+    const missingFiles = requiredFiles.filter(
+      (relativeFile) =>
+        !fs.exists(`${agent.skillsDir}/${skill}/${relativeFile}`),
+    );
+    if (missingFiles.length > 0) {
       missing.push(skill);
       continue;
     }
 
     found.push(skill);
+    const skillPath = `${agent.skillsDir}/${skill}/SKILL.md`;
     const skillContent = fs.readFile(skillPath);
     if (!skillContent) continue;
 

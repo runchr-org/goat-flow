@@ -5,9 +5,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { getKnownAgentIds } from "../../src/cli/agents/registry.js";
 import { SKILL_NAMES } from "../../src/cli/constants.js";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
-import { getProjectStructure } from "../../src/cli/paths.js";
+import { loadManifest } from "../../src/cli/manifest/manifest.js";
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
@@ -37,9 +38,8 @@ describe("version alignment", () => {
 // ---------------------------------------------------------------------------
 describe("skill count alignment", () => {
   it("SKILL_NAMES matches manifest.json canonical skills", () => {
-    const structure = getProjectStructure();
-    const skills = structure.skills as { canonical: string[] } | undefined;
-    const canonical = skills?.canonical ?? [];
+    const structure = loadManifest();
+    const canonical = structure.skills.canonical;
     assert.deepStrictEqual(
       [...SKILL_NAMES].sort(),
       [...canonical].sort(),
@@ -76,6 +76,35 @@ describe("harness check concern coverage", () => {
     assert.ok(
       concerns.has("feedback_loop"),
       "Should have feedback_loop checks",
+    );
+  });
+});
+
+describe("dashboard runner type alignment", () => {
+  it("keeps the dashboard RunnerId union local and aligned with CLI agent IDs", () => {
+    const globalsPath = resolve(PROJECT_ROOT, "src/dashboard/globals.d.ts");
+    const globals = readFileSync(globalsPath, "utf-8");
+
+    assert.doesNotMatch(
+      globals,
+      /\.\.\/cli\/types\.js/,
+      "dashboard globals must not import ../cli/types.js or the dashboard build emits source-shadow JS",
+    );
+
+    const runnerIdDeclaration = globals.match(/type RunnerId =([\s\S]*?);/);
+    assert.ok(
+      runnerIdDeclaration,
+      "src/dashboard/globals.d.ts should declare a RunnerId union",
+    );
+
+    const runnerIds = [...runnerIdDeclaration[1].matchAll(/"([^"]+)"/g)].map(
+      (match) => match[1],
+    );
+
+    assert.deepStrictEqual(
+      runnerIds,
+      getKnownAgentIds(),
+      "dashboard RunnerId union must stay aligned with the CLI agent list",
     );
   });
 });

@@ -1,35 +1,90 @@
 /**
  * Constraints concern: Do deterministic rules catch failures before the LLM runs?
- * 3 checks: deny-covers-secrets, deny-blocks-dangerous, deny-blocks-pipe-to-shell.
+ * 4 checks: deny-covers-secrets, deny-blocks-dangerous, deny-blocks-pipe-to-shell,
+ * deny-hook-registered.
  */
 import type { HarnessCheck, AuditContext } from "../types.js";
+import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
 
+const VERIFIED_ON = "2026-04-19";
+
+/** Return the constraints provenance. */
+function constraintsProvenance(
+  type: HarnessCheck["type"],
+  paths: string[],
+  sourceType: CheckEvidence["source_type"] = "spec",
+): CheckEvidence {
+  return {
+    source_type: sourceType,
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level:
+      type === "integrity"
+        ? "MUST"
+        : type === "advisory"
+          ? "SHOULD"
+          : "BEST_PRACTICE",
+    evidence_paths: paths,
+  };
+}
+
+/** Classify each agent by whether BOTH its settings.json Read deny rules AND its
+ *  Bash deny hook cover secret-bearing files. Settings.json Read() patterns only
+ *  bind the Read tool; Bash shell reads (cat/source/base64/etc.) bypass them
+ *  entirely, so Bash-side coverage is required for any non-script-only agent.
+ *
+ *  Uncovered agents are split by deny mechanism so remediation guidance stays
+ *  accurate: script-only agents (Copilot etc.) have no settings.json layer, so
+ *  they must be told to extend the Bash hook only. */
 function classifySecretDeny(ctx: Pick<AuditContext, "agents">) {
   const covered: string[] = [];
-  const uncovered: string[] = [];
   const scriptOnly: string[] = [];
+  const uncoveredSettings: string[] = [];
+  const uncoveredScript: string[] = [];
   for (const af of ctx.agents) {
-    if (af.hooks.readDenyCoversSecrets) {
-      covered.push(af.agent.id);
-    } else if (af.agent.denyMechanism.type === "deny-script") {
-      scriptOnly.push(af.agent.id);
+    const bashOk = af.hooks.bashDenyCoversSecrets;
+    const readOk = af.hooks.readDenyCoversSecrets;
+    const isScriptOnly = af.agent.denyMechanism.type === "deny-script";
+
+    if (isScriptOnly) {
+      // Script-only agents (e.g. Copilot) rely entirely on the Bash hook.
+      if (bashOk) {
+        scriptOnly.push(af.agent.id);
+      } else {
+        uncoveredScript.push(af.agent.id);
+      }
     } else {
-      uncovered.push(af.agent.id);
+      // Settings-based agents need BOTH settings.json Read deny AND Bash hook coverage.
+      if (readOk && bashOk) {
+        covered.push(af.agent.id);
+      } else {
+        uncoveredSettings.push(af.agent.id);
+      }
     }
   }
-  return { covered, uncovered, scriptOnly };
+  return { covered, scriptOnly, uncoveredSettings, uncoveredScript };
 }
 
 const denyCoversSecrets: HarnessCheck = {
   id: "deny-covers-secrets",
   name: "Deny covers secret files",
   concern: "constraints",
+  type: "integrity",
+  provenance: constraintsProvenance("integrity", [
+    "docs/harness-audit.md",
+    ".goat-flow/footguns/auditor.md",
+  ]),
+  /** Run the Deny covers secret files check. */
   run: (ctx) => {
-    const { covered, uncovered, scriptOnly } = classifySecretDeny(ctx);
+    const { covered, scriptOnly, uncoveredSettings, uncoveredScript } =
+      classifySecretDeny(ctx);
 
-    if (covered.length === 0 && uncovered.length === 0) {
-      // All agents are script-only - platform limitation, not a failure
+    const anyUncovered =
+      uncoveredSettings.length > 0 || uncoveredScript.length > 0;
+
+    if (covered.length === 0 && !anyUncovered) {
+      // All agents are script-only and covered - platform limitation, not a failure
       return pass([
         "No agents support settings-based deny patterns",
         ...scriptOnly.map(
@@ -40,28 +95,42 @@ const denyCoversSecrets: HarnessCheck = {
     }
     const findings: string[] = [];
     if (covered.length > 0) {
-      findings.push(`${covered.join(", ")}: deny patterns cover secrets`);
+      findings.push(
+        `${covered.join(", ")}: settings Read deny + Bash hook both cover secrets`,
+      );
     }
     if (scriptOnly.length > 0) {
       findings.push(
-        `${scriptOnly.join(", ")}: script-based deny only - file-read deny not available`,
+        `${scriptOnly.join(", ")}: script-only deny; Bash hook covers secret paths`,
       );
     }
-    if (uncovered.length > 0) {
+    if (!anyUncovered) return pass(findings);
+
+    const recs: string[] = [];
+    const fixes: string[] = [];
+    if (uncoveredSettings.length > 0) {
       findings.push(
-        `${uncovered.join(", ")}: deny patterns missing secret file coverage`,
+        `${uncoveredSettings.join(", ")}: secret-file coverage incomplete (settings.json Read deny and/or Bash hook pattern is missing)`,
       );
-      return fail(
-        findings,
-        [
-          `Add deny patterns for .env, credentials, and key files to ${uncovered.join(", ")}`,
-        ],
-        [
-          `Add deny patterns for .env, .credentials, *.key, and *.pem files to ${uncovered.join(", ")} agent configuration.`,
-        ],
+      recs.push(
+        `Add secret-read coverage to ${uncoveredSettings.join(", ")}: settings.json Read() patterns for .env / .ssh / .aws / .pem / .key, AND the Bash deny hook must block cat/source/base64/etc. on the same paths.`,
+      );
+      fixes.push(
+        `${uncoveredSettings.join(", ")}: extend settings.json deny with Read() patterns for .env, .ssh, .aws, credentials, *.key, *.pem AND add an is_secret_path_touch (or equivalent) check in the Bash deny hook. Settings.json Read() deny alone does not bind Bash shell reads.`,
       );
     }
-    return pass(findings);
+    if (uncoveredScript.length > 0) {
+      findings.push(
+        `${uncoveredScript.join(", ")}: Bash deny hook does not cover secret paths (script-only agent - no settings.json layer applies)`,
+      );
+      recs.push(
+        `Add secret-path coverage to the Bash deny hook for ${uncoveredScript.join(", ")}: block cat/source/base64/etc. on .env, .ssh, .aws, credentials, *.key, *.pem.`,
+      );
+      fixes.push(
+        `${uncoveredScript.join(", ")}: add an is_secret_path_touch (or equivalent) check in the Bash deny hook. Script-only agents have no settings.json Read() surface; the Bash hook is the only enforcement layer.`,
+      );
+    }
+    return fail(findings, recs, fixes);
   },
 };
 
@@ -69,6 +138,13 @@ const denyBlocksDangerous: HarnessCheck = {
   id: "deny-blocks-dangerous",
   name: "Deny blocks dangerous commands",
   concern: "constraints",
+  type: "integrity",
+  provenance: constraintsProvenance("integrity", [
+    "docs/harness-audit.md",
+    ".goat-flow/footguns/auditor.md",
+    ".goat-flow/footguns/hooks.md",
+  ]),
+  /** Run the Deny blocks dangerous commands check. */
   run: (ctx) => {
     if (ctx.agents.length === 0) {
       return fail(["No agents to check"], ["Configure at least one agent"]);
@@ -107,6 +183,17 @@ const denyBlocksPipeToShell: HarnessCheck = {
   id: "deny-blocks-pipe-to-shell",
   name: "Deny blocks pipe-to-shell",
   concern: "constraints",
+  type: "advisory",
+  provenance: constraintsProvenance(
+    "advisory",
+    [
+      "docs/harness-audit.md",
+      ".goat-flow/footguns/auditor.md",
+      ".goat-flow/footguns/hooks.md",
+    ],
+    "incident",
+  ),
+  /** Run the Deny blocks pipe-to-shell check. */
   run: (ctx) => {
     const covered: string[] = [];
     const uncovered: string[] = [];
@@ -145,6 +232,13 @@ const denyHookRegistered: HarnessCheck = {
   id: "deny-hook-registered",
   name: "Deny hook registered in agent settings",
   concern: "constraints",
+  type: "integrity",
+  provenance: constraintsProvenance(
+    "integrity",
+    ["docs/harness-audit.md", ".goat-flow/footguns/auditor.md"],
+    "incident",
+  ),
+  /** Run the Deny hook registered in agent settings check. */
   run: (ctx) => {
     const registered: string[] = [];
     const unregistered: string[] = [];

@@ -23,12 +23,16 @@ src/cli/
   detect/             # Agent and stack detection (agents.ts, project-stack.ts)
   facts/              # Fact extraction (orchestrator.ts, fs.ts, agent/, shared/)
   audit/              # Audit engine (audit.ts, check-goat-flow.ts, check-agent-setup.ts, harness/, render.ts, types.ts)
-  prompt/             # Prompt generation (compose-setup.ts, compose-critique.ts)
-  server/             # Dashboard server (dashboard.ts, terminal.ts, types.ts)
+  prompt/             # Prompt generation (compose-setup.ts, compose-quality.ts)
+  server/             # Dashboard server modules:
+                      #   dashboard.ts (bootstrap, dispatch, live reload)
+                      #   dashboard-routes.ts (non-terminal HTTP handlers)
+                      #   dashboard-terminal.ts (terminal HTTP/WebSocket wiring)
+                      #   dashboard-assets.ts (HTML shell + asset loading)
+                      #   setup-detect.ts, terminal.ts, types.ts
 src/dashboard/        # Dashboard UI (views/, static assets)
 workflow/
   install-goat-flow.sh        # Install workflow assets into a target project
-  validate-goat-flow-setup.sh # Quick GOAT Flow setup validator (setup scope only)
   setup/                      # Agent setup docs and shared setup references
 scripts/
   preflight-checks.sh  # Full preflight gate (shellcheck, tsc, tests, version, ADR)
@@ -38,10 +42,8 @@ test/
   unit/                # Unit tests
   integration/         # Integration tests
   contract/            # Contract tests
-  journeys/            # Journey tests
   smoke/               # Smoke tests
   fixtures/            # Test fixtures
-  helpers/             # mock-fs.ts, test-project.ts
 ```
 
 ## Commands
@@ -52,16 +54,15 @@ npm run test           # node --import tsx --test 'test/**/*.test.ts'
 npm run typecheck      # tsc --noEmit
 npm run audit          # node dist/cli/cli.js audit .
 
-shellcheck workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh      # Lint shell scripts
-bash -n workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh          # Syntax-check scripts
+shellcheck scripts/*.sh scripts/maintenance/*.sh                                            # Lint shell scripts
+bash -n scripts/*.sh scripts/maintenance/*.sh                                                # Syntax-check scripts
 bash scripts/preflight-checks.sh         # Full preflight gate
-bash workflow/validate-goat-flow-setup.sh # Validate GOAT Flow setup scope
 
 # CLI commands (after build)
 goat-flow audit .                        # Validate setup correctness
 goat-flow audit . --harness              # AI harness completeness checks
 goat-flow setup --agent claude           # Generate setup prompt
-goat-flow critique . --agent claude      # Generate critique prompt
+goat-flow quality . --agent claude       # Generate quality-assessment prompt
 ```
 
 ## Conventions

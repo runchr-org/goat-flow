@@ -3,14 +3,22 @@
  */
 // === Agent Types ===
 
-/** Supported AI coding agent identifiers */
-export type AgentId = "claude" | "codex" | "gemini";
+/** Canonical supported AI coding agent identifiers in stable display order. */
+export const KNOWN_AGENT_IDS = [
+  "claude",
+  "codex",
+  "gemini",
+  "copilot",
+] as const;
+
+/** Supported AI coding agent identifiers derived from the canonical tuple. */
+export type AgentId = (typeof KNOWN_AGENT_IDS)[number];
 
 // === Agent Profile ===
 
 /**
  * Describes an agent's file layout and enforcement mechanisms.
- * One profile per supported agent (Claude, Codex, Gemini).
+ * One profile per supported agent (Claude, Codex, Gemini, Copilot).
  */
 export interface AgentProfile {
   id: AgentId;
@@ -18,10 +26,14 @@ export interface AgentProfile {
   instructionFile: string;
   // Null when the agent has no JSON settings mechanism (e.g., Codex)
   settingsFile: string | null;
+  // File that stores hook registrations when it differs from settingsFile.
+  hookConfigFile: string | null;
   skillsDir: string;
   // Null when the agent has no hook directory
   hooksDir: string | null;
   denyMechanism: DenyMechanism;
+  // Null when the agent has no on-disk deny hook script.
+  denyHookFile: string | null;
   // Glob pattern for agent-specific local instruction files
   localPattern: string;
   hookEvents: HookEvents;
@@ -39,7 +51,8 @@ export type DenyMechanism =
 /** Hook event file names specific to each agent runtime */
 export interface HookEvents {
   preTool: string;
-  postTurn: string;
+  // Null when the runtime exposes no post-turn hook event.
+  postTurn: string | null;
 }
 
 // === Facts ===
@@ -49,7 +62,7 @@ export interface ProjectFacts {
   // Absolute path to the project root
   root: string;
   stack: StackInfo;
-  // One entry per detected agent (Claude, Codex, Gemini)
+  // One entry per detected agent (Claude, Codex, Gemini, Copilot)
   agents: AgentFacts[];
   shared: SharedFacts;
 }
@@ -83,6 +96,27 @@ export interface ProjectSignals {
   formatterGaps: string[];
 }
 
+/** Per-bucket learning-loop freshness + health record used by `goat-flow stats`. */
+export interface BucketFreshness {
+  /** Relative path of the bucket file */
+  path: string;
+  /** `last_reviewed` date from frontmatter in YYYY-MM-DD form, or null if missing/invalid */
+  lastReviewed: string | null;
+  /** Whole days between last_reviewed and "now"; null when lastReviewed is unknown */
+  freshnessDays: number | null;
+  /** Freshness band: <=30d fresh, 31-90d aging, >90d stale, unknown if no valid date */
+  freshnessBand: "fresh" | "aging" | "stale" | "unknown";
+  /** Entries counted live in this bucket (## Footgun/Lesson/Pattern headings) */
+  entryCount: number;
+  /** Stale file refs found in this bucket */
+  staleRefs: string[];
+  /** Invalid line refs (line out of bounds) found in this bucket */
+  invalidLineRefs: string[];
+  /** Most recent `**Created:**` or `**Updated:**` date in the body, YYYY-MM-DD or null.
+   *  Used to detect frontmatter `last_reviewed` that is stale relative to entry dates. */
+  maxEntryDate: string | null;
+}
+
 /** Facts shared across all agents (project-wide files and directories) */
 export interface SharedFacts {
   footguns: {
@@ -99,6 +133,8 @@ export interface SharedFacts {
     validRefs: number;
     formatDiagnostic: string | null;
     path: string;
+    /** Per-bucket freshness records; empty when the directory is missing. */
+    buckets: BucketFreshness[];
   };
   lessons: {
     exists: boolean;
@@ -108,6 +144,8 @@ export interface SharedFacts {
     duplicateSurfacePaths: string[];
     formatDiagnostic: string | null;
     path: string;
+    /** Per-bucket freshness records; empty when the directory is missing. */
+    buckets: BucketFreshness[];
   };
   decisions: {
     dirExists: boolean;
@@ -134,7 +172,6 @@ export interface SharedFacts {
   };
   gitignore: { exists: boolean; hasRequiredEntries: boolean };
   preflightScript: { exists: boolean };
-  contextValidation: { exists: boolean };
   skillConventions: { exists: boolean };
   // changelog removed - project-level concern, not AI workflow.
   localInstructions: {
@@ -233,10 +270,14 @@ export interface AgentFacts {
     postTurnExitsZero: boolean;
     postTurnHasValidation: boolean;
     postTurnSwallowsFailures: boolean;
-    compactionHookExists: boolean;
     /** Hook scripts containing hardcoded absolute paths (not wrapped in $(git rev-parse)) */
     absolutePathHooks: string[];
     readDenyCoversSecrets: boolean;
+    /** True when the Bash deny hook script has pattern coverage for secret-bearing
+     *  file reads (.env, /.ssh/, /.aws/, .pem/.key/.pfx). Settings.json Read()
+     *  denies do not cover Bash commands, so this check is the only line of
+     *  defence against shell-based secret exfil. */
+    bashDenyCoversSecrets: boolean;
   };
   deny: {
     gitCommitBlocked: boolean;

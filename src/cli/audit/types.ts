@@ -12,6 +12,7 @@ import type {
   ReadonlyFS,
 } from "../types.js";
 import type { LoadedConfig } from "../config/types.js";
+import type { CheckEvidence } from "./provenance-types.js";
 
 // === JSON contract types (stable public API) ===
 
@@ -26,7 +27,12 @@ export interface CheckResult {
   id: string;
   name: string;
   status: "pass" | "fail";
+  provenance: CheckEvidence;
   failure?: AuditFailure;
+  /** Harness-check classification; absent for build checks. */
+  type?: HarnessCheckType;
+  /** True when an advisory failure is silenced by `harness.acknowledge` in config. */
+  acknowledged?: boolean;
 }
 
 export interface AuditScope {
@@ -43,6 +49,18 @@ export interface AuditConcern {
   findings: string[];
   recommendations: string[];
   howToFix: string[];
+  /** Count of passing integrity checks. */
+  integrityPass: number;
+  /** Count of failing integrity checks. */
+  integrityFail: number;
+  /** Count of passing advisory checks. */
+  advisoryPass: number;
+  /** Count of failing advisory checks that are not acknowledged in config. */
+  advisoryFail: number;
+  /** Count of failing advisory checks silenced by `harness.acknowledge`. */
+  advisoryAcknowledged: number;
+  /** Count of metric checks (never scored, always informational). */
+  metrics: number;
 }
 
 export type AuditConcernKey =
@@ -63,9 +81,56 @@ export interface AuditReport {
     harness: AuditScope | null;
   };
   concerns: Record<AuditConcernKey, AuditConcern> | null;
+  /** Drift section, populated when --check-drift is set. */
+  drift: DriftReport | null;
+  /** Content-lint section, populated when --check-content is set. */
+  content: ContentReport | null;
   overall: {
     status: "pass" | "fail";
   };
+}
+
+// === Drift check (M04) ===
+
+export type DriftFindingKind = "content" | "missing" | "orphan" | "deprecated";
+
+export interface DriftFinding {
+  kind: DriftFindingKind;
+  path: string;
+  message: string;
+}
+
+export interface DriftReport {
+  status: "pass" | "fail";
+  findings: DriftFinding[];
+  checked: number;
+}
+
+// === Content lint (M05) ===
+
+/** WARNING findings fail the content scope; INFO findings are advisory. */
+export type ContentSeverity = "info" | "warning";
+
+export interface ContentFinding {
+  severity: ContentSeverity;
+  /** Stable rule id (e.g. "vague-term", "skill-count-drift"). */
+  rule: string;
+  /** File path relative to project root. */
+  path: string;
+  /** 1-indexed line number if applicable. */
+  line?: number;
+  message: string;
+  /** Actionable suggestion when available (e.g. "Use 'consistent 2-space indentation' instead of 'format properly'"). */
+  suggestion?: string;
+}
+
+export interface ContentReport {
+  status: "pass" | "fail";
+  findings: ContentFinding[];
+  warnings: number;
+  infos: number;
+  /** Number of target files scanned. */
+  filesScanned: number;
 }
 
 // === Internal types (check definitions and context) ===
@@ -77,6 +142,7 @@ export interface ProjectStructure {
   skills: {
     canonical: string[];
     stale_names: string[];
+    references?: Record<string, string[]>;
   };
   agents: Record<
     string,
@@ -108,14 +174,26 @@ export interface BuildCheck {
   id: string;
   name: string;
   scope: AuditScopeName;
+  provenance: CheckEvidence;
   run: (ctx: AuditContext) => AuditFailure | null;
 }
+
+/**
+ * Harness check classification (M01):
+ * - `integrity`: drift from install state; failing integrity gates concern status.
+ * - `advisory`: best practice; failing advisory gates concern status unless
+ *   the check id is listed in `harness.acknowledge` in config.yaml.
+ * - `metric`: workflow maturity signal; never affects status.
+ */
+export type HarnessCheckType = "integrity" | "advisory" | "metric";
 
 /** A single harness completeness check (deterministic pass/fail) */
 export interface HarnessCheck {
   id: string;
   name: string;
   concern: AuditConcernKey;
+  type: HarnessCheckType;
+  provenance: CheckEvidence;
   run: (ctx: AuditContext) => HarnessCheckResult;
 }
 

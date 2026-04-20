@@ -1,15 +1,45 @@
 /**
  * Recovery concern: Can the agent resume after crash or compaction?
- * 3 checks: milestone-tracking, session-logs, compaction-hook.
+ * 2 checks: milestone-tracking, session-logs.
  */
 import type { HarnessCheck } from "../types.js";
+import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
 import { collectMarkdownFiles } from "./helpers.js";
+
+const VERIFIED_ON = "2026-04-18";
+
+/** Return the recovery provenance. */
+function recoveryProvenance(
+  type: HarnessCheck["type"],
+  paths: string[],
+  sourceType: CheckEvidence["source_type"] = "spec",
+): CheckEvidence {
+  return {
+    source_type: sourceType,
+    source_urls: [],
+    verified_on: VERIFIED_ON,
+    normative_level:
+      type === "integrity"
+        ? "MUST"
+        : type === "advisory"
+          ? "SHOULD"
+          : "BEST_PRACTICE",
+    evidence_paths: paths,
+  };
+}
 
 const milestoneTracking: HarnessCheck = {
   id: "milestone-tracking",
   name: "Milestone tracking configured",
   concern: "recovery",
+  type: "integrity",
+  provenance: recoveryProvenance("integrity", [
+    "docs/harness-audit.md",
+    ".goat-flow/architecture.md",
+    ".goat-flow/tasks/README.md",
+  ]),
+  /** Run the Milestone tracking configured check. */
   run: (ctx) => {
     const tasksDir = ".goat-flow/tasks";
     if (!ctx.fs.exists(tasksDir)) {
@@ -58,6 +88,12 @@ const sessionLogs: HarnessCheck = {
   id: "session-logs",
   name: "Session logs directory",
   concern: "recovery",
+  type: "integrity",
+  provenance: recoveryProvenance("integrity", [
+    "docs/harness-audit.md",
+    ".goat-flow/architecture.md",
+  ]),
+  /** Run the Session logs directory check. */
   run: (ctx) => {
     const logsDir = ".goat-flow/logs/sessions";
     try {
@@ -75,52 +111,4 @@ const sessionLogs: HarnessCheck = {
   },
 };
 
-const compactionHook: HarnessCheck = {
-  id: "compaction-hook",
-  name: "Compaction hook registered",
-  concern: "recovery",
-  run: (ctx) => {
-    const covered: string[] = [];
-    const uncovered: string[] = [];
-    for (const af of ctx.agents) {
-      if (af.hooks.compactionHookExists) {
-        covered.push(af.agent.id);
-      } else {
-        uncovered.push(af.agent.id);
-      }
-    }
-    if (uncovered.length === 0) {
-      return pass([`${covered.join(", ")}: compaction hook registered`]);
-    }
-    const nonCodexUncovered = uncovered.filter((id) => id !== "codex");
-    const codexUncovered = uncovered.filter((id) => id === "codex");
-
-    const findings: string[] = [];
-    if (covered.length > 0) {
-      findings.push(`${covered.join(", ")}: compaction hook registered`);
-    }
-    if (codexUncovered.length > 0) {
-      findings.push("codex: context compaction not supported - not checked");
-    }
-
-    if (nonCodexUncovered.length > 0) {
-      findings.push(
-        `${nonCodexUncovered.join(", ")}: no compaction hook registered`,
-      );
-      return fail(
-        findings,
-        [`Add compaction hook for ${nonCodexUncovered.join(", ")}`],
-        [
-          `Register a compaction hook for ${nonCodexUncovered.join(", ")} that re-injects task state after context compression.`,
-        ],
-      );
-    }
-    return pass(findings);
-  },
-};
-
-export const RECOVERY_CHECKS: HarnessCheck[] = [
-  milestoneTracking,
-  sessionLogs,
-  compactionHook,
-];
+export const RECOVERY_CHECKS: HarnessCheck[] = [milestoneTracking, sessionLogs];

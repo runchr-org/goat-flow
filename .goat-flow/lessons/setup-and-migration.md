@@ -1,5 +1,6 @@
 ---
 category: setup-and-migration
+last_reviewed: 2026-04-19
 ---
 
 ## Lesson: Agents given broad setup tasks rewrite shared docs as agent-specific
@@ -18,7 +19,7 @@ category: setup-and-migration
 
 **What happened:** Rampart's CLAUDE.md had `redaction.rs` (doesn't exist - redaction is Python only). Blundergoat's CLAUDE.md had a stale web middleware path pointing at `middleware.ts` instead of `proxy.ts`, plus a stale API SQL directory pointing at `migrations/` instead of `schema/`. Sub-agents creating coding-standards files (feature removed in v1.1.0) read these wrong paths from the existing instruction files and copied them into the new cold-path files, propagating the error.
 **Root cause:** The verification gate said "verify paths in the generated files" but didn't say "also audit the existing instruction file you're reading from." Agents trust the hot-path file as authoritative without checking.
-**Fix:** Added "ALSO AUDIT EXISTING INSTRUCTION FILES" gate to docs-seed.md - verify Ask First paths exist, check router entries resolve, fix stale paths before copying them into cold-path files.
+**Fix:** Added an "ALSO AUDIT EXISTING INSTRUCTION FILES" gate to the shared setup-reference guidance - verify Ask First paths exist, check router entries resolve, and fix stale paths before copying them into cold-path files.
 
 ---
 
@@ -46,7 +47,7 @@ category: setup-and-migration
 
 **Created:** 2026-03-22
 
-**What happened:** Shape removed from scanner code (ADR-002) but `[APP / LIBRARY / SCRIPT COLLECTION]` survived in 9 setup/workflow/doc files. Confusion-log removed (ADR-003) but agent recreated it because the constraint wasn't in the prompt.
+**What happened:** Shape removed from scanner code (ADR-002) but `[APP / LIBRARY / SCRIPT COLLECTION]` survived in 9 setup/workflow/doc files. Confusion-log removed (ADR-001) but agent recreated it because the constraint wasn't in the prompt.
 **Root cause:** Grepped `src/` and `test/` but not `workflow/setup/`, `workflow/`, `docs/`.
 **Fix:** Preflight now enforces removed patterns across all live directories. ADR removals must grep the entire repo.
 

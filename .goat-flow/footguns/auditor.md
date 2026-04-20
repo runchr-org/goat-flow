@@ -1,23 +1,22 @@
 ---
 category: auditor
+last_reviewed: 2026-04-20
 ---
 
-## Footgun: Audit validates hook file content but not hook runtime behavior
+## Footgun: Audit does not prove end-to-end deny enforcement at runtime
 
-**Status:** active | **Created:** 2026-04-05 | **Evidence:** ACTUAL_MEASURED
+**Status:** active | **Created:** 2026-04-05 | **Updated:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED
 
-The audit checks that hook files exist and pass `bash -n` syntax check, but never verifies hooks actually execute. A hook with correct syntax but wrong permissions, missing dependencies (jq not installed), or broken JSON field paths passes the audit at 100% while providing zero enforcement at runtime.
+The audit validates hook syntax, self-test behavior, and registration, but does not prove that a blocked command actually fails with exit 2 under a real sub-agent invocation. A hook that passes every static check can still fail to block at runtime if registration or environment are wrong.
+
+**Residual scope** (after 2026-04-18 `agent-deny-dangerous` check which invokes the hook's `--self-test` + covers quoted-alternation false positives):
+
+1. Hook registration cross-check (file exists ↔ registered in settings). The `deny-hook-registered` check in `harness/check-constraints.ts` partially covers this but does not verify end-to-end that a blocked command actually fails with exit 2 under real invocation.
+2. A dedicated `goat-flow verify` command for full runtime hook smoke-test is not yet built.
 
 **Evidence:**
-- 4+ sessions across 112 (Claude Insights data) derailed by sub-agent permission failures hitting hooks that the audit had already validated
-- `deny-dangerous.sh` sed fallback truncates commands with escaped quotes - audit checks syntax, not correctness
-
-**Impact:** Users may trust a passing harness audit as "hooks are working" when it means "hooks exist and have valid bash syntax." The gap between file validation and runtime behavior is invisible.
-
-**Prevention:**
-1. Add a setup completion smoke test: pipe a known-blocked command through the deny hook and verify exit code 2
-2. Audit should verify hook registration matches hook files (file exists → must be registered, registered → file must exist)
-3. Consider a `goat-flow verify` command that does runtime checks vs the current `goat-flow audit` which does static checks
+- `src/cli/audit/harness/check-constraints.ts` (search: `deny-hook-registered`) - cross-checks hook file existence against settings.json registration, but does not drive a blocked command through the live agent runtime.
+- `src/cli/audit/check-agent-setup.ts` (search: `checkHookSelfTest`) - invokes the hook's `--self-test` so quoted-alternation false positives and pipe-to-shell bypass attempts are exercised, not just parsed. Does not verify end-to-end blocking through an actual sub-agent's Bash tool.
 
 ---
 
@@ -41,6 +40,30 @@ The audit checks that hook files exist and pass `bash -n` syntax check, but neve
 
 ---
 
+## Footgun: Audit checks existed with no machine-readable justification
+
+**Status:** resolved | **Created:** 2026-04-18 | **Resolved:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
+
+**Resolution:** M05 defined the `CheckEvidence` schema and M11 back-filled it onto all 33 live audit checks. `BuildCheck` and `HarnessCheck` now require `provenance`, `runAudit()` validates every registered record via `validateProvenance()`, and per-check JSON output carries the full provenance object. CONTRIBUTING now requires new checks to ship provenance in the same change.
+
+**Original symptoms:** The live registry had deterministic checks, but no per-check machine-readable record of why each one existed, which source justified it, or whether a rule was MUST/SHOULD/BEST_PRACTICE. Reviewers had to infer rationale from code, stale milestone text, or repo history.
+
+---
+
+## Footgun: Structural Compliance Illusion
+
+**Status:** active | **Created:** 2026-04-16 | **Evidence:** ACTUAL_MEASURED
+
+Build checks in `src/cli/audit/check-goat-flow.ts` and `src/cli/audit/check-agent-setup.ts` prove the install shape is present, not that the cold-path docs are semantically true. A structural PASS without content verification still creates false confidence.
+
+**Evidence:**
+- `src/cli/audit/check-goat-flow.ts` and `src/cli/audit/check-agent-setup.ts` gate file existence / install structure.
+- `src/cli/audit/check-content-quality.ts` and `src/cli/audit/check-factual-claims.ts` exist because structural correctness alone did not catch cold-path truth drift.
+
+**Prevention:** Keep structural audit and content-truth checks separate and explicit. Never treat a build PASS as proof that docs, ADRs, or prompts are semantically current.
+
+---
+
 ## Resolved Entries
 
 > Historical record. These entries are no longer active traps.
@@ -51,11 +74,3 @@ The audit checks that hook files exist and pass `bash -n` syntax check, but neve
 - **Scanner reports enforcement features it didn't detect** (resolved 2026-04-13) - Scanner removed in v1.1.0; hook facts now read from actual file content via `enrichDenyFromExecpolicy()`.
 - **Scanner gives 100% while generated files are broken** (resolved 2026-04-13) - Scanner/rubric engine removed in v1.1.0; replaced with structural build checks plus pass/fail harness completeness checks.
 - **Setup reports scanner metrics as audit results** (resolved 2026-04-13) - Scanner removed; `cli.ts` now calls `runAudit()` and reports actual hook file counts.
-
-## Footgun: Structural Compliance Illusion
-
-**Status:** active | **Created:** 2026-04-16 | **Evidence:** ACTUAL_MEASURED
-
-Competitive analysis of 13 agent frameworks (including agnix and cclint) shows that agents frequently "game" the scanner by creating validly-structured but empty or hallucinated documentation files. A 100% structural pass does NOT mean the harness is effective. Without line-level content verification or automated cross-referencing, the auditor measures file existence rather than governance quality.
-
-**Prevention:** Move toward line-level diagnostic precision (see agnix) and automated link verification (see cclint). Use M13's "Enforcement-in-code" pivot to bridge the gap between structure and signal.

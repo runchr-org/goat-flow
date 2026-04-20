@@ -43,31 +43,32 @@ export function getTemplatePath(relative: string): string {
   return join(GOAT_FLOW_ROOT, relative);
 }
 
-/**
- * Build the CLI command string that can run goat-flow from any project directory.
- * Returns the absolute `node /path/to/dist/cli/cli.js` form since goat-flow
- * may not be globally installed in target projects.
- */
+/** Resolve the first existing goat-flow path from a priority-ordered list. */
+export function resolveFirstExistingPackagePath(
+  relatives: readonly string[],
+): string {
+  for (const relative of relatives) {
+    const absolute = getTemplatePath(relative);
+    if (existsSync(absolute)) return absolute;
+  }
+  throw new Error(`Could not find any of: ${relatives.join(", ")}`);
+}
+
+/** Build the absolute CLI command used to run goat-flow from any project. */
 export function getCliCommand(): string {
   return `node ${join(GOAT_FLOW_ROOT, "dist", "cli", "cli.js")}`;
 }
 
-/** Cached parsed manifest.json */
-let _projectStructure: Record<string, unknown> | null = null;
-
-/**
- * Read and cache the canonical manifest.json from goat-flow's workflow/ dir.
- * Returns the parsed JSON object, or an empty object if the file is missing or unparseable.
+/** True when goat-flow is running from a packaged install rather than a source
+ *  checkout. `package.json` `files` ships only `dist/` + `workflow/` (plus a
+ *  small set of runtime helpers), so consumer environments do not have `src/`
+ *  or `.goat-flow/*` present. Code that reads source files at runtime, or
+ *  validates evidence_paths that point at framework-repo docs, must gate on
+ *  this to avoid spurious failures on consumer installs.
+ *
+ *  Set `GOAT_FLOW_PACKAGED_MODE=1` to force-enable (tests use this).
  */
-export function getProjectStructure(): Record<string, unknown> {
-  if (_projectStructure !== null) return _projectStructure;
-  const structurePath = join(GOAT_FLOW_ROOT, "workflow", "manifest.json");
-  try {
-    _projectStructure = JSON.parse(
-      readFileSync(structurePath, "utf-8"),
-    ) as Record<string, unknown>;
-  } catch {
-    _projectStructure = {};
-  }
-  return _projectStructure;
+export function isPackagedInstall(): boolean {
+  if (process.env["GOAT_FLOW_PACKAGED_MODE"] === "1") return true;
+  return !existsSync(join(GOAT_FLOW_ROOT, "src", "dashboard"));
 }

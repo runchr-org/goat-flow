@@ -3,10 +3,12 @@
  */
 import type { HarnessCheckResult } from "../types.js";
 
+/** Build a passing harness-check result. */
 export function pass(findings: string[]): HarnessCheckResult {
   return { status: "pass", findings, recommendations: [] };
 }
 
+/** Build a failing harness-check result with recommendations. */
 export function fail(
   findings: string[],
   recommendations: string[],
@@ -21,8 +23,13 @@ export function extractBacktickPaths(content: string): string[] {
   const paths: string[] = [];
   let m;
   while ((m = pattern.exec(content))) {
-    const p = m[1]!;
+    const p = m[1];
+    if (p === undefined) continue;
+    // This helper is intentionally heuristic. Ignore URLs, globs, call-like
+    // snippets, and angle-bracket placeholders (e.g. `<YYYY-MM-DD>`) so the
+    // doc-path check only validates likely repo-relative paths.
     if (p.includes("://") || p.includes("*") || p.includes("(")) continue;
+    if (p.includes("<") || p.includes(">")) continue;
     if (p.startsWith("/") || p.includes(" ")) continue;
     paths.push(p);
   }
@@ -41,6 +48,8 @@ export function collectMarkdownFiles(
   } catch {
     return mdFiles;
   }
+  // One level of descent is enough for the current docs layout and keeps the scan
+  // deterministic for tests instead of walking arbitrarily deep trees.
   for (const entry of entries) {
     const entryPath = `${dir}/${entry}`;
     if (entry.endsWith(".md")) {

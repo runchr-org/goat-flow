@@ -5,7 +5,7 @@
 # - This file only enables the hooks engine
 # - Hook registrations live in .codex/hooks.json
 # - The shipped codex-hooks.json template registers the PreToolUse deny hook
-# - Stop hooks are project-specific; add them in hooks.json only when needed
+# - goat-flow does not model a Codex post-turn hook event
 
 [features]
 codex_hooks = true

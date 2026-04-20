@@ -1,5 +1,7 @@
 # Agent Config - Claude Code
 
+> Canonical machine-readable source for these paths: `workflow/manifest.json` via `src/cli/agents/registry.ts`. If this doc drifts, the manifest-backed registry wins.
+
 ## Paths
 
 | Resource | Path |
@@ -25,7 +27,7 @@ After completing step 03 (skills), wire hooks:
 - Copy scripts from `workflow/hooks/` to `.claude/hooks/`: `deny-dangerous.sh` (required)
 - Copy `workflow/hooks/agent-config/claude.json` as the base for `.claude/settings.json`. The default template keeps secret deny patterns plus git commit/push blocking.
 - If hooks already exist in `.claude/settings.json`, migrate inline commands to external scripts under `.claude/hooks/` before adding new hooks.
-- If the project uses a code formatter (prettier, biome, etc.), add `.goat-flow/skill-preamble.md` and `.goat-flow/**/*.md` to the formatter's ignore file (`.prettierignore`, `biome.json` ignores, etc.). Verify YAML examples in skill-preamble.md still use `---` delimiters after formatting.
+- If the project uses a code formatter (prettier, biome, etc.), add `.goat-flow/skill-reference/skill-preamble.md` and `.goat-flow/**/*.md` to the formatter's ignore file (`.prettierignore`, `biome.json` ignores, etc.). Verify YAML examples in skill-preamble.md still use `---` delimiters after formatting.
 
 ### Conditional rules
 

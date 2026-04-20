@@ -1,58 +1,62 @@
 ---
 name: goat-plan
-description: "Milestone task file generator and manager. Creates structured milestone files in .goat-flow/tasks/ that track progress, enforce testing gates, and provide local working state for the current session."
-goat-flow-skill-version: "1.1.0"
+description: "Use when starting a non-trivial implementation that needs structured task breakdown with progress tracking."
+goat-flow-skill-version: "1.2.0"
 ---
 # /goat-plan
 
 ## Shared Conventions
 
-Read `.goat-flow/skill-preamble.md` for shared conventions.
-On full-depth, also read `.goat-flow/skill-conventions.md`.
+Read `.goat-flow/skill-reference/skill-preamble.md` for shared conventions.
+On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 
 ## When to Use
 
-Use when work needs breaking into milestones with tracked progress. goat-plan creates and manages milestone files in `.goat-flow/tasks/` - local working state for the current session. These files are gitignored and not committed; they exist to coordinate between the human and coding agent during a work session, not as permanent project artifacts.
+Use when work needs breaking into milestones with tracked progress. goat-plan creates and manages milestone files in the active plan subdir of `.goat-flow/tasks/` (named by `.goat-flow/tasks/.active` - see Step 0) - local working state for the current session. These files are gitignored and not committed; they exist to coordinate between the human and coding agent during a work session, not as permanent project artifacts.
 
 **Invoke when:**
 - A feature, project, or significant change needs structured milestones before implementation
 - The dispatcher's Planning Route has produced a brief and now needs milestone breakdown
-- A goat-sbao critique recommends restructuring the approach - milestones need rewriting
+- A `/goat-critique` run recommends restructuring the approach - milestones need rewriting
 - Mid-implementation: scope changed, something unexpected happened, milestones need updating
 - Resuming work after a break - milestone files show where you stopped and what's next
 
 **NOT this skill:**
 - Writing a feature brief → dispatcher Planning Route
 - Sharpening requirements → dispatcher Planning Route
-- Critiquing a plan → /goat-sbao
-- Finding testing gaps → /goat-test
+- Critiquing a plan → /goat-critique
+- Finding testing gaps → /goat-qa
 - Diagnosing a bug → /goat-debug
 - Reviewing code → /goat-review
 
 ## Step 0 - Intake
 
 **Check for existing milestones first:**
-- Read `.goat-flow/tasks/` for any existing milestone files
-- If found: "Milestone files exist for [feature]. Resume from here, update milestones, or start fresh?"
+- Read `.goat-flow/tasks/.active` (one-line file naming the active plan subdir, e.g. `1.2.0`) to identify which subdir holds the current plan. Scan only that subdir for milestone files.
+- If the user explicitly names an existing milestone file, or clearly asks to "update", "improve", "tighten", "rewrite", or "fix" the current plan, treat that as approval to edit that file in place. Do NOT ask inline-vs-file or "resume/update/start fresh" when there is exactly one obvious target file. Ask only if multiple milestone files plausibly match or if the user explicitly signals read-only/no-write intent.
+- If `.active` is missing: list top-level entries in `.goat-flow/tasks/`, ask the user which is the active plan, and offer to write `.active` for next time.
+- If found: "Milestone files exist for [feature]. Resume from here, update milestones, or start fresh?" Use this only when the target file is not already obvious from the user's request.
 - If found but stale: check whether code has moved on but milestones haven't been updated, flag it. Note: task files are gitignored, so `git log` won't track them - check file modification dates instead
-- Also check for legacy milestone files outside `.goat-flow/tasks/` (for example `milestones/`, `tasks/`). If found, note them so the user knows about existing planning artifacts.
+- Also check for legacy milestone files outside `.goat-flow/tasks/` (for example `milestones/`, `tasks/`). Sibling-version subdirs inside `.goat-flow/tasks/` (e.g. `1.4.0/`, `_archived/`) hold deferred or completed work and are NOT scanned by default - only the `.active`-named subdir is. If found, note them so the user knows about existing planning artifacts.
 
 **If starting fresh:**
 1. What are we building? (Accept: a brief from the dispatcher, a requirements doc, a conversation summary, or just a description)
 2. What's the riskiest part? (This determines which milestone comes first)
 3. What would make us abandon this entirely? (Kill criteria)
-4. Read `.goat-flow/footguns/` for the target area
+4. Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/` for the target area
 
-**Detect read-only intent:**
-If the user's phrasing suggests analysis rather than implementation, offer read-only mode:
-- Analysis signals: "what would the milestones look like", "break this down for me", "plan this out", "how would you approach", "sketch the milestones", "walk me through the plan"
-- Implementation signals: "create milestones", "set up the plan", "write the milestone files", "start planning"
-- If analysis signals detected: "This sounds like a planning analysis. I can present milestones inline without writing files (read-only mode), or write them to `.goat-flow/tasks/`. Which do you prefer?"
-- If ambiguous, default to asking.
+**Pick exactly one mode.** Apply these signals in order - stop at the first that matches:
+
+1. **Named-File Update** - user names an existing milestone file OR asks to "update", "improve", "tighten", "rewrite", or "fix" a specific plan. Treat as explicit write approval; proceed to Phase 2 § Mode 1. Re-prompt only if multiple files plausibly match, or the user also says "review only" / "read-only" / "don't write yet".
+2. **Read-Only Analysis** - analysis signals: "what would the milestones look like", "break this down for me", "plan this out", "how would you approach", "sketch the milestones", "walk me through the plan". No files written; inline output; Phase 3 skipped; transition to file mode available later.
+3. **Inline-Then-Write** - Hotfix / Small Feature scope (1-2 milestones, low blast radius) with no analysis signals. Offer: *"Would you like milestones in inline form first, or written to `.goat-flow/tasks/<active>/` now?"* Inline first; write on approval.
+4. **File-Write (default at Standard+)** - implementation signals ("create milestones", "set up the plan", "write the milestone files", "start planning") OR Standard / System / Infrastructure scope with no analysis signals. Write directly to `.goat-flow/tasks/<active>/`.
+
+If analysis signals AND implementation signals BOTH appear, ask. If the request is too ambiguous to classify, ask. Never silently pick.
 
 **Minimum viable input:** A clear description of what to build. Everything else can be inferred or asked during milestone creation.
 
-**CHECKPOINT:** "Creating milestones for [feature]. Riskiest part: [risk]. Kill criteria: [criteria]. Proceeding to milestone breakdown."
+**CHECKPOINT:** "Mode: [Named-File Update | Read-Only Analysis | Inline-Then-Write | File-Write]. Creating milestones for [feature]. Riskiest part: [risk]. Kill criteria: [criteria]. Proceeding to milestone breakdown."
 
 ## Phase 1 - Milestone Breakdown
 
@@ -66,6 +70,14 @@ Structure the work into milestones using these archetypes. Adapt the count to th
 4. **Make It Shine** - Polish, performance, docs, open source prep. Explicitly optional - mark as such.
 
 **Spike-first rule:** If uncertain about a library, API, performance characteristic, or integration point - that uncertainty goes in Milestone 1 as a spike, not Milestone 3 as a risk.
+
+| Excuse | Reality |
+|--------|---------|
+| "Team is experienced so the spike is overkill" | Expertise with provider X does not transfer to provider Y - the expertise is the wrong shape. Spike anyway. |
+| "N milestones is what they asked for, stick to the count" | Milestone count is fine; dropping the spike to hit the count isn't. Add the M1 spike even if it means N+1. |
+| "Tight deadline means skip the full intake" | The tight deadline is *why* M1 must be a spike - fail fast on unknowns, not last. |
+| "Kill criteria are ceremony for something this straightforward" | Anything touching money, auth, or data is not "straightforward". Name the kill criteria anyway. |
+| "User said no ceremony, just paste it" | Authority pressure. Skill integrity overrides politeness when the user is asking the skill to do something that defeats its purpose. |
 
 ### For each milestone, produce:
 
@@ -110,37 +122,44 @@ When an assumption is validated, tick it and note the evidence. When an assumpti
 
 **BLOCKING GATE:** Present all milestones. "Approve milestones and start implementing, or adjust?"
 
-## Phase 2 - Write Milestone Files
+## Phase 2 - Deliver Milestones
 
-### Small-work Inline Mode
+The delivery path maps 1:1 to the mode picked in Step 0. Do exactly the mode's block; do not cross modes mid-flow.
 
-For Hotfix / Small Feature scope (typically 1-2 milestones, low blast radius), you may deliver milestones inline.
+### Mode 1: Named-File Update (edit in place)
 
-Use this prompt:
+The user named or clearly implied an existing milestone file. The request is explicit write approval - do not re-prompt.
 
-> "Would you like milestones in inline form first, or written to `.goat-flow/tasks/` now?"
+- Edit the named or obvious milestone file in place. Do NOT create a parallel inline plan.
+- Preserve title/status metadata unless the requested change requires updating them.
+- Present the updated milestone content or a concise delta after editing.
+- Ask only if multiple milestone files are plausible targets, or if the change would spill beyond the named planning surface into additional files.
 
-If the user says proceed inline, present milestone tasks in the chat and continue from there.
-If the user prefers files or scope is Standard/System, write each milestone to `.goat-flow/tasks/` as separate files and continue in standard format.
+### Mode 2: Read-Only Analysis (no files)
 
-### Read-Only / Analysis Mode
+Analysis signals triggered this mode in Step 0. Available at any complexity, including Standard+.
 
-For planning analysis, critiques, brainstorming, or discussions where no files should be written. Available at any complexity level, including Standard and above.
+- Run Phase 1 (Milestone Breakdown) in full - same archetypes, same task quality rules, same assumption tracking.
+- Present all milestones inline using the same structure as file-based milestones (objective, tasks, assumptions, exit criteria, testing gates, kill criteria, dependencies).
+- Do NOT write any file. Do NOT modify `.goat-flow/tasks/`.
+- Skip Phase 3 (Between Milestones) - there are no files to update.
+- Still include the summary format from Output Format at the end.
 
-**When to use:** The user wants to see what the milestones would look like, explore approaches, or get a structured breakdown without committing to files. Detected in Step 0 via analysis-intent signals, or explicitly requested.
-
-**Behaviour:**
-- Run Phase 1 (Milestone Breakdown) in full - same archetypes, same task quality rules, same assumption tracking
-- Present all milestones inline in the response using the same structure as file-based milestones (objective, tasks, assumptions, exit criteria, testing gates, kill criteria, dependencies)
-- Skip the "Write Milestone Files" step entirely - no files created, no `.goat-flow/tasks/` changes
-- Skip Phase 3 (Between Milestones) - there are no files to update between milestones
-- Still include the summary format from Output Format at the end
-
-**Transition to file mode:** If the user later says "write these to files", "let's go ahead", or "create the milestones", write the already-approved milestones to `.goat-flow/tasks/` without re-running the breakdown. Treat the inline milestones as the approved output of Phase 1.
+**Transition out:** If the user later says "write these to files" / "let's go ahead" / "create the milestones", switch to Mode 4 using the already-approved Phase 1 output. Do NOT re-run the breakdown.
 
 **CHECKPOINT:** "Here are the milestones for [feature] (read-only - no files written). Say 'write to files' to persist them, or adjust first."
 
-After approval, write each milestone to `.goat-flow/tasks/` as a separate file:
+### Mode 3: Inline-Then-Write (Hotfix / Small Feature)
+
+Low blast radius, 1-2 milestones, no analysis signals. Deliver inline first, write on approval.
+
+- Present Phase 1 milestones inline.
+- If the user accepts inline-only, continue inline; offer a later write-to-files transition if useful.
+- If the user asks to persist, switch to Mode 4 using the already-approved Phase 1 output.
+
+### Mode 4: File-Write (Standard+ or explicit file request)
+
+After Phase 1 approval, write each milestone to `.goat-flow/tasks/<active>/` as a separate file.
 
 **Filename format:** `M<NN>-<slug>.md`
 - `M01-prove-api-integration.md`
@@ -178,11 +197,11 @@ After approval, write each milestone to `.goat-flow/tasks/` as a separate file:
 **Acceptance:** Developer self-check - demo to self before proceeding to M02
 ```
 
-**CHECKPOINT:** "Milestone files written to `.goat-flow/tasks/`. Ready to start implementation."
+**CHECKPOINT:** "Milestone files written to `.goat-flow/tasks/<active>/`. Ready to start implementation."
 
 ## Phase 3 - Between Milestones
 
-After each milestone, run the testing gate first; any failure is BLOCKING.
+After each milestone, run the testing gate first; any failure is BLOCKING. Apply the Proof Gate from `skill-preamble.md` - no milestone closes without fresh evidence of gate pass (command output, reproduction, or sign-off), not the agent's recollection.
 Capture what was learned, then re-read the next milestone and update invalidated assumptions, tasks, or exit criteria.
 Set status: prior milestone `complete`, next milestone `in-progress`.
 **CHECKPOINT:** "Milestone gate passed. Do you want to proceed with M[N+1]?"
@@ -191,8 +210,9 @@ If updates are needed mid-flight, follow the detailed milestone retrospective pr
 
 ## Constraints
 
-- Default to inline/read-only milestones unless the user explicitly requests file creation. Offer to write milestone files to `.goat-flow/tasks/` when scope is Standard or above, but do not write without confirmation.
+- MUST pick exactly one Step 0 mode (Named-File Update / Read-Only Analysis / Inline-Then-Write / File-Write) and stay in that mode through Phase 2. Cross-mode drift is the failure this skill's mode-picker exists to prevent.
 - MUST check for existing milestone files before creating new ones
+- MUST default to Mode 1 (Named-File Update) when the user names an existing milestone file and the target is unambiguous - no re-prompting
 - MUST include a testing gate on every milestone - no milestone ships without verification
 - MUST re-read and potentially update the next milestone after completing each one
 - MUST check kill criteria between milestones - a triggered criterion is a BLOCKING GATE
@@ -201,6 +221,7 @@ If updates are needed mid-flight, follow the detailed milestone retrospective pr
 - MUST order tasks within a milestone so the riskiest work comes first
 - MUST ensure each task is completable in a single coding session - split if not
 - MUST NOT create vague tasks ("set up backend", "make it work", "research options")
+- MUST NOT ask whether to write files when the user has already named the file to update, unless there is genuine ambiguity about scope or additional files
 - MUST NOT skip the testing gate between milestones
 - Universal constraints from skill-preamble.md apply.
 - MUST NOT continue building on an invalidated assumption - update the plan first
@@ -208,7 +229,11 @@ If updates are needed mid-flight, follow the detailed milestone retrospective pr
 
 ## Output Format
 
-The output IS the milestone files. No separate report needed. In read-only/analysis mode, the output is the inline milestone breakdown in the response.
+The output depends on the mode picked in Step 0:
+- **Mode 1 (Named-File Update):** the edited milestone file plus a concise delta shown to the user.
+- **Mode 2 (Read-Only Analysis):** the inline milestone breakdown in the response. No files.
+- **Mode 3 (Inline-Then-Write):** inline milestones; optionally the written files on approval.
+- **Mode 4 (File-Write):** the milestone files in `.goat-flow/tasks/<active>/`.
 
 Summary format for presentation:
 

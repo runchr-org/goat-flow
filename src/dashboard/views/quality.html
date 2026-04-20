@@ -1,0 +1,610 @@
+<!-- ═══ Quality View ═══ -->
+<div
+  x-show="activeView === 'quality'"
+  x-cloak
+  style="height: calc(100vh - 3.5rem); overflow-y: auto"
+>
+  <div style="max-width: 1280px; margin: 0 auto; padding: 20px 24px 24px">
+    <div style="margin-bottom: 14px">
+      <div
+        class="gf-text-primary"
+        style="font-size: 20px; font-weight: 600; margin-bottom: 4px"
+      >
+        Quality
+      </div>
+      <div class="gf-text-muted" style="font-size: 13px">
+        Separate deterministic baseline state from historical quality trends,
+        then run a focused quality-assessment prompt.
+      </div>
+    </div>
+
+    <!-- Agent selector (full width above columns) -->
+    <div
+      style="
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 12px;
+      "
+    >
+      <template x-for="agent in supportedAgents" :key="'quality-' + agent.id">
+        <button
+          @click="qualityAgent = agent.id"
+          class="gf-card"
+          :style="qualityAgent === agent.id ? { borderColor: 'var(--accent-border)', background: 'rgba(74,222,128,0.04)' } : {}"
+          style="padding: 11px 12px; text-align: left"
+        >
+          <div
+            class="gf-text-primary"
+            style="font-size: 14px; font-weight: 500"
+            x-text="agent.name"
+          ></div>
+          <div
+            style="
+              display: flex;
+              align-items: baseline;
+              gap: 6px;
+              margin-top: 4px;
+            "
+          >
+            <span
+              style="color: var(--accent); font-size: 18px; font-weight: 600"
+              x-text="(() => { const s = report?.agentScores?.find(a => a.id === agent.id); if (!s?.harness) return '-'; const t = s.harness.checks.length; const pct = t ? Math.round((s.harness.checks.filter(c => c.status === 'pass').length / t) * 100) : 0; return pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : 'F'; })()"
+            ></span>
+            <span
+              class="gf-text-muted"
+              style="font-size: 13px"
+              x-text="(() => { const s = report?.agentScores?.find(a => a.id === agent.id); if (!s?.harness) return 'Not audited'; const t = s.harness.checks.length; const pct = t ? Math.round((s.harness.checks.filter(c => c.status === 'pass').length / t) * 100) : 0; return pct + '%'; })()"
+            ></span>
+          </div>
+        </button>
+      </template>
+    </div>
+
+    <!-- Two-column layout -->
+    <div
+      style="
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        align-items: start;
+      "
+    >
+      <!-- LEFT COLUMN: baseline + history -->
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <!-- Current deterministic baseline -->
+        <div
+          class="gf-card"
+          x-show="report"
+          x-data="{
+            concernMeta: {
+              context:       { label: 'Context' },
+              constraints:   { label: 'Constraints' },
+              verification:  { label: 'Verification' },
+              recovery:      { label: 'Recovery' },
+              feedback_loop: { label: 'Feedback Loop' }
+            },
+            concernKeys: ['context', 'constraints', 'verification', 'recovery', 'feedback_loop'],
+            scoreColor(score) { return score >= 80 ? 'var(--green-400)' : score >= 70 ? '#facc15' : score >= 60 ? '#fb923c' : '#f87171' },
+            agentScore(agent) { if (!agent?.harness) return null; const t = agent.harness.checks.length; return t ? Math.round(agent.harness.checks.filter(c => c.status === 'pass').length / t * 100) : null; },
+            toGrade(s) { if (s >= 90) return 'A'; if (s >= 80) return 'B'; if (s >= 70) return 'C'; if (s >= 60) return 'D'; return 'F'; },
+            get selectedAgent() {
+              return report?.agentScores?.find(a => a.id === qualityAgent) || null;
+            },
+            recommendationSummary(agent) {
+              if (!agent) return 'Not audited';
+              if (!agent.concerns) {
+                const passed = agent.agent.checks.filter(c => c.status === 'pass').length;
+                return `${passed}/${agent.agent.checks.length} installed`;
+              }
+              const recs = this.concernKeys.reduce((n, k) => n + (agent.concerns[k]?.recommendations?.length || 0), 0);
+              return recs === 0 ? 'All checks passing' : `${recs} recommendation${recs !== 1 ? 's' : ''}`;
+            }
+          }"
+          style="padding: 16px 20px"
+        >
+          <div
+            class="gf-text-secondary"
+            style="font-size: 13px; font-weight: 600; margin-bottom: 10px"
+          >
+            Current deterministic baseline
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 12px">
+            <div class="gf-detect-row">
+              <span class="gf-detect-label">GOAT Flow setup</span>
+              <span
+                style="font-size: 12px; font-weight: 600"
+                :style="{ color: report?.scopes?.setup?.status === 'pass' ? '#4ade80' : '#f87171' }"
+                x-text="(() => { const sc = report?.scopes?.setup; if (!sc?.checks) return ''; const p = sc.checks.filter(c => c.status === 'pass').length; return p + '/' + sc.checks.length + ' checks passing'; })()"
+              ></span>
+            </div>
+            <template x-if="selectedAgent">
+              <div class="gf-card" style="padding: 14px 16px">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 2px;
+                  "
+                >
+                  <span
+                    class="gf-text-primary"
+                    style="font-size: 14px; font-weight: 600"
+                    x-text="`${selectedAgent.name} harness completeness`"
+                  ></span>
+                  <div
+                    x-show="agentScore(selectedAgent) !== null"
+                    style="display: flex; align-items: baseline; gap: 4px"
+                  >
+                    <span
+                      style="font-size: 18px; font-weight: 700"
+                      :style="{ color: scoreColor(agentScore(selectedAgent)) }"
+                      x-text="toGrade(agentScore(selectedAgent))"
+                    ></span>
+                    <span
+                      style="font-size: 12px; font-weight: 600"
+                      :style="{ color: scoreColor(agentScore(selectedAgent)) }"
+                      x-text="agentScore(selectedAgent) + '%'"
+                    ></span>
+                  </div>
+                </div>
+                <div
+                  class="gf-text-muted"
+                  style="font-size: 11px; margin-bottom: 8px"
+                  x-text="recommendationSummary(selectedAgent)"
+                ></div>
+                <template x-if="selectedAgent.concerns">
+                  <div style="display: flex; flex-direction: column; gap: 4px">
+                    <template
+                      x-for="ck in concernKeys"
+                      :key="selectedAgent.id + '-quality-bar-' + ck"
+                    >
+                      <div
+                        style="
+                          display: flex;
+                          align-items: center;
+                          gap: 8px;
+                          padding: 2px 0;
+                        "
+                      >
+                        <span
+                          class="gf-text-muted"
+                          style="
+                            font-size: 10px;
+                            width: 68px;
+                            flex-shrink: 0;
+                            text-align: right;
+                          "
+                          x-text="concernMeta[ck].label"
+                        ></span>
+                        <div
+                          style="
+                            flex: 1;
+                            height: 5px;
+                            background: var(--surface-elevated, #27272a);
+                            border-radius: 999px;
+                            overflow: hidden;
+                          "
+                        >
+                          <div
+                            style="
+                              height: 100%;
+                              border-radius: 999px;
+                              transition: width 0.3s;
+                            "
+                            :style="{ width: selectedAgent.concerns[ck].score + '%', background: scoreColor(selectedAgent.concerns[ck].score) }"
+                          ></div>
+                        </div>
+                        <span
+                          style="
+                            font-size: 10px;
+                            font-weight: 600;
+                            width: 32px;
+                            flex-shrink: 0;
+                            text-align: right;
+                          "
+                          :style="{ color: scoreColor(selectedAgent.concerns[ck].score) }"
+                          x-text="selectedAgent.concerns[ck].score + '%'"
+                        ></span>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Quality history trends -->
+        <div class="gf-card" style="padding: 16px 20px">
+          <div
+            class="gf-text-secondary"
+            style="font-size: 13px; font-weight: 600; margin-bottom: 10px"
+          >
+            Quality history trends
+          </div>
+
+          <div
+            x-show="qualityHistoryWarnings.length > 0"
+            style="
+              margin-bottom: 10px;
+              border: 1px solid rgba(251, 191, 36, 0.35);
+              background: rgba(251, 191, 36, 0.08);
+              color: #facc15;
+              border-radius: 8px;
+              padding: 8px 10px;
+              font-size: 11px;
+            "
+          >
+            <div style="font-weight: 600; margin-bottom: 4px">
+              Some history files were skipped
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 3px">
+              <template
+                x-for="warning in qualityHistoryWarnings"
+                :key="warning"
+              >
+                <div x-text="warning"></div>
+              </template>
+            </div>
+          </div>
+
+          <div
+            x-show="qualityHistoryLoading"
+            style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              padding: 10px 0;
+              font-size: 12px;
+            "
+          >
+            <svg
+              class="animate-spin"
+              style="width: 14px; height: 14px; color: #4ade80"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            <span class="gf-text-muted">Loading quality history...</span>
+          </div>
+
+          <template x-if="!qualityHistoryLoading && qualityHistoryLatest">
+            <div
+              style="
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                margin-bottom: 10px;
+              "
+            >
+              <div class="gf-card" style="padding: 10px 12px">
+                <div
+                  class="gf-text-muted"
+                  style="font-size: 10px; margin-bottom: 2px"
+                >
+                  Latest run
+                </div>
+                <div
+                  class="gf-text-primary"
+                  style="font-size: 12px; font-weight: 600"
+                >
+                  <span x-text="qualityHistoryLatest.date"></span>
+                  <span
+                    class="gf-text-muted"
+                    x-text="' ' + qualityHistoryLatest.time"
+                  ></span>
+                </div>
+              </div>
+              <div class="gf-card" style="padding: 10px 12px">
+                <div
+                  class="gf-text-muted"
+                  style="font-size: 10px; margin-bottom: 2px"
+                >
+                  Setup trend
+                </div>
+                <div
+                  class="gf-text-primary"
+                  style="font-size: 12px; font-weight: 600"
+                >
+                  <span x-text="qualityHistoryLatest.setupTotal + '%'"></span>
+                  <span
+                    class="gf-text-muted"
+                    x-show="qualityHistoryRows[0] && qualityHistoryRows[0].setupDelta !== null"
+                    x-text="qualityHistoryRows[0].setupDelta > 0 ? ' (+' + qualityHistoryRows[0].setupDelta + ')' : ' (' + qualityHistoryRows[0].setupDelta + ')'"
+                  ></span>
+                </div>
+              </div>
+              <div class="gf-card" style="padding: 10px 12px">
+                <div
+                  class="gf-text-muted"
+                  style="font-size: 10px; margin-bottom: 2px"
+                >
+                  System score
+                </div>
+                <div
+                  class="gf-text-primary"
+                  style="font-size: 12px; font-weight: 600"
+                >
+                  <span x-text="qualityHistoryLatest.systemTotal + '%'"></span>
+                  <span
+                    class="gf-text-muted"
+                    x-show="qualityHistoryRows.length > 1"
+                    x-text="(() => { const d = qualityHistoryRows[0].systemTotal - qualityHistoryRows[1].systemTotal; return d > 0 ? ' (+' + d + ')' : ' (' + d + ')'; })()"
+                  ></span>
+                </div>
+              </div>
+              <div class="gf-card" style="padding: 10px 12px">
+                <div
+                  class="gf-text-muted"
+                  style="font-size: 10px; margin-bottom: 2px"
+                >
+                  Findings
+                </div>
+                <div
+                  class="gf-text-primary"
+                  style="font-size: 12px; font-weight: 600"
+                >
+                  <span
+                    x-text="'B:' + qualityHistoryLatest.blockerCount"
+                  ></span>
+                  <span
+                    class="gf-text-muted"
+                    x-text="' M:' + qualityHistoryLatest.majorCount"
+                  ></span>
+                  <span
+                    class="gf-text-muted"
+                    x-text="' m:' + qualityHistoryLatest.minorCount"
+                  ></span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <div x-show="!qualityHistoryLoading && qualityHistoryRows.length > 0">
+            <div style="overflow-x: auto">
+              <table
+                style="width: 100%; border-collapse: collapse; font-size: 12px"
+              >
+                <thead>
+                  <tr class="gf-text-muted" style="text-align: left">
+                    <th style="padding: 8px 10px">Date</th>
+                    <th style="padding: 8px 10px">Setup</th>
+                    <th style="padding: 8px 10px">System</th>
+                    <th style="padding: 8px 10px">Blocker</th>
+                    <th style="padding: 8px 10px">Major</th>
+                    <th style="padding: 8px 10px">Minor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template
+                    x-for="row in qualityHistoryRows"
+                    :key="'qh-' + row.id"
+                  >
+                    <tr style="border-top: 1px solid var(--border-subtle)">
+                      <td
+                        style="padding: 8px 10px"
+                        class="gf-text-secondary"
+                        x-text="row.date"
+                      ></td>
+                      <td style="padding: 8px 10px">
+                        <span
+                          class="gf-text-primary"
+                          x-text="row.setupTotal + '%'"
+                        ></span>
+                        <span
+                          class="gf-text-muted"
+                          x-show="row.setupDelta !== null"
+                          x-text="row.setupDelta > 0 ? ' (+' + row.setupDelta + ')' : ' (' + row.setupDelta + ')'"
+                        ></span>
+                      </td>
+                      <td
+                        style="padding: 8px 10px"
+                        class="gf-text-primary"
+                        x-text="row.systemTotal + '%'"
+                      ></td>
+                      <td
+                        style="padding: 8px 10px; color: #f87171"
+                        x-text="row.blockerCount"
+                      ></td>
+                      <td
+                        style="padding: 8px 10px; color: #fbbf24"
+                        x-text="row.majorCount"
+                      ></td>
+                      <td
+                        style="padding: 8px 10px"
+                        class="gf-text-secondary"
+                        x-text="row.minorCount"
+                      ></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div
+            x-show="!qualityHistoryLoading && qualityHistoryRows.length === 0"
+            class="gf-text-muted"
+            style="font-size: 12px; padding: 8px 0"
+          >
+            No saved quality history yet. Run a quality assessment and save
+            findings in `.goat-flow/logs/quality` to start trend tracking.
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: prompt generation -->
+      <div class="gf-prompt-card" style="position: sticky; top: 20px">
+        <div class="gf-prompt-hdr">
+          <div>
+            <span
+              class="gf-text-primary"
+              style="font-size: 16px; font-weight: 600"
+            >
+              Quality prompt
+            </span>
+            <div class="gf-text-muted" style="font-size: 12px; margin-top: 2px">
+              Runner prompt for qualitative review, not deterministic checks.
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <template x-if="!qualityLoading && qualityResult">
+              <div style="display: flex; gap: 8px">
+                <button
+                  x-data="{ copied: false }"
+                  @click="copyQuality(); copied = true; setTimeout(() => copied = false, 1500)"
+                  class="gf-btn gf-btn-md gf-btn-muted"
+                  :style="copied ? { background: 'var(--accent-bg)', color: 'var(--accent)', borderColor: 'var(--accent-border)' } : {}"
+                >
+                  <span x-text="copied ? 'Copied' : 'Copy'"></span>
+                </button>
+                <button
+                  @click="generateQuality()"
+                  class="gf-btn gf-btn-md gf-btn-audit"
+                >
+                  Regenerate
+                </button>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <template x-if="!qualityLoading && qualityResult && terminalAvailable">
+          <div class="gf-terminal-cta" style="padding: 16px; border-radius: 0">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 8px;
+              "
+            >
+              <button
+                @click="launchPreset(qualityResult.prompt, activeRunner); activeView = 'workspace'"
+                :disabled="launching || serverSessions.length >= 10"
+                :title="serverSessions.length >= 10 ? 'Session limit reached (10/10). End one to launch another.' : 'Launch in a new Runner session.'"
+                class="gf-btn-terminal-cta"
+              >
+                <svg
+                  style="width: 16px; height: 16px"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 5l8 7-8 7"
+                  />
+                </svg>
+                <span>Run Quality Assessment in Runner</span>
+              </button>
+            </div>
+            <div
+              class="gf-text-muted"
+              style="font-size: 12px; line-height: 1.4"
+            >
+              <template x-if="!(terminalSessionId && !terminalEnded)">
+                <span>
+                  Launches
+                  <span
+                    x-text="activeRunner"
+                    class="gf-text-secondary"
+                    style="font-weight: 500"
+                  ></span>
+                  in read-only assessment mode to inspect setup quality and
+                  report findings with evidence.
+                </span>
+              </template>
+              <template x-if="terminalSessionId && !terminalEnded">
+                <span>
+                  Pastes this prompt into the active
+                  <span
+                    x-text="lastRunAgent || activeRunner"
+                    class="gf-text-secondary"
+                    style="font-weight: 500"
+                  ></span>
+                  Runner session and switches to Workspace.
+                </span>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <div class="gf-loader-overlay" :class="!qualityLoading && 'gf-hidden'">
+          <svg
+            class="animate-spin"
+            style="width: 16px; height: 16px; color: #4ade80"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            />
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+          <span class="gf-text-muted" style="font-size: 12px"
+            >Generating...</span
+          >
+        </div>
+
+        <template x-if="!qualityLoading && qualityResult">
+          <pre class="gf-prompt-body" x-text="qualityResult.prompt"></pre>
+        </template>
+
+        <p
+          x-show="!qualityLoading && !qualityResult"
+          class="gf-text-disabled"
+          style="
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+          "
+        >
+          Select a Runner to auto-generate the quality prompt.
+        </p>
+      </div>
+    </div>
+
+    <div
+      class="gf-footer"
+      style="text-align: center; font-size: 11px; padding: 12px 0"
+    >
+      Built by
+      <a
+        href="https://www.blundergoat.com"
+        target="_blank"
+        class="gf-footer-link"
+        >BlunderGOAT</a
+      >
+      · <span x-text="dashboardVersion ? `v${dashboardVersion}` : ''"></span>
+    </div>
+  </div>
+</div>

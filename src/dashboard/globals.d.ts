@@ -4,7 +4,10 @@
  */
 
 type AuditStatus = "pass" | "fail";
-type RunnerId = "claude" | "codex" | "gemini";
+/** Dashboard-local runner union. Keep this aligned with `src/cli/types.ts`.
+ *  Importing CLI types here causes the dashboard build to emit `src/cli/types.js`
+ *  back into the source tree, which then poisons lint/format/drift gates. */
+type RunnerId = "claude" | "codex" | "gemini" | "copilot";
 type SessionStatus = "starting" | "active" | "terminated";
 
 // ---------------------------------------------------------------------------
@@ -19,11 +22,28 @@ interface AuditFailure {
   howToFix?: string;
 }
 
+/** Evidence provenance emitted for each registered audit check. */
+interface AuditCheckProvenance {
+  source_type:
+    | "spec"
+    | "vendor_docs"
+    | "paper"
+    | "incident"
+    | "community"
+    | "unknown";
+  source_urls: string[];
+  verified_on: string;
+  normative_level: "MUST" | "SHOULD" | "BEST_PRACTICE";
+  evidence_paths?: string[];
+  reason?: string;
+}
+
 /** Individual check result inside an audit scope. */
 interface AuditCheck {
   id: string;
   name: string;
   status: AuditStatus;
+  provenance: AuditCheckProvenance;
   failure?: AuditFailure;
 }
 
@@ -42,6 +62,12 @@ interface AuditConcern {
   findings: string[];
   recommendations: string[];
   howToFix: string[];
+  integrityPass: number;
+  integrityFail: number;
+  advisoryPass: number;
+  advisoryFail: number;
+  advisoryAcknowledged: number;
+  metrics: number;
 }
 
 /** Per-agent audit summary shown on the Home and Audit views. */
@@ -69,9 +95,14 @@ interface DashboardClientReport {
   target: string;
 }
 
-/** Agent detection info from `/api/agents/installed`. */
-interface AgentInfo {
+/** Supported agent metadata injected into the dashboard shell. */
+interface SupportedAgent {
   id: RunnerId;
+  name: string;
+}
+
+/** Agent detection info from `/api/agents/installed`. */
+interface AgentInfo extends SupportedAgent {
   installed: boolean;
   version: string | null;
 }
@@ -91,13 +122,39 @@ interface ProjectEntry {
   details: string;
 }
 
-/** Critique prompt payload returned by `/api/critique`. */
-interface CritiqueResult {
-  command: "critique";
+/** Quality-assessment prompt payload returned by `/api/quality`. */
+interface QualityResult {
+  command: "quality";
   agent: RunnerId;
   auditStatus: AuditStatus | "unavailable";
   auditSummary: string;
   prompt: string;
+}
+
+/** One row in the quality-history trend table from `/api/quality/history`. */
+interface QualityHistoryRow {
+  id: string;
+  date: string;
+  agent: RunnerId;
+  setupTotal: number;
+  systemTotal: number;
+  setupDelta: number | null;
+  blockerCount: number;
+  majorCount: number;
+  minorCount: number;
+}
+
+/** Latest quality-history summary payload from `/api/quality/history`. */
+interface QualityHistoryLatest {
+  id: string;
+  date: string;
+  time: string;
+  agent: RunnerId;
+  setupTotal: number;
+  systemTotal: number;
+  blockerCount: number;
+  majorCount: number;
+  minorCount: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -169,11 +226,11 @@ interface Preset {
 }
 
 // ---------------------------------------------------------------------------
-// Wizard types
+// Setup types
 // ---------------------------------------------------------------------------
 
-/** Detected command slots shown in the setup wizard. */
-interface WizardCommands {
+/** Detected command slots shown in the setup view. */
+interface SetupCommands {
   test: string;
   lint: string;
   build: string;
@@ -183,18 +240,19 @@ interface WizardCommands {
 /** Existing GOAT Flow artifacts detected in the selected project. */
 interface ExistingArtifacts {
   skills: boolean;
-  instructions: boolean;
+  instructionsRepoWide: boolean;
+  instructionsPathScoped: boolean;
   lessons: boolean;
   footguns: boolean;
   config: boolean;
 }
 
-/** Aggregated setup-wizard detection data returned by `/api/setup/detect`. */
-interface WizardData {
+/** Aggregated setup-view detection data returned by `/api/setup/detect`. */
+interface SetupData {
   languages: string[];
   frameworks: string[];
-  commands: WizardCommands;
-  agents: Record<RunnerId, boolean>;
+  commands: SetupCommands;
+  agents: Partial<Record<RunnerId, boolean>>;
   existing: ExistingArtifacts;
   nonGoatFlow: string[];
 }
@@ -253,6 +311,9 @@ interface Window {
   __GOAT_FLOW_REPORT__?: DashboardClientReport | null;
   __GOAT_FLOW_DEFAULT_PATH__?: string;
   __GOAT_FLOW_VERSION__?: string;
+  __GOAT_FLOW_AGENTS__?: SupportedAgent[];
+  __GOAT_FLOW_RUNNER_IDS__?: string[];
+  __GOAT_FLOW_PRESETS__?: Preset[];
   Terminal?: new (options: Record<string, unknown>) => XTermInstance;
   FitAddon?: { FitAddon: new () => FitAddonInstance };
 }

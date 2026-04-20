@@ -9,7 +9,7 @@
 #   bash scripts/preflight-checks.sh
 #
 # Behavior:
-#   - validates setup/router conformance
+#   - runs project quality gates
 #   - runs shell and CLI syntax checks
 #   - checks formatting and project-specific quality signals
 #
@@ -23,6 +23,76 @@ set -euo pipefail
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT_DIR" || exit 1
+MANIFEST_PATH="$ROOT_DIR/workflow/manifest.json"
+
+manifest_eval() {
+    node - "$MANIFEST_PATH" "$@" <<'NODE'
+const fs = require("node:fs");
+
+const manifestPath = process.argv[2];
+const mode = process.argv[3];
+const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+
+if (mode === "skill-roots") {
+  const roots = [
+    ...new Set(
+      Object.values(manifest.agents || {})
+        .map((agent) =>
+          typeof agent.skills_dir === "string"
+            ? agent.skills_dir.replace(/\/$/, "")
+            : "",
+        )
+        .filter(Boolean),
+    ),
+  ];
+  for (const root of roots) console.log(root);
+  process.exit(0);
+}
+
+if (mode === "hook-dirs") {
+  const dirs = [
+    ...new Set(
+      Object.values(manifest.agents || {})
+        .map((agent) =>
+          typeof agent.hooks_dir === "string"
+            ? agent.hooks_dir.replace(/\/$/, "")
+            : "",
+        )
+        .filter(Boolean),
+    ),
+  ];
+  for (const dir of dirs) console.log(dir);
+  process.exit(0);
+}
+
+if (mode === "supported-skills") {
+  for (const skill of manifest.skills?.canonical || []) console.log(skill);
+  process.exit(0);
+}
+
+if (mode === "skill-files") {
+  const skillName = process.argv[4];
+  const canonical = manifest.skills?.canonical;
+  const references = manifest.skills?.references || {};
+  if (!Array.isArray(canonical) || !canonical.includes(skillName)) {
+    process.stderr.write(`unknown skill: ${skillName}\n`);
+    process.exit(2);
+  }
+  const referenceFiles = Array.isArray(references[skillName])
+    ? references[skillName].filter((value) => typeof value === "string")
+    : [];
+  const files = [
+    "SKILL.md",
+    ...referenceFiles,
+  ];
+  for (const file of files) console.log(file);
+  process.exit(0);
+}
+
+process.stderr.write(`unknown manifest_eval mode: ${mode}\n`);
+process.exit(1);
+NODE
+}
 
 # ── Colours (disabled if not a terminal) ─────────────────────────────
 if [[ -t 1 ]]; then
@@ -71,26 +141,16 @@ warn()    { checks=$((checks + 1)); warnings=$((warnings + 1)); echo -e "  ${Y}�
 skip()    { echo -e "  ${DIM}⊘ $1 (skipped)${RST}"; }
 note()    { warnings=$((warnings + 1)); echo -e "  ${Y}⚠${RST} $1"; }
 
-# ── Setup Validation ─────────────────────────────────────────────────
-section "Setup Validation"
-ctx_output=$(bash workflow/validate-goat-flow-setup.sh 2>&1) && ctx_exit=0 || ctx_exit=$?
-if [[ "$ctx_exit" -eq 0 ]]; then
-    pass "GOAT Flow setup scope"
-else
-    fail "Setup validation failed:"
-    echo "$ctx_output" | grep -E 'FAIL:|ERROR:' | head -5 | sed 's/^/    /'
-fi
-
 # ── Shell Scripts ────────────────────────────────────────────────────
 section "Shell Scripts"
-if bash -n workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh 2>/dev/null; then
-    pass "Bash syntax (workflow + scripts)"
+if bash -n scripts/*.sh scripts/maintenance/*.sh 2>/dev/null; then
+    pass "Bash syntax (scripts)"
 else
-    fail "Bash syntax check (workflow + scripts)"
+    fail "Bash syntax check (scripts)"
 fi
 
 # Also syntax-check installed hooks
-for hookdir in .claude/hooks .gemini/hooks .codex/hooks; do
+while IFS= read -r hookdir; do
     if compgen -G "$hookdir/*.sh" >/dev/null 2>&1; then
         if bash -n "$hookdir"/*.sh 2>/dev/null; then
             pass "Bash syntax ($hookdir/)"
@@ -98,17 +158,17 @@ for hookdir in .claude/hooks .gemini/hooks .codex/hooks; do
             fail "Bash syntax check ($hookdir/)"
         fi
     fi
-done
+done < <(manifest_eval hook-dirs)
 
 if command -v shellcheck >/dev/null 2>&1; then
-    if shellcheck --exclude=SC2001 workflow/validate-goat-flow-setup.sh scripts/*.sh scripts/maintenance/*.sh >/dev/null 2>&1; then
-        pass "Shellcheck (workflow + scripts)"
+    if shellcheck --exclude=SC2001 scripts/*.sh scripts/maintenance/*.sh >/dev/null 2>&1; then
+        pass "Shellcheck (scripts)"
     else
-        fail "Shellcheck (workflow + scripts) - run shellcheck workflow/validate-goat-flow-setup.sh scripts/*.sh for details"
+        fail "Shellcheck (scripts) - run shellcheck scripts/*.sh scripts/maintenance/*.sh for details"
     fi
 
     # Also shellcheck installed hooks (SC2016 excluded: sed patterns intentionally use single quotes)
-    for hookdir in .claude/hooks .gemini/hooks .codex/hooks; do
+    while IFS= read -r hookdir; do
         if compgen -G "$hookdir/*.sh" >/dev/null 2>&1; then
             if shellcheck --exclude=SC2001,SC2016 "$hookdir"/*.sh >/dev/null 2>&1; then
                 pass "Shellcheck ($hookdir/)"
@@ -116,7 +176,7 @@ if command -v shellcheck >/dev/null 2>&1; then
                 fail "Shellcheck ($hookdir/) - run shellcheck $hookdir/*.sh for details"
             fi
         fi
-    done
+    done < <(manifest_eval hook-dirs)
 else
     warn "Shellcheck not installed - run: bash scripts/setup-initial.sh"
 fi
@@ -130,7 +190,7 @@ else
 fi
 
 # Also self-test installed hooks
-for hookdir in .claude/hooks .gemini/hooks; do
+while IFS= read -r hookdir; do
     if [[ -f "$hookdir/deny-dangerous.sh" ]]; then
         if bash "$hookdir/deny-dangerous.sh" --self-test >/dev/null 2>&1; then
             pass "$hookdir/deny-dangerous.sh self-test"
@@ -138,25 +198,39 @@ for hookdir in .claude/hooks .gemini/hooks; do
             fail "$hookdir/deny-dangerous.sh self-test"
         fi
     fi
-done
+done < <(manifest_eval hook-dirs)
 
 # Runtime smoke test: pipe a known-blocked command through installed deny hooks
-for hookdir in .claude/hooks .codex/hooks .gemini/hooks; do
+while IFS= read -r hookdir; do
     if [[ -f "$hookdir/deny-dangerous.sh" ]]; then
-        # Simulate a Bash tool call with a dangerous command
-        test_payload='{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}'
-        if echo "$test_payload" | bash "$hookdir/deny-dangerous.sh" >/dev/null 2>&1; then
-            fail "$hookdir/deny-dangerous.sh did not block 'rm -rf /' (exit 0)"
-        else
-            exit_code=$?
-            if [[ $exit_code -eq 2 ]]; then
-                pass "$hookdir/deny-dangerous.sh runtime smoke test (blocked rm -rf)"
+        if [[ "$hookdir" == ".github/hooks" ]]; then
+            test_payload='{"toolName":"bash","toolArgs":"{\"command\":\"rm -rf /\"}"}'
+            if output=$(printf '%s' "$test_payload" | bash "$hookdir/deny-dangerous.sh" 2>&1); then
+                if echo "$output" | grep -q '"permissionDecision":"deny"'; then
+                    pass "$hookdir/deny-dangerous.sh runtime smoke test (copilot payload denied rm -rf)"
+                else
+                    fail "$hookdir/deny-dangerous.sh did not return a deny decision for Copilot payload"
+                fi
             else
-                warn "$hookdir/deny-dangerous.sh exited $exit_code on blocked command (expected 2)"
+                exit_code=$?
+                warn "$hookdir/deny-dangerous.sh exited $exit_code on Copilot deny payload (expected 0 + deny JSON)"
+            fi
+        else
+            # Simulate a VS Code-style Bash tool call with a dangerous command
+            test_payload='{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}'
+            if printf '%s' "$test_payload" | bash "$hookdir/deny-dangerous.sh" >/dev/null 2>&1; then
+                fail "$hookdir/deny-dangerous.sh did not block 'rm -rf /' (exit 0)"
+            else
+                exit_code=$?
+                if [[ $exit_code -eq 2 ]]; then
+                    pass "$hookdir/deny-dangerous.sh runtime smoke test (blocked rm -rf)"
+                else
+                    warn "$hookdir/deny-dangerous.sh exited $exit_code on blocked command (expected 2)"
+                fi
             fi
         fi
     fi
-done
+done < <(manifest_eval hook-dirs)
 
 # ── Skill Template Versions ──────────────────────────────────────────
 section "Skill Template Versions"
@@ -178,7 +252,7 @@ else
 
     # Installed skill copies must also match
     installed_fail=0
-    for dir in .claude/skills .agents/skills; do
+    while IFS= read -r dir; do
         if [[ -d "$dir" ]]; then
             while IFS= read -r -d '' f; do
                 ver=$(grep -o 'goat-flow-skill-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)
@@ -188,7 +262,7 @@ else
                 fi
             done < <(find "$dir" -name 'SKILL.md' -print0)
         fi
-    done
+    done < <(manifest_eval skill-roots)
     if [[ "$installed_fail" -eq 0 ]]; then
         pass "All installed skills at version $skill_version"
     fi
@@ -217,7 +291,7 @@ if [[ -f package.json ]]; then
     fi
 
     # Instruction file headers must match package version
-    for ifile in CLAUDE.md AGENTS.md GEMINI.md; do
+    for ifile in CLAUDE.md AGENTS.md GEMINI.md .github/copilot-instructions.md; do
         if [[ -f "$ifile" ]]; then
             header_version=$(head -1 "$ifile" | grep -oE 'v[0-9]+\.[0-9]+(\.[0-9]+)?' | sed 's/^v//' || true)
             if [[ -n "$header_version" ]] && [[ "$header_version" != "$pkg_version" ]]; then
@@ -231,7 +305,7 @@ fi
 
 # ── Cross-Agent Loop Consistency ─────────────────────────────────────
 agent_files=()
-for af in CLAUDE.md AGENTS.md GEMINI.md; do
+for af in CLAUDE.md AGENTS.md GEMINI.md .github/copilot-instructions.md; do
     [[ -f "$af" ]] && agent_files+=("$af")
 done
 if [[ ${#agent_files[@]} -ge 2 ]]; then
@@ -288,8 +362,12 @@ if [[ -f tsconfig.json ]]; then
     # ESLint (type-checked rules)
     if command -v npx >/dev/null 2>&1 && [[ -f eslint.config.mjs ]]; then
         lint_output=$(npx eslint src/cli/ 2>&1) && lint_exit=0 || lint_exit=$?
-        lint_errors=$(echo "$lint_output" | grep -c ' error ' || echo "0")
-        lint_warnings=$(echo "$lint_output" | grep -c ' warning ' || echo "0")
+        # grep -c always prints a count (even 0) and exits non-zero on zero
+        # matches. Using `|| echo 0` would double-up the output to "0\n0",
+        # breaking the downstream `-gt` arithmetic. Use `|| true` to swallow
+        # grep's non-zero exit but keep its printed count.
+        lint_errors=$(echo "$lint_output" | grep -c ' error ' || true)
+        lint_warnings=$(echo "$lint_output" | grep -c ' warning ' || true)
         if [[ "$lint_exit" -eq 0 ]]; then
             pass "ESLint ($lint_warnings warnings)"
         elif [[ "$lint_errors" -gt 0 ]]; then
@@ -394,6 +472,22 @@ else
     skip "GOAT Flow Audit (dist/cli/cli.js not built)"
 fi
 
+# ── Learning-Loop Schema ──────────────────────────────────────────────
+# Gates footgun schema rules: machine-simple status (active|resolved),
+# file:line or (search:) evidence on active entries, resolved-below-section.
+if [[ -f dist/cli/cli.js ]]; then
+    section "Learning-Loop Schema"
+    stats_output=$(node dist/cli/cli.js stats . --check 2>&1) && stats_exit=0 || stats_exit=$?
+    if [[ "$stats_exit" -eq 0 ]]; then
+        pass "Footgun/lesson schema passes"
+    else
+        fail "Footgun/lesson schema violations (exit $stats_exit)"
+        echo "$stats_output" | head -10 | sed 's/^/    /'
+    fi
+else
+    skip "Learning-Loop Schema (dist/cli/cli.js not built)"
+fi
+
 # ── Doc/Code Drift ───────────────────────────────────────────────────
 if [[ -f dist/cli/audit/check-goat-flow.js ]]; then
     section "Doc/Code Drift"
@@ -422,6 +516,27 @@ if [[ -f dist/cli/audit/check-goat-flow.js ]]; then
         skip "Architecture count validation (dist/ not fully built or architecture.md missing)"
     fi
 
+    # B.8a3: Downstream doc sub-breakdown drift
+    # Architecture.md validated above. This catches stale sub-breakdown numbers
+    # in other current-state docs that reference the same counts.
+    # Excludes: CHANGELOG.md and workflow/manifest-snapshots/** (frozen per
+    # release), .goat-flow/logs/ (historical), .goat-flow/scratchpad/ (WIP),
+    # .goat-flow/lessons/ (narrative may include historical numbers).
+    if [[ -n "$setup_count" ]]; then
+        b8a3_ok=true
+        for doc in CLAUDE.md AGENTS.md GEMINI.md .goat-flow/code-map.md CONTRIBUTING.md; do
+            [[ -f "$doc" ]] || continue
+            stale=$(grep -oE '[0-9]+ setup' "$doc" 2>/dev/null | grep -v "^${setup_count} setup$" | head -1 || true)
+            if [[ -n "$stale" ]]; then
+                fail "Downstream doc sub-breakdown drift in ${doc}: found '${stale}' (expected '${setup_count} setup')"
+                b8a3_ok=false
+            fi
+        done
+        if $b8a3_ok; then
+            pass "Downstream docs match setup sub-breakdown (${setup_count} setup)"
+        fi
+    fi
+
     # B.8b: Setup doc check ID validation
     if [[ -n "$build_count" ]]; then
         check_ids=$(node --input-type=module -e "const s=await import('./dist/cli/audit/check-goat-flow.js');const a=await import('./dist/cli/audit/check-agent-setup.js');[...s.SETUP_CHECKS,...a.AGENT_CHECKS].forEach(c=>console.log(c.id))" 2>/dev/null || echo "")
@@ -438,21 +553,21 @@ if [[ -f dist/cli/audit/check-goat-flow.js ]]; then
         fi
     fi
 
-    # B.8c: Template inventory validation
-    if [[ -d workflow/templates ]]; then
-        b8c_ok=true
-        while IFS= read -r tmpl; do
-            [[ -z "$tmpl" ]] && continue
-            if ! grep -rql "$tmpl" workflow/skills/ workflow/setup/ 2>/dev/null; then
-                warn "Template $tmpl.md exists but is not referenced in any skill or setup doc"
-                b8c_ok=false
-            fi
-        done < <(find workflow/templates -maxdepth 1 -name '*.md' -exec basename {} .md \; 2>/dev/null | sort)
-        if $b8c_ok; then
-            pass "All workflow templates referenced in skills or setup docs"
+    # B.8d: code-map.md scripts list matches filesystem (catches drift like
+    # code-map listing 3 scripts when scripts/ actually has 14).
+    if [[ -f .goat-flow/code-map.md ]]; then
+        listed_scripts=$(awk '
+            /^## scripts\/ -- Shell scripts/ { in_section=1; next }
+            in_section && /^## / { in_section=0 }
+            in_section
+        ' .goat-flow/code-map.md | grep -oE '^[a-z][a-zA-Z0-9_.-]*\.(sh|mjs)' | sort -u)
+        actual_scripts=$(find scripts/ -maxdepth 1 -type f \( -name '*.sh' -o -name '*.mjs' \) -printf '%f\n' | sort -u)
+        if [[ "$listed_scripts" == "$actual_scripts" ]]; then
+            pass "code-map.md scripts list matches scripts/ filesystem"
+        else
+            fail "code-map.md scripts list drifts from scripts/ filesystem"
+            diff <(echo "$actual_scripts") <(echo "$listed_scripts") 2>&1 | head -10 | sed 's/^/    /'
         fi
-    else
-        skip "Template inventory (workflow/templates/ not present)"
     fi
 fi
 
@@ -492,44 +607,83 @@ fi
 
 # ── Preamble/Conventions Sync ────────────────────────────────────────
 section "Preamble/Conventions Sync"
-if [[ -f workflow/skills/reference/skill-preamble.md ]] && [[ -f .goat-flow/skill-preamble.md ]]; then
-    if diff -q workflow/skills/reference/skill-preamble.md .goat-flow/skill-preamble.md >/dev/null 2>&1; then
+if [[ -f workflow/skills/reference/skill-preamble.md ]] && [[ -f .goat-flow/skill-reference/skill-preamble.md ]]; then
+    if diff -q workflow/skills/reference/skill-preamble.md .goat-flow/skill-reference/skill-preamble.md >/dev/null 2>&1; then
         pass "skill-preamble.md: template and installed copy match"
     else
-        fail "skill-preamble.md: template (workflow/skills/reference/) and installed (.goat-flow/) differ"
+        fail "skill-preamble.md: template (workflow/skills/reference/) and installed (.goat-flow/skill-reference/) differ"
     fi
 else
     skip "skill-preamble.md sync (one or both files missing)"
 fi
-if [[ -f workflow/skills/reference/skill-conventions.md ]] && [[ -f .goat-flow/skill-conventions.md ]]; then
-    if diff -q workflow/skills/reference/skill-conventions.md .goat-flow/skill-conventions.md >/dev/null 2>&1; then
+if [[ -f workflow/skills/reference/skill-conventions.md ]] && [[ -f .goat-flow/skill-reference/skill-conventions.md ]]; then
+    if diff -q workflow/skills/reference/skill-conventions.md .goat-flow/skill-reference/skill-conventions.md >/dev/null 2>&1; then
         pass "skill-conventions.md: template and installed copy match"
     else
-        fail "skill-conventions.md: template (workflow/skills/reference/) and installed (.goat-flow/) differ"
+        fail "skill-conventions.md: template (workflow/skills/reference/) and installed (.goat-flow/skill-reference/) differ"
     fi
 else
     skip "skill-conventions.md sync (one or both files missing)"
 fi
+if [[ -f workflow/skills/reference/skill-quality-testing.md ]] && [[ -f .goat-flow/skill-reference/skill-quality-testing.md ]]; then
+    if diff -q workflow/skills/reference/skill-quality-testing.md .goat-flow/skill-reference/skill-quality-testing.md >/dev/null 2>&1; then
+        pass "skill-quality-testing.md: template and installed copy match"
+    else
+        fail "skill-quality-testing.md: template (workflow/skills/reference/) and installed (.goat-flow/skill-reference/) differ"
+    fi
+else
+    skip "skill-quality-testing.md sync (one or both files missing)"
+fi
+for topical in tdd-iteration adversarial-framing deployment; do
+    tpl="workflow/skills/reference/skill-quality-testing/${topical}.md"
+    inst=".goat-flow/skill-reference/skill-quality-testing/${topical}.md"
+    if [[ -f "$tpl" ]] && [[ -f "$inst" ]]; then
+        if diff -q "$tpl" "$inst" >/dev/null 2>&1; then
+            pass "skill-quality-testing/${topical}.md: template and installed copy match"
+        else
+            fail "skill-quality-testing/${topical}.md: template (workflow/skills/reference/skill-quality-testing/) and installed (.goat-flow/skill-reference/skill-quality-testing/) differ"
+        fi
+    else
+        skip "skill-quality-testing/${topical}.md sync (one or both files missing)"
+    fi
+done
 
 # ── Skill SKILL.md Parity ────────────────────────────────────────────
+# Byte-exact diff (bash) for speed. For semantic comparison (frontmatter key
+# reorder, trailing whitespace), see `goat-flow audit --check-drift` which
+# adds YAML-aware normalisation. Both paths coexist per M04.
 section "Skill SKILL.md Parity"
 skill_parity_ok=true
-for skill_dir in workflow/skills/goat*/; do
-    skill_name=$(basename "$skill_dir")
-    template="workflow/skills/${skill_name}/SKILL.md"
-    [[ -f "$template" ]] || continue
-    for agent_dir in .claude/skills .agents/skills; do
-        installed="${agent_dir}/${skill_name}/SKILL.md"
-        if [[ -f "$installed" ]]; then
+while IFS= read -r skill_name; do
+    while IFS= read -r relative_file; do
+        [[ -n "$relative_file" ]] || continue
+        template="workflow/skills/${skill_name}/${relative_file}"
+        if [[ ! -f "$template" ]]; then
+            fail "Skill template missing: ${template}"
+            skill_parity_ok=false
+            continue
+        fi
+        while IFS= read -r agent_dir; do
+            # Skip manifest-declared agent roots that aren't installed in this
+            # project. Single-agent consumer installs (only .claude/ or only
+            # .agents/) would otherwise get "Skill file missing" failures for
+            # every uninstalled agent tree - phantom drift.
+            [[ -d "$agent_dir" ]] || continue
+            installed="${agent_dir}/${skill_name}/${relative_file}"
+            if [[ ! -f "$installed" ]]; then
+                fail "Skill file missing: ${installed}"
+                skill_parity_ok=false
+                continue
+            fi
             if ! diff -q "$template" "$installed" >/dev/null 2>&1; then
-                fail "SKILL.md diverged: ${template} vs ${installed}"
+                fail "Skill file diverged: ${template} vs ${installed}"
                 skill_parity_ok=false
             fi
-        fi
-    done
-done
+        done < <(manifest_eval skill-roots)
+    done < <(manifest_eval skill-files "$skill_name")
+done < <(manifest_eval supported-skills)
 if [[ "$skill_parity_ok" == true ]]; then
-    pass "All installed SKILL.md files match workflow templates"
+    pass "All installed skill files match workflow templates"
 fi
 
 # ── Path Integrity ───────────────────────────────────────────────────

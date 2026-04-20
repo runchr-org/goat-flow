@@ -1,13 +1,29 @@
 # Changelog
 
-## v1.1.0 - 2026-04-17
+## v1.2.0 - 2026-04-20
 
+Skill renames, Copilot CLI support, audit subsystem expansion (drift/content/manifest), proof-gate verification, structured learning loop, and an M17 quality-report follow-up wave that closed a CRITICAL Bash secret-read gap. 324 files changed, 86 commits.
+
+- **Renames** - `goat-sbao`→`goat-critique`, `goat-test`→`goat-qa`, CLI `critique`→`quality`. Old names recorded in `workflow/manifest.json:stale_names`. Dashboard view, `/api/critique`→`/api/quality`, `critique.html`→`quality.html`, `docs/audit-and-critique.md`→`docs/audit-and-quality.md`.
+- **Copilot CLI** - 4th agent (ADR-020). `.github/skills/`, `.github/hooks/`, `.copilotignore`, standalone `.github/copilot-instructions.md`. `deny-dangerous.sh` emits `permissionDecision` JSON for all four agents.
+- **Audit + manifest** - New `audit --check-drift` (installed vs template skills), `audit --check-content` (cold-path linter for docs/footguns/lessons), `goat-flow manifest` (validate/list/show). Factual + snapshot claim checks against `workflow/manifest.json`. Dead-CLI-command scanning in fenced code blocks. `getProjectStructure()` removed; callers use `loadManifest()`.
+- **Harness typing** - 16 checks split into `integrity`/`advisory`/`metric`. Score reflects integrity + unacknowledged advisory only. `harness.acknowledge: [check-id]` opts out deliberate skips. `Notification`/`compact` hook removed (never a real Claude Code event).
+- **Hallucination red-flags** - 5 rules added to CLAUDE.md VERIFY: tests-pass needs terminal output, completion needs files-list, fix needs reproduction steps, no hedged claims, check-passed needs verbatim output.
+- **Proof-gate + skill hardening** - Shared evidence gate (file:line, exit codes, transcripts) across `goat-debug`/`goat-qa`/`goat-review`/`goat-security`. goat-review: two-pass reading, severity (BLOCK/WARN/NOTE) + action (FIX/INVESTIGATE/ACCEPT) tags, spec-drift lane, Review Integrity self-check. goat-qa audit mode: A1 scope→A2 inventory→A3 coverage→A4 gap report. goat-critique locked to delegated-only mode (ADR-021).
+- **goat-security** - 7 per-topic reference packs: auth-authz, cicd-and-agent-surfaces, common-threats, dependency-and-supply-chain, file-upload-and-paths, project-policy-template, secrets-and-data-exposure (ADR-023).
+- **Learning loop** - `last_reviewed` frontmatter on footguns/lessons/decisions. New `goat-flow stats --check` with per-bucket freshness bands + search-anchor resolution. Active-plan marker `.goat-flow/tasks/.active` disambiguates live vs archived plans. 6 glossary terms added.
+- **Quality reports** - Agents write JSON directly to `.goat-flow/logs/quality/` (HHMM+rand5 filename); `quality capture` removed. Schema v2 adds per-finding `evidence_method` + optional `scope`/`rubric_version`. New `goat-flow quality validate` and dashboard quality-history view.
+- **Dashboard** - Dedicated Prompts page with category filters, Sessions rail (cap=10), quality-history view. Server split into `dashboard.ts` + `dashboard-routes.ts` + `dashboard-terminal.ts` + `setup-detect.ts` + `dashboard-assets.ts`. Presets moved to `src/dashboard/preset-prompts.json`, stack tables to `workflow/project-stack-data.json`. State persistence in `.goat-flow/dashboard-state.json` (was port-scoped localStorage).
+- **goat-critique overhaul** - Conversational Phase 4 gate (question-first format with defaults), top-of-output Verdict block, SKEPTIC/ANALYST/STRATEGIST as explicit per-finding sub-fields, rubric coverage gates, Phase 3 budget cap (max 3 cross-exam agents) + early-exit on consensus, Agent C isolation hardening, Phase 3 persistence to `.goat-flow/logs/critiques/`, sharpened Agent B (ranked alternatives + must-surface-one).
+- **follow-ups** - CRITICAL: `deny-dangerous.sh` now blocks Bash reads of `.env*`/`.ssh/`/`.aws/`/credentials/`*.pem`/`*.key` across all 4 hook dirs (settings.json Read() deny doesn't bind Bash). Server-boundary runtime decoders (`src/cli/server/decoders.ts`) for every HTTP/WS ingress. `loadConfig` fail-closed on validation error. Agent-id canonical source: `AgentId` union + `KNOWN_AGENT_IDS` tuple (ADR-022). Dashboard under TS bar. CLI ESLint 20→0 warnings. `npm test`: 307/307.
+
+## v1.1.0 - 2026-04-17
 
 Scanner/rubric system removed. Replaced by deterministic audit with 16 build checks (12 project setup + 4 per-agent) and 16 advisory harness checks across 5 concerns. Deterministic install script. Dashboard overhaul with dynamic recommended actions. 528 files changed.
 - 
 - **Critique Fixes** - Dual-critique synthesis resolved 10 findings. Fixed architecture.md build check count (17→16). Removed stop-lint.sh from core (project-specific concern, will revisit in a later version). Resolved 3 stale footgun entries (advisory hooks, swallows failures, dispatcher verb gap). Removed dead goat-review "code-review instruction file" reference. Reworded goat-test "multi-model" to actionable "cross-agent verification". Added analyse/evaluate/critique verbs to dispatcher disambiguation table. Improved critique prompt with 7 refinements: no-mutation warning, audit PASS caveat, severity definitions, scoped tool guidance, footgun currency checks, numeric claim verification, skill testing clarification.
-- **Audit System** - Replaced scanner/rubric engine (79 checks + 12 anti-patterns, point-based scoring) with audit system. 12 project-wide setup checks (config, directories, required files) are agent-agnostic. 4 per-agent checks (instruction file, skills, settings, deny-dangerous hook) run independently per agent. Advisory harness scoring (`--harness`) grades 5 concerns with 16 checks total: context, constraints, verification, recovery, feedback loop. ADR-036.
-- **Install Script** - `workflow/install-goat-flow.sh` handles all mechanical file copying: 7 skill templates, hooks, settings, templates, reference files, config scaffold. Deterministic, agent-aware (`--agent claude|codex|gemini`), idempotent. Migration script moved to `workflow/install-migrate-to-1.1.sh`.
+- **Audit System** - Replaced scanner/rubric engine (79 checks + 12 anti-patterns, point-based scoring) with audit system. 12 project-wide setup checks (config, directories, required files) are agent-agnostic. 4 per-agent checks (instruction file, skills, settings, deny-dangerous hook) run independently per agent. Advisory harness scoring (`--harness`) grades 5 concerns with 16 checks total: context, constraints, verification, recovery, feedback loop. Audit became the sole evaluation engine.
+- **Install Script** - `workflow/install-goat-flow.sh` handles all mechanical file copying: 7 skill templates, hooks, settings, templates, reference files, config scaffold. Deterministic, agent-aware (`--agent claude|codex|gemini`), idempotent. A separate migration script existed during v1.1.0 and was later removed as unused.
 - **Setup Prompts** - Stripped stack/toolchain info, signal-driven tasks, stale artifact cleanup, multi-agent consistency directives. Setup prompt now: run install script → follow numbered setup steps → verify with audit. Upgrade prompt (v0.9/v1.0) structured as numbered steps with scripts first.
 - **Dashboard** - Dynamic recommended actions panel: setup failing → fix wizard + fix agent buttons; harness checks failing → fix harness buttons; quality < 100% → fix harness buttons with per-concern recommendations; healthy → review/test/security presets. Per-agent harness score cards with grade, concern bars, and expandable recommendations. Projects page sorts alphabetically, clicks navigate to home view.
 - **Config Agent Filtering** - Auditor respects `config.yaml` agents list. Project setup checks are agent-agnostic. Per-agent checks only run for agents with instruction files present. Config always lists all three agents (claude, codex, gemini) - setup is per-agent, not project-locked.
@@ -40,7 +56,7 @@ SBAO Phase 3, dashboard redesign, rubric priority grading, security hardening, c
 - **Setup** - Left column card (title + agents + detected config), right prompt card with dark code background. "Formatter" label. Page heading.
 - **Config** - Two-row layout (path picker + role selector). userRole toggle (click to select, click again to deselect). Local-only (not in committed config). "Open Setup Wizard" button when config.yaml missing.
 - **Header** - Centered nav, goat emoji, green project name. "Terminal:" agent selector with disabled state during session. Green dot on Workspace nav when terminal running.
-- **Copilot** - Agent detection, terminal sessions, Runner type, RUNNER_BINARIES. Dashboard showed a dimmed card when not scanned. This experiment was later removed in ADR-035.
+- **Copilot** - Agent detection, terminal sessions, Runner type, RUNNER_BINARIES. Dashboard showed a dimmed card when not scanned. This experiment was later removed.
 - **Security** - Host header validation on all API routes (DNS rebinding). Write/Edit deny for 12 sensitive file patterns. Terminal resize validation (`clampDim`). Session map cleanup on kill.
 - **persona→userRole** - Renamed across config reader, types, facts, rubric, prompts, tests, fixtures. Added `tester` to schema.
 - **SBAO** - goat-plan Phase 3 rewritten as multi-agent critique: 2 core trio + 1 fresh-context (never split perspectives). Bold reminder in skill file. SBAO routing in dispatcher.
@@ -48,7 +64,7 @@ SBAO Phase 3, dashboard redesign, rubric priority grading, security hardening, c
 - **Rubric** - priority field (required/recommended/optional) on all checks. Grade: A=all req+rec, B=all req+80% rec, C=all req. Full tier bonus-only. 24 checks hidden. `telemetry` in KNOWN_TOP_LEVEL_KEYS.
 - **Scanner** - hook honesty, router validation, severity-grouped output. GOAT_FLOW_INLINE_SETUP dead code removed.
 - **CLI** - 48 files refactored, 45→0 complexity violations. `setup/`→`workflow/setup/`, `ai/`→`.goat-flow/`. Server logging (errors, host blocks, dev request log).
-- **Learning Loop** - category bucket files (ADR-021). Alpine.js `:style` footgun documented. SBAO agent structure lesson (3 recurrences). Checkbox discipline lesson (3 recurrences).
+- **Learning Loop** - category bucket files. Alpine.js `:style` footgun documented. SBAO agent structure lesson (3 recurrences). Checkbox discipline lesson (3 recurrences).
 - **Tests** - 275→1,166. Terminal idle timeout updated for session deletion. Tautological/dead assertions fixed. deny-dangerous.sh hardened (long-form flags, pipe-to-interpreter).
 - **Structure** - `docs/skills/` with Mermaid diagrams, `.goat-flow/glossary.md`, preflight with decimal timing. Footer: "Built by BlunderGOAT · v0.10.0".
 
@@ -67,7 +83,7 @@ Scanner honesty, config file, directory restructure, embedded terminal, dashboar
 
 ## v0.9.3 - 2026-03-30
 
-Skill consolidation, scanner improvements, enforcement hardening. Driven by cross-project reviews from halaxy-cypress (66), blundergoat-platform (74), healthkit (68). 101 checks + 17 anti-patterns. 216 tests.
+Skill consolidation, scanner improvements, enforcement hardening. Driven by cross-project reviews from consumer projects. 101 checks + 17 anti-patterns. 216 tests.
 
 - **Skills (9→6)** - goat-investigate/simplify/refactor merged into goat-debug/review/plan as modes. goat-security expanded with compliance + dependency audit. Dispatcher added as 6th canonical skill. All synced across 3 agent dirs. 1,790→1,067 lines.
 - **Scanner** - AP deductions in default output. AP18 (ADAPT comments), AP19 (absolute paths in hooks). Fabrication detection validates file:line ranges. CI patterns hardened to invocation matching.
@@ -85,7 +101,7 @@ Dashboard, full coding-standards wiring, skill conversation enforcement, npm pub
 - **Dashboard** - `goat-flow dashboard` local server with live scanning, 4 tabs, dark mode, ARIA accessibility. Alpine.js + Tailwind CSS v4 via CDN. `--format html/markdown` for reports.
 - **Coding Standards** - All 57 templates routed (was 25). Framework detection: Laravel, Symfony, Django, FastAPI, Rails, Spring, Express, Cypress. 21 new fragment map entries.
 - **Skills** - All 9 synced across 3 agent dirs (27 files). Step 0 adaptive gate. 100% conversational compliance (was 80%). Restored audit/onboard/hypothesis features.
-- **Scanner** - Removed 2.2.5g (package mutation deny). Dispatcher counted for eval diversity (ADR-016). XSS fix, CORS wildcard removed.
+- **Scanner** - Removed 2.2.5g (package mutation deny). Dispatcher counted for evaluation diversity. XSS fix, CORS wildcard removed.
 - **npm** - Published as `@blundergoat/goat-flow`. 197 files, 300KB packed. Source maps excluded. `--output` flag.
 
 ## v0.9.0 - 2026-03-29
@@ -104,7 +120,7 @@ Skill model cleanup (10→8), setup prompt fix, documentation alignment, rubric 
 - **Rubric** - Advisory checks converted to scored. Zero-point checks removed. Empty decisions dir moved to AP16. Handoff template requires all 5 sections.
 - **Skills (10→8)** - goat-reflect/audit→goat-review, goat-onboard→goat-debug, goat-context removed. goat-investigate/simplify/refactor merged as modes. Deprecated dirs deleted. This was later subsumed by the 9→6 consolidation.
 - **Setup** - Fragment map fix (add-skill-* no longer resolve to goat-debug). `--agent all` removed. Language mapper expanded to 10 languages.
-- **Docs** - 21 stale "10 skills" refs fixed across README, docs/, setup/, src/cli/. CI template fixed to canonical 8 skills. ADR-008 (reference-based setup).
+- **Docs** - 21 stale "10 skills" refs fixed across README, docs/, setup/, src/cli/. CI template fixed to canonical 8 skills. Setup prompts remained reference-based.
 - **Tests** - 96→138. Full-pass fixture updated. 9-project audit: all score A (96-100%).
 
 ## v0.7.0 - 2026-03-26
@@ -112,7 +128,7 @@ Skill model cleanup (10→8), setup prompt fix, documentation alignment, rubric 
 Reference-based setup prompts, scanner accuracy, CLI simplification. Setup output ~860→~90 lines. 92 checks + 12 anti-patterns.
 
 - **Setup** - ~90-line prompts with template path tables. Agent-branched tables, language mapper, `GOAT_FLOW_INLINE_SETUP=1` rollback.
-- **Scanner** - 3.3.4 sync Jaccard ≥0.85. Lessons strips HTML comments. AP11 fires on EITHER empty. Check 2.2.7 removed (ADR-006).
+- **Scanner** - 3.3.4 sync Jaccard ≥0.85. Lessons strips HTML comments. AP11 fires on EITHER empty. Check 2.2.7 removed with the ask-first-guard rollback.
 - **Templates** - enforcement.md jq/sed guidance. docs-seed.md concrete commands. execution-loop.md DoD gate.
 - **Removed** - `fix`/`audit` CLI commands. ask-first-guard hooks. 77→96 tests.
 
@@ -129,7 +145,7 @@ Reference-based setup prompts, scanner accuracy, CLI simplification. Setup outpu
 
 All 7 skills rewritten with conversational structure. 84 checks. All 3 agents score A 100%.
 
-- **Skills** - goat-preflight→goat-security (ADR-004). Conversational choices at every phase. goat-debug recurrence, goat-plan kill criteria, goat-test Track 0, goat-review diff-aware.
+- **Skills** - goat-preflight→goat-security. Conversational choices at every phase. goat-debug recurrence, goat-plan kill criteria, goat-test Track 0, goat-review diff-aware.
 - **Scanner** - Quality threshold unified at 0.8. New: skill chaining (2.1.14), structured choices (2.1.15).
 - **Infra** - Preflight rewritten. CLAUDE.md compressed to 119 lines. Copilot bridge file.
 

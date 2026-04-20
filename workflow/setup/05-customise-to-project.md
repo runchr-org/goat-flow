@@ -12,7 +12,7 @@ All learning loop surfaces use canonical paths: `.goat-flow/footguns/`, `.goat-f
 
 ## Check compaction hooks for stale paths
 
-If existing `settings.json` notification hooks reference `tasks/todo.md`, `tasks/handoff.md`, or other legacy paths, update them to `.goat-flow/tasks/` or `.goat-flow/logs/sessions/`. Stale hook paths cause broken context recovery after compaction.
+If existing `settings.json` notification hooks reference legacy task-state files or other stale paths, update them to `.goat-flow/tasks/` or `.goat-flow/logs/sessions/`. Stale hook paths cause broken context recovery after compaction.
 
 ## First: resume project context
 
@@ -39,6 +39,8 @@ git log --oneline -50 | grep -iE 'fix|revert|hotfix|bug|broke|rollback'
 - Read config files for stale project names, hardcoded paths, outdated references
 - Write findings to `.goat-flow/footguns/` bucket files with real file paths as evidence
 - Every entry MUST cite specific file paths. Use `ACTUAL_MEASURED` evidence labels.
+- Every bucket file MUST start with YAML frontmatter that includes both `category: <name>` and `last_reviewed: <YYYY-MM-DD, today>`. `goat-flow stats --check` fails without `last_reviewed`. See `workflow/setup/reference/footguns-readme.md` for the exact format.
+- Every footgun entry MUST begin with a `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** <label>` line. Agents scan only entries above `## Resolved Entries`; without `Status` the active/resolved split is undefined.
 - Add `hallucination-risk: high` when the area is easy to misread from names alone (generated code, env-specific config, external contracts)
 - If `.goat-flow/footguns/` already has entries, MERGE - do not replace
 
@@ -46,6 +48,7 @@ git log --oneline -50 | grep -iE 'fix|revert|hotfix|bug|broke|rollback'
 
 - Use the same `git log` scan - for each incident, what was the root cause and what should have been done differently?
 - Write to `.goat-flow/lessons/` category bucket files
+- Every bucket file MUST start with YAML frontmatter that includes both `category: <name>` and `last_reviewed: <YYYY-MM-DD, today>`. See `workflow/setup/reference/lessons-readme.md` for the exact format.
 - If `.goat-flow/lessons/` already has entries, MERGE - do not replace
 
 ## Auto-seed the learning loop from strong git signals
@@ -97,10 +100,12 @@ Examples:
 - [ ] Every footgun entry references a real file path in this project
 - [ ] Every lesson references a real git commit or incident
 - [ ] Auto-seeded entries use file path + commit hash evidence (no fabricated line numbers) and include `**Source:** git history (auto-seeded)`
+- [ ] Every `.goat-flow/footguns/*.md` and `.goat-flow/lessons/*.md` bucket has `category:` + `last_reviewed:` frontmatter; `node --import tsx src/cli/cli.ts stats . --check` exits 0
+- [ ] Every `## Footgun:` entry begins with `**Status:**` (active | mitigated | resolved)
 - [ ] `.goat-flow/patterns.md` exists
 - [ ] If `docs/` surfaces exist, they are referenced (not duplicated) in `.goat-flow/`
-- [ ] Compaction hooks reference current paths (not legacy `tasks/todo.md`)
-- [ ] If `tasks/todo.md` or `tasks/handoff.md` exist as stale legacy files, they are reported in the session log
+- [ ] Compaction hooks reference current paths (not legacy task-state files)
+- [ ] If legacy task-state files exist, they are reported in the session log
 - [ ] architecture.md mentions at least 2 real components by name
 - [ ] glossary.md has at least 3 project-specific terms
 - [ ] Ask First boundaries reference real directories that exist on disk

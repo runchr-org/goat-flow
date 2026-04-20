@@ -7,22 +7,17 @@
 type JsonRecord = Record<string, unknown>;
 type ProjectSortKey = "name" | keyof ProjectEntry;
 
-const DEFAULT_WIZARD_COMMANDS: WizardCommands = {
+const DEFAULT_SETUP_COMMANDS: SetupCommands = {
   test: "",
   lint: "",
   build: "",
   format: "",
 };
 
-const DEFAULT_WIZARD_AGENTS: WizardData["agents"] = {
-  claude: true,
-  codex: false,
-  gemini: false,
-};
-
 const DEFAULT_EXISTING_ARTIFACTS: ExistingArtifacts = {
   skills: false,
-  instructions: false,
+  instructionsRepoWide: false,
+  instructionsPathScoped: false,
   lessons: false,
   footguns: false,
   config: false,
@@ -32,10 +27,12 @@ const TERMINAL_REFIT_RETRY_DELAY_MS = 50;
 const TERMINAL_REFIT_MAX_ATTEMPTS = 20;
 const TERMINAL_INITIAL_FIT_DELAYS_MS = [50, 200, 500] as const;
 
+/** Check whether a value is a plain object record. */
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Read a plain object record from raw dashboard payload data. */
 function readRecord(value: unknown, context: string): JsonRecord {
   if (!isRecord(value)) {
     throw new Error(`${context} returned an invalid payload`);
@@ -43,40 +40,70 @@ function readRecord(value: unknown, context: string): JsonRecord {
   return value;
 }
 
+/** Read a string value with a safe fallback for invalid payload fields. */
 function readString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
+/** Read a string array from raw payload data. */
 function readStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === "string")
     : [];
 }
 
+/** Read an audit status from raw payload data. */
 function readAuditStatus(value: unknown): AuditStatus | null {
   return value === "pass" || value === "fail" ? value : null;
 }
 
-function readRunnerId(value: unknown): RunnerId | null {
-  return value === "claude" || value === "codex" || value === "gemini"
-    ? value
-    : null;
+/** Read the runner IDs injected into the dashboard shell. */
+function readInjectedRunnerIds(): string[] {
+  return Array.isArray(window.__GOAT_FLOW_RUNNER_IDS__)
+    ? window.__GOAT_FLOW_RUNNER_IDS__.filter(
+        (id): id is string => typeof id === "string",
+      )
+    : [];
 }
 
+/** Read a runner ID from raw payload data. Unknown values narrow to null so
+ *  the server's wire contract isn't silently widened to arbitrary strings. */
+function readRunnerId(value: unknown): RunnerId | null {
+  const runner = readString(value).trim();
+  return readInjectedRunnerIds().includes(runner) ? (runner as RunnerId) : null;
+}
+
+/** Build the default setup-agent selection from the injected support list. */
+function buildDefaultSetupAgents(
+  supportedAgents: SupportedAgent[],
+  defaultRunner: RunnerId,
+): SetupData["agents"] {
+  if (supportedAgents.length === 0) {
+    return { [defaultRunner]: true };
+  }
+  return Object.fromEntries(
+    supportedAgents.map((agent) => [agent.id, agent.id === defaultRunner]),
+  );
+}
+
+/** Read a terminal-session status from raw payload data. */
 function readSessionStatus(value: unknown): SessionStatus | null {
   return value === "starting" || value === "active" || value === "terminated"
     ? value
     : null;
 }
 
+/** Read an error message from a payload record. */
 function readErrorMessage(payload: JsonRecord): string | null {
   return typeof payload.error === "string" ? payload.error : null;
 }
 
+/** Collapse a project path down to the display name shown in the UI. */
 function getProjectDisplayName(path: string): string {
   return path.split("/").filter(Boolean).pop() || path;
 }
 
+/** Read one audit failure record from raw payload data. */
 function readAuditFailure(value: unknown): AuditFailure | null {
   if (!isRecord(value)) return null;
   const check = readString(value.check);
@@ -91,6 +118,7 @@ function readAuditFailure(value: unknown): AuditFailure | null {
   return failure;
 }
 
+/** Read one audit check record from raw payload data. */
 function readAuditCheck(value: unknown): AuditCheck | null {
   if (!isRecord(value)) return null;
   const id = readString(value.id);
@@ -98,12 +126,52 @@ function readAuditCheck(value: unknown): AuditCheck | null {
   const status = readAuditStatus(value.status);
   if (!id || !name || !status) return null;
 
-  const check: AuditCheck = { id, name, status };
+  const provenanceValue = value.provenance;
+  if (!isRecord(provenanceValue)) return null;
+  const sourceType = readString(provenanceValue.source_type);
+  const verifiedOn = readString(provenanceValue.verified_on);
+  const normativeLevel = readString(provenanceValue.normative_level);
+  if (
+    ![
+      "spec",
+      "vendor_docs",
+      "paper",
+      "incident",
+      "community",
+      "unknown",
+    ].includes(sourceType) ||
+    !verifiedOn ||
+    !["MUST", "SHOULD", "BEST_PRACTICE"].includes(normativeLevel)
+  ) {
+    return null;
+  }
+
+  const check: AuditCheck = {
+    id,
+    name,
+    status,
+    provenance: {
+      source_type: sourceType as AuditCheckProvenance["source_type"],
+      source_urls: readStringArray(provenanceValue.source_urls),
+      verified_on: verifiedOn,
+      normative_level:
+        normativeLevel as AuditCheckProvenance["normative_level"],
+      ...(Array.isArray(provenanceValue.evidence_paths)
+        ? {
+            evidence_paths: readStringArray(provenanceValue.evidence_paths),
+          }
+        : {}),
+      ...(typeof provenanceValue.reason === "string"
+        ? { reason: provenanceValue.reason }
+        : {}),
+    },
+  };
   const failure = readAuditFailure(value.failure);
   if (failure) check.failure = failure;
   return check;
 }
 
+/** Read a string-to-string map from raw payload data. */
 function readStringRecord(value: unknown): Record<string, string> {
   if (!isRecord(value)) return {};
 
@@ -113,6 +181,7 @@ function readStringRecord(value: unknown): Record<string, string> {
   return Object.fromEntries(entries);
 }
 
+/** Read one audit scope from raw payload data. */
 function readAuditScope(value: unknown, context: string): AuditScope {
   const payload = readRecord(value, context);
   const status = readAuditStatus(payload.status);
@@ -136,10 +205,14 @@ function readAuditScope(value: unknown, context: string): AuditScope {
   };
 }
 
+/** Read one harness concern from raw payload data. */
 function readAuditConcern(value: unknown): AuditConcern | null {
   if (!isRecord(value)) return null;
   const status = readAuditStatus(value.status);
   if (!status || typeof value.score !== "number") return null;
+
+  /** Read a numeric counter from raw payload data. */
+  const readCount = (v: unknown): number => (typeof v === "number" ? v : 0);
 
   return {
     status,
@@ -147,9 +220,16 @@ function readAuditConcern(value: unknown): AuditConcern | null {
     findings: readStringArray(value.findings),
     recommendations: readStringArray(value.recommendations),
     howToFix: readStringArray(value.howToFix),
+    integrityPass: readCount(value.integrityPass),
+    integrityFail: readCount(value.integrityFail),
+    advisoryPass: readCount(value.advisoryPass),
+    advisoryFail: readCount(value.advisoryFail),
+    advisoryAcknowledged: readCount(value.advisoryAcknowledged),
+    metrics: readCount(value.metrics),
   };
 }
 
+/** Read one per-agent score from raw payload data. */
 function readAgentScore(value: unknown): AgentScore | null {
   if (!isRecord(value)) return null;
   const id = readRunnerId(value.id);
@@ -186,6 +266,7 @@ function readAgentScore(value: unknown): AgentScore | null {
   };
 }
 
+/** Read the full dashboard report from raw payload data. */
 function readDashboardReport(value: unknown): DashboardClientReport {
   const payload = readRecord(value, "Audit response");
   const status = readAuditStatus(payload.status);
@@ -224,6 +305,7 @@ function readDashboardReport(value: unknown): DashboardClientReport {
   };
 }
 
+/** Read the dashboard report injected into the page shell. */
 function readInjectedReport(): DashboardClientReport | null {
   if (window.__GOAT_FLOW_REPORT__ == null) return null;
   try {
@@ -233,18 +315,61 @@ function readInjectedReport(): DashboardClientReport | null {
   }
 }
 
+/** Read one supported-agent record from dashboard shell injection. */
+function readSupportedAgent(value: unknown): SupportedAgent | null {
+  if (!isRecord(value)) return null;
+  const id = readRunnerId(value.id);
+  const name = readString(value.name);
+  if (!id || !name) return null;
+  return { id, name };
+}
+
+/** Read the supported agent list injected into the dashboard shell. */
+function readInjectedSupportedAgents(): SupportedAgent[] {
+  return Array.isArray(window.__GOAT_FLOW_AGENTS__)
+    ? window.__GOAT_FLOW_AGENTS__
+        .map((agent) => readSupportedAgent(agent))
+        .filter((agent): agent is SupportedAgent => agent !== null)
+    : [];
+}
+
+/** Read one preset definition from dashboard shell injection. */
+function readPreset(value: unknown): Preset | null {
+  if (!isRecord(value)) return null;
+  const id = readString(value.id);
+  const name = readString(value.name);
+  const desc = readString(value.desc);
+  const prompt = readString(value.prompt);
+  const cat = readString(value.cat);
+  if (!id || !name || !desc || !prompt || !cat) return null;
+  return { id, name, desc, prompt, cat };
+}
+
+/** Read the preset list injected into the dashboard shell. */
+function readInjectedPresets(): Preset[] {
+  return Array.isArray(window.__GOAT_FLOW_PRESETS__)
+    ? window.__GOAT_FLOW_PRESETS__
+        .map((preset) => readPreset(preset))
+        .filter((preset): preset is Preset => preset !== null)
+    : [];
+}
+
+/** Read one installed-agent record from raw payload data. */
 function readAgentInfo(value: unknown): AgentInfo | null {
   if (!isRecord(value)) return null;
   const id = readRunnerId(value.id);
-  if (!id || typeof value.installed !== "boolean") return null;
+  const name = readString(value.name);
+  if (!id || !name || typeof value.installed !== "boolean") return null;
 
   return {
     id,
+    name,
     installed: value.installed,
     version: typeof value.version === "string" ? value.version : null,
   };
 }
 
+/** Read one directory entry from the project browser payload. */
 function readBrowseDir(value: unknown): BrowseDir | null {
   if (!isRecord(value)) return null;
   const name = readString(value.name);
@@ -254,6 +379,7 @@ function readBrowseDir(value: unknown): BrowseDir | null {
   return { name, path, isProject: value.isProject };
 }
 
+/** Read one saved project entry from persisted state. */
 function readProjectEntry(value: unknown): ProjectEntry | null {
   if (!isRecord(value)) return null;
   const path = readString(value.path);
@@ -267,6 +393,7 @@ function readProjectEntry(value: unknown): ProjectEntry | null {
   };
 }
 
+/** Read one backend terminal-session record from raw payload data. */
 function readServerSessionInfo(value: unknown): ServerSessionInfo | null {
   if (!isRecord(value)) return null;
   const id = readString(value.id);
@@ -299,21 +426,22 @@ function readServerSessionInfo(value: unknown): ServerSessionInfo | null {
   };
 }
 
-function readCritiqueResult(value: unknown): CritiqueResult {
-  const payload = readRecord(value, "Critique response");
+/** Read a quality-command response from raw payload data. */
+function readQualityResult(value: unknown): QualityResult {
+  const payload = readRecord(value, "Quality response");
   const agent = readRunnerId(payload.agent);
   const auditStatus = readAuditStatus(payload.auditStatus);
   const command = readString(payload.command);
   if (
     !agent ||
     (!auditStatus && payload.auditStatus !== "unavailable") ||
-    command !== "critique"
+    command !== "quality"
   ) {
-    throw new Error("Critique response returned an invalid payload");
+    throw new Error("Quality response returned an invalid payload");
   }
 
   return {
-    command: "critique",
+    command: "quality",
     agent,
     auditStatus: auditStatus ?? "unavailable",
     auditSummary: readString(payload.auditSummary),
@@ -321,6 +449,72 @@ function readCritiqueResult(value: unknown): CritiqueResult {
   };
 }
 
+/** Read one quality-history table row from raw payload data. */
+function readQualityHistoryRow(value: unknown): QualityHistoryRow | null {
+  if (!isRecord(value)) return null;
+  const id = readString(value.id);
+  const date = readString(value.date);
+  const agent = readRunnerId(value.agent);
+  if (
+    !id ||
+    !date ||
+    !agent ||
+    typeof value.setupTotal !== "number" ||
+    typeof value.systemTotal !== "number" ||
+    (value.setupDelta !== null && typeof value.setupDelta !== "number") ||
+    typeof value.blockerCount !== "number" ||
+    typeof value.majorCount !== "number" ||
+    typeof value.minorCount !== "number"
+  ) {
+    return null;
+  }
+  return {
+    id,
+    date,
+    agent,
+    setupTotal: value.setupTotal,
+    systemTotal: value.systemTotal,
+    setupDelta: value.setupDelta,
+    blockerCount: value.blockerCount,
+    majorCount: value.majorCount,
+    minorCount: value.minorCount,
+  };
+}
+
+/** Read the latest quality-history summary from raw payload data. */
+function readQualityHistoryLatest(value: unknown): QualityHistoryLatest | null {
+  if (!isRecord(value)) return null;
+  const id = readString(value.id);
+  const date = readString(value.date);
+  const time = readString(value.time);
+  const agent = readRunnerId(value.agent);
+  if (
+    !id ||
+    !date ||
+    !time ||
+    !agent ||
+    typeof value.setupTotal !== "number" ||
+    typeof value.systemTotal !== "number" ||
+    typeof value.blockerCount !== "number" ||
+    typeof value.majorCount !== "number" ||
+    typeof value.minorCount !== "number"
+  ) {
+    return null;
+  }
+  return {
+    id,
+    date,
+    time,
+    agent,
+    setupTotal: value.setupTotal,
+    systemTotal: value.systemTotal,
+    blockerCount: value.blockerCount,
+    majorCount: value.majorCount,
+    minorCount: value.minorCount,
+  };
+}
+
+/** Read a persisted string array from localStorage. */
 function readStoredStringArray(key: string): string[] {
   try {
     return readStringArray(JSON.parse(localStorage.getItem(key) || "[]"));
@@ -329,6 +523,7 @@ function readStoredStringArray(key: string): string[] {
   }
 }
 
+/** Read the loaded xterm.js constructors from window globals. */
 function getXtermConstructors(): {
   Terminal: NonNullable<Window["Terminal"]>;
   FitAddon: new () => FitAddonInstance;
@@ -343,6 +538,12 @@ function getXtermConstructors(): {
 
 /** Alpine.js data factory for the dashboard shell. */
 function app() {
+  const supportedAgents = readInjectedSupportedAgents();
+  const defaultRunner = supportedAgents[0]?.id ?? "claude";
+  const defaultSetupAgents = buildDefaultSetupAgents(
+    supportedAgents,
+    defaultRunner,
+  );
   return {
     // --- Core state ---
     report: readInjectedReport(),
@@ -358,12 +559,17 @@ function app() {
     copyLabel: "Copy",
     srAnnouncement: "",
     activeView: "home",
+    supportedAgents,
     installedAgents: [] as AgentInfo[],
     allAgents: [] as AgentInfo[],
-    activeRunner: "claude" as RunnerId,
+    activeRunner: defaultRunner,
     userRole: "",
-    workspacePanel: "prompts",
-    sidebarCollapsed: false,
+    workspacePanel: "terminal",
+    sessionsCollapsed: localStorage.getItem("gf-sessions-collapsed") === "true",
+    otherCollapsed: false,
+    confirmEndSessionId: null as string | null,
+    _workspacePoll: null as ReturnType<typeof setInterval> | null,
+    /** Return the current project name. */
     get projectName(): string {
       return (
         this.projectPath.split("/").filter(Boolean).pop() || this.projectPath
@@ -393,47 +599,92 @@ function app() {
     terminalAvailable: false,
     terminalSessionCount: 0,
     serverSessions: [] as ServerSessionInfo[],
+    serverMaxSessions: 10,
     showMaxSessionsModal: false,
     sessions: [] as LocalSession[],
     activeSessionId: null as string | null,
-    selectedPreset: null as string | null,
+    selectedPreset: null as Preset | null,
     promptRunStates: {} as Record<string, string>,
     launching: false,
     availableRunners: [] as RunnerId[],
     // Project switches intentionally preserve backend sessions so returning to a workspace
-    // can reattach instead of spawning a fresh agent process.
-    _projectSessions: {} as Record<string, SavedSession>,
+    // can reattach instead of spawning a fresh agent process. Each project keeps the full
+    // list of its bound sessions plus the id that was active at detach time.
+    _projectSessions: {} as Record<string, SavedSession[]>,
+    _projectActiveSession: {} as Record<string, string>,
     _terminalRefs: {} as Record<string, TerminalRefs>,
     _xtermLoaded: false,
     // detachTerminal() flips this while it closes browser-side sockets so ws.onclose only
     // marks sessions ended when the runner actually exits on the backend.
     _detaching: false,
+    /** Return the active local session. */
     get _activeSession(): LocalSession | null {
       return this.sessions.find((s) => s.id === this.activeSessionId) || null;
     },
+    /** Return the active terminal session ID. */
     get terminalSessionId(): string | null {
       return this._activeSession?.id ?? null;
     },
+    /** Return whether the active terminal is connected. */
     get terminalConnected(): boolean {
       return this._activeSession?.connected ?? false;
     },
+    /** Return whether the active terminal has ended. */
     get terminalEnded(): boolean {
       return this._activeSession?.ended ?? false;
     },
+    /** Return the active terminal age label. */
     get terminalAge(): string {
       return this._activeSession?.age ?? "";
     },
+    /** Return the last run prompt label. */
     get lastRunPrompt(): string | null {
       return this._activeSession?.promptLabel ?? null;
     },
+    /** Return the last run agent ID. */
     get lastRunAgent(): RunnerId | null {
       return this._activeSession?.runner ?? null;
     },
+    /** Return the active terminal WebSocket reference. */
     get _terminalWs(): WebSocket | undefined {
       return this._terminalRefs[this.activeSessionId ?? ""]?.ws;
     },
+    /** Return the active xterm instance. */
     get _terminalXterm(): XTermInstance | undefined {
       return this._terminalRefs[this.activeSessionId ?? ""]?.xterm;
+    },
+    /** Sessions whose project matches the current projectPath, newest first. */
+    get currentProjectSessions(): ServerSessionInfo[] {
+      return this.serverSessions
+        .filter((s) => s.projectPath === this.projectPath)
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+    },
+    /** Sessions for other projects, grouped by project name then newest first. */
+    get otherProjectSessions(): ServerSessionInfo[] {
+      return this.serverSessions
+        .filter((s) => s.projectPath !== this.projectPath)
+        .sort((a, b) => {
+          const byName = (a.projectName || "").localeCompare(
+            b.projectName || "",
+          );
+          if (byName !== 0) return byName;
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        });
+    },
+    /** Active sessions for the current project; valid targets for `Send to active`. */
+    get sendTargetsInCurrentProject(): ServerSessionInfo[] {
+      return this.serverSessions.filter(
+        (s) => s.projectPath === this.projectPath && s.status === "active",
+      );
+    },
+    /** Whether a backend session is currently bound to a local xterm instance. */
+    isSessionBoundLocally(id: string): boolean {
+      return this.sessions.some((s) => s.id === id);
     },
     terminalAuditActions: [
       {
@@ -458,48 +709,99 @@ function app() {
     projectsSortAsc: true,
     newProjectPath: "",
 
-    // --- Critique state ---
-    critiqueAgent: "claude" as RunnerId,
-    critiqueLoading: false,
-    critiqueResult: null as CritiqueResult | null,
-    critiqueCopyLabel: "Copy",
+    // --- Quality state ---
+    qualityAgent: defaultRunner,
+    qualityLoading: false,
+    qualityResult: null as QualityResult | null,
+    qualityCopyLabel: "Copy",
+    qualityHistoryLoading: false,
+    qualityHistoryRows: [] as QualityHistoryRow[],
+    qualityHistoryLatest: null as QualityHistoryLatest | null,
+    qualityHistoryWarnings: [] as string[],
 
-    // --- Wizard state ---
-    wizardDetecting: false,
-    wizardSelectedAgent: "claude" as RunnerId,
-    wizardData: {
+    /** Resolve the current display name for one supported agent id. */
+    agentName(agentId: RunnerId): string {
+      return (
+        this.supportedAgents.find((agent) => agent.id === agentId)?.name ??
+        agentId
+      );
+    },
+
+    /** Return the audit-based status shown on each Setup page agent card. */
+    setupAgentStatus(agentId: RunnerId): { label: string; color: string } {
+      if (!this.report) return { label: "Not audited", color: "#52525b" };
+      const score = this.report.agentScores.find((s) => s.id === agentId);
+      if (!score) return { label: "Not audited", color: "#52525b" };
+      const agentPass = score.agent.status === "pass";
+      const harnessPass = !score.harness || score.harness.status === "pass";
+      if (agentPass && harnessPass)
+        return { label: "Passing", color: "#4ade80" };
+      if (!agentPass) return { label: "Setup failing", color: "#f87171" };
+      return { label: "Harness failing", color: "#fbbf24" };
+    },
+
+    // --- Setup state ---
+    setupDetecting: false,
+    setupSelectedAgent: defaultRunner,
+    setupData: {
       languages: [],
       frameworks: [],
-      commands: { ...DEFAULT_WIZARD_COMMANDS },
-      agents: { ...DEFAULT_WIZARD_AGENTS },
+      commands: { ...DEFAULT_SETUP_COMMANDS },
+      agents: { ...defaultSetupAgents },
       existing: { ...DEFAULT_EXISTING_ARTIFACTS },
       nonGoatFlow: [],
-    } as WizardData,
-    wizardGenerating: false,
-    wizardSetupOutputs: {} as Record<string, string>,
+    } as SetupData,
+    setupGenerating: false,
+    setupOutputs: {} as Record<string, string>,
 
     // --- Launcher state ---
-    presets: PRESETS,
+    presets: readInjectedPresets(),
     presetFilter: "all",
     presetSearch: "",
     presetFavorites: readStoredStringArray("goat-flow-preset-favorites"),
+    /** Toggle a preset favorite state and persist the combined dashboard state. */
     toggleFavorite(id: string) {
       const idx = this.presetFavorites.indexOf(id);
       if (idx === -1) this.presetFavorites.push(id);
       else this.presetFavorites.splice(idx, 1);
-      localStorage.setItem(
-        "goat-flow-preset-favorites",
-        JSON.stringify(this.presetFavorites),
-      );
+      this._saveDashboardState();
     },
+    /** Check whether a preset is marked as a favorite. */
     isFavorite(id: string): boolean {
       return this.presetFavorites.includes(id);
     },
+    /** Move the preview selection up (-1) or down (1) in screen order, with wrap. */
+    selectPresetByOffset(delta: number) {
+      const order = this.flatPresetOrder;
+      if (order.length === 0) return;
+      const currentId = this.selectedPreset?.id;
+      const currentIdx = currentId ? order.indexOf(currentId) : -1;
+      const nextIdx =
+        currentIdx === -1
+          ? delta > 0
+            ? 0
+            : order.length - 1
+          : (currentIdx + delta + order.length) % order.length;
+      const nextId = order[nextIdx];
+      const next = this.presets.find((p) => p.id === nextId);
+      if (!next) return;
+      this.selectedPreset = next;
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`preset-row-${nextId}`);
+        if (el) el.scrollIntoView({ block: "nearest" });
+      });
+    },
+    /** Return the preset category filters. */
     get presetCats(): Array<{ id: string; label: string }> {
       const cats = new Map<string, string>();
+      const labelOverrides: Record<string, string> = { qa: "QA" };
       for (const p of this.presets)
         if (!cats.has(p.cat))
-          cats.set(p.cat, p.cat.charAt(0).toUpperCase() + p.cat.slice(1));
+          cats.set(
+            p.cat,
+            labelOverrides[p.cat] ??
+              p.cat.charAt(0).toUpperCase() + p.cat.slice(1),
+          );
       return [
         { id: "all", label: "All" },
         { id: "favorites", label: "\u2605 Favorites" },
@@ -537,14 +839,93 @@ function app() {
       }
       return list;
     },
-    adaptPrompt(prompt: string): string {
-      if (this.activeRunner === "codex")
-        return prompt.replace(/^\/goat\b/, "$goat");
+    /** Presets grouped by category for the Prompts page grouped rendering. */
+    get presetsByCategory(): Array<{
+      id: string;
+      label: string;
+      items: Preset[];
+    }> {
+      const cats = this.presetCats.filter(
+        (c) => c.id !== "all" && c.id !== "favorites",
+      );
+      return cats.map((cat) => ({
+        id: cat.id,
+        label: cat.label,
+        items: this.presets.filter((p) => p.cat === cat.id),
+      }));
+    },
+    /**
+     * Unified sequence of entries for the Prompts page list: inserts category
+     * headers before each group in grouped mode, falls back to flat rows
+     * otherwise. Rendered with a single `template x-for` in prompts.html.
+     */
+    get renderedPresetEntries(): Array<
+      | { kind: "header"; id: string; label: string }
+      | { kind: "row"; preset: Preset }
+    > {
+      const entries: Array<
+        | { kind: "header"; id: string; label: string }
+        | { kind: "row"; preset: Preset }
+      > = [];
+      if (this.presetFilter === "all" && !this.presetSearch.trim()) {
+        for (const group of this.presetsByCategory) {
+          if (group.items.length === 0) continue;
+          entries.push({
+            kind: "header",
+            id: group.id,
+            label: `${group.label} (${group.items.length})`,
+          });
+          for (const p of group.items) entries.push({ kind: "row", preset: p });
+        }
+        return entries;
+      }
+      for (const p of this.filteredPresets)
+        entries.push({ kind: "row", preset: p });
+      return entries;
+    },
+    /**
+     * Flat list of preset IDs in screen order for keyboard nav. Uses grouped
+     * order when the list is grouped (filter=all + no search); otherwise
+     * falls back to filteredPresets order.
+     */
+    get flatPresetOrder(): string[] {
+      if (this.presetFilter === "all" && !this.presetSearch.trim()) {
+        const ids: string[] = [];
+        for (const group of this.presetsByCategory) {
+          for (const p of group.items) ids.push(p.id);
+        }
+        return ids;
+      }
+      return this.filteredPresets.map((p) => p.id);
+    },
+    /**
+     * Escaped, optionally search-highlighted HTML for the prompt preview.
+     * Escapes user-facing content before injecting <mark> tags so the preview
+     * stays safe when rendered via x-html.
+     */
+    get highlightedPromptHtml(): string {
+      const prompt = this.adaptPrompt(this.selectedPreset?.prompt ?? "");
+      const escaped = prompt
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      const query = this.presetSearch.trim();
+      if (!query) return escaped;
+      const qEscaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(qEscaped, "gi");
+      return escaped.replace(re, "<mark>$&</mark>");
+    },
+    /** Adapt a preset prompt to the syntax expected by the selected runner. */
+    adaptPrompt(prompt: string, runner?: RunnerId): string {
+      const r = runner ?? this.activeRunner;
+      if (r === "codex") return prompt.replace(/^\/goat\b/, "$goat");
       return prompt;
     },
+    /** Copy a preset prompt after applying runner-specific syntax tweaks. */
     copyPreset(prompt: string) {
       this.copyText(this.adaptPrompt(prompt));
     },
+    /** Send text to the active terminal session and focus it. */
     sendToTerminal(
       text: string,
       { adapt = true }: { adapt?: boolean } = {},
@@ -569,6 +950,37 @@ function app() {
       if (refs.xterm) refs.xterm.focus();
       return true;
     },
+    /** Send a preset prompt to an active session in the current project. */
+    async sendToProjectTarget(prompt: string, target: ServerSessionInfo) {
+      if (target.projectPath !== this.projectPath) {
+        this.showToast("Target session is not in this project", true);
+        return;
+      }
+      if (this.isSessionBoundLocally(target.id)) {
+        this.activeSessionId = target.id;
+        this.activeView = "workspace";
+        this.workspacePanel = "terminal";
+      } else {
+        await this.openServerSession(target);
+      }
+      const prepared = this.adaptPrompt(prompt, target.runner);
+      /** Retry a project-scoped send until the target terminal is ready. */
+      const deliver = async (attempts: number): Promise<void> => {
+        const refs = this._terminalRefs[this.activeSessionId ?? ""];
+        if (refs?.ws && refs.ws.readyState === WebSocket.OPEN) {
+          this.sendToTerminal(prepared, { adapt: false });
+          return;
+        }
+        if (attempts > 20) {
+          this.showToast("Could not connect to terminal", true);
+          return;
+        }
+        await new Promise<void>((r) => setTimeout(r, 100));
+        return deliver(attempts + 1);
+      };
+      await deliver(0);
+    },
+    /** Run a predefined audit command in the workspace terminal. */
     async runTerminalAuditCommand(action: AuditAction | null) {
       if (!action?.command) return;
       this.activeView = "workspace";
@@ -597,6 +1009,7 @@ function app() {
         const xterm = refs?.xterm;
         const fitAddon = xterm?._addonFit;
         if (!xterm || !fitAddon) return;
+        /** Resize the active terminal to match its container. */
         const refit = (): boolean => {
           const container = document.getElementById(
             `gf-terminal-${this.activeSessionId}`,
@@ -614,6 +1027,7 @@ function app() {
           }
           return true;
         };
+        /** Retry terminal refits until the workspace view can measure the container. */
         const poll = (attempts = 0): void => {
           if (attempts > TERMINAL_REFIT_MAX_ATTEMPTS) return;
           requestAnimationFrame(() => {
@@ -668,8 +1082,37 @@ function app() {
         });
       });
       self.$watch("activeView", (v: string) => {
-        if (v === "projects") this.updateSessionCount();
+        if (this._workspacePoll) {
+          clearInterval(this._workspacePoll);
+          this._workspacePoll = null;
+        }
+        if (v === "projects" || v === "workspace" || v === "prompts") {
+          this.updateSessionCount();
+        }
+        if (v === "workspace") {
+          this._workspacePoll = setInterval(() => {
+            this.updateSessionCount();
+          }, 10_000);
+        }
+        if (v === "quality") {
+          this.generateQuality();
+          this.generateQualityHistory();
+        }
+        if (v === "setup") {
+          this.detectStack();
+          this.generateSetupPrompt();
+        }
       });
+      self.$watch("qualityAgent", () => {
+        if (this.activeView === "quality") {
+          this.generateQuality();
+          this.generateQualityHistory();
+        }
+      });
+      self.$watch("sessionsCollapsed", (v: boolean) => {
+        localStorage.setItem("gf-sessions-collapsed", String(v));
+      });
+      /** Update the browser title to match the current project. */
       const updateTitle = (): void => {
         document.title = `${this.projectName} | GOAT Flow`;
       };
@@ -679,11 +1122,15 @@ function app() {
           this.detachTerminal(oldPath);
           this.reconnectTerminal();
           this.updateSessionCount();
+          if (this.activeView === "quality") {
+            this.generateQuality();
+            this.generateQualityHistory();
+          }
         }
       });
       updateTitle();
       document.documentElement.classList.toggle("dark", this.darkMode);
-      this._loadSavedProjects().then(() => {
+      this._loadSavedDashboardState().then(() => {
         if (this.projectsList.length > 0) this.auditAllProjects();
       });
       if (location.protocol === "http:" || location.protocol === "https:") {
@@ -698,6 +1145,12 @@ function app() {
                   .map((agent) => readAgentInfo(agent))
                   .filter((agent): agent is AgentInfo => agent !== null)
               : [];
+            if (this.supportedAgents.length === 0) {
+              this.supportedAgents = agents.map(({ id, name }) => ({
+                id,
+                name,
+              }));
+            }
             this.allAgents = agents;
             this.installedAgents = agents.filter((a) => a.installed);
             if (
@@ -731,11 +1184,53 @@ function app() {
             document.activeElement?.tagName ?? "",
           )
         ) {
+          // Preserve focus inside an active terminal session.
+          if (
+            this.activeView === "workspace" &&
+            this.terminalSessionId &&
+            !this.terminalEnded
+          ) {
+            return;
+          }
           e.preventDefault();
-          const searchInput = self.$refs.presetSearchInput;
-          if (searchInput instanceof HTMLInputElement) {
-            this.activeView = "workspace";
-            self.$nextTick(() => searchInput.focus());
+          this.activeView = "prompts";
+          self.$nextTick(() => {
+            const searchInput = self.$refs.presetSearchInput;
+            if (searchInput instanceof HTMLInputElement) searchInput.focus();
+          });
+        }
+        if (this.activeView === "prompts") {
+          const inputFocused = ["INPUT", "TEXTAREA", "SELECT"].includes(
+            document.activeElement?.tagName ?? "",
+          );
+          if (!inputFocused) {
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              this.selectPresetByOffset(1);
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              this.selectPresetByOffset(-1);
+            } else if (e.key === "Enter") {
+              if (
+                this.selectedPreset &&
+                !this.launching &&
+                Math.max(this.sessions.length, this.serverSessions.length) <
+                  this.serverMaxSessions
+              ) {
+                e.preventDefault();
+                this.launchPreset(
+                  this.selectedPreset.prompt,
+                  this.activeRunner,
+                );
+              }
+            }
+          }
+          if (e.key === "Escape") {
+            if (this.presetSearch) {
+              this.presetSearch = "";
+            } else if (this.selectedPreset) {
+              this.selectedPreset = null;
+            }
           }
         }
       });
@@ -766,10 +1261,12 @@ function app() {
       }
       this.auditing = false;
     },
+    /** Open the project browser at the current workspace path. */
     async openBrowser() {
       this.showBrowser = !this.showBrowser;
       if (this.showBrowser) await this.browseTo(this.projectPath);
     },
+    /** Load child directories for the requested browser path. */
     async browseTo(path: string) {
       try {
         const res = await fetch(`/api/browse?path=${encodeURIComponent(path)}`);
@@ -790,6 +1287,7 @@ function app() {
         this.showToast("Browse failed", true);
       }
     },
+    /** Set a browsed directory as the active project. */
     selectDir(dir: BrowseDir) {
       if (dir.isProject) {
         this.projectPath = dir.path;
@@ -798,9 +1296,9 @@ function app() {
       } else this.browseTo(dir.path);
     },
 
-    // -- Wizard --
+    // -- Setup --
     async detectStack() {
-      this.wizardDetecting = true;
+      this.setupDetecting = true;
       try {
         const res = await fetch(
           `/api/setup/detect?path=${encodeURIComponent(this.projectPath)}`,
@@ -812,45 +1310,48 @@ function app() {
         const error = readErrorMessage(payload);
         if (error) {
           this.showToast(error, true);
-          this.wizardDetecting = false;
+          this.setupDetecting = false;
           return;
         }
         const commands = isRecord(payload.commands) ? payload.commands : {};
         const agents = isRecord(payload.agents) ? payload.agents : {};
         const existing = isRecord(payload.existing) ? payload.existing : {};
-        this.wizardData.languages = readStringArray(payload.languages);
-        this.wizardData.frameworks = readStringArray(payload.frameworks);
-        this.wizardData.commands = {
+        this.setupData.languages = readStringArray(payload.languages);
+        this.setupData.frameworks = readStringArray(payload.frameworks);
+        this.setupData.commands = {
           test: readString(commands.test),
           lint: readString(commands.lint),
           build: readString(commands.build),
           format: readString(commands.format),
         };
-        this.wizardData.agents = {
-          claude:
-            typeof agents.claude === "boolean"
-              ? agents.claude
-              : DEFAULT_WIZARD_AGENTS.claude,
-          codex:
-            typeof agents.codex === "boolean"
-              ? agents.codex
-              : DEFAULT_WIZARD_AGENTS.codex,
-          gemini:
-            typeof agents.gemini === "boolean"
-              ? agents.gemini
-              : DEFAULT_WIZARD_AGENTS.gemini,
-        };
-        if (!Object.values(this.wizardData.agents).some((v) => v))
-          this.wizardData.agents.claude = true;
-        this.wizardData.existing = {
+        const defaultAgents = buildDefaultSetupAgents(
+          this.supportedAgents,
+          this.setupSelectedAgent,
+        );
+        this.setupData.agents = Object.fromEntries(
+          (Object.keys(defaultAgents) as RunnerId[]).map((agentId) => [
+            agentId,
+            typeof agents[agentId] === "boolean"
+              ? (agents[agentId] as boolean)
+              : (defaultAgents[agentId] ?? false),
+          ]),
+        );
+        if (!Object.values(this.setupData.agents).some((v) => v)) {
+          this.setupData.agents[this.setupSelectedAgent] = true;
+        }
+        this.setupData.existing = {
           skills:
             typeof existing.skills === "boolean"
               ? existing.skills
               : DEFAULT_EXISTING_ARTIFACTS.skills,
-          instructions:
-            typeof existing.instructions === "boolean"
-              ? existing.instructions
-              : DEFAULT_EXISTING_ARTIFACTS.instructions,
+          instructionsRepoWide:
+            typeof existing.instructionsRepoWide === "boolean"
+              ? existing.instructionsRepoWide
+              : DEFAULT_EXISTING_ARTIFACTS.instructionsRepoWide,
+          instructionsPathScoped:
+            typeof existing.instructionsPathScoped === "boolean"
+              ? existing.instructionsPathScoped
+              : DEFAULT_EXISTING_ARTIFACTS.instructionsPathScoped,
           lessons:
             typeof existing.lessons === "boolean"
               ? existing.lessons
@@ -864,17 +1365,18 @@ function app() {
               ? existing.config
               : DEFAULT_EXISTING_ARTIFACTS.config,
         };
-        this.wizardData.nonGoatFlow = readStringArray(payload.nonGoatFlow);
+        this.setupData.nonGoatFlow = readStringArray(payload.nonGoatFlow);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         this.showToast(msg || "Detection failed", true);
       }
-      this.wizardDetecting = false;
+      this.setupDetecting = false;
     },
-    async generateWizardSetup() {
-      this.wizardGenerating = true;
-      this.wizardSetupOutputs = {};
-      const agent = this.wizardSelectedAgent;
+    /** Generate setup output for the agent selected in the setup view. */
+    async generateSetupPrompt() {
+      this.setupGenerating = true;
+      this.setupOutputs = {};
+      const agent = this.setupSelectedAgent;
       try {
         const res = await fetch(
           `/api/setup?path=${encodeURIComponent(this.projectPath)}&agent=${agent}`,
@@ -884,43 +1386,77 @@ function app() {
         if (error) {
           this.showToast(`${agent}: ${error}`, true);
         } else {
-          this.wizardSetupOutputs[agent] =
+          this.setupOutputs[agent] =
             readString(payload.output) || "No output generated.";
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         this.showToast(msg || "Generation failed", true);
       }
-      this.wizardGenerating = false;
+      this.setupGenerating = false;
     },
 
-    // -- Critique --
-    async generateCritique() {
-      this.critiqueLoading = true;
-      this.critiqueResult = null;
-      this.critiqueCopyLabel = "Copy";
+    // -- Quality --
+    async generateQuality() {
+      this.qualityLoading = true;
+      this.qualityResult = null;
+      this.qualityCopyLabel = "Copy";
       try {
         const res = await fetch(
-          `/api/critique?path=${encodeURIComponent(this.projectPath)}&agent=${encodeURIComponent(this.critiqueAgent)}`,
+          `/api/quality?path=${encodeURIComponent(this.projectPath)}&agent=${encodeURIComponent(this.qualityAgent)}`,
         );
-        const payload = readRecord(await res.json(), "Critique response");
+        const payload = readRecord(await res.json(), "Quality response");
         const error = readErrorMessage(payload);
         if (error) {
           this.showToast(error, true);
         } else {
-          this.critiqueResult = readCritiqueResult(payload);
+          this.qualityResult = readQualityResult(payload);
+          this.generateQualityHistory();
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        this.showToast(msg || "Critique generation failed", true);
+        this.showToast(msg || "Quality prompt generation failed", true);
       }
-      this.critiqueLoading = false;
+      this.qualityLoading = false;
     },
-    copyCritique() {
-      if (!this.critiqueResult?.prompt) return;
-      this.copyText(this.critiqueResult.prompt);
-      this.critiqueCopyLabel = "Copied!";
-      setTimeout(() => (this.critiqueCopyLabel = "Copy"), 2000);
+    /** Load persisted quality-history rows for the selected project and agent. */
+    async generateQualityHistory() {
+      this.qualityHistoryLoading = true;
+      this.qualityHistoryRows = [];
+      this.qualityHistoryLatest = null;
+      this.qualityHistoryWarnings = [];
+      try {
+        const res = await fetch(
+          `/api/quality/history?path=${encodeURIComponent(this.projectPath)}&agent=${encodeURIComponent(this.qualityAgent)}&limit=20`,
+        );
+        const payload = readRecord(
+          await res.json(),
+          "Quality history response",
+        );
+        const error = readErrorMessage(payload);
+        if (error) {
+          this.showToast(error, true);
+        } else {
+          this.qualityHistoryRows = Array.isArray(payload.rows)
+            ? payload.rows
+                .map((row) => readQualityHistoryRow(row))
+                .filter((row): row is QualityHistoryRow => row !== null)
+            : [];
+          this.qualityHistoryLatest = readQualityHistoryLatest(payload.latest);
+          this.qualityHistoryWarnings = readStringArray(payload.warnings);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.showToast(msg || "Quality history loading failed", true);
+      }
+      this.qualityHistoryLoading = false;
+    },
+    /** Copy the current quality prompt to the clipboard. */
+    copyQuality() {
+      if (!this.qualityResult?.prompt) return;
+      this.copyText(this.qualityResult.prompt);
+      this.qualityCopyLabel = "Copied!";
+      setTimeout(() => (this.qualityCopyLabel = "Copy"), 2000);
     },
 
     // -- Projects --
@@ -958,10 +1494,12 @@ function app() {
       this.newProjectPath = "";
       this._saveProjectsList();
     },
+    /** Remove a project from the saved workspace list. */
     removeProject(path: string) {
       this.projectsList = this.projectsList.filter((p) => p.path !== path);
       this._saveProjectsList();
     },
+    /** Sort saved projects by the active key and direction. */
     sortProjects(key: ProjectSortKey) {
       if (this.projectsSortKey === key) {
         this.projectsSortAsc = !this.projectsSortAsc;
@@ -981,6 +1519,7 @@ function app() {
         return av.localeCompare(bv) * dir;
       });
     },
+    /** Refresh audit status for every saved project. */
     async auditAllProjects() {
       this.projectsAuditing = true;
       try {
@@ -999,43 +1538,68 @@ function app() {
       }
       this.projectsAuditing = false;
     },
-    async _loadSavedProjects() {
-      let saved: string[] = [];
+    /** Load saved dashboard state from disk, with localStorage as a migration fallback. */
+    async _loadSavedDashboardState() {
+      let savedPaths: string[] = [];
+      let savedFavorites: string[] = [];
       try {
         const res = await fetch("/api/projects/list");
-        const payload = readRecord(await res.json(), "Projects list response");
+        const payload = readRecord(
+          await res.json(),
+          "Dashboard state response",
+        );
         const paths = readStringArray(payload.paths);
+        const favorites = readStringArray(payload.favorites);
         if (paths.length > 0) {
-          saved = paths;
+          savedPaths = paths;
+        }
+        if (favorites.length > 0) {
+          savedFavorites = favorites;
         }
       } catch {
         /* server unavailable */
       }
-      if (saved.length === 0) {
-        saved = readStoredStringArray("goat-flow-projects");
+      if (savedPaths.length === 0) {
+        savedPaths = readStoredStringArray("goat-flow-projects");
+      }
+      if (savedFavorites.length === 0) {
+        savedFavorites = readStoredStringArray("goat-flow-preset-favorites");
       }
       const launchPath = window.__GOAT_FLOW_DEFAULT_PATH__;
-      if (launchPath && !saved.includes(launchPath)) {
-        saved.unshift(launchPath);
+      if (launchPath && !savedPaths.includes(launchPath)) {
+        savedPaths.unshift(launchPath);
       }
-      if (saved.length > 0) {
-        this.projectsList = saved.map((path) => ({
+      this.presetFavorites = [...new Set(savedFavorites)];
+      if (savedPaths.length > 0) {
+        this.projectsList = savedPaths.map((path) => ({
           path,
           state: "...",
           action: "...",
           details: "Not audited",
         }));
-        this._saveProjectsList();
+      }
+      if (savedPaths.length > 0 || this.presetFavorites.length > 0) {
+        this._saveDashboardState();
       }
     },
-    _saveProjectsList() {
+    /** Persist the current dashboard state to localStorage and the server store. */
+    _saveDashboardState() {
       const paths = [...new Set(this.projectsList.map((p) => p.path))];
+      const favorites = [...new Set(this.presetFavorites)];
       localStorage.setItem("goat-flow-projects", JSON.stringify(paths));
+      localStorage.setItem(
+        "goat-flow-preset-favorites",
+        JSON.stringify(favorites),
+      );
       fetch("/api/projects/list", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paths }),
+        body: JSON.stringify({ paths, favorites }),
       }).catch(() => {});
+    },
+    /** Persist the current project list through the shared dashboard state store. */
+    _saveProjectsList() {
+      this._saveDashboardState();
     },
 
     // -- Clipboard + Toast --
@@ -1051,6 +1615,7 @@ function app() {
       this.copyLabel = "Copied!";
       setTimeout(() => (this.copyLabel = "Copy"), 2000);
     },
+    /** Show a temporary toast message. */
     showToast(msg: string, isError?: boolean) {
       this.toast = msg;
       this.toastError = isError ?? false;
@@ -1079,6 +1644,7 @@ function app() {
       }
       this.updateSessionCount();
     },
+    /** Refresh terminal session state from the server. */
     async updateSessionCount() {
       try {
         const res = await fetch("/api/terminal/sessions");
@@ -1088,6 +1654,9 @@ function app() {
         );
         this.terminalSessionCount =
           typeof payload.activeCount === "number" ? payload.activeCount : 0;
+        if (typeof payload.maxSessions === "number") {
+          this.serverMaxSessions = payload.maxSessions;
+        }
         this.serverSessions = Array.isArray(payload.sessions)
           ? payload.sessions
               .map((session) => readServerSessionInfo(session))
@@ -1105,6 +1674,7 @@ function app() {
         /* ignore */
       }
     },
+    /** End every live terminal session for the current project. */
     async endAllSessions() {
       try {
         const res = await fetch("/api/terminal/sessions");
@@ -1128,6 +1698,7 @@ function app() {
         }
         this._terminalRefs = {};
         this._projectSessions = {};
+        this._projectActiveSession = {};
         this.sessions = [];
         this.activeSessionId = null;
         for (const [presetId, state] of Object.entries(this.promptRunStates)) {
@@ -1154,11 +1725,13 @@ function app() {
         const script = document.createElement("script");
         script.src =
           "https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js";
+        /** Handle script load failures. */
         script.onerror = () => reject(new Error("xterm.js load failed"));
         const timer = setTimeout(
           () => reject(new Error("xterm.js load timeout")),
           5000,
         );
+        /** Handle successful script loads. */
         script.onload = () => {
           clearTimeout(timer);
           resolve();
@@ -1173,16 +1746,19 @@ function app() {
           () => reject(new Error("fit addon load timeout")),
           5000,
         );
+        /** Handle successful script loads. */
         script.onload = () => {
           clearTimeout(timer);
           resolve();
         };
+        /** Handle script load failures. */
         script.onerror = () => reject(new Error("fit addon load failed"));
         document.head.appendChild(script);
       });
       getXtermConstructors();
       this._xtermLoaded = true;
     },
+    /** Launch a preset prompt in the selected runner. */
     async launchPreset(prompt: string, runner?: RunnerId) {
       if (this.launching) return;
       const preset = this.presets.find(
@@ -1207,21 +1783,49 @@ function app() {
         presetId,
       });
     },
-    /**
-     * Drop the current browser-side terminal bindings while keeping enough metadata
-     * to reconnect when the user switches back to the same project.
-     */
+    /** Drop a session id from every project's saved list, pruning empty entries. */
+    _forgetSavedSession(sessionId: string) {
+      for (const [path, list] of Object.entries(this._projectSessions)) {
+        const filtered = list.filter((sv) => sv.sessionId !== sessionId);
+        if (filtered.length === 0) {
+          delete this._projectSessions[path];
+        } else if (filtered.length !== list.length) {
+          this._projectSessions[path] = filtered;
+        }
+        if (this._projectActiveSession[path] === sessionId) {
+          const first = filtered[0];
+          if (first) {
+            this._projectActiveSession[path] = first.sessionId;
+          } else {
+            delete this._projectActiveSession[path];
+          }
+        }
+      }
+    },
+    /** Detach the current browser terminal while preserving reconnect metadata. */
     detachTerminal(forProjectPath?: string) {
       this._detaching = true;
       const savePath = forProjectPath || this.projectPath;
-      const active = this._activeSession;
-      if (active && !active.ended) {
-        this._projectSessions[savePath] = {
-          sessionId: active.id,
-          startTime: active.startTime,
-          prompt: active.promptLabel,
-          agent: active.runner,
-        };
+      const toSave: SavedSession[] = this.sessions
+        .filter((s) => s.projectPath === savePath && !s.ended)
+        .map((s) => ({
+          sessionId: s.id,
+          startTime: s.startTime,
+          prompt: s.promptLabel ?? "",
+          agent: s.runner,
+        }));
+      if (toSave.length > 0) {
+        this._projectSessions[savePath] = toSave;
+        const activeId = this.activeSessionId;
+        const fallback = toSave[0];
+        if (activeId && toSave.some((s) => s.sessionId === activeId)) {
+          this._projectActiveSession[savePath] = activeId;
+        } else if (fallback) {
+          this._projectActiveSession[savePath] = fallback.sessionId;
+        }
+      } else {
+        delete this._projectSessions[savePath];
+        delete this._projectActiveSession[savePath];
       }
       for (const id of Object.keys(this._terminalRefs)) {
         const refs = this._terminalRefs[id];
@@ -1233,64 +1837,74 @@ function app() {
       this.promptRunStates = {};
       this._detaching = false;
     },
-    /**
-     * Reattach to a live backend session that was previously detached during a
-     * project switch instead of creating a fresh runner process.
-     */
+    /** Reconnect the workspace to every saved backend session for this project. */
     async reconnectTerminal(): Promise<boolean> {
-      const saved = this._projectSessions[this.projectPath];
-      if (!saved) return false;
-      let alive: ServerSessionInfo | null = null;
+      const savedList = this._projectSessions[this.projectPath];
+      if (!savedList || savedList.length === 0) return false;
+      const aliveMap = new Map<string, ServerSessionInfo>();
       try {
         const res = await fetch("/api/terminal/sessions");
         const payload = readRecord(
           await res.json(),
           "Terminal sessions response",
         );
-        alive = Array.isArray(payload.sessions)
-          ? (payload.sessions
-              .map((session) => readServerSessionInfo(session))
-              .filter(
-                (session): session is ServerSessionInfo => session !== null,
-              )
-              .find((session) => session.id === saved.sessionId) ?? null)
-          : null;
-        if (!alive) {
-          delete this._projectSessions[this.projectPath];
-          return false;
+        if (Array.isArray(payload.sessions)) {
+          for (const raw of payload.sessions) {
+            const session = readServerSessionInfo(raw);
+            if (session) aliveMap.set(session.id, session);
+          }
         }
       } catch {
         delete this._projectSessions[this.projectPath];
+        delete this._projectActiveSession[this.projectPath];
         return false;
       }
+      const liveSaved = savedList.filter((sv) => aliveMap.has(sv.sessionId));
+      if (liveSaved.length === 0) {
+        delete this._projectSessions[this.projectPath];
+        delete this._projectActiveSession[this.projectPath];
+        return false;
+      }
+      this._projectSessions[this.projectPath] = liveSaved;
       const self = this as typeof this & AlpineMagics<typeof this>;
       await this.loadXterm();
-      const session: LocalSession = {
-        id: saved.sessionId,
-        runner: saved.agent,
-        promptLabel: saved.prompt,
-        projectPath: this.projectPath,
-        startTime: saved.startTime,
-        lastInputTime: alive.lastInputAt,
-        connected: false,
-        ended: false,
-        age: "",
-        presetId: null,
-      };
-      this.sessions.push(session);
-      this._terminalRefs[session.id] = {};
-      this.activeSessionId = session.id;
+      for (const saved of liveSaved) {
+        const alive = aliveMap.get(saved.sessionId);
+        if (!alive) continue;
+        const session: LocalSession = {
+          id: saved.sessionId,
+          runner: saved.agent,
+          promptLabel: saved.prompt,
+          projectPath: this.projectPath,
+          startTime: saved.startTime,
+          lastInputTime: alive.lastInputAt,
+          connected: false,
+          ended: false,
+          age: "",
+          presetId: null,
+        };
+        this.sessions.push(session);
+        this._terminalRefs[session.id] = {};
+      }
+      const savedActiveId = this._projectActiveSession[this.projectPath];
+      const first = liveSaved[0];
+      this.activeSessionId =
+        savedActiveId && liveSaved.some((s) => s.sessionId === savedActiveId)
+          ? savedActiveId
+          : (first?.sessionId ?? null);
       this.activeView = "workspace";
       this.workspacePanel = "terminal";
       await self.$nextTick();
-      this.connectTerminal(session.id, `/ws/terminal/${saved.sessionId}`);
+      for (const saved of liveSaved) {
+        this.connectTerminal(
+          saved.sessionId,
+          `/ws/terminal/${saved.sessionId}`,
+        );
+      }
       this.updateSessionCount();
       return true;
     },
-    /**
-     * Create a new backend terminal session and make it the active workspace tab.
-     * Callers can pass a custom label so reconnect logic preserves the user-facing context.
-     */
+    /** Create a new backend terminal session and open it in the workspace. */
     async launchInTerminal(
       prompt: string,
       runner: RunnerId = "claude",
@@ -1299,7 +1913,10 @@ function app() {
         presetId = null,
       }: { promptLabel?: string | null; presetId?: string | null } = {},
     ) {
-      if (this.sessions.length >= 3) {
+      if (
+        Math.max(this.sessions.length, this.serverSessions.length) >=
+        this.serverMaxSessions
+      ) {
         this.showMaxSessionsModal = true;
         return;
       }
@@ -1359,10 +1976,7 @@ function app() {
       }
       this.launching = false;
     },
-    /**
-     * Bind a rendered terminal container to a backend PTY session over WebSocket.
-     * The returned Alpine object must stay plain so Alpine can wrap it in a reactive proxy.
-     */
+    /** Bind a browser xterm instance to a backend PTY session. */
     connectTerminal(sessionId: string, wsUrl: string) {
       const session = this.sessions.find((s) => s.id === sessionId);
       if (!session) return;
@@ -1394,6 +2008,7 @@ function app() {
       term.loadAddon(fitAddon);
       term.open(container);
       term._addonFit = fitAddon;
+      /** Fit the active xterm instance and report its size to the server. */
       const doFit = (): void => {
         if (!container.offsetWidth) return;
         fitAddon.fit();
@@ -1417,6 +2032,7 @@ function app() {
         doFit();
       });
       ro.observe(container);
+      /** Handle browser resizes for the active terminal. */
       const resizeHandler = (): void => {
         doFit();
       };
@@ -1424,6 +2040,7 @@ function app() {
       const proto = location.protocol === "https:" ? "wss:" : "ws:";
       const ws = new WebSocket(`${proto}//${location.host}${wsUrl}`);
       let ageInterval: ReturnType<typeof setInterval> | null = null;
+      /** Handle the terminal WebSocket opening. */
       ws.onopen = () => {
         session.connected = true;
         setTimeout(doFit, TERMINAL_REFIT_RETRY_DELAY_MS);
@@ -1457,6 +2074,7 @@ function app() {
           this._terminalRefs[sessionId].ageInterval = ageInterval ?? undefined;
         }
       };
+      /** Handle incoming terminal WebSocket messages. */
       ws.onmessage = (event: MessageEvent) => {
         try {
           if (typeof event.data !== "string") return;
@@ -1467,10 +2085,7 @@ function app() {
           } else if (type === "exit") {
             session.ended = true;
             session.connected = false;
-            for (const [path, sv] of Object.entries(this._projectSessions)) {
-              if (sv.sessionId === sessionId)
-                delete this._projectSessions[path];
-            }
+            this._forgetSavedSession(sessionId);
             if (
               session.presetId &&
               this.promptRunStates[session.presetId] === "running"
@@ -1488,10 +2103,12 @@ function app() {
           /* ignore malformed messages */
         }
       };
+      /** Handle the terminal WebSocket closing. */
       ws.onclose = () => {
         session.connected = false;
         if (!session.ended && !this._detaching) session.ended = true;
       };
+      /** Handle terminal WebSocket errors. */
       ws.onerror = () => {
         session.connected = false;
       };
@@ -1526,6 +2143,7 @@ function app() {
         if (ws.readyState === WebSocket.OPEN)
           ws.send(JSON.stringify({ type: "resize", cols, rows }));
       });
+      /** Tear down dashboard resources before the page unloads. */
       const cleanup = (): void => {
         ro.disconnect();
         window.removeEventListener("resize", resizeHandler);
@@ -1549,6 +2167,7 @@ function app() {
       };
       term.focus();
     },
+    /** End a local terminal session and release its browser bindings. */
     endSession(sessionId: string) {
       const session = this.sessions.find((s) => s.id === sessionId);
       if (!session) return;
@@ -1567,21 +2186,22 @@ function app() {
       if (refs?.cleanup) refs.cleanup();
       delete this._terminalRefs[sessionId];
       this.sessions = this.sessions.filter((s) => s.id !== sessionId);
-      for (const [path, sv] of Object.entries(this._projectSessions)) {
-        if (sv.sessionId === sessionId) delete this._projectSessions[path];
-      }
+      this._forgetSavedSession(sessionId);
       if (this.activeSessionId === sessionId) {
         this.activeSessionId = this.sessions[0]?.id || null;
       }
       this.updateSessionCount();
     },
+    /** Exit the active terminal session from the workspace view. */
     exitTerminal() {
       if (this.activeSessionId) this.endSession(this.activeSessionId);
     },
+    /** Switch the workspace to an existing local terminal session. */
     switchToSession(sessionId: string) {
       if (!this.sessions.find((s) => s.id === sessionId)) return;
       this.activeSessionId = sessionId;
     },
+    /** Attach the workspace to an existing backend terminal session. */
     async openServerSession(serverSession: ServerSessionInfo) {
       const local = this.sessions.find((s) => s.id === serverSession.id);
       if (local) {
@@ -1612,6 +2232,7 @@ function app() {
       await self.$nextTick();
       this.connectTerminal(session.id, `/ws/terminal/${serverSession.id}`);
     },
+    /** Terminate a backend terminal session by ID. */
     async endServerSession(sessionId: string) {
       const local = this.sessions.find((s) => s.id === sessionId);
       if (local) {

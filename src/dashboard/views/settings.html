@@ -39,10 +39,7 @@
           </tr>
         </thead>
         <tbody>
-          <template
-            x-for="agent in allAgents.map(a => ({ ...a, name: { claude: 'Claude Code', codex: 'Codex', gemini: 'Gemini CLI' }[a.id] || a.id }))"
-            :key="agent.id"
-          >
+          <template x-for="agent in allAgents" :key="agent.id">
             <tr class="gf-tr">
               <td class="gf-td">
                 <div style="display: flex; align-items: center; gap: 8px">

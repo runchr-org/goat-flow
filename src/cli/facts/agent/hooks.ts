@@ -4,40 +4,6 @@
 import type { AgentProfile, AgentFacts, ReadonlyFS } from "../../types.js";
 import { pushUniquePath } from "./routing.js";
 
-/** Check whether the agent settings include a compaction/notification hook matching 'compact'. */
-function checkCompactionHook(
-  settingsParsed: unknown,
-  settingsValid: boolean,
-): boolean {
-  if (!settingsParsed || !settingsValid) return false;
-
-  /** Top-level settings object cast for property access */
-  const settings = settingsParsed as Record<string, unknown>;
-  /** Hooks configuration from settings */
-  const hooks = settings.hooks as Record<string, unknown> | undefined;
-  if (!hooks || typeof hooks !== "object") return false;
-
-  if (Array.isArray(hooks)) {
-    // Array format: hooks: [{type: "Notification", matcher: "compact"}]
-    return (hooks as Array<Record<string, unknown>>).some(
-      (h) =>
-        h.type === "Notification" &&
-        (typeof h.matcher === "string" ? h.matcher : "").includes("compact"),
-    );
-  }
-  // Nested format: hooks.Notification[{matcher: "compact"}]
-  /** Notification hooks array from the nested hooks object */
-  const notifHooks = hooks.Notification as
-    | Array<Record<string, unknown>>
-    | undefined;
-  if (Array.isArray(notifHooks)) {
-    return notifHooks.some((h) =>
-      (typeof h.matcher === "string" ? h.matcher : "").includes("compact"),
-    );
-  }
-  return false;
-}
-
 /** Regex matching common lint, typecheck, and format-check tool invocations. */
 const POST_TURN_VALIDATION_COMMAND_PATTERN =
   /\b(shellcheck|eslint|tsc|phpstan|ruff|mypy|flake8|rubocop|stylelint|ktlint|swiftlint)\b|biome\s+check|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:lint|typecheck|format(?::check)?)\b|cargo\s+check|go\s+vet|prettier\s+--check|bash\s+-n\b|(?:^|\s)(?:bash\s+)?(?:\.\/)?scripts\/preflight-checks\.sh\b/i;
@@ -289,16 +255,38 @@ function readHooksObject(
 }
 
 /** Extract the shell command from one hook entry when it uses command mode. */
+function hasSupportedHookType(hookObj: Record<string, unknown>): boolean {
+  return (
+    hookObj.type === undefined ||
+    hookObj.type === "command" ||
+    hookObj.type === "Command"
+  );
+}
+
+/** Read one shell command field from a normalized hook object. */
+function readHookCommand(hookObj: Record<string, unknown>): string | null {
+  if (typeof hookObj.bash === "string") return hookObj.bash;
+  if (typeof hookObj.command === "string") return hookObj.command;
+  const nestedCommand = hookObj.command;
+  if (!nestedCommand || typeof nestedCommand !== "object") return null;
+  return typeof (nestedCommand as Record<string, unknown>).bash === "string"
+    ? ((nestedCommand as Record<string, unknown>).bash as string)
+    : null;
+}
+
+/** Extract command from hook. */
 function extractCommandFromHook(hook: unknown): string | null {
   if (!hook || typeof hook !== "object") return null;
   const hookObj = hook as Record<string, unknown>;
-  if (hookObj.type !== "command") return null;
-  return typeof hookObj.command === "string" ? hookObj.command : null;
+  if (!hasSupportedHookType(hookObj)) return null;
+  return readHookCommand(hookObj);
 }
 
 /** Extract all shell commands declared inside one event registration entry. */
 function extractCommandsFromEventEntry(entry: unknown): string[] {
   if (!entry || typeof entry !== "object") return [];
+  const directCommand = extractCommandFromHook(entry);
+  if (directCommand !== null) return [directCommand];
   const eventHooks = (entry as Record<string, unknown>).hooks;
   if (!Array.isArray(eventHooks)) return [];
 
@@ -313,8 +301,9 @@ function extractCommandsFromEventEntry(entry: unknown): string[] {
 /** Normalize one event's hook registration into a simple registered/path pair. */
 function normalizeEventConfig(
   hooks: Record<string, unknown>,
-  event: string,
+  event: string | null,
 ): HookRegistrationMatch {
+  if (!event) return { registered: false, path: null };
   const rawEvent = hooks[event];
   if (rawEvent === undefined) return { registered: false, path: null };
   if (!Array.isArray(rawEvent)) return { registered: false, path: null };
@@ -328,30 +317,32 @@ function normalizeEventConfig(
   return { registered: path !== null, path };
 }
 
+/** Load the hook-registration config for the current agent. */
+function readHookConfig(
+  fs: ReadonlyFS,
+  agent: AgentProfile,
+  settingsParsed: unknown,
+  settingsValid: boolean,
+): { parsed: unknown; valid: boolean } {
+  if (!agent.hookConfigFile) {
+    return { parsed: null, valid: false };
+  }
+  if (agent.hookConfigFile === agent.settingsFile) {
+    return { parsed: settingsParsed, valid: settingsValid };
+  }
+  const parsed = fs.readJson(agent.hookConfigFile);
+  return { parsed, valid: parsed !== null };
+}
+
 /** Collect registered post-turn hook paths for the current agent. */
 function buildHookRegistration(
   agent: AgentProfile,
-  settingsParsed: unknown,
-  codexHooksJson: unknown,
+  hookConfigParsed: unknown,
 ): {
   postTurnRegistered: boolean;
   postTurnRegisteredPath: string | null;
 } {
-  // Codex: hooks live in .codex/hooks.json (same JSON structure as Claude/Gemini settings)
-  if (agent.id === "codex") {
-    const hooks = readHooksObject(codexHooksJson);
-    if (!hooks) {
-      return { postTurnRegistered: false, postTurnRegisteredPath: null };
-    }
-    const stop = normalizeEventConfig(hooks, "Stop");
-    return {
-      postTurnRegistered: stop.registered,
-      postTurnRegisteredPath: stop.path,
-    };
-  }
-
-  // Claude/Gemini: hooks live in settings.json
-  const hooks = readHooksObject(settingsParsed);
+  const hooks = readHooksObject(hookConfigParsed);
   if (!hooks) {
     return {
       postTurnRegistered: false,
@@ -369,11 +360,9 @@ function buildHookRegistration(
 /** Check whether the deny hook is registered as a pre-tool-use hook in settings. */
 function buildDenyRegistration(
   agent: AgentProfile,
-  settingsParsed: unknown,
-  codexHooksJson: unknown,
+  hookConfigParsed: unknown,
 ): { denyIsRegistered: boolean; denyRegisteredPath: string | null } {
-  const source = agent.id === "codex" ? codexHooksJson : settingsParsed;
-  const hooks = readHooksObject(source);
+  const hooks = readHooksObject(hookConfigParsed);
   if (!hooks) {
     return { denyIsRegistered: false, denyRegisteredPath: null };
   }
@@ -385,26 +374,14 @@ function buildDenyRegistration(
   };
 }
 
-/** Detect whether the current agent has a compaction/session-start hook configured. */
-function detectCompactionHookExists(
-  agent: AgentProfile,
-  settingsParsed: unknown,
-  settingsValid: boolean,
-): boolean {
-  // Codex's session_start hook fires at session start, not after context compression.
-  // It does not satisfy the compaction hook requirement (re-inject task context after
-  // window compression). Return false for Codex rather than using session_start as a proxy.
-  if (agent.id === "codex") {
-    return false;
-  }
-  return checkCompactionHook(settingsParsed, settingsValid);
-}
-
 /** Resolve the deny hook script path for the current agent, if it has one. */
 function resolveDenyHookPath(
   fs: ReadonlyFS,
   agent: AgentProfile,
 ): string | null {
+  if (agent.denyHookFile && fs.exists(agent.denyHookFile)) {
+    return agent.denyHookFile;
+  }
   if (agent.hooksDir && fs.exists(`${agent.hooksDir}/deny-dangerous.sh`)) {
     return `${agent.hooksDir}/deny-dangerous.sh`;
   }
@@ -463,6 +440,23 @@ function analyzeDenyHookPath(
   };
 }
 
+/** Detect whether the Bash deny hook has pattern coverage for secret-bearing
+ *  file reads (.env, /.ssh/, /.aws/, *.pem/*.key/*.pfx). Required because
+ *  settings.json Read() deny rules only apply to the Read tool, not Bash. */
+function detectBashDenyCoversSecrets(
+  fs: ReadonlyFS,
+  denyHookPath: string | null,
+): boolean {
+  if (!denyHookPath || !fs.exists(denyHookPath)) return false;
+  const content = fs.readFile(denyHookPath);
+  if (!content) return false;
+  const hasEnv = /\\\.env/.test(content);
+  const hasSsh = /\/\\\.ssh\//.test(content);
+  const hasAws = /\/\\\.aws\//.test(content);
+  const hasKeys = /\\\.\(pem\|key\|pfx\)/.test(content);
+  return hasEnv && hasSsh && hasAws && hasKeys;
+}
+
 /** Detect hardcoded absolute paths inside shell hook lines. */
 function lineHasAbsolutePath(line: string): boolean {
   return (
@@ -500,25 +494,13 @@ export function extractHookFacts(
   hasDenyPatterns: boolean,
   settingsValid: boolean,
 ): Omit<AgentFacts["hooks"], "readDenyCoversSecrets"> {
-  const compactionHookExists = detectCompactionHookExists(
-    agent,
-    settingsParsed,
-    settingsValid,
-  );
-  const codexHooksJson =
-    agent.id === "codex" ? fs.readJson(".codex/hooks.json") : null;
-  const registration = buildHookRegistration(
-    agent,
-    settingsParsed,
-    codexHooksJson,
-  );
-  const hook = analyzeDenyHookPath(fs, resolveDenyHookPath(fs, agent));
+  const hookConfig = readHookConfig(fs, agent, settingsParsed, settingsValid);
+  const registration = buildHookRegistration(agent, hookConfig.parsed);
+  const denyHookPath = resolveDenyHookPath(fs, agent);
+  const hook = analyzeDenyHookPath(fs, denyHookPath);
   const absolutePathHooks = findAbsolutePathHooks(fs, agent.hooksDir);
-  const denyRegistration = buildDenyRegistration(
-    agent,
-    settingsParsed,
-    codexHooksJson,
-  );
+  const denyRegistration = buildDenyRegistration(agent, hookConfig.parsed);
+  const bashDenyCoversSecrets = detectBashDenyCoversSecrets(fs, denyHookPath);
 
   // Second: also check settings.json Bash deny patterns
   enrichDenyFromSettings(settingsParsed, hasDenyPatterns, hook);
@@ -529,8 +511,8 @@ export function extractHookFacts(
     ...hook,
     ...denyRegistration,
     ...postTurn,
-    compactionHookExists,
     absolutePathHooks,
+    bashDenyCoversSecrets,
   };
 }
 

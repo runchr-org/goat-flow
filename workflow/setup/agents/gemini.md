@@ -1,5 +1,7 @@
 # Agent Config - Gemini CLI
 
+> Canonical machine-readable source for these paths: `workflow/manifest.json` via `src/cli/agents/registry.ts`. If this doc drifts, the manifest-backed registry wins.
+
 ## Paths
 
 | Resource | Path |
@@ -8,7 +10,7 @@
 | Settings | `.gemini/settings.json` |
 | Skills directory | `.agents/skills/` |
 | Hooks directory | `.gemini/hooks/` |
-| Hook events | `BeforeTool`, `AfterTool`, `AfterAgent`, `SessionEnd` |
+| Hook events used by default template | `BeforeTool` |
 
 ## Owns
 
@@ -26,13 +28,16 @@ CLAUDE.md, AGENTS.md, `.claude/`, `.codex/`.
 
 After completing step 03 (skills):
 - Copy scripts from `workflow/hooks/` to `.gemini/hooks/`: `deny-dangerous.sh` (required)
-- Copy `workflow/hooks/agent-config/gemini.json` as base for `.gemini/settings.json`
+- Copy `workflow/hooks/agent-config/gemini.json` as `.gemini/settings.json` (ships the deny list and the `BeforeTool` Bash deny-hook registration)
 - Create `.geminiignore` with secret patterns: `.env*`, `**/secrets/`, `**/*.pem`, `**/*.key`
+
+If the project later opts into post-turn validation hooks, Gemini's post-turn event is `AfterAgent`. The default goat-flow template does not install a post-turn hook.
 
 ### Verification
 
 - `.gemini/settings.json` is valid JSON
 - `bash -n` passes on each hook script
+- `bash .gemini/hooks/deny-dangerous.sh --self-test` passes
 
 ---
 

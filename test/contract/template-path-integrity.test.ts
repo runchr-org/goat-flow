@@ -4,9 +4,9 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { getProjectStructure } from "../../src/cli/paths.js";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
+import { loadManifest } from "../../src/cli/manifest/manifest.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 
@@ -15,8 +15,8 @@ const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 // ---------------------------------------------------------------------------
 describe("manifest.json paths", () => {
   it("required files use .goat-flow/ prefix", () => {
-    const structure = getProjectStructure();
-    const files = (structure.required_files as string[]) ?? [];
+    const structure = loadManifest();
+    const files = structure.required_files;
     for (const file of files) {
       assert.ok(
         file.startsWith(".goat-flow/"),
@@ -26,8 +26,8 @@ describe("manifest.json paths", () => {
   });
 
   it("required dirs use .goat-flow/ prefix", () => {
-    const structure = getProjectStructure();
-    const dirs = (structure.required_dirs as string[]) ?? [];
+    const structure = loadManifest();
+    const dirs = structure.required_dirs;
     for (const dir of dirs) {
       assert.ok(
         dir.startsWith(".goat-flow/"),
@@ -40,40 +40,58 @@ describe("manifest.json paths", () => {
 // ---------------------------------------------------------------------------
 // Skill template source files don't embed workflow/ paths in user-facing content
 // ---------------------------------------------------------------------------
-describe("skill templates path integrity", () => {
-  it("skill SKILL.md templates do not reference workflow/ in install sections", () => {
-    const skillsDir = join(PROJECT_ROOT, "workflow", "skills");
-    let files: string[];
-    try {
-      files = readdirSync(skillsDir).filter((f) => f.endsWith(".md"));
-    } catch {
-      // No skills dir = nothing to check
-      return;
+function walkMarkdown(dir: string): string[] {
+  const results: string[] = [];
+  let entries: string[];
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return results;
+  }
+  for (const entry of entries) {
+    const full = join(dir, entry);
+    const stat = statSync(full);
+    if (stat.isDirectory()) {
+      results.push(...walkMarkdown(full));
+    } else if (entry.endsWith(".md")) {
+      results.push(full);
     }
+  }
+  return results;
+}
+
+describe("skill templates path integrity", () => {
+  it("workflow/skills/ markdown never embeds workflow/ paths in installed content", () => {
+    const skillsDir = join(PROJECT_ROOT, "workflow", "skills");
+    const files = walkMarkdown(skillsDir);
+    assert.ok(
+      files.length > 0,
+      `Expected SKILL.md / reference .md files under ${skillsDir} but walk returned zero`,
+    );
 
     const leaks: string[] = [];
     for (const file of files) {
-      const content = readFileSync(join(skillsDir, file), "utf-8");
-      // Check for workflow/ paths in content that would be installed.
-      // Exclude frontmatter/metadata lines and lines that are clearly about the template itself.
+      const content = readFileSync(file, "utf-8");
       const lines = content.split("\n");
+      let inFrontmatter = false;
       for (const [i, line] of lines.entries()) {
-        // Skip comment lines and frontmatter
-        if (line.startsWith("#") || line.startsWith("---")) continue;
-        // Check for raw workflow/ paths that would be copied verbatim
-        if (
-          /\bworkflow\//.test(line) &&
-          !line.includes("<!-- ") &&
-          !line.includes("template")
-        ) {
-          leaks.push(`${file}:${i + 1}: ${line.trim()}`);
+        if (line.trim() === "---") {
+          inFrontmatter = !inFrontmatter;
+          continue;
+        }
+        if (inFrontmatter) continue;
+        if (line.includes("<!--")) continue;
+        if (/\bworkflow\//.test(line)) {
+          const rel = relative(PROJECT_ROOT, file);
+          leaks.push(`${rel}:${i + 1}: ${line.trim()}`);
         }
       }
     }
-    // Note: some templates legitimately reference workflow/ for template system use.
-    // This test flags them for review, not as hard failures.
-    if (leaks.length > 0) {
-      // Warn but don't fail - templates may reference workflow/ for valid reasons
-    }
+
+    assert.equal(
+      leaks.length,
+      0,
+      `workflow/ paths found in installed skill content - these break in consumer projects:\n${leaks.join("\n")}`,
+    );
   });
 });

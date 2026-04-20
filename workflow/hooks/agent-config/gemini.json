@@ -1,32 +1,54 @@
 {
-  // Gemini CLI settings template - copy to .gemini/settings.json
-  // Gemini uses different event names than Claude Code:
-  //   Claude PreToolUse  = Gemini BeforeTool
-  //   Claude PostToolUse = Gemini AfterTool
-  //   Claude Stop        = Gemini AfterAgent
-  //
-  // The hook scripts are the same - only the registration event names differ.
-
-  // --- Permissions Deny List ---------------------------------------------------
   "permissions": {
     "deny": [
       "Bash(*git commit*)",
       "Bash(*git push*)",
+      "Bash(*sudo *)",
+      "Bash(*mkfs*)",
+      "Bash(*dd if=*)",
+      "Bash(*git reset --hard*)",
       "Read(**/.env*)",
       "Edit(**/.env*)",
       "Write(**/.env*)",
+      "Read(**/secrets/**)",
       "Read(**/*.pem)",
       "Read(**/*.key)",
       "Read(**/.ssh/**)",
       "Read(**/.aws/**)",
-      "Read(**/credentials*)"
+      "Read(**/.docker/config.json)",
+      "Read(**/.gnupg/**)",
+      "Read(**/.npmrc)",
+      "Read(**/.pypirc)",
+      "Read(**/*.pfx)",
+      "Read(**/credentials*)",
+      "Read(**/.kube/config)",
+      "Write(**/secrets/**)",
+      "Write(**/*.pem)",
+      "Write(**/*.key)",
+      "Write(**/.ssh/**)",
+      "Write(**/.aws/**)",
+      "Write(**/.docker/config.json)",
+      "Write(**/.gnupg/**)",
+      "Write(**/.npmrc)",
+      "Write(**/.pypirc)",
+      "Write(**/*.pfx)",
+      "Write(**/credentials*)",
+      "Write(**/.kube/config)",
+      "Edit(**/secrets/**)",
+      "Edit(**/*.pem)",
+      "Edit(**/*.key)",
+      "Edit(**/.ssh/**)",
+      "Edit(**/.aws/**)",
+      "Edit(**/.docker/config.json)",
+      "Edit(**/.gnupg/**)",
+      "Edit(**/.npmrc)",
+      "Edit(**/.pypirc)",
+      "Edit(**/*.pfx)",
+      "Edit(**/credentials*)",
+      "Edit(**/.kube/config)"
     ]
   },
-
-  // --- Hook Registrations ------------------------------------------------------
   "hooks": {
-    // BeforeTool: fires BEFORE the tool executes. Exit 2 = block.
-    // Equivalent to Claude's PreToolUse.
     "BeforeTool": [
       {
         "matcher": "Bash",

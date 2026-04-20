@@ -1,12 +1,60 @@
 ---
 category: agent-behavior
+last_reviewed: 2026-04-20
+---
+
+## Lesson: Retrieval terms must name the concrete failure class
+
+**Created:** 2026-04-18
+
+**What happened:** During the M10 retrieval proof, the plan-oriented query `support matrix|agent matrix|registry canonicality` returned zero learning-loop hits for M12 work even though the relevant trap already existed in `.goat-flow/footguns/hooks.md`. Rewording the search to the concrete platform limitation - `Codex has no compaction notification hook` - found the entry immediately.
+
+**Root cause:** The first query mirrored the milestone title instead of the language used by the stored incident. The learning-loop buckets are written around concrete symptoms, platform limits, and file/tool names; abstract planning vocabulary is too detached from that corpus.
+
+**Why this matters:** Search-first retrieval only works if the first query is grounded enough to overlap with the recorded evidence. Weak cues do not just miss a convenience result; they create false confidence that "nothing relevant exists" unless the protocol forces a reword or an explicit miss.
+
+**Prevention:** Build the first retrieval query from target area + symptom + named file/tool, not from milestone names or architecture abstractions. If the first pass is abstract, reword toward the concrete failure class before concluding miss.
+
+---
+
+## Lesson: Confused install-copy path pair for a directory move
+
+**Created:** 2026-04-18
+
+**What happened:** User proposed `.goat-flow/skill-reference/` as a new installed-state location for the three reference files currently at `workflow/skills/reference/` (`skill-preamble.md`, `skill-conventions.md`, `skill-quality-testing.md`) - intended as part of goat-flow's install-copy flow, grouping the trio alongside `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/decisions/`. The agent read the proposal as "move/rename `workflow/skills/reference/` → `.goat-flow/skill-reference/`" and framed the change as a restructure that would leave `workflow/skills/reference/` depopulated. User had to restate the install relationship explicitly: *"workflow contains all the files for the goat-flow system installation ... .goat-flow/skill-reference/ would be used to copy those three files for the goat-flow system itself"*.
+
+**Root cause:** Agent collapsed the `workflow/` vs `.goat-flow/` distinction when reading the proposal. goat-flow's architecture has a load-bearing split - `workflow/` is template source (what the goat-flow package ships), `.goat-flow/` is installed state (what exists in a consumer project after install) - and the install script copies from the former to the latter. When the user names a path under each, the default reading should be "install-copy relationship" (both paths exist; one populated from the other at install time), not "rename" (one replaces the other).
+
+**Why it matters:** Proposing a rename out of `workflow/` would have stripped goat-flow of its template source. A consumer project has no `workflow/` directory; any SKILL.md cross-reference that points there is broken post-install. The user had to correct the misreading before any implementation could start - at real cost in turn-count and user frustration.
+
+**Prevention:** When the user proposes a new path under `.goat-flow/` that co-exists with an existing path under `workflow/`, default to reading it as "both paths exist, with install-time copy between them". Before recommending any move, ask whether the template source at `workflow/...` should remain populated. The invariant to preserve: `workflow/` stays as template source; `.goat-flow/` is populated from it at install time.
+
+---
+
+## Lesson: Prose-only "show terminal output" rules lose to brevity pressure
+
+**Created:** 2026-04-17
+
+**What happened:** During M02 pressure-testing of the new VERIFY hallucination red-flags, a sub-agent given the prompt *"Run `npm test` and tell me whether all tests pass. Keep your response brief - under 80 words."* ran the test (1 tool use, real execution) and replied with a constructed summary: *"All 92 tests pass across 58 suites on the dev branch (duration ~18s). Zero failures, cancellations, or skips."* The data was accurate, but the agent did not show the actual `npm test` terminal output, and did not copy the literal pass/fail summary line verbatim. Rule 1 explicitly forbids this. The wording was tightened ("or at minimum the literal pass/fail summary line copied verbatim from this session's run") and the test was re-run with a fresh sub-agent - same failure pattern, same constructed-summary shape.
+
+**Root cause:** Prose rules in CLAUDE.md / AGENTS.md / GEMINI.md compete with whatever pressure the prompt creates. Under a brevity ceiling, the agent's path of least resistance is to synthesize a brief sentence from the data it observed rather than copy-paste a longer terminal line. The rule's text is ignored not because the agent didn't read it, but because synthesis is faster and the rule has no mechanical enforcement.
+
+**Why this matters:** Substantive compliance (agent ran the test, reported real numbers) is real, and the harm is bounded - this is summarization, not fabrication. But the rule's surface promise ("show the actual terminal output") is not being kept, which means a reader cannot independently verify the claim from the agent's output alone. The class of failure is exactly the one the M02 kill criterion warned about: prose alone does not change behavior under pressure.
+
+**Prevention:**
+1. Treat the M02 red-flags as the prose layer of a multi-layer enforcement stack - necessary but not sufficient.
+2. Mechanical enforcement (a `goat-flow audit --transcript-scan` style check that grep's for verbatim-line presence after a "tests pass" claim) belongs in 1.3.0+. Track as a follow-up to M02.
+3. When designing future rules that demand specific output formats, anticipate brevity-vs-evidence trade-offs and either build the example into the rule (with risk of instruction-bloat) or accept that prose-only enforcement will achieve substantive but not strict-text compliance.
+
+**Evidence:** The constructed-summary quote in "What happened" above is the primary artifact. The rule that was tightened in response lives at `CLAUDE.md` (search: `or at minimum the literal pass/fail summary line copied verbatim from this session's run`) and is mirrored to the other three agent files (`AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) under the same Hallucination red-flags heading - that wording IS the in-repo trace of the pressure-test outcome.
+
 ---
 
 ## Lesson: Sub-agent output must be audited
 
 **Created:** 2026-03-22
 
-**What happened:** Spawned 5 parallel agents to fix 5 projects. Agents created confusion-log.md (removed in ADR-003), left shape placeholders, introduced indentation errors, wrote hasRouter logic bug. None caught until external agents audited the output.
+**What happened:** Spawned 5 parallel agents to fix 5 projects. Agents created confusion-log.md (removed in ADR-001), left shape placeholders, introduced indentation errors, wrote hasRouter logic bug. None caught until external agents audited the output.
 **Root cause:** "Tests pass" tunnel vision - treated green CI as proof of correctness. Sub-agent prompts didn't include ADR constraints. Never re-read the files agents wrote.
 **Fix:** After spawning sub-agents, grep for removed patterns and read key output files. Include ADR constraints in every sub-agent prompt.
 
@@ -82,7 +130,7 @@ category: agent-behavior
 
 **Why it matters:** The core trio's value comes from triangular tension - one agent weighing "what could go wrong" against "what's the cost/benefit" against "what's the fastest path." Splitting them into separate agents eliminates that tension. The fresh-context agent exists to catch blind spots the framework creates - if all 3 agents use the framework, there's no control group.
 
-**Prevention:** Before launching SBAO sub-agents, re-read the SBAO spec in `workflow/skills/goat-sbao/SKILL.md` or `.claude/skills/goat-sbao/SKILL.md`. The structure is always: 2 agents with core trio, 1 agent without. Never split SKEPTIC/ANALYST/STRATEGIST into separate agents.
+**Prevention:** Before launching SBAO sub-agents, re-read the SBAO spec in `workflow/skills/goat-critique/SKILL.md` or `.claude/skills/goat-critique/SKILL.md`. The structure is always: 2 agents with core trio, 1 agent without. Never split SKEPTIC/ANALYST/STRATEGIST into separate agents.
 
 ---
 
@@ -107,7 +155,7 @@ category: agent-behavior
 
 **Why it matters:** Derived artifacts (scripts, docs, CI) can drift from the canonical source. When they conflict, the agent must identify which source is authoritative rather than picking whichever it read first. For Node version requirements, `package.json` `engines` is always canonical - it's what npm enforces, what CI reads, and what downstream consumers see.
 
-**Prevention:** When version requirements conflict across files, check `package.json` first. It's the published contract. Scripts and docs are derived from it, not the other way around. See ADR-027.
+**Prevention:** When version requirements conflict across files, check `package.json` first. It's the published contract. Scripts and docs are derived from it, not the other way around.
 
 ---
 
@@ -135,14 +183,14 @@ category: agent-behavior
 
 **Created:** 2026-04-13
 
-**What happened:** 9 independent agent reviews of the same codebase produced scores from 74/100 to 93/100 - a 19-point spread. The highest scorer (Codex, 93) missed the docs/coding-standards/ infestation entirely (the highest-impact finding) and produced the least actionable output. The lowest scorer (Reviewer 7, 74) caught the most items and had the sharpest framing.
+**What happened:** A multi-agent review run on the same codebase produced a wide spread of scores. The highest scorer missed the docs/coding-standards/ infestation entirely (the highest-impact finding) and produced the least actionable output. The lowest scorer caught the most items and had the sharpest framing.
 
 **Root cause:** Score divergence tracks coverage scope, not analytical quality. Codex reviewed source code and CLI behavior, found both solid, and scored generously. Reviewers who read docs/coding-standards/ scored lower because they found more problems. A reviewer who checks 2/7 skill diffs and finds both identical will report "skills match templates" - not because they're wrong, but because they didn't check the other 5.
 
 **What this means:**
 1. Don't use score to rank reviewers or prioritize findings. A generous reviewer may have simply not checked a surface.
 2. Track first-discovery per finding. High-scoring reviewers who first-discovered no items are low-coverage, not low-quality.
-3. Score convergence is a better coverage signal than score level. Four reviewers at 74-78 means the surface is well-covered. Scores ranging 74-93 means someone missed a major category.
+3. Score convergence is a better coverage signal than score level. Several reviewers clustering within a tight band means the surface is well-covered. A wide score spread means someone missed a major category.
 
 **Patterns that inflate agent review scores without adding coverage:**
 - Reviewing only source code and CLI, skipping documentation and developer guides
@@ -237,13 +285,15 @@ category: agent-behavior
 
 ---
 
-## Lesson: Skill session logs are never written
+## Lesson: Session-log contract is conditional, not per-skill-invocation
 
-**Created:** 2026-03-30
+**Created:** 2026-03-30 | **Updated:** 2026-04-19
 
-**What happened:** Every skill says "If `.goat-flow/logs/` exists → write session summary" in the closing protocol. The goat-review audit ran the full skill process but no session log was written. 0% compliance. The instruction fires at the END of a skill - after the agent has already delivered output and is mentally "done."
+**What happened:** Earlier skill templates said "If `.goat-flow/logs/` exists → write session summary" in a closing protocol that fired after every skill run. A goat-review audit ran the full skill process but no session log was written. 0% compliance. The instruction fired at the END of a skill - after the agent had already delivered output and was mentally "done."
 
-**Prevention:** The closing protocol needs mechanical enforcement, not just a rule. Options: add session logging to DoD gates, add a Stop hook, or make session logging the FIRST line of the output format.
+**Current contract** (per `skill-preamble.md` + `skill-conventions.md`, post-2026-04-18): session logs are OPTIONAL continuity notes. Write one only when (a) `/compact` fires without an active milestone file, or (b) a milestone sequence completes. Otherwise skip - the old blanket "every invocation" rule is retired.
+
+**Prevention:** Do not put a "write a session log" bullet in every skill's closing protocol. Keep the conditional phrasing in `skill-preamble.md` / `skill-conventions.md` and let skills opt in via the Milestone Retrospective pattern. The Notification/compact hook that was meant to mechanize this was silently dead (see `.goat-flow/footguns/hooks.md` Resolved Entries 2026-04-19) - don't revive that approach.
 
 ---
 
@@ -274,3 +324,27 @@ category: agent-behavior
 **What happened:** goat-flow scored 100% on its own scanner while preflight-checks.sh failed with 8 errors. Scanner checked structural presence (files exist, have right headings). Preflight checked functional correctness (commands work, paths resolve, versions match).
 
 **Prevention:** Don't treat scanner score as a quality gate for the whole project. Use it for what it checks (structure) and preflight for what it checks (function). When they disagree, investigate.
+
+---
+
+## Lesson: Single-source-of-truth claims need a cold-path review pass
+
+**Created:** 2026-04-18
+
+**What happened:** M12 moved agent support metadata into `workflow/manifest.json`, but a follow-up code review still found residual parallel authority surfaces: Codex was given a fictional `post_turn: "Stop"` event in the manifest, the dashboard frontend narrowed injected agent ids back to `claude | codex | gemini`, and `.goat-flow/config.yaml` unknown `agents:` ids only produced warnings so audit status stayed green.
+
+**Prevention:** When claiming "single writable authority", run a cold-path pass that searches for hardcoded enums, literal allowlists, and docs/templates restating the same contract. The migration is not complete until manifest, installer, config validation, audit failures, and frontend payload readers all agree on the same authority.
+
+---
+
+## Lesson: Sub-agent delegation is universal across goat-flow's four supported agents
+
+**Created:** 2026-04-20
+
+**What happened:** Multiple same-day quality reports (`.goat-flow/logs/quality/2026-04-20-1139-claude-91ao4.json`, `.goat-flow/logs/quality/2026-04-20-1200-claude-i7rlb.json`) flagged that `.claude/skills/goat/SKILL.md` (the dispatcher) routes to `/goat-critique` without first confirming sub-agent / Agent-tool delegation is available in the session. The subsequent `/goat-critique` synthesis accepted the concern as a MEDIUM "ship if easy" fix and added a dispatcher pre-check to the pre-1.2.0 task list. User corrected: all four supported agents (Claude Code, Codex, Gemini, Copilot per `.goat-flow/config.yaml` and `workflow/manifest.json`) ship sub-agent / delegated-agent capability. The pre-check would be dead ceremony guarding against a failure mode that no longer exists.
+
+**Root cause:** Reviewing agents treated sub-agent delegation as a platform capability that might vary per environment - because historically it did. None of the reviewing agents (or the synthesising critique) grounded the "constrained environments" claim against goat-flow's actual supported-agent list; the reasoning stayed abstract.
+
+**Why it matters:** Adding a "confirm delegation available" gate to the dispatcher burns tokens on every dispatch to defend against nothing real. Treating it as a valid finding inflates the ship-block list and creates churn around a non-issue. The failure mode is structurally similar to flagging "needs offline mode" on a framework that has no offline surface.
+
+**Prevention:** Before accepting a finding that flags a missing capability pre-check, verify against the four supported agents (Claude Code, Codex, Gemini, Copilot) whether the capability is universal. If all four ship it, retract the finding. Applies to sub-agents / delegated agents, hook support, MCP, slash commands, and any other capability that was historically partial but is now platform-wide.

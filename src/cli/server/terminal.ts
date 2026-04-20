@@ -12,21 +12,22 @@ import type {
   SessionStatus,
   CreateResponse,
   HealthResponse,
-  ClientMessage,
   ServerMessage,
   Runner,
 } from "./types.js";
+import { decodeClientMessage } from "./decoders.js";
 
 // node-pty types - optional dep, can't use static import
 /** Lazily imported node-pty module type */
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- node-pty is an optional runtime dep; a static type import would break installs that skip the native module
 type NodePtyModule = typeof import("node-pty");
 /** PTY process instance type from node-pty */
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- same optional-dep constraint as NodePtyModule above
 type IPty = ReturnType<typeof import("node-pty").spawn>;
 
-/** Maximum number of concurrent terminal sessions allowed */
-const MAX_SESSIONS = 3;
+/** Maximum number of concurrent terminal sessions allowed.
+ *  Single source of truth consumed by the dashboard API, client guards, and docs. */
+export const MAX_SESSIONS = 10;
 /** Idle timeout before a terminal session is automatically killed.
  *  Resets on both user input (ws 'input' message) and agent output (pty onData). */
 const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
@@ -36,6 +37,7 @@ const RUNNER_BINARIES: Record<Runner, string> = {
   claude: "claude",
   codex: "codex",
   gemini: "gemini",
+  copilot: "copilot",
 };
 
 /** Maximum output to buffer while a session is detached (characters). */
@@ -102,7 +104,6 @@ function validateProjectPath(projectPath: string): string {
   return resolved;
 }
 
-/** Send a terminal event to the browser when the socket is still open. */
 /** Clamp a terminal dimension to a safe integer range. */
 function clampDim(value: unknown, max: number, fallback: number): number {
   return Number.isInteger(value) &&
@@ -112,6 +113,7 @@ function clampDim(value: unknown, max: number, fallback: number): number {
     : fallback;
 }
 
+/** Send a terminal message when the browser socket is still open. */
 function sendMessage(ws: WebSocket, msg: ServerMessage): void {
   if (ws.readyState === 1) {
     // WebSocket.OPEN
@@ -196,7 +198,7 @@ export class TerminalManager {
       env: {
         ...process.env,
         GOAT_RUNNER: cliPath,
-        GOAT_PROMPT: prompt ?? "",
+        GOAT_PROMPT: prompt,
         SHELL: shell,
       },
     });
@@ -281,15 +283,16 @@ export class TerminalManager {
     }
 
     ws.on("message", (raw: Buffer | string) => {
-      let msg: ClientMessage;
-      try {
-        msg = JSON.parse(
-          typeof raw === "string" ? raw : raw.toString("utf-8"),
-        ) as ClientMessage;
-      } catch {
-        sendMessage(ws, { type: "error", message: "Invalid JSON" });
+      const text = typeof raw === "string" ? raw : raw.toString("utf-8");
+      const decoded = decodeClientMessage(text);
+      if (!decoded.ok) {
+        sendMessage(ws, {
+          type: "error",
+          message: `${decoded.path}: ${decoded.error}`,
+        });
         return;
       }
+      const msg = decoded.value;
 
       if (msg.type === "input") {
         session.lastInputAt = Date.now();

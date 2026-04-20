@@ -28,12 +28,3 @@ describe("preflight-checks.sh", () => {
     bashCheck("scripts/preflight-checks.sh");
   });
 });
-
-// ---------------------------------------------------------------------------
-// workflow/validate-goat-flow-setup.sh is valid bash
-// ---------------------------------------------------------------------------
-describe("validate-goat-flow-setup.sh", () => {
-  it("passes bash -n syntax check", () => {
-    bashCheck("workflow/validate-goat-flow-setup.sh");
-  });
-});

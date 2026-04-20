@@ -14,15 +14,15 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 | Hook scripts | `workflow/hooks/` | Copyable hook scripts (deny-dangerous.sh) + per-agent config templates |
 | Evaluation templates | `workflow/evaluation/` | Footguns/lessons templates |
 | Docs | `docs/` | CLI usage, dashboard guide |
-| CLI auditor | `src/cli/` | 16 build checks (12 setup scope + 4 agent scope) + 16 AI harness installation checks (5 concerns), audit-driven setup prompts, multi-agent support |
-| Dashboard | `src/cli/server/dashboard.ts` (server), `src/dashboard/` (HTML + views) | HTML dashboard with views for critique, help, home, projects, settings, wizard, workspace |
+| CLI auditor | `src/cli/` | 17 build checks (13 setup scope + 4 agent scope) + 16 AI harness installation checks (5 concerns), audit-driven setup prompts, quality prompt/history/diff surfaces, multi-agent support |
+| Dashboard | `src/cli/server/` (server modules), `src/dashboard/` (HTML + views) | HTML dashboard with views for help, home, projects, prompts, quality, settings, setup, workspace; `dashboard.ts` owns bootstrap/dispatch/live reload, `dashboard-routes.ts` owns non-terminal HTTP handlers, and `dashboard-terminal.ts` owns terminal HTTP/WebSocket wiring |
 | Maintenance scripts | `scripts/maintenance/` | Repo hygiene: git cleanup, secret scanning, Zone.Identifier removal |
 
 ## Data Flow
 
 ```
 User runs `npx goat-flow setup .` or reads workflow/setup/
-  -> Chooses agent (workflow/setup/agents/claude.md, workflow/setup/agents/codex.md, workflow/setup/agents/gemini.md)
+  -> Chooses agent (workflow/setup/agents/claude.md, workflow/setup/agents/codex.md, workflow/setup/agents/gemini.md, workflow/setup/agents/copilot.md)
   -> Follows numbered setup steps (01-06) via their agent config
   -> Agent reads workflow/setup/ (01-system-overview.md, 02-instruction-file.md, reference/execution-loop.md)
   -> Agent generates project-specific files (CLAUDE.md, hooks, skills, etc.)
@@ -40,14 +40,24 @@ src/cli/
   config/             # Configuration (reader.ts, types.ts)
   detect/             # Agent and stack detection (agents.ts, project-stack.ts)
   facts/              # Fact extraction (orchestrator.ts, fs.ts, agent/, shared/)
-  prompt/             # Prompt generation (compose-setup.ts, compose-critique.ts)
+  prompt/             # Prompt generation (compose-setup.ts, compose-quality.ts)
+  quality/            # Quality report schema, positional ids, history, and diff
   audit/              # Build checks, quality checks, render.ts (output formatters: text, json, markdown)
-  server/             # Dashboard server (dashboard.ts, terminal.ts, types.ts)
+  server/             # Dashboard server modules:
+                     #   dashboard.ts (bootstrap, dispatch, live reload)
+                     #   dashboard-routes.ts (non-terminal HTTP handlers)
+                     #   dashboard-terminal.ts (terminal HTTP/WebSocket wiring)
+                     #   dashboard-assets.ts (HTML shell + bundled asset loading)
+                     #   setup-detect.ts (setup-detection payload helpers)
+                     #   terminal.ts, types.ts
+  agents/             # Manifest-backed agent registry (M12)
+  manifest/           # Single-source-of-truth manifest loader (M06a)
+  stats/              # Learning-loop health report (goat-flow stats)
 
 src/dashboard/
   index.html          # Dashboard entry point
-  preset-prompts.ts    # Preset configurations
-  views/              # Page views (critique, help, home, projects, settings, wizard, workspace)
+  preset-prompts.json  # Preset configurations
+  views/              # Page views (help, home, projects, prompts, quality, settings, setup, workspace)
 ```
 
 ## Key Constraints
@@ -58,7 +68,19 @@ src/dashboard/
 
 ## Hot Path / Cold Path
 
-Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- loaded every turn, under 120 lines. Skills and learning-loop files are cold path -- loaded on demand when skills or agent workflows reference them.
+Agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md) are the hot path -- loaded every turn, with a target of about 120 lines and a hard limit of 150. Skills and learning-loop files are cold path -- loaded on demand when skills or agent workflows reference them.
+
+## Persistence Tiers
+
+`.goat-flow/` mixes committed project knowledge with local session state. Reviewers should expect both.
+
+| Tier | Paths | Committed? | Purpose |
+|------|-------|-----------|---------|
+| **Committed knowledge** | `architecture.md`, `code-map.md`, `glossary.md`, `patterns.md`, `config.yaml`, `decisions/`, `footguns/**`, `lessons/**`, and the shared reference files at `.goat-flow/skill-reference/skill-preamble.md`, `.goat-flow/skill-reference/skill-conventions.md`, `.goat-flow/skill-reference/skill-quality-testing.md` (index) plus the topical files `.goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md`, `.goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md`, and `.goat-flow/skill-reference/skill-quality-testing/deployment.md` (per ADR-023) | Yes | Durable project record. Source of truth across sessions. |
+| **Local session state** | `tasks/**`, `scratchpad/**`, `.goat-flow/logs/sessions/*.md` | No (gitignored by design; only anchor files such as `README.md`, `.gitignore`, and `.gitkeep` are committed) | Personal WIP: milestone files, plan subdirs, throwaway notes, and session continuity logs. Coordinates a single work session - not project history. |
+| **Local report history** | `.goat-flow/logs/quality/*.json`, `.goat-flow/logs/quality/*.md` | No (gitignored by design; only the directory README is committed) | Saved agent quality reports plus captured prose. Feeds `goat-flow quality history`, `goat-flow quality diff`, and prior same-agent prompt context. |
+
+**Not a persistence gap.** If a `tasks/`, `scratchpad/`, or `.goat-flow/logs/sessions/` artifact deserves to survive the session, promote its durable content into the committed tier: lesson → `lessons/`, trap → `footguns/`, decision → `decisions/`. Session logs themselves are checkout-local continuity artifacts.
 
 ## Deliberate Trade-offs
 

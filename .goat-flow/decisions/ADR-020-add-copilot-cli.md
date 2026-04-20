@@ -1,0 +1,65 @@
+# ADR-020: Add Copilot CLI as a first-class supported agent
+
+**Status:** Accepted
+**Date:** 2026-04-18
+
+## Context
+
+goat-flow supports agent runtimes through one manifest-backed registry: `workflow/manifest.json` is the writable source of truth, `src/cli/agents/registry.ts` is the runtime facade, and the CLI, dashboard, setup flow, and audit read from that registry instead of maintaining parallel allowlists.
+
+Copilot CLI now exposes the same broad categories of surface the other supported agents use:
+
+- **Instructions.** `.github/copilot-instructions.md` for repo-wide Copilot guidance, plus optional `.github/instructions/**/*.instructions.md` for path-specific rules.
+- **Skills.** `.github/skills/<name>/SKILL.md` using the same goat skill shape as the existing installed copies.
+- **Hooks.** `.github/hooks/hooks.json` plus on-disk scripts such as `.github/hooks/deny-dangerous.sh`.
+- **Built-in agents.** `explore`, `task`, `general-purpose`, `code-review`, plus `/fleet` for parallelizable work.
+
+The live repo already carries the complementary global instruction surface (`AGENTS.md`), a shared deny script template (`workflow/hooks/deny-dangerous.sh`), and canonical skill templates under `workflow/skills/`. Shipping Copilot support therefore means wiring Copilot into the same registry-driven model rather than inventing a special-case bridge.
+
+## Decision
+
+Treat `copilot` as a first-class `AgentId` and ship full runtime parity in the same wave:
+
+1. `workflow/manifest.json` includes a real Copilot profile with:
+   - instruction file `.github/copilot-instructions.md`
+   - skills root `.github/skills/`
+   - hooks dir `.github/hooks/`
+   - hook config `.github/hooks/hooks.json`
+2. Runtime surfaces (`src/cli/types.ts`, registry, setup prompt routing, dashboard, quality history/schema, state classification) accept `copilot`.
+3. Setup ships a real Copilot guide at `workflow/setup/agents/copilot.md`.
+4. Repo live surfaces include `.github/copilot-instructions.md`, `.github/hooks/`, and `.github/skills/`.
+5. Copilot instructions complement `AGENTS.md` instead of duplicating it. Repo-global rules stay in `AGENTS.md`; Copilot-only wiring lives in `.github/copilot-instructions.md`; optional `.github/instructions/**/*.instructions.md` remains path-scoped only.
+6. Hooks use one canonical Copilot config file: `.github/hooks/hooks.json` carrying the deny-dangerous guardrail.
+7. Wave 6 relies on Copilot's built-in agents plus `/fleet`. Repository custom agents in `.github/agents/` stay out of scope unless a concrete specialization gap is proven later.
+
+## Out of scope for this ADR
+
+- **Repository custom agents (`.github/agents/`).** Revisit only if built-in agents plus `/fleet` cannot cover a demonstrated need.
+- **Bridge files** between `AGENTS.md` and `.github/copilot-instructions.md`. Complementary ownership is preferred over a second editable source of truth.
+- **Per-model guidance.** Model selection remains an agent/runtime concern, not a framework concern.
+
+## Consequences
+
+- **Positive:** Copilot now participates in the same audit/setup/dashboard matrix as Claude, Codex, and Gemini.
+- **Positive:** `.github/skills/` and `.github/hooks/` become maintained install targets rather than undocumented side surfaces.
+- **Positive:** The registry stays honest: support claims match the runtime, not just the docs.
+- **Negative:** The repo now has another installed skill root and hook surface to keep in parity, so preflight and drift checks must enforce it.
+
+## Implementation track
+
+Wave 6 (`.goat-flow/tasks/1.2.0-wave-6/`) is the implementation track that lands the runtime, setup, skills, docs, and validation work required by this ADR.
+
+## Related decisions
+
+- **ADR-009** - skill-consolidation doctrine. Copilot uses the same canonical skills; divergence still requires explicit justification.
+- **ADR-013** - audit as the sole evaluation engine. Copilot support lands through the same manifest-backed audit path, not a parallel scoring lane.
+- **ADR-017** - active-plan marker. Wave 6 stays a scoped plan bucket even though the runtime support is now shipped.
+
+## Revisit Triggers
+
+Revisit if any of the following hold:
+
+- Copilot CLI materially changes `.github/copilot-instructions.md`, `.github/skills/`, or `.github/hooks/hooks.json`.
+- Cross-file instruction composition (`AGENTS.md` + `.github/copilot-instructions.md` + `.github/instructions/**`) becomes non-deterministic enough that structural separation no longer prevents conflicts.
+- `.github/skills/` parity cannot be maintained against the canonical skill templates without silent divergence.
+- A concrete specialization gap appears that the built-in agents plus `/fleet` cannot cover, forcing reconsideration of `.github/agents/`.

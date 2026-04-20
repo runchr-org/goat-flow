@@ -29,4 +29,4 @@ All hook paths use `$(git rev-parse --show-toplevel)` so they work regardless of
 
 ## Post-Turn Linting (project-specific, not shipped)
 
-goat-flow does not ship a post-turn lint hook. Every project has different linters, configs, and performance constraints. If you want post-turn validation, write a project-specific script for the Stop (Claude/Codex) or AfterAgent (Gemini) event and register it in the agent's settings file.
+goat-flow does not ship a post-turn lint hook. Every project has different linters, configs, and performance constraints. If you want post-turn validation, write a project-specific script for the Claude `Stop` or Gemini `AfterAgent` event and register it in that agent's settings file. Codex currently has no goat-flow-supported post-turn hook event.

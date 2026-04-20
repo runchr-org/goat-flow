@@ -2,8 +2,11 @@
  * Footgun and lesson fact extractors for the learning-loop system.
  * Analyzes category-bucket markdown files for evidence quality, entry counts, and stale references.
  */
-import type { SharedFacts, ReadonlyFS } from "../../types.js";
+import type { SharedFacts, ReadonlyFS, BucketFreshness } from "../../types.js";
 import type { LoadedConfig } from "../../config/types.js";
+
+/** Strict YYYY-MM-DD format - rejects full ISO 8601 timestamps in `last_reviewed`. */
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Matches file path evidence in multiple formats:
@@ -18,6 +21,11 @@ const EVIDENCE_PATTERN =
 
 /** Regex to extract file paths from backtick-wrapped references (with optional line numbers). */
 const FILE_REF_REGEX = /`([^`]+\.[a-zA-Z]{1,10})(?::[0-9]+(?:[-,][0-9]+)*)?`/g;
+
+/** Matches `` `<file>` (search: `<needle>`) `` - the footgun evidence form that
+ *  cites a literal string to grep for inside the referenced file. */
+const SEARCH_ANCHOR_REGEX =
+  /`([^`]+\.[a-zA-Z0-9]{1,10})`\s*\(search:\s*`([^`]+)`\)/g;
 
 /** Check if a backtick-wrapped file:line reference is a real file path (not a URL/hostname) */
 function isFileRef(filePath: string): boolean {
@@ -34,15 +42,23 @@ function isFileRef(filePath: string): boolean {
   return /\.[a-zA-Z0-9]+$/.test(filePath);
 }
 
-/**
- * Check if a file reference can be reliably validated for staleness.
- * Paths with '/' are resolvable relative to the project root.
- * Bare filenames with source-code extensions (e.g., `router.go`, `auth.ts`)
- * are ambiguous - they may exist deep in subdirectories. We try fs.exists()
- * at root first; if it resolves, it's checkable. If not, and it has a source
- * extension without '/', skip it rather than reporting a false stale ref.
- */
+/** Check whether a file reference can be validated for staleness without guessing. */
+/** Paths under these dirs are intentionally gitignored per `.goat-flow/tasks/.gitignore`
+ *  (milestone files + plan subdirs + `.active` marker are local-session state by
+ *  design). References to them in lessons/footguns are navigation pointers,
+ *  not resolvable artifacts - treating absence as "stale" false-positives on
+ *  any clean checkout or CI run. Keep this list short and specific. */
+function isIntentionallyGitignored(filePath: string): boolean {
+  return (
+    filePath.startsWith(".goat-flow/tasks/") ||
+    filePath.startsWith(".goat-flow/scratchpad/") ||
+    filePath.startsWith(".goat-flow/logs/")
+  );
+}
+
+/** Check whether the file path is checkable for staleness. */
 function isCheckableForStaleness(filePath: string, fs: ReadonlyFS): boolean {
+  if (isIntentionallyGitignored(filePath)) return false;
   if (filePath.includes("/")) return true;
   // If it exists at root, it's checkable regardless of extension
   if (fs.exists(filePath)) return true;
@@ -144,9 +160,56 @@ function parseMarkdownFrontmatter(content: string): {
   return { frontmatter: match[1] ?? "", body: match[2] ?? "" };
 }
 
+/**
+ * Parse simple `key: value` pairs from a YAML frontmatter block.
+ * Only handles flat scalar fields (sufficient for goat-flow's single-level frontmatter);
+ * nested structures, arrays, and multi-line scalars are intentionally unsupported.
+ */
+export function parseFrontmatterFields(
+  frontmatter: string,
+): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const line of frontmatter.split("\n")) {
+    const match = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*):\s*(.*?)\s*$/);
+    if (!match || match[1] === undefined) continue;
+    fields[match[1]] = match[2] ?? "";
+  }
+  return fields;
+}
+
+/**
+ * Compute days-since-review and a coarse freshness band for a bucket file.
+ * Returns `unknown` for missing or non-YYYY-MM-DD values so callers can flag them.
+ */
+export function computeFreshness(
+  lastReviewed: string | null,
+  now: Date = new Date(),
+): { days: number | null; band: BucketFreshness["freshnessBand"] } {
+  if (lastReviewed === null || !ISO_DATE_REGEX.test(lastReviewed)) {
+    return { days: null, band: "unknown" };
+  }
+  const reviewedMs = Date.parse(`${lastReviewed}T00:00:00Z`);
+  if (Number.isNaN(reviewedMs)) return { days: null, band: "unknown" };
+
+  const todayMs = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+  );
+  const days = Math.max(0, Math.floor((todayMs - reviewedMs) / 86400000));
+  if (days <= 30) return { days, band: "fresh" };
+  if (days <= 90) return { days, band: "aging" };
+  return { days, band: "stale" };
+}
+
 /** Count all regex matches within a string. */
 function countMatches(content: string, pattern: RegExp): number {
   return Array.from(content.matchAll(pattern)).length;
+}
+
+/** Remove strikethrough history so historical notes do not count as live evidence. */
+function stripStrikethrough(content: string): string {
+  return content.replace(/~~[\s\S]*?~~/g, "");
 }
 
 /** Count `## Lesson:` or `## Pattern:` bucket entries in one markdown file. */
@@ -227,7 +290,7 @@ function summarizeFootgunRefs(
     totalRefs: 0,
     validRefs: 0,
   };
-  const cleanedContent = content.replace(/~~[^~]+~~/g, "");
+  const cleanedContent = stripStrikethrough(content);
   const fileRefs = cleanedContent.matchAll(
     /`([^`]+):([0-9]+(?:[-,][0-9]+)*)`/g,
   );
@@ -267,7 +330,181 @@ function summarizeFootgunRefs(
     summary.validRefs++;
   }
 
+  scanSearchAnchors(fs, cleanedContent, summary);
+
   return summary;
+}
+
+/** `(search: "<needle>")` anchors: confirm the literal string still appears in
+ *  the referenced file. A stale anchor is the mechanism that lets retired-code
+ *  footguns pass validation while pointing at code that no longer exists. */
+function scanSearchAnchors(
+  fs: ReadonlyFS,
+  cleanedContent: string,
+  summary: FootgunRefSummary,
+): void {
+  const searchAnchors = cleanedContent.matchAll(
+    new RegExp(SEARCH_ANCHOR_REGEX.source, "g"),
+  );
+  for (const match of searchAnchors) {
+    const filePath = match[1];
+    const needle = match[2];
+    if (
+      filePath === undefined ||
+      needle === undefined ||
+      !isFileRef(filePath) ||
+      !isCheckableForStaleness(filePath, fs)
+    )
+      continue;
+    summary.totalRefs++;
+    if (!fs.exists(filePath)) {
+      summary.staleRefs.push(`${filePath} (search: \`${needle}\`)`);
+      continue;
+    }
+    const fileContent = fs.readFile(filePath);
+    if (fileContent === null || !fileContent.includes(needle)) {
+      summary.staleRefs.push(`${filePath} (search: \`${needle}\`)`);
+      continue;
+    }
+    summary.validRefs++;
+  }
+}
+
+interface FootgunSection {
+  title: string;
+  start: number;
+  content: string;
+  status: string | null;
+}
+
+/** Split one footgun bucket into its individual `## Footgun:` sections. */
+function splitFootgunSections(body: string): FootgunSection[] {
+  const headings = Array.from(
+    body.matchAll(/^##\s+Footgun:\s+(.+)$/gm),
+    (match) => ({
+      title: (match[1] ?? "").trim(),
+      start: match.index,
+    }),
+  );
+  return headings.map((heading, index) => {
+    const end = headings[index + 1]?.start ?? body.length;
+    const content = body.slice(heading.start, end);
+    const statusMatch = content.match(/\*\*Status:\*\*\s*([^|\n]+)/i);
+    return {
+      title: heading.title,
+      start: heading.start,
+      content,
+      status:
+        statusMatch?.[1] !== undefined
+          ? statusMatch[1].trim().toLowerCase()
+          : null,
+    };
+  });
+}
+
+/** Detect whether a footgun section has file:line or (search: ...) evidence. */
+function hasSectionEvidence(content: string): boolean {
+  return EVIDENCE_PATTERN.test(content) || /\(search:/i.test(content);
+}
+
+/** Check one active footgun section for placement, evidence, and retired-file patterns. */
+function diagnoseActiveSection(
+  section: FootgunSection,
+  path: string,
+  resolvedIndex: number,
+): string[] {
+  const out: string[] = [];
+  if (resolvedIndex !== -1 && section.start > resolvedIndex) {
+    out.push(
+      `${path} has active footgun "${section.title}" below ## Resolved Entries`,
+    );
+  }
+  if (!hasSectionEvidence(section.content)) {
+    out.push(
+      `${path} active footgun "${section.title}" missing file:line or (search: ...) evidence`,
+    );
+  }
+  const cleaned = stripStrikethrough(section.content);
+  if (/\(file retired/i.test(cleaned) || /\bretired in v\d/i.test(cleaned)) {
+    out.push(
+      `${path} active footgun "${section.title}" uses retired-file evidence`,
+    );
+  }
+  return out;
+}
+
+/** Check one footgun section's schema + (if active) its placement and evidence. */
+function diagnoseFootgunSection(
+  section: FootgunSection,
+  path: string,
+  resolvedIndex: number,
+): string[] {
+  if (section.status === null) {
+    return [`${path} footgun "${section.title}" missing Status field`];
+  }
+  // Schema: status must be exactly "active" or "resolved" (machine-simple per footguns/README.md:14)
+  if (section.status !== "active" && section.status !== "resolved") {
+    return [
+      `${path} footgun "${section.title}" has non-canonical status "${section.status}" (expected "active" or "resolved")`,
+    ];
+  }
+  if (section.status !== "active") return [];
+  return diagnoseActiveSection(section, path, resolvedIndex);
+}
+
+/** Detect stale active-footgun structure, evidence patterns, and schema violations. */
+function collectFootgunStructureDiagnostics(
+  path: string,
+  content: string,
+): string[] {
+  const { body } = parseMarkdownFrontmatter(content);
+  const resolvedIndex = body.indexOf("## Resolved Entries");
+  const sections = splitFootgunSections(body);
+  return sections.flatMap((section) =>
+    diagnoseFootgunSection(section, path, resolvedIndex),
+  );
+}
+
+/** Append a category-missing diagnostic when the bucket body requires one. */
+function collectCategoryDiagnostic(
+  path: string,
+  body: string,
+  fields: Record<string, string>,
+  diagnostics: string[],
+): boolean {
+  const lessonBuckets = countMatches(body, /^##\s+(?:Lesson|Pattern):\s+/gm);
+  const footgunBuckets = countMatches(body, /^##\s+Footgun:\s+/gm);
+  const isBucket = lessonBuckets > 0 || footgunBuckets > 0;
+
+  if (!fields.category && lessonBuckets > 0) {
+    diagnostics.push(
+      `${path} is a lessons category bucket but missing frontmatter category`,
+    );
+  }
+  if (!fields.category && footgunBuckets > 0) {
+    diagnostics.push(
+      `${path} is a footguns category bucket but missing frontmatter category`,
+    );
+  }
+  return isBucket;
+}
+
+/** Append a last_reviewed diagnostic when the field is missing or malformed. */
+function collectLastReviewedDiagnostic(
+  path: string,
+  fields: Record<string, string>,
+  diagnostics: string[],
+): void {
+  const raw = fields.last_reviewed;
+  if (raw === undefined || raw === "") {
+    diagnostics.push(`${path} missing frontmatter last_reviewed`);
+    return;
+  }
+  if (!ISO_DATE_REGEX.test(raw)) {
+    diagnostics.push(
+      `${path} has invalid last_reviewed format "${raw}" (expected YYYY-MM-DD)`,
+    );
+  }
 }
 
 /** Return a format diagnostic when a lesson or footgun bucket is missing required frontmatter. */
@@ -278,32 +515,62 @@ function getMissingFrontmatterDiagnostic(
   const { frontmatter, body } = parseMarkdownFrontmatter(content);
   if (frontmatter === null) return `${path} missing YAML frontmatter`;
 
-  const lessonBucketCount = countMatches(
-    body,
-    /^##\s+(?:Lesson|Pattern):\s+/gm,
-  );
-  if (
-    lessonBucketCount > 0 &&
-    /^category:\s*.+$/im.test(frontmatter) === false
-  ) {
-    return `${path} is a lessons category bucket but missing frontmatter category`;
-  }
+  const fields = parseFrontmatterFields(frontmatter);
+  const diagnostics: string[] = [];
+  const isBucket = collectCategoryDiagnostic(path, body, fields, diagnostics);
+  if (isBucket) collectLastReviewedDiagnostic(path, fields, diagnostics);
 
-  const footgunBucketCount = countMatches(body, /^##\s+Footgun:\s+/gm);
-  if (
-    footgunBucketCount > 0 &&
-    /^category:\s*.+$/im.test(frontmatter) === false
-  ) {
-    return `${path} is a footguns category bucket but missing frontmatter category`;
-  }
-
-  return null;
+  return diagnostics.length === 0 ? null : diagnostics.join("; ");
 }
 
-/** Aggregate evidence, labels, directory mentions, and stale refs across footgun entries. */
+/** Extract the most recent `**Created:**` or `**Updated:**` date from a bucket body.
+ *  Returns YYYY-MM-DD or null if no parseable dates are found. Any non-YYYY-MM-DD
+ *  value is ignored; malformed dates would already be caught elsewhere. */
+function extractMaxEntryDate(body: string): string | null {
+  const pattern =
+    /\*\*(?:Created|Updated|Resolved):\*\*\s*(\d{4}-\d{2}-\d{2})/gi;
+  let max: string | null = null;
+  for (const match of body.matchAll(pattern)) {
+    const date = match[1];
+    if (date === undefined || !ISO_DATE_REGEX.test(date)) continue;
+    if (max === null || date > max) max = date;
+  }
+  return max;
+}
+
+/** Build a per-bucket freshness record from one markdown entry. */
+function buildBucketFreshness(
+  entry: MarkdownEntry,
+  entryCount: number,
+  staleRefs: string[],
+  invalidLineRefs: string[],
+  now: Date,
+): BucketFreshness {
+  const { frontmatter, body } = parseMarkdownFrontmatter(entry.content);
+  const fields =
+    frontmatter === null ? {} : parseFrontmatterFields(frontmatter);
+  const raw = fields.last_reviewed;
+  const lastReviewed =
+    raw !== undefined && raw !== "" && ISO_DATE_REGEX.test(raw) ? raw : null;
+  const { days, band } = computeFreshness(lastReviewed, now);
+  const maxEntryDate = extractMaxEntryDate(body);
+  return {
+    path: entry.path,
+    lastReviewed,
+    freshnessDays: days,
+    freshnessBand: band,
+    entryCount,
+    staleRefs,
+    invalidLineRefs,
+    maxEntryDate,
+  };
+}
+
+/** Aggregate evidence, labels, directory mentions, stale refs, and per-bucket freshness across footgun entries. */
 function summarizeFootgunEntries(
   fs: ReadonlyFS,
   entries: MarkdownEntry[],
+  now: Date,
 ): Pick<
   SharedFacts["footguns"],
   | "hasEvidence"
@@ -315,11 +582,13 @@ function summarizeFootgunEntries(
   | "totalRefs"
   | "validRefs"
   | "formatDiagnostic"
+  | "buckets"
 > {
   const dirMentions = new Map<string, number>();
   const staleRefs: string[] = [];
   const invalidLineRefs: string[] = [];
   const diagnostics: string[] = [];
+  const buckets: BucketFreshness[] = [];
   let hasEvidence = false;
   let entryCount = 0;
   let labelCount = 0;
@@ -328,7 +597,8 @@ function summarizeFootgunEntries(
 
   for (const entry of entries) {
     const { content, path } = entry;
-    entryCount += countFootgunEntries(content);
+    const bucketEntryCount = countFootgunEntries(content);
+    entryCount += bucketEntryCount;
     labelCount += countFootgunLabels(content);
     hasEvidence ||= hasFootgunEvidence(content);
     mergeDirMentions(dirMentions, content);
@@ -339,6 +609,16 @@ function summarizeFootgunEntries(
     invalidLineRefs.push(...refSummary.invalidLineRefs);
     const diagnostic = getMissingFrontmatterDiagnostic(path, content);
     if (diagnostic) diagnostics.push(diagnostic);
+    diagnostics.push(...collectFootgunStructureDiagnostics(path, content));
+    buckets.push(
+      buildBucketFreshness(
+        entry,
+        bucketEntryCount,
+        refSummary.staleRefs,
+        refSummary.invalidLineRefs,
+        now,
+      ),
+    );
   }
 
   return {
@@ -351,50 +631,70 @@ function summarizeFootgunEntries(
     totalRefs,
     validRefs,
     formatDiagnostic: diagnostics.length > 0 ? diagnostics.join("; ") : null,
+    buckets,
   };
 }
 
-/** Aggregate entry counts, stale refs, and format diagnostics across lesson entries. */
+/** Aggregate entry counts, stale refs, diagnostics, and per-bucket freshness across lesson entries. */
 function summarizeLessonEntries(
   fs: ReadonlyFS,
   entries: MarkdownEntry[],
+  now: Date,
 ): Pick<
   SharedFacts["lessons"],
-  "entryCount" | "staleRefs" | "formatDiagnostic"
+  "entryCount" | "staleRefs" | "formatDiagnostic" | "buckets"
 > {
   const staleRefs: string[] = [];
   const diagnostics: string[] = [];
+  const buckets: BucketFreshness[] = [];
   let entryCount = 0;
 
   for (const entry of entries) {
     const { content, path } = entry;
-    entryCount += countLessonEntries(content);
+    const bucketEntryCount = countLessonEntries(content);
+    entryCount += bucketEntryCount;
     const pathPattern =
       /`((?:src|config|app|apps|lib|docs|scripts|setup|workflow|agents|\.goat-flow)\/[^`]+)`/g;
-    for (const match of content.matchAll(pathPattern)) {
+    const bucketStaleRefs: string[] = [];
+    // Strip strikethrough history (~~resolved~~) before scanning for stale refs,
+    // mirroring the footgun extractor.
+    const cleanedContent = stripStrikethrough(content);
+    for (const match of cleanedContent.matchAll(pathPattern)) {
       const ref = match[1];
-      if (ref === undefined || /[*?{}]/.test(ref)) continue;
+      // Skip glob wildcards (`*`, `?`, `{}`), angle-bracket placeholders
+      // (`<date>`, `<agent>`), and ellipsis elisions (`workflow/...`): none of
+      // these are concrete file refs that can be validated against the filesystem.
+      if (ref === undefined || /[*?{}<>]|\.\.\./.test(ref)) continue;
       const filePath = ref.replace(/:[0-9]+(?:[-,][0-9]+)*$/, "");
-      if (!fs.exists(filePath)) staleRefs.push(filePath);
+      // Gitignored-by-design paths (.goat-flow/tasks, scratchpad, logs) are
+      // navigation pointers, not committed artifacts - don't flag them stale.
+      if (isIntentionallyGitignored(filePath)) continue;
+      if (!fs.exists(filePath)) bucketStaleRefs.push(filePath);
     }
+    staleRefs.push(...bucketStaleRefs);
     const diagnostic = getMissingFrontmatterDiagnostic(path, content);
     if (diagnostic) diagnostics.push(diagnostic);
+    buckets.push(
+      buildBucketFreshness(entry, bucketEntryCount, bucketStaleRefs, [], now),
+    );
   }
 
   return {
     entryCount,
     staleRefs,
     formatDiagnostic: diagnostics.length > 0 ? diagnostics.join("; ") : null,
+    buckets,
   };
 }
 
-/** Extract footgun facts: existence, evidence quality, and directory mention counts. */
+/** Extract footgun facts: existence, evidence quality, directory mention counts, and per-bucket freshness. */
 export function extractFootgunFacts(
   fs: ReadonlyFS,
   configState: LoadedConfig,
+  now: Date = new Date(),
 ): SharedFacts["footguns"] {
   const dir = listMarkdownEntries(fs, configState.config.footguns.path);
-  const summary = summarizeFootgunEntries(fs, dir.files);
+  const summary = summarizeFootgunEntries(fs, dir.files, now);
   const formatDiagnostic =
     summary.entryCount === 0 && dir.exists
       ? "Footgun directory exists but contains 0 entries"
@@ -419,16 +719,18 @@ export function extractFootgunFacts(
     validRefs: summary.validRefs,
     formatDiagnostic,
     path: configState.config.footguns.path,
+    buckets: summary.buckets,
   };
 }
 
-/** Extract lessons facts: existence and whether entries are present. */
+/** Extract lessons facts: existence, entry presence, and per-bucket freshness. */
 export function extractLessonsFacts(
   fs: ReadonlyFS,
   configState: LoadedConfig,
+  now: Date = new Date(),
 ): SharedFacts["lessons"] {
   const dir = listMarkdownEntries(fs, configState.config.lessons.path);
-  const summary = summarizeLessonEntries(fs, dir.files);
+  const summary = summarizeLessonEntries(fs, dir.files, now);
   const formatDiagnostic =
     summary.entryCount === 0 && dir.exists
       ? "Lesson directory exists but contains 0 entries"
@@ -446,5 +748,6 @@ export function extractLessonsFacts(
     ),
     formatDiagnostic,
     path: configState.config.lessons.path,
+    buckets: summary.buckets,
   };
 }

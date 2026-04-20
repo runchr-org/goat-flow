@@ -3,16 +3,22 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { resolve } from "node:path";
-import { runAudit } from "../../src/cli/audit/audit.js";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { runAudit, computeHarness } from "../../src/cli/audit/audit.js";
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
+import { AUDIT_VERSION, SKILL_NAMES } from "../../src/cli/constants.js";
+import { PROFILES } from "../../src/cli/detect/agents.js";
+import { composeSetup } from "../../src/cli/prompt/compose-setup.js";
 
 const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
 import { createFS } from "../../src/cli/facts/fs.js";
 import type {
   AuditContext,
+  AuditReport,
   ProjectStructure,
 } from "../../src/cli/audit/types.js";
 import type {
@@ -48,7 +54,7 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
     exists: true,
     valid: true,
     config: {
-      version: "1.1.0",
+      version: AUDIT_VERSION,
       footguns: { path: ".goat-flow/footguns/" },
       lessons: { path: ".goat-flow/lessons/" },
       decisions: { path: ".goat-flow/decisions/" },
@@ -68,6 +74,7 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
       telemetry: false,
       knownGaps: [],
       skillOverrides: {},
+      harness: { acknowledge: [] },
       ...overrides,
     },
     warnings: [],
@@ -81,9 +88,11 @@ const STUB_AGENT_PROFILE: AgentProfile = {
   name: "Claude Code",
   instructionFile: "CLAUDE.md",
   settingsFile: ".claude/settings.json",
+  hookConfigFile: ".claude/settings.json",
   skillsDir: ".claude/skills",
   hooksDir: ".claude/hooks",
   denyMechanism: { type: "settings-deny", path: ".claude/settings.json" },
+  denyHookFile: ".claude/hooks/deny-dangerous.sh",
   localPattern: "*/CLAUDE.md",
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
 };
@@ -105,9 +114,9 @@ function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
         "goat-debug",
         "goat-plan",
         "goat-review",
-        "goat-sbao",
+        "goat-critique",
         "goat-security",
-        "goat-test",
+        "goat-qa",
       ],
       missing: [],
       allPresent: true,
@@ -140,6 +149,8 @@ function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
       denyBlocksChmod: true,
       denyBlocksPipeToShell: false,
       denyBlocksCloudDestructive: false,
+      denyIsRegistered: true,
+      denyRegisteredPath: ".claude/hooks/deny-dangerous.sh",
       postTurnExists: false,
       postTurnRegistered: false,
       postTurnRegisteredPath: null,
@@ -147,9 +158,9 @@ function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
       postTurnExitsZero: false,
       postTurnHasValidation: false,
       postTurnSwallowsFailures: false,
-      compactionHookExists: false,
       absolutePathHooks: [],
-      readDenyCoversSecrets: false,
+      readDenyCoversSecrets: true,
+      bashDenyCoversSecrets: true,
     },
     deny: { gitCommitBlocked: false, gitPushBlocked: false },
     router: { exists: true, paths: [], resolved: 0, unresolved: [] },
@@ -167,9 +178,9 @@ const STUB_STRUCTURE: ProjectStructure = {
       "goat-debug",
       "goat-plan",
       "goat-review",
-      "goat-sbao",
+      "goat-critique",
       "goat-security",
-      "goat-test",
+      "goat-qa",
     ],
     stale_names: ["goat-audit", "goat-investigate"],
   },
@@ -246,7 +257,6 @@ function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
         },
         gitignore: { exists: true, hasRequiredEntries: true },
         preflightScript: { exists: false },
-        contextValidation: { exists: false },
         skillConventions: { exists: true },
         localInstructions: {
           dirExists: false,
@@ -281,6 +291,88 @@ function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
   };
 }
 
+function makeProjectFacts(
+  root: string,
+  agents: AgentFacts[] = [],
+): ProjectFacts {
+  const baseFacts = makeCtx().facts;
+  return {
+    ...baseFacts,
+    root,
+    agents,
+  };
+}
+
+async function writeProjectFile(
+  root: string,
+  relativePath: string,
+  content = "",
+): Promise<void> {
+  const fullPath = join(root, relativePath);
+  await mkdir(dirname(fullPath), { recursive: true });
+  await writeFile(fullPath, content);
+}
+
+async function makeTempProject(
+  init: (root: string) => Promise<void>,
+): Promise<{ root: string; cleanup: () => Promise<void> }> {
+  const root = await mkdtemp(join(tmpdir(), "goat-flow-setup-tests-"));
+  try {
+    await init(root);
+  } catch (error) {
+    await rm(root, { recursive: true, force: true });
+    throw error;
+  }
+
+  return {
+    root,
+    cleanup: () => rm(root, { recursive: true, force: true }),
+  };
+}
+
+function makeAuditScope(
+  status: "pass" | "fail",
+  checks: AuditReport["scopes"]["setup"]["checks"],
+): AuditReport["scopes"]["setup"] {
+  return {
+    status,
+    checks,
+    failures: checks
+      .filter((check) => check.status === "fail" && check.failure)
+      .map((check) => check.failure!),
+    summary: {},
+  };
+}
+
+function makeAuditReport(
+  root: string,
+  status: "pass" | "fail",
+  setupChecks: AuditReport["scopes"]["setup"]["checks"] = [],
+  agentChecks: AuditReport["scopes"]["agent"]["checks"] = [],
+): AuditReport {
+  return {
+    command: "audit",
+    harness: false,
+    status,
+    target: root,
+    scopes: {
+      setup: makeAuditScope(
+        setupChecks.some((check) => check.status === "fail") ? "fail" : "pass",
+        setupChecks,
+      ),
+      agent: makeAuditScope(
+        agentChecks.some((check) => check.status === "fail") ? "fail" : "pass",
+        agentChecks,
+      ),
+      harness: null,
+    },
+    concerns: null,
+    drift: null,
+    content: null,
+    overall: { status },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Test 1: audit passes on a well-configured project (this repo)
 // ---------------------------------------------------------------------------
@@ -303,6 +395,22 @@ describe("audit on well-configured project", () => {
       "pass",
       `Setup failures: ${JSON.stringify(report.scopes.setup.failures)}`,
     );
+  });
+
+  it("audits an external project root without throwing on package-root provenance paths", async () => {
+    const project = await makeTempProject(async () => {});
+    try {
+      const fs = createFS(project.root);
+      const report = runAudit(fs, project.root, {
+        agentFilter: null,
+        harness: false,
+      });
+      assert.equal(report.command, "audit");
+      assert.equal(report.target, project.root);
+      assert.ok(["pass", "fail"].includes(report.status));
+    } finally {
+      await project.cleanup();
+    }
   });
 });
 
@@ -339,12 +447,14 @@ describe("config.agents filtering", () => {
       name: "Codex",
       instructionFile: "AGENTS.md",
       settingsFile: ".codex/config.toml",
+      hookConfigFile: ".codex/hooks.json",
       skillsDir: ".agents/skills",
       hooksDir: ".codex/hooks",
       denyMechanism: {
         type: "deny-script",
         path: ".codex/hooks/deny-dangerous.sh",
       },
+      denyHookFile: ".codex/hooks/deny-dangerous.sh",
       localPattern: ".github/instructions/*.md",
       hookEvents: { preTool: "", postTurn: "stop" },
     };
@@ -384,6 +494,34 @@ describe("config.agents filtering", () => {
       null,
       "Should pass when only configured agent (claude) is checked",
     );
+  });
+});
+
+describe("config validation failures", () => {
+  it("fails config-parses when config.yaml has schema validation errors", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "config-parses")!;
+    const ctx = makeCtx({
+      config: {
+        ...stubConfig({ agents: ["cursor"] }),
+        valid: false,
+        errors: [
+          {
+            level: "error",
+            path: "agents[0]",
+            message:
+              'unknown agent "cursor" - known agents: claude, codex, gemini',
+          },
+        ],
+      },
+    });
+    const result = check.run(ctx);
+    assert.notEqual(
+      result,
+      null,
+      "config-parses should fail on invalid config",
+    );
+    assert.match(result!.message, /Validation error: agents\[0\]/);
+    assert.equal(result!.evidence, ".goat-flow/config.yaml");
   });
 });
 
@@ -591,19 +729,12 @@ describe("build failure howToFix", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test 8: scratchpad is enforced by the other-files setup gate
+// Test 8: scratchpad is enforced by its dedicated named setup check
 // ---------------------------------------------------------------------------
-describe("other-files setup gate", () => {
+describe("scratchpad setup gate", () => {
   it("fails on missing scratchpad because it is part of the setup contract", () => {
-    const check = BUILD_CHECKS.find((c) => c.id === "other-files")!;
+    const check = BUILD_CHECKS.find((c) => c.id === "scratchpad")!;
     const ctx = makeCtx({
-      structure: {
-        ...STUB_STRUCTURE,
-        required_dirs: [
-          ...STUB_STRUCTURE.required_dirs,
-          ".goat-flow/scratchpad/",
-        ],
-      },
       fs: stubFS({
         exists: (path: string) => path !== ".goat-flow/scratchpad",
       }),
@@ -612,7 +743,22 @@ describe("other-files setup gate", () => {
     assert.notEqual(
       result,
       null,
-      "scratchpad should be enforced by the other-files setup gate",
+      "scratchpad should be enforced by its named setup check",
+    );
+  });
+
+  it("fails on missing scratchpad README because the dir is local-by-design", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "scratchpad")!;
+    const ctx = makeCtx({
+      fs: stubFS({
+        exists: (path: string) => path !== ".goat-flow/scratchpad/README.md",
+      }),
+    });
+    const result = check.run(ctx);
+    assert.notEqual(
+      result,
+      null,
+      "missing scratchpad/README.md should be flagged - it signals local-by-design intent",
     );
   });
 });
@@ -666,5 +812,481 @@ describe("harness check howToFix", () => {
       result.findings.some((f) => f.includes("architecture.md")),
       `Findings should mention architecture.md: ${result.findings.join(", ")}`,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M01: Harness check type tagging + acknowledge-based scoring
+// ---------------------------------------------------------------------------
+describe("M01 harness check type tagging", () => {
+  it("every harness check declares a valid type", () => {
+    const valid = new Set(["integrity", "advisory", "metric"]);
+    for (const check of HARNESS_CHECKS) {
+      assert.ok(
+        valid.has(check.type),
+        `${check.id} has invalid or missing type: ${check.type}`,
+      );
+    }
+  });
+
+  it("matches the locked M01 distribution (9 integrity, 5 advisory, 2 metric)", () => {
+    const byType = { integrity: 0, advisory: 0, metric: 0 } as Record<
+      string,
+      number
+    >;
+    for (const check of HARNESS_CHECKS) byType[check.type]!++;
+    assert.deepStrictEqual(byType, { integrity: 9, advisory: 5, metric: 2 });
+  });
+
+  it("known-integrity ids are tagged integrity", () => {
+    const integrityIds = new Set([
+      "doc-paths-resolve",
+      "deny-covers-secrets",
+      "deny-blocks-dangerous",
+      "deny-hook-registered",
+      "hooks-registered",
+      "milestone-tracking",
+      "session-logs",
+      "feedback-loop-active",
+      "decisions-tracked",
+    ]);
+    for (const check of HARNESS_CHECKS) {
+      if (integrityIds.has(check.id)) {
+        assert.equal(
+          check.type,
+          "integrity",
+          `${check.id} should be integrity`,
+        );
+      }
+    }
+  });
+
+  it("known-metric ids are tagged metric", () => {
+    const metricIds = new Set([
+      "test-runner-configured",
+      "post-turn-hook-integrity",
+    ]);
+    for (const check of HARNESS_CHECKS) {
+      if (metricIds.has(check.id)) {
+        assert.equal(check.type, "metric", `${check.id} should be metric`);
+      }
+    }
+  });
+});
+
+describe("M01 scoring model", () => {
+  it("unacknowledged advisory fail flips concern.status to fail", () => {
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      denyBlocksPipeToShell: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({ agents: [stubAgentFacts({ hooks })] });
+    const { concerns } = computeHarness(ctx);
+    // deny-blocks-pipe-to-shell is advisory + constraints concern.
+    assert.equal(concerns.constraints.status, "fail");
+    assert.equal(concerns.constraints.advisoryFail, 1);
+    assert.equal(concerns.constraints.advisoryAcknowledged, 0);
+  });
+
+  it("acknowledged advisory fail does NOT flip the owning concern's status", () => {
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      denyBlocksPipeToShell: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({
+      config: stubConfig({
+        harness: { acknowledge: ["deny-blocks-pipe-to-shell"] },
+      }),
+      agents: [stubAgentFacts({ hooks })],
+    });
+    const { concerns } = computeHarness(ctx);
+    assert.equal(concerns.constraints.status, "pass");
+    assert.equal(concerns.constraints.advisoryFail, 0);
+    assert.equal(concerns.constraints.advisoryAcknowledged, 1);
+  });
+
+  it("acknowledged advisory does not add to scope.failures", () => {
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      denyBlocksPipeToShell: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({
+      config: stubConfig({
+        harness: { acknowledge: ["deny-blocks-pipe-to-shell"] },
+      }),
+      agents: [stubAgentFacts({ hooks })],
+    });
+    const { scope } = computeHarness(ctx);
+    assert.ok(
+      !scope.failures.some((f) =>
+        f.check.toLowerCase().includes("pipe-to-shell"),
+      ),
+      `Acknowledged advisory should not appear in scope.failures: ${JSON.stringify(scope.failures)}`,
+    );
+  });
+
+  it("acknowledge silences exactly the listed id, not other advisories", () => {
+    // Craft a scenario where two advisory checks fail and acknowledge only one.
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      denyBlocksPipeToShell: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({
+      config: stubConfig({
+        harness: { acknowledge: ["deny-blocks-pipe-to-shell"] },
+        instruction_file_line_target: 40,
+        instruction_file_line_limit: 45,
+      }),
+      agents: [stubAgentFacts({ hooks })],
+    });
+    const { concerns } = computeHarness(ctx);
+    // constraints fail is acknowledged → pass. instruction-line-count (advisory
+    // under context) will also fail because the stub instruction file is 50
+    // lines vs a 45-line limit - NOT acknowledged → context.status fail.
+    assert.equal(concerns.constraints.status, "pass");
+    assert.equal(concerns.constraints.advisoryAcknowledged, 1);
+    assert.equal(concerns.context.status, "fail");
+    assert.ok(concerns.context.advisoryFail >= 1);
+  });
+
+  it("deny-covers-secrets fails when settings Read deny is present but Bash hook lacks secret-path coverage", () => {
+    // Models the M17-1 gap: settings.json has Read(**/.env*) etc., but the Bash
+    // deny hook still allows `cat .env` / `source .env`. The harness must fail
+    // on this even though the old check classified the agent as "covered".
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      readDenyCoversSecrets: true,
+      bashDenyCoversSecrets: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({ agents: [stubAgentFacts({ hooks })] });
+    const { scope } = computeHarness(ctx);
+    const secrets = scope.checks.find((c) => c.id === "deny-covers-secrets");
+    assert.ok(secrets, "deny-covers-secrets check should be present");
+    assert.equal(
+      secrets.status,
+      "fail",
+      "deny-covers-secrets must fail when Bash hook has no secret-path coverage",
+    );
+  });
+
+  it("deny-covers-secrets passes when both settings Read deny and Bash hook cover secrets", () => {
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      readDenyCoversSecrets: true,
+      bashDenyCoversSecrets: true,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({ agents: [stubAgentFacts({ hooks })] });
+    const { scope } = computeHarness(ctx);
+    const secrets = scope.checks.find((c) => c.id === "deny-covers-secrets");
+    assert.equal(secrets?.status, "pass");
+  });
+
+  it("metric checks never flip concern.status (always pass) and are counted", () => {
+    const ctx = makeCtx();
+    const { concerns } = computeHarness(ctx);
+    // verification concern contains both metric checks (test-runner-configured,
+    // post-turn-hook-integrity). They never fail in the current implementation.
+    assert.equal(concerns.verification.metrics, 2);
+  });
+
+  it("CheckResult carries type, acknowledged, and provenance fields", () => {
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      denyBlocksPipeToShell: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({
+      config: stubConfig({
+        harness: { acknowledge: ["deny-blocks-pipe-to-shell"] },
+      }),
+      agents: [stubAgentFacts({ hooks })],
+    });
+    const { scope } = computeHarness(ctx);
+    const advisory = scope.checks.find(
+      (c) => c.id === "deny-blocks-pipe-to-shell",
+    )!;
+    assert.equal(advisory.type, "advisory");
+    assert.equal(advisory.acknowledged, true);
+    assert.equal(advisory.provenance.normative_level, "SHOULD");
+    const docs = scope.checks.find((c) => c.id === "doc-paths-resolve")!;
+    assert.equal(docs.type, "integrity");
+    assert.equal(docs.acknowledged, undefined);
+    assert.equal(docs.provenance.normative_level, "MUST");
+  });
+
+  it("advisory failure emits WHY-not-integrity evidence with the check id", () => {
+    const hooks = {
+      ...stubAgentFacts().hooks,
+      denyBlocksPipeToShell: false,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({ agents: [stubAgentFacts({ hooks })] });
+    const { scope } = computeHarness(ctx);
+    const advisory = scope.checks.find(
+      (c) => c.id === "deny-blocks-pipe-to-shell",
+    )!;
+    assert.ok(advisory.failure, "advisory failure should have a failure obj");
+    assert.ok(
+      advisory.failure!.evidence?.includes("Advisory"),
+      `evidence should explain advisory framing: ${advisory.failure!.evidence}`,
+    );
+    assert.ok(
+      advisory.failure!.evidence?.includes("deny-blocks-pipe-to-shell"),
+      `evidence should reference the check id: ${advisory.failure!.evidence}`,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Setup prompt routing - verify composeSetup follows project state + audit
+// ---------------------------------------------------------------------------
+describe("composeSetup routing", () => {
+  it("renders audit-pass maintenance guidance for a healthy current codex project", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        `version: "${AUDIT_VERSION}"\n`,
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-preamble.md",
+        "# Preamble\n",
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-conventions.md",
+        "# Conventions\n",
+      );
+      await writeProjectFile(root, "AGENTS.md", "# Codex\n");
+      for (const skill of SKILL_NAMES) {
+        await writeProjectFile(root, `.agents/skills/${skill}/SKILL.md`, "#\n");
+      }
+    });
+
+    try {
+      const facts = makeProjectFacts(project.root, [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          skills: {
+            ...stubAgentFacts().skills,
+            found: [...SKILL_NAMES],
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyExists: true,
+            postTurnExists: true,
+          },
+        }),
+      ]);
+
+      const output = composeSetup(
+        makeAuditReport(project.root, "pass"),
+        facts,
+        "codex",
+      );
+
+      assert.ok(output, "composeSetup should return setup text");
+      assert.match(output, /# GOAT Flow Setup - Codex/);
+      assert.match(output, /All audit checks pass\./);
+      assert.match(output, /7\/7 skills installed \(in \.agents\/skills\/\)/);
+      assert.match(
+        output,
+        /2 hook scripts \(deny, post-turn\) in \.codex\/hooks\//,
+      );
+      assert.match(output, /Run `goat-flow audit \. --harness`/);
+      assert.ok(
+        !output.includes("scanner"),
+        `audit-pass output should not regress to scanner wording: ${output}`,
+      );
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("renders failed checks with howToFix text and setup-step references", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        `version: "${AUDIT_VERSION}"\n`,
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-preamble.md",
+        "# Preamble\n",
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-conventions.md",
+        "# Conventions\n",
+      );
+      await writeProjectFile(root, "AGENTS.md", "# Codex\n");
+      for (const skill of SKILL_NAMES) {
+        await writeProjectFile(root, `.agents/skills/${skill}/SKILL.md`, "#\n");
+      }
+    });
+
+    try {
+      const output = composeSetup(
+        makeAuditReport(
+          project.root,
+          "fail",
+          [
+            {
+              id: "config-version",
+              name: "Config version",
+              status: "fail",
+              failure: {
+                check: "Config version",
+                message: "Config version mismatch",
+                evidence: '.goat-flow/config.yaml says "1.0.0"',
+                howToFix: `Set version to "${AUDIT_VERSION}"`,
+              },
+            },
+          ],
+          [
+            {
+              id: "agent-skills",
+              name: "Agent skills",
+              status: "fail",
+              failure: {
+                check: "Agent skills",
+                message: "Missing goat-review",
+              },
+            },
+          ],
+        ),
+        makeProjectFacts(project.root, [
+          stubAgentFacts({ agent: PROFILES.codex }),
+        ]),
+        "codex",
+      );
+
+      assert.ok(output, "composeSetup should return failure guidance");
+      assert.match(output, /2 audit checks failed:/);
+      assert.ok(
+        output.includes(
+          `Fix: Set version to "${AUDIT_VERSION}" (see Step 05 (config version field))`,
+        ),
+        output,
+      );
+      assert.match(
+        output,
+        /Evidence: \.goat-flow\/config\.yaml says "1\.0\.0"/,
+      );
+      assert.match(output, /See Step 03 \(install skills\)/);
+      assert.match(
+        output,
+        /Re-run: `node .*dist\/cli\/cli\.js audit \. --agent codex`/,
+      );
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("falls back to the full setup guide for partial installs", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(root, "AGENTS.md", "# Codex\n");
+    });
+
+    try {
+      const output = composeSetup(
+        makeAuditReport(project.root, "fail"),
+        makeProjectFacts(project.root, [
+          stubAgentFacts({ agent: PROFILES.codex }),
+        ]),
+        "codex",
+      );
+
+      assert.ok(output, "composeSetup should return setup guidance");
+      assert.match(
+        output,
+        /This project has setup issues - it needs a full setup pass\./,
+      );
+      assert.match(
+        output,
+        /Do NOT copy customization templates \(architecture, footguns, code-map\) verbatim\./,
+      );
+      assert.match(output, /## Step 1 - Install files/);
+      assert.match(output, /## Step 2 - Create project-specific content/);
+      assert.match(output, /## Step 3 - Verify/);
+      assert.match(output, /workflow\/setup\/agents\/codex\.md/);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("uses the current numbered setup flow for outdated installs", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        'version: "1.1.0"\n',
+      );
+      await writeProjectFile(root, "AGENTS.md", "# Codex\n");
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-preamble.md",
+        "# Preamble\n",
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-conventions.md",
+        "# Conventions\n",
+      );
+      for (const skill of SKILL_NAMES) {
+        await writeProjectFile(root, `.agents/skills/${skill}/SKILL.md`, "#\n");
+      }
+    });
+
+    try {
+      const retiredOutdatedGuide = "upgrade-from-1" + ".0.x.md";
+      const output = composeSetup(
+        makeAuditReport(project.root, "fail"),
+        makeProjectFacts(project.root, [
+          stubAgentFacts({
+            agent: PROFILES.codex,
+            skills: { ...stubAgentFacts().skills, found: [...SKILL_NAMES] },
+          }),
+        ]),
+        "codex",
+      );
+
+      assert.ok(output, "composeSetup should return upgrade guidance");
+      assert.match(output, /# GOAT Flow Upgrade - Codex/);
+      assert.match(output, /workflow\/install-goat-flow\.sh/);
+      assert.match(output, /workflow\/setup\/02-instruction-file\.md/);
+      assert.ok(!output.includes(retiredOutdatedGuide), output);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("uses manual cleanup guidance for v0.9 installs", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(root, "AGENTS.md", "# Codex\n");
+      await writeProjectFile(root, ".agents/skills/goat-audit/SKILL.md", "#\n");
+    });
+
+    try {
+      const retiredMigrationScript = "install-migrate-to-1" + ".1.sh";
+      const retiredLegacyGuide = "upgrade-from-0" + ".9.x.md";
+      const output = composeSetup(
+        makeAuditReport(project.root, "fail"),
+        makeProjectFacts(project.root, [
+          stubAgentFacts({ agent: PROFILES.codex }),
+        ]),
+        "codex",
+      );
+
+      assert.ok(output, "composeSetup should return migration guidance");
+      assert.match(output, /# GOAT Flow Migration - Codex/);
+      assert.match(output, /workflow\/install-goat-flow\.sh/);
+      assert.match(output, /Remove legacy surfaces manually/);
+      assert.match(output, /workflow\/setup\/02-instruction-file\.md/);
+      assert.ok(!output.includes(retiredMigrationScript), output);
+      assert.ok(!output.includes(retiredLegacyGuide), output);
+    } finally {
+      await project.cleanup();
+    }
   });
 });

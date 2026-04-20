@@ -1,5 +1,7 @@
 # Agent Config - Codex
 
+> Canonical machine-readable source for these paths: `workflow/manifest.json` via `src/cli/agents/registry.ts`. If this doc drifts, the manifest-backed registry wins.
+
 ## Paths
 
 | Resource | Path |
@@ -25,7 +27,7 @@ CLAUDE.md, GEMINI.md, `.claude/`, `.gemini/`.
 ### Codex mechanics
 
 - AGENTS.md is the root instruction file (not CLAUDE.md)
-- Hook events: `PreToolUse`, `Stop`, `UserPromptSubmit`, `SessionStart`, `AfterToolUse`, `AfterAgent`
+- goat-flow relies on Codex `PreToolUse` only; do not model a Codex post-turn hook event in project scaffolding
 - Hooks configured in `.codex/hooks.json` (not config.toml)
 - PreToolUse is WIP - "doesn't intercept all shell calls yet" per Codex docs
 - `apply_patch` for edits (not Edit/Write tool)
@@ -36,7 +38,7 @@ CLAUDE.md, GEMINI.md, `.claude/`, `.gemini/`.
 After completing step 03 (skills):
 - Apply `workflow/hooks/agent-config/codex.toml` as the base for `.codex/config.toml` (enables hooks feature)
 - Apply `workflow/hooks/agent-config/codex-hooks.json` as `.codex/hooks.json` (registers PreToolUse deny hook)
-- goat-flow core does not ship a Codex Stop hook template; add Stop hooks in `.codex/hooks.json` only for project-specific validation
+- goat-flow core does not ship a Codex post-turn hook template because Codex has no goat-flow-supported post-turn hook event
 - `deny-dangerous.sh` is installed to `.codex/hooks/` by the install script (same shared template as Claude/Gemini)
 
 ### Dual-agent repos

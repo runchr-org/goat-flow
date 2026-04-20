@@ -9,6 +9,19 @@
       "Bash(*git reset --hard*)",
       "Read(**/.env*)",
       "Edit(**/.env*)",
+      "MultiEdit(**/.env*)",
+      "MultiEdit(**/secrets/**)",
+      "MultiEdit(**/*.pem)",
+      "MultiEdit(**/*.key)",
+      "MultiEdit(**/.ssh/**)",
+      "MultiEdit(**/.aws/**)",
+      "MultiEdit(**/.docker/config.json)",
+      "MultiEdit(**/.gnupg/**)",
+      "MultiEdit(**/.npmrc)",
+      "MultiEdit(**/.pypirc)",
+      "MultiEdit(**/*.pfx)",
+      "MultiEdit(**/credentials*)",
+      "MultiEdit(**/.kube/config)",
       "Write(**/.env*)",
       "Read(**/secrets/**)",
       "Read(**/*.pem)",
@@ -56,17 +69,6 @@
           {
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-dangerous.sh\""
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo 'CONTEXT AFTER COMPACTION:' && echo 'Modified files:' && git diff --name-only 2>/dev/null && echo '---' && echo 'Check milestone files in .goat-flow/tasks/ for progress' && echo '---' && echo 'Constraints: read CLAUDE.md Autonomy Tiers before proceeding'"
           }
         ]
       }

@@ -1,11 +1,11 @@
 /**
  * Composes setup prompts from audit results and project facts.
  * Routes by project state: bare/partial → full setup guide,
- * v0.9/v1.0 → upgrade redirect, v1.1 → audit-driven pass/fail.
+ * v0.9/outdated → upgrade redirect, current → audit-driven pass/fail.
  */
 import type { AuditReport } from "../audit/types.js";
 import type { AgentId, ProjectFacts } from "../types.js";
-import { SKILL_NAMES } from "../constants.js";
+import { loadManifest } from "../manifest/manifest.js";
 import { PROFILES } from "../detect/agents.js";
 import { getTemplatePath, getCliCommand } from "../paths.js";
 import { classifyProjectState } from "../classify-state.js";
@@ -40,10 +40,11 @@ const SETUP_FILES: Record<AgentId, string> = {
   claude: "workflow/setup/agents/claude.md",
   codex: "workflow/setup/agents/codex.md",
   gemini: "workflow/setup/agents/gemini.md",
+  copilot: "workflow/setup/agents/copilot.md",
 };
 
 // ----------------------------------------------------------------
-// Mode: Audit pass (v1.1, all build checks passing)
+// Mode: Audit pass (current version, all build checks passing)
 // ----------------------------------------------------------------
 
 function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
@@ -58,15 +59,15 @@ function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
 
   if (agentFacts) {
     const skillCount = agentFacts.skills.found.length;
+    const totalSkills = loadManifest().facts.skills.total;
     const hookScripts: string[] = [];
     if (agentFacts.hooks.denyExists) hookScripts.push("deny");
     if (agentFacts.hooks.postTurnExists) hookScripts.push("post-turn");
-    if (agentFacts.hooks.compactionHookExists) hookScripts.push("compaction");
     const hooksDir = profile.hooksDir ?? "hooks";
 
     lines.push("**Installed:**");
     lines.push(
-      `- ${skillCount}/${SKILL_NAMES.length} skills installed (in ${profile.skillsDir}/)`,
+      `- ${skillCount}/${totalSkills} skills installed (in ${profile.skillsDir}/)`,
     );
     if (hookScripts.length > 0) {
       lines.push(
@@ -95,7 +96,7 @@ function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
 }
 
 // ----------------------------------------------------------------
-// Mode: Audit fail (v1.1, some build checks failing)
+// Mode: Audit fail (current version, some build checks failing)
 // ----------------------------------------------------------------
 
 function renderAuditFail(
@@ -145,21 +146,26 @@ function renderAuditFail(
 }
 
 // ----------------------------------------------------------------
-// Mode: Upgrade redirect (v0.9 or v1.0 projects)
+// Mode: Upgrade redirect (v0.9 or outdated projects)
 // ----------------------------------------------------------------
 
 function renderUpgradeRedirect(
   _facts: ProjectFacts,
   agentId: AgentId,
-  version: "v0.9" | "v1.0",
+  state: "v0.9" | "outdated",
+  detectedVersion?: string,
 ): string {
   const profile = PROFILES[agentId];
   const lines: string[] = [];
 
-  if (version === "v1.0") {
+  if (state === "outdated") {
     lines.push(`# GOAT Flow Upgrade - ${profile.name}`);
     lines.push("");
-    lines.push("This project has goat-flow v1.0.");
+    lines.push(
+      detectedVersion
+        ? `This project has goat-flow ${detectedVersion}.`
+        : "This project has an older goat-flow version.",
+    );
     lines.push("");
 
     lines.push("## Step 1 - Install files");
@@ -173,10 +179,10 @@ function renderUpgradeRedirect(
     );
     lines.push("");
 
-    lines.push("## Step 2 - Upgrade project-specific content");
+    lines.push("## Step 2 - Rebuild project-specific content");
     lines.push("");
     lines.push(
-      `Read and follow \`${getTemplatePath("workflow/setup/upgrade-from-1.0.x.md")}\` for remaining changes (remove legacy files, update instruction file).`,
+      `Continue with \`${getTemplatePath("workflow/setup/02-instruction-file.md")}\` and then the remaining numbered setup docs to refresh the instruction file and local goat-flow content in place.`,
     );
   } else {
     lines.push(`# GOAT Flow Migration - ${profile.name}`);
@@ -184,37 +190,33 @@ function renderUpgradeRedirect(
     lines.push("This project has old goat-flow skills (v0.9 era).");
     lines.push("");
 
-    lines.push("## Step 1 - Migrate old layout");
-    lines.push("");
-    lines.push(
-      `Run: \`bash ${getTemplatePath("workflow/install-migrate-to-1.1.sh")} . --execute\``,
-    );
-    lines.push("");
-    lines.push(
-      "This migrates `docs/footguns.md` → `.goat-flow/footguns/`, `docs/lessons.md` → `.goat-flow/lessons/`, deletes stale skills, and removes legacy files.",
-    );
-    lines.push("");
-
-    lines.push("## Step 2 - Install files");
+    lines.push("## Step 1 - Install current files");
     lines.push("");
     lines.push(
       `Run: \`bash ${getTemplatePath("workflow/install-goat-flow.sh")} . --agent ${agentId}\``,
     );
     lines.push("");
     lines.push(
-      "This installs the 7 canonical skills, hooks, settings, and reference files.",
+      `This installs the ${loadManifest().facts.skills.total} canonical skills, hooks, settings, and reference files.`,
     );
     lines.push("");
 
-    lines.push("## Step 3 - Create project-specific content");
+    lines.push("## Step 2 - Remove legacy surfaces manually");
     lines.push("");
     lines.push(
-      `Read and follow \`${getTemplatePath("workflow/setup/upgrade-from-0.9.x.md")}\` for remaining changes (instruction file, architecture docs, config).`,
+      "Preserve any useful content in `.goat-flow/logs/sessions/`, then remove stale skill directories, flat learning-loop docs, and legacy task-state files if they still exist.",
+    );
+    lines.push("");
+
+    lines.push("## Step 3 - Rebuild project-specific content");
+    lines.push("");
+    lines.push(
+      `Continue with \`${getTemplatePath("workflow/setup/02-instruction-file.md")}\` and then the remaining numbered setup docs to rebuild the project-specific goat-flow surfaces on the current layout.`,
     );
   }
 
   lines.push("");
-  lines.push(`## ${version === "v1.0" ? "Step 3" : "Step 4"} - Verify`);
+  lines.push(`## ${state === "outdated" ? "Step 3" : "Step 4"} - Verify`);
   lines.push("");
   lines.push(
     `**Audit:** Run \`${getCliCommand()} audit . --agent ${agentId}\``,
@@ -313,15 +315,7 @@ function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
 // Main entry point
 // ----------------------------------------------------------------
 
-/**
- * Compose a setup prompt for the given agent.
- *
- * Routing:
- * - bare/partial/error → full setup guide (step references)
- * - v0.9/v1.0         → upgrade/migration redirect
- * - v1.1 + audit pass → success with real counts from facts
- * - v1.1 + audit fail → failing checks with howToFix + step references
- */
+/** Compose the setup prompt that matches the project's current install state. */
 export function composeSetup(
   auditReport: AuditReport,
   facts: ProjectFacts,
@@ -337,10 +331,15 @@ export function composeSetup(
   ) {
     return renderFullSetup(facts, agentId);
   }
-  if (projectState.state === "v0.9" || projectState.state === "v1.0") {
-    return renderUpgradeRedirect(facts, agentId, projectState.state);
+  if (projectState.state === "v0.9" || projectState.state === "outdated") {
+    return renderUpgradeRedirect(
+      facts,
+      agentId,
+      projectState.state,
+      projectState.version,
+    );
   }
-  // v1.1: audit-driven
+  // Current version: audit-driven
   if (auditReport.status === "pass") {
     return renderAuditPass(facts, agentId);
   }

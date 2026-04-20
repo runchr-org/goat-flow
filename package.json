@@ -1,6 +1,6 @@
 {
   "name": "@blundergoat/goat-flow",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "CLI auditor, dashboard, and setup generator for GOAT Flow AI coding agent workflows",
   "author": {
     "name": "Matthew Hansen",
@@ -38,8 +38,8 @@
     ]
   },
   "scripts": {
-    "build": "rm -rf dist/ && tsc && npm run build:dashboard",
-    "build:dashboard": "tsc -p tsconfig.dashboard.json && mkdir -p dist/dashboard && cp src/dashboard/index.html src/dashboard/styles.css dist/dashboard/ && rm -rf dist/dashboard/views && cp -r src/dashboard/views dist/dashboard/views",
+    "build": "rm -rf dist/ && tsc && chmod +x dist/cli/cli.js && npm run build:dashboard",
+    "build:dashboard": "tsc -p tsconfig.dashboard.json && mkdir -p dist/dashboard && cp src/dashboard/index.html src/dashboard/styles.css src/dashboard/preset-prompts.json dist/dashboard/ && rm -rf dist/dashboard/views && cp -r src/dashboard/views dist/dashboard/views",
     "test": "node --import tsx --test test/*/*.test.ts",
     "test:coverage": "node --import tsx --experimental-test-coverage --test test/*/*.test.ts",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.dashboard.json --noEmit",
@@ -51,26 +51,28 @@
     "dev": "tsc && npm run build:dashboard && node dist/cli/cli.js dashboard . --dev",
     "dashboard": "npm run build && node dist/cli/cli.js dashboard .",
     "preflight": "bash scripts/preflight-checks.sh",
-    "validate": "bash workflow/validate-goat-flow-setup.sh",
     "check-versions": "node scripts/check-versions.mjs",
     "format": "prettier --write --no-error-on-unmatched-pattern \"src/**/*.{ts,js,html}\" \"test/**/*.ts\"",
     "format:check": "prettier --check --no-error-on-unmatched-pattern \"src/**/*.{ts,js,html}\" \"test/**/*.ts\"",
     "prepublishOnly": "npm run build && npm run check-versions"
   },
   "keywords": [
-    "ai",
-    "ai-agent",
-    "audit",
-    "claude",
+    "goat-flow",
+    "ai-agents",
+    "agentic-coding",
+    "ai-coding",
+    "ai-workflow",
+    "harness-engineering",
+    "prompt-engineering",
     "claude-code",
     "codex",
-    "coding-agent",
+    "gemini-cli",
     "copilot",
-    "dashboard",
-    "gemini",
     "llm",
-    "auditor",
-    "workflow"
+    "ai-safety",
+    "developer-tools",
+    "cli",
+    "auditor"
   ],
   "dependencies": {
     "js-yaml": "^4.1.0",

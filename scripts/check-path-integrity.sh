@@ -18,6 +18,9 @@ set -uo pipefail
 
 root="${1:-.}"
 errors=0
+skill_dirs=".claude/skills .agents/skills .github/skills"
+instruction_files="CLAUDE.md AGENTS.md GEMINI.md .github/copilot-instructions.md"
+hook_configs=".claude/settings.json .gemini/settings.json .codex/hooks.json .github/hooks/hooks.json"
 
 err() { echo "FAIL: $1" >&2; errors=$((errors + 1)); }
 
@@ -26,30 +29,47 @@ err() { echo "FAIL: $1" >&2; errors=$((errors + 1)); }
 # installed skills. In the goat-flow repo, those paths resolve - so a
 # naive "does it exist?" check would miss the bug. Any workflow/ path
 # in installed skill files is an error regardless of resolution.
-for agent_dir in ".claude/skills" ".agents/skills"; do
+for agent_dir in $skill_dirs; do
     dir="${root}/${agent_dir}"
     [[ -d "$dir" ]] || continue
-    while IFS= read -r match; do
-        file="${match%%:*}"
-        err "${file}: contains framework-local workflow/ path (should use .goat-flow/ paths): ${match#*:}"
-    done < <(grep -rn 'workflow/' "${dir}"/goat-*/SKILL.md "${dir}"/goat/SKILL.md 2>/dev/null | grep -Ev ':[0-9]+:[[:space:]]*#' || true)
+    while IFS= read -r -d '' file; do
+        while IFS= read -r match; do
+            file_path="${match%%:*}"
+            err "${file_path}: contains framework-local workflow/ path (should use .goat-flow/ paths): ${match#*:}"
+        done < <(grep -nH 'workflow/' "$file" 2>/dev/null | grep -Ev ':[0-9]+:[[:space:]]*#' || true)
+    done < <(find "$dir" -type f -name '*.md' -print0 2>/dev/null)
 done
 
 # ── 2. .goat-flow/ paths in installed skills must resolve ───────────
-for agent_dir in ".claude/skills" ".agents/skills"; do
+# Exception: paths under .goat-flow/tasks/, .goat-flow/scratchpad/, and
+# .goat-flow/logs/ are intentionally gitignored (local session state per
+# .goat-flow/tasks/.gitignore). Skills reference them as navigation pointers
+# (e.g. `.goat-flow/tasks/.active` - the active-plan marker); treating
+# absence as drift false-positives on every clean checkout and CI run.
+for agent_dir in $skill_dirs; do
     dir="${root}/${agent_dir}"
     [[ -d "$dir" ]] || continue
     while IFS= read -r ref_path; do
         # Strip backticks and trailing punctuation
         clean=$(echo "$ref_path" | sed 's/[`'"'"'",;)]*$//' | sed 's/^[`'"'"'"]//')
+        # Skip intentionally-gitignored runtime-state paths.
+        case "$clean" in
+            .goat-flow/tasks/*|.goat-flow/scratchpad/*|.goat-flow/logs/*) continue ;;
+        esac
         if [[ "$clean" == .goat-flow/* ]] && [[ ! -e "${root}/${clean}" ]]; then
             err "Installed skill references missing path: ${clean}"
         fi
-    done < <(grep -rohE '\.goat-flow/[a-zA-Z0-9_./-]+' "${dir}"/goat-*/SKILL.md "${dir}"/goat/SKILL.md 2>/dev/null | sort -u || true)
+    done < <(
+        find "$dir" -type f -name '*.md' -print0 2>/dev/null |
+            while IFS= read -r -d '' file; do
+                grep -hoE '\.goat-flow/[a-zA-Z0-9_./-]+' "$file" 2>/dev/null || true
+            done |
+            sort -u
+    )
 done
 
 # ── 3. Instruction file router table paths must exist ───────────────
-for ifile in CLAUDE.md AGENTS.md GEMINI.md; do
+for ifile in $instruction_files; do
     filepath="${root}/${ifile}"
     [[ -f "$filepath" ]] || continue
     in_router=0
@@ -96,7 +116,7 @@ if [[ -f "$config" ]]; then
 fi
 
 # ── 6. Hook files in settings/config must exist and be executable ───
-for settings in ".claude/settings.json" ".gemini/settings.json" ".codex/hooks.json"; do
+for settings in $hook_configs; do
     sfile="${root}/${settings}"
     [[ -f "$sfile" ]] || continue
     while IFS= read -r hook_path; do
@@ -110,8 +130,8 @@ for settings in ".claude/settings.json" ".gemini/settings.json" ".codex/hooks.js
 done
 
 # ── 7. No stale skill names ─────────────────────────────────────────
-stale_skills="goat-preflight goat-research goat-audit goat-investigate goat-onboard goat-reflect goat-resume goat-context goat-simplify goat-refactor"
-for agent_dir in ".claude/skills" ".agents/skills"; do
+stale_skills="goat-preflight goat-research goat-audit goat-investigate goat-onboard goat-reflect goat-resume goat-context goat-simplify goat-refactor goat-sbao goat-test"
+for agent_dir in $skill_dirs; do
     dir="${root}/${agent_dir}"
     [[ -d "$dir" ]] || continue
     for stale in $stale_skills; do
@@ -120,6 +140,48 @@ for agent_dir in ".claude/skills" ".agents/skills"; do
         fi
     done
 done
+
+# ── 8. Bare *.md cross-references in docs/*.md must resolve ────────
+# Catches doc-to-doc references like `harness-spec.md` in docs/*.md that point
+# at files which no longer exist. Scoped to `.md` extensions only - `.ts`/`.sh`
+# in coding-standards prose are usually conceptual identifiers, not literal
+# paths, so they would false-positive. Resolves relative to the doc's dir
+# first, then repo root, then by basename anywhere under the repo (catches
+# refs like `skill-preamble.md` that live under `.goat-flow/skill-reference/`).
+# Skips fenced code blocks.
+docs_dir="${root}/docs"
+if [[ -d "$docs_dir" ]]; then
+    while IFS= read -r -d '' docfile; do
+        docdir=$(dirname "$docfile")
+        while IFS= read -r ref; do
+            [[ -z "$ref" ]] && continue
+            # Skip glob-ish, URL-ish, and template-placeholder tokens.
+            [[ "$ref" == *'*'* || "$ref" == *'?'* ]] && continue
+            [[ "$ref" == *'<'* || "$ref" == *'>'* ]] && continue
+            [[ "$ref" == *'{'* || "$ref" == *'}'* ]] && continue
+            [[ "$ref" == http* ]] && continue
+            # Resolve relative to doc dir, then repo root.
+            if [[ -e "${docdir}/${ref}" ]]; then continue; fi
+            if [[ -e "${root}/${ref}" ]]; then continue; fi
+            # Fall back to basename lookup anywhere in the repo (excludes
+            # node_modules/.git for speed). A file with this basename existing
+            # anywhere means the ref is a conceptual cross-ref, not drift.
+            base=$(basename "$ref")
+            if find "$root" \
+                \( -path '*/node_modules' -o -path '*/.git' -o -path '*/dist' \) -prune -o \
+                -type f -name "$base" -print 2>/dev/null | grep -q .; then
+                continue
+            fi
+            err "${docfile#"${root}/"}: references missing file \`${ref}\`"
+        done < <(
+            # shellcheck disable=SC2016  # grep pattern matches literal backticks, not command substitution
+            awk '/^[[:space:]]*```/ { in_fence = !in_fence; next } !in_fence' "$docfile" \
+                | grep -oE '`[a-zA-Z0-9_./-]+\.md`' \
+                | tr -d '`' \
+                | sort -u
+        )
+    done < <(find "$docs_dir" -type f -name '*.md' -print0 2>/dev/null)
+fi
 
 # ── Result ──────────────────────────────────────────────────────────
 if [[ "$errors" -gt 0 ]]; then

@@ -8,7 +8,7 @@ These sections go in the project's instruction file. Target: under 120 lines. Ha
 
 a) Project identity - 1-2 lines: project name, domain, core technology, primary invariant
 
-b) Version header (v1.1 - YYYY-MM-DD)
+b) Version header (v&lt;current-version&gt; - YYYY-MM-DD, matching `package.json` version)
 
 c) Default Execution Loop: READ → SCOPE → ACT → VERIFY
    When a goat-* skill is active, the skill's Step 0 satisfies READ/SCOPE. Resume at ACT.
@@ -64,7 +64,7 @@ e) Definition of Done: 6 gates
    (6) After any rename or move, grep for the old name across ALL files (including .md, .json, .yaml, config). Zero remaining references = pass. This is the most common failure mode - stale cross-references after renames cause more bugs than any other single pattern.
 
 f) Router table: MUST include at minimum:
-     - Skill directories (`.claude/skills/`, `.agents/skills/`)
+     - Skill directories (`.claude/skills/`, `.agents/skills/`, `.github/skills/`)
      - Learning loop directories (`.goat-flow/footguns/`, `.goat-flow/lessons/`)
      - Architecture doc (`.goat-flow/architecture.md`)
      - Config (`.goat-flow/config.yaml`)
