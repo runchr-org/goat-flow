@@ -77,6 +77,7 @@ function app() {
     browserDirs: [] as BrowseDir[],
 
     lastAuditTime: null as Date | null,
+    auditCached: false,
 
     // --- Audit detail state ---
     selectedFixes: [] as string[],
@@ -545,19 +546,24 @@ function app() {
     },
 
     // -- API Calls --
-    async runAudit() {
+    async runAudit(fresh = false) {
       this.auditing = true;
       this.toast = "";
       try {
+        const freshParam = fresh ? "&fresh=true" : "";
         const res = await fetch(
-          `/api/audit?path=${encodeURIComponent(this.projectPath)}&quality=true`,
+          `/api/audit?path=${encodeURIComponent(this.projectPath)}&quality=true${freshParam}`,
         );
         if (!res.ok) throw new Error(`Server returned ${res.status}`);
         const payload = readRecord(await res.json(), "Audit response");
         const error = readErrorMessage(payload);
         if (error) throw new Error(error);
+        const cached = payload.cached === true;
+        const cachedAt =
+          typeof payload.cachedAt === "string" ? payload.cachedAt : null;
         this.report = readDashboardReport(payload);
-        this.lastAuditTime = new Date();
+        this.auditCached = cached;
+        this.lastAuditTime = cachedAt ? new Date(cachedAt) : new Date();
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         this.showToast(

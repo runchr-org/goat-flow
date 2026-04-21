@@ -67,7 +67,7 @@
         No audit results yet
       </p>
       <button
-        @click="runAudit()"
+        @click="runAudit(true)"
         :disabled="auditing"
         class="gf-btn gf-btn-md gf-btn-audit"
       >
@@ -127,11 +127,11 @@
               class="gf-text-muted"
               style="font-size: 13px"
               x-show="!setupFailed()"
-              x-text="`audited ${auditAgeLabel()}`"
+              x-text="(auditCached ? 'cached · ' : '') + `audited ${auditAgeLabel()}`"
             ></span>
           </div>
           <button
-            @click="runAudit()"
+            @click="runAudit(true)"
             :disabled="auditing"
             class="gf-btn gf-btn-md"
           >
@@ -1272,7 +1272,7 @@
         No audit results yet
       </p>
       <button
-        @click="runAudit()"
+        @click="runAudit(true)"
         :disabled="auditing"
         class="gf-btn gf-btn-md gf-btn-audit"
       >
@@ -1291,7 +1291,7 @@
         "
       >
         <button
-          @click="runAudit()"
+          @click="runAudit(true)"
           :disabled="auditing"
           class="gf-btn gf-btn-md gf-btn-audit"
           style="margin-left: auto"

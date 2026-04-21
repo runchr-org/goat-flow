@@ -20,7 +20,7 @@ interface DashboardProjectsContext {
   projectTitleDraft: string;
   presetFavorites: string[];
   displayNameFor(path: string): string;
-  runAudit(): Promise<void>;
+  runAudit(fresh?: boolean): Promise<void>;
   showToast(msg: string, isError?: boolean): void;
   browseTo(path: string): Promise<void>;
   _saveProjectsList(): void;
