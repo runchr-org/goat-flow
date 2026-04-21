@@ -52,6 +52,16 @@ function readStringArray(value: unknown): string[] {
     : [];
 }
 
+/** Read a `{ [key: string]: string }` map, silently dropping invalid entries. */
+function readStringMap(value: unknown): Record<string, string> {
+  if (!isRecord(value)) return {};
+  const result: Record<string, string> = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (typeof v === "string" && v.length > 0) result[k] = v;
+  }
+  return result;
+}
+
 /** Read an audit status from raw payload data. */
 function readAuditStatus(value: unknown): AuditStatus | null {
   return value === "pass" || value === "fail" ? value : null;
@@ -569,18 +579,29 @@ function app() {
     otherCollapsed: false,
     confirmEndSessionId: null as string | null,
     _workspacePoll: null as ReturnType<typeof setInterval> | null,
+    /** Optional user-supplied display titles keyed by absolute project path.
+     *  Persisted alongside paths/favorites in .goat-flow/dashboard-state.json so
+     *  the same repo on WIN vs WSL can carry different labels per machine. */
+    projectTitles: {} as Record<string, string>,
+    editingProjectTitle: false,
+    projectTitleDraft: "",
+    /** Resolve the display name for a project path, preferring a user override. */
+    displayNameFor(path: string): string {
+      const override = this.projectTitles[path];
+      if (typeof override === "string" && override.length > 0) return override;
+      return getProjectDisplayName(path);
+    },
     /** Return the current project name. */
     get projectName(): string {
-      return (
-        this.projectPath.split("/").filter(Boolean).pop() || this.projectPath
-      );
+      return this.displayNameFor(this.projectPath);
     },
-    /** Keep a stable accent color per project so quick switches stay visually anchored. */
+    /** Keep a stable accent color per project so quick switches stay visually anchored.
+     *  Hash the path (not the display name) so renaming doesn't change the accent. */
     get projectColor(): string {
-      const name = this.projectName;
+      const key = this.projectPath;
       let hash = 0;
-      for (let i = 0; i < name.length; i++)
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      for (let i = 0; i < key.length; i++)
+        hash = key.charCodeAt(i) + ((hash << 5) - hash);
       const hue = Math.abs(hash) % 360;
       return `hsl(${hue}, 60%, 50%)`;
     },
@@ -1514,8 +1535,8 @@ function app() {
       const key = this.projectsSortKey;
       const dir = this.projectsSortAsc ? 1 : -1;
       return [...this.projectsList].sort((a, b) => {
-        const av = key === "name" ? getProjectDisplayName(a.path) : a[key];
-        const bv = key === "name" ? getProjectDisplayName(b.path) : b[key];
+        const av = key === "name" ? this.displayNameFor(a.path) : a[key];
+        const bv = key === "name" ? this.displayNameFor(b.path) : b[key];
         return av.localeCompare(bv) * dir;
       });
     },
@@ -1542,6 +1563,7 @@ function app() {
     async _loadSavedDashboardState() {
       let savedPaths: string[] = [];
       let savedFavorites: string[] = [];
+      let savedProjectTitles: Record<string, string> = {};
       try {
         const res = await fetch("/api/projects/list");
         const payload = readRecord(
@@ -1556,9 +1578,11 @@ function app() {
         if (favorites.length > 0) {
           savedFavorites = favorites;
         }
+        savedProjectTitles = readStringMap(payload.projectTitles);
       } catch {
         /* server unavailable */
       }
+      this.projectTitles = savedProjectTitles;
       if (savedPaths.length === 0) {
         savedPaths = readStoredStringArray("goat-flow-projects");
       }
@@ -1586,6 +1610,7 @@ function app() {
     _saveDashboardState() {
       const paths = [...new Set(this.projectsList.map((p) => p.path))];
       const favorites = [...new Set(this.presetFavorites)];
+      const projectTitles = { ...this.projectTitles };
       localStorage.setItem("goat-flow-projects", JSON.stringify(paths));
       localStorage.setItem(
         "goat-flow-preset-favorites",
@@ -1594,8 +1619,38 @@ function app() {
       fetch("/api/projects/list", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paths, favorites }),
+        body: JSON.stringify({ paths, favorites, projectTitles }),
       }).catch(() => {});
+    },
+    /** Begin editing the current project's title (inline header rename). */
+    startEditProjectTitle() {
+      this.projectTitleDraft = this.projectName;
+      this.editingProjectTitle = true;
+    },
+    /** Commit the inline-edited title for the current project path. An empty
+     *  or whitespace-only draft clears the override so the path basename wins. */
+    saveProjectTitle() {
+      if (!this.editingProjectTitle) return;
+      this.editingProjectTitle = false;
+      const trimmed = this.projectTitleDraft.trim().slice(0, 120);
+      const next = { ...this.projectTitles };
+      if (
+        trimmed.length === 0 ||
+        trimmed === getProjectDisplayName(this.projectPath)
+      ) {
+        delete next[this.projectPath];
+      } else {
+        next[this.projectPath] = trimmed;
+      }
+      this.projectTitles = next;
+      this.projectTitleDraft = "";
+      this._saveDashboardState();
+      document.title = `${this.projectName} | GOAT Flow`;
+    },
+    /** Discard the inline-edited title. */
+    cancelEditProjectTitle() {
+      this.editingProjectTitle = false;
+      this.projectTitleDraft = "";
     },
     /** Persist the current project list through the shared dashboard state store. */
     _saveProjectsList() {
@@ -1665,9 +1720,7 @@ function app() {
               )
               .map((session) => ({
                 ...session,
-                projectName:
-                  session.projectName ||
-                  getProjectDisplayName(session.projectPath),
+                projectName: this.displayNameFor(session.projectPath),
               }))
           : [];
       } catch {

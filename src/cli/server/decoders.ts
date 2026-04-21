@@ -28,7 +28,10 @@ interface TerminalCreateBody {
 interface ProjectsListBody {
   paths: string[];
   favorites: string[];
+  projectTitles: Record<string, string>;
 }
+
+const MAX_PROJECT_TITLE_LENGTH = 120;
 
 /** Build a decoder error result. */
 function err(
@@ -136,11 +139,45 @@ export function decodeProjectsListBody(
   if (!paths.ok) return paths;
   const favorites = decodeStringArrayField(raw, "favorites");
   if (!favorites.ok) return favorites;
+  const projectTitles = decodeProjectTitles(raw);
+  if (!projectTitles.ok) return projectTitles;
 
   return {
     ok: true,
-    value: { paths: paths.value, favorites: favorites.value },
+    value: {
+      paths: paths.value,
+      favorites: favorites.value,
+      projectTitles: projectTitles.value,
+    },
   };
+}
+
+/** Decode the optional `projectTitles` map: project path → custom display name.
+ *  Empty / whitespace-only titles are dropped so clearing a title round-trips
+ *  to the path-derived fallback without leaving a zombie entry in the file. */
+function decodeProjectTitles(
+  raw: Record<string, unknown>,
+): DecodeResult<Record<string, string>> {
+  if (!Object.hasOwn(raw, "projectTitles")) {
+    return { ok: true, value: {} };
+  }
+  const value = raw.projectTitles;
+  if (!isRecord(value)) {
+    return err("body.projectTitles", "must be an object");
+  }
+  const result: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry !== "string") {
+      return err(
+        `body.projectTitles[${JSON.stringify(key)}]`,
+        "must be a string",
+      );
+    }
+    const trimmed = entry.trim().slice(0, MAX_PROJECT_TITLE_LENGTH);
+    if (trimmed.length === 0) continue;
+    result[key] = trimmed;
+  }
+  return { ok: true, value: result };
 }
 
 /** Decode a WebSocket frame into a typed ClientMessage or a typed error. */

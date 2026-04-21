@@ -41,6 +41,7 @@ interface DashboardPresetData {
 interface DashboardStateData {
   paths: string[];
   favorites: string[];
+  projectTitles: Record<string, string>;
 }
 
 interface LatestQualitySummary {
@@ -198,6 +199,23 @@ export function createDashboardRouteHandlers(
     return items;
   }
 
+  /** Read an optional `{ [path]: title }` map from parsed dashboard state.
+   *  Invalid entries are dropped rather than failing the whole load so one bad
+   *  title can't wipe the user's `paths` / `favorites`. */
+  function readOptionalStringMapProperty(
+    value: Record<string, unknown>,
+    key: string,
+  ): Record<string, string> {
+    const raw = value[key];
+    if (raw === undefined) return {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const result: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof v === "string" && v.length > 0) result[k] = v;
+    }
+    return result;
+  }
+
   /** Normalize parsed dashboard state JSON into the server's expected shape. */
   function normalizeDashboardState(value: unknown): DashboardStateData | null {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -208,7 +226,11 @@ export function createDashboardRouteHandlers(
     if (paths === null) return null;
     const favorites = readOptionalStringArrayProperty(record, "favorites");
     if (favorites === null) return null;
-    return { paths, favorites };
+    const projectTitles = readOptionalStringMapProperty(
+      record,
+      "projectTitles",
+    );
+    return { paths, favorites, projectTitles };
   }
 
   /** Read dashboard state from the new file first, then the legacy projects-only file. */
@@ -224,7 +246,7 @@ export function createDashboardRouteHandlers(
         /* try next location */
       }
     }
-    return { paths: [], favorites: [] };
+    return { paths: [], favorites: [], projectTitles: {} };
   }
 
   /** Fail fast when an endpoint expects a real project directory. */
