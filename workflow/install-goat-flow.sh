@@ -205,6 +205,19 @@ copy_if_missing() {
   copy_file "$src" "$dst"
 }
 
+touch_anchor() {
+  local dst="$1"
+  if [[ -f "$dst" ]]; then
+    SKIPPED=$((SKIPPED + 1))
+    echo "  · $dst (exists, skipped)"
+    return
+  fi
+  mkdir -p "$(dirname "$dst")"
+  : > "$dst"
+  COPIED=$((COPIED + 1))
+  echo "  ✓ $dst"
+}
+
 echo "goat-flow install: $(basename "$PROJECT") (agent: $AGENT)"
 echo ""
 
@@ -237,6 +250,8 @@ copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/tasks-readme.md" ".goat-flow
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/scratchpad-readme.md" ".goat-flow/scratchpad/README.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/quality-readme.md" ".goat-flow/logs/quality/README.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/critiques-readme.md" ".goat-flow/logs/critiques/README.md"
+touch_anchor ".goat-flow/decisions/.gitkeep"
+touch_anchor ".goat-flow/logs/sessions/.gitkeep"
 echo ""
 
 # ==========================================================================

@@ -1,6 +1,6 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-04-19
+last_reviewed: 2026-04-21
 ---
 
 ## Footgun: Cross-reference fragility across docs
@@ -81,6 +81,26 @@ last_reviewed: 2026-04-19
 1. After any add/rename/delete tied to setup, dashboard views, or repo-local policy files, run `git status --short` and confirm the replacement path is tracked.
 2. Use `git ls-files --error-unmatch <path>` for any new canonical path that a fix depends on.
 3. When introducing a new tracked file under `.goat-flow/`, update `.goat-flow/.gitignore` in the same change or the fix is local-only.
+
+---
+
+## Footgun: Prose examples for agent-specific paths drift from the manifest
+
+**Status:** active | **Created:** 2026-04-21 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A doc lists an agent-specific path (`.gemini/skills/`, `.codex/skills/`, etc.) that does not match the manifest. The harness `doc-paths-resolve` check may or may not catch it depending on whether the wrong path happens to exist on disk. When the harness catches it, every agent card in the dashboard drops to 75% Context with the same finding; when it does not, the doc is silently wrong.
+
+**Why it happens:** `workflow/manifest.json` is the canonical source for each agent's `skills_dir`, `hooks_dir`, `settings`, and `instruction_file`. Prose in docs hand-writes these paths as examples — often guessed from the agent name (`gemini` → `.gemini/skills/`) rather than looked up. Multiple agents sometimes share a directory (gemini and codex both use `.agents/skills/`), so name-based inference is wrong by default for those agents. The detection gap: `src/cli/audit/harness/check-context.ts` (search: `extractBacktickPaths`) only verifies that backtick-quoted paths resolve on disk. A plausible-but-wrong path that happens to exist (e.g. writing `.claude/skills/` in a gemini example) passes the audit while still misleading readers.
+
+**Evidence:**
+- `workflow/manifest.json` (search: `"skills_dir"`) — four entries, but only three distinct paths: `.claude/skills/`, `.agents/skills/` (shared by codex and gemini), `.github/skills/`. Name-based inference gives the wrong answer for gemini.
+- `docs/audit-and-quality.md` (search: `satellite agents' skill dirs`) — previously named `.gemini/skills/` as an example of a satellite-agent skill dir. The path does not exist (and never did per the manifest); the harness caught it only because `.gemini/skills/` happens not to exist on disk.
+- `src/cli/audit/harness/check-context.ts` (search: `extractBacktickPaths`) — existence-only check; an agent-wrong path that exists (e.g. `.claude/skills/` in a gemini example) would pass.
+
+**Prevention:**
+1. Before hand-writing an agent-specific path in prose, grep `workflow/manifest.json` for that agent's `skills_dir` / `hooks_dir` / `settings` / `instruction_file` entry and copy the exact value.
+2. When listing satellite-agent directories as examples, enumerate the *distinct* paths from the manifest (today: `.claude/skills/`, `.agents/skills/`, `.github/skills/`) — do not invent per-agent subdirectories from agent names.
+3. Consider extending `doc-paths-resolve` to validate agent-specific paths against manifest entries (existence-plus-correctness), not just filesystem existence, so agent-wrong paths that happen to resolve also get caught.
 
 ---
 

@@ -73,7 +73,6 @@ Structure the work into milestones using these archetypes. Adapt the count to th
 
 | Excuse | Reality |
 |--------|---------|
-| "Team is experienced so the spike is overkill" | Expertise with provider X does not transfer to provider Y - the expertise is the wrong shape. Spike anyway. |
 | "N milestones is what they asked for, stick to the count" | Milestone count is fine; dropping the spike to hit the count isn't. Add the M1 spike even if it means N+1. |
 | "Tight deadline means skip the full intake" | The tight deadline is *why* M1 must be a spike - fail fast on unknowns, not last. |
 | "Kill criteria are ceremony for something this straightforward" | Anything touching money, auth, or data is not "straightforward". Name the kill criteria anyway. |

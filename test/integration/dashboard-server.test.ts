@@ -464,10 +464,15 @@ describe("dashboard /api/projects", () => {
   it("persists the dashboard state roundtrip", async () => {
     const nextPaths = [PROJECT_PATH, resolve(PROJECT_PATH, "src")];
     const nextFavorites = ["goat-review", "goat-qa"];
+    const nextProjectTitles = { [PROJECT_PATH]: "goat-flow WSL" };
     const post = await fetchJson("/api/projects/list", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paths: nextPaths, favorites: nextFavorites }),
+      body: JSON.stringify({
+        paths: nextPaths,
+        favorites: nextFavorites,
+        projectTitles: nextProjectTitles,
+      }),
     });
     assert.equal(post.res.status, 200);
     assert.deepEqual(post.body, { ok: true });
@@ -477,10 +482,28 @@ describe("dashboard /api/projects", () => {
     assert.deepEqual(get.body, {
       paths: nextPaths,
       favorites: nextFavorites,
+      projectTitles: nextProjectTitles,
     });
   });
 
-  it("migrates the legacy projects file with empty favorites", async () => {
+  it("clears a project title when an empty string is posted", async () => {
+    const post = await fetchJson("/api/projects/list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        paths: [PROJECT_PATH],
+        favorites: [],
+        projectTitles: { [PROJECT_PATH]: "" },
+      }),
+    });
+    assert.equal(post.res.status, 200);
+
+    const get = await fetchJson("/api/projects/list");
+    const body = expectRecord(get.body, "dashboard state");
+    assert.deepEqual(body.projectTitles, {});
+  });
+
+  it("migrates the legacy projects file with empty favorites and titles", async () => {
     await rm(DASHBOARD_STATE_PATH, { force: true });
     const nextPaths = [PROJECT_PATH, resolve(PROJECT_PATH, "docs")];
     await writeFile(
@@ -490,7 +513,11 @@ describe("dashboard /api/projects", () => {
 
     const get = await fetchJson("/api/projects/list");
     assert.equal(get.res.status, 200);
-    assert.deepEqual(get.body, { paths: nextPaths, favorites: [] });
+    assert.deepEqual(get.body, {
+      paths: nextPaths,
+      favorites: [],
+      projectTitles: {},
+    });
   });
 
   it("returns 400 for invalid project list JSON", async () => {

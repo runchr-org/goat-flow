@@ -19,7 +19,7 @@
       const list = this.sortedProjectsList;
       if (!q) return list;
       return list.filter(p => {
-        const name = p.path.split('/').filter(Boolean).pop() || '';
+        const name = this.displayNameFor(p.path);
         return name.toLowerCase().includes(q) || (p.state || '').toLowerCase().includes(q) || (p.action || '').toLowerCase().includes(q);
       });
     },
@@ -212,9 +212,7 @@
                   @mouseenter="$el.style.color = 'var(--accent)'"
                   @mouseleave="$el.style.color = 'var(--text-primary)'"
                 >
-                  <span
-                    x-text="project.path.split('/').filter(Boolean).pop()"
-                  ></span>
+                  <span x-text="displayNameFor(project.path)"></span>
                 </button>
                 <div
                   class="gf-text-muted"

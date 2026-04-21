@@ -71,19 +71,55 @@ describe("decodeProjectsListBody", () => {
       JSON.stringify({
         paths: ["/a", "/b/c"],
         favorites: ["goat-review", "goat-qa"],
+        projectTitles: { "/a": "Alpha", "/b/c": "  Beta  " },
       }),
     );
     assert.equal(r.ok, true);
     if (!r.ok) return;
     assert.deepStrictEqual(r.value.paths, ["/a", "/b/c"]);
     assert.deepStrictEqual(r.value.favorites, ["goat-review", "goat-qa"]);
+    assert.deepStrictEqual(r.value.projectTitles, {
+      "/a": "Alpha",
+      "/b/c": "Beta",
+    });
   });
 
-  it("defaults favorites to an empty list when omitted", () => {
+  it("defaults favorites and projectTitles to empty when omitted", () => {
     const r = decodeProjectsListBody(JSON.stringify({ paths: ["/a"] }));
     assert.equal(r.ok, true);
     if (!r.ok) return;
     assert.deepStrictEqual(r.value.favorites, []);
+    assert.deepStrictEqual(r.value.projectTitles, {});
+  });
+
+  it("drops empty-string project titles so clearing round-trips cleanly", () => {
+    const r = decodeProjectsListBody(
+      JSON.stringify({
+        paths: ["/a"],
+        projectTitles: { "/a": "", "/b": "   ", "/c": "keep" },
+      }),
+    );
+    assert.equal(r.ok, true);
+    if (!r.ok) return;
+    assert.deepStrictEqual(r.value.projectTitles, { "/c": "keep" });
+  });
+
+  it("rejects non-object projectTitles", () => {
+    const r = decodeProjectsListBody(
+      JSON.stringify({ paths: ["/a"], projectTitles: ["nope"] }),
+    );
+    assert.equal(r.ok, false);
+    if (r.ok) return;
+    assert.equal(r.path, "body.projectTitles");
+  });
+
+  it("rejects non-string projectTitles entry", () => {
+    const r = decodeProjectsListBody(
+      JSON.stringify({ paths: ["/a"], projectTitles: { "/a": 42 } }),
+    );
+    assert.equal(r.ok, false);
+    if (r.ok) return;
+    assert.equal(r.path, 'body.projectTitles["/a"]');
   });
 
   it("rejects non-object body", () => {

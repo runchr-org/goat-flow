@@ -231,12 +231,37 @@
           🐐 GOAT Flow
         </button>
         <span
+          x-show="!editingProjectTitle"
           class="gf-header-proj"
           @click="openBrowser()"
+          @dblclick.stop="startEditProjectTitle()"
           x-text="projectName"
           style="cursor: pointer"
-          title="Switch project"
+          title="Click to switch project · double-click to rename"
         ></span>
+        <input
+          x-show="editingProjectTitle"
+          x-model="projectTitleDraft"
+          @keydown.enter.prevent="saveProjectTitle()"
+          @keydown.escape.prevent="cancelEditProjectTitle()"
+          @blur="saveProjectTitle()"
+          x-init="$watch('editingProjectTitle', v => { if (v) $nextTick(() => $el.focus()); })"
+          class="gf-header-proj gf-header-proj-edit"
+          type="text"
+          maxlength="120"
+          placeholder="Project title"
+          title="Enter to save · Esc to cancel · empty to reset"
+        />
+        <button
+          x-show="!editingProjectTitle"
+          @click.stop="startEditProjectTitle()"
+          class="gf-header-proj-edit-btn"
+          title="Rename project"
+          aria-label="Rename project"
+          type="button"
+        >
+          ✎
+        </button>
         <div class="gf-nav-wrap">
           <div class="gf-nav">
             <button
