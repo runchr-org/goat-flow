@@ -29,7 +29,6 @@ import type {
   ManifestCheckReport,
   ManifestJson,
   ObservedFacts,
-  PresetFacts,
   ResolvedFacts,
   SkillFacts,
 } from "./types.js";
@@ -239,7 +238,7 @@ export function composeManifest(
       count: jsonFacts.dashboard_views.length,
       names: [...jsonFacts.dashboard_views].sort(),
     },
-    presets: { count: observed.presetsCount } as PresetFacts,
+    presets: { count: observed.presetsCount },
   };
   return {
     version: json.version,

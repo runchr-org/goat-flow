@@ -1,0 +1,209 @@
+/**
+ * Setup and quality controller helpers for the dashboard Alpine app.
+ * These functions are classic-script globals called by thin methods in app.ts.
+ */
+
+const DEFAULT_SETUP_COMMANDS: SetupCommands = {
+  test: "",
+  lint: "",
+  build: "",
+  format: "",
+};
+
+const DEFAULT_EXISTING_ARTIFACTS: ExistingArtifacts = {
+  skills: false,
+  instructionsRepoWide: false,
+  instructionsPathScoped: false,
+  lessons: false,
+  footguns: false,
+  config: false,
+};
+
+interface DashboardSetupQualityContext {
+  projectPath: string;
+  supportedAgents: SupportedAgent[];
+  setupSelectedAgent: RunnerId;
+  setupDetecting: boolean;
+  setupData: SetupData;
+  setupGenerating: boolean;
+  setupOutputs: Record<string, string>;
+  qualityAgent: RunnerId;
+  qualityLoading: boolean;
+  qualityResult: QualityResult | null;
+  qualityCopyLabel: string;
+  qualityHistoryLoading: boolean;
+  qualityHistoryRows: QualityHistoryRow[];
+  qualityHistoryLatest: QualityHistoryLatest | null;
+  qualityHistoryWarnings: string[];
+  showToast(msg: string, isError?: boolean): void;
+  copyText(text: string): void;
+  generateQualityHistory(): Promise<void>;
+}
+
+/** Detect the selected project's stack and existing GOAT Flow setup state. */
+async function dashboardDetectStack(
+  ctx: DashboardSetupQualityContext,
+): Promise<void> {
+  ctx.setupDetecting = true;
+  try {
+    const res = await fetch(
+      `/api/setup/detect?path=${encodeURIComponent(ctx.projectPath)}`,
+    );
+    const payload = readRecord(await res.json(), "Setup detection response");
+    const error = readErrorMessage(payload);
+    if (error) {
+      ctx.showToast(error, true);
+      ctx.setupDetecting = false;
+      return;
+    }
+    const commands = isRecord(payload.commands) ? payload.commands : {};
+    const agents = isRecord(payload.agents) ? payload.agents : {};
+    const existing = isRecord(payload.existing) ? payload.existing : {};
+    ctx.setupData.languages = readStringArray(payload.languages);
+    ctx.setupData.frameworks = readStringArray(payload.frameworks);
+    ctx.setupData.commands = {
+      test: readString(commands.test),
+      lint: readString(commands.lint),
+      build: readString(commands.build),
+      format: readString(commands.format),
+    };
+    const defaultAgents = buildDefaultSetupAgents(
+      ctx.supportedAgents,
+      ctx.setupSelectedAgent,
+    );
+    ctx.setupData.agents = Object.fromEntries(
+      (Object.keys(defaultAgents) as RunnerId[]).map((agentId) => [
+        agentId,
+        typeof agents[agentId] === "boolean"
+          ? (agents[agentId] as boolean)
+          : (defaultAgents[agentId] ?? false),
+      ]),
+    );
+    if (!Object.values(ctx.setupData.agents).some((v) => v)) {
+      ctx.setupData.agents[ctx.setupSelectedAgent] = true;
+    }
+    ctx.setupData.existing = {
+      skills:
+        typeof existing.skills === "boolean"
+          ? existing.skills
+          : DEFAULT_EXISTING_ARTIFACTS.skills,
+      instructionsRepoWide:
+        typeof existing.instructionsRepoWide === "boolean"
+          ? existing.instructionsRepoWide
+          : DEFAULT_EXISTING_ARTIFACTS.instructionsRepoWide,
+      instructionsPathScoped:
+        typeof existing.instructionsPathScoped === "boolean"
+          ? existing.instructionsPathScoped
+          : DEFAULT_EXISTING_ARTIFACTS.instructionsPathScoped,
+      lessons:
+        typeof existing.lessons === "boolean"
+          ? existing.lessons
+          : DEFAULT_EXISTING_ARTIFACTS.lessons,
+      footguns:
+        typeof existing.footguns === "boolean"
+          ? existing.footguns
+          : DEFAULT_EXISTING_ARTIFACTS.footguns,
+      config:
+        typeof existing.config === "boolean"
+          ? existing.config
+          : DEFAULT_EXISTING_ARTIFACTS.config,
+    };
+    ctx.setupData.nonGoatFlow = readStringArray(payload.nonGoatFlow);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    ctx.showToast(msg || "Detection failed", true);
+  }
+  ctx.setupDetecting = false;
+}
+
+/** Generate setup output for the agent selected in the setup view. */
+async function dashboardGenerateSetupPrompt(
+  ctx: DashboardSetupQualityContext,
+): Promise<void> {
+  ctx.setupGenerating = true;
+  ctx.setupOutputs = {};
+  const agent = ctx.setupSelectedAgent;
+  try {
+    const res = await fetch(
+      `/api/setup?path=${encodeURIComponent(ctx.projectPath)}&agent=${agent}`,
+    );
+    const payload = readRecord(await res.json(), "Setup response");
+    const error = readErrorMessage(payload);
+    if (error) {
+      ctx.showToast(`${agent}: ${error}`, true);
+    } else {
+      ctx.setupOutputs[agent] =
+        readString(payload.output) || "No output generated.";
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    ctx.showToast(msg || "Generation failed", true);
+  }
+  ctx.setupGenerating = false;
+}
+
+/** Generate a quality prompt for the selected project and agent. */
+async function dashboardGenerateQuality(
+  ctx: DashboardSetupQualityContext,
+): Promise<void> {
+  ctx.qualityLoading = true;
+  ctx.qualityResult = null;
+  ctx.qualityCopyLabel = "Copy";
+  try {
+    const res = await fetch(
+      `/api/quality?path=${encodeURIComponent(ctx.projectPath)}&agent=${encodeURIComponent(ctx.qualityAgent)}`,
+    );
+    const payload = readRecord(await res.json(), "Quality response");
+    const error = readErrorMessage(payload);
+    if (error) {
+      ctx.showToast(error, true);
+    } else {
+      ctx.qualityResult = readQualityResult(payload);
+      void ctx.generateQualityHistory();
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    ctx.showToast(msg || "Quality prompt generation failed", true);
+  }
+  ctx.qualityLoading = false;
+}
+
+/** Load persisted quality-history rows for the selected project and agent. */
+async function dashboardGenerateQualityHistory(
+  ctx: DashboardSetupQualityContext,
+): Promise<void> {
+  ctx.qualityHistoryLoading = true;
+  ctx.qualityHistoryRows = [];
+  ctx.qualityHistoryLatest = null;
+  ctx.qualityHistoryWarnings = [];
+  try {
+    const res = await fetch(
+      `/api/quality/history?path=${encodeURIComponent(ctx.projectPath)}&agent=${encodeURIComponent(ctx.qualityAgent)}&limit=20`,
+    );
+    const payload = readRecord(await res.json(), "Quality history response");
+    const error = readErrorMessage(payload);
+    if (error) {
+      ctx.showToast(error, true);
+    } else {
+      ctx.qualityHistoryRows = Array.isArray(payload.rows)
+        ? payload.rows
+            .map((row) => readQualityHistoryRow(row))
+            .filter((row): row is QualityHistoryRow => row !== null)
+        : [];
+      ctx.qualityHistoryLatest = readQualityHistoryLatest(payload.latest);
+      ctx.qualityHistoryWarnings = readStringArray(payload.warnings);
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    ctx.showToast(msg || "Quality history loading failed", true);
+  }
+  ctx.qualityHistoryLoading = false;
+}
+
+/** Copy the current quality prompt to the clipboard. */
+function dashboardCopyQuality(ctx: DashboardSetupQualityContext): void {
+  if (!ctx.qualityResult?.prompt) return;
+  ctx.copyText(ctx.qualityResult.prompt);
+  ctx.qualityCopyLabel = "Copied!";
+  setTimeout(() => (ctx.qualityCopyLabel = "Copy"), 2000);
+}

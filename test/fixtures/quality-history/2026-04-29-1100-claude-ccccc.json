@@ -1,6 +1,6 @@
 {
   "report_kind": "goat-flow-quality-report",
-  "goat_flow_version": "1.2.0",
+  "goat_flow_version": "1.2.1",
   "agent": "claude",
   "project_path": "/tmp/quality-fixture-project",
   "run_date": "2026-04-29",

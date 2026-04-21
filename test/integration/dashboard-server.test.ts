@@ -204,11 +204,61 @@ describe("dashboard HTML", () => {
     assert.match(html, /__GOAT_FLOW_RUNNER_IDS__/);
     assert.match(html, /__GOAT_FLOW_PRESETS__/);
     assert.match(html, /alpinejs@3/i);
+    assert.match(html, /\/assets\/dashboard-readers\.js/);
+    assert.match(html, /\/assets\/dashboard-setup-quality\.js/);
+    assert.match(html, /\/assets\/dashboard-projects\.js/);
+    assert.match(html, /\/assets\/dashboard-prompts\.js/);
+    assert.match(html, /\/assets\/dashboard-terminal\.js/);
     assert.match(html, /\/assets\/app\.js/);
   });
 });
 
 describe("dashboard assets", () => {
+  it("GET /assets/dashboard-readers.js returns JavaScript", async () => {
+    const res = await fetch(`${baseUrl}/assets/dashboard-readers.js`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type") ?? "", /javascript/i);
+
+    const body = await res.text();
+    assert.match(body, /function readDashboardReport\(/);
+  });
+
+  it("GET /assets/dashboard-setup-quality.js returns JavaScript", async () => {
+    const res = await fetch(`${baseUrl}/assets/dashboard-setup-quality.js`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type") ?? "", /javascript/i);
+
+    const body = await res.text();
+    assert.match(body, /function dashboardDetectStack\(/);
+  });
+
+  it("GET /assets/dashboard-projects.js returns JavaScript", async () => {
+    const res = await fetch(`${baseUrl}/assets/dashboard-projects.js`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type") ?? "", /javascript/i);
+
+    const body = await res.text();
+    assert.match(body, /function dashboardOpenBrowser\(/);
+  });
+
+  it("GET /assets/dashboard-prompts.js returns JavaScript", async () => {
+    const res = await fetch(`${baseUrl}/assets/dashboard-prompts.js`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type") ?? "", /javascript/i);
+
+    const body = await res.text();
+    assert.match(body, /function dashboardFilteredPresets\(/);
+  });
+
+  it("GET /assets/dashboard-terminal.js returns JavaScript", async () => {
+    const res = await fetch(`${baseUrl}/assets/dashboard-terminal.js`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type") ?? "", /javascript/i);
+
+    const body = await res.text();
+    assert.match(body, /function dashboardConnectTerminal\(/);
+  });
+
   it("GET /assets/app.js returns JavaScript", async () => {
     const res = await fetch(`${baseUrl}/assets/app.js`);
     assert.equal(res.status, 200);

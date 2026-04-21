@@ -977,6 +977,7 @@ body {
   gap: 4px;
   overflow: hidden;
   border: none;
+  min-width: 260px;
 }
 .gf-ab {
   font-size: 12px;
@@ -998,6 +999,11 @@ body {
 .gf-ab:hover {
   color: var(--text-primary);
   background: rgba(148, 163, 184, 0.1);
+}
+.gf-ab-loading {
+  opacity: 0.35;
+  cursor: default !important;
+  pointer-events: none;
 }
 .gf-ab-active {
   background: var(--accent-bg) !important;
@@ -1046,6 +1052,9 @@ body {
   }
   .gf-ab {
     padding: 3px 8px;
+  }
+  .gf-asel {
+    min-width: 215px;
   }
   .gf-nav {
     gap: 16px;

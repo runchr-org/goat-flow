@@ -1,4 +1,4 @@
-# Copilot Instructions - v1.2.1 (2026-04-21)
+# Copilot Instructions - v1.2.2 (2026-04-21)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash scripts + TypeScript CLI auditor.
 ## Essential Commands
 
@@ -99,7 +99,7 @@ MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh,
 | Scripts | `scripts/` |
 | Workflow source | `workflow/` (setup, skills, hooks, evaluation) |
 | Skills | `.github/skills/` (goat, goat-critique, goat-debug, goat-plan, goat-qa, goat-review, goat-security) |
-| Shared skill reference | `.goat-flow/skill-reference/` (skill-preamble.md, skill-conventions.md, skill-quality-testing.md index + skill-quality-testing/{tdd-iteration,adversarial-framing,deployment}.md per ADR-023) |
+| Shared skill reference | `.goat-flow/skill-reference/` (skill-preamble.md, skill-conventions.md, skill-quality-testing.md index + skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, and skill-quality-testing/deployment.md per ADR-023) |
 | Footguns, lessons, patterns | `.goat-flow/footguns/` (most-queried), `.goat-flow/lessons/`, `.goat-flow/patterns.md` |
 | Decisions | `.goat-flow/decisions/` |
 | Config | `.goat-flow/config.yaml` |
@@ -111,7 +111,7 @@ MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh,
 
 ## Copilot-Specific
 
-- Use Copilot's built-in agents: `explore`, `task`, `general-purpose`, `code-review`. Use `/fleet` only when the user explicitly wants parallel work or the subtasks are genuinely independent. (List reflects Copilot CLI at goat-flow v1.2.1 publish; re-check against your installed Copilot CLI's own docs before relying on exact names.)
+- Use Copilot's built-in agents: `explore`, `task`, `general-purpose`, `code-review`. Use `/fleet` only when the user explicitly wants parallel work or the subtasks are genuinely independent. (List reflects Copilot CLI at goat-flow v1.2.2 publish; re-check against your installed Copilot CLI's own docs before relying on exact names.)
 - Treat `.github/hooks/hooks.json` and `.github/hooks/deny-dangerous.sh` as first-class runtime guardrails; verify after touching them.
 - `.github/agents/` is intentionally out of scope in this repo's Wave 6 support model.
 - Security-sensitive surfaces (review carefully when touched): `.github/copilot-instructions.md`, `.github/hooks/**`, `.github/skills/**`, `.copilotignore`.

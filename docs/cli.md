@@ -8,7 +8,7 @@ Validate setup correctness. The base audit runs two deterministic scopes (all pa
 
 | Flag | Description |
 |------|-------------|
-| `--agent <id>` | Filter to one manifest-backed agent id. Run `goat-flow manifest` to inspect the current registry. |
+| `--agent <id>` | Filter to one manifest-backed agent id. Run `npx goat-flow manifest` to inspect the current registry. |
 | `--harness` | Add AI Harness Completeness scope (16 checks, installed/not-installed per concern) |
 | `--check-drift` | Add skill template-vs-installed drift detection (orphan directories, byte-level divergence) |
 | `--check-content` | Add cold-path content lint (vague terms, generic instructions, factual-claim drift) |
@@ -29,8 +29,8 @@ npx goat-flow audit . --output report.json # Write to file
 Generate a structured quality-assessment prompt for a selected agent. Requires `--agent`. The prompt tells the agent to write its final JSON report directly to `.goat-flow/logs/quality/<YYYY-MM-DD>-<HHMM>-<agent>-<rand5>.json` (gitignored); prose findings come back in the agent's reply, the JSON does not.
 
 ```bash
-goat-flow quality . --agent claude         # Quality prompt for Claude
-goat-flow quality . --agent codex          # Quality prompt for Codex
+npx goat-flow quality . --agent claude         # Quality prompt for Claude
+npx goat-flow quality . --agent codex          # Quality prompt for Codex
 ```
 
 The agent derives the date/time from its shell and generates a 5-character lowercase-alphanumeric random suffix so parallel runs do not collide. If prior same-agent quality history exists, the generated prompt embeds the latest saved report so the new review can mark current findings as `new` or `persisted`.
@@ -40,9 +40,9 @@ The agent derives the date/time from its shell and generates a 5-character lower
 List saved quality reports and same-agent setup deltas. By default the text view shows the 20 most recent runs; `--all` lifts that limit.
 
 ```bash
-goat-flow quality history --agent claude    # Claude-only saved runs
-goat-flow quality history --all             # All saved runs
-goat-flow quality history --format json     # Machine-readable report history
+npx goat-flow quality history --agent claude    # Claude-only saved runs
+npx goat-flow quality history --all             # All saved runs
+npx goat-flow quality history --format json     # Machine-readable report history
 ```
 
 ### `goat-flow quality diff [<from-id>:<to-id>] --agent <id> [--format json]`
@@ -50,8 +50,8 @@ goat-flow quality history --format json     # Machine-readable report history
 Compare two saved same-agent reports. Without an explicit pair, diff uses the two most recent saved runs for `--agent`. With an explicit pair, use saved-report basenames (the filename without `.json`).
 
 ```bash
-goat-flow quality diff --agent claude
-goat-flow quality diff 2026-04-01-0900-claude-aaaaa:2026-04-15-1000-claude-bbbbb --format json
+npx goat-flow quality diff --agent claude
+npx goat-flow quality diff 2026-04-01-0900-claude-aaaaa:2026-04-15-1000-claude-bbbbb --format json
 ```
 
 `quality diff` derives `resolved`, `new`, `persisted`, and `stuck` from positional finding ids. `stuck` is a subset of persisted high-severity findings and resets after history gaps longer than 30 days.
@@ -61,9 +61,9 @@ goat-flow quality diff 2026-04-01-0900-claude-aaaaa:2026-04-15-1000-claude-bbbbb
 Print the resolved single-source-of-truth manifest (agent registry, installed skills, required files, and derived facts). Pass `--check` to validate that the static manifest matches observed repo state (exits non-zero on drift, used by CI).
 
 ```bash
-goat-flow manifest                    # Print resolved manifest as Markdown
-goat-flow manifest --format json      # Machine-readable manifest
-goat-flow manifest --check            # Fail if manifest disagrees with live filesystem
+npx goat-flow manifest                    # Print resolved manifest as Markdown
+npx goat-flow manifest --format json      # Machine-readable manifest
+npx goat-flow manifest --check            # Fail if manifest disagrees with live filesystem
 ```
 
 ### `goat-flow stats [--check] [--format json|markdown]`
@@ -71,9 +71,9 @@ goat-flow manifest --check            # Fail if manifest disagrees with live fil
 Report learning-loop health: live entry counts by bucket, stale file refs, and `last_reviewed` freshness. Use `--check` in CI - it exits non-zero if any bucket is missing `last_reviewed`, uses a malformed date, or contains stale file references.
 
 ```bash
-goat-flow stats                       # Learning-loop health report
-goat-flow stats --check               # CI gate for bucket hygiene
-goat-flow stats --format json         # Machine-readable report
+npx goat-flow stats                       # Learning-loop health report
+npx goat-flow stats --check               # CI gate for bucket hygiene
+npx goat-flow stats --format json         # Machine-readable report
 ```
 
 ### `goat-flow setup [path] --agent <id>`
@@ -83,8 +83,8 @@ Generate a setup prompt adapted to the project's current state. Detects existing
 Supported agent ids are read from `workflow/manifest.json` via `src/cli/agents/registry.ts`, so the CLI help and validation stay aligned with the machine-readable support matrix.
 
 ```bash
-goat-flow setup --agent claude    # Claude setup/upgrade prompt
-goat-flow setup --agent codex     # Codex setup/upgrade prompt
+npx goat-flow setup --agent claude    # Claude setup/upgrade prompt
+npx goat-flow setup --agent codex     # Codex setup/upgrade prompt
 ```
 
 ### `goat-flow status [path]`
@@ -92,7 +92,7 @@ goat-flow setup --agent codex     # Codex setup/upgrade prompt
 Show project adoption state (`bare`, `partial`, `v0.9`, `outdated`, `current`, `error`) and recommended next action (`setup`, `migration`, `upgrade`, `fix`, `audit`, `incomplete`).
 
 ```bash
-goat-flow status .                    # Check current project state
+npx goat-flow status .                    # Check current project state
 ```
 
 ### `goat-flow dashboard [path]`
@@ -100,8 +100,8 @@ goat-flow status .                    # Check current project state
 Launch the web dashboard for auditing, setup, and terminal management.
 
 ```bash
-goat-flow dashboard               # Launch on default port
-goat-flow dashboard --dev         # Live reload mode
+npx goat-flow dashboard               # Launch on default port
+npx goat-flow dashboard --dev         # Live reload mode
 ```
 
 ## Workflow Examples
@@ -112,12 +112,12 @@ Common tasks and the commands to run:
 |--------------|---------|
 | Check if my project is ready | `npx goat-flow audit .` |
 | Check harness completeness | `npx goat-flow audit . --harness` |
-| Get a quality prompt | `goat-flow quality . --agent claude` |
-| Review quality trend history | `goat-flow quality history --agent claude` |
-| Compare two saved quality runs | `goat-flow quality diff --agent claude` |
-| Set up a new project | `goat-flow setup . --agent claude` |
+| Get a quality prompt | `npx goat-flow quality . --agent claude` |
+| Review quality trend history | `npx goat-flow quality history --agent claude` |
+| Compare two saved quality runs | `npx goat-flow quality diff --agent claude` |
+| Set up a new project | `npx goat-flow setup . --agent claude` |
 | Use this in CI | `npx goat-flow audit . --format json` |
-| Open the dashboard | `goat-flow dashboard .` |
+| Open the dashboard | `npx goat-flow dashboard .` |
 
 **CI pipeline example:**
 
@@ -132,9 +132,9 @@ npx goat-flow audit . --format json --output report.json
 # 1. See where your project stands
 npx goat-flow audit .
 # 2. Generate a setup prompt for your agent
-goat-flow setup . --agent claude
+npx goat-flow setup . --agent claude
 # 3. Open the dashboard for guided setup
-goat-flow dashboard .
+npx goat-flow dashboard .
 ```
 
 ## Global flags

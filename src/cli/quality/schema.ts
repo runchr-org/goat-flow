@@ -597,7 +597,7 @@ function parseReportInternal(
 export function parseQualityReport(raw: unknown): ParseResult<QualityReport> {
   const result = parseReportInternal(raw, false);
   if (!result.ok) return result;
-  return { ok: true, report: result.report as QualityReport };
+  return { ok: true, report: result.report };
 }
 
 /** Parse the saved quality report. */

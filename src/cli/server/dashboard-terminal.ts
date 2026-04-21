@@ -9,7 +9,7 @@ import type {
   ServerResponse,
 } from "node:http";
 import type { Duplex } from "node:stream";
-import type { WebSocket as WsWebSocket, WebSocketServer } from "ws";
+import type { WebSocketServer } from "ws";
 import { decodeTerminalCreateBody } from "./decoders.js";
 import type { Runner } from "./types.js";
 import type { TerminalManager } from "./terminal.js";
@@ -114,9 +114,10 @@ export function createDashboardTerminalHandlers(
       .then((health) => {
         if (!health.nodePtyAvailable) {
           console.log(
-            "Note: Terminal feature unavailable (node-pty not installed)",
+            "Note: Terminal feature unavailable (node-pty failed to load)",
           );
-          console.log("  Fix: npm install node-pty (or: pnpm approve-builds)");
+          console.log("  Fix: npm rebuild node-pty (requires C++ build tools)");
+          console.log("  pnpm: pnpm approve-builds");
           console.log(
             "  See: https://github.com/blundergoat/goat-flow#troubleshooting",
           );
@@ -124,9 +125,10 @@ export function createDashboardTerminalHandlers(
       })
       .catch(() => {
         console.log(
-          "Note: Terminal feature unavailable (node-pty not installed)",
+          "Note: Terminal feature unavailable (node-pty failed to load)",
         );
-        console.log("  Fix: npm install node-pty (or: pnpm approve-builds)");
+        console.log("  Fix: npm rebuild node-pty (requires C++ build tools)");
+        console.log("  pnpm: pnpm approve-builds");
         console.log(
           "  See: https://github.com/blundergoat/goat-flow#troubleshooting",
         );
@@ -288,7 +290,7 @@ export function createDashboardTerminalHandlers(
         const wss = await getWSS();
         const manager = await getManager();
         wss.handleUpgrade(req, socket, head, (ws) => {
-          manager.attachWebSocket(sessionId, ws as unknown as WsWebSocket);
+          manager.attachWebSocket(sessionId, ws);
         });
       } catch {
         socket.destroy();

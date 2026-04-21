@@ -1,4 +1,12 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "ignore": ["src/dashboard/app.ts", "src/dashboard/globals.d.ts"]
+  "ignore": [
+    "src/dashboard/app.ts",
+    "src/dashboard/dashboard-projects.ts",
+    "src/dashboard/dashboard-prompts.ts",
+    "src/dashboard/dashboard-readers.ts",
+    "src/dashboard/dashboard-setup-quality.ts",
+    "src/dashboard/dashboard-terminal.ts",
+    "src/dashboard/globals.d.ts"
+  ]
 }

@@ -1,6 +1,6 @@
 # Dashboard Reference
 
-Launch: `goat-flow dashboard .` (or `goat-flow dashboard . --dev` for live reload)
+Launch: `npx goat-flow dashboard .` (or `npx goat-flow dashboard . --dev` for live reload)
 
 ## Views
 

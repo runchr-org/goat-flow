@@ -70,7 +70,7 @@ Examples below use `npx goat-flow`. With a global install, drop the `npx` prefix
 ### 2. Open the dashboard
 
 ```bash
-goat-flow dashboard .
+npx goat-flow dashboard .
 ```
 
 A local web UI opens with auditing, setup, and an integrated terminal.
@@ -82,7 +82,7 @@ A local web UI opens with auditing, setup, and an integrated terminal.
 ### 3. Audit your project
 
 ```bash
-goat-flow audit .
+npx goat-flow audit .
 ```
 
 Validates setup correctness across two scopes (GOAT Flow Setup and Agent Setup) and prints pass/fail per scope with actionable fix hints. A fresh project fails; that's the baseline you saw above. Audit checks setup files, config, skills, and hooks. It doesn't check code quality, so run your project's lint and test commands separately.
@@ -90,7 +90,7 @@ Validates setup correctness across two scopes (GOAT Flow Setup and Agent Setup) 
 ### 4. Generate setup for your agent
 
 ```bash
-goat-flow setup . --agent claude
+npx goat-flow setup . --agent claude
 ```
 
 Prints a setup prompt. Paste it into Claude Code and let the agent configure your project: instruction file, skills, hooks, and learning loop.
@@ -98,7 +98,7 @@ Prints a setup prompt. Paste it into Claude Code and let the agent configure you
 ### 5. Re-audit
 
 ```bash
-goat-flow audit .
+npx goat-flow audit .
 ```
 
 Now passes. Add `--harness` to see advisory scoring across the 5 harness concerns (Context, Constraints, Verification, Recovery, Feedback Loop).
@@ -124,42 +124,42 @@ Same model, same prompt, different outcome.
 The two commands you'll use 90% of the time:
 
 ```bash
-goat-flow audit .                      # Am I set up?
-goat-flow setup . --agent claude       # Set me up
+npx goat-flow audit .                      # Am I set up?
+npx goat-flow setup . --agent claude       # Set me up
 ```
 
 Everything else:
 
 ```bash
-goat-flow audit . --harness            # Add advisory harness-quality scoring
-goat-flow audit . --format json        # JSON output for CI
-goat-flow quality . --agent claude     # Generate agent quality-assessment prompt
-goat-flow setup . --agent gemini       # Gemini CLI setup
-goat-flow setup . --agent codex        # Codex setup
-goat-flow status .                     # Show project state (bare/partial/v0.9/v1.0/v1.1)
-goat-flow dashboard .                  # Visual dashboard with integrated terminal
+npx goat-flow audit . --harness            # Add advisory harness-quality scoring
+npx goat-flow audit . --format json        # JSON output for CI
+npx goat-flow quality . --agent claude     # Generate agent quality-assessment prompt
+npx goat-flow setup . --agent gemini       # Gemini CLI setup
+npx goat-flow setup . --agent codex        # Codex setup
+npx goat-flow status .                     # Show project state (bare/partial/v0.9/v1.0/v1.1)
+npx goat-flow dashboard .                  # Visual dashboard with integrated terminal
 ```
 
 See [docs/cli.md](docs/cli.md) for the full command reference.
 
 ## Multi-agent support
 
-goat-flow v1.2.1 supports **Claude Code, Codex, Gemini CLI, and Copilot CLI**. All agents share the same execution loop, autonomy tiers, skills, and learning loop. Only the instruction filename, skills root, and hook/config surfaces differ.
+goat-flow v1.2.2 supports **Claude Code, Codex, Gemini CLI, and Copilot CLI**. All agents share the same execution loop, autonomy tiers, skills, and learning loop. Only the instruction filename, skills root, and hook/config surfaces differ.
 
-Run `goat-flow manifest` to inspect the live agent matrix that drives CLI validation, installer paths, and dashboard labels.
+Run `npx goat-flow manifest` to inspect the live agent matrix that drives CLI validation, installer paths, and dashboard labels.
 
 *Implementation note: support metadata lives in `workflow/manifest.json`, resolved through `src/cli/agents/registry.ts`.*
 
 ## Troubleshooting
 
 **Terminal not showing in dashboard?**
-node-pty didn't compile. Run `npm rebuild node-pty`. If using pnpm: `pnpm approve-builds` (select node-pty).
+node-pty requires C++ build tools to compile. Install them (`apt install build-essential python3` on Debian/Ubuntu, `xcode-select --install` on macOS), then run `npm rebuild node-pty`. If using pnpm: `pnpm approve-builds` (select node-pty).
 
 **Audit fails on a fresh project?**
-Expected. Run `goat-flow setup . --agent claude` and paste the output into your agent.
+Expected. Run `npx goat-flow setup . --agent claude` and paste the output into your agent.
 
 **Audit still fails after setup?**
-Re-run `goat-flow audit . --verbose` to see which check failed. The `howToFix` hint on each failure points at the missing file or config key. If hooks show as uninstalled, check `.claude/hooks/` (or `.gemini/hooks/`, `.codex/hooks/`) exists and contains `deny-dangerous.sh`.
+Re-run `npx goat-flow audit . --verbose` to see which check failed. The `howToFix` hint on each failure points at the missing file or config key. If hooks show as uninstalled, check `.claude/hooks/` (or `.gemini/hooks/`, `.codex/hooks/`) exists and contains `deny-dangerous.sh`.
 
 **Agent isn't following the execution loop?**
 Restart the agent session after setup so it re-reads the instruction file (CLAUDE.md, GEMINI.md, AGENTS.md, or `.github/copilot-instructions.md`). Agents only pick up instruction-file changes on session start.
@@ -185,7 +185,7 @@ Every major source in the harness engineering field (Hashimoto, Fowler/Böckeler
 Run the check:
 
 ```bash
-goat-flow audit . --harness
+npx goat-flow audit . --harness
 ```
 
 These aren't a proprietary model, they're a synthesis of consensus across the field. See [docs/audit-and-quality.md](docs/audit-and-quality.md) for the full framework and sources.

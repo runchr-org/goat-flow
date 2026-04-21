@@ -358,6 +358,8 @@ last_reviewed: 2026-04-21
 
 **Fix:** Format any touched files first, then rerun the focused checks. If preflight still fails, run the narrower verifier (`scripts/prettier-check.sh` or equivalent) to identify whether the remaining failures are in untouched files. Report that split explicitly instead of calling preflight a task regression.
 
+**Recurrence update (2026-04-21):** A v1.2.2 version-bump run had `npm test` fail only because the installer round-trip fixture runs full preflight and found committed formatter drift in `src/dashboard/index.html`, a file outside the version-bump edit set. `npm run format:check` reproduced the same single-file failure.
+
 **Prevention:**
 1. When preflight fails, immediately identify whether the failing files are in `git status` for the current task.
 2. Treat repo-wide formatter failures in untouched files as residual baseline debt, not silent task fallout.
@@ -484,6 +486,22 @@ last_reviewed: 2026-04-21
 **Prevention:**
 1. After deleting or renaming a source file, scan repo tool configs (`knip.json`, eslint/prettier ignores, test fixtures) for stale path references before relying on preflight.
 2. After introducing a new exported symbol during a refactor, run `npx knip` before the full gate so unused exports are caught while the context is still local.
+
+---
+
+## Lesson: Classic dashboard script splits need Knip ignore coverage
+
+**Status:** active | **Created:** 2026-04-21
+
+**What happened:** Splitting `src/dashboard/app.ts` into additional classic browser scripts passed dashboard typecheck and server asset tests, but `npx knip --no-progress` flagged the new script-tag files as unused because they are loaded from `src/dashboard/index.html` rather than imported by TypeScript.
+
+**Root cause:** The dashboard frontend intentionally uses classic scripts (`x-data="app()"`) and shared browser globals. Knip follows module imports, not HTML script-tag reachability, so new `src/dashboard/dashboard-*.ts` files look unused unless `knip.json` names them alongside the existing `src/dashboard/app.ts` / `globals.d.ts` ignores.
+
+**Evidence:** `knip.json` ignore list carries the dashboard classic-script files; `src/dashboard/index.html` loads `dashboard-readers.js`, `dashboard-setup-quality.js`, `dashboard-projects.js`, `dashboard-prompts.js`, `dashboard-terminal.js`, and `app.js` in order.
+
+**Prevention:**
+1. After adding a dashboard classic-script file, add it to `knip.json` in the same change.
+2. Re-run `npx knip --no-progress` before relying on preflight, because dashboard typecheck and asset tests will not catch Knip reachability gaps.
 
 ---
 

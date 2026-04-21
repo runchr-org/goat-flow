@@ -303,7 +303,7 @@ describe("quality prompt content", () => {
       randomId: "bbbbb",
       report: {
         report_kind: "goat-flow-quality-report",
-        goat_flow_version: "1.2.0",
+        goat_flow_version: "1.2.1",
         agent: "claude",
         project_path: "/tmp/test-project",
         run_date: "2026-04-15",
@@ -461,7 +461,7 @@ describe("quality prompt JSON example parses through schema", () => {
       randomId: "bbbbb",
       report: {
         report_kind: "goat-flow-quality-report",
-        goat_flow_version: "1.2.0",
+        goat_flow_version: "1.2.1",
         agent: "claude",
         project_path: "/tmp/test-project",
         run_date: "2026-04-15",
