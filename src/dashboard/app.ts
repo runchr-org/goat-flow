@@ -4,547 +4,7 @@
  * plain `<script>` tag rather than an ES module import.
  */
 
-type JsonRecord = Record<string, unknown>;
 type ProjectSortKey = "name" | keyof ProjectEntry;
-
-const DEFAULT_SETUP_COMMANDS: SetupCommands = {
-  test: "",
-  lint: "",
-  build: "",
-  format: "",
-};
-
-const DEFAULT_EXISTING_ARTIFACTS: ExistingArtifacts = {
-  skills: false,
-  instructionsRepoWide: false,
-  instructionsPathScoped: false,
-  lessons: false,
-  footguns: false,
-  config: false,
-};
-
-const TERMINAL_REFIT_RETRY_DELAY_MS = 50;
-const TERMINAL_REFIT_MAX_ATTEMPTS = 20;
-const TERMINAL_INITIAL_FIT_DELAYS_MS = [50, 200, 500] as const;
-
-/** Check whether a value is a plain object record. */
-function isRecord(value: unknown): value is JsonRecord {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** Read a plain object record from raw dashboard payload data. */
-function readRecord(value: unknown, context: string): JsonRecord {
-  if (!isRecord(value)) {
-    throw new Error(`${context} returned an invalid payload`);
-  }
-  return value;
-}
-
-/** Read a string value with a safe fallback for invalid payload fields. */
-function readString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-/** Read a string array from raw payload data. */
-function readStringArray(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((entry): entry is string => typeof entry === "string")
-    : [];
-}
-
-/** Read a `{ [key: string]: string }` map, silently dropping invalid entries. */
-function readStringMap(value: unknown): Record<string, string> {
-  if (!isRecord(value)) return {};
-  const result: Record<string, string> = {};
-  for (const [k, v] of Object.entries(value)) {
-    if (typeof v === "string" && v.length > 0) result[k] = v;
-  }
-  return result;
-}
-
-/** Read an audit status from raw payload data. */
-function readAuditStatus(value: unknown): AuditStatus | null {
-  return value === "pass" || value === "fail" ? value : null;
-}
-
-/** Read the runner IDs injected into the dashboard shell. */
-function readInjectedRunnerIds(): string[] {
-  return Array.isArray(window.__GOAT_FLOW_RUNNER_IDS__)
-    ? window.__GOAT_FLOW_RUNNER_IDS__.filter(
-        (id): id is string => typeof id === "string",
-      )
-    : [];
-}
-
-/** Read a runner ID from raw payload data. Unknown values narrow to null so
- *  the server's wire contract isn't silently widened to arbitrary strings. */
-function readRunnerId(value: unknown): RunnerId | null {
-  const runner = readString(value).trim();
-  return readInjectedRunnerIds().includes(runner) ? (runner as RunnerId) : null;
-}
-
-/** Build the default setup-agent selection from the injected support list. */
-function buildDefaultSetupAgents(
-  supportedAgents: SupportedAgent[],
-  defaultRunner: RunnerId,
-): SetupData["agents"] {
-  if (supportedAgents.length === 0) {
-    return { [defaultRunner]: true };
-  }
-  return Object.fromEntries(
-    supportedAgents.map((agent) => [agent.id, agent.id === defaultRunner]),
-  );
-}
-
-/** Read a terminal-session status from raw payload data. */
-function readSessionStatus(value: unknown): SessionStatus | null {
-  return value === "starting" || value === "active" || value === "terminated"
-    ? value
-    : null;
-}
-
-/** Read an error message from a payload record. */
-function readErrorMessage(payload: JsonRecord): string | null {
-  return typeof payload.error === "string" ? payload.error : null;
-}
-
-/** Collapse a project path down to the display name shown in the UI. */
-function getProjectDisplayName(path: string): string {
-  return path.split("/").filter(Boolean).pop() || path;
-}
-
-/** Read one audit failure record from raw payload data. */
-function readAuditFailure(value: unknown): AuditFailure | null {
-  if (!isRecord(value)) return null;
-  const check = readString(value.check);
-  const message = readString(value.message);
-  if (!check || !message) return null;
-
-  const failure: AuditFailure = { check, message };
-  const evidence = readString(value.evidence);
-  const howToFix = readString(value.howToFix);
-  if (evidence) failure.evidence = evidence;
-  if (howToFix) failure.howToFix = howToFix;
-  return failure;
-}
-
-/** Read one audit check record from raw payload data. */
-function readAuditCheck(value: unknown): AuditCheck | null {
-  if (!isRecord(value)) return null;
-  const id = readString(value.id);
-  const name = readString(value.name);
-  const status = readAuditStatus(value.status);
-  if (!id || !name || !status) return null;
-
-  const provenanceValue = value.provenance;
-  if (!isRecord(provenanceValue)) return null;
-  const sourceType = readString(provenanceValue.source_type);
-  const verifiedOn = readString(provenanceValue.verified_on);
-  const normativeLevel = readString(provenanceValue.normative_level);
-  if (
-    ![
-      "spec",
-      "vendor_docs",
-      "paper",
-      "incident",
-      "community",
-      "unknown",
-    ].includes(sourceType) ||
-    !verifiedOn ||
-    !["MUST", "SHOULD", "BEST_PRACTICE"].includes(normativeLevel)
-  ) {
-    return null;
-  }
-
-  const check: AuditCheck = {
-    id,
-    name,
-    status,
-    provenance: {
-      source_type: sourceType as AuditCheckProvenance["source_type"],
-      source_urls: readStringArray(provenanceValue.source_urls),
-      verified_on: verifiedOn,
-      normative_level:
-        normativeLevel as AuditCheckProvenance["normative_level"],
-      ...(Array.isArray(provenanceValue.evidence_paths)
-        ? {
-            evidence_paths: readStringArray(provenanceValue.evidence_paths),
-          }
-        : {}),
-      ...(typeof provenanceValue.reason === "string"
-        ? { reason: provenanceValue.reason }
-        : {}),
-    },
-  };
-  const failure = readAuditFailure(value.failure);
-  if (failure) check.failure = failure;
-  return check;
-}
-
-/** Read a string-to-string map from raw payload data. */
-function readStringRecord(value: unknown): Record<string, string> {
-  if (!isRecord(value)) return {};
-
-  const entries = Object.entries(value).filter(
-    (entry): entry is [string, string] => typeof entry[1] === "string",
-  );
-  return Object.fromEntries(entries);
-}
-
-/** Read one audit scope from raw payload data. */
-function readAuditScope(value: unknown, context: string): AuditScope {
-  const payload = readRecord(value, context);
-  const status = readAuditStatus(payload.status);
-  if (!status) {
-    throw new Error(`${context} returned an invalid audit status`);
-  }
-
-  return {
-    status,
-    checks: Array.isArray(payload.checks)
-      ? payload.checks
-          .map((check) => readAuditCheck(check))
-          .filter((check): check is AuditCheck => check !== null)
-      : [],
-    failures: Array.isArray(payload.failures)
-      ? payload.failures
-          .map((failure) => readAuditFailure(failure))
-          .filter((failure): failure is AuditFailure => failure !== null)
-      : [],
-    summary: readStringRecord(payload.summary),
-  };
-}
-
-/** Read one harness concern from raw payload data. */
-function readAuditConcern(value: unknown): AuditConcern | null {
-  if (!isRecord(value)) return null;
-  const status = readAuditStatus(value.status);
-  if (!status || typeof value.score !== "number") return null;
-
-  /** Read a numeric counter from raw payload data. */
-  const readCount = (v: unknown): number => (typeof v === "number" ? v : 0);
-
-  return {
-    status,
-    score: value.score,
-    findings: readStringArray(value.findings),
-    recommendations: readStringArray(value.recommendations),
-    howToFix: readStringArray(value.howToFix),
-    integrityPass: readCount(value.integrityPass),
-    integrityFail: readCount(value.integrityFail),
-    advisoryPass: readCount(value.advisoryPass),
-    advisoryFail: readCount(value.advisoryFail),
-    advisoryAcknowledged: readCount(value.advisoryAcknowledged),
-    metrics: readCount(value.metrics),
-  };
-}
-
-/** Read one per-agent score from raw payload data. */
-function readAgentScore(value: unknown): AgentScore | null {
-  if (!isRecord(value)) return null;
-  const id = readRunnerId(value.id);
-  if (!id) return null;
-
-  const harness =
-    value.harness === null
-      ? null
-      : value.harness === undefined
-        ? null
-        : readAuditScope(value.harness, "Audit response harness scope");
-
-  const concerns =
-    value.concerns === null
-      ? null
-      : isRecord(value.concerns)
-        ? Object.fromEntries(
-            Object.entries(value.concerns)
-              .map(
-                ([key, concern]) => [key, readAuditConcern(concern)] as const,
-              )
-              .filter(
-                (entry): entry is [string, AuditConcern] => entry[1] !== null,
-              ),
-          )
-        : null;
-
-  return {
-    id,
-    name: readString(value.name, id),
-    agent: readAuditScope(value.agent, "Audit response agent scope"),
-    harness,
-    concerns,
-  };
-}
-
-/** Read the full dashboard report from raw payload data. */
-function readDashboardReport(value: unknown): DashboardClientReport {
-  const payload = readRecord(value, "Audit response");
-  const status = readAuditStatus(payload.status);
-  if (!status) {
-    throw new Error("Audit response returned an invalid status");
-  }
-
-  const scopesPayload = readRecord(payload.scopes, "Audit response scopes");
-  const overallPayload = readRecord(payload.overall, "Audit response overall");
-  const overallStatus = readAuditStatus(overallPayload.status);
-  if (!overallStatus) {
-    throw new Error("Audit response returned an invalid overall status");
-  }
-
-  return {
-    agentScores: Array.isArray(payload.agentScores)
-      ? payload.agentScores
-          .map((score) => readAgentScore(score))
-          .filter((score): score is AgentScore => score !== null)
-      : [],
-    status,
-    scopes: {
-      setup: readAuditScope(scopesPayload.setup, "Audit response setup scope"),
-      agent: readAuditScope(scopesPayload.agent, "Audit response agent scope"),
-      ...(scopesPayload.harness
-        ? {
-            harness: readAuditScope(
-              scopesPayload.harness,
-              "Audit response harness scope",
-            ),
-          }
-        : {}),
-    },
-    overall: { status: overallStatus },
-    target: readString(payload.target),
-  };
-}
-
-/** Read the dashboard report injected into the page shell. */
-function readInjectedReport(): DashboardClientReport | null {
-  if (window.__GOAT_FLOW_REPORT__ == null) return null;
-  try {
-    return readDashboardReport(window.__GOAT_FLOW_REPORT__);
-  } catch {
-    return null;
-  }
-}
-
-/** Read one supported-agent record from dashboard shell injection. */
-function readSupportedAgent(value: unknown): SupportedAgent | null {
-  if (!isRecord(value)) return null;
-  const id = readRunnerId(value.id);
-  const name = readString(value.name);
-  if (!id || !name) return null;
-  return { id, name };
-}
-
-/** Read the supported agent list injected into the dashboard shell. */
-function readInjectedSupportedAgents(): SupportedAgent[] {
-  return Array.isArray(window.__GOAT_FLOW_AGENTS__)
-    ? window.__GOAT_FLOW_AGENTS__
-        .map((agent) => readSupportedAgent(agent))
-        .filter((agent): agent is SupportedAgent => agent !== null)
-    : [];
-}
-
-/** Read one preset definition from dashboard shell injection. */
-function readPreset(value: unknown): Preset | null {
-  if (!isRecord(value)) return null;
-  const id = readString(value.id);
-  const name = readString(value.name);
-  const desc = readString(value.desc);
-  const prompt = readString(value.prompt);
-  const cat = readString(value.cat);
-  if (!id || !name || !desc || !prompt || !cat) return null;
-  return { id, name, desc, prompt, cat };
-}
-
-/** Read the preset list injected into the dashboard shell. */
-function readInjectedPresets(): Preset[] {
-  return Array.isArray(window.__GOAT_FLOW_PRESETS__)
-    ? window.__GOAT_FLOW_PRESETS__
-        .map((preset) => readPreset(preset))
-        .filter((preset): preset is Preset => preset !== null)
-    : [];
-}
-
-/** Read one installed-agent record from raw payload data. */
-function readAgentInfo(value: unknown): AgentInfo | null {
-  if (!isRecord(value)) return null;
-  const id = readRunnerId(value.id);
-  const name = readString(value.name);
-  if (!id || !name || typeof value.installed !== "boolean") return null;
-
-  return {
-    id,
-    name,
-    installed: value.installed,
-    version: typeof value.version === "string" ? value.version : null,
-  };
-}
-
-/** Read one directory entry from the project browser payload. */
-function readBrowseDir(value: unknown): BrowseDir | null {
-  if (!isRecord(value)) return null;
-  const name = readString(value.name);
-  const path = readString(value.path);
-  if (!name || !path || typeof value.isProject !== "boolean") return null;
-
-  return { name, path, isProject: value.isProject };
-}
-
-/** Read one saved project entry from persisted state. */
-function readProjectEntry(value: unknown): ProjectEntry | null {
-  if (!isRecord(value)) return null;
-  const path = readString(value.path);
-  if (!path) return null;
-
-  return {
-    path,
-    state: readString(value.state),
-    action: readString(value.action),
-    details: readString(value.details),
-  };
-}
-
-/** Read one backend terminal-session record from raw payload data. */
-function readServerSessionInfo(value: unknown): ServerSessionInfo | null {
-  if (!isRecord(value)) return null;
-  const id = readString(value.id);
-  const status = readSessionStatus(value.status);
-  const runner = readRunnerId(value.runner);
-  const createdAt = readString(value.createdAt);
-  const projectPath = readString(value.projectPath);
-  if (
-    !id ||
-    !status ||
-    !runner ||
-    !createdAt ||
-    !projectPath ||
-    typeof value.lastInputAt !== "number"
-  ) {
-    return null;
-  }
-
-  return {
-    id,
-    status,
-    createdAt,
-    projectPath,
-    runner,
-    lastInputAt: value.lastInputAt,
-    age: typeof value.age === "number" ? value.age : undefined,
-    idleDuration:
-      typeof value.idleDuration === "number" ? value.idleDuration : undefined,
-    projectName: readString(value.projectName) || undefined,
-  };
-}
-
-/** Read a quality-command response from raw payload data. */
-function readQualityResult(value: unknown): QualityResult {
-  const payload = readRecord(value, "Quality response");
-  const agent = readRunnerId(payload.agent);
-  const auditStatus = readAuditStatus(payload.auditStatus);
-  const command = readString(payload.command);
-  if (
-    !agent ||
-    (!auditStatus && payload.auditStatus !== "unavailable") ||
-    command !== "quality"
-  ) {
-    throw new Error("Quality response returned an invalid payload");
-  }
-
-  return {
-    command: "quality",
-    agent,
-    auditStatus: auditStatus ?? "unavailable",
-    auditSummary: readString(payload.auditSummary),
-    prompt: readString(payload.prompt),
-  };
-}
-
-/** Read one quality-history table row from raw payload data. */
-function readQualityHistoryRow(value: unknown): QualityHistoryRow | null {
-  if (!isRecord(value)) return null;
-  const id = readString(value.id);
-  const date = readString(value.date);
-  const agent = readRunnerId(value.agent);
-  if (
-    !id ||
-    !date ||
-    !agent ||
-    typeof value.setupTotal !== "number" ||
-    typeof value.systemTotal !== "number" ||
-    (value.setupDelta !== null && typeof value.setupDelta !== "number") ||
-    typeof value.blockerCount !== "number" ||
-    typeof value.majorCount !== "number" ||
-    typeof value.minorCount !== "number"
-  ) {
-    return null;
-  }
-  return {
-    id,
-    date,
-    agent,
-    setupTotal: value.setupTotal,
-    systemTotal: value.systemTotal,
-    setupDelta: value.setupDelta,
-    blockerCount: value.blockerCount,
-    majorCount: value.majorCount,
-    minorCount: value.minorCount,
-  };
-}
-
-/** Read the latest quality-history summary from raw payload data. */
-function readQualityHistoryLatest(value: unknown): QualityHistoryLatest | null {
-  if (!isRecord(value)) return null;
-  const id = readString(value.id);
-  const date = readString(value.date);
-  const time = readString(value.time);
-  const agent = readRunnerId(value.agent);
-  if (
-    !id ||
-    !date ||
-    !time ||
-    !agent ||
-    typeof value.setupTotal !== "number" ||
-    typeof value.systemTotal !== "number" ||
-    typeof value.blockerCount !== "number" ||
-    typeof value.majorCount !== "number" ||
-    typeof value.minorCount !== "number"
-  ) {
-    return null;
-  }
-  return {
-    id,
-    date,
-    time,
-    agent,
-    setupTotal: value.setupTotal,
-    systemTotal: value.systemTotal,
-    blockerCount: value.blockerCount,
-    majorCount: value.majorCount,
-    minorCount: value.minorCount,
-  };
-}
-
-/** Read a persisted string array from localStorage. */
-function readStoredStringArray(key: string): string[] {
-  try {
-    return readStringArray(JSON.parse(localStorage.getItem(key) || "[]"));
-  } catch {
-    return [];
-  }
-}
-
-/** Read the loaded xterm.js constructors from window globals. */
-function getXtermConstructors(): {
-  Terminal: NonNullable<Window["Terminal"]>;
-  FitAddon: new () => FitAddonInstance;
-} {
-  const Terminal = window.Terminal;
-  const FitAddon = window.FitAddon?.FitAddon;
-  if (!Terminal || !FitAddon) {
-    throw new Error("xterm.js globals unavailable after load");
-  }
-  return { Terminal, FitAddon };
-}
 
 /** Alpine.js data factory for the dashboard shell. */
 function app() {
@@ -572,6 +32,12 @@ function app() {
     supportedAgents,
     installedAgents: [] as AgentInfo[],
     allAgents: [] as AgentInfo[],
+    agentsLoaded: false,
+    get agentSkeletonList(): SupportedAgent[] {
+      return this.installedAgents.length === 0 && !this.agentsLoaded
+        ? this.supportedAgents
+        : [];
+    },
     activeRunner: defaultRunner,
     userRole: "",
     workspacePanel: "terminal",
@@ -782,83 +248,26 @@ function app() {
     presetFavorites: readStoredStringArray("goat-flow-preset-favorites"),
     /** Toggle a preset favorite state and persist the combined dashboard state. */
     toggleFavorite(id: string) {
-      const idx = this.presetFavorites.indexOf(id);
-      if (idx === -1) this.presetFavorites.push(id);
-      else this.presetFavorites.splice(idx, 1);
-      this._saveDashboardState();
+      dashboardToggleFavorite(this, id);
     },
     /** Check whether a preset is marked as a favorite. */
     isFavorite(id: string): boolean {
-      return this.presetFavorites.includes(id);
+      return dashboardIsFavorite(this, id);
     },
     /** Move the preview selection up (-1) or down (1) in screen order, with wrap. */
     selectPresetByOffset(delta: number) {
-      const order = this.flatPresetOrder;
-      if (order.length === 0) return;
-      const currentId = this.selectedPreset?.id;
-      const currentIdx = currentId ? order.indexOf(currentId) : -1;
-      const nextIdx =
-        currentIdx === -1
-          ? delta > 0
-            ? 0
-            : order.length - 1
-          : (currentIdx + delta + order.length) % order.length;
-      const nextId = order[nextIdx];
-      const next = this.presets.find((p) => p.id === nextId);
-      if (!next) return;
-      this.selectedPreset = next;
-      requestAnimationFrame(() => {
-        const el = document.getElementById(`preset-row-${nextId}`);
-        if (el) el.scrollIntoView({ block: "nearest" });
-      });
+      dashboardSelectPresetByOffset(this, delta);
     },
     /** Return the preset category filters. */
-    get presetCats(): Array<{ id: string; label: string }> {
-      const cats = new Map<string, string>();
-      const labelOverrides: Record<string, string> = { qa: "QA" };
-      for (const p of this.presets)
-        if (!cats.has(p.cat))
-          cats.set(
-            p.cat,
-            labelOverrides[p.cat] ??
-              p.cat.charAt(0).toUpperCase() + p.cat.slice(1),
-          );
-      return [
-        { id: "all", label: "All" },
-        { id: "favorites", label: "\u2605 Favorites" },
-        ...Array.from(cats, ([id, label]) => ({ id, label })),
-      ];
+    get presetCats(): PresetCategory[] {
+      return dashboardPresetCats(this);
     },
     /**
      * Favorites stay pinned to the top unless the user explicitly switches into
      * the favorites-only filter, which keeps mixed browsing fast on large lists.
      */
     get filteredPresets(): Preset[] {
-      let list: Preset[];
-      if (this.presetFilter === "favorites") {
-        list = this.presets.filter((p) => this.presetFavorites.includes(p.id));
-      } else {
-        list =
-          this.presetFilter === "all"
-            ? this.presets
-            : this.presets.filter((p) => p.cat === this.presetFilter);
-      }
-      if (this.presetSearch.trim()) {
-        const q = this.presetSearch.toLowerCase();
-        list = list.filter(
-          (p) =>
-            p.name.toLowerCase().includes(q) ||
-            p.desc.toLowerCase().includes(q) ||
-            p.prompt.toLowerCase().includes(q),
-        );
-      } else if (this.presetFilter !== "favorites") {
-        const favSet = new Set(this.presetFavorites);
-        list = [
-          ...list.filter((p) => favSet.has(p.id)),
-          ...list.filter((p) => !favSet.has(p.id)),
-        ];
-      }
-      return list;
+      return dashboardFilteredPresets(this);
     },
     /** Presets grouped by category for the Prompts page grouped rendering. */
     get presetsByCategory(): Array<{
@@ -866,14 +275,7 @@ function app() {
       label: string;
       items: Preset[];
     }> {
-      const cats = this.presetCats.filter(
-        (c) => c.id !== "all" && c.id !== "favorites",
-      );
-      return cats.map((cat) => ({
-        id: cat.id,
-        label: cat.label,
-        items: this.presets.filter((p) => p.cat === cat.id),
-      }));
+      return dashboardPresetsByCategory(this);
     },
     /**
      * Unified sequence of entries for the Prompts page list: inserts category
@@ -884,25 +286,7 @@ function app() {
       | { kind: "header"; id: string; label: string }
       | { kind: "row"; preset: Preset }
     > {
-      const entries: Array<
-        | { kind: "header"; id: string; label: string }
-        | { kind: "row"; preset: Preset }
-      > = [];
-      if (this.presetFilter === "all" && !this.presetSearch.trim()) {
-        for (const group of this.presetsByCategory) {
-          if (group.items.length === 0) continue;
-          entries.push({
-            kind: "header",
-            id: group.id,
-            label: `${group.label} (${group.items.length})`,
-          });
-          for (const p of group.items) entries.push({ kind: "row", preset: p });
-        }
-        return entries;
-      }
-      for (const p of this.filteredPresets)
-        entries.push({ kind: "row", preset: p });
-      return entries;
+      return dashboardRenderedPresetEntries(this);
     },
     /**
      * Flat list of preset IDs in screen order for keyboard nav. Uses grouped
@@ -910,14 +294,7 @@ function app() {
      * falls back to filteredPresets order.
      */
     get flatPresetOrder(): string[] {
-      if (this.presetFilter === "all" && !this.presetSearch.trim()) {
-        const ids: string[] = [];
-        for (const group of this.presetsByCategory) {
-          for (const p of group.items) ids.push(p.id);
-        }
-        return ids;
-      }
-      return this.filteredPresets.map((p) => p.id);
+      return dashboardFlatPresetOrder(this);
     },
     /**
      * Escaped, optionally search-highlighted HTML for the prompt preview.
@@ -925,96 +302,30 @@ function app() {
      * stays safe when rendered via x-html.
      */
     get highlightedPromptHtml(): string {
-      const prompt = this.adaptPrompt(this.selectedPreset?.prompt ?? "");
-      const escaped = prompt
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-      const query = this.presetSearch.trim();
-      if (!query) return escaped;
-      const qEscaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const re = new RegExp(qEscaped, "gi");
-      return escaped.replace(re, "<mark>$&</mark>");
+      return dashboardHighlightedPromptHtml(this);
     },
     /** Adapt a preset prompt to the syntax expected by the selected runner. */
     adaptPrompt(prompt: string, runner?: RunnerId): string {
-      const r = runner ?? this.activeRunner;
-      if (r === "codex") return prompt.replace(/^\/goat\b/, "$goat");
-      return prompt;
+      return dashboardAdaptPrompt(this, prompt, runner);
     },
     /** Copy a preset prompt after applying runner-specific syntax tweaks. */
     copyPreset(prompt: string) {
-      this.copyText(this.adaptPrompt(prompt));
+      dashboardCopyPreset(this, prompt);
     },
     /** Send text to the active terminal session and focus it. */
     sendToTerminal(
       text: string,
       { adapt = true }: { adapt?: boolean } = {},
     ): boolean {
-      const active = this._activeSession;
-      if (!active) {
-        this.showToast("No active terminal session", true);
-        return false;
-      }
-      const refs = active ? this._terminalRefs[active.id] : null;
-      if (!refs?.ws || refs.ws.readyState !== WebSocket.OPEN) {
-        this.showToast("No active terminal session", true);
-        return false;
-      }
-      const prepared = adapt ? this.adaptPrompt(text) : text;
-      // Bracketed paste prevents shells and REPLs from treating multi-line prompts as
-      // a stream of independent keystrokes. `\x1b[200~` starts paste mode, `\x1b[201~`
-      // ends it, and the trailing carriage return submits exactly once.
-      const pasteData = "\x1b[200~" + prepared + "\x1b[201~" + "\r";
-      refs.ws.send(JSON.stringify({ type: "input", data: pasteData }));
-      active.lastInputTime = Date.now();
-      if (refs.xterm) refs.xterm.focus();
-      return true;
+      return dashboardSendToTerminal(this, text, { adapt });
     },
     /** Send a preset prompt to an active session in the current project. */
     async sendToProjectTarget(prompt: string, target: ServerSessionInfo) {
-      if (target.projectPath !== this.projectPath) {
-        this.showToast("Target session is not in this project", true);
-        return;
-      }
-      if (this.isSessionBoundLocally(target.id)) {
-        this.activeSessionId = target.id;
-        this.activeView = "workspace";
-        this.workspacePanel = "terminal";
-      } else {
-        await this.openServerSession(target);
-      }
-      const prepared = this.adaptPrompt(prompt, target.runner);
-      /** Retry a project-scoped send until the target terminal is ready. */
-      const deliver = async (attempts: number): Promise<void> => {
-        const refs = this._terminalRefs[this.activeSessionId ?? ""];
-        if (refs?.ws && refs.ws.readyState === WebSocket.OPEN) {
-          this.sendToTerminal(prepared, { adapt: false });
-          return;
-        }
-        if (attempts > 20) {
-          this.showToast("Could not connect to terminal", true);
-          return;
-        }
-        await new Promise<void>((r) => setTimeout(r, 100));
-        return deliver(attempts + 1);
-      };
-      await deliver(0);
+      await dashboardSendToProjectTarget(this, prompt, target);
     },
     /** Run a predefined audit command in the workspace terminal. */
     async runTerminalAuditCommand(action: AuditAction | null) {
-      if (!action?.command) return;
-      this.activeView = "workspace";
-      this.workspacePanel = "terminal";
-      if (this.terminalSessionId && !this.terminalEnded) {
-        if (this.sendToTerminal(action.command, { adapt: false })) {
-          this.showToast(`Sent ${action.command} to terminal`);
-        }
-        return;
-      }
-      await this.launchInTerminal(action.command, this.activeRunner, {
-        promptLabel: action.label,
-      });
+      await dashboardRunTerminalAuditCommand(this, action);
     },
 
     // --- Init ---
@@ -1157,32 +468,7 @@ function app() {
       if (location.protocol === "http:" || location.protocol === "https:") {
         this.runAudit();
         this.checkTerminalAvailable();
-        fetch("/api/agents/installed")
-          .then((r) => r.json())
-          .then((payload) => {
-            const data = readRecord(payload, "Agent detection response");
-            const agents = Array.isArray(data.agents)
-              ? data.agents
-                  .map((agent) => readAgentInfo(agent))
-                  .filter((agent): agent is AgentInfo => agent !== null)
-              : [];
-            if (this.supportedAgents.length === 0) {
-              this.supportedAgents = agents.map(({ id, name }) => ({
-                id,
-                name,
-              }));
-            }
-            this.allAgents = agents;
-            this.installedAgents = agents.filter((a) => a.installed);
-            if (
-              this.installedAgents.length > 0 &&
-              !this.installedAgents.find((a) => a.id === this.activeRunner)
-            ) {
-              const [firstInstalled] = this.installedAgents;
-              if (firstInstalled) this.activeRunner = firstInstalled.id;
-            }
-          })
-          .catch(() => {});
+        this.fetchInstalledAgents();
       }
       document.addEventListener("keydown", (e: KeyboardEvent) => {
         if (e.key === "Escape") {
@@ -1281,376 +567,118 @@ function app() {
         );
       }
       this.auditing = false;
+      if (!this.agentsLoaded) {
+        this.fetchInstalledAgents().then((loaded) => {
+          if (!loaded) this.agentsLoaded = true;
+        });
+      }
+    },
+    async fetchInstalledAgents(): Promise<boolean> {
+      try {
+        const res = await fetch("/api/agents/installed");
+        if (!res.ok) return false;
+        const payload = readRecord(
+          await res.json(),
+          "Agent detection response",
+        );
+        const agents = Array.isArray(payload.agents)
+          ? payload.agents
+              .map((agent) => readAgentInfo(agent))
+              .filter((agent): agent is AgentInfo => agent !== null)
+          : [];
+        if (this.supportedAgents.length === 0) {
+          this.supportedAgents = agents.map(({ id, name }) => ({ id, name }));
+        }
+        this.allAgents = agents;
+        this.installedAgents = agents.filter((a) => a.installed);
+        this.agentsLoaded = true;
+        if (
+          this.installedAgents.length > 0 &&
+          !this.installedAgents.find((a) => a.id === this.activeRunner)
+        ) {
+          const [firstInstalled] = this.installedAgents;
+          if (firstInstalled) this.activeRunner = firstInstalled.id;
+        }
+        return true;
+      } catch {
+        return false;
+      }
     },
     /** Open the project browser at the current workspace path. */
     async openBrowser() {
-      this.showBrowser = !this.showBrowser;
-      if (this.showBrowser) await this.browseTo(this.projectPath);
+      await dashboardOpenBrowser(this);
     },
     /** Load child directories for the requested browser path. */
     async browseTo(path: string) {
-      try {
-        const res = await fetch(`/api/browse?path=${encodeURIComponent(path)}`);
-        const payload = readRecord(await res.json(), "Browse response");
-        const error = readErrorMessage(payload);
-        if (error) {
-          this.showToast(error, true);
-          return;
-        }
-        this.browserCurrent = readString(payload.current);
-        this.browserParent = readString(payload.parent);
-        this.browserDirs = Array.isArray(payload.dirs)
-          ? payload.dirs
-              .map((dir) => readBrowseDir(dir))
-              .filter((dir): dir is BrowseDir => dir !== null)
-          : [];
-      } catch {
-        this.showToast("Browse failed", true);
-      }
+      await dashboardBrowseTo(this, path);
     },
     /** Set a browsed directory as the active project. */
     selectDir(dir: BrowseDir) {
-      if (dir.isProject) {
-        this.projectPath = dir.path;
-        this.showBrowser = false;
-        this.runAudit();
-      } else this.browseTo(dir.path);
+      dashboardSelectDir(this, dir);
     },
 
     // -- Setup --
     async detectStack() {
-      this.setupDetecting = true;
-      try {
-        const res = await fetch(
-          `/api/setup/detect?path=${encodeURIComponent(this.projectPath)}`,
-        );
-        const payload = readRecord(
-          await res.json(),
-          "Setup detection response",
-        );
-        const error = readErrorMessage(payload);
-        if (error) {
-          this.showToast(error, true);
-          this.setupDetecting = false;
-          return;
-        }
-        const commands = isRecord(payload.commands) ? payload.commands : {};
-        const agents = isRecord(payload.agents) ? payload.agents : {};
-        const existing = isRecord(payload.existing) ? payload.existing : {};
-        this.setupData.languages = readStringArray(payload.languages);
-        this.setupData.frameworks = readStringArray(payload.frameworks);
-        this.setupData.commands = {
-          test: readString(commands.test),
-          lint: readString(commands.lint),
-          build: readString(commands.build),
-          format: readString(commands.format),
-        };
-        const defaultAgents = buildDefaultSetupAgents(
-          this.supportedAgents,
-          this.setupSelectedAgent,
-        );
-        this.setupData.agents = Object.fromEntries(
-          (Object.keys(defaultAgents) as RunnerId[]).map((agentId) => [
-            agentId,
-            typeof agents[agentId] === "boolean"
-              ? (agents[agentId] as boolean)
-              : (defaultAgents[agentId] ?? false),
-          ]),
-        );
-        if (!Object.values(this.setupData.agents).some((v) => v)) {
-          this.setupData.agents[this.setupSelectedAgent] = true;
-        }
-        this.setupData.existing = {
-          skills:
-            typeof existing.skills === "boolean"
-              ? existing.skills
-              : DEFAULT_EXISTING_ARTIFACTS.skills,
-          instructionsRepoWide:
-            typeof existing.instructionsRepoWide === "boolean"
-              ? existing.instructionsRepoWide
-              : DEFAULT_EXISTING_ARTIFACTS.instructionsRepoWide,
-          instructionsPathScoped:
-            typeof existing.instructionsPathScoped === "boolean"
-              ? existing.instructionsPathScoped
-              : DEFAULT_EXISTING_ARTIFACTS.instructionsPathScoped,
-          lessons:
-            typeof existing.lessons === "boolean"
-              ? existing.lessons
-              : DEFAULT_EXISTING_ARTIFACTS.lessons,
-          footguns:
-            typeof existing.footguns === "boolean"
-              ? existing.footguns
-              : DEFAULT_EXISTING_ARTIFACTS.footguns,
-          config:
-            typeof existing.config === "boolean"
-              ? existing.config
-              : DEFAULT_EXISTING_ARTIFACTS.config,
-        };
-        this.setupData.nonGoatFlow = readStringArray(payload.nonGoatFlow);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.showToast(msg || "Detection failed", true);
-      }
-      this.setupDetecting = false;
+      await dashboardDetectStack(this);
     },
     /** Generate setup output for the agent selected in the setup view. */
     async generateSetupPrompt() {
-      this.setupGenerating = true;
-      this.setupOutputs = {};
-      const agent = this.setupSelectedAgent;
-      try {
-        const res = await fetch(
-          `/api/setup?path=${encodeURIComponent(this.projectPath)}&agent=${agent}`,
-        );
-        const payload = readRecord(await res.json(), "Setup response");
-        const error = readErrorMessage(payload);
-        if (error) {
-          this.showToast(`${agent}: ${error}`, true);
-        } else {
-          this.setupOutputs[agent] =
-            readString(payload.output) || "No output generated.";
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.showToast(msg || "Generation failed", true);
-      }
-      this.setupGenerating = false;
+      await dashboardGenerateSetupPrompt(this);
     },
 
     // -- Quality --
     async generateQuality() {
-      this.qualityLoading = true;
-      this.qualityResult = null;
-      this.qualityCopyLabel = "Copy";
-      try {
-        const res = await fetch(
-          `/api/quality?path=${encodeURIComponent(this.projectPath)}&agent=${encodeURIComponent(this.qualityAgent)}`,
-        );
-        const payload = readRecord(await res.json(), "Quality response");
-        const error = readErrorMessage(payload);
-        if (error) {
-          this.showToast(error, true);
-        } else {
-          this.qualityResult = readQualityResult(payload);
-          this.generateQualityHistory();
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.showToast(msg || "Quality prompt generation failed", true);
-      }
-      this.qualityLoading = false;
+      await dashboardGenerateQuality(this);
     },
     /** Load persisted quality-history rows for the selected project and agent. */
     async generateQualityHistory() {
-      this.qualityHistoryLoading = true;
-      this.qualityHistoryRows = [];
-      this.qualityHistoryLatest = null;
-      this.qualityHistoryWarnings = [];
-      try {
-        const res = await fetch(
-          `/api/quality/history?path=${encodeURIComponent(this.projectPath)}&agent=${encodeURIComponent(this.qualityAgent)}&limit=20`,
-        );
-        const payload = readRecord(
-          await res.json(),
-          "Quality history response",
-        );
-        const error = readErrorMessage(payload);
-        if (error) {
-          this.showToast(error, true);
-        } else {
-          this.qualityHistoryRows = Array.isArray(payload.rows)
-            ? payload.rows
-                .map((row) => readQualityHistoryRow(row))
-                .filter((row): row is QualityHistoryRow => row !== null)
-            : [];
-          this.qualityHistoryLatest = readQualityHistoryLatest(payload.latest);
-          this.qualityHistoryWarnings = readStringArray(payload.warnings);
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.showToast(msg || "Quality history loading failed", true);
-      }
-      this.qualityHistoryLoading = false;
+      await dashboardGenerateQualityHistory(this);
     },
     /** Copy the current quality prompt to the clipboard. */
     copyQuality() {
-      if (!this.qualityResult?.prompt) return;
-      this.copyText(this.qualityResult.prompt);
-      this.qualityCopyLabel = "Copied!";
-      setTimeout(() => (this.qualityCopyLabel = "Copy"), 2000);
+      dashboardCopyQuality(this);
     },
 
     // -- Projects --
     async addProject() {
-      if (!this.newProjectPath) return;
-      if (this.projectsList.some((p) => p.path === this.newProjectPath)) {
-        this.showAddProject = false;
-        this.newProjectPath = "";
-        return;
-      }
-      this.projectsList.push({
-        path: this.newProjectPath,
-        state: "...",
-        action: "...",
-        details: "Auditing...",
-      });
-      this.showAddProject = false;
-      try {
-        const res = await fetch(
-          `/api/projects/status?paths=${encodeURIComponent(this.newProjectPath)}`,
-        );
-        const payload = readRecord(await res.json(), "Project status response");
-        const result = Array.isArray(payload.projects)
-          ? readProjectEntry(payload.projects[0])
-          : null;
-        if (result) {
-          const idx = this.projectsList.findIndex(
-            (p) => p.path === this.newProjectPath || p.path === result.path,
-          );
-          if (idx >= 0) this.projectsList[idx] = result;
-        }
-      } catch {
-        /* silent */
-      }
-      this.newProjectPath = "";
-      this._saveProjectsList();
+      await dashboardAddProject(this);
     },
     /** Remove a project from the saved workspace list. */
     removeProject(path: string) {
-      this.projectsList = this.projectsList.filter((p) => p.path !== path);
-      this._saveProjectsList();
+      dashboardRemoveProject(this, path);
     },
     /** Sort saved projects by the active key and direction. */
     sortProjects(key: ProjectSortKey) {
-      if (this.projectsSortKey === key) {
-        this.projectsSortAsc = !this.projectsSortAsc;
-      } else {
-        this.projectsSortKey = key;
-        this.projectsSortAsc = true;
-      }
+      dashboardSortProjects(this, key);
     },
     /** Sort projects by visible columns while keeping the derived "name" column first-class. */
     get sortedProjectsList(): ProjectEntry[] {
-      if (!this.projectsSortKey) return this.projectsList;
-      const key = this.projectsSortKey;
-      const dir = this.projectsSortAsc ? 1 : -1;
-      return [...this.projectsList].sort((a, b) => {
-        const av = key === "name" ? this.displayNameFor(a.path) : a[key];
-        const bv = key === "name" ? this.displayNameFor(b.path) : b[key];
-        return av.localeCompare(bv) * dir;
-      });
+      return dashboardSortedProjectsList(this);
     },
     /** Refresh audit status for every saved project. */
     async auditAllProjects() {
-      this.projectsAuditing = true;
-      try {
-        const paths = this.projectsList.map((p) => p.path).join(",");
-        const res = await fetch(
-          `/api/projects/status?paths=${encodeURIComponent(paths)}`,
-        );
-        const payload = readRecord(await res.json(), "Project status response");
-        if (Array.isArray(payload.projects)) {
-          this.projectsList = payload.projects
-            .map((project) => readProjectEntry(project))
-            .filter((project): project is ProjectEntry => project !== null);
-        }
-      } catch {
-        /* silent */
-      }
-      this.projectsAuditing = false;
+      await dashboardAuditAllProjects(this);
     },
     /** Load saved dashboard state from disk, with localStorage as a migration fallback. */
     async _loadSavedDashboardState() {
-      let savedPaths: string[] = [];
-      let savedFavorites: string[] = [];
-      let savedProjectTitles: Record<string, string> = {};
-      try {
-        const res = await fetch("/api/projects/list");
-        const payload = readRecord(
-          await res.json(),
-          "Dashboard state response",
-        );
-        const paths = readStringArray(payload.paths);
-        const favorites = readStringArray(payload.favorites);
-        if (paths.length > 0) {
-          savedPaths = paths;
-        }
-        if (favorites.length > 0) {
-          savedFavorites = favorites;
-        }
-        savedProjectTitles = readStringMap(payload.projectTitles);
-      } catch {
-        /* server unavailable */
-      }
-      this.projectTitles = savedProjectTitles;
-      if (savedPaths.length === 0) {
-        savedPaths = readStoredStringArray("goat-flow-projects");
-      }
-      if (savedFavorites.length === 0) {
-        savedFavorites = readStoredStringArray("goat-flow-preset-favorites");
-      }
-      const launchPath = window.__GOAT_FLOW_DEFAULT_PATH__;
-      if (launchPath && !savedPaths.includes(launchPath)) {
-        savedPaths.unshift(launchPath);
-      }
-      this.presetFavorites = [...new Set(savedFavorites)];
-      if (savedPaths.length > 0) {
-        this.projectsList = savedPaths.map((path) => ({
-          path,
-          state: "...",
-          action: "...",
-          details: "Not audited",
-        }));
-      }
-      if (savedPaths.length > 0 || this.presetFavorites.length > 0) {
-        this._saveDashboardState();
-      }
+      await dashboardLoadSavedDashboardState(this);
     },
     /** Persist the current dashboard state to localStorage and the server store. */
     _saveDashboardState() {
-      const paths = [...new Set(this.projectsList.map((p) => p.path))];
-      const favorites = [...new Set(this.presetFavorites)];
-      const projectTitles = { ...this.projectTitles };
-      localStorage.setItem("goat-flow-projects", JSON.stringify(paths));
-      localStorage.setItem(
-        "goat-flow-preset-favorites",
-        JSON.stringify(favorites),
-      );
-      fetch("/api/projects/list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paths, favorites, projectTitles }),
-      }).catch(() => {});
+      dashboardSaveDashboardState(this);
     },
     /** Begin editing the current project's title (inline header rename). */
     startEditProjectTitle() {
-      this.projectTitleDraft = this.projectName;
-      this.editingProjectTitle = true;
+      dashboardStartEditProjectTitle(this);
     },
     /** Commit the inline-edited title for the current project path. An empty
      *  or whitespace-only draft clears the override so the path basename wins. */
     saveProjectTitle() {
-      if (!this.editingProjectTitle) return;
-      this.editingProjectTitle = false;
-      const trimmed = this.projectTitleDraft.trim().slice(0, 120);
-      const next = { ...this.projectTitles };
-      if (
-        trimmed.length === 0 ||
-        trimmed === getProjectDisplayName(this.projectPath)
-      ) {
-        delete next[this.projectPath];
-      } else {
-        next[this.projectPath] = trimmed;
-      }
-      this.projectTitles = next;
-      this.projectTitleDraft = "";
-      this._saveDashboardState();
-      document.title = `${this.projectName} | GOAT Flow`;
+      dashboardSaveProjectTitle(this);
     },
     /** Discard the inline-edited title. */
     cancelEditProjectTitle() {
-      this.editingProjectTitle = false;
-      this.projectTitleDraft = "";
+      dashboardCancelEditProjectTitle(this);
     },
     /** Persist the current project list through the shared dashboard state store. */
     _saveProjectsList() {
@@ -1679,283 +707,35 @@ function app() {
 
     // -- Terminal --
     async checkTerminalAvailable() {
-      try {
-        const res = await fetch("/api/health");
-        if (res.ok) {
-          const payload = readRecord(await res.json(), "Health response");
-          this.availableRunners = Array.isArray(payload.availableRunners)
-            ? payload.availableRunners
-                .map((runner) => readRunnerId(runner))
-                .filter((runner): runner is RunnerId => runner !== null)
-            : [];
-          this.terminalAvailable =
-            payload.nodePtyAvailable === true &&
-            this.availableRunners.length > 0;
-          const [firstRunner] = this.availableRunners;
-          if (firstRunner) this.activeRunner = firstRunner;
-        }
-      } catch {
-        this.terminalAvailable = false;
-      }
-      this.updateSessionCount();
+      await dashboardCheckTerminalAvailable(this);
     },
     /** Refresh terminal session state from the server. */
     async updateSessionCount() {
-      try {
-        const res = await fetch("/api/terminal/sessions");
-        const payload = readRecord(
-          await res.json(),
-          "Terminal sessions response",
-        );
-        this.terminalSessionCount =
-          typeof payload.activeCount === "number" ? payload.activeCount : 0;
-        if (typeof payload.maxSessions === "number") {
-          this.serverMaxSessions = payload.maxSessions;
-        }
-        this.serverSessions = Array.isArray(payload.sessions)
-          ? payload.sessions
-              .map((session) => readServerSessionInfo(session))
-              .filter(
-                (session): session is ServerSessionInfo => session !== null,
-              )
-              .map((session) => ({
-                ...session,
-                projectName: this.displayNameFor(session.projectPath),
-              }))
-          : [];
-      } catch {
-        /* ignore */
-      }
+      await dashboardUpdateSessionCount(this);
     },
     /** End every live terminal session for the current project. */
     async endAllSessions() {
-      try {
-        const res = await fetch("/api/terminal/sessions");
-        const payload = readRecord(
-          await res.json(),
-          "Terminal sessions response",
-        );
-        const sessions = Array.isArray(payload.sessions)
-          ? payload.sessions
-              .map((session) => readServerSessionInfo(session))
-              .filter(
-                (session): session is ServerSessionInfo => session !== null,
-              )
-          : [];
-        for (const session of sessions) {
-          await fetch(`/api/terminal/${session.id}`, { method: "DELETE" });
-        }
-        for (const id of Object.keys(this._terminalRefs)) {
-          const refs = this._terminalRefs[id];
-          if (refs?.cleanup) refs.cleanup();
-        }
-        this._terminalRefs = {};
-        this._projectSessions = {};
-        this._projectActiveSession = {};
-        this.sessions = [];
-        this.activeSessionId = null;
-        for (const [presetId, state] of Object.entries(this.promptRunStates)) {
-          if (state === "running") this.promptRunStates[presetId] = "pass";
-        }
-        await this.updateSessionCount();
-        this.showToast("All sessions ended");
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.showToast("Failed to end sessions: " + msg, true);
-      }
+      await dashboardEndAllSessions(this);
     },
     /** Load the xterm.js globals on demand before any terminal view is rendered. */
     async loadXterm() {
-      if (this._xtermLoaded) return;
-      await new Promise<void>((resolve, reject) => {
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href =
-          "https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css";
-        document.head.appendChild(link);
-        // The fit addon patches the global Terminal constructor, so xterm itself
-        // has to finish loading before the addon script is appended.
-        const script = document.createElement("script");
-        script.src =
-          "https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js";
-        /** Handle script load failures. */
-        script.onerror = () => reject(new Error("xterm.js load failed"));
-        const timer = setTimeout(
-          () => reject(new Error("xterm.js load timeout")),
-          5000,
-        );
-        /** Handle successful script loads. */
-        script.onload = () => {
-          clearTimeout(timer);
-          resolve();
-        };
-        document.head.appendChild(script);
-      });
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src =
-          "https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js";
-        const timer = setTimeout(
-          () => reject(new Error("fit addon load timeout")),
-          5000,
-        );
-        /** Handle successful script loads. */
-        script.onload = () => {
-          clearTimeout(timer);
-          resolve();
-        };
-        /** Handle script load failures. */
-        script.onerror = () => reject(new Error("fit addon load failed"));
-        document.head.appendChild(script);
-      });
-      getXtermConstructors();
-      this._xtermLoaded = true;
+      await dashboardLoadXterm(this);
     },
     /** Launch a preset prompt in the selected runner. */
     async launchPreset(prompt: string, runner?: RunnerId) {
-      if (this.launching) return;
-      const preset = this.presets.find(
-        (p) => this.adaptPrompt(p.prompt) === this.adaptPrompt(prompt),
-      );
-      const promptLabel = preset?.name || "Custom prompt";
-      const presetId = preset?.id || null;
-      const runnerResolved = runner || this.activeRunner;
-      if (presetId) this.promptRunStates[presetId] = "running";
-      let adapted = this.adaptPrompt(prompt);
-      if (this.userRole === "investigator") {
-        adapted =
-          "You are in investigator mode. Read-only - investigate, plan, and review only. Do NOT make any code changes.\n\n" +
-          adapted;
-      } else if (this.userRole === "tester") {
-        adapted =
-          "You are in tester mode. Test-focused - generate test plans, verify coverage, run QA analysis. Do NOT make code changes beyond test files.\n\n" +
-          adapted;
-      }
-      await this.launchInTerminal(adapted, runnerResolved, {
-        promptLabel,
-        presetId,
-      });
+      await dashboardLaunchPreset(this, prompt, runner);
     },
     /** Drop a session id from every project's saved list, pruning empty entries. */
     _forgetSavedSession(sessionId: string) {
-      for (const [path, list] of Object.entries(this._projectSessions)) {
-        const filtered = list.filter((sv) => sv.sessionId !== sessionId);
-        if (filtered.length === 0) {
-          delete this._projectSessions[path];
-        } else if (filtered.length !== list.length) {
-          this._projectSessions[path] = filtered;
-        }
-        if (this._projectActiveSession[path] === sessionId) {
-          const first = filtered[0];
-          if (first) {
-            this._projectActiveSession[path] = first.sessionId;
-          } else {
-            delete this._projectActiveSession[path];
-          }
-        }
-      }
+      dashboardForgetSavedSession(this, sessionId);
     },
     /** Detach the current browser terminal while preserving reconnect metadata. */
     detachTerminal(forProjectPath?: string) {
-      this._detaching = true;
-      const savePath = forProjectPath || this.projectPath;
-      const toSave: SavedSession[] = this.sessions
-        .filter((s) => s.projectPath === savePath && !s.ended)
-        .map((s) => ({
-          sessionId: s.id,
-          startTime: s.startTime,
-          prompt: s.promptLabel ?? "",
-          agent: s.runner,
-        }));
-      if (toSave.length > 0) {
-        this._projectSessions[savePath] = toSave;
-        const activeId = this.activeSessionId;
-        const fallback = toSave[0];
-        if (activeId && toSave.some((s) => s.sessionId === activeId)) {
-          this._projectActiveSession[savePath] = activeId;
-        } else if (fallback) {
-          this._projectActiveSession[savePath] = fallback.sessionId;
-        }
-      } else {
-        delete this._projectSessions[savePath];
-        delete this._projectActiveSession[savePath];
-      }
-      for (const id of Object.keys(this._terminalRefs)) {
-        const refs = this._terminalRefs[id];
-        if (refs?.cleanup) refs.cleanup();
-      }
-      this._terminalRefs = {};
-      this.sessions = [];
-      this.activeSessionId = null;
-      this.promptRunStates = {};
-      this._detaching = false;
+      dashboardDetachTerminal(this, forProjectPath);
     },
     /** Reconnect the workspace to every saved backend session for this project. */
     async reconnectTerminal(): Promise<boolean> {
-      const savedList = this._projectSessions[this.projectPath];
-      if (!savedList || savedList.length === 0) return false;
-      const aliveMap = new Map<string, ServerSessionInfo>();
-      try {
-        const res = await fetch("/api/terminal/sessions");
-        const payload = readRecord(
-          await res.json(),
-          "Terminal sessions response",
-        );
-        if (Array.isArray(payload.sessions)) {
-          for (const raw of payload.sessions) {
-            const session = readServerSessionInfo(raw);
-            if (session) aliveMap.set(session.id, session);
-          }
-        }
-      } catch {
-        delete this._projectSessions[this.projectPath];
-        delete this._projectActiveSession[this.projectPath];
-        return false;
-      }
-      const liveSaved = savedList.filter((sv) => aliveMap.has(sv.sessionId));
-      if (liveSaved.length === 0) {
-        delete this._projectSessions[this.projectPath];
-        delete this._projectActiveSession[this.projectPath];
-        return false;
-      }
-      this._projectSessions[this.projectPath] = liveSaved;
-      const self = this as typeof this & AlpineMagics<typeof this>;
-      await this.loadXterm();
-      for (const saved of liveSaved) {
-        const alive = aliveMap.get(saved.sessionId);
-        if (!alive) continue;
-        const session: LocalSession = {
-          id: saved.sessionId,
-          runner: saved.agent,
-          promptLabel: saved.prompt,
-          projectPath: this.projectPath,
-          startTime: saved.startTime,
-          lastInputTime: alive.lastInputAt,
-          connected: false,
-          ended: false,
-          age: "",
-          presetId: null,
-        };
-        this.sessions.push(session);
-        this._terminalRefs[session.id] = {};
-      }
-      const savedActiveId = this._projectActiveSession[this.projectPath];
-      const first = liveSaved[0];
-      this.activeSessionId =
-        savedActiveId && liveSaved.some((s) => s.sessionId === savedActiveId)
-          ? savedActiveId
-          : (first?.sessionId ?? null);
-      this.activeView = "workspace";
-      this.workspacePanel = "terminal";
-      await self.$nextTick();
-      for (const saved of liveSaved) {
-        this.connectTerminal(
-          saved.sessionId,
-          `/ws/terminal/${saved.sessionId}`,
-        );
-      }
-      this.updateSessionCount();
-      return true;
+      return dashboardReconnectTerminal(this);
     },
     /** Create a new backend terminal session and open it in the workspace. */
     async launchInTerminal(
@@ -1966,336 +746,34 @@ function app() {
         presetId = null,
       }: { promptLabel?: string | null; presetId?: string | null } = {},
     ) {
-      if (
-        Math.max(this.sessions.length, this.serverSessions.length) >=
-        this.serverMaxSessions
-      ) {
-        this.showMaxSessionsModal = true;
-        return;
-      }
-      this.launching = true;
-      try {
-        const self = this as typeof this & AlpineMagics<typeof this>;
-        await this.loadXterm();
-        const res = await fetch("/api/terminal/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt,
-            projectPath: this.projectPath,
-            runner,
-          }),
-        });
-        const payload = readRecord(
-          await res.json(),
-          "Terminal create response",
-        );
-        const error = readErrorMessage(payload);
-        if (error) throw new Error(error);
-        const id = readString(payload.id);
-        const wsUrl = readString(payload.wsUrl);
-        if (!id || !wsUrl) {
-          throw new Error(
-            "Terminal create response returned an invalid payload",
-          );
-        }
-        const session: LocalSession = {
-          id,
-          runner,
-          promptLabel: promptLabel || "Custom prompt",
-          projectPath: this.projectPath,
-          startTime: Date.now(),
-          lastInputTime: Date.now(),
-          connected: false,
-          ended: false,
-          age: "",
-          presetId,
-        };
-        this.sessions.push(session);
-        this._terminalRefs[session.id] = {};
-        this.activeSessionId = session.id;
-        this.activeView = "workspace";
-        this.workspacePanel = "terminal";
-        await self.$nextTick();
-        this.connectTerminal(session.id, wsUrl);
-        this.updateSessionCount();
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes("Maximum") || msg.includes("concurrent")) {
-          this.showMaxSessionsModal = true;
-        } else {
-          this.showToast(msg, true);
-        }
-      }
-      this.launching = false;
+      await dashboardLaunchInTerminal(this, prompt, runner, {
+        promptLabel,
+        presetId,
+      });
     },
     /** Bind a browser xterm instance to a backend PTY session. */
     connectTerminal(sessionId: string, wsUrl: string) {
-      const session = this.sessions.find((s) => s.id === sessionId);
-      if (!session) return;
-      const container = document.getElementById(`gf-terminal-${sessionId}`);
-      if (!container) return;
-      container.innerHTML = "";
-      let TerminalCtor: NonNullable<Window["Terminal"]>;
-      let FitAddonCtor: new () => FitAddonInstance;
-      try {
-        const constructors = getXtermConstructors();
-        TerminalCtor = constructors.Terminal;
-        FitAddonCtor = constructors.FitAddon;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.showToast(msg, true);
-        return;
-      }
-      const term = new TerminalCtor({
-        cursorBlink: true,
-        fontSize: 14,
-        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-        theme: {
-          background: "#0f1729",
-          foreground: "#f3f4f6",
-          cursor: "#f3f4f6",
-        },
-      });
-      const fitAddon = new FitAddonCtor();
-      term.loadAddon(fitAddon);
-      term.open(container);
-      term._addonFit = fitAddon;
-      /** Fit the active xterm instance and report its size to the server. */
-      const doFit = (): void => {
-        if (!container.offsetWidth) return;
-        fitAddon.fit();
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: "resize",
-              cols: term.cols,
-              rows: term.rows,
-            }),
-          );
-        }
-      };
-      // Alpine transitions, font loading, and mobile panel swaps can each land on different
-      // layout frames. These staggered fits catch the collapsed-first-render case before the
-      // backend locks in the wrong terminal size.
-      for (const delay of TERMINAL_INITIAL_FIT_DELAYS_MS) {
-        setTimeout(doFit, delay);
-      }
-      const ro = new ResizeObserver(() => {
-        doFit();
-      });
-      ro.observe(container);
-      /** Handle browser resizes for the active terminal. */
-      const resizeHandler = (): void => {
-        doFit();
-      };
-      window.addEventListener("resize", resizeHandler);
-      const proto = location.protocol === "https:" ? "wss:" : "ws:";
-      const ws = new WebSocket(`${proto}//${location.host}${wsUrl}`);
-      let ageInterval: ReturnType<typeof setInterval> | null = null;
-      /** Handle the terminal WebSocket opening. */
-      ws.onopen = () => {
-        session.connected = true;
-        setTimeout(doFit, TERMINAL_REFIT_RETRY_DELAY_MS);
-        if (ageInterval) clearInterval(ageInterval);
-        ageInterval = setInterval(() => {
-          if (session.ended) {
-            if (ageInterval) clearInterval(ageInterval);
-            session.age = "";
-            return;
-          }
-          const elapsed = Math.floor((Date.now() - session.startTime) / 1000);
-          const mins = Math.floor(elapsed / 60);
-          const hrs = Math.floor(mins / 60);
-          let age: string;
-          if (hrs > 0) age = `Running ${hrs}h ${mins % 60}m`;
-          else age = `Running ${mins}m`;
-          if (session.lastInputTime) {
-            const idleSecs = Math.floor(
-              (Date.now() - session.lastInputTime) / 1000,
-            );
-            const idleMins = Math.floor(idleSecs / 60);
-            if (idleMins >= 58) {
-              age = `Running ${mins}m | Timeout in ${60 - idleMins}m`;
-            } else if (idleMins >= 50) {
-              age += ` | Idle ${idleMins}m`;
-            }
-          }
-          session.age = age;
-        }, 30000);
-        if (this._terminalRefs[sessionId]) {
-          this._terminalRefs[sessionId].ageInterval = ageInterval ?? undefined;
-        }
-      };
-      /** Handle incoming terminal WebSocket messages. */
-      ws.onmessage = (event: MessageEvent) => {
-        try {
-          if (typeof event.data !== "string") return;
-          const msg = readRecord(JSON.parse(event.data), "Terminal message");
-          const type = readString(msg.type);
-          if (type === "output" && typeof msg.data === "string") {
-            term.write(msg.data);
-          } else if (type === "exit") {
-            session.ended = true;
-            session.connected = false;
-            this._forgetSavedSession(sessionId);
-            if (
-              session.presetId &&
-              this.promptRunStates[session.presetId] === "running"
-            ) {
-              this.promptRunStates[session.presetId] = "pass";
-            }
-            this.updateSessionCount();
-          } else if (type === "error" && typeof msg.message === "string") {
-            term.write(`\r\n\x1b[31m${msg.message}\x1b[0m\r\n`);
-          } else if (type === "shutdown") {
-            session.ended = true;
-            session.connected = false;
-          }
-        } catch {
-          /* ignore malformed messages */
-        }
-      };
-      /** Handle the terminal WebSocket closing. */
-      ws.onclose = () => {
-        session.connected = false;
-        if (!session.ended && !this._detaching) session.ended = true;
-      };
-      /** Handle terminal WebSocket errors. */
-      ws.onerror = () => {
-        session.connected = false;
-      };
-      term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-        if (e.type === "keydown" && e.ctrlKey && e.key === "v") {
-          navigator.clipboard
-            .readText()
-            .then((text) => {
-              if (text && ws.readyState === WebSocket.OPEN)
-                ws.send(JSON.stringify({ type: "input", data: text }));
-            })
-            .catch(() => {});
-          return false;
-        }
-        if (
-          e.type === "keydown" &&
-          e.ctrlKey &&
-          e.key === "c" &&
-          term.hasSelection()
-        ) {
-          navigator.clipboard.writeText(term.getSelection()).catch(() => {});
-          return false;
-        }
-        return true;
-      });
-      term.onData((data: string) => {
-        if (ws.readyState === WebSocket.OPEN)
-          ws.send(JSON.stringify({ type: "input", data }));
-        session.lastInputTime = Date.now();
-      });
-      term.onResize(({ cols, rows }: { cols: number; rows: number }) => {
-        if (ws.readyState === WebSocket.OPEN)
-          ws.send(JSON.stringify({ type: "resize", cols, rows }));
-      });
-      /** Tear down dashboard resources before the page unloads. */
-      const cleanup = (): void => {
-        ro.disconnect();
-        window.removeEventListener("resize", resizeHandler);
-        if (ageInterval) clearInterval(ageInterval);
-        try {
-          ws.close();
-        } catch {
-          /* ignore */
-        }
-        try {
-          term.dispose();
-        } catch {
-          /* ignore */
-        }
-      };
-      this._terminalRefs[sessionId] = {
-        ws,
-        xterm: term,
-        cleanup,
-        ageInterval: ageInterval ?? undefined,
-      };
-      term.focus();
+      dashboardConnectTerminal(this, sessionId, wsUrl);
     },
     /** End a local terminal session and release its browser bindings. */
     endSession(sessionId: string) {
-      const session = this.sessions.find((s) => s.id === sessionId);
-      if (!session) return;
-      if (
-        session.presetId &&
-        this.promptRunStates[session.presetId] === "running"
-      ) {
-        this.promptRunStates[session.presetId] = "pass";
-      }
-      if (!session.ended) {
-        fetch(`/api/terminal/${sessionId}`, { method: "DELETE" }).catch(
-          () => {},
-        );
-      }
-      const refs = this._terminalRefs[sessionId];
-      if (refs?.cleanup) refs.cleanup();
-      delete this._terminalRefs[sessionId];
-      this.sessions = this.sessions.filter((s) => s.id !== sessionId);
-      this._forgetSavedSession(sessionId);
-      if (this.activeSessionId === sessionId) {
-        this.activeSessionId = this.sessions[0]?.id || null;
-      }
-      this.updateSessionCount();
+      dashboardEndSession(this, sessionId);
     },
     /** Exit the active terminal session from the workspace view. */
     exitTerminal() {
-      if (this.activeSessionId) this.endSession(this.activeSessionId);
+      dashboardExitTerminal(this);
     },
     /** Switch the workspace to an existing local terminal session. */
     switchToSession(sessionId: string) {
-      if (!this.sessions.find((s) => s.id === sessionId)) return;
-      this.activeSessionId = sessionId;
+      dashboardSwitchToSession(this, sessionId);
     },
     /** Attach the workspace to an existing backend terminal session. */
     async openServerSession(serverSession: ServerSessionInfo) {
-      const local = this.sessions.find((s) => s.id === serverSession.id);
-      if (local) {
-        this.activeSessionId = local.id;
-        this.activeView = "workspace";
-        this.workspacePanel = "terminal";
-        return;
-      }
-      const self = this as typeof this & AlpineMagics<typeof this>;
-      await this.loadXterm();
-      const session: LocalSession = {
-        id: serverSession.id,
-        runner: serverSession.runner,
-        promptLabel: serverSession.projectName || "session",
-        projectPath: serverSession.projectPath,
-        startTime: new Date(serverSession.createdAt).getTime(),
-        lastInputTime: serverSession.lastInputAt || Date.now(),
-        connected: false,
-        ended: false,
-        age: "",
-        presetId: null,
-      };
-      this.sessions.push(session);
-      this._terminalRefs[session.id] = {};
-      this.activeSessionId = session.id;
-      this.activeView = "workspace";
-      this.workspacePanel = "terminal";
-      await self.$nextTick();
-      this.connectTerminal(session.id, `/ws/terminal/${serverSession.id}`);
+      await dashboardOpenServerSession(this, serverSession);
     },
     /** Terminate a backend terminal session by ID. */
     async endServerSession(sessionId: string) {
-      const local = this.sessions.find((s) => s.id === sessionId);
-      if (local) {
-        this.endSession(sessionId);
-      } else {
-        await fetch(`/api/terminal/${sessionId}`, { method: "DELETE" }).catch(
-          () => {},
-        );
-      }
-      this.updateSessionCount();
+      await dashboardEndServerSession(this, sessionId);
     },
 
     // -- Computed Properties --

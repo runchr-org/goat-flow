@@ -5,12 +5,12 @@ goat-flow has two evaluation commands. `audit` is deterministic - it runs checks
 ## Quick reference
 
 ```bash
-goat-flow audit .                              # Build correctness (pass/fail)
-goat-flow audit . --harness                    # Include AI harness completeness checks
-goat-flow audit . --agent claude               # Scope to one agent
-goat-flow quality . --agent gemini             # Generate quality-assessment prompt for one agent
-goat-flow quality history --agent gemini       # Review saved trend history
-goat-flow quality diff --agent gemini          # Compare the latest two saved runs
+npx goat-flow audit .                              # Build correctness (pass/fail)
+npx goat-flow audit . --harness                    # Include AI harness completeness checks
+npx goat-flow audit . --agent claude               # Scope to one agent
+npx goat-flow quality . --agent gemini             # Generate quality-assessment prompt for one agent
+npx goat-flow quality history --agent gemini       # Review saved trend history
+npx goat-flow quality diff --agent gemini          # Compare the latest two saved runs
 ```
 
 | Command | Output | Deterministic? | Gates CI? | Requires --agent? |
@@ -54,7 +54,7 @@ Checks are grouped by **scope**:
 - `agent-settings` - selected agent settings/config file parses as valid JSON or TOML
 - `agent-deny-dangerous` - selected agent has a deny mechanism, shell-hook syntax is valid, deny patterns exist, and the deny self-test passes when the script exists
 
-**Agent detection:** `audit` detects configured agents from the manifest-backed instruction-file registry (`workflow/manifest.json` via `src/cli/agents/registry.ts`). Run `goat-flow manifest` to inspect the current support matrix; use `--agent <id>` to scope checks to one supported runtime.
+**Agent detection:** `audit` detects configured agents from the manifest-backed instruction-file registry (`workflow/manifest.json` via `src/cli/agents/registry.ts`). Run `npx goat-flow manifest` to inspect the current support matrix; use `--agent <id>` to scope checks to one supported runtime.
 
 ### Harness mode (`--harness`)
 
@@ -104,7 +104,7 @@ For single-agent projects the check is opt-in via the flag. For multi-agent proj
 Generates a structured quality-assessment prompt for a coding agent to evaluate goat-flow quality and usefulness on the current project. This is fundamentally different from `audit` - it produces a prompt, not findings.
 
 ```bash
-goat-flow quality . --agent gemini
+npx goat-flow quality . --agent gemini
 ```
 
 The generated prompt asks the agent to:
@@ -121,12 +121,12 @@ The prompt includes the current `audit` summary so the agent knows what's alread
 
 ### Quality report lifecycle
 
-`goat-flow quality` composes the prompt and instructs the agent to write its final JSON report directly to `.goat-flow/logs/quality/<YYYY-MM-DD>-<HHMM>-<agent>-<rand5>.json` - a gitignored path. No separate capture step is needed; the agent owns the write, and `history` / `diff` operate on whatever the agent saved.
+`npx goat-flow quality` composes the prompt and instructs the agent to write its final JSON report directly to `.goat-flow/logs/quality/<YYYY-MM-DD>-<HHMM>-<agent>-<rand5>.json` - a gitignored path. No separate capture step is needed; the agent owns the write, and `history` / `diff` operate on whatever the agent saved.
 
 ```bash
-goat-flow quality . --agent gemini             # Compose prompt; agent writes its own JSON report
-goat-flow quality history --agent gemini       # List saved reports + same-agent score deltas
-goat-flow quality diff --agent gemini          # Derive resolved / new / persisted / stuck vs the prior run
+npx goat-flow quality . --agent gemini             # Compose prompt; agent writes its own JSON report
+npx goat-flow quality history --agent gemini       # List saved reports + same-agent score deltas
+npx goat-flow quality diff --agent gemini          # Derive resolved / new / persisted / stuck vs the prior run
 ```
 
 - `quality` composes a structured prompt that ends with an instruction to save the JSON report under `.goat-flow/logs/quality/`. Positional finding ids are computed at load time by `history` / `diff`.
@@ -153,9 +153,9 @@ This keeps audit and quality separated in both terminology and storage: audit re
 ## How they work together
 
 ```
-goat-flow audit .              →  "Is it installed correctly?"        →  Fix structural issues
-goat-flow audit . --harness    →  "Is the harness complete?"          →  Fix failing concerns
-goat-flow quality . --agent X  →  "What does an agent actually think?" →  Get fresh perspective
+npx goat-flow audit .              →  "Is it installed correctly?"        →  Fix structural issues
+npx goat-flow audit . --harness    →  "Is the harness complete?"          →  Fix failing concerns
+npx goat-flow quality . --agent X  →  "What does an agent actually think?" →  Get fresh perspective
 ```
 
 Typical workflow after setup:

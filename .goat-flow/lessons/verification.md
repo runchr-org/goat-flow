@@ -487,6 +487,22 @@ last_reviewed: 2026-04-21
 
 ---
 
+## Lesson: Classic dashboard script splits need Knip ignore coverage
+
+**Status:** active | **Created:** 2026-04-21
+
+**What happened:** Splitting `src/dashboard/app.ts` into additional classic browser scripts passed dashboard typecheck and server asset tests, but `npx knip --no-progress` flagged the new script-tag files as unused because they are loaded from `src/dashboard/index.html` rather than imported by TypeScript.
+
+**Root cause:** The dashboard frontend intentionally uses classic scripts (`x-data="app()"`) and shared browser globals. Knip follows module imports, not HTML script-tag reachability, so new `src/dashboard/dashboard-*.ts` files look unused unless `knip.json` names them alongside the existing `src/dashboard/app.ts` / `globals.d.ts` ignores.
+
+**Evidence:** `knip.json` ignore list carries the dashboard classic-script files; `src/dashboard/index.html` loads `dashboard-readers.js`, `dashboard-setup-quality.js`, `dashboard-projects.js`, `dashboard-prompts.js`, `dashboard-terminal.js`, and `app.js` in order.
+
+**Prevention:**
+1. After adding a dashboard classic-script file, add it to `knip.json` in the same change.
+2. Re-run `npx knip --no-progress` before relying on preflight, because dashboard typecheck and asset tests will not catch Knip reachability gaps.
+
+---
+
 ## Lesson: New server helper files still count as repo-wide formatting debt
 
 **Status:** active | **Created:** 2026-04-20

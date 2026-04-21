@@ -29,7 +29,6 @@ import type {
   ManifestCheckReport,
   ManifestJson,
   ObservedFacts,
-  PresetFacts,
   ResolvedFacts,
   SkillFacts,
 } from "./types.js";

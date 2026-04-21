@@ -9,7 +9,7 @@ import type {
   ServerResponse,
 } from "node:http";
 import type { Duplex } from "node:stream";
-import type { WebSocket as WsWebSocket, WebSocketServer } from "ws";
+import type { WebSocketServer } from "ws";
 import { decodeTerminalCreateBody } from "./decoders.js";
 import type { Runner } from "./types.js";
 import type { TerminalManager } from "./terminal.js";
