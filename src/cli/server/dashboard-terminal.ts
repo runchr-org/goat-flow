@@ -116,9 +116,7 @@ export function createDashboardTerminalHandlers(
           console.log(
             "Note: Terminal feature unavailable (node-pty failed to load)",
           );
-          console.log(
-            "  Fix: npm rebuild node-pty (requires C++ build tools)",
-          );
+          console.log("  Fix: npm rebuild node-pty (requires C++ build tools)");
           console.log("  pnpm: pnpm approve-builds");
           console.log(
             "  See: https://github.com/blundergoat/goat-flow#troubleshooting",
@@ -129,9 +127,7 @@ export function createDashboardTerminalHandlers(
         console.log(
           "Note: Terminal feature unavailable (node-pty failed to load)",
         );
-        console.log(
-          "  Fix: npm rebuild node-pty (requires C++ build tools)",
-        );
+        console.log("  Fix: npm rebuild node-pty (requires C++ build tools)");
         console.log("  pnpm: pnpm approve-builds");
         console.log(
           "  See: https://github.com/blundergoat/goat-flow#troubleshooting",
@@ -294,7 +290,7 @@ export function createDashboardTerminalHandlers(
         const wss = await getWSS();
         const manager = await getManager();
         wss.handleUpgrade(req, socket, head, (ws) => {
-          manager.attachWebSocket(sessionId, ws as unknown as WsWebSocket);
+          manager.attachWebSocket(sessionId, ws);
         });
       } catch {
         socket.destroy();

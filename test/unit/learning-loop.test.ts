@@ -40,7 +40,7 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
     exists: true,
     valid: true,
     config: {
-      version: "1.2.0",
+      version: "1.2.1",
       footguns: { path: ".goat-flow/footguns/" },
       lessons: { path: ".goat-flow/lessons/" },
       decisions: { path: ".goat-flow/decisions/" },

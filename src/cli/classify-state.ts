@@ -100,7 +100,7 @@ function buildIncompleteDetails(
 /** Map from agentId to that agent's instruction file. */
 const AGENT_INSTRUCTION_FILE = Object.fromEntries(
   AGENT_PROFILES.map((profile) => [profile.id, profile.instructionFile]),
-) as Record<string, string>;
+);
 
 /** Classify a project's GOAT Flow adoption state. */
 // eslint-disable-next-line complexity -- intentionally branchy state machine
@@ -132,8 +132,8 @@ export function classifyProjectState(
 
     if (!version) {
       return {
-        state: "error" as ProjectStateName,
-        action: "setup" as ProjectAction,
+        state: "error",
+        action: "setup",
         details:
           "Config exists but version could not be parsed from .goat-flow/config.yaml. Run setup to regenerate.",
       };
