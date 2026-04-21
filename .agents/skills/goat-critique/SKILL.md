@@ -211,7 +211,7 @@ The rubric determines what sub-agents evaluate. Match to artifact type. Dimensio
 ## Retracted Findings
 ## Human Decisions
 ## Strengths
-## Recommended Changes  <!-- subset of Validated Findings; ordered by severity -->
+## Recommended Changes  <!-- subset of Validated Findings; ordered by severity; each with concrete action -->
 ## Decision Debt
 ## Open Questions
 ## What Wasn't Critiqued
