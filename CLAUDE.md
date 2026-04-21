@@ -98,7 +98,7 @@ MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh,
 | Scripts | `scripts/` |
 | Workflow source | `workflow/` (setup, skills, hooks, evaluation) |
 | Skills | `.claude/skills/` (goat, goat-critique, goat-debug, goat-plan, goat-qa, goat-review, goat-security) |
-| Shared skill reference | `.goat-flow/skill-reference/` (skill-preamble.md, skill-conventions.md, skill-quality-testing.md index + skill-quality-testing/{tdd-iteration,adversarial-framing,deployment}.md per ADR-023) |
+| Shared skill reference | `.goat-flow/skill-reference/` (skill-preamble.md, skill-conventions.md, skill-quality-testing.md index + skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, and skill-quality-testing/deployment.md per ADR-023) |
 | Footguns (most-queried) | `.goat-flow/footguns/` |
 | Lessons | `.goat-flow/lessons/` |
 | Patterns | `.goat-flow/patterns.md` |

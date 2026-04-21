@@ -89,7 +89,7 @@ skills/
   goat-critique/SKILL.md   # Multi-perspective critique skill template
   goat-security/SKILL.md   # Security assessment skill template
   goat-qa/SKILL.md         # Testing gap analysis skill template
-  reference/               # skill-preamble.md, skill-conventions.md, skill-quality-testing.md + skill-quality-testing/{tdd-iteration,adversarial-framing,deployment}.md
+  reference/               # skill-preamble.md, skill-conventions.md, skill-quality-testing.md index + skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, skill-quality-testing/deployment.md
 
 hooks/                     # Hook templates (deny-dangerous.sh, etc.)
 evaluation/                # Quality-assessment prompt templates
