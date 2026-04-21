@@ -147,7 +147,7 @@ export class TerminalManager {
     } catch {
       this.nodePtyAvailable = false;
       throw new Error(
-        "node-pty is not available. Install it with: npm install node-pty",
+        "node-pty failed to load. Run: npm rebuild node-pty (requires C++ build tools)",
       );
     }
   }

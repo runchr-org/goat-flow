@@ -177,7 +177,7 @@
       </div>
 
       <!-- Right preview -->
-      <div class="gf-card" style="padding: 18px 20px; min-width: 0">
+      <div class="gf-card" style="padding: 18px 20px; min-width: 0" x-data="{ extraContext: '' }">
         <template x-if="selectedPreset">
           <div>
             <div
@@ -197,7 +197,7 @@
               </button>
               <div style="flex: 1"></div>
               <button
-                @click="launchPreset(selectedPreset.prompt, activeRunner)"
+                @click="launchPreset(extraContext.trim() ? selectedPreset.prompt + '\n\n' + extraContext.trim() : selectedPreset.prompt, activeRunner)"
                 :disabled="launching || serverSessions.length >= 10"
                 class="gf-btn gf-btn-md gf-btn-primary"
               >
@@ -283,7 +283,7 @@
               ></pre>
             </div>
 
-            <div style="margin-top: 14px" x-data="{ extraContext: '' }">
+            <div style="margin-top: 14px">
               <div
                 style="
                   display: flex;

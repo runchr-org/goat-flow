@@ -114,9 +114,12 @@ export function createDashboardTerminalHandlers(
       .then((health) => {
         if (!health.nodePtyAvailable) {
           console.log(
-            "Note: Terminal feature unavailable (node-pty not installed)",
+            "Note: Terminal feature unavailable (node-pty failed to load)",
           );
-          console.log("  Fix: npm install node-pty (or: pnpm approve-builds)");
+          console.log(
+            "  Fix: npm rebuild node-pty (requires C++ build tools)",
+          );
+          console.log("  pnpm: pnpm approve-builds");
           console.log(
             "  See: https://github.com/blundergoat/goat-flow#troubleshooting",
           );
@@ -124,9 +127,12 @@ export function createDashboardTerminalHandlers(
       })
       .catch(() => {
         console.log(
-          "Note: Terminal feature unavailable (node-pty not installed)",
+          "Note: Terminal feature unavailable (node-pty failed to load)",
         );
-        console.log("  Fix: npm install node-pty (or: pnpm approve-builds)");
+        console.log(
+          "  Fix: npm rebuild node-pty (requires C++ build tools)",
+        );
+        console.log("  pnpm: pnpm approve-builds");
         console.log(
           "  See: https://github.com/blundergoat/goat-flow#troubleshooting",
         );

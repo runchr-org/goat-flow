@@ -153,7 +153,7 @@ Run `goat-flow manifest` to inspect the live agent matrix that drives CLI valida
 ## Troubleshooting
 
 **Terminal not showing in dashboard?**
-node-pty didn't compile. Run `npm rebuild node-pty`. If using pnpm: `pnpm approve-builds` (select node-pty).
+node-pty requires C++ build tools to compile. Install them (`apt install build-essential python3` on Debian/Ubuntu, `xcode-select --install` on macOS), then run `npm rebuild node-pty`. If using pnpm: `pnpm approve-builds` (select node-pty).
 
 **Audit fails on a fresh project?**
 Expected. Run `goat-flow setup . --agent claude` and paste the output into your agent.
