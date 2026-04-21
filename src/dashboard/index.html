@@ -339,11 +339,11 @@
               x-text="agent.id"
             ></button>
           </template>
-          <template x-for="agent in agentSkeletonList" :key="'skel-' + agent.id">
-            <span
-              class="gf-ab gf-ab-loading"
-              x-text="agent.id"
-            ></span>
+          <template
+            x-for="agent in agentSkeletonList"
+            :key="'skel-' + agent.id"
+          >
+            <span class="gf-ab gf-ab-loading" x-text="agent.id"></span>
           </template>
           <span
             x-show="installedAgents.length === 0 && agentsLoaded"

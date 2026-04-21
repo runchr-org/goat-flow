@@ -358,6 +358,8 @@ last_reviewed: 2026-04-21
 
 **Fix:** Format any touched files first, then rerun the focused checks. If preflight still fails, run the narrower verifier (`scripts/prettier-check.sh` or equivalent) to identify whether the remaining failures are in untouched files. Report that split explicitly instead of calling preflight a task regression.
 
+**Recurrence update (2026-04-21):** A v1.2.2 version-bump run had `npm test` fail only because the installer round-trip fixture runs full preflight and found committed formatter drift in `src/dashboard/index.html`, a file outside the version-bump edit set. `npm run format:check` reproduced the same single-file failure.
+
 **Prevention:**
 1. When preflight fails, immediately identify whether the failing files are in `git status` for the current task.
 2. Treat repo-wide formatter failures in untouched files as residual baseline debt, not silent task fallout.

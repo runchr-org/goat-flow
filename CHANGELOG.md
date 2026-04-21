@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.2 - 2026-04-21
+
+Dashboard browser-code split, release metadata bump, and CLI documentation corrections.
+
+- **Dashboard app split** - `src/dashboard/app.ts` is now the Alpine state/composition layer, with readers, projects, prompts, setup/quality, and terminal flows moved into focused classic browser scripts loaded before `app.js`.
+- **Asset coverage** - Dashboard integration tests now assert the split script tags and asset endpoints. Knip ignores cover the classic script entry points so unused-export checks do not treat script-tag globals as dead code.
+- **Docs + release metadata** - README and public docs now consistently show `npx goat-flow` for package usage. Package, manifest, config, instruction headers, skill frontmatter, and current test stubs are bumped to v1.2.2.
+- **Cleanup** - Removed dead type imports exposed by full typecheck and formatted the prompts view so preflight remains clean after the split.
+
 ## v1.2.1 - 2026-04-20
 
 Dashboard project rename, `gh`-powered PR/issue intake for `goat-review` and `goat-qa`, install anchors for `decisions/` and `logs/sessions/`, and follow-up doc/footgun/lesson fixes.

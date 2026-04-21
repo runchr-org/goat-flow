@@ -1,4 +1,4 @@
-# Copilot Instructions - v1.2.1 (2026-04-21)
+# Copilot Instructions - v1.2.2 (2026-04-21)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash scripts + TypeScript CLI auditor.
 ## Essential Commands
 
@@ -111,7 +111,7 @@ MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh,
 
 ## Copilot-Specific
 
-- Use Copilot's built-in agents: `explore`, `task`, `general-purpose`, `code-review`. Use `/fleet` only when the user explicitly wants parallel work or the subtasks are genuinely independent. (List reflects Copilot CLI at goat-flow v1.2.1 publish; re-check against your installed Copilot CLI's own docs before relying on exact names.)
+- Use Copilot's built-in agents: `explore`, `task`, `general-purpose`, `code-review`. Use `/fleet` only when the user explicitly wants parallel work or the subtasks are genuinely independent. (List reflects Copilot CLI at goat-flow v1.2.2 publish; re-check against your installed Copilot CLI's own docs before relying on exact names.)
 - Treat `.github/hooks/hooks.json` and `.github/hooks/deny-dangerous.sh` as first-class runtime guardrails; verify after touching them.
 - `.github/agents/` is intentionally out of scope in this repo's Wave 6 support model.
 - Security-sensitive surfaces (review carefully when touched): `.github/copilot-instructions.md`, `.github/hooks/**`, `.github/skills/**`, `.copilotignore`.

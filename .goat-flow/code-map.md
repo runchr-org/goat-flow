@@ -117,6 +117,26 @@ maintenance/               # Git cleanup, secret scanning, Zone.Identifier remov
 
 ## docs/ -- Documentation
 
+```
+audit-and-quality.md       # User-facing audit vs quality command model and report lifecycle
+audit-checks.md            # Deterministic audit check inventory and scope breakdown
+cli.md                     # CLI command reference, flags, and examples
+dashboard.md               # Dashboard views, terminal behavior, and HTTP API reference
+deny-dangerous.md          # Deny hook behavior, installation notes, and troubleshooting
+skills.md                  # User-facing goat-* skill overview and routing guide
+
+harness-audit.md           # AI harness audit command/reference material
+harness-engineering.md     # Five harness concerns and evaluation model
+harness-quality.md         # AI harness quality assessment guidance
+
+coding-standards/          # Project coding conventions used as reference material
+  code-review.md           # Review expectations and finding standards
+  conventions.md           # General repo conventions and command expectations
+  frontend.md              # TypeScript/frontend conventions
+  git-commit.md            # Commit message conventions
+
+assets/                    # Documentation images such as dashboard-preview.png
+```
 
 ## .goat-flow/ -- Framework state (mostly gitignored)
 
