@@ -102,6 +102,7 @@ If working from a plan/milestone file, tick `- [x]` on each completed task immed
 | Scripts | `scripts/` |
 | Workflow source | `workflow/` (setup, skills, hooks, evaluation) |
 | Skills | `.agents/skills/` (goat, goat-critique, goat-debug, goat-plan, goat-qa, goat-review, goat-security) |
+| Shared skill reference | `.goat-flow/skill-reference/` (skill-preamble.md, skill-conventions.md, skill-quality-testing.md) |
 | Footguns (most-queried) | `.goat-flow/footguns/` |
 | Lessons | `.goat-flow/lessons/` |
 | Patterns | `.goat-flow/patterns.md` |
