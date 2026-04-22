@@ -365,6 +365,33 @@ export function createDashboardRouteHandlers(
     return true;
   }
 
+  function isCacheEligible(
+    agentFilter: AgentId | null,
+    harness: boolean,
+  ): boolean {
+    return !agentFilter && harness && isPackagedInstall();
+  }
+
+  function collectPerAgentAudits(
+    fs: ReturnType<typeof createFS>,
+    projectPath: string,
+    harness: boolean,
+  ): { id: string; audit: AuditReport }[] {
+    const configAgents = detectConfiguredAgents(fs).map((agent) => agent.id);
+    const results: { id: string; audit: AuditReport }[] = [];
+    for (const agentId of configAgents) {
+      try {
+        results.push({
+          id: agentId,
+          audit: runAudit(fs, projectPath, { agentFilter: agentId, harness }),
+        });
+      } catch {
+        /* skip agents that fail to audit */
+      }
+    }
+    return results;
+  }
+
   /** Run both evaluation systems and return a typed DashboardReport. */
   function handleAuditRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/audit") return false;
@@ -381,7 +408,7 @@ export function createDashboardRouteHandlers(
     try {
       requireProjectDirectory(projectPath);
 
-      if (!fresh && !agentFilter && harness && isPackagedInstall()) {
+      if (!fresh && isCacheEligible(agentFilter, harness)) {
         const cached = readAuditCache(projectPath, packageVersion);
         if (cached) {
           jsonResponse(res, 200, {
@@ -395,24 +422,10 @@ export function createDashboardRouteHandlers(
 
       const fs = createFS(projectPath);
       const auditRpt = runAudit(fs, projectPath, { agentFilter, harness });
-
-      const configAgents = detectConfiguredAgents(fs).map((agent) => agent.id);
-      const perAgentAudits: { id: string; audit: AuditReport }[] = [];
-      for (const agentId of configAgents) {
-        try {
-          const agentAudit = runAudit(fs, projectPath, {
-            agentFilter: agentId,
-            harness,
-          });
-          perAgentAudits.push({ id: agentId, audit: agentAudit });
-        } catch {
-          /* skip agents that fail to audit */
-        }
-      }
-
+      const perAgentAudits = collectPerAgentAudits(fs, projectPath, harness);
       const report = buildDashboardReport(auditRpt, perAgentAudits);
 
-      if (!agentFilter && harness && isPackagedInstall()) {
+      if (isCacheEligible(agentFilter, harness)) {
         writeAuditCache(projectPath, packageVersion, report);
       }
 
