@@ -3,12 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>goat-flow — Guardrails and memory for your AI coding agent</title>
+<title>goat-flow - AI coding agent harness for Claude Code, Codex, Gemini CLI & Copilot CLI</title>
 <meta name="description" content="An opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI. Audit, skills, hooks, and a learning loop that captures mistakes so they don't recur.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://goat-flow.com">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://goat-flow.com">
+<meta property="og:title" content="goat-flow - Guardrails and memory for your AI coding agent">
+<meta property="og:description" content="An opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI. Audit, skills, hooks, and a learning loop that captures mistakes so they don't recur.">
+<meta property="og:image" content="https://goat-flow.com/og-image.png">
+<meta property="og:site_name" content="goat-flow">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="goat-flow - Guardrails and memory for your AI coding agent">
+<meta name="twitter:description" content="An opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI. Audit, skills, hooks, and a learning loop that captures mistakes so they don't recur.">
+<meta name="twitter:image" content="https://goat-flow.com/og-image.png">
+
+<!-- Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "goat-flow",
+  "description": "An opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI. Audit, skills, hooks, and a learning loop that captures mistakes so they don't recur.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "macOS, Linux, Windows",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "url": "https://goat-flow.com",
+  "author": {
+    "@type": "Organization",
+    "name": "BlunderGOAT",
+    "url": "https://www.blundergoat.com"
+  },
+  "softwareRequirements": "Node.js",
+  "keywords": "AI coding agent, harness engineering, Claude Code, Codex, Gemini CLI, Copilot CLI"
+}
+</script>
+
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐐</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"></noscript>
 <style>
   :root {
     --bg: #0b0f14;
@@ -46,6 +89,12 @@
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
   code, .mono { font-family: var(--font-mono); }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
 
   /* ------- Nav ------- */
   .nav {
@@ -573,6 +622,7 @@
     <div class="nav-links">
       <a href="#pieces">Features</a>
       <a href="#skills">Skills</a>
+      <a href="#why">Why</a>
       <a href="#concerns">Background</a>
       <a href="#install" class="nav-cta">Get started</a>
     </div>
@@ -608,12 +658,13 @@
       </div>
 
       <!-- Terminal mock -->
+      <p class="sr-only">Terminal output showing goat-flow audit results: 12 of 12 setup checks passing, harness scores for Claude Code (94%), Codex (91%), Gemini CLI (87%), and Copilot CLI (85%), plus five-concern coverage for context, constraints, verification, recovery, and feedback loop.</p>
       <div class="terminal" aria-hidden="true">
         <div class="terminal-bar">
           <span class="term-dot r"></span>
           <span class="term-dot y"></span>
           <span class="term-dot g"></span>
-          <span class="label">~/projects/myapp — audit</span>
+          <span class="label">~/projects/myapp - audit</span>
         </div>
         <div class="terminal-body">
           <div class="t-prompt"><span class="path">~/projects/myapp</span> <span class="br">(main)</span></div>
@@ -683,7 +734,7 @@
 </section>
 
 <!-- ========== NARRATIVE ========== -->
-<section class="narrative">
+<section id="why" class="narrative">
   <div class="container">
     <div class="narrative-card">
       <div class="eyebrow eyebrow-muted">Why harness engineering?</div>
@@ -735,7 +786,7 @@
         <div class="piece-num">02 / Skills</div>
         <h3>Structured slash commands</h3>
         <p>
-          Seven workflows with defined phases, named artifacts, and stopping points. Debug, plan, review, critique, security, QA — plus a dispatcher that routes your intent to the right skill.
+          Seven workflows with defined phases, named artifacts, and stopping points. Debug, plan, review, critique, security, QA - plus a dispatcher that routes your intent to the right skill.
         </p>
         <div class="sub">/goat, /goat-debug, /goat-plan...</div>
       </div>
@@ -785,7 +836,7 @@
         <span class="step-label">READ</span>
         <h4>Load the files first</h4>
         <p>Pull in the actual code before reasoning about it.</p>
-        <div class="prevents">Prevents <span>fabrication</span> — inventing APIs that don't exist.</div>
+        <div class="prevents">Prevents <span>fabrication</span> - inventing APIs that don't exist.</div>
       </div>
       <div class="loop-arrow">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
@@ -794,7 +845,7 @@
         <span class="step-label">SCOPE</span>
         <h4>Declare what changes</h4>
         <p>List files that will be touched, and files that won't.</p>
-        <div class="prevents">Prevents <span>scope creep</span> — editing files the task never asked for.</div>
+        <div class="prevents">Prevents <span>scope creep</span> - editing files the task never asked for.</div>
       </div>
       <div class="loop-arrow">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
@@ -803,7 +854,7 @@
         <span class="step-label">ACT</span>
         <h4>Make the change</h4>
         <p>Edit only within the declared scope. Nothing else.</p>
-        <div class="prevents">Prevents <span>off-target edits</span> — changes made because they seemed related.</div>
+        <div class="prevents">Prevents <span>off-target edits</span> - changes made because they seemed related.</div>
       </div>
       <div class="loop-arrow">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
@@ -812,7 +863,7 @@
         <span class="step-label">VERIFY</span>
         <h4>Prove it works</h4>
         <p>Run linters, re-read changed files, confirm nothing drifted.</p>
-        <div class="prevents">Prevents <span>silent breakage</span> — passing the task but breaking the build.</div>
+        <div class="prevents">Prevents <span>silent breakage</span> - passing the task but breaking the build.</div>
       </div>
     </div>
   </div>
@@ -922,7 +973,7 @@
       </div>
       <div class="record">
         <h4><span class="dot"></span> Lessons</h4>
-        <p>Behavioural mistakes the agent made — logged so the same error pattern is recognised and avoided next time.</p>
+        <p>Behavioural mistakes the agent made - logged so the same error pattern is recognised and avoided next time.</p>
         <div class="path">.goat-flow/lessons/</div>
       </div>
       <div class="record">
@@ -932,7 +983,7 @@
       </div>
       <div class="record">
         <h4><span class="dot"></span> Session logs</h4>
-        <p>End-of-session summaries provide continuity between work sessions — across agents, across days, across context compactions.</p>
+        <p>End-of-session summaries provide continuity between work sessions - across agents, across days, across context compactions.</p>
         <div class="path">.goat-flow/logs/sessions/</div>
       </div>
     </div>
