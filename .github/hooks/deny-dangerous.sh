@@ -297,6 +297,11 @@ run_self_test() {
   run_case "head .env.production" "head .env.production" 2
   run_case "cat .env.example plus .env.local" "cat .env.example .env.local" 2
   run_case "echo redirect .env.example" 'echo "data" > .env.example' 2
+  run_case "tee pipe .env.example" 'echo foo | tee .env.example' 2
+  run_case "clobber .env.example" 'echo foo >| .env.example' 2
+  run_case "cat single-quoted .env" "cat '.env'" 2
+  run_case "cat single-quoted .env.example" "cat '.env.example'" 0
+  run_case "sed -i single-quoted .env.example" "sed -i '' '.env.example'" 2
   run_case "base64 .env" "base64 .env" 2
   run_case "xxd pem" "xxd server.pem" 2
   run_case "cat ssh key" "cat ~/.ssh/id_rsa" 2
@@ -386,17 +391,17 @@ fi
 is_secret_path_touch() {
   local c="$1"
   local env_scan
-  env_scan=$(printf '%s' "$c" | sed -E 's#(^|[[:space:]=:/])\.env\.example([[:space:]]|$|")#\1__goat_env_example__\2#g')
-  if [[ "$env_scan" =~ (^|[[:space:]]|=|:|/)\.env([[:space:]]|$|\"|\.[a-zA-Z0-9_-]+([[:space:]]|$|\")) ]]; then return 0; fi
+  env_scan=$(printf '%s' "$c" | sed -E "s#(^|[[:space:]=:/'\"])\.env\.example([[:space:]]|$|['\"])#\1__goat_env_example__\2#g")
+  if [[ "$env_scan" =~ (^|[[:space:]]|=|:|/|[\'\"]).env([[:space:]]|$|[\'\"]|\.[a-zA-Z0-9_-]+([[:space:]]|$|[\'\"])) ]]; then return 0; fi
   if [[ "$c" =~ /\.ssh/|/\.aws/|/\.config/gcloud/|application_default_credentials\.json|/\.gnupg/|/\.docker/config\.json|/\.kube/config ]]; then return 0; fi
-  if [[ "$c" =~ (^|[[:space:]]|=|:)[^[:space:]]*\.(pem|key|pfx)([[:space:]]|$|\") ]]; then return 0; fi
-  if [[ "$c" =~ (^|[[:space:]]|=|:|/)(credentials|\.npmrc|\.pypirc)([[:space:]]|$|\.|\") ]]; then return 0; fi
+  if [[ "$c" =~ (^|[[:space:]]|=|:|[\'\"])[^[:space:]]*\.(pem|key|pfx)([[:space:]]|$|[\'\"]) ]]; then return 0; fi
+  if [[ "$c" =~ (^|[[:space:]]|=|:|/|[\'\"])(credentials|\.npmrc|\.pypirc)([[:space:]]|$|\.|[\'\"]) ]]; then return 0; fi
   return 1
 }
 
 is_env_example_touch() {
   local c="$1"
-  if [[ "$c" =~ (^|[[:space:]]|=|:|/)\.env\.example([[:space:]]|$|\") ]]; then return 0; fi
+  if [[ "$c" =~ (^|[[:space:]]|=|:|/|[\'\"]).env\.example([[:space:]]|$|[\'\"]) ]]; then return 0; fi
   return 1
 }
 
@@ -501,7 +506,7 @@ check_segment() {
   fi
 
   local has_redirect=0 has_pipe=0
-  [[ "$cmd_unquoted" =~ \>[[:space:]] || "$cmd_unquoted" =~ \>\> ]] && has_redirect=1
+  [[ "$cmd_unquoted" =~ \>[[:space:]] || "$cmd_unquoted" =~ \>\> || "$cmd_unquoted" =~ \>\| ]] && has_redirect=1
   # Detect single pipe (|) but not logical OR (||), outside of quoted strings
   local pipe_stripped="${cmd_unquoted//||/}"
   [[ "$pipe_stripped" =~ \| ]] && has_pipe=1
@@ -524,7 +529,10 @@ check_segment() {
           env_example_read_only=1
         fi ;;
     esac
-    if [[ "$cmd" =~ (\>|\>\>)[[:space:]]*\"?[^[:space:]]*\.env\.example(\"|[[:space:]]|$) ]]; then
+    if [[ "$cmd" =~ (\>|\>\>|\>\|)[[:space:]]*[\'\"[:space:]]*\.env\.example([\'\"[:space:]]|$) ]]; then
+      env_example_read_only=0
+    fi
+    if [[ "$has_pipe" -eq 1 && "$cmd_unquoted" =~ \|[[:space:]]*(tee|dd|cp|mv|sponge)[[:space:]] ]]; then
       env_example_read_only=0
     fi
     if [[ "$env_example_read_only" -eq 0 ]]; then
