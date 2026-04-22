@@ -344,7 +344,7 @@
           style="padding: 14px 16px; border-radius: 0"
         >
           <button
-            @click="if (setupOutputs[setupSelectedAgent]) { launchPreset(setupOutputs[setupSelectedAgent], activeRunner); activeView = 'workspace'; }"
+            @click="if (setupOutputs[setupSelectedAgent]) { launchPreset(setupOutputs[setupSelectedAgent], activeRunner, 'Setup'); activeView = 'workspace'; }"
             :disabled="launching || !setupOutputs[setupSelectedAgent]"
             class="gf-btn-terminal-cta"
             style="width: 100%; justify-content: center; padding: 11px"

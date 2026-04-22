@@ -736,8 +736,8 @@ function app() {
       await dashboardLoadXterm(this);
     },
     /** Launch a preset prompt in the selected runner. */
-    async launchPreset(prompt: string, runner?: RunnerId) {
-      await dashboardLaunchPreset(this, prompt, runner);
+    async launchPreset(prompt: string, runner?: RunnerId, label?: string) {
+      await dashboardLaunchPreset(this, prompt, runner, label);
     },
     /** Drop a session id from every project's saved list, pruning empty entries. */
     _forgetSavedSession(sessionId: string) {

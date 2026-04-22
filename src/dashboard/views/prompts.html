@@ -201,7 +201,7 @@
               </button>
               <div style="flex: 1"></div>
               <button
-                @click="launchPreset(extraContext.trim() ? selectedPreset.prompt + '\n\n' + extraContext.trim() : selectedPreset.prompt, activeRunner)"
+                @click="launchPreset(extraContext.trim() ? selectedPreset.prompt + '\n\n' + extraContext.trim() : selectedPreset.prompt, activeRunner, selectedPreset.name)"
                 :disabled="launching || serverSessions.length >= 10"
                 class="gf-btn gf-btn-md gf-btn-primary"
               >

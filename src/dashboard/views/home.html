@@ -1018,7 +1018,7 @@
             </div>
           </button>
           <button
-            @click="launchPreset(setupFixPrompt(), activeRunner); workspacePanel = 'terminal'"
+            @click="launchPreset(setupFixPrompt(), activeRunner, 'Setup fix'); workspacePanel = 'terminal'"
             class="gf-action-btn"
             style="
               text-align: left;
@@ -1094,7 +1094,7 @@
             </div>
           </button>
           <button
-            @click="launchPreset(harnessFixPrompt(), activeRunner); workspacePanel = 'terminal'"
+            @click="launchPreset(harnessFixPrompt(), activeRunner, 'Harness fix'); workspacePanel = 'terminal'"
             class="gf-action-btn"
             style="
               text-align: left;
@@ -1133,7 +1133,7 @@
           "
         >
           <button
-            @click="launchPreset(qualityFixPrompt(), activeRunner); workspacePanel = 'terminal'"
+            @click="launchPreset(qualityFixPrompt(), activeRunner, 'Quality fix'); workspacePanel = 'terminal'"
             class="gf-action-btn"
             style="
               text-align: left;

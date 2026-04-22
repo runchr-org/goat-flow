@@ -286,12 +286,13 @@ async function dashboardLaunchPreset(
   ctx: DashboardTerminalContext,
   prompt: string,
   runner?: RunnerId,
+  label?: string,
 ): Promise<void> {
   if (ctx.launching) return;
   const preset = ctx.presets.find(
     (p) => ctx.adaptPrompt(p.prompt) === ctx.adaptPrompt(prompt),
   );
-  const promptLabel = preset?.name || "Custom prompt";
+  const promptLabel = label || preset?.name || "Custom prompt";
   const presetId = preset?.id || null;
   const runnerResolved = runner || ctx.activeRunner;
   if (presetId) ctx.promptRunStates[presetId] = "running";
