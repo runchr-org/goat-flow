@@ -370,6 +370,13 @@ describe("dashboard /api/health", () => {
     assert.equal(typeof data.activeSessions, "number");
     assert.equal(typeof data.nodePtyAvailable, "boolean");
     assert.ok(Array.isArray(data.availableRunners));
+    assert.ok(
+      data.platformHint === undefined ||
+        data.platformHint === "linux" ||
+        data.platformHint === "darwin" ||
+        data.platformHint === "win32",
+      `platformHint should be a known platform or undefined, got: ${data.platformHint}`,
+    );
   });
 });
 

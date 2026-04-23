@@ -153,4 +153,8 @@ export interface HealthResponse {
   nodePtyAvailable: boolean;
   /** CLI runners detected on the system PATH */
   availableRunners: Runner[];
+  /** Host platform for install guidance when node-pty is unavailable */
+  platformHint?: "linux" | "darwin" | "win32";
+  /** Configured idle timeout in minutes (0 = never) */
+  idleTimeoutMinutes: number;
 }

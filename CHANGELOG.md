@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.2.4 - 2026-04-23
+
+Quality report fixes, node-pty as optional dependency, configurable terminal timeout, dashboard settings/export, QA prompt improvements, and preset prompt library expansion.
+
+- **node-pty optional** - Moved from `dependencies` to `optionalDependencies`. Install no longer fails on Linux/WSL without C++ build tools. Dashboard terminal banner now shows platform-specific install guidance.
+- **Terminal timeout** - Configurable idle timeout via `config.yaml` `terminal.idle-timeout` (default 8 hours, was hardcoded 60 min). `0` disables auto-kill. Dashboard settings view shows current value.
+- **Session export** - Export button on workspace sessions downloads terminal output as `.txt`.
+- **Deny hook fix** - Quoted literal backticks (e.g. `printf 'use \` here'`) no longer trigger false-positive command-substitution blocks.
+- **Content quality audit** - Setup templates excluded from legacy execution-loop detection. ADR-021/022/023 added to target list and decisions README.
+- **Instruction file retrieval** - All four agent instruction files now include `.goat-flow/decisions/` in retrieval for architecture/policy/setup tasks.
+- **goat-qa skill** - Standard mode output template split into Phase 2 (gap analysis, presented at gate) and Phase 3 (testing plan, gated by approval). Step 0 retrieval now includes patterns.md and decisions.
+- **Preset prompts** - 23 to 26 presets. Three new: Mermaid Flow Diagram, Test Plan vs Code Changes, Automated Coverage Check. Existing presets sharpened with change-type-first probing, tester-voice, output format hints, and security lenses.
+- **docs/skills.md** - Planning Route corrected (File-Write default at Standard+). goat-critique sub-agent count corrected to 3. goat-qa Standard trigger clarified.
+
 ## v1.2.3 - 2026-04-22
 
 `.env.example` read-only handling, richer dashboard presets, dashboard audit caching, reporting-only quality prompts, active-plan local-state handling, goat-critique contract tightening, terminal fixes, prompt-label tracking, deployment scripts, prompt-loading polish, shared-reference doc cleanup, widened dashboard lint coverage, and goat-qa gate clarification. 19 commits, 92 files changed, 2,584 insertions, 708 deletions.

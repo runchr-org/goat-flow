@@ -30,6 +30,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "known-gaps",
   "skill-overrides",
   "harness",
+  "terminal",
 ]);
 
 /** Built-in default values used when config.yaml is missing or omits fields. */
@@ -54,6 +55,7 @@ const CONFIG_DEFAULTS: GoatFlowConfig = {
   telemetry: false,
   knownGaps: [],
   skillOverrides: {},
+  terminal: { idleTimeoutMinutes: 480 },
   harness: { acknowledge: [] },
 };
 
@@ -80,6 +82,7 @@ function cloneDefaults(): GoatFlowConfig {
     telemetry: CONFIG_DEFAULTS.telemetry,
     knownGaps: [...CONFIG_DEFAULTS.knownGaps],
     skillOverrides: { ...CONFIG_DEFAULTS.skillOverrides },
+    terminal: { ...CONFIG_DEFAULTS.terminal },
     harness: { acknowledge: [...CONFIG_DEFAULTS.harness.acknowledge] },
   };
 }
@@ -192,6 +195,17 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
     merged.skillOverrides = {
       ...raw["skill-overrides"],
     };
+  }
+
+  if (isRecord(raw.terminal)) {
+    const timeout = raw.terminal["idle-timeout"];
+    if (
+      typeof timeout === "number" &&
+      Number.isInteger(timeout) &&
+      timeout >= 0
+    ) {
+      merged.terminal.idleTimeoutMinutes = timeout;
+    }
   }
 
   mergeHarness(raw.harness, merged);

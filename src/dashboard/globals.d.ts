@@ -262,10 +262,20 @@ interface SetupData {
 // ---------------------------------------------------------------------------
 
 /** Minimal xterm.js Terminal instance surface used by `app.ts`. */
+interface XTermBufferLine {
+  translateToString(trimRight?: boolean): string;
+}
+
+interface XTermBuffer {
+  length: number;
+  getLine(y: number): XTermBufferLine | undefined;
+}
+
 interface XTermInstance {
   cols: number;
   rows: number;
   _addonFit?: FitAddonInstance;
+  buffer: { active: XTermBuffer };
   open(container: HTMLElement): void;
   write(data: string): void;
   dispose(): void;

@@ -12,7 +12,7 @@ last_reviewed: 2026-04-22
 **Why it happens:** The installed skill surface is broader than the two local agent mirrors most edits remember. `workflow/manifest.json` includes a GitHub agent with `skills_dir: ".github/skills/"`, the manifest helper exposes that root to the drift fixture, and path-integrity checks treat it as a first-class installed mirror. A hand-written file list that omits `.github/skills/` is incomplete.
 
 **Evidence:**
-- `workflow/manifest.json:157` declares the GitHub agent skill root as `.github/skills/`.
+- `workflow/manifest.json:162` declares the GitHub agent skill root as `.github/skills/`.
 - `src/cli/manifest/manifest.ts` (search: `getInstalledSkillRoots`) exposes installed skill roots from the manifest-backed agent set.
 - `scripts/check-path-integrity.sh` (search: `skill_dirs=".claude/skills .agents/skills .github/skills"`) checks `.github/skills/` alongside the other installed mirrors.
 - `test/integration/audit-drift.test.ts` (search: `goat-flow root should be drift-clean`) failed on 2026-04-21 with finding `goat-review: template (workflow/skills/goat-review/SKILL.md) and installed copy (.github/skills/goat-review/SKILL.md) differ`.

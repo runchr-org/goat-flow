@@ -14,6 +14,8 @@ interface DashboardTerminalContext {
   userRole: string;
   workspacePanel: string;
   terminalAvailable: boolean;
+  platformHint: string | null;
+  idleTimeoutMinutes: number;
   terminalSessionCount: number;
   serverSessions: ServerSessionInfo[];
   serverMaxSessions: number;
@@ -48,6 +50,7 @@ interface DashboardTerminalContext {
   updateSessionCount(): Promise<void>;
   _forgetSavedSession(sessionId: string): void;
   endSession(sessionId: string): void;
+  exportSession(sessionId: string): void;
 }
 
 /** Read the loaded xterm.js constructors from window globals. */
@@ -159,6 +162,12 @@ async function dashboardCheckTerminalAvailable(
         : [];
       ctx.terminalAvailable =
         payload.nodePtyAvailable === true && ctx.availableRunners.length > 0;
+      ctx.platformHint =
+        typeof payload.platformHint === "string" ? payload.platformHint : null;
+      ctx.idleTimeoutMinutes =
+        typeof payload.idleTimeoutMinutes === "number"
+          ? payload.idleTimeoutMinutes
+          : 480;
       const [firstRunner] = ctx.availableRunners;
       if (firstRunner) ctx.activeRunner = firstRunner;
     }
@@ -594,14 +603,17 @@ function dashboardConnectTerminal(
       let age: string;
       if (hrs > 0) age = `Running ${hrs}h ${mins % 60}m`;
       else age = `Running ${mins}m`;
-      if (session.lastInputTime) {
+      if (session.lastInputTime && ctx.idleTimeoutMinutes > 0) {
         const idleSecs = Math.floor(
           (Date.now() - session.lastInputTime) / 1000,
         );
         const idleMins = Math.floor(idleSecs / 60);
-        if (idleMins >= 58) {
-          age = `Running ${mins}m | Timeout in ${60 - idleMins}m`;
-        } else if (idleMins >= 50) {
+        const timeout = ctx.idleTimeoutMinutes;
+        const countdownAt = Math.floor(timeout * 0.97);
+        const warnAt = Math.floor(timeout * 0.85);
+        if (idleMins >= countdownAt) {
+          age = `Running ${mins}m | Timeout in ${timeout - idleMins}m`;
+        } else if (idleMins >= warnAt) {
           age += ` | Idle ${idleMins}m`;
         }
       }

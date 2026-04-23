@@ -28,9 +28,7 @@ type IPty = ReturnType<typeof import("node-pty").spawn>;
 /** Maximum number of concurrent terminal sessions allowed.
  *  Single source of truth consumed by the dashboard API, client guards, and docs. */
 export const MAX_SESSIONS = 10;
-/** Idle timeout before a terminal session is automatically killed.
- *  Resets on both user input (ws 'input' message) and agent output (pty onData). */
-const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
+const DEFAULT_IDLE_TIMEOUT_MINUTES = 480;
 
 /** CLI binary names for each runner. */
 const RUNNER_BINARIES: Record<Runner, string> = {
@@ -137,8 +135,11 @@ export class TerminalManager {
   private nodePtyModule: NodePtyModule | null = null;
   private nodePtyAvailable: boolean | null = null;
   private startedAt = Date.now();
+  private idleTimeoutMs: number | null;
 
-  constructor() {
+  constructor(idleTimeoutMinutes?: number) {
+    const minutes = idleTimeoutMinutes ?? DEFAULT_IDLE_TIMEOUT_MINUTES;
+    this.idleTimeoutMs = minutes === 0 ? null : minutes * 60 * 1000;
     // Resolve all runner CLI paths at startup
     for (const [runner, binary] of Object.entries(RUNNER_BINARIES)) {
       const path = resolveCLIPath(binary);
@@ -359,6 +360,11 @@ export class TerminalManager {
         /* sets nodePtyAvailable = false */
       }
     }
+    const platform = process.platform;
+    const platformHint =
+      platform === "linux" || platform === "darwin" || platform === "win32"
+        ? platform
+        : undefined;
     return {
       uptime: Math.floor((Date.now() - this.startedAt) / 1000),
       activeSessions: Array.from(this.sessions.values()).filter(
@@ -366,6 +372,11 @@ export class TerminalManager {
       ).length,
       nodePtyAvailable: this.nodePtyAvailable ?? false,
       availableRunners: Array.from(this.runnerPaths.keys()),
+      platformHint,
+      idleTimeoutMinutes:
+        this.idleTimeoutMs === null
+          ? 0
+          : Math.round(this.idleTimeoutMs / 60000),
     };
   }
 
@@ -404,15 +415,21 @@ export class TerminalManager {
   /** Reset the idle-timeout timer for a session. */
   private resetIdleTimer(session: TerminalSession): void {
     this.clearIdleTimer(session);
+    if (this.idleTimeoutMs === null) return;
+    const timeoutMs = this.idleTimeoutMs;
+    const label =
+      timeoutMs >= 3600000
+        ? `${Math.round(timeoutMs / 3600000)}h`
+        : `${Math.round(timeoutMs / 60000)} min`;
     session.idleTimer = setTimeout(() => {
       if (session.ws) {
         sendMessage(session.ws, {
           type: "error",
-          message: "Session killed: idle timeout (60 min)",
+          message: `Session killed: idle timeout (${label})`,
         });
       }
       this.killSession(session);
-    }, IDLE_TIMEOUT_MS);
+    }, timeoutMs);
   }
 
   /** Clear the idle-timeout timer for a session. */

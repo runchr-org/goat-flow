@@ -34,6 +34,8 @@ export interface GoatFlowConfig {
   knownGaps: string[];
   /** Placeholder for per-project skill customisation (M18). */
   skillOverrides: Record<string, unknown>;
+  /** Terminal settings for the dashboard embedded terminal */
+  terminal: { idleTimeoutMinutes: number };
   /** Harness (AI Harness audit) configuration. */
   harness: {
     /** Advisory check ids the project has opted out of. Silenced checks render as `acknowledged` and do not affect concern status. */

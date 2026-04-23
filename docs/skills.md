@@ -71,7 +71,7 @@ The dispatcher classifies intent conversationally - not by keyword lookup. It as
 | Test gaps, coverage, verification planning | /goat-qa |
 | Critique a plan/assessment | /goat-critique |
 
-**Planning Route:** For planning requests, the dispatcher reads `.goat-flow/tasks/.active` (one-line marker naming the active plan subdir) to find existing plans, then routes based on complexity: Hotfix → direct execution; Small Feature → compressed brief → `/goat-plan`; Standard → feature brief → `/goat-plan`; System/Infrastructure → feature brief → `/goat-plan` → suggest `/goat-critique`. `/goat-plan` defaults to inline/read-only milestones unless file creation is explicitly requested.
+**Planning Route:** For planning requests, the dispatcher reads `.goat-flow/tasks/.active` (one-line marker naming the active plan subdir) to find existing plans, then routes based on complexity: Hotfix → direct execution; Small Feature → compressed brief → `/goat-plan`; Standard → feature brief → `/goat-plan`; System/Infrastructure → feature brief → `/goat-plan` → suggest `/goat-critique`. `/goat-plan` defaults to File-Write at Standard+ scope when no analysis signals are present; analysis signals ("break this down for me", "how would you approach") trigger Read-Only Analysis mode instead.
 
 ---
 
@@ -184,11 +184,11 @@ MUST NOT flag pre-existing issues as part of this change. MUST attempt to dispro
 
 ## /goat-critique
 
-Multi-perspective critique for a concrete artifact (plan, security assessment, debug hypothesis set, review findings, architecture proposal). goat-critique runs in one mode: full delegated, 2-3 sub-agents, 5 phases. Rationale: `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md`.
+Multi-perspective critique for a concrete artifact (plan, security assessment, debug hypothesis set, review findings, architecture proposal). goat-critique runs in one mode: full delegated, 3 sub-agents, 5 phases. Rationale: `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md`.
 
 | Sub-agents | Phases |
 |------------|--------|
-| 2-3 delegated agents (Agent-tool calls, isolated contexts) | 5: Generate → Rank → Cross-Examine → Clarify → Synthesise |
+| 3 delegated agents (Agent-tool calls, isolated contexts) | 5: Generate → Rank → Cross-Examine → Clarify → Synthesise |
 
 ```mermaid
 flowchart TD
@@ -253,7 +253,7 @@ Testing gap analyser. Compares code changes against testing coverage to find und
 
 | Mode | Trigger | What it does |
 |------|---------|-------------|
-| **Standard** | test, verify coverage, gaps | Risk-based gap analysis for recent changes |
+| **Standard** | test gaps, verify coverage, what's risky | Risk-based gap analysis for recent changes |
 | **Audit** | test audit, coverage | Audit existing test coverage for a codebase area |
 | **Regression Guard** | after bug fix | Define invariants and assess coverage for a specific fix |
 

@@ -7,7 +7,7 @@
     allSessions() { return [...currentProjectSessions, ...otherProjectSessions]; },
     recentSessions() { return allSessions().filter(s => s.status !== 'active').slice(0, 4); },
     waitingSessions() {
-      return allSessions().filter(s => typeof s.idleDuration === 'number' && s.idleDuration >= 45 * 60);
+      return idleTimeoutMinutes > 0 ? allSessions().filter(s => typeof s.idleDuration === 'number' && s.idleDuration >= Math.floor(idleTimeoutMinutes * 0.85) * 60) : [];
     },
     meterRunning() { return allSessions().filter(s => s.status === 'active').length; },
     meterRecent() { return recentSessions().length; },
@@ -146,8 +146,8 @@
                 :style="{
                   padding: '10px 12px',
                   cursor: 'pointer',
-                  borderColor: s.id === activeSessionId ? 'var(--accent-border)' : ((typeof s.idleDuration === 'number' && s.idleDuration >= 45 * 60) ? 'rgba(245,158,11,0.35)' : undefined),
-                  background: s.id === activeSessionId ? 'rgba(74,222,128,0.04)' : ((typeof s.idleDuration === 'number' && s.idleDuration >= 45 * 60) ? 'rgba(245,158,11,0.04)' : undefined)
+                  borderColor: s.id === activeSessionId ? 'var(--accent-border)' : ((typeof s.idleDuration === 'number' && idleTimeoutMinutes > 0 && s.idleDuration >= Math.floor(idleTimeoutMinutes * 0.85) * 60) ? 'rgba(245,158,11,0.35)' : undefined),
+                  background: s.id === activeSessionId ? 'rgba(74,222,128,0.04)' : ((typeof s.idleDuration === 'number' && idleTimeoutMinutes > 0 && s.idleDuration >= Math.floor(idleTimeoutMinutes * 0.85) * 60) ? 'rgba(245,158,11,0.04)' : undefined)
                 }"
               >
                 <div style="display: flex; gap: 10px; align-items: flex-start">
@@ -159,7 +159,7 @@
                       margin-top: 5px;
                       flex-shrink: 0;
                     "
-                    :style="{ background: (typeof s.idleDuration === 'number' && s.idleDuration >= 45 * 60) ? '#fbbf24' : (s.status === 'active' ? '#4ade80' : '#9ca3af') }"
+                    :style="{ background: (typeof s.idleDuration === 'number' && idleTimeoutMinutes > 0 && s.idleDuration >= Math.floor(idleTimeoutMinutes * 0.85) * 60) ? '#fbbf24' : (s.status === 'active' ? '#4ade80' : '#9ca3af') }"
                   ></span>
                   <div style="min-width: 0; flex: 1">
                     <div
@@ -177,10 +177,10 @@
                     </p>
                     <p
                       style="font-size: 12px; margin: 4px 0 0"
-                      :style="{ color: (typeof s.idleDuration === 'number' && s.idleDuration >= 45 * 60) ? '#fbbf24' : 'var(--text-muted)' }"
+                      :style="{ color: (typeof s.idleDuration === 'number' && idleTimeoutMinutes > 0 && s.idleDuration >= Math.floor(idleTimeoutMinutes * 0.85) * 60) ? '#fbbf24' : 'var(--text-muted)' }"
                     >
                       <span
-                        x-text="(typeof s.idleDuration === 'number' && s.idleDuration >= 45 * 60) ? 'Waiting' : 'Running'"
+                        x-text="(typeof s.idleDuration === 'number' && idleTimeoutMinutes > 0 && s.idleDuration >= Math.floor(idleTimeoutMinutes * 0.85) * 60) ? 'Waiting' : 'Running'"
                       ></span>
                       <span
                         class="mono"
@@ -189,6 +189,14 @@
                       ></span>
                     </p>
                   </div>
+                  <button
+                    x-show="isSessionBoundLocally(s.id)"
+                    @click.stop="exportSession(s.id)"
+                    class="gf-btn gf-btn-sm"
+                    style="font-size: 11px"
+                  >
+                    Export
+                  </button>
                   <button
                     @click.stop="confirmEndSessionId = (confirmEndSessionId === s.id ? null : s.id)"
                     class="gf-btn gf-btn-sm"
@@ -304,16 +312,44 @@
                 Terminal not available
               </h2>
               <p class="text-sm gf-text-muted">
-                node-pty failed to compile. Requires C++ build tools.
+                node-pty failed to compile. Install C++ build tools, then
+                rebuild:
               </p>
               <div class="gf-card" style="padding: 10px 12px; text-align: left">
-                <code class="block text-xs font-mono gf-text-secondary"
-                  >npm rebuild node-pty</code
-                >
-                <code class="block text-xs font-mono gf-text-secondary"
+                <template x-if="platformHint === 'linux'">
+                  <code class="block text-xs font-mono gf-text-secondary"
+                    >sudo apt install build-essential python3 && npm rebuild
+                    node-pty</code
+                  >
+                </template>
+                <template x-if="platformHint === 'darwin'">
+                  <code class="block text-xs font-mono gf-text-secondary"
+                    >xcode-select --install && npm rebuild node-pty</code
+                  >
+                </template>
+                <template x-if="platformHint === 'win32'">
+                  <code class="block text-xs font-mono gf-text-secondary"
+                    >npm rebuild node-pty</code
+                  >
+                </template>
+                <template x-if="!platformHint">
+                  <code class="block text-xs font-mono gf-text-secondary"
+                    >npm rebuild node-pty</code
+                  >
+                </template>
+                <code class="block text-xs font-mono gf-text-secondary mt-1"
                   >pnpm: pnpm approve-builds</code
                 >
               </div>
+              <p class="text-xs gf-text-muted" style="margin-top: 8px">
+                The CLI auditor, setup, and all other dashboard tabs work
+                without node-pty. This only affects the embedded terminal.
+              </p>
+              <p class="text-xs gf-text-muted">
+                Not using the embedded terminal? Install with
+                <code class="font-mono">--omit=optional</code> to skip the
+                native build entirely.
+              </p>
             </div>
           </div>
         </template>

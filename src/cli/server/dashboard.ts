@@ -19,6 +19,7 @@ import { createDashboardRouteHandlers } from "./dashboard-routes.js";
 import { createDashboardTerminalHandlers } from "./dashboard-terminal.js";
 import type { Runner } from "./types.js";
 import type { WebSocket as WsWebSocket, WebSocketServer } from "ws";
+import { loadConfig } from "../config/reader.js";
 
 const KNOWN_AGENT_IDS = getKnownAgentIds();
 /** Recognized runner identifiers for terminal session creation. */
@@ -91,6 +92,8 @@ export function serveDashboard(
       return cachedTemplate;
     }
     const absDefault = resolve(options.projectPath);
+    const loadedConfig = loadConfig(absDefault);
+    const idleTimeoutMinutes = loadedConfig.config.terminal.idleTimeoutMinutes;
     const {
       handleHtmlRequest,
       handleAssetRequest,
@@ -127,6 +130,7 @@ export function serveDashboard(
       defaultRunner: DEFAULT_RUNNER,
       jsonResponse,
       readBody,
+      idleTimeoutMinutes,
     });
 
     // Live reload state (dev mode only)

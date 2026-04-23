@@ -74,7 +74,7 @@ Sample harness output:
 ```
 GOAT Flow Setup:          PASS
   Skills:                 7/7 installed
-  Config:                 valid, version 1.2.3
+  Config:                 valid, version 1.2.4
   InstructionFile:        118 lines
 
 Agent Setup:              PASS
@@ -115,7 +115,7 @@ The generated prompt asks the agent to:
 4. **Identify false paths** - references to files that don't exist, stale concepts, dead modes
 5. **Rate the system** - setup accuracy/relevance/completeness/friction + system usefulness/signal-to-noise/adaptability/learnability
 
-**Time and cost expectation:** A full assessment runs 7 skill invocations (`goat-critique` alone may spawn 2-3 sub-agents). Expect 30-60 minutes and moderate token usage. For a lighter pass, the prompt can be edited to skip `goat-critique` and `goat-plan`.
+**Time and cost expectation:** A full assessment runs 7 skill invocations (`goat-critique` alone spawns 3 sub-agents). Expect 30-60 minutes and moderate token usage. For a lighter pass, the prompt can be edited to skip `goat-critique` and `goat-plan`.
 
 The prompt includes the current `audit` summary so the agent knows what's already passing or failing. If audit is failing, the prompt explicitly asks the agent to assess the incomplete setup.
 

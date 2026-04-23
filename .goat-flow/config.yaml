@@ -1,7 +1,7 @@
 # .goat-flow/config.yaml - project configuration
 # Docs: https://github.com/blundergoat/goat-flow
 
-version: "1.2.3"
+version: "1.2.4"
 
 # ── Project Setup ───────────────────────────────
 agents:
@@ -32,3 +32,9 @@ telemetry: false
 line-limits:
   target: 120
   limit: 150
+
+# ── Terminal ──────────────────────────────────
+# Dashboard embedded terminal settings.
+# idle-timeout: minutes before idle sessions are killed. 0 = never. Default: 480 (8 hours).
+# terminal:
+#   idle-timeout: 480

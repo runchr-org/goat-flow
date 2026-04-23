@@ -85,6 +85,8 @@ function app() {
 
     // --- Terminal state ---
     terminalAvailable: false,
+    platformHint: null as string | null,
+    idleTimeoutMinutes: 480,
     terminalSessionCount: 0,
     serverSessions: [] as ServerSessionInfo[],
     serverMaxSessions: 10,
@@ -772,6 +774,29 @@ function app() {
     /** End a local terminal session and release its browser bindings. */
     endSession(sessionId: string) {
       dashboardEndSession(this, sessionId);
+    },
+    exportSession(sessionId: string) {
+      const refs = this._terminalRefs[sessionId];
+      if (!refs?.xterm) return;
+      const buf = refs.xterm.buffer.active;
+      const lines: string[] = [];
+      for (let i = 0; i < buf.length; i++) {
+        const line = buf.getLine(i);
+        if (line) lines.push(line.translateToString(true));
+      }
+      const text = lines.join("\n");
+      const session = this.sessions.find(
+        (s: LocalSession) => s.id === sessionId,
+      );
+      const runner = session?.runner ?? "terminal";
+      const shortId = sessionId.slice(0, 8);
+      const blob = new Blob([text], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${runner}-${shortId}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
     },
     /** Exit the active terminal session from the workspace view. */
     exitTerminal() {
