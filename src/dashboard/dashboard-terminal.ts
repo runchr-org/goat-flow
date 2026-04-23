@@ -612,7 +612,7 @@ function dashboardConnectTerminal(
         const countdownAt = Math.floor(timeout * 0.97);
         const warnAt = Math.floor(timeout * 0.85);
         if (idleMins >= countdownAt) {
-          age = `Running ${mins}m | Timeout in ${timeout - idleMins}m`;
+          age = `Running ${mins}m | Timeout in ${Math.max(0, timeout - idleMins)}m`;
         } else if (idleMins >= warnAt) {
           age += ` | Idle ${idleMins}m`;
         }

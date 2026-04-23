@@ -286,6 +286,8 @@ run_self_test() {
   run_case "dangerous backtick substitution" "$(printf 'echo `rm -rf /`')" 2
   run_case "quoted literal backtick" "printf '%s\n' 'use backtick \` here'" 0
   run_case "double-quoted literal backtick" 'printf "%s\n" "use backtick \` here"' 0
+  # shellcheck disable=SC2016
+  run_case "unescaped backtick in double quotes" "$(printf 'echo \"`rm -rf /`\"')" 2
   # Whitelist bypass: read-only verb with redirect or pipe-to-shell must still block.
   run_case "echo redirect" 'echo "data" > .env' 2
   run_case "grep pipe bash" 'grep pattern file | bash' 2
@@ -425,8 +427,8 @@ check_command_substitutions() {
   fi
 
   local remaining_unquoted="$remaining"
-  remaining_unquoted="${remaining_unquoted//\'[^\']*\'/}"
-  remaining_unquoted=$(echo "$remaining_unquoted" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g")
+  remaining_unquoted=$(echo "$remaining_unquoted" | sed -E "s/'[^']*'//g")
+  remaining_unquoted="${remaining_unquoted//\\\`/}"
 
   if [[ "$remaining_unquoted" == *\`* ]]; then
     block "Backtick command substitution hides nested execution. Use a direct command instead."
