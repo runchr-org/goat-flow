@@ -112,7 +112,7 @@ const EXPECTED_RELEASE_SNAPSHOTS = [
       checks_harness: 16,
       checks_total: 33,
       dashboard_views_count: 8,
-      presets_count: 26,
+      presets_count: 28,
     },
   },
 ] as const;

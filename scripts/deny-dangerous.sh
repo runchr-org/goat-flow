@@ -427,7 +427,7 @@ check_command_substitutions() {
   fi
 
   local remaining_unquoted="$remaining"
-  remaining_unquoted=$(echo "$remaining_unquoted" | sed -E "s/'[^']*'//g")
+  remaining_unquoted=$(printf '%s' "$remaining_unquoted" | sed -E "s/'[^']*'//g")
   remaining_unquoted="${remaining_unquoted//\\\`/}"
 
   if [[ "$remaining_unquoted" == *\`* ]]; then
