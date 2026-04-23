@@ -433,7 +433,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("");
   lines.push("**Evidence quality - spot-check 3-5 entries:**");
   lines.push(
-    "- Pick 3-5 footgun entries from `.goat-flow/footguns/`. For each: (a) grep for the cited semantic anchor (function name, unique string, or `(search: \"pattern\")`) - does the code still exhibit the described behavior? (b) Is the `Status` field (active/resolved) accurate? An entry marked `active` that describes fixed behavior is a stale entry - report it. (c) Do the semantic anchors resolve to the described code?",
+    '- Pick 3-5 footgun entries from `.goat-flow/footguns/`. For each: (a) grep for the cited semantic anchor (function name, unique string, or `(search: "pattern")`) - does the code still exhibit the described behavior? (b) Is the `Status` field (active/resolved) accurate? An entry marked `active` that describes fixed behavior is a stale entry - report it. (c) Do the semantic anchors resolve to the described code?',
   );
   lines.push(
     "- Pick 2-3 lesson entries from `.goat-flow/lessons/`. Are they from real incidents or synthetic?",
