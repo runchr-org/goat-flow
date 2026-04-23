@@ -620,7 +620,7 @@ last_reviewed: 2026-04-24
 
 **What happened:** Changed `.goat-flow/decisions/.gitkeep` to `.goat-flow/decisions/README.md` in `workflow/manifest.json` but missed the corresponding entry in `workflow/manifest-snapshots/v1.2.4.json`. The snapshot still listed `.gitkeep` after the live manifest had moved to `README.md`. Only caught when the user explicitly asked "did you update the snapshot too?"
 
-**Root cause:** Treated `workflow/manifest.json` as a single source file, but v1.2.4 has a parallel snapshot copy that must stay in sync. The verification pass grepped for stale `.gitkeep` references across `workflow/` and `src/cli/` but the grep results included the snapshot hit and it was mentally dismissed as "historical" without reading which version it was. The v1.2.4 snapshot is the CURRENT version's snapshot — not historical.
+**Root cause:** Treated `workflow/manifest.json` as a single source file, but v1.2.4 has a parallel snapshot copy that must stay in sync. The verification pass grepped for stale `.gitkeep` references across `workflow/` and `src/cli/` but the grep results included the snapshot hit and it was mentally dismissed as "historical" without reading which version it was. The v1.2.4 snapshot is the CURRENT version's snapshot - not historical.
 
 **Prevention:**
 1. After any edit to `workflow/manifest.json`, immediately check whether `workflow/manifest-snapshots/v<current-version>.json` needs the same change. The current-version snapshot is a live mirror, not a historical record.

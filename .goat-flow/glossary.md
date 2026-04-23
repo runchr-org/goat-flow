@@ -18,7 +18,7 @@ Domain-specific terms for new contributors. Standard programming terms are exclu
 | Definition of Done | Six explicit gates that must all pass before a task is considered complete. | `workflow/setup/reference/execution-loop.md` | DoD |
 | Doer-Verifier | Principle that real verification requires a context boundary - different agent, fresh invocation, or human. Single-agent self-verification is theater (ADR-005). | `.goat-flow/lessons/design-decisions.md` (search: `Doer-verifier is theater`) | -- |
 | Enforcement Gradient | Three-layer enforcement stack: permissions deny (hardest) > hooks > instruction-file rules (softest). | `workflow/hooks/README.md` | -- |
-| Evidence Standard | The requirement that every finding must include file-path + semantic-anchor references (per ADR-024) and be tagged OBSERVED or INFERRED. | `workflow/skills/reference/skill-preamble.md` | -- |
+| Evidence Standard | The requirement that every finding must include file evidence — `file:line` for live work (reviews, debugging), semantic anchors for stored records (footguns, lessons) per ADR-024 — and be tagged OBSERVED or INFERRED. | `workflow/skills/reference/skill-preamble.md` | -- |
 | Execution Loop | The four-step agent workflow: READ, SCOPE, ACT, VERIFY. | `workflow/setup/reference/execution-loop.md` | Default loop |
 | Footgun | A documented architectural trap with file-path + semantic-anchor evidence (per ADR-024) stored in category bucket files under `.goat-flow/footguns/`. | `workflow/setup/05-customise-to-project.md` | Architectural landmine |
 | Guide Mode | Deprecated. Was a rendering mode that turned the CLI into an interactive setup assistant. Replaced by the dashboard setup view. | Removed in v1.1.0 | -- |

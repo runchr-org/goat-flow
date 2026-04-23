@@ -147,7 +147,7 @@ flowchart TD
 
 **Milestone archetypes:** Prove It Works (spike the riskiest part first) → Make It Real (end-to-end working) → Make It Solid (edge cases, security) → Make It Shine (polish, optional). Each milestone has kill criteria, assumption tracking, and a testing gate before the next begins. Read-Only Analysis mode is available at any complexity level via analysis signals ("break this down for me", "how would you approach").
 
-**Key constraints:** MUST check for existing milestone files before creating new ones. MUST include testing gates on every milestone. MUST NOT continue building on an invalidated assumption. MUST pick exactly one mode in Step 0 and stay in it — cross-mode drift is the failure the mode-picker exists to prevent.
+**Key constraints:** MUST check for existing milestone files before creating new ones. MUST include testing gates on every milestone. MUST NOT continue building on an invalidated assumption. MUST pick exactly one mode in Step 0 and stay in it - cross-mode drift is the failure the mode-picker exists to prevent.
 
 ---
 

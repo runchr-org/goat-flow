@@ -86,7 +86,7 @@ MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh,
 - If file exists, modify in-place. NEVER create `_modified`, `_new`, `_backup`, `_v2` variants.
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE.
 - MUST maintain cross-file consistency: same concept, same description everywhere.
-- MUST preserve file-level evidence in footguns and examples. Use grep-friendly semantic anchors (function name, unique string, `(search: "pattern")`), not line numbers — they go stale on every edit (per ADR-024).
+- MUST preserve file-level evidence in footguns and examples. Use grep-friendly semantic anchors (function name, unique string, `(search: "pattern")`), not line numbers - they go stale on every edit (per ADR-024).
 - MUST use real incidents, never hypothetical. `.goat-flow/architecture.md` is canonical source of truth.
 - Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.
 

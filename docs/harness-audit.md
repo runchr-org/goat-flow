@@ -137,4 +137,4 @@ A fresh install with zero footguns and zero lessons is a valid PASS. The audit o
 - `feedback-loop-active` - `.goat-flow/footguns/` and `.goat-flow/lessons/` directories both exist. Entry count is reported but never used as a failure condition.
 - `decisions-tracked` - `.goat-flow/decisions/` directory exists. Record count is reported informationally.
 
-**Not checked here:** entry counts, recency (`**Created:**` dates), content accuracy, staleness of `file:line` references in footgun entries, whether active/resolved statuses are accurate. All of these are content-quality judgments that belong in `quality`.
+**Not checked here:** entry counts, recency (`**Created:**` dates), content accuracy, staleness of semantic-anchor references in footgun entries, whether active/resolved statuses are accurate. All of these are content-quality judgments that belong in `quality`.

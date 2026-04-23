@@ -36,28 +36,28 @@ last_reviewed: 2026-04-24
 **Evidence (verified by 8 independent critiques, 2026-04-15; recurrence confirmed by 4-critique cross-review, 2026-04-16):**
 
 *Round 1 (2026-04-15, all resolved):*
-- ~~`docs/audit-and-critique.md` — describes checks that no longer exist~~ (resolved 2026-04-15: check descriptions updated to match current code)
-- ~~`docs/coding-standards/conventions.md` — claims "Zero runtime dependencies"~~ (resolved 2026-04-15: now says "Runtime dependencies: js-yaml, ws")
-- ~~`docs/coding-standards/conventions.md` — claims `src/cli/prompt/types.ts` exists~~ (resolved 2026-04-15: reference removed)
-- ~~`.goat-flow/glossary.md` — Handoff entry says "See Task Tracking in `.goat-flow/skill-preamble.md`"~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`; the reference was later moved to `.goat-flow/skill-reference/` as a subdir but that change is separate from this resolution)
-- ~~`.goat-flow/glossary.md` — Working Memory points to `skill-preamble.md`~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`)
-- ~~`.goat-flow/code-map.md` — listed a retired validator under `scripts/`~~ (resolved 2026-04-16: code-map moved that entry to `workflow/` with an explanatory note; the validator was later removed)
-- ~~`src/cli/prompt/compose-critique.ts` — ships literal placeholder `<your-hooks-dir>`~~ (resolved 2026-04-16: placeholder removed)
+- ~~`docs/audit-and-critique.md` - describes checks that no longer exist~~ (resolved 2026-04-15: check descriptions updated to match current code)
+- ~~`docs/coding-standards/conventions.md` - claims "Zero runtime dependencies"~~ (resolved 2026-04-15: now says "Runtime dependencies: js-yaml, ws")
+- ~~`docs/coding-standards/conventions.md` - claims `src/cli/prompt/types.ts` exists~~ (resolved 2026-04-15: reference removed)
+- ~~`.goat-flow/glossary.md` - Handoff entry says "See Task Tracking in `.goat-flow/skill-preamble.md`"~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`; the reference was later moved to `.goat-flow/skill-reference/` as a subdir but that change is separate from this resolution)
+- ~~`.goat-flow/glossary.md` - Working Memory points to `skill-preamble.md`~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`)
+- ~~`.goat-flow/code-map.md` - listed a retired validator under `scripts/`~~ (resolved 2026-04-16: code-map moved that entry to `workflow/` with an explanatory note; the validator was later removed)
+- ~~`src/cli/prompt/compose-critique.ts` - ships literal placeholder `<your-hooks-dir>`~~ (resolved 2026-04-16: placeholder removed)
 
 *Round 2 (2026-04-16, all resolved - same pattern recurred after dashboard TS migration and skill directory restructure):*
-- ~~`CONTRIBUTING.md` — claimed "8 build checks" and "18 advisory checks"; actual: 16 and 16~~ (resolved 2026-04-16)
-- ~~`CONTRIBUTING.md` — referenced `app.js` and `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
-- ~~`.goat-flow/code-map.md` — claimed 15 harness checks; actual: 16~~ (resolved 2026-04-16)
-- ~~`.goat-flow/code-map.md` — showed flat skill file structure after directory restructure~~ (resolved 2026-04-16)
-- ~~`.goat-flow/architecture.md` — referenced `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
-- ~~`src/cli/cli.ts` — help text said 15 harness checks; actual: 16~~ (resolved 2026-04-16)
-- ~~`workflow/setup/03-install-skills.md` — referenced old flat skill file names~~ (resolved 2026-04-16)
+- ~~`CONTRIBUTING.md` - claimed "8 build checks" and "18 advisory checks"; actual: 16 and 16~~ (resolved 2026-04-16)
+- ~~`CONTRIBUTING.md` - referenced `app.js` and `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
+- ~~`.goat-flow/code-map.md` - claimed 15 harness checks; actual: 16~~ (resolved 2026-04-16)
+- ~~`.goat-flow/code-map.md` - showed flat skill file structure after directory restructure~~ (resolved 2026-04-16)
+- ~~`.goat-flow/architecture.md` - referenced `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
+- ~~`src/cli/cli.ts` - help text said 15 harness checks; actual: 16~~ (resolved 2026-04-16)
+- ~~`workflow/setup/03-install-skills.md` - referenced old flat skill file names~~ (resolved 2026-04-16)
 - ~~historical upgrade guide entry - referenced `goat-debug.md` instead of `goat-debug/SKILL.md`~~ (resolved 2026-04-16)
 
-*Round 3 (2026-04-24, all resolved — surfaced by 3 independent Copilot quality reports):*
-- ~~`docs/skills.md` — /goat-plan summary said "defaults to inline/read-only output" and "MUST NOT write milestone files unless the user explicitly asks"; the same file and the installed skill both say File-Write is the default at Standard+~~ (resolved 2026-04-24: summary rewritten to describe the 4-mode picker accurately)
-- ~~`docs/harness-quality.md` + `docs/audit-and-quality.md` — claimed quality assessment "runs 7 skill invocations" on real code; `src/cli/prompt/compose-quality.ts` (search: `Option A`) prefers file analysis and only does live invocation "if context allows"~~ (resolved 2026-04-24: language updated to reflect file-analysis-preferred approach)
-- ~~`.goat-flow/architecture.md` — hot-path listing named only CLAUDE.md, AGENTS.md, GEMINI.md; omitted `.github/copilot-instructions.md` which `workflow/setup/agents/copilot.md` (search: `standalone hot-path`) and `workflow/setup/01-system-overview.md` (search: `## What goat-flow is`) both treat as hot-path~~ (resolved 2026-04-24: copilot-instructions.md added to hot-path listing)
+*Round 3 (2026-04-24, all resolved - surfaced by 3 independent Copilot quality reports):*
+- ~~`docs/skills.md` - /goat-plan summary said "defaults to inline/read-only output" and "MUST NOT write milestone files unless the user explicitly asks"; the same file and the installed skill both say File-Write is the default at Standard+~~ (resolved 2026-04-24: summary rewritten to describe the 4-mode picker accurately)
+- ~~`docs/harness-quality.md` + `docs/audit-and-quality.md` - claimed quality assessment "runs 7 skill invocations" on real code; `src/cli/prompt/compose-quality.ts` (search: `Option A`) prefers file analysis and only does live invocation "if context allows"~~ (resolved 2026-04-24: language updated to reflect file-analysis-preferred approach)
+- ~~`.goat-flow/architecture.md` - hot-path listing named only CLAUDE.md, AGENTS.md, GEMINI.md; omitted `.github/copilot-instructions.md` which `workflow/setup/agents/copilot.md` (search: `standalone hot-path`) and `workflow/setup/01-system-overview.md` (search: `## What goat-flow is`) both treat as hot-path~~ (resolved 2026-04-24: copilot-instructions.md added to hot-path listing)
 
 **Impact:** The framework demands "real evidence only" and "MUST maintain cross-file consistency" while its own cold-path surfaces violate both rules. Agents consulting docs for orientation get wrong information. The audit's PASS stamp creates false confidence.
 
@@ -95,16 +95,16 @@ last_reviewed: 2026-04-24
 
 **Symptoms:** A doc lists an agent-specific path (`.gemini/skills/`, `.codex/skills/`, etc.) that does not match the manifest. The harness `doc-paths-resolve` check may or may not catch it depending on whether the wrong path happens to exist on disk. When the harness catches it, every agent card in the dashboard drops to 75% Context with the same finding; when it does not, the doc is silently wrong.
 
-**Why it happens:** `workflow/manifest.json` is the canonical source for each agent's `skills_dir`, `hooks_dir`, `settings`, and `instruction_file`. Prose in docs hand-writes these paths as examples — often guessed from the agent name (`gemini` → `.gemini/skills/`) rather than looked up. Multiple agents sometimes share a directory (gemini and codex both use `.agents/skills/`), so name-based inference is wrong by default for those agents. The detection gap: `src/cli/audit/harness/check-context.ts` (search: `extractBacktickPaths`) only verifies that backtick-quoted paths resolve on disk. A plausible-but-wrong path that happens to exist (e.g. writing `.claude/skills/` in a gemini example) passes the audit while still misleading readers.
+**Why it happens:** `workflow/manifest.json` is the canonical source for each agent's `skills_dir`, `hooks_dir`, `settings`, and `instruction_file`. Prose in docs hand-writes these paths as examples - often guessed from the agent name (`gemini` → `.gemini/skills/`) rather than looked up. Multiple agents sometimes share a directory (gemini and codex both use `.agents/skills/`), so name-based inference is wrong by default for those agents. The detection gap: `src/cli/audit/harness/check-context.ts` (search: `extractBacktickPaths`) only verifies that backtick-quoted paths resolve on disk. A plausible-but-wrong path that happens to exist (e.g. writing `.claude/skills/` in a gemini example) passes the audit while still misleading readers.
 
 **Evidence:**
-- `workflow/manifest.json` (search: `"skills_dir"`) — four entries, but only three distinct paths: `.claude/skills/`, `.agents/skills/` (shared by codex and gemini), `.github/skills/`. Name-based inference gives the wrong answer for gemini.
-- `docs/audit-and-quality.md` (search: `satellite agents' skill dirs`) — previously named `.gemini/skills/` as an example of a satellite-agent skill dir. The path does not exist (and never did per the manifest); the harness caught it only because `.gemini/skills/` happens not to exist on disk.
-- `src/cli/audit/harness/check-context.ts` (search: `extractBacktickPaths`) — existence-only check; an agent-wrong path that exists (e.g. `.claude/skills/` in a gemini example) would pass.
+- `workflow/manifest.json` (search: `"skills_dir"`) - four entries, but only three distinct paths: `.claude/skills/`, `.agents/skills/` (shared by codex and gemini), `.github/skills/`. Name-based inference gives the wrong answer for gemini.
+- `docs/audit-and-quality.md` (search: `satellite agents' skill dirs`) - previously named `.gemini/skills/` as an example of a satellite-agent skill dir. The path does not exist (and never did per the manifest); the harness caught it only because `.gemini/skills/` happens not to exist on disk.
+- `src/cli/audit/harness/check-context.ts` (search: `extractBacktickPaths`) - existence-only check; an agent-wrong path that exists (e.g. `.claude/skills/` in a gemini example) would pass.
 
 **Prevention:**
 1. Before hand-writing an agent-specific path in prose, grep `workflow/manifest.json` for that agent's `skills_dir` / `hooks_dir` / `settings` / `instruction_file` entry and copy the exact value.
-2. When listing satellite-agent directories as examples, enumerate the *distinct* paths from the manifest (today: `.claude/skills/`, `.agents/skills/`, `.github/skills/`) — do not invent per-agent subdirectories from agent names.
+2. When listing satellite-agent directories as examples, enumerate the *distinct* paths from the manifest (today: `.claude/skills/`, `.agents/skills/`, `.github/skills/`) - do not invent per-agent subdirectories from agent names.
 3. Consider extending `doc-paths-resolve` to validate agent-specific paths against manifest entries (existence-plus-correctness), not just filesystem existence, so agent-wrong paths that happen to resolve also get caught.
 
 ---

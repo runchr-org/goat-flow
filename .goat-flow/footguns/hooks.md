@@ -35,7 +35,7 @@ last_reviewed: 2026-04-24
 **Prevention (still active - independent value):**
 1. Any hook registered for a non-bash-specific event MUST read `toolName` before applying bash-only checks. Structured-payload ≠ bash-payload on runtimes like Copilot that pipe all tool calls through `preToolUse`.
 2. When adding a new runtime surface, the self-test must include at least one non-bash `toolName` payload (e.g. `view`, `edit`, `Task`). Bash-only test coverage masks this exact failure shape.
-3. Use the forbidden-pattern helper (`!pattern` prefix in `run_stdin_case`) for allow-path assertions — exit 0 alone does NOT distinguish "allowed silently" from "denied via copilot-json" because both exit 0.
+3. Use the forbidden-pattern helper (`!pattern` prefix in `run_stdin_case`) for allow-path assertions - exit 0 alone does NOT distinguish "allowed silently" from "denied via copilot-json" because both exit 0.
 
 **Evidence:**
 - `workflow/hooks/deny-dangerous.sh` (search: `tool_name_lc`) - the fix extracts `toolName` and exits 0 for non-bash tools.

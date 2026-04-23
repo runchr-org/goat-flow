@@ -4,7 +4,7 @@
 
 If the agent did something wrong → `.goat-flow/lessons/` instead.
 
-Every entry MUST include file path evidence with grep-friendly semantic anchors (function name, unique string, or `(search: "pattern")`) per ADR-024. Do not use line numbers — they go stale on every edit.
+Every entry MUST include file path evidence with grep-friendly semantic anchors (function name, unique string, or `(search: "pattern")`) per ADR-024. Do not use line numbers - they go stale on every edit.
 
 Agents should scan only entries above the `## Resolved Entries` section. Resolved entries are historical record, not active traps.
 
