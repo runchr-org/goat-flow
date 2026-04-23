@@ -73,7 +73,10 @@ export function buildStatsReport(shared: {
       shared.footguns,
       shared.footguns.invalidLineRefs.length,
     ),
-    lessons: buildSection(shared.lessons, 0),
+    lessons: buildSection(
+      shared.lessons,
+      shared.lessons.invalidLineRefs.length,
+    ),
   };
 }
 

@@ -109,13 +109,13 @@ npx goat-flow quality . --agent gemini
 
 The generated prompt asks the agent to:
 
-1. **Try each of the 7 skills on real code** - `/goat` (dispatcher), `/goat-debug`, `/goat-plan`, `/goat-review`, `/goat-critique`, `/goat-security`, `/goat-qa`. Not hypothetical requests - real modules, real code, real concerns.
+1. **Assess each of the 7 skills** - `/goat` (dispatcher), `/goat-debug`, `/goat-plan`, `/goat-review`, `/goat-critique`, `/goat-security`, `/goat-qa`. Preferred method is file analysis (read each SKILL.md and evaluate structure, constraints, and coherence against the codebase); live invocation on real code when context budget allows.
 2. **Evaluate setup quality** - was the instruction file adapted or generic?
 3. **Find contradictions** across instruction file, skill files, and `.goat-flow/` docs
 4. **Identify false paths** - references to files that don't exist, stale concepts, dead modes
 5. **Rate the system** - setup accuracy/relevance/completeness/friction + system usefulness/signal-to-noise/adaptability/learnability
 
-**Time and cost expectation:** A full assessment runs 7 skill invocations (`goat-critique` alone spawns 3 sub-agents). Expect 30-60 minutes and moderate token usage. For a lighter pass, the prompt can be edited to skip `goat-critique` and `goat-plan`.
+**Time and cost expectation:** A full assessment evaluates all 7 skills (file analysis by default; live invocation when context allows — `goat-critique` alone spawns 3 sub-agents if invoked). Expect 15-60 minutes depending on depth, with moderate token usage. For a lighter pass, the prompt can be edited to skip `goat-critique` and `goat-plan`.
 
 The prompt includes the current `audit` summary so the agent knows what's already passing or failing. If audit is failing, the prompt explicitly asks the agent to assess the incomplete setup.
 

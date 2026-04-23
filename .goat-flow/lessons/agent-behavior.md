@@ -1,6 +1,6 @@
 ---
 category: agent-behavior
-last_reviewed: 2026-04-22
+last_reviewed: 2026-04-24
 ---
 
 ## Lesson: Retrieval terms must name the concrete failure class
@@ -372,3 +372,29 @@ last_reviewed: 2026-04-22
 **Root cause:** The agent applied generic quality-report assumptions without first checking goat-flow's persistence tiers and local-state semantics. It judged stale local pointers and gitignored continuity writes as setup defects instead of asking whether the skill handles them gracefully and whether committed state changes.
 
 **Prevention:** Before reporting findings about `.goat-flow/tasks/`, `.goat-flow/logs/`, scratchpad files, or other gitignored state, classify the artifact as committed knowledge vs local session state. For local state, review behavior and fallback handling, not existence alone. Use "reporting-only" or "no implementation" when gitignored logs/checkpoints are allowed; reserve "strict no-write" for prompts that explicitly forbid all writes except a named artifact.
+
+---
+
+## Lesson: Fresh-eyes critique reruns need section-only evidence after a leak-scan discard
+
+**Created:** 2026-04-24
+
+**What happened:** During a full `goat-critique` run, the first fresh-eyes sub-agent stayed within the artifact but returned evidence links that echoed the artifact's `.goat-flow/...` path. Phase 2's leak scan treats any `.goat-flow/` match in Agent C output as `CONTEXT LEAK`, so the output had to be discarded and the control-group pass re-run with stricter instructions.
+
+**Root cause:** The isolation rule and the leak scanner key off output text, not just what the sub-agent actually read. A clean fresh-eyes analysis can still fail the scan if its citation format includes repository-local paths.
+
+**Why it matters:** If the orchestrator accepts that output anyway, the control group is no longer trustworthy. If it discards the output without tightening the rerun prompt, the same leak pattern can repeat and waste the critique budget.
+
+**Prevention:** After any fresh-eyes leak-scan discard, re-spawn with an explicit output constraint: cite evidence only as `artifact line X` or section names, never as repo paths or local filenames. Treat citation formatting as part of the isolation contract, not a cosmetic detail.
+
+---
+
+## Lesson: Line-number evidence in footguns/lessons creates silent maintenance debt
+
+**Created:** 2026-04-24
+
+**What happened:** Three independent Gemini quality reports in one session flagged stale `file:line` references across footgun entries. `hooks.md` cited `deny-dangerous.sh:88-96` for the read-only whitelist (actually at line 491+), `skills.md` cited `skill-preamble.md:77-79` for the Step 0 budget (actually at 95-97). Nine active line references across 3 footgun files had drifted. The framework's README and CLAUDE.md already said "line numbers are advisory" but evaluation templates said "RECOMMENDED," so agents kept using them.
+
+**Root cause:** Line numbers shift on every edit to the target file. Unlike stale file paths (which `stats --check` catches), stale line numbers point at valid-but-wrong code and pass all mechanical checks. The guidance was contradictory: README discouraged them while the evaluation template encouraged them.
+
+**Prevention:** Use grep-friendly semantic anchors (`(search: "pattern")`, function names, section headings) instead of line numbers. Per ADR-024, line numbers are now discouraged in evaluation templates and instruction files. `stats --check` validates `(search: ...)` anchors against actual file content, giving mechanical enforcement that line numbers never had.

@@ -728,6 +728,10 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "Do **not** emit the JSON as a fenced block in your reply. Write it as a file to `.goat-flow/logs/quality/` - that path is gitignored and expected, no other writes are permitted.",
   );
   lines.push("");
+  lines.push(
+    "**CRITICAL:** After writing the file, verify it was saved by running `ls -la .goat-flow/logs/quality/` and confirming the file appears with non-zero size. If missing, retry the write. A quality report that exists only in conversation history is invisible to `goat-flow quality history` and `goat-flow quality diff`.",
+  );
+  lines.push("");
   lines.push("**Filename format:** `YYYY-MM-DD-HHMM-<agent>-<rand5>.json`");
   lines.push("");
   lines.push("Where:");

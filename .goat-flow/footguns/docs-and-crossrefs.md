@@ -1,6 +1,6 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-04-21
+last_reviewed: 2026-04-24
 ---
 
 ## Footgun: Cross-reference fragility across docs
@@ -17,9 +17,9 @@ last_reviewed: 2026-04-21
 - `.goat-flow/architecture.md` → component/location tables point readers at concrete paths across `src/`, `workflow/`, and `.goat-flow/`; stale paths here become wrong architecture guidance, not cosmetic drift.
 
 ~~**Evidence (historical - resolved):**~~
-- ~~`.goat-flow/glossary.md:19` → still pointed at removed `workflow/setup/09-customise-to-project.md` after the M13 Phase 3 setup-step renumber~~ (resolved: now points to `workflow/setup/05-customise-to-project.md`)
+- ~~`.goat-flow/glossary.md` → still pointed at removed `workflow/setup/09-customise-to-project.md` after the M13 Phase 3 setup-step renumber~~ (resolved: now points to `workflow/setup/05-customise-to-project.md`)
 - ~~historical evidence-lifecycle ADR entry → still pointed at removed `workflow/setup/09-customise-to-project.md` after the same renumber~~ (resolved before the ADR was later removed from the active set)
-- ~~`.goat-flow/decisions/ADR-011-sbao-mob-core-features.md:18` → still referenced removed `05-install-skills.md` after the setup flow moved the install step to `workflow/setup/03-install-skills.md`~~ (resolved: now points to `workflow/setup/03-install-skills.md`)
+- ~~`.goat-flow/decisions/ADR-011-sbao-mob-core-features.md` → still referenced removed `05-install-skills.md` after the setup flow moved the install step to `workflow/setup/03-install-skills.md`~~ (resolved: now points to `workflow/setup/03-install-skills.md`)
 
 **Prevention:** After any file rename or move, grep the entire repo for the old path. Use `grep -r "old-filename" --include="*.md"` before declaring done. This is DoD gate #6.
 
@@ -36,23 +36,28 @@ last_reviewed: 2026-04-21
 **Evidence (verified by 8 independent critiques, 2026-04-15; recurrence confirmed by 4-critique cross-review, 2026-04-16):**
 
 *Round 1 (2026-04-15, all resolved):*
-- ~~`docs/audit-and-critique.md:38-47` - describes checks that no longer exist~~ (resolved 2026-04-15: check descriptions updated to match current code)
-- ~~`docs/coding-standards/conventions.md:10` - claims "Zero runtime dependencies"~~ (resolved 2026-04-15: now says "Runtime dependencies: js-yaml, ws")
-- ~~`docs/coding-standards/conventions.md:74` - claims `src/cli/prompt/types.ts` exists~~ (resolved 2026-04-15: reference removed)
-- ~~`.goat-flow/glossary.md:21` - Handoff entry says "See Task Tracking in `.goat-flow/skill-preamble.md`"~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`; the reference was later moved to `.goat-flow/skill-reference/` as a subdir but that change is separate from this resolution)
-- ~~`.goat-flow/glossary.md:38` - Working Memory points to `skill-preamble.md`~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`)
-- ~~`.goat-flow/code-map.md:71` - listed a retired validator under `scripts/`~~ (resolved 2026-04-16: code-map moved that entry to `workflow/` with an explanatory note; the validator was later removed)
-- ~~`src/cli/prompt/compose-critique.ts:243` - ships literal placeholder `<your-hooks-dir>`~~ (resolved 2026-04-16: placeholder removed)
+- ~~`docs/audit-and-critique.md` — describes checks that no longer exist~~ (resolved 2026-04-15: check descriptions updated to match current code)
+- ~~`docs/coding-standards/conventions.md` — claims "Zero runtime dependencies"~~ (resolved 2026-04-15: now says "Runtime dependencies: js-yaml, ws")
+- ~~`docs/coding-standards/conventions.md` — claims `src/cli/prompt/types.ts` exists~~ (resolved 2026-04-15: reference removed)
+- ~~`.goat-flow/glossary.md` — Handoff entry says "See Task Tracking in `.goat-flow/skill-preamble.md`"~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`; the reference was later moved to `.goat-flow/skill-reference/` as a subdir but that change is separate from this resolution)
+- ~~`.goat-flow/glossary.md` — Working Memory points to `skill-preamble.md`~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`)
+- ~~`.goat-flow/code-map.md` — listed a retired validator under `scripts/`~~ (resolved 2026-04-16: code-map moved that entry to `workflow/` with an explanatory note; the validator was later removed)
+- ~~`src/cli/prompt/compose-critique.ts` — ships literal placeholder `<your-hooks-dir>`~~ (resolved 2026-04-16: placeholder removed)
 
 *Round 2 (2026-04-16, all resolved - same pattern recurred after dashboard TS migration and skill directory restructure):*
-- ~~`CONTRIBUTING.md:60-61` - claimed "8 build checks" and "18 advisory checks"; actual: 16 and 16~~ (resolved 2026-04-16)
-- ~~`CONTRIBUTING.md:41` - referenced `app.js` and `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
-- ~~`.goat-flow/code-map.md:27` - claimed 15 harness checks; actual: 16~~ (resolved 2026-04-16)
-- ~~`.goat-flow/code-map.md:54-60` - showed flat skill file structure after directory restructure~~ (resolved 2026-04-16)
-- ~~`.goat-flow/architecture.md:49` - referenced `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
-- ~~`src/cli/cli.ts:49` - help text said 15 harness checks; actual: 16~~ (resolved 2026-04-16)
-- ~~`workflow/setup/03-install-skills.md:11` - referenced old flat skill file names~~ (resolved 2026-04-16)
+- ~~`CONTRIBUTING.md` — claimed "8 build checks" and "18 advisory checks"; actual: 16 and 16~~ (resolved 2026-04-16)
+- ~~`CONTRIBUTING.md` — referenced `app.js` and `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
+- ~~`.goat-flow/code-map.md` — claimed 15 harness checks; actual: 16~~ (resolved 2026-04-16)
+- ~~`.goat-flow/code-map.md` — showed flat skill file structure after directory restructure~~ (resolved 2026-04-16)
+- ~~`.goat-flow/architecture.md` — referenced `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
+- ~~`src/cli/cli.ts` — help text said 15 harness checks; actual: 16~~ (resolved 2026-04-16)
+- ~~`workflow/setup/03-install-skills.md` — referenced old flat skill file names~~ (resolved 2026-04-16)
 - ~~historical upgrade guide entry - referenced `goat-debug.md` instead of `goat-debug/SKILL.md`~~ (resolved 2026-04-16)
+
+*Round 3 (2026-04-24, all resolved — surfaced by 3 independent Copilot quality reports):*
+- ~~`docs/skills.md` — /goat-plan summary said "defaults to inline/read-only output" and "MUST NOT write milestone files unless the user explicitly asks"; the same file and the installed skill both say File-Write is the default at Standard+~~ (resolved 2026-04-24: summary rewritten to describe the 4-mode picker accurately)
+- ~~`docs/harness-quality.md` + `docs/audit-and-quality.md` — claimed quality assessment "runs 7 skill invocations" on real code; `src/cli/prompt/compose-quality.ts` (search: `Option A`) prefers file analysis and only does live invocation "if context allows"~~ (resolved 2026-04-24: language updated to reflect file-analysis-preferred approach)
+- ~~`.goat-flow/architecture.md` — hot-path listing named only CLAUDE.md, AGENTS.md, GEMINI.md; omitted `.github/copilot-instructions.md` which `workflow/setup/agents/copilot.md` (search: `standalone hot-path`) and `workflow/setup/01-system-overview.md` (search: `## What goat-flow is`) both treat as hot-path~~ (resolved 2026-04-24: copilot-instructions.md added to hot-path listing)
 
 **Impact:** The framework demands "real evidence only" and "MUST maintain cross-file consistency" while its own cold-path surfaces violate both rules. Agents consulting docs for orientation get wrong information. The audit's PASS stamp creates false confidence.
 
@@ -60,7 +65,7 @@ last_reviewed: 2026-04-21
 1. Add content-drift checks to preflight: compare doc check descriptions against exported check names from code
 2. Extend path-integrity checks to cover code-map, glossary canonical-file paths, and convention claims
 3. Consider auto-generating audit docs from check code to prevent drift permanently
-4. Change Step 01 early-stop rule (`workflow/setup/01-system-overview.md:12`) to require content-drift checks, not just structural audit pass
+4. Change Step 01 early-stop rule (`workflow/setup/01-system-overview.md` (search: `## State check`)) to require content-drift checks, not just structural audit pass
 
 ---
 
@@ -118,5 +123,5 @@ last_reviewed: 2026-04-21
 - **Line target inconsistency for project shapes** (resolved 2026-03-18) - Line target canonicalized to 120 for all shapes in ADR-008.
 - **CONTRIBUTING.md directs contributors to the wrong subsystem** (resolved 2026-04-13) - Rewritten to describe build checks in `check-goat-flow.ts` + `check-agent-setup.ts` and quality checks in `src/cli/audit/harness/`.
 - **Stale references from old project structure** (resolved 2026-04-15) - `ai-workflow-framework` no longer appears anywhere in the repo (verified by `rg "ai-workflow-framework"`).
-- **Preflight validates doc totals but not sub-breakdowns** (resolved 2026-04-17) - `scripts/preflight-checks.sh:412-419` now extracts `setup_count` and `agent_count` from the audit modules and validates the `(N setup + M agent)` breakdown claim in `.goat-flow/architecture.md`, not just the total. Verified by grep of preflight source.
-- **Dashboard session-limit constants drift across server, UI, docs, and tests** (resolved 2026-04-19) - `src/cli/server/terminal.ts` exports `MAX_SESSIONS = 10`, `src/cli/server/dashboard.ts:34` imports it, `test/integration/dashboard-server.test.ts:506` asserts `data.maxSessions === 10`, and `docs/dashboard.md` says "Maximum 10 concurrent sessions" - all four surfaces agree on 10. Pattern-class hygiene ("single exported constant reused in API payload, UI guards, and static copy") remains good practice for any future repo-wide cap; grep `maxSessions`, `serverSessions.length >=`, `Maximum of` before closing a similar change.
+- **Preflight validates doc totals but not sub-breakdowns** (resolved 2026-04-17) - `scripts/preflight-checks.sh` (search: `B.8a2: Sub-breakdown validation`) now extracts `setup_count` and `agent_count` from the audit modules and validates the `(N setup + M agent)` breakdown claim in `.goat-flow/architecture.md`, not just the total. Verified by grep of preflight source.
+- **Dashboard session-limit constants drift across server, UI, docs, and tests** (resolved 2026-04-19) - `src/cli/server/terminal.ts` (search: `MAX_SESSIONS`) exports the constant, `src/cli/server/dashboard-terminal.ts` (search: `MAX_SESSIONS`) imports it, `test/integration/dashboard-server.test.ts` (search: `data.maxSessions`) asserts the value, and `docs/dashboard.md` says "Maximum 10 concurrent sessions" - all four surfaces agree on 10. Pattern-class hygiene ("single exported constant reused in API payload, UI guards, and static copy") remains good practice for any future repo-wide cap; grep `maxSessions`, `serverSessions.length >=`, `Maximum of` before closing a similar change.

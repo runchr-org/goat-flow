@@ -1,6 +1,6 @@
 ---
 category: skills
-last_reviewed: 2026-04-22
+last_reviewed: 2026-04-24
 ---
 
 ## Footgun: Skill parity edits can miss `.github/skills/` and fail repo-level drift checks
@@ -12,7 +12,7 @@ last_reviewed: 2026-04-22
 **Why it happens:** The installed skill surface is broader than the two local agent mirrors most edits remember. `workflow/manifest.json` includes a GitHub agent with `skills_dir: ".github/skills/"`, the manifest helper exposes that root to the drift fixture, and path-integrity checks treat it as a first-class installed mirror. A hand-written file list that omits `.github/skills/` is incomplete.
 
 **Evidence:**
-- `workflow/manifest.json:162` declares the GitHub agent skill root as `.github/skills/`.
+- `workflow/manifest.json` (search: `"skills_dir": ".github/skills/"`) declares the GitHub agent skill root.
 - `src/cli/manifest/manifest.ts` (search: `getInstalledSkillRoots`) exposes installed skill roots from the manifest-backed agent set.
 - `scripts/check-path-integrity.sh` (search: `skill_dirs=".claude/skills .agents/skills .github/skills"`) checks `.github/skills/` alongside the other installed mirrors.
 - `test/integration/audit-drift.test.ts` (search: `goat-flow root should be drift-clean`) failed on 2026-04-21 with finding `goat-review: template (workflow/skills/goat-review/SKILL.md) and installed copy (.github/skills/goat-review/SKILL.md) differ`.
@@ -45,10 +45,10 @@ last_reviewed: 2026-04-22
 **Original symptoms:** `npm test` failed in `test/integration/audit-drift.test.ts` even when the code change did not touch skills, because the tracked installed copies under `.claude/skills/` and `.agents/skills/` had Unicode em dashes while `workflow/skills/` templates had ASCII hyphens.
 
 **Original evidence:**
-- `workflow/skills/goat-plan/SKILL.md:15` vs `.claude/skills/goat-plan/SKILL.md:15` (hyphen vs em dash)
-- `workflow/skills/goat-plan/SKILL.md:39` vs `.claude/skills/goat-plan/SKILL.md:39` (hyphen vs em dash)
+- `workflow/skills/goat-plan/SKILL.md` vs `.claude/skills/goat-plan/SKILL.md` (search: `Use when work needs breaking into milestones`) — hyphen vs em dash
+- `workflow/skills/goat-plan/SKILL.md` vs `.claude/skills/goat-plan/SKILL.md` (search: `Milestone files exist for`) — hyphen vs em dash
 
-**Resolution:** Installed copies are now byte-identical with the workflow templates on the cited lines (verified by `diff` returning empty output against both `.claude/skills/goat-plan/SKILL.md:15` and `:39`). The drift check at `test/integration/audit-drift.test.ts` now passes on these files.
+**Resolution:** Installed copies are now byte-identical with the workflow templates (verified by `diff` returning empty output). The drift check at `test/integration/audit-drift.test.ts` now passes on these files.
 
 **Prevention (retained):** When editing `workflow/skills/*/SKILL.md`, update the installed copies in `.claude/skills/` and `.agents/skills/` in the same change. The preflight `Skill SKILL.md Parity` check and `goat-flow audit --check-drift` both catch byte-level divergence before unrelated work is blocked by stale fixtures.
 
@@ -60,7 +60,7 @@ last_reviewed: 2026-04-22
 
 **Evidence:**
 - `src/cli/audit/check-goat-flow.ts` (search: `configVersionCurrent`) enforces exact equality between `.goat-flow/config.yaml` and `AUDIT_VERSION`.
-- `test/fixtures/projects/index.ts:34-48` is the shared `stubConfig()` used by audit-build fixtures; if it drifts from `AUDIT_VERSION`, "healthy project" tests fail for the wrong reason.
+- `test/fixtures/projects/index.ts` (search: `stubConfig`) is the shared config stub used by audit-build fixtures; if it drifts from `AUDIT_VERSION`, "healthy project" tests fail for the wrong reason.
 - `src/cli/classify-state.ts` (search: `CURRENT_VERSION_FAMILY`) derives the current version family and routes current vs outdated installs; hardcoding a previous family breaks `composeSetup()` as soon as the package version advances.
 - `workflow/install-goat-flow.sh` (search: `Read version from package.json`) must derive the install version from `package.json`; a hardcoded fallback recreates the same stale-version trap at install time.
 
@@ -103,7 +103,7 @@ Moved to resolved: all evidence is from retired v1.1.0 files and current shared 
 
 Skills enforce phase gates (Step 0 must complete before Phase 1, gates pause for human approval) but have no budget for how long Step 0 can take. Claude can spend an entire session reading templates, exploring the codebase, and gathering context without ever producing output or asking a question.
 
-**Resolution:** Both preventions implemented in `.goat-flow/skill-reference/skill-preamble.md:77-79`:
+**Resolution:** Both preventions implemented in `.goat-flow/skill-reference/skill-preamble.md` (search: `## Step 0 Budget`):
 1. Step 0 budget: "If Step 0 exceeds 5 file reads without producing output or asking a question, checkpoint with what you know so far."
 2. Mid-Step-0 checkpointing: "Checkpoint mid-Step-0 for complex projects rather than silently reading indefinitely."
 

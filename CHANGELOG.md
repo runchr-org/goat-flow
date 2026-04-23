@@ -2,7 +2,7 @@
 
 ## v1.2.4 - 2026-04-23
 
-Quality report fixes, node-pty as optional dependency, configurable terminal timeout, dashboard settings/export, QA prompt improvements, and preset prompt library expansion.
+Quality report fixes, node-pty as optional dependency, configurable terminal timeout, dashboard settings/export, QA prompt improvements, preset prompt library expansion, ADR-024 semantic anchors, manifest snapshot backfill, and lesson line-ref validation.
 
 - **node-pty optional** - Moved from `dependencies` to `optionalDependencies`. Install no longer fails on Linux/WSL without C++ build tools. Dashboard terminal banner now shows platform-specific install guidance.
 - **Terminal timeout** - Configurable idle timeout via `config.yaml` `terminal.idle-timeout` (default 8 hours, was hardcoded 60 min). `0` disables auto-kill. Dashboard settings view shows current value.
@@ -13,6 +13,14 @@ Quality report fixes, node-pty as optional dependency, configurable terminal tim
 - **goat-qa skill** - Standard mode output template split into Phase 2 (gap analysis, presented at gate) and Phase 3 (testing plan, gated by approval). Step 0 retrieval now includes patterns.md and decisions.
 - **Preset prompts** - 23 to 26 presets. Three new: Mermaid Flow Diagram, Test Plan vs Code Changes, Automated Coverage Check. Existing presets sharpened with change-type-first probing, tester-voice, output format hints, and security lenses.
 - **docs/skills.md** - Planning Route corrected (File-Write default at Standard+). goat-critique sub-agent count corrected to 3. goat-qa Standard trigger clarified.
+- **ADR-024: Semantic anchors over line numbers** - Line numbers banned from footgun/lesson evidence. All entries migrated to grep-friendly `(search: "pattern")` anchors. Instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, copilot-instructions.md) and evaluation templates updated. `stats --check` validates search anchors against file content, catching stale evidence that line-number validation never could.
+- **Manifest snapshot backfill** - Frozen v1.2.0–v1.2.4 snapshots added to `workflow/manifest-snapshots/`. Snapshot test expanded from single-version to all-release coverage (v1.1.0–v1.2.4). README updated with version table.
+- **Lesson line-ref validation** - `invalidLineRefs` added to lesson facts in `stats --check` (was footguns-only). Lessons with out-of-bounds `file:line` refs now surface in health checks.
+- **Decisions directory** - `.gitkeep` replaced with `README.md` containing ADR writing guidance. Installer copies the template; manifest and audit check updated for the new anchor file.
+- **Quality prompt hardening** - `compose-quality.ts` adds a CRITICAL write-verification step: agents must `ls` the output file after writing to confirm it persists. `docs/audit-and-quality.md` corrected from "runs 7 skill invocations" to file-analysis-preferred approach.
+- **Content-drift Round 3** - 3 findings from independent Copilot quality reports resolved: `docs/skills.md` /goat-plan summary, quality assessment invocation language, and architecture hot-path listing now includes `copilot-instructions.md`.
+- **Learning loop** - 3 new lessons: fresh-eyes critique leak-scan citation format, line-number evidence debt (ADR-024 origin), snapshot fixture metadata beyond typed contract. 5 bucket files reviewed (2026-04-24).
+- **GEMINI.md cleanup** - Removed stale `.github/instructions/` from local-instruction checklist. Footgun evidence guidance updated to semantic anchors.
 
 ## v1.2.3 - 2026-04-22
 
