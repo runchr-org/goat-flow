@@ -141,6 +141,7 @@ export interface SharedFacts {
     hasEntries: boolean;
     entryCount: number;
     staleRefs: string[];
+    invalidLineRefs: string[];
     duplicateSurfacePaths: string[];
     formatDiagnostic: string | null;
     path: string;

@@ -30,6 +30,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "known-gaps",
   "skill-overrides",
   "harness",
+  "terminal",
 ]);
 
 /** Built-in default values used when config.yaml is missing or omits fields. */
@@ -54,6 +55,7 @@ const CONFIG_DEFAULTS: GoatFlowConfig = {
   telemetry: false,
   knownGaps: [],
   skillOverrides: {},
+  terminal: { idleTimeoutMinutes: 480 },
   harness: { acknowledge: [] },
 };
 
@@ -80,6 +82,7 @@ function cloneDefaults(): GoatFlowConfig {
     telemetry: CONFIG_DEFAULTS.telemetry,
     knownGaps: [...CONFIG_DEFAULTS.knownGaps],
     skillOverrides: { ...CONFIG_DEFAULTS.skillOverrides },
+    terminal: { ...CONFIG_DEFAULTS.terminal },
     harness: { acknowledge: [...CONFIG_DEFAULTS.harness.acknowledge] },
   };
 }
@@ -192,6 +195,17 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
     merged.skillOverrides = {
       ...raw["skill-overrides"],
     };
+  }
+
+  if (isRecord(raw.terminal)) {
+    const timeout = raw.terminal["idle-timeout"];
+    if (
+      typeof timeout === "number" &&
+      Number.isInteger(timeout) &&
+      timeout >= 0
+    ) {
+      merged.terminal.idleTimeoutMinutes = timeout;
+    }
   }
 
   mergeHarness(raw.harness, merged);
@@ -453,6 +467,63 @@ function validateHarnessField(
   });
 }
 
+/** Validate the telemetry field when present. */
+function validateTelemetryField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  if (!("telemetry" in raw)) return;
+  if (typeof raw.telemetry !== "boolean") {
+    pushError(errors, "telemetry", "must be a boolean");
+  }
+}
+
+/** Validate the known-gaps field when present. */
+function validateKnownGapsField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  if (!("known-gaps" in raw)) return;
+  validateStringArray(raw["known-gaps"], "known-gaps", errors);
+}
+
+/** Validate the skill-overrides field when present. */
+function validateSkillOverridesField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  if (!("skill-overrides" in raw)) return;
+  if (!isRecord(raw["skill-overrides"])) {
+    pushError(errors, "skill-overrides", "must be an object");
+  }
+}
+
+/** Validate the terminal config block when present. */
+function validateTerminalField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  validateObjectField(raw, "terminal", errors, (value) => {
+    if (!("idle-timeout" in value)) return;
+    const timeout = value["idle-timeout"];
+    if (
+      typeof timeout !== "number" ||
+      !Number.isInteger(timeout) ||
+      timeout < 0
+    ) {
+      pushError(
+        errors,
+        "terminal.idle-timeout",
+        "must be a non-negative integer",
+      );
+    }
+  });
+}
+
 /** Ordered list of field-level validators applied during config validation. */
 const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateVersionField,
@@ -461,7 +532,11 @@ const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateSkillsField,
   validateToolchainField,
   validateUserRoleField,
+  validateTelemetryField,
+  validateKnownGapsField,
+  validateSkillOverridesField,
   validateHarnessField,
+  validateTerminalField,
 ];
 
 /** Validate a parsed config object and return structured warnings and errors. */

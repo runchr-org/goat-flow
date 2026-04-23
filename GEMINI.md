@@ -1,4 +1,4 @@
-# GEMINI.md - v1.2.3 (2026-04-22)
+# GEMINI.md - v1.2.4 (2026-04-23)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash validation scripts + TypeScript CLI/dashboard.
 ## Essential Commands
 
@@ -20,7 +20,7 @@ node --import tsx src/cli/cli.ts stats . --check  # Learning-loop health: last_r
 
 ## Execution Loop: READ → SCOPE → ACT → VERIFY
 
-**READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns.md`; open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
+**READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns.md`; include `.goat-flow/decisions/` when the task involves architecture, policy, or setup work. Open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
 ```
 BAD:  "The CLI has 20 audit checks" (guessed without reading)
 GOOD: Read src/cli/audit/check-goat-flow.ts → 13 setup checks, check-agent-setup.ts → 4 agent checks (17 total)
@@ -62,12 +62,12 @@ Over budget = checkpoint and re-classify before continuing. Budgets are heuristi
 
 If VERIFY caught a failure or you corrected course, update the learning loop before DoD:
 - Lessons: `.goat-flow/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content.
-- Footguns: `.goat-flow/footguns/` category bucket files (e.g. `hooks.md`, `auditor.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file:line evidence.
+- Footguns: `.goat-flow/footguns/` category bucket files (e.g. `hooks.md`, `auditor.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file evidence using grep-friendly semantic anchors.
 
 | File | When to update |
 |------|---------------|
 | `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
-| `.goat-flow/footguns/` | Cross-doc architectural trap (with file:line evidence) |
+| `.goat-flow/footguns/` | Cross-doc architectural trap (with file evidence + semantic anchors) |
 | `.goat-flow/decisions/` | Significant technical decision with context/rationale |
 | `.goat-flow/logs/sessions/` | Optional. On `/compact` without an active milestone file, write `YYYY-MM-DD-slug.md` continuity summary |
 
@@ -79,7 +79,7 @@ If VERIFY caught a failure or you corrected course, update the learning loop bef
 - [ ] Boundary touched: [name]
 - [ ] Related code read: [yes/no]
 - [ ] Footgun entry checked: [relevant entry, or "none"]
-- [ ] Local instruction checked: [local GEMINI.md / .github/instructions/ / none]
+- [ ] Local instruction checked: [local GEMINI.md / none]
 - [ ] Rollback command: [exact command]
 
 Boundaries: `.goat-flow/architecture.md`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `workflow/setup/**`, `workflow/skills/**`, `workflow/manifest.json` (canonical agent inventory), `src/cli/server/terminal.ts` (PTY runtime), `src/cli/server/dashboard.ts` (local HTTP/WS server), `.github/workflows/**`, `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/skills/`, renaming/moving files, 3+ doc file changes.
@@ -94,12 +94,11 @@ MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh,
 - If file exists, modify in-place. NEVER create `_modified`, `_new`, `_backup`, `_v2` variants.
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - MUST maintain cross-file consistency: same concept, same description everywhere
-- MUST preserve file evidence in footguns and examples. Prefer grep-friendly semantic anchors; use `file:line` only when the line is the proof.
+- MUST preserve file evidence in footguns and examples. Use grep-friendly semantic anchors (function name, unique string, `(search: "pattern")`), not line numbers (per ADR-024).
 - MUST use real incidents, never hypothetical. `.goat-flow/architecture.md` is canonical source of truth
 - Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.
 
 ## Working Memory
-If working from a plan/milestone file, tick `- [x]` on each completed task immediately - not at the end.
 Context health: compact at 60% util. Noise pruning before compacting. `/clear` between unrelated tasks.
 
 ## Router Table

@@ -635,6 +635,39 @@ function summarizeFootgunEntries(
   };
 }
 
+/** Validate `file:line` refs in lesson content, returning out-of-bounds refs. */
+function collectInvalidLessonLineRefs(
+  fs: ReadonlyFS,
+  cleanedContent: string,
+): string[] {
+  const invalid: string[] = [];
+  for (const match of cleanedContent.matchAll(
+    /`([^`]+):([0-9]+(?:[-,][0-9]+)*)`/g,
+  )) {
+    const filePath = match[1];
+    const rawLines = match[2];
+    if (
+      filePath === undefined ||
+      rawLines === undefined ||
+      !isFileRef(filePath) ||
+      !isCheckableForStaleness(filePath, fs)
+    )
+      continue;
+    if (!fs.exists(filePath)) continue;
+    const lineCount = fs.lineCount(filePath);
+    const lineNumbers = Array.from(rawLines.matchAll(/[0-9]+/g)).flatMap(
+      (lineMatch) => {
+        const value = Number.parseInt(lineMatch[0], 10);
+        return Number.isNaN(value) ? [] : [value];
+      },
+    );
+    if (lineNumbers.some((ln) => ln < 1 || ln > lineCount)) {
+      invalid.push(`${filePath}:${rawLines}`);
+    }
+  }
+  return invalid;
+}
+
 /** Aggregate entry counts, stale refs, diagnostics, and per-bucket freshness across lesson entries. */
 function summarizeLessonEntries(
   fs: ReadonlyFS,
@@ -642,9 +675,14 @@ function summarizeLessonEntries(
   now: Date,
 ): Pick<
   SharedFacts["lessons"],
-  "entryCount" | "staleRefs" | "formatDiagnostic" | "buckets"
+  | "entryCount"
+  | "staleRefs"
+  | "invalidLineRefs"
+  | "formatDiagnostic"
+  | "buckets"
 > {
   const staleRefs: string[] = [];
+  const invalidLineRefs: string[] = [];
   const diagnostics: string[] = [];
   const buckets: BucketFreshness[] = [];
   let entryCount = 0;
@@ -656,6 +694,7 @@ function summarizeLessonEntries(
     const pathPattern =
       /`((?:src|config|app|apps|lib|docs|scripts|setup|workflow|agents|\.goat-flow)\/[^`]+)`/g;
     const bucketStaleRefs: string[] = [];
+    const bucketInvalidLineRefs: string[] = [];
     // Strip strikethrough history (~~resolved~~) before scanning for stale refs,
     // mirroring the footgun extractor.
     const cleanedContent = stripStrikethrough(content);
@@ -671,17 +710,28 @@ function summarizeLessonEntries(
       if (isIntentionallyGitignored(filePath)) continue;
       if (!fs.exists(filePath)) bucketStaleRefs.push(filePath);
     }
+    bucketInvalidLineRefs.push(
+      ...collectInvalidLessonLineRefs(fs, cleanedContent),
+    );
     staleRefs.push(...bucketStaleRefs);
+    invalidLineRefs.push(...bucketInvalidLineRefs);
     const diagnostic = getMissingFrontmatterDiagnostic(path, content);
     if (diagnostic) diagnostics.push(diagnostic);
     buckets.push(
-      buildBucketFreshness(entry, bucketEntryCount, bucketStaleRefs, [], now),
+      buildBucketFreshness(
+        entry,
+        bucketEntryCount,
+        bucketStaleRefs,
+        bucketInvalidLineRefs,
+        now,
+      ),
     );
   }
 
   return {
     entryCount,
     staleRefs,
+    invalidLineRefs,
     formatDiagnostic: diagnostics.length > 0 ? diagnostics.join("; ") : null,
     buckets,
   };
@@ -741,6 +791,7 @@ export function extractLessonsFacts(
     hasEntries: summary.entryCount > 0,
     entryCount: summary.entryCount,
     staleRefs: summary.staleRefs,
+    invalidLineRefs: summary.invalidLineRefs,
     duplicateSurfacePaths: findCompetingArtifactSurfaces(
       fs,
       [configState.config.lessons.path],

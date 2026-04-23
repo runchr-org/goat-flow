@@ -1,6 +1,6 @@
 ---
 category: verification
-last_reviewed: 2026-04-21
+last_reviewed: 2026-04-24
 ---
 
 ## Lesson: "Double check" means read the files, not re-run the tests
@@ -210,13 +210,13 @@ last_reviewed: 2026-04-21
 
 **What happened:** Eight independent critiques (3 Claude, 5 Codex) reviewed the goat-flow v1.1.0 setup on its own repo. All 8 confirmed structural integrity: 7 skills matched templates, 57 tests passed, all router paths resolved, deny hook self-test passed, architecture doc numeric claims verified. Despite this, the 8 critiques collectively found 20+ verified content-accuracy failures in cold-path surfaces that no automated check caught. Examples at the time (all since resolved or removed): ~~`docs/audit-and-critique.md:38-47`~~ describing checks that no longer exist in code; `docs/coding-standards/conventions.md:10` claiming zero runtime deps when `package.json` has js-yaml and ws; `.goat-flow/glossary.md:21` pointing Task Tracking at the wrong file; `.goat-flow/code-map.md:71` listing a script under the wrong directory; ~~`scripts/stop-lint.sh`~~ existing despite ADR-015 saying it was removed; `.goat-flow/tasks/.gitignore:2` ignoring all milestone files while goat-plan claims durable shared state. Setup scored 58-90/100 across the 8 critiques - the range itself shows the split between structural soundness and content accuracy.
 
-**Root cause:** The audit validates structure (files exist, versions match, paths resolve) but not content truth. Preflight validates some doc/code counts but not descriptions, claims, or cross-file consistency. Cold-path docs are updated manually and drift as code changes. The Step 01 early-stop rule (`workflow/setup/01-system-overview.md:12`) says stop when audit passes, hardening stale content into "done."
+**Root cause:** The audit validates structure (files exist, versions match, paths resolve) but not content truth. Preflight validates some doc/code counts but not descriptions, claims, or cross-file consistency. Cold-path docs are updated manually and drift as code changes. Step 01 (`workflow/setup/01-system-overview.md` (search: `## State check`)) now requires a cold-path truth spot-check before stopping (prevention #2 below, implemented), but coverage depends on which claims the agent chooses to verify.
 
 **Evidence:** All findings verified with direct file reads and command output during the critique session. The critique convergence table documents which critiques found which findings.
 
 **Prevention:**
 1. Add content-drift checks to preflight or audit: doc check descriptions match code, convention claims match package.json, glossary canonical files exist
-2. Change Step 01 early-stop to require content-drift checks, not just structural audit pass
+2. ~~Change Step 01 early-stop to require content-drift checks, not just structural audit pass~~ (done: Step 01 now requires cold-path truth spot-check before stopping)
 3. Add a cold-path truth audit step to the release process: verify footguns, docs, coding-standards, glossary, and code-map against actual code before each release
 4. Consider auto-generating audit docs from check code exports to prevent drift permanently
 
@@ -595,3 +595,33 @@ last_reviewed: 2026-04-21
 **Prevention:**
 1. For duplicated release-note bullets or summary sections, assume the same claim may appear more than once and verify with `rg`, not by eyeballing one section.
 2. After any doc-only patch, read the exact changed hunk or `git diff` once before closeout to catch accidental copy-edit regressions.
+
+---
+
+## Lesson: Snapshot fixtures can carry metadata beyond the typed numeric contract
+
+**Status:** active | **Created:** 2026-04-24
+
+**What happened:** A backfill for missing v1.2.0–v1.2.4 manifest snapshots added a repo-integration test that `deepEqual`ed `loadSnapshotFacts()` output against numeric expectations. The first verification run failed because the historical `v1.1.0` snapshot already includes an extra `_note` key inside `snapshot_facts`, so the runtime payload was broader than the narrowed TypeScript interface used by the checker.
+
+**Root cause:** I treated the snapshot loader as if it returned only the typed numeric fields, but the JSON contract in the repository also carries human-facing metadata that survives parsing.
+
+**Fix:** Assert the numeric fields individually and allow extra metadata keys in historical snapshot fixtures.
+
+**Prevention:**
+1. When adding repo-integration tests for parsed JSON fixtures, inspect the real file shape before using `deepEqual` on a narrowed TypeScript view.
+2. For historical compatibility tests, verify the required semantic fields and tolerate additive metadata unless the test is explicitly enforcing exact wire format.
+
+---
+
+## Lesson: Manifest changes require matching snapshot updates
+
+**Status:** active | **Created:** 2026-04-24
+
+**What happened:** Changed `.goat-flow/decisions/.gitkeep` to `.goat-flow/decisions/README.md` in `workflow/manifest.json` but missed the corresponding entry in `workflow/manifest-snapshots/v1.2.4.json`. The snapshot still listed `.gitkeep` after the live manifest had moved to `README.md`. Only caught when the user explicitly asked "did you update the snapshot too?"
+
+**Root cause:** Treated `workflow/manifest.json` as a single source file, but v1.2.4 has a parallel snapshot copy that must stay in sync. The verification pass grepped for stale `.gitkeep` references across `workflow/` and `src/cli/` but the grep results included the snapshot hit and it was mentally dismissed as "historical" without reading which version it was. The v1.2.4 snapshot is the CURRENT version's snapshot - not historical.
+
+**Prevention:**
+1. After any edit to `workflow/manifest.json`, immediately check whether `workflow/manifest-snapshots/v<current-version>.json` needs the same change. The current-version snapshot is a live mirror, not a historical record.
+2. When grepping for stale references, do not dismiss snapshot hits without checking the version number. Only snapshots for OLDER versions are frozen history.

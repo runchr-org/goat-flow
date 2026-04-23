@@ -30,6 +30,93 @@ const V110: Parameters<typeof scanSectionAgainstSnapshot>[1] = {
   presets_count: 20,
 };
 
+const EXPECTED_RELEASE_SNAPSHOTS = [
+  {
+    version: "1.1.0",
+    facts: {
+      skills_total: 7,
+      skills_functional_count: 6,
+      checks_setup: 12,
+      checks_agent: 4,
+      checks_build: 16,
+      checks_harness: 16,
+      checks_total: 32,
+      dashboard_views_count: 7,
+      presets_count: 20,
+    },
+  },
+  {
+    version: "1.2.0",
+    facts: {
+      skills_total: 7,
+      skills_functional_count: 6,
+      checks_setup: 13,
+      checks_agent: 4,
+      checks_build: 17,
+      checks_harness: 16,
+      checks_total: 33,
+      dashboard_views_count: 8,
+      presets_count: 22,
+    },
+  },
+  {
+    version: "1.2.1",
+    facts: {
+      skills_total: 7,
+      skills_functional_count: 6,
+      checks_setup: 13,
+      checks_agent: 4,
+      checks_build: 17,
+      checks_harness: 16,
+      checks_total: 33,
+      dashboard_views_count: 8,
+      presets_count: 22,
+    },
+  },
+  {
+    version: "1.2.2",
+    facts: {
+      skills_total: 7,
+      skills_functional_count: 6,
+      checks_setup: 13,
+      checks_agent: 4,
+      checks_build: 17,
+      checks_harness: 16,
+      checks_total: 33,
+      dashboard_views_count: 8,
+      presets_count: 22,
+    },
+  },
+  {
+    version: "1.2.3",
+    facts: {
+      skills_total: 7,
+      skills_functional_count: 6,
+      checks_setup: 13,
+      checks_agent: 4,
+      checks_build: 17,
+      checks_harness: 16,
+      checks_total: 33,
+      dashboard_views_count: 8,
+      presets_count: 23,
+    },
+  },
+  {
+    version: "1.2.4",
+    facts: {
+      skills_total: 7,
+      skills_functional_count: 6,
+      checks_setup: 13,
+      checks_agent: 4,
+      checks_build: 17,
+      checks_harness: 16,
+      checks_total: 33,
+      dashboard_views_count: 8,
+      presets_count: 28,
+    },
+  },
+] as const;
+
 // ---------------------------------------------------------------------------
 // parseChangelogSections
 // ---------------------------------------------------------------------------
@@ -204,13 +291,18 @@ describe("scanSectionAgainstSnapshot", () => {
 // loadSnapshotFacts (live repo)
 // ---------------------------------------------------------------------------
 describe("loadSnapshotFacts (real repo)", () => {
-  it("loads the v1.1.0 snapshot", () => {
-    const facts = loadSnapshotFacts("1.1.0");
-    assert.ok(facts, "expected v1.1.0 snapshot to exist");
-    assert.equal(facts!.skills_total, 7);
-    assert.equal(facts!.checks_harness, 16);
-    assert.equal(facts!.dashboard_views_count, 7);
-    assert.equal(facts!.presets_count, 20);
+  it("loads every release snapshot that CHANGELOG sections rely on", () => {
+    for (const expected of EXPECTED_RELEASE_SNAPSHOTS) {
+      const facts = loadSnapshotFacts(expected.version);
+      assert.ok(facts, `expected v${expected.version} snapshot to exist`);
+      for (const [key, value] of Object.entries(expected.facts)) {
+        assert.equal(
+          facts[key as keyof typeof expected.facts],
+          value,
+          `expected v${expected.version} ${key}=${value}`,
+        );
+      }
+    }
   });
 
   it("returns null for a version with no snapshot", () => {

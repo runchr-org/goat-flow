@@ -28,7 +28,7 @@ category: verification
 ## Lesson: [Short title]
 **Created:** YYYY-MM-DD
 **What happened:** [real mistake and impact]
-**Evidence:** `file:line` - [what was found] (required for code-specific lessons; omit for behavioral lessons where file:line evidence doesn't apply)
+**Evidence:** `file` (search: `semantic anchor`) - [what was found] (required for code-specific lessons; use grep-friendly anchors, not line numbers - see ADR-024)
 **Prevention:** [action that would have prevented the mistake]
 
 ## Pattern: recurring theme

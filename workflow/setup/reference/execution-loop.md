@@ -28,7 +28,7 @@ c) Default Execution Loop: READ → SCOPE → ACT → VERIFY
        - VERIFY caught a failure in your code → `.goat-flow/lessons/` entry
        - Human corrected agent behaviour → `.goat-flow/lessons/` entry immediately
        - Reusable approach worked (twice or crosses boundary) → `.goat-flow/patterns.md` entry
-       - Architectural trap with file:line evidence → `.goat-flow/footguns/` entry
+       - Architectural trap with semantic-anchor evidence → `.goat-flow/footguns/` entry
        Log only non-obvious root causes, repeated misses, or boundary-crossing impacts.
 
 d) Autonomy Tiers: Always / Ask First / Never

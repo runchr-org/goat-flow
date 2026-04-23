@@ -1,4 +1,4 @@
-# AGENTS.md - v1.2.3 (2026-04-22)
+# AGENTS.md - v1.2.4 (2026-04-23)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash validation scripts + TypeScript CLI/dashboard.
 ## Essential Commands
 ```bash
@@ -19,7 +19,7 @@ npm test                                    # Run test suite
 
 ## Execution Loop: READ → SCOPE → ACT → VERIFY
 
-**READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns.md`; open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
+**READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns.md`; include `.goat-flow/decisions/` when the task involves architecture, policy, or setup work. Open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
 ```
 BAD:  "The CLI has 20 audit checks" (guessed without reading)
 GOOD: Read src/cli/audit/check-goat-flow.ts → 13 setup checks, check-agent-setup.ts → 4 agent checks (17 total)
@@ -117,6 +117,6 @@ If working from a plan/milestone file, tick `- [x]` on each completed task immed
 - If file exists, modify in-place. NEVER create `_modified`, `_new`, `_backup`, `_v2` variants.
 - Severity: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE
 - MUST maintain cross-file consistency: same concept, same description everywhere
-- MUST preserve file evidence in footguns and examples. Prefer grep-friendly semantic anchors; use `file:line` only when the line is the proof.
+- MUST preserve file evidence in footguns and examples. Use grep-friendly semantic anchors (function name, unique string, `(search: "pattern")`), not line numbers (per ADR-024).
 - MUST use real incidents, never hypothetical. `.goat-flow/architecture.md` is canonical source of truth
 - Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.

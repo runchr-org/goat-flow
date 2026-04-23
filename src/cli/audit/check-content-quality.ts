@@ -88,6 +88,9 @@ const QUALITY_TARGETS = [
   ".goat-flow/decisions/ADR-018-no-goat-verify-skill.md",
   ".goat-flow/decisions/ADR-019-rename-sbao-to-critique-and-test-to-qa.md",
   ".goat-flow/decisions/ADR-020-add-copilot-cli.md",
+  ".goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md",
+  ".goat-flow/decisions/ADR-022-agent-authority-canonical-source.md",
+  ".goat-flow/decisions/ADR-023-reference-pack-budget-tiers.md",
   // Setup templates
   "workflow/setup/01-system-overview.md",
   "workflow/setup/02-instruction-file.md",
@@ -317,7 +320,9 @@ function scanLine(
   }
   applyPatternRules(GENERIC_INSTRUCTIONS, line, lineNumber, path, findings);
   applyPatternRules(NON_ACTIONABLE, line, lineNumber, path, findings);
-  applyPatternRules(LEGACY_EXECUTION_LOOP, line, lineNumber, path, findings);
+  if (!path.startsWith("workflow/setup/")) {
+    applyPatternRules(LEGACY_EXECUTION_LOOP, line, lineNumber, path, findings);
+  }
 }
 
 /** Scan one file. Returns zero or more findings, skipping fenced code blocks.

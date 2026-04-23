@@ -1,4 +1,5 @@
 {
+  "_snapshot_note": "Frozen copy of workflow/manifest.json as it shipped at v1.2.4 release. Backfilled from release commit f1dd77d so CHANGELOG lint stays pinned to the release state rather than later same-version edits in the live tree. Immutable. The live source of truth stays at workflow/manifest.json. See workflow/manifest-snapshots/README.md for the frozen-copy contract.",
   "description": "Expected goat-flow project structure. Source of truth for setup, audit, and upgrade paths. Not a JSON Schema - this is a manifest of what should exist on disk.",
   "version": "1.2.4",
 
@@ -201,5 +202,18 @@
       "setup",
       "workspace"
     ]
+  },
+
+  "snapshot_facts": {
+    "_note": "Numeric facts as shipped at v1.2.4 release commit f1dd77d. Used by CHANGELOG lint to validate claims inside the `## v1.2.4` section of CHANGELOG.md.",
+    "skills_total": 7,
+    "skills_functional_count": 6,
+    "checks_setup": 13,
+    "checks_agent": 4,
+    "checks_build": 17,
+    "checks_harness": 16,
+    "checks_total": 33,
+    "dashboard_views_count": 8,
+    "presets_count": 28
   }
 }

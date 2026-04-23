@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.2.4 - 2026-04-23
+
+Quality report fixes, node-pty as optional dependency, configurable terminal timeout, dashboard settings/export, QA prompt improvements, preset prompt library expansion, ADR-024 semantic anchors, manifest snapshot backfill, and lesson line-ref validation.
+
+- **node-pty optional** - Moved from `dependencies` to `optionalDependencies`. Install no longer fails on Linux/WSL without C++ build tools. Dashboard terminal banner now shows platform-specific install guidance.
+- **Terminal timeout** - Configurable idle timeout via `config.yaml` `terminal.idle-timeout` (default 8 hours, was hardcoded 60 min). `0` disables auto-kill. Dashboard settings view shows current value.
+- **Session export** - Export button on workspace sessions downloads terminal output as `.txt`.
+- **Deny hook fix** - Quoted literal backticks (e.g. `printf 'use \` here'`) no longer trigger false-positive command-substitution blocks.
+- **Content quality audit** - Setup templates excluded from legacy execution-loop detection. ADR-021/022/023 added to target list and decisions README.
+- **Instruction file retrieval** - All four agent instruction files now include `.goat-flow/decisions/` in retrieval for architecture/policy/setup tasks.
+- **goat-qa skill** - Standard mode output template split into Phase 2 (gap analysis, presented at gate) and Phase 3 (testing plan, gated by approval). Step 0 retrieval now includes patterns.md and decisions.
+- **Preset prompts** - 23 to 28 presets. Five new: Critique a Plan, Critique an Artifact, Pressure-Test a Skill, Mermaid Flow Diagram, Test Plan vs Code Changes. Existing presets sharpened with change-type-first probing, tester-voice, output format hints, and security lenses.
+- **docs/skills.md** - Planning Route corrected (File-Write default at Standard+). goat-critique sub-agent count corrected to 3. goat-qa Standard trigger clarified.
+- **ADR-024: Semantic anchors over line numbers** - Line numbers banned from footgun/lesson evidence. All entries migrated to grep-friendly `(search: "pattern")` anchors. Instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, copilot-instructions.md) and evaluation templates updated. `stats --check` validates search anchors against file content, catching stale evidence that line-number validation never could. Propagation sweep: `compose-quality.ts` quality prompt, `harness-quality.md`, `harness-audit.md`, setup templates (footguns-readme, 05-customise, 06-final-verification), `skill-conventions.md` entry templates, `glossary.md`, `architecture.md`, `code-map.md`, `README.md`, `goat-flow-landing.html`, and `help.html` all updated. Live-work contexts (skill-preamble, execution-loop VERIFY, adversarial-framing, review/debug/security/critique skills) correctly retain `file:line` for fresh code citation. Glossary Evidence Standard entry updated to describe both modes.
+- **Manifest snapshot backfill** - Frozen v1.2.0–v1.2.4 snapshots added to `workflow/manifest-snapshots/`. Snapshot test expanded from single-version to all-release coverage (v1.1.0–v1.2.4). README updated with version table.
+- **Lesson line-ref validation** - `invalidLineRefs` added to lesson facts in `stats --check` (was footguns-only). Lessons with out-of-bounds `file:line` refs now surface in health checks.
+- **Decisions directory** - `.gitkeep` replaced with `README.md` containing ADR writing guidance. Installer copies the template; manifest and audit check updated for the new anchor file.
+- **Quality prompt hardening** - `compose-quality.ts` adds a CRITICAL write-verification step: agents must `ls` the output file after writing to confirm it persists. `docs/audit-and-quality.md` corrected from "runs 7 skill invocations" to file-analysis-preferred approach.
+- **Content-drift Round 3** - 3 findings from independent Copilot quality reports resolved: `docs/skills.md` /goat-plan summary, quality assessment invocation language, and architecture hot-path listing now includes `copilot-instructions.md`.
+- **Learning loop** - 3 new lessons: fresh-eyes critique leak-scan citation format, line-number evidence debt (ADR-024 origin), snapshot fixture metadata beyond typed contract. 5 bucket files reviewed (2026-04-24).
+- **Ask First boundary** - `.goat-flow/skill-reference/` added to CLAUDE.md Ask First boundaries. Shared doctrine loaded by every skill now requires approval before edits.
+- **Presenting Findings format** - `skill-conventions.md` gains a "Presenting Findings" section standardising summary/problem/solution one-liner format for tasks, findings, and recommendations.
+- **GEMINI.md cleanup** - Removed stale `.github/instructions/` from local-instruction checklist. Footgun evidence guidance updated to semantic anchors.
+
 ## v1.2.3 - 2026-04-22
 
 `.env.example` read-only handling, richer dashboard presets, dashboard audit caching, reporting-only quality prompts, active-plan local-state handling, goat-critique contract tightening, terminal fixes, prompt-label tracking, deployment scripts, prompt-loading polish, shared-reference doc cleanup, widened dashboard lint coverage, and goat-qa gate clarification. 19 commits, 92 files changed, 2,584 insertions, 708 deletions.

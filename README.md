@@ -47,7 +47,7 @@ Use an instruction file for rules the agent should *remember*. Use GOAT Flow for
 
 ## Getting started
 
-Requires Node.js 20+.
+Requires Node.js 20+. Optional: C++ build tools for the dashboard terminal (see [Troubleshooting](#troubleshooting)).
 
 ### 1. Install
 
@@ -153,7 +153,7 @@ Run `npx goat-flow manifest` to inspect the live agent matrix that drives CLI va
 ## Troubleshooting
 
 **Terminal not showing in dashboard?**
-node-pty requires C++ build tools to compile. Install them (`apt install build-essential python3` on Debian/Ubuntu, `xcode-select --install` on macOS), then run `npm rebuild node-pty`. If using pnpm: `pnpm approve-builds` (select node-pty).
+goat-flow installs without a C++ toolchain as of v1.2.4. If you need the dashboard's embedded terminal, you'll also need `node-pty` to compile. Install build tools (`sudo apt install build-essential python3` on Debian/Ubuntu, `xcode-select --install` on macOS), then run `npm rebuild node-pty`. If using pnpm: `pnpm approve-builds` (select node-pty). To skip the native build entirely: `npm install @blundergoat/goat-flow --omit=optional`.
 
 **Audit fails on a fresh project?**
 Expected. Run `npx goat-flow setup . --agent claude` and paste the output into your agent.
@@ -176,7 +176,7 @@ Every major source in the harness engineering field (Hashimoto, Fowler/Böckeler
 
 | Concern | Question | What GOAT Flow checks |
 |---------|----------|----------------------|
-| **Context** | Is the agent's context accurate, lean, and useful? | Instruction file line count vs target, router table path resolution, footgun file:line evidence freshness, architecture doc existence (10+ lines) |
+| **Context** | Is the agent's context accurate, lean, and useful? | Instruction file line count vs target, router table path resolution, footgun semantic-anchor evidence freshness, architecture doc existence (10+ lines) |
 | **Constraints** | Do deterministic rules catch failures before the LLM runs? | Deny patterns cover secrets and dangerous commands, Ask First boundary count |
 | **Verification** | Can the agent verify its work, and does failure feed back? | Test command configured, hook registrations in sync with hook files, commit guidance present |
 | **Recovery** | Can the agent resume after crash or interruption? | Milestone file count in `.goat-flow/tasks/`, session log count in `.goat-flow/logs/sessions/` |

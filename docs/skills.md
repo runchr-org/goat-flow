@@ -71,7 +71,7 @@ The dispatcher classifies intent conversationally - not by keyword lookup. It as
 | Test gaps, coverage, verification planning | /goat-qa |
 | Critique a plan/assessment | /goat-critique |
 
-**Planning Route:** For planning requests, the dispatcher reads `.goat-flow/tasks/.active` (one-line marker naming the active plan subdir) to find existing plans, then routes based on complexity: Hotfix → direct execution; Small Feature → compressed brief → `/goat-plan`; Standard → feature brief → `/goat-plan`; System/Infrastructure → feature brief → `/goat-plan` → suggest `/goat-critique`. `/goat-plan` defaults to inline/read-only milestones unless file creation is explicitly requested.
+**Planning Route:** For planning requests, the dispatcher reads `.goat-flow/tasks/.active` (one-line marker naming the active plan subdir) to find existing plans, then routes based on complexity: Hotfix → direct execution; Small Feature → compressed brief → `/goat-plan`; Standard → feature brief → `/goat-plan`; System/Infrastructure → feature brief → `/goat-plan` → suggest `/goat-critique`. `/goat-plan` defaults to File-Write at Standard+ scope when no analysis signals are present; analysis signals ("break this down for me", "how would you approach") trigger Read-Only Analysis mode instead.
 
 ---
 
@@ -128,7 +128,7 @@ For onboarding ("I'm new to this project"), use investigate mode - covers stack 
 
 ## /goat-plan
 
-Milestone planner and manager. It breaks work into testing-gated milestones, defaults to inline/read-only output, and only writes files in `.goat-flow/tasks/` when the user explicitly asks for file creation.
+Milestone planner and manager. It breaks work into testing-gated milestones, routing through four modes based on scope and user signals: Named-File Update (user references an existing file), Read-Only Analysis (analysis signals detected), Inline-Then-Write (Hotfix/Small Feature), or File-Write (default at Standard+ complexity). Files are written to `.goat-flow/tasks/` in File-Write and Named-File Update modes; Read-Only Analysis never writes.
 
 ```mermaid
 flowchart TD
@@ -138,16 +138,16 @@ flowchart TD
         P1["Phase 1: Break into milestones\nArchetypes: Prove It Works → Make It Real\n→ Make It Solid → Make It Shine"]
     end
 
-    P1 -->|"CHECKPOINT"| P2["Phase 2: Present inline plan\nor write milestone files if requested"]
+    P1 -->|"CHECKPOINT"| P2["Phase 2: Output per mode\n(inline, file-write, or read-only)"]
     P2 -->|"CHECKPOINT"| P3["Phase 3: Between milestones\nRun testing gate\nCapture learnings\nUpdate next milestone"]
     P3 -->|"CHECKPOINT"| Next{"Next milestone?"}
     Next -->|Yes| P3
     Next -->|No| Close["Complete"]
 ```
 
-**Milestone archetypes:** Prove It Works (spike the riskiest part first) → Make It Real (end-to-end working) → Make It Solid (edge cases, security) → Make It Shine (polish, optional). Each milestone has kill criteria, assumption tracking, and a testing gate before the next begins. Read-only/analysis mode is available at any complexity level, and inline output is the default until file creation is explicitly approved.
+**Milestone archetypes:** Prove It Works (spike the riskiest part first) → Make It Real (end-to-end working) → Make It Solid (edge cases, security) → Make It Shine (polish, optional). Each milestone has kill criteria, assumption tracking, and a testing gate before the next begins. Read-Only Analysis mode is available at any complexity level via analysis signals ("break this down for me", "how would you approach").
 
-**Key constraints:** MUST check for existing milestone files before creating new ones. MUST include testing gates on every milestone. MUST NOT continue building on an invalidated assumption. MUST NOT write milestone files unless the user explicitly asks for them.
+**Key constraints:** MUST check for existing milestone files before creating new ones. MUST include testing gates on every milestone. MUST NOT continue building on an invalidated assumption. MUST pick exactly one mode in Step 0 and stay in it - cross-mode drift is the failure the mode-picker exists to prevent.
 
 ---
 
@@ -184,15 +184,15 @@ MUST NOT flag pre-existing issues as part of this change. MUST attempt to dispro
 
 ## /goat-critique
 
-Multi-perspective critique for a concrete artifact (plan, security assessment, debug hypothesis set, review findings, architecture proposal). goat-critique runs in one mode: full delegated, 2-3 sub-agents, 5 phases. If delegated sub-agents are unavailable in the session, the skill does not run - it redirects to `/goat-review`. Rationale: `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md`.
+Multi-perspective critique for a concrete artifact (plan, security assessment, debug hypothesis set, review findings, architecture proposal). goat-critique runs in one mode: full delegated, 3 sub-agents, 5 phases. Rationale: `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md`.
 
 | Sub-agents | Phases |
 |------------|--------|
-| 2-3 delegated agents (Agent-tool calls, isolated contexts) | 5: Generate → Rank → Cross-Examine → Clarify → Synthesise |
+| 3 delegated agents (Agent-tool calls, isolated contexts) | 5: Generate → Rank → Cross-Examine → Clarify → Synthesise |
 
 ```mermaid
 flowchart TD
-    S0["Step 0\nConfirm artifact + delegation available"] --> P1
+    S0["Step 0\nConfirm artifact"] --> P1
 
     subgraph Generate["Phase 1: Generate"]
         A["Agent A (Risk Focus)\nSKEPTIC/ANALYST/STRATEGIST\n+ footguns + lessons"]
@@ -207,7 +207,7 @@ flowchart TD
     P4 -->|"BLOCKING GATE"| P5["Phase 5: Synthesise\nConsensus + Resolved + Verified + Retracted\n+ Decision Debt + What Wasn't Critiqued"]
 ```
 
-**Key constraints:** MUST use Agent tool calls for sub-agents, not inline role-play. If delegation is unavailable, stop and redirect to `/goat-review`. MUST restrict the fresh-eyes pass to artifact + evaluation criteria only (no project context). MUST include "What Wasn't Critiqued" section (never empty). MUST tag low-confidence recommendations as Decision Debt.
+**Key constraints:** MUST use Agent tool calls for sub-agents, not inline role-play. MUST restrict the fresh-eyes pass to artifact + evaluation criteria only (no project context). MUST include "What Wasn't Critiqued" section (never empty). MUST tag low-confidence recommendations as Decision Debt.
 
 ---
 
@@ -253,7 +253,7 @@ Testing gap analyser. Compares code changes against testing coverage to find und
 
 | Mode | Trigger | What it does |
 |------|---------|-------------|
-| **Standard** | test, verify coverage, gaps | Risk-based gap analysis for recent changes |
+| **Standard** | test gaps, verify coverage, what's risky | Risk-based gap analysis for recent changes |
 | **Audit** | test audit, coverage | Audit existing test coverage for a codebase area |
 | **Regression Guard** | after bug fix | Define invariants and assess coverage for a specific fix |
 

@@ -433,7 +433,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("");
   lines.push("**Evidence quality - spot-check 3-5 entries:**");
   lines.push(
-    "- Pick 3-5 footgun entries from `.goat-flow/footguns/`. For each: (a) read the cited `file:line` - does the code still exhibit the described behavior? (b) Is the `Status` field (active/resolved) accurate? An entry marked `active` that describes fixed behavior is a stale entry - report it. (c) Do the line numbers match the current file?",
+    '- Pick 3-5 footgun entries from `.goat-flow/footguns/`. For each: (a) grep for the cited semantic anchor (function name, unique string, or `(search: "pattern")`) - does the code still exhibit the described behavior? (b) Is the `Status` field (active/resolved) accurate? An entry marked `active` that describes fixed behavior is a stale entry - report it. (c) Do the semantic anchors resolve to the described code?',
   );
   lines.push(
     "- Pick 2-3 lesson entries from `.goat-flow/lessons/`. Are they from real incidents or synthetic?",
@@ -501,7 +501,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   );
   lines.push("");
   lines.push(
-    "For each skill report: (a) what worked, (b) what was confusing or failed, (c) what was useless ceremony. Cite `file:line` where possible.",
+    "For each skill report: (a) what worked, (b) what was confusing or failed, (c) what was useless ceremony. Cite file + semantic anchor where possible.",
   );
   lines.push(
     "If any skill attempts to edit tracked files, implement code, or write outside the allowed gitignored local-state/reporting paths, stop that probe immediately and report it as a finding.",
@@ -629,7 +629,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push(
     "- Type: `setup_quality`, `skill_flaw`, `contradiction`, `false_path`, `content_quality`, or `framework_flaw`",
   );
-  lines.push("- Exact `file:line` reference(s)");
+  lines.push("- Exact file + semantic-anchor reference(s)");
   lines.push("- What is wrong");
   lines.push("- Why it matters");
   lines.push(
@@ -712,7 +712,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("### Top 5 Improvements");
   lines.push("For each:");
   lines.push("1. What to change");
-  lines.push("2. Evidence from your testing (cite `file:line`)");
+  lines.push("2. Evidence from your testing (cite file + semantic anchor)");
   lines.push("3. Expected impact on the ratings");
   lines.push("");
 
@@ -726,6 +726,10 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("");
   lines.push(
     "Do **not** emit the JSON as a fenced block in your reply. Write it as a file to `.goat-flow/logs/quality/` - that path is gitignored and expected, no other writes are permitted.",
+  );
+  lines.push("");
+  lines.push(
+    "**CRITICAL:** After writing the file, verify it was saved by running `ls -la .goat-flow/logs/quality/` and confirming the file appears with non-zero size. If missing, retry the write. A quality report that exists only in conversation history is invisible to `goat-flow quality history` and `goat-flow quality diff`.",
   );
   lines.push("");
   lines.push("**Filename format:** `YYYY-MM-DD-HHMM-<agent>-<rand5>.json`");

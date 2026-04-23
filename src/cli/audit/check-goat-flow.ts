@@ -35,6 +35,7 @@ const NAMED_PATHS = new Set([
   ".goat-flow/glossary.md",
   ".goat-flow/patterns.md",
   ".goat-flow/decisions/",
+  ".goat-flow/decisions/README.md",
   ".goat-flow/logs/sessions/",
   ".goat-flow/tasks/",
   ".goat-flow/tasks/.gitignore",
@@ -45,7 +46,7 @@ const NAMED_PATHS = new Set([
   ".goat-flow/config.yaml",
 ]);
 
-// Canonical install paths intentionally excluded from the base 12-check setup gate.
+// Canonical install paths intentionally excluded from the base 13-check setup gate.
 const EXCLUDED_MANIFEST_PATHS = new Set<string>();
 
 // === Named structure checks (9) ===
@@ -193,11 +194,16 @@ const decisions: BuildCheck = {
   ]),
   /** Run the Decisions check. */
   run: (ctx) => {
-    if (ctx.fs.exists(".goat-flow/decisions")) return null;
+    const missing: string[] = [];
+    if (!ctx.fs.exists(".goat-flow/decisions"))
+      missing.push(".goat-flow/decisions/");
+    if (!ctx.fs.exists(".goat-flow/decisions/README.md"))
+      missing.push(".goat-flow/decisions/README.md");
+    if (missing.length === 0) return null;
     return {
       check: "Decisions",
-      message: "Missing: .goat-flow/decisions/",
-      evidence: ".goat-flow/decisions/",
+      message: `Missing: ${missing.join(", ")}`,
+      evidence: missing[0],
       howToFix:
         "Create decisions directory by running `goat-flow setup` or `mkdir -p .goat-flow/decisions`.",
     };

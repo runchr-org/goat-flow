@@ -29,6 +29,7 @@ interface DashboardTerminalDependencies {
   defaultRunner: Runner;
   jsonResponse: JsonResponder;
   readBody: BodyReader;
+  idleTimeoutMinutes?: number;
 }
 
 /** Build the terminal-only dashboard handlers for one server instance. */
@@ -79,7 +80,7 @@ export function createDashboardTerminalHandlers(
   async function getManager(): Promise<TerminalManager> {
     if (!managerPromise) {
       managerPromise = import("./terminal.js").then(
-        ({ TerminalManager: TM }) => new TM(),
+        ({ TerminalManager: TM }) => new TM(deps.idleTimeoutMinutes),
       );
     }
     return managerPromise;

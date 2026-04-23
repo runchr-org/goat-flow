@@ -13,14 +13,14 @@ Quality is not automated checks. It generates a prompt that walks an agent throu
 1. **Ground yourself** - run the project's validation commands, save the output
 2. **Pre-check** - structural pass/fail on skills, instruction file, router table
 3. **Setup quality** - was the harness adapted to this project or left as boilerplate?
-4. **Skill testing** - try each of the 7 skills on real code (read-only mode enforced)
+4. **Skill assessment** - evaluate each skill's structure and coherence; live invocation if context allows
 5. **System assessment** - is the execution loop useful or ceremony? Are 7 skills the right number? Is the dispatcher worth the routing step?
 6. **Contradictions and false paths** - find stale references, dead concepts, conflicting docs
 7. **Skill template integrity** - version tags, truncation detection, depth coherence
 
 Findings are severity-ranked (BLOCKER / MAJOR / MINOR) with evidence quality marked (OBSERVED vs INFERRED). The prompt embeds the current audit results so the agent knows what's already passing or failing.
 
-**Time and cost:** A full assessment runs 7 skill invocations (`goat-critique` alone may spawn sub-agents). Expect 30-60 minutes and moderate token usage.
+**Time and cost:** A full assessment evaluates all 7 skills (file analysis by default; live invocation when context allows). Expect 15-60 minutes depending on depth, with moderate token usage.
 
 ## Persisting quality reports
 
@@ -48,7 +48,7 @@ The audit checks whether files exist, paths resolve, and patterns are registered
 - Is the instruction file specific to this project's stack and domain, or generic boilerplate?
 - Are the BAD/GOOD examples drawn from real project incidents or template fill?
 - Does the architecture doc describe the current system accurately? Numeric claims (check counts, file counts, skill counts) are the most common drift.
-- Do footgun entries cite file:line evidence that still matches the current code?
+- Do footgun entries cite semantic-anchor evidence (function name, unique string, `(search: "pattern")`) that still resolves in the current code?
 - Does the architecture doc have substantive content, not just headings?
 
 ### 2. Constraints
@@ -88,7 +88,7 @@ The audit checks whether files exist, paths resolve, and patterns are registered
 - Are footgun and lesson entries from real incidents, or synthetic?
 - Are entries recent? A project with no entries in the last 90 days has a feedback loop problem.
 - Are active/resolved statuses accurate? An "active" footgun describing fixed behavior is stale.
-- Do file:line references in entries still match the current code?
+- Do semantic-anchor references in entries still resolve in the current code?
 
 ---
 
