@@ -467,6 +467,63 @@ function validateHarnessField(
   });
 }
 
+/** Validate the telemetry field when present. */
+function validateTelemetryField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  if (!("telemetry" in raw)) return;
+  if (typeof raw.telemetry !== "boolean") {
+    pushError(errors, "telemetry", "must be a boolean");
+  }
+}
+
+/** Validate the known-gaps field when present. */
+function validateKnownGapsField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  if (!("known-gaps" in raw)) return;
+  validateStringArray(raw["known-gaps"], "known-gaps", errors);
+}
+
+/** Validate the skill-overrides field when present. */
+function validateSkillOverridesField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  if (!("skill-overrides" in raw)) return;
+  if (!isRecord(raw["skill-overrides"])) {
+    pushError(errors, "skill-overrides", "must be an object");
+  }
+}
+
+/** Validate the terminal config block when present. */
+function validateTerminalField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  validateObjectField(raw, "terminal", errors, (value) => {
+    if (!("idle-timeout" in value)) return;
+    const timeout = value["idle-timeout"];
+    if (
+      typeof timeout !== "number" ||
+      !Number.isInteger(timeout) ||
+      timeout < 0
+    ) {
+      pushError(
+        errors,
+        "terminal.idle-timeout",
+        "must be a non-negative integer",
+      );
+    }
+  });
+}
+
 /** Ordered list of field-level validators applied during config validation. */
 const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateVersionField,
@@ -475,7 +532,11 @@ const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateSkillsField,
   validateToolchainField,
   validateUserRoleField,
+  validateTelemetryField,
+  validateKnownGapsField,
+  validateSkillOverridesField,
   validateHarnessField,
+  validateTerminalField,
 ];
 
 /** Validate a parsed config object and return structured warnings and errors. */
