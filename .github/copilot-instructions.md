@@ -1,4 +1,4 @@
-# Copilot Instructions - v1.2.4 (2026-04-23)
+# Copilot Instructions - v1.2.5 (2026-04-23)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash scripts + TypeScript CLI auditor.
 ## Essential Commands
 

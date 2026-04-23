@@ -33,11 +33,8 @@ only real edits to frozen text.
 | v1.2.1 | `v1.2.1.json` | 7 skills, 13 setup + 4 agent + 16 harness = 33 checks, 8 dashboard views, 22 presets |
 | v1.2.2 | `v1.2.2.json` | 7 skills, 13 setup + 4 agent + 16 harness = 33 checks, 8 dashboard views, 22 presets |
 | v1.2.3 | `v1.2.3.json` | 7 skills, 13 setup + 4 agent + 16 harness = 33 checks, 8 dashboard views, 23 presets |
-| v1.2.4 | `v1.2.4.json` | 7 skills, 13 setup + 4 agent + 16 harness = 33 checks, 8 dashboard views, 26 presets |
-
-`v1.2.4.json` is backfilled from release commit `f1dd77d`, which matches the
-released CHANGELOG facts before later same-version preset-catalog edits landed
-in the live tree.
+| v1.2.4 | `v1.2.4.json` | 7 skills, 13 setup + 4 agent + 16 harness = 33 checks, 8 dashboard views, 28 presets |
+| v1.2.5 | `v1.2.5.json` | 7 skills, 13 setup + 4 agent + 16 harness = 33 checks, 8 dashboard views, 28 presets |
 
 ## Adding a snapshot at release time
 
