@@ -1,12 +1,7 @@
 import { describe, it, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import {
-  chmodSync,
-  mkdtempSync,
-  rmSync,
-  symlinkSync,
-} from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
