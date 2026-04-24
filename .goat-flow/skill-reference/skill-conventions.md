@@ -122,6 +122,16 @@ When a milestone completes and testing passes:
 
 Write a session log entry for each completed milestone sequence.
 
+### Plan Completion Protocol
+
+When all milestones reach `complete`, the plan enters Phase 4 (see goat-plan SKILL.md). The agent must:
+
+1. Run the AI Verification Gate — confirm every task ticked, every exit criterion evidenced, every testing gate passed with proof from this session.
+2. Present the Human Verification Gate — **BLOCKING GATE**. List all files changed, all milestones and their status, and evidence for each exit criterion. Wait for explicit human approval.
+3. After human approval, plan files remain in `.goat-flow/tasks/` until the human archives or removes them.
+
+Plan and milestone files are verification artifacts. Agents MUST NOT delete, archive, or include self-destruct instructions in them.
+
 Use `.goat-flow/logs/sessions/` for session summaries. Compact at ~60% context.
 
 Sub-agents: one objective, structured return, 5-call budget.

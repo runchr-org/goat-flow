@@ -143,3 +143,4 @@ When you add an entry or materially edit the body of a bucket file, bump `last_r
 
 - **BLOCKING GATE** - stop and wait for human decision. Used for: scope approval, phase transitions, final review.
 - **CHECKPOINT** - present status and continue unless interrupted.
+- **Never self-destruct** - skill outputs (plans, milestones, findings, reports) MUST NOT include instructions to delete themselves. Plan and milestone files are verification artifacts the human needs to review. Cleanup of working artifacts is the human's decision, not the agent's.

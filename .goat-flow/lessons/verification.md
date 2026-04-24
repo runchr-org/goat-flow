@@ -639,3 +639,19 @@ last_reviewed: 2026-04-24
 **Prevention:**
 1. `test/integration/main-guard.test.ts` now tests the CLI via a temp-dir symlink — the exact path that broke. This test would have caught the regression.
 2. When modifying the entry-point guard or anything that controls whether `main()` runs, verify via symlink invocation, not just direct `node dist/cli/cli.js`.
+
+---
+
+## Lesson: deny-dangerous self-test needs no-space redirect and false-positive probes
+
+**Status:** active | **Created:** 2026-04-24
+
+**What happened:** `bash .claude/hooks/deny-dangerous.sh --self-test` passed, but live repros still showed a bypass for `echo foo>.env`, `echo foo>>.env`, `echo foo>|.env`, and `echo foo>.env.example` because the hook only treated `>` as a redirect when followed by whitespace. The same pass also left unescaped `.env` / `.env.example` regexes in place, so benign names like `aenv`, `xenv.local`, and `aenv.example` were misclassified as secret or sample-env paths.
+
+**Root cause:** I trusted the existing self-test matrix too early. It covered spaced redirects (`> .env`, `>| .env.example`) and canonical `.env` names, but not the no-space shell forms or near-miss filenames that reveal wildcard-dot false positives.
+
+**Fix:** Escape the leading dots in the `.env` / `.env.example` regexes, detect redirect targets without requiring whitespace, and add self-test cases for `>.env`, `>>.env`, `>|.env.example`, `aenv`, `xenv.local`, and `aenv.example`.
+
+**Prevention:**
+1. For shell-hook path regexes, test both positive and negative examples: canonical secret names, no-space redirect forms, and near-miss filenames that differ by one character.
+2. Do not treat `--self-test` as sufficient evidence for shell parsing changes until it includes the exact reproduction strings that originally demonstrated the bug.

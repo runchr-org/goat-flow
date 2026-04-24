@@ -208,6 +208,42 @@ Set status: prior milestone `complete`, next milestone `in-progress`.
 
 If updates are needed mid-flight, follow the detailed milestone retrospective protocol in `skill-conventions.md`; never change milestones silently.
 
+## Phase 4 - Plan Complete
+
+When all milestones reach `complete` status, the plan enters the completion protocol. Both gates must pass before the plan is considered finished.
+
+### AI Verification Gate
+
+Before presenting completion to the human, verify all of the following:
+
+1. Every milestone status field shows `complete`
+2. Every task checkbox is ticked `[x]` across all milestone files
+3. Every exit criterion has been met with evidence cited in this session
+4. Every testing gate has passed with proof (command output or sign-off, not recollection)
+5. Every assumption has been validated or explicitly invalidated with corresponding plan updates
+6. Learning loop checked: footguns, lessons, or patterns updated if this run uncovered anything worth logging
+
+If any item fails, surface it — do not silently close the plan with incomplete gates.
+
+### Human Verification Gate
+
+**BLOCKING GATE:** Present a completion summary to the human:
+
+- List every file changed or created during plan execution
+- List every milestone and its final status
+- Cite the evidence for each exit criterion
+- State any assumptions that were invalidated and how the plan adapted
+
+"All milestones complete. Please review the changes before I close this plan."
+
+The plan is NOT complete until the human explicitly approves.
+
+### After Human Approval
+
+- Confirm all milestone statuses are `complete`
+- Plan and milestone files remain in `.goat-flow/tasks/` — the human decides when to archive or remove them
+- Write a session log if the plan spanned multiple sessions
+
 ## Constraints
 
 - MUST pick exactly one Step 0 mode (Named-File Update / Read-Only Analysis / Inline-Then-Write / File-Write) and stay in that mode through Phase 2. Cross-mode drift is the failure this skill's mode-picker exists to prevent.
@@ -225,6 +261,9 @@ If updates are needed mid-flight, follow the detailed milestone retrospective pr
 - MUST NOT skip the testing gate between milestones
 - Universal constraints from skill-preamble.md apply.
 - MUST NOT continue building on an invalidated assumption - update the plan first
+- MUST NOT include self-destruct instructions in plan artifacts or done criteria (e.g., "delete this file when done", "remove this plan after completion", "clean up plan files"). Cleanup of working artifacts is the human's decision, not the agent's.
+- MUST NOT delete, archive, or remove plan/milestone files without explicit human approval
+- MUST require both AI verification and human sign-off before declaring a plan complete (Phase 4)
 - Status tracking: update milestone file status field as work progresses
 
 ## Output Format
