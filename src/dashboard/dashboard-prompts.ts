@@ -78,12 +78,13 @@ function dashboardAllPresets(ctx: DashboardPromptsContext): Preset[] {
   ];
 }
 
-/** Presets visible in normal browsing; internal quality prompts require opt-in. */
+/** Presets visible in normal browsing; quality prompts live only on the Quality page. */
 function dashboardBrowsablePresets(ctx: DashboardPromptsContext): Preset[] {
   const list = dashboardAllPresets(ctx);
+  const nonQuality = list.filter((p) => !p.qualityMode);
   return ctx.showInternalPresets
-    ? list
-    : list.filter((p) => !p.internalOnly && !p.qualityMode);
+    ? nonQuality
+    : nonQuality.filter((p) => !p.internalOnly);
 }
 
 /** Return the preset category filters. */

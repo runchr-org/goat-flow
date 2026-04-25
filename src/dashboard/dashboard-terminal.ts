@@ -72,13 +72,15 @@ function dashboardGlobalLaunchContext(
 ): string {
   const controllingWorkspace = dashboardControllingWorkspace();
   const mayWrite = preset?.mayWriteFiles === true;
+  const presetPrompt = preset?.prompt.trim() ?? "";
   const writeLine = mayWrite
     ? "Write behavior: this preset may write only after the prompt or user explicitly approves it."
     : "Write behavior: default to read-only analysis; do not write files in the selected target unless the user explicitly asks.";
   const routeLine =
-    preset?.route === "goat-plan"
+    preset?.route === "goat-plan" && /^\/goat-plan\b/.test(presetPrompt)
       ? "goat-plan global mode: keep plans inline; do not create target .goat-flow/tasks unless the user explicitly approves writes."
-      : preset?.route === "goat-critique"
+      : preset?.route === "goat-critique" &&
+          /^\/goat-critique\b/.test(presetPrompt)
         ? "goat-critique global mode: clarify any delegated-critique log or artifact writes before running them; do not write critique logs in the selected target by default."
         : "";
   return [

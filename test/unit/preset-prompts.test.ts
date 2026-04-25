@@ -51,6 +51,13 @@ const DASHBOARD_PROMPTS_PATH = resolve(
   "dashboard",
   "dashboard-prompts.ts",
 );
+const PROMPTS_VIEW_PATH = resolve(
+  PROJECT_ROOT,
+  "src",
+  "dashboard",
+  "views",
+  "prompts.html",
+);
 const DASHBOARD_QUALITY_PATH = resolve(
   PROJECT_ROOT,
   "src",
@@ -205,7 +212,15 @@ describe("preset prompt catalog", () => {
       );
       assert.match(preset.costTier, /^(low|medium|high)$/);
       assert.ok(KNOWN_ROUTES.has(preset.route), `${preset.id} known route`);
-      assert.match(preset.prompt, new RegExp(`^/${preset.route}\\b`));
+      if (preset.qualityMode) {
+        assert.doesNotMatch(
+          preset.prompt,
+          /^\/goat-/,
+          `${preset.id} quality mode should be a direct assessment prompt`,
+        );
+      } else {
+        assert.match(preset.prompt, new RegExp(`^/${preset.route}\\b`));
+      }
     }
   });
 
@@ -337,6 +352,8 @@ describe("preset prompt catalog", () => {
 
   it("keeps the skill quality preset suite-wide instead of single-skill", () => {
     const preset = byId("skill-quality-test");
+    assert.doesNotMatch(preset.prompt, /^\/goat-/);
+    assert.match(preset.prompt, /Do not use \/goat-critique/);
     assert.match(preset.prompt, /all seven goat-flow skills/);
     assert.doesNotMatch(preset.prompt, /Ask me which skill/i);
     assert.match(
@@ -355,6 +372,31 @@ describe("preset prompt catalog", () => {
       assert.match(preset.prompt, new RegExp(`/${skill}\\b`));
     }
     assert.match(preset.prompt, /Do not stop after one skill/);
+    for (const required of [
+      "Method used",
+      "Evidence limit",
+      "Worked",
+      "Failed/confusing",
+      "Useless ceremony",
+      "RED scenario",
+      "GREEN result",
+      "minimal REFACTOR",
+      "Cross-skill patterns",
+      "Top 5 skill/system improvements",
+      "What was not tested",
+    ]) {
+      assert.match(preset.prompt, new RegExp(required.replace("/", "\\/")));
+    }
+  });
+
+  it("keeps process quality preset as a direct assessment prompt", () => {
+    const preset = byId("quality-check-goatflow");
+    assert.doesNotMatch(preset.prompt, /^\/goat-/);
+    assert.match(preset.prompt, /GOAT Flow Process Quality Assessment/);
+    assert.match(preset.prompt, /Do not use \/goat-review/);
+    assert.match(preset.prompt, /Pre-check Results/);
+    assert.match(preset.prompt, /Top 5 improvements/);
+    assert.match(preset.prompt, /verification command/);
   });
 
   it("keeps goat-qa presets inside the no-test-code contract", () => {
@@ -427,19 +469,35 @@ describe("preset prompt catalog", () => {
           };
           assert.equal(payload.projectPath, PROJECT_ROOT);
           assert.equal(payload.targetPath, targetPath);
-          assert.match(
-            payload.prompt,
-            runner === "codex" ? /^\$goat/ : /^\/goat/,
-          );
+          if (preset.qualityMode) {
+            assert.doesNotMatch(payload.prompt, /^\/goat-/);
+          } else {
+            assert.match(
+              payload.prompt,
+              runner === "codex" ? /^\$goat/ : /^\/goat/,
+            );
+          }
         }
       }
     }
   });
 
-  it("keeps internal quality prompts out of normal prompt browsing by default", () => {
+  it("keeps quality prompts out of normal prompt browsing even when internal prompts are shown", () => {
     const source = readFileSync(DASHBOARD_PROMPTS_PATH, "utf-8");
+    const view = readFileSync(PROMPTS_VIEW_PATH, "utf-8");
     assert.match(source, /showInternalPresets/);
-    assert.match(source, /!p\.internalOnly && !p\.qualityMode/);
+    assert.match(
+      source,
+      /const nonQuality = list\.filter\(\(p\) => !p\.qualityMode\)/,
+    );
+    assert.match(
+      source,
+      /ctx\.showInternalPresets\s+\?\s+nonQuality\s+:\s+nonQuality\.filter\(\(p\) => !p\.internalOnly\)/,
+    );
+    assert.match(
+      view,
+      /!p\.qualityMode && \(showInternalPresets \|\| !p\.internalOnly\)/,
+    );
     assert.match(source, /dashboardAllPresets/);
     assert.match(source, /dashboardCustomPromptToPreset/);
   });
@@ -451,6 +509,12 @@ describe("preset prompt catalog", () => {
     }
     assert.match(source, /quality-check-goatflow/);
     assert.match(source, /skill-quality-test/);
+    assert.match(source, /AI Harness Engineering Quality Assessment/);
+    assert.doesNotMatch(source, /\/goat-review audit AI harness/);
+    assert.match(source, /dashboardQualityReportLogPrompt/);
+    assert.match(source, /\.goat-flow\/logs\/quality/);
+    assert.match(source, /quality validate "\$FILE"/);
+    assert.match(source, /Wrote quality report to \.goat-flow\/logs\/quality/);
     assert.match(source, /source: "api"/);
     assert.match(source, /Quality mode scope:/);
     assert.match(source, /missing target \.goat-flow files as normal/);

@@ -75,6 +75,24 @@ function dashboardQualityModePreset(
   return ctx.presets.find((preset) => preset.id === presetId) ?? null;
 }
 
+function dashboardHarnessQualityPrompt(): string {
+  return [
+    "AI Harness Engineering Quality Assessment",
+    "",
+    "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. Do not use /goat-review or any goat skill as the wrapper for this assessment; this prompt is the full assessment contract. You may read files, run read-only validation commands, and write only normal gitignored reporting artifacts if the runner requires them.",
+    "",
+    "Assess whether the selected target project's agent harness is actually usable, not only structurally present. Focus on context loading, constraint safety, verification evidence, recovery paths, feedback-loop durability, and whether instructions distinguish the controlling goat-flow workspace from the selected target.",
+    "",
+    "Grounding commands to run or explicitly mark skipped: git status --short --untracked-files=all; node --import tsx src/cli/cli.ts audit . --harness --format json from the controlling workspace when applicable; node --import tsx src/cli/cli.ts stats . --check when the selected target is a goat-flow installation. Command output wins over prose.",
+    "",
+    "Read next: target instruction files, local agent settings/hooks, .goat-flow/config.yaml when present, .goat-flow/skill-reference/ when present, controlling-workspace harness code under src/cli/audit/harness/, and any dashboard terminal/runner context text that affects selected-target execution.",
+    "",
+    "Output sections: Harness Scorecard; Findings ordered by severity; Concern-by-concern analysis; False positive and false negative risks; Top 5 improvements; What was not verified. For each concern (Context, Constraints, Verification, Recovery, Feedback Loop, Workspace Boundary), state what works, what fails or is weak, exact file or semantic-anchor evidence, and a verification command that would prove the fix.",
+    "",
+    "Do not treat a structural PASS as quality PASS. If a score or check claims completeness, verify what behavior it actually proves.",
+  ].join("\n");
+}
+
 function dashboardQualityModes(
   ctx: DashboardSetupQualityContext,
 ): QualityModeOption[] {
@@ -108,8 +126,7 @@ function dashboardQualityModes(
       source: "registry",
       targetScope:
         "selected target project harness, interpreted from the controlling workspace",
-      prompt:
-        "/goat-review audit AI harness engineering factors for the selected target project. Focus on context loading, constraint safety, verification evidence, recovery paths, feedback-loop durability, and whether agent-facing instructions distinguish the controlling goat-flow workspace from the selected target. Read-only: report findings with file evidence; do not modify files.",
+      prompt: dashboardHarnessQualityPrompt(),
     },
     {
       id: "skills",
@@ -146,6 +163,54 @@ function dashboardQualityLaunchLabel(
   return `Quality ${modeLabel} for ${dashboardAgentDisplayName(ctx, ctx.qualityAgent)} via ${dashboardAgentDisplayName(ctx, ctx.activeRunner)}`;
 }
 
+function dashboardQualityReportLogPrompt(
+  ctx: DashboardSetupQualityContext,
+  mode: QualityModeOption,
+): string {
+  const agent = ctx.qualityAgent;
+  const projectPath = ctx.projectPath;
+  return [
+    "Quality report log:",
+    "- Write the final machine-readable report to `.goat-flow/logs/quality/`. This path is gitignored and expected; do not write the JSON inline only.",
+    "- Filename format: `YYYY-MM-DD-HHMM-<agent>-<rand5>.json`, where `<agent>` is the literal selected quality target shown below.",
+    "- Derive the timestamp and random suffix from the shell at write time:",
+    "```bash",
+    'STAMP="$(date +"%Y-%m-%d-%H%M")"',
+    "RAND=\"$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 5)\"",
+    `FILE=".goat-flow/logs/quality/\${STAMP}-${agent}-\${RAND}.json"`,
+    "mkdir -p .goat-flow/logs/quality",
+    "```",
+    "- JSON body shape:",
+    "```json",
+    "{",
+    '  "report_kind": "goat-flow-quality-report",',
+    '  "goat_flow_version": "1.3.0",',
+    `  "agent": "${agent}",`,
+    `  "project_path": "${projectPath}",`,
+    '  "run_date": "YYYY-MM-DD",',
+    '  "audit_status": "pass | fail | unavailable",',
+    '  "scope": "framework-self | consumer",',
+    '  "rubric_version": "1.3.0",',
+    '  "scores": {',
+    '    "setup": { "total": 0, "accuracy": 0, "relevance": 0, "completeness": 0, "friction": 0 },',
+    '    "system": { "total": 0, "usefulness": 0, "signal_to_noise": 0, "adaptability": 0, "learnability": 0 }',
+    "  },",
+    '  "findings": [',
+    '    { "type": "setup_quality", "severity": "MAJOR", "file": ".goat-flow/architecture.md", "line": null, "summary": "One-line finding summary", "detail": "Why it matters", "evidence_quality": "OBSERVED", "evidence_method": "static-analysis", "delta_tag": "new" }',
+    "  ]",
+    "}",
+    "```",
+    "- Use exact score axis values `0 | 5 | 10 | 15 | 20 | 25`; each total must equal its axis sum.",
+    "- Allowed finding types: `setup_quality`, `skill_flaw`, `contradiction`, `false_path`, `content_quality`, `framework_flaw`.",
+    "- Allowed severities: `BLOCKER`, `MAJOR`, `MINOR`. Allowed evidence methods: `runtime-probe`, `static-analysis`, `mixed`.",
+    '- Use `delta_tag: "new"` unless the finding materially matches prior quality history for this same agent/mode; then use `persisted`.',
+    '- Validate before confirming: `node --import tsx src/cli/cli.ts quality validate "$FILE"`.',
+    '- Verify the file exists and is non-zero: `ls -la "$FILE"`.',
+    `- End your response with: \`Wrote quality report to .goat-flow/logs/quality/<filename>.json\`.`,
+    `- This log requirement applies to the ${mode.label} mode; do not skip it even when the prose assessment is complete.`,
+  ].join("\n");
+}
+
 function dashboardBuildQualityModePrompt(
   ctx: DashboardSetupQualityContext,
   mode: QualityModeOption,
@@ -164,6 +229,9 @@ function dashboardBuildQualityModePrompt(
     `- Scope rule: ${mode.targetScope}`,
     "- Treat missing target .goat-flow files as normal unless this mode explicitly audits a goat-flow installation.",
     "- Keep this assessment read-only unless the user explicitly asks for edits.",
+    `- Selected quality target agent: ${ctx.qualityAgent}`,
+    "",
+    dashboardQualityReportLogPrompt(ctx, mode),
   ].join("\n");
 }
 
