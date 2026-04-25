@@ -22,6 +22,22 @@ last_reviewed: 2026-04-25
 2. Derive installed skill roots from `workflow/manifest.json` or `getInstalledSkillRoots()` rather than from memory.
 3. Re-run `test/integration/audit-drift.test.ts` or `goat-flow audit --check-drift` after any skill-parity edit so a missed mirror fails immediately.
 
+## Footgun: Shared reference edits can split workflow templates from installed runtime copies
+
+**Status:** active | **Created:** 2026-04-25 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** An edit to shared skill guidance can look correct in the loaded runtime copy but leave the workflow template behind, causing consumers installed from the template to miss the rule and causing preflight/drift tests to fail.
+
+**Why it happens:** Shared skill reference files have two live surfaces: `workflow/skills/reference/` is the install template source, while `.goat-flow/skill-reference/` is the installed runtime copy loaded by this repo's agents. Agents naturally edit the file they just read at runtime, but the package source of truth also has to move in the same change.
+
+**Evidence:**
+- `.goat-flow/skill-reference/skill-preamble.md` (search: `Routing rule`) contains the runtime rule that triggered the current drift.
+- `workflow/skills/reference/skill-preamble.md` (search: `Learning-Loop Retrieval`) is the corresponding template source that must remain byte-equivalent except for intentionally synchronized edits.
+- `scripts/preflight-checks.sh` (search: `Preamble/Conventions Sync`) fails when shared reference templates and installed copies differ.
+- `src/cli/audit/check-drift.ts` (search: `workflow/skills/reference/skill-preamble.md`) also checks shared-reference template/install parity through the audit path.
+
+**Prevention:** When changing `skill-preamble.md`, `skill-conventions.md`, `skill-quality-testing.md`, or topical files under `skill-quality-testing/`, edit the workflow template and installed copy together. Re-run `bash scripts/preflight-checks.sh` or at minimum `node --import tsx src/cli/cli.ts audit . --check-drift --format json` before treating the change as complete.
+
 ## Footgun: Weak retrieval cues cause learning-loop misses
 
 **Status:** active | **Created:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
@@ -50,7 +66,6 @@ last_reviewed: 2026-04-25
 - `.claude/skills/goat-review/SKILL.md` (search: `commits ahead of \`origin/main\``) shows the installed Claude mirror has the same behaviour.
 - `.agents/skills/goat-review/SKILL.md` (search: `Base branch? (default: \`main\``) shows the installed Codex/agents mirror has the same behaviour.
 - `.github/skills/goat-review/SKILL.md` (search: `Base branch? (default: \`main\``) shows the installed GitHub/Copilot mirror has the same behaviour.
-- `.goat-flow/tasks/1.3.0/M05-quality-report-followups.md` (search: `Make \`/goat-review\` Base-Branch Selection Portable`) tracks the repair checkpoint so the fix updates workflow template and installed mirrors together.
 
 **Prevention:** Review-base selection must be discovered, not assumed. Prefer PR metadata (`gh pr view ... baseRefName`) when available, then an explicit user-provided base, then remote default-branch discovery from `refs/remotes/origin/HEAD` or `git remote show origin`; ask for the base before diffing if discovery fails. Treat `main` only as a last-resort fallback and record a degradation flag when fallback is used.
 
