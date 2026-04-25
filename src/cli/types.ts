@@ -115,6 +115,8 @@ export interface BucketFreshness {
   /** Most recent `**Created:**` or `**Updated:**` date in the body, YYYY-MM-DD or null.
    *  Used to detect frontmatter `last_reviewed` that is stale relative to entry dates. */
   maxEntryDate: string | null;
+  /** File content size in bytes. Used by `goat-flow stats --check` for bucket-size warnings. */
+  sizeBytes: number;
 }
 
 /** Facts shared across all agents (project-wide files and directories) */

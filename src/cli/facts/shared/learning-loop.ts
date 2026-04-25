@@ -563,6 +563,7 @@ function buildBucketFreshness(
     staleRefs,
     invalidLineRefs,
     maxEntryDate,
+    sizeBytes: Buffer.byteLength(entry.content, "utf8"),
   };
 }
 

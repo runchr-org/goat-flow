@@ -105,7 +105,7 @@ Execute in this order:
 - **Coverage** - how many rubric dimensions did this agent's findings address?
 - **Calibration** - do severity and confidence ratings match the evidence strength?
 
-**4. Spot-check sub-agent dimension tags.** Re-read one finding per agent and independently assess which rubric dimensions the finding actually addresses. If a sub-agent's self-declared dimension tags do not match the finding content, flag as miscalibrated and recompute coverage from orchestrator assessment. Sub-agent self-declarations are inputs, not trusted evidence.
+**4. Verify sub-agent dimension coverage.** For each agent, verify their full claimed dimension set: skim all findings from that agent and confirm each claimed dimension has at least one finding whose content substantively addresses it. Demote any dimension where no finding's content matches the claim. Use orchestrator-verified dimensions (not raw self-declarations) as input to step 5. Sub-agent dimension tags are inputs to verify, not trusted evidence.
 
 **5. Compute rubric coverage gates.** `unaddressed = rubric dimensions \ union(dimensions covered across all agents)`. For each unaddressed mandatory dimension (see Critique Rubrics below), auto-generate a HIGH coverage-gap finding: "No sub-agent addressed [dimension]. This is a blind spot." For each unaddressed optional dimension, auto-generate a MEDIUM coverage-gap finding.
 

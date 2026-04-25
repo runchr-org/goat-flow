@@ -649,10 +649,7 @@ describe("quality CLI output contract", () => {
     const payload = JSON.parse(result.stdout) as {
       prompt: string;
     };
-    assert.match(
-      payload.prompt,
-      /AI Harness Engineering Quality Assessment/,
-    );
+    assert.match(payload.prompt, /AI Harness Engineering Quality Assessment/);
     assert.match(payload.prompt, /"quality_mode": "harness"/);
   });
 });
