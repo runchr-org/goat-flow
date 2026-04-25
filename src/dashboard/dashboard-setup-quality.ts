@@ -151,6 +151,24 @@ function dashboardSelectedQualityModeMeta(
   );
 }
 
+function dashboardQualityControllingWorkspace(): string {
+  return window.__GOAT_FLOW_DEFAULT_PATH__ ?? ".";
+}
+
+function dashboardQualityShellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+function dashboardQualityReportProjectPath(
+  ctx: DashboardSetupQualityContext,
+  mode: QualityModeOption,
+): string {
+  if (mode.id === "process" || mode.id === "skills") {
+    return dashboardQualityControllingWorkspace();
+  }
+  return ctx.projectPath;
+}
+
 function dashboardQualityLaunchLabel(
   ctx: DashboardSetupQualityContext,
 ): string {
@@ -168,21 +186,28 @@ function dashboardQualityReportLogPrompt(
   mode: QualityModeOption,
 ): string {
   const agent = ctx.qualityAgent;
-  const projectPath = ctx.projectPath;
+  const projectPath = dashboardQualityReportProjectPath(ctx, mode);
   const agentJson = JSON.stringify(agent);
   const projectPathJson = JSON.stringify(projectPath);
   const modeJson = JSON.stringify(mode.id);
   const versionJson = JSON.stringify(window.__GOAT_FLOW_VERSION__ ?? "unknown");
+  const reportRootShell = dashboardQualityShellQuote(projectPath);
+  const validatorRootShell = dashboardQualityShellQuote(
+    dashboardQualityControllingWorkspace(),
+  );
   return [
     "Quality report log:",
-    "- Write the final machine-readable report to `.goat-flow/logs/quality/`. This path is gitignored and expected; do not write the JSON inline only.",
+    `- Report owner project_path for this mode: ${projectPath}`,
+    "- Write the final machine-readable report to the owner project's `.goat-flow/logs/quality/`. This path is gitignored and expected; do not write the JSON inline only.",
     "- Filename format: `YYYY-MM-DD-HHMM-<agent>-<rand5>.json`, where `<agent>` is the literal selected quality target shown below.",
     "- Derive the timestamp and random suffix from the shell at write time:",
     "```bash",
+    `REPORT_ROOT=${reportRootShell}`,
+    `VALIDATOR_ROOT=${validatorRootShell}`,
     'STAMP="$(date +"%Y-%m-%d-%H%M")"',
     "RAND=\"$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 5)\"",
-    `FILE=".goat-flow/logs/quality/\${STAMP}-${agent}-\${RAND}.json"`,
-    "mkdir -p .goat-flow/logs/quality",
+    `FILE="$REPORT_ROOT/.goat-flow/logs/quality/\${STAMP}-${agent}-\${RAND}.json"`,
+    'mkdir -p "$REPORT_ROOT/.goat-flow/logs/quality"',
     "```",
     "- JSON body shape:",
     "```json",
@@ -210,9 +235,9 @@ function dashboardQualityReportLogPrompt(
     "- Allowed severities: `BLOCKER`, `MAJOR`, `MINOR`. Allowed evidence methods: `runtime-probe`, `static-analysis`, `mixed`.",
     '- Use `delta_tag: "new"` unless the finding materially matches prior quality history for this same agent/mode; then use `persisted`.',
     "- Live review findings may cite `file` + `line` after re-reading that line. Durable footguns, lessons, patterns, and decisions must use file paths plus semantic anchors rather than line numbers.",
-    '- Validate before confirming: `node --import tsx src/cli/cli.ts quality validate "$FILE"`.',
+    '- Validate before confirming: `(cd "$VALIDATOR_ROOT" && node --import tsx src/cli/cli.ts quality validate "$FILE")`.',
     '- Verify the file exists and is non-zero: `ls -la "$FILE"`.',
-    `- End your response with: \`Wrote quality report to .goat-flow/logs/quality/<filename>.json\`.`,
+    `- End your response with: \`Wrote quality report to ${projectPath}/.goat-flow/logs/quality/<filename>.json\`.`,
     `- This log requirement applies to the ${mode.label} mode; do not skip it even when the prose assessment is complete.`,
   ].join("\n");
 }
@@ -405,11 +430,15 @@ async function dashboardGenerateQualityHistory(
   ctx.qualityHistoryLatest = null;
   ctx.qualityHistoryWarnings = [];
   const requestModeId = ctx.selectedQualityModeId;
-  const requestProjectPath = ctx.projectPath;
+  const requestMode = dashboardSelectedQualityModeMeta(ctx);
+  const requestProjectPath = requestMode
+    ? dashboardQualityReportProjectPath(ctx, requestMode)
+    : ctx.projectPath;
+  const requestSelectedProjectPath = ctx.projectPath;
   const requestAgent = ctx.qualityAgent;
   const isCurrentRequest = (): boolean =>
     ctx.selectedQualityModeId === requestModeId &&
-    ctx.projectPath === requestProjectPath &&
+    ctx.projectPath === requestSelectedProjectPath &&
     ctx.qualityAgent === requestAgent;
   try {
     const res = await fetch(

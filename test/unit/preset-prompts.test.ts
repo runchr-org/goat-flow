@@ -533,8 +533,14 @@ describe("preset prompt catalog", () => {
     );
     assert.match(source, /mode=\$\{encodeURIComponent\(requestModeId\)\}/);
     assert.match(source, /isCurrentRequest/);
+    assert.match(source, /Report owner project_path for this mode/);
+    assert.match(source, /REPORT_ROOT=/);
+    assert.match(source, /VALIDATOR_ROOT=/);
     assert.match(source, /quality validate "\$FILE"/);
-    assert.match(source, /Wrote quality report to \.goat-flow\/logs\/quality/);
+    assert.match(
+      source,
+      /Wrote quality report to \$\{projectPath\}\/\.goat-flow\/logs\/quality/,
+    );
     assert.match(source, /source: "api"/);
     assert.match(source, /Quality mode scope:/);
     assert.match(source, /missing target \.goat-flow files as normal/);

@@ -36,6 +36,7 @@ interface QualityHistoryRow {
   id: string;
   date: string;
   agent: AgentId;
+  qualityMode: QualityMode;
   setupTotal: number;
   systemTotal: number;
   setupDelta: number | null;
@@ -118,7 +119,12 @@ function matchesQualityMode(
   qualityMode: QualityMode | null,
 ): boolean {
   if (qualityMode === null) return true;
-  return (entry.report.quality_mode ?? "agent-setup") === qualityMode;
+  return entryQualityMode(entry) === qualityMode;
+}
+
+/** Return the mode used for comparisons, treating legacy reports as agent-setup. */
+function entryQualityMode(entry: QualityHistoryEntry): QualityMode {
+  return entry.report.quality_mode ?? "agent-setup";
 }
 
 /** Format the delta. */
@@ -266,6 +272,7 @@ export function buildQualityHistoryRows(
       id: entry.id,
       date: entry.report.run_date,
       agent: entry.agent,
+      qualityMode: entryQualityMode(entry),
       setupTotal: entry.report.scores.setup.total,
       systemTotal: entry.report.scores.system.total,
       setupDelta:
@@ -299,8 +306,11 @@ function countConsecutivePresence(
   currentEntry: QualityHistoryEntry,
   findingId: string,
 ): number {
+  const currentMode = entryQualityMode(currentEntry);
   const sameAgent = entries.filter(
-    (entry) => entry.agent === currentEntry.agent,
+    (entry) =>
+      entry.agent === currentEntry.agent &&
+      entryQualityMode(entry) === currentMode,
   );
   const currentIndex = sameAgent.findIndex(
     (entry) => entry.id === currentEntry.id,
@@ -333,8 +343,13 @@ function countConsecutivePresence(
 // eslint-disable-next-line complexity -- diff selection branches on implicit latest-vs-explicit pair resolution and validation
 export function buildQualityDiff(
   entries: QualityHistoryEntry[],
-  options: { agent: AgentId | null; pair: string | null },
+  options: {
+    agent: AgentId | null;
+    pair: string | null;
+    qualityMode?: QualityMode | null;
+  },
 ): { ok: true; diff: QualityDiffResult } | { ok: false; error: string } {
+  const qualityMode = options.qualityMode ?? null;
   let from: QualityHistoryEntry | undefined;
   let to: QualityHistoryEntry | undefined;
 
@@ -366,6 +381,22 @@ export function buildQualityDiff(
         error: `quality diff pair does not match --agent ${options.agent}`,
       };
     }
+    if (entryQualityMode(from) !== entryQualityMode(to)) {
+      return {
+        ok: false,
+        error: "quality diff rejects cross-mode comparisons",
+      };
+    }
+    if (
+      qualityMode !== null &&
+      (entryQualityMode(from) !== qualityMode ||
+        entryQualityMode(to) !== qualityMode)
+    ) {
+      return {
+        ok: false,
+        error: `quality diff pair does not match --mode ${qualityMode}`,
+      };
+    }
   } else {
     if (!options.agent) {
       return {
@@ -373,15 +404,36 @@ export function buildQualityDiff(
         error: "quality diff without explicit ids requires --agent",
       };
     }
-    const sameAgent = entries.filter((entry) => entry.agent === options.agent);
+    const sameAgent = entries.filter(
+      (entry) =>
+        entry.agent === options.agent && matchesQualityMode(entry, qualityMode),
+    );
     if (sameAgent.length < 2) {
+      const modeScope = qualityMode === null ? "" : ` in ${qualityMode} mode`;
       return {
         ok: false,
-        error: `Not enough saved quality reports for ${options.agent}. Need at least 2 runs.`,
+        error: `Not enough saved quality reports for ${options.agent}${modeScope}. Need at least 2 runs.`,
       };
     }
-    to = sameAgent[0];
-    from = sameAgent[1];
+    const latest = sameAgent[0];
+    const previous = sameAgent[1];
+    if (!latest || !previous) {
+      return {
+        ok: false,
+        error: "quality diff could not resolve the requested report pair",
+      };
+    }
+    to = latest;
+    from = previous;
+    if (
+      qualityMode === null &&
+      entryQualityMode(from) !== entryQualityMode(to)
+    ) {
+      return {
+        ok: false,
+        error: `quality diff would compare ${entryQualityMode(from)} to ${entryQualityMode(to)}. Pass --mode to diff one quality mode, or pass explicit same-mode report ids.`,
+      };
+    }
   }
 
   if (!from || !to) {
@@ -450,24 +502,32 @@ export function buildQualityDiff(
 /** Render the quality history text. */
 export function renderQualityHistoryText(
   rows: QualityHistoryRow[],
-  options: { agent: AgentId | null; all: boolean },
+  options: {
+    agent: AgentId | null;
+    qualityMode: QualityMode | null;
+    all: boolean;
+  },
 ): string {
   if (rows.length === 0) {
     const scope = options.agent ? ` for ${options.agent}` : "";
+    const modeScope = options.qualityMode
+      ? ` in ${options.qualityMode} mode`
+      : "";
     return [
-      `No saved quality history${scope}.`,
+      `No saved quality history${scope}${modeScope}.`,
       "Generate a prompt with `goat-flow quality . --agent <id>`; the agent writes its report directly to `.goat-flow/logs/quality/`.",
     ].join("\n");
   }
 
   const lines = [
-    "date | agent | setup_total | system_total | blocker | major | minor",
+    "date | agent | mode | setup_total | system_total | blocker | major | minor",
   ];
   for (const row of rows) {
     lines.push(
       [
         row.date,
         row.agent,
+        row.qualityMode,
         `${row.setupTotal}${formatDelta(row.setupDelta)}`,
         String(row.systemTotal),
         String(row.blockerCount),

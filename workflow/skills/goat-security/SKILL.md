@@ -140,7 +140,7 @@ Run a narrow specialist cross-check when any of these are true:
 - `PROBABLE` findings outnumber `CONFIRMED`
 - strong evidence and strong uncertainty coexist in the same cluster
 
-Use `/goat-critique` only for disagreement resolution or cross-examination, not as the default second pass. Cap extra churn at one specialist pass per finding cluster. Outcomes: `promote to CONFIRMED`, `keep as PROBABLE`, or `kill as false positive`.
+Use `/goat-critique` only for disagreement resolution or cross-examination, not as the default second pass. When the active runner requires explicit consent before delegated sub-agents, request that consent before invoking `/goat-critique`; otherwise keep unresolved items in the report as PROBABLE with exact evidence needed. Cap extra churn at one specialist pass per finding cluster. Outcomes: `promote to CONFIRMED`, `keep as PROBABLE`, or `kill as false positive`.
 
 ### Phase 6 - Self-Check and Proof Gate
 
@@ -150,7 +150,7 @@ Re-read `file:line` for Critical/High. Does the code or config still match the f
 
 **Proof Gate:** Apply the Proof Gate from `skill-preamble.md` - every CONFIRMED finding must have a fresh `file:line` re-read in this session, and dependency-audit results must be from a tool run in this session, never paraphrased or fabricated.
 
-If `PROBABLE > CONFIRMED`, run `/goat-critique` cross-examination before closing.
+If `PROBABLE > CONFIRMED`, request approval for `/goat-critique` cross-examination before closing. If approval is unavailable, close with those clusters marked PROBABLE and list the evidence needed to promote or kill each one.
 
 ## Compliance Mode
 

@@ -204,10 +204,10 @@ flowchart TD
     Generate --> P2["Phase 2: Rank & Compare\nConsensus / Split / Unique"]
     P2 --> P3["Phase 3: Cross-Examine\nSplit findings get a tiebreaker agent"]
     P3 --> P4["Phase 4: Clarify\nPresent disputes to human"]
-    P4 -->|"BLOCKING GATE"| P5["Phase 5: Synthesise\nConsensus + Resolved + Verified + Retracted\n+ Decision Debt + What Wasn't Critiqued"]
+    P4 -->|"BLOCKING GATE"| P5["Phase 5: Synthesise\nConsensus + Resolved + Verified + Retracted\n+ Open Questions + What Wasn't Critiqued"]
 ```
 
-**Key constraints:** MUST use Agent tool calls for sub-agents, not inline role-play. MUST restrict the fresh-eyes pass to artifact + evaluation criteria only (no project context). MUST include "What Wasn't Critiqued" section (never empty). MUST tag low-confidence recommendations as Decision Debt.
+**Key constraints:** MUST use Agent tool calls for sub-agents, not inline role-play. MUST restrict the fresh-eyes pass to artifact + evaluation criteria only (no project context). MUST include "What Wasn't Critiqued" section (never empty). MUST put low-confidence recommendation candidates under Open Questions until evidence supports them.
 
 ---
 

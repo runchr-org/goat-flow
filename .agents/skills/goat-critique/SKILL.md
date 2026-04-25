@@ -24,7 +24,7 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 - Simple factual question → answer directly
 - Trivial artifact (hotfix, single-file change) → use goat-review instead. If it is not worth 3 agents and 5 phases, do not use goat-critique.
 
-**Explicit invocation is binding.** These "NOT this skill" signals apply only to dispatcher routing and ambiguous intent. When the user explicitly types `/goat-critique`, all 5 phases run - no triviality bypass, no phase skipping, no "quick mode." Explicit invocation is explicit consent to the full protocol. If scope feels wrong, raise it after synthesis, not by shortening execution.
+**Explicit invocation is binding.** These "NOT this skill" signals apply only to dispatcher routing and ambiguous intent. When the user explicitly types `/goat-critique`, all 5 phases run - no triviality bypass, no phase skipping, no "quick mode." Explicit invocation is explicit consent to the full critique protocol. If the active runner's instruction layer requires separate consent before spawning delegated sub-agents, confirm that consent before Phase 1. If scope feels wrong, raise it after synthesis, not by shortening execution.
 
 ## Step 0 - Intake
 
@@ -34,7 +34,8 @@ goat-critique runs in one mode: full delegated, 5 phases, three sub-agents. If t
 - Confirm the artifact exists and is concrete (a file, a plan document, a specific set of findings - not a vague idea).
 - Select the critique rubric for the artifact type (see Critique Rubrics below). If unclear, ask the user.
 - Use the preamble's grep-first learning-loop retrieval on relevant `.goat-flow/footguns/` and `.goat-flow/lessons/`; record explicit misses instead of broad-loading buckets.
-- Skill-chained entry: skip intake confirmation, use caller context, start at Phase 1 - still run footgun/lesson retrieval and rubric selection. Skill-chaining does not unlock a quick variant; all 5 phases still run.
+- Delegation consent gate: when the active runner requires explicit user consent for delegated sub-agents and that consent is not present in the current user request or caller context, stop and ask before Phase 1. Do not substitute inline role-play. If consent is declined or unavailable, report that full critique cannot run and suggest `/goat-review` for single-context review.
+- Skill-chained entry: skip intake confirmation, use caller context, start at Phase 1 only after the delegation consent gate above is satisfied - still run footgun/lesson retrieval and rubric selection. Skill-chaining does not unlock a quick variant; all 5 phases still run.
 
 ## Phase 1 - Generate Competing Critiques
 
@@ -165,9 +166,9 @@ Then the full critique:
 - Verified unique findings (survived cross-examination)
 - Retracted findings (listed so user sees what was considered and dismissed)
 
-**Decision Debt:** Tag as Decision Debt when any of these apply: supporting evidence is INFERRED (not OBSERVED); only one agent raised it and cross-examination was inconclusive; or the recommendation depends on an unvalidated assumption:
+**Open questions:** Do not present low-confidence or inferred-only items as recommendations. Put them under Open Questions when any of these apply: supporting evidence is INFERRED (not OBSERVED); only one agent raised it and cross-examination was inconclusive; or the recommendation depends on an unvalidated assumption:
 
-> **Decision Debt:** [recommendation]
+> **Open Question:** [unresolved question or recommendation candidate]
 > - Confidence: LOW/MEDIUM
 > - Evidence needed to resolve: [what specific evidence would settle this]
 > - Revisit when: [concrete trigger - next milestone, specific file change, before deploy]
@@ -214,7 +215,6 @@ The rubric determines what sub-agents evaluate. Match to artifact type. Dimensio
 ## Human Decisions
 ## Strengths
 ## Recommended Changes  <!-- subset of Validated Findings; ordered by severity; each with concrete action -->
-## Decision Debt
 ## Open Questions
 ## What Wasn't Critiqued
 ```

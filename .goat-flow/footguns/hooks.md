@@ -1,6 +1,6 @@
 ---
 category: hooks
-last_reviewed: 2026-04-24
+last_reviewed: 2026-04-25
 ---
 
 ## Footgun: Settings.json Read() deny does not bind Bash shell reads of secret files
@@ -26,13 +26,15 @@ last_reviewed: 2026-04-24
 
 ---
 
-## Footgun: Copilot deny hook conflates "structured payload" with "bash call"
+## Footgun: Copilot preToolUse hooks must distinguish structured payloads from Bash calls
 
 **Status:** active | **Created:** 2026-04-21 | **Evidence:** ACTUAL_MEASURED
 
-**Original failure (resolved):** The Copilot variant's `preToolUse` hook was registered for all tools but assumed every structured payload was a bash invocation. Non-bash tools (view, edit, Task) had no `command` field, so the hook denied them - making Copilot unusable for anything except shell calls. Fixed by extracting `toolName` and exiting 0 silently for non-bash tools.
+**Active trap:** Copilot-style `preToolUse` hooks can receive structured payloads for non-bash tools as well as shell commands. A bash-only deny check that does not branch on `toolName` can deny safe non-bash tools or apply command regexes to the wrong payload shape.
 
-**Prevention (still active - independent value):**
+**Original failure (resolved):** The Copilot variant's hook was registered for all tools and treated every payload as a bash invocation. Non-bash tools (view, edit, Task) had no `command` field, so the hook denied them. The implementation now extracts `toolName` and exits 0 silently for non-bash tools; the active footgun is preserving that runtime-shape distinction in future hook changes.
+
+**Prevention:**
 1. Any hook registered for a non-bash-specific event MUST read `toolName` before applying bash-only checks. Structured-payload ≠ bash-payload on runtimes like Copilot that pipe all tool calls through `preToolUse`.
 2. When adding a new runtime surface, the self-test must include at least one non-bash `toolName` payload (e.g. `view`, `edit`, `Task`). Bash-only test coverage masks this exact failure shape.
 3. Use the forbidden-pattern helper (`!pattern` prefix in `run_stdin_case`) for allow-path assertions - exit 0 alone does NOT distinguish "allowed silently" from "denied via copilot-json" because both exit 0.

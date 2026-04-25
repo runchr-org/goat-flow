@@ -19,11 +19,14 @@ describe("quality subcommand parsing", () => {
       "history",
       "--agent",
       "claude",
+      "--mode",
+      "skills",
       "--all",
     ]);
     assert.equal(parsed.qualitySubcommand, "history");
     assert.equal(parsed.all, true);
     assert.equal(parsed.agent, "claude");
+    assert.equal(parsed.qualityMode, "skills");
   });
 
   it("parses diff mode with an explicit report pair", () => {
@@ -38,6 +41,14 @@ describe("quality subcommand parsing", () => {
     assert.equal(
       parsed.qualityDiffPair,
       "2026-04-01-0900-claude-aaaaa:2026-04-15-1000-claude-bbbbb",
+    );
+  });
+
+  it("rejects --mode outside quality history and diff", () => {
+    assert.throws(
+      () =>
+        parseCLIArgs(["quality", ".", "--agent", "claude", "--mode", "skills"]),
+      /only valid for quality history and quality diff/i,
     );
   });
 

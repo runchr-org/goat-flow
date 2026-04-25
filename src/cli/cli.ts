@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { writeFileSync, mkdirSync, realpathSync } from "node:fs";
 import type { CLIOptions, AgentId, ProjectFacts } from "./types.js";
 import type { AuditReport } from "./audit/types.js";
+import { QUALITY_MODES, type QualityMode } from "./quality/schema.js";
 
 import { getPackageVersion } from "./paths.js";
 import { getKnownAgentIds } from "./agents/registry.js";
@@ -50,6 +51,7 @@ Arguments:
 Flags:
   --format <type>   Output format: json, text, markdown (omit for auto-detect: text in terminal, json otherwise)
   --agent <id>      Filter to one agent: ${validAgentList()}
+  --mode <mode>     Quality history/diff mode: ${QUALITY_MODES.join(", ")}
   --all             Quality history: lift the default 20-run limit
   --harness         Audit: add AI Harness Completeness scope (pass/fail checks across 5 concerns)
   --check-drift     Audit: detect skill template-vs-installed drift and orphan directories
@@ -69,7 +71,8 @@ Examples:
   goat-flow setup --agent claude       Setup prompt for Claude
   goat-flow quality . --agent claude   Quality assessment prompt for Claude
   goat-flow quality history --agent claude
-  goat-flow quality diff --agent claude
+  goat-flow quality history --agent codex --mode skills
+  goat-flow quality diff --agent claude --mode agent-setup
   goat-flow quality validate <path>    Schema-check a freshly written report (exit 2 on any error)
   goat-flow manifest                   Print the resolved manifest
   goat-flow manifest --check           Verify the manifest is consistent with code
@@ -163,6 +166,7 @@ export interface ParsedCLI extends CLIOptions {
   qualitySubcommand: QualitySubcommand;
   qualityDiffPair: string | null;
   qualityValidatePath: string | null;
+  qualityMode: QualityMode | null;
   all: boolean;
 }
 
@@ -214,6 +218,18 @@ function parseAgentArg(value: string | undefined): AgentId | null {
     throw new CLIError(`Invalid agent: ${value}. Use: ${validAgentList()}`, 2);
   }
   return value as AgentId;
+}
+
+/** Parse the quality-history/diff mode filter. */
+function parseQualityModeArg(value: string | undefined): QualityMode | null {
+  if (!value) return null;
+  if (!QUALITY_MODES.includes(value as QualityMode)) {
+    throw new CLIError(
+      `Invalid quality mode: ${value}. Use: ${QUALITY_MODES.join(", ")}`,
+      2,
+    );
+  }
+  return value as QualityMode;
 }
 
 /** Resolve `--output`, defaulting bare file names into `.goat-flow/` under the target repo. */
@@ -309,6 +325,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     options: {
       format: { type: "string" },
       agent: { type: "string" },
+      mode: { type: "string" },
       verbose: { type: "boolean", default: false },
       output: { type: "string", short: "o" },
       all: { type: "boolean", default: false },
@@ -337,6 +354,19 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
   if (command !== "quality" && values.all === true) {
     throw new CLIError("--all is only valid for the quality command.", 2);
   }
+  if (command !== "quality" && values.mode !== undefined) {
+    throw new CLIError("--mode is only valid for the quality command.", 2);
+  }
+  if (
+    command === "quality" &&
+    values.mode !== undefined &&
+    !["history", "diff"].includes(qualityPositionals.qualitySubcommand)
+  ) {
+    throw new CLIError(
+      "--mode is only valid for quality history and quality diff.",
+      2,
+    );
+  }
 
   return {
     command,
@@ -352,6 +382,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     qualitySubcommand: qualityPositionals.qualitySubcommand,
     qualityDiffPair: qualityPositionals.qualityDiffPair,
     qualityValidatePath: qualityPositionals.qualityValidatePath,
+    qualityMode: parseQualityModeArg(values.mode),
     all: values.all === true,
     dev: values.dev === true,
     help: values.help === true,
@@ -516,10 +547,12 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
     const selectedEntries = selectQualityHistoryEntries(history.entries, {
       agent: options.agent,
       limit: options.all ? null : 20,
+      qualityMode: options.qualityMode,
     });
     const rows = buildQualityHistoryRows(history.entries, {
       agent: options.agent,
       limit: options.all ? null : 20,
+      qualityMode: options.qualityMode,
     });
     if (options.format === "json") {
       writeOutput(
@@ -547,6 +580,7 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
       options,
       renderQualityHistoryText(rows, {
         agent: options.agent,
+        qualityMode: options.qualityMode,
         all: options.all,
       }),
     );
@@ -565,6 +599,7 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
     const diff = buildQualityDiff(history.entries, {
       agent: options.agent,
       pair: options.qualityDiffPair,
+      qualityMode: options.qualityMode,
     });
     if (!diff.ok) throw new CLIError(diff.error, 2);
 

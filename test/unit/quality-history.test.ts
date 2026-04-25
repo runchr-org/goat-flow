@@ -234,4 +234,53 @@ describe("buildQualityDiff", () => {
     if (diff.ok) return;
     assert.match(diff.error, /rejects cross-agent comparisons/i);
   });
+
+  it("isolates implicit and explicit diffs by quality mode", () => {
+    const root = makeTempProject();
+    installFixtureAsMode(
+      root,
+      FIXTURE_IDS.april01,
+      "process",
+      "2026-04-01-0900-claude-ddddd",
+    );
+    installFixtureAsMode(
+      root,
+      FIXTURE_IDS.april15,
+      "skills",
+      "2026-04-15-1000-claude-eeeee",
+    );
+    installFixtureAsMode(
+      root,
+      FIXTURE_IDS.april29,
+      "skills",
+      "2026-04-29-1100-claude-fffff",
+    );
+
+    const history = loadQualityHistory(root);
+    const implicit = buildQualityDiff(history.entries, {
+      agent: "claude",
+      pair: null,
+    });
+    assert.equal(implicit.ok, true);
+    if (!implicit.ok) return;
+    assert.equal(implicit.diff.from.report.quality_mode, "skills");
+    assert.equal(implicit.diff.to.report.quality_mode, "skills");
+
+    const filtered = buildQualityDiff(history.entries, {
+      agent: "claude",
+      pair: null,
+      qualityMode: "process",
+    });
+    assert.equal(filtered.ok, false);
+    if (filtered.ok) return;
+    assert.match(filtered.error, /process mode/i);
+
+    const crossModePair = buildQualityDiff(history.entries, {
+      agent: "claude",
+      pair: "2026-04-01-0900-claude-ddddd:2026-04-15-1000-claude-eeeee",
+    });
+    assert.equal(crossModePair.ok, false);
+    if (crossModePair.ok) return;
+    assert.match(crossModePair.error, /cross-mode/i);
+  });
 });

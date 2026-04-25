@@ -97,7 +97,7 @@ For CRITICAL items with no coverage, annotate why: new path / missed coverage on
 
 Based on the gaps, produce a focused plan and order by risk.
 
-**Must test (CRITICAL gaps):** table with what breaks and time
+**Must test (CRITICAL gaps):** table with what breaks and grounded effort estimate; if effort is unknown, write `unknown - needs harness/project context`
 **Should test if time allows (MEDIUM gaps):** same format, lower priority
 **Safe to skip this round:** low-risk or adequately covered areas
 **Misaligned effort:** deprioritise plan cases not mapped to current changes

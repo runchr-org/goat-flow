@@ -29,6 +29,20 @@ All of these mean: **test before deploying. No exceptions.**
 
 For a new skill or a material behavioural change to an existing skill, this checklist is a release gate before merging. For already-shipped skills where a later audit finds missing TDD evidence, record the gap as hardening debt and do not claim the skill is bulletproof until fresh logs satisfy the checklist. Track each item as a todo in your agent's planning tool - don't work from memory.
 
+## Evidence classification
+
+Use these labels when summarising existing TDD logs:
+
+| Label | Meaning | Completion claim allowed |
+|-------|---------|--------------------------|
+| `no evidence` | No relevant TDD log found | No pressure-test claim |
+| `RED no-repro` | RED scenarios did not reproduce the target failure class | Scenario tested; not bulletproof |
+| `stay-GREEN smoke` | One loaded-skill pass or regression check | Smoke-tested; not bulletproof |
+| `partial hardening` | RED/GREEN happened, but fewer than 3 max-pressure passes | Hardened against captured failures; not bulletproof |
+| `bulletproof` | 3 consecutive max-pressure scenarios pass with no new rationalisations | Bulletproof for the tested failure class |
+
+If current logs do not meet `bulletproof`, say so directly. Do not backfill missing evidence by creating summary records; rerun the pressure tests instead.
+
 **RED phase - write failing test:**
 - [ ] Create pressure scenarios (3+ combined pressures for discipline skills)
 - [ ] Run scenarios WITHOUT skill - document baseline behaviour verbatim

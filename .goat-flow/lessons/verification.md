@@ -719,3 +719,15 @@ last_reviewed: 2026-04-25
 **Root cause:** Dashboard classic scripts are loaded by HTML at runtime, not imported through the TypeScript module graph. Knip only knows they are intentional because `knip.json` ignores existing dashboard classic-script entrypoints. Focused source tests do not run the full preflight lint/Knip gate.
 
 **Prevention:** When adding a `src/dashboard/*.ts` classic script, update `src/dashboard/index.html`, add the built asset smoke, and register the source file in `knip.json`. After adding optional decoder branches, run `npx eslint src/cli src/dashboard` before treating `npm run typecheck` as enough. Evidence anchors: `knip.json` (search: `dashboard-custom-prompts.ts`), `src/cli/server/decoders.ts` (search: `decodeOptionalStringField`).
+
+---
+
+## Lesson: Contract tests pin doctrine wording and path semantics
+
+**Status:** active | **Created:** 2026-04-25
+
+**What happened:** While removing one forbidden phrase and changing dashboard quality report ownership, the first full `npm test` run failed two contract-style checks: `test/contract/skill-hardening-contracts.test.ts` still required the established "hardening debt" evidence language, and `test/unit/preset-prompts.test.ts` still asserted the old relative quality-report path message.
+
+**Root cause:** I treated wording cleanup and path-semantics changes as local edits, but these surfaces are intentionally pinned by tests because agents consume the exact phrasing.
+
+**Prevention:** Before broad prose or prompt wording changes, search tests for the exact phrase and adjacent command text. If the product semantics are changing, update the contract test in the same edit; if the test protects unrelated established doctrine, keep that phrase intact.
