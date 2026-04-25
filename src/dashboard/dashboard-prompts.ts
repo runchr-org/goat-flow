@@ -129,6 +129,14 @@ function dashboardPresetBadges(preset: Preset): PresetBadge[] {
       tone: "warn",
     });
   }
+  if (preset.requiresLocalDiff) {
+    badges.push({
+      label: "Needs diff",
+      title:
+        "Requires local changes, a branch comparison, or pasted diff context",
+      tone: "warn",
+    });
+  }
   if (preset.requiresGh) {
     badges.push({
       label: "Needs gh",
@@ -166,6 +174,28 @@ function dashboardPresetBadges(preset: Preset): PresetBadge[] {
       tone: "neutral",
     });
   }
+  if (preset.requiresDependencyFiles) {
+    badges.push({
+      label: "Dependency files",
+      title: "Requires package manifests or lockfiles for dependency evidence",
+      tone: "warn",
+    });
+  }
+  if (preset.requiresGoatFlowInstall) {
+    badges.push({
+      label: "GOAT install",
+      title:
+        "Requires goat-flow to be installed in the selected target project",
+      tone: "warn",
+    });
+  }
+  if (preset.artifactRequired) {
+    badges.push({
+      label: "Artifact required",
+      title: "Requires a plan, report, or other artifact to assess",
+      tone: "warn",
+    });
+  }
   const surfaces = new Set(preset.bestTargetSurfaces ?? []);
   if (surfaces.has("library") || surfaces.has("api")) {
     badges.push({
@@ -174,7 +204,7 @@ function dashboardPresetBadges(preset: Preset): PresetBadge[] {
       tone: "good",
     });
   }
-  if (preset.globalSafe) {
+  if (preset.globalSafe && dashboardGlobalSafeAllowed(preset)) {
     badges.push({
       label: "Global safe",
       title:

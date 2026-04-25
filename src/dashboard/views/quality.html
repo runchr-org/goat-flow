@@ -553,14 +553,19 @@
             >
               <template x-if="!(terminalSessionId && !terminalEnded)">
                 <span>
-                  Launches
+                  Runs with
                   <span
-                    x-text="activeRunner"
+                    x-text="agentName(activeRunner)"
                     class="gf-text-secondary"
                     style="font-weight: 500"
                   ></span>
-                  in the selected quality mode and report findings with
-                  evidence.
+                  against the
+                  <span
+                    x-text="agentName(qualityAgent)"
+                    class="gf-text-secondary"
+                    style="font-weight: 500"
+                  ></span>
+                  quality prompt for the selected mode.
                 </span>
               </template>
               <template x-if="terminalSessionId && !terminalEnded">

@@ -220,8 +220,21 @@
           <input
             type="checkbox"
             x-model="customPromptDraft.requiresGoatFlowInstall"
+            @change="if (customPromptDraft.requiresGoatFlowInstall) customPromptDraft.globalSafe = false"
           />
           <span>GOAT install</span>
+        </label>
+        <label class="gf-check-row">
+          <input
+            type="checkbox"
+            x-model="customPromptDraft.globalSafe"
+            :disabled="customPromptDraft.requiresGoatFlowInstall"
+          />
+          <span>Global safe</span>
+        </label>
+        <label class="gf-check-row">
+          <input type="checkbox" x-model="customPromptDraft.artifactRequired" />
+          <span>Artifact required</span>
         </label>
         <label class="gf-check-row">
           <input

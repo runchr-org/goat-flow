@@ -10,6 +10,7 @@ import {
   getAgentProfileMap,
   getKnownAgentIds,
 } from "../../src/cli/agents/registry.js";
+import { normalizeAgentVersionOutput } from "../../src/cli/server/dashboard-routes.js";
 import { detectSetupStack } from "../../src/cli/detect/project-stack.js";
 import { createFS } from "../../src/cli/facts/fs.js";
 import type { AgentId } from "../../src/cli/types.js";
@@ -422,6 +423,18 @@ describe("dashboard /api/browse", () => {
 });
 
 describe("dashboard /api/agents/installed", () => {
+  it("normalizes trailing punctuation from one-line version output", () => {
+    assert.equal(
+      normalizeAgentVersionOutput("GitHub Copilot CLI 1.0.34.\n"),
+      "GitHub Copilot CLI 1.0.34",
+    );
+    assert.equal(
+      normalizeAgentVersionOutput("codex 1.2.3-beta.1\n"),
+      "codex 1.2.3-beta.1",
+    );
+    assert.equal(normalizeAgentVersionOutput("\n"), null);
+  });
+
   it("returns the supported agent list", async () => {
     const { res, body } = await fetchJson("/api/agents/installed");
     assert.equal(res.status, 200);

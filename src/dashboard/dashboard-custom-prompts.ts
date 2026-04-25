@@ -15,6 +15,19 @@ const CUSTOM_PROMPT_ROUTES = new Set([
   "goat-security",
 ]);
 
+interface PromptGlobalSafetyInput {
+  requiresGoatFlowInstall?: boolean;
+  globalSafe?: boolean;
+}
+
+function dashboardGlobalSafeAllowed(prompt: PromptGlobalSafetyInput): boolean {
+  return prompt.requiresGoatFlowInstall !== true;
+}
+
+function dashboardResolvedGlobalSafe(prompt: PromptGlobalSafetyInput): boolean {
+  return prompt.globalSafe === true && dashboardGlobalSafeAllowed(prompt);
+}
+
 interface DashboardCustomPromptsContext {
   customPrompts: CustomPrompt[];
   customPromptDraft: CustomPromptDraft;
@@ -83,6 +96,9 @@ function dashboardReadCustomPrompt(value: unknown): CustomPrompt | null {
     runnerHintValue === "copilot"
       ? runnerHintValue
       : "any";
+  const requiresGoatFlowInstall = dashboardReadBoolean(
+    value.requiresGoatFlowInstall,
+  );
   const now = new Date().toISOString();
   return {
     id,
@@ -98,14 +114,16 @@ function dashboardReadCustomPrompt(value: unknown): CustomPrompt | null {
     requiresDependencyFiles: dashboardReadBoolean(
       value.requiresDependencyFiles,
     ),
-    requiresGoatFlowInstall: dashboardReadBoolean(
-      value.requiresGoatFlowInstall,
-    ),
+    requiresGoatFlowInstall,
     mayCheckoutBranch: dashboardReadBoolean(value.mayCheckoutBranch),
     requiresCleanWorktree: dashboardReadBoolean(value.requiresCleanWorktree),
     mayWriteFiles: dashboardReadBoolean(value.mayWriteFiles),
     artifactRequired: dashboardReadBoolean(value.artifactRequired),
-    globalSafe: typeof value.globalSafe === "boolean" ? value.globalSafe : true,
+    globalSafe: dashboardResolvedGlobalSafe({
+      requiresGoatFlowInstall,
+      globalSafe:
+        typeof value.globalSafe === "boolean" ? value.globalSafe : true,
+    }),
     bestTargetSurfaces: readStringArray(value.bestTargetSurfaces),
     notes: readString(value.notes),
     createdAt: readString(value.createdAt) || now,
@@ -237,6 +255,7 @@ function dashboardBuildCustomPrompt(
   const draft = ctx.customPromptDraft;
   const now = new Date().toISOString();
   const prompt = draft.prompt.trim();
+  const requiresGoatFlowInstall = draft.requiresGoatFlowInstall;
   const route =
     draft.route === "direct"
       ? dashboardInferPromptRoute(prompt)
@@ -258,12 +277,15 @@ function dashboardBuildCustomPrompt(
     requiresLocalDiff: draft.requiresLocalDiff,
     requiresUiApp: draft.requiresUiApp,
     requiresDependencyFiles: draft.requiresDependencyFiles,
-    requiresGoatFlowInstall: draft.requiresGoatFlowInstall,
+    requiresGoatFlowInstall,
     mayCheckoutBranch: draft.mayCheckoutBranch,
     requiresCleanWorktree: draft.requiresCleanWorktree,
     mayWriteFiles: draft.mayWriteFiles,
     artifactRequired: draft.artifactRequired,
-    globalSafe: draft.globalSafe,
+    globalSafe: dashboardResolvedGlobalSafe({
+      requiresGoatFlowInstall,
+      globalSafe: draft.globalSafe,
+    }),
     bestTargetSurfaces: draft.bestTargetSurfacesText
       .split(",")
       .map((entry) => entry.trim())

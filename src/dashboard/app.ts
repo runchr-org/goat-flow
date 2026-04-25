@@ -367,6 +367,10 @@ function app() {
     qualityLaunchLabel(): string {
       return dashboardQualityLaunchLabel(this);
     },
+    /** Return the selected setup target's instruction/config surfaces. */
+    setupInstructionSurfaces(): string {
+      return dashboardSetupInstructionSurfaces(this);
+    },
     /** Send text to the active terminal session and focus it. */
     sendToTerminal(
       text: string,

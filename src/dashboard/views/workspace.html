@@ -4,25 +4,25 @@
   x-cloak
   style="height: calc(100vh - 3.5rem); overflow: hidden"
   x-data="{
-    allSessions() { return [...currentProjectSessions, ...otherProjectSessions]; },
-    recentSessions() { return allSessions().filter(s => s.status !== 'active').slice(0, 4); },
-    waitingSessions() {
-      return idleTimeoutMinutes > 0 ? allSessions().filter(s => typeof s.idleDuration === 'number' && s.idleDuration >= Math.floor(idleTimeoutMinutes * 0.85) * 60) : [];
-    },
-    meterRunning() { return allSessions().filter(s => s.status === 'active').length; },
-    meterRecent() { return recentSessions().length; },
-    meterWaiting() { return waitingSessions().length; },
-    ageLabel(s) {
-      const m = Math.floor((s.age || 0) / 60);
-      const h = Math.floor(m / 60);
-      return h > 0 ? h + 'h ' + (m % 60) + 'm' : m + 'm';
-    },
-    openSession(s) {
-      if (confirmEndSessionId === s.id) return;
-      if (isSessionBoundLocally(s.id)) activeSessionId = s.id;
-      else openServerSession(s);
-    }
-  }"
+	    allSessions() { return [...this.currentProjectSessions, ...this.otherProjectSessions]; },
+	    recentSessions() { return this.allSessions().filter(s => s.status !== 'active').slice(0, 4); },
+	    waitingSessions() {
+	      return this.idleTimeoutMinutes > 0 ? this.allSessions().filter(s => typeof s.idleDuration === 'number' && s.idleDuration >= Math.floor(this.idleTimeoutMinutes * 0.85) * 60) : [];
+	    },
+	    meterRunning() { return this.allSessions().filter(s => s.status === 'active').length; },
+	    meterRecent() { return this.recentSessions().length; },
+	    meterWaiting() { return this.waitingSessions().length; },
+	    ageLabel(s) {
+	      const m = Math.floor((s.age || 0) / 60);
+	      const h = Math.floor(m / 60);
+	      return h > 0 ? h + 'h ' + (m % 60) + 'm' : m + 'm';
+	    },
+	    openSession(s) {
+	      if (this.confirmEndSessionId === s.id) return;
+	      if (this.isSessionBoundLocally(s.id)) this.activeSessionId = s.id;
+	      else this.openServerSession(s);
+	    }
+	  }"
 >
   <div
     style="

@@ -67,6 +67,12 @@ type JsonResponder = (
 
 type BodyReader = (req: IncomingMessage) => Promise<string>;
 
+export function normalizeAgentVersionOutput(raw: string): string | null {
+  const firstLine = raw.trim().split(/\r?\n/)[0]?.trim() ?? "";
+  if (!firstLine) return null;
+  return firstLine.replace(/(\d)[.,;:]+$/u, "$1");
+}
+
 interface DashboardRouteDependencies {
   absDefault: string;
   devMode: boolean;
@@ -647,14 +653,12 @@ export function createDashboardRouteHandlers(
         execFileSync(whichCmd, [id], { timeout: 3000, stdio: "pipe" });
         let version: string | null = null;
         try {
-          version =
+          version = normalizeAgentVersionOutput(
             execFileSync(id, ["--version"], {
               timeout: 5000,
               stdio: "pipe",
-            })
-              .toString()
-              .trim()
-              .split("\n")[0] ?? null;
+            }).toString(),
+          );
         } catch {
           /* version detection optional */
         }

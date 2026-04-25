@@ -726,7 +726,7 @@
             <div class="t-bar"><div class="fill" style="width: 89%"></div></div>
             <span class="pct">89%</span>
           </div>
-          <div class="t-foot">27 advisory checks · all critical paths passing</div>
+          <div class="t-foot">16 harness checks · all critical paths passing</div>
         </div>
       </div>
     </div>
@@ -800,7 +800,7 @@
         <div class="piece-num">03 / Hooks</div>
         <h3>Safety nets that can't be skipped</h3>
         <p>
-          Pre- and post-action guards fire before the agent can hurt anything. <code style="font-size: 12.5px; color: var(--accent);">deny-dangerous</code> ships by default, blocking rm -rf, force-push, secret exfiltration, and six other patterns.
+          Pre- and post-action guards fire before the agent can hurt anything. <code style="font-size: 12.5px; color: var(--accent);">deny-dangerous</code> ships by default, blocking destructive filesystem commands, force-push, secret exfiltration, risky subshells, and other high-risk patterns.
         </p>
         <div class="sub">.goat-flow/hooks/</div>
       </div>

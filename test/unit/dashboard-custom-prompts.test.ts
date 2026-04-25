@@ -33,6 +33,7 @@ type HelperContext = {
   dashboardLoadCustomPrompts(ctx: TestContext): void;
   dashboardValidateCustomPromptDraft(ctx: TestContext): string[];
   dashboardCustomPromptToPreset(custom: TestCustomPrompt): TestPreset;
+  dashboardGlobalSafeAllowed(prompt: Record<string, unknown>): boolean;
 };
 
 type TestCustomPrompt = Record<string, unknown> & {
@@ -97,9 +98,10 @@ globalThis.__helpers = {
   dashboardSaveCustomPrompt,
   dashboardDeleteSelectedCustomPrompt,
   dashboardLoadCustomPrompts,
-  dashboardValidateCustomPromptDraft,
-  dashboardCustomPromptToPreset,
-};`,
+	  dashboardValidateCustomPromptDraft,
+	  dashboardCustomPromptToPreset,
+	  dashboardGlobalSafeAllowed,
+	};`,
     context,
   );
   return {
@@ -246,5 +248,76 @@ describe("custom prompt helpers", () => {
     assert.equal(preset.globalSafe, true);
     assert.equal(preset.fallbackPrompt, "Plain-text escape hatch");
     assert.equal(preset.prompt.startsWith("/goat"), false);
+  });
+
+  it("prevents GOAT-install custom prompts from being marked global safe", () => {
+    const { helpers } = loadHelpers();
+    const ctx = makeContext(helpers);
+
+    helpers.dashboardOpenNewCustomPrompt(ctx);
+    ctx.customPromptDraft.name = "Target setup audit";
+    ctx.customPromptDraft.prompt = "/goat-review audit target goat-flow setup";
+    ctx.customPromptDraft.requiresGoatFlowInstall = true;
+    ctx.customPromptDraft.globalSafe = true;
+    helpers.dashboardSaveCustomPrompt(ctx);
+
+    assert.equal(ctx.customPrompts.length, 1);
+    assert.equal(ctx.customPrompts[0]!.requiresGoatFlowInstall, true);
+    assert.equal(ctx.customPrompts[0]!.globalSafe, false);
+    assert.equal(ctx.selectedPreset?.requiresGoatFlowInstall, true);
+    assert.equal(ctx.selectedPreset?.globalSafe, false);
+    assert.equal(
+      helpers.dashboardGlobalSafeAllowed(ctx.selectedPreset ?? {}),
+      false,
+    );
+  });
+
+  it("round-trips artifact-required custom prompt metadata", () => {
+    const { helpers } = loadHelpers();
+    const ctx = makeContext(helpers);
+
+    helpers.dashboardOpenNewCustomPrompt(ctx);
+    ctx.customPromptDraft.name = "Critique artifact";
+    ctx.customPromptDraft.prompt = "/goat-critique review the selected report";
+    ctx.customPromptDraft.artifactRequired = true;
+    helpers.dashboardSaveCustomPrompt(ctx);
+
+    assert.equal(ctx.customPrompts[0]!.artifactRequired, true);
+    assert.equal(ctx.selectedPreset?.artifactRequired, true);
+
+    helpers.dashboardOpenEditCustomPrompt(ctx, ctx.selectedPreset);
+    assert.equal(ctx.customPromptDraft.artifactRequired, true);
+  });
+
+  it("loads older saved custom prompts with safe metadata defaults", () => {
+    const { helpers, storage } = loadHelpers();
+    storage.set(
+      "goat-flow-custom-prompts",
+      JSON.stringify([
+        {
+          id: "custom:old",
+          name: "Old prompt",
+          prompt: "Summarize this target",
+          route: "direct",
+        },
+        {
+          id: "custom:old-goat",
+          name: "Old setup prompt",
+          prompt: "/goat-review audit target setup",
+          route: "goat-review",
+          requiresGoatFlowInstall: true,
+          globalSafe: true,
+        },
+      ]),
+    );
+    const ctx = makeContext(helpers);
+
+    helpers.dashboardLoadCustomPrompts(ctx);
+
+    assert.equal(ctx.customPrompts.length, 2);
+    assert.equal(ctx.customPrompts[0]!.artifactRequired, false);
+    assert.equal(ctx.customPrompts[0]!.globalSafe, true);
+    assert.equal(ctx.customPrompts[1]!.artifactRequired, false);
+    assert.equal(ctx.customPrompts[1]!.globalSafe, false);
   });
 });

@@ -22,6 +22,7 @@ const DEFAULT_EXISTING_ARTIFACTS: ExistingArtifacts = {
 interface DashboardSetupQualityContext {
   projectPath: string;
   supportedAgents: SupportedAgent[];
+  activeRunner: RunnerId;
   setupSelectedAgent: RunnerId;
   setupDetecting: boolean;
   setupData: SetupData;
@@ -40,6 +41,31 @@ interface DashboardSetupQualityContext {
   showToast(msg: string, isError?: boolean): void;
   copyText(text: string): void;
   generateQualityHistory(): Promise<void>;
+}
+
+const SETUP_INSTRUCTION_SURFACES: Record<RunnerId, string> = {
+  claude: "CLAUDE.md, .claude/settings.json",
+  codex: "AGENTS.md, .codex/config.toml, .codex/hooks.json",
+  gemini: "GEMINI.md, .gemini/settings.json",
+  copilot:
+    ".github/copilot-instructions.md, .github/instructions/**/*.instructions.md, .github/hooks/hooks.json",
+};
+
+function dashboardAgentDisplayName(
+  ctx: DashboardSetupQualityContext,
+  agentId: RunnerId,
+): string {
+  return (
+    ctx.supportedAgents.find((agent) => agent.id === agentId)?.name ?? agentId
+  );
+}
+
+function dashboardSetupInstructionSurfaces(
+  ctx: DashboardSetupQualityContext,
+): string {
+  return (
+    SETUP_INSTRUCTION_SURFACES[ctx.setupSelectedAgent] ?? ctx.setupSelectedAgent
+  );
 }
 
 function dashboardQualityModePreset(
@@ -111,13 +137,12 @@ function dashboardQualityLaunchLabel(
   ctx: DashboardSetupQualityContext,
 ): string {
   const mode = dashboardQualityModeMeta(ctx);
-  if (mode?.presetId) {
-    return (
-      dashboardQualityModePreset(ctx, mode.presetId)?.name ??
-      `Quality ${mode.label}`
-    );
-  }
-  return mode ? `Quality ${mode.label}` : `Quality ${ctx.qualityAgent}`;
+  const modeLabel = mode
+    ? mode.presetId
+      ? (dashboardQualityModePreset(ctx, mode.presetId)?.name ?? mode.label)
+      : mode.label
+    : ctx.qualityAgent;
+  return `Quality ${modeLabel} for ${dashboardAgentDisplayName(ctx, ctx.qualityAgent)} via ${dashboardAgentDisplayName(ctx, ctx.activeRunner)}`;
 }
 
 function dashboardBuildQualityModePrompt(

@@ -432,7 +432,7 @@
           >
             Run
             <span class="mono gf-text-primary">goat-flow audit --harness</span>
-            for 27 advisory checks across five concerns:
+            for 16 harness checks across five concerns:
             <strong class="gf-text-primary" style="font-weight: 500"
               >context, constraints, verification, recovery, feedback
               loop</strong
@@ -610,10 +610,9 @@
                 >deny-dangerous</span
               >
               <span class="gf-text-muted" style="font-size: 13px; flex: 1">
-                Blocks eight patterns by default:
-                <span class="mono gf-text-primary">rm -rf</span>, force-push
-                variants, <span class="mono gf-text-primary">.env</span> file
-                reads, secret exfiltration,
+                Blocks destructive filesystem commands, force-push variants,
+                <span class="mono gf-text-primary">.env</span> file reads,
+                secret exfiltration,
                 <span class="mono gf-text-primary">eval</span> and
                 <span class="mono gf-text-primary">bash -c</span> subshells,
                 database <span class="mono gf-text-primary">DROP</span>/<span

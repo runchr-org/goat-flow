@@ -57,6 +57,20 @@ const DASHBOARD_QUALITY_PATH = resolve(
   "dashboard",
   "dashboard-setup-quality.ts",
 );
+const WORKSPACE_VIEW_PATH = resolve(
+  PROJECT_ROOT,
+  "src",
+  "dashboard",
+  "views",
+  "workspace.html",
+);
+const SETUP_VIEW_PATH = resolve(
+  PROJECT_ROOT,
+  "src",
+  "dashboard",
+  "views",
+  "setup.html",
+);
 const KNOWN_ROUTES = new Set([
   "goat-critique",
   "goat-debug",
@@ -314,6 +328,11 @@ describe("preset prompt catalog", () => {
       assert.equal(preset.internalOnly, true);
       assert.equal(preset.qualityMode, true);
     }
+    const testPlanVsCode = byId("test-vs-code");
+    assert.equal(testPlanVsCode.requiresPrOrIssue, true);
+    assert.equal(testPlanVsCode.requiresLocalDiff, true);
+    assert.equal(testPlanVsCode.requiresGoatFlowInstall, false);
+    assert.equal(testPlanVsCode.globalSafe, true);
   });
 
   it("keeps goat-qa presets inside the no-test-code contract", () => {
@@ -413,6 +432,42 @@ describe("preset prompt catalog", () => {
     assert.match(source, /source: "api"/);
     assert.match(source, /Quality mode scope:/);
     assert.match(source, /missing target \.goat-flow files as normal/);
+  });
+
+  it("keeps workspace meter helpers scoped to their local Alpine component", () => {
+    const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
+    assert.match(source, /this\.allSessions\(\)/);
+    assert.match(source, /this\.recentSessions\(\)/);
+    assert.match(source, /this\.waitingSessions\(\)/);
+    assert.doesNotMatch(source, /return\s+allSessions\(\)/);
+    assert.doesNotMatch(source, /return\s+recentSessions\(\)/);
+    assert.doesNotMatch(source, /return\s+waitingSessions\(\)/);
+  });
+
+  it("shows setup instruction surfaces for the selected target agent", () => {
+    const view = readFileSync(SETUP_VIEW_PATH, "utf-8");
+    const helper = readFileSync(DASHBOARD_QUALITY_PATH, "utf-8");
+    assert.match(view, /setupInstructionSurfaces\(\)/);
+    assert.match(helper, /CLAUDE\.md, \.claude\/settings\.json/);
+    assert.match(
+      helper,
+      /AGENTS\.md, \.codex\/config\.toml, \.codex\/hooks\.json/,
+    );
+    assert.match(helper, /GEMINI\.md, \.gemini\/settings\.json/);
+    assert.match(helper, /\.github\/copilot-instructions\.md/);
+    assert.match(helper, /\.github\/hooks\/hooks\.json/);
+  });
+
+  it("renders stored prompt metadata as badges without redefining global safe", () => {
+    const source = readFileSync(DASHBOARD_PROMPTS_PATH, "utf-8");
+    assert.match(source, /label: "GOAT install"/);
+    assert.match(source, /label: "Artifact required"/);
+    assert.match(source, /label: "Dependency files"/);
+    assert.match(source, /label: "Needs diff"/);
+    assert.match(
+      source,
+      /preset\.globalSafe && dashboardGlobalSafeAllowed\(preset\)/,
+    );
   });
 
   it("keeps PR fixture fallback wording deterministic", () => {
