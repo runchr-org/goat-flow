@@ -335,6 +335,28 @@ describe("preset prompt catalog", () => {
     assert.equal(testPlanVsCode.globalSafe, true);
   });
 
+  it("keeps the skill quality preset suite-wide instead of single-skill", () => {
+    const preset = byId("skill-quality-test");
+    assert.match(preset.prompt, /all seven goat-flow skills/);
+    assert.doesNotMatch(preset.prompt, /Ask me which skill/i);
+    assert.match(
+      preset.prompt,
+      /\.goat-flow\/skill-reference\/skill-quality-testing\//,
+    );
+    for (const skill of [
+      "goat",
+      "goat-debug",
+      "goat-plan",
+      "goat-review",
+      "goat-critique",
+      "goat-security",
+      "goat-qa",
+    ]) {
+      assert.match(preset.prompt, new RegExp(`/${skill}\\b`));
+    }
+    assert.match(preset.prompt, /Do not stop after one skill/);
+  });
+
   it("keeps goat-qa presets inside the no-test-code contract", () => {
     const qaPresets = readPresets().filter(
       (preset) => preset.route === "goat-qa",

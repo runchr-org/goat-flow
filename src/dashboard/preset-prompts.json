@@ -53,7 +53,7 @@
     "id": "skill-quality-test",
     "name": "Pressure-Test a Skill",
     "desc": "RED/GREEN/REFACTOR skill TDD using the quality-testing protocol",
-    "prompt": "/goat-critique pressure-test a goat-flow skill using .goat-flow/skill-reference/skill-quality-testing.md. Ask me which skill. Apply the RED/GREEN/REFACTOR cycle: RED - construct an adversarial scenario that should trip the skill. GREEN - run the skill and record whether it handled the scenario. REFACTOR - propose one minimal change to the skill that would close the gap. Ask questions if the scenario scope is unclear.",
+    "prompt": "/goat-critique run a full read-only skill-suite quality test for all seven goat-flow skills: /goat, /goat-debug, /goat-plan, /goat-review, /goat-critique, /goat-security, and /goat-qa. Use .goat-flow/skill-reference/skill-quality-testing.md plus the relevant files under .goat-flow/skill-reference/skill-quality-testing/. Do not ask which skill; only ask if the whole suite scope is ambiguous. For each skill, apply RED/GREEN/REFACTOR: RED - construct an adversarial scenario that should trip that specific skill; GREEN - run the skill on a real probe when the runner supports skill invocation or delegated/sub-agent calls, otherwise perform a file-grounded protocol run against its SKILL.md and mark the evidence limit; REFACTOR - propose one minimal change that would close the strongest observed gap. Keep probes read-only. Do not stop after one skill. Output one section per skill with: scenario, method used, handled/not handled, evidence, and minimal change. End with the top 3 cross-skill fixes.",
     "cat": "critique",
     "route": "goat-critique",
     "source": "goat-flow-catalog",
