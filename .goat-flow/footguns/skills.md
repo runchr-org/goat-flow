@@ -36,6 +36,24 @@ last_reviewed: 2026-04-25
 
 **Prevention:** Seed first-pass retrieval terms with the concrete symptom, platform, or file/tool name rather than milestone titles or abstract design labels. One reword is allowed; if the second query still misses, record the retrieval miss explicitly and move on. Broad-loading the bucket to compensate defeats the protocol.
 
+## Footgun: Review skills can choose the wrong PR base when they hardcode `origin/main`
+
+**Status:** active | **Created:** 2026-04-25 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** `/goat-review` can misclassify PR-style review scope or generate the wrong comparison diff in consumer projects whose real integration branch is not `main`. A consumer quality report on 2026-04-25 found a project comparing feature branches to `origin/deploy` while `/goat-review` defaulted local PR detection and fallback review to `origin/main`/`main`.
+
+**Why it happens:** The review skill treats a common GitHub default as a universal project invariant. That leaks a goat-flow/framework assumption into consumer repositories, where the correct base may be `deploy`, `develop`, `trunk`, a release branch, or a PR-specific base returned by hosting metadata.
+
+**Evidence:**
+- `workflow/skills/goat-review/SKILL.md` (search: `commits ahead of \`origin/main\``) makes PR-style auto-detection depend on `origin/main`.
+- `workflow/skills/goat-review/SKILL.md` (search: `Base branch? (default: \`main\``) makes local PR fallback default to `main`.
+- `.claude/skills/goat-review/SKILL.md` (search: `commits ahead of \`origin/main\``) shows the installed Claude mirror has the same behaviour.
+- `.agents/skills/goat-review/SKILL.md` (search: `Base branch? (default: \`main\``) shows the installed Codex/agents mirror has the same behaviour.
+- `.github/skills/goat-review/SKILL.md` (search: `Base branch? (default: \`main\``) shows the installed GitHub/Copilot mirror has the same behaviour.
+- `.goat-flow/tasks/1.3.0/M05-quality-report-followups.md` (search: `Make \`/goat-review\` Base-Branch Selection Portable`) tracks the repair checkpoint so the fix updates workflow template and installed mirrors together.
+
+**Prevention:** Review-base selection must be discovered, not assumed. Prefer PR metadata (`gh pr view ... baseRefName`) when available, then an explicit user-provided base, then remote default-branch discovery from `refs/remotes/origin/HEAD` or `git remote show origin`; ask for the base before diffing if discovery fails. Treat `main` only as a last-resort fallback and record a degradation flag when fallback is used.
+
 ---
 
 ## Footgun: Installed skill copies can drift on punctuation-only edits and fail unrelated test runs
