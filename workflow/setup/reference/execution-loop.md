@@ -30,8 +30,11 @@ c) Default Execution Loop: READ → SCOPE → ACT → VERIFY
        - Reusable approach worked (twice or crosses boundary) → `.goat-flow/patterns.md` entry
        - Architectural trap with semantic-anchor evidence → `.goat-flow/footguns/` entry
        Log only non-obvious root causes, repeated misses, or boundary-crossing impacts.
+     - **Artifact routing:** "add a footgun" → `.goat-flow/footguns/`, "add a lesson" → `.goat-flow/lessons/`, "add a decision" → `.goat-flow/decisions/`, "add a pattern" → `.goat-flow/patterns.md`. These are documentation artifacts, not runtime code — read the target directory's `README.md` for format.
 
-d) Autonomy Tiers: Always / Ask First / Never
+d) Artifact Routing: map user requests ("add a footgun/lesson/decision/pattern") to the correct `.goat-flow/` directory. These are documentation artifacts, not runtime code.
+
+e) Autonomy Tiers: Always / Ask First / Never
    - Never tier MUST include:
      1. Overwrite existing files without checking destination (ls before
         mv/cp/Write; use mv -n). Data destruction from blind overwrites
@@ -55,7 +58,7 @@ d) Autonomy Tiers: Always / Ask First / Never
    double duty as execution protocol + domain reference - but watch the
    line budget.
 
-e) Definition of Done: 6 gates
+f) Definition of Done: 6 gates
    (1) lint/typecheck passes on changed files
    (2) no broken cross-references introduced
    (3) no unapproved boundary changes
@@ -63,7 +66,7 @@ e) Definition of Done: 6 gates
    (5) current state recorded before stopping incomplete work
    (6) After any rename or move, grep for the old name across ALL files (including .md, .json, .yaml, config). Zero remaining references = pass. This is the most common failure mode - stale cross-references after renames cause more bugs than any other single pattern.
 
-f) Router table: MUST include at minimum:
+g) Router table: MUST include at minimum:
      - Skill directories (`.claude/skills/`, `.agents/skills/`, `.github/skills/`)
      - Learning loop directories (`.goat-flow/footguns/`, `.goat-flow/lessons/`)
      - Architecture doc (`.goat-flow/architecture.md`)
@@ -74,15 +77,15 @@ f) Router table: MUST include at minimum:
      (Unrouted files are invisible to the agent - 160x usage uplift
      for referenced tools)
 
-g) Essential commands
+h) Essential commands
 
-h) (Optional) Complexity and read policy:
+i) (Optional) Complexity and read policy:
    - Hotfix, Small Feature, Standard, System, Infrastructure.
    - If reads exceed 3x your initial estimate, re-classify.
 
-i) (Optional) Session continuity:
+j) (Optional) Session continuity:
    - Write session context to `.goat-flow/logs/sessions/` when work spans multiple turns.
 
 If you must weaken a MUST to meet the line target, the target is
 wrong - raise it, don't weaken the rule.
-Do NOT skip sections (a)-(g) - they are required. Sections (h)-(i) are optional but recommended.
+Do NOT skip sections (a)-(h) - they are required. Sections (i)-(j) are optional but recommended.

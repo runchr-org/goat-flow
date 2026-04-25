@@ -1,6 +1,6 @@
 ---
 category: agent-behavior
-last_reviewed: 2026-04-24
+last_reviewed: 2026-04-25
 ---
 
 ## Lesson: Retrieval terms must name the concrete failure class
@@ -386,6 +386,24 @@ last_reviewed: 2026-04-24
 **Why it matters:** If the orchestrator accepts that output anyway, the control group is no longer trustworthy. If it discards the output without tightening the rerun prompt, the same leak pattern can repeat and waste the critique budget.
 
 **Prevention:** After any fresh-eyes leak-scan discard, re-spawn with an explicit output constraint: cite evidence only as `artifact line X` or section names, never as repo paths or local filenames. Treat citation formatting as part of the isolation contract, not a cosmetic detail.
+
+---
+
+## Lesson: "Add a footgun" means a documentation entry, not runtime code
+
+**Created:** 2026-04-25
+
+**What happened:** In the healthkit project, the user asked to "add a footgun" documenting a Mercure CORS trap. The agent interpreted this as a request for runtime diagnostic code and added TypeScript console logging to `assets/entrypoints/chat-assistant.ts`. The user had to correct the agent, the code change was reverted, and the correct `.goat-flow/footguns/realtime-mercure.md` entry was created.
+
+**Root cause:** The agent did not know that "footgun" in a goat-flow project means a documentation artifact under `.goat-flow/footguns/`. It defaulted to the general-English meaning ("something that will hurt you") and implemented a runtime warning. The routing was not documented prominently enough - the learning-loop section described what footguns ARE, but not what to do when the user says "add one."
+
+**Why it matters:** The user had to intervene twice (once to stop the code change, once to redirect to the correct directory). The mistake class is dangerous because it produces a plausible-looking deliverable (runtime logging IS useful) that is completely wrong in context (the user wanted a knowledge-base entry, not code).
+
+- Evidence: `.goat-flow/footguns/README.md` (search: `Traps in the code itself`) defines footguns as documentation artifacts
+- Evidence: `.goat-flow/lessons/README.md` (search: `Mistakes the agent made`) defines lessons as documentation artifacts
+- Evidence: Artifact Routing section now added to all four instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, `.github/copilot-instructions.md`)
+
+**Prevention:** The Artifact Routing section in instruction files and skill-preamble.md now explicitly maps user requests to target directories. When the user says "add a footgun," open `.goat-flow/footguns/README.md` and create/update a bucket entry. Do not write runtime code unless the user separately asks for a code change.
 
 ---
 

@@ -37,10 +37,11 @@ The instruction file MUST include these sections. Use `workflow/setup/reference/
 - (a) Project identity - Start with 1-2 lines describing what the project is: name, domain, core technology, and the primary invariant or constraint. Example: `BlunderGoat - chess PGN analyzer producing XLSX reports. Core invariant: all engine evaluations use actor-POV.`
 - (b) Version header - set to the current goat-flow release version (match the `goat-flow-skill-version` in the installed skill files)
 - (c) Execution loop: READ → SCOPE → ACT → VERIFY
-- (d) Autonomy tiers: Always / Ask First / Never
-- (e) Definition of Done
-- (f) Router table
-- (g) Essential commands
+- (d) Artifact Routing: map "add a footgun/lesson/decision/pattern" to the correct `.goat-flow/` directory
+- (e) Autonomy tiers: Always / Ask First / Never
+- (f) Definition of Done
+- (g) Router table
+- (h) Essential commands
 
 Adapt all examples, Ask First boundaries, and essential commands for THIS project's real codebase. Use real file paths, real commands, real boundaries. Preserve the composition rule: when a goat-* skill is active, the skill's Step 0 satisfies READ/SCOPE and the instruction file resumes at ACT.
 
@@ -60,7 +61,7 @@ After writing/updating the instruction file:
 
 **Verification gate:**
 - [ ] Instruction file exists at the correct path
-- [ ] All sections (a) through (g) are present
+- [ ] All sections (a) through (h) are present
 - [ ] Examples and boundaries reference real project files
 - [ ] If Path B: no useful existing content was lost
 - [ ] If Path B: Execution Loop is the four-step v1.2 version; `rg 'CLASSIFY|→\s*LOG|->\s*LOG' <instruction-file>` returns zero hits

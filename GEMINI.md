@@ -72,6 +72,19 @@ If VERIFY caught a failure or you corrected course, update the learning loop bef
 | `.goat-flow/decisions/` | Significant technical decision with context/rationale |
 | `.goat-flow/logs/sessions/` | Optional. On `/compact` without an active milestone file, write `YYYY-MM-DD-slug.md` continuity summary |
 
+## Artifact Routing
+
+When asked to add, create, or update a goat-flow artifact, route to the correct location — not runtime code:
+
+| User says | Create/update in | NOT |
+|-----------|-----------------|-----|
+| "add a footgun" | `.goat-flow/footguns/<category>.md` | Runtime code, logging, UI warnings, tests |
+| "add a lesson" | `.goat-flow/lessons/<category>.md` | Runtime code, code comments |
+| "add a decision" | `.goat-flow/decisions/ADR-NNN.md` | Inline code comments |
+| "add a pattern" | `.goat-flow/patterns.md` | — |
+
+Before editing, read the target directory's `README.md` for required format. These are documentation artifacts — never interpret them as requests for runtime code changes unless the user explicitly asks for code too.
+
 ## Autonomy Tiers
 
 **Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when `/compact` fires without an active milestone file, otherwise skip. Learning-loop updates (lessons/footguns/decisions) follow the conditional rules above: update only when VERIFY caught a failure or you corrected course.

@@ -198,7 +198,7 @@ Before presenting completion to the human, verify all of the following:
 5. Every assumption has been validated or explicitly invalidated with corresponding plan updates
 6. Learning loop checked: footguns, lessons, or patterns updated if this run uncovered anything worth logging
 
-If any item fails, surface it — do not silently close the plan with incomplete gates.
+If any item fails, surface it - do not silently close the plan with incomplete gates.
 
 ### Human Verification Gate
 
@@ -216,7 +216,7 @@ The plan is NOT complete until the human explicitly approves.
 ### After Human Approval
 
 - Confirm all milestone statuses are `complete`
-- Plan and milestone files remain in `.goat-flow/tasks/` — the human decides when to archive or remove them
+- Plan and milestone files remain in `.goat-flow/tasks/` - the human decides when to archive or remove them
 - Write a session log if the plan spanned multiple sessions
 
 ## Constraints
