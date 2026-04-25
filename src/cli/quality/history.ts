@@ -9,7 +9,11 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AgentId } from "../types.js";
-import type { SavedQualityFinding, SavedQualityReport } from "./schema.js";
+import type {
+  QualityMode,
+  SavedQualityFinding,
+  SavedQualityReport,
+} from "./schema.js";
 import { parseQualityReport } from "./schema.js";
 import { attachFindingIds } from "./ids.js";
 import { KNOWN_AGENT_IDS } from "../agents/registry.js";
@@ -106,6 +110,17 @@ function countSeverity(
     .length;
 }
 
+/** Return true when one report belongs to the requested quality mode.
+ *  Legacy reports predate quality_mode and are classified as agent-setup,
+ *  because that was the only quality workflow at the time. */
+function matchesQualityMode(
+  entry: QualityHistoryEntry,
+  qualityMode: QualityMode | null,
+): boolean {
+  if (qualityMode === null) return true;
+  return (entry.report.quality_mode ?? "agent-setup") === qualityMode;
+}
+
 /** Format the delta. */
 function formatDelta(delta: number | null): string {
   if (delta === null) return "";
@@ -198,18 +213,30 @@ export function loadQualityHistory(projectPath: string): {
 export function getLatestQualityHistoryEntry(
   entries: QualityHistoryEntry[],
   agent: AgentId,
+  qualityMode: QualityMode | null = null,
 ): QualityHistoryEntry | null {
-  return entries.find((entry) => entry.agent === agent) ?? null;
+  return (
+    entries.find(
+      (entry) =>
+        entry.agent === agent && matchesQualityMode(entry, qualityMode),
+    ) ?? null
+  );
 }
 
 /** Select quality history entries. */
 export function selectQualityHistoryEntries(
   entries: QualityHistoryEntry[],
-  options: { agent: AgentId | null; limit: number | null },
+  options: {
+    agent: AgentId | null;
+    limit: number | null;
+    qualityMode?: QualityMode | null;
+  },
 ): QualityHistoryEntry[] {
-  const filtered = options.agent
-    ? entries.filter((entry) => entry.agent === options.agent)
-    : entries;
+  const qualityMode = options.qualityMode ?? null;
+  const filtered = entries.filter((entry) => {
+    if (options.agent && entry.agent !== options.agent) return false;
+    return matchesQualityMode(entry, qualityMode);
+  });
   if (options.limit === null) return filtered;
   return filtered.slice(0, options.limit);
 }
@@ -217,11 +244,16 @@ export function selectQualityHistoryEntries(
 /** Build the quality history rows. */
 export function buildQualityHistoryRows(
   entries: QualityHistoryEntry[],
-  options: { agent: AgentId | null; limit: number | null },
+  options: {
+    agent: AgentId | null;
+    limit: number | null;
+    qualityMode?: QualityMode | null;
+  },
 ): QualityHistoryRow[] {
   const filtered = selectQualityHistoryEntries(entries, {
     agent: options.agent,
     limit: null,
+    qualityMode: options.qualityMode ?? null,
   });
   const rows = filtered.map((entry, index) => {
     const previousSameAgent = filtered

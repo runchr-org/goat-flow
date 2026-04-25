@@ -23,6 +23,8 @@ import type { AgentId } from "../types.js";
 import { loadDashboardAsset } from "./dashboard-assets.js";
 import { buildSetupDetectPayload, isProjectDirectory } from "./setup-detect.js";
 import type { DashboardReport } from "./types.js";
+import type { QualityMode } from "../quality/schema.js";
+import { QUALITY_MODES } from "../quality/schema.js";
 
 const KNOWN_AGENT_IDS = getKnownAgentIds();
 const KNOWN_AGENT_LIST = KNOWN_AGENT_IDS.join(", ");
@@ -30,6 +32,7 @@ const AGENT_PROFILE_MAP = getAgentProfileMap();
 const AGENT_PROFILES = getAgentProfiles();
 const SUPPORTED_AGENTS = AGENT_PROFILES.map(({ id, name }) => ({ id, name }));
 const VALID_AGENTS = new Set<string>(KNOWN_AGENT_IDS);
+const VALID_QUALITY_MODES = new Set<string>(QUALITY_MODES);
 
 interface DashboardPresetData {
   id: string;
@@ -92,6 +95,12 @@ function parseQualityHistoryLimit(param: string | null): number {
   return Math.min(parsed, 100);
 }
 
+/** Parse a dashboard quality-mode filter. */
+function parseQualityModeParam(param: string | null): QualityMode | null {
+  if (param === null) return null;
+  return VALID_QUALITY_MODES.has(param) ? (param as QualityMode) : null;
+}
+
 /** Build the latest quality summary. */
 function buildLatestQualitySummary(
   entry: QualityHistoryEntry | null,
@@ -113,6 +122,29 @@ function buildLatestQualitySummary(
     ),
     scope: entry.report.scope ?? null,
   };
+}
+
+/** Return true when a history entry belongs to the requested dashboard mode. */
+function qualityEntryMatchesMode(
+  entry: QualityHistoryEntry,
+  mode: QualityMode | null,
+): boolean {
+  if (mode === null) return true;
+  return (entry.report.quality_mode ?? "agent-setup") === mode;
+}
+
+/** Return latest quality history entry for the dashboard's selected filters. */
+function getDashboardLatestQualityEntry(
+  entries: QualityHistoryEntry[],
+  agent: AgentId | null,
+  mode: QualityMode | null,
+): QualityHistoryEntry | null {
+  return (
+    entries.find((entry) => {
+      if (agent !== null && entry.agent !== agent) return false;
+      return qualityEntryMatchesMode(entry, mode);
+    }) ?? null
+  );
 }
 
 /** Build the dashboard API payload from aggregate and per-agent audit results. */
@@ -548,7 +580,11 @@ export function createDashboardRouteHandlers(
       }
 
       const history = loadQualityHistory(projectPath);
-      const priorReport = getLatestQualityHistoryEntry(history.entries, agent);
+      const priorReport = getLatestQualityHistoryEntry(
+        history.entries,
+        agent,
+        "agent-setup",
+      );
       const result = composeQuality({
         agent,
         projectPath,
@@ -586,22 +622,31 @@ export function createDashboardRouteHandlers(
     }
 
     const limit = parseQualityHistoryLimit(url.searchParams.get("limit"));
+    const modeParam = url.searchParams.get("mode");
+    const qualityMode = parseQualityModeParam(modeParam);
+
+    if (modeParam && !qualityMode) {
+      jsonResponse(res, 400, {
+        error: `quality history mode must be one of: ${QUALITY_MODES.join(", ")}`,
+      });
+      return true;
+    }
 
     try {
       requireProjectDirectory(projectPath);
-      const {
-        buildQualityHistoryRows,
-        getLatestQualityHistoryEntry,
-        loadQualityHistory,
-      } = await import("../quality/history.js");
+      const { buildQualityHistoryRows, loadQualityHistory } =
+        await import("../quality/history.js");
       const history = loadQualityHistory(projectPath);
       const rows = buildQualityHistoryRows(history.entries, {
         agent,
         limit,
+        qualityMode,
       });
-      const latestEntry = agent
-        ? getLatestQualityHistoryEntry(history.entries, agent)
-        : (history.entries[0] ?? null);
+      const latestEntry = getDashboardLatestQualityEntry(
+        history.entries,
+        agent,
+        qualityMode,
+      );
 
       jsonResponse(res, 200, {
         rows,

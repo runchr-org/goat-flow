@@ -767,6 +767,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push(`  "audit_status": ${jsonString(auditStatus)},`);
   lines.push('  "scope": "framework-self | consumer",');
   lines.push(`  "rubric_version": ${jsonString(getPackageVersion())},`);
+  lines.push('  "quality_mode": "agent-setup",');
   lines.push('  "scores": {');
   lines.push(
     '    "setup": { "total": 0, "accuracy": 0, "relevance": 0, "completeness": 0, "friction": 0 },',
@@ -807,6 +808,9 @@ export function composeQuality(input: QualityInput): QualityPayload {
   );
   lines.push(
     `- \`rubric_version\` is REQUIRED at top level; copy the template value (\`"${getPackageVersion()}"\`). The Rating bands section above is the rubric - future readers use this version tag to trace which band anchors produced your scores.`,
+  );
+  lines.push(
+    '- `quality_mode` is REQUIRED for new reports generated from this prompt. Use `"agent-setup"` for this Agent Setup Quality assessment.',
   );
   lines.push(
     "- `line` must be a positive integer OR `null`. Never `0`. For file-wide findings with no specific line, use `null`.",

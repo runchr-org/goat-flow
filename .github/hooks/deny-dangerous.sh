@@ -277,6 +277,7 @@ run_self_test() {
   run_case "rg double-quoted alternation" 'rg -n "foo|bar" CLAUDE.md' 0
   run_case "rg quoted semicolon" 'rg "; rm -rf /" src/' 0
   run_case "rg quoted and-chain" 'rg "&& rm -rf /" src/' 0
+  run_case "escaped semicolon literal rm" 'echo foo\; rm -rf /' 0
   run_case "semicolon chained rm" 'true; rm -rf /' 2
   run_case "and chained rm" 'true && rm -rf /' 2
   # Safe sh -c / bash -c wrappers around read-only commands should pass; dangerous ones still block.
@@ -731,7 +732,7 @@ split_command_segments() {
       continue
     fi
 
-    if [[ "$in_double" -eq 1 && "$char" == "\\" ]]; then
+    if [[ "$in_single" -eq 0 && "$char" == "\\" ]]; then
       current+="$char"
       escaped=1
       continue

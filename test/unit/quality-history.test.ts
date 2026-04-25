@@ -15,8 +15,10 @@ import { join, resolve } from "node:path";
 import {
   buildQualityDiff,
   buildQualityHistoryRows,
+  getLatestQualityHistoryEntry,
   loadQualityHistory,
   renderQualityDiffText,
+  selectQualityHistoryEntries,
 } from "../../src/cli/quality/history.js";
 
 const FIXTURE_DIR = resolve(
@@ -52,6 +54,23 @@ function installFixture(root: string, id: string): void {
   writeFileSync(
     join(root, ".goat-flow", "logs", "quality", `${id}.json`),
     content,
+  );
+}
+
+function installFixtureAsMode(
+  root: string,
+  id: string,
+  mode: string,
+  outputId: string,
+): void {
+  const parsed = JSON.parse(
+    readFileSync(join(FIXTURE_DIR, `${id}.json`), "utf-8"),
+  ) as Record<string, unknown>;
+  parsed.quality_mode = mode;
+  writeFileSync(
+    join(root, ".goat-flow", "logs", "quality", `${outputId}.json`),
+    `${JSON.stringify(parsed, null, 2)}\n`,
+    "utf-8",
   );
 }
 
@@ -101,6 +120,46 @@ describe("buildQualityHistoryRows", () => {
         [FIXTURE_IDS.april15, 10],
         [FIXTURE_IDS.april01, null],
       ],
+    );
+  });
+
+  it("filters history rows and latest entry by quality mode", () => {
+    const root = makeTempProject();
+    installFixture(root, FIXTURE_IDS.april01);
+    installFixtureAsMode(
+      root,
+      FIXTURE_IDS.april15,
+      "skills",
+      "2026-04-15-1000-claude-ddddd",
+    );
+    installFixtureAsMode(
+      root,
+      FIXTURE_IDS.april29,
+      "harness",
+      "2026-04-29-1100-claude-eeeee",
+    );
+
+    const history = loadQualityHistory(root);
+    assert.deepEqual(
+      selectQualityHistoryEntries(history.entries, {
+        agent: "claude",
+        qualityMode: "skills",
+        limit: null,
+      }).map((entry) => entry.id),
+      ["2026-04-15-1000-claude-ddddd"],
+    );
+    assert.deepEqual(
+      buildQualityHistoryRows(history.entries, {
+        agent: "claude",
+        qualityMode: "agent-setup",
+        limit: null,
+      }).map((row) => row.id),
+      [FIXTURE_IDS.april01],
+      "legacy reports without quality_mode should remain agent-setup history",
+    );
+    assert.equal(
+      getLatestQualityHistoryEntry(history.entries, "claude", "harness")?.id,
+      "2026-04-29-1100-claude-eeeee",
     );
   });
 });

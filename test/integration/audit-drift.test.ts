@@ -40,6 +40,9 @@ const SKILL_STUB = (name: string): string =>
   `---\nname: ${name}\ndescription: stub for drift test\n---\n# ${name}\nbody\n`;
 
 const SHARED_STUB = "# shared\nbody\n";
+const HOOK_STUB = "#!/usr/bin/env bash\n# deny hook stub\n";
+const COPILOT_HOOK_CONFIG_STUB =
+  '{\n  "version": 1,\n  "hooks": { "preToolUse": [] }\n}\n';
 
 interface CommandResult {
   status: number | null;
@@ -139,6 +142,33 @@ function setupFixture(): string {
     );
   }
   return root;
+}
+
+function writeHookFixtures(root: string): void {
+  mkdirSync(join(root, "workflow", "hooks", "agent-config"), {
+    recursive: true,
+  });
+  writeFileSync(
+    join(root, "workflow", "hooks", "deny-dangerous.sh"),
+    HOOK_STUB,
+  );
+  writeFileSync(
+    join(root, "workflow", "hooks", "agent-config", "copilot-hooks.json"),
+    COPILOT_HOOK_CONFIG_STUB,
+  );
+  for (const hooksDir of [
+    ".claude/hooks",
+    ".codex/hooks",
+    ".gemini/hooks",
+    ".github/hooks",
+  ]) {
+    mkdirSync(join(root, hooksDir), { recursive: true });
+    writeFileSync(join(root, hooksDir, "deny-dangerous.sh"), HOOK_STUB);
+  }
+  writeFileSync(
+    join(root, ".github", "hooks", "hooks.json"),
+    COPILOT_HOOK_CONFIG_STUB,
+  );
 }
 
 function setupInstallRoundTripFixture(): string {
@@ -345,6 +375,114 @@ describe("checkDrift: missing installed copy", () => {
     const missing = report.findings.find((f) => f.kind === "missing");
     assert.ok(missing, "expected a missing finding");
     assert.match(missing!.path, /\.claude\/skills\/goat\/SKILL\.md/);
+  });
+});
+
+describe("checkDrift: hook templates", () => {
+  it("reports pass when installed hook scripts and Copilot config match templates", () => {
+    const root = setupFixture();
+    try {
+      writeHookFixtures(root);
+      const report = checkDrift({
+        fs: createFS(root),
+        projectPath: root,
+        templateRoot: root,
+      });
+      assert.equal(
+        report.status,
+        "pass",
+        `expected hook fixture drift-clean, findings=${JSON.stringify(report.findings)}`,
+      );
+      assert.ok(
+        report.checked >= 5,
+        `expected hook comparisons to contribute to checked count, got ${report.checked}`,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports hook content drift for changed installed scripts", () => {
+    const root = setupFixture();
+    try {
+      writeHookFixtures(root);
+      writeFileSync(
+        join(root, ".codex", "hooks", "deny-dangerous.sh"),
+        `${HOOK_STUB}\n# local drift\n`,
+      );
+      const report = checkDrift({
+        fs: createFS(root),
+        projectPath: root,
+        templateRoot: root,
+      });
+      assert.equal(report.status, "fail");
+      assert.ok(
+        report.findings.some(
+          (finding) =>
+            finding.kind === "content" &&
+            finding.path === ".codex/hooks/deny-dangerous.sh",
+        ),
+        `expected .codex hook drift, findings=${JSON.stringify(report.findings)}`,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports missing installed hook scripts", () => {
+    const root = setupFixture();
+    try {
+      writeHookFixtures(root);
+      rmSync(join(root, ".gemini", "hooks", "deny-dangerous.sh"), {
+        force: true,
+      });
+      const report = checkDrift({
+        fs: createFS(root),
+        projectPath: root,
+        templateRoot: root,
+      });
+      assert.equal(report.status, "fail");
+      assert.ok(
+        report.findings.some(
+          (finding) =>
+            finding.kind === "missing" &&
+            finding.path === ".gemini/hooks/deny-dangerous.sh",
+        ),
+        `expected missing .gemini hook finding, findings=${JSON.stringify(report.findings)}`,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("compares Copilot hooks.json against the agent-config template", () => {
+    const root = setupFixture();
+    try {
+      writeHookFixtures(root);
+      writeFileSync(
+        join(root, ".github", "hooks", "hooks.json"),
+        '{\n  "version": 1,\n  "hooks": { "preToolUse": [{ "type": "changed" }] }\n}\n',
+      );
+      const report = checkDrift({
+        fs: createFS(root),
+        projectPath: root,
+        templateRoot: root,
+      });
+      assert.equal(report.status, "fail");
+      assert.ok(
+        report.findings.some(
+          (finding) =>
+            finding.kind === "content" &&
+            finding.path === ".github/hooks/hooks.json" &&
+            finding.message.includes(
+              "workflow/hooks/agent-config/copilot-hooks.json",
+            ),
+        ),
+        `expected Copilot hook-config drift, findings=${JSON.stringify(report.findings)}`,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 

@@ -24,6 +24,12 @@ const QUALITY_EVIDENCE_METHODS = [
   "mixed",
 ] as const;
 const QUALITY_SCOPES = ["framework-self", "consumer"] as const;
+export const QUALITY_MODES = [
+  "process",
+  "agent-setup",
+  "harness",
+  "skills",
+] as const;
 const QUALITY_DELTA_TAGS = ["new", "persisted"] as const;
 const QUALITY_AUDIT_STATUSES = ["pass", "fail", "unavailable"] as const;
 const QUALITY_SCORE_VALUES = [0, 5, 10, 15, 20, 25] as const;
@@ -35,6 +41,7 @@ export type QualityEvidenceQuality =
   (typeof QUALITY_EVIDENCE_QUALITIES)[number];
 export type QualityEvidenceMethod = (typeof QUALITY_EVIDENCE_METHODS)[number];
 export type QualityScope = (typeof QUALITY_SCOPES)[number];
+export type QualityMode = (typeof QUALITY_MODES)[number];
 export type QualityDeltaTag = (typeof QUALITY_DELTA_TAGS)[number];
 export type QualityAuditStatus = (typeof QUALITY_AUDIT_STATUSES)[number];
 export type QualityAxisScore = (typeof QUALITY_SCORE_VALUES)[number];
@@ -91,6 +98,9 @@ export interface QualityReport {
   /** Optional: the rubric version under which scores were produced.
    *  Lets readers trace score derivation. Absent on v1 reports. */
   rubric_version?: string;
+  /** Optional: the quality workflow that produced the report.
+   *  Absent on legacy reports, which are treated as agent-setup history. */
+  quality_mode?: QualityMode;
   scores: QualityScores;
   findings: QualityFinding[];
 }
@@ -482,6 +492,7 @@ function parseReportInternal(
       "audit_status",
       "scope",
       "rubric_version",
+      "quality_mode",
       "scores",
       "findings",
     ],
@@ -549,6 +560,18 @@ function parseReportInternal(
     rubricVersion = parsedRubric.value;
   }
 
+  // quality_mode: optional on legacy reports, enum-validated when present.
+  let qualityMode: QualityMode | undefined;
+  if (Object.hasOwn(raw, "quality_mode")) {
+    const parsedQualityMode = expectEnumValue(
+      raw.quality_mode,
+      "report.quality_mode",
+      QUALITY_MODES,
+    );
+    if (!parsedQualityMode.ok) return parsedQualityMode;
+    qualityMode = parsedQualityMode.value;
+  }
+
   const scores = parseScores(raw.scores, "report.scores");
   if (!scores.ok) return scores;
   if (!Array.isArray(raw.findings)) {
@@ -571,6 +594,7 @@ function parseReportInternal(
     audit_status: auditStatus.value,
     ...(scope !== undefined ? { scope } : {}),
     ...(rubricVersion !== undefined ? { rubric_version: rubricVersion } : {}),
+    ...(qualityMode !== undefined ? { quality_mode: qualityMode } : {}),
     scores: scores.scores,
   };
 

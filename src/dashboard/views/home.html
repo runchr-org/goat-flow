@@ -1187,7 +1187,7 @@
             :key="p.id"
           >
             <button
-              @click="launchPreset(p.prompt, activeRunner); workspacePanel = 'terminal'"
+              @click="launchPreset(p.prompt, activeRunner, p.name, { presetId: p.id }); workspacePanel = 'terminal'"
               class="gf-action-btn"
               style="
                 text-align: left;

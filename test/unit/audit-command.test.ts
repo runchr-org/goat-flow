@@ -3,6 +3,7 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -14,6 +15,7 @@ import { AUDIT_VERSION, SKILL_NAMES } from "../../src/cli/constants.js";
 import { PROFILES } from "../../src/cli/detect/agents.js";
 import { composeSetup } from "../../src/cli/prompt/compose-setup.js";
 
+const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
 import { createFS } from "../../src/cli/facts/fs.js";
 import type {
@@ -902,6 +904,51 @@ describe("harness check howToFix", () => {
       result.findings.some((f) => f.includes("architecture.md")),
       `Findings should mention architecture.md: ${result.findings.join(", ")}`,
     );
+  });
+});
+
+describe("agent deny hook template comparison", () => {
+  const denyCheck = AGENT_CHECKS.find(
+    (check) => check.id === "agent-deny-dangerous",
+  );
+
+  it("fails when an installed deny hook differs from the canonical template", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const template = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
+      "utf-8",
+    );
+    const ctx = makeCtx({
+      agentFilter: "claude",
+      projectPath: PROJECT_ROOT,
+      fs: stubFS({
+        readFile: (path) =>
+          path === ".claude/hooks/deny-dangerous.sh"
+            ? `${template}\n# local drift\n`
+            : null,
+      }),
+    });
+    const result = denyCheck.run(ctx);
+    assert.ok(result, "expected hook version drift failure");
+    assert.match(result.message, /differs from the current goat-flow template/);
+    assert.equal(result.evidence, ".claude/hooks/deny-dangerous.sh");
+  });
+
+  it("passes when the installed deny hook matches the canonical template", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const template = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
+      "utf-8",
+    );
+    const ctx = makeCtx({
+      agentFilter: "claude",
+      projectPath: PROJECT_ROOT,
+      fs: stubFS({
+        readFile: (path) =>
+          path === ".claude/hooks/deny-dangerous.sh" ? template : null,
+      }),
+    });
+    assert.equal(denyCheck.run(ctx), null);
   });
 });
 

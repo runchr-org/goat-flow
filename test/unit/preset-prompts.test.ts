@@ -431,9 +431,20 @@ describe("preset prompt catalog", () => {
   it("adapts launch prompts with the requested runner and preserves target context", () => {
     const source = readFileSync(DASHBOARD_TERMINAL_PATH, "utf-8");
     assert.match(source, /ctx\.adaptPrompt\(prompt, runnerResolved\)/);
-    assert.match(source, /cwdPath: dashboardControllingWorkspace\(\)/);
-    assert.match(source, /targetPath: ctx\.projectPath/);
+    assert.match(source, /cwdPath: options\.cwdPath \?\? null/);
+    assert.match(
+      source,
+      /targetPath: options\.targetPath \?\? ctx\.projectPath/,
+    );
+    assert.match(
+      source,
+      /const controllingCwd = cwdPath \|\| selectedTargetPath/,
+    );
     assert.match(source, /GOAT Flow target context:/);
+    assert.match(
+      source,
+      /git -C \$\{dashboardShellQuote\(ctx\.projectPath\)\} status/,
+    );
 
     const adapt = (prompt: string, runner: string): string =>
       runner === "codex" ? prompt.replace(/^\/goat\b/, "$goat") : prompt;
@@ -513,6 +524,9 @@ describe("preset prompt catalog", () => {
     assert.doesNotMatch(source, /\/goat-review audit AI harness/);
     assert.match(source, /dashboardQualityReportLogPrompt/);
     assert.match(source, /\.goat-flow\/logs\/quality/);
+    assert.match(source, /"quality_mode"/);
+    assert.match(source, /mode=\$\{encodeURIComponent\(requestModeId\)\}/);
+    assert.match(source, /isCurrentRequest/);
     assert.match(source, /quality validate "\$FILE"/);
     assert.match(source, /Wrote quality report to \.goat-flow\/logs\/quality/);
     assert.match(source, /source: "api"/);

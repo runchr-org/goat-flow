@@ -64,6 +64,11 @@ function dashboardControllingWorkspace(): string {
   return window.__GOAT_FLOW_DEFAULT_PATH__ ?? ".";
 }
 
+/** Return a POSIX-shell-safe single-quoted string for command examples. */
+function dashboardShellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
 /** Build target context appended to launched preset prompts. */
 function dashboardGlobalLaunchContext(
   ctx: DashboardTerminalContext,
@@ -89,7 +94,7 @@ function dashboardGlobalLaunchContext(
     `- Selected target project for code evidence: ${ctx.projectPath}`,
     `- Runner: ${runner}`,
     "- Target projects do not need goat-flow installed; missing target .goat-flow, skills, hooks, or stale goat-flow files are normal unless this preset audits goat-flow installation.",
-    `- Use target-scoped commands such as git -C ${ctx.projectPath} status when inspecting the selected target.`,
+    `- Use target-scoped commands such as git -C ${dashboardShellQuote(ctx.projectPath)} status when inspecting the selected target.`,
     `- ${writeLine}`,
     ...(routeLine ? [`- ${routeLine}`] : []),
   ].join("\n");
@@ -340,15 +345,25 @@ async function dashboardLaunchPreset(
   prompt: string,
   runner?: RunnerId,
   label?: string,
+  options: {
+    presetId?: string | null;
+    cwdPath?: string | null;
+    targetPath?: string | null;
+  } = {},
 ): Promise<void> {
   if (ctx.launching) return;
-  const preset = ctx.allPresets.find(
-    (p) =>
-      ctx.adaptPrompt(p.prompt) === ctx.adaptPrompt(prompt) ||
-      (typeof label === "string" && p.name === label),
-  );
+  const preset =
+    (options.presetId
+      ? (ctx.allPresets.find((p) => p.id === options.presetId) ?? null)
+      : null) ??
+    ctx.allPresets.find(
+      (p) =>
+        ctx.adaptPrompt(p.prompt) === ctx.adaptPrompt(prompt) ||
+        (typeof label === "string" && p.name === label),
+    ) ??
+    null;
   const promptLabel = label || preset?.name || "Custom prompt";
-  const presetId = preset?.id || null;
+  const presetId = preset?.id || options.presetId || null;
   const runnerResolved = runner || ctx.activeRunner;
   if (presetId) ctx.promptRunStates[presetId] = "running";
   let adapted = ctx.adaptPrompt(prompt, runnerResolved);
@@ -366,8 +381,8 @@ async function dashboardLaunchPreset(
   await ctx.launchInTerminal(adapted, runnerResolved, {
     promptLabel,
     presetId,
-    cwdPath: dashboardControllingWorkspace(),
-    targetPath: ctx.projectPath,
+    cwdPath: options.cwdPath ?? null,
+    targetPath: options.targetPath ?? ctx.projectPath,
   });
 }
 
@@ -532,7 +547,7 @@ async function dashboardLaunchInTerminal(
       AlpineMagics<DashboardTerminalContext>;
     await ctx.loadXterm();
     const selectedTargetPath = targetPath || ctx.projectPath;
-    const controllingCwd = cwdPath || dashboardControllingWorkspace();
+    const controllingCwd = cwdPath || selectedTargetPath;
     const res = await fetch("/api/terminal/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

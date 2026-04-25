@@ -504,6 +504,7 @@ function app() {
       self.$watch("selectedQualityModeId", () => {
         if (this.activeView === "quality") {
           void this.generateQuality();
+          void this.generateQualityHistory();
         }
       });
       self.$watch("showInternalPresets", (v: boolean) => {
@@ -597,6 +598,8 @@ function app() {
                 void this.launchPreset(
                   this.selectedPreset.prompt,
                   this.activeRunner,
+                  this.selectedPreset.name,
+                  { presetId: this.selectedPreset.id },
                 );
               }
             }
@@ -803,8 +806,17 @@ function app() {
       await dashboardLoadXterm(this);
     },
     /** Launch a preset prompt in the selected runner. */
-    async launchPreset(prompt: string, runner?: RunnerId, label?: string) {
-      await dashboardLaunchPreset(this, prompt, runner, label);
+    async launchPreset(
+      prompt: string,
+      runner?: RunnerId,
+      label?: string,
+      options?: {
+        presetId?: string | null;
+        cwdPath?: string | null;
+        targetPath?: string | null;
+      },
+    ) {
+      await dashboardLaunchPreset(this, prompt, runner, label, options);
     },
     /** Drop a session id from every project's saved list, pruning empty entries. */
     _forgetSavedSession(sessionId: string) {

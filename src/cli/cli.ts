@@ -640,6 +640,7 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
   const priorReport = getLatestQualityHistoryEntry(
     history.entries,
     options.agent,
+    "agent-setup",
   );
   for (const warning of history.warnings) {
     console.error(warning);

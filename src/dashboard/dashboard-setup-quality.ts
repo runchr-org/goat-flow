@@ -169,6 +169,9 @@ function dashboardQualityReportLogPrompt(
 ): string {
   const agent = ctx.qualityAgent;
   const projectPath = ctx.projectPath;
+  const agentJson = JSON.stringify(agent);
+  const projectPathJson = JSON.stringify(projectPath);
+  const modeJson = JSON.stringify(mode.id);
   return [
     "Quality report log:",
     "- Write the final machine-readable report to `.goat-flow/logs/quality/`. This path is gitignored and expected; do not write the JSON inline only.",
@@ -185,12 +188,13 @@ function dashboardQualityReportLogPrompt(
     "{",
     '  "report_kind": "goat-flow-quality-report",',
     '  "goat_flow_version": "1.3.0",',
-    `  "agent": "${agent}",`,
-    `  "project_path": "${projectPath}",`,
+    `  "agent": ${agentJson},`,
+    `  "project_path": ${projectPathJson},`,
     '  "run_date": "YYYY-MM-DD",',
     '  "audit_status": "pass | fail | unavailable",',
     '  "scope": "framework-self | consumer",',
     '  "rubric_version": "1.3.0",',
+    `  "quality_mode": ${modeJson},`,
     '  "scores": {',
     '    "setup": { "total": 0, "accuracy": 0, "relevance": 0, "completeness": 0, "friction": 0 },',
     '    "system": { "total": 0, "usefulness": 0, "signal_to_noise": 0, "adaptability": 0, "learnability": 0 }',
@@ -344,6 +348,13 @@ async function dashboardGenerateQuality(
   ctx.qualityLoading = true;
   ctx.qualityResult = null;
   ctx.qualityCopyLabel = "Copy";
+  const requestModeId = ctx.selectedQualityModeId;
+  const requestProjectPath = ctx.projectPath;
+  const requestAgent = ctx.qualityAgent;
+  const isCurrentRequest = (): boolean =>
+    ctx.selectedQualityModeId === requestModeId &&
+    ctx.projectPath === requestProjectPath &&
+    ctx.qualityAgent === requestAgent;
   const mode = dashboardSelectedQualityModeMeta(ctx);
   if (mode && mode.source !== "api") {
     const prompt = dashboardBuildQualityModePrompt(ctx, mode);
@@ -364,9 +375,10 @@ async function dashboardGenerateQuality(
   }
   try {
     const res = await fetch(
-      `/api/quality?path=${encodeURIComponent(ctx.projectPath)}&agent=${encodeURIComponent(ctx.qualityAgent)}`,
+      `/api/quality?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestAgent)}`,
     );
     const payload = readRecord(await res.json(), "Quality response");
+    if (!isCurrentRequest()) return;
     const error = readErrorMessage(payload);
     if (error) {
       ctx.showToast(error, true);
@@ -375,10 +387,11 @@ async function dashboardGenerateQuality(
       void ctx.generateQualityHistory();
     }
   } catch (err) {
+    if (!isCurrentRequest()) return;
     const msg = err instanceof Error ? err.message : String(err);
     ctx.showToast(msg || "Quality prompt generation failed", true);
   }
-  ctx.qualityLoading = false;
+  if (isCurrentRequest()) ctx.qualityLoading = false;
 }
 
 /** Load persisted quality-history rows for the selected project and agent. */
@@ -389,11 +402,19 @@ async function dashboardGenerateQualityHistory(
   ctx.qualityHistoryRows = [];
   ctx.qualityHistoryLatest = null;
   ctx.qualityHistoryWarnings = [];
+  const requestModeId = ctx.selectedQualityModeId;
+  const requestProjectPath = ctx.projectPath;
+  const requestAgent = ctx.qualityAgent;
+  const isCurrentRequest = (): boolean =>
+    ctx.selectedQualityModeId === requestModeId &&
+    ctx.projectPath === requestProjectPath &&
+    ctx.qualityAgent === requestAgent;
   try {
     const res = await fetch(
-      `/api/quality/history?path=${encodeURIComponent(ctx.projectPath)}&agent=${encodeURIComponent(ctx.qualityAgent)}&limit=20`,
+      `/api/quality/history?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestAgent)}&mode=${encodeURIComponent(requestModeId)}&limit=20`,
     );
     const payload = readRecord(await res.json(), "Quality history response");
+    if (!isCurrentRequest()) return;
     const error = readErrorMessage(payload);
     if (error) {
       ctx.showToast(error, true);
@@ -407,10 +428,11 @@ async function dashboardGenerateQualityHistory(
       ctx.qualityHistoryWarnings = readStringArray(payload.warnings);
     }
   } catch (err) {
+    if (!isCurrentRequest()) return;
     const msg = err instanceof Error ? err.message : String(err);
     ctx.showToast(msg || "Quality history loading failed", true);
   }
-  ctx.qualityHistoryLoading = false;
+  if (isCurrentRequest()) ctx.qualityHistoryLoading = false;
 }
 
 /** Copy the current quality prompt to the clipboard. */

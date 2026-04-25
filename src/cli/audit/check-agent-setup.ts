@@ -323,7 +323,7 @@ function checkHookVersion(ctx: AuditContext): AuditFailure | null {
       return {
         check: "Agent deny mechanism",
         message: `deny-dangerous.sh for ${af.agent.id} differs from the current goat-flow template (v${AUDIT_VERSION})`,
-        evidence: `${af.agent.hooksDir}/deny-dangerous.sh`,
+        evidence: denyRelPath,
         howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} setup --agent ${af.agent.id}\` to update the hook to the latest version.`,
       };
     }
@@ -350,7 +350,7 @@ function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
       return {
         check: "Agent deny mechanism",
         message: `deny-dangerous.sh --self-test failed for ${af.agent.id}`,
-        evidence: `${af.agent.hooksDir}/deny-dangerous.sh`,
+        evidence: denyRelPath,
         howToFix:
           "Run `bash <hooks-dir>/deny-dangerous.sh --self-test` to see which cases fail.",
       };
