@@ -84,6 +84,27 @@ last_reviewed: 2026-04-27
 
 ---
 
+## Footgun: Nested hook checks must reuse the command segment splitter
+
+**Status:** active | **Created:** 2026-04-27 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A hook can block top-level `true; rm -rf /` while allowing the same dangerous command when it is nested inside `bash -c "true; rm -rf /"` or `echo "$(true; rm -rf /)"`.
+
+**Why it happens:** Top-level hook input is split on `&&`, `||`, semicolons, and newlines before checking each segment. Recursive paths for command substitution, process substitution, and `bash -c` can accidentally call the raw segment checker directly. If the nested string starts with a read-only verb such as `echo`, the read-only whitelist returns before the later destructive segment is inspected.
+
+**Evidence:**
+- `workflow/hooks/deny-dangerous.sh` (search: `check_command_segments`) - central splitter now reused by top-level checks, command substitution/process substitution recursion, and `bash -c` recursion.
+- `workflow/hooks/deny-dangerous.sh` (search: `bash -c semicolon dangerous`) - self-test locks the nested `bash -c "echo ok; rm -rf /"` bypass.
+- `workflow/hooks/deny-dangerous.sh` (search: `dangerous chained dollar substitution`) - self-test locks the nested command-substitution bypass.
+- Runtime proof before the fix: `bash workflow/hooks/deny-dangerous.sh --self-test` returned `FAIL [bash -c semicolon dangerous]: expected 2, got 0`, `FAIL [bash -c and-chain dangerous]: expected 2, got 0`, and `FAIL [bash -c semicolon git push]: expected 2, got 0`.
+
+**Prevention:**
+1. Recursive hook paths MUST call `check_command_segments`, not `check_segment`, unless the caller has already split shell control operators.
+2. Every nested execution feature (`bash -c`, `$()`, `<()`) needs at least one chained-danger self-test, not only a single-danger command body.
+3. When a hook edit touches read-only whitelisting or recursive parsing, run the hook self-test before syncing copies so failures point at the canonical template.
+
+---
+
 ## Resolved Entries
 
 > Historical record. These entries are no longer active traps.
