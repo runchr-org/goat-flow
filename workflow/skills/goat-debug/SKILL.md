@@ -36,7 +36,7 @@ If vague, ask about: goal, symptom/error message, area involved.
 **Quick path:** diagnose and report; **full path:** run D1–D4.
 **Footgun check:** Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/` and `.goat-flow/lessons/` for the target area. Surface matches or an explicit retrieval miss; do not broad-load either bucket.
 
-**UI bug detection:** Does the bug report reference a URL, a UI element, a visual rendering issue, browser DevTools output, or a browser console/network symptom? If yes, read `references/browser-use.md` for browser evidence tools. Browser evidence is available when `browser-use` is installed; if missing, the reference includes a manual fallback.
+**UI bug detection:** Does the bug report reference a URL, a UI element, a visual rendering issue, browser DevTools output, or a browser console/network symptom? If yes, read `references/browser-use.md` for browser evidence tools. Check with `command -v browser-use`. If not installed, offer to install it (`pip install browser-use`) and wait for the user's response — never auto-install or silently fall back. If the user declines or installation fails, use the manual fallback in the reference.
 
 
 ## Diagnose Mode

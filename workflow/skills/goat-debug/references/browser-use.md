@@ -12,7 +12,7 @@ Before first use in a session, verify the tool is installed:
 command -v browser-use && browser-use doctor
 ```
 
-If missing, ask the user before installing — never auto-install. If installation is not feasible, use the manual fallback section below.
+If missing, offer to install: "browser-use is not installed. Want me to install it (`pip install browser-use`)? Or I can work from manual evidence (screenshots, DevTools output) instead." Never auto-install. If the user approves, run `pip install browser-use` and then `browser-use doctor` to verify. If the user declines or installation fails, use the manual fallback section below.
 
 ## D1 evidence capture workflow
 
