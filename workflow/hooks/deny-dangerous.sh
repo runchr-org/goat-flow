@@ -252,13 +252,15 @@ run_self_test() {
 
   # Safe command should pass.
   run_case "safe echo" "echo hello" 0
-  # Direct push branches should block (legacy + production/deploy).
+  # All git push commands should block.
   run_case "direct push main" "git push origin main" 2
   run_case "direct push master" "git push origin master" 2
   run_case "direct push production" "git push origin production" 2
   run_case "direct push deploy" "git push origin deploy" 2
-  run_case "feature branch containing protected word" "git push origin feature/main-menu-fix" 0
-  run_case "feature branch containing deploy word" "git push origin deploy-script-cleanup" 0
+  run_case "push feature branch" "git push origin feature/main-menu-fix" 2
+  run_case "push branch containing deploy word" "git push origin deploy-script-cleanup" 2
+  run_case "bare git push" "git push" 2
+  run_case "push with upstream" "git push -u origin my-branch" 2
   # Unsafe rm command should still block.
   run_case "rm unsafe" "rm -rf /" 2
   run_case "rm unsafe separated flags" "rm -r -f /" 2
@@ -478,25 +480,6 @@ rm_is_safely_scoped() {
   [[ "$c" =~ ^[[:space:]]*rm([[:space:]]+--?[[:alnum:]-]+)*[[:space:]]+(\./[a-zA-Z][^[:space:]]*|[a-zA-Z][^[:space:]]*|/tmp/[a-zA-Z0-9._-][^[:space:]]*)[[:space:]]*$ ]]
 }
 
-is_protected_push_token() {
-  local token="$1"
-  local ref="$1"
-
-  case "$token" in
-    ""|-) return 1 ;;
-    -*) return 1 ;;
-  esac
-
-  if [[ "$ref" == *:* ]]; then
-    ref="${ref##*:}"
-  fi
-  ref="${ref#refs/heads/}"
-
-  case "$ref" in
-    main|master|production|deploy) return 0 ;;
-  esac
-  return 1
-}
 
 check_segment() {
   local cmd="$1"
@@ -593,37 +576,10 @@ check_segment() {
     fi
   fi
 
-  # 3. Direct push to main/master (case-insensitive)
+  # 3. All git push (agents must never push; the user pushes manually)
   local cmd_lower="${cmd,,}"
   if [[ "$cmd_lower" =~ ^[[:space:]]*git[[:space:]]+push([[:space:]]|$) ]]; then
-    local -a push_tokens=()
-    local saw_remote=0
-    read -r -a push_tokens <<< "$cmd_lower"
-    for token in "${push_tokens[@]:2}"; do
-      [[ "$token" == -* ]] && continue
-      if [[ "$saw_remote" -eq 0 ]]; then
-        saw_remote=1
-        continue
-      fi
-      if is_protected_push_token "$token"; then
-        block "Direct push to main/master/production/deploy. Push to a feature branch and open a PR."
-      fi
-    done
-  fi
-
-  # 4. Force push --force-with-lease (check before --force so specific match wins)
-  if [[ "$cmd" =~ git[[:space:]]+push[[:space:]]+.*--force-with-lease ]]; then
-    block "git push --force-with-lease. Ask the user before force-pushing, even with lease protection."
-  fi
-
-  # 5. Force push --force
-  if [[ "$cmd" =~ git[[:space:]]+push[[:space:]]+.*--force([[:space:]]|$) ]]; then
-    block "git push --force rewrites remote history. Use --force-with-lease with user approval."
-  fi
-
-  # 6. Force push -f shorthand
-  if [[ "$cmd" =~ git[[:space:]]+push[[:space:]]+(.*[[:space:]])?-f([[:space:]]|$) ]]; then
-    block "git push -f (force push shorthand). Use --force-with-lease with user approval."
+    block "git push is not allowed. Ask the user to push manually."
   fi
 
   # 7. chmod 777 (world-writable)

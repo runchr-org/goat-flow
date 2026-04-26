@@ -1,6 +1,6 @@
 ---
 category: setup-and-migration
-last_reviewed: 2026-04-19
+last_reviewed: 2026-04-26
 ---
 
 ## Lesson: Agents given broad setup tasks rewrite shared docs as agent-specific
@@ -62,6 +62,16 @@ last_reviewed: 2026-04-19
 **Root cause:** Treated the change as "simplify scaffold/docs" instead of "change the semantics of a public config concept." The same concept also lived in advisory harness checks, summary copy, and recommendations.
 
 **Prevention:** When removing or downgrading a config concept, audit these surfaces together: config scaffold, setup docs, prompt text, harness checks, harness summaries, and focused regressions. Always run `goat-flow audit . --harness --format json` after the edit to confirm the user-facing contract matches the docs.
+
+---
+
+## Lesson: Installed settings.json deny patterns drifted from workflow templates undetected
+
+**Created:** 2026-04-26
+
+**What happened:** Multi-agent quality reports found `.claude/settings.json` had `Bash(*git push*--force*)` while the workflow template (`workflow/hooks/agent-config/claude.json`) had the correct `Bash(*git push*)`. The installed copy was weaker than intended, allowing feature-branch pushes that the template blocked. `.gemini/settings.json` was correct. The drift was invisible because no preflight or audit check compares installed settings patterns against their templates.
+**Root cause:** Preflight has parity checks for skill files (`Skill SKILL.md Parity`) and shared references (`Preamble/Conventions Sync`), but no equivalent for settings.json deny patterns. The settings files are hand-maintained after install, and edits to one agent's settings don't automatically propagate or verify against the template.
+**Prevention:** After changing deny patterns in `workflow/hooks/agent-config/*.json`, diff the installed copy against the template before closing the change. Consider adding a preflight settings-parity check.
 
 ---
 

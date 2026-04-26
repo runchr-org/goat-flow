@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>What is Harness Engineering? - AI coding agent guardrails, memory, and workflows | goat-flow</title>
+<title>Harness Engineering: AI coding agent guardrails, memory, and workflows | goat-flow</title>
 <meta name="description" content="Harness engineering is the practice of wrapping AI coding agents with guardrails, structured workflows, and persistent memory. Learn the five concerns framework for Claude Code, Codex, Gemini CLI, and Copilot CLI.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://goat-flow.com/what-is-harness-engineering">
@@ -11,14 +11,14 @@
 <!-- Open Graph -->
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://goat-flow.com/what-is-harness-engineering">
-<meta property="og:title" content="What is Harness Engineering? - Guardrails and memory for AI coding agents">
+<meta property="og:title" content="Harness Engineering: Guardrails and memory for AI coding agents">
 <meta property="og:description" content="Harness engineering is the practice of wrapping AI coding agents with guardrails, structured workflows, and persistent memory. The five concerns framework explained.">
 <meta property="og:image" content="https://goat-flow.com/goat-flow-og.jpg">
 <meta property="og:site_name" content="goat-flow">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="What is Harness Engineering? - AI coding agent guardrails">
+<meta name="twitter:title" content="Harness Engineering: AI coding agent guardrails">
 <meta name="twitter:description" content="The practice of wrapping AI coding agents with guardrails, workflows, and memory. The five concerns framework explained.">
 <meta name="twitter:image" content="https://goat-flow.com/goat-flow-og.jpg">
 
@@ -27,7 +27,7 @@
 {
   "@context": "https://schema.org",
   "@type": "Article",
-  "headline": "What is Harness Engineering?",
+  "headline": "Harness Engineering: AI coding agent guardrails, memory, and workflows",
   "description": "Harness engineering is the practice of wrapping AI coding agents with guardrails, structured workflows, and persistent memory so they operate safely and reliably in production.",
   "author": {
     "@type": "Organization",
@@ -61,7 +61,7 @@
     {
       "@type": "ListItem",
       "position": 2,
-      "name": "What is Harness Engineering?",
+      "name": "Harness Engineering",
       "item": "https://goat-flow.com/what-is-harness-engineering"
     }
   ]
@@ -95,7 +95,7 @@
       "name": "What is the difference between a system prompt and a harness?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "A system prompt is a suggestion the model can ignore under pressure. A harness enforces rules structurally at the tool layer, where the model cannot bypass them. A deny hook that blocks 'git push --force' is a guarantee; the same rule in a markdown file has roughly a 30% bypass rate."
+        "text": "A system prompt is a suggestion the model can ignore under pressure. A harness enforces rules structurally at the tool layer, where the model cannot bypass them. A deny hook that blocks 'git push --force' is a guarantee; the same rule in a markdown file is guidance."
       }
     },
     {
@@ -504,7 +504,7 @@
   <div class="article-hero-glow"></div>
   <div class="article-hero-inner">
     <div class="eyebrow">The practice</div>
-    <h1>What is harness engineering?</h1>
+    <h1>Harness Engineering: guardrails, memory, and workflows for AI coding agents</h1>
     <p class="lead">
       The metaphor is equestrian. A harness channels a horse's power into work you can direct. The model is the horse. The harness is everything that turns raw capability into reliable output.
     </p>
@@ -523,7 +523,7 @@
   </p>
 
   <p>
-    The case for the harness as the binding constraint has stacked up fast. Pi Research changed <em>only</em> the edit-tool format on a coding benchmark — same model throughout — and watched one configuration go from 6.7% to 68.3%. A ten-fold improvement. No model change. Just a different way of expressing the same action to the same model.
+    The case for the harness as the binding constraint has stacked up fast. <a href="https://blog.can.ac/2026/02/12/the-harness-problem/" target="_blank" rel="noopener">Can Bölük changed <em>only</em> the edit-tool format</a> on a coding benchmark, using the same model throughout, and watched one configuration go from 6.7% to 68.3%. A ten-fold improvement. No model change. Just a different way of expressing the same action to the same model.
   </p>
 
   <p>
@@ -534,12 +534,12 @@
   <h2>The industry consensus</h2>
 
   <p>
-    In February 2026, OpenAI's Codex team published a post about a five-month experiment: shipping a product to internal users with zero human-written code. A million lines of code, 1,500 pull requests, seven engineers steering agents. Their post-mortem reads like independent confirmation of the harness literature. The same concerns. The same observations:
+    In February 2026, <a href="https://openai.com/index/harness-engineering/" target="_blank" rel="noopener">OpenAI's Codex team published</a> a post about a five-month experiment: shipping a product to internal users with zero human-written code. About a million lines of code, roughly 1,500 pull requests, three engineers steering agents. Their post-mortem reads like independent confirmation of the harness literature. The same concerns. The same observations:
   </p>
 
   <blockquote>
     Give the agent a map, not a 1,000-page instruction manual. Enforce invariants rather than specific implementations. Anything the agent can't see in its context at runtime effectively doesn't exist.
-    <cite>— OpenAI Codex team</cite>
+    <cite>- OpenAI Codex team</cite>
   </blockquote>
 
   <p>
@@ -547,15 +547,15 @@
   </p>
 
   <p>
-    The same week, LangChain published a harness experiment with harder numbers. They took their coding agent from Top 30 to Top 5 on Terminal Bench 2.0 — a 13.7-point jump from 52.8 to 66.5. The model stayed the same: GPT-5.2-Codex, start to finish. Only the harness changed. If you want one empirical data point for "the harness is the product, not the model," that's it.
+    The same week, <a href="https://www.langchain.com/blog/improving-deep-agents-with-harness-engineering" target="_blank" rel="noopener">LangChain published</a> a harness experiment with harder numbers. They took their coding agent from Top 30 to Top 5 on Terminal Bench 2.0, a 13.7-point jump from 52.8 to 66.5. The model stayed the same: GPT-5.2-Codex, start to finish. Only the harness changed. If you want one empirical data point for "the harness is the product, not the model," that's it.
   </p>
 
   <p>
-    Stripe is running the pattern at production scale. Their Minions system ships over a thousand pull requests per week through a hybrid architecture: deterministic harness nodes for CI and linting, agentic nodes for implementation, a harness-enforced limit of two CI rounds before escalation to a human, and a curated subset of around 500 MCP tools exposed per agent rather than the full catalogue. The tool curation isn't decoration. Over-tooling degraded performance in their testing, so the harness solved it with scope restriction instead of asking the model to restrain itself.
+    <a href="https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents" target="_blank" rel="noopener">Stripe is running</a> the pattern at production scale. Their Minions system ships over a thousand pull requests per week through a hybrid architecture: deterministic harness nodes for CI and linting, agentic nodes for implementation, a harness-enforced limit of two CI rounds before escalation to a human, and a curated subset of over 400 MCP tools exposed per agent rather than the full catalogue. The tool curation isn't decoration. Over-tooling degrades performance, so the harness solves it with scope restriction instead of asking the model to restrain itself.
   </p>
 
   <p>
-    Three organizations, three different architectures, one recurring finding: <strong>the model is not the binding constraint. The harness is.</strong>
+    Three teams, three architectures. Same finding: <strong>the model is not the binding constraint. The harness is.</strong>
   </p>
 
   <!-- What a Harness Is -->
@@ -592,10 +592,10 @@
 
   <ol>
     <li>
-      <strong>Prompt engineering (2022–2024):</strong> The lever was the text you put in front of the model — phrasing, few-shot examples, chain-of-thought structure. One exchange, one output. The question was: <em>What do I say to get a better answer?</em>
+      <strong>Prompt engineering (2022-2024):</strong> The lever was the text you put in front of the model: phrasing, few-shot examples, chain-of-thought structure. One exchange, one output. The question was: <em>What do I say to get a better answer?</em>
     </li>
     <li>
-      <strong>Context engineering (2024–2025):</strong> As sessions got longer and tool calls got noisier, the question shifted. Document retrieval, history compression, which tool results to format how, what to drop when the window fills. The question became: <em>What should the model be able to see right now?</em>
+      <strong>Context engineering (2024-2025):</strong> As sessions got longer and tool calls got noisier, the question shifted. Document retrieval, history compression, which tool results to format how, what to drop when the window fills. The question became: <em>What should the model be able to see right now?</em>
     </li>
     <li>
       <strong>Harness engineering (now):</strong> Once the model is capable enough to handle a long task but still unreliable in production, the question changes again. It's no longer about the input or the information around the input. It's about the whole operational envelope: tools, guardrails, verification, recovery, and persistent memory. The question now is: <em>What does the model need around it to do real work?</em>
@@ -663,7 +663,7 @@
   </p>
 
   <p>
-    Good context is lean, current, and mechanically verifiable. A short entry point that points to deeper sources of truth beats one monolithic manual every time.
+    Good context is lean and current. A short entry point that points to deeper sources of truth beats one monolithic manual every time.
   </p>
 
   <h3>2. Constraints</h3>
@@ -677,7 +677,7 @@
   </p>
 
   <p>
-    There's a quieter kind of constraint that gets missed: <em>what you don't give the agent</em>. Vercel's engineering team reduced the tools available to their agent from 15 to 2 and watched task accuracy climb from 80% to 100%. Removing capability improved outcomes. More tools mean more places to get lost. A tight, task-appropriate toolset is the cheapest reliability gain on the table.
+    There's a quieter kind of constraint that gets missed: <em>what you don't give the agent</em>. <a href="https://vercel.com/blog/we-removed-80-percent-of-our-agents-tools/" target="_blank" rel="noopener">Vercel removed 80% of the tools</a> from its internal d0 data agent and measured task success climb from 80% to 100%. Removing capability improved outcomes. More tools mean more places to get lost. A tight, task-appropriate toolset is the cheapest reliability gain on the table.
   </p>
 
   <h3>3. Verification</h3>
@@ -687,11 +687,11 @@
   </p>
 
   <p>
-    Today's models are exceptional self-improvement machines — they just don't start the loop on their own. LangChain's trace analysis found the most common failure mode was the agent writing a solution, re-reading its own code, confirming it looks ok, and stopping. It never wrote a test. The agent was capable of verifying its work — it just wasn't inclined to. The harness has to force the loop.
+    Models can improve their own work, but they do not start the loop on their own. LangChain's trace analysis found the most common failure mode was the agent writing a solution, re-reading its own code, confirming it looks ok, and stopping. It never wrote a test. The agent was capable of verifying its work. The harness has to force the loop.
   </p>
 
   <p>
-    Anthropic's research documents a related problem: self-evaluation bias. Agents score their own output high, even on tasks with objective pass/fail criteria. The fix borrows from GANs: separate the generator from the evaluator completely, and let adversarial tension force quality up.
+    <a href="https://www.anthropic.com/engineering/harness-design-long-running-apps" target="_blank" rel="noopener">Anthropic's long-running harness work</a> points at a related problem: the same agent that built the thing is a weak final judge of it. The fix borrows from GANs: separate the generator from the evaluator, then let adversarial tension force quality up.
   </p>
 
   <p>
@@ -705,7 +705,7 @@
   </p>
 
   <p>
-    Recovery also covers a weirder failure mode. The Cognition team (Devin) documented a phenomenon called "context anxiety." As the context window fills, the model becomes aware of the approaching limit and starts taking shortcuts — wrapping up tasks prematurely. Their fix was pure harness engineering: enable the 1M-token beta, cap actual usage at 200K, and trick the model into believing it has ample runway. The anxiety vanished. No model change required — just a smarter environment.
+    Recovery also covers a weirder failure mode. The <a href="https://cognition.ai/blog/devin-sonnet-4-5-lessons-and-challenges" target="_blank" rel="noopener">Cognition team documented</a> a phenomenon called "context anxiety." As the context window fills, the model becomes aware of the approaching limit and starts taking shortcuts, wrapping up tasks prematurely. Their fix was pure harness engineering: enable the 1M-token beta, cap actual usage at 200K, and trick the model into believing it has ample runway. The anxiety vanished. No model change required, just a smarter environment.
   </p>
 
   <h3>5. Feedback loop</h3>
@@ -720,7 +720,7 @@
 
   <ol>
     <li><strong>If it isn't in-context, it doesn't exist.</strong> An architectural agreement reached in a Slack thread or a senior engineer's head is invisible to a fresh session. If it isn't persisted into the repo, the agent doesn't have it.</li>
-    <li><strong>Persisted memory rots.</strong> Lessons go stale. A mature harness includes something that cleans up its own memory — a periodic garden pass that consolidates or removes entries that no longer reflect reality.</li>
+    <li><strong>Persisted memory rots.</strong> Lessons go stale. A mature harness includes something that cleans up its own memory, a periodic garden pass that consolidates or removes entries that no longer reflect reality.</li>
   </ol>
 
   <hr class="section-divider">
@@ -763,46 +763,76 @@
 
   <ul class="sources-list">
     <li>
-      <span class="author">Mitchell Hashimoto</span> —
-      <span class="title">"My AI Adoption Journey"</span>
+      <span class="author">Mitchell Hashimoto</span> -
+      <a href="https://mitchellh.com/writing/my-ai-adoption-journey" target="_blank" rel="noopener"><span class="title">"My AI Adoption Journey"</span></a>
       <span class="date">(Feb 2026)</span><br>
       Coined "harness engineering." Established the core principle: when an agent makes a mistake, engineer a solution so it never makes that mistake again.
     </li>
     <li>
-      <span class="author">OpenAI</span> —
-      <span class="title">"Harness engineering: leveraging Codex in an agent-first world"</span>
+      <span class="author">OpenAI</span> -
+      <a href="https://openai.com/index/harness-engineering/" target="_blank" rel="noopener"><span class="title">"Harness engineering: leveraging Codex in an agent-first world"</span></a>
       <span class="date">(Feb 2026)</span><br>
-      Five-month, zero-human-code experiment. A million lines, 1,500 PRs. Custom linters, structural tests, error messages with remediation.
+      Five-month, zero-human-code experiment. About a million lines, roughly 1,500 PRs. Custom linters, structural tests, error messages with remediation.
     </li>
     <li>
-      <span class="author">Birgitta Böckeler</span> —
-      <span class="title">"Harness Engineering"</span> on martinfowler.com
+      <span class="author">Birgitta Böckeler</span> -
+      <a href="https://martinfowler.com/articles/harness-engineering.html" target="_blank" rel="noopener"><span class="title">"Harness engineering for coding agent users"</span></a> on martinfowler.com
       <span class="date">(Apr 2026)</span><br>
       Feedforward/feedback taxonomy. Computational controls that steer the agent before it acts and observe after.
     </li>
     <li>
-      <span class="author">Anthropic Engineering</span> —
-      <span class="title">"Scaling Managed Agents"</span>
+      <span class="author">Anthropic Engineering</span> -
+      <a href="https://www.anthropic.com/engineering/managed-agents" target="_blank" rel="noopener"><span class="title">"Scaling Managed Agents"</span></a>
       <span class="date">(Apr 2026)</span><br>
       Brain/hands decoupling. Session durability and checkpoint-resume with external event logs.
     </li>
     <li>
-      <span class="author">LangChain</span> —
-      <span class="title">Terminal Bench 2.0 harness experiment</span>
+      <span class="author">LangChain</span> -
+      <a href="https://www.langchain.com/blog/improving-deep-agents-with-harness-engineering" target="_blank" rel="noopener"><span class="title">Terminal Bench 2.0 harness experiment</span></a>
       <span class="date">(Feb 2026)</span><br>
       Top 30 to Top 5 with harness changes alone. 13.7-point jump, same model throughout.
     </li>
     <li>
-      <span class="author">HumanLayer (Kyle)</span> —
-      <span class="title">"Skill Issue: Harness Engineering for Coding Agents"</span>
+      <span class="author">HumanLayer (Kyle)</span> -
+      <a href="https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents" target="_blank" rel="noopener"><span class="title">"Skill Issue: Harness Engineering for Coding Agents"</span></a>
       <span class="date">(Mar 2026)</span><br>
       Most practical configuration guide. Agent success correlates with verification ability, not production ability.
     </li>
     <li>
-      <span class="author">Han Heloir Yan</span> —
-      <span class="title">"Anthropic Just Shipped Three of the Five Harness Layers"</span>
+      <span class="author">Han Heloir Yan</span> -
+      <a href="https://medium.com/@han.heloir/anthropic-just-shipped-three-of-the-five-harness-layers-for-managed-agent-and-the-other-two-are-on-14979cb4cf00" target="_blank" rel="noopener"><span class="title">"Anthropic Just Shipped Three of the Five Harness Layers"</span></a>
       <span class="date">(Apr 2026)</span><br>
       Five-layer stack synthesis. L1 Constraint as "the highest marginal return on a managed platform."
+    </li>
+    <li>
+      <span class="author">Can Bölük</span> -
+      <a href="https://blog.can.ac/2026/02/12/the-harness-problem/" target="_blank" rel="noopener"><span class="title">"I Improved 15 LLMs at Coding in One Afternoon. Only the Harness Changed."</span></a>
+      <span class="date">(Feb 2026)</span><br>
+      Hashline edit-tool benchmark. Grok Code Fast 1 moved from 6.7% to 68.3% with the model held fixed.
+    </li>
+    <li>
+      <span class="author">Vercel</span> -
+      <a href="https://vercel.com/blog/we-removed-80-percent-of-our-agents-tools/" target="_blank" rel="noopener"><span class="title">"We removed 80% of our agent's tools"</span></a>
+      <span class="date">(Dec 2025)</span><br>
+      Internal d0 agent simplification. Success rate moved from 80% to 100% while token usage and steps dropped.
+    </li>
+    <li>
+      <span class="author">Stripe</span> -
+      <a href="https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents" target="_blank" rel="noopener"><span class="title">"Minions: Stripe's one-shot, end-to-end coding agents"</span></a>
+      <span class="date">(Feb 2026)</span><br>
+      Production coding-agent architecture with over a thousand Minion-produced pull requests per week.
+    </li>
+    <li>
+      <span class="author">Anthropic Engineering</span> -
+      <a href="https://www.anthropic.com/engineering/harness-design-long-running-apps" target="_blank" rel="noopener"><span class="title">"Harness design for long-running application development"</span></a>
+      <span class="date">(Mar 2026)</span><br>
+      Planner, generator, and evaluator harness pattern for multi-hour autonomous coding sessions.
+    </li>
+    <li>
+      <span class="author">Cognition</span> -
+      <a href="https://cognition.ai/blog/devin-sonnet-4-5-lessons-and-challenges" target="_blank" rel="noopener"><span class="title">"Rebuilding Devin for Claude Sonnet 4.5: Lessons and Challenges"</span></a>
+      <span class="date">(Sep 2025)</span><br>
+      Documents context anxiety and the 1M-token beta with 200K actual-usage cap mitigation.
     </li>
   </ul>
 
@@ -816,11 +846,11 @@
   </p>
 
   <ul>
-    <li><strong>Context</strong> — hot-path router with cold-path domain docs. READ → SCOPE → ACT → VERIFY execution loop enforced in every instruction file.</li>
-    <li><strong>Constraints</strong> — <code>deny-dangerous</code> hook blocks destructive commands at the tool-call layer. Covers <code>rm -rf</code>, force-push, secret reads, subshell escapes, and database truncation.</li>
-    <li><strong>Verification</strong> — post-action hooks, typecheck/lint gates, and structured skills with built-in stopping points before the agent moves on.</li>
-    <li><strong>Recovery</strong> — milestone files with trackable checkboxes, session logs, and compaction-safe artefacts the agent reads on resume.</li>
-    <li><strong>Feedback loop</strong> — <code>footguns/</code>, <code>lessons/</code>, and <code>decisions/</code> directories with semantic-anchor evidence. Every mistake becomes next session's context.</li>
+    <li><strong>Context</strong> - hot-path router with cold-path domain docs. READ → SCOPE → ACT → VERIFY execution loop enforced in every instruction file.</li>
+    <li><strong>Constraints</strong> - <code>deny-dangerous</code> hook blocks destructive commands at the tool-call layer. Covers <code>rm -rf</code>, force-push, secret reads, subshell escapes, and database truncation.</li>
+    <li><strong>Verification</strong> - post-action hooks, typecheck/lint gates, and structured skills with built-in stopping points before the agent moves on.</li>
+    <li><strong>Recovery</strong> - milestone files with trackable checkboxes, session logs, and compaction-safe artefacts the agent reads on resume.</li>
+    <li><strong>Feedback loop</strong> - <code>footguns/</code>, <code>lessons/</code>, and <code>decisions/</code> directories with semantic-anchor evidence. Every mistake becomes next session's context.</li>
   </ul>
 
   <p>
