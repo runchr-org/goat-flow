@@ -658,8 +658,7 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
   const { createFS } = await import("./facts/fs.js");
   const { runAudit } = await import("./audit/audit.js");
   const { composeQuality } = await import("./prompt/compose-quality.js");
-  const { getLatestQualityHistoryEntry, loadQualityHistory } =
-    await import("./quality/history.js");
+  const { findLatestQualityReport } = await import("./quality/history.js");
 
   const fs = createFS(options.projectPath);
 
@@ -674,14 +673,10 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
     // Audit failure is fine - quality prompt generates with degraded context
   }
 
-  const history = loadQualityHistory(options.projectPath);
   const qualityMode = options.qualityMode ?? "agent-setup";
-  const priorReport = getLatestQualityHistoryEntry(
-    history.entries,
-    options.agent,
-    qualityMode,
-  );
-  for (const warning of history.warnings) {
+  const { entry: priorReport, warnings: historyWarnings } =
+    findLatestQualityReport(options.projectPath, options.agent, qualityMode);
+  for (const warning of historyWarnings) {
     console.error(warning);
   }
 

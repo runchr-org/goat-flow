@@ -231,6 +231,86 @@ export function getLatestQualityHistoryEntry(
   );
 }
 
+/** Try to load and validate one history file. Returns the entry or null + a warning. */
+function tryParseHistoryFile(
+  dir: string,
+  filename: string,
+  parsedName: { date: string; time: string; agent: AgentId; randomId: string },
+): { entry: QualityHistoryEntry | null; warning: string | null } {
+  const fullPath = join(dir, filename);
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(fullPath, "utf-8"));
+  } catch (error) {
+    return {
+      entry: null,
+      warning: `Skipping malformed quality history file ${filename}: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+  const parsedReport = parseQualityReport(raw, {
+    requireCurrentFields: false,
+  });
+  if (!parsedReport.ok) {
+    return {
+      entry: null,
+      warning: `Skipping malformed quality history file ${filename}: ${parsedReport.error}`,
+    };
+  }
+  const withIds = attachFindingIds(parsedReport.report);
+  if (!withIds.ok) {
+    return {
+      entry: null,
+      warning: `Skipping malformed quality history file ${filename}: ${withIds.error}`,
+    };
+  }
+  return {
+    entry: {
+      id: filename.replace(/\.json$/, ""),
+      path: fullPath,
+      date: parsedName.date,
+      time: parsedName.time,
+      agent: parsedName.agent,
+      randomId: parsedName.randomId,
+      report: withIds.report,
+    },
+    warning: null,
+  };
+}
+
+/**
+ * Find the latest quality report for one agent/mode without parsing all files.
+ * Scans filenames newest-first, filters by agent from the filename, and parses
+ * only matching JSON until a valid entry is found.
+ */
+export function findLatestQualityReport(
+  projectPath: string,
+  agent: AgentId,
+  qualityMode: QualityMode | null = null,
+): { entry: QualityHistoryEntry | null; warnings: string[] } {
+  const dir = getQualityLogsDir(projectPath);
+  if (!existsSync(dir)) return { entry: null, warnings: [] };
+
+  const warnings: string[] = [];
+  const filenames = readdirSync(dir)
+    .filter((f) => f.endsWith(".json"))
+    .sort()
+    .reverse();
+
+  for (const filename of filenames) {
+    const parsedName = parseHistoryFilename(filename);
+    if (!parsedName) continue;
+    if (parsedName.agent !== agent) continue;
+
+    const { entry, warning } = tryParseHistoryFile(dir, filename, parsedName);
+    if (warning) warnings.push(warning);
+    if (entry && matchesQualityMode(entry, qualityMode)) {
+      return { entry, warnings };
+    }
+  }
+
+  return { entry: null, warnings };
+}
+
 /** Select quality history entries. */
 export function selectQualityHistoryEntries(
   entries: QualityHistoryEntry[],

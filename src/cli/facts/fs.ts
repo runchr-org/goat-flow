@@ -105,91 +105,98 @@ function walkGlobSegment(
 
 /** Create a read-only filesystem abstraction rooted at the given path. */
 export function createFS(rootPath: string): ReadonlyFS {
-  /** Absolute path to the project root directory */
   const root = resolve(rootPath);
 
-  /** Resolve a relative path against the project root. */
   function resolvePath(p: string): string {
     return resolve(root, p);
   }
 
+  // Request-scoped caches — discarded when the FS instance is discarded.
+  const contentCache = new Map<string, string | null>();
+  const existsCache = new Map<string, boolean>();
+  const listDirCache = new Map<string, string[]>();
+
+  function cachedReadFile(path: string): string | null {
+    const resolved = resolvePath(path);
+    const cached = contentCache.get(resolved);
+    if (cached !== undefined) return cached;
+    try {
+      const content = readFileSync(resolved, "utf-8");
+      contentCache.set(resolved, content);
+      return content;
+    } catch {
+      contentCache.set(resolved, null);
+      return null;
+    }
+  }
+
   return {
-    /** Report whether a relative path exists under the project root. */
     exists(path: string): boolean {
+      const resolved = resolvePath(path);
+      const cached = existsCache.get(resolved);
+      if (cached !== undefined) return cached;
       try {
-        statSync(resolvePath(path));
+        statSync(resolved);
+        existsCache.set(resolved, true);
         return true;
       } catch {
+        existsCache.set(resolved, false);
         return false;
       }
     },
 
-    /** Read a UTF-8 file under the project root. */
     readFile(path: string): string | null {
-      try {
-        return readFileSync(resolvePath(path), "utf-8");
-      } catch {
-        return null;
-      }
+      return cachedReadFile(path);
     },
 
-    /** Count newline-delimited lines in a UTF-8 file. */
     lineCount(path: string): number {
-      try {
-        const content = readFileSync(resolvePath(path), "utf-8");
-        return content.split("\n").length - (content.endsWith("\n") ? 1 : 0);
-      } catch {
-        return 0;
-      }
+      const content = cachedReadFile(path);
+      if (content === null) return 0;
+      return content.split("\n").length - (content.endsWith("\n") ? 1 : 0);
     },
 
-    /** Read and parse a JSON file under the project root. */
     readJson(path: string): unknown {
+      const content = cachedReadFile(path);
+      if (content === null) return null;
       try {
-        const content = readFileSync(resolvePath(path), "utf-8");
         return JSON.parse(content);
       } catch {
         return null;
       }
     },
 
-    /** List direct children of a directory under the project root. */
     listDir(path: string): string[] {
+      const resolved = resolvePath(path);
+      const cached = listDirCache.get(resolved);
+      if (cached !== undefined) return cached;
       try {
-        return readdirSync(resolvePath(path), { withFileTypes: true }).map(
+        const entries = readdirSync(resolved, { withFileTypes: true }).map(
           (entry) => entry.name,
         );
+        listDirCache.set(resolved, entries);
+        return entries;
       } catch {
-        return [];
+        const empty: string[] = [];
+        listDirCache.set(resolved, empty);
+        return empty;
       }
     },
 
-    /** Report whether a file under the project root has any execute bit set. */
     isExecutable(path: string): boolean {
       try {
         accessSync(resolvePath(path), constants.X_OK);
         return true;
       } catch {
-        // On Windows, check for shebang instead
         if (process.platform === "win32") {
-          try {
-            const content = readFileSync(resolvePath(path), "utf-8");
-            return content.startsWith("#!");
-          } catch {
-            return false;
-          }
+          const content = cachedReadFile(path);
+          return content !== null && content.startsWith("#!");
         }
         return false;
       }
     },
 
-    /** Expand a simplified glob pattern against the project tree. */
     glob(pattern: string): string[] {
-      // Simple recursive glob implementation (no deps)
-      // Supports: *, **, specific extensions
-      /** Accumulated matching file paths */
       const results: string[] = [];
-      /** Pattern split into path segments for incremental matching */
       const parts = pattern.split("/");
       walkGlob(root, resolvePath, parts, ".", 0, results);
       return results;

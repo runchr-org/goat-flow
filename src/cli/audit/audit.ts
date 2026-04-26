@@ -199,7 +199,10 @@ function toCheckResult(
  *  existence check there - the paths are human-readable pointers for future
  *  maintainers, not runtime contracts. In dev mode we keep the check so
  *  stale provenance surfaces in preflight. */
+let provenanceValidated = false;
+
 function validateRegisteredCheckProvenance(fs: ReadonlyFS): void {
+  if (provenanceValidated) return;
   const checks = [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
   const errors: string[] = [];
   const pathExists = isPackagedInstall()
@@ -215,6 +218,7 @@ function validateRegisteredCheckProvenance(fs: ReadonlyFS): void {
       `Invalid audit check provenance:\n- ${errors.join("\n- ")}`,
     );
   }
+  provenanceValidated = true;
 }
 
 /** Create an empty AuditConcern with zeroed counters. */

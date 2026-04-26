@@ -5,7 +5,8 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { isPackagedInstall } from "../paths.js";
 import { classifyProjectState } from "../classify-state.js";
@@ -284,16 +285,39 @@ function readRecentLessons(
     }));
 }
 
+const ENRICHMENT_TTL_MS = 60_000;
+const enrichmentCache = new Map<
+  string,
+  {
+    learningLoop: DashboardReport["learningLoop"];
+    recentLessons: DashboardReport["recentLessons"];
+    cachedAt: number;
+  }
+>();
+
 /** Enrich a dashboard report with compact Home-only learning-loop context. */
 function enrichDashboardReport(
   report: DashboardReport,
   projectPath: string,
+  fresh = false,
 ): DashboardReport {
-  return {
-    ...report,
-    learningLoop: buildDashboardLearningLoopSummary(projectPath),
-    recentLessons: readRecentLessons(projectPath),
-  };
+  const now = Date.now();
+  const cached = enrichmentCache.get(projectPath);
+  if (!fresh && cached && now - cached.cachedAt < ENRICHMENT_TTL_MS) {
+    return {
+      ...report,
+      learningLoop: cached.learningLoop,
+      recentLessons: cached.recentLessons,
+    };
+  }
+  const learningLoop = buildDashboardLearningLoopSummary(projectPath);
+  const recentLessons = readRecentLessons(projectPath);
+  enrichmentCache.set(projectPath, {
+    learningLoop,
+    recentLessons,
+    cachedAt: now,
+  });
+  return { ...report, learningLoop, recentLessons };
 }
 
 /** Build the dashboard API payload from aggregate and per-agent audit results. */
@@ -328,6 +352,7 @@ function buildDashboardReport(
       target: auditRpt.target,
     },
     projectPath,
+    true,
   );
 }
 
@@ -389,10 +414,10 @@ function writeAuditCache(
       cachedAt: new Date().toISOString(),
       report,
     };
-    writeFileSync(
+    writeFile(
       join(projectPath, ".goat-flow", AUDIT_CACHE_FILE),
       JSON.stringify(envelope),
-    );
+    ).catch(() => {});
   } catch {
     // Cache write failure is non-fatal
   }
@@ -737,8 +762,7 @@ export function createDashboardRouteHandlers(
     try {
       requireProjectDirectory(projectPath);
       const { composeQuality } = await import("../prompt/compose-quality.js");
-      const { getLatestQualityHistoryEntry, loadQualityHistory } =
-        await import("../quality/history.js");
+      const { findLatestQualityReport } = await import("../quality/history.js");
 
       let auditReport: AuditReport | null = null;
       try {
@@ -751,9 +775,8 @@ export function createDashboardRouteHandlers(
         /* audit failure is fine - quality prompt generates with degraded context */
       }
 
-      const history = loadQualityHistory(projectPath);
-      const priorReport = getLatestQualityHistoryEntry(
-        history.entries,
+      const { entry: priorReport } = findLatestQualityReport(
+        projectPath,
         agent,
         qualityMode,
       );
@@ -863,10 +886,13 @@ export function createDashboardRouteHandlers(
   }
 
   /** Detect which coding agent CLIs are installed on the machine. */
-  function handleAgentDetectRequest(url: URL, res: ServerResponse): boolean {
-    if (url.pathname !== "/api/agents/installed") return false;
-
-    const agents = SUPPORTED_AGENTS.map(({ id, name }) => {
+  function detectInstalledAgents(): {
+    id: string;
+    name: string;
+    installed: boolean;
+    version: string | null;
+  }[] {
+    return SUPPORTED_AGENTS.map(({ id, name }) => {
       try {
         const whichCmd = process.platform === "win32" ? "where" : "which";
         execFileSync(whichCmd, [id], { timeout: 3000, stdio: "pipe" });
@@ -886,8 +912,20 @@ export function createDashboardRouteHandlers(
         return { id, name, installed: false, version: null };
       }
     });
+  }
 
-    jsonResponse(res, 200, { agents });
+  let cachedAgentDetection: ReturnType<typeof detectInstalledAgents> | null =
+    null;
+
+  function handleAgentDetectRequest(url: URL, res: ServerResponse): boolean {
+    if (url.pathname !== "/api/agents/installed") return false;
+
+    const fresh = url.searchParams.get("fresh") === "true";
+    if (fresh || cachedAgentDetection === null) {
+      cachedAgentDetection = detectInstalledAgents();
+    }
+
+    jsonResponse(res, 200, { agents: cachedAgentDetection });
     return true;
   }
 
