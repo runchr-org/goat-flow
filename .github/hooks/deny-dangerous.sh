@@ -283,6 +283,11 @@ run_self_test() {
   # False-positive guards: git non-push, pipe-to-grep
   run_case "git -c log" "git -c core.x=y log --oneline" 0
   run_case "git log pipe grep push" 'git log --oneline | grep push' 0
+  # Bypass regression: process substitution, quoted -c values, subshell grouping
+  run_case "process subst git push" 'cat <(git push origin main)' 2
+  run_case "quoted -c spaces push" "git -c 'core.sshCommand=ssh -o StrictHostKeyChecking=no' push origin main" 2
+  run_case "subshell parens push" '(git push origin main)' 2
+  run_case "brace group push" '{ git push origin main; }' 2
   # Unsafe rm command should still block.
   run_case "rm unsafe" "rm -rf /" 2
   run_case "rm unsafe separated flags" "rm -r -f /" 2
@@ -467,6 +472,14 @@ check_command_substitutions() {
     remaining="${remaining/$match/__goat_subst__}"
   done
 
+  local proc_subst_re='[<>]\(([^()]*)\)'
+  while [[ "$remaining" =~ $proc_subst_re ]]; do
+    match="${BASH_REMATCH[0]}"
+    inner="${BASH_REMATCH[1]}"
+    [[ -n "$inner" ]] && check_segment "$inner" $((depth + 1))
+    remaining="${remaining/$match/__goat_proc_subst__}"
+  done
+
   if [[ "$remaining" =~ \$\( ]]; then
     block "Complex command substitution. Write the expanded command directly."
   fi
@@ -513,7 +526,13 @@ is_git_push() {
     c="${c#"$opt"}"
     c="${c#"${c%%[![:space:]]*}"}"
     if [[ "$opt" == "-c" || "$opt" == "-C" ]]; then
-      c="${c#"${c%%[[:space:]]*}"}"
+      if [[ "$c" == \'* ]]; then
+        c="${c#\'}" && c="${c#*\'}"
+      elif [[ "$c" == \"* ]]; then
+        c="${c#\"}" && c="${c#*\"}"
+      else
+        c="${c#"${c%%[[:space:]]*}"}"
+      fi
       c="${c#"${c%%[![:space:]]*}"}"
     fi
   done
@@ -620,6 +639,14 @@ normalize_git_push_candidate() {
   while true; do
     c="${c#"${c%%[![:space:]]*}"}"
 
+    if [[ "$c" == \(* ]]; then
+      c="${c#\(}"
+      continue
+    fi
+    if [[ "$c" == \{* ]]; then
+      c="${c#\{}"
+      continue
+    fi
     if [[ "$c" =~ ^(then|do|else|if|elif|while|until)[[:space:]]+ ]]; then
       c="${c#"${BASH_REMATCH[0]}"}"
       continue
@@ -747,9 +774,9 @@ check_segment() {
   fi
 
   # 3. All git push (agents must never push; the user pushes manually)
-  #    Checks each pipe sub-segment after removing quoted strings and normalizing
-  #    shell wrappers/prefixes before matching push.
-  local cmd_lower="${cmd_unquoted,,}"
+  #    Checks each pipe sub-segment after normalizing shell wrappers/prefixes.
+  #    Uses the original cmd (not cmd_unquoted) so quoted -c values stay intact.
+  local cmd_lower="${cmd,,}"
   local push_scan="${cmd_lower//||/__GOAT_OR__}"
   local -a pipe_parts
   IFS='|' read -ra pipe_parts <<< "$push_scan"

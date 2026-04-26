@@ -1264,17 +1264,17 @@ body {
   font-family: var(--font-mono);
 }
 @media (max-width: 900px) {
-  .gf-help-layout {
+  .gf-about-layout {
     grid-template-columns: 1fr !important;
   }
-  .gf-help-toc {
+  .gf-about-toc {
     display: none;
   }
-  .gf-help-flow {
+  .gf-about-flow {
     grid-template-columns: 1fr !important;
     gap: 8px !important;
   }
-  .gf-help-arrow {
+  .gf-about-arrow {
     display: none !important;
   }
 }

@@ -61,7 +61,7 @@ function fixtureJson(
       version_header_pattern: "# {FILE} - v{VERSION} ({DATE})",
     },
     facts: {
-      dashboard_views: ["quality", "help", "home"],
+      dashboard_views: ["quality", "about", "home"],
       ...overrides,
     },
   };
@@ -71,7 +71,7 @@ function fixtureObserved(
   overrides: Partial<ObservedFacts> = {},
 ): ObservedFacts {
   return {
-    views: ["quality", "help", "home"],
+    views: ["quality", "about", "home"],
     presetsCount: 3,
     skills: [...SKILL_NAMES],
     setupChecks: 12,
@@ -237,8 +237,8 @@ describe("validateManifest (missing key)", () => {
 
 describe("validateManifest (drifted count)", () => {
   it("throws on dashboard_views list drift", () => {
-    const json = fixtureJson({ dashboard_views: ["quality", "help"] });
-    const observed = fixtureObserved({ views: ["quality", "help", "home"] });
+    const json = fixtureJson({ dashboard_views: ["quality", "about"] });
+    const observed = fixtureObserved({ views: ["quality", "about", "home"] });
     assert.throws(
       () => validateManifest(json, observed),
       (err: unknown) =>
@@ -277,10 +277,10 @@ describe("validateManifest (drifted count)", () => {
 
   it("allows dashboard_views list to be in any order", () => {
     const json = fixtureJson({
-      dashboard_views: ["home", "quality", "help"],
+      dashboard_views: ["home", "quality", "about"],
     });
     const observed = fixtureObserved({
-      views: ["quality", "help", "home"],
+      views: ["quality", "about", "home"],
     });
     assert.doesNotThrow(() => validateManifest(json, observed));
   });

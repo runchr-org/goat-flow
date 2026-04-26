@@ -195,7 +195,7 @@
   "facts": {
     "_note": "Static facts only. Derived facts (check counts, skill names, version, presets count) are computed by src/cli/manifest/manifest.ts at load time. `goat-flow manifest --check` validates static facts against observed state (src/dashboard/views/*.html).",
     "dashboard_views": [
-      "help",
+      "about",
       "home",
       "projects",
       "prompts",
