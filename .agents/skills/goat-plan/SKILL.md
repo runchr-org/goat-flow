@@ -32,7 +32,7 @@ Use for feature/project milestones, dispatcher handoffs, replans, rescope, and r
 **Pick exactly one mode.** Apply these signals in order - stop at the first that matches:
 
 1. **Named-File Update** - user names an existing milestone file OR asks to "update", "improve", "tighten", "rewrite", or "fix" a specific plan. Treat as explicit write approval; proceed to Phase 2 § Mode 1. Re-prompt only if multiple files plausibly match, or the user also says "review only" / "read-only" / "don't write yet" (treat those as strict no-write for milestone files).
-2. **Read-Only Analysis** - analysis signals: "what would the milestones look like", "break this down for me", "plan this out", "how would you approach", "sketch the milestones", "walk me through the plan". No files written; inline output; Phase 3 skipped; transition to file mode available later.
+2. **Read-Only Analysis** - analysis signals: "what would the milestones look like", "break this down for me", "plan this out", "how would you approach", "sketch the milestones", "walk me through the plan", "reporting-only", "no-implementation". No files written; inline output; Phase 3 skipped; transition to file mode available later.
 3. **Inline-Then-Write** - Hotfix / Small Feature scope (1-2 milestones, low blast radius) with no analysis signals. Offer: *"Would you like milestones in inline form first, or written to `.goat-flow/tasks/<active>/` now?"* Inline first; write on approval.
 4. **File-Write (default at Standard+)** - implementation signals ("create milestones", "set up the plan", "write the milestone files", "start planning") OR Standard / System / Infrastructure scope with no analysis signals. Write directly to `.goat-flow/tasks/<active>/`.
 

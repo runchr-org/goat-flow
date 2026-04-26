@@ -61,7 +61,7 @@ After completing step 03 (skills):
 - `.github/skills/` contains the 7 canonical goat-flow skills
 - `.github/hooks/hooks.json` registers `.github/hooks/deny-dangerous.sh`
 - `bash .github/hooks/deny-dangerous.sh --self-test` passes
-- `goat-flow audit . --harness` context concern reports `copilot: all 5 required sections present`
+- `goat-flow audit . --harness` context concern reports `copilot: all 6 required sections present`
 
 ---
 
