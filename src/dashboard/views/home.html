@@ -1,11 +1,7 @@
-<div
-  class="home-scroll"
-  x-show="activeView === 'home'"
-  x-cloak
->
-<div
-  class="home-page"
-  x-data="{
+<div class="home-scroll" x-show="activeView === 'home'" x-cloak>
+  <div
+    class="home-page"
+    x-data="{
     concernKeys: ['context', 'constraints', 'verification', 'recovery', 'feedback_loop'],
     concernLabels: {
       context: 'Context',
@@ -329,14 +325,14 @@
       if (priority === 'setup') return this.setupPartial() ? 'Fix with ' + agentName(activeRunner) : (terminalAvailable ? 'Run with ' + agentName(activeRunner) : 'Open Setup');
       if (priority === 'harness') return 'Fix with ' + agentName(activeRunner);
       if (priority === 'completeness') return 'Run assessment';
-      return '/goat-review';
+      return 'Explore codebase';
     },
     nextSecondaryLabel() {
       const priority = this.nextPriority();
       if (priority === 'setup') return 'Setup wizard';
       if (priority === 'harness') return 'Open Setup';
-      if (priority === 'completeness') return 'Skip for now';
-      return 'Open Workspace';
+      if (priority === 'completeness') return 'View prompts';
+      return 'View prompts';
     },
     runPrimaryAction() {
       const priority = this.nextPriority();
@@ -364,9 +360,9 @@
         generateQualityHistory();
         return;
       }
-      const preset = presets.find((item) => item.id === 'review');
+      const preset = presets.find((item) => item.id === 'explore');
       if (preset) launchPreset(preset.prompt, activeRunner, preset.label, { presetId: preset.id });
-      else launchInTerminal('/goat-review', activeRunner, { promptLabel: '/goat-review', cwdPath: projectPath, targetPath: projectPath });
+      else launchInTerminal('/goat', activeRunner, { promptLabel: 'Explore codebase', cwdPath: projectPath, targetPath: projectPath });
       activeView = 'workspace';
       workspacePanel = 'terminal';
     },
@@ -377,12 +373,7 @@
         detectStack();
         return;
       }
-      if (priority === 'completeness') {
-        showToast('Skipped for now');
-        return;
-      }
-      activeView = 'workspace';
-      workspacePanel = 'terminal';
+      activeView = 'prompts';
     },
     recentLessons() {
       if (this.setupMissing()) return [];
@@ -482,281 +473,210 @@
       ].join('\n');
     }
   }"
->
-  <div class="home-empty" x-show="!report">
-    <div class="home-empty-mark">GF</div>
-    <h2>No audit results yet</h2>
-    <p>
-      Run an audit to populate setup status, agent health, learning-loop
-      freshness, and the next action for this project.
-    </p>
-    <button
-      class="gf-btn gf-btn-primary gf-btn-md home-primary"
-      @click="runAudit()"
-      :disabled="auditing"
-    >
-      <span x-text="auditing ? 'Running...' : 'Run Audit'"></span>
-    </button>
-  </div>
-
-  <div x-show="report">
-    <div class="sessions-strip" x-show="activeSessions().length > 0">
-      <div class="sessions-strip-main">
-        <span class="sessions-dot"></span>
-        <span
-          class="session-count"
-          x-text="activeSessions().length + ' active session' + (activeSessions().length === 1 ? '' : 's')"
-        ></span>
-        <span
-          class="session-meta"
-          x-show="primarySession()"
-          x-text="agentName(primarySession()?.runner || activeRunner) + ' - ' + sessionLabel(primarySession()) + ' - ' + sessionAge(primarySession())"
-        ></span>
-      </div>
-      <span class="spacer"></span>
+  >
+    <div class="home-empty" x-show="!report">
+      <div class="home-empty-mark">GF</div>
+      <h2>No audit results yet</h2>
+      <p>
+        Run an audit to populate setup status, agent health, learning-loop
+        freshness, and the next action for this project.
+      </p>
       <button
-        class="gf-btn gf-btn-secondary gf-btn-sm"
-        @click="openSession(primarySession())"
+        class="gf-btn gf-btn-primary gf-btn-md home-primary"
+        @click="runAudit()"
+        :disabled="auditing"
       >
-        Resume
-      </button>
-      <button
-        class="gf-btn gf-btn-danger gf-btn-sm"
-        @click="endPrimarySession()"
-        x-show="primarySession()"
-      >
-        End
+        <span x-text="auditing ? 'Running...' : 'Run Audit'"></span>
       </button>
     </div>
 
-    <section class="rollup" :class="{ stale: auditStale() }">
-      <div class="rollup-top">
-        <div>
-          <div class="rollup-kicker" x-show="setupMissing()">
-            Home readiness
+    <div x-show="report">
+      <div class="sessions-strip" x-show="activeSessions().length > 0">
+        <div class="sessions-strip-main">
+          <span class="sessions-dot"></span>
+          <span
+            class="session-count"
+            x-text="activeSessions().length + ' active session' + (activeSessions().length === 1 ? '' : 's')"
+          ></span>
+          <span
+            class="session-meta"
+            x-show="primarySession()"
+            x-text="agentName(primarySession()?.runner || activeRunner) + ' - ' + sessionLabel(primarySession()) + ' - ' + sessionAge(primarySession())"
+          ></span>
+        </div>
+        <span class="spacer"></span>
+        <button
+          class="gf-btn gf-btn-secondary gf-btn-sm"
+          @click="openSession(primarySession())"
+        >
+          Resume
+        </button>
+        <button
+          class="gf-btn gf-btn-danger gf-btn-sm"
+          @click="endPrimarySession()"
+          x-show="primarySession()"
+        >
+          End
+        </button>
+      </div>
+
+      <section class="rollup" :class="{ stale: auditStale() }">
+        <div class="rollup-top">
+          <div>
+            <div class="rollup-kicker" x-show="setupMissing()">
+              Home readiness
+            </div>
+            <div class="rollup-heading">
+              <h1
+                class="rollup-name"
+                x-text="setupMissing() ? 'Install goat-flow for this project' : projectName"
+              ></h1>
+              <span
+                class="rollup-meta"
+                x-show="!setupMissing()"
+                :class="{ warn: auditStale() }"
+                x-text="auditAgeText()"
+              ></span>
+            </div>
+            <p
+              class="rollup-subtitle"
+              x-show="setupMissing()"
+              x-text="'One guided setup unlocks agent health, lessons, and quality tracking.'"
+            ></p>
           </div>
-          <div class="rollup-heading">
-            <h1
-              class="rollup-name"
-              x-text="setupMissing() ? 'Install goat-flow for this project' : projectName"
-            ></h1>
+          <div class="rollup-actions">
             <span
               class="rollup-meta"
-              x-show="!setupMissing()"
+              x-show="setupMissing()"
               :class="{ warn: auditStale() }"
               x-text="auditAgeText()"
             ></span>
-          </div>
-          <p
-            class="rollup-subtitle"
-            x-show="setupMissing()"
-            x-text="'One guided setup unlocks agent health, lessons, and quality tracking.'"
-          ></p>
-        </div>
-        <div class="rollup-actions">
-          <span
-            class="rollup-meta"
-            x-show="setupMissing()"
-            :class="{ warn: auditStale() }"
-            x-text="auditAgeText()"
-          ></span>
-          <button
-            class="gf-btn gf-btn-secondary gf-btn-sm"
-            :class="{ 'btn-warn': auditStale() }"
-            @click="runAudit(true)"
-            :disabled="auditing"
-          >
-            <span
-              x-text="auditing ? 'Auditing...' : (auditStale() ? 'Re-audit now' : 'Re-audit')"
-            ></span>
-          </button>
-        </div>
-      </div>
-
-      <div class="pills">
-        <div class="pill" :class="installPillTone()">
-          <div class="pill-head">
-            <span class="pill-dot" :class="installPillTone()"></span>
-            <span class="pill-label">INSTALL</span>
-          </div>
-          <div
-            class="pill-value"
-            :class="installPillTone()"
-            x-text="installPillValue()"
-          ></div>
-          <div class="pill-detail" x-text="installPillDetail()"></div>
-        </div>
-
-        <div class="pill" :class="harnessPillTone()">
-          <div class="pill-head">
-            <span class="pill-dot" :class="harnessPillTone()"></span>
-            <span class="pill-label">HARNESS</span>
-          </div>
-          <div
-            class="pill-value"
-            :class="harnessPillTone()"
-            x-text="harnessPillValue()"
-          ></div>
-          <div class="pill-detail" x-text="harnessPillDetail()"></div>
-        </div>
-
-        <div class="pill" :class="learningPillTone()">
-          <div class="pill-head">
-            <span class="pill-dot" :class="learningPillTone()"></span>
-            <span class="pill-label">LEARNING LOOP</span>
-          </div>
-          <div
-            class="pill-value"
-            :class="learningPillTone()"
-            x-text="learningPillValue()"
-          ></div>
-          <div class="pill-detail" x-text="learningPillDetail()"></div>
-        </div>
-
-        <div class="pill" :class="qualityPillTone()">
-          <div class="pill-head">
-            <span class="pill-dot" :class="qualityPillTone()"></span>
-            <span class="pill-label">QUALITY</span>
-          </div>
-          <div
-            class="pill-value"
-            :class="qualityPillTone()"
-            x-text="qualityPillValue()"
-          ></div>
-          <div class="pill-detail" x-text="qualityPillDetail()"></div>
-        </div>
-      </div>
-    </section>
-
-    <section
-      class="next-action"
-      :class="nextPriority() === 'healthy' ? 'priority-ok' : (nextPriority() === 'completeness' ? 'priority-warn' : 'priority-bad')"
-    >
-      <div class="next-action-body">
-        <div class="next-action-eyebrow" x-text="nextEyebrow()"></div>
-        <h2 class="next-action-title" x-text="nextTitle()"></h2>
-        <p class="next-action-detail" x-text="nextDetail()"></p>
-        <div
-          class="next-action-cmd"
-          x-show="nextActionCommand()"
-          x-text="nextActionCommand()"
-        ></div>
-      </div>
-      <div class="next-action-cta">
-        <button
-          class="gf-btn gf-btn-secondary gf-btn-md"
-          @click="runSecondaryAction()"
-        >
-          <span x-text="nextSecondaryLabel()"></span>
-        </button>
-        <button
-          class="gf-btn gf-btn-primary gf-btn-md home-primary"
-          @click="runPrimaryAction()"
-        >
-          <span x-text="nextPrimaryLabel()"></span>
-        </button>
-      </div>
-    </section>
-
-    <div class="section-head">
-      <span
-        class="section-title"
-        x-text="showPreviewAgents() ? 'What you get after setup' : 'AI harness health'"
-      ></span>
-      <span class="section-meta" x-text="sectionMeta()"></span>
-    </div>
-
-    <section
-      class="agent-grid"
-      :style="{ '--agent-columns': String(agentColumnCount()) }"
-    >
-      <template x-for="agent in homeAgents()" :key="agent.id">
-        <article
-          class="agent-card"
-          :class="[agentCardClass(agent), { 'agent-card-selected': !agent.preview && auditDetailAgent === agent.id }]"
-        >
-          <div
-            class="agent-card-button"
-            role="button"
-            tabindex="0"
-            :aria-expanded="String(!agent.preview && auditDetailAgent === agent.id)"
-            :aria-controls="'detail-' + agent.id"
-            @click="if (!agent.preview) auditDetailAgent = auditDetailAgent === agent.id ? null : agent.id"
-            @keydown.enter="if (!agent.preview) auditDetailAgent = auditDetailAgent === agent.id ? null : agent.id"
-            @keydown.space.prevent="if (!agent.preview) auditDetailAgent = auditDetailAgent === agent.id ? null : agent.id"
-          >
-            <div class="agent-card-head">
-              <span class="agent-name" x-text="agentDisplayName(agent)"></span>
+            <button
+              class="gf-btn gf-btn-secondary gf-btn-sm"
+              :class="{ 'btn-warn': auditStale() }"
+              @click="runAudit(true)"
+              :disabled="auditing"
+            >
               <span
-                class="agent-grade"
-                :class="toneForScore(agentScore(agent))"
-              >
-                <span
-                  class="grade-letter"
-                  x-text="gradeFor(agentScore(agent))"
-                ></span>
-                <span
-                  class="grade-pct"
-                  :class="toneForScore(agentScore(agent))"
-                  x-text="agentScore(agent) === null ? 'preview' : agentScore(agent) + '%'"
-                ></span>
-              </span>
+                x-text="auditing ? 'Auditing...' : (auditStale() ? 'Re-audit now' : 'Re-audit')"
+              ></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="pills">
+          <div class="pill" :class="installPillTone()">
+            <div class="pill-head">
+              <span class="pill-dot" :class="installPillTone()"></span>
+              <span class="pill-label">INSTALL</span>
             </div>
             <div
-              class="agent-summary"
-              x-text="recommendationSummary(agent)"
+              class="pill-value"
+              :class="installPillTone()"
+              x-text="installPillValue()"
             ></div>
-
-            <div class="concern-list">
-              <template x-for="key in concernKeys" :key="key">
-                <div
-                  class="concern-row"
-                  :aria-label="concernLabels[key] + ' ' + concernPctText(agent, key) + '%'"
-                >
-                  <span
-                    class="concern-label"
-                    x-text="concernLabels[key]"
-                  ></span>
-                  <div class="concern-bar">
-                    <div
-                      class="concern-fill"
-                      :class="concernToneClass(agent, key)"
-                      :style="{ width: concernWidth(agent, key) }"
-                    ></div>
-                  </div>
-                  <span
-                    class="concern-pct"
-                    :class="concernToneClass(agent, key)"
-                    x-text="concernPctText(agent, key)"
-                  ></span>
-                </div>
-              </template>
-            </div>
+            <div class="pill-detail" x-text="installPillDetail()"></div>
           </div>
-        </article>
-      </template>
-    </section>
 
-    <div
-      class="home-detail"
-      x-show="auditDetailAgent && agentScores().length > 0"
-      x-transition:enter="transition ease-out duration-200"
-      x-transition:enter-start="opacity-0 -translate-y-2"
-      x-transition:enter-end="opacity-100 translate-y-0"
-      x-transition:leave="transition ease-in duration-150"
-      x-transition:leave-start="opacity-100 translate-y-0"
-      x-transition:leave-end="opacity-0 -translate-y-2"
-      @keydown.escape.window="auditDetailAgent = null"
-      :id="'detail-' + auditDetailAgent"
-    >
-      <template x-if="auditDetailAgent">
-        <template
-          x-for="agent in agentScores().filter(a => a.id === auditDetailAgent)"
-          :key="agent.id"
-        >
-          <div>
-            <div class="detail-header">
-              <div class="detail-header-left">
+          <div class="pill" :class="harnessPillTone()">
+            <div class="pill-head">
+              <span class="pill-dot" :class="harnessPillTone()"></span>
+              <span class="pill-label">HARNESS</span>
+            </div>
+            <div
+              class="pill-value"
+              :class="harnessPillTone()"
+              x-text="harnessPillValue()"
+            ></div>
+            <div class="pill-detail" x-text="harnessPillDetail()"></div>
+          </div>
+
+          <div class="pill" :class="learningPillTone()">
+            <div class="pill-head">
+              <span class="pill-dot" :class="learningPillTone()"></span>
+              <span class="pill-label">LEARNING LOOP</span>
+            </div>
+            <div
+              class="pill-value"
+              :class="learningPillTone()"
+              x-text="learningPillValue()"
+            ></div>
+            <div class="pill-detail" x-text="learningPillDetail()"></div>
+          </div>
+
+          <div class="pill" :class="qualityPillTone()">
+            <div class="pill-head">
+              <span class="pill-dot" :class="qualityPillTone()"></span>
+              <span class="pill-label">QUALITY</span>
+            </div>
+            <div
+              class="pill-value"
+              :class="qualityPillTone()"
+              x-text="qualityPillValue()"
+            ></div>
+            <div class="pill-detail" x-text="qualityPillDetail()"></div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="next-action"
+        :class="nextPriority() === 'healthy' ? 'priority-ok' : (nextPriority() === 'completeness' ? 'priority-warn' : 'priority-bad')"
+      >
+        <div class="next-action-body">
+          <div class="next-action-eyebrow" x-text="nextEyebrow()"></div>
+          <h2 class="next-action-title" x-text="nextTitle()"></h2>
+          <p class="next-action-detail" x-text="nextDetail()"></p>
+          <div
+            class="next-action-cmd"
+            x-show="nextActionCommand()"
+            x-text="nextActionCommand()"
+          ></div>
+        </div>
+        <div class="next-action-cta">
+          <button
+            class="gf-btn gf-btn-secondary gf-btn-md"
+            @click="runSecondaryAction()"
+          >
+            <span x-text="nextSecondaryLabel()"></span>
+          </button>
+          <button
+            class="gf-btn gf-btn-primary gf-btn-md home-primary"
+            @click="runPrimaryAction()"
+          >
+            <span x-text="nextPrimaryLabel()"></span>
+          </button>
+        </div>
+      </section>
+
+      <div class="section-head">
+        <span
+          class="section-title"
+          x-text="showPreviewAgents() ? 'What you get after setup' : 'AI harness health'"
+        ></span>
+        <span class="section-meta" x-text="sectionMeta()"></span>
+      </div>
+
+      <section
+        class="agent-grid"
+        :style="{ '--agent-columns': String(agentColumnCount()) }"
+      >
+        <template x-for="agent in homeAgents()" :key="agent.id">
+          <article
+            class="agent-card"
+            :class="[agentCardClass(agent), { 'agent-card-selected': !agent.preview && auditDetailAgent === agent.id }]"
+          >
+            <div
+              class="agent-card-button"
+              role="button"
+              tabindex="0"
+              :aria-expanded="String(!agent.preview && auditDetailAgent === agent.id)"
+              :aria-controls="'detail-' + agent.id"
+              @click="if (!agent.preview) auditDetailAgent = auditDetailAgent === agent.id ? null : agent.id"
+              @keydown.enter="if (!agent.preview) auditDetailAgent = auditDetailAgent === agent.id ? null : agent.id"
+              @keydown.space.prevent="if (!agent.preview) auditDetailAgent = auditDetailAgent === agent.id ? null : agent.id"
+            >
+              <div class="agent-card-head">
                 <span
                   class="agent-name"
                   x-text="agentDisplayName(agent)"
@@ -772,147 +692,221 @@
                   <span
                     class="grade-pct"
                     :class="toneForScore(agentScore(agent))"
-                    x-text="agentScore(agent) + '%'"
+                    x-text="agentScore(agent) === null ? 'preview' : agentScore(agent) + '%'"
                   ></span>
                 </span>
               </div>
-              <button
-                class="detail-close"
-                @click="auditDetailAgent = null"
-                aria-label="Close detail panel"
-              >
-                &times;
-              </button>
-            </div>
-            <div class="detail-grid">
-              <div class="detail-card">
-                <h4>Agent Setup</h4>
-                <template
-                  x-for="check in detailList(agent, 'agent')"
-                  :key="check.id"
-                >
-                  <div class="detail-row">
-                    <span
-                      class="detail-status"
-                      :class="check.status"
-                      x-text="check.status === 'pass' ? 'OK' : 'Fix'"
-                    ></span>
-                    <div>
-                      <strong x-text="check.name"></strong>
-                      <p x-text="check.detail || 'No detail supplied'"></p>
-                    </div>
-                  </div>
-                </template>
-              </div>
+              <div
+                class="agent-summary"
+                x-text="recommendationSummary(agent)"
+              ></div>
 
-              <div class="detail-card">
-                <h4>Concern Detail</h4>
+              <div class="concern-list">
                 <template x-for="key in concernKeys" :key="key">
-                  <div class="detail-row">
+                  <div
+                    class="concern-row"
+                    :aria-label="concernLabels[key] + ' ' + concernPctText(agent, key) + '%'"
+                  >
                     <span
-                      class="detail-status"
-                      :class="concern(agent, key).status"
-                      x-text="concern(agent, key).status === 'pass' ? 'OK' : 'Fix'"
+                      class="concern-label"
+                      x-text="concernLabels[key]"
                     ></span>
-                    <div>
-                      <strong x-text="concernLabels[key]"></strong>
-                      <p x-text="formatConcernSummary(agent, key)"></p>
-                      <p
-                        class="detail-fix"
-                        x-text="formatConcernFix(agent, key)"
-                      ></p>
+                    <div class="concern-bar">
+                      <div
+                        class="concern-fill"
+                        :class="concernToneClass(agent, key)"
+                        :style="{ width: concernWidth(agent, key) }"
+                      ></div>
                     </div>
+                    <span
+                      class="concern-pct"
+                      :class="concernToneClass(agent, key)"
+                      x-text="concernPctText(agent, key)"
+                    ></span>
                   </div>
                 </template>
               </div>
+            </div>
+          </article>
+        </template>
+      </section>
+
+      <div
+        class="home-detail"
+        x-show="auditDetailAgent && agentScores().length > 0"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 -translate-y-2"
+        x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100 translate-y-0"
+        x-transition:leave-end="opacity-0 -translate-y-2"
+        @keydown.escape.window="auditDetailAgent = null"
+        :id="'detail-' + auditDetailAgent"
+      >
+        <template x-if="auditDetailAgent">
+          <template
+            x-for="agent in agentScores().filter(a => a.id === auditDetailAgent)"
+            :key="agent.id"
+          >
+            <div>
+              <div class="detail-header">
+                <div class="detail-header-left">
+                  <span
+                    class="agent-name"
+                    x-text="agentDisplayName(agent)"
+                  ></span>
+                  <span
+                    class="agent-grade"
+                    :class="toneForScore(agentScore(agent))"
+                  >
+                    <span
+                      class="grade-letter"
+                      x-text="gradeFor(agentScore(agent))"
+                    ></span>
+                    <span
+                      class="grade-pct"
+                      :class="toneForScore(agentScore(agent))"
+                      x-text="agentScore(agent) + '%'"
+                    ></span>
+                  </span>
+                </div>
+                <button
+                  class="detail-close"
+                  @click="auditDetailAgent = null"
+                  aria-label="Close detail panel"
+                >
+                  &times;
+                </button>
+              </div>
+              <div class="detail-grid">
+                <div class="detail-card">
+                  <h4>Agent Setup</h4>
+                  <template
+                    x-for="check in detailList(agent, 'agent')"
+                    :key="check.id"
+                  >
+                    <div class="detail-row">
+                      <span
+                        class="detail-status"
+                        :class="check.status"
+                        x-text="check.status === 'pass' ? 'OK' : 'Fix'"
+                      ></span>
+                      <div>
+                        <strong x-text="check.name"></strong>
+                        <p x-text="check.detail || 'No detail supplied'"></p>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+
+                <div class="detail-card">
+                  <h4>Concern Detail</h4>
+                  <template x-for="key in concernKeys" :key="key">
+                    <div class="detail-row">
+                      <span
+                        class="detail-status"
+                        :class="concern(agent, key).status"
+                        x-text="concern(agent, key).status === 'pass' ? 'OK' : 'Fix'"
+                      ></span>
+                      <div>
+                        <strong x-text="concernLabels[key]"></strong>
+                        <p x-text="formatConcernSummary(agent, key)"></p>
+                        <p
+                          class="detail-fix"
+                          x-text="formatConcernFix(agent, key)"
+                        ></p>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </template>
+        </template>
+      </div>
+
+      <section class="lower-row">
+        <article class="panel install-panel">
+          <div class="panel-head">
+            <span class="panel-title">Install state</span>
+            <button
+              class="panel-cta"
+              x-show="!setupMissing()"
+              @click="activeView = 'setup'; detectStack()"
+            >
+              Setup
+            </button>
+          </div>
+
+          <div class="install-body">
+            <div class="install-checks">
+              <template x-for="check in installChecks()" :key="check.label">
+                <div class="install-check" :class="{ dim: !check.ok }">
+                  <span
+                    class="install-check-icon"
+                    :class="{ ok: check.ok, bad: !check.ok }"
+                    x-html="installCheckIcon(check)"
+                  ></span>
+                  <span x-text="check.label"></span>
+                </div>
+              </template>
+            </div>
+
+            <div class="ring-wrap">
+              <div class="ring-chart" :style="ringStyle()">
+                <span class="ring-value" :style="{ color: ringColor() }">
+                  <span x-text="ringNumber()"></span
+                  ><span class="ring-pct" x-show="ringShowPct()">%</span>
+                </span>
+              </div>
+              <span class="ring-label" x-text="ringLabel()"></span>
             </div>
           </div>
-        </template>
-      </template>
-    </div>
+        </article>
 
-    <section class="lower-row">
-      <article class="panel install-panel">
-        <div class="panel-head">
-          <span class="panel-title">Install state</span>
-          <button
-            class="panel-cta"
-            x-show="!setupMissing()"
-            @click="activeView = 'setup'; detectStack()"
-          >
-            Setup
-          </button>
-        </div>
+        <article class="panel lessons-panel">
+          <div class="panel-head">
+            <span class="panel-title">Recent lessons</span>
+          </div>
 
-        <div class="install-body">
-          <div class="install-checks">
-            <template x-for="check in installChecks()" :key="check.label">
-              <div class="install-check" :class="{ dim: !check.ok }">
-                <span
-                  class="install-check-icon"
-                  :class="{ ok: check.ok, bad: !check.ok }"
-                  x-html="installCheckIcon(check)"
-                ></span>
-                <span x-text="check.label"></span>
+          <div class="lesson-list" x-show="recentLessons().length > 0">
+            <template
+              x-for="lesson in recentLessons()"
+              :key="lesson.id + lesson.path"
+            >
+              <div class="lesson-row">
+                <span class="lesson-id" x-text="lesson.id"></span>
+                <div class="lesson-text">
+                  <strong x-text="lesson.title"></strong>
+                  <span x-text="lesson.created || lesson.path"></span>
+                </div>
               </div>
             </template>
           </div>
 
-          <div class="ring-wrap">
-            <div class="ring-chart" :style="ringStyle()">
-              <span class="ring-value" :style="{ color: ringColor() }">
-                <span x-text="ringNumber()"></span
-                ><span class="ring-pct" x-show="ringShowPct()">%</span>
-              </span>
-            </div>
-            <span class="ring-label" x-text="ringLabel()"></span>
+          <div class="loop-na" x-show="recentLessons().length === 0">
+            <div class="loop-na-mark">NA</div>
+            <p
+              x-text="setupMissing() ? 'No learning-loop records yet.' : 'Lessons appear here as agents log them.'"
+            ></p>
           </div>
-        </div>
-      </article>
+        </article>
+      </section>
 
-      <article class="panel lessons-panel">
-        <div class="panel-head">
-          <span class="panel-title">Recent lessons</span>
-        </div>
-
-        <div class="lesson-list" x-show="recentLessons().length > 0">
-          <template
-            x-for="lesson in recentLessons()"
-            :key="lesson.id + lesson.path"
-          >
-            <div class="lesson-row">
-              <span class="lesson-id" x-text="lesson.id"></span>
-              <div class="lesson-text">
-                <strong x-text="lesson.title"></strong>
-                <span x-text="lesson.created || lesson.path"></span>
-              </div>
-            </div>
-          </template>
-        </div>
-
-        <div class="loop-na" x-show="recentLessons().length === 0">
-          <div class="loop-na-mark">NA</div>
-          <p
-            x-text="setupMissing() ? 'No learning-loop records yet.' : 'Lessons appear here as agents log them.'"
-          ></p>
-        </div>
-      </article>
-    </section>
-
-    <div
-      class="gf-footer"
-      style="text-align: center; font-size: 11px; padding: 12px 0"
-    >
-      Built by
-      <a
-        href="https://www.blundergoat.com"
-        target="_blank"
-        class="gf-footer-link"
-        >BlunderGOAT</a
+      <div
+        class="gf-footer"
+        style="text-align: center; font-size: 11px; padding: 12px 0"
       >
-      ·
-      <span x-text="dashboardVersion ? `v${dashboardVersion}` : ''"></span>
+        Built by
+        <a
+          href="https://www.blundergoat.com"
+          target="_blank"
+          class="gf-footer-link"
+          >BlunderGOAT</a
+        >
+        ·
+        <span x-text="dashboardVersion ? `v${dashboardVersion}` : ''"></span>
+      </div>
     </div>
   </div>
-</div>
 </div>

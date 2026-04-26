@@ -253,12 +253,34 @@ last_reviewed: 2026-04-26
 **Prevention:** When a static mockup defines the target, diff the mockup HTML structure against the live HTML element-by-element before touching CSS. Every element in the live page that doesn't exist in the mockup is a removal candidate. Every margin, padding, font-family, and font-size value in the mockup CSS is a hard spec, not a suggestion. Do not add content (text, elements, wrappers) that the mockup does not contain.
 
 ---
-## Lesson: CLI agents cannot diagnose rendered CSS — ask for browser inspection
+## Lesson: CLI agents cannot diagnose rendered CSS - ask for browser inspection
 
 **Created:** 2026-04-26
 
-**What happened:** The dashboard's donut chart had a dark hairline border that the user asked to remove. The agent added `border: none` to the `.ring` CSS rule but the hairline persisted. Multiple rounds of CSS changes failed because the agent was guessing at the cause from source code alone. The actual problem was a Tailwind v4 `.ring` utility injecting `box-shadow` onto the element — a class-name collision invisible in source. The user had to use a browser extension (Claude browser) to inspect the rendered computed styles and identify the `box-shadow` from Tailwind's generated CSS. Only then was the real fix clear: rename the class from `ring` to `ring-chart`.
+**What happened:** The dashboard's donut chart had a dark hairline border that the user asked to remove. The agent added `border: none` to the `.ring` CSS rule but the hairline persisted. Multiple rounds of CSS changes failed because the agent was guessing at the cause from source code alone. The actual problem was a Tailwind v4 `.ring` utility injecting `box-shadow` onto the element - a class-name collision invisible in source. The user had to use a browser extension (Claude browser) to inspect the rendered computed styles and identify the `box-shadow` from Tailwind's generated CSS. Only then was the real fix clear: rename the class from `ring` to `ring-chart`.
 
 **Root cause:** The agent cannot render CSS or inspect computed styles. It can only read source files. When a visual bug comes from framework-generated CSS (Tailwind, PostCSS, CSS-in-JS) colliding with custom styles, the source code shows no conflict. The agent kept applying source-level fixes (`border: none`, adding properties) that couldn't work because the wrong property was being targeted and the collision was in generated output.
 
 **Prevention:** When a CSS visual bug persists after a source-level fix that should have worked, stop guessing. Tell the user: "I can't see the rendered styles from here. Can you inspect the element's computed styles in devtools and tell me what properties are applied?" One browser inspection gives more diagnostic value than five rounds of blind CSS edits. For Tailwind projects specifically, check whether custom class names collide with Tailwind utility names before writing the CSS rule.
+
+---
+## Lesson: Explicit skill invocation IS delegation consent - never ask again
+
+**Created:** 2026-04-26
+
+**What happened:** User invoked `/goat-critique` which requires spawning three sub-agents (Phase 1). The agent asked "Can I proceed with spawning the three critique agents?" despite the skill file explicitly stating "Explicit invocation is explicit consent to the full critique protocol." This wasted a turn and frustrated the user, who had already given consent by typing the command.
+
+**Root cause:** The skill's Step 0 had a "Delegation consent gate" that said "when the active runner requires explicit user consent for delegated sub-agents and that consent is not present in the current user request or caller context, stop and ask before Phase 1." The agent interpreted this as always needing to ask, even though the preceding paragraph said explicit invocation is consent. The two clauses contradicted each other and the agent chose the more cautious (wrong) interpretation.
+
+**Prevention:** When a user explicitly invokes a skill that spawns sub-agents as its core protocol, that invocation IS the consent. Do not re-ask. The skill file has been updated to make this unambiguous. For any skill with delegated agents: if the user typed the command, proceed. The only time to ask is when the skill was auto-routed by the dispatcher and the user didn't explicitly request it.
+
+---
+## Lesson: Respect punctuation preferences immediately
+
+**Created:** 2026-04-26
+
+**What happened:** The agent restored em dashes in several text files while cleaning up verification side effects, even though the user's preference is to use plain hyphens instead. The user had to interrupt and explicitly say they hate em dashes and want them changed to `-`.
+
+**Root cause:** The agent treated punctuation restoration as preserving prior file style instead of recognizing a strong user preference. The local editing default already favors ASCII unless there is a clear reason otherwise, but the agent allowed existing prose punctuation to override the user's preference.
+
+**Prevention:** When the user states a formatting or punctuation preference, apply it immediately and consistently within the requested scope. Prefer ASCII hyphens over em dashes in generated or edited prose unless the user explicitly asks for typographic punctuation.

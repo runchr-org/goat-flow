@@ -238,7 +238,7 @@ function dashboardSaveDashboardState(ctx: DashboardProjectsContext): void {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ paths, favorites, projectTitles }),
-  }).catch((err) => {
+  }).catch((err: unknown) => {
     console.warn("[goat-flow] Failed to persist dashboard state:", err);
   });
 }

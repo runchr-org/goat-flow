@@ -41,6 +41,7 @@
     "build": "rm -rf dist/ && tsc && chmod +x dist/cli/cli.js && npm run build:dashboard",
     "build:dashboard": "tsc -p tsconfig.dashboard.json && mkdir -p dist/dashboard && cp src/dashboard/index.html src/dashboard/styles.css src/dashboard/preset-prompts.json dist/dashboard/ && rm -rf dist/dashboard/views && cp -r src/dashboard/views dist/dashboard/views",
     "test": "node --import tsx --test test/*/*.test.ts",
+    "test:performance": "npm run build && GOAT_FLOW_PERF_TESTS=1 node --import tsx --test test/performance/*.test.ts",
     "test:coverage": "node --import tsx --experimental-test-coverage --test test/*/*.test.ts",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.dashboard.json --noEmit",
     "postinstall": "node scripts/warn-node-pty.mjs",

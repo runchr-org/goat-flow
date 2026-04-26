@@ -1,4 +1,4 @@
-# Scratchpad — ephemeral working notes
+# Scratchpad - ephemeral working notes
 
 **This directory is gitignored by design.** It holds throwaway WIP files: mid-conversation notes, draft release text, exploratory snippets, anything the human or coding agent wants to keep *for the current session* without committing.
 

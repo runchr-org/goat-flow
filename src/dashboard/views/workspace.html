@@ -364,7 +364,17 @@
 
         <template x-if="terminalAvailable && !terminalSessionId">
           <div class="flex-1 flex items-center justify-center">
-            <p class="gf-text-muted">No active terminal session</p>
+            <div class="text-center space-y-3">
+              <p class="gf-text-muted">No active terminal session</p>
+              <button
+                @click="launchInTerminal('', activeRunner, { promptLabel: 'Terminal' })"
+                :disabled="launching || serverSessions.length >= serverMaxSessions"
+                :title="serverSessions.length >= serverMaxSessions ? 'Session limit reached. End one to launch another.' : 'Open terminal'"
+                class="gf-btn gf-btn-md gf-btn-audit"
+              >
+                Open terminal
+              </button>
+            </div>
           </div>
         </template>
 
