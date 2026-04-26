@@ -36,7 +36,7 @@ If vague, ask about: goal, symptom/error message, area involved.
 **Quick path:** diagnose and report; **full path:** run D1–D4.
 **Footgun check:** Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/` and `.goat-flow/lessons/` for the target area. Surface matches or an explicit retrieval miss; do not broad-load either bucket.
 
-**UI bug detection:** Does the bug report reference a URL, a UI element, a visual rendering issue, browser DevTools output, or a browser console/network symptom? If yes, read `references/browser-use.md` for browser evidence tools. Check with `command -v browser-use`. If not installed, offer to install it (`pip install browser-use`) and wait for the user's response — never auto-install or silently fall back. If the user declines or installation fails, use the manual fallback in the reference.
+**Browser evidence detection:** Does the request reference a URL, local HTML page, localhost route, screenshot, UI element, visual rendering issue, browser DevTools output, or browser console/network symptom? If yes, read `.goat-flow/skill-reference/browser-use.md` for browser evidence tools. Check with `command -v browser-use && browser-use doctor`. If not installed, offer to install it (`pip install browser-use`) and wait for the user's response - never install it without approval or silently fall back. If the user declines or installation fails, use the manual fallback in the reference.
 
 
 ## Diagnose Mode
@@ -47,7 +47,7 @@ After reading the primary file, write 2-3 hypotheses spanning at least 2 of: Dat
 
 **Multi-component failures** (CI → build → deploy, request → middleware → handler → DB, etc.): instrument each boundary before proposing any fix. For each component boundary, log what data enters and what exits, run once to gather evidence showing WHERE the chain breaks, THEN investigate the specific failing component. Do not guess the failing layer.
 
-**UI-visible bugs:** After writing hypotheses, use browser evidence to confirm or eliminate UI-related hypotheses. Follow the D1 workflow in `references/browser-use.md`. Browser output is OBSERVED; interpretations remain INFERRED until mapped to `file:line`.
+**UI-visible bugs:** After writing hypotheses, use browser evidence to confirm or eliminate UI-related hypotheses. Follow the workflow in `.goat-flow/skill-reference/browser-use.md`. Browser output is OBSERVED; interpretations remain INFERRED until mapped to `file:line`.
 
 **Can't reproduce after 5 file reads?** Log what you checked, suggest logging additions, ask for more context.
 
@@ -73,7 +73,7 @@ Rerun the **original reproduction** from D2 - a code change is not a fix until t
 
 **3-fix abort rule:** If three independent fixes have failed to resolve the symptom, STOP and reconsider whether the architecture or the root-cause hypothesis is wrong. Do not attempt a fourth patch without first re-entering D1 with a fresh hypothesis set.
 
-**UI bugs:** Rerun the original browser reproduction post-fix. Capture screenshot/state showing the symptom is gone. Follow the D4 workflow in `references/browser-use.md`.
+**UI bugs:** Rerun the original browser reproduction post-fix. Capture screenshot/state showing the symptom is gone. Follow `.goat-flow/skill-reference/browser-use.md`.
 
 **Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to the "fixed" claim - rerun the original repro, cite the literal output, and downgrade to **UNVERIFIED** if the session cannot execute the proof.
 

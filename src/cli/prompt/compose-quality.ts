@@ -105,7 +105,7 @@ function qualityModeLabel(mode: QualityMode): string {
   if (mode === "process") return "GOAT Flow Process";
   if (mode === "harness") return "Harness Engineering";
   if (mode === "skills") return "Skills";
-  return "Agent Setup Quality";
+  return "Agent Installation";
 }
 
 function qualityModeTargetScope(mode: QualityMode): string {
@@ -561,7 +561,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "4. **Learning loop** (`.goat-flow/`) - config, architecture doc, footguns, lessons, decisions, session logs.",
   );
   lines.push(
-    "5. **Shared reference** (under `.goat-flow/skill-reference/`) - skill-preamble.md (loaded every skill invocation), skill-conventions.md (loaded on full-depth), skill-quality-testing.md index plus skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, and skill-quality-testing/deployment.md (full-depth authoring methodology split across an index and three topical files per ADR-023; load the topical file matching your skill type).",
+    "5. **Shared reference** (under `.goat-flow/skill-reference/`) - skill-preamble.md (loaded every skill invocation), skill-conventions.md (loaded on full-depth), browser-use.md for browser evidence capture, skill-quality-testing.md index plus skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, and skill-quality-testing/deployment.md (full-depth authoring methodology split across an index and three topical files per ADR-023; load the topical file matching your skill type).",
   );
   lines.push("");
   lines.push(
@@ -1122,7 +1122,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     `- \`rubric_version\` is REQUIRED at top level; copy the template value (\`"${getPackageVersion()}"\`). The Rating bands section above is the rubric - future readers use this version tag to trace which band anchors produced your scores.`,
   );
   lines.push(
-    `- \`quality_mode\` is REQUIRED for new reports generated from this prompt. Use \`${jsonString(qualityMode)}\` for this Agent Setup Quality assessment.`,
+    `- \`quality_mode\` is REQUIRED for new reports generated from this prompt. Use \`${jsonString(qualityMode)}\` for this ${qualityModeLabel(qualityMode)} assessment.`,
   );
   lines.push(
     "- `line` must be a positive integer OR `null`. Never `0`. For file-wide findings with no specific line, use `null`.",

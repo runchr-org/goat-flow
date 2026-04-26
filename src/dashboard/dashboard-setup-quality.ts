@@ -103,6 +103,13 @@ function dashboardQualityModes(
   const skillQuality = dashboardQualityModePreset(ctx, "skill-quality-test");
   return [
     {
+      id: "agent-setup",
+      label: "Agent Installation",
+      desc: "Assess the active agent installation across accuracy, relevance, completeness, and friction.",
+      source: "api",
+      targetScope: "selected project and selected agent installation",
+    },
+    {
       id: "process",
       label: "GOAT Flow Process",
       desc: "Review framework artifacts, instructions, references, hooks, and workflow policy.",
@@ -111,13 +118,6 @@ function dashboardQualityModes(
       targetScope:
         "controlling goat-flow workspace, plus selected target only when it is a goat-flow installation",
       prompt: qualityCheck?.prompt,
-    },
-    {
-      id: "agent-setup",
-      label: "Agent Setup Quality",
-      desc: "Generate a read-only setup-quality assessment prompt for the selected agent installation.",
-      source: "api",
-      targetScope: "selected project and selected agent installation",
     },
     {
       id: "harness",

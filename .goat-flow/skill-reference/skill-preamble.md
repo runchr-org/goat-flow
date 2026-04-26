@@ -27,6 +27,7 @@ Order findings by severity, not by file or discovery order.
 ## Evidence Standard
 
 - Every live review finding MUST include file evidence - use `file:line` when the specific line demonstrates the issue, or `file` when the trap is file-level. Path-only evidence is valid when a line number would be fabricated.
+- For URL, local HTML, localhost, screenshot, rendered UI, or browser-visible tasks, check `.goat-flow/skill-reference/browser-use.md` and run `command -v browser-use && browser-use doctor` before claiming browser automation is unavailable.
 - Durable learning-loop artifacts (footguns, lessons, patterns, decisions) MUST use file paths plus grep-friendly semantic anchors (function name, unique string, or `(search: "pattern")`) instead of line numbers.
 - MUST NOT fabricate file paths, function names, or artifact content
 - Before presenting findings, re-read each cited `file:line` to confirm accuracy
@@ -51,7 +52,7 @@ The red-flags name what NOT to claim; this gate names HOW to substantiate a clai
 
 ## Ceremony Level
 
-Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
+Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks. This table is **pre-invocation routing guidance** - use it when deciding which skill to invoke. Once the user explicitly invokes a skill, run its full protocol regardless of complexity.
 
 | Complexity | Ceremony |
 |------------|----------|
@@ -72,6 +73,7 @@ When invoked via /goat or when intent is ambiguous:
 
 **Route by intent:**
 - Bug, failure, investigation → /goat-debug
+- Browser-visible viewing/inspection (URL, local HTML, localhost page, screenshot, rendered UI) → browser evidence first; use /goat-debug Investigate when diagnosis or source tracing is needed
 - Quality review, audit → /goat-review
 - Multi-perspective critique → /goat-critique
 - Security, compliance, dependency audit → /goat-security

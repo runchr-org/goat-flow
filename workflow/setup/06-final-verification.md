@@ -34,6 +34,7 @@ Check these surfaces:
 - All installed skill files
 - Agent settings / hook config files
 - `.goat-flow/skill-reference/skill-preamble.md`
+- `.goat-flow/skill-reference/browser-use.md`
 - `.goat-flow/config.yaml`
 
 For each backtick-wrapped path or hook path:

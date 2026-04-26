@@ -27,6 +27,8 @@ Use when the user describes an outcome and wants the right workflow chosen.
 2. **GATHER** - collect minimal context: boundaries, footgun matches, recent git activity.
 3. **ROUTE** - dispatch to the target skill using the preamble routing table. Include a one-line rationale: "Routing to `/goat-debug` - you described a symptom ([symptom]), and the target is [area]."
 
+Browser-visible requests (URL, local HTML, localhost page, screenshot, rendered UI) route to browser evidence first. Use `/goat-debug` Investigate mode when the request needs diagnosis, source tracing, or post-fix verification.
+
 ## Planning Route
 
 Hotfix complexity → direct execution, no planning needed. Anything larger → `/goat-plan`; the skill's Step 0 handles complexity classification and milestone detection.

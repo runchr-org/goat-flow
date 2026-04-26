@@ -678,6 +678,15 @@ if [[ -f workflow/skills/reference/skill-conventions.md ]] && [[ -f .goat-flow/s
 else
     skip "skill-conventions.md sync (one or both files missing)"
 fi
+if [[ -f workflow/skills/reference/browser-use.md ]] && [[ -f .goat-flow/skill-reference/browser-use.md ]]; then
+    if diff -q workflow/skills/reference/browser-use.md .goat-flow/skill-reference/browser-use.md >/dev/null 2>&1; then
+        pass "browser-use.md: template and installed copy match"
+    else
+        fail "browser-use.md: template (workflow/skills/reference/) and installed (.goat-flow/skill-reference/) differ"
+    fi
+else
+    skip "browser-use.md sync (one or both files missing)"
+fi
 if [[ -f workflow/skills/reference/skill-quality-testing.md ]] && [[ -f .goat-flow/skill-reference/skill-quality-testing.md ]]; then
     if diff -q workflow/skills/reference/skill-quality-testing.md .goat-flow/skill-reference/skill-quality-testing.md >/dev/null 2>&1; then
         pass "skill-quality-testing.md: template and installed copy match"

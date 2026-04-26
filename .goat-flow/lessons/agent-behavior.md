@@ -3,6 +3,26 @@ category: agent-behavior
 last_reviewed: 2026-04-27
 ---
 
+## Lesson: Never override explicit skill invocation with your own judgment about artifact size
+
+**Created:** 2026-04-27
+
+**What happened:** User invoked `/goat-critique` to brainstorm a better name and description for a quality mode label. The agent judged the artifact (two short strings) as "too trivial" for the full 3-sub-agent protocol and skipped it entirely, citing the skill's own "NOT this skill" section: "Trivial artifact - use goat-review instead. If it is not worth 3 agents and 5 phases, do not use goat-critique." The agent brainstormed directly and gave a shallow answer ("Setup Health"). The user was furious.
+
+**Root cause:** The agent confused pre-invocation routing guidance with post-invocation authority. The "NOT this skill" section exists to help the dispatcher (or the agent when no skill has been chosen yet) route to the right skill. Once the user explicitly types `/goat-critique`, that section is irrelevant - the user has already made the routing decision. The agent also ignored two existing memory entries (`feedback_always_run_skills`, `feedback_never_ask_delegation_consent`) that both said to always run the full protocol on explicit invocation.
+
+**Why this matters:** The full protocol produced materially better results than the shortcut:
+- Agent A found a naming collision with `check-agent-setup.ts` that the solo brainstorm missed entirely
+- Agent A identified that the mode ID is persisted in JSON reports and must not change - the solo answer might have led to an ID rename
+- Agent B compared all four mode names systematically and found the noun-phrase pattern, producing "Agent Installation" which was more pattern-consistent than the solo "Setup Health"
+- Agent C (fresh eyes, no project context) identified that "Setup" implies a one-time event - a UX insight grounded in genuine unfamiliarity
+
+The user's point: "if it wasn't for that we wouldn't have found the better name." The protocol's value is not proportional to artifact size.
+
+**Prevention:** The user decides what deserves the full protocol, not the agent. If the user types `/goat-critique`, `/goat-plan`, or any `/goat-*` command, run every phase without exception. The skill's "NOT this skill" section is pre-invocation routing guidance for the dispatcher. It does not override explicit invocation. Do not evaluate whether an artifact is "worth" the full treatment.
+
+---
+
 ## Lesson: Retrieval terms must name the concrete failure class
 
 **Created:** 2026-04-18
@@ -268,17 +288,28 @@ last_reviewed: 2026-04-27
 
 **Created:** 2026-04-27
 
-**What happened:** User asked the agent to view two static site pages (`docs/site/goat-flow-landing.html` and `docs/site/goat-flow-harness-engineering.html`). The agent checked for Playwright, Chromium, Firefox, and text browsers, then claimed there was no headless browser installed. The user pointed at `.claude/skills/goat-debug/references/browser-use.md`, which documents the local `browser-use` CLI. `browser-use` was installed and worked immediately: `browser-use doctor` reported 4/5 checks passed, and the agent was able to open both local routes, capture rendered state, and save screenshots.
+**What happened:** User asked the agent to view two static site pages (`docs/site/goat-flow-landing.html` and `docs/site/goat-flow-harness-engineering.html`). The agent checked for Playwright, Chromium, Firefox, and text browsers, then claimed there was no headless browser installed. The user pointed at the repo's browser-use skill reference, now canonical at `.goat-flow/skill-reference/browser-use.md`, which documents the local `browser-use` CLI. `browser-use` was installed and worked immediately: `browser-use doctor` reported 4/5 checks passed, and the agent was able to open both local routes, capture rendered state, and save screenshots.
 
 **Root cause:** The agent treated "view this HTML" as a generic static-file inspection task instead of a UI/browser-evidence task. It searched for familiar tools from habit and failed to check repository-provided skill references before making a broad tooling claim.
 
 **Why this matters:** Saying "there is no browser" when a project-specific browser tool exists creates false constraints and wastes the user's time. It also undermines the purpose of local skill references: they are there to encode exactly this kind of workflow knowledge.
 
 **Evidence:**
-- `.claude/skills/goat-debug/references/browser-use.md` (search: `command -v browser-use && browser-use doctor`) documents the availability check.
-- `.claude/skills/goat-debug/references/browser-use.md` (search: `browser-use screenshot [path.png]`) documents rendered evidence capture.
+- `.goat-flow/skill-reference/browser-use.md` (search: `command -v browser-use && browser-use doctor`) documents the availability check.
+- `.goat-flow/skill-reference/browser-use.md` (search: `browser-use screenshot [path.png]`) documents rendered evidence capture.
 
 **Prevention:** When a task asks to view, inspect, screenshot, debug, or verify a local UI, check local browser references before falling back to generic tooling assumptions. Run `command -v browser-use && browser-use doctor` before saying browser automation is unavailable. If `browser-use` is missing, follow the reference's ask-before-install fallback instead of declaring the task impossible.
+
+---
+## Lesson: Remove redundant local references after promoting shared doctrine
+
+**Created:** 2026-04-27
+
+**What happened:** M12 promoted browser-use guidance into the canonical shared reference `.goat-flow/skill-reference/browser-use.md`, but the first implementation kept four per-skill browser-use compatibility files under goat-debug reference directories. The user pointed out that once the shared reference exists, those skill-local copies duplicate doctrine and create another drift surface.
+
+**Root cause:** The agent preserved a backward-compatibility shape from the starting point without proving that any installed project still needed the per-skill file. That weakened the shared-reference migration: one canonical reference existed, but stale compatibility files could keep attracting edits or references.
+
+**Prevention:** When moving guidance into `.goat-flow/skill-reference/`, grep every old path, remove redundant local copies unless there is an explicit compatibility requirement, and update manifest/install references in the same pass. Compatibility copies are a conscious exception, not the default cleanup state.
 
 ---
 ## Lesson: Explicit skill invocation IS delegation consent - never ask again

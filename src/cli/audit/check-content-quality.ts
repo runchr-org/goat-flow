@@ -58,6 +58,7 @@ const QUALITY_TARGETS = [
   // Shared skill doctrine
   ".goat-flow/skill-reference/skill-preamble.md",
   ".goat-flow/skill-reference/skill-conventions.md",
+  ".goat-flow/skill-reference/browser-use.md",
   ".goat-flow/skill-reference/skill-quality-testing.md",
   ".goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md",
   ".goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md",

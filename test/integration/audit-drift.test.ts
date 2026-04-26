@@ -75,6 +75,10 @@ function setupFixture(): string {
     SHARED_STUB,
   );
   writeFileSync(
+    join(root, "workflow", "skills", "reference", "browser-use.md"),
+    SHARED_STUB,
+  );
+  writeFileSync(
     join(root, "workflow", "skills", "reference", "skill-quality-testing.md"),
     SHARED_STUB,
   );
@@ -115,6 +119,10 @@ function setupFixture(): string {
   );
   writeFileSync(
     join(root, ".goat-flow", "skill-reference", "skill-conventions.md"),
+    SHARED_STUB,
+  );
+  writeFileSync(
+    join(root, ".goat-flow", "skill-reference", "browser-use.md"),
     SHARED_STUB,
   );
   writeFileSync(
@@ -295,7 +303,7 @@ describe("checkDrift: clean fixture", () => {
         (total, name) => total + getSkillFiles(name).length,
         0,
       ) * getInstalledSkillRoots().length;
-    assert.equal(report.checked, expectedSkillComparisons + 6);
+    assert.equal(report.checked, expectedSkillComparisons + 7);
   });
 });
 

@@ -12,6 +12,7 @@
  *   - Shared docs (template → installed in .goat-flow/skill-reference/):
  *       workflow/skills/reference/skill-preamble.md         vs .goat-flow/skill-reference/skill-preamble.md
  *       workflow/skills/reference/skill-conventions.md      vs .goat-flow/skill-reference/skill-conventions.md
+ *       workflow/skills/reference/browser-use.md            vs .goat-flow/skill-reference/browser-use.md
  *       workflow/skills/reference/skill-quality-testing.md  vs .goat-flow/skill-reference/skill-quality-testing.md
  *   - Orphan directories under .claude/skills or .agents/skills whose
  *     name is not in SKILL_NAMES. Names that appear in manifest.stale_names
@@ -118,6 +119,10 @@ const SHARED_FILES: SharedFileSpec[] = [
   {
     template: "workflow/skills/reference/skill-conventions.md",
     installed: ".goat-flow/skill-reference/skill-conventions.md",
+  },
+  {
+    template: "workflow/skills/reference/browser-use.md",
+    installed: ".goat-flow/skill-reference/browser-use.md",
   },
   {
     template: "workflow/skills/reference/skill-quality-testing.md",

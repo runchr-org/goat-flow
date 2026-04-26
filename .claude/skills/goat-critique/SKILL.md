@@ -19,10 +19,10 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 - You want competing perspectives, not just validation
 - Called by another goat-* skill or directly by the user
 
-**NOT this skill:**
+**NOT this skill (pre-invocation routing):** Use when deciding which skill to invoke, not after explicit invocation.
 - No artifact exists yet → create one first (goat-review, goat-debug, etc.)
 - Simple factual question → answer directly
-- Trivial artifact (hotfix, single-file change) → use goat-review instead. If it is not worth 3 agents and 5 phases, do not use goat-critique.
+- Trivial artifact (hotfix, single-file change) → consider goat-review instead
 
 **Direct invocation is binding.** `$goat-critique` or `/goat-critique` runs all 5 phases and is consent to the full protocol and delegated sub-agents. Do NOT ask again. Dispatcher ambiguity rules do not override direct invocation; raise scope concerns after synthesis.
 

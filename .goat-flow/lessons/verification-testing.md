@@ -1,6 +1,6 @@
 ---
 category: verification-testing
-last_reviewed: 2026-04-26
+last_reviewed: 2026-04-27
 ---
 
 ## Lesson: Formatter verification must preserve repo style flags
@@ -318,3 +318,14 @@ last_reviewed: 2026-04-26
 **Root cause:** I treated focused unit tests, typecheck, and fast-suite results as enough after changing a prompt helper and test fixture. The slow installer round-trip runs repo preflight inside a copied checkout, so it catches lint and format debt that focused tests do not.
 
 **Prevention:** Before rerunning `npm run test:slow` after prompt/test changes, run `npx eslint src/cli src/dashboard` and `npm run format:check` locally. If the slow round-trip preflight fails, reproduce the reported gate directly in the source checkout before changing installer or drift logic.
+
+---
+## Lesson: Serve local HTML over localhost for browser-use evidence
+
+**Status:** active | **Created:** 2026-04-27
+
+**What happened:** During M12 browser-use verification, `browser-use open file:///home/devgoat/projects/goat-flow/docs/site/goat-flow-landing.html` succeeded at navigation but `browser-use state` returned `Empty DOM tree`. Serving the same directory with `python3 -m http.server 4182 --bind 127.0.0.1` and opening `http://127.0.0.1:4182/goat-flow-landing.html` returned the expected rendered page state and screenshot.
+
+**Root cause:** A `file://` URL is not representative enough for local browser evidence in this agent environment. The browser navigation can succeed while DOM/state capture is empty, which makes a false negative look like a page problem.
+
+**Prevention:** For local HTML/browser-use verification, serve the directory over localhost before opening the page. Treat `file://` empty DOM output as a verification-environment issue to rerun over HTTP before drawing conclusions. Evidence anchors: `workflow/skills/reference/browser-use.md` (search: `Local HTML shows an empty DOM`), `.goat-flow/skill-reference/browser-use.md` (search: `serve the directory over localhost`).
