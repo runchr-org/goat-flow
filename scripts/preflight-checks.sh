@@ -322,6 +322,33 @@ else
     skip "Version check (missing package.json)"
 fi
 
+# ── Skill Behavioral Contracts ───────────────────────────────────────
+section "Skill Behavioral Contracts"
+contract_ok=true
+bad_goat_critique_patterns=(
+    "Exception: on C""odex"
+    "C""odex requires ""explicit user ""delegation ""consent"
+    "confirm ""delegation ""consent once ""before spawning"
+)
+goat_critique_files=("workflow/skills/goat-critique/SKILL.md")
+while IFS= read -r agent_dir; do
+    [[ -d "$agent_dir" ]] || continue
+    goat_critique_files+=("${agent_dir}/goat-critique/SKILL.md")
+done < <(manifest_eval skill-roots)
+
+for f in "${goat_critique_files[@]}"; do
+    [[ -f "$f" ]] || continue
+    for pattern in "${bad_goat_critique_patterns[@]}"; do
+        if grep -Fq "$pattern" "$f"; then
+            fail "$f contains obsolete goat-critique delegation exception: $pattern"
+            contract_ok=false
+        fi
+    done
+done
+if [[ "$contract_ok" == true ]]; then
+    pass "goat-critique direct invocation has no obsolete Codex delegation exception"
+fi
+
 # ── Cross-Agent Loop Consistency ─────────────────────────────────────
 agent_files=()
 for af in CLAUDE.md AGENTS.md GEMINI.md .github/copilot-instructions.md; do

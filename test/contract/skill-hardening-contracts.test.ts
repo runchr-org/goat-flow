@@ -20,6 +20,16 @@ function skillPaths(skill: string): string[] {
 }
 
 describe("skill hardening contracts", () => {
+  const badCodexException = new RegExp("Exception: on C" + "odex");
+  const badCodexConsent = new RegExp(
+    ["C", "odex requires ", "explicit user ", "delegation ", "consent"].join(
+      "",
+    ),
+  );
+  const badDelegationConfirm = new RegExp(
+    ["confirm ", "delegation ", "consent once ", "before spawning"].join(""),
+  );
+
   it("keeps goat-plan mid-implementation proof explicit and within budget", () => {
     for (const path of skillPaths("goat-plan")) {
       const body = read(path);
@@ -73,6 +83,58 @@ describe("skill hardening contracts", () => {
       assert.match(body, /Check sub-agent completeness/, path);
       assert.match(body, /3-7 findings plus required lens fields/, path);
       assert.match(body, /sub-agent completeness limited/, path);
+    }
+  });
+
+  it("keeps goat-critique direct invocation as delegation consent", () => {
+    for (const path of skillPaths("goat-critique")) {
+      const body = read(path);
+      assert.match(body, /\$goat-critique/, path);
+      assert.match(body, /\/goat-critique/, path);
+      assert.match(body, /consent to spawn sub-agents/, path);
+      assert.match(body, /Do NOT ask again/, path);
+      assert.doesNotMatch(body, badCodexException, path);
+      assert.doesNotMatch(body, badCodexConsent, path);
+      assert.doesNotMatch(body, badDelegationConfirm, path);
+    }
+  });
+
+  it("keeps goat-critique report-only until explicit apply", () => {
+    for (const path of skillPaths("goat-critique")) {
+      const body = read(path);
+      assert.match(body, /Report-only by default/, path);
+      assert.match(body, /Do not mutate the target artifact/, path);
+      assert.match(
+        body,
+        /user separately says to apply, edit, update, fix/,
+        path,
+      );
+      assert.match(body, /Recommendations are never auto-applied/, path);
+      assert.match(body, /After synthesis, stop/, path);
+      assert.match(body, /Do not enter implementation mode/, path);
+      assert.match(body, /freeze writes/, path);
+    }
+  });
+
+  it("keeps shared report-only and interrupt freeze contracts installed", () => {
+    for (const path of [
+      "workflow/skills/reference/skill-preamble.md",
+      ".goat-flow/skill-reference/skill-preamble.md",
+    ]) {
+      const body = read(path);
+      assert.match(body, /Report-Only Skill Contract/, path);
+      assert.match(body, /are report-only by default/, path);
+      assert.match(body, /MUST NOT mutate the target artifact/, path);
+    }
+
+    for (const path of [
+      "workflow/skills/reference/skill-conventions.md",
+      ".goat-flow/skill-reference/skill-conventions.md",
+    ]) {
+      const body = read(path);
+      assert.match(body, /Interrupt Freeze Protocol/, path);
+      assert.match(body, /freeze writes immediately/, path);
+      assert.match(body, /Only run read-only status or diff checks/, path);
     }
   });
 
