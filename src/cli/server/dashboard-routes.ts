@@ -220,7 +220,7 @@ function buildDashboardLearningLoopSummary(
     const status =
       !shared.footguns.exists && !shared.lessons.exists
         ? "unavailable"
-        : staleCount > 2 || oversizedCount > 0
+        : staleCount > 2 || invalidLineRefCount > 0 || oversizedCount > 0
           ? "needs-review"
           : "fresh";
     return {

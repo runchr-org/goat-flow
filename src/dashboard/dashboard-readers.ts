@@ -255,6 +255,17 @@ function readAgentScore(value: unknown): AgentScore | null {
   };
 }
 
+/** Read one learning-loop action bucket from the audit payload. */
+function readLearningLoopBucketAction(
+  value: unknown,
+): { path: string; reason: string } | null {
+  if (!isRecord(value)) return null;
+  const path = readString(value.path);
+  const reason = readString(value.reason);
+  if (!path || !reason) return null;
+  return { path, reason };
+}
+
 /** Read compact learning-loop health from the audit payload. */
 function readLearningLoopSummary(
   value: unknown,
@@ -264,15 +275,33 @@ function readLearningLoopSummary(
   if (
     !["fresh", "needs-review", "unavailable"].includes(status) ||
     typeof value.recordCount !== "number" ||
+    typeof value.footgunCount !== "number" ||
+    typeof value.lessonCount !== "number" ||
     typeof value.staleCount !== "number" ||
+    typeof value.invalidLineRefCount !== "number" ||
     typeof value.oversizedCount !== "number"
   ) {
     return null;
   }
   return {
     recordCount: value.recordCount,
+    footgunCount: value.footgunCount,
+    lessonCount: value.lessonCount,
     staleCount: value.staleCount,
+    invalidLineRefCount: value.invalidLineRefCount,
     oversizedCount: value.oversizedCount,
+    oldestLastReviewed:
+      typeof value.oldestLastReviewed === "string"
+        ? value.oldestLastReviewed
+        : null,
+    topBucketsNeedingAction: Array.isArray(value.topBucketsNeedingAction)
+      ? value.topBucketsNeedingAction
+          .map((entry) => readLearningLoopBucketAction(entry))
+          .filter(
+            (entry): entry is { path: string; reason: string } =>
+              entry !== null,
+          )
+      : [],
     status: status as "fresh" | "needs-review" | "unavailable",
   };
 }

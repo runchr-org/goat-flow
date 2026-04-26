@@ -724,7 +724,7 @@ function app() {
         this.activeRunner === requestAgent;
       try {
         const res = await fetch(
-          `/api/quality/history?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestAgent)}&limit=1`,
+          `/api/quality/history?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestAgent)}&mode=agent-setup&limit=1`,
         );
         const payload = readRecord(await res.json(), "Home quality response");
         if (!isCurrentRequest()) return;
