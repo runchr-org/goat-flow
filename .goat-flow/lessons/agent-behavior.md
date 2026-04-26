@@ -275,6 +275,19 @@ last_reviewed: 2026-04-26
 **Prevention:** When a user explicitly invokes a skill that spawns sub-agents as its core protocol, that invocation IS the consent. Do not re-ask. The skill file has been updated to make this unambiguous. For any skill with delegated agents: if the user typed the command, proceed. The only time to ask is when the skill was auto-routed by the dispatcher and the user didn't explicitly request it.
 
 ---
+## Lesson: Plan-only critique requests must not mutate artifacts
+
+**Created:** 2026-04-26
+
+**What happened:** User invoked `$goat-critique make this less than 500 words: workflow/skills/goat/SKILL.md`. The agent ran the critique flow, then edited `workflow/skills/goat/SKILL.md` instead of stopping at a plan. When the user interrupted with "DONT MAKE THE CHANGES, I ONLY WANT THE GOAT-CRITIQUE TO GIVE ME A PLAN", the agent immediately began reverting through another patch while the user was still clarifying, creating a second round of unwanted file activity.
+
+**Root cause:** The agent collapsed "critique this change" and "implement this change" because the artifact named a concrete edit target and the agent defaulted to execution. It also treated interruption as permission to perform cleanup instead of first freezing writes and reporting exact current state.
+
+**Why this matters:** Review and critique skills are allowed to inspect, delegate, compare, and recommend. They must not auto-apply recommendations unless the user explicitly asks for implementation. Continuing to patch after an interruption compounds the original error because the user is trying to regain control of the workspace.
+
+**Prevention:** For `$goat-critique`, `/goat-critique`, review, audit, or "give me a plan" requests, default to artifact-only output: findings, plan, recommendations, and explicit implementation options. Do not edit files unless the user separately says to apply the changes. If the user interrupts or says stop/no changes, freeze all writes immediately, run only read-only status/diff checks if needed, and ask before any cleanup or revert.
+
+---
 ## Lesson: Respect punctuation preferences immediately
 
 **Created:** 2026-04-26
