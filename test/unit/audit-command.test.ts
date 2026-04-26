@@ -14,6 +14,7 @@ import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
 import { AUDIT_VERSION, SKILL_NAMES } from "../../src/cli/constants.js";
 import { PROFILES } from "../../src/cli/detect/agents.js";
 import { composeSetup } from "../../src/cli/prompt/compose-setup.js";
+import { extractHookFacts } from "../../src/cli/facts/agent/hooks.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
@@ -98,6 +99,15 @@ const STUB_AGENT_PROFILE: AgentProfile = {
   localPattern: "*/CLAUDE.md",
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
 };
+
+function extractHookFactsForDenyContent(denyContent: string) {
+  const fs = stubFS({
+    exists: (path) => path === STUB_AGENT_PROFILE.denyHookFile,
+    readFile: (path) =>
+      path === STUB_AGENT_PROFILE.denyHookFile ? denyContent : null,
+  });
+  return extractHookFacts(fs, STUB_AGENT_PROFILE, {}, true, true);
+}
 
 function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
   return {
@@ -1128,6 +1138,36 @@ describe("M01 harness check type tagging", () => {
         assert.equal(check.type, "metric", `${check.id} should be metric`);
       }
     }
+  });
+});
+
+describe("hook fact extraction", () => {
+  it("detects current deny hook secret coverage from generalized path matcher", () => {
+    const template = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
+      "utf8",
+    );
+    const facts = extractHookFactsForDenyContent(template);
+    assert.equal(facts.bashDenyCoversSecrets, true);
+  });
+
+  it("does not count self-test-only secret probes as Bash secret coverage", () => {
+    const facts = extractHookFactsForDenyContent(`
+run_self_test() {
+  run_case "cat .env" "cat .env" 2
+  run_case "cat ./.env" "cat ./.env" 2
+  run_case "cat ../.env" "cat ../.env" 2
+  run_case "cat .env.example" "cat .env.example" 0
+  run_case "cat ssh key" "cat ~/.ssh/id_rsa" 2
+  run_case "cat relative ssh key" "cat .ssh/id_rsa" 2
+  run_case "cat aws credentials" "cat ~/.aws/credentials" 2
+  run_case "cat relative aws credentials" "cat .aws/credentials" 2
+  run_case "cat secrets token" "cat secrets/token.txt" 2
+  run_case "cat credentials.json" "cat credentials.json" 2
+  run_case "xxd pem" "xxd server.pem" 2
+}
+`);
+    assert.equal(facts.bashDenyCoversSecrets, false);
   });
 });
 

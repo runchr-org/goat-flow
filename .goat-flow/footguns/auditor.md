@@ -1,11 +1,11 @@
 ---
 category: auditor
-last_reviewed: 2026-04-21
+last_reviewed: 2026-04-27
 ---
 
 ## Footgun: Audit does not prove end-to-end deny enforcement at runtime
 
-**Status:** active | **Created:** 2026-04-05 | **Updated:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED
+**Status:** active | **Created:** 2026-04-05 | **Updated:** 2026-04-27 | **Evidence:** ACTUAL_MEASURED
 
 The audit validates hook syntax, self-test behavior, and registration, but does not prove that a blocked command actually fails with exit 2 under a real sub-agent invocation. A hook that passes every static check can still fail to block at runtime if registration or environment are wrong.
 
@@ -13,10 +13,13 @@ The audit validates hook syntax, self-test behavior, and registration, but does 
 
 1. Hook registration cross-check (file exists ↔ registered in settings). The `deny-hook-registered` check in `harness/check-constraints.ts` partially covers this but does not verify end-to-end that a blocked command actually fails with exit 2 under real invocation.
 2. A dedicated `goat-flow verify` command for full runtime hook smoke-test is not yet built.
+3. Static fact extraction can drift from the deny hook when hook regexes are generalized. On 2026-04-27, `detectBashDenyCoversSecrets` still expected older `/.ssh/` and `/.aws/` regex text after the hook moved to relative/home-root normalization, causing a false harness failure until the detector and unit coverage were updated.
 
 **Evidence:**
 - `src/cli/audit/harness/check-constraints.ts` (search: `deny-hook-registered`) - cross-checks hook file existence against settings.json registration, but does not drive a blocked command through the live agent runtime.
 - `src/cli/audit/check-agent-setup.ts` (search: `checkHookSelfTest`) - invokes the hook's `--self-test` so quoted-alternation false positives and pipe-to-shell bypass attempts are exercised, not just parsed. Does not verify end-to-end blocking through an actual sub-agent's Bash tool.
+- `src/cli/facts/agent/hooks.ts` (search: `detectBashDenyCoversSecrets`) - derives the harness secret-coverage fact from static markers in the hook file; it must stay aligned with `workflow/hooks/deny-dangerous.sh` (search: `is_secret_path_touch`).
+- `test/unit/audit-command.test.ts` (search: `detects current deny hook secret coverage from generalized path matcher`) - regression coverage for the static detector against the canonical hook template.
 
 ---
 

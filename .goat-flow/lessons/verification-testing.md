@@ -217,6 +217,19 @@ last_reviewed: 2026-04-27
 2. When modifying the entry-point guard or anything that controls whether `main()` runs, verify via symlink invocation, not just direct `node dist/cli/cli.js`.
 
 ---
+## Lesson: Source-mode CLI proof does not refresh the package binary
+
+**Status:** active | **Created:** 2026-04-27
+
+**What happened:** A static detector patch made `node --import tsx src/cli/cli.ts audit . --harness --agent claude` pass, but the exact user-facing reproduction `npx goat-flow audit . --harness --agent claude` still failed because `npx` used the package `bin` path in `dist/cli/cli.js`. The built `dist/` copy still contained the old detector until `npm run build` refreshed it.
+
+**Root cause:** I treated source-mode CLI verification as equivalent to the packaged invocation path. In this repo, `npx goat-flow` exercises `package.json` `bin`, so local source edits do not affect that command until the build output is regenerated.
+
+**Prevention:**
+1. When fixing a failure reported with `npx goat-flow ...`, rerun that exact command after `npm run build`, even if the `node --import tsx src/cli/cli.ts ...` source path already passes.
+2. If source-mode and `npx` results disagree, check `dist/` freshness before changing the business logic again.
+
+---
 ## Lesson: deny-dangerous self-test needs no-space redirect and false-positive probes
 
 **Status:** active | **Created:** 2026-04-24

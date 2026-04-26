@@ -439,9 +439,45 @@ function analyzeDenyHookPath(
   };
 }
 
+/** Detect the executable secret-blocking rule, not just probe labels. */
+function denyHookHasActiveSecretRule(content: string): boolean {
+  const hasSecretFunction = /\bis_secret_path_touch\s*\(\)/.test(content);
+  const hasSecretFlag = /\btouches_secret\b/.test(content);
+  const hasSecretBlock = /block\s+["']Secret-file access/.test(content);
+  return [hasSecretFunction, hasSecretFlag].every(Boolean) || hasSecretBlock;
+}
+
+/** Detect relative/home root normalization for secret path checks. */
+function denyHookHasNormalizedSecretRoots(content: string): boolean {
+  const hasRootMatcher = content.includes("((\\./|\\.\\./|~/)*)");
+  const hasSelfTestRoots = [
+    "cat ./.env",
+    "cat ../.env",
+    "cat ~/.ssh/id_rsa",
+  ].every((marker) => content.includes(marker));
+  return hasRootMatcher || hasSelfTestRoots;
+}
+
+/** Detect the secret path families the harness expects the Bash hook to cover. */
+function denyHookHasSecretFamilyMarkers(content: string): boolean {
+  const hasKeys =
+    content.includes("\\.(pem|key|pfx)") ||
+    content.includes("\\.\\(pem\\|key\\|pfx\\)");
+  return [
+    /\\\.env/.test(content),
+    /\.env\.example/.test(content),
+    /\\\.ssh\//.test(content) || /\/\\\.ssh\//.test(content),
+    /\\\.aws\//.test(content) || /\/\\\.aws\//.test(content),
+    /secrets\//.test(content),
+    /credentials/.test(content) || /\\\.npmrc|\\\.pypirc/.test(content),
+    hasKeys,
+  ].every(Boolean);
+}
+
 /** Detect whether the Bash deny hook has pattern coverage for secret-bearing
- *  file reads (.env, /.ssh/, /.aws/, *.pem/*.key/*.pfx). Required because
- *  settings.json Read() deny rules only apply to the Read tool, not Bash. */
+ *  file reads (.env, SSH/AWS paths, credentials, and key material). Required
+ *  because settings.json Read() deny rules only apply to the Read tool, not
+ *  Bash. */
 function detectBashDenyCoversSecrets(
   fs: ReadonlyFS,
   denyHookPath: string | null,
@@ -449,11 +485,11 @@ function detectBashDenyCoversSecrets(
   if (!denyHookPath || !fs.exists(denyHookPath)) return false;
   const content = fs.readFile(denyHookPath);
   if (!content) return false;
-  const hasEnv = /\\\.env/.test(content);
-  const hasSsh = /\/\\\.ssh\//.test(content);
-  const hasAws = /\/\\\.aws\//.test(content);
-  const hasKeys = /\\\.\(pem\|key\|pfx\)/.test(content);
-  return hasEnv && hasSsh && hasAws && hasKeys;
+  return (
+    denyHookHasActiveSecretRule(content) &&
+    denyHookHasNormalizedSecretRoots(content) &&
+    denyHookHasSecretFamilyMarkers(content)
+  );
 }
 
 /** Detect hardcoded absolute paths inside shell hook lines. */
