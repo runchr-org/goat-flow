@@ -124,10 +124,28 @@ The prompt includes the current `audit` summary so the agent knows what's alread
 `npx goat-flow quality` composes the prompt and instructs the agent to write its final JSON report directly to `.goat-flow/logs/quality/<YYYY-MM-DD>-<HHMM>-<agent>-<rand5>.json` - a gitignored path. No separate capture step is needed; the agent owns the write, and `history` / `diff` operate on whatever the agent saved.
 
 ```bash
-npx goat-flow quality . --agent gemini             # Compose prompt; agent writes its own JSON report
-npx goat-flow quality history --agent gemini       # List saved reports + same-agent score deltas
-npx goat-flow quality diff --agent gemini          # Derive resolved / new / persisted / stuck vs the prior run
+npx goat-flow quality . --agent gemini             # Default: Agent Installation mode
+npx goat-flow quality . --agent claude --mode process   # GOAT Flow Process mode
+npx goat-flow quality . --agent claude --mode harness   # Harness Engineering mode
+npx goat-flow quality . --agent claude --mode skills    # Skills mode
+npx goat-flow quality history --agent gemini            # List saved reports + same-agent score deltas
+npx goat-flow quality history --mode process            # Filter history to one quality mode
+npx goat-flow quality diff --agent gemini               # Derive resolved / new / persisted / stuck vs prior run
+npx goat-flow quality diff --mode skills                # Compare within one mode only
 ```
+
+### Quality modes
+
+The `--mode` flag selects a focused quality assessment. Each mode generates a different prompt targeting a specific evaluation surface.
+
+| Mode | `--mode` value | What it assesses |
+|------|---------------|-----------------|
+| **Agent Installation** | `agent-setup` (default) | Accuracy, relevance, completeness, and friction of the active agent installation |
+| **GOAT Flow Process** | `process` | Whether the execution loop, learning loop, and skill workflows function as documented |
+| **Harness Engineering** | `harness` | Harness concern coverage (context, constraints, verification, recovery, feedback loop) |
+| **Skills** | `skills` | Skill quality: Step 0 gates, human checkpoints, output formats, cross-skill coherence |
+
+`history` and `diff` compare within the same mode by default. Cross-mode comparison is not supported since the scoring rubrics differ.
 
 - `quality` composes a structured prompt that ends with an instruction to save the JSON report under `.goat-flow/logs/quality/`. Positional finding ids are computed at load time by `history` / `diff`.
 - `quality history` lists saved reports and same-agent setup/system score deltas.
