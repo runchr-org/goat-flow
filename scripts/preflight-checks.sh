@@ -441,14 +441,21 @@ fi
 # ── Tests ────────────────────────────────────────────────────────────
 if [[ -f package.json ]] && grep -q '"test"' package.json; then
     section "Tests"
-    test_output=$(npm test 2>&1) && test_exit=0 || test_exit=$?
+    if grep -q '"test:fast"' package.json; then
+        test_command=(npm run test:fast)
+        test_label="Fast suite passing"
+    else
+        test_command=(npm test)
+        test_label="All passing"
+    fi
+    test_output=$("${test_command[@]}" 2>&1) && test_exit=0 || test_exit=$?
 
     test_count=$(echo "$test_output" | grep '# tests' | grep -oE '[0-9]+' || echo "?")
     pass_count=$(echo "$test_output" | grep '# pass' | grep -oE '[0-9]+' || echo "?")
     fail_count=$(echo "$test_output" | grep '# fail' | grep -oE '[0-9]+' || echo "0")
 
     if [[ "$test_exit" -eq 0 ]] && [[ "$test_count" != "0" ]] && [[ "$test_count" != "?" ]]; then
-        pass "All passing ($pass_count/$test_count)"
+        pass "$test_label ($pass_count/$test_count)"
     elif [[ "$test_exit" -eq 0 ]] && [[ "$test_count" == "0" || "$test_count" == "?" ]]; then
         warn "No tests found ($pass_count/$test_count) - test suite needs rebuilding (M23)"
     else
