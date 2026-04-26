@@ -1,6 +1,6 @@
 ---
 category: hooks
-last_reviewed: 2026-04-26
+last_reviewed: 2026-04-27
 ---
 
 ## Footgun: Settings.json Read() deny does not bind Bash shell reads of secret files
@@ -61,6 +61,26 @@ last_reviewed: 2026-04-26
 1. After changing any deny pattern in a settings template (`workflow/hooks/agent-config/*.json`), verify the installed copy matches. No automated parity check exists yet.
 2. When reviewing hook or settings changes, compare the installed file against its workflow template, not just against the other agent mirrors.
 3. Consider adding a preflight settings-parity check analogous to the existing skill-parity and preamble-sync checks.
+
+---
+
+## Footgun: Git push deny checks must normalize shell wrappers and control bodies
+
+**Status:** active | **Created:** 2026-04-27 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A deny hook can appear to block `git push` while still allowing valid shell forms that execute a push through environment wrappers, quoted assignments, `if`/`then` bodies, or shell function bodies.
+
+**Why it happens:** A token check that only normalizes the start of a simple command misses shell grammar around the command word. `env -i git push ...` starts with an env option after `env`; `FOO='a b' git push ...` contains whitespace inside an assignment value; `if true; then git push ...; fi` leaves a segment starting with `then`; `f(){ git push ...; }; f` leaves a segment starting with a function declaration.
+
+**Evidence:**
+- `workflow/hooks/deny-dangerous.sh` (search: `normalize_git_push_candidate`) - central normalization for shell wrappers/control bodies before `is_git_push`.
+- `workflow/hooks/deny-dangerous.sh` (search: `env option git push`) - self-test coverage for env options, quoted assignments, `if`/`then`, direct `if` conditions, and function bodies.
+- Runtime probes before the fix returned exit 0 for `bash scripts/deny-dangerous.sh 'env -i git push origin main'`, `bash scripts/deny-dangerous.sh "FOO='a b' git push origin main"`, `bash scripts/deny-dangerous.sh 'if true; then git push origin main; fi'`, and `bash scripts/deny-dangerous.sh 'f(){ git push origin main; }; f'`.
+
+**Prevention:**
+1. Any future `git push` deny edit must include runtime probes for env options, quoted assignments, shell control keywords, and function bodies, not only direct `git push` and pipe/semicolon chains.
+2. Keep the workflow hook, `scripts/` copy, and all installed agent hook copies byte-identical after policy changes.
+3. Prefer normalizing to the shell command word before calling `is_git_push`; do not add one-off regexes for only the latest bypass.
 
 ---
 

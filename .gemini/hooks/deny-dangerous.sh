@@ -263,6 +263,10 @@ run_self_test() {
   run_case "push with upstream" "git push -u origin my-branch" 2
   run_case "env prefix git push" "GIT_SSH_COMMAND=foo git push origin feature/x" 2
   run_case "env command git push" "env FOO=1 git push origin main" 2
+  run_case "env option git push" "env -i git push origin main" 2
+  run_case "env unset git push" "env -u GIT_SSH git push origin main" 2
+  run_case "quoted env prefix git push" "FOO='a b' git push origin main" 2
+  run_case "env quoted assignment git push" "env FOO='a b' git push origin main" 2
   run_case "multi env prefix push" "GIT_SSH=x GIT_AUTHOR=y git push" 2
   # Bypass regression: newline, pipe, git flags, command/builtin prefix
   run_case "newline git push" "$(printf 'echo ok\ngit push origin main')" 2
@@ -273,6 +277,9 @@ run_self_test() {
   run_case "command git push" "command git push origin main" 2
   run_case "builtin git push" "builtin git push origin main" 2
   run_case "pipe env git push" "echo x | env GIT_SSH=y git push" 2
+  run_case "if then git push" "if true; then git push origin main; fi" 2
+  run_case "if condition git push" "if git push origin main; then echo pushed; fi" 2
+  run_case "function git push" "f(){ git push origin main; }; f" 2
   # False-positive guards: git non-push, pipe-to-grep
   run_case "git -c log" "git -c core.x=y log --oneline" 0
   run_case "git log pipe grep push" 'git log --oneline | grep push' 0
@@ -513,6 +520,137 @@ is_git_push() {
   [[ "$c" =~ ^push([[:space:]]|$) ]]
 }
 
+strip_one_assignment_prefix() {
+  local c="$1"
+  [[ "$c" =~ ^[a-zA-Z_][a-zA-Z0-9_]*= ]] || return 1
+
+  local i char
+  local in_single=0
+  local in_double=0
+  local escaped=0
+
+  for ((i = 0; i < ${#c}; i++)); do
+    char="${c:i:1}"
+
+    if [[ "$escaped" -eq 1 ]]; then
+      escaped=0
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == "\\" ]]; then
+      escaped=1
+      continue
+    fi
+
+    if [[ "$in_double" -eq 0 && "$char" == "'" ]]; then
+      if [[ "$in_single" -eq 1 ]]; then
+        in_single=0
+      else
+        in_single=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == '"' ]]; then
+      if [[ "$in_double" -eq 1 ]]; then
+        in_double=0
+      else
+        in_double=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$in_double" -eq 0 && "$char" =~ [[:space:]] ]]; then
+      local rest="${c:i+1}"
+      rest="${rest#"${rest%%[![:space:]]*}"}"
+      printf '%s' "$rest"
+      return 0
+    fi
+  done
+
+  printf ''
+  return 0
+}
+
+normalize_env_prefix() {
+  local c="$1"
+  local stripped=""
+
+  while true; do
+    c="${c#"${c%%[![:space:]]*}"}"
+
+    if [[ "$c" =~ ^--unset=[^[:space:]]+[[:space:]]* ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^--unset[[:space:]]+[^[:space:]]+[[:space:]]* ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^-u[[:space:]]+[^[:space:]]+[[:space:]]* ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^-u[^[:space:]]+[[:space:]]* ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^--(ignore-environment|null)[[:space:]]* ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^-[i0][[:space:]]* ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if stripped=$(strip_one_assignment_prefix "$c"); then
+      c="$stripped"
+      continue
+    fi
+    break
+  done
+
+  printf '%s' "$c"
+}
+
+normalize_git_push_candidate() {
+  local c="$1"
+  local stripped=""
+
+  while true; do
+    c="${c#"${c%%[![:space:]]*}"}"
+
+    if [[ "$c" =~ ^(then|do|else|if|elif|while|until)[[:space:]]+ ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(\)[[:space:]]*\{[[:space:]]* ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^function[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*([[:space:]]*\(\))?[[:space:]]*\{[[:space:]]* ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^(command|builtin)[[:space:]]+ ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if stripped=$(strip_one_assignment_prefix "$c"); then
+      c="$stripped"
+      continue
+    fi
+    if [[ "$c" =~ ^env([[:space:]]|$) ]]; then
+      c="${c#env}"
+      c=$(normalize_env_prefix "$c")
+      continue
+    fi
+    break
+  done
+
+  printf '%s' "$c"
+}
+
 check_segment() {
   local cmd="$1"
   local depth="${2:-0}"
@@ -609,23 +747,15 @@ check_segment() {
   fi
 
   # 3. All git push (agents must never push; the user pushes manually)
-  #    Checks each pipe sub-segment. Strips command/builtin, env, KEY=val prefixes
-  #    and git global options (-c key=val, --no-pager, etc.) before matching push.
-  local cmd_lower="${cmd,,}"
+  #    Checks each pipe sub-segment after removing quoted strings and normalizing
+  #    shell wrappers/prefixes before matching push.
+  local cmd_lower="${cmd_unquoted,,}"
   local push_scan="${cmd_lower//||/__GOAT_OR__}"
   local -a pipe_parts
   IFS='|' read -ra pipe_parts <<< "$push_scan"
   for pipe_part in "${pipe_parts[@]}"; do
-    local cmd_for_push="$pipe_part"
-    cmd_for_push="${cmd_for_push#"${cmd_for_push%%[![:space:]]*}"}"
-    # Strip command/builtin shell prefix
-    [[ "$cmd_for_push" =~ ^(command|builtin)[[:space:]]+ ]] && cmd_for_push="${cmd_for_push#"${BASH_REMATCH[0]}"}"
-    # Strip env prefix
-    [[ "$cmd_for_push" =~ ^env[[:space:]] ]] && cmd_for_push="${cmd_for_push#env}" && cmd_for_push="${cmd_for_push#"${cmd_for_push%%[![:space:]]*}"}"
-    # Strip KEY=val prefixes
-    while [[ "$cmd_for_push" =~ ^[a-zA-Z_][a-zA-Z0-9_]*=[^[:space:]]*[[:space:]] ]]; do
-      cmd_for_push="${cmd_for_push#"${BASH_REMATCH[0]}"}"
-    done
+    local cmd_for_push
+    cmd_for_push=$(normalize_git_push_candidate "$pipe_part")
     if is_git_push "$cmd_for_push"; then
       block "git push is not allowed. Ask the user to push manually."
     fi
