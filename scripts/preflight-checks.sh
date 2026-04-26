@@ -232,6 +232,206 @@ while IFS= read -r hookdir; do
     fi
 done < <(manifest_eval hook-dirs)
 
+# ── Agent Config Parity ──────────────────────────────────────────────
+section "Agent Config Parity"
+agent_config_output=$(
+    node - "$MANIFEST_PATH" <<'NODE'
+const fs = require("node:fs");
+const path = require("node:path");
+
+const manifestPath = process.argv[2];
+const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+
+function exists(file) {
+  return typeof file === "string" && file.length > 0 && fs.existsSync(file);
+}
+
+function templateForSettings(agentId, settingsPath) {
+  const ext = path.posix.extname(settingsPath).replace(/^\./, "");
+  return `workflow/hooks/agent-config/${agentId}.${ext}`;
+}
+
+function templateForHookConfig(agentId) {
+  return `workflow/hooks/agent-config/${agentId}-hooks.json`;
+}
+
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function covers(actual, required) {
+  if (Array.isArray(required)) {
+    return (
+      Array.isArray(actual) &&
+      required.every((item) => actual.some((candidate) => covers(candidate, item)))
+    );
+  }
+  if (required && typeof required === "object") {
+    return (
+      actual &&
+      typeof actual === "object" &&
+      !Array.isArray(actual) &&
+      Object.keys(required).every(
+        (key) => Object.hasOwn(actual, key) && covers(actual[key], required[key]),
+      )
+    );
+  }
+  return Object.is(actual, required);
+}
+
+function describeValue(value) {
+  if (typeof value === "string") return value;
+  return stableJson(value);
+}
+
+function collectMissing(required, actual, location, missing) {
+  if (Array.isArray(required)) {
+    if (!Array.isArray(actual)) {
+      missing.push(`${location} is not an array`);
+      return;
+    }
+    for (const item of required) {
+      if (!actual.some((candidate) => covers(candidate, item))) {
+        missing.push(`${location} missing ${describeValue(item)}`);
+      }
+    }
+    return;
+  }
+  if (required && typeof required === "object") {
+    if (!actual || typeof actual !== "object" || Array.isArray(actual)) {
+      missing.push(`${location} is not an object`);
+      return;
+    }
+    for (const [key, value] of Object.entries(required)) {
+      if (!Object.hasOwn(actual, key)) {
+        missing.push(`${location}.${key} missing`);
+      } else {
+        collectMissing(value, actual[key], `${location}.${key}`, missing);
+      }
+    }
+    return;
+  }
+  if (!Object.is(actual, required)) {
+    missing.push(`${location} expected ${describeValue(required)}`);
+  }
+}
+
+function compareJson(templatePath, installedPath) {
+  const required = JSON.parse(fs.readFileSync(templatePath, "utf8"));
+  const installed = JSON.parse(fs.readFileSync(installedPath, "utf8"));
+  const missing = [];
+  collectMissing(required, installed, "$", missing);
+  return missing;
+}
+
+function normalizeTomlLines(file) {
+  return fs
+    .readFileSync(file, "utf8")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/#.*/, "").trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/\s*=\s*/g, " = ").replace(/\s+/g, " "));
+}
+
+function compareToml(templatePath, installedPath) {
+  const installed = new Set(normalizeTomlLines(installedPath));
+  return normalizeTomlLines(templatePath)
+    .filter((line) => !installed.has(line))
+    .map((line) => `$ missing ${line}`);
+}
+
+function compareConfig(templatePath, installedPath) {
+  if (templatePath.endsWith(".json")) return compareJson(templatePath, installedPath);
+  if (templatePath.endsWith(".toml")) return compareToml(templatePath, installedPath);
+  return fs.readFileSync(templatePath, "utf8").trimEnd() ===
+    fs.readFileSync(installedPath, "utf8").trimEnd()
+    ? []
+    : ["$ content differs from template"];
+}
+
+function emit(status, message) {
+  console.log(`${status}\t${message}`);
+}
+
+let checked = 0;
+for (const [agentId, agent] of Object.entries(manifest.agents || {})) {
+  const settingsPath =
+    typeof agent.settings === "string" ? agent.settings : "";
+  const hookConfigPath =
+    typeof agent.hook_config_file === "string" ? agent.hook_config_file : "";
+  const specs = [];
+
+  if (settingsPath) {
+    specs.push({
+      agentId,
+      templatePath: templateForSettings(agentId, settingsPath),
+      installedPath: settingsPath,
+    });
+  }
+  if (hookConfigPath && hookConfigPath !== settingsPath) {
+    specs.push({
+      agentId,
+      templatePath: templateForHookConfig(agentId),
+      installedPath: hookConfigPath,
+    });
+  }
+
+  for (const spec of specs) {
+    checked += 1;
+    if (!exists(spec.templatePath)) {
+      emit("FAIL", `${spec.agentId}: missing template ${spec.templatePath}`);
+      continue;
+    }
+    if (!exists(spec.installedPath)) {
+      emit("FAIL", `${spec.agentId}: missing installed config ${spec.installedPath}`);
+      continue;
+    }
+    try {
+      const missing = compareConfig(spec.templatePath, spec.installedPath);
+      if (missing.length === 0) {
+        emit(
+          "PASS",
+          `${spec.agentId}: ${spec.installedPath} includes required entries from ${spec.templatePath}`,
+        );
+      } else {
+        const summary = missing.slice(0, 5).join("; ");
+        const suffix = missing.length > 5 ? `; +${missing.length - 5} more` : "";
+        emit(
+          "FAIL",
+          `${spec.agentId}: ${spec.installedPath} missing required entries from ${spec.templatePath}: ${summary}${suffix}`,
+        );
+      }
+    } catch (error) {
+      emit(
+        "FAIL",
+        `${spec.agentId}: could not compare ${spec.templatePath} to ${spec.installedPath}: ${error.message}`,
+      );
+    }
+  }
+}
+
+if (checked === 0) emit("SKIP", "No agent config files declared in manifest");
+NODE
+)
+while IFS=$'\t' read -r status message; do
+    if [[ -z "${status:-}" ]]; then
+        continue
+    fi
+    case "$status" in
+        PASS) pass "$message" ;;
+        FAIL) fail "$message" ;;
+        SKIP) skip "$message" ;;
+        *) fail "Agent config parity emitted unexpected result: $status $message" ;;
+    esac
+done <<< "$agent_config_output"
+
 # ── Skill and Reference Versions ─────────────────────────────────────
 section "Skill and Reference Versions"
 skill_version=$(node -e "console.log(require('./package.json').version)" 2>/dev/null || true)

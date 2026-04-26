@@ -207,6 +207,28 @@ describe("deny-hook-registered harness check", () => {
     const result = denyRegisteredCheck.run(ctx);
     assert.equal(result.status, "pass");
   });
+
+  it("fails when registered path is a different agent's deny hook (same basename)", () => {
+    assert.ok(denyRegisteredCheck, "deny-hook-registered check must exist");
+    const ctx = makeCtx({
+      agents: [
+        stubAgentFacts({
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyExists: true,
+            denyIsRegistered: true,
+            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+          },
+        }),
+      ],
+    });
+    const result = denyRegisteredCheck.run(ctx);
+    assert.equal(result.status, "fail");
+    const finding = result.findings.find((f) => f.includes("does not match"));
+    assert.ok(finding, "should report path mismatch");
+    assert.ok(finding.includes(".codex/hooks/deny-dangerous.sh"));
+    assert.ok(finding.includes(".claude/hooks/deny-dangerous.sh"));
+  });
 });
 
 // ---------------------------------------------------------------------------

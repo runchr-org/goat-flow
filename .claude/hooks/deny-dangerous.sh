@@ -264,6 +264,18 @@ run_self_test() {
   run_case "env prefix git push" "GIT_SSH_COMMAND=foo git push origin feature/x" 2
   run_case "env command git push" "env FOO=1 git push origin main" 2
   run_case "multi env prefix push" "GIT_SSH=x GIT_AUTHOR=y git push" 2
+  # Bypass regression: newline, pipe, git flags, command/builtin prefix
+  run_case "newline git push" "$(printf 'echo ok\ngit push origin main')" 2
+  run_case "pipe git push" "true | git push origin main" 2
+  run_case "git -c flag push" "git -c core.sshCommand=foo push origin main" 2
+  run_case "git --no-pager push" "git --no-pager push origin main" 2
+  run_case "git -C path push" "git -C /tmp push origin main" 2
+  run_case "command git push" "command git push origin main" 2
+  run_case "builtin git push" "builtin git push origin main" 2
+  run_case "pipe env git push" "echo x | env GIT_SSH=y git push" 2
+  # False-positive guards: git non-push, pipe-to-grep
+  run_case "git -c log" "git -c core.x=y log --oneline" 0
+  run_case "git log pipe grep push" 'git log --oneline | grep push' 0
   # Unsafe rm command should still block.
   run_case "rm unsafe" "rm -rf /" 2
   run_case "rm unsafe separated flags" "rm -r -f /" 2
@@ -484,6 +496,23 @@ rm_is_safely_scoped() {
 }
 
 
+is_git_push() {
+  local c="$1"
+  [[ "$c" =~ ^git[[:space:]] ]] || return 1
+  c="${c#git}"
+  c="${c#"${c%%[![:space:]]*}"}"
+  while [[ "$c" =~ ^- ]]; do
+    local opt="${c%%[[:space:]]*}"
+    c="${c#"$opt"}"
+    c="${c#"${c%%[![:space:]]*}"}"
+    if [[ "$opt" == "-c" || "$opt" == "-C" ]]; then
+      c="${c#"${c%%[[:space:]]*}"}"
+      c="${c#"${c%%[![:space:]]*}"}"
+    fi
+  done
+  [[ "$c" =~ ^push([[:space:]]|$) ]]
+}
+
 check_segment() {
   local cmd="$1"
   local depth="${2:-0}"
@@ -580,17 +609,27 @@ check_segment() {
   fi
 
   # 3. All git push (agents must never push; the user pushes manually)
-  #    Also catches env-prefix patterns: FOO=1 git push, env GIT_SSH=x git push
+  #    Checks each pipe sub-segment. Strips command/builtin, env, KEY=val prefixes
+  #    and git global options (-c key=val, --no-pager, etc.) before matching push.
   local cmd_lower="${cmd,,}"
-  local cmd_for_push="$cmd_lower"
-  cmd_for_push="${cmd_for_push#"${cmd_for_push%%[![:space:]]*}"}"
-  [[ "$cmd_for_push" =~ ^env[[:space:]] ]] && cmd_for_push="${cmd_for_push#env}" && cmd_for_push="${cmd_for_push#"${cmd_for_push%%[![:space:]]*}"}"
-  while [[ "$cmd_for_push" =~ ^[a-zA-Z_][a-zA-Z0-9_]*=[^[:space:]]*[[:space:]] ]]; do
-    cmd_for_push="${cmd_for_push#"${BASH_REMATCH[0]}"}"
+  local push_scan="${cmd_lower//||/__GOAT_OR__}"
+  local -a pipe_parts
+  IFS='|' read -ra pipe_parts <<< "$push_scan"
+  for pipe_part in "${pipe_parts[@]}"; do
+    local cmd_for_push="$pipe_part"
+    cmd_for_push="${cmd_for_push#"${cmd_for_push%%[![:space:]]*}"}"
+    # Strip command/builtin shell prefix
+    [[ "$cmd_for_push" =~ ^(command|builtin)[[:space:]]+ ]] && cmd_for_push="${cmd_for_push#"${BASH_REMATCH[0]}"}"
+    # Strip env prefix
+    [[ "$cmd_for_push" =~ ^env[[:space:]] ]] && cmd_for_push="${cmd_for_push#env}" && cmd_for_push="${cmd_for_push#"${cmd_for_push%%[![:space:]]*}"}"
+    # Strip KEY=val prefixes
+    while [[ "$cmd_for_push" =~ ^[a-zA-Z_][a-zA-Z0-9_]*=[^[:space:]]*[[:space:]] ]]; do
+      cmd_for_push="${cmd_for_push#"${BASH_REMATCH[0]}"}"
+    done
+    if is_git_push "$cmd_for_push"; then
+      block "git push is not allowed. Ask the user to push manually."
+    fi
   done
-  if [[ "$cmd_for_push" =~ ^git[[:space:]]+push([[:space:]]|$) ]]; then
-    block "git push is not allowed. Ask the user to push manually."
-  fi
 
   # 7. chmod 777 (world-writable)
   if [[ "$cmd" =~ chmod[[:space:]]+777 ]]; then
@@ -732,7 +771,7 @@ split_command_segments() {
         i=$((i + 1))
         continue
       fi
-      if [[ "$char" == ";" ]]; then
+      if [[ "$char" == ";" || "$char" == $'\n' ]]; then
         split_segments+=("$current")
         current=""
         continue

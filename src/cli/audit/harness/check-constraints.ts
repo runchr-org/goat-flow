@@ -254,11 +254,7 @@ function classifyDenyRegistration(agents: AuditContext["agents"]): {
       registered.push(af.agent.id);
       const expected = af.agent.denyHookFile;
       const actual = af.hooks.denyRegisteredPath;
-      if (
-        expected &&
-        actual &&
-        !actual.endsWith(expected.replace(/^.*\//, ""))
-      ) {
+      if (expected && actual && !actual.endsWith(expected)) {
         pathMismatch.push(af.agent.id);
       }
     } else {
