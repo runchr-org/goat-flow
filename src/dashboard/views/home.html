@@ -278,7 +278,7 @@
       if (homeQualityLoading) return 'Loading';
       if (!homeQualityLatest) return 'N/A';
       if (homeQualityLatest.blockerCount > 0) return 'Blockers';
-      if (homeQualityLatest.majorCount > 0) return 'Stale';
+      if (homeQualityLatest.majorCount > 0) return 'Attention';
       return 'Recent';
     },
     qualityPillDetail() {

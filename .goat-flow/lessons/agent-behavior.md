@@ -1,6 +1,6 @@
 ---
 category: agent-behavior
-last_reviewed: 2026-04-26
+last_reviewed: 2026-04-27
 ---
 
 ## Lesson: Retrieval terms must name the concrete failure class
@@ -262,6 +262,23 @@ last_reviewed: 2026-04-26
 **Root cause:** The agent cannot render CSS or inspect computed styles. It can only read source files. When a visual bug comes from framework-generated CSS (Tailwind, PostCSS, CSS-in-JS) colliding with custom styles, the source code shows no conflict. The agent kept applying source-level fixes (`border: none`, adding properties) that couldn't work because the wrong property was being targeted and the collision was in generated output.
 
 **Prevention:** When a CSS visual bug persists after a source-level fix that should have worked, stop guessing. Tell the user: "I can't see the rendered styles from here. Can you inspect the element's computed styles in devtools and tell me what properties are applied?" One browser inspection gives more diagnostic value than five rounds of blind CSS edits. For Tailwind projects specifically, check whether custom class names collide with Tailwind utility names before writing the CSS rule.
+
+---
+## Lesson: Check repo-provided browser tooling before declaring no browser
+
+**Created:** 2026-04-27
+
+**What happened:** User asked the agent to view two static site pages (`docs/site/goat-flow-landing.html` and `docs/site/goat-flow-harness-engineering.html`). The agent checked for Playwright, Chromium, Firefox, and text browsers, then claimed there was no headless browser installed. The user pointed at `.claude/skills/goat-debug/references/browser-use.md`, which documents the local `browser-use` CLI. `browser-use` was installed and worked immediately: `browser-use doctor` reported 4/5 checks passed, and the agent was able to open both local routes, capture rendered state, and save screenshots.
+
+**Root cause:** The agent treated "view this HTML" as a generic static-file inspection task instead of a UI/browser-evidence task. It searched for familiar tools from habit and failed to check repository-provided skill references before making a broad tooling claim.
+
+**Why this matters:** Saying "there is no browser" when a project-specific browser tool exists creates false constraints and wastes the user's time. It also undermines the purpose of local skill references: they are there to encode exactly this kind of workflow knowledge.
+
+**Evidence:**
+- `.claude/skills/goat-debug/references/browser-use.md` (search: `command -v browser-use && browser-use doctor`) documents the availability check.
+- `.claude/skills/goat-debug/references/browser-use.md` (search: `browser-use screenshot [path.png]`) documents rendered evidence capture.
+
+**Prevention:** When a task asks to view, inspect, screenshot, debug, or verify a local UI, check local browser references before falling back to generic tooling assumptions. Run `command -v browser-use && browser-use doctor` before saying browser automation is unavailable. If `browser-use` is missing, follow the reference's ask-before-install fallback instead of declaring the task impossible.
 
 ---
 ## Lesson: Explicit skill invocation IS delegation consent - never ask again
