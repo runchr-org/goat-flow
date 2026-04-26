@@ -331,18 +331,30 @@ function compareJson(templatePath, installedPath) {
   return missing;
 }
 
-function normalizeTomlLines(file) {
-  return fs
+function normalizeTomlEntries(file) {
+  let section = "";
+  const entries = [];
+  for (const line of fs
     .readFileSync(file, "utf8")
     .split(/\r?\n/)
     .map((line) => line.replace(/#.*/, "").trim())
     .filter(Boolean)
-    .map((line) => line.replace(/\s*=\s*/g, " = ").replace(/\s+/g, " "));
+    .map((line) => line.replace(/\s*=\s*/g, " = ").replace(/\s+/g, " "))) {
+    const sectionMatch = line.match(/^\[([A-Za-z0-9_.-]+)\]$/);
+    if (sectionMatch) {
+      section = sectionMatch[1];
+      entries.push(`[${section}]`);
+      continue;
+    }
+    const keyMatch = line.match(/^([A-Za-z0-9_.-]+) = (.*)$/);
+    entries.push(keyMatch && section ? `${section}.${line}` : line);
+  }
+  return entries;
 }
 
 function compareToml(templatePath, installedPath) {
-  const installed = new Set(normalizeTomlLines(installedPath));
-  return normalizeTomlLines(templatePath)
+  const installed = new Set(normalizeTomlEntries(installedPath));
+  return normalizeTomlEntries(templatePath)
     .filter((line) => !installed.has(line))
     .map((line) => `$ missing ${line}`);
 }
