@@ -232,8 +232,8 @@ while IFS= read -r hookdir; do
     fi
 done < <(manifest_eval hook-dirs)
 
-# ── Skill Template Versions ──────────────────────────────────────────
-section "Skill Template Versions"
+# ── Skill and Reference Versions ─────────────────────────────────────
+section "Skill and Reference Versions"
 skill_version=$(node -e "console.log(require('./package.json').version)" 2>/dev/null || true)
 if [[ -z "$skill_version" ]]; then
     note "Could not read version from package.json"
@@ -267,6 +267,50 @@ else
         pass "All installed skills at version $skill_version"
     fi
 
+    reference_fail=0
+    while IFS= read -r -d '' f; do
+        ver=$(grep -o 'goat-flow-reference-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)
+        if [[ "$ver" != "$skill_version" ]]; then
+            fail "Reference template $f has version '$ver', expected '$skill_version'"
+            reference_fail=1
+        fi
+    done < <(find workflow/skills/reference -type f -name '*.md' -print0)
+    while IFS= read -r -d '' f; do
+        ver=$(grep -o 'goat-flow-reference-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)
+        if [[ "$ver" != "$skill_version" ]]; then
+            fail "Reference template $f has version '$ver', expected '$skill_version'"
+            reference_fail=1
+        fi
+    done < <(find workflow/skills -path '*/references/*.md' -print0)
+    if [[ "$reference_fail" -eq 0 ]]; then
+        pass "All workflow reference templates at version $skill_version"
+    fi
+
+    installed_reference_fail=0
+    if [[ -d .goat-flow/skill-reference ]]; then
+        while IFS= read -r -d '' f; do
+            ver=$(grep -o 'goat-flow-reference-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)
+            if [[ "$ver" != "$skill_version" ]]; then
+                fail "Installed shared reference $f has version '$ver', expected '$skill_version'"
+                installed_reference_fail=1
+            fi
+        done < <(find .goat-flow/skill-reference -type f -name '*.md' -print0)
+    fi
+    while IFS= read -r dir; do
+        if [[ -d "$dir" ]]; then
+            while IFS= read -r -d '' f; do
+                ver=$(grep -o 'goat-flow-reference-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)
+                if [[ "$ver" != "$skill_version" ]]; then
+                    fail "Installed skill reference $f has version '$ver', expected '$skill_version'"
+                    installed_reference_fail=1
+                fi
+            done < <(find "$dir" -path '*/references/*.md' -print0)
+        fi
+    done < <(manifest_eval skill-roots)
+    if [[ "$installed_reference_fail" -eq 0 ]]; then
+        pass "All installed references at version $skill_version"
+    fi
+
     # Shipped test fixtures: the installer round-trip integration test copies
     # these into a temp repo and runs preflight there. Catching stale versions
     # here avoids a 30s+ round-trip just to learn the fixture drifted.
@@ -281,8 +325,15 @@ else
                 fixtures_fail=1
             fi
         done < <(find test/fixtures -name 'SKILL.md' -print0)
+        while IFS= read -r -d '' f; do
+            ver=$(grep -o 'goat-flow-reference-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)
+            if [[ "$ver" != "$skill_version" ]]; then
+                fail "Test fixture reference $f has version '$ver', expected '$skill_version'"
+                fixtures_fail=1
+            fi
+        done < <(find test/fixtures -path '*/references/*.md' -print0)
         if [[ "$fixtures_fail" -eq 0 ]]; then
-            pass "All test fixture skills at version $skill_version"
+            pass "All test fixture skills and references at version $skill_version"
         fi
     fi
 fi

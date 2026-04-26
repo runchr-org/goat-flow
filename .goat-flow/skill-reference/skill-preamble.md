@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # Skill Preamble
 
 All goat-* skills read this preamble on every invocation. For full-depth work,

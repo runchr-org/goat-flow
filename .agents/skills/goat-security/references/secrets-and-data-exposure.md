@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # goat-security reference: secrets and data exposure
 
 Use this pack for logs, telemetry, error handling, prompts, artifacts, debug endpoints, or credential storage.

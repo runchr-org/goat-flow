@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # goat-security reference: CI/CD and agent surfaces
 
 Use this pack for GitHub Actions, shell scripts, hooks, prompts, instruction files, skill files, and agent configuration.

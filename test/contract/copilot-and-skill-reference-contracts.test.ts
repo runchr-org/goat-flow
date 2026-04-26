@@ -1,12 +1,22 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+import { AUDIT_VERSION } from "../../src/cli/constants.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 
 function lineCount(path: string): number {
   return readFileSync(path, "utf-8").split(/\r?\n/).length;
+}
+
+function markdownFilesUnder(path: string): string[] {
+  if (!existsSync(path)) return [];
+  const stat = statSync(path);
+  if (stat.isFile()) return path.endsWith(".md") ? [path] : [];
+  return readdirSync(path).flatMap((entry) =>
+    markdownFilesUnder(resolve(path, entry)),
+  );
 }
 
 describe("Copilot and skill-reference contracts", () => {
@@ -46,5 +56,30 @@ describe("Copilot and skill-reference contracts", () => {
       lineCount(path) <= 120,
       ".github/copilot-instructions.md must stay at or under 120 lines",
     );
+  });
+
+  it("keeps shared and per-skill reference docs version-tagged", () => {
+    const roots = [
+      "workflow/skills/reference",
+      ".goat-flow/skill-reference",
+      "workflow/skills/goat-security/references",
+      ".agents/skills/goat-security/references",
+      ".claude/skills/goat-security/references",
+      ".github/skills/goat-security/references",
+      "test/fixtures/skill-with-references/references",
+    ];
+    const files = roots.flatMap((root) =>
+      markdownFilesUnder(resolve(PROJECT_ROOT, root)),
+    );
+    assert.ok(files.length > 0, "expected reference markdown files to exist");
+    for (const file of files) {
+      assert.match(
+        readFileSync(file, "utf-8"),
+        new RegExp(
+          `^---\\ngoat-flow-reference-version: "${AUDIT_VERSION}"\\n---\\n`,
+        ),
+        `${file} must have current goat-flow-reference-version frontmatter`,
+      );
+    }
   });
 });

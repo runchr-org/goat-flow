@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Verify workflow/skills templates have the same version as package.json.
+ * Verify workflow skill and reference templates have the same version as package.json.
  * Run: node scripts/check-versions.mjs
  * Called by: npm run check-versions (and prepublishOnly)
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const version = pkg.version;
@@ -19,19 +20,52 @@ const templates = [
   "workflow/skills/goat-qa/SKILL.md",
 ];
 
+function walkMarkdown(dir, out = []) {
+  if (!existsSync(dir)) return out;
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    const stat = statSync(path);
+    if (stat.isDirectory()) {
+      walkMarkdown(path, out);
+    } else if (path.endsWith(".md")) {
+      out.push(path);
+    }
+  }
+  return out;
+}
+
+const referenceTemplates = [
+  ...walkMarkdown("workflow/skills/reference"),
+  ...walkMarkdown("workflow/skills").filter((path) =>
+    path.includes("/references/"),
+  ),
+];
+
 let ok = true;
 for (const f of templates) {
   const content = readFileSync(f, "utf8");
-  if (!content.includes(version)) {
-    console.error(`Version mismatch: ${f} does not contain ${version}`);
+  if (!content.includes(`goat-flow-skill-version: "${version}"`)) {
+    console.error(
+      `Version mismatch: ${f} does not contain goat-flow-skill-version: "${version}"`,
+    );
+    ok = false;
+  }
+}
+
+for (const f of referenceTemplates) {
+  const content = readFileSync(f, "utf8");
+  if (!content.includes(`goat-flow-reference-version: "${version}"`)) {
+    console.error(
+      `Version mismatch: ${f} does not contain goat-flow-reference-version: "${version}"`,
+    );
     ok = false;
   }
 }
 
 if (!ok) {
   console.error(
-    `\nFix: update goat-flow-skill-version in the files above to "${version}"`,
+    `\nFix: update goat-flow-skill-version / goat-flow-reference-version in the files above to "${version}"`,
   );
   process.exit(1);
 }
-console.log(`All template versions match ${version}`);
+console.log(`All template and reference versions match ${version}`);

@@ -16,11 +16,12 @@
 #   - workflow/manifest.json
 #   - workflow/skills/*/SKILL.md frontmatter (7 templates)
 #   - workflow/skills/reference/ (shared skill reference docs)
+#   - workflow/skills/*/references/ (per-skill reference packs)
 #   - Hook templates and installed hook mirrors
 #   - test/fixtures/skill-with-references/SKILL.md
 #   - docs/audit-and-quality.md sample output
-#   - Installed skill mirrors (.claude/skills/, .agents/skills/, .github/skills/ via manifest)
-#   - Installed reference docs (.goat-flow/skill-reference/)
+#   - Installed skill mirrors and per-skill reference packs (.claude/skills/, .agents/skills/, .github/skills/ via manifest)
+#   - Installed shared reference docs (.goat-flow/skill-reference/)
 #
 # Exit:
 #   0 on success, non-zero on validation failure.
@@ -89,8 +90,18 @@ for skill_md in workflow/skills/*/SKILL.md; do
 done
 update_file "test/fixtures/skill-with-references/SKILL.md"
 
-# Shared reference docs
-update_file "workflow/skills/reference/skill-quality-testing/deployment.md"
+# Shared and per-skill reference docs
+while IFS= read -r -d '' reference_md; do
+  update_file "$reference_md"
+done < <(find workflow/skills/reference -type f -name '*.md' -print0)
+while IFS= read -r -d '' reference_md; do
+  update_file "$reference_md"
+done < <(find workflow/skills -path '*/references/*.md' -print0)
+if [[ -d test/fixtures ]]; then
+  while IFS= read -r -d '' reference_md; do
+    update_file "$reference_md"
+  done < <(find test/fixtures -path '*/references/*.md' -print0)
+fi
 
 # Hook templates and local distributable copy
 for hook_sh in workflow/hooks/*.sh; do
@@ -131,6 +142,21 @@ for (const s of manifest.skills?.canonical || []) console.log(s);
 NODE
 }
 
+manifest_skill_files() {
+  local skill_name="$1"
+  node - "$MANIFEST_PATH" "$skill_name" <<'NODE'
+const fs = require("node:fs");
+const manifest = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+const skillName = process.argv[3];
+const references = manifest.skills?.references || {};
+const files = Array.isArray(references[skillName])
+  ? references[skillName].filter((value) => typeof value === "string")
+  : [];
+console.log("SKILL.md");
+for (const file of files) console.log(file);
+NODE
+}
+
 manifest_deny_hooks() {
   node - "$MANIFEST_PATH" <<'NODE'
 const fs = require("node:fs");
@@ -146,17 +172,20 @@ for (const h of hooks) console.log(h);
 NODE
 }
 
-# Sync skill SKILL.md files to each installed mirror
+# Sync skill SKILL.md files and manifest-backed references to each installed mirror
 while IFS= read -r skill_root; do
   if [[ ! -d "$skill_root" ]]; then continue; fi
   while IFS= read -r skill_name; do
-    src="workflow/skills/${skill_name}/SKILL.md"
-    dst="${skill_root}/${skill_name}/SKILL.md"
-    if [[ -f "$src" ]] && [[ -f "$dst" ]]; then
-      cp "$src" "$dst"
-    fi
+    while IFS= read -r relative_file; do
+      src="workflow/skills/${skill_name}/${relative_file}"
+      dst="${skill_root}/${skill_name}/${relative_file}"
+      if [[ -f "$src" ]] && [[ -f "$dst" ]]; then
+        mkdir -p "$(dirname "$dst")"
+        cp "$src" "$dst"
+      fi
+    done < <(manifest_skill_files "$skill_name")
   done < <(manifest_skill_names)
-  echo "  ✓ ${skill_root}/*/SKILL.md"
+  echo "  ✓ ${skill_root}/*/{SKILL.md,references/}"
 done < <(manifest_skill_roots)
 
 # Sync deny hook template to each installed hook mirror

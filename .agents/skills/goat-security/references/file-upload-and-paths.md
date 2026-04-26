@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # goat-security reference: file upload and paths
 
 Use this pack for uploads, archives, temp files, export/import jobs, filesystem writes, or user-controlled paths.

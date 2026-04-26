@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # Skill Conventions
 
 Read this file on **full-depth** invocations only. The essential preamble
@@ -169,5 +172,6 @@ the index - `tdd-iteration.md` for TDD methodology (load first), `adversarial-fr
 for review-class skills, `deployment.md` for the deployment checklist. Together they
 document the skill-authoring methodology: pressure-testing prompts against known failure
 modes, recording Excuse/Reality rationalization tables from real incidents, and verifying
-the skill's `goat-flow-skill-version` matches `AUDIT_VERSION` before publishing. Do not
+the skill's `goat-flow-skill-version` and reference docs' `goat-flow-reference-version`
+match `AUDIT_VERSION` before publishing. Do not
 add or materially revise a skill without running the pressure-test protocol they describe.

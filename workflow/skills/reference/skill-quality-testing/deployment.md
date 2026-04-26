@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # Skill Deployment
 
 The final-gate content: common rationalisations for skipping testing itself, the full deployment checklist, and the STOP rule that prevents batched untested skills from shipping.

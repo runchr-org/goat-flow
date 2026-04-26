@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # Browser Evidence Reference
 
 Last verified against: browser-use v0.2.x (2026-04-26)

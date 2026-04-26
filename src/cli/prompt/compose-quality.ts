@@ -903,7 +903,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("## Part 6: Skill template integrity");
   lines.push("");
   lines.push(
-    "1. **Version tags:** Do all installed SKILL.md files have a `goat-flow-skill-version` header? Does it match the config.yaml version?",
+    "1. **Version tags:** Do all installed SKILL.md files have a `goat-flow-skill-version` header, and do all installed reference docs have a `goat-flow-reference-version` header? Do they match the config.yaml version?",
   );
   lines.push(
     "2. **Truncation or corruption:** Do the installed skill files look complete? Are there any signs of truncation, merging, or adaptation that broke the structure? (Skills should be installed verbatim from templates - they should NOT be adapted.)",
@@ -1020,6 +1020,9 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("");
 
   lines.push("### Top 5 Improvements");
+  lines.push(
+    "Do NOT recommend adding quick/lite/reduced modes to any skill. Skill mode decisions (e.g. goat-critique being full-delegated-only) are ADR-decided architectural choices, not gaps to fill. See `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md`.",
+  );
   lines.push("For each:");
   lines.push("1. What to change");
   lines.push("2. Evidence from your testing (cite file + semantic anchor)");

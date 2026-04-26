@@ -1,7 +1,25 @@
 ---
 category: skills
-last_reviewed: 2026-04-25
+last_reviewed: 2026-04-27
 ---
+
+## Footgun: Quality assessors recommend adding quick/lite modes to goat-critique
+
+**Status:** active | **Created:** 2026-04-27 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Quality assessment agents recommend "quick critique mode" or "allow lightweight critique for smaller artifacts" as a Top 5 Improvement. If implemented, this would re-introduce the exact failure that ADR-021 was written to prevent: single-context self-talk disguised as multi-perspective critique.
+
+**Why it happens:** Assessing agents see that goat-critique spawns 3 sub-agents for every invocation regardless of artifact size and pattern-match this as over-engineering. They do not read ADR-021 unless directed to, so they miss that Quick mode was tried, produced structurally misleading output, and was intentionally removed.
+
+**Evidence:**
+- `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` (search: `goat-critique runs in one mode: full delegated`) documents the decision and four rejected alternatives including "Default to Full, keep Quick as opt-in."
+- `.goat-flow/lessons/agent-behavior.md` (search: `Never override explicit skill invocation`) documents the 2026-04-27 incident where bypassing the full protocol produced a worse result than running it.
+- `.goat-flow/logs/quality/2026-04-27-*` contains three independent quality reports; at least one recommended adding a quick critique mode.
+- `src/cli/prompt/compose-quality.ts` (search: `Do NOT recommend adding quick/lite/reduced modes`) now explicitly tells assessment agents to respect ADR-decided skill mode choices.
+
+**Prevention:**
+1. The quality assessment prompt now includes an explicit constraint against recommending reduced skill modes.
+2. ADR-021 remains the authoritative source. If this recommendation resurfaces, point the assessor at the ADR, not at the skill file alone.
 
 ## Footgun: Skill parity edits can miss `.github/skills/` and fail repo-level drift checks
 

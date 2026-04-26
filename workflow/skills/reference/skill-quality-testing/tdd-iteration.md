@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # Skill TDD Iteration
 
 The core TDD methodology for authoring and hardening goat-flow skills. Covers how to build skills that survive adversarial use: RED/GREEN/REFACTOR loop, pressure types, rationalisation capture, bulletproofing techniques, and the empirical budget.

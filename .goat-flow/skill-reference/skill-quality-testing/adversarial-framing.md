@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # Adversarial Framing (review-class skills)
 
 Patterns specific to authoring or hardening review-class skills - goat-review, goat-critique, goat-qa. Covers the cynical-reviewer role prompt, the zero-findings HALT rule, the parallel reviewer information-asymmetry pattern, and the structured finding schema that downstream tools consume.
