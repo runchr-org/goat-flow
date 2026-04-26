@@ -43,7 +43,7 @@ Only Claude Code supports this syntax.
 
 - `.claude/settings.json` is valid JSON
 - `bash -n` passes on each hook script
-- deny-dangerous.sh blocks: rm -rf, git push main, --force, chmod 777
+- deny-dangerous.sh blocks: rm -rf, all git push (ADR-025), chmod 777
 
 ---
 

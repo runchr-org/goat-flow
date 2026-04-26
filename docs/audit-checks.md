@@ -60,7 +60,7 @@ Aggregate-mode nuance:
 | Context | `doc-paths-resolve` | `integrity` | Router-table paths, `.goat-flow/architecture.md` backtick paths, and curated audit docs backtick paths resolve to real files |
 | Context | `instruction-sections-present` | `advisory` | Each instruction file contains the required hot-path headings: Truth Order, Execution Loop, Definition of Done, and Router Table |
 | Constraints | `deny-covers-secrets` | `integrity` | Secret-bearing file reads are covered by the deny layer; settings-based agents need both settings `Read` deny coverage and Bash-hook coverage |
-| Constraints | `deny-blocks-dangerous` | `integrity` | Deny patterns block `rm -rf`, force-push, and `chmod` |
+| Constraints | `deny-blocks-dangerous` | `integrity` | Deny patterns block `rm -rf`, all git push (ADR-025), and `chmod` |
 | Constraints | `deny-blocks-pipe-to-shell` | `advisory` | Deny patterns block `curl | bash` and `wget | sh` pipe-to-shell execution |
 | Constraints | `deny-hook-registered` | `integrity` | A deny hook that exists on disk is registered in the correct pre-tool hook slot |
 | Verification | `test-runner-configured` | `metric` | Reports whether `toolchain.test` is configured; missing structured test config is still a pass |
