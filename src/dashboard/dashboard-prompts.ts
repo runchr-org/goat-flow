@@ -172,7 +172,7 @@ function dashboardPresetBadges(preset: Preset): PresetBadge[] {
     badges.push({
       label: "UI workflow",
       title: "Best suited to app/UI testing",
-      tone: "neutral",
+      tone: "ui",
     });
   }
   if (preset.requiresDependencyFiles) {

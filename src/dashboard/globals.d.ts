@@ -265,7 +265,7 @@ interface Preset {
 interface PresetBadge {
   label: string;
   title: string;
-  tone: "neutral" | "good" | "warn" | "danger";
+  tone: "neutral" | "good" | "warn" | "danger" | "ui";
 }
 
 /** Browser-local custom prompt persisted outside the built-in preset catalog. */

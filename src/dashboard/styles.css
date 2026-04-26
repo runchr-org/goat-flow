@@ -105,6 +105,9 @@
   --red-border: rgba(248, 113, 113, 0.3);
   --neutral-bg: rgba(148, 163, 184, 0.08);
   --neutral-border: rgba(148, 163, 184, 0.22);
+  --ui-workflow-text: #38bdf8;
+  --ui-workflow-bg: rgba(14, 165, 233, 0.12);
+  --ui-workflow-border: rgba(56, 189, 248, 0.4);
 }
 
 /* ═══ Light Theme Token Overrides ═══ */
@@ -136,6 +139,9 @@
   --red-border: rgba(220, 38, 38, 0.28);
   --neutral-bg: rgba(15, 23, 42, 0.05);
   --neutral-border: rgba(15, 23, 42, 0.14);
+  --ui-workflow-text: #0369a1;
+  --ui-workflow-bg: #e0f2fe;
+  --ui-workflow-border: rgba(2, 132, 199, 0.28);
 }
 
 /* ═══ Global Resets ═══ */
@@ -209,6 +215,11 @@ body {
   color: #f87171;
   border-color: rgba(248, 113, 113, 0.35);
   background: rgba(248, 113, 113, 0.1);
+}
+.gf-preset-badge-ui {
+  color: var(--ui-workflow-text);
+  border-color: var(--ui-workflow-border);
+  background: var(--ui-workflow-bg);
 }
 .gf-check-row {
   display: inline-flex;

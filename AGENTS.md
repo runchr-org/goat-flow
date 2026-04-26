@@ -104,7 +104,7 @@ Boundaries:
 - Adding, removing, or renaming files
 - Changes spanning 3+ docs/scripts
 
-**Never:** Delete docs without replacement, invent incidents or evidence, edit secrets, commit or push unless asked, run destructive git commands, claim verification passed without running it. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`).
+**Never:** Delete docs without replacement, invent incidents or evidence, edit secrets, commit unless asked, push, run destructive git commands, claim verification passed without running it. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`).
 
 ## Definition of Done
 MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh, npm run typecheck on .ts) (2) no broken cross-references introduced (3) no unapproved boundary changes (4) logs updated if tripped (5) working notes current (6) grep old pattern after renames
