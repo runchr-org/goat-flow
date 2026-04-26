@@ -96,7 +96,7 @@ Back on the Home view, click **Re-audit**. All checks should pass. The AI Harnes
 
 ### 4. Use a prompt
 
-Open the **Prompts** view, pick a workflow (code review, bug diagnosis, security assessment, test planning), and launch it in a terminal session. Each prompt invokes a structured `/goat-*` skill with phases and human gates.
+Open the **Prompts** view, pick a workflow (code review, bug diagnosis, UI debugging with browser evidence, security assessment, test planning), and launch it in a terminal session. Each prompt invokes a structured `/goat-*` skill with phases and human gates.
 
 ### Install locally (optional)
 

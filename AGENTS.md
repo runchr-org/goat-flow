@@ -95,7 +95,8 @@ Boundaries:
 - `workflow/setup/` or `workflow/skills/` template changes affecting generated output
 - `workflow/manifest.json` (canonical agent inventory)
 - `src/cli/server/terminal.ts` (PTY runtime) and `src/cli/server/dashboard.ts` (local HTTP/WS server)
-- `.github/workflows/**` (CI changes alter validation and release behavior)
+- `.goat-flow/skill-reference/` (shared runtime skill doctrine)
+- `.github/workflows/**`, `.github/actions/**` (CI changes alter validation and release behavior)
 - `.github/hooks/**`, `.github/skills/**`, `.github/copilot-instructions.md` (Copilot runtime surfaces per ADR-020)
 - `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/**` (agent runtime files)
 - Other instruction files (`CLAUDE.md`, `GEMINI.md`)

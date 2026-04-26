@@ -667,9 +667,7 @@ export function createDashboardRouteHandlers(
       }
 
       const fs = createFS(projectPath);
-      const configAgents = detectConfiguredAgents(fs).map(
-        (a) => a.id as AgentId,
-      );
+      const configAgents = detectConfiguredAgents(fs).map((a) => a.id);
       const batch = runAuditBatch(
         fs,
         projectPath,

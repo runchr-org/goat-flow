@@ -296,3 +296,14 @@ last_reviewed: 2026-04-26
 **Root cause:** I treated wording cleanup and path-semantics changes as local edits, but these surfaces are intentionally pinned by tests because agents consume the exact phrasing.
 
 **Prevention:** Before broad prose or prompt wording changes, search tests for the exact phrase and adjacent command text. If the product semantics are changing, update the contract test in the same edit; if the test protects unrelated established doctrine, keep that phrase intact.
+
+---
+## Lesson: Split transient preflight test failures from task regressions
+
+**Status:** active | **Created:** 2026-04-26
+
+**What happened:** A quality-report fix removed the ESLint error that had been blocking `bash scripts/preflight-checks.sh`. Two subsequent preflight runs reached the fast test phase but failed on different tests: first `agent deny hook template comparison`, then `harness does not affect build-only result`. A direct `npm run test:fast` run immediately after those failures completed with `# pass 373` and `# fail 0`.
+
+**Root cause:** I initially treated the preflight failure as a likely task regression because it appeared inside the final gate. The changing failed test names and the direct fast-suite pass showed the correct split: the task-local ESLint/preflight regression was fixed, while the preflight wrapper still surfaced intermittent fast-suite failures that need separate investigation.
+
+**Prevention:** When preflight fails in the test phase after unrelated gate fixes, rerun the named failing test area and then the exact fast-suite command directly before changing task files again. Report the split explicitly: which original gate was fixed, which direct test summary passed, and which wrapper command still failed.

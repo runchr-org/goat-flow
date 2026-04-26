@@ -34,8 +34,8 @@ goat-critique runs in one mode: full delegated, 5 phases, three sub-agents. If t
 - Confirm the artifact exists and is concrete (a file, a plan document, a specific set of findings - not a vague idea).
 - Select the critique rubric for the artifact type (see Critique Rubrics below). If unclear, ask the user.
 - Use the preamble's grep-first learning-loop retrieval on relevant `.goat-flow/footguns/` and `.goat-flow/lessons/`; record explicit misses instead of broad-loading buckets.
-- Delegation consent: explicit `/goat-critique` invocation is consent to spawn sub-agents. Do NOT ask again. Proceed directly to Phase 1 after intake checklist items (artifact confirmation, rubric selection, footgun/lesson retrieval). If the skill is chained from another goat-* skill, the caller's invocation is sufficient consent.
-- Skill-chained entry: skip intake confirmation, use caller context, start at Phase 1 - still run footgun/lesson retrieval and rubric selection. Skill-chaining does not unlock a quick variant; all 5 phases still run.
+- Delegation consent: explicit `/goat-critique` invocation is consent to spawn sub-agents. Do NOT ask again. Proceed directly to Phase 1 after intake checklist items (artifact confirmation, rubric selection, footgun/lesson retrieval). If the skill is chained from another goat-* skill, follow the active runtime's local delegation rule before spawning; Codex requires explicit user delegation consent.
+- Skill-chained entry: skip intake confirmation, use caller context, then satisfy the delegation consent rule above before Phase 1 - still run footgun/lesson retrieval and rubric selection. Skill-chaining does not unlock a quick variant; all 5 phases still run.
 
 ## Phase 1 - Generate Competing Critiques
 

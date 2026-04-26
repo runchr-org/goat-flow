@@ -96,7 +96,7 @@ Before editing, read the target directory's `README.md` for required format. The
 - [ ] Local instruction checked: [local GEMINI.md / none]
 - [ ] Rollback command: [exact command]
 
-Boundaries: `.goat-flow/architecture.md`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `workflow/setup/**`, `workflow/skills/**`, `workflow/manifest.json` (canonical agent inventory), `src/cli/server/terminal.ts` (PTY runtime), `src/cli/server/dashboard.ts` (local HTTP/WS server), `.github/workflows/**`, `.github/hooks/**`, `.github/skills/**`, `.github/copilot-instructions.md`, `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/skills/`, renaming/moving files, 3+ doc file changes.
+Boundaries: `.goat-flow/architecture.md`, `.goat-flow/skill-reference/**`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `workflow/setup/**`, `workflow/skills/**`, `workflow/manifest.json` (canonical agent inventory), `src/cli/server/terminal.ts` (PTY runtime), `src/cli/server/dashboard.ts` (local HTTP/WS server), `.github/workflows/**`, `.github/actions/**`, `.github/hooks/**`, `.github/skills/**`, `.github/copilot-instructions.md`, `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/skills/`, renaming/moving files, 3+ doc file changes.
 
 **Never:** Delete docs without replacement. Modify secrets/.env. Push to main. Change security config. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`)
 

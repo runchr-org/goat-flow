@@ -29,7 +29,7 @@ Copilot runs on a standalone hot-path instruction file, not an overlay. `.github
 
 - Keep `.github/copilot-instructions.md` at `<= 150` lines (hard limit) with `<= 120` as the target.
 - It MUST contain Truth Order, Execution Loop (READ → SCOPE → ACT → VERIFY), Definition of Done, Router Table, and Autonomy Tiers - the same hot-path sections as CLAUDE.md / AGENTS.md / GEMINI.md.
-- Add a **Copilot-Specific** section at the end for runtime specifics: built-in agents (`explore`, `task`, `general-purpose`, `code-review`), `/fleet` usage, `.github/hooks/hooks.json` guardrails, and `.copilotignore` hygiene.
+- Add a **Copilot-Specific** section at the end for runtime specifics: current Copilot CLI commands (`/agent`, `/review`, `/research`, `/tasks`), `/fleet` usage, `.github/hooks/hooks.json` guardrails, and `.copilotignore` hygiene.
 - Do NOT defer to AGENTS.md; Copilot is a peer, not an overlay consumer.
 - When `.github/` exists, commit guidance MUST live at `.github/git-commit-instructions.md`. Treat that file as part of the Copilot install; `goat-flow audit --agent copilot` fails without it.
 
@@ -41,11 +41,11 @@ After completing step 03 (skills):
 - Keep a single Copilot hook config file. Do not split one file per event.
 - The shipped Wave 6 model uses `preToolUse` only. Post-turn hooks and `.github/agents/` are out of scope unless a concrete gap appears later.
 
-### Skills and built-in agents
+### Skills and Copilot commands
 
 - Install the same 7 goat-flow skills into `.github/skills/`.
-- Prefer Copilot's built-in agents (`explore`, `task`, `general-purpose`, `code-review`) plus `/fleet` for parallelizable work.
-- Do not create `.github/agents/` in Wave 6. Revisit only if built-in agents cannot cover a concrete specialization need.
+- Prefer Copilot CLI commands exposed by `copilot help commands` (`/agent`, `/review`, `/research`, `/tasks`) plus `/fleet` for parallelizable work.
+- Do not create `.github/agents/` in Wave 6. Revisit only if the current command surface cannot cover a concrete specialization need.
 - `/fleet` is for independent tasks, not sequential steps that block on each other.
 
 ### Ignore and MCP surfaces

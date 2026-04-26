@@ -58,7 +58,7 @@ When asked to add/update a goat-flow artifact, route to docs, not runtime code: 
 
 **Ask First** - before proceeding, state: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked, rollback command.
 
-Boundaries: `workflow/setup/`, `workflow/skills/`, `workflow/manifest.json` (canonical agent inventory), `.goat-flow/architecture.md`, `src/cli/server/terminal.ts` (PTY runtime), `src/cli/server/dashboard.ts` (local HTTP/WS server), `.github/workflows/**`, `.github/hooks/**`, `.github/skills/**`, `.github/copilot-instructions.md`, `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/**`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, any add/remove/rename (breaks cross-refs), changes spanning 3+ docs.
+Boundaries: `workflow/setup/`, `workflow/skills/`, `workflow/manifest.json` (canonical agent inventory), `.goat-flow/architecture.md`, `.goat-flow/skill-reference/`, `src/cli/server/terminal.ts` (PTY runtime), `src/cli/server/dashboard.ts` (local HTTP/WS server), `.github/workflows/**`, `.github/actions/**`, `.github/hooks/**`, `.github/skills/**`, `.github/copilot-instructions.md`, `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/**`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, any add/remove/rename (breaks cross-refs), changes spanning 3+ docs.
 
 **Never:** Delete docs without replacement. Modify .env/secrets. Push to main. Force push. Commit unless asked. Invent hypothetical examples. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`). Delete/move/overwrite 5+ files in one operation without listing targets and getting confirmation.
 
@@ -94,6 +94,6 @@ MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh,
 
 ## Copilot-Specific
 
-- Use Copilot built-ins (`explore`, `task`, `general-purpose`, `code-review`) when appropriate; use `/fleet` only for explicit or genuinely independent parallel work.
-- Treat `.github/hooks/hooks.json`, `.github/hooks/deny-dangerous.sh`, `.github/skills/**`, `.github/copilot-instructions.md`, and `.copilotignore` as security-sensitive runtime surfaces; verify after touching them.
+- Use current Copilot CLI commands (`/agent`, `/review`, `/research`, `/tasks`) when appropriate; use `/fleet` only for explicit or genuinely independent parallel work.
+- Treat `.github/actions/**`, `.github/hooks/hooks.json`, `.github/hooks/deny-dangerous.sh`, `.github/skills/**`, `.github/copilot-instructions.md`, and `.copilotignore` as security-sensitive runtime surfaces; verify after touching them.
 - `.github/agents/` is intentionally out of scope; CI/CD, hooks, prompts, or skills work should prefer `goat-security` or `goat-review`.

@@ -12,7 +12,7 @@ Copilot CLI now exposes the same broad categories of surface the other supported
 - **Instructions.** `.github/copilot-instructions.md` for repo-wide Copilot guidance, plus optional `.github/instructions/**/*.instructions.md` for path-specific rules.
 - **Skills.** `.github/skills/<name>/SKILL.md` using the same goat skill shape as the existing installed copies.
 - **Hooks.** `.github/hooks/hooks.json` plus on-disk scripts such as `.github/hooks/deny-dangerous.sh`.
-- **Built-in agents.** `explore`, `task`, `general-purpose`, `code-review`, plus `/fleet` for parallelizable work.
+- **Copilot commands.** Current Copilot CLI command help exposes `/agent`, `/review`, `/research`, and `/tasks`, plus `/fleet` for parallelizable work.
 
 The live repo already carries the complementary global instruction surface (`AGENTS.md`), a shared deny script template (`workflow/hooks/deny-dangerous.sh`), and canonical skill templates under `workflow/skills/`. Shipping Copilot support therefore means wiring Copilot into the same registry-driven model rather than inventing a special-case bridge.
 
@@ -30,11 +30,11 @@ Treat `copilot` as a first-class `AgentId` and ship full runtime parity in the s
 4. Repo live surfaces include `.github/copilot-instructions.md`, `.github/hooks/`, and `.github/skills/`.
 5. Copilot instructions complement `AGENTS.md` instead of duplicating it. Repo-global rules stay in `AGENTS.md`; Copilot-only wiring lives in `.github/copilot-instructions.md`; optional `.github/instructions/**/*.instructions.md` remains path-scoped only.
 6. Hooks use one canonical Copilot config file: `.github/hooks/hooks.json` carrying the deny-dangerous guardrail.
-7. Wave 6 relies on Copilot's built-in agents plus `/fleet`. Repository custom agents in `.github/agents/` stay out of scope unless a concrete specialization gap is proven later.
+7. Wave 6 relies on the current Copilot CLI command surface plus `/fleet`. Repository custom agents in `.github/agents/` stay out of scope unless a concrete specialization gap is proven later.
 
 ## Out of scope for this ADR
 
-- **Repository custom agents (`.github/agents/`).** Revisit only if built-in agents plus `/fleet` cannot cover a demonstrated need.
+- **Repository custom agents (`.github/agents/`).** Revisit only if the current command surface plus `/fleet` cannot cover a demonstrated need.
 - **Bridge files** between `AGENTS.md` and `.github/copilot-instructions.md`. Complementary ownership is preferred over a second editable source of truth.
 - **Per-model guidance.** Model selection remains an agent/runtime concern, not a framework concern.
 
@@ -62,4 +62,4 @@ Revisit if any of the following hold:
 - Copilot CLI materially changes `.github/copilot-instructions.md`, `.github/skills/`, or `.github/hooks/hooks.json`.
 - Cross-file instruction composition (`AGENTS.md` + `.github/copilot-instructions.md` + `.github/instructions/**`) becomes non-deterministic enough that structural separation no longer prevents conflicts.
 - `.github/skills/` parity cannot be maintained against the canonical skill templates without silent divergence.
-- A concrete specialization gap appears that the built-in agents plus `/fleet` cannot cover, forcing reconsideration of `.github/agents/`.
+- A concrete specialization gap appears that the current command surface plus `/fleet` cannot cover, forcing reconsideration of `.github/agents/`.

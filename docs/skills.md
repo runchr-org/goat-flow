@@ -18,7 +18,7 @@ flowchart LR
 | Skill | Purpose | Hard Gate | When to Use |
 |-------|---------|-----------|-------------|
 | [/goat](#goat--dispatcher) | Route to the right skill | -- | When intent is ambiguous; skip for simple implementations (the no-skill fast path in `skill-preamble.md`) |
-| [/goat-debug](#goat-debug) | Diagnosis-first debugging + investigate mode | No fixes until human reviews diagnosis | Bug or test failure, exploring unfamiliar code |
+| [/goat-debug](#goat-debug) | Diagnosis-first debugging + investigate mode + browser evidence | No fixes until human reviews diagnosis | Bug or test failure, UI issues, exploring unfamiliar code |
 | [/goat-plan](#goat-plan) | Milestone planning with testing gates | Human approval between milestones | Before non-trivial implementation |
 | [/goat-review](#goat-review) | Structured code review + quality audit | Negative verification before presenting findings | Before merging, quality audits |
 | [/goat-critique](#goat-critique) | Multi-perspective critique of any artifact | Runs only with delegated sub-agents; blocks on unresolved disputes before synthesis | High-stakes decisions, plans, assessments |
@@ -39,6 +39,7 @@ flowchart LR
 | "How should we build this feature?" | /goat-plan | Planning before implementing |
 | "Are these changes safe to merge?" | /goat-review | Reviewing changes, not finding new issues |
 | "How do we verify coverage for this work?" | /goat-qa | Risk-based testing gap analysis (planning, not execution) |
+| "The UI is broken / rendering wrong" | /goat-debug | Browser evidence capture via browser-use CLI |
 | "Is this bug fix verified?" | /goat-debug | Re-run the original repro and adjacent regressions |
 | "Is this diff/PR verified?" | /goat-review | Two-pass review with Review Integrity |
 | "Is this plan/assessment sound?" | /goat-critique | Multi-perspective critique before shipping |
@@ -63,6 +64,7 @@ The dispatcher classifies intent conversationally - not by keyword lookup. It as
 | Intent | Skill |
 |--------|-------|
 | Bug, error, symptom, crash | /goat-debug (diagnose) |
+| UI bug, rendering issue, browser-visible symptom | /goat-debug (diagnose + browser evidence) |
 | Explore, understand, new to this | /goat-debug (investigate) |
 | Review changes, PR, diff | /goat-review (quick review) |
 | Quality sweep, audit | /goat-review (audit) |
@@ -82,28 +84,31 @@ Diagnosis-first debugging and codebase investigation.
 | Mode | Trigger | What it does |
 |------|---------|-------------|
 | **Diagnose** | bug, error, crash, symptom | Hypothesis-driven debugging with confidence-gated fixes |
+| **Diagnose (UI)** | UI bug, rendering issue, browser-visible symptom | Browser evidence capture via `browser-use` CLI, then hypothesis-driven debugging |
 | **Investigate** | explore, understand, how does, new to this | Deep codebase reading with progressive depth and evidence tags |
 
 **Diagnose mode:**
 
 ```mermaid
 flowchart TD
-    S0["Step 0\nGather context\nFootgun check"] --> D1
+    S0["Step 0\nGather context\nFootgun check\nUI bug detection"] --> D1
 
     subgraph Diagnose["Diagnose Mode"]
-        D1["D1: Investigate\nHypotheses (2+ categories)\nTrace code paths"] --> D2
-        D2["D2: Diagnosis\nConfidence: HIGH/MEDIUM/LOW"]
+        D1["D1: Investigate\nHypotheses (2+ categories)\nTrace code paths"] --> BrowserCheck{UI bug?}
+        BrowserCheck -->|Yes| Browser["Browser evidence\nbrowser-use open/state/screenshot\nOBSERVED data"]
+        BrowserCheck -->|No| D2
+        Browser --> D2["D2: Diagnosis\nConfidence: HIGH/MEDIUM/LOW"]
     end
 
     D2 -->|"BLOCKING GATE"| Decision{Human decision}
     Decision -->|"Fix it"| D3["D3: Fix Plan"]
     Decision -->|"Go deeper"| D1
     Decision -->|"Just report"| Close
-    D3 --> D4["D4: Post-Fix Verification"]
+    D3 --> D4["D4: Post-Fix Verification\n+ browser re-verification for UI bugs"]
     D4 -->|"CHECKPOINT"| Close["Closing\nLearning loop"]
 ```
 
-No fixes until human reviews diagnosis. Confidence levels: HIGH = reproduced, MEDIUM = traced but not reproduced, LOW = inferred from code reading.
+No fixes until human reviews diagnosis. Confidence levels: HIGH = reproduced, MEDIUM = traced but not reproduced, LOW = inferred from code reading. For UI bugs, Step 0 detects browser-visible symptoms and loads `references/browser-use.md` on-demand. D1 uses browser evidence (screenshots, DOM state) to confirm or eliminate hypotheses after initial code reading. D4 reruns the browser reproduction post-fix as proof. Browser evidence is OBSERVED data; interpretations remain INFERRED until mapped to `file:line`. When `browser-use` is unavailable, the reference includes a manual fallback using OS screenshot tools and browser DevTools.
 
 **Investigate mode:**
 

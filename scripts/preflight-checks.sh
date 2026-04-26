@@ -382,12 +382,9 @@ if [[ -f tsconfig.json ]]; then
     if command -v npx >/dev/null 2>&1 && [[ -f eslint.config.mjs ]]; then
         lint_targets=(src/cli src/dashboard)
         lint_output=$(npx eslint "${lint_targets[@]}" 2>&1) && lint_exit=0 || lint_exit=$?
-        # grep -c always prints a count (even 0) and exits non-zero on zero
-        # matches. Using `|| echo 0` would double-up the output to "0\n0",
-        # breaking the downstream `-gt` arithmetic. Use `|| true` to swallow
-        # grep's non-zero exit but keep its printed count.
-        lint_errors=$(echo "$lint_output" | grep -c ' error ' || true)
-        lint_warnings=$(echo "$lint_output" | grep -c ' warning ' || true)
+        # Count only diagnostic rows, not ESLint's summary/fixability footer.
+        lint_errors=$(echo "$lint_output" | grep -Ec '^[[:space:]]*[0-9]+:[0-9]+[[:space:]]+error[[:space:]]' || true)
+        lint_warnings=$(echo "$lint_output" | grep -Ec '^[[:space:]]*[0-9]+:[0-9]+[[:space:]]+warning[[:space:]]' || true)
         if [[ "$lint_exit" -eq 0 ]]; then
             pass "ESLint ($lint_warnings warnings)"
         elif [[ "$lint_errors" -gt 0 ]]; then
