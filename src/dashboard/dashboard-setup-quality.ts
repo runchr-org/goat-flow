@@ -20,6 +20,7 @@ const DEFAULT_EXISTING_ARTIFACTS: ExistingArtifacts = {
 };
 
 const QUALITY_HISTORY_LOAD_DELAY_MS = 50;
+const SETUP_PROMPT_LOAD_DELAY_MS = 50;
 
 interface DashboardSetupQualityContext {
   projectPath: string;
@@ -30,6 +31,8 @@ interface DashboardSetupQualityContext {
   setupData: SetupData;
   setupGenerating: boolean;
   setupOutputs: Record<string, string>;
+  _setupOutputProjectPath: string | null;
+  _setupPromptTimer: ReturnType<typeof setTimeout> | null;
   qualityAgent: RunnerId;
   selectedQualityModeId: string;
   qualityLoading: boolean;
@@ -43,6 +46,7 @@ interface DashboardSetupQualityContext {
   presets: Preset[];
   showToast(msg: string, isError?: boolean): void;
   copyText(text: string): void;
+  generateSetupPrompt(force?: boolean): Promise<void>;
   generateQualityHistory(): Promise<void>;
 }
 
@@ -346,15 +350,25 @@ async function dashboardDetectStack(
 /** Generate setup output for the agent selected in the setup view. */
 async function dashboardGenerateSetupPrompt(
   ctx: DashboardSetupQualityContext,
+  { force = false }: { force?: boolean } = {},
 ): Promise<void> {
-  ctx.setupGenerating = true;
-  ctx.setupOutputs = {};
+  const requestProjectPath = ctx.projectPath;
   const agent = ctx.setupSelectedAgent;
+  if (ctx._setupOutputProjectPath !== requestProjectPath) {
+    ctx.setupOutputs = {};
+    ctx._setupOutputProjectPath = requestProjectPath;
+  }
+  if (!force && ctx.setupOutputs[agent]) return;
+
+  ctx.setupGenerating = true;
+  const isCurrentRequest = (): boolean =>
+    ctx.projectPath === requestProjectPath && ctx.setupSelectedAgent === agent;
   try {
     const res = await fetch(
-      `/api/setup?path=${encodeURIComponent(ctx.projectPath)}&agent=${agent}`,
+      `/api/setup?path=${encodeURIComponent(requestProjectPath)}&agent=${agent}`,
     );
     const payload = readRecord(await res.json(), "Setup response");
+    if (!isCurrentRequest()) return;
     const error = readErrorMessage(payload);
     if (error) {
       ctx.showToast(`${agent}: ${error}`, true);
@@ -363,10 +377,22 @@ async function dashboardGenerateSetupPrompt(
         readString(payload.output) || "No output generated.";
     }
   } catch (err) {
+    if (!isCurrentRequest()) return;
     const msg = err instanceof Error ? err.message : String(err);
     ctx.showToast(msg || "Generation failed", true);
   }
-  ctx.setupGenerating = false;
+  if (isCurrentRequest()) ctx.setupGenerating = false;
+}
+
+/** Schedule setup prompt generation after setup detection gets a paint. */
+function dashboardScheduleSetupPrompt(ctx: DashboardSetupQualityContext): void {
+  if (ctx._setupPromptTimer !== null) {
+    clearTimeout(ctx._setupPromptTimer);
+  }
+  ctx._setupPromptTimer = setTimeout(() => {
+    ctx._setupPromptTimer = null;
+    void ctx.generateSetupPrompt();
+  }, SETUP_PROMPT_LOAD_DELAY_MS);
 }
 
 /** Generate a quality prompt for the selected project and agent. */

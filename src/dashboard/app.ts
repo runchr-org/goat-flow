@@ -233,6 +233,8 @@ function app() {
     } as SetupData,
     setupGenerating: false,
     setupOutputs: {} as Record<string, string>,
+    _setupOutputProjectPath: null as string | null,
+    _setupPromptTimer: null as ReturnType<typeof setTimeout> | null,
 
     // --- Launcher state ---
     presets: readInjectedPresets(),
@@ -484,7 +486,7 @@ function app() {
         }
         if (v === "setup") {
           void this.detectStack();
-          void this.generateSetupPrompt();
+          this.scheduleSetupPrompt();
         }
       });
       self.$watch("qualityAgent", () => {
@@ -523,6 +525,10 @@ function app() {
           if (this.activeView === "quality") {
             void this.generateQuality();
             this.scheduleQualityHistory();
+          }
+          if (this.activeView === "setup") {
+            void this.detectStack();
+            this.scheduleSetupPrompt();
           }
           if (this.activeView === "home") {
             void this.generateHomeQualitySummary();
@@ -702,8 +708,12 @@ function app() {
       await dashboardDetectStack(this);
     },
     /** Generate setup output for the agent selected in the setup view. */
-    async generateSetupPrompt() {
-      await dashboardGenerateSetupPrompt(this);
+    async generateSetupPrompt(force = false) {
+      await dashboardGenerateSetupPrompt(this, { force });
+    },
+    /** Generate setup output after setup detection gets a paint. */
+    scheduleSetupPrompt() {
+      dashboardScheduleSetupPrompt(this);
     },
 
     // -- Quality --
