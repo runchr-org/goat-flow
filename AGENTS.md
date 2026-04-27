@@ -61,27 +61,11 @@ Over budget = checkpoint and re-classify before continuing. Budgets are planning
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-If VERIFY caught a failure or you corrected course, update the learning loop before DoD:
-
-| File | When to update |
-|------|---------------|
-| `.goat-flow/lessons/<category>.md` | Behavioural mistake. Append `## Lesson: <name>` + `**Created:** YYYY-MM-DD`. |
-| `.goat-flow/footguns/<category>.md` | Cross-doc architectural trap. Append `## Footgun: <name>` + `**Status:** active \| **Created:** YYYY-MM-DD \| **Evidence:** ACTUAL_MEASURED` with grep-friendly file evidence. |
-| `.goat-flow/decisions/` | Significant technical decision with context/rationale. |
-| `.goat-flow/logs/sessions/` | Workspace-local session notes. Gitignored by design; only the directory anchor is committed. |
+If VERIFY caught a failure or you corrected course, update the learning loop before DoD: behavioural mistakes go in `.goat-flow/lessons/<category>.md`, cross-doc architectural traps go in `.goat-flow/footguns/<category>.md` with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED`, significant technical decisions go in `.goat-flow/decisions/`, and optional continuity notes go in `.goat-flow/logs/sessions/`.
 
 ## Artifact Routing
 
-When asked to add, create, or update a goat-flow artifact, route to the correct location - not runtime code:
-
-| User says | Create/update in | NOT |
-|-----------|-----------------|-----|
-| "add a footgun" | `.goat-flow/footguns/<category>.md` | Runtime code, logging, UI warnings, tests |
-| "add a lesson" | `.goat-flow/lessons/<category>.md` | Runtime code, code comments |
-| "add a decision" | `.goat-flow/decisions/ADR-NNN.md` | Inline code comments |
-| "add a pattern" | `.goat-flow/patterns.md` | - |
-
-Before editing, read the target directory's `README.md` for required format. These are documentation artifacts - never interpret them as requests for runtime code changes unless the user explicitly asks for code too.
+When asked to add, create, or update a goat-flow artifact, route it to the artifact directory, not runtime code: footguns -> `.goat-flow/footguns/<category>.md`; lessons -> `.goat-flow/lessons/<category>.md`; decisions -> `.goat-flow/decisions/ADR-NNN.md`; patterns -> `.goat-flow/patterns.md`. Before editing, read the target directory's `README.md`; do not treat artifact requests as runtime-code requests unless the user explicitly asks for code too.
 
 ## Autonomy Tiers
 
@@ -91,18 +75,7 @@ Before editing, read the target directory's `README.md` for required format. The
 
 **Ask First** - before proceeding, state: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked (`.github/instructions/` / `AGENTS.md` / none), rollback command.
 
-Boundaries:
-- `.goat-flow/architecture.md` or primary instruction file changes (this file - `AGENTS.md`)
-- `workflow/setup/` or `workflow/skills/` template changes affecting generated output
-- `workflow/manifest.json` (canonical agent inventory)
-- `src/cli/server/terminal.ts` (PTY runtime) and `src/cli/server/dashboard.ts` (local HTTP/WS server)
-- `.goat-flow/skill-reference/` (shared runtime skill doctrine)
-- `.github/workflows/**`, `.github/actions/**` (CI changes alter validation and release behavior)
-- `.github/hooks/**`, `.github/skills/**`, `.github/copilot-instructions.md` (Copilot runtime surfaces per ADR-020)
-- `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/**` (agent runtime files)
-- Other instruction files (`CLAUDE.md`, `GEMINI.md`)
-- Adding, removing, or renaming files
-- Changes spanning 3+ docs/scripts
+Boundaries: `.goat-flow/architecture.md`, this file (`AGENTS.md`), other instruction files (`CLAUDE.md`, `GEMINI.md`), generated-output templates under `workflow/setup/` or `workflow/skills/`, `workflow/manifest.json`, `src/cli/server/terminal.ts`, `src/cli/server/dashboard.ts`, `.goat-flow/skill-reference/`, CI under `.github/workflows/**` or `.github/actions/**`, Copilot runtime surfaces under `.github/hooks/**`, `.github/skills/**`, `.github/copilot-instructions.md`, agent runtime dirs `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/**`, file adds/removes/renames, and changes spanning 3+ docs/scripts.
 
 **Never:** Delete docs without replacement, invent incidents or evidence, edit secrets, commit unless asked, push, run destructive git commands, claim verification passed without running it. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`). If interrupted or told no changes, freeze writes; run only read-only status/diff checks until the user explicitly asks for cleanup, revert, or apply.
 
@@ -115,20 +88,12 @@ If working from a plan/milestone file, tick `- [x]` on each completed task immed
 ## Router Table
 | Resource | Path |
 |----------|------|
-| Architecture | `.goat-flow/architecture.md` |
-| CLI auditor/prompt code | `src/cli/` |
-| Scripts | `scripts/` |
-| Workflow source | `workflow/` (setup, skills, hooks, evaluation) |
-| Skills | `.agents/skills/` (goat, goat-critique, goat-debug, goat-plan, goat-qa, goat-review, goat-security) |
-| Shared skill reference | `.goat-flow/skill-reference/` (skill-preamble.md, skill-conventions.md, browser-use.md, skill-quality-testing.md index + skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, and skill-quality-testing/deployment.md per ADR-023) |
-| Footguns (most-queried) | `.goat-flow/footguns/` |
-| Lessons | `.goat-flow/lessons/` |
-| Patterns | `.goat-flow/patterns.md` |
-| Decisions | `.goat-flow/decisions/` |
-| Config | `.goat-flow/config.yaml` |
-| Dashboard source | `src/dashboard/` |
-| Documentation | `docs/` |
-| Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
+| Core docs/config | `.goat-flow/architecture.md`, `.goat-flow/config.yaml`, `docs/` |
+| CLI/dashboard/scripts | `src/cli/`, `src/dashboard/`, `scripts/` |
+| Workflow/skills | `workflow/`, `.agents/skills/` |
+| Shared skill reference | `.goat-flow/skill-reference/`, `.goat-flow/skill-reference/skill-preamble.md`, `.goat-flow/skill-reference/skill-conventions.md`, `.goat-flow/skill-reference/browser-use.md`, `.goat-flow/skill-reference/skill-quality-testing.md`, `.goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md`, `.goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md`, `.goat-flow/skill-reference/skill-quality-testing/deployment.md` |
+| Learning loop | `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns.md`, `.goat-flow/decisions/` |
+| Workspace notes | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
 | Peer instructions | `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md` |
 
 ## Hard Rules

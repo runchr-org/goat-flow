@@ -913,7 +913,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "2. **Truncation or corruption:** Do the installed skill files look complete? Are there any signs of truncation, merging, or adaptation that broke the structure? (Skills should be installed verbatim from templates - they should NOT be adapted.)",
   );
   lines.push(
-    '3. **Depth choice coherence:** Invoke one skill with "quick" and one with "full" in reporting-only mode. Is the experience meaningfully different?',
+    '3. **Depth choice coherence:** Evaluate one skill with "quick" and one with "full" in reporting-only mode. Is the experience meaningfully different?',
   );
   lines.push("");
 
