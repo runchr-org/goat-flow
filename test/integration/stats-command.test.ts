@@ -192,6 +192,21 @@ describe("goat-flow stats --check", () => {
     assert.ok(finding!.message.includes("src/gone.ts:42"));
   });
 
+  it("fails when a bucket uses line-number evidence without a semantic anchor", () => {
+    const report = loadReport({
+      footguns: {
+        "hooks.md":
+          "---\ncategory: hooks\nlast_reviewed: 2026-04-18\n---\n\n## Footgun: alpha\n\n**Evidence:** ACTUAL_MEASURED\n\nSee `.goat-flow/footguns/hooks.md:1` for details.\n",
+      },
+      lessons: {},
+    });
+    const verdict = checkStats(report);
+    assert.equal(verdict.status, "fail");
+    const finding = verdict.findings.find((f) => f.rule === "invalid-line-ref");
+    assert.ok(finding, "expected an invalid-line-ref finding");
+    assert.ok(finding!.message.includes("missing semantic anchor"));
+  });
+
   it("fails when an active footgun appears below ## Resolved Entries", () => {
     const report = loadReport({
       footguns: {

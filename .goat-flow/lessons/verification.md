@@ -1,6 +1,6 @@
 ---
 category: verification
-last_reviewed: 2026-04-25
+last_reviewed: 2026-04-27
 ---
 
 ## Lesson: "Double check" means read the files, not re-run the tests
@@ -67,7 +67,7 @@ last_reviewed: 2026-04-25
 
 **Status:** active | **Created:** 2026-04-15
 
-**What happened:** While renaming the scratch workspace directory to `scratchpad`, the first reference scan used `rg --hidden` and incorrectly appeared clean. A follow-up scan with `rg -uu` found the real remaining self-reference in `commit.md:12` (note: `commit.md` was later edited to 9 lines, making this line reference stale - exactly the drift pattern this lesson exists to prevent).
+**What happened:** While renaming the scratch workspace directory to `scratchpad`, the first reference scan used `rg --hidden` and incorrectly appeared clean. A follow-up scan with `rg -uu` found the real remaining self-reference in `commit.md` (later edits made the original line reference stale - exactly the drift pattern this lesson exists to prevent).
 
 **Root cause:** `--hidden` includes hidden files but still respects ignore rules. For `.goat-flow` verification work, that can hide the exact content being checked.
 
@@ -89,7 +89,7 @@ last_reviewed: 2026-04-25
 
 **Status:** active | **Created:** 2026-04-16
 
-**What happened:** `workflow/manifest.json` listed only `"goat"` in `skills.canonical` and classified the other 6 active skills (goat-debug, goat-plan, goat-review, goat-critique, goat-security, goat-qa) as `stale_names`. `src/cli/constants.ts` `SKILL_NAMES` also said `["goat"]`. The install script (`workflow/install-goat-flow.sh:137`) correctly installs all 7, and the repo itself has all 7 in `.claude/skills/`. But the audit read `canonical` to determine expected count, so it reported "1/1 installed" on target projects. The dashboard and setup prompt both showed "1/1 skills installed" - which looked correct but was silently wrong. The target consumer project only had the `goat` dispatcher installed; the other 6 functional skills were missing.
+**What happened:** `workflow/manifest.json` listed only `"goat"` in `skills.canonical` and classified the other 6 active skills (goat-debug, goat-plan, goat-review, goat-critique, goat-security, goat-qa) as `stale_names`. `src/cli/constants.ts` `SKILL_NAMES` also said `["goat"]`. The install script (`workflow/install-goat-flow.sh` (search: `for skill in`)) correctly installs all 7, and the repo itself has all 7 in `.claude/skills/`. But the audit read `canonical` to determine expected count, so it reported "1/1 installed" on target projects. The dashboard and setup prompt both showed "1/1 skills installed" - which looked correct but was silently wrong. The target consumer project only had the `goat` dispatcher installed; the other 6 functional skills were missing.
 
 **Root cause:** At some point the manifest was updated to reflect a "mono-skill dispatcher" model where `goat` was the only canonical skill (it dispatches to the others). But the install script, the repo's own skill directories, and user expectations all assumed 7 canonical skills. The contract test `SKILL_NAMES matches manifest.json canonical` existed but passed because both constants.ts AND manifest.json were wrong in the same direction - the test validated consistency between two broken sources, not correctness.
 
@@ -102,7 +102,7 @@ last_reviewed: 2026-04-25
 
 **Status:** historical | **Created:** 2026-04-16 | **Reason:** RULES.md deleted; "never dismiss test failures as pre-existing" rule survives as an active principle elsewhere in this file
 
-**What happened:** `RULES.md` existed in `.agents/skills/goat/` (codex/gemini) but was missing from `.claude/skills/goat/`. The audit code (`check-agent-setup.ts:76-82`) explicitly checks for it. The goat dispatcher's `SKILL.md` tells the agent to "Read RULES.md in this directory immediately." But:
+**What happened:** `RULES.md` existed in `.agents/skills/goat/` (codex/gemini) but was missing from `.claude/skills/goat/`. The audit code in `check-agent-setup.ts` explicitly checked for it. The goat dispatcher's `SKILL.md` told the agent to "Read RULES.md in this directory immediately." But:
 1. The install script (`install-goat-flow.sh`) only copied `SKILL.md` per skill - never copied `RULES.md`.
 2. No template for `RULES.md` existed in `workflow/skills/`.
 3. The 2 test failures (`audit on well-configured project`, `audit --harness`) were caused by this + the skill count bug, but were treated as "pre-existing failures" across an entire session of work.
@@ -221,7 +221,7 @@ last_reviewed: 2026-04-25
 
 **Root cause:** Verified runtime behavior first and only learned about tooling drift at the end. File deletions and new exports change cold-path tool surfaces (`knip.json`, unused-export analysis) even when app behavior and tests are correct.
 
-**Evidence:** `knip.json:3` - ignore list still carried the deleted dashboard preset TypeScript path; `src/cli/detect/project-stack.ts:27` - `SetupStackSummary` was exported even though only local consumers needed it.
+**Evidence:** `knip.json` (search: `dashboard-custom-prompts.ts`) - ignore list still carried the deleted dashboard preset TypeScript path; `src/cli/detect/project-stack.ts` (search: `interface SetupStackSummary`) - `SetupStackSummary` was exported even though only local consumers needed it.
 
 **Fix:** Remove the stale Knip ignore entry, de-export the setup-summary interface, then rerun `npx knip` before the final preflight pass.
 

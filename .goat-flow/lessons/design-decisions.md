@@ -1,6 +1,6 @@
 ---
 category: design-decisions
-last_reviewed: 2026-04-20
+last_reviewed: 2026-04-27
 ---
 
 ## Lesson: Doer-verifier is theater in single-agent context
@@ -93,7 +93,7 @@ M13's first draft extended `goat-flow quality` by asking the agent to write a st
 
 **Why it happened:** When a spec adds a new feature that needs persistence, "just carve a narrow exception" feels minimal. But the carved exception is prompt-text-only - there is no mechanical sandbox on what path the agent actually writes to (path traversal was Agent A's framing). More importantly, the agent is now instructed to (a) check existing files to compute a same-day suffix, (b) write to a specific path, (c) avoid writing anywhere else. Agents are unreliable at directory listing + race-free numbering + path discipline; pushing that onto the prompt is the kind of brittleness the project's feedback-loop footguns already document.
 
-**Evidence:** `src/cli/prompt/compose-quality.ts:137,147,431` (READ-ONLY + write-is-finding instructions) vs the draft's §3 "Instruct the agent to write …" bullet.
+**Evidence:** `src/cli/prompt/compose-quality.ts` (search: `No tracked-file writes`) vs the draft's §3 "Instruct the agent to write …" bullet.
 
 **Decision:** Rebuilt M13 so the agent emits the JSON block inside its response only; any later CLI tooling that needs to capture the output owns extraction, path validation, suffix numbering, and schema validation outside the prompt contract. READ-ONLY clause preserved verbatim. (Historical note: the earlier redesign kept capture out of the initial prompt rewrite; M13 later ships `goat-flow quality capture --from-file <path>` as a CLI-owned post-response step, not as a prompt exception.)
 
@@ -101,4 +101,4 @@ M13's first draft extended `goat-flow quality` by asking the agent to write a st
 
 **Prevention:** Before a plan proposes "carve a narrow exception to a contract the prompt enforces", test the inverse: "can the CLI do this instead, after the agent responds?" If yes, move the side effect. If the answer requires restructuring the command flow, do that restructuring - it is cheaper than carrying a prompt contradiction into production, where every future extender has to interpret the exception identically on first-try.
 
-**2026-04-19 amendment - partially superseded:** `goat-flow quality capture` was removed in v1.2.0; the write returned to the prompt by design. The original reasoning held because the hypothetical write could have landed anywhere in the repo. The current contract pins the write to `.goat-flow/logs/quality/*.json` - a gitignored path - so the "committed-state pollution" concern does not apply. `src/cli/prompt/compose-quality.ts:131,141,702-705,728,795` still forbids tracked-file writes and allows only this single gitignored path. The general principle still holds for tracked-file writes; the specific ruling against the quality-report write is superseded.
+**2026-04-19 amendment - partially superseded:** `goat-flow quality capture` was removed in v1.2.0; the write returned to the prompt by design. The original reasoning held because the hypothetical write could have landed anywhere in the repo. The current contract pins the write to `.goat-flow/logs/quality/*.json` - a gitignored path - so the "committed-state pollution" concern does not apply. `src/cli/prompt/compose-quality.ts` (search: `No tracked-file writes`) still forbids tracked-file writes and allows only this single gitignored path. The general principle still holds for tracked-file writes; the specific ruling against the quality-report write is superseded.

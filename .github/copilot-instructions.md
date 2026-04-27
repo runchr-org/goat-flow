@@ -10,7 +10,7 @@ bash scripts/preflight-checks.sh         # Full preflight gate
 bash scripts/bump-version.sh <patch|minor|major|X.Y.Z>  # Bump package/docs/templates/mirrors
 npm run typecheck                                 # Type-check .ts (required by DoD)
 npm test                                          # Run fast test suite (excludes integration/drift/dashboard)
-npm run test:slow                                 # Run slow integration tests (setup, drift, runtime changes)
+npm run test:full                                 # Run fast + slow suites before release-sensitive changes
 node --import tsx src/cli/cli.ts stats . --check  # Learning-loop health: last_reviewed + stale refs
 ```
 ## Truth Order

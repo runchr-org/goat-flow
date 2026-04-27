@@ -353,3 +353,14 @@ last_reviewed: 2026-04-27
 **Root cause:** I edited a shell regex directly inside `[[ ... =~ ... ]]` instead of moving the pattern to a variable, which is safer for regex metacharacters that the Bash parser can see. I also forgot the existing VM cross-realm lesson when adding a new classic-script helper test.
 
 **Prevention:** After changing Bash hook regexes, run `bash -n <hook>` before interpreting self-test failures; if the regex contains `(`, `)`, `{`, or `}`, prefer a named regex variable. For command wrapper deny rules, probe both bare wrappers and option-bearing wrappers before mirror fanout (`command -p`, `env --`, `env -C`, `time -f`, quoted time formats). For VM-loaded dashboard helper tests, compare scalar fields/lengths or normalize arrays into the host realm. Evidence anchors: `scripts/deny-dangerous.sh` (search: `normalize_time_prefix`), `scripts/deny-dangerous.sh` (search: `env chdir git push`), `test/unit/dashboard-setup-quality.test.ts` (search: `qualityHistoryRows.length`).
+
+---
+## Lesson: Stats fixtures need real files for line-reference assertions
+
+**Status:** active | **Created:** 2026-04-27
+
+**What happened:** While adding ADR-024 enforcement to `stats --check`, the first integration test fixture used `package.json` with a line suffix to trigger an `invalid-line-ref` finding. The temp fixture repo did not contain `package.json`, so the checker correctly reported a stale ref instead and the test failed with "expected an invalid-line-ref finding."
+
+**Root cause:** I reused a familiar root file path without checking the isolated fixture filesystem. The stats extractor validates refs against the temp repo, not the real goat-flow checkout.
+
+**Prevention:** In temp-repo stats fixtures, cite a file the fixture creates when asserting line-reference behavior. For this path, `.goat-flow/footguns/hooks.md` is created by the fixture and can carry both the bucket body and a self-reference. Evidence anchor: `test/integration/stats-command.test.ts` (search: `missing semantic anchor`).

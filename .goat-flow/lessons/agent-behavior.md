@@ -101,7 +101,7 @@ last_reviewed: 2026-04-27
 
 **Created:** 2026-04-24
 
-**What happened:** Three independent Gemini quality reports in one session flagged stale `file:line` references across footgun entries. `hooks.md` cited `deny-dangerous.sh:88-96` for the read-only whitelist (actually at line 491+), `skills.md` cited `skill-preamble.md:77-79` for the Step 0 budget (actually at 95-97). Nine active line references across 3 footgun files had drifted. The framework's README and CLAUDE.md already said "line numbers are advisory" but evaluation templates said "RECOMMENDED," so agents kept using them.
+**What happened:** Three independent Gemini quality reports in one session flagged stale `file:line` references across footgun entries. `hooks.md` cited `deny-dangerous.sh` lines for the read-only whitelist that had moved, and `skills.md` cited `skill-preamble.md` lines for the Step 0 budget that had also moved. Nine active line references across 3 footgun files had drifted. The framework's README and CLAUDE.md already said "line numbers are advisory" but evaluation templates said "RECOMMENDED," so agents kept using them.
 
 **Root cause:** Line numbers shift on every edit to the target file. Unlike stale file paths (which `stats --check` catches), stale line numbers point at valid-but-wrong code and pass all mechanical checks. The guidance was contradictory: README discouraged them while the evaluation template encouraged them.
 

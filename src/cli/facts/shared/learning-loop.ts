@@ -14,7 +14,8 @@ const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
  * - `src/auth.ts:42` (backtick-wrapped with line number)
  * - `src/auth.ts:42-50` (backtick-wrapped with line range)
  * - (lines 866-880) or (line 52) (prose-style)
- * Line numbers are optional historical context - file paths alone are valid evidence.
+ * Line numbers are optional historical context only when paired with a semantic anchor.
+ * File paths alone remain valid evidence.
  */
 const EVIDENCE_PATTERN =
   /`[^`]+\.[a-zA-Z]{1,10}(?::[0-9]+(?:[-,][0-9]+)*)?`|\(lines?\s+[0-9]+/;
@@ -279,7 +280,30 @@ function hasFootgunEvidence(content: string): boolean {
   return hasFileEvidence(content);
 }
 
-/** Check referenced `file:line` evidence for stale footgun paths. */
+/** Check a concrete file:line reference for out-of-bounds lines or missing anchors. */
+function getLineRefDiagnostic(
+  fs: ReadonlyFS,
+  filePath: string,
+  rawLines: string,
+  hasSemanticAnchor: boolean,
+): string | null {
+  const lineCount = fs.lineCount(filePath);
+  const lineNumbers = Array.from(rawLines.matchAll(/[0-9]+/g)).flatMap(
+    (lineMatch) => {
+      const value = Number.parseInt(lineMatch[0], 10);
+      return Number.isNaN(value) ? [] : [value];
+    },
+  );
+  const ref = `${filePath}:${rawLines}`;
+  if (
+    lineNumbers.some((lineNumber) => lineNumber < 1 || lineNumber > lineCount)
+  ) {
+    return ref;
+  }
+  return hasSemanticAnchor ? null : `${ref} (missing semantic anchor)`;
+}
+
+/** Check referenced `file:line` evidence for stale footgun paths and ADR-024 compliance. */
 function summarizeFootgunRefs(
   fs: ReadonlyFS,
   content: string,
@@ -291,43 +315,36 @@ function summarizeFootgunRefs(
     validRefs: 0,
   };
   const cleanedContent = stripStrikethrough(content);
-  const fileRefs = cleanedContent.matchAll(
-    /`([^`]+):([0-9]+(?:[-,][0-9]+)*)`/g,
-  );
-
-  for (const match of fileRefs) {
-    const filePath = match[1];
-    const rawLines = match[2];
-    if (
-      filePath === undefined ||
-      rawLines === undefined ||
-      !isFileRef(filePath) ||
-      !isCheckableForStaleness(filePath, fs)
-    )
-      continue;
-    summary.totalRefs++;
-    if (!fs.exists(filePath)) {
-      summary.staleRefs.push(`${filePath}:${rawLines}`);
-      continue;
+  for (const line of cleanedContent.split("\n")) {
+    const hasSemanticAnchor = new RegExp(SEARCH_ANCHOR_REGEX.source).test(line);
+    const fileRefs = line.matchAll(/`([^`]+):([0-9]+(?:[-,][0-9]+)*)`/g);
+    for (const match of fileRefs) {
+      const filePath = match[1];
+      const rawLines = match[2];
+      if (
+        filePath === undefined ||
+        rawLines === undefined ||
+        !isFileRef(filePath) ||
+        !isCheckableForStaleness(filePath, fs)
+      )
+        continue;
+      summary.totalRefs++;
+      if (!fs.exists(filePath)) {
+        summary.staleRefs.push(`${filePath}:${rawLines}`);
+        continue;
+      }
+      const diagnostic = getLineRefDiagnostic(
+        fs,
+        filePath,
+        rawLines,
+        hasSemanticAnchor,
+      );
+      if (diagnostic !== null) {
+        summary.invalidLineRefs.push(diagnostic);
+        continue;
+      }
+      summary.validRefs++;
     }
-
-    const lineCount = fs.lineCount(filePath);
-    const lineNumbers = Array.from(rawLines.matchAll(/[0-9]+/g)).flatMap(
-      (lineMatch) => {
-        const value = Number.parseInt(lineMatch[0], 10);
-        return Number.isNaN(value) ? [] : [value];
-      },
-    );
-    const hasOutOfBoundsLine = lineNumbers.some(
-      (lineNumber) => lineNumber < 1 || lineNumber > lineCount,
-    );
-
-    if (hasOutOfBoundsLine) {
-      summary.invalidLineRefs.push(`${filePath}:${rawLines}`);
-      continue;
-    }
-
-    summary.validRefs++;
   }
 
   scanSearchAnchors(fs, cleanedContent, summary);
@@ -659,34 +676,32 @@ function summarizeFootgunEntries(
   };
 }
 
-/** Validate `file:line` refs in lesson content, returning out-of-bounds refs. */
+/** Validate `file:line` refs in lesson content, returning out-of-bounds or anchorless refs. */
 function collectInvalidLessonLineRefs(
   fs: ReadonlyFS,
   cleanedContent: string,
 ): string[] {
   const invalid: string[] = [];
-  for (const match of cleanedContent.matchAll(
-    /`([^`]+):([0-9]+(?:[-,][0-9]+)*)`/g,
-  )) {
-    const filePath = match[1];
-    const rawLines = match[2];
-    if (
-      filePath === undefined ||
-      rawLines === undefined ||
-      !isFileRef(filePath) ||
-      !isCheckableForStaleness(filePath, fs)
-    )
-      continue;
-    if (!fs.exists(filePath)) continue;
-    const lineCount = fs.lineCount(filePath);
-    const lineNumbers = Array.from(rawLines.matchAll(/[0-9]+/g)).flatMap(
-      (lineMatch) => {
-        const value = Number.parseInt(lineMatch[0], 10);
-        return Number.isNaN(value) ? [] : [value];
-      },
-    );
-    if (lineNumbers.some((ln) => ln < 1 || ln > lineCount)) {
-      invalid.push(`${filePath}:${rawLines}`);
+  for (const line of cleanedContent.split("\n")) {
+    const hasSemanticAnchor = new RegExp(SEARCH_ANCHOR_REGEX.source).test(line);
+    for (const match of line.matchAll(/`([^`]+):([0-9]+(?:[-,][0-9]+)*)`/g)) {
+      const filePath = match[1];
+      const rawLines = match[2];
+      if (
+        filePath === undefined ||
+        rawLines === undefined ||
+        !isFileRef(filePath) ||
+        !isCheckableForStaleness(filePath, fs) ||
+        !fs.exists(filePath)
+      )
+        continue;
+      const diagnostic = getLineRefDiagnostic(
+        fs,
+        filePath,
+        rawLines,
+        hasSemanticAnchor,
+      );
+      if (diagnostic !== null) invalid.push(diagnostic);
     }
   }
   return invalid;
@@ -737,6 +752,14 @@ function summarizeLessonEntries(
     bucketInvalidLineRefs.push(
       ...collectInvalidLessonLineRefs(fs, cleanedContent),
     );
+    const anchorSummary: FootgunRefSummary = {
+      staleRefs: [],
+      invalidLineRefs: [],
+      totalRefs: 0,
+      validRefs: 0,
+    };
+    scanSearchAnchors(fs, cleanedContent, anchorSummary);
+    bucketStaleRefs.push(...anchorSummary.staleRefs);
     staleRefs.push(...bucketStaleRefs);
     invalidLineRefs.push(...bucketInvalidLineRefs);
     const diagnostic = getMissingFrontmatterDiagnostic(path, content);

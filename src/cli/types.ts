@@ -110,7 +110,7 @@ export interface BucketFreshness {
   entryCount: number;
   /** Stale file refs found in this bucket */
   staleRefs: string[];
-  /** Invalid line refs (line out of bounds) found in this bucket */
+  /** Invalid line refs (line out of bounds or missing semantic anchor) found in this bucket */
   invalidLineRefs: string[];
   /** Most recent `**Created:**` or `**Updated:**` date in the body, YYYY-MM-DD or null.
    *  Used to detect frontmatter `last_reviewed` that is stale relative to entry dates. */

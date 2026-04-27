@@ -120,7 +120,7 @@ If working from a plan/milestone file, tick `- [x]` on each completed task immed
 | Scripts | `scripts/` |
 | Workflow source | `workflow/` (setup, skills, hooks, evaluation) |
 | Skills | `.agents/skills/` (goat, goat-critique, goat-debug, goat-plan, goat-qa, goat-review, goat-security) |
-| Shared skill reference | `.goat-flow/skill-reference/` (skill-preamble.md, skill-conventions.md, browser-use.md, skill-quality-testing.md) |
+| Shared skill reference | `.goat-flow/skill-reference/` (skill-preamble.md, skill-conventions.md, browser-use.md, skill-quality-testing.md index + skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, and skill-quality-testing/deployment.md per ADR-023) |
 | Footguns (most-queried) | `.goat-flow/footguns/` |
 | Lessons | `.goat-flow/lessons/` |
 | Patterns | `.goat-flow/patterns.md` |

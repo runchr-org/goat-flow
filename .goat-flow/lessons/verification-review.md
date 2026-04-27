@@ -1,6 +1,6 @@
 ---
 category: verification-review
-last_reviewed: 2026-04-25
+last_reviewed: 2026-04-27
 ---
 
 ## Lesson: Multi-agent critique finds findings single reviewers miss - but synthesis is the expensive part
@@ -39,7 +39,7 @@ last_reviewed: 2026-04-25
 **What happened:** After M17, 6 external critics independently reviewed the goat-flow framework itself (not installed projects). They found 14 verified bugs that had survived all prior milestones: foundation.ts emitting v1.0, SKILL_TEMPLATES missing goat-sbao, config.yaml referencing a renamed script, README overclaiming hooks, stale test fixtures encoding the wrong skill count, setup fragments still creating coding-standards (removed in M13), classify-state marking "healthy" from version alone, and more. Every bug was a 1-5 line fix.
 
 **Why these were missed:**
-1. **Tests validated shape, not truth.** Contract tests checked "does this section heading exist" not "is the skill count correct." `evaluate-check.test.ts:270` literally says "All 6 skills present" - nobody noticed when goat-sbao made it 7.
+1. **Tests validated shape, not truth.** Contract tests checked "does this section heading exist" not "is the skill count correct." An old `evaluate-check.test.ts` assertion literally said "All 6 skills present" - nobody noticed when goat-sbao made it 7.
 2. **Self-critique was pipeline-focused.** Every milestone ran `tsc`, `npm test`, `scan`, `preflight`. All passed. None caught that README said "Six" or that foundation.ts hardcoded v1.0. The pipeline tests what it tests; it doesn't read prose.
 3. **No external review until R8+.** The first 7 rounds critiqued goat-flow as installed on OTHER projects. Nobody reviewed the goat-flow repo itself until round 8. Self-review is blind to self-consistency.
 4. **Rename survivors.** A setup-validator rename left config.yaml on the old path, and `presets.js` was renamed to `preset-prompts.js` while architecture.md kept the old name. No grep-after-rename discipline for config/docs (only code).
@@ -55,7 +55,7 @@ last_reviewed: 2026-04-25
 
 **Status:** active | **Created:** 2026-04-14
 
-**What happened:** A critique agent claimed `.goat-flow/architecture.md:18` had the wrong build-check breakdown: "says 7+9, actual code shows 12+4." The claim was accepted at face value and the doc was changed. A subsequent refactor restructured the checks into `SETUP_CHECKS` (13 checks) and `AGENT_CHECKS` (4 checks), making the actual breakdown **13 setup + 4 agent** (17 total). The preflight's "Architecture doc counts match code" check only validates the total (17), not the sub-breakdown, so incorrect breakdowns pass all automated gates.
+**What happened:** A critique agent claimed `.goat-flow/architecture.md` (search: `17 build checks`) had the wrong build-check breakdown: "says 7+9, actual code shows 12+4." The claim was accepted at face value and the doc was changed. A subsequent refactor restructured the checks into `SETUP_CHECKS` (13 checks) and `AGENT_CHECKS` (4 checks), making the actual breakdown **13 setup + 4 agent** (17 total). The preflight's "Architecture doc counts match code" check only validates the total (17), not the sub-breakdown, so incorrect breakdowns pass all automated gates.
 
 **Root cause:** The first critique agent likely miscounted or read a stale build of the code. The claim was plausible (it got the total right), which made it easy to accept without running the verification command. The same session also changed `code-map.md` correctly for a different issue, creating a false sense that all claims were verified.
 
@@ -71,7 +71,7 @@ last_reviewed: 2026-04-25
 
 **Status:** active | **Created:** 2026-04-15
 
-**What happened:** Eight independent critiques (3 Claude, 5 Codex) reviewed the goat-flow v1.1.0 setup on its own repo. All 8 confirmed structural integrity: 7 skills matched templates, 57 tests passed, all router paths resolved, deny hook self-test passed, architecture doc numeric claims verified. Despite this, the 8 critiques collectively found 20+ verified content-accuracy failures in cold-path surfaces that no automated check caught. Examples at the time (all since resolved or removed): ~~`docs/audit-and-critique.md:38-47`~~ describing checks that no longer exist in code; `docs/coding-standards/conventions.md:10` claiming zero runtime deps when `package.json` has js-yaml and ws; `.goat-flow/glossary.md:21` pointing Task Tracking at the wrong file; `.goat-flow/code-map.md:71` listing a script under the wrong directory; ~~`scripts/stop-lint.sh`~~ existing despite ADR-015 saying it was removed; `.goat-flow/tasks/.gitignore:2` ignoring all milestone files while goat-plan claims durable shared state. Setup scored 58-90/100 across the 8 critiques - the range itself shows the split between structural soundness and content accuracy.
+**What happened:** Eight independent critiques (3 Claude, 5 Codex) reviewed the goat-flow v1.1.0 setup on its own repo. All 8 confirmed structural integrity: 7 skills matched templates, 57 tests passed, all router paths resolved, deny hook self-test passed, architecture doc numeric claims verified. Despite this, the 8 critiques collectively found 20+ verified content-accuracy failures in cold-path surfaces that no automated check caught. Examples at the time (all since resolved or removed): ~~`docs/audit-and-critique.md` describing checks that no longer exist in code~~; `docs/coding-standards/conventions.md` had claimed zero runtime deps when `package.json` had js-yaml and ws; `.goat-flow/glossary.md` pointed Task Tracking at the wrong file; `.goat-flow/code-map.md` listed a script under the wrong directory; ~~`scripts/stop-lint.sh` existing despite ADR-015 saying it was removed~~; `.goat-flow/tasks/.gitignore` ignored all milestone files while goat-plan claimed durable shared state. Setup scored 58-90/100 across the 8 critiques - the range itself shows the split between structural soundness and content accuracy.
 
 **Root cause:** The audit validates structure (files exist, versions match, paths resolve) but not content truth. Preflight validates some doc/code counts but not descriptions, claims, or cross-file consistency. Cold-path docs are updated manually and drift as code changes. Step 01 (`workflow/setup/01-system-overview.md` (search: `## State check`)) now requires a cold-path truth spot-check before stopping (prevention #2 below, implemented), but coverage depends on which claims the agent chooses to verify.
 
