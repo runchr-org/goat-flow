@@ -185,10 +185,11 @@ function buildDashboardLearningLoopSummary(
       stats.footguns.totalEntries + stats.lessons.totalEntries;
 
     const allBuckets = [...stats.footguns.buckets, ...stats.lessons.buckets];
-    const reviewed = allBuckets
-      .filter((b) => b.lastReviewed !== null)
-      .sort((a, b) => (a.lastReviewed! < b.lastReviewed! ? -1 : 1));
-    const oldestLastReviewed = reviewed[0]?.lastReviewed ?? null;
+    const reviewedDates = allBuckets
+      .map((bucket) => bucket.lastReviewed)
+      .filter((lastReviewed): lastReviewed is string => lastReviewed !== null)
+      .sort();
+    const oldestLastReviewed = reviewedDates[0] ?? null;
 
     const topBucketsNeedingAction = allBuckets
       .filter(

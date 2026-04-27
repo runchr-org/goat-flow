@@ -212,6 +212,46 @@ describe("goat-flow stats --check", () => {
     );
   });
 
+  it("fails when a resolved footgun appears above ## Resolved Entries", () => {
+    const report = loadReport({
+      footguns: {
+        "setup.md":
+          "---\ncategory: setup\nlast_reviewed: 2026-04-18\n---\n\n## Footgun: misplaced resolved entry\n\n**Status:** resolved | **Created:** 2026-04-18 | **Resolved:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED\n\nBody.\n\n## Resolved Entries\n",
+      },
+      lessons: {},
+    });
+    const verdict = checkStats(report);
+    assert.equal(verdict.status, "fail");
+    assert.ok(
+      verdict.findings.some(
+        (f) =>
+          f.rule === "format" &&
+          f.message.includes("above ## Resolved Entries"),
+      ),
+      "expected a resolved-above-marker finding",
+    );
+  });
+
+  it("fails when resolved footguns exist without ## Resolved Entries", () => {
+    const report = loadReport({
+      footguns: {
+        "dashboard.md":
+          "---\ncategory: dashboard\nlast_reviewed: 2026-04-18\n---\n\n## Footgun: markerless resolved entry\n\n**Status:** resolved | **Created:** 2026-04-18 | **Resolved:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED\n\nBody.\n",
+      },
+      lessons: {},
+    });
+    const verdict = checkStats(report);
+    assert.equal(verdict.status, "fail");
+    assert.ok(
+      verdict.findings.some(
+        (f) =>
+          f.rule === "format" &&
+          f.message.includes("no ## Resolved Entries marker"),
+      ),
+      "expected a missing-resolved-marker finding",
+    );
+  });
+
   it("fails when an active footgun relies on retired-file evidence", () => {
     const report = loadReport({
       footguns: {

@@ -138,7 +138,6 @@ function dashboardSortProjects(
 function dashboardSortedProjectsList(
   ctx: DashboardProjectsContext,
 ): ProjectEntry[] {
-  if (!ctx.projectsSortKey) return ctx.projectsList;
   const key = ctx.projectsSortKey;
   const dir = ctx.projectsSortAsc ? 1 : -1;
   return [...ctx.projectsList].sort((a, b) => {

@@ -433,6 +433,25 @@ function diagnoseActiveSection(
   return out;
 }
 
+/** Check that resolved footguns live below the bucket's resolved marker. */
+function diagnoseResolvedSection(
+  section: FootgunSection,
+  path: string,
+  resolvedIndex: number,
+): string[] {
+  if (resolvedIndex === -1) {
+    return [
+      `${path} has resolved footgun "${section.title}" but no ## Resolved Entries marker`,
+    ];
+  }
+  if (section.start < resolvedIndex) {
+    return [
+      `${path} has resolved footgun "${section.title}" above ## Resolved Entries`,
+    ];
+  }
+  return [];
+}
+
 /** Check one footgun section's schema + (if active) its placement and evidence. */
 function diagnoseFootgunSection(
   section: FootgunSection,
@@ -448,8 +467,10 @@ function diagnoseFootgunSection(
       `${path} footgun "${section.title}" has non-canonical status "${section.status}" (expected "active" or "resolved")`,
     ];
   }
-  if (section.status !== "active") return [];
-  return diagnoseActiveSection(section, path, resolvedIndex);
+  if (section.status === "active") {
+    return diagnoseActiveSection(section, path, resolvedIndex);
+  }
+  return diagnoseResolvedSection(section, path, resolvedIndex);
 }
 
 /** Detect stale active-footgun structure, evidence patterns, and schema violations. */

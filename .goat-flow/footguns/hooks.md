@@ -49,18 +49,19 @@ last_reviewed: 2026-04-27
 
 **Status:** active | **Created:** 2026-04-26 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** An agent can perform an action (e.g. `git push origin feature-branch`) that the workflow template blocks, because the installed settings.json has a weaker deny pattern than the template it was installed from. The hook may also allow it if it only blocks a narrower set. No automated check compares installed settings patterns against template patterns.
+**Symptoms:** An agent can perform an action (e.g. `git push origin feature-branch`) that the workflow template blocks, because the installed settings.json has a weaker deny pattern than the template it was installed from. The hook may also allow it if it only blocks a narrower set. This is now covered by preflight's Agent Config Parity check, so the active trap is skipping that check or changing deny semantics without updating the parity rules.
 
-**Why it happens:** `workflow/hooks/agent-config/claude.json` is the install template for `.claude/settings.json`. The template had `Bash(*git push*)` (block all push) but the installed copy drifted to `Bash(*git push*--force*)` (block force only). There is no parity check between settings templates and installed settings - the preflight `Skill SKILL.md Parity` and `Preamble/Conventions Sync` checks cover skill files and shared references, but not settings.json deny patterns.
+**Why it happens:** `workflow/hooks/agent-config/claude.json` is the install template for `.claude/settings.json`. The template had `Bash(*git push*)` (block all push) but the installed copy drifted to `Bash(*git push*--force*)` (block force only). At incident time, preflight covered skill files and shared references but not settings.json deny patterns. The current `Agent Config Parity` section now verifies installed settings with `covers()` validation.
 
 **Evidence:**
 - `workflow/hooks/agent-config/claude.json` (search: `git push`) - the template had the correct blanket pattern.
 - `.claude/settings.json` (search: `git push`) - the installed copy had drifted to force-only. Fixed 2026-04-26 per ADR-025.
+- `scripts/preflight-checks.sh` (search: `Agent Config Parity`) - current parity check validates installed agent settings against workflow templates.
 
 **Prevention:**
-1. After changing any deny pattern in a settings template (`workflow/hooks/agent-config/*.json`), verify the installed copy matches. No automated parity check exists yet.
+1. After changing any deny pattern in a settings template (`workflow/hooks/agent-config/*.json`), run `bash scripts/preflight-checks.sh` and confirm `Agent Config Parity` still passes.
 2. When reviewing hook or settings changes, compare the installed file against its workflow template, not just against the other agent mirrors.
-3. Consider adding a preflight settings-parity check analogous to the existing skill-parity and preamble-sync checks.
+3. If a new agent config surface is added, extend the Agent Config Parity map and `covers()` validation in the same change.
 
 ---
 

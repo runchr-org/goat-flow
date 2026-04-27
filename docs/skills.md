@@ -73,7 +73,7 @@ The dispatcher classifies intent conversationally - not by keyword lookup. It as
 | Test gaps, coverage, verification planning | /goat-qa |
 | Critique a plan/assessment | /goat-critique |
 
-**Planning Route:** For planning requests, the dispatcher reads `.goat-flow/tasks/.active` (one-line marker naming the active plan subdir) to find existing plans, then routes based on complexity: Hotfix → direct execution; Small Feature → compressed brief → `/goat-plan`; Standard → feature brief → `/goat-plan`; System/Infrastructure → feature brief → `/goat-plan` → suggest `/goat-critique`. `/goat-plan` defaults to File-Write at Standard+ scope when no analysis signals are present; analysis signals ("break this down for me", "how would you approach") trigger Read-Only Analysis mode instead.
+**Planning Route:** For planning requests, the dispatcher routes intent only: Hotfix → direct execution; anything larger → `/goat-plan`. `/goat-plan` owns `.goat-flow/tasks/.active` lookup, existing-plan discovery, complexity classification, and milestone-mode selection. `/goat-plan` defaults to File-Write at Standard+ scope when no analysis signals are present; analysis signals ("break this down for me", "how would you approach") trigger Read-Only Analysis mode instead.
 
 ---
 

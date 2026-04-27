@@ -70,32 +70,9 @@ Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks. This tab
 - **Full:** all phases, multi-perspective critique if planning, full output format
 - If arriving from the dispatcher with depth already chosen, skip the depth question
 
-## Routing
+## Routing Boundary
 
-When invoked via /goat or when intent is ambiguous:
-
-**Route by intent:**
-- Bug, failure, investigation → /goat-debug
-- Browser-visible viewing/inspection (URL, local HTML, localhost page, screenshot, rendered UI) → browser evidence first; use /goat-debug Investigate when diagnosis or source tracing is needed
-- Quality review, audit → /goat-review
-- Multi-perspective critique → /goat-critique
-- Security, compliance, dependency audit → /goat-security
-- Testing gaps, coverage, verification planning → /goat-qa
-- Feature planning, milestones → /goat-plan
-- Simple implementation (rename, add log, move constant) → no skill, use execution loop directly
-- Simple question → answer directly
-
-**Planning intake:** Planning requests route directly to `/goat-plan`; the skill's Step 0 detects read-only-analysis vs file-write intent from the user's phrasing - no depth question at the dispatcher.
-**Clarification:** If ambiguous, ask ONE question.
-**Override:** If the user names a skill explicitly, respect it.
-
-| Input | Options |
-|-------|---------|
-| "check the auth code" | debug vs review vs security |
-| "analyse/evaluate/critique this" | review vs critique vs plan (depends on artifact type) |
-| "get a second opinion" | critique vs review |
-| "assess the setup" | review vs security (depends on concern) |
-| "refactor the tests" | plan vs qa |
+Dispatcher-specific route maps live in `/goat`, not in this shared preamble. Direct planning requests route to `/goat-plan`; `/goat-plan` owns `.goat-flow/tasks/.active` lookup, existing-plan discovery, and milestone-mode selection. If the user names a skill explicitly, respect it.
 
 ## No-Skill Fast Path
 

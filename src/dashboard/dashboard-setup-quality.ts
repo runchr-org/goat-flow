@@ -63,9 +63,7 @@ function dashboardAgentDisplayName(
 function dashboardSetupInstructionSurfaces(
   ctx: DashboardSetupQualityContext,
 ): string {
-  return (
-    SETUP_INSTRUCTION_SURFACES[ctx.setupSelectedAgent] ?? ctx.setupSelectedAgent
-  );
+  return SETUP_INSTRUCTION_SURFACES[ctx.setupSelectedAgent];
 }
 
 function dashboardQualityModePreset(

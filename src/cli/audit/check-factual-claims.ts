@@ -32,6 +32,8 @@ export const FACTUAL_CLAIMS_EVIDENCE: CheckEvidence = {
   evidence_paths: [
     ".goat-flow/lessons/verification.md",
     ".goat-flow/lessons/agent-behavior.md",
+    ".goat-flow/lessons/agent-routing.md",
+    ".goat-flow/lessons/agent-frontend.md",
   ],
 };
 

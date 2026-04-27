@@ -8,7 +8,7 @@
 
 - **Option A: goat-doer + goat-verifier** - Two new skills. Rejected 6/6. Doer-verifier in single-agent context is theater; the verifier has full context of the doer's reasoning.
 - **Option B: goat-implement** - One new skill. Rejected 5/6. Gemini favored it but for DoD enforcement (hooks), not code editing. Implementation is "the thing the agent does when it's not running a skill."
-- **Option C: Extend existing skills** - No new skills. Favored 5/6. goat-debug already has fix phases (D3/D4). goat-plan needs Phase 5 (Execute). The gap is carry-through, not capability.
+- **Option C: Extend existing skills** - No new skills. Favored 5/6. Reviewers proposed adding a goat-plan execution phase, but the shipped resolution kept implementation in the ordinary execution loop instead. The gap is carry-through, not capability.
 - **Option D: Mode, not skill** - Codex's variant of C. The system spec already defines Implement as a core execution mode. The bug is no user-facing path into it. Fix the dispatcher routing, not the skill set.
 
 ## Decision
@@ -17,8 +17,8 @@
 
 Three changes:
 1. **Dispatcher learns intent → mode routing.** Investigation verbs (understand, diagnose, explain) stay read-only. Implementation verbs (fix, build, change) carry through to implementation after the diagnosis/planning phase completes.
-2. **goat-plan gets Phase 5 (Execute).** Per-milestone implementation with checkpoints. Only triggers when user approved and intent was "build/create."
-3. **Local persona override (historical).** `persona: investigator` locks out Implement mode across all skills for non-developer users (testers, service team, monitoring).
+2. **goat-plan stays planning-only.** `/goat-plan` can create inline plans or file-based milestones, but it does not own implementation. Execution remains the ordinary ACT step after planning approval, or the D3/D4 path inside `/goat-debug` for bug fixes.
+3. **No persona config field shipped.** The proposed `persona: investigator` lockout was not implemented; local instruction boundaries and Ask First rules carry the safety contract instead.
 
 **Supersession note (M13):** The old gitignored local config surface was removed. `config.yaml` is now the only machine-readable config surface.
 

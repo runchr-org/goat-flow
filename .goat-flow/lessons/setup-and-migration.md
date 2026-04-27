@@ -1,6 +1,6 @@
 ---
 category: setup-and-migration
-last_reviewed: 2026-04-26
+last_reviewed: 2026-04-27
 ---
 
 ## Lesson: Agents given broad setup tasks rewrite shared docs as agent-specific
@@ -69,9 +69,9 @@ last_reviewed: 2026-04-26
 
 **Created:** 2026-04-26
 
-**What happened:** Multi-agent quality reports found `.claude/settings.json` had `Bash(*git push*--force*)` while the workflow template (`workflow/hooks/agent-config/claude.json`) had the correct `Bash(*git push*)`. The installed copy was weaker than intended, allowing feature-branch pushes that the template blocked. `.gemini/settings.json` was correct. The drift was invisible because no preflight or audit check compares installed settings patterns against their templates.
-**Root cause:** Preflight has parity checks for skill files (`Skill SKILL.md Parity`) and shared references (`Preamble/Conventions Sync`), but no equivalent for settings.json deny patterns. The settings files are hand-maintained after install, and edits to one agent's settings don't automatically propagate or verify against the template.
-**Prevention:** After changing deny patterns in `workflow/hooks/agent-config/*.json`, diff the installed copy against the template before closing the change. Consider adding a preflight settings-parity check.
+**What happened:** Multi-agent quality reports found `.claude/settings.json` had `Bash(*git push*--force*)` while the workflow template (`workflow/hooks/agent-config/claude.json`) had the correct `Bash(*git push*)`. The installed copy was weaker than intended, allowing feature-branch pushes that the template blocked. `.gemini/settings.json` was correct. At incident time, the drift was invisible because no preflight or audit check compared installed settings patterns against their templates.
+**Root cause:** Preflight had parity checks for skill files (`Skill SKILL.md Parity`) and shared references (`Preamble/Conventions Sync`), but did not yet have equivalent coverage for settings.json deny patterns. The settings files are hand-maintained after install, and edits to one agent's settings don't automatically propagate or verify against the template.
+**Prevention:** After changing deny patterns in `workflow/hooks/agent-config/*.json`, run `bash scripts/preflight-checks.sh` and confirm `Agent Config Parity` still passes. If a new settings surface or deny family is added, extend the parity map and `covers()` validation in `scripts/preflight-checks.sh` in the same change.
 
 ---
 

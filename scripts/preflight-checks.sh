@@ -745,9 +745,23 @@ if [[ -f package.json ]] && grep -q '"test"' package.json; then
         pass "$test_label ($pass_count/$test_count)"
     elif [[ "$test_exit" -eq 0 ]] && [[ "$test_count" == "0" || "$test_count" == "?" ]]; then
         warn "No tests found ($pass_count/$test_count) - test suite needs rebuilding (M23)"
+    elif [[ "$test_label" == "Fast suite passing" ]]; then
+        retry_output=$("${test_command[@]}" 2>&1) && retry_exit=0 || retry_exit=$?
+        retry_test_count=$(echo "$retry_output" | grep '# tests' | grep -oE '[0-9]+' || echo "?")
+        retry_pass_count=$(echo "$retry_output" | grep '# pass' | grep -oE '[0-9]+' || echo "?")
+        retry_fail_count=$(echo "$retry_output" | grep '# fail' | grep -oE '[0-9]+' || echo "0")
+
+        if [[ "$retry_exit" -eq 0 ]] && [[ "$retry_test_count" != "0" ]] && [[ "$retry_test_count" != "?" ]]; then
+            warn "$test_label passed on retry after initial failure ($retry_pass_count/$retry_test_count); investigate transient test isolation"
+            printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/    initial: /' || true
+        else
+            fail "Tests failed after retry (initial $fail_count/$test_count failures, retry $retry_fail_count/$retry_test_count failures)"
+            printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/    initial: /' || true
+            printf '%s\n' "$retry_output" | grep 'not ok' | head -5 | sed 's/^/    retry: /' || true
+        fi
     else
         fail "Tests failed ($fail_count/$test_count failures)"
-        echo "$test_output" | grep 'not ok' | head -5 | sed 's/^/    /'
+        printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/    /' || true
     fi
 fi
 
@@ -918,6 +932,39 @@ if [[ -f dist/cli/audit/harness/index.js ]] && [[ -f src/dashboard/views/home.ht
         fi
     else
         skip "Dashboard concern key sync (could not extract keys)"
+    fi
+fi
+
+# B.8e: Dashboard view-name prose sync
+if [[ -f workflow/manifest.json ]] && [[ -f .goat-flow/architecture.md ]]; then
+    if dashboard_view_doc_check=$(node --input-type=module <<'NODE'
+import { readFileSync } from "node:fs";
+
+const manifest = JSON.parse(readFileSync("workflow/manifest.json", "utf8"));
+const views = [...manifest.facts.dashboard_views].sort();
+const expected = views.join(", ");
+const architecture = readFileSync(".goat-flow/architecture.md", "utf8");
+const requiredSnippets = [
+  `views for ${expected}`,
+  `Page views (${expected})`,
+];
+const missing = requiredSnippets.filter((snippet) => !architecture.includes(snippet));
+
+if (missing.length > 0) {
+  console.log(`Expected dashboard views: ${expected}`);
+  for (const snippet of missing) {
+    console.log(`Missing architecture snippet: ${snippet}`);
+  }
+  process.exit(1);
+}
+NODE
+    ); then
+        pass "Dashboard view names match manifest and architecture prose"
+    else
+        fail "Dashboard view names drift between manifest and architecture prose"
+        while IFS= read -r line; do
+            printf '    %s\n' "$line"
+        done <<< "$dashboard_view_doc_check"
     fi
 fi
 

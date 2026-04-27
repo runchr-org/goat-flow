@@ -3,6 +3,10 @@ category: setup
 last_reviewed: 2026-04-20
 ---
 
+## Resolved Entries
+
+> Historical record. These entries are no longer active traps.
+
 ## Footgun: goat-plan claims "durable shared state" but task files are intentionally gitignored
 
 **Status:** resolved | **Created:** 2026-04-15 | **Resolved:** 2026-04-16 | **Evidence:** ACTUAL_MEASURED
@@ -28,10 +32,6 @@ last_reviewed: 2026-04-20
 **Prevention:** When adding a new shared-context file, check whether its content already exists in CLAUDE.md or the shared preamble. Before promoting any file to "load on every invocation," verify it provides net-new signal per token.
 
 ---
-
-## Resolved Entries
-
-> Historical record. These entries are no longer active traps.
 
 - **Setup creates parallel surfaces instead of migrating existing ones** (resolved 2026-04-20) - legacy_surfaces block removed from `workflow/manifest.json` and the `# 0. Legacy surface detection` block deleted from `workflow/install-goat-flow.sh` per no-backwards-compat policy. Pre-v1 installs are out of scope; consumer projects on old layouts are expected to start fresh.
 - **Setup instructions contradict spec on execution loop steps** (resolved 2026-04-14) - Retired `docs/system-spec.md` and `docs/five-layers.md` in v1.1.0; `workflow/setup/reference/execution-loop.md` is now the single authoritative source.

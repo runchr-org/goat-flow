@@ -124,7 +124,7 @@ function dashboardSendToTerminal(
     ctx.showToast("No active terminal session", true);
     return false;
   }
-  const refs = active ? ctx._terminalRefs[active.id] : null;
+  const refs = ctx._terminalRefs[active.id];
   if (!refs?.ws || refs.ws.readyState !== WebSocket.OPEN) {
     ctx.showToast("No active terminal session", true);
     return false;
@@ -400,7 +400,7 @@ function dashboardDetachTerminal(
     .map((s) => ({
       sessionId: s.id,
       startTime: s.startTime,
-      prompt: s.promptLabel ?? "",
+      prompt: s.promptLabel,
       agent: s.runner,
       cwd: s.cwd,
       targetPath: s.targetPath,
@@ -680,7 +680,7 @@ function dashboardConnectTerminal(
       session.age = age;
     }, 30000);
     if (ctx._terminalRefs[sessionId]) {
-      ctx._terminalRefs[sessionId].ageInterval = ageInterval ?? undefined;
+      ctx._terminalRefs[sessionId].ageInterval = ageInterval;
     }
   };
   /** Handle incoming terminal WebSocket messages. */
@@ -773,7 +773,6 @@ function dashboardConnectTerminal(
     ws,
     xterm: term,
     cleanup,
-    ageInterval: ageInterval ?? undefined,
   };
   term.focus();
 }

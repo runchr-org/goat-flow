@@ -150,7 +150,10 @@ export function getConfiguredAgents(config: LoadedConfig): AgentProfile[] {
   const agents = loadManifest().agents;
   return configured
     .filter((id): id is AgentId => isKnownAgentId(id, agents))
-    .map((id) => toRuntimeProfile(id, agents[id]!));
+    .flatMap((id) => {
+      const agent = agents[id];
+      return agent ? [toRuntimeProfile(id, agent)] : [];
+    });
 }
 
 /** Return configured agent ids that do not exist in the manifest-backed registry. */

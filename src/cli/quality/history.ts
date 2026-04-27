@@ -516,13 +516,6 @@ export function buildQualityDiff(
     }
   }
 
-  if (!from || !to) {
-    return {
-      ok: false,
-      error: "quality diff could not resolve the requested report pair",
-    };
-  }
-
   const fromMap = getFindingMap(from.report);
   const toMap = getFindingMap(to.report);
 
