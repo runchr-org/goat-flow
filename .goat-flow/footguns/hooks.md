@@ -69,7 +69,7 @@ last_reviewed: 2026-04-27
 
 **Status:** active | **Created:** 2026-04-27 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** A deny hook can appear to block `git push` while still allowing valid shell forms that execute a push through environment wrappers, quoted assignments, `if`/`then` bodies, or shell function bodies.
+**Symptoms:** A deny hook can appear to block `git push` while still allowing valid shell forms that execute a push through environment wrappers, quoted assignments, `if`/`then` bodies, shell function bodies, or shell login-command wrappers such as `bash -lc 'git push ...'`.
 
 **Why it happens:** A token check that only normalizes the start of a simple command misses shell grammar around the command word. `env -i git push ...` starts with an env option after `env`; `FOO='a b' git push ...` contains whitespace inside an assignment value; `if true; then git push ...; fi` leaves a segment starting with `then`; `f(){ git push ...; }; f` leaves a segment starting with a function declaration.
 
@@ -77,9 +77,10 @@ last_reviewed: 2026-04-27
 - `workflow/hooks/deny-dangerous.sh` (search: `normalize_git_push_candidate`) - central normalization for shell wrappers/control bodies before `is_git_push`.
 - `workflow/hooks/deny-dangerous.sh` (search: `env option git push`) - self-test coverage for env options, quoted assignments, `if`/`then`, direct `if` conditions, and function bodies.
 - Runtime probes before the fix returned exit 0 for `bash scripts/deny-dangerous.sh 'env -i git push origin main'`, `bash scripts/deny-dangerous.sh "FOO='a b' git push origin main"`, `bash scripts/deny-dangerous.sh 'if true; then git push origin main; fi'`, and `bash scripts/deny-dangerous.sh 'f(){ git push origin main; }; f'`.
+- Runtime probes before the `-lc` fix returned exit 0 for `bash scripts/deny-dangerous.sh --check "bash -lc 'git push origin main'"` and `bash scripts/deny-dangerous.sh --check "sh -lc 'git push origin main'"`.
 
 **Prevention:**
-1. Any future `git push` deny edit must include runtime probes for env options, quoted assignments, shell control keywords, and function bodies, not only direct `git push` and pipe/semicolon chains.
+1. Any future `git push` deny edit must include runtime probes for env options, quoted assignments, shell control keywords, function bodies, and `sh`/`bash -c` plus `-lc` wrappers, not only direct `git push` and pipe/semicolon chains.
 2. Keep the workflow hook, `scripts/` copy, and all installed agent hook copies byte-identical after policy changes.
 3. Prefer normalizing to the shell command word before calling `is_git_push`; do not add one-off regexes for only the latest bypass.
 

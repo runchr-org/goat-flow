@@ -370,10 +370,14 @@ run_self_test() {
   # Safe sh -c / bash -c wrappers around read-only commands should pass; dangerous ones still block.
   run_case "xargs sh -c safe" "xargs -I {} sh -c 'echo {}'" 0
   run_case "bash -c safe" 'bash -c "echo hello"' 0
+  run_case "bash -lc safe" 'bash -lc "echo hello"' 0
   run_case "bash -c dangerous" 'bash -c "rm -rf /"' 2
   run_case "bash -c semicolon dangerous" 'bash -c "echo ok; rm -rf /"' 2
   run_case "bash -c and-chain dangerous" 'bash -c "true && rm -rf /"' 2
   run_case "bash -c semicolon git push" 'bash -c "echo ok; git push origin main"' 2
+  run_case "bash -lc git push" 'bash -lc "git push origin main"' 2
+  run_case "sh -lc git push" "sh -lc 'git push origin main'" 2
+  run_case "bash -l -c git push" "bash -l -c 'git push origin main'" 2
   # shellcheck disable=SC2016
   run_case "safe dollar substitution" "$(printf 'echo $(printf hi)')" 0
   # shellcheck disable=SC2016
@@ -1243,8 +1247,9 @@ check_segment() {
   # bash -c / sh -c: recurse into the -c argument instead of blanket-blocking, so
   # xargs ... sh -c '<safe>' and similar legitimate patterns still work while
   # dangerous commands inside -c still get caught by the rest of this function.
-  if [[ "$cmd" =~ (^|[[:space:]])(ba)?sh[[:space:]]+-c[[:space:]]+([\'\"])([^\'\"]*)([\'\"]) ]]; then
-    local inner_c="${BASH_REMATCH[4]}"
+  # Combined shell flags such as -lc still execute the -c string.
+  if [[ "$cmd" =~ (^|[[:space:]])(ba)?sh([[:space:]]+-[a-zA-Z]+)*[[:space:]]+-[a-zA-Z]*c[a-zA-Z]*[[:space:]]+([\'\"])([^\'\"]*)([\'\"]) ]]; then
+    local inner_c="${BASH_REMATCH[5]}"
     if [[ -n "$inner_c" ]]; then
       check_command_segments "$inner_c" $((depth + 1))
     fi
