@@ -42,15 +42,15 @@ Split layout focused on terminal work. The left **Sessions rail** lists all runn
 
 Configuration view. Manage registered project paths, dashboard preferences, and agent runtime settings.
 
-### Help
+### About
 
 Getting-started page for new users. Explains what goat-flow is, the audit/quality model, what skills and hooks do, the learning loop, and the execution loop. Accessible from the "?" button in the nav bar.
 
 ## Terminal
 
-- Supports Claude, Codex, Gemini, and Copilot runners from `workflow/manifest.json` in v1.2.0
+- Supports Claude, Codex, Gemini, and Copilot runners from `workflow/manifest.json`
 - WebSocket-based PTY sessions via xterm.js
-- 60-minute idle timeout with auto-kill
+- 480-minute idle timeout (8 hours) with auto-kill
 - Maximum 10 concurrent sessions
 - Session state: running / ended / error
 
