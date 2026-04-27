@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # goat-security reference: auth and authz
 
 Use this pack for login, session, token, password reset, role, tenant, or object-access paths.

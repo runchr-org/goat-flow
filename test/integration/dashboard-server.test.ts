@@ -10,6 +10,7 @@ import {
   getAgentProfileMap,
   getKnownAgentIds,
 } from "../../src/cli/agents/registry.js";
+import { normalizeAgentVersionOutput } from "../../src/cli/server/dashboard-routes.js";
 import { detectSetupStack } from "../../src/cli/detect/project-stack.js";
 import { createFS } from "../../src/cli/facts/fs.js";
 import type { AgentId } from "../../src/cli/types.js";
@@ -139,6 +140,45 @@ function assertDashboardReport(value: unknown): Record<string, unknown> {
     /^(pass|fail)$/,
     "Dashboard report overall.status should be pass/fail",
   );
+  assert.ok(
+    Object.prototype.hasOwnProperty.call(report, "learningLoop"),
+    "Dashboard report should include learningLoop",
+  );
+  if (report.learningLoop !== null) {
+    const learningLoop = expectRecord(
+      report.learningLoop,
+      "Dashboard report learningLoop",
+    );
+    assert.equal(typeof learningLoop.recordCount, "number");
+    assert.equal(typeof learningLoop.staleCount, "number");
+    assert.equal(typeof learningLoop.oversizedCount, "number");
+    assert.match(
+      String(learningLoop.status),
+      /^(fresh|needs-review|unavailable)$/,
+      "Dashboard report learningLoop.status should be valid",
+    );
+  }
+  assert.ok(
+    Object.prototype.hasOwnProperty.call(report, "recentLessons"),
+    "Dashboard report should include recentLessons",
+  );
+  assert.ok(
+    Array.isArray(report.recentLessons),
+    "Dashboard report recentLessons should be an array",
+  );
+  for (const [index, lesson] of (report.recentLessons as unknown[]).entries()) {
+    const entry = expectRecord(
+      lesson,
+      `Dashboard report recentLessons[${index}]`,
+    );
+    assert.equal(typeof entry.id, "string");
+    assert.equal(typeof entry.title, "string");
+    assert.equal(typeof entry.path, "string");
+    assert.ok(
+      entry.created === null || typeof entry.created === "string",
+      `Dashboard report recentLessons[${index}].created should be string or null`,
+    );
+  }
   return report;
 }
 
@@ -207,9 +247,15 @@ describe("dashboard HTML", () => {
     assert.match(html, /\/assets\/dashboard-readers\.js/);
     assert.match(html, /\/assets\/dashboard-setup-quality\.js/);
     assert.match(html, /\/assets\/dashboard-projects\.js/);
+    assert.match(html, /\/assets\/dashboard-custom-prompts\.js/);
     assert.match(html, /\/assets\/dashboard-prompts\.js/);
     assert.match(html, /\/assets\/dashboard-terminal\.js/);
     assert.match(html, /\/assets\/app\.js/);
+    assert.equal(
+      html.match(/x-show="activeView === 'home'"/g)?.length ?? 0,
+      1,
+      "dashboard HTML should contain exactly one Home view root",
+    );
   });
 });
 
@@ -250,6 +296,15 @@ describe("dashboard assets", () => {
     assert.match(body, /function dashboardFilteredPresets\(/);
   });
 
+  it("GET /assets/dashboard-custom-prompts.js returns JavaScript", async () => {
+    const res = await fetch(`${baseUrl}/assets/dashboard-custom-prompts.js`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type") ?? "", /javascript/i);
+
+    const body = await res.text();
+    assert.match(body, /function dashboardSaveCustomPrompt\(/);
+  });
+
   it("GET /assets/dashboard-terminal.js returns JavaScript", async () => {
     const res = await fetch(`${baseUrl}/assets/dashboard-terminal.js`);
     assert.equal(res.status, 200);
@@ -282,6 +337,10 @@ describe("dashboard assets", () => {
     const body = (await res.json()) as unknown;
     assert.ok(Array.isArray(body));
     assert.ok(body.length > 0);
+    const first = body[0] as Record<string, unknown>;
+    assert.equal(typeof first.route, "string");
+    assert.equal(typeof first.globalSafe, "boolean");
+    assert.ok(Array.isArray(first.bestTargetSurfaces));
   });
 
   it("rejects path traversal asset requests", async () => {
@@ -408,6 +467,18 @@ describe("dashboard /api/browse", () => {
 });
 
 describe("dashboard /api/agents/installed", () => {
+  it("normalizes trailing punctuation from one-line version output", () => {
+    assert.equal(
+      normalizeAgentVersionOutput("GitHub Copilot CLI 1.0.34.\n"),
+      "GitHub Copilot CLI 1.0.34",
+    );
+    assert.equal(
+      normalizeAgentVersionOutput("codex 1.2.3-beta.1\n"),
+      "codex 1.2.3-beta.1",
+    );
+    assert.equal(normalizeAgentVersionOutput("\n"), null);
+  });
+
   it("returns the supported agent list", async () => {
     const { res, body } = await fetchJson("/api/agents/installed");
     assert.equal(res.status, 200);
@@ -497,6 +568,19 @@ describe("dashboard /api/quality", () => {
       `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}`,
     );
     assert.equal(res.status, 400);
+  });
+
+  it("returns mode-specific quality prompts", async () => {
+    const { res, body } = await fetchJson(
+      `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=claude&mode=skills`,
+    );
+    assert.equal(res.status, 200);
+
+    const data = expectRecord(body, "Quality mode response");
+    assert.equal(data.command, "quality");
+    assert.equal(data.agent, "claude");
+    assert.match(String(data.prompt), /Skill Suite Quality Assessment/);
+    assert.match(String(data.prompt), /"quality_mode": "skills"/);
   });
 
   for (const agent of getKnownAgentIds()) {

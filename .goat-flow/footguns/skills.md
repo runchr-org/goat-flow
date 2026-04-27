@@ -1,7 +1,25 @@
 ---
 category: skills
-last_reviewed: 2026-04-24
+last_reviewed: 2026-04-27
 ---
+
+## Footgun: Quality assessors recommend adding quick/lite modes to goat-critique
+
+**Status:** active | **Created:** 2026-04-27 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Quality assessment agents recommend "quick critique mode" or "allow lightweight critique for smaller artifacts" as a Top 5 Improvement. If implemented, this would re-introduce the exact failure that ADR-021 was written to prevent: single-context self-talk disguised as multi-perspective critique.
+
+**Why it happens:** Assessing agents see that goat-critique spawns 3 sub-agents for every invocation regardless of artifact size and pattern-match this as over-engineering. They do not read ADR-021 unless directed to, so they miss that Quick mode was tried, produced structurally misleading output, and was intentionally removed.
+
+**Evidence:**
+- `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` (search: `goat-critique runs in one mode: full delegated`) documents the decision and four rejected alternatives including "Default to Full, keep Quick as opt-in."
+- `.goat-flow/lessons/agent-routing.md` (search: `Never override explicit skill invocation`) documents the 2026-04-27 incident where bypassing the full protocol produced a worse result than running it.
+- `.goat-flow/logs/quality/2026-04-27-*` contains three independent quality reports; at least one recommended adding a quick critique mode.
+- `src/cli/prompt/compose-quality.ts` (search: `Do NOT recommend adding quick/lite/reduced modes`) now explicitly tells assessment agents to respect ADR-decided skill mode choices.
+
+**Prevention:**
+1. The quality assessment prompt now includes an explicit constraint against recommending reduced skill modes.
+2. ADR-021 remains the authoritative source. If this recommendation resurfaces, point the assessor at the ADR, not at the skill file alone.
 
 ## Footgun: Skill parity edits can miss `.github/skills/` and fail repo-level drift checks
 
@@ -22,6 +40,22 @@ last_reviewed: 2026-04-24
 2. Derive installed skill roots from `workflow/manifest.json` or `getInstalledSkillRoots()` rather than from memory.
 3. Re-run `test/integration/audit-drift.test.ts` or `goat-flow audit --check-drift` after any skill-parity edit so a missed mirror fails immediately.
 
+## Footgun: Shared reference edits can split workflow templates from installed runtime copies
+
+**Status:** active | **Created:** 2026-04-25 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** An edit to shared skill guidance can look correct in the loaded runtime copy but leave the workflow template behind, causing consumers installed from the template to miss the rule and causing preflight/drift tests to fail.
+
+**Why it happens:** Shared skill reference files have two live surfaces: `workflow/skills/reference/` is the install template source, while `.goat-flow/skill-reference/` is the installed runtime copy loaded by this repo's agents. Agents naturally edit the file they just read at runtime, but the package source of truth also has to move in the same change.
+
+**Evidence:**
+- `.goat-flow/skill-reference/skill-preamble.md` (search: `Routing rule`) contains the runtime rule that triggered the current drift.
+- `workflow/skills/reference/skill-preamble.md` (search: `Learning-Loop Retrieval`) is the corresponding template source that must remain byte-equivalent except for intentionally synchronized edits.
+- `scripts/preflight-checks.sh` (search: `Preamble/Conventions Sync`) fails when shared reference templates and installed copies differ.
+- `src/cli/audit/check-drift.ts` (search: `workflow/skills/reference/skill-preamble.md`) also checks shared-reference template/install parity through the audit path.
+
+**Prevention:** When changing `skill-preamble.md`, `skill-conventions.md`, `skill-quality-testing.md`, or topical files under `skill-quality-testing/`, edit the workflow template and installed copy together. Re-run `bash scripts/preflight-checks.sh` or at minimum `node --import tsx src/cli/cli.ts audit . --check-drift --format json` before treating the change as complete.
+
 ## Footgun: Weak retrieval cues cause learning-loop misses
 
 **Status:** active | **Created:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
@@ -36,22 +70,6 @@ last_reviewed: 2026-04-24
 
 **Prevention:** Seed first-pass retrieval terms with the concrete symptom, platform, or file/tool name rather than milestone titles or abstract design labels. One reword is allowed; if the second query still misses, record the retrieval miss explicitly and move on. Broad-loading the bucket to compensate defeats the protocol.
 
----
-
-## Footgun: Installed skill copies can drift on punctuation-only edits and fail unrelated test runs
-
-**Status:** resolved | **Created:** 2026-04-18 | **Resolved:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
-
-**Original symptoms:** `npm test` failed in `test/integration/audit-drift.test.ts` even when the code change did not touch skills, because the tracked installed copies under `.claude/skills/` and `.agents/skills/` had Unicode em dashes while `workflow/skills/` templates had ASCII hyphens.
-
-**Original evidence:**
-- `workflow/skills/goat-plan/SKILL.md` vs `.claude/skills/goat-plan/SKILL.md` (search: `Use when work needs breaking into milestones`) - hyphen vs em dash
-- `workflow/skills/goat-plan/SKILL.md` vs `.claude/skills/goat-plan/SKILL.md` (search: `Milestone files exist for`) - hyphen vs em dash
-
-**Resolution:** Installed copies are now byte-identical with the workflow templates (verified by `diff` returning empty output). The drift check at `test/integration/audit-drift.test.ts` now passes on these files.
-
-**Prevention (retained):** When editing `workflow/skills/*/SKILL.md`, update the installed copies in `.claude/skills/` and `.agents/skills/` in the same change. The preflight `Skill SKILL.md Parity` check and `goat-flow audit --check-drift` both catch byte-level divergence before unrelated work is blocked by stale fixtures.
-
 ## Footgun: Release-version bumps can break skill-rename work through stale fixtures and hardcoded current-version routing
 
 **Status:** active | **Created:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
@@ -65,6 +83,53 @@ last_reviewed: 2026-04-24
 - `workflow/install-goat-flow.sh` (search: `Read version from package.json`) must derive the install version from `package.json`; a hardcoded fallback recreates the same stale-version trap at install time.
 
 **Prevention:** When a skill rename ships with a version bump, treat version-sensitive helpers as part of the rename surface. Update current-version classifiers, shared config fixtures, install-script version discovery, and setup-routing tests in the same change before trusting `npm test`.
+
+---
+
+## Resolved Entries
+
+> Historical record. These entries are no longer active traps.
+
+## Footgun: Review skills can choose the wrong PR base when they hardcode `origin/main`
+
+**Status:** resolved | **Created:** 2026-04-25 | **Resolved:** 2026-04-25 | **Evidence:** ACTUAL_MEASURED
+
+**Original symptoms:** `/goat-review` could misclassify PR-style review scope or generate the wrong comparison diff in consumer projects whose real integration branch is not `main`. A consumer quality report on 2026-04-25 found a project comparing feature branches to `origin/deploy` while `/goat-review` defaulted local PR detection and fallback review to `origin/main`/`main`.
+
+**Why it happened:** The review skill treated a common GitHub default as a universal project invariant. That leaked a goat-flow/framework assumption into consumer repositories, where the correct base may be `deploy`, `develop`, `trunk`, a release branch, or a PR-specific base returned by hosting metadata.
+
+**Original evidence:**
+- `workflow/skills/goat-review/SKILL.md` (search: `commits ahead of \`origin/main\``) makes PR-style auto-detection depend on `origin/main`.
+- `workflow/skills/goat-review/SKILL.md` (search: `Base branch? (default: \`main\``) makes local PR fallback default to `main`.
+- `.claude/skills/goat-review/SKILL.md` (search: `commits ahead of \`origin/main\``) shows the installed Claude mirror has the same behaviour.
+- `.agents/skills/goat-review/SKILL.md` (search: `Base branch? (default: \`main\``) shows the installed Codex/agents mirror has the same behaviour.
+- `.github/skills/goat-review/SKILL.md` (search: `Base branch? (default: \`main\``) shows the installed GitHub/Copilot mirror has the same behaviour.
+
+**Resolution:** `/goat-review` now resolves PR bases by preference order instead of assuming `main`: PR metadata, explicit user base, remote default-branch discovery, then asking the user. `main` remains only a last-resort fallback with `base-detection-failed` recorded in Review Integrity.
+
+**Resolution evidence:**
+- `workflow/skills/goat-review/SKILL.md` (search: `baseRefName`) prefers PR metadata when a PR URL or number is available.
+- `workflow/skills/goat-review/SKILL.md` (search: `refs/remotes/origin/HEAD`) discovers the remote default branch before asking.
+- `workflow/skills/goat-review/SKILL.md` (search: `base-detection-failed`) records degraded fallback use instead of hiding it.
+- `test/contract/goat-review-base-contract.test.ts` (search: `does not hardcode origin/main`) prevents `origin/main` from returning as the universal review base.
+
+**Prevention:** Review-base selection must be discovered, not assumed. Prefer PR metadata (`gh pr view ... baseRefName`) when available, then an explicit user-provided base, then remote default-branch discovery from `refs/remotes/origin/HEAD` or `git remote show origin`; ask for the base before diffing if discovery fails. Treat `main` only as a last-resort fallback and record a degradation flag when fallback is used.
+
+---
+
+## Footgun: Installed skill copies can drift on punctuation-only edits and fail unrelated test runs
+
+**Status:** resolved | **Created:** 2026-04-18 | **Resolved:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
+
+**Original symptoms:** `npm test` failed in `test/integration/audit-drift.test.ts` even when the code change did not touch skills, because the tracked installed copies under `.claude/skills/` and `.agents/skills/` had Unicode em dashes while `workflow/skills/` templates had ASCII hyphens.
+
+**Original evidence:**
+- `workflow/skills/goat-plan/SKILL.md` vs `.claude/skills/goat-plan/SKILL.md` (search: `Use when work needs milestones with tracked progress`) - hyphen vs em dash
+- `workflow/skills/goat-plan/SKILL.md` vs `.claude/skills/goat-plan/SKILL.md` (search: `Milestone files exist for`) - hyphen vs em dash
+
+**Resolution:** Installed copies are now byte-identical with the workflow templates (verified by `diff` returning empty output). The drift check at `test/integration/audit-drift.test.ts` now passes on these files.
+
+**Prevention (retained):** When editing `workflow/skills/*/SKILL.md`, update the installed copies in `.claude/skills/` and `.agents/skills/` in the same change. The preflight `Skill SKILL.md Parity` check and `goat-flow audit --check-drift` both catch byte-level divergence before unrelated work is blocked by stale fixtures.
 
 ## Footgun: Workflow template source and installed copy can silently diverge
 
@@ -110,10 +175,6 @@ Skills enforce phase gates (Step 0 must complete before Phase 1, gates pause for
 **Original evidence (historical):** Claude Insights (112 sessions) showed agents reading 20+ files in Step 0 without checkpointing, requiring user intervention to interrupt.
 
 ---
-
-## Resolved Entries
-
-> Historical record. These entries are no longer active traps.
 
 - **Workflow-summarising skill descriptions cause CSO shortcutting** (resolved 2026-04-19) - All 7 current goat-* descriptions (including the dispatcher) are compliant with the trigger-only rule ("Use when …"), not workflow summaries. The rule is enforced in `workflow/skills/reference/skill-quality-testing.md` GREEN-phase checklist ("`description` is CSO-optimised: 'Use when [trigger]', not a workflow summary"). Original incident was in the external `superpowers-skills` repo; the goat-flow regression was on the dispatcher description and was rewritten the same day it was caught.
 - **Dispatcher intent mapping has no coverage for analysis/evaluation verbs** (resolved 2026-04-14) - Added analysis/evaluation verbs to the dispatcher disambiguation table so ambiguous requests prompt skill selection instead of auto-routing.

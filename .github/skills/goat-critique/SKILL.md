@@ -1,7 +1,7 @@
 ---
 name: goat-critique
 description: "Use when a decision or analysis needs multi-lens critique to surface blind spots before shipping."
-goat-flow-skill-version: "1.2.5"
+goat-flow-skill-version: "1.3.0"
 ---
 # /goat-critique
 
@@ -19,22 +19,25 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 - You want competing perspectives, not just validation
 - Called by another goat-* skill or directly by the user
 
-**NOT this skill:**
+**NOT this skill (pre-invocation routing):** Use when deciding which skill to invoke, not after explicit invocation.
 - No artifact exists yet → create one first (goat-review, goat-debug, etc.)
 - Simple factual question → answer directly
-- Trivial artifact (hotfix, single-file change) → use goat-review instead. If it is not worth 3 agents and 5 phases, do not use goat-critique.
+- Trivial artifact (hotfix, single-file change) → consider goat-review instead
 
-**Explicit invocation is binding.** These "NOT this skill" signals apply only to dispatcher routing and ambiguous intent. When the user explicitly types `/goat-critique`, all 5 phases run - no triviality bypass, no phase skipping, no "quick mode." Explicit invocation is explicit consent to the full protocol. If scope feels wrong, raise it after synthesis, not by shortening execution.
+**Direct invocation is binding.** `$goat-critique` or `/goat-critique` runs all 5 phases and is consent to the full protocol and delegated sub-agents. Do NOT ask again. Dispatcher ambiguity rules do not override direct invocation; raise scope concerns after synthesis.
+
+**Report-only by default.** `$goat-critique make X shorter` means critique/plan only; `make X shorter` means implementation; `$goat-critique ... then apply it` means critique first, apply only after the Phase 5 gate. Do not mutate the target artifact or committed files unless the user separately says to apply, edit, update, fix, or otherwise implement. If interrupted or told no changes, freeze writes; use only read-only status/diff checks until the user explicitly asks for cleanup, revert, or apply.
 
 ## Step 0 - Intake
 
-goat-critique runs in one mode: full delegated, 5 phases, three sub-agents. If the work does not justify that, use `/goat-review` instead. See `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` for the rationale.
+goat-critique runs in one mode: full delegated, 5 phases, three sub-agents. See `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` for the rationale.
 
 **Intake checklist:**
 - Confirm the artifact exists and is concrete (a file, a plan document, a specific set of findings - not a vague idea).
 - Select the critique rubric for the artifact type (see Critique Rubrics below). If unclear, ask the user.
 - Use the preamble's grep-first learning-loop retrieval on relevant `.goat-flow/footguns/` and `.goat-flow/lessons/`; record explicit misses instead of broad-loading buckets.
-- Skill-chained entry: skip intake confirmation, use caller context, start at Phase 1 - still run footgun/lesson retrieval and rubric selection. Skill-chaining does not unlock a quick variant; all 5 phases still run.
+- Delegation consent: explicit `$goat-critique` or `/goat-critique` invocation is consent to spawn sub-agents. Do NOT ask again. Proceed directly to Phase 1 after intake checklist items (artifact confirmation, rubric selection, footgun/lesson retrieval). If the skill is chained from another goat-* skill, follow the active runtime's local delegation rule before spawning.
+- Skill-chained entry: skip intake confirmation, use caller context, then satisfy the delegation consent rule above before Phase 1 - still run footgun/lesson retrieval and rubric selection. Skill-chaining does not unlock a quick variant; all 5 phases still run.
 
 ## Phase 1 - Generate Competing Critiques
 
@@ -88,7 +91,9 @@ Each sub-agent MUST return:
 
 Execute in this order:
 
-**1. Scan Agent C output for context leaks.** Before any other Phase 2 work, grep Agent C's output for `.goat-flow/`, `goat-*`, `architecture.md`, `config.yaml`, or project-specific namespace references. Any match = CONTEXT LEAK; discard Agent C's findings and re-spawn with stricter isolation. This layers on top of Agent C's self-policing directive, not replaces it.
+**1. Scan Agent C output for context leaks.** Before any other Phase 2 work, grep Agent C's output for `.goat-flow/`, `goat-*`, `architecture.md`, `config.yaml`, or project-specific namespace references. Any match = CONTEXT LEAK; discard Agent C's findings and re-spawn with stricter isolation.
+
+**1b. Check sub-agent completeness.** Before trusting any critique, verify each sub-agent returned 3-7 findings plus required lens fields, severity, evidence, confidence, rubric dimensions, overall assessment, and preservation note. If a sub-agent is incomplete, re-spawn once with the missing fields named; if the runner cannot verify or re-spawn, record `sub-agent completeness limited` in the synthesis.
 
 **2. Classify each finding** as consensus / split / unique:
 - **Consensus** - same finding raised by ≥2 agents, severity within ±1 level
@@ -102,7 +107,7 @@ Execute in this order:
 - **Coverage** - how many rubric dimensions did this agent's findings address?
 - **Calibration** - do severity and confidence ratings match the evidence strength?
 
-**4. Spot-check sub-agent dimension tags.** Re-read one finding per agent and independently assess which rubric dimensions the finding actually addresses. If a sub-agent's self-declared dimension tags do not match the finding content, flag as miscalibrated and recompute coverage from orchestrator assessment. Sub-agent self-declarations are inputs, not trusted evidence.
+**4. Verify sub-agent dimension coverage.** For each agent, verify their full claimed dimension set: skim all findings from that agent and confirm each claimed dimension has at least one finding whose content substantively addresses it. Demote any dimension where no finding's content matches the claim. Use orchestrator-verified dimensions (not raw self-declarations) as input to step 5. Sub-agent dimension tags are inputs to verify, not trusted evidence.
 
 **5. Compute rubric coverage gates.** `unaddressed = rubric dimensions \ union(dimensions covered across all agents)`. For each unaddressed mandatory dimension (see Critique Rubrics below), auto-generate a HIGH coverage-gap finding: "No sub-agent addressed [dimension]. This is a blind spot." For each unaddressed optional dimension, auto-generate a MEDIUM coverage-gap finding.
 
@@ -163,9 +168,9 @@ Then the full critique:
 - Verified unique findings (survived cross-examination)
 - Retracted findings (listed so user sees what was considered and dismissed)
 
-**Decision Debt:** Tag as Decision Debt when any of these apply: supporting evidence is INFERRED (not OBSERVED); only one agent raised it and cross-examination was inconclusive; or the recommendation depends on an unvalidated assumption:
+**Open questions:** Do not present low-confidence or inferred-only items as recommendations. Put them under Open Questions when any of these apply: supporting evidence is INFERRED (not OBSERVED); only one agent raised it and cross-examination was inconclusive; or the recommendation depends on an unvalidated assumption:
 
-> **Decision Debt:** [recommendation]
+> **Open Question:** [unresolved question or recommendation candidate]
 > - Confidence: LOW/MEDIUM
 > - Evidence needed to resolve: [what specific evidence would settle this]
 > - Revisit when: [concrete trigger - next milestone, specific file change, before deploy]
@@ -181,7 +186,7 @@ List these as "What Wasn't Critiqued." This section must never be empty - if eve
 "Done. Options: (A) apply recommendations to the artifact, (B) dig deeper into [name top unresolved area], (C) re-run with different framing, (D) close - you apply manually. Default: D."
 After critique of a plan, suggest `/goat-plan` to update milestones based on recommendations.
 
-Recommendations are never auto-applied. The human gate is the default close.
+Recommendations are never auto-applied. After synthesis, stop. Do not enter implementation mode unless the user explicitly asks to apply changes. The human gate is the default close.
 
 **Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to every synthesised finding - sub-agent reports are inputs to verify, not evidence to launder. Re-read each surviving finding's `file:line` or artifact section reference in this session before inclusion. Re-read applies to findings surviving to Phase 5 (typically 3-7 after Phase 3/4 filtering), not to all findings raised in Phase 1.
 
@@ -212,7 +217,6 @@ The rubric determines what sub-agents evaluate. Match to artifact type. Dimensio
 ## Human Decisions
 ## Strengths
 ## Recommended Changes  <!-- subset of Validated Findings; ordered by severity; each with concrete action -->
-## Decision Debt
 ## Open Questions
 ## What Wasn't Critiqued
 ```

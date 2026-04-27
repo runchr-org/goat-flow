@@ -154,14 +154,14 @@ const denyBlocksDangerous: HarnessCheck = {
     const fixes: string[] = [];
     let anyFail = false;
     for (const af of ctx.agents) {
-      const { denyBlocksRmRf, denyBlocksForcePush, denyBlocksChmod } = af.hooks;
-      if (denyBlocksRmRf && denyBlocksForcePush && denyBlocksChmod) {
-        findings.push(`${af.agent.id}: deny blocks rm -rf, force-push, chmod`);
+      const { denyBlocksRmRf, denyBlocksGitPush, denyBlocksChmod } = af.hooks;
+      if (denyBlocksRmRf && denyBlocksGitPush && denyBlocksChmod) {
+        findings.push(`${af.agent.id}: deny blocks rm -rf, git-push, chmod`);
       } else {
         anyFail = true;
         const missing: string[] = [];
         if (!denyBlocksRmRf) missing.push("rm -rf");
-        if (!denyBlocksForcePush) missing.push("force-push");
+        if (!denyBlocksGitPush) missing.push("git-push");
         if (!denyBlocksChmod) missing.push("chmod");
         findings.push(
           `${af.agent.id}: deny missing coverage for ${missing.join(", ")}`,
@@ -228,6 +228,85 @@ const denyBlocksPipeToShell: HarnessCheck = {
   },
 };
 
+function findAgent(
+  agents: AuditContext["agents"],
+  id: string,
+): AuditContext["agents"][number] | undefined {
+  return agents.find((a) => a.agent.id === id);
+}
+
+function classifyDenyRegistration(agents: AuditContext["agents"]): {
+  registered: string[];
+  unregistered: string[];
+  noDeny: string[];
+  pathMismatch: string[];
+} {
+  const registered: string[] = [];
+  const unregistered: string[] = [];
+  const noDeny: string[] = [];
+  const pathMismatch: string[] = [];
+  for (const af of agents) {
+    if (!af.hooks.denyExists && !af.hooks.denyIsConfigBased) {
+      noDeny.push(af.agent.id);
+      continue;
+    }
+    if (af.hooks.denyIsRegistered) {
+      registered.push(af.agent.id);
+      const expected = af.agent.denyHookFile;
+      const actual = af.hooks.denyRegisteredPath;
+      if (expected && actual && !actual.endsWith(expected)) {
+        pathMismatch.push(af.agent.id);
+      }
+    } else {
+      unregistered.push(af.agent.id);
+    }
+  }
+  return { registered, unregistered, noDeny, pathMismatch };
+}
+
+function buildDenyRegistrationFailure(
+  agents: AuditContext["agents"],
+  registered: string[],
+  unregistered: string[],
+  pathMismatch: string[],
+) {
+  const findings = [
+    ...registered
+      .filter((id) => !pathMismatch.includes(id))
+      .map(
+        (id) =>
+          `${id}: deny hook registered as ${findAgent(agents, id)?.agent.hookEvents.preTool ?? "pre-tool"} hook`,
+      ),
+    ...pathMismatch.map((id) => {
+      const af = findAgent(agents, id);
+      return `${id}: registered hook path "${af?.hooks.denyRegisteredPath}" does not match expected deny hook "${af?.agent.denyHookFile}"`;
+    }),
+    ...unregistered.map(
+      (id) =>
+        `${id}: deny hook exists but is NOT registered as a ${findAgent(agents, id)?.agent.hookEvents.preTool ?? "pre-tool"} hook`,
+    ),
+  ];
+  const actions = [
+    ...unregistered.map(
+      (id) => `Register the deny hook in ${id} agent settings`,
+    ),
+    ...pathMismatch.map(
+      (id) =>
+        `Fix ${id} hook registration to point at the canonical deny hook (${findAgent(agents, id)?.agent.denyHookFile})`,
+    ),
+  ];
+  return fail(findings, actions, [
+    ...unregistered.map(
+      (id) =>
+        `Add a ${findAgent(agents, id)?.agent.hookEvents.preTool ?? "PreToolUse"} hook entry in ${id} agent settings that runs deny-dangerous.sh.`,
+    ),
+    ...pathMismatch.map(
+      (id) =>
+        `Update the ${findAgent(agents, id)?.agent.hookEvents.preTool ?? "PreToolUse"} hook in ${id} to reference ${findAgent(agents, id)?.agent.denyHookFile}.`,
+    ),
+  ]);
+}
+
 const denyHookRegistered: HarnessCheck = {
   id: "deny-hook-registered",
   name: "Deny hook registered in agent settings",
@@ -238,44 +317,22 @@ const denyHookRegistered: HarnessCheck = {
     ["docs/harness-audit.md", ".goat-flow/footguns/auditor.md"],
     "incident",
   ),
-  /** Run the Deny hook registered in agent settings check. */
   run: (ctx) => {
-    const registered: string[] = [];
-    const unregistered: string[] = [];
-    const noDeny: string[] = [];
-    for (const af of ctx.agents) {
-      if (!af.hooks.denyExists && !af.hooks.denyIsConfigBased) {
-        noDeny.push(af.agent.id);
-        continue;
-      }
-      if (af.hooks.denyIsRegistered) {
-        registered.push(af.agent.id);
-      } else {
-        unregistered.push(af.agent.id);
-      }
-    }
-    if (unregistered.length > 0) {
-      return fail(
-        [
-          ...registered.map(
-            (id) =>
-              `${id}: deny hook registered as ${ctx.agents.find((a) => a.agent.id === id)?.agent.hookEvents.preTool ?? "pre-tool"} hook`,
-          ),
-          ...unregistered.map(
-            (id) =>
-              `${id}: deny hook exists but is NOT registered as a ${ctx.agents.find((a) => a.agent.id === id)?.agent.hookEvents.preTool ?? "pre-tool"} hook`,
-          ),
-        ],
-        [`Register the deny hook in ${unregistered.join(", ")} agent settings`],
-        [
-          `Add a ${unregistered.map((id) => ctx.agents.find((a) => a.agent.id === id)?.agent.hookEvents.preTool ?? "PreToolUse").join("/")} hook entry in agent settings that runs deny-dangerous.sh.`,
-        ],
+    const { registered, unregistered, noDeny, pathMismatch } =
+      classifyDenyRegistration(ctx.agents);
+
+    if (unregistered.length > 0 || pathMismatch.length > 0) {
+      return buildDenyRegistrationFailure(
+        ctx.agents,
+        registered,
+        unregistered,
+        pathMismatch,
       );
     }
     const findings = [
       ...registered.map(
         (id) =>
-          `${id}: deny hook registered as ${ctx.agents.find((a) => a.agent.id === id)?.agent.hookEvents.preTool ?? "pre-tool"} hook`,
+          `${id}: deny hook registered as ${findAgent(ctx.agents, id)?.agent.hookEvents.preTool ?? "pre-tool"} hook`,
       ),
       ...noDeny.map(
         (id) => `${id}: no deny mechanism (registration check skipped)`,

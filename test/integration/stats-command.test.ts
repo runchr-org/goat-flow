@@ -192,6 +192,21 @@ describe("goat-flow stats --check", () => {
     assert.ok(finding!.message.includes("src/gone.ts:42"));
   });
 
+  it("fails when a bucket uses line-number evidence without a semantic anchor", () => {
+    const report = loadReport({
+      footguns: {
+        "hooks.md":
+          "---\ncategory: hooks\nlast_reviewed: 2026-04-18\n---\n\n## Footgun: alpha\n\n**Evidence:** ACTUAL_MEASURED\n\nSee `.goat-flow/footguns/hooks.md:1` for details.\n",
+      },
+      lessons: {},
+    });
+    const verdict = checkStats(report);
+    assert.equal(verdict.status, "fail");
+    const finding = verdict.findings.find((f) => f.rule === "invalid-line-ref");
+    assert.ok(finding, "expected an invalid-line-ref finding");
+    assert.ok(finding!.message.includes("missing semantic anchor"));
+  });
+
   it("fails when an active footgun appears below ## Resolved Entries", () => {
     const report = loadReport({
       footguns: {
@@ -209,6 +224,46 @@ describe("goat-flow stats --check", () => {
           f.message.includes("below ## Resolved Entries"),
       ),
       "expected an active-below-resolved finding",
+    );
+  });
+
+  it("fails when a resolved footgun appears above ## Resolved Entries", () => {
+    const report = loadReport({
+      footguns: {
+        "setup.md":
+          "---\ncategory: setup\nlast_reviewed: 2026-04-18\n---\n\n## Footgun: misplaced resolved entry\n\n**Status:** resolved | **Created:** 2026-04-18 | **Resolved:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED\n\nBody.\n\n## Resolved Entries\n",
+      },
+      lessons: {},
+    });
+    const verdict = checkStats(report);
+    assert.equal(verdict.status, "fail");
+    assert.ok(
+      verdict.findings.some(
+        (f) =>
+          f.rule === "format" &&
+          f.message.includes("above ## Resolved Entries"),
+      ),
+      "expected a resolved-above-marker finding",
+    );
+  });
+
+  it("fails when resolved footguns exist without ## Resolved Entries", () => {
+    const report = loadReport({
+      footguns: {
+        "dashboard.md":
+          "---\ncategory: dashboard\nlast_reviewed: 2026-04-18\n---\n\n## Footgun: markerless resolved entry\n\n**Status:** resolved | **Created:** 2026-04-18 | **Resolved:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED\n\nBody.\n",
+      },
+      lessons: {},
+    });
+    const verdict = checkStats(report);
+    assert.equal(verdict.status, "fail");
+    assert.ok(
+      verdict.findings.some(
+        (f) =>
+          f.rule === "format" &&
+          f.message.includes("no ## Resolved Entries marker"),
+      ),
+      "expected a missing-resolved-marker finding",
     );
   });
 

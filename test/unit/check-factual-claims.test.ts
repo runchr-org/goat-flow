@@ -348,6 +348,40 @@ describe("runFactualClaimChecks", () => {
     assert.ok(findings.some((f) => f.rule === "dashboard-sessions-drift"));
   });
 
+  it("flags stale dashboard view headings", () => {
+    const fs = stubFSFromFiles({
+      "docs/dashboard.md": [
+        "## Views",
+        "### Home",
+        "### Help",
+        "## Terminal",
+      ].join("\n"),
+    });
+    const { findings } = runFactualClaimChecks(stubCtx(fs));
+    assert.ok(findings.some((f) => f.rule === "dashboard-view-name-drift"));
+  });
+
+  it("flags stale dashboard idle-timeout claims", () => {
+    const fs = stubFSFromFiles({
+      "docs/dashboard.md": "- 60-minute idle timeout with auto-kill\n",
+      "src/cli/server/terminal.ts":
+        "const DEFAULT_IDLE_TIMEOUT_MINUTES = 480;\n",
+    });
+    const { findings } = runFactualClaimChecks(stubCtx(fs));
+    assert.ok(findings.some((f) => f.rule === "dashboard-idle-timeout-drift"));
+  });
+
+  it("flags stale dashboard version references", () => {
+    const fs = stubFSFromFiles({
+      "docs/dashboard.md":
+        "- Supports Claude, Codex, Gemini, and Copilot runners in v1.2.0\n",
+    });
+    const { findings } = runFactualClaimChecks(stubCtx(fs));
+    assert.ok(
+      findings.some((f) => f.rule === "dashboard-version-reference-drift"),
+    );
+  });
+
   it("does not flag the current dashboard runner list with natural-language commas", () => {
     const fs = stubFSFromFiles({
       "docs/dashboard.md":

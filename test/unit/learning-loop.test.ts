@@ -294,4 +294,19 @@ describe("extractFootgunFacts search-anchor staleness", () => {
     const facts = extractFootgunFacts(fs, stubConfig(), pinnedNow);
     assert.deepEqual(facts.staleRefs, []);
   });
+
+  it("flags file-line evidence that lacks a semantic anchor", () => {
+    const fs = stubFS(
+      {
+        [`${fixtureDir}quality.md`]:
+          "---\ncategory: quality\nlast_reviewed: 2026-04-19\n---\n\n## Footgun: line only\n\n**Status:** active | **Created:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED\n\n- `src/cli/cli.ts:1` - fragile evidence\n",
+        "src/cli/cli.ts": "console.log('ok');\n",
+      },
+      { [fixtureDir]: ["quality.md"] },
+    );
+    const facts = extractFootgunFacts(fs, stubConfig(), pinnedNow);
+    assert.deepEqual(facts.invalidLineRefs, [
+      "src/cli/cli.ts:1 (missing semantic anchor)",
+    ]);
+  });
 });

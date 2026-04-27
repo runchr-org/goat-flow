@@ -1,36 +1,68 @@
 {
-  // Claude Code settings template - copy to .claude/settings.json
-  // Paths use $(git rev-parse --show-toplevel) for portability.
-  // NEVER hardcode absolute paths - they break when the repo is cloned elsewhere.
-
-  // --- Permissions Deny List ---------------------------------------------------
-  // Glob substring matches: Bash(*git commit*) blocks ANY Bash command containing
-  // "git commit". Broad matching is intentional (safety-first). False positives
-  // can be overridden in settings.local.json with an "allow" entry.
   "permissions": {
-    "allow": [
-      "Read(.env.example)",
-      "Read(**/.env.example)"
-    ],
+    "allow": ["Read(.env.example)", "Read(**/.env.example)"],
     "deny": [
       "Bash(*git commit*)",
       "Bash(*git push*)",
+      "Bash(*sudo *)",
+      "Bash(*mkfs*)",
+      "Bash(*dd if=*)",
+      "Bash(*git reset --hard*)",
       "Read(**/.env*)",
       "Edit(**/.env*)",
+      "MultiEdit(**/.env*)",
+      "MultiEdit(**/secrets/**)",
+      "MultiEdit(**/*.pem)",
+      "MultiEdit(**/*.key)",
+      "MultiEdit(**/.ssh/**)",
+      "MultiEdit(**/.aws/**)",
+      "MultiEdit(**/.docker/config.json)",
+      "MultiEdit(**/.gnupg/**)",
+      "MultiEdit(**/.npmrc)",
+      "MultiEdit(**/.pypirc)",
+      "MultiEdit(**/*.pfx)",
+      "MultiEdit(**/credentials*)",
+      "MultiEdit(**/.kube/config)",
       "Write(**/.env*)",
+      "Read(**/secrets/**)",
       "Read(**/*.pem)",
       "Read(**/*.key)",
       "Read(**/.ssh/**)",
       "Read(**/.aws/**)",
-      "Read(**/credentials*)"
+      "Read(**/.docker/config.json)",
+      "Read(**/.gnupg/**)",
+      "Read(**/.npmrc)",
+      "Read(**/.pypirc)",
+      "Read(**/*.pfx)",
+      "Read(**/credentials*)",
+      "Read(**/.kube/config)",
+      "Write(**/secrets/**)",
+      "Write(**/*.pem)",
+      "Write(**/*.key)",
+      "Write(**/.ssh/**)",
+      "Write(**/.aws/**)",
+      "Write(**/.docker/config.json)",
+      "Write(**/.gnupg/**)",
+      "Write(**/.npmrc)",
+      "Write(**/.pypirc)",
+      "Write(**/*.pfx)",
+      "Write(**/credentials*)",
+      "Write(**/.kube/config)",
+      "Edit(**/secrets/**)",
+      "Edit(**/*.pem)",
+      "Edit(**/*.key)",
+      "Edit(**/.ssh/**)",
+      "Edit(**/.aws/**)",
+      "Edit(**/.docker/config.json)",
+      "Edit(**/.gnupg/**)",
+      "Edit(**/.npmrc)",
+      "Edit(**/.pypirc)",
+      "Edit(**/*.pfx)",
+      "Edit(**/credentials*)",
+      "Edit(**/.kube/config)"
     ]
   },
-
-  // --- Hook Registrations ------------------------------------------------------
-  // Each hook is an external script. Inline commands work but are harder to
-  // maintain and debug. One script per hook, one concern per script.
   "hooks": {
-    // PreToolUse: fires BEFORE the tool executes. Exit 2 = block.
     "PreToolUse": [
       {
         "matcher": "Bash",

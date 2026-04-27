@@ -1,7 +1,7 @@
 ---
 name: goat-qa
 description: "Use when evaluating test coverage gaps, planning test strategy, or assessing testing risk for code changes."
-goat-flow-skill-version: "1.2.5"
+goat-flow-skill-version: "1.3.0"
 ---
 # /goat-qa
 
@@ -91,13 +91,13 @@ For CRITICAL items with no coverage, annotate why: new path / missed coverage on
 
 **Cross-agent verification:** Suggest the user run verification with a different agent or model. Cross-agent verification catches blind spots that same-agent testing misses.
 
-**BLOCKING GATE:** Present the gap analysis and stop for a human decision. "Here are the testing gaps. Continue to Phase 3 (targeted testing plan), or adjust the analysis first?" Reserve QA flow diagrams for the Phase 3 checkpoint. After the testing plan, suggest `/goat-plan` to add testing tasks to the current milestone.
+**BLOCKING GATE:** Present the gap analysis plus Verification Integrity and stop for a human decision. "Here are the testing gaps. Continue to Phase 3 (targeted testing plan), or adjust the analysis first?" Reserve QA flow diagrams for the Phase 3 checkpoint. After the testing plan, suggest `/goat-plan` to add testing tasks to the current milestone.
 
 ## Phase 3 - Targeted Testing Plan
 
 Based on the gaps, produce a focused plan and order by risk.
 
-**Must test (CRITICAL gaps):** table with what breaks and time
+**Must test (CRITICAL gaps):** table with what breaks and grounded effort estimate; if effort is unknown, write `unknown - needs harness/project context`
 **Should test if time allows (MEDIUM gaps):** same format, lower priority
 **Safe to skip this round:** low-risk or adequately covered areas
 **Misaligned effort:** deprioritise plan cases not mapped to current changes
@@ -196,6 +196,11 @@ Output shape depends on the mode declared in Step 0. Pick the template that matc
 
 ### Misaligned Effort  <!-- test cases that don't match code changes in this branch -->
 | Test Case | Maps to Change | Assessment |
+
+## Verification Integrity
+- Intent spec: [PR/issue/test plan URL or `no-intent-spec`]
+- Assessed by: [agent]
+- Evidence limit: [diff/files read and any unavailable runtime/tool context]
 ```
 
 ### Standard mode - Phase 3 output (generate only after Phase 2 gate approval)

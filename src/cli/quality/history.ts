@@ -9,7 +9,11 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AgentId } from "../types.js";
-import type { SavedQualityFinding, SavedQualityReport } from "./schema.js";
+import type {
+  QualityMode,
+  SavedQualityFinding,
+  SavedQualityReport,
+} from "./schema.js";
 import { parseQualityReport } from "./schema.js";
 import { attachFindingIds } from "./ids.js";
 import { KNOWN_AGENT_IDS } from "../agents/registry.js";
@@ -32,6 +36,7 @@ interface QualityHistoryRow {
   id: string;
   date: string;
   agent: AgentId;
+  qualityMode: QualityMode;
   setupTotal: number;
   systemTotal: number;
   setupDelta: number | null;
@@ -106,6 +111,22 @@ function countSeverity(
     .length;
 }
 
+/** Return true when one report belongs to the requested quality mode.
+ *  Legacy reports predate quality_mode and are classified as agent-setup,
+ *  because that was the only quality workflow at the time. */
+function matchesQualityMode(
+  entry: QualityHistoryEntry,
+  qualityMode: QualityMode | null,
+): boolean {
+  if (qualityMode === null) return true;
+  return entryQualityMode(entry) === qualityMode;
+}
+
+/** Return the mode used for comparisons, treating legacy reports as agent-setup. */
+function entryQualityMode(entry: QualityHistoryEntry): QualityMode {
+  return entry.report.quality_mode ?? "agent-setup";
+}
+
 /** Format the delta. */
 function formatDelta(delta: number | null): string {
   if (delta === null) return "";
@@ -137,6 +158,51 @@ function getQualityLogsDir(projectPath: string): string {
   return join(projectPath, ".goat-flow", "logs", "quality");
 }
 
+/** Return quality JSON filenames in descending recency order. */
+function listHistoryFilenamesDesc(dir: string): string[] {
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".json"))
+    .sort()
+    .reverse();
+}
+
+/** Parse a filename only if it belongs to the requested agent. */
+function parseAgentHistoryFilename(
+  filename: string,
+  agent: AgentId,
+): { date: string; time: string; agent: AgentId; randomId: string } | null {
+  const parsedName = parseHistoryFilename(filename);
+  if (!parsedName) return null;
+  return parsedName.agent === agent ? parsedName : null;
+}
+
+/** Try to append one parsed history entry to a limited dashboard window. */
+function appendMatchingHistoryEntry(
+  entries: QualityHistoryEntry[],
+  warnings: string[],
+  options: {
+    dir: string;
+    filename: string;
+    agent: AgentId;
+    qualityMode: QualityMode | null;
+  },
+): boolean {
+  const parsedName = parseAgentHistoryFilename(options.filename, options.agent);
+  if (!parsedName) return false;
+
+  const { entry, warning } = tryParseHistoryFile(
+    options.dir,
+    options.filename,
+    parsedName,
+  );
+  if (warning) warnings.push(warning);
+  if (!entry) return false;
+  if (!matchesQualityMode(entry, options.qualityMode)) return false;
+
+  entries.push(entry);
+  return true;
+}
+
 /** Load the quality history. */
 export function loadQualityHistory(projectPath: string): {
   entries: QualityHistoryEntry[];
@@ -164,7 +230,9 @@ export function loadQualityHistory(projectPath: string): {
       );
       continue;
     }
-    const parsedReport = parseQualityReport(raw);
+    const parsedReport = parseQualityReport(raw, {
+      requireCurrentFields: false,
+    });
     if (!parsedReport.ok) {
       warnings.push(
         `Skipping malformed quality history file ${filename}: ${parsedReport.error}`,
@@ -194,22 +262,152 @@ export function loadQualityHistory(projectPath: string): {
   return { entries, warnings };
 }
 
+/**
+ * Load only the newest dashboard-sized quality-history window. For selected
+ * agent tables, one extra matching entry is parsed so the oldest displayed row
+ * can still calculate its delta without parsing the whole history directory.
+ */
+export function loadQualityHistoryWindow(
+  projectPath: string,
+  options: {
+    agent: AgentId | null;
+    limit: number | null;
+    qualityMode?: QualityMode | null;
+  },
+): {
+  entries: QualityHistoryEntry[];
+  warnings: string[];
+} {
+  if (options.limit === null || options.agent === null) {
+    return loadQualityHistory(projectPath);
+  }
+
+  const dir = getQualityLogsDir(projectPath);
+  if (!existsSync(dir)) return { entries: [], warnings: [] };
+
+  const qualityMode = options.qualityMode ?? null;
+  const entries: QualityHistoryEntry[] = [];
+  const warnings: string[] = [];
+  const targetEntryCount = options.limit + 1;
+  const filenames = listHistoryFilenamesDesc(dir);
+
+  for (const filename of filenames) {
+    const appended = appendMatchingHistoryEntry(entries, warnings, {
+      dir,
+      filename,
+      agent: options.agent,
+      qualityMode,
+    });
+    if (appended && entries.length >= targetEntryCount) break;
+  }
+
+  return { entries, warnings };
+}
+
 /** Return the latest history entry for one agent. */
 export function getLatestQualityHistoryEntry(
   entries: QualityHistoryEntry[],
   agent: AgentId,
+  qualityMode: QualityMode | null = null,
 ): QualityHistoryEntry | null {
-  return entries.find((entry) => entry.agent === agent) ?? null;
+  return (
+    entries.find(
+      (entry) =>
+        entry.agent === agent && matchesQualityMode(entry, qualityMode),
+    ) ?? null
+  );
+}
+
+/** Try to load and validate one history file. Returns the entry or null + a warning. */
+function tryParseHistoryFile(
+  dir: string,
+  filename: string,
+  parsedName: { date: string; time: string; agent: AgentId; randomId: string },
+): { entry: QualityHistoryEntry | null; warning: string | null } {
+  const fullPath = join(dir, filename);
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(fullPath, "utf-8"));
+  } catch (error) {
+    return {
+      entry: null,
+      warning: `Skipping malformed quality history file ${filename}: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+  const parsedReport = parseQualityReport(raw, {
+    requireCurrentFields: false,
+  });
+  if (!parsedReport.ok) {
+    return {
+      entry: null,
+      warning: `Skipping malformed quality history file ${filename}: ${parsedReport.error}`,
+    };
+  }
+  const withIds = attachFindingIds(parsedReport.report);
+  if (!withIds.ok) {
+    return {
+      entry: null,
+      warning: `Skipping malformed quality history file ${filename}: ${withIds.error}`,
+    };
+  }
+  return {
+    entry: {
+      id: filename.replace(/\.json$/, ""),
+      path: fullPath,
+      date: parsedName.date,
+      time: parsedName.time,
+      agent: parsedName.agent,
+      randomId: parsedName.randomId,
+      report: withIds.report,
+    },
+    warning: null,
+  };
+}
+
+/**
+ * Find the latest quality report for one agent/mode without parsing all files.
+ * Scans filenames newest-first, filters by agent from the filename, and parses
+ * only matching JSON until a valid entry is found.
+ */
+export function findLatestQualityReport(
+  projectPath: string,
+  agent: AgentId,
+  qualityMode: QualityMode | null = null,
+): { entry: QualityHistoryEntry | null; warnings: string[] } {
+  const dir = getQualityLogsDir(projectPath);
+  if (!existsSync(dir)) return { entry: null, warnings: [] };
+
+  const warnings: string[] = [];
+  const filenames = listHistoryFilenamesDesc(dir);
+
+  for (const filename of filenames) {
+    const parsedName = parseAgentHistoryFilename(filename, agent);
+    if (!parsedName) continue;
+
+    const { entry, warning } = tryParseHistoryFile(dir, filename, parsedName);
+    if (warning) warnings.push(warning);
+    if (entry && matchesQualityMode(entry, qualityMode)) {
+      return { entry, warnings };
+    }
+  }
+
+  return { entry: null, warnings };
 }
 
 /** Select quality history entries. */
 export function selectQualityHistoryEntries(
   entries: QualityHistoryEntry[],
-  options: { agent: AgentId | null; limit: number | null },
+  options: {
+    agent: AgentId | null;
+    limit: number | null;
+    qualityMode?: QualityMode | null;
+  },
 ): QualityHistoryEntry[] {
-  const filtered = options.agent
-    ? entries.filter((entry) => entry.agent === options.agent)
-    : entries;
+  const qualityMode = options.qualityMode ?? null;
+  const filtered = entries.filter((entry) => {
+    if (options.agent && entry.agent !== options.agent) return false;
+    return matchesQualityMode(entry, qualityMode);
+  });
   if (options.limit === null) return filtered;
   return filtered.slice(0, options.limit);
 }
@@ -217,21 +415,32 @@ export function selectQualityHistoryEntries(
 /** Build the quality history rows. */
 export function buildQualityHistoryRows(
   entries: QualityHistoryEntry[],
-  options: { agent: AgentId | null; limit: number | null },
+  options: {
+    agent: AgentId | null;
+    limit: number | null;
+    qualityMode?: QualityMode | null;
+  },
 ): QualityHistoryRow[] {
   const filtered = selectQualityHistoryEntries(entries, {
     agent: options.agent,
     limit: null,
+    qualityMode: options.qualityMode ?? null,
   });
   const rows = filtered.map((entry, index) => {
+    const entryMode = entryQualityMode(entry);
     const previousSameAgent = filtered
       .slice(index + 1)
-      .find((candidate) => candidate.agent === entry.agent);
+      .find(
+        (candidate) =>
+          candidate.agent === entry.agent &&
+          entryQualityMode(candidate) === entryMode,
+      );
     const previousSetup = previousSameAgent?.report.scores.setup.total ?? null;
     return {
       id: entry.id,
       date: entry.report.run_date,
       agent: entry.agent,
+      qualityMode: entryQualityMode(entry),
       setupTotal: entry.report.scores.setup.total,
       systemTotal: entry.report.scores.system.total,
       setupDelta:
@@ -265,8 +474,11 @@ function countConsecutivePresence(
   currentEntry: QualityHistoryEntry,
   findingId: string,
 ): number {
+  const currentMode = entryQualityMode(currentEntry);
   const sameAgent = entries.filter(
-    (entry) => entry.agent === currentEntry.agent,
+    (entry) =>
+      entry.agent === currentEntry.agent &&
+      entryQualityMode(entry) === currentMode,
   );
   const currentIndex = sameAgent.findIndex(
     (entry) => entry.id === currentEntry.id,
@@ -299,8 +511,13 @@ function countConsecutivePresence(
 // eslint-disable-next-line complexity -- diff selection branches on implicit latest-vs-explicit pair resolution and validation
 export function buildQualityDiff(
   entries: QualityHistoryEntry[],
-  options: { agent: AgentId | null; pair: string | null },
+  options: {
+    agent: AgentId | null;
+    pair: string | null;
+    qualityMode?: QualityMode | null;
+  },
 ): { ok: true; diff: QualityDiffResult } | { ok: false; error: string } {
+  const qualityMode = options.qualityMode ?? null;
   let from: QualityHistoryEntry | undefined;
   let to: QualityHistoryEntry | undefined;
 
@@ -332,6 +549,22 @@ export function buildQualityDiff(
         error: `quality diff pair does not match --agent ${options.agent}`,
       };
     }
+    if (entryQualityMode(from) !== entryQualityMode(to)) {
+      return {
+        ok: false,
+        error: "quality diff rejects cross-mode comparisons",
+      };
+    }
+    if (
+      qualityMode !== null &&
+      (entryQualityMode(from) !== qualityMode ||
+        entryQualityMode(to) !== qualityMode)
+    ) {
+      return {
+        ok: false,
+        error: `quality diff pair does not match --mode ${qualityMode}`,
+      };
+    }
   } else {
     if (!options.agent) {
       return {
@@ -339,22 +572,36 @@ export function buildQualityDiff(
         error: "quality diff without explicit ids requires --agent",
       };
     }
-    const sameAgent = entries.filter((entry) => entry.agent === options.agent);
+    const sameAgent = entries.filter(
+      (entry) =>
+        entry.agent === options.agent && matchesQualityMode(entry, qualityMode),
+    );
     if (sameAgent.length < 2) {
+      const modeScope = qualityMode === null ? "" : ` in ${qualityMode} mode`;
       return {
         ok: false,
-        error: `Not enough saved quality reports for ${options.agent}. Need at least 2 runs.`,
+        error: `Not enough saved quality reports for ${options.agent}${modeScope}. Need at least 2 runs.`,
       };
     }
-    to = sameAgent[0];
-    from = sameAgent[1];
-  }
-
-  if (!from || !to) {
-    return {
-      ok: false,
-      error: "quality diff could not resolve the requested report pair",
-    };
+    const latest = sameAgent[0];
+    const previous = sameAgent[1];
+    if (!latest || !previous) {
+      return {
+        ok: false,
+        error: "quality diff could not resolve the requested report pair",
+      };
+    }
+    to = latest;
+    from = previous;
+    if (
+      qualityMode === null &&
+      entryQualityMode(from) !== entryQualityMode(to)
+    ) {
+      return {
+        ok: false,
+        error: `quality diff would compare ${entryQualityMode(from)} to ${entryQualityMode(to)}. Pass --mode to diff one quality mode, or pass explicit same-mode report ids.`,
+      };
+    }
   }
 
   const fromMap = getFindingMap(from.report);
@@ -416,24 +663,32 @@ export function buildQualityDiff(
 /** Render the quality history text. */
 export function renderQualityHistoryText(
   rows: QualityHistoryRow[],
-  options: { agent: AgentId | null; all: boolean },
+  options: {
+    agent: AgentId | null;
+    qualityMode: QualityMode | null;
+    all: boolean;
+  },
 ): string {
   if (rows.length === 0) {
     const scope = options.agent ? ` for ${options.agent}` : "";
+    const modeScope = options.qualityMode
+      ? ` in ${options.qualityMode} mode`
+      : "";
     return [
-      `No saved quality history${scope}.`,
+      `No saved quality history${scope}${modeScope}.`,
       "Generate a prompt with `goat-flow quality . --agent <id>`; the agent writes its report directly to `.goat-flow/logs/quality/`.",
     ].join("\n");
   }
 
   const lines = [
-    "date | agent | setup_total | system_total | blocker | major | minor",
+    "date | agent | mode | setup_total | system_total | blocker | major | minor",
   ];
   for (const row of rows) {
     lines.push(
       [
         row.date,
         row.agent,
+        row.qualityMode,
         `${row.setupTotal}${formatDelta(row.setupDelta)}`,
         String(row.systemTotal),
         String(row.blockerCount),

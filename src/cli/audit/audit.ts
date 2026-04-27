@@ -199,7 +199,10 @@ function toCheckResult(
  *  existence check there - the paths are human-readable pointers for future
  *  maintainers, not runtime contracts. In dev mode we keep the check so
  *  stale provenance surfaces in preflight. */
+let provenanceValidated = false;
+
 function validateRegisteredCheckProvenance(fs: ReadonlyFS): void {
+  if (provenanceValidated) return;
   const checks = [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
   const errors: string[] = [];
   const pathExists = isPackagedInstall()
@@ -215,6 +218,7 @@ function validateRegisteredCheckProvenance(fs: ReadonlyFS): void {
       `Invalid audit check provenance:\n- ${errors.join("\n- ")}`,
     );
   }
+  provenanceValidated = true;
 }
 
 /** Create an empty AuditConcern with zeroed counters. */
@@ -316,11 +320,17 @@ function runBuildChecks(ctx: AuditContext): {
   const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
   for (const check of BUILD_CHECKS) {
     const failure = check.run(ctx);
+    const provenance = check.provenanceFor?.(ctx, failure) ?? check.provenance;
+    const skipped =
+      failure === null &&
+      check.scope === "agent" &&
+      !ctx.agentFilter &&
+      !check.supportsAggregate;
     scopeChecks[check.scope].push({
       id: check.id,
       name: check.name,
-      status: failure ? "fail" : "pass",
-      provenance: check.provenance,
+      status: skipped ? "skipped" : failure ? "fail" : "pass",
+      provenance,
       failure: failure ?? undefined,
     });
   }
@@ -408,6 +418,15 @@ export function runAudit(
   options: AuditOptions,
 ): AuditReport {
   const ctx = buildAuditContext(fs, projectPath, options);
+  return runAuditFromContext(ctx, fs, projectPath, options);
+}
+
+function runAuditFromContext(
+  ctx: AuditContext,
+  fs: ReadonlyFS,
+  projectPath: string,
+  options: AuditOptions,
+): AuditReport {
   validateRegisteredCheckProvenance(ctx.fs);
   const { setup: setupScope, agent: agentScope } = runBuildChecks(ctx);
   const harness = options.harness ? computeHarness(ctx) : null;
@@ -431,4 +450,69 @@ export function runAudit(
     content,
     overall: { status },
   };
+}
+
+/**
+ * Run aggregate + per-agent audits sharing a single config/structure/provenance pass.
+ * Eliminates the N+1 pattern where each per-agent audit re-parses config and facts.
+ */
+export function runAuditBatch(
+  fs: ReadonlyFS,
+  projectPath: string,
+  options: AuditOptions,
+  agentIds: AgentId[],
+): {
+  aggregate: AuditReport;
+  perAgent: { id: string; audit: AuditReport }[];
+} {
+  const configState = loadConfig(projectPath, fs);
+  const structure = buildProjectStructure();
+  validateRegisteredCheckProvenance(fs);
+
+  const aggregateFacts = extractProjectFacts(fs, {
+    agentFilter: options.agentFilter,
+    projectPath,
+    configState,
+  });
+  const aggregateCtx: AuditContext = {
+    projectPath,
+    facts: aggregateFacts,
+    config: configState,
+    fs,
+    structure,
+    agents: aggregateFacts.agents,
+    agentFilter: options.agentFilter,
+  };
+  const aggregate = runAuditFromContext(aggregateCtx, fs, projectPath, options);
+
+  const perAgent: { id: string; audit: AuditReport }[] = [];
+  for (const agentId of agentIds) {
+    try {
+      const agentFacts = extractProjectFacts(fs, {
+        agentFilter: agentId,
+        projectPath,
+        configState,
+      });
+      const agentCtx: AuditContext = {
+        projectPath,
+        facts: agentFacts,
+        config: configState,
+        fs,
+        structure,
+        agents: agentFacts.agents,
+        agentFilter: agentId,
+      };
+      perAgent.push({
+        id: agentId,
+        audit: runAuditFromContext(agentCtx, fs, projectPath, {
+          ...options,
+          agentFilter: agentId,
+        }),
+      });
+    } catch {
+      /* skip agents that fail to audit */
+    }
+  }
+
+  return { aggregate, perAgent };
 }

@@ -8,13 +8,16 @@ import type { QualityHistoryEntry } from "../quality/history.js";
 import { loadManifest } from "../manifest/manifest.js";
 import { getAgentProfile } from "../agents/registry.js";
 import { getPackageVersion } from "../paths.js";
-import { QUALITY_REPORT_KIND } from "../quality/schema.js";
+import { resolve } from "node:path";
+import { QUALITY_REPORT_KIND, type QualityMode } from "../quality/schema.js";
 
 interface QualityInput {
   agent: AgentId;
   projectPath: string;
   auditReport: AuditReport | null;
   priorReport?: QualityHistoryEntry | null;
+  qualityMode?: QualityMode;
+  selectedProjectPath?: string;
   runDate?: string;
 }
 
@@ -37,6 +40,11 @@ function formatLocalDate(date: Date = new Date()): string {
 /** Render one JSON-safe string literal for the embedded example block. */
 function jsonString(value: string): string {
   return JSON.stringify(value);
+}
+
+/** Render a Bash single-quoted literal so generated snippets do not expand `$` or backticks. */
+function shellSingleQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
 /** Render the audit summary block embedded in the quality prompt. */
@@ -98,6 +106,346 @@ function findingSeverityRank(severity: "BLOCKER" | "MAJOR" | "MINOR"): number {
   return 2;
 }
 
+function qualityModeLabel(mode: QualityMode): string {
+  if (mode === "process") return "GOAT Flow Process";
+  if (mode === "harness") return "Harness Engineering";
+  if (mode === "skills") return "Skills";
+  return "Agent Installation";
+}
+
+function qualityModeTargetScope(mode: QualityMode): string {
+  if (mode === "process") {
+    return "controlling goat-flow workspace, plus selected target only when it is a goat-flow installation";
+  }
+  if (mode === "harness") {
+    return "selected target project harness, interpreted from the controlling workspace";
+  }
+  if (mode === "skills") {
+    return "controlling goat-flow workspace skills and shared references";
+  }
+  return "selected project and selected agent installation";
+}
+
+function focusedQualityModePrompt(
+  mode: Exclude<QualityMode, "agent-setup">,
+  agent?: AgentId,
+) {
+  if (mode === "process") {
+    const agentAuditCmd = agent
+      ? `node --import tsx src/cli/cli.ts audit . --agent ${agent} --harness --check-drift --format json`
+      : "node --import tsx src/cli/cli.ts audit . --check-drift --format json";
+    return [
+      "GOAT Flow Process Quality Assessment",
+      "",
+      "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. Do not use /goat-review or any goat skill as the wrapper for this assessment; this prompt is the full assessment contract. You may read files, run read-only validation commands, and write normal gitignored reporting/local-state artifacts if the runner requires them. In this contract, gitignored logs, scratchpad notes, critique snapshots, quality reports, and task-local state do not count as writes; do not report them as read-only violations.",
+      "",
+      "Assess the goat-flow framework process in the controlling workspace: instruction files, .goat-flow/config.yaml, .goat-flow/architecture.md, .goat-flow/code-map.md, .goat-flow/skill-reference/, workflow/setup/, workflow/manifest.json, installed skill mirrors, hooks, quality prompt modes, and validation scripts.",
+      "",
+      `Grounding commands to run or explicitly mark skipped: git status --short --untracked-files=all; node --import tsx src/cli/cli.ts stats . --check; ${agentAuditCmd}; bash scripts/preflight-checks.sh. Command output wins over prose.`,
+      "",
+      "Use grep-first retrieval for .goat-flow/footguns/, .goat-flow/lessons/, and .goat-flow/decisions/. Do not broad-load those directories.",
+      "",
+      "Output sections: Pre-check Results; Findings ordered by severity; What works; What is weak or ceremonial; Contradictions and false paths; Top 5 improvements. Each finding must include severity, action type, exact file or semantic-anchor evidence, why it matters, and a verification command that would prove the fix. End with What was not verified.",
+    ].join("\n");
+  }
+
+  if (mode === "skills") {
+    return [
+      "Skill Suite Quality Assessment",
+      "",
+      "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. Do not use /goat-critique, /goat-review, or any other goat skill as the wrapper for this assessment; this prompt is the full assessment contract. You may read files, run read-only commands, and write normal gitignored reporting/local-state artifacts if the runner requires them. In this contract, gitignored logs, scratchpad notes, critique snapshots, quality reports, and task-local state do not count as writes; do not report them as read-only violations.",
+      "",
+      "Assess all seven goat-flow skills: /goat, /goat-debug, /goat-plan, /goat-review, /goat-critique, /goat-security, and /goat-qa. Use .goat-flow/skill-reference/skill-quality-testing.md plus the relevant files under .goat-flow/skill-reference/skill-quality-testing/. Read the workflow template SKILL.md files and installed mirrors under .claude/skills/, .agents/skills/, and .github/skills/ where relevant.",
+      "",
+      "Method rule: prefer live skill invocation only when the runner supports it safely. If live invocation or delegated/sub-agent calls are unavailable, perform a file-grounded protocol run against SKILL.md and label the evidence limit. Never imply a dry run is bulletproof TDD evidence.",
+      "",
+      "For each skill, output exactly these fields: Method used; Evidence limit; Worked; Failed/confusing; Useless ceremony; RED scenario; GREEN result; minimal REFACTOR; Verification command or grep that would prove the fix. Do not stop after one skill and do not ask which skill.",
+      "",
+      "After the seven sections, output: Cross-skill patterns; Top 5 skill/system improvements with file or semantic-anchor evidence and expected impact; What was not tested. Prioritize actionable improvements over praise.",
+    ].join("\n");
+  }
+
+  return [
+    "AI Harness Engineering Quality Assessment",
+    "",
+    "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. Do not use /goat-review or any goat skill as the wrapper for this assessment; this prompt is the full assessment contract. You may read files, run read-only validation commands, and write normal gitignored reporting/local-state artifacts if the runner requires them. In this contract, gitignored logs, scratchpad notes, critique snapshots, quality reports, and task-local state do not count as writes; do not report them as read-only violations.",
+    "",
+    "Assess whether the selected target project's agent harness is actually usable, not only structurally present. Focus on context loading, constraint safety, verification evidence, recovery paths, feedback-loop durability, and whether instructions distinguish the controlling goat-flow workspace from the selected target.",
+    "",
+    "Grounding commands to run or explicitly mark skipped: git status --short --untracked-files=all; node --import tsx src/cli/cli.ts audit . --harness --format json from the controlling workspace when applicable; node --import tsx src/cli/cli.ts stats . --check when the selected target is a goat-flow installation. Command output wins over prose.",
+    "",
+    "Read next: target instruction files, local agent settings/hooks, .goat-flow/config.yaml when present, .goat-flow/skill-reference/ when present, controlling-workspace harness code under src/cli/audit/harness/, and any dashboard terminal/runner context text that affects selected-target execution.",
+    "",
+    "Output sections: Harness Scorecard; Findings ordered by severity; Concern-by-concern analysis; False positive and false negative risks; Top 5 improvements; What was not verified. For each deterministic harness concern (Context, Constraints, Verification, Recovery, Feedback Loop), state what works, what fails or is weak, exact file or semantic-anchor evidence, and a verification command that would prove the fix. Treat Workspace Boundary as a qualitative cross-cutting risk, not as a deterministic harness score, unless the audit output explicitly exposes a Workspace Boundary concern.",
+    "",
+    "Do not treat a structural PASS as quality PASS. If a score or check claims completeness, verify what behavior it actually proves.",
+  ].join("\n");
+}
+
+const WRITE_POLICY_MARKERS = ["write", "no-write", "read-only"] as const;
+const LOCAL_ARTIFACT_MARKERS = [
+  "gitignored",
+  "local artifact",
+  "local-state",
+  ".goat-flow/logs",
+  ".goat-flow/tasks",
+  "critique snapshot",
+  "scratchpad",
+  "quality report",
+  "session log",
+  "task-local",
+] as const;
+
+function includesAnyMarker(text: string, markers: readonly string[]): boolean {
+  return markers.some((marker) => text.includes(marker));
+}
+
+/** Return true for legacy prior findings that conflict with the current
+ * reporting-only contract, where gitignored local artifacts are not findings. */
+function isSupersededLocalArtifactWriteFinding(
+  finding: QualityHistoryEntry["report"]["findings"][number],
+): boolean {
+  const text = `${finding.summary} ${finding.detail}`.toLowerCase();
+  const referencesWritePolicy = includesAnyMarker(text, WRITE_POLICY_MARKERS);
+  const referencesLocalArtifact = includesAnyMarker(
+    text,
+    LOCAL_ARTIFACT_MARKERS,
+  );
+  return referencesWritePolicy && referencesLocalArtifact;
+}
+
+function renderPriorFindingSummary(summary: string): string {
+  return summary.replace(
+    /\bstrict no-write\b/gi,
+    "tracked-file write restriction",
+  );
+}
+
+function renderPriorReportContext(
+  priorReport: QualityHistoryEntry | null,
+  qualityMode: QualityMode,
+): string {
+  const lines: string[] = [];
+  lines.push("---");
+  lines.push("");
+  lines.push("## Prior report context");
+  lines.push("");
+  if (priorReport) {
+    const currentContractFindings = priorReport.report.findings.filter(
+      (finding) => !isSupersededLocalArtifactWriteFinding(finding),
+    );
+    const omittedPriorFindingCount =
+      priorReport.report.findings.length - currentContractFindings.length;
+    const priorHighSeverityCount = currentContractFindings.filter(
+      (finding) =>
+        finding.severity === "BLOCKER" || finding.severity === "MAJOR",
+    ).length;
+    const priorTopFindings = [...currentContractFindings]
+      .sort((left, right) => {
+        const severityDiff =
+          findingSeverityRank(left.severity) -
+          findingSeverityRank(right.severity);
+        if (severityDiff !== 0) return severityDiff;
+        return left.id.localeCompare(right.id);
+      })
+      .slice(0, 3);
+
+    lines.push(
+      `Latest same-agent report: \`${priorReport.id}\` (${priorReport.report.run_date})`,
+    );
+    lines.push(`- Setup total: ${priorReport.report.scores.setup.total}/100`);
+    lines.push(`- System total: ${priorReport.report.scores.system.total}/100`);
+    lines.push(`- Prior BLOCKER + MAJOR count: ${priorHighSeverityCount}`);
+    if (omittedPriorFindingCount > 0) {
+      lines.push(
+        `- Omitted ${omittedPriorFindingCount} prior local-artifact write finding(s) that conflict with the current contract: gitignored logs, scratchpad notes, critique snapshots, quality reports, and task-local state do not count as writes.`,
+      );
+    }
+    lines.push("- Top prior findings by severity:");
+    if (priorTopFindings.length === 0) {
+      lines.push("  - none after applying the current local-artifact contract");
+    } else {
+      for (const finding of priorTopFindings) {
+        lines.push(
+          `  - \`${finding.id}\` | ${finding.severity} | ${finding.type} | ${renderPriorFindingSummary(finding.summary)}`,
+        );
+      }
+    }
+    lines.push("");
+    lines.push(
+      'For the final JSON block in THIS run, use `delta_tag: "persisted"` when a current finding materially matches a prior finding by type/file/line. Use `delta_tag: "new"` when it does not. Do NOT emit `resolved` in current findings - resolved issues are derived later by `goat-flow quality diff` when a prior finding id disappears from a later run.',
+    );
+  } else {
+    const modeText = qualityMode === "agent-setup" ? "" : `${qualityMode} `;
+    lines.push(
+      `No prior same-agent ${modeText}quality report exists for this project.`,
+    );
+    lines.push(
+      "For the final JSON block in this run, omit `delta_tag` or set it to `null` for every finding.",
+    );
+  }
+  return lines.join("\n");
+}
+
+function appendFocusedReportContract(
+  lines: string[],
+  input: {
+    agent: AgentId;
+    projectPath: string;
+    auditStatus: QualityPayload["auditStatus"];
+    qualityMode: QualityMode;
+    priorReport: QualityHistoryEntry | null;
+    runDate: string;
+  },
+): void {
+  lines.push("---");
+  lines.push("");
+  lines.push("### Write the JSON report");
+  lines.push("");
+  lines.push(
+    "Do **not** emit the JSON as a fenced block in your reply. Write it as a file to `.goat-flow/logs/quality/` - that path is gitignored and expected. No tracked-file writes or implementation edits are permitted.",
+  );
+  lines.push("");
+  lines.push("**Filename format:** `YYYY-MM-DD-HHMM-<agent>-<rand5>.json`");
+  lines.push("");
+  lines.push("```bash");
+  lines.push('STAMP="$(date +"%Y-%m-%d-%H%M")"');
+  lines.push("RAND=\"$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 5)\"");
+  lines.push(
+    `QUALITY_DIR=${shellSingleQuote(resolve(input.projectPath, ".goat-flow/logs/quality"))}`,
+  );
+  lines.push(`FILE="\${QUALITY_DIR}/\${STAMP}-${input.agent}-\${RAND}.json"`);
+  lines.push('mkdir -p "$QUALITY_DIR"');
+  lines.push("# (then write the JSON below to $FILE)");
+  lines.push("```");
+  lines.push("");
+  lines.push("**JSON body shape:**");
+  lines.push("");
+  lines.push("```json");
+  lines.push("{");
+  lines.push(`  "report_kind": ${jsonString(QUALITY_REPORT_KIND)},`);
+  lines.push(`  "goat_flow_version": ${jsonString(getPackageVersion())},`);
+  lines.push(`  "agent": ${jsonString(input.agent)},`);
+  lines.push(`  "project_path": ${jsonString(input.projectPath)},`);
+  lines.push(`  "run_date": ${jsonString(input.runDate)},`);
+  lines.push(`  "audit_status": ${jsonString(input.auditStatus)},`);
+  lines.push('  "scope": "framework-self | consumer",');
+  lines.push(`  "rubric_version": ${jsonString(getPackageVersion())},`);
+  lines.push(`  "quality_mode": ${jsonString(input.qualityMode)},`);
+  lines.push('  "scores": {');
+  lines.push(
+    '    "setup": { "total": 0, "accuracy": 0, "relevance": 0, "completeness": 0, "friction": 0 },',
+  );
+  lines.push(
+    '    "system": { "total": 0, "usefulness": 0, "signal_to_noise": 0, "adaptability": 0, "learnability": 0 }',
+  );
+  lines.push("  },");
+  lines.push('  "findings": [');
+  lines.push(
+    `    { "type": "framework_flaw", "severity": "MAJOR", "file": ".goat-flow/architecture.md", "line": null, "summary": "One-line finding summary", "detail": "Why it matters", "evidence_quality": "OBSERVED", "evidence_method": "static-analysis", "delta_tag": ${input.priorReport ? '"new"' : "null"} }`,
+  );
+  lines.push("  ]");
+  lines.push("}");
+  lines.push("```");
+  lines.push("");
+  lines.push("JSON rules:");
+  lines.push(
+    "- `scores.*` axis values must use exact `0 | 5 | 10 | 15 | 20 | 25` increments and each axis sum must equal its `total` exactly.",
+  );
+  lines.push(
+    "- Allowed `type` values: `setup_quality`, `skill_flaw`, `contradiction`, `false_path`, `content_quality`, `framework_flaw`.",
+  );
+  lines.push("- Allowed `severity` values: `BLOCKER`, `MAJOR`, `MINOR`.");
+  lines.push(
+    "- `evidence_quality` is REQUIRED on every finding. Allowed values: `OBSERVED` or `INFERRED`.",
+  );
+  lines.push(
+    "- `evidence_method` is REQUIRED on every finding. Allowed values: `runtime-probe`, `static-analysis`, or `mixed`.",
+  );
+  lines.push(
+    `- \`quality_mode\` is REQUIRED for new reports generated from this prompt. Use \`${jsonString(input.qualityMode)}\` for this ${qualityModeLabel(input.qualityMode)} assessment.`,
+  );
+  if (input.priorReport) {
+    lines.push(
+      '- `delta_tag` is REQUIRED on every current finding and must be either `"new"` or `"persisted"`.',
+    );
+  } else {
+    lines.push(
+      "- `delta_tag` must be `null` or omitted when no prior report context exists.",
+    );
+  }
+  lines.push("- Do NOT include an `id` field.");
+  lines.push("- Do NOT include extra top-level keys or extra finding keys.");
+  lines.push("");
+  lines.push("**Validate before confirming.** After writing the file, run:");
+  lines.push("");
+  lines.push("```bash");
+  lines.push(
+    'goat-flow quality validate "$FILE"   # or: node --import tsx src/cli/cli.ts quality validate "$FILE"',
+  );
+  lines.push('ls -la "$FILE"');
+  lines.push("```");
+  lines.push("");
+  lines.push(
+    "**End of response:** After validate passes, confirm in prose with a single line: `Wrote quality report to .goat-flow/logs/quality/<your-filename>.json`. Do not include the JSON inline in your reply.",
+  );
+}
+
+function composeFocusedQuality(
+  input: QualityInput,
+  qualityMode: Exclude<QualityMode, "agent-setup">,
+): QualityPayload {
+  const {
+    agent,
+    projectPath,
+    auditReport,
+    priorReport = null,
+    selectedProjectPath,
+    runDate = formatLocalDate(),
+  } = input;
+  const profile = getAgentProfile(agent);
+  const auditStatus: QualityPayload["auditStatus"] = auditReport
+    ? auditReport.status
+    : "unavailable";
+  const label = qualityModeLabel(qualityMode);
+  const lines: string[] = [];
+
+  lines.push(`# GOAT Flow ${label} Assessment - ${profile.name}`);
+  lines.push("");
+  lines.push(focusedQualityModePrompt(qualityMode, agent));
+  lines.push("");
+  lines.push("Quality mode scope:");
+  lines.push(`- Mode: ${label}`);
+  lines.push(`- Project path: \`${projectPath}\``);
+  if (selectedProjectPath && selectedProjectPath !== projectPath) {
+    lines.push(`- Selected target project: \`${selectedProjectPath}\``);
+  }
+  lines.push(`- Scope rule: ${qualityModeTargetScope(qualityMode)}`);
+  lines.push(`- Selected quality target agent: ${agent}`);
+  lines.push(
+    "- Keep this assessment read-only unless the user explicitly asks for edits.",
+  );
+  lines.push("");
+  lines.push(renderPriorReportContext(priorReport, qualityMode));
+  lines.push("");
+  appendFocusedReportContract(lines, {
+    agent,
+    projectPath,
+    auditStatus,
+    qualityMode,
+    priorReport,
+    runDate,
+  });
+
+  return {
+    command: "quality",
+    agent,
+    auditStatus,
+    auditSummary: `${label}: ${qualityModeTargetScope(qualityMode)}`,
+    prompt: lines.join("\n"),
+  };
+}
+
 /** Compose the quality review prompt. */
 // eslint-disable-next-line complexity -- prompt assembly branches on audit availability and split hook-config surfaces
 export function composeQuality(input: QualityInput): QualityPayload {
@@ -106,8 +454,14 @@ export function composeQuality(input: QualityInput): QualityPayload {
     projectPath,
     auditReport,
     priorReport = null,
+    qualityMode = "agent-setup",
     runDate = formatLocalDate(),
   } = input;
+
+  if (qualityMode !== "agent-setup") {
+    return composeFocusedQuality(input, qualityMode);
+  }
+
   const profile = getAgentProfile(agent);
   const agentLabel = profile.name;
   const skillsDir = profile.skillsDir;
@@ -142,7 +496,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   );
   lines.push("");
   lines.push(
-    "REPORTING-ONLY ASSESSMENT MODE. Do NOT edit, create, rename, move, or delete any tracked files. Do NOT apply patches or implement fixes. Gitignored local artifacts written by validation tools or normal reporting workflows (e.g. `dist/`, `node_modules/`, `.claude/worktrees/`, `.goat-flow/logs/**`, `.goat-flow/scratchpad/**`, `.goat-flow/tasks/**`) are fine - they don't change the repo's committed state. This prompt also instructs you to write your final JSON report to `.goat-flow/logs/quality/<filename>.json`.",
+    "REPORTING-ONLY ASSESSMENT MODE. Do NOT edit, create, rename, move, or delete any tracked files. Do NOT apply patches or implement fixes. Gitignored local artifacts written by validation tools or normal reporting workflows (e.g. `dist/`, `node_modules/`, `.claude/worktrees/`, `.goat-flow/logs/**`, `.goat-flow/scratchpad/**`, `.goat-flow/tasks/**`) are fine - they don't change the repo's committed state and do not count as writes for this assessment contract. This prompt also instructs you to write your final JSON report to `.goat-flow/logs/quality/<filename>.json`.",
   );
   lines.push("");
 
@@ -155,7 +509,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "- **No tracked-file writes.** Do NOT edit, create, rename, move, or delete tracked files. Redirection and write commands targeting gitignored local/build/reporting paths (e.g. `dist/`, `node_modules/`, `.claude/worktrees/`, `.goat-flow/logs/**`, `.goat-flow/scratchpad/**`, `.goat-flow/tasks/**`) are fine when they are part of normal validation or reporting. If a skill probe tries to modify tracked files or implement code, stop and report that as a finding.",
   );
   lines.push(
-    "- **Mode vocabulary matters.** `reporting-only` means no committed-file changes and no implementation; gitignored logs, critique snapshots, scratchpad notes, and task checkbox updates are still compatible with reporting-only work. `strict no-write` means no writes except paths explicitly named by the prompt. Do not label allowed gitignored reporting/local-state writes as read-only violations.",
+    "- **Mode vocabulary matters.** `reporting-only`, `read-only`, `no-write`, and `no implementation` mean no committed-file changes and no implementation in this assessment. Gitignored logs, critique snapshots, scratchpad notes, quality reports, and task checkbox updates are local workflow artifacts; they do not count as writes for this contract. Do not label allowed gitignored reporting/local-state artifacts as read-only violations.",
   );
   lines.push(
     "- **No mutation commands.** When testing toolchain commands, use `--check`, `--dry-run`, or read-only flags. Use `format:check` not `format`. Use `eslint` not `eslint --fix`. If unsure, run the tool with `--help` first to find the read-only flag.",
@@ -211,7 +565,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "4. **Learning loop** (`.goat-flow/`) - config, architecture doc, footguns, lessons, decisions, session logs.",
   );
   lines.push(
-    "5. **Shared reference** (under `.goat-flow/skill-reference/`) - skill-preamble.md (loaded every skill invocation), skill-conventions.md (loaded on full-depth), skill-quality-testing.md index plus skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, and skill-quality-testing/deployment.md (full-depth authoring methodology split across an index and three topical files per ADR-023; load the topical file matching your skill type).",
+    "5. **Shared reference** (under `.goat-flow/skill-reference/`) - skill-preamble.md (loaded every skill invocation), skill-conventions.md (loaded on full-depth), browser-use.md for browser evidence capture, skill-quality-testing.md index plus skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, and skill-quality-testing/deployment.md (full-depth authoring methodology split across an index and three topical files per ADR-023; load the topical file matching your skill type).",
   );
   lines.push("");
   lines.push(
@@ -226,7 +580,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "**Design notes** (do NOT flag these as findings - they are intentional):",
   );
   lines.push(
-    '- Session logs (`.goat-flow/logs/sessions/*.md`), critique snapshots (`.goat-flow/logs/critiques/*.md`), scratchpad notes, and task/milestone files (`.goat-flow/tasks/`, scoped by the `.goat-flow/tasks/.active` marker - see ADR-017) are **intentionally gitignored**. They are local workspace artifacts, not committed content. This is by design - session logs should never be in version control. If the instruction file\'s DoD references session logs, it means "write them locally for the current agent\'s continuity," not "commit them."',
+    '- Session logs (`.goat-flow/logs/sessions/*.md`), critique snapshots (`.goat-flow/logs/critiques/*.md`), scratchpad notes, and task/milestone files (`.goat-flow/tasks/`, scoped by the `.goat-flow/tasks/.active` marker - see ADR-017) are **intentionally gitignored**. They are local workspace artifacts, not committed content. This is by design - session logs should never be in version control. If the instruction file\'s DoD references session logs, it means "write them locally for the current agent\'s continuity," not "commit them." When evaluating skills, do NOT flag writes to these gitignored paths as a design flaw or write-safety violation - a skill writing to `.goat-flow/logs/` or `.goat-flow/tasks/` is normal working-state behavior.',
   );
   lines.push(
     "- `.goat-flow/tasks/.active` is an advisory local pointer, not a setup invariant. Missing `.active`, or `.active` naming a missing subdir, is normal local churn when work completes, users switch projects, or a project does not use goat-flow task files. Do NOT report this by itself as a setup-quality finding; evaluate whether `/goat` and `/goat-plan` handle the fallback gracefully.",
@@ -261,47 +615,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   }
   lines.push("");
 
-  lines.push("---");
-  lines.push("");
-  lines.push("## Prior report context");
-  lines.push("");
-  if (priorReport) {
-    const priorHighSeverityCount = priorReport.report.findings.filter(
-      (finding) =>
-        finding.severity === "BLOCKER" || finding.severity === "MAJOR",
-    ).length;
-    const priorTopFindings = [...priorReport.report.findings]
-      .sort((left, right) => {
-        const severityDiff =
-          findingSeverityRank(left.severity) -
-          findingSeverityRank(right.severity);
-        if (severityDiff !== 0) return severityDiff;
-        return left.id.localeCompare(right.id);
-      })
-      .slice(0, 3);
-
-    lines.push(
-      `Latest same-agent report: \`${priorReport.id}\` (${priorReport.report.run_date})`,
-    );
-    lines.push(`- Setup total: ${priorReport.report.scores.setup.total}/100`);
-    lines.push(`- System total: ${priorReport.report.scores.system.total}/100`);
-    lines.push(`- Prior BLOCKER + MAJOR count: ${priorHighSeverityCount}`);
-    lines.push("- Top prior findings by severity:");
-    for (const finding of priorTopFindings) {
-      lines.push(
-        `  - \`${finding.id}\` | ${finding.severity} | ${finding.type} | ${finding.summary}`,
-      );
-    }
-    lines.push("");
-    lines.push(
-      'For the final JSON block in THIS run, use `delta_tag: "persisted"` when a current finding materially matches a prior finding by type/file/line. Use `delta_tag: "new"` when it does not. Do NOT emit `resolved` in current findings - resolved issues are derived later by `goat-flow quality diff` when a prior finding id disappears from a later run.',
-    );
-  } else {
-    lines.push("No prior same-agent quality report exists for this project.");
-    lines.push(
-      "For the final JSON block in this run, omit `delta_tag` or set it to `null` for every finding.",
-    );
-  }
+  lines.push(renderPriorReportContext(priorReport, qualityMode));
   lines.push("");
 
   // Step 0 - Ground yourself (CLI version: audit already injected)
@@ -491,7 +805,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "4. **`/goat-review`** - review a real source file for quality issues",
   );
   lines.push(
-    "5. **`/goat-critique`** - critique one of the other probe outputs in reporting-only / no-implementation mode (e.g., goat-plan breakdown or goat-security assessment). Gitignored critique logs are allowed; judge whether it attempts to implement recommendations or modify tracked files.",
+    "5. **`/goat-critique`** - critique one of the other probe outputs in reporting-only / no-implementation mode (e.g., goat-plan breakdown or goat-security assessment). Gitignored critique logs are normal local workflow artifacts and do not count as writes; judge whether it attempts to implement recommendations or modify tracked files.",
   );
   lines.push(
     "6. **`/goat-security`** - threat-model one real component (auth, API, hooks, config, or whatever is riskiest) without making changes",
@@ -593,13 +907,13 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("## Part 6: Skill template integrity");
   lines.push("");
   lines.push(
-    "1. **Version tags:** Do all installed SKILL.md files have a `goat-flow-skill-version` header? Does it match the config.yaml version?",
+    "1. **Version tags:** Do all installed SKILL.md files have a `goat-flow-skill-version` header, and do all installed reference docs have a `goat-flow-reference-version` header? Do they match the config.yaml version?",
   );
   lines.push(
     "2. **Truncation or corruption:** Do the installed skill files look complete? Are there any signs of truncation, merging, or adaptation that broke the structure? (Skills should be installed verbatim from templates - they should NOT be adapted.)",
   );
   lines.push(
-    '3. **Depth choice coherence:** Invoke one skill with "quick" and one with "full" in reporting-only mode. Is the experience meaningfully different?',
+    '3. **Depth choice coherence:** Evaluate one skill with "quick" and one with "full" in reporting-only mode. Is the experience meaningfully different?',
   );
   lines.push("");
 
@@ -710,6 +1024,9 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("");
 
   lines.push("### Top 5 Improvements");
+  lines.push(
+    "Do NOT recommend adding quick/lite/reduced modes to any skill. Skill mode decisions (e.g. goat-critique being full-delegated-only) are ADR-decided architectural choices, not gaps to fill. See `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md`.",
+  );
   lines.push("For each:");
   lines.push("1. What to change");
   lines.push("2. Evidence from your testing (cite file + semantic anchor)");
@@ -725,7 +1042,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("### Write the JSON report");
   lines.push("");
   lines.push(
-    "Do **not** emit the JSON as a fenced block in your reply. Write it as a file to `.goat-flow/logs/quality/` - that path is gitignored and expected, no other writes are permitted.",
+    "Do **not** emit the JSON as a fenced block in your reply. Write it as a file to `.goat-flow/logs/quality/` - that path is gitignored and expected. No tracked-file writes or implementation edits are permitted.",
   );
   lines.push("");
   lines.push(
@@ -750,8 +1067,11 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("```bash");
   lines.push('STAMP="$(date +"%Y-%m-%d-%H%M")"      # e.g. 2026-04-19-1430');
   lines.push("RAND=\"$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 5)\"");
-  lines.push(`FILE=".goat-flow/logs/quality/\${STAMP}-${agent}-\${RAND}.json"`);
-  lines.push("mkdir -p .goat-flow/logs/quality");
+  lines.push(
+    `QUALITY_DIR=${shellSingleQuote(resolve(projectPath, ".goat-flow/logs/quality"))}`,
+  );
+  lines.push(`FILE="\${QUALITY_DIR}/\${STAMP}-${agent}-\${RAND}.json"`);
+  lines.push('mkdir -p "$QUALITY_DIR"');
   lines.push("# (then write the JSON below to $FILE)");
   lines.push("```");
   lines.push("");
@@ -767,6 +1087,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push(`  "audit_status": ${jsonString(auditStatus)},`);
   lines.push('  "scope": "framework-self | consumer",');
   lines.push(`  "rubric_version": ${jsonString(getPackageVersion())},`);
+  lines.push(`  "quality_mode": ${jsonString(qualityMode)},`);
   lines.push('  "scores": {');
   lines.push(
     '    "setup": { "total": 0, "accuracy": 0, "relevance": 0, "completeness": 0, "friction": 0 },',
@@ -778,10 +1099,10 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push('  "findings": [');
   lines.push("    {");
   lines.push(
-    '      "type": "setup_quality", "severity": "MAJOR", "file": ".goat-flow/architecture.md", "line": 12,',
+    '      "type": "setup_quality", "severity": "MAJOR", "file": ".goat-flow/architecture.md", "line": null,',
   );
   lines.push(
-    `      "summary": "One-line finding summary", "detail": "Why it matters", "evidence_quality": "OBSERVED", "evidence_method": "static-analysis", "delta_tag": ${priorReport ? '"new"' : "null"}`,
+    `      "summary": "One-line finding summary", "detail": "Why it matters; include a semantic anchor when the evidence should survive as a durable learning-loop artifact.", "evidence_quality": "OBSERVED", "evidence_method": "static-analysis", "delta_tag": ${priorReport ? '"new"' : "null"}`,
   );
   lines.push("    }");
   lines.push("  ]");
@@ -809,7 +1130,13 @@ export function composeQuality(input: QualityInput): QualityPayload {
     `- \`rubric_version\` is REQUIRED at top level; copy the template value (\`"${getPackageVersion()}"\`). The Rating bands section above is the rubric - future readers use this version tag to trace which band anchors produced your scores.`,
   );
   lines.push(
+    `- \`quality_mode\` is REQUIRED for new reports generated from this prompt. Use \`${jsonString(qualityMode)}\` for this ${qualityModeLabel(qualityMode)} assessment.`,
+  );
+  lines.push(
     "- `line` must be a positive integer OR `null`. Never `0`. For file-wide findings with no specific line, use `null`.",
+  );
+  lines.push(
+    "- Live review findings may cite `file` + `line` after re-reading that line. Durable footguns, lessons, patterns, and decisions must use file paths plus semantic anchors rather than line numbers.",
   );
   if (priorReport) {
     lines.push(

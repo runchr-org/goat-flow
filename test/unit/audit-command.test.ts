@@ -3,6 +3,7 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -13,7 +14,9 @@ import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
 import { AUDIT_VERSION, SKILL_NAMES } from "../../src/cli/constants.js";
 import { PROFILES } from "../../src/cli/detect/agents.js";
 import { composeSetup } from "../../src/cli/prompt/compose-setup.js";
+import { extractHookFacts } from "../../src/cli/facts/agent/hooks.js";
 
+const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
 import { createFS } from "../../src/cli/facts/fs.js";
 import type {
@@ -97,6 +100,15 @@ const STUB_AGENT_PROFILE: AgentProfile = {
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
 };
 
+function extractHookFactsForDenyContent(denyContent: string) {
+  const fs = stubFS({
+    exists: (path) => path === STUB_AGENT_PROFILE.denyHookFile,
+    readFile: (path) =>
+      path === STUB_AGENT_PROFILE.denyHookFile ? denyContent : null,
+  });
+  return extractHookFacts(fs, STUB_AGENT_PROFILE, {}, true, true);
+}
+
 function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
   return {
     agent: STUB_AGENT_PROFILE,
@@ -145,7 +157,7 @@ function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
       denyUsesJq: false,
       denyHandlesChaining: false,
       denyBlocksRmRf: true,
-      denyBlocksForcePush: true,
+      denyBlocksGitPush: true,
       denyBlocksChmod: true,
       denyBlocksPipeToShell: false,
       denyBlocksCloudDestructive: false,
@@ -278,7 +290,12 @@ function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
           localFileSizes: [],
           path: "",
         },
-        gitCommitInstructions: { exists: false },
+        gitCommitInstructions: {
+          exists: false,
+          path: null,
+          requiredPath: ".github/git-commit-instructions.md",
+          misplacedPaths: [],
+        },
         localInstructionsLineCount: 0,
       },
     } as ProjectFacts,
@@ -433,6 +450,121 @@ describe("audit fails on missing footguns directory", () => {
       result!.message.includes("footguns"),
       `Failure should mention missing dir: ${result!.message}`,
     );
+  });
+});
+
+describe("copilot install requires GitHub commit instructions", () => {
+  it("agent-instruction provenance follows the selected agent", () => {
+    for (const [agent, instructionFile] of [
+      ["claude", "CLAUDE.md"],
+      ["gemini", "GEMINI.md"],
+    ] as const) {
+      const report = runAudit(createFS(PROJECT_ROOT), PROJECT_ROOT, {
+        agentFilter: agent,
+        harness: false,
+        checkDrift: false,
+      });
+      const result = report.scopes.agent.checks.find(
+        (check) => check.id === "agent-instruction",
+      )!;
+      assert.ok(result.provenance.evidence_paths?.includes(instructionFile));
+      assert.ok(
+        !result.provenance.evidence_paths?.includes(
+          "workflow/setup/agents/copilot.md",
+        ),
+      );
+      assert.ok(
+        !result.provenance.evidence_paths?.includes(
+          ".github/git-commit-instructions.md",
+        ),
+      );
+    }
+  });
+
+  it("agent-instruction provenance keeps Copilot bridge evidence for Copilot", () => {
+    const report = runAudit(createFS(PROJECT_ROOT), PROJECT_ROOT, {
+      agentFilter: "copilot",
+      harness: false,
+      checkDrift: false,
+    });
+    const result = report.scopes.agent.checks.find(
+      (check) => check.id === "agent-instruction",
+    )!;
+    assert.ok(
+      result.provenance.evidence_paths?.includes(
+        "workflow/setup/agents/copilot.md",
+      ),
+    );
+    assert.ok(
+      result.provenance.evidence_paths?.includes(
+        ".github/copilot-instructions.md",
+      ),
+    );
+    assert.ok(
+      result.provenance.evidence_paths?.includes(
+        ".github/git-commit-instructions.md",
+      ),
+    );
+  });
+
+  it("agent-instruction fails when .github exists without .github/git-commit-instructions.md", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-instruction")!;
+    const result = check.run(
+      makeCtx({
+        agentFilter: "copilot",
+        agents: [stubAgentFacts({ agent: PROFILES.copilot })],
+        fs: stubFS({
+          exists: (path: string) =>
+            path !== ".github/git-commit-instructions.md",
+        }),
+      }),
+    );
+
+    assert.notEqual(result, null);
+    assert.equal(result!.check, "Agent instruction file");
+    assert.equal(result!.evidence, ".github/git-commit-instructions.md");
+    assert.match(result!.message, /required when \.github\/ exists/);
+  });
+
+  it("agent-instruction does not require the bridge when .github is absent", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-instruction")!;
+    const result = check.run(
+      makeCtx({
+        agentFilter: "copilot",
+        agents: [stubAgentFacts({ agent: PROFILES.copilot })],
+        fs: stubFS({
+          exists: (path: string) =>
+            path !== ".github" && path !== ".github/git-commit-instructions.md",
+        }),
+      }),
+    );
+
+    assert.equal(result, null);
+  });
+
+  it("aggregate agent-instruction fails for an incomplete Copilot install", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-instruction")!;
+    const result = check.run(
+      makeCtx({
+        agentFilter: null,
+        agents: [stubAgentFacts({ agent: PROFILES.copilot })],
+        structure: {
+          ...STUB_STRUCTURE,
+          agents: {
+            copilot: {
+              instruction_file: ".github/copilot-instructions.md",
+            },
+          },
+        },
+        fs: stubFS({
+          exists: (path: string) =>
+            path !== ".github/git-commit-instructions.md",
+        }),
+      }),
+    );
+
+    assert.notEqual(result, null);
+    assert.equal(result!.evidence, ".github/git-commit-instructions.md");
   });
 });
 
@@ -792,6 +924,96 @@ describe("optional config calibration", () => {
   });
 });
 
+describe("recovery harness milestone tracking", () => {
+  function taskCtx(files: Record<string, string>): AuditContext {
+    const dirs = new Map<string, Set<string>>();
+    dirs.set(".goat-flow/tasks", new Set());
+    for (const file of Object.keys(files)) {
+      const parts = file.split("/");
+      for (let i = 1; i < parts.length; i++) {
+        const parent = parts.slice(0, i).join("/");
+        const child = parts[i];
+        if (child === undefined) continue;
+        if (!dirs.has(parent)) dirs.set(parent, new Set());
+        dirs.get(parent)!.add(child);
+      }
+    }
+    return makeCtx({
+      fs: stubFS({
+        exists: (path) => path === ".goat-flow/tasks" || path in files,
+        listDir: (path) => [...(dirs.get(path) ?? new Set<string>())],
+        readFile: (path) => files[path] ?? null,
+      }),
+    });
+  }
+
+  const check = HARNESS_CHECKS.find((c) => c.id === "milestone-tracking")!;
+
+  it("passes with an empty tasks directory", () => {
+    const result = check.run(taskCtx({}));
+    assert.equal(result.status, "pass");
+    assert.ok(result.findings.some((f) => f.includes("empty")));
+  });
+
+  it("reports archived complete milestone progress as healthy", () => {
+    const result = check.run(
+      taskCtx({
+        ".goat-flow/tasks/_archived/M01-done.md":
+          "**Status:** complete\n\n## Tasks\n- [x] One\n- [x] Two\n",
+      }),
+    );
+    assert.equal(result.status, "pass");
+    assert.ok(result.findings.some((f) => f.includes("2/2 checkboxes")));
+  });
+
+  it("reports active zero-percent milestones as informational local state", () => {
+    const result = check.run(
+      taskCtx({
+        ".goat-flow/tasks/1.3.0/M00-active.md":
+          "**Status:** in-progress\n\n## Tasks\n- [ ] One\n- [ ] Two\n",
+      }),
+    );
+    assert.equal(result.status, "pass");
+    assert.ok(result.findings.some((f) => f.includes("0/2 checkboxes")));
+    assert.ok(result.findings.some((f) => f.includes("at 0%")));
+    assert.ok(result.findings.some((f) => f.includes("informational only")));
+  });
+
+  it("reports active partial milestone progress", () => {
+    const result = check.run(
+      taskCtx({
+        ".goat-flow/tasks/1.3.0/M01-partial.md":
+          "**Status:** in-progress\n\n## Tasks\n- [x] One\n- [ ] Two\n",
+      }),
+    );
+    assert.equal(result.status, "pass");
+    assert.ok(result.findings.some((f) => f.includes("1/2 checkboxes")));
+  });
+
+  it("keeps planned-but-not-started milestones intentional", () => {
+    const result = check.run(
+      taskCtx({
+        ".goat-flow/tasks/1.3.0/M02-planned.md":
+          "**Status:** planned\n\n## Tasks\n- [ ] One\n- [ ] Two\n",
+      }),
+    );
+    assert.equal(result.status, "pass");
+    assert.ok(result.findings.some((f) => f.includes("at 0%")));
+    assert.ok(result.findings.some((f) => f.includes("informational only")));
+  });
+
+  it("does not fail complete milestones with skipped local checkboxes", () => {
+    const result = check.run(
+      taskCtx({
+        ".goat-flow/tasks/1.3.0/M03-complete.md":
+          "**Status:** complete\n\n## Tasks\n- [x] One\n- [ ] Two\n",
+      }),
+    );
+    assert.equal(result.status, "pass");
+    assert.ok(result.findings.some((f) => f.includes("1/2 checkboxes")));
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Test 10: quality recommendation howToFix includes actionable path
 // ---------------------------------------------------------------------------
@@ -812,6 +1034,82 @@ describe("harness check howToFix", () => {
       result.findings.some((f) => f.includes("architecture.md")),
       `Findings should mention architecture.md: ${result.findings.join(", ")}`,
     );
+  });
+
+  it("feedback-loop-active remediation uses the public stats command", () => {
+    const check = HARNESS_CHECKS.find((c) => c.id === "feedback-loop-active")!;
+    const baseFacts = makeCtx().facts;
+    const ctx = makeCtx({
+      facts: {
+        ...baseFacts,
+        shared: {
+          ...baseFacts.shared,
+          footguns: {
+            ...baseFacts.shared.footguns,
+            staleRefs: [".goat-flow/footguns/hooks.md (search: `missing`)"],
+          },
+        },
+      },
+    });
+    const result = check.run(ctx);
+    assert.equal(result.status, "fail");
+    assert.ok(
+      result.howToFix?.some((fix) =>
+        fix.includes("npx goat-flow stats . --check"),
+      ),
+      `howToFix should use public CLI: ${result.howToFix?.join(", ") ?? ""}`,
+    );
+    assert.ok(
+      !result.howToFix?.some((fix) =>
+        fix.includes("node --import tsx src/cli/cli.ts stats"),
+      ),
+      `howToFix should not use source-mode CLI: ${result.howToFix?.join(", ") ?? ""}`,
+    );
+  });
+});
+
+describe("agent deny hook template comparison", () => {
+  const denyCheck = AGENT_CHECKS.find(
+    (check) => check.id === "agent-deny-dangerous",
+  );
+
+  it("fails when an installed deny hook differs from the canonical template", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const template = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
+      "utf-8",
+    );
+    const ctx = makeCtx({
+      agentFilter: "claude",
+      projectPath: PROJECT_ROOT,
+      fs: stubFS({
+        readFile: (path) =>
+          path === ".claude/hooks/deny-dangerous.sh"
+            ? `${template}\n# local drift\n`
+            : null,
+      }),
+    });
+    const result = denyCheck.run(ctx);
+    assert.ok(result, "expected hook version drift failure");
+    assert.match(result.message, /differs from the current goat-flow template/);
+    assert.equal(result.evidence, ".claude/hooks/deny-dangerous.sh");
+  });
+
+  it("passes when the installed deny hook matches the canonical template", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const template = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
+      "utf-8",
+    );
+    const ctx = makeCtx({
+      agentFilter: "claude",
+      projectPath: PROJECT_ROOT,
+      fs: stubFS({
+        readFile: (path) =>
+          path === ".claude/hooks/deny-dangerous.sh" ? template : null,
+      }),
+    });
+    assert.equal(denyCheck.run(ctx), null);
   });
 });
 
@@ -871,6 +1169,36 @@ describe("M01 harness check type tagging", () => {
         assert.equal(check.type, "metric", `${check.id} should be metric`);
       }
     }
+  });
+});
+
+describe("hook fact extraction", () => {
+  it("detects current deny hook secret coverage from generalized path matcher", () => {
+    const template = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
+      "utf8",
+    );
+    const facts = extractHookFactsForDenyContent(template);
+    assert.equal(facts.bashDenyCoversSecrets, true);
+  });
+
+  it("does not count self-test-only secret probes as Bash secret coverage", () => {
+    const facts = extractHookFactsForDenyContent(`
+run_self_test() {
+  run_case "cat .env" "cat .env" 2
+  run_case "cat ./.env" "cat ./.env" 2
+  run_case "cat ../.env" "cat ../.env" 2
+  run_case "cat .env.example" "cat .env.example" 0
+  run_case "cat ssh key" "cat ~/.ssh/id_rsa" 2
+  run_case "cat relative ssh key" "cat .ssh/id_rsa" 2
+  run_case "cat aws credentials" "cat ~/.aws/credentials" 2
+  run_case "cat relative aws credentials" "cat .aws/credentials" 2
+  run_case "cat secrets token" "cat secrets/token.txt" 2
+  run_case "cat credentials.json" "cat credentials.json" 2
+  run_case "xxd pem" "xxd server.pem" 2
+}
+`);
+    assert.equal(facts.bashDenyCoversSecrets, false);
   });
 });
 
@@ -1092,7 +1420,7 @@ describe("composeSetup routing", () => {
         output,
         /2 hook scripts \(deny, post-turn\) in \.codex\/hooks\//,
       );
-      assert.match(output, /Run `goat-flow audit \. --harness`/);
+      assert.match(output, /Run `goat-flow audit .+ --harness`/);
       assert.ok(
         !output.includes("scanner"),
         `audit-pass output should not regress to scanner wording: ${output}`,
@@ -1176,7 +1504,7 @@ describe("composeSetup routing", () => {
       assert.match(output, /See Step 03 \(install skills\)/);
       assert.match(
         output,
-        /Re-run: `node .*dist\/cli\/cli\.js audit \. --agent codex`/,
+        /Re-run: `node .*dist\/cli\/cli\.js audit .+ --agent codex`/,
       );
     } finally {
       await project.cleanup();

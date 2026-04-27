@@ -255,6 +255,72 @@ function readAgentScore(value: unknown): AgentScore | null {
   };
 }
 
+/** Read one learning-loop action bucket from the audit payload. */
+function readLearningLoopBucketAction(
+  value: unknown,
+): { path: string; reason: string } | null {
+  if (!isRecord(value)) return null;
+  const path = readString(value.path);
+  const reason = readString(value.reason);
+  if (!path || !reason) return null;
+  return { path, reason };
+}
+
+/** Read compact learning-loop health from the audit payload. */
+function readLearningLoopSummary(
+  value: unknown,
+): DashboardClientReport["learningLoop"] {
+  if (!isRecord(value)) return null;
+  const status = readString(value.status);
+  if (
+    !["fresh", "needs-review", "unavailable"].includes(status) ||
+    typeof value.recordCount !== "number" ||
+    typeof value.footgunCount !== "number" ||
+    typeof value.lessonCount !== "number" ||
+    typeof value.staleCount !== "number" ||
+    typeof value.invalidLineRefCount !== "number" ||
+    typeof value.oversizedCount !== "number"
+  ) {
+    return null;
+  }
+  return {
+    recordCount: value.recordCount,
+    footgunCount: value.footgunCount,
+    lessonCount: value.lessonCount,
+    staleCount: value.staleCount,
+    invalidLineRefCount: value.invalidLineRefCount,
+    oversizedCount: value.oversizedCount,
+    oldestLastReviewed:
+      typeof value.oldestLastReviewed === "string"
+        ? value.oldestLastReviewed
+        : null,
+    topBucketsNeedingAction: Array.isArray(value.topBucketsNeedingAction)
+      ? value.topBucketsNeedingAction
+          .map((entry) => readLearningLoopBucketAction(entry))
+          .filter(
+            (entry): entry is { path: string; reason: string } =>
+              entry !== null,
+          )
+      : [],
+    status: status as "fresh" | "needs-review" | "unavailable",
+  };
+}
+
+/** Read one recent lesson row from the audit payload. */
+function readRecentLesson(value: unknown): RecentLesson | null {
+  if (!isRecord(value)) return null;
+  const id = readString(value.id);
+  const title = readString(value.title);
+  const path = readString(value.path);
+  if (!id || !title || !path) return null;
+  return {
+    id,
+    title,
+    path,
+    created: readString(value.created) || null,
+  };
+}
+
 /** Read the full dashboard report from raw payload data. */
 function readDashboardReport(value: unknown): DashboardClientReport {
   const payload = readRecord(value, "Audit response");
@@ -290,6 +356,12 @@ function readDashboardReport(value: unknown): DashboardClientReport {
         : {}),
     },
     overall: { status: overallStatus },
+    learningLoop: readLearningLoopSummary(payload.learningLoop),
+    recentLessons: Array.isArray(payload.recentLessons)
+      ? payload.recentLessons
+          .map((lesson) => readRecentLesson(lesson))
+          .filter((lesson): lesson is RecentLesson => lesson !== null)
+      : [],
     target: readString(payload.target),
   };
 }
@@ -331,7 +403,68 @@ function readPreset(value: unknown): Preset | null {
   const prompt = readString(value.prompt);
   const cat = readString(value.cat);
   if (!id || !name || !desc || !prompt || !cat) return null;
-  return { id, name, desc, prompt, cat };
+  const costTier =
+    value.costTier === "low" ||
+    value.costTier === "medium" ||
+    value.costTier === "high"
+      ? value.costTier
+      : undefined;
+  return {
+    id,
+    name,
+    desc,
+    prompt,
+    cat,
+    route: readString(value.route) || undefined,
+    source: readString(value.source) || undefined,
+    globalSafe:
+      typeof value.globalSafe === "boolean" ? value.globalSafe : undefined,
+    internalOnly:
+      typeof value.internalOnly === "boolean" ? value.internalOnly : undefined,
+    qualityMode:
+      typeof value.qualityMode === "boolean" ? value.qualityMode : undefined,
+    requiresGh:
+      typeof value.requiresGh === "boolean" ? value.requiresGh : undefined,
+    requiresPrOrIssue:
+      typeof value.requiresPrOrIssue === "boolean"
+        ? value.requiresPrOrIssue
+        : undefined,
+    requiresLocalDiff:
+      typeof value.requiresLocalDiff === "boolean"
+        ? value.requiresLocalDiff
+        : undefined,
+    requiresUiApp:
+      typeof value.requiresUiApp === "boolean"
+        ? value.requiresUiApp
+        : undefined,
+    requiresDependencyFiles:
+      typeof value.requiresDependencyFiles === "boolean"
+        ? value.requiresDependencyFiles
+        : undefined,
+    requiresGoatFlowInstall:
+      typeof value.requiresGoatFlowInstall === "boolean"
+        ? value.requiresGoatFlowInstall
+        : undefined,
+    mayCheckoutBranch:
+      typeof value.mayCheckoutBranch === "boolean"
+        ? value.mayCheckoutBranch
+        : undefined,
+    requiresCleanWorktree:
+      typeof value.requiresCleanWorktree === "boolean"
+        ? value.requiresCleanWorktree
+        : undefined,
+    mayWriteFiles:
+      typeof value.mayWriteFiles === "boolean"
+        ? value.mayWriteFiles
+        : undefined,
+    artifactRequired:
+      typeof value.artifactRequired === "boolean"
+        ? value.artifactRequired
+        : undefined,
+    bestTargetSurfaces: readStringArray(value.bestTargetSurfaces),
+    fallbackPrompt: readString(value.fallbackPrompt) || undefined,
+    costTier,
+  };
 }
 
 /** Read the preset list injected into the dashboard shell. */
@@ -390,6 +523,8 @@ function readServerSessionInfo(value: unknown): ServerSessionInfo | null {
   const runner = readRunnerId(value.runner);
   const createdAt = readString(value.createdAt);
   const projectPath = readString(value.projectPath);
+  const cwd = readString(value.cwd);
+  const targetPath = readString(value.targetPath);
   if (
     !id ||
     !status ||
@@ -406,6 +541,8 @@ function readServerSessionInfo(value: unknown): ServerSessionInfo | null {
     status,
     createdAt,
     projectPath,
+    cwd: cwd || projectPath,
+    targetPath: targetPath || projectPath,
     runner,
     lastInputAt: value.lastInputAt,
     age: typeof value.age === "number" ? value.age : undefined,

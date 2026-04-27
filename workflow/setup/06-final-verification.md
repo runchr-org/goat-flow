@@ -1,16 +1,21 @@
 # Step 06 - Final Verification
 
-The setup gate is: `goat-flow audit . --agent {agent}` passes. The remaining checks below are agent-driven verification steps that improve quality but are not enforced by the auditor.
+The setup gate is: `goat-flow audit . --agent {agent}` passes and `goat-flow audit . --agent {agent} --harness` passes. The remaining checks below are agent-driven verification steps that improve quality but are not enforced by the auditor.
 
 ## Audit (required gate)
 
-Run `goat-flow audit . --agent {agent}` and fix all failures until it passes.
+Run both required audit commands and fix all failures until they pass:
+
+```bash
+goat-flow audit . --agent {agent}
+goat-flow audit . --agent {agent} --harness
+```
 
 The `--agent` flag scopes the audit to one agent's surfaces: it checks that agent's instruction file, skills directory, hooks, and settings. It does NOT check other agents' files. For multi-agent projects, run the audit once per agent.
 
 The audit validates structural requirements: required files/dirs exist, config parses, skills installed with version tags, hooks present, deny patterns registered. It does NOT validate content quality (evidence citations, instruction-file specificity, duplicate surfaces). The checks below cover those content concerns.
 
-`goat-flow quality` is optional - it generates an agent-driven review prompt but is not required for setup completion. `goat-flow audit --harness` adds structural installation checks for 5 concerns (context, constraints, verification, recovery, feedback loop). Harness results contribute to the overall audit status - a harness failure is an audit failure. Not all checks can reach "installed" on every platform (e.g., Codex lacks compaction hooks), but install as much as possible.
+`goat-flow quality` is optional - it generates an agent-driven review prompt but is not required for setup completion. `goat-flow audit --harness` adds structural installation checks for 5 concerns (context, constraints, verification, recovery, feedback loop) and is part of setup completion. Harness results contribute to the overall audit status - a harness failure is an audit failure. Recovery is milestone/session-log based; missing task content in a fresh install is normal, while stale recovery paths or missing required files should be fixed.
 
 ## Manual verification (recommended, not gated by audit)
 
@@ -29,6 +34,7 @@ Check these surfaces:
 - All installed skill files
 - Agent settings / hook config files
 - `.goat-flow/skill-reference/skill-preamble.md`
+- `.goat-flow/skill-reference/browser-use.md`
 - `.goat-flow/config.yaml`
 
 For each backtick-wrapped path or hook path:
@@ -113,6 +119,7 @@ Use one shared local continuity file: `.goat-flow/logs/sessions/YYYY-MM-DD-setup
 
 **Verification gate:**
 - [ ] `goat-flow audit . --agent {agent}` passes
+- [ ] `goat-flow audit . --agent {agent} --harness` passes
 - [ ] All required files and directories in `workflow/manifest.json` exist
 - [ ] Stale-reference checks and Essential Commands smoke tests are complete
 - [ ] Shared setup session log finalised with time/tokens

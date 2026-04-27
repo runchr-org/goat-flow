@@ -36,6 +36,14 @@ const INSTALLED_CONVENTIONS = resolve(
   PROJECT_ROOT,
   ".goat-flow/skill-reference/skill-conventions.md",
 );
+const TEMPLATE_BROWSER_USE = resolve(
+  PROJECT_ROOT,
+  "workflow/skills/reference/browser-use.md",
+);
+const INSTALLED_BROWSER_USE = resolve(
+  PROJECT_ROOT,
+  ".goat-flow/skill-reference/browser-use.md",
+);
 const TEMPLATE_QUALITY_TESTING = resolve(
   PROJECT_ROOT,
   "workflow/skills/reference/skill-quality-testing.md",
@@ -91,6 +99,20 @@ describe("preamble/conventions sync: current state", () => {
       diffQuiet(TEMPLATE_CONVENTIONS, INSTALLED_CONVENTIONS),
       0,
       "skill-conventions.md: template and installed should match",
+    );
+  });
+
+  it("template and installed browser-use.md match", () => {
+    if (
+      !existsSync(TEMPLATE_BROWSER_USE) ||
+      !existsSync(INSTALLED_BROWSER_USE)
+    ) {
+      return; // Skip if either file is missing
+    }
+    assert.equal(
+      diffQuiet(TEMPLATE_BROWSER_USE, INSTALLED_BROWSER_USE),
+      0,
+      "browser-use.md: template and installed should match",
     );
   });
 

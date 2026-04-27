@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # Skill Conventions
 
 Read this file on **full-depth** invocations only. The essential preamble
@@ -122,6 +125,16 @@ When a milestone completes and testing passes:
 
 Write a session log entry for each completed milestone sequence.
 
+### Plan Completion Protocol
+
+When all milestones reach `complete`, the plan enters Phase 4 (see goat-plan SKILL.md). The agent must:
+
+1. Run the AI Verification Gate - confirm every task ticked, every exit criterion evidenced, every testing gate passed with proof from this session.
+2. Present the Human Verification Gate - **BLOCKING GATE**. List all files changed, all milestones and their status, and evidence for each exit criterion. Wait for explicit human approval.
+3. After human approval, plan files remain in `.goat-flow/tasks/` until the human archives or removes them.
+
+Plan and milestone files are verification artifacts. Agents MUST NOT delete, archive, or include self-destruct instructions in them.
+
 Use `.goat-flow/logs/sessions/` for session summaries. Compact at ~60% context.
 
 Sub-agents: one objective, structured return, 5-call budget.
@@ -140,6 +153,10 @@ When a skill fails mid-execution (context limit, sub-agent dies, tool error):
 | User wants restart | Re-run from Step 0 |
 | User wants to skip | Document skip reason in output, proceed to closing |
 
+## Interrupt Freeze Protocol
+
+If the user interrupts, says "stop", "don't change anything", "no changes", or otherwise rejects file edits, freeze writes immediately. Only run read-only status or diff checks needed to report current state. Do not revert, clean up, archive, delete, or patch files unless the user explicitly asks for that action after the freeze.
+
 ## Autonomy Awareness
 
 Before proposing actions that change files, check the instruction file's Ask First
@@ -155,5 +172,6 @@ the index - `tdd-iteration.md` for TDD methodology (load first), `adversarial-fr
 for review-class skills, `deployment.md` for the deployment checklist. Together they
 document the skill-authoring methodology: pressure-testing prompts against known failure
 modes, recording Excuse/Reality rationalization tables from real incidents, and verifying
-the skill's `goat-flow-skill-version` matches `AUDIT_VERSION` before publishing. Do not
+the skill's `goat-flow-skill-version` and reference docs' `goat-flow-reference-version`
+match `AUDIT_VERSION` before publishing. Do not
 add or materially revise a skill without running the pressure-test protocol they describe.

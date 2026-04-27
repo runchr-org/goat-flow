@@ -27,7 +27,12 @@ export interface SessionInfo {
   id: string;
   status: SessionStatus;
   createdAt: string;
+  /** Selected target project for code evidence and dashboard grouping. */
   projectPath: string;
+  /** Actual PTY working directory where the runner was spawned. */
+  cwd: string;
+  /** Explicit target project path passed to the launched agent. */
+  targetPath: string;
   runner: Runner;
   /** Epoch milliseconds of last user input (for idle duration calculation) */
   lastInputAt: number;
@@ -140,6 +145,23 @@ export interface DashboardReport {
   overall: {
     status: string;
   };
+  learningLoop: {
+    recordCount: number;
+    footgunCount: number;
+    lessonCount: number;
+    staleCount: number;
+    invalidLineRefCount: number;
+    oversizedCount: number;
+    oldestLastReviewed: string | null;
+    topBucketsNeedingAction: { path: string; reason: string }[];
+    status: "fresh" | "needs-review" | "unavailable";
+  } | null;
+  recentLessons: {
+    id: string;
+    title: string;
+    created: string | null;
+    path: string;
+  }[];
   // Metadata
   target: string;
 }

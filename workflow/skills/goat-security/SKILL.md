@@ -1,7 +1,7 @@
 ---
 name: goat-security
 description: "Use when assessing security implications of code changes, architecture decisions, or new features."
-goat-flow-skill-version: "1.2.5"
+goat-flow-skill-version: "1.3.0"
 ---
 # /goat-security
 
@@ -59,11 +59,13 @@ Scan only the categories that fit the repo:
 - secrets/data exposure in logs, errors, artifacts, caches, and prompts
 - dependency/supply chain, install scripts, lockfiles, unpinned actions
 - CI/CD workflows, shell entrypoints, release automation
+- local HTTP/WebSocket/PTY runtime: bind address, Host/Origin checks, session IDs, browser-to-terminal input paths, workspace/cwd boundaries, terminal runner prompts
 - agent surfaces: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.github/instructions/**`, installed skill copies (`.claude/**`, `.agents/**`, `.github/**`), hooks, prompts, templates
 
 For diff/PR mode, bucket changed files explicitly:
 - `.github/workflows/**`, release automation, and other CI/CD files
 - `scripts/**`, shell entrypoints, installers, and maintenance scripts
+- local server/runtime files (`src/cli/server/dashboard*.ts`, `src/cli/server/terminal.ts`, WebSocket handlers, PTY/session bridges, terminal runners)
 - application code (`src/**`, handlers, auth, serializers, query builders)
 - config/docs (`package.json`, lockfiles, Dockerfiles, devcontainer/editor config, docs with URLs or commands)
 - agent surfaces (`AGENTS.md`, `CLAUDE.md`, `.agents/**`, `.claude/**`, `.github/**`, hooks, prompts, templates)
@@ -138,7 +140,7 @@ Run a narrow specialist cross-check when any of these are true:
 - `PROBABLE` findings outnumber `CONFIRMED`
 - strong evidence and strong uncertainty coexist in the same cluster
 
-Use `/goat-critique` only for disagreement resolution or cross-examination, not as the default second pass. Cap extra churn at one specialist pass per finding cluster. Outcomes: `promote to CONFIRMED`, `keep as PROBABLE`, or `kill as false positive`.
+Use `/goat-critique` only for disagreement resolution or cross-examination, not as the default second pass. When the active runner requires explicit consent before delegated sub-agents, request that consent before invoking `/goat-critique`; otherwise keep unresolved items in the report as PROBABLE with exact evidence needed. Cap extra churn at one specialist pass per finding cluster. Outcomes: `promote to CONFIRMED`, `keep as PROBABLE`, or `kill as false positive`.
 
 ### Phase 6 - Self-Check and Proof Gate
 
@@ -148,7 +150,7 @@ Re-read `file:line` for Critical/High. Does the code or config still match the f
 
 **Proof Gate:** Apply the Proof Gate from `skill-preamble.md` - every CONFIRMED finding must have a fresh `file:line` re-read in this session, and dependency-audit results must be from a tool run in this session, never paraphrased or fabricated.
 
-If `PROBABLE > CONFIRMED`, run `/goat-critique` cross-examination before closing.
+If `PROBABLE > CONFIRMED`, request approval for `/goat-critique` cross-examination before closing. If approval is unavailable, close with those clusters marked PROBABLE and list the evidence needed to promote or kill each one.
 
 ## Compliance Mode
 

@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # Skill Quality Testing
 
 Read on full-depth skill-authoring work. Covers how to write, test, and harden a goat-flow skill so it holds up under pressure.

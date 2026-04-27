@@ -80,7 +80,7 @@ Constraints are the cheapest, most reliable layer of the harness. They cost zero
 **Constraints checks (4):**
 
 - `deny-covers-secrets` - for agents with settings-based deny (Claude, Gemini), the deny configuration covers real `.env` files, credentials, `*.key`, `*.pem`, while allowing read-only `.env.example` inspection. Script-only agents (Codex, Copilot) rely entirely on the Bash deny hook, which is checked for the same coverage; the settings-based Read-deny check is skipped for them as a platform limitation, not a failure.
-- `deny-blocks-dangerous` - each agent's deny configuration blocks `rm -rf`, force-push, and `chmod`
+- `deny-blocks-dangerous` - each agent's deny configuration blocks `rm -rf`, all git push (ADR-025), and `chmod`
 - `deny-blocks-pipe-to-shell` - each agent's deny configuration blocks `curl | bash` / `wget | sh` pipe-to-shell patterns
 - `deny-hook-registered` - hook registrations and hook files are in sync (registered hooks exist on disk, existing hooks are registered)
 
@@ -100,7 +100,7 @@ Verification loops are consistently reported as the single highest-impact harnes
 
 - `test-runner-configured` - informational (always passes). Reports whether `toolchain.test` is set in `config.yaml`, or notes that project-local / instruction-file commands are the source of truth. Missing `toolchain.test` is explicitly treated as valid.
 - `hooks-registered` - hook registrations and hook files are in sync (no registered-but-missing, no exists-but-unregistered) for each agent
-- `commit-guidance` - commit guidance is present (instruction file contains commit conventions or a local git-commit guidance doc exists, such as `docs/coding-standards/git-commit.md`)
+- `commit-guidance` - commit guidance is present. When `.github/` exists, the guidance must live at `.github/git-commit-instructions.md`; otherwise a local git-commit guidance doc can satisfy the check.
 - `post-turn-hook-integrity` - informational (always passes). If a post-turn hook exists, reports whether it runs validation and whether it exits 0 unconditionally (advisory mode)
 
 **Not checked here:** lint command presence (no longer required - treated as project-local), Ask First quality, verification effectiveness. goat-flow core does not ship a post-turn hook - the integrity check only reports on project-specific hooks if present.

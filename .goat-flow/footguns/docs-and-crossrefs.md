@@ -1,6 +1,6 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-04-24
+last_reviewed: 2026-04-27
 ---
 
 ## Footgun: Cross-reference fragility across docs
@@ -31,7 +31,7 @@ last_reviewed: 2026-04-24
 
 **Symptoms:** The CLI audit reports PASS while cold-path documentation contains false claims, wrong check descriptions, dead paths, and glossary misdirections. Contributors reading docs instead of code form incorrect mental models of what the system does.
 
-**Why it happens:** The audit validates structure (files exist, paths resolve, versions match). Partial content automation exists - `src/cli/audit/check-factual-claims.ts` catches count-claim drift on a fixed PROSE_TARGETS list (README, CONTRIBUTING, architecture, code-map), and `src/cli/audit/check-content-quality.ts` lints vague terms and generic instructions on a fixed QUALITY_TARGETS list (instruction files, skill-reference, public docs, ADRs, workflow/setup templates). Coverage is incomplete: footgun/lesson content is only schema-enforced via `stats --check` (status field, file:line or `(search:...)` anchors), not fact-checked. Cold-path surfaces outside these target lists still drift manually as code changes.
+**Why it happens:** The audit validates structure (files exist, paths resolve, versions match). Partial content automation exists - `src/cli/audit/check-factual-claims.ts` catches count-claim drift across PROSE_TARGETS plus `docs/*.md`, and `src/cli/audit/check-content-quality.ts` lints vague terms and generic instructions on a fixed QUALITY_TARGETS list (instruction files, skill-reference, public docs, ADRs, workflow/setup templates). Coverage is incomplete: footgun/lesson content is only schema-enforced via `stats --check` (status field and `(search:...)` anchors), not fact-checked. Cold-path surfaces outside these target lists still drift manually as code changes.
 
 **Evidence (verified by 8 independent critiques, 2026-04-15; recurrence confirmed by 4-critique cross-review, 2026-04-16):**
 
@@ -66,6 +66,20 @@ last_reviewed: 2026-04-24
 2. Extend path-integrity checks to cover code-map, glossary canonical-file paths, and convention claims
 3. Consider auto-generating audit docs from check code to prevent drift permanently
 4. Change Step 01 early-stop rule (`workflow/setup/01-system-overview.md` (search: `## State check`)) to require content-drift checks, not just structural audit pass
+
+---
+
+## Footgun: Hot-path agent instructions drift unevenly across agents
+
+**Status:** active | **Created:** 2026-04-27 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** One agent receives weaker release or routing guidance than the others even though all four instruction files are supposed to express the same core contract.
+
+**Why it happens:** Claude, Codex, Gemini, and Copilot use separate hot-path files with different compression levels. Cross-agent consistency checks cover a few structural sections, but not every command line or router-table detail.
+
+**Evidence:** A 2026-04-27 quality-review pass found `.github/copilot-instructions.md` needed the same release command now present at `.github/copilot-instructions.md` (search: `npm run test:full`) because it still told Copilot to run only the slow suite while `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` used `npm run test:full`. The same pass found `AGENTS.md` and `GEMINI.md` Shared skill reference rows omitted the ADR-023 topical files now visible at `AGENTS.md` (search: `skill-quality-testing/tdd-iteration.md`) and `GEMINI.md` (search: `skill-quality-testing/tdd-iteration.md`).
+
+**Prevention:** When changing Essential Commands or Router Table rows in one agent instruction file, grep all four hot-path files (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) for the same concept and update them together. Add preflight coverage when the row affects release validation or canonical reference discovery.
 
 ---
 

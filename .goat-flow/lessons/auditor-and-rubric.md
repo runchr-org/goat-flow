@@ -1,6 +1,6 @@
 ---
 category: auditor-and-rubric
-last_reviewed: 2026-04-13
+last_reviewed: 2026-04-27
 ---
 
 ## Lesson: Rubric changes require fixture expectation sync
@@ -21,7 +21,7 @@ Scanner and rubric changes can invalidate "known failing" fixture expectations e
 
 **What happened:** The `v0.10.0` block in `CHANGELOG.md` was replaced during an edit instead of being extended, so prior release deltas were effectively lost before being re-added later.
 
-**Evidence:** `CHANGELOG.md:5-14` after the overwrite step.
+**Evidence:** `CHANGELOG.md` (search: `Version bump from v0.10.0`) after the overwrite step.
 
 **Prevention:** When updating release notes, apply edits as additive patches and re-run `git diff CHANGELOG.md` to verify no existing top-level bullets were removed. For large release-note blocks, use a merge strategy: preserve current bullets, then append new bullets separately.
 

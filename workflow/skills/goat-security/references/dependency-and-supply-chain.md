@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # goat-security reference: dependency and supply chain
 
 Use this pack for lockfiles, install scripts, third-party actions, packages, registries, or release automation.

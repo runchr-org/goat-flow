@@ -4,11 +4,13 @@
  * All checks require --agent and skip in aggregate mode (except orphaned-artifacts detection).
  */
 import { execFileSync } from "node:child_process";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type { AuditFailure, BuildCheck, AuditContext } from "./types.js";
 import type { CheckEvidence } from "./provenance-types.js";
 import type { ReadonlyFS } from "../types.js";
 import { AUDIT_VERSION } from "../constants.js";
+import { getTemplatePath } from "../paths.js";
 
 const VERIFIED_ON = "2026-04-18";
 
@@ -32,6 +34,10 @@ function incidentProvenance(paths: string[]): CheckEvidence {
     normative_level: "MUST",
     evidence_paths: paths,
   };
+}
+
+function uniquePaths(paths: string[]): string[] {
+  return Array.from(new Set(paths));
 }
 
 // === 1. Agent Instruction ===
@@ -64,6 +70,29 @@ function checkInstructionPresent(ctx: AuditContext): AuditFailure | null {
   };
 }
 
+/** Check whether Copilot's required commit instruction bridge is installed. */
+function checkCopilotCommitInstructionsPresent(
+  ctx: AuditContext,
+): AuditFailure | null {
+  if (ctx.agentFilter !== null && ctx.agentFilter !== "copilot") return null;
+  if (!ctx.fs.exists(".github")) return null;
+  const copilotInstruction =
+    ctx.structure.agents.copilot?.instruction_file ??
+    ".github/copilot-instructions.md";
+  if (ctx.agentFilter === null && !ctx.fs.exists(copilotInstruction)) {
+    return null;
+  }
+  if (ctx.fs.exists(".github/git-commit-instructions.md")) return null;
+  return {
+    check: "Agent instruction file",
+    message:
+      "Missing: copilot (.github/git-commit-instructions.md required when .github/ exists)",
+    evidence: ".github/git-commit-instructions.md",
+    howToFix:
+      "Create .github/git-commit-instructions.md with the project's commit rules, then rerun `goat-flow audit --agent copilot`.",
+  };
+}
+
 /** Check for agent artifacts that remain after their instruction file was removed. */
 function checkOrphanedArtifacts(ctx: AuditContext): AuditFailure | null {
   if (!ctx.config.exists) return null;
@@ -83,18 +112,50 @@ function checkOrphanedArtifacts(ctx: AuditContext): AuditFailure | null {
   };
 }
 
+/** Return agent-specific provenance for the broad instruction-file check. */
+function agentInstructionProvenance(
+  ctx: AuditContext,
+  failure: AuditFailure | null,
+): CheckEvidence {
+  const paths = ["workflow/manifest.json", ".goat-flow/architecture.md"];
+  const failedAgentId = failure?.message.match(/\b([a-z]+) \([^)]+\)/)?.[1];
+  const agentId = ctx.agentFilter ?? failedAgentId;
+  const profile = agentId ? ctx.structure.agents[agentId] : undefined;
+  if (profile?.instruction_file) paths.push(profile.instruction_file);
+  if (
+    agentId === "copilot" ||
+    failure?.evidence === ".github/git-commit-instructions.md"
+  ) {
+    paths.push(
+      "workflow/setup/agents/copilot.md",
+      ".github/copilot-instructions.md",
+      ".github/git-commit-instructions.md",
+    );
+  }
+  return specProvenance(uniquePaths(paths));
+}
+
 const agentInstruction: BuildCheck = {
   id: "agent-instruction",
   name: "Agent instruction file",
   scope: "agent",
+  supportsAggregate: true,
   provenance: specProvenance([
     "workflow/manifest.json",
     ".goat-flow/architecture.md",
   ]),
+  provenanceFor: agentInstructionProvenance,
   /** Run the Agent instruction file check. */
   run: (ctx) => {
-    if (ctx.agentFilter) return checkInstructionPresent(ctx);
-    return checkOrphanedArtifacts(ctx);
+    if (ctx.agentFilter) {
+      return (
+        checkInstructionPresent(ctx) ??
+        checkCopilotCommitInstructionsPresent(ctx)
+      );
+    }
+    return (
+      checkOrphanedArtifacts(ctx) ?? checkCopilotCommitInstructionsPresent(ctx)
+    );
   },
 };
 
@@ -302,6 +363,33 @@ function checkDenyPatterns(ctx: AuditContext): AuditFailure | null {
   return null;
 }
 
+/** Compare installed deny hook content against the canonical template. */
+function checkHookVersion(ctx: AuditContext): AuditFailure | null {
+  const templatePath = getTemplatePath("workflow/hooks/deny-dangerous.sh");
+  if (!existsSync(templatePath)) return null;
+  let templateContent: string;
+  try {
+    templateContent = readFileSync(templatePath, "utf-8");
+  } catch {
+    return null;
+  }
+  for (const af of ctx.agents) {
+    if (!af.agent.hooksDir) continue;
+    const denyRelPath = join(af.agent.hooksDir, "deny-dangerous.sh");
+    const installed = ctx.fs.readFile(denyRelPath);
+    if (installed === null) continue;
+    if (installed.trimEnd() !== templateContent.trimEnd()) {
+      return {
+        check: "Agent deny mechanism",
+        message: `deny-dangerous.sh for ${af.agent.id} differs from the current goat-flow template (v${AUDIT_VERSION})`,
+        evidence: denyRelPath,
+        howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} setup --agent ${af.agent.id}\` to update the hook to the latest version.`,
+      };
+    }
+  }
+  return null;
+}
+
 /** Run each deny hook self-test when the script is present. */
 function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
@@ -315,13 +403,13 @@ function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
     try {
       execFileSync("bash", [denyPath, "--self-test"], {
         stdio: "pipe",
-        timeout: 10000,
+        timeout: 30000,
       });
     } catch {
       return {
         check: "Agent deny mechanism",
         message: `deny-dangerous.sh --self-test failed for ${af.agent.id}`,
-        evidence: `${af.agent.hooksDir}/deny-dangerous.sh`,
+        evidence: denyRelPath,
         howToFix:
           "Run `bash <hooks-dir>/deny-dangerous.sh --self-test` to see which cases fail.",
       };
@@ -347,6 +435,7 @@ const agentDenyMechanism: BuildCheck = {
       checkDenyHookPresent(ctx) ??
       checkHookSyntax(ctx) ??
       checkDenyPatterns(ctx) ??
+      checkHookVersion(ctx) ??
       checkHookSelfTest(ctx)
     );
   },

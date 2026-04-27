@@ -2,7 +2,7 @@
  * Contract test: verification routing boundaries (ADR-018).
  * Pins:
  *  - goat-qa quick-mode trigger no longer claims raw "verify" (now "verify coverage").
- *  - skill-preamble.md routes "verification planning" to /goat-qa (not bare "verification").
+ *  - /goat dispatcher routes "verification planning" to /goat-qa (not bare "verification").
  *  - every canonical goat-* skill template references the Proof Gate.
  */
 import { describe, it } from "node:test";
@@ -39,20 +39,20 @@ describe("verification routing boundaries (ADR-018)", () => {
     );
   });
 
-  it("skill-preamble.md routes 'verification planning' to /goat-qa, not bare 'verification'", () => {
+  it("/goat dispatcher routes 'verification planning' to /goat-qa, not bare 'verification'", () => {
     const content = readFileSync(
-      resolve(PROJECT_ROOT, ".goat-flow/skill-reference/skill-preamble.md"),
+      resolve(PROJECT_ROOT, "workflow/skills/goat/SKILL.md"),
       "utf-8",
     );
     assert.match(
       content,
-      /verification planning → \/goat-qa/,
-      "preamble routing must read 'verification planning → /goat-qa' (ADR-018)",
+      /\|\s*Testing gaps, coverage, verification planning\s*\|\s*`\/goat-qa`\s*\|/,
+      "/goat route map must route 'verification planning' to /goat-qa (ADR-018)",
     );
     assert.doesNotMatch(
       content,
-      /coverage, verification → \/goat-qa/,
-      "preamble routing must not use bare 'verification' as a goat-qa route (ADR-018)",
+      /\|\s*Testing gaps, coverage, verification\s*\|\s*`\/goat-qa`\s*\|/,
+      "/goat route map must not use bare 'verification' as a goat-qa route (ADR-018)",
     );
   });
 

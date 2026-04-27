@@ -4,23 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>goat-flow - AI coding agent harness for Claude Code, Codex, Gemini CLI & Copilot CLI</title>
-<meta name="description" content="An opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI. Audit, skills, hooks, and a learning loop that captures mistakes so they don't recur.">
+<meta name="description" content="The opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI. Guardrails, structured skills, and persistent memory so the same mistake doesn't happen twice.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://goat-flow.com">
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://goat-flow.com">
-<meta property="og:title" content="goat-flow - Guardrails and memory for your AI coding agent">
-<meta property="og:description" content="An opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI. Audit, skills, hooks, and a learning loop that captures mistakes so they don't recur.">
-<meta property="og:image" content="https://goat-flow.com/og-image.png">
+<meta property="og:title" content="goat-flow - Guardrails and memory for AI coding agents">
+<meta property="og:description" content="The opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI. Guardrails, structured skills, and persistent memory so the same mistake doesn't happen twice.">
+<meta property="og:image" content="https://goat-flow.com/goat-flow-og.jpg">
 <meta property="og:site_name" content="goat-flow">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="goat-flow - Guardrails and memory for your AI coding agent">
-<meta name="twitter:description" content="An opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI. Audit, skills, hooks, and a learning loop that captures mistakes so they don't recur.">
-<meta name="twitter:image" content="https://goat-flow.com/og-image.png">
+<meta name="twitter:title" content="goat-flow - Guardrails and memory for AI coding agents">
+<meta name="twitter:description" content="The opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI. Guardrails, structured skills, and persistent memory so the same mistake doesn't happen twice.">
+<meta name="twitter:image" content="https://goat-flow.com/goat-flow-og.jpg">
 
 <!-- Structured Data -->
 <script type="application/ld+json">
@@ -28,7 +28,7 @@
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "goat-flow",
-  "description": "An opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI. Audit, skills, hooks, and a learning loop that captures mistakes so they don't recur.",
+  "description": "The opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI. Guardrails, structured skills, and persistent memory so the same mistake doesn't happen twice.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "macOS, Linux, Windows",
   "offers": {
@@ -37,13 +37,66 @@
     "priceCurrency": "USD"
   },
   "url": "https://goat-flow.com",
+  "downloadUrl": "https://www.npmjs.com/package/@blundergoat/goat-flow",
+  "installUrl": "https://www.npmjs.com/package/@blundergoat/goat-flow",
   "author": {
     "@type": "Organization",
     "name": "BlunderGOAT",
     "url": "https://www.blundergoat.com"
   },
   "softwareRequirements": "Node.js",
-  "keywords": "AI coding agent, harness engineering, Claude Code, Codex, Gemini CLI, Copilot CLI"
+  "keywords": "AI coding agent, harness engineering, Claude Code, Codex, Gemini CLI, Copilot CLI, AI guardrails, agent safety, agent memory",
+  "featureList": "CLI audit system, structured slash-command skills, pre/post-action hooks, persistent learning loop, multi-agent harness scoring, deny-dangerous safety hook",
+  "isAccessibleForFree": true,
+  "license": "https://github.com/blundergoat/goat-flow/blob/main/LICENSE"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is harness engineering for AI coding agents?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Harness engineering is the practice of wrapping AI coding agents with guardrails, structured workflows, and persistent memory so they operate safely and reliably. A harness controls what files the agent can read, what commands it can run, what rules it must obey, and what it remembers across sessions."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What AI coding agents does goat-flow support?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "goat-flow supports Claude Code, Codex, Gemini CLI, and Copilot CLI. It provides agent-specific instruction files and scores each agent's harness completeness across five concerns: context, constraints, verification, recovery, and feedback loop."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I install goat-flow?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Run npx @blundergoat/goat-flow@latest dashboard to set up goat-flow on any project. Then run npx @blundergoat/goat-flow@latest audit --harness to verify your harness configuration. No global install required."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does goat-flow prevent AI agents from making dangerous changes?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "goat-flow uses pre-action hooks that block dangerous commands before they execute. The default deny-dangerous hook catches destructive filesystem commands like rm -rf, all git push, secret file reads, subshell escapes, and database truncation. These are hardcoded boundaries the model cannot bypass through prompt manipulation."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the goat-flow learning loop?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The learning loop captures every mistake as persistent context so the next session avoids it. It includes footguns (architectural traps with evidence), lessons (behavioural mistakes to avoid), decisions (Architecture Decision Records), and session logs for continuity across agents and sessions."
+      }
+    }
+  ]
 }
 </script>
 
@@ -613,7 +666,7 @@
 <body>
 
 <!-- ========== NAV ========== -->
-<nav class="nav">
+<nav class="nav" aria-label="Main navigation">
   <div class="nav-inner">
     <a href="#" class="logo">
       <span class="logo-mark">🐐</span>
@@ -623,12 +676,13 @@
       <a href="#pieces">Features</a>
       <a href="#skills">Skills</a>
       <a href="#why">Why</a>
-      <a href="#concerns">Background</a>
+      <a href="/what-is-harness-engineering">Guide</a>
       <a href="#install" class="nav-cta">Get started</a>
     </div>
   </div>
 </nav>
 
+<main>
 <!-- ========== HERO ========== -->
 <section class="hero">
   <div class="hero-glow"></div>
@@ -638,12 +692,12 @@
         <div class="eyebrow">AI harness engineering</div>
         <h1>Guardrails and memory<br><span class="brk">for your AI coding agent.</span></h1>
         <p class="hero-lead">
-          AI coding agents can skip verification, "accidentally" run harmful commands, and repeat the same mistakes at the worst time. <strong>That's not a prompting issue, it's a harness problem.</strong> goat-flow is an opinionated harness for Claude Code, Codex, Gemini CLI, and Copilot CLI.
+          Your AI coding agent will skip the test, leak the secret, and forget yesterday. <strong>That's not a prompting issue - it's a harness problem.</strong> goat-flow is the opinionated harness for teams shipping with Claude Code, Codex, Gemini CLI, and Copilot CLI - not just demoing them.
         </p>
         <div class="hero-install">
           <span class="dollar">$</span>
-          <span class="cmd" id="install-cmd">npm install -g goat-flow</span>
-          <button onclick="copyText('npm install -g goat-flow', this)">Copy</button>
+          <span class="cmd" id="install-cmd">npx @blundergoat/goat-flow@latest dashboard</span>
+          <button onclick="copyText('npx @blundergoat/goat-flow@latest dashboard', this)">Copy</button>
         </div>
         <div class="hero-ctas">
           <a href="#install" class="btn btn-primary">
@@ -658,7 +712,7 @@
       </div>
 
       <!-- Terminal mock -->
-      <p class="sr-only">Terminal output showing goat-flow audit results: 12 of 12 setup checks passing, harness scores for Claude Code (94%), Codex (91%), Gemini CLI (87%), and Copilot CLI (85%), plus five-concern coverage for context, constraints, verification, recovery, and feedback loop.</p>
+      <p class="sr-only">Terminal output showing goat-flow audit results: 17 of 17 build checks passing, harness scores for Claude Code (94%), Codex (91%), Gemini CLI (87%), and Copilot CLI (85%), plus five-concern coverage for context, constraints, verification, recovery, and feedback loop.</p>
       <div class="terminal" aria-hidden="true">
         <div class="terminal-bar">
           <span class="term-dot r"></span>
@@ -672,8 +726,8 @@
           <div style="height: 10px"></div>
           <div class="t-row">
             <span class="t-check">✓</span>
-            <span class="name">GOAT Flow setup</span>
-            <span class="val">12/12 installed</span>
+            <span class="name">Build checks</span>
+            <span class="val">17/17 passing</span>
           </div>
           <div class="t-section">Agent harness</div>
           <div class="t-row">
@@ -726,7 +780,7 @@
             <div class="t-bar"><div class="fill" style="width: 89%"></div></div>
             <span class="pct">89%</span>
           </div>
-          <div class="t-foot">27 advisory checks · all critical paths passing</div>
+          <div class="t-foot">16 harness checks · all critical paths passing</div>
         </div>
       </div>
     </div>
@@ -738,9 +792,9 @@
   <div class="container">
     <div class="narrative-card">
       <div class="eyebrow eyebrow-muted">Why harness engineering?</div>
-      <h2>The model isn't the product. The harness is.</h2>
+      <h2>Agents need better control systems.</h2>
       <p>
-        Every serious practitioner has converged on the same insight: the LLM is commodity, the scaffolding around it isn't. Files it can read, commands it can run, rules it must obey, memory it keeps across sessions. That's the harness. goat-flow gives you one, opinionated, out of the box.
+        Files it can read. Commands it can run. Rules it must obey. Memory it keeps across sessions. That's the harness - and it matters more than which model you pick. goat-flow gives you one, opinionated, out of the box.
       </p>
       <div class="agents-row">
         <span class="lbl">Supports</span>
@@ -772,7 +826,7 @@
         <div class="piece-num">01 / Audit</div>
         <h3>Pass/fail checks, no wiggle room</h3>
         <p>
-          Validates every file, skill, and hook the agent needs. Either it's installed or it isn't. Three scopes: goat-flow setup, per-agent configuration, and harness completeness across the five concerns.
+          Validates every file, skill, and hook the agent needs. Either it's installed or it isn't. Scores each agent's harness completeness across the five concerns.
         </p>
         <div class="sub">goat-flow audit --harness</div>
       </div>
@@ -786,7 +840,7 @@
         <div class="piece-num">02 / Skills</div>
         <h3>Structured slash commands</h3>
         <p>
-          Seven workflows with defined phases, named artifacts, and stopping points. Debug, plan, review, critique, security, QA - plus a dispatcher that routes your intent to the right skill.
+          Seven workflows with defined phases, named artefacts, and stopping points. Debug, plan, review, critique, security, QA - plus a dispatcher that routes your intent to the right skill.
         </p>
         <div class="sub">/goat, /goat-debug, /goat-plan...</div>
       </div>
@@ -800,7 +854,7 @@
         <div class="piece-num">03 / Hooks</div>
         <h3>Safety nets that can't be skipped</h3>
         <p>
-          Pre- and post-action guards fire before the agent can hurt anything. <code style="font-size: 12.5px; color: var(--accent);">deny-dangerous</code> ships by default, blocking rm -rf, force-push, secret exfiltration, and six other patterns.
+          Pre-action guards block dangerous commands before they run. Post-action guards catch silent breakage after. <code style="font-size: 12.5px; color: var(--accent);">deny-dangerous</code> ships by default, blocking destructive filesystem commands, all git push, secret exfiltration, and risky subshells.
         </p>
         <div class="sub">.goat-flow/hooks/</div>
       </div>
@@ -814,7 +868,7 @@
         <div class="piece-num">04 / Learning loop</div>
         <h3>Persistent memory across sessions</h3>
         <p>
-          Four kinds of records turn every mistake into next session's context. Footguns, lessons, decisions, session logs. The compounding bet: every session that hits a problem makes the next one harder to trip.
+          Footguns, lessons, decisions, session logs. Every mistake becomes next session's context. The compounding bet: every session that hits a problem makes the next one harder to trip.
         </p>
         <div class="sub">.goat-flow/lessons, /footguns, /decisions</div>
       </div>
@@ -845,7 +899,7 @@
         <span class="step-label">SCOPE</span>
         <h4>Declare what changes</h4>
         <p>List files that will be touched, and files that won't.</p>
-        <div class="prevents">Prevents <span>scope creep</span> - editing files the task never asked for.</div>
+        <div class="prevents">Prevents <span>surprise blast radius</span> - changing files nobody agreed to.</div>
       </div>
       <div class="loop-arrow">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
@@ -854,7 +908,7 @@
         <span class="step-label">ACT</span>
         <h4>Make the change</h4>
         <p>Edit only within the declared scope. Nothing else.</p>
-        <div class="prevents">Prevents <span>off-target edits</span> - changes made because they seemed related.</div>
+        <div class="prevents">Prevents <span>drift</span> - refactoring that seemed related while the agent was in there.</div>
       </div>
       <div class="loop-arrow">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
@@ -886,22 +940,22 @@
       </div>
       <div class="skill-row">
         <span class="skill-cmd">/goat-debug</span>
-        <span class="skill-desc">Diagnose bugs, explore code, investigate unfamiliar areas</span>
+        <span class="skill-desc">Diagnose bugs without accidentally rewriting the codebase end to end</span>
         <span class="skill-badge debug">Debug</span>
       </div>
       <div class="skill-row">
         <span class="skill-cmd">/goat-plan</span>
-        <span class="skill-desc">Plan features, refactors, and milestones with complexity routing</span>
+        <span class="skill-desc">Plan features, refactors, and milestones - scales from hotfix to system change</span>
         <span class="skill-badge plan">Plan</span>
       </div>
       <div class="skill-row">
         <span class="skill-cmd">/goat-review</span>
-        <span class="skill-desc">Review diffs and audit code quality with negative verification</span>
+        <span class="skill-desc">Review diffs and verify what shouldn't be there, not just what should</span>
         <span class="skill-badge review">Review</span>
       </div>
       <div class="skill-row">
         <span class="skill-cmd">/goat-critique</span>
-        <span class="skill-desc">Multi-lens critique to surface blind spots before shipping</span>
+        <span class="skill-desc">Surface blind spots from multiple angles before shipping</span>
         <span class="skill-badge critique">Critique</span>
       </div>
       <div class="skill-row">
@@ -923,12 +977,15 @@
   <div class="container">
     <div class="eyebrow">Hooks</div>
     <h2>Block dangerous actions before they run.</h2>
+    <p class="lead" style="margin-top: 12px;">
+      A system prompt is a suggestion. A hardcoded boundary is a rule. Hooks enforce boundaries at a layer the model cannot talk its way past.
+    </p>
 
     <div class="hooks-grid">
       <div class="hook-copy">
         <h3>Ships with sensible defaults</h3>
         <p>
-          <code style="color: var(--accent); font-size: 13.5px;">deny-dangerous</code> catches the patterns agents hit most often when they go off-script: destructive filesystem commands, force-pushes, secret file reads, subshell escapes, and database truncation.
+          <code style="color: var(--accent); font-size: 13.5px;">deny-dangerous</code> catches the patterns agents hit most often when they go off-script: destructive filesystem commands, all git push, secret file reads, subshell escapes, and database truncation.
         </p>
         <h3 style="margin-top: 24px;">Extend with your own</h3>
         <p>
@@ -943,7 +1000,7 @@
         </div>
         <div class="hook-block-body">
           <div class="hook-pattern"><span class="x">✗</span><span class="pat">rm -rf</span><span class="note">destructive</span></div>
-          <div class="hook-pattern"><span class="x">✗</span><span class="pat">git push --force</span><span class="note">history rewrite</span></div>
+          <div class="hook-pattern"><span class="x">✗</span><span class="pat">git push</span><span class="note">all pushes blocked</span></div>
           <div class="hook-pattern"><span class="x">✗</span><span class="pat">cat .env</span><span class="note">secret read</span></div>
           <div class="hook-pattern"><span class="x">✗</span><span class="pat">curl | sh</span><span class="note">exfiltration</span></div>
           <div class="hook-pattern"><span class="x">✗</span><span class="pat">eval, bash -c</span><span class="note">subshell escape</span></div>
@@ -962,7 +1019,7 @@
     <div class="eyebrow">Learning loop</div>
     <h2>The harness gets smarter every session.</h2>
     <p class="lead" style="margin-top: 12px;">
-      Agents forget everything between runs. Four kinds of persistent records make sure the same mistake doesn't happen twice.
+      Two things failed. Nothing remembered, and nothing stopped them. The learning loop fixes both.
     </p>
 
     <div class="records-grid">
@@ -993,7 +1050,7 @@
 <!-- ========== FIVE CONCERNS ========== -->
 <section id="concerns">
   <div class="container">
-    <div class="eyebrow">Background</div>
+    <div class="eyebrow">The framework</div>
     <h2>The five concerns of AI harness engineering.</h2>
     <p class="lead" style="margin-top: 12px;">
       The common ground across the public harness engineering literature. goat-flow scores every installed harness against these five.
@@ -1023,7 +1080,7 @@
     </div>
 
     <p class="citations">
-      Sources: <strong>Mitchell Hashimoto</strong>, <strong>Birgitta Böckeler (martinfowler.com)</strong>, <strong>Anthropic engineering</strong>, and <strong>HumanLayer</strong>. goat-flow synthesises these into a working system with strong defaults, rather than a framework you have to assemble yourself.
+      Sources: <strong>Mitchell Hashimoto</strong>, <strong>Birgitta Böckeler (martinfowler.com)</strong>, <strong>Anthropic engineering</strong>, and <strong>HumanLayer</strong>. goat-flow synthesises these into a working system with strong defaults.
     </p>
   </div>
 </section>
@@ -1033,26 +1090,21 @@
   <div class="container">
     <div class="install-inner">
       <div class="eyebrow">Get started</div>
-      <h2>Three commands and you're running.</h2>
+      <h2>From zero to passing audit in two commands.</h2>
       <p class="lead">
-        Install globally, set it up on any project, and start running skills through your agent of choice.
+        Set up on any project, verify the harness, then start running skills through your agent of choice.
       </p>
 
       <div class="install-steps">
         <div class="install-step">
           <span class="num">1</span>
-          <code>npm install -g goat-flow</code>
-          <button onclick="copyText('npm install -g goat-flow', this)">Copy</button>
+          <code>npx @blundergoat/goat-flow@latest dashboard</code>
+          <button onclick="copyText('npx @blundergoat/goat-flow@latest dashboard', this)">Copy</button>
         </div>
         <div class="install-step">
           <span class="num">2</span>
-          <code>goat-flow setup . --agent claude</code>
-          <button onclick="copyText('goat-flow setup . --agent claude', this)">Copy</button>
-        </div>
-        <div class="install-step">
-          <span class="num">3</span>
-          <code>goat-flow audit --harness</code>
-          <button onclick="copyText('goat-flow audit --harness', this)">Copy</button>
+          <code>npx @blundergoat/goat-flow@latest audit --harness</code>
+          <button onclick="copyText('npx @blundergoat/goat-flow@latest audit --harness', this)">Copy</button>
         </div>
       </div>
 
@@ -1063,6 +1115,8 @@
   </div>
 </section>
 
+</main>
+
 <!-- ========== FOOTER ========== -->
 <footer>
   <div class="footer-inner">
@@ -1072,7 +1126,6 @@
         GitHub
       </a>
       <a href="https://github.com/blundergoat/goat-flow#readme" target="_blank" rel="noopener">Docs</a>
-      <a href="https://www.blundergoat.com" target="_blank" rel="noopener">BlunderGOAT</a>
     </div>
     <div class="footer-copy">
       Built by <a href="https://www.blundergoat.com" target="_blank" rel="noopener" style="color: var(--accent);">BlunderGOAT</a> · Turning mistakes into frameworks.

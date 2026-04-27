@@ -232,8 +232,220 @@ while IFS= read -r hookdir; do
     fi
 done < <(manifest_eval hook-dirs)
 
-# ── Skill Template Versions ──────────────────────────────────────────
-section "Skill Template Versions"
+# ── Agent Config Parity ──────────────────────────────────────────────
+section "Agent Config Parity"
+agent_config_output=$(
+    node - "$MANIFEST_PATH" <<'NODE'
+const fs = require("node:fs");
+const path = require("node:path");
+
+const manifestPath = process.argv[2];
+const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+
+function exists(file) {
+  return typeof file === "string" && file.length > 0 && fs.existsSync(file);
+}
+
+function templateForSettings(agentId, settingsPath) {
+  const ext = path.posix.extname(settingsPath).replace(/^\./, "");
+  return `workflow/hooks/agent-config/${agentId}.${ext}`;
+}
+
+function templateForHookConfig(agentId) {
+  return `workflow/hooks/agent-config/${agentId}-hooks.json`;
+}
+
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function covers(actual, required) {
+  if (Array.isArray(required)) {
+    return (
+      Array.isArray(actual) &&
+      required.every((item) => actual.some((candidate) => covers(candidate, item)))
+    );
+  }
+  if (required && typeof required === "object") {
+    return (
+      actual &&
+      typeof actual === "object" &&
+      !Array.isArray(actual) &&
+      Object.keys(required).every(
+        (key) => Object.hasOwn(actual, key) && covers(actual[key], required[key]),
+      )
+    );
+  }
+  return Object.is(actual, required);
+}
+
+function describeValue(value) {
+  if (typeof value === "string") return value;
+  return stableJson(value);
+}
+
+function collectMissing(required, actual, location, missing) {
+  if (Array.isArray(required)) {
+    if (!Array.isArray(actual)) {
+      missing.push(`${location} is not an array`);
+      return;
+    }
+    for (const item of required) {
+      if (!actual.some((candidate) => covers(candidate, item))) {
+        missing.push(`${location} missing ${describeValue(item)}`);
+      }
+    }
+    return;
+  }
+  if (required && typeof required === "object") {
+    if (!actual || typeof actual !== "object" || Array.isArray(actual)) {
+      missing.push(`${location} is not an object`);
+      return;
+    }
+    for (const [key, value] of Object.entries(required)) {
+      if (!Object.hasOwn(actual, key)) {
+        missing.push(`${location}.${key} missing`);
+      } else {
+        collectMissing(value, actual[key], `${location}.${key}`, missing);
+      }
+    }
+    return;
+  }
+  if (!Object.is(actual, required)) {
+    missing.push(`${location} expected ${describeValue(required)}`);
+  }
+}
+
+function compareJson(templatePath, installedPath) {
+  const required = JSON.parse(fs.readFileSync(templatePath, "utf8"));
+  const installed = JSON.parse(fs.readFileSync(installedPath, "utf8"));
+  const missing = [];
+  collectMissing(required, installed, "$", missing);
+  return missing;
+}
+
+function normalizeTomlEntries(file) {
+  let section = "";
+  const entries = [];
+  for (const line of fs
+    .readFileSync(file, "utf8")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/#.*/, "").trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/\s*=\s*/g, " = ").replace(/\s+/g, " "))) {
+    const sectionMatch = line.match(/^\[([A-Za-z0-9_.-]+)\]$/);
+    if (sectionMatch) {
+      section = sectionMatch[1];
+      entries.push(`[${section}]`);
+      continue;
+    }
+    const keyMatch = line.match(/^([A-Za-z0-9_.-]+) = (.*)$/);
+    entries.push(keyMatch && section ? `${section}.${line}` : line);
+  }
+  return entries;
+}
+
+function compareToml(templatePath, installedPath) {
+  const installed = new Set(normalizeTomlEntries(installedPath));
+  return normalizeTomlEntries(templatePath)
+    .filter((line) => !installed.has(line))
+    .map((line) => `$ missing ${line}`);
+}
+
+function compareConfig(templatePath, installedPath) {
+  if (templatePath.endsWith(".json")) return compareJson(templatePath, installedPath);
+  if (templatePath.endsWith(".toml")) return compareToml(templatePath, installedPath);
+  return fs.readFileSync(templatePath, "utf8").trimEnd() ===
+    fs.readFileSync(installedPath, "utf8").trimEnd()
+    ? []
+    : ["$ content differs from template"];
+}
+
+function emit(status, message) {
+  console.log(`${status}\t${message}`);
+}
+
+let checked = 0;
+for (const [agentId, agent] of Object.entries(manifest.agents || {})) {
+  const settingsPath =
+    typeof agent.settings === "string" ? agent.settings : "";
+  const hookConfigPath =
+    typeof agent.hook_config_file === "string" ? agent.hook_config_file : "";
+  const specs = [];
+
+  if (settingsPath) {
+    specs.push({
+      agentId,
+      templatePath: templateForSettings(agentId, settingsPath),
+      installedPath: settingsPath,
+    });
+  }
+  if (hookConfigPath && hookConfigPath !== settingsPath) {
+    specs.push({
+      agentId,
+      templatePath: templateForHookConfig(agentId),
+      installedPath: hookConfigPath,
+    });
+  }
+
+  for (const spec of specs) {
+    checked += 1;
+    if (!exists(spec.templatePath)) {
+      emit("FAIL", `${spec.agentId}: missing template ${spec.templatePath}`);
+      continue;
+    }
+    if (!exists(spec.installedPath)) {
+      emit("FAIL", `${spec.agentId}: missing installed config ${spec.installedPath}`);
+      continue;
+    }
+    try {
+      const missing = compareConfig(spec.templatePath, spec.installedPath);
+      if (missing.length === 0) {
+        emit(
+          "PASS",
+          `${spec.agentId}: ${spec.installedPath} includes required entries from ${spec.templatePath}`,
+        );
+      } else {
+        const summary = missing.slice(0, 5).join("; ");
+        const suffix = missing.length > 5 ? `; +${missing.length - 5} more` : "";
+        emit(
+          "FAIL",
+          `${spec.agentId}: ${spec.installedPath} missing required entries from ${spec.templatePath}: ${summary}${suffix}`,
+        );
+      }
+    } catch (error) {
+      emit(
+        "FAIL",
+        `${spec.agentId}: could not compare ${spec.templatePath} to ${spec.installedPath}: ${error.message}`,
+      );
+    }
+  }
+}
+
+if (checked === 0) emit("SKIP", "No agent config files declared in manifest");
+NODE
+)
+while IFS=$'\t' read -r status message; do
+    if [[ -z "${status:-}" ]]; then
+        continue
+    fi
+    case "$status" in
+        PASS) pass "$message" ;;
+        FAIL) fail "$message" ;;
+        SKIP) skip "$message" ;;
+        *) fail "Agent config parity emitted unexpected result: $status $message" ;;
+    esac
+done <<< "$agent_config_output"
+
+# ── Skill and Reference Versions ─────────────────────────────────────
+section "Skill and Reference Versions"
 skill_version=$(node -e "console.log(require('./package.json').version)" 2>/dev/null || true)
 if [[ -z "$skill_version" ]]; then
     note "Could not read version from package.json"
@@ -267,6 +479,50 @@ else
         pass "All installed skills at version $skill_version"
     fi
 
+    reference_fail=0
+    while IFS= read -r -d '' f; do
+        ver=$(grep -o 'goat-flow-reference-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)
+        if [[ "$ver" != "$skill_version" ]]; then
+            fail "Reference template $f has version '$ver', expected '$skill_version'"
+            reference_fail=1
+        fi
+    done < <(find workflow/skills/reference -type f -name '*.md' -print0)
+    while IFS= read -r -d '' f; do
+        ver=$(grep -o 'goat-flow-reference-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)
+        if [[ "$ver" != "$skill_version" ]]; then
+            fail "Reference template $f has version '$ver', expected '$skill_version'"
+            reference_fail=1
+        fi
+    done < <(find workflow/skills -path '*/references/*.md' -print0)
+    if [[ "$reference_fail" -eq 0 ]]; then
+        pass "All workflow reference templates at version $skill_version"
+    fi
+
+    installed_reference_fail=0
+    if [[ -d .goat-flow/skill-reference ]]; then
+        while IFS= read -r -d '' f; do
+            ver=$(grep -o 'goat-flow-reference-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)
+            if [[ "$ver" != "$skill_version" ]]; then
+                fail "Installed shared reference $f has version '$ver', expected '$skill_version'"
+                installed_reference_fail=1
+            fi
+        done < <(find .goat-flow/skill-reference -type f -name '*.md' -print0)
+    fi
+    while IFS= read -r dir; do
+        if [[ -d "$dir" ]]; then
+            while IFS= read -r -d '' f; do
+                ver=$(grep -o 'goat-flow-reference-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)
+                if [[ "$ver" != "$skill_version" ]]; then
+                    fail "Installed skill reference $f has version '$ver', expected '$skill_version'"
+                    installed_reference_fail=1
+                fi
+            done < <(find "$dir" -path '*/references/*.md' -print0)
+        fi
+    done < <(manifest_eval skill-roots)
+    if [[ "$installed_reference_fail" -eq 0 ]]; then
+        pass "All installed references at version $skill_version"
+    fi
+
     # Shipped test fixtures: the installer round-trip integration test copies
     # these into a temp repo and runs preflight there. Catching stale versions
     # here avoids a 30s+ round-trip just to learn the fixture drifted.
@@ -281,8 +537,15 @@ else
                 fixtures_fail=1
             fi
         done < <(find test/fixtures -name 'SKILL.md' -print0)
+        while IFS= read -r -d '' f; do
+            ver=$(grep -o 'goat-flow-reference-version: "[^"]*"' "$f" | grep -o '"[^"]*"' | tr -d '"' || true)
+            if [[ "$ver" != "$skill_version" ]]; then
+                fail "Test fixture reference $f has version '$ver', expected '$skill_version'"
+                fixtures_fail=1
+            fi
+        done < <(find test/fixtures -path '*/references/*.md' -print0)
         if [[ "$fixtures_fail" -eq 0 ]]; then
-            pass "All test fixture skills at version $skill_version"
+            pass "All test fixture skills and references at version $skill_version"
         fi
     fi
 fi
@@ -320,6 +583,33 @@ if [[ -f package.json ]]; then
     done
 else
     skip "Version check (missing package.json)"
+fi
+
+# ── Skill Behavioral Contracts ───────────────────────────────────────
+section "Skill Behavioral Contracts"
+contract_ok=true
+bad_goat_critique_patterns=(
+    "Exception: on C""odex"
+    "C""odex requires ""explicit user ""delegation ""consent"
+    "confirm ""delegation ""consent once ""before spawning"
+)
+goat_critique_files=("workflow/skills/goat-critique/SKILL.md")
+while IFS= read -r agent_dir; do
+    [[ -d "$agent_dir" ]] || continue
+    goat_critique_files+=("${agent_dir}/goat-critique/SKILL.md")
+done < <(manifest_eval skill-roots)
+
+for f in "${goat_critique_files[@]}"; do
+    [[ -f "$f" ]] || continue
+    for pattern in "${bad_goat_critique_patterns[@]}"; do
+        if grep -Fq "$pattern" "$f"; then
+            fail "$f contains obsolete goat-critique delegation exception: $pattern"
+            contract_ok=false
+        fi
+    done
+done
+if [[ "$contract_ok" == true ]]; then
+    pass "goat-critique direct invocation has no obsolete Codex delegation exception"
 fi
 
 # ── Cross-Agent Loop Consistency ─────────────────────────────────────
@@ -382,12 +672,9 @@ if [[ -f tsconfig.json ]]; then
     if command -v npx >/dev/null 2>&1 && [[ -f eslint.config.mjs ]]; then
         lint_targets=(src/cli src/dashboard)
         lint_output=$(npx eslint "${lint_targets[@]}" 2>&1) && lint_exit=0 || lint_exit=$?
-        # grep -c always prints a count (even 0) and exits non-zero on zero
-        # matches. Using `|| echo 0` would double-up the output to "0\n0",
-        # breaking the downstream `-gt` arithmetic. Use `|| true` to swallow
-        # grep's non-zero exit but keep its printed count.
-        lint_errors=$(echo "$lint_output" | grep -c ' error ' || true)
-        lint_warnings=$(echo "$lint_output" | grep -c ' warning ' || true)
+        # Count only diagnostic rows, not ESLint's summary/fixability footer.
+        lint_errors=$(echo "$lint_output" | grep -Ec '^[[:space:]]*[0-9]+:[0-9]+[[:space:]]+error[[:space:]]' || true)
+        lint_warnings=$(echo "$lint_output" | grep -Ec '^[[:space:]]*[0-9]+:[0-9]+[[:space:]]+warning[[:space:]]' || true)
         if [[ "$lint_exit" -eq 0 ]]; then
             pass "ESLint ($lint_warnings warnings)"
         elif [[ "$lint_errors" -gt 0 ]]; then
@@ -441,19 +728,40 @@ fi
 # ── Tests ────────────────────────────────────────────────────────────
 if [[ -f package.json ]] && grep -q '"test"' package.json; then
     section "Tests"
-    test_output=$(npm test 2>&1) && test_exit=0 || test_exit=$?
+    if grep -q '"test:fast"' package.json; then
+        test_command=(npm run test:fast)
+        test_label="Fast suite passing"
+    else
+        test_command=(npm test)
+        test_label="All passing"
+    fi
+    test_output=$("${test_command[@]}" 2>&1) && test_exit=0 || test_exit=$?
 
     test_count=$(echo "$test_output" | grep '# tests' | grep -oE '[0-9]+' || echo "?")
     pass_count=$(echo "$test_output" | grep '# pass' | grep -oE '[0-9]+' || echo "?")
     fail_count=$(echo "$test_output" | grep '# fail' | grep -oE '[0-9]+' || echo "0")
 
     if [[ "$test_exit" -eq 0 ]] && [[ "$test_count" != "0" ]] && [[ "$test_count" != "?" ]]; then
-        pass "All passing ($pass_count/$test_count)"
+        pass "$test_label ($pass_count/$test_count)"
     elif [[ "$test_exit" -eq 0 ]] && [[ "$test_count" == "0" || "$test_count" == "?" ]]; then
         warn "No tests found ($pass_count/$test_count) - test suite needs rebuilding (M23)"
+    elif [[ "$test_label" == "Fast suite passing" ]]; then
+        retry_output=$("${test_command[@]}" 2>&1) && retry_exit=0 || retry_exit=$?
+        retry_test_count=$(echo "$retry_output" | grep '# tests' | grep -oE '[0-9]+' || echo "?")
+        retry_pass_count=$(echo "$retry_output" | grep '# pass' | grep -oE '[0-9]+' || echo "?")
+        retry_fail_count=$(echo "$retry_output" | grep '# fail' | grep -oE '[0-9]+' || echo "0")
+
+        if [[ "$retry_exit" -eq 0 ]] && [[ "$retry_test_count" != "0" ]] && [[ "$retry_test_count" != "?" ]]; then
+            warn "$test_label passed on retry after initial failure ($retry_pass_count/$retry_test_count); investigate transient test isolation"
+            printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/    initial: /' || true
+        else
+            fail "Tests failed after retry (initial $fail_count/$test_count failures, retry $retry_fail_count/$retry_test_count failures)"
+            printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/    initial: /' || true
+            printf '%s\n' "$retry_output" | grep 'not ok' | head -5 | sed 's/^/    retry: /' || true
+        fi
     else
         fail "Tests failed ($fail_count/$test_count failures)"
-        echo "$test_output" | grep 'not ok' | head -5 | sed 's/^/    /'
+        printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/    /' || true
     fi
 fi
 
@@ -627,6 +935,39 @@ if [[ -f dist/cli/audit/harness/index.js ]] && [[ -f src/dashboard/views/home.ht
     fi
 fi
 
+# B.8e: Dashboard view-name prose sync
+if [[ -f workflow/manifest.json ]] && [[ -f .goat-flow/architecture.md ]]; then
+    if dashboard_view_doc_check=$(node --input-type=module <<'NODE'
+import { readFileSync } from "node:fs";
+
+const manifest = JSON.parse(readFileSync("workflow/manifest.json", "utf8"));
+const views = [...manifest.facts.dashboard_views].sort();
+const expected = views.join(", ");
+const architecture = readFileSync(".goat-flow/architecture.md", "utf8");
+const requiredSnippets = [
+  `views for ${expected}`,
+  `Page views (${expected})`,
+];
+const missing = requiredSnippets.filter((snippet) => !architecture.includes(snippet));
+
+if (missing.length > 0) {
+  console.log(`Expected dashboard views: ${expected}`);
+  for (const snippet of missing) {
+    console.log(`Missing architecture snippet: ${snippet}`);
+  }
+  process.exit(1);
+}
+NODE
+    ); then
+        pass "Dashboard view names match manifest and architecture prose"
+    else
+        fail "Dashboard view names drift between manifest and architecture prose"
+        while IFS= read -r line; do
+            printf '    %s\n' "$line"
+        done <<< "$dashboard_view_doc_check"
+    fi
+fi
+
 # ── Preamble/Conventions Sync ────────────────────────────────────────
 section "Preamble/Conventions Sync"
 if [[ -f workflow/skills/reference/skill-preamble.md ]] && [[ -f .goat-flow/skill-reference/skill-preamble.md ]]; then
@@ -646,6 +987,15 @@ if [[ -f workflow/skills/reference/skill-conventions.md ]] && [[ -f .goat-flow/s
     fi
 else
     skip "skill-conventions.md sync (one or both files missing)"
+fi
+if [[ -f workflow/skills/reference/browser-use.md ]] && [[ -f .goat-flow/skill-reference/browser-use.md ]]; then
+    if diff -q workflow/skills/reference/browser-use.md .goat-flow/skill-reference/browser-use.md >/dev/null 2>&1; then
+        pass "browser-use.md: template and installed copy match"
+    else
+        fail "browser-use.md: template (workflow/skills/reference/) and installed (.goat-flow/skill-reference/) differ"
+    fi
+else
+    skip "browser-use.md sync (one or both files missing)"
 fi
 if [[ -f workflow/skills/reference/skill-quality-testing.md ]] && [[ -f .goat-flow/skill-reference/skill-quality-testing.md ]]; then
     if diff -q workflow/skills/reference/skill-quality-testing.md .goat-flow/skill-reference/skill-quality-testing.md >/dev/null 2>&1; then

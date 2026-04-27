@@ -21,7 +21,7 @@ This is a **Node.js CLI tool** (not a browser app, not React/Vue). Pure TypeScri
 ## Testing
 
 - Framework: `node:test` (describe/it) + `node:assert/strict`
-- Run: `npm test` (uses tsx loader: `node --import tsx --test 'test/**/*.test.ts'`)
+- Run: `npm test` for the fast preflight suite; use `npm run test:slow` for the nested preflight/dashboard integration suite and `npm run test:full` before release-sensitive changes.
 - Tests in `test/` mirroring `src/cli/` structure
 - `createMockFS()` from `test/helpers/mock-fs.ts` for filesystem tests -- never touch real disk
 - `createTestProject()` from `test/helpers/test-project.ts` for integration fixtures

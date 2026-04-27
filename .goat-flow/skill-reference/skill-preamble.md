@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # Skill Preamble
 
 All goat-* skills read this preamble on every invocation. For full-depth work,
@@ -8,6 +11,10 @@ also read `skill-conventions.md`.
 ## Execution Loop Integration
 
 When a goat-* skill is active, the skill's Step 0 replaces READ and selects the skill's mode/depth. SCOPE still applies before any file write: skills with write phases (e.g. `/goat-plan` Phase 2, `/goat-debug` D3) gate on explicit approval. Resume the loop at ACT when the skill's first blocking gate releases.
+
+## Report-Only Skill Contract
+
+`/goat-critique`, `/goat-review`, `/goat-qa`, and `/goat-security` are report-only by default. They may produce findings, plans, recommendations, and required gitignored logs or snapshots, but MUST NOT mutate the target artifact or committed files unless the user separately says to apply, edit, update, fix, or otherwise implement the changes.
 
 ## Severity Scale
 
@@ -22,7 +29,9 @@ Order findings by severity, not by file or discovery order.
 
 ## Evidence Standard
 
-- Every finding MUST include file evidence - either `file:line` when the specific line demonstrates the issue, or `file` when the trap is file-level. Path-only evidence is valid when a line number would be fabricated.
+- Every live review finding MUST include file evidence - use `file:line` when the specific line demonstrates the issue, or `file` when the trap is file-level. Path-only evidence is valid when a line number would be fabricated.
+- For URL, local HTML, localhost, screenshot, rendered UI, or browser-visible tasks, check `.goat-flow/skill-reference/browser-use.md` and run `command -v browser-use && browser-use doctor` before claiming browser automation is unavailable.
+- Durable learning-loop artifacts (footguns, lessons, patterns, decisions) MUST use file paths plus grep-friendly semantic anchors (function name, unique string, or `(search: "pattern")`) instead of line numbers.
 - MUST NOT fabricate file paths, function names, or artifact content
 - Before presenting findings, re-read each cited `file:line` to confirm accuracy
 - Tag evidence quality: **OBSERVED** (directly verified in code) vs **INFERRED** (deduced but not directly confirmed - state what direct evidence is missing)
@@ -40,13 +49,13 @@ Before any completion, fix, or "passing" claim:
 2. **Run** it fresh in this session (not recalled, not from a prior turn, not paraphrased).
 3. **Read** the full output, including exit code.
 4. **Verify** the output demonstrates the specific claim, not an adjacent one.
-5. **Cite** `file:line` for code claims, or the literal pass/fail summary line for command claims.
+5. **Cite** `file:line` for live code claims, semantic anchors for durable learning-loop artifacts, or the literal pass/fail summary line for command claims.
 
 The red-flags name what NOT to claim; this gate names HOW to substantiate a claim. If you cannot run the proof in this session, mark the claim **UNVERIFIED** and state what evidence is missing. Never substitute "should work", "probably fine", "looks good", or a confidence score.
 
 ## Ceremony Level
 
-Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
+Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks. This table is **pre-invocation routing guidance** - use it when deciding which skill to invoke. Once the user explicitly invokes a skill, run its full protocol regardless of complexity.
 
 | Complexity | Ceremony |
 |------------|----------|
@@ -61,31 +70,9 @@ Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks.
 - **Full:** all phases, multi-perspective critique if planning, full output format
 - If arriving from the dispatcher with depth already chosen, skip the depth question
 
-## Routing
+## Routing Boundary
 
-When invoked via /goat or when intent is ambiguous:
-
-**Route by intent:**
-- Bug, failure, investigation → /goat-debug
-- Quality review, audit → /goat-review
-- Multi-perspective critique → /goat-critique
-- Security, compliance, dependency audit → /goat-security
-- Testing gaps, coverage, verification planning → /goat-qa
-- Feature planning, milestones → /goat-plan
-- Simple implementation (rename, add log, move constant) → no skill, use execution loop directly
-- Simple question → answer directly
-
-**Planning intake:** Planning requests route directly to `/goat-plan`; the skill's Step 0 detects read-only-analysis vs file-write intent from the user's phrasing - no depth question at the dispatcher.
-**Clarification:** If ambiguous, ask ONE question.
-**Override:** If the user names a skill explicitly, respect it.
-
-| Input | Options |
-|-------|---------|
-| "check the auth code" | debug vs review vs security |
-| "analyse/evaluate/critique this" | review vs critique vs plan (depends on artifact type) |
-| "get a second opinion" | critique vs review |
-| "assess the setup" | review vs security (depends on concern) |
-| "refactor the tests" | plan vs qa |
+Dispatcher-specific route maps live in `/goat`, not in this shared preamble. Direct planning requests route to `/goat-plan`; `/goat-plan` owns `.goat-flow/tasks/.active` lookup, existing-plan discovery, and milestone-mode selection. If the user names a skill explicitly, respect it.
 
 ## No-Skill Fast Path
 
@@ -128,6 +115,8 @@ After completing the skill, check if this run uncovered anything worth logging:
 - Successful repeatable approach → `## Pattern:` entry in `.goat-flow/patterns.md`
 - Architectural trap with file evidence → `## Footgun:` entry in `.goat-flow/footguns/` category bucket
 
+**Routing rule:** When the user asks to "add a footgun" or "add a lesson", create a documentation entry in the correct `.goat-flow/` directory. Do not implement runtime code, logging, UI warnings, or test assertions - those are code changes, not artifact creation. Read the target directory's `README.md` before editing.
+
 **Bucket file frontmatter.** Every footgun / lesson bucket file starts with:
 
 ```yaml
@@ -143,3 +132,4 @@ When you add an entry or materially edit the body of a bucket file, bump `last_r
 
 - **BLOCKING GATE** - stop and wait for human decision. Used for: scope approval, phase transitions, final review.
 - **CHECKPOINT** - present status and continue unless interrupted.
+- **Never self-destruct** - skill outputs (plans, milestones, findings, reports) MUST NOT include instructions to delete themselves. Plan and milestone files are verification artifacts the human needs to review. Cleanup of working artifacts is the human's decision, not the agent's.

@@ -33,7 +33,7 @@ External pattern mining (superpowers/verification-before-completion, systematic-
 
 2. **Shared Proof Gate in the preamble.** Add a `## Proof Gate` section to `workflow/skills/reference/skill-preamble.md` (and installed copy `.goat-flow/skill-reference/skill-preamble.md`) after `## Evidence Standard`. The Proof Gate names the positive procedure (Identify → Run fresh → Read → Verify → Cite) that substantiates claims. It is the complement to the 5 hallucination red-flags, which name the violations.
 
-3. **Routing hygiene - stop goat-qa from over-claiming "verify".** Update `skill-preamble.md` routing from "Testing gaps, coverage, verification → /goat-qa" to "Testing gaps, coverage, verification planning → /goat-qa". Update `goat-qa/SKILL.md` quick-mode trigger from `"verify"` to `"verify coverage"`. Add explicit redirection lines in `goat-qa`'s "NOT this skill" block: bug-fix verification → `/goat-debug`, diff/PR verification → `/goat-review`, completion certification → Proof Gate.
+3. **Routing hygiene - stop goat-qa from over-claiming "verify".** Update the dispatcher route map from "Testing gaps, coverage, verification → /goat-qa" to "Testing gaps, coverage, verification planning → /goat-qa". Update `goat-qa/SKILL.md` quick-mode trigger from `"verify"` to `"verify coverage"`. Add explicit redirection lines in `goat-qa`'s "NOT this skill" block: bug-fix verification → `/goat-debug`, diff/PR verification → `/goat-review`, completion certification → Proof Gate. The route map now lives in `workflow/skills/goat/SKILL.md`; `skill-preamble.md` keeps the shared Proof Gate and universal guidance only.
 
 4. **One-line Proof Gate reference at each skill's primary claim-making moment.** Add a short reference to the Proof Gate in each of the 7 skills' handoff / BLOCKING GATE / DoD / milestone-close positions so the reminder fires pedagogically, not only as inherited policy.
 
@@ -45,12 +45,12 @@ External pattern mining (superpowers/verification-before-completion, systematic-
 
 6. **Capture the one genuinely new behavioural insight as a lesson.** Rationalization anti-patterns ("Confidence ≠ evidence", "Just this once", "Partial check is enough", etc.) go into `.goat-flow/lessons/verification.md` as a new `## Lesson:` entry. This is the excuse-pattern catalog the red-flags do not explicitly enumerate.
 
-7. **Deterministic text-contract tests.** Extend `test/integration/preamble-sync.test.ts` to assert the `## Proof Gate` heading exists in both preamble copies. Add `test/integration/verification-boundaries.test.ts` to pin: goat-qa trigger does not claim raw `"verify"`; preamble routing says "verification planning"; every canonical skill references "Proof Gate".
+7. **Deterministic text-contract tests.** Extend `test/integration/preamble-sync.test.ts` to assert the `## Proof Gate` heading exists in both preamble copies. Add `test/integration/verification-boundaries.test.ts` to pin: goat-qa trigger does not claim raw `"verify"`; the `/goat` dispatcher route map says "verification planning"; every canonical skill references "Proof Gate".
 
 ## Consequences
 
 - **Blast radius contained.** No canonical-skill-count changes. No edits to `workflow/install-goat-flow.sh`, `src/cli/constants.ts`, `workflow/manifest.json`, or `test/integration/audit-drift.test.ts:76`. The 3 hardest drift surfaces stay untouched.
-- **Hot/cold path distinction preserved.** Hot path (`AGENTS.md`) remains within its 150-line budget (`.goat-flow/architecture.md:59-61`). Cold-path shared doctrine (`skill-preamble.md`) absorbs the new Proof Gate following the existing shared-preamble pattern.
+- **Hot/cold path distinction preserved.** Hot path (`AGENTS.md`) remains within its 150-line budget (`.goat-flow/architecture.md:59-61`). Cold-path shared doctrine (`skill-preamble.md`) absorbs the new Proof Gate following the existing shared-preamble pattern, while dispatcher-only routing stays in `/goat`.
 - **Verification discipline strengthens without routing complexity.** Every skill's output moment is governed by the Proof Gate via inheritance plus an explicit one-line reference, while each skill retains domain-specific gate semantics (confidence scales, severity tags, testing gates).
 - **Rollback is trivial.** Revert the preamble Proof Gate section, the one-line references in 7 skills, the goat-debug domain patches, the lesson entry, and this ADR. No persisted state (config, manifest, constants) to unwind. Single `git revert` discharges the change.
 
@@ -66,7 +66,8 @@ If any precondition fires, the new ADR's implementation must touch the 3 hardcod
 
 ## References
 
-- `.goat-flow/skill-reference/skill-preamble.md` - Proof Gate added after Evidence Standard; Routing line tightened to "verification planning".
+- `.goat-flow/skill-reference/skill-preamble.md` - Proof Gate added after Evidence Standard.
+- `workflow/skills/goat/SKILL.md` - dispatcher route map tightened to "verification planning".
 - `workflow/skills/goat-debug/SKILL.md` - D1 boundary instrumentation, D2 causation/necessity/sufficiency + 5-Whys, D4 3-fix rule + Proof Gate reference.
 - `workflow/skills/goat-qa/SKILL.md` - trigger "verify" → "verify coverage"; expanded NOT-this-skill routing.
 - `workflow/skills/{goat, goat-plan, goat-review, goat-critique, goat-security}/SKILL.md` - Proof Gate one-line references.

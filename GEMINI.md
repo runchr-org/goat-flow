@@ -1,4 +1,4 @@
-# GEMINI.md - v1.2.5 (2026-04-23)
+# GEMINI.md - v1.3.0 (2026-04-25)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash validation scripts + TypeScript CLI/dashboard.
 ## Essential Commands
 
@@ -8,7 +8,9 @@ bash -n scripts/*.sh scripts/maintenance/*.sh                                   
 bash .gemini/hooks/deny-dangerous.sh --self-test  # Verify deny-hook runtime behaviour
 npm run typecheck                                   # Type-check .ts (required by DoD)
 bash scripts/preflight-checks.sh         # Full preflight gate
-npm test                                          # Run test suite
+bash scripts/bump-version.sh <patch|minor|major|X.Y.Z>  # Bump package/docs/templates/mirrors
+npm test                                          # Run fast test suite (excludes slow integration/dashboard)
+npm run test:full                                 # Run fast + slow suites before release-sensitive changes
 node --import tsx src/cli/cli.ts stats . --check  # Learning-loop health: last_reviewed + stale refs
 ```
 ## Truth Order
@@ -20,7 +22,7 @@ node --import tsx src/cli/cli.ts stats . --check  # Learning-loop health: last_r
 
 ## Execution Loop: READ → SCOPE → ACT → VERIFY
 
-**READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns.md`; include `.goat-flow/decisions/` when the task involves architecture, policy, or setup work. Open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
+**READ** - MUST read relevant files before changes. Never fabricate codebase facts. For URL, local HTML, localhost, screenshot, rendered UI, or browser-visible behaviour, check browser evidence first: `command -v browser-use && browser-use doctor`; if available use `browser-use open/state/screenshot`, otherwise ask before installing or use manual fallback. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns.md`; include `.goat-flow/decisions/` when the task involves architecture, policy, or setup work. Open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
 ```
 BAD:  "The CLI has 20 audit checks" (guessed without reading)
 GOOD: Read src/cli/audit/check-goat-flow.ts → 13 setup checks, check-agent-setup.ts → 4 agent checks (17 total)
@@ -42,7 +44,7 @@ Over budget = checkpoint and re-classify before continuing. Budgets are heuristi
 | Mode | Behaviour |
 |------|-----------|
 | Plan | Produce artefact only. File writes (e.g. milestone files) only on explicit approval. Exit on LGTM |
-| Implement | Edit in 2-3 turns. 4th read without writing = stop |
+| Implement | Edit in 2-3 turns. 4th read without writing = checkpoint or re-scope |
 | Explain | Walkthrough only. No changes unless asked |
 | Debug | Diagnosis with file:line first. Fixes after human reviews |
 | Review | Investigate first. Never blindly apply suggestions |
@@ -60,31 +62,20 @@ Over budget = checkpoint and re-classify before continuing. Budgets are heuristi
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-If VERIFY caught a failure or you corrected course, update the learning loop before DoD:
-- Lessons: `.goat-flow/lessons/` category bucket files (e.g. `verification.md`, `agent-behavior.md`). Add `## Lesson: <name>` entry with `**Created:** YYYY-MM-DD` then content.
-- Footguns: `.goat-flow/footguns/` category bucket files (e.g. `hooks.md`, `auditor.md`). Add `## Footgun: <name>` entry with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` then content with file evidence using grep-friendly semantic anchors.
+If VERIFY caught a failure or you corrected course, update the learning loop before DoD: behavioural mistakes go in `.goat-flow/lessons/`, cross-doc architectural traps go in `.goat-flow/footguns/` with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED` and semantic-anchor file evidence, significant technical decisions go in `.goat-flow/decisions/`, and optional `/compact` continuity notes go in `.goat-flow/logs/sessions/`.
 
-| File | When to update |
-|------|---------------|
-| `.goat-flow/lessons/` | Behavioural mistake (agent did something wrong) |
-| `.goat-flow/footguns/` | Cross-doc architectural trap (with file evidence + semantic anchors) |
-| `.goat-flow/decisions/` | Significant technical decision with context/rationale |
-| `.goat-flow/logs/sessions/` | Optional. On `/compact` without an active milestone file, write `YYYY-MM-DD-slug.md` continuity summary |
+## Artifact Routing
+
+When asked to add, create, or update a goat-flow artifact, route it to the artifact directory, not runtime code: footguns -> `.goat-flow/footguns/<category>.md`; lessons -> `.goat-flow/lessons/<category>.md`; decisions -> `.goat-flow/decisions/ADR-NNN.md`; patterns -> `.goat-flow/patterns.md`. Before editing, read the target directory's `README.md`; do not treat artifact requests as runtime-code requests unless the user explicitly asks for code too.
 
 ## Autonomy Tiers
 
 **Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when `/compact` fires without an active milestone file, otherwise skip. Learning-loop updates (lessons/footguns/decisions) follow the conditional rules above: update only when VERIFY caught a failure or you corrected course.
 
 **Ask First** (MUST complete before proceeding):
-- [ ] Boundary touched: [name]
-- [ ] Related code read: [yes/no]
-- [ ] Footgun entry checked: [relevant entry, or "none"]
-- [ ] Local instruction checked: [local GEMINI.md / none]
-- [ ] Rollback command: [exact command]
+Before proceeding, state boundary touched, related code read, footgun entry checked, local instruction checked, and exact rollback command. Boundaries: `.goat-flow/architecture.md`, `.goat-flow/skill-reference/**`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `workflow/setup/**`, `workflow/skills/**`, `workflow/manifest.json`, `src/cli/server/terminal.ts`, `src/cli/server/dashboard.ts`, `.github/workflows/**`, `.github/actions/**`, `.github/hooks/**`, `.github/skills/**`, `.github/copilot-instructions.md`, `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/skills/`, renaming/moving files, 3+ doc file changes.
 
-Boundaries: `.goat-flow/architecture.md`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `workflow/setup/**`, `workflow/skills/**`, `workflow/manifest.json` (canonical agent inventory), `src/cli/server/terminal.ts` (PTY runtime), `src/cli/server/dashboard.ts` (local HTTP/WS server), `.github/workflows/**`, `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/skills/`, renaming/moving files, 3+ doc file changes.
-
-**Never:** Delete docs without replacement. Modify secrets/.env. Push to main. Change security config. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`)
+**Never:** Delete docs without replacement. Modify secrets/.env. Push. Commit unless asked. Change security config. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`). If interrupted or told no changes, freeze writes; run only read-only status/diff checks until the user explicitly asks for cleanup, revert, or apply.
 
 ## Definition of Done
 
@@ -105,17 +96,10 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 
 | Resource | Path |
 |----------|------|
-| Architecture | `.goat-flow/architecture.md` |
-| CLI auditor/prompt code | `src/cli/` |
-| Scripts | `scripts/` |
-| Workflow source | `workflow/` (setup, skills, hooks, evaluation) |
-| Skills | `.agents/skills/` (goat, goat-critique, goat-debug, goat-plan, goat-qa, goat-review, goat-security) |
-| Footguns (most-queried) | `.goat-flow/footguns/` |
-| Lessons | `.goat-flow/lessons/` |
-| Patterns | `.goat-flow/patterns.md` |
-| Decisions | `.goat-flow/decisions/` |
-| Config | `.goat-flow/config.yaml` |
-| Dashboard source | `src/dashboard/` |
-| Documentation | `docs/` |
-| Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
+| Core docs/config | `.goat-flow/architecture.md`, `.goat-flow/config.yaml`, `docs/` |
+| CLI/dashboard/scripts | `src/cli/`, `src/dashboard/`, `scripts/` |
+| Workflow/skills | `workflow/`, `.agents/skills/` |
+| Shared skill reference | `.goat-flow/skill-reference/`, `.goat-flow/skill-reference/skill-preamble.md`, `.goat-flow/skill-reference/skill-conventions.md`, `.goat-flow/skill-reference/browser-use.md`, `.goat-flow/skill-reference/skill-quality-testing.md`, `.goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md`, `.goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md`, `.goat-flow/skill-reference/skill-quality-testing/deployment.md` |
+| Learning loop | `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns.md`, `.goat-flow/decisions/` |
+| Workspace notes | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
 | Peer instructions | `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md` |

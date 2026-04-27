@@ -18,7 +18,7 @@ flowchart LR
 | Skill | Purpose | Hard Gate | When to Use |
 |-------|---------|-----------|-------------|
 | [/goat](#goat--dispatcher) | Route to the right skill | -- | When intent is ambiguous; skip for simple implementations (the no-skill fast path in `skill-preamble.md`) |
-| [/goat-debug](#goat-debug) | Diagnosis-first debugging + investigate mode | No fixes until human reviews diagnosis | Bug or test failure, exploring unfamiliar code |
+| [/goat-debug](#goat-debug) | Diagnosis-first debugging + investigate mode + browser evidence | No fixes until human reviews diagnosis | Bug or test failure, UI issues, exploring unfamiliar code |
 | [/goat-plan](#goat-plan) | Milestone planning with testing gates | Human approval between milestones | Before non-trivial implementation |
 | [/goat-review](#goat-review) | Structured code review + quality audit | Negative verification before presenting findings | Before merging, quality audits |
 | [/goat-critique](#goat-critique) | Multi-perspective critique of any artifact | Runs only with delegated sub-agents; blocks on unresolved disputes before synthesis | High-stakes decisions, plans, assessments |
@@ -39,6 +39,7 @@ flowchart LR
 | "How should we build this feature?" | /goat-plan | Planning before implementing |
 | "Are these changes safe to merge?" | /goat-review | Reviewing changes, not finding new issues |
 | "How do we verify coverage for this work?" | /goat-qa | Risk-based testing gap analysis (planning, not execution) |
+| "The UI is broken / rendering wrong" | /goat-debug | Browser evidence capture via browser-use CLI |
 | "Is this bug fix verified?" | /goat-debug | Re-run the original repro and adjacent regressions |
 | "Is this diff/PR verified?" | /goat-review | Two-pass review with Review Integrity |
 | "Is this plan/assessment sound?" | /goat-critique | Multi-perspective critique before shipping |
@@ -63,6 +64,7 @@ The dispatcher classifies intent conversationally - not by keyword lookup. It as
 | Intent | Skill |
 |--------|-------|
 | Bug, error, symptom, crash | /goat-debug (diagnose) |
+| UI bug, rendering issue, browser-visible symptom | /goat-debug (diagnose + browser evidence) |
 | Explore, understand, new to this | /goat-debug (investigate) |
 | Review changes, PR, diff | /goat-review (quick review) |
 | Quality sweep, audit | /goat-review (audit) |
@@ -71,7 +73,7 @@ The dispatcher classifies intent conversationally - not by keyword lookup. It as
 | Test gaps, coverage, verification planning | /goat-qa |
 | Critique a plan/assessment | /goat-critique |
 
-**Planning Route:** For planning requests, the dispatcher reads `.goat-flow/tasks/.active` (one-line marker naming the active plan subdir) to find existing plans, then routes based on complexity: Hotfix → direct execution; Small Feature → compressed brief → `/goat-plan`; Standard → feature brief → `/goat-plan`; System/Infrastructure → feature brief → `/goat-plan` → suggest `/goat-critique`. `/goat-plan` defaults to File-Write at Standard+ scope when no analysis signals are present; analysis signals ("break this down for me", "how would you approach") trigger Read-Only Analysis mode instead.
+**Planning Route:** For planning requests, the dispatcher routes intent only: Hotfix → direct execution; anything larger → `/goat-plan`. `/goat-plan` owns `.goat-flow/tasks/.active` lookup, existing-plan discovery, complexity classification, and milestone-mode selection. `/goat-plan` defaults to File-Write at Standard+ scope when no analysis signals are present; analysis signals ("break this down for me", "how would you approach") trigger Read-Only Analysis mode instead.
 
 ---
 
@@ -82,28 +84,31 @@ Diagnosis-first debugging and codebase investigation.
 | Mode | Trigger | What it does |
 |------|---------|-------------|
 | **Diagnose** | bug, error, crash, symptom | Hypothesis-driven debugging with confidence-gated fixes |
+| **Diagnose (UI)** | UI bug, rendering issue, browser-visible symptom | Browser evidence capture via `browser-use` CLI, then hypothesis-driven debugging |
 | **Investigate** | explore, understand, how does, new to this | Deep codebase reading with progressive depth and evidence tags |
 
 **Diagnose mode:**
 
 ```mermaid
 flowchart TD
-    S0["Step 0\nGather context\nFootgun check"] --> D1
+    S0["Step 0\nGather context\nFootgun check\nUI bug detection"] --> D1
 
     subgraph Diagnose["Diagnose Mode"]
-        D1["D1: Investigate\nHypotheses (2+ categories)\nTrace code paths"] --> D2
-        D2["D2: Diagnosis\nConfidence: HIGH/MEDIUM/LOW"]
+        D1["D1: Investigate\nHypotheses (2+ categories)\nTrace code paths"] --> BrowserCheck{UI bug?}
+        BrowserCheck -->|Yes| Browser["Browser evidence\nbrowser-use open/state/screenshot\nOBSERVED data"]
+        BrowserCheck -->|No| D2
+        Browser --> D2["D2: Diagnosis\nConfidence: HIGH/MEDIUM/LOW"]
     end
 
     D2 -->|"BLOCKING GATE"| Decision{Human decision}
     Decision -->|"Fix it"| D3["D3: Fix Plan"]
     Decision -->|"Go deeper"| D1
     Decision -->|"Just report"| Close
-    D3 --> D4["D4: Post-Fix Verification"]
+    D3 --> D4["D4: Post-Fix Verification\n+ browser re-verification for UI bugs"]
     D4 -->|"CHECKPOINT"| Close["Closing\nLearning loop"]
 ```
 
-No fixes until human reviews diagnosis. Confidence levels: HIGH = reproduced, MEDIUM = traced but not reproduced, LOW = inferred from code reading.
+No fixes until human reviews diagnosis. Confidence levels: HIGH = reproduced, MEDIUM = traced but not reproduced, LOW = inferred from code reading. For UI bugs, Step 0 detects browser-visible symptoms and loads `references/browser-use.md` on-demand. D1 uses browser evidence (screenshots, DOM state) to confirm or eliminate hypotheses after initial code reading. D4 reruns the browser reproduction post-fix as proof. Browser evidence is OBSERVED data; interpretations remain INFERRED until mapped to `file:line`. When `browser-use` is unavailable, the reference includes a manual fallback using OS screenshot tools and browser DevTools.
 
 **Investigate mode:**
 
@@ -142,10 +147,13 @@ flowchart TD
     P2 -->|"CHECKPOINT"| P3["Phase 3: Between milestones\nRun testing gate\nCapture learnings\nUpdate next milestone"]
     P3 -->|"CHECKPOINT"| Next{"Next milestone?"}
     Next -->|Yes| P3
-    Next -->|No| Close["Complete"]
+    Next -->|No| P4["Phase 4: Plan Complete\nAI verification gate\nHuman verification gate"]
+    P4 -->|"BLOCKING GATE"| Close["Complete"]
 ```
 
 **Milestone archetypes:** Prove It Works (spike the riskiest part first) → Make It Real (end-to-end working) → Make It Solid (edge cases, security) → Make It Shine (polish, optional). Each milestone has kill criteria, assumption tracking, and a testing gate before the next begins. Read-Only Analysis mode is available at any complexity level via analysis signals ("break this down for me", "how would you approach").
+
+**Plan completion (Phase 4):** When all milestones are done, the agent runs an AI verification gate (every milestone complete, every task ticked, every exit criterion evidenced, every testing gate passed with current-session proof) then presents results at a blocking human verification gate. Plan artifacts must not include self-destruct instructions, and agents must not delete or archive plan files without human approval.
 
 **Key constraints:** MUST check for existing milestone files before creating new ones. MUST include testing gates on every milestone. MUST NOT continue building on an invalidated assumption. MUST pick exactly one mode in Step 0 and stay in it - cross-mode drift is the failure the mode-picker exists to prevent.
 
@@ -204,10 +212,10 @@ flowchart TD
     Generate --> P2["Phase 2: Rank & Compare\nConsensus / Split / Unique"]
     P2 --> P3["Phase 3: Cross-Examine\nSplit findings get a tiebreaker agent"]
     P3 --> P4["Phase 4: Clarify\nPresent disputes to human"]
-    P4 -->|"BLOCKING GATE"| P5["Phase 5: Synthesise\nConsensus + Resolved + Verified + Retracted\n+ Decision Debt + What Wasn't Critiqued"]
+    P4 -->|"BLOCKING GATE"| P5["Phase 5: Synthesise\nConsensus + Resolved + Verified + Retracted\n+ Open Questions + What Wasn't Critiqued"]
 ```
 
-**Key constraints:** MUST use Agent tool calls for sub-agents, not inline role-play. MUST restrict the fresh-eyes pass to artifact + evaluation criteria only (no project context). MUST include "What Wasn't Critiqued" section (never empty). MUST tag low-confidence recommendations as Decision Debt.
+**Key constraints:** MUST use Agent tool calls for sub-agents, not inline role-play. MUST restrict the fresh-eyes pass to artifact + evaluation criteria only (no project context). MUST include "What Wasn't Critiqued" section (never empty). MUST put low-confidence recommendation candidates under Open Questions until evidence supports them.
 
 ---
 

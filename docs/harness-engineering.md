@@ -34,7 +34,7 @@ The failure modes are well-documented: agents read the first file that matches a
 
 Constraints are the set of actions the agent must never take, enforced by something other than prose. A rule written in a markdown file has roughly a 30% bypass rate under pressure - the agent will find a path around it when the user's request seems to require one. A rule enforced at the tool layer has a 0% bypass rate because the tool call never completes.
 
-The distinction matters: "don't force-push" in CLAUDE.md is a hope. A deny hook that blocks `git push --force` at the PreToolUse layer is a guarantee.
+The distinction matters: "don't push" in CLAUDE.md is a hope. A deny hook that blocks `git push` at the PreToolUse layer is a guarantee.
 
 **goat-flow's approach.** Constraints are enforced structurally through deny hooks registered with the runner's tool-call lifecycle (PreToolUse for Claude Code, equivalents for other runners). Default deny patterns cover destructive filesystem operations, history-rewriting git commands, permission changes, pipe-to-shell installs, and common secret formats. Prose rules still appear in the instruction file for agent self-correction, but the audit grade comes from the structural enforcement, not the prose. If a runner has no deny mechanism, the check reports that as an integrity gap rather than pretending the prose rule is equivalent.
 

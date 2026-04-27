@@ -34,6 +34,7 @@ This directory now has two live layers plus a historical summary:
 - `ADR-020` - accepted Copilot CLI first-class support
 - `ADR-022` - canonical source for agent identity
 - `ADR-023` - reference-pack budget tiers
+- `ADR-025` - block all git push from agents
 
 ## Deleted Historical Topics
 

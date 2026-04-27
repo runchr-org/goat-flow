@@ -5,11 +5,13 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { isPackagedInstall } from "../paths.js";
 import { classifyProjectState } from "../classify-state.js";
-import { runAudit } from "../audit/audit.js";
+import { loadConfig } from "../config/reader.js";
+import { runAudit, runAuditBatch } from "../audit/audit.js";
 import type { AuditReport } from "../audit/types.js";
 import {
   getAgentProfileMap,
@@ -18,11 +20,15 @@ import {
 } from "../agents/registry.js";
 import { detectAgents as detectConfiguredAgents } from "../detect/agents.js";
 import { createFS } from "../facts/fs.js";
+import { extractSharedFacts } from "../facts/shared/index.js";
 import type { QualityHistoryEntry } from "../quality/history.js";
 import type { AgentId } from "../types.js";
 import { loadDashboardAsset } from "./dashboard-assets.js";
 import { buildSetupDetectPayload, isProjectDirectory } from "./setup-detect.js";
 import type { DashboardReport } from "./types.js";
+import type { QualityMode } from "../quality/schema.js";
+import { QUALITY_MODES } from "../quality/schema.js";
+import { buildStatsReport, checkStats } from "../stats/stats.js";
 
 const KNOWN_AGENT_IDS = getKnownAgentIds();
 const KNOWN_AGENT_LIST = KNOWN_AGENT_IDS.join(", ");
@@ -30,6 +36,7 @@ const AGENT_PROFILE_MAP = getAgentProfileMap();
 const AGENT_PROFILES = getAgentProfiles();
 const SUPPORTED_AGENTS = AGENT_PROFILES.map(({ id, name }) => ({ id, name }));
 const VALID_AGENTS = new Set<string>(KNOWN_AGENT_IDS);
+const VALID_QUALITY_MODES = new Set<string>(QUALITY_MODES);
 
 interface DashboardPresetData {
   id: string;
@@ -59,6 +66,13 @@ interface LatestQualitySummary {
   scope: string | null;
 }
 
+interface RecentLessonSummary {
+  title: string;
+  created: string | null;
+  path: string;
+  order: number;
+}
+
 type JsonResponder = (
   res: ServerResponse,
   status: number,
@@ -66,6 +80,12 @@ type JsonResponder = (
 ) => void;
 
 type BodyReader = (req: IncomingMessage) => Promise<string>;
+
+export function normalizeAgentVersionOutput(raw: string): string | null {
+  const firstLine = raw.trim().split(/\r?\n/)[0]?.trim() ?? "";
+  if (!firstLine) return null;
+  return firstLine.replace(/(\d)[.,;:]+$/u, "$1");
+}
 
 interface DashboardRouteDependencies {
   absDefault: string;
@@ -84,6 +104,12 @@ function parseQualityHistoryLimit(param: string | null): number {
   const parsed = Number.parseInt(param, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return 20;
   return Math.min(parsed, 100);
+}
+
+/** Parse a dashboard quality-mode filter. */
+function parseQualityModeParam(param: string | null): QualityMode | null {
+  if (param === null) return null;
+  return VALID_QUALITY_MODES.has(param) ? (param as QualityMode) : null;
 }
 
 /** Build the latest quality summary. */
@@ -109,31 +135,271 @@ function buildLatestQualitySummary(
   };
 }
 
+/** Return true when a history entry belongs to the requested dashboard mode. */
+function qualityEntryMatchesMode(
+  entry: QualityHistoryEntry,
+  mode: QualityMode | null,
+): boolean {
+  if (mode === null) return true;
+  return (entry.report.quality_mode ?? "agent-setup") === mode;
+}
+
+/** Return latest quality history entry for the dashboard's selected filters. */
+function getDashboardLatestQualityEntry(
+  entries: QualityHistoryEntry[],
+  agent: AgentId | null,
+  mode: QualityMode | null,
+): QualityHistoryEntry | null {
+  return (
+    entries.find((entry) => {
+      if (agent !== null && entry.agent !== agent) return false;
+      return qualityEntryMatchesMode(entry, mode);
+    }) ?? null
+  );
+}
+
+/** Return compact learning-loop health for Home without exposing the full stats report. */
+function buildDashboardLearningLoopSummary(
+  projectPath: string,
+): DashboardReport["learningLoop"] {
+  try {
+    const fs = createFS(projectPath);
+    const configState = loadConfig(projectPath, fs);
+    const shared = extractSharedFacts(fs, configState);
+    const stats = buildStatsReport({
+      footguns: shared.footguns,
+      lessons: shared.lessons,
+    });
+    const check = checkStats(stats);
+    const staleCount = check.findings.filter(
+      (finding) =>
+        finding.rule === "stale-last-reviewed" || finding.rule === "stale-ref",
+    ).length;
+    const invalidLineRefCount = check.findings.filter(
+      (finding) => finding.rule === "invalid-line-ref",
+    ).length;
+    const oversizedCount = check.findings.filter(
+      (finding) => finding.rule === "bucket-size",
+    ).length;
+    const recordCount =
+      stats.footguns.totalEntries + stats.lessons.totalEntries;
+
+    const allBuckets = [...stats.footguns.buckets, ...stats.lessons.buckets];
+    const reviewedDates = allBuckets
+      .map((bucket) => bucket.lastReviewed)
+      .filter((lastReviewed): lastReviewed is string => lastReviewed !== null)
+      .sort();
+    const oldestLastReviewed = reviewedDates[0] ?? null;
+
+    const topBucketsNeedingAction = allBuckets
+      .filter(
+        (b) =>
+          b.staleRefs.length > 0 ||
+          b.invalidLineRefs.length > 0 ||
+          b.sizeBytes > 40_000,
+      )
+      .sort(
+        (a, b) =>
+          b.staleRefs.length +
+          b.invalidLineRefs.length -
+          (a.staleRefs.length + a.invalidLineRefs.length),
+      )
+      .slice(0, 3)
+      .map((b) => ({
+        path: b.path,
+        reason: [
+          b.staleRefs.length > 0 ? `${b.staleRefs.length} stale refs` : "",
+          b.invalidLineRefs.length > 0
+            ? `${b.invalidLineRefs.length} invalid line refs`
+            : "",
+          b.sizeBytes > 40_000 ? `${Math.round(b.sizeBytes / 1024)}KB` : "",
+        ]
+          .filter(Boolean)
+          .join(", "),
+      }));
+
+    const status =
+      !shared.footguns.exists && !shared.lessons.exists
+        ? "unavailable"
+        : staleCount > 2 || invalidLineRefCount > 0 || oversizedCount > 0
+          ? "needs-review"
+          : "fresh";
+    return {
+      recordCount,
+      footgunCount: stats.footguns.totalEntries,
+      lessonCount: stats.lessons.totalEntries,
+      staleCount,
+      invalidLineRefCount,
+      oversizedCount,
+      oldestLastReviewed,
+      topBucketsNeedingAction,
+      status,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** List markdown lesson buckets that can contribute Home lesson rows. */
+function listLessonBuckets(lessonsDir: string): string[] {
+  try {
+    return readdirSync(lessonsDir)
+      .filter(
+        (filename) => filename.endsWith(".md") && filename !== "README.md",
+      )
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+/** Return the created date inside one lesson section, if present. */
+function parseLessonCreated(section: string): string | null {
+  return section.match(/\*\*Created:\*\*\s*(\d{4}-\d{2}-\d{2})/)?.[1] ?? null;
+}
+
+/** Read lesson headings from one bucket file. */
+function readLessonBucketEntries(
+  lessonsDir: string,
+  filename: string,
+  startOrder: number,
+): RecentLessonSummary[] {
+  let content: string;
+  try {
+    content = readFileSync(join(lessonsDir, filename), "utf-8");
+  } catch {
+    return [];
+  }
+
+  return Array.from(content.matchAll(/^## Lesson:\s+(.+)$/gm)).flatMap(
+    (heading, index, headings) => {
+      const title = heading[1]?.trim();
+      if (!title) return [];
+      const start = heading.index;
+      const nextHeading = headings[index + 1];
+      const end =
+        nextHeading === undefined ? content.length : nextHeading.index;
+      const section = content.slice(start, end);
+      return [
+        {
+          title,
+          created: parseLessonCreated(section),
+          path: `.goat-flow/lessons/${filename}`,
+          order: startOrder + index,
+        },
+      ];
+    },
+  );
+}
+
+/** Sort latest lessons first, with file order as the fallback. */
+function sortRecentLessons(
+  lessons: RecentLessonSummary[],
+): RecentLessonSummary[] {
+  return lessons.sort((a, b) => {
+    if (a.created !== b.created) {
+      if (a.created === null) return 1;
+      if (b.created === null) return -1;
+      return b.created.localeCompare(a.created);
+    }
+    return b.order - a.order;
+  });
+}
+
+/** Read recent lesson headings for the compact Home panel. */
+function readRecentLessons(
+  projectPath: string,
+): DashboardReport["recentLessons"] {
+  const lessonsDir = join(projectPath, ".goat-flow", "lessons");
+  const filenames = listLessonBuckets(lessonsDir);
+
+  const lessons: RecentLessonSummary[] = [];
+  for (const filename of filenames) {
+    lessons.push(
+      ...readLessonBucketEntries(lessonsDir, filename, lessons.length),
+    );
+  }
+
+  const total = lessons.length;
+  return sortRecentLessons(lessons)
+    .slice(0, 4)
+    .map((lesson, index) => ({
+      id: `L-${String(total - index).padStart(3, "0")}`,
+      title: lesson.title,
+      created: lesson.created,
+      path: lesson.path,
+    }));
+}
+
+const ENRICHMENT_TTL_MS = 60_000;
+const enrichmentCache = new Map<
+  string,
+  {
+    learningLoop: DashboardReport["learningLoop"];
+    recentLessons: DashboardReport["recentLessons"];
+    cachedAt: number;
+  }
+>();
+
+/** Enrich a dashboard report with compact Home-only learning-loop context. */
+function enrichDashboardReport(
+  report: DashboardReport,
+  projectPath: string,
+  fresh = false,
+): DashboardReport {
+  const now = Date.now();
+  const cached = enrichmentCache.get(projectPath);
+  if (!fresh && cached && now - cached.cachedAt < ENRICHMENT_TTL_MS) {
+    return {
+      ...report,
+      learningLoop: cached.learningLoop,
+      recentLessons: cached.recentLessons,
+    };
+  }
+  const learningLoop = buildDashboardLearningLoopSummary(projectPath);
+  const recentLessons = readRecentLessons(projectPath);
+  enrichmentCache.set(projectPath, {
+    learningLoop,
+    recentLessons,
+    cachedAt: now,
+  });
+  return { ...report, learningLoop, recentLessons };
+}
+
 /** Build the dashboard API payload from aggregate and per-agent audit results. */
 function buildDashboardReport(
   auditRpt: AuditReport,
   perAgentAudits: { id: string; audit: AuditReport }[],
+  projectPath: string,
 ): DashboardReport {
-  return {
-    agentScores: perAgentAudits.map((pa) => {
-      const agentId = pa.id as AgentId;
-      return {
-        id: pa.id,
-        name: AGENT_PROFILE_MAP[agentId].name,
-        agent: pa.audit.scopes.agent,
-        harness: pa.audit.scopes.harness,
-        concerns: pa.audit.concerns,
-      };
-    }),
-    status: auditRpt.status,
-    scopes: {
-      setup: auditRpt.scopes.setup,
-      agent: auditRpt.scopes.agent,
-      ...(auditRpt.scopes.harness ? { harness: auditRpt.scopes.harness } : {}),
+  return enrichDashboardReport(
+    {
+      agentScores: perAgentAudits.map((pa) => {
+        const agentId = pa.id as AgentId;
+        return {
+          id: pa.id,
+          name: AGENT_PROFILE_MAP[agentId].name,
+          agent: pa.audit.scopes.agent,
+          harness: pa.audit.scopes.harness,
+          concerns: pa.audit.concerns,
+        };
+      }),
+      status: auditRpt.status,
+      scopes: {
+        setup: auditRpt.scopes.setup,
+        agent: auditRpt.scopes.agent,
+        ...(auditRpt.scopes.harness
+          ? { harness: auditRpt.scopes.harness }
+          : {}),
+      },
+      overall: auditRpt.overall,
+      learningLoop: null,
+      recentLessons: [],
+      target: auditRpt.target,
     },
-    overall: auditRpt.overall,
-    target: auditRpt.target,
-  };
+    projectPath,
+    true,
+  );
 }
 
 const AUDIT_CACHE_FILE = "audit-cache.json";
@@ -194,10 +460,10 @@ function writeAuditCache(
       cachedAt: new Date().toISOString(),
       report,
     };
-    writeFileSync(
+    writeFile(
       join(projectPath, ".goat-flow", AUDIT_CACHE_FILE),
       JSON.stringify(envelope),
-    );
+    ).catch(() => {});
   } catch {
     // Cache write failure is non-fatal
   }
@@ -372,26 +638,6 @@ export function createDashboardRouteHandlers(
     return !agentFilter && harness && isPackagedInstall();
   }
 
-  function collectPerAgentAudits(
-    fs: ReturnType<typeof createFS>,
-    projectPath: string,
-    harness: boolean,
-  ): { id: string; audit: AuditReport }[] {
-    const configAgents = detectConfiguredAgents(fs).map((agent) => agent.id);
-    const results: { id: string; audit: AuditReport }[] = [];
-    for (const agentId of configAgents) {
-      try {
-        results.push({
-          id: agentId,
-          audit: runAudit(fs, projectPath, { agentFilter: agentId, harness }),
-        });
-      } catch {
-        /* skip agents that fail to audit */
-      }
-    }
-    return results;
-  }
-
   /** Run both evaluation systems and return a typed DashboardReport. */
   function handleAuditRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/audit") return false;
@@ -411,8 +657,9 @@ export function createDashboardRouteHandlers(
       if (!fresh && isCacheEligible(agentFilter, harness)) {
         const cached = readAuditCache(projectPath, packageVersion);
         if (cached) {
+          const report = enrichDashboardReport(cached.report, projectPath);
           jsonResponse(res, 200, {
-            ...cached.report,
+            ...report,
             cached: true,
             cachedAt: cached.cachedAt,
           });
@@ -421,9 +668,18 @@ export function createDashboardRouteHandlers(
       }
 
       const fs = createFS(projectPath);
-      const auditRpt = runAudit(fs, projectPath, { agentFilter, harness });
-      const perAgentAudits = collectPerAgentAudits(fs, projectPath, harness);
-      const report = buildDashboardReport(auditRpt, perAgentAudits);
+      const configAgents = detectConfiguredAgents(fs).map((a) => a.id);
+      const batch = runAuditBatch(
+        fs,
+        projectPath,
+        { agentFilter, harness },
+        configAgents,
+      );
+      const report = buildDashboardReport(
+        batch.aggregate,
+        batch.perAgent,
+        projectPath,
+      );
 
       if (isCacheEligible(agentFilter, harness)) {
         writeAuditCache(projectPath, packageVersion, report);
@@ -522,13 +778,22 @@ export function createDashboardRouteHandlers(
     }
 
     const projectPath = safeResolvePath(url.searchParams.get("path"));
+    const selectedProjectPath = safeResolvePath(url.searchParams.get("target"));
     const agent = agentParam as AgentId;
+    const modeParam = url.searchParams.get("mode");
+    const qualityMode = parseQualityModeParam(modeParam) ?? "agent-setup";
+
+    if (modeParam && !VALID_QUALITY_MODES.has(modeParam)) {
+      jsonResponse(res, 400, {
+        error: `quality mode must be one of: ${QUALITY_MODES.join(", ")}`,
+      });
+      return true;
+    }
 
     try {
       requireProjectDirectory(projectPath);
       const { composeQuality } = await import("../prompt/compose-quality.js");
-      const { getLatestQualityHistoryEntry, loadQualityHistory } =
-        await import("../quality/history.js");
+      const { findLatestQualityReport } = await import("../quality/history.js");
 
       let auditReport: AuditReport | null = null;
       try {
@@ -541,13 +806,18 @@ export function createDashboardRouteHandlers(
         /* audit failure is fine - quality prompt generates with degraded context */
       }
 
-      const history = loadQualityHistory(projectPath);
-      const priorReport = getLatestQualityHistoryEntry(history.entries, agent);
+      const { entry: priorReport } = findLatestQualityReport(
+        projectPath,
+        agent,
+        qualityMode,
+      );
       const result = composeQuality({
         agent,
         projectPath,
         auditReport,
         priorReport,
+        qualityMode,
+        selectedProjectPath,
       });
       jsonResponse(res, 200, result);
     } catch (err) {
@@ -580,22 +850,35 @@ export function createDashboardRouteHandlers(
     }
 
     const limit = parseQualityHistoryLimit(url.searchParams.get("limit"));
+    const modeParam = url.searchParams.get("mode");
+    const qualityMode = parseQualityModeParam(modeParam);
+
+    if (modeParam && !qualityMode) {
+      jsonResponse(res, 400, {
+        error: `quality history mode must be one of: ${QUALITY_MODES.join(", ")}`,
+      });
+      return true;
+    }
 
     try {
       requireProjectDirectory(projectPath);
-      const {
-        buildQualityHistoryRows,
-        getLatestQualityHistoryEntry,
-        loadQualityHistory,
-      } = await import("../quality/history.js");
-      const history = loadQualityHistory(projectPath);
+      const { buildQualityHistoryRows, loadQualityHistoryWindow } =
+        await import("../quality/history.js");
+      const history = loadQualityHistoryWindow(projectPath, {
+        agent,
+        limit,
+        qualityMode,
+      });
       const rows = buildQualityHistoryRows(history.entries, {
         agent,
         limit,
+        qualityMode,
       });
-      const latestEntry = agent
-        ? getLatestQualityHistoryEntry(history.entries, agent)
-        : (history.entries[0] ?? null);
+      const latestEntry = getDashboardLatestQualityEntry(
+        history.entries,
+        agent,
+        qualityMode,
+      );
 
       jsonResponse(res, 200, {
         rows,
@@ -638,23 +921,24 @@ export function createDashboardRouteHandlers(
   }
 
   /** Detect which coding agent CLIs are installed on the machine. */
-  function handleAgentDetectRequest(url: URL, res: ServerResponse): boolean {
-    if (url.pathname !== "/api/agents/installed") return false;
-
-    const agents = SUPPORTED_AGENTS.map(({ id, name }) => {
+  function detectInstalledAgents(): {
+    id: string;
+    name: string;
+    installed: boolean;
+    version: string | null;
+  }[] {
+    return SUPPORTED_AGENTS.map(({ id, name }) => {
       try {
         const whichCmd = process.platform === "win32" ? "where" : "which";
         execFileSync(whichCmd, [id], { timeout: 3000, stdio: "pipe" });
         let version: string | null = null;
         try {
-          version =
+          version = normalizeAgentVersionOutput(
             execFileSync(id, ["--version"], {
               timeout: 5000,
               stdio: "pipe",
-            })
-              .toString()
-              .trim()
-              .split("\n")[0] ?? null;
+            }).toString(),
+          );
         } catch {
           /* version detection optional */
         }
@@ -663,8 +947,20 @@ export function createDashboardRouteHandlers(
         return { id, name, installed: false, version: null };
       }
     });
+  }
 
-    jsonResponse(res, 200, { agents });
+  let cachedAgentDetection: ReturnType<typeof detectInstalledAgents> | null =
+    null;
+
+  function handleAgentDetectRequest(url: URL, res: ServerResponse): boolean {
+    if (url.pathname !== "/api/agents/installed") return false;
+
+    const fresh = url.searchParams.get("fresh") === "true";
+    if (fresh || cachedAgentDetection === null) {
+      cachedAgentDetection = detectInstalledAgents();
+    }
+
+    jsonResponse(res, 200, { agents: cachedAgentDetection });
     return true;
   }
 

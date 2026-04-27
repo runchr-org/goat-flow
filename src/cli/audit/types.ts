@@ -26,7 +26,7 @@ export interface AuditFailure {
 export interface CheckResult {
   id: string;
   name: string;
-  status: "pass" | "fail";
+  status: "pass" | "fail" | "skipped";
   provenance: CheckEvidence;
   failure?: AuditFailure;
   /** Harness-check classification; absent for build checks. */
@@ -175,6 +175,13 @@ export interface BuildCheck {
   name: string;
   scope: AuditScopeName;
   provenance: CheckEvidence;
+  /** Optional context-specific provenance when one check covers per-agent rules. */
+  provenanceFor?: (
+    ctx: AuditContext,
+    failure: AuditFailure | null,
+  ) => CheckEvidence;
+  /** True when an agent-scope check runs meaningful logic in aggregate mode. */
+  supportsAggregate?: boolean;
   run: (ctx: AuditContext) => AuditFailure | null;
 }
 

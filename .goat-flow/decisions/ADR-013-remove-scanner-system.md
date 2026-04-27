@@ -58,13 +58,13 @@ setup --agent claude
 
 ## Dependency Analysis
 
-**scanProject() call sites (only 2):**
-- `src/cli/cli.ts:496` - setup command
-- `src/cli/server/dashboard.ts:315` - `/api/setup` endpoint
+**Former scanProject() call sites:**
+- `src/cli/cli.ts` (search: `composeSetup`) - setup command output now composes from audit + facts
+- `src/cli/server/dashboard-routes.ts` (search: `/api/setup`) - dashboard setup output now composes from audit + facts
 
 **RUBRIC_VERSION dependency:** The last audit→rubric dependency was the version constant. It was removed by deriving the current version from `package.json` through `src/cli/constants.ts`.
 
-**Audit system independence:** `src/cli/audit/` has zero imports from rubric/, scanner/, or scoring/ except the RUBRIC_VERSION constant above. The audit system is ready to be the sole evaluation engine.
+**Audit system independence:** `src/cli/audit/` has zero imports from rubric/, scanner/, or scoring/. The audit system is the sole evaluation engine.
 
 **Facts extraction independence:** `src/cli/facts/orchestrator.ts` is consumed by both systems but depends on neither. It provides: `stack` (languages, commands, signals), `agents` (per-agent instruction, settings, skills, hooks), `shared` (footguns, lessons, config, decisions).
 
@@ -100,22 +100,21 @@ setup --agent claude
 ## What Gets Rewritten
 
 **`src/cli/prompt/compose-setup.ts`** (largest change):
-- Currently 1300+ lines with 5 rendering modes keyed to scanner percentages
-- Rewrite to 3 modes: full-setup (bare/partial), upgrade-redirect (v0.9/outdated), audit-driven (current pass/fail)
+- Rewritten from scanner-percentage rendering to 3 modes: full-setup (bare/partial), upgrade-redirect (v0.9/outdated), audit-driven (current pass/fail)
 - Success path: real counts from `extractProjectFacts()` (actual hook files, actual skill dirs)
 - Failure path: failing audit checks with `howToFix` fields, mapped to setup step numbers
 - Stack context: from `detectStack()` directly, not from ScanReport
 - Removes: fragment lookups, percentage routing, anti-pattern rendering, recommendation arrays
 
-**`src/cli/prompt/template-filler.ts`:**
-- Update to extract variables from facts + audit results instead of ScanReport
+**Prompt variable filling:**
+- The scanner-era template filler path was retired during implementation; setup composition now reads facts + audit results directly.
 
 **`src/cli/cli.ts`:**
 - Setup handler: call `runAudit()` + `extractProjectFacts()` instead of `scanProject()`
-- Remove `handleInfoCommand()` and `info` subcommand routing
+- Keep `info rubrics` / `info anti-patterns` only as removal-hint commands that redirect users to `audit`
 - Remove `scanProject` import
 
-**`src/cli/server/dashboard.ts`:**
+**`src/cli/server/dashboard-routes.ts`:**
 - `/api/setup` endpoint: `runAudit()` + facts instead of `scanProject()`
 
 **`src/cli/constants.ts`:**

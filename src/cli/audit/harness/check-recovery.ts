@@ -9,6 +9,13 @@ import { collectMarkdownFiles } from "./helpers.js";
 
 const VERIFIED_ON = "2026-04-18";
 
+interface MilestoneProgress {
+  path: string;
+  status: string | null;
+  checked: number;
+  total: number;
+}
+
 /** Return the recovery provenance. */
 function recoveryProvenance(
   type: HarnessCheck["type"],
@@ -26,6 +33,22 @@ function recoveryProvenance(
           ? "SHOULD"
           : "BEST_PRACTICE",
     evidence_paths: paths,
+  };
+}
+
+function extractStatus(content: string): string | null {
+  const match = content.match(/^\*\*Status:\*\*\s*([^|\n]+)/im);
+  return match?.[1]?.trim().toLowerCase() ?? null;
+}
+
+function countProgress(path: string, content: string): MilestoneProgress {
+  const checkboxMatches = content.match(/- \[[ xX]\]/g) ?? [];
+  const checkedMatches = content.match(/- \[[xX]\]/g) ?? [];
+  return {
+    path,
+    status: extractStatus(content),
+    checked: checkedMatches.length,
+    total: checkboxMatches.length,
   };
 }
 
@@ -67,20 +90,30 @@ const milestoneTracking: HarnessCheck = {
     if (allMdFiles.length === 0) {
       return pass(["Tasks directory exists (empty - valid for new projects)"]);
     }
-    const checkboxPattern = /- \[[ x]\]/;
-    let withCheckboxes = 0;
+    const progress: MilestoneProgress[] = [];
     for (const f of mdFiles) {
       const content = ctx.fs.readFile(f);
-      if (content && checkboxPattern.test(content)) {
-        withCheckboxes++;
-      }
+      if (content) progress.push(countProgress(f, content));
     }
     const extra = allMdFiles.length - mdFiles.length;
     const extraNote =
       extra > 0 ? ` (${extra} non-milestone .md files ignored)` : "";
-    return pass([
-      `${withCheckboxes}/${mdFiles.length} milestone files have trackable checkbox items${extraNote}`,
-    ]);
+    const checked = progress.reduce((sum, item) => sum + item.checked, 0);
+    const total = progress.reduce((sum, item) => sum + item.total, 0);
+    const percent = total === 0 ? 0 : Math.round((checked / total) * 100);
+    const zeroProgress = progress.filter(
+      (item) => item.total > 0 && item.checked === 0,
+    );
+    const findings = [
+      `${checked}/${total} checkboxes complete (${percent}%) across ${mdFiles.length} milestone files${extraNote}`,
+      "Task checkbox completion is informational only; .goat-flow/tasks/ is gitignored local working state and unchecked items may be intentionally skipped.",
+    ];
+    if (zeroProgress.length > 0) {
+      findings.push(
+        `${zeroProgress.length} milestone files are at 0%: ${zeroProgress.map((item) => item.path).join(", ")}`,
+      );
+    }
+    return pass(findings);
   },
 };
 

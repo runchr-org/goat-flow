@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { writeFileSync, mkdirSync, realpathSync } from "node:fs";
 import type { CLIOptions, AgentId, ProjectFacts } from "./types.js";
 import type { AuditReport } from "./audit/types.js";
+import { QUALITY_MODES, type QualityMode } from "./quality/schema.js";
 
 import { getPackageVersion } from "./paths.js";
 import { getKnownAgentIds } from "./agents/registry.js";
@@ -50,6 +51,7 @@ Arguments:
 Flags:
   --format <type>   Output format: json, text, markdown (omit for auto-detect: text in terminal, json otherwise)
   --agent <id>      Filter to one agent: ${validAgentList()}
+  --mode <mode>     Quality prompt/history/diff mode: ${QUALITY_MODES.join(", ")}
   --all             Quality history: lift the default 20-run limit
   --harness         Audit: add AI Harness Completeness scope (pass/fail checks across 5 concerns)
   --check-drift     Audit: detect skill template-vs-installed drift and orphan directories
@@ -68,8 +70,10 @@ Examples:
   goat-flow audit . --format json      JSON output for CI
   goat-flow setup --agent claude       Setup prompt for Claude
   goat-flow quality . --agent claude   Quality assessment prompt for Claude
+  goat-flow quality . --agent claude --mode skills
   goat-flow quality history --agent claude
-  goat-flow quality diff --agent claude
+  goat-flow quality history --agent codex --mode skills
+  goat-flow quality diff --agent claude --mode agent-setup
   goat-flow quality validate <path>    Schema-check a freshly written report (exit 2 on any error)
   goat-flow manifest                   Print the resolved manifest
   goat-flow manifest --check           Verify the manifest is consistent with code
@@ -163,6 +167,7 @@ export interface ParsedCLI extends CLIOptions {
   qualitySubcommand: QualitySubcommand;
   qualityDiffPair: string | null;
   qualityValidatePath: string | null;
+  qualityMode: QualityMode | null;
   all: boolean;
 }
 
@@ -216,6 +221,18 @@ function parseAgentArg(value: string | undefined): AgentId | null {
   return value as AgentId;
 }
 
+/** Parse the quality-history/diff mode filter. */
+function parseQualityModeArg(value: string | undefined): QualityMode | null {
+  if (!value) return null;
+  if (!QUALITY_MODES.includes(value as QualityMode)) {
+    throw new CLIError(
+      `Invalid quality mode: ${value}. Use: ${QUALITY_MODES.join(", ")}`,
+      2,
+    );
+  }
+  return value as QualityMode;
+}
+
 /** Resolve `--output`, defaulting bare file names into `.goat-flow/` under the target repo. */
 function resolveOutputPath(
   output: string | undefined,
@@ -247,15 +264,15 @@ function parseQualityPositionals(positionals: string[]): {
   }
 
   if (first === "history") {
-    if (second !== undefined || rest.length > 0) {
+    if (rest.length > 0) {
       throw new CLIError(
-        "quality history does not accept positional arguments.",
+        "quality history accepts at most one positional project path.",
         2,
       );
     }
     return {
       qualitySubcommand: "history",
-      projectPath: resolve("."),
+      projectPath: second !== undefined ? resolve(second) : resolve("."),
       qualityDiffPair: null,
       qualityValidatePath: null,
     };
@@ -309,6 +326,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     options: {
       format: { type: "string" },
       agent: { type: "string" },
+      mode: { type: "string" },
       verbose: { type: "boolean", default: false },
       output: { type: "string", short: "o" },
       all: { type: "boolean", default: false },
@@ -337,6 +355,21 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
   if (command !== "quality" && values.all === true) {
     throw new CLIError("--all is only valid for the quality command.", 2);
   }
+  if (command !== "quality" && values.mode !== undefined) {
+    throw new CLIError("--mode is only valid for the quality command.", 2);
+  }
+  if (
+    command === "quality" &&
+    values.mode !== undefined &&
+    !["prompt", "history", "diff"].includes(
+      qualityPositionals.qualitySubcommand,
+    )
+  ) {
+    throw new CLIError(
+      "--mode is only valid for quality prompt, quality history, and quality diff.",
+      2,
+    );
+  }
 
   return {
     command,
@@ -352,6 +385,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     qualitySubcommand: qualityPositionals.qualitySubcommand,
     qualityDiffPair: qualityPositionals.qualityDiffPair,
     qualityValidatePath: qualityPositionals.qualityValidatePath,
+    qualityMode: parseQualityModeArg(values.mode),
     all: values.all === true,
     dev: values.dev === true,
     help: values.help === true,
@@ -365,30 +399,49 @@ async function handleStatusCommand(options: ParsedCLI): Promise<void> {
   const { classifyProjectState } = await import("./classify-state.js");
 
   const fs = createFS(options.projectPath);
-  const result = classifyProjectState(fs);
+  const result = classifyProjectState(fs, options.agent ?? undefined);
 
   if (options.format === "json") {
-    process.stdout.write(
-      JSON.stringify({ path: options.projectPath, ...result }, null, 2) + "\n",
+    writeOutput(
+      options,
+      JSON.stringify(
+        { path: options.projectPath, ...result, version: PACKAGE_VERSION },
+        null,
+        2,
+      ),
     );
     return;
   }
 
+  if (options.format === "markdown") {
+    const lines = [
+      `**Path:** ${options.projectPath}`,
+      `**State:** ${result.state}`,
+      `**Action:** ${result.action}`,
+      `**Details:** ${result.details}`,
+    ];
+    writeOutput(options, lines.join("\n"));
+    return;
+  }
+
   const stateColors: Record<string, string> = {
-    bare: "\x1b[90m", // gray
-    partial: "\x1b[33m", // yellow
-    "v0.9": "\x1b[31m", // red
-    outdated: "\x1b[36m", // cyan
-    current: "\x1b[32m", // green
-    error: "\x1b[31m", // red
+    bare: "\x1b[90m",
+    partial: "\x1b[33m",
+    "v0.9": "\x1b[31m",
+    outdated: "\x1b[36m",
+    current: "\x1b[32m",
+    error: "\x1b[31m",
   };
   const reset = "\x1b[0m";
   const color = stateColors[result.state] || "";
 
-  console.log(`  Path:    ${options.projectPath}`);
-  console.log(`  State:   ${color}${result.state}${reset}`);
-  console.log(`  Action:  ${result.action}`);
-  console.log(`  Details: ${result.details}`);
+  const rendered = [
+    `  Path:    ${options.projectPath}`,
+    `  State:   ${color}${result.state}${reset}`,
+    `  Action:  ${result.action}`,
+    `  Details: ${result.details}`,
+  ].join("\n");
+  writeOutput(options, rendered);
 }
 
 /** Pick the agent list for setup output from the CLI override or extracted facts. */
@@ -426,12 +479,13 @@ async function handleSetupCommand(
     writeMultiAgentSyncBanner(true);
   }
 
+  const parts: string[] = [];
   for (const agentId of agentIds) {
     const output = composeSetup(auditReport, facts, agentId);
-    if (output) {
-      process.stdout.write(output + "\n");
-      if (agentIds.length > 1) process.stdout.write("\n---\n\n");
-    }
+    if (output) parts.push(output);
+  }
+  if (parts.length > 0) {
+    writeOutput(options, parts.join("\n\n---\n\n"));
   }
 }
 
@@ -516,10 +570,12 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
     const selectedEntries = selectQualityHistoryEntries(history.entries, {
       agent: options.agent,
       limit: options.all ? null : 20,
+      qualityMode: options.qualityMode,
     });
     const rows = buildQualityHistoryRows(history.entries, {
       agent: options.agent,
       limit: options.all ? null : 20,
+      qualityMode: options.qualityMode,
     });
     if (options.format === "json") {
       writeOutput(
@@ -547,6 +603,7 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
       options,
       renderQualityHistoryText(rows, {
         agent: options.agent,
+        qualityMode: options.qualityMode,
         all: options.all,
       }),
     );
@@ -565,6 +622,7 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
     const diff = buildQualityDiff(history.entries, {
       agent: options.agent,
       pair: options.qualityDiffPair,
+      qualityMode: options.qualityMode,
     });
     if (!diff.ok) throw new CLIError(diff.error, 2);
 
@@ -620,8 +678,7 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
   const { createFS } = await import("./facts/fs.js");
   const { runAudit } = await import("./audit/audit.js");
   const { composeQuality } = await import("./prompt/compose-quality.js");
-  const { getLatestQualityHistoryEntry, loadQualityHistory } =
-    await import("./quality/history.js");
+  const { findLatestQualityReport } = await import("./quality/history.js");
 
   const fs = createFS(options.projectPath);
 
@@ -636,12 +693,10 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
     // Audit failure is fine - quality prompt generates with degraded context
   }
 
-  const history = loadQualityHistory(options.projectPath);
-  const priorReport = getLatestQualityHistoryEntry(
-    history.entries,
-    options.agent,
-  );
-  for (const warning of history.warnings) {
+  const qualityMode = options.qualityMode ?? "agent-setup";
+  const { entry: priorReport, warnings: historyWarnings } =
+    findLatestQualityReport(options.projectPath, options.agent, qualityMode);
+  for (const warning of historyWarnings) {
     console.error(warning);
   }
 
@@ -650,6 +705,7 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
     projectPath: options.projectPath,
     auditReport,
     priorReport,
+    qualityMode,
   });
 
   if (options.format === "json") {
@@ -709,28 +765,32 @@ async function handleManifestCommand(options: ParsedCLI): Promise<void> {
 
   if (options.check) {
     const report = checkManifest();
+    let rendered: string;
     if (options.format === "json") {
-      process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+      rendered = JSON.stringify(report, null, 2);
     } else {
+      const lines: string[] = [];
       if (report.status === "pass") {
-        console.log("Manifest check: PASS");
+        lines.push("Manifest check: PASS");
       } else {
-        console.log("Manifest check: FAIL");
+        lines.push("Manifest check: FAIL");
         for (const f of report.findings) {
-          console.log(`  - [${f.rule}] ${f.message}`);
+          lines.push(`  - [${f.rule}] ${f.message}`);
         }
       }
+      rendered = lines.join("\n");
     }
+    writeOutput(options, rendered);
     if (report.status === "fail") process.exitCode = 1;
     return;
   }
 
   const manifest = loadManifest();
   if (options.format === "json") {
-    process.stdout.write(JSON.stringify(manifest, null, 2) + "\n");
+    writeOutput(options, JSON.stringify(manifest, null, 2));
     return;
   }
-  process.stdout.write(renderManifestMarkdown(manifest) + "\n");
+  writeOutput(options, renderManifestMarkdown(manifest));
 }
 
 /** Run the default `setup` command pipeline: facts + audit + compose. */

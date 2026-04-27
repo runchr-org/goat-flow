@@ -110,11 +110,15 @@ export interface BucketFreshness {
   entryCount: number;
   /** Stale file refs found in this bucket */
   staleRefs: string[];
-  /** Invalid line refs (line out of bounds) found in this bucket */
+  /** Invalid line refs (line out of bounds or missing semantic anchor) found in this bucket */
   invalidLineRefs: string[];
   /** Most recent `**Created:**` or `**Updated:**` date in the body, YYYY-MM-DD or null.
    *  Used to detect frontmatter `last_reviewed` that is stale relative to entry dates. */
   maxEntryDate: string | null;
+  /** File content size in bytes. Used by `goat-flow stats --check` for bucket-size warnings. */
+  sizeBytes: number;
+  /** Total line count of the bucket file. */
+  lineCount: number;
 }
 
 /** Facts shared across all agents (project-wide files and directories) */
@@ -196,7 +200,12 @@ export interface SharedFacts {
     localFileSizes: Array<{ path: string; lines: number }>;
     path: string;
   };
-  gitCommitInstructions: { exists: boolean };
+  gitCommitInstructions: {
+    exists: boolean;
+    path: string | null;
+    requiredPath: string;
+    misplacedPaths: string[];
+  };
   /** Total line count across canonical local-instruction files. */
   localInstructionsLineCount: number;
 }
@@ -257,7 +266,7 @@ export interface AgentFacts {
     denyUsesJq: boolean;
     denyHandlesChaining: boolean;
     denyBlocksRmRf: boolean;
-    denyBlocksForcePush: boolean;
+    denyBlocksGitPush: boolean;
     denyBlocksChmod: boolean;
     denyBlocksPipeToShell: boolean;
     denyBlocksCloudDestructive: boolean;

@@ -1,17 +1,17 @@
-<!-- ═══ Help / Getting Started View ═══ -->
+<!-- ═══ About View ═══ -->
 <div
-  x-show="activeView === 'help'"
+  x-show="activeView === 'about'"
   x-cloak
   style="height: calc(100vh - 3.5rem); overflow-y: auto"
   x-data="{
-    sections: ['concepts','audit','skills','hooks','learning-loop','execution-loop','further-reading','quicklinks'],
+    sections: ['concepts','audit','skills','hooks','learning-loop','execution-loop','five-concerns','quicklinks'],
     activeToc: 'concepts',
     onScroll(e) {
       const root = e.target;
       const scroll = root.scrollTop + 120;
       let active = this.sections[0];
       for (const id of this.sections) {
-        const el = document.getElementById('help-' + id);
+        const el = document.getElementById('about-' + id);
         if (el && el.offsetTop - root.offsetTop <= scroll) active = id;
       }
       this.activeToc = active;
@@ -62,7 +62,7 @@
 
       <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap">
         <button
-          @click="document.getElementById('help-concepts')?.scrollIntoView({ behavior: 'smooth' })"
+          @click="document.getElementById('about-concepts')?.scrollIntoView({ behavior: 'smooth' })"
           class="gf-btn gf-btn-md gf-btn-primary"
           style="display: inline-flex; align-items: center; gap: 6px"
         >
@@ -93,7 +93,7 @@
 
     <!-- ==== Layout: main + TOC ==== -->
     <div
-      class="gf-help-layout"
+      class="gf-about-layout"
       style="
         display: grid;
         grid-template-columns: minmax(0, 1fr) 180px;
@@ -126,15 +126,17 @@
             style="font-size: 14px; line-height: 1.7; margin: 0"
           >
             Every serious practitioner has converged on the same insight: the
-            LLM is commodity, the scaffolding around it isn't. Files it can
-            read, commands it can run, rules it must obey, memory it keeps
-            across sessions. That's the harness. goat-flow gives you one,
-            opinionated, out of the box.
+            LLM is commodity, the scaffolding around it isn't. LangChain moved
+            their coding agent from Top 30 to Top 5 on Terminal Bench 2.0
+            without changing the model — only the harness. Files it can read,
+            commands it can run, rules it must obey, memory it keeps across
+            sessions. That's the harness. goat-flow gives you one, opinionated,
+            out of the box.
           </p>
         </div>
 
         <!-- Concepts overview grid -->
-        <section id="help-concepts" style="margin-bottom: 52px">
+        <section id="about-concepts" style="margin-bottom: 52px">
           <h2
             class="gf-text-primary"
             style="
@@ -163,7 +165,7 @@
             "
           >
             <button
-              @click="document.getElementById('help-audit')?.scrollIntoView({ behavior: 'smooth' })"
+              @click="document.getElementById('about-audit')?.scrollIntoView({ behavior: 'smooth' })"
               class="gf-card"
               style="padding: 16px 18px; text-align: left; cursor: pointer"
             >
@@ -197,7 +199,7 @@
               >
             </button>
             <button
-              @click="document.getElementById('help-skills')?.scrollIntoView({ behavior: 'smooth' })"
+              @click="document.getElementById('about-skills')?.scrollIntoView({ behavior: 'smooth' })"
               class="gf-card"
               style="padding: 16px 18px; text-align: left; cursor: pointer"
             >
@@ -232,7 +234,7 @@
               >
             </button>
             <button
-              @click="document.getElementById('help-hooks')?.scrollIntoView({ behavior: 'smooth' })"
+              @click="document.getElementById('about-hooks')?.scrollIntoView({ behavior: 'smooth' })"
               class="gf-card"
               style="padding: 16px 18px; text-align: left; cursor: pointer"
             >
@@ -252,9 +254,8 @@
                 class="gf-text-muted"
                 style="font-size: 13px; margin: 0; line-height: 1.55"
               >
-                Pre- and post-action guards. Block destructive commands,
-                force-push, and secret exposure before the agent gets the
-                chance.
+                Pre- and post-action guards. Block destructive commands, git
+                push, and secret exposure before the agent gets the chance.
               </p>
               <span
                 style="
@@ -267,7 +268,7 @@
               >
             </button>
             <button
-              @click="document.getElementById('help-learning-loop')?.scrollIntoView({ behavior: 'smooth' })"
+              @click="document.getElementById('about-learning-loop')?.scrollIntoView({ behavior: 'smooth' })"
               class="gf-card"
               style="padding: 16px 18px; text-align: left; cursor: pointer"
             >
@@ -287,8 +288,9 @@
                 class="gf-text-muted"
                 style="font-size: 13px; margin: 0; line-height: 1.55"
               >
-                Four kinds of records that turn every session's mistakes into
-                next session's context. Footguns, lessons, decisions, logs.
+                Durable records and local continuity notes that turn recurring
+                mistakes into next-session context. Footguns, lessons,
+                decisions, patterns.
               </p>
               <span
                 style="
@@ -304,7 +306,7 @@
         </section>
 
         <!-- ==== Audit ==== -->
-        <section id="help-audit" style="margin-bottom: 52px">
+        <section id="about-audit" style="margin-bottom: 52px">
           <div
             class="gf-text-disabled"
             style="
@@ -366,8 +368,8 @@
                 class="gf-text-muted"
                 style="font-size: 13px; margin: 0; line-height: 1.55"
               >
-                Required files, config, skills, instruction files, preamble,
-                conventions.
+                Required directories, config, architecture docs, learning-loop
+                folders, shared references.
               </p>
             </div>
             <div class="gf-card" style="padding: 16px 18px">
@@ -421,8 +423,8 @@
                 style="font-size: 13px; margin: 0; line-height: 1.55"
               >
                 With <span class="mono gf-text-primary">--harness</span>:
-                integrity checks across 5 concerns (context, constraints,
-                verification, recovery, feedback loop).
+                integrity, advisory, and metric checks across 5 concerns
+                (context, constraints, verification, recovery, feedback loop).
               </p>
             </div>
           </div>
@@ -432,7 +434,7 @@
           >
             Run
             <span class="mono gf-text-primary">goat-flow audit --harness</span>
-            for 27 advisory checks across five concerns:
+            for 16 harness checks across five concerns:
             <strong class="gf-text-primary" style="font-weight: 500"
               >context, constraints, verification, recovery, feedback
               loop</strong
@@ -449,7 +451,7 @@
         </section>
 
         <!-- ==== Skills ==== -->
-        <section id="help-skills" style="margin-bottom: 52px">
+        <section id="about-skills" style="margin-bottom: 52px">
           <div
             class="gf-text-disabled"
             style="
@@ -564,7 +566,7 @@
         </section>
 
         <!-- ==== Hooks ==== -->
-        <section id="help-hooks" style="margin-bottom: 52px">
+        <section id="about-hooks" style="margin-bottom: 52px">
           <div
             class="gf-text-disabled"
             style="
@@ -594,7 +596,8 @@
           >
             Hooks fire before or after agent actions. One ships by default:
             <span class="mono gf-text-primary">deny-dangerous</span>. Projects
-            can add their own alongside it, and all hooks run in parallel.
+            can add their own where their runner supports it; the audit checks
+            that hook files and registrations stay in sync.
           </p>
 
           <div class="gf-card" style="padding: 16px 18px">
@@ -610,13 +613,13 @@
                 >deny-dangerous</span
               >
               <span class="gf-text-muted" style="font-size: 13px; flex: 1">
-                Blocks eight patterns by default:
-                <span class="mono gf-text-primary">rm -rf</span>, force-push
-                variants, <span class="mono gf-text-primary">.env</span> file
-                reads, secret exfiltration,
-                <span class="mono gf-text-primary">eval</span> and
-                <span class="mono gf-text-primary">bash -c</span> subshells,
-                database <span class="mono gf-text-primary">DROP</span>/<span
+                Blocks destructive filesystem commands, all git push,
+                <span class="mono gf-text-primary">.env</span> file reads,
+                secret exfiltration,
+                <span class="mono gf-text-primary">eval</span> and dangerous
+                commands hidden inside
+                <span class="mono gf-text-primary">bash -c</span>, database
+                <span class="mono gf-text-primary">DROP</span>/<span
                   class="mono gf-text-primary"
                   >TRUNCATE</span
                 >, file truncation, and recursive command substitution.
@@ -631,16 +634,16 @@
             ></div>
             <p class="gf-text-muted" style="font-size: 13px; margin: 0">
               <span class="gf-text-primary">Add your own.</span> Linters, custom
-              validators, format-on-save, project-specific rules. Drop them in
-              alongside
-              <span class="mono gf-text-primary">deny-dangerous</span> and they
-              register automatically.
+              validators, format-on-save, project-specific rules. Register them
+              in the agent's hook config alongside
+              <span class="mono gf-text-primary">deny-dangerous</span> so the
+              audit can verify the wiring.
             </p>
           </div>
         </section>
 
         <!-- ==== Learning Loop ==== -->
-        <section id="help-learning-loop" style="margin-bottom: 52px">
+        <section id="about-learning-loop" style="margin-bottom: 52px">
           <div
             class="gf-text-disabled"
             style="
@@ -669,9 +672,10 @@
             style="font-size: 15px; max-width: 640px; margin: 0 0 18px"
           >
             Agents forget everything between runs. The learning loop gives them
-            four kinds of persistent records so the same mistake doesn't happen
-            twice. It's the compounding bet of the whole system: every session
-            that hits a problem makes the next session a little harder to trip.
+            durable project records, with local session notes as recovery
+            context, so the same mistake doesn't happen twice. It's the
+            compounding bet of the whole system: every session that hits a
+            problem makes the next session a little harder to trip.
           </p>
 
           <div
@@ -686,7 +690,8 @@
                 { name: 'Footguns', desc: 'Architectural traps with semantic-anchor evidence. Stops the agent hitting the same code landmine twice.', path: '.goat-flow/footguns/' },
                 { name: 'Lessons', desc: 'Behavioural mistakes the agent made. Logged so the same error pattern is recognised and avoided.', path: '.goat-flow/lessons/' },
                 { name: 'Decisions', desc: 'Architecture Decision Records. Captures why a choice was made so future agents don\'t reverse it.', path: '.goat-flow/decisions/' },
-                { name: 'Session logs', desc: 'End-of-session summaries. Provides continuity between work sessions across agents.', path: '.goat-flow/logs/sessions/' }
+                { name: 'Patterns', desc: 'Successful repeatable approaches worth reusing. Keeps proven workflows close to the agent.', path: '.goat-flow/patterns.md' },
+                { name: 'Session logs', desc: 'Checkout-local continuity notes for compaction or resume. Useful context, not committed project knowledge.', path: '.goat-flow/logs/sessions/' }
               ]"
               :key="rec.name"
             >
@@ -712,7 +717,7 @@
         </section>
 
         <!-- ==== Execution Loop ==== -->
-        <section id="help-execution-loop" style="margin-bottom: 52px">
+        <section id="about-execution-loop" style="margin-bottom: 52px">
           <div
             class="gf-text-disabled"
             style="
@@ -745,7 +750,7 @@
           </p>
 
           <div
-            class="gf-help-flow"
+            class="gf-about-flow"
             style="
               display: grid;
               grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
@@ -780,7 +785,7 @@
               >
             </div>
             <div
-              class="gf-help-arrow gf-text-disabled"
+              class="gf-about-arrow gf-text-disabled"
               style="display: flex; align-items: center"
             >
               <svg
@@ -825,7 +830,7 @@
               >
             </div>
             <div
-              class="gf-help-arrow gf-text-disabled"
+              class="gf-about-arrow gf-text-disabled"
               style="display: flex; align-items: center"
             >
               <svg
@@ -870,7 +875,7 @@
               >
             </div>
             <div
-              class="gf-help-arrow gf-text-disabled"
+              class="gf-about-arrow gf-text-disabled"
               style="display: flex; align-items: center"
             >
               <svg
@@ -919,7 +924,7 @@
         </section>
 
         <!-- ==== Five concerns ==== -->
-        <section id="help-five-concerns" style="margin-bottom: 52px">
+        <section id="about-five-concerns" style="margin-bottom: 52px">
           <div
             class="gf-text-disabled"
             style="
@@ -958,8 +963,8 @@
                 { label: 'Context', desc: 'Give the agent a map, not a 1,000-page manual. Concise instructions, the right files, progress notes across sessions.' },
                 { label: 'Constraints', desc: 'Deterministic rules that steer before the agent acts. Linters, deny-hooks, permissions, required sections.' },
                 { label: 'Verification', desc: 'Structural checks the agent runs to prove its own work. Tests, typecheck, post-action hooks, back-pressure.' },
-                { label: 'Recovery', desc: 'Session durability and restart paths. Checkpoint/resume, compaction handlers, milestone checkboxes, loop detection.' },
-                { label: 'Feedback loop', desc: 'Capture every mistake as persistent context so the next session does not repeat it. Footguns, lessons, decisions, logs.' }
+                { label: 'Recovery', desc: 'Session durability and restart paths. Milestone checkboxes, local session notes, checkpoint/resume habits, loop detection.' },
+                { label: 'Feedback loop', desc: 'Capture recurring mistakes and useful decisions as persistent context so the next session does not repeat them. Footguns, lessons, decisions, patterns.' }
               ]"
               :key="item.label"
             >
@@ -989,14 +994,14 @@
             style="font-size: 14px; margin-top: 16px; line-height: 1.65"
           >
             Sources: Mitchell Hashimoto, Birgitta Böckeler (martinfowler.com),
-            Anthropic engineering, and HumanLayer. goat-flow synthesises these
-            into a working system with strong defaults, rather than a framework
-            you have to assemble yourself.
+            Anthropic engineering, HumanLayer, and LangChain. goat-flow
+            synthesises these into a working system with strong defaults, rather
+            than a framework you have to assemble yourself.
           </p>
         </section>
 
         <!-- ==== Quick Links ==== -->
-        <section id="help-quicklinks" style="margin-bottom: 52px">
+        <section id="about-quicklinks" style="margin-bottom: 52px">
           <div
             class="gf-text-disabled"
             style="
@@ -1024,7 +1029,7 @@
             class="gf-text-muted"
             style="font-size: 15px; max-width: 640px; margin: 0 0 18px"
           >
-            Where to go next. Home is the usual starting point.
+            Each view has a specific job. Home is the usual starting point.
           </p>
 
           <div class="gf-card" style="overflow: hidden; padding: 0">
@@ -1032,8 +1037,8 @@
               x-for="(link, idx) in [
                 { view: 'home', label: 'Home', desc: 'Health overview, agent cards, and the audit status strip' },
                 { view: 'setup', label: 'Setup', desc: 'Generate and run a setup prompt for a specific agent' },
-                { view: 'quality', label: 'Quality', desc: 'Agent-driven quality assessment for the selected agent' },
-                { view: 'prompts', label: 'Prompts', desc: 'Ready-made prompts for every installed skill' },
+                { view: 'quality', label: 'Quality', desc: 'Agent-driven quality assessment across four modes: installation, process, harness, and skills' },
+                { view: 'prompts', label: 'Prompts', desc: 'Ready-made prompts for the functional goat-flow skills' },
                 { view: 'workspace', label: 'Workspace', desc: 'Terminal sessions and running prompts in one view' },
                 { view: 'projects', label: 'Projects', desc: 'Switch between project directories for auditing' }
               ]"
@@ -1073,7 +1078,7 @@
 
       <!-- ==== On this page (sticky rail) ==== -->
       <aside
-        class="gf-help-toc"
+        class="gf-about-toc"
         style="
           position: sticky;
           top: 24px;
@@ -1110,7 +1115,7 @@
           >
             <li style="margin-bottom: 7px">
               <button
-                @click="document.getElementById('help-' + item.id)?.scrollIntoView({ behavior: 'smooth' }); activeToc = item.id"
+                @click="document.getElementById('about-' + item.id)?.scrollIntoView({ behavior: 'smooth' }); activeToc = item.id"
                 style="
                   background: none;
                   border: none;

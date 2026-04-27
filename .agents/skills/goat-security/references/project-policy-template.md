@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # Project Security Policy Template
 
 Optional path for goat-security policy overrides:

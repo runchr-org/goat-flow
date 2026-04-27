@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.3.0"
+---
 # Skill Deployment
 
 The final-gate content: common rationalisations for skipping testing itself, the full deployment checklist, and the STOP rule that prevents batched untested skills from shipping.
@@ -27,7 +30,21 @@ All of these mean: **test before deploying. No exceptions.**
 
 ## Skill deployment checklist
 
-Every skill MUST pass this checklist before merging. Track each item as a todo in your agent's planning tool - don't work from memory.
+For a new skill or a material behavioural change to an existing skill, this checklist is a release gate before merging. For already-shipped skills where a later audit finds missing TDD evidence, record the gap as hardening debt and do not claim the skill is bulletproof until fresh logs satisfy the checklist. Track each item as a todo in your agent's planning tool - don't work from memory.
+
+## Evidence classification
+
+Use these labels when summarising existing TDD logs:
+
+| Label | Meaning | Completion claim allowed |
+|-------|---------|--------------------------|
+| `no evidence` | No relevant TDD log found | No pressure-test claim |
+| `RED no-repro` | RED scenarios did not reproduce the target failure class | Scenario tested; not bulletproof |
+| `stay-GREEN smoke` | One loaded-skill pass or regression check | Smoke-tested; not bulletproof |
+| `partial hardening` | RED/GREEN happened, but fewer than 3 max-pressure passes | Hardened against captured failures; not bulletproof |
+| `bulletproof` | 3 consecutive max-pressure scenarios pass with no new rationalisations | Bulletproof for the tested failure class |
+
+If current logs do not meet `bulletproof`, say so directly. Do not backfill missing evidence by creating summary records; rerun the pressure tests instead.
 
 **RED phase - write failing test:**
 - [ ] Create pressure scenarios (3+ combined pressures for discipline skills)
@@ -37,7 +54,7 @@ Every skill MUST pass this checklist before merging. Track each item as a todo i
 
 **GREEN phase - write minimal skill:**
 - [ ] Name describes what you DO or the core insight
-- [ ] Frontmatter has `goat-flow-skill-version: "1.2.5"` and trigger-only `description`
+- [ ] Frontmatter has `goat-flow-skill-version: "1.3.0"` and trigger-only `description`
 - [ ] `description` is CSO-optimised: "Use when [trigger]", not a workflow summary
 - [ ] Keywords throughout for search (error messages, symptoms, tool names)
 - [ ] Overview states the core principle in 1–2 sentences

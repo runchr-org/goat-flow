@@ -11,6 +11,7 @@ import type { AuditConcernKey } from "../../src/cli/audit/types.js";
 import {
   makeCtx,
   makeSharedFacts,
+  stubFS,
   stubAgentFacts,
 } from "../fixtures/projects/index.js";
 
@@ -100,6 +101,68 @@ describe("harness howToFix", () => {
   });
 });
 
+describe("commit-guidance harness check", () => {
+  const commitGuidanceCheck = HARNESS_CHECKS.find(
+    (c) => c.id === "commit-guidance",
+  );
+
+  it("passes when commit guidance is in the .github canonical path", () => {
+    assert.ok(commitGuidanceCheck, "commit-guidance check must exist");
+    const shared = makeSharedFacts();
+    shared.gitCommitInstructions = {
+      exists: true,
+      path: ".github/git-commit-instructions.md",
+      requiredPath: ".github/git-commit-instructions.md",
+      misplacedPaths: [],
+    };
+
+    const result = commitGuidanceCheck.run(
+      makeCtx({
+        facts: {
+          ...makeCtx().facts,
+          shared,
+        },
+      }),
+    );
+
+    assert.equal(result.status, "pass");
+    assert.match(
+      result.findings.join("\n"),
+      /\.github\/git-commit-instructions\.md/,
+    );
+  });
+
+  it("fails when a .github project keeps commit guidance only in docs", () => {
+    assert.ok(commitGuidanceCheck, "commit-guidance check must exist");
+    const shared = makeSharedFacts();
+    shared.gitCommitInstructions = {
+      exists: false,
+      path: null,
+      requiredPath: ".github/git-commit-instructions.md",
+      misplacedPaths: ["docs/coding-standards/git-commit.md"],
+    };
+
+    const result = commitGuidanceCheck.run(
+      makeCtx({
+        facts: {
+          ...makeCtx().facts,
+          shared,
+        },
+      }),
+    );
+
+    assert.equal(result.status, "fail");
+    assert.match(
+      result.findings.join("\n"),
+      /belongs at \.github\/git-commit-instructions\.md/,
+    );
+    assert.match(
+      result.howToFix?.join("\n") ?? "",
+      /docs\/coding-standards\/git-commit\.md/,
+    );
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Deny hook registration check
 // ---------------------------------------------------------------------------
@@ -144,6 +207,28 @@ describe("deny-hook-registered harness check", () => {
     const result = denyRegisteredCheck.run(ctx);
     assert.equal(result.status, "pass");
   });
+
+  it("fails when registered path is a different agent's deny hook (same basename)", () => {
+    assert.ok(denyRegisteredCheck, "deny-hook-registered check must exist");
+    const ctx = makeCtx({
+      agents: [
+        stubAgentFacts({
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyExists: true,
+            denyIsRegistered: true,
+            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+          },
+        }),
+      ],
+    });
+    const result = denyRegisteredCheck.run(ctx);
+    assert.equal(result.status, "fail");
+    const finding = result.findings.find((f) => f.includes("does not match"));
+    assert.ok(finding, "should report path mismatch");
+    assert.ok(finding.includes(".codex/hooks/deny-dangerous.sh"));
+    assert.ok(finding.includes(".claude/hooks/deny-dangerous.sh"));
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -167,5 +252,54 @@ describe("zero-entry fresh install", () => {
       "pass",
       `feedback_loop should pass: ${JSON.stringify(feedbackLoop)}`,
     );
+  });
+});
+
+describe("harness scoring honesty", () => {
+  it("treats milestone checkbox completion as informational local state", () => {
+    const check = HARNESS_CHECKS.find((c) => c.id === "milestone-tracking");
+    assert.ok(check, "milestone-tracking check must exist");
+    const ctx = makeCtx({
+      fs: stubFS({
+        exists: (path) => path === ".goat-flow/tasks",
+        listDir: (path) => (path === ".goat-flow/tasks" ? ["M01-demo.md"] : []),
+        readFile: (path) =>
+          path === ".goat-flow/tasks/M01-demo.md"
+            ? [
+                "# M01 Demo",
+                "**Status:** in-progress",
+                "## Tasks",
+                "- [ ] Add feature",
+                "- [ ] Verify feature",
+                "## Exit Criteria",
+                "- [ ] Feature works",
+              ].join("\n")
+            : null,
+      }),
+    });
+
+    const result = check.run(ctx);
+    assert.equal(result.status, "pass");
+    assert.match(result.findings.join("\n"), /at 0%/);
+    assert.match(result.findings.join("\n"), /informational only/);
+  });
+
+  it("does not report perfect feedback-loop health when stale learning-loop refs exist", () => {
+    const check = HARNESS_CHECKS.find((c) => c.id === "feedback-loop-active");
+    assert.ok(check, "feedback-loop-active check must exist");
+    const shared = makeSharedFacts();
+    shared.footguns.staleRefs = ["missing-footgun-ref.md"];
+    shared.lessons.staleRefs = ["missing-lesson-ref.md"];
+    const result = check.run(
+      makeCtx({
+        facts: {
+          ...makeCtx().facts,
+          shared,
+        },
+      }),
+    );
+
+    assert.equal(result.status, "fail");
+    assert.match(result.findings.join("\n"), /2 stale file reference/);
   });
 });

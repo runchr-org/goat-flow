@@ -146,8 +146,12 @@ describe("quality prompt content", () => {
       "Should explicitly carve out gitignored build directories as permitted writes",
     );
     assert.ok(
-      result.prompt.includes("strict no-write"),
-      "Should distinguish reporting-only from strict no-write mode",
+      result.prompt.includes("do not count as writes"),
+      "Should say gitignored local workflow artifacts do not count as writes",
+    );
+    assert.ok(
+      !result.prompt.includes("strict no-write"),
+      "Should not revive a strict no-write vocabulary that misclassifies gitignored logs",
     );
     assert.ok(
       !result.prompt.includes("milestone task files"),
@@ -247,6 +251,31 @@ describe("quality prompt content", () => {
     );
   });
 
+  it("generates mode-specific skills prompts with a mode-aware JSON contract", () => {
+    const result = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/test-project",
+      auditReport: null,
+      qualityMode: "skills",
+      runDate: "2026-04-25",
+    });
+
+    assert.match(result.prompt, /Skill Suite Quality Assessment/);
+    assert.match(result.prompt, /Assess all seven goat-flow skills/);
+    assert.match(result.prompt, /"quality_mode": "skills"/);
+    assert.match(
+      result.prompt,
+      /No prior same-agent skills quality report exists/,
+    );
+    const parsed = parseQualityReport(
+      JSON.parse(extractExampleJson(result.prompt)),
+    );
+    assert.ok(
+      parsed.ok,
+      `skills-mode JSON example must parse: ${parsed.ok ? "" : parsed.error}`,
+    );
+  });
+
   it("defaults run_date from local calendar getters, not UTC ISO date", () => {
     const RealDate = Date;
     class FakeDate extends RealDate {
@@ -338,6 +367,32 @@ describe("quality prompt content", () => {
             evidence_quality: "OBSERVED",
             delta_tag: "new",
           },
+          {
+            id: "skill_flaw:agents-skills-goat-critique-skill-md:131",
+            type: "skill_flaw",
+            severity: "MAJOR",
+            file: ".agents/skills/goat-critique/SKILL.md",
+            line: 131,
+            summary:
+              "goat-critique unconditionally persists critique snapshots with no strict no-write branch.",
+            detail:
+              "The finding treats gitignored critique logs as a write violation.",
+            evidence_quality: "OBSERVED",
+            delta_tag: "new",
+          },
+          {
+            id: "framework_flaw:src-cli-prompt-compose-quality-ts:700",
+            type: "framework_flaw",
+            severity: "MAJOR",
+            file: "src/cli/prompt/compose-quality.ts",
+            line: 700,
+            summary:
+              "Tracked-file edit violates strict no-write assessment mode.",
+            detail:
+              "The agent modified src/cli/prompt/compose-quality.ts during reporting-only assessment.",
+            evidence_quality: "OBSERVED",
+            delta_tag: "new",
+          },
         ],
       },
     };
@@ -355,6 +410,20 @@ describe("quality prompt content", () => {
         "Latest same-agent report: `2026-04-15-1000-claude-bbbbb` (2026-04-15)",
       ),
       "Should surface prior-report identity and date",
+    );
+    assert.ok(
+      result.prompt.includes("Omitted 1 prior local-artifact write finding(s)"),
+      "Should not carry forward old gitignored-log write findings",
+    );
+    assert.ok(
+      !result.prompt.includes("strict no-write"),
+      "Should not leak stale strict no-write wording from prior reports into new prompts",
+    );
+    assert.ok(
+      result.prompt.includes(
+        "Tracked-file edit violates tracked-file write restriction assessment mode.",
+      ),
+      "Should keep real tracked-file write findings while neutralizing stale wording",
     );
     assert.ok(
       result.prompt.includes("Do NOT emit `resolved` in current findings"),
@@ -523,6 +592,37 @@ describe("quality prompt JSON example parses through schema", () => {
     const parsed = JSON.parse(json) as { project_path: string };
     assert.equal(parsed.project_path, "C:\\repo\\app");
   });
+
+  it("shell-quotes quality report paths in agent-setup prompt snippets", () => {
+    const result = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/app $repo/`bad`/bob's app",
+      auditReport: null,
+      runDate: "2026-04-20",
+    });
+
+    assert.match(
+      result.prompt,
+      /QUALITY_DIR='\/tmp\/app \$repo\/`bad`\/bob'\\''s app\/\.goat-flow\/logs\/quality'/,
+    );
+    assert.doesNotMatch(result.prompt, /FILE="\/tmp\/app \$repo/);
+  });
+
+  it("shell-quotes quality report paths in focused prompt snippets", () => {
+    const result = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/app $repo/`bad`/bob's app",
+      auditReport: null,
+      qualityMode: "skills",
+      runDate: "2026-04-20",
+    });
+
+    assert.match(
+      result.prompt,
+      /QUALITY_DIR='\/tmp\/app \$repo\/`bad`\/bob'\\''s app\/\.goat-flow\/logs\/quality'/,
+    );
+    assert.doesNotMatch(result.prompt, /FILE="\/tmp\/app \$repo/);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -605,5 +705,26 @@ describe("quality CLI output contract", () => {
       payload.prompt,
       /# GOAT Flow Quality Assessment - Claude Code/,
     );
+  });
+
+  it("threads --mode through prompt generation", () => {
+    const root = makeTempProject();
+    const result = runCLI(root, [
+      "quality",
+      ".",
+      "--agent",
+      "claude",
+      "--mode",
+      "harness",
+      "--format",
+      "json",
+    ]);
+
+    assert.equal(result.status, 0, result.stderr);
+    const payload = JSON.parse(result.stdout) as {
+      prompt: string;
+    };
+    assert.match(payload.prompt, /AI Harness Engineering Quality Assessment/);
+    assert.match(payload.prompt, /"quality_mode": "harness"/);
   });
 });

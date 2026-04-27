@@ -176,20 +176,6 @@ function app() {
     isSessionBoundLocally(id: string): boolean {
       return this.sessions.some((s) => s.id === id);
     },
-    terminalAuditActions: [
-      {
-        id: "audit-setup",
-        label: "Audit Setup",
-        command: "npx goat-flow audit .",
-        description: "Run the build checks for the current workspace.",
-      },
-      {
-        id: "audit-harness",
-        label: "Audit Harness",
-        command: "npx goat-flow audit . --harness",
-        description: "Run AI harness completeness checks.",
-      },
-    ] as AuditAction[],
 
     // --- Projects state ---
     projectsList: [] as ProjectEntry[],
@@ -201,6 +187,7 @@ function app() {
 
     // --- Quality state ---
     qualityAgent: defaultRunner,
+    selectedQualityModeId: "agent-setup",
     qualityLoading: false,
     qualityResult: null as QualityResult | null,
     qualityCopyLabel: "Copy",
@@ -208,6 +195,9 @@ function app() {
     qualityHistoryRows: [] as QualityHistoryRow[],
     qualityHistoryLatest: null as QualityHistoryLatest | null,
     qualityHistoryWarnings: [] as string[],
+    _qualityHistoryTimer: null as ReturnType<typeof setTimeout> | null,
+    homeQualityLoading: false,
+    homeQualityLatest: null as QualityHistoryLatest | null,
 
     /** Resolve the current display name for one supported agent id. */
     agentName(agentId: RunnerId): string {
@@ -243,9 +233,17 @@ function app() {
     } as SetupData,
     setupGenerating: false,
     setupOutputs: {} as Record<string, string>,
+    _setupOutputProjectPath: null as string | null,
+    _setupPromptTimer: null as ReturnType<typeof setTimeout> | null,
 
     // --- Launcher state ---
     presets: readInjectedPresets(),
+    customPrompts: [] as CustomPrompt[],
+    showInternalPresets:
+      localStorage.getItem("goat-flow-show-internal") === "true",
+    showCustomPromptEditor: false,
+    editingCustomPromptId: null as string | null,
+    customPromptDraft: dashboardDefaultCustomPromptDraft(),
     presetFilter: "all",
     presetSearch: "",
     presetFavorites: readStoredStringArray("goat-flow-preset-favorites"),
@@ -264,6 +262,14 @@ function app() {
     /** Return the preset category filters. */
     get presetCats(): PresetCategory[] {
       return dashboardPresetCats(this);
+    },
+    /** Compact prerequisite/fit badges for a preset row or detail view. */
+    presetBadges(preset: Preset): PresetBadge[] {
+      return dashboardPresetBadges(preset);
+    },
+    /** Built-in presets plus local browser custom prompts. */
+    get allPresets(): Preset[] {
+      return dashboardAllPresets(this);
     },
     /**
      * Favorites stay pinned to the top unless the user explicitly switches into
@@ -315,6 +321,47 @@ function app() {
     copyPreset(prompt: string) {
       dashboardCopyPreset(this, prompt);
     },
+    /** Open a blank custom prompt editor. */
+    openNewCustomPrompt() {
+      dashboardOpenNewCustomPrompt(this);
+    },
+    /** Edit the currently selected custom prompt. */
+    editSelectedCustomPrompt() {
+      dashboardOpenEditCustomPrompt(this, this.selectedPreset);
+    },
+    /** Start a new custom prompt from the selected custom prompt. */
+    duplicateSelectedCustomPrompt() {
+      dashboardDuplicateCustomPrompt(this, this.selectedPreset);
+    },
+    /** Save the custom prompt editor draft. */
+    saveCustomPrompt() {
+      dashboardSaveCustomPrompt(this);
+    },
+    /** Delete the selected custom prompt after confirmation. */
+    deleteSelectedCustomPrompt() {
+      dashboardDeleteSelectedCustomPrompt(this);
+    },
+    /** Cancel custom prompt editing without changing persisted prompts. */
+    cancelCustomPromptEdit() {
+      this.showCustomPromptEditor = false;
+      this.editingCustomPromptId = null;
+    },
+    /** Return quality-page prompt modes. */
+    get qualityModes(): QualityModeOption[] {
+      return dashboardQualityModes(this);
+    },
+    /** Return the selected quality mode option. */
+    get selectedQualityModeMeta(): QualityModeOption | null {
+      return dashboardSelectedQualityModeMeta(this);
+    },
+    /** Return the label to use for quality-mode terminal sessions. */
+    qualityLaunchLabel(): string {
+      return dashboardQualityLaunchLabel(this);
+    },
+    /** Return the selected setup target's instruction/config surfaces. */
+    setupInstructionSurfaces(): string {
+      return dashboardSetupInstructionSurfaces(this);
+    },
     /** Send text to the active terminal session and focus it. */
     sendToTerminal(
       text: string,
@@ -326,11 +373,6 @@ function app() {
     async sendToProjectTarget(prompt: string, target: ServerSessionInfo) {
       await dashboardSendToProjectTarget(this, prompt, target);
     },
-    /** Run a predefined audit command in the workspace terminal. */
-    async runTerminalAuditCommand(action: AuditAction | null) {
-      await dashboardRunTerminalAuditCommand(this, action);
-    },
-
     // --- Init ---
     init() {
       const self = this as typeof this & AlpineMagics<typeof this>;
@@ -422,8 +464,16 @@ function app() {
           clearInterval(this._workspacePoll);
           this._workspacePoll = null;
         }
-        if (v === "projects" || v === "workspace" || v === "prompts") {
+        if (
+          v === "home" ||
+          v === "projects" ||
+          v === "workspace" ||
+          v === "prompts"
+        ) {
           void this.updateSessionCount();
+        }
+        if (v === "home") {
+          void this.generateHomeQualitySummary();
         }
         if (v === "workspace") {
           this._workspacePoll = setInterval(() => {
@@ -432,18 +482,32 @@ function app() {
         }
         if (v === "quality") {
           void this.generateQuality();
-          void this.generateQualityHistory();
+          this.scheduleQualityHistory();
         }
         if (v === "setup") {
           void this.detectStack();
-          void this.generateSetupPrompt();
+          this.scheduleSetupPrompt();
         }
       });
       self.$watch("qualityAgent", () => {
         if (this.activeView === "quality") {
           void this.generateQuality();
-          void this.generateQualityHistory();
+          this.scheduleQualityHistory();
         }
+      });
+      self.$watch("activeRunner", () => {
+        if (this.activeView === "home") {
+          void this.generateHomeQualitySummary();
+        }
+      });
+      self.$watch("selectedQualityModeId", () => {
+        if (this.activeView === "quality") {
+          void this.generateQuality();
+          this.scheduleQualityHistory();
+        }
+      });
+      self.$watch("showInternalPresets", (v: boolean) => {
+        localStorage.setItem("goat-flow-show-internal", String(v));
       });
       self.$watch("sessionsCollapsed", (v: boolean) => {
         localStorage.setItem("gf-sessions-collapsed", String(v));
@@ -460,12 +524,20 @@ function app() {
           void this.updateSessionCount();
           if (this.activeView === "quality") {
             void this.generateQuality();
-            void this.generateQualityHistory();
+            this.scheduleQualityHistory();
+          }
+          if (this.activeView === "setup") {
+            void this.detectStack();
+            this.scheduleSetupPrompt();
+          }
+          if (this.activeView === "home") {
+            void this.generateHomeQualitySummary();
           }
         }
       });
       updateTitle();
       document.documentElement.classList.toggle("dark", this.darkMode);
+      dashboardLoadCustomPrompts(this);
       void this._loadSavedDashboardState().then(() => {
         if (this.projectsList.length > 0) void this.auditAllProjects();
       });
@@ -532,6 +604,8 @@ function app() {
                 void this.launchPreset(
                   this.selectedPreset.prompt,
                   this.activeRunner,
+                  this.selectedPreset.name,
+                  { presetId: this.selectedPreset.id },
                 );
               }
             }
@@ -566,6 +640,9 @@ function app() {
         this.report = readDashboardReport(payload);
         this.auditCached = cached;
         this.lastAuditTime = cachedAt ? new Date(cachedAt) : new Date();
+        if (this.activeView === "home") {
+          void this.generateHomeQualitySummary();
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         this.showToast(
@@ -631,8 +708,12 @@ function app() {
       await dashboardDetectStack(this);
     },
     /** Generate setup output for the agent selected in the setup view. */
-    async generateSetupPrompt() {
-      await dashboardGenerateSetupPrompt(this);
+    async generateSetupPrompt(force = false) {
+      await dashboardGenerateSetupPrompt(this, { force });
+    },
+    /** Generate setup output after setup detection gets a paint. */
+    scheduleSetupPrompt() {
+      dashboardScheduleSetupPrompt(this);
     },
 
     // -- Quality --
@@ -642,6 +723,38 @@ function app() {
     /** Load persisted quality-history rows for the selected project and agent. */
     async generateQualityHistory() {
       await dashboardGenerateQualityHistory(this);
+    },
+    /** Load quality history after first prompt paint. */
+    scheduleQualityHistory() {
+      dashboardScheduleQualityHistory(this);
+    },
+    /** Load the latest quality-history summary for the Home rollup. */
+    async generateHomeQualitySummary() {
+      this.homeQualityLoading = true;
+      this.homeQualityLatest = null;
+      const requestProjectPath = this.projectPath;
+      const requestAgent = this.activeRunner;
+      const isCurrentRequest = (): boolean =>
+        this.projectPath === requestProjectPath &&
+        this.activeRunner === requestAgent;
+      try {
+        const res = await fetch(
+          `/api/quality/history?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestAgent)}&mode=agent-setup&limit=1`,
+        );
+        const payload = readRecord(await res.json(), "Home quality response");
+        if (!isCurrentRequest()) return;
+        const error = readErrorMessage(payload);
+        if (error) {
+          this.showToast(error, true);
+        } else {
+          this.homeQualityLatest = readQualityHistoryLatest(payload.latest);
+        }
+      } catch (err) {
+        if (!isCurrentRequest()) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        this.showToast(msg || "Home quality loading failed", true);
+      }
+      if (isCurrentRequest()) this.homeQualityLoading = false;
     },
     /** Copy the current quality prompt to the clipboard. */
     copyQuality() {
@@ -738,8 +851,17 @@ function app() {
       await dashboardLoadXterm(this);
     },
     /** Launch a preset prompt in the selected runner. */
-    async launchPreset(prompt: string, runner?: RunnerId, label?: string) {
-      await dashboardLaunchPreset(this, prompt, runner, label);
+    async launchPreset(
+      prompt: string,
+      runner?: RunnerId,
+      label?: string,
+      options?: {
+        presetId?: string | null;
+        cwdPath?: string | null;
+        targetPath?: string | null;
+      },
+    ) {
+      await dashboardLaunchPreset(this, prompt, runner, label, options);
     },
     /** Drop a session id from every project's saved list, pruning empty entries. */
     _forgetSavedSession(sessionId: string) {
@@ -760,11 +882,20 @@ function app() {
       {
         promptLabel = null,
         presetId = null,
-      }: { promptLabel?: string | null; presetId?: string | null } = {},
+        cwdPath = null,
+        targetPath = null,
+      }: {
+        promptLabel?: string | null;
+        presetId?: string | null;
+        cwdPath?: string | null;
+        targetPath?: string | null;
+      } = {},
     ) {
       await dashboardLaunchInTerminal(this, prompt, runner, {
         promptLabel,
         presetId,
+        cwdPath,
+        targetPath,
       });
     },
     /** Bind a browser xterm instance to a backend PTY session. */
@@ -816,7 +947,6 @@ function app() {
     },
 
     // -- Computed Properties --
-    auditDetailScope: null as string | null,
     auditDetailAgent: null as string | null,
     // -- Helpers --
     formatTimeAgo(date: string | Date | null): string {
@@ -827,6 +957,19 @@ function app() {
       if (m < 60) return `${m}m ago`;
       const h = Math.floor(m / 60);
       if (h < 24) return `${h}h ago`;
+      return `${Math.floor(h / 24)}d ago`;
+    },
+    formatAuditAge(date: string | Date | null): string {
+      if (!date) return "just now";
+      const s = Math.max(
+        0,
+        Math.floor((Date.now() - new Date(date).getTime()) / 1000),
+      );
+      if (s < 60) return "just now";
+      const m = Math.floor(s / 60);
+      if (m < 60) return `${m}m ago`;
+      const h = Math.floor(m / 60);
+      if (h < 72) return `${h}h ago`;
       return `${Math.floor(h / 24)}d ago`;
     },
   };

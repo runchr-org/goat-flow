@@ -4,6 +4,8 @@
 
 If the trap is in the code itself → `.goat-flow/footguns/` instead.
 
+**"Add a lesson" = create/update an entry here.** Not runtime code, not code comments, not test assertions. A lesson is a documentation artifact. If the user also wants a code change, they will ask for it separately.
+
 Prefer category bucket files such as `verification.md`, `workflow.md`, or `coordination.md` with file-level frontmatter:
 
 ```yaml

@@ -7,15 +7,15 @@
 
 - The skill previously shipped two modes: Quick (inline SKEPTIC/ANALYST/STRATEGIST lens passes in a single reviewer context) and Full / delegated (2-3 isolated sub-agents + cross-examination + dispute gating). Stake calibration defaulted Standard-complexity work to Quick (`.claude/skills/goat-critique/SKILL.md:30-42`).
 - Quick mode produced artifact-shaped output without the mechanism that makes the skill worth invoking. A single reviewer running three named lens passes in the same context is not multi-perspective critique - it is self-talk under three labels. Informational diversity, which the skill body itself names as the point of Phase 1 (`.claude/skills/goat-critique/SKILL.md:49-51`), disappears when all passes share one context.
-- The skill's own coherence already admitted this gap: under Quick mode, Phase 2 required that every split finding be tagged as Decision Debt "because cross-examination is skipped, there is no basis to pick a winner" (`.claude/skills/goat-critique/SKILL.md:91`). That rule is a concession that Quick mode cannot do the job the skill exists to do.
+- The skill's own coherence already admitted this gap: under Quick mode, Phase 2 required that every split finding be tagged as inconclusive "because cross-examination is skipped, there is no basis to pick a winner" (`.claude/skills/goat-critique/SKILL.md:91`). That rule is a concession that Quick mode cannot do the job the skill exists to do.
 - Low-ceremony multi-lens review is already covered elsewhere. `/goat-review` handles diff-level analysis, pre-existing separation, and single-reviewer quality questions without delegation. Users who want inline lens thinking have that surface; they do not need a Quick fallback inside goat-critique.
-- Recent in-repo experience (2026-04-19 session critiquing the 12-task fix plan derived from `.goat-flow/logs/quality/**`) ran in Quick mode because delegation authorization was implicit rather than explicit. The output was usable but structurally misrepresented the work done: section headings suggested multi-agent coverage while only one context was ever produced. Decision Debt tagging flagged the inconclusive findings, but the artifact shape still read like delegated critique on a quick scan.
+- Recent in-repo experience (2026-04-19 session critiquing the 12-task fix plan derived from `.goat-flow/logs/quality/**`) ran in Quick mode because delegation authorization was implicit rather than explicit. The output was usable but structurally misrepresented the work done: section headings suggested multi-agent coverage while only one context was ever produced. Open-question tagging flagged the inconclusive findings, but the artifact shape still read like delegated critique on a quick scan.
 - The earlier rename captured by ADR-019 aligned the skill's command name with its mechanism. Collapsing to delegated-only aligns the skill's behaviour with the mechanism the name now promises.
 
 ## Decision
 
 1. **goat-critique runs in one mode: full delegated.** 5 phases, 2-3 sub-agents spawned via the Agent tool. Phase 1 MUST use isolated Agent-tool calls; no inline role-play substitute is permitted.
-2. ~~**If delegation is unavailable in the session, the skill does not run.** Step 0 stops and redirects the user to `/goat-review`. Inline lens passes are not an acceptable fallback.~~ **Superseded (2026-04-23):** All four supported agents (Claude Code, Codex, Gemini, Copilot) ship sub-agent delegation. The redirect is dead ceremony per `lessons/agent-behavior.md` ("Sub-agent delegation is universal"). Removed from `docs/skills.md` and skill files.
+2. ~~**If delegation is unavailable in the session, the skill does not run.** Step 0 stops and redirects the user to `/goat-review`. Inline lens passes are not an acceptable fallback.~~ **Superseded (2026-04-23):** All four supported agents (Claude Code, Codex, Gemini, Copilot) ship sub-agent delegation. The redirect is dead ceremony per `.goat-flow/lessons/agent-behavior-trust.md` (search: `Sub-agent delegation is universal`). Removed from `docs/skills.md` and skill files.
 3. **Skill-chained entry still runs the full 5-phase flow.** The only concession granted by skill-chaining is skipping the intake confirmation; it does not unlock a quick variant.
 4. **`Output Format` ships one template.** The dual Quick/Full template is removed.
 5. **The `SKILLS_DOC_STALE_PHRASES` detector entry that asserts "quick mode skips cross-examination and clarification" (`src/cli/audit/check-factual-claims.ts:352-357` - `skills-critique-contract-drift`) is removed.** With Quick mode retired, the detector's own claim is no longer true; keeping it would false-positive on correct docs.
@@ -24,7 +24,7 @@
 
 **Positive**
 - Skill name and skill mechanism match on every invocation. The output artifact now corresponds to the work actually performed.
-- Decision Debt remains a precise signal: it appears only when cross-examination was genuinely inconclusive, not as an automatic consequence of having skipped it.
+- Open Questions remain a precise signal: they appear only when cross-examination was genuinely inconclusive, not as an automatic consequence of having skipped it.
 - File size drops (~210 → ~130 lines) and invocation ceremony drops with it. Closer to peer skills such as `/goat-review` and `/goat-qa` in surface area.
 - Users who previously hit Quick mode because delegation was implicit now land on `/goat-review`, which is already sized for single-context review and does not over-promise multi-agent coverage.
 

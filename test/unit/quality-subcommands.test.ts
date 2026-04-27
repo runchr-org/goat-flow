@@ -19,11 +19,14 @@ describe("quality subcommand parsing", () => {
       "history",
       "--agent",
       "claude",
+      "--mode",
+      "skills",
       "--all",
     ]);
     assert.equal(parsed.qualitySubcommand, "history");
     assert.equal(parsed.all, true);
     assert.equal(parsed.agent, "claude");
+    assert.equal(parsed.qualityMode, "skills");
   });
 
   it("parses diff mode with an explicit report pair", () => {
@@ -39,6 +42,19 @@ describe("quality subcommand parsing", () => {
       parsed.qualityDiffPair,
       "2026-04-01-0900-claude-aaaaa:2026-04-15-1000-claude-bbbbb",
     );
+  });
+
+  it("parses prompt mode for mode-specific quality prompts", () => {
+    const parsed = parseCLIArgs([
+      "quality",
+      ".",
+      "--agent",
+      "claude",
+      "--mode",
+      "skills",
+    ]);
+    assert.equal(parsed.qualitySubcommand, "prompt");
+    assert.equal(parsed.qualityMode, "skills");
   });
 
   it("rejects --all on non-quality commands", () => {

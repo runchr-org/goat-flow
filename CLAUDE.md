@@ -1,4 +1,4 @@
-# CLAUDE.md - v1.2.5 (2026-04-23)
+# CLAUDE.md - v1.3.0 (2026-04-25)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash scripts + TypeScript CLI auditor.
 ## Essential Commands
 
@@ -7,8 +7,10 @@ shellcheck scripts/*.sh scripts/maintenance/*.sh                                
 bash -n scripts/*.sh scripts/maintenance/*.sh                                                # Syntax-check scripts
 bash .claude/hooks/deny-dangerous.sh --self-test  # Verify deny-hook runtime behaviour
 bash scripts/preflight-checks.sh         # Full preflight gate
+bash scripts/bump-version.sh <patch|minor|major|X.Y.Z>  # Bump package/docs/templates/mirrors
 npm run typecheck                                 # Type-check .ts (required by DoD)
-npm test                                          # Run test suite
+npm test                                          # Run fast test suite (excludes slow integration/dashboard)
+npm run test:full                                 # Run fast + slow suites before release-sensitive changes
 node --import tsx src/cli/cli.ts stats . --check  # Learning-loop health: last_reviewed + stale refs
 ```
 ## Truth Order
@@ -22,7 +24,7 @@ node --import tsx src/cli/cli.ts stats . --check  # Learning-loop health: last_r
 
 When a goat-* skill is active, its Step 0 replaces READ and selects the skill's mode/depth. SCOPE still applies before any file write - skills with write phases (e.g. `/goat-plan` Phase 2, `/goat-debug` D3) gate on explicit approval. Resume at ACT when the skill's first blocking gate releases.
 
-**READ** - MUST read relevant files before changes. Never fabricate codebase facts. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns.md`; include `.goat-flow/decisions/` when the task involves architecture, policy, or setup work. Open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
+**READ** - MUST read relevant files before changes. Never fabricate codebase facts. For URL, local HTML, localhost, screenshot, rendered UI, or browser-visible behaviour, check browser evidence first: `command -v browser-use && browser-use doctor`; if available use `browser-use open/state/screenshot`, otherwise ask before installing or use manual fallback. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns.md`; include `.goat-flow/decisions/` when the task involves architecture, policy, or setup work. Open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
 ```
 BAD:  "The CLI has 20 audit checks" (guessed without reading)
 GOOD: Read src/cli/audit/check-goat-flow.ts → 13 setup checks, check-agent-setup.ts → 4 agent checks (17 total)
@@ -44,7 +46,7 @@ Over budget = checkpoint and re-classify before continuing. Complexity-class bud
 | Mode | Behaviour |
 |------|-----------|
 | Plan | Produce artefact only. File writes (e.g. milestone files) only on explicit approval. Exit on LGTM |
-| Implement | Edit in 2-3 turns. 4th read without writing = stop |
+| Implement | Edit in 2-3 turns. 4th read without writing = checkpoint or re-scope |
 | Explain | Walkthrough only. No changes unless asked |
 | Debug | Diagnosis with file:line first. Fixes after human reviews |
 | Review | Investigate first. Never blindly apply suggestions |
@@ -62,11 +64,11 @@ Over budget = checkpoint and re-classify before continuing. Complexity-class bud
 - Two corrections on same approach = MUST rewind
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
-**Learning loop** (update before DoD if VERIFY caught a failure or you corrected course):
-- `.goat-flow/lessons/<category>.md` - behavioural mistake. `## Lesson: <name>` + `**Created:** YYYY-MM-DD`.
-- `.goat-flow/footguns/<category>.md` - cross-doc architectural trap with file evidence. `## Footgun: <name>` + `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED`.
-- `.goat-flow/decisions/` - significant technical decision with context/rationale.
-- `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md` - optional continuity note written on `/compact` when no active milestone file exists; skip otherwise.
+If VERIFY caught a failure or you corrected course, update the learning loop before DoD: behavioural mistakes go in `.goat-flow/lessons/<category>.md`, cross-doc architectural traps go in `.goat-flow/footguns/<category>.md` with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED`, significant technical decisions go in `.goat-flow/decisions/`, and optional continuity notes go in `.goat-flow/logs/sessions/`.
+
+## Artifact Routing
+
+When asked to add, create, or update a goat-flow artifact, route it to the artifact directory, not runtime code: footguns -> `.goat-flow/footguns/<category>.md`; lessons -> `.goat-flow/lessons/<category>.md`; decisions -> `.goat-flow/decisions/ADR-NNN.md`; patterns -> `.goat-flow/patterns.md`. Before editing, read the target directory's `README.md`; do not treat artifact requests as runtime-code requests unless the user explicitly asks for code too.
 
 ## Autonomy Tiers
 
@@ -74,9 +76,9 @@ Over budget = checkpoint and re-classify before continuing. Complexity-class bud
 
 **Ask First** - before proceeding, state: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked, rollback command.
 
-Boundaries: `CLAUDE.md`, `workflow/setup/`, `workflow/skills/`, `workflow/manifest.json` (canonical agent inventory), `.goat-flow/architecture.md`, `.goat-flow/skill-reference/`, `src/cli/server/terminal.ts` (PTY runtime), `src/cli/server/dashboard.ts` (local HTTP/WS server), `.github/workflows/**`, `.github/hooks/**`, `.github/skills/**`, `.github/copilot-instructions.md`, `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/**`, `AGENTS.md`, `GEMINI.md`, any add/remove/rename (breaks cross-refs), changes spanning 3+ docs.
+Boundaries: `CLAUDE.md`, `workflow/setup/`, `workflow/skills/`, `workflow/manifest.json` (canonical agent inventory), `.goat-flow/architecture.md`, `.goat-flow/skill-reference/`, `src/cli/server/terminal.ts` (PTY runtime), `src/cli/server/dashboard.ts` (local HTTP/WS server), `.github/workflows/**`, `.github/actions/**`, `.github/hooks/**`, `.github/skills/**`, `.github/copilot-instructions.md`, `.claude/**`, `.codex/**`, `.gemini/**`, `.agents/**`, `AGENTS.md`, `GEMINI.md`, any add/remove/rename (breaks cross-refs), changes spanning 3+ docs.
 
-**Never:** Delete docs without replacement. Modify .env/secrets. Push to main. Force push. Commit unless asked. Invent hypothetical examples. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`). Delete/move/overwrite 5+ files in one operation without listing targets and getting confirmation.
+**Never:** Delete docs without replacement. Modify .env/secrets. Push. Commit unless asked. Invent hypothetical examples. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`). Delete/move/overwrite 5+ files in one operation without listing targets and getting confirmation. If interrupted or told no changes, freeze writes; run only read-only status/diff checks until the user explicitly asks for cleanup, revert, or apply.
 
 ## Definition of Done
 
@@ -98,7 +100,7 @@ MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh,
 | Scripts | `scripts/` |
 | Workflow source | `workflow/` (setup, skills, hooks, evaluation) |
 | Skills | `.claude/skills/` (goat, goat-critique, goat-debug, goat-plan, goat-qa, goat-review, goat-security) |
-| Shared skill reference | `.goat-flow/skill-reference/` (skill-preamble.md, skill-conventions.md, skill-quality-testing.md index + skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, and skill-quality-testing/deployment.md per ADR-023) |
+| Shared skill reference | `.goat-flow/skill-reference/` (skill-preamble.md, skill-conventions.md, browser-use.md, skill-quality-testing.md index + skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, and skill-quality-testing/deployment.md per ADR-023) |
 | Footguns (most-queried) | `.goat-flow/footguns/` |
 | Lessons | `.goat-flow/lessons/` |
 | Patterns | `.goat-flow/patterns.md` |

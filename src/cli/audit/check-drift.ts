@@ -12,6 +12,7 @@
  *   - Shared docs (template → installed in .goat-flow/skill-reference/):
  *       workflow/skills/reference/skill-preamble.md         vs .goat-flow/skill-reference/skill-preamble.md
  *       workflow/skills/reference/skill-conventions.md      vs .goat-flow/skill-reference/skill-conventions.md
+ *       workflow/skills/reference/browser-use.md            vs .goat-flow/skill-reference/browser-use.md
  *       workflow/skills/reference/skill-quality-testing.md  vs .goat-flow/skill-reference/skill-quality-testing.md
  *   - Orphan directories under .claude/skills or .agents/skills whose
  *     name is not in SKILL_NAMES. Names that appear in manifest.stale_names
@@ -24,7 +25,7 @@
  * This avoids false positives on key reorder or trailing whitespace.
  */
 import { readFileSync, existsSync } from "node:fs";
-import { resolve as resolvePath } from "node:path";
+import { posix as pathPosix, resolve as resolvePath } from "node:path";
 import { load } from "js-yaml";
 import { isDeepStrictEqual } from "node:util";
 import type { ReadonlyFS } from "../types.js";
@@ -35,6 +36,7 @@ import {
   getSkillFiles,
   loadManifest,
 } from "../manifest/manifest.js";
+import type { AgentProfile } from "../manifest/types.js";
 import type { DriftFinding, DriftReport } from "./types.js";
 
 /** Remove nullish values from nested data before comparing manifests. */
@@ -117,6 +119,10 @@ const SHARED_FILES: SharedFileSpec[] = [
   {
     template: "workflow/skills/reference/skill-conventions.md",
     installed: ".goat-flow/skill-reference/skill-conventions.md",
+  },
+  {
+    template: "workflow/skills/reference/browser-use.md",
+    installed: ".goat-flow/skill-reference/browser-use.md",
   },
   {
     template: "workflow/skills/reference/skill-quality-testing.md",
@@ -277,6 +283,70 @@ function findOrphans(fs: ReadonlyFS, findings: DriftFinding[]): void {
   }
 }
 
+/** Compare installed hook scripts against their workflow templates. */
+function hookTemplateRel(
+  agentId: string,
+  agent: AgentProfile,
+  hookFile: string,
+): string {
+  const hookConfigName = agent.hook_config_file
+    ? pathPosix.basename(agent.hook_config_file)
+    : null;
+  if (hookConfigName && hookFile === hookConfigName) {
+    return pathPosix.join(
+      "workflow/hooks/agent-config",
+      `${agentId}-hooks.json`,
+    );
+  }
+  return pathPosix.join("workflow/hooks", hookFile);
+}
+
+/** Compare installed hook scripts against their workflow templates. */
+function compareHooks(
+  fs: ReadonlyFS,
+  templateRoot: string,
+  findings: DriftFinding[],
+): number {
+  let checked = 0;
+  const manifest = loadManifest();
+  for (const [agentId, agent] of Object.entries(manifest.agents)) {
+    if (!agent.hooks_dir || !agent.hooks) continue;
+    if (!fs.exists(agent.hooks_dir)) continue;
+    for (const hookFile of agent.hooks) {
+      const templateRel = hookTemplateRel(agentId, agent, hookFile);
+      const template = readTemplate(templateRoot, templateRel);
+      const installedRel = pathPosix.join(agent.hooks_dir, hookFile);
+      checked++;
+      if (template === null) {
+        findings.push({
+          kind: "missing",
+          path: templateRel,
+          message: `declared hook ${installedRel} has no template at ${templateRel}`,
+        });
+        continue;
+      }
+      if (!fs.exists(installedRel)) {
+        findings.push({
+          kind: "missing",
+          path: installedRel,
+          message: `hook template ${templateRel} has no installed copy at ${installedRel}`,
+        });
+        continue;
+      }
+      const installed = fs.readFile(installedRel);
+      if (installed === null) continue;
+      if (installed.trimEnd() !== template.trimEnd()) {
+        findings.push({
+          kind: "content",
+          path: installedRel,
+          message: `hook template (${templateRel}) and installed copy (${installedRel}) differ`,
+        });
+      }
+    }
+  }
+  return checked;
+}
+
 /** Run all drift comparisons and return a consolidated report. */
 export function checkDrift(options: CheckDriftOptions): DriftReport {
   const { fs } = options;
@@ -285,6 +355,7 @@ export function checkDrift(options: CheckDriftOptions): DriftReport {
   let checked = 0;
   checked += compareSkills(fs, templateRoot, findings);
   checked += compareSharedFiles(fs, templateRoot, findings);
+  checked += compareHooks(fs, templateRoot, findings);
   findOrphans(fs, findings);
   return {
     status: findings.length === 0 ? "pass" : "fail",

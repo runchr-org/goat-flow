@@ -43,7 +43,10 @@ const instructionLineCount: HarnessCheck = {
   type: "advisory",
   provenance: contextProvenance("advisory", [
     "docs/harness-audit.md",
+    "CLAUDE.md",
     "AGENTS.md",
+    "GEMINI.md",
+    ".github/copilot-instructions.md",
   ]),
   /** Run the Instruction file size check. */
   run: (ctx) => {
@@ -88,7 +91,10 @@ const executionLoopPresent: HarnessCheck = {
   type: "advisory",
   provenance: contextProvenance("advisory", [
     "docs/harness-audit.md",
+    "CLAUDE.md",
     "AGENTS.md",
+    "GEMINI.md",
+    ".github/copilot-instructions.md",
   ]),
   /** Run the Execution loop present check. */
   run: (ctx) => {
@@ -257,6 +263,8 @@ const instructionSectionsPresent: HarnessCheck = {
     "src/cli/prompt/compose-quality.ts",
     "CLAUDE.md",
     "AGENTS.md",
+    "GEMINI.md",
+    ".github/copilot-instructions.md",
   ]),
   /** Run the Instruction file required sections check. */
   run: (ctx) => {

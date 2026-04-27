@@ -34,7 +34,8 @@ export interface StatsFinding {
     | "stale-last-reviewed"
     | "stale-ref"
     | "invalid-line-ref"
-    | "format";
+    | "format"
+    | "bucket-size";
   message: string;
 }
 
@@ -104,6 +105,8 @@ function checkBucketLastReviewed(
   return null;
 }
 
+const BUCKET_SIZE_WARN_BYTES = 40_000;
+
 /** Collect bucket findings. */
 function collectBucketFindings(
   bucket: BucketSection["buckets"][number],
@@ -111,6 +114,14 @@ function collectBucketFindings(
   const findings: StatsFinding[] = [];
   const reviewFinding = checkBucketLastReviewed(bucket);
   if (reviewFinding !== null) findings.push(reviewFinding);
+  if (bucket.sizeBytes > BUCKET_SIZE_WARN_BYTES) {
+    const kb = Math.round(bucket.sizeBytes / 1024);
+    findings.push({
+      file: bucket.path,
+      rule: "bucket-size",
+      message: `${bucket.path}: ${kb}KB exceeds ${Math.round(BUCKET_SIZE_WARN_BYTES / 1024)}KB threshold; consider splitting into narrower category buckets`,
+    });
+  }
   for (const ref of bucket.staleRefs) {
     findings.push({
       file: bucket.path,

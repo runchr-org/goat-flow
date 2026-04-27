@@ -26,6 +26,7 @@ interface DashboardTerminalContext {
   launching: boolean;
   availableRunners: RunnerId[];
   presets: Preset[];
+  allPresets: Preset[];
   _projectSessions: Record<string, SavedSession[]>;
   _projectActiveSession: Record<string, string>;
   _terminalRefs: Record<string, TerminalRefs>;
@@ -43,7 +44,12 @@ interface DashboardTerminalContext {
   launchInTerminal(
     prompt: string,
     runner?: RunnerId,
-    options?: { promptLabel?: string | null; presetId?: string | null },
+    options?: {
+      promptLabel?: string | null;
+      presetId?: string | null;
+      cwdPath?: string | null;
+      targetPath?: string | null;
+    },
   ): Promise<void>;
   loadXterm(): Promise<void>;
   connectTerminal(sessionId: string, wsUrl: string): void;
@@ -51,6 +57,47 @@ interface DashboardTerminalContext {
   _forgetSavedSession(sessionId: string): void;
   endSession(sessionId: string): void;
   exportSession(sessionId: string): void;
+}
+
+/** Return the dashboard workspace that owns the shipped goat skills. */
+function dashboardControllingWorkspace(): string {
+  return window.__GOAT_FLOW_DEFAULT_PATH__ ?? ".";
+}
+
+/** Return a POSIX-shell-safe single-quoted string for command examples. */
+function dashboardShellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+/** Build target context appended to launched preset prompts. */
+function dashboardGlobalLaunchContext(
+  ctx: DashboardTerminalContext,
+  runner: RunnerId,
+  preset: Preset | null,
+): string {
+  const controllingWorkspace = dashboardControllingWorkspace();
+  const mayWrite = preset?.mayWriteFiles === true;
+  const presetPrompt = preset?.prompt.trim() ?? "";
+  const writeLine = mayWrite
+    ? "Write behavior: this preset may write only after the prompt or user explicitly approves it."
+    : "Write behavior: default to read-only analysis; do not write files in the selected target unless the user explicitly asks.";
+  const routeLine =
+    preset?.route === "goat-plan" && /^\/goat-plan\b/.test(presetPrompt)
+      ? "goat-plan global mode: keep plans inline; do not create target .goat-flow/tasks unless the user explicitly approves writes."
+      : preset?.route === "goat-critique" &&
+          /^\/goat-critique\b/.test(presetPrompt)
+        ? "goat-critique global mode: keep gitignored critique logs/artifacts in the controlling workspace; do not write goat-flow logs in the selected target unless the user explicitly makes that target the controlling workspace."
+        : "";
+  return [
+    "GOAT Flow target context:",
+    `- Controlling workspace for goat skills/reference files: ${controllingWorkspace}`,
+    `- Selected target project for code evidence: ${ctx.projectPath}`,
+    `- Runner: ${runner}`,
+    "- Target projects do not need goat-flow installed; missing target .goat-flow, skills, hooks, or stale goat-flow files are normal unless this preset audits goat-flow installation.",
+    `- Use target-scoped commands such as git -C ${dashboardShellQuote(ctx.projectPath)} status when inspecting the selected target.`,
+    `- ${writeLine}`,
+    ...(routeLine ? [`- ${routeLine}`] : []),
+  ].join("\n");
 }
 
 /** Read the loaded xterm.js constructors from window globals. */
@@ -77,7 +124,7 @@ function dashboardSendToTerminal(
     ctx.showToast("No active terminal session", true);
     return false;
   }
-  const refs = active ? ctx._terminalRefs[active.id] : null;
+  const refs = ctx._terminalRefs[active.id];
   if (!refs?.ws || refs.ws.readyState !== WebSocket.OPEN) {
     ctx.showToast("No active terminal session", true);
     return false;
@@ -126,25 +173,6 @@ async function dashboardSendToProjectTarget(
     return deliver(attempts + 1);
   };
   await deliver(0);
-}
-
-/** Run a predefined audit command in the workspace terminal. */
-async function dashboardRunTerminalAuditCommand(
-  ctx: DashboardTerminalContext,
-  action: AuditAction | null,
-): Promise<void> {
-  if (!action?.command) return;
-  ctx.activeView = "workspace";
-  ctx.workspacePanel = "terminal";
-  if (ctx.terminalSessionId && !ctx.terminalEnded) {
-    if (ctx.sendToTerminal(action.command, { adapt: false })) {
-      ctx.showToast(`Sent ${action.command} to terminal`);
-    }
-    return;
-  }
-  await ctx.launchInTerminal(action.command, ctx.activeRunner, {
-    promptLabel: action.label,
-  });
 }
 
 /** Refresh terminal feature availability from the health endpoint. */
@@ -296,16 +324,30 @@ async function dashboardLaunchPreset(
   prompt: string,
   runner?: RunnerId,
   label?: string,
+  options: {
+    presetId?: string | null;
+    cwdPath?: string | null;
+    targetPath?: string | null;
+  } = {},
 ): Promise<void> {
   if (ctx.launching) return;
-  const preset = ctx.presets.find(
-    (p) => ctx.adaptPrompt(p.prompt) === ctx.adaptPrompt(prompt),
-  );
+  const preset =
+    (options.presetId
+      ? (ctx.allPresets.find((p) => p.id === options.presetId) ?? null)
+      : null) ??
+    ctx.allPresets.find(
+      (p) =>
+        ctx.adaptPrompt(p.prompt) === ctx.adaptPrompt(prompt) ||
+        (typeof label === "string" && p.name === label),
+    ) ??
+    null;
   const promptLabel = label || preset?.name || "Custom prompt";
-  const presetId = preset?.id || null;
+  const presetId = preset?.id || options.presetId || null;
   const runnerResolved = runner || ctx.activeRunner;
   if (presetId) ctx.promptRunStates[presetId] = "running";
-  let adapted = ctx.adaptPrompt(prompt);
+  let adapted = ctx.adaptPrompt(prompt, runnerResolved);
+  adapted +=
+    "\n\n" + dashboardGlobalLaunchContext(ctx, runnerResolved, preset ?? null);
   if (ctx.userRole === "investigator") {
     adapted =
       "You are in investigator mode. Read-only - investigate, plan, and review only. Do NOT make any code changes.\n\n" +
@@ -318,6 +360,8 @@ async function dashboardLaunchPreset(
   await ctx.launchInTerminal(adapted, runnerResolved, {
     promptLabel,
     presetId,
+    cwdPath: options.cwdPath ?? null,
+    targetPath: options.targetPath ?? ctx.projectPath,
   });
 }
 
@@ -356,8 +400,10 @@ function dashboardDetachTerminal(
     .map((s) => ({
       sessionId: s.id,
       startTime: s.startTime,
-      prompt: s.promptLabel ?? "",
+      prompt: s.promptLabel,
       agent: s.runner,
+      cwd: s.cwd,
+      targetPath: s.targetPath,
     }));
   if (toSave.length > 0) {
     ctx._projectSessions[savePath] = toSave;
@@ -421,7 +467,9 @@ async function dashboardReconnectTerminal(
       id: saved.sessionId,
       runner: saved.agent,
       promptLabel: saved.prompt,
-      projectPath: ctx.projectPath,
+      projectPath: alive.projectPath,
+      cwd: alive.cwd || saved.cwd || alive.projectPath,
+      targetPath: alive.targetPath || saved.targetPath || alive.projectPath,
       startTime: saved.startTime,
       lastInputTime: alive.lastInputAt,
       connected: false,
@@ -456,7 +504,14 @@ async function dashboardLaunchInTerminal(
   {
     promptLabel = null,
     presetId = null,
-  }: { promptLabel?: string | null; presetId?: string | null } = {},
+    cwdPath = null,
+    targetPath = null,
+  }: {
+    promptLabel?: string | null;
+    presetId?: string | null;
+    cwdPath?: string | null;
+    targetPath?: string | null;
+  } = {},
 ): Promise<void> {
   if (
     Math.max(ctx.sessions.length, ctx.serverSessions.length) >=
@@ -470,12 +525,15 @@ async function dashboardLaunchInTerminal(
     const self = ctx as DashboardTerminalContext &
       AlpineMagics<DashboardTerminalContext>;
     await ctx.loadXterm();
+    const selectedTargetPath = targetPath || ctx.projectPath;
+    const controllingCwd = cwdPath || selectedTargetPath;
     const res = await fetch("/api/terminal/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt,
-        projectPath: ctx.projectPath,
+        projectPath: controllingCwd,
+        targetPath: selectedTargetPath,
         runner,
       }),
     });
@@ -491,7 +549,9 @@ async function dashboardLaunchInTerminal(
       id,
       runner,
       promptLabel: promptLabel || "Custom prompt",
-      projectPath: ctx.projectPath,
+      projectPath: selectedTargetPath,
+      cwd: controllingCwd,
+      targetPath: selectedTargetPath,
       startTime: Date.now(),
       lastInputTime: Date.now(),
       connected: false,
@@ -620,7 +680,7 @@ function dashboardConnectTerminal(
       session.age = age;
     }, 30000);
     if (ctx._terminalRefs[sessionId]) {
-      ctx._terminalRefs[sessionId].ageInterval = ageInterval ?? undefined;
+      ctx._terminalRefs[sessionId].ageInterval = ageInterval;
     }
   };
   /** Handle incoming terminal WebSocket messages. */
@@ -713,7 +773,6 @@ function dashboardConnectTerminal(
     ws,
     xterm: term,
     cleanup,
-    ageInterval: ageInterval ?? undefined,
   };
   term.focus();
 }
@@ -776,6 +835,8 @@ async function dashboardOpenServerSession(
     runner: serverSession.runner,
     promptLabel: serverSession.projectName || "session",
     projectPath: serverSession.projectPath,
+    cwd: serverSession.cwd,
+    targetPath: serverSession.targetPath,
     startTime: new Date(serverSession.createdAt).getTime(),
     lastInputTime: serverSession.lastInputAt || Date.now(),
     connected: false,

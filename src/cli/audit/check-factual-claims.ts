@@ -13,7 +13,7 @@
  */
 import type { AuditContext, ContentFinding } from "./types.js";
 import type { CheckEvidence } from "./provenance-types.js";
-import { SKILL_NAMES } from "../constants.js";
+import { AUDIT_VERSION, SKILL_NAMES } from "../constants.js";
 import { SETUP_CHECKS } from "./check-goat-flow.js";
 import { AGENT_CHECKS } from "./check-agent-setup.js";
 import { HARNESS_CHECKS } from "./harness/index.js";
@@ -32,6 +32,8 @@ export const FACTUAL_CLAIMS_EVIDENCE: CheckEvidence = {
   evidence_paths: [
     ".goat-flow/lessons/verification.md",
     ".goat-flow/lessons/agent-behavior.md",
+    ".goat-flow/lessons/agent-routing.md",
+    ".goat-flow/lessons/agent-frontend.md",
   ],
 };
 
@@ -485,6 +487,14 @@ function readMaxSessions(ctx: AuditContext): number | null {
   return match ? Number(match[1]) : null;
 }
 
+/** Extract the default terminal idle timeout from the terminal server source. */
+function readDefaultIdleTimeout(ctx: AuditContext): number | null {
+  const source = ctx.fs.readFile("src/cli/server/terminal.ts");
+  if (source === null) return null;
+  const match = source.match(/DEFAULT_IDLE_TIMEOUT_MINUTES\s*=\s*(\d+)/);
+  return match ? Number(match[1]) : null;
+}
+
 /** Normalise display names for docs that list runner names. */
 function docAgentNames(): string[] {
   const docLabels: Record<string, string> = {
@@ -559,6 +569,75 @@ function driftDashboardSessions(
   return findings;
 }
 
+/** Drift: docs/dashboard.md view headings don't match manifest dashboard views. */
+function driftDashboardViewNames(dashboard: string): ContentFinding[] {
+  const lines = dashboard.split(/\r?\n/);
+  const start = lines.findIndex((line) => /^## Views\s*$/u.test(line));
+  if (start === -1) return [];
+
+  const claimed: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (/^##\s+/u.test(line)) break;
+    const heading = line.match(/^###\s+(.+?)\s*$/u);
+    if (heading?.[1] === undefined) continue;
+    claimed.push(
+      heading[1].replace(/`/g, "").trim().toLowerCase().replace(/\s+/g, "-"),
+    );
+  }
+
+  const actual = loadManifest().facts.dashboard_views.names;
+  const claimedSorted = [...claimed].sort();
+  if (claimedSorted.join("|") === actual.join("|")) return [];
+
+  return [
+    {
+      severity: "warning",
+      rule: "dashboard-view-name-drift",
+      path: "docs/dashboard.md",
+      message: `Dashboard docs list view headings as ${claimedSorted.join(", ")}, but manifest-backed views are ${actual.join(", ")}.`,
+      suggestion:
+        "Update docs/dashboard.md view headings to match workflow/manifest.json dashboard_views.",
+    },
+  ];
+}
+
+/** Drift: docs/dashboard.md idle-timeout claims don't match terminal defaults. */
+function driftDashboardIdleTimeout(
+  dashboard: string,
+  ctx: AuditContext,
+): ContentFinding[] {
+  const defaultTimeout = readDefaultIdleTimeout(ctx);
+  if (defaultTimeout === null) return [];
+
+  const patterns: { regex: RegExp; factor: number }[] = [
+    { regex: /(\d+)[-\s]?minute idle timeout/gi, factor: 1 },
+    { regex: /(\d+)[-\s]?hour idle timeout/gi, factor: 60 },
+  ];
+  const findings: ContentFinding[] = [];
+  const seen = new Set<string>();
+
+  for (const { regex, factor } of patterns) {
+    for (const match of dashboard.matchAll(regex)) {
+      const claimedRaw = match[1];
+      if (claimedRaw === undefined) continue;
+      const claimedMinutes = Number(claimedRaw) * factor;
+      if (claimedMinutes === defaultTimeout) continue;
+      const phrase = match[0];
+      if (seen.has(phrase)) continue;
+      seen.add(phrase);
+      findings.push({
+        severity: "warning",
+        rule: "dashboard-idle-timeout-drift",
+        path: "docs/dashboard.md",
+        message: `Dashboard docs say "${phrase}" (${claimedMinutes} minutes), but terminal.ts defaults to ${defaultTimeout} minutes.`,
+        suggestion: `Update docs/dashboard.md to the live idle timeout (${defaultTimeout} minutes).`,
+      });
+    }
+  }
+
+  return findings;
+}
+
 /** Drift: docs/dashboard.md runner list doesn't match manifest. */
 function driftDashboardRunners(dashboard: string): ContentFinding[] {
   const runnerLine = dashboard.match(/- Supports (.+?) runners/);
@@ -577,6 +656,23 @@ function driftDashboardRunners(dashboard: string): ContentFinding[] {
       message: `Dashboard docs list runners as ${claimed.join(", ")}, but manifest-backed runners are ${actual.join(", ")}.`,
       suggestion:
         "Update docs/dashboard.md to match the current manifest-backed runner list.",
+    },
+  ];
+}
+
+/** Drift: docs/dashboard.md carries a stale release tag in current reference prose. */
+function driftDashboardVersionReference(dashboard: string): ContentFinding[] {
+  const runnerLine = dashboard.match(/- Supports .+? runners[^\n]*/u)?.[0];
+  const version = runnerLine?.match(/\bin v(\d+\.\d+\.\d+)\b/u)?.[1];
+  if (version === undefined || version === AUDIT_VERSION) return [];
+  return [
+    {
+      severity: "warning",
+      rule: "dashboard-version-reference-drift",
+      path: "docs/dashboard.md",
+      message: `Dashboard docs reference v${version}, but the current package version is v${AUDIT_VERSION}.`,
+      suggestion:
+        "Remove version-specific wording from docs/dashboard.md or update it during the release bump.",
     },
   ];
 }
@@ -757,7 +853,10 @@ function scanSemanticDrift(ctx: AuditContext): {
   const dashboard = readAndTrack("docs/dashboard.md");
   if (dashboard !== null) {
     findings.push(...driftDashboardSessions(dashboard, ctx));
+    findings.push(...driftDashboardViewNames(dashboard));
+    findings.push(...driftDashboardIdleTimeout(dashboard, ctx));
     findings.push(...driftDashboardRunners(dashboard));
+    findings.push(...driftDashboardVersionReference(dashboard));
   }
 
   const skillsDoc = readAndTrack("docs/skills.md");

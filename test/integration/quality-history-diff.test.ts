@@ -122,7 +122,7 @@ describe("quality history and diff CLI", () => {
     assert.equal(history.status, 0, history.stderr);
     assert.match(
       history.stdout,
-      /2026-04-29 \| claude \| 85 \(\+5\) \| 80 \| 1 \| 1 \| 0/,
+      /2026-04-29 \| claude \| agent-setup \| 85 \(\+5\) \| 80 \| 1 \| 1 \| 0/,
     );
     assert.match(history.stdout, /Use `--all` to lift the 20-run default/i);
 
@@ -165,5 +165,74 @@ describe("quality history and diff CLI", () => {
     assert.equal(diffPayload.persisted.length, 1);
     assert.equal(diffPayload.from.id, "2026-04-01-0900-claude-aaaaa");
     assert.equal(diffPayload.to.id, "2026-04-15-1000-claude-bbbbb");
+  });
+
+  it("filters history by quality mode and rejects implicit cross-mode diffs", () => {
+    const root = makeTempProject();
+    const first = JSON.parse(
+      readFileSync(
+        join(FIXTURE_DIR, "2026-04-01-0900-claude-aaaaa.json"),
+        "utf-8",
+      ),
+    );
+    const second = JSON.parse(
+      readFileSync(
+        join(FIXTURE_DIR, "2026-04-15-1000-claude-bbbbb.json"),
+        "utf-8",
+      ),
+    );
+    writeFileSync(
+      join(
+        root,
+        ".goat-flow",
+        "logs",
+        "quality",
+        "2026-04-25-0900-claude-ppppp.json",
+      ),
+      `${JSON.stringify({ ...first, quality_mode: "process" }, null, 2)}\n`,
+      "utf-8",
+    );
+    writeFileSync(
+      join(
+        root,
+        ".goat-flow",
+        "logs",
+        "quality",
+        "2026-04-25-1000-claude-sssss.json",
+      ),
+      `${JSON.stringify({ ...second, quality_mode: "skills" }, null, 2)}\n`,
+      "utf-8",
+    );
+
+    const history = runCLI(root, [
+      "quality",
+      "history",
+      "--agent",
+      "claude",
+      "--mode",
+      "skills",
+      "--format",
+      "json",
+    ]);
+    assert.equal(history.status, 0, history.stderr);
+    const historyPayload = JSON.parse(history.stdout);
+    assert.deepEqual(
+      historyPayload.reports.map(
+        (report: { report: { quality_mode: string } }) =>
+          report.report.quality_mode,
+      ),
+      ["skills"],
+    );
+
+    const implicitDiff = runCLI(root, [
+      "quality",
+      "diff",
+      "--agent",
+      "claude",
+      "--format",
+      "json",
+    ]);
+    assert.equal(implicitDiff.status, 2);
+    assert.match(implicitDiff.stderr, /Pass --mode to diff one quality mode/i);
   });
 });

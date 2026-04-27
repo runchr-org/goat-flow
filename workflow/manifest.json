@@ -1,6 +1,6 @@
 {
   "description": "Expected goat-flow project structure. Source of truth for setup, audit, and upgrade paths. Not a JSON Schema - this is a manifest of what should exist on disk.",
-  "version": "1.2.5",
+  "version": "1.3.0",
 
   "required_files": [
     ".goat-flow/.gitignore",
@@ -17,6 +17,7 @@
     ".goat-flow/logs/sessions/.gitkeep",
     ".goat-flow/skill-reference/skill-preamble.md",
     ".goat-flow/skill-reference/skill-conventions.md",
+    ".goat-flow/skill-reference/browser-use.md",
     ".goat-flow/skill-reference/skill-quality-testing.md",
     ".goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md",
     ".goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md",
@@ -47,7 +48,7 @@
     ".goat-flow/logs/quality/": "Workspace-local, gitignored-by-design quality report history. Saved agent quality reports (JSON) and their captured prose companions (MD); feeds `goat-flow quality history`, `goat-flow quality diff`, and prior same-agent prompt context. Only README.md is committed.",
     ".goat-flow/logs/critiques/": "Workspace-local, gitignored-by-design critique run history. Phase 3 snapshots from `/goat-critique` runs persisted before the Phase 4 blocking gate so work survives session interruptions. Only README.md is committed.",
     ".goat-flow/scratchpad/": "Local, gitignored-by-design working notes. Session-scoped WIP; not a persistence gap. Durable project knowledge belongs in lessons/, footguns/, or decisions/. Transient continuity notes belong in logs/sessions/. Only README.md, .gitignore, and .gitkeep are committed.",
-    ".goat-flow/skill-reference/": "Committed shared cold-path skill doctrine copied from workflow templates. Holds skill-preamble.md, skill-conventions.md, and skill-quality-testing.md (index pointing at the skill-quality-testing/ subdir with tdd-iteration.md, adversarial-framing.md, deployment.md per ADR-023); durable reference state used across sessions, not transient notes.",
+    ".goat-flow/skill-reference/": "Committed shared cold-path skill doctrine copied from workflow templates. Holds skill-preamble.md, skill-conventions.md, browser-use.md for browser evidence capture, and skill-quality-testing.md (index pointing at the skill-quality-testing/ subdir with tdd-iteration.md, adversarial-framing.md, deployment.md per ADR-023); durable reference state used across sessions, not transient notes.",
     ".goat-flow/tasks/": "Local, gitignored-by-design milestone files and plan subdirs. Session-scoped coordination state; not a persistence gap. Only README.md and .gitignore are committed."
   },
 
@@ -182,6 +183,7 @@
     "required_sections": [
       "Essential Commands",
       "Execution Loop",
+      "Artifact Routing",
       "Autonomy Tiers",
       "Definition of Done",
       "Router Table"
@@ -192,7 +194,7 @@
   "facts": {
     "_note": "Static facts only. Derived facts (check counts, skill names, version, presets count) are computed by src/cli/manifest/manifest.ts at load time. `goat-flow manifest --check` validates static facts against observed state (src/dashboard/views/*.html).",
     "dashboard_views": [
-      "help",
+      "about",
       "home",
       "projects",
       "prompts",
