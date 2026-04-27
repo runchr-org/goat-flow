@@ -80,6 +80,12 @@ function dashboardQualityModePreset(
   return ctx.presets.find((preset) => preset.id === presetId) ?? null;
 }
 
+function dashboardClearQualityHistory(ctx: DashboardSetupQualityContext): void {
+  ctx.qualityHistoryRows = [];
+  ctx.qualityHistoryLatest = null;
+  ctx.qualityHistoryWarnings = [];
+}
+
 function dashboardHarnessQualityPrompt(): string {
   return [
     "AI Harness Engineering Quality Assessment",
@@ -438,6 +444,7 @@ async function dashboardGenerateQualityHistory(
   ctx: DashboardSetupQualityContext,
 ): Promise<void> {
   ctx.qualityHistoryLoading = true;
+  dashboardClearQualityHistory(ctx);
   const requestModeId = ctx.selectedQualityModeId;
   const requestMode = dashboardSelectedQualityModeMeta(ctx);
   const requestProjectPath = requestMode

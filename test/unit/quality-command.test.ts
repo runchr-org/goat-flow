@@ -592,6 +592,37 @@ describe("quality prompt JSON example parses through schema", () => {
     const parsed = JSON.parse(json) as { project_path: string };
     assert.equal(parsed.project_path, "C:\\repo\\app");
   });
+
+  it("shell-quotes quality report paths in agent-setup prompt snippets", () => {
+    const result = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/app $repo/`bad`/bob's app",
+      auditReport: null,
+      runDate: "2026-04-20",
+    });
+
+    assert.match(
+      result.prompt,
+      /QUALITY_DIR='\/tmp\/app \$repo\/`bad`\/bob'\\''s app\/\.goat-flow\/logs\/quality'/,
+    );
+    assert.doesNotMatch(result.prompt, /FILE="\/tmp\/app \$repo/);
+  });
+
+  it("shell-quotes quality report paths in focused prompt snippets", () => {
+    const result = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/app $repo/`bad`/bob's app",
+      auditReport: null,
+      qualityMode: "skills",
+      runDate: "2026-04-20",
+    });
+
+    assert.match(
+      result.prompt,
+      /QUALITY_DIR='\/tmp\/app \$repo\/`bad`\/bob'\\''s app\/\.goat-flow\/logs\/quality'/,
+    );
+    assert.doesNotMatch(result.prompt, /FILE="\/tmp\/app \$repo/);
+  });
 });
 
 // ---------------------------------------------------------------------------

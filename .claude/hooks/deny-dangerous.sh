@@ -304,9 +304,26 @@ run_self_test() {
   run_case "git -C path push" "git -C /tmp push origin main" 2
   run_case "command git push" "command git push origin main" 2
   run_case "builtin git push" "builtin git push origin main" 2
+  run_case "escaped git push" '\git push origin feature/x' 2
+  run_case "double-quoted git push" '"git" push origin feature/x' 2
+  run_case "single-quoted git push" "'git' push origin feature/x" 2
+  run_case "absolute git push" "/usr/bin/git push origin main" 2
+  run_case "time git push" "time git push origin main" 2
+  run_case "time option git push" "time -p git push origin main" 2
+  run_case "external time option git push" "/usr/bin/time -f %E git push origin main" 2
+  run_case "nohup git push" "nohup git push origin main" 2
+  run_case "nice git push" "nice git push origin main" 2
+  run_case "command option git push" "command -p git push origin main" 2
+  run_case "env option terminator git push" "env -- git push origin main" 2
+  run_case "env chdir git push" "env -C /tmp git push origin main" 2
+  run_case "mid-escaped git push" 'g\it push origin main' 2
+  run_case "multi-escaped git push" 'gi\t push origin main' 2
+  run_case "part-quoted git push" 'g"it" push origin main' 2
   run_case "pipe env git push" "echo x | env GIT_SSH=y git push" 2
   run_case "if then git push" "if true; then git push origin main; fi" 2
   run_case "if condition git push" "if git push origin main; then echo pushed; fi" 2
+  run_case "case arm git push" "case x in x) git push origin main ;; esac" 2
+  run_case "coproc git push" "coproc git push origin main" 2
   run_case "function git push" "f(){ git push origin main; }; f" 2
   # False-positive guards: git non-push, pipe-to-grep
   run_case "git -c log" "git -c core.x=y log --oneline" 0
@@ -595,10 +612,137 @@ rm_is_safely_scoped() {
 }
 
 
+normalize_leading_command_word() {
+  local c="$1"
+  local rest=""
+  local current=""
+  local char=""
+  local in_single=0
+  local in_double=0
+  local escaped=0
+  local i=0
+  local word_space="__goat_word_space__"
+
+  c="${c#"${c%%[![:space:]]*}"}"
+  for ((i = 0; i < ${#c}; i++)); do
+    char="${c:i:1}"
+
+    if [[ "$escaped" -eq 1 ]]; then
+      if [[ "$char" =~ [[:space:]] ]]; then
+        current+="$word_space"
+      else
+        current+="$char"
+      fi
+      escaped=0
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == "\\" ]]; then
+      escaped=1
+      continue
+    fi
+
+    if [[ "$in_double" -eq 0 && "$char" == "'" ]]; then
+      if [[ "$in_single" -eq 1 ]]; then
+        in_single=0
+      else
+        in_single=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == '"' ]]; then
+      if [[ "$in_double" -eq 1 ]]; then
+        in_double=0
+      else
+        in_double=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$in_double" -eq 0 && "$char" =~ [[:space:]] ]]; then
+      rest="${c:i+1}"
+      rest="${rest#"${rest%%[![:space:]]*}"}"
+      if [[ -n "$rest" ]]; then
+        printf '%s %s' "$current" "$rest"
+      else
+        printf '%s' "$current"
+      fi
+      return 0
+    fi
+
+    if [[ "$char" =~ [[:space:]] ]]; then
+      current+="$word_space"
+    else
+      current+="$char"
+    fi
+  done
+
+  if [[ "$escaped" -eq 1 ]]; then
+    current+="\\"
+  fi
+
+  printf '%s' "$current"
+}
+
+drop_first_shell_word() {
+  local c="$1"
+  local char=""
+  local in_single=0
+  local in_double=0
+  local escaped=0
+  local i=0
+
+  c="${c#"${c%%[![:space:]]*}"}"
+  for ((i = 0; i < ${#c}; i++)); do
+    char="${c:i:1}"
+
+    if [[ "$escaped" -eq 1 ]]; then
+      escaped=0
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == "\\" ]]; then
+      escaped=1
+      continue
+    fi
+
+    if [[ "$in_double" -eq 0 && "$char" == "'" ]]; then
+      if [[ "$in_single" -eq 1 ]]; then
+        in_single=0
+      else
+        in_single=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == '"' ]]; then
+      if [[ "$in_double" -eq 1 ]]; then
+        in_double=0
+      else
+        in_double=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$in_double" -eq 0 && "$char" =~ [[:space:]] ]]; then
+      local rest="${c:i+1}"
+      rest="${rest#"${rest%%[![:space:]]*}"}"
+      printf '%s' "$rest"
+      return 0
+    fi
+  done
+
+  printf ''
+}
+
 is_git_push() {
   local c="$1"
-  [[ "$c" =~ ^git[[:space:]] ]] || return 1
-  c="${c#git}"
+  c=$(normalize_leading_command_word "$c")
+  local command_word="${c%%[[:space:]]*}"
+  local command_base="${command_word##*/}"
+  [[ "$command_base" == "git" ]] || return 1
+  c="${c#"$command_word"}"
   c="${c#"${c%%[![:space:]]*}"}"
   while [[ "$c" =~ ^- ]]; do
     local opt="${c%%[[:space:]]*}"
@@ -697,7 +841,25 @@ normalize_env_prefix() {
       c="${c#"${BASH_REMATCH[0]}"}"
       continue
     fi
+    if [[ "$c" =~ ^--chdir=[^[:space:]]+[[:space:]]* ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^--chdir[[:space:]]+ ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      c=$(drop_first_shell_word "$c")
+      continue
+    fi
+    if [[ "$c" =~ ^-[cC][[:space:]]+ ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      c=$(drop_first_shell_word "$c")
+      continue
+    fi
     if [[ "$c" =~ ^-[i0][[:space:]]* ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^--[[:space:]]+ ]]; then
       c="${c#"${BASH_REMATCH[0]}"}"
       continue
     fi
@@ -711,12 +873,49 @@ normalize_env_prefix() {
   printf '%s' "$c"
 }
 
-normalize_command_candidate() {
+normalize_time_prefix() {
   local c="$1"
-  local stripped=""
 
   while true; do
     c="${c#"${c%%[![:space:]]*}"}"
+
+    if [[ "$c" =~ ^(--portability|--verbose|--quiet|--append|-p|-v|-q|-a)[[:space:]]+ ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^(--format|--output)= ]]; then
+      c=$(drop_first_shell_word "$c")
+      continue
+    fi
+    if [[ "$c" =~ ^(--format|--output|-f|-o)[[:space:]]+ ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      c=$(drop_first_shell_word "$c")
+      continue
+    fi
+    if [[ "$c" =~ ^(-f|-o)[^[:space:]]+[[:space:]]* ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^--[[:space:]]+ ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    break
+  done
+
+  printf '%s' "$c"
+}
+
+normalize_command_candidate() {
+  local c="$1"
+  local stripped=""
+  local word=""
+  local base=""
+  local case_arm_re='^case[[:space:]][^)]*\)[[:space:]]*'
+
+  while true; do
+    c="${c#"${c%%[![:space:]]*}"}"
+    c=$(normalize_leading_command_word "$c")
 
     if [[ "$c" == \(* ]]; then
       c="${c#\(}"
@@ -726,7 +925,19 @@ normalize_command_candidate() {
       c="${c#\{}"
       continue
     fi
-    if [[ "$c" =~ ^(then|do|else|if|elif|while|until)[[:space:]]+ ]]; then
+    if [[ "$c" =~ $case_arm_re ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^coproc[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]+\{[[:space:]]* ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^coproc[[:space:]]+ ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    if [[ "$c" =~ ^(then|do|else|if|elif|while|until|in)[[:space:]]+ ]]; then
       c="${c#"${BASH_REMATCH[0]}"}"
       continue
     fi
@@ -738,8 +949,34 @@ normalize_command_candidate() {
       c="${c#"${BASH_REMATCH[0]}"}"
       continue
     fi
-    if [[ "$c" =~ ^(command|builtin)[[:space:]]+ ]]; then
+    if [[ "$c" =~ ^command[[:space:]]+ ]]; then
       c="${c#"${BASH_REMATCH[0]}"}"
+      c="${c#"${c%%[![:space:]]*}"}"
+      while [[ "$c" =~ ^(-p|--)[[:space:]]+ ]]; do
+        c="${c#"${BASH_REMATCH[0]}"}"
+      done
+      continue
+    fi
+    if [[ "$c" =~ ^builtin[[:space:]]+ ]]; then
+      c="${c#"${BASH_REMATCH[0]}"}"
+      continue
+    fi
+    word="${c%%[[:space:]]*}"
+    base="${word##*/}"
+    if [[ "$base" == "time" || "$base" == "nohup" ]]; then
+      c="${c#"$word"}"
+      c="${c#"${c%%[![:space:]]*}"}"
+      if [[ "$base" == "time" ]]; then
+        c=$(normalize_time_prefix "$c")
+      fi
+      continue
+    fi
+    if [[ "$base" == "nice" ]]; then
+      c="${c#"$word"}"
+      c="${c#"${c%%[![:space:]]*}"}"
+      if [[ "$c" =~ ^(-n[[:space:]]+[^[:space:]]+|--adjustment(=|[[:space:]]+)[^[:space:]]+|-[0-9]+)[[:space:]]+ ]]; then
+        c="${c#"${BASH_REMATCH[0]}"}"
+      fi
       continue
     fi
     if stripped=$(strip_one_assignment_prefix "$c"); then

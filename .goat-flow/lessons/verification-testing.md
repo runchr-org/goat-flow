@@ -342,3 +342,14 @@ last_reviewed: 2026-04-27
 **Root cause:** A `file://` URL is not representative enough for local browser evidence in this agent environment. The browser navigation can succeed while DOM/state capture is empty, which makes a false negative look like a page problem.
 
 **Prevention:** For local HTML/browser-use verification, serve the directory over localhost before opening the page. Treat `file://` empty DOM output as a verification-environment issue to rerun over HTTP before drawing conclusions. Evidence anchors: `workflow/skills/reference/browser-use.md` (search: `Local HTML shows an empty DOM`), `.goat-flow/skill-reference/browser-use.md` (search: `serve the directory over localhost`).
+
+---
+## Lesson: Hook regex edits need syntax probes before self-test fanout
+
+**Status:** active | **Created:** 2026-04-27
+
+**What happened:** While hardening `deny-dangerous.sh` against quoted and wrapper-prefixed `git push` bypasses, the first focused `bash scripts/deny-dangerous.sh --self-test` failed every safe case because a Bash `[[ =~ ]]` expression with an inline `)` regex caused a parse error before the command checks could run. Later manual probes caught more wrapper-option misses after the self-test was green: `command -p git push`, `env -- git push`, and `/usr/bin/time -f %E git push` still returned exit 0 until option-bearing wrapper forms were added. The same verification pass caught a repeated VM-test mistake: `assert.deepEqual` compared a VM-created array with a host-realm array and failed despite matching printed structure.
+
+**Root cause:** I edited a shell regex directly inside `[[ ... =~ ... ]]` instead of moving the pattern to a variable, which is safer for regex metacharacters that the Bash parser can see. I also forgot the existing VM cross-realm lesson when adding a new classic-script helper test.
+
+**Prevention:** After changing Bash hook regexes, run `bash -n <hook>` before interpreting self-test failures; if the regex contains `(`, `)`, `{`, or `}`, prefer a named regex variable. For command wrapper deny rules, probe both bare wrappers and option-bearing wrappers before mirror fanout (`command -p`, `env --`, `env -C`, `time -f`, quoted time formats). For VM-loaded dashboard helper tests, compare scalar fields/lengths or normalize arrays into the host realm. Evidence anchors: `scripts/deny-dangerous.sh` (search: `normalize_time_prefix`), `scripts/deny-dangerous.sh` (search: `env chdir git push`), `test/unit/dashboard-setup-quality.test.ts` (search: `qualityHistoryRows.length`).

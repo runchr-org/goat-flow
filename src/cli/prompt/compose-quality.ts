@@ -42,6 +42,11 @@ function jsonString(value: string): string {
   return JSON.stringify(value);
 }
 
+/** Render a Bash single-quoted literal so generated snippets do not expand `$` or backticks. */
+function shellSingleQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
 /** Render the audit summary block embedded in the quality prompt. */
 function renderAuditSummary(report: AuditReport): string {
   const lines: string[] = [];
@@ -307,11 +312,10 @@ function appendFocusedReportContract(
   lines.push('STAMP="$(date +"%Y-%m-%d-%H%M")"');
   lines.push("RAND=\"$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 5)\"");
   lines.push(
-    `FILE="${resolve(input.projectPath, ".goat-flow/logs/quality")}/\${STAMP}-${input.agent}-\${RAND}.json"`,
+    `QUALITY_DIR=${shellSingleQuote(resolve(input.projectPath, ".goat-flow/logs/quality"))}`,
   );
-  lines.push(
-    `mkdir -p "${resolve(input.projectPath, ".goat-flow/logs/quality")}"`,
-  );
+  lines.push(`FILE="\${QUALITY_DIR}/\${STAMP}-${input.agent}-\${RAND}.json"`);
+  lines.push('mkdir -p "$QUALITY_DIR"');
   lines.push("# (then write the JSON below to $FILE)");
   lines.push("```");
   lines.push("");
@@ -1064,9 +1068,10 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push('STAMP="$(date +"%Y-%m-%d-%H%M")"      # e.g. 2026-04-19-1430');
   lines.push("RAND=\"$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 5)\"");
   lines.push(
-    `FILE="${resolve(projectPath, ".goat-flow/logs/quality")}/\${STAMP}-${agent}-\${RAND}.json"`,
+    `QUALITY_DIR=${shellSingleQuote(resolve(projectPath, ".goat-flow/logs/quality"))}`,
   );
-  lines.push(`mkdir -p "${resolve(projectPath, ".goat-flow/logs/quality")}"`);
+  lines.push(`FILE="\${QUALITY_DIR}/\${STAMP}-${agent}-\${RAND}.json"`);
+  lines.push('mkdir -p "$QUALITY_DIR"');
   lines.push("# (then write the JSON below to $FILE)");
   lines.push("```");
   lines.push("");
