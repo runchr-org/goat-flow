@@ -49,3 +49,7 @@ Capture approaches that worked well so future sessions can reuse them deliberate
 ## Pattern: Refactors need typecheck before preflight
 **Context:** After a large extraction or restructuring pass.
 **Approach:** Run `npx tsc --noEmit` before relying on preflight. Complexity-only verification can miss callback type drift, helper return narrowing, and small unused-parameter regressions that only show up once TypeScript checks the whole tree.
+
+## Pattern: Model cross-platform PTY launches as pure spawn specs
+**Context:** Terminal or runner integrations that must work on native Windows and POSIX shells.
+**Approach:** Keep shell/args/env selection in a pure helper that accepts an explicit platform, keep Windows runner-path ranking in its own helper, test both branches directly with synthetic `win32` / `linux` / `darwin` inputs, then finish with one host-local real spawn repro for the current OS. This keeps Linux/macOS behavior pinned even when the live bug only shows up on Windows.

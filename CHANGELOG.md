@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.1 - 2026-04-29
+
+- **Windows Workspace terminal fix** - `src/cli/server/terminal.ts` now builds PTY launch specs per platform, using PowerShell on native Windows while preserving the existing POSIX interactive-shell flow for Linux, WSL, and macOS. Windows runner detection now prefers runnable `.exe` / `.cmd` shims over extensionless npm wrapper files, fixing `Open terminal` failures such as `File not found` on the Workspace page.
+- **Terminal regression coverage** - `test/smoke/dashboard-endpoints.test.ts` now pins the Windows runner-shim preference plus both Windows and POSIX PTY launch plans. The same file's path-validation assertion now uses `fileURLToPath(import.meta.url)` so the smoke suite exercises the intended "not a directory" branch on Windows too.
+
 ## v1.3.0 - 2026-04-27
 
 Plan completion protocol, browser-use shared reference, hook/push enforcement, dashboard prompt/quality upgrades, instruction artifact routing, harness-score honesty, performance/reference-version improvements, harness docs, and README rewrite.

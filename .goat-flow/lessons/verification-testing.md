@@ -311,6 +311,22 @@ last_reviewed: 2026-04-29
 **Prevention:** Before broad prose or prompt wording changes, search tests for the exact phrase and adjacent command text. If the product semantics are changing, update the contract test in the same edit; if the test protects unrelated established doctrine, keep that phrase intact.
 
 ---
+
+## Lesson: Focused TypeScript tests in this repo need the `tsx` loader
+
+**Status:** active | **Created:** 2026-04-29
+
+**What happened:** The first focused verification run used `node --test test/smoke/dashboard-endpoints.test.ts` and failed with `ERR_MODULE_NOT_FOUND` for `src/cli/server/terminal.js`. The code change was not the problem; the test file imports source modules using `.js` specifiers that are resolved correctly when the repo's TypeScript loader is active.
+
+**Root cause:** I ran the focused suite outside the repo's declared test invocation path. `package.json` (search: `"test:fast": "node --import tsx --test`) makes `tsx` part of the contract for source-mode tests, so plain `node --test` is a verification mistake here, not reliable failure evidence.
+
+**Fix:** Re-run focused TypeScript tests with `node --import tsx --test <file>` before treating missing-module output as a real regression.
+
+**Prevention:**
+1. When a focused repo test imports `src/**/*.js` from the source tree, check `package.json` for the required loader before running it directly.
+2. Treat a plain-Node `ERR_MODULE_NOT_FOUND` on source `.js` specifiers as a likely invocation-path problem until the `tsx`-loaded run fails too.
+
+---
 ## Lesson: Split transient preflight test failures from task regressions
 
 **Status:** active | **Created:** 2026-04-26
