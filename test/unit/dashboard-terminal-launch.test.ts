@@ -15,12 +15,7 @@ const DASHBOARD_TERMINAL_PATH = resolve(
   "dashboard",
   "dashboard-terminal.ts",
 );
-const DASHBOARD_APP_PATH = resolve(
-  PROJECT_ROOT,
-  "src",
-  "dashboard",
-  "app.ts",
-);
+const DASHBOARD_APP_PATH = resolve(PROJECT_ROOT, "src", "dashboard", "app.ts");
 const WORKSPACE_VIEW_PATH = resolve(
   PROJECT_ROOT,
   "src",
@@ -140,7 +135,10 @@ describe("dashboard terminal launch flow", () => {
     const helpers = loadHelpers(async (input, init) => {
       calls.push(`fetch:${init?.method ?? "GET"}:${String(input)}`);
       return {
-        json: async () => ({ id: "session-1", wsUrl: "/ws/terminal/session-1" }),
+        json: async () => ({
+          id: "session-1",
+          wsUrl: "/ws/terminal/session-1",
+        }),
       } as Response;
     });
     const ctx = makeContext({
@@ -190,7 +188,10 @@ describe("dashboard terminal launch flow", () => {
       calls.push(`fetch:${init?.method ?? "GET"}:${String(input)}`);
       if (String(input) === "/api/terminal/create") {
         return {
-          json: async () => ({ id: "session-2", wsUrl: "/ws/terminal/session-2" }),
+          json: async () => ({
+            id: "session-2",
+            wsUrl: "/ws/terminal/session-2",
+          }),
         } as Response;
       }
       return { json: async () => ({ ok: true }) } as Response;
