@@ -390,3 +390,14 @@ last_reviewed: 2026-04-29
 **Root cause:** I used a verification scope wider than the code change. The fix only changed `/api/audit` summary behavior, but the suite also exercises other dashboard routes whose latency profile is different. That diluted the signal and made the timeout look like uncertainty in the changed path.
 
 **Prevention:** For dashboard audit-path fixes, verify the exact `/api/audit` contract first: run the `/api/audit`-only test slice and a direct localhost fetch against `serveDashboard()`. Use the broader dashboard suite only as a follow-up check when the slower routes are relevant to the change. Evidence anchors: `test/integration/dashboard-server.test.ts` (search: `describe("dashboard /api/audit"`), `test/integration/quality-constraint-isolation.test.ts` (search: `dashboard home audit refresh`), `src/cli/server/dashboard-routes.ts` (search: `denyMechanismEvidenceLevel`).
+
+---
+## Lesson: Shell-backed performance probes must use the real shell environment
+
+**Status:** active | **Created:** 2026-04-29
+
+**What happened:** While optimizing `/api/quality`, my first localhost timing probes inside the default environment made the route look subsecond and led to a bad footgun draft: `/api/quality` appeared to take about 379 ms, with `runAudit` around 160 ms. A later timing probe against the built dashboard outside the sandbox measured fresh `?fresh=true` requests at about 30,573 ms and 30,182 ms, with only the cached repeat at about 5 ms.
+
+**Root cause:** I treated a sandbox timing probe as representative for a route that shells out to `bash` through the deny-hook self-test. When the verification surface depends on external shell/runtime behavior, the sandbox path can understate real latency or skip the expensive branch entirely.
+
+**Prevention:** For shell-backed audit or hook performance work, capture timings in the same environment that can actually run the shell command before updating docs or declaring the bottleneck understood. For this repo, prefer a built `dist` dashboard probe plus a focused integration test, and compare fresh versus cached requests explicitly when a new cache is involved. Evidence anchors: `src/cli/server/dashboard-routes.ts` (search: `const fresh = url.searchParams.get("fresh") === "true";`), `src/cli/server/dashboard-routes.ts` (search: `readQualityAuditCache(projectPath, agent, fresh)`), `src/cli/audit/check-agent-setup.ts` (search: `execFileSync("bash", [denyPath, "--self-test"]`).

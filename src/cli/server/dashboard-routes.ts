@@ -474,7 +474,10 @@ function writeAuditCache(
   }
 }
 
-function buildQualityAuditCacheKey(projectPath: string, agent: AgentId): string {
+function buildQualityAuditCacheKey(
+  projectPath: string,
+  agent: AgentId,
+): string {
   return `${projectPath}\n${agent}`;
 }
 

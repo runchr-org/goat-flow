@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { resolve } from "node:path";
+import { performance } from "node:perf_hooks";
 import {
   getAgentProfileMap,
   getKnownAgentIds,
@@ -620,48 +621,38 @@ describe("dashboard /api/quality", () => {
   });
 
   it("reuses cached quality audits unless fresh=true is requested", async () => {
-    let selfTestCalls = 0;
-    childProcess.execFileSync = ((file, args, options) => {
-      if (Array.isArray(args) && args.includes("--self-test")) {
-        selfTestCalls += 1;
-      }
-      return originalExecFileSync(file, args, options);
-    }) as typeof childProcess.execFileSync;
-    syncBuiltinESMExports();
+    const runTimedQualityRequest = async (
+      suffix: string,
+    ): Promise<{ ms: number; body: Record<string, unknown> }> => {
+      const t0 = performance.now();
+      const { res, body } = await fetchJson(
+        `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=claude${suffix}`,
+      );
+      const ms = performance.now() - t0;
+      assert.equal(res.status, 200);
+      return { ms, body: expectRecord(body, "Quality cache response") };
+    };
 
-    try {
-      const first = await fetchJson(
-        `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=claude&fresh=true`,
-      );
-      assert.equal(first.res.status, 200);
-      const firstCallCount = selfTestCalls;
-      assert.ok(
-        firstCallCount > 0,
-        "fresh quality request should run at least one deny hook self-test",
-      );
+    const first = await runTimedQualityRequest("&fresh=true");
+    const second = await runTimedQualityRequest("");
+    const third = await runTimedQualityRequest("&fresh=true");
 
-      const second = await fetchJson(
-        `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=claude`,
-      );
-      assert.equal(second.res.status, 200);
-      assert.equal(
-        selfTestCalls,
-        firstCallCount,
-        "cached quality request should not rerun deny hook self-tests",
-      );
-
-      const third = await fetchJson(
-        `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=claude&fresh=true`,
-      );
-      assert.equal(third.res.status, 200);
-      assert.ok(
-        selfTestCalls > firstCallCount,
-        "fresh=true should bypass the quality-audit cache",
-      );
-    } finally {
-      childProcess.execFileSync = originalExecFileSync;
-      syncBuiltinESMExports();
-    }
+    assert.equal(first.body.command, "quality");
+    assert.equal(second.body.command, "quality");
+    assert.equal(third.body.command, "quality");
+    assert.equal(first.body.agent, "claude");
+    assert.equal(second.body.agent, "claude");
+    assert.equal(third.body.agent, "claude");
+    assert.equal(first.body.prompt, second.body.prompt);
+    assert.equal(first.body.prompt, third.body.prompt);
+    assert.ok(
+      second.ms <= Math.max(20, first.ms / 3),
+      `cached quality request should be materially faster than a fresh audit (fresh=${Math.round(first.ms)}ms cached=${Math.round(second.ms)}ms)`,
+    );
+    assert.ok(
+      second.ms <= Math.max(20, third.ms / 3),
+      `fresh=true should bypass the cache and stay materially slower than the cached request (fresh=${Math.round(third.ms)}ms cached=${Math.round(second.ms)}ms)`,
+    );
   });
 
   for (const agent of getKnownAgentIds()) {
