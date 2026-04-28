@@ -49,7 +49,7 @@ The dashboard quality page can feel slow even when quality-history loading and p
 - `src/cli/server/dashboard-routes.ts` (search: `handleQualityRequest`) - runs `runAudit(fs, projectPath, { agentFilter: agent, harness: true })` before `findLatestQualityReport(...)` and `composeQuality(...)`.
 - `src/dashboard/dashboard-setup-quality.ts` (search: `/api/quality?path=`) - entering the quality view or changing agent/mode always fetches `/api/quality`.
 - `src/cli/server/dashboard-routes.ts` (search: `readQualityAuditCache(projectPath, agent, fresh)`) - repeat requests can reuse the short-lived per-agent audit cache, but only after one fresh audit has already completed.
-- `src/cli/server/dashboard-routes.ts` (search: `denyMechanismEvidenceLevel: "present-only"`) - the summary-only evidence downgrade exists on `/api/audit`, not on `/api/quality`.
+- `src/cli/server/dashboard-routes.ts` (search: `"present-only" : "full"`) - the summary-only evidence downgrade exists on `/api/audit`, not on `/api/quality`.
 
 **Prevention:**
 1. Profile `/api/quality` before touching history parsing or prompt rendering; those are easy suspects and were not the bottleneck here.
