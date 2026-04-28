@@ -4,6 +4,10 @@
 
 - **Windows Workspace terminal fix** - `src/cli/server/terminal.ts` now builds PTY launch specs per platform, using PowerShell on native Windows while preserving the existing POSIX interactive-shell flow for Linux, WSL, and macOS. Windows runner detection now prefers runnable `.exe` / `.cmd` shims over extensionless npm wrapper files, fixing `Open terminal` failures such as `File not found` on the Workspace page.
 - **Terminal regression coverage** - `test/smoke/dashboard-endpoints.test.ts` now pins the Windows runner-shim preference plus both Windows and POSIX PTY launch plans. The same file's path-validation assertion now uses `fileURLToPath(import.meta.url)` so the smoke suite exercises the intended "not a directory" branch on Windows too.
+- **Cross-platform dashboard build scripts** - `package.json` now uses `node:fs` helpers for build cleanup, chmod, and dashboard asset copy steps instead of shell-specific `rm`, `mkdir`, `cp`, and `chmod` chains. `npm run build` / `npm run dashboard` now work under native Windows `cmd.exe` instead of failing at `mkdir -p dist/dashboard` with `The syntax of the command is incorrect.`
+- **Dashboard Home audit latency fix** - Home-summary `/api/audit` loads now request presence-only deny-hook evidence so the page no longer pays four per-agent `deny-dangerous.sh --self-test` runs on Windows before rendering. Deeper verification paths such as explicit per-agent audits and quality/setup flows still keep full runtime deny-hook validation.
+- **Audit-route regression coverage** - `test/integration/dashboard-server.test.ts` now pins the `/api/audit` summary contract that skips deny-hook self-tests during dashboard summary loads, while `test/integration/audit-build.test.ts` keeps the deeper quality/setup audit isolation checks in place.
+- **Learning-loop guidance** - `.goat-flow/patterns.md` now captures the rule behind the dashboard latency fix: summary surfaces should use cheap evidence, while drill-in routes keep the expensive runtime proofs.
 
 ## v1.3.0 - 2026-04-27
 
