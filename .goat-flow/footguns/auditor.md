@@ -43,17 +43,18 @@ Build checks in `src/cli/audit/check-goat-flow.ts` and `src/cli/audit/check-agen
 
 The dashboard quality page can feel slow even when quality-history loading and prompt composition are effectively free. The hot path is the live per-agent harness audit that runs before the prompt is composed.
 
-**Why it happens:** `handleQualityRequest` always calls `runAudit(fs, projectPath, { agentFilter: agent, harness: true })` before reading prior quality history or composing the prompt. On this repo, current-session timings measured `/api/quality` at about 379 ms and `/api/quality/history` at about 5 ms. Timing the route internals directly showed `runAudit` at about 160 ms, `findLatestQualityReport` at about 0 ms, and `composeQuality` at about 1 ms. Unlike the Home summary route, the quality route intentionally keeps full deny-hook/runtime evidence instead of downgrading to presence-only checks.
+**Why it happens:** `handleQualityRequest` always calls `runAudit(fs, projectPath, { agentFilter: agent, harness: true })` before reading prior quality history or composing the prompt. In the real bash-enabled dashboard path, current-session timings measured fresh `/api/quality` requests at about 30,573 ms and 30,182 ms, with a cached repeat at about 5 ms after a short-lived per-agent cache was added. That means the new cache fixes repeat loads, but the first quality-page load still pays the full deny-hook/runtime evidence cost. Unlike the Home summary route, the quality route intentionally keeps full deny-hook/runtime evidence instead of downgrading to presence-only checks.
 
 **Evidence:**
 - `src/cli/server/dashboard-routes.ts` (search: `handleQualityRequest`) - runs `runAudit(fs, projectPath, { agentFilter: agent, harness: true })` before `findLatestQualityReport(...)` and `composeQuality(...)`.
 - `src/dashboard/dashboard-setup-quality.ts` (search: `/api/quality?path=`) - entering the quality view or changing agent/mode always fetches `/api/quality`.
+- `src/cli/server/dashboard-routes.ts` (search: `readQualityAuditCache(projectPath, agent, fresh)`) - repeat requests can reuse the short-lived per-agent audit cache, but only after one fresh audit has already completed.
 - `src/cli/server/dashboard-routes.ts` (search: `denyMechanismEvidenceLevel: "present-only"`) - the summary-only evidence downgrade exists on `/api/audit`, not on `/api/quality`.
 
 **Prevention:**
 1. Profile `/api/quality` before touching history parsing or prompt rendering; those are easy suspects and were not the bottleneck here.
-2. If faster initial paint matters more than live audit grounding, split the route into cheap cached context plus an explicit "refresh full audit evidence" action.
-3. If the full audit contract must stay on page load, add short-lived caching around `runAudit` keyed by project path + agent instead of weakening the deep verification path by accident.
+2. Treat route-level caching as a repeat-load improvement, not a first-load fix. If faster initial paint matters more than live audit grounding, split the route into cheap cached context plus an explicit "refresh full audit evidence" action.
+3. If the full audit contract must stay on page load, optimize the underlying hook self-test itself; the cache cannot remove the first-run cost.
 
 ---
 
