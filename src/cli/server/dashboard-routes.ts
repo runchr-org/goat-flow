@@ -490,7 +490,7 @@ export function createDashboardRouteHandlers(
   handleAuditRequest: (url: URL, res: ServerResponse) => boolean;
   handleSetupDetectRequest: (url: URL, res: ServerResponse) => boolean;
   handleSetupRequest: (url: URL, res: ServerResponse) => Promise<boolean>;
-  handleQualityRequest: (url: URL, res: ServerResponse) => Promise<boolean>;
+  handleQualityRequest: (url: URL, res: ServerResponse) => boolean;
   handleQualityHistoryRequest: (
     url: URL,
     res: ServerResponse,
@@ -817,11 +817,28 @@ export function createDashboardRouteHandlers(
     return true;
   }
 
+  function getOrRunQualityAudit(
+    projectPath: string,
+    agent: AgentId,
+    fresh: boolean,
+  ): AuditReport | null {
+    const cached = readQualityAuditCache(projectPath, agent, fresh);
+    if (cached !== null) return cached;
+    try {
+      const fs = createFS(projectPath);
+      const report = runAudit(fs, projectPath, {
+        agentFilter: agent,
+        harness: true,
+      });
+      writeQualityAuditCache(projectPath, agent, report);
+      return report;
+    } catch {
+      return null;
+    }
+  }
+
   /** Generate a quality-assessment prompt for a selected agent and return it to the dashboard. */
-  async function handleQualityRequest(
-    url: URL,
-    res: ServerResponse,
-  ): Promise<boolean> {
+  function handleQualityRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/quality") return false;
 
     const agentParam = url.searchParams.get("agent");
@@ -848,21 +865,7 @@ export function createDashboardRouteHandlers(
 
     try {
       requireProjectDirectory(projectPath);
-      let auditReport = readQualityAuditCache(projectPath, agent, fresh);
-      if (auditReport === null) {
-        try {
-          const fs = createFS(projectPath);
-          auditReport = runAudit(fs, projectPath, {
-            agentFilter: agent,
-            harness: true,
-          });
-          writeQualityAuditCache(projectPath, agent, auditReport);
-        } catch {
-          auditReport = null;
-          /* audit failure is fine - quality prompt generates with degraded context */
-        }
-      }
-
+      const auditReport = getOrRunQualityAudit(projectPath, agent, fresh);
       const { entry: priorReport } = findLatestQualityReport(
         projectPath,
         agent,
