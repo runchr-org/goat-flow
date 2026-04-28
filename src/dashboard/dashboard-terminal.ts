@@ -546,7 +546,6 @@ async function dashboardLaunchInTerminal(
   }
   let createdSessionId: string | null = null;
   ctx.launching = true;
-  ctx.showToast(promptLabel ? `Launching ${promptLabel}...` : "Launching terminal...");
   try {
     const self = ctx as DashboardTerminalContext &
       AlpineMagics<DashboardTerminalContext>;

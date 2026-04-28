@@ -181,9 +181,7 @@ describe("dashboard terminal launch flow", () => {
       "xterm should load before the browser terminal attaches",
     );
     assert.ok(calls.includes("updateSessionCount"));
-    assert.deepStrictEqual(ctx.toasts, [
-      { msg: "Launching Terminal...", isError: false },
-    ]);
+    assert.deepStrictEqual(ctx.toasts, []);
   });
 
   it("cleans up the backend session when xterm loading fails after creation", async () => {
@@ -217,12 +215,8 @@ describe("dashboard terminal launch flow", () => {
     assert.equal(ctx.sessions.length, 0);
     assert.equal(ctx.activeSessionId, null);
     assert.ok(calls.includes("fetch:DELETE:/api/terminal/session-2"));
-    assert.deepStrictEqual(ctx.toasts[0], {
-      msg: "Launching Terminal...",
-      isError: false,
-    });
-    assert.equal(ctx.toasts[1]?.isError, true);
-    assert.match(ctx.toasts[1]?.msg ?? "", /xterm\.js load failed/);
+    assert.equal(ctx.toasts[0]?.isError, true);
+    assert.match(ctx.toasts[0]?.msg ?? "", /xterm\.js load failed/);
   });
 
   it("warms xterm when the workspace view opens", () => {
