@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.2 - 2026-04-30
+
+- **Decision-record quality gate** - Scaffolded `.goat-flow/decisions/README.md` now gives agents a hard ADR filter, routing table, anti-pattern list, and mandatory pre-write checklist. `goat-flow stats --check` now rejects malformed decision files: only `README.md` and `ADR-NNN-kebab-case-title.md` are allowed, and ADR files must include `**Status:**`, `**Date:**`, `## Context`, `## Decision`, plus a trade-off section (`## Consequences`, `## Failure Mode Comparison`, or `## Reversibility`). Failure messages point notes back to tasks, footguns, lessons, scratchpad, or the issue tracker instead of merely reporting a bad filename.
+- **Non-destructive decisions README migration** - Fresh setup still scaffolds the stricter decisions README, but existing projects keep customised `.goat-flow/decisions/README.md` files because the installer now writes that template only when missing. Existing projects can adopt the new template by comparing their local README with `workflow/setup/reference/decisions-readme.md` and copying it intentionally.
+- **Dashboard audit performance contract** - Dashboard summary audits use no-stack facts and cache signatures over high-impact audit inputs. Durable performance/cache decisions belong in `decisions/`; benchmark traces and implementation TODOs stay in `.goat-flow/tasks/`.
+
 ## v1.3.1 - 2026-04-29
 
 - **Commit-message guidance rewritten** - `.github/git-commit-instructions.md` and its mirror `docs/coding-standards/git-commit.md` now name the failure mode directly: ban weak-verb subjects (*enhance, improve, streamline, clarify, update, tweak, polish*), prescribe concrete verbs (*add, remove, replace, rename, fix, deny, gate, harden, cache*), require a body whenever the subject names more than one axis or has a non-obvious motivation, and include three bad→good rewrites built from the actual recent log. Adds a `type` selection table, drops the redundant typecheck/test/shellcheck list (preflight already runs them), and corrects the `.goat-flow/` what-not-to-commit list. Both files are now byte-equivalent below their preambles. New lesson `.goat-flow/lessons/agent-behavior.md` "Commit subjects paraphrased the diff with weak verbs" records the audit of the last 10 commits that motivated the rewrite.
