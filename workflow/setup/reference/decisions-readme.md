@@ -1,60 +1,109 @@
 # Decisions
 
-**Architectural Decision Records (ADRs).** A decision record captures a significant technical decision with the context that led to it, so future agents and developers understand WHY something is built the way it is - not just what was done.
+Architectural Decision Records (ADRs) capture durable decisions that constrain future work. They are not task notes, TODO lists, bug reports, benchmark dumps, or confirmations that nothing changed.
 
-Write a new ADR when a decision: changes how the system is structured, constrains future choices, reverses or supersedes a prior decision, or resolves a non-obvious trade-off that someone will later question.
+> If the choice does not outlast the feature branch, it is not an ADR.
 
-Do NOT write an ADR for routine implementation choices, bug fixes, or changes that are self-explanatory from the code.
+## When To Write An ADR
+
+Write an ADR when the decision:
+
+- changes the system structure, public contract, deployment model, data model, security model, or long-term workflow;
+- constrains future implementation choices in a way another maintainer will need to understand;
+- reverses, supersedes, or materially narrows an earlier decision;
+- resolves a non-obvious trade-off with real evidence; or
+- documents a durable exception that future agents might otherwise "fix" incorrectly.
+
+Do not write an ADR for routine implementation details, temporary workarounds, benchmark traces, local debugging notes, or "we kept the existing behavior" confirmations.
+
+## Wrong Home -> Right Home
+
+| Note type | Correct home |
+| --- | --- |
+| Implementation TODO, checklist, milestone, or scoped plan | `.goat-flow/tasks/` or the issue tracker |
+| Reproducible hazard, trap, or recurring failure with measured evidence | `.goat-flow/footguns/` |
+| Reusable takeaway from a completed fix or verification failure | `.goat-flow/lessons/` |
+| Temporary scratch note, benchmark trace, raw command output, or local hypothesis | `.goat-flow/scratchpad/` |
+| Backlog request, product question, or work that needs prioritisation | Linear/GitHub issue |
+| Durable architecture, policy, contract, or trade-off decision | `.goat-flow/decisions/ADR-NNN-kebab-case-title.md` |
 
 ## Naming
 
-Files are numbered sequentially: `ADR-NNN-kebab-case-title.md` (e.g. `ADR-001-config-storage-model.md`). To find the next number, check existing files in this directory.
+ADR files must be named `ADR-NNN-kebab-case-title.md`, for example `ADR-001-cache-signature-policy.md`.
 
-## Required structure
+Allowed non-ADR file: `README.md`.
 
-Every ADR MUST have these sections:
+Everything else in this directory is a stats failure. If a note cannot earn an ADR filename, route it using the table above.
+
+## Required Structure
+
+Every ADR must include:
 
 ```markdown
 # ADR-NNN: Title
 
-**Status:** Accepted | **Date:** YYYY-MM-DD
-
-## Context
-
-Why does this decision need to be made? What forces are at play?
-Cite specific incidents, constraints, or prior decisions that created the need.
-Real evidence only - never hypothetical scenarios.
+**Status:** Accepted
+**Date:** YYYY-MM-DD
 
 ## Decision
 
-What was decided. Be specific enough that someone can verify whether
-the codebase conforms.
+What was decided. Be specific enough that someone can verify whether the codebase conforms.
 
-## Consequences
+## Context
 
-Trade-offs: what becomes easier, what becomes harder, what follow-up
-work is created.
+Why this decision exists. Cite real incidents, constraints, measurements, or prior decisions.
+
+## Failure Mode Comparison
+
+| Option | What fails | Why rejected or accepted |
+| --- | --- | --- |
+| ... | ... | ... |
+
+## Reversibility
+
+Whether this is a one-way or two-way door, plus rollback or revisit triggers.
 ```
 
-## Status values
+`## Context` may appear before `## Decision` if that reads better. Section order is not enforced.
 
-- **Accepted** - decision made, not yet fully implemented
-- **Implemented** - decision made and reflected in the codebase
-- **Superseded by ADR-NNN** - replaced by a later decision
+At least one trade-off section is required:
 
-When amending an accepted ADR, add an `**Updated:** YYYY-MM-DD` line below the Status/Date header.
+- `## Consequences`
+- `## Failure Mode Comparison`
+- `## Reversibility`
 
-## Optional sections
+Recommended metadata:
 
-Add these when they earn their keep - not by default:
+- `**Author(s):**`
+- `**Ticket/Context:**`
+- `**Updated:** YYYY-MM-DD` when amending an accepted ADR
 
-- `## Alternatives considered` - rejected options and why
-- `## Revisit triggers` - conditions under which this decision should be reopened
-- `## Related decisions` - links to other ADRs this builds on or constrains
+## Status Values
 
-## Quality bar
+- `Proposed` - under discussion, not yet binding
+- `Accepted` - decision made, implementation may still be underway
+- `Implemented` - decision is reflected in the codebase
+- `Superseded by ADR-NNN` - replaced by a later decision
 
-- Context must cite real incidents, measurements, or constraints - not hypothetical risks
-- Decision must be specific enough to be verifiable ("we will X" not "we should consider X")
-- Consequences must name concrete trade-offs, not just restate the decision as a benefit
-- One decision per ADR; if two decisions are tangled, split them and cross-reference
+## Anti-Patterns
+
+Do not create ADRs for:
+
+- no-op confirmations, such as "we kept the existing threshold";
+- TODOs disguised as decisions;
+- workaround notes for a missing implementation;
+- scoping notes that belong in a milestone file;
+- benchmark traces without a durable decision;
+- files missing the `ADR-NNN-...` filename, `**Status:**`, `**Date:**`, `## Context`, `## Decision`, or a trade-off section.
+
+## Before Writing
+
+Check all five before creating a file here:
+
+- The decision will still matter after the current task closes.
+- The decision constrains future choices or explains a non-obvious trade-off.
+- The evidence is real and cited in the ADR.
+- The file can honestly use an `ADR-NNN-kebab-case-title.md` name.
+- The note does not belong in tasks, footguns, lessons, scratchpad, or the issue tracker.
+
+If any check fails, do not write an ADR. Route the note to the correct home. If you are an AI agent and cannot decide, ask a human before creating a file in this directory.

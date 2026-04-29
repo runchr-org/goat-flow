@@ -13,7 +13,11 @@ import {
   extractFootgunFacts,
   extractLessonsFacts,
 } from "../../src/cli/facts/shared/learning-loop.js";
-import { buildStatsReport, checkStats } from "../../src/cli/stats/stats.js";
+import {
+  buildDecisionsSection,
+  buildStatsReport,
+  checkStats,
+} from "../../src/cli/stats/stats.js";
 import {
   renderStatsText,
   renderStatsJson,
@@ -61,17 +65,23 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
 function makeFixtureRepo(spec: {
   footguns: Record<string, string>;
   lessons: Record<string, string>;
+  decisions?: Record<string, string>;
 }): string {
   const root = mkdtempSync(join(tmpdir(), "goatflow-stats-"));
   const footgunsDir = join(root, ".goat-flow/footguns");
   const lessonsDir = join(root, ".goat-flow/lessons");
+  const decisionsDir = join(root, ".goat-flow/decisions");
   mkdirSync(footgunsDir, { recursive: true });
   mkdirSync(lessonsDir, { recursive: true });
+  mkdirSync(decisionsDir, { recursive: true });
   for (const [name, body] of Object.entries(spec.footguns)) {
     writeFileSync(join(footgunsDir, name), body);
   }
   for (const [name, body] of Object.entries(spec.lessons)) {
     writeFileSync(join(lessonsDir, name), body);
+  }
+  for (const [name, body] of Object.entries(spec.decisions ?? {})) {
+    writeFileSync(join(decisionsDir, name), body);
   }
   return root;
 }
@@ -91,6 +101,7 @@ function loadReport(spec: Parameters<typeof makeFixtureRepo>[0]) {
   return buildStatsReport({
     footguns: extractFootgunFacts(fs, config, pinnedNow),
     lessons: extractLessonsFacts(fs, config, pinnedNow),
+    decisions: buildDecisionsSection(fs, config.config.decisions.path),
   });
 }
 
@@ -323,6 +334,103 @@ describe("goat-flow stats --check", () => {
       ),
       "expected a missing-Status-field finding",
     );
+  });
+
+  it("fails when a decisions file is not an ADR filename", () => {
+    const report = loadReport({
+      footguns: {},
+      lessons: {},
+      decisions: {
+        "README.md": "# Decisions\n",
+        "foo.md": "broken\n",
+      },
+    });
+    const verdict = checkStats(report);
+    assert.equal(verdict.status, "fail");
+    const finding = verdict.findings.find(
+      (f) => f.rule === "decision-filename",
+    );
+    assert.ok(finding, "expected a decision-filename finding");
+    assert.ok(finding!.message.includes(".goat-flow/tasks/"));
+    assert.ok(finding!.message.includes(".goat-flow/footguns/"));
+    assert.ok(finding!.message.includes(".goat-flow/scratchpad/"));
+  });
+
+  it("fails when a valid ADR filename is missing required structure", () => {
+    const report = loadReport({
+      footguns: {},
+      lessons: {},
+      decisions: {
+        "ADR-002-bar.md":
+          "# ADR-002: Bar\n\n**Status:** Accepted\n**Date:** 2026-04-29\n\n## Decision\n\nDo it.\n\n## Consequences\n\nTrade-offs.\n",
+        "ADR-003-baz.md":
+          "# ADR-003: Baz\n\n**Date:** 2026-04-29\n\n## Context\n\nContext.\n\n## Decision\n\nDecision.\n\n## Consequences\n\nConsequences.\n",
+      },
+    });
+    const verdict = checkStats(report);
+    assert.equal(verdict.status, "fail");
+    assert.ok(
+      verdict.findings.some(
+        (f) =>
+          f.rule === "decision-structure" && f.message.includes("## Context"),
+      ),
+      "expected missing Context finding",
+    );
+    assert.ok(
+      verdict.findings.some(
+        (f) =>
+          f.rule === "decision-structure" && f.message.includes("**Status:**"),
+      ),
+      "expected missing Status finding",
+    );
+  });
+
+  it("passes valid decision-first and context-first ADRs with richer tradeoff sections", () => {
+    const report = loadReport({
+      footguns: {
+        "hooks.md":
+          "---\ncategory: hooks\nlast_reviewed: 2026-04-18\n---\n\n## Footgun: alpha\n\n**Status:** active | **Evidence:** ACTUAL_MEASURED\n\nBody with `src/alpha.ts` ref.\n",
+      },
+      lessons: {
+        "verification.md":
+          "---\ncategory: verification\nlast_reviewed: 2026-04-18\n---\n\n## Lesson: beta\n\nBody.\n",
+      },
+      decisions: {
+        "README.md": "# Decisions\n",
+        "ADR-001-foo.md":
+          "# ADR-001: Foo\n\n**Status:** Accepted\n**Date:** 2026-04-29\n\n## Decision\n\nChoose Foo.\n\n## Context\n\nThe forces.\n\n## Failure Mode Comparison\n\n| Option | Failure |\n| --- | --- |\n| Foo | Known |\n",
+        "ADR-004-qux.md":
+          "# ADR-004: Qux\n\n**Status:** Accepted\n**Date:** 2026-04-29\n\n## Context\n\nThe forces.\n\n## Decision\n\nChoose Qux.\n\n## Reversibility\n\nTwo-way door.\n",
+      },
+    });
+    const verdict = checkStats(report);
+    assert.equal(verdict.status, "pass");
+    assert.deepEqual(verdict.findings, []);
+    assert.equal(verdict.warnings.length, 2);
+  });
+
+  it("warns without failing when optional ADR metadata is missing", () => {
+    const report = loadReport({
+      footguns: {
+        "hooks.md":
+          "---\ncategory: hooks\nlast_reviewed: 2026-04-18\n---\n\n## Footgun: alpha\n\n**Status:** active | **Evidence:** ACTUAL_MEASURED\n\nBody with `src/alpha.ts` ref.\n",
+      },
+      lessons: {
+        "verification.md":
+          "---\ncategory: verification\nlast_reviewed: 2026-04-18\n---\n\n## Lesson: beta\n\nBody.\n",
+      },
+      decisions: {
+        "ADR-001-foo.md":
+          "# ADR-001: Foo\n\n**Status:** Accepted\n**Date:** 2026-04-29\n\n## Context\n\nThe forces.\n\n## Decision\n\nChoose Foo.\n\n## Consequences\n\nKnown trade-offs.\n",
+        "ADR-002-bar.md":
+          "# ADR-002: Bar\n\n**Status:** Accepted\n**Date:** 2026-04-29\n**Author(s):** Matt\n**Ticket/Context:** Issue 1\n\n## Context\n\nThe forces.\n\n## Decision\n\nChoose Bar.\n\n## Consequences\n\nKnown trade-offs.\n",
+      },
+    });
+    const verdict = checkStats(report);
+    assert.equal(verdict.status, "pass");
+    assert.deepEqual(verdict.findings, []);
+    assert.equal(verdict.warnings.length, 1);
+    assert.equal(verdict.warnings[0]!.rule, "decision-metadata");
   });
 
   it("fails when an active footgun has no file:line or (search:) evidence", () => {

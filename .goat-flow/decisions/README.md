@@ -1,55 +1,109 @@
-# Decision Records
+# Decisions
 
-This directory now has two live layers plus a historical summary:
+Architectural Decision Records (ADRs) capture durable decisions that constrain future work. They are not task notes, TODO lists, bug reports, benchmark dumps, or confirmations that nothing changed.
 
-- **Core ADRs**: current architectural decisions that still define the framework.
-- **Secondary ADRs**: current but narrower repo, product-surface, or tooling decisions.
-- **Deleted historical topics**: superseded, merged, or overly narrow records whose surviving meaning is summarized below and preserved in git history.
+> If the choice does not outlast the feature branch, it is not an ADR.
 
-## Core ADRs
+## When To Write An ADR
 
-- `ADR-003` - reference-based setup prompts
-- `ADR-004` - config + learning-loop storage model
-- `ADR-007` - shared skill conventions extraction
-- `ADR-008` - instruction budget constraint
-- `ADR-009` - skill consolidation and canonical-skill doctrine
-- `ADR-010` - setup file ownership
-- `ADR-013` - audit as the sole evaluation engine
-- `ADR-014` - optional project calibration config
-- `ADR-016` - cold-path truth maintenance
-- `ADR-017` - active-plan marker
-- `ADR-018` - no standalone `goat-verify`
-- `ADR-019` - skill naming/routing cleanup
-- `ADR-021` - goat-critique is full delegated mode only
+Write an ADR when the decision:
 
-## Secondary ADRs
+- changes the system structure, public contract, deployment model, data model, security model, or long-term workflow;
+- constrains future implementation choices in a way another maintainer will need to understand;
+- reverses, supersedes, or materially narrows an earlier decision;
+- resolves a non-obvious trade-off with real evidence; or
+- documents a durable exception that future agents might otherwise "fix" incorrectly.
 
-- `ADR-001` - confusion-log removal
-- `ADR-002` - preflight skill replaced by security skill
-- `ADR-005` - no implementation skill
-- `ADR-006` - autonomous skill mode
-- `ADR-011` - critique as a core feature
-- `ADR-012` - quality-check expansion
-- `ADR-015` - remove `stop-lint.sh` from core
-- `ADR-020` - accepted Copilot CLI first-class support
-- `ADR-022` - canonical source for agent identity
-- `ADR-023` - reference-pack budget tiers
-- `ADR-025` - block all git push from agents
+Do not write an ADR for routine implementation details, temporary workarounds, benchmark traces, local debugging notes, or "we kept the existing behavior" confirmations.
 
-## Deleted Historical Topics
+## Wrong Home -> Right Home
 
-The following topics were removed as standalone ADR files on 2026-04-18 after their surviving guidance was folded into umbrella records:
+| Note type | Correct home |
+| --- | --- |
+| Implementation TODO, checklist, milestone, or scoped plan | `.goat-flow/tasks/` or the issue tracker |
+| Reproducible hazard, trap, or recurring failure with measured evidence | `.goat-flow/footguns/` |
+| Reusable takeaway from a completed fix or verification failure | `.goat-flow/lessons/` |
+| Temporary scratch note, benchmark trace, raw command output, or local hypothesis | `.goat-flow/scratchpad/` |
+| Backlog request, product question, or work that needs prioritisation | Linear/GitHub issue |
+| Durable architecture, policy, contract, or trade-off decision | `.goat-flow/decisions/ADR-NNN-kebab-case-title.md` |
 
-- confusion-log disposition now lives in `ADR-001`
-- shared-conventions history (keep inline / expand inline / flush-protocol enforcement) now lives in `ADR-007`
-- dispatcher counting and the original 9→6 consolidation pass now live in `ADR-009`
-- category-bucket learning-loop format now lives in `ADR-004`
-- local-only `userRole` config handling now lives in `ADR-014`
-- retired scanner-era simplifications and heuristics are preserved in `ADR-013` and git history
-- the retired spec-artifact workflow is preserved in git history; the current replacement is milestone files plus goat-review Spec Drift
-- evidence lifecycle state markers now live in `ADR-016`
-- dispatcher build history now lives in `ADR-009`
-- audit-era agent-check regrouping now lives in `ADR-013`
-- the shared-preamble pattern from the retired `RULES.md` cleanup now lives in `ADR-018`
-- repo-layout history, the ask-first hook lesson, the older skill-copy model, narrow tooling ADRs, and harness-card presentation are preserved in git history rather than the live ADR set
-- the deferred public-audit skill-integrity note was removed from the live ADR set; cold-path truth maintenance remains in `ADR-016`
+## Naming
+
+ADR files must be named `ADR-NNN-kebab-case-title.md`, for example `ADR-001-cache-signature-policy.md`.
+
+Allowed non-ADR file: `README.md`.
+
+Everything else in this directory is a stats failure. If a note cannot earn an ADR filename, route it using the table above.
+
+## Required Structure
+
+Every ADR must include:
+
+```markdown
+# ADR-NNN: Title
+
+**Status:** Accepted
+**Date:** YYYY-MM-DD
+
+## Decision
+
+What was decided. Be specific enough that someone can verify whether the codebase conforms.
+
+## Context
+
+Why this decision exists. Cite real incidents, constraints, measurements, or prior decisions.
+
+## Failure Mode Comparison
+
+| Option | What fails | Why rejected or accepted |
+| --- | --- | --- |
+| ... | ... | ... |
+
+## Reversibility
+
+Whether this is a one-way or two-way door, plus rollback or revisit triggers.
+```
+
+`## Context` may appear before `## Decision` if that reads better. Section order is not enforced.
+
+At least one trade-off section is required:
+
+- `## Consequences`
+- `## Failure Mode Comparison`
+- `## Reversibility`
+
+Recommended metadata:
+
+- `**Author(s):**`
+- `**Ticket/Context:**`
+- `**Updated:** YYYY-MM-DD` when amending an accepted ADR
+
+## Status Values
+
+- `Proposed` - under discussion, not yet binding
+- `Accepted` - decision made, implementation may still be underway
+- `Implemented` - decision is reflected in the codebase
+- `Superseded by ADR-NNN` - replaced by a later decision
+
+## Anti-Patterns
+
+Do not create ADRs for:
+
+- no-op confirmations, such as "we kept the existing threshold";
+- TODOs disguised as decisions;
+- workaround notes for a missing implementation;
+- scoping notes that belong in a milestone file;
+- benchmark traces without a durable decision;
+- files missing the `ADR-NNN-...` filename, `**Status:**`, `**Date:**`, `## Context`, `## Decision`, or a trade-off section.
+
+## Before Writing
+
+Check all five before creating a file here:
+
+- The decision will still matter after the current task closes.
+- The decision constrains future choices or explains a non-obvious trade-off.
+- The evidence is real and cited in the ADR.
+- The file can honestly use an `ADR-NNN-kebab-case-title.md` name.
+- The note does not belong in tasks, footguns, lessons, scratchpad, or the issue tracker.
+
+If any check fails, do not write an ADR. Route the note to the correct home. If you are an AI agent and cannot decide, ask a human before creating a file in this directory.

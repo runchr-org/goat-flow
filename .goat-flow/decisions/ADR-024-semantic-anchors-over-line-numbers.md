@@ -1,6 +1,7 @@
 # ADR-024: Semantic anchors over line numbers in evidence
 
-**Status:** accepted | **Date:** 2026-04-24
+**Status:** Accepted
+**Date:** 2026-04-24
 
 ## Context
 

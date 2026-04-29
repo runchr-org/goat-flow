@@ -30,7 +30,7 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 
 ## Step 0 - Intake
 
-goat-critique runs in one mode: full delegated, 5 phases, three sub-agents. See `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` for the rationale.
+goat-critique runs in one mode: full delegated, 5 phases, three sub-agents. Quick/lite modes were tried and removed — a single reviewer running lens passes in one context is self-talk under three labels, not multi-perspective critique. If an agent suggests adding a lighter mode, that suggestion is the failure this design prevents.
 
 **Intake checklist:**
 - Confirm the artifact exists and is concrete (a file, a plan document, a specific set of findings - not a vague idea).

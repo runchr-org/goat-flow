@@ -2,7 +2,12 @@
  * Output renderers for `goat-flow stats` - text, JSON, markdown.
  * Text is the default for terminals; JSON/markdown are for CI and PR comments.
  */
-import type { BucketSection, StatsCheckReport, StatsReport } from "./stats.js";
+import type {
+  BucketSection,
+  DecisionsSection,
+  StatsCheckReport,
+  StatsReport,
+} from "./stats.js";
 
 const BAND_LABEL: Record<string, string> = {
   fresh: "fresh",
@@ -61,7 +66,8 @@ export function renderStatsText(report: StatsReport): string {
   return (
     renderSectionText("Footguns", report.footguns) +
     "\n" +
-    renderSectionText("Lessons", report.lessons)
+    renderSectionText("Lessons", report.lessons) +
+    (report.decisions ? "\n" + renderDecisionsText(report.decisions) : "")
   );
 }
 
@@ -75,8 +81,53 @@ export function renderStatsMarkdown(report: StatsReport): string {
   const sections = [
     markdownSection("Footguns", report.footguns),
     markdownSection("Lessons", report.lessons),
+    ...(report.decisions ? [markdownDecisions(report.decisions)] : []),
   ];
   return ["# Learning-loop stats", "", ...sections].join("\n");
+}
+
+function renderDecisionsText(section: DecisionsSection): string {
+  if (!section.exists) {
+    return `Decisions (${section.path}) - directory missing\n`;
+  }
+  const adrCount = section.files.filter((file) =>
+    /^ADR-\d{3}-[a-z0-9-]+\.md$/.test(file.filename),
+  ).length;
+  const header = `Decisions (${section.path}) - ${adrCount} ADR file(s), ${section.warnings.length} warning(s)`;
+  if (section.warnings.length === 0) return `${header}\n`;
+  return [
+    header,
+    ...section.warnings.map(
+      (warning) => `  - [${warning.rule}] ${warning.message}`,
+    ),
+    "",
+  ].join("\n");
+}
+
+function markdownDecisions(section: DecisionsSection): string {
+  if (!section.exists) {
+    return `## Decisions\n\n_Directory missing: \`${section.path}\`_\n`;
+  }
+  const adrCount = section.files.filter((file) =>
+    /^ADR-\d{3}-[a-z0-9-]+\.md$/.test(file.filename),
+  ).length;
+  const lines = [
+    `## Decisions`,
+    ``,
+    `- Path: \`${section.path}\``,
+    `- ADR files: ${adrCount}`,
+    `- Warnings: ${section.warnings.length}`,
+    ``,
+  ];
+  if (section.warnings.length > 0) {
+    lines.push(
+      ...section.warnings.map(
+        (warning) => `- [${warning.rule}] ${warning.message}`,
+      ),
+      ``,
+    );
+  }
+  return lines.join("\n");
 }
 
 /** Build the markdown section. */
@@ -109,12 +160,26 @@ function markdownSection(name: string, section: BucketSection): string {
 
 /** Render a `--check` verdict as text suitable for CI logs. */
 export function renderStatsCheckText(check: StatsCheckReport): string {
-  if (check.status === "pass") return "stats --check: PASS\n";
+  const warningSuffix =
+    check.warnings.length > 0
+      ? ` (${check.warnings.length} warning${check.warnings.length === 1 ? "" : "s"})`
+      : "";
+  if (check.status === "pass") {
+    if (check.warnings.length === 0) return "stats --check: PASS\n";
+    return [
+      `stats --check: PASS${warningSuffix}`,
+      ...check.warnings.map((w) => `  - [${w.rule}] ${w.message}`),
+      "",
+    ].join("\n");
+  }
   const lines = [
-    `stats --check: FAIL (${check.findings.length} finding${check.findings.length === 1 ? "" : "s"})`,
+    `stats --check: FAIL (${check.findings.length} finding${check.findings.length === 1 ? "" : "s"}${check.warnings.length > 0 ? `, ${check.warnings.length} warning${check.warnings.length === 1 ? "" : "s"}` : ""})`,
   ];
   for (const f of check.findings) {
     lines.push(`  - [${f.rule}] ${f.message}`);
+  }
+  for (const w of check.warnings) {
+    lines.push(`  - [${w.rule}] ${w.message}`);
   }
   const hasFrontmatterFindings = check.findings.some(
     (f) =>

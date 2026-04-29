@@ -19,6 +19,7 @@ function configFS(content: string | null): ReadonlyFS {
     listDir: () => [],
     isExecutable: () => false,
     glob: () => [],
+    existsGlob: () => false,
   };
 }
 

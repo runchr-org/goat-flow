@@ -19,7 +19,7 @@ import type {
 import { AUDIT_VERSION, SKILL_NAMES } from "../../../src/cli/constants.js";
 
 export function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
-  return {
+  const fs = {
     exists: () => true,
     readFile: () => null,
     lineCount: () => 0,
@@ -28,6 +28,12 @@ export function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
     isExecutable: () => false,
     glob: () => [],
     ...overrides,
+  };
+  return {
+    ...fs,
+    existsGlob:
+      overrides.existsGlob ??
+      ((pattern: string) => fs.glob(pattern).length > 0),
   };
 }
 

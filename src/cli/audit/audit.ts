@@ -5,7 +5,7 @@
  * Returns an AuditReport consumed by renderers and the dashboard.
  */
 import { existsSync } from "node:fs";
-import type { AgentId, ReadonlyFS } from "../types.js";
+import type { AgentId, ProjectFacts, ReadonlyFS } from "../types.js";
 import { loadConfig } from "../config/index.js";
 import { extractProjectFacts } from "../facts/orchestrator.js";
 import { getTemplatePath, isPackagedInstall } from "../paths.js";
@@ -22,9 +22,11 @@ import type {
   AuditContext,
   AuditConcern,
   AuditConcernKey,
+  AuditFactProfile,
   AuditReport,
   AuditScope,
   AuditScopeName,
+  BuildCheck,
   CheckResult,
   ContentReport,
   HarnessCheck,
@@ -41,6 +43,68 @@ interface AuditOptions {
   checkContent?: boolean;
   /** Optional summary-mode downgrade for expensive deny-hook runtime validation. */
   denyMechanismEvidenceLevel?: "full" | "present-only";
+  /** Optional fact profile. Dashboard summary omits stack facts by contract. */
+  factProfile?: AuditFactProfile;
+  /** Optional development/test profiler for audit-path timing. */
+  profile?: AuditProfiler;
+  /** Internal label used to separate aggregate, per-agent, and single audit spans. */
+  profileScope?: "aggregate" | "per-agent" | "single";
+  /** Internal batch option: project-level auto drift should run on aggregate only. */
+  skipAutoDrift?: boolean;
+}
+
+/** Synchronous profiler seam used by dashboard development benchmarks. */
+export interface AuditProfiler {
+  span<T>(name: string, fn: () => T): T;
+}
+
+/** Run a block inside an optional profiler span. */
+function span<T>(
+  profile: AuditProfiler | undefined,
+  name: string,
+  fn: () => T,
+): T {
+  return profile ? profile.span(name, fn) : fn();
+}
+
+function factProfile(options: AuditOptions): AuditFactProfile {
+  return options.factProfile ?? "full";
+}
+
+function factsIncludeStack(options: AuditOptions): boolean {
+  return factProfile(options) !== "dashboard-summary";
+}
+
+function assertCheckCanRunWithoutStack(
+  ctx: AuditContext,
+  check: Pick<BuildCheck | HarnessCheck, "id" | "name" | "requiresStack">,
+): void {
+  if (ctx.factProfile === "dashboard-summary" && check.requiresStack === true) {
+    throw new Error(
+      `${check.id} (${check.name}) requires stack facts and cannot run in dashboard-summary audit profile`,
+    );
+  }
+}
+
+/** Build an isolated facts view for one audit context from a batch fact bundle. */
+export function createAuditFactsView(
+  facts: ProjectFacts,
+  options: { agentId?: AgentId; factProfile?: AuditFactProfile } = {},
+): ProjectFacts {
+  const selectedAgents = options.agentId
+    ? facts.agents.filter(
+        (agentFacts) => agentFacts.agent.id === options.agentId,
+      )
+    : facts.agents;
+  return {
+    root: facts.root,
+    stack:
+      options.factProfile === "dashboard-summary"
+        ? facts.stack
+        : structuredClone(facts.stack),
+    shared: structuredClone(facts.shared),
+    agents: structuredClone(selectedAgents),
+  };
 }
 
 /** Combine content-quality + factual-claim + snapshot-claim findings into a ContentReport. */
@@ -291,6 +355,7 @@ export function computeHarness(ctx: AuditContext): {
   };
 
   for (const check of HARNESS_CHECKS) {
+    assertCheckCanRunWithoutStack(ctx, check);
     const result = check.run(ctx);
     const acknowledged =
       check.type === "advisory" &&
@@ -321,6 +386,7 @@ function runBuildChecks(ctx: AuditContext): {
   };
   const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
   for (const check of BUILD_CHECKS) {
+    assertCheckCanRunWithoutStack(ctx, check);
     const failure = check.run(ctx);
     const provenance = check.provenanceFor?.(ctx, failure) ?? check.provenance;
     const skipped =
@@ -348,13 +414,21 @@ function buildAuditContext(
   projectPath: string,
   options: AuditOptions,
 ): AuditContext {
-  const configState = loadConfig(projectPath, fs);
-  const facts = extractProjectFacts(fs, {
-    agentFilter: options.agentFilter,
-    projectPath,
-    configState,
-  });
-  const structure = buildProjectStructure();
+  const configState = span(options.profile, "single config load", () =>
+    loadConfig(projectPath, fs),
+  );
+  const facts = span(options.profile, "single facts", () =>
+    extractProjectFacts(fs, {
+      agentFilter: options.agentFilter,
+      projectPath,
+      configState,
+      includeStack: factsIncludeStack(options),
+      profile: options.profile,
+    }),
+  );
+  const structure = span(options.profile, "single project structure", () =>
+    buildProjectStructure(),
+  );
   return {
     projectPath,
     facts,
@@ -363,6 +437,7 @@ function buildAuditContext(
     structure,
     agents: facts.agents,
     agentFilter: options.agentFilter,
+    factProfile: factProfile(options),
     denyMechanismEvidenceLevel: options.denyMechanismEvidenceLevel,
   };
 }
@@ -430,12 +505,33 @@ function runAuditFromContext(
   projectPath: string,
   options: AuditOptions,
 ): AuditReport {
-  validateRegisteredCheckProvenance(ctx.fs);
-  const { setup: setupScope, agent: agentScope } = runBuildChecks(ctx);
-  const harness = options.harness ? computeHarness(ctx) : null;
-  const driftEnabled = options.checkDrift === true || shouldAutoRunDrift(ctx);
-  const drift = driftEnabled ? checkDrift({ fs, projectPath }) : null;
-  const content = options.checkContent ? computeContent(ctx) : null;
+  const profileScope = options.profileScope ?? "single";
+  span(options.profile, `${profileScope} provenance validation`, () =>
+    validateRegisteredCheckProvenance(ctx.fs),
+  );
+  const { setup: setupScope, agent: agentScope } = span(
+    options.profile,
+    `${profileScope} build checks`,
+    () => runBuildChecks(ctx),
+  );
+  const harness = options.harness
+    ? span(options.profile, `${profileScope} harness checks`, () =>
+        computeHarness(ctx),
+      )
+    : null;
+  const driftEnabled =
+    options.checkDrift === true ||
+    (options.skipAutoDrift !== true && shouldAutoRunDrift(ctx));
+  const drift = driftEnabled
+    ? span(options.profile, `${profileScope} drift`, () =>
+        checkDrift({ fs, projectPath }),
+      )
+    : null;
+  const content = options.checkContent
+    ? span(options.profile, `${profileScope} content checks`, () =>
+        computeContent(ctx),
+      )
+    : null;
   const status = overallStatus(setupScope, agentScope, harness, drift, content);
 
   return {
@@ -468,15 +564,39 @@ export function runAuditBatch(
   aggregate: AuditReport;
   perAgent: { id: string; audit: AuditReport }[];
 } {
-  const configState = loadConfig(projectPath, fs);
-  const structure = buildProjectStructure();
-  validateRegisteredCheckProvenance(fs);
+  const currentFactProfile = factProfile(options);
+  const configState = span(options.profile, "config load", () =>
+    loadConfig(projectPath, fs),
+  );
+  const structure = span(options.profile, "project structure", () =>
+    buildProjectStructure(),
+  );
+  span(options.profile, "provenance validation", () =>
+    validateRegisteredCheckProvenance(fs),
+  );
 
-  const aggregateFacts = extractProjectFacts(fs, {
-    agentFilter: options.agentFilter,
-    projectPath,
-    configState,
+  const batchFacts = span(options.profile, "aggregate facts", () =>
+    extractProjectFacts(fs, {
+      agentFilter: options.agentFilter,
+      projectPath,
+      configState,
+      includeStack: currentFactProfile !== "dashboard-summary",
+      profile: options.profile,
+    }),
+  );
+  const aggregateFacts = createAuditFactsView(batchFacts, {
+    factProfile: currentFactProfile,
   });
+  const perAgentFacts = new Map<AgentId, ProjectFacts>();
+  for (const agentId of agentIds) {
+    perAgentFacts.set(
+      agentId,
+      createAuditFactsView(batchFacts, {
+        agentId,
+        factProfile: currentFactProfile,
+      }),
+    );
+  }
   const aggregateCtx: AuditContext = {
     projectPath,
     facts: aggregateFacts,
@@ -485,18 +605,19 @@ export function runAuditBatch(
     structure,
     agents: aggregateFacts.agents,
     agentFilter: options.agentFilter,
+    factProfile: currentFactProfile,
     denyMechanismEvidenceLevel: options.denyMechanismEvidenceLevel,
   };
-  const aggregate = runAuditFromContext(aggregateCtx, fs, projectPath, options);
+  const aggregate = runAuditFromContext(aggregateCtx, fs, projectPath, {
+    ...options,
+    profileScope: "aggregate",
+  });
 
   const perAgent: { id: string; audit: AuditReport }[] = [];
   for (const agentId of agentIds) {
     try {
-      const agentFacts = extractProjectFacts(fs, {
-        agentFilter: agentId,
-        projectPath,
-        configState,
-      });
+      const agentFacts = perAgentFacts.get(agentId);
+      if (!agentFacts) continue;
       const agentCtx: AuditContext = {
         projectPath,
         facts: agentFacts,
@@ -505,6 +626,7 @@ export function runAuditBatch(
         structure,
         agents: agentFacts.agents,
         agentFilter: agentId,
+        factProfile: currentFactProfile,
         denyMechanismEvidenceLevel: options.denyMechanismEvidenceLevel,
       };
       perAgent.push({
@@ -512,6 +634,8 @@ export function runAuditBatch(
         audit: runAuditFromContext(agentCtx, fs, projectPath, {
           ...options,
           agentFilter: agentId,
+          profileScope: "per-agent",
+          skipAutoDrift: true,
         }),
       });
     } catch {

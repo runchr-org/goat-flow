@@ -7,7 +7,12 @@ import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { runAudit, computeHarness } from "../../src/cli/audit/audit.js";
+import {
+  runAudit,
+  computeHarness,
+  runAuditBatch,
+  createAuditFactsView,
+} from "../../src/cli/audit/audit.js";
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
@@ -40,7 +45,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
-  return {
+  const fs = {
     exists: () => true,
     readFile: () => null,
     lineCount: () => 0,
@@ -49,6 +54,12 @@ function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
     isExecutable: () => false,
     glob: () => [],
     ...overrides,
+  };
+  return {
+    ...fs,
+    existsGlob:
+      overrides.existsGlob ??
+      ((pattern: string) => fs.glob(pattern).length > 0),
   };
 }
 
@@ -390,6 +401,26 @@ function makeAuditReport(
   };
 }
 
+function createSpanRecorder(): {
+  profile: { span<T>(name: string, fn: () => T): T };
+  names: string[];
+} {
+  const names: string[] = [];
+  return {
+    names,
+    profile: {
+      span<T>(name: string, fn: () => T): T {
+        names.push(name);
+        return fn();
+      },
+    },
+  };
+}
+
+function countSpan(names: string[], name: string): number {
+  return names.filter((entry) => entry === name).length;
+}
+
 // ---------------------------------------------------------------------------
 // Test 1: audit passes on a well-configured project (this repo)
 // ---------------------------------------------------------------------------
@@ -427,6 +458,88 @@ describe("audit on well-configured project", () => {
       assert.ok(["pass", "fail"].includes(report.status));
     } finally {
       await project.cleanup();
+    }
+  });
+});
+
+describe("M03 batch fact reuse", () => {
+  it("creates isolated aggregate and per-agent fact views from one source bundle", () => {
+    const sourceFacts = makeProjectFacts(PROJECT_ROOT, [
+      stubAgentFacts(),
+      stubAgentFacts({ agent: PROFILES.codex }),
+    ]);
+    sourceFacts.shared.footguns.dirMentions.set("stable", 1);
+
+    const aggregateView = createAuditFactsView(sourceFacts);
+    const claudeView = createAuditFactsView(sourceFacts, { agentId: "claude" });
+    const codexView = createAuditFactsView(sourceFacts, { agentId: "codex" });
+
+    assert.deepEqual(
+      claudeView.agents.map((agentFacts) => agentFacts.agent.id),
+      ["claude"],
+      "Claude view should contain only Claude facts",
+    );
+    assert.deepEqual(
+      codexView.agents.map((agentFacts) => agentFacts.agent.id),
+      ["codex"],
+      "Codex view should contain only Codex facts",
+    );
+
+    claudeView.shared.footguns.dirMentions.set("mutated", 99);
+    claudeView.shared.footguns.staleRefs.push("mutated-ref.md");
+    claudeView.stack.languages.push("MutatedLang");
+    claudeView.agents[0]?.skills.found.push("mutated-skill");
+
+    assert.equal(
+      sourceFacts.shared.footguns.dirMentions.has("mutated"),
+      false,
+      "Per-agent mutation should not affect source facts",
+    );
+    assert.equal(
+      aggregateView.shared.footguns.dirMentions.has("mutated"),
+      false,
+      "Per-agent mutation should not affect aggregate facts",
+    );
+    assert.equal(
+      codexView.shared.footguns.dirMentions.has("mutated"),
+      false,
+      "Per-agent mutation should not affect sibling facts",
+    );
+    assert.equal(
+      aggregateView.shared.footguns.staleRefs.includes("mutated-ref.md"),
+      false,
+    );
+    assert.equal(aggregateView.stack.languages.includes("MutatedLang"), false);
+    assert.equal(
+      codexView.agents[0]?.skills.found.includes("mutated-skill"),
+      false,
+    );
+  });
+
+  it("runs full-profile batch fact extraction once for aggregate plus per-agent audits", () => {
+    const { profile, names } = createSpanRecorder();
+    const batch = runAuditBatch(
+      createFS(PROJECT_ROOT),
+      PROJECT_ROOT,
+      {
+        agentFilter: null,
+        harness: true,
+        denyMechanismEvidenceLevel: "present-only",
+        profile,
+      },
+      ["claude", "codex", "copilot"],
+    );
+
+    assert.equal(countSpan(names, "aggregate facts"), 1);
+    assert.equal(countSpan(names, "detectStack"), 1);
+    assert.equal(countSpan(names, "per-agent facts"), 0);
+    assert.deepEqual(
+      batch.perAgent.map((entry) => entry.id),
+      ["claude", "codex", "copilot"],
+    );
+    for (const entry of batch.perAgent) {
+      assert.equal(entry.audit.scopes.agent.checks.length > 0, true);
+      assert.equal(entry.audit.target, PROJECT_ROOT);
     }
   });
 });

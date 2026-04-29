@@ -4,9 +4,10 @@
  */
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire, syncBuiltinESMExports } from "node:module";
-import { resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import {
   getAgentProfileMap,
@@ -197,6 +198,51 @@ async function fetchJson(
   return { res, body: await res.json() };
 }
 
+async function writeProjectFile(
+  root: string,
+  relativePath: string,
+  content: string,
+): Promise<void> {
+  const fullPath = join(root, relativePath);
+  await mkdir(dirname(fullPath), { recursive: true });
+  await writeFile(fullPath, content);
+}
+
+async function makeDashboardCacheProject(): Promise<{
+  root: string;
+  cleanup: () => Promise<void>;
+}> {
+  const root = await mkdtemp(join(tmpdir(), "goat-flow-cache-tests-"));
+  await writeProjectFile(
+    root,
+    ".goat-flow/config.yaml",
+    'version: "1.3.1"\nagents:\n  - codex\n',
+  );
+  await writeProjectFile(root, ".goat-flow/footguns/README.md", "# Footguns\n");
+  await writeProjectFile(root, ".goat-flow/lessons/README.md", "# Lessons\n");
+  await writeProjectFile(root, "AGENTS.md", "# AGENTS.md\nAlpha\n");
+  await writeProjectFile(
+    root,
+    "package.json",
+    '{"scripts":{"test":"node --test"}}\n',
+  );
+  await writeProjectFile(root, ".codex/config.toml", 'model = "gpt-5"\n');
+  await writeProjectFile(
+    root,
+    ".codex/hooks.json",
+    '{"hooks":{"preToolUse":[{"command":".codex/hooks/deny-dangerous.sh"}]}}\n',
+  );
+  await writeProjectFile(
+    root,
+    ".codex/hooks/deny-dangerous.sh",
+    "#!/usr/bin/env bash\nexit 0\n",
+  );
+  return {
+    root,
+    cleanup: () => rm(root, { recursive: true, force: true }),
+  };
+}
+
 before(async () => {
   try {
     originalDashboardState = await readFile(DASHBOARD_STATE_PATH, "utf-8");
@@ -358,6 +404,90 @@ describe("dashboard assets", () => {
 });
 
 describe("dashboard /api/audit", () => {
+  function getProfileSpans(body: unknown): Record<string, unknown>[] {
+    const report = expectRecord(body, "Profiled dashboard report");
+    const profile = expectRecord(report._profile, "Dashboard profile");
+    assert.equal(
+      Array.isArray(profile.spans),
+      true,
+      "Dashboard profile spans should be an array",
+    );
+    return (profile.spans as unknown[]).map((spanEntry, index) =>
+      expectRecord(spanEntry, `Dashboard profile spans[${index}]`),
+    );
+  }
+
+  function spanCount(spans: Record<string, unknown>[], name: string): number {
+    return spans.filter((spanEntry) => spanEntry.name === name).length;
+  }
+
+  async function fetchProfiledAudit(
+    projectPath: string,
+    suffix = "",
+  ): Promise<{
+    ms: number;
+    body: Record<string, unknown>;
+  }> {
+    const start = performance.now();
+    const { res, body } = await fetchJson(
+      `/api/audit?path=${encodeURIComponent(
+        projectPath,
+      )}&quality=true&profile=true${suffix}`,
+    );
+    const ms = performance.now() - start;
+    assert.equal(res.status, 200);
+    return { ms, body: expectRecord(body, "Profiled audit response") };
+  }
+
+  function dashboardReportSurface(
+    value: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const scopes = expectRecord(value.scopes, "Dashboard report scopes");
+    const agentScores = (value.agentScores as unknown[]).map((score, index) => {
+      const entry = expectRecord(
+        score,
+        `Dashboard report agentScores[${index}]`,
+      );
+      const agent = expectRecord(
+        entry.agent,
+        `Dashboard report agentScores[${index}].agent`,
+      );
+      const harness =
+        entry.harness === null
+          ? null
+          : expectRecord(
+              entry.harness,
+              `Dashboard report agentScores[${index}].harness`,
+            );
+      return {
+        id: entry.id,
+        hasAgent: Boolean(entry.agent),
+        hasHarness: entry.harness !== null,
+        hasConcerns: entry.concerns !== null,
+        agentStatus: agent.status,
+        harnessStatus: harness?.status ?? null,
+      };
+    });
+    return {
+      status: value.status,
+      target: value.target,
+      overall: expectRecord(value.overall, "Dashboard report overall").status,
+      setup: expectRecord(scopes.setup, "Dashboard report scopes.setup").status,
+      agent: expectRecord(scopes.agent, "Dashboard report scopes.agent").status,
+      harness: expectRecord(scopes.harness, "Dashboard report scopes.harness")
+        .status,
+      agentScores,
+      hasLearningLoop: Object.prototype.hasOwnProperty.call(
+        value,
+        "learningLoop",
+      ),
+      hasRecentLessons: Object.prototype.hasOwnProperty.call(
+        value,
+        "recentLessons",
+      ),
+    };
+  }
+
   it("returns a full dashboard report shape", async () => {
     const { res, body } = await fetchJson(
       `/api/audit?path=${encodeURIComponent(PROJECT_PATH)}`,
@@ -367,10 +497,12 @@ describe("dashboard /api/audit", () => {
     const report = assertDashboardReport(body);
     const agentScores = report.agentScores as unknown[];
     assert.ok(agentScores.length > 0, "Dashboard report should include agents");
+    const scoresById = new Map<string, Record<string, unknown>>();
 
     for (const score of agentScores) {
       const entry = expectRecord(score, "Dashboard report agent score");
       const id = String(entry.id);
+      scoresById.set(id, entry);
       assert.ok(getKnownAgentIds().includes(id as AgentId));
       assert.equal(entry.name, getAgentProfileMap()[id as AgentId].name);
       assertAuditScope(entry.agent, "Dashboard report agentScores[].agent");
@@ -380,6 +512,181 @@ describe("dashboard /api/audit", () => {
           "Dashboard report agentScores[].harness",
         );
       }
+    }
+    for (const id of ["claude", "codex", "copilot"] as const) {
+      assert.ok(scoresById.has(id), `Dashboard report should include ${id}`);
+    }
+  });
+
+  it("with quality=true uses dashboard-summary facts without changing the shared report surface", async () => {
+    const originalProfileEnv = process.env.GOAT_FLOW_AUDIT_PROFILE;
+    process.env.GOAT_FLOW_AUDIT_PROFILE = "1";
+    try {
+      const baseline = await fetchJson(
+        `/api/audit?path=${encodeURIComponent(PROJECT_PATH)}&quality=true&fresh=true`,
+      );
+      assert.equal(baseline.res.status, 200);
+      const baselineReport = assertDashboardReport(baseline.body);
+
+      const profiled = await fetchJson(
+        `/api/audit?path=${encodeURIComponent(PROJECT_PATH)}&quality=true&fresh=true&profile=true`,
+      );
+      assert.equal(profiled.res.status, 200);
+      const profiledReport = assertDashboardReport(profiled.body);
+
+      assert.deepEqual(
+        dashboardReportSurface(profiledReport),
+        dashboardReportSurface(baselineReport),
+        "Profiled summary route should preserve the Home/Setup/Quality report surface",
+      );
+
+      const agentScores = profiledReport.agentScores as unknown[];
+      assert.ok(
+        agentScores.length > 0,
+        "Dashboard summary should preserve per-agent cards",
+      );
+      for (const [index, score] of agentScores.entries()) {
+        const entry = expectRecord(
+          score,
+          `Dashboard report agentScores[${index}]`,
+        );
+        assertAuditScope(
+          entry.agent,
+          `Dashboard report agentScores[${index}].agent`,
+        );
+        assertAuditScope(
+          entry.harness,
+          `Dashboard report agentScores[${index}].harness`,
+        );
+        assert.notEqual(
+          entry.concerns,
+          null,
+          `Dashboard report agentScores[${index}].concerns should be present`,
+        );
+      }
+
+      const spans = getProfileSpans(profiled.body);
+      assert.equal(
+        spanCount(spans, "detectStack"),
+        0,
+        "dashboard-summary route should not call detectStack",
+      );
+      assert.equal(
+        spanCount(spans, "aggregate facts"),
+        1,
+        "dashboard-summary route should extract project-wide facts once",
+      );
+      assert.equal(
+        spanCount(spans, "per-agent facts"),
+        0,
+        "dashboard-summary route should reuse shared facts for agent cards",
+      );
+    } finally {
+      if (originalProfileEnv === undefined) {
+        delete process.env.GOAT_FLOW_AUDIT_PROFILE;
+      } else {
+        process.env.GOAT_FLOW_AUDIT_PROFILE = originalProfileEnv;
+      }
+    }
+  });
+
+  it("serves cache hits under budget without rerunning audit computation", async () => {
+    const project = await makeDashboardCacheProject();
+    const originalPackagedMode = process.env.GOAT_FLOW_PACKAGED_MODE;
+    const originalProfileEnv = process.env.GOAT_FLOW_AUDIT_PROFILE;
+    process.env.GOAT_FLOW_PACKAGED_MODE = "1";
+    process.env.GOAT_FLOW_AUDIT_PROFILE = "1";
+    try {
+      const fresh = await fetchProfiledAudit(project.root, "&fresh=true");
+      assert.equal(fresh.body.cached, false);
+      assert.ok(fresh.ms < 5000, `fresh audit took ${fresh.ms.toFixed(3)}ms`);
+
+      const cached = await fetchProfiledAudit(project.root);
+      assert.equal(cached.body.cached, true);
+      assert.ok(cached.ms < 250, `cached audit took ${cached.ms.toFixed(3)}ms`);
+      const spans = getProfileSpans(cached.body);
+      assert.equal(spanCount(spans, "cache read"), 1);
+      assert.equal(
+        spanCount(spans, "runAuditBatch"),
+        0,
+        "cache hit should not run audit computation",
+      );
+    } finally {
+      if (originalPackagedMode === undefined) {
+        delete process.env.GOAT_FLOW_PACKAGED_MODE;
+      } else {
+        process.env.GOAT_FLOW_PACKAGED_MODE = originalPackagedMode;
+      }
+      if (originalProfileEnv === undefined) {
+        delete process.env.GOAT_FLOW_AUDIT_PROFILE;
+      } else {
+        process.env.GOAT_FLOW_AUDIT_PROFILE = originalProfileEnv;
+      }
+      await project.cleanup();
+    }
+  });
+
+  it("invalidates cached dashboard audits after instruction, hook, and lesson edits", async () => {
+    const project = await makeDashboardCacheProject();
+    const originalPackagedMode = process.env.GOAT_FLOW_PACKAGED_MODE;
+    const originalProfileEnv = process.env.GOAT_FLOW_AUDIT_PROFILE;
+    process.env.GOAT_FLOW_PACKAGED_MODE = "1";
+    process.env.GOAT_FLOW_AUDIT_PROFILE = "1";
+    try {
+      await fetchProfiledAudit(project.root, "&fresh=true");
+      assert.equal((await fetchProfiledAudit(project.root)).body.cached, true);
+
+      await writeProjectFile(project.root, "AGENTS.md", "# AGENTS.md\nBravo\n");
+      const afterInstruction = await fetchProfiledAudit(project.root);
+      assert.equal(afterInstruction.body.cached, false);
+      assert.equal(
+        spanCount(getProfileSpans(afterInstruction.body), "runAuditBatch"),
+        1,
+      );
+      assert.equal((await fetchProfiledAudit(project.root)).body.cached, true);
+
+      await writeProjectFile(
+        project.root,
+        ".codex/hooks/deny-dangerous.sh",
+        "#!/usr/bin/env bash\nexit 1\n",
+      );
+      const afterHook = await fetchProfiledAudit(project.root);
+      assert.equal(afterHook.body.cached, false);
+      assert.equal(
+        spanCount(getProfileSpans(afterHook.body), "runAuditBatch"),
+        1,
+      );
+      assert.equal((await fetchProfiledAudit(project.root)).body.cached, true);
+
+      await writeProjectFile(
+        project.root,
+        ".goat-flow/lessons/cache.md",
+        "# Lesson: Cache\nAAAA\n",
+      );
+      await fetchProfiledAudit(project.root);
+      await writeProjectFile(
+        project.root,
+        ".goat-flow/lessons/cache.md",
+        "# Lesson: Cache\nBBBB\n",
+      );
+      const afterLesson = await fetchProfiledAudit(project.root);
+      assert.equal(afterLesson.body.cached, false);
+      assert.equal(
+        spanCount(getProfileSpans(afterLesson.body), "runAuditBatch"),
+        1,
+      );
+    } finally {
+      if (originalPackagedMode === undefined) {
+        delete process.env.GOAT_FLOW_PACKAGED_MODE;
+      } else {
+        process.env.GOAT_FLOW_PACKAGED_MODE = originalPackagedMode;
+      }
+      if (originalProfileEnv === undefined) {
+        delete process.env.GOAT_FLOW_AUDIT_PROFILE;
+      } else {
+        process.env.GOAT_FLOW_AUDIT_PROFILE = originalProfileEnv;
+      }
+      await project.cleanup();
     }
   });
 

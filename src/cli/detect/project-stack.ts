@@ -349,10 +349,7 @@ function extractNodeCommands(
 
 /** Check if TypeScript is present in subdirectories (monorepo) */
 function hasSubdirTypeScript(fs: ReadonlyFS): boolean {
-  return (
-    fs.glob("*/tsconfig.json").length > 0 ||
-    fs.glob("*/*/tsconfig.json").length > 0
-  );
+  return fs.existsGlob("*/tsconfig.json") || fs.existsGlob("*/*/tsconfig.json");
 }
 
 /** Add a language label once without disturbing existing detection order. */
@@ -380,9 +377,9 @@ function hasAnyDependency(
 /** Detect common JavaScript or TypeScript source roots without package metadata. */
 function hasNodeSourceFiles(fs: ReadonlyFS): boolean {
   return (
-    fs.glob("src/**/*.ts").length > 0 ||
-    fs.glob("src/**/*.js").length > 0 ||
-    fs.glob("lib/**/*.js").length > 0
+    fs.existsGlob("src/**/*.ts") ||
+    fs.existsGlob("src/**/*.js") ||
+    fs.existsGlob("lib/**/*.js")
   );
 }
 
@@ -431,10 +428,7 @@ function detectRootNodeStack(
 
 /** Detect subdirectory package manifests for monorepo-style Node projects. */
 function hasSubdirNodePackage(fs: ReadonlyFS): boolean {
-  return (
-    fs.glob("*/package.json").length > 0 ||
-    fs.glob("*/*/package.json").length > 0
-  );
+  return fs.existsGlob("*/package.json") || fs.existsGlob("*/*/package.json");
 }
 
 /** Detect Node.js / TypeScript from package.json (root or subdirectory) */
@@ -460,8 +454,8 @@ function detectNodeStack(fs: ReadonlyFS): DetectorResult {
 function detectGoStack(fs: ReadonlyFS): DetectorResult {
   if (
     fs.exists("go.mod") ||
-    fs.glob("*/go.mod").length > 0 ||
-    fs.glob("*/*/go.mod").length > 0
+    fs.existsGlob("*/go.mod") ||
+    fs.existsGlob("*/*/go.mod")
   ) {
     return {
       languages: ["go"],
@@ -476,7 +470,7 @@ function detectGoStack(fs: ReadonlyFS): DetectorResult {
 
 /** Detect Rust from Cargo.toml (root or subdirectory) */
 function detectRustStack(fs: ReadonlyFS): DetectorResult {
-  if (fs.exists("Cargo.toml") || fs.glob("*/Cargo.toml").length > 0) {
+  if (fs.exists("Cargo.toml") || fs.existsGlob("*/Cargo.toml")) {
     return {
       languages: ["rust"],
       buildCommand: "cargo build",
@@ -495,7 +489,7 @@ function hasAnyPath(fs: ReadonlyFS, paths: readonly string[]): boolean {
 
 /** Detect whether any glob in a candidate list matches at least one file. */
 function hasAnyGlob(fs: ReadonlyFS, globs: readonly string[]): boolean {
-  return globs.some((pattern) => fs.glob(pattern).length > 0);
+  return globs.some((pattern) => fs.existsGlob(pattern));
 }
 
 /** Read the first file in a candidate list that actually exists. */
@@ -604,7 +598,7 @@ function detectPHPStack(fs: ReadonlyFS): DetectorResult {
   }
 
   // Monorepo: check subdirectory manifests if not detected at root
-  if (fs.glob("*/composer.json").length > 0) {
+  if (fs.existsGlob("*/composer.json")) {
     return { languages: ["php"] };
   }
   return {};
@@ -612,7 +606,7 @@ function detectPHPStack(fs: ReadonlyFS): DetectorResult {
 
 /** Detect Ruby from Gemfile */
 function detectRubyStack(fs: ReadonlyFS): DetectorResult {
-  if (fs.exists("Gemfile") || fs.glob("*/Gemfile").length > 0) {
+  if (fs.exists("Gemfile") || fs.existsGlob("*/Gemfile")) {
     const languages: string[] = ["ruby"];
     const gemfile = fs.readFile("Gemfile") ?? "";
     if (/gem\s+['"]rails['"]/.test(gemfile) || fs.exists("bin/rails")) {
@@ -647,10 +641,9 @@ function getJavaCommands(
 
 /** Detect Java from pom.xml or build.gradle */
 function detectJavaStack(fs: ReadonlyFS): DetectorResult {
-  const hasMaven = fs.exists("pom.xml") || fs.glob("*/pom.xml").length > 0;
+  const hasMaven = fs.exists("pom.xml") || fs.existsGlob("*/pom.xml");
   const hasGradle =
-    fs.glob("build.gradle*").length > 0 ||
-    fs.glob("*/build.gradle*").length > 0;
+    fs.existsGlob("build.gradle*") || fs.existsGlob("*/build.gradle*");
   if (!hasMaven && !hasGradle) {
     return {};
   }
@@ -664,7 +657,7 @@ function detectJavaStack(fs: ReadonlyFS): DetectorResult {
 
 /** Detect .NET from *.csproj or *.sln */
 function detectDotnetStack(fs: ReadonlyFS): DetectorResult {
-  if (fs.glob("**/*.csproj").length > 0 || fs.glob("*.sln").length > 0) {
+  if (fs.existsGlob("**/*.csproj") || fs.existsGlob("*.sln")) {
     return {
       languages: ["csharp"],
       buildCommand: "dotnet build",
@@ -676,7 +669,7 @@ function detectDotnetStack(fs: ReadonlyFS): DetectorResult {
 
 /** Detect shell scripts */
 function detectShellScripts(fs: ReadonlyFS): DetectorResult {
-  if (fs.glob("**/*.sh").length > 0) {
+  if (fs.existsGlob("**/*.sh")) {
     return { languages: ["bash"] };
   }
   return {};
@@ -756,7 +749,7 @@ function mergeDetectorResults(
 
 /** Detect template-only Jinja usage that would not show up as a normal manifest. */
 function hasJinjaSignal(fs: ReadonlyFS): boolean {
-  if (fs.glob("**/*.jinja2").length > 0) return true;
+  if (fs.existsGlob("**/*.jinja2")) return true;
   return fs
     .glob("**/*.html")
     .filter((file) => /templates\//.test(file))

@@ -5,7 +5,7 @@
  * persisted derived counts. `--check` mode reuses the same report data to decide
  * pass/fail, so CI and the human-readable report never disagree.
  */
-import type { SharedFacts, BucketFreshness } from "../types.js";
+import type { SharedFacts, BucketFreshness, ReadonlyFS } from "../types.js";
 
 /** Aggregated per-surface view over one learning-loop directory (footguns or lessons). */
 export interface BucketSection {
@@ -23,6 +23,26 @@ export interface BucketSection {
 export interface StatsReport {
   footguns: BucketSection;
   lessons: BucketSection;
+  decisions?: DecisionsSection;
+}
+
+export interface DecisionFileSummary {
+  path: string;
+  filename: string;
+  content: string | null;
+}
+
+export interface StatsWarning {
+  file: string;
+  rule: "decision-metadata";
+  message: string;
+}
+
+export interface DecisionsSection {
+  path: string;
+  exists: boolean;
+  files: DecisionFileSummary[];
+  warnings: StatsWarning[];
 }
 
 /** One actionable problem surfaced by `goat-flow stats --check`. */
@@ -35,7 +55,9 @@ export interface StatsFinding {
     | "stale-ref"
     | "invalid-line-ref"
     | "format"
-    | "bucket-size";
+    | "bucket-size"
+    | "decision-filename"
+    | "decision-structure";
   message: string;
 }
 
@@ -43,6 +65,7 @@ export interface StatsFinding {
 export interface StatsCheckReport {
   status: "pass" | "fail";
   findings: StatsFinding[];
+  warnings: StatsWarning[];
 }
 
 /** Build one learning-loop section summary. */
@@ -68,6 +91,7 @@ function buildSection(
 export function buildStatsReport(shared: {
   footguns: SharedFacts["footguns"];
   lessons: SharedFacts["lessons"];
+  decisions?: DecisionsSection;
 }): StatsReport {
   return {
     footguns: buildSection(
@@ -78,6 +102,27 @@ export function buildStatsReport(shared: {
       shared.lessons,
       shared.lessons.invalidLineRefs.length,
     ),
+    ...(shared.decisions ? { decisions: shared.decisions } : {}),
+  };
+}
+
+export function buildDecisionsSection(
+  fs: ReadonlyFS,
+  rawPath: string,
+): DecisionsSection {
+  const path = rawPath.replace(/\/$/, "");
+  const exists = fs.exists(path);
+  const filenames = exists ? fs.listDir(path).sort() : [];
+  const files = filenames.map((filename) => ({
+    filename,
+    path: `${path}/${filename}`,
+    content: fs.readFile(`${path}/${filename}`),
+  }));
+  return {
+    path,
+    exists,
+    files,
+    warnings: collectDecisionWarnings(files),
   };
 }
 
@@ -167,11 +212,86 @@ function collectFindings(section: BucketSection): StatsFinding[] {
   return findings;
 }
 
+const ADR_FILENAME = /^ADR-\d{3}-[a-z0-9-]+\.md$/;
+const ROUTING_HINT =
+  "Wrong home -> right home: implementation TODOs and scoped work plans belong in .goat-flow/tasks/; recurring hazards with evidence belong in .goat-flow/footguns/; reusable takeaways belong in .goat-flow/lessons/; temporary notes belong in .goat-flow/scratchpad/; backlog requests belong in Linear/GitHub issues.";
+
+function hasHeading(content: string, heading: string): boolean {
+  return new RegExp(`^##\\s+${heading}\\b`, "m").test(content);
+}
+
+function collectDecisionWarnings(files: DecisionFileSummary[]): StatsWarning[] {
+  const warnings: StatsWarning[] = [];
+  for (const file of files) {
+    if (!ADR_FILENAME.test(file.filename)) continue;
+    const content = file.content ?? "";
+    const missing: string[] = [];
+    if (!/^\*\*Author\(s\):\*\*/m.test(content)) {
+      missing.push("**Author(s):**");
+    }
+    if (!/^\*\*Ticket\/Context:\*\*/m.test(content)) {
+      missing.push("**Ticket/Context:**");
+    }
+    if (missing.length > 0) {
+      warnings.push({
+        file: file.path,
+        rule: "decision-metadata",
+        message: `${file.path}: ADR is missing recommended metadata ${missing.join(", ")}. This is advisory only; add it when the author or upstream ticket is known.`,
+      });
+    }
+  }
+  return warnings;
+}
+
+function collectDecisionFindings(section: DecisionsSection): StatsFinding[] {
+  if (!section.exists) return [];
+  const findings: StatsFinding[] = [];
+  for (const file of section.files) {
+    if (file.filename === "README.md") continue;
+    if (!ADR_FILENAME.test(file.filename)) {
+      findings.push({
+        file: file.path,
+        rule: "decision-filename",
+        message: `${file.path}: decision records must be named ADR-NNN-kebab-case-title.md. ${ROUTING_HINT}`,
+      });
+      continue;
+    }
+    const content = file.content ?? "";
+    const missing: string[] = [];
+    if (!/^\*\*Status:\*\*/m.test(content)) missing.push("**Status:**");
+    if (!/^\*\*Date:\*\*/m.test(content)) missing.push("**Date:**");
+    if (!hasHeading(content, "Context")) missing.push("## Context");
+    if (!hasHeading(content, "Decision")) missing.push("## Decision");
+    if (
+      !hasHeading(content, "Consequences") &&
+      !hasHeading(content, "Failure Mode Comparison") &&
+      !hasHeading(content, "Reversibility")
+    ) {
+      missing.push(
+        "## Consequences or ## Failure Mode Comparison or ## Reversibility",
+      );
+    }
+    if (missing.length > 0) {
+      findings.push({
+        file: file.path,
+        rule: "decision-structure",
+        message: `${file.path}: malformed ADR is missing ${missing.join(", ")}. ${ROUTING_HINT}`,
+      });
+    }
+  }
+  return findings;
+}
+
 /** Run the `--check` verdict against an already-built stats report. */
 export function checkStats(report: StatsReport): StatsCheckReport {
   const findings = [
     ...collectFindings(report.footguns),
     ...collectFindings(report.lessons),
+    ...(report.decisions ? collectDecisionFindings(report.decisions) : []),
   ];
-  return { status: findings.length === 0 ? "pass" : "fail", findings };
+  return {
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+    warnings: report.decisions?.warnings ?? [],
+  };
 }

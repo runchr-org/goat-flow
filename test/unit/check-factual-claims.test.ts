@@ -31,11 +31,12 @@ function stubFS(existsSet: Set<string>): ReadonlyFS {
     listDir: () => [],
     isExecutable: () => false,
     glob: () => [],
+    existsGlob: () => false,
   };
 }
 
 function stubFSFromFiles(files: Record<string, string>): ReadonlyFS {
-  return {
+  const fs = {
     exists: (p: string) => Object.prototype.hasOwnProperty.call(files, p),
     readFile: (p: string) => files[p] ?? null,
     lineCount: (p: string) => (files[p] ?? "").split(/\r?\n/).length,
@@ -46,6 +47,10 @@ function stubFSFromFiles(files: Record<string, string>): ReadonlyFS {
       pattern === "docs/*.md"
         ? Object.keys(files).filter((path) => /^docs\/[^/]+\.md$/u.test(path))
         : [],
+  };
+  return {
+    ...fs,
+    existsGlob: (pattern: string) => fs.glob(pattern).length > 0,
   };
 }
 
@@ -322,6 +327,7 @@ describe("runFactualClaimChecks", () => {
       isExecutable: () => false,
       glob: (pattern: string) =>
         pattern === "docs/*.md" ? ["docs/example.md"] : [],
+      existsGlob: (pattern: string) => pattern === "docs/*.md",
     };
     const { findings } = runFactualClaimChecks(stubCtx(fs));
     assert.ok(findings.some((f) => f.rule === "path-ref-unresolved"));

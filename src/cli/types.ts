@@ -321,6 +321,7 @@ export interface ReadonlyFS {
   listDir(path: string): string[];
   isExecutable(path: string): boolean;
   glob(pattern: string): string[];
+  existsGlob(pattern: string): boolean;
 }
 
 // === CLI Options ===

@@ -2,7 +2,10 @@
 
 **Status:** Accepted
 **Date:** 2026-04-15
-**Context:** Eight independent critiques (3 Claude Code, 5 Codex) reviewed the goat-flow v1.1.0 setup on its own repo. All 8 confirmed structural integrity (tests pass, skills match, paths resolve). Five of 8 found systematic content-accuracy failures in cold-path surfaces that no automated check caught. Setup scores ranged from 58/100 to 90/100 - the range itself demonstrates the gap between structural soundness and content truth.
+
+## Context
+
+Eight independent critiques (3 Claude Code, 5 Codex) reviewed the goat-flow v1.1.0 setup on its own repo. All 8 confirmed structural integrity (tests pass, skills match, paths resolve). Five of 8 found systematic content-accuracy failures in cold-path surfaces that no automated check caught. Setup scores ranged from 58/100 to 90/100 - the range itself demonstrates the gap between structural soundness and content truth.
 
 ## Problem
 
@@ -57,6 +60,12 @@ The older evidence-lifecycle convention now folds into this ADR as the state mod
 - The existing preflight validates some doc/code counts (build check totals) but not descriptions, claims, or cross-file consistency
 - The Step 01 early-stop rule (`workflow/setup/01-system-overview.md:12`) currently allows agents to stop when structural audit passes, hardening stale content into "done"
 - The framework's credibility depends on the cold-path surfaces (footguns, lessons, docs) being trustworthy - if agents are told to consult footguns before acting, those footguns must be accurate
+
+## Consequences
+
+- Content-truth checks are treated as release-quality infrastructure, not optional cleanup.
+- Footguns and lessons carry explicit lifecycle state so stale evidence can be preserved as history without being mistaken for active guidance.
+- Verification gates now need to include real cross-reference and content checks when cold-path documentation changes.
 
 ## Risks
 
