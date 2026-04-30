@@ -1,6 +1,6 @@
 ---
 category: quality
-last_reviewed: 2026-04-19
+last_reviewed: 2026-04-30
 ---
 
 ## Footgun: Quality reviews disappear when the agent skips the final JSON write
@@ -22,3 +22,17 @@ last_reviewed: 2026-04-19
 3. Only after the file exists on disk is `quality history` / `quality diff` meaningful - both silently return empty when nothing is saved, so a missing save looks identical to "no prior runs."
 
 See `.goat-flow/lessons/design-decisions.md` (2026-04-19 amendment under "Don't carve I/O side-effect exceptions into prompts that forbid I/O") for the historical thread that led here.
+
+---
+
+## Footgun: Metric checks inflated harness concern scores to 100% even when the capability was absent
+
+**Status:** resolved | **Created:** 2026-04-30 | **Resolved:** 2026-04-30 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** `audit --harness` reported Verification score 100 and Recovery score 100 while its own findings said "no structured toolchain.test configured" and "26 milestone files at 0%." All four quality assessment agents (Claude, Codex, Copilot, Gemini) independently identified this as the top structural flaw across 16 quality reports.
+
+**Root cause:** `computeHarness` in `src/cli/audit/audit.ts` (search: `counts[check.concern].total++`) counted every harness check — including metric-type checks — in the concern score denominator and numerator. The `AuditConcern` type contract (search: `metrics: number`) documents metrics as "never scored, always informational," and `applyCheckToConcern` correctly skipped metrics for status. But the score calculation at the loop level did not.
+
+**Fix:** Added `if (check.type !== "metric")` guard before incrementing `total`/`passing` in `computeHarness`. Also changed `testRunnerConfigured` (a metric check) to return `fail` when no runner is configured — honest metric reporting since the status never affects the concern anyway.
+
+**Prevention:** When adding new harness checks, verify the check type is intentional. The contract: `integrity` gates status, `advisory` gates status unless acknowledged, `metric` never affects status or score. New metric checks should return `fail` when the measured capability is absent rather than `pass` with an explanatory finding.

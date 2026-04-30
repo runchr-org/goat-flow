@@ -1,6 +1,6 @@
 ---
 category: auditor-and-rubric
-last_reviewed: 2026-04-27
+last_reviewed: 2026-04-30
 ---
 
 ## Lesson: Rubric changes require fixture expectation sync
@@ -60,3 +60,17 @@ Embedding an unindented shell heredoc directly inside a GitHub Actions `run: |` 
 **Pattern:** For generated multi-line files inside workflow `run` blocks, prefer `printf '%s\n' ... > file` unless the heredoc indentation has been validated against both the YAML parser and the shell.
 
 **Trigger:** `knip`, workflow loaders, or YAML parsers fail on a workflow that was edited only in a `run: |` block. Check for unindented heredoc bodies or terminators first.
+
+---
+
+## Lesson: Advisory warnings with no enforcement path train users to ignore output
+
+**Created:** 2026-04-30
+
+**What happened:** `stats --check` emitted 25 `decision-metadata` warnings on every run because all existing ADRs lacked Author(s) and Ticket/Context fields. The warnings were advisory (never failed the gate), but they produced a wall of noise that appeared in 12 of 16 quality assessment reports as a signal-to-noise problem. The `signal_to_noise` sub-score was docked to 15/25 in 9 of 16 reports.
+
+**Root cause:** The `collectDecisionWarnings` function was added alongside the recommended-metadata guidance in the decisions README. But no existing ADRs were backfilled, and no enforcement deadline was set. The result: a permanent 25-line warning stream that trained every agent to scroll past stats output.
+
+**Resolution:** Removed the `collectDecisionWarnings` function. The decisions README still recommends Author(s) and Ticket/Context, but their absence no longer produces per-run noise. If enforcement is later desired, it should be a finding (gate-bearing) with a migration path, not a warning.
+
+**Pattern:** Advisory warnings must have an enforcement timeline or be removed. A warning that fires on 100% of the corpus with no path to resolution is not a safety net — it is noise that erodes trust in the tool.
