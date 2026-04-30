@@ -863,6 +863,7 @@ describe("audit --harness", () => {
       "verification",
       "recovery",
       "feedback_loop",
+      "workspace_boundary",
     ] as const) {
       assert.ok(
         report.concerns![key] !== undefined,
@@ -950,6 +951,7 @@ describe("audit JSON contract", () => {
       "verification",
       "recovery",
       "feedback_loop",
+      "workspace_boundary",
     ] as const) {
       const c = report.concerns![key];
       assert.ok(

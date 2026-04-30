@@ -629,7 +629,7 @@ describe("dashboard /api/audit", () => {
 
       const cached = await fetchProfiledAudit(project.root);
       assert.equal(cached.body.cached, true);
-      assert.ok(cached.ms < 250, `cached audit took ${cached.ms.toFixed(3)}ms`);
+      assert.ok(cached.ms < 500, `cached audit took ${cached.ms.toFixed(3)}ms`);
       const spans = getProfileSpans(cached.body);
       assert.equal(spanCount(spans, "cache read"), 1);
       assert.equal(

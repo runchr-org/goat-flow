@@ -122,7 +122,7 @@ export function buildDecisionsSection(
     path,
     exists,
     files,
-    warnings: collectDecisionWarnings(files),
+    warnings: [],
   };
 }
 
@@ -220,28 +220,6 @@ function hasHeading(content: string, heading: string): boolean {
   return new RegExp(`^##\\s+${heading}\\b`, "m").test(content);
 }
 
-function collectDecisionWarnings(files: DecisionFileSummary[]): StatsWarning[] {
-  const warnings: StatsWarning[] = [];
-  for (const file of files) {
-    if (!ADR_FILENAME.test(file.filename)) continue;
-    const content = file.content ?? "";
-    const missing: string[] = [];
-    if (!/^\*\*Author\(s\):\*\*/m.test(content)) {
-      missing.push("**Author(s):**");
-    }
-    if (!/^\*\*Ticket\/Context:\*\*/m.test(content)) {
-      missing.push("**Ticket/Context:**");
-    }
-    if (missing.length > 0) {
-      warnings.push({
-        file: file.path,
-        rule: "decision-metadata",
-        message: `${file.path}: ADR is missing recommended metadata ${missing.join(", ")}. This is advisory only; add it when the author or upstream ticket is known.`,
-      });
-    }
-  }
-  return warnings;
-}
 
 function decisionFilenameFinding(file: DecisionFileSummary): StatsFinding {
   return {

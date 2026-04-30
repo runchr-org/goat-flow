@@ -73,6 +73,7 @@ function renderAuditSummary(report: AuditReport): string {
       "verification",
       "recovery",
       "feedback_loop",
+      "workspace_boundary",
     ];
     lines.push("");
     lines.push(
@@ -107,7 +108,7 @@ function findingSeverityRank(severity: "BLOCKER" | "MAJOR" | "MINOR"): number {
 }
 
 function qualityModeLabel(mode: QualityMode): string {
-  if (mode === "process") return "GOAT Flow Process";
+  if (mode === "process") return "Process";
   if (mode === "harness") return "Harness Engineering";
   if (mode === "skills") return "Skills";
   return "Agent Installation";
@@ -141,7 +142,7 @@ function focusedQualityModePrompt(
       "",
       "Assess the goat-flow framework process in the controlling workspace: instruction files, .goat-flow/config.yaml, .goat-flow/architecture.md, .goat-flow/code-map.md, .goat-flow/skill-reference/, workflow/setup/, workflow/manifest.json, installed skill mirrors, hooks, quality prompt modes, and validation scripts.",
       "",
-      `Grounding commands to run or explicitly mark skipped: git status --short --untracked-files=all; node --import tsx src/cli/cli.ts stats . --check; ${agentAuditCmd}; bash scripts/preflight-checks.sh. Command output wins over prose.`,
+      `Grounding commands to run or explicitly mark skipped: git status --short --untracked-files=all; node --import tsx src/cli/cli.ts stats . --check; ${agentAuditCmd}; node --import tsx src/cli/cli.ts audit . --check-content --format json; bash scripts/preflight-checks.sh. Command output wins over prose.`,
       "",
       "Use grep-first retrieval for .goat-flow/footguns/, .goat-flow/lessons/, and .goat-flow/decisions/. Do not broad-load those directories.",
       "",
@@ -176,7 +177,7 @@ function focusedQualityModePrompt(
     "",
     "Read next: target instruction files, local agent settings/hooks, .goat-flow/config.yaml when present, .goat-flow/skill-reference/ when present, controlling-workspace harness code under src/cli/audit/harness/, and any dashboard terminal/runner context text that affects selected-target execution.",
     "",
-    "Output sections: Harness Scorecard; Findings ordered by severity; Concern-by-concern analysis; False positive and false negative risks; Top 5 improvements; What was not verified. For each deterministic harness concern (Context, Constraints, Verification, Recovery, Feedback Loop), state what works, what fails or is weak, exact file or semantic-anchor evidence, and a verification command that would prove the fix. Treat Workspace Boundary as a qualitative cross-cutting risk, not as a deterministic harness score, unless the audit output explicitly exposes a Workspace Boundary concern.",
+    "Output sections: Harness Scorecard; Findings ordered by severity; Concern-by-concern analysis; False positive and false negative risks; Top 5 improvements; What was not verified. For each deterministic harness concern (Context, Constraints, Verification, Recovery, Feedback Loop, Workspace Boundary), state what works, what fails or is weak, exact file or semantic-anchor evidence, and a verification command that would prove the fix.",
     "",
     "Do not treat a structural PASS as quality PASS. If a score or check claims completeness, verify what behavior it actually proves.",
   ].join("\n");

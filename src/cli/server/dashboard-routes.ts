@@ -131,10 +131,10 @@ function appendAuditProfile<T extends object>(
   body: T,
   profiler: DashboardAuditProfiler,
 ): T & {
-  _profile?: { totalProfiledMs: number; spans: DashboardAuditProfileSpan[] };
+  _profile?: { summedSpanMs: number; spans: DashboardAuditProfileSpan[] };
 } {
   if (!profiler.enabled) return body;
-  const totalProfiledMs = Number(
+  const summedSpanMs = Number(
     profiler.spans
       .reduce((total, span) => total + span.durationMs, 0)
       .toFixed(3),
@@ -142,7 +142,7 @@ function appendAuditProfile<T extends object>(
   return {
     ...body,
     _profile: {
-      totalProfiledMs,
+      summedSpanMs,
       spans: profiler.spans,
     },
   };

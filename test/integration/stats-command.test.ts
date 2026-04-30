@@ -454,8 +454,7 @@ describe("goat-flow stats --check", () => {
     const verdict = checkStats(report);
     assert.equal(verdict.status, "pass");
     assert.deepEqual(verdict.findings, []);
-    assert.equal(verdict.warnings.length, 1);
-    assert.equal(verdict.warnings[0]!.rule, "decision-metadata");
+    assert.equal(verdict.warnings.length, 0);
   });
 
   it("fails when an active footgun has no file:line or (search:) evidence", () => {

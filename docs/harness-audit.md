@@ -8,7 +8,7 @@
 | **Harness** | **`npx goat-flow audit . --harness`** | **Is each concern structurally installed?** |
 | Quality | `npx goat-flow quality . --agent X` | Does this make sense to a fresh agent? |
 
-Harness checks are grouped by the 5 concerns that every major source in the field agrees matter for agent effectiveness. The audit checks whether the structural wiring for each concern is in place. It does not judge content quality - that's what [quality](harness-quality.md) is for. See [harness-engineering.md](harness-engineering.md) for the sources behind the model.
+Harness checks are grouped by the 6 concerns that matter for agent effectiveness. The audit checks whether the structural wiring for each concern is in place. It does not judge content quality - that's what [quality](harness-quality.md) is for. See [harness-engineering.md](harness-engineering.md) for the sources behind the model.
 
 ## Check types
 

@@ -68,7 +68,8 @@ export type AuditConcernKey =
   | "constraints"
   | "verification"
   | "recovery"
-  | "feedback_loop";
+  | "feedback_loop"
+  | "workspace_boundary";
 
 export interface AuditReport {
   command: "audit";

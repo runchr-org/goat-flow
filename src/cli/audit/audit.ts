@@ -345,6 +345,7 @@ export function computeHarness(ctx: AuditContext): {
     verification: emptyConcern(),
     recovery: emptyConcern(),
     feedback_loop: emptyConcern(),
+    workspace_boundary: emptyConcern(),
   };
   const counts: Record<AuditConcernKey, { total: number; passing: number }> = {
     context: { total: 0, passing: 0 },
@@ -352,6 +353,7 @@ export function computeHarness(ctx: AuditContext): {
     verification: { total: 0, passing: 0 },
     recovery: { total: 0, passing: 0 },
     feedback_loop: { total: 0, passing: 0 },
+    workspace_boundary: { total: 0, passing: 0 },
   };
 
   for (const check of HARNESS_CHECKS) {
@@ -363,8 +365,10 @@ export function computeHarness(ctx: AuditContext): {
       acknowledgeList.has(check.id);
     checks.push(toCheckResult(check, result, acknowledged));
     applyCheckToConcern(concerns[check.concern], check, result, acknowledged);
-    counts[check.concern].total++;
-    if (result.status === "pass") counts[check.concern].passing++;
+    if (check.type !== "metric") {
+      counts[check.concern].total++;
+      if (result.status === "pass") counts[check.concern].passing++;
+    }
   }
 
   for (const key of Object.keys(concerns) as AuditConcernKey[]) {
@@ -629,8 +633,11 @@ export function runAuditBatch(
   const aggregateFacts = createAuditFactsView(batchFacts, {
     factProfile: currentFactProfile,
   });
+  const effectiveAgentIds = options.agentFilter
+    ? agentIds.filter((id) => id === options.agentFilter)
+    : agentIds;
   const perAgentFacts = new Map<AgentId, ProjectFacts>();
-  for (const agentId of agentIds) {
+  for (const agentId of effectiveAgentIds) {
     perAgentFacts.set(
       agentId,
       createAuditFactsView(batchFacts, {
@@ -656,7 +663,7 @@ export function runAuditBatch(
   });
 
   const perAgent: { id: string; audit: AuditReport }[] = [];
-  for (const agentId of agentIds) {
+  for (const agentId of effectiveAgentIds) {
     try {
       const agentFacts = perAgentFacts.get(agentId);
       if (!agentFacts) continue;
