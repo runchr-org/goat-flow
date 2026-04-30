@@ -1,7 +1,7 @@
 ---
 name: goat-plan
 description: "Use when starting a non-trivial implementation that needs structured task breakdown with progress tracking."
-goat-flow-skill-version: "1.3.1"
+goat-flow-skill-version: "1.3.2"
 ---
 # /goat-plan
 
@@ -22,8 +22,7 @@ Use for feature/project milestones, dispatcher handoffs, replans, rescope, and r
 - Treat `.goat-flow/tasks/.active` as an advisory local pointer (one-line file naming a subdir, e.g. `1.2.2`), not a setup invariant.
 - If `.active` exists and names an existing subdir, scan only that subdir for milestone files.
 - If `.active` is missing or names a missing subdir, treat it as normal local churn (completed plan, project switch, or no task workflow). List top-level entries in `.goat-flow/tasks/` excluding `_archived`, prefer dirs with recent `M*.md` files, ask which plan is current, and offer to write/update `.active` for next time. Do NOT report a stale/missing `.active` target as a setup failure by itself.
-- If the user explicitly names an existing milestone file, or clearly asks to "update", "improve", "tighten", "rewrite", or "fix" the current plan, treat that as approval to edit that file in place. Do NOT ask inline-vs-file or "resume/update/start fresh" when there is exactly one obvious target file. Ask only if multiple milestone files plausibly match or if the user explicitly signals strict no-write/no-file intent.
-- If found: "Milestone files exist for [feature]. Resume from here, update milestones, or start fresh?" Use this only when the target file is not already obvious from the user's request.
+- If milestones exist and the user hasn't named a specific file: "Milestone files exist for [feature]. Resume from here, update milestones, or start fresh?" Skip when the user's request already implies a specific target - the mode picker handles routing.
 - If the selected plan exists but appears stale: check whether code has moved on but milestones haven't been updated, flag it. Note: task files are gitignored, so `git log` won't track them - check file modification dates instead.
 - Also check for legacy milestone files outside `.goat-flow/tasks/` (for example `milestones/`, `tasks/`). Sibling-version subdirs inside `.goat-flow/tasks/` (e.g. `1.4.0/`) hold deferred or completed work and are NOT scanned by default unless `.active` is missing or points nowhere. If found, note them so the user knows about existing planning artifacts.
 
@@ -108,8 +107,8 @@ The user named or clearly implied an existing milestone file. The request is exp
 
 Analysis signals triggered this mode in Step 0. Available at any complexity, including Standard+.
 
-- Run Phase 1 (Milestone Breakdown) in full - same archetypes, same task quality rules, same assumption tracking.
-- Present all milestones inline using the same structure as file-based milestones (objective, tasks, assumptions, exit criteria, testing gates, kill criteria, dependencies).
+- Run Phase 1 (Milestone Breakdown) in full.
+- Present all milestones inline using the same structure as file-based milestones.
 - Do NOT write any file. Do NOT modify `.goat-flow/tasks/`.
 - Skip Phase 3 (Between Milestones) - there are no files to update.
 - Still include the summary format from Output Format at the end.

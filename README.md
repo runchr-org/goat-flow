@@ -9,10 +9,8 @@ One command opens a local menu for auditing, deterministic setup, guided agent p
 ```bash
 npx @blundergoat/goat-flow@latest
 ```
-
+output:
 ```text
-goat-flow
-
 What do you want to do?
   1. Start dashboard
   2. Install/update goat-flow files
