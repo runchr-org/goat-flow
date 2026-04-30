@@ -2,13 +2,14 @@
   <div
     class="home-page"
     x-data="{
-    concernKeys: ['context', 'constraints', 'verification', 'recovery', 'feedback_loop'],
+    concernKeys: ['context', 'constraints', 'verification', 'recovery', 'feedback_loop', 'workspace_boundary'],
     concernLabels: {
       context: 'Context',
       constraints: 'Constraints',
       verification: 'Verification',
       recovery: 'Recovery',
-      feedback_loop: 'Feedback'
+      feedback_loop: 'Feedback',
+      workspace_boundary: 'Boundary'
     },
     setupScope() { return report?.scopes?.setup || { status: 'fail', checks: [] }; },
     setupChecks() { return this.setupScope().checks || []; },

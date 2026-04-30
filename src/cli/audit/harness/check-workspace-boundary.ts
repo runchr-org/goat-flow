@@ -87,14 +87,14 @@ const boundaryPathSeparation: HarnessCheck = {
   run: (ctx) => {
     const terminalTs = ctx.fs.readFile("src/cli/server/terminal.ts");
     if (terminalTs === null) {
-      return pass(["terminal.ts not found (not a goat-flow development checkout)"]);
+      return pass([
+        "terminal.ts not found (not a goat-flow development checkout)",
+      ]);
     }
     const hasTargetPath = /targetPath/.test(terminalTs);
     const hasCwd = /cwd/.test(terminalTs);
     if (hasTargetPath && hasCwd) {
-      return pass([
-        "Terminal session model separates cwd and targetPath",
-      ]);
+      return pass(["Terminal session model separates cwd and targetPath"]);
     }
     return pass([
       "Terminal session model does not clearly separate workspace and target paths",

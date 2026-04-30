@@ -47,7 +47,9 @@ const testRunnerConfigured: HarnessCheck = {
       [
         "No structured toolchain.test configured; treat project-local commands or instruction-file commands as the source of truth",
       ],
-      ["Add a test command to toolchain.test in .goat-flow/config.yaml if the project has tests"],
+      [
+        "Add a test command to toolchain.test in .goat-flow/config.yaml if the project has tests",
+      ],
     );
   },
 };

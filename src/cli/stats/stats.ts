@@ -220,7 +220,6 @@ function hasHeading(content: string, heading: string): boolean {
   return new RegExp(`^##\\s+${heading}\\b`, "m").test(content);
 }
 
-
 function decisionFilenameFinding(file: DecisionFileSummary): StatsFinding {
   return {
     file: file.path,
