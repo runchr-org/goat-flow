@@ -23,3 +23,9 @@ last_reviewed: 2026-05-01
 **Created:** 2026-05-01
 **What happened:** Across Phase 0 and Phase 1 of the v1.4 programme, the framework's structured intake filtered three corrections from council input: one false finding (OP-5), one over-stated finding (OP-7), and one guardrail-consistency question (critique score gap) that the programme document itself surfaced. The correction rate (~3 findings corrected out of ~19) suggests the council pass produces useful but noisy input, and the Phase 0 verification step is load-bearing infrastructure, not ceremony.
 **Prevention:** If this pattern holds across Phase 2 per-plan updates, promote Phase 0 verification from "v1.4 programme requirement" to "standing requirement for any council-derived improvement work." The cost of Phase 0 (~1 weekend) is small relative to the rework it prevents.
+
+## Lesson: CF coordination cardinality forecast was directionally correct but per-skill bucket was larger than expected
+
+**Created:** 2026-05-01
+**What happened:** Council synthesis estimated CF item Phase C split at ~6 preamble / ~10 shared-vocab / ~6 per-skill. Actual tagging of goat-plan's 19 CF items landed at 3 preamble / 5 shared-vocab / 11 per-skill. Plan-specific items (template rules, milestone formats, output checklists) don't generalise because they're tied to plan's specific output structure. The "single coordination pass replaces 22 patches" framing was directionally right but optimistic on volume — more work happens inside individual plan ships than as a coordinated batch.
+**Prevention:** When forecasting CF coordination, frame as "3 categories of work" rather than "3 batches that ship together." Per-skill items will dominate unless the CF source is genuinely cross-skill (e.g. evidence labelling, proof vocabulary).
