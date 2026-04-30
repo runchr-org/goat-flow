@@ -23,6 +23,9 @@ last_reviewed: 2026-04-30
 
 See `.goat-flow/lessons/design-decisions.md` (2026-04-19 amendment under "Don't carve I/O side-effect exceptions into prompts that forbid I/O") for the historical thread that led here.
 
+
+## Resolved Entries
+
 ---
 
 ## Footgun: Metric checks inflated harness concern scores to 100% even when the capability was absent

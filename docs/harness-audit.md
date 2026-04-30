@@ -1,6 +1,6 @@
 # AI Harness Audit
 
-`npx goat-flow audit . --harness` adds 16 structural installation checks to the standard build audit. Each check answers an installation question - is the file present, is the registration in sync, is the deny pattern installed. Deterministic, no LLM involvement. Harness results contribute to the overall audit status. Not all checks can reach "installed" on every platform (e.g., Codex has no settings-based Read deny coverage; its deny layer is script-only), but install as much as possible.
+`npx goat-flow audit . --harness` adds 18 structural installation checks to the standard build audit. Each check answers an installation question - is the file present, is the registration in sync, is the deny pattern installed. Deterministic, no LLM involvement. Harness results contribute to the overall audit status. Not all checks can reach "installed" on every platform (e.g., Codex has no settings-based Read deny coverage; its deny layer is script-only), but install as much as possible.
 
 | Mode | Command | Question |
 |------|---------|----------|
@@ -45,11 +45,11 @@ Every registered build and harness check now carries machine-readable `provenanc
 
 1.2.0 keeps provenance JSON-only on purpose. Terminal and markdown renderers stay focused on status + remediation; if you need the justification trail for a check, inspect the per-check `provenance` object in JSON output.
 
-### The 16 checks by type
+### The 18 checks by type
 
 - **integrity (9):** `doc-paths-resolve`, `deny-covers-secrets`, `deny-blocks-dangerous`, `deny-hook-registered`, `hooks-registered`, `milestone-tracking`, `session-logs`, `feedback-loop-active`, `decisions-tracked`
-- **advisory (5):** `instruction-line-count`, `execution-loop-present`, `instruction-sections-present`, `deny-blocks-pipe-to-shell`, `commit-guidance`
-- **metric (2):** `test-runner-configured`, `post-turn-hook-integrity`
+- **advisory (6):** `instruction-line-count`, `execution-loop-present`, `instruction-sections-present`, `deny-blocks-pipe-to-shell`, `commit-guidance`, `boundary-guidance-present`
+- **metric (3):** `test-runner-configured`, `post-turn-hook-integrity`, `boundary-path-separation`
 
 ---
 
@@ -138,3 +138,16 @@ A fresh install with zero footguns and zero lessons is a valid PASS. The audit o
 - `decisions-tracked` - `.goat-flow/decisions/` directory exists. Record count is reported informationally.
 
 **Not checked here:** entry counts, recency (`**Created:**` dates), content accuracy, staleness of semantic-anchor references in footgun entries, whether active/resolved statuses are accurate. All of these are content-quality judgments that belong in `quality`.
+
+## 6. Workspace Boundary
+
+**Question:** Does the harness distinguish the controlling workspace from the selected target?
+
+When goat-flow manages a project from a separate controlling workspace, the agent must know which directory is which. Without explicit boundary guidance, `audit .` can run against the wrong repo and findings reference files the target doesn't have.
+
+**Workspace Boundary checks (2):**
+
+- `boundary-guidance-present` - at least one configured agent's instruction file contains workspace boundary language (e.g., "controlling workspace", "selected target", "target project").
+- `boundary-path-separation` - the dashboard terminal model separates `cwd` and `targetPath` (informational metric).
+
+**Not checked here:** whether the boundary guidance is accurate, whether dashboard launch context correctly scopes commands to the target, whether terminal sessions execute in the right directory. These are content-quality judgments that belong in `quality`.
