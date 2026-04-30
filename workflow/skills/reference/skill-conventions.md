@@ -115,13 +115,12 @@ When summarising tasks, findings, or recommendations for user review, use this f
 
 ## Milestone Retrospective (goat-plan)
 
-When a milestone completes and testing passes:
+When a milestone completes, run the per-milestone AI verification gate then the human verification gate (BLOCKING - see goat-plan Phase 3). After human approval:
 
 1. Record what was learned.
 2. Tick validated assumptions and flag invalidated ones.
 3. Re-read the next milestone and update it if assumptions, scope, or exit criteria changed.
 4. Update the completed milestone status to `complete`; next milestone to `in-progress`.
-5. Update the mission artifact before continuing.
 
 Write a session log entry for each completed milestone sequence.
 

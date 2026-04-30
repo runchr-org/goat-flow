@@ -22,8 +22,7 @@ Use for feature/project milestones, dispatcher handoffs, replans, rescope, and r
 - Treat `.goat-flow/tasks/.active` as an advisory local pointer (one-line file naming a subdir, e.g. `1.2.2`), not a setup invariant.
 - If `.active` exists and names an existing subdir, scan only that subdir for milestone files.
 - If `.active` is missing or names a missing subdir, treat it as normal local churn (completed plan, project switch, or no task workflow). List top-level entries in `.goat-flow/tasks/` excluding `_archived`, prefer dirs with recent `M*.md` files, ask which plan is current, and offer to write/update `.active` for next time. Do NOT report a stale/missing `.active` target as a setup failure by itself.
-- If the user explicitly names an existing milestone file, or clearly asks to "update", "improve", "tighten", "rewrite", or "fix" the current plan, treat that as approval to edit that file in place. Do NOT ask inline-vs-file or "resume/update/start fresh" when there is exactly one obvious target file. Ask only if multiple milestone files plausibly match or if the user explicitly signals strict no-write/no-file intent.
-- If found: "Milestone files exist for [feature]. Resume from here, update milestones, or start fresh?" Use this only when the target file is not already obvious from the user's request.
+- If milestones exist and the user hasn't named a specific file: "Milestone files exist for [feature]. Resume from here, update milestones, or start fresh?" Skip when the user's request already implies a specific target - the mode picker handles routing.
 - If the selected plan exists but appears stale: check whether code has moved on but milestones haven't been updated, flag it. Note: task files are gitignored, so `git log` won't track them - check file modification dates instead.
 - Also check for legacy milestone files outside `.goat-flow/tasks/` (for example `milestones/`, `tasks/`). Sibling-version subdirs inside `.goat-flow/tasks/` (e.g. `1.4.0/`) hold deferred or completed work and are NOT scanned by default unless `.active` is missing or points nowhere. If found, note them so the user knows about existing planning artifacts.
 
@@ -70,10 +69,13 @@ Do not drop a spike, intake, or kill criteria to satisfy milestone count, deadli
 - **Mid-implementation proof** - for milestones expected to touch 3+ files or run longer than 30-60 minutes, name one focused command, reproduction, or smoke check to run before switching modules or after a bounded edit batch
 - **Kill criteria** - What would make us stop at this milestone rather than continue
 - **Depends on** - Which milestone must complete first
+- **Read first** - Files the implementing agent should read before starting this milestone
 
-### Task quality rules
+### Quality rules
 
 Good tasks are concrete actions with a target or exit criterion. Bad tasks are vague wishes like "set up backend", "make it work", or open-ended "research options". Each task should fit one coding session; split it if bigger.
+
+**Cold-start bar:** Every milestone must be executable by a fresh agent without prior context. Include files to read, verification commands, and enough detail that re-discovery is unnecessary.
 
 ### Assumption tracking
 
@@ -108,8 +110,8 @@ The user named or clearly implied an existing milestone file. The request is exp
 
 Analysis signals triggered this mode in Step 0. Available at any complexity, including Standard+.
 
-- Run Phase 1 (Milestone Breakdown) in full - same archetypes, same task quality rules, same assumption tracking.
-- Present all milestones inline using the same structure as file-based milestones (objective, tasks, assumptions, exit criteria, testing gates, kill criteria, dependencies).
+- Run Phase 1 (Milestone Breakdown) in full.
+- Present all milestones inline using the same structure as file-based milestones.
 - Do NOT write any file. Do NOT modify `.goat-flow/tasks/`.
 - Skip Phase 3 (Between Milestones) - there are no files to update.
 - Still include the summary format from Output Format at the end.
@@ -141,6 +143,7 @@ After Phase 1 approval, write each milestone to `.goat-flow/tasks/<active>/` as 
 **Objective:** Validate that the external API returns the expected data format and meets latency targets.
 **Depends on:** none
 **Kill criteria:** If API response time exceeds 2s p95, abandon this integration approach.
+**Read first:** `src/api/client.ts`, `src/api/types.ts`
 
 ## Assumptions
 - [ ] External API supports pagination (untested)
@@ -168,12 +171,15 @@ After Phase 1 approval, write each milestone to `.goat-flow/tasks/<active>/` as 
 
 ## Phase 3 - Between Milestones
 
-After each milestone, run the testing gate first; any failure is BLOCKING. Apply the Proof Gate from `skill-preamble.md` - no milestone closes without fresh evidence of gate pass (command output, reproduction, or sign-off), not the agent's recollection.
-Capture what was learned, then re-read the next milestone and update invalidated assumptions, tasks, or exit criteria.
-Set status: prior milestone `complete`, next milestone `in-progress`.
-**CHECKPOINT:** "Milestone gate passed. Do you want to proceed with M[N+1]?"
+After each milestone completes, both gates must pass before the next begins. Apply the Proof Gate from `skill-preamble.md`.
 
-If updates are needed mid-flight, follow the detailed milestone retrospective protocol in `skill-conventions.md`; never change milestones silently.
+**AI Verification Gate:** Verify every task is ticked, every exit criterion met with evidence from this session, and the testing gate passed with proof (not recollection). Surface any gap.
+
+**BLOCKING GATE (Human Verification):** Present files changed, exit criteria with evidence, and assumptions validated or invalidated. "M[N] complete. Approve to proceed with M[N+1], or adjust?"
+
+After approval: capture learnings, re-read the next milestone and update invalidated assumptions/tasks/exit criteria, set status: prior → `complete`, next → `in-progress`.
+
+If updates are needed mid-flight, follow the milestone retrospective protocol in `skill-conventions.md`; never change milestones silently.
 
 ## Phase 4 - Plan Complete
 
@@ -225,7 +231,8 @@ The plan is NOT complete until the human explicitly approves.
 - MUST ensure each task is completable in a single coding session - split if not
 - MUST NOT create vague tasks ("set up backend", "make it work", "research options")
 - MUST NOT ask whether to write files when the user has already named the file to update, unless there is genuine ambiguity about scope or additional files
-- MUST NOT skip the testing gate between milestones
+- MUST NOT skip the per-milestone AI + human verification gate between milestones
+- MUST NOT start the next milestone without human gate approval
 - Universal constraints from skill-preamble.md apply.
 - MUST NOT continue building on an invalidated assumption - update the plan first
 - MUST NOT include self-destruct instructions in plan artifacts or done criteria (e.g., "delete this file when done", "remove this plan after completion", "clean up plan files"). Cleanup of working artifacts is the human's decision, not the agent's.
