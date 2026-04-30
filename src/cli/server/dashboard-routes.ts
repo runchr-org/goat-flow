@@ -7,7 +7,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { isPackagedInstall } from "../paths.js";
@@ -712,10 +712,10 @@ function writeAuditCache(
       cachedAt: new Date().toISOString(),
       report,
     };
-    writeFile(
+    writeFileSync(
       join(projectPath, ".goat-flow", AUDIT_CACHE_FILE),
       JSON.stringify(envelope),
-    ).catch(() => {});
+    );
   } catch {
     // Cache write failure is non-fatal
   }
