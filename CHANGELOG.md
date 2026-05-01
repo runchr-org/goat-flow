@@ -2,10 +2,15 @@
 
 ## v1.3.3 - 2026-05-01
 
+Task-execution safety, dashboard Workspace ergonomics, configurable review baselines, and harness aggregate scoring fixes.
+
 - **Configurable goat-review local PR base** - `.goat-flow/config.yaml` can now define `skills.goat-review.local_pr_base` so local PR reviews compare against a project integration branch before falling back to remote default-branch discovery. `/goat-review` records `configured-base=<base>` when used and `configured-base-unresolved=<base>` when the configured ref cannot be resolved.
-- **Workspace sidebar collapse** - The dashboard Workspace sessions rail now has a Twilio Paste-inspired collapse/expand footer control with persisted state, accessible labels, smooth layout transition, and a compact collapsed rail.
-- **Harness aggregate boundary scoring** - Aggregate `audit --harness` now requires every audited configured agent to have workspace boundary guidance instead of passing when any one agent has it, aligning aggregate CLI output with agent-scoped dashboard scores.
-- **Path-only task intake guard** - goat-plan and dispatcher instructions now treat bare `.goat-flow/tasks/...` references as read-only orientation context, blocking `.active`, milestone-status, and code mutations until the user gives an explicit start/resume/update/implement instruction.
+- **Workspace sidebar collapse** - The dashboard Workspace sessions rail now has a Twilio Paste-inspired collapse/expand footer control with persisted state, accessible labels, smooth grid-column transition, terminal refit support, and a compact collapsed rail that keeps the toggle and session count visible.
+- **Harness aggregate boundary scoring** - Aggregate `audit --harness` now requires every audited configured agent to have path-agnostic workspace boundary guidance instead of passing when any one agent has it, aligning aggregate CLI output with agent-scoped dashboard scores. The check remains in the Context concern as advisory, does not hardcode local machine paths, and keeps `--agent <id>` filtering scoped to the selected agent.
+- **Path-only task intake guard** - goat-plan and dispatcher instructions now treat bare or ambiguous `.goat-flow/tasks/...` references as read-only orientation context, blocking `.active`, milestone-status, checkbox, and code mutations until the user gives an explicit start/resume/update/implement instruction. `docs/skills.md` now includes classifier examples for path-only, start, resume, update, and implement messages.
+- **Dashboard audit request cleanup** - Dashboard audit request handling now relies on the packaged root consistently, simplifies cache read/write paths, removes unused profiling helpers, and records cache-signature/stale-result prevention guidance in the learning loop.
+- **Release propagation** - Package/config/manifest, hook templates, installed skill mirrors, shared references, security reference packs, fixtures, and instruction files are bumped to `1.3.3`; goat-review, goat-plan, and shared-reference mirrors remain byte-aligned with their workflow templates.
+- **Regression coverage** - Added coverage for `goat-review.local_pr_base` config validation and skill contract text, Workspace collapse behavior through browser verification, path-only task intake contracts, aggregate vs agent-scoped boundary-guidance scoring, provenance check counts, and dashboard/cache documentation drift.
 
 ## v1.3.2 - 2026-05-01
 
