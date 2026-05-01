@@ -34,7 +34,7 @@ See `.goat-flow/lessons/design-decisions.md` (2026-04-19 amendment under "Don't 
 
 **Symptoms:** `audit --harness` reported Verification score 100 and Recovery score 100 while its own findings said "no structured toolchain.test configured" and "26 milestone files at 0%." All four quality assessment agents (Claude, Codex, Copilot, Gemini) independently identified this as the top structural flaw across 16 quality reports.
 
-**Root cause:** `computeHarness` in `src/cli/audit/audit.ts` (search: `counts[check.concern].total++`) counted every harness check — including metric-type checks — in the concern score denominator and numerator. The `AuditConcern` type contract (search: `metrics: number`) documents metrics as "never scored, always informational," and `applyCheckToConcern` correctly skipped metrics for status. But the score calculation at the loop level did not.
+**Root cause:** `computeHarness` in `src/cli/audit/audit.ts` (search: `counts[check.concern].total++`) counted every harness check - including metric-type checks - in the concern score denominator and numerator. The `AuditConcern` type contract (search: `metrics: number`) documents metrics as "never scored, always informational," and `applyCheckToConcern` correctly skipped metrics for status. But the score calculation at the loop level did not.
 
 **Fix:** Three layers of the same bug, fixed separately:
 1. `computeHarness` in `src/cli/audit/audit.ts` (search: `counts[check.concern].total++`) - added `if (check.type !== "metric")` guard before incrementing `total`/`passing`. Fixed concern scores.

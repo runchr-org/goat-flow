@@ -1,6 +1,9 @@
+---
+goat-flow-reference-version: "1.4.0"
+---
 # Critique Rubric Examples (Reference Pack)
 
-*Extracted from `workflow/skills/goat-critique/SKILL.md` to stay within the 2500-word skill cap. Canonical rubric definitions remain in SKILL.md; worked examples and context-map details live here.*
+*Extracted from the goat-critique SKILL.md to stay within the 2500-word skill cap. Canonical rubric definitions remain in SKILL.md; worked examples and context-map details live here.*
 
 ## Rubric Context Maps
 
@@ -48,12 +51,12 @@ Each rubric has a context map that Step 0 reads and passes to sub-agent spawn di
 ```markdown
 ## Finding: Migration sequencing risk
 - **Severity:** HIGH | **Confidence:** HIGH
-- **Evidence:** `.goat-flow/tasks/1.4.0/M02-critique-improvements.md:15` — Phase 2 additions depend on Phase 1 extraction completing first
+- **Evidence:** `.goat-flow/tasks/1.4.0/M02-critique-improvements.md:15` - Phase 2 additions depend on Phase 1 extraction completing first
 - **Proof attempt:** Read M02 milestone file, confirmed extraction must precede additions
 - **Evidence quality:** OBSERVED
 - **SKEPTIC:** If extraction doesn't reclaim enough words, Phase 2 additions blow the 2500 cap
 - **ANALYST:** Current 2532w minus ~100w extraction gives ~80w budget for additions; tight but feasible
-- **STRATEGIST:** Extract first, measure, then add incrementally — abort additions if buffer insufficient
+- **STRATEGIST:** Extract first, measure, then add incrementally - abort additions if buffer insufficient
 - **Rubric dimensions:** sequencing quality [M], integration safety [M]
 ```
 
@@ -62,7 +65,7 @@ Each rubric has a context map that Step 0 reads and passes to sub-agent spawn di
 ```markdown
 ## Finding: Unvalidated input in API handler
 - **Severity:** CRITICAL | **Confidence:** HIGH
-- **Evidence:** `src/api/handler.ts:42` — user input passed directly to database query
+- **Evidence:** `src/api/handler.ts:42` - user input passed directly to database query
 - **Proof attempt:** Read handler.ts:40-50, confirmed no sanitization before query construction
 - **Evidence quality:** OBSERVED
 - **SKEPTIC:** SQL injection vector; worst case is full database compromise
@@ -75,13 +78,13 @@ Each rubric has a context map that Step 0 reads and passes to sub-agent spawn di
 
 The meta-agent scores the draft critique against these 10 points:
 
-1. **Gate-finding match** — Gate value matches highest surviving severity
-2. **Evidence quality per finding** — every finding has Proof attempt + Evidence quality fields
-3. **Rubric coverage completeness** — no unaddressed mandatory dimensions
-4. **Rec-changes actionability** — every recommendation has a concrete next step
-5. **No orphan retractions** — every retracted finding has rationale
-6. **No contradictory findings** — no two findings making mutually exclusive claims
-7. **Top-blockers traceability** — top blockers map to specific surviving findings
-8. **Severity calibration internal consistency** — similar issues rated similar severity
-9. **Integration-hooks 1:1 with findings** — no orphan hooks, no missed findings
-10. **Blind-spot-check non-empty** — What Wasn't Critiqued populated
+1. **Gate-finding match** - Gate value matches highest surviving severity
+2. **Evidence quality per finding** - every finding has Proof attempt + Evidence quality fields
+3. **Rubric coverage completeness** - no unaddressed mandatory dimensions
+4. **Rec-changes actionability** - every recommendation has a concrete next step
+5. **No orphan retractions** - every retracted finding has rationale
+6. **No contradictory findings** - no two findings making mutually exclusive claims
+7. **Top-blockers traceability** - top blockers map to specific surviving findings
+8. **Severity calibration internal consistency** - similar issues rated similar severity
+9. **Integration-hooks 1:1 with findings** - no orphan hooks, no missed findings
+10. **Blind-spot-check non-empty** - What Wasn't Critiqued populated

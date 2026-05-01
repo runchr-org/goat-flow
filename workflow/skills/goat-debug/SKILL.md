@@ -1,7 +1,7 @@
 ---
 name: goat-debug
 description: "Use when diagnosing a bug, unexpected behaviour, or system failure that needs structured investigation."
-goat-flow-skill-version: "1.3.3"
+goat-flow-skill-version: "1.4.0"
 ---
 # /goat-debug
 
@@ -43,7 +43,9 @@ If vague, ask about: goal, symptom/error message, area involved.
 
 ### D1 - Investigate (no fixes)
 
-After reading the primary file, write 2-3 hypotheses spanning at least 2 of: Data, Logic, Timing, Environment, Configuration. If the bug involves loops, indices, or pagination, include a boundary/counting hypothesis. After tracing, mark each: CONFIRMED / ELIMINATED / UNRESOLVED with `file:line` evidence.
+After reading the primary file, declare a scope snapshot: symptom boundary (what is failing), affected components (files/modules/services involved), and read estimate (how many files you expect to read). This scopes the investigation before hypotheses anchor it.
+
+Write 2-3 hypotheses spanning at least 2 of: Data, Logic, Timing, Environment, Configuration. If the bug involves loops, indices, or pagination, include a boundary/counting hypothesis. After tracing, mark each: CONFIRMED / ELIMINATED / UNRESOLVED with `file:line` evidence.
 
 **Multi-component failures** (CI → build → deploy, request → middleware → handler → DB, etc.): instrument each boundary before proposing any fix. For each component boundary, log what data enters and what exits, run once to gather evidence showing WHERE the chain breaks, THEN investigate the specific failing component. Do not guess the failing layer.
 
@@ -62,7 +64,7 @@ After reading the primary file, write 2-3 hypotheses spanning at least 2 of: Dat
 
 **Output:** Minimal failing case (literal command, input, or steps), removed variables list (proves they don't matter), updated hypothesis set (categories ruled out by minimisation).
 
-**Optional bisect path:** If the failure is a regression from a known-good ref, run `git bisect` with the repro as predicate — binary search across commits instead of inputs.
+**Optional bisect path:** If the failure is a regression from a known-good ref, run `git bisect` with the repro as predicate - binary search across commits instead of inputs.
 
 **Hypothesis ranking:** After minimisation, rank surviving hypotheses by cost and likelihood:
 
@@ -100,6 +102,18 @@ Rerun the **original reproduction** from D2 - a code change is not a fix until t
 
 **Proof Gate:** Apply the Proof Gate from `skill-preamble.md` to the "fixed" claim - rerun the original repro, cite the literal output, and downgrade to **UNVERIFIED** if the session cannot execute the proof.
 
+## Debug Integrity
+
+Every diagnose-mode report ends with this section. It tells the reader how much of the investigation is grounded.
+
+- **Files read:** count
+- **Hypotheses tested:** count (CONFIRMED + ELIMINATED + UNRESOLVED)
+- **Categories covered:** which of Data/Logic/Timing/Environment/Configuration were tested
+- **Reproduction attempted:** yes / no / partial
+- **Confidence basis:** N OBSERVED / M INFERRED
+- **Footgun retrieval:** hit (cite entry) / miss / skip
+- **What I Didn't Check:** files, paths, or components deliberately skipped with one-line reason each
+
 ## Investigate Mode
 
 ### I1 - Scope
@@ -130,6 +144,8 @@ Required: **What I Didn't Read** (skipped files + reasons), **Current vs Expecte
 - MUST check recurrence against footguns + lessons
 - Universal constraints from skill-preamble.md apply.
 - MUST verify fix doesn't violate architecture constraints
+- MUST run D1.5 minimisation before presenting D2 diagnosis unless reproduction is already minimal
+- MUST include Debug Integrity section in every diagnose-mode report
 
 ## Output Format
 
@@ -140,10 +156,19 @@ Diagnose and investigate modes produce different artifacts. Use the block that m
 ```markdown
 ## TL;DR       <!-- 1 sentence: root cause + confidence -->
 ## Hypotheses  <!-- table: #, Hypothesis, Category, Status, Evidence (file:line) -->
+## Minimal Failing Case  <!-- from D1.5: minimal input, removed variables, hypothesis ranking -->
 ## Root Cause  <!-- Confidence + Location (file:line) + Description -->
 ## Reproduction Steps  <!-- numbered, with Expected vs Actual -->
 ## Fix Plan    <!-- only if human approved D3 -->
 ## UI Evidence  <!-- optional: only when browser evidence was captured -->
+## Debug Integrity
+- Files read: [N]
+- Hypotheses tested: [N] (CONFIRMED: [n] / ELIMINATED: [n] / UNRESOLVED: [n])
+- Categories covered: [list]
+- Reproduction attempted: [yes/no/partial]
+- Confidence basis: [N] OBSERVED / [M] INFERRED
+- Footgun retrieval: [hit/miss/skip]
+- What I Didn't Check: [files/paths skipped + reason]
 ```
 
 ### Investigate mode (I1–I3)

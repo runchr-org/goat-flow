@@ -1,6 +1,9 @@
-# Milestone Template — Detailed Field Reference
+---
+goat-flow-reference-version: "1.4.0"
+---
+# Milestone Template - Detailed Field Reference
 
-Extracted from `workflow/skills/goat-plan/SKILL.md` to keep the skill file within word budget. The SKILL.md retains a concise summary; this file has the full field descriptions and worked examples.
+Extracted from the goat-plan SKILL.md to keep the skill file within word budget. The SKILL.md retains a concise summary; this file has the full field descriptions and worked examples.
 
 ## Milestone Field Descriptions
 
@@ -11,7 +14,7 @@ For each milestone, produce:
 - **Assumptions to validate** - What must be proven true during this milestone (not tasks - beliefs about the system)
 - **Exit criteria** - Testable, binary pass/fail. Not "performance is acceptable" - instead "p95 latency under 500ms"
 - **Testing gate** - What must be verified before starting the next milestone:
-  - Static / Contract Check: language-appropriate static analysis that must pass before behavioural tests run (see `.goat-flow/skill-reference/ddt-layer/<language>.md`)
+  - Static / Contract Check: language-appropriate static analysis (linters, type checkers) that must pass before behavioural tests run
   - Automated: which test commands must pass
   - Manual: what a human must check (checkbox list, one action + one expected result per item)
   - Acceptance: who signs off (developer self-check, QA review, or stakeholder demo)
@@ -34,7 +37,7 @@ Assumptions are not tasks - they're beliefs about the system that affect the pla
 
 When an assumption is validated, tick it and note the evidence. When an assumption is invalidated, update the milestone plan immediately - don't continue building on a false premise.
 
-## Worked Example — Risk-Tagged Milestone
+## Worked Example - Risk-Tagged Milestone
 
 ```markdown
 ## Milestone 2: User authentication
@@ -65,30 +68,6 @@ When an assumption is validated, tick it and note the evidence. When an assumpti
 - Developer self-check
 ```
 
-## SBAO Decision Record Format
+## SBAO Process
 
-When Phase 2 SBAO runs, dissent is captured as ADR-shaped records in `.goat-flow/decisions/sbao-<feature>-<date>.md`:
-
-```markdown
-# SBAO Decision Record: <feature> (<date>)
-
-## Plans considered
-
-### Plan A: <title> [SELECTED]
-- **Approach:** [one-paragraph summary]
-- **Rationale for selection:** [why this won]
-- **Conditions for re-evaluation:** [when this decision should be revisited]
-
-### Plan B: <title> [REJECTED]
-- **Approach:** [one-paragraph summary]
-- **Rationale for rejection:** [specific reason, not "less good"]
-- **Conditions under which Plan B becomes correct:** [explicit re-entry conditions]
-- **Rejection category:** [architectural | risk | scope]
-
-## Synthesis decisions
-- **Element from Plan A retained:** [...]
-- **Element from Plan B grafted in:** [...]
-- **Element from Plan C deliberately excluded:** [...]
-```
-
-The "conditions for re-evaluation" and "conditions under which Plan B becomes correct" fields are load-bearing. Records that say "we picked A; pick B if requirement X changes" stay relevant when X eventually changes. Only capture dissent when the rejected plan was structurally different from the selected one.
+When Phase 2 SBAO runs, the agent generates N independent approaches, ranks them, and synthesises the selected approach into the milestone files. The alternatives and rationale are presented inline during Phase 2 - they are not saved to disk. If a decision made during SBAO is architecturally significant, the Prompted README/ADR gate (after milestone file creation) is the place to capture it as a proper ADR.

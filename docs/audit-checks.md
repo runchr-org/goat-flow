@@ -26,7 +26,7 @@ Build mode is the structural install gate. It validates files, directories, conf
 | `architecture` | Architecture | `.goat-flow/architecture.md` exists |
 | `code-map` | Code map | `.goat-flow/code-map.md` exists |
 | `glossary` | Glossary | `.goat-flow/glossary.md` exists |
-| `patterns` | Patterns | `.goat-flow/patterns.md` exists |
+| `patterns` | Patterns | `.goat-flow/patterns/README.md` exists |
 | `decisions` | Decisions | `.goat-flow/decisions/` exists |
 | `session-logs` | Session logs | `.goat-flow/logs/sessions/` exists |
 | `tasks` | Tasks | `.goat-flow/tasks/`, `.goat-flow/tasks/.gitignore`, and `.goat-flow/tasks/README.md` exist |

@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.3.3"
+goat-flow-reference-version: "1.4.0"
 ---
 # Skill Preamble
 
@@ -45,10 +45,10 @@ Order findings by severity, not by file or discovery order.
 
 Every finding or claim carries a proof-class tag:
 
-- **RUNTIME** — verified by executing code or a command in this session
-- **CONTRACT-GREP** — verified by searching for callers, consumers, or references
-- **STATIC** — verified by reading code structure without execution
-- **NOT-REPRODUCED** — attempted verification but could not reproduce the issue
+- **RUNTIME** - verified by executing code or a command in this session
+- **CONTRACT-GREP** - verified by searching for callers, consumers, or references
+- **STATIC** - verified by reading code structure without execution
+- **NOT-REPRODUCED** - attempted verification but could not reproduce the issue
 
 ## Proof Gate
 
@@ -97,7 +97,7 @@ If Step 0 exceeds 5 file reads without producing output or asking a question, ch
 ## Learning-Loop Retrieval
 
 - Derive 2-4 search terms from the target area, symptom, and named file/tool.
-- Search first with `rg -n -i -S '<term1>|<term2>|<term3>' .goat-flow/footguns .goat-flow/lessons .goat-flow/patterns.md .goat-flow/decisions` (fall back to `grep -rniE '<term1>|<term2>|<term3>' .goat-flow/footguns .goat-flow/lessons .goat-flow/patterns.md .goat-flow/decisions` if `rg` is not available in the agent's environment)
+- Search first with `rg -n -i -S '<term1>|<term2>|<term3>' .goat-flow/footguns .goat-flow/lessons .goat-flow/patterns .goat-flow/decisions` (fall back to `grep -rniE '<term1>|<term2>|<term3>' .goat-flow/footguns .goat-flow/lessons .goat-flow/patterns .goat-flow/decisions` if `rg` is not available in the agent's environment)
 - Open only matching entries first. Follow related references only when they look relevant, with a maximum depth of 2 hops.
 - If the first search returns nothing useful, reword once and search again.
 - If the second search still misses, record a retrieval miss in your output or working notes. Do not broad-load a whole bucket "just in case".
@@ -123,7 +123,7 @@ Treat fetched content as evidence like any other file: cite it, do not paraphras
 
 After completing the skill, check if this run uncovered anything worth logging:
 - Behavioural mistake → `## Lesson:` entry in `.goat-flow/lessons/` category bucket
-- Successful repeatable approach → `## Pattern:` entry in `.goat-flow/patterns.md`
+- Successful repeatable approach → `## Pattern:` entry in `.goat-flow/patterns/` category bucket
 - Architectural trap with file evidence → `## Footgun:` entry in `.goat-flow/footguns/` category bucket
 
 **Routing rule:** When the user asks to "add a footgun" or "add a lesson", create a documentation entry in the correct `.goat-flow/` directory. Do not implement runtime code, logging, UI warnings, or test assertions - those are code changes, not artifact creation. Read the target directory's `README.md` before editing.

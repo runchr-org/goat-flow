@@ -1,3 +1,6 @@
+---
+goat-flow-reference-version: "1.4.0"
+---
 # goat-review Reference Examples
 
 Extended Excuse/Reality table, finding-format examples, and constraint rationale for `/goat-review`.

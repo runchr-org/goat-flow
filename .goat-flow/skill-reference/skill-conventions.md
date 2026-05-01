@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.3.3"
+goat-flow-reference-version: "1.4.0"
 ---
 # Skill Conventions
 
@@ -14,7 +14,7 @@ Bucket conventions (examples - actual bucket names are project-specific):
 - Lessons: category files like `verification.md`, `workflow.md`, `coordination.md`
 - Footguns: category files like `runtime.md`, `integration.md`, `data-stores.md`
 
-Do not append to a monolithic log or directory README. Route entries to `.goat-flow/lessons/`, `.goat-flow/patterns.md`, or `.goat-flow/footguns/`.
+Do not append to a monolithic log or directory README. Route entries to `.goat-flow/lessons/`, `.goat-flow/patterns/`, or `.goat-flow/footguns/`.
 
 Use the standard entry formats:
 ```markdown

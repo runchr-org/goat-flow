@@ -1,7 +1,7 @@
 ---
 name: goat-security
 description: "Use when assessing security implications of code changes, architecture decisions, or new features."
-goat-flow-skill-version: "1.3.3"
+goat-flow-skill-version: "1.4.0"
 ---
 # /goat-security
 
@@ -157,6 +157,8 @@ Re-read `file:line` for Critical/High. Does the code or config still match the f
 
 If `PROBABLE > CONFIRMED`, request approval for `/goat-critique` cross-examination before closing. If approval is unavailable, close with those clusters marked PROBABLE and list the evidence needed to promote or kill each one.
 
+**Zero-findings defence:** If Phase 6 produces zero findings, state what was scanned, which surfaces were checked, and why nothing surfaced. Zero findings must be defended, not assumed.
+
 ### Persist Gate
 
 This review produced findings S-01..S-NN that downstream artifacts may cite. Prompt: "Persist to `.goat-flow/logs/security/<date>-<artifact>.md`?" User confirms before writing. Not auto-persist.
@@ -182,10 +184,23 @@ For compliance checks, present gaps as: non-compliant, partially compliant, or n
 
 ```markdown
 ## TL;DR
+## Threat Model Snapshot  <!-- assets, trust boundaries, attacker types, critical surfaces -->
 ## Review Mode / Provenance / Scope
 ## Threat Surface / Risky Buckets
-## CONFIRMED / PROBABLE / THEORETICAL
-## Attack Path Summary (top 3 chained paths, e.g. "External PR → CI injection → secrets exfiltration")
+## Findings
+### CONFIRMED
+- S-NN: `file:line` | asset | entry→sink | trust boundary | preconditions | severity | blast radius | proof-of-fix
+### PROBABLE
+### THEORETICAL
+## Attack Path Summary  <!-- top 3 chained attack paths -->
 ## False Positives Removed / Positive Observations
+## Security Assessment Integrity
+- Review mode: [mode] | Provenance: [trusted/untrusted/unknown]
+- Surfaces scanned: [list] | Surfaces skipped: [list or "none"]
+- Scanner tools: [used] | Unavailable: [list or "none"]
+- Evidence: <N> OBSERVED / <M> INFERRED
+- Confidence: <N> CONFIRMED / <M> PROBABLE / <K> THEORETICAL
+- Degradation flags: [list or "none"]
+- Conclusion: confident | coverage-degraded | tool-limited
 ## What I Didn't Check / Proof-of-Fix Tests
 ```

@@ -1,7 +1,7 @@
 ---
 name: goat-qa
 description: "Use when evaluating test coverage gaps, planning test strategy, or assessing testing risk for code changes."
-goat-flow-skill-version: "1.3.3"
+goat-flow-skill-version: "1.4.0"
 ---
 # /goat-qa
 
@@ -27,6 +27,13 @@ Output: prioritized "must test / safe to skip / should test" guidance.
 
 **NOT this skill:** Running tests, "test this", "test X" → just run them (action request, not gap analysis). Debugging test failures → /goat-debug. Code quality → /goat-review. Planning milestones → /goat-plan. Feature briefs → dispatcher Planning Route. Verifying a bug fix → /goat-debug. Verifying a diff/PR before merge → /goat-review. Certifying that work is complete → the Proof Gate in `skill-preamble.md`, applied by whoever makes the claim.
 
+| Excuse | Reality |
+|--------|---------|
+| "CI is green so coverage is fine" | Scanner scored 100% while preflight failed with 8 errors. CI tests what was thought of; gap analysis looks for what wasn't. |
+| "Unit tests cover it" | Structural tests that import and snapshot pass at high coverage but miss every behavioural edge. STRUCTURAL is not BEHAVIOURAL. |
+| "Coverage report says 80%" | Coverage measures shape, not truth. 20+ content-accuracy failures survived a structural pass that reported high coverage. |
+| "Doer ran the tests, so we're covered" | Doer-verifier is theater in single-agent context. The verifier must have a context boundary the doer did not cross. |
+
 ## Coverage Depth
 
 Canonical vocabulary for classifying test coverage. Used by Standard mode (Phase 2), Audit mode (A3), and cross-skill references.
@@ -34,7 +41,7 @@ Canonical vocabulary for classifying test coverage. Used by Standard mode (Phase
 | Level | Meaning | Example |
 |-------|---------|---------|
 | NONE | No matching test file or manual plan | New module with zero tests |
-| STRUCTURAL | Tests exist but only import/construct/snapshot — no behaviour assertion | `expect(component).toBeDefined()` |
+| STRUCTURAL | Tests exist but only import/construct/snapshot - no behaviour assertion | `expect(component).toBeDefined()` |
 | PARTIAL-BEHAVIOURAL | Happy path or narrow behaviour only; error/edge paths untested | Login success tested, invalid-credentials path missing |
 | BEHAVIOURAL | Meaningful output, side-effect, error-path, or invariant coverage | Asserts return value, DB side-effect, and thrown error |
 
@@ -52,9 +59,9 @@ Confirm: "Running [mode] on [scope]. Correct?"
 
 **Gather:** changed scope, existing test plan (if any), audience. Check the instruction file's Essential Commands section or `package.json` scripts for test/lint commands.
 
-**Footgun check:** Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns.md`, and `.goat-flow/decisions/` for the target area. Surface matches or an explicit retrieval miss; do not broad-load any bucket.
+**Footgun check:** Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, and `.goat-flow/decisions/` for the target area. Surface matches or an explicit retrieval miss; do not broad-load any bucket.
 
-**PR / issue link (strongly encouraged):** if the change is tied to a GitHub PR or issue, ask for the URL or number before Phase 1 - stated acceptance criteria are the benchmark gap analysis maps against, so without them "must test vs safe to skip" is inferred from code shape alone. If `gh` is available (see preamble External Context Sources), resolve it with `gh pr view <ref> --json title,body,url` or `gh issue view <ref> --json title,body,url`, plus `gh pr diff <ref>` for PR mode. Treat the description and any linked issues as the intent spec - gaps surface against both the code and that intent. If `gh` is missing or the user declines, note `no-intent-spec` in Verification Integrity so the reader knows gaps were derived from code shape only. When `no-intent-spec`, degrade `safe to skip` confidence: label skips as `Safe to skip (code-shape only — no acceptance criteria assessed)` and do not mark CRITICAL/HIGH areas as safe to skip without both intent and coverage evidence.
+**PR / issue link (strongly encouraged):** ask for the PR URL or issue number before Phase 1 - stated acceptance criteria are the benchmark gap analysis maps against. If `gh` is available, resolve with `gh pr view` + `gh pr diff`. If unavailable or declined, note `no-intent-spec` in Verification Integrity; `safe to skip` confidence degrades when no intent spec exists.
 
 If arriving from the dispatcher with context already gathered, confirm and proceed.
 
@@ -180,7 +187,7 @@ Rank gaps by `Risk × (1 - CoverageLevel)` descending. Output:
 
 ## Regression Guard Mode
 
-Post-verification regression guard planning. Assumes the fix is already verified (by /goat-debug, human sign-off, or PR check). Cite the prior verification source. Define 1-2 invariants, assess coverage of each, then hand off recommended guard tests to the coding agent. This mode does NOT verify the fix itself — that is /goat-debug's domain (ADR-018).
+Post-verification regression guard planning. Assumes the fix is already verified (by /goat-debug, human sign-off, or PR check). Cite the prior verification source. Define 1-2 invariants, assess coverage of each, then hand off recommended guard tests to the coding agent. This mode does NOT verify the fix itself - that is /goat-debug's domain (ADR-018).
 
 ## Constraints
 
@@ -227,7 +234,8 @@ Output shape depends on the mode declared in Step 0. Pick the template that matc
 - Commands run: `none` (goat-qa does not execute tests)
 - Runtime execution by others: [who ran what, or `none observed`]
 - Coverage claim basis: [OBSERVED | INFERRED | UNVERIFIED]
-- Analysis confidence: [HIGH | MEDIUM | LOW] — [rationale]
+- Analysis confidence: [HIGH | MEDIUM | LOW] - [rationale]
+- Evidence limit: [diff/files read and any unavailable runtime/tool context]
 - Assessed by: [agent]
 ```
 
@@ -278,7 +286,7 @@ Output shape depends on the mode declared in Step 0. Pick the template that matc
 - Commands discovered: [test/lint commands found]
 - Commands run: `none` (goat-qa does not execute tests)
 - Coverage claim basis: [OBSERVED | INFERRED | UNVERIFIED]
-- Analysis confidence: [HIGH | MEDIUM | LOW] — [rationale]
+- Analysis confidence: [HIGH | MEDIUM | LOW] - [rationale]
 - Assessed by: [agent]
 - Would-be testers: [who executes once gaps are filled]
 

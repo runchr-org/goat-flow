@@ -688,7 +688,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("- `.goat-flow/skill-reference/skill-conventions.md`");
   lines.push("- `.goat-flow/architecture.md`");
   lines.push(
-    "- `.goat-flow/code-map.md`, `.goat-flow/glossary.md`, `.goat-flow/patterns.md` (if they exist)",
+    "- `.goat-flow/code-map.md`, `.goat-flow/glossary.md`, `.goat-flow/patterns/` (if they exist)",
   );
   lines.push(
     `- All installed skill files in \`${skillsDir}\` - each \`SKILL.md\` plus any nested \`references/*.md\` packs`,

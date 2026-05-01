@@ -124,6 +124,7 @@ dependency-install.sh      # Wrapper: npm install with guards
 dependency-update.sh       # Wrapper: upgrade dependencies
 deny-dangerous.sh          # Hook: blocks destructive commands (copied to agent hook dirs)
 deploy-landing.sh          # Deploy landing page to hosting
+install-browser-tools.sh   # Install browser-use and Playwright for page capture
 npm-publish.sh             # Wrapper: npm publish sanity checks
 preflight-checks.sh        # Pre-commit/CI gate: lint, typecheck, cross-ref checks
 prettier-check.sh          # Wrapper: prettier --check (lint)
@@ -165,7 +166,7 @@ assets/                    # Documentation images such as dashboard-preview.png
 architecture.md            # Canonical architecture
 code-map.md                # This file
 glossary.md                # Domain terms
-patterns.md                # Successful repeatable approaches
+patterns/                  # Proven approaches worth reusing (categorised bucket files)
 
 config.yaml                # Project config (version, agents, skills, line limits)
 

@@ -509,7 +509,7 @@ function buildAuditCacheSignature(
     ".goat-flow/architecture.md",
     ".goat-flow/code-map.md",
     ".goat-flow/glossary.md",
-    ".goat-flow/patterns.md",
+    ".goat-flow/patterns/README.md",
     "CLAUDE.md",
     "AGENTS.md",
     "GEMINI.md",
