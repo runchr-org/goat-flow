@@ -816,7 +816,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "2. **`/goat-debug`** - investigate a real module or risky pattern in this codebase",
   );
   lines.push(
-    "3. **`/goat-plan`** - ask for a milestone/task breakdown inline. If it writes milestone files despite an inline/reporting-only request, report the mode confusion; do not frame gitignored task-file writes as committed-state read-only violations.",
+    "3. **`/goat-plan`** - ask for a milestone/task breakdown inline, then try a bare `.goat-flow/tasks/<name>` path. The bare path must produce read-only orientation only. If it writes milestone files despite inline/reporting-only/path-only input, report the mode confusion; do not frame gitignored task-file writes as committed-state read-only violations.",
   );
   lines.push(
     "4. **`/goat-review`** - review a real source file for quality issues",

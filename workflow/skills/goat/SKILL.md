@@ -47,7 +47,9 @@ If ambiguous, ask one question. If the user names a skill explicitly, respect it
 
 ## Planning Route
 
-Hotfix complexity → direct execution, no planning needed. Anything larger → `/goat-plan`; the skill's Step 0 handles `.goat-flow/tasks/.active` lookup, complexity classification, milestone detection, and mode selection.
+Bare or ambiguous task paths are read-only context, not planning or implementation requests. Route them to `/goat-plan` Path-Only Intake only if an orientation summary is useful; otherwise ask what action the user wants. Do not update `.active`, milestone status, or code from a path alone.
+
+Hotfix complexity → direct execution, no planning needed. Anything larger with a clear build/plan verb → `/goat-plan`; the skill's Step 0 handles `.goat-flow/tasks/.active` lookup, complexity classification, milestone detection, and mode selection.
 
 ## Handoff
 

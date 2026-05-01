@@ -18,11 +18,13 @@ Use for feature/project milestones, dispatcher handoffs, replans, rescope, and r
 
 ## Step 0 - Intake
 
+**Path-only guard runs first.** If the user message is only a task/milestone path, or an ambiguous context phrase such as "look at `.goat-flow/tasks/foo`" or "here's the task dir", choose **Path-Only Intake / Read-Only Orientation**. Read only minimal index/status files. Do NOT update `.active`, milestone status fields, task checkboxes, or code. If `.active` points elsewhere, mention it and offer to switch only on approval. Implementation requires "start", "implement", "resume", "mark in progress and begin", or "fix code". Plan-file writes require "update", "rewrite", "write", "create", or "fix" tied to the plan file. Before any write after an ambiguous path, checkpoint and stop.
+
 **Check for existing milestones first:**
 - Treat `.goat-flow/tasks/.active` as an advisory local pointer (one-line file naming a subdir, e.g. `1.2.2`), not a setup invariant.
 - If `.active` exists and names an existing subdir, scan only that subdir for milestone files.
 - If `.active` is missing or names a missing subdir, treat it as normal local churn (completed plan, project switch, or no task workflow). List top-level entries in `.goat-flow/tasks/` excluding `_archived`, prefer dirs with recent `M*.md` files, ask which plan is current, and offer to write/update `.active` for next time. Do NOT report a stale/missing `.active` target as a setup failure by itself.
-- If milestones exist and the user hasn't named a specific file: "Milestone files exist for [feature]. Resume from here, update milestones, or start fresh?" Skip when the user's request already implies a specific target - the mode picker handles routing.
+- If milestones exist and the user hasn't given an explicit action verb: "Milestone files exist for [feature]. Resume from here, update milestones, or start fresh?"
 - If the selected plan exists but appears stale: check whether code has moved on but milestones haven't been updated, flag it. Note: task files are gitignored, so `git log` won't track them - check file modification dates instead.
 - Also check for legacy milestone files outside `.goat-flow/tasks/` (for example `milestones/`, `tasks/`). Sibling-version subdirs inside `.goat-flow/tasks/` (e.g. `1.4.0/`) hold deferred or completed work and are NOT scanned by default unless `.active` is missing or points nowhere. If found, note them so the user knows about existing planning artifacts.
 
@@ -30,16 +32,17 @@ Use for feature/project milestones, dispatcher handoffs, replans, rescope, and r
 
 **Pick exactly one mode.** Apply these signals in order - stop at the first that matches:
 
-1. **Named-File Update** - user names an existing milestone file OR asks to "update", "improve", "tighten", "rewrite", or "fix" a specific plan. Treat as explicit write approval; proceed to Phase 2 § Mode 1. Re-prompt only if multiple files plausibly match, or the user also says "review only" / "read-only" / "don't write yet" (treat those as strict no-write for milestone files).
+0. **Path-Only Intake / Read-Only Orientation** - path-only or ambiguous task path. Summarize status, ask next action, stop.
+1. **Named-File Update** - user asks to update, improve, tighten, rewrite, or fix a specific existing plan file. A path alone is not write approval. Proceed to Phase 2 § Mode 1 only for plan-file edits, not code implementation.
 2. **Read-Only Analysis** - analysis signals: "what would the milestones look like", "break this down for me", "plan this out", "how would you approach", "sketch the milestones", "walk me through the plan", "reporting-only", "no-implementation". No files written; inline output; Phase 3 skipped; transition to file mode available later.
 3. **Inline-Then-Write** - Hotfix / Small Feature scope (1-2 milestones, low blast radius) with no analysis signals. Offer: *"Would you like milestones in inline form first, or written to `.goat-flow/tasks/<active>/` now?"* Inline first; write on approval.
-4. **File-Write (default at Standard+)** - implementation signals ("create milestones", "set up the plan", "write the milestone files", "start planning") OR Standard / System / Infrastructure scope with no analysis signals. Write directly to `.goat-flow/tasks/<active>/`.
+4. **File-Write (default at Standard+)** - implementation signals ("create milestones", "set up the plan", "write the milestone files", "start planning") OR Standard / System / Infrastructure scope with a clear build objective and no analysis signals. Write directly to `.goat-flow/tasks/<active>/`.
 
 If analysis signals AND implementation signals BOTH appear, ask. If the request is too ambiguous to classify, ask. Never silently pick.
 
 **Minimum viable input:** A clear description of what to build. Everything else can be inferred or asked during milestone creation.
 
-**CHECKPOINT:** "Mode: [Named-File Update | Read-Only Analysis | Inline-Then-Write | File-Write]. Creating milestones for [feature]. Riskiest part: [risk]. Kill criteria: [criteria]. Proceeding to milestone breakdown."
+**CHECKPOINT:** "Mode: [Path-Only Intake | Named-File Update | Read-Only Analysis | Inline-Then-Write | File-Write]. Creating milestones for [feature]. Riskiest part: [risk]. Kill criteria: [criteria]. Proceeding to milestone breakdown."
 
 ## Phase 1 - Milestone Breakdown
 
@@ -47,8 +50,8 @@ Structure the work into milestones using these archetypes. Adapt the count to th
 
 ### Milestone Archetypes
 
-1. **Prove It Works** - Validate the riskiest assumption; use a throwaway spike if needed.
-2. **Make It Real** - End-to-end flow works with real data and can be tested by someone else.
+1. **Prove It Works** - Validate the riskiest assumption.
+2. **Make It Real** - End-to-end flow works with real data.
 3. **Make It Solid** - Edge cases, errors, security, UX, and feedback are handled.
 4. **Make It Shine** - Optional polish, performance, docs, or open-source prep.
 
@@ -97,14 +100,22 @@ When an assumption is validated, tick it and note the evidence. When an assumpti
 
 The delivery path maps 1:1 to the mode picked in Step 0. Do exactly the mode's block; do not cross modes mid-flow.
 
+### Mode 0: Path-Only Intake / Read-Only Orientation
+
+- Read only the task directory README/index and milestone filenames/status fields.
+- Do NOT mutate `.goat-flow/tasks/.active`, milestone status, checkboxes, or code.
+- Present: active marker target if any, referenced plan, milestone list/status, obvious current in-progress item if already recorded.
+- Ask: "Do you want a summary, status check, plan update, or should I start a specific milestone?"
+- Stop. Do not proceed to Phase 1 or Phase 2 until the user answers with an explicit action.
+
 ### Mode 1: Named-File Update (edit in place)
 
-The user named or clearly implied an existing milestone file. The request is explicit write approval - do not re-prompt.
+The user explicitly asked to edit an existing milestone/plan file. Path-only references do not qualify.
 
 - Edit the named or obvious milestone file in place. Do NOT create a parallel inline plan.
 - Preserve title/status metadata unless the requested change requires updating them.
 - Present the updated milestone content or a concise delta after editing.
-- Ask only if multiple milestone files are plausible targets, or if the change would spill beyond the named planning surface into additional files.
+- Ask if multiple milestone files are plausible or scope spills beyond the named planning surface.
 
 ### Mode 2: Strict No-Write Analysis (no files)
 
@@ -134,38 +145,7 @@ After Phase 1 approval, write each milestone to `.goat-flow/tasks/<active>/` as 
 
 **Filename format:** `M<NN>-<slug>.md`, e.g. `M01-prove-api-integration.md`.
 
-**File format:**
-
-```markdown
-# M01: Prove API Integration Works
-
-**Status:** not-started | in-progress | testing-gate | complete | blocked | abandoned
-**Objective:** Validate that the external API returns the expected data format and meets latency targets.
-**Depends on:** none
-**Kill criteria:** If API response time exceeds 2s p95, abandon this integration approach.
-**Read first:** `src/api/client.ts`, `src/api/types.ts`
-
-## Assumptions
-- [ ] External API supports pagination (untested)
-- [ ] Response schema matches our internal model (assumed from docs)
-
-## Tasks
-- [ ] Spike: call the API with real credentials and log response shape
-- [ ] Add integration client with retry logic and timeout
-- [ ] Add response validation against expected schema
-- [ ] Add error handling (API down → graceful fallback with cached data)
-
-## Exit Criteria
-- [ ] API call succeeds with real credentials in local dev
-- [ ] Response matches expected schema
-- [ ] Spike results documented
-
-## Testing Gate
-**Automated:** Run integration tests filtered to the changed module
-**Manual:** Trigger the API call, verify response, check error handling path
-**Acceptance:** Developer self-check - demo to self before proceeding to M02
-**Mid-implementation proof:** After client + retry wiring, run the focused API smoke command before adding UI/status work
-```
+**File format:** use existing milestone structure: title, Status, Objective, Depends on, Kill criteria, Read first, Assumptions, Tasks, Exit Criteria, Testing Gate, Mid-implementation proof.
 
 **CHECKPOINT:** "Milestone files written to `.goat-flow/tasks/<active>/`. Ready to start implementation."
 
@@ -219,9 +199,11 @@ The plan is NOT complete until the human explicitly approves.
 
 ## Constraints
 
-- MUST pick exactly one Step 0 mode (Named-File Update / Read-Only Analysis / Inline-Then-Write / File-Write) and stay in that mode through Phase 2. Cross-mode drift is the failure this skill's mode-picker exists to prevent.
+- MUST pick exactly one Step 0 mode (Path-Only Intake / Named-File Update / Read-Only Analysis / Inline-Then-Write / File-Write) and stay in that mode through Phase 2. Cross-mode drift is the failure this skill's mode-picker exists to prevent.
 - MUST check for existing milestone files before creating new ones
-- MUST default to Mode 1 (Named-File Update) when the user names an existing milestone file and the target is unambiguous - no re-prompting
+- MUST treat bare task paths and ambiguous path references as read-only context, not implementation permission
+- MUST NOT update `.active`, milestone status, task checkboxes, or code from path-only intake
+- MUST default to Mode 1 (Named-File Update) only when the user gives an explicit plan-file edit verb
 - MUST include a testing gate on every milestone and a mid-implementation proof checkpoint for long or multi-module milestones
 - MUST re-read and potentially update the next milestone after completing each one
 - MUST check kill criteria between milestones - a triggered criterion is a BLOCKING GATE
@@ -238,11 +220,12 @@ The plan is NOT complete until the human explicitly approves.
 - MUST NOT include self-destruct instructions in plan artifacts or done criteria (e.g., "delete this file when done", "remove this plan after completion", "clean up plan files"). Cleanup of working artifacts is the human's decision, not the agent's.
 - MUST NOT delete, archive, or remove plan/milestone files without explicit human approval
 - MUST require both AI verification and human sign-off before declaring a plan complete (Phase 4)
-- Status tracking: update milestone file status field as work progresses
+- Status tracking: update milestone file status only after explicit start/resume/implement/update approval
 
 ## Output Format
 
 The output depends on the mode picked in Step 0:
+- **Mode 0 (Path-Only Intake):** status/orientation summary plus next-action question. No files.
 - **Mode 1 (Named-File Update):** the edited milestone file plus a concise delta shown to the user.
 - **Mode 2 (Read-Only Analysis):** the inline milestone breakdown in the response. No files.
 - **Mode 3 (Inline-Then-Write):** inline milestones; optionally the written files on approval.

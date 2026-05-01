@@ -72,7 +72,7 @@ Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks. This tab
 
 ## Routing Boundary
 
-Dispatcher-specific route maps live in `/goat`, not in this shared preamble. Direct planning requests route to `/goat-plan`; `/goat-plan` owns `.goat-flow/tasks/.active` lookup, existing-plan discovery, and milestone-mode selection. If the user names a skill explicitly, respect it.
+Dispatcher-specific route maps live in `/goat`, not in this shared preamble. Direct planning requests route to `/goat-plan`; a bare or ambiguous task path is context, not a direct planning request. `/goat-plan` owns `.goat-flow/tasks/.active` lookup, existing-plan discovery, and milestone-mode selection, but a task path alone must not update `.active`, milestone status, checkboxes, or code. If the user names a skill explicitly, respect it.
 
 ## No-Skill Fast Path
 

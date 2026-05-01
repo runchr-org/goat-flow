@@ -325,7 +325,7 @@ const boundaryGuidancePresent: HarnessCheck = {
   ]),
   run: (ctx) => {
     const findings: string[] = [];
-    let anyBoundaryGuidance = false;
+    const missingBoundaryGuidance: string[] = [];
     for (const af of ctx.agents) {
       const content = af.instruction.content ?? "";
       const hasBoundary = BOUNDARY_PATTERNS.some((p) => p.test(content));
@@ -333,21 +333,23 @@ const boundaryGuidancePresent: HarnessCheck = {
         findings.push(
           `${af.agent.id}: instruction file contains workspace boundary guidance`,
         );
-        anyBoundaryGuidance = true;
       } else {
         findings.push(
           `${af.agent.id}: instruction file has no workspace boundary guidance`,
         );
+        missingBoundaryGuidance.push(
+          `${af.agent.id} (${af.agent.instructionFile})`,
+        );
       }
     }
-    if (!anyBoundaryGuidance) {
+    if (missingBoundaryGuidance.length > 0) {
       return fail(
         findings,
         [
-          "Add workspace boundary guidance to instruction files distinguishing the controlling workspace from the selected target",
+          `Add workspace boundary guidance to ${missingBoundaryGuidance.join(", ")} distinguishing the controlling workspace from the selected target`,
         ],
         [
-          "Add a section to the instruction file that explains which directory is the goat-flow controlling workspace and which is the selected target project.",
+          `Add a section to ${missingBoundaryGuidance.join(", ")} that explains which directory is the goat-flow controlling workspace and which is the selected target project.`,
         ],
       );
     }
