@@ -15,7 +15,7 @@
 #   - Default install path: ~/.local/share/goatflow-browser-tools/venv
 #   - Wrapper path:        ~/.local/bin/browser-use-python
 #   - The script does not write to repo .env files or install Python packages
-#     into the HealthKit app environment.
+#     into the project's app environment.
 # =============================================================================
 
 set -euo pipefail
