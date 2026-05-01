@@ -63,6 +63,20 @@ Embedding an unindented shell heredoc directly inside a GitHub Actions `run: |` 
 
 ---
 
+## Lesson: Audit checks must not encourage machine-specific content in shared files
+
+**Created:** 2026-05-01
+
+**What happened:** The `boundary-guidance-present` audit check encouraged adding `## Workspace Boundary` sections with hardcoded absolute paths (e.g., `/home/hxdev/projects/feature/healthkit`) to version-controlled instruction files. In the first real deployment (Healthkit), the paths were wrong for every other developer (different WSL usernames) and for 2 of 3 checkouts on the same machine (the repo lives at `feature/`, `deploy/`, and `basedata/` paths). The audit check nudged users toward content that was guaranteed to go stale.
+
+**Root cause:** The check validated the *presence* of boundary language without considering that satisfying it required environment-specific state. Any audit check whose remedy produces machine-specific content in shared files will create the same problem.
+
+**Resolution:** Removed the check entirely (ADR-026). The workspace boundary concept remains useful as runtime prompt context (computed dynamically in `compose-quality.ts`), but is no longer audited or encouraged in committed files.
+
+**Pattern:** Before adding an audit check, ask: "Can the user satisfy this check with content that is correct across all environments and checkouts?" If the answer is no, the check encourages drift, not quality.
+
+---
+
 ## Lesson: Advisory warnings with no enforcement path train users to ignore output
 
 **Created:** 2026-04-30
