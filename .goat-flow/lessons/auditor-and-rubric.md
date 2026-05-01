@@ -71,9 +71,9 @@ Embedding an unindented shell heredoc directly inside a GitHub Actions `run: |` 
 
 **Root cause:** The check validated the *presence* of boundary language without considering that satisfying it required environment-specific state. Any audit check whose remedy produces machine-specific content in shared files will create the same problem.
 
-**Resolution:** Removed the check entirely (ADR-026). The workspace boundary concept remains useful as runtime prompt context (computed dynamically in `compose-quality.ts`), but is no longer audited or encouraged in committed files.
+**Resolution:** Kept the check but made its remediation path-agnostic (ADR-026). The workspace boundary concept remains useful in committed instruction files when phrased generically, and runtime prompts still compute current paths dynamically in `compose-quality.ts`.
 
-**Pattern:** Before adding an audit check, ask: "Can the user satisfy this check with content that is correct across all environments and checkouts?" If the answer is no, the check encourages drift, not quality.
+**Pattern:** Before adding an audit check, ask: "Can the user satisfy this check with content that is correct across all environments and checkouts?" If the answer is no, redesign the check or its remediation so it encourages portable guidance instead of shared machine-specific state.
 
 ---
 
