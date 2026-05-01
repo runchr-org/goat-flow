@@ -1,6 +1,6 @@
 ---
 category: verification
-last_reviewed: 2026-04-27
+last_reviewed: 2026-04-29
 ---
 
 ## Lesson: "Double check" means read the files, not re-run the tests
@@ -10,6 +10,17 @@ last_reviewed: 2026-04-27
 **What happened:** User asked to "double check" multiple times. Each time, re-ran typecheck + tests + scan. Never caught stale shape references, documentation inconsistencies, or content quality issues that three external agents found immediately by reading the actual files.
 **Root cause:** Interpreted verification as "run the pipeline" instead of "read what changed." Tests only cover what they test.
 **Fix:** Added removed-pattern check to preflight. "Double check" should include: (1) run pipeline, (2) grep removed patterns, (3) read 3-5 changed files for content accuracy.
+
+---
+## Lesson: New validators must run against the live repo before closeout
+
+**Status:** active | **Created:** 2026-04-29
+
+**What happened:** M06 added decision-file validation and the fixture tests passed, but the first live `node --import tsx src/cli/cli.ts stats . --check` run failed against existing ADR files and one stale lesson reference.
+
+**Root cause:** Treated fixture coverage as enough proof for a repository-wide validator. The new rule was correct, but the live repo contained older records that predated the stricter contract.
+
+**Fix:** After adding any validator that scans a project-wide artifact directory, run it against the live repository before the milestone gate and budget time for the live cleanup it exposes.
 
 ---
 ## Lesson: Agent doesn't tick milestone checkboxes (recurrence x4, unresolved)
@@ -262,9 +273,9 @@ last_reviewed: 2026-04-27
 
 **Status:** active | **Created:** 2026-04-24
 
-**What happened:** Changed `.goat-flow/decisions/.gitkeep` to `.goat-flow/decisions/README.md` in `workflow/manifest.json` but missed the corresponding entry in `workflow/manifest-snapshots/v1.2.4.json`. The snapshot still listed `.gitkeep` after the live manifest had moved to `README.md`. Only caught when the user explicitly asked "did you update the snapshot too?"
+**What happened:** Changed the decisions directory anchor from the old dot-gitkeep placeholder to `.goat-flow/decisions/README.md` in `workflow/manifest.json` but missed the corresponding entry in `workflow/manifest-snapshots/v1.2.4.json`. The snapshot still listed the old placeholder after the live manifest had moved to `README.md`. Only caught when the user explicitly asked "did you update the snapshot too?"
 
-**Root cause:** Treated `workflow/manifest.json` as a single source file, but v1.2.4 has a parallel snapshot copy that must stay in sync. The verification pass grepped for stale `.gitkeep` references across `workflow/` and `src/cli/` but the grep results included the snapshot hit and it was mentally dismissed as "historical" without reading which version it was. The v1.2.4 snapshot is the CURRENT version's snapshot - not historical.
+**Root cause:** Treated `workflow/manifest.json` as a single source file, but v1.2.4 has a parallel snapshot copy that must stay in sync. The verification pass grepped for stale dot-gitkeep references across `workflow/` and `src/cli/` but the grep results included the snapshot hit and it was mentally dismissed as "historical" without reading which version it was. The v1.2.4 snapshot is the CURRENT version's snapshot - not historical.
 
 **Prevention:**
 1. After any edit to `workflow/manifest.json`, immediately check whether `workflow/manifest-snapshots/v<current-version>.json` needs the same change. The current-version snapshot is a live mirror, not a historical record.

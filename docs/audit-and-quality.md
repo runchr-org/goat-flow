@@ -58,12 +58,12 @@ Checks are grouped by **scope**:
 
 ### Harness mode (`--harness`)
 
-Adds 16 checks across the five harness concerns on top of the default build checks. These check AI harness completeness -- whether the project has the structures that make agents effective. Harness checks are deterministic but classified by type (see `HarnessCheckType` in `src/cli/audit/types.ts`): **integrity** (drift from install state - affects concern status), **advisory** (best practice - affects status unless the check id is listed in `harness.acknowledge` in `config.yaml`), and **metric** (workflow maturity signal - never affects status).
+Adds 17 checks across the five harness concerns on top of the default build checks. These check AI harness completeness -- whether the project has the structures that make agents effective. Harness checks are deterministic but classified by type (see `HarnessCheckType` in `src/cli/audit/types.ts`): **integrity** (drift from install state - affects concern status), **advisory** (best practice - affects status unless the check id is listed in `harness.acknowledge` in `config.yaml`), and **metric** (workflow maturity signal - never affects status).
 
-Harness checks are grouped by **concern** -- the five things every major harness engineering source agrees matter for agent effectiveness. See [harness-engineering.md](harness-engineering.md) for what each concern means and the sources behind the model.
+Harness checks are grouped by **concern** -- the five things that matter for agent effectiveness. See [harness-engineering.md](harness-engineering.md) for what each concern means and the sources behind the model.
 
-**harness scope** (AI Harness Completeness) - 16 checks across 5 concerns:
-- **Context** (4) - instruction file within line limit, execution loop present, doc paths resolve, required instruction sections present (advisory)
+**harness scope** (AI Harness Completeness) - 17 checks across 5 concerns:
+- **Context** (5) - instruction file within line limit, execution loop present, doc paths resolve, required instruction sections present, workspace boundary guidance (advisory)
 - **Constraints** (4) - deny covers secrets, deny blocks dangerous commands, deny blocks pipe-to-shell, deny hook registered in agent settings
 - **Verification** (4) - test runner configured, hooks in sync, commit guidance, post-turn hook integrity
 - **Recovery** (2) - milestone tracking, session logs
@@ -82,7 +82,7 @@ Agent Setup:              PASS
   Hooks:                  claude:deny installed, codex:deny installed, gemini:deny installed, copilot:deny installed
 
 AI Harness Completeness:  PASS
-  Context:                PASS (4/4)
+  Context:                PASS (5/5)
   Constraints:            FAIL (3/4) - pipe-to-shell not blocked for codex
   Verification:           PASS (4/4)
   Recovery:               PASS (2/2)
@@ -115,7 +115,7 @@ The generated prompt asks the agent to:
 4. **Identify false paths** - references to files that don't exist, stale concepts, dead modes
 5. **Rate the system** - setup accuracy/relevance/completeness/friction + system usefulness/signal-to-noise/adaptability/learnability
 
-**Time and cost expectation:** A full assessment evaluates all 7 skills (file analysis by default; live invocation when context allows - `goat-critique` alone spawns 3 sub-agents if invoked). Expect 15-60 minutes depending on depth, with moderate token usage. For a lighter pass, the prompt can be edited to skip `goat-critique` and `goat-plan`.
+**Time and cost expectation:** A full assessment evaluates all 7 skills (file analysis by default; live invocation when context allows - `goat-critique` alone spawns 3 sub-agents if invoked). Expect 15-60 minutes depending on depth, with moderate token usage. If context is limited, the generated prompt requires at minimum testing `/goat` (routing), `/goat-review` (most common use), and `/goat-critique` (highest-cost skill).
 
 The prompt includes the current `audit` summary so the agent knows what's already passing or failing. If audit is failing, the prompt explicitly asks the agent to assess the incomplete setup.
 

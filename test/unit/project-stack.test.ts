@@ -4,15 +4,20 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { performance } from "node:perf_hooks";
 import {
   detectSetupStack,
   detectStack,
 } from "../../src/cli/detect/project-stack.js";
+import { createFS } from "../../src/cli/facts/fs.js";
 import type { ReadonlyFS } from "../../src/cli/types.js";
 
 /** Build a minimal ReadonlyFS stub for stack-detection tests. */
 function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
-  return {
+  const fs = {
     exists: () => false,
     readFile: () => null,
     lineCount: () => 0,
@@ -22,6 +27,22 @@ function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
     glob: () => [],
     ...overrides,
   };
+  return {
+    ...fs,
+    existsGlob:
+      overrides.existsGlob ??
+      ((pattern: string) => fs.glob(pattern).length > 0),
+  };
+}
+
+async function writeFileInProject(
+  root: string,
+  path: string,
+  content = "",
+): Promise<void> {
+  const fullPath = join(root, path);
+  await mkdir(dirname(fullPath), { recursive: true });
+  await writeFile(fullPath, content);
 }
 
 describe("detectStack", () => {
@@ -88,6 +109,111 @@ describe("detectStack", () => {
     assert.deepEqual(stack.languages, ["markdown"]);
     assert.equal(stack.signals.codeGenTools.length, 0);
     assert.equal(stack.signals.deployPlatforms.length, 0);
+  });
+
+  it("detects PHP Symfony and PHPStan without losing static-analysis signals", () => {
+    const fs = stubFS({
+      readJson: (path) =>
+        path === "composer.json"
+          ? {
+              require: { "symfony/framework-bundle": "^7.0" },
+              scripts: { test: "phpunit", analyse: "phpstan analyse" },
+            }
+          : null,
+      readFile: (path) => (path === "phpstan.neon" ? "level: max" : null),
+    });
+
+    const stack = detectStack(fs);
+    assert.deepEqual(stack.languages, ["php", "symfony"]);
+    assert.equal(stack.testCommand, "phpunit");
+    assert.deepEqual(stack.signals.staticAnalysis, [
+      { tool: "phpstan", level: "max" },
+    ]);
+  });
+
+  it("detects Python from subdirectory manifests", () => {
+    const fs = stubFS({
+      existsGlob: (pattern) => pattern === "*/pyproject.toml",
+    });
+
+    const stack = detectStack(fs);
+    assert.deepEqual(stack.languages, ["python"]);
+    assert.equal(stack.testCommand, null);
+  });
+
+  it("detects Twig templates and Terraform deployment signals", () => {
+    const fs = stubFS({
+      existsGlob: (pattern) => pattern === "**/*.twig" || pattern === "**/*.tf",
+    });
+
+    const stack = detectStack(fs);
+    assert.equal(stack.languages.includes("twig"), true);
+    assert.equal(stack.signals.deployPlatforms.includes("terraform"), true);
+  });
+
+  it("uses existsGlob for existence-only recursive stack checks", () => {
+    const existsGlobCalls: string[] = [];
+    const fs = stubFS({
+      exists: (path) => path === "tsconfig.json",
+      existsGlob: (pattern) => {
+        existsGlobCalls.push(pattern);
+        return pattern === "**/*.sh";
+      },
+      glob: (pattern) => {
+        if (
+          [
+            "**/*.html",
+            "**/*.md",
+            "src/**/*.*",
+            "lib/**/*.*",
+            "app/**/*.*",
+            "packages/**/*.*",
+          ].includes(pattern)
+        ) {
+          return [];
+        }
+        throw new Error(`unexpected collect-all glob: ${pattern}`);
+      },
+    });
+
+    const stack = detectStack(fs);
+    assert.equal(stack.languages.includes("bash"), true);
+    assert.equal(existsGlobCalls.includes("**/*.sh"), true);
+    assert.equal(existsGlobCalls.includes("**/*.csproj"), true);
+  });
+
+  it("stays under the synthetic large-tree stack-detection budget", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-stack-tests-"));
+    try {
+      await writeFileInProject(
+        root,
+        "package.json",
+        JSON.stringify({
+          scripts: { test: "node --test", build: "tsc" },
+          devDependencies: { typescript: "^5.0.0" },
+        }),
+      );
+      await writeFileInProject(root, "tsconfig.json", "{}\n");
+      for (let i = 0; i < 1200; i++) {
+        await writeFileInProject(
+          root,
+          `src/group-${Math.floor(i / 100)}/file-${i}.ts`,
+          `export const value${i} = ${i};\n`,
+        );
+      }
+
+      const start = performance.now();
+      const stack = detectStack(createFS(root));
+      const durationMs = performance.now() - start;
+
+      assert.equal(stack.languages.includes("typescript"), true);
+      assert.ok(
+        durationMs < 1500,
+        `detectStack took ${durationMs.toFixed(3)}ms on synthetic large tree`,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
 

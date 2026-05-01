@@ -103,6 +103,93 @@ function walkGlobSegment(
   }
 }
 
+/** Walk a glob pattern until the first match is found. */
+function walkGlobExists(
+  root: string,
+  resolvePath: (path: string) => string,
+  parts: string[],
+  dir: string,
+  patternIndex: number,
+): boolean {
+  if (patternIndex >= parts.length) return false;
+
+  const part = parts[patternIndex];
+  if (part === undefined) return false;
+  if (part === "**") {
+    return walkGlobStarExists(root, resolvePath, parts, dir, patternIndex);
+  }
+  return walkGlobSegmentExists(
+    root,
+    resolvePath,
+    parts,
+    dir,
+    patternIndex,
+    part,
+  );
+}
+
+/** Handle a recursive `**` segment for first-match glob checks. */
+function walkGlobStarExists(
+  root: string,
+  resolvePath: (path: string) => string,
+  parts: string[],
+  dir: string,
+  patternIndex: number,
+): boolean {
+  if (
+    patternIndex + 1 < parts.length &&
+    walkGlobExists(root, resolvePath, parts, dir, patternIndex + 1)
+  ) {
+    return true;
+  }
+
+  for (const entry of readDirEntries(resolvePath(dir))) {
+    if (
+      entry.isDirectory() &&
+      isIgnoredDir(entry.name) === false &&
+      walkGlobExists(
+        root,
+        resolvePath,
+        parts,
+        join(dir, entry.name),
+        patternIndex,
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Handle a normal glob segment for first-match glob checks. */
+function walkGlobSegmentExists(
+  root: string,
+  resolvePath: (path: string) => string,
+  parts: string[],
+  dir: string,
+  patternIndex: number,
+  part: string,
+): boolean {
+  const isLast = patternIndex === parts.length - 1;
+  const regex = buildGlobRegex(part);
+
+  for (const entry of readDirEntries(resolvePath(dir))) {
+    if (!regex.test(entry.name)) continue;
+
+    const fullPath = join(dir, entry.name);
+    if (isLast) {
+      return true;
+    }
+    if (
+      entry.isDirectory() &&
+      walkGlobExists(root, resolvePath, parts, fullPath, patternIndex + 1)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Create a read-only filesystem abstraction rooted at the given path. */
 export function createFS(rootPath: string): ReadonlyFS {
   const root = resolve(rootPath);
@@ -115,6 +202,7 @@ export function createFS(rootPath: string): ReadonlyFS {
   const contentCache = new Map<string, string | null>();
   const existsCache = new Map<string, boolean>();
   const listDirCache = new Map<string, string[]>();
+  const globCache = new Map<string, string[]>();
 
   function cachedReadFile(path: string): string | null {
     const resolved = resolvePath(path);
@@ -196,10 +284,20 @@ export function createFS(rootPath: string): ReadonlyFS {
     },
 
     glob(pattern: string): string[] {
+      const cached = globCache.get(pattern);
+      if (cached !== undefined) return [...cached];
       const results: string[] = [];
       const parts = pattern.split("/");
       walkGlob(root, resolvePath, parts, ".", 0, results);
-      return results;
+      globCache.set(pattern, results);
+      return [...results];
+    },
+
+    existsGlob(pattern: string): boolean {
+      const cached = globCache.get(pattern);
+      if (cached !== undefined) return cached.length > 0;
+      const parts = pattern.split("/");
+      return walkGlobExists(root, resolvePath, parts, ".", 0);
     },
   };
 }

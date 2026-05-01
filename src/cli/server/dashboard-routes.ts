@@ -5,9 +5,11 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { performance } from "node:perf_hooks";
 import { isPackagedInstall } from "../paths.js";
 import { classifyProjectState } from "../classify-state.js";
 import { loadConfig } from "../config/reader.js";
@@ -84,6 +86,67 @@ type JsonResponder = (
 ) => void;
 
 type BodyReader = (req: IncomingMessage) => Promise<string>;
+
+interface DashboardAuditProfileSpan {
+  name: string;
+  durationMs: number;
+}
+
+interface DashboardAuditProfiler {
+  enabled: boolean;
+  spans: DashboardAuditProfileSpan[];
+  span<T>(name: string, fn: () => T): T;
+}
+
+function shouldProfileAuditRequest(url: URL, devMode: boolean): boolean {
+  return (
+    url.searchParams.get("profile") === "true" &&
+    (devMode || process.env["GOAT_FLOW_AUDIT_PROFILE"] === "1")
+  );
+}
+
+function createDashboardAuditProfiler(
+  enabled: boolean,
+): DashboardAuditProfiler {
+  const spans: DashboardAuditProfileSpan[] = [];
+  return {
+    enabled,
+    spans,
+    span<T>(name: string, fn: () => T): T {
+      if (!enabled) return fn();
+      const start = performance.now();
+      try {
+        return fn();
+      } finally {
+        spans.push({
+          name,
+          durationMs: Number((performance.now() - start).toFixed(3)),
+        });
+      }
+    },
+  };
+}
+
+function appendAuditProfile<T extends object>(
+  body: T,
+  profiler: DashboardAuditProfiler,
+): T & {
+  _profile?: { summedSpanMs: number; spans: DashboardAuditProfileSpan[] };
+} {
+  if (!profiler.enabled) return body;
+  const summedSpanMs = Number(
+    profiler.spans
+      .reduce((total, span) => total + span.durationMs, 0)
+      .toFixed(3),
+  );
+  return {
+    ...body,
+    _profile: {
+      summedSpanMs,
+      spans: profiler.spans,
+    },
+  };
+}
 
 export function normalizeAgentVersionOutput(raw: string): string | null {
   const firstLine = raw.trim().split(/\r?\n/)[0]?.trim() ?? "";
@@ -337,14 +400,154 @@ function readRecentLessons(
 
 const ENRICHMENT_TTL_MS = 60_000;
 const QUALITY_AUDIT_TTL_MS = 10_000;
+const DIRECTORY_SIGNATURE_FILE_LIMIT = 500;
+const DIRECTORY_SIGNATURE_IGNORES = new Set([".git", "node_modules", "dist"]);
 const enrichmentCache = new Map<
   string,
   {
     learningLoop: DashboardReport["learningLoop"];
     recentLessons: DashboardReport["recentLessons"];
+    signature: string;
     cachedAt: number;
   }
 >();
+
+function hashString(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function hashExistingFile(projectPath: string, relativePath: string): string {
+  try {
+    return hashString(readFileSync(join(projectPath, relativePath), "utf-8"));
+  } catch {
+    return "missing";
+  }
+}
+
+function readSignatureStat(
+  projectPath: string,
+  relativePath: string,
+): ReturnType<typeof statSync> | null {
+  try {
+    return statSync(join(projectPath, relativePath));
+  } catch {
+    return null;
+  }
+}
+
+function appendDirectorySignatureEntry(
+  projectPath: string,
+  relativeDir: string,
+  name: string,
+  entries: string[],
+): void {
+  if (DIRECTORY_SIGNATURE_IGNORES.has(name)) return;
+
+  const relativePath = join(relativeDir, name);
+  const stat = readSignatureStat(projectPath, relativePath);
+  if (!stat) {
+    entries.push(`${relativePath}:missing`);
+    return;
+  }
+  if (stat.isDirectory()) {
+    readDirectorySignatureEntries(projectPath, relativePath, entries);
+    return;
+  }
+  if (!stat.isFile()) return;
+  entries.push(
+    `${relativePath}:${stat.size}:${stat.mtimeMs}:${hashExistingFile(
+      projectPath,
+      relativePath,
+    )}`,
+  );
+}
+
+function readDirectorySignatureEntries(
+  projectPath: string,
+  relativeDir: string,
+  entries: string[],
+): void {
+  if (entries.length >= DIRECTORY_SIGNATURE_FILE_LIMIT) return;
+  let names: string[];
+  try {
+    names = readdirSync(join(projectPath, relativeDir)).sort();
+  } catch {
+    entries.push(`${relativeDir}:missing`);
+    return;
+  }
+
+  for (const name of names) {
+    if (entries.length >= DIRECTORY_SIGNATURE_FILE_LIMIT) {
+      entries.push(`${relativeDir}:truncated`);
+      return;
+    }
+    appendDirectorySignatureEntry(projectPath, relativeDir, name, entries);
+  }
+}
+
+function directorySignature(projectPath: string, relativeDir: string): string {
+  const entries: string[] = [];
+  readDirectorySignatureEntries(projectPath, relativeDir, entries);
+  return hashString(entries.join("\n"));
+}
+
+function buildLearningLoopCacheSignature(projectPath: string): string {
+  return hashString(
+    [
+      directorySignature(projectPath, ".goat-flow/footguns"),
+      directorySignature(projectPath, ".goat-flow/lessons"),
+    ].join("\n"),
+  );
+}
+
+function buildAuditCacheSignature(
+  projectPath: string,
+  packageVersion: string,
+): string {
+  const contentFiles = [
+    ".goat-flow/config.yaml",
+    ".goat-flow/architecture.md",
+    ".goat-flow/code-map.md",
+    ".goat-flow/glossary.md",
+    ".goat-flow/patterns.md",
+    "CLAUDE.md",
+    "AGENTS.md",
+    "GEMINI.md",
+    ".github/copilot-instructions.md",
+    ".claude/settings.json",
+    ".codex/config.toml",
+    ".codex/hooks.json",
+    ".gemini/settings.json",
+    ".github/hooks/hooks.json",
+    ".claude/hooks/deny-dangerous.sh",
+    ".codex/hooks/deny-dangerous.sh",
+    ".gemini/hooks/deny-dangerous.sh",
+    ".github/hooks/deny-dangerous.sh",
+  ];
+  const directoryInputs = [
+    ".claude/skills",
+    ".agents/skills",
+    ".gemini/skills",
+    ".github/skills",
+    ".goat-flow/decisions",
+    ".goat-flow/footguns",
+    ".goat-flow/lessons",
+    ".goat-flow/skill-reference",
+  ];
+  return hashString(
+    [
+      `package:${packageVersion}`,
+      ...contentFiles.map(
+        (relativePath) =>
+          `${relativePath}:${hashExistingFile(projectPath, relativePath)}`,
+      ),
+      ...directoryInputs.map(
+        (relativeDir) =>
+          `${relativeDir}:${directorySignature(projectPath, relativeDir)}`,
+      ),
+    ].join("\n"),
+  );
+}
 
 /** Enrich a dashboard report with compact Home-only learning-loop context. */
 function enrichDashboardReport(
@@ -353,8 +556,14 @@ function enrichDashboardReport(
   fresh = false,
 ): DashboardReport {
   const now = Date.now();
+  const signature = buildLearningLoopCacheSignature(projectPath);
   const cached = enrichmentCache.get(projectPath);
-  if (!fresh && cached && now - cached.cachedAt < ENRICHMENT_TTL_MS) {
+  if (
+    !fresh &&
+    cached &&
+    cached.signature === signature &&
+    now - cached.cachedAt < ENRICHMENT_TTL_MS
+  ) {
     return {
       ...report,
       learningLoop: cached.learningLoop,
@@ -366,6 +575,7 @@ function enrichDashboardReport(
   enrichmentCache.set(projectPath, {
     learningLoop,
     recentLessons,
+    signature,
     cachedAt: now,
   });
   return { ...report, learningLoop, recentLessons };
@@ -376,38 +586,46 @@ function buildDashboardReport(
   auditRpt: AuditReport,
   perAgentAudits: { id: string; audit: AuditReport }[],
   projectPath: string,
+  profiler?: DashboardAuditProfiler,
 ): DashboardReport {
-  return enrichDashboardReport(
-    {
-      agentScores: perAgentAudits.map((pa) => {
-        const agentId = pa.id as AgentId;
-        return {
-          id: pa.id,
-          name: AGENT_PROFILE_MAP[agentId].name,
-          agent: pa.audit.scopes.agent,
-          harness: pa.audit.scopes.harness,
-          concerns: pa.audit.concerns,
-        };
-      }),
-      status: auditRpt.status,
-      scopes: {
-        setup: auditRpt.scopes.setup,
-        agent: auditRpt.scopes.agent,
-        ...(auditRpt.scopes.harness
-          ? { harness: auditRpt.scopes.harness }
-          : {}),
-      },
-      overall: auditRpt.overall,
-      learningLoop: null,
-      recentLessons: [],
-      target: auditRpt.target,
+  const report: DashboardReport = {
+    agentScores: perAgentAudits.map((pa) => {
+      const agentId = pa.id as AgentId;
+      return {
+        id: pa.id,
+        name: AGENT_PROFILE_MAP[agentId].name,
+        agent: pa.audit.scopes.agent,
+        harness: pa.audit.scopes.harness,
+        concerns: pa.audit.concerns,
+      };
+    }),
+    status: auditRpt.status,
+    scopes: {
+      setup: auditRpt.scopes.setup,
+      agent: auditRpt.scopes.agent,
+      ...(auditRpt.scopes.harness ? { harness: auditRpt.scopes.harness } : {}),
     },
-    projectPath,
-    true,
-  );
+    overall: auditRpt.overall,
+    learningLoop: null,
+    recentLessons: [],
+    target: auditRpt.target,
+  };
+  return profiler
+    ? profiler.span("learning-loop enrichment", () =>
+        enrichDashboardReport(report, projectPath, true),
+      )
+    : enrichDashboardReport(report, projectPath, true);
 }
 
 const AUDIT_CACHE_FILE = "audit-cache.json";
+
+interface AuditCacheEnvelope {
+  packageVersion: string;
+  configVersion: string;
+  cachedAt: string;
+  signature: string;
+  report: DashboardReport;
+}
 
 function readConfigVersion(projectPath: string): string | null {
   try {
@@ -422,28 +640,60 @@ function readConfigVersion(projectPath: string): string | null {
   }
 }
 
+function isAuditCacheEnvelope(value: unknown): value is AuditCacheEnvelope {
+  if (typeof value !== "object" || value === null) return false;
+  const envelope = value as Record<string, unknown>;
+  return (
+    typeof envelope.packageVersion === "string" &&
+    typeof envelope.configVersion === "string" &&
+    typeof envelope.cachedAt === "string" &&
+    typeof envelope.signature === "string" &&
+    typeof envelope.report === "object" &&
+    envelope.report !== null
+  );
+}
+
+function parseAuditCacheEnvelope(raw: string): AuditCacheEnvelope | null {
+  try {
+    const parsed = JSON.parse(raw);
+    return isAuditCacheEnvelope(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function auditCacheMatches(
+  envelope: AuditCacheEnvelope,
+  projectPath: string,
+  packageVersion: string,
+  signature: string,
+): boolean {
+  const configVersion = readConfigVersion(projectPath);
+  return (
+    envelope.packageVersion === packageVersion &&
+    envelope.signature === signature &&
+    configVersion !== null &&
+    envelope.configVersion === configVersion
+  );
+}
+
 function readAuditCache(
   projectPath: string,
   packageVersion: string,
+  signature: string,
 ): { report: DashboardReport; cachedAt: string } | null {
   try {
     const raw = readFileSync(
       join(projectPath, ".goat-flow", AUDIT_CACHE_FILE),
       "utf-8",
     );
-    const envelope = JSON.parse(raw) as Record<string, unknown>;
-    if (
-      typeof envelope.packageVersion !== "string" ||
-      typeof envelope.configVersion !== "string" ||
-      typeof envelope.cachedAt !== "string" ||
-      !envelope.report
-    )
+    const envelope = parseAuditCacheEnvelope(raw);
+    if (!envelope) return null;
+    if (!auditCacheMatches(envelope, projectPath, packageVersion, signature)) {
       return null;
-    if (envelope.packageVersion !== packageVersion) return null;
-    const configVersion = readConfigVersion(projectPath);
-    if (!configVersion || envelope.configVersion !== configVersion) return null;
+    }
     return {
-      report: envelope.report as DashboardReport,
+      report: envelope.report,
       cachedAt: envelope.cachedAt,
     };
   } catch {
@@ -454,6 +704,7 @@ function readAuditCache(
 function writeAuditCache(
   projectPath: string,
   packageVersion: string,
+  signature: string,
   report: DashboardReport,
 ): void {
   try {
@@ -462,13 +713,14 @@ function writeAuditCache(
     const envelope = {
       packageVersion,
       configVersion,
+      signature,
       cachedAt: new Date().toISOString(),
       report,
     };
-    writeFile(
+    writeFileSync(
       join(projectPath, ".goat-flow", AUDIT_CACHE_FILE),
       JSON.stringify(envelope),
-    ).catch(() => {});
+    );
   } catch {
     // Cache write failure is non-fatal
   }
@@ -689,7 +941,13 @@ export function createDashboardRouteHandlers(
     return param && VALID_AGENTS.has(param) ? (param as AgentId) : null;
   }
 
-  /** Run both evaluation systems and return a typed DashboardReport. */
+  /**
+   * Run both evaluation systems and return the shared DashboardReport consumed
+   * by Home, Setup, and Quality. Aggregate dashboard requests intentionally use
+   * dashboard-summary facts: stack-derived setup details come from
+   * `/api/setup/detect`, while this route must preserve report/scopes/agentScores
+   * without paying setup-time stack detection on every fresh Home load.
+   */
   function handleAuditRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/audit") return false;
 
@@ -697,54 +955,109 @@ export function createDashboardRouteHandlers(
     const harness = url.searchParams.get("quality") === "true";
     const agentFilter = parseAgentFilter(url.searchParams.get("agent"));
     const fresh = url.searchParams.get("fresh") === "true";
+    const profiler = createDashboardAuditProfiler(
+      shouldProfileAuditRequest(url, devMode),
+    );
 
     try {
       requireProjectDirectory(projectPath);
+      const auditCacheSignature = isCacheEligible(agentFilter, harness)
+        ? profiler.span("cache signature", () =>
+            buildAuditCacheSignature(projectPath, packageVersion),
+          )
+        : null;
 
       if (!fresh && isCacheEligible(agentFilter, harness)) {
-        const cached = readAuditCache(projectPath, packageVersion);
+        const cached = profiler.span("cache read", () =>
+          readAuditCache(
+            projectPath,
+            packageVersion,
+            auditCacheSignature ?? "",
+          ),
+        );
         if (cached) {
-          const report = enrichDashboardReport(cached.report, projectPath);
-          jsonResponse(res, 200, {
-            ...report,
-            cached: true,
-            cachedAt: cached.cachedAt,
-          });
+          const report = profiler.span("learning-loop enrichment", () =>
+            enrichDashboardReport(cached.report, projectPath),
+          );
+          jsonResponse(
+            res,
+            200,
+            appendAuditProfile(
+              {
+                ...report,
+                cached: true,
+                cachedAt: cached.cachedAt,
+              },
+              profiler,
+            ),
+          );
           return true;
         }
       }
 
       const fs = createFS(projectPath);
-      const configAgents = detectConfiguredAgents(fs).map((a) => a.id);
-      const batch = runAuditBatch(
-        fs,
-        projectPath,
-        {
-          agentFilter,
-          harness,
-          // Summary cards only need to know whether the deny mechanism is
-          // installed. Explicit per-agent audits and quality flows still run the
-          // slower runtime self-test.
-          denyMechanismEvidenceLevel:
-            agentFilter === null ? "present-only" : "full",
-        },
-        configAgents,
+      const configAgents = profiler
+        .span("configured-agent detection", () => detectConfiguredAgents(fs))
+        .map((a) => a.id);
+      const auditFactProfile =
+        agentFilter === null ? "dashboard-summary" : "full";
+      const batch = profiler.span("runAuditBatch", () =>
+        runAuditBatch(
+          fs,
+          projectPath,
+          {
+            agentFilter,
+            harness,
+            // Summary cards only need to know whether the deny mechanism is
+            // installed. Explicit per-agent audits and quality flows still run the
+            // slower runtime self-test.
+            denyMechanismEvidenceLevel:
+              agentFilter === null ? "present-only" : "full",
+            factProfile: auditFactProfile,
+            profile: profiler,
+          },
+          configAgents,
+        ),
       );
-      const report = buildDashboardReport(
-        batch.aggregate,
-        batch.perAgent,
-        projectPath,
+      const report = profiler.span("dashboard report build", () =>
+        buildDashboardReport(
+          batch.aggregate,
+          batch.perAgent,
+          projectPath,
+          profiler,
+        ),
       );
 
       if (isCacheEligible(agentFilter, harness)) {
-        writeAuditCache(projectPath, packageVersion, report);
+        profiler.span("cache write", () => {
+          writeAuditCache(
+            projectPath,
+            packageVersion,
+            auditCacheSignature ?? "",
+            report,
+          );
+        });
       }
 
-      jsonResponse(res, 200, { ...report, cached: false, cachedAt: null });
+      jsonResponse(
+        res,
+        200,
+        appendAuditProfile(
+          { ...report, cached: false, cachedAt: null },
+          profiler,
+        ),
+      );
     } catch (err) {
-      jsonResponse(res, 500, {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      jsonResponse(
+        res,
+        500,
+        appendAuditProfile(
+          {
+            error: err instanceof Error ? err.message : String(err),
+          },
+          profiler,
+        ),
+      );
     }
     return true;
   }

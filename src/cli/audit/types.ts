@@ -135,6 +135,8 @@ export interface ContentReport {
 
 // === Internal types (check definitions and context) ===
 
+export type AuditFactProfile = "full" | "dashboard-summary";
+
 /** Parsed subset of manifest.json used by audit checks */
 export interface ProjectStructure {
   required_files: string[];
@@ -165,6 +167,8 @@ export interface AuditContext {
   structure: ProjectStructure;
   agents: AgentFacts[];
   agentFilter: AgentId | null;
+  /** Fact extraction profile backing this context. Summary contexts omit stack facts. */
+  factProfile?: AuditFactProfile;
   /** Optional downgrade for expensive per-agent summary checks used by dashboard home load. */
   denyMechanismEvidenceLevel?: "full" | "present-only";
 }
@@ -184,6 +188,8 @@ export interface BuildCheck {
   ) => CheckEvidence;
   /** True when an agent-scope check runs meaningful logic in aggregate mode. */
   supportsAggregate?: boolean;
+  /** True when the check reads `ctx.facts.stack` and must run only with full facts. */
+  requiresStack?: boolean;
   run: (ctx: AuditContext) => AuditFailure | null;
 }
 
@@ -203,6 +209,8 @@ export interface HarnessCheck {
   concern: AuditConcernKey;
   type: HarnessCheckType;
   provenance: CheckEvidence;
+  /** True when the check reads `ctx.facts.stack` and must run only with full facts. */
+  requiresStack?: boolean;
   run: (ctx: AuditContext) => HarnessCheckResult;
 }
 

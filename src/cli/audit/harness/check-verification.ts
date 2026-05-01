@@ -43,9 +43,14 @@ const testRunnerConfigured: HarnessCheck = {
     if (tc.test.length > 0) {
       return pass([`Test command configured: ${tc.test[0]}`]);
     }
-    return pass([
-      "No structured toolchain.test configured; treat project-local commands or instruction-file commands as the source of truth",
-    ]);
+    return fail(
+      [
+        "No structured toolchain.test configured; treat project-local commands or instruction-file commands as the source of truth",
+      ],
+      [
+        "Add a test command to toolchain.test in .goat-flow/config.yaml if the project has tests",
+      ],
+    );
   },
 };
 

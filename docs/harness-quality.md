@@ -8,19 +8,16 @@
 | Harness | `npx goat-flow audit . --harness` | Is the harness structurally complete? |
 | **Quality** | **`npx goat-flow quality . --agent X --mode harness`** | **Does this make sense to a fresh agent?** |
 
-Quality is not automated checks. It generates a prompt that walks an agent through a 7-part evaluation:
+Quality is not automated checks. It generates a prompt that asks an agent to assess whether the harness is actually usable, not just structurally present. The evaluation covers:
 
-1. **Ground yourself** - run the project's validation commands, save the output
-2. **Pre-check** - structural pass/fail on skills, instruction file, router table
-3. **Setup quality** - was the harness adapted to this project or left as boilerplate?
-4. **Skill assessment** - evaluate each skill's structure and coherence; live invocation if context allows
-5. **System assessment** - is the execution loop useful or ceremony? Are 7 skills the right number? Is the dispatcher worth the routing step?
-6. **Contradictions and false paths** - find stale references, dead concepts, conflicting docs
-7. **Skill template integrity** - version tags, truncation detection, depth coherence
+1. **Ground yourself** - run the project's validation commands (`audit --harness`, `stats --check`), save the output
+2. **Concern-by-concern analysis** - for each of the 5 harness concerns (Context, Constraints, Verification, Recovery, Feedback Loop), assess what works, what fails or is weak, and provide file or semantic-anchor evidence
+3. **False positive and false negative risks** - identify where a structural PASS hides a real gap, and where a FAIL is misleading
+4. **Top 5 improvements** - prioritize actionable fixes with evidence and verification commands
 
 Findings are severity-ranked (BLOCKER / MAJOR / MINOR) with evidence quality marked (OBSERVED vs INFERRED). The prompt embeds the current audit results so the agent knows what's already passing or failing.
 
-**Time and cost:** A full assessment evaluates all 7 skills (file analysis by default; live invocation when context allows). Expect 15-60 minutes depending on depth, with moderate token usage.
+**Time and cost:** Expect 15-60 minutes depending on depth, with moderate token usage.
 
 ## Persisting quality reports
 
@@ -53,12 +50,12 @@ The audit checks whether files exist, paths resolve, and patterns are registered
 
 ### 2. Constraints
 
-**Audit checks:** deny covers secrets, deny blocks dangerous commands, deny blocks pipe-to-shell.
+**Audit checks:** deny covers secrets, deny blocks dangerous commands, deny blocks pipe-to-shell, deny hook registered in agent settings.
 
 **Quality evaluates:**
 - Are Ask First boundaries specific to real risk areas in this codebase, or generic placeholders?
 - Does the deny hook pass its self-test (`deny-dangerous.sh --self-test`)?
-- Does config.yaml's toolchain section reflect real project commands? If a command is scoped narrower than the full tool, is that intentional?
+- Does `.goat-flow/config.yaml` stay lean and accurate for this project? Optional project-calibration fields such as `toolchain` are valid only when they reflect real commands; their absence is not a setup gap.
 - Are there static analysis tools in the project's package manifest that aren't registered as constraints?
 
 ### 3. Verification

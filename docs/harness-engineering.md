@@ -91,6 +91,8 @@ The failure mode is logging mistakes in a lessons file and then forgetting they 
 
 ---
 
+---
+
 ## Further reading
 
 The harness engineering field is emerging. These are the primary sources behind the 5-concern model:

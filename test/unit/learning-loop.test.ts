@@ -32,6 +32,7 @@ function stubFS(
     listDir: (path) => dirs[path] ?? [],
     isExecutable: () => false,
     glob: () => [],
+    existsGlob: () => false,
   };
 }
 

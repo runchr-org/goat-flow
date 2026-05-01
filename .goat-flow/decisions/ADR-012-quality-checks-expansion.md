@@ -23,7 +23,13 @@ All checks are fully deterministic - no LLM calls, no randomness, no network I/O
 
 2. **Make feedback recency configurable** - Deferred. 90 days is generous. Can add config later if projects need different thresholds.
 
-3. **Add checks to the rubric system instead** - Rejected. The rubric and quality checks are separate systems. Quality checks (`--harness`) score the 5 concerns and never block CI. The rubric scores individual check definitions. The new checks belong in quality because they measure concern-level effectiveness, not individual check compliance.
+3. **Add checks to the rubric system instead** - Rejected. The rubric and quality checks are separate systems. Quality checks (`--harness`) score the 5 concerns and contribute to overall audit status — harness failure is an audit failure (see `docs/harness-audit.md` and `workflow/setup/06-final-verification.md`). The rubric scores individual check definitions. The new checks belong in quality because they measure concern-level effectiveness, not individual check compliance.
+
+## Consequences
+
+- The quality audit became more deterministic and more closely aligned with the public harness claims.
+- The implementation accepted a small amount of inline file reading in quality checks rather than expanding the shared facts system for low-reuse data.
+- Later fact removals must update both the quality check list and this ADR's historical scope notes so the documented check count remains truthful.
 
 ## Supersedes
 

@@ -2,7 +2,10 @@
 
 **Status:** Accepted
 **Date:** 2026-04-03
-**Context:** Every tester across 5 Codex critiques bypassed BLOCKING GATEs. Skills are unusable in batch/sub-agent contexts because gates stall the process.
+
+## Context
+
+Every tester across 5 Codex critiques bypassed BLOCKING GATEs. Skills are unusable in batch/sub-agent contexts because gates stall the process.
 
 ## Decision
 

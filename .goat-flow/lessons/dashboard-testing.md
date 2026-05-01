@@ -91,3 +91,15 @@ last_reviewed: 2026-04-29
 **Root cause:** I treated a sandbox timing probe as representative for a route that shells out to `bash` through the deny-hook self-test. When the verification surface depends on external shell/runtime behavior, the sandbox path can understate real latency or skip the expensive branch entirely.
 
 **Prevention:** For shell-backed audit or hook performance work, capture timings in the same environment that can actually run the shell command before updating docs or declaring the bottleneck understood. For this repo, prefer a built `dist` dashboard probe plus a focused integration test, and compare fresh versus cached requests explicitly when a new cache is involved. Evidence anchors: `src/cli/server/dashboard-routes.ts` (search: `const fresh = url.searchParams.get("fresh") === "true";`), `src/cli/server/dashboard-routes.ts` (search: `readQualityAuditCache(projectPath, agent, fresh)`), `src/cli/audit/check-agent-setup.ts` (search: `execFileSync("bash", [denyPath, "--self-test"]`).
+
+---
+
+## Lesson: Dashboard endpoint benchmarks need HTTP client warmup
+
+**Status:** active | **Created:** 2026-04-29
+
+**What happened:** While adding `scripts/profile-dashboard-audit.mjs`, the first cached `/api/audit?quality=true` benchmark reported about `1375ms` even though the server-side profile spans totaled only about `17ms`. The route was cached and fast, but the first measured Node `fetch()` included client/session warmup overhead.
+
+**Root cause:** I treated the first HTTP request made by the benchmark process as representative endpoint time. That mixed one-time client setup with the route being measured and made the cached path look much slower than the server profile and same-server curl evidence.
+
+**Prevention:** Warm the benchmark client with a cheap request such as `/api/health` before measuring dashboard endpoint latency. Compare client-visible endpoint time with server-side profile spans; if they differ by orders of magnitude, identify unprofiled client/setup overhead before recording the timing. Evidence anchors: `scripts/profile-dashboard-audit.mjs` (search: `await fetch(\`${baseUrl}/api/health\`)`), `.goat-flow/tasks/1.3.2/goat-flow-feedback/M01-profile-dashboard-audit-path.md` (search: `endpoint cached: status=200 time=19.91ms`).

@@ -994,7 +994,8 @@ async function handleStatsCommand(options: ParsedCLI): Promise<void> {
   const { loadConfig } = await import("./config/reader.js");
   const { extractFootgunFacts, extractLessonsFacts } =
     await import("./facts/shared/learning-loop.js");
-  const { buildStatsReport, checkStats } = await import("./stats/stats.js");
+  const { buildStatsReport, checkStats, buildDecisionsSection } =
+    await import("./stats/stats.js");
   const {
     renderStatsText,
     renderStatsJson,
@@ -1007,6 +1008,7 @@ async function handleStatsCommand(options: ParsedCLI): Promise<void> {
   const report = buildStatsReport({
     footguns: extractFootgunFacts(fs, configState),
     lessons: extractLessonsFacts(fs, configState),
+    decisions: buildDecisionsSection(fs, configState.config.decisions.path),
   });
 
   if (options.check) {

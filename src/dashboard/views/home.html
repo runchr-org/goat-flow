@@ -69,8 +69,10 @@
       if (agent?.preview) return null;
       const harnessChecks = agent?.harness?.checks || [];
       if (harnessChecks.length > 0) {
-        const passed = harnessChecks.filter((check) => check.status === 'pass').length;
-        return Math.round((passed / harnessChecks.length) * 100);
+        const scored = harnessChecks.filter((check) => check.type !== 'metric');
+        if (scored.length === 0) return 100;
+        const passed = scored.filter((check) => check.status === 'pass').length;
+        return Math.round((passed / scored.length) * 100);
       }
       const agentChecks = agent?.agent?.checks || [];
       if (agentChecks.length > 0) {

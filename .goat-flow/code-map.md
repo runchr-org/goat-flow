@@ -60,12 +60,30 @@ server/
   dashboard-routes.ts      # Non-terminal dashboard HTTP handlers and response shaping
   dashboard-terminal.ts    # Terminal HTTP routes, WebSocket upgrades, startup/shutdown wiring
   dashboard-assets.ts      # Dashboard HTML shell assembly and bundled asset loaders
+  decoders.ts              # Runtime-boundary input validation (request params, query strings)
   setup-detect.ts          # Setup-detection payload helpers for dashboard routes
   terminal.ts              # PTY-backed terminal session manager (xterm.js backend)
 
 stats/
   stats.ts                 # Learning-loop health report (goat-flow stats); consumes SharedFacts pipeline
   render.ts                # Stats command output rendering
+```
+
+## src/dashboard/ -- Dashboard frontend
+
+```
+app.ts                     # Client-side application entry point and view routing
+dashboard-custom-prompts.ts # Custom prompt management UI logic
+dashboard-projects.ts      # Project selection and multi-project UI
+dashboard-prompts.ts       # Prompt display and interaction handlers
+dashboard-readers.ts       # Client-side data fetching from dashboard HTTP API
+dashboard-setup-quality.ts # Setup and quality assessment view logic
+dashboard-terminal.ts      # xterm.js terminal client integration
+globals.d.ts               # Global type declarations for the frontend bundle
+index.html                 # Dashboard HTML entry point
+preset-prompts.json        # Built-in prompt templates for quality and setup modes
+styles.css                 # Dashboard stylesheet
+views/                     # HTML view templates (home, setup, quality, workspace, projects, prompts, settings, about)
 ```
 
 ## workflow/ -- Setup templates, skills, and reference docs
@@ -110,6 +128,7 @@ npm-publish.sh             # Wrapper: npm publish sanity checks
 preflight-checks.sh        # Pre-commit/CI gate: lint, typecheck, cross-ref checks
 prettier-check.sh          # Wrapper: prettier --check (lint)
 prettier.sh                # Wrapper: prettier --write (format)
+profile-dashboard-audit.mjs # Benchmark/profiling helper for dashboard audit fresh/cache paths
 run-cli.sh                 # Wrapper: run the local CLI via node
 setup-initial.sh           # First-time project scaffolding
 start-dev.sh               # Wrapper: start dashboard in dev mode
