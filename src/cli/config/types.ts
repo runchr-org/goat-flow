@@ -10,6 +10,18 @@ export interface GoatFlowToolchain {
   format: string[];
 }
 
+/** Optional goat-review skill configuration. */
+export interface GoatReviewConfig {
+  /** Local branch/ref to use before remote default-branch discovery in local PR reviews. */
+  localPrBase: string;
+}
+
+/** Skill installation and per-skill configuration. */
+export interface GoatFlowSkillsConfig {
+  install: string[] | "all";
+  "goat-review"?: GoatReviewConfig;
+}
+
 /** Normalized config shape after parsing and validating .goat-flow/config.yaml. */
 export interface GoatFlowConfig {
   version: string;
@@ -21,7 +33,7 @@ export interface GoatFlowConfig {
   /** Detected agent IDs, or null if auto-detection should be used */
   agents: string[] | null;
   /** Which skills to install: explicit list or 'all' for the full set */
-  skills: { install: string[] | "all" };
+  skills: GoatFlowSkillsConfig;
   /** Instruction-file line limits: target for setup, hard limit for CI gate */
   lineLimits: { target: number; limit: number };
   /** Project commands grouped by purpose so agents stop guessing tool names */

@@ -1,7 +1,7 @@
 ---
 name: goat-review
 description: "Use when reviewing a diff, PR, or set of code changes, or auditing a codebase area for quality issues. Triggers: 'review this', 'code review', 'audit X', 'look at these changes'."
-goat-flow-skill-version: "1.3.2"
+goat-flow-skill-version: "1.3.3"
 ---
 # /goat-review
 
@@ -29,7 +29,7 @@ Use when reviewing a diff, PR, or set of changes. Also for quality audits of a c
 
 **PR mode (prefer PR link):** when the user picks PR, first ask for the PR URL or number rather than the base branch - it collapses base, head, description, and linked issues into one input. Prompt: "PR URL or number? (e.g. `#123` or `https://github.com/owner/repo/pull/123`) - or say 'local' if the branch isn't pushed." If the user supplies a PR reference and `gh` is available (see preamble External Context Sources), resolve it with `gh pr view <ref> --json baseRefName,headRefName,headRefOid,url,title,body` and source the diff via `gh pr diff <ref>`. Record the PR URL and base SHA in Review Integrity's Size line. The description/linked issues are treated as spec context, not as findings.
 
-**PR mode (branch vs base, fallback):** when no PR link is supplied or `gh` is unavailable, resolve the base before diffing: (1) use an explicit user-provided base, (2) otherwise detect the remote default branch from `git symbolic-ref --short refs/remotes/origin/HEAD` (strip `origin/`) or `git remote show origin`, (3) otherwise ask: "Base branch? (detected: none. Current: `$(git branch --show-current)`. I'll `git fetch origin <base>` first so the review is against the latest upstream tip.)", (4) if discovery fails and the user cannot provide a base, use `main` only as a last-resort fallback and record `base-detection-failed`. Then run `git fetch origin <base> --quiet` (best-effort; do not fail the review if offline or the remote is unreachable). Source the diff via `git diff origin/<base>...HEAD` (three-dot merge-base; matches what GitHub/GitLab PR UIs show). If the fetch fails or `origin/<base>` is not resolvable, fall back to local `<base>` and record `base-fetch-failed` as a degradation flag in Review Integrity so the reader knows the comparison was against stale local state. Record the resolved base and its short SHA in Review Integrity's Size line.
+**PR mode (branch vs base, fallback):** when no PR link is supplied or `gh` is unavailable, resolve the base before diffing: (1) use an explicit user-provided base, (2) otherwise read `.goat-flow/config.yaml` and use `skills.goat-review.local_pr_base` when present and resolvable as either `origin/<base>` or local `<base>`; record `configured-base=<base>` in Review Integrity when used, (3) otherwise detect the remote default branch from `git symbolic-ref --short refs/remotes/origin/HEAD` (strip `origin/`) or `git remote show origin`, (4) otherwise ask: "Base branch? (detected: none. Current: `$(git branch --show-current)`. I'll `git fetch origin <base>` first so the review is against the latest upstream tip.)", (5) if discovery fails and the user cannot provide a base, use `main` only as a last-resort fallback and record `base-detection-failed`. If `skills.goat-review.local_pr_base` is present but neither `origin/<base>` nor local `<base>` is resolvable, continue to remote default-branch discovery and record `configured-base-unresolved=<base>` in Review Integrity. Then run `git fetch origin <base> --quiet` (best-effort; do not fail the review if offline or the remote is unreachable). Source the diff via `git diff origin/<base>...HEAD` (three-dot merge-base; matches what GitHub/GitLab PR UIs show). If the fetch fails or `origin/<base>` is not resolvable, fall back to local `<base>` and record `base-fetch-failed` as a degradation flag in Review Integrity so the reader knows the comparison was against stale local state. Record the resolved base, source annotation such as `configured-base=<base>`, and short SHA in Review Integrity's Size line.
 
 **Size sizing (before Pass 1):** measure the diff. If it exceeds **20 files OR 3000 changed lines**, propose chunking by file group and ask. If the user proceeds un-chunked, record as `large-diff-unchunked` for Review Integrity.
 
@@ -130,8 +130,8 @@ Every review ends with this section. It is the anti-hallucination surface - the 
 List:
 - **Files opened in Pass 2:** count / total in diff. List paths that were read diff-only.
 - **Evidence tags:** N OBSERVED / M INFERRED across findings.
-- **Size:** lines changed, files changed. If chunked, state which group was reviewed and which are pending.
-- **Degradation flags** (any that apply): `chunked-partial`, `large-diff-unchunked`, `high-inference-ratio`, `files-not-opened`, `unfamiliar-area`, `missing-types`, `spec-drift-skipped`, `footguns-unread`, `base-detection-failed` (PR mode only), `base-fetch-failed` (PR mode only).
+- **Size:** lines changed, files changed. If chunked, state which group was reviewed and which are pending. In PR mode, include the resolved base, source annotation such as `configured-base=<base>` when applicable, and short SHA.
+- **Degradation flags** (any that apply): `chunked-partial`, `large-diff-unchunked`, `high-inference-ratio`, `files-not-opened`, `unfamiliar-area`, `missing-types`, `spec-drift-skipped`, `footguns-unread`, `configured-base-unresolved=<base>` (PR mode only), `base-detection-failed` (PR mode only), `base-fetch-failed` (PR mode only).
 - **Conclusion:** `confident` | `coverage-degraded` | `high-inference` | `partial`.
 
 Never leave this section empty. "confident - no degradation flags" is the minimum.

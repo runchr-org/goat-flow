@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.3 - 2026-05-01
+
+- **Configurable goat-review local PR base** - `.goat-flow/config.yaml` can now define `skills.goat-review.local_pr_base` so local PR reviews compare against a project integration branch before falling back to remote default-branch discovery. `/goat-review` records `configured-base=<base>` when used and `configured-base-unresolved=<base>` when the configured ref cannot be resolved.
+- **Workspace sidebar collapse** - The dashboard Workspace sessions rail now has a Twilio Paste-inspired collapse/expand footer control with persisted state, accessible labels, smooth layout transition, and a compact collapsed rail.
+- **Harness aggregate boundary scoring** - Aggregate `audit --harness` now requires every audited configured agent to have workspace boundary guidance instead of passing when any one agent has it, aligning aggregate CLI output with agent-scoped dashboard scores.
+- **Path-only task intake guard** - goat-plan and dispatcher instructions now treat bare `.goat-flow/tasks/...` references as read-only orientation context, blocking `.active`, milestone-status, and code mutations until the user gives an explicit start/resume/update/implement instruction.
+
 ## v1.3.2 - 2026-05-01
 
 Release-readiness hardening for decision records, dashboard audit performance, harness model alignment, and quality-report evidence.
