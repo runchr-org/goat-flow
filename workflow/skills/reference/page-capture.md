@@ -5,33 +5,95 @@ goat-flow-reference-version: "1.4.0"
 
 Use this when a task requires visiting a list of pages in a real browser, capturing a screenshot of each, and emitting a markdown record per page. Typical triggers: documenting new pages after a feature ships, capturing a UI baseline before a release, recording before/after evidence across multiple pages, or producing an audit-style page snapshot.
 
-Page Capture is the durable batch workflow: scripted, repeatable, evidence-grade. `browser-use` is the right tool for one-off mid-task observation. Playwright MCP plus this reference is the right tool for batch capture across multiple pages with load verification, especially when authentication or framework-specific patterns matter.
+Page Capture is the durable batch workflow: scripted, repeatable, evidence-grade. `browser-use` is the right tool for one-off mid-task observation. Playwright (any integration path) plus this reference is the right tool for batch capture across multiple pages with load verification, especially when authentication or framework-specific patterns matter.
 
 ## Boundary
 
 | Job | Tool | Reference |
 |---|---|---|
 | Single observation, mid-skill, agent decides what to look at | `browser-use` CLI | `browser-use.md` |
-| Visit N known pages, screenshot each, emit structured MD | Playwright MCP | this file |
-| Test-suite-driven evidence (assertion → screenshot → record on fail) | Playwright Test + custom reporter | not in goat-flow; see Playwright reporter docs |
+| Visit N known pages, screenshot each, emit structured MD | Playwright (any integration) | this file |
+| Test-suite-driven evidence (assertion -> screenshot -> record on fail) | Playwright Test + custom reporter | not in goat-flow; see Playwright reporter docs |
 | Crawl/discover pages an agent hasn't seen | `browser-use` with agent loop | `browser-use.md` |
 
 If the task fits row 1 or row 4, stop and load `browser-use.md` instead. If the task fits row 3, document it as a project-level test-runner concern, not a goat-flow workflow.
 
 ## Availability Check
 
-Before first use in a session, confirm Playwright MCP tools are available. The skill should be able to call:
+Batch page capture requires Playwright. Playwright is a browser automation library, not a protocol - MCP is one way to use it, but running a Python or Node script is equally valid. Check these tiers in order and use the first that works:
 
-- `browser_navigate` - load a URL
-- `browser_screenshot` - capture visual screenshot to file
-- `browser_snapshot` - DOM/accessibility tree with refs
-- `browser_evaluate` - run JS in page context
-- `browser_resize` - set viewport
-- `browser_wait_for` - wait for text or selector
-- `browser_console_messages` - capture console output by level
-- `browser_network_requests` - list requests with filter
+**Tier 1 - Playwright MCP** (best: native tool calls, no script needed)
 
-If any are missing, state which and stop. Do not fall back to a less capable tool silently - capture quality drops and the discipline below cannot be honoured.
+Check if these tools are callable: `browser_navigate`, `browser_screenshot`, `browser_snapshot`, `browser_evaluate`, `browser_resize`, `browser_wait_for`, `browser_console_messages`, `browser_network_requests`. If available, use them directly - the per-page loop in Step 2 maps to these tool calls.
+
+**Tier 2 - Python Playwright** (good: works for any coding agent that can run shell commands)
+
+```bash
+browser-use-python -c "from playwright.sync_api import sync_playwright; print('ok')"
+# or if the project documents a different wrapper:
+python -m playwright --version
+```
+
+`scripts/install-browser-tools.sh` installs Python Playwright into a user-local venv at `~/.local/share/goatflow-browser-tools/venv` and exposes it through `~/.local/bin/browser-use-python`. If `command -v playwright` fails, check this wrapper before declaring Playwright unavailable.
+
+The agent writes a Python capture script using `playwright.sync_api`, executes it, and reads the output. See "Writing a capture script" below.
+
+**Tier 3 - Node Playwright** (good: if the project already has it as a dependency)
+
+```bash
+npx playwright --version
+# or check package.json for @playwright/test or playwright
+```
+
+The agent writes a Node.js capture script instead of Python. Same evidence requirements.
+
+**Tier 4 - browser-use CLI** (acceptable: less control, missing console/network capture)
+
+```bash
+command -v browser-use && browser-use doctor
+```
+
+Use `browser-use open`, `browser-use screenshot`, `browser-use state`. This path cannot capture console errors or wait for specific selectors - mark captures with `Console errors: not captured (browser-use CLI)` and note reduced evidence quality in the index.
+
+**Tier 5 - Manual fallback** (last resort: human provides evidence)
+
+See "Fallback When No Playwright Path Is Available" at the bottom.
+
+**If all automated tiers fail,** state which checks were run and their output. Do not silently fall back to a less capable tool.
+
+## Writing a Capture Script (Tier 2/3)
+
+When using Python or Node Playwright, the agent writes and executes a capture script. Minimal pattern (Python):
+
+```python
+from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True)
+    ctx = browser.new_context(
+        viewport={"width": 1280, "height": 800},
+        storage_state="path/to/state.json"  # omit if no auth
+    )
+    page = ctx.new_page()
+    errors = []
+    page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+
+    page.goto(url)
+    page.wait_for_selector(".expected-element", timeout=10000)
+    page.screenshot(path="screenshots/slug.png", full_page=True)
+    title = page.title()
+    # write MD record with title, url, viewport, timestamp, len(errors)
+
+    browser.close()
+```
+
+Adapt to the project's needs (SPA navigation, framework wait conditions, auth flows). The evidence requirements are the same regardless of implementation: consistent viewport, navigate each page, wait for a content anchor, screenshot, collect console error count, write one MD record per page, write an index, verify screenshots exist on disk.
+
+**Storage state by tier:**
+- Tier 1 (MCP): context-level configuration, tool-dependent
+- Tier 2 (Python): `browser.new_context(storage_state="path/to/state.json")`
+- Tier 3 (Node): `browser.newContext({ storageState: "path/to/state.json" })`
+- Tier 4 (browser-use): `browser-use --profile <name>` if supported by version
 
 ## Project Reference Pattern
 
@@ -41,8 +103,6 @@ This file is generic by design. Project-specific knowledge does NOT live in `.go
 |---|---|---|
 | Project reference | How-to playbook for driving the project's app - auth flow, framework gotchas, selectors, viewport conventions | `.goat-flow/patterns/<project>-playwright.md` (vendor-neutral, readable by any coding agent) |
 | Project learning loop | Recurring traps with file evidence, dated lessons from incidents, repeatable patterns | `.goat-flow/footguns/<category>.md`, `.goat-flow/lessons/<category>.md`, `.goat-flow/patterns/<category>.md` |
-
-The split matters: a project reference is taught knowledge ("here's how to drive this app"), while footguns and lessons are learned-from-incident knowledge ("here's a trap we hit, with the evidence"). A framework gotcha that surfaced once goes in the project reference. A framework gotcha that has bitten three times with file:line evidence belongs as a footgun entry.
 
 A project reference typically covers:
 
@@ -57,8 +117,6 @@ A goat-flow skill loading this `page-capture.md` reference should also:
 1. Detect and load any project reference at the conventional path
 2. Run the standard footgun grep against `.goat-flow/footguns/` for the target area before capture begins
 
-Project specifics never leak into this file. If a pattern keeps recurring across projects, that's the signal to lift it here - but the bar is high.
-
 ## Capture Workflow
 
 ### Step 0 - Intake
@@ -67,33 +125,34 @@ Confirm before proceeding. Ask only what's missing.
 
 1. **Page list** - explicit URLs, manifest path, or a diff to derive from
 2. **Auth** - required? If yes: storage state path, login flow, or none
-3. **Viewport** - default `1280×800` desktop unless stated; `390×844` for mobile checks
-4. **Output dir** - where MD files and screenshots land
+3. **Viewport** - default `1280x800` desktop unless stated; `390x844` for mobile checks
+4. **Output dir** - default: `.goat-flow/logs/sessions/<date>-<label>/` (gitignored, local-only). Screenshots go in a `screenshots/` subdirectory. **NEVER write captures to the project root, `captures/`, or any tracked directory.** Page captures are session artifacts, not committed project files. If the user specifies a different output dir, verify it is gitignored before writing
 5. **Project reference** - does one exist at `.goat-flow/patterns/<project>-playwright.md`? Read it now if so. Also run the footgun grep for the target area against `.goat-flow/footguns/` per `skill-preamble.md`
+6. **Playwright tier** - run the availability check; record which tier will be used
 
 If any answer is unclear, ask. Do not guess URLs or auth flow.
 
 ### Step 1 - Pre-flight
 
-- Set viewport once: `browser_resize → width: <W>, height: <H>`. Consistency across captures matters; do not resize per page.
+- Set viewport once. Consistency across captures matters; do not resize per page.
 - If auth is required:
-  - Storage state path → load it before navigating
-  - Login flow → run it once at the start, capture storage state, reuse for the rest of the run
+  - Storage state path -> load it before navigating (see per-tier instructions above)
+  - Login flow -> run it once at the start, capture storage state, reuse for the rest of the run
   - Never paste credentials, tokens, or session IDs into MD output
 
 ### Step 2 - Per-Page Loop
 
 For each URL:
 
-1. **Navigate** - `browser_navigate → <url>`
+1. **Navigate** - load the URL
 2. **Verify load** - wait for an anchor before screenshotting. In order of preference:
-  - `browser_wait_for → text: "<expected page text>"` (best - anchored to content)
-  - `browser_wait_for → selector: "<css>"` (good - anchored to structure)
-  - Network idle via `browser_network_requests` polling (fallback)
-  - Fixed `browser_wait_for → time: <n>` (last resort; mark capture's load as INFERRED)
+  - Wait for expected text (best - anchored to content)
+  - Wait for CSS selector (good - anchored to structure)
+  - Network idle polling (fallback)
+  - Fixed time delay (last resort; mark capture's load as INFERRED)
 3. **Apply project reference fixes** - hide debug toolbars, dismiss banners, wait for app-specific JS init, anything documented in the project reference
-4. **Screenshot** - full page via `browser_screenshot`, save to `<output_dir>/screenshots/<slug>.png`. Slug is derived from the URL path (strip query params and fragments; use param values only if two URLs share the same path). Collisions get a numeric suffix
-5. **Capture metadata** - URL, page title (`browser_evaluate → () => document.title` or snapshot depth 1), viewport, UTC ISO 8601 timestamp, console error count via `browser_console_messages → level: "error"` (count only, do not paste contents)
+4. **Screenshot** - full page, save to `<output_dir>/screenshots/<slug>.png`. Slug is derived from the URL path (strip query params and fragments; use param values only if two URLs share the same path). Collisions get a numeric suffix
+5. **Capture metadata** - URL, page title, viewport, UTC ISO 8601 timestamp, console error count (count only, do not paste contents). If the integration tier cannot capture console errors, note `not captured (<tier>)` instead of omitting the field
 6. **Write MD record** to `<output_dir>/<slug>.md` using the output format below
 
 If verification fails (timeout, 4xx/5xx, console error class) - do NOT skip silently. Record the page with status `failed` and the failure reason. Continue to the next page.
@@ -106,8 +165,9 @@ After all pages processed, write `<output_dir>/index.md`:
 # Page Capture - <run_label>
 
 **Captured:** <UTC timestamp>
-**Viewport:** <W>×<H>
+**Viewport:** <W>x<H>
 **Auth:** authenticated / unauthenticated
+**Tool:** <tier used, e.g. "Python Playwright via browser-use-python" or "Playwright MCP">
 **Pages:** <N total>, <N succeeded>, <N failed>
 
 ## Pages
@@ -152,7 +212,7 @@ One MD file per page:
 
 **URL:** <url>
 **Captured:** <UTC ISO 8601>
-**Viewport:** <W>×<H>
+**Viewport:** <W>x<H>
 **Status:** ok / failed
 **Load verification:** text / selector / network-idle / time (INFERRED)
 **Console errors:** <count>
@@ -170,6 +230,7 @@ One MD file per page:
 
 ## Discipline
 
+- **Output location:** all capture artifacts (MD records, screenshots, index) MUST go inside `.goat-flow/logs/sessions/<date>-<label>/`. Never create a `captures/`, `screenshots/`, or any other directory at the project root. Page captures are gitignored session artifacts.
 - Screenshot evidence is OBSERVED. Any post-capture interpretation in the Notes section is INFERRED unless mapped to a `file:line` or repeatable reproduction.
 - Failures are recorded, never skipped. A run that captured 8 of 10 pages with 2 failures is more honest than a run that silently dropped 2.
 - Read-only navigation. Do not click buttons that mutate state, submit forms, or follow destructive links unless the task explicitly requires it (e.g. capturing a confirmation page after submission).
@@ -183,21 +244,22 @@ One MD file per page:
 - Screenshots may render sensitive content (PII, account data, internal IDs) - save to a temporary path until reviewed; only move to a shared location after review
 - For healthcare or regulated contexts, use synthetic accounts; never capture pages logged in as a real user
 
-## Fallback When Playwright MCP Is Unavailable
+## Fallback When No Playwright Path Is Available
 
-If Playwright MCP isn't connected or the tools above are missing, capture equivalent evidence manually:
+If none of the Playwright tiers (MCP, Python, Node) are available, capture equivalent evidence manually:
 
 - Manual screenshot via OS or browser DevTools
 - Page title and headings via DevTools Console copy
 - Console errors via DevTools Console export
-- Network requests via DevTools Network tab → HAR export
+- Network requests via DevTools Network tab -> HAR export
 
 Ask the user to provide this evidence. Manual evidence follows the same classification: raw captures are OBSERVED, interpretations are INFERRED. Note in the index that the run was manual; reproducibility drops and that should be visible.
 
 ## Troubleshooting
 
-- **Page seems loaded but screenshot is blank** - JS init not complete. Add a `browser_wait_for` on a known late-rendered element from the project reference, or wait for a network idle window
-- **Screenshot crops the modal or content** - viewport too short. Resize to `1280×800` or larger and re-capture; document the size used
+- **`command -v playwright` fails but Playwright is installed** - check `browser-use-python -m playwright --version` and `npx playwright --version`. The global binary may not exist even when the library is usable through a wrapper or package manager
+- **Page seems loaded but screenshot is blank** - JS init not complete. Wait for a known late-rendered element from the project reference, or wait for a network idle window
+- **Screenshot crops the modal or content** - viewport too short. Resize to `1280x800` or larger and re-capture; document the size used
 - **Auth state not persisting between pages** - storage state file path wrong, or login session has IP/UA binding. Recapture storage state at run start
 - **Console errors on every page** - likely third-party (analytics, tracking). Filter by source URL before deciding the page failed; document filter in the project reference
 - **Same slug for two URLs** - append `-2`, `-3` deterministically. Do not silently overwrite
