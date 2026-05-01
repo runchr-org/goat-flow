@@ -87,4 +87,4 @@ Embedding an unindented shell heredoc directly inside a GitHub Actions `run: |` 
 
 **Resolution:** Removed the `collectDecisionWarnings` function. The decisions README still recommends Author(s) and Ticket/Context, but their absence no longer produces per-run noise. If enforcement is later desired, it should be a finding (gate-bearing) with a migration path, not a warning.
 
-**Pattern:** Advisory warnings must have an enforcement timeline or be removed. A warning that fires on 100% of the corpus with no path to resolution is not a safety net — it is noise that erodes trust in the tool.
+**Pattern:** Advisory warnings must have an enforcement timeline or be removed. A warning that fires on 100% of the corpus with no path to resolution is not a safety net - it is noise that erodes trust in the tool.

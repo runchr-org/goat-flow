@@ -227,7 +227,7 @@ cd "$PROJECT"
 # 1. Create .goat-flow/ directories
 # ==========================================================================
 echo "Directories:"
-for dir in .goat-flow/footguns .goat-flow/lessons .goat-flow/decisions .goat-flow/tasks .goat-flow/scratchpad .goat-flow/logs/sessions .goat-flow/logs/quality .goat-flow/logs/critiques .goat-flow/skill-reference; do
+for dir in .goat-flow/footguns .goat-flow/lessons .goat-flow/patterns .goat-flow/decisions .goat-flow/tasks .goat-flow/scratchpad .goat-flow/logs/sessions .goat-flow/logs/quality .goat-flow/logs/critiques .goat-flow/skill-reference; do
   if [[ ! -d "$dir" ]]; then
     mkdir -p "$dir"
     echo "  ✓ $dir/"
@@ -246,6 +246,7 @@ copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/tasks-gitignore" ".goat-flow
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/scratchpad-gitignore" ".goat-flow/scratchpad/.gitignore"
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/lessons-readme.md" ".goat-flow/lessons/README.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/footguns-readme.md" ".goat-flow/footguns/README.md"
+copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/patterns-readme.md" ".goat-flow/patterns/README.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/tasks-readme.md" ".goat-flow/tasks/README.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/scratchpad-readme.md" ".goat-flow/scratchpad/README.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/quality-readme.md" ".goat-flow/logs/quality/README.md"
@@ -265,6 +266,7 @@ copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-quality-testing.md" "
 copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-quality-testing/tdd-iteration.md" ".goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-quality-testing/adversarial-framing.md" ".goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-quality-testing/deployment.md" ".goat-flow/skill-reference/skill-quality-testing/deployment.md"
+copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/page-capture.md" ".goat-flow/skill-reference/page-capture.md"
 copy_if_missing "$GOAT_FLOW_ROOT/workflow/setup/reference/security-policy.md" ".goat-flow/security-policy.md"
 echo ""
 

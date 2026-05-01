@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.3.3"
+goat-flow-reference-version: "1.4.0"
 ---
 # Browser Evidence Reference
 
@@ -7,7 +7,7 @@ Last verified against: browser-use v0.2.x (2026-04-26)
 
 Use this when a task involves a URL, local HTML file, localhost page, screenshot request, browser-visible behavior, visual rendering issue, browser DevTools output, or browser console/network symptom.
 
-`browser-use` is the default observation probe for agents: quick rendered state, screenshots, and simple interaction evidence. Playwright remains the better tool for durable automated browser tests, CI assertions, cross-browser coverage, and regression suites.
+`browser-use` is the default observation probe for agents: quick rendered state, screenshots, and simple interaction evidence. Playwright remains the better tool for durable automated browser tests, CI assertions, cross-browser coverage, and regression suites. For batch page capture (visit N pages, screenshot each, emit structured MD records), use `page-capture.md` instead.
 
 ## Availability Check
 

@@ -39,7 +39,7 @@ Checks are grouped by **scope**:
 - `architecture` - `.goat-flow/architecture.md` exists
 - `code-map` - `.goat-flow/code-map.md` exists
 - `glossary` - `.goat-flow/glossary.md` exists
-- `patterns` - `.goat-flow/patterns.md` exists
+- `patterns` - `.goat-flow/patterns/README.md` exists
 - `decisions` - `.goat-flow/decisions/` directory exists
 - `session-logs` - `.goat-flow/logs/sessions/` directory exists
 - `tasks` - `.goat-flow/tasks/` directory, `.gitignore`, and README exist (local-session state by design)
@@ -74,7 +74,7 @@ Sample harness output:
 ```
 GOAT Flow Setup:          PASS
   Skills:                 7/7 installed
-  Config:                 valid, version 1.3.3
+  Config:                 valid, version 1.4.0
   InstructionFile:        118 lines
 
 Agent Setup:              PASS
