@@ -346,6 +346,14 @@ run_self_test() {
   run_case "rm unsafe separated flags reversed" "rm -f -r /" 2
   run_case "rm unsafe uppercase recursive" "rm -Rf ." 2
   run_case "rm unsafe mixed recursive flags" "rm -fR /" 2
+  # rm -r without -f is equally destructive in agent context (no interactive prompt).
+  run_case "rm -r without force blocked" "rm -r /" 2
+  run_case "rm -r src blocked" "rm -r src" 2
+  run_case "rm -r .codex blocked" "rm -r .codex" 2
+  run_case "rm -r dotslash src blocked" "rm -r ./src" 2
+  run_case "rm --recursive blocked" "rm --recursive src" 2
+  run_case "rm -r scoped node_modules" "rm -r node_modules" 0
+  run_case "rm -r scoped subdir" "rm -r src/old-module" 0
   # Safe-scoped rm command should pass.
   run_case "rm scoped node_modules" "rm -rf ./node_modules" 0
   run_case "rm scoped separated flags" "rm -r -f ./node_modules" 0
@@ -623,21 +631,12 @@ check_command_substitutions() {
   fi
 }
 
-rm_has_recursive_force() {
+rm_has_recursive() {
   local c="$1"
-  local has_recursive=0
-  local has_force=0
 
   [[ "$c" =~ ^[[:space:]]*rm([[:space:]]|$) ]] || return 1
 
-  if [[ "$c" =~ (^|[[:space:]])--recursive([[:space:]]|$) ]] || [[ "$c" =~ (^|[[:space:]])-[^-[:space:]]*[rR][^[:space:]]*([[:space:]]|$) ]]; then
-    has_recursive=1
-  fi
-  if [[ "$c" =~ (^|[[:space:]])--force([[:space:]]|$) ]] || [[ "$c" =~ (^|[[:space:]])-[^-[:space:]]*f[^[:space:]]*([[:space:]]|$) ]]; then
-    has_force=1
-  fi
-
-  [[ "$has_recursive" -eq 1 && "$has_force" -eq 1 ]]
+  [[ "$c" =~ (^|[[:space:]])--recursive([[:space:]]|$) ]] || [[ "$c" =~ (^|[[:space:]])-[^-[:space:]]*[rR][^[:space:]]*([[:space:]]|$) ]]
 }
 
 rm_is_safely_scoped() {
@@ -1211,16 +1210,16 @@ check_segment() {
     esac
   fi
 
-  # 1. rm -rf without safe scoping
-  #    Block: rm -rf /, rm -r -f /, rm --recursive --force ~, rm with path traversal
-  #    Allow: rm -rf ./node_modules, rm -r -f dist/, rm --recursive --force /tmp/build-*
-  if rm_has_recursive_force "$cmd"; then
+  # 1. rm -r without safe scoping (force flag is irrelevant in agent context)
+  #    Block: rm -r /, rm -rf /, rm -r -f /, rm --recursive ~, rm with path traversal
+  #    Allow: rm -rf ./node_modules, rm -r dist/, rm --recursive /tmp/build-*
+  if rm_has_recursive "$cmd"; then
     # Block path traversal regardless of prefix
     if [[ "$cmd" =~ \.\. ]]; then
-      block "rm -rf with path traversal (..). Resolve the full path first."
+      block "rm -r with path traversal (..). Resolve the full path first."
     fi
     if ! rm_is_safely_scoped "$cmd"; then
-      block "rm -rf without safe scoping. Specify an explicit target path."
+      block "rm -r without safe scoping. Specify an explicit target path."
     fi
   fi
 
