@@ -26,7 +26,7 @@ Use when the user describes an outcome and wants the right workflow chosen. **If
 2. **GATHER** - before routing, check:
    - Footgun matches: grep `.goat-flow/footguns/` for the target area
    - Plan state: check `.goat-flow/tasks/.active` for in-progress milestones
-   - Ask-first boundaries: scan CLAUDE.md boundaries for the target files
+   - Ask-first boundaries: scan the active instruction file's Ask First boundaries for the target files
    - If any check fails or is unavailable, note `gather-degraded` and route anyway
 3. **ROUTE** - dispatch using the route map. Emit a Route Snapshot:
 

@@ -43,3 +43,8 @@ logs/quality/*.md
 !logs/critiques/
 logs/critiques/*.md
 !logs/critiques/README.md
+# Keep the security-log path and anchor file, but ignore captured reports.
+!logs/security/
+logs/security/*.md
+logs/security/*.json
+!logs/security/.gitkeep

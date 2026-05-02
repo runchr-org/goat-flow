@@ -1,6 +1,6 @@
 # Deterministic Audit Checks
 
-`npx goat-flow audit` currently registers **33 deterministic checks**:
+`npx goat-flow audit` currently registers **34 deterministic checks**:
 
 - **17 build checks**: 13 setup-scope checks plus 4 agent-scope checks
 - **17 harness checks**: additional checks enabled by `--harness`
@@ -51,7 +51,7 @@ Aggregate-mode nuance:
 
 ## Harness Checks
 
-`npx goat-flow audit . --harness` adds **16** deterministic harness-completeness checks on top of the 17 build checks. These checks are grouped by concern and typed as `integrity`, `advisory`, or `metric`.
+`npx goat-flow audit . --harness` adds **17** deterministic harness-completeness checks on top of the 17 build checks. These checks are grouped by concern and typed as `integrity`, `advisory`, or `metric`.
 
 | Concern | Check id | Type | What it validates |
 |---------|----------|------|-------------------|
@@ -59,6 +59,7 @@ Aggregate-mode nuance:
 | Context | `execution-loop-present` | `advisory` | Each instruction file contains the READ / SCOPE / ACT / VERIFY execution-loop vocabulary |
 | Context | `doc-paths-resolve` | `integrity` | Router-table paths, `.goat-flow/architecture.md` backtick paths, and curated audit docs backtick paths resolve to real files |
 | Context | `instruction-sections-present` | `advisory` | Each instruction file contains the required hot-path headings: Truth Order, Execution Loop, Definition of Done, and Router Table |
+| Context | `boundary-guidance-present` | `advisory` | Each instruction file contains workspace boundary guidance (controlling workspace vs target workspace separation) |
 | Constraints | `deny-covers-secrets` | `integrity` | Secret-bearing file reads are covered by the deny layer; settings-based agents need both settings `Read` deny coverage and Bash-hook coverage |
 | Constraints | `deny-blocks-dangerous` | `integrity` | Deny patterns block `rm -rf`, all git push (ADR-025), and `chmod` |
 | Constraints | `deny-blocks-pipe-to-shell` | `advisory` | Deny patterns block `curl | bash` and `wget | sh` pipe-to-shell execution |

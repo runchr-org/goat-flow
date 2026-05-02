@@ -235,7 +235,7 @@ async function dashboardUpdateSessionCount(
   }
 }
 
-/** End every live terminal session for the current project. */
+/** Clear non-active (terminated/starting) terminal sessions, preserving running ones. */
 async function dashboardEndAllSessions(
   ctx: DashboardTerminalContext,
 ): Promise<void> {
@@ -247,26 +247,49 @@ async function dashboardEndAllSessions(
           .map((session) => readServerSessionInfo(session))
           .filter((session): session is ServerSessionInfo => session !== null)
       : [];
-    for (const session of sessions) {
+    const inactive = sessions.filter(
+      (session) => session.status !== "active",
+    );
+    const activeIds = new Set(
+      sessions
+        .filter((session) => session.status === "active")
+        .map((session) => session.id),
+    );
+    for (const session of inactive) {
       await fetch(`/api/terminal/${session.id}`, { method: "DELETE" });
     }
     for (const id of Object.keys(ctx._terminalRefs)) {
+      if (activeIds.has(id)) continue;
       const refs = ctx._terminalRefs[id];
       if (refs?.cleanup) refs.cleanup();
+      delete ctx._terminalRefs[id];
     }
-    ctx._terminalRefs = {};
-    ctx._projectSessions = {};
-    ctx._projectActiveSession = {};
-    ctx.sessions = [];
-    ctx.activeSessionId = null;
+    for (const key of Object.keys(ctx._projectSessions)) {
+      const kept = (ctx._projectSessions[key] ?? []).filter((s) =>
+        activeIds.has(s.sessionId),
+      );
+      if (kept.length > 0) ctx._projectSessions[key] = kept;
+      else delete ctx._projectSessions[key];
+    }
+    ctx.sessions = ctx.sessions.filter((s) => activeIds.has(s.id));
+    if (ctx.activeSessionId && !activeIds.has(ctx.activeSessionId)) {
+      ctx.activeSessionId = null;
+    }
     for (const [presetId, state] of Object.entries(ctx.promptRunStates)) {
-      if (state === "running") ctx.promptRunStates[presetId] = "pass";
+      if (state === "running" && !ctx.sessions.some((s) => s.presetId === presetId)) {
+        ctx.promptRunStates[presetId] = "pass";
+      }
     }
     await ctx.updateSessionCount();
-    ctx.showToast("All sessions ended");
+    const count = inactive.length;
+    ctx.showToast(
+      count > 0
+        ? `Cleared ${count} inactive session${count !== 1 ? "s" : ""}`
+        : "No inactive sessions to clear",
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    ctx.showToast("Failed to end sessions: " + msg, true);
+    ctx.showToast("Failed to clear sessions: " + msg, true);
   }
 }
 

@@ -1,7 +1,7 @@
 /**
  * Context concern: Is the agent's map accurate and structurally complete?
- * 4 deterministic checks (instruction size, execution loop, doc paths,
- * instruction sections). Content-quality judgments (e.g. footgun evidence
+ * 5 deterministic checks (instruction size, execution loop, doc paths,
+ * instruction sections, boundary guidance). Content-quality judgments (e.g. footgun evidence
  * currency) live in the `quality` assessment prompt, not here.
  */
 import type { AuditContext, HarnessCheck } from "../types.js";

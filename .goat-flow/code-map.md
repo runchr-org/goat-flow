@@ -24,7 +24,7 @@ audit/
   check-factual-claims.ts  # Cold-path factual-claim extraction (skill/check counts, broken refs)
   check-snapshot-claims.ts # Snapshot-claim lint for CHANGELOG / release-frozen docs (M06b)
   provenance-types.ts      # Evidence-provenance schema for audit checks (M05)
-  harness/                 # 16 pass/fail completeness checks grouped by concern (5 files + helpers + index)
+  harness/                 # 17 pass/fail completeness checks grouped by concern (5 files + helpers + index)
   render.ts                # Output formatters (text, json, markdown)
   types.ts                 # Audit-specific types (AuditReport, CheckResult, AuditFailure)
 
@@ -173,6 +173,7 @@ config.yaml                # Project config (version, agents, skills, line limit
 skill-reference/           # Shared skill doctrine (committed, install-copied from workflow/skills/reference/)
   skill-preamble.md        # Loaded by every goat-* skill invocation
   skill-conventions.md     # Loaded by full-depth skill invocations
+  page-capture.md          # Playwright page-capture usage tiers and installation checks
   skill-quality-testing.md # Index for the authoring methodology (points at topical files below)
   skill-quality-testing/   # Topical authoring files loaded on demand per ADR-023
     tdd-iteration.md       # TDD loop, pressure types, scenarios, bulletproofing, persuasion

@@ -101,7 +101,7 @@ Context health: compact at 60% util. Noise pruning before compacting. `/clear` b
 | Core docs/config | `.goat-flow/architecture.md`, `.goat-flow/config.yaml`, `docs/` |
 | CLI/dashboard/scripts | `src/cli/`, `src/dashboard/`, `scripts/` |
 | Workflow/skills | `workflow/`, `.agents/skills/` |
-| Shared skill reference | `.goat-flow/skill-reference/`, `.goat-flow/skill-reference/skill-preamble.md`, `.goat-flow/skill-reference/skill-conventions.md`, `.goat-flow/skill-reference/browser-use.md`, `.goat-flow/skill-reference/skill-quality-testing.md`, `.goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md`, `.goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md`, `.goat-flow/skill-reference/skill-quality-testing/deployment.md` |
+| Shared skill reference | `.goat-flow/skill-reference/`, `.goat-flow/skill-reference/skill-preamble.md`, `.goat-flow/skill-reference/skill-conventions.md`, `.goat-flow/skill-reference/browser-use.md`, `.goat-flow/skill-reference/page-capture.md`, `.goat-flow/skill-reference/skill-quality-testing.md`, `.goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md`, `.goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md`, `.goat-flow/skill-reference/skill-quality-testing/deployment.md` |
 | Learning loop | `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/` |
 | Workspace notes | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
 | Peer instructions | `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md` |

@@ -73,7 +73,7 @@ When asked to add, create, or update a goat-flow artifact, route it to the artif
 
 **Always:** Read any file, run validation scripts, edit within declared scope, add Codex artifacts. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when `/compact` fires without an active milestone file, otherwise skip. Learning-loop updates (lessons/footguns/decisions) follow the conditional rule above: update only when VERIFY caught a failure or you corrected course.
 
-**Codex note:** `goat-critique` depends on delegated sub-agents; direct `$goat-critique` or `/goat-critique` invocation is explicit delegation consent. Ask only when `goat-critique` is auto-routed or chained without a direct user request.
+**Codex note:** `goat-critique` depends on delegated sub-agents. Direct `$goat-critique` or `/goat-critique` invocation is explicit delegation consent. Skill-chained entry (e.g. `/goat-debug` chains to `/goat-critique`) is implicit consent from the parent invocation - do not re-ask.
 
 **Ask First** - before proceeding, state: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked (`.github/instructions/` / `AGENTS.md` / none), rollback command.
 
@@ -93,7 +93,7 @@ If working from a plan/milestone file, tick `- [x]` on each completed task immed
 | Core docs/config | `.goat-flow/architecture.md`, `.goat-flow/config.yaml`, `docs/` |
 | CLI/dashboard/scripts | `src/cli/`, `src/dashboard/`, `scripts/` |
 | Workflow/skills | `workflow/`, `.agents/skills/` |
-| Shared skill reference | `.goat-flow/skill-reference/`, `.goat-flow/skill-reference/skill-preamble.md`, `.goat-flow/skill-reference/skill-conventions.md`, `.goat-flow/skill-reference/browser-use.md`, `.goat-flow/skill-reference/skill-quality-testing.md`, `.goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md`, `.goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md`, `.goat-flow/skill-reference/skill-quality-testing/deployment.md` |
+| Shared skill reference | `.goat-flow/skill-reference/`, `.goat-flow/skill-reference/skill-preamble.md`, `.goat-flow/skill-reference/skill-conventions.md`, `.goat-flow/skill-reference/browser-use.md`, `.goat-flow/skill-reference/page-capture.md`, `.goat-flow/skill-reference/skill-quality-testing.md`, `.goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md`, `.goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md`, `.goat-flow/skill-reference/skill-quality-testing/deployment.md` |
 | Learning loop | `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/` |
 | Workspace notes | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
 | Peer instructions | `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md` |

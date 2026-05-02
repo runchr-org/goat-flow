@@ -31,19 +31,19 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 | "Inline role-play is faster than spawning agents" | Agents that role-play SBAO inline produce indistinguishable perspectives. Isolated context is what makes findings independent. |
 | "Closing checks happen after the main answer - skip them" | End-of-task rules have near-zero voluntary compliance. Phase 5.5 meta-audit and outcome capture exist because post-deliverable steps get skipped. |
 
-**Direct invocation is binding.** `$goat-critique` or `/goat-critique` runs all 5 phases. Dispatcher ambiguity rules do not override direct invocation; raise scope concerns after synthesis.
+**Direct invocation is binding.** `$goat-critique` or `/goat-critique` runs Phases 1-5 plus mandatory post-synthesis steps (5.5, 5.6). Dispatcher ambiguity rules do not override direct invocation; raise scope concerns after synthesis.
 
 **Report-only by default.** `$goat-critique make X shorter` = critique only; `$goat-critique ... then apply it` = critique first, apply after gate. See Constraints for mutation and apply rules.
 
 ## Step 0 - Intake
 
-goat-critique runs in one mode: full delegated, 5 phases, three sub-agents. If an agent suggests adding a lighter mode, that suggestion is the failure this design prevents.
+goat-critique runs in one mode: full delegated, Phases 1-5 plus mandatory post-synthesis steps (5.5 meta-audit, 5.6 outcome capture), three sub-agents. If an agent suggests adding a lighter mode, that suggestion is the failure this design prevents.
 
 **Intake checklist:**
 - Confirm the artifact exists and is concrete (a file, a plan document, a specific set of findings - not a vague idea).
 - Select the critique rubric for the artifact type (see Critique Rubrics below). If unclear, ask the user.
 - Use the preamble's grep-first learning-loop retrieval on relevant `.goat-flow/footguns/` and `.goat-flow/lessons/`; record explicit misses instead of broad-loading buckets.
-- Delegation consent: proceed directly to Phase 1. Skill-chained entry: skip intake confirmation, use caller context; still run retrieval + rubric selection. All 5 phases always run.
+- Delegation consent: proceed directly to Phase 1. Skill-chained entry: skip intake confirmation, use caller context; still run retrieval + rubric selection. All phases (1-5 + 5.5 + 5.6) always run.
 - **Differential mode detection:** Check `.goat-flow/logs/critiques/` for prior critiques of the same artifact slug within 30 days. If found, offer differential mode: sub-agents A and B receive the prior critique log + artifact diff; Agent C stays cold. Phase 5 Verdict adds a delta block (Resolved/Regressed/New/Unchanged counts). Tag log as `[diff-of: <prior-uuid>]`.
 - **Read context map:** Read the selected rubric's context map (see `references/rubric-examples.md`) and pass to each sub-agent's spawn directive.
 
@@ -183,7 +183,7 @@ The rubric determines what sub-agents evaluate. Match to artifact type. Dimensio
 
 ## Constraints
 
-- MUST run in one mode: full delegated, 5 phases, three sub-agents. Quick/lite modes were tried and removed - a single reviewer running lens passes in one context is self-talk under three labels, not multi-perspective critique.
+- MUST run in one mode: full delegated, Phases 1-5 plus mandatory post-synthesis steps (5.5, 5.6), three sub-agents. Phase 5 is not complete until 5.5 and 5.6 have run. Quick/lite modes were tried and removed - a single reviewer running lens passes in one context is self-talk under three labels, not multi-perspective critique.
 - Explicit `$goat-critique` or `/goat-critique` invocation IS consent to spawn sub-agents and the full protocol. Do NOT ask again.
 - Report-only by default. Do not mutate the target artifact or committed files unless the user separately says to apply, edit, update, fix, or otherwise implement. If interrupted, freeze writes.
 - MUST Spawn all three sub-agents in a single parallel batch. Sequential spawning loses the informational-diversity benefit.
