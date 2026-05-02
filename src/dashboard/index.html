@@ -252,16 +252,26 @@
           placeholder="Project title"
           title="Enter to save · Esc to cancel · empty to reset"
         />
-        <button
+        <span
           x-show="!editingProjectTitle"
-          @click.stop="startEditProjectTitle()"
-          class="gf-header-proj-edit-btn"
-          title="Rename project"
-          aria-label="Rename project"
-          type="button"
+          class="gf-tooltip-wrap gf-header-tooltip-wrap"
         >
-          ✎
-        </button>
+          <button
+            @click.stop="startEditProjectTitle()"
+            class="gf-header-proj-edit-btn"
+            aria-label="Rename project"
+            aria-describedby="project-title-rename-tip"
+            type="button"
+          >
+            ✎
+          </button>
+          <span
+            id="project-title-rename-tip"
+            class="gf-tooltip gf-header-tooltip"
+            role="tooltip"
+            >Rename project</span
+          >
+        </span>
         <div class="gf-nav-wrap">
           <div class="gf-nav">
             <button
@@ -309,14 +319,11 @@
               <span
                 x-show="(terminalSessionId && !terminalEnded) || terminalSessionCount > 0"
                 title="Terminal session active"
-                style="
-                  width: 6px;
-                  height: 6px;
-                  border-radius: 50%;
-                  background: #4ade80;
-                  flex-shrink: 0;
-                "
-              ></span>
+                class="gf-status-dot gf-status-running"
+                style="width: 12px; height: 12px; font-size: 7px"
+                aria-label="Terminal session active"
+                >●</span
+              >
             </button>
           </div>
         </div>

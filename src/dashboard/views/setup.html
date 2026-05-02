@@ -34,8 +34,10 @@
           style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap"
         >
           <span
-            style="width: 8px; height: 8px; border-radius: 999px"
-            :style="{ background: report?.scopes?.setup?.status === 'pass' ? '#4ade80' : '#f87171' }"
+            class="gf-status-dot"
+            :class="report?.scopes?.setup?.status === 'pass' ? 'gf-status-pass' : 'gf-status-danger'"
+            :aria-label="report?.scopes?.setup?.status === 'pass' ? 'Passing' : 'Failing'"
+            x-text="report?.scopes?.setup?.status === 'pass' ? '✓' : '!'"
           ></span>
           <span
             class="gf-text-primary"
@@ -45,7 +47,7 @@
           <span class="gf-text-muted">·</span>
           <span
             style="font-size: 14px; font-weight: 500"
-            :style="{ color: report?.scopes?.setup?.status === 'pass' ? '#4ade80' : '#f87171' }"
+            :style="{ color: report?.scopes?.setup?.status === 'pass' ? 'var(--status-pass)' : 'var(--red-400)' }"
             x-text="(() => { const checks = report?.scopes?.setup?.checks || []; const p = checks.filter(c => c.status === 'pass').length; return `${p} of ${checks.length} installed`; })()"
           ></span>
           <span class="gf-text-muted">·</span>
@@ -56,7 +58,7 @@
         <button
           @click="runAudit(true)"
           :disabled="auditing"
-          class="gf-btn gf-btn-md"
+          class="gf-btn gf-btn-md gf-btn-secondary"
         >
           <span x-text="auditing ? 'Auditing...' : 'Re-audit'"></span>
         </button>
@@ -80,7 +82,7 @@
           <button
             @click="setupSelectedAgent = agent.id; generateSetupPrompt();"
             class="gf-card"
-            :style="setupSelectedAgent === agent.id ? { borderColor: 'var(--accent-border)', background: 'rgba(74,222,128,0.04)' } : {}"
+            :style="setupSelectedAgent === agent.id ? { borderColor: 'var(--accent-border)', background: 'var(--accent-bg)' } : {}"
             style="padding: 11px 12px; text-align: left"
           >
             <div
@@ -343,14 +345,14 @@
             <button
               x-data="{ copied: false }"
               @click="if (setupOutputs[setupSelectedAgent]) { copyText(setupOutputs[setupSelectedAgent]); copied = true; setTimeout(() => copied = false, 1200); }"
-              class="gf-btn gf-btn-md"
+              class="gf-btn gf-btn-md gf-btn-secondary"
             >
               <span x-text="copied ? 'Copied' : 'Copy'"></span>
             </button>
             <button
               @click="generateSetupPrompt(true)"
               :disabled="setupGenerating"
-              class="gf-btn gf-btn-md"
+              class="gf-btn gf-btn-md gf-btn-secondary"
             >
               Regenerate
             </button>
@@ -405,7 +407,7 @@
         <div x-show="setupGenerating" class="gf-prompt-loading">
           <svg
             class="animate-spin"
-            style="width: 16px; height: 16px; color: #4ade80"
+            style="width: 16px; height: 16px; color: var(--accent)"
             fill="none"
             viewBox="0 0 24 24"
           >
