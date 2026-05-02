@@ -717,6 +717,16 @@ function parseReportInternal(
     findings.push(parsedFinding.finding);
   }
 
+  if (options.requireCurrentFields && typeof priorReportId === "string") {
+    const nullDeltaIndex = findings.findIndex((f) => f.delta_tag === null);
+    if (nullDeltaIndex !== -1) {
+      return {
+        ok: false,
+        error: `findings[${nullDeltaIndex}].delta_tag must be "new" or "persisted" when prior_report_id is set`,
+      };
+    }
+  }
+
   const reportBase: Omit<QualityReport, "findings"> = {
     report_kind: QUALITY_REPORT_KIND,
     goat_flow_version: version.value,
