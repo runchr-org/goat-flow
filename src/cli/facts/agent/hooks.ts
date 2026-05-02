@@ -458,7 +458,7 @@ function denyHookHasNormalizedSecretRoots(content: string): boolean {
   return hasRootMatcher || hasSelfTestRoots;
 }
 
-/** Detect the secret path families the harness expects the Bash hook to cover. */
+/** Detect the direct literal secret-path families the Bash hook should block. */
 function denyHookHasSecretFamilyMarkers(content: string): boolean {
   const hasKeys =
     content.includes("\\.(pem|key|pfx)") ||
@@ -474,10 +474,9 @@ function denyHookHasSecretFamilyMarkers(content: string): boolean {
   ].every(Boolean);
 }
 
-/** Detect whether the Bash deny hook has pattern coverage for secret-bearing
- *  file reads (.env, SSH/AWS paths, credentials, and key material). Required
- *  because settings.json Read() deny rules only apply to the Read tool, not
- *  Bash. */
+/** Detect whether the Bash deny hook blocks direct literal secret-bearing paths
+ *  (.env, SSH/AWS paths, credentials, and key material). Required because
+ *  settings.json Read() deny rules only apply to the Read tool, not Bash. */
 function detectBashDenyCoversSecrets(
   fs: ReadonlyFS,
   denyHookPath: string | null,

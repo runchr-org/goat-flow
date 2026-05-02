@@ -50,7 +50,7 @@ The audit checks whether files exist, paths resolve, and patterns are registered
 
 ### 2. Constraints
 
-**Audit checks:** deny covers secrets, deny blocks dangerous commands, deny blocks pipe-to-shell, deny hook registered in agent settings.
+**Audit checks:** deny blocks direct literal secret paths, deny blocks dangerous commands, deny blocks pipe-to-shell, deny hook registered in agent settings.
 
 **Quality evaluates:**
 - Are Ask First boundaries specific to real risk areas in this codebase, or generic placeholders?

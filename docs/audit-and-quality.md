@@ -64,7 +64,7 @@ Harness checks are grouped by **concern** -- the five things that matter for age
 
 **harness scope** (AI Harness Completeness) - 17 checks across 5 concerns:
 - **Context** (5) - instruction file within line limit, execution loop present, doc paths resolve, required instruction sections present, workspace boundary guidance present
-- **Constraints** (4) - deny covers secrets, deny blocks dangerous commands, deny blocks pipe-to-shell, deny hook registered in agent settings
+- **Constraints** (4) - deny blocks direct literal secret paths, deny blocks dangerous commands, deny blocks pipe-to-shell, deny hook registered in agent settings
 - **Verification** (4) - test runner configured, hooks in sync, commit guidance, post-turn hook integrity
 - **Recovery** (2) - milestone tracking, session logs
 - **Feedback Loop** (2) - feedback loop directories exist, decisions tracked

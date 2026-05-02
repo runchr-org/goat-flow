@@ -2,7 +2,7 @@
  * Verification concern: Can the agent verify its own work honestly?
  * 4 checks: test-runner-configured, hooks-registered, commit-guidance, post-turn-hook-integrity.
  */
-import type { HarnessCheck } from "../types.js";
+import type { AuditContext, HarnessCheck } from "../types.js";
 import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
 
@@ -28,27 +28,127 @@ function verificationProvenance(
   };
 }
 
+const VALIDATION_ARTIFACT_DIRS = [
+  ".goat-flow/logs/validation",
+  ".goat-flow/logs/sessions",
+];
+const RECENT_VALIDATION_DAYS = 14;
+
+function isRecentDatedArtifact(path: string, now = new Date()): boolean {
+  const match = path.match(/(?:^|\/)(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return false;
+  const [, year, month, day] = match;
+  if (!year || !month || !day) return false;
+  const artifactDate = new Date(
+    Date.UTC(Number(year), Number(month) - 1, Number(day)),
+  );
+  const today = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  const ageDays = Math.floor(
+    (today.getTime() - artifactDate.getTime()) / 86_400_000,
+  );
+  return ageDays >= 0 && ageDays <= RECENT_VALIDATION_DAYS;
+}
+
+function isExplicitValidationArtifact(path: string): boolean {
+  return path.startsWith(".goat-flow/logs/validation/");
+}
+
+function listValidationArtifacts(ctx: AuditContext): string[] {
+  const artifacts: string[] = [];
+  for (const dir of VALIDATION_ARTIFACT_DIRS) {
+    let entries: string[];
+    try {
+      entries = ctx.fs.listDir(dir);
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!/\.(json|md|txt|log)$/i.test(entry)) continue;
+      const path = `${dir}/${entry}`;
+      if (isExplicitValidationArtifact(path) || isRecentDatedArtifact(path)) {
+        artifacts.push(path);
+      }
+    }
+  }
+  return artifacts;
+}
+
+function artifactProvesCommand(content: string, command: string): boolean {
+  if (!content.includes(command)) return false;
+  return /(^|\n)\s*(PASS\b|# pass\b|EXIT=0\b|exit[_ -]?code["']?\s*[:=]\s*0\b|status["']?\s*[:=]\s*["']?pass["']?\b)/i.test(
+    content,
+  );
+}
+
+function findRuntimeProof(
+  ctx: AuditContext,
+  commands: readonly string[],
+): string | null {
+  for (const artifact of listValidationArtifacts(ctx)) {
+    const content = ctx.fs.readFile(artifact);
+    if (!content) continue;
+    for (const command of commands) {
+      if (artifactProvesCommand(content, command)) return artifact;
+    }
+  }
+  return null;
+}
+
+function configuredTestCommands(ctx: AuditContext): string[] {
+  const commands = [...ctx.config.config.toolchain.test];
+  if (
+    ctx.factProfile !== "dashboard-summary" &&
+    ctx.facts.stack.testCommand &&
+    !commands.includes(ctx.facts.stack.testCommand)
+  ) {
+    commands.push(ctx.facts.stack.testCommand);
+  }
+  return commands;
+}
+
 const testRunnerConfigured: HarnessCheck = {
   id: "test-runner-configured",
-  name: "Test runner configured",
+  name: "Test runner proof",
   concern: "verification",
-  type: "metric",
-  provenance: verificationProvenance("metric", [
+  type: "advisory",
+  provenance: verificationProvenance("advisory", [
     "docs/harness-audit.md",
     ".goat-flow/config.yaml",
   ]),
   /** Run the Test runner configured check. */
   run: (ctx) => {
-    const tc = ctx.config.config.toolchain;
-    if (tc.test.length > 0) {
-      return pass([`Test command configured: ${tc.test[0]}`]);
+    const commands = configuredTestCommands(ctx);
+    if (commands.length === 0) {
+      return fail(
+        [
+          "Missing: no structured toolchain.test command or detected project test command",
+        ],
+        [
+          "Declare a useful test command in toolchain.test or document/run the project-local verification command",
+        ],
+        [
+          "Add toolchain.test to .goat-flow/config.yaml when the project has tests, or add an explicit validation artifact under .goat-flow/logs/validation/ after running the project-local command.",
+        ],
+      );
+    }
+
+    const proofPath = findRuntimeProof(ctx, commands);
+    if (proofPath) {
+      return pass([
+        `Runtime-proven: validation artifact ${proofPath} records a passing run for ${commands[0]}`,
+      ]);
     }
     return fail(
       [
-        "No structured toolchain.test configured; treat project-local commands or instruction-file commands as the source of truth",
+        `Configured-only: test command declared or detected (${commands[0]}) but no runtime validation artifact proves it ran successfully`,
       ],
       [
-        "Add a test command to toolchain.test in .goat-flow/config.yaml if the project has tests",
+        "Run the configured test command and save explicit pass/fail evidence before treating verification as proven",
+      ],
+      [
+        `Run ${commands[0]} and record the command plus a literal pass/fail summary in .goat-flow/logs/validation/ or a session log.`,
       ],
     );
   },
@@ -170,7 +270,23 @@ const postTurnHookIntegrity: HarnessCheck = {
     }
 
     if (!anyHook) {
-      return pass(["No post-turn hooks installed"]);
+      return fail(
+        ["No post-turn hooks installed; no hook-based validation evidence"],
+        [
+          "Install a project-specific post-turn validation hook only if this project needs automatic post-action checks",
+        ],
+      );
+    }
+    if (
+      findings.some(
+        (finding) =>
+          finding.includes("no validation logic") ||
+          finding.includes("always exits 0"),
+      )
+    ) {
+      return fail(findings, [
+        "Make post-turn validation hooks run meaningful checks and report failures honestly, or leave them uninstalled",
+      ]);
     }
     return pass(findings);
   },

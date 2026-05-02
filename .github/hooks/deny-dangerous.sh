@@ -18,7 +18,7 @@
 # - Deeply nested command substitution beyond 3 levels is blocked as a
 #   precaution rather than parsed
 # - Defense in depth: combine with runtime deny patterns + instruction-file rules
-# NOTE: `source .env` and other shell-level secret reads ARE blocked. Plain
+# NOTE: direct literal `source .env` and similar shell-level secret reads ARE blocked. Plain
 #   `.env.example` reads are allowed; writes still block. See self-test cases.
 # =============================================================================
 set -uo pipefail
@@ -390,6 +390,9 @@ run_self_test() {
   run_case "printf rm -rf" "printf '%s\n' 'rm -rf /'" 0
   run_case "grep chmod 777" 'grep "chmod 777" file.ts' 0
   run_case "grep push main" 'grep "git push origin main" docs/' 0
+  run_case "grep secret-looking pem pattern" "grep -n 'private_key_path: /srv/example/keys/jwt/private.pem' config/packages/lexik_jwt_authentication.yaml" 0
+  run_case "rg secret-looking pem pattern" "rg -n 'private_key_path: /srv/example/keys/jwt/private.pem' config/packages/lexik_jwt_authentication.yaml" 0
+  run_case "grep secret-looking env pattern" "grep -n 'JWT_KEY=.env.local' config/packages/app.yaml" 0
   # Quoted alternation inside read-only commands must not trip pipe-to-shell detection.
   run_case "rg quoted alternation" "rg -n 'shellcheck|bash -n|npm test' CLAUDE.md" 0
   run_case "rg double-quoted alternation" 'rg -n "foo|bar" CLAUDE.md' 0
@@ -437,6 +440,9 @@ run_self_test() {
   run_case "cat .env" "cat .env" 2
   run_case "cat ./.env" "cat ./.env" 2
   run_case "cat ../.env" "cat ../.env" 2
+  run_case "cat split-quoted .env" "cat '.'env" 2
+  # shellcheck disable=SC2016
+  run_case "cat command substitution .env" 'cat "$(printf .env)"' 2
   run_case "cat .envrc" "cat .envrc" 2
   run_case "cat .env.example" "cat .env.example" 0
   run_case "cat ./.env.example" "cat ./.env.example" 0
@@ -474,10 +480,15 @@ run_self_test() {
   run_case "cat secrets token" "cat secrets/token.txt" 2
   run_case "cat credentials.json" "cat credentials.json" 2
   run_case "cat npmrc" "cat ~/.npmrc" 2
+  run_case "grep .env operand" "grep foo .env" 2
+  run_case "rg .env operand" "rg foo .env" 2
+  run_case "grep pem operand" "grep foo /srv/example/keys/jwt/private.pem" 2
+  run_case "grep pattern file .env" "grep -f .env src/app.ts" 2
   # shellcheck disable=SC2016
   run_case "cat quoted home env" "$(printf 'cat \"$HOME/.env\"')" 2
   # shellcheck disable=SC2016
   run_case "cat quoted gcloud adc" "$(printf 'cat \"$HOME/.config/gcloud/application_default_credentials.json\"')" 2
+  run_case "python literal .env read" "python3 -c 'print(open(\".env\").read())'" 2
   run_case "cat relative gcloud config" "cat .config/gcloud/configurations/config_default" 2
   # npm token delete/revoke must block; safe npm commands must pass.
   run_case "npm token delete" "npm token delete abc123" 2
@@ -552,14 +563,69 @@ fi
 # --- Pattern Checks ----------------------------------------------------------
 # Each function checks one dangerous pattern. Add project-specific blocks below.
 
-# Return 0 (match) if the command references a secret-bearing file path:
+# Strip shell quotes/backslash escaping for conservative path-shape checks.
+# This is not a full shell parser; it exists so split-quoted literal paths such
+# as '.'env are scanned as .env without executing command substitutions.
+strip_shell_quotes_for_path_scan() {
+  local input="$1"
+  local out=""
+  local char=""
+  local in_single=0
+  local in_double=0
+  local escaped=0
+  local i=0
+
+  for ((i = 0; i < ${#input}; i++)); do
+    char="${input:i:1}"
+
+    if [[ "$escaped" -eq 1 ]]; then
+      out+="$char"
+      escaped=0
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == "\\" ]]; then
+      escaped=1
+      continue
+    fi
+
+    if [[ "$in_double" -eq 0 && "$char" == "'" ]]; then
+      if [[ "$in_single" -eq 1 ]]; then
+        in_single=0
+      else
+        in_single=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == '"' ]]; then
+      if [[ "$in_double" -eq 1 ]]; then
+        in_double=0
+      else
+        in_double=1
+      fi
+      continue
+    fi
+
+    out+="$char"
+  done
+
+  if [[ "$escaped" -eq 1 ]]; then
+    out+="\\"
+  fi
+
+  printf '%s' "$out"
+}
+
+# Return 0 (match) if the command references a direct literal secret-bearing file path:
 # .env or .env.* except .env.example, /.ssh/, /.aws/, ~/.config/gcloud/,
 # /.gnupg/, /.docker/config.json, /.kube/config, *.pem/*.key/*.pfx,
 # credentials*, .npmrc, .pypirc.
 # settings.json Read() patterns only cover the Read tool - this check is the
-# only line of defence against shell-based secret exfil (cat/less/source/base64/etc.).
+# direct literal Bash-layer defence against common secret reads (cat/less/source/base64/etc.).
 is_secret_path_touch() {
-  local c="$1"
+  local c
+  c=$(strip_shell_quotes_for_path_scan "$1")
   local env_scan
   env_scan=$(printf '%s' "$c" | sed -E \
     "s#(^|[[:space:]=:/'\"])\\.env\\.example([[:space:]]|$|['\"])#\\1__goat_env_example__\\2#g; s#(>|>>|>\\|)[[:space:]]*(['\"]?)\\.env\\.example([[:space:]]|$|['\"])#\\1\\2__goat_env_example__\\3#g")
@@ -573,7 +639,8 @@ is_secret_path_touch() {
 }
 
 is_env_example_touch() {
-  local c="$1"
+  local c
+  c=$(strip_shell_quotes_for_path_scan "$1")
   if [[ "$c" =~ (^|[[:space:]]|=|:|/|[\'\"])\.env\.example([[:space:]]|$|[\'\"]) ]]; then return 0; fi
   if [[ "$c" =~ (\>|\>\>|\>\|)[[:space:]]*[\'\"]?\.env\.example([[:space:]]|$|[\'\"]) ]]; then return 0; fi
   return 1
@@ -1122,6 +1189,187 @@ is_interpreter_command() {
   esac
 }
 
+split_shell_words() {
+  local input="$1"
+  local current=""
+  local char=""
+  local in_single=0
+  local in_double=0
+  local escaped=0
+  local i=0
+
+  for ((i = 0; i < ${#input}; i++)); do
+    char="${input:i:1}"
+
+    if [[ "$escaped" -eq 1 ]]; then
+      current+="$char"
+      escaped=0
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == "\\" ]]; then
+      escaped=1
+      continue
+    fi
+
+    if [[ "$in_double" -eq 0 && "$char" == "'" ]]; then
+      if [[ "$in_single" -eq 1 ]]; then
+        in_single=0
+      else
+        in_single=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == '"' ]]; then
+      if [[ "$in_double" -eq 1 ]]; then
+        in_double=0
+      else
+        in_double=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$in_double" -eq 0 && "$char" =~ [[:space:]] ]]; then
+      if [[ -n "$current" ]]; then
+        printf '%s\0' "$current"
+        current=""
+      fi
+      continue
+    fi
+
+    current+="$char"
+  done
+
+  if [[ "$escaped" -eq 1 ]]; then
+    current+="\\"
+  fi
+  if [[ -n "$current" ]]; then
+    printf '%s\0' "$current"
+  fi
+}
+
+is_search_command_verb() {
+  local verb="${1##*/}"
+  case "$verb" in
+    grep|egrep|fgrep|rg|ag|ack) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+search_option_consumes_value() {
+  local opt="$1"
+  case "$opt" in
+    -A|-B|-C|-D|-d|-g|-M|-m|-t|-T|--after-context|--before-context|--binary-files|--color|--colour|--colors|--context|--context-separator|--directories|--devices|--encoding|--engine|--exclude|--exclude-dir|--exclude-from|--glob|--group-separator|--iglob|--ignore-file|--include|--label|--max-columns|--max-count|--max-depth|--path-separator|--pre|--pre-glob|--regexp|--replace|--sort|--sortr|--threads|--type|--type-add|--type-clear|--type-not)
+      return 0
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+search_pattern_file_touches_secret() {
+  local option="$1"
+  local value="$2"
+  case "$option" in
+    -f|--file)
+      is_secret_path_touch "$value"
+      return $?
+      ;;
+    -f?*)
+      is_secret_path_touch "${option#-f}"
+      return $?
+      ;;
+    --file=*)
+      is_secret_path_touch "${option#--file=}"
+      return $?
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+search_file_operands_touch_secret() {
+  local c
+  c=$(normalize_command_candidate "$1")
+
+  local -a words
+  mapfile -d '' -t words < <(split_shell_words "$c")
+  [[ "${#words[@]}" -eq 0 ]] && return 1
+
+  local verb="${words[0]##*/}"
+  is_search_command_verb "$verb" || return 1
+
+  local pattern_seen=0
+  local after_options=0
+  local i=1
+  local word=""
+  local next=""
+
+  while [[ "$i" -lt "${#words[@]}" ]]; do
+    word="${words[$i]}"
+
+    if [[ "$after_options" -eq 0 && "$word" == "--" ]]; then
+      after_options=1
+      i=$((i + 1))
+      continue
+    fi
+
+    if [[ "$after_options" -eq 0 ]]; then
+      if [[ "$word" == "-e" || "$word" == "--regexp" ]]; then
+        pattern_seen=1
+        i=$((i + 2))
+        continue
+      fi
+      if [[ "$word" == -e?* || "$word" == --regexp=* ]]; then
+        pattern_seen=1
+        i=$((i + 1))
+        continue
+      fi
+      if [[ "$word" == "-f" || "$word" == "--file" ]]; then
+        next="${words[$((i + 1))]:-}"
+        if search_pattern_file_touches_secret "$word" "$next"; then
+          return 0
+        fi
+        pattern_seen=1
+        i=$((i + 2))
+        continue
+      fi
+      if [[ "$word" == -f?* || "$word" == --file=* ]]; then
+        if search_pattern_file_touches_secret "$word" ""; then
+          return 0
+        fi
+        pattern_seen=1
+        i=$((i + 1))
+        continue
+      fi
+      if [[ "$word" == --*=* ]]; then
+        i=$((i + 1))
+        continue
+      fi
+      if search_option_consumes_value "$word"; then
+        i=$((i + 2))
+        continue
+      fi
+      if [[ "$word" == -* ]]; then
+        i=$((i + 1))
+        continue
+      fi
+    fi
+
+    if [[ "$pattern_seen" -eq 0 ]]; then
+      pattern_seen=1
+      i=$((i + 1))
+      continue
+    fi
+
+    if is_secret_path_touch "$word"; then
+      return 0
+    fi
+    i=$((i + 1))
+  done
+
+  return 1
+}
+
 check_segment() {
   local cmd="$1"
   local depth="${2:-0}"
@@ -1138,8 +1386,11 @@ check_segment() {
   # Skip whitelist if: output redirection (>) or pipe-to-shell (| bash/sh) detected.
   local cmd_trimmed
   cmd_trimmed="${cmd#"${cmd%%[![:space:]]*}"}"
+  local cmd_for_verb
+  cmd_for_verb=$(normalize_command_candidate "$cmd_trimmed")
   local cmd_verb
-  cmd_verb=$(echo "$cmd_trimmed" | awk '{print $1}')
+  cmd_verb="${cmd_for_verb%%[[:space:]]*}"
+  cmd_verb="${cmd_verb##*/}"
 
   # Strip single- and double-quoted strings for structural (pipe/redirect/verb) pattern
   # matching, so dangerous characters inside quoted arguments (e.g. rg 'a|b', awk "x>y")
@@ -1150,8 +1401,14 @@ check_segment() {
   cmd_unquoted=$(echo "$cmd_unquoted" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g")
 
   local touches_secret=0
-  if is_secret_path_touch "$cmd"; then
-    touches_secret=1
+  if is_search_command_verb "$cmd_verb"; then
+    if search_file_operands_touch_secret "$cmd"; then
+      touches_secret=1
+    fi
+  else
+    if is_secret_path_touch "$cmd"; then
+      touches_secret=1
+    fi
   fi
   local touches_env_example=0
   if is_env_example_touch "$cmd"; then
@@ -1255,8 +1512,8 @@ check_segment() {
   #    Block: any command that touches .env or .env.* (except read-only
   #    `.env.example`) / SSH/AWS/GCP credentials / .pem / .key / .pfx /
   #    credentials / .npmrc / .pypirc. settings.json Read() patterns only cover
-  #    the Read tool, not Bash - so this rule is the only line of defence
-  #    against shell-based exfil.
+  #    the Read tool, not Bash - so this rule is direct literal Bash-layer
+  #    defence in depth.
   if [[ "$touches_secret" -eq 1 ]]; then
     block "Secret-file access ($cmd_verb). Reading or editing .env / SSH/AWS/GCP keys / credentials through the agent is an exfil risk."
   fi

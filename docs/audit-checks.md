@@ -60,15 +60,15 @@ Aggregate-mode nuance:
 | Context | `doc-paths-resolve` | `integrity` | Router-table paths, `.goat-flow/architecture.md` backtick paths, and curated audit docs backtick paths resolve to real files |
 | Context | `instruction-sections-present` | `advisory` | Each instruction file contains the required hot-path headings: Truth Order, Execution Loop, Definition of Done, and Router Table |
 | Context | `boundary-guidance-present` | `advisory` | Each instruction file contains workspace boundary guidance (controlling workspace vs target workspace separation) |
-| Constraints | `deny-covers-secrets` | `integrity` | Secret-bearing file reads are covered by the deny layer; settings-based agents need both settings `Read` deny coverage and Bash-hook coverage |
+| Constraints | `deny-covers-secrets` | `integrity` | Direct literal secret-path reads are blocked by the deny layer; settings-based agents need both settings `Read` deny coverage and Bash-hook direct-path coverage |
 | Constraints | `deny-blocks-dangerous` | `integrity` | Deny patterns block `rm -rf`, all git push (ADR-025), and `chmod` |
 | Constraints | `deny-blocks-pipe-to-shell` | `advisory` | Deny patterns block `curl | bash` and `wget | sh` pipe-to-shell execution |
 | Constraints | `deny-hook-registered` | `integrity` | A deny hook that exists on disk is registered in the correct pre-tool hook slot |
-| Verification | `test-runner-configured` | `metric` | Reports whether `toolchain.test` is configured; missing structured test config is still a pass |
+| Verification | `test-runner-configured` | `advisory` | Distinguishes missing, configured-only, and runtime-proven test commands; declaration alone is not proof of execution |
 | Verification | `hooks-registered` | `integrity` | Post-turn hook registrations and on-disk hook files stay in sync |
 | Verification | `commit-guidance` | `advisory` | Commit guidance exists at `.github/git-commit-instructions.md` when `.github/` exists, or in a supporting commit-guidance document otherwise |
-| Verification | `post-turn-hook-integrity` | `metric` | Reports whether any post-turn hook runs validation and whether it swallows failures |
-| Recovery | `milestone-tracking` | `integrity` | `.goat-flow/tasks/` exists and milestone files can report checkbox coverage |
+| Verification | `post-turn-hook-integrity` | `metric` | Reports whether any post-turn hook runs validation and whether it swallows failures; absence is no hook evidence, not proof |
+| Recovery | `milestone-tracking` | `integrity` | `.goat-flow/tasks/` exists and active/testing-gate milestones are resumable rather than stranded with unchecked gates |
 | Recovery | `session-logs` | `integrity` | `.goat-flow/logs/sessions/` exists |
 | Feedback loop | `feedback-loop-active` | `integrity` | The lessons and footguns directories exist; stale references are informational only |
 | Feedback loop | `decisions-tracked` | `integrity` | `.goat-flow/decisions/` exists |

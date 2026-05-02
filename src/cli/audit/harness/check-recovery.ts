@@ -13,7 +13,11 @@ interface MilestoneProgress {
   path: string;
   status: string | null;
   checked: number;
+  unchecked: number;
   total: number;
+  hasClearNextAction: boolean;
+  hasUncheckedTestingGate: boolean;
+  isArchived: boolean;
 }
 
 /** Return the recovery provenance. */
@@ -41,6 +45,19 @@ function extractStatus(content: string): string | null {
   return match?.[1]?.trim().toLowerCase() ?? null;
 }
 
+function hasClearNextAction(content: string): boolean {
+  return (
+    /^\s*(?:- \[[ xX]\]\s*)?(?:\*\*)?Next action(?:\*\*)?:\s*\S/im.test(
+      content,
+    ) || /^##+\s*Next action\b/im.test(content)
+  );
+}
+
+function hasUncheckedTestingGate(content: string): boolean {
+  const match = content.match(/^##+\s*Testing Gate\b[\s\S]*?(?=^##+\s|\s*$)/im);
+  return Boolean(match?.[0] && /- \[ \]/.test(match[0]));
+}
+
 function countProgress(path: string, content: string): MilestoneProgress {
   const checkboxMatches = content.match(/- \[[ xX]\]/g) ?? [];
   const checkedMatches = content.match(/- \[[xX]\]/g) ?? [];
@@ -48,7 +65,11 @@ function countProgress(path: string, content: string): MilestoneProgress {
     path,
     status: extractStatus(content),
     checked: checkedMatches.length,
+    unchecked: checkboxMatches.length - checkedMatches.length,
     total: checkboxMatches.length,
+    hasClearNextAction: hasClearNextAction(content),
+    hasUncheckedTestingGate: hasUncheckedTestingGate(content),
+    isArchived: path.includes("/_archived/"),
   };
 }
 
@@ -104,13 +125,46 @@ const milestoneTracking: HarnessCheck = {
     const zeroProgress = progress.filter(
       (item) => item.total > 0 && item.checked === 0,
     );
+    const degraded = progress.filter((item) => {
+      if (item.isArchived) return false;
+      if (item.status === "testing-gate") {
+        return item.unchecked > 0 || item.hasUncheckedTestingGate;
+      }
+      if (item.status === "in-progress" || item.status === "active") {
+        return item.unchecked > 0 && !item.hasClearNextAction;
+      }
+      return false;
+    });
     const findings = [
       `${checked}/${total} checkboxes complete (${percent}%) across ${mdFiles.length} milestone files${extraNote}`,
-      "Task checkbox completion is informational only; .goat-flow/tasks/ is gitignored local working state and unchecked items may be intentionally skipped.",
+      "Planned, complete, and archived milestone checkbox counts are reported as local working state; active/testing-gate milestones are status-checked for resumability.",
     ];
     if (zeroProgress.length > 0) {
       findings.push(
         `${zeroProgress.length} milestone files are at 0%: ${zeroProgress.map((item) => item.path).join(", ")}`,
+      );
+    }
+    if (degraded.length > 0) {
+      findings.push(
+        `Recovery degraded: ${degraded
+          .map((item) => {
+            const status = item.status ?? "unknown-status";
+            const reason =
+              status === "testing-gate"
+                ? "unchecked tasks or testing gate items"
+                : "unchecked tasks without a clear next action";
+            return `${item.path} (${status}: ${reason})`;
+          })
+          .join(", ")}`,
+      );
+      return fail(
+        findings,
+        [
+          "Update active/testing-gate milestone files before relying on recovery state",
+        ],
+        [
+          "Tick completed checklist items, record a clear Next action for in-progress work, and do not leave testing-gate milestones with unchecked tasks or gates.",
+        ],
       );
     }
     return pass(findings);
