@@ -36,7 +36,7 @@ If vague, ask about: goal, symptom/error message, area involved.
 **Quick path:** diagnose and report; **full path:** run D1–D1.5–D2–D3–D4.
 **Footgun check:** Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/` and `.goat-flow/lessons/` for the target area. Surface matches or an explicit retrieval miss; do not broad-load either bucket.
 
-**Browser evidence detection:** Does the request reference a URL, local HTML page, localhost route, screenshot, UI element, visual rendering issue, browser DevTools output, or browser console/network symptom? If yes, read `.goat-flow/skill-reference/browser-use.md` for browser evidence tools. Check with `command -v browser-use && browser-use doctor`. If not installed, offer to install it (`pip install browser-use`) and wait for the user's response - never install it without approval or silently fall back. If the user declines or installation fails, use the manual fallback in the reference.
+**Browser evidence detection:** Does the request reference a URL, local HTML page, localhost route, screenshot, UI element, visual rendering issue, browser DevTools output, or browser console/network symptom? If yes, read `.goat-flow/skill-reference/browser-use.md` for browser evidence tools. Check with `command -v browser-use || command -v browser-use-python`. If not installed, offer to install it (`pip install browser-use` or `scripts/install-browser-tools.sh`) and wait for the user's response - never install it without approval or silently fall back. If the user declines or installation fails, use the manual fallback in the reference.
 
 
 ## Diagnose Mode

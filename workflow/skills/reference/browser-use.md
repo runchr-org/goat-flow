@@ -14,10 +14,10 @@ Use this when a task involves a URL, local HTML file, localhost page, screenshot
 Before first use in a session, verify the tool is installed:
 
 ```bash
-command -v browser-use && browser-use doctor
+command -v browser-use || command -v browser-use-python
 ```
 
-If missing, offer to install: "browser-use is not installed. Want me to install it (`pip install browser-use`)? Or I can work from manual evidence (screenshots, DevTools output) instead." Never install it without approval. If the user approves, run `pip install browser-use` and then `browser-use doctor` to verify. If the user declines or installation fails, use the manual fallback section below.
+If found, run `browser-use doctor` (or `browser-use-python -c "import browser_use; print('ok')"` for the venv wrapper). If missing, offer to install: "browser-use is not installed. Want me to install it (`pip install browser-use` or `scripts/install-browser-tools.sh`)? Or I can work from manual evidence (screenshots, DevTools output) instead." Never install it without approval. If the user declines or installation fails, use the manual fallback section below.
 
 ## Observation Workflow
 

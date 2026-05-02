@@ -14,7 +14,7 @@ On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 
 Use when work needs milestones with tracked progress. goat-plan manages files in `.goat-flow/tasks/<active>/`, where `.active` is advisory local state. Task files are gitignored coordination artifacts, not committed product docs.
 
-Use for feature/project milestones, dispatcher handoffs, replans, rescope, and resume-from-plan work. Route briefs, critique, QA, debugging, and review to matching skills.
+Use for milestones, replans, rescope, resume-from-plan. **NOT this skill:** tests → run them; debug → /goat-debug; review → /goat-review; security → /goat-security; gaps → /goat-qa; critique → /goat-critique; question → answer directly.
 
 | Excuse | Reality |
 |--------|---------|
@@ -45,11 +45,13 @@ Use for feature/project milestones, dispatcher handoffs, replans, rescope, and r
 3. **Inline-Then-Write** - Hotfix / Small Feature scope (1-2 milestones, low blast radius) with no analysis signals. Offer: *"Would you like milestones in inline form first, or written to `.goat-flow/tasks/<active>/` now?"* Inline first; write on approval.
 4. **File-Write (default at Standard+)** - implementation signals ("create milestones", "set up the plan", "write the milestone files", "start planning") OR Standard / System / Infrastructure scope with a clear build objective and no analysis signals. Write directly to `.goat-flow/tasks/<active>/`.
 
-If both analysis and implementation signals appear, or the request is too ambiguous to classify, ask. Never silently pick.
+If ambiguous, ask. Never silently pick.
 
-**Minimum viable input:** A clear description of what to build. Everything else can be inferred or asked.
+**Minimum viable input:** What to build. Everything else can be inferred or asked.
 
-**CHECKPOINT:** "Mode: [Path-Only Intake | Named-File Update | Read-Only Analysis | Inline-Then-Write | File-Write]. Creating milestones for [feature]. Riskiest part: [risk]. Kill criteria: [criteria]. Proceeding to milestone breakdown."
+**CHECKPOINT (Path-Only Intake):** "Mode: Path-Only Intake. Orientation summary for [path]: [status]. Active plan pointer: [state]. Next action needed from user."
+
+**CHECKPOINT (all other modes):** "Mode: [Named-File Update | Read-Only Analysis | Inline-Then-Write | File-Write]. Creating milestones for [feature]. Riskiest part: [risk]. Kill criteria: [criteria]. Proceeding to milestone breakdown."
 
 ## Phase 1 - Milestone Breakdown
 

@@ -18,6 +18,6 @@ last_reviewed: 2026-05-02
 ---
 ```
 
-Both `category` and `last_reviewed` are required. `last_reviewed` must be a strict `YYYY-MM-DD` date (no timestamps). Bump it when you add an entry or materially edit the body; cosmetic edits (typos, whitespace) do not require a bump. `goat-flow stats --check` fails when the field is missing or malformed.
+Both `category` and `last_reviewed` are required. `last_reviewed` must be a strict `YYYY-MM-DD` date (no timestamps). Bump it when you add an entry or materially edit the body; cosmetic edits (typos, whitespace) do not require a bump.
 
 Inside a bucket, add entries as `## Pattern:` blocks.

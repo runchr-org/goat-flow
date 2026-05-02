@@ -78,19 +78,14 @@ command_exists() {
 }
 
 find_python() {
-    local candidate version
+    local candidate
     for candidate in python3.13 python3.12 python3.11 python3; do
         if ! command_exists "$candidate"; then
             continue
         fi
-        version="$("$candidate" - <<'PY' 2>/dev/null || true
-import sys
-print(f"{sys.version_info.major}.{sys.version_info.minor}")
-PY
-)"
-        if [[ -n "$version" ]] && [[ "$(printf '%s\n' "3.11" "$version" | sort -V | head -1)" == "3.11" ]]; then
+        if "$candidate" -c "import sys; exit(0 if sys.version_info >= (3, 11) else 1)" 2>/dev/null; then
             PYTHON_CMD="$candidate"
-            PYTHON_VERSION="$version"
+            PYTHON_VERSION="$("$candidate" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null)"
             return 0
         fi
     done

@@ -5,7 +5,7 @@
 If the agent did something wrong → `.goat-flow/lessons/` instead.
 If the trap is in the code itself → `.goat-flow/footguns/` instead.
 
-Prefer category bucket files such as `verification.md`, `refactoring.md`, or `architecture.md`. Every bucket file MUST start with a YAML frontmatter block that includes BOTH a `category` and a `last_reviewed` date (ISO `YYYY-MM-DD`). `goat-flow stats --check` fails when `last_reviewed` is missing.
+Prefer category bucket files such as `verification.md`, `refactoring.md`, or `architecture.md`. Every bucket file MUST start with a YAML frontmatter block that includes BOTH a `category` and a `last_reviewed` date (ISO `YYYY-MM-DD`).
 
 ```yaml
 ---

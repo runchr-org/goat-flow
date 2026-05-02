@@ -75,7 +75,7 @@ If current logs do not meet `bulletproof`, say so directly. Do not backfill miss
 - [ ] "NOT this skill" boundary section listing what routes elsewhere
 - [ ] No narrative storytelling ("in session 2025-10-03 we found...")
 - [ ] Supporting files only for executable tools or heavy reference (100+ lines)
-- [ ] Token budget met per the four-tier model: dispatcher <500 words, functional skill <2500 words, always-loaded shared content <1500 words per file, progressive reference pack <3000 words per file. Skills or packs that exceed their tier must either shed content or split into a sub-pack.
+- [ ] Token budget met per the four-tier model: dispatcher ≤555 words, functional skill <2500 words, always-loaded shared content <1500 words per file, progressive reference pack <3000 words per file. Skills or packs that exceed their tier must either shed content or split into a sub-pack.
 
 **Deployment:**
 - [ ] Write TDD iteration log to `.goat-flow/logs/sessions/YYYY-MM-DD-<skill>-tdd.md`

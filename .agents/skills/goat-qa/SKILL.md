@@ -187,7 +187,7 @@ Rank gaps by `Risk × (1 - CoverageLevel)` descending. Output:
 
 ## Regression Guard Mode
 
-Post-verification regression guard planning. Assumes the fix is already verified (by /goat-debug, human sign-off, or PR check). Cite the prior verification source. Define 1-2 invariants, assess coverage of each, then hand off recommended guard tests to the coding agent. This mode does NOT verify the fix itself - that is /goat-debug's domain (ADR-018).
+Post-verification regression guard planning. Assumes the fix is already verified (by /goat-debug, human sign-off, or PR check). Cite the prior verification source. Define 1-2 invariants, assess coverage of each, then hand off recommended guard tests to the coding agent. This mode does NOT verify the fix itself - that is /goat-debug's domain.
 
 ## Constraints
 
@@ -205,7 +205,8 @@ Post-verification regression guard planning. Assumes the fix is already verified
 - Audit mode: MUST classify every in-scope file by role (load-bearing, interface, glue, UI, support), not by recency; MUST NOT read a diff or ask for one
 - Audit mode: MUST include a risk-ranked gap report with blocking-gap / high-value-addition / defer tiers
 - If flow diagrams are requested, use Mermaid flowcharts (8-15 nodes, happy path first, annotate gap status per node).
-- Regression guard: MUST state invariants as human-readable sentences; MUST cite prior fix-verification source; MUST NOT verify the fix itself (ADR-018)
+- Regression guard: MUST state invariants as human-readable sentences; MUST cite prior fix-verification source; MUST NOT verify the fix itself
+- MUST defend zero-gap results explicitly: state what was checked and why no gaps surfaced. Zero gaps without justification is an error condition, not a clean bill.
 
 ## Output Format
 
