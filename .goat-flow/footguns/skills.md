@@ -1,6 +1,6 @@
 ---
 category: skills
-last_reviewed: 2026-04-27
+last_reviewed: 2026-05-02
 ---
 
 ## Footgun: Quality assessors recommend adding quick/lite modes to goat-critique
@@ -20,6 +20,24 @@ last_reviewed: 2026-04-27
 **Prevention:**
 1. The quality assessment prompt now includes an explicit constraint against recommending reduced skill modes.
 2. ADR-021 remains the authoritative source. If this recommendation resurfaces, point the assessor at the ADR, not at the skill file alone.
+
+## Footgun: Installed skill files reference framework-only ADRs that don't exist in consumer projects
+
+**Status:** active | **Created:** 2026-05-02 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** An agent in a consumer project reads an installed skill file, sees an ADR reference (e.g. "ADR-021", "ADR-018"), tries to look it up in `.goat-flow/decisions/`, finds nothing, and either hallucinates the ADR content or loses context about why the rule exists. The rule itself still works, but the authority citation is a dead link.
+
+**Why it happens:** Skill files are authored in the goat-flow framework repo where `.goat-flow/decisions/ADR-*.md` files exist. When skills are installed into consumer projects via `goat-flow setup`, the SKILL.md files are copied but the decisions directory contains only the consumer's own ADRs (if any), not goat-flow framework decisions. ADR citations in skill text become dangling references.
+
+**Evidence:**
+- `workflow/skills/goat-critique/SKILL.md` (search: `ADR-021`) — excuse/reality table references ADR-021 (full-mode-only decision) which exists only in the framework repo
+- `workflow/skills/goat-qa/SKILL.md` (search: `ADR-018`) — regression guard mode and constraints reference ADR-018 (no standalone verify skill) which exists only in the framework repo
+- All 4 mirrors (`.claude/skills/`, `.agents/skills/`, `.github/skills/`, `workflow/skills/`) carry the same references since skills are byte-identical across mirrors
+
+**Prevention:**
+1. Skill SKILL.md files and their reference packs must be self-contained. The rule and its rationale must be stated inline — never behind an ADR citation the consumer doesn't have.
+2. ADR references are fine in framework-internal files (footguns, lessons, architecture, code-map, instruction files) because those live in the framework repo. The boundary is: if the file gets copied to consumer projects by the installer, it must not reference framework ADRs.
+3. When adding a rule to a skill that came from an ADR, state the rule and a one-line "why" inline. Cross-reference the ADR only in the framework's own learning-loop artifacts.
 
 ## Footgun: Skill parity edits can miss `.github/skills/` and fail repo-level drift checks
 
