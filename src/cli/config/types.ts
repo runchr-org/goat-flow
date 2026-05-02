@@ -2,7 +2,7 @@
  * Shared type contracts for the goat-flow config file.
  * These interfaces describe the normalized shape used after YAML parsing and validation.
  */
-export interface GoatFlowToolchain {
+interface GoatFlowToolchain {
   test: string[];
   lint: string[];
   build: string[];
@@ -11,13 +11,13 @@ export interface GoatFlowToolchain {
 }
 
 /** Optional goat-review skill configuration. */
-export interface GoatReviewConfig {
+interface GoatReviewConfig {
   /** Local branch/ref to use before remote default-branch discovery in local PR reviews. */
   localPrBase: string;
 }
 
 /** Skill installation and per-skill configuration. */
-export interface GoatFlowSkillsConfig {
+interface GoatFlowSkillsConfig {
   install: string[] | "all";
   "goat-review"?: GoatReviewConfig;
 }
