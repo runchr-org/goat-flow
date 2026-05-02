@@ -87,7 +87,7 @@ Each sub-agent MUST return 3-7 findings, each with: title, severity, evidence (f
 
 Execute in this order:
 
-**1. Context leak scan.** Grep Agent C's output for `.goat-flow/`, `goat-*`, `architecture.md`, `config.yaml`, or project-specific namespace references. Only flag references that do NOT appear in the input artifact Agent C received — quoting terms from the artifact is expected, not a leak. Any match that cannot be traced to the artifact text = CONTEXT LEAK; discard and re-spawn with stricter isolation.
+**1. Context leak scan.** Grep Agent C's output for `.goat-flow/`, `goat-*`, `architecture.md`, `config.yaml`, or project-specific namespace references. Only flag references that do NOT appear in the input artifact Agent C received - quoting terms from the artifact is expected, not a leak. Any match that cannot be traced to the artifact text = CONTEXT LEAK; discard and re-spawn with stricter isolation.
 
 **1b. Completeness gate.** Verify each sub-agent returned required fields (see Constraints). Incomplete → re-spawn once.
 

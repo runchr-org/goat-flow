@@ -646,7 +646,7 @@ rm_is_safely_scoped() {
   local targets_str
   targets_str="$(echo "$c" | sed 's/^[[:space:]]*rm\([[:space:]]\+--\?[[:alnum:]-]\+\)*//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')"
   [[ -z "$targets_str" ]] && return 1
-  # Check each target independently — one unsafe path fails the whole command.
+  # Check each target independently - one unsafe path fails the whole command.
   local target
   for target in $targets_str; do
     target="${target#./}"
