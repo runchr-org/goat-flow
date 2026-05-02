@@ -9,7 +9,7 @@
     ".goat-flow/tasks/README.md",
     ".goat-flow/logs/quality/README.md",
     ".goat-flow/logs/critiques/README.md",
-    ".goat-flow/logs/security/.gitkeep",
+    ".goat-flow/logs/security/README.md",
     ".goat-flow/scratchpad/.gitignore",
     ".goat-flow/scratchpad/README.md",
     ".goat-flow/lessons/README.md",
