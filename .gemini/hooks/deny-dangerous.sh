@@ -915,7 +915,7 @@ normalize_env_prefix() {
     if [[ "$c" =~ ^(-[sS]|--split-string)(=|[[:space:]]+) ]]; then
       c="${c#"${BASH_REMATCH[0]}"}"
       if [[ "$c" == \'* ]]; then c="${c#\'}"; c="${c%\'}"; fi
-      if [[ "$c" == \"* ]]; then c="${c#\"}"; c="${c%\'}"; fi
+      if [[ "$c" == \"* ]]; then c="${c#\"}"; c="${c%\"}"; fi
       break
     fi
     if [[ "$c" =~ ^--[[:space:]]+ ]]; then
