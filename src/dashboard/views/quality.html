@@ -31,7 +31,7 @@
         <button
           @click="qualityAgent = agent.id"
           class="gf-card"
-          :style="qualityAgent === agent.id ? { borderColor: 'var(--accent-border)', background: 'rgba(74,222,128,0.04)' } : {}"
+          :style="qualityAgent === agent.id ? { borderColor: 'var(--accent-border)', background: 'var(--accent-bg)' } : {}"
           style="padding: 11px 12px; text-align: left"
         >
           <div
@@ -73,7 +73,7 @@
         <button
           @click="selectedQualityModeId = mode.id"
           class="gf-card"
-          :style="selectedQualityModeId === mode.id ? { borderColor: 'var(--accent-border)', background: 'rgba(74,222,128,0.04)' } : {}"
+          :style="selectedQualityModeId === mode.id ? { borderColor: 'var(--accent-border)', background: 'var(--accent-bg)' } : {}"
           style="padding: 11px 12px; text-align: left"
         >
           <div
@@ -114,7 +114,7 @@
               feedback_loop: { label: 'Feedback Loop' }
             },
             concernKeys: ['context', 'constraints', 'verification', 'recovery', 'feedback_loop'],
-            scoreColor(score) { return score >= 80 ? 'var(--green-400)' : score >= 70 ? '#facc15' : score >= 60 ? '#fb923c' : '#f87171' },
+            scoreColor(score) { return score >= 80 ? 'var(--status-pass)' : score >= 70 ? 'var(--status-waiting)' : score >= 60 ? 'var(--orange-400)' : 'var(--status-danger)' },
             agentScore(agent) { if (!agent?.harness) return null; const scored = agent.harness.checks.filter(c => c.type !== 'metric'); return scored.length ? Math.round(scored.filter(c => c.status === 'pass').length / scored.length * 100) : null; },
             toGrade(s) { if (s >= 90) return 'A'; if (s >= 80) return 'B'; if (s >= 70) return 'C'; if (s >= 60) return 'D'; return 'F'; },
             get selectedAgent() {
@@ -143,7 +143,7 @@
               <span class="gf-detect-label">GOAT Flow setup</span>
               <span
                 style="font-size: 12px; font-weight: 600"
-                :style="{ color: report?.scopes?.setup?.status === 'pass' ? '#4ade80' : '#f87171' }"
+                :style="{ color: report?.scopes?.setup?.status === 'pass' ? 'var(--status-pass)' : 'var(--red-400)' }"
                 x-text="(() => { const sc = report?.scopes?.setup; if (!sc?.checks) return ''; const p = sc.checks.filter(c => c.status === 'pass').length; return p + '/' + sc.checks.length + ' checks passing'; })()"
               ></span>
             </div>
@@ -291,7 +291,7 @@
           >
             <svg
               class="animate-spin"
-              style="width: 14px; height: 14px; color: #4ade80"
+              style="width: 14px; height: 14px; color: var(--accent)"
               fill="none"
               viewBox="0 0 24 24"
             >
@@ -468,11 +468,14 @@
 
           <div
             x-show="!qualityHistoryLoading && qualityHistoryRows.length === 0"
-            class="gf-text-muted"
-            style="font-size: 12px; padding: 8px 0"
+            class="gf-empty-state"
+            style="padding: 24px 10px"
           >
-            No saved quality history yet. Run a quality assessment and save
-            findings in `.goat-flow/logs/quality` to start trend tracking.
+            <span class="gf-empty-mark">QH</span>
+            <p>
+              No saved quality history yet. Run a quality assessment and save
+              findings in `.goat-flow/logs/quality` to start trend tracking.
+            </p>
           </div>
         </div>
       </div>
@@ -499,14 +502,14 @@
                 <button
                   x-data="{ copied: false }"
                   @click="copyQuality(); copied = true; setTimeout(() => copied = false, 1500)"
-                  class="gf-btn gf-btn-md gf-btn-muted"
+                  class="gf-btn gf-btn-md gf-btn-secondary"
                   :style="copied ? { background: 'var(--accent-bg)', color: 'var(--accent)', borderColor: 'var(--accent-border)' } : {}"
                 >
                   <span x-text="copied ? 'Copied' : 'Copy'"></span>
                 </button>
                 <button
                   @click="generateQuality()"
-                  class="gf-btn gf-btn-md gf-btn-audit"
+                  class="gf-btn gf-btn-md gf-btn-secondary"
                 >
                   Regenerate
                 </button>
@@ -586,7 +589,7 @@
         <div class="gf-prompt-loading" :class="!qualityLoading && 'gf-hidden'">
           <svg
             class="animate-spin"
-            style="width: 16px; height: 16px; color: #4ade80"
+            style="width: 16px; height: 16px; color: var(--accent)"
             fill="none"
             viewBox="0 0 24 24"
           >

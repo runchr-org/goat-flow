@@ -655,3 +655,12 @@ function readStoredStringArray(key: string): string[] {
     return [];
   }
 }
+
+/** Read a string map from localStorage, returning an empty map on corrupt data. */
+function readStoredStringMap(key: string): Record<string, string> {
+  try {
+    return readStringMap(JSON.parse(localStorage.getItem(key) || "{}"));
+  } catch {
+    return {};
+  }
+}

@@ -61,13 +61,13 @@
         <button
           @click="auditAllProjects()"
           :disabled="projectsAuditing"
-          class="gf-btn gf-btn-md gf-btn-audit"
+          class="gf-btn gf-btn-md gf-btn-secondary"
         >
           <span x-text="projectsAuditing ? 'Auditing...' : 'Audit All'"></span>
         </button>
         <button
           @click="showAddProject = true; $nextTick(() => $refs.addProjectInput?.focus())"
-          class="gf-btn gf-btn-md gf-btn-audit"
+          class="gf-btn gf-btn-md gf-btn-primary"
         >
           Add Project
         </button>
@@ -157,7 +157,7 @@
         </button>
         <button
           @click="showAddProject = false; newProjectPath = ''"
-          class="gf-btn gf-btn-md"
+          class="gf-btn gf-btn-md gf-btn-text"
           style="background: none; border: none; color: var(--text-muted)"
         >
           Cancel
@@ -338,26 +338,22 @@
       <!-- No search results -->
       <div
         x-show="projectSearch && filteredProjects.length === 0"
-        style="padding: 16px; text-align: center"
+        class="gf-empty-state"
+        style="padding: 24px 16px"
       >
-        <span class="gf-text-muted" style="font-size: 12px"
-          >No projects match filter</span
-        >
+        <span class="gf-empty-mark">⌕</span>
+        <p>No projects match filter</p>
       </div>
     </div>
 
     <!-- Empty state -->
     <div
       x-show="projectsList.length === 0"
-      class="gf-surface"
-      style="
-        border-radius: 8px;
-        padding: 24px;
-        text-align: center;
-        margin-bottom: 20px;
-      "
+      class="gf-surface gf-empty-state"
+      style="border-radius: 8px; margin-bottom: 20px"
     >
-      <p class="gf-text-muted" style="font-size: 13px">
+      <span class="gf-empty-mark">PR</span>
+      <p>
         No projects added. Click "Add Project" to monitor a project directory.
       </p>
     </div>

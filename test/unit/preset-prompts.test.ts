@@ -498,22 +498,17 @@ describe("preset prompt catalog", () => {
     }
   });
 
-  it("keeps quality prompts out of normal prompt browsing even when internal prompts are shown", () => {
+  it("keeps quality and internal prompts out of normal prompt browsing", () => {
     const source = readFileSync(DASHBOARD_PROMPTS_PATH, "utf-8");
     const view = readFileSync(PROMPTS_VIEW_PATH, "utf-8");
-    assert.match(source, /showInternalPresets/);
     assert.match(
       source,
-      /const nonQuality = list\.filter\(\(p\) => !p\.qualityMode\)/,
+      /list\.filter\(\(p\) => !p\.qualityMode && !p\.internalOnly\)/,
     );
-    assert.match(
-      source,
-      /ctx\.showInternalPresets\s+\?\s+nonQuality\s+:\s+nonQuality\.filter\(\(p\) => !p\.internalOnly\)/,
-    );
-    assert.match(
-      view,
-      /!p\.qualityMode && \(showInternalPresets \|\| !p\.internalOnly\)/,
-    );
+    assert.doesNotMatch(source, /showInternalPresets/);
+    assert.doesNotMatch(view, /showInternalPresets/);
+    assert.doesNotMatch(view, /Internal<\/span>/);
+    assert.match(view, /!p\.qualityMode && !p\.internalOnly/);
     assert.match(source, /dashboardAllPresets/);
     assert.match(source, /dashboardCustomPromptToPreset/);
   });

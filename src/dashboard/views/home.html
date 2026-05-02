@@ -22,8 +22,7 @@
     primarySession() { return this.activeSessions()[0] || null; },
     sessionLabel(session) {
       if (!session) return 'session';
-      const local = sessions.find((item) => item.id === session.id);
-      return local?.promptLabel || session.projectName || 'session';
+      return sessionTitleFor(session);
     },
     sessionAge(session) {
       if (!session) return '0m';
@@ -116,6 +115,21 @@
       return score === null ? '-' : String(score);
     },
     concernToneClass(agent, key) { return this.toneForScore(this.concernScore(agent, key)); },
+    expandedAgentBreakdowns: {},
+    agentAllConcernsPassing(agent) {
+      if (agent?.preview || !agent?.concerns) return false;
+      return this.concernKeys.every((key) => {
+        const item = this.concern(agent, key);
+        return item.status === 'pass' || this.concernScore(agent, key) >= 100;
+      });
+    },
+    agentBreakdownOpen(agent) {
+      return !this.agentAllConcernsPassing(agent) || this.expandedAgentBreakdowns[agent.id] === true;
+    },
+    toggleAgentBreakdown(agent) {
+      if (!agent?.id) return;
+      this.expandedAgentBreakdowns[agent.id] = !this.expandedAgentBreakdowns[agent.id];
+    },
     recommendationSummary(agent) {
       if (agent?.preview) return 'Skills, hooks, instruction file';
       const recs = Object.values(agent?.concerns || {}).reduce((total, concern) => total + (concern.recommendations || []).length, 0);
@@ -165,9 +179,9 @@
     ringTone() { return this.toneForScore(this.harnessAverage()); },
     ringColor() {
       const tone = this.ringTone();
-      if (tone === 'ok') return '#22c55e';
-      if (tone === 'warn') return '#f59e0b';
-      if (tone === 'bad') return '#ef4444';
+      if (tone === 'ok') return 'var(--status-pass)';
+      if (tone === 'warn') return 'var(--status-waiting)';
+      if (tone === 'bad') return 'var(--status-danger)';
       return 'rgba(148, 163, 184, 0.25)';
     },
     ringStyle() {
@@ -510,7 +524,11 @@
     <div x-show="report">
       <div class="sessions-strip" x-show="activeSessions().length > 0">
         <div class="sessions-strip-main">
-          <span class="sessions-dot"></span>
+          <span
+            class="gf-status-dot gf-status-running"
+            aria-label="Running session"
+            >●</span
+          >
           <span
             class="session-count"
             x-text="activeSessions().length + ' active session' + (activeSessions().length === 1 ? '' : 's')"
@@ -718,7 +736,18 @@
                 x-text="recommendationSummary(agent)"
               ></div>
 
-              <div class="concern-list">
+              <button
+                x-show="agentAllConcernsPassing(agent) && !agentBreakdownOpen(agent)"
+                class="agent-all-pass"
+                type="button"
+                @click.stop="toggleAgentBreakdown(agent)"
+                @keydown.enter.stop="toggleAgentBreakdown(agent)"
+                @keydown.space.prevent.stop="toggleAgentBreakdown(agent)"
+              >
+                ✓ All checks passing
+              </button>
+
+              <div class="concern-list" x-show="agentBreakdownOpen(agent)">
                 <template x-for="key in concernKeys" :key="key">
                   <div
                     class="concern-row"
@@ -742,6 +771,15 @@
                     ></span>
                   </div>
                 </template>
+                <button
+                  x-show="agentAllConcernsPassing(agent)"
+                  class="gf-btn gf-btn-sm gf-btn-text"
+                  type="button"
+                  style="margin-top: 4px"
+                  @click.stop="toggleAgentBreakdown(agent)"
+                >
+                  Collapse
+                </button>
               </div>
             </div>
           </article>

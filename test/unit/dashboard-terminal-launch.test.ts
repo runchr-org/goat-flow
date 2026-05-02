@@ -38,6 +38,8 @@ type LaunchContext = {
   terminalAvailable: boolean;
   serverMaxSessions: number;
   serverSessions: unknown[];
+  sessionTitles: Record<string, string>;
+  recentTerminalSessions: unknown[];
   sessions: Array<Record<string, unknown>>;
   promptRunStates: Record<string, string>;
   launching: boolean;
@@ -45,9 +47,16 @@ type LaunchContext = {
   _terminalRefs: Record<string, { cleanup?: () => void }>;
   showMaxSessionsModal: boolean;
   showToast(msg: string, isError?: boolean): void;
+  _forgetSavedSession(sessionId: string): void;
   loadXterm(): Promise<void>;
   connectTerminal(sessionId: string, wsUrl: string): void;
   updateSessionCount(): Promise<void>;
+  rememberSessionTitle(
+    sessionId: string,
+    title: string | null | undefined,
+  ): void;
+  rememberRecentSession(session: Record<string, unknown>): void;
+  sessionTitleFor(session: Record<string, unknown> | null): string;
   $nextTick(): Promise<void>;
 };
 
@@ -58,6 +67,8 @@ type HelperContext = {
     runner?: string,
     options?: LaunchOptions,
   ): Promise<void>;
+  dashboardEndSession(ctx: LaunchContext, sessionId: string): void;
+  dashboardOutputLooksAwaitingInput(text: string): boolean;
 };
 
 function loadHelpers(fetchImpl: typeof fetch): HelperContext {
@@ -85,6 +96,8 @@ function loadHelpers(fetchImpl: typeof fetch): HelperContext {
     `${js}
 globalThis.__helpers = {
   dashboardLaunchInTerminal,
+  dashboardEndSession,
+  dashboardOutputLooksAwaitingInput,
 };`,
     context,
   );
@@ -102,12 +115,17 @@ function makeContext(
     terminalAvailable: true,
     serverMaxSessions: 10,
     serverSessions: [],
+    sessionTitles: {},
+    recentTerminalSessions: [],
     sessions: [],
     promptRunStates: {},
     launching: false,
     activeSessionId: null,
     _terminalRefs: {},
     showMaxSessionsModal: false,
+    _forgetSavedSession(): void {
+      return;
+    },
     async loadXterm(): Promise<void> {
       return;
     },
@@ -116,6 +134,23 @@ function makeContext(
     },
     async updateSessionCount(): Promise<void> {
       return;
+    },
+    rememberSessionTitle(
+      sessionId: string,
+      title: string | null | undefined,
+    ): void {
+      if (title) this.sessionTitles[sessionId] = title;
+    },
+    rememberRecentSession(session: Record<string, unknown>): void {
+      this.recentTerminalSessions.push(session);
+    },
+    sessionTitleFor(session: Record<string, unknown> | null): string {
+      if (!session) return "Runner session";
+      return (
+        this.sessionTitles[String(session.id)] ||
+        (typeof session.promptLabel === "string" ? session.promptLabel : "") ||
+        "claude session"
+      );
     },
     async $nextTick(): Promise<void> {
       return;
@@ -157,10 +192,12 @@ describe("dashboard terminal launch flow", () => {
     });
 
     await helpers.dashboardLaunchInTerminal(ctx, "", "claude", {
-      promptLabel: "Terminal",
+      promptLabel: "Manual session",
     });
 
     assert.equal(ctx.sessions.length, 1);
+    assert.equal(ctx.sessions[0]?.promptLabel, "Manual session");
+    assert.equal(ctx.sessionTitles["session-1"], "Manual session");
     assert.equal(ctx.activeView, "workspace");
     assert.equal(ctx.workspacePanel, "terminal");
     assert.equal(calls[0], "fetch:POST:/api/terminal/create");
@@ -210,7 +247,7 @@ describe("dashboard terminal launch flow", () => {
     });
 
     await helpers.dashboardLaunchInTerminal(ctx, "", "claude", {
-      promptLabel: "Terminal",
+      promptLabel: "Manual session",
     });
 
     assert.equal(ctx.sessions.length, 0);
@@ -218,6 +255,98 @@ describe("dashboard terminal launch flow", () => {
     assert.ok(calls.includes("fetch:DELETE:/api/terminal/session-2"));
     assert.equal(ctx.toasts[0]?.isError, true);
     assert.match(ctx.toasts[0]?.msg ?? "", /xterm\.js load failed/);
+  });
+
+  it("keeps the launch title when a local session is ended into recent history", () => {
+    const calls: string[] = [];
+    const helpers = loadHelpers(async (input, init) => {
+      calls.push(`fetch:${init?.method ?? "GET"}:${String(input)}`);
+      return { json: async () => ({ ok: true }) } as Response;
+    });
+    const ctx = makeContext({
+      activeSessionId: "session-3",
+      promptRunStates: { "preset-debug-ui": "running" },
+      sessions: [
+        {
+          id: "session-3",
+          runner: "claude",
+          promptLabel: "Debug UI in Browser",
+          presetId: "preset-debug-ui",
+          projectPath: "/tmp/example",
+          cwd: "/tmp/example",
+          targetPath: "/tmp/example",
+          startTime: Date.now() - 120_000,
+          awaitingInput: false,
+          outputTail: "",
+        },
+      ],
+      _terminalRefs: {
+        "session-3": {
+          cleanup(): void {
+            calls.push("cleanup:session-3");
+          },
+        },
+      },
+      _forgetSavedSession(sessionId: string): void {
+        calls.push(`forget:${sessionId}`);
+      },
+      rememberRecentSession(session: Record<string, unknown>): void {
+        this.recentTerminalSessions.push({
+          id: session.id,
+          promptLabel: session.promptLabel,
+          runner: session.runner,
+        });
+      },
+    });
+
+    helpers.dashboardEndSession(ctx, "session-3");
+
+    assert.deepStrictEqual(ctx.sessions, []);
+    assert.equal(ctx.activeSessionId, null);
+    assert.equal(ctx.promptRunStates["preset-debug-ui"], "pass");
+    assert.deepStrictEqual(ctx.recentTerminalSessions, [
+      {
+        id: "session-3",
+        promptLabel: "Debug UI in Browser",
+        runner: "claude",
+      },
+    ]);
+    assert.ok(calls.includes("fetch:DELETE:/api/terminal/session-3"));
+    assert.ok(calls.includes("cleanup:session-3"));
+    assert.ok(calls.includes("forget:session-3"));
+  });
+
+  it("detects terminal output that is awaiting interactive input", () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
+        "Do you want to proceed?\n1. Yes\n2. Yes, and remember\n3. No",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
+        "Bash command\ncommand -v browser-use\nEsc to cancel · Tab to amend · ctrl+e to explain",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput("All checks passing\nDone."),
+      false,
+    );
+  });
+
+  it("maps awaiting-input sessions into the workspace waiting state", () => {
+    const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
+    assert.match(source, /awaitingInput: s\.awaitingInput === true/);
+    assert.match(source, /return s\.awaitingInput === true \|\|/);
+    assert.match(
+      source,
+      /this\.allSessions\(\)\.filter\(s => this\.sessionIsWaiting\(s\)\)/,
+    );
   });
 
   it("warms xterm when the workspace view opens", () => {

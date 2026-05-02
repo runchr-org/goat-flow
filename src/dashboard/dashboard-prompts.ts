@@ -11,7 +11,6 @@ type RenderedPresetEntry =
 interface DashboardPromptsContext {
   presets: Preset[];
   customPrompts: CustomPrompt[];
-  showInternalPresets: boolean;
   presetFilter: string;
   presetSearch: string;
   presetFavorites: string[];
@@ -81,10 +80,7 @@ function dashboardAllPresets(ctx: DashboardPromptsContext): Preset[] {
 /** Presets visible in normal browsing; quality prompts live only on the Quality page. */
 function dashboardBrowsablePresets(ctx: DashboardPromptsContext): Preset[] {
   const list = dashboardAllPresets(ctx);
-  const nonQuality = list.filter((p) => !p.qualityMode);
-  return ctx.showInternalPresets
-    ? nonQuality
-    : nonQuality.filter((p) => !p.internalOnly);
+  return list.filter((p) => !p.qualityMode && !p.internalOnly);
 }
 
 /** Return the preset category filters. */

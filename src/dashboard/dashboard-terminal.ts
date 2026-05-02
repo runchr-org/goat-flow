@@ -20,6 +20,8 @@ interface DashboardTerminalContext {
   terminalSessionCount: number;
   serverSessions: ServerSessionInfo[];
   serverMaxSessions: number;
+  sessionTitles: Record<string, string>;
+  recentTerminalSessions: ServerSessionInfo[];
   showMaxSessionsModal: boolean;
   sessions: LocalSession[];
   activeSessionId: string | null;
@@ -34,6 +36,7 @@ interface DashboardTerminalContext {
   _xtermLoaded: boolean;
   _detaching: boolean;
   _activeSession: LocalSession | null;
+  terminalAwaitingInput: boolean;
   terminalSessionId: string | null;
   terminalEnded: boolean;
   displayNameFor(path: string): string;
@@ -56,6 +59,12 @@ interface DashboardTerminalContext {
   connectTerminal(sessionId: string, wsUrl: string): void;
   updateSessionCount(): Promise<void>;
   _forgetSavedSession(sessionId: string): void;
+  rememberSessionTitle(
+    sessionId: string,
+    title: string | null | undefined,
+  ): void;
+  rememberRecentSession(session: LocalSession): void;
+  sessionTitleFor(session: ServerSessionInfo | LocalSession | null): string;
   endSession(sessionId: string): void;
   exportSession(sessionId: string): void;
 }
@@ -68,6 +77,113 @@ function dashboardControllingWorkspace(): string {
 /** Return a POSIX-shell-safe single-quoted string for command examples. */
 function dashboardShellQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+/** Remove generic labels that hide the actual session identity. */
+function dashboardMeaningfulSessionTitle(
+  title: string | null | undefined,
+): string | null {
+  const trimmed = typeof title === "string" ? title.trim() : "";
+  if (!trimmed) return null;
+  if (/^(terminal|terminal session|session)$/i.test(trimmed)) return null;
+  return trimmed;
+}
+
+/** Build a non-generic fallback when no launch-time title is available. */
+function dashboardFallbackSessionTitle(
+  runner: RunnerId | null | undefined,
+  id: string | null | undefined,
+): string {
+  const suffix = id ? id.slice(0, 8) : "new";
+  return `${runner || "runner"} session ${suffix}`;
+}
+
+/** Persist a launch-time session title so reconnects do not collapse to "Terminal". */
+function dashboardRememberSessionTitle(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+  title: string | null | undefined,
+): void {
+  const meaningful = dashboardMeaningfulSessionTitle(title);
+  if (!meaningful) return;
+  const next = { ...ctx.sessionTitles, [sessionId]: meaningful };
+  const entries = Object.entries(next).slice(-80);
+  ctx.sessionTitles = Object.fromEntries(entries);
+  localStorage.setItem(
+    "goat-flow-session-titles",
+    JSON.stringify(ctx.sessionTitles),
+  );
+}
+
+/** Keep a short client-side history for sessions that the backend no longer lists. */
+function dashboardRememberRecentSession(
+  ctx: DashboardTerminalContext,
+  session: LocalSession,
+): void {
+  ctx.rememberSessionTitle(session.id, session.promptLabel);
+  const recent: ServerSessionInfo = {
+    id: session.id,
+    status: "terminated",
+    createdAt: new Date(session.startTime).toISOString(),
+    projectPath: session.projectPath,
+    cwd: session.cwd,
+    targetPath: session.targetPath,
+    runner: session.runner,
+    lastInputAt: session.lastInputTime,
+    age: Math.max(0, Math.floor((Date.now() - session.startTime) / 1000)),
+    projectName: ctx.displayNameFor(session.projectPath),
+  };
+  ctx.recentTerminalSessions = [
+    recent,
+    ...ctx.recentTerminalSessions.filter((item) => item.id !== session.id),
+  ].slice(0, 8);
+}
+
+/** Resolve the title shown for local and server-backed terminal sessions. */
+function dashboardSessionTitle(
+  ctx: DashboardTerminalContext,
+  session: ServerSessionInfo | LocalSession | null,
+): string {
+  if (!session) return "Runner session";
+  const local = ctx.sessions.find((s) => s.id === session.id);
+  return (
+    dashboardMeaningfulSessionTitle(local?.promptLabel) ||
+    dashboardMeaningfulSessionTitle(
+      "promptLabel" in session ? session.promptLabel : null,
+    ) ||
+    dashboardMeaningfulSessionTitle(ctx.sessionTitles[session.id]) ||
+    dashboardFallbackSessionTitle(session.runner, session.id)
+  );
+}
+
+/** Strip common terminal control codes before scanning output text. */
+function dashboardPlainTerminalText(text: string): string {
+  return text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/\r/g, "\n");
+}
+
+/** Heuristic for agent prompts waiting on a numbered human choice. */
+function dashboardOutputLooksAwaitingInput(text: string): boolean {
+  const plain = dashboardPlainTerminalText(text);
+  return (
+    /\bdo you want to (?:proceed|continue|allow|approve)\??/i.test(plain) ||
+    /\bawaiting (?:input|confirmation|approval)\b/i.test(plain) ||
+    /\bEsc to cancel\b[\s\S]{0,240}\bTab to amend\b/i.test(plain) ||
+    /(^|\n)\s*1[.)]\s+\S[\s\S]{0,900}\n\s*2[.)]\s+\S[\s\S]{0,900}\n\s*3[.)]\s+\S/i.test(
+      plain,
+    )
+  );
+}
+
+/** Mutate the Alpine-backed local session and the launch-time reference together. */
+function dashboardMutateLocalSession(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+  fallback: LocalSession,
+  mutate: (session: LocalSession) => void,
+): void {
+  const reactive = ctx.sessions.find((s) => s.id === sessionId);
+  if (reactive) mutate(reactive);
+  if (reactive !== fallback) mutate(fallback);
 }
 
 /** Build target context appended to launched preset prompts. */
@@ -137,6 +253,7 @@ function dashboardSendToTerminal(
   const pasteData = "\x1b[200~" + prepared + "\x1b[201~" + "\r";
   refs.ws.send(JSON.stringify({ type: "input", data: pasteData }));
   active.lastInputTime = Date.now();
+  active.awaitingInput = false;
   if (refs.xterm) refs.xterm.focus();
   return true;
 }
@@ -253,9 +370,11 @@ async function dashboardEndAllSessions(
         .filter((session) => session.status === "active")
         .map((session) => session.id),
     );
+    const localRecentCount = ctx.recentTerminalSessions.length;
     for (const session of inactive) {
       await fetch(`/api/terminal/${session.id}`, { method: "DELETE" });
     }
+    ctx.recentTerminalSessions = [];
     const keptRefs: typeof ctx._terminalRefs = {};
     for (const id of Object.keys(ctx._terminalRefs)) {
       if (activeIds.has(id)) {
@@ -299,11 +418,11 @@ async function dashboardEndAllSessions(
       }
     }
     await ctx.updateSessionCount();
-    const count = inactive.length;
+    const count = inactive.length + localRecentCount;
     ctx.showToast(
       count > 0
-        ? `Cleared ${count} inactive session${count !== 1 ? "s" : ""}`
-        : "No inactive sessions to clear",
+        ? `Cleared ${count} recent session${count !== 1 ? "s" : ""}`
+        : "No recent sessions to clear",
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -541,9 +660,12 @@ async function dashboardReconnectTerminal(
       lastInputTime: alive.lastInputAt,
       connected: false,
       ended: false,
+      awaitingInput: false,
+      outputTail: "",
       age: "",
       presetId: null,
     };
+    ctx.rememberSessionTitle(session.id, session.promptLabel);
     ctx.sessions.push(session);
     ctx._terminalRefs[session.id] = {};
   }
@@ -623,10 +745,13 @@ async function dashboardLaunchInTerminal(
       lastInputTime: Date.now(),
       connected: false,
       ended: false,
+      awaitingInput: false,
+      outputTail: "",
       age: "",
       presetId,
     };
     createdSessionId = session.id;
+    ctx.rememberSessionTitle(session.id, session.promptLabel);
     ctx.sessions.push(session);
     ctx._terminalRefs[session.id] = {};
     ctx.activeSessionId = session.id;
@@ -731,21 +856,25 @@ function dashboardConnectTerminal(
   let ageInterval: ReturnType<typeof setInterval> | null = null;
   /** Handle the terminal WebSocket opening. */
   ws.onopen = () => {
-    session.connected = true;
+    dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+      target.connected = true;
+    });
     setTimeout(doFit, TERMINAL_REFIT_RETRY_DELAY_MS);
     if (ageInterval) clearInterval(ageInterval);
     ageInterval = setInterval(() => {
       if (session.ended) {
         if (ageInterval) clearInterval(ageInterval);
-        session.age = "";
+        dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+          target.age = "";
+        });
         return;
       }
       const elapsed = Math.floor((Date.now() - session.startTime) / 1000);
       const mins = Math.floor(elapsed / 60);
       const hrs = Math.floor(mins / 60);
       let age: string;
-      if (hrs > 0) age = `Running ${hrs}h ${mins % 60}m`;
-      else age = `Running ${mins}m`;
+      if (hrs > 0) age = `${hrs}h ${mins % 60}m`;
+      else age = `${mins}m`;
       if (session.lastInputTime && ctx.idleTimeoutMinutes > 0) {
         const idleSecs = Math.floor(
           (Date.now() - session.lastInputTime) / 1000,
@@ -755,12 +884,14 @@ function dashboardConnectTerminal(
         const countdownAt = Math.floor(timeout * 0.97);
         const warnAt = Math.floor(timeout * 0.85);
         if (idleMins >= countdownAt) {
-          age = `Running ${mins}m | Timeout in ${Math.max(0, timeout - idleMins)}m`;
+          age = `${mins}m | Timeout in ${Math.max(0, timeout - idleMins)}m`;
         } else if (idleMins >= warnAt) {
           age += ` | Idle ${idleMins}m`;
         }
       }
-      session.age = age;
+      dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+        target.age = age;
+      });
     }, 30000);
     if (ctx._terminalRefs[sessionId]) {
       ctx._terminalRefs[sessionId].ageInterval = ageInterval;
@@ -773,10 +904,26 @@ function dashboardConnectTerminal(
       const msg = readRecord(JSON.parse(event.data), "Terminal message");
       const type = readString(msg.type);
       if (type === "output" && typeof msg.data === "string") {
+        const reactive = ctx.sessions.find((s) => s.id === sessionId);
+        const tail = (
+          (reactive?.outputTail ?? session.outputTail ?? "") + msg.data
+        ).slice(-5000);
+        dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+          target.outputTail = tail;
+        });
+        if (dashboardOutputLooksAwaitingInput(tail)) {
+          dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+            target.awaitingInput = true;
+          });
+        }
         term.write(msg.data);
       } else if (type === "exit") {
-        session.ended = true;
-        session.connected = false;
+        dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+          target.ended = true;
+          target.connected = false;
+          target.awaitingInput = false;
+        });
+        ctx.rememberRecentSession(session);
         ctx._forgetSavedSession(sessionId);
         if (
           session.presetId &&
@@ -788,8 +935,11 @@ function dashboardConnectTerminal(
       } else if (type === "error" && typeof msg.message === "string") {
         term.write(`\r\n\x1b[31m${msg.message}\x1b[0m\r\n`);
       } else if (type === "shutdown") {
-        session.ended = true;
-        session.connected = false;
+        dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+          target.ended = true;
+          target.connected = false;
+          target.awaitingInput = false;
+        });
       }
     } catch {
       /* ignore malformed messages */
@@ -797,12 +947,16 @@ function dashboardConnectTerminal(
   };
   /** Handle the terminal WebSocket closing. */
   ws.onclose = () => {
-    session.connected = false;
-    if (!session.ended && !ctx._detaching) session.ended = true;
+    dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+      target.connected = false;
+      if (!target.ended && !ctx._detaching) target.ended = true;
+    });
   };
   /** Handle terminal WebSocket errors. */
   ws.onerror = () => {
-    session.connected = false;
+    dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+      target.connected = false;
+    });
   };
   term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
     if (e.type === "keydown" && e.ctrlKey && e.key === "v") {
@@ -830,7 +984,11 @@ function dashboardConnectTerminal(
   term.onData((data: string) => {
     if (ws.readyState === WebSocket.OPEN)
       ws.send(JSON.stringify({ type: "input", data }));
-    session.lastInputTime = Date.now();
+    const lastInputTime = Date.now();
+    dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+      target.lastInputTime = lastInputTime;
+      target.awaitingInput = false;
+    });
   });
   term.onResize(({ cols, rows }: { cols: number; rows: number }) => {
     if (ws.readyState === WebSocket.OPEN)
@@ -873,6 +1031,7 @@ function dashboardEndSession(
   if (!session.ended) {
     fetch(`/api/terminal/${sessionId}`, { method: "DELETE" }).catch(() => {});
   }
+  ctx.rememberRecentSession(session);
   const refs = ctx._terminalRefs[sessionId];
   if (refs?.cleanup) refs.cleanup();
   Reflect.deleteProperty(ctx._terminalRefs, sessionId);
@@ -916,7 +1075,7 @@ async function dashboardOpenServerSession(
   const session: LocalSession = {
     id: serverSession.id,
     runner: serverSession.runner,
-    promptLabel: serverSession.projectName || "session",
+    promptLabel: ctx.sessionTitleFor(serverSession),
     projectPath: serverSession.projectPath,
     cwd: serverSession.cwd,
     targetPath: serverSession.targetPath,
@@ -924,9 +1083,12 @@ async function dashboardOpenServerSession(
     lastInputTime: serverSession.lastInputAt || Date.now(),
     connected: false,
     ended: false,
+    awaitingInput: false,
+    outputTail: "",
     age: "",
     presetId: null,
   };
+  ctx.rememberSessionTitle(session.id, session.promptLabel);
   ctx.sessions.push(session);
   ctx._terminalRefs[session.id] = {};
   ctx.activeSessionId = session.id;

@@ -210,6 +210,8 @@ interface LocalSession {
   lastInputTime: number;
   connected: boolean;
   ended: boolean;
+  awaitingInput?: boolean;
+  outputTail?: string;
   age: string;
   presetId: string | null;
 }

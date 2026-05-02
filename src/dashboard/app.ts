@@ -90,6 +90,8 @@ function app() {
     terminalSessionCount: 0,
     serverSessions: [] as ServerSessionInfo[],
     serverMaxSessions: 10,
+    sessionTitles: readStoredStringMap("goat-flow-session-titles"),
+    recentTerminalSessions: [] as ServerSessionInfo[],
     showMaxSessionsModal: false,
     sessions: [] as LocalSession[],
     activeSessionId: null as string | null,
@@ -123,13 +125,19 @@ function app() {
     get terminalEnded(): boolean {
       return this._activeSession?.ended ?? false;
     },
+    /** Return whether the active terminal appears to be awaiting a user choice. */
+    get terminalAwaitingInput(): boolean {
+      return this._activeSession?.awaitingInput === true;
+    },
     /** Return the active terminal age label. */
     get terminalAge(): string {
       return this._activeSession?.age ?? "";
     },
     /** Return the last run prompt label. */
     get lastRunPrompt(): string | null {
-      return this._activeSession?.promptLabel ?? null;
+      return this._activeSession
+        ? this.sessionTitleFor(this._activeSession)
+        : null;
     },
     /** Return the last run agent ID. */
     get lastRunAgent(): RunnerId | null {
@@ -215,7 +223,7 @@ function app() {
       const agentPass = score.agent.status === "pass";
       const harnessPass = !score.harness || score.harness.status === "pass";
       if (agentPass && harnessPass)
-        return { label: "Passing", color: "#4ade80" };
+        return { label: "Passing", color: "var(--status-pass)" };
       if (!agentPass) return { label: "Setup failing", color: "#f87171" };
       return { label: "Harness failing", color: "#fbbf24" };
     },
@@ -239,8 +247,6 @@ function app() {
     // --- Launcher state ---
     presets: readInjectedPresets(),
     customPrompts: [] as CustomPrompt[],
-    showInternalPresets:
-      localStorage.getItem("goat-flow-show-internal") === "true",
     showCustomPromptEditor: false,
     editingCustomPromptId: null as string | null,
     customPromptDraft: dashboardDefaultCustomPromptDraft(),
@@ -508,9 +514,6 @@ function app() {
           void this.generateQuality();
           this.scheduleQualityHistory();
         }
-      });
-      self.$watch("showInternalPresets", (v: boolean) => {
-        localStorage.setItem("goat-flow-show-internal", String(v));
       });
       self.$watch("sessionsCollapsed", (v: boolean) => {
         localStorage.setItem("gf-sessions-collapsed", String(v));
@@ -869,6 +872,18 @@ function app() {
     /** Drop a session id from every project's saved list, pruning empty entries. */
     _forgetSavedSession(sessionId: string) {
       dashboardForgetSavedSession(this, sessionId);
+    },
+    /** Persist a launch-time title for reconnect and refresh recovery. */
+    rememberSessionTitle(sessionId: string, title: string | null | undefined) {
+      dashboardRememberSessionTitle(this, sessionId, title);
+    },
+    /** Add an ended local session to the Workspace recent-history list. */
+    rememberRecentSession(session: LocalSession) {
+      dashboardRememberRecentSession(this, session);
+    },
+    /** Resolve the display title for a terminal session. */
+    sessionTitleFor(session: ServerSessionInfo | LocalSession | null): string {
+      return dashboardSessionTitle(this, session);
     },
     /** Detach the current browser terminal while preserving reconnect metadata. */
     detachTerminal(forProjectPath?: string) {
