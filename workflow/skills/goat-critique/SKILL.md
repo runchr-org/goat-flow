@@ -37,7 +37,7 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 
 ## Step 0 - Intake
 
-goat-critique runs in one mode: full delegated, Phases 1-5 plus mandatory post-synthesis steps (5.5 meta-audit, 5.6 outcome capture), three sub-agents. If an agent suggests adding a lighter mode, that suggestion is the failure this design prevents.
+goat-critique runs in one mode: full delegated, Phases 1-5 plus mandatory post-synthesis steps (5.5 meta-audit, 5.6 outcome capture), three critique sub-agents plus one lightweight meta-agent in 5.5. If an agent suggests adding a lighter mode, that suggestion is the failure this design prevents.
 
 **Intake checklist:**
 - Confirm the artifact exists and is concrete (a file, a plan document, a specific set of findings - not a vague idea).
@@ -183,7 +183,7 @@ The rubric determines what sub-agents evaluate. Match to artifact type. Dimensio
 
 ## Constraints
 
-- MUST run in one mode: full delegated, Phases 1-5 plus mandatory post-synthesis steps (5.5, 5.6), three sub-agents. Phase 5.5 (meta-audit) runs before the human gate; Phase 5.6 (outcome capture) runs after the human responds. Quick/lite modes were tried and removed - a single reviewer running lens passes in one context is self-talk under three labels, not multi-perspective critique.
+- MUST run in one mode: full delegated, Phases 1-5 plus mandatory post-synthesis steps (5.5, 5.6), three critique sub-agents plus one meta-agent in 5.5. Phase 5.5 runs before the human gate; Phase 5.6 runs after the human responds. Quick/lite modes were tried and removed - a single reviewer running lens passes in one context is self-talk under three labels, not multi-perspective critique.
 - Explicit `$goat-critique` or `/goat-critique` invocation IS consent to spawn sub-agents and the full protocol. Do NOT ask again.
 - Report-only by default. Do not mutate the target artifact or committed files unless the user separately says to apply, edit, update, fix, or otherwise implement. If interrupted, freeze writes.
 - MUST Spawn all three sub-agents in a single parallel batch. Sequential spawning loses the informational-diversity benefit.

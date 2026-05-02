@@ -133,7 +133,7 @@ Finding line prefix: `[SEVERITY:ACTION]`. Example: `[MUST:needs-decision]`.
 
 Check each finding with targeted grep-first retrieval against `.goat-flow/footguns/`. When a direct match exists, include it. Omit the footgun tag when no direct match is found after the one allowed reword.
 
-**BLOCKING GATE:** Present findings using Output Format below, then pause for human to drill in.
+**BLOCKING GATE:** Present findings using Output Format below, then pause for human to drill in. After the human responds, evaluate Pass 3 auto-trigger conditions before presenting the Ship Verdict — do not skip the refuter when conditions are met.
 
 **Review DoD gate:** for reporting-only review, verify findings, cross-references, and scope boundaries. Do not imply implementation tests unless directly needed for a finding. If user says "implement", switch to instruction file's implementation DoD.
 

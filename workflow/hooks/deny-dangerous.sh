@@ -351,6 +351,11 @@ run_self_test() {
   run_case "rm bare workflow blocked" "rm -rf workflow" 2
   run_case "rm bare docs blocked" "rm -rf docs" 2
   run_case "rm bare test blocked" "rm -rf test" 2
+  run_case "rm dotslash src blocked" "rm -rf ./src" 2
+  run_case "rm dotslash docs blocked" "rm -rf ./docs" 2
+  run_case "rm dotslash workflow blocked" "rm -rf ./workflow" 2
+  run_case "rm dotslash node_modules allowed" "rm -rf ./node_modules" 0
+  run_case "rm dotslash subdir allowed" "rm -rf ./src/old-module" 0
   run_case "chmod recursive 777" "chmod -R 777 ." 2
   run_case "chmod leading zero 777" "chmod 0777 file" 2
   # False-positive cases: read-only commands containing dangerous literals as data.
@@ -619,13 +624,25 @@ rm_has_recursive_force() {
 
 rm_is_safely_scoped() {
   local c="$1"
-  # Safe rm -rf targets:
-  #   ./relative/path        — explicitly dot-prefixed
-  #   path/with/slash        — has subdirectory (not a bare top-level dir)
-  #   node_modules|dist|out|build|coverage|__pycache__|.cache|.next|.nuxt|.turbo — known ephemeral dirs
-  #   /tmp/build-*           — CI artifacts
-  # Bare top-level names like src, workflow, docs, test are NOT safe.
-  [[ "$c" =~ ^[[:space:]]*rm([[:space:]]+--?[[:alnum:]-]+)*[[:space:]]+(\./[a-zA-Z][^[:space:]]*|[a-zA-Z][^[:space:]]*/[^[:space:]]*|(node_modules|dist|out|build|coverage|__pycache__|\.cache|\.next|\.nuxt|\.turbo)|/tmp/build-[a-zA-Z0-9._-][^[:space:]]*)[[:space:]]*$ ]]
+  # Extract the target path: strip "rm" + flags, trim whitespace.
+  local target
+  target="$(echo "$c" | sed 's/^[[:space:]]*rm\([[:space:]]\+--\?[[:alnum:]-]\+\)*//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')"
+  # Normalize: strip leading ./ so ./src and src are evaluated the same way.
+  target="${target#./}"
+  # Empty target or absolute path (except /tmp/build-*) is not safe.
+  [[ -z "$target" ]] && return 1
+  # /tmp/build-* CI artifacts are safe.
+  [[ "$target" =~ ^/tmp/build-[a-zA-Z0-9._-] ]] && return 0
+  # Reject any other absolute path.
+  [[ "$target" == /* ]] && return 1
+  # Known ephemeral top-level dirs are safe without a subdirectory.
+  case "$target" in
+    node_modules|dist|out|build|coverage|__pycache__|.cache|.next|.nuxt|.turbo) return 0 ;;
+  esac
+  # Paths with a subdirectory component (contains /) are safe.
+  [[ "$target" == */* ]] && return 0
+  # Bare top-level name (src, workflow, docs, test, etc.) is NOT safe.
+  return 1
 }
 
 

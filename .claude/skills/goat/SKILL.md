@@ -22,10 +22,9 @@ Use when the user describes an outcome and wants the right workflow chosen. **If
 
 ## How It Works
 
-1. **UNDERSTAND** - classify intent and target from the user's request. If the request contains multiple intents, number each and route independently. Ask only if ordering between intents matters.
+1. **UNDERSTAND** - classify intent and target. If multiple intents, number each and route independently. Ask only if ordering matters.
 2. **GATHER** - before routing, check:
    - Footgun matches: grep `.goat-flow/footguns/` for the target area
-   - Plan state: check `.goat-flow/tasks/.active` for in-progress milestones
    - Ask-first boundaries: scan the active instruction file's Ask First boundaries for the target files
    - If any check fails or is unavailable, note `gather-degraded` and route anyway
 3. **ROUTE** - dispatch using the route map. Emit a Route Snapshot:
