@@ -356,6 +356,12 @@ run_self_test() {
   run_case "rm dotslash workflow blocked" "rm -rf ./workflow" 2
   run_case "rm dotslash node_modules allowed" "rm -rf ./node_modules" 0
   run_case "rm dotslash subdir allowed" "rm -rf ./src/old-module" 0
+  run_case "rm trailing slash src blocked" "rm -rf src/" 2
+  run_case "rm trailing slash .github blocked" "rm -rf .github/" 2
+  run_case "rm trailing slash .goat-flow blocked" "rm -rf .goat-flow/" 2
+  run_case "rm trailing slash dotslash src blocked" "rm -rf ./src/" 2
+  run_case "rm trailing slash node_modules allowed" "rm -rf node_modules/" 0
+  run_case "rm trailing slash subdir allowed" "rm -rf src/old-module/" 0
   run_case "chmod recursive 777" "chmod -R 777 ." 2
   run_case "chmod leading zero 777" "chmod 0777 file" 2
   # False-positive cases: read-only commands containing dangerous literals as data.
@@ -629,6 +635,8 @@ rm_is_safely_scoped() {
   target="$(echo "$c" | sed 's/^[[:space:]]*rm\([[:space:]]\+--\?[[:alnum:]-]\+\)*//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')"
   # Normalize: strip leading ./ so ./src and src are evaluated the same way.
   target="${target#./}"
+  # Strip trailing slash so src/ is evaluated the same as src.
+  target="${target%/}"
   # Empty target or absolute path (except /tmp/build-*) is not safe.
   [[ -z "$target" ]] && return 1
   # /tmp/build-* CI artifacts are safe.
