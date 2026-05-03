@@ -163,7 +163,7 @@ Triggers when ANY of: (1) user opts in at Step 0, (2) Review Integrity would be 
 
 **Synthesis:** REFUTER-CONFIRMED findings get `[CONFIRMED-CROSS-MODEL]` upgrade. REFUTER-REFUTED move to `## Refuted by Refuter` with reasoning preserved verbatim. REFUTER-UNRESOLVED keep original severity; add `cross-model-unresolved` to Review Integrity. Refuter leads do not become findings unless host verifies via Pass 2 rules.
 
-**Constraints:** MUST NOT run without authenticated opposite runtime (`command -v codex && codex login status` or equivalent). MUST treat REFUTER-REFUTED as advisory. MUST emit `cross-model-refuter-failed` if refuter call errors. Requires cross-model infrastructure; opt-in at Step 0 or auto-triggered by the degradation conditions listed in Pass 3.
+**Constraints:** MUST NOT run without an authenticated opposite runtime (`codex login status` for Codex, `claude auth status` for Claude Code; version-only commands do not count). MUST treat REFUTER-REFUTED as advisory. MUST emit `cross-model-refuter-failed` if refuter call errors. Requires cross-model infrastructure; opt-in at Step 0 or auto-triggered by the degradation conditions listed in Pass 3.
 
 ## Review Integrity (confidence signal)
 

@@ -28,10 +28,8 @@ skills:
 telemetry: false
 
 # ── Line Limits ──────────────────────────────────
-# Adjust for project complexity:
-#   Small CLI: target 125, limit 150
-#   Standard:  target 125, limit 150 (default)
-#   Large:     target 125, limit 150
+# Instruction-file line limits used by audit quality checks.
+# Target is the preferred maximum; limit is the hard failure threshold.
 line-limits:
   target: 125
   limit: 150

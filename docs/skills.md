@@ -225,7 +225,7 @@ flowchart TD
     P4 -->|"BLOCKING GATE"| P5["Phase 5: Synthesise\nConsensus + Resolved + Verified + Retracted\n+ Open Questions + What Wasn't Critiqued"]
 ```
 
-**Key constraints:** MUST use Agent tool calls for sub-agents, not inline role-play. MUST restrict the fresh-eyes pass to artifact + evaluation criteria only (no project context). MUST include "What Wasn't Critiqued" section (never empty). MUST put low-confidence recommendation candidates under Open Questions until evidence supports them.
+**Key constraints:** MUST use real delegated sub-agent calls, not inline role-play. MUST restrict the fresh-eyes pass to artifact + evaluation criteria only (no project context). MUST include "What Wasn't Critiqued" section (never empty). MUST put low-confidence recommendation candidates under Open Questions until evidence supports them.
 
 ---
 
