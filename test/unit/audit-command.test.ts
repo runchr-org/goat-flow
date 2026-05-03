@@ -1206,7 +1206,10 @@ describe("project-specific validation command policy", () => {
 });
 
 describe("recovery harness milestone tracking", () => {
-  function taskCtx(files: Record<string, string>, tasksExists = true): AuditContext {
+  function taskCtx(
+    files: Record<string, string>,
+    tasksExists = true,
+  ): AuditContext {
     const dirs = new Map<string, Set<string>>();
     dirs.set(".goat-flow/tasks", new Set());
     for (const file of Object.keys(files)) {
@@ -1385,13 +1388,13 @@ describe("M01 harness check type tagging", () => {
     }
   });
 
-  it("matches the locked distribution (9 integrity, 7 advisory, 1 metric)", () => {
+  it("matches the locked distribution (9 integrity, 6 advisory, 1 metric)", () => {
     const byType = { integrity: 0, advisory: 0, metric: 0 } as Record<
       string,
       number
     >;
     for (const check of HARNESS_CHECKS) byType[check.type]!++;
-    assert.deepStrictEqual(byType, { integrity: 9, advisory: 7, metric: 1 });
+    assert.deepStrictEqual(byType, { integrity: 9, advisory: 6, metric: 1 });
   });
 
   it("known-integrity ids are tagged integrity", () => {
@@ -1715,7 +1718,7 @@ describe("M01 scoring model", () => {
     assert.equal(secrets?.status, "pass");
   });
 
-  it("configured-only verification lowers score while post-turn metric stays unscored", () => {
+  it("project test-command absence does not lower verification score", () => {
     const baseFacts = makeCtx().facts;
     const ctx = makeCtx({
       facts: {
@@ -1733,11 +1736,8 @@ describe("M01 scoring model", () => {
     });
     const { concerns } = computeHarness(ctx);
     assert.equal(concerns.verification.metrics, 1);
-    assert.equal(concerns.verification.advisoryFail, 1);
-    assert.ok(
-      concerns.verification.score < 100,
-      `configured-only verification should not score 100: ${concerns.verification.score}`,
-    );
+    assert.equal(concerns.verification.advisoryFail, 0);
+    assert.equal(concerns.verification.score, 100);
   });
 
   it("CheckResult carries type, acknowledged, and provenance fields", () => {

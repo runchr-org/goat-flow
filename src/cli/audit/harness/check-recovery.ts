@@ -9,11 +9,6 @@ import { collectMarkdownFiles } from "./helpers.js";
 
 const VERIFIED_ON = "2026-04-18";
 
-interface MilestoneProgress {
-  path: string;
-  count: number;
-}
-
 /** Return the recovery provenance. */
 function recoveryProvenance(
   type: HarnessCheck["type"],
@@ -34,12 +29,8 @@ function recoveryProvenance(
   };
 }
 
-function countTaskMarkers(path: string, content: string): MilestoneProgress {
-  const checkboxMatches = content.match(/- \[[ xX]\]/g)?.length ?? 0;
-  return {
-    path,
-    count: checkboxMatches,
-  };
+function countTaskMarkers(content: string): number {
+  return content.match(/- \[[ xX]\]/g)?.length ?? 0;
 }
 
 const milestoneTracking: HarnessCheck = {
@@ -70,12 +61,12 @@ const milestoneTracking: HarnessCheck = {
         "Tasks directory exists (empty - valid for new projects; task tracking is optional)",
       ]);
     }
-    const progress: MilestoneProgress[] = [];
+    const markerCounts: number[] = [];
     for (const f of allMdFiles) {
       const content = ctx.fs.readFile(f);
-      if (content) progress.push(countTaskMarkers(f, content));
+      if (content) markerCounts.push(countTaskMarkers(content));
     }
-    const totalMarkers = progress.reduce((sum, item) => sum + item.count, 0);
+    const totalMarkers = markerCounts.reduce((sum, count) => sum + count, 0);
     const findings = [
       `Tasks directory exists with ${allMdFiles.length} markdown file(s) and ${totalMarkers} checkbox marker(s)`,
       "Task and milestone content is optional local workflow state; checkbox completion, status, testing gates, and roadmap progress are not audited.",
