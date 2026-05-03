@@ -779,6 +779,11 @@ function app() {
         this.report = readDashboardReport(payload);
         this.auditCached = cached;
         this.lastAuditTime = cachedAt ? new Date(cachedAt) : new Date();
+        if (fresh) {
+          this.setupOutputs = {};
+          this._setupOutputProjectPath = this.projectPath;
+          if (this.activeView === "setup") this.scheduleSetupPrompt();
+        }
         if (this.activeView === "home") {
           void this.generateHomeQualitySummary();
         }

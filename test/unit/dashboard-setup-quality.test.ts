@@ -18,6 +18,10 @@ const SETUP_QUALITY_PATH = resolve(
 
 type TestContext = {
   projectPath: string;
+  setupSelectedAgent: string;
+  setupGenerating: boolean;
+  setupOutputs: Record<string, string>;
+  _setupOutputProjectPath: string | null;
   qualityAgent: string;
   selectedQualityModeId: string;
   qualityHistoryLoading: boolean;
@@ -31,6 +35,10 @@ type TestContext = {
 };
 
 type HelperContext = {
+  dashboardGenerateSetupPrompt(
+    ctx: TestContext,
+    options?: { force?: boolean },
+  ): Promise<void>;
   dashboardGenerateQualityHistory(ctx: TestContext): Promise<void>;
 };
 
@@ -53,6 +61,9 @@ function loadHelpers(fetchImpl: typeof fetch): HelperContext {
     readErrorMessage(value: Record<string, unknown>): string | null {
       return typeof value.error === "string" ? value.error : null;
     },
+    readString(value: unknown): string {
+      return typeof value === "string" ? value : "";
+    },
     readStringArray(value: unknown): string[] {
       return Array.isArray(value)
         ? value.filter((entry): entry is string => typeof entry === "string")
@@ -68,6 +79,7 @@ function loadHelpers(fetchImpl: typeof fetch): HelperContext {
   runInContext(
     `${js}
 globalThis.__helpers = {
+  dashboardGenerateSetupPrompt,
   dashboardGenerateQualityHistory,
 };`,
     context,
@@ -78,6 +90,10 @@ globalThis.__helpers = {
 function makeContext(): TestContext {
   return {
     projectPath: "/repo",
+    setupSelectedAgent: "claude",
+    setupGenerating: false,
+    setupOutputs: {},
+    _setupOutputProjectPath: null,
     qualityAgent: "claude",
     selectedQualityModeId: "agent-setup",
     qualityHistoryLoading: false,
@@ -93,6 +109,28 @@ function makeContext(): TestContext {
     },
   };
 }
+
+describe("dashboardGenerateSetupPrompt", () => {
+  it("clears cached setup prompts when the project path changes", async () => {
+    const helpers = loadHelpers(
+      async () =>
+        new Response(JSON.stringify({ output: "fresh setup output" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const ctx = makeContext();
+    ctx.setupOutputs = { claude: "stale setup output", codex: "other stale" };
+    ctx._setupOutputProjectPath = "/old-repo";
+
+    await helpers.dashboardGenerateSetupPrompt(ctx);
+
+    assert.deepEqual(Object.keys(ctx.setupOutputs), ["claude"]);
+    assert.equal(ctx.setupOutputs.claude, "fresh setup output");
+    assert.equal(ctx._setupOutputProjectPath, "/repo");
+    assert.equal(ctx.setupGenerating, false);
+  });
+});
 
 describe("dashboardGenerateQualityHistory", () => {
   it("clears stale history when the history endpoint returns an error", async () => {

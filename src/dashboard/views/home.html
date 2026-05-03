@@ -309,9 +309,7 @@
     },
     nextPriority() {
       if (!this.setupComplete()) return 'setup';
-      const harnessFail = this.agentScores().some((agent) =>
-        agent.agent?.status === 'fail' || agent.harness?.status === 'fail' || this.integrityFailCount(agent) > 0
-      );
+      const harnessFail = this.agentScores().some((agent) => this.harnessAgentFailed(agent));
       if (harnessFail) return 'harness';
       const concernFail = this.agentScores().some((agent) =>
         Object.values(agent.concerns || {}).some((item) => item?.status === 'fail')
@@ -319,6 +317,21 @@
       const qualityFail = Boolean((homeQualityLatest?.blockerCount || 0) > 0 || (homeQualityLatest?.majorCount || 0) > 0);
       if (concernFail || qualityFail || !homeQualityLatest) return 'completeness';
       return 'healthy';
+    },
+    failingAgent() {
+      const scores = this.agentScores();
+      const failing = scores.find((agent) =>
+        agent.agent?.status === 'fail' || agent.harness?.status === 'fail' || this.integrityFailCount(agent) > 0 ||
+        Object.values(agent.concerns || {}).some((item) => item?.status === 'fail')
+      );
+      return failing?.id || activeRunner;
+    },
+    harnessAgentFailed(agent) {
+      return agent.agent?.status === 'fail' || agent.harness?.status === 'fail' || this.integrityFailCount(agent) > 0;
+    },
+    failingHarnessAgent() {
+      const failing = this.agentScores().find((agent) => this.harnessAgentFailed(agent));
+      return failing?.id || activeRunner;
     },
     nextEyebrow() {
       const priority = this.nextPriority();
@@ -347,7 +360,7 @@
     nextActionCommand() {
       const priority = this.nextPriority();
       if (priority === 'setup') return '$ npx goat-flow setup . --agent ' + activeRunner;
-      if (priority === 'harness') return '$ npx goat-flow audit . --harness --agent ' + activeRunner;
+      if (priority === 'harness') return '$ npx goat-flow audit . --harness --agent ' + this.failingHarnessAgent();
       if (priority === 'completeness') return '$ npx goat-flow quality . --agent ' + activeRunner;
       return null;
     },
@@ -379,7 +392,7 @@
         return;
       }
       if (priority === 'harness') {
-        launchPreset(this.harnessFixPrompt(), activeRunner, 'Harness fix ' + agentName(activeRunner));
+        launchPreset(this.harnessFixPrompt(), activeRunner, 'Harness fix ' + agentName(this.failingHarnessAgent()));
         activeView = 'workspace';
         workspacePanel = 'terminal';
         return;
@@ -454,19 +467,43 @@
     },
     harnessFixPrompt() {
       const scores = this.agentScores();
-      const agent = scores.find((item) => item.id === activeRunner) || scores[0];
+      if (scores.length === 0) {
+        return [
+          '/goat-plan re-run goat-flow audit for ' + activeRunner,
+          '',
+          'Context:',
+          '- Project: ' + projectPath,
+          '- Target agent: ' + activeRunner,
+          '- No agent audit scores are available in the dashboard report.',
+          '',
+          'Goal:',
+          'Run a fresh goat-flow audit and inspect the failing harness checks before editing.',
+          '',
+          'Constraints:',
+          '- Do not guess which agent or scope is failing.',
+          '- Re-run `goat-flow audit . --harness --agent ' + activeRunner + '` and report exact output before proposing fixes.'
+        ].join('\n');
+      }
+      const target = this.failingHarnessAgent();
+      const agent = scores.find((item) => item.id === target) || scores[0];
       const findings = [];
       if (agent) {
+        for (const check of (agent.agent?.checks || [])) {
+          if (check.status === 'fail') findings.push('agent/' + check.id + ': ' + (check.failure?.message || check.failure?.howToFix || 'check failed'));
+        }
+        for (const check of (agent.harness?.checks || [])) {
+          if (check.status === 'fail' && check.type !== 'metric' && !check.acknowledged) findings.push('harness/' + check.id + ': ' + (check.failure?.message || check.failure?.howToFix || 'check failed'));
+        }
         for (const [key, concern] of Object.entries(agent.concerns || {})) {
           if (concern.status === 'fail') findings.push(key + ': ' + ((concern.findings || []).slice(0, 2).join('; ') || 'check failed'));
         }
       }
       return [
-        '/goat-plan fix goat-flow harness findings for ' + activeRunner,
+        '/goat-plan fix goat-flow harness findings for ' + target,
         '',
         'Context:',
         '- Project: ' + projectPath,
-        '- Active agent: ' + activeRunner,
+        '- Target agent: ' + target,
         '- Latest audit age: ' + this.auditAgeText(),
         '- Findings:',
         findings.length ? findings.map((item) => '  - ' + item).join('\n') : '  - Re-run audit and inspect failing harness checks.',
@@ -642,7 +679,10 @@
           <div class="pill" :class="qualityPillTone()">
             <div class="pill-head">
               <span class="pill-dot" :class="qualityPillTone()"></span>
-              <span class="pill-label">QUALITY</span>
+              <span
+                class="pill-label"
+                x-text="'QUALITY - ' + agentName(activeRunner)"
+              ></span>
             </div>
             <div
               class="pill-value"

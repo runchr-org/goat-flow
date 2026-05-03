@@ -444,10 +444,11 @@ function makeAuditReport(
   status: "pass" | "fail",
   setupChecks: AuditReport["scopes"]["setup"]["checks"] = [],
   agentChecks: AuditReport["scopes"]["agent"]["checks"] = [],
+  harnessChecks: AuditReport["scopes"]["setup"]["checks"] = [],
 ): AuditReport {
   return {
     command: "audit",
-    harness: false,
+    harness: harnessChecks.length > 0,
     status,
     target: root,
     scopes: {
@@ -459,7 +460,15 @@ function makeAuditReport(
         agentChecks.some((check) => check.status === "fail") ? "fail" : "pass",
         agentChecks,
       ),
-      harness: null,
+      harness:
+        harnessChecks.length > 0
+          ? makeAuditScope(
+              harnessChecks.some((check) => check.status === "fail")
+                ? "fail"
+                : "pass",
+              harnessChecks,
+            )
+          : null,
     },
     concerns: null,
     drift: null,
@@ -1946,6 +1955,102 @@ describe("composeSetup routing", () => {
       assert.match(
         output,
         /Re-run: `node .*dist\/cli\/cli\.js audit .+ --agent codex`/,
+      );
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("can render dashboard setup prompts from harness-card scope", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        `version: "${AUDIT_VERSION}"\n`,
+      );
+    });
+
+    try {
+      const output = composeSetup(
+        makeAuditReport(
+          project.root,
+          "fail",
+          [
+            {
+              id: "config-version",
+              name: "Config version",
+              status: "fail",
+              failure: {
+                check: "Config version",
+                message: "Config version mismatch",
+              },
+            },
+          ],
+          [],
+          [
+            {
+              id: "decisions-tracked",
+              name: "Decisions directory exists",
+              status: "pass",
+            },
+          ],
+        ),
+        makeProjectFacts(project.root, [
+          stubAgentFacts({ agent: PROFILES.codex }),
+        ]),
+        "codex",
+        { promptScope: "harness-card" },
+      );
+
+      assert.ok(output, "composeSetup should return harness-card setup text");
+      assert.match(output, /All audit checks pass\./);
+      assert.doesNotMatch(output, /Config version mismatch/);
+      assert.match(output, /audit .+ --harness --agent codex/);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("keeps harness scope in dashboard setup failure remediation", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        `version: "${AUDIT_VERSION}"\n`,
+      );
+    });
+
+    try {
+      const output = composeSetup(
+        makeAuditReport(
+          project.root,
+          "fail",
+          [],
+          [],
+          [
+            {
+              id: "decisions-tracked",
+              name: "Decisions directory exists",
+              status: "fail",
+              failure: {
+                check: "Decisions directory exists",
+                message: "No decisions directory",
+              },
+            },
+          ],
+        ),
+        makeProjectFacts(project.root, [
+          stubAgentFacts({ agent: PROFILES.codex }),
+        ]),
+        "codex",
+        { promptScope: "harness-card" },
+      );
+
+      assert.ok(output, "composeSetup should return harness-card failure text");
+      assert.match(output, /Decisions directory exists/);
+      assert.match(
+        output,
+        /Re-run: `node .* audit .+ --harness --agent codex`/,
       );
     } finally {
       await project.cleanup();

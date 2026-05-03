@@ -3,7 +3,7 @@
  * Routes by project state: bare/partial → full setup guide,
  * v0.9/outdated → upgrade redirect, current → audit-driven pass/fail.
  */
-import type { AuditReport } from "../audit/types.js";
+import type { AuditReport, CheckResult } from "../audit/types.js";
 import type { AgentId, ProjectFacts } from "../types.js";
 import { loadManifest } from "../manifest/manifest.js";
 import { PROFILES } from "../detect/agents.js";
@@ -108,22 +108,91 @@ function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
   return lines.join("\n");
 }
 
+function renderHarnessCardPass(facts: ProjectFacts, agentId: AgentId): string {
+  const profile = PROFILES[agentId];
+  const lines: string[] = [];
+
+  lines.push(`# GOAT Flow Setup - ${profile.name}`);
+  lines.push("");
+  lines.push("All audit checks pass.");
+  lines.push("");
+  lines.push("The harness-scored Setup card is passing for this target agent.");
+  lines.push("");
+  lines.push("**Run now:**");
+  lines.push(
+    `Run \`${rerunAuditCommand(facts, agentId, "harness-card")}\` and report the per-concern scores. This is the harness verification gate - do not skip it.`,
+  );
+  lines.push("");
+  lines.push("**Maintenance:**");
+  lines.push(
+    "- After upgrading goat-flow, re-run the dashboard Re-audit action to refresh card-scoped setup prompts",
+  );
+
+  return lines.join("\n");
+}
+
 // ----------------------------------------------------------------
 // Mode: Audit fail (current version, some build checks failing)
 // ----------------------------------------------------------------
+
+type SetupPromptScope = "full" | "harness-card";
+
+interface ComposeSetupOptions {
+  promptScope?: SetupPromptScope;
+}
+
+function auditStatusForPrompt(
+  auditReport: AuditReport,
+  promptScope: SetupPromptScope,
+): "pass" | "fail" {
+  if (promptScope === "harness-card") {
+    return auditReport.scopes.harness?.status ?? auditReport.status;
+  }
+  return auditReport.status;
+}
+
+function failedChecksForPrompt(
+  auditReport: AuditReport,
+  promptScope: SetupPromptScope,
+): CheckResult[] {
+  if (promptScope === "harness-card") {
+    return (
+      auditReport.scopes.harness?.checks.filter(
+        (c) =>
+          c.status === "fail" &&
+          c.failure !== undefined &&
+          !c.acknowledged &&
+          c.type !== "metric",
+      ) ?? []
+    );
+  }
+  return [
+    ...auditReport.scopes.setup.checks.filter((c) => c.status === "fail"),
+    ...auditReport.scopes.agent.checks.filter((c) => c.status === "fail"),
+    ...(auditReport.scopes.harness?.checks.filter((c) => c.status === "fail") ??
+      []),
+  ];
+}
+
+function rerunAuditCommand(
+  facts: ProjectFacts,
+  agentId: AgentId,
+  promptScope: SetupPromptScope,
+): string {
+  const scopeFlag = promptScope === "harness-card" ? " --harness" : "";
+  return `${getCliCommand()} audit ${targetArg(facts.root)}${scopeFlag} --agent ${agentId}`;
+}
 
 function renderAuditFail(
   auditReport: AuditReport,
   facts: ProjectFacts,
   agentId: AgentId,
+  promptScope: SetupPromptScope,
 ): string {
   const profile = PROFILES[agentId];
   const lines: string[] = [];
 
-  const failedChecks = [
-    ...auditReport.scopes.setup.checks.filter((c) => c.status === "fail"),
-    ...auditReport.scopes.agent.checks.filter((c) => c.status === "fail"),
-  ];
+  const failedChecks = failedChecksForPrompt(auditReport, promptScope);
 
   lines.push(`# GOAT Flow Setup - ${profile.name}`);
   lines.push("");
@@ -150,9 +219,7 @@ function renderAuditFail(
   }
 
   lines.push(`**Target: audit passes with zero failures.**`);
-  lines.push(
-    `Re-run: \`${getCliCommand()} audit ${targetArg(facts.root)} --agent ${agentId}\``,
-  );
+  lines.push(`Re-run: \`${rerunAuditCommand(facts, agentId, promptScope)}\``);
   lines.push(
     `If audit fails, run \`${getCliCommand()} setup ${targetArg(facts.root)} --agent ${agentId}\` for fix instructions. Repeat until audit passes (max 3 cycles).`,
   );
@@ -329,9 +396,11 @@ export function composeSetup(
   auditReport: AuditReport,
   facts: ProjectFacts,
   agentId: AgentId,
+  options: ComposeSetupOptions = {},
 ): string | null {
   const projectFS = createFS(facts.root);
   const projectState = classifyProjectState(projectFS, agentId);
+  const promptScope = options.promptScope ?? "full";
 
   if (
     projectState.state === "bare" ||
@@ -349,8 +418,10 @@ export function composeSetup(
     );
   }
   // Current version: audit-driven
-  if (auditReport.status === "pass") {
-    return renderAuditPass(facts, agentId);
+  if (auditStatusForPrompt(auditReport, promptScope) === "pass") {
+    return promptScope === "harness-card"
+      ? renderHarnessCardPass(facts, agentId)
+      : renderAuditPass(facts, agentId);
   }
-  return renderAuditFail(auditReport, facts, agentId);
+  return renderAuditFail(auditReport, facts, agentId, promptScope);
 }

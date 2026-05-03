@@ -1115,10 +1115,12 @@ export function createDashboardRouteHandlers(
       });
       const auditReport = runAudit(fs, projectPath, {
         agentFilter: agent,
-        harness: false,
+        harness: true,
       });
       const { composeSetup } = await import("../prompt/compose-setup.js");
-      const output = composeSetup(auditReport, facts, agent);
+      const output = composeSetup(auditReport, facts, agent, {
+        promptScope: "harness-card",
+      });
       jsonResponse(res, 200, {
         output: output ?? "No setup output generated.",
       });
