@@ -11,12 +11,16 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   extractReleaseVersion,
   loadSnapshotFacts,
   parseChangelogSections,
   scanSectionAgainstSnapshot,
 } from "../../src/cli/audit/check-snapshot-claims.js";
+
+const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 
 const V110: Parameters<typeof scanSectionAgainstSnapshot>[1] = {
   skills_total: 7,
@@ -229,6 +233,20 @@ const EXPECTED_RELEASE_SNAPSHOTS = [
   },
 ] as const;
 
+function loadSnapshotJson(version: string): Record<string, unknown> {
+  return JSON.parse(
+    readFileSync(
+      resolve(
+        PROJECT_ROOT,
+        "workflow",
+        "manifest-snapshots",
+        `v${version}.json`,
+      ),
+      "utf-8",
+    ),
+  ) as Record<string, unknown>;
+}
+
 // ---------------------------------------------------------------------------
 // parseChangelogSections
 // ---------------------------------------------------------------------------
@@ -420,5 +438,18 @@ describe("loadSnapshotFacts (real repo)", () => {
   it("returns null for a version with no snapshot", () => {
     const facts = loadSnapshotFacts("0.0.1");
     assert.equal(facts, null);
+  });
+
+  it("documents the current release snapshot as a frozen copy", () => {
+    const snapshot = loadSnapshotJson("1.4.3");
+    assert.equal(typeof snapshot._snapshot_note, "string");
+    assert.match(
+      snapshot._snapshot_note,
+      /Frozen copy of workflow\/manifest\.json as it shipped at v1\.4\.3 release/,
+    );
+    assert.ok(
+      snapshot.snapshot_facts,
+      "current release snapshot should include snapshot_facts",
+    );
   });
 });

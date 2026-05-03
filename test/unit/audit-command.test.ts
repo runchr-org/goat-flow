@@ -2029,6 +2029,78 @@ describe("composeSetup routing", () => {
     }
   });
 
+  it("excludes informational harness metrics from full-scope failure prompts", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        `version: "${AUDIT_VERSION}"\n`,
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-preamble.md",
+        "# Preamble\n",
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-conventions.md",
+        "# Conventions\n",
+      );
+      await writeProjectFile(root, "AGENTS.md", "# Codex\n");
+      for (const skill of SKILL_NAMES) {
+        await writeProjectFile(root, `.agents/skills/${skill}/SKILL.md`, "#\n");
+      }
+    });
+
+    try {
+      const output = composeSetup(
+        makeAuditReport(
+          project.root,
+          "fail",
+          [
+            {
+              id: "config-version",
+              name: "Config version",
+              status: "fail",
+              failure: {
+                check: "Config version",
+                message: "Config version mismatch",
+              },
+            },
+          ],
+          [],
+          [
+            {
+              id: "post-turn-hook-integrity",
+              name: "Post-turn hook integrity",
+              status: "fail",
+              type: "metric",
+              failure: {
+                check: "Post-turn hook integrity",
+                message: "No post-turn hooks installed",
+              },
+            },
+          ],
+        ),
+        makeProjectFacts(project.root, [
+          stubAgentFacts({ agent: PROFILES.codex }),
+        ]),
+        "codex",
+      );
+
+      assert.ok(output, "composeSetup should return failure guidance");
+      assert.match(output, /1 audit check failed:/);
+      assert.match(output, /Config version/);
+      assert.doesNotMatch(output, /Post-turn hook integrity/);
+      assert.match(
+        output,
+        /Re-run: `node .* audit .+ --harness --agent codex`/,
+      );
+    } finally {
+      await project.cleanup();
+    }
+  });
+
   it("can render dashboard setup prompts from harness-card scope", async () => {
     const project = await makeTempProject(async (root) => {
       await writeProjectFile(

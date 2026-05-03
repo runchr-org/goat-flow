@@ -190,22 +190,19 @@ function failedChecksForPrompt(
   auditReport: AuditReport,
   promptScope: SetupPromptScope,
 ): CheckResult[] {
+  const isPromptFailure = (c: CheckResult): boolean =>
+    c.status === "fail" &&
+    c.failure !== undefined &&
+    !c.acknowledged &&
+    c.type !== "metric";
+
   if (promptScope === "harness-card") {
-    return (
-      auditReport.scopes.harness?.checks.filter(
-        (c) =>
-          c.status === "fail" &&
-          c.failure !== undefined &&
-          !c.acknowledged &&
-          c.type !== "metric",
-      ) ?? []
-    );
+    return auditReport.scopes.harness?.checks.filter(isPromptFailure) ?? [];
   }
   return [
-    ...auditReport.scopes.setup.checks.filter((c) => c.status === "fail"),
-    ...auditReport.scopes.agent.checks.filter((c) => c.status === "fail"),
-    ...(auditReport.scopes.harness?.checks.filter((c) => c.status === "fail") ??
-      []),
+    ...auditReport.scopes.setup.checks.filter(isPromptFailure),
+    ...auditReport.scopes.agent.checks.filter(isPromptFailure),
+    ...(auditReport.scopes.harness?.checks.filter(isPromptFailure) ?? []),
   ];
 }
 
