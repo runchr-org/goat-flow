@@ -1120,7 +1120,9 @@ export function createDashboardRouteHandlers(
         denyMechanismEvidenceLevel: "static",
       });
       const { composeSetup } = await import("../prompt/compose-setup.js");
-      const output = composeSetup(auditReport, facts, agent);
+      const output = composeSetup(auditReport, facts, agent, {
+        denyMechanismEvidenceLevel: "static",
+      });
       jsonResponse(res, 200, {
         output: output ?? "No setup output generated.",
       });

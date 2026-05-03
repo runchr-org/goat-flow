@@ -56,18 +56,48 @@ const SETUP_FILES: Record<AgentId, string> = {
   copilot: "workflow/setup/agents/copilot.md",
 };
 
+type DenyMechanismEvidenceLevel = "full" | "static" | "present-only";
+
+function usesLimitedDenyEvidence(
+  evidenceLevel: DenyMechanismEvidenceLevel | undefined,
+): boolean {
+  return evidenceLevel === "static" || evidenceLevel === "present-only";
+}
+
+function auditPassHeadline(
+  evidenceLevel: DenyMechanismEvidenceLevel | undefined,
+): string {
+  return usesLimitedDenyEvidence(evidenceLevel)
+    ? "Dashboard setup checks pass."
+    : "All audit checks pass.";
+}
+
+function auditPassInstallLine(
+  evidenceLevel: DenyMechanismEvidenceLevel | undefined,
+): string {
+  if (!usesLimitedDenyEvidence(evidenceLevel)) {
+    return "- Audit: all build checks passing";
+  }
+  const label = evidenceLevel === "present-only" ? "presence-only" : "static";
+  return `- Audit: ${label} setup checks passing; runtime deny-hook self-test not run`;
+}
+
 // ----------------------------------------------------------------
 // Mode: Audit pass (current version, all build checks passing)
 // ----------------------------------------------------------------
 
-function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
+function renderAuditPass(
+  facts: ProjectFacts,
+  agentId: AgentId,
+  evidenceLevel?: DenyMechanismEvidenceLevel,
+): string {
   const profile = PROFILES[agentId];
   const agentFacts = facts.agents.find((af) => af.agent.id === agentId);
   const lines: string[] = [];
 
   lines.push(`# GOAT Flow Setup - ${profile.name}`);
   lines.push("");
-  lines.push("All audit checks pass.");
+  lines.push(auditPassHeadline(evidenceLevel));
   lines.push("");
 
   if (agentFacts) {
@@ -87,13 +117,13 @@ function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
         `- ${hookScripts.length} hook scripts (${hookScripts.join(", ")}) in ${hooksDir}/`,
       );
     }
-    lines.push("- Audit: all build checks passing");
+    lines.push(auditPassInstallLine(evidenceLevel));
     lines.push("");
   }
 
   lines.push("**Run now:**");
   lines.push(
-    `Run \`goat-flow audit ${targetArg(facts.root)} --harness\` and report the per-concern scores. This is the harness verification gate - do not skip it.`,
+    `Run \`goat-flow audit ${targetArg(facts.root)} --harness --agent ${agentId}\` and report the per-concern scores. This is the harness verification gate - do not skip it.`,
   );
   lines.push("");
   lines.push("**Maintenance:**");
@@ -108,19 +138,23 @@ function renderAuditPass(facts: ProjectFacts, agentId: AgentId): string {
   return lines.join("\n");
 }
 
-function renderHarnessCardPass(facts: ProjectFacts, agentId: AgentId): string {
+function renderHarnessCardPass(
+  facts: ProjectFacts,
+  agentId: AgentId,
+  evidenceLevel?: DenyMechanismEvidenceLevel,
+): string {
   const profile = PROFILES[agentId];
   const lines: string[] = [];
 
   lines.push(`# GOAT Flow Setup - ${profile.name}`);
   lines.push("");
-  lines.push("All audit checks pass.");
+  lines.push(auditPassHeadline(evidenceLevel));
   lines.push("");
   lines.push("The harness-scored Setup card is passing for this target agent.");
   lines.push("");
   lines.push("**Run now:**");
   lines.push(
-    `Run \`${rerunAuditCommand(facts, agentId, "harness-card")}\` and report the per-concern scores. This is the harness verification gate - do not skip it.`,
+    `Run \`${rerunAuditCommand(facts, agentId, true)}\` and report the per-concern scores. This is the harness verification gate - do not skip it.`,
   );
   lines.push("");
   lines.push("**Maintenance:**");
@@ -139,6 +173,7 @@ type SetupPromptScope = "full" | "harness-card";
 
 interface ComposeSetupOptions {
   promptScope?: SetupPromptScope;
+  denyMechanismEvidenceLevel?: DenyMechanismEvidenceLevel;
 }
 
 function auditStatusForPrompt(
@@ -177,10 +212,21 @@ function failedChecksForPrompt(
 function rerunAuditCommand(
   facts: ProjectFacts,
   agentId: AgentId,
-  promptScope: SetupPromptScope,
+  includeHarness: boolean,
 ): string {
-  const scopeFlag = promptScope === "harness-card" ? " --harness" : "";
+  const scopeFlag = includeHarness ? " --harness" : "";
   return `${getCliCommand()} audit ${targetArg(facts.root)}${scopeFlag} --agent ${agentId}`;
+}
+
+function promptIncludesHarness(
+  auditReport: AuditReport,
+  promptScope: SetupPromptScope,
+): boolean {
+  return (
+    promptScope === "harness-card" ||
+    auditReport.harness ||
+    auditReport.scopes.harness !== null
+  );
 }
 
 function renderAuditFail(
@@ -193,6 +239,7 @@ function renderAuditFail(
   const lines: string[] = [];
 
   const failedChecks = failedChecksForPrompt(auditReport, promptScope);
+  const includeHarness = promptIncludesHarness(auditReport, promptScope);
 
   lines.push(`# GOAT Flow Setup - ${profile.name}`);
   lines.push("");
@@ -219,7 +266,7 @@ function renderAuditFail(
   }
 
   lines.push(`**Target: audit passes with zero failures.**`);
-  lines.push(`Re-run: \`${rerunAuditCommand(facts, agentId, promptScope)}\``);
+  lines.push(`Re-run: \`${rerunAuditCommand(facts, agentId, includeHarness)}\``);
   lines.push(
     `If audit fails, run \`${getCliCommand()} setup ${targetArg(facts.root)} --agent ${agentId}\` for fix instructions. Repeat until audit passes (max 3 cycles).`,
   );
@@ -454,8 +501,12 @@ export function composeSetup(
   // Current version: audit-driven
   if (auditStatusForPrompt(auditReport, promptScope) === "pass") {
     return promptScope === "harness-card"
-      ? renderHarnessCardPass(facts, agentId)
-      : renderAuditPass(facts, agentId);
+      ? renderHarnessCardPass(
+          facts,
+          agentId,
+          options.denyMechanismEvidenceLevel,
+        )
+      : renderAuditPass(facts, agentId, options.denyMechanismEvidenceLevel);
   }
   return renderAuditFail(auditReport, facts, agentId, promptScope);
 }

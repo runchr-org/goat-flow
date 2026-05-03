@@ -1870,11 +1870,73 @@ describe("composeSetup routing", () => {
         output,
         /2 hook scripts \(deny, post-turn\) in \.codex\/hooks\//,
       );
-      assert.match(output, /Run `goat-flow audit .+ --harness`/);
+      assert.match(output, /Run `goat-flow audit .+ --harness --agent codex`/);
       assert.ok(
         !output.includes("scanner"),
         `audit-pass output should not regress to scanner wording: ${output}`,
       );
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("does not claim a full audit pass for static dashboard setup evidence", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        `version: "${AUDIT_VERSION}"\n`,
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-preamble.md",
+        "# Preamble\n",
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-conventions.md",
+        "# Conventions\n",
+      );
+      await writeProjectFile(root, "AGENTS.md", "# Codex\n");
+      for (const skill of SKILL_NAMES) {
+        await writeProjectFile(root, `.agents/skills/${skill}/SKILL.md`, "#\n");
+      }
+    });
+
+    try {
+      const facts = makeProjectFacts(project.root, [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          skills: {
+            ...stubAgentFacts().skills,
+            found: [...SKILL_NAMES],
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyExists: true,
+            postTurnExists: true,
+          },
+        }),
+      ]);
+
+      const output = composeSetup(
+        makeAuditReport(project.root, "pass", [], [], [
+          {
+            id: "decisions-tracked",
+            name: "Decisions directory exists",
+            status: "pass",
+          },
+        ]),
+        facts,
+        "codex",
+        { denyMechanismEvidenceLevel: "static" },
+      );
+
+      assert.ok(output, "composeSetup should return setup text");
+      assert.match(output, /Dashboard setup checks pass\./);
+      assert.doesNotMatch(output, /All audit checks pass\./);
+      assert.match(output, /runtime deny-hook self-test not run/);
+      assert.match(output, /Run `goat-flow audit .+ --harness --agent codex`/);
     } finally {
       await project.cleanup();
     }

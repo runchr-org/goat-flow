@@ -1156,7 +1156,10 @@ describe("dashboard /api/setup", () => {
       const output = String(data.output);
       assert.doesNotMatch(output, /All audit checks pass\./);
       assert.match(output, /Agent skills/);
-      assert.match(output, /Re-run: `[^`]* audit [^`]* --agent codex`/);
+      assert.match(
+        output,
+        /Re-run: `[^`]* audit [^`]* --harness --agent codex`/,
+      );
     } finally {
       await project.cleanup();
     }
@@ -1177,7 +1180,10 @@ describe("dashboard /api/setup", () => {
       const output = String(data.output);
       assert.match(output, /Decisions directory exists/);
       assert.doesNotMatch(output, /All audit checks pass\./);
-      assert.match(output, /Re-run: `[^`]* audit [^`]* --agent codex`/);
+      assert.match(
+        output,
+        /Re-run: `[^`]* audit [^`]* --harness --agent codex`/,
+      );
     } finally {
       await project.cleanup();
     }

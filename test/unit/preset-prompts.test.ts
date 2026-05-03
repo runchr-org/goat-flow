@@ -578,6 +578,11 @@ describe("preset prompt catalog", () => {
       view,
       /scores\.push\(installScore\)[\s\S]*scores\.push\(harnessScore\)/,
     );
+    assert.match(view, /Agent instruction files present/);
+    assert.doesNotMatch(
+      view,
+      /selectedAgentName \+ ' instruction file present'/,
+    );
     assert.match(view, /agentCheckDetail\('agent-skills'\)/);
     assert.match(view, /verificationGateDetail\(\)/);
     assert.match(view, /install-check-detail/);
