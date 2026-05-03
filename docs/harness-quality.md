@@ -60,22 +60,21 @@ The audit checks whether files exist, paths resolve, and patterns are registered
 
 ### 3. Verification
 
-**Audit checks:** test runner configured (informational), hooks in sync, commit guidance present, post-turn hook integrity (informational).
+**Audit checks:** hooks in sync, commit guidance present, post-turn hook integrity (informational).
 
 **Quality evaluates:**
 - Do the configured validation commands actually run and produce meaningful output?
 - Does the post-turn hook run real validation (lint, typecheck, shellcheck), or just exit 0?
 - Does the hook report failures honestly, or swallow them with `|| true`?
-- If the project uses milestone files for active work, are testing gates practical or checkbox theater?
 
 ### 4. Recovery
 
 **Audit checks:** tasks directory exists, session logs directory exists.
 
 **Quality evaluates:**
-- If the project uses milestone files for active work, do they have clear next actions and practical completion criteria?
-- Are session logs current or abandoned?
-- Would a fresh agent, after context compaction, have enough state to resume the current task?
+- Are recovery instructions clear about optional task files versus session logs?
+- Do skills handle missing or stale `.goat-flow/tasks/.active` without treating local task state as a setup defect?
+- Do recovery docs avoid stale references to removed handoff or task-state files?
 
 ### 5. Feedback Loop
 

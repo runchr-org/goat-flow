@@ -1,9 +1,9 @@
 # Deterministic Audit Checks
 
-`npx goat-flow audit` currently registers **35 deterministic checks**:
+`npx goat-flow audit` currently registers **34 deterministic checks**:
 
 - **18 build checks**: 14 setup-scope checks plus 4 agent-scope checks
-- **17 harness checks**: additional checks enabled by `--harness`
+- **16 harness checks**: additional checks enabled by `--harness`
 
 Default `npx goat-flow audit .` runs the build checks. `npx goat-flow audit . --harness` runs those same build checks plus the harness checks. Harness checks are still deterministic even when they are typed as `integrity`, `advisory`, or `metric`; the type changes scoring behavior, not whether the check is deterministic.
 
@@ -52,7 +52,7 @@ Aggregate-mode nuance:
 
 ## Harness Checks
 
-`npx goat-flow audit . --harness` adds **17** deterministic harness-completeness checks on top of the 18 build checks. These checks are grouped by concern and typed as `integrity`, `advisory`, or `metric`.
+`npx goat-flow audit . --harness` adds **16** deterministic harness-completeness checks on top of the 18 build checks. These checks are grouped by concern and typed as `integrity`, `advisory`, or `metric`.
 
 | Concern | Check id | Type | What it validates |
 |---------|----------|------|-------------------|
@@ -65,7 +65,6 @@ Aggregate-mode nuance:
 | Constraints | `deny-blocks-dangerous` | `integrity` | Deny patterns block `rm -rf`, all git push (ADR-025), and `chmod` |
 | Constraints | `deny-blocks-pipe-to-shell` | `advisory` | Deny patterns block `curl | bash` and `wget | sh` pipe-to-shell execution |
 | Constraints | `deny-hook-registered` | `integrity` | A deny hook that exists on disk is registered in the correct pre-tool hook slot |
-| Verification | `test-runner-configured` | `advisory` | Distinguishes missing, configured-only, and runtime-proven test commands; declaration alone is not proof of execution |
 | Verification | `hooks-registered` | `integrity` | Post-turn hook registrations and on-disk hook files stay in sync |
 | Verification | `commit-guidance` | `advisory` | Commit guidance exists at `.github/git-commit-instructions.md` when `.github/` exists, or in a supporting commit-guidance document otherwise |
 | Verification | `post-turn-hook-integrity` | `metric` | Reports whether any post-turn hook runs validation and whether it swallows failures; absence is no hook evidence, not proof |
@@ -80,6 +79,6 @@ Aggregate-mode nuance:
 |---------|-----------------|-------|
 | `npx goat-flow audit .` | 14 setup + 4 agent = 18 build checks | Structural install gate only |
 | `npx goat-flow audit . --agent <id>` | Same 18 build checks, with agent checks enforced for the selected agent | Best way to validate one runtime's install state |
-| `npx goat-flow audit . --harness` | 18 build + 17 harness = 35 checks | Adds harness completeness, still deterministic |
+| `npx goat-flow audit . --harness` | 18 build + 16 harness = 34 checks | Adds harness completeness, still deterministic |
 
 Harness mode is still structural. It does not judge whether the content is actually good for the project; that remains the job of `npx goat-flow quality`.

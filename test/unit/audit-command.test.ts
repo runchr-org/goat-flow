@@ -1194,65 +1194,13 @@ describe("scratchpad setup gate", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test 9: optional config calibration fields do not lower harness scores
+// Test 9: project-specific validation commands belong to quality, not audit
 // ---------------------------------------------------------------------------
-describe("optional config calibration", () => {
-  it("reports missing verification commands explicitly", () => {
-    const check = HARNESS_CHECKS.find(
-      (c) => c.id === "test-runner-configured",
-    )!;
-    const result = check.run(
-      makeCtx({
-        config: stubConfig({
-          toolchain: {
-            test: [],
-            lint: [],
-            build: [],
-            package: [],
-            format: [],
-          },
-        }),
-      }),
-    );
-    assert.equal(result.status, "fail");
-    assert.ok(
-      result.findings.some((f) => f.includes("Missing:")),
-      `Findings should explain missing verification signal: ${result.findings.join(", ")}`,
-    );
-  });
-
-  it("reports configured-only test commands as not runtime-proven", () => {
-    const check = HARNESS_CHECKS.find(
-      (c) => c.id === "test-runner-configured",
-    )!;
-    const result = check.run(makeCtx());
-    assert.equal(result.status, "fail");
-    assert.ok(
-      result.findings.some((f) => f.includes("Configured-only:")),
-      `Findings should distinguish configured-only commands: ${result.findings.join(", ")}`,
-    );
-  });
-
-  it("passes when an explicit validation artifact proves the test command", () => {
-    const check = HARNESS_CHECKS.find(
-      (c) => c.id === "test-runner-configured",
-    )!;
-    const result = check.run(
-      makeCtx({
-        fs: stubFS({
-          listDir: (path) =>
-            path === ".goat-flow/logs/validation" ? ["npm-test.md"] : [],
-          readFile: (path) =>
-            path === ".goat-flow/logs/validation/npm-test.md"
-              ? "Command: npm test\n# pass 42\n# fail 0\n"
-              : null,
-        }),
-      }),
-    );
-    assert.equal(result.status, "pass");
-    assert.ok(
-      result.findings.some((f) => f.includes("Runtime-proven:")),
-      `Findings should cite runtime proof: ${result.findings.join(", ")}`,
+describe("project-specific validation command policy", () => {
+  it("does not include test-command proof as a deterministic harness check", () => {
+    assert.equal(
+      HARNESS_CHECKS.some((c) => c.id === "test-runner-configured"),
+      false,
     );
   });
 });
