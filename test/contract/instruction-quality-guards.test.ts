@@ -113,10 +113,14 @@ describe("setup agent guide structure", () => {
       "workflow/setup/02-instruction-file.md",
       ...SETUP_AGENT_GUIDES,
     ];
-    const repoOnly = /src\/cli|src\/dashboard|This repo is the goat-flow controlling workspace/;
+    const repoOnly =
+      /src\/cli|src\/dashboard|This repo is the goat-flow controlling workspace/;
     for (const file of checkedFiles) {
       const content = readFileSync(resolve(PROJECT_ROOT, file), "utf-8");
-      assert.ok(!repoOnly.test(content), `${file} contains goat-flow-only rows`);
+      assert.ok(
+        !repoOnly.test(content),
+        `${file} contains goat-flow-only rows`,
+      );
     }
   });
 
