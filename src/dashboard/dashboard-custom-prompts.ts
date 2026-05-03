@@ -15,12 +15,14 @@ const CUSTOM_PROMPT_ROUTES = new Set([
   "goat-security",
 ]);
 
+const DEFAULT_CUSTOM_PROMPT_ROUTE: CustomPromptRouteOption = {
+  id: "direct",
+  label: "direct",
+  desc: "Launch the prompt exactly as written without a goat skill wrapper.",
+};
+
 const CUSTOM_PROMPT_ROUTE_OPTIONS: CustomPromptRouteOption[] = [
-  {
-    id: "direct",
-    label: "direct",
-    desc: "Launch the prompt exactly as written without a goat skill wrapper.",
-  },
+  DEFAULT_CUSTOM_PROMPT_ROUTE,
   {
     id: "goat",
     label: "goat",
@@ -211,7 +213,7 @@ function dashboardSelectedCustomPromptRoute(
 ): CustomPromptRouteOption {
   return (
     CUSTOM_PROMPT_ROUTE_OPTIONS.find((route) => route.id === draft.route) ??
-    CUSTOM_PROMPT_ROUTE_OPTIONS[0]!
+    DEFAULT_CUSTOM_PROMPT_ROUTE
   );
 }
 

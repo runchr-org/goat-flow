@@ -62,6 +62,15 @@ const EXCLUDED_MANIFEST_PATHS = new Set<string>();
 
 const SKILL_REFERENCE_DIR = ".goat-flow/skill-reference";
 const SKILL_REFERENCE_POINTER = ".goat-flow/skill-reference/";
+const READ_RULE_PATTERNS = [
+  /Before declaring any tool(?: or capability)? unavailable/i,
+  /\.goat-flow\/skill-reference\//,
+  /Availability Check/i,
+];
+const ROUTER_POINTER_PATTERNS = [
+  /\.goat-flow\/skill-reference\//,
+  /tool playbooks?|skill reference/i,
+];
 const REQUIRED_SKILL_REFERENCE_FILES = [
   ".goat-flow/skill-reference/README.md",
   ".goat-flow/skill-reference/skill-preamble.md",
@@ -81,6 +90,69 @@ function presentInstructionFiles(
     (agent) => agent.instruction_file,
   );
   return [...new Set(paths)].filter((path) => ctx.fs.exists(path));
+}
+
+function markdownSection(content: string, heading: RegExp): string | null {
+  const lines = content.split(/\r?\n/);
+  let start = -1;
+  let level = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const match = /^(#{1,6})\s+(.+?)\s*$/.exec(lines[i] ?? "");
+    if (!match) continue;
+    if (!heading.test(match[2] ?? "")) continue;
+    start = i + 1;
+    level = match[1]?.length ?? 0;
+    break;
+  }
+
+  if (start < 0 || level === 0) return null;
+
+  let end = lines.length;
+  for (let i = start; i < lines.length; i++) {
+    const match = /^(#{1,6})\s+/.exec(lines[i] ?? "");
+    if (match && (match[1]?.length ?? 0) <= level) {
+      end = i;
+      break;
+    }
+  }
+
+  return lines.slice(start, end).join("\n");
+}
+
+function boldStepSection(content: string, step: string): string | null {
+  const pattern = new RegExp(
+    String.raw`(?:^|\n)\s*(?:[-*]\s*)?\*\*${step}\*\*[\s:–-]*(?<body>[\s\S]*?)(?=\n\s*(?:[-*]\s*)?\*\*(?:READ|SCOPE|ACT|VERIFY)\*\*[\s:–-]*|\n##\s|\n###\s|$)`,
+    "i",
+  );
+  return pattern.exec(content)?.groups?.body?.trim() ?? null;
+}
+
+function hasSkillReferenceReadRule(content: string): boolean {
+  const executionLoop = markdownSection(content, /^Execution Loop\b/i);
+  if (!executionLoop) return false;
+  const readSection =
+    markdownSection(executionLoop, /^READ\b/i) ??
+    boldStepSection(executionLoop, "READ");
+  if (!readSection) return false;
+  return READ_RULE_PATTERNS.every((pattern) => pattern.test(readSection));
+}
+
+function hasSkillReferenceRouterPointer(content: string): boolean {
+  const routerTable = markdownSection(content, /^Router Table\b/i);
+  if (!routerTable) return false;
+  return ROUTER_POINTER_PATTERNS.every((pattern) => pattern.test(routerTable));
+}
+
+function missingSkillReferenceInstructionRequirements(
+  content: string,
+): string[] {
+  const missing: string[] = [];
+  if (!hasSkillReferenceReadRule(content)) missing.push("READ rule");
+  if (!hasSkillReferenceRouterPointer(content)) {
+    missing.push("Router Table pointer");
+  }
+  return missing;
 }
 
 // === Named structure checks (10) ===
@@ -349,16 +421,17 @@ const instructionFileSkillReferencePointer: BuildCheck = {
       };
     }
 
-    const missingPointer = presentInstructionFiles(ctx).filter((path) => {
+    const missingRequirements = presentInstructionFiles(ctx).flatMap((path) => {
       const content = ctx.fs.readFile(path) ?? "";
-      return !content.includes(SKILL_REFERENCE_POINTER);
+      const missing = missingSkillReferenceInstructionRequirements(content);
+      return missing.length > 0 ? [`${path} (${missing.join(", ")})`] : [];
     });
-    if (missingPointer.length === 0) return null;
+    if (missingRequirements.length === 0) return null;
 
     return {
       check: "Instruction file skill-reference pointer",
-      message: `Instruction file(s) missing .goat-flow/skill-reference/ pointer: ${missingPointer.join(", ")}`,
-      evidence: missingPointer[0],
+      message: `Instruction file(s) missing skill-reference READ rule or Router Table pointer: ${missingRequirements.join(", ")}`,
+      evidence: missingRequirements[0]?.replace(/\s+\(.+\)$/, ""),
       howToFix:
         'Append to the existing READ step: "Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-reference/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc\'s "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool"." Add a Router Table row for tool playbooks: | Tool playbooks (CLI/MCP availability checks: browser-use, page-capture, skill-* references) | `.goat-flow/skill-reference/` - read BEFORE declaring a tool unavailable |.',
     };

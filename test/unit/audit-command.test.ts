@@ -400,13 +400,29 @@ async function writeAuditSetupFixture(
     await writeProjectFile(root, file, content);
   }
 
-  await writeProjectFile(
-    root,
-    "CLAUDE.md",
-    options.instructionPointer
-      ? "# CLAUDE.md\n.goat-flow/skill-reference/\n"
-      : "# CLAUDE.md\n",
-  );
+  const instructionContent = options.instructionPointer
+    ? `# CLAUDE.md
+
+## Execution Loop: READ -> SCOPE -> ACT -> VERIFY
+
+### READ
+Before declaring any tool or capability unavailable, read the matching playbook in .goat-flow/skill-reference/ and run that doc's "Availability Check" section verbatim.
+
+### SCOPE
+
+### ACT
+
+### VERIFY
+
+## Router Table
+
+| Resource | Path |
+|----------|------|
+| Skill reference + tool playbooks | .goat-flow/skill-reference/ |
+`
+    : "# CLAUDE.md\n";
+
+  await writeProjectFile(root, "CLAUDE.md", instructionContent);
 }
 
 function makeAuditScope(
@@ -514,7 +530,7 @@ describe("audit on well-configured project", () => {
 });
 
 describe("audit skill-reference pointer rule", () => {
-  it("fails when skill-reference exists but CLAUDE.md lacks the pointer", async () => {
+  it("fails when skill-reference exists but CLAUDE.md lacks the required routing", async () => {
     const project = await makeTempProject((root) =>
       writeAuditSetupFixture(root, {
         skillReferenceDir: true,
@@ -533,13 +549,15 @@ describe("audit skill-reference pointer rule", () => {
       assert.equal(report.status, "fail");
       assert.equal(check?.status, "fail");
       assert.match(check?.failure?.message ?? "", /CLAUDE\.md/);
+      assert.match(check?.failure?.message ?? "", /READ rule/);
+      assert.match(check?.failure?.message ?? "", /Router Table pointer/);
       assert.match(check?.failure?.howToFix ?? "", /Before declaring any tool/);
     } finally {
       await project.cleanup();
     }
   });
 
-  it("passes when skill-reference exists and CLAUDE.md contains the pointer", async () => {
+  it("passes when skill-reference exists and CLAUDE.md contains the READ rule and Router Table pointer", async () => {
     const project = await makeTempProject((root) =>
       writeAuditSetupFixture(root, {
         skillReferenceDir: true,

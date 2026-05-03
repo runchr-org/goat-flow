@@ -31,6 +31,28 @@ const requiredSkillReferenceFiles = [
   ".goat-flow/skill-reference/skill-quality-testing/deployment.md",
 ];
 
+function compliantSkillReferenceInstruction(): string {
+  return `# CLAUDE.md
+
+## Execution Loop: READ -> SCOPE -> ACT -> VERIFY
+
+### READ
+Before declaring any tool or capability unavailable, read the matching playbook in .goat-flow/skill-reference/ and run that doc's "Availability Check" section verbatim.
+
+### SCOPE
+
+### ACT
+
+### VERIFY
+
+## Router Table
+
+| Resource | Path |
+|----------|------|
+| Skill reference + tool playbooks | .goat-flow/skill-reference/ |
+`;
+}
+
 function makeSkillReferenceCtx(options: {
   dirPresent: boolean;
   readmePresent?: boolean;
@@ -167,7 +189,7 @@ describe("audit build: harness scope fails on missing deny", () => {
 });
 
 describe("audit build: skill-reference discoverability", () => {
-  it("fails when skill-reference exists but an instruction file lacks the pointer", () => {
+  it("fails when skill-reference exists but an instruction file lacks the required routing", () => {
     const ctx = makeSkillReferenceCtx({
       dirPresent: true,
       instructionContent: "# CLAUDE.md\n",
@@ -178,13 +200,30 @@ describe("audit build: skill-reference discoverability", () => {
 
     assert.notEqual(result, null);
     assert.match(result!.message, /CLAUDE\.md/);
+    assert.match(result!.message, /READ rule/);
+    assert.match(result!.message, /Router Table pointer/);
     assert.match(result!.howToFix ?? "", /Before declaring any tool/);
   });
 
-  it("passes when present instruction files contain the pointer", () => {
+  it("fails when the path appears outside the READ rule and Router Table", () => {
     const ctx = makeSkillReferenceCtx({
       dirPresent: true,
-      instructionContent: "# CLAUDE.md\n.goat-flow/skill-reference/\n",
+      instructionContent:
+        "# CLAUDE.md\n\n## Ask First\n\nBoundary: .goat-flow/skill-reference/\n",
+    });
+
+    assert.equal(skillReferenceCheck.skip?.(ctx), false);
+    const result = skillReferenceCheck.run(ctx);
+
+    assert.notEqual(result, null);
+    assert.match(result!.message, /READ rule/);
+    assert.match(result!.message, /Router Table pointer/);
+  });
+
+  it("passes when present instruction files contain the READ rule and Router Table pointer", () => {
+    const ctx = makeSkillReferenceCtx({
+      dirPresent: true,
+      instructionContent: compliantSkillReferenceInstruction(),
     });
 
     assert.equal(skillReferenceCheck.skip?.(ctx), false);
@@ -204,7 +243,7 @@ describe("audit build: skill-reference discoverability", () => {
     const ctx = makeSkillReferenceCtx({
       dirPresent: true,
       readmePresent: false,
-      instructionContent: "# CLAUDE.md\n.goat-flow/skill-reference/\n",
+      instructionContent: compliantSkillReferenceInstruction(),
     });
 
     const result = skillReferenceCheck.run(ctx);
@@ -218,7 +257,7 @@ describe("audit build: skill-reference discoverability", () => {
     const ctx = makeSkillReferenceCtx({
       dirPresent: true,
       instructionFiles: {
-        "CLAUDE.md": "# CLAUDE.md\n.goat-flow/skill-reference/\n",
+        "CLAUDE.md": compliantSkillReferenceInstruction(),
         "AGENTS.md": "# AGENTS.md\n",
       },
     });

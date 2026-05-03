@@ -31,7 +31,7 @@ Build mode is the structural install gate. It validates files, directories, conf
 | `session-logs` | Session logs | `.goat-flow/logs/sessions/` exists |
 | `tasks` | Tasks | `.goat-flow/tasks/`, `.goat-flow/tasks/.gitignore`, and `.goat-flow/tasks/README.md` exist |
 | `scratchpad` | Scratchpad | `.goat-flow/scratchpad/`, `.goat-flow/scratchpad/.gitignore`, and `.goat-flow/scratchpad/README.md` exist |
-| `instruction-file-skill-reference-pointer` | Instruction file skill-reference pointer | Skips when `.goat-flow/skill-reference/` is absent. When present, requires `.goat-flow/skill-reference/README.md` plus a literal `.goat-flow/skill-reference/` pointer in each present instruction file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) |
+| `instruction-file-skill-reference-pointer` | Instruction file skill-reference pointer | Skips when `.goat-flow/skill-reference/` is absent. When present, requires the full reference pack, a READ-step rule to consult `.goat-flow/skill-reference/` playbooks and run their Availability Check before declaring tools unavailable, and a Router Table pointer in each present instruction file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) |
 | `other-files` | Other required files | Every manifest-required file or directory not already covered by a named setup check exists, including quality-log surfaces |
 | `config-parses` | Config file | `.goat-flow/config.yaml` exists, parses as YAML, and validates against the manifest-backed config contract |
 | `config-version` | Config version | `.goat-flow/config.yaml` declares the current `AUDIT_VERSION` |
