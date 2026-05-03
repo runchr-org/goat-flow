@@ -1,6 +1,6 @@
 ---
 category: agent-routing
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-02
 ---
 
 ## Lesson: Bare task paths are context, not implementation approval
@@ -134,7 +134,7 @@ The user's point: "if it wasn't for that we wouldn't have found the better name.
 
 **Created:** 2026-04-25
 
-**What happened:** In the healthkit project, the user asked to "add a footgun" documenting a Mercure CORS trap. The agent interpreted this as a request for runtime diagnostic code and added TypeScript console logging to `assets/entrypoints/chat-assistant.ts`. The user had to correct the agent, the code change was reverted, and the correct Mercure footgun entry was created in that project's goat-flow docs.
+**What happened:** In a consumer project, the user asked to "add a footgun" documenting a Mercure CORS trap. The agent interpreted this as a request for runtime diagnostic code and added TypeScript console logging to `assets/entrypoints/chat-assistant.ts`. The user had to correct the agent, the code change was reverted, and the correct Mercure footgun entry was created in that project's goat-flow docs.
 
 **Root cause:** The agent did not know that "footgun" in a goat-flow project means a documentation artifact under `.goat-flow/footguns/`. It defaulted to the general-English meaning ("something that will hurt you") and implemented a runtime warning. The routing was not documented prominently enough - the learning-loop section described what footguns ARE, but not what to do when the user says "add one."
 

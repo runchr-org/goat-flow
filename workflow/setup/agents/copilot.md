@@ -1,68 +1,120 @@
 # Agent Config - Copilot CLI
 
-> Canonical machine-readable source for these paths: `workflow/manifest.json` via `src/cli/agents/registry.ts`. If this doc drifts, the manifest-backed registry wins.
+> Canonical machine-readable source for these paths: `workflow/manifest.json`. If this doc drifts, the manifest-backed registry wins.
 
-## Paths
+## Truth Order
+
+1. User's explicit setup instruction for this session
+2. This agent setup guide
+3. `workflow/manifest.json` for machine-readable paths
+4. `workflow/setup/reference/execution-loop.md` and `workflow/setup/02-instruction-file.md`
+5. Existing target-project instructions and `.goat-flow/` docs
+
+## Autonomy Tiers
+
+**Always:** Set up Copilot-owned surfaces: `.github/copilot-instructions.md`, `.github/git-commit-instructions.md`, `.github/skills/`, `.github/hooks/`, `.copilotignore`, and shared `.goat-flow/`.
+
+**Ask First:** Before touching non-Copilot surfaces, state boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
+
+**Never:** Freeze writes if interrupted or told no changes. Do not edit `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.claude/`, `.codex/`, `.gemini/`, or `.agents/` during Copilot setup unless the user explicitly widens scope.
+
+## Hard Rules
+
+- If a file exists, modify in place; do not create backup or variant files.
+- `.github/copilot-instructions.md` is standalone and must not defer to `AGENTS.md`.
+- Do not copy goat-flow's controlling-workspace Router Table into downstream projects; adapt paths to the target.
+- Keep `.github/copilot-instructions.md` within the 150-line hard limit and 125-line target.
+- Commit guidance belongs at `.github/git-commit-instructions.md` when `.github/` exists.
+- Keep a single Copilot hook config file at `.github/hooks/hooks.json`; do not split one file per event.
+- Do not create `.github/agents/` unless a future concrete gap justifies it.
+
+## Key Resources
+
+- **Learning loop** (grep before every change): `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/`
+- **Tool playbooks**: `.goat-flow/skill-reference/browser-use.md`, `.goat-flow/skill-reference/page-capture.md` — read BEFORE declaring a tool unavailable
+
+## Essential Commands
+
+```bash
+# Replace with commands detected from the target project:
+<lint command>
+<typecheck command>
+<test command>
+```
+
+Only include commands that exist and were verified in the target project. Agent settings/hooks checks are setup verification, not default Essential Commands.
+
+## Execution Loop: READ → SCOPE → ACT → VERIFY
+
+When a goat-* skill is active, its Step 0 replaces READ and selects the skill's mode/depth. SCOPE still applies before any file write - skills with write phases (e.g. `/goat-plan` Phase 2, `/goat-debug` D3) gate on explicit approval. Resume at ACT when the skill's first blocking gate releases.
+
+### READ
+MUST read relevant files before changes. Never fabricate codebase facts. For URL, local HTML, localhost, screenshot, rendered UI, or browser-visible behaviour, check browser evidence first: `command -v browser-use || command -v browser-use-python`; if available use `browser-use open/state/screenshot`, otherwise ask before installing or use manual fallback. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns/`; include `.goat-flow/decisions/` when the task involves architecture, policy, or setup work. Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-reference/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc's "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool". Open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
+BAD: "The project has 20 audit checks" (guessed without reading)
+GOOD: Read the relevant source, config, or generated instruction file before stating exact counts.
+
+### SCOPE
+Three signals before acting: (1) Intent: question → answer it, directive → act on it. (2) Complexity + budgets (below). (3) Mode: Plan / Implement / Explain / Debug / Review. MUST declare before acting: files allowed to change, non-goals, max blast radius. Expanding beyond scope = stop and re-scope with human.
+
+| Complexity | Typical read budget | Typical turn budget |
+|------------|-------------|-------------|
+| Hotfix | 2 reads | 3 turns |
+| Standard Feature | 4 reads | 10 turns |
+| System Change | 6 reads | 20 turns |
+| Infrastructure | 8 reads | 25 turns |
+
+Over budget = checkpoint and re-classify before continuing. Complexity-class budgets are heuristics, not a hard stop when competent review needs broader coverage.
+
+### ACT
+MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
+
+| Mode | Behaviour |
+|------|-----------|
+| Plan | Produce artefact only. File writes (e.g. milestone files) only on explicit approval. Exit on LGTM |
+| Implement | Edit in 2-3 turns. 4th read without writing = checkpoint or re-scope |
+| Explain | Walkthrough only. No changes unless asked |
+| Debug | Diagnosis with file:line first. Fixes after human reviews |
+| Review | Investigate first. Never blindly apply suggestions |
+
+For Copilot setup, ACT means updating only Copilot-owned surfaces from the shared skeleton and adapting commands, boundaries, and Router Table rows to the target project.
+
+### VERIFY
+MUST run `shellcheck` on .sh changes. MUST check cross-references after renames. If working from a plan/milestone file, MUST tick `- [x]` on each task as it's completed - not at the end.
+
+**Hallucination red-flags:**
+1. **Checks passed.** Do not claim tests pass or any check passed (shellcheck, typecheck, preflight, audit) without showing the literal pass/fail line copied verbatim from this session's run. Paraphrase, cached output, or prior-session results do not count.
+2. **Completion.** Do not claim completion without listing the specific files changed in this turn. If no files were changed, say so explicitly.
+3. **Fix verification.** Do not claim a fix works without running the reproduction steps that originally demonstrated the bug. "Looks correct" is not verification.
+4. **Hedged claims.** Do not use "should work", "probably fine", "looks good" as verification. These are guesses, not evidence.
+
+- **Stop-the-line:** When tests break, builds fail, or behaviour regresses - stop expanding scope. Preserve evidence, return to diagnosis, re-plan before continuing.
+- Level 1 (isolated): note, continue. Level 2 (cross-doc, broken refs, evidence): MUST full stop, wait for human. Two corrections on same approach = MUST rewind.
+- Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
+
+If VERIFY caught a failure or you corrected course, update the learning loop before DoD: behavioural mistakes go in `.goat-flow/lessons/<category>.md`, cross-doc architectural traps go in `.goat-flow/footguns/<category>.md` with `**Status:** active | **Created:** YYYY-MM-DD | **Evidence:** ACTUAL_MEASURED`, significant technical decisions go in `.goat-flow/decisions/`, and optional continuity notes go in `.goat-flow/logs/sessions/`.
+
+## Definition of Done
+
+- `.github/copilot-instructions.md` exists, follows the canonical section order where compatible with Copilot compression, and stays under the hard line limit.
+- Essential Commands list only real target-project commands.
+- Router Table contains installed project resources only; no `workflow/setup/`, `workflow/hooks/`, or manifest paths.
+- Tool playbook pointer to `.goat-flow/skill-reference/` is present.
+- No hands-off agent files were changed.
+
+## Artifact Routing
+
+Requests to add footguns, lessons, decisions, or patterns route to the matching `.goat-flow/` directory after reading that directory's `README.md`: footguns -> `.goat-flow/footguns/`, lessons -> `.goat-flow/lessons/`, decisions -> `.goat-flow/decisions/`, patterns -> `.goat-flow/patterns/`. Runtime code, hooks, and agent config changes are out of scope unless the user explicitly asks for them.
+
+## Router Table
 
 | Resource | Path |
 |----------|------|
 | Instruction file | `.github/copilot-instructions.md` |
-| Commit instructions | `.github/git-commit-instructions.md` |
-| Skills directory | `.github/skills/` |
-| Hooks config | `.github/hooks/hooks.json` |
-| Hooks directory | `.github/hooks/` |
-| Ignore file | `.copilotignore` |
-
-## Owns
-
-`.github/copilot-instructions.md`, `.github/git-commit-instructions.md`, `.github/skills/`, `.github/hooks/`, `.copilotignore`, and shared `.goat-flow/`.
-
-## Hands off
-
-`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.claude/`, `.codex/`, `.gemini/`, `.agents/`.
-
-Copilot runs on a standalone hot-path instruction file, not an overlay. `.github/copilot-instructions.md` carries its own Truth Order, Execution Loop, Definition of Done, Router Table, and Autonomy Tiers - the same contract CLAUDE.md / AGENTS.md / GEMINI.md ship. See `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` for the hot-path contract rationale more broadly; Copilot follows the same single-contract-per-agent model.
-
-## Agent-specific setup
-
-### Instruction composition
-
-- Keep `.github/copilot-instructions.md` at `<= 150` lines (hard limit) with `<= 120` as the target.
-- It MUST contain Truth Order, Execution Loop (READ → SCOPE → ACT → VERIFY), Definition of Done, Router Table, and Autonomy Tiers - the same hot-path sections as CLAUDE.md / AGENTS.md / GEMINI.md.
-- Add a **Copilot-Specific** section at the end for runtime specifics: current Copilot CLI commands (`/agent`, `/review`, `/research`, `/tasks`), `/fleet` usage, `.github/hooks/hooks.json` guardrails, and `.copilotignore` hygiene.
-- Do NOT defer to AGENTS.md; Copilot is a peer, not an overlay consumer.
-- When `.github/` exists, commit guidance MUST live at `.github/git-commit-instructions.md`. Treat that file as part of the Copilot install; `goat-flow audit --agent copilot` fails without it.
-
-### Hooks
-
-After completing step 03 (skills):
-- Copy `workflow/hooks/deny-dangerous.sh` to `.github/hooks/deny-dangerous.sh`.
-- Copy `workflow/hooks/agent-config/copilot-hooks.json` to `.github/hooks/hooks.json`.
-- Keep a single Copilot hook config file. Do not split one file per event.
-- The shipped Wave 6 model uses `preToolUse` only. Post-turn hooks and `.github/agents/` are out of scope unless a concrete gap appears later.
-
-### Skills and Copilot commands
-
-- Install the same 7 goat-flow skills into `.github/skills/`.
-- Prefer Copilot CLI commands exposed by `copilot help commands` (`/agent`, `/review`, `/research`, `/tasks`) plus `/fleet` for parallelizable work.
-- Do not create `.github/agents/` in Wave 6. Revisit only if the current command surface cannot cover a concrete specialization need.
-- `/fleet` is for independent tasks, not sequential steps that block on each other.
-
-### Ignore and MCP surfaces
-
-- Keep `.copilotignore` aligned with the secret-bearing paths the repo already protects.
-- If MCP guidance is project-specific, put it in `.github/copilot-instructions.md` under the Copilot-Specific section.
-
-### Verification
-
-- `.github/copilot-instructions.md` exists and stays under the 150-line hard limit (120 target)
-- `.github/git-commit-instructions.md` exists
-- `.github/copilot-instructions.md` contains Truth Order, Execution Loop, Definition of Done, Router Table, and Autonomy Tiers as level-2 headings
-- `.github/skills/` contains the 7 canonical goat-flow skills
-- `.github/hooks/hooks.json` registers `.github/hooks/deny-dangerous.sh`
-- `bash .github/hooks/deny-dangerous.sh --self-test` passes
-- `goat-flow audit . --harness` context concern reports `copilot: all 6 required sections present`
-
----
-
-Begin setup: proceed to `01-system-overview.md`
+| Learning loop | `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/` |
+| Skill reference + tool playbooks | `.goat-flow/skill-reference/` |
+| Orientation | `.goat-flow/code-map.md`, `.goat-flow/glossary.md` |
+| Architecture | `.goat-flow/architecture.md` |
+| Copilot skills/config | `.github/skills/`, `.github/git-commit-instructions.md`, `.github/hooks/`, `.copilotignore` when installed |
+| Project source/docs/config | adapt to detected project paths |
+| Workspace notes | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
+| Peer instructions | `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` when present |

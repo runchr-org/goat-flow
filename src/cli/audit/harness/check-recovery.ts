@@ -9,13 +9,6 @@ import { collectMarkdownFiles } from "./helpers.js";
 
 const VERIFIED_ON = "2026-04-18";
 
-interface MilestoneProgress {
-  path: string;
-  status: string | null;
-  checked: number;
-  total: number;
-}
-
 /** Return the recovery provenance. */
 function recoveryProvenance(
   type: HarnessCheck["type"],
@@ -36,20 +29,8 @@ function recoveryProvenance(
   };
 }
 
-function extractStatus(content: string): string | null {
-  const match = content.match(/^\*\*Status:\*\*\s*([^|\n]+)/im);
-  return match?.[1]?.trim().toLowerCase() ?? null;
-}
-
-function countProgress(path: string, content: string): MilestoneProgress {
-  const checkboxMatches = content.match(/- \[[ xX]\]/g) ?? [];
-  const checkedMatches = content.match(/- \[[xX]\]/g) ?? [];
-  return {
-    path,
-    status: extractStatus(content),
-    checked: checkedMatches.length,
-    total: checkboxMatches.length,
-  };
+function countTaskMarkers(content: string): number {
+  return content.match(/- \[[ xX]\]/g)?.length ?? 0;
 }
 
 const milestoneTracking: HarnessCheck = {
@@ -70,49 +51,26 @@ const milestoneTracking: HarnessCheck = {
         ["No tasks directory found"],
         ["Create .goat-flow/tasks/ for milestone tracking"],
         [
-          "Create .goat-flow/tasks/ with milestone .md files containing - [ ] checkbox items for trackable progress.",
+          "Create .goat-flow/tasks/ so optional task, roadmap, and milestone notes have a stable home.",
         ],
       );
     }
     const allMdFiles = collectMarkdownFiles(ctx.fs, tasksDir);
-    // Filter to milestone-shaped files (M01-*, M1-*, milestone-*, or files with checkpoint content)
-    const milestonePattern = /^M\d+-|^milestone-/i;
-    const mdFiles = allMdFiles.filter((f) => {
-      const name = f.split("/").pop() ?? "";
-      if (milestonePattern.test(name)) return true;
-      // Also include files that contain milestone structure (checkboxes + exit criteria)
-      const content = ctx.fs.readFile(f);
-      return content
-        ? /- \[[ x]\]/.test(content) &&
-            /exit criter|testing gate/i.test(content)
-        : false;
-    });
     if (allMdFiles.length === 0) {
-      return pass(["Tasks directory exists (empty - valid for new projects)"]);
+      return pass([
+        "Tasks directory exists (empty - valid for new projects; task tracking is optional)",
+      ]);
     }
-    const progress: MilestoneProgress[] = [];
-    for (const f of mdFiles) {
+    const markerCounts: number[] = [];
+    for (const f of allMdFiles) {
       const content = ctx.fs.readFile(f);
-      if (content) progress.push(countProgress(f, content));
+      if (content) markerCounts.push(countTaskMarkers(content));
     }
-    const extra = allMdFiles.length - mdFiles.length;
-    const extraNote =
-      extra > 0 ? ` (${extra} non-milestone .md files ignored)` : "";
-    const checked = progress.reduce((sum, item) => sum + item.checked, 0);
-    const total = progress.reduce((sum, item) => sum + item.total, 0);
-    const percent = total === 0 ? 0 : Math.round((checked / total) * 100);
-    const zeroProgress = progress.filter(
-      (item) => item.total > 0 && item.checked === 0,
-    );
+    const totalMarkers = markerCounts.reduce((sum, count) => sum + count, 0);
     const findings = [
-      `${checked}/${total} checkboxes complete (${percent}%) across ${mdFiles.length} milestone files${extraNote}`,
-      "Task checkbox completion is informational only; .goat-flow/tasks/ is gitignored local working state and unchecked items may be intentionally skipped.",
+      `Tasks directory exists with ${allMdFiles.length} markdown file(s) and ${totalMarkers} checkbox marker(s)`,
+      "Task and milestone content is optional local workflow state; checkbox completion, status, testing gates, and roadmap progress are not audited.",
     ];
-    if (zeroProgress.length > 0) {
-      findings.push(
-        `${zeroProgress.length} milestone files are at 0%: ${zeroProgress.map((item) => item.path).join(", ")}`,
-      );
-    }
     return pass(findings);
   },
 };

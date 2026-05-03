@@ -434,7 +434,7 @@
           >
             Run
             <span class="mono gf-text-primary">goat-flow audit --harness</span>
-            for 17 harness checks across five concerns:
+            for 16 harness checks across five concerns:
             <strong class="gf-text-primary" style="font-weight: 500"
               >context, constraints, verification, recovery, feedback
               loop</strong
@@ -615,7 +615,7 @@
               <span class="gf-text-muted" style="font-size: 13px; flex: 1">
                 Blocks destructive filesystem commands, all git push,
                 <span class="mono gf-text-primary">.env</span> file reads,
-                secret exfiltration,
+                direct literal secret-path access,
                 <span class="mono gf-text-primary">eval</span> and dangerous
                 commands hidden inside
                 <span class="mono gf-text-primary">bash -c</span>, database

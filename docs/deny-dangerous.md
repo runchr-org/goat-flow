@@ -27,12 +27,12 @@ The shipped template is intended to block or prompt on the common high-risk comm
 - all git push (ADR-025)
 - `chmod 777`
 - pipe-to-shell and pipe-to-interpreter patterns like `curl | bash`
-- `.env` / `.env.*` access, except read-only `.env.example` inspection
+- direct literal `.env` / `.env.*` access, except read-only `.env.example` inspection
 - `git --no-verify`
 - `git reset --hard`
 - `git clean -f`
 - destructive database commands
-- access to secret paths such as `.env`, `.env.local`, `.ssh`, `.aws`, `credentials`, `secrets`, `.pem`, `.key`, `.pfx`, `.gnupg`; `.env.example` is allowed only for read-only inspection
+- direct literal access to secret paths such as `.env`, `.env.local`, `.ssh`, `.aws`, `credentials`, `secrets`, `.pem`, `.key`, `.pfx`, `.gnupg`; `.env.example` is allowed only for read-only inspection
 
 ## Important distinction
 
@@ -58,8 +58,8 @@ Runtime and local verification are different:
 
 The guardrails are intentionally simple and pattern-based.
 
-- They match literal command strings, not full shell semantics.
-- They do not reliably catch variable indirection, aliases, or encoded commands.
+- They match direct literal command strings, not full shell semantics.
+- They do not reliably catch variable indirection, aliases, encoded commands, or arbitrary interpreter code.
 - Codex PreToolUse is WIP and "doesn't intercept all shell calls yet" per the Codex docs.
 - `goat-flow audit` validates static setup and registration; it does not prove a hook executed successfully at runtime.
 

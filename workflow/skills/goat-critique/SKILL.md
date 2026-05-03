@@ -1,7 +1,7 @@
 ---
 name: goat-critique
 description: "Use when a decision or analysis needs multi-lens critique to surface blind spots before shipping."
-goat-flow-skill-version: "1.4.0"
+goat-flow-skill-version: "1.4.1"
 ---
 # /goat-critique
 
@@ -49,7 +49,7 @@ goat-critique runs in one mode: full delegated, Phases 1-5 plus mandatory post-s
 
 ## Phase 1 - Generate Competing Critiques
 
-Spawn all three sub-agents in parallel via the Agent tool.
+Spawn all three sub-agents in parallel using the host's real delegation mechanism.
 
 Context varies intentionally - informational diversity catches more than tonal diversity.
 

@@ -1,6 +1,6 @@
 /**
  * Verification concern: Can the agent verify its own work honestly?
- * 4 checks: test-runner-configured, hooks-registered, commit-guidance, post-turn-hook-integrity.
+ * 3 checks: hooks-registered, commit-guidance, post-turn-hook-integrity.
  */
 import type { HarnessCheck } from "../types.js";
 import type { CheckEvidence } from "../provenance-types.js";
@@ -27,32 +27,6 @@ function verificationProvenance(
     evidence_paths: paths,
   };
 }
-
-const testRunnerConfigured: HarnessCheck = {
-  id: "test-runner-configured",
-  name: "Test runner configured",
-  concern: "verification",
-  type: "metric",
-  provenance: verificationProvenance("metric", [
-    "docs/harness-audit.md",
-    ".goat-flow/config.yaml",
-  ]),
-  /** Run the Test runner configured check. */
-  run: (ctx) => {
-    const tc = ctx.config.config.toolchain;
-    if (tc.test.length > 0) {
-      return pass([`Test command configured: ${tc.test[0]}`]);
-    }
-    return fail(
-      [
-        "No structured toolchain.test configured; treat project-local commands or instruction-file commands as the source of truth",
-      ],
-      [
-        "Add a test command to toolchain.test in .goat-flow/config.yaml if the project has tests",
-      ],
-    );
-  },
-};
 
 const hooksRegistered: HarnessCheck = {
   id: "hooks-registered",
@@ -170,14 +144,29 @@ const postTurnHookIntegrity: HarnessCheck = {
     }
 
     if (!anyHook) {
-      return pass(["No post-turn hooks installed"]);
+      return fail(
+        ["No post-turn hooks installed; no hook-based validation evidence"],
+        [
+          "Install a project-specific post-turn validation hook only if this project needs automatic post-action checks",
+        ],
+      );
+    }
+    if (
+      findings.some(
+        (finding) =>
+          finding.includes("no validation logic") ||
+          finding.includes("always exits 0"),
+      )
+    ) {
+      return fail(findings, [
+        "Make post-turn validation hooks run meaningful checks and report failures honestly, or leave them uninstalled",
+      ]);
     }
     return pass(findings);
   },
 };
 
 export const VERIFICATION_CHECKS: HarnessCheck[] = [
-  testRunnerConfigured,
   hooksRegistered,
   commitGuidance,
   postTurnHookIntegrity,

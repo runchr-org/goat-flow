@@ -462,10 +462,6 @@ function app() {
     },
     /** Save the draft and immediately launch it with the active runner. */
     async saveAndRunCustomPrompt() {
-      if (!this.activeRunner) {
-        this.showToast("Select a runner before launching", true);
-        return;
-      }
       const saved = this.saveCustomPrompt();
       if (!saved) return;
       const preset = dashboardCustomPromptToPreset(saved);

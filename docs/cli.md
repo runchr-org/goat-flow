@@ -14,12 +14,12 @@ The menu can start the dashboard, copy/update goat-flow system files, generate a
 
 ### `goat-flow audit [path] [flags]`
 
-Validate setup correctness. The base audit runs two deterministic scopes (all pass/fail): GOAT Flow Setup and Agent Setup. Pass `--harness` to add the AI Harness Completeness scope (17 checks across 5 concerns - verifies structural installation of each concern). Harness results contribute to the overall audit status.
+Validate setup correctness. The base audit runs two deterministic scopes (all pass/fail): GOAT Flow Setup and Agent Setup. Pass `--harness` to add the AI Harness Completeness scope (16 checks across 5 concerns - verifies structural installation of each concern). Harness results contribute to the overall audit status.
 
 | Flag | Description |
 |------|-------------|
 | `--agent <id>` | Filter to one manifest-backed agent id. Run `npx goat-flow manifest` to inspect the current registry. |
-| `--harness` | Add AI Harness Completeness scope (17 checks, installed/not-installed per concern) |
+| `--harness` | Add AI Harness Completeness scope (16 checks, installed/not-installed per concern) |
 | `--check-drift` | Add skill template-vs-installed drift detection (orphan directories, byte-level divergence) |
 | `--check-content` | Add cold-path content lint (vague terms, generic instructions, factual-claim drift) |
 | `--format <type>` | Output: json, text, markdown (default: auto) |
@@ -104,6 +104,8 @@ Use `--apply` when you want setup to run the deterministic file-copy installer i
 ### `goat-flow install [path] --agent <id> [--force]`
 
 Copy or update goat-flow system files without an agent: skills, shared skill references, hook scripts, agent settings templates, `.goat-flow/` README/gitignore anchors, and `.goat-flow/config.yaml` when it is missing. Existing settings and config are skipped unless `--force` is passed.
+
+The shared references include `.goat-flow/skill-reference/README.md`, an index for tool/capability playbooks such as `browser-use.md` and `page-capture.md`. Generated or repaired instruction files include a Router Table pointer to `.goat-flow/skill-reference/` so agents check local availability playbooks before declaring a tool unavailable.
 
 ```bash
 npx @blundergoat/goat-flow@latest install . --agent claude

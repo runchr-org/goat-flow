@@ -1,6 +1,6 @@
 ---
 category: verification
-last_reviewed: 2026-04-29
+last_reviewed: 2026-05-03
 ---
 
 ## Lesson: "Double check" means read the files, not re-run the tests
@@ -291,8 +291,8 @@ last_reviewed: 2026-04-29
 **Root cause:** I checked the human line count after the failure instead of reading the contract's counting helper first. The repository's enforced ceiling is the test helper, not `wc -l`.
 
 **Prevention:**
-1. When touching `.github/copilot-instructions.md`, keep `wc -l` below 120 or run `node --import tsx --test test/contract/copilot-and-skill-reference-contracts.test.ts` before broader verification.
-2. For line-budget failures, read the exact contract helper before deciding how many lines need to be trimmed. Evidence anchor: `test/contract/copilot-and-skill-reference-contracts.test.ts` (search: `.github/copilot-instructions.md must stay at or under 120 lines`).
+1. When touching `.github/copilot-instructions.md`, keep `wc -l` below the configured target or run `node --import tsx --test test/contract/copilot-and-skill-reference-contracts.test.ts` before broader verification.
+2. For line-budget failures, read the exact contract helper before deciding how many lines need to be trimmed. Evidence anchor: `test/contract/copilot-and-skill-reference-contracts.test.ts` (search: `.github/copilot-instructions.md must stay at or under 125 lines`).
 
 ---
 ## Lesson: Runtime hook messages must stay paired with agent-config templates

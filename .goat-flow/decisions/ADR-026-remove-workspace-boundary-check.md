@@ -7,12 +7,12 @@
 
 The `boundary-guidance-present` harness check (advisory, context concern) verifies that each agent's instruction file contains workspace boundary language - phrases like "controlling workspace", "selected target", or "workspace boundary." The check was added in v1.3.2 to encourage instruction files to distinguish the goat-flow controlling workspace from the selected target project.
 
-In practice, satisfying the check required embedding hardcoded absolute paths in version-controlled instruction files (e.g., `## Workspace Boundary\nThe controlling goat-flow workspace and selected target project are both this checkout: /home/hxdev/projects/feature/healthkit`).
+In practice, satisfying the check required embedding hardcoded absolute paths in version-controlled instruction files (e.g., `## Workspace Boundary\nThe controlling goat-flow workspace and selected target project are both this checkout: /home/dev/projects/feature/example-app`).
 
-This produced three categories of breakage in the first real-world deployment (Healthkit):
+This produced three categories of breakage in the first real-world deployment:
 
 1. **User-specific.** Each developer has a different WSL username and home directory. The path is wrong for every developer except the one who ran setup.
-2. **Checkout-specific.** The same repository exists at multiple paths on the same machine (`feature/healthkit`, `deploy/healthkit`, `basedata/healthkit`). The path is wrong for 2 of 3 checkouts.
+2. **Checkout-specific.** The same repository exists at multiple paths on the same machine (`feature/example-app`, `deploy/example-app`, `basedata/example-app`). The path is wrong for 2 of 3 checkouts.
 3. **Redundant.** AI agents already know their working directory at runtime via `pwd` / environment context. Hardcoding it in the instruction file adds no information.
 
 The bug was not the boundary concept itself. The bug was allowing the remedy to become machine-specific content in shared instruction files.

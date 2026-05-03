@@ -76,7 +76,7 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
       logs: { path: ".goat-flow/logs/" },
       agents: null,
       skills: { install: "all" },
-      lineLimits: { target: 120, limit: 150 },
+      lineLimits: { target: 125, limit: 150 },
       toolchain: {
         test: ["npm test"],
         lint: ["eslint ."],
@@ -269,7 +269,7 @@ function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
           warningCount: 0,
           errorCount: 0,
           parseError: null,
-          lineLimits: { target: 120, limit: 150 },
+          lineLimits: { target: 125, limit: 150 },
           userRole: "developer",
         },
         architecture: { exists: true, lineCount: 50 },
@@ -356,6 +356,73 @@ async function makeTempProject(
     root,
     cleanup: () => rm(root, { recursive: true, force: true }),
   };
+}
+
+async function writeAuditSetupFixture(
+  root: string,
+  options: {
+    skillReferenceDir: boolean;
+    skillReferenceReadme?: boolean;
+    instructionPointer: boolean;
+  },
+): Promise<void> {
+  const manifest = JSON.parse(
+    readFileSync(join(PROJECT_ROOT, "workflow/manifest.json"), "utf-8"),
+  ) as { required_files: string[]; required_dirs: string[] };
+
+  for (const dir of manifest.required_dirs) {
+    if (
+      !options.skillReferenceDir &&
+      dir.startsWith(".goat-flow/skill-reference/")
+    ) {
+      continue;
+    }
+    await mkdir(join(root, dir), { recursive: true });
+  }
+
+  for (const file of manifest.required_files) {
+    if (
+      !options.skillReferenceDir &&
+      file.startsWith(".goat-flow/skill-reference/")
+    ) {
+      continue;
+    }
+    if (
+      options.skillReferenceReadme === false &&
+      file === ".goat-flow/skill-reference/README.md"
+    ) {
+      continue;
+    }
+    const content =
+      file === ".goat-flow/config.yaml"
+        ? `version: "${AUDIT_VERSION}"\n\nagents:\n  - claude\nskills:\n  install: all\n`
+        : "# Stub\n";
+    await writeProjectFile(root, file, content);
+  }
+
+  const instructionContent = options.instructionPointer
+    ? `# CLAUDE.md
+
+## Execution Loop: READ -> SCOPE -> ACT -> VERIFY
+
+### READ
+Before declaring any tool or capability unavailable, read the matching playbook in .goat-flow/skill-reference/ and run that doc's "Availability Check" section verbatim.
+
+### SCOPE
+
+### ACT
+
+### VERIFY
+
+## Router Table
+
+| Resource | Path |
+|----------|------|
+| Skill reference + tool playbooks | .goat-flow/skill-reference/ |
+`
+    : "# CLAUDE.md\n";
+
+  await writeProjectFile(root, "CLAUDE.md", instructionContent);
 }
 
 function makeAuditScope(
@@ -456,6 +523,118 @@ describe("audit on well-configured project", () => {
       assert.equal(report.command, "audit");
       assert.equal(report.target, project.root);
       assert.ok(["pass", "fail"].includes(report.status));
+    } finally {
+      await project.cleanup();
+    }
+  });
+});
+
+describe("audit skill-reference pointer rule", () => {
+  it("fails when skill-reference exists but CLAUDE.md lacks the required routing", async () => {
+    const project = await makeTempProject((root) =>
+      writeAuditSetupFixture(root, {
+        skillReferenceDir: true,
+        instructionPointer: false,
+      }),
+    );
+    try {
+      const report = runAudit(createFS(project.root), project.root, {
+        agentFilter: null,
+        harness: false,
+      });
+      const check = report.scopes.setup.checks.find(
+        (entry) => entry.id === "instruction-file-skill-reference-pointer",
+      );
+
+      assert.equal(report.status, "fail");
+      assert.equal(check?.status, "fail");
+      assert.match(check?.failure?.message ?? "", /CLAUDE\.md/);
+      assert.match(check?.failure?.message ?? "", /READ rule/);
+      assert.match(check?.failure?.message ?? "", /Router Table pointer/);
+      assert.match(check?.failure?.howToFix ?? "", /Before declaring any tool/);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("passes when skill-reference exists and CLAUDE.md contains the READ rule and Router Table pointer", async () => {
+    const project = await makeTempProject((root) =>
+      writeAuditSetupFixture(root, {
+        skillReferenceDir: true,
+        instructionPointer: true,
+      }),
+    );
+    try {
+      const report = runAudit(createFS(project.root), project.root, {
+        agentFilter: null,
+        harness: false,
+      });
+      const check = report.scopes.setup.checks.find(
+        (entry) => entry.id === "instruction-file-skill-reference-pointer",
+      );
+
+      assert.equal(
+        report.status,
+        "pass",
+        `Expected pass but got: ${JSON.stringify(report.scopes)}`,
+      );
+      assert.equal(check?.status, "pass");
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("skips when the project has no skill-reference directory", async () => {
+    const project = await makeTempProject((root) =>
+      writeAuditSetupFixture(root, {
+        skillReferenceDir: false,
+        instructionPointer: false,
+      }),
+    );
+    try {
+      const report = runAudit(createFS(project.root), project.root, {
+        agentFilter: null,
+        harness: false,
+      });
+      const check = report.scopes.setup.checks.find(
+        (entry) => entry.id === "instruction-file-skill-reference-pointer",
+      );
+
+      assert.equal(
+        report.status,
+        "pass",
+        `Expected pass but got: ${JSON.stringify(report.scopes)}`,
+      );
+      assert.equal(check?.status, "skipped");
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("fails when the skill-reference directory exists without README.md", async () => {
+    const project = await makeTempProject((root) =>
+      writeAuditSetupFixture(root, {
+        skillReferenceDir: true,
+        skillReferenceReadme: false,
+        instructionPointer: true,
+      }),
+    );
+    try {
+      const report = runAudit(createFS(project.root), project.root, {
+        agentFilter: null,
+        harness: false,
+      });
+      const check = report.scopes.setup.checks.find(
+        (entry) => entry.id === "instruction-file-skill-reference-pointer",
+      );
+
+      assert.equal(report.status, "fail");
+      assert.equal(check?.status, "fail");
+      assert.match(check?.failure?.message ?? "", /README\.md/);
+      assert.equal(
+        check?.failure?.evidence,
+        ".goat-flow/skill-reference/README.md",
+      );
     } finally {
       await project.cleanup();
     }
@@ -1033,36 +1212,22 @@ describe("scratchpad setup gate", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test 9: optional config calibration fields do not lower harness scores
+// Test 9: project-specific validation commands belong to quality, not audit
 // ---------------------------------------------------------------------------
-describe("optional config calibration", () => {
-  it("does not penalize missing toolchain.test entries", () => {
-    const check = HARNESS_CHECKS.find(
-      (c) => c.id === "test-runner-configured",
-    )!;
-    const result = check.run(
-      makeCtx({
-        config: stubConfig({
-          toolchain: {
-            test: [],
-            lint: [],
-            build: [],
-            package: [],
-            format: [],
-          },
-        }),
-      }),
-    );
-    assert.equal(result.status, "fail");
-    assert.ok(
-      result.findings.some((f) => f.includes("toolchain.test")),
-      `Findings should explain optional toolchain semantics: ${result.findings.join(", ")}`,
+describe("project-specific validation command policy", () => {
+  it("does not include test-command proof as a deterministic harness check", () => {
+    assert.equal(
+      HARNESS_CHECKS.some((c) => c.id === "test-runner-configured"),
+      false,
     );
   });
 });
 
 describe("recovery harness milestone tracking", () => {
-  function taskCtx(files: Record<string, string>): AuditContext {
+  function taskCtx(
+    files: Record<string, string>,
+    tasksExists = true,
+  ): AuditContext {
     const dirs = new Map<string, Set<string>>();
     dirs.set(".goat-flow/tasks", new Set());
     for (const file of Object.keys(files)) {
@@ -1077,7 +1242,8 @@ describe("recovery harness milestone tracking", () => {
     }
     return makeCtx({
       fs: stubFS({
-        exists: (path) => path === ".goat-flow/tasks" || path in files,
+        exists: (path) =>
+          (tasksExists && path === ".goat-flow/tasks") || path in files,
         listDir: (path) => [...(dirs.get(path) ?? new Set<string>())],
         readFile: (path) => files[path] ?? null,
       }),
@@ -1086,68 +1252,44 @@ describe("recovery harness milestone tracking", () => {
 
   const check = HARNESS_CHECKS.find((c) => c.id === "milestone-tracking")!;
 
+  it("fails when the tasks directory is missing", () => {
+    const result = check.run(taskCtx({}, false));
+    assert.equal(result.status, "fail");
+    assert.ok(result.findings.some((f) => f.includes("No tasks directory")));
+  });
+
   it("passes with an empty tasks directory", () => {
     const result = check.run(taskCtx({}));
     assert.equal(result.status, "pass");
-    assert.ok(result.findings.some((f) => f.includes("empty")));
+    assert.ok(result.findings.some((f) => f.includes("tracking is optional")));
   });
 
-  it("reports archived complete milestone progress as healthy", () => {
+  it("reports optional task files without scoring completion", () => {
     const result = check.run(
       taskCtx({
-        ".goat-flow/tasks/_archived/M01-done.md":
-          "**Status:** complete\n\n## Tasks\n- [x] One\n- [x] Two\n",
-      }),
-    );
-    assert.equal(result.status, "pass");
-    assert.ok(result.findings.some((f) => f.includes("2/2 checkboxes")));
-  });
-
-  it("reports active zero-percent milestones as informational local state", () => {
-    const result = check.run(
-      taskCtx({
-        ".goat-flow/tasks/1.3.0/M00-active.md":
-          "**Status:** in-progress\n\n## Tasks\n- [ ] One\n- [ ] Two\n",
-      }),
-    );
-    assert.equal(result.status, "pass");
-    assert.ok(result.findings.some((f) => f.includes("0/2 checkboxes")));
-    assert.ok(result.findings.some((f) => f.includes("at 0%")));
-    assert.ok(result.findings.some((f) => f.includes("informational only")));
-  });
-
-  it("reports active partial milestone progress", () => {
-    const result = check.run(
-      taskCtx({
-        ".goat-flow/tasks/1.3.0/M01-partial.md":
+        ".goat-flow/tasks/1.3.0/M01-demo.md":
           "**Status:** in-progress\n\n## Tasks\n- [x] One\n- [ ] Two\n",
       }),
     );
     assert.equal(result.status, "pass");
-    assert.ok(result.findings.some((f) => f.includes("1/2 checkboxes")));
+    assert.ok(result.findings.some((f) => f.includes("1 markdown file")));
+    assert.ok(result.findings.some((f) => f.includes("2 checkbox marker")));
+    assert.ok(result.findings.some((f) => f.includes("not audited")));
   });
 
-  it("keeps planned-but-not-started milestones intentional", () => {
+  it("does not fail active, testing-gate, or roadmap checkbox gaps", () => {
     const result = check.run(
       taskCtx({
-        ".goat-flow/tasks/1.3.0/M02-planned.md":
-          "**Status:** planned\n\n## Tasks\n- [ ] One\n- [ ] Two\n",
+        ".goat-flow/tasks/1.3.0/M01-active.md":
+          "**Status:** in-progress\n\n## Tasks\n- [ ] One\n- [ ] Two\n",
+        ".goat-flow/tasks/1.3.0/M02-testing.md":
+          "**Status:** testing-gate\n\n## Testing Gate\n- [ ] npm test passes\n",
+        ".goat-flow/tasks/1.8.0/M09-runtime-verification.md":
+          "**Status:** planned\n\n## Long-term ideas\n- [ ] Explore runtime probes\n",
       }),
     );
     assert.equal(result.status, "pass");
-    assert.ok(result.findings.some((f) => f.includes("at 0%")));
-    assert.ok(result.findings.some((f) => f.includes("informational only")));
-  });
-
-  it("does not fail complete milestones with skipped local checkboxes", () => {
-    const result = check.run(
-      taskCtx({
-        ".goat-flow/tasks/1.3.0/M03-complete.md":
-          "**Status:** complete\n\n## Tasks\n- [x] One\n- [ ] Two\n",
-      }),
-    );
-    assert.equal(result.status, "pass");
-    assert.ok(result.findings.some((f) => f.includes("1/2 checkboxes")));
+    assert.doesNotMatch(result.findings.join("\n"), /Recovery degraded|0%/);
   });
 });
 
@@ -1264,13 +1406,13 @@ describe("M01 harness check type tagging", () => {
     }
   });
 
-  it("matches the locked distribution (9 integrity, 6 advisory, 2 metric)", () => {
+  it("matches the locked distribution (9 integrity, 6 advisory, 1 metric)", () => {
     const byType = { integrity: 0, advisory: 0, metric: 0 } as Record<
       string,
       number
     >;
     for (const check of HARNESS_CHECKS) byType[check.type]!++;
-    assert.deepStrictEqual(byType, { integrity: 9, advisory: 6, metric: 2 });
+    assert.deepStrictEqual(byType, { integrity: 9, advisory: 6, metric: 1 });
   });
 
   it("known-integrity ids are tagged integrity", () => {
@@ -1297,10 +1439,7 @@ describe("M01 harness check type tagging", () => {
   });
 
   it("known-metric ids are tagged metric", () => {
-    const metricIds = new Set([
-      "test-runner-configured",
-      "post-turn-hook-integrity",
-    ]);
+    const metricIds = new Set(["post-turn-hook-integrity"]);
     for (const check of HARNESS_CHECKS) {
       if (metricIds.has(check.id)) {
         assert.equal(check.type, "metric", `${check.id} should be metric`);
@@ -1341,6 +1480,18 @@ run_self_test() {
 
 describe("workspace boundary guidance harness", () => {
   const completeInstruction = `
+## Truth Order
+Use explicit user instructions first.
+
+## Autonomy Tiers
+Use the configured autonomy tier.
+
+## Hard Rules
+Preserve workspace boundaries.
+
+## Key Resources
+Read the learning loop and tool playbooks.
+
 ## Essential Commands
 Run project commands.
 
@@ -1349,9 +1500,6 @@ READ SCOPE ACT VERIFY
 
 ## Artifact Routing
 Route artifacts intentionally.
-
-## Autonomy Tiers
-Use the configured autonomy tier.
 
 ## Definition of Done
 Verify changed behavior.
@@ -1556,7 +1704,7 @@ describe("M01 scoring model", () => {
     assert.ok(concerns.context.advisoryFail >= 1);
   });
 
-  it("deny-covers-secrets fails when settings Read deny is present but Bash hook lacks secret-path coverage", () => {
+  it("deny-covers-secrets fails when settings Read deny is present but Bash hook lacks direct literal secret-path blocking", () => {
     // Models the M17-1 gap: settings.json has Read(**/.env*) etc., but the Bash
     // deny hook still allows `cat .env` / `source .env`. The harness must fail
     // on this even though the old check classified the agent as "covered".
@@ -1572,11 +1720,11 @@ describe("M01 scoring model", () => {
     assert.equal(
       secrets.status,
       "fail",
-      "deny-covers-secrets must fail when Bash hook has no secret-path coverage",
+      "deny-covers-secrets must fail when Bash hook has no direct literal secret-path blocking",
     );
   });
 
-  it("deny-covers-secrets passes when both settings Read deny and Bash hook cover secrets", () => {
+  it("deny-covers-secrets passes when both settings Read deny and Bash hook block direct literal secret paths", () => {
     const hooks = {
       ...stubAgentFacts().hooks,
       readDenyCoversSecrets: true,
@@ -1588,12 +1736,26 @@ describe("M01 scoring model", () => {
     assert.equal(secrets?.status, "pass");
   });
 
-  it("metric checks never flip concern.status (always pass) and are counted", () => {
-    const ctx = makeCtx();
+  it("project test-command absence does not lower verification score", () => {
+    const baseFacts = makeCtx().facts;
+    const ctx = makeCtx({
+      facts: {
+        ...baseFacts,
+        shared: {
+          ...baseFacts.shared,
+          gitCommitInstructions: {
+            exists: true,
+            path: ".github/git-commit-instructions.md",
+            requiredPath: ".github/git-commit-instructions.md",
+            misplacedPaths: [],
+          },
+        },
+      },
+    });
     const { concerns } = computeHarness(ctx);
-    // verification concern contains both metric checks (test-runner-configured,
-    // post-turn-hook-integrity). They never fail in the current implementation.
-    assert.equal(concerns.verification.metrics, 2);
+    assert.equal(concerns.verification.metrics, 1);
+    assert.equal(concerns.verification.advisoryFail, 0);
+    assert.equal(concerns.verification.score, 100);
   });
 
   it("CheckResult carries type, acknowledged, and provenance fields", () => {

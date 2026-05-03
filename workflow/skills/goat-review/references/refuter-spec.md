@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.4.0"
+goat-flow-reference-version: "1.4.1"
 ---
 # Cross-Model Refuter Specification
 
@@ -72,13 +72,13 @@ When Pass 3 runs, add to Review Integrity:
 
 ## Pre-flight Check
 
-Before spawning the refuter, verify:
+Before spawning the refuter, verify the target refuter runtime is both installed and authenticated. These checks are target-runtime checks, not host checks; use the same commands from Claude, Codex, Copilot, or Gemini hosts.
 ```bash
-# From Claude Code host:
+# Before spawning Codex:
 command -v codex && codex login status
 
-# From Codex host:
-command -v claude && claude --version
+# Before spawning Claude Code:
+command -v claude && claude auth status
 ```
 
-If the opposite runtime is not authenticated, skip Pass 3 and log `cross-model-refuter-failed` in Review Integrity. Do not attempt to authenticate during a review.
+Version-only commands such as `claude --version`, `codex --version`, `copilot --version`, or `gemini --version` prove installation only; they do not prove authentication. If the opposite runtime is not authenticated, skip Pass 3 and log `cross-model-refuter-failed` in Review Integrity. Do not attempt to authenticate during a review.

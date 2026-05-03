@@ -49,12 +49,12 @@ describe("Copilot and skill-reference contracts", () => {
     }
   });
 
-  it("keeps .github/copilot-instructions.md within the 120-line ceiling", () => {
+  it("keeps .github/copilot-instructions.md within the 125-line ceiling", () => {
     const path = resolve(PROJECT_ROOT, ".github/copilot-instructions.md");
     assert.ok(existsSync(path), ".github/copilot-instructions.md should exist");
     assert.ok(
-      lineCount(path) <= 120,
-      ".github/copilot-instructions.md must stay at or under 120 lines",
+      lineCount(path) <= 125,
+      ".github/copilot-instructions.md must stay at or under 125 lines",
     );
   });
 

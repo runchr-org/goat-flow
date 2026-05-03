@@ -29,11 +29,11 @@ For the full deterministic inventory, including every check id and what it valid
 
 ### Build mode (default)
 
-Binary pass/fail. This is the structural setup gate - it validates that required files/directories exist, config parses, skills are installed at the expected paths, and hooks are registered. It does not execute configured toolchain commands (lint, test, build). Step 06 uses `audit` as the minimum gate; preflight runs `audit` plus additional checks including ESLint, Prettier, and version consistency.
+Binary pass/fail. This is the structural setup gate - it validates that required files/directories exist, config parses, skills are installed at the expected paths, and hooks are registered. It does not execute configured toolchain commands (lint, test, build). Step 06 uses `audit` as the minimum gate; preflight runs `audit` plus additional checks including ESLint, Prettier, version consistency, instruction file line counts (warn at `line_target`, fail at `line_limit`), Router Table path parity across agents, encyclopedia-content guards, and downstream-content guards.
 
 Checks are grouped by **scope**:
 
-**setup scope** (GOAT Flow Setup) - 13 checks on goat-flow-owned surfaces:
+**setup scope** (GOAT Flow Setup) - 14 checks on goat-flow-owned surfaces:
 - `lessons` - `.goat-flow/lessons/` directory and README exist
 - `footguns` - `.goat-flow/footguns/` directory and README exist
 - `architecture` - `.goat-flow/architecture.md` exists
@@ -44,7 +44,8 @@ Checks are grouped by **scope**:
 - `session-logs` - `.goat-flow/logs/sessions/` directory exists
 - `tasks` - `.goat-flow/tasks/` directory, `.gitignore`, and README exist (local-session state by design)
 - `scratchpad` - `.goat-flow/scratchpad/` directory, `.gitignore`, and README exist (local WIP by design)
-- `other-files` - Other required manifest surfaces not already covered by named setup checks exist (for example skill-reference and quality-log paths)
+- `instruction-file-skill-reference-pointer` - when `.goat-flow/skill-reference/` exists, every present instruction file has both the READ-step availability-check rule and Router Table pointer, and the full reference pack including `.goat-flow/skill-reference/README.md` exists; when the directory is absent, this check is skipped
+- `other-files` - Other required manifest surfaces not already covered by named setup checks exist (for example quality-log paths)
 - `config-parses` - `.goat-flow/config.yaml` parses and validates, including manifest-backed `agents:` ids
 - `config-version` - Config version matches current release
 
@@ -58,14 +59,14 @@ Checks are grouped by **scope**:
 
 ### Harness mode (`--harness`)
 
-Adds 17 checks across the five harness concerns on top of the default build checks. These check AI harness completeness -- whether the project has the structures that make agents effective. Harness checks are deterministic but classified by type (see `HarnessCheckType` in `src/cli/audit/types.ts`): **integrity** (drift from install state - affects concern status), **advisory** (best practice - affects status unless the check id is listed in `harness.acknowledge` in `config.yaml`), and **metric** (workflow maturity signal - never affects status).
+Adds 16 checks across the five harness concerns on top of the default build checks. These check AI harness completeness -- whether the project has the structures that make agents effective. Harness checks are deterministic but classified by type (see `HarnessCheckType` in `src/cli/audit/types.ts`): **integrity** (drift from install state - affects concern status), **advisory** (best practice - affects status unless the check id is listed in `harness.acknowledge` in `config.yaml`), and **metric** (workflow maturity signal - never affects status).
 
 Harness checks are grouped by **concern** -- the five things that matter for agent effectiveness. See [harness-engineering.md](harness-engineering.md) for what each concern means and the sources behind the model.
 
-**harness scope** (AI Harness Completeness) - 17 checks across 5 concerns:
+**harness scope** (AI Harness Completeness) - 16 checks across 5 concerns:
 - **Context** (5) - instruction file within line limit, execution loop present, doc paths resolve, required instruction sections present, workspace boundary guidance present
-- **Constraints** (4) - deny covers secrets, deny blocks dangerous commands, deny blocks pipe-to-shell, deny hook registered in agent settings
-- **Verification** (4) - test runner configured, hooks in sync, commit guidance, post-turn hook integrity
+- **Constraints** (4) - deny blocks direct literal secret paths, deny blocks dangerous commands, deny blocks pipe-to-shell, deny hook registered in agent settings
+- **Verification** (3) - hooks in sync, commit guidance, post-turn hook integrity
 - **Recovery** (2) - milestone tracking, session logs
 - **Feedback Loop** (2) - feedback loop directories exist, decisions tracked
 
@@ -74,7 +75,7 @@ Sample harness output:
 ```
 GOAT Flow Setup:          PASS
   Skills:                 7/7 installed
-  Config:                 valid, version 1.4.0
+  Config:                 valid, version 1.4.1
   InstructionFile:        118 lines
 
 Agent Setup:              PASS
@@ -84,7 +85,7 @@ Agent Setup:              PASS
 AI Harness Completeness:  PASS
   Context:                PASS (5/5)
   Constraints:            FAIL (3/4) - pipe-to-shell not blocked for codex
-  Verification:           PASS (4/4)
+  Verification:           PASS (3/3)
   Recovery:               PASS (2/2)
   Feedback Loop:          PASS (2/2)
 

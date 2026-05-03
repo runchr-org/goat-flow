@@ -283,10 +283,9 @@ export interface AgentFacts {
     /** Hook scripts containing hardcoded absolute paths (not wrapped in $(git rev-parse)) */
     absolutePathHooks: string[];
     readDenyCoversSecrets: boolean;
-    /** True when the Bash deny hook script has pattern coverage for secret-bearing
-     *  file reads (.env, /.ssh/, /.aws/, .pem/.key/.pfx). Settings.json Read()
-     *  denies do not cover Bash commands, so this check is the only line of
-     *  defence against shell-based secret exfil. */
+    /** True when the Bash deny hook blocks direct literal secret-bearing paths
+     *  (.env, /.ssh/, /.aws/, .pem/.key/.pfx). Settings.json Read() denies do
+     *  not cover Bash commands, so this is direct-path defence in depth. */
     bashDenyCoversSecrets: boolean;
   };
   deny: {

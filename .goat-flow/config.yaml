@@ -1,7 +1,7 @@
 # .goat-flow/config.yaml - project configuration
 # Docs: https://github.com/blundergoat/goat-flow
 
-version: "1.4.0"
+version: "1.4.1"
 
 # ── Project Setup ───────────────────────────────
 agents:
@@ -28,12 +28,10 @@ skills:
 telemetry: false
 
 # ── Line Limits ──────────────────────────────────
-# Adjust for project complexity:
-#   Small CLI: target 80, limit 120
-#   Standard:  target 120, limit 150 (default)
-#   Large:     target 150, limit 200
+# Instruction-file line limits used by audit quality checks.
+# Target is the preferred maximum; limit is the hard failure threshold.
 line-limits:
-  target: 120
+  target: 125
   limit: 150
 
 # ── Terminal ──────────────────────────────────

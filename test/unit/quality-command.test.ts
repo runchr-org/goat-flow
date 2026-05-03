@@ -157,6 +157,12 @@ describe("quality prompt content", () => {
       !result.prompt.includes("milestone task files"),
       "Should not ask assessment to create milestone task files",
     );
+    assert.ok(
+      result.prompt.includes(
+        "Do NOT report them as quality findings by themselves",
+      ),
+      "Should not let unchecked task or milestone progress become a quality finding",
+    );
   });
 
   it("contains skill testing section", () => {

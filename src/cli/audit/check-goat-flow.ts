@@ -1,8 +1,9 @@
 /**
  * GOAT Flow Setup checks for `goat-flow audit`.
- * 13 setup-scope checks that validate project structure:
+ * 14 setup-scope checks that validate project structure:
  *   10 named (lessons, footguns, architecture, code-map, glossary, patterns,
  *             decisions, session-logs, tasks, scratchpad)
+ * + 1 conditional skill-reference discoverability check
  * + 1 catch-all (other-files)
  * + 2 config (config-parses, config-version)
  */
@@ -10,7 +11,7 @@ import type { BuildCheck } from "./types.js";
 import type { CheckEvidence } from "./provenance-types.js";
 import { AUDIT_VERSION } from "../constants.js";
 
-const VERIFIED_ON = "2026-04-18";
+const VERIFIED_ON = "2026-05-03";
 
 /** Return the setup spec provenance. */
 function setupSpecProvenance(paths: string[]): CheckEvidence {
@@ -43,13 +44,133 @@ const NAMED_PATHS = new Set([
   ".goat-flow/scratchpad/",
   ".goat-flow/scratchpad/.gitignore",
   ".goat-flow/scratchpad/README.md",
+  ".goat-flow/skill-reference/",
+  ".goat-flow/skill-reference/README.md",
+  ".goat-flow/skill-reference/skill-preamble.md",
+  ".goat-flow/skill-reference/skill-conventions.md",
+  ".goat-flow/skill-reference/browser-use.md",
+  ".goat-flow/skill-reference/page-capture.md",
+  ".goat-flow/skill-reference/skill-quality-testing.md",
+  ".goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md",
+  ".goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md",
+  ".goat-flow/skill-reference/skill-quality-testing/deployment.md",
   ".goat-flow/config.yaml",
 ]);
 
-// Canonical install paths intentionally excluded from the base 13-check setup gate.
+// Optional exclusions from the manifest catch-all setup gate.
 const EXCLUDED_MANIFEST_PATHS = new Set<string>();
 
-// === Named structure checks (9) ===
+const SKILL_REFERENCE_DIR = ".goat-flow/skill-reference";
+const READ_RULE_PATTERNS = [
+  /Before declaring any tool(?: or capability)? unavailable/i,
+  /\.goat-flow\/skill-reference\//,
+  /Availability Check/i,
+];
+const ROUTER_POINTER_PATTERNS = [
+  /\.goat-flow\/skill-reference\//,
+  /tool playbooks?|skill reference/i,
+];
+const REQUIRED_SKILL_REFERENCE_FILES = [
+  ".goat-flow/skill-reference/README.md",
+  ".goat-flow/skill-reference/skill-preamble.md",
+  ".goat-flow/skill-reference/skill-conventions.md",
+  ".goat-flow/skill-reference/browser-use.md",
+  ".goat-flow/skill-reference/page-capture.md",
+  ".goat-flow/skill-reference/skill-quality-testing.md",
+  ".goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md",
+  ".goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md",
+  ".goat-flow/skill-reference/skill-quality-testing/deployment.md",
+];
+
+interface MarkdownHeading {
+  index: number;
+  end: number;
+  level: number;
+  title: string;
+}
+
+function presentInstructionFiles(
+  ctx: Parameters<BuildCheck["run"]>[0],
+): string[] {
+  const paths = Object.values(ctx.structure.agents).map(
+    (agent) => agent.instruction_file,
+  );
+  return [...new Set(paths)].filter((path) => ctx.fs.exists(path));
+}
+
+function markdownHeadings(content: string): MarkdownHeading[] {
+  const headingPattern = /^(#{1,6})\s+(.+?)\s*$/gm;
+  const headings: MarkdownHeading[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = headingPattern.exec(content)) !== null) {
+    headings.push({
+      index: match.index,
+      end: match.index + match[0].length,
+      level: match[1]?.length ?? 0,
+      title: match[2] ?? "",
+    });
+  }
+  return headings;
+}
+
+function sectionStartOffset(content: string, headingEnd: number): number {
+  if (content.slice(headingEnd, headingEnd + 2) === "\r\n")
+    return headingEnd + 2;
+  if (content[headingEnd] === "\n") return headingEnd + 1;
+  return headingEnd;
+}
+
+function markdownSection(content: string, heading: RegExp): string | null {
+  const headings = markdownHeadings(content);
+  const headingIndex = headings.findIndex((entry) => heading.test(entry.title));
+  if (headingIndex < 0) return null;
+
+  const startHeading = headings[headingIndex];
+  if (!startHeading) return null;
+  const nextHeading = headings
+    .slice(headingIndex + 1)
+    .find((entry) => entry.level <= startHeading.level);
+  return content
+    .slice(sectionStartOffset(content, startHeading.end), nextHeading?.index)
+    .trim();
+}
+
+function boldStepSection(content: string, step: string): string | null {
+  const pattern = new RegExp(
+    String.raw`(?:^|\n)\s*(?:[-*]\s*)?\*\*${step}\*\*[\s:–-]*(?<body>[\s\S]*?)(?=\n\s*(?:[-*]\s*)?\*\*(?:READ|SCOPE|ACT|VERIFY)\*\*[\s:–-]*|\n##\s|\n###\s|$)`,
+    "i",
+  );
+  return pattern.exec(content)?.groups?.body?.trim() ?? null;
+}
+
+function hasSkillReferenceReadRule(content: string): boolean {
+  const executionLoop = markdownSection(content, /^Execution Loop\b/i);
+  if (!executionLoop) return false;
+  const readSection =
+    markdownSection(executionLoop, /^READ\b/i) ??
+    boldStepSection(executionLoop, "READ");
+  if (!readSection) return false;
+  return READ_RULE_PATTERNS.every((pattern) => pattern.test(readSection));
+}
+
+function hasSkillReferenceRouterPointer(content: string): boolean {
+  const routerTable = markdownSection(content, /^Router Table\b/i);
+  if (!routerTable) return false;
+  return ROUTER_POINTER_PATTERNS.every((pattern) => pattern.test(routerTable));
+}
+
+function missingSkillReferenceInstructionRequirements(
+  content: string,
+): string[] {
+  const missing: string[] = [];
+  if (!hasSkillReferenceReadRule(content)) missing.push("READ rule");
+  if (!hasSkillReferenceRouterPointer(content)) {
+    missing.push("Router Table pointer");
+  }
+  return missing;
+}
+
+// === Named structure checks (10) ===
 
 const lessons: BuildCheck = {
   id: "lessons",
@@ -289,6 +410,49 @@ const scratchpad: BuildCheck = {
   },
 };
 
+const instructionFileSkillReferencePointer: BuildCheck = {
+  id: "instruction-file-skill-reference-pointer",
+  name: "Instruction file skill-reference pointer",
+  scope: "setup",
+  provenance: setupSpecProvenance([
+    "workflow/manifest.json",
+    "workflow/setup/reference/execution-loop.md",
+    "workflow/setup/02-instruction-file.md",
+    "workflow/skills/reference/README.md",
+  ]),
+  skip: (ctx) => !ctx.fs.exists(SKILL_REFERENCE_DIR),
+  /** Run the Instruction file skill-reference pointer check. */
+  run: (ctx) => {
+    const missingReferenceFiles = REQUIRED_SKILL_REFERENCE_FILES.filter(
+      (path) => !ctx.fs.exists(path),
+    );
+    if (missingReferenceFiles.length > 0) {
+      return {
+        check: "Instruction file skill-reference pointer",
+        message: `Skill reference directory is incomplete. Missing: ${missingReferenceFiles.join(", ")}`,
+        evidence: missingReferenceFiles[0],
+        howToFix:
+          "Refresh with `goat-flow install . --agent <agent>`. The index file is load-bearing and must be installed with the reference pack.",
+      };
+    }
+
+    const missingRequirements = presentInstructionFiles(ctx).flatMap((path) => {
+      const content = ctx.fs.readFile(path) ?? "";
+      const missing = missingSkillReferenceInstructionRequirements(content);
+      return missing.length > 0 ? [`${path} (${missing.join(", ")})`] : [];
+    });
+    if (missingRequirements.length === 0) return null;
+
+    return {
+      check: "Instruction file skill-reference pointer",
+      message: `Instruction file(s) missing skill-reference READ rule or Router Table pointer: ${missingRequirements.join(", ")}`,
+      evidence: missingRequirements[0]?.replace(/\s+\(.+\)$/, ""),
+      howToFix:
+        'Append to the existing READ step: "Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-reference/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc\'s "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool"." Add a Router Table row for tool playbooks: | Tool playbooks (CLI/MCP availability checks: browser-use, page-capture, skill-* references) | `.goat-flow/skill-reference/` - read BEFORE declaring a tool unavailable |.',
+    };
+  },
+};
+
 // === Catch-all for remaining manifest entries ===
 
 const otherFiles: BuildCheck = {
@@ -391,7 +555,7 @@ const configVersionCurrent: BuildCheck = {
   },
 };
 
-/** 13 setup-scope build checks */
+/** 14 setup-scope build checks */
 export const SETUP_CHECKS: BuildCheck[] = [
   lessons,
   footguns,
@@ -403,6 +567,7 @@ export const SETUP_CHECKS: BuildCheck[] = [
   sessionLogs,
   tasks,
   scratchpad,
+  instructionFileSkillReferencePointer,
   otherFiles,
   configExistsAndParses,
   configVersionCurrent,

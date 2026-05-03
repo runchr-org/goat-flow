@@ -1,6 +1,6 @@
 ---
 category: auditor-and-rubric
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-02
 ---
 
 ## Lesson: Rubric changes require fixture expectation sync
@@ -67,7 +67,7 @@ Embedding an unindented shell heredoc directly inside a GitHub Actions `run: |` 
 
 **Created:** 2026-05-01
 
-**What happened:** The `boundary-guidance-present` audit check encouraged adding `## Workspace Boundary` sections with hardcoded absolute paths (e.g., `/home/hxdev/projects/feature/healthkit`) to version-controlled instruction files. In the first real deployment (Healthkit), the paths were wrong for every other developer (different WSL usernames) and for 2 of 3 checkouts on the same machine (the repo lives at `feature/`, `deploy/`, and `basedata/` paths). The audit check nudged users toward content that was guaranteed to go stale.
+**What happened:** The `boundary-guidance-present` audit check encouraged adding `## Workspace Boundary` sections with hardcoded absolute paths (e.g., `/home/dev/projects/feature/example-app`) to version-controlled instruction files. In the first real deployment, the paths were wrong for every other developer (different WSL usernames) and for 2 of 3 checkouts on the same machine (the repo lives at `feature/`, `deploy/`, and `basedata/` paths). The audit check nudged users toward content that was guaranteed to go stale.
 
 **Root cause:** The check validated the *presence* of boundary language without considering that satisfying it required environment-specific state. Any audit check whose remedy produces machine-specific content in shared files will create the same problem.
 

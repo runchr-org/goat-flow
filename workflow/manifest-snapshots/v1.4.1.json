@@ -1,7 +1,6 @@
 {
   "description": "Expected goat-flow project structure. Source of truth for setup, audit, and upgrade paths. Not a JSON Schema - this is a manifest of what should exist on disk.",
   "version": "1.4.1",
-
   "required_files": [
     ".goat-flow/.gitignore",
     ".goat-flow/config.yaml",
@@ -30,7 +29,6 @@
     ".goat-flow/glossary.md",
     ".goat-flow/patterns/README.md"
   ],
-
   "required_dirs": [
     ".goat-flow/decisions/",
     ".goat-flow/footguns/",
@@ -44,7 +42,6 @@
     ".goat-flow/skill-reference/",
     ".goat-flow/tasks/"
   ],
-
   "directory_purposes": {
     ".goat-flow/decisions/": "Committed ADR history. Durable architectural, product-surface, and tooling decisions with context and rationale; part of the project's persistent knowledge, not session-scoped WIP.",
     ".goat-flow/footguns/": "Committed architectural trap records. Use for codebase or system footguns that exist independent of one agent mistake; entries should carry grep-friendly file evidence and remain part of durable project knowledge.",
@@ -57,15 +54,12 @@
     ".goat-flow/skill-reference/": "Committed shared cold-path skill doctrine copied from workflow templates. Holds README.md as the capability-playbook index, skill-preamble.md, skill-conventions.md, browser-use.md for browser evidence capture, page-capture.md for Playwright page-capture usage tiers, and skill-quality-testing.md (index pointing at the skill-quality-testing/ subdir with tdd-iteration.md, adversarial-framing.md, deployment.md per ADR-023); durable reference state used across sessions, not transient notes.",
     ".goat-flow/tasks/": "Local, gitignored-by-design milestone files and plan subdirs. Session-scoped coordination state; not a persistence gap. Only README.md and .gitignore are committed."
   },
-
   "optional_files": {
     "_note": "Optional files created when the project needs them, not during base setup.",
     ".cursorignore": "Excludes secret/sensitive paths from Cursor context.",
     ".geminiignore": "Excludes secret/sensitive paths from Gemini context."
   },
-
   "never_create": [],
-
   "skills": {
     "canonical": [
       "goat",
@@ -114,7 +108,6 @@
       "goat-test"
     ]
   },
-
   "agents": {
     "claude": {
       "name": "Claude Code",
@@ -134,7 +127,9 @@
         "pre_tool": "PreToolUse",
         "post_turn": "Stop"
       },
-      "hooks": ["deny-dangerous.sh"]
+      "hooks": [
+        "deny-dangerous.sh"
+      ]
     },
     "codex": {
       "name": "Codex",
@@ -153,7 +148,9 @@
         "pre_tool": "PreToolUse",
         "post_turn": null
       },
-      "hooks": ["deny-dangerous.sh"]
+      "hooks": [
+        "deny-dangerous.sh"
+      ]
     },
     "gemini": {
       "name": "Gemini CLI",
@@ -173,7 +170,9 @@
         "pre_tool": "BeforeTool",
         "post_turn": "AfterAgent"
       },
-      "hooks": ["deny-dangerous.sh"]
+      "hooks": [
+        "deny-dangerous.sh"
+      ]
     },
     "copilot": {
       "name": "Copilot CLI",
@@ -191,10 +190,12 @@
         "pre_tool": "preToolUse",
         "post_turn": null
       },
-      "hooks": ["hooks.json", "deny-dangerous.sh"]
+      "hooks": [
+        "hooks.json",
+        "deny-dangerous.sh"
+      ]
     }
   },
-
   "instruction_file": {
     "line_target": 125,
     "line_limit": 150,
@@ -211,7 +212,6 @@
     ],
     "version_header_pattern": "# {FILE} - v{VERSION} ({DATE})"
   },
-
   "facts": {
     "_note": "Static facts only. Derived facts (check counts, skill names, version, presets count) are computed by src/cli/manifest/manifest.ts at load time. `goat-flow manifest --check` validates static facts against observed state (src/dashboard/views/*.html).",
     "dashboard_views": [
@@ -224,5 +224,17 @@
       "setup",
       "workspace"
     ]
+  },
+  "snapshot_facts": {
+    "_note": "Numeric facts as shipped at v1.4.1 release. Used by CHANGELOG lint to validate claims inside the v1.4.1 section of CHANGELOG.md.",
+    "skills_total": 7,
+    "skills_functional_count": 6,
+    "checks_setup": 14,
+    "checks_agent": 4,
+    "checks_build": 18,
+    "checks_harness": 17,
+    "checks_total": 35,
+    "dashboard_views_count": 8,
+    "presets_count": 26
   }
 }

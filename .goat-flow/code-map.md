@@ -17,14 +17,14 @@ agents/
 
 audit/
   audit.ts                 # Public audit command: build checks + optional harness completeness (--harness)
-  check-goat-flow.ts       # 13 setup build checks (gate CI pass/fail)
+  check-goat-flow.ts       # 14 setup build checks (gate CI pass/fail)
   check-agent-setup.ts     # 4 agent build checks (gate CI pass/fail)
   check-drift.ts           # Template-vs-installed skill drift detection (M04)
   check-content-quality.ts # Cold-path content quality lint (vague terms, generic instructions)
   check-factual-claims.ts  # Cold-path factual-claim extraction (skill/check counts, broken refs)
   check-snapshot-claims.ts # Snapshot-claim lint for CHANGELOG / release-frozen docs (M06b)
   provenance-types.ts      # Evidence-provenance schema for audit checks (M05)
-  harness/                 # 17 pass/fail completeness checks grouped by concern (5 files + helpers + index)
+  harness/                 # 16 pass/fail completeness checks grouped by concern (5 files + helpers + index)
   render.ts                # Output formatters (text, json, markdown)
   types.ts                 # Audit-specific types (AuditReport, CheckResult, AuditFailure)
 
@@ -118,6 +118,7 @@ evaluation/                # Quality-assessment prompt templates
 ```
 bump-version.sh            # Bump package version across package.json, config.yaml, and skill templates
 check-markdown-links.sh    # Verify relative markdown links resolve across docs
+check-instruction-parity.mjs # Verify instruction files share the required contract
 check-path-integrity.sh    # Cross-reference path-integrity checks between docs and code
 check-versions.mjs         # Verify workflow/skills templates match package.json version
 dependency-install.sh      # Wrapper: npm install with guards

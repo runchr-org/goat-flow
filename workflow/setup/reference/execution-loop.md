@@ -1,95 +1,79 @@
 # Instruction File Sections
 
-These sections go in the project's instruction file. Target: under 120 lines. Hard limit: 150.
+These sections go in the project's instruction file. Target: under 125 lines. Hard limit: 150.
 
 ---
 
 ## Required Sections
 
-a) Project identity - 1-2 lines: project name, domain, core technology, primary invariant
+a) Project identity + version header
+   - Start with 1-2 lines: project name, domain, core technology, and primary invariant.
+   - Include the five-concerns framing when installing goat-flow itself or when the target project needs a concise harness identity: Context, Constraints, Verification, Recovery, Feedback loop.
+   - Set the version header to the current goat-flow release version (match installed skill frontmatter).
 
-b) Version header (v&lt;current-version&gt; - YYYY-MM-DD, matching `package.json` version)
+b) Truth Order
+   - User's explicit instruction for this session.
+   - This instruction file.
+   - Architecture (`.goat-flow/architecture.md`).
+   - Skills/templates loaded on demand.
 
-c) Default Execution Loop: READ → SCOPE → ACT → VERIFY
+c) Autonomy Tiers
+   - Always: read files, run validation, edit within declared scope, and write continuity notes only when useful.
+   - Ask First: before touching risky boundaries, state boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
+   - Never: freeze writes first if interrupted or told no changes; do not edit secrets; do not push/commit unless asked; do not overwrite without checking destination.
+   - Group Ask First boundaries by category: instruction files, workflow/templates, architecture/playbooks, runtime code, agent configs, CI/hooks, add/remove/rename, and 3+ docs/scripts.
+   - New Never/Ask First rules must trace to a real incident, current file evidence, or a documented footgun/lesson - not hypothetical best practices.
+
+d) Hard Rules
+   - If file exists, modify in place. Never create `_modified`, `_new`, `_backup`, or `_v2` variants.
+   - Severity order: SECURITY > CORRECTNESS > INTEGRATION > PERFORMANCE > STYLE.
+   - Maintain cross-file consistency for the same concept.
+   - Preserve file evidence with semantic anchors, not stale line numbers.
+   - Use real incidents, never hypothetical examples.
+   - Sub-agents get one objective, structured return, and a 5-call budget.
+   - No features, abstractions, or error handling beyond what was asked.
+   - Ambiguous requirements: present interpretations; do not pick silently.
+
+e) Key Resources
+   - **Learning loop** (grep before every change): `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/`.
+   - **Tool playbooks**: `.goat-flow/skill-reference/browser-use.md`, `.goat-flow/skill-reference/page-capture.md` - read BEFORE declaring a tool unavailable.
+   - Add only first-action resources here. The Router Table remains exhaustive.
+
+f) Essential Commands
+   - Include exact commands for lint, syntax/type checks, tests, release/preflight checks, and agent hook self-tests.
+   - Keep common checks in a short code block; route situational checks to one terse line.
+
+g) Execution Loop: READ -> SCOPE -> ACT -> VERIFY
    When a goat-* skill is active, the skill's Step 0 replaces READ and selects the skill's mode/depth. SCOPE still applies before any file write. Resume at ACT when the skill's first blocking gate releases.
-   - READ: gather evidence from relevant files before any claim. Never fabricate codebase facts.
-     - For URL, local HTML, localhost, screenshot, rendered UI, or browser-visible behaviour, check browser evidence first: `command -v browser-use && browser-use doctor`; if available use `browser-use open`, `browser-use state`, and `browser-use screenshot`. If missing, ask before installing or use manual fallback.
-   - SCOPE: declare intent, complexity tier, mode, files allowed to change, non-goals, and blast radius.
-   - Include complexity tier, mode, and intent in this one step.
-   - ACT: behavior follows the chosen mode.
-     - Mode transitions must be explicit when they happen.
-     - Debug mode keeps the D2→D3 human-review gate.
-   - VERIFY: continuous test loop with escalation.
-     - Before presenting live findings, re-read every `file:line` cited as evidence; durable learning-loop artifacts use semantic anchors, not line numbers.
-     - If evidence cannot be re-read, mark it UNVERIFIED.
-     - **Rename sweep:** after any rename or move, grep old names across all files. Zero remaining references required.
-     - **Loop detection:** If you've edited the same file 5+ times in one session without tests passing, STOP. Present what's failing and ask for a different approach.
-     - If a plan/milestone file is active, tick each `- [x]` task immediately as completed.
-     - DoD verification triggers are conditional, not a separate execution step:
-       - VERIFY caught a failure in your code → `.goat-flow/lessons/` entry
-       - Human corrected agent behaviour → `.goat-flow/lessons/` entry immediately
-       - Reusable approach worked (twice or crosses boundary) → `.goat-flow/patterns/` entry
-       - Architectural trap with semantic-anchor evidence → `.goat-flow/footguns/` entry
-       Log only non-obvious root causes, repeated misses, or boundary-crossing impacts.
-     - **Artifact routing:** "add a footgun" → `.goat-flow/footguns/`, "add a lesson" → `.goat-flow/lessons/`, "add a decision" → `.goat-flow/decisions/`, "add a pattern" → `.goat-flow/patterns/`. These are documentation artifacts, not runtime code - read the target directory's `README.md` for format.
+   ### READ
+   MUST read relevant files before changes. Never fabricate codebase facts. Check browser evidence first for URL, local HTML, localhost, screenshot, rendered UI, or browser-visible behaviour. Use grep-first retrieval across learning-loop dirs; include decisions for architecture, policy, or setup work. Before declaring any tool unavailable, read the matching `.goat-flow/skill-reference/` playbook and run its Availability Check.
+   ### SCOPE
+   Declare intent, complexity tier, mode, files allowed to change, non-goals, and blast radius. Expanding beyond scope means stop and re-scope.
+   ### ACT
+   Declare `State: [MODE] | Goal: [one line] | Exit: [condition]`. Mode must be Plan, Implement, Explain, Debug, or Review.
+   ### VERIFY
+   Run required checks for changed files. Check cross-references after renames. Tick milestone checkboxes immediately. Do not claim checks passed without the literal pass/fail line from this session. Stop the line when tests break, builds fail, or behaviour regresses.
+   If VERIFY caught a failure or you corrected course, update the learning loop before DoD.
 
-d) Artifact Routing: map user requests ("add a footgun/lesson/decision/pattern") to the correct `.goat-flow/` directory. These are documentation artifacts, not runtime code.
+h) Definition of Done
+   MUST confirm all six gates: lint/typecheck passes on changed files; no broken cross-references; no unapproved boundary changes; logs updated if tripped; working notes current; grep old pattern after renames.
 
-e) Autonomy Tiers: Always / Ask First / Never
-   - Never tier MUST include:
-     1. Overwrite existing files without checking destination (ls before
-        mv/cp/Write; use mv -n). Data destruction from blind overwrites
-        is unrecoverable for untracked files.
-     2. Delete, move, or overwrite 5+ files in one operation without
-        first listing targets (ls/find/echo glob) and getting explicit
-        confirmation. Bulk deletes are irreversible for untracked files.
-     3. Continue file edits after the user interrupts or says no changes.
-        Freeze writes; run only read-only status/diff checks until the
-        user explicitly asks for cleanup, revert, or apply.
-   - Adapt Ask First boundaries for THIS project's specific risks
-   - Include Ask First checklist. Choose SHORT or FULL form:
-     SHORT (2 questions - recommended for most projects):
-     1. What else depends on this? [list callers/consumers]
-     2. How do I undo this? [exact rollback command]
-     FULL (5 items - for high-risk codebases, PHI, or multi-tenant systems):
-     1. Boundary touched: [name it]
-     2. Related code read: [yes/no]
-     3. Footgun entry checked: [relevant entry, or "none"]
-     4. Local instruction checked: [local instruction file / .github/instructions/ / none]
-     5. Rollback command: [exact command]
-   For multi-agent projects, consider extending AGENTS.md with domain
-   concepts, key patterns, and deprecation warnings. AGENTS.md can serve
-   double duty as execution protocol + domain reference - but watch the
-   line budget.
+i) Artifact Routing
+   Map "add a footgun/lesson/decision/pattern" to `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/decisions/`, or `.goat-flow/patterns/`. These are documentation artifacts, not runtime code. Read the target directory's `README.md` before editing.
 
-f) Definition of Done: 6 gates
-   (1) lint/typecheck passes on changed files
-   (2) no broken cross-references introduced
-   (3) no unapproved boundary changes
-   (4) logs updated if tripped
-   (5) current state recorded before stopping incomplete work
-   (6) After any rename or move, grep for the old name across ALL files (including .md, .json, .yaml, config). Zero remaining references = pass. This is the most common failure mode - stale cross-references after renames cause more bugs than any other single pattern.
+j) Router Table
+   MUST be the final section. Include at minimum:
+   - Learning loop dirs (`.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/`)
+   - Skill reference + tool playbooks (`.goat-flow/skill-reference/`)
+   - Orientation docs (`.goat-flow/code-map.md`, `.goat-flow/glossary.md`) when present
+   - Architecture doc (`.goat-flow/architecture.md`)
+   - Agent skills directory (`.claude/skills/`, `.agents/skills/`, or `.github/skills/`)
+   - Workflow/setup source if present
+   - Source, scripts, config, docs, and workspace/session paths
+   - Peer instruction files present in the project
 
-g) Router table: MUST include at minimum:
-     - Skill directories (`.claude/skills/`, `.agents/skills/`, `.github/skills/`)
-     - Learning loop directories (`.goat-flow/footguns/`, `.goat-flow/lessons/`)
-     - Architecture doc (`.goat-flow/architecture.md`)
-     - Config (`.goat-flow/config.yaml`)
-     - Any domain docs relevant to project
-     Dual-agent projects: router MUST include the other agent's
-     instruction file (AGENTS.md or CLAUDE.md).
-     (Unrouted files are invisible to the agent - 160x usage uplift
-     for referenced tools)
+## Quality Bar
 
-h) Essential commands
+Every line in the hot-path instruction file must be one of: behavioral rule, scope boundary, exact command, verification gate, router pointer, or composition rule. Domain knowledge, project history, API docs, and glossary entries belong in cold-path files. For strict Never/MUST constraints, state whether the constraint is prose-only or mechanically enforced when that distinction matters.
 
-i) (Optional) Complexity and read policy:
-   - Hotfix, Small Feature, Standard, System, Infrastructure.
-   - If reads exceed 3x your initial estimate, re-classify.
-
-j) (Optional) Session continuity:
-   - Write session context to `.goat-flow/logs/sessions/` when work spans multiple turns.
-
-If you must weaken a MUST to meet the line target, the target is
-wrong - raise it, don't weaken the rule.
-Do NOT skip sections (a)-(h) - they are required. Sections (i)-(j) are optional but recommended.
+If you must weaken a MUST to meet the line target, the target is wrong - raise it, do not weaken the rule.

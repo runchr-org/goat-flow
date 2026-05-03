@@ -51,7 +51,7 @@ Verification is the check that runs after the agent acts. Agents claim work is d
 
 The failure mode is the agent declaring a task complete based on having written code, without having run the code, the tests, or the types. "It compiles in my head" is a real failure pattern.
 
-**goat-flow's approach.** A toolchain test command (when the project defines one) is the primary source of truth; instruction-file commands are the fallback. Post-turn hooks can run lint, types, or tests deterministically where the runner supports them. Skills are pressure-tested using the RED-GREEN-REFACTOR pattern - a skill that passes its own pressure test is evidence it will hold up under real use. Commit guidance is checked because the git log is the last-resort verification trail when in-session checks were skipped. Executable claim verification - the agent proves the claim by running it - is the direction the framework is heading.
+**goat-flow's approach.** Deterministic audit checks verification wiring: hook registrations, commit guidance, and post-turn hook integrity when a project installs such hooks. Project-specific test command selection and whether validation output is meaningful are quality/release questions, not install drift. Skills are pressure-tested using the RED-GREEN-REFACTOR pattern - a skill that passes its own pressure test is evidence it will hold up under real use. Commit guidance is checked because the git log is the last-resort verification trail when in-session checks were skipped.
 
 **Sources:**
 - Mitchell Hashimoto: "anytime you find an agent makes a mistake, you take the time to engineer a solution such that the agent never makes that mistake again"

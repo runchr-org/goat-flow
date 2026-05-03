@@ -5,7 +5,7 @@
 1. **Correctness** -- Does the code do what it claims? Do checks detect what they say?
 2. **Cross-references** -- Do paths in docs resolve? Do check IDs in setup docs match check-goat-flow.ts / check-agent-setup.ts?
 3. **Consistency** -- Same concept described the same way across files? Version strings in sync?
-4. **Line budgets** -- Instruction files under 120 target / 150 hard limit?
+4. **Line budgets** -- Instruction files under 125 target / 150 hard limit?
 
 ## Approval Criteria
 
