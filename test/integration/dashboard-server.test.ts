@@ -13,6 +13,7 @@ import {
   getAgentProfileMap,
   getKnownAgentIds,
 } from "../../src/cli/agents/registry.js";
+import { AUDIT_VERSION } from "../../src/cli/constants.js";
 import { normalizeAgentVersionOutput } from "../../src/cli/server/dashboard-routes.js";
 import { detectSetupStack } from "../../src/cli/detect/project-stack.js";
 import { createFS } from "../../src/cli/facts/fs.js";
@@ -263,6 +264,151 @@ async function makeDashboardCacheProject(): Promise<{
     ".codex/hooks/deny-dangerous.sh",
     "#!/usr/bin/env bash\nexit 0\n",
   );
+  return {
+    root,
+    cleanup: () => rm(root, { recursive: true, force: true }),
+  };
+}
+
+function dashboardSetupInstruction(): string {
+  return `# AGENTS.md
+
+## Truth Order
+User instructions first.
+
+## Autonomy Tiers
+Read project files before edits.
+
+## Hard Rules
+Do not overwrite user changes.
+
+## Key Resources
+Use local instructions and goat-flow references.
+
+## Essential Commands
+npm test
+
+## Execution Loop
+READ -> SCOPE -> ACT -> VERIFY
+
+## Workspace Boundary
+This controlling goat-flow workspace may differ from the selected target project. Commands that inspect framework code run from the controlling workspace; project-specific harness content lives in the target project.
+
+## Definition of Done
+Run verification and report exact output.
+
+## Artifact Routing
+Route lessons, footguns, decisions, and tasks to their goat-flow artifact directories.
+
+## Router Table
+| Resource | Path |
+|----------|------|
+`;
+}
+
+async function makeDashboardSetupPromptProject(options: {
+  decisionsDir: boolean;
+  installSkills?: boolean;
+}): Promise<{ root: string; cleanup: () => Promise<void> }> {
+  const root = await mkdtemp(join(tmpdir(), "goat-flow-setup-prompt-tests-"));
+  const denyHook = await readFile(
+    join(PROJECT_PATH, "workflow", "hooks", "deny-dangerous.sh"),
+    "utf-8",
+  );
+  const commonDirs = [
+    ".goat-flow/footguns",
+    ".goat-flow/lessons",
+    ".goat-flow/tasks",
+    ".goat-flow/logs/sessions",
+    ".goat-flow/skill-reference",
+    ".goat-flow/patterns",
+    ".goat-flow/scratchpad",
+    ".codex/hooks",
+  ];
+  if (options.decisionsDir) commonDirs.push(".goat-flow/decisions");
+  for (const dir of commonDirs) {
+    await mkdir(join(root, dir), { recursive: true });
+  }
+  await writeProjectFile(
+    root,
+    ".goat-flow/config.yaml",
+    `version: "${AUDIT_VERSION}"
+agents:
+  - codex
+skills:
+  install: all
+`,
+  );
+  await writeProjectFile(root, ".goat-flow/.gitignore", "*\n!.gitignore\n");
+  await writeProjectFile(
+    root,
+    ".goat-flow/architecture.md",
+    "# Architecture\n\nCanonical config lives at `.goat-flow/config.yaml`.\n",
+  );
+  await writeProjectFile(root, ".goat-flow/code-map.md", "# Code Map\n");
+  await writeProjectFile(root, ".goat-flow/glossary.md", "# Glossary\n");
+  await writeProjectFile(root, ".goat-flow/footguns/README.md", "# Footguns\n");
+  await writeProjectFile(root, ".goat-flow/lessons/README.md", "# Lessons\n");
+  await writeProjectFile(root, ".goat-flow/tasks/.gitignore", "*\n");
+  await writeProjectFile(
+    root,
+    ".github/git-commit-instructions.md",
+    "# Git Commit Instructions\n",
+  );
+  await writeProjectFile(
+    root,
+    ".goat-flow/skill-reference/skill-preamble.md",
+    "# Preamble\n",
+  );
+  await writeProjectFile(
+    root,
+    ".goat-flow/skill-reference/skill-conventions.md",
+    "# Conventions\n",
+  );
+  await writeProjectFile(root, "AGENTS.md", dashboardSetupInstruction());
+  await writeProjectFile(root, ".codex/config.toml", 'model = "gpt-5"\n');
+  await writeProjectFile(
+    root,
+    ".codex/hooks.json",
+    JSON.stringify(
+      {
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Bash",
+              hooks: [
+                {
+                  type: "command",
+                  command:
+                    'bash "$(git rev-parse --show-toplevel)/.codex/hooks/deny-dangerous.sh"',
+                },
+              ],
+            },
+          ],
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  await writeProjectFile(root, ".codex/hooks/deny-dangerous.sh", denyHook);
+  if (options.installSkills) {
+    for (const skill of [
+      "goat",
+      "goat-debug",
+      "goat-plan",
+      "goat-review",
+      "goat-critique",
+      "goat-security",
+      "goat-qa",
+    ]) {
+      await writeProjectFile(
+        root,
+        `.agents/skills/${skill}/SKILL.md`,
+        "# Skill\n",
+      );
+    }
+  }
   return {
     root,
     cleanup: () => rm(root, { recursive: true, force: true }),
@@ -964,6 +1110,52 @@ describe("dashboard /api/setup", () => {
       assert.ok(String(data.output).length > 100);
     });
   }
+
+  it("uses harness-card scope when install checks fail but selected harness checks pass", async () => {
+    const project = await makeDashboardSetupPromptProject({
+      decisionsDir: true,
+      installSkills: false,
+    });
+    try {
+      const { res, body } = await fetchJson(
+        `/api/setup?path=${encodeURIComponent(project.root)}&agent=codex`,
+      );
+      assert.equal(res.status, 200);
+
+      const data = expectRecord(body, "Setup response");
+      const output = String(data.output);
+      assert.match(output, /All audit checks pass\./);
+      assert.match(output, /audit .* --harness --agent codex/);
+      assert.doesNotMatch(output, /Agent skills/);
+      assert.doesNotMatch(output, /skills installed/);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("reports harness failures and keeps harness scope in remediation", async () => {
+    const project = await makeDashboardSetupPromptProject({
+      decisionsDir: false,
+      installSkills: false,
+    });
+    try {
+      const { res, body } = await fetchJson(
+        `/api/setup?path=${encodeURIComponent(project.root)}&agent=codex`,
+      );
+      assert.equal(res.status, 200);
+
+      const data = expectRecord(body, "Setup response");
+      const output = String(data.output);
+      assert.match(output, /Decisions directory exists/);
+      assert.doesNotMatch(output, /All audit checks pass\./);
+      assert.match(
+        output,
+        /Re-run: `[^`]* audit [^`]* --harness --agent codex`/,
+      );
+    } finally {
+      await project.cleanup();
+    }
+  });
 });
 
 describe("dashboard /api/quality", () => {

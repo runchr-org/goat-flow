@@ -1,6 +1,6 @@
 ---
 category: dashboard
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-03
 ---
 
 ## Footgun: Project-browser modal is reachable only via header-span click, not from the add-project flow
@@ -85,6 +85,27 @@ last_reviewed: 2026-05-01
 1. When a dashboard view branches or scores on an API field, verify the matching `readDashboardReport` / helper decoder preserves that field.
 2. Pair backend scoring changes with a browser-reader regression, especially for discriminants such as `type`, `status`, `concern`, and `id`.
 3. Browser-verify the built `dist/` dashboard and compare it with `/api/audit` output; source-only tests can miss packaged reader drift.
+
+---
+
+## Footgun: Dashboard agent-targeting uses activeRunner where it should use the failing or selected agent
+
+**Status:** active | **Created:** 2026-05-03 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** The Home "Fix First" card shows a command like `--agent claude` but the agent with the actual failing harness check is a different agent (e.g. codex at 93%). The Setup page shows harness grades (A 100%, A 93%) on the target cards but the generated setup prompt reflects a different audit scope, so a 93% agent can show "All audit checks pass" and a 100% agent can show "1 audit check failing".
+
+**Evidence:**
+- `src/dashboard/views/home.html` (search: `nextActionCommand`) composed the harness fix command with `activeRunner` instead of the agent that actually had the failing check. The same applied to `harnessFixPrompt` (search: `harnessFixPrompt`) which built the fix prompt context for `activeRunner` instead of the failing agent.
+- `src/cli/server/dashboard-routes.ts` (search: `/api/setup`) called `runAudit` with `harness: false`, so the setup prompt was generated from install-scope checks only. But the Setup target cards scored agents using `report.agentScores[].harness.checks` (harness scope). The two scopes have different check sets, producing contradictory pass/fail signals on the same page.
+- `src/cli/prompt/compose-setup.ts` (search: `renderAuditFail`) collected failing checks from `scopes.setup` and `scopes.agent` only, omitting `scopes.harness` — so even when harness was enabled, harness failures were invisible in the setup prompt output.
+- Observed live on 2026-05-03: basedata.halaxy.net project, Codex at A 93% (Context concern: Artifact Routing), Claude at A 100%. Home Fix First said `--agent claude`. Setup prompt for Codex said "All audit checks pass"; setup prompt for Claude showed a failing check.
+
+**Why it happens:** The dashboard has two distinct agent roles — the **runner** (which CLI executes the prompt, set via the header dropdown as `activeRunner`) and the **target** (which agent's config to inspect or fix). Several code paths conflated the two. Separately, the Setup page card grades and the setup prompt API used different audit scopes (`harness: true` for display vs `harness: false` for generation), so the prompt contradicted the grade shown directly above it.
+
+**Prevention:**
+1. When composing a fix/action command or prompt for harness issues, resolve the target agent from the audit data (which agent actually has the finding), not from `activeRunner`. Use a priority-specific target helper such as `failingHarnessAgent()` (search: `failingHarnessAgent()` in `home.html`) so a concern-only failure does not hijack a harness action.
+2. When a dashboard surface displays a grade/score and also generates a prompt below it, both MUST use the same audit scope. If the card shows harness scores, the prompt API must pass `harness: true`.
+3. Watch for the runner-vs-target conflation pattern: `activeRunner` is correct for the `launchPreset` executor argument, but wrong for the prompt content's agent target, the command's `--agent` flag, and the `agentFilter` in API calls that feed those prompts.
 
 ---
 
