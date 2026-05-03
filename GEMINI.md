@@ -24,6 +24,8 @@ node --import tsx src/cli/cli.ts stats . --check  # Learning-loop health: last_r
 
 ## Execution Loop: READ → SCOPE → ACT → VERIFY
 
+When a goat-* skill is active, its Step 0 replaces READ and selects the skill's mode/depth. SCOPE still applies before any file write - skills with write phases (e.g. `/goat-plan` Phase 2, `/goat-debug` D3) gate on explicit approval. Resume at ACT when the skill's first blocking gate releases.
+
 **READ** - MUST read relevant files before changes. Never fabricate codebase facts. For URL, local HTML, localhost, screenshot, rendered UI, or browser-visible behaviour, check browser evidence first: `command -v browser-use || command -v browser-use-python`; if available use `browser-use open/state/screenshot`, otherwise ask before installing or use manual fallback. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns/`; include `.goat-flow/decisions/` when the task involves architecture, policy, or setup work. Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-reference/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc's "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool". Open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
 ```
 BAD:  "The CLI has 20 audit checks" (guessed without reading)

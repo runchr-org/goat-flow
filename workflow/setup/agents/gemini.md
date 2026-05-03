@@ -38,6 +38,7 @@ If the project later opts into post-turn validation hooks, Gemini's post-turn ev
 - `.gemini/settings.json` is valid JSON
 - `bash -n` passes on each hook script
 - `bash .gemini/hooks/deny-dangerous.sh --self-test` passes
+- Instruction file includes the `.goat-flow/skill-reference/` READ rule and Router Table pointer (per Step 02 verification gate)
 
 ---
 

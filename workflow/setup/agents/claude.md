@@ -44,6 +44,7 @@ Only Claude Code supports this syntax.
 - `.claude/settings.json` is valid JSON
 - `bash -n` passes on each hook script
 - deny-dangerous.sh blocks: rm -rf, all git push (ADR-025), chmod 777
+- Instruction file includes the `.goat-flow/skill-reference/` READ rule and Router Table pointer (per Step 02 verification gate)
 
 ---
 

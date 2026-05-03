@@ -58,6 +58,7 @@ After completing step 03 (skills):
 - `.github/copilot-instructions.md` exists and stays under the 150-line hard limit (120 target)
 - `.github/git-commit-instructions.md` exists
 - `.github/copilot-instructions.md` contains Truth Order, Execution Loop, Definition of Done, Router Table, and Autonomy Tiers as level-2 headings
+- Instruction file includes the `.goat-flow/skill-reference/` READ rule and Router Table pointer (per Step 02 verification gate)
 - `.github/skills/` contains the 7 canonical goat-flow skills
 - `.github/hooks/hooks.json` registers `.github/hooks/deny-dangerous.sh`
 - `bash .github/hooks/deny-dangerous.sh --self-test` passes

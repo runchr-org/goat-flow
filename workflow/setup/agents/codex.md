@@ -56,6 +56,7 @@ If `.claude/` and `CLAUDE.md` exist, leave them untouched. AGENTS.md MUST refere
 - `.codex/hooks.json` exists with PreToolUse hook registered
 - `.codex/hooks/deny-dangerous.sh` exists and is executable
 - Hook scripts pass `bash -n`
+- Instruction file includes the `.goat-flow/skill-reference/` READ rule and Router Table pointer (per Step 02 verification gate)
 
 ---
 
