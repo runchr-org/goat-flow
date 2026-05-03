@@ -1920,13 +1920,19 @@ describe("composeSetup routing", () => {
       ]);
 
       const output = composeSetup(
-        makeAuditReport(project.root, "pass", [], [], [
-          {
-            id: "decisions-tracked",
-            name: "Decisions directory exists",
-            status: "pass",
-          },
-        ]),
+        makeAuditReport(
+          project.root,
+          "pass",
+          [],
+          [],
+          [
+            {
+              id: "decisions-tracked",
+              name: "Decisions directory exists",
+              status: "pass",
+            },
+          ],
+        ),
         facts,
         "codex",
         { denyMechanismEvidenceLevel: "static" },

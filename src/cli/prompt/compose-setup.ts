@@ -266,7 +266,9 @@ function renderAuditFail(
   }
 
   lines.push(`**Target: audit passes with zero failures.**`);
-  lines.push(`Re-run: \`${rerunAuditCommand(facts, agentId, includeHarness)}\``);
+  lines.push(
+    `Re-run: \`${rerunAuditCommand(facts, agentId, includeHarness)}\``,
+  );
   lines.push(
     `If audit fails, run \`${getCliCommand()} setup ${targetArg(facts.root)} --agent ${agentId}\` for fix instructions. Repeat until audit passes (max 3 cycles).`,
   );
