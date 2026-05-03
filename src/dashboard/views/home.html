@@ -320,6 +320,14 @@
       if (concernFail || qualityFail || !homeQualityLatest) return 'completeness';
       return 'healthy';
     },
+    failingAgent() {
+      const scores = this.agentScores();
+      const failing = scores.find((agent) =>
+        agent.agent?.status === 'fail' || agent.harness?.status === 'fail' || this.integrityFailCount(agent) > 0 ||
+        Object.values(agent.concerns || {}).some((item) => item?.status === 'fail')
+      );
+      return failing?.id || activeRunner;
+    },
     nextEyebrow() {
       const priority = this.nextPriority();
       if (priority === 'setup') return this.setupPartial() ? 'FIX FIRST' : 'GET STARTED';
@@ -347,7 +355,7 @@
     nextActionCommand() {
       const priority = this.nextPriority();
       if (priority === 'setup') return '$ npx goat-flow setup . --agent ' + activeRunner;
-      if (priority === 'harness') return '$ npx goat-flow audit . --harness --agent ' + activeRunner;
+      if (priority === 'harness') return '$ npx goat-flow audit . --harness --agent ' + this.failingAgent();
       if (priority === 'completeness') return '$ npx goat-flow quality . --agent ' + activeRunner;
       return null;
     },
@@ -379,7 +387,7 @@
         return;
       }
       if (priority === 'harness') {
-        launchPreset(this.harnessFixPrompt(), activeRunner, 'Harness fix ' + agentName(activeRunner));
+        launchPreset(this.harnessFixPrompt(), activeRunner, 'Harness fix ' + agentName(this.failingAgent()));
         activeView = 'workspace';
         workspacePanel = 'terminal';
         return;
@@ -453,8 +461,9 @@
       ].join('\n');
     },
     harnessFixPrompt() {
+      const target = this.failingAgent();
       const scores = this.agentScores();
-      const agent = scores.find((item) => item.id === activeRunner) || scores[0];
+      const agent = scores.find((item) => item.id === target) || scores[0];
       const findings = [];
       if (agent) {
         for (const [key, concern] of Object.entries(agent.concerns || {})) {
@@ -462,11 +471,11 @@
         }
       }
       return [
-        '/goat-plan fix goat-flow harness findings for ' + activeRunner,
+        '/goat-plan fix goat-flow harness findings for ' + target,
         '',
         'Context:',
         '- Project: ' + projectPath,
-        '- Active agent: ' + activeRunner,
+        '- Target agent: ' + target,
         '- Latest audit age: ' + this.auditAgeText(),
         '- Findings:',
         findings.length ? findings.map((item) => '  - ' + item).join('\n') : '  - Re-run audit and inspect failing harness checks.',

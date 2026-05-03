@@ -1115,7 +1115,7 @@ export function createDashboardRouteHandlers(
       });
       const auditReport = runAudit(fs, projectPath, {
         agentFilter: agent,
-        harness: false,
+        harness: true,
       });
       const { composeSetup } = await import("../prompt/compose-setup.js");
       const output = composeSetup(auditReport, facts, agent);

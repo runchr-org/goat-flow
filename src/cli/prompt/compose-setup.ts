@@ -123,6 +123,8 @@ function renderAuditFail(
   const failedChecks = [
     ...auditReport.scopes.setup.checks.filter((c) => c.status === "fail"),
     ...auditReport.scopes.agent.checks.filter((c) => c.status === "fail"),
+    ...(auditReport.scopes.harness?.checks.filter((c) => c.status === "fail") ??
+      []),
   ];
 
   lines.push(`# GOAT Flow Setup - ${profile.name}`);
