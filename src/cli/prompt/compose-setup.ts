@@ -231,7 +231,36 @@ function renderAuditFail(
 // Mode: Upgrade redirect (v0.9 or outdated projects)
 // ----------------------------------------------------------------
 
+function failedInstallChecks(auditReport: AuditReport): CheckResult[] {
+  return [
+    ...auditReport.scopes.setup.checks.filter((c) => c.status === "fail"),
+    ...auditReport.scopes.agent.checks.filter((c) => c.status === "fail"),
+  ];
+}
+
+function pushDetectedInstallIssues(
+  lines: string[],
+  auditReport: AuditReport,
+): void {
+  const failures = failedInstallChecks(auditReport).filter(
+    (check) => check.failure !== undefined,
+  );
+  if (failures.length === 0) return;
+
+  lines.push("## Detected install issues");
+  lines.push("");
+  for (const check of failures) {
+    const failure = check.failure;
+    if (!failure) continue;
+    lines.push(`- **${failure.check}:** ${failure.message}`);
+    if (failure.evidence) lines.push(`  Evidence: ${failure.evidence}`);
+    if (failure.howToFix) lines.push(`  Fix: ${failure.howToFix}`);
+  }
+  lines.push("");
+}
+
 function renderUpgradeRedirect(
+  auditReport: AuditReport,
   facts: ProjectFacts,
   agentId: AgentId,
   state: "v0.9" | "outdated",
@@ -249,6 +278,8 @@ function renderUpgradeRedirect(
         : "This project has an older goat-flow version.",
     );
     lines.push("");
+
+    pushDetectedInstallIssues(lines, auditReport);
 
     lines.push("## Step 1 - Install files");
     lines.push("");
@@ -269,6 +300,8 @@ function renderUpgradeRedirect(
     lines.push("");
     lines.push("This project has old goat-flow skills (v0.9 era).");
     lines.push("");
+
+    pushDetectedInstallIssues(lines, auditReport);
 
     lines.push("## Step 1 - Install current files");
     lines.push("");
@@ -411,6 +444,7 @@ export function composeSetup(
   }
   if (projectState.state === "v0.9" || projectState.state === "outdated") {
     return renderUpgradeRedirect(
+      auditReport,
       facts,
       agentId,
       projectState.state,

@@ -2120,7 +2120,34 @@ describe("composeSetup routing", () => {
     try {
       const retiredOutdatedGuide = "upgrade-from-1" + ".0.x.md";
       const output = composeSetup(
-        makeAuditReport(project.root, "fail"),
+        makeAuditReport(
+          project.root,
+          "fail",
+          [
+            {
+              id: "config-version",
+              name: "Config version",
+              status: "fail",
+              failure: {
+                check: "Config version",
+                message: `Config version 1.1.0 does not match current ${AUDIT_VERSION}`,
+                evidence: ".goat-flow/config.yaml",
+              },
+            },
+          ],
+          [
+            {
+              id: "agent-skills",
+              name: "Agent skills",
+              status: "fail",
+              failure: {
+                check: "Agent skills",
+                message: `Skill goat is at v1.1.0; expected v${AUDIT_VERSION}`,
+                evidence: ".agents/skills/goat/SKILL.md",
+              },
+            },
+          ],
+        ),
         makeProjectFacts(project.root, [
           stubAgentFacts({
             agent: PROFILES.codex,
@@ -2132,6 +2159,14 @@ describe("composeSetup routing", () => {
 
       assert.ok(output, "composeSetup should return upgrade guidance");
       assert.match(output, /# GOAT Flow Upgrade - Codex/);
+      assert.match(output, /## Detected install issues/);
+      assert.match(
+        output,
+        new RegExp(
+          `Config version 1\\.1\\.0 does not match current ${AUDIT_VERSION.replaceAll(".", "\\.")}`,
+        ),
+      );
+      assert.match(output, /Skill goat is at v1\.1\.0; expected v/);
       assert.match(
         output,
         /npx @blundergoat\/goat-flow@latest install .* --agent codex/,
