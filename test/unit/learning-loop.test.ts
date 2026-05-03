@@ -49,7 +49,7 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
       logs: { path: ".goat-flow/logs/" },
       agents: null,
       skills: { install: "all" },
-      lineLimits: { target: 120, limit: 150 },
+      lineLimits: { target: 125, limit: 150 },
       toolchain: {
         test: [],
         lint: [],

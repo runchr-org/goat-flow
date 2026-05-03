@@ -52,7 +52,7 @@ export function stubConfig(
       logs: { path: ".goat-flow/logs/" },
       agents: null,
       skills: { install: "all" },
-      lineLimits: { target: 120, limit: 150 },
+      lineLimits: { target: 125, limit: 150 },
       toolchain: {
         test: ["npm test"],
         lint: ["eslint ."],
@@ -222,7 +222,7 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
       warningCount: 0,
       errorCount: 0,
       parseError: null,
-      lineLimits: { target: 120, limit: 150 },
+      lineLimits: { target: 125, limit: 150 },
       userRole: "developer",
     },
     architecture: { exists: true, lineCount: 50 },

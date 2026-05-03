@@ -12,6 +12,30 @@ import { rmSync } from "node:fs";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const MANIFEST_PATH = resolve(PROJECT_ROOT, "workflow/manifest.json");
+const SETUP_AGENT_GUIDES = [
+  "workflow/setup/agents/claude.md",
+  "workflow/setup/agents/codex.md",
+  "workflow/setup/agents/copilot.md",
+  "workflow/setup/agents/gemini.md",
+];
+const CANONICAL_SETUP_SECTIONS = [
+  "Truth Order",
+  "Autonomy Tiers",
+  "Hard Rules",
+  "Key Resources",
+  "Essential Commands",
+  "Execution Loop",
+  "Definition of Done",
+  "Artifact Routing",
+  "Router Table",
+];
+
+function h2Sections(content: string): string[] {
+  return Array.from(content.matchAll(/^##\s+(.+)$/gm), (m) => {
+    const heading = m[1].trim();
+    return /^Execution Loop\b/i.test(heading) ? "Execution Loop" : heading;
+  });
+}
 
 describe("instruction file line-count guard", () => {
   const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
@@ -19,7 +43,7 @@ describe("instruction file line-count guard", () => {
   const lineLimit = manifest.instruction_file.line_limit;
 
   it("reads thresholds from manifest", () => {
-    assert.equal(lineTarget, 120);
+    assert.equal(lineTarget, 125);
     assert.equal(lineLimit, 150);
   });
 
@@ -54,6 +78,67 @@ describe("instruction file line-count guard", () => {
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
+  });
+});
+
+describe("setup agent guide structure", () => {
+  it("all setup agent guides follow the canonical policy-first order", () => {
+    for (const guide of SETUP_AGENT_GUIDES) {
+      const content = readFileSync(resolve(PROJECT_ROOT, guide), "utf-8");
+      assert.deepEqual(h2Sections(content), CANONICAL_SETUP_SECTIONS, guide);
+    }
+  });
+
+  it("all setup agent guides point at the shared instruction skeleton", () => {
+    for (const guide of SETUP_AGENT_GUIDES) {
+      const content = readFileSync(resolve(PROJECT_ROOT, guide), "utf-8");
+      assert.match(content, /workflow\/setup\/reference\/execution-loop\.md/);
+      assert.match(content, /workflow\/setup\/02-instruction-file\.md/);
+    }
+  });
+
+  it("the shared skeleton names every required hot-path section", () => {
+    const content = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/setup/reference/execution-loop.md"),
+      "utf-8",
+    );
+    for (const section of CANONICAL_SETUP_SECTIONS) {
+      assert.match(content, new RegExp(`\\b${section}\\b`), section);
+    }
+  });
+
+  it("setup references stay generic and avoid controlling-workspace router rows", () => {
+    const checkedFiles = [
+      "workflow/setup/reference/execution-loop.md",
+      "workflow/setup/02-instruction-file.md",
+      ...SETUP_AGENT_GUIDES,
+    ];
+    const repoOnly = /src\/cli|src\/dashboard|This repo is the goat-flow controlling workspace/;
+    for (const file of checkedFiles) {
+      const content = readFileSync(resolve(PROJECT_ROOT, file), "utf-8");
+      assert.ok(!repoOnly.test(content), `${file} contains goat-flow-only rows`);
+    }
+  });
+
+  it("Copilot setup preserves standalone hot-path guidance", () => {
+    const content = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/setup/agents/copilot.md"),
+      "utf-8",
+    );
+    assert.match(content, /\.github\/copilot-instructions\.md` is standalone/);
+    assert.match(content, /must not defer to `AGENTS\.md`/);
+    assert.match(content, /125-line target/);
+    assert.match(content, /150-line hard limit/);
+  });
+});
+
+describe("instruction parity script", () => {
+  it("passes for setup guides and live hot-path instruction files", () => {
+    const output = execSync("node scripts/check-instruction-parity.mjs", {
+      cwd: PROJECT_ROOT,
+      encoding: "utf-8",
+    });
+    assert.match(output, /Instruction parity passed/);
   });
 });
 

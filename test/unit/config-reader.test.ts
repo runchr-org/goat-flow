@@ -31,7 +31,7 @@ describe("config defaults when file is missing", () => {
     const result = loadConfig("/tmp", configFS(null));
     assert.equal(result.exists, false);
     assert.equal(result.valid, true);
-    assert.equal(result.config.lineLimits.target, 120);
+    assert.equal(result.config.lineLimits.target, 125);
     assert.equal(result.config.lineLimits.limit, 150);
     assert.equal(result.config.userRole, "developer");
     assert.deepStrictEqual(result.config.toolchain.test, []);

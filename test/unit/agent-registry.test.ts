@@ -24,7 +24,7 @@ function stubConfig(agents: string[] | null): LoadedConfig {
       logs: { path: ".goat-flow/logs/" },
       agents,
       skills: { install: "all" },
-      lineLimits: { target: 120, limit: 150 },
+      lineLimits: { target: 125, limit: 150 },
       toolchain: {
         test: [],
         lint: [],

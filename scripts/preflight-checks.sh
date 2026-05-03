@@ -726,11 +726,25 @@ NODE
     done <<< "$router_parity_output"
 fi
 
+# ── Instruction Parity Contract ──────────────────────────────────────
+section "Instruction Parity Contract"
+if [[ -f scripts/check-instruction-parity.mjs ]]; then
+    parity_output=$(node scripts/check-instruction-parity.mjs 2>&1) && parity_exit=0 || parity_exit=$?
+    if [[ "$parity_exit" -eq 0 ]]; then
+        pass "$parity_output"
+    else
+        fail "Instruction parity check failed (exit $parity_exit)"
+        echo "$parity_output" | head -12 | sed 's/^/    /'
+    fi
+else
+    skip "Instruction parity check (scripts/check-instruction-parity.mjs missing)"
+fi
+
 # ── Instruction File Quality ────────────────────────────────────────
 section "Instruction File Quality"
 
 # Line-count check (thresholds from manifest, not hard-coded)
-line_target=$(node -e "console.log(require('./workflow/manifest.json').instruction_file.line_target)" 2>/dev/null || echo "120")
+line_target=$(node -e "console.log(require('./workflow/manifest.json').instruction_file.line_target)" 2>/dev/null || echo "125")
 line_limit=$(node -e "console.log(require('./workflow/manifest.json').instruction_file.line_limit)" 2>/dev/null || echo "150")
 
 for ifile in "${agent_files[@]}"; do

@@ -1,6 +1,6 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-04-30
+last_reviewed: 2026-05-03
 ---
 
 ## Footgun: Cross-reference fragility across docs
@@ -97,7 +97,7 @@ last_reviewed: 2026-04-30
 
 **Why it happens:** Claude, Codex, Gemini, and Copilot use separate hot-path files with different compression levels. Cross-agent consistency checks cover a few structural sections, but not every command line or router-table detail.
 
-**Evidence:** A 2026-04-27 quality-review pass found `.github/copilot-instructions.md` needed the same release command now present at `.github/copilot-instructions.md` (search: `npm run test:full`) because it still told Copilot to run only the slow suite while `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` used `npm run test:full`. The same pass found `AGENTS.md` and `GEMINI.md` Shared skill reference rows omitted the ADR-023 topical files now visible at `AGENTS.md` (search: `skill-quality-testing/tdd-iteration.md`) and `GEMINI.md` (search: `skill-quality-testing/tdd-iteration.md`).
+**Evidence:** A 2026-04-27 quality-review pass found `.github/copilot-instructions.md` needed the same release command now present at `.github/copilot-instructions.md` (search: `test:full`) because it still told Copilot to run only the slow suite while `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` used the full release gate. The same pass found `AGENTS.md` and `GEMINI.md` Shared skill reference rows omitted topical files; those rows are now consolidated at `AGENTS.md` (search: `Skill reference + tool playbooks`) and `GEMINI.md` (search: `Skill reference + tool playbooks`).
 
 **Prevention:** When changing Essential Commands or Router Table rows in one agent instruction file, grep all four hot-path files (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) for the same concept and update them together. Add preflight coverage when the row affects release validation or canonical reference discovery.
 
@@ -154,7 +154,7 @@ last_reviewed: 2026-04-30
 - **Skill template paths use framework-local paths instead of project-local paths** (resolved 2026-04-12) - Changed skill template references away from `workflow/templates/`. The interim landing path `.goat-flow/templates/` was later retired; today the shared references live at `.goat-flow/skill-reference/`.
 - **Refactor cleanup doesn't reach bash script conditional guards** (resolved 2026-04-13) - Removed dead `[[ -f src/cli/rubric/version.ts ]]` guard that silently skipped 74 lines of version-consistency checks.
 - **Partial feature removal leaves type and detection artifacts** (resolved 2026-04-14) - Removed Copilot from type unions, UI name mappers, terminal runner maps, and SKILL_ROOTS after agent removal.
-- **Line target inconsistency for project shapes** (resolved 2026-03-18) - Line target canonicalized to 120 for all shapes in ADR-008.
+- **Line target inconsistency for project shapes** (resolved 2026-03-18) - Line target canonicalized to one value for all shapes in ADR-008; read ADR-008 for the current target.
 - **CONTRIBUTING.md directs contributors to the wrong subsystem** (resolved 2026-04-13) - Rewritten to describe build checks in `check-goat-flow.ts` + `check-agent-setup.ts` and quality checks in `src/cli/audit/harness/`.
 - **Stale references from old project structure** (resolved 2026-04-15) - `ai-workflow-framework` no longer appears anywhere in the repo (verified by `rg "ai-workflow-framework"`).
 - **Preflight validates doc totals but not sub-breakdowns** (resolved 2026-04-17) - `scripts/preflight-checks.sh` (search: `B.8a2: Sub-breakdown validation`) now extracts `setup_count` and `agent_count` from the audit modules and validates the `(N setup + M agent)` breakdown claim in `.goat-flow/architecture.md`, not just the total. Verified by grep of preflight source.

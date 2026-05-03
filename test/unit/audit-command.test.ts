@@ -76,7 +76,7 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
       logs: { path: ".goat-flow/logs/" },
       agents: null,
       skills: { install: "all" },
-      lineLimits: { target: 120, limit: 150 },
+      lineLimits: { target: 125, limit: 150 },
       toolchain: {
         test: ["npm test"],
         lint: ["eslint ."],
@@ -269,7 +269,7 @@ function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
           warningCount: 0,
           errorCount: 0,
           parseError: null,
-          lineLimits: { target: 120, limit: 150 },
+          lineLimits: { target: 125, limit: 150 },
           userRole: "developer",
         },
         architecture: { exists: true, lineCount: 50 },
@@ -1567,6 +1567,18 @@ run_self_test() {
 
 describe("workspace boundary guidance harness", () => {
   const completeInstruction = `
+## Truth Order
+Use explicit user instructions first.
+
+## Autonomy Tiers
+Use the configured autonomy tier.
+
+## Hard Rules
+Preserve workspace boundaries.
+
+## Key Resources
+Read the learning loop and tool playbooks.
+
 ## Essential Commands
 Run project commands.
 
@@ -1575,9 +1587,6 @@ READ SCOPE ACT VERIFY
 
 ## Artifact Routing
 Route artifacts intentionally.
-
-## Autonomy Tiers
-Use the configured autonomy tier.
 
 ## Definition of Done
 Verify changed behavior.

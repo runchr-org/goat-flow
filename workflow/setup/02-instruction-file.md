@@ -14,7 +14,7 @@ Create or update the agent's instruction file (CLAUDE.md / AGENTS.md / GEMINI.md
 
 Create the instruction file at the path specified in your agent config file. Include all required sections listed below. Adapt all examples and boundaries for THIS project using the stack you just detected.
 
-Target: under 120 lines. Hard limit: 150. Keep it concise - the instruction file is loaded every turn.
+Target: under 125 lines. Hard limit: 150. Keep it concise - the instruction file is loaded every turn.
 
 ### Path B - Instruction file already exists (update)
 
@@ -27,22 +27,24 @@ Read it completely before changing anything. Then:
 4. If it IS an existing goat-flow instruction file (has execution loop, autonomy tiers, router table already), update it in place - fix stale paths, update version header, add missing sections.
 5. **If the existing Execution Loop uses legacy steps**, rewrite it. Specifically: if the section lists `CLASSIFY` or trailing `LOG` (the v1.0 `READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG` pattern), replace the whole Execution Loop block with the current four-step version from `workflow/setup/reference/execution-loop.md` (`READ → SCOPE → ACT → VERIFY`). This is the canonical v1.2 loop every goat-* skill assumes. Applies to ALL instruction files - CLAUDE.md, AGENTS.md, GEMINI.md, and `.github/copilot-instructions.md` - no agent keeps the legacy loop. After rewriting, grep the rest of the file for residual `CLASSIFY` / `LOG` references in Router Table, DoD, or prose and remove them.
 6. **If the existing file references legacy task-state files**, remove those references. goat-flow uses `.goat-flow/logs/sessions/` for session state - not legacy task-state files.
-7. **After adding goat-flow sections, check total length.** If over 120 lines, compress: move domain knowledge to `.goat-flow/architecture.md` and/or `.goat-flow/glossary.md`, remove redundant sections, tighten prose. "Compress" means relocate verbose material, not delete it - the user's content is preserved in `.goat-flow/` files, just not in the hot-path instruction file.
+7. **After adding goat-flow sections, check total length.** If over 125 lines, compress: move domain knowledge to `.goat-flow/architecture.md` and/or `.goat-flow/glossary.md`, remove redundant sections, tighten prose. "Compress" means relocate verbose material, not delete it - the user's content is preserved in `.goat-flow/` files, just not in the hot-path instruction file.
 8. Do NOT create "original-*" backup files. Git history preserves the original.
 
 ## Required sections (both paths)
 
 The instruction file MUST include these sections. Use `workflow/setup/reference/execution-loop.md` as the template:
 
-- (a) Project identity - Start with 1-2 lines describing what the project is: name, domain, core technology, and the primary invariant or constraint. Example: `BlunderGoat - chess PGN analyzer producing XLSX reports. Core invariant: all engine evaluations use actor-POV.`
-- (b) Version header - set to the current goat-flow release version (match the `goat-flow-skill-version` in the installed skill files)
-- (c) Execution loop: READ → SCOPE → ACT → VERIFY
-- (d) Artifact Routing: map "add a footgun/lesson/decision/pattern" to the correct `.goat-flow/` directory
-- (e) Autonomy tiers: Always / Ask First / Never
-- (f) Definition of Done
-- (g) Router table
-- (h) Essential commands
-- (h-bis) Quality Bar: every line must fit one of: behavioral rule, scope boundary, command, verification gate, router pointer, composition rule. Domain knowledge belongs in cold-path files. For strict constraints, state whether prose-only or mechanically enforced.
+- (a) Project identity + version header - Start with 1-2 lines describing what the project is: name, domain, core technology, and the primary invariant or constraint. Example: `BlunderGoat - chess PGN analyzer producing XLSX reports. Core invariant: all engine evaluations use actor-POV.` Set the version header to the current goat-flow release version (match the `goat-flow-skill-version` in the installed skill files).
+- (b) Truth Order
+- (c) Autonomy Tiers: Always / Ask First / Never
+- (d) Hard Rules
+- (e) Key Resources
+- (f) Essential Commands
+- (g) Execution Loop: READ → SCOPE → ACT → VERIFY with `### READ`, `### SCOPE`, `### ACT`, and `### VERIFY` subsections
+- (h) Definition of Done
+- (i) Artifact Routing: map "add a footgun/lesson/decision/pattern" to the correct `.goat-flow/` directory
+- (j) Router Table as the final section
+- (k) Quality Bar: every line must fit one of: behavioral rule, scope boundary, command, verification gate, router pointer, composition rule. Domain knowledge belongs in cold-path files. For strict constraints, state whether prose-only or mechanically enforced.
 
 Adapt all examples, Ask First boundaries, and essential commands for THIS project's real codebase. Use real file paths, real commands, real boundaries. Preserve the composition rule: when a goat-* skill is active, the skill's Step 0 satisfies READ/SCOPE and the instruction file resumes at ACT.
 
@@ -62,7 +64,8 @@ After writing/updating the instruction file:
 
 **Verification gate:**
 - [ ] Instruction file exists at the correct path
-- [ ] All sections (a) through (h-bis) are present
+- [ ] All sections (a) through (k) are present
+- [ ] Router Table is the final section
 - [ ] Examples and boundaries reference real project files
 - [ ] READ step says to read `.goat-flow/skill-reference/` before declaring a tool or capability unavailable
 - [ ] Router table includes `.goat-flow/skill-reference/` as tool playbooks to read before declaring a tool unavailable

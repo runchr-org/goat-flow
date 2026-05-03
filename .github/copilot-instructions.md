@@ -1,4 +1,4 @@
-# Copilot Instructions - v1.4.0 (2026-05-02)
+# Copilot Instructions - v1.4.1 (2026-05-02)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash scripts + TypeScript CLI auditor.
 
 goat-flow is a harness — guardrails, memory, and workflows for AI coding agents. Five concerns drive every design decision: **Context** (what you read), **Constraints** (what you may never do), **Verification** (how work is checked), **Recovery** (how state survives failure), **Feedback loop** (how mistakes become permanent fixes).
@@ -28,6 +28,9 @@ Boundaries: instruction files (`.github/copilot-instructions.md`, `CLAUDE.md`, `
 - Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.
 - No features, abstractions, or error handling beyond what was asked. Gold-plating is scope creep.
 - Ambiguous requirements: present interpretations, don't pick silently.
+- Use current Copilot CLI commands (`/agent`, `/review`, `/research`, `/tasks`) when appropriate; use `/fleet` only for explicit or genuinely independent parallel work.
+- Treat `.github/actions/**`, `.github/hooks/hooks.json`, `.github/hooks/deny-dangerous.sh`, `.github/skills/**`, `.github/copilot-instructions.md`, and `.copilotignore` as security-sensitive runtime surfaces; verify after touching them.
+- `.github/agents/` is intentionally out of scope; CI/CD, hooks, prompts, or skills work should prefer `goat-security` or `goat-review`.
 
 ## Key Resources
 
@@ -102,9 +105,3 @@ When asked to add/update a goat-flow artifact, route to docs, not runtime code: 
 | Documentation | `docs/` |
 | Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
 | Peer instructions | `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` |
-
-## Copilot-Specific
-
-- Use current Copilot CLI commands (`/agent`, `/review`, `/research`, `/tasks`) when appropriate; use `/fleet` only for explicit or genuinely independent parallel work.
-- Treat `.github/actions/**`, `.github/hooks/hooks.json`, `.github/hooks/deny-dangerous.sh`, `.github/skills/**`, `.github/copilot-instructions.md`, and `.copilotignore` as security-sensitive runtime surfaces; verify after touching them.
-- `.github/agents/` is intentionally out of scope; CI/CD, hooks, prompts, or skills work should prefer `goat-security` or `goat-review`.

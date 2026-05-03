@@ -1,6 +1,6 @@
 ---
 category: agent-behavior-trust
-last_reviewed: 2026-04-25
+last_reviewed: 2026-05-03
 ---
 
 ## Lesson: Prose-only "show terminal output" rules lose to brevity pressure
@@ -18,7 +18,7 @@ last_reviewed: 2026-04-25
 2. Mechanical enforcement (a `goat-flow audit --transcript-scan` style check that grep's for verbatim-line presence after a "tests pass" claim) belongs in 1.3.0+. Track as a follow-up to M02.
 3. When designing future rules that demand specific output formats, anticipate brevity-vs-evidence trade-offs and either build the example into the rule (with risk of instruction-bloat) or accept that prose-only enforcement will achieve substantive but not strict-text compliance.
 
-**Evidence:** The constructed-summary quote in "What happened" above is the primary artifact. The rule that was tightened in response lives at `CLAUDE.md` (search: `or at minimum the literal pass/fail summary line copied verbatim from this session's run`) and is mirrored to the other three agent files (`AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) under the same Hallucination red-flags heading - that wording IS the in-repo trace of the pressure-test outcome.
+**Evidence:** The constructed-summary quote in "What happened" above is the primary artifact. The rule that was tightened in response lives at `CLAUDE.md` (search: `showing the literal pass/fail line copied verbatim`) and is mirrored to the other three agent files (`AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) under the same Hallucination red-flags heading - that wording IS the in-repo trace of the pressure-test outcome.
 
 ---
 ## Lesson: Sub-agent output must be audited
