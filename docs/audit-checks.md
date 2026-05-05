@@ -52,25 +52,25 @@ Aggregate-mode nuance:
 
 ## Harness Checks
 
-`npx goat-flow audit . --harness` adds **16** deterministic harness-completeness checks on top of the 18 build checks. These checks are grouped by concern and typed as `integrity`, `advisory`, or `metric`.
+`npx goat-flow audit . --harness` adds **16** deterministic harness-completeness checks on top of the 18 build checks. These checks are grouped by concern and typed as `integrity`, `advisory`, or `metric`. JSON output exposes each check's raw `status` plus `displayStatus`, `impact`, and optional `assurance` so score-only metric/advisory warnings and platform-limited passes do not look like ordinary hard failures or full-assurance passes.
 
 | Concern | Check id | Type | What it validates |
 |---------|----------|------|-------------------|
 | Context | `instruction-line-count` | `advisory` | Each configured instruction file stays within `lineLimits.limit` from `.goat-flow/config.yaml` |
-| Context | `execution-loop-present` | `advisory` | Each instruction file contains the READ / SCOPE / ACT / VERIFY execution-loop vocabulary |
-| Context | `doc-paths-resolve` | `integrity` | Router-table paths, `.goat-flow/architecture.md` backtick paths, and curated audit docs backtick paths resolve to real files |
-| Context | `instruction-sections-present` | `advisory` | Each instruction file contains the required hot-path headings: Truth Order, Execution Loop, Definition of Done, and Router Table |
-| Context | `boundary-guidance-present` | `advisory` | Each instruction file contains workspace boundary guidance (controlling workspace vs target workspace separation) |
-| Constraints | `deny-covers-secrets` | `integrity` | Direct literal secret-path reads are blocked by the deny layer; settings-based agents need both settings `Read` deny coverage and Bash-hook direct-path coverage |
+| Context | `execution-loop-present` | `advisory` | Structural smoke check for the Execution Loop heading plus READ / SCOPE / ACT / VERIFY vocabulary |
+| Context | `doc-paths-resolve` | `integrity` | Router-table paths, `.goat-flow/architecture.md` backtick paths, and curated audit/glossary docs backtick paths resolve to real files |
+| Context | `instruction-sections-present` | `advisory` | Structural smoke check for required hot-path headings: Truth Order, Execution Loop, Definition of Done, and Router Table |
+| Context | `boundary-guidance-present` | `advisory` | Structural smoke check for workspace boundary guidance (controlling workspace vs target workspace separation) |
+| Constraints | `deny-covers-secrets` | `integrity` | Direct literal secret-path reads are blocked by the deny layer; settings-based agents need both settings `Read` deny coverage and Bash-hook direct-path coverage. Script-only agents can pass with `assurance: "limited"` because settings/file-read deny is unavailable. |
 | Constraints | `deny-blocks-dangerous` | `integrity` | Deny patterns block `rm -rf`, all git push (ADR-025), and `chmod` |
 | Constraints | `deny-blocks-pipe-to-shell` | `advisory` | Deny patterns block `curl | bash` and `wget | sh` pipe-to-shell execution |
 | Constraints | `deny-hook-registered` | `integrity` | A deny hook that exists on disk is registered in the correct pre-tool hook slot |
 | Verification | `hooks-registered` | `integrity` | Post-turn hook registrations and on-disk hook files stay in sync |
 | Verification | `commit-guidance` | `advisory` | Commit guidance exists at `.github/git-commit-instructions.md` when `.github/` exists, or in a supporting commit-guidance document otherwise |
-| Verification | `post-turn-hook-integrity` | `metric` | Reports whether any post-turn hook runs validation and whether it swallows failures; absence is no hook evidence, not proof |
+| Verification | `post-turn-hook-integrity` | `metric` | Reports whether any post-turn hook runs validation and whether it swallows failures; absence is no hook evidence, not proof. Metric failures do not fail the harness scope, but they reduce the concern score. |
 | Recovery | `milestone-tracking` | `integrity` | `.goat-flow/tasks/` exists; task count, checkbox completion, milestone status, and roadmap progress are optional local workflow state |
 | Recovery | `session-logs` | `integrity` | `.goat-flow/logs/sessions/` exists |
-| Feedback loop | `feedback-loop-active` | `integrity` | The lessons and footguns directories exist; stale references are informational only |
+| Feedback loop | `feedback-loop-active` | `integrity` | The lessons and footguns directories exist, with valid metadata and non-stale evidence references |
 | Feedback loop | `decisions-tracked` | `integrity` | `.goat-flow/decisions/` exists |
 
 ## Command Matrix

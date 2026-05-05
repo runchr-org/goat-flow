@@ -84,6 +84,18 @@ describe("validateProvenance", () => {
     assert.deepEqual(validateProvenance(e), []);
   });
 
+  it("accepts evidence split into framework and target path bases", () => {
+    const e: CheckEvidence = {
+      source_type: "incident",
+      source_urls: [],
+      verified_on: "2026-05-06",
+      normative_level: "MUST",
+      framework_evidence_paths: [".goat-flow/footguns/auditor.md"],
+      target_evidence_paths: ["CLAUDE.md"],
+    };
+    assert.deepEqual(validateProvenance(e), []);
+  });
+
   it("rejects non-unknown source_type with neither urls nor evidence_paths", () => {
     const e: CheckEvidence = {
       source_type: "spec",

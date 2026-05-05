@@ -231,6 +231,20 @@ const EXPECTED_RELEASE_SNAPSHOTS = [
       presets_count: 26,
     },
   },
+  {
+    version: "1.5.0",
+    facts: {
+      skills_total: 7,
+      skills_functional_count: 6,
+      checks_setup: 14,
+      checks_agent: 4,
+      checks_build: 18,
+      checks_harness: 16,
+      checks_total: 34,
+      dashboard_views_count: 8,
+      presets_count: 26,
+    },
+  },
 ] as const;
 
 function loadSnapshotJson(version: string): Record<string, unknown> {
@@ -441,11 +455,11 @@ describe("loadSnapshotFacts (real repo)", () => {
   });
 
   it("documents the current release snapshot as a frozen copy", () => {
-    const snapshot = loadSnapshotJson("1.4.3");
+    const snapshot = loadSnapshotJson("1.5.0");
     assert.equal(typeof snapshot._snapshot_note, "string");
     assert.match(
       snapshot._snapshot_note,
-      /Frozen copy of workflow\/manifest\.json as it shipped at v1\.4\.3 release/,
+      /Frozen copy of workflow\/manifest\.json as it shipped at v1\.5\.0 release/,
     );
     assert.ok(
       snapshot.snapshot_facts,

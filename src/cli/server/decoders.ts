@@ -97,9 +97,7 @@ function decodeOptionalStringField(
     : err(`body.${key}`, "must be a string");
 }
 
-/** Decode POST /api/terminal/create body.
- *  Applies the `runner` fallback to the given default when absent or unknown -
- *  preserves existing server behaviour where a missing/bad runner was tolerated. */
+/** Decode POST /api/terminal/create body. */
 export function decodeTerminalCreateBody(
   body: string,
   options: { validRunners: ReadonlySet<string>; defaultRunner: AgentId },
@@ -122,14 +120,19 @@ export function decodeTerminalCreateBody(
   const targetPath = decodeOptionalStringField(raw, "targetPath");
   if (!targetPath.ok) return targetPath;
 
-  // runner: optional string; fall back to default when absent or unknown.
+  // runner: optional string; fall back only when absent.
   let runner: AgentId = options.defaultRunner;
-  if (Object.hasOwn(raw, "runner") && typeof raw.runner === "string") {
-    if (options.validRunners.has(raw.runner)) {
-      runner = raw.runner as AgentId;
+  if (Object.hasOwn(raw, "runner")) {
+    if (typeof raw.runner !== "string") {
+      return err("body.runner", "must be a string");
     }
-    // Unknown runner silently falls back to default; the server surfaces no
-    // error to avoid breaking frontends that send legacy/stale values.
+    if (!options.validRunners.has(raw.runner)) {
+      return err(
+        "body.runner",
+        `unknown runner: ${raw.runner}. Valid: ${Array.from(options.validRunners).join(", ")}`,
+      );
+    }
+    runner = raw.runner as AgentId;
   }
 
   return {

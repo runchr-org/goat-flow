@@ -1,7 +1,7 @@
 ---
 name: goat-debug
 description: "Use when diagnosing a bug, unexpected behaviour, or system failure that needs structured investigation."
-goat-flow-skill-version: "1.4.3"
+goat-flow-skill-version: "1.5.0"
 ---
 # /goat-debug
 
@@ -45,11 +45,11 @@ If vague, ask about: goal, symptom/error message, area involved.
 
 After reading the primary file, declare a scope snapshot: symptom boundary (what is failing), affected components (files/modules/services involved), and read estimate (how many files you expect to read). This scopes the investigation before hypotheses anchor it.
 
-Write 2-3 hypotheses spanning at least 2 of: Data, Logic, Timing, Environment, Configuration. If the bug involves loops, indices, or pagination, include a boundary/counting hypothesis. After tracing, mark each: CONFIRMED / ELIMINATED / UNRESOLVED with `file:line` evidence.
+Write 2-3 hypotheses spanning at least 2 of: Data, Logic, Timing, Environment, Configuration. If the bug involves loops, indices, or pagination, include a boundary/counting hypothesis. After tracing, mark each: CONFIRMED / ELIMINATED / UNRESOLVED with `file + semantic anchor` evidence.
 
 **Multi-component failures** (CI → build → deploy, request → middleware → handler → DB, etc.): instrument each boundary before proposing any fix. For each component boundary, log what data enters and what exits, run once to gather evidence showing WHERE the chain breaks, THEN investigate the specific failing component. Do not guess the failing layer.
 
-**UI-visible bugs:** After writing hypotheses, use browser evidence to confirm or eliminate UI-related hypotheses. Follow the workflow in `.goat-flow/skill-reference/browser-use.md`. Browser output is OBSERVED; interpretations remain INFERRED until mapped to `file:line`.
+**UI-visible bugs:** After writing hypotheses, use browser evidence to confirm or eliminate UI-related hypotheses. Follow the workflow in `.goat-flow/skill-reference/browser-use.md`. Browser output is OBSERVED; interpretations remain INFERRED until mapped to `file + semantic anchor`.
 
 **Can't reproduce after 5 file reads?** Log what you checked, suggest logging additions, ask for more context.
 
@@ -81,11 +81,11 @@ Test cheap-and-likely first. Skip expensive-and-unlikely until cheap options are
 Present: root cause + confidence (HIGH = reproduced, MEDIUM = traced, LOW = inferred) + hypothesis table + reproduction steps. **Confidence floor:** All LOW --> return to D1 or present partial findings.
 
 **Root cause validation before claiming HIGH confidence.** For each candidate root cause, run a causation / necessity / sufficiency check:
-- **Causation** - does the proposed cause mechanically produce the observed symptom? Trace the path with `file:line`.
+- **Causation** - does the proposed cause mechanically produce the observed symptom? Trace the path with `file + semantic anchor`.
 - **Necessity** - without this cause, does the symptom still occur? If yes, the cause is insufficient or incomplete.
 - **Sufficiency** - is this cause alone enough, or are there co-factors? Name them.
 
-For high-stakes diagnoses, run a 5-Whys chain. Every "because" MUST cite `file:line` or a reproduction step, not just prose.
+For high-stakes diagnoses, run a 5-Whys chain. Every "because" MUST cite `file + semantic anchor` or a reproduction step, not just prose.
 
 **BLOCKING GATE:** Present diagnosis, then pause. Human decides: dig deeper, propose fix, or stop. If confidence is MEDIUM or LOW with multiple competing hypotheses, consider `/goat-critique` on the hypothesis set before choosing a fix direction.
 
@@ -155,9 +155,9 @@ Diagnose and investigate modes produce different artifacts. Use the block that m
 
 ```markdown
 ## TL;DR       <!-- 1 sentence: root cause + confidence -->
-## Hypotheses  <!-- table: #, Hypothesis, Category, Status, Evidence (file:line) -->
+## Hypotheses  <!-- table: #, Hypothesis, Category, Status, Evidence (file + semantic anchor) -->
 ## Minimal Failing Case  <!-- from D1.5: minimal input, removed variables, hypothesis ranking -->
-## Root Cause  <!-- Confidence + Location (file:line) + Description -->
+## Root Cause  <!-- Confidence + Location (file + semantic anchor) + Description -->
 ## Reproduction Steps  <!-- numbered, with Expected vs Actual -->
 ## Fix Plan    <!-- only if human approved D3 -->
 ## UI Evidence  <!-- optional: only when browser evidence was captured -->
@@ -182,7 +182,7 @@ Diagnose and investigate modes produce different artifacts. Use the block that m
 ## Reading  <!-- one row per file read -->
 | File | Role | Connections | Evidence |
 | --- | --- | --- | --- |
-| `path:line` | [role] | [what calls / is called by this] | OBSERVED/INFERRED |
+| `file + semantic anchor` | [role] | [what calls / is called by this] | OBSERVED/INFERRED |
 ## Current vs Expected State  <!-- where the code matches and diverges from the mental model -->
 ## What I Didn't Read  <!-- every skipped file plus one-line reason -->
 ## Open Questions  <!-- genuine unknowns to resolve next -->

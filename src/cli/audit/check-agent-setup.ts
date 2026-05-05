@@ -54,8 +54,8 @@ function agentArtifactsExist(
 
 /** Check whether the selected agent has its instruction file installed. */
 function checkInstructionPresent(ctx: AuditContext): AuditFailure | null {
-  const found = ctx.agents.some((af) => af.agent.id === ctx.agentFilter);
-  if (found) return null;
+  const agentFacts = ctx.agents.find((af) => af.agent.id === ctx.agentFilter);
+  if (agentFacts?.instruction.exists) return null;
   // In --agent mode we look up the expected instruction path from the detected
   // structure so the failure message stays specific even when the file is absent.
   const profile = ctx.agentFilter
@@ -67,6 +67,56 @@ function checkInstructionPresent(ctx: AuditContext): AuditFailure | null {
     check: "Agent instruction file",
     message: `Missing: ${ctx.agentFilter} (${instructionFile})`,
     howToFix: `Create ${instructionFile} by running \`goat-flow setup --agent ${ctx.agentFilter}\`.`,
+  };
+}
+
+/** Check configured managed agents whose primary instruction files are absent. */
+function checkConfiguredInstructionFilesPresent(
+  ctx: AuditContext,
+): AuditFailure | null {
+  if (!ctx.config.exists) return null;
+  const missing = ctx.agents
+    .filter((af) => !af.instruction.exists)
+    .map((af) => `${af.agent.id} (${af.agent.instructionFile})`);
+  if (missing.length === 0) return null;
+  return {
+    check: "Agent instruction file",
+    message: `Configured agent instruction files missing: ${missing.join(", ")}`,
+    howToFix:
+      "Run `goat-flow setup --agent <id>` for each configured missing agent, or remove agents that this repo does not manage from .goat-flow/config.yaml.",
+  };
+}
+
+/** Check that aggregate agent scope has at least one managed agent surface. */
+function checkAnyAgentConfigured(ctx: AuditContext): AuditFailure | null {
+  if (ctx.agents.length > 0) return null;
+  return {
+    check: "Agent instruction file",
+    message: ctx.config.exists
+      ? "No agents configured in .goat-flow/config.yaml"
+      : "No configured agents or agent instruction files found",
+    howToFix:
+      "Run `goat-flow setup --agent <id>` for the agent this repo should manage, then complete the project-specific setup steps.",
+  };
+}
+
+/** Return a blocking failure for dependent per-agent checks when the primary
+ *  instruction file is missing and no agent facts were extracted. */
+function checkSelectedInstructionAvailable(
+  ctx: AuditContext,
+  checkName: string,
+): AuditFailure | null {
+  if (!ctx.agentFilter) return null;
+  const found = ctx.agents.find((af) => af.agent.id === ctx.agentFilter);
+  if (found?.instruction.exists) return null;
+  const profile = ctx.structure.agents[ctx.agentFilter];
+  const instructionFile =
+    profile?.instruction_file ?? `${ctx.agentFilter} instruction file`;
+  return {
+    check: checkName,
+    message: `${checkName} blocked: ${ctx.agentFilter} instruction file is missing (${instructionFile})`,
+    evidence: instructionFile,
+    howToFix: `Create ${instructionFile} by running \`goat-flow setup --agent ${ctx.agentFilter}\`, then rerun the audit.`,
   };
 }
 
@@ -154,7 +204,10 @@ const agentInstruction: BuildCheck = {
       );
     }
     return (
-      checkOrphanedArtifacts(ctx) ?? checkCopilotCommitInstructionsPresent(ctx)
+      checkAnyAgentConfigured(ctx) ??
+      checkConfiguredInstructionFilesPresent(ctx) ??
+      checkOrphanedArtifacts(ctx) ??
+      checkCopilotCommitInstructionsPresent(ctx)
     );
   },
 };
@@ -261,6 +314,8 @@ const agentSkills: BuildCheck = {
   /** Run the Agent skills check. */
   run: (ctx) => {
     if (!ctx.agentFilter) return null;
+    const blocked = checkSelectedInstructionAvailable(ctx, "Agent skills");
+    if (blocked) return blocked;
     return (
       checkCanonicalSkills(ctx) ??
       checkSkillVersions(ctx) ??
@@ -282,6 +337,8 @@ const agentSettings: BuildCheck = {
   /** Run the Agent settings check. */
   run: (ctx) => {
     if (!ctx.agentFilter) return null;
+    const blocked = checkSelectedInstructionAvailable(ctx, "Agent settings");
+    if (blocked) return blocked;
     const invalid: string[] = [];
     for (const af of ctx.agents) {
       if (af.settings.exists && !af.settings.valid) {
@@ -429,6 +486,11 @@ const agentDenyMechanism: BuildCheck = {
   /** Run the Agent deny mechanism check. */
   run: (ctx) => {
     if (!ctx.agentFilter) return null;
+    const blocked = checkSelectedInstructionAvailable(
+      ctx,
+      "Agent deny mechanism",
+    );
+    if (blocked) return blocked;
     if (ctx.denyMechanismEvidenceLevel === "present-only") {
       return checkDenyHookPresent(ctx);
     }

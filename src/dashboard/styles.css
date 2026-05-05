@@ -2411,7 +2411,7 @@ body {
 }
 .detail-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 .detail-card {
@@ -2463,6 +2463,15 @@ body {
 .detail-status.fail {
   color: var(--red-400);
   background: var(--red-bg);
+}
+.detail-status.warn {
+  color: var(--amber-400);
+  background: var(--amber-bg);
+}
+.detail-status.info,
+.detail-status.skipped {
+  color: var(--text-muted);
+  background: var(--neutral-bg);
 }
 .lower-row {
   display: grid;

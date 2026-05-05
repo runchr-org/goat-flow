@@ -86,13 +86,17 @@ const denyCoversSecrets: HarnessCheck = {
 
     if (covered.length === 0 && !anyUncovered) {
       // All agents are script-only and covered - platform limitation, not a failure
-      return pass([
-        "No agents support settings-based deny patterns",
-        ...scriptOnly.map(
-          (id) =>
-            `${id}: script-based deny only - file-read deny not available`,
-        ),
-      ]);
+      return {
+        ...pass([
+          "Limited assurance: no agents support settings-based file-read deny patterns",
+          ...scriptOnly.map(
+            (id) =>
+              `${id}: limited assurance - script-only deny; Bash hook blocks direct literal secret paths, but settings/file-read deny is unavailable`,
+          ),
+        ]),
+        displayStatus: "info",
+        assurance: "limited",
+      };
     }
     const findings: string[] = [];
     if (covered.length > 0) {
@@ -102,10 +106,17 @@ const denyCoversSecrets: HarnessCheck = {
     }
     if (scriptOnly.length > 0) {
       findings.push(
-        `${scriptOnly.join(", ")}: script-only deny; Bash hook blocks direct literal secret paths`,
+        ...scriptOnly.map(
+          (id) =>
+            `${id}: limited assurance - script-only deny; Bash hook blocks direct literal secret paths, but settings/file-read deny is unavailable`,
+        ),
       );
     }
-    if (!anyUncovered) return pass(findings);
+    if (!anyUncovered) {
+      const result = pass(findings);
+      if (scriptOnly.length === 0) return result;
+      return { ...result, displayStatus: "info", assurance: "limited" };
+    }
 
     const recs: string[] = [];
     const fixes: string[] = [];

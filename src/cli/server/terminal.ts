@@ -54,6 +54,10 @@ const WINDOWS_RUNNER_EXTENSION_PRIORITY = [
   ".ps1",
 ] as const;
 const WINDOWS_TERMINAL_SHELL = "powershell.exe";
+const POSIX_PROMPT_ENV_CLEANUP =
+  "unset GOAT_PROMPT GOAT_PROMPT_FLAG GOAT_PROMPT_PRESENT";
+const WINDOWS_PROMPT_ENV_CLEANUP =
+  "Remove-Item Env:GOAT_PROMPT,Env:GOAT_PROMPT_FLAG,Env:GOAT_PROMPT_PRESENT -ErrorAction SilentlyContinue";
 
 /** Maximum output to buffer while a session is detached (characters). */
 const DETACH_BUFFER_LIMIT = 512 * 1024; // 512KB
@@ -138,7 +142,7 @@ export function buildTerminalSpawnSpec(
         "-NoLogo",
         "-NoExit",
         "-Command",
-        "if ($env:GOAT_PROMPT_PRESENT -eq '1') { if ($env:GOAT_PROMPT_FLAG) { & $env:GOAT_RUNNER $env:GOAT_PROMPT_FLAG $env:GOAT_PROMPT } else { & $env:GOAT_RUNNER $env:GOAT_PROMPT } } else { & $env:GOAT_RUNNER }",
+        `try { if ($env:GOAT_PROMPT_PRESENT -eq '1') { if ($env:GOAT_PROMPT_FLAG) { & $env:GOAT_RUNNER $env:GOAT_PROMPT_FLAG $env:GOAT_PROMPT } else { & $env:GOAT_RUNNER $env:GOAT_PROMPT } } else { & $env:GOAT_RUNNER } } finally { ${WINDOWS_PROMPT_ENV_CLEANUP} }`,
       ],
       env,
     };
@@ -147,9 +151,9 @@ export function buildTerminalSpawnSpec(
   const shell = environment.SHELL || "/bin/bash";
   const shellCmd = hasPrompt
     ? flag
-      ? `"$GOAT_RUNNER" ${flag} "$GOAT_PROMPT"; exec "$SHELL" -i`
-      : `"$GOAT_RUNNER" "$GOAT_PROMPT"; exec "$SHELL" -i`
-    : `"$GOAT_RUNNER"; exec "$SHELL" -i`;
+      ? `"$GOAT_RUNNER" ${flag} "$GOAT_PROMPT"; ${POSIX_PROMPT_ENV_CLEANUP}; exec "$SHELL" -i`
+      : `"$GOAT_RUNNER" "$GOAT_PROMPT"; ${POSIX_PROMPT_ENV_CLEANUP}; exec "$SHELL" -i`
+    : `"$GOAT_RUNNER"; ${POSIX_PROMPT_ENV_CLEANUP}; exec "$SHELL" -i`;
 
   return {
     shell,
@@ -174,39 +178,29 @@ function resolveCLIPath(name: string): string | null {
         .filter(Boolean);
       const preferred = pickWindowsRunnerPath(candidates);
       if (preferred) return preferred;
+      return null;
     } catch {
-      /* fall through to direct probe */
-    }
-
-    try {
-      execFileSync(name, ["--version"], { stdio: "ignore", timeout: 5000 });
-      return name;
-    } catch {
+      /* passive detection only; do not execute runner binaries at startup */
       return null;
     }
   }
 
   try {
-    execFileSync(name, ["--version"], { stdio: "ignore", timeout: 5000 });
-    try {
-      return execFileSync("which", [name], {
-        encoding: "utf-8",
-        timeout: 5000,
-      }).trim();
-    } catch {
-      try {
-        return (
-          execFileSync("where", [name], { encoding: "utf-8", timeout: 5000 })
-            .trim()
-            .split("\n")[0]
-            ?.trim() ?? null
-        );
-      } catch {
-        return name; // Works via PATH even without absolute resolution
-      }
-    }
+    return execFileSync("which", [name], {
+      encoding: "utf-8",
+      timeout: 5000,
+    }).trim();
   } catch {
-    return null;
+    try {
+      return (
+        execFileSync("where", [name], { encoding: "utf-8", timeout: 5000 })
+          .trim()
+          .split("\n")[0]
+          ?.trim() ?? null
+      );
+    } catch {
+      return null;
+    }
   }
 }
 

@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.4.3"
+goat-flow-reference-version: "1.5.0"
 ---
 # Browser Evidence Reference
 
@@ -75,11 +75,10 @@ Use `--headed` when headless output is ambiguous. Do not use `connect`, `--profi
 
 ```bash
 browser-use back
-browser-use tab list
-browser-use tab new [url]
-browser-use tab switch <index>
-browser-use tab close <index>
 browser-use sessions
+browser-use open <url>
+browser-use switch <index>
+browser-use close-tab [index]
 browser-use close
 ```
 

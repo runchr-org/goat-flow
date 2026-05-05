@@ -5,6 +5,46 @@
  */
 
 type JsonRecord = Record<string, unknown>;
+const DASHBOARD_TOKEN_PARAM = "token";
+const DASHBOARD_TOKEN_HEADER = "X-Goat-Flow-Dashboard-Token";
+
+/** Return the process-local dashboard authorization token injected at boot. */
+function dashboardAuthToken(): string {
+  return typeof window.__GOAT_FLOW_DASHBOARD_TOKEN__ === "string"
+    ? window.__GOAT_FLOW_DASHBOARD_TOKEN__
+    : "";
+}
+
+/** Fetch a dashboard API route with the current process-local token. */
+function dashboardFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  const token = dashboardAuthToken();
+  if (token) headers.set(DASHBOARD_TOKEN_HEADER, token);
+  return fetch(input, { ...init, headers });
+}
+
+/** Append the dashboard token to a terminal WebSocket path. */
+function dashboardTerminalWsPath(wsPath: string): string {
+  const token = dashboardAuthToken();
+  if (!token) return wsPath;
+  const url = new URL(wsPath, window.location.origin);
+  url.searchParams.set(DASHBOARD_TOKEN_PARAM, token);
+  return `${url.pathname}${url.search}`;
+}
+
+/** Remove the launch token from the visible URL after the boot payload is loaded. */
+function dashboardClearLaunchToken(): void {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has(DASHBOARD_TOKEN_PARAM)) return;
+  url.searchParams.delete(DASHBOARD_TOKEN_PARAM);
+  const next =
+    url.pathname +
+    (url.searchParams.toString() ? `?${url.searchParams.toString()}` : "") +
+    url.hash;
+  window.history.replaceState(null, "", next);
+}
+
+dashboardClearLaunchToken();
 
 /** Check whether a value is a plain object record. */
 function isRecord(value: unknown): value is JsonRecord {
@@ -43,7 +83,48 @@ function readStringMap(value: unknown): Record<string, string> {
 
 /** Read an audit status from raw payload data. */
 function readAuditStatus(value: unknown): AuditStatus | null {
-  return value === "pass" || value === "fail" ? value : null;
+  return value === "pass" || value === "fail" || value === "skipped"
+    ? value
+    : null;
+}
+
+/** Read a dashboard display status from raw payload data. */
+function readAuditDisplayStatus(value: unknown): AuditDisplayStatus | null {
+  return value === "pass" ||
+    value === "fail" ||
+    value === "warn" ||
+    value === "info" ||
+    value === "skipped"
+    ? value
+    : null;
+}
+
+/** Read a check impact label from raw payload data. */
+function readAuditCheckImpact(value: unknown): AuditCheckImpact | null {
+  return value === "none" || value === "scope-fail" || value === "score-only"
+    ? value
+    : null;
+}
+
+/** Compute a backward-compatible display status when an older server omits it. */
+function defaultDisplayStatus(
+  status: AuditStatus,
+  type?: AuditCheckType,
+  acknowledged = false,
+): AuditDisplayStatus {
+  if (status === "skipped") return "skipped";
+  if (status === "pass") return type === "metric" ? "info" : "pass";
+  return type === "metric" || acknowledged ? "warn" : "fail";
+}
+
+/** Compute backward-compatible impact when an older server omits it. */
+function defaultCheckImpact(
+  status: AuditStatus,
+  type?: AuditCheckType,
+  acknowledged = false,
+): AuditCheckImpact {
+  if (status !== "fail") return "none";
+  return type === "metric" || acknowledged ? "score-only" : "scope-fail";
 }
 
 /** Read the runner IDs injected into the dashboard shell. */
@@ -139,6 +220,8 @@ function readAuditCheck(value: unknown): AuditCheck | null {
     id,
     name,
     status,
+    displayStatus: "pass",
+    impact: "none",
     provenance: {
       source_type: sourceType as AuditCheckProvenance["source_type"],
       source_urls: readStringArray(provenanceValue.source_urls),
@@ -148,6 +231,20 @@ function readAuditCheck(value: unknown): AuditCheck | null {
       ...(Array.isArray(provenanceValue.evidence_paths)
         ? {
             evidence_paths: readStringArray(provenanceValue.evidence_paths),
+          }
+        : {}),
+      ...(Array.isArray(provenanceValue.framework_evidence_paths)
+        ? {
+            framework_evidence_paths: readStringArray(
+              provenanceValue.framework_evidence_paths,
+            ),
+          }
+        : {}),
+      ...(Array.isArray(provenanceValue.target_evidence_paths)
+        ? {
+            target_evidence_paths: readStringArray(
+              provenanceValue.target_evidence_paths,
+            ),
           }
         : {}),
       ...(typeof provenanceValue.reason === "string"
@@ -161,6 +258,22 @@ function readAuditCheck(value: unknown): AuditCheck | null {
     value.type === "metric"
   ) {
     check.type = value.type;
+  }
+  if (value.acknowledged === true) check.acknowledged = true;
+  check.displayStatus =
+    readAuditDisplayStatus(value.displayStatus) ??
+    defaultDisplayStatus(status, check.type, check.acknowledged === true);
+  check.impact =
+    readAuditCheckImpact(value.impact) ??
+    defaultCheckImpact(status, check.type, check.acknowledged === true);
+  if (
+    value.evidenceKind === "semantic" ||
+    value.evidenceKind === "structural"
+  ) {
+    check.evidenceKind = value.evidenceKind;
+  }
+  if (value.assurance === "full" || value.assurance === "limited") {
+    check.assurance = value.assurance;
   }
   const failure = readAuditFailure(value.failure);
   if (failure) check.failure = failure;

@@ -83,6 +83,8 @@ function loadHelpers(fetchImpl: typeof fetch): HelperContext {
   }).outputText;
   const context = createContext({
     fetch: fetchImpl,
+    dashboardFetch: fetchImpl,
+    dashboardTerminalWsPath: (path: string) => path,
     console,
     setTimeout,
     clearTimeout,

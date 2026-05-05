@@ -3,7 +3,13 @@
  * Both the HTTP/WebSocket server and the frontend rely on these discriminated unions staying in sync.
  */
 import type { CheckEvidence } from "../audit/provenance-types.js";
-import type { HarnessCheckType } from "../audit/types.js";
+import type {
+  CheckAssurance,
+  CheckDisplayStatus,
+  CheckEvidenceKind,
+  CheckImpact,
+  HarnessCheckType,
+} from "../audit/types.js";
 import type { AgentId } from "../types.js";
 /** Messages sent from the browser terminal to the WebSocket server. */
 export type ClientMessage =
@@ -60,8 +66,13 @@ export interface DashboardReport {
       checks: {
         id: string;
         name: string;
-        status: string;
+        status: "pass" | "fail" | "skipped";
+        displayStatus: CheckDisplayStatus;
+        impact: CheckImpact;
         type?: HarnessCheckType;
+        evidenceKind?: CheckEvidenceKind;
+        assurance?: CheckAssurance;
+        acknowledged?: boolean;
         provenance: CheckEvidence;
         failure?: {
           check: string;
@@ -83,8 +94,12 @@ export interface DashboardReport {
       checks: {
         id: string;
         name: string;
-        status: string;
+        status: "pass" | "fail" | "skipped";
+        displayStatus: CheckDisplayStatus;
+        impact: CheckImpact;
         type?: HarnessCheckType;
+        evidenceKind?: CheckEvidenceKind;
+        acknowledged?: boolean;
         provenance: CheckEvidence;
         failure?: {
           check: string;
@@ -127,7 +142,13 @@ export interface DashboardReport {
       checks: {
         id: string;
         name: string;
-        status: string;
+        status: "pass" | "fail" | "skipped";
+        displayStatus?: CheckDisplayStatus;
+        impact?: CheckImpact;
+        type?: HarnessCheckType;
+        acknowledged?: boolean;
+        evidenceKind?: CheckEvidenceKind;
+        assurance?: CheckAssurance;
         provenance: CheckEvidence;
         failure?: {
           check: string;

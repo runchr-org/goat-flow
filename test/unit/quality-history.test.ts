@@ -99,6 +99,85 @@ describe("loadQualityHistory", () => {
       /Skipping malformed quality history file/i,
     );
   });
+
+  it("keeps distinct null-line findings instead of rejecting positional id collisions", () => {
+    const root = makeTempProject();
+    const source = JSON.parse(
+      readFileSync(join(FIXTURE_DIR, `${FIXTURE_IDS.april29}.json`), "utf-8"),
+    );
+    source.findings = [
+      {
+        ...source.findings[0],
+        type: "framework_flaw",
+        file: ".goat-flow/config.yaml",
+        line: null,
+        summary: "Aggregate audit hides configured Codex failure",
+      },
+      {
+        ...source.findings[0],
+        type: "framework_flaw",
+        file: ".goat-flow/config.yaml",
+        line: null,
+        summary: "Aggregate audit hides configured Gemini failure",
+      },
+    ];
+    writeFileSync(
+      join(
+        root,
+        ".goat-flow",
+        "logs",
+        "quality",
+        "2026-05-05-2009-claude-bytb4.json",
+      ),
+      `${JSON.stringify(source, null, 2)}\n`,
+      "utf-8",
+    );
+
+    const history = loadQualityHistory(root);
+    assert.deepEqual(history.warnings, []);
+    assert.equal(history.entries.length, 1);
+    assert.deepEqual(
+      history.entries[0]!.report.findings.map((finding) => finding.id),
+      [
+        "framework_flaw:goat-flow-config-yaml:_:aggregate-audit-hides-configured-codex-failure",
+        "framework_flaw:goat-flow-config-yaml:_:aggregate-audit-hides-configured-gemini-failure",
+      ],
+    );
+  });
+
+  it("uses summary-stable ids for null-line findings even when not ambiguous", () => {
+    const root = makeTempProject();
+    const source = JSON.parse(
+      readFileSync(join(FIXTURE_DIR, `${FIXTURE_IDS.april29}.json`), "utf-8"),
+    );
+    source.findings = [
+      {
+        ...source.findings[0],
+        type: "framework_flaw",
+        file: ".goat-flow/config.yaml",
+        line: null,
+        summary: "Aggregate audit hides configured Codex failure",
+      },
+    ];
+    writeFileSync(
+      join(
+        root,
+        ".goat-flow",
+        "logs",
+        "quality",
+        "2026-05-05-2010-claude-ccccc.json",
+      ),
+      `${JSON.stringify(source, null, 2)}\n`,
+      "utf-8",
+    );
+
+    const history = loadQualityHistory(root);
+    assert.deepEqual(history.warnings, []);
+    assert.equal(
+      history.entries[0]!.report.findings[0]!.id,
+      "framework_flaw:goat-flow-config-yaml:_:aggregate-audit-hides-configured-codex-failure",
+    );
+  });
 });
 
 describe("buildQualityHistoryRows", () => {
@@ -245,6 +324,72 @@ describe("buildQualityDiff", () => {
       renderQualityDiffText(secondDiff.diff),
       /Stuck counter resets on history gaps/i,
     );
+  });
+
+  it("persists a null-line finding when duplicate count changes between reports", () => {
+    const root = makeTempProject();
+    const first = JSON.parse(
+      readFileSync(join(FIXTURE_DIR, `${FIXTURE_IDS.april29}.json`), "utf-8"),
+    );
+    const second = JSON.parse(JSON.stringify(first));
+    const shared = {
+      ...first.findings[0],
+      type: "framework_flaw",
+      file: "AGENTS.md",
+      line: null,
+      summary: "First null-line finding",
+    };
+    const sibling = {
+      ...first.findings[0],
+      type: "framework_flaw",
+      file: "AGENTS.md",
+      line: null,
+      summary: "Second null-line finding",
+    };
+    first.findings = [shared, sibling];
+    second.findings = [shared];
+    second.run_date = "2026-05-06";
+
+    writeFileSync(
+      join(
+        root,
+        ".goat-flow",
+        "logs",
+        "quality",
+        "2026-05-05-1000-claude-aaaaa.json",
+      ),
+      `${JSON.stringify(first, null, 2)}\n`,
+      "utf-8",
+    );
+    writeFileSync(
+      join(
+        root,
+        ".goat-flow",
+        "logs",
+        "quality",
+        "2026-05-06-1000-claude-bbbbb.json",
+      ),
+      `${JSON.stringify(second, null, 2)}\n`,
+      "utf-8",
+    );
+
+    const history = loadQualityHistory(root);
+    const diff = buildQualityDiff(history.entries, {
+      agent: "claude",
+      pair: "2026-05-05-1000-claude-aaaaa:2026-05-06-1000-claude-bbbbb",
+    });
+
+    assert.equal(diff.ok, true);
+    if (!diff.ok) return;
+    assert.deepEqual(
+      diff.diff.persisted.map((row) => row.id),
+      ["framework_flaw:agents-md:_:first-null-line-finding"],
+    );
+    assert.deepEqual(
+      diff.diff.resolved.map((row) => row.id),
+      ["framework_flaw:agents-md:_:second-null-line-finding"],
+    );
+    assert.equal(diff.diff.newFindings.length, 0);
   });
 
   it("rejects cross-agent pairs", () => {

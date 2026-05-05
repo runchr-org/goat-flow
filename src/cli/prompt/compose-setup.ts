@@ -484,7 +484,8 @@ export function composeSetup(
   if (
     projectState.state === "bare" ||
     projectState.state === "partial" ||
-    projectState.state === "error"
+    projectState.state === "error" ||
+    projectState.action === "incomplete"
   ) {
     return renderFullSetup(facts, agentId);
   }

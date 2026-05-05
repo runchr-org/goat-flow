@@ -37,6 +37,7 @@ interface DurationStats {
 
 interface DashboardServerHandle {
   port: number;
+  url: string;
   close: () => Promise<void>;
 }
 
@@ -120,8 +121,13 @@ function runCli(args: string[]): string {
   return result.stdout;
 }
 
-async function fetchOk(baseUrl: string, path: string): Promise<Response> {
+async function fetchOk(
+  baseUrl: string,
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
   const res = await fetch(`${baseUrl}${path}`, {
+    ...init,
     signal: AbortSignal.timeout(5_000),
   });
   assert.equal(res.status, 200, `${path} should return HTTP 200`);
@@ -164,6 +170,7 @@ describe("performance: cli", { skip: PERF_SKIP }, () => {
 describe("performance: dashboard", { skip: PERF_SKIP }, () => {
   let server: DashboardServerHandle | undefined;
   let baseUrl = "";
+  let dashboardToken = "";
   let startupMs = 0;
 
   before(async () => {
@@ -174,6 +181,7 @@ describe("performance: dashboard", { skip: PERF_SKIP }, () => {
     server = await serveDashboard({ projectPath: PROJECT_ROOT });
     startupMs = performance.now() - start;
     baseUrl = `http://127.0.0.1:${server.port}`;
+    dashboardToken = new URL(server.url).searchParams.get("token") ?? "";
     console.log(`dashboard startup: ${startupMs.toFixed(1)}ms`);
   });
 
@@ -207,7 +215,9 @@ describe("performance: dashboard", { skip: PERF_SKIP }, () => {
       "dashboard GET /api/health",
       { warmups: 2, samples: 20 },
       async () => {
-        const res = await fetchOk(baseUrl, "/api/health");
+        const res = await fetchOk(baseUrl, "/api/health", {
+          headers: { "X-Goat-Flow-Dashboard-Token": dashboardToken },
+        });
         assert.match(res.headers.get("content-type") ?? "", /json/i);
         const body = (await res.json()) as { uptime?: unknown };
         assert.equal(typeof body.uptime, "number");

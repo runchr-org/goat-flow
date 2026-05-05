@@ -87,9 +87,7 @@ const sessionLogs: HarnessCheck = {
   /** Run the Session logs directory check. */
   run: (ctx) => {
     const logsDir = ".goat-flow/logs/sessions";
-    try {
-      ctx.fs.listDir(logsDir);
-    } catch {
+    if (!ctx.fs.exists(logsDir)) {
       return fail(
         ["No session logs directory"],
         ["Create .goat-flow/logs/sessions/ directory"],
@@ -98,6 +96,7 @@ const sessionLogs: HarnessCheck = {
         ],
       );
     }
+    ctx.fs.listDir(logsDir);
     return pass(["Session logs directory exists"]);
   },
 };

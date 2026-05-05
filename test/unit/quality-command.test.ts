@@ -671,6 +671,23 @@ describe("quality payload contract", () => {
     assert.ok(typeof result.prompt === "string", "prompt should be string");
     assert.ok(result.prompt.length > 0, "prompt should not be empty");
   });
+
+  it("describes lean config as valid without requiring line-limits", () => {
+    const result = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/test-project",
+      auditReport: null,
+    });
+
+    assert.match(
+      result.prompt,
+      /minimal valid config: version, agents, skills/i,
+    );
+    assert.doesNotMatch(
+      result.prompt,
+      /should have version, agents, skills, line-limits/i,
+    );
+  });
 });
 
 describe("quality CLI output contract", () => {

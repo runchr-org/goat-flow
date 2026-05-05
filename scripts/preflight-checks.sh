@@ -1249,6 +1249,20 @@ else
     done
 fi
 
+# ── Package README Links ─────────────────────────────────────────────
+section "Package README Links"
+if [[ -f scripts/check-package-readme-links.mjs ]]; then
+    package_link_output=$(node scripts/check-package-readme-links.mjs 2>&1) && package_link_exit=0 || package_link_exit=$?
+    if [[ "$package_link_exit" -eq 0 ]]; then
+        pass "$package_link_output"
+    else
+        fail "Package README link check failed (exit $package_link_exit)"
+        echo "$package_link_output" | head -10 | sed 's/^/    /'
+    fi
+else
+    skip "Package README link check (scripts/check-package-readme-links.mjs missing)"
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────
 # Print elapsed time for the last section
 echo -e "  ${DIM}($(fmt_elapsed $(( $(now_ms) - section_start ))))${RST}"

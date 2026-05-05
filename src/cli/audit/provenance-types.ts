@@ -42,6 +42,10 @@ export interface CheckEvidence {
   normative_level: NormativeLevel;
   /** Optional repo-local paths (e.g. `.goat-flow/footguns/...`, session log) that back the check. */
   evidence_paths?: string[];
+  /** Evidence paths that resolve against the goat-flow framework/package, not the audited target project. */
+  framework_evidence_paths?: string[];
+  /** Evidence paths that resolve against the audited target project. */
+  target_evidence_paths?: string[];
   /**
    * Required when `source_type === "unknown"`. Explains why the provenance
    * can't be reconstructed. The type system does not enforce this because
@@ -72,6 +76,12 @@ function checkSourceRequired(e: CheckEvidence): string | null {
   if (e.source_type === "unknown") return null;
   if (e.source_urls.length > 0) return null;
   if (e.evidence_paths && e.evidence_paths.length > 0) return null;
+  if (e.framework_evidence_paths && e.framework_evidence_paths.length > 0) {
+    return null;
+  }
+  if (e.target_evidence_paths && e.target_evidence_paths.length > 0) {
+    return null;
+  }
   return "non-unknown source_type must have at least one source_url or evidence_path";
 }
 
@@ -80,8 +90,12 @@ function checkEvidencePathsExist(
   e: CheckEvidence,
   pathExists: EvidencePathExists,
 ): string[] {
-  if (!e.evidence_paths) return [];
-  return e.evidence_paths
+  const paths = [
+    ...(e.evidence_paths ?? []),
+    ...(e.framework_evidence_paths ?? []),
+    ...(e.target_evidence_paths ?? []),
+  ];
+  return paths
     .filter((p) => !pathExists(p))
     .map((p) => `evidence_path does not exist: ${p}`);
 }

@@ -5,8 +5,9 @@
  * shared report contract does not expose stack-derived fields.
  */
 import type { ProjectFacts, ReadonlyFS, AgentId, StackInfo } from "../types.js";
+import { KNOWN_AGENT_IDS } from "../types.js";
 import type { LoadedConfig } from "../config/types.js";
-import { detectAgents } from "../detect/agents.js";
+import { detectAgents, PROFILES } from "../detect/agents.js";
 import { detectStack } from "../detect/project-stack.js";
 import { extractSharedFacts } from "./shared/index.js";
 import { extractAgentFacts } from "./agent/index.js";
@@ -24,6 +25,13 @@ interface ExtractOptions {
   includeStack?: boolean;
   /** Optional development/test profiler for extraction timing. */
   profile?: FactExtractionProfiler;
+}
+
+const KNOWN_AGENT_SET = new Set<string>(KNOWN_AGENT_IDS);
+
+/** Return true when a config string names a supported agent profile. */
+function isAgentId(id: string): id is AgentId {
+  return KNOWN_AGENT_SET.has(id);
 }
 
 function span<T>(
@@ -66,8 +74,9 @@ export function extractProjectFacts(
   // Otherwise, config.yaml can narrow an auto-detected project to the supported agents
   // the project has chosen to manage with goat-flow.
   else if (options.configState.config.agents) {
-    const configured = new Set(options.configState.config.agents);
-    agents = agents.filter((a) => configured.has(a.id));
+    agents = options.configState.config.agents
+      .filter(isAgentId)
+      .map((id) => PROFILES[id]);
   }
 
   /** Detected technology stack (language, framework, etc.) */

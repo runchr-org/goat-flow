@@ -119,6 +119,7 @@ evaluation/                # Quality-assessment prompt templates
 bump-version.sh            # Bump package version across package.json, config.yaml, and skill templates
 check-markdown-links.sh    # Verify relative markdown links resolve across docs
 check-instruction-parity.mjs # Verify instruction files share the required contract
+check-package-readme-links.mjs # Verify README-relative links resolve inside npm pack output
 check-path-integrity.sh    # Cross-reference path-integrity checks between docs and code
 check-versions.mjs         # Verify workflow/skills templates match package.json version
 dependency-install.sh      # Wrapper: npm install with guards

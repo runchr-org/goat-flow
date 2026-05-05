@@ -27,12 +27,20 @@ export interface CheckResult {
   id: string;
   name: string;
   status: "pass" | "fail" | "skipped";
+  /** UI-oriented status. Metric and acknowledged failures render as warnings, not hard failures. */
+  displayStatus: CheckDisplayStatus;
+  /** Whether this result affects audit status, concern score only, or neither. */
+  impact: CheckImpact;
   provenance: CheckEvidence;
   failure?: AuditFailure;
   /** Harness-check classification; absent for build checks. */
   type?: HarnessCheckType;
   /** True when an advisory failure is silenced by `harness.acknowledge` in config. */
   acknowledged?: boolean;
+  /** Evidence strength label for smoke checks that prove structure, not content semantics. */
+  evidenceKind?: CheckEvidenceKind;
+  /** Assurance label for checks that pass with a known platform limitation. */
+  assurance?: CheckAssurance;
 }
 
 export interface AuditScope {
@@ -59,7 +67,7 @@ export interface AuditConcern {
   advisoryFail: number;
   /** Count of failing advisory checks silenced by `harness.acknowledge`. */
   advisoryAcknowledged: number;
-  /** Count of metric checks (never scored, always informational). */
+  /** Count of metric checks (score-only; never fails concern status). */
   metrics: number;
 }
 
@@ -89,6 +97,14 @@ export interface AuditReport {
     status: "pass" | "fail";
   };
 }
+
+export type CheckDisplayStatus = "pass" | "fail" | "warn" | "info" | "skipped";
+
+export type CheckImpact = "none" | "scope-fail" | "score-only";
+
+export type CheckEvidenceKind = "semantic" | "structural";
+
+export type CheckAssurance = "full" | "limited";
 
 // === Drift check (M04) ===
 
@@ -181,6 +197,8 @@ export interface BuildCheck {
   name: string;
   scope: AuditScopeName;
   provenance: CheckEvidence;
+  /** Evidence strength label exposed to dashboard/detail renderers. */
+  evidenceKind?: CheckEvidenceKind;
   /** Optional context-specific provenance when one check covers per-agent rules. */
   provenanceFor?: (
     ctx: AuditContext,
@@ -211,6 +229,8 @@ export interface HarnessCheck {
   concern: AuditConcernKey;
   type: HarnessCheckType;
   provenance: CheckEvidence;
+  /** Evidence strength label exposed to dashboard/detail renderers. */
+  evidenceKind?: CheckEvidenceKind;
   /** True when the check reads `ctx.facts.stack` and must run only with full facts. */
   requiresStack?: boolean;
   run: (ctx: AuditContext) => HarnessCheckResult;
@@ -221,4 +241,8 @@ export interface HarnessCheckResult {
   findings: string[];
   recommendations: string[];
   howToFix?: string[];
+  /** Optional UI-oriented status override for passing limited-assurance checks. */
+  displayStatus?: CheckDisplayStatus;
+  /** Optional assurance label for checks that pass with caveats. */
+  assurance?: CheckAssurance;
 }

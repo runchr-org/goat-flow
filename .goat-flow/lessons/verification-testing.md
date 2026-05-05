@@ -1,6 +1,6 @@
 ---
 category: verification-testing
-last_reviewed: 2026-05-02
+last_reviewed: 2026-05-06
 ---
 
 ## Lesson: Formatter verification must preserve repo style flags
@@ -367,3 +367,14 @@ last_reviewed: 2026-05-02
 **Root cause:** I mixed live manifest facts with frozen release-snapshot facts. Snapshot tests are supposed to preserve historical release state, so current repo counts are the wrong source unless the current release snapshot itself is being updated.
 
 **Prevention:** Before editing `EXPECTED_RELEASE_SNAPSHOTS` or `workflow/manifest-snapshots/README.md`, read the matching versioned snapshot JSON files and copy their `snapshot_facts` values. Only update the current release snapshot after confirming the catalog/check change is intentionally part of that release. Evidence anchors: `test/unit/check-snapshot-claims.test.ts` (search: `EXPECTED_RELEASE_SNAPSHOTS`), `workflow/manifest-snapshots/v1.3.2.json` (search: `"checks_harness": 16`), `workflow/manifest-snapshots/v1.4.0.json` (search: `"presets_count": 26`).
+
+---
+## Lesson: Audit check tests should assert the public failure field
+
+**Status:** active | **Created:** 2026-05-06
+
+**What happened:** While tightening the execution-loop smoke check, the first focused `test/unit/audit-command.test.ts` run failed because the new regression asserted that `CheckResult.failure.message` would contain the raw finding text `inside the section`. The implementation was already failing the check correctly; `failure.message` exposed the public recommendation text (`Add READ, SCOPE, ACT, VERIFY steps under the "Execution Loop" heading...`) instead.
+
+**Root cause:** I wrote the test against an internal diagnostic phrase rather than the audit result field users and dashboard consumers actually receive.
+
+**Prevention:** For harness-audit regressions, assert the serialized/public `CheckResult` contract first: `status`, `displayStatus`, `impact`, `failure.message`, and `howToFix` when relevant. Only assert raw finding phrasing if that phrasing is intentionally part of the public contract. Evidence anchors: `src/cli/audit/audit.ts` (search: `Convert a harness check`), `test/unit/audit-command.test.ts` (search: `execution loop smoke check only accepts step words inside the section`).

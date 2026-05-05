@@ -2,6 +2,12 @@
 
 Launch: `npx goat-flow dashboard .` (or `npx goat-flow dashboard . --dev` for live reload)
 
+## Local Access Boundary
+
+The dashboard is a local privileged control plane. Each server process prints a URL containing an ephemeral token, injects that token into the browser boot payload, and clears it from the visible address bar after load. All `/api/*` requests and `/ws/terminal/:id` attaches require the current token; side-effectful HTTP routes also reject browser requests whose `Origin` is not the dashboard's own localhost origin. The token is process-local only and must not be written to dashboard state, terminal session metadata, localStorage, or PTY environment.
+
+Read-only browsing and audit routes may still inspect arbitrary local paths selected in the UI after token authorization. Side-effectful routes are guarded by the same token boundary, and terminal creation still validates that the requested project path is an existing directory.
+
 ## Views
 
 ### Home

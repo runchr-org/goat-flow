@@ -94,7 +94,7 @@ if (mode === "agent-profile") {
     hook_config_dst: hookConfigDst,
     deny_hook_dst:
       typeof agent.deny_hook === "string" ? agent.deny_hook : "",
-    config_agents: agentIds.join(","),
+    config_agents: agentId,
   };
 
   for (const [key, value] of Object.entries(entries)) {

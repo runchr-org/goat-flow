@@ -16,6 +16,7 @@ import {
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
+import { extractBacktickPaths } from "../../src/cli/audit/harness/helpers.js";
 import { AUDIT_VERSION, SKILL_NAMES } from "../../src/cli/constants.js";
 import { PROFILES } from "../../src/cli/detect/agents.js";
 import { composeSetup } from "../../src/cli/prompt/compose-setup.js";
@@ -243,6 +244,7 @@ function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
           staleRefs: [],
           invalidLineRefs: [],
           duplicateSurfacePaths: [],
+          buckets: [],
           totalRefs: 0,
           validRefs: 0,
           formatDiagnostic: null,
@@ -253,7 +255,9 @@ function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
           hasEntries: false,
           entryCount: 0,
           staleRefs: [],
+          invalidLineRefs: [],
           duplicateSurfacePaths: [],
+          buckets: [],
           formatDiagnostic: null,
           path: ".goat-flow/lessons/",
         },
@@ -793,6 +797,14 @@ describe("copilot install requires GitHub commit instructions", () => {
         (check) => check.id === "agent-instruction",
       )!;
       assert.ok(result.provenance.evidence_paths?.includes(instructionFile));
+      assert.ok(
+        result.provenance.framework_evidence_paths?.includes(
+          "workflow/manifest.json",
+        ),
+      );
+      assert.ok(
+        result.provenance.target_evidence_paths?.includes(instructionFile),
+      );
       assert.ok(
         !result.provenance.evidence_paths?.includes(
           "workflow/setup/agents/copilot.md",
@@ -1745,7 +1757,35 @@ describe("M01 scoring model", () => {
     assert.equal(secrets?.status, "pass");
   });
 
-  it("project test-command absence does not lower verification score", () => {
+  it("script-only secret coverage passes with limited assurance", () => {
+    const baseHooks = stubAgentFacts().hooks;
+    const hooks = {
+      ...baseHooks,
+      readDenyCoversSecrets: false,
+      bashDenyCoversSecrets: true,
+      denyBlocksPipeToShell: true,
+      denyRegisteredPath: PROFILES.copilot.denyHookFile,
+    } satisfies AgentFacts["hooks"];
+    const ctx = makeCtx({
+      agents: [stubAgentFacts({ agent: PROFILES.copilot, hooks })],
+    });
+    const { scope, concerns } = computeHarness(ctx);
+    const secrets = scope.checks.find((c) => c.id === "deny-covers-secrets");
+
+    assert.equal(secrets?.status, "pass");
+    assert.equal(secrets?.displayStatus, "info");
+    assert.equal(secrets?.impact, "none");
+    assert.equal(secrets?.assurance, "limited");
+    assert.equal(concerns.constraints.status, "pass");
+    assert.equal(concerns.constraints.score, 100);
+    assert.ok(
+      concerns.constraints.findings.some((finding) =>
+        finding.includes("settings/file-read deny is unavailable"),
+      ),
+    );
+  });
+
+  it("no post-turn hook metric lowers verification score without failing the concern", () => {
     const baseFacts = makeCtx().facts;
     const ctx = makeCtx({
       facts: {
@@ -1761,10 +1801,18 @@ describe("M01 scoring model", () => {
         },
       },
     });
-    const { concerns } = computeHarness(ctx);
+    const { scope, concerns } = computeHarness(ctx);
+    const metric = scope.checks.find(
+      (c) => c.id === "post-turn-hook-integrity",
+    )!;
+    assert.equal(metric.status, "fail");
+    assert.equal(metric.displayStatus, "warn");
+    assert.equal(metric.impact, "score-only");
+    assert.match(metric.failure?.evidence ?? "", /Metric/);
     assert.equal(concerns.verification.metrics, 1);
     assert.equal(concerns.verification.advisoryFail, 0);
-    assert.equal(concerns.verification.score, 100);
+    assert.equal(concerns.verification.status, "pass");
+    assert.equal(concerns.verification.score, 67);
   });
 
   it("CheckResult carries type, acknowledged, and provenance fields", () => {
@@ -1784,11 +1832,22 @@ describe("M01 scoring model", () => {
     )!;
     assert.equal(advisory.type, "advisory");
     assert.equal(advisory.acknowledged, true);
+    assert.equal(advisory.displayStatus, "warn");
+    assert.equal(advisory.impact, "score-only");
     assert.equal(advisory.provenance.normative_level, "SHOULD");
     const docs = scope.checks.find((c) => c.id === "doc-paths-resolve")!;
     assert.equal(docs.type, "integrity");
     assert.equal(docs.acknowledged, undefined);
+    assert.equal(docs.displayStatus, "pass");
+    assert.equal(docs.impact, "none");
+    assert.equal(docs.evidenceKind, "structural");
     assert.equal(docs.provenance.normative_level, "MUST");
+    assert.ok(
+      docs.provenance.framework_evidence_paths?.includes(
+        "docs/harness-audit.md",
+      ),
+      "framework evidence paths should be labelled separately from target paths",
+    );
   });
 
   it("advisory failure emits WHY-not-integrity evidence with the check id", () => {
@@ -2101,13 +2160,75 @@ describe("composeSetup routing", () => {
     }
   });
 
+  it("routes current-but-incomplete installs to the full setup workflow", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        `version: "${AUDIT_VERSION}"\nagents:\n  - codex\nskills:\n  install: all\n`,
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-preamble.md",
+        "# Preamble\n",
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-conventions.md",
+        "# Conventions\n",
+      );
+      for (const skill of SKILL_NAMES) {
+        await writeProjectFile(root, `.agents/skills/${skill}/SKILL.md`, "#\n");
+      }
+    });
+
+    try {
+      const output = composeSetup(
+        makeAuditReport(project.root, "fail", [], [
+          {
+            id: "agent-instruction",
+            name: "Agent instruction file",
+            status: "fail",
+            failure: {
+              check: "Agent instruction file",
+              message: "Missing: codex (AGENTS.md)",
+            },
+          },
+        ]),
+        makeProjectFacts(project.root, []),
+        "codex",
+      );
+
+      assert.ok(output, "composeSetup should return setup guidance");
+      assert.match(output, /Create project-specific content/);
+      assert.match(output, /workflow\/setup\//);
+      assert.doesNotMatch(output, /audit checks failed/);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
   it("can render dashboard setup prompts from harness-card scope", async () => {
     const project = await makeTempProject(async (root) => {
       await writeProjectFile(
         root,
         ".goat-flow/config.yaml",
-        `version: "${AUDIT_VERSION}"\n`,
+        `version: "${AUDIT_VERSION}"\nagents:\n  - codex\nskills:\n  install: all\n`,
       );
+      await writeProjectFile(root, "AGENTS.md", "# Codex\n");
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-preamble.md",
+        "# Preamble\n",
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-conventions.md",
+        "# Conventions\n",
+      );
+      for (const skill of SKILL_NAMES) {
+        await writeProjectFile(root, `.agents/skills/${skill}/SKILL.md`, "#\n");
+      }
     });
 
     try {
@@ -2156,8 +2277,22 @@ describe("composeSetup routing", () => {
       await writeProjectFile(
         root,
         ".goat-flow/config.yaml",
-        `version: "${AUDIT_VERSION}"\n`,
+        `version: "${AUDIT_VERSION}"\nagents:\n  - codex\nskills:\n  install: all\n`,
       );
+      await writeProjectFile(root, "AGENTS.md", "# Codex\n");
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-preamble.md",
+        "# Preamble\n",
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/skill-reference/skill-conventions.md",
+        "# Conventions\n",
+      );
+      for (const skill of SKILL_NAMES) {
+        await writeProjectFile(root, `.agents/skills/${skill}/SKILL.md`, "#\n");
+      }
     });
 
     try {
@@ -2348,5 +2483,294 @@ describe("composeSetup routing", () => {
     } finally {
       await project.cleanup();
     }
+  });
+});
+
+describe("setup check dependency status", () => {
+  it("skips config-version when config.yaml is missing", async () => {
+    const project = await makeTempProject(async () => {});
+    try {
+      const report = runAudit(createFS(project.root), project.root, {
+        agentFilter: null,
+        harness: false,
+      });
+      const check = report.scopes.setup.checks.find(
+        (entry) => entry.id === "config-version",
+      );
+
+      assert.equal(check?.status, "skipped");
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("fails dependent per-agent checks when the primary instruction file is missing", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        `version: "${AUDIT_VERSION}"\nagents:\n  - gemini\n`,
+      );
+    });
+    try {
+      const report = runAudit(createFS(project.root), project.root, {
+        agentFilter: "gemini",
+        harness: false,
+      });
+      const statuses = Object.fromEntries(
+        report.scopes.agent.checks.map((entry) => [entry.id, entry.status]),
+      );
+
+      assert.equal(statuses["agent-instruction"], "fail");
+      assert.equal(statuses["agent-skills"], "fail");
+      assert.equal(statuses["agent-settings"], "fail");
+      assert.equal(statuses["agent-deny-dangerous"], "fail");
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("aggregate audit fails when config declares an agent with no instruction file", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        `version: "${AUDIT_VERSION}"\nagents:\n  - claude\n  - codex\nskills:\n  install: all\n`,
+      );
+      await writeProjectFile(root, "CLAUDE.md", "# CLAUDE.md\n");
+    });
+    try {
+      const report = runAudit(createFS(project.root), project.root, {
+        agentFilter: null,
+        harness: false,
+      });
+      const instruction = report.scopes.agent.checks.find(
+        (entry) => entry.id === "agent-instruction",
+      );
+
+      assert.equal(report.scopes.agent.status, "fail");
+      assert.equal(instruction?.status, "fail");
+      assert.match(
+        instruction?.failure?.message ?? "",
+        /Configured agent instruction files missing: codex \(AGENTS\.md\)/,
+      );
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("aggregate audit names every missing configured agent in a declared-four partial install", async () => {
+    const project = await makeTempProject(async (root) => {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        `version: "${AUDIT_VERSION}"\nagents:\n  - claude\n  - codex\n  - gemini\n  - copilot\nskills:\n  install: all\n`,
+      );
+      await writeProjectFile(root, "CLAUDE.md", "# CLAUDE.md\n");
+    });
+    try {
+      const report = runAudit(createFS(project.root), project.root, {
+        agentFilter: null,
+        harness: false,
+      });
+      const instruction = report.scopes.agent.checks.find(
+        (entry) => entry.id === "agent-instruction",
+      );
+      const message = instruction?.failure?.message ?? "";
+
+      assert.equal(instruction?.status, "fail");
+      assert.match(message, /codex \(AGENTS\.md\)/);
+      assert.match(message, /gemini \(GEMINI\.md\)/);
+      assert.match(message, /copilot \(\.github\/copilot-instructions\.md\)/);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("bare aggregate audit does not pass agent scope or claim skills are installed", async () => {
+    const project = await makeTempProject(async () => {});
+    try {
+      const report = runAudit(createFS(project.root), project.root, {
+        agentFilter: null,
+        harness: false,
+      });
+      const instruction = report.scopes.agent.checks.find(
+        (entry) => entry.id === "agent-instruction",
+      );
+
+      assert.equal(report.status, "fail");
+      assert.equal(report.scopes.agent.status, "fail");
+      assert.equal(instruction?.status, "fail");
+      assert.match(
+        instruction?.failure?.message ?? "",
+        /No configured agents or agent instruction files found/,
+      );
+      assert.equal(
+        report.scopes.setup.summary.skills,
+        `0/${SKILL_NAMES.length} installed (no configured agents)`,
+      );
+    } finally {
+      await project.cleanup();
+    }
+  });
+});
+
+describe("harness signal honesty", () => {
+  it("doc path extraction ignores npm scopes and home paths but keeps repo paths", () => {
+    assert.deepEqual(
+      extractBacktickPaths(
+        "`@halaxy/theme` `@vendia/serverless-express` `~/.local/bin` `HL7/FHIR` `.goat-flow/code-map.md` `docs/missing.md` `README.md:1`",
+      ),
+      [".goat-flow/code-map.md", "docs/missing.md", "README.md:1"],
+    );
+  });
+
+  it("doc-paths-resolve scans glossary paths without failing on external glossary tokens", () => {
+    const check = HARNESS_CHECKS.find((c) => c.id === "doc-paths-resolve")!;
+    const result = check.run(
+      makeCtx({
+        fs: stubFS({
+          readFile: (path) => {
+            if (path === ".goat-flow/architecture.md")
+              return "# Architecture\n";
+            if (path === ".goat-flow/glossary.md") {
+              return [
+                "# Glossary",
+                "",
+                "| Term | Canonical File |",
+                "|------|----------------|",
+                "| Theme package | `@halaxy/theme` |",
+                "| FHIR shorthand | `HL7/FHIR` |",
+                "| OAuth matcher | `src/Security/OAuthRequestMatcher.php` |",
+                "| Missing owner | `missing/path.md` |",
+              ].join("\n");
+            }
+            return null;
+          },
+          exists: (path) => path !== "missing/path.md",
+        }),
+      }),
+    );
+
+    assert.equal(result.status, "fail");
+    assert.deepEqual(result.findings, [
+      "All 0 architecture.md path references resolve",
+      ".goat-flow/glossary.md: unresolved `missing/path.md`",
+    ]);
+  });
+
+  it("doc-paths-resolve rejects path-line references even when the base file exists", () => {
+    const check = HARNESS_CHECKS.find((c) => c.id === "doc-paths-resolve")!;
+    const result = check.run(
+      makeCtx({
+        fs: stubFS({
+          readFile: (path) => {
+            if (path === ".goat-flow/architecture.md")
+              return "# Architecture\n";
+            if (path === ".goat-flow/glossary.md") {
+              return [
+                "# Glossary",
+                "",
+                "| Term | Canonical File |",
+                "|------|----------------|",
+                "| Audit | `src/cli/audit/types.ts:6` |",
+              ].join("\n");
+            }
+            return null;
+          },
+          exists: (path) => path === "src/cli/audit/types.ts",
+        }),
+      }),
+    );
+
+    assert.equal(result.status, "fail");
+    assert.deepEqual(result.findings, [
+      "All 0 architecture.md path references resolve",
+      ".goat-flow/glossary.md: line-number path `src/cli/audit/types.ts:6` is brittle; use `src/cli/audit/types.ts` plus a semantic anchor",
+    ]);
+  });
+
+  it("doc-paths-resolve rejects root-level path-line references", () => {
+    const check = HARNESS_CHECKS.find((c) => c.id === "doc-paths-resolve")!;
+    const result = check.run(
+      makeCtx({
+        fs: stubFS({
+          readFile: (path) => {
+            if (path === ".goat-flow/architecture.md") {
+              return "# Architecture\n\nSee `README.md:1`.\n";
+            }
+            if (path === ".goat-flow/glossary.md") return "# Glossary\n";
+            if (path === "README.md") return "# Project\n";
+            return null;
+          },
+          exists: (path) => path === "README.md",
+        }),
+      }),
+    );
+
+    assert.equal(result.status, "fail");
+    assert.deepEqual(result.findings, [
+      ".goat-flow/architecture.md: line-number path `README.md:1` is brittle; use `README.md` plus a semantic anchor",
+    ]);
+  });
+
+  it("execution loop smoke check only accepts step words inside the section", () => {
+    const instruction = [
+      "# Agent",
+      "",
+      "READ SCOPE ACT VERIFY",
+      "",
+      "## Execution Loop",
+      "",
+      "This section exists but does not define the loop steps.",
+    ].join("\n");
+    const agent = stubAgentFacts();
+    const ctx = makeCtx({
+      agents: [
+        {
+          ...agent,
+          instruction: {
+            ...agent.instruction,
+            content: instruction,
+            lineCount: instruction.split(/\r?\n/u).length,
+          },
+        },
+      ],
+    });
+    const { scope } = computeHarness(ctx);
+    const check = scope.checks.find(
+      (entry) => entry.id === "execution-loop-present",
+    );
+
+    assert.equal(check?.status, "fail");
+    assert.match(
+      check?.failure?.message ?? "",
+      /under the "Execution Loop" heading/,
+    );
+  });
+
+  it("feedback-loop harness fails on invalid line refs", () => {
+    const facts = makeCtx().facts;
+    const ctx = makeCtx({
+      facts: {
+        ...facts,
+        shared: {
+          ...facts.shared,
+          footguns: {
+            ...facts.shared.footguns,
+            invalidLineRefs: ["src/auth.ts:999 (missing semantic anchor)"],
+            buckets: [],
+          },
+        },
+      },
+    });
+    const { concerns, scope } = computeHarness(ctx);
+    const check = scope.checks.find(
+      (entry) => entry.id === "feedback-loop-active",
+    );
+
+    assert.equal(check?.status, "fail");
+    assert.equal(concerns.feedback_loop.status, "fail");
+    assert.match(check?.failure?.message ?? "", /invalid learning-loop/);
   });
 });

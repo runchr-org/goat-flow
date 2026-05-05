@@ -203,7 +203,11 @@ async function timeAsync(label, fn) {
   };
 }
 
-async function fetchAudit(baseUrl, projectPath, fresh) {
+function dashboardToken(server) {
+  return new URL(server.url).searchParams.get("token") ?? "";
+}
+
+async function fetchAudit(baseUrl, token, projectPath, fresh) {
   const params = new URLSearchParams({
     path: projectPath,
     quality: "true",
@@ -211,7 +215,9 @@ async function fetchAudit(baseUrl, projectPath, fresh) {
   });
   if (fresh) params.set("fresh", "true");
   return timeAsync(fresh ? "endpoint fresh" : "endpoint cached", async () => {
-    const res = await fetch(`${baseUrl}/api/audit?${params.toString()}`);
+    const res = await fetch(`${baseUrl}/api/audit?${params.toString()}`, {
+      headers: { "X-Goat-Flow-Dashboard-Token": token },
+    });
     const text = await res.text();
     const body = JSON.parse(text);
     return {
@@ -325,8 +331,11 @@ async function runAgentCountComparison(serveDashboard, fileCount) {
     const server = await serveDashboard({ projectPath, dev: true });
     try {
       const baseUrl = `http://127.0.0.1:${server.port}`;
-      await fetch(`${baseUrl}/api/health`);
-      const result = await fetchAudit(baseUrl, projectPath, true);
+      const token = dashboardToken(server);
+      await fetch(`${baseUrl}/api/health`, {
+        headers: { "X-Goat-Flow-Dashboard-Token": token },
+      });
+      const result = await fetchAudit(baseUrl, token, projectPath, true);
       console.log(
         `agent-count ${testCase.label}: configured=${testCase.agents.length} time=${result.durationMs}ms status=${result.value.status} cached=${result.value.cached} agentScores=${result.value.agentScores}`,
       );
@@ -440,12 +449,15 @@ async function main() {
   const server = await serveDashboard({ projectPath, dev: true });
   try {
     const baseUrl = `http://127.0.0.1:${server.port}`;
-    await fetch(`${baseUrl}/api/health`);
+    const token = dashboardToken(server);
+    await fetch(`${baseUrl}/api/health`, {
+      headers: { "X-Goat-Flow-Dashboard-Token": token },
+    });
     if (args.endpoint === "fresh" || args.endpoint === "both") {
-      printEndpointResult(await fetchAudit(baseUrl, projectPath, true));
+      printEndpointResult(await fetchAudit(baseUrl, token, projectPath, true));
     }
     if (args.endpoint === "cached" || args.endpoint === "both") {
-      printEndpointResult(await fetchAudit(baseUrl, projectPath, false));
+      printEndpointResult(await fetchAudit(baseUrl, token, projectPath, false));
     }
   } finally {
     await server.close();

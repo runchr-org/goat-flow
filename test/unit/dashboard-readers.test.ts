@@ -18,9 +18,38 @@ const READERS_PATH = resolve(
 
 type HelperContext = {
   readDashboardReport(value: unknown): {
+    scopes: {
+      setup: {
+        checks: {
+          status: string;
+          displayStatus: string;
+          impact: string;
+          type?: string;
+          acknowledged?: boolean;
+          evidenceKind?: string;
+          assurance?: string;
+          provenance: {
+            framework_evidence_paths?: string[];
+            target_evidence_paths?: string[];
+          };
+        }[];
+      };
+    };
     agentScores: {
       harness: {
-        checks: { status: string; type?: string }[];
+        checks: {
+          status: string;
+          displayStatus: string;
+          impact: string;
+          type?: string;
+          acknowledged?: boolean;
+          evidenceKind?: string;
+          assurance?: string;
+          provenance: {
+            framework_evidence_paths?: string[];
+            target_evidence_paths?: string[];
+          };
+        }[];
       } | null;
     }[];
   };
@@ -32,7 +61,10 @@ function loadHelpers(): HelperContext {
     compilerOptions: { target: ScriptTarget.ES2023 },
   }).outputText;
   const context = createContext({
+    URL,
     window: {
+      location: { href: "http://127.0.0.1:1234/?token=test-token" },
+      history: { replaceState: () => undefined },
       __GOAT_FLOW_RUNNER_IDS__: ["claude"],
       __GOAT_FLOW_REPORT__: null,
       __GOAT_FLOW_AGENTS__: [{ id: "claude", name: "Claude Code" }],
@@ -59,8 +91,9 @@ function provenance(): Record<string, unknown> {
 
 function check(
   id: string,
-  status: "pass" | "fail",
+  status: "pass" | "fail" | "skipped",
   type: "integrity" | "advisory" | "metric",
+  extra: Record<string, unknown> = {},
 ): Record<string, unknown> {
   return {
     id,
@@ -68,6 +101,7 @@ function check(
     status,
     type,
     provenance: provenance(),
+    ...extra,
   };
 }
 
@@ -83,7 +117,41 @@ function scope(
 }
 
 describe("dashboard payload readers", () => {
-  it("preserves harness check type so metric failures do not lower UI scores", () => {
+  it("preserves skipped setup checks so Home totals match the audit API", () => {
+    const helpers = loadHelpers();
+
+    const report = helpers.readDashboardReport({
+      status: "fail",
+      target: "/repo",
+      overall: { status: "fail" },
+      scopes: {
+        setup: {
+          status: "fail",
+          checks: [
+            check("config-parses", "fail", "integrity"),
+            check("config-version", "skipped", "integrity", {
+              displayStatus: "skipped",
+              impact: "none",
+            }),
+          ],
+          failures: [],
+          summary: {},
+        },
+        agent: scope(),
+        harness: scope(),
+      },
+      learningLoop: null,
+      recentLessons: [],
+      agentScores: [],
+    });
+
+    assert.deepEqual(
+      report.scopes.setup.checks.map((entry) => entry.status),
+      ["fail", "skipped"],
+    );
+  });
+
+  it("preserves harness check type so metric failures can be shown as non-gating score evidence", () => {
     const helpers = loadHelpers();
 
     const report = helpers.readDashboardReport({
@@ -104,8 +172,25 @@ describe("dashboard payload readers", () => {
           agent: scope(),
           harness: scope([
             check("integrity-ok", "pass", "integrity"),
-            check("advisory-ok", "pass", "advisory"),
-            check("metric-info", "fail", "metric"),
+            check("limited-pass", "pass", "integrity", {
+              displayStatus: "info",
+              assurance: "limited",
+              provenance: {
+                ...provenance(),
+                framework_evidence_paths: ["docs/harness-audit.md"],
+                target_evidence_paths: ["CLAUDE.md"],
+              },
+            }),
+            check("advisory-ack", "fail", "advisory", {
+              acknowledged: true,
+              displayStatus: "warn",
+              impact: "score-only",
+            }),
+            check("metric-info", "fail", "metric", {
+              displayStatus: "warn",
+              impact: "score-only",
+              evidenceKind: "structural",
+            }),
           ]),
           concerns: null,
         },
@@ -115,15 +200,31 @@ describe("dashboard payload readers", () => {
     const checks = report.agentScores[0]?.harness?.checks ?? [];
     assert.deepEqual(
       checks.map((entry) => entry.type),
-      ["integrity", "advisory", "metric"],
+      ["integrity", "integrity", "advisory", "metric"],
     );
+    assert.deepEqual(
+      checks.map((entry) => entry.displayStatus),
+      ["pass", "info", "warn", "warn"],
+    );
+    assert.deepEqual(
+      checks.map((entry) => entry.impact),
+      ["none", "none", "score-only", "score-only"],
+    );
+    assert.equal(checks[1]?.assurance, "limited");
+    assert.deepEqual(checks[1]?.provenance.framework_evidence_paths, [
+      "docs/harness-audit.md",
+    ]);
+    assert.deepEqual(checks[1]?.provenance.target_evidence_paths, [
+      "CLAUDE.md",
+    ]);
+    assert.equal(checks[2]?.acknowledged, true);
+    assert.equal(checks[3]?.evidenceKind, "structural");
 
-    const scored = checks.filter((entry) => entry.type !== "metric");
     const score = Math.round(
-      (scored.filter((entry) => entry.status === "pass").length /
-        scored.length) *
+      (checks.filter((entry) => entry.status === "pass").length /
+        checks.length) *
         100,
     );
-    assert.equal(score, 100);
+    assert.equal(score, 50);
   });
 });

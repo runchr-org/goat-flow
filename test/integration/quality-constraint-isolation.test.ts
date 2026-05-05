@@ -58,10 +58,12 @@ describe("quality constraint isolation", () => {
 
     const server = await serveDashboard({ projectPath: PROJECT_PATH });
     try {
+      const token = new URL(server.url).searchParams.get("token") ?? "";
       const res = await fetch(
         `http://127.0.0.1:${server.port}/api/audit?path=${encodeURIComponent(
           PROJECT_PATH,
         )}&quality=true`,
+        { headers: { "X-Goat-Flow-Dashboard-Token": token } },
       );
       assert.equal(res.status, 200);
       assert.equal(spawnCalls, 0);

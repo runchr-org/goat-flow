@@ -1,4 +1,4 @@
-# Copilot Instructions - v1.4.3 (2026-05-04)
+# Copilot Instructions - v1.5.0 (2026-05-04)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash scripts + TypeScript CLI auditor.
 
 goat-flow is a harness — guardrails, memory, and workflows for AI coding agents. Five concerns drive every design decision: **Context** (what you read), **Constraints** (what you may never do), **Verification** (how work is checked), **Recovery** (how state survives failure), **Feedback loop** (how mistakes become permanent fixes).
@@ -63,7 +63,7 @@ Three signals before acting: (1) Intent: question → answer it, directive → a
 ### ACT
 MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
 
-Modes: Plan = artifact only unless writes approved; Implement = edit in 2-3 turns, 4th read without writing means checkpoint; Explain = no changes unless asked; Debug = diagnosis with file:line before fixes; Review = investigate first, never blindly apply suggestions.
+Modes: Plan = artifact only unless writes approved; Implement = edit in 2-3 turns, 4th read without writing means checkpoint; Explain = no changes unless asked; Debug = diagnosis with file + semantic anchor before fixes; Review = investigate first, never blindly apply suggestions.
 
 ### VERIFY
 MUST run `shellcheck` on .sh changes. MUST check cross-references after renames. If working from a plan/milestone file, MUST tick `- [x]` on each task as it's completed - not at the end.

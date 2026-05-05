@@ -1,17 +1,17 @@
 ---
 category: dashboard-testing
-last_reviewed: 2026-05-02
+last_reviewed: 2026-05-06
 ---
 
 ## Lesson: Dashboard readers must preserve fields used by score logic
 
 **Status:** active | **Created:** 2026-05-01
 
-**What happened:** The Home, Quality, and Setup pages showed every harness concern at 100 and "All checks passing", but still showed each agent at 94%. The API payload correctly marked `test-runner-configured` as a failing `metric` check, which should not lower dashboard percentages.
+**What happened:** The Home, Quality, and Setup pages showed every harness concern at 100 and "All checks passing", but still showed each agent at 94%. The API payload correctly marked `test-runner-configured` as a failing `metric` check, but the dashboard reader dropped the field that lets views treat metric evidence differently from ordinary audit failures.
 
-**Root cause:** The browser-side dashboard reader dropped `check.type` when decoding `/api/audit` payloads. The view code filtered `check.type !== 'metric'`, but missing `type` made every metric look scoreable.
+**Root cause:** The browser-side dashboard reader dropped `check.type` when decoding `/api/audit` payloads. Later, the opposite bug appeared in the view layer: filtering metrics out of dashboard percentages hid score-only verification gaps and restored misleading 100% headlines.
 
-**Prevention:** When dashboard views derive percentages from API fields, add a browser-reader regression that proves the reader preserves those fields. Browser evidence must check both summary cards and concern rows because those are separate computations. Verify the rendered dashboard against the built `dist/` assets, not source only. Evidence anchors: `src/dashboard/dashboard-readers.ts` (search: `value.type === "metric"`), `test/unit/dashboard-readers.test.ts` (search: `metric failures do not lower UI scores`).
+**Prevention:** When dashboard views derive percentages from API fields, add a regression that proves both the reader and the rendered summary preserve score-only warnings. Browser evidence must check summary cards, concern rows, and the "All checks passing" label because those are separate computations. Verify the rendered dashboard against the built `dist/` assets, not source only. Evidence anchors: `src/dashboard/dashboard-readers.ts` (search: `value.type === "metric"`), `test/unit/dashboard-readers.test.ts` (search: `preserves harness check type so metric failures can be shown as non-gating score evidence`), `test/unit/dashboard-home.test.ts` (search: `surfaces score-only metric warnings`).
 
 ---
 
