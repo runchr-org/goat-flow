@@ -19,6 +19,15 @@ What do you want to do?
   5. Show project status
 ```
 
+**Install locally (optional)**
+
+```bash
+npm install --save-dev @blundergoat/goat-flow    # npm
+pnpm add -D @blundergoat/goat-flow               # pnpm
+```
+
+For the dashboard's embedded terminal, you'll need `node-pty` to compile. See [Troubleshooting](#troubleshooting) if the terminal doesn't appear.
+
 ## Dashboard views
 
 ![Dashboard](docs/assets/dashboard-preview.png)
@@ -122,15 +131,6 @@ Back on the Home view, click **Re-audit**. All checks should pass. The AI Harnes
 ### 5. Use a prompt
 
 Open the **Prompts** view, pick a workflow (code review, bug diagnosis, UI debugging with browser evidence, security assessment, test planning), and launch it in a terminal session. Each prompt invokes a structured `/goat-*` skill with phases and human gates.
-
-### Install locally (optional)
-
-```bash
-npm install --save-dev @blundergoat/goat-flow    # npm
-pnpm add -D @blundergoat/goat-flow               # pnpm
-```
-
-For the dashboard's embedded terminal, you'll need `node-pty` to compile. See [Troubleshooting](#troubleshooting) if the terminal doesn't appear.
 
 ## Multi-agent support
 
