@@ -1023,6 +1023,9 @@ export function createDashboardRouteHandlers(
       const configAgents = profiler.span("managed-agent resolution", () =>
         resolveDashboardManagedAgentIds(projectPath, fs),
       );
+      if (agentFilter !== null && !configAgents.includes(agentFilter)) {
+        configAgents.push(agentFilter);
+      }
       const auditFactProfile =
         agentFilter === null ? "dashboard-summary" : "full";
       const batch = profiler.span("runAuditBatch", () =>

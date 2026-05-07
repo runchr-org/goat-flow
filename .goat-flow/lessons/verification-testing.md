@@ -1,6 +1,6 @@
 ---
 category: verification-testing
-last_reviewed: 2026-05-06
+last_reviewed: 2026-05-08
 ---
 
 ## Lesson: Formatter verification must preserve repo style flags
@@ -311,6 +311,17 @@ last_reviewed: 2026-05-06
 **Root cause:** A `file://` URL is not representative enough for local browser evidence in this agent environment. The browser navigation can succeed while DOM/state capture is empty, which makes a false negative look like a page problem.
 
 **Prevention:** For local HTML/browser-use verification, serve the directory over localhost before opening the page. Treat `file://` empty DOM output as a verification-environment issue to rerun over HTTP before drawing conclusions. Evidence anchors: `workflow/skills/reference/browser-use.md` (search: `Local HTML shows an empty DOM`), `.goat-flow/skill-reference/browser-use.md` (search: `serve the directory over localhost`).
+
+---
+## Lesson: Temp cleanup must satisfy destructive-command hooks
+
+**Status:** active | **Created:** 2026-05-08
+
+**What happened:** While smoke-testing `scripts/install-browser-tools.sh` wrapper-guard behavior, a temp-directory cleanup command used `rm -rf "$tmpdir"`. The PreToolUse hook blocked the command with `BLOCKED: rm -r without safe scoping. Specify an explicit target path.` The smoke test had to be rerun with non-recursive cleanup: `rm -f "$tmpdir/browser-use"; rmdir "$tmpdir"`.
+
+**Root cause:** Treated a `mktemp` path as self-evidently safe, but the hook cannot prove variable-scoped recursive deletion is bounded.
+
+**Prevention:** For verification scratch space, prefer non-recursive cleanup (`rm -f` known files, then `rmdir`) or an explicit literal temp path pattern that satisfies the hook. Do not combine validation and variable-scoped `rm -rf` in the same command.
 
 ---
 ## Lesson: Hook regex edits need syntax probes before self-test fanout
