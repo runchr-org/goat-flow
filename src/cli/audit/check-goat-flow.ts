@@ -228,6 +228,7 @@ const architecture: BuildCheck = {
   id: "architecture",
   name: "Architecture",
   scope: "setup",
+  evidenceKind: "structural",
   provenance: setupSpecProvenance([
     "workflow/manifest.json",
     "workflow/setup/04-architecture-code-map.md",
@@ -249,6 +250,7 @@ const codeMap: BuildCheck = {
   id: "code-map",
   name: "Code map",
   scope: "setup",
+  evidenceKind: "structural",
   provenance: setupSpecProvenance([
     "workflow/manifest.json",
     "workflow/setup/04-architecture-code-map.md",
@@ -269,6 +271,7 @@ const glossary: BuildCheck = {
   id: "glossary",
   name: "Glossary",
   scope: "setup",
+  evidenceKind: "structural",
   provenance: setupSpecProvenance([
     "workflow/manifest.json",
     ".goat-flow/architecture.md",
@@ -533,9 +536,9 @@ const configVersionCurrent: BuildCheck = {
     ".goat-flow/config.yaml",
     "src/cli/constants.ts",
   ]),
+  skip: (ctx) => !ctx.config.exists || ctx.config.parseError !== null,
   /** Run the Config version check. */
   run: (ctx) => {
-    if (!ctx.config.exists) return null;
     const version = ctx.config.config.version;
     if (!version) {
       return {
@@ -548,7 +551,7 @@ const configVersionCurrent: BuildCheck = {
       return {
         check: "Config version",
         message: `Config version ${version} does not match current ${AUDIT_VERSION}`,
-        howToFix: `Update the version field in .goat-flow/config.yaml to "${AUDIT_VERSION}".`,
+        howToFix: `Run \`goat-flow install . --agent <id> --update-config-version\` or update the version field in .goat-flow/config.yaml to "${AUDIT_VERSION}".`,
       };
     }
     return null;

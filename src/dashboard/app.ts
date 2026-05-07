@@ -227,10 +227,10 @@ function app() {
       if (!agentPass) return { label: "Setup failing", color: "#f87171" };
       return { label: "Harness failing", color: "#fbbf24" };
     },
-    /** Convert one audit scope into a percentage, excluding metric-only checks. */
+    /** Convert one audit scope into a percentage, including score-only maturity checks. */
     auditScopePercent(scope: AuditScope | null | undefined): number | null {
       const checks = scope?.checks ?? [];
-      const scored = checks.filter((check) => check.type !== "metric");
+      const scored = checks.filter((check) => check.status !== "skipped");
       if (scored.length === 0) return null;
       const passed = scored.filter((check) => check.status === "pass").length;
       return Math.round((passed / scored.length) * 100);
@@ -258,6 +258,7 @@ function app() {
       if (score >= 90) return "A";
       if (score >= 80) return "B";
       if (score >= 70) return "C";
+      if (score >= 60) return "D";
       return "F";
     },
     setupTargetPercent(agentId: RunnerId): string {
@@ -803,7 +804,7 @@ function app() {
       this.toast = "";
       try {
         const freshParam = fresh ? "&fresh=true" : "";
-        const res = await fetch(
+        const res = await dashboardFetch(
           `/api/audit?path=${encodeURIComponent(this.projectPath)}&quality=true${freshParam}`,
         );
         if (!res.ok) throw new Error(`Server returned ${res.status}`);
@@ -842,7 +843,7 @@ function app() {
     },
     async fetchInstalledAgents(): Promise<boolean> {
       try {
-        const res = await fetch("/api/agents/installed");
+        const res = await dashboardFetch("/api/agents/installed");
         if (!res.ok) return false;
         const payload = readRecord(
           await res.json(),
@@ -919,7 +920,7 @@ function app() {
         this.projectPath === requestProjectPath &&
         this.activeRunner === requestAgent;
       try {
-        const res = await fetch(
+        const res = await dashboardFetch(
           `/api/quality/history?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestAgent)}&mode=agent-setup&limit=1`,
         );
         const payload = readRecord(await res.json(), "Home quality response");

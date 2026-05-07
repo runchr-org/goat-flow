@@ -59,7 +59,7 @@ Checks are grouped by **scope**:
 
 ### Harness mode (`--harness`)
 
-Adds 16 checks across the five harness concerns on top of the default build checks. These check AI harness completeness -- whether the project has the structures that make agents effective. Harness checks are deterministic but classified by type (see `HarnessCheckType` in `src/cli/audit/types.ts`): **integrity** (drift from install state - affects concern status), **advisory** (best practice - affects status unless the check id is listed in `harness.acknowledge` in `config.yaml`), and **metric** (workflow maturity signal - never affects status).
+Adds 16 checks across the five harness concerns on top of the default build checks. These check AI harness completeness -- whether the project has the structures that make agents effective. Harness checks are deterministic but classified by type (see `HarnessCheckType` in `src/cli/audit/types.ts`): **integrity** (drift from install state - affects concern status), **advisory** (best practice - affects status unless the check id is listed in `harness.acknowledge` in `config.yaml`), and **metric** (workflow maturity signal - affects concern score, never affects pass/fail status). JSON results also include `displayStatus`, `impact`, optional `evidenceKind`, optional `assurance`, and split provenance path bases (`framework_evidence_paths` vs `target_evidence_paths`) so score-only, structural-smoke, platform-limited, and framework-rationale evidence can be rendered honestly.
 
 Harness checks are grouped by **concern** -- the five things that matter for agent effectiveness. See [harness-engineering.md](harness-engineering.md) for what each concern means and the sources behind the model.
 
@@ -75,7 +75,7 @@ Sample harness output:
 ```
 GOAT Flow Setup:          PASS
   Skills:                 7/7 installed
-  Config:                 valid, version 1.4.3
+  Config:                 valid, version 1.5.0
   InstructionFile:        118 lines
 
 Agent Setup:              PASS

@@ -87,14 +87,23 @@ const sessionLogs: HarnessCheck = {
   /** Run the Session logs directory check. */
   run: (ctx) => {
     const logsDir = ".goat-flow/logs/sessions";
-    try {
-      ctx.fs.listDir(logsDir);
-    } catch {
+    if (!ctx.fs.exists(logsDir)) {
       return fail(
         ["No session logs directory"],
         ["Create .goat-flow/logs/sessions/ directory"],
         [
           "Create .goat-flow/logs/sessions/ and start logging sessions for continuity between conversations.",
+        ],
+      );
+    }
+    try {
+      ctx.fs.listDir(logsDir);
+    } catch {
+      return fail(
+        ["Session logs path exists but is not readable as a directory"],
+        ["Ensure .goat-flow/logs/sessions/ is a directory, not a file"],
+        [
+          "Remove or rename the file at .goat-flow/logs/sessions and recreate as a directory.",
         ],
       );
     }

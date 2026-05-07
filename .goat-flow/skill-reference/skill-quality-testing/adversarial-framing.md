@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.4.3"
+goat-flow-reference-version: "1.5.0"
 ---
 # Adversarial Framing (review-class skills)
 
@@ -47,7 +47,7 @@ When findings need downstream machine processing (audit pipelines, PR bots, goat
 
 ```json
 {
-  "location": "file:start-end (or file:line when single line)",
+  "location": "file + semantic anchor",
   "trigger_condition": "one-line description (max 15 words)",
   "guard_snippet": "minimal code sketch that closes the gap (single-line, escaped)",
   "potential_consequence": "what could actually go wrong (max 15 words)"

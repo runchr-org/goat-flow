@@ -245,7 +245,7 @@ function dashboardQualityReportLogPrompt(
     "- Allowed finding types: `setup_quality`, `skill_flaw`, `contradiction`, `false_path`, `content_quality`, `framework_flaw`.",
     "- Allowed severities: `BLOCKER`, `MAJOR`, `MINOR`. Allowed evidence methods: `runtime-probe`, `static-analysis`, `mixed`.",
     '- Use `delta_tag: "new"` unless the finding materially matches prior quality history for this same agent/mode; then use `persisted`.',
-    "- Live review findings may cite `file` + `line` after re-reading that line. Durable footguns, lessons, patterns, and decisions must use file paths plus semantic anchors rather than line numbers.",
+    "- Live review findings should cite `file` + semantic anchor after re-reading the cited file and anchor. Durable footguns, lessons, patterns, and decisions must use file paths plus semantic anchors rather than line numbers.",
     '- Validate before confirming: `(cd "$VALIDATOR_ROOT" && node --import tsx src/cli/cli.ts quality validate "$FILE")`.',
     '- Verify the file exists and is non-zero: `ls -la "$FILE"`.',
     `- End your response with: \`Wrote quality report to ${projectPath}/.goat-flow/logs/quality/<filename>.json\`.`,
@@ -283,7 +283,7 @@ async function dashboardDetectStack(
 ): Promise<void> {
   ctx.setupDetecting = true;
   try {
-    const res = await fetch(
+    const res = await dashboardFetch(
       `/api/setup/detect?path=${encodeURIComponent(ctx.projectPath)}`,
     );
     const payload = readRecord(await res.json(), "Setup detection response");
@@ -370,7 +370,7 @@ async function dashboardGenerateSetupPrompt(
   const isCurrentRequest = (): boolean =>
     ctx.projectPath === requestProjectPath && ctx.setupSelectedAgent === agent;
   try {
-    const res = await fetch(
+    const res = await dashboardFetch(
       `/api/setup?path=${encodeURIComponent(requestProjectPath)}&agent=${agent}`,
     );
     const payload = readRecord(await res.json(), "Setup response");
@@ -420,7 +420,7 @@ async function dashboardGenerateQuality(
     ctx.projectPath === requestSelectedProjectPath &&
     ctx.qualityAgent === requestAgent;
   try {
-    const res = await fetch(
+    const res = await dashboardFetch(
       `/api/quality?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestAgent)}&mode=${encodeURIComponent(requestModeId)}&target=${encodeURIComponent(requestSelectedProjectPath)}`,
     );
     const payload = readRecord(await res.json(), "Quality response");
@@ -457,7 +457,7 @@ async function dashboardGenerateQualityHistory(
     ctx.projectPath === requestSelectedProjectPath &&
     ctx.qualityAgent === requestAgent;
   try {
-    const res = await fetch(
+    const res = await dashboardFetch(
       `/api/quality/history?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestAgent)}&mode=${encodeURIComponent(requestModeId)}&limit=20`,
     );
     const payload = readRecord(await res.json(), "Quality history response");

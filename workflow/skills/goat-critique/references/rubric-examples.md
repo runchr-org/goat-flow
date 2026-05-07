@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.4.3"
+goat-flow-reference-version: "1.5.0"
 ---
 # Critique Rubric Examples (Reference Pack)
 
@@ -51,7 +51,7 @@ Each rubric has a context map that Step 0 reads and passes to sub-agent spawn di
 ```markdown
 ## Finding: Migration sequencing risk
 - **Severity:** HIGH | **Confidence:** HIGH
-- **Evidence:** `.goat-flow/tasks/1.4.3/M02-critique-improvements.md:15` - Phase 2 additions depend on Phase 1 extraction completing first
+- **Evidence:** `.goat-flow/tasks/1.5.0/M02-critique-improvements.md` (search: "Phase 2 additions") - Phase 2 additions depend on Phase 1 extraction completing first
 - **Proof attempt:** Read M02 milestone file, confirmed extraction must precede additions
 - **Evidence quality:** OBSERVED
 - **SKEPTIC:** If extraction doesn't reclaim enough words, Phase 2 additions blow the 2500 cap
@@ -65,8 +65,8 @@ Each rubric has a context map that Step 0 reads and passes to sub-agent spawn di
 ```markdown
 ## Finding: Unvalidated input in API handler
 - **Severity:** CRITICAL | **Confidence:** HIGH
-- **Evidence:** `src/api/handler.ts:42` - user input passed directly to database query
-- **Proof attempt:** Read handler.ts:40-50, confirmed no sanitization before query construction
+- **Evidence:** `src/api/handler.ts` (search: "database query") - user input passed directly to database query
+- **Proof attempt:** Read handler.ts around the database query, confirmed no sanitization before query construction
 - **Evidence quality:** OBSERVED
 - **SKEPTIC:** SQL injection vector; worst case is full database compromise
 - **ANALYST:** Direct string interpolation in query; parameterised queries would eliminate the risk at zero performance cost

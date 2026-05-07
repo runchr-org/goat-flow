@@ -46,8 +46,9 @@ const feedbackLoopActive: HarnessCheck = {
     const lessonsDir = ctx.config.config.lessons.path;
 
     if (ctx.facts.shared.footguns.exists) {
+      const fileCount = ctx.facts.shared.footguns.buckets.length;
       findings.push(
-        `Footguns directory exists (${ctx.facts.shared.footguns.entryCount} entries)`,
+        `Footguns directory exists (${ctx.facts.shared.footguns.entryCount} entries across ${fileCount} files)`,
       );
     } else {
       findings.push("Footguns directory missing");
@@ -55,8 +56,9 @@ const feedbackLoopActive: HarnessCheck = {
     }
 
     if (ctx.facts.shared.lessons.exists) {
+      const fileCount = ctx.facts.shared.lessons.buckets.length;
       findings.push(
-        `Lessons directory exists (${ctx.facts.shared.lessons.entryCount} entries)`,
+        `Lessons directory exists (${ctx.facts.shared.lessons.entryCount} entries across ${fileCount} files)`,
       );
     } else {
       findings.push("Lessons directory missing");
@@ -74,6 +76,18 @@ const feedbackLoopActive: HarnessCheck = {
     const footgunStale = ctx.facts.shared.footguns.staleRefs;
     const lessonStale = ctx.facts.shared.lessons.staleRefs;
     const totalStale = footgunStale.length + lessonStale.length;
+    const invalidLineRefs = [
+      ...ctx.facts.shared.footguns.invalidLineRefs,
+      ...ctx.facts.shared.lessons.invalidLineRefs,
+    ];
+    const formatDiagnostics = [
+      ctx.facts.shared.footguns.formatDiagnostic,
+      ctx.facts.shared.lessons.formatDiagnostic,
+    ].filter((item): item is string => typeof item === "string");
+    const staleBuckets = [
+      ...ctx.facts.shared.footguns.buckets,
+      ...ctx.facts.shared.lessons.buckets,
+    ].filter((bucket) => bucket.freshnessBand === "stale");
     if (totalStale > 0) {
       findings.push(
         `${totalStale} stale file reference(s) in learning loop entries`,
@@ -85,6 +99,37 @@ const feedbackLoopActive: HarnessCheck = {
         ],
         [
           "Run `goat-flow stats . --check` (or `npx goat-flow stats . --check`), then update the cited footgun/lesson entries so every backticked local path resolves or is rewritten as external incident prose.",
+        ],
+      );
+    }
+    if (invalidLineRefs.length > 0 || formatDiagnostics.length > 0) {
+      findings.push(
+        ...invalidLineRefs.map(
+          (ref) => `Invalid learning-loop line ref: ${ref}`,
+        ),
+        ...formatDiagnostics,
+      );
+      return fail(
+        findings,
+        [
+          "Fix invalid learning-loop line refs and bucket metadata before trusting feedback-loop health",
+        ],
+        [
+          "Run `goat-flow stats . --check`, replace brittle file:line references with semantic anchors, and add valid bucket frontmatter.",
+        ],
+      );
+    }
+    if (staleBuckets.length > 0) {
+      findings.push(
+        `${staleBuckets.length} learning-loop bucket(s) have stale last_reviewed dates: ${staleBuckets
+          .map((bucket) => bucket.path)
+          .join(", ")}`,
+      );
+      return fail(
+        findings,
+        ["Review stale learning-loop buckets and update last_reviewed"],
+        [
+          "Review each stale bucket, fix any stale advice, and update its YYYY-MM-DD last_reviewed frontmatter.",
         ],
       );
     }

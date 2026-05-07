@@ -220,7 +220,7 @@ function dashboardGlobalLaunchContext(
     : "Write behavior: default to read-only analysis; do not write files in the selected target unless the user explicitly asks.";
   const routeLine =
     preset?.route === "goat-plan" && /^\/goat-plan\b/.test(presetPrompt)
-      ? "goat-plan global mode: keep plans inline; treat bare task paths as read-only context; do not create or mutate target .goat-flow/tasks unless the user explicitly approves writes."
+      ? "goat-plan global mode: honor Step 0 modes; analysis/path-only stay read-only, while File-Write modes may create target .goat-flow/tasks when this preset allows writes or the prompt explicitly requests files."
       : preset?.route === "goat-critique" &&
           /^\/goat-critique\b/.test(presetPrompt)
         ? "goat-critique global mode: keep gitignored critique logs/artifacts in the controlling workspace; do not write goat-flow logs in the selected target unless the user explicitly makes that target the controlling workspace."
@@ -318,7 +318,7 @@ async function dashboardCheckTerminalAvailable(
   ctx: DashboardTerminalContext,
 ): Promise<void> {
   try {
-    const res = await fetch("/api/health");
+    const res = await dashboardFetch("/api/health");
     if (res.ok) {
       const payload = readRecord(await res.json(), "Health response");
       ctx.availableRunners = Array.isArray(payload.availableRunners)
@@ -351,7 +351,7 @@ async function dashboardUpdateSessionCount(
   ctx: DashboardTerminalContext,
 ): Promise<void> {
   try {
-    const res = await fetch("/api/terminal/sessions");
+    const res = await dashboardFetch("/api/terminal/sessions");
     const payload = readRecord(await res.json(), "Terminal sessions response");
     ctx.terminalSessionCount =
       typeof payload.activeCount === "number" ? payload.activeCount : 0;
@@ -377,7 +377,7 @@ async function dashboardEndAllSessions(
   ctx: DashboardTerminalContext,
 ): Promise<void> {
   try {
-    const res = await fetch("/api/terminal/sessions");
+    const res = await dashboardFetch("/api/terminal/sessions");
     const payload = readRecord(await res.json(), "Terminal sessions response");
     const sessions = Array.isArray(payload.sessions)
       ? payload.sessions
@@ -392,7 +392,9 @@ async function dashboardEndAllSessions(
     );
     const localRecentCount = ctx.recentTerminalSessions.length;
     for (const session of inactive) {
-      await fetch(`/api/terminal/${session.id}`, { method: "DELETE" });
+      await dashboardFetch(`/api/terminal/${session.id}`, {
+        method: "DELETE",
+      });
     }
     ctx.recentTerminalSessions = [];
     const keptRefs: typeof ctx._terminalRefs = {};
@@ -643,7 +645,7 @@ async function dashboardReconnectTerminal(
   if (!savedList || savedList.length === 0) return false;
   const aliveMap = new Map<string, ServerSessionInfo>();
   try {
-    const res = await fetch("/api/terminal/sessions");
+    const res = await dashboardFetch("/api/terminal/sessions");
     const payload = readRecord(await res.json(), "Terminal sessions response");
     if (Array.isArray(payload.sessions)) {
       for (const raw of payload.sessions) {
@@ -736,7 +738,7 @@ async function dashboardLaunchInTerminal(
       AlpineMagics<DashboardTerminalContext>;
     const selectedTargetPath = targetPath || ctx.projectPath;
     const controllingCwd = cwdPath || selectedTargetPath;
-    const res = await fetch("/api/terminal/create", {
+    const res = await dashboardFetch("/api/terminal/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -791,9 +793,9 @@ async function dashboardLaunchInTerminal(
       if (ctx.activeSessionId === failedSessionId) {
         ctx.activeSessionId = ctx.sessions[0]?.id || null;
       }
-      fetch(`/api/terminal/${failedSessionId}`, { method: "DELETE" }).catch(
-        () => {},
-      );
+      dashboardFetch(`/api/terminal/${failedSessionId}`, {
+        method: "DELETE",
+      }).catch(() => {});
       void ctx.updateSessionCount();
     }
     const msg = err instanceof Error ? err.message : String(err);
@@ -872,7 +874,9 @@ function dashboardConnectTerminal(
   };
   window.addEventListener("resize", resizeHandler);
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  const ws = new WebSocket(`${proto}//${location.host}${wsUrl}`);
+  const ws = new WebSocket(
+    `${proto}//${location.host}${dashboardTerminalWsPath(wsUrl)}`,
+  );
   let ageInterval: ReturnType<typeof setInterval> | null = null;
   /** Handle the terminal WebSocket opening. */
   ws.onopen = () => {
@@ -1051,7 +1055,9 @@ function dashboardEndSession(
     ctx.promptRunStates[session.presetId] = "pass";
   }
   if (!session.ended) {
-    fetch(`/api/terminal/${sessionId}`, { method: "DELETE" }).catch(() => {});
+    dashboardFetch(`/api/terminal/${sessionId}`, { method: "DELETE" }).catch(
+      () => {},
+    );
   }
   ctx.rememberRecentSession(session);
   const refs = ctx._terminalRefs[sessionId];
@@ -1129,9 +1135,9 @@ async function dashboardEndServerSession(
   if (local) {
     ctx.endSession(sessionId);
   } else {
-    await fetch(`/api/terminal/${sessionId}`, { method: "DELETE" }).catch(
-      () => {},
-    );
+    await dashboardFetch(`/api/terminal/${sessionId}`, {
+      method: "DELETE",
+    }).catch(() => {});
   }
   void ctx.updateSessionCount();
 }

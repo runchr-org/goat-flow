@@ -673,7 +673,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     `ls ${skillsDir}/                                  # expect ${skillFacts.total} goat-flow skill directories`,
   );
   lines.push(
-    "cat .goat-flow/config.yaml                        # should have version, agents, skills, line-limits",
+    "cat .goat-flow/config.yaml                        # minimal valid config: version, agents, skills; line-limits/toolchain are optional calibration only",
   );
   lines.push("```");
   lines.push("");
@@ -1165,7 +1165,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "- `line` must be a positive integer OR `null`. Never `0`. For file-wide findings with no specific line, use `null`.",
   );
   lines.push(
-    "- Live review findings may cite `file` + `line` after re-reading that line. Durable footguns, lessons, patterns, and decisions must use file paths plus semantic anchors rather than line numbers.",
+    "- Live review findings should cite `file` + semantic anchor after re-reading the cited file and anchor. Durable footguns, lessons, patterns, and decisions must use file paths plus semantic anchors rather than line numbers.",
   );
   if (priorReport) {
     lines.push(

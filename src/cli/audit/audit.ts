@@ -18,11 +18,13 @@ import { runContentQualityChecks } from "./check-content-quality.js";
 import { runFactualClaimChecks } from "./check-factual-claims.js";
 import { runSnapshotClaimChecks } from "./check-snapshot-claims.js";
 import { validateProvenance } from "./provenance-types.js";
+import type { CheckEvidence } from "./provenance-types.js";
 import type {
   AuditContext,
   AuditConcern,
   AuditConcernKey,
   AuditFactProfile,
+  AuditFailure,
   AuditReport,
   AuditScope,
   AuditScopeName,
@@ -159,13 +161,13 @@ function buildProjectStructure(): ProjectStructure {
   };
 }
 
-/** Build an audit scope from its checks, excluding acknowledged advisory and metric failures. */
+/** Build an audit scope from its checks, excluding score-only failures. */
 function buildScope(
   checks: CheckResult[],
   summary: Record<string, string>,
 ): AuditScope {
   const failures = checks.flatMap((c) =>
-    c.failure && !c.acknowledged && c.type !== "metric" ? [c.failure] : [],
+    c.failure && c.impact === "scope-fail" ? [c.failure] : [],
   );
   return {
     status: failures.length === 0 ? "pass" : "fail",
@@ -175,9 +177,113 @@ function buildScope(
   };
 }
 
+const FRAMEWORK_EVIDENCE_PREFIXES = [
+  "workflow/",
+  "docs/",
+  ".goat-flow/footguns/",
+  ".goat-flow/lessons/",
+  ".goat-flow/decisions/",
+  ".goat-flow/skill-reference/",
+];
+
+const FRAMEWORK_EVIDENCE_PATHS = new Set([
+  "README.md",
+  ".goat-flow/architecture.md",
+  ".goat-flow/code-map.md",
+  ".goat-flow/glossary.md",
+]);
+
+function isFrameworkEvidencePath(path: string): boolean {
+  return (
+    FRAMEWORK_EVIDENCE_PATHS.has(path) ||
+    FRAMEWORK_EVIDENCE_PREFIXES.some((prefix) => path.startsWith(prefix))
+  );
+}
+
+function unique(values: string[]): string[] {
+  return Array.from(new Set(values));
+}
+
+/** Add explicit path-base labels while preserving legacy `evidence_paths`. */
+function labelEvidencePathBases(provenance: CheckEvidence): CheckEvidence {
+  const paths = provenance.evidence_paths ?? [];
+  if (paths.length === 0) return provenance;
+
+  const frameworkPaths = paths.filter(isFrameworkEvidencePath);
+  const targetPaths = paths.filter((path) => !isFrameworkEvidencePath(path));
+  return {
+    ...provenance,
+    ...(frameworkPaths.length > 0
+      ? {
+          framework_evidence_paths: unique([
+            ...(provenance.framework_evidence_paths ?? []),
+            ...frameworkPaths,
+          ]),
+        }
+      : {}),
+    ...(targetPaths.length > 0
+      ? {
+          target_evidence_paths: unique([
+            ...(provenance.target_evidence_paths ?? []),
+            ...targetPaths,
+          ]),
+        }
+      : {}),
+  };
+}
+
+/** Return the dashboard display status and audit impact for one check result. */
+function classifyCheckImpact(
+  status: CheckResult["status"],
+  type: CheckResult["type"],
+  acknowledged = false,
+): Pick<CheckResult, "displayStatus" | "impact"> {
+  if (status === "skipped") return { displayStatus: "skipped", impact: "none" };
+  if (status === "pass") {
+    return {
+      displayStatus: type === "metric" ? "info" : "pass",
+      impact: "none",
+    };
+  }
+  if (type === "metric" || acknowledged) {
+    return { displayStatus: "warn", impact: "score-only" };
+  }
+  return { displayStatus: "fail", impact: "scope-fail" };
+}
+
+/** Attach evidence text that explains whether a failing harness check gates status. */
+function explainHarnessFailure(
+  check: HarnessCheck,
+  failure: AuditFailure | undefined,
+  acknowledged: boolean,
+): AuditFailure | undefined {
+  if (!failure) return undefined;
+  if (check.type === "metric") {
+    return {
+      ...failure,
+      evidence:
+        "Metric (score-only; lowers the concern score but does not fail audit status).",
+    };
+  }
+  if (check.type !== "advisory") return failure;
+  return {
+    ...failure,
+    evidence: acknowledged
+      ? `Advisory (acknowledged via harness.acknowledge: [${check.id}]). Best practice, not install drift.`
+      : `Advisory (best practice, not install drift). Silence with harness.acknowledge: [${check.id}] in .goat-flow/config.yaml, or fix to reach pass.`,
+  };
+}
+
 /** Build summary details for the setup scope (worst-case across all agents). */
 function setupSummary(ctx: AuditContext): Record<string, string> {
   const totalSkills = ctx.structure.skills.canonical.length;
+  if (ctx.agents.length === 0) {
+    return {
+      skills: `0/${totalSkills} installed (no configured agents)`,
+      config: ctx.config.exists ? "no agents configured" : "invalid or missing",
+      instructionFile: "0 lines (no configured agents)",
+    };
+  }
   let minSkills = totalSkills;
   let maxLines = 0;
   for (const af of ctx.agents) {
@@ -216,7 +322,12 @@ function agentSummary(ctx: AuditContext): Record<string, string> {
       parts.length > 0
         ? parts.join(" + ") + " configured"
         : "not configured (optional)",
-    hooks: hookInfo.length > 0 ? hookInfo.join(", ") : "none installed",
+    hooks:
+      ctx.agents.length === 0
+        ? "not applicable (no configured agents)"
+        : hookInfo.length > 0
+          ? hookInfo.join(", ")
+          : "none installed",
   };
 }
 
@@ -236,24 +347,21 @@ function toCheckResult(
         }
       : undefined;
 
-  const failure =
-    baseFailure && check.type === "advisory"
-      ? {
-          ...baseFailure,
-          evidence: acknowledged
-            ? `Advisory (acknowledged via harness.acknowledge: [${check.id}]). Best practice, not install drift.`
-            : `Advisory (best practice, not install drift). Silence with harness.acknowledge: [${check.id}] in .goat-flow/config.yaml, or fix to reach pass.`,
-        }
-      : baseFailure;
+  const failure = explainHarnessFailure(check, baseFailure, acknowledged);
+  const impact = classifyCheckImpact(result.status, check.type, acknowledged);
 
   return {
     id: check.id,
     name: check.name,
     status: result.status,
-    provenance: check.provenance,
+    ...impact,
+    ...(result.displayStatus ? { displayStatus: result.displayStatus } : {}),
+    provenance: labelEvidencePathBases(check.provenance),
     failure,
     type: check.type,
     acknowledged: acknowledged || undefined,
+    evidenceKind: check.evidenceKind,
+    assurance: result.assurance,
   };
 }
 
@@ -363,10 +471,8 @@ export function computeHarness(ctx: AuditContext): {
       acknowledgeList.has(check.id);
     checks.push(toCheckResult(check, result, acknowledged));
     applyCheckToConcern(concerns[check.concern], check, result, acknowledged);
-    if (check.type !== "metric") {
-      counts[check.concern].total++;
-      if (result.status === "pass") counts[check.concern].passing++;
-    }
+    counts[check.concern].total++;
+    if (result.status === "pass") counts[check.concern].passing++;
   }
 
   for (const key of Object.keys(concerns) as AuditConcernKey[]) {
@@ -401,12 +507,16 @@ function runSingleBuildCheck(
   const provenance = check.provenanceFor?.(ctx, failure) ?? check.provenance;
   const skipped =
     explicitlySkipped || isAggregateAgentSkip(ctx, check, failure);
+  const status = skipped ? "skipped" : failure ? "fail" : "pass";
+  const impact = classifyCheckImpact(status, undefined);
   return {
     id: check.id,
     name: check.name,
-    status: skipped ? "skipped" : failure ? "fail" : "pass",
-    provenance,
+    status,
+    ...impact,
+    provenance: labelEvidencePathBases(provenance),
     failure: failure ?? undefined,
+    evidenceKind: check.evidenceKind,
   };
 }
 

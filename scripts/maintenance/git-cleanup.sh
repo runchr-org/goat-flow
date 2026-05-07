@@ -140,8 +140,7 @@ fi
 # Find merged branches
 MERGED_BRANCHES=()
 while IFS= read -r branch; do
-    branch="${branch## }"
-    branch="${branch%%[[:space:]]*}"
+    branch="${branch#"${branch%%[! *]*}"}"
 
     # Skip empty lines
     [[ -z "$branch" ]] && continue

@@ -15,6 +15,7 @@
     setupTotal() { return this.setupChecks().length; },
     setupPassed() { return this.setupChecks().filter((check) => check.status === 'pass').length; },
     setupComplete() { return this.setupTotal() > 0 && this.setupPassed() === this.setupTotal(); },
+    setupBlocked() { return !this.setupComplete(); },
     setupPartial() { return this.setupPassed() > 0 && !this.setupComplete(); },
     setupMissing() { return this.setupPassed() === 0; },
     showPreviewAgents() { return this.agentScores().length === 0; },
@@ -68,15 +69,17 @@
       if (agent?.preview) return null;
       const harnessChecks = agent?.harness?.checks || [];
       if (harnessChecks.length > 0) {
-        const scored = harnessChecks.filter((check) => check.type !== 'metric');
+        const scored = harnessChecks.filter((check) => check.status !== 'skipped');
         if (scored.length === 0) return 100;
         const passed = scored.filter((check) => check.status === 'pass').length;
         return Math.round((passed / scored.length) * 100);
       }
       const agentChecks = agent?.agent?.checks || [];
       if (agentChecks.length > 0) {
-        const passed = agentChecks.filter((check) => check.status === 'pass').length;
-        return Math.round((passed / agentChecks.length) * 100);
+        const scored = agentChecks.filter((check) => check.status !== 'skipped');
+        if (scored.length === 0) return 100;
+        const passed = scored.filter((check) => check.status === 'pass').length;
+        return Math.round((passed / scored.length) * 100);
       }
       return null;
     },
@@ -120,7 +123,7 @@
       if (agent?.preview || !agent?.concerns) return false;
       return this.concernKeys.every((key) => {
         const item = this.concern(agent, key);
-        return item.status === 'pass' || this.concernScore(agent, key) >= 100;
+        return item.status === 'pass' && this.concernScore(agent, key) >= 100;
       });
     },
     agentBreakdownOpen(agent) {
@@ -134,9 +137,14 @@
       if (agent?.preview) return 'Skills, hooks, instruction file';
       const recs = Object.values(agent?.concerns || {}).reduce((total, concern) => total + (concern.recommendations || []).length, 0);
       const integrity = this.integrityFailCount(agent);
-      if (recs === 0 && integrity === 0) return 'All checks passing';
+      const warnings = this.scoreOnlyWarningCount(agent);
+      if (recs === 0 && integrity === 0 && warnings === 0) return 'All checks passing';
       if (integrity > 0) return integrity + ' integrity issue' + (integrity === 1 ? '' : 's');
+      if (warnings > 0) return warnings + ' score warning' + (warnings === 1 ? '' : 's');
       return recs + ' recommendation' + (recs === 1 ? '' : 's');
+    },
+    scoreOnlyWarningCount(agent) {
+      return (agent?.harness?.checks || []).filter((check) => check.status === 'fail' && check.impact === 'score-only').length;
     },
     integrityFailCount(agent) {
       return Object.values(agent?.concerns || {}).reduce((total, concern) => total + (concern.integrityFail || 0), 0);
@@ -209,7 +217,7 @@
       const installScore = this.installChecklistScore();
       if (installScore !== null && !Number.isNaN(installScore)) scores.push(installScore);
       const harnessScore = this.harnessAverage();
-      if (!this.setupMissing() && harnessScore !== null && !Number.isNaN(harnessScore)) scores.push(harnessScore);
+      if (this.setupComplete() && harnessScore !== null && !Number.isNaN(harnessScore)) scores.push(harnessScore);
       if (scores.length === 0) return null;
       return Math.round(scores.reduce((total, score) => total + score, 0) / scores.length);
     },
@@ -237,11 +245,14 @@
     },
     ringBreakdown() {
       const installScore = this.installChecklistScore();
-      const harnessScore = this.setupMissing() ? null : this.harnessAverage();
+      const harnessScore = this.setupComplete() ? this.harnessAverage() : null;
       const fmt = (value) => value === null || Number.isNaN(value) ? '--' : value + '%';
       return 'Install ' + fmt(installScore) + ' / Harness ' + fmt(harnessScore);
     },
-    atAGrade() { return this.agentScores().filter((agent) => this.agentScore(agent) >= 90).length; },
+    atAGrade() { return this.agentScores().filter((agent) => this.agentScore(agent) >= 90 && !this.harnessAgentFailed(agent)).length; },
+    harnessBlockingFailures() {
+      return this.agentScores().filter((agent) => this.harnessAgentFailed(agent));
+    },
     widestGap() {
       const agents = this.agentScores();
       if (agents.length === 0) return 'pending';
@@ -251,48 +262,59 @@
         return { key, avg };
       }).sort((a, b) => a.avg - b.avg);
       const gap = gaps[0];
-      return gap && gap.avg < 90 ? this.concernLabels[gap.key] : 'none';
+      return gap && gap.avg < 90 ? this.concernLabel(gap.key) : 'none';
+    },
+    concernLabel(key) {
+      if (key === 'verification' && this.setupBlocked()) return 'Verification support';
+      return this.concernLabels[key] || key;
     },
     sectionMeta() {
       if (this.showPreviewAgents()) return 'preview - audit will populate after install';
+      if (this.setupBlocked()) return 'setup incomplete - raw details only';
       const total = this.agentScores().length;
+      const failing = this.harnessBlockingFailures().length;
       const gap = this.widestGap();
       const gapText = gap !== 'none' && gap !== 'pending' ? ' - widest gap is ' + gap : '';
+      if (failing > 0) return failing + ' of ' + total + ' agents need fixes' + gapText + ' - click for details';
       return this.atAGrade() + ' of ' + total + ' at A' + gapText + ' - click for details';
     },
     harnessPillTone() {
-      if (this.setupMissing() || this.agentScores().length === 0) return 'na';
+      if (this.setupBlocked() || this.agentScores().length === 0) return 'na';
+      if (this.harnessBlockingFailures().length > 0) return 'bad';
       return this.toneForScore(this.harnessAverage());
     },
     harnessPillValue() {
-      if (this.setupMissing()) return 'N/A';
+      if (this.setupBlocked()) return 'Setup first';
+      if (this.harnessBlockingFailures().length > 0) return 'Needs work';
       const avg = this.harnessAverage();
       if (avg === null) return 'N/A';
       return avg >= 90 ? 'Passing' : 'Needs work';
     },
     harnessPillDetail() {
-      if (this.setupMissing()) return 'setup required first';
+      if (this.setupBlocked()) return 'finish setup before trusting harness';
       const total = this.agentScores().length;
       if (total === 0) return 'run audit after setup';
+      const failing = this.harnessBlockingFailures().length;
       const gap = this.widestGap();
       const gapText = gap !== 'none' && gap !== 'pending' ? ' - ' + gap + ' low' : '';
+      if (failing > 0) return failing + ' of ' + total + ' agents have failing checks' + gapText;
       return this.atAGrade() + ' of ' + total + ' agents at A' + gapText;
     },
     learningSummary() { return report?.learningLoop || null; },
     learningPillTone() {
-      if (this.setupMissing()) return 'na';
+      if (this.setupBlocked()) return 'na';
       const summary = this.learningSummary();
       if (!summary || summary.status === 'unavailable') return 'na';
       return summary.status === 'fresh' ? 'ok' : 'warn';
     },
     learningPillValue() {
-      if (this.setupMissing()) return 'N/A';
+      if (this.setupBlocked()) return 'Setup first';
       const summary = this.learningSummary();
       if (!summary || summary.status === 'unavailable') return 'N/A';
       return summary.status === 'fresh' ? 'Fresh' : 'Needs review';
     },
     learningPillDetail() {
-      if (this.setupMissing()) return 'created by setup';
+      if (this.setupBlocked()) return 'created by setup';
       const summary = this.learningSummary();
       if (!summary || summary.status === 'unavailable') return 'no learning-loop files';
       const stale = summary.staleCount || 0;
@@ -323,7 +345,7 @@
       return new Date(homeQualityLatest.date + 'T' + hour + ':' + minute + ':00');
     },
     qualityPillTone() {
-      if (this.setupMissing()) return 'na';
+      if (this.setupBlocked()) return 'na';
       if (homeQualityLoading) return 'na';
       if (!homeQualityLatest) return 'warn';
       if (homeQualityLatest.blockerCount > 0) return 'bad';
@@ -331,7 +353,7 @@
       return 'ok';
     },
     qualityPillValue() {
-      if (this.setupMissing()) return 'N/A';
+      if (this.setupBlocked()) return 'Setup first';
       if (homeQualityLoading) return 'Loading';
       if (!homeQualityLatest) return 'N/A';
       if (homeQualityLatest.blockerCount > 0) return 'Blockers';
@@ -339,7 +361,7 @@
       return 'Recent';
     },
     qualityPillDetail() {
-      if (this.setupMissing()) return 'run after setup';
+      if (this.setupBlocked()) return 'finish setup before quality';
       if (homeQualityLoading) return '--';
       if (!homeQualityLatest) return 'no saved assessment';
       const date = this.qualityLatestDate();
@@ -461,12 +483,14 @@
       activeView = 'prompts';
     },
     recentLessons() {
-      if (this.setupMissing()) return [];
+      if (this.setupBlocked()) return [];
       return report?.recentLessons || [];
     },
     formatConcernSummary(agent, key) {
       const item = this.concern(agent, key);
       const findings = item.findings || [];
+      if (key === 'verification' && this.setupBlocked()) return 'Setup incomplete; verification evidence is support-only until setup finishes.';
+      if (item.status === 'pass' && this.concernScore(agent, key) < 100 && findings.length > 0) return findings[0];
       if (item.status === 'pass') return 'No active findings';
       if (findings.length > 0) return findings[0];
       return 'Concern needs attention';
@@ -478,12 +502,40 @@
       if (rec && fix) return rec + ' Fix: ' + fix;
       return rec || fix || 'No fix detail supplied';
     },
+    checkBadge(check) {
+      const status = check.displayStatus || check.status;
+      if (status === 'pass') return 'OK';
+      if (status === 'warn') return 'Warn';
+      if (status === 'info') return 'Info';
+      if (status === 'skipped') return 'Skip';
+      return 'Fix';
+    },
+    checkBadgeClass(check) {
+      return check.displayStatus || check.status;
+    },
+    checkImpactDetail(check) {
+      const parts = [];
+      if (check.impact === 'scope-fail') parts.push('fails audit status');
+      else if (check.impact === 'score-only') parts.push('score-only signal');
+      else parts.push('no failing impact');
+      if (check.type === 'metric') parts.push('metric evidence');
+      if (check.acknowledged) parts.push('acknowledged advisory');
+      if (check.evidenceKind === 'structural') parts.push('structural smoke');
+      if (check.assurance === 'limited') parts.push('limited assurance');
+      return parts.join(' · ');
+    },
     detailList(agent, scope) {
       return (agent?.[scope]?.checks || []).map((check) => ({
         id: check.id,
         name: check.name,
         status: check.status,
-        detail: check.failure?.message || check.failure?.howToFix || ''
+        displayStatus: check.displayStatus,
+        impact: check.impact,
+        type: check.type,
+        acknowledged: check.acknowledged,
+        evidenceKind: check.evidenceKind,
+        assurance: check.assurance,
+        detail: (check.failure?.message || check.failure?.howToFix || '') ? (check.failure?.message || check.failure?.howToFix) + ' — ' + this.checkImpactDetail(check) : this.checkImpactDetail(check)
       }));
     },
     setupFixPrompt() {
@@ -768,7 +820,7 @@
       <div class="section-head">
         <span
           class="section-title"
-          x-text="showPreviewAgents() ? 'What you get after setup' : 'AI harness health'"
+          x-text="showPreviewAgents() ? 'What you get after setup' : (setupBlocked() ? 'AI harness detail' : 'AI harness health')"
         ></span>
         <span class="section-meta" x-text="sectionMeta()"></span>
       </div>
@@ -832,11 +884,11 @@
                 <template x-for="key in concernKeys" :key="key">
                   <div
                     class="concern-row"
-                    :aria-label="concernLabels[key] + ' ' + concernPctText(agent, key) + '%'"
+                    :aria-label="concernLabel(key) + ' ' + concernPctText(agent, key) + '%'"
                   >
                     <span
                       class="concern-label"
-                      x-text="concernLabels[key]"
+                      x-text="concernLabel(key)"
                     ></span>
                     <div class="concern-bar">
                       <div
@@ -924,12 +976,32 @@
                     <div class="detail-row">
                       <span
                         class="detail-status"
-                        :class="check.status"
-                        x-text="check.status === 'pass' ? 'OK' : 'Fix'"
+                        :class="checkBadgeClass(check)"
+                        x-text="checkBadge(check)"
                       ></span>
                       <div>
                         <strong x-text="check.name"></strong>
                         <p x-text="check.detail || 'No detail supplied'"></p>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+
+                <div class="detail-card">
+                  <h4>Harness Checks</h4>
+                  <template
+                    x-for="check in detailList(agent, 'harness')"
+                    :key="check.id"
+                  >
+                    <div class="detail-row">
+                      <span
+                        class="detail-status"
+                        :class="checkBadgeClass(check)"
+                        x-text="checkBadge(check)"
+                      ></span>
+                      <div>
+                        <strong x-text="check.name"></strong>
+                        <p x-text="check.detail"></p>
                       </div>
                     </div>
                   </template>
@@ -945,7 +1017,7 @@
                         x-text="concern(agent, key).status === 'pass' ? 'OK' : 'Fix'"
                       ></span>
                       <div>
-                        <strong x-text="concernLabels[key]"></strong>
+                        <strong x-text="concernLabel(key)"></strong>
                         <p x-text="formatConcernSummary(agent, key)"></p>
                         <p
                           class="detail-fix"

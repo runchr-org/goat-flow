@@ -160,6 +160,7 @@ interface DashboardRouteDependencies {
   devMode: boolean;
   getTemplate: () => string;
   packageVersion: string;
+  dashboardToken: string;
   dashboardPresets: ReadonlyArray<DashboardPresetData>;
   jsonResponse: JsonResponder;
   readBody: BodyReader;
@@ -178,6 +179,34 @@ function parseQualityHistoryLimit(param: string | null): number {
 function parseQualityModeParam(param: string | null): QualityMode | null {
   if (param === null) return null;
   return VALID_QUALITY_MODES.has(param) ? (param as QualityMode) : null;
+}
+
+/** Resolve the managed agent list for dashboard aggregate audits. */
+function resolveDashboardManagedAgentIds(
+  projectPath: string,
+  fs: ReturnType<typeof createFS>,
+  agentFilter: AgentId | null,
+): AgentId[] {
+  let ids: AgentId[];
+  const configState = loadConfig(projectPath, fs);
+  if (
+    configState.exists &&
+    configState.valid &&
+    configState.config.agents !== null
+  ) {
+    const seen = new Set<AgentId>();
+    ids = configState.config.agents.filter((id): id is AgentId => {
+      if (!VALID_AGENTS.has(id) || seen.has(id as AgentId)) return false;
+      seen.add(id as AgentId);
+      return true;
+    });
+  } else {
+    ids = detectConfiguredAgents(fs).map((agent) => agent.id);
+  }
+  if (agentFilter !== null && !ids.includes(agentFilter)) {
+    ids.push(agentFilter);
+  }
+  return ids;
 }
 
 /** Build the latest quality summary. */
@@ -762,6 +791,7 @@ export function createDashboardRouteHandlers(
     devMode,
     getTemplate,
     packageVersion,
+    dashboardToken,
     dashboardPresets,
     jsonResponse,
     readBody,
@@ -895,7 +925,7 @@ export function createDashboardRouteHandlers(
   function handleHtmlRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/") return false;
 
-    const injection = `<script>window.__GOAT_FLOW_DEFAULT_PATH__ = ${JSON.stringify(absDefault)}; window.__GOAT_FLOW_VERSION__ = ${JSON.stringify(packageVersion)}; window.__GOAT_FLOW_AGENTS__ = ${JSON.stringify(SUPPORTED_AGENTS)}; window.__GOAT_FLOW_RUNNER_IDS__ = ${JSON.stringify(KNOWN_AGENT_IDS)}; window.__GOAT_FLOW_PRESETS__ = ${JSON.stringify(dashboardPresets)};</script>`;
+    const injection = `<script>window.__GOAT_FLOW_DEFAULT_PATH__ = ${JSON.stringify(absDefault)}; window.__GOAT_FLOW_VERSION__ = ${JSON.stringify(packageVersion)}; window.__GOAT_FLOW_DASHBOARD_TOKEN__ = ${JSON.stringify(dashboardToken)}; window.__GOAT_FLOW_AGENTS__ = ${JSON.stringify(SUPPORTED_AGENTS)}; window.__GOAT_FLOW_RUNNER_IDS__ = ${JSON.stringify(KNOWN_AGENT_IDS)}; window.__GOAT_FLOW_PRESETS__ = ${JSON.stringify(dashboardPresets)};</script>`;
     const liveReloadScript = devMode
       ? `<script>(function(){var ws=new WebSocket('ws://'+location.host+'/ws/livereload');ws.onmessage=function(){location.reload()};ws.onclose=function(){setTimeout(function(){location.reload()},1000)}})()</script>`
       : "";
@@ -997,9 +1027,9 @@ export function createDashboardRouteHandlers(
       }
 
       const fs = createFS(projectPath);
-      const configAgents = profiler
-        .span("configured-agent detection", () => detectConfiguredAgents(fs))
-        .map((a) => a.id);
+      const configAgents = profiler.span("managed-agent resolution", () =>
+        resolveDashboardManagedAgentIds(projectPath, fs, agentFilter),
+      );
       const auditFactProfile =
         agentFilter === null ? "dashboard-summary" : "full";
       const batch = profiler.span("runAuditBatch", () =>
@@ -1298,7 +1328,7 @@ export function createDashboardRouteHandlers(
   }
 
   /** Detect which coding agent CLIs are installed on the machine. */
-  function detectInstalledAgents(): {
+  function detectInstalledAgents(includeVersions: boolean): {
     id: string;
     name: string;
     installed: boolean;
@@ -1309,15 +1339,17 @@ export function createDashboardRouteHandlers(
         const whichCmd = process.platform === "win32" ? "where" : "which";
         execFileSync(whichCmd, [id], { timeout: 3000, stdio: "pipe" });
         let version: string | null = null;
-        try {
-          version = normalizeAgentVersionOutput(
-            execFileSync(id, ["--version"], {
-              timeout: 5000,
-              stdio: "pipe",
-            }).toString(),
-          );
-        } catch {
-          /* version detection optional */
+        if (includeVersions) {
+          try {
+            version = normalizeAgentVersionOutput(
+              execFileSync(id, ["--version"], {
+                timeout: 5000,
+                stdio: "pipe",
+              }).toString(),
+            );
+          } catch {
+            /* version detection optional */
+          }
         }
         return { id, name, installed: true, version };
       } catch {
@@ -1334,7 +1366,7 @@ export function createDashboardRouteHandlers(
 
     const fresh = url.searchParams.get("fresh") === "true";
     if (fresh || cachedAgentDetection === null) {
-      cachedAgentDetection = detectInstalledAgents();
+      cachedAgentDetection = detectInstalledAgents(fresh);
     }
 
     jsonResponse(res, 200, { agents: cachedAgentDetection });

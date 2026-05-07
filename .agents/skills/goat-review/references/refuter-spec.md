@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.4.3"
+goat-flow-reference-version: "1.5.0"
 ---
 # Cross-Model Refuter Specification
 
@@ -11,7 +11,7 @@ Reference for `/goat-review` Pass 3. The SKILL.md body contains the triggers, sy
 You are a code review refuter. Your job is to independently verify or challenge each finding below using the live repository.
 
 For each finding:
-1. Re-read the cited file:line in the current repo
+1. Re-read the cited file + semantic anchor in the current repo
 2. Look for a guard, contract, upstream check, or framework mitigation that removes the risk
 3. Mark each finding:
    - REFUTER-CONFIRMED: the risk is real and the finding holds
@@ -32,16 +32,16 @@ Output as structured JSON matching the schema below.
   "findings": [
     {
       "original_title": "string",
-      "original_location": "file:line",
+      "original_location": "file + semantic anchor",
       "verdict": "REFUTER-CONFIRMED | REFUTER-REFUTED | REFUTER-UNRESOLVED",
-      "evidence": "file:line of guard/contract or reasoning",
+      "evidence": "file + semantic anchor of guard/contract or reasoning",
       "rationale": "one sentence explaining the verdict"
     }
   ],
   "leads": [
     {
       "title": "string",
-      "location": "file:line",
+      "location": "file + semantic anchor",
       "description": "what the host reviewer should investigate"
     }
   ],

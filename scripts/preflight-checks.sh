@@ -552,9 +552,13 @@ fi
 
 # Derive instruction file list from manifest once, reuse across sections
 agent_files=()
-while IFS= read -r af; do
-    [[ -f "$af" ]] && agent_files+=("$af")
-done < <(node -e "const m=require('./workflow/manifest.json');for(const a of Object.values(m.agents))console.log(a.instruction_file)" 2>/dev/null)
+if manifest_agent_lines=$(node -e "const m=require('./workflow/manifest.json');for(const a of Object.values(m.agents))console.log(a.instruction_file)" 2>/dev/null); then
+    while IFS= read -r af; do
+        [[ -f "$af" ]] && agent_files+=("$af")
+    done <<< "$manifest_agent_lines"
+else
+    warn "Could not read agent profiles from workflow/manifest.json — instruction-file checks will be skipped"
+fi
 
 # ── Version Consistency ──────────────────────────────────────────────
 section "Version Consistency"
@@ -1247,6 +1251,20 @@ else
     bash scripts/check-markdown-links.sh . 2>&1 | grep "^BROKEN" | while IFS= read -r line; do
         fail "$line"
     done
+fi
+
+# ── Package README Links ─────────────────────────────────────────────
+section "Package README Links"
+if [[ -f scripts/check-package-readme-links.mjs ]]; then
+    package_link_output=$(node scripts/check-package-readme-links.mjs 2>&1) && package_link_exit=0 || package_link_exit=$?
+    if [[ "$package_link_exit" -eq 0 ]]; then
+        pass "$package_link_output"
+    else
+        fail "Package README link check failed (exit $package_link_exit)"
+        echo "$package_link_output" | head -10 | sed 's/^/    /'
+    fi
+else
+    skip "Package README link check (scripts/check-package-readme-links.mjs missing)"
 fi
 
 # ── Summary ──────────────────────────────────────────────────────────

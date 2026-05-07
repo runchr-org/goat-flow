@@ -7,6 +7,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { watch } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { getPackageVersion, getTemplatePath } from "../paths.js";
@@ -29,6 +30,7 @@ const DEFAULT_RUNNER: Runner = KNOWN_AGENT_IDS[0] ?? "claude";
 const MAX_BODY_BYTES = 64 * 1024; // 64 KB
 /** Current goat-flow package version for dashboard UI */
 const PACKAGE_VERSION = getPackageVersion();
+const DASHBOARD_TOKEN_HEADER = "x-goat-flow-dashboard-token";
 
 /** Read the request body as a string, capped at MAX_BODY_BYTES. */
 function readBody(req: IncomingMessage): Promise<string> {
@@ -71,6 +73,48 @@ interface DashboardOptions {
 interface DashboardServer {
   close: () => Promise<void>;
   port: number;
+  url: string;
+}
+
+/** Route inventory for the local privileged dashboard control plane. */
+const DASHBOARD_ROUTE_INVENTORY = [
+  { method: "GET", path: "/", class: "bootstrap" },
+  { method: "GET", path: "/assets/*", class: "static" },
+  { method: "GET", path: "/api/health", class: "privileged-read" },
+  { method: "GET", path: "/api/audit", class: "privileged-read" },
+  { method: "GET", path: "/api/setup/detect", class: "privileged-read" },
+  { method: "GET", path: "/api/setup", class: "privileged-read" },
+  { method: "GET", path: "/api/quality", class: "privileged-read" },
+  { method: "GET", path: "/api/quality/history", class: "privileged-read" },
+  { method: "GET", path: "/api/browse", class: "privileged-read" },
+  { method: "GET", path: "/api/agents/installed", class: "privileged-read" },
+  { method: "GET", path: "/api/projects/list", class: "privileged-read" },
+  { method: "POST", path: "/api/projects/list", class: "side-effectful" },
+  { method: "GET", path: "/api/projects/status", class: "privileged-read" },
+  { method: "POST", path: "/api/terminal/create", class: "side-effectful" },
+  { method: "GET", path: "/api/terminal/list", class: "privileged-read" },
+  { method: "GET", path: "/api/terminal/sessions", class: "privileged-read" },
+  { method: "DELETE", path: "/api/terminal/:id", class: "side-effectful" },
+  { method: "GET", path: "/ws/terminal/:id", class: "privileged-websocket" },
+] as const;
+
+void DASHBOARD_ROUTE_INVENTORY;
+
+/** Read the dashboard authorization token supplied by a browser/API client. */
+function readDashboardToken(req: IncomingMessage, url: URL): string | null {
+  const header = req.headers[DASHBOARD_TOKEN_HEADER];
+  if (typeof header === "string" && header.length > 0) return header;
+  if (Array.isArray(header) && typeof header[0] === "string") return header[0];
+  return url.searchParams.get("token");
+}
+
+/** Compare dashboard tokens without leaking length-matched timing. */
+function tokenMatches(expected: string, actual: string | null): boolean {
+  if (!actual) return false;
+  const expectedBuffer = Buffer.from(expected);
+  const actualBuffer = Buffer.from(actual);
+  if (expectedBuffer.length !== actualBuffer.length) return false;
+  return timingSafeEqual(expectedBuffer, actualBuffer);
 }
 
 /** Start the local dashboard server and expose its API endpoints. */
@@ -81,6 +125,7 @@ export function serveDashboard(
     const shellPath = getTemplatePath("dist/dashboard/index.html");
     const dashboardPresets = loadDashboardPresets();
     const devMode = options.dev === true;
+    const dashboardToken = randomBytes(32).toString("base64url");
     // In dev mode, re-read on every request. In prod, cache once.
     let cachedTemplate: string | null = devMode
       ? null
@@ -111,6 +156,7 @@ export function serveDashboard(
       devMode,
       getTemplate,
       packageVersion: PACKAGE_VERSION,
+      dashboardToken,
       dashboardPresets,
       jsonResponse,
       readBody,
@@ -148,7 +194,7 @@ export function serveDashboard(
     }
 
     /** DNS rebinding protection: reject API requests with unexpected Host header. */
-    function rejectBadHost(
+    function rejectBadHostOrOrigin(
       req: IncomingMessage,
       url: URL,
       res: ServerResponse,
@@ -170,6 +216,64 @@ export function serveDashboard(
       return false;
     }
 
+    /** Return whether a request targets a route that can mutate local state. */
+    function isSideEffectfulApiRoute(req: IncomingMessage, url: URL): boolean {
+      const method = req.method ?? "GET";
+      if (method === "POST" && url.pathname === "/api/projects/list")
+        return true;
+      if (method === "POST" && url.pathname === "/api/terminal/create")
+        return true;
+      return method === "DELETE" && url.pathname.startsWith("/api/terminal/");
+    }
+
+    /** Check browser Origin headers for side-effectful dashboard routes. */
+    function originAllowed(req: IncomingMessage): boolean {
+      const origin = req.headers.origin;
+      if (!origin) return true;
+      const addr = server.address();
+      if (!addr || typeof addr === "string") return false;
+      return (
+        origin === `http://127.0.0.1:${addr.port}` ||
+        origin === `http://localhost:${addr.port}`
+      );
+    }
+
+    /** Enforce process-local dashboard authorization for all API requests. */
+    function rejectUnauthorizedApi(
+      req: IncomingMessage,
+      url: URL,
+      res: ServerResponse,
+    ): boolean {
+      if (!url.pathname.startsWith("/api/")) return false;
+      if (!tokenMatches(dashboardToken, readDashboardToken(req, url))) {
+        jsonResponse(res, 403, { error: "Forbidden" });
+        return true;
+      }
+      if (isSideEffectfulApiRoute(req, url) && !originAllowed(req)) {
+        jsonResponse(res, 403, { error: "Forbidden" });
+        return true;
+      }
+      return false;
+    }
+
+    /** Enforce Host + token + Origin checks for terminal WebSocket upgrades. */
+    function rejectUnauthorizedTerminalUpgrade(
+      req: IncomingMessage,
+      url: URL,
+    ): boolean {
+      if (!url.pathname.startsWith("/ws/terminal/")) return false;
+      const host = req.headers.host;
+      const addr = server.address();
+      if (addr && typeof addr !== "string") {
+        const allowed = [`127.0.0.1:${addr.port}`, `localhost:${addr.port}`];
+        if (!host || !allowed.includes(host)) return true;
+      }
+      if (!tokenMatches(dashboardToken, readDashboardToken(req, url))) {
+        return true;
+      }
+      return !originAllowed(req);
+    }
+
     /** Dispatch one HTTP request across the dashboard routes in priority order. */
     async function handleRequest(
       req: IncomingMessage,
@@ -180,7 +284,8 @@ export function serveDashboard(
         `http://${req.headers.host ?? "127.0.0.1"}`,
       );
 
-      if (rejectBadHost(req, url, res)) return;
+      if (rejectBadHostOrOrigin(req, url, res)) return;
+      if (rejectUnauthorizedApi(req, url, res)) return;
 
       // Log API requests in dev mode
       if (devMode && url.pathname.startsWith("/api/")) {
@@ -281,6 +386,11 @@ export function serveDashboard(
         return;
       }
 
+      if (rejectUnauthorizedTerminalUpgrade(req, url)) {
+        socket.destroy();
+        return;
+      }
+
       if (handleTerminalUpgrade(req, socket, head, server)) {
         return;
       }
@@ -335,11 +445,12 @@ export function serveDashboard(
     server.listen(0, "127.0.0.1", () => {
       const addr = server.address();
       if (!addr || typeof addr === "string") return;
-      const url = `http://127.0.0.1:${addr.port}`;
+      const url = `http://127.0.0.1:${addr.port}/?token=${encodeURIComponent(dashboardToken)}`;
       console.log(`Dashboard: ${url}`);
       logStartupNotice();
       resolveStart({
         port: addr.port,
+        url,
         close: closeServer,
       });
     });

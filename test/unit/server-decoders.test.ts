@@ -33,7 +33,7 @@ describe("decodeTerminalCreateBody", () => {
     assert.equal(r.value.runner, "codex");
   });
 
-  it("defaults runner when absent or unknown", () => {
+  it("defaults runner only when absent", () => {
     const r1 = decodeTerminalCreateBody(JSON.stringify({ prompt: "x" }), {
       validRunners: RUNNERS,
       defaultRunner: "claude",
@@ -45,8 +45,21 @@ describe("decodeTerminalCreateBody", () => {
       validRunners: RUNNERS,
       defaultRunner: "claude",
     });
-    assert.equal(r2.ok, true);
-    if (r2.ok) assert.equal(r2.value.runner, "claude");
+    assert.equal(r2.ok, false);
+    if (!r2.ok) {
+      assert.equal(r2.path, "body.runner");
+      assert.match(r2.error, /unknown runner: cursor/);
+    }
+  });
+
+  it("rejects non-string runner", () => {
+    const r = decodeTerminalCreateBody(JSON.stringify({ runner: 42 }), {
+      validRunners: RUNNERS,
+      defaultRunner: "claude",
+    });
+    assert.equal(r.ok, false);
+    if (r.ok) return;
+    assert.equal(r.path, "body.runner");
   });
 
   it("rejects non-JSON body with a typed path error", () => {

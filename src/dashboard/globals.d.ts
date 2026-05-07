@@ -3,8 +3,12 @@
  * These types are shared across all dashboard script files.
  */
 
-type AuditStatus = "pass" | "fail";
+type AuditStatus = "pass" | "fail" | "skipped";
+type AuditDisplayStatus = "pass" | "fail" | "warn" | "info" | "skipped";
 type AuditCheckType = "integrity" | "advisory" | "metric";
+type AuditCheckImpact = "none" | "scope-fail" | "score-only";
+type AuditCheckEvidenceKind = "semantic" | "structural";
+type AuditCheckAssurance = "full" | "limited";
 /** Dashboard-local runner union. Keep this aligned with `src/cli/types.ts`.
  *  Importing CLI types here causes the dashboard build to emit `src/cli/types.js`
  *  back into the source tree, which then poisons lint/format/drift gates. */
@@ -36,6 +40,8 @@ interface AuditCheckProvenance {
   verified_on: string;
   normative_level: "MUST" | "SHOULD" | "BEST_PRACTICE";
   evidence_paths?: string[];
+  framework_evidence_paths?: string[];
+  target_evidence_paths?: string[];
   reason?: string;
 }
 
@@ -44,8 +50,13 @@ interface AuditCheck {
   id: string;
   name: string;
   status: AuditStatus;
+  displayStatus: AuditDisplayStatus;
+  impact: AuditCheckImpact;
   provenance: AuditCheckProvenance;
   type?: AuditCheckType;
+  acknowledged?: boolean;
+  evidenceKind?: AuditCheckEvidenceKind;
+  assurance?: AuditCheckAssurance;
   failure?: AuditFailure;
 }
 
@@ -450,6 +461,7 @@ interface Window {
   __GOAT_FLOW_REPORT__?: DashboardClientReport | null;
   __GOAT_FLOW_DEFAULT_PATH__?: string;
   __GOAT_FLOW_VERSION__?: string;
+  __GOAT_FLOW_DASHBOARD_TOKEN__?: string;
   __GOAT_FLOW_AGENTS__?: SupportedAgent[];
   __GOAT_FLOW_RUNNER_IDS__?: string[];
   __GOAT_FLOW_PRESETS__?: Preset[];

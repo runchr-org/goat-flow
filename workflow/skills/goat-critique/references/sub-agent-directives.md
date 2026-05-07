@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.4.3"
+goat-flow-reference-version: "1.5.0"
 ---
 # Critique Sub-Agent Directives (Reference Pack)
 
@@ -32,7 +32,7 @@ Every finding MUST include:
 
 - **Proof attempt:** exact command/read executed in sub-agent's tool budget, or "N/A - purely structural"
 - **Evidence quality:** OBSERVED / INFERRED / UNVERIFIED
-- Title, severity (CRITICAL/HIGH/MEDIUM/LOW), evidence (file:line or artifact section reference), confidence (HIGH/MEDIUM/LOW)
+- Title, severity (CRITICAL/HIGH/MEDIUM/LOW), evidence (file + semantic anchor or artifact section reference), confidence (HIGH/MEDIUM/LOW)
 - **SKEPTIC:** one line - what could go wrong, worst case (or "N/A - [reason]" if genuinely inapplicable)
 - **ANALYST:** one line - what the evidence says, cost/benefit
 - **STRATEGIST:** one line - fastest path, what to defer, highest-leverage action

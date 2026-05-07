@@ -205,6 +205,7 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
       hasEntries: false,
       entryCount: 0,
       staleRefs: [],
+      invalidLineRefs: [],
       duplicateSurfacePaths: [],
       formatDiagnostic: null,
       path: ".goat-flow/lessons/",

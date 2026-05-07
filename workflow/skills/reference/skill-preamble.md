@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.4.3"
+goat-flow-reference-version: "1.5.0"
 ---
 # Skill Preamble
 
@@ -10,7 +10,7 @@ also read `skill-conventions.md`.
 
 ## Execution Loop Integration
 
-When a goat-* skill is active, the skill's Step 0 replaces READ and selects the skill's mode/depth. SCOPE still applies before any file write: skills with write phases (e.g. `/goat-plan` Phase 2, `/goat-debug` D3) gate on explicit approval. Resume the loop at ACT when the skill's first blocking gate releases.
+When a goat-* skill is active, the skill's Step 0 replaces READ and selects the skill's mode/depth. SCOPE still applies before writes: a skill may write when its selected mode permits writes or the user explicitly approves them. `/goat-plan` File-Write may create gitignored milestone files without a separate approval gate; `/goat-debug` D3 still requires approval before fixes. Resume the loop at ACT after Step 0 output or when a blocking gate releases.
 
 ## Report-Only Skill Contract
 
@@ -29,11 +29,11 @@ Order findings by severity, not by file or discovery order.
 
 ## Evidence Standard
 
-- Every live review finding MUST include file evidence - use `file:line` when the specific line demonstrates the issue, or `file` when the trap is file-level. Path-only evidence is valid when a line number would be fabricated.
+- Every live review finding MUST include file evidence. Prefer `file` plus a grep-friendly semantic anchor (`(search: "pattern")`, function name, or unique string). Line numbers are session-local navigation hints only.
 - For URL, local HTML, localhost, screenshot, rendered UI, or browser-visible tasks, check `.goat-flow/skill-reference/browser-use.md` and run `command -v browser-use && browser-use doctor` before claiming browser automation is unavailable.
 - Durable learning-loop artifacts (footguns, lessons, patterns, decisions) MUST use file paths plus grep-friendly semantic anchors (function name, unique string, or `(search: "pattern")`) instead of line numbers.
 - MUST NOT fabricate file paths, function names, or artifact content
-- Before presenting findings, re-read each cited `file:line` to confirm accuracy
+- Before presenting findings, re-read each cited file and semantic anchor to confirm accuracy
 - Tag evidence quality: **OBSERVED** (directly verified in code) | **INFERRED** (deduced but not directly confirmed - state what direct evidence is missing) | **UNVERIFIED** (cannot re-read cited evidence) | **HUMAN-PENDING: \<what needs checking\>** (requires manual verification the agent cannot perform)
 - When citing a cross-reference code from another skill's output (e.g. S-03, Q2, A.F3), include the source file path on first use
 - Before citing a function or symbol name, verify it exists with a repo search
@@ -60,7 +60,7 @@ Before any completion, fix, or "passing" claim:
 2. **Run** it fresh in this session (not recalled, not from a prior turn, not paraphrased).
 3. **Read** the full output, including exit code.
 4. **Verify** the output demonstrates the specific claim, not an adjacent one.
-5. **Cite** `file:line` for live code claims, semantic anchors for durable learning-loop artifacts, or the literal pass/fail summary line for command claims.
+5. **Cite** `file + semantic anchor` for live code claims, semantic anchors for durable learning-loop artifacts, or the literal pass/fail summary line for command claims.
 
 The red-flags name what NOT to claim; this gate names HOW to substantiate a claim. If you cannot run the proof in this session, mark the claim **UNVERIFIED** and state what evidence is missing. Never substitute "should work", "probably fine", "looks good", or a confidence score.
 
@@ -72,8 +72,8 @@ Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks. This tab
 |------------|----------|
 | Hotfix | Skip goat-plan - just implement directly. Skip goat-critique entirely. |
 | Small Feature | goat-plan: 1-2 milestones, minimal ceremony. Skip goat-critique. |
-| Standard | goat-plan: full milestone breakdown with testing gates. Use goat-critique if approach is genuinely uncertain. |
-| System / Infrastructure | goat-plan: full milestones + cross-boundary verification + rollback planning. goat-critique strongly recommended. |
+| Standard | goat-plan: full milestone breakdown with testing gates. Do not chain goat-critique automatically. |
+| System / Infrastructure | goat-plan: full milestones + cross-boundary verification + rollback planning. Do not chain goat-critique automatically; the user can invoke it separately. |
 
 ## Depth Choice
 

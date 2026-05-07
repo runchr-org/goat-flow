@@ -1,4 +1,4 @@
-# CLAUDE.md - v1.4.3 (2026-05-04)
+# CLAUDE.md - v1.5.0 (2026-05-04)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash scripts + TypeScript CLI auditor.
 
 goat-flow is a harness — guardrails, memory, and workflows for AI coding agents. Five concerns drive every design decision: **Context** (what you read), **Constraints** (what you may never do), **Verification** (how work is checked), **Recovery** (how state survives failure), **Feedback loop** (how mistakes become permanent fixes).
@@ -50,7 +50,7 @@ Situational: `preflight-checks.sh` (full gate), `bump-version.sh <ver>` (release
 
 ## Execution Loop: READ → SCOPE → ACT → VERIFY
 
-When a goat-* skill is active, its Step 0 replaces READ and selects the skill's mode/depth. SCOPE still applies before any file write - skills with write phases (e.g. `/goat-plan` Phase 2, `/goat-debug` D3) gate on explicit approval. Resume at ACT when the skill's first blocking gate releases.
+When a goat-* skill is active, its Step 0 replaces READ and selects the skill's mode/depth. SCOPE still applies before writes: a skill may write when its selected mode permits writes or the user explicitly approves them. `/goat-plan` File-Write may create gitignored milestone files without a separate approval gate; `/goat-debug` D3 still requires approval before fixes. Resume at ACT after Step 0 output or when a blocking gate releases.
 
 ### READ
 MUST read relevant files before changes. Never fabricate codebase facts. For URL, local HTML, localhost, screenshot, rendered UI, or browser-visible behaviour, check browser evidence first: `command -v browser-use || command -v browser-use-python`; if available use `browser-use open/state/screenshot`, otherwise ask before installing or use manual fallback. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns/`; include `.goat-flow/decisions/` when the task involves architecture, policy, or setup work. Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-reference/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc's "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool". Open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
@@ -74,10 +74,10 @@ MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
 
 | Mode | Behaviour |
 |------|-----------|
-| Plan | Produce artefact only. File writes (e.g. milestone files) only on explicit approval. Exit on LGTM |
+| Plan | Produce planning artefacts. `/goat-plan` File-Write may create gitignored milestone files when selected; committed files still require explicit approval. Exit on LGTM |
 | Implement | Edit in 2-3 turns. 4th read without writing = checkpoint or re-scope |
 | Explain | Walkthrough only. No changes unless asked |
-| Debug | Diagnosis with file:line first. Fixes after human reviews |
+| Debug | Diagnosis with file + semantic anchor first. Fixes after human reviews |
 | Review | Investigate first. Never blindly apply suggestions |
 
 ### VERIFY

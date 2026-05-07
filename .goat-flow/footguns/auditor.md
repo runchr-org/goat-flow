@@ -1,6 +1,6 @@
 ---
 category: auditor
-last_reviewed: 2026-04-29
+last_reviewed: 2026-05-05
 ---
 
 ## Footgun: Audit does not prove end-to-end deny enforcement at runtime
@@ -20,6 +20,23 @@ The audit validates hook syntax, self-test behavior, and registration, but does 
 - `src/cli/audit/check-agent-setup.ts` (search: `checkHookSelfTest`) - invokes the hook's `--self-test` so quoted-alternation false positives and pipe-to-shell bypass attempts are exercised, not just parsed. Does not verify end-to-end blocking through an actual sub-agent's Bash tool.
 - `src/cli/facts/agent/hooks.ts` (search: `detectBashDenyCoversSecrets`) - derives the harness secret-coverage fact from static markers in the hook file; it must stay aligned with `workflow/hooks/deny-dangerous.sh` (search: `is_secret_path_touch`).
 - `test/unit/audit-command.test.ts` (search: `detects current deny hook secret coverage from generalized path matcher`) - regression coverage for the static detector against the canonical hook template.
+
+---
+
+## Footgun: Missing directories can false-pass when harness checks use `listDir()` as an existence test
+
+**Status:** active | **Created:** 2026-05-05 | **Evidence:** ACTUAL_MEASURED
+
+Some harness checks can report a missing directory as present if they rely on `ctx.fs.listDir(path)` throwing for absent paths. The project filesystem abstraction intentionally returns an empty array on missing or unreadable directories, so a `try/catch` around `listDir()` is not an existence check.
+
+**Symptoms:** After deleting the old WIP goat-flow install from `api-main`, `/api/audit?path=/home/hxdev/projects/feature/api-main&quality=true&fresh=true` reported setup failure `Missing: .goat-flow/logs/sessions/`, while the Recovery concern simultaneously reported `Session logs directory exists`.
+
+**Evidence:**
+- `src/cli/facts/fs.ts` (search: `listDir(path: string)`) - catches `readdirSync` failures and returns `[]`.
+- `src/cli/audit/harness/check-recovery.ts` (search: `ctx.fs.listDir(logsDir)`) - uses `try/catch` around `listDir()` and therefore passes when the directory is missing.
+- Runtime probe from 2026-05-05: `createFS("/home/hxdev/projects/feature/api-main").exists(".goat-flow/logs/sessions")` returned `false`, while `listDir(".goat-flow/logs/sessions")` returned `[]`.
+
+**Prevention:** Harness checks that need existence semantics must call `ctx.fs.exists(path)` first. Use `listDir()` only after existence is established, or explicitly document that missing and empty are equivalent for that check.
 
 ---
 

@@ -256,6 +256,22 @@ describe("zero-entry fresh install", () => {
 });
 
 describe("harness scoring honesty", () => {
+  it("fails session-log recovery when the sessions directory is missing", () => {
+    const check = HARNESS_CHECKS.find((c) => c.id === "session-logs");
+    assert.ok(check, "session-logs check must exist");
+    const result = check.run(
+      makeCtx({
+        fs: stubFS({
+          exists: (path) => path !== ".goat-flow/logs/sessions",
+          listDir: () => [],
+        }),
+      }),
+    );
+
+    assert.equal(result.status, "fail");
+    assert.match(result.findings.join("\n"), /No session logs directory/);
+  });
+
   it("does not score optional task checkbox completion as recovery health", () => {
     const check = HARNESS_CHECKS.find((c) => c.id === "milestone-tracking");
     assert.ok(check, "milestone-tracking check must exist");

@@ -358,10 +358,10 @@ function renderUpgradeRedirect(
     );
     lines.push("");
 
-    lines.push("## Step 2 - Remove legacy surfaces manually");
+    lines.push("## Step 2 - Remove legacy surfaces");
     lines.push("");
     lines.push(
-      "Preserve any useful content in `.goat-flow/logs/sessions/`, then remove stale skill directories, flat learning-loop docs, and legacy task-state files if they still exist.",
+      `If the install step above did not already run with \`--clean-deprecated\`, run \`${installCommand(facts.root, agentId)} --clean-deprecated\` to remove deprecated skill directories. Preserve any useful content in \`.goat-flow/logs/sessions/\`, then remove any remaining flat learning-loop docs and legacy task-state files.`,
     );
     lines.push("");
 
@@ -470,6 +470,9 @@ function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
 // Main entry point
 // ----------------------------------------------------------------
 
+const FULL_SETUP_STATES = new Set(["bare", "partial", "error"]);
+const UPGRADE_STATES = new Set(["v0.9", "outdated"]);
+
 /** Compose the setup prompt that matches the project's current install state. */
 export function composeSetup(
   auditReport: AuditReport,
@@ -482,22 +485,20 @@ export function composeSetup(
   const promptScope = options.promptScope ?? "full";
 
   if (
-    projectState.state === "bare" ||
-    projectState.state === "partial" ||
-    projectState.state === "error"
+    FULL_SETUP_STATES.has(projectState.state) ||
+    projectState.action === "incomplete"
   ) {
     return renderFullSetup(facts, agentId);
   }
-  if (projectState.state === "v0.9" || projectState.state === "outdated") {
+  if (UPGRADE_STATES.has(projectState.state)) {
     return renderUpgradeRedirect(
       auditReport,
       facts,
       agentId,
-      projectState.state,
+      projectState.state as "v0.9" | "outdated",
       projectState.version,
     );
   }
-  // Current version: audit-driven
   if (auditStatusForPrompt(auditReport, promptScope) === "pass") {
     return promptScope === "harness-card"
       ? renderHarnessCardPass(

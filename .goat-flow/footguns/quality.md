@@ -1,6 +1,6 @@
 ---
 category: quality
-last_reviewed: 2026-04-30
+last_reviewed: 2026-05-06
 ---
 
 ## Footgun: Quality reviews disappear when the agent skips the final JSON write
@@ -34,11 +34,11 @@ See `.goat-flow/lessons/design-decisions.md` (2026-04-19 amendment under "Don't 
 
 **Symptoms:** `audit --harness` reported Verification score 100 and Recovery score 100 while its own findings said "no structured toolchain.test configured" and "26 milestone files at 0%." All four quality assessment agents (Claude, Codex, Copilot, Gemini) independently identified this as the top structural flaw across 16 quality reports.
 
-**Root cause:** `computeHarness` in `src/cli/audit/audit.ts` (search: `counts[check.concern].total++`) counted every harness check - including metric-type checks - in the concern score denominator and numerator. The `AuditConcern` type contract (search: `metrics: number`) documents metrics as "never scored, always informational," and `applyCheckToConcern` correctly skipped metrics for status. But the score calculation at the loop level did not.
+**Root cause:** `computeHarness` in `src/cli/audit/audit.ts` (search: `counts[check.concern].total++`) counted every harness check the same way, so metric-type degraded evidence could be hidden or over-marketed. The `AuditConcern` type contract (search: `metrics: number`) distinguishes metric counts from status-gating integrity/advisory checks, and `applyCheckToConcern` skips metrics for status. But the score and scope calculations also need their own explicit metric/impact handling.
 
 **Fix:** Three layers of the same bug, fixed separately:
-1. `computeHarness` in `src/cli/audit/audit.ts` (search: `counts[check.concern].total++`) - added `if (check.type !== "metric")` guard before incrementing `total`/`passing`. Fixed concern scores.
-2. `agentScore()` in `home.html`, `quality.html`, and `setup.html` - added `c.type !== 'metric'` filter before the pass/total ratio. Fixed dashboard percentages (showed 94% when all scored checks passed).
-3. `buildScope` in `src/cli/audit/audit.ts` (search: `c.type !== "metric"`) - added metric exclusion to the scope failure filter. A metric returning `fail` was included in the scope's `failures` array, causing `harness.status = "fail"` and `overall.status = "fail"` even though all concerns were PASS. This made every project without `toolchain.test` configured fail the `--harness` gate.
+1. `computeHarness` in `src/cli/audit/audit.ts` (search: `counts[check.concern].total++`) - handles metric-type degraded evidence as score-only rather than status-gating. Fixed concern scores that previously implied full readiness.
+2. `agentScore()` in `home.html`, `quality.html`, and `setup.html` - includes score-only metric failures in dashboard maturity percentages while keeping them out of audit status. A later audit found the earlier `c.type !== 'metric'` filter made the dashboard say 100% / "All checks passing" while verification evidence was missing, so the dashboard now scores all non-skipped checks and labels score-only failures as warnings.
+3. `buildScope` in `src/cli/audit/audit.ts` (search: `impact === "scope-fail"`) - excludes score-only failures from the scope failure filter. A metric returning `fail` was previously included in the scope's `failures` array, causing `harness.status = "fail"` and `overall.status = "fail"` even though all concerns were PASS. This made every project without optional runtime verification evidence fail the `--harness` gate.
 
-**Prevention:** The metric contract has three enforcement points, not one: concern score calculation, dashboard percentage calculation, and scope status. All three must exclude metrics. When adding new harness checks, verify the check type is intentional. The contract: `integrity` gates status, `advisory` gates status unless acknowledged, `metric` never affects status or score at any layer.
+**Prevention:** The metric contract has three enforcement points, not one: concern score calculation, dashboard maturity display, and scope status. Metrics must lower concern/dashboard scores when they fail, but never create a scope failure. When adding new harness checks, verify the check type and impact are intentional. The contract: `integrity` gates status, `advisory` gates status unless acknowledged, `metric` can lower scores but never creates a scope failure.

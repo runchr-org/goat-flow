@@ -30,6 +30,37 @@ const TARGET_WORKSPACE_PATTERNS = [
 
 const BOUNDARY_HEADING_PATTERN = /\bworkspace\s+boundary\b/i;
 
+/** Escape text for dynamic regex construction. */
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Return the markdown section body under a heading label. */
+function markdownSectionByLabel(content: string, label: string): string | null {
+  const headingPattern = new RegExp(
+    `^(?<marks>#{1,6})\\s+${escapeRegex(label)}\\b.*$`,
+    "im",
+  );
+  const heading = headingPattern.exec(content);
+  if (!heading?.groups?.marks) return null;
+
+  const level = heading.groups.marks.length;
+  const start = heading.index + heading[0].length;
+  const nextHeadingPattern = /^#{1,6}\s+.*$/gm;
+  nextHeadingPattern.lastIndex = start;
+
+  let end = content.length;
+  for (const nextHeading of content.matchAll(nextHeadingPattern)) {
+    const marks = /^#+/.exec(nextHeading[0])?.[0] ?? "";
+    if (marks.length <= level) {
+      end = nextHeading.index;
+      break;
+    }
+  }
+
+  return content.slice(start, end).trim();
+}
+
 /** Return the context provenance. */
 function contextProvenance(
   type: HarnessCheck["type"],
@@ -55,6 +86,7 @@ const instructionLineCount: HarnessCheck = {
   name: "Instruction file size",
   concern: "context",
   type: "advisory",
+  evidenceKind: "structural",
   provenance: contextProvenance("advisory", [
     "docs/harness-audit.md",
     "CLAUDE.md",
@@ -100,9 +132,10 @@ const instructionLineCount: HarnessCheck = {
 
 const executionLoopPresent: HarnessCheck = {
   id: "execution-loop-present",
-  name: "Execution loop present",
+  name: "Execution loop structural smoke",
   concern: "context",
   type: "advisory",
+  evidenceKind: "structural",
   provenance: contextProvenance("advisory", [
     "docs/harness-audit.md",
     "CLAUDE.md",
@@ -133,8 +166,14 @@ const executionLoopPresent: HarnessCheck = {
         continue;
       }
       const content = af.instruction.content;
-      const headingFound = headingEntry.pattern.test(content);
-      if (!headingFound) {
+      const executionLoopSection = markdownSectionByLabel(
+        content,
+        EXECUTION_LOOP_LABEL,
+      );
+      if (
+        !headingEntry.pattern.test(content) ||
+        executionLoopSection === null
+      ) {
         findings.push(
           `${af.agent.id}: no "${EXECUTION_LOOP_LABEL}" heading detected`,
         );
@@ -145,15 +184,19 @@ const executionLoopPresent: HarnessCheck = {
         continue;
       }
       // Heading present - verify the four step words actually appear under it.
-      const lower = content.toLowerCase();
+      const lower = executionLoopSection.toLowerCase();
       const foundSteps = stepWords.filter((s) => lower.includes(s));
       const missingSteps = stepWords.filter((s) => !foundSteps.includes(s));
       if (missingSteps.length === 0) {
         findings.push(`${af.agent.id}: execution loop has all 4 steps`);
       } else {
         findings.push(
-          `${af.agent.id}: execution loop heading present but missing step words (${missingSteps.join(", ")})`,
+          `${af.agent.id}: execution loop heading present but missing step words inside the section (${missingSteps.join(", ")})`,
         );
+        recs.push(
+          `Add READ, SCOPE, ACT, VERIFY steps under the "${EXECUTION_LOOP_LABEL}" heading in ${af.agent.instructionFile}`,
+        );
+        anyFail = true;
       }
     }
     if (anyFail)
@@ -169,6 +212,23 @@ function checkAllDocPaths(ctx: AuditContext) {
   let totalPaths = 0;
   let resolvedCount = 0;
   const findings: string[] = [];
+
+  const countResolvedPaths = (file: string, paths: string[]) => {
+    let resolved = 0;
+    const localFindings: string[] = [];
+    for (const path of paths) {
+      const lineRef = /^(?<file>.+\.[a-z0-9]+):\d+$/i.exec(path);
+      if (lineRef?.groups?.file && ctx.fs.exists(lineRef.groups.file)) {
+        localFindings.push(
+          `${file}: line-number path \`${path}\` is brittle; use \`${lineRef.groups.file}\` plus a semantic anchor`,
+        );
+        continue;
+      }
+      if (ctx.fs.exists(path)) resolved++;
+      else localFindings.push(`${file}: unresolved \`${path}\``);
+    }
+    return { resolved, findings: localFindings };
+  };
 
   // Router tables enumerate the docs and directories the agent is expected to consult,
   // so dead entries here are a high-signal context failure.
@@ -191,10 +251,10 @@ function checkAllDocPaths(ctx: AuditContext) {
     if (content) {
       const paths = extractBacktickPaths(content);
       totalPaths += paths.length;
-      const unresolved = paths.filter((p) => !ctx.fs.exists(p));
-      resolvedCount += paths.length - unresolved.length;
-      if (unresolved.length > 0) {
-        findings.push(`${unresolved.length} stale paths in architecture.md`);
+      const resolved = countResolvedPaths(".goat-flow/architecture.md", paths);
+      resolvedCount += resolved.resolved;
+      if (resolved.findings.length > 0) {
+        findings.push(...resolved.findings);
       } else {
         findings.push(
           `All ${paths.length} architecture.md path references resolve`,
@@ -207,6 +267,7 @@ function checkAllDocPaths(ctx: AuditContext) {
   const docFiles = [
     "CONTRIBUTING.md",
     ".goat-flow/code-map.md",
+    ".goat-flow/glossary.md",
     "docs/cli.md",
     "docs/audit-and-quality.md",
   ];
@@ -217,11 +278,9 @@ function checkAllDocPaths(ctx: AuditContext) {
     if (!content) continue;
     const paths = extractBacktickPaths(content);
     totalPaths += paths.length;
-    const unresolved = paths.filter((p) => !ctx.fs.exists(p));
-    resolvedCount += paths.length - unresolved.length;
-    if (unresolved.length > 0) {
-      findings.push(`${unresolved.length} stale paths in ${file}`);
-    }
+    const resolved = countResolvedPaths(file, paths);
+    resolvedCount += resolved.resolved;
+    if (resolved.findings.length > 0) findings.push(...resolved.findings);
   }
 
   return { totalPaths, resolvedCount, findings };
@@ -232,6 +291,7 @@ const docPathsResolve: HarnessCheck = {
   name: "Documentation paths resolve",
   concern: "context",
   type: "integrity",
+  evidenceKind: "structural",
   provenance: contextProvenance(
     "integrity",
     [
@@ -269,9 +329,10 @@ const docPathsResolve: HarnessCheck = {
 
 const instructionSectionsPresent: HarnessCheck = {
   id: "instruction-sections-present",
-  name: "Instruction file required sections",
+  name: "Instruction sections structural smoke",
   concern: "context",
   type: "advisory",
+  evidenceKind: "structural",
   provenance: contextProvenance("advisory", [
     "docs/harness-audit.md",
     "src/cli/prompt/compose-quality.ts",
@@ -331,9 +392,10 @@ function boundaryGuidancePresent(content: string): boolean {
 
 const boundaryGuidancePresentCheck: HarnessCheck = {
   id: "boundary-guidance-present",
-  name: "Workspace boundary guidance present",
+  name: "Workspace boundary guidance structural smoke",
   concern: "context",
   type: "advisory",
+  evidenceKind: "structural",
   provenance: contextProvenance("advisory", [
     "docs/harness-audit.md",
     ".goat-flow/lessons/auditor-and-rubric.md",

@@ -103,7 +103,7 @@ Examples:
 - [ ] Every lesson references a real git commit or incident
 - [ ] Auto-seeded entries use file path + commit hash evidence (no fabricated line numbers) and include `**Source:** git history (auto-seeded)`
 - [ ] Every `.goat-flow/footguns/*.md` and `.goat-flow/lessons/*.md` bucket has `category:` + `last_reviewed:` frontmatter; `node --import tsx src/cli/cli.ts stats . --check` exits 0
-- [ ] Every `## Footgun:` entry begins with `**Status:**` (active | mitigated | resolved)
+- [ ] Every `## Footgun:` entry begins with `**Status:**` (active | resolved)
 - [ ] `.goat-flow/patterns/README.md` exists
 - [ ] If `docs/` surfaces exist, they are referenced (not duplicated) in `.goat-flow/`
 - [ ] Recovery references use current paths (not legacy task-state files)

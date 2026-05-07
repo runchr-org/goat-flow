@@ -1,23 +1,20 @@
 {
   "name": "@blundergoat/goat-flow",
-  "version": "1.4.3",
+  "version": "1.5.0",
   "description": "Harness engineering framework for AI coding agents - deterministic audit, structured skills, deny-hook safety, feedback loops, and a local dashboard. Works with Claude Code, Codex, Gemini CLI, and GitHub Copilot.",
-  "author": {
-    "name": "Matthew Hansen",
-    "url": "https://www.blundergoat.com"
-  },
+  "author": "Matthew Hansen (https://www.blundergoat.com)",
   "license": "MIT",
   "homepage": "https://github.com/blundergoat/goat-flow#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/blundergoat/goat-flow"
+    "url": "git+https://github.com/blundergoat/goat-flow.git"
   },
   "bugs": {
     "url": "https://github.com/blundergoat/goat-flow/issues"
   },
   "type": "module",
   "bin": {
-    "goat-flow": "./dist/cli/cli.js"
+    "goat-flow": "dist/cli/cli.js"
   },
   "exports": {
     ".": "./dist/cli/index.js"
@@ -25,8 +22,17 @@
   "files": [
     "dist",
     "!dist/**/*.map",
-    "docs/skills",
+    "docs/cli.md",
+    "docs/dashboard.md",
+    "docs/skills.md",
+    "docs/audit-and-quality.md",
+    "docs/audit-checks.md",
+    "docs/harness-audit.md",
+    "docs/harness-engineering.md",
+    "docs/harness-quality.md",
+    "docs/assets/dashboard-preview.png",
     "scripts/profile-dashboard-audit.mjs",
+    "scripts/check-package-readme-links.mjs",
     "scripts/warn-node-pty.mjs",
     "workflow"
   ],
@@ -59,9 +65,10 @@
     "preflight": "bash scripts/preflight-checks.sh",
     "check-instruction-parity": "node scripts/check-instruction-parity.mjs",
     "check-versions": "node scripts/check-versions.mjs",
+    "check-package-links": "node scripts/check-package-readme-links.mjs",
     "format": "prettier --write --no-error-on-unmatched-pattern \"src/**/*.{ts,js,html}\" \"test/**/*.ts\"",
     "format:check": "prettier --check --no-error-on-unmatched-pattern \"src/**/*.{ts,js,html}\" \"test/**/*.ts\"",
-    "prepublishOnly": "npm run build && npm run check-versions"
+    "prepublishOnly": "npm run build && npm run check-versions && npm run check-package-links"
   },
   "keywords": [
     "goat-flow",
@@ -103,5 +110,6 @@
     "tsx": "^4.0.0",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.57.1"
-  }
+  },
+  "main": "dist/cli/index.js"
 }

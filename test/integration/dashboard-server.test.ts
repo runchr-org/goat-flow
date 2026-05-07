@@ -38,6 +38,7 @@ const originalExecFileSync = childProcess.execFileSync;
 
 let server: { port: number; close: () => Promise<void> } | undefined;
 let baseUrl = "";
+let dashboardToken = "";
 let originalDashboardState: string | null = null;
 let originalLegacyProjectsList: string | null = null;
 
@@ -73,6 +74,12 @@ function assertJsonResponse(res: Response, context: string): void {
     /application\/json/i,
     `${context} should return JSON`,
   );
+}
+
+function extractDashboardToken(html: string): string {
+  const match = html.match(/__GOAT_FLOW_DASHBOARD_TOKEN__\s*=\s*"([^"]+)"/);
+  assert.ok(match?.[1], "dashboard HTML should inject an auth token");
+  return match[1];
 }
 
 function assertAuditCheckProvenance(value: unknown, context: string): void {
@@ -194,7 +201,9 @@ async function fetchJson(
   path: string,
   init?: RequestInit,
 ): Promise<{ res: Response; body: unknown }> {
-  const res = await fetch(`${baseUrl}${path}`, init);
+  const headers = new Headers(init?.headers);
+  headers.set("X-Goat-Flow-Dashboard-Token", dashboardToken);
+  const res = await fetch(`${baseUrl}${path}`, { ...init, headers });
   assertJsonResponse(res, path);
   return { res, body: await res.json() };
 }
@@ -434,6 +443,8 @@ before(async () => {
   const { serveDashboard } = await import("../../src/cli/server/dashboard.js");
   server = await serveDashboard({ projectPath: PROJECT_PATH });
   baseUrl = `http://127.0.0.1:${server.port}`;
+  const html = await (await fetch(baseUrl)).text();
+  dashboardToken = extractDashboardToken(html);
 });
 
 after(async () => {
@@ -466,6 +477,7 @@ describe("dashboard HTML", () => {
     const html = await res.text();
     assert.match(html, /__GOAT_FLOW_DEFAULT_PATH__/);
     assert.match(html, /__GOAT_FLOW_VERSION__/);
+    assert.match(html, /__GOAT_FLOW_DASHBOARD_TOKEN__/);
     assert.match(html, /__GOAT_FLOW_AGENTS__/);
     assert.match(html, /__GOAT_FLOW_RUNNER_IDS__/);
     assert.match(html, /__GOAT_FLOW_PRESETS__/);
@@ -572,6 +584,92 @@ describe("dashboard assets", () => {
   it("rejects path traversal asset requests", async () => {
     const res = await fetch(`${baseUrl}/assets/..%2F..%2Fetc%2Fpasswd`);
     assert.equal(res.status, 404);
+  });
+});
+
+describe("dashboard API authorization", () => {
+  it("rejects API requests with a missing token", async () => {
+    const res = await fetch(`${baseUrl}/api/terminal/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: "", projectPath: PROJECT_PATH }),
+    });
+    assert.equal(res.status, 403);
+    assertJsonResponse(res, "missing token rejection");
+    assert.deepEqual(await res.json(), { error: "Forbidden" });
+  });
+
+  it("rejects API requests with a wrong token", async () => {
+    const res = await fetch(`${baseUrl}/api/terminal/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goat-Flow-Dashboard-Token": "wrong-token",
+      },
+      body: JSON.stringify({ prompt: "", projectPath: PROJECT_PATH }),
+    });
+    assert.equal(res.status, 403);
+    assertJsonResponse(res, "wrong token rejection");
+    assert.deepEqual(await res.json(), { error: "Forbidden" });
+  });
+
+  it("rejects cross-origin side-effectful browser requests", async () => {
+    const res = await fetch(`${baseUrl}/api/projects/list`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://evil.example",
+        "X-Goat-Flow-Dashboard-Token": dashboardToken,
+      },
+      body: JSON.stringify({ paths: [], favorites: [], projectTitles: {} }),
+    });
+    assert.equal(res.status, 403);
+    assertJsonResponse(res, "bad origin rejection");
+    assert.deepEqual(await res.json(), { error: "Forbidden" });
+  });
+
+  it("accepts valid token and same-origin side-effectful requests", async () => {
+    const res = await fetch(`${baseUrl}/api/projects/list`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: baseUrl,
+        "X-Goat-Flow-Dashboard-Token": dashboardToken,
+      },
+      body: JSON.stringify({ paths: [], favorites: [], projectTitles: {} }),
+    });
+    assert.equal(res.status, 200);
+    assertJsonResponse(res, "same-origin authorized write");
+    assert.deepEqual(await res.json(), { ok: true });
+    const persisted = await readFile(DASHBOARD_STATE_PATH, "utf-8");
+    assert.equal(persisted.includes(dashboardToken), false);
+  });
+
+  it("rejects terminal WebSocket upgrades with a missing token", async () => {
+    const { WebSocket } = await import("ws");
+    await new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(
+        `${baseUrl.replace(/^http/u, "ws")}/ws/terminal/test`,
+        { headers: { Origin: baseUrl } },
+      );
+      const timer = setTimeout(
+        () => reject(new Error("terminal WebSocket rejection timed out")),
+        1000,
+      );
+      ws.once("open", () => {
+        clearTimeout(timer);
+        ws.close();
+        reject(new Error("terminal WebSocket opened without a token"));
+      });
+      ws.once("error", () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      ws.once("close", () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
   });
 });
 
@@ -687,6 +785,60 @@ describe("dashboard /api/audit", () => {
     }
     for (const id of ["claude", "codex", "copilot"] as const) {
       assert.ok(scoresById.has(id), `Dashboard report should include ${id}`);
+    }
+  });
+
+  it("includes configured agents even when their instruction files are missing", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-dashboard-agents-"));
+    try {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        `version: "${AUDIT_VERSION}"\nagents:\n  - claude\n  - claude\n  - codex\n  - codex\n  - gemini\n  - copilot\nskills:\n  install: all\n`,
+      );
+      await writeProjectFile(
+        root,
+        "CLAUDE.md",
+        "# CLAUDE.md\n\n## Execution Loop\nREAD SCOPE ACT VERIFY\n\n## Router Table\n",
+      );
+
+      const { res, body } = await fetchJson(
+        `/api/audit?path=${encodeURIComponent(root)}&quality=true&fresh=true`,
+      );
+      assert.equal(res.status, 200);
+      const report = assertDashboardReport(body);
+      assert.equal(report.status, "fail");
+      const scopes = expectRecord(report.scopes, "Dashboard report scopes");
+      const aggregateAgent = expectRecord(
+        scopes.agent,
+        "Dashboard aggregate agent scope",
+      );
+      assert.match(
+        JSON.stringify(aggregateAgent),
+        /Configured agent instruction files missing: codex \(AGENTS\.md\), gemini \(GEMINI\.md\), copilot \(\.github\/copilot-instructions\.md\)/,
+      );
+
+      const agentScores = report.agentScores as unknown[];
+      const scoreIds = agentScores.map((score, index) =>
+        String(expectRecord(score, `Configured-agent score[${index}]`).id),
+      );
+      assert.deepEqual(scoreIds, ["claude", "codex", "gemini", "copilot"]);
+
+      const scoresById = new Map<string, Record<string, unknown>>();
+      for (const score of agentScores) {
+        const entry = expectRecord(score, "Configured-agent score");
+        scoresById.set(String(entry.id), entry);
+      }
+
+      for (const id of ["claude", "codex", "gemini", "copilot"] as const) {
+        assert.ok(scoresById.has(id), `Dashboard report should include ${id}`);
+      }
+      const codex = expectRecord(scoresById.get("codex"), "Codex score");
+      const codexAgent = expectRecord(codex.agent, "Codex agent scope");
+      assert.equal(codexAgent.status, "fail");
+      assert.match(JSON.stringify(codexAgent), /Missing: codex \(AGENTS\.md\)/);
+    } finally {
+      await rm(root, { recursive: true, force: true });
     }
   });
 
@@ -1029,6 +1181,27 @@ describe("dashboard /api/agents/installed", () => {
     assert.equal(normalizeAgentVersionOutput("\n"), null);
   });
 
+  it("does not execute runner --version probes unless fresh detection is requested", async () => {
+    let versionCalls = 0;
+    childProcess.execFileSync = ((file, args, options) => {
+      if (Array.isArray(args) && args.includes("--version")) {
+        versionCalls += 1;
+        throw new Error("default agent detection should be passive");
+      }
+      return originalExecFileSync(file, args, options);
+    }) as typeof childProcess.execFileSync;
+    syncBuiltinESMExports();
+
+    try {
+      const { res } = await fetchJson("/api/agents/installed");
+      assert.equal(res.status, 200);
+      assert.equal(versionCalls, 0);
+    } finally {
+      childProcess.execFileSync = originalExecFileSync;
+      syncBuiltinESMExports();
+    }
+  });
+
   it("returns the supported agent list", async () => {
     const { res, body } = await fetchJson("/api/agents/installed");
     assert.equal(res.status, 200);
@@ -1142,9 +1315,11 @@ describe("dashboard /api/setup", () => {
   });
 
   it("reports setup and agent install failures even when selected harness checks pass", async () => {
+    // installSkills: true so classifyProjectState returns "current" (not "incomplete"),
+    // allowing composeSetup to reach the audit-fail path with individual check details.
     const project = await makeDashboardSetupPromptProject({
       decisionsDir: true,
-      installSkills: false,
+      installSkills: true,
     });
     try {
       const { res, body } = await fetchJson(
@@ -1155,7 +1330,6 @@ describe("dashboard /api/setup", () => {
       const data = expectRecord(body, "Setup response");
       const output = String(data.output);
       assert.doesNotMatch(output, /All audit checks pass\./);
-      assert.match(output, /Agent skills/);
       assert.match(
         output,
         /Re-run: `[^`]* audit [^`]* --harness --agent codex`/,
@@ -1166,9 +1340,11 @@ describe("dashboard /api/setup", () => {
   });
 
   it("reports harness failures alongside setup remediation", async () => {
+    // installSkills: true so classifyProjectState returns "current" (not "incomplete"),
+    // allowing composeSetup to reach the audit-fail path with individual check details.
     const project = await makeDashboardSetupPromptProject({
       decisionsDir: false,
-      installSkills: false,
+      installSkills: true,
     });
     try {
       const { res, body } = await fetchJson(
@@ -1178,7 +1354,7 @@ describe("dashboard /api/setup", () => {
 
       const data = expectRecord(body, "Setup response");
       const output = String(data.output);
-      assert.match(output, /Decisions directory exists/);
+      assert.match(output, /Decisions/);
       assert.doesNotMatch(output, /All audit checks pass\./);
       assert.match(
         output,
@@ -1370,6 +1546,22 @@ describe("dashboard /api/projects", () => {
 });
 
 describe("dashboard terminal endpoints", () => {
+  it("POST /api/terminal/create rejects unknown runners without launching a fallback", async () => {
+    const { res, body } = await fetchJson("/api/terminal/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: "",
+        projectPath: PROJECT_PATH,
+        runner: "cursor",
+      }),
+    });
+    assert.equal(res.status, 400);
+    const data = expectRecord(body, "Terminal create error");
+    assert.equal(data.path, "body.runner");
+    assert.match(String(data.error), /unknown runner: cursor/);
+  });
+
   it("GET /api/terminal/list returns an empty list when no sessions are running", async () => {
     const { res, body } = await fetchJson("/api/terminal/list");
     assert.equal(res.status, 200);

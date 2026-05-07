@@ -19,6 +19,15 @@ What do you want to do?
   5. Show project status
 ```
 
+**Install locally (optional)**
+
+```bash
+npm install --save-dev @blundergoat/goat-flow    # npm
+pnpm add -D @blundergoat/goat-flow               # pnpm
+```
+
+For the dashboard's embedded terminal, you'll need `node-pty` to compile. See [Troubleshooting](#troubleshooting) if the terminal doesn't appear.
+
 ## Dashboard views
 
 ![Dashboard](docs/assets/dashboard-preview.png)
@@ -33,7 +42,7 @@ Guided setup flow. Detects your project stack and existing configuration, lets y
 
 ### Prompts
 
-A library of 26 preset prompts across six categories: critique, debug, plan, QA, review, and security. Two-pane layout with search, category filters, and favorites. Select a prompt and launch it in a new terminal, send it to an active session, or copy it to clipboard. Keyboard-navigable: `/` to search, arrows to browse, Enter to launch.
+A library of 24 visible preset prompts across six categories: critique, debug, plan, QA, review, and security, plus 2 internal quality prompts used by dashboard workflows. Two-pane layout with search, category filters, and favorites. Select a prompt and launch it in a new terminal, send it to an active session, or copy it to clipboard. Keyboard-navigable: `/` to search, arrows to browse, Enter to launch.
 
 Prompts include structured workflows like pre-walk-through notes with targeted testing plans, multi-lens critiques, full threat assessments, dependency scans, coverage audits, and milestone planning.
 
@@ -97,7 +106,7 @@ For a brand new project, copy the goat-flow system files first. This step is det
 npx @blundergoat/goat-flow@latest install . --agent claude
 ```
 
-Use `--force` only when you want to overwrite existing settings and `.goat-flow/config.yaml`.
+Use `--force` only when you want to overwrite existing settings, `.goat-flow/config.yaml`, and remove deprecated skills. For outdated or v0.9 projects, the installer automatically updates the config version and cleans deprecated skill directories.
 
 The install includes `.goat-flow/skill-reference/` with a README index for tool/capability playbooks. Generated or repaired instruction files route agents to that directory before declaring a requested tool unavailable.
 
@@ -123,15 +132,6 @@ Back on the Home view, click **Re-audit**. All checks should pass. The AI Harnes
 
 Open the **Prompts** view, pick a workflow (code review, bug diagnosis, UI debugging with browser evidence, security assessment, test planning), and launch it in a terminal session. Each prompt invokes a structured `/goat-*` skill with phases and human gates.
 
-### Install locally (optional)
-
-```bash
-npm install --save-dev @blundergoat/goat-flow    # npm
-pnpm add -D @blundergoat/goat-flow               # pnpm
-```
-
-For the dashboard's embedded terminal, you'll need `node-pty` to compile. See [Troubleshooting](#troubleshooting) if the terminal doesn't appear.
-
 ## Multi-agent support
 
 GOAT Flow supports **Claude Code, Codex, Gemini CLI, and Copilot CLI**. All agents share the same execution loop, autonomy tiers, skills, and learning loop. The dashboard's runner switcher (top nav bar) lets you toggle between agents and see per-agent audit results side by side.
@@ -153,6 +153,8 @@ npx goat-flow quality . --agent claude     # Generate quality-assessment prompt
 npx goat-flow status .                     # Project state (bare/partial/v0.9/v1.0/v1.1)
 npx goat-flow manifest                     # Agent support matrix
 ```
+
+The dashboard prints a tokenized localhost URL. Open that URL from the terminal output; the token is process-local and is removed from the visible address bar after the page boots.
 
 See [docs/cli.md](docs/cli.md) for the full reference.
 

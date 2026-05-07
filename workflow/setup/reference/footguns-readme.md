@@ -18,7 +18,7 @@ last_reviewed: 2026-04-20
 ---
 ```
 
-Inside a bucket, add entries as `## Footgun:` blocks. Each entry MUST begin with a `**Status:**` line (one of `active`, `mitigated`, `resolved`) followed by a `**Created:**` date line in `YYYY-MM-DD` form:
+Inside a bucket, add entries as `## Footgun:` blocks. Each entry MUST begin with a `**Status:**` line (one of `active`, `resolved`) followed by a `**Created:**` date line in `YYYY-MM-DD` form:
 
 ```markdown
 ## Footgun: <short name>

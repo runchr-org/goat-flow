@@ -1,7 +1,7 @@
 ---
 name: goat-critique
 description: "Use when a decision or analysis needs multi-lens critique to surface blind spots before shipping."
-goat-flow-skill-version: "1.4.3"
+goat-flow-skill-version: "1.5.0"
 ---
 # /goat-critique
 
@@ -79,7 +79,7 @@ Full directives: `references/sub-agent-directives.md`.
 - **B (Alternatives):** SKEPTIC/ANALYST/STRATEGIST on alternatives, ranked by implementation friction. Must surface at least one alternative.
 - **C (Fresh Eyes):** No project context. Flags unstated assumptions. ISOLATION RULE enforced.
 
-Each sub-agent MUST return 3-7 findings, each with: title, severity, evidence (file:line), confidence, Proof attempt, Evidence quality (OBSERVED/INFERRED/UNVERIFIED), SKEPTIC/ANALYST/STRATEGIST lines, and rubric dimensions covered. Plus: overall assessment (STRONG/ADEQUATE/WEAK/FLAWED) and one thing the artifact gets RIGHT.
+Each sub-agent MUST return 3-7 findings, each with: title, severity, evidence (file + semantic anchor), confidence, Proof attempt, Evidence quality (OBSERVED/INFERRED/UNVERIFIED), SKEPTIC/ANALYST/STRATEGIST lines, and rubric dimensions covered. Plus: overall assessment (STRONG/ADEQUATE/WEAK/FLAWED) and one thing the artifact gets RIGHT.
 
 **Lens-finding floor:** each lens must surface >= 1 finding per sub-agent or re-run once; convergence allowed after one re-run. See anti-fabrication constraint. Full floor spec in the sub-agent directives reference pack.
 
@@ -93,13 +93,13 @@ Execute in this order:
 
 **2. Classify each finding:** **Consensus** (≥2 agents, severity within ±1), **Split** (≥2 agents, severity differs ≥2 levels or explicit reject vs blocking), **Unique** (one agent only). Silence is not a dismiss; treat as Unique.
 
-**3. Score each sub-agent's critique** on five axes: Grounding (file:line evidence?), Specificity (concrete?), Actionability (clear next step?), Coverage (rubric dimensions addressed?), Calibration (severity matches evidence?).
+**3. Score each sub-agent's critique** on five axes: Grounding (file + semantic anchor evidence?), Specificity (concrete?), Actionability (clear next step?), Coverage (rubric dimensions addressed?), Calibration (severity matches evidence?).
 
 **4. Verify sub-agent dimension coverage.** Skim each agent's findings; confirm each claimed dimension has substantive content. Demote unsubstantiated claims. Use orchestrator-verified dimensions as input to step 5.
 
 **5. Compute rubric coverage gates.** Unaddressed mandatory dimensions → auto-generate HIGH coverage-gap finding. Unaddressed optional → auto-generate MEDIUM.
 
-**6. Spot-check OBSERVED claims.** For each finding marked OBSERVED, re-read the cited file:line or proof artifact. Findings that fail spot-check get tagged `[evidence-gap: spot-check failed]`; Phase 3 decides retract or upgrade.
+**6. Spot-check OBSERVED claims.** For each finding marked OBSERVED, re-read the cited file + semantic anchor or proof artifact. Findings that fail spot-check get tagged `[evidence-gap: spot-check failed]`; Phase 3 decides retract or upgrade.
 
 **7. Label control group deltas.** For fresh-eyes-only findings, orchestrator assigns: **CONTEXT DRIFT** (wrong due to missing context), **READABILITY GAP** (valid for any reader), or **CONTEXT-LIMITED** (may be valid, cannot fully evaluate).
 

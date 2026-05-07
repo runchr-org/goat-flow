@@ -41,7 +41,9 @@ async function dashboardBrowseTo(
   path: string,
 ): Promise<void> {
   try {
-    const res = await fetch(`/api/browse?path=${encodeURIComponent(path)}`);
+    const res = await dashboardFetch(
+      `/api/browse?path=${encodeURIComponent(path)}`,
+    );
     const payload = readRecord(await res.json(), "Browse response");
     const error = readErrorMessage(payload);
     if (error) {
@@ -92,7 +94,7 @@ async function dashboardAddProject(
   });
   ctx.showAddProject = false;
   try {
-    const res = await fetch(
+    const res = await dashboardFetch(
       `/api/projects/status?paths=${encodeURIComponent(ctx.newProjectPath)}`,
     );
     const payload = readRecord(await res.json(), "Project status response");
@@ -154,7 +156,7 @@ async function dashboardAuditAllProjects(
   ctx.projectsAuditing = true;
   try {
     const paths = ctx.projectsList.map((p) => p.path).join(",");
-    const res = await fetch(
+    const res = await dashboardFetch(
       `/api/projects/status?paths=${encodeURIComponent(paths)}`,
     );
     const payload = readRecord(await res.json(), "Project status response");
@@ -178,7 +180,7 @@ async function dashboardLoadSavedDashboardState(
   let savedProjectTitles: Record<string, string> = {};
   let loadedFromServer = false;
   try {
-    const res = await fetch("/api/projects/list");
+    const res = await dashboardFetch("/api/projects/list");
     const payload = readRecord(await res.json(), "Dashboard state response");
     const paths = readStringArray(payload.paths);
     const favorites = readStringArray(payload.favorites);
@@ -233,7 +235,7 @@ function dashboardSaveDashboardState(ctx: DashboardProjectsContext): void {
   const projectTitles = { ...ctx.projectTitles };
   localStorage.setItem("goat-flow-projects", JSON.stringify(paths));
   localStorage.setItem("goat-flow-preset-favorites", JSON.stringify(favorites));
-  fetch("/api/projects/list", {
+  dashboardFetch("/api/projects/list", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ paths, favorites, projectTitles }),

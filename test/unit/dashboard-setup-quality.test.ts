@@ -49,6 +49,7 @@ function loadHelpers(fetchImpl: typeof fetch): HelperContext {
   }).outputText;
   const context = createContext({
     fetch: fetchImpl,
+    dashboardFetch: fetchImpl,
     setTimeout,
     clearTimeout,
     readRecord(value: unknown): Record<string, unknown> {

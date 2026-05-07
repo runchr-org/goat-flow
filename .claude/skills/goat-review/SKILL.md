@@ -1,7 +1,7 @@
 ---
 name: goat-review
 description: "Use when reviewing a diff, PR, or set of code changes, or auditing a codebase area for quality issues. Triggers: 'review this', 'code review', 'audit X', 'look at these changes'."
-goat-flow-skill-version: "1.4.3"
+goat-flow-skill-version: "1.5.0"
 ---
 # /goat-review
 
@@ -81,18 +81,18 @@ Scan for:
   - *Contract changes* - signature, return type, error channel, status code, event shape
   - *Observability & DDT testability* - complex state transitions, background tasks, retry logic, or async flows without logging, telemetry, or surface-level signals. Ask: "can a human tell if this succeeded or failed without instrumenting it?" If no: `[SHOULD:needs-signal]` or `[MUST:needs-signal]` depending on risk
 
-Write raw suspicions with `file:line` drawn from the diff. Do NOT verify, confirm, or dismiss in this pass. Over-capture is fine; Pass 2 filters.
+Write raw suspicions with `file + semantic anchor` drawn from the diff. Do NOT verify, confirm, or dismiss in this pass. Over-capture is fine; Pass 2 filters.
 
 ### Pass 2 - Grounded Verification (full files)
 
 Now read full files for context. For each Pass-1 suspicion:
 
-- **Try to DISPROVE it** (negative verification). Re-read the `file:line`, look for a guard, an upstream check, a framework mitigation, or a contract that removes the risk.
+- **Try to DISPROVE it** (negative verification). Re-read the `file + semantic anchor`, look for a guard, an upstream check, a framework mitigation, or a contract that removes the risk.
 - **Blast Radius Rule:** if a suspicion involves a contract change (signature, payload shape, exported type, event shape, error channel, status code), MUST execute `rg -n '<symbol>' -t ts -t js -t py -t php -t go -t rust` to locate external call-sites before resolving. Verify at least one consumer. If skipped, stays UNRESOLVED and gets `coverage-degraded`.
 - Mark each suspicion: **CONFIRMED** / **REFUTED** / **UNRESOLVED**.
-- **Refutation Ledger:** REFUTED suspicions are not silently dropped. Write a ledger to `.goat-flow/scratchpad/goat-review-refutations.<random>.txt`. Each entry: original suspicion (verbatim), refuting evidence (`file:line`), one-sentence rationale. Refuted suspicions do not appear in final output; the ledger is the audit trail.
+- **Refutation Ledger:** REFUTED suspicions are not silently dropped. Write a ledger to `.goat-flow/scratchpad/goat-review-refutations.<random>.txt`. Each entry: original suspicion (verbatim), refuting evidence (`file + semantic anchor`), one-sentence rationale. Refuted suspicions do not appear in final output; the ledger is the audit trail.
 - Add findings that only became visible with file context (integration breakage, call-site contract mismatch, regression in a sibling file).
-- Re-verify every `file:line` reference exists before writing the final output.
+- Re-verify every `file + semantic anchor` reference exists before writing the final output.
 
 Full Excuse/Reality table: `references/examples.md`. Key entries:
 
@@ -137,7 +137,7 @@ Check each finding with targeted grep-first retrieval against `.goat-flow/footgu
 
 **Review DoD gate:** for reporting-only review, verify findings, cross-references, and scope boundaries. Do not imply implementation tests unless directly needed for a finding. If user says "implement", switch to instruction file's implementation DoD.
 
-**Proof Gate:** per `skill-preamble.md` -- re-read each `file:line` fresh before presentation; downgrade unverifiable evidence to UNVERIFIED.
+**Proof Gate:** per `skill-preamble.md` -- re-read each `file + semantic anchor` fresh before presentation; downgrade unverifiable evidence to UNVERIFIED.
 
 ## Area Audit (Full)
 
@@ -225,7 +225,7 @@ Never leave this section empty. "confident - no degradation flags" is the minimu
 ## Findings
 
 ### MUST / SHOULD / MAY
-- [SEVERITY:ACTION] **[title]** `file:line` - [desc] | Footgun: [entry or none] | Evidence: OBSERVED/INFERRED | Proof: RUNTIME/CONTRACT-GREP/STATIC/NOT-REPRODUCED
+- [SEVERITY:ACTION] **[title]** `file + semantic anchor` - [desc] | Footgun: [entry or none] | Evidence: OBSERVED/INFERRED | Proof: RUNTIME/CONTRACT-GREP/STATIC/NOT-REPRODUCED
 
 ## Spec Drift   <!-- only when opt-in triggered; otherwise omit and log spec-drift-skipped -->
 <!-- advisory-only entries (exit-criteria drift, ready-to-tick); assumption invalidation goes under ## Findings as [MUST:needs-decision] -->
@@ -240,7 +240,7 @@ Never leave this section empty. "confident - no degradation flags" is the minimu
 
 ## Top 5 Risks (cross-tier)
 <!-- Five findings most likely to cause harm if merged, ranked regardless of tier. If <5 total, list all. If zero: "No surfaced risks." -->
-1. [SEVERITY:ACTION] **[title]** `file:line` - one-sentence why
+1. [SEVERITY:ACTION] **[title]** `file + semantic anchor` - one-sentence why
 
 ## Ship Verdict
 Decision: **YES** | **YES WITH CONDITIONS** | **NO** | **PARTIAL**

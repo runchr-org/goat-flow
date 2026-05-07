@@ -6,14 +6,20 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { createRequire, syncBuiltinESMExports } from "node:module";
 import { fileURLToPath } from "node:url";
 import {
   buildTerminalSpawnSpec,
   pickWindowsRunnerPath,
+  resolveCLIPath,
   TerminalManager,
   validateProjectPath,
 } from "../../src/cli/server/terminal.js";
 import type { ServerMessage } from "../../src/cli/server/types.js";
+
+const require = createRequire(import.meta.url);
+const childProcess =
+  require("node:child_process") as typeof import("node:child_process");
 
 type TerminalWebSocket = Parameters<TerminalManager["attachWebSocket"]>[1];
 
@@ -165,6 +171,28 @@ describe("terminal exports", () => {
     );
   });
 
+  it("resolves POSIX runner paths without executing the runner binary", () => {
+    if (process.platform === "win32") return;
+    const originalExecFileSync = childProcess.execFileSync;
+    const calls: Array<{ command: string; args: string[] }> = [];
+    childProcess.execFileSync = ((
+      command: string,
+      args?: readonly string[],
+    ) => {
+      calls.push({ command, args: Array.from(args ?? []) });
+      if (command === "which") return "/usr/local/bin/claude\n";
+      throw new Error(`unexpected command: ${command}`);
+    }) as typeof childProcess.execFileSync;
+    syncBuiltinESMExports();
+    try {
+      assert.equal(resolveCLIPath("claude"), "/usr/local/bin/claude");
+      assert.deepEqual(calls, [{ command: "which", args: ["claude"] }]);
+    } finally {
+      childProcess.execFileSync = originalExecFileSync;
+      syncBuiltinESMExports();
+    }
+  });
+
   it("builds a Windows PTY launch that keeps PowerShell open after the runner exits", () => {
     const spec = buildTerminalSpawnSpec(
       "copilot",
@@ -181,6 +209,7 @@ describe("terminal exports", () => {
       "-Command",
     ]);
     assert.match(spec.args[3] ?? "", /GOAT_RUNNER/);
+    assert.match(spec.args[3] ?? "", /Remove-Item Env:GOAT_PROMPT/);
     assert.equal(spec.env.GOAT_PROMPT, "review this");
     assert.equal(spec.env.GOAT_PROMPT_FLAG, "-i");
     assert.equal(spec.env.GOAT_PROMPT_PRESENT, "1");
@@ -198,7 +227,7 @@ describe("terminal exports", () => {
     assert.equal(spec.shell, "/bin/zsh");
     assert.deepStrictEqual(spec.args, [
       "-c",
-      '"$GOAT_RUNNER"; exec "$SHELL" -i',
+      '"$GOAT_RUNNER"; unset GOAT_PROMPT GOAT_PROMPT_FLAG GOAT_PROMPT_PRESENT; exec "$SHELL" -i',
     ]);
     assert.equal(spec.env.GOAT_PROMPT_PRESENT, "0");
     assert.equal(spec.env.SHELL, "/bin/zsh");
@@ -216,7 +245,7 @@ describe("terminal exports", () => {
     assert.equal(spec.shell, "/bin/bash");
     assert.deepStrictEqual(spec.args, [
       "-c",
-      '"$GOAT_RUNNER" -i "$GOAT_PROMPT"; exec "$SHELL" -i',
+      '"$GOAT_RUNNER" -i "$GOAT_PROMPT"; unset GOAT_PROMPT GOAT_PROMPT_FLAG GOAT_PROMPT_PRESENT; exec "$SHELL" -i',
     ]);
     assert.equal(spec.env.GOAT_PROMPT_FLAG, "-i");
     assert.equal(spec.env.GOAT_PROMPT_PRESENT, "1");
@@ -235,6 +264,24 @@ describe("terminal exports", () => {
       },
     ]);
     assert.equal(socket.closed, true);
+  });
+
+  it("does not expose prompt content in terminal session snapshots", () => {
+    const manager = makeManager();
+    const internals = managerInternals(manager);
+    const { session } = makeSession({
+      id: "session-prompt",
+      projectPath: "/tmp/project",
+      cwd: "/tmp/project",
+      targetPath: "/tmp/project",
+    });
+    (session as TestTerminalSession & { prompt?: string }).prompt =
+      "sensitive prompt text";
+    internals.sessions.set(session.id, session);
+
+    const payload = JSON.stringify(manager.list());
+    assert.equal(payload.includes("sensitive prompt text"), false);
+    assert.equal(payload.includes("GOAT_PROMPT"), false);
   });
 
   it("replays detached output exactly once when a browser reconnects", () => {

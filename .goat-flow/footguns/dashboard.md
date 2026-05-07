@@ -1,6 +1,6 @@
 ---
 category: dashboard
-last_reviewed: 2026-05-03
+last_reviewed: 2026-05-05
 ---
 
 ## Footgun: Project-browser modal is reachable only via header-span click, not from the add-project flow
@@ -71,15 +71,15 @@ last_reviewed: 2026-05-03
 
 **Status:** active | **Created:** 2026-05-01 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** The dashboard can show every harness concern at 100 and "All checks passing", while the same agent card still shows a lower percentage such as 94%. The API payload is correct, but the browser-side decoded object has lost the field needed by the view's scoring expression.
+**Symptoms:** The dashboard can show concern scores, metric notes, or pass/fail labels that disagree with `/api/audit`. The API payload is correct, but the browser-side decoded object has lost the discriminant needed by the view's scoring and display expression.
 
 **Evidence:**
 - `src/dashboard/dashboard-readers.ts` (search: `function readAuditCheck`) decodes `/api/audit` checks before the views score them.
-- `src/dashboard/views/home.html` (search: `check.type !== 'metric'`) excludes metric checks from Home percentages; Setup and Quality use the same `c.type !== 'metric'` pattern.
+- `src/dashboard/views/home.html` (search: `setupBlocked()`) gates setup-blocked projects before showing harness readiness scores.
 - `src/cli/server/types.ts` (search: `type?: HarnessCheckType`) now records the wire contract so `type` is preserved across the server/dashboard boundary.
-- `test/unit/dashboard-readers.test.ts` (search: `metric failures do not lower UI scores`) pins the 94% regression: a failing `metric` check must remain visible as a metric but not lower the rendered score.
+- `test/unit/dashboard-readers.test.ts` (search: `preserves harness check type so metric failures can be shown as non-gating score evidence`) pins the reader contract: a failing `metric` check must remain visible as a metric so the UI can apply metric-specific scoring and copy instead of treating it as an ordinary failed audit check.
 
-**Why it happens:** Dashboard views run from classic browser scripts and score the already-decoded browser model, not the raw API JSON. Backend scoring and API typing can be correct while a browser reader silently drops a discriminant such as `type`, collapsing `metric` into "ordinary non-passing check" from the view's perspective.
+**Why it happens:** Dashboard views run from classic browser scripts and score the already-decoded browser model, not the raw API JSON. Backend scoring and API typing can be correct while a browser reader silently drops a discriminant such as `type`, collapsing `metric` into "ordinary failed check" or hiding why a score changed without failing the concern.
 
 **Prevention:**
 1. When a dashboard view branches or scores on an API field, verify the matching `readDashboardReport` / helper decoder preserves that field.

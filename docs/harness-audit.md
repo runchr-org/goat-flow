@@ -14,16 +14,17 @@ Harness checks are grouped by the 5 concerns that matter for agent effectiveness
 
 Each harness check carries a `type` tag that determines whether (and how) a failure affects the concern's status:
 
-| Type | Meaning | Scored? | Opt-out |
-|------|---------|---------|---------|
-| **integrity** | Drift from install state (e.g., a router-table path that no longer resolves). Must be fixed. | Yes - fails concern. | No. |
-| **advisory** | Best practice most projects should adopt (e.g., blocking pipe-to-shell). | Yes - fails concern unless acknowledged. | Yes, via `harness.acknowledge: [<check-id>]` in `.goat-flow/config.yaml`. Acknowledged advisory failures render as `acknowledged` and do not flip status. |
-| **metric** | Workflow maturity signal. Count-only, never scored. | No. | N/A. |
+| Type | Meaning | Score impact | Status impact | Opt-out |
+|------|---------|--------------|---------------|---------|
+| **integrity** | Drift from install state (e.g., a router-table path that no longer resolves). Must be fixed. | Yes. | Fails concern and harness scope. | No. |
+| **advisory** | Best practice most projects should adopt (e.g., blocking pipe-to-shell). | Yes. | Fails concern unless acknowledged. | Yes, via `harness.acknowledge: [<check-id>]` in `.goat-flow/config.yaml`. Acknowledged advisory failures render as score-only warnings and do not flip status. |
+| **metric** | Workflow maturity signal. | Yes. | Never fails concern or harness scope. | N/A. |
 
 ### Scoring model
 
 - A concern `status` is `pass` iff every `integrity` check passes AND every `advisory` check either passes or is acknowledged.
-- `metric` checks never affect concern status; they are reported as counts.
+- A concern `score` counts all harness checks for that concern. Failed metrics and acknowledged advisory failures lower the score, but stay score-only.
+- `metric` checks never affect concern status.
 - Overall harness `status` is `pass` iff every concern's `status` is `pass`.
 
 ### Acknowledging an advisory check
@@ -37,11 +38,11 @@ harness:
 
 Listing a check id silences that check. The finding still appears in audit output (so the project's opt-outs stay visible), but it is counted as `acknowledged` rather than `fail` and does not flip the concern's status.
 
-Only `advisory`-typed checks can be acknowledged. Integrity checks have no opt-out; metrics are already un-scored.
+Only `advisory`-typed checks can be acknowledged. Integrity checks have no opt-out; metrics are score-only by design.
 
 ## Check provenance
 
-Every registered build and harness check now carries machine-readable `provenance` in `npx goat-flow audit . --format json`. The record includes `source_type`, `normative_level`, `verified_on`, and supporting `evidence_paths` / `source_urls`.
+Every registered build and harness check now carries machine-readable `provenance` in `npx goat-flow audit . --format json`. The record includes `source_type`, `normative_level`, `verified_on`, and supporting `evidence_paths` / `source_urls`. The legacy `evidence_paths` list is also split into `framework_evidence_paths` and `target_evidence_paths` when serialized, so framework rationale files do not look like missing files in the audited target project. Check results also expose `displayStatus`, `impact`, and optional `evidenceKind` / `assurance` fields so dashboard consumers can distinguish hard failures, score-only warnings, skipped checks, metrics, structural smoke evidence, and passing checks with platform-limited assurance.
 
 1.2.0 keeps provenance JSON-only on purpose. Terminal and markdown renderers stay focused on status + remediation; if you need the justification trail for a check, inspect the per-check `provenance` object in JSON output.
 
@@ -62,10 +63,10 @@ The agent can only work with what it sees. Stale router paths, missing execution
 **Context checks (5):**
 
 - `instruction-line-count` - each configured agent's instruction file is within the configured hard limit (`line-limits.limit` in `config.yaml`)
-- `execution-loop-present` - instruction file contains at least 2 of the 4 READ / SCOPE / ACT / VERIFY keywords
-- `doc-paths-resolve` - router-table paths, architecture.md backtick paths, and backtick paths in a small set of doc files (`CONTRIBUTING.md`, `.goat-flow/code-map.md`, `docs/cli.md`, `docs/audit-and-quality.md`) all resolve to real files on disk
-- `instruction-sections-present` - instruction file carries the hot-path contract headings (Truth Order, Execution Loop, Definition of Done, Router Table); advisory - skeleton overlays that defer to a shared instruction file will fail this check
-- `boundary-guidance-present` - instruction file contains workspace boundary guidance (controlling workspace vs target workspace separation); advisory
+- `execution-loop-present` - structural smoke check for the required Execution Loop heading plus READ / SCOPE / ACT / VERIFY vocabulary
+- `doc-paths-resolve` - router-table paths, architecture.md backtick paths, and backtick paths in a small set of doc files (`CONTRIBUTING.md`, `.goat-flow/code-map.md`, `.goat-flow/glossary.md`, `docs/cli.md`, `docs/audit-and-quality.md`) all resolve to real files on disk
+- `instruction-sections-present` - structural smoke check for hot-path contract headings (Truth Order, Execution Loop, Definition of Done, Router Table); advisory - skeleton overlays that defer to a shared instruction file will fail this check
+- `boundary-guidance-present` - structural smoke check for workspace boundary guidance (controlling workspace vs target workspace separation); advisory
 
 **Not checked here (belongs in quality):** whether instructions are specific to this project, whether footgun evidence is current, whether documentation content is accurate.
 
@@ -80,7 +81,7 @@ Constraints are the cheapest, most reliable layer of the harness. They cost zero
 
 **Constraints checks (4):**
 
-- `deny-covers-secrets` - for agents with settings-based deny (Claude, Gemini), the deny configuration blocks direct literal access to `.env` files, credentials, `*.key`, `*.pem`, while allowing read-only `.env.example` inspection. Script-only agents (Codex, Copilot) rely entirely on the Bash deny hook for direct literal path blocking; the settings-based Read-deny check is skipped for them as a platform limitation, not a failure. This is best-effort literal-path coverage, not proof against aliases, variables, encoded commands, or arbitrary interpreter code.
+- `deny-covers-secrets` - for agents with settings-based deny (Claude, Gemini), the deny configuration blocks direct literal access to `.env` files, credentials, `*.key`, `*.pem`, while allowing read-only `.env.example` inspection. Script-only agents (Codex, Copilot) rely entirely on the Bash deny hook for direct literal path blocking; the settings-based Read-deny check is unavailable for them as a platform limitation, not a failure. JSON output marks that passing state with `displayStatus: "info"` and `assurance: "limited"` instead of a plain OK. This is best-effort literal-path coverage, not proof against aliases, variables, encoded commands, or arbitrary interpreter code.
 - `deny-blocks-dangerous` - each agent's deny configuration blocks `rm -rf`, all git push (ADR-025), and `chmod`
 - `deny-blocks-pipe-to-shell` - each agent's deny configuration blocks `curl | bash` / `wget | sh` pipe-to-shell patterns
 - `deny-hook-registered` - hook registrations and hook files are in sync (registered hooks exist on disk, existing hooks are registered)
@@ -101,7 +102,7 @@ Verification loops are consistently reported as the single highest-impact harnes
 
 - `hooks-registered` - hook registrations and hook files are in sync (no registered-but-missing, no exists-but-unregistered) for each agent
 - `commit-guidance` - commit guidance is present. When `.github/` exists, the guidance must live at `.github/git-commit-instructions.md`; otherwise a local git-commit guidance doc can satisfy the check.
-- `post-turn-hook-integrity` - metric. If a post-turn hook exists, reports whether it runs validation and whether it exits 0 unconditionally (advisory mode). Absence means there is no hook-based validation evidence; it is not runtime proof.
+- `post-turn-hook-integrity` - metric. If a post-turn hook exists, reports whether it runs validation and whether it exits 0 unconditionally (advisory mode). Absence means there is no hook-based validation evidence; it is not runtime proof. Metric failures do not fail the harness scope, but they do lower the concern score so limited evidence is not displayed as 100%.
 
 **Not checked here:** project test-command configuration, lint command presence, Ask First quality, verification effectiveness. goat-flow core does not ship a post-turn hook - the integrity check only reports on project-specific hooks if present.
 

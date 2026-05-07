@@ -17,21 +17,46 @@ export function fail(
   return { status: "fail", findings, recommendations, howToFix };
 }
 
+/** Return true when a backtick token is technical prose, not a local repo path. */
+function isNonRepoPathToken(path: string): boolean {
+  const hasSyntax =
+    path.includes("://") ||
+    path.includes("*") ||
+    path.includes("(") ||
+    path.includes("<") ||
+    path.includes(">");
+  const isExternalPath =
+    path.startsWith("/") ||
+    path.startsWith("~/") ||
+    path.includes(" ") ||
+    /^@[a-z0-9._-]+\/[a-z0-9._/-]+$/i.test(path);
+  return hasSyntax || isExternalPath || !looksRepoRelativePath(path);
+}
+
+/** Return true when a token has the shape of a repo-relative path. */
+function looksRepoRelativePath(path: string): boolean {
+  return (
+    /^(?:\.|src\/|app\/|apps\/|lib\/|libs\/|docs\/|test\/|tests\/|scripts\/|workflow\/|config\/|packages\/|web-components\/|\.github\/|\.goat-flow\/|\.claude\/|\.codex\/|\.agents\/|\.gemini\/)/i.test(
+      path,
+    ) || /\/[^/]+\.[a-z0-9]+$/i.test(path)
+  );
+}
+
 /** Extract backtick-quoted file paths from markdown content. */
 export function extractBacktickPaths(content: string): string[] {
-  const pattern = /`([^`]*\/[^`]+)`/g;
   const paths: string[] = [];
-  let m;
-  while ((m = pattern.exec(content))) {
-    const p = m[1];
-    if (p === undefined) continue;
-    // This helper is intentionally heuristic. Ignore URLs, globs, call-like
-    // snippets, and angle-bracket placeholders (e.g. `<YYYY-MM-DD>`) so the
-    // doc-path check only validates likely repo-relative paths.
-    if (p.includes("://") || p.includes("*") || p.includes("(")) continue;
-    if (p.includes("<") || p.includes(">")) continue;
-    if (p.startsWith("/") || p.includes(" ")) continue;
-    paths.push(p);
+  for (const match of content.matchAll(/`([^`]+)`/g)) {
+    const path = match[1];
+    if (path === undefined) continue;
+    const isRootLineRef = /^[a-z0-9._-]+\.[a-z0-9]+:\d+$/i.test(path);
+    if (isRootLineRef) {
+      paths.push(path);
+      continue;
+    }
+    if (isNonRepoPathToken(path)) continue;
+    const isNestedPath = path.includes("/");
+    if (!isNestedPath) continue;
+    paths.push(path);
   }
   return paths;
 }

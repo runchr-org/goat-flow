@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.4.3"
+goat-flow-reference-version: "1.5.0"
 ---
 # Page Capture Reference
 
@@ -237,7 +237,7 @@ One MD file per page:
 ## Discipline
 
 - **Output location:** all capture artifacts (MD records, screenshots, index) MUST go inside `.goat-flow/logs/sessions/<date>-<label>/`. Never create a `captures/`, `screenshots/`, or any other directory at the project root. Page captures are gitignored session artifacts.
-- Screenshot evidence is OBSERVED. Any post-capture interpretation in the Notes section is INFERRED unless mapped to a `file:line` or repeatable reproduction.
+- Screenshot evidence is OBSERVED. Any post-capture interpretation in the Notes section is INFERRED unless mapped to a `file + semantic anchor` or repeatable reproduction.
 - Failures are recorded, never skipped. A run that captured 8 of 10 pages with 2 failures is more honest than a run that silently dropped 2.
 - Read-only navigation. Do not click buttons that mutate state, submit forms, or follow destructive links unless the task explicitly requires it (e.g. capturing a confirmation page after submission).
 - Per-run consistency: viewport, auth, browser version stable across all pages in the same run. Different runs may legitimately differ; within a run they should not.

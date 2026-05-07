@@ -1,7 +1,7 @@
 ---
 name: goat-security
 description: "Use when assessing security implications of code changes, architecture decisions, or new features."
-goat-flow-skill-version: "1.4.3"
+goat-flow-skill-version: "1.5.0"
 ---
 # /goat-security
 
@@ -50,7 +50,7 @@ Use when assessing security posture before release, after auth/input/storage cha
 
 - Best-effort scanner probes are allowed (`npm audit`, `pip-audit`, `cargo audit`, secret scanners, CI linters), but treat their output as `lead only` until code or config inspection confirms the path.
 - If a tool is missing, say so with the install command. Never fabricate results.
-- Promote a tool lead only after manual verification produces real `file:line`, trust-boundary, and exploitability evidence.
+- Promote a tool lead only after manual verification produces real `file + semantic anchor`, trust-boundary, and exploitability evidence.
 
 ### Phase 1 - Threat Surface Scan
 
@@ -95,7 +95,7 @@ Also call out positive observations when they materially reduce risk.
 ### Phase 3 - Finding Schema
 
 Every kept finding MUST record:
-- `file:line`
+- `file + semantic anchor`
 - asset / surface
 - entry point
 - sink or privileged action
@@ -149,11 +149,11 @@ For CONFIRMED findings, identify chains where two or more issues combine into hi
 
 ### Phase 6 - Self-Check and Proof Gate
 
-Re-read `file:line` for Critical/High. Does the code or config still match the finding? Is the scenario realistic? Remove failures.
+Re-read `file + semantic anchor` for Critical/High. Does the code or config still match the finding? Is the scenario realistic? Remove failures.
 
 **Dependency audit:** If the project uses dependency management, run the appropriate audit tool when available. If it is missing, note the gap with the install command. Do NOT fabricate results.
 
-**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` - every CONFIRMED finding must have a fresh `file:line` re-read in this session, and dependency-audit results must be from a tool run in this session, never paraphrased or fabricated.
+**Proof Gate:** Apply the Proof Gate from `skill-preamble.md` - every CONFIRMED finding must have a fresh `file + semantic anchor` re-read in this session, and dependency-audit results must be from a tool run in this session, never paraphrased or fabricated.
 
 If `PROBABLE > CONFIRMED`, suggest `/goat-critique` cross-examination before closing. If the user declines, close with those clusters marked PROBABLE and list the evidence needed to promote or kill each one.
 
@@ -189,7 +189,7 @@ For compliance checks, present gaps as: non-compliant, partially compliant, or n
 ## Threat Surface / Risky Buckets
 ## Findings
 ### CONFIRMED
-- S-NN: `file:line` | asset | entry→sink | trust boundary | preconditions | severity | blast radius | proof-of-fix
+- S-NN: `file + semantic anchor` | asset | entry→sink | trust boundary | preconditions | severity | blast radius | proof-of-fix
 ### PROBABLE
 ### THEORETICAL
 ## Attack Path Summary  <!-- top 3 chained attack paths -->
