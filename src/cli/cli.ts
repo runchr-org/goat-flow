@@ -64,7 +64,7 @@ Flags:
   --check-content   Audit: cold-path content lint (vague terms, generic instructions, factual drift)
   --check           Manifest: validate static-vs-observed consistency (exits non-zero on drift)
   --apply           Setup: copy/update deterministic system files instead of generating a prompt
-  --force           Install/setup --apply: overwrite settings and config files
+  --force           Install/setup --apply: overwrite settings, config, and remove deprecated skills
   --update-config-version  Install: update only the version field in existing config.yaml
   --clean-deprecated       Install: remove deprecated skill directories
   --verbose         Show per-check details

@@ -106,7 +106,7 @@ For a brand new project, copy the goat-flow system files first. This step is det
 npx @blundergoat/goat-flow@latest install . --agent claude
 ```
 
-Use `--force` only when you want to overwrite existing settings and `.goat-flow/config.yaml`.
+Use `--force` only when you want to overwrite existing settings, `.goat-flow/config.yaml`, and remove deprecated skills. For outdated or v0.9 projects, the installer automatically updates the config version and cleans deprecated skill directories.
 
 The install includes `.goat-flow/skill-reference/` with a README index for tool/capability playbooks. Generated or repaired instruction files route agents to that directory before declaring a requested tool unavailable.
 

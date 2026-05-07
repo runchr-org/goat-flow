@@ -552,9 +552,13 @@ fi
 
 # Derive instruction file list from manifest once, reuse across sections
 agent_files=()
-while IFS= read -r af; do
-    [[ -f "$af" ]] && agent_files+=("$af")
-done < <(node -e "const m=require('./workflow/manifest.json');for(const a of Object.values(m.agents))console.log(a.instruction_file)" 2>/dev/null)
+if manifest_agent_lines=$(node -e "const m=require('./workflow/manifest.json');for(const a of Object.values(m.agents))console.log(a.instruction_file)" 2>/dev/null); then
+    while IFS= read -r af; do
+        [[ -f "$af" ]] && agent_files+=("$af")
+    done <<< "$manifest_agent_lines"
+else
+    warn "Could not read agent profiles from workflow/manifest.json — instruction-file checks will be skipped"
+fi
 
 # ── Version Consistency ──────────────────────────────────────────────
 section "Version Consistency"
