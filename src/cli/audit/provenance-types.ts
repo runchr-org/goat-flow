@@ -82,7 +82,7 @@ function checkSourceRequired(e: CheckEvidence): string | null {
   if (e.target_evidence_paths && e.target_evidence_paths.length > 0) {
     return null;
   }
-  return "non-unknown source_type must have at least one source_url or evidence_path";
+  return "non-unknown source_type requires a non-empty source_url, evidence_path, framework_evidence_path, or target_evidence_path";
 }
 
 /** Check that every evidence path exists. */

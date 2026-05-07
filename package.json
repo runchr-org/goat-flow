@@ -108,9 +108,5 @@
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.57.1"
   },
-  "main": "index.js",
-  "directories": {
-    "doc": "docs",
-    "test": "test"
-  }
+  "main": "dist/cli/index.js"
 }

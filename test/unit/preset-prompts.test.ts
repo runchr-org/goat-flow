@@ -451,7 +451,10 @@ describe("preset prompt catalog", () => {
       /git -C \$\{dashboardShellQuote\(ctx\.projectPath\)\} status/,
     );
     assert.match(source, /analysis\/path-only stay read-only/);
-    assert.match(source, /File-Write modes may create target \.goat-flow\/tasks/);
+    assert.match(
+      source,
+      /File-Write modes may create target \.goat-flow\/tasks/,
+    );
 
     const adapt = (prompt: string, runner: string): string =>
       runner === "codex" ? prompt.replace(/^\/goat\b/, "$goat") : prompt;

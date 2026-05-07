@@ -760,15 +760,18 @@ function deriveInstallFlags(
   agentId: string,
   options: ParsedCLI,
 ): string[] {
-  if (options.force || options.updateConfigVersion) return [];
+  if (options.force) return [];
   try {
     const projectFS = createFS(projectPath);
     const state = classifyProjectState(projectFS, agentId);
     const flags: string[] = [];
-    if (state.state === "outdated" || state.state === "v0.9") {
+    if (
+      !options.updateConfigVersion &&
+      (state.state === "outdated" || state.state === "v0.9")
+    ) {
       flags.push("--update-config-version");
     }
-    if (state.state === "v0.9" && !options.cleanDeprecated) {
+    if (!options.cleanDeprecated && state.state === "v0.9") {
       flags.push("--clean-deprecated");
     }
     return flags;

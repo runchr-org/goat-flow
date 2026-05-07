@@ -77,7 +77,7 @@ MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
 | Plan | Produce planning artefacts. `/goat-plan` File-Write may create gitignored milestone files when selected; committed files still require explicit approval. Exit on LGTM |
 | Implement | Edit in 2-3 turns. 4th read without writing = checkpoint or re-scope |
 | Explain | Walkthrough only. No changes unless asked |
-| Debug | Diagnosis with file:line first. Fixes after human reviews |
+| Debug | Diagnosis with file + semantic anchor first. Fixes after human reviews |
 | Review | Investigate first. Never blindly apply suggestions |
 
 ### VERIFY

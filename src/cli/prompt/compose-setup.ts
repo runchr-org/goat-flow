@@ -470,7 +470,6 @@ function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
 // Main entry point
 // ----------------------------------------------------------------
 
-/** Compose the setup prompt that matches the project's current install state. */
 const FULL_SETUP_STATES = new Set(["bare", "partial", "error"]);
 const UPGRADE_STATES = new Set(["v0.9", "outdated"]);
 

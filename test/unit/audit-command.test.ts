@@ -910,15 +910,42 @@ describe("copilot install requires GitHub commit instructions", () => {
 // ---------------------------------------------------------------------------
 describe("orphaned artifact detection refinement", () => {
   it("does not flag bare .claude/ dir as orphaned when no goat-flow skills are installed", () => {
+    // To reach checkOrphanedArtifacts, earlier checks must pass:
+    // - checkAnyAgentConfigured needs agents.length > 0
+    // - checkConfiguredInstructionFilesPresent needs all agents to have instruction files
+    // So we provide a codex agent with instruction present, and put claude only
+    // in structure.agents with CLAUDE.md missing and bare .claude/ artifacts.
     const check = BUILD_CHECKS.find((c) => c.id === "agent-instruction")!;
+    const codexProfile: AgentProfile = {
+      id: "codex",
+      name: "Codex",
+      instructionFile: "AGENTS.md",
+      settingsFile: ".codex/config.toml",
+      hookConfigFile: ".codex/hooks.json",
+      skillsDir: ".agents/skills",
+      hooksDir: ".codex/hooks",
+      denyMechanism: {
+        type: "deny-script",
+        path: ".codex/hooks/deny-dangerous.sh",
+      },
+      denyHookFile: ".codex/hooks/deny-dangerous.sh",
+      localPattern: ".github/instructions/*.md",
+      hookEvents: { preTool: "", postTurn: "stop" },
+    };
     const result = check.run(
       makeCtx({
         agentFilter: null,
-        agents: [],
+        agents: [stubAgentFacts({ agent: codexProfile })],
         config: stubConfig(),
         structure: {
           ...STUB_STRUCTURE,
           agents: {
+            codex: {
+              instruction_file: "AGENTS.md",
+              skills_dir: ".agents/skills",
+              hooks_dir: ".codex/hooks",
+              settings: ".codex/config.toml",
+            },
             claude: {
               instruction_file: "CLAUDE.md",
               skills_dir: ".claude/skills",
@@ -929,45 +956,60 @@ describe("orphaned artifact detection refinement", () => {
         },
         fs: stubFS({
           exists: (path: string) => {
+            if (path === "AGENTS.md") return true;
             if (path === "CLAUDE.md") return false;
             if (path === ".claude/settings.json") return true;
             if (path === ".claude/hooks") return true;
             if (path === ".claude/hooks/deny-dangerous.sh") return false;
-            return false;
+            return true;
           },
           listDir: () => [],
         }),
       }),
     );
 
-    // Should NOT report orphaned artifacts for a bare .claude/ dir
-    if (result !== null) {
-      assert.doesNotMatch(
-        result.message,
-        /artifacts exist/i,
-        "bare .claude/ with settings.json but no goat-flow skills should not be flagged",
-      );
-    }
+    // checkOrphanedArtifacts should reach agentArtifactsExist for claude,
+    // find no goat-flow skills or deny hook, and return null for claude.
+    // The overall result should be null (no orphaned artifacts).
+    assert.equal(
+      result,
+      null,
+      "bare .claude/ with settings.json but no goat-flow skills should not be flagged as orphaned",
+    );
   });
 
   it("flags genuine orphan when goat-flow deny hook exists but instruction file is missing", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "agent-instruction")!;
-    const claudeNoInstruction = stubAgentFacts({
-      instruction: {
-        exists: false,
-        content: null,
-        lineCount: 0,
-        sections: new Map(),
+    const codexProfile: AgentProfile = {
+      id: "codex",
+      name: "Codex",
+      instructionFile: "AGENTS.md",
+      settingsFile: ".codex/config.toml",
+      hookConfigFile: ".codex/hooks.json",
+      skillsDir: ".agents/skills",
+      hooksDir: ".codex/hooks",
+      denyMechanism: {
+        type: "deny-script",
+        path: ".codex/hooks/deny-dangerous.sh",
       },
-    });
+      denyHookFile: ".codex/hooks/deny-dangerous.sh",
+      localPattern: ".github/instructions/*.md",
+      hookEvents: { preTool: "", postTurn: "stop" },
+    };
     const result = check.run(
       makeCtx({
         agentFilter: null,
-        agents: [claudeNoInstruction],
+        agents: [stubAgentFacts({ agent: codexProfile })],
         config: stubConfig(),
         structure: {
           ...STUB_STRUCTURE,
           agents: {
+            codex: {
+              instruction_file: "AGENTS.md",
+              skills_dir: ".agents/skills",
+              hooks_dir: ".codex/hooks",
+              settings: ".codex/config.toml",
+            },
             claude: {
               instruction_file: "CLAUDE.md",
               skills_dir: ".claude/skills",
@@ -978,18 +1020,19 @@ describe("orphaned artifact detection refinement", () => {
         },
         fs: stubFS({
           exists: (path: string) => {
+            if (path === "AGENTS.md") return true;
             if (path === "CLAUDE.md") return false;
             if (path === ".claude/hooks/deny-dangerous.sh") return true;
-            return false;
+            return true;
           },
           listDir: () => [],
         }),
       }),
     );
 
-    assert.notEqual(result, null, "should report a problem");
-    // The check finds configured agents with missing instruction files first
-    assert.match(result!.message, /missing/i);
+    assert.notEqual(result, null, "should report orphaned artifacts");
+    assert.match(result!.message, /artifacts exist/i);
+    assert.match(result!.message, /claude/i);
   });
 });
 
