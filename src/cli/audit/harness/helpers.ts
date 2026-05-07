@@ -55,7 +55,7 @@ export function extractBacktickPaths(content: string): string[] {
     }
     if (isNonRepoPathToken(path)) continue;
     const isNestedPath = path.includes("/");
-    if (!isNestedPath && !isRootLineRef) continue;
+    if (!isNestedPath) continue;
     paths.push(path);
   }
   return paths;

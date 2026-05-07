@@ -906,6 +906,7 @@ describe("copilot install requires GitHub commit instructions", () => {
           agents: {
             copilot: {
               instruction_file: ".github/copilot-instructions.md",
+              skills_dir: ".github/skills",
             },
           },
         },

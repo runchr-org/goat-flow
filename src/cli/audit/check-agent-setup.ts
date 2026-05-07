@@ -156,27 +156,26 @@ function checkCopilotCommitInstructionsPresent(
   };
 }
 
+/** Skills dirs owned by agents whose instruction file is present. */
+function presentAgentSkillsDirs(ctx: AuditContext): Set<string> {
+  const dirs = new Set<string>();
+  for (const profile of Object.values(ctx.structure.agents)) {
+    if (profile.skills_dir && ctx.fs.exists(profile.instruction_file)) {
+      dirs.add(profile.skills_dir.replace(/\/$/, ""));
+    }
+  }
+  return dirs;
+}
+
 /** Check for agent artifacts that remain after their instruction file was removed. */
 function checkOrphanedArtifacts(ctx: AuditContext): AuditFailure | null {
   if (!ctx.config.exists) return null;
-  // Collect skills_dirs owned by agents whose instruction file is present so we
-  // don't false-positive on shared directories (codex and gemini both use
-  // .agents/skills/).
-  const presentSkillsDirs = new Set<string>();
-  for (const profile of Object.values(ctx.structure.agents)) {
-    if (profile.skills_dir && ctx.fs.exists(profile.instruction_file)) {
-      presentSkillsDirs.add(profile.skills_dir.replace(/\/$/, ""));
-    }
-  }
+  const sharedDirs = presentAgentSkillsDirs(ctx);
   const missing: string[] = [];
   for (const [agentId, profile] of Object.entries(ctx.structure.agents)) {
     if (ctx.fs.exists(profile.instruction_file)) continue;
-    if (
-      profile.skills_dir &&
-      presentSkillsDirs.has(profile.skills_dir.replace(/\/$/, ""))
-    ) {
-      continue;
-    }
+    const skillsDir = profile.skills_dir.replace(/\/$/, "");
+    if (skillsDir && sharedDirs.has(skillsDir)) continue;
     if (agentArtifactsExist(ctx.fs, profile)) {
       missing.push(`${agentId} (${profile.instruction_file})`);
     }
