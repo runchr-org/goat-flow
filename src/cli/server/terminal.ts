@@ -51,6 +51,7 @@ const WINDOWS_PROMPT_ENV_CLEANUP =
   "Remove-Item Env:GOAT_RUNNER -ErrorAction SilentlyContinue";
 const INITIAL_PROMPT_AFTER_OUTPUT_DELAY_MS = 150;
 const INITIAL_PROMPT_FALLBACK_DELAY_MS = 2000;
+export const INITIAL_PROMPT_CHUNK_SIZE = 2048;
 
 /** Maximum output to buffer while a session is detached (characters). */
 const DETACH_BUFFER_LIMIT = 512 * 1024; // 512KB
@@ -87,6 +88,21 @@ interface TerminalSpawnSpec {
 /** Format a full prompt as one terminal paste submitted once to the runner. */
 function formatInitialPromptInput(prompt: string): string {
   return "\x1b[200~" + prompt + "\x1b[201~" + "\r";
+}
+
+/** Split terminal input into bounded chunks for PTY write reliability. */
+export function chunkTerminalInput(
+  input: string,
+  chunkSize = INITIAL_PROMPT_CHUNK_SIZE,
+): string[] {
+  if (!Number.isInteger(chunkSize) || chunkSize <= 0) {
+    throw new Error("chunkSize must be a positive integer");
+  }
+  const chunks: string[] = [];
+  for (let index = 0; index < input.length; index += chunkSize) {
+    chunks.push(input.slice(index, index + chunkSize));
+  }
+  return chunks;
 }
 
 /** Pick the most runnable Windows runner path from a `where` result set. */
@@ -333,13 +349,16 @@ export class TerminalManager {
     /** Send the launch prompt through the PTY, avoiding shell/native argv limits. */
     const sendInitialInput = (): void => {
       if (!spawnSpec.initialInput || initialInputSent) return;
-      if (session.status === "terminated" || !session.pty) return;
+      const pty = session.pty;
+      if (session.status === "terminated" || !pty) return;
       initialInputSent = true;
       if (initialInputTimer) {
         clearTimeout(initialInputTimer);
         initialInputTimer = null;
       }
-      session.pty.write(spawnSpec.initialInput);
+      for (const chunk of chunkTerminalInput(spawnSpec.initialInput)) {
+        pty.write(chunk);
+      }
       session.lastInputAt = Date.now();
     };
 

@@ -22,8 +22,8 @@ What do you want to do?
 **Install locally (optional)**
 
 ```bash
-npm install --save-dev @blundergoat/goat-flow    # npm
 pnpm add -D @blundergoat/goat-flow               # pnpm
+npm install --save-dev @blundergoat/goat-flow    # npm
 ```
 
 then run this for the dashboard:

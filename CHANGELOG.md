@@ -1,10 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **deny-dangerous.sh zero-fork self-test** - Self-test no longer spawns a new bash process per test case. `block()` gained a check mode (`_CHECK_MODE`) that returns instead of exiting, with `|| return $?` propagation through the full `check_segment` → `check_command_substitutions` → `check_command_segments` call chain. Test helpers (`run_case`, `run_stdin_case`, `run_check_case`) call check functions directly in-process; `run_stdin_case` uses bash string matching instead of temp files and grep. The `run_self_test` call was moved after all function definitions so the in-process calls can resolve. Fixes audit `agent-deny-dangerous` timeout on Windows where MSYS2 fork+exec overhead made the previous ~85-subprocess self-test exceed the 30s `execFileSync` cap. (`workflow/hooks/deny-dangerous.sh`)
+
 ## v1.5.1 - 2026-05-08
 
 Installer config registration fix and release propagation.
 
 - **Existing config agent registration** - `workflow/install-goat-flow.sh` now preserves an existing `.goat-flow/config.yaml` while registering the requested agent in `agents:`. Second-agent installs no longer leave aggregate dashboard audits scoped to the first installed agent, and the updater handles missing, null, inline, and block-list agent configs without duplicating entries. (`workflow/install-goat-flow.sh`, `test/integration/setup-install.test.ts`)
+- **Brand-new project setup smoothing** - Full setup, upgrade, and migration prompts now name both required audit gates (`audit --agent` and `audit --agent --harness`), `stats --check` treats fresh empty footgun/lesson directories as warnings instead of forcing invented entries, setup docs include copyable skill-reference snippets plus earlier workspace-boundary and commit-guidance requirements, and terminal launch prompts are chunked through PTY input while staying out of runner argv/env. (`src/cli/prompt/compose-setup.ts`, `src/cli/stats/stats.ts`, `workflow/setup/`, `src/cli/server/terminal.ts`, `test/unit/audit-command.test.ts`, `test/integration/stats-command.test.ts`, `test/unit/terminal-spawn.test.ts`)
+- **Codex hooks flag migration** - Codex installs now non-destructively migrate existing `.codex/config.toml` files from deprecated `codex_hooks` to `hooks` without overwriting unrelated user settings, and `audit --agent codex` fails `agent-settings` when deprecated or disabled hook feature flags would prevent Codex hooks from running. (`workflow/install-goat-flow.sh`, `src/cli/facts/agent/settings.ts`, `src/cli/audit/check-agent-setup.ts`, `test/integration/setup-install.test.ts`, `test/unit/audit-command.test.ts`)
 - **Release propagation** - Package/config/manifest, instruction files, skill templates and installed mirrors, shared references, security reference packs, hook templates and installed hooks, fixtures, docs sample output, and manifest snapshot catalog bumped to 1.5.1. Manifest snapshot `v1.5.1.json` frozen.
 
 ## v1.5.0 - 2026-05-06

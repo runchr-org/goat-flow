@@ -86,7 +86,7 @@ export function extractSettingsFacts(
             currentSection = sectionMatch[1];
             continue;
           }
-          const kvMatch = trimmed.match(/^(\w+)\s*=\s*(.+)$/);
+          const kvMatch = trimmed.match(/^([\w.-]+)\s*=\s*(.+)$/);
           if (kvMatch?.[1] && kvMatch[2]) {
             const key = currentSection
               ? `${currentSection}.${kvMatch[1]}`

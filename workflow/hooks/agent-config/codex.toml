@@ -8,4 +8,4 @@
 # - goat-flow does not model a Codex post-turn hook event
 
 [features]
-codex_hooks = true
+hooks = true

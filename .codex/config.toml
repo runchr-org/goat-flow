@@ -3,4 +3,4 @@
 # Deny: deny-dangerous.sh via PreToolUse in .codex/hooks.json
 
 [features]
-codex_hooks = true
+hooks = true

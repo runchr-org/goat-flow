@@ -19,6 +19,18 @@ last_reviewed: 2026-05-09
 
 ---
 
+## Lesson: Defensive session rechecks can conflict with TypeScript narrowing
+
+**Status:** active | **Created:** 2026-05-09
+
+**What happened:** While chunking dashboard terminal initial prompt writes, the first `npm run typecheck` failed with `TS2367` because the loop checked `session.status === "terminated"` after an earlier guard had already narrowed the status to active/starting. The runtime intent was a defensive recheck, but the write loop was synchronous and no local status mutation could make that branch true.
+
+**Root cause:** Treated a defensive runtime status check as free inside a narrowed synchronous scope. TypeScript correctly rejected a comparison that could not happen in that scope.
+
+**Fix:** Capture stable session resources after the initial guard (`const pty = session.pty`) and keep the synchronous chunk write loop free of repeated status predicates. Evidence anchors: `src/cli/server/terminal.ts` (search: `const pty = session.pty`), `src/cli/server/terminal.ts` (search: `chunkTerminalInput`).
+
+---
+
 ## Lesson: Do not cite gitignored task files from durable artifacts
 
 **Status:** active | **Created:** 2026-05-07

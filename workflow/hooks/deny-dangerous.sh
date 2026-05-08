@@ -25,11 +25,27 @@ set -uo pipefail
 
 OUTPUT_MODE="stderr-exit"
 
+_CHECK_MODE=0
+_CHECK_EXIT=0
+_CHECK_STDOUT=""
+_CHECK_STDERR=""
+
 json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
 block() {
+  if [[ "$_CHECK_MODE" -eq 1 ]]; then
+    if [[ "$OUTPUT_MODE" == "copilot-json" ]]; then
+      _CHECK_STDOUT=$(printf '{"permissionDecision":"deny","permissionDecisionReason":"%s"}\n' \
+        "$(json_escape "$1")")
+      _CHECK_EXIT=0
+    else
+      _CHECK_STDERR="BLOCKED: $1"
+      _CHECK_EXIT=2
+    fi
+    return 1
+  fi
   if [[ "$OUTPUT_MODE" == "copilot-json" ]]; then
     printf '{"permissionDecision":"deny","permissionDecisionReason":"%s"}\n' \
       "$(json_escape "$1")"
@@ -181,23 +197,56 @@ run_self_test() {
     local name="$1"
     local command="$2"
     local expected="$3"
-    local status=0
-    local stdout_file
-    local stderr_file
 
-    stdout_file=$(mktemp)
-    stderr_file=$(mktemp)
-    "$0" "$command" >"$stdout_file" 2>"$stderr_file" || status=$?
+    _CHECK_MODE=1
+    _CHECK_EXIT=0
+    _CHECK_STDOUT=""
+    _CHECK_STDERR=""
+    OUTPUT_MODE="stderr-exit"
+    COMMAND="$command"
+    check_command_segments "$COMMAND" 0 || true
+    _CHECK_MODE=0
 
-    if [[ "$status" -ne "$expected" ]]; then
+    if [[ "$_CHECK_EXIT" -ne "$expected" ]]; then
       failures=$((failures + 1))
-      echo "FAIL [${name}]: expected $expected, got $status"
-      if [[ -s "$stderr_file" ]]; then
-        sed -n '1,2p' "$stderr_file" >&2
+      echo "FAIL [${name}]: expected $expected, got $_CHECK_EXIT"
+    fi
+  }
+
+  _eval_structured() {
+    INPUT="$1"
+    STRUCTURED_INPUT=1
+    OUTPUT_MODE="stderr-exit"
+    TOOL_NAME=""
+    COMMAND=""
+
+    if command -v jq >/dev/null 2>&1; then
+      if printf '%s' "$INPUT" | jq -e \
+        'has("toolName") or has("toolArgs") or has("sessionId")' \
+        >/dev/null 2>&1; then
+        OUTPUT_MODE="copilot-json"
       fi
+    elif printf '%s' "$INPUT" | grep -qE '"toolName"|"toolArgs"|"sessionId"'; then
+      OUTPUT_MODE="copilot-json"
     fi
 
-    rm -f "$stdout_file" "$stderr_file"
+    if ! parse_structured_input; then
+      block "Structured hook payload must be valid JSON and requires jq or node for safe parsing" || return $?
+    fi
+
+    if [[ -n "$TOOL_NAME" ]]; then
+      local tool_name_lc="${TOOL_NAME,,}"
+      case "$tool_name_lc" in
+        bash|shell|sh) ;;
+        *) return 0 ;;
+      esac
+    fi
+
+    if [[ -z "$COMMAND" ]]; then
+      block "Hook payload did not expose a bash command to evaluate" || return $?
+    fi
+
+    check_command_segments "$COMMAND" 0 || return $?
   }
 
   run_stdin_case() {
@@ -206,21 +255,19 @@ run_self_test() {
     local expected="$3"
     local expected_stream="$4"
     local expected_pattern="$5"
-    local status=0
-    local stdout_file
-    local stderr_file
-    local target_file
 
-    stdout_file=$(mktemp)
-    stderr_file=$(mktemp)
-    printf '%s' "$payload" | "$0" >"$stdout_file" 2>"$stderr_file" || status=$?
+    _CHECK_MODE=1
+    _CHECK_EXIT=0
+    _CHECK_STDOUT=""
+    _CHECK_STDERR=""
+    _eval_structured "$payload" || true
+    _CHECK_MODE=0
 
-    if [[ "$status" -ne "$expected" ]]; then
+    if [[ "$_CHECK_EXIT" -ne "$expected" ]]; then
       failures=$((failures + 1))
-      echo "FAIL [${name}]: expected $expected, got $status"
+      echo "FAIL [${name}]: expected $expected, got $_CHECK_EXIT"
     fi
 
-    # Pattern prefixed with '!' means "must NOT contain" (forbidden pattern).
     local forbid_mode=0
     local pattern_body="$expected_pattern"
     if [[ "$pattern_body" == !* ]]; then
@@ -228,52 +275,45 @@ run_self_test() {
       pattern_body="${pattern_body#!}"
     fi
     if [[ -n "$pattern_body" ]]; then
+      local target_content=""
       case "$expected_stream" in
-        stdout) target_file="$stdout_file" ;;
-        stderr) target_file="$stderr_file" ;;
+        stdout) target_content="$_CHECK_STDOUT" ;;
+        stderr) target_content="$_CHECK_STDERR" ;;
         *)
           failures=$((failures + 1))
           echo "FAIL [${name}]: invalid expected stream '${expected_stream}'"
-          target_file=""
           ;;
       esac
-      if [[ -n "$target_file" ]]; then
-        if [[ "$forbid_mode" -eq 1 ]]; then
-          if grep -Fq "$pattern_body" "$target_file"; then
-            failures=$((failures + 1))
-            echo "FAIL [${name}]: forbidden pattern '${pattern_body}' present in ${expected_stream}"
-          fi
-        elif ! grep -Fq "$pattern_body" "$target_file"; then
+      if [[ "$forbid_mode" -eq 1 ]]; then
+        if [[ "$target_content" == *"$pattern_body"* ]]; then
           failures=$((failures + 1))
-          echo "FAIL [${name}]: missing pattern '${pattern_body}' in ${expected_stream}"
+          echo "FAIL [${name}]: forbidden pattern '${pattern_body}' present in ${expected_stream}"
         fi
+      elif [[ "$target_content" != *"$pattern_body"* ]]; then
+        failures=$((failures + 1))
+        echo "FAIL [${name}]: missing pattern '${pattern_body}' in ${expected_stream}"
       fi
     fi
-
-    rm -f "$stdout_file" "$stderr_file"
   }
 
   run_check_case() {
     local name="$1"
     local command="$2"
     local expected="$3"
-    local status=0
-    local stdout_file
-    local stderr_file
 
-    stdout_file=$(mktemp)
-    stderr_file=$(mktemp)
-    "$0" --check "$command" >"$stdout_file" 2>"$stderr_file" || status=$?
+    _CHECK_MODE=1
+    _CHECK_EXIT=0
+    _CHECK_STDOUT=""
+    _CHECK_STDERR=""
+    OUTPUT_MODE="stderr-exit"
+    COMMAND="$command"
+    check_command_segments "$COMMAND" 0 || true
+    _CHECK_MODE=0
 
-    if [[ "$status" -ne "$expected" ]]; then
+    if [[ "$_CHECK_EXIT" -ne "$expected" ]]; then
       failures=$((failures + 1))
-      echo "FAIL [${name}]: expected $expected, got $status"
-      if [[ -s "$stderr_file" ]]; then
-        sed -n '1,2p' "$stderr_file" >&2
-      fi
+      echo "FAIL [${name}]: expected $expected, got $_CHECK_EXIT"
     fi
-
-    rm -f "$stdout_file" "$stderr_file"
   }
 
   # Safe command should pass.
@@ -556,10 +596,6 @@ run_self_test() {
   exit 0
 }
 
-if [[ "$SELF_TEST" -eq 1 ]]; then
-  run_self_test
-fi
-
 # --- Pattern Checks ----------------------------------------------------------
 # Each function checks one dangerous pattern. Add project-specific blocks below.
 
@@ -657,7 +693,7 @@ check_command_segments() {
   for nested_segment in "${nested_segments[@]}"; do
     nested_segment=$(echo "$nested_segment" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     [[ -z "$nested_segment" ]] && continue
-    check_segment "$nested_segment" "$depth"
+    check_segment "$nested_segment" "$depth" || return $?
   done
 }
 
@@ -673,7 +709,9 @@ check_command_substitutions() {
   while [[ "$scan_remaining" =~ \$\(([^()]*)\) ]]; do
     match="${BASH_REMATCH[0]}"
     inner="${BASH_REMATCH[1]}"
-    [[ -n "$inner" ]] && check_command_segments "$inner" $((depth + 1))
+    if [[ -n "$inner" ]]; then
+      check_command_segments "$inner" $((depth + 1)) || return $?
+    fi
     scan_remaining="${scan_remaining/$match/__goat_subst__}"
   done
 
@@ -681,12 +719,14 @@ check_command_substitutions() {
   while [[ "$scan_remaining" =~ $proc_subst_re ]]; do
     match="${BASH_REMATCH[0]}"
     inner="${BASH_REMATCH[1]}"
-    [[ -n "$inner" ]] && check_command_segments "$inner" $((depth + 1))
+    if [[ -n "$inner" ]]; then
+      check_command_segments "$inner" $((depth + 1)) || return $?
+    fi
     scan_remaining="${scan_remaining/$match/__goat_proc_subst__}"
   done
 
   if [[ "$scan_remaining" =~ \$\( ]]; then
-    block "Complex command substitution. Write the expanded command directly."
+    block "Complex command substitution. Write the expanded command directly." || return $?
   fi
 
   local remaining_unquoted="$remaining"
@@ -694,7 +734,7 @@ check_command_substitutions() {
   remaining_unquoted="${remaining_unquoted//\\\`/}"
 
   if [[ "$remaining_unquoted" == *\`* ]]; then
-    block "Backtick command substitution hides nested execution. Use a direct command instead."
+    block "Backtick command substitution hides nested execution. Use a direct command instead." || return $?
   fi
 }
 
@@ -1376,10 +1416,10 @@ check_segment() {
 
   # Depth guard for recursive command substitution checking
   if [ "$depth" -gt 3 ]; then
-    block "Deeply nested command substitution. Simplify the command."
+    block "Deeply nested command substitution. Simplify the command." || return $?
   fi
 
-  check_command_substitutions "$cmd" "$depth"
+  check_command_substitutions "$cmd" "$depth" || return $?
 
   # Read-only tool whitelist: if the command verb is a read-only tool,
   # dangerous patterns in its arguments are data (search terms), not actions.
@@ -1428,10 +1468,10 @@ check_segment() {
     IFS='|' read -ra pipeline_parts <<< "$pipe_scan"
     for ((pipe_index = 1; pipe_index < ${#pipeline_parts[@]}; pipe_index++)); do
       if is_shell_command "${pipeline_parts[$pipe_index]}"; then
-        block "Pipe to shell. Download or inspect first, then run."
+        block "Pipe to shell. Download or inspect first, then run." || return $?
       fi
       if is_interpreter_command "${pipeline_parts[$pipe_index]}"; then
-        block "Pipe to interpreter. Download or inspect first, then run."
+        block "Pipe to interpreter. Download or inspect first, then run." || return $?
       fi
     done
   fi
@@ -1452,7 +1492,7 @@ check_segment() {
       env_example_read_only=0
     fi
     if [[ "$env_example_read_only" -eq 0 ]]; then
-      block ".env.example is allowed for read-only inspection only. Use an explicit file-edit approval path for changes."
+      block ".env.example is allowed for read-only inspection only. Use an explicit file-edit approval path for changes." || return $?
     fi
   fi
   if [[ "$has_redirect" -eq 0 && "$has_pipe" -eq 0 && "$touches_secret" -eq 0 ]]; then
@@ -1473,10 +1513,10 @@ check_segment() {
   if rm_has_recursive "$cmd"; then
     # Block path traversal regardless of prefix
     if [[ "$cmd" =~ \.\. ]]; then
-      block "rm -r with path traversal (..). Resolve the full path first."
+      block "rm -r with path traversal (..). Resolve the full path first." || return $?
     fi
     if ! rm_is_safely_scoped "$cmd"; then
-      block "rm -r without safe scoping. Specify an explicit target path."
+      block "rm -r without safe scoping. Specify an explicit target path." || return $?
     fi
   fi
 
@@ -1491,21 +1531,21 @@ check_segment() {
     local cmd_for_push
     cmd_for_push=$(normalize_git_push_candidate "$pipe_part")
     if is_git_push "$cmd_for_push"; then
-      block "git push is not allowed. Ask the user to push manually."
+      block "git push is not allowed. Ask the user to push manually." || return $?
     fi
   done
 
   # 7. chmod 777 (world-writable)
   if [[ "$cmd" =~ chmod[[:space:]]+([^;&|]*[[:space:]])?0?777([[:space:]]|$) ]]; then
-    block "chmod 777 sets world-writable permissions. Use a more restrictive mode."
+    block "chmod 777 sets world-writable permissions. Use a more restrictive mode." || return $?
   fi
 
   # 8. Pipe-to-shell (curl|bash, wget|sh, curl|python, etc.)
   if [[ "$cmd" =~ (curl|wget)[^|]*\|[[:space:]]*(ba)?sh ]]; then
-    block "Pipe-to-shell (curl|bash). Download first, inspect, then run."
+    block "Pipe-to-shell (curl|bash). Download first, inspect, then run." || return $?
   fi
   if [[ "$cmd" =~ (curl|wget)[^|]*\|[[:space:]]*(python|python3|node|perl|ruby) ]]; then
-    block "Pipe-to-interpreter. Download first, inspect, then run."
+    block "Pipe-to-interpreter. Download first, inspect, then run." || return $?
   fi
 
   # 9. Secret-file access (reads AND writes)
@@ -1515,32 +1555,32 @@ check_segment() {
   #    the Read tool, not Bash - so this rule is direct literal Bash-layer
   #    defence in depth.
   if [[ "$touches_secret" -eq 1 ]]; then
-    block "Secret-file access ($cmd_verb). Reading or editing .env / SSH/AWS/GCP keys / credentials through the agent is an exfil risk."
+    block "Secret-file access ($cmd_verb). Reading or editing .env / SSH/AWS/GCP keys / credentials through the agent is an exfil risk." || return $?
   fi
 
   # 10. --no-verify bypass (skips git hooks)
   if [[ "$cmd" =~ git[[:space:]]+.*--no-verify ]]; then
-    block "git --no-verify skips safety hooks. Remove the flag and fix the underlying issue."
+    block "git --no-verify skips safety hooks. Remove the flag and fix the underlying issue." || return $?
   fi
 
   # 11. Lockfile direct modifications (must go through package manager)
   if [[ "$cmd" =~ (\>|\>\>|tee|sed[[:space:]]+-i)[[:space:]]+.*(package-lock\.json|pnpm-lock\.yaml|composer\.lock|Cargo\.lock|yarn\.lock) ]]; then
-    block "Direct lockfile modification. Use the package manager (npm install, composer update, etc.)."
+    block "Direct lockfile modification. Use the package manager (npm install, composer update, etc.)." || return $?
   fi
 
   # 12. git reset --hard (destroys uncommitted work)
   if [[ "$cmd" =~ git[[:space:]]+reset[[:space:]]+.*--hard ]]; then
-    block "git reset --hard destroys uncommitted changes. Stash or commit first."
+    block "git reset --hard destroys uncommitted changes. Stash or commit first." || return $?
   fi
 
   # 13. git clean -f (deletes untracked files permanently)
   if [[ "$cmd" =~ git[[:space:]]+clean[[:space:]]+.*-[a-zA-Z]*f ]]; then
-    block "git clean -f deletes untracked files permanently. List targets with git clean -n first."
+    block "git clean -f deletes untracked files permanently. List targets with git clean -n first." || return $?
   fi
 
   # 14. eval and indirect execution
   if [[ "$cmd_unquoted" =~ ^eval[[:space:]] ]] || [[ "$cmd_unquoted" =~ [[:space:]]eval[[:space:]] ]]; then
-    block "eval hides commands from safety checks. Write the command directly."
+    block "eval hides commands from safety checks. Write the command directly." || return $?
   fi
   # bash -c / sh -c: recurse into the -c argument instead of blanket-blocking, so
   # xargs ... sh -c '<safe>' and similar legitimate patterns still work while
@@ -1549,27 +1589,27 @@ check_segment() {
   if [[ "$cmd" =~ (^|[[:space:]])(ba)?sh([[:space:]]+-[a-zA-Z]+)*[[:space:]]+-[a-zA-Z]*c[a-zA-Z]*[[:space:]]+([\'\"])([^\'\"]*)([\'\"]) ]]; then
     local inner_c="${BASH_REMATCH[5]}"
     if [[ -n "$inner_c" ]]; then
-      check_command_segments "$inner_c" $((depth + 1))
+      check_command_segments "$inner_c" $((depth + 1)) || return $?
     fi
   fi
 
   # 15. File truncation
   local redirect_pattern='^>[[:space:]]'
   if [[ "$cmd" =~ $redirect_pattern ]]; then
-    block "Redirect to empty file. This truncates the target. Use a safer approach."
+    block "Redirect to empty file. This truncates the target. Use a safer approach." || return $?
   fi
   if [[ "$cmd" =~ truncate[[:space:]] ]]; then
-    block "truncate can destroy file contents. Verify intent before proceeding."
+    block "truncate can destroy file contents. Verify intent before proceeding." || return $?
   fi
 
   # 16. Destructive database commands via CLI tools
   if [[ "$cmd_lower" =~ (mysql|psql|sqlite3|mongosh)[[:space:]].*(-e|--command|--eval)[[:space:]]+.*(drop[[:space:]]+(database|table|schema)|truncate[[:space:]]+table) ]]; then
-    block "Destructive database command (DROP/TRUNCATE). Run manually with verification."
+    block "Destructive database command (DROP/TRUNCATE). Run manually with verification." || return $?
   fi
 
   # 17. npm token delete/revoke (irreversible credential destruction)
   if [[ "$cmd_lower" =~ npm[[:space:]]+token[[:space:]]+(delete|revoke) ]]; then
-    block "npm token delete/revoke is irreversible. Manage tokens manually via the npm website."
+    block "npm token delete/revoke is irreversible. Manage tokens manually via the npm website." || return $?
   fi
 
   # --- CUSTOMIZE: Add project-specific blocks below --------------------------
@@ -1649,6 +1689,10 @@ split_command_segments() {
   split_segments+=("$current")
   printf '%s\0' "${split_segments[@]}"
 }
+
+if [[ "$SELF_TEST" -eq 1 ]]; then
+  run_self_test
+fi
 
 check_command_segments "$COMMAND" 0
 

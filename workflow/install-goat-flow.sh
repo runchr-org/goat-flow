@@ -345,6 +345,78 @@ console.log(changed ? "changed" : "unchanged");
 NODE
 }
 
+migrate_codex_hooks_flag() {
+  local path="$1"
+  node - "$path" <<'NODE'
+const fs = require("node:fs");
+
+const path = process.argv[2];
+const content = fs.readFileSync(path, "utf8");
+const eol = content.includes("\r\n") ? "\r\n" : "\n";
+const hadFinalNewline = /\r?\n$/u.test(content);
+const lines = content.split(/\r?\n/u);
+if (hadFinalNewline) lines.pop();
+
+function parseFeatureBooleanAssignment(line, section) {
+  if (/^\s*(#|$)/u.test(line)) return null;
+  const match = line.match(
+    /^(\s*)([A-Za-z0-9_.-]+)(\s*=\s*)(true|false)(\s*(?:#.*)?)$/u,
+  );
+  if (!match) return null;
+  const [, indent, rawKey, separator, value, suffix] = match;
+  const normalizedKey =
+    section === "features" && !rawKey.includes(".")
+      ? `features.${rawKey}`
+      : rawKey;
+  return { indent, rawKey, separator, value, suffix, normalizedKey };
+}
+
+let section = "";
+const deprecated = [];
+const hooks = [];
+for (let index = 0; index < lines.length; index += 1) {
+  const sectionMatch = lines[index].match(/^\s*\[([^\]]+)\]\s*(?:#.*)?$/u);
+  if (sectionMatch) {
+    section = sectionMatch[1].trim();
+    continue;
+  }
+  const assignment = parseFeatureBooleanAssignment(lines[index], section);
+  if (!assignment) continue;
+  if (assignment.normalizedKey === "features.codex_hooks") {
+    deprecated.push({ index, assignment });
+  } else if (assignment.normalizedKey === "features.hooks") {
+    hooks.push(index);
+  }
+}
+
+if (deprecated.length === 0) {
+  console.log("unchanged");
+  process.exit(0);
+}
+
+const remove = new Set();
+if (hooks.length === 0) {
+  const first = deprecated[0];
+  const replacementKey = first.assignment.rawKey.includes(".")
+    ? "features.hooks"
+    : "hooks";
+  lines[first.index] =
+    first.assignment.indent +
+    replacementKey +
+    first.assignment.separator +
+    first.assignment.value +
+    first.assignment.suffix;
+  for (const entry of deprecated.slice(1)) remove.add(entry.index);
+} else {
+  for (const entry of deprecated) remove.add(entry.index);
+}
+
+const next = lines.filter((_, index) => !remove.has(index)).join(eol);
+fs.writeFileSync(path, next + (hadFinalNewline ? eol : ""));
+console.log("migrated");
+NODE
+}
+
 echo "goat-flow install: $(basename "$PROJECT") (agent: $AGENT)"
 echo ""
 
@@ -459,9 +531,14 @@ echo "Settings:"
 SETTINGS_SKIPPED=false
 if [[ -n "${SETTINGS_SRC:-}" && -n "${SETTINGS_DST:-}" ]]; then
   if [[ -f "$SETTINGS_DST" ]] && ! $FORCE; then
-    SETTINGS_SKIPPED=true
-    SKIPPED=$((SKIPPED + 1))
-    echo "  · $SETTINGS_DST (exists, skipped)"
+    if [[ "$AGENT" == "codex" ]] && [[ "$(migrate_codex_hooks_flag "$SETTINGS_DST")" == "migrated" ]]; then
+      COPIED=$((COPIED + 1))
+      echo "  ✓ $SETTINGS_DST (migrated deprecated codex_hooks flag)"
+    else
+      SETTINGS_SKIPPED=true
+      SKIPPED=$((SKIPPED + 1))
+      echo "  · $SETTINGS_DST (exists, skipped)"
+    fi
   else
     copy_file "$GOAT_FLOW_ROOT/$SETTINGS_SRC" "$SETTINGS_DST"
   fi

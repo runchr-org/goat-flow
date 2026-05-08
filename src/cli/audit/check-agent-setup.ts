@@ -353,6 +353,59 @@ const agentSkills: BuildCheck = {
 
 // === 3. Agent Settings ===
 
+function settingsObject(parsed: unknown): Record<string, unknown> | null {
+  return parsed && typeof parsed === "object"
+    ? (parsed as Record<string, unknown>)
+    : null;
+}
+
+function hasSettingsKey(parsed: unknown, key: string): boolean {
+  const settings = settingsObject(parsed);
+  return settings ? Object.prototype.hasOwnProperty.call(settings, key) : false;
+}
+
+function booleanSetting(parsed: unknown, key: string): boolean | null {
+  const settings = settingsObject(parsed);
+  if (!settings) return null;
+  const value = settings[key];
+  return typeof value === "boolean" ? value : null;
+}
+
+function checkCodexDeprecatedHooksFlag(ctx: AuditContext): AuditFailure | null {
+  for (const af of ctx.agents) {
+    if (af.agent.id !== "codex") continue;
+    if (!hasSettingsKey(af.settings.parsed, "features.codex_hooks")) continue;
+    return {
+      check: "Agent settings",
+      message:
+        "Deprecated Codex feature flag in .codex/config.toml: [features].codex_hooks",
+      evidence: af.agent.settingsFile ?? ".codex/config.toml",
+      howToFix:
+        "Replace `codex_hooks` with `hooks` under `[features]`, or run `goat-flow install . --agent codex` to migrate the setting.",
+    };
+  }
+  return null;
+}
+
+function checkCodexHooksEnabled(ctx: AuditContext): AuditFailure | null {
+  for (const af of ctx.agents) {
+    if (af.agent.id !== "codex") continue;
+    if (!af.hooks.denyExists && !af.hooks.denyIsRegistered) continue;
+    if (booleanSetting(af.settings.parsed, "features.hooks") === true) {
+      continue;
+    }
+    return {
+      check: "Agent settings",
+      message:
+        "Codex hooks are installed but .codex/config.toml does not enable [features].hooks = true",
+      evidence: af.agent.settingsFile ?? ".codex/config.toml",
+      howToFix:
+        "Add `hooks = true` under `[features]` in .codex/config.toml, or run `goat-flow install . --agent codex` to install the current Codex settings template.",
+    };
+  }
+  return null;
+}
+
 const agentSettings: BuildCheck = {
   id: "agent-settings",
   name: "Agent settings",
@@ -372,12 +425,14 @@ const agentSettings: BuildCheck = {
         invalid.push(af.agent.id);
       }
     }
-    if (invalid.length === 0) return null;
-    return {
-      check: "Agent settings",
-      message: `Invalid settings for: ${invalid.join(", ")}`,
-      howToFix: `Fix the JSON syntax in the settings file for ${invalid.join(", ")}.`,
-    };
+    if (invalid.length > 0) {
+      return {
+        check: "Agent settings",
+        message: `Invalid settings for: ${invalid.join(", ")}`,
+        howToFix: `Fix the JSON syntax in the settings file for ${invalid.join(", ")}.`,
+      };
+    }
+    return checkCodexDeprecatedHooksFlag(ctx) ?? checkCodexHooksEnabled(ctx);
   },
 };
 

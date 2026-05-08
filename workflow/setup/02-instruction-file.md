@@ -46,11 +46,29 @@ The instruction file MUST include these sections. Use `workflow/setup/reference/
 - (j) Router Table as the final section
 - (k) Quality Bar: every line must fit one of: behavioral rule, scope boundary, command, verification gate, router pointer, composition rule. Domain knowledge belongs in cold-path files. For strict constraints, state whether prose-only or mechanically enforced.
 
+Also include path-agnostic workspace boundary guidance. It may be a short `Workspace Boundary` section or one sentence in Project identity / Key Resources, but it must distinguish the controlling goat-flow workspace from the selected target project without hardcoding machine-specific absolute paths.
+
 Adapt all examples, Ask First boundaries, and essential commands for THIS project's real codebase. Use real file paths, real commands, real boundaries. Preserve the composition rule: when a goat-* skill is active, the skill's Step 0 satisfies READ/SCOPE and the instruction file resumes at ACT.
+
+## Canonical audit snippets
+
+The setup audit requires these phrases. Paste or adapt them with the required words intact.
+
+READ step:
+
+> Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-reference/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc's "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool".
+
+Router Table row:
+
+| Resource | Path |
+|----------|------|
+| Tool playbooks (CLI/MCP availability checks: browser-use, page-capture, skill-* references) | `.goat-flow/skill-reference/` - read BEFORE declaring a tool unavailable |
 
 ## Optional: project infrastructure
 
 Add a brief section documenting deployment platform, branch conventions, and required runtime versions - only if this information isn't already captured elsewhere in the project.
+
+If `.github/` exists, create or update `.github/git-commit-instructions.md` with this project's commit rules. Do not copy goat-flow's own commit policy into consumer projects. If the project has no special rules, write a short project-specific statement such as "Use concise conventional commits; no project-specific commit constraints are currently documented." The harness `commit-guidance` check expects commit guidance at `.github/git-commit-instructions.md` when `.github/` exists.
 
 ## Housekeeping
 
@@ -67,8 +85,10 @@ After writing/updating the instruction file:
 - [ ] All sections (a) through (k) are present
 - [ ] Router Table is the final section
 - [ ] Examples and boundaries reference real project files
-- [ ] READ step says to read `.goat-flow/skill-reference/` before declaring a tool or capability unavailable
-- [ ] Router table includes `.goat-flow/skill-reference/` as tool playbooks to read before declaring a tool unavailable
+- [ ] Workspace boundary guidance distinguishes controlling goat-flow workspace from selected target project without hardcoded absolute paths
+- [ ] READ step keeps the canonical skill-reference phrases: "Before declaring any tool or capability unavailable", `.goat-flow/skill-reference/`, and "Availability Check"
+- [ ] Router table includes the canonical `.goat-flow/skill-reference/` tool playbooks row
+- [ ] If `.github/` exists, `.github/git-commit-instructions.md` exists with project-specific commit guidance
 - [ ] Every line fits the Quality Bar: behavioral rule, scope boundary, command, verification gate, router pointer, or composition rule. Domain knowledge and project history are routed to cold-path files, not inlined.
 - [ ] If Path B: no useful existing content was lost
 - [ ] If Path B: Execution Loop is the four-step v1.2 version; `rg 'CLASSIFY|→\s*LOG|->\s*LOG' <instruction-file>` returns zero hits

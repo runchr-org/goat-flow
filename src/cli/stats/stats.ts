@@ -34,7 +34,7 @@ interface DecisionFileSummary {
 
 interface StatsWarning {
   file: string;
-  rule: "decision-metadata";
+  rule: "decision-metadata" | "empty-learning-loop";
   message: string;
 }
 
@@ -187,6 +187,14 @@ function collectBucketFindings(
 /** Collect findings. */
 function collectFindings(section: BucketSection): StatsFinding[] {
   const findings: StatsFinding[] = [];
+  if (!section.exists) {
+    findings.push({
+      file: section.path,
+      rule: "format",
+      message: `${section.path}: directory missing`,
+    });
+    return findings;
+  }
   for (const bucket of section.buckets) {
     findings.push(...collectBucketFindings(bucket));
   }
@@ -195,6 +203,7 @@ function collectFindings(section: BucketSection): StatsFinding[] {
       (f) => f.rule === "missing-last-reviewed",
     );
     for (const piece of section.formatDiagnostic.split("; ")) {
+      if (isEmptyLearningLoopDiagnostic(piece)) continue;
       if (alreadyReported && /missing frontmatter last_reviewed/.test(piece)) {
         continue;
       }
@@ -210,6 +219,25 @@ function collectFindings(section: BucketSection): StatsFinding[] {
     }
   }
   return findings;
+}
+
+function isEmptyLearningLoopDiagnostic(message: string): boolean {
+  return (
+    message === "Footgun directory exists but contains 0 entries" ||
+    message === "Lesson directory exists but contains 0 entries"
+  );
+}
+
+function collectWarnings(section: BucketSection): StatsWarning[] {
+  if (section.formatDiagnostic === null) return [];
+  return section.formatDiagnostic
+    .split("; ")
+    .filter(isEmptyLearningLoopDiagnostic)
+    .map((message) => ({
+      file: section.path,
+      rule: "empty-learning-loop",
+      message,
+    }));
 }
 
 const ADR_FILENAME = /^ADR-\d{3}-[a-z0-9-]+\.md$/;
@@ -285,9 +313,14 @@ export function checkStats(report: StatsReport): StatsCheckReport {
     ...collectFindings(report.lessons),
     ...(report.decisions ? collectDecisionFindings(report.decisions) : []),
   ];
+  const warnings = [
+    ...collectWarnings(report.footguns),
+    ...collectWarnings(report.lessons),
+    ...(report.decisions?.warnings ?? []),
+  ];
   return {
     status: findings.length === 0 ? "pass" : "fail",
     findings,
-    warnings: report.decisions?.warnings ?? [],
+    warnings,
   };
 }

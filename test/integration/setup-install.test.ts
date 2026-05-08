@@ -213,6 +213,45 @@ describe("settings skip warning", () => {
   });
 });
 
+describe("codex config migration", () => {
+  it("migrates deprecated codex_hooks without overwriting custom config", () => {
+    const root = makeTempProject();
+    const codexDir = join(root, ".codex");
+    mkdirSync(codexDir, { recursive: true });
+    writeFileSync(
+      join(codexDir, "config.toml"),
+      'model = "gpt-5"\napproval_policy = "on-request"\n\n[features]\ncodex_hooks = true\n',
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
+    assert.match(config, /model = "gpt-5"/);
+    assert.match(config, /approval_policy = "on-request"/);
+    assert.match(config, /\[features\]\nhooks = true\n/);
+    assert.doesNotMatch(config, /codex_hooks/);
+    assert.match(result.stdout, /migrated deprecated codex_hooks flag/);
+  });
+
+  it("removes deprecated codex_hooks when hooks is already present", () => {
+    const root = makeTempProject();
+    const codexDir = join(root, ".codex");
+    mkdirSync(codexDir, { recursive: true });
+    writeFileSync(
+      join(codexDir, "config.toml"),
+      "[features]\nhooks = true\ncodex_hooks = true\n",
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
+    assert.equal(config.match(/hooks = true/g)?.length, 1);
+    assert.doesNotMatch(config, /codex_hooks/);
+  });
+});
+
 // ── Bug 3: Deprecated skill cleanup ─────────────────────────────────────
 
 describe("--clean-deprecated flag", () => {

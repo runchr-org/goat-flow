@@ -1,7 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { buildTerminalSpawnSpec } from "../../src/cli/server/terminal.js";
+import {
+  buildTerminalSpawnSpec,
+  chunkTerminalInput,
+} from "../../src/cli/server/terminal.js";
 
 const QUOTED_MULTILINE_PROMPT = [
   "# GOAT Flow Setup - Codex",
@@ -47,6 +50,34 @@ describe("buildTerminalSpawnSpec", () => {
     assert.ok(spec.initialInput);
     assert.match(spec.initialInput, /No Codex configuration detected/);
     assert.match(spec.initialInput, /"\[describe X\]"/);
+  });
+
+  it("chunks long initial prompt input without adding extra paste markers", () => {
+    const longPrompt = [
+      "# GOAT Flow Setup - Codex",
+      "",
+      "A".repeat(7000),
+      "",
+      "Run both required setup gates.",
+    ].join("\n");
+    const spec = buildTerminalSpawnSpec(
+      "claude",
+      "/usr/local/bin/claude",
+      longPrompt,
+      { SHELL: "/bin/bash" },
+      "linux",
+    );
+
+    assert.ok(spec.initialInput);
+    const chunks = chunkTerminalInput(spec.initialInput, 512);
+    const recombined = chunks.join("");
+
+    assert.ok(chunks.length > 1, "expected a long prompt to be chunked");
+    assert.equal(recombined, spec.initialInput);
+    assert.equal(recombined.split("\x1b[200~").length - 1, 1);
+    assert.equal(recombined.split("\x1b[201~").length - 1, 1);
+    assert.ok(chunks[0]?.startsWith("\x1b[200~"));
+    assert.ok(chunks.at(-1)?.endsWith("\x1b[201~\r"));
   });
 
   it("does not inject terminal input for manual sessions", () => {

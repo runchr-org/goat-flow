@@ -215,6 +215,29 @@ function rerunAuditCommand(
   return `${getCliCommand()} audit ${targetArg(facts.root)}${scopeFlag} --agent ${agentId}`;
 }
 
+function auditCommand(facts: ProjectFacts, agentId: AgentId): string {
+  return `${getCliCommand()} audit ${targetArg(facts.root)} --agent ${agentId}`;
+}
+
+function harnessAuditCommand(facts: ProjectFacts, agentId: AgentId): string {
+  return `${getCliCommand()} audit ${targetArg(facts.root)} --agent ${agentId} --harness`;
+}
+
+function pushFinalSetupGate(
+  lines: string[],
+  facts: ProjectFacts,
+  agentId: AgentId,
+): void {
+  lines.push("**Audit:** Run both required setup gates:");
+  lines.push(`- \`${auditCommand(facts, agentId)}\``);
+  lines.push(`- \`${harnessAuditCommand(facts, agentId)}\``);
+  lines.push("");
+  lines.push("**Target: both audits pass with zero failures.**");
+  lines.push(
+    `If either audit fails, run \`${getCliCommand()} setup ${targetArg(facts.root)} --agent ${agentId}\` for remaining fix instructions, then re-run both audit gates. Repeat until both pass (max 3 cycles).`,
+  );
+}
+
 function promptIncludesHarness(
   auditReport: AuditReport,
   promptScope: SetupPromptScope,
@@ -375,14 +398,7 @@ function renderUpgradeRedirect(
   lines.push("");
   lines.push(`## ${state === "outdated" ? "Step 3" : "Step 4"} - Verify`);
   lines.push("");
-  lines.push(
-    `**Audit:** Run \`${getCliCommand()} audit ${targetArg(facts.root)} --agent ${agentId}\``,
-  );
-  lines.push("");
-  lines.push("**Target: audit passes with zero failures.**");
-  lines.push(
-    `If audit fails, run \`${getCliCommand()} setup ${targetArg(facts.root)} --agent ${agentId}\` for remaining fix instructions. Repeat until audit passes (max 3 cycles).`,
-  );
+  pushFinalSetupGate(lines, facts, agentId);
 
   return lines.join("\n");
 }
@@ -453,15 +469,7 @@ function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
 
   lines.push("## Step 3 - Verify");
   lines.push("");
-
-  lines.push(
-    `**Audit:** Run \`${getCliCommand()} audit ${targetArg(facts.root)} --agent ${agentId}\``,
-  );
-  lines.push("");
-  lines.push("**Target: audit passes with zero failures.**");
-  lines.push(
-    `If audit fails, run \`${getCliCommand()} setup ${targetArg(facts.root)} --agent ${agentId}\` for remaining fix instructions. Repeat until audit passes (max 3 cycles).`,
-  );
+  pushFinalSetupGate(lines, facts, agentId);
 
   return lines.join("\n");
 }

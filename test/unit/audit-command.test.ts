@@ -22,6 +22,7 @@ import { PROFILES } from "../../src/cli/detect/agents.js";
 import { composeSetup } from "../../src/cli/prompt/compose-setup.js";
 import { extractProjectFacts } from "../../src/cli/facts/orchestrator.js";
 import { extractHookFacts } from "../../src/cli/facts/agent/hooks.js";
+import { extractSettingsFacts } from "../../src/cli/facts/agent/settings.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
@@ -569,6 +570,34 @@ describe("audit skill-reference pointer rule", () => {
     } finally {
       await project.cleanup();
     }
+  });
+
+  it("keeps setup snippets aligned with the audit remediation contract", () => {
+    const executionLoop = readFileSync(
+      join(PROJECT_ROOT, "workflow/setup/reference/execution-loop.md"),
+      "utf-8",
+    );
+    const instructionStep = readFileSync(
+      join(PROJECT_ROOT, "workflow/setup/02-instruction-file.md"),
+      "utf-8",
+    );
+
+    for (const content of [executionLoop, instructionStep]) {
+      assert.match(
+        content,
+        /Before declaring any tool or capability unavailable/,
+      );
+      assert.match(content, /\.goat-flow\/skill-reference\//);
+      assert.match(content, /Availability Check/);
+    }
+    assert.match(
+      instructionStep,
+      /Tool playbooks \(CLI\/MCP availability checks: browser-use, page-capture, skill-\* references\)/,
+    );
+    assert.match(
+      instructionStep,
+      /\.goat-flow\/skill-reference\/` - read BEFORE declaring a tool unavailable/,
+    );
   });
 
   it("passes when skill-reference exists and CLAUDE.md contains the READ rule and Router Table pointer", async () => {
@@ -1139,6 +1168,93 @@ describe("config validation failures", () => {
     );
     assert.match(result!.message, /Validation error: agents\[0\]/);
     assert.equal(result!.evidence, ".goat-flow/config.yaml");
+  });
+});
+
+describe("codex settings feature flags", () => {
+  function codexAgentFacts(
+    parsed: Record<string, unknown>,
+    hooks = stubAgentFacts().hooks,
+  ): AgentFacts {
+    return stubAgentFacts({
+      agent: PROFILES.codex,
+      settings: {
+        exists: true,
+        valid: true,
+        parsed,
+        hasDenyPatterns: false,
+      },
+      hooks: {
+        ...hooks,
+        denyExists: true,
+        denyIsRegistered: true,
+        denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+      },
+    });
+  }
+
+  it("parses Codex current and deprecated feature flags from TOML", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? 'model = "gpt-5"\nfeatures.codex_hooks = true\n[features]\nhooks = true\n'
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.deepEqual(facts.parsed, {
+      model: "gpt-5",
+      "features.codex_hooks": true,
+      "features.hooks": true,
+    });
+  });
+
+  it("fails agent-settings when Codex config still uses codex_hooks", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-settings")!;
+    const result = check.run(
+      makeCtx({
+        agentFilter: "codex",
+        agents: [
+          codexAgentFacts({
+            "features.codex_hooks": true,
+            "features.hooks": true,
+          }),
+        ],
+      }),
+    );
+
+    assert.notEqual(result, null);
+    assert.match(result!.message, /Deprecated Codex feature flag/);
+    assert.match(result!.howToFix ?? "", /goat-flow install \. --agent codex/);
+  });
+
+  it("fails agent-settings when Codex hooks are installed but hooks are not enabled", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-settings")!;
+    const result = check.run(
+      makeCtx({
+        agentFilter: "codex",
+        agents: [codexAgentFacts({ model: "gpt-5" })],
+      }),
+    );
+
+    assert.notEqual(result, null);
+    assert.match(result!.message, /\[features\]\.hooks = true/);
+    assert.match(result!.howToFix ?? "", /hooks = true/);
+  });
+
+  it("passes agent-settings when Codex hooks are installed and features.hooks is true", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-settings")!;
+    const result = check.run(
+      makeCtx({
+        agentFilter: "codex",
+        agents: [codexAgentFacts({ "features.hooks": true })],
+      }),
+    );
+
+    assert.equal(result, null);
   });
 });
 
@@ -2516,6 +2632,10 @@ describe("composeSetup routing", () => {
       assert.match(output, /does not require an agent/);
       assert.match(output, /## Step 2 - Create project-specific content/);
       assert.match(output, /## Step 3 - Verify/);
+      assert.match(output, /Run both required setup gates/);
+      assert.match(output, /audit .+ --agent codex`/);
+      assert.match(output, /audit .+ --agent codex --harness`/);
+      assert.match(output, /re-run both audit gates/);
       assert.match(output, /workflow\/setup\/agents\/codex\.md/);
     } finally {
       await project.cleanup();
@@ -2600,6 +2720,9 @@ describe("composeSetup routing", () => {
         /npx @blundergoat\/goat-flow@latest install .* --agent codex/,
       );
       assert.match(output, /workflow\/setup\/02-instruction-file\.md/);
+      assert.match(output, /Run both required setup gates/);
+      assert.match(output, /audit .+ --agent codex`/);
+      assert.match(output, /audit .+ --agent codex --harness`/);
       assert.ok(!output.includes(retiredOutdatedGuide), output);
     } finally {
       await project.cleanup();
@@ -2631,6 +2754,9 @@ describe("composeSetup routing", () => {
       );
       assert.match(output, /Remove legacy surfaces/);
       assert.match(output, /workflow\/setup\/02-instruction-file\.md/);
+      assert.match(output, /Run both required setup gates/);
+      assert.match(output, /audit .+ --agent codex`/);
+      assert.match(output, /audit .+ --agent codex --harness`/);
       assert.ok(!output.includes(retiredMigrationScript), output);
       assert.ok(!output.includes(retiredLegacyGuide), output);
     } finally {
