@@ -26,6 +26,12 @@ npm install --save-dev @blundergoat/goat-flow    # npm
 pnpm add -D @blundergoat/goat-flow               # pnpm
 ```
 
+then run this for the dashboard:
+
+```bash
+npx goat-flow dashboard .
+```
+
 For the dashboard's embedded terminal, you'll need `node-pty` to compile. See [Troubleshooting](#troubleshooting) if the terminal doesn't appear.
 
 ## Dashboard views
