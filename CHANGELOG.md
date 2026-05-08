@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.5.1 - 2026-05-08
+
+Installer config registration fix and release propagation.
+
+- **Existing config agent registration** - `workflow/install-goat-flow.sh` now preserves an existing `.goat-flow/config.yaml` while registering the requested agent in `agents:`. Second-agent installs no longer leave aggregate dashboard audits scoped to the first installed agent, and the updater handles missing, null, inline, and block-list agent configs without duplicating entries. (`workflow/install-goat-flow.sh`, `test/integration/setup-install.test.ts`)
+- **Release propagation** - Package/config/manifest, instruction files, skill templates and installed mirrors, shared references, security reference packs, hook templates and installed hooks, fixtures, docs sample output, and manifest snapshot catalog bumped to 1.5.1. Manifest snapshot `v1.5.1.json` frozen.
+
 ## v1.5.0 - 2026-05-06
 
 Local dashboard control-plane hardening and honest harness/install signals.

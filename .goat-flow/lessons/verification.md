@@ -1,6 +1,6 @@
 ---
 category: verification
-last_reviewed: 2026-05-07
+last_reviewed: 2026-05-08
 ---
 
 ## Lesson: Behavior-scope changes need assertion updates before the first focused run
@@ -119,9 +119,11 @@ last_reviewed: 2026-05-07
 
 **Recurrence 2026-05-05:** During 1.8.0 task-plan consolidation, a source-slice reference check embedded a literal markdown backtick in the shell regex (`reference/imported...\\.md` with a backtick exclusion). The PreToolUse hook blocked it with `Backtick command substitution hides nested execution`. The check was rerun with a safer single-quoted pattern that avoided backticks entirely.
 
-**Root cause:** Mixed markdown-style quoting with shell quoting during a verification command. The search intent was correct, but the shell interpreted the pattern before `rg` saw it.
+**Recurrence 2026-05-08:** During the 1.5.1 release bump, a one-off `node --input-type=module` snapshot-generation command used JavaScript template literals inside the shell heredoc. The PreToolUse hook blocked the command with the same `Backtick command substitution hides nested execution` message. The command was rerun with plain string concatenation.
 
-**Fix:** For verification grep commands, use single-quoted patterns or plain escaped literals only. Do not put markdown backticks inside the shell command. When a verification command fails due to quoting, rerun a narrower path-only search before claiming the rename is verified.
+**Root cause:** Mixed markdown/JavaScript-style quoting with shell quoting during a command. The intent was correct, but the shell/hook interpreted literal backticks before the command body could be treated as data.
+
+**Fix:** For verification and one-off repo maintenance commands, use single-quoted patterns or plain string concatenation only. Do not put markdown or JavaScript template-literal backticks inside the shell command. When a command fails due to quoting, rerun a narrower equivalent before claiming the step is verified.
 
 ---
 ## Lesson: Manifest canonical vs stale_names misclassification silently broke skill installs

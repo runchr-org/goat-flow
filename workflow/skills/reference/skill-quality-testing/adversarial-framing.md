@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.5.0"
+goat-flow-reference-version: "1.5.1"
 ---
 # Adversarial Framing (review-class skills)
 
