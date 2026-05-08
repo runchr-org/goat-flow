@@ -157,7 +157,7 @@
     >
       <!-- Left rail -->
       <div
-        :style="{ padding: sessionsCollapsed ? '8px 6px' : '0 12px 0 0' }"
+        :style="{ padding: sessionsCollapsed ? '8px 6px' : '0 12px' }"
         style="
           display: flex;
           flex-direction: column;
@@ -401,31 +401,81 @@
           x-transition.opacity.duration.150ms
           style="
             display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 8px;
             flex: 1;
             min-height: 0;
+            overflow: hidden;
             padding-top: 8px;
           "
         >
-          <span
-            x-show="allSessions().length > 0"
-            class="gf-text-muted mono"
+          <button
+            @click="activeView = 'prompts'; $nextTick(() => { $refs.presetSearchInput && $refs.presetSearchInput.focus(); })"
+            class="gf-btn gf-btn-sm gf-btn-primary"
+            type="button"
+            title="Launch from prompts"
+            aria-label="Launch from prompts"
             style="
-              min-width: 26px;
-              height: 24px;
-              display: inline-flex;
-              align-items: center;
+              width: 36px;
+              height: 36px;
+              padding: 0;
               justify-content: center;
-              border-radius: 999px;
-              border: 1px solid var(--border-subtle);
-              background: var(--neutral-bg);
-              font-size: 12px;
-              font-weight: 600;
+              flex-shrink: 0;
             "
-            :title="`${allSessions().length} sessions`"
-            x-text="allSessions().length"
-          ></span>
+          >
+            <span aria-hidden="true">+</span>
+          </button>
+          <div
+            x-show="allSessions().length > 0"
+            style="
+              width: 28px;
+              height: 1px;
+              background: var(--border-subtle);
+              flex-shrink: 0;
+            "
+          ></div>
+          <div
+            class="scrollbar"
+            style="
+              width: 100%;
+              min-height: 0;
+              overflow-y: auto;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 8px;
+              padding-bottom: 4px;
+            "
+          >
+            <template x-for="s in allSessions()" :key="'ws-collapsed-' + s.id">
+              <button
+                @click="openSession(s)"
+                class="gf-btn gf-btn-sm gf-btn-secondary"
+                type="button"
+                :title="sessionTitleFor(s) + ' · ' + sessionMeta(s)"
+                :aria-label="'Open ' + sessionTitleFor(s)"
+                :style="{
+                  width: '36px',
+                  height: '36px',
+                  padding: '0',
+                  justifyContent: 'center',
+                  borderRadius: '8px',
+                  borderColor: s.id === activeSessionId ? 'var(--accent-border)' : (sessionIsWaiting(s) ? 'var(--amber-border)' : 'var(--border-default)'),
+                  background: s.id === activeSessionId ? 'var(--accent-bg)' : (sessionIsWaiting(s) ? 'var(--amber-bg)' : undefined)
+                }"
+              >
+                <span
+                  class="gf-status-dot"
+                  :class="'gf-status-' + sessionTone(s)"
+                  :aria-label="sessionStatusLabel(s)"
+                  x-text="sessionGlyph(s)"
+                  style="margin: 0"
+                ></span>
+              </button>
+            </template>
+          </div>
         </div>
 
         <div
@@ -648,6 +698,16 @@
                 </div>
               </div>
               <div style="display: flex; gap: 6px; flex-shrink: 0">
+                <button
+                  @click="launchInTerminal('', activeRunner, { promptLabel: 'Manual session' })"
+                  :disabled="launching || serverSessions.length >= serverMaxSessions"
+                  :title="serverSessions.length >= serverMaxSessions ? 'Session limit reached. End one to launch another.' : 'Open new terminal'"
+                  class="gf-btn gf-btn-sm gf-btn-primary"
+                  type="button"
+                >
+                  <span aria-hidden="true">+</span>
+                  <span x-text="launching ? 'Launching...' : 'New terminal'"></span>
+                </button>
                 <button
                   @click="exitTerminal()"
                   class="gf-btn gf-btn-sm gf-btn-danger-solid"

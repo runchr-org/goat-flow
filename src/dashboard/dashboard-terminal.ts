@@ -6,6 +6,7 @@
 const TERMINAL_REFIT_RETRY_DELAY_MS = 50;
 const TERMINAL_REFIT_MAX_ATTEMPTS = 20;
 const TERMINAL_INITIAL_FIT_DELAYS_MS = [50, 200, 500] as const;
+const AWAITING_INPUT_VISIBLE_DELAY_MS = 1200;
 let xtermLoadPromise: Promise<void> | null = null;
 
 interface DashboardTerminalContext {
@@ -190,8 +191,8 @@ function dashboardNextAwaitingInputState(
   const chunkHasText =
     dashboardPlainTerminalText(outputChunk).trim().length > 0;
   if (dashboardOutputLooksAwaitingInput(outputChunk)) return true;
-  if (!dashboardOutputLooksAwaitingInput(nextTail)) return false;
-  return !previousAwaiting || !chunkHasText;
+  if (chunkHasText) return false;
+  return previousAwaiting && dashboardOutputLooksAwaitingInput(nextTail);
 }
 
 /** Mutate the Alpine-backed local session and the launch-time reference together. */
@@ -204,6 +205,37 @@ function dashboardMutateLocalSession(
   const reactive = ctx.sessions.find((s) => s.id === sessionId);
   if (reactive) mutate(reactive);
   if (reactive !== fallback) mutate(fallback);
+}
+
+/** Cancel a pending "awaiting input" reveal for one terminal session. */
+function dashboardClearAwaitingInputTimer(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs?.awaitingInputTimer) return;
+  clearTimeout(refs.awaitingInputTimer);
+  refs.awaitingInputTimer = undefined;
+}
+
+/** Show the waiting badge only after waiting-looking output stays quiet. */
+function dashboardScheduleAwaitingInputReveal(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+  fallback: LocalSession,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs || refs.awaitingInputTimer) return;
+  refs.awaitingInputTimer = setTimeout(() => {
+    refs.awaitingInputTimer = undefined;
+    const reactive = ctx.sessions.find((s) => s.id === sessionId);
+    const current = reactive ?? fallback;
+    if (current.ended) return;
+    if (!dashboardOutputLooksAwaitingInput(current.outputTail ?? "")) return;
+    dashboardMutateLocalSession(ctx, sessionId, fallback, (target) => {
+      target.awaitingInput = true;
+    });
+  }, AWAITING_INPUT_VISIBLE_DELAY_MS);
 }
 
 /** Build target context appended to launched preset prompts. */
@@ -272,6 +304,7 @@ function dashboardSendToTerminal(
   // ends it, and the trailing carriage return submits exactly once.
   const pasteData = "\x1b[200~" + prepared + "\x1b[201~" + "\r";
   refs.ws.send(JSON.stringify({ type: "input", data: pasteData }));
+  dashboardClearAwaitingInputTimer(ctx, active.id);
   active.lastInputTime = Date.now();
   active.awaitingInput = false;
   if (refs.xterm) refs.xterm.focus();
@@ -929,9 +962,12 @@ function dashboardConnectTerminal(
       const type = readString(msg.type);
       if (type === "output" && typeof msg.data === "string") {
         const reactive = ctx.sessions.find((s) => s.id === sessionId);
+        const refs = ctx._terminalRefs[sessionId];
         const previousTail = reactive?.outputTail ?? session.outputTail ?? "";
         const previousAwaiting =
-          reactive?.awaitingInput === true || session.awaitingInput === true;
+          reactive?.awaitingInput === true ||
+          session.awaitingInput === true ||
+          refs?.awaitingInputTimer !== undefined;
         const tail = (previousTail + msg.data).slice(-5000);
         const awaitingInput = dashboardNextAwaitingInputState(
           previousAwaiting,
@@ -940,10 +976,28 @@ function dashboardConnectTerminal(
         );
         dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
           target.outputTail = tail;
-          target.awaitingInput = awaitingInput;
         });
+        if (awaitingInput) {
+          if (
+            reactive?.awaitingInput === true ||
+            session.awaitingInput === true
+          ) {
+            dashboardClearAwaitingInputTimer(ctx, sessionId);
+            dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+              target.awaitingInput = true;
+            });
+          } else {
+            dashboardScheduleAwaitingInputReveal(ctx, sessionId, session);
+          }
+        } else {
+          dashboardClearAwaitingInputTimer(ctx, sessionId);
+          dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+            target.awaitingInput = false;
+          });
+        }
         term.write(msg.data);
       } else if (type === "exit") {
+        dashboardClearAwaitingInputTimer(ctx, sessionId);
         dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
           target.ended = true;
           target.connected = false;
@@ -961,6 +1015,7 @@ function dashboardConnectTerminal(
       } else if (type === "error" && typeof msg.message === "string") {
         term.write(`\r\n\x1b[31m${msg.message}\x1b[0m\r\n`);
       } else if (type === "shutdown") {
+        dashboardClearAwaitingInputTimer(ctx, sessionId);
         dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
           target.ended = true;
           target.connected = false;
@@ -1011,6 +1066,7 @@ function dashboardConnectTerminal(
     if (ws.readyState === WebSocket.OPEN)
       ws.send(JSON.stringify({ type: "input", data }));
     const lastInputTime = Date.now();
+    dashboardClearAwaitingInputTimer(ctx, sessionId);
     dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
       target.lastInputTime = lastInputTime;
       target.awaitingInput = false;
@@ -1025,6 +1081,7 @@ function dashboardConnectTerminal(
     ro.disconnect();
     window.removeEventListener("resize", resizeHandler);
     if (ageInterval) clearInterval(ageInterval);
+    dashboardClearAwaitingInputTimer(ctx, sessionId);
     try {
       ws.close();
     } catch {
@@ -1037,6 +1094,7 @@ function dashboardConnectTerminal(
     }
   };
   ctx._terminalRefs[sessionId] = {
+    ...ctx._terminalRefs[sessionId],
     ws,
     xterm: term,
     cleanup,

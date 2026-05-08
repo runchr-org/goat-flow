@@ -1,6 +1,6 @@
 ---
 category: verification
-last_reviewed: 2026-05-08
+last_reviewed: 2026-05-09
 ---
 
 ## Lesson: Behavior-scope changes need assertion updates before the first focused run
@@ -11,9 +11,11 @@ last_reviewed: 2026-05-08
 
 **Recurrence 2026-05-07:** Changed dashboard `/goat-plan` launch context from inline-only to Step 0/File-Write mode semantics. Focused skill and dashboard terminal tests passed, but the first full `npm test` failed because `test/unit/preset-prompts.test.ts` still asserted the old `treat bare task paths as read-only context` phrase. Evidence anchors: `src/dashboard/dashboard-terminal.ts` (search: `goat-plan global mode`), `test/unit/preset-prompts.test.ts` (search: `File-Write modes may create target`).
 
+**Recurrence 2026-05-09:** Changed dashboard terminal launch prompts from runner argv/env delivery to PTY paste delivery. Focused terminal-spawn and dashboard-terminal tests passed, but the first full `npm test` failed because `test/smoke/dashboard-endpoints.test.ts` still expected `GOAT_PROMPT`, `GOAT_PROMPT_FLAG`, and `-i "$GOAT_PROMPT"` in `buildTerminalSpawnSpec` output. Evidence anchors: `src/cli/server/terminal.ts` (search: `initialInput`), `test/smoke/dashboard-endpoints.test.ts` (search: `injects POSIX launch prompts through PTY input`).
+
 **Root cause:** Updated the route contract and one setup-prompt test, but missed the adjacent assertion that encoded the previous harness-only remediation behavior.
 
-**Prevention:** When changing an endpoint or launch-context scope semantics, grep focused tests for the old flag/phrase contract before the first run. For setup prompt scope changes, search `test/integration/dashboard-server.test.ts` and `test/unit/audit-command.test.ts` for `harness-card`, `--harness`, and `All audit checks pass`. For dashboard terminal launch-context changes, search `test/unit/preset-prompts.test.ts` for the old launch-context phrase.
+**Prevention:** When changing an endpoint or launch-context scope semantics, grep focused tests for the old flag/phrase contract before the first run. For setup prompt scope changes, search `test/integration/dashboard-server.test.ts` and `test/unit/audit-command.test.ts` for `harness-card`, `--harness`, and `All audit checks pass`. For dashboard terminal launch-context changes, search `test/unit/preset-prompts.test.ts` and `test/smoke/dashboard-endpoints.test.ts` for the old launch-context phrase, env var, or runner flag.
 
 ---
 

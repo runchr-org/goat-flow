@@ -209,10 +209,11 @@ describe("terminal exports", () => {
       "-Command",
     ]);
     assert.match(spec.args[3] ?? "", /GOAT_RUNNER/);
-    assert.match(spec.args[3] ?? "", /Remove-Item Env:GOAT_PROMPT/);
-    assert.equal(spec.env.GOAT_PROMPT, "review this");
-    assert.equal(spec.env.GOAT_PROMPT_FLAG, "-i");
-    assert.equal(spec.env.GOAT_PROMPT_PRESENT, "1");
+    assert.match(spec.args[3] ?? "", /Remove-Item Env:GOAT_RUNNER/);
+    assert.doesNotMatch(spec.args[3] ?? "", /review this/);
+    assert.equal(spec.env.GOAT_PROMPT, undefined);
+    assert.equal(spec.env.GOAT_RUNNER, "C:\\Users\\thatm\\AppData\\Roaming\\npm\\copilot.cmd");
+    assert.equal(spec.initialInput, "\x1b[200~review this\x1b[201~\r");
   });
 
   it("builds a POSIX PTY launch that returns to the interactive shell", () => {
@@ -227,13 +228,14 @@ describe("terminal exports", () => {
     assert.equal(spec.shell, "/bin/zsh");
     assert.deepStrictEqual(spec.args, [
       "-c",
-      '"$GOAT_RUNNER"; unset GOAT_PROMPT GOAT_PROMPT_FLAG GOAT_PROMPT_PRESENT; exec "$SHELL" -i',
+      '"$GOAT_RUNNER"; unset GOAT_RUNNER; exec "$SHELL" -i',
     ]);
-    assert.equal(spec.env.GOAT_PROMPT_PRESENT, "0");
+    assert.equal(spec.env.GOAT_PROMPT, undefined);
+    assert.equal(spec.initialInput, null);
     assert.equal(spec.env.SHELL, "/bin/zsh");
   });
 
-  it("preserves prompt flags for POSIX runners that require them", () => {
+  it("injects POSIX launch prompts through PTY input instead of runner flags", () => {
     const spec = buildTerminalSpawnSpec(
       "gemini",
       "/usr/local/bin/gemini",
@@ -245,10 +247,10 @@ describe("terminal exports", () => {
     assert.equal(spec.shell, "/bin/bash");
     assert.deepStrictEqual(spec.args, [
       "-c",
-      '"$GOAT_RUNNER" -i "$GOAT_PROMPT"; unset GOAT_PROMPT GOAT_PROMPT_FLAG GOAT_PROMPT_PRESENT; exec "$SHELL" -i',
+      '"$GOAT_RUNNER"; unset GOAT_RUNNER; exec "$SHELL" -i',
     ]);
-    assert.equal(spec.env.GOAT_PROMPT_FLAG, "-i");
-    assert.equal(spec.env.GOAT_PROMPT_PRESENT, "1");
+    assert.equal(spec.env.GOAT_PROMPT, undefined);
+    assert.equal(spec.initialInput, "\x1b[200~audit target\x1b[201~\r");
   });
 
   it("sends a typed error and closes when attaching to a missing session", () => {

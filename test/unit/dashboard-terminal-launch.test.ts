@@ -374,9 +374,24 @@ describe("dashboard terminal launch flow", () => {
       false,
     );
     assert.equal(
+      helpers.dashboardNextAwaitingInputState(false, prompt, "\nRunning..."),
+      false,
+    );
+    assert.equal(
       helpers.dashboardNextAwaitingInputState(true, prompt, "\n   "),
       true,
     );
+  });
+
+  it("debounces the visible awaiting-input badge", () => {
+    const source = readFileSync(DASHBOARD_TERMINAL_PATH, "utf-8");
+    assert.match(source, /const AWAITING_INPUT_VISIBLE_DELAY_MS = 1200/);
+    assert.match(
+      source,
+      /dashboardScheduleAwaitingInputReveal\(ctx, sessionId, session\)/,
+    );
+    assert.match(source, /dashboardClearAwaitingInputTimer\(ctx, sessionId\)/);
+    assert.doesNotMatch(source, /target\.awaitingInput = awaitingInput/);
   });
 
   it("maps awaiting-input sessions into the workspace waiting state", () => {
@@ -403,5 +418,30 @@ describe("dashboard terminal launch flow", () => {
       source,
       /x-text="launching \? 'Launching terminal\.\.\.' : 'Open terminal'"/,
     );
+  });
+
+  it("keeps manual terminal launch available from the active workspace", () => {
+    const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
+    assert.match(source, /Open new terminal/);
+    assert.match(
+      source,
+      /x-text="launching \? 'Launching\.\.\.' : 'New terminal'"/,
+    );
+    assert.match(
+      source,
+      /:style="\{ padding: sessionsCollapsed \? '8px 6px' : '0 12px' \}"/,
+    );
+  });
+
+  it("keeps the collapsed workspace rail actionable", () => {
+    const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
+    assert.match(source, /title="Launch from prompts"/);
+    assert.match(source, /:key="'ws-collapsed-' \+ s\.id"/);
+    assert.match(source, /@click="openSession\(s\)"/);
+    assert.match(
+      source,
+      /:aria-label="'Open ' \+ sessionTitleFor\(s\)"/,
+    );
+    assert.match(source, /justify-content: flex-start;/);
   });
 });

@@ -233,6 +233,7 @@ interface TerminalRefs {
   xterm?: XTermInstance;
   cleanup?: () => void;
   ageInterval?: ReturnType<typeof setInterval>;
+  awaitingInputTimer?: ReturnType<typeof setTimeout>;
 }
 
 /** Session metadata cached per project so the UI can reconnect after a switch. */
