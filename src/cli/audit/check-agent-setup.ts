@@ -374,14 +374,14 @@ function booleanSetting(parsed: unknown, key: string): boolean | null {
 function checkCodexDeprecatedHooksFlag(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
     if (af.agent.id !== "codex") continue;
-    if (!hasSettingsKey(af.settings.parsed, "features.hooks")) continue;
+    if (!hasSettingsKey(af.settings.parsed, "features.codex_hooks")) continue;
     return {
       check: "Agent settings",
       message:
-        "Deprecated Codex feature flag in .codex/config.toml: [features].hooks",
+        "Deprecated Codex feature flag in .codex/config.toml: [features].codex_hooks",
       evidence: af.agent.settingsFile ?? ".codex/config.toml",
       howToFix:
-        "Replace `hooks` with `codex_hooks` under `[features]`, or run `goat-flow install . --agent codex` to migrate the setting.",
+        "Replace `codex_hooks` with `hooks` under `[features]`, or run `goat-flow install . --agent codex` to migrate the setting.",
     };
   }
   return null;
@@ -391,16 +391,16 @@ function checkCodexHooksEnabled(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
     if (af.agent.id !== "codex") continue;
     if (!af.hooks.denyExists && !af.hooks.denyIsRegistered) continue;
-    if (booleanSetting(af.settings.parsed, "features.codex_hooks") === true) {
+    if (booleanSetting(af.settings.parsed, "features.hooks") === true) {
       continue;
     }
     return {
       check: "Agent settings",
       message:
-        "Codex hooks are installed but .codex/config.toml does not enable [features].codex_hooks = true",
+        "Codex hooks are installed but .codex/config.toml does not enable [features].hooks = true",
       evidence: af.agent.settingsFile ?? ".codex/config.toml",
       howToFix:
-        "Add `codex_hooks = true` under `[features]` in .codex/config.toml, or run `goat-flow install . --agent codex` to install the current Codex settings template.",
+        "Add `hooks = true` under `[features]` in .codex/config.toml, or run `goat-flow install . --agent codex` to install the current Codex settings template.",
     };
   }
   return null;

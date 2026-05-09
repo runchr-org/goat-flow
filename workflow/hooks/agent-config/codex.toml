@@ -12,15 +12,15 @@
 default_permissions = "goat-flow"
 
 [features]
-codex_hooks = true
+hooks = true
 
 [permissions.goat-flow.filesystem]
 glob_scan_max_depth = 3
 
 [permissions.goat-flow.filesystem.":project_roots"]
 "." = "write"
+# Codex read rules must be exact paths or trailing "/**" subtrees.
 ".env.example" = "read"
-"**/.env.example" = "read"
 ".env" = "none"
 "**/.env" = "none"
 ".env.*" = "none"

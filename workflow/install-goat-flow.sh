@@ -382,9 +382,9 @@ for (let index = 0; index < lines.length; index += 1) {
   }
   const assignment = parseFeatureBooleanAssignment(lines[index], section);
   if (!assignment) continue;
-  if (assignment.normalizedKey === "features.hooks") {
+  if (assignment.normalizedKey === "features.codex_hooks") {
     deprecated.push({ index, assignment });
-  } else if (assignment.normalizedKey === "features.codex_hooks") {
+  } else if (assignment.normalizedKey === "features.hooks") {
     current.push(index);
   }
 }
@@ -398,8 +398,8 @@ const remove = new Set();
 if (current.length === 0) {
   const first = deprecated[0];
   const replacementKey = first.assignment.rawKey.includes(".")
-    ? "features.codex_hooks"
-    : "codex_hooks";
+    ? "features.hooks"
+    : "hooks";
   lines[first.index] =
     first.assignment.indent +
     replacementKey +

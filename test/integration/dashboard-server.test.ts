@@ -39,7 +39,7 @@ const CODEX_CONFIG = [
   'model = "gpt-5"',
   'default_permissions = "goat-flow"',
   "[features]",
-  "codex_hooks = true",
+  "hooks = true",
   "[permissions.goat-flow.filesystem]",
   "glob_scan_max_depth = 3",
   '[permissions.goat-flow.filesystem.":project_roots"]',
@@ -1506,6 +1506,9 @@ describe("dashboard /api/skill-quality", () => {
     );
     assert.ok(typeof data.totalScore === "number");
     assert.ok(typeof data.maxTotalScore === "number");
+    assert.equal(data.subtype, "workflow");
+    assert.equal(data.profileMax, 100);
+    assert.ok(Array.isArray(data.composedFrom));
     assert.ok(typeof data.recommendation === "string");
     assert.ok(Array.isArray(data.metrics));
     assert.ok(typeof data.prompt === "string");
@@ -1526,6 +1529,146 @@ describe("dashboard /api/skill-quality", () => {
       `/api/skill-quality?path=${encodeURIComponent(PROJECT_PATH)}`,
     );
     assert.equal(res.status, 400);
+  });
+});
+
+describe("dashboard /api/quality/candidacy", () => {
+  it("returns a candidacy result for a description payload", async () => {
+    const { res, body } = await fetchJson("/api/quality/candidacy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: "description",
+        text: "I want a workflow that walks through Postgres index changes.",
+      }),
+    });
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Candidacy result");
+    const recommended = expectRecord(
+      data.recommendedArtifact,
+      "recommendedArtifact",
+    );
+    assert.equal(recommended.type, "skill");
+    assert.ok(typeof data.confidence === "number");
+    assert.ok(Array.isArray(data.reasoning));
+  });
+
+  it("returns a candidacy result for a draft payload", async () => {
+    const draft = [
+      "# /test-skill",
+      "## Step 0",
+      "Read context.",
+      "## Phase 1",
+      "Do work.",
+      "## Verification",
+      "- [ ] evidence required.",
+    ].join("\n");
+    const { res, body } = await fetchJson("/api/quality/candidacy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "draft", content: draft }),
+    });
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Candidacy result");
+    const recommended = expectRecord(
+      data.recommendedArtifact,
+      "recommendedArtifact",
+    );
+    assert.equal(recommended.type, "skill");
+    assert.equal(recommended.subtype, "workflow");
+  });
+
+  it("returns 400 for invalid payload (missing text)", async () => {
+    const { res } = await fetchJson("/api/quality/candidacy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "description" }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("returns 405 for non-POST methods", async () => {
+    const { res } = await fetchJson("/api/quality/candidacy");
+    assert.equal(res.status, 405);
+  });
+});
+
+describe("dashboard /api/quality/scaffold", () => {
+  async function makeScaffoldRoot(): Promise<string> {
+    return mkdtemp(join(tmpdir(), "goat-flow-dash-scaffold-"));
+  }
+
+  it("scaffolds a workflow skill into the project", async () => {
+    const scaffoldRoot = await makeScaffoldRoot();
+    const { res, body } = await fetchJson("/api/quality/scaffold", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        projectPath: scaffoldRoot,
+        name: "dash-workflow",
+        description:
+          "I want a workflow that walks through Postgres index changes.",
+        confirm: true,
+      }),
+    });
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Scaffold result");
+    assert.equal(data.written, true);
+    const path = String(data.proposedPath);
+    assert.ok(path.endsWith(".claude/skills/dash-workflow/SKILL.md"));
+  });
+
+  it("refuses to write without confirm: true", async () => {
+    const scaffoldRoot = await makeScaffoldRoot();
+    const { res, body } = await fetchJson("/api/quality/scaffold", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        projectPath: scaffoldRoot,
+        name: "dash-no-confirm",
+        description: "I want a workflow.",
+      }),
+    });
+    assert.equal(res.status, 400);
+    const data = expectRecord(body, "Scaffold 400");
+    assert.match(String(data.error), /confirm/);
+  });
+
+  it("returns 400 for invalid skill names", async () => {
+    const scaffoldRoot = await makeScaffoldRoot();
+    const { res, body } = await fetchJson("/api/quality/scaffold", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        projectPath: scaffoldRoot,
+        name: "",
+        description: "I want a workflow.",
+        confirm: true,
+      }),
+    });
+    assert.equal(res.status, 400);
+    void body;
+  });
+
+  it("returns 400 when both description and draftContent are provided", async () => {
+    const scaffoldRoot = await makeScaffoldRoot();
+    const { res } = await fetchJson("/api/quality/scaffold", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        projectPath: scaffoldRoot,
+        name: "dash-both",
+        description: "x",
+        draftContent: "y",
+        confirm: true,
+      }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("returns 405 for non-POST methods", async () => {
+    const { res } = await fetchJson("/api/quality/scaffold");
+    assert.equal(res.status, 405);
   });
 });
 

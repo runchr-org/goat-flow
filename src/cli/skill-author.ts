@@ -1,0 +1,697 @@
+/**
+ * Skill authoring CLI: `goat-flow skill new`.
+ *
+ * Three modes share the same engine:
+ *   - description : route from "I want a skill that …" to a scaffolded SKILL.md.
+ *   - draft       : validate an existing draft against the candidacy check; if
+ *                   classification disagrees with the draft's location, suggest a `mv`.
+ *   - interactive : prompt for description and name, then scaffold + write.
+ *
+ * Every mode runs through `runCandidacyCheck` first. If the recommendation is
+ * not a skill or playbook reference, the command prints the result and stops
+ * — it never silently scaffolds against the wrong artifact type.
+ */
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, relative, resolve } from "node:path";
+import { createInterface, type Interface } from "node:readline/promises";
+
+import { getPackageVersion } from "./paths.js";
+import {
+  runCandidacyCheck,
+  type CandidacyResult,
+} from "./quality/candidacy.js";
+import { findArtifact, scoreArtifact } from "./quality/skill-quality.js";
+
+// ---------------------------------------------------------------------------
+// Templates
+// ---------------------------------------------------------------------------
+
+const WORKFLOW_TEMPLATE = `---
+name: {{NAME}}
+description: "{{DESCRIPTION}}"
+goat-flow-skill-version: "{{VERSION}}"
+---
+
+# /{{NAME}}
+
+## Shared Conventions
+
+Always read \`.goat-flow/skill-reference/skill-preamble.md\` (Proof Gate, evidence discipline, mode system) and \`.goat-flow/skill-reference/skill-conventions.md\` before acting.
+
+## When to Use
+
+Use when [describe the trigger condition for this skill].
+
+**NOT this skill:** [list distinctly different intents that route elsewhere].
+
+## Read First
+
+[List the files / directories the skill must load before acting.]
+
+## Step 0 - Intake
+
+State the intake context:
+- Goal: [one-line goal]
+- Mode: [Read-Only | File-Write — defaults to Read-Only]
+- Read first: [files this skill will load]
+
+## Phase 1 - [Title]
+
+[Procedure for the first phase.]
+
+CHECKPOINT: [what stops execution before continuing to Phase 2].
+
+## Phase 2 - [Title]
+
+[Procedure for the second phase.]
+
+CHECKPOINT: [what stops execution before continuing].
+
+## Phase 3 - [Title]
+
+[Procedure for the third phase.]
+
+## Verification
+
+Apply the Proof Gate from \`skill-preamble.md\` to every claim. Evidence required for every CONFIRMED finding.
+
+- [ ] [criterion 1]
+- [ ] [criterion 2]
+
+BLOCKING GATE: human approval required before [final action].
+
+## Modes
+
+- **Read-Only mode**: [describe what this skill does in read-only mode].
+- **File-Write mode**: [describe; requires explicit mode confirmation and human approval].
+
+Mode escalation requires explicit user approval before any write.
+`;
+
+const DISPATCHER_TEMPLATE = `---
+name: {{NAME}}
+description: "{{DESCRIPTION}}"
+goat-flow-skill-version: "{{VERSION}}"
+---
+
+# /{{NAME}}
+
+## Shared Conventions
+
+Always read \`.goat-flow/skill-reference/skill-preamble.md\` (Proof Gate, evidence discipline) before routing.
+
+## When to Use
+
+Use when the user's intent matches one of the routes below. This skill does not execute work itself; it dispatches to other skills.
+
+## How It Works
+
+This skill is a router. It reads user intent, matches it against the route map, and dispatches to the appropriate sibling skill. No file writes happen at this layer — the dispatched skill owns its own gates and verification.
+
+## Route Map
+
+| User intent | Route to |
+|---|---|
+| [intent A — describe] | [/skill-name-a] |
+| [intent B — describe] | [/skill-name-b] |
+| Unknown intent | Ask the user to clarify before dispatching |
+
+## Read First
+
+Read \`skill-preamble.md\` for the Proof Gate the dispatched skill will apply.
+`;
+
+const REPORT_TEMPLATE = `---
+name: {{NAME}}
+description: "{{DESCRIPTION}}"
+goat-flow-skill-version: "{{VERSION}}"
+---
+
+# /{{NAME}}
+
+## Shared Conventions
+
+Always read \`.goat-flow/skill-reference/skill-preamble.md\` (Proof Gate, evidence discipline) before scanning.
+
+## When to Use
+
+Use when [describe the assessment trigger — audit, review, scan].
+
+**NOT this skill:** [list distinctly different intents — for instance, this is reporting-only; if writes are required, route elsewhere].
+
+## Read First
+
+Read \`skill-preamble.md\` and any project-specific scope files before scanning.
+
+## Quick Scan Path
+
+[Fast assessment for low-risk cases. Lists targets, surfaces obvious findings, exits with a summary.]
+
+## Full Assessment Path
+
+[Deeper assessment for high-risk cases. Multi-phase scan with structured output.]
+
+## Output Format
+
+Reports findings as structured markdown:
+
+\`\`\`markdown
+## Findings
+
+- **CONFIRMED**: [finding] — evidence: [OBSERVED file + semantic anchor]
+- **SUSPECTED**: [finding] — evidence: [INFERRED reasoning]
+\`\`\`
+
+## Constraints
+
+This skill is reporting-only. It must not write files or modify state. If a finding warrants action, route to the appropriate execution skill via the dispatcher.
+
+## Verification
+
+Apply the Proof Gate from \`skill-preamble.md\`. Every CONFIRMED finding requires fresh evidence (OBSERVED tag with file + semantic anchor) re-read in the current session.
+
+- [ ] every finding has cited evidence
+- [ ] no fabricated or paraphrased claims
+
+BLOCKING GATE: human reviews findings before any action is taken.
+`;
+
+const PLAYBOOK_TEMPLATE = `# {{NAME}}
+
+## Purpose
+
+{{DESCRIPTION}}
+
+## Availability Check
+
+\`\`\`bash
+command -v {{NAME}} || echo "{{NAME}} not installed; use the manual fallback below"
+\`\`\`
+
+If the tool is unavailable, use the [Fallback / Troubleshooting](#fallback--troubleshooting) section.
+
+## Workflow
+
+### Step 1: [Action]
+
+\`\`\`bash
+[command]
+\`\`\`
+
+[What this step does and what to verify.]
+
+### Step 2: [Verify]
+
+[How to confirm the action succeeded — what file appears, what output is expected.]
+
+## Fallback / Troubleshooting
+
+If the tool is unavailable or fails:
+- **Alternative tool**: [describe the alternative]
+- **Manual approach**: [describe the manual procedure]
+- **Common errors**: [list likely failure modes and remedies]
+
+## When to Load
+
+Skills load this playbook when [describe the trigger — e.g., when user evidence requires browser interaction].
+`;
+
+const TEMPLATES_BY_SUBTYPE: Record<string, string> = {
+  workflow: WORKFLOW_TEMPLATE,
+  dispatcher: DISPATCHER_TEMPLATE,
+  report: REPORT_TEMPLATE,
+  playbook: PLAYBOOK_TEMPLATE,
+};
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+interface SkillNewOptions {
+  /** A natural-language description of the skill (description mode). */
+  description?: string;
+  /** Path to an existing markdown draft (draft-validation mode). */
+  draftPath?: string;
+  /** Open the interactive prompt flow even when other inputs are provided. */
+  interactive?: boolean;
+  /** Skip the y/n confirmation prompt before writing (used by tests). */
+  skipConfirm?: boolean;
+  /** Override the skill name (otherwise prompts in interactive mode). */
+  name?: string;
+  /** Project root for path resolution (default: process.cwd()). */
+  projectRoot?: string;
+  /** Pre-supplied stdin lines (used by tests in place of readline). */
+  stdinAnswers?: string[];
+}
+
+interface SkillNewResult {
+  candidacy: CandidacyResult;
+  /** Absolute path the scaffold was (or would be) written to. */
+  proposedPath: string | null;
+  /** Filled scaffold content. */
+  scaffold: string | null;
+  /** Whether the file was actually written to disk. */
+  written: boolean;
+  /** Quality score after scaffold (skill kind only). */
+  postScaffoldScore?: { totalScore: number; profileMax: number };
+  /** Human-readable lines for terminal output. */
+  output: string[];
+}
+
+const SKILL_DIR = ".claude/skills";
+const REFERENCE_DIR = ".goat-flow/skill-reference";
+
+interface ResolvedScaffold {
+  template: string;
+  proposedPath: string;
+  isReference: boolean;
+}
+
+function fillTemplate(template: string, vars: Record<string, string>): string {
+  return Object.entries(vars).reduce(
+    (acc, [key, value]) => acc.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+}
+
+function templateForRecommendation(
+  recommendation: CandidacyResult["recommendedArtifact"],
+): { templateKey: string; isReference: boolean } | null {
+  if (recommendation.type === "skill") {
+    return { templateKey: recommendation.subtype, isReference: false };
+  }
+  if (recommendation.type === "reference") {
+    if (recommendation.subtype === "playbook") {
+      return { templateKey: "playbook", isReference: true };
+    }
+    return null;
+  }
+  return null;
+}
+
+function resolveScaffold(
+  projectRoot: string,
+  name: string,
+  recommendation: CandidacyResult["recommendedArtifact"],
+): ResolvedScaffold | null {
+  const choice = templateForRecommendation(recommendation);
+  if (!choice) return null;
+  const template = TEMPLATES_BY_SUBTYPE[choice.templateKey];
+  if (!template) return null;
+  const proposedPath = choice.isReference
+    ? join(projectRoot, REFERENCE_DIR, `${name}.md`)
+    : join(projectRoot, SKILL_DIR, name, "SKILL.md");
+  return { template, proposedPath, isReference: choice.isReference };
+}
+
+function isValidSkillName(name: string): boolean {
+  return /^[a-z][a-z0-9-]{1,40}$/.test(name);
+}
+
+async function promptLine(
+  rl: Interface,
+  question: string,
+  preset: string | undefined,
+): Promise<string> {
+  if (preset !== undefined) return preset;
+  return (await rl.question(question)).trim();
+}
+
+interface InteractivePrompts {
+  promptDescription(): Promise<string>;
+  promptName(suggested: string): Promise<string>;
+  confirmWrite(path: string, scaffold: string): Promise<boolean>;
+  close(): void;
+}
+
+function fakePrompts(answers: string[]): InteractivePrompts {
+  let i = 0;
+  const next = () => answers[i++] ?? "";
+  return {
+    promptDescription: () => Promise.resolve(next()),
+    promptName: (suggested) => {
+      const answer = next();
+      return Promise.resolve(answer.length > 0 ? answer : suggested);
+    },
+    confirmWrite: () => Promise.resolve(/^y/i.test(next())),
+    close: () => {
+      /* no-op */
+    },
+  };
+}
+
+function readlinePrompts(): InteractivePrompts {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  return {
+    promptDescription: () =>
+      promptLine(rl, "Describe the skill you want to create:\n> ", undefined),
+    promptName: async (suggested) =>
+      (await promptLine(
+        rl,
+        `Name (kebab-case, default ${suggested}): `,
+        undefined,
+      )) || suggested,
+    confirmWrite: async (path, scaffold) => {
+      process.stdout.write(`\nProposed file: ${path}\n`);
+      const preview = scaffold.split("\n").slice(0, 12).join("\n");
+      process.stdout.write(`---\n${preview}\n…\n---\n`);
+      const answer = await rl.question("Write this file? (y/N) ");
+      return /^y/i.test(answer.trim());
+    },
+    close: () => {
+      rl.close();
+    },
+  };
+}
+
+function suggestName(
+  options: SkillNewOptions,
+  candidacy: CandidacyResult,
+): string {
+  if (options.name && isValidSkillName(options.name)) return options.name;
+  if (options.draftPath) {
+    const stem = basename(options.draftPath).replace(/\.md$/, "");
+    if (isValidSkillName(stem)) return stem;
+  }
+  if (options.description) {
+    const slug = options.description
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 32);
+    if (isValidSkillName(slug)) return slug;
+  }
+  return `new-${candidacy.recommendedArtifact.type}`;
+}
+
+function describeArtifact(
+  recommendation: CandidacyResult["recommendedArtifact"],
+): string {
+  switch (recommendation.type) {
+    case "skill":
+      return `skill (${recommendation.subtype})`;
+    case "reference":
+      return `reference (${recommendation.subtype})`;
+    case "instruction-file":
+      return `instruction-file rule (${recommendation.reason})`;
+    case "learning-loop":
+      return `learning-loop (${recommendation.subtype})`;
+    case "cli-command":
+      return "cli-command";
+    case "do-not-create":
+      return `do-not-create (${recommendation.reason})`;
+  }
+}
+
+function nonScaffoldOutput(candidacy: CandidacyResult): string[] {
+  const lines = [
+    `Candidacy: ${describeArtifact(candidacy.recommendedArtifact)} (confidence ${Math.round(
+      candidacy.confidence * 100,
+    )}%)`,
+    "",
+    "Reasoning:",
+    ...candidacy.reasoning.map((r) => `  - ${r}`),
+    "",
+    "Next steps:",
+    ...candidacy.nextSteps.map((s) => `  - ${s.action}`),
+    "",
+    "No skill or playbook will be scaffolded. Update the description or draft and re-run.",
+  ];
+  return lines;
+}
+
+async function runDescriptionMode(
+  description: string,
+  options: SkillNewOptions,
+  prompts: InteractivePrompts,
+): Promise<SkillNewResult> {
+  const projectRoot = options.projectRoot ?? process.cwd();
+  const candidacy = runCandidacyCheck({
+    kind: "description",
+    text: description,
+  });
+
+  const scaffolded = resolveScaffold(
+    projectRoot,
+    suggestName(options, candidacy),
+    candidacy.recommendedArtifact,
+  );
+
+  if (!scaffolded) {
+    return {
+      candidacy,
+      proposedPath: null,
+      scaffold: null,
+      written: false,
+      output: nonScaffoldOutput(candidacy),
+    };
+  }
+
+  const name =
+    options.name ?? (await prompts.promptName(suggestName(options, candidacy)));
+  if (!isValidSkillName(name)) {
+    return {
+      candidacy,
+      proposedPath: null,
+      scaffold: null,
+      written: false,
+      output: [
+        `Invalid name "${name}". Use kebab-case: lowercase letters, digits, and dashes.`,
+      ],
+    };
+  }
+
+  const final = resolveScaffold(
+    projectRoot,
+    name,
+    candidacy.recommendedArtifact,
+  );
+  if (!final) {
+    return {
+      candidacy,
+      proposedPath: null,
+      scaffold: null,
+      written: false,
+      output: nonScaffoldOutput(candidacy),
+    };
+  }
+  const scaffold = fillTemplate(final.template, {
+    NAME: name,
+    DESCRIPTION: description,
+    VERSION: getPackageVersion(),
+  });
+
+  const written = await maybeWrite(
+    final.proposedPath,
+    scaffold,
+    options,
+    prompts,
+  );
+
+  const output: string[] = [
+    `Candidacy: ${describeArtifact(candidacy.recommendedArtifact)} (confidence ${Math.round(
+      candidacy.confidence * 100,
+    )}%)`,
+    `Path: ${relative(projectRoot, final.proposedPath)}`,
+    written ? "Wrote scaffold." : "Scaffold not written.",
+  ];
+
+  let postScaffoldScore: SkillNewResult["postScaffoldScore"];
+  if (written && !final.isReference) {
+    postScaffoldScore = scoreFreshSkill(projectRoot, name);
+    if (postScaffoldScore) {
+      output.push(
+        `Initial quality: ${postScaffoldScore.totalScore}/${postScaffoldScore.profileMax}`,
+      );
+    }
+  }
+
+  return {
+    candidacy,
+    proposedPath: final.proposedPath,
+    scaffold,
+    written,
+    postScaffoldScore,
+    output,
+  };
+}
+
+function scoreFreshSkill(
+  projectRoot: string,
+  name: string,
+): SkillNewResult["postScaffoldScore"] {
+  const artifact = findArtifact(projectRoot, `skill:${name}`);
+  if (!artifact) return undefined;
+  const report = scoreArtifact(projectRoot, artifact);
+  return {
+    totalScore: report.totalScore,
+    profileMax: report.profileMax,
+  };
+}
+
+async function maybeWrite(
+  proposedPath: string,
+  scaffold: string,
+  options: SkillNewOptions,
+  prompts: InteractivePrompts,
+): Promise<boolean> {
+  if (existsSync(proposedPath)) return false;
+  const allow = options.skipConfirm
+    ? true
+    : await prompts.confirmWrite(proposedPath, scaffold);
+  if (!allow) return false;
+  mkdirSync(dirname(proposedPath), { recursive: true });
+  writeFileSync(proposedPath, scaffold);
+  return true;
+}
+
+function runDraftMode(
+  draftPath: string,
+  options: SkillNewOptions,
+): SkillNewResult {
+  const projectRoot = options.projectRoot ?? process.cwd();
+  const absolutePath = resolve(draftPath);
+  if (!existsSync(absolutePath)) {
+    return {
+      candidacy: {
+        recommendedArtifact: {
+          type: "do-not-create",
+          reason: "no-clear-intent",
+        },
+        confidence: 1,
+        reasoning: [`draft file not found: ${absolutePath}`],
+        nextSteps: [],
+      },
+      proposedPath: null,
+      scaffold: null,
+      written: false,
+      output: [`Draft file not found: ${absolutePath}`],
+    };
+  }
+  const content = readFileSync(absolutePath, "utf-8");
+  const suggestedName = basename(absolutePath, ".md");
+  const candidacy = runCandidacyCheck({
+    kind: "draft",
+    content,
+    suggestedName,
+  });
+
+  const output: string[] = [
+    `Draft: ${relative(projectRoot, absolutePath)}`,
+    `Candidacy: ${describeArtifact(candidacy.recommendedArtifact)} (confidence ${Math.round(
+      candidacy.confidence * 100,
+    )}%)`,
+    "",
+    "Reasoning:",
+    ...candidacy.reasoning.map((r) => `  - ${r}`),
+  ];
+
+  const scaffolded = resolveScaffold(
+    projectRoot,
+    suggestedName,
+    candidacy.recommendedArtifact,
+  );
+  if (!scaffolded) {
+    output.push(
+      "",
+      "Next steps:",
+      ...candidacy.nextSteps.map((s) => `  - ${s.action}`),
+    );
+    return {
+      candidacy,
+      proposedPath: null,
+      scaffold: null,
+      written: false,
+      output,
+    };
+  }
+
+  const expectedPath = scaffolded.proposedPath;
+  if (resolve(expectedPath) !== absolutePath) {
+    output.push("");
+    output.push(`Expected location: ${relative(projectRoot, expectedPath)}`);
+    output.push(
+      `Suggested move:    mv ${relative(projectRoot, absolutePath)} ${relative(projectRoot, expectedPath)}`,
+    );
+    output.push("(not executed; review before moving.)");
+  } else if (!scaffolded.isReference) {
+    const postScore = scoreFreshSkill(projectRoot, suggestedName);
+    if (postScore) {
+      output.push(
+        `Quality: ${postScore.totalScore}/${postScore.profileMax} (snapshot of current draft)`,
+      );
+    }
+  }
+
+  return {
+    candidacy,
+    proposedPath: expectedPath,
+    scaffold: null,
+    written: false,
+    output,
+  };
+}
+
+async function runInteractiveMode(
+  options: SkillNewOptions,
+  prompts: InteractivePrompts,
+): Promise<SkillNewResult> {
+  const description = (await prompts.promptDescription()).trim();
+  if (description.length === 0) {
+    return {
+      candidacy: {
+        recommendedArtifact: {
+          type: "do-not-create",
+          reason: "no-clear-intent",
+        },
+        confidence: 1,
+        reasoning: ["empty description"],
+        nextSteps: [],
+      },
+      proposedPath: null,
+      scaffold: null,
+      written: false,
+      output: ["Empty description; aborting."],
+    };
+  }
+  return runDescriptionMode(description, options, prompts);
+}
+
+export async function runSkillNew(
+  options: SkillNewOptions,
+): Promise<SkillNewResult> {
+  const prompts =
+    options.stdinAnswers !== undefined
+      ? fakePrompts(options.stdinAnswers)
+      : readlinePrompts();
+  try {
+    if (options.draftPath) {
+      return runDraftMode(options.draftPath, options);
+    }
+    if (options.interactive || (!options.description && !options.draftPath)) {
+      return await runInteractiveMode(options, prompts);
+    }
+    if (options.description) {
+      return await runDescriptionMode(options.description, options, prompts);
+    }
+    return {
+      candidacy: {
+        recommendedArtifact: {
+          type: "do-not-create",
+          reason: "no-clear-intent",
+        },
+        confidence: 1,
+        reasoning: ["no input provided"],
+        nextSteps: [],
+      },
+      proposedPath: null,
+      scaffold: null,
+      written: false,
+      output: [
+        'Usage: goat-flow skill new "<description>" | --draft <path> | --interactive',
+      ],
+    };
+  } finally {
+    prompts.close();
+  }
+}

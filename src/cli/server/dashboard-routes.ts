@@ -40,6 +40,8 @@ import {
   findArtifact,
   scoreArtifact,
 } from "../quality/skill-quality.js";
+import { runCandidacyCheck } from "../quality/candidacy.js";
+import { runSkillNew } from "../skill-author.js";
 import { composeArtifactQualityPrompt } from "../prompt/compose-quality.js";
 import { buildStatsReport, checkStats } from "../stats/stats.js";
 
@@ -788,6 +790,16 @@ export function createDashboardRouteHandlers(
     url: URL,
     res: ServerResponse,
   ) => boolean;
+  handleQualityCandidacyRequest: (
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ) => Promise<boolean>;
+  handleQualityScaffoldRequest: (
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ) => Promise<boolean>;
   handleBrowseRequest: (url: URL, res: ServerResponse) => boolean;
   handleAgentDetectRequest: (url: URL, res: ServerResponse) => boolean;
   handleProjectsListRequest: (
@@ -1365,6 +1377,99 @@ export function createDashboardRouteHandlers(
     return true;
   }
 
+  /** POST /api/quality/candidacy — run the candidacy check on a draft or description. */
+  async function handleQualityCandidacyRequest(
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ): Promise<boolean> {
+    if (url.pathname !== "/api/quality/candidacy") return false;
+    if (req.method !== "POST") {
+      jsonResponse(res, 405, { error: "Method not allowed" });
+      return true;
+    }
+    const body = await readBody(req);
+    const { decodeCandidacyBody } = await import("./decoders.js");
+    const decoded = decodeCandidacyBody(body);
+    if (!decoded.ok) {
+      jsonResponse(res, 400, { error: decoded.error, path: decoded.path });
+      return true;
+    }
+    try {
+      let result;
+      if (decoded.value.kind === "description") {
+        const text = decoded.value.text ?? "";
+        result = runCandidacyCheck({ kind: "description", text });
+      } else {
+        const content = decoded.value.content ?? "";
+        result = runCandidacyCheck({
+          kind: "draft",
+          content,
+          suggestedName: decoded.value.suggestedName,
+        });
+      }
+      jsonResponse(res, 200, result);
+    } catch (err) {
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
+  /** POST /api/quality/scaffold — write a scaffolded skill or playbook. */
+  async function handleQualityScaffoldRequest(
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ): Promise<boolean> {
+    if (url.pathname !== "/api/quality/scaffold") return false;
+    if (req.method !== "POST") {
+      jsonResponse(res, 405, { error: "Method not allowed" });
+      return true;
+    }
+    const body = await readBody(req);
+    const { decodeScaffoldBody } = await import("./decoders.js");
+    const decoded = decodeScaffoldBody(body);
+    if (!decoded.ok) {
+      jsonResponse(res, 400, { error: decoded.error, path: decoded.path });
+      return true;
+    }
+    try {
+      const projectPath = safeResolvePath(decoded.value.projectPath);
+      requireProjectDirectory(projectPath);
+      const result = await runSkillNew({
+        description: decoded.value.description,
+        // Draft-content mode: write the draft into a temp file is not needed —
+        // candidacy + scaffolding works off in-memory content for the description
+        // path. Draft path is only used by the CLI flow when a file already exists
+        // on disk; the dashboard always passes content via either `description`
+        // or (effectively) by writing the user's edited markdown into `description`.
+        // For now, draftContent is treated as the description-equivalent so the
+        // candidacy heuristics route correctly.
+        ...(decoded.value.draftContent
+          ? { description: decoded.value.draftContent }
+          : {}),
+        name: decoded.value.name,
+        skipConfirm: true,
+        projectRoot: projectPath,
+        stdinAnswers: [],
+      });
+      jsonResponse(res, 200, {
+        candidacy: result.candidacy,
+        proposedPath: result.proposedPath,
+        written: result.written,
+        postScaffoldScore: result.postScaffoldScore ?? null,
+        output: result.output,
+      });
+    } catch (err) {
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
   /** List child directories so the dashboard path picker can browse nearby repos. */
   function handleBrowseRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/browse") return false;
@@ -1525,6 +1630,8 @@ export function createDashboardRouteHandlers(
     handleQualityHistoryRequest,
     handleSkillQualityRequest,
     handleSkillQualityInventoryRequest,
+    handleQualityCandidacyRequest,
+    handleQualityScaffoldRequest,
     handleBrowseRequest,
     handleAgentDetectRequest,
     handleProjectsListRequest,

@@ -216,6 +216,21 @@ function app() {
     skillQualitySelectedId: null as string | null,
     skillQualityReport: null as SkillQualityReport | null,
     skillQualityLoading: false,
+    skillQualityAbortController: null as AbortController | null,
+
+    // --- Skill authoring modal state ---
+    skillAuthorOpen: false,
+    skillAuthorTab: "description" as "description" | "draft",
+    skillAuthorDescription: "",
+    skillAuthorDraft: "",
+    skillAuthorName: "",
+    skillAuthorResult: null as SkillCandidacyResult | null,
+    skillAuthorLoading: false,
+    skillAuthorScaffoldOutput: null as null | {
+      path: string;
+      score: { totalScore: number; profileMax: number } | null;
+    },
+    skillAuthorError: null as string | null,
 
     /** Resolve the current display name for one supported agent id. */
     agentName(agentId: RunnerId): string {
@@ -776,7 +791,7 @@ function app() {
           void this.generateQuality();
           this.scheduleQualityHistory();
         }
-        if (v === "skill") {
+        if (v === "skills") {
           void this.loadSkillQualityInventory();
         }
         if (v === "setup") {
@@ -824,6 +839,15 @@ function app() {
           }
           if (this.activeView === "home") {
             void this.generateHomeQualitySummary();
+          }
+          this.skillQualityAbortController?.abort();
+          this.skillQualityAbortController = null;
+          this.skillQualityArtifacts = [];
+          this.skillQualitySelectedId = null;
+          this.skillQualityReport = null;
+          this.skillQualityLoading = false;
+          if (this.activeView === "skills") {
+            void this.loadSkillQualityInventory();
           }
         }
       });
@@ -1065,9 +1089,10 @@ function app() {
 
     // -- Skill quality --
     async loadSkillQualityInventory() {
+      const requestProjectPath = this.projectPath;
       try {
         const res = await dashboardFetch(
-          `/api/skill-quality/inventory?path=${encodeURIComponent(this.projectPath)}`,
+          `/api/skill-quality/inventory?path=${encodeURIComponent(requestProjectPath)}`,
         );
         const payload = readRecord(await res.json(), "Skill quality inventory");
         const error = readErrorMessage(payload);
@@ -1075,6 +1100,7 @@ function app() {
           this.showToast(error, true);
           return;
         }
+        if (this.projectPath !== requestProjectPath) return;
         this.skillQualityArtifacts = Array.isArray(payload.artifacts)
           ? payload.artifacts
           : [];
@@ -1084,25 +1110,163 @@ function app() {
       }
     },
     async loadSkillQualityReport(artifactId: string) {
+      this.skillQualityAbortController?.abort();
+      const controller = new AbortController();
+      this.skillQualityAbortController = controller;
+      const requestProjectPath = this.projectPath;
       this.skillQualitySelectedId = artifactId;
       this.skillQualityReport = null;
       this.skillQualityLoading = true;
       try {
         const res = await dashboardFetch(
-          `/api/skill-quality?path=${encodeURIComponent(this.projectPath)}&artifact=${encodeURIComponent(artifactId)}`,
+          `/api/skill-quality?path=${encodeURIComponent(requestProjectPath)}&artifact=${encodeURIComponent(artifactId)}`,
+          { signal: controller.signal },
         );
         const payload = readRecord(await res.json(), "Skill quality report");
         const error = readErrorMessage(payload);
         if (error) {
           this.showToast(error, true);
-        } else {
+        } else if (
+          this.projectPath === requestProjectPath &&
+          this.skillQualitySelectedId === artifactId
+        ) {
           this.skillQualityReport = payload as unknown as SkillQualityReport;
         }
       } catch (err) {
+        if (controller.signal.aborted) return;
         const msg = err instanceof Error ? err.message : String(err);
         this.showToast(msg || "Skill quality scoring failed", true);
       }
-      this.skillQualityLoading = false;
+      if (this.skillQualityAbortController === controller) {
+        this.skillQualityLoading = false;
+        this.skillQualityAbortController = null;
+      }
+    },
+
+    // -- Skill authoring modal --
+    openSkillAuthor() {
+      this.skillAuthorOpen = true;
+      this.skillAuthorTab = "description";
+      this.resetSkillAuthor();
+    },
+    closeSkillAuthor() {
+      this.skillAuthorOpen = false;
+      this.resetSkillAuthor();
+    },
+    resetSkillAuthor() {
+      this.skillAuthorDescription = "";
+      this.skillAuthorDraft = "";
+      this.skillAuthorName = "";
+      this.skillAuthorResult = null;
+      this.skillAuthorScaffoldOutput = null;
+      this.skillAuthorError = null;
+      this.skillAuthorLoading = false;
+    },
+    get skillAuthorScaffoldable(): boolean {
+      const rec = this.skillAuthorResult?.recommendedArtifact;
+      if (!rec) return false;
+      return rec.type === "skill" || rec.type === "reference";
+    },
+    get skillAuthorResultLabel(): string {
+      const rec = this.skillAuthorResult?.recommendedArtifact;
+      if (!rec) return "";
+      if (rec.type === "skill") return `skill (${rec.subtype})`;
+      if (rec.type === "reference") return `reference (${rec.subtype})`;
+      if (rec.type === "instruction-file")
+        return `instruction-file (${rec.reason})`;
+      if (rec.type === "learning-loop") return `learning-loop (${rec.subtype})`;
+      if (rec.type === "cli-command") return "cli-command";
+      return `do-not-create (${rec.reason})`;
+    },
+    async runSkillAuthorCandidacy() {
+      this.skillAuthorError = null;
+      this.skillAuthorScaffoldOutput = null;
+      const payload =
+        this.skillAuthorTab === "description"
+          ? { kind: "description", text: this.skillAuthorDescription.trim() }
+          : { kind: "draft", content: this.skillAuthorDraft };
+      if (
+        (payload.kind === "description" && !payload.text) ||
+        (payload.kind === "draft" && !payload.content)
+      ) {
+        this.skillAuthorError = "Provide a description or paste a draft first.";
+        return;
+      }
+      this.skillAuthorLoading = true;
+      try {
+        const res = await dashboardFetch("/api/quality/candidacy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = readRecord(await res.json(), "Candidacy result");
+        const error = readErrorMessage(data);
+        if (error) {
+          this.skillAuthorError = error;
+          return;
+        }
+        this.skillAuthorResult = data as unknown as SkillCandidacyResult;
+      } catch (err) {
+        this.skillAuthorError =
+          err instanceof Error ? err.message : String(err);
+      } finally {
+        this.skillAuthorLoading = false;
+      }
+    },
+    async scaffoldFromCandidacy() {
+      this.skillAuthorError = null;
+      const name = this.skillAuthorName.trim();
+      if (!name) {
+        this.skillAuthorError = "Enter a kebab-case name.";
+        return;
+      }
+      const payload: Record<string, unknown> = {
+        projectPath: this.projectPath,
+        name,
+        confirm: true,
+      };
+      if (this.skillAuthorTab === "description") {
+        payload.description = this.skillAuthorDescription.trim();
+      } else {
+        payload.draftContent = this.skillAuthorDraft;
+      }
+      this.skillAuthorLoading = true;
+      try {
+        const res = await dashboardFetch("/api/quality/scaffold", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = readRecord(await res.json(), "Scaffold result");
+        const error = readErrorMessage(data);
+        if (error) {
+          this.skillAuthorError = error;
+          return;
+        }
+        if (data.written && typeof data.proposedPath === "string") {
+          const score =
+            data.postScaffoldScore && typeof data.postScaffoldScore === "object"
+              ? (data.postScaffoldScore as {
+                  totalScore: number;
+                  profileMax: number;
+                })
+              : null;
+          this.skillAuthorScaffoldOutput = {
+            path: data.proposedPath,
+            score,
+          };
+          await this.loadSkillQualityInventory();
+        } else {
+          this.skillAuthorError = Array.isArray(data.output)
+            ? (data.output as string[]).join("\n")
+            : "Scaffold did not write a file.";
+        }
+      } catch (err) {
+        this.skillAuthorError =
+          err instanceof Error ? err.message : String(err);
+      } finally {
+        this.skillAuthorLoading = false;
+      }
     },
 
     // -- Projects --

@@ -40,7 +40,7 @@ These files are command guards, not general ignore files.
 
 - Claude sensitive-file exclusion is primarily `permissions.deny` in `.claude/settings.json`, with a `Read(.env.example)` allowlist for non-secret examples.
 - Gemini sensitive-file exclusion is primarily `.geminiignore`, with settings and hooks as defense in depth; `.env.example` is explicitly unignored for read-only inspection.
-- Codex has no Claude-compatible `settings.json` permission syntax. Sensitive project-file exclusions use `.codex/config.toml` permission profiles; the Bash-matched deny hook in `.codex/hooks/deny-dangerous.sh` remains the command guard.
+- Codex has no Claude-compatible `settings.json` permission syntax. Sensitive project-file exclusions use `.codex/config.toml` permission profiles; exact-path read rules can allow top-level `.env.example`, and recursive secret denies remain glob-based `none` rules. The Bash-matched deny hook in `.codex/hooks/deny-dangerous.sh` remains the command guard.
 - Copilot uses `.copilotignore` for context exclusion and `.github/hooks/deny-dangerous.sh` for runtime command blocking.
 
 ## Verification

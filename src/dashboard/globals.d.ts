@@ -362,12 +362,12 @@ interface CustomPromptValidationError {
 type SkillQualityArtifactKind = "skill" | "shared-reference";
 type SkillQualityRecommendation =
   | "keep-skill"
-  | "split-skill"
-  | "merge-or-demote"
+  | "consider-revision"
+  | "consider-reclassifying"
   | "reference-playbook"
   | "retire"
   | "needs-human-review";
-type SkillQualityMetricSeverity = "ok" | "warn" | "fail";
+type SkillQualityMetricSeverity = "ok" | "warn" | "fail" | "n/a";
 
 interface SkillQualityArtifact {
   id: string;
@@ -375,6 +375,8 @@ interface SkillQualityArtifact {
   path: string;
   kind: SkillQualityArtifactKind;
   source: string;
+  mirrorPaths?: string[];
+  missingMirrors?: string[];
 }
 
 interface SkillQualityMetric {
@@ -386,14 +388,46 @@ interface SkillQualityMetric {
   detail: string;
 }
 
+interface ClassificationAlternative {
+  subtype: string;
+  score: number;
+}
+
+interface ClassificationResult {
+  detectedSubtype: string;
+  /** 0-1: how strongly the detected subtype dominates alternatives. */
+  confidence: number;
+  alternatives: ClassificationAlternative[];
+  reasoning: string[];
+}
+
 interface SkillQualityReport {
   artifact: SkillQualityArtifact;
   totalScore: number;
   maxTotalScore: number;
+  profileMax: number;
+  subtype: string;
+  classification: ClassificationResult;
   recommendation: SkillQualityRecommendation;
   metrics: SkillQualityMetric[];
+  composedFrom: string[];
   fitNotes: string[];
   prompt?: string;
+}
+
+type SkillCandidacyArtifact =
+  | { type: "skill"; subtype: string }
+  | { type: "reference"; subtype: string }
+  | { type: "instruction-file"; reason: string }
+  | { type: "learning-loop"; subtype: string }
+  | { type: "cli-command" }
+  | { type: "do-not-create"; reason: string };
+
+interface SkillCandidacyResult {
+  recommendedArtifact: SkillCandidacyArtifact;
+  confidence: number;
+  reasoning: string[];
+  nextSteps: { action: string; template?: string }[];
 }
 
 /** One selectable quality-page prompt mode. */

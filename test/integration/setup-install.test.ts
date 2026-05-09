@@ -218,13 +218,13 @@ describe("settings skip warning", () => {
 });
 
 describe("codex config migration", () => {
-  it("migrates deprecated hooks without overwriting custom config", () => {
+  it("migrates deprecated codex_hooks without overwriting custom config", () => {
     const root = makeTempProject();
     const codexDir = join(root, ".codex");
     mkdirSync(codexDir, { recursive: true });
     writeFileSync(
       join(codexDir, "config.toml"),
-      'model = "gpt-5"\napproval_policy = "on-request"\n\n[features]\nhooks = true\n',
+      'model = "gpt-5"\napproval_policy = "on-request"\n\n[features]\ncodex_hooks = true\n',
     );
 
     const result = runInstaller(root, "--agent", "codex");
@@ -233,26 +233,26 @@ describe("codex config migration", () => {
     const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
     assert.match(config, /model = "gpt-5"/);
     assert.match(config, /approval_policy = "on-request"/);
-    assert.match(config, /\[features\]\ncodex_hooks = true\n/);
-    assert.doesNotMatch(config, /^\s*hooks\s=/m);
+    assert.match(config, /\[features\]\nhooks = true\n/);
+    assert.doesNotMatch(config, /^\s*codex_hooks\s=/m);
     assert.match(result.stdout, /migrated deprecated hooks flag/);
   });
 
-  it("removes deprecated hooks when codex_hooks is already present", () => {
+  it("removes deprecated codex_hooks when hooks is already present", () => {
     const root = makeTempProject();
     const codexDir = join(root, ".codex");
     mkdirSync(codexDir, { recursive: true });
     writeFileSync(
       join(codexDir, "config.toml"),
-      "[features]\ncodex_hooks = true\nhooks = true\n",
+      "[features]\nhooks = true\ncodex_hooks = true\n",
     );
 
     const result = runInstaller(root, "--agent", "codex");
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
-    assert.equal(config.match(/codex_hooks = true/g)?.length, 1);
-    assert.doesNotMatch(config, /^\s*hooks\s=/m);
+    assert.equal(config.match(/^hooks = true$/gm)?.length, 1);
+    assert.doesNotMatch(config, /^\s*codex_hooks\s=/m);
   });
 });
 

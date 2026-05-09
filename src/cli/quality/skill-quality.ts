@@ -3,109 +3,238 @@
  *
  * Scores one artifact (skill or reference) across structural metrics
  * without executing agent prompts. Produces a recommendation:
- * keep-skill, split-skill, merge-or-demote, reference-playbook, retire,
+ * keep-skill, consider-revision, reference-playbook, retire,
  * or needs-human-review.
+ *
+ * All hardcoded values (walk roots, gate vocabulary, subtype profiles, etc.)
+ * are sourced from `QualityConfig` (see `quality-config.ts`). Goat-flow's
+ * calibrated defaults are applied automatically when no project override
+ * exists in `.goat-flow/config.yaml`.
  */
-import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import {
+  existsSync,
+  lstatSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+} from "node:fs";
+import { basename, dirname, join, relative } from "node:path";
+
+import {
+  compilePatternList,
+  loadQualityConfig,
+  profileMaxForSubtype,
+  type ArtifactKind,
+  type ArtifactSource,
+  type ArtifactSubtype,
+  type MetricName,
+  type QualityConfig,
+  type SubtypeDetection,
+} from "./quality-config.js";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type ArtifactKind = "skill" | "shared-reference";
-type ArtifactSource = "workflow" | "installed" | "shared-reference";
 type Recommendation =
   | "keep-skill"
-  | "split-skill"
-  | "merge-or-demote"
+  | "consider-revision"
+  | "consider-reclassifying"
   | "reference-playbook"
   | "retire"
   | "needs-human-review";
-type MetricSeverity = "ok" | "warn" | "fail";
+type MetricSeverity = "ok" | "warn" | "fail" | "n/a";
 
-export interface ArtifactEntry {
+interface ClassificationAlternative {
+  subtype: ArtifactSubtype;
+  score: number;
+}
+
+interface ClassificationResult {
+  detectedSubtype: ArtifactSubtype;
+  /** 0-1 — how strongly the top subtype dominates alternatives. */
+  confidence: number;
+  alternatives: ClassificationAlternative[];
+  reasoning: string[];
+}
+
+interface ArtifactEntry {
   id: string;
   name: string;
   path: string;
   kind: ArtifactKind;
   source: ArtifactSource;
+  mirrorPaths?: string[];
+  missingMirrors?: string[];
+}
+
+interface MetricSignals {
+  promote?: boolean;
+  demote?: boolean;
+  meta?: boolean;
 }
 
 interface MetricResult {
-  metric: string;
+  metric: MetricName;
   label: string;
   score: number;
   maxScore: number;
   severity: MetricSeverity;
   detail: string;
+  signals?: MetricSignals;
 }
 
 export interface SkillQualityReport {
   artifact: ArtifactEntry;
   totalScore: number;
   maxTotalScore: number;
+  profileMax: number;
+  subtype: ArtifactSubtype;
+  classification: ClassificationResult;
   recommendation: Recommendation;
   metrics: MetricResult[];
+  composedFrom: string[];
   fitNotes: string[];
 }
+
+interface MetricInput {
+  rawContent: string;
+  composedContent: string;
+  artifact: ArtifactEntry;
+  subtype: ArtifactSubtype;
+  profileMax: number;
+  projectRoot: string;
+  config: QualityConfig;
+}
+
+interface ReadContentResult {
+  content: string;
+  notes: string[];
+}
+
+interface ComposeResult {
+  raw: string;
+  composed: string;
+  sources: string[];
+  notes: string[];
+}
+
+type MetricScorer = (input: MetricInput) => MetricResult;
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const METRIC_LABELS: Record<MetricName, string> = {
+  "trigger-clarity": "Trigger Clarity",
+  "workflow-completeness": "Workflow Completeness",
+  "gate-quality": "Gate Quality",
+  "evidence-testability": "Evidence & Testability",
+  "cold-start": "Cold-Start Executability",
+  "token-cost": "Token / Load Cost",
+  "tool-deps": "Tool Dependency Handling",
+  "write-risk": "Write Risk",
+  "skill-reference-fit": "Skill vs Reference Fit",
+};
 
 // ---------------------------------------------------------------------------
 // Artifact Inventory
 // ---------------------------------------------------------------------------
 
-// eslint-disable-next-line complexity -- inventory walks three artifact roots with structural filters; splitting per-root would obscure the unified ID dedupe
-export function discoverArtifacts(projectRoot: string): ArtifactEntry[] {
-  const artifacts: ArtifactEntry[] = [];
+/** Return true when a directory entry is safe to inspect as a normal file tree. */
+function isSafeEntry(path: string): boolean {
+  try {
+    return !lstatSync(path).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
 
-  const skillsDir = join(projectRoot, ".claude/skills");
-  if (existsSync(skillsDir)) {
+function registerSkillArtifact(
+  projectRoot: string,
+  artifactsById: Map<string, ArtifactEntry>,
+  name: string,
+  skillFile: string,
+  source: ArtifactSource,
+): void {
+  const id = `skill:${name}`;
+  const path = relative(projectRoot, skillFile);
+  const existing = artifactsById.get(id);
+  if (existing) {
+    existing.mirrorPaths = [...(existing.mirrorPaths ?? []), path];
+    return;
+  }
+  artifactsById.set(id, {
+    id,
+    name,
+    path,
+    kind: "skill",
+    source,
+    mirrorPaths: [],
+    missingMirrors: [],
+  });
+}
+
+function addMissingMirrorMetadata(
+  projectRoot: string,
+  artifact: ArtifactEntry,
+  config: QualityConfig,
+): ArtifactEntry {
+  if (artifact.kind !== "skill") return artifact;
+  const expected = config.walkRoots.skills.map(({ dir }) =>
+    relative(projectRoot, join(projectRoot, dir, artifact.name, "SKILL.md")),
+  );
+  const present = new Set([artifact.path, ...(artifact.mirrorPaths ?? [])]);
+  return {
+    ...artifact,
+    mirrorPaths: artifact.mirrorPaths ?? [],
+    missingMirrors: expected.filter((path) => !present.has(path)),
+  };
+}
+
+// eslint-disable-next-line complexity -- inventory walks multiple artifact roots and dedupes mirrored skills into one canonical artifact
+export function discoverArtifacts(
+  projectRoot: string,
+  config: QualityConfig = loadQualityConfig(projectRoot),
+): ArtifactEntry[] {
+  const artifactsById = new Map<string, ArtifactEntry>();
+
+  for (const { dir, source } of config.walkRoots.skills) {
+    const skillsDir = join(projectRoot, dir);
+    if (!existsSync(skillsDir)) continue;
     for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const skillFile = join(skillsDir, entry.name, "SKILL.md");
-      if (!existsSync(skillFile)) continue;
-      artifacts.push({
-        id: `skill:${entry.name}`,
-        name: entry.name,
-        path: relative(projectRoot, skillFile),
-        kind: "skill",
-        source: "installed",
-      });
+      const entryPath = join(skillsDir, entry.name);
+      if (!entry.isDirectory() || !isSafeEntry(entryPath)) continue;
+      const skillFile = join(entryPath, "SKILL.md");
+      if (!existsSync(skillFile) || !isSafeEntry(skillFile)) continue;
+      registerSkillArtifact(
+        projectRoot,
+        artifactsById,
+        entry.name,
+        skillFile,
+        source,
+      );
     }
   }
 
-  const refDir = join(projectRoot, ".goat-flow/skill-reference");
-  if (existsSync(refDir)) {
+  const artifacts = Array.from(artifactsById.values()).map((artifact) =>
+    addMissingMirrorMetadata(projectRoot, artifact, config),
+  );
+
+  for (const { dir } of config.walkRoots.references) {
+    const refDir = join(projectRoot, dir);
+    if (!existsSync(refDir)) continue;
     for (const entry of readdirSync(refDir, { withFileTypes: true })) {
+      const filePath = join(refDir, entry.name);
       if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
-      if (entry.name === "README.md") continue;
+      if (entry.name === "README.md" || !isSafeEntry(filePath)) continue;
       const name = entry.name.replace(/\.md$/, "");
       artifacts.push({
         id: `reference:${name}`,
         name,
-        path: relative(projectRoot, join(refDir, entry.name)),
+        path: relative(projectRoot, filePath),
         kind: "shared-reference",
         source: "shared-reference",
-      });
-    }
-  }
-
-  const workflowSkillsDir = join(projectRoot, "workflow/skills");
-  if (existsSync(workflowSkillsDir)) {
-    for (const entry of readdirSync(workflowSkillsDir, {
-      withFileTypes: true,
-    })) {
-      if (!entry.isDirectory()) continue;
-      const skillFile = join(workflowSkillsDir, entry.name, "SKILL.md");
-      if (!existsSync(skillFile)) continue;
-      const installedId = `skill:${entry.name}`;
-      if (artifacts.some((a) => a.id === installedId)) continue;
-      artifacts.push({
-        id: installedId,
-        name: entry.name,
-        path: relative(projectRoot, skillFile),
-        kind: "skill",
-        source: "workflow",
       });
     }
   }
@@ -116,9 +245,11 @@ export function discoverArtifacts(projectRoot: string): ArtifactEntry[] {
 export function findArtifact(
   projectRoot: string,
   artifactId: string,
+  config: QualityConfig = loadQualityConfig(projectRoot),
 ): ArtifactEntry | null {
   return (
-    discoverArtifacts(projectRoot).find((a) => a.id === artifactId) ?? null
+    discoverArtifacts(projectRoot, config).find((a) => a.id === artifactId) ??
+    null
   );
 }
 
@@ -129,10 +260,104 @@ export function findArtifact(
 function readArtifactContent(
   projectRoot: string,
   artifact: ArtifactEntry,
-): string {
+  config: QualityConfig,
+): ReadContentResult {
   const fullPath = join(projectRoot, artifact.path);
-  if (!existsSync(fullPath)) return "";
-  return readFileSync(fullPath, "utf-8");
+  if (!existsSync(fullPath)) return { content: "", notes: [] };
+  const bytes = readFileSync(fullPath);
+  if (bytes.length <= config.maxArtifactBytes) {
+    return { content: bytes.toString("utf-8"), notes: [] };
+  }
+  return {
+    content: bytes.subarray(0, config.maxArtifactBytes).toString("utf-8"),
+    notes: [`artifact truncated at ${config.maxArtifactBytes} bytes`],
+  };
+}
+
+function readOptionalText(path: string, config: QualityConfig): string | null {
+  if (!existsSync(path) || !isSafeEntry(path)) return null;
+  if (statSync(path).size > config.maxArtifactBytes) {
+    return readFileSync(path)
+      .subarray(0, config.maxArtifactBytes)
+      .toString("utf-8");
+  }
+  return readFileSync(path, "utf-8");
+}
+
+// eslint-disable-next-line complexity -- composition assembles preamble, conventions, and skill-local references in a fixed pipeline; each branch is a distinct artifact-class case
+function composeArtifactContent(
+  projectRoot: string,
+  artifact: ArtifactEntry,
+  rawContent: string,
+  config: QualityConfig,
+): ComposeResult {
+  if (artifact.kind === "shared-reference") {
+    return {
+      raw: rawContent,
+      composed: rawContent,
+      sources: [basename(artifact.path)],
+      notes: [],
+    };
+  }
+
+  const chunks: string[] = [];
+  const sources: string[] = [];
+  const notes: string[] = [];
+  if (config.composition.skillPreamblePath) {
+    const preamble = readOptionalText(
+      join(projectRoot, config.composition.skillPreamblePath),
+      config,
+    );
+    if (preamble !== null) {
+      chunks.push(preamble);
+      sources.push(basename(config.composition.skillPreamblePath));
+    }
+  }
+  if (
+    config.composition.skillConventionsPath &&
+    /skill-conventions/i.test(rawContent)
+  ) {
+    const conventions = readOptionalText(
+      join(projectRoot, config.composition.skillConventionsPath),
+      config,
+    );
+    if (conventions !== null) {
+      chunks.push(conventions);
+      sources.push(basename(config.composition.skillConventionsPath));
+    }
+  }
+
+  chunks.push(rawContent);
+  sources.push("SKILL.md");
+
+  const skillDir = dirname(join(projectRoot, artifact.path));
+  const seenReferences = new Set<string>();
+  const refRegex = new RegExp(config.composition.skillReferencePattern, "g");
+  for (const match of rawContent.matchAll(refRegex)) {
+    const relativeRef = match[1];
+    if (!relativeRef) continue;
+    if (seenReferences.has(relativeRef)) continue;
+    seenReferences.add(relativeRef);
+    const refPath = join(skillDir, "references", relativeRef);
+    const refContent = readOptionalText(refPath, config);
+    if (refContent === null) continue;
+    chunks.push(refContent);
+    sources.push(`references/${relativeRef}`);
+  }
+
+  const composed = chunks.join("\n\n---\n\n");
+  if (composed.length <= config.composition.maxComposedBytes) {
+    return { raw: rawContent, composed, sources, notes };
+  }
+  notes.push(
+    `composition truncated at ${Math.round(config.composition.maxComposedBytes / 1024)}KB`,
+  );
+  return {
+    raw: rawContent,
+    composed: composed.slice(0, config.composition.maxComposedBytes),
+    sources,
+    notes,
+  };
 }
 
 function countHeadings(content: string, level: number): number {
@@ -152,53 +377,239 @@ function countSubReferences(
   projectRoot: string,
   artifact: ArtifactEntry,
 ): number {
-  const dir = join(projectRoot, artifact.path, "..");
-  const artifactDir = join(dir, artifact.name);
-  if (!existsSync(artifactDir) || !statSync(artifactDir).isDirectory())
+  if (artifact.kind !== "skill") return 0;
+  const referencesDir = join(projectRoot, dirname(artifact.path), "references");
+  if (!existsSync(referencesDir) || !statSync(referencesDir).isDirectory()) {
     return 0;
-  return readdirSync(artifactDir).filter((f) => f.endsWith(".md")).length;
+  }
+  return readdirSync(referencesDir)
+    .filter((file) => file.endsWith(".md"))
+    .filter((file) => isSafeEntry(join(referencesDir, file))).length;
+}
+
+function metricSeverity(score: number, maxScore: number): MetricSeverity {
+  if (maxScore === 0) return "n/a";
+  const pct = score / maxScore;
+  if (pct >= 0.75) return "ok";
+  if (pct >= 0.4) return "warn";
+  return "fail";
+}
+
+function finalizeMetric(
+  input: MetricInput,
+  metric: MetricName,
+  score: number,
+  detail: string,
+  signals?: MetricSignals,
+): MetricResult {
+  const maxScore = input.config.subtypes[input.subtype].profile[metric];
+  if (maxScore === 0) {
+    return {
+      metric,
+      label: METRIC_LABELS[metric],
+      score: 0,
+      maxScore,
+      severity: "n/a",
+      detail: `n/a for subtype=${input.subtype}`,
+      signals,
+    };
+  }
+  const cappedScore = Math.max(0, Math.min(score, maxScore));
+  return {
+    metric,
+    label: METRIC_LABELS[metric],
+    score: cappedScore,
+    maxScore,
+    severity: metricSeverity(cappedScore, maxScore),
+    detail,
+    signals,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Subtype detection & classification
+// ---------------------------------------------------------------------------
+
+const SUBTYPE_NAME_MATCH_SCORE = 5;
+const SUBTYPE_HEADING_MATCH_SCORE = 2;
+const SUBTYPE_FALLBACK_SCORE = 1;
+
+interface SubtypeMatchScore {
+  subtype: ArtifactSubtype;
+  score: number;
+  reasoning: string[];
+}
+
+/**
+ * Score a single subtype's detection against an artifact. Returns 0 when the
+ * subtype is incompatible (wrong kind or vetoed by a `mustNotHave` heading).
+ *
+ * Scoring rules:
+ *  - Name match: +SUBTYPE_NAME_MATCH_SCORE (unconditional — preserves the M07
+ *    OR semantics where `goat-security` is a report regardless of Step 0).
+ *  - Heading match: +SUBTYPE_HEADING_MATCH_SCORE per match, vetoed by
+ *    `mustNotHave`. Heading-only matches that trigger `mustNotHave` return 0.
+ *  - Empty rules (fallback subtype): SUBTYPE_FALLBACK_SCORE so the fallback
+ *    always matches with low confidence.
+ */
+// eslint-disable-next-line complexity -- subtype match scoring exhausts kind compatibility, fallback rules, name-vs-heading scoring, and mustNotHave veto in one place to keep priority semantics local
+function scoreSubtypeMatch(
+  artifact: ArtifactEntry,
+  content: string,
+  detection: SubtypeDetection,
+  subtype: ArtifactSubtype,
+): SubtypeMatchScore {
+  const reasoning: string[] = [];
+  if (detection.kinds.length > 0 && !detection.kinds.includes(artifact.kind)) {
+    return { subtype, score: 0, reasoning };
+  }
+
+  if (
+    detection.namePatterns.length === 0 &&
+    detection.headingPatterns.length === 0
+  ) {
+    reasoning.push(`fallback for kind=${artifact.kind}`);
+    return { subtype, score: SUBTYPE_FALLBACK_SCORE, reasoning };
+  }
+
+  let score = 0;
+  if (detection.namePatterns.includes(artifact.name)) {
+    score += SUBTYPE_NAME_MATCH_SCORE;
+    reasoning.push(`name "${artifact.name}" in name-patterns`);
+  }
+
+  let headingMatched = false;
+  for (const pattern of detection.headingPatterns) {
+    if (new RegExp(pattern, "i").test(content)) {
+      score += SUBTYPE_HEADING_MATCH_SCORE;
+      headingMatched = true;
+      reasoning.push(`heading "${pattern}" present`);
+    }
+  }
+
+  if (score === 0) return { subtype, score: 0, reasoning };
+
+  // Heading-only matches are vetoed by mustNotHave; name matches override.
+  const nameMatched = detection.namePatterns.includes(artifact.name);
+  if (!nameMatched && headingMatched) {
+    for (const veto of detection.mustNotHave) {
+      if (new RegExp(veto, "i").test(content)) {
+        reasoning.push(`vetoed by must-not-have "${veto}"`);
+        return { subtype, score: 0, reasoning };
+      }
+    }
+  }
+
+  return { subtype, score, reasoning };
+}
+
+const REFERENCE_DETECTION_ORDER: ArtifactSubtype[] = [
+  "meta",
+  "index",
+  "playbook",
+];
+const SKILL_DETECTION_ORDER: ArtifactSubtype[] = [
+  "dispatcher",
+  "report",
+  "workflow",
+];
+
+/**
+ * Classify an artifact across all candidate subtypes. The detected subtype
+ * is the highest-scoring match; confidence is `top / (top + second)` to
+ * communicate how dominant the leading subtype is.
+ */
+function classifyArtifact(
+  artifact: ArtifactEntry,
+  content: string,
+  config: QualityConfig,
+): ClassificationResult {
+  const order =
+    artifact.kind === "shared-reference"
+      ? REFERENCE_DETECTION_ORDER
+      : SKILL_DETECTION_ORDER;
+
+  const matches = order
+    .map((subtype) =>
+      scoreSubtypeMatch(
+        artifact,
+        content,
+        config.subtypes[subtype].detection,
+        subtype,
+      ),
+    )
+    .filter((match) => match.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (matches.length === 0) {
+    const fallback =
+      artifact.kind === "shared-reference" ? "playbook" : "workflow";
+    return {
+      detectedSubtype: fallback,
+      confidence: 0,
+      alternatives: [],
+      reasoning: [
+        `no subtype matched ${artifact.id}; using ${fallback} as fallback`,
+      ],
+    };
+  }
+
+  const top = matches[0];
+  if (!top) {
+    const fallback =
+      artifact.kind === "shared-reference" ? "playbook" : "workflow";
+    return {
+      detectedSubtype: fallback,
+      confidence: 0,
+      alternatives: [],
+      reasoning: ["unreachable: empty match list after pre-filter"],
+    };
+  }
+  const rest = matches.slice(1);
+  const second = rest[0];
+  const confidence =
+    second === undefined ? 1 : top.score / (top.score + second.score);
+  const reasoning = [
+    `detected ${top.subtype} (score ${top.score}): ${top.reasoning.join("; ")}`,
+    ...rest.map(
+      (m) =>
+        `also matched ${m.subtype} (score ${m.score}): ${m.reasoning.join("; ")}`,
+    ),
+  ];
+  return {
+    detectedSubtype: top.subtype,
+    confidence,
+    alternatives: rest.map(({ subtype, score }) => ({ subtype, score })),
+    reasoning,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Metric scorers
 // ---------------------------------------------------------------------------
 
-type MetricScorer = (
-  content: string,
-  artifact: ArtifactEntry,
-  projectRoot: string,
-) => MetricResult;
-
 // eslint-disable-next-line complexity -- exhaustive structural signal scoring; each branch maps to one trigger-clarity rule
-const triggerClarity: MetricScorer = (content, artifact) => {
-  const metric = "trigger-clarity";
-  const label = "Trigger Clarity";
-  const maxScore = 15;
-
+const triggerClarity: MetricScorer = (input) => {
+  const { artifact, rawContent: content, subtype } = input;
   let score = 0;
   const notes: string[] = [];
 
   if (artifact.kind === "skill") {
     const hasFrontmatterDesc =
       /^---[\s\S]*?description:\s*".+"[\s\S]*?---/m.test(content);
-    const hasWhenToUse = hasSection(content, /##\s+When to Use/i);
-    const hasNotThisSkill = /NOT this skill/i.test(content);
+    const hasWhenToUse =
+      hasSection(content, /##\s+When to Use/i) || /\bUse when\b/i.test(content);
+    const hasExclusion =
+      /NOT this skill/i.test(content) ||
+      /If the user names a skill explicitly/i.test(content);
 
-    if (hasFrontmatterDesc) {
-      score += 5;
-    } else {
-      notes.push("missing frontmatter description");
-    }
-    if (hasWhenToUse) {
-      score += 5;
-    } else {
-      notes.push('missing "When to Use" section');
-    }
-    if (hasNotThisSkill) {
-      score += 5;
-    } else {
-      notes.push('missing "NOT this skill" exclusion list');
-    }
+    if (hasFrontmatterDesc) score += 5;
+    else notes.push("missing frontmatter description");
+    if (hasWhenToUse) score += 5;
+    else notes.push('missing "When to Use" signal');
+    if (hasExclusion && subtype !== "dispatcher") score += 5;
+    else if (subtype === "dispatcher") notes.push("dispatcher route-map scope");
+    else notes.push('missing "NOT this skill" exclusion list');
   } else {
     const hasPurpose =
       hasSection(content, /##\s+Purpose/i) ||
@@ -209,25 +620,21 @@ const triggerClarity: MetricScorer = (content, artifact) => {
 
     const hasAvailCheck = hasSection(content, /Availability Check/i);
     if (hasAvailCheck) score += 5;
+    else if (subtype === "meta" || subtype === "index") score += 5;
     else notes.push("missing Availability Check");
   }
 
-  return {
-    metric,
-    label,
+  return finalizeMetric(
+    input,
+    "trigger-clarity",
     score,
-    maxScore,
-    severity: score >= 10 ? "ok" : score >= 5 ? "warn" : "fail",
-    detail: notes.length > 0 ? notes.join("; ") : "clear trigger definition",
-  };
+    notes.length > 0 ? notes.join("; ") : "clear trigger definition",
+  );
 };
 
 // eslint-disable-next-line complexity -- exhaustive structural signal scoring; each branch maps to one workflow-completeness rule
-const workflowCompleteness: MetricScorer = (content, artifact) => {
-  const metric = "workflow-completeness";
-  const label = "Workflow Completeness";
-  const maxScore = 15;
-
+const workflowCompleteness: MetricScorer = (input) => {
+  const { artifact, rawContent: content, subtype } = input;
   let score = 0;
   const notes: string[] = [];
 
@@ -235,21 +642,19 @@ const workflowCompleteness: MetricScorer = (content, artifact) => {
     const hasStep0 = hasSection(content, /##\s+Step 0/i);
     const phaseCount = countHeadings(content, 2) + countHeadings(content, 3);
     const hasCheckpoint = /CHECKPOINT/i.test(content);
+    const hasRouteMap = hasSection(content, /##\s+Route Map/i);
+    const hasQuickScan = hasSection(content, /##\s+Quick Scan Path/i);
 
-    if (hasStep0) {
-      score += 5;
+    if (subtype === "dispatcher") {
+      if (hasRouteMap) score += 5;
+      else notes.push("missing dispatcher Route Map");
     } else {
-      notes.push("missing Step 0 intake");
-    }
-    if (phaseCount >= 4) {
-      score += 5;
-    } else {
-      notes.push(`only ${phaseCount} sections (expected 4+)`);
-    }
-    if (hasCheckpoint) {
-      score += 5;
-    } else {
-      notes.push("no CHECKPOINT stops");
+      if (hasStep0 || hasQuickScan) score += 5;
+      else notes.push("missing Step 0 intake");
+      if (phaseCount >= 4) score += 5;
+      else notes.push(`only ${phaseCount} sections (expected 4+)`);
+      if (hasCheckpoint || subtype === "report") score += 5;
+      else notes.push("no CHECKPOINT stops");
     }
   } else {
     const hasWorkflow =
@@ -260,69 +665,50 @@ const workflowCompleteness: MetricScorer = (content, artifact) => {
       hasSection(content, /Troubleshoot/i) || hasSection(content, /Fallback/i);
     const sectionCount = countHeadings(content, 2);
 
-    if (hasWorkflow) score += 5;
+    if (hasWorkflow || subtype === "index" || subtype === "meta") score += 5;
     else notes.push("no workflow/steps section");
-    if (hasTroubleshooting) score += 5;
+    if (hasTroubleshooting || subtype === "meta") score += 5;
     else notes.push("no troubleshooting/fallback");
     if (sectionCount >= 3) score += 5;
     else notes.push(`only ${sectionCount} top-level sections`);
   }
 
-  return {
-    metric,
-    label,
+  return finalizeMetric(
+    input,
+    "workflow-completeness",
     score,
-    maxScore,
-    severity: score >= 10 ? "ok" : score >= 5 ? "warn" : "fail",
-    detail: notes.length > 0 ? notes.join("; ") : "complete workflow",
-  };
+    notes.length > 0 ? notes.join("; ") : "complete workflow",
+  );
 };
 
-// eslint-disable-next-line complexity -- exhaustive structural signal scoring; each branch maps to one gate-quality rule
-const gateQuality: MetricScorer = (content, artifact) => {
-  const metric = "gate-quality";
-  const label = "Gate Quality";
-  const maxScore = 10;
-
+const gateQuality: MetricScorer = (input) => {
+  const { composedContent: content, config } = input;
   let score = 0;
   const notes: string[] = [];
 
-  const hasVerificationGate =
-    /verification gate/i.test(content) ||
-    /exit criteria/i.test(content) ||
-    /\- \[ \]/m.test(content);
-  const hasExplicitPass =
-    /pass[/ ]fail/i.test(content) || /must confirm/i.test(content);
+  const verificationGate = compilePatternList(
+    config.gateVocabulary.verificationGate,
+  );
+  const explicitPass = compilePatternList(config.gateVocabulary.explicitPass);
+  const humanStop = compilePatternList(config.gateVocabulary.humanStop);
 
-  if (hasVerificationGate) {
-    score += 5;
-  } else {
-    notes.push("no verification gates or checklists");
-  }
-  if (hasExplicitPass) {
-    score += 5;
-  } else if (artifact.kind === "skill") {
-    notes.push("no explicit pass/fail criteria");
-  } else {
-    score += 3;
-    if (score < maxScore) notes.push("implicit gate only");
-  }
+  if (verificationGate.test(content)) score += 5;
+  else notes.push("no verification gates or checklists");
+  if (explicitPass.test(content)) score += 3;
+  else notes.push("no explicit pass/fail criteria");
+  if (humanStop.test(content)) score += 2;
+  else notes.push("no explicit human stop or checkpoint");
 
-  return {
-    metric,
-    label,
+  return finalizeMetric(
+    input,
+    "gate-quality",
     score,
-    maxScore,
-    severity: score >= 8 ? "ok" : score >= 5 ? "warn" : "fail",
-    detail: notes.length > 0 ? notes.join("; ") : "strong gates",
-  };
+    notes.length > 0 ? notes.join("; ") : "strong gates",
+  );
 };
 
-const evidenceTestability: MetricScorer = (content) => {
-  const metric = "evidence-testability";
-  const label = "Evidence & Testability";
-  const maxScore = 10;
-
+const evidenceTestability: MetricScorer = (input) => {
+  const content = input.composedContent;
   let score = 0;
   const notes: string[] = [];
 
@@ -340,22 +726,17 @@ const evidenceTestability: MetricScorer = (content) => {
   if (hasSemanticAnchors) score += 3;
   else notes.push("no semantic anchors");
 
-  return {
-    metric,
-    label,
+  return finalizeMetric(
+    input,
+    "evidence-testability",
     score,
-    maxScore,
-    severity: score >= 7 ? "ok" : score >= 4 ? "warn" : "fail",
-    detail: notes.length > 0 ? notes.join("; ") : "strong evidence contract",
-  };
+    notes.length > 0 ? notes.join("; ") : "strong evidence contract",
+  );
 };
 
 // eslint-disable-next-line complexity -- exhaustive structural signal scoring; each branch maps to one cold-start rule
-const coldStartExecutability: MetricScorer = (content, artifact) => {
-  const metric = "cold-start";
-  const label = "Cold-Start Executability";
-  const maxScore = 10;
-
+const coldStartExecutability: MetricScorer = (input) => {
+  const { artifact, rawContent: content } = input;
   let score = 0;
   const notes: string[] = [];
 
@@ -386,32 +767,26 @@ const coldStartExecutability: MetricScorer = (content, artifact) => {
     else notes.push("no prerequisites or availability check");
   }
 
-  return {
-    metric,
-    label,
+  return finalizeMetric(
+    input,
+    "cold-start",
     score,
-    maxScore,
-    severity: score >= 8 ? "ok" : score >= 5 ? "warn" : "fail",
-    detail: notes.length > 0 ? notes.join("; ") : "good cold-start",
-  };
+    notes.length > 0 ? notes.join("; ") : "good cold-start",
+  );
 };
 
-const tokenCost: MetricScorer = (content, artifact, projectRoot) => {
-  const metric = "token-cost";
-  const label = "Token / Load Cost";
-  const maxScore = 10;
-
-  const tokens = estimateTokens(content);
-  const subRefs = countSubReferences(projectRoot, artifact);
+const tokenCost: MetricScorer = (input) => {
+  const tokens = estimateTokens(input.rawContent);
+  const subRefs = countSubReferences(input.projectRoot, input.artifact);
   const notes: string[] = [];
 
   let score: number;
   if (tokens > 20000) {
     score = 0;
-    notes.push(`~${tokens} tokens — very large`);
+    notes.push(`~${tokens} tokens - very large`);
   } else if (tokens > 10000) {
     score = 3;
-    notes.push(`~${tokens} tokens — large`);
+    notes.push(`~${tokens} tokens - large`);
   } else if (tokens > 5000) {
     score = 7;
     notes.push(`~${tokens} tokens`);
@@ -426,30 +801,24 @@ const tokenCost: MetricScorer = (content, artifact, projectRoot) => {
     notes.push(`${subRefs} sub-reference(s)`);
   }
 
-  return {
-    metric,
-    label,
+  return finalizeMetric(
+    input,
+    "token-cost",
     score,
-    maxScore,
-    severity: score >= 7 ? "ok" : score >= 3 ? "warn" : "fail",
-    detail: notes.length > 0 ? notes.join("; ") : `~${tokens} tokens`,
-  };
+    notes.length > 0 ? notes.join("; ") : `~${tokens} tokens`,
+  );
 };
 
-const toolDependencyHandling: MetricScorer = (content) => {
-  const metric = "tool-deps";
-  const label = "Tool Dependency Handling";
-  const maxScore = 10;
-
+const toolDependencyHandling: MetricScorer = (input) => {
+  const { composedContent: content, config } = input;
   let score = 5;
   const notes: string[] = [];
 
   const hasAvailCheck = /Availability Check/i.test(content);
   const hasFallback =
     /fallback/i.test(content) || /if.*unavailable/i.test(content);
-  const hasToolRef = /browser-use|page-capture|command -v|which\s/i.test(
-    content,
-  );
+  const toolKeywords = new RegExp(config.toolKeywordsRegex, "i");
+  const hasToolRef = toolKeywords.test(content);
 
   if (hasToolRef) {
     if (hasAvailCheck) score += 3;
@@ -460,27 +829,20 @@ const toolDependencyHandling: MetricScorer = (content) => {
     score = 10;
   }
 
-  return {
-    metric,
-    label,
+  return finalizeMetric(
+    input,
+    "tool-deps",
     score,
-    maxScore,
-    severity: score >= 8 ? "ok" : score >= 5 ? "warn" : "fail",
-    detail:
-      notes.length > 0
-        ? notes.join("; ")
-        : hasToolRef
-          ? "tools handled"
-          : "no external tool dependencies",
-  };
+    notes.length > 0
+      ? notes.join("; ")
+      : hasToolRef
+        ? "tools handled"
+        : "no external tool dependencies",
+  );
 };
 
-// eslint-disable-next-line complexity -- exhaustive structural signal scoring; each branch maps to one write-risk rule
-const writeRisk: MetricScorer = (content, artifact) => {
-  const metric = "write-risk";
-  const label = "Write Risk";
-  const maxScore = 10;
-
+const writeRisk: MetricScorer = (input) => {
+  const { artifact, composedContent: content } = input;
   let score = 10;
   const notes: string[] = [];
 
@@ -509,24 +871,19 @@ const writeRisk: MetricScorer = (content, artifact) => {
     }
   }
 
-  return {
-    metric,
-    label,
+  return finalizeMetric(
+    input,
+    "write-risk",
     score,
-    maxScore,
-    severity: score >= 8 ? "ok" : score >= 5 ? "warn" : "fail",
-    detail: notes.length > 0 ? notes.join("; ") : "controlled write risk",
-  };
+    notes.length > 0 ? notes.join("; ") : "controlled write risk",
+  );
 };
 
 // eslint-disable-next-line complexity -- exhaustive structural signal scoring; each branch maps to one skill-vs-reference fit rule
-const skillReferenceFit: MetricScorer = (content, artifact) => {
-  const metric = "skill-reference-fit";
-  const label = "Skill vs Reference Fit";
-  const maxScore = 10;
-
+const skillReferenceFit: MetricScorer = (input) => {
+  const { artifact, rawContent: content, subtype } = input;
   const signals = {
-    hasFrontmatterName: /^---[\s\S]*?name:\s*".+"[\s\S]*?---/m.test(content),
+    hasFrontmatterName: /^---[\s\S]*?name:\s*.+[\s\S]*?---/m.test(content),
     hasIntake: hasSection(content, /##\s+Step 0/i),
     hasCheckpoint: /CHECKPOINT/i.test(content),
     hasModes: /Read-Only|File-Write|Plan.*mode|Implement.*mode/i.test(content),
@@ -535,6 +892,8 @@ const skillReferenceFit: MetricScorer = (content, artifact) => {
       /tool.*protocol|observation.*workflow|capture.*workflow/i.test(content),
     hasRefVersion: /goat-flow-reference-version/i.test(content),
     hasSkillVersion: /goat-flow-skill-version/i.test(content),
+    hasRouteMap: hasSection(content, /##\s+Route Map/i),
+    hasQuickScan: hasSection(content, /##\s+Quick Scan Path/i),
   };
 
   const skillSignals = [
@@ -544,7 +903,6 @@ const skillReferenceFit: MetricScorer = (content, artifact) => {
     signals.hasModes,
     signals.hasSkillVersion,
   ].filter(Boolean).length;
-
   const refSignals = [
     signals.hasAvailCheck,
     signals.isToolProtocol,
@@ -552,25 +910,40 @@ const skillReferenceFit: MetricScorer = (content, artifact) => {
     !signals.hasFrontmatterName,
     !signals.hasIntake,
   ].filter(Boolean).length;
-
+  const resultSignals: MetricSignals = {};
   const notes: string[] = [];
   let score: number;
 
-  if (artifact.kind === "skill") {
-    if (skillSignals >= 3) {
+  if (subtype === "meta" || subtype === "index") {
+    resultSignals.meta = true;
+    score = 10;
+    notes.push(
+      subtype === "index"
+        ? "index reference; routes to sibling files"
+        : "shared meta-reference; not user-invocable",
+    );
+  } else if (artifact.kind === "skill") {
+    if (
+      (subtype === "dispatcher" && signals.hasRouteMap) ||
+      (subtype === "report" && signals.hasQuickScan)
+    ) {
+      score = 10;
+    } else if (skillSignals >= 3) {
       score = 10;
     } else if (skillSignals >= 2) {
       score = 7;
-      notes.push("weak skill identity — missing some structural signals");
+      notes.push("weak skill identity - missing some structural signals");
     } else {
       score = 3;
+      resultSignals.demote = true;
       notes.push(
-        "artifact lacks skill structure — may belong in skill-reference/",
+        "artifact lacks skill structure - may belong in skill-reference/",
       );
     }
-    if (refSignals >= 3) {
+    if (refSignals >= 3 && subtype === "workflow") {
       score = Math.max(0, score - 3);
-      notes.push("strong reference signals — consider demoting to reference");
+      resultSignals.demote = true;
+      notes.push("strong reference signals - consider demoting to reference");
     }
   } else {
     if (refSignals >= 3) {
@@ -584,21 +957,18 @@ const skillReferenceFit: MetricScorer = (content, artifact) => {
     }
     if (skillSignals >= 3) {
       score = Math.max(0, score - 3);
-      notes.push("strong skill signals — consider promoting to skill");
+      resultSignals.promote = true;
+      notes.push("strong skill signals - consider promoting to skill");
     }
   }
 
-  return {
-    metric,
-    label,
+  return finalizeMetric(
+    input,
+    "skill-reference-fit",
     score,
-    maxScore,
-    severity: score >= 8 ? "ok" : score >= 5 ? "warn" : "fail",
-    detail:
-      notes.length > 0
-        ? notes.join("; ")
-        : "good fit for current classification",
-  };
+    notes.length > 0 ? notes.join("; ") : "good fit for current classification",
+    resultSignals,
+  );
 };
 
 const ALL_METRICS: MetricScorer[] = [
@@ -617,30 +987,65 @@ const ALL_METRICS: MetricScorer[] = [
 // Recommendation engine
 // ---------------------------------------------------------------------------
 
-// eslint-disable-next-line complexity -- recommendation tree dispatches over kind × score-band × fit-signal; each branch represents one explicit recommendation rule
+const CONFIDENCE_THRESHOLD = 0.7;
+
+function reclassifyNote(classification: ClassificationResult): string {
+  const top = classification.alternatives[0];
+  const altText = top
+    ? `Could also be ${top.subtype} (match score ${top.score}).`
+    : "No clear alternative subtype.";
+  return `Strong structure but classification confidence is ${Math.round(
+    classification.confidence * 100,
+  )}% in ${classification.detectedSubtype}. ${altText}`;
+}
+
+// eslint-disable-next-line complexity -- recommendation tree dispatches over kind × score-band × confidence × structured fit signals
 function deriveRecommendation(
   artifact: ArtifactEntry,
   metrics: MetricResult[],
   totalScore: number,
   maxTotalScore: number,
+  classification: ClassificationResult,
 ): { recommendation: Recommendation; fitNotes: string[] } {
   const fitNotes: string[] = [];
   const pct = maxTotalScore > 0 ? totalScore / maxTotalScore : 0;
   const fitMetric = metrics.find((m) => m.metric === "skill-reference-fit");
   const failCount = metrics.filter((m) => m.severity === "fail").length;
+  const zeroMetric = metrics.find((m) => m.maxScore > 0 && m.score === 0);
+  const confident = classification.confidence >= CONFIDENCE_THRESHOLD;
+
+  if (fitMetric?.signals?.meta) {
+    fitNotes.push(fitMetric.detail);
+    return { recommendation: "reference-playbook", fitNotes };
+  }
+
+  if (pct < 0.3) {
+    fitNotes.push(
+      artifact.kind === "skill"
+        ? "Very low quality score. Verify the artifact is still maintained and useful."
+        : "Very low quality score for a reference.",
+    );
+    return { recommendation: "retire", fitNotes };
+  }
+
+  if (zeroMetric) {
+    fitNotes.push(
+      `${zeroMetric.label} scored 0/${zeroMetric.maxScore}. Manual review required before keeping this recommendation.`,
+    );
+    if (artifact.kind === "shared-reference") {
+      fitNotes.push(
+        "Still classified as reference/playbook; quality needs review.",
+      );
+    }
+    return { recommendation: "needs-human-review", fitNotes };
+  }
 
   if (artifact.kind === "skill") {
-    if (fitMetric && fitMetric.score <= 3) {
+    if (fitMetric?.signals?.demote) {
       fitNotes.push(
         "Artifact lacks skill structure. Consider demoting to .goat-flow/skill-reference/.",
       );
       return { recommendation: "reference-playbook", fitNotes };
-    }
-    if (pct < 0.3) {
-      fitNotes.push(
-        "Very low quality score. Verify the artifact is still maintained and useful.",
-      );
-      return { recommendation: "retire", fitNotes };
     }
     if (failCount >= 4) {
       fitNotes.push(
@@ -649,25 +1054,28 @@ function deriveRecommendation(
       return { recommendation: "needs-human-review", fitNotes };
     }
     if (pct >= 0.7) {
+      if (!confident) {
+        fitNotes.push(reclassifyNote(classification));
+        return { recommendation: "consider-reclassifying", fitNotes };
+      }
       fitNotes.push("Strong skill identity with adequate structural quality.");
       return { recommendation: "keep-skill", fitNotes };
     }
     fitNotes.push(
       "Moderate quality. Review metric details for improvement opportunities.",
     );
-    return { recommendation: "needs-human-review", fitNotes };
+    return { recommendation: "consider-revision", fitNotes };
   }
 
-  // shared-reference
-  if (fitMetric && fitMetric.detail.includes("consider promoting")) {
+  if (fitMetric?.signals?.promote) {
     fitNotes.push(
       "Strong skill signals detected. Consider promoting to a first-class goat-* skill.",
     );
     return { recommendation: "needs-human-review", fitNotes };
   }
-  if (pct < 0.3) {
-    fitNotes.push("Very low quality score for a reference.");
-    return { recommendation: "retire", fitNotes };
+  if (pct >= 0.7 && !confident) {
+    fitNotes.push(reclassifyNote(classification));
+    return { recommendation: "consider-reclassifying", fitNotes };
   }
   fitNotes.push("Fits reference/playbook classification.");
   return { recommendation: "reference-playbook", fitNotes };
@@ -680,11 +1088,28 @@ function deriveRecommendation(
 export function scoreArtifact(
   projectRoot: string,
   artifact: ArtifactEntry,
+  config: QualityConfig = loadQualityConfig(projectRoot),
 ): SkillQualityReport {
-  const content = readArtifactContent(projectRoot, artifact);
-  const metrics = ALL_METRICS.map((scorer) =>
-    scorer(content, artifact, projectRoot),
+  const raw = readArtifactContent(projectRoot, artifact, config);
+  const classification = classifyArtifact(artifact, raw.content, config);
+  const subtype = classification.detectedSubtype;
+  const profileMax = profileMaxForSubtype(config, subtype);
+  const composed = composeArtifactContent(
+    projectRoot,
+    artifact,
+    raw.content,
+    config,
   );
+  const metricInput: MetricInput = {
+    rawContent: composed.raw,
+    composedContent: composed.composed,
+    artifact,
+    subtype,
+    profileMax,
+    projectRoot,
+    config,
+  };
+  const metrics = ALL_METRICS.map((scorer) => scorer(metricInput));
 
   const totalScore = metrics.reduce((sum, m) => sum + m.score, 0);
   const maxTotalScore = metrics.reduce((sum, m) => sum + m.maxScore, 0);
@@ -693,20 +1118,28 @@ export function scoreArtifact(
     metrics,
     totalScore,
     maxTotalScore,
+    classification,
   );
 
   return {
     artifact,
     totalScore,
     maxTotalScore,
+    profileMax,
+    subtype,
+    classification,
     recommendation,
     metrics,
-    fitNotes,
+    composedFrom: composed.sources,
+    fitNotes: [...raw.notes, ...composed.notes, ...fitNotes],
   };
 }
 
-export function scoreAllArtifacts(projectRoot: string): SkillQualityReport[] {
-  return discoverArtifacts(projectRoot).map((a) =>
-    scoreArtifact(projectRoot, a),
+export function scoreAllArtifacts(
+  projectRoot: string,
+  config: QualityConfig = loadQualityConfig(projectRoot),
+): SkillQualityReport[] {
+  return discoverArtifacts(projectRoot, config).map((a) =>
+    scoreArtifact(projectRoot, a, config),
   );
 }

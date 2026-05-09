@@ -31,6 +31,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "skill-overrides",
   "harness",
   "terminal",
+  "quality",
 ]);
 
 /** Built-in default values used when config.yaml is missing or omits fields. */
@@ -215,8 +216,15 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
   }
 
   mergeHarness(raw.harness, merged);
+  mergeQuality(raw.quality, merged);
 
   return merged;
+}
+
+/** Pass through the raw quality config block; full validation lives in quality-config.ts. */
+function mergeQuality(value: unknown, merged: GoatFlowConfig): void {
+  if (!isRecord(value)) return;
+  merged.quality = { ...value };
 }
 
 /** Apply harness acknowledge list from the raw config. */

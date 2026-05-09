@@ -3,6 +3,18 @@ category: dashboard-testing
 last_reviewed: 2026-05-09
 ---
 
+## Lesson: Slow verification can expose unrelated dashboard doc drift
+
+**Status:** active | **Created:** 2026-05-09
+
+**What happened:** While double-checking an unrelated Codex config fix, `npm run test:slow` failed in `checkDrift: installer round-trip fixture` because the temp repo's preflight reported `Dashboard view names drift between manifest and architecture prose`. The Codex fix was clean; the blocker was stale `.goat-flow/architecture.md` prose missing the `skill` dashboard view in both required snippets.
+
+**Root cause:** I treated the broad slow suite as a final confirmation step, but it also runs repo-wide cold-path truth checks through `scripts/preflight-checks.sh`. Those checks can surface unrelated committed dashboard doc drift that focused tests do not touch.
+
+**Prevention:** When `npm run test:slow` or preflight fails during unrelated verification, separate task-local regressions from repo-wide drift before changing code. For dashboard view drift, compare `workflow/manifest.json` (search: `dashboard_views`) against `.goat-flow/architecture.md` (search: `views for`, `Page views`) and rerun both `bash scripts/preflight-checks.sh` and `npm run test:slow` after the doc correction.
+
+---
+
 ## Lesson: Dashboard readers must preserve fields used by score logic
 
 **Status:** active | **Created:** 2026-05-01

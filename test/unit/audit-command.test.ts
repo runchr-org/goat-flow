@@ -1199,7 +1199,7 @@ describe("codex settings feature flags", () => {
         exists: (path) => path === ".codex/config.toml",
         readFile: (path) =>
           path === ".codex/config.toml"
-            ? 'model = "gpt-5"\nfeatures.hooks = true\n[features]\ncodex_hooks = true\n'
+            ? 'model = "gpt-5"\nfeatures.codex_hooks = true\n[features]\nhooks = true\n'
             : null,
       }),
       PROFILES.codex,
@@ -1313,7 +1313,7 @@ describe("codex settings feature flags", () => {
     assert.equal(facts.readDenyCoversSecrets, false);
   });
 
-  it("fails agent-settings when Codex config still uses hooks", () => {
+  it("fails agent-settings when Codex config still uses codex_hooks", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "agent-settings")!;
     const result = check.run(
       makeCtx({
@@ -1342,16 +1342,16 @@ describe("codex settings feature flags", () => {
     );
 
     assert.notEqual(result, null);
-    assert.match(result!.message, /\[features\]\.codex_hooks = true/);
-    assert.match(result!.howToFix ?? "", /codex_hooks = true/);
+    assert.match(result!.message, /\[features\]\.hooks = true/);
+    assert.match(result!.howToFix ?? "", /hooks = true/);
   });
 
-  it("passes agent-settings when Codex hooks are installed and features.codex_hooks is true", () => {
+  it("passes agent-settings when Codex hooks are installed and features.hooks is true", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "agent-settings")!;
     const result = check.run(
       makeCtx({
         agentFilter: "codex",
-        agents: [codexAgentFacts({ "features.codex_hooks": true })],
+        agents: [codexAgentFacts({ "features.hooks": true })],
       }),
     );
 

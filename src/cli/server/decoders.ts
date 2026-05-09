@@ -41,6 +41,28 @@ interface TerminalUploadBody {
   files: TerminalUploadFile[];
 }
 
+interface CandidacyBody {
+  kind: "draft" | "description";
+  /** For description mode: the natural-language intent. */
+  text?: string;
+  /** For draft mode: the markdown content to evaluate. */
+  content?: string;
+  /** Optional name suggestion (used by draft mode for naming heuristics). */
+  suggestedName?: string;
+}
+
+interface ScaffoldBody {
+  /** Project root the scaffold will write into. */
+  projectPath: string;
+  /** Skill name in kebab-case. */
+  name: string;
+  /** Either a description (description mode) or the source draft content. */
+  description?: string;
+  draftContent?: string;
+  /** Must be true; refuses to write otherwise. */
+  confirm: true;
+}
+
 const MAX_PROJECT_TITLE_LENGTH = 120;
 
 /** Build a decoder error result. */
@@ -283,4 +305,108 @@ export function decodeClientMessage(raw: string): DecodeResult<ClientMessage> {
     "message.type",
     `must be "input" or "resize" (got ${JSON.stringify(obj.type)})`,
   );
+}
+
+const MAX_CANDIDACY_TEXT_BYTES = 32 * 1024;
+const MAX_CANDIDACY_CONTENT_BYTES = 256 * 1024;
+
+/** Decode and validate a `POST /api/quality/candidacy` request body. */
+// eslint-disable-next-line complexity -- explicit boundary validation; each branch maps to one rejection class for the candidacy payload
+export function decodeCandidacyBody(body: string): DecodeResult<CandidacyBody> {
+  const parsed = parseJson(body, "body");
+  if (!parsed.ok) return parsed;
+  if (!isRecord(parsed.value)) {
+    return err("body", "must be a JSON object");
+  }
+  const obj = parsed.value;
+  if (obj.kind !== "draft" && obj.kind !== "description") {
+    return err("body.kind", 'must be "draft" or "description"');
+  }
+  if (obj.kind === "description") {
+    if (typeof obj.text !== "string" || obj.text.trim().length === 0) {
+      return err(
+        "body.text",
+        "must be a non-empty string for description mode",
+      );
+    }
+    if (obj.text.length > MAX_CANDIDACY_TEXT_BYTES) {
+      return err(
+        "body.text",
+        `must be at most ${MAX_CANDIDACY_TEXT_BYTES} bytes`,
+      );
+    }
+    return { ok: true, value: { kind: "description", text: obj.text } };
+  }
+  // Draft mode
+  if (typeof obj.content !== "string" || obj.content.length === 0) {
+    return err("body.content", "must be a non-empty string for draft mode");
+  }
+  if (obj.content.length > MAX_CANDIDACY_CONTENT_BYTES) {
+    return err(
+      "body.content",
+      `must be at most ${MAX_CANDIDACY_CONTENT_BYTES} bytes`,
+    );
+  }
+  const suggestedName =
+    typeof obj.suggestedName === "string" ? obj.suggestedName : undefined;
+  return {
+    ok: true,
+    value: { kind: "draft", content: obj.content, suggestedName },
+  };
+}
+
+/** Decode and validate a `POST /api/quality/scaffold` request body. */
+// eslint-disable-next-line complexity -- exhaustive shape validation; each branch maps to one missing/invalid field
+export function decodeScaffoldBody(body: string): DecodeResult<ScaffoldBody> {
+  const parsed = parseJson(body, "body");
+  if (!parsed.ok) return parsed;
+  if (!isRecord(parsed.value)) {
+    return err("body", "must be a JSON object");
+  }
+  const obj = parsed.value;
+  if (typeof obj.projectPath !== "string" || obj.projectPath.length === 0) {
+    return err("body.projectPath", "must be a non-empty string");
+  }
+  if (typeof obj.name !== "string" || obj.name.length === 0) {
+    return err("body.name", "must be a non-empty string");
+  }
+  if (obj.confirm !== true) {
+    return err(
+      "body.confirm",
+      "must be true (scaffold refuses to write without explicit confirmation)",
+    );
+  }
+  const description =
+    typeof obj.description === "string" && obj.description.length > 0
+      ? obj.description
+      : undefined;
+  const draftContent =
+    typeof obj.draftContent === "string" && obj.draftContent.length > 0
+      ? obj.draftContent
+      : undefined;
+  if (!description && !draftContent) {
+    return err(
+      "body",
+      "exactly one of description or draftContent is required",
+    );
+  }
+  if (description && draftContent) {
+    return err("body", "pass either description or draftContent, not both");
+  }
+  if (draftContent && draftContent.length > MAX_CANDIDACY_CONTENT_BYTES) {
+    return err(
+      "body.draftContent",
+      `must be at most ${MAX_CANDIDACY_CONTENT_BYTES} bytes`,
+    );
+  }
+  return {
+    ok: true,
+    value: {
+      projectPath: obj.projectPath,
+      name: obj.name,
+      description,
+      draftContent,
+      confirm: true,
+    },
+  };
 }

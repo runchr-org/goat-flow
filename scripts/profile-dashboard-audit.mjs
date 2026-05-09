@@ -10,7 +10,7 @@ const CODEX_CONFIG = [
   'model = "gpt-5"',
   'default_permissions = "goat-flow"',
   "[features]",
-  "codex_hooks = true",
+  "hooks = true",
   "[permissions.goat-flow.filesystem]",
   "glob_scan_max_depth = 3",
   '[permissions.goat-flow.filesystem.":project_roots"]',

@@ -222,6 +222,11 @@ function renderPriorFindingSummary(summary: string): string {
   );
 }
 
+/** Escape Markdown table cell content emitted from scorer details. */
+function markdownTableCell(value: string): string {
+  return value.replaceAll("|", "\\|").replace(/\r?\n/g, " ");
+}
+
 function renderPriorReportContext(
   priorReport: QualityHistoryEntry | null,
   qualityMode: QualityMode,
@@ -472,8 +477,10 @@ export function composeArtifactQualityPrompt(
     artifact,
     totalScore,
     maxTotalScore,
+    subtype,
     recommendation,
     metrics,
+    composedFrom,
     fitNotes,
   } = report;
   const kindLabel = artifact.kind === "skill" ? "Skill" : "Shared Reference";
@@ -496,8 +503,12 @@ export function composeArtifactQualityPrompt(
   lines.push("");
   lines.push(`- **Artifact:** ${artifact.name} (${kindLabel})`);
   lines.push(`- **Path:** \`${artifact.path}\``);
+  lines.push(`- **Subtype:** ${subtype}`);
   lines.push(`- **Score:** ${totalScore}/${maxTotalScore} (${pct}%)`);
   lines.push(`- **Recommendation:** ${recommendation}`);
+  if (composedFrom.length > 0) {
+    lines.push(`- **Composed from:** ${composedFrom.join(", ")}`);
+  }
   lines.push("");
 
   lines.push("### Metric Breakdown");
@@ -506,7 +517,7 @@ export function composeArtifactQualityPrompt(
   lines.push("|--------|-------|----------|--------|");
   for (const m of metrics) {
     lines.push(
-      `| ${m.label} | ${m.score}/${m.maxScore} | ${m.severity} | ${m.detail} |`,
+      `| ${markdownTableCell(m.label)} | ${m.score}/${m.maxScore} | ${m.severity} | ${markdownTableCell(m.detail)} |`,
     );
   }
   lines.push("");

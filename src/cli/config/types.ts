@@ -53,6 +53,12 @@ export interface GoatFlowConfig {
     /** Advisory check ids the project has opted out of. Silenced checks render as `acknowledged` and do not affect concern status. */
     acknowledge: string[];
   };
+  /**
+   * Raw skill-quality configuration block (parsed but not normalized here).
+   * Consumed by `loadQualityConfig` in `src/cli/quality/quality-config.ts`,
+   * which merges it with the goat-flow defaults.
+   */
+  quality?: Record<string, unknown>;
 }
 
 /** A single validation warning or error found during config parsing. */
