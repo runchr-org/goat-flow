@@ -183,19 +183,21 @@ fi
 
 # ── Deny Policy ──────────────────────────────────────────────────────
 section "Deny Policy"
-if bash scripts/deny-dangerous.sh --self-test >/dev/null 2>&1; then
-    pass "scripts/deny-dangerous.sh ($(bash scripts/deny-dangerous.sh --self-test 2>&1 | grep -c PASS) assertions)"
+if deny_self_test_output=$(bash scripts/deny-dangerous.sh --self-test=full 2>&1); then
+    pass "scripts/deny-dangerous.sh ${deny_self_test_output}"
 else
-    fail "scripts/deny-dangerous.sh self-test"
+    fail "scripts/deny-dangerous.sh full self-test"
 fi
 
-# Also self-test installed hooks
+# Also smoke-test installed hooks. Routine audit/preflight only needs the
+# install-safe representative set; the local scripts/ copy runs the full corpus
+# above.
 while IFS= read -r hookdir; do
     if [[ -f "$hookdir/deny-dangerous.sh" ]]; then
-        if bash "$hookdir/deny-dangerous.sh" --self-test >/dev/null 2>&1; then
-            pass "$hookdir/deny-dangerous.sh self-test"
+        if bash "$hookdir/deny-dangerous.sh" --self-test=smoke >/dev/null 2>&1; then
+            pass "$hookdir/deny-dangerous.sh smoke self-test"
         else
-            fail "$hookdir/deny-dangerous.sh self-test"
+            fail "$hookdir/deny-dangerous.sh smoke self-test"
         fi
     fi
 done < <(manifest_eval hook-dirs)

@@ -29,14 +29,13 @@ function constraintsProvenance(
   };
 }
 
-/** Classify each agent by whether BOTH its settings.json Read deny rules AND its
- *  Bash deny hook block direct literal secret-path access. Settings.json Read()
- *  patterns only bind the Read tool; Bash shell reads (cat/source/base64/etc.)
- *  bypass them entirely, so Bash-side direct-path coverage is required for any
- *  non-script-only agent.
+/** Classify each agent by whether BOTH its file-read deny rules AND its Bash
+ *  deny hook block direct literal secret-path access. Settings/Codex permission
+ *  profile file-read rules do not cover Bash shell reads (cat/source/base64/etc.),
+ *  so Bash-side direct-path coverage is required for any non-script-only agent.
  *
  *  Uncovered agents are split by deny mechanism so remediation guidance stays
- *  accurate: script-only agents (Copilot etc.) have no settings.json layer, so
+ *  accurate: script-only agents (Copilot etc.) have no file-read deny layer, so
  *  they must be told to extend the Bash hook only. */
 function classifySecretDeny(ctx: Pick<AuditContext, "agents">) {
   const covered: string[] = [];
@@ -56,7 +55,7 @@ function classifySecretDeny(ctx: Pick<AuditContext, "agents">) {
         uncoveredScript.push(af.agent.id);
       }
     } else {
-      // Settings-based agents need BOTH settings.json Read deny AND Bash hook coverage.
+      // Settings-based agents need BOTH file-read deny AND Bash hook coverage.
       if (readOk && bashOk) {
         covered.push(af.agent.id);
       } else {
@@ -88,10 +87,10 @@ const denyCoversSecrets: HarnessCheck = {
       // All agents are script-only and covered - platform limitation, not a failure
       return {
         ...pass([
-          "Limited assurance: no agents support settings-based file-read deny patterns",
+          "Limited assurance: no agents support file-read deny patterns",
           ...scriptOnly.map(
             (id) =>
-              `${id}: limited assurance - script-only deny; Bash hook blocks direct literal secret paths, but settings/file-read deny is unavailable`,
+              `${id}: limited assurance - script-only deny; Bash hook blocks direct literal secret paths, but file-read deny is unavailable`,
           ),
         ]),
         displayStatus: "info",
@@ -101,14 +100,14 @@ const denyCoversSecrets: HarnessCheck = {
     const findings: string[] = [];
     if (covered.length > 0) {
       findings.push(
-        `${covered.join(", ")}: settings Read deny + Bash hook both block direct literal secret paths`,
+        `${covered.join(", ")}: file-read deny + Bash hook both block direct literal secret paths`,
       );
     }
     if (scriptOnly.length > 0) {
       findings.push(
         ...scriptOnly.map(
           (id) =>
-            `${id}: limited assurance - script-only deny; Bash hook blocks direct literal secret paths, but settings/file-read deny is unavailable`,
+            `${id}: limited assurance - script-only deny; Bash hook blocks direct literal secret paths, but file-read deny is unavailable`,
         ),
       );
     }
@@ -122,24 +121,24 @@ const denyCoversSecrets: HarnessCheck = {
     const fixes: string[] = [];
     if (uncoveredSettings.length > 0) {
       findings.push(
-        `${uncoveredSettings.join(", ")}: direct literal secret-path blocking incomplete (settings.json Read deny and/or Bash hook pattern is missing)`,
+        `${uncoveredSettings.join(", ")}: direct literal secret-path blocking incomplete (file-read deny and/or Bash hook pattern is missing)`,
       );
       recs.push(
-        `Add direct literal secret-path blocking to ${uncoveredSettings.join(", ")}: settings.json Read() patterns for .env / .ssh / .aws / .pem / .key, AND the Bash deny hook must block cat/source/base64/etc. on the same literal paths.`,
+        `Add direct literal secret-path blocking to ${uncoveredSettings.join(", ")}: settings/Codex permission file-read patterns for .env / .ssh / .aws / .pem / .key, AND the Bash deny hook must block cat/source/base64/etc. on the same literal paths.`,
       );
       fixes.push(
-        `${uncoveredSettings.join(", ")}: extend settings.json deny with Read() patterns for .env, .ssh, .aws, credentials, *.key, *.pem AND add an is_secret_path_touch (or equivalent) check in the Bash deny hook. Settings.json Read() deny alone does not bind Bash shell reads.`,
+        `${uncoveredSettings.join(", ")}: extend the agent file-read deny layer with .env, .ssh, .aws, credentials, *.key, *.pem AND add an is_secret_path_touch (or equivalent) check in the Bash deny hook. File-read deny alone does not bind Bash shell reads.`,
       );
     }
     if (uncoveredScript.length > 0) {
       findings.push(
-        `${uncoveredScript.join(", ")}: Bash deny hook does not block direct literal secret paths (script-only agent - no settings.json layer applies)`,
+        `${uncoveredScript.join(", ")}: Bash deny hook does not block direct literal secret paths (script-only agent - no file-read deny layer applies)`,
       );
       recs.push(
         `Add direct literal secret-path blocking to the Bash deny hook for ${uncoveredScript.join(", ")}: block cat/source/base64/etc. on .env, .ssh, .aws, credentials, *.key, *.pem.`,
       );
       fixes.push(
-        `${uncoveredScript.join(", ")}: add an is_secret_path_touch (or equivalent) check in the Bash deny hook. Script-only agents have no settings.json Read() surface; the Bash hook is the only enforcement layer.`,
+        `${uncoveredScript.join(", ")}: add an is_secret_path_touch (or equivalent) check in the Bash deny hook. Script-only agents have no file-read deny surface; the Bash hook is the only enforcement layer.`,
       );
     }
     return fail(findings, recs, fixes);

@@ -35,6 +35,12 @@ import { buildSetupDetectPayload, isProjectDirectory } from "./setup-detect.js";
 import type { DashboardReport } from "./types.js";
 import type { QualityMode } from "../quality/schema.js";
 import { QUALITY_MODES } from "../quality/schema.js";
+import {
+  discoverArtifacts,
+  findArtifact,
+  scoreArtifact,
+} from "../quality/skill-quality.js";
+import { composeArtifactQualityPrompt } from "../prompt/compose-quality.js";
 import { buildStatsReport, checkStats } from "../stats/stats.js";
 
 const KNOWN_AGENT_IDS = getKnownAgentIds();
@@ -777,6 +783,11 @@ export function createDashboardRouteHandlers(
     url: URL,
     res: ServerResponse,
   ) => Promise<boolean>;
+  handleSkillQualityRequest: (url: URL, res: ServerResponse) => boolean;
+  handleSkillQualityInventoryRequest: (
+    url: URL,
+    res: ServerResponse,
+  ) => boolean;
   handleBrowseRequest: (url: URL, res: ServerResponse) => boolean;
   handleAgentDetectRequest: (url: URL, res: ServerResponse) => boolean;
   handleProjectsListRequest: (
@@ -1300,6 +1311,60 @@ export function createDashboardRouteHandlers(
     return true;
   }
 
+  /** Return the skill/reference artifact inventory for a project. */
+  function handleSkillQualityInventoryRequest(
+    url: URL,
+    res: ServerResponse,
+  ): boolean {
+    if (url.pathname !== "/api/skill-quality/inventory") return false;
+
+    const projectPath = safeResolvePath(url.searchParams.get("path"));
+    try {
+      requireProjectDirectory(projectPath);
+      const artifacts = discoverArtifacts(projectPath);
+      jsonResponse(res, 200, { artifacts });
+    } catch (err) {
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
+  /** Score a single skill/reference artifact with deterministic metrics. */
+  function handleSkillQualityRequest(url: URL, res: ServerResponse): boolean {
+    if (url.pathname !== "/api/skill-quality") return false;
+
+    const projectPath = safeResolvePath(url.searchParams.get("path"));
+    const artifactId = url.searchParams.get("artifact");
+
+    if (!artifactId) {
+      jsonResponse(res, 400, {
+        error: "skill-quality requires ?artifact=<id>",
+      });
+      return true;
+    }
+
+    try {
+      requireProjectDirectory(projectPath);
+      const artifact = findArtifact(projectPath, artifactId);
+      if (!artifact) {
+        jsonResponse(res, 404, {
+          error: `artifact not found: ${artifactId}`,
+        });
+        return true;
+      }
+      const report = scoreArtifact(projectPath, artifact);
+      const prompt = composeArtifactQualityPrompt(report);
+      jsonResponse(res, 200, { ...report, prompt });
+    } catch (err) {
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
   /** List child directories so the dashboard path picker can browse nearby repos. */
   function handleBrowseRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/browse") return false;
@@ -1458,6 +1523,8 @@ export function createDashboardRouteHandlers(
     handleSetupRequest,
     handleQualityRequest,
     handleQualityHistoryRequest,
+    handleSkillQualityRequest,
+    handleSkillQualityInventoryRequest,
     handleBrowseRequest,
     handleAgentDetectRequest,
     handleProjectsListRequest,

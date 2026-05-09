@@ -438,10 +438,7 @@ describe("dashboard terminal launch flow", () => {
     assert.match(source, /title="Launch from prompts"/);
     assert.match(source, /:key="'ws-collapsed-' \+ s\.id"/);
     assert.match(source, /@click="openSession\(s\)"/);
-    assert.match(
-      source,
-      /:aria-label="'Open ' \+ sessionTitleFor\(s\)"/,
-    );
+    assert.match(source, /:aria-label="'Open ' \+ sessionTitleFor\(s\)"/);
     assert.match(source, /justify-content: flex-start;/);
   });
 });

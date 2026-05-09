@@ -109,6 +109,10 @@ function app() {
     // detachTerminal() flips this while it closes browser-side sockets so ws.onclose only
     // marks sessions ended when the runner actually exits on the backend.
     _detaching: false,
+    // Drag-drop image upload state for the active terminal pane.
+    terminalDragActive: false,
+    terminalUploading: false,
+    _terminalDragDepth: 0,
     /** Return the active local session. */
     get _activeSession(): LocalSession | null {
       return this.sessions.find((s) => s.id === this.activeSessionId) || null;
@@ -206,6 +210,12 @@ function app() {
     _qualityHistoryTimer: null as ReturnType<typeof setTimeout> | null,
     homeQualityLoading: false,
     homeQualityLatest: null as QualityHistoryLatest | null,
+
+    // --- Skill quality state ---
+    skillQualityArtifacts: [] as SkillQualityArtifact[],
+    skillQualitySelectedId: null as string | null,
+    skillQualityReport: null as SkillQualityReport | null,
+    skillQualityLoading: false,
 
     /** Resolve the current display name for one supported agent id. */
     agentName(agentId: RunnerId): string {
@@ -545,6 +555,113 @@ function app() {
     async sendToProjectTarget(prompt: string, target: ServerSessionInfo) {
       await dashboardSendToProjectTarget(this, prompt, target);
     },
+    // --- Terminal image drag-drop ---
+    handleTerminalDragEnter(event: DragEvent) {
+      if (!this._dragHasImageFiles(event)) return;
+      if (!this.activeSessionId || this.terminalEnded) return;
+      this._terminalDragDepth += 1;
+      this.terminalDragActive = true;
+    },
+    handleTerminalDragOver(event: DragEvent) {
+      if (!this._dragHasImageFiles(event)) return;
+      // Setting dropEffect on the dataTransfer is what lets browsers fire `drop`
+      // on this pane instead of routing the file to the OS handler.
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+    },
+    handleTerminalDragLeave(_event: DragEvent) {
+      this._terminalDragDepth = Math.max(0, this._terminalDragDepth - 1);
+      if (this._terminalDragDepth === 0) this.terminalDragActive = false;
+    },
+    async handleTerminalDrop(event: DragEvent) {
+      this._terminalDragDepth = 0;
+      this.terminalDragActive = false;
+      if (!this.activeSessionId || this.terminalEnded) {
+        this.showToast("No active terminal session for upload", true);
+        return;
+      }
+      const files = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
+        file.type.startsWith("image/"),
+      );
+      if (files.length === 0) {
+        this.showToast(
+          "Only image files (.png, .jpg, .webp, .gif) can be dropped here",
+          true,
+        );
+        return;
+      }
+      await this._uploadTerminalImages(files);
+    },
+    _dragHasImageFiles(event: DragEvent): boolean {
+      const items = event.dataTransfer?.items;
+      if (!items || items.length === 0) return false;
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index];
+        if (item && item.kind === "file") return true;
+      }
+      return false;
+    },
+    async _uploadTerminalImages(files: File[]) {
+      const sessionId = this.activeSessionId;
+      if (!sessionId) return;
+      this.terminalUploading = true;
+      try {
+        const encoded = await Promise.all(
+          files.map(async (file) => ({
+            name: file.name,
+            data: await dashboardFileToBase64(file),
+          })),
+        );
+        const res = await dashboardFetch(
+          `/api/terminal/${encodeURIComponent(sessionId)}/upload-image`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ files: encoded }),
+          },
+        );
+        const payload = readRecord(
+          await res.json(),
+          "Terminal upload response",
+        );
+        const error = readErrorMessage(payload);
+        if (error) {
+          this.showToast(error, true);
+          return;
+        }
+        const note = typeof payload.note === "string" ? payload.note : "";
+        const accepted = Array.isArray(payload.accepted)
+          ? payload.accepted
+          : [];
+        const rejected = Array.isArray(payload.rejected)
+          ? payload.rejected
+          : [];
+        if (note.length > 0) {
+          this.sendToTerminal(note, { adapt: false });
+        }
+        if (rejected.length > 0) {
+          for (const entry of rejected) {
+            const r = entry as Record<string, unknown>;
+            const name =
+              typeof r["originalName"] === "string"
+                ? r["originalName"]
+                : "file";
+            const reason =
+              typeof r["reason"] === "string" ? r["reason"] : "unknown reason";
+            this.showToast(`Rejected ${name}: ${reason}`, true);
+          }
+        } else if (accepted.length > 0) {
+          this.showToast(
+            `Attached ${accepted.length} image${accepted.length === 1 ? "" : "s"}`,
+            false,
+          );
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.showToast(msg || "Terminal image upload failed", true);
+      } finally {
+        this.terminalUploading = false;
+      }
+    },
     // --- Init ---
     init() {
       const self = this as typeof this & AlpineMagics<typeof this>;
@@ -658,6 +775,9 @@ function app() {
         if (v === "quality") {
           void this.generateQuality();
           this.scheduleQualityHistory();
+        }
+        if (v === "skill") {
+          void this.loadSkillQualityInventory();
         }
         if (v === "setup") {
           void this.detectStack();
@@ -941,6 +1061,48 @@ function app() {
     /** Copy the current quality prompt to the clipboard. */
     copyQuality() {
       dashboardCopyQuality(this);
+    },
+
+    // -- Skill quality --
+    async loadSkillQualityInventory() {
+      try {
+        const res = await dashboardFetch(
+          `/api/skill-quality/inventory?path=${encodeURIComponent(this.projectPath)}`,
+        );
+        const payload = readRecord(await res.json(), "Skill quality inventory");
+        const error = readErrorMessage(payload);
+        if (error) {
+          this.showToast(error, true);
+          return;
+        }
+        this.skillQualityArtifacts = Array.isArray(payload.artifacts)
+          ? payload.artifacts
+          : [];
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.showToast(msg || "Skill quality inventory failed", true);
+      }
+    },
+    async loadSkillQualityReport(artifactId: string) {
+      this.skillQualitySelectedId = artifactId;
+      this.skillQualityReport = null;
+      this.skillQualityLoading = true;
+      try {
+        const res = await dashboardFetch(
+          `/api/skill-quality?path=${encodeURIComponent(this.projectPath)}&artifact=${encodeURIComponent(artifactId)}`,
+        );
+        const payload = readRecord(await res.json(), "Skill quality report");
+        const error = readErrorMessage(payload);
+        if (error) {
+          this.showToast(error, true);
+        } else {
+          this.skillQualityReport = payload as unknown as SkillQualityReport;
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.showToast(msg || "Skill quality scoring failed", true);
+      }
+      this.skillQualityLoading = false;
     },
 
     // -- Projects --

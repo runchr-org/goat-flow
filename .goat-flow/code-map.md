@@ -109,7 +109,7 @@ skills/
   goat-qa/SKILL.md         # Testing gap analysis skill template
   reference/               # skill-preamble.md, skill-conventions.md, skill-quality-testing.md index + skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, skill-quality-testing/deployment.md
 
-hooks/                     # Hook templates (deny-dangerous.sh, etc.)
+hooks/                     # Hook templates (deny-dangerous.sh + self-test sibling, etc.)
 evaluation/                # Quality-assessment prompt templates
 ```
 
@@ -125,6 +125,7 @@ check-versions.mjs         # Verify workflow/skills templates match package.json
 dependency-install.sh      # Wrapper: npm install with guards
 dependency-update.sh       # Wrapper: upgrade dependencies
 deny-dangerous.sh          # Hook: blocks destructive commands (copied to agent hook dirs)
+deny-dangerous.self-test.sh # Self-test corpus sourced by deny-dangerous.sh --self-test
 deploy-landing.sh          # Deploy landing page to hosting
 install-browser-tools.sh   # Install browser-use and Playwright for page capture
 npm-publish.sh             # Wrapper: npm publish sanity checks

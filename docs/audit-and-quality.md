@@ -53,7 +53,7 @@ Checks are grouped by **scope**:
 - `agent-instruction` - selected agent instruction file exists; aggregate mode also detects orphaned agent artifacts whose instruction file is missing
 - `agent-skills` - selected agent has canonical skills installed with correct versions and no deprecated skill directories
 - `agent-settings` - selected agent settings/config file parses as valid JSON or TOML
-- `agent-deny-dangerous` - selected agent has a deny mechanism, shell-hook syntax is valid, deny patterns exist, and the deny self-test passes when the script exists
+- `agent-deny-dangerous` - selected agent has a deny mechanism, shell-hook syntax is valid, deny patterns exist, installed deny hook files match the workflow templates, and the smoke deny self-test passes when the script exists
 
 **Agent detection:** `audit` detects configured agents from the manifest-backed instruction-file registry (`workflow/manifest.json` via `src/cli/agents/registry.ts`). Run `npx goat-flow manifest` to inspect the current support matrix; use `--agent <id>` to scope checks to one supported runtime.
 

@@ -10,6 +10,7 @@ import { getAgentProfile } from "../agents/registry.js";
 import { getPackageVersion } from "../paths.js";
 import { resolve } from "node:path";
 import { QUALITY_REPORT_KIND, type QualityMode } from "../quality/schema.js";
+import type { SkillQualityReport } from "../quality/skill-quality.js";
 
 interface QualityInput {
   agent: AgentId;
@@ -463,6 +464,85 @@ function composeFocusedQuality(
   };
 }
 
+/** Compose a focused quality prompt for a single skill or reference artifact. */
+export function composeArtifactQualityPrompt(
+  report: SkillQualityReport,
+): string {
+  const {
+    artifact,
+    totalScore,
+    maxTotalScore,
+    recommendation,
+    metrics,
+    fitNotes,
+  } = report;
+  const kindLabel = artifact.kind === "skill" ? "Skill" : "Shared Reference";
+  const pct =
+    maxTotalScore > 0 ? Math.round((totalScore / maxTotalScore) * 100) : 0;
+
+  const lines: string[] = [];
+  lines.push(`# ${kindLabel} Quality Review: ${artifact.name}`);
+  lines.push("");
+  lines.push(
+    "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. This prompt is the full assessment contract. You may read files and run read-only commands.",
+  );
+  lines.push("");
+  lines.push(
+    `Assess the ${kindLabel.toLowerCase()} artifact at \`${artifact.path}\`. The deterministic scorer produced the metrics below. Your task is to verify, challenge, or refine each metric and the overall recommendation.`,
+  );
+  lines.push("");
+
+  lines.push("## Deterministic Baseline");
+  lines.push("");
+  lines.push(`- **Artifact:** ${artifact.name} (${kindLabel})`);
+  lines.push(`- **Path:** \`${artifact.path}\``);
+  lines.push(`- **Score:** ${totalScore}/${maxTotalScore} (${pct}%)`);
+  lines.push(`- **Recommendation:** ${recommendation}`);
+  lines.push("");
+
+  lines.push("### Metric Breakdown");
+  lines.push("");
+  lines.push("| Metric | Score | Severity | Detail |");
+  lines.push("|--------|-------|----------|--------|");
+  for (const m of metrics) {
+    lines.push(
+      `| ${m.label} | ${m.score}/${m.maxScore} | ${m.severity} | ${m.detail} |`,
+    );
+  }
+  lines.push("");
+
+  if (fitNotes.length > 0) {
+    lines.push("### Fit Notes");
+    lines.push("");
+    for (const note of fitNotes) {
+      lines.push(`- ${note}`);
+    }
+    lines.push("");
+  }
+
+  lines.push("## Your Assessment");
+  lines.push("");
+  lines.push("Read the artifact file and answer:");
+  lines.push("");
+  lines.push(
+    `1. **Classification challenge:** Is \`${recommendation}\` the right recommendation? If the artifact is currently a ${kindLabel.toLowerCase()}, should it be reclassified? Provide evidence.`,
+  );
+  lines.push(
+    "2. **Metric verification:** For each metric scored below max, is the deduction justified? Are there structural signals the static scorer missed?",
+  );
+  lines.push(
+    "3. **Quality gaps:** What quality issues exist that the deterministic metrics do not capture (e.g., misleading instructions, outdated references, unclear boundaries)?",
+  );
+  lines.push(
+    "4. **Top 3 improvements:** Actionable changes with file path and semantic anchor evidence.",
+  );
+  lines.push(
+    "5. **What was not verified:** State any aspects you could not assess from a file read.",
+  );
+
+  return lines.join("\n");
+}
+
 /** Compose the quality review prompt. */
 // eslint-disable-next-line complexity -- prompt assembly branches on audit availability and split hook-config surfaces
 export function composeQuality(input: QualityInput): QualityPayload {
@@ -660,7 +740,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "# 2. Hook self-test (if deny-dangerous.sh exists in your hooks directory)",
   );
   if (denyHookFile) {
-    lines.push(`bash ${denyHookFile} --self-test`);
+    lines.push(`bash ${denyHookFile} --self-test=smoke`);
   } else {
     lines.push("#    This agent has no on-disk deny hook script to self-test.");
   }

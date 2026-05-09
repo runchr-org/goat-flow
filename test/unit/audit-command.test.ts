@@ -1199,7 +1199,7 @@ describe("codex settings feature flags", () => {
         exists: (path) => path === ".codex/config.toml",
         readFile: (path) =>
           path === ".codex/config.toml"
-            ? 'model = "gpt-5"\nfeatures.codex_hooks = true\n[features]\nhooks = true\n'
+            ? 'model = "gpt-5"\nfeatures.hooks = true\n[features]\ncodex_hooks = true\n'
             : null,
       }),
       PROFILES.codex,
@@ -1207,20 +1207,121 @@ describe("codex settings feature flags", () => {
 
     assert.deepEqual(facts.parsed, {
       model: "gpt-5",
-      "features.codex_hooks": true,
       "features.hooks": true,
+      "features.codex_hooks": true,
     });
   });
 
-  it("fails agent-settings when Codex config still uses codex_hooks", () => {
+  it("detects Codex TOML permission profiles that deny secret file families", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "goat-flow"',
+                "[permissions.goat-flow.filesystem]",
+                "glob_scan_max_depth = 3",
+                '[permissions.goat-flow.filesystem.":project_roots"]',
+                '"." = "write"',
+                '".env.example" = "read"',
+                '".env" = "none"',
+                '"**/.env" = "none"',
+                '".env.*" = "none"',
+                '"**/.env.*" = "none"',
+                '".ssh/**" = "none"',
+                '"**/.ssh/**" = "none"',
+                '".aws/**" = "none"',
+                '"**/.aws/**" = "none"',
+                '"*.pem" = "none"',
+                '"**/*.pem" = "none"',
+                '"*.key" = "none"',
+                '"**/*.key" = "none"',
+                '"*.pfx" = "none"',
+                '"**/*.pfx" = "none"',
+                '"credentials*" = "none"',
+                '"**/credentials*" = "none"',
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, true);
+  });
+
+  it("does not count incomplete Codex key material denies as secret coverage", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                "[permissions.goat-flow.filesystem]",
+                '[permissions.goat-flow.filesystem.":project_roots"]',
+                '".env" = "none"',
+                '"**/.env" = "none"',
+                '".env.*" = "none"',
+                '"**/.env.*" = "none"',
+                '".ssh/**" = "none"',
+                '"**/.ssh/**" = "none"',
+                '".aws/**" = "none"',
+                '"**/.aws/**" = "none"',
+                '"*.pem" = "none"',
+                '"**/*.pem" = "none"',
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, false);
+  });
+
+  it("does not count an inactive Codex permission profile as secret coverage", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "default"',
+                "[permissions.goat-flow.filesystem]",
+                '[permissions.goat-flow.filesystem.":project_roots"]',
+                '".env" = "none"',
+                '"**/.env" = "none"',
+                '".env.*" = "none"',
+                '"**/.env.*" = "none"',
+                '".ssh/**" = "none"',
+                '"**/.ssh/**" = "none"',
+                '".aws/**" = "none"',
+                '"**/.aws/**" = "none"',
+                '"*.pem" = "none"',
+                '"**/*.pem" = "none"',
+                '"*.key" = "none"',
+                '"**/*.key" = "none"',
+                '"*.pfx" = "none"',
+                '"**/*.pfx" = "none"',
+                '"credentials*" = "none"',
+                '"**/credentials*" = "none"',
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, false);
+  });
+
+  it("fails agent-settings when Codex config still uses hooks", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "agent-settings")!;
     const result = check.run(
       makeCtx({
         agentFilter: "codex",
         agents: [
           codexAgentFacts({
-            "features.codex_hooks": true,
             "features.hooks": true,
+            "features.codex_hooks": true,
           }),
         ],
       }),
@@ -1241,16 +1342,16 @@ describe("codex settings feature flags", () => {
     );
 
     assert.notEqual(result, null);
-    assert.match(result!.message, /\[features\]\.hooks = true/);
-    assert.match(result!.howToFix ?? "", /hooks = true/);
+    assert.match(result!.message, /\[features\]\.codex_hooks = true/);
+    assert.match(result!.howToFix ?? "", /codex_hooks = true/);
   });
 
-  it("passes agent-settings when Codex hooks are installed and features.hooks is true", () => {
+  it("passes agent-settings when Codex hooks are installed and features.codex_hooks is true", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "agent-settings")!;
     const result = check.run(
       makeCtx({
         agentFilter: "codex",
-        agents: [codexAgentFacts({ "features.hooks": true })],
+        agents: [codexAgentFacts({ "features.codex_hooks": true })],
       }),
     );
 
@@ -1665,6 +1766,32 @@ describe("agent deny hook template comparison", () => {
       resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
       "utf-8",
     );
+    const selfTestTemplate = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.self-test.sh"),
+      "utf-8",
+    );
+    const ctx = makeCtx({
+      agentFilter: "claude",
+      projectPath: PROJECT_ROOT,
+      fs: stubFS({
+        readFile: (path) => {
+          if (path === ".claude/hooks/deny-dangerous.sh") return template;
+          if (path === ".claude/hooks/deny-dangerous.self-test.sh") {
+            return selfTestTemplate;
+          }
+          return null;
+        },
+      }),
+    });
+    assert.equal(denyCheck.run(ctx), null);
+  });
+
+  it("fails when the split deny hook self-test sibling is missing", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const template = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
+      "utf-8",
+    );
     const ctx = makeCtx({
       agentFilter: "claude",
       projectPath: PROJECT_ROOT,
@@ -1673,7 +1800,10 @@ describe("agent deny hook template comparison", () => {
           path === ".claude/hooks/deny-dangerous.sh" ? template : null,
       }),
     });
-    assert.equal(denyCheck.run(ctx), null);
+    const result = denyCheck.run(ctx);
+    assert.ok(result, "expected missing self-test sibling failure");
+    assert.match(result.message, /deny-dangerous\.self-test\.sh is missing/);
+    assert.equal(result.evidence, ".claude/hooks/deny-dangerous.self-test.sh");
   });
 });
 
@@ -2044,7 +2174,7 @@ describe("M01 scoring model", () => {
     assert.equal(concerns.constraints.score, 100);
     assert.ok(
       concerns.constraints.findings.some((finding) =>
-        finding.includes("settings/file-read deny is unavailable"),
+        finding.includes("file-read deny is unavailable"),
       ),
     );
   });

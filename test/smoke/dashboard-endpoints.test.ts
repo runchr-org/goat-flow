@@ -212,7 +212,10 @@ describe("terminal exports", () => {
     assert.match(spec.args[3] ?? "", /Remove-Item Env:GOAT_RUNNER/);
     assert.doesNotMatch(spec.args[3] ?? "", /review this/);
     assert.equal(spec.env.GOAT_PROMPT, undefined);
-    assert.equal(spec.env.GOAT_RUNNER, "C:\\Users\\thatm\\AppData\\Roaming\\npm\\copilot.cmd");
+    assert.equal(
+      spec.env.GOAT_RUNNER,
+      "C:\\Users\\thatm\\AppData\\Roaming\\npm\\copilot.cmd",
+    );
     assert.equal(spec.initialInput, "\x1b[200~review this\x1b[201~\r");
   });
 

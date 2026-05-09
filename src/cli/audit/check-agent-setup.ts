@@ -374,14 +374,14 @@ function booleanSetting(parsed: unknown, key: string): boolean | null {
 function checkCodexDeprecatedHooksFlag(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
     if (af.agent.id !== "codex") continue;
-    if (!hasSettingsKey(af.settings.parsed, "features.codex_hooks")) continue;
+    if (!hasSettingsKey(af.settings.parsed, "features.hooks")) continue;
     return {
       check: "Agent settings",
       message:
-        "Deprecated Codex feature flag in .codex/config.toml: [features].codex_hooks",
+        "Deprecated Codex feature flag in .codex/config.toml: [features].hooks",
       evidence: af.agent.settingsFile ?? ".codex/config.toml",
       howToFix:
-        "Replace `codex_hooks` with `hooks` under `[features]`, or run `goat-flow install . --agent codex` to migrate the setting.",
+        "Replace `hooks` with `codex_hooks` under `[features]`, or run `goat-flow install . --agent codex` to migrate the setting.",
     };
   }
   return null;
@@ -391,16 +391,16 @@ function checkCodexHooksEnabled(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
     if (af.agent.id !== "codex") continue;
     if (!af.hooks.denyExists && !af.hooks.denyIsRegistered) continue;
-    if (booleanSetting(af.settings.parsed, "features.hooks") === true) {
+    if (booleanSetting(af.settings.parsed, "features.codex_hooks") === true) {
       continue;
     }
     return {
       check: "Agent settings",
       message:
-        "Codex hooks are installed but .codex/config.toml does not enable [features].hooks = true",
+        "Codex hooks are installed but .codex/config.toml does not enable [features].codex_hooks = true",
       evidence: af.agent.settingsFile ?? ".codex/config.toml",
       howToFix:
-        "Add `hooks = true` under `[features]` in .codex/config.toml, or run `goat-flow install . --agent codex` to install the current Codex settings template.",
+        "Add `codex_hooks = true` under `[features]` in .codex/config.toml, or run `goat-flow install . --agent codex` to install the current Codex settings template.",
     };
   }
   return null;
@@ -504,26 +504,39 @@ function checkDenyPatterns(ctx: AuditContext): AuditFailure | null {
 
 /** Compare installed deny hook content against the canonical template. */
 function checkHookVersion(ctx: AuditContext): AuditFailure | null {
-  const templatePath = getTemplatePath("workflow/hooks/deny-dangerous.sh");
-  if (!existsSync(templatePath)) return null;
-  let templateContent: string;
-  try {
-    templateContent = readFileSync(templatePath, "utf-8");
-  } catch {
-    return null;
-  }
+  const templateFiles = ["deny-dangerous.sh", "deny-dangerous.self-test.sh"];
   for (const af of ctx.agents) {
     if (!af.agent.hooksDir) continue;
     const denyRelPath = join(af.agent.hooksDir, "deny-dangerous.sh");
-    const installed = ctx.fs.readFile(denyRelPath);
-    if (installed === null) continue;
-    if (installed.trimEnd() !== templateContent.trimEnd()) {
-      return {
-        check: "Agent deny mechanism",
-        message: `deny-dangerous.sh for ${af.agent.id} differs from the current goat-flow template (v${AUDIT_VERSION})`,
-        evidence: denyRelPath,
-        howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${af.agent.id}\` to update the hook to the latest version.`,
-      };
+    if (ctx.fs.readFile(denyRelPath) === null) continue;
+
+    for (const templateFile of templateFiles) {
+      const templatePath = getTemplatePath(`workflow/hooks/${templateFile}`);
+      if (!existsSync(templatePath)) continue;
+      let templateContent: string;
+      try {
+        templateContent = readFileSync(templatePath, "utf-8");
+      } catch {
+        continue;
+      }
+      const installedRelPath = join(af.agent.hooksDir, templateFile);
+      const installed = ctx.fs.readFile(installedRelPath);
+      if (installed === null) {
+        return {
+          check: "Agent deny mechanism",
+          message: `${templateFile} is missing for ${af.agent.id}`,
+          evidence: installedRelPath,
+          howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${af.agent.id}\` to update the hook files.`,
+        };
+      }
+      if (installed.trimEnd() !== templateContent.trimEnd()) {
+        return {
+          check: "Agent deny mechanism",
+          message: `${templateFile} for ${af.agent.id} differs from the current goat-flow template (v${AUDIT_VERSION})`,
+          evidence: installedRelPath,
+          howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${af.agent.id}\` to update the hook files.`,
+        };
+      }
     }
   }
   return null;
@@ -540,17 +553,17 @@ function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
     if (content === null) continue;
     const denyPath = join(ctx.projectPath, denyRelPath);
     try {
-      execFileSync("bash", [denyPath, "--self-test"], {
+      execFileSync("bash", [denyPath, "--self-test=smoke"], {
         stdio: "pipe",
         timeout: 30000,
       });
     } catch {
       return {
         check: "Agent deny mechanism",
-        message: `deny-dangerous.sh --self-test failed for ${af.agent.id}`,
+        message: `deny-dangerous.sh --self-test=smoke failed for ${af.agent.id}`,
         evidence: denyRelPath,
         howToFix:
-          "Run `bash <hooks-dir>/deny-dangerous.sh --self-test` to see which cases fail.",
+          "Run `bash <hooks-dir>/deny-dangerous.sh --self-test=smoke` to see which cases fail.",
       };
     }
   }

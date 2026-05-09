@@ -355,6 +355,47 @@ interface CustomPromptValidationError {
   anchor: string;
 }
 
+// ---------------------------------------------------------------------------
+// Skill quality types
+// ---------------------------------------------------------------------------
+
+type SkillQualityArtifactKind = "skill" | "shared-reference";
+type SkillQualityRecommendation =
+  | "keep-skill"
+  | "split-skill"
+  | "merge-or-demote"
+  | "reference-playbook"
+  | "retire"
+  | "needs-human-review";
+type SkillQualityMetricSeverity = "ok" | "warn" | "fail";
+
+interface SkillQualityArtifact {
+  id: string;
+  name: string;
+  path: string;
+  kind: SkillQualityArtifactKind;
+  source: string;
+}
+
+interface SkillQualityMetric {
+  metric: string;
+  label: string;
+  score: number;
+  maxScore: number;
+  severity: SkillQualityMetricSeverity;
+  detail: string;
+}
+
+interface SkillQualityReport {
+  artifact: SkillQualityArtifact;
+  totalScore: number;
+  maxTotalScore: number;
+  recommendation: SkillQualityRecommendation;
+  metrics: SkillQualityMetric[];
+  fitNotes: string[];
+  prompt?: string;
+}
+
 /** One selectable quality-page prompt mode. */
 interface QualityModeOption {
   id: string;

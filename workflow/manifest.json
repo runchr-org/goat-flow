@@ -134,7 +134,7 @@
         "pre_tool": "PreToolUse",
         "post_turn": "Stop"
       },
-      "hooks": ["deny-dangerous.sh"]
+      "hooks": ["deny-dangerous.sh", "deny-dangerous.self-test.sh"]
     },
     "codex": {
       "name": "Codex",
@@ -145,15 +145,16 @@
       "hook_config_file": ".codex/hooks.json",
       "deny_hook": ".codex/hooks/deny-dangerous.sh",
       "deny_mechanism": {
-        "type": "deny-script",
-        "path": ".codex/hooks/deny-dangerous.sh"
+        "type": "both",
+        "settings_path": ".codex/config.toml",
+        "script_path": ".codex/hooks/deny-dangerous.sh"
       },
       "local_pattern": ".github/instructions/*.md",
       "hook_events": {
         "pre_tool": "PreToolUse",
-        "post_turn": null
+        "post_turn": "Stop"
       },
-      "hooks": ["deny-dangerous.sh"]
+      "hooks": ["deny-dangerous.sh", "deny-dangerous.self-test.sh"]
     },
     "gemini": {
       "name": "Gemini CLI",
@@ -173,7 +174,7 @@
         "pre_tool": "BeforeTool",
         "post_turn": "AfterAgent"
       },
-      "hooks": ["deny-dangerous.sh"]
+      "hooks": ["deny-dangerous.sh", "deny-dangerous.self-test.sh"]
     },
     "copilot": {
       "name": "Copilot CLI",
@@ -191,7 +192,7 @@
         "pre_tool": "preToolUse",
         "post_turn": null
       },
-      "hooks": ["hooks.json", "deny-dangerous.sh"]
+      "hooks": ["hooks.json", "deny-dangerous.sh", "deny-dangerous.self-test.sh"]
     }
   },
 
@@ -222,6 +223,7 @@
       "quality",
       "settings",
       "setup",
+      "skill",
       "workspace"
     ]
   }

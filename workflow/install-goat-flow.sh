@@ -345,7 +345,7 @@ console.log(changed ? "changed" : "unchanged");
 NODE
 }
 
-migrate_codex_hooks_flag() {
+migrate_codex_hooks_feature_flag() {
   local path="$1"
   node - "$path" <<'NODE'
 const fs = require("node:fs");
@@ -373,7 +373,7 @@ function parseFeatureBooleanAssignment(line, section) {
 
 let section = "";
 const deprecated = [];
-const hooks = [];
+const current = [];
 for (let index = 0; index < lines.length; index += 1) {
   const sectionMatch = lines[index].match(/^\s*\[([^\]]+)\]\s*(?:#.*)?$/u);
   if (sectionMatch) {
@@ -382,10 +382,10 @@ for (let index = 0; index < lines.length; index += 1) {
   }
   const assignment = parseFeatureBooleanAssignment(lines[index], section);
   if (!assignment) continue;
-  if (assignment.normalizedKey === "features.codex_hooks") {
+  if (assignment.normalizedKey === "features.hooks") {
     deprecated.push({ index, assignment });
-  } else if (assignment.normalizedKey === "features.hooks") {
-    hooks.push(index);
+  } else if (assignment.normalizedKey === "features.codex_hooks") {
+    current.push(index);
   }
 }
 
@@ -395,11 +395,11 @@ if (deprecated.length === 0) {
 }
 
 const remove = new Set();
-if (hooks.length === 0) {
+if (current.length === 0) {
   const first = deprecated[0];
   const replacementKey = first.assignment.rawKey.includes(".")
-    ? "features.hooks"
-    : "hooks";
+    ? "features.codex_hooks"
+    : "codex_hooks";
   lines[first.index] =
     first.assignment.indent +
     replacementKey +
@@ -517,7 +517,9 @@ fi
 # ==========================================================================
 echo "Hooks → $HOOKS_DIR/:"
 copy_file "$GOAT_FLOW_ROOT/workflow/hooks/deny-dangerous.sh" "$DENY_HOOK_DST"
-chmod +x "$DENY_HOOK_DST"
+DENY_SELF_TEST_DST="$(dirname "$DENY_HOOK_DST")/deny-dangerous.self-test.sh"
+copy_file "$GOAT_FLOW_ROOT/workflow/hooks/deny-dangerous.self-test.sh" "$DENY_SELF_TEST_DST"
+chmod +x "$DENY_HOOK_DST" "$DENY_SELF_TEST_DST"
 if [[ -n "${HOOK_CONFIG_DST:-}" && -n "${HOOK_CONFIG_SRC:-}" ]]; then
   echo "Hooks config:"
   copy_if_missing "$GOAT_FLOW_ROOT/$HOOK_CONFIG_SRC" "$HOOK_CONFIG_DST"
@@ -531,9 +533,9 @@ echo "Settings:"
 SETTINGS_SKIPPED=false
 if [[ -n "${SETTINGS_SRC:-}" && -n "${SETTINGS_DST:-}" ]]; then
   if [[ -f "$SETTINGS_DST" ]] && ! $FORCE; then
-    if [[ "$AGENT" == "codex" ]] && [[ "$(migrate_codex_hooks_flag "$SETTINGS_DST")" == "migrated" ]]; then
+    if [[ "$AGENT" == "codex" ]] && [[ "$(migrate_codex_hooks_feature_flag "$SETTINGS_DST")" == "migrated" ]]; then
       COPIED=$((COPIED + 1))
-      echo "  ✓ $SETTINGS_DST (migrated deprecated codex_hooks flag)"
+      echo "  ✓ $SETTINGS_DST (migrated deprecated hooks flag)"
     else
       SETTINGS_SKIPPED=true
       SKIPPED=$((SKIPPED + 1))

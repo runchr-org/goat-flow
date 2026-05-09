@@ -1,6 +1,6 @@
 ---
 category: dashboard-testing
-last_reviewed: 2026-05-06
+last_reviewed: 2026-05-09
 ---
 
 ## Lesson: Dashboard readers must preserve fields used by score logic
@@ -104,7 +104,7 @@ last_reviewed: 2026-05-06
 
 **Root cause:** I treated a sandbox timing probe as representative for a route that shells out to `bash` through the deny-hook self-test. When the verification surface depends on external shell/runtime behavior, the sandbox path can understate real latency or skip the expensive branch entirely.
 
-**Prevention:** For shell-backed audit or hook performance work, capture timings in the same environment that can actually run the shell command before updating docs or declaring the bottleneck understood. For this repo, prefer a built `dist` dashboard probe plus a focused integration test, and compare fresh versus cached requests explicitly when a new cache is involved. Evidence anchors: `src/cli/server/dashboard-routes.ts` (search: `const fresh = url.searchParams.get("fresh") === "true";`), `src/cli/server/dashboard-routes.ts` (search: `readQualityAuditCache(projectPath, agent, fresh)`), `src/cli/audit/check-agent-setup.ts` (search: `execFileSync("bash", [denyPath, "--self-test"]`).
+**Prevention:** For shell-backed audit or hook performance work, capture timings in the same environment that can actually run the shell command before updating docs or declaring the bottleneck understood. For this repo, prefer a built `dist` dashboard probe plus a focused integration test, and compare fresh versus cached requests explicitly when a new cache is involved. Evidence anchors: `src/cli/server/dashboard-routes.ts` (search: `const fresh = url.searchParams.get("fresh") === "true";`), `src/cli/server/dashboard-routes.ts` (search: `readQualityAuditCache(projectPath, agent, fresh)`), `src/cli/audit/check-agent-setup.ts` (search: `execFileSync("bash", [denyPath, "--self-test=smoke"]`).
 
 ---
 

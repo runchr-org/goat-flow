@@ -32,6 +32,15 @@ interface ProjectsListBody {
   projectTitles: Record<string, string>;
 }
 
+interface TerminalUploadFile {
+  name: string;
+  data: string;
+}
+
+interface TerminalUploadBody {
+  files: TerminalUploadFile[];
+}
+
 const MAX_PROJECT_TITLE_LENGTH = 120;
 
 /** Build a decoder error result. */
@@ -170,6 +179,51 @@ export function decodeProjectsListBody(
       projectTitles: projectTitles.value,
     },
   };
+}
+
+/** Decode POST /api/terminal/:id/upload-image body.
+ *  Shape: `{ files: [{ name: string, data: <base64 string> }] }`. The handler
+ *  enforces size, MIME, and count limits after structural validation. */
+// eslint-disable-next-line complexity -- explicit ingress validation: each branch maps to one rejection class for the upload payload
+export function decodeTerminalUploadBody(
+  body: string,
+  options: { maxFiles: number },
+): DecodeResult<TerminalUploadBody> {
+  const parsed = parseJson(body, "body");
+  if (!parsed.ok) return parsed;
+  const raw = parsed.value;
+  if (!isRecord(raw)) return err("body", "must be a JSON object");
+  if (!Array.isArray(raw.files)) {
+    return err("body.files", "must be an array");
+  }
+  if (raw.files.length === 0) {
+    return err("body.files", "must contain at least one file");
+  }
+  if (raw.files.length > options.maxFiles) {
+    return err(
+      "body.files",
+      `must contain at most ${options.maxFiles} file(s) per request`,
+    );
+  }
+
+  const files: TerminalUploadFile[] = [];
+  for (const [index, item] of raw.files.entries()) {
+    if (!isRecord(item)) {
+      return err(`body.files[${index}]`, "must be an object");
+    }
+    if (typeof item.name !== "string" || item.name.length === 0) {
+      return err(`body.files[${index}].name`, "must be a non-empty string");
+    }
+    if (typeof item.data !== "string" || item.data.length === 0) {
+      return err(
+        `body.files[${index}].data`,
+        "must be a non-empty base64 string",
+      );
+    }
+    files.push({ name: item.name, data: item.data });
+  }
+
+  return { ok: true, value: { files } };
 }
 
 /** Decode the optional `projectTitles` map: project path → custom display name.

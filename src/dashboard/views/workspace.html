@@ -706,7 +706,9 @@
                   type="button"
                 >
                   <span aria-hidden="true">+</span>
-                  <span x-text="launching ? 'Launching...' : 'New terminal'"></span>
+                  <span
+                    x-text="launching ? 'Launching...' : 'New terminal'"
+                  ></span>
                 </button>
                 <button
                   @click="exitTerminal()"
@@ -717,7 +719,13 @@
               </div>
             </div>
 
-            <div class="flex-1 relative">
+            <div
+              class="flex-1 relative"
+              @dragenter.prevent="handleTerminalDragEnter($event)"
+              @dragover.prevent="handleTerminalDragOver($event)"
+              @dragleave.prevent="handleTerminalDragLeave($event)"
+              @drop.prevent="handleTerminalDrop($event)"
+            >
               <template x-for="session in sessions" :key="session.id">
                 <div
                   :id="`gf-terminal-${session.id}`"
@@ -726,6 +734,42 @@
                   style="position: absolute; inset: 0"
                 ></div>
               </template>
+              <div
+                x-show="terminalDragActive && !terminalEnded && activeSessionId"
+                x-cloak
+                style="
+                  position: absolute;
+                  inset: 0;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  background: rgba(99, 102, 241, 0.18);
+                  border: 2px dashed var(--accent);
+                  border-radius: 6px;
+                  pointer-events: none;
+                  z-index: 5;
+                "
+              >
+                <div
+                  class="gf-text-primary"
+                  style="
+                    font-size: 14px;
+                    font-weight: 600;
+                    padding: 8px 16px;
+                    background: var(--surface);
+                    border-radius: 6px;
+                  "
+                >
+                  Drop image to attach
+                  <span
+                    x-show="terminalUploading"
+                    class="gf-text-muted"
+                    style="font-size: 12px; margin-left: 6px"
+                  >
+                    Uploading...
+                  </span>
+                </div>
+              </div>
               <div x-show="terminalEnded" class="terminal-overlay">
                 <div class="text-center space-y-3">
                   <p

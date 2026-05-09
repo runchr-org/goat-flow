@@ -177,6 +177,10 @@ function writeHookFixtures(root: string): void {
     HOOK_STUB,
   );
   writeFileSync(
+    join(root, "workflow", "hooks", "deny-dangerous.self-test.sh"),
+    HOOK_STUB,
+  );
+  writeFileSync(
     join(root, "workflow", "hooks", "agent-config", "copilot-hooks.json"),
     COPILOT_HOOK_CONFIG_STUB,
   );
@@ -188,6 +192,10 @@ function writeHookFixtures(root: string): void {
   ]) {
     mkdirSync(join(root, hooksDir), { recursive: true });
     writeFileSync(join(root, hooksDir, "deny-dangerous.sh"), HOOK_STUB);
+    writeFileSync(
+      join(root, hooksDir, "deny-dangerous.self-test.sh"),
+      HOOK_STUB,
+    );
   }
   writeFileSync(
     join(root, ".github", "hooks", "hooks.json"),

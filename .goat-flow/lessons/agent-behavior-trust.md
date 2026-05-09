@@ -1,6 +1,6 @@
 ---
 category: agent-behavior-trust
-last_reviewed: 2026-05-03
+last_reviewed: 2026-05-09
 ---
 
 ## Lesson: Prose-only "show terminal output" rules lose to brevity pressure
@@ -109,6 +109,8 @@ last_reviewed: 2026-05-03
 **Root cause:** The original Codex profile was written based on an early understanding of Codex capabilities. Nobody re-checked when the hooks engine shipped. The assumption propagated through templates, install scripts, fact extraction, and setup guides unchallenged.
 
 **Prevention:** When a profile field says an agent "can't" do something, verify against the current docs before building workarounds. Capabilities evolve - a limitation at setup time may not still hold.
+
+**Updated 2026-05-09:** The same trap recurred around Codex hooks and permissions. A prior goat-flow change treated `[features].hooks = true` as the current flag and migrated away from `codex_hooks`; current Codex CLI 0.129.0 docs use `[features].codex_hooks = true`, the hook surface now includes `PermissionRequest`, `PostToolUse`, `Stop`, and non-Bash matchers, and Claude-style file permission lists map to Codex TOML permission profiles rather than hooks alone. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `codex_hooks = true`, `default_permissions = "goat-flow"`), `workflow/install-goat-flow.sh` (search: `migrate_codex_hooks_feature_flag`), `src/cli/audit/check-agent-setup.ts` (search: `features.codex_hooks`).
 
 ---
 ## Lesson: Agent skips AI testing gate and offers to continue

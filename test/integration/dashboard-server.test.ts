@@ -35,6 +35,28 @@ const require = createRequire(import.meta.url);
 const childProcess =
   require("node:child_process") as typeof import("node:child_process");
 const originalExecFileSync = childProcess.execFileSync;
+const CODEX_CONFIG = [
+  'model = "gpt-5"',
+  'default_permissions = "goat-flow"',
+  "[features]",
+  "codex_hooks = true",
+  "[permissions.goat-flow.filesystem]",
+  "glob_scan_max_depth = 3",
+  '[permissions.goat-flow.filesystem.":project_roots"]',
+  '"." = "write"',
+  '".env.example" = "read"',
+  '".env" = "none"',
+  '"**/.env" = "none"',
+  '".env.*" = "none"',
+  '"**/.env.*" = "none"',
+  '".ssh/**" = "none"',
+  '"**/.ssh/**" = "none"',
+  '".aws/**" = "none"',
+  '"**/.aws/**" = "none"',
+  '"*.pem" = "none"',
+  '"**/*.pem" = "none"',
+  "",
+].join("\n");
 
 let server: { port: number; close: () => Promise<void> } | undefined;
 let baseUrl = "";
@@ -262,11 +284,11 @@ async function makeDashboardCacheProject(): Promise<{
     "package.json",
     '{"scripts":{"test":"node --test"}}\n',
   );
-  await writeProjectFile(root, ".codex/config.toml", 'model = "gpt-5"\n');
+  await writeProjectFile(root, ".codex/config.toml", CODEX_CONFIG);
   await writeProjectFile(
     root,
     ".codex/hooks.json",
-    '{"hooks":{"preToolUse":[{"command":".codex/hooks/deny-dangerous.sh"}]}}\n',
+    '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/deny-dangerous.sh"}]}]}}\n',
   );
   await writeProjectFile(
     root,
@@ -324,6 +346,10 @@ async function makeDashboardSetupPromptProject(options: {
     join(PROJECT_PATH, "workflow", "hooks", "deny-dangerous.sh"),
     "utf-8",
   );
+  const denyHookSelfTest = await readFile(
+    join(PROJECT_PATH, "workflow", "hooks", "deny-dangerous.self-test.sh"),
+    "utf-8",
+  );
   const commonDirs = [
     ".goat-flow/footguns",
     ".goat-flow/lessons",
@@ -375,7 +401,7 @@ skills:
     "# Conventions\n",
   );
   await writeProjectFile(root, "AGENTS.md", dashboardSetupInstruction());
-  await writeProjectFile(root, ".codex/config.toml", 'model = "gpt-5"\n');
+  await writeProjectFile(root, ".codex/config.toml", CODEX_CONFIG);
   await writeProjectFile(
     root,
     ".codex/hooks.json",
@@ -401,6 +427,11 @@ skills:
     ),
   );
   await writeProjectFile(root, ".codex/hooks/deny-dangerous.sh", denyHook);
+  await writeProjectFile(
+    root,
+    ".codex/hooks/deny-dangerous.self-test.sh",
+    denyHookSelfTest,
+  );
   if (options.installSkills) {
     for (const skill of [
       "goat",
@@ -1050,7 +1081,10 @@ describe("dashboard /api/audit", () => {
   it("with quality=true avoids deny hook self-tests during dashboard summary loads", async () => {
     let selfTestCalls = 0;
     childProcess.execFileSync = ((file, args, options) => {
-      if (Array.isArray(args) && args.includes("--self-test")) {
+      if (
+        Array.isArray(args) &&
+        args.some((arg) => String(arg).startsWith("--self-test"))
+      ) {
         selfTestCalls += 1;
         throw new Error(
           "dashboard summary should not run deny hook self-tests",
@@ -1287,7 +1321,10 @@ describe("dashboard /api/setup", () => {
   it("avoids deny hook self-tests while preserving setup prompt checks", async () => {
     let selfTestCalls = 0;
     childProcess.execFileSync = ((file, args, options) => {
-      if (Array.isArray(args) && args.includes("--self-test")) {
+      if (
+        Array.isArray(args) &&
+        args.some((arg) => String(arg).startsWith("--self-test"))
+      ) {
         selfTestCalls += 1;
         throw new Error("setup prompt should not run deny hook self-tests");
       }
@@ -1440,6 +1477,58 @@ describe("dashboard /api/quality", () => {
   }
 });
 
+describe("dashboard /api/skill-quality", () => {
+  it("returns artifact inventory for the project", async () => {
+    const { res, body } = await fetchJson(
+      `/api/skill-quality/inventory?path=${encodeURIComponent(PROJECT_PATH)}`,
+    );
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Skill quality inventory");
+    assert.ok(Array.isArray(data.artifacts));
+    const artifacts = data.artifacts as Array<Record<string, unknown>>;
+    assert.ok(
+      artifacts.length >= 7,
+      `expected at least 7 artifacts, got ${artifacts.length}`,
+    );
+    assert.ok(artifacts.some((a) => a.id === "skill:goat-plan"));
+    assert.ok(artifacts.some((a) => a.id === "reference:browser-use"));
+  });
+
+  it("scores a valid artifact with metrics and prompt", async () => {
+    const { res, body } = await fetchJson(
+      `/api/skill-quality?path=${encodeURIComponent(PROJECT_PATH)}&artifact=skill:goat-plan`,
+    );
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Skill quality report");
+    assert.equal(
+      (data.artifact as Record<string, unknown>).id,
+      "skill:goat-plan",
+    );
+    assert.ok(typeof data.totalScore === "number");
+    assert.ok(typeof data.maxTotalScore === "number");
+    assert.ok(typeof data.recommendation === "string");
+    assert.ok(Array.isArray(data.metrics));
+    assert.ok(typeof data.prompt === "string");
+    assert.match(String(data.prompt), /Quality Review/);
+  });
+
+  it("returns 404 for unknown artifact id", async () => {
+    const { res, body } = await fetchJson(
+      `/api/skill-quality?path=${encodeURIComponent(PROJECT_PATH)}&artifact=skill:nonexistent`,
+    );
+    assert.equal(res.status, 404);
+    const data = expectRecord(body, "Skill quality 404");
+    assert.match(String(data.error), /not found/);
+  });
+
+  it("returns 400 when artifact param is missing", async () => {
+    const { res } = await fetchJson(
+      `/api/skill-quality?path=${encodeURIComponent(PROJECT_PATH)}`,
+    );
+    assert.equal(res.status, 400);
+  });
+});
+
 describe("dashboard /api/projects", () => {
   it("persists the dashboard state roundtrip", async () => {
     const nextPaths = [PROJECT_PATH, resolve(PROJECT_PATH, "src")];
@@ -1577,6 +1666,82 @@ describe("dashboard terminal endpoints", () => {
     assert.deepEqual(data.sessions, []);
     assert.equal(data.maxSessions, 10);
     assert.equal(data.activeCount, 0);
+  });
+
+  it("POST /api/terminal/:id/upload-image rejects an unsafe session id", async () => {
+    const { res, body } = await fetchJson(
+      "/api/terminal/..%2Fevil/upload-image",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: [] }),
+      },
+    );
+    assert.equal(res.status, 400);
+    const data = expectRecord(body, "Upload bad-id error");
+    assert.match(String(data.error), /Invalid session id/);
+  });
+
+  it("POST /api/terminal/:id/upload-image returns 404 for an unknown session id", async () => {
+    const png = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.alloc(16, 0xff),
+    ]);
+    const { res, body } = await fetchJson(
+      "/api/terminal/sess-not-real/upload-image",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          files: [{ name: "x.png", data: png.toString("base64") }],
+        }),
+      },
+    );
+    assert.equal(res.status, 404);
+    const data = expectRecord(body, "Upload missing-session error");
+    assert.match(String(data.error), /Session not found/);
+  });
+
+  it("POST /api/terminal/:id/upload-image rejects an empty files array", async () => {
+    const { res, body } = await fetchJson("/api/terminal/sess-x/upload-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ files: [] }),
+    });
+    assert.equal(res.status, 400);
+    const data = expectRecord(body, "Upload empty-files error");
+    assert.equal(data.path, "body.files");
+    assert.match(String(data.error), /at least one file/);
+  });
+
+  it("POST /api/terminal/:id/upload-image rejects too many files in one request", async () => {
+    const png = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.alloc(16, 0xff),
+    ]);
+    const oneFile = { name: "x.png", data: png.toString("base64") };
+    const { res, body } = await fetchJson("/api/terminal/sess-x/upload-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        files: [oneFile, oneFile, oneFile, oneFile, oneFile, oneFile],
+      }),
+    });
+    assert.equal(res.status, 400);
+    const data = expectRecord(body, "Upload too-many error");
+    assert.equal(data.path, "body.files");
+    assert.match(String(data.error), /at most 5 file/);
+  });
+
+  it("POST /api/terminal/:id/upload-image rejects malformed JSON", async () => {
+    const { res, body } = await fetchJson("/api/terminal/sess-x/upload-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{not json",
+    });
+    assert.equal(res.status, 400);
+    const data = expectRecord(body, "Upload bad-json error");
+    assert.match(String(data.error), /invalid JSON/);
   });
 });
 

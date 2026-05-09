@@ -10,10 +10,20 @@ import type {
 } from "node:http";
 import type { Duplex } from "node:stream";
 import type { WebSocketServer } from "ws";
-import { decodeTerminalCreateBody } from "./decoders.js";
+import {
+  decodeTerminalCreateBody,
+  decodeTerminalUploadBody,
+} from "./decoders.js";
 import type { Runner } from "./types.js";
 import type { TerminalManager } from "./terminal.js";
 import { MAX_SESSIONS } from "./terminal.js";
+import {
+  buildAttachmentNote,
+  persistUploads,
+  TERMINAL_UPLOAD_MAX_BODY_BYTES,
+  TERMINAL_UPLOAD_MAX_FILES,
+  uploadDirForSession,
+} from "./terminal-uploads.js";
 
 type JsonResponder = (
   res: ServerResponse,
@@ -47,6 +57,11 @@ export function createDashboardTerminalHandlers(
     res: ServerResponse,
   ) => Promise<boolean>;
   handleTerminalDeleteRequest: (
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ) => Promise<boolean>;
+  handleTerminalUploadRequest: (
     req: IncomingMessage,
     url: URL,
     res: ServerResponse,
@@ -216,6 +231,112 @@ export function createDashboardTerminalHandlers(
     return true;
   }
 
+  /** Read the raw upload body up to TERMINAL_UPLOAD_MAX_BODY_BYTES.
+   *  Separate from the dashboard's 64KB readBody so other endpoints stay
+   *  capped tightly while uploads can carry several MiB of base64 payload. */
+  function readUploadBody(req: IncomingMessage): Promise<string> {
+    return new Promise((resolveBody, rejectBody) => {
+      const chunks: Buffer[] = [];
+      let size = 0;
+      req.on("data", (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > TERMINAL_UPLOAD_MAX_BODY_BYTES) {
+          req.destroy();
+          rejectBody(new Error("Upload body too large"));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      req.on("end", () => {
+        resolveBody(Buffer.concat(chunks).toString("utf-8"));
+      });
+      req.on("error", rejectBody);
+    });
+  }
+
+  /** Accept dragged image files for the active terminal session. */
+  // eslint-disable-next-line complexity -- explicit ingress validation: each branch maps to one rejection class (path / id / decode / session lookup / state / target)
+  async function handleTerminalUploadRequest(
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ): Promise<boolean> {
+    const match = url.pathname.match(
+      /^\/api\/terminal\/([^/]+)\/upload-image$/u,
+    );
+    if (!match || req.method !== "POST") return false;
+
+    const sessionId = match[1] ?? "";
+    if (!/^[a-zA-Z0-9_-]+$/u.test(sessionId)) {
+      jsonResponse(res, 400, { error: "Invalid session id" });
+      return true;
+    }
+
+    let body: string;
+    try {
+      body = await readUploadBody(req);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      jsonResponse(res, 413, { error: message });
+      return true;
+    }
+
+    const decoded = decodeTerminalUploadBody(body, {
+      maxFiles: TERMINAL_UPLOAD_MAX_FILES,
+    });
+    if (!decoded.ok) {
+      jsonResponse(res, 400, { error: decoded.error, path: decoded.path });
+      return true;
+    }
+
+    try {
+      const manager = await getManager();
+      const session = manager.get(sessionId);
+      if (!session) {
+        jsonResponse(res, 404, { error: "Session not found" });
+        return true;
+      }
+      if (session.status !== "active") {
+        jsonResponse(res, 409, {
+          error: `Session is ${session.status}; uploads require an active session`,
+        });
+        return true;
+      }
+      if (!session.targetPath) {
+        jsonResponse(res, 409, {
+          error: "Session has no target path; cannot resolve upload directory",
+        });
+        return true;
+      }
+
+      let uploadDir: ReturnType<typeof uploadDirForSession>;
+      try {
+        uploadDir = uploadDirForSession(session.targetPath, sessionId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        jsonResponse(res, 400, { error: message });
+        return true;
+      }
+
+      const result = persistUploads(uploadDir, decoded.value.files);
+      const note = buildAttachmentNote(result.accepted);
+      jsonResponse(res, 200, {
+        accepted: result.accepted.map((file) => ({
+          originalName: file.originalName,
+          savedName: file.savedName,
+          savedRelPath: file.savedRelPath,
+          bytes: file.bytes,
+        })),
+        rejected: result.rejected,
+        note,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      jsonResponse(res, 500, { error: message });
+    }
+    return true;
+  }
+
   /** Return terminal-backend health details for dashboard diagnostics. */
   async function handleHealthRequest(
     req: IncomingMessage,
@@ -325,6 +446,7 @@ export function createDashboardTerminalHandlers(
     handleTerminalCreateRequest,
     handleTerminalListRequest,
     handleTerminalDeleteRequest,
+    handleTerminalUploadRequest,
     handleHealthRequest,
     handleTerminalSessionsRequest,
     handleTerminalUpgrade,

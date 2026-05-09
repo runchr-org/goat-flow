@@ -95,6 +95,11 @@ const DASHBOARD_ROUTE_INVENTORY = [
   { method: "GET", path: "/api/terminal/list", class: "privileged-read" },
   { method: "GET", path: "/api/terminal/sessions", class: "privileged-read" },
   { method: "DELETE", path: "/api/terminal/:id", class: "side-effectful" },
+  {
+    method: "POST",
+    path: "/api/terminal/:id/upload-image",
+    class: "side-effectful",
+  },
   { method: "GET", path: "/ws/terminal/:id", class: "privileged-websocket" },
 ] as const;
 
@@ -147,6 +152,8 @@ export function serveDashboard(
       handleSetupRequest,
       handleQualityRequest,
       handleQualityHistoryRequest,
+      handleSkillQualityRequest,
+      handleSkillQualityInventoryRequest,
       handleBrowseRequest,
       handleAgentDetectRequest,
       handleProjectsListRequest,
@@ -165,6 +172,7 @@ export function serveDashboard(
       handleTerminalCreateRequest,
       handleTerminalListRequest,
       handleTerminalDeleteRequest,
+      handleTerminalUploadRequest,
       handleHealthRequest,
       handleTerminalSessionsRequest,
       handleTerminalUpgrade,
@@ -300,6 +308,8 @@ export function serveDashboard(
         () => handleSetupRequest(url, res),
         () => Promise.resolve(handleQualityRequest(url, res)),
         () => handleQualityHistoryRequest(url, res),
+        () => Promise.resolve(handleSkillQualityRequest(url, res)),
+        () => Promise.resolve(handleSkillQualityInventoryRequest(url, res)),
 
         () => Promise.resolve(handleBrowseRequest(url, res)),
         () => Promise.resolve(handleAgentDetectRequest(url, res)),
@@ -308,6 +318,7 @@ export function serveDashboard(
         () => handleTerminalCreateRequest(req, url, res),
         () => handleTerminalListRequest(req, url, res),
         () => handleTerminalSessionsRequest(req, url, res),
+        () => handleTerminalUploadRequest(req, url, res),
         () => handleTerminalDeleteRequest(req, url, res),
         () => handleHealthRequest(req, url, res),
       ];
