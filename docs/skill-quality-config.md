@@ -1,0 +1,81 @@
+# Skill Quality Config
+
+goat-flow ships a zero-config skill-quality rubric. Consumer projects can override parts of it through `.goat-flow/config.yaml` under `quality:` without editing `workflow/manifest.json`.
+
+Use config only when the project has real conventions that differ from goat-flow defaults: custom artifact roots, different verification-gate vocabulary, project-specific subtype profiles, or extra fixture corpora.
+
+## Minimal Example
+
+```yaml
+# .goat-flow/config.yaml
+quality:
+  gate-vocabulary:
+    verification-gate:
+      - BLOCKING GATE
+      - Release Gate
+      - SLO Gate
+  additional-fixtures:
+    - test/fixtures/skill-quality/team-expected-scores.json
+```
+
+With no `quality:` block, the default rubric is unchanged.
+
+## Custom Subtype
+
+Declare a subtype when the project has a repeatable artifact shape that is neither a normal workflow skill nor a reference playbook.
+
+```yaml
+quality:
+  subtypes:
+    audit:
+      detection:
+        kinds:
+          - skill
+        headings:
+          - "^## Audit Mode\\b"
+        must-not-have:
+          - "^## Step 0\\b"
+        name-patterns: []
+      profile:
+        trigger-clarity: 15
+        workflow-completeness: 5
+        gate-quality: 10
+        evidence-testability: 10
+        cold-start: 10
+        token-cost: 10
+        tool-deps: 5
+        write-risk: 0
+        skill-reference-fit: 10
+      notes: "Audit-only skills score like reports but use a domain-specific Audit Mode marker."
+```
+
+Subtype detection contributes to the classification confidence shown in the dashboard. A high structure score with low confidence returns `consider-reclassifying`.
+
+## Supported Keys
+
+| Key | Purpose |
+|---|---|
+| `walk-roots.skills` | Skill directories to inventory. |
+| `walk-roots.references` | Reference directories to inventory. |
+| `composition` | Shared preamble/conventions paths, skill-reference regex, and composed byte cap. |
+| `gate-vocabulary` | Regex sources for verification gates, explicit pass/fail language, and human-stop language. |
+| `tool-keywords` | Tokens that indicate external tool dependencies. |
+| `subtypes` | Detection rules, metric profile caps, and notes for artifact subtypes. |
+| `fixture-path` | Primary expected-score fixture for the current project. |
+| `additional-fixtures` | Extra expected-score fixtures for consumer corpora. |
+
+## Guardrails
+
+- Keep config project-scoped. Do not store consumer overrides in `workflow/manifest.json`.
+- Add a fixture when changing subtype profiles so score drift is intentional.
+- Prefer extending defaults. Replace defaults only when the project convention is incompatible.
+- Avoid brittle provider-specific regexes unless a real project artifact needs them.
+
+## Verification
+
+Run the focused tests after config changes:
+
+```bash
+node --import tsx --test test/unit/quality-config.test.ts
+node --import tsx --test test/unit/skill-quality.test.ts
+```
