@@ -31,6 +31,7 @@ import {
 } from "node:path";
 
 import {
+  cloneQualityConfig,
   compilePatternList,
   loadQualityConfig,
   profileMaxForSubtype,
@@ -784,9 +785,19 @@ const triggerClarity: MetricScorer = (input) => {
     else notes.push("missing frontmatter description");
     if (hasWhenToUse) score += 5;
     else notes.push('missing "When to Use" signal');
-    if (hasExclusion && subtype !== "dispatcher") score += 5;
-    else if (subtype === "dispatcher") notes.push("dispatcher route-map scope");
-    else notes.push('missing "NOT this skill" exclusion list');
+    if (subtype === "dispatcher") {
+      // Dispatchers disambiguate by routing, not by an exclusion list — award
+      // the third 5-point bucket when they expose a Route Map (their structural
+      // equivalent of "NOT this skill"). Mirrors the dispatcher branch of
+      // skillReferenceFit (search: `subtype === "dispatcher" && signals.hasRouteMap`).
+      const hasRouteMap = hasSection(content, /##\s+Route Map/i);
+      if (hasRouteMap) score += 5;
+      else notes.push("dispatcher missing Route Map for trigger disambiguation");
+    } else if (hasExclusion) {
+      score += 5;
+    } else {
+      notes.push('missing "NOT this skill" exclusion list');
+    }
 
     if (hasFrontmatterDesc && descriptionSummarizesWorkflow(content)) {
       notes.push(
@@ -1631,6 +1642,20 @@ function synthesiseImprovementTips(
 }
 
 /**
+ * Strip the host project's shared skill-preamble/conventions from composition
+ * so uploaded markdown is scored as a standalone artifact. The dashboard
+ * "Evaluate skill" modal evaluates content that may live outside goat-flow
+ * entirely; gluing goat-flow's preamble onto it inflates gate/evidence/tool
+ * signals the uploaded skill doesn't actually own.
+ */
+function configForUpload(config: QualityConfig): QualityConfig {
+  const isolated = cloneQualityConfig(config);
+  isolated.composition.skillPreamblePath = null;
+  isolated.composition.skillConventionsPath = null;
+  return isolated;
+}
+
+/**
  * Score uploaded markdown content (no file IO) and synthesise actionable
  * improvement tips from the metric breakdown. Used by the dashboard
  * "Evaluate skill" modal.
@@ -1654,7 +1679,12 @@ export function evaluateContent(
     mirrorPaths: [],
     missingMirrors: [],
   };
-  const report = scoreContent(projectRoot, artifact, input.content, config);
+  const report = scoreContent(
+    projectRoot,
+    artifact,
+    input.content,
+    configForUpload(config),
+  );
   return { ...report, tips: synthesiseImprovementTips(report) };
 }
 
@@ -1712,16 +1742,16 @@ export function evaluateUploadedBundle(
     missingMirrors: [],
   };
 
+  const uploadConfig = configForUpload(config);
   const baseReport = scoreContent(
     projectRoot,
     artifact,
     primary.content,
-    config,
+    uploadConfig,
   );
   if (siblings.length === 0) {
     // Replace the synthetic "SKILL.md"/"<name>.md" entry with the uploaded
-    // filename, but keep the meta order from the engine (preamble/conventions
-    // first, primary last) so it matches the on-disk artifact view.
+    // filename so the result mirrors the on-disk artifact view.
     const remappedComposedFrom = baseReport.composedFrom.map((s) =>
       s === "SKILL.md" || s === `${name}.md` ? primary.name : s,
     );
@@ -1740,7 +1770,7 @@ export function evaluateUploadedBundle(
     projectRoot,
     artifact,
     primary.content,
-    config,
+    uploadConfig,
   );
   const siblingChunks = siblings.map((f) => f.content);
   const siblingNames = siblings.map((f) => f.name);
@@ -1748,15 +1778,22 @@ export function evaluateUploadedBundle(
     "\n\n---\n\n",
   );
   const composed =
-    utf8ByteLength(composedFull) <= config.composition.maxComposedBytes
+    utf8ByteLength(composedFull) <= uploadConfig.composition.maxComposedBytes
       ? composedFull
-      : truncateUtf8Bytes(composedFull, config.composition.maxComposedBytes);
+      : truncateUtf8Bytes(
+          composedFull,
+          uploadConfig.composition.maxComposedBytes,
+        );
   const truncated =
-    utf8ByteLength(composedFull) > config.composition.maxComposedBytes;
+    utf8ByteLength(composedFull) > uploadConfig.composition.maxComposedBytes;
 
-  const classification = classifyArtifact(artifact, primary.content, config);
+  const classification = classifyArtifact(
+    artifact,
+    primary.content,
+    uploadConfig,
+  );
   const subtype = classification.detectedSubtype;
-  const profileMax = profileMaxForSubtype(config, subtype);
+  const profileMax = profileMaxForSubtype(uploadConfig, subtype);
   const metricInput: MetricInput = {
     rawContent: primary.content,
     composedContent: composed,
@@ -1764,7 +1801,7 @@ export function evaluateUploadedBundle(
     subtype,
     profileMax,
     projectRoot,
-    config,
+    config: uploadConfig,
   };
   const metrics = ALL_METRICS.map((scorer) => scorer(metricInput));
   const totalScore = metrics.reduce((sum, m) => sum + m.score, 0);
@@ -1777,15 +1814,12 @@ export function evaluateUploadedBundle(
     classification,
   );
 
-  // Build composedFrom: meta sources first (preamble/conventions) for visual
-  // grouping, then every uploaded file in drop order.
-  const metaSources = baseCompose.sources.filter(
-    (s) => s !== "SKILL.md" && s !== `${name}.md`,
-  );
-  const composedFrom = [...metaSources, primary.name, ...siblingNames];
+  // composedFrom for uploads = the user's files in drop order. Preamble and
+  // conventions are intentionally excluded (see `configForUpload`).
+  const composedFrom = [primary.name, ...siblingNames];
   const notes = truncated
     ? [
-        `composition truncated at ${Math.round(config.composition.maxComposedBytes / 1024)}KB`,
+        `composition truncated at ${Math.round(uploadConfig.composition.maxComposedBytes / 1024)}KB`,
       ]
     : [];
 

@@ -1,6 +1,6 @@
 ---
 category: verification
-last_reviewed: 2026-05-09
+last_reviewed: 2026-05-11
 ---
 
 ## Lesson: Browser-verifying local source needs `npm run dev`, not `npx goat-flow dashboard`
@@ -143,11 +143,13 @@ last_reviewed: 2026-05-09
 
 **Status:** active | **Created:** 2026-04-18
 
-**What happened:** During rename verification for ~~`.goat-flow/tasks/1.3.0`~~ to `.goat-flow/tasks/1.2.0-wave-6` (old path no longer exists - historical context), a ripgrep command embedded backticks in the shell pattern. Bash treated ``1.3.0`` as command substitution and failed with `/bin/bash: line 1: 1.3.0: command not found`, which made the verification step noisy and ambiguous.
+**What happened:** During rename verification between local task-plan directories, a ripgrep command embedded backticks in the shell pattern. Bash treated the version-like path fragment as command substitution and failed, which made the verification step noisy and ambiguous.
 
 **Recurrence 2026-05-05:** During 1.8.0 task-plan consolidation, a source-slice reference check embedded a literal markdown backtick in the shell regex (`reference/imported...\\.md` with a backtick exclusion). The PreToolUse hook blocked it with `Backtick command substitution hides nested execution`. The check was rerun with a safer single-quoted pattern that avoided backticks entirely.
 
 **Recurrence 2026-05-08:** During the 1.5.1 release bump, a one-off `node --input-type=module` snapshot-generation command used JavaScript template literals inside the shell heredoc. The PreToolUse hook blocked the command with the same `Backtick command substitution hides nested execution` message. The command was rerun with plain string concatenation.
+
+**Recurrence 2026-05-11:** During 1.6.1 scratchpad release-note verification, a stale-version `rg` pattern included markdown backticks around `1.6.0`. The PreToolUse hook blocked it with `Backtick command substitution hides nested execution`. The check was rerun as separate `rg -e` patterns without backticks.
 
 **Root cause:** Mixed markdown/JavaScript-style quoting with shell quoting during a command. The intent was correct, but the shell/hook interpreted literal backticks before the command body could be treated as data.
 

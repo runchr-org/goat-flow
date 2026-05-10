@@ -529,7 +529,7 @@ export function composeArtifactQualityPrompt(
   lines.push("");
   if (composedFrom.length > 0) {
     lines.push(
-      `Assess the ${kindLower} **${artifact.name}**. Read every file in **Composed from** below — the engine composes ${composedFrom.length} file${composedFrom.length === 1 ? "" : "s"} into the runtime surface (\`${composedFrom.join("`, `")}\`). Structural signals from referenced files count toward your assessment: a phase-2 procedure documented in \`references/auth-authz.md\` is part of the ${kindLower}, not bonus material.`,
+      `Assess the ${kindLower} **${artifact.name}**. Read every file in **Composed from** below — the engine composes ${composedFrom.length} file${composedFrom.length === 1 ? "" : "s"} into the runtime surface (\`${composedFrom.join("`, `")}\`). Structural signals from referenced files count toward your assessment: a phase-2 procedure documented in \`references/identity-and-data.md\` is part of the ${kindLower}, not bonus material.`,
     );
     lines.push("");
     lines.push(

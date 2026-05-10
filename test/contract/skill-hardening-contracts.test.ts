@@ -116,27 +116,27 @@ describe("skill hardening contracts", () => {
     assert.match(body, /Task path classifier examples/, "missing table");
     assert.match(
       body,
-      /`\.goat-flow\/tasks\/64272_voice-chat`\s+\|\s+Read-only orientation; no writes/,
+      /Bare task directory path\s+\|\s+Read-only orientation; no writes/,
       "path-only input must be read-only",
     );
     assert.match(
       body,
-      /`\.goat-flow\/tasks\/64272_voice-chat start M01`\s+\|\s+Implementation may start after normal gates/,
+      /Task directory path plus `start M01`\s+\|\s+Implementation may start after normal gates/,
       "start M01 input must allow implementation after gates",
     );
     assert.match(
       body,
-      /`resume \.goat-flow\/tasks\/64272_voice-chat`\s+\|\s+Confirm current milestone unless the plan clearly records one/,
+      /`resume` plus a task directory path\s+\|\s+Confirm current milestone unless the plan clearly records one/,
       "resume input must confirm current milestone",
     );
     assert.match(
       body,
-      /`update M01 in \.goat-flow\/tasks\/64272_voice-chat`\s+\|\s+Update the named milestone file only/,
+      /`update M01` plus a task directory path\s+\|\s+Update the named milestone file only/,
       "update M01 input must stay plan-file scoped",
     );
     assert.match(
       body,
-      /`implement M01 from \.goat-flow\/tasks\/64272_voice-chat`\s+\|\s+Code implementation may proceed after reading gates/,
+      /`implement M01` plus a task directory path\s+\|\s+Code implementation may proceed after reading gates/,
       "implement M01 input must allow code implementation after gates",
     );
   });

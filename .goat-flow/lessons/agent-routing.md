@@ -7,7 +7,7 @@ last_reviewed: 2026-05-02
 
 **Created:** 2026-05-01
 
-**What happened:** A user sent only `.goat-flow/tasks/64272_voice-chat`. Codex treated the path as permission to resume goat-plan work, changed `.goat-flow/tasks/.active`, marked task files in progress, and started code implementation. The user had not asked to implement, resume, edit, update, or start a milestone.
+**What happened:** A user sent only a bare gitignored task directory path. Codex treated the path as permission to resume goat-plan work, changed the active-plan marker, marked task files in progress, and started code implementation. The user had not asked to implement, resume, edit, update, or start a milestone.
 
 **Root cause:** The agent combined the generic "assume implementation" coding default with goat-plan's existing milestone discovery and skipped the blocking gate. The skill also treated named existing plan files as write approval too broadly, so a context path could be misread as a target.
 
@@ -122,7 +122,7 @@ The user's point: "if it wasn't for that we wouldn't have found the better name.
 
 **Created:** 2026-04-22
 
-**What happened:** During a quality follow-up, the agent treated `.goat-flow/tasks/.active` pointing at a missing subdir as a MAJOR setup defect. The user corrected that the active marker is local working state: its target can disappear when a project completes, can change multiple times a day as users switch projects, or can be irrelevant when the user is only using goat-flow for bug work. The same review treated `/goat-critique` writing gitignored critique logs as a read-only violation. The user corrected the contract: read-only/reporting work means no committed-file changes and no implementation, not "never write gitignored continuity logs or task checkboxes."
+**What happened:** During a quality follow-up, the agent treated the active-plan marker pointing at a missing subdir as a MAJOR setup defect. The user corrected that the active marker is local working state: its target can disappear when a project completes, can change multiple times a day as users switch projects, or can be irrelevant when the user is only using goat-flow for bug work. The same review treated `/goat-critique` writing gitignored critique logs as a read-only violation. The user corrected the contract: read-only/reporting work means no committed-file changes and no implementation, not "never write gitignored continuity logs or task checkboxes."
 
 **Root cause:** The agent applied generic quality-report assumptions without first checking goat-flow's persistence tiers and local-state semantics. It judged stale local pointers and gitignored continuity writes as setup defects instead of asking whether the skill handles them gracefully and whether committed state changes.
 

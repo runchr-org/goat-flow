@@ -91,11 +91,11 @@ The dispatcher classifies intent conversationally - not by keyword lookup. It as
 
 | Input | Expected mode |
 |-------|---------------|
-| `.goat-flow/tasks/64272_voice-chat` | Read-only orientation; no writes |
-| `.goat-flow/tasks/64272_voice-chat start M01` | Implementation may start after normal gates |
-| `resume .goat-flow/tasks/64272_voice-chat` | Confirm current milestone unless the plan clearly records one |
-| `update M01 in .goat-flow/tasks/64272_voice-chat` | Update the named milestone file only |
-| `implement M01 from .goat-flow/tasks/64272_voice-chat` | Code implementation may proceed after reading gates |
+| Bare task directory path | Read-only orientation; no writes |
+| Task directory path plus `start M01` | Implementation may start after normal gates |
+| `resume` plus a task directory path | Confirm current milestone unless the plan clearly records one |
+| `update M01` plus a task directory path | Update the named milestone file only |
+| `implement M01` plus a task directory path | Code implementation may proceed after reading gates |
 
 ---
 

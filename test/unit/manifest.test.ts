@@ -157,11 +157,9 @@ describe("composeManifest", () => {
     assert.deepEqual(getSkillFiles("goat-security"), [
       "SKILL.md",
       "references/common-threats.md",
-      "references/auth-authz.md",
+      "references/identity-and-data.md",
       "references/file-upload-and-paths.md",
-      "references/secrets-and-data-exposure.md",
-      "references/dependency-and-supply-chain.md",
-      "references/cicd-and-agent-surfaces.md",
+      "references/supply-chain-and-cicd.md",
       "references/project-policy-template.md",
     ]);
   });

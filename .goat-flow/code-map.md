@@ -194,10 +194,7 @@ decisions/                 # ADRs (committed)
 footguns/                  # Architectural traps with semantic-anchor evidence (committed)
 lessons/                   # Behavioural mistake records (committed)
 
-tasks/                     # Milestone files (gitignored, local working state)
-  .active                  # Advisory local pointer to the current plan subdir (may be stale; see ADR-017)
-  <version>/Mxx-*.md       # Milestones live in versioned local plan dirs; skills ask when .active is absent/stale
-  _archived/               # Prior plans + research; not scanned by skills
+tasks/                     # Milestone files and plan subdirs (gitignored local state; anchors only are committed)
 logs/sessions/             # Session logs (gitignored)
 logs/quality/              # Saved quality reports + prose companions (gitignored; README committed)
 logs/critiques/            # `/goat-critique` run snapshots (gitignored; README committed)

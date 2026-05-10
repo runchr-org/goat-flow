@@ -9,7 +9,7 @@ last_reviewed: 2026-05-01
 **What happened:** A five-council synthesis (Claude x2, ChatGPT, Gemini, Codex) produced findings for the v1.4 programme. Phase 0 normalisation verified every factual claim before acting. Two corrections surfaced:
 1. OP-5 claimed installed skills were at v1.3.1 and the review plan needed rebasing. Verification showed all six skills at v1.3.2 across all four parity surfaces. The review plan's baseline was correct. ~1 weekend of recomputation work avoided.
 2. OP-7 claimed word budgets were a programme-wide crisis. Verification showed only goat-critique is at the wall (3 words slack). goat-plan has 79 words of room. The other four skills have 277-1191 words of slack.
-**Evidence:** `.goat-flow/tasks/1.3.3/v1.4-programme.md` (search: `Finding investigated and rejected: OP-5`) documents both corrections with `wc -w` and `grep` output from the verification session.
+**Evidence:** The v1.4 programme notes (search: `Finding investigated and rejected: OP-5`) document both corrections with `wc -w` and `grep` output from the verification session.
 **Prevention:** Always run Phase 0 normalisation on council synthesis findings before acting on them. Verify version claims with `grep goat-flow-skill-version`, word counts with `wc -w`, and parity with `cmp`. Council findings are inputs to verify, not evidence to trust.
 
 ## Lesson: AI council version-baseline claims are an axis where reviewers hallucinate
@@ -40,7 +40,7 @@ last_reviewed: 2026-05-01
 
 **Created:** 2026-05-01
 **What happened:** Phase 3 verification ran `wc -w` and `git show` against live repo state and found two issues that five council passes and three Phase 2 sessions missed: (1) goat-critique SKILL.md was at 2532 words (32 over ADR-023's 2500 cap), caused by 15 commits made to main between Phase 0 and Phase 3 - not by this audit's work. (2) goat-review's internal version naming (v1.4.0/v1.5.0/v1.6.0) collided with the programme's atomic version sync (all skills bump to v1.4.0 at Phase A). Both required decisions and corrections to the programme document.
-**Evidence:** `.goat-flow/tasks/1.3.3/v1.4-programme.md` (search: `Corrected post-Phase 3 verification`) documents the word-count correction. Version naming convention documented in Section 2.1.
+**Evidence:** The v1.4 programme notes (search: `Corrected post-Phase 3 verification`) document the word-count correction. Version naming convention documented in Section 2.1.
 **Prevention:** Future programme-style improvement work should always end with a verification phase that reads live repo state, not just the artifacts produced. Plan-level reasoning operates on stated numbers; verification operates on measured numbers. The two diverge when the repo changes underneath the audit.
 
 ## Lesson: Verification phases must cross-reference between artifacts, not just check each internally

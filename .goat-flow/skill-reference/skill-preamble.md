@@ -119,6 +119,18 @@ If Step 0 exceeds 5 file reads without producing output or asking a question, ch
 - If the first search returns nothing useful, reword once and search again.
 - If the second search still misses, record a retrieval miss in your output or working notes. Do not broad-load a whole bucket "just in case".
 
+## Availability Check
+
+Before invoking any external tool the skill mentions - `browser-use`, `gh`, `rg`, package managers (`npm`, `pip`, `cargo`), language runtimes, or any other binary - confirm it is installed and authenticated where relevant. Run the matching one-liner:
+
+- Generic binary: `command -v <tool>`
+- `gh`: `command -v gh && gh auth status`
+- `browser-use`: `command -v browser-use && browser-use doctor` (also see `.goat-flow/skill-playbooks/browser-use.md`)
+- `rg`: `command -v rg` (fall back to `grep -rniE` if missing)
+- Audit tools (`npm audit`, `pip-audit`, `cargo audit`): `command -v <tool>` before quoting any results
+
+If a tool is unavailable, take the documented fallback rather than fabricating output: pause and ask the user before installing, fall back to manual evidence (read the file, hand-write the diff, ask the user to paste content), or skip the step and record the gap with `<tool>-unavailable` in the integrity surface. Never claim a check ran when the tool wasn't present, and never paraphrase tool output you didn't capture in this session.
+
 ## External Context Sources
 
 When the task references GitHub issues, PRs, alerts, or CI runs, check whether `gh` is installed and authenticated (`command -v gh && gh auth status`). If so, prefer it over asking the user to paste content:
