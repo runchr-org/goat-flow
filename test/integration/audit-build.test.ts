@@ -252,6 +252,7 @@ describe("audit build: skill-reference discoverability", () => {
     const result = skillReferenceCheck.run(ctx);
 
     assert.notEqual(result, null);
+    assert.match(result!.message, /Shared reference\/playbook pack/);
     assert.match(result!.message, /README\.md/);
     assert.equal(result!.evidence, ".goat-flow/skill-reference/README.md");
   });

@@ -440,10 +440,10 @@ const instructionFileSkillReferencePointer: BuildCheck = {
     if (missingReferenceFiles.length > 0) {
       return {
         check: "Instruction file skill-playbooks pointer",
-        message: `Skill reference directory is incomplete. Missing: ${missingReferenceFiles.join(", ")}`,
+        message: `Shared reference/playbook pack is incomplete. Missing: ${missingReferenceFiles.join(", ")}`,
         evidence: missingReferenceFiles[0],
         howToFix:
-          "Refresh with `goat-flow install . --agent <agent>`. The index file is load-bearing and must be installed with the reference pack.",
+          "Refresh with `goat-flow install . --agent <agent>`. The index files are load-bearing and must be installed with the shared reference/playbook pack.",
       };
     }
 

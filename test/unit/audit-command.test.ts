@@ -677,6 +677,10 @@ describe("audit skill-reference pointer rule", () => {
 
       assert.equal(report.status, "fail");
       assert.equal(check?.status, "fail");
+      assert.match(
+        check?.failure?.message ?? "",
+        /Shared reference\/playbook pack/,
+      );
       assert.match(check?.failure?.message ?? "", /README\.md/);
       assert.equal(
         check?.failure?.evidence,

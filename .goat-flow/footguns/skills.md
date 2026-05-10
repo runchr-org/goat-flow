@@ -1,6 +1,6 @@
 ---
 category: skills
-last_reviewed: 2026-05-02
+last_reviewed: 2026-05-10
 ---
 
 ## Footgun: Quality assessors recommend adding quick/lite modes to goat-critique
@@ -189,7 +189,7 @@ Skills enforce phase gates (Step 0 must complete before Phase 1, gates pause for
 
 ---
 
-- **Workflow-summarising skill descriptions cause CSO shortcutting** (resolved 2026-04-19) - All 7 current goat-* descriptions (including the dispatcher) are compliant with the trigger-only rule ("Use when …"), not workflow summaries. The rule is enforced in `workflow/skills/reference/skill-quality-testing.md` GREEN-phase checklist ("`description` is CSO-optimised: 'Use when [trigger]', not a workflow summary"). Original incident was in the external `superpowers-skills` repo; the goat-flow regression was on the dispatcher description and was rewritten the same day it was caught.
+- **Workflow-summarising skill descriptions cause CSO shortcutting** (resolved 2026-04-19) - All 7 current goat-* descriptions (including the dispatcher) are compliant with the trigger-only rule ("Use when …"), not workflow summaries. The rule is enforced in `workflow/skills/playbooks/skill-quality-testing/deployment.md` (search: `CSO-optimised`). Original incident was in the external `superpowers-skills` repo; the goat-flow regression was on the dispatcher description and was rewritten the same day it was caught.
 - **Dispatcher intent mapping has no coverage for analysis/evaluation verbs** (resolved 2026-04-14) - Added analysis/evaluation verbs to the dispatcher disambiguation table so ambiguous requests prompt skill selection instead of auto-routing.
 - **CI template derives skill names by prefixing instead of listing them** (resolved 2026-04-14) - Removed `src/cli/prompt/fragments/` directory in v1.1.0; CI template generation no longer exists.
 - **Blind mv/cp/Write can overwrite existing files** (resolved 2026-04-18) - Covered by the Never-tier no-clobber rule and destination-check guidance in the hot-path instruction files; no longer kept as an active architectural footgun.
