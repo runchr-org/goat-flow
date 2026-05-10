@@ -1,6 +1,6 @@
 # ADR-026: Keep workspace boundary audit check path-agnostic
 
-**Status:** accepted
+**Status:** Accepted
 **Date:** 2026-05-01
 
 ## Context

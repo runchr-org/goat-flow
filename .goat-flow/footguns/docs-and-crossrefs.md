@@ -1,6 +1,6 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-05-03
+last_reviewed: 2026-05-11
 ---
 
 ## Footgun: Cross-reference fragility across docs
@@ -59,13 +59,31 @@ last_reviewed: 2026-05-03
 - ~~`docs/harness-quality.md` + `docs/audit-and-quality.md` - claimed quality assessment "runs 7 skill invocations" on real code; `src/cli/prompt/compose-quality.ts` (search: `Option A`) prefers file analysis and only does live invocation "if context allows"~~ (resolved 2026-04-24: language updated to reflect file-analysis-preferred approach)
 - ~~`.goat-flow/architecture.md` - hot-path listing named only CLAUDE.md, AGENTS.md, GEMINI.md; omitted `.github/copilot-instructions.md` which `workflow/setup/agents/copilot.md` (search: `standalone hot-path`) and `workflow/setup/01-system-overview.md` (search: `## What goat-flow is`) both treat as hot-path~~ (resolved 2026-04-24: copilot-instructions.md added to hot-path listing)
 
-**Impact:** The framework demands "real evidence only" and "MUST maintain cross-file consistency" while its own cold-path surfaces violate both rules. Agents consulting docs for orientation get wrong information. The audit's PASS stamp creates false confidence.
+*Round 4 (2026-05-11, all resolved - surfaced by full documentation audit; same pattern recurred during the v1.6.0 release wave):*
+- ~~`CONTRIBUTING.md` - claimed "17 checks grouped by 5 concerns" while `src/cli/audit/harness/check-*.ts` exports 16 distinct ids and every other doc surface (audit-checks.md, cli.md, audit-and-quality.md, harness-audit.md, glossary.md, architecture.md) said 16~~ (resolved 2026-05-11)
+- ~~`CONTRIBUTING.md` - placed `skill-quality-testing.md` in `workflow/skills/reference/`; the v1.4.x reference/playbook split moved it to `workflow/skills/playbooks/` and it installs to `.goat-flow/skill-playbooks/`~~ (resolved 2026-05-11)
+- ~~`docs/cli.md` - missing `goat-flow skill new` and `goat-flow quality candidacy` (both shipped in v1.6.0 and documented in `docs/skill-authoring.md`)~~ (resolved 2026-05-11)
+- ~~`docs/dashboard.md` - API endpoints table missing `/api/quality/evaluate` (canonical per v1.6.0), `/api/quality/analyse`, `/api/quality/history`, `/api/skill-quality/inventory`, `/api/skill-quality`, `/api/browse`, `POST /api/projects/list`, `POST /api/terminal/:id/upload-image`~~ (resolved 2026-05-11)
+- ~~`.goat-flow/code-map.md` - docs/ listing missing `skill-authoring.md`, `skill-quality-config.md`, `site/`; `.goat-flow/` listing missing `logs/critiques/`, `logs/security/`, `logs/uploads/`~~ (resolved 2026-05-11)
+- ~~`.goat-flow/architecture.md` - "Local report history" row missing `.goat-flow/logs/security/`~~ (resolved 2026-05-11)
+- ~~`.goat-flow/glossary.md` - Hot Path entry omitted `.github/copilot-instructions.md` despite the same fix being applied to `architecture.md` in Round 3~~ (resolved 2026-05-11)
+- ~~`CLAUDE.md` / `AGENTS.md` / `GEMINI.md` / `.github/copilot-instructions.md` - "Never" tier listed materially different forbidden actions across the four files; `scripts/check-instruction-parity.mjs` did not catch it because it validates section headings only~~ (resolved 2026-05-11: aligned to canonical CLAUDE.md/copilot wording; AGENTS.md and GEMINI.md updated)
+- ~~All four instruction-file headers - dated `(2026-05-04)` against `v1.6.0`; CHANGELOG shows v1.6.0 shipped on 2026-05-10; `2026-05-04` was the date of v1.4.3~~ (resolved 2026-05-11)
+- ~~`.goat-flow/decisions/ADR-025` / `ADR-026` / `ADR-027` - `**Status:** accepted` (lowercase) violated the README's documented status vocabulary `Proposed | Accepted | Implemented | Superseded`~~ (resolved 2026-05-11)
+- ~~`README.md` - "Skills (seven `/goat-*` commands + dispatcher)" miscounted; there are 6 `/goat-*` skills plus the dispatcher = 7 total~~ (resolved 2026-05-11)
+- ~~`.github/PULL_REQUEST_TEMPLATE.md` - test plan said `node dist/cli/cli.js audit .` while every other doc uses `npx goat-flow audit .`; `dist/` may not exist when contributors run the test plan~~ (resolved 2026-05-11)
+- ~~`workflow/evaluation/README.md` - file table listed `footguns.md` and `lessons.md` only; directory also contains `patterns.md`~~ (resolved 2026-05-11)
+- ~~`docs/dashboard.md`, `.goat-flow/skill-playbooks/skill-quality-testing.md`, `.goat-flow/skill-playbooks/skill-quality-testing/tdd-iteration.md`, `workflow/skills/reference/skill-preamble.md` (and the workflow source mirrors of the playbook files) - cited evidence under `.goat-flow/scratchpad/` (gitignored) or vaguely "the prime corpus", so readers cloning the repo could not follow the references; same surfaces also leaked third-party / competitor skill names (MySQL, Valyu, frontend-design) and a vendor env var (`VALYU_API_KEY`) into goat-flow's own committed docs~~ (resolved 2026-05-11: scratchpad-path citations replaced with in-repo references or guidance-only framing; competitor names removed and patterns rewritten provider-neutrally; new lesson added at `.goat-flow/lessons/agent-behavior.md` (search: `Agent cited gitignored content as evidence in committed docs`))
+
+**Impact:** The framework demands "real evidence only" and "MUST maintain cross-file consistency" while its own cold-path surfaces violate both rules. Agents consulting docs for orientation get wrong information. The audit's PASS stamp creates false confidence. Round 4 also surfaced two new failure modes worth promoting to a preflight check (see Prevention #5 and #6 below).
 
 **Prevention:**
 1. Add content-drift checks to preflight: compare doc check descriptions against exported check names from code
 2. Extend path-integrity checks to cover code-map, glossary canonical-file paths, and convention claims
 3. Consider auto-generating audit docs from check code to prevent drift permanently
 4. Change Step 01 early-stop rule (`workflow/setup/01-system-overview.md` (search: `## State check`)) to require content-drift checks, not just structural audit pass
+5. **Block citations of gitignored paths from committed files** - add a preflight grep for `\.goat-flow/(scratchpad|tasks|logs/sessions|logs/quality|logs/critiques|logs/security|logs/uploads)/` inside `*.md` and `*.ts` files (excluding the gitignored trees themselves and the documented "where to write artifacts" instructions). The `instruction-file-skill-reference-pointer` audit check already understands which paths are gitignored; reuse that classification here.
+6. **Block competitor / third-party skill names in goat-flow-owned committed surfaces** - maintain a small denylist (`Valyu`, `MySQL skill`, `prime corpus`, `frontend-design skill`, `writing-skills`, plus any future external skill references discovered) and grep `*.md` / `*.ts` outside `node_modules`, `.claude/worktrees`, `.goat-flow/scratchpad`, `.goat-flow/tasks`, `.goat-flow/logs`. Generic patterns must be stated provider-neutrally (`<VENDOR>_API_KEY`, `a domain skill`, `a vendor-SDK skill`).
 
 ---
 
@@ -73,19 +91,20 @@ last_reviewed: 2026-05-03
 
 **Status:** active | **Created:** 2026-04-30 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** `bash scripts/bump-version.sh <version>` and `npm run check-versions` both pass, but helper scripts or integration fixtures can still create synthetic `.goat-flow/config.yaml` files with the previous release version.
+**Symptoms:** `bash scripts/bump-version.sh <version>` and `npm run check-versions` both pass, but helper scripts, integration fixtures, or secondary reference/playbook trees can still retain the previous release version.
 
-**Why it happens:** The bump script intentionally updates a curated list of release surfaces, and `check-versions.mjs` verifies skill/template/reference frontmatter. Synthetic project builders that embed a config file as an inline string are outside both surfaces unless they are manually grepped.
+**Why it happens:** The bump script intentionally updates a curated list of release surfaces, and `check-versions.mjs` verifies the version surfaces it knows about. Synthetic project builders that embed a config file as an inline string, or newly split reference directories that are not added to both the bump script and checker, stay outside both surfaces unless they are manually grepped.
 
-**Evidence:** During the v1.3.2 M07 release gate, `npm run check-versions` printed `All template and reference versions match 1.3.2`, but `rg -n "1\\.3\\.1" ... scripts/profile-dashboard-audit.mjs test` still found current-version strings in `scripts/profile-dashboard-audit.mjs` (search: `writeSyntheticProject`) and `test/integration/dashboard-server.test.ts` (search: `makeDashboardCacheProject`).
+**Evidence:** During the v1.3.2 M07 release gate, `npm run check-versions` printed `All template and reference versions match 1.3.2`, but `rg -n "1\\.3\\.1" ... scripts/profile-dashboard-audit.mjs test` still found current-version strings in `scripts/profile-dashboard-audit.mjs` (search: `writeSyntheticProject`) and `test/integration/dashboard-server.test.ts` (search: `makeDashboardCacheProject`). During the v1.6.1 bump on 2026-05-11, `bash scripts/bump-version.sh 1.6.1` and `npm run check-versions` passed while `rg -n 'goat-flow-reference-version: "1\\.6\\.0"' workflow/skills/playbooks .goat-flow/skill-playbooks` still found stale playbook frontmatter.
 
 **Structural anchors:**
 - `scripts/bump-version.sh` (search: `# ── Source files (version string replacement)`) lists the curated surfaces the bump workflow edits.
 - `scripts/check-versions.mjs` (search: `goat-flow-reference-version`) verifies skill and reference frontmatter, not arbitrary embedded config stubs.
+- `workflow/skills/playbooks/README.md` (search: `goat-flow-reference-version`) is a standalone playbook tree that must be included alongside `workflow/skills/reference/`.
 - `scripts/profile-dashboard-audit.mjs` (search: `writeSyntheticProject`) creates a synthetic `.goat-flow/config.yaml` for profiler runs.
 - `test/integration/dashboard-server.test.ts` (search: `makeDashboardCacheProject`) creates a dashboard-cache fixture project with an embedded config string.
 
-**Prevention:** After every release bump, run a targeted stale-version grep across scripts and tests, not just `npm run check-versions`: `rg -n "<old-version>" scripts test package.json package-lock.json .goat-flow/config.yaml workflow .agents .goat-flow/skill-reference`.
+**Prevention:** After every release bump, run a targeted stale-version grep across scripts, tests, packages, workflow templates, installed skill/reference/playbook mirrors, and config files, not just `npm run check-versions`: `rg -n "<old-version>" scripts test package.json package-lock.json .goat-flow/config.yaml workflow .agents .claude .github/skills .goat-flow/skill-reference .goat-flow/skill-playbooks`.
 
 ---
 

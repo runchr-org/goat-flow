@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.6.0"
+goat-flow-reference-version: "1.6.1"
 ---
 # Skill Preamble
 
@@ -66,7 +66,7 @@ The red-flags name what NOT to claim; this gate names HOW to substantiate a clai
 
 ### Rationalisations to reject (Excuse / Reality)
 
-If you catch yourself thinking the Excuse, run the proof or mark the claim `UNVERIFIED`. New rows require a verbatim source from this repo or the prime corpus.
+If you catch yourself thinking the Excuse, run the proof or mark the claim `UNVERIFIED`. New rows require a verbatim source committed to this repo (footgun, lesson, ADR, or skill).
 
 | Excuse | Reality |
 |---|---|

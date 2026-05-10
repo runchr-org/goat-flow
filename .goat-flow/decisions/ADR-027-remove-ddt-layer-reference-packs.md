@@ -1,6 +1,6 @@
 # ADR-027: Remove DDT layer reference packs
 
-**Status:** accepted
+**Status:** Accepted
 **Date:** 2026-05-02
 
 ## Context

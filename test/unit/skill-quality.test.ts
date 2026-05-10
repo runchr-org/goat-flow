@@ -1041,9 +1041,10 @@ describe("workflow-summary description detection (M10 §4)", () => {
   }
 
   it("flags a workflow-summary description as a yellow signal", () => {
-    // Sourced verbatim from prime corpus (writing-skills/SKILL.md, search:
-    // "Testing revealed that when a description summarizes"). The "between
-    // tasks" + "dispatches" pair is the canonical bad shape.
+    // The "between tasks" + "dispatches" pair is the canonical bad shape:
+    // a description that narrates workflow instead of stating triggering
+    // conditions. See `descriptionSummarizesWorkflow` in
+    // `src/cli/quality/skill-quality.ts` for the scorer rule.
     const result = evaluateContent(PROJECT_ROOT, {
       content: buildSkillMd(
         "Use when executing plans - dispatches subagent per task with code review between tasks",

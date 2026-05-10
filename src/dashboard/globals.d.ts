@@ -234,8 +234,11 @@ interface TerminalRefs {
   cleanup?: () => void;
   ageInterval?: ReturnType<typeof setInterval>;
   awaitingInputTimer?: ReturnType<typeof setTimeout>;
+  pasteSubmitTimer?: ReturnType<typeof setTimeout>;
   launchPrompt?: string;
-  launchPromptTimer?: ReturnType<typeof setTimeout>;
+  launchPromptFallbackTimer?: ReturnType<typeof setTimeout>;
+  launchPromptQuietTimer?: ReturnType<typeof setTimeout>;
+  launchPromptOutputSeen?: boolean;
 }
 
 /** Session metadata cached per project so the UI can reconnect after a switch. */

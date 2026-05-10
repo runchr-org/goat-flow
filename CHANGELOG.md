@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.6.1 - 2026-05-11
+
+Dashboard Skills cleanup and runner launch reliability fixes.
+
+- **Skills sidebar scope** - The dashboard Skills page now filters quality artifacts to real skills before rendering, removes shared references/playbooks from the sidebar and counts, resets stale selections when a filtered artifact disappears, and updates the view copy from generic artifacts to installed skills. (`src/dashboard/app.ts`, `src/dashboard/views/skills.html`, `test/unit/dashboard-skills.test.ts`)
+- **Runner prompt delivery** - Dashboard runner actions keep backend terminal creation promptless, then send from the browser-attached terminal when Claude Code reaches known readiness or when output has gone quiet. Missed readiness now uses a short after-output cap instead of waiting for the old 6s fallback, while no-output sessions keep the conservative fallback. Browser-side pasted prompts submit on Claude Code's pasted-text echo with a bounded fallback, preventing Skills `Assess in Runner` from stalling at `[Pasted text #N]`. (`src/dashboard/dashboard-terminal.ts`, `src/dashboard/globals.d.ts`, `test/unit/dashboard-terminal-launch.test.ts`, `.goat-flow/footguns/dashboard.md`)
+- **Regression coverage** - Added dashboard unit coverage for Skills-only artifact filtering, compact Claude composer readiness, output-quiet launch sends, the non-sliding after-output cap, and no-echo pasted prompt fallback. (`test/unit/dashboard-skills.test.ts`, `test/unit/dashboard-terminal-launch.test.ts`)
+
 ## v1.6.0 - 2026-05-10
 
 Skill authoring, quality assessment, and playbook/reference cleanup.

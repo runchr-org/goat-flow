@@ -6,8 +6,10 @@
 const TERMINAL_REFIT_RETRY_DELAY_MS = 50;
 const TERMINAL_REFIT_MAX_ATTEMPTS = 20;
 const TERMINAL_INITIAL_FIT_DELAYS_MS = [50, 200, 500] as const;
-const TERMINAL_LAUNCH_PROMPT_FALLBACK_DELAY_MS = 6000;
-const TERMINAL_PASTE_SUBMIT_DELAY_MS = 50;
+const TERMINAL_LAUNCH_PROMPT_NO_OUTPUT_FALLBACK_DELAY_MS = 6000;
+const TERMINAL_LAUNCH_PROMPT_AFTER_OUTPUT_FALLBACK_DELAY_MS = 2000;
+const TERMINAL_LAUNCH_PROMPT_QUIET_DELAY_MS = 500;
+const TERMINAL_PASTE_SUBMIT_DELAY_MS = 1000;
 const AWAITING_INPUT_VISIBLE_DELAY_MS = 1200;
 let xtermLoadPromise: Promise<void> | null = null;
 
@@ -189,8 +191,20 @@ function dashboardOutputLooksReadyForLaunchPrompt(text: string): boolean {
   const claudeReady =
     /\/remote-control is active\b/i.test(tail) &&
     /(^|\n)\s*❯\s*(?:\n|$)/u.test(tail);
+  const claudeComposerReady =
+    /\?[\s\S]{0,80}for[\s\S]{0,80}shortcuts\b/i.test(tail) &&
+    /\/effort\b/i.test(tail);
   const shellReady = /(^|\n)\s*(?:[$#]|>)\s*$/u.test(tail);
-  return claudeReady || shellReady;
+  return claudeReady || claudeComposerReady || shellReady;
+}
+
+/** Heuristic for Claude Code committing a long bracketed paste into the composer. */
+function dashboardOutputLooksCommittedPaste(text: string): boolean {
+  const plain = dashboardPlainTerminalText(text);
+  const compact = plain.replace(/\s+/g, "");
+  return (
+    /\[Pasted text #\d+/i.test(plain) || /pasteagaintoexpand/i.test(compact)
+  );
 }
 
 /** Decide whether a new output chunk should leave a session waiting. */
@@ -248,6 +262,50 @@ function dashboardScheduleAwaitingInputReveal(
       target.awaitingInput = true;
     });
   }, AWAITING_INPUT_VISIBLE_DELAY_MS);
+}
+
+/** Cancel a delayed submit for a bracketed paste. */
+function dashboardClearPasteSubmitTimer(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs?.pasteSubmitTimer) return;
+  clearTimeout(refs.pasteSubmitTimer);
+  refs.pasteSubmitTimer = undefined;
+}
+
+/** Submit the current terminal composer if the session is still attached. */
+function dashboardSendTerminalSubmit(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): boolean {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs?.ws || refs.ws.readyState !== WebSocket.OPEN) return false;
+  refs.ws.send(JSON.stringify({ type: "input", data: "\r" }));
+  return true;
+}
+
+/** Submit a bracketed paste once the runner has had time to commit it. */
+function dashboardSubmitPendingPaste(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): boolean {
+  dashboardClearPasteSubmitTimer(ctx, sessionId);
+  return dashboardSendTerminalSubmit(ctx, sessionId);
+}
+
+/** React to runner output while a bracketed paste submit is pending. */
+function dashboardHandlePasteSubmitOutput(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+  output: string,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs?.pasteSubmitTimer) return;
+  if (dashboardOutputLooksCommittedPaste(output)) {
+    dashboardSubmitPendingPaste(ctx, sessionId);
+  }
 }
 
 /** Build target context appended to launched preset prompts. */
@@ -313,14 +371,16 @@ function dashboardSendToTerminalSession(
   }
   const prepared = adapt ? ctx.adaptPrompt(text, target.runner) : text;
   // Bracketed paste prevents shells and REPLs from treating multi-line prompts as
-  // a stream of independent keystrokes. Submit on the next tick so Claude Code
-  // can first commit pasted content out of its `[Pasted text #N]` composer state.
+  // a stream of independent keystrokes. Claude Code commits long pastes
+  // asynchronously, so submit on its pasted-text echo or fall back after a short
+  // bounded delay for CLIs that do not echo that state.
   const pasteData = "\x1b[200~" + prepared + "\x1b[201~";
+  dashboardClearPasteSubmitTimer(ctx, sessionId);
   refs.ws.send(JSON.stringify({ type: "input", data: pasteData }));
-  setTimeout(() => {
+  refs.pasteSubmitTimer = setTimeout(() => {
     const currentRefs = ctx._terminalRefs[sessionId];
-    if (currentRefs?.ws?.readyState !== WebSocket.OPEN) return;
-    currentRefs.ws.send(JSON.stringify({ type: "input", data: "\r" }));
+    if (currentRefs) currentRefs.pasteSubmitTimer = undefined;
+    dashboardSendTerminalSubmit(ctx, sessionId);
   }, TERMINAL_PASTE_SUBMIT_DELAY_MS);
   dashboardClearAwaitingInputTimer(ctx, sessionId);
   target.lastInputTime = Date.now();
@@ -343,15 +403,26 @@ function dashboardSendToTerminal(
   return dashboardSendToTerminalSession(ctx, active.id, text, { adapt });
 }
 
-/** Cancel a pending dashboard launch prompt for one terminal session. */
-function dashboardClearLaunchPromptTimer(
+/** Cancel the absolute fallback for one pending dashboard launch prompt. */
+function dashboardClearLaunchPromptFallbackTimer(
   ctx: DashboardTerminalContext,
   sessionId: string,
 ): void {
   const refs = ctx._terminalRefs[sessionId];
-  if (!refs?.launchPromptTimer) return;
-  clearTimeout(refs.launchPromptTimer);
-  refs.launchPromptTimer = undefined;
+  if (!refs?.launchPromptFallbackTimer) return;
+  clearTimeout(refs.launchPromptFallbackTimer);
+  refs.launchPromptFallbackTimer = undefined;
+}
+
+/** Cancel quiet-window delivery for one pending dashboard launch prompt. */
+function dashboardClearLaunchPromptQuietTimer(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs?.launchPromptQuietTimer) return;
+  clearTimeout(refs.launchPromptQuietTimer);
+  refs.launchPromptQuietTimer = undefined;
 }
 
 /** Clear any pending dashboard launch prompt state for one terminal session. */
@@ -361,8 +432,10 @@ function dashboardClearLaunchPrompt(
 ): void {
   const refs = ctx._terminalRefs[sessionId];
   if (!refs) return;
-  dashboardClearLaunchPromptTimer(ctx, sessionId);
+  dashboardClearLaunchPromptFallbackTimer(ctx, sessionId);
+  dashboardClearLaunchPromptQuietTimer(ctx, sessionId);
   refs.launchPrompt = undefined;
+  refs.launchPromptOutputSeen = false;
 }
 
 /** Send a pending dashboard launch prompt once the terminal is ready. */
@@ -387,10 +460,81 @@ function dashboardMaybeSendLaunchPrompt(
     return false;
   }
   refs.launchPrompt = undefined;
-  dashboardClearLaunchPromptTimer(ctx, sessionId);
+  dashboardClearLaunchPromptFallbackTimer(ctx, sessionId);
+  dashboardClearLaunchPromptQuietTimer(ctx, sessionId);
+  refs.launchPromptOutputSeen = false;
   return dashboardSendToTerminalSession(ctx, sessionId, prompt, {
     adapt: false,
   });
+}
+
+/** Arm the conservative fallback used only if the runner produces no output. */
+function dashboardArmLaunchPromptNoOutputFallback(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (
+    !refs?.launchPrompt ||
+    refs.launchPromptOutputSeen === true ||
+    refs.launchPromptFallbackTimer ||
+    !refs.ws ||
+    refs.ws.readyState !== WebSocket.OPEN
+  ) {
+    return;
+  }
+  refs.launchPromptFallbackTimer = setTimeout(() => {
+    const currentRefs = ctx._terminalRefs[sessionId];
+    if (currentRefs) currentRefs.launchPromptFallbackTimer = undefined;
+    dashboardMaybeSendLaunchPrompt(ctx, sessionId, { force: true });
+  }, TERMINAL_LAUNCH_PROMPT_NO_OUTPUT_FALLBACK_DELAY_MS);
+}
+
+/** Arm a short cap once runner output proves the PTY stream is live. */
+function dashboardArmLaunchPromptAfterOutputFallback(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs?.launchPrompt || refs.launchPromptFallbackTimer) return;
+  refs.launchPromptFallbackTimer = setTimeout(() => {
+    const currentRefs = ctx._terminalRefs[sessionId];
+    if (currentRefs) currentRefs.launchPromptFallbackTimer = undefined;
+    dashboardMaybeSendLaunchPrompt(ctx, sessionId, { force: true });
+  }, TERMINAL_LAUNCH_PROMPT_AFTER_OUTPUT_FALLBACK_DELAY_MS);
+}
+
+/** Schedule prompt delivery after runner output has settled. */
+function dashboardScheduleLaunchPromptQuietSend(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs?.launchPrompt || !refs.ws || refs.ws.readyState !== WebSocket.OPEN)
+    return;
+  dashboardClearLaunchPromptQuietTimer(ctx, sessionId);
+  refs.launchPromptQuietTimer = setTimeout(() => {
+    const currentRefs = ctx._terminalRefs[sessionId];
+    if (currentRefs) currentRefs.launchPromptQuietTimer = undefined;
+    dashboardMaybeSendLaunchPrompt(ctx, sessionId, { force: true });
+  }, TERMINAL_LAUNCH_PROMPT_QUIET_DELAY_MS);
+}
+
+/** React to a new output chunk while a dashboard launch prompt is pending. */
+function dashboardHandleLaunchPromptOutput(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs?.launchPrompt) return;
+  const firstOutput = refs.launchPromptOutputSeen !== true;
+  refs.launchPromptOutputSeen = true;
+  if (dashboardMaybeSendLaunchPrompt(ctx, sessionId)) return;
+  if (firstOutput) {
+    dashboardClearLaunchPromptFallbackTimer(ctx, sessionId);
+    dashboardArmLaunchPromptAfterOutputFallback(ctx, sessionId);
+  }
+  dashboardScheduleLaunchPromptQuietSend(ctx, sessionId);
 }
 
 /** Send a dashboard launch prompt after the browser terminal is attached. */
@@ -403,12 +547,9 @@ function dashboardScheduleLaunchPrompt(
   dashboardClearLaunchPrompt(ctx, sessionId);
   const refs = ctx._terminalRefs[sessionId] ?? {};
   refs.launchPrompt = prompt;
-  refs.launchPromptTimer = setTimeout(() => {
-    const currentRefs = ctx._terminalRefs[sessionId];
-    if (currentRefs) currentRefs.launchPromptTimer = undefined;
-    dashboardMaybeSendLaunchPrompt(ctx, sessionId, { force: true });
-  }, TERMINAL_LAUNCH_PROMPT_FALLBACK_DELAY_MS);
+  refs.launchPromptOutputSeen = false;
   ctx._terminalRefs[sessionId] = refs;
+  dashboardArmLaunchPromptNoOutputFallback(ctx, sessionId);
   dashboardMaybeSendLaunchPrompt(ctx, sessionId);
 }
 
@@ -1019,6 +1160,7 @@ function dashboardConnectTerminal(
       target.connected = true;
     });
     setTimeout(doFit, TERMINAL_REFIT_RETRY_DELAY_MS);
+    dashboardArmLaunchPromptNoOutputFallback(ctx, sessionId);
     dashboardMaybeSendLaunchPrompt(ctx, sessionId);
     if (ageInterval) clearInterval(ageInterval);
     ageInterval = setInterval(() => {
@@ -1080,7 +1222,9 @@ function dashboardConnectTerminal(
         dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
           target.outputTail = tail;
         });
-        dashboardMaybeSendLaunchPrompt(ctx, sessionId);
+        dashboardHandlePasteSubmitOutput(ctx, sessionId, msg.data);
+        if (refs?.launchPrompt)
+          dashboardHandleLaunchPromptOutput(ctx, sessionId);
         if (awaitingInput) {
           if (
             reactive?.awaitingInput === true ||
@@ -1102,6 +1246,7 @@ function dashboardConnectTerminal(
         term.write(msg.data);
       } else if (type === "exit") {
         dashboardClearAwaitingInputTimer(ctx, sessionId);
+        dashboardClearPasteSubmitTimer(ctx, sessionId);
         dashboardClearLaunchPrompt(ctx, sessionId);
         dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
           target.ended = true;
@@ -1121,6 +1266,7 @@ function dashboardConnectTerminal(
         term.write(`\r\n\x1b[31m${msg.message}\x1b[0m\r\n`);
       } else if (type === "shutdown") {
         dashboardClearAwaitingInputTimer(ctx, sessionId);
+        dashboardClearPasteSubmitTimer(ctx, sessionId);
         dashboardClearLaunchPrompt(ctx, sessionId);
         dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
           target.ended = true;
@@ -1188,6 +1334,7 @@ function dashboardConnectTerminal(
     window.removeEventListener("resize", resizeHandler);
     if (ageInterval) clearInterval(ageInterval);
     dashboardClearAwaitingInputTimer(ctx, sessionId);
+    dashboardClearPasteSubmitTimer(ctx, sessionId);
     dashboardClearLaunchPrompt(ctx, sessionId);
     try {
       ws.close();

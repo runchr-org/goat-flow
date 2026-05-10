@@ -1,6 +1,6 @@
 ---
 category: dashboard
-last_reviewed: 2026-05-10
+last_reviewed: 2026-05-11
 ---
 
 ## Footgun: Project-browser modal is reachable only via header-span click, not from the add-project flow
@@ -102,13 +102,15 @@ last_reviewed: 2026-05-10
 - User-observed Skills page session on 2026-05-10: "Assess in Runner" opened Claude Code v2.1.138 and showed `[Pasted text #1 +110 lines]` instead of running the skill quality prompt.
 - `src/dashboard/dashboard-terminal.ts` (search: `TERMINAL_PASTE_SUBMIT_DELAY_MS`) submits dashboard-launched pasted prompts as a second PTY input after the bracketed paste, so Claude Code can commit the pasted-text block before Enter is sent.
 - `test/unit/dashboard-terminal-launch.test.ts` (search: `data: "\r"`) pins the split paste-then-submit browser wire contract.
+- Built-dashboard browser verification on 2026-05-11: clicking Skills -> Assess in Runner sent the prompt when Claude Code reached its footer, detected the `[Pasted text #1 +108 lines]` echo, sent Enter 112 ms after paste, and the terminal proceeded to read `.goat-flow/skill-reference/skill-preamble.md` instead of remaining at the pasted-text composer.
+- `src/dashboard/dashboard-terminal.ts` (search: `dashboardHandlePasteSubmitOutput`) submits browser-side pasted prompts on Claude Code's pasted-text echo, with `TERMINAL_PASTE_SUBMIT_DELAY_MS` as the fallback for runners that do not echo that state.
 
-**Why it happens:** Agent CLIs render startup screens in multiple PTY chunks, and Claude Code's remote-control startup can ignore a server-side initial PTY paste even after a simple delay. The PTY write succeeds from goat-flow's perspective, but the runner can drop or ignore the prompt before the browser-attached terminal path is ready. For browser-side Claude Code sends, sending bracketed paste markers, prompt text, and Enter in one PTY write can also leave Claude in its pasted-text composer state without submitting.
+**Why it happens:** Agent CLIs render startup screens in multiple PTY chunks, and Claude Code's remote-control startup can ignore a server-side initial PTY paste even after a simple delay. The PTY write succeeds from goat-flow's perspective, but the runner can drop or ignore the prompt before the browser-attached terminal path is ready. For browser-side Claude Code sends, sending bracketed paste markers, prompt text, and Enter in one PTY write, or sending Enter before Claude has committed the pasted-text block, can also leave Claude in its pasted-text composer state without submitting.
 
 **Prevention:**
-1. For dashboard launch buttons, send the prompt after the browser terminal is attached and runner output looks ready, not as the terminal-create `prompt` payload.
+1. For dashboard launch buttons, create promptless backend terminal sessions and send the prompt after the browser terminal is attached and runner output looks ready or has gone quiet.
 2. When changing `scheduleInitialInput`, test at least two output chunks with a delay between them and assert no prompt write before the final quiet window.
-3. For browser-side sends, keep bracketed paste and Enter as separate ordered WebSocket inputs; do not collapse them back into one `paste + "\r"` payload.
+3. For browser-side sends, keep bracketed paste and Enter as separate ordered WebSocket inputs; submit on Claude Code's pasted-text echo or a bounded fallback, and do not collapse them back into one `paste + "\r"` payload.
 4. Verify built-dashboard behavior after restarting the dashboard process; a running `dist/cli/cli.js dashboard` server keeps old terminal code in memory until restart.
 
 ---

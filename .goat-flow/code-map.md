@@ -149,6 +149,8 @@ audit-checks.md            # Deterministic audit check inventory and scope break
 cli.md                     # CLI command reference, flags, and examples
 dashboard.md               # Dashboard views, terminal behavior, and HTTP API reference
 deny-dangerous.md          # Deny hook behavior, installation notes, and troubleshooting
+skill-authoring.md         # `goat-flow skill new` / `quality candidacy` / dashboard Evaluate workflow
+skill-quality-config.md    # Project overrides for the skill-quality rubric in `.goat-flow/config.yaml`
 skills.md                  # User-facing goat-* skill overview and routing guide
 
 harness-audit.md           # AI harness audit command/reference material
@@ -162,6 +164,7 @@ coding-standards/          # Project coding conventions used as reference materi
   git-commit.md            # Commit message conventions
 
 assets/                    # Documentation images such as dashboard-preview.png
+site/                      # Standalone landing pages and OG images deployed by `scripts/deploy-landing.sh`
 ```
 
 ## .goat-flow/ -- Framework state (mostly gitignored)
@@ -196,6 +199,9 @@ tasks/                     # Milestone files (gitignored, local working state)
   <version>/Mxx-*.md       # Milestones live in versioned local plan dirs; skills ask when .active is absent/stale
   _archived/               # Prior plans + research; not scanned by skills
 logs/sessions/             # Session logs (gitignored)
-logs/quality/             # Saved quality reports + prose companions (gitignored; README committed)
+logs/quality/              # Saved quality reports + prose companions (gitignored; README committed)
+logs/critiques/            # `/goat-critique` run snapshots (gitignored; README committed)
+logs/security/             # `/goat-security` assessment history (gitignored; README committed)
+logs/uploads/              # Per-session terminal upload-image staging (gitignored; runtime-only)
 scratchpad/                # Ephemeral working notes (gitignored)
 ```

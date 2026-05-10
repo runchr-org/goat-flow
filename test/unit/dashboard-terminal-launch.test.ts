@@ -51,8 +51,11 @@ type LaunchContext = {
       ws?: { readyState: number; send(payload: string): void };
       xterm?: { focus(): void };
       awaitingInputTimer?: ReturnType<typeof setTimeout>;
+      pasteSubmitTimer?: ReturnType<typeof setTimeout>;
       launchPrompt?: string;
-      launchPromptTimer?: ReturnType<typeof setTimeout>;
+      launchPromptFallbackTimer?: ReturnType<typeof setTimeout>;
+      launchPromptQuietTimer?: ReturnType<typeof setTimeout>;
+      launchPromptOutputSeen?: boolean;
     }
   >;
   showMaxSessionsModal: boolean;
@@ -92,6 +95,20 @@ type HelperContext = {
     previousTail: string,
     outputChunk: string,
   ): boolean;
+  dashboardScheduleLaunchPrompt(
+    ctx: LaunchContext,
+    sessionId: string,
+    prompt: string,
+  ): void;
+  dashboardHandleLaunchPromptOutput(
+    ctx: LaunchContext,
+    sessionId: string,
+  ): void;
+  dashboardHandlePasteSubmitOutput(
+    ctx: LaunchContext,
+    sessionId: string,
+    output: string,
+  ): void;
 };
 
 function loadHelpers(fetchImpl: typeof fetch): HelperContext {
@@ -127,6 +144,9 @@ globalThis.__helpers = {
   dashboardOutputLooksAwaitingInput,
   dashboardOutputLooksReadyForLaunchPrompt,
   dashboardNextAwaitingInputState,
+  dashboardScheduleLaunchPrompt,
+  dashboardHandleLaunchPromptOutput,
+  dashboardHandlePasteSubmitOutput,
 };`,
     context,
   );
@@ -194,6 +214,48 @@ function makeContext(
     toasts,
   };
   return ctx;
+}
+
+function makeLaunchPromptContext(): ReturnType<typeof makeContext> & {
+  sent: string[];
+} {
+  const sent: string[] = [];
+  const ctx = makeContext({
+    activeSessionId: "launch-session",
+    sessions: [
+      {
+        id: "launch-session",
+        runner: "claude",
+        promptLabel: "Launch prompt",
+        projectPath: "/tmp/example",
+        cwd: "/tmp/example",
+        targetPath: "/tmp/example",
+        startTime: Date.now(),
+        lastInputTime: 0,
+        connected: true,
+        ended: false,
+        awaitingInput: false,
+        outputTail: "",
+        age: "0s",
+        presetId: null,
+      },
+    ],
+    _terminalRefs: {
+      "launch-session": {
+        ws: {
+          readyState: 1,
+          send(payload: string): void {
+            sent.push(payload);
+          },
+        },
+      },
+    },
+  });
+  return Object.assign(ctx, { sent });
+}
+
+async function delay(ms: number): Promise<void> {
+  await new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
 }
 
 describe("dashboard terminal launch flow", () => {
@@ -274,13 +336,71 @@ describe("dashboard terminal launch flow", () => {
       type: "input",
       data: "\x1b[200~Attached files\x1b[201~",
     });
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 60));
+    helpers.dashboardHandlePasteSubmitOutput(
+      ctx,
+      "session-upload",
+      "[Pasted text #1 +1 lines]",
+    );
     assert.deepStrictEqual(JSON.parse(sent.upload[1] ?? "{}"), {
       type: "input",
       data: "\r",
     });
     assert.equal(sent.active.length, 0);
     assert.equal(ctx.sessions[0]?.awaitingInput, false);
+  });
+
+  it("falls back to submitting pasted terminal text when no paste echo arrives", async () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const sent: string[] = [];
+    const ctx = makeContext({
+      activeSessionId: "session-upload",
+      sessions: [
+        {
+          id: "session-upload",
+          runner: "claude",
+          promptLabel: "Upload target",
+          projectPath: "/tmp/example",
+          cwd: "/tmp/example",
+          targetPath: "/tmp/example",
+          startTime: Date.now(),
+          lastInputTime: 0,
+          connected: true,
+          ended: false,
+          awaitingInput: false,
+          age: "0s",
+          presetId: null,
+        },
+      ],
+      _terminalRefs: {
+        "session-upload": {
+          ws: {
+            readyState: 1,
+            send(payload: string): void {
+              sent.push(payload);
+            },
+          },
+        },
+      },
+    });
+
+    assert.equal(
+      helpers.dashboardSendToTerminalSession(
+        ctx,
+        "session-upload",
+        "Attached files",
+        { adapt: false },
+      ),
+      true,
+    );
+
+    assert.equal(sent.length, 1);
+    await delay(1050);
+    assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
   });
 
   it("creates the backend session before waiting on xterm assets", async () => {
@@ -506,10 +626,150 @@ describe("dashboard terminal launch flow", () => {
     );
     assert.equal(
       helpers.dashboardOutputLooksReadyForLaunchPrompt(
+        [
+          "Claude Code v2.1.138",
+          "/remote-control is active · Code in CLI",
+          "────────────────────────────────",
+          "? for shortcuts     ● high · /effort",
+        ].join("\n"),
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksReadyForLaunchPrompt(
         "/remote-control is active · Code in CLI\nloading project...",
       ),
       false,
     );
+  });
+
+  it("sends launch prompts immediately when runner readiness is already visible", async () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const ctx = makeLaunchPromptContext();
+    const session = ctx.sessions[0] as Record<string, unknown>;
+    session.outputTail = [
+      "Claude Code v2.1.138",
+      "/remote-control is active · Code in CLI",
+      "────────────────────────────────",
+      "? for shortcuts     ● high · /effort",
+    ].join("\n");
+
+    helpers.dashboardScheduleLaunchPrompt(ctx, "launch-session", "run prompt");
+
+    assert.deepStrictEqual(JSON.parse(ctx.sent[0] ?? "{}"), {
+      type: "input",
+      data: "\x1b[200~run prompt\x1b[201~",
+    });
+    helpers.dashboardHandlePasteSubmitOutput(
+      ctx,
+      "launch-session",
+      "[Pasted text #1 +1 lines]",
+    );
+    assert.deepStrictEqual(JSON.parse(ctx.sent[1] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
+    assert.equal(ctx._terminalRefs["launch-session"]?.launchPrompt, undefined);
+    assert.equal(
+      ctx._terminalRefs["launch-session"]?.launchPromptFallbackTimer,
+      undefined,
+    );
+  });
+
+  it("detects the compact Claude composer footer as runner readiness", () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+
+    assert.equal(
+      helpers.dashboardOutputLooksReadyForLaunchPrompt(
+        "Claude Code v2.1.138\n/remote-control is active\n?forshortcuts●high·/effort",
+      ),
+      true,
+    );
+  });
+
+  it("sends launch prompts after output stays quiet and resets quiet timing per chunk", async () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const ctx = makeLaunchPromptContext();
+    const session = ctx.sessions[0] as Record<string, unknown>;
+
+    helpers.dashboardScheduleLaunchPrompt(ctx, "launch-session", "run prompt");
+    await delay(120);
+
+    assert.deepStrictEqual(ctx.sent, []);
+
+    session.outputTail = "runner banner\n";
+    helpers.dashboardHandleLaunchPromptOutput(ctx, "launch-session");
+    await delay(300);
+    session.outputTail = String(session.outputTail) + "still loading\n";
+    helpers.dashboardHandleLaunchPromptOutput(ctx, "launch-session");
+    await delay(300);
+
+    assert.deepStrictEqual(ctx.sent, []);
+
+    await delay(260);
+    assert.deepStrictEqual(JSON.parse(ctx.sent[0] ?? "{}"), {
+      type: "input",
+      data: "\x1b[200~run prompt\x1b[201~",
+    });
+    helpers.dashboardHandlePasteSubmitOutput(
+      ctx,
+      "launch-session",
+      "[Pasted text #1 +1 lines]",
+    );
+    assert.deepStrictEqual(JSON.parse(ctx.sent[1] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
+    assert.equal(ctx.sent.length, 2);
+    assert.equal(ctx._terminalRefs["launch-session"]?.launchPrompt, undefined);
+    assert.equal(
+      ctx._terminalRefs["launch-session"]?.launchPromptQuietTimer,
+      undefined,
+    );
+    assert.equal(
+      ctx._terminalRefs["launch-session"]?.launchPromptFallbackTimer,
+      undefined,
+    );
+  });
+
+  it("keeps the after-output fallback capped from the first output chunk", async () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const ctx = makeLaunchPromptContext();
+    const session = ctx.sessions[0] as Record<string, unknown>;
+
+    helpers.dashboardScheduleLaunchPrompt(ctx, "launch-session", "run prompt");
+    await delay(120);
+
+    for (let index = 0; index < 6; index += 1) {
+      session.outputTail = `${String(session.outputTail)}loading ${index}\n`;
+      helpers.dashboardHandleLaunchPromptOutput(ctx, "launch-session");
+      await delay(320);
+    }
+    await delay(220);
+
+    assert.deepStrictEqual(JSON.parse(ctx.sent[0] ?? "{}"), {
+      type: "input",
+      data: "\x1b[200~run prompt\x1b[201~",
+    });
+    helpers.dashboardHandlePasteSubmitOutput(
+      ctx,
+      "launch-session",
+      "paste again to expand",
+    );
+    assert.deepStrictEqual(JSON.parse(ctx.sent[1] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
+    assert.equal(ctx.sent.length, 2);
+    assert.equal(ctx._terminalRefs["launch-session"]?.launchPrompt, undefined);
   });
 
   it("debounces the visible awaiting-input badge", () => {
@@ -583,17 +843,19 @@ describe("dashboard terminal launch flow", () => {
     const source = readFileSync(DASHBOARD_TERMINAL_PATH, "utf-8");
     assert.match(
       source,
-      /const TERMINAL_LAUNCH_PROMPT_FALLBACK_DELAY_MS = 6000/,
+      /const TERMINAL_LAUNCH_PROMPT_NO_OUTPUT_FALLBACK_DELAY_MS = 6000/,
     );
+    assert.match(
+      source,
+      /const TERMINAL_LAUNCH_PROMPT_AFTER_OUTPUT_FALLBACK_DELAY_MS = 2000/,
+    );
+    assert.match(source, /const TERMINAL_LAUNCH_PROMPT_QUIET_DELAY_MS = 500/);
     assert.match(source, /body: JSON\.stringify\(\{\s+prompt: ""/);
     assert.match(
       source,
       /ctx\.connectTerminal\(session\.id, wsUrl\);\s+dashboardScheduleLaunchPrompt\(ctx, session\.id, prompt\)/,
     );
-    assert.match(
-      source,
-      /dashboardOutputLooksReadyForLaunchPrompt\(target\.outputTail \?\? ""\)/,
-    );
+    assert.match(source, /dashboardHandleLaunchPromptOutput\(ctx, sessionId\)/);
   });
 
   it("only treats image file drag items as terminal upload candidates", () => {
