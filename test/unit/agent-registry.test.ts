@@ -58,12 +58,12 @@ describe("agent registry", () => {
     );
   });
 
-  it("keeps Codex hook config separate from post-turn event wiring", () => {
+  it("keeps Codex hook config separate from settings and maps Stop for post-turn hooks", () => {
     const codex = getAgentProfile("codex");
     assert.equal(codex.settingsFile, ".codex/config.toml");
     assert.equal(codex.hookConfigFile, ".codex/hooks.json");
     assert.equal(codex.denyHookFile, ".codex/hooks/deny-dangerous.sh");
-    assert.equal(codex.hookEvents.postTurn, null);
+    assert.equal(codex.hookEvents.postTurn, "Stop");
   });
 
   it("returns configured-agent subsets from config.yaml state", () => {
@@ -95,8 +95,9 @@ describe("agent registry", () => {
 
     const codex = getAgentProfile("codex");
     assert.deepEqual(codex.denyMechanism, {
-      type: "deny-script",
-      path: ".codex/hooks/deny-dangerous.sh",
+      type: "both",
+      settingsPath: ".codex/config.toml",
+      scriptPath: ".codex/hooks/deny-dangerous.sh",
     });
   });
 

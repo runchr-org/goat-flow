@@ -32,24 +32,41 @@ const MAX_BODY_BYTES = 64 * 1024; // 64 KB
 const PACKAGE_VERSION = getPackageVersion();
 const DASHBOARD_TOKEN_HEADER = "x-goat-flow-dashboard-token";
 
-/** Read the request body as a string, capped at MAX_BODY_BYTES. */
-function readBody(req: IncomingMessage): Promise<string> {
+interface ReadBodyOptions {
+  maxBytes?: number;
+  tooLargeMessage?: string;
+}
+
+/** Read the request body as a string, capped at the configured byte limit. */
+function readBody(
+  req: IncomingMessage,
+  options: ReadBodyOptions = {},
+): Promise<string> {
   return new Promise((resolve, reject) => {
+    const maxBytes = options.maxBytes ?? MAX_BODY_BYTES;
+    const tooLargeMessage = options.tooLargeMessage ?? "Request body too large";
     const chunks: Buffer[] = [];
     let size = 0;
+    let rejected = false;
     req.on("data", (chunk: Buffer) => {
+      if (rejected) return;
       size += chunk.length;
-      if (size > MAX_BODY_BYTES) {
-        req.destroy();
-        reject(new Error("Request body too large"));
+      if (size > maxBytes) {
+        rejected = true;
+        chunks.length = 0;
+        req.resume();
+        reject(new Error(tooLargeMessage));
         return;
       }
       chunks.push(chunk);
     });
     req.on("end", () => {
+      if (rejected) return;
       resolve(Buffer.concat(chunks).toString("utf-8"));
     });
-    req.on("error", reject);
+    req.on("error", (err) => {
+      if (!rejected) reject(err);
+    });
   });
 }
 
@@ -91,14 +108,33 @@ const DASHBOARD_ROUTE_INVENTORY = [
   { method: "GET", path: "/api/projects/list", class: "privileged-read" },
   { method: "POST", path: "/api/projects/list", class: "side-effectful" },
   { method: "GET", path: "/api/projects/status", class: "privileged-read" },
+  { method: "POST", path: "/api/quality/evaluate", class: "side-effectful" },
+  // Deprecated alias for /api/quality/evaluate. Same handler, response carries
+  // Deprecation + Link headers. Slated for removal one release after the
+  // dashboard-side migration completes.
+  { method: "POST", path: "/api/quality/analyse", class: "side-effectful" },
   { method: "POST", path: "/api/terminal/create", class: "side-effectful" },
   { method: "GET", path: "/api/terminal/list", class: "privileged-read" },
   { method: "GET", path: "/api/terminal/sessions", class: "privileged-read" },
   { method: "DELETE", path: "/api/terminal/:id", class: "side-effectful" },
+  {
+    method: "POST",
+    path: "/api/terminal/:id/upload-image",
+    class: "side-effectful",
+  },
   { method: "GET", path: "/ws/terminal/:id", class: "privileged-websocket" },
 ] as const;
 
 void DASHBOARD_ROUTE_INVENTORY;
+
+const SIDE_EFFECTFUL_EXACT_API_ROUTES = new Set([
+  "POST /api/projects/list",
+  "POST /api/quality/evaluate",
+  "POST /api/quality/analyse",
+  "POST /api/terminal/create",
+]);
+const TERMINAL_UPLOAD_IMAGE_API_ROUTE =
+  /^\/api\/terminal\/[^/]+\/upload-image$/u;
 
 /** Read the dashboard authorization token supplied by a browser/API client. */
 function readDashboardToken(req: IncomingMessage, url: URL): string | null {
@@ -147,6 +183,9 @@ export function serveDashboard(
       handleSetupRequest,
       handleQualityRequest,
       handleQualityHistoryRequest,
+      handleSkillQualityRequest,
+      handleSkillQualityInventoryRequest,
+      handleQualityEvaluateRequest,
       handleBrowseRequest,
       handleAgentDetectRequest,
       handleProjectsListRequest,
@@ -165,6 +204,7 @@ export function serveDashboard(
       handleTerminalCreateRequest,
       handleTerminalListRequest,
       handleTerminalDeleteRequest,
+      handleTerminalUploadRequest,
       handleHealthRequest,
       handleTerminalSessionsRequest,
       handleTerminalUpgrade,
@@ -219,9 +259,12 @@ export function serveDashboard(
     /** Return whether a request targets a route that can mutate local state. */
     function isSideEffectfulApiRoute(req: IncomingMessage, url: URL): boolean {
       const method = req.method ?? "GET";
-      if (method === "POST" && url.pathname === "/api/projects/list")
-        return true;
-      if (method === "POST" && url.pathname === "/api/terminal/create")
+      const routeKey = `${method} ${url.pathname}`;
+      if (SIDE_EFFECTFUL_EXACT_API_ROUTES.has(routeKey)) return true;
+      if (
+        method === "POST" &&
+        TERMINAL_UPLOAD_IMAGE_API_ROUTE.test(url.pathname)
+      )
         return true;
       return method === "DELETE" && url.pathname.startsWith("/api/terminal/");
     }
@@ -300,6 +343,9 @@ export function serveDashboard(
         () => handleSetupRequest(url, res),
         () => Promise.resolve(handleQualityRequest(url, res)),
         () => handleQualityHistoryRequest(url, res),
+        () => Promise.resolve(handleSkillQualityRequest(url, res)),
+        () => Promise.resolve(handleSkillQualityInventoryRequest(url, res)),
+        () => handleQualityEvaluateRequest(req, url, res),
 
         () => Promise.resolve(handleBrowseRequest(url, res)),
         () => Promise.resolve(handleAgentDetectRequest(url, res)),
@@ -308,6 +354,7 @@ export function serveDashboard(
         () => handleTerminalCreateRequest(req, url, res),
         () => handleTerminalListRequest(req, url, res),
         () => handleTerminalSessionsRequest(req, url, res),
+        () => handleTerminalUploadRequest(req, url, res),
         () => handleTerminalDeleteRequest(req, url, res),
         () => handleHealthRequest(req, url, res),
       ];

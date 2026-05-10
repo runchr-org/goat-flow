@@ -8,6 +8,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import {
   buildTerminalSpawnSpec,
   pickWindowsRunnerPath,
@@ -17,6 +18,7 @@ import {
 } from "../../src/cli/server/terminal.js";
 import type { ServerMessage } from "../../src/cli/server/types.js";
 
+const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const require = createRequire(import.meta.url);
 const childProcess =
   require("node:child_process") as typeof import("node:child_process");
@@ -135,6 +137,41 @@ function makeSession(overrides: Partial<TestTerminalSession> = {}): {
   return { session, writes, resizes };
 }
 
+function makeSpawnedPty(): {
+  pty: TestPty & {
+    onData(handler: (data: string) => void): void;
+    onExit(
+      handler: (event: { exitCode: number; signal?: number | string }) => void,
+    ): void;
+  };
+  writes: string[];
+  emitData(data: string): void;
+} {
+  const writes: string[] = [];
+  let dataHandler: (data: string) => void = () => undefined;
+  let exitHandler: (event: {
+    exitCode: number;
+    signal?: number | string;
+  }) => void = () => undefined;
+  return {
+    writes,
+    pty: {
+      write: (data) => writes.push(data),
+      resize: () => undefined,
+      kill: () => exitHandler({ exitCode: 0 }),
+      onData: (handler) => {
+        dataHandler = handler;
+      },
+      onExit: (handler) => {
+        exitHandler = handler;
+      },
+    },
+    emitData(data: string): void {
+      dataHandler(data);
+    },
+  };
+}
+
 describe("dashboard server exports", () => {
   it("serveDashboard is exported as a function", async () => {
     const mod = await import("../../src/cli/server/dashboard.js");
@@ -209,10 +246,14 @@ describe("terminal exports", () => {
       "-Command",
     ]);
     assert.match(spec.args[3] ?? "", /GOAT_RUNNER/);
-    assert.match(spec.args[3] ?? "", /Remove-Item Env:GOAT_PROMPT/);
-    assert.equal(spec.env.GOAT_PROMPT, "review this");
-    assert.equal(spec.env.GOAT_PROMPT_FLAG, "-i");
-    assert.equal(spec.env.GOAT_PROMPT_PRESENT, "1");
+    assert.match(spec.args[3] ?? "", /Remove-Item Env:GOAT_RUNNER/);
+    assert.doesNotMatch(spec.args[3] ?? "", /review this/);
+    assert.equal(spec.env.GOAT_PROMPT, undefined);
+    assert.equal(
+      spec.env.GOAT_RUNNER,
+      "C:\\Users\\thatm\\AppData\\Roaming\\npm\\copilot.cmd",
+    );
+    assert.equal(spec.initialInput, "\x1b[200~review this\x1b[201~\r");
   });
 
   it("builds a POSIX PTY launch that returns to the interactive shell", () => {
@@ -227,13 +268,14 @@ describe("terminal exports", () => {
     assert.equal(spec.shell, "/bin/zsh");
     assert.deepStrictEqual(spec.args, [
       "-c",
-      '"$GOAT_RUNNER"; unset GOAT_PROMPT GOAT_PROMPT_FLAG GOAT_PROMPT_PRESENT; exec "$SHELL" -i',
+      '"$GOAT_RUNNER"; unset GOAT_RUNNER; exec "$SHELL" -i',
     ]);
-    assert.equal(spec.env.GOAT_PROMPT_PRESENT, "0");
+    assert.equal(spec.env.GOAT_PROMPT, undefined);
+    assert.equal(spec.initialInput, null);
     assert.equal(spec.env.SHELL, "/bin/zsh");
   });
 
-  it("preserves prompt flags for POSIX runners that require them", () => {
+  it("injects POSIX launch prompts through PTY input instead of runner flags", () => {
     const spec = buildTerminalSpawnSpec(
       "gemini",
       "/usr/local/bin/gemini",
@@ -245,10 +287,54 @@ describe("terminal exports", () => {
     assert.equal(spec.shell, "/bin/bash");
     assert.deepStrictEqual(spec.args, [
       "-c",
-      '"$GOAT_RUNNER" -i "$GOAT_PROMPT"; unset GOAT_PROMPT GOAT_PROMPT_FLAG GOAT_PROMPT_PRESENT; exec "$SHELL" -i',
+      '"$GOAT_RUNNER"; unset GOAT_RUNNER; exec "$SHELL" -i',
     ]);
-    assert.equal(spec.env.GOAT_PROMPT_FLAG, "-i");
-    assert.equal(spec.env.GOAT_PROMPT_PRESENT, "1");
+    assert.equal(spec.env.GOAT_PROMPT, undefined);
+    assert.equal(spec.initialInput, "\x1b[200~audit target\x1b[201~\r");
+  });
+
+  it("waits for runner output to settle before initial prompt delivery", async () => {
+    const manager = makeManager();
+    const internals = managerInternals(manager);
+    const spawned = makeSpawnedPty();
+    internals.runnerPaths.set("claude", "/usr/local/bin/claude");
+    internals.nodePtyModule = {
+      spawn: () => spawned.pty,
+    };
+    internals.nodePtyAvailable = true;
+
+    await manager.create("review this", PROJECT_ROOT, "claude");
+    spawned.emitData("runner banner\n");
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
+    spawned.emitData("runner prompt\n");
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 80));
+
+    assert.deepStrictEqual(spawned.writes, []);
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 120));
+    assert.deepStrictEqual(spawned.writes, ["\x1b[200~review this\x1b[201~\r"]);
+    manager.shutdown();
+  });
+
+  it("uses the fallback deadline when runner output keeps updating", async () => {
+    const manager = makeManager();
+    const internals = managerInternals(manager);
+    const spawned = makeSpawnedPty();
+    internals.runnerPaths.set("claude", "/usr/local/bin/claude");
+    internals.nodePtyModule = {
+      spawn: () => spawned.pty,
+    };
+    internals.nodePtyAvailable = true;
+
+    await manager.create("review this", PROJECT_ROOT, "claude");
+    const interval = setInterval(
+      () => spawned.emitData("status redraw\n"),
+      100,
+    );
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 5300));
+    clearInterval(interval);
+
+    assert.deepStrictEqual(spawned.writes, ["\x1b[200~review this\x1b[201~\r"]);
+    manager.shutdown();
   });
 
   it("sends a typed error and closes when attaching to a missing session", () => {

@@ -22,8 +22,14 @@ What do you want to do?
 **Install locally (optional)**
 
 ```bash
-npm install --save-dev @blundergoat/goat-flow    # npm
 pnpm add -D @blundergoat/goat-flow               # pnpm
+npm install --save-dev @blundergoat/goat-flow    # npm
+```
+
+then run this for the dashboard:
+
+```bash
+npx goat-flow dashboard .
 ```
 
 For the dashboard's embedded terminal, you'll need `node-pty` to compile. See [Troubleshooting](#troubleshooting) if the terminal doesn't appear.
@@ -108,7 +114,7 @@ npx @blundergoat/goat-flow@latest install . --agent claude
 
 Use `--force` only when you want to overwrite existing settings, `.goat-flow/config.yaml`, and remove deprecated skills. For outdated or v0.9 projects, the installer automatically updates the config version and cleans deprecated skill directories.
 
-The install includes `.goat-flow/skill-reference/` with a README index for tool/capability playbooks. Generated or repaired instruction files route agents to that directory before declaring a requested tool unavailable.
+The install includes `.goat-flow/skill-reference/` for shared meta references and `.goat-flow/skill-playbooks/` for tool/capability playbooks. Generated or repaired instruction files route agents to `.goat-flow/skill-playbooks/` before declaring a requested tool unavailable.
 
 ### 3. Generate the setup prompt
 

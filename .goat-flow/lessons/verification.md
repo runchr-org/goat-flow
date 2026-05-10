@@ -1,6 +1,20 @@
 ---
 category: verification
-last_reviewed: 2026-05-07
+last_reviewed: 2026-05-09
+---
+
+## Lesson: Browser-verifying local source needs `npm run dev`, not `npx goat-flow dashboard`
+
+**Status:** active | **Created:** 2026-05-09
+
+**What happened:** Verifying the new dashboard skill-quality workbench in a browser, ran `npx goat-flow dashboard .` to launch the dashboard. The Quality view loaded but the Skill Quality artifact list was empty — `skillQualityArtifacts` never populated. The new `loadSkillQualityInventory` method I had just added to `src/dashboard/app.ts` was missing from the served `/assets/app.js`. `curl -s ... /assets/app.js | grep -c loadSkillQualityInventory` returned `0`.
+
+**Root cause:** `npx goat-flow ...` resolves the published `@blundergoat/goat-flow` from `~/.npm/_npx/...`, not the local source tree. The dashboard CLI from the published package bundles the package's own compiled assets — local source edits to `src/dashboard/app.ts` are invisible to it.
+
+**Fix:** Use `npm run dev` (which runs `tsc && npm run build:dashboard && node dist/cli/cli.js dashboard . --dev`) to build and serve the local source. After that, `curl ... /assets/app.js | grep -c loadSkillQualityInventory` returned `2` and the workbench rendered correctly.
+
+**Prevention:** Before browser-verifying a dashboard or CLI source change, confirm the running process is the local build, not the published package. One quick check: `ps aux | grep "node dist/cli/cli.js"` should show the local `dist/` path. If you see `~/.npm/_npx/...`, you are running the published package and your edits are invisible. Evidence anchors: `package.json` (search: `"dev":`), `src/cli/server/dashboard-assets.ts` (search: `loadDashboardAsset`).
+
 ---
 
 ## Lesson: Behavior-scope changes need assertion updates before the first focused run
@@ -11,9 +25,23 @@ last_reviewed: 2026-05-07
 
 **Recurrence 2026-05-07:** Changed dashboard `/goat-plan` launch context from inline-only to Step 0/File-Write mode semantics. Focused skill and dashboard terminal tests passed, but the first full `npm test` failed because `test/unit/preset-prompts.test.ts` still asserted the old `treat bare task paths as read-only context` phrase. Evidence anchors: `src/dashboard/dashboard-terminal.ts` (search: `goat-plan global mode`), `test/unit/preset-prompts.test.ts` (search: `File-Write modes may create target`).
 
+**Recurrence 2026-05-09:** Changed dashboard terminal launch prompts from runner argv/env delivery to PTY paste delivery. Focused terminal-spawn and dashboard-terminal tests passed, but the first full `npm test` failed because `test/smoke/dashboard-endpoints.test.ts` still expected `GOAT_PROMPT`, `GOAT_PROMPT_FLAG`, and `-i "$GOAT_PROMPT"` in `buildTerminalSpawnSpec` output. Evidence anchors: `src/cli/server/terminal.ts` (search: `initialInput`), `test/smoke/dashboard-endpoints.test.ts` (search: `injects POSIX launch prompts through PTY input`).
+
 **Root cause:** Updated the route contract and one setup-prompt test, but missed the adjacent assertion that encoded the previous harness-only remediation behavior.
 
-**Prevention:** When changing an endpoint or launch-context scope semantics, grep focused tests for the old flag/phrase contract before the first run. For setup prompt scope changes, search `test/integration/dashboard-server.test.ts` and `test/unit/audit-command.test.ts` for `harness-card`, `--harness`, and `All audit checks pass`. For dashboard terminal launch-context changes, search `test/unit/preset-prompts.test.ts` for the old launch-context phrase.
+**Prevention:** When changing an endpoint or launch-context scope semantics, grep focused tests for the old flag/phrase contract before the first run. For setup prompt scope changes, search `test/integration/dashboard-server.test.ts` and `test/unit/audit-command.test.ts` for `harness-card`, `--harness`, and `All audit checks pass`. For dashboard terminal launch-context changes, search `test/unit/preset-prompts.test.ts` and `test/smoke/dashboard-endpoints.test.ts` for the old launch-context phrase, env var, or runner flag.
+
+---
+
+## Lesson: Defensive session rechecks can conflict with TypeScript narrowing
+
+**Status:** active | **Created:** 2026-05-09
+
+**What happened:** While chunking dashboard terminal initial prompt writes, the first `npm run typecheck` failed with `TS2367` because the loop checked `session.status === "terminated"` after an earlier guard had already narrowed the status to active/starting. The runtime intent was a defensive recheck, but the write loop was synchronous and no local status mutation could make that branch true.
+
+**Root cause:** Treated a defensive runtime status check as free inside a narrowed synchronous scope. TypeScript correctly rejected a comparison that could not happen in that scope.
+
+**Fix:** Capture stable session resources after the initial guard (`const pty = session.pty`) and keep the synchronous chunk write loop free of repeated status predicates. Evidence anchors: `src/cli/server/terminal.ts` (search: `const pty = session.pty`), `src/cli/server/terminal.ts` (search: `chunkTerminalInput`).
 
 ---
 
@@ -119,9 +147,11 @@ last_reviewed: 2026-05-07
 
 **Recurrence 2026-05-05:** During 1.8.0 task-plan consolidation, a source-slice reference check embedded a literal markdown backtick in the shell regex (`reference/imported...\\.md` with a backtick exclusion). The PreToolUse hook blocked it with `Backtick command substitution hides nested execution`. The check was rerun with a safer single-quoted pattern that avoided backticks entirely.
 
-**Root cause:** Mixed markdown-style quoting with shell quoting during a verification command. The search intent was correct, but the shell interpreted the pattern before `rg` saw it.
+**Recurrence 2026-05-08:** During the 1.5.1 release bump, a one-off `node --input-type=module` snapshot-generation command used JavaScript template literals inside the shell heredoc. The PreToolUse hook blocked the command with the same `Backtick command substitution hides nested execution` message. The command was rerun with plain string concatenation.
 
-**Fix:** For verification grep commands, use single-quoted patterns or plain escaped literals only. Do not put markdown backticks inside the shell command. When a verification command fails due to quoting, rerun a narrower path-only search before claiming the rename is verified.
+**Root cause:** Mixed markdown/JavaScript-style quoting with shell quoting during a command. The intent was correct, but the shell/hook interpreted literal backticks before the command body could be treated as data.
+
+**Fix:** For verification and one-off repo maintenance commands, use single-quoted patterns or plain string concatenation only. Do not put markdown or JavaScript template-literal backticks inside the shell command. When a command fails due to quoting, rerun a narrower equivalent before claiming the step is verified.
 
 ---
 ## Lesson: Manifest canonical vs stale_names misclassification silently broke skill installs

@@ -1,23 +1,23 @@
 ---
 category: hooks
-last_reviewed: 2026-05-04
+last_reviewed: 2026-05-09
 ---
 
 **Last independent review:** 2026-05-04 - All five active entries were reviewed against current anchors and hook self-tests. Targeted `rg` checks resolved every cited semantic anchor; workflow, Claude, GitHub, Codex, and Gemini deny-hook self-tests each returned `PASS: deny-dangerous.sh self-test`. The direct `cat .env` probe was blocked by the active PreToolUse guard before script execution, so this review relies on self-test coverage plus live harness blocking for that command shape.
 
-## Footgun: Settings.json Read() deny does not bind Bash shell reads of secret files
+## Footgun: File-read deny does not bind Bash shell reads of secret files
 
 **Status:** active | **Created:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED
-**hallucination-risk:** high - `Read(**/.env*)` in `settings.json` looks like a blanket secret-read deny, but it only binds the Read tool. A Bash payload like `cat .env`, `source .env`, `base64 ~/.aws/credentials` is not bound by any `Read(...)` pattern and silently succeeds unless the Bash hook blocks it explicitly.
+**hallucination-risk:** high - `Read(**/.env*)` in `settings.json` or a Codex TOML permission profile can look like a blanket secret-read deny, but it only binds file-read paths. A Bash payload like `cat .env`, `source .env`, `base64 ~/.aws/credentials` is not bound by that file-read layer and silently succeeds unless the Bash hook blocks it explicitly.
 
 **Symptoms:** Settings-level `Read(**/.env*)` coverage can look complete even though shell-based secret reads require separate Bash-hook coverage. Before the Bash-side sentinel was added, `goat-flow audit --harness` reported `deny-covers-secrets: pass` while a live Bash probe (`bash .claude/hooks/deny-dangerous.sh 'cat .env'`) returned exit 0. Current expected behavior is exit 2 with `BLOCKED: Secret-file access ...`, verified by the runtime probe below.
 
-**Why it happens:** `settings.json` `"permissions.deny"` entries are tool-scoped: `Read(...)`, `Edit(...)`, `Write(...)`, `Bash(...)` each bind only that tool. An agent using the Bash tool to run `cat .env` is never dispatched through the Read tool, so `Read(**/.env*)` is irrelevant. Two independent coverage layers are required: `Read()` denies for the Read tool path AND Bash-hook regex coverage for shell paths.
+**Why it happens:** Settings/config file-read deny entries are tool-scoped. Claude/Gemini `Read(...)` patterns bind the Read tool; Codex TOML permission profiles bind filesystem access. An agent using the Bash tool to run `cat .env` is not protected by file-read intent alone. Two independent coverage layers are required: file-read deny for the file tool path AND Bash-hook regex coverage for shell paths.
 
 **Evidence:**
 - `.claude/settings.json` (search: `"Read(**/.env*)"`) - tool-scoped deny patterns. Not applied to Bash.
 - `.claude/hooks/deny-dangerous.sh` (search: `is_secret_path_touch`) - the Bash-side sentinel function added 2026-04-19. Blocks `cat .env`, `source .env`, `cat ~/.ssh/id_rsa`, `cat ~/.aws/credentials`, `.pem/.key/.pfx` across all four agent hooks.
-- `src/cli/audit/harness/check-constraints.ts` (search: `bashDenyCoversSecrets`) - the harness now requires BOTH `readDenyCoversSecrets` (settings.json Read patterns) AND `bashDenyCoversSecrets` (Bash hook pattern) before classifying an agent as covered.
+- `src/cli/audit/harness/check-constraints.ts` (search: `bashDenyCoversSecrets`) - the harness now requires BOTH `readDenyCoversSecrets` (settings/Codex permission file-read coverage) AND `bashDenyCoversSecrets` (Bash hook pattern) before classifying an agent as covered.
 - `src/cli/facts/agent/hooks.ts` (search: `detectBashDenyCoversSecrets`) - fact derivation: scans the deny hook file for the active secret sentinel plus family markers for `.env*`, `.env.example` parity, normalized `./` / `../` / `~/` roots, `.ssh/`, `.aws/`, `secrets/`, credentials, and `.pem/.key/.pfx`.
 - Runtime probe: `bash .claude/hooks/deny-dangerous.sh 'cat .env'` now returns exit 2 with `BLOCKED: Secret-file access (cat). Reading or editing .env / SSH/AWS/GCP keys / credentials through the agent is an exfil risk.`
 
@@ -77,7 +77,7 @@ last_reviewed: 2026-05-04
 
 **Evidence:**
 - `workflow/hooks/deny-dangerous.sh` (search: `normalize_git_push_candidate`) - central normalization for shell wrappers/control bodies before `is_git_push`.
-- `workflow/hooks/deny-dangerous.sh` (search: `env option git push`) - self-test coverage for env options, quoted assignments, `if`/`then`, direct `if` conditions, and function bodies.
+- `workflow/hooks/deny-dangerous.self-test.sh` (search: `env option git push`) - self-test coverage for env options, quoted assignments, `if`/`then`, direct `if` conditions, and function bodies.
 - Runtime probes before the fix returned exit 0 for `bash scripts/deny-dangerous.sh 'env -i git push origin main'`, `bash scripts/deny-dangerous.sh "FOO='a b' git push origin main"`, `bash scripts/deny-dangerous.sh 'if true; then git push origin main; fi'`, and `bash scripts/deny-dangerous.sh 'f(){ git push origin main; }; f'`.
 - Runtime probes before the `-lc` fix returned exit 0 for `bash scripts/deny-dangerous.sh --check "bash -lc 'git push origin main'"` and `bash scripts/deny-dangerous.sh --check "sh -lc 'git push origin main'"`.
 
@@ -98,8 +98,8 @@ last_reviewed: 2026-05-04
 
 **Evidence:**
 - `workflow/hooks/deny-dangerous.sh` (search: `check_command_segments`) - central splitter now reused by top-level checks, command substitution/process substitution recursion, and `bash -c` recursion.
-- `workflow/hooks/deny-dangerous.sh` (search: `bash -c semicolon dangerous`) - self-test locks the nested `bash -c "echo ok; rm -rf /"` bypass.
-- `workflow/hooks/deny-dangerous.sh` (search: `dangerous chained dollar substitution`) - self-test locks the nested command-substitution bypass.
+- `workflow/hooks/deny-dangerous.self-test.sh` (search: `bash -c semicolon dangerous`) - self-test locks the nested `bash -c "echo ok; rm -rf /"` bypass.
+- `workflow/hooks/deny-dangerous.self-test.sh` (search: `dangerous chained dollar substitution`) - self-test locks the nested command-substitution bypass.
 - Runtime proof before the fix: `bash workflow/hooks/deny-dangerous.sh --self-test` returned `FAIL [bash -c semicolon dangerous]: expected 2, got 0`, `FAIL [bash -c and-chain dangerous]: expected 2, got 0`, and `FAIL [bash -c semicolon git push]: expected 2, got 0`.
 
 **Prevention:**
@@ -120,4 +120,4 @@ last_reviewed: 2026-05-04
 - **Advisory hooks create unfixable quality warning after setup** (resolved 2026-04-14) - Hook scripts now ship in enforce mode by default (`GOAT_LINT_ENFORCE` defaults to 1).
 - **Codex hooks registered in config.toml instead of hooks.json** (resolved 2026-04-15) - Moved hook definitions to `.codex/hooks.json` per official Codex docs; TOML hook sections were silently ignored.
 - **Codex hook migrations drift across live files, templates, installer, and docs** (resolved 2026-04-15) - Restored missing `.codex/hooks/deny-dangerous.sh` and aligned all four Codex hook surfaces (live files, templates, installer, docs).
-- **Deny hook blocks read-only commands containing dangerous string literals** (resolved 2026-04-17) - `.claude/hooks/deny-dangerous.sh` now includes a read-only tool whitelist (grep, rg, cat, head, tail, less, more, wc, file, diff, printf, echo, read, sed-without-`-i`) that skips pattern matching when the command verb is read-only AND there is no output redirection or pipe. Pipe-to-shell (`| bash`, `| python`) still blocks regardless of verb. Self-test covers 5 false-positive cases and 2 bypass-attempt cases (`.claude/hooks/deny-dangerous.sh` (search: `run_self_test`)). Template at `workflow/hooks/deny-dangerous.sh` and per-agent hooks at `.codex/hooks/` and `.gemini/hooks/` synced to the same implementation (2026-04-17).
+- **Deny hook blocks read-only commands containing dangerous string literals** (resolved 2026-04-17) - `.claude/hooks/deny-dangerous.sh` now includes a read-only tool whitelist (grep, rg, cat, head, tail, less, more, wc, file, diff, printf, echo, read, sed-without-`-i`) that skips pattern matching when the command verb is read-only AND there is no output redirection or pipe. Pipe-to-shell (`| bash`, `| python`) still blocks regardless of verb. Self-test covers 5 false-positive cases and 2 bypass-attempt cases (`.claude/hooks/deny-dangerous.self-test.sh` (search: `run_self_test`)). Template at `workflow/hooks/deny-dangerous.sh` and per-agent hooks at `.codex/hooks/` and `.gemini/hooks/` synced to the same implementation (2026-04-17).

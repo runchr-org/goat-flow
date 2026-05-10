@@ -22,6 +22,7 @@ import { PROFILES } from "../../src/cli/detect/agents.js";
 import { composeSetup } from "../../src/cli/prompt/compose-setup.js";
 import { extractProjectFacts } from "../../src/cli/facts/orchestrator.js";
 import { extractHookFacts } from "../../src/cli/facts/agent/hooks.js";
+import { extractSettingsFacts } from "../../src/cli/facts/agent/settings.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
@@ -378,7 +379,10 @@ async function writeAuditSetupFixture(
   for (const dir of manifest.required_dirs) {
     if (
       !options.skillReferenceDir &&
-      dir.startsWith(".goat-flow/skill-reference/")
+      (dir.startsWith(".goat-flow/skill-reference/") ||
+        dir.startsWith(".goat-flow/skill-playbooks/") ||
+        dir === ".goat-flow/skill-reference/" ||
+        dir === ".goat-flow/skill-playbooks/")
     ) {
       continue;
     }
@@ -388,7 +392,8 @@ async function writeAuditSetupFixture(
   for (const file of manifest.required_files) {
     if (
       !options.skillReferenceDir &&
-      file.startsWith(".goat-flow/skill-reference/")
+      (file.startsWith(".goat-flow/skill-reference/") ||
+        file.startsWith(".goat-flow/skill-playbooks/"))
     ) {
       continue;
     }
@@ -411,7 +416,7 @@ async function writeAuditSetupFixture(
 ## Execution Loop: READ -> SCOPE -> ACT -> VERIFY
 
 ### READ
-Before declaring any tool or capability unavailable, read the matching playbook in .goat-flow/skill-reference/ and run that doc's "Availability Check" section verbatim.
+Before declaring any tool or capability unavailable, read the matching playbook in .goat-flow/skill-playbooks/ and run that doc's "Availability Check" section verbatim.
 
 ### SCOPE
 
@@ -423,7 +428,7 @@ Before declaring any tool or capability unavailable, read the matching playbook 
 
 | Resource | Path |
 |----------|------|
-| Skill reference + tool playbooks | .goat-flow/skill-reference/ |
+| Skill playbooks | .goat-flow/skill-playbooks/ |
 `
     : "# CLAUDE.md\n";
 
@@ -571,6 +576,34 @@ describe("audit skill-reference pointer rule", () => {
     }
   });
 
+  it("keeps setup snippets aligned with the audit remediation contract", () => {
+    const executionLoop = readFileSync(
+      join(PROJECT_ROOT, "workflow/setup/reference/execution-loop.md"),
+      "utf-8",
+    );
+    const instructionStep = readFileSync(
+      join(PROJECT_ROOT, "workflow/setup/02-instruction-file.md"),
+      "utf-8",
+    );
+
+    for (const content of [executionLoop, instructionStep]) {
+      assert.match(
+        content,
+        /Before declaring any tool or capability unavailable/,
+      );
+      assert.match(content, /\.goat-flow\/skill-playbooks\//);
+      assert.match(content, /Availability Check/);
+    }
+    assert.match(
+      instructionStep,
+      /Tool playbooks \(CLI\/MCP availability checks: browser-use, page-capture, skill-quality-testing\)/,
+    );
+    assert.match(
+      instructionStep,
+      /\.goat-flow\/skill-playbooks\/` - read BEFORE declaring a tool unavailable/,
+    );
+  });
+
   it("passes when skill-reference exists and CLAUDE.md contains the READ rule and Router Table pointer", async () => {
     const project = await makeTempProject((root) =>
       writeAuditSetupFixture(root, {
@@ -644,6 +677,10 @@ describe("audit skill-reference pointer rule", () => {
 
       assert.equal(report.status, "fail");
       assert.equal(check?.status, "fail");
+      assert.match(
+        check?.failure?.message ?? "",
+        /Shared reference\/playbook pack/,
+      );
       assert.match(check?.failure?.message ?? "", /README\.md/);
       assert.equal(
         check?.failure?.evidence,
@@ -1142,6 +1179,194 @@ describe("config validation failures", () => {
   });
 });
 
+describe("codex settings feature flags", () => {
+  function codexAgentFacts(
+    parsed: Record<string, unknown>,
+    hooks = stubAgentFacts().hooks,
+  ): AgentFacts {
+    return stubAgentFacts({
+      agent: PROFILES.codex,
+      settings: {
+        exists: true,
+        valid: true,
+        parsed,
+        hasDenyPatterns: false,
+      },
+      hooks: {
+        ...hooks,
+        denyExists: true,
+        denyIsRegistered: true,
+        denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+      },
+    });
+  }
+
+  it("parses Codex current and deprecated feature flags from TOML", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? 'model = "gpt-5"\nfeatures.codex_hooks = true\n[features]\nhooks = true\n'
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.deepEqual(facts.parsed, {
+      model: "gpt-5",
+      "features.hooks": true,
+      "features.codex_hooks": true,
+    });
+  });
+
+  it("detects Codex TOML permission profiles that deny secret file families", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "goat-flow"',
+                "[permissions.goat-flow.filesystem]",
+                "glob_scan_max_depth = 3",
+                '[permissions.goat-flow.filesystem.":project_roots"]',
+                '"." = "write"',
+                '".env.example" = "read"',
+                '".env" = "none"',
+                '"**/.env" = "none"',
+                '".env.*" = "none"',
+                '"**/.env.*" = "none"',
+                '".ssh/**" = "none"',
+                '"**/.ssh/**" = "none"',
+                '".aws/**" = "none"',
+                '"**/.aws/**" = "none"',
+                '"*.pem" = "none"',
+                '"**/*.pem" = "none"',
+                '"*.key" = "none"',
+                '"**/*.key" = "none"',
+                '"*.pfx" = "none"',
+                '"**/*.pfx" = "none"',
+                '"credentials*" = "none"',
+                '"**/credentials*" = "none"',
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, true);
+  });
+
+  it("does not count incomplete Codex key material denies as secret coverage", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                "[permissions.goat-flow.filesystem]",
+                '[permissions.goat-flow.filesystem.":project_roots"]',
+                '".env" = "none"',
+                '"**/.env" = "none"',
+                '".env.*" = "none"',
+                '"**/.env.*" = "none"',
+                '".ssh/**" = "none"',
+                '"**/.ssh/**" = "none"',
+                '".aws/**" = "none"',
+                '"**/.aws/**" = "none"',
+                '"*.pem" = "none"',
+                '"**/*.pem" = "none"',
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, false);
+  });
+
+  it("does not count an inactive Codex permission profile as secret coverage", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "default"',
+                "[permissions.goat-flow.filesystem]",
+                '[permissions.goat-flow.filesystem.":project_roots"]',
+                '".env" = "none"',
+                '"**/.env" = "none"',
+                '".env.*" = "none"',
+                '"**/.env.*" = "none"',
+                '".ssh/**" = "none"',
+                '"**/.ssh/**" = "none"',
+                '".aws/**" = "none"',
+                '"**/.aws/**" = "none"',
+                '"*.pem" = "none"',
+                '"**/*.pem" = "none"',
+                '"*.key" = "none"',
+                '"**/*.key" = "none"',
+                '"*.pfx" = "none"',
+                '"**/*.pfx" = "none"',
+                '"credentials*" = "none"',
+                '"**/credentials*" = "none"',
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, false);
+  });
+
+  it("fails agent-settings when Codex config still uses codex_hooks", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-settings")!;
+    const result = check.run(
+      makeCtx({
+        agentFilter: "codex",
+        agents: [
+          codexAgentFacts({
+            "features.hooks": true,
+            "features.codex_hooks": true,
+          }),
+        ],
+      }),
+    );
+
+    assert.notEqual(result, null);
+    assert.match(result!.message, /Deprecated Codex feature flag/);
+    assert.match(result!.howToFix ?? "", /goat-flow install \. --agent codex/);
+  });
+
+  it("fails agent-settings when Codex hooks are installed but hooks are not enabled", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-settings")!;
+    const result = check.run(
+      makeCtx({
+        agentFilter: "codex",
+        agents: [codexAgentFacts({ model: "gpt-5" })],
+      }),
+    );
+
+    assert.notEqual(result, null);
+    assert.match(result!.message, /\[features\]\.hooks = true/);
+    assert.match(result!.howToFix ?? "", /hooks = true/);
+  });
+
+  it("passes agent-settings when Codex hooks are installed and features.hooks is true", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-settings")!;
+    const result = check.run(
+      makeCtx({
+        agentFilter: "codex",
+        agents: [codexAgentFacts({ "features.hooks": true })],
+      }),
+    );
+
+    assert.equal(result, null);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Test 4: audit fails when a stale skill directory exists
 // ---------------------------------------------------------------------------
@@ -1549,6 +1774,32 @@ describe("agent deny hook template comparison", () => {
       resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
       "utf-8",
     );
+    const selfTestTemplate = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.self-test.sh"),
+      "utf-8",
+    );
+    const ctx = makeCtx({
+      agentFilter: "claude",
+      projectPath: PROJECT_ROOT,
+      fs: stubFS({
+        readFile: (path) => {
+          if (path === ".claude/hooks/deny-dangerous.sh") return template;
+          if (path === ".claude/hooks/deny-dangerous.self-test.sh") {
+            return selfTestTemplate;
+          }
+          return null;
+        },
+      }),
+    });
+    assert.equal(denyCheck.run(ctx), null);
+  });
+
+  it("fails when the split deny hook self-test sibling is missing", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const template = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
+      "utf-8",
+    );
     const ctx = makeCtx({
       agentFilter: "claude",
       projectPath: PROJECT_ROOT,
@@ -1557,7 +1808,10 @@ describe("agent deny hook template comparison", () => {
           path === ".claude/hooks/deny-dangerous.sh" ? template : null,
       }),
     });
-    assert.equal(denyCheck.run(ctx), null);
+    const result = denyCheck.run(ctx);
+    assert.ok(result, "expected missing self-test sibling failure");
+    assert.match(result.message, /deny-dangerous\.self-test\.sh is missing/);
+    assert.equal(result.evidence, ".claude/hooks/deny-dangerous.self-test.sh");
   });
 });
 
@@ -1928,7 +2182,7 @@ describe("M01 scoring model", () => {
     assert.equal(concerns.constraints.score, 100);
     assert.ok(
       concerns.constraints.findings.some((finding) =>
-        finding.includes("settings/file-read deny is unavailable"),
+        finding.includes("file-read deny is unavailable"),
       ),
     );
   });
@@ -2516,6 +2770,10 @@ describe("composeSetup routing", () => {
       assert.match(output, /does not require an agent/);
       assert.match(output, /## Step 2 - Create project-specific content/);
       assert.match(output, /## Step 3 - Verify/);
+      assert.match(output, /Run both required setup gates/);
+      assert.match(output, /audit .+ --agent codex`/);
+      assert.match(output, /audit .+ --agent codex --harness`/);
+      assert.match(output, /re-run both audit gates/);
       assert.match(output, /workflow\/setup\/agents\/codex\.md/);
     } finally {
       await project.cleanup();
@@ -2600,6 +2858,9 @@ describe("composeSetup routing", () => {
         /npx @blundergoat\/goat-flow@latest install .* --agent codex/,
       );
       assert.match(output, /workflow\/setup\/02-instruction-file\.md/);
+      assert.match(output, /Run both required setup gates/);
+      assert.match(output, /audit .+ --agent codex`/);
+      assert.match(output, /audit .+ --agent codex --harness`/);
       assert.ok(!output.includes(retiredOutdatedGuide), output);
     } finally {
       await project.cleanup();
@@ -2631,6 +2892,9 @@ describe("composeSetup routing", () => {
       );
       assert.match(output, /Remove legacy surfaces/);
       assert.match(output, /workflow\/setup\/02-instruction-file\.md/);
+      assert.match(output, /Run both required setup gates/);
+      assert.match(output, /audit .+ --agent codex`/);
+      assert.match(output, /audit .+ --agent codex --harness`/);
       assert.ok(!output.includes(retiredMigrationScript), output);
       assert.ok(!output.includes(retiredLegacyGuide), output);
     } finally {

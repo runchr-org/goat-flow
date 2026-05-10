@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.5.0"
+goat-flow-reference-version: "1.6.0"
 ---
 # Skill Deployment
 
@@ -54,7 +54,7 @@ If current logs do not meet `bulletproof`, say so directly. Do not backfill miss
 
 **GREEN phase - write minimal skill:**
 - [ ] Name describes what you DO or the core insight
-- [ ] Frontmatter has `goat-flow-skill-version: "1.5.0"` and trigger-only `description`
+- [ ] Frontmatter has `goat-flow-skill-version: "1.6.0"` and trigger-only `description`
 - [ ] `description` is CSO-optimised: "Use when [trigger]", not a workflow summary
 - [ ] Keywords throughout for search (error messages, symptoms, tool names)
 - [ ] Overview states the core principle in 1–2 sentences
@@ -100,7 +100,7 @@ Deploying untested skills = deploying untested code. It's a violation of quality
 |-------|------|
 | `.goat-flow/skill-reference/skill-preamble.md` | Proof Gate, evidence standard, ceremony level - the loaded-every-invocation layer |
 | `.goat-flow/skill-reference/skill-conventions.md` | Rationalisation table definition, task tracking, recovery protocols |
-| `.goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md` | Core TDD methodology |
-| `.goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md` | Review-class skill patterns |
+| `.goat-flow/skill-playbooks/skill-quality-testing/tdd-iteration.md` | Core TDD methodology |
+| `.goat-flow/skill-playbooks/skill-quality-testing/adversarial-framing.md` | Review-class skill patterns |
 | `.goat-flow/decisions/` | Architecture decisions and rationale |
 | `.goat-flow/logs/sessions/*-<skill>-tdd.md` | TDD iteration logs live here; filename convention is the index |

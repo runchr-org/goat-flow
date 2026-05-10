@@ -6,6 +6,8 @@
 const TERMINAL_REFIT_RETRY_DELAY_MS = 50;
 const TERMINAL_REFIT_MAX_ATTEMPTS = 20;
 const TERMINAL_INITIAL_FIT_DELAYS_MS = [50, 200, 500] as const;
+const TERMINAL_LAUNCH_PROMPT_FALLBACK_DELAY_MS = 6000;
+const AWAITING_INPUT_VISIBLE_DELAY_MS = 1200;
 let xtermLoadPromise: Promise<void> | null = null;
 
 interface DashboardTerminalContext {
@@ -180,6 +182,16 @@ function dashboardOutputLooksAwaitingInput(text: string): boolean {
   );
 }
 
+/** Heuristic for a freshly launched runner reaching its interactive prompt. */
+function dashboardOutputLooksReadyForLaunchPrompt(text: string): boolean {
+  const tail = dashboardPlainTerminalText(text).slice(-2000);
+  const claudeReady =
+    /\/remote-control is active\b/i.test(tail) &&
+    /(^|\n)\s*❯\s*(?:\n|$)/u.test(tail);
+  const shellReady = /(^|\n)\s*(?:[$#]|>)\s*$/u.test(tail);
+  return claudeReady || shellReady;
+}
+
 /** Decide whether a new output chunk should leave a session waiting. */
 function dashboardNextAwaitingInputState(
   previousAwaiting: boolean,
@@ -190,8 +202,8 @@ function dashboardNextAwaitingInputState(
   const chunkHasText =
     dashboardPlainTerminalText(outputChunk).trim().length > 0;
   if (dashboardOutputLooksAwaitingInput(outputChunk)) return true;
-  if (!dashboardOutputLooksAwaitingInput(nextTail)) return false;
-  return !previousAwaiting || !chunkHasText;
+  if (chunkHasText) return false;
+  return previousAwaiting && dashboardOutputLooksAwaitingInput(nextTail);
 }
 
 /** Mutate the Alpine-backed local session and the launch-time reference together. */
@@ -204,6 +216,37 @@ function dashboardMutateLocalSession(
   const reactive = ctx.sessions.find((s) => s.id === sessionId);
   if (reactive) mutate(reactive);
   if (reactive !== fallback) mutate(fallback);
+}
+
+/** Cancel a pending "awaiting input" reveal for one terminal session. */
+function dashboardClearAwaitingInputTimer(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs?.awaitingInputTimer) return;
+  clearTimeout(refs.awaitingInputTimer);
+  refs.awaitingInputTimer = undefined;
+}
+
+/** Show the waiting badge only after waiting-looking output stays quiet. */
+function dashboardScheduleAwaitingInputReveal(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+  fallback: LocalSession,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs || refs.awaitingInputTimer) return;
+  refs.awaitingInputTimer = setTimeout(() => {
+    refs.awaitingInputTimer = undefined;
+    const reactive = ctx.sessions.find((s) => s.id === sessionId);
+    const current = reactive ?? fallback;
+    if (current.ended) return;
+    if (!dashboardOutputLooksAwaitingInput(current.outputTail ?? "")) return;
+    dashboardMutateLocalSession(ctx, sessionId, fallback, (target) => {
+      target.awaitingInput = true;
+    });
+  }, AWAITING_INPUT_VISIBLE_DELAY_MS);
 }
 
 /** Build target context appended to launched preset prompts. */
@@ -250,6 +293,36 @@ function getXtermConstructors(): {
   return { Terminal, FitAddon };
 }
 
+/** Send text to a specific terminal session without changing the active tab. */
+function dashboardSendToTerminalSession(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+  text: string,
+  { adapt = true }: { adapt?: boolean } = {},
+): boolean {
+  const target = ctx.sessions.find((session) => session.id === sessionId);
+  if (!target) {
+    ctx.showToast("No active terminal session", true);
+    return false;
+  }
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs?.ws || refs.ws.readyState !== WebSocket.OPEN) {
+    ctx.showToast("No active terminal session", true);
+    return false;
+  }
+  const prepared = adapt ? ctx.adaptPrompt(text, target.runner) : text;
+  // Bracketed paste prevents shells and REPLs from treating multi-line prompts as
+  // a stream of independent keystrokes. `\x1b[200~` starts paste mode, `\x1b[201~`
+  // ends it, and the trailing carriage return submits exactly once.
+  const pasteData = "\x1b[200~" + prepared + "\x1b[201~" + "\r";
+  refs.ws.send(JSON.stringify({ type: "input", data: pasteData }));
+  dashboardClearAwaitingInputTimer(ctx, sessionId);
+  target.lastInputTime = Date.now();
+  target.awaitingInput = false;
+  if (ctx.activeSessionId === sessionId && refs.xterm) refs.xterm.focus();
+  return true;
+}
+
 /** Send text to the active terminal session and focus it. */
 function dashboardSendToTerminal(
   ctx: DashboardTerminalContext,
@@ -261,21 +334,76 @@ function dashboardSendToTerminal(
     ctx.showToast("No active terminal session", true);
     return false;
   }
-  const refs = ctx._terminalRefs[active.id];
-  if (!refs?.ws || refs.ws.readyState !== WebSocket.OPEN) {
-    ctx.showToast("No active terminal session", true);
+  return dashboardSendToTerminalSession(ctx, active.id, text, { adapt });
+}
+
+/** Cancel a pending dashboard launch prompt for one terminal session. */
+function dashboardClearLaunchPromptTimer(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs?.launchPromptTimer) return;
+  clearTimeout(refs.launchPromptTimer);
+  refs.launchPromptTimer = undefined;
+}
+
+/** Clear any pending dashboard launch prompt state for one terminal session. */
+function dashboardClearLaunchPrompt(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs) return;
+  dashboardClearLaunchPromptTimer(ctx, sessionId);
+  refs.launchPrompt = undefined;
+}
+
+/** Send a pending dashboard launch prompt once the terminal is ready. */
+function dashboardMaybeSendLaunchPrompt(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+  { force = false }: { force?: boolean } = {},
+): boolean {
+  const refs = ctx._terminalRefs[sessionId];
+  const prompt = refs?.launchPrompt;
+  if (!prompt) return false;
+  const target = ctx.sessions.find((session) => session.id === sessionId);
+  if (!target || target.ended) {
+    dashboardClearLaunchPrompt(ctx, sessionId);
     return false;
   }
-  const prepared = adapt ? ctx.adaptPrompt(text) : text;
-  // Bracketed paste prevents shells and REPLs from treating multi-line prompts as
-  // a stream of independent keystrokes. `\x1b[200~` starts paste mode, `\x1b[201~`
-  // ends it, and the trailing carriage return submits exactly once.
-  const pasteData = "\x1b[200~" + prepared + "\x1b[201~" + "\r";
-  refs.ws.send(JSON.stringify({ type: "input", data: pasteData }));
-  active.lastInputTime = Date.now();
-  active.awaitingInput = false;
-  if (refs.xterm) refs.xterm.focus();
-  return true;
+  if (!refs.ws || refs.ws.readyState !== WebSocket.OPEN) return false;
+  if (
+    !force &&
+    !dashboardOutputLooksReadyForLaunchPrompt(target.outputTail ?? "")
+  ) {
+    return false;
+  }
+  refs.launchPrompt = undefined;
+  dashboardClearLaunchPromptTimer(ctx, sessionId);
+  return dashboardSendToTerminalSession(ctx, sessionId, prompt, {
+    adapt: false,
+  });
+}
+
+/** Send a dashboard launch prompt after the browser terminal is attached. */
+function dashboardScheduleLaunchPrompt(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+  prompt: string,
+): void {
+  if (!prompt.trim()) return;
+  dashboardClearLaunchPrompt(ctx, sessionId);
+  const refs = ctx._terminalRefs[sessionId] ?? {};
+  refs.launchPrompt = prompt;
+  refs.launchPromptTimer = setTimeout(() => {
+    const currentRefs = ctx._terminalRefs[sessionId];
+    if (currentRefs) currentRefs.launchPromptTimer = undefined;
+    dashboardMaybeSendLaunchPrompt(ctx, sessionId, { force: true });
+  }, TERMINAL_LAUNCH_PROMPT_FALLBACK_DELAY_MS);
+  ctx._terminalRefs[sessionId] = refs;
+  dashboardMaybeSendLaunchPrompt(ctx, sessionId);
 }
 
 /** Send a preset prompt to an active session in the current project. */
@@ -742,7 +870,7 @@ async function dashboardLaunchInTerminal(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        prompt,
+        prompt: "",
         projectPath: controllingCwd,
         targetPath: selectedTargetPath,
         runner,
@@ -782,6 +910,7 @@ async function dashboardLaunchInTerminal(
     await self.$nextTick();
     await ctx.loadXterm();
     ctx.connectTerminal(session.id, wsUrl);
+    dashboardScheduleLaunchPrompt(ctx, session.id, prompt);
     void ctx.updateSessionCount();
   } catch (err) {
     if (createdSessionId) {
@@ -884,6 +1013,7 @@ function dashboardConnectTerminal(
       target.connected = true;
     });
     setTimeout(doFit, TERMINAL_REFIT_RETRY_DELAY_MS);
+    dashboardMaybeSendLaunchPrompt(ctx, sessionId);
     if (ageInterval) clearInterval(ageInterval);
     ageInterval = setInterval(() => {
       if (session.ended) {
@@ -929,9 +1059,12 @@ function dashboardConnectTerminal(
       const type = readString(msg.type);
       if (type === "output" && typeof msg.data === "string") {
         const reactive = ctx.sessions.find((s) => s.id === sessionId);
+        const refs = ctx._terminalRefs[sessionId];
         const previousTail = reactive?.outputTail ?? session.outputTail ?? "";
         const previousAwaiting =
-          reactive?.awaitingInput === true || session.awaitingInput === true;
+          reactive?.awaitingInput === true ||
+          session.awaitingInput === true ||
+          refs?.awaitingInputTimer !== undefined;
         const tail = (previousTail + msg.data).slice(-5000);
         const awaitingInput = dashboardNextAwaitingInputState(
           previousAwaiting,
@@ -940,10 +1073,30 @@ function dashboardConnectTerminal(
         );
         dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
           target.outputTail = tail;
-          target.awaitingInput = awaitingInput;
         });
+        dashboardMaybeSendLaunchPrompt(ctx, sessionId);
+        if (awaitingInput) {
+          if (
+            reactive?.awaitingInput === true ||
+            session.awaitingInput === true
+          ) {
+            dashboardClearAwaitingInputTimer(ctx, sessionId);
+            dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+              target.awaitingInput = true;
+            });
+          } else {
+            dashboardScheduleAwaitingInputReveal(ctx, sessionId, session);
+          }
+        } else {
+          dashboardClearAwaitingInputTimer(ctx, sessionId);
+          dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+            target.awaitingInput = false;
+          });
+        }
         term.write(msg.data);
       } else if (type === "exit") {
+        dashboardClearAwaitingInputTimer(ctx, sessionId);
+        dashboardClearLaunchPrompt(ctx, sessionId);
         dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
           target.ended = true;
           target.connected = false;
@@ -961,6 +1114,8 @@ function dashboardConnectTerminal(
       } else if (type === "error" && typeof msg.message === "string") {
         term.write(`\r\n\x1b[31m${msg.message}\x1b[0m\r\n`);
       } else if (type === "shutdown") {
+        dashboardClearAwaitingInputTimer(ctx, sessionId);
+        dashboardClearLaunchPrompt(ctx, sessionId);
         dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
           target.ended = true;
           target.connected = false;
@@ -1011,6 +1166,7 @@ function dashboardConnectTerminal(
     if (ws.readyState === WebSocket.OPEN)
       ws.send(JSON.stringify({ type: "input", data }));
     const lastInputTime = Date.now();
+    dashboardClearAwaitingInputTimer(ctx, sessionId);
     dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
       target.lastInputTime = lastInputTime;
       target.awaitingInput = false;
@@ -1025,6 +1181,8 @@ function dashboardConnectTerminal(
     ro.disconnect();
     window.removeEventListener("resize", resizeHandler);
     if (ageInterval) clearInterval(ageInterval);
+    dashboardClearAwaitingInputTimer(ctx, sessionId);
+    dashboardClearLaunchPrompt(ctx, sessionId);
     try {
       ws.close();
     } catch {
@@ -1037,6 +1195,7 @@ function dashboardConnectTerminal(
     }
   };
   ctx._terminalRefs[sessionId] = {
+    ...ctx._terminalRefs[sessionId],
     ws,
     xterm: term,
     cleanup,

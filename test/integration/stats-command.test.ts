@@ -105,6 +105,18 @@ function loadReport(spec: Parameters<typeof makeFixtureRepo>[0]) {
   });
 }
 
+function loadReportWithoutLoopDirs() {
+  const root = mkdtempSync(join(tmpdir(), "goatflow-stats-missing-"));
+  disposables.push(root);
+  const fs = createFS(root);
+  const config = stubConfig();
+  return buildStatsReport({
+    footguns: extractFootgunFacts(fs, config, pinnedNow),
+    lessons: extractLessonsFacts(fs, config, pinnedNow),
+    decisions: buildDecisionsSection(fs, config.config.decisions.path),
+  });
+}
+
 describe("goat-flow stats - happy path", () => {
   it("reports per-bucket freshness and live entry counts", () => {
     const report = loadReport({
@@ -150,6 +162,57 @@ describe("goat-flow stats --check", () => {
     const verdict = checkStats(report);
     assert.equal(verdict.status, "pass");
     assert.deepEqual(verdict.findings, []);
+  });
+
+  it("passes with warnings for fresh empty learning-loop directories", () => {
+    const report = loadReport({
+      footguns: {},
+      lessons: {},
+    });
+    const verdict = checkStats(report);
+
+    assert.equal(verdict.status, "pass");
+    assert.deepEqual(verdict.findings, []);
+    assert.equal(verdict.warnings.length, 2);
+    assert.ok(
+      verdict.warnings.some(
+        (warning) =>
+          warning.rule === "empty-learning-loop" &&
+          warning.message.includes("Footgun directory exists"),
+      ),
+      "expected an empty footgun-directory warning",
+    );
+    assert.ok(
+      verdict.warnings.some(
+        (warning) =>
+          warning.rule === "empty-learning-loop" &&
+          warning.message.includes("Lesson directory exists"),
+      ),
+      "expected an empty lesson-directory warning",
+    );
+  });
+
+  it("fails when learning-loop directories are missing", () => {
+    const report = loadReportWithoutLoopDirs();
+    const verdict = checkStats(report);
+
+    assert.equal(verdict.status, "fail");
+    assert.ok(
+      verdict.findings.some(
+        (finding) =>
+          finding.rule === "format" &&
+          finding.message.includes(".goat-flow/footguns"),
+      ),
+      "expected a missing footgun-directory finding",
+    );
+    assert.ok(
+      verdict.findings.some(
+        (finding) =>
+          finding.rule === "format" &&
+          finding.message.includes(".goat-flow/lessons"),
+      ),
+      "expected a missing lesson-directory finding",
+    );
   });
 
   it("fails when a bucket is missing last_reviewed", () => {
@@ -369,7 +432,6 @@ describe("goat-flow stats --check", () => {
     const verdict = checkStats(report);
 
     assert.equal(verdict.status, "fail");
-    assert.equal(verdict.warnings.length, 0);
     assert.ok(
       verdict.findings.some(
         (f) =>

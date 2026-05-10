@@ -35,6 +35,19 @@ import { buildSetupDetectPayload, isProjectDirectory } from "./setup-detect.js";
 import type { DashboardReport } from "./types.js";
 import type { QualityMode } from "../quality/schema.js";
 import { QUALITY_MODES } from "../quality/schema.js";
+import {
+  evaluateContent,
+  evaluateUploadedBundle,
+  discoverArtifacts,
+  findArtifact,
+  scoreArtifact,
+} from "../quality/skill-quality.js";
+import { MAX_EVALUATE_CONTENT_BYTES } from "./decoders.js";
+import {
+  loadQualityConfig,
+  type ArtifactSource,
+} from "../quality/quality-config.js";
+import { composeArtifactQualityPrompt } from "../prompt/compose-quality.js";
 import { buildStatsReport, checkStats } from "../stats/stats.js";
 
 const KNOWN_AGENT_IDS = getKnownAgentIds();
@@ -44,6 +57,7 @@ const AGENT_PROFILES = getAgentProfiles();
 const SUPPORTED_AGENTS = AGENT_PROFILES.map(({ id, name }) => ({ id, name }));
 const VALID_AGENTS = new Set<string>(KNOWN_AGENT_IDS);
 const VALID_QUALITY_MODES = new Set<string>(QUALITY_MODES);
+const QUALITY_EVALUATE_MAX_BODY_BYTES = MAX_EVALUATE_CONTENT_BYTES + 64 * 1024;
 
 interface DashboardPresetData {
   id: string;
@@ -86,7 +100,15 @@ type JsonResponder = (
   body: unknown,
 ) => void;
 
-type BodyReader = (req: IncomingMessage) => Promise<string>;
+interface BodyReadOptions {
+  maxBytes?: number;
+  tooLargeMessage?: string;
+}
+
+type BodyReader = (
+  req: IncomingMessage,
+  options?: BodyReadOptions,
+) => Promise<string>;
 
 interface DashboardAuditProfileSpan {
   name: string;
@@ -777,6 +799,16 @@ export function createDashboardRouteHandlers(
     url: URL,
     res: ServerResponse,
   ) => Promise<boolean>;
+  handleSkillQualityRequest: (url: URL, res: ServerResponse) => boolean;
+  handleSkillQualityInventoryRequest: (
+    url: URL,
+    res: ServerResponse,
+  ) => boolean;
+  handleQualityEvaluateRequest: (
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ) => Promise<boolean>;
   handleBrowseRequest: (url: URL, res: ServerResponse) => boolean;
   handleAgentDetectRequest: (url: URL, res: ServerResponse) => boolean;
   handleProjectsListRequest: (
@@ -970,6 +1002,38 @@ export function createDashboardRouteHandlers(
 
   function parseAgentFilter(param: string | null): AgentId | null {
     return param && VALID_AGENTS.has(param) ? (param as AgentId) : null;
+  }
+
+  function parseRequiredAgentParam(
+    param: string | null,
+    routeName: string,
+    res: ServerResponse,
+  ): AgentId | null {
+    if (!param || !VALID_AGENTS.has(param)) {
+      jsonResponse(res, 400, {
+        error: `${routeName} requires agent. Valid: ${KNOWN_AGENT_LIST}`,
+      });
+      return null;
+    }
+    return param as AgentId;
+  }
+
+  function skillSourceForDir(dir: string): ArtifactSource {
+    if (dir === ".agents/skills") return "agent-mirror";
+    if (dir === ".github/skills") return "github-mirror";
+    return "installed";
+  }
+
+  function runnerSkillQualityConfig(projectPath: string, agent: AgentId) {
+    const base = loadQualityConfig(projectPath);
+    const skillsDir = AGENT_PROFILE_MAP[agent].skillsDir;
+    return {
+      ...base,
+      walkRoots: {
+        skills: [{ dir: skillsDir, source: skillSourceForDir(skillsDir) }],
+        references: base.walkRoots.references,
+      },
+    };
   }
 
   /**
@@ -1300,6 +1364,156 @@ export function createDashboardRouteHandlers(
     return true;
   }
 
+  /** Return the skill/reference artifact inventory for a project. */
+  function handleSkillQualityInventoryRequest(
+    url: URL,
+    res: ServerResponse,
+  ): boolean {
+    if (url.pathname !== "/api/skill-quality/inventory") return false;
+
+    const projectPath = safeResolvePath(url.searchParams.get("path"));
+    const agent = parseRequiredAgentParam(
+      url.searchParams.get("agent"),
+      "skill-quality inventory",
+      res,
+    );
+    if (!agent) return true;
+    try {
+      requireProjectDirectory(projectPath);
+      const artifacts = discoverArtifacts(
+        projectPath,
+        runnerSkillQualityConfig(projectPath, agent),
+      );
+      jsonResponse(res, 200, { artifacts });
+    } catch (err) {
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
+  /** Score a single skill/reference artifact with deterministic metrics. */
+  function handleSkillQualityRequest(url: URL, res: ServerResponse): boolean {
+    if (url.pathname !== "/api/skill-quality") return false;
+
+    const projectPath = safeResolvePath(url.searchParams.get("path"));
+    const agent = parseRequiredAgentParam(
+      url.searchParams.get("agent"),
+      "skill-quality",
+      res,
+    );
+    if (!agent) return true;
+    const artifactId = url.searchParams.get("artifact");
+
+    if (!artifactId) {
+      jsonResponse(res, 400, {
+        error: "skill-quality requires ?artifact=<id>",
+      });
+      return true;
+    }
+
+    try {
+      requireProjectDirectory(projectPath);
+      const config = runnerSkillQualityConfig(projectPath, agent);
+      const artifact = findArtifact(projectPath, artifactId, config);
+      if (!artifact) {
+        jsonResponse(res, 404, {
+          error: `artifact not found: ${artifactId}`,
+        });
+        return true;
+      }
+      const report = scoreArtifact(projectPath, artifact, config);
+      const prompt = composeArtifactQualityPrompt(report);
+      jsonResponse(res, 200, { ...report, prompt });
+    } catch (err) {
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
+  /** Stamp the deprecation contract on responses served via the `/analyse`
+   *  alias. Called before `jsonResponse` on every status path of the alias. */
+  function markEvaluateAliasDeprecation(res: ServerResponse): void {
+    res.setHeader("Deprecation", "true");
+    res.setHeader("Link", '</api/quality/evaluate>; rel="successor-version"');
+  }
+
+  /** POST /api/quality/evaluate — score uploaded markdown and return tips.
+   * Also handles `POST /api/quality/analyse` as a deprecated alias (responds
+   * with `Deprecation: true` and `Link: <…/evaluate>; rel="successor-version"`
+   * headers; the response body is identical).
+   *
+   * Body: { content: string, suggestedName?: string, kind?: "skill" | "shared-reference" }.
+   * Returns the full SkillQualityReport plus an `tips` array with actionable
+   * improvement suggestions derived from failing/warning metrics.
+   *
+   * Read-only — does not write any file. The "side-effectful" classification
+   * is conservative: even though no IO happens, the endpoint is POST so the
+   * Origin check applies, and the body cap keeps the engine from being abused
+   * as a CPU sink. */
+  // eslint-disable-next-line complexity -- one handler covers /evaluate + the deprecated /analyse alias across method/decoder/exec/error branches; each branch represents one HTTP outcome and the deprecation header must stamp every alias path
+  async function handleQualityEvaluateRequest(
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ): Promise<boolean> {
+    const isAlias = url.pathname === "/api/quality/analyse";
+    if (url.pathname !== "/api/quality/evaluate" && !isAlias) return false;
+    if (req.method !== "POST") {
+      if (isAlias) markEvaluateAliasDeprecation(res);
+      jsonResponse(res, 405, { error: "Method not allowed" });
+      return true;
+    }
+    let body: string;
+    try {
+      body = await readBody(req, {
+        maxBytes: QUALITY_EVALUATE_MAX_BODY_BYTES,
+        tooLargeMessage: "Evaluate body too large",
+      });
+    } catch (err) {
+      if (isAlias) markEvaluateAliasDeprecation(res);
+      jsonResponse(res, 413, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return true;
+    }
+    const { decodeEvaluateBody } = await import("./decoders.js");
+    const decoded = decodeEvaluateBody(body);
+    if (!decoded.ok) {
+      if (isAlias) markEvaluateAliasDeprecation(res);
+      jsonResponse(res, 400, { error: decoded.error, path: decoded.path });
+      return true;
+    }
+    try {
+      const projectPath = safeResolvePath(
+        url.searchParams.get("path") ?? absDefault,
+      );
+      requireProjectDirectory(projectPath);
+      const result = decoded.value.files
+        ? evaluateUploadedBundle(projectPath, {
+            files: decoded.value.files,
+            suggestedName: decoded.value.suggestedName,
+            kind: decoded.value.kind,
+          })
+        : evaluateContent(projectPath, {
+            content: decoded.value.content ?? "",
+            suggestedName: decoded.value.suggestedName,
+            kind: decoded.value.kind,
+          });
+      if (isAlias) markEvaluateAliasDeprecation(res);
+      jsonResponse(res, 200, result);
+    } catch (err) {
+      if (isAlias) markEvaluateAliasDeprecation(res);
+      jsonResponse(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
   /** List child directories so the dashboard path picker can browse nearby repos. */
   function handleBrowseRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/browse") return false;
@@ -1458,6 +1672,9 @@ export function createDashboardRouteHandlers(
     handleSetupRequest,
     handleQualityRequest,
     handleQualityHistoryRequest,
+    handleSkillQualityRequest,
+    handleSkillQualityInventoryRequest,
+    handleQualityEvaluateRequest,
     handleBrowseRequest,
     handleAgentDetectRequest,
     handleProjectsListRequest,

@@ -107,9 +107,10 @@ skills/
   goat-critique/SKILL.md   # Multi-perspective critique skill template
   goat-security/SKILL.md   # Security assessment skill template
   goat-qa/SKILL.md         # Testing gap analysis skill template
-  reference/               # skill-preamble.md, skill-conventions.md, skill-quality-testing.md index + skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, skill-quality-testing/deployment.md
+  reference/               # Meta-reference templates: skill-preamble.md, skill-conventions.md
+  playbooks/               # Standalone playbook templates: browser-use.md, page-capture.md, skill-quality-testing.md + topical skill-quality-testing/*
 
-hooks/                     # Hook templates (deny-dangerous.sh, etc.)
+hooks/                     # Hook templates (deny-dangerous.sh + self-test sibling, etc.)
 evaluation/                # Quality-assessment prompt templates
 ```
 
@@ -125,6 +126,7 @@ check-versions.mjs         # Verify workflow/skills templates match package.json
 dependency-install.sh      # Wrapper: npm install with guards
 dependency-update.sh       # Wrapper: upgrade dependencies
 deny-dangerous.sh          # Hook: blocks destructive commands (copied to agent hook dirs)
+deny-dangerous.self-test.sh # Self-test corpus sourced by deny-dangerous.sh --self-test
 deploy-landing.sh          # Deploy landing page to hosting
 install-browser-tools.sh   # Install browser-use and Playwright for page capture
 npm-publish.sh             # Wrapper: npm publish sanity checks
@@ -175,6 +177,9 @@ config.yaml                # Project config (version, agents, skills, line limit
 skill-reference/           # Shared skill doctrine (committed, install-copied from workflow/skills/reference/)
   skill-preamble.md        # Loaded by every goat-* skill invocation
   skill-conventions.md     # Loaded by full-depth skill invocations
+
+skill-playbooks/           # Standalone tool/capability playbooks (committed, copied from workflow/skills/playbooks/)
+  browser-use.md           # Browser evidence capture and availability checks
   page-capture.md          # Playwright page-capture usage tiers and installation checks
   skill-quality-testing.md # Index for the authoring methodology (points at topical files below)
   skill-quality-testing/   # Topical authoring files loaded on demand per ADR-023

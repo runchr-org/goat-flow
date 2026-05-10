@@ -32,6 +32,26 @@ interface ProjectsListBody {
   projectTitles: Record<string, string>;
 }
 
+interface TerminalUploadFile {
+  name: string;
+  data: string;
+}
+
+interface TerminalUploadBody {
+  files: TerminalUploadFile[];
+}
+
+interface EvaluateBody {
+  /** Either a single content string (paste / textarea) OR an array of named
+   *  files (multi-file drop). Exactly one must be set. */
+  content?: string;
+  files?: { name: string; content: string }[];
+  /** Optional filename or display name; used as the analyzed artifact name. */
+  suggestedName?: string;
+  /** Optional explicit kind override; otherwise inferred from frontmatter. */
+  kind?: "skill" | "shared-reference";
+}
+
 const MAX_PROJECT_TITLE_LENGTH = 120;
 
 /** Build a decoder error result. */
@@ -172,6 +192,51 @@ export function decodeProjectsListBody(
   };
 }
 
+/** Decode POST /api/terminal/:id/upload-image body.
+ *  Shape: `{ files: [{ name: string, data: <base64 string> }] }`. The handler
+ *  enforces size, MIME, and count limits after structural validation. */
+// eslint-disable-next-line complexity -- explicit ingress validation: each branch maps to one rejection class for the upload payload
+export function decodeTerminalUploadBody(
+  body: string,
+  options: { maxFiles: number },
+): DecodeResult<TerminalUploadBody> {
+  const parsed = parseJson(body, "body");
+  if (!parsed.ok) return parsed;
+  const raw = parsed.value;
+  if (!isRecord(raw)) return err("body", "must be a JSON object");
+  if (!Array.isArray(raw.files)) {
+    return err("body.files", "must be an array");
+  }
+  if (raw.files.length === 0) {
+    return err("body.files", "must contain at least one file");
+  }
+  if (raw.files.length > options.maxFiles) {
+    return err(
+      "body.files",
+      `must contain at most ${options.maxFiles} file(s) per request`,
+    );
+  }
+
+  const files: TerminalUploadFile[] = [];
+  for (const [index, item] of raw.files.entries()) {
+    if (!isRecord(item)) {
+      return err(`body.files[${index}]`, "must be an object");
+    }
+    if (typeof item.name !== "string" || item.name.length === 0) {
+      return err(`body.files[${index}].name`, "must be a non-empty string");
+    }
+    if (typeof item.data !== "string" || item.data.length === 0) {
+      return err(
+        `body.files[${index}].data`,
+        "must be a non-empty base64 string",
+      );
+    }
+    files.push({ name: item.name, data: item.data });
+  }
+
+  return { ok: true, value: { files } };
+}
+
 /** Decode the optional `projectTitles` map: project path → custom display name.
  *  Empty / whitespace-only titles are dropped so clearing a title round-trips
  *  to the path-derived fallback without leaving a zombie entry in the file. */
@@ -229,4 +294,157 @@ export function decodeClientMessage(raw: string): DecodeResult<ClientMessage> {
     "message.type",
     `must be "input" or "resize" (got ${JSON.stringify(obj.type)})`,
   );
+}
+
+export const MAX_EVALUATE_CONTENT_BYTES = 256 * 1024;
+const MAX_EVALUATE_NAME_BYTES = 200;
+const MAX_EVALUATE_FILES = 32;
+const MAX_EVALUATE_FILENAME_BYTES = 256;
+
+function utf8ByteLength(value: string): number {
+  return Buffer.byteLength(value, "utf8");
+}
+
+/** Decode the optional `suggestedName` and `kind` fields shared between the
+ *  single-content and multi-file evaluate payloads. */
+function decodeEvaluateOptionals(obj: Record<string, unknown>): DecodeResult<{
+  suggestedName?: string;
+  kind?: "skill" | "shared-reference";
+}> {
+  let suggestedName: string | undefined;
+  if (obj.suggestedName !== undefined) {
+    if (typeof obj.suggestedName !== "string") {
+      return err("body.suggestedName", "must be a string");
+    }
+    if (utf8ByteLength(obj.suggestedName) > MAX_EVALUATE_NAME_BYTES) {
+      return err(
+        "body.suggestedName",
+        `must be at most ${MAX_EVALUATE_NAME_BYTES} bytes`,
+      );
+    }
+    suggestedName = obj.suggestedName;
+  }
+  let kind: "skill" | "shared-reference" | undefined;
+  if (obj.kind !== undefined) {
+    if (obj.kind !== "skill" && obj.kind !== "shared-reference") {
+      return err("body.kind", 'must be "skill" or "shared-reference"');
+    }
+    kind = obj.kind;
+  }
+  return { ok: true, value: { suggestedName, kind } };
+}
+
+/** Decode the `files` array on a multi-file evaluate body. Validates count,
+ *  per-file name + content shape, and enforces the same total-byte cap as the
+ *  single-content path so the server can't be used as a CPU sink. */
+// eslint-disable-next-line complexity -- per-file boundary validation; each branch maps to one rejection class for the bundle payload
+function decodeEvaluateFiles(
+  raw: unknown,
+): DecodeResult<{ name: string; content: string }[]> {
+  if (!Array.isArray(raw)) return err("body.files", "must be an array");
+  if (raw.length === 0)
+    return err("body.files", "must contain at least one file");
+  if (raw.length > MAX_EVALUATE_FILES) {
+    return err(
+      "body.files",
+      `must contain at most ${MAX_EVALUATE_FILES} files`,
+    );
+  }
+  const files: { name: string; content: string }[] = [];
+  let totalBytes = 0;
+  const seenNames = new Set<string>();
+  for (const [index, item] of raw.entries()) {
+    if (!isRecord(item)) {
+      return err(`body.files[${index}]`, "must be an object");
+    }
+    if (typeof item.name !== "string" || item.name.length === 0) {
+      return err(`body.files[${index}].name`, "must be a non-empty string");
+    }
+    if (utf8ByteLength(item.name) > MAX_EVALUATE_FILENAME_BYTES) {
+      return err(
+        `body.files[${index}].name`,
+        `must be at most ${MAX_EVALUATE_FILENAME_BYTES} bytes`,
+      );
+    }
+    if (
+      item.name.includes("/") ||
+      item.name.includes("\\") ||
+      item.name.includes("\0")
+    ) {
+      return err(
+        `body.files[${index}].name`,
+        "must be a bare filename (no path separators or NUL bytes)",
+      );
+    }
+    if (seenNames.has(item.name)) {
+      return err(
+        `body.files[${index}].name`,
+        `duplicate filename: ${JSON.stringify(item.name)}`,
+      );
+    }
+    seenNames.add(item.name);
+    if (typeof item.content !== "string") {
+      return err(`body.files[${index}].content`, "must be a string");
+    }
+    totalBytes += utf8ByteLength(item.content);
+    if (totalBytes > MAX_EVALUATE_CONTENT_BYTES) {
+      return err(
+        "body.files",
+        `combined content size exceeds ${MAX_EVALUATE_CONTENT_BYTES} bytes`,
+      );
+    }
+    files.push({ name: item.name, content: item.content });
+  }
+  return { ok: true, value: files };
+}
+
+/** Decode and validate a `POST /api/quality/evaluate` request body (also
+ *  accepted via the deprecated `/api/quality/analyse` alias). Accepts either a
+ *  single `content` string (paste / textarea) or a `files` array (multi-file
+ *  drag-drop) — exactly one must be set. */
+export function decodeEvaluateBody(body: string): DecodeResult<EvaluateBody> {
+  const parsed = parseJson(body, "body");
+  if (!parsed.ok) return parsed;
+  if (!isRecord(parsed.value)) {
+    return err("body", "must be a JSON object");
+  }
+  const obj = parsed.value;
+  const hasContent = obj.content !== undefined;
+  const hasFiles = obj.files !== undefined;
+  if (hasContent === hasFiles) {
+    return err("body", 'exactly one of "content" or "files" must be set');
+  }
+  const optionals = decodeEvaluateOptionals(obj);
+  if (!optionals.ok) return optionals;
+
+  if (hasContent) {
+    if (typeof obj.content !== "string" || obj.content.trim().length === 0) {
+      return err("body.content", "must be a non-empty markdown string");
+    }
+    if (utf8ByteLength(obj.content) > MAX_EVALUATE_CONTENT_BYTES) {
+      return err(
+        "body.content",
+        `must be at most ${MAX_EVALUATE_CONTENT_BYTES} bytes`,
+      );
+    }
+    return {
+      ok: true,
+      value: {
+        content: obj.content,
+        suggestedName: optionals.value.suggestedName,
+        kind: optionals.value.kind,
+      },
+    };
+  }
+
+  const filesResult = decodeEvaluateFiles(obj.files);
+  if (!filesResult.ok) return filesResult;
+  return {
+    ok: true,
+    value: {
+      files: filesResult.value,
+      suggestedName: optionals.value.suggestedName,
+      kind: optionals.value.kind,
+    },
+  };
 }

@@ -15,6 +15,7 @@ import {
 } from "../../src/cli/agents/registry.js";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
 import { normalizeAgentVersionOutput } from "../../src/cli/server/dashboard-routes.js";
+import { TERMINAL_UPLOAD_MAX_BODY_BYTES } from "../../src/cli/server/terminal-uploads.js";
 import { detectSetupStack } from "../../src/cli/detect/project-stack.js";
 import { createFS } from "../../src/cli/facts/fs.js";
 import type { AgentId } from "../../src/cli/types.js";
@@ -35,6 +36,28 @@ const require = createRequire(import.meta.url);
 const childProcess =
   require("node:child_process") as typeof import("node:child_process");
 const originalExecFileSync = childProcess.execFileSync;
+const CODEX_CONFIG = [
+  'model = "gpt-5"',
+  'default_permissions = "goat-flow"',
+  "[features]",
+  "hooks = true",
+  "[permissions.goat-flow.filesystem]",
+  "glob_scan_max_depth = 3",
+  '[permissions.goat-flow.filesystem.":project_roots"]',
+  '"." = "write"',
+  '".env.example" = "read"',
+  '".env" = "none"',
+  '"**/.env" = "none"',
+  '".env.*" = "none"',
+  '"**/.env.*" = "none"',
+  '".ssh/**" = "none"',
+  '"**/.ssh/**" = "none"',
+  '".aws/**" = "none"',
+  '"**/.aws/**" = "none"',
+  '"*.pem" = "none"',
+  '"**/*.pem" = "none"',
+  "",
+].join("\n");
 
 let server: { port: number; close: () => Promise<void> } | undefined;
 let baseUrl = "";
@@ -262,11 +285,11 @@ async function makeDashboardCacheProject(): Promise<{
     "package.json",
     '{"scripts":{"test":"node --test"}}\n',
   );
-  await writeProjectFile(root, ".codex/config.toml", 'model = "gpt-5"\n');
+  await writeProjectFile(root, ".codex/config.toml", CODEX_CONFIG);
   await writeProjectFile(
     root,
     ".codex/hooks.json",
-    '{"hooks":{"preToolUse":[{"command":".codex/hooks/deny-dangerous.sh"}]}}\n',
+    '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/deny-dangerous.sh"}]}]}}\n',
   );
   await writeProjectFile(
     root,
@@ -324,6 +347,10 @@ async function makeDashboardSetupPromptProject(options: {
     join(PROJECT_PATH, "workflow", "hooks", "deny-dangerous.sh"),
     "utf-8",
   );
+  const denyHookSelfTest = await readFile(
+    join(PROJECT_PATH, "workflow", "hooks", "deny-dangerous.self-test.sh"),
+    "utf-8",
+  );
   const commonDirs = [
     ".goat-flow/footguns",
     ".goat-flow/lessons",
@@ -375,7 +402,7 @@ skills:
     "# Conventions\n",
   );
   await writeProjectFile(root, "AGENTS.md", dashboardSetupInstruction());
-  await writeProjectFile(root, ".codex/config.toml", 'model = "gpt-5"\n');
+  await writeProjectFile(root, ".codex/config.toml", CODEX_CONFIG);
   await writeProjectFile(
     root,
     ".codex/hooks.json",
@@ -401,6 +428,11 @@ skills:
     ),
   );
   await writeProjectFile(root, ".codex/hooks/deny-dangerous.sh", denyHook);
+  await writeProjectFile(
+    root,
+    ".codex/hooks/deny-dangerous.self-test.sh",
+    denyHookSelfTest,
+  );
   if (options.installSkills) {
     for (const skill of [
       "goat",
@@ -625,6 +657,21 @@ describe("dashboard API authorization", () => {
     });
     assert.equal(res.status, 403);
     assertJsonResponse(res, "bad origin rejection");
+    assert.deepEqual(await res.json(), { error: "Forbidden" });
+  });
+
+  it("rejects cross-origin terminal image uploads", async () => {
+    const res = await fetch(`${baseUrl}/api/terminal/sess-x/upload-image`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://evil.example",
+        "X-Goat-Flow-Dashboard-Token": dashboardToken,
+      },
+      body: JSON.stringify({ files: [] }),
+    });
+    assert.equal(res.status, 403);
+    assertJsonResponse(res, "bad origin terminal upload rejection");
     assert.deepEqual(await res.json(), { error: "Forbidden" });
   });
 
@@ -1050,7 +1097,10 @@ describe("dashboard /api/audit", () => {
   it("with quality=true avoids deny hook self-tests during dashboard summary loads", async () => {
     let selfTestCalls = 0;
     childProcess.execFileSync = ((file, args, options) => {
-      if (Array.isArray(args) && args.includes("--self-test")) {
+      if (
+        Array.isArray(args) &&
+        args.some((arg) => String(arg).startsWith("--self-test"))
+      ) {
         selfTestCalls += 1;
         throw new Error(
           "dashboard summary should not run deny hook self-tests",
@@ -1287,7 +1337,10 @@ describe("dashboard /api/setup", () => {
   it("avoids deny hook self-tests while preserving setup prompt checks", async () => {
     let selfTestCalls = 0;
     childProcess.execFileSync = ((file, args, options) => {
-      if (Array.isArray(args) && args.includes("--self-test")) {
+      if (
+        Array.isArray(args) &&
+        args.some((arg) => String(arg).startsWith("--self-test"))
+      ) {
         selfTestCalls += 1;
         throw new Error("setup prompt should not run deny hook self-tests");
       }
@@ -1440,6 +1493,424 @@ describe("dashboard /api/quality", () => {
   }
 });
 
+describe("dashboard /api/skill-quality", () => {
+  it("returns artifact inventory for the project", async () => {
+    const { res, body } = await fetchJson(
+      `/api/skill-quality/inventory?path=${encodeURIComponent(PROJECT_PATH)}&agent=claude`,
+    );
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Skill quality inventory");
+    assert.ok(Array.isArray(data.artifacts));
+    const artifacts = data.artifacts as Array<Record<string, unknown>>;
+    assert.ok(
+      artifacts.length >= 12,
+      `expected at least 12 artifacts (skills + shared references), got ${artifacts.length}`,
+    );
+    assert.ok(artifacts.some((a) => a.kind === "skill"));
+    assert.ok(artifacts.some((a) => a.kind === "shared-reference"));
+    assert.ok(artifacts.some((a) => a.id === "skill:goat-plan"));
+    assert.ok(artifacts.some((a) => a.id === "reference:browser-use"));
+    assert.ok(artifacts.some((a) => a.id === "reference:skill-preamble"));
+  });
+
+  it("returns shared references regardless of selected agent", async () => {
+    const { res, body } = await fetchJson(
+      `/api/skill-quality/inventory?path=${encodeURIComponent(PROJECT_PATH)}&agent=codex`,
+    );
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Skill quality inventory");
+    const artifacts = data.artifacts as Array<Record<string, unknown>>;
+    assert.ok(artifacts.some((a) => a.id === "reference:browser-use"));
+    assert.ok(artifacts.some((a) => a.id === "reference:skill-preamble"));
+  });
+
+  it("uses the selected runner skills directory for inventory", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-skill-runner-"));
+    try {
+      await writeProjectFile(
+        root,
+        ".claude/skills/claude-only/SKILL.md",
+        "# Claude\n",
+      );
+      await writeProjectFile(
+        root,
+        ".agents/skills/codex-only/SKILL.md",
+        "# Codex\n",
+      );
+
+      const { res, body } = await fetchJson(
+        `/api/skill-quality/inventory?path=${encodeURIComponent(root)}&agent=codex`,
+      );
+      assert.equal(res.status, 200);
+      const data = expectRecord(body, "Skill quality inventory");
+      const artifacts = data.artifacts as Array<Record<string, unknown>>;
+      assert.ok(artifacts.some((a) => a.id === "skill:codex-only"));
+      assert.ok(!artifacts.some((a) => a.id === "skill:claude-only"));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("scores a valid artifact with metrics and prompt", async () => {
+    const { res, body } = await fetchJson(
+      `/api/skill-quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=claude&artifact=skill:goat-plan`,
+    );
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Skill quality report");
+    assert.equal(
+      (data.artifact as Record<string, unknown>).id,
+      "skill:goat-plan",
+    );
+    assert.ok(typeof data.totalScore === "number");
+    assert.ok(typeof data.maxTotalScore === "number");
+    assert.equal(data.subtype, "workflow");
+    assert.equal(data.profileMax, 100);
+    assert.ok(Array.isArray(data.composedFrom));
+    assert.ok(typeof data.recommendation === "string");
+    assert.ok(Array.isArray(data.metrics));
+    assert.ok(typeof data.prompt === "string");
+    assert.match(String(data.prompt), /Quality Review/);
+  });
+
+  it("returns 404 for unknown artifact id", async () => {
+    const { res, body } = await fetchJson(
+      `/api/skill-quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=claude&artifact=skill:nonexistent`,
+    );
+    assert.equal(res.status, 404);
+    const data = expectRecord(body, "Skill quality 404");
+    assert.match(String(data.error), /not found/);
+  });
+
+  it("returns 400 when artifact param is missing", async () => {
+    const { res } = await fetchJson(
+      `/api/skill-quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=claude`,
+    );
+    assert.equal(res.status, 400);
+  });
+
+  it("returns 400 when agent param is missing", async () => {
+    const { res } = await fetchJson(
+      `/api/skill-quality/inventory?path=${encodeURIComponent(PROJECT_PATH)}`,
+    );
+    assert.equal(res.status, 400);
+  });
+});
+
+describe("dashboard /api/quality/evaluate", () => {
+  const SKILL_DRAFT = [
+    "---",
+    "name: postgres-index",
+    "description: Walk through a Postgres index change with explicit evidence gates.",
+    "goat-flow-skill-version: 1.6.0",
+    "---",
+    "# /postgres-index",
+    "",
+    "## Step 0",
+    "Read CLAUDE.md and the migration file.",
+    "",
+    "## Phase 1",
+    "Plan the index change with downtime estimate.",
+    "",
+    "## Verification",
+    "- [ ] EXPLAIN ANALYZE confirms the new plan.",
+    "- [ ] Lock acquisition under 100ms in staging.",
+  ].join("\n");
+
+  it("returns a quality report and improvement tips for an uploaded skill", async () => {
+    const { res, body } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: SKILL_DRAFT,
+        suggestedName: "postgres-index.md",
+        kind: "skill",
+      }),
+    });
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Evaluate result");
+    const artifact = expectRecord(data.artifact, "Evaluate result.artifact");
+    assert.equal(artifact.kind, "skill");
+    assert.equal(typeof data.totalScore, "number");
+    assert.equal(typeof data.profileMax, "number");
+    assert.ok(Array.isArray(data.metrics));
+    assert.ok(Array.isArray(data.tips));
+    assert.equal(typeof data.subtype, "string");
+    assert.equal(typeof data.recommendation, "string");
+  });
+
+  it("infers the artifact kind when no explicit kind is provided", async () => {
+    const { res, body } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: SKILL_DRAFT }),
+    });
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Evaluate result");
+    const artifact = expectRecord(data.artifact, "Evaluate result.artifact");
+    assert.equal(artifact.kind, "skill");
+  });
+
+  it("surfaces improvement tips for a deliberately weak draft", async () => {
+    const weakDraft = [
+      "# untitled",
+      "",
+      "Some prose without sections, frontmatter, or evidence.",
+    ].join("\n");
+    const { res, body } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: weakDraft, kind: "skill" }),
+    });
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Evaluate result");
+    assert.ok(Array.isArray(data.tips));
+    assert.ok(
+      (data.tips as unknown[]).length > 0,
+      "expected at least one improvement tip for a weak draft",
+    );
+  });
+
+  it("returns 400 for empty content", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "" }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("returns 400 for missing content", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ suggestedName: "x.md" }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("returns 400 for an invalid kind value", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: SKILL_DRAFT, kind: "not-a-kind" }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("returns 413 for evaluate bodies above the route body cap", async () => {
+    const { res, body } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "x".repeat(330 * 1024) }),
+    });
+    assert.equal(res.status, 413);
+    const data = expectRecord(body, "Evaluate oversized result");
+    assert.match(String(data.error), /Evaluate body too large/);
+  });
+
+  it("counts evaluate content caps in UTF-8 bytes, not UTF-16 characters", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "€".repeat(90 * 1024) }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("returns 405 for non-POST methods", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate");
+    assert.equal(res.status, 405);
+  });
+
+  it("scores a multi-file uploaded bundle and lists every file in composedFrom", async () => {
+    const skillBody = [
+      "---",
+      "name: bundled-skill",
+      "description: A multi-file workflow that walks through a deploy.",
+      "goat-flow-skill-version: 1.6.0",
+      "---",
+      "# /bundled-skill",
+      "",
+      "## Step 0",
+      "Read the workflow.md and template.md alongside this file.",
+    ].join("\n");
+    const workflow = [
+      "## Phase 1 - Plan",
+      "List the change, downtime, and rollback.",
+      "",
+      "## Phase 2 - Apply",
+      "CHECKPOINT: human reviews before applying.",
+      "",
+      "## Verification",
+      "- [ ] EXPLAIN ANALYZE confirms the new plan.",
+    ].join("\n");
+    const template = [
+      "# Deploy template",
+      "",
+      "Used by Phase 1 to scaffold the report body.",
+    ].join("\n");
+    const { res, body } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        files: [
+          { name: "SKILL.md", content: skillBody },
+          { name: "workflow.md", content: workflow },
+          { name: "template.md", content: template },
+        ],
+        suggestedName: "bundled-skill",
+        kind: "skill",
+      }),
+    });
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Bundle evaluate result");
+    const composed = data.composedFrom as string[];
+    assert.ok(Array.isArray(composed), "composedFrom must be an array");
+    for (const expected of ["SKILL.md", "workflow.md", "template.md"]) {
+      assert.ok(
+        composed.includes(expected),
+        `expected ${expected} in composedFrom (got ${composed.join(", ")})`,
+      );
+    }
+    assert.ok(Array.isArray(data.tips));
+    assert.equal(typeof data.totalScore, "number");
+  });
+
+  it("returns 400 when both content and files are set", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: "# x",
+        files: [{ name: "SKILL.md", content: "# x" }],
+      }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("returns 400 when neither content nor files is set", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ suggestedName: "x" }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("returns 400 for an empty files array", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ files: [] }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("returns 400 for a file with a path-separator in its name", async () => {
+    for (const name of ["../escape.md", "..\\escape.md"]) {
+      const { res } = await fetchJson("/api/quality/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          files: [{ name, content: "# x" }],
+        }),
+      });
+      assert.equal(res.status, 400, name);
+    }
+  });
+
+  it("returns 400 for duplicate filenames in the bundle", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        files: [
+          { name: "SKILL.md", content: "# a" },
+          { name: "SKILL.md", content: "# b" },
+        ],
+      }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("counts evaluate bundle content caps in UTF-8 bytes", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        files: [
+          { name: "one.md", content: "€".repeat(44 * 1024) },
+          { name: "two.md", content: "€".repeat(44 * 1024) },
+        ],
+      }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("counts evaluate filenames in UTF-8 bytes", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        files: [{ name: `${"é".repeat(130)}.md`, content: "# x" }],
+      }),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+describe("dashboard /api/quality/analyse (deprecated alias)", () => {
+  const SKILL_DRAFT = [
+    "---",
+    "name: postgres-index",
+    "description: Walk through a Postgres index change with explicit evidence gates.",
+    "goat-flow-skill-version: 1.6.0",
+    "---",
+    "# /postgres-index",
+    "",
+    "## Step 0",
+    "Read CLAUDE.md and the migration file.",
+    "",
+    "## Phase 1",
+    "Plan the index change with downtime estimate.",
+    "",
+    "## Verification",
+    "- [ ] Lock acquisition under 100ms in staging.",
+  ].join("\n");
+
+  it("scores via the alias and emits Deprecation + Link headers", async () => {
+    const { res, body } = await fetchJson("/api/quality/analyse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: SKILL_DRAFT, kind: "skill" }),
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("deprecation"), "true");
+    assert.match(
+      String(res.headers.get("link") ?? ""),
+      /\/api\/quality\/evaluate.*successor-version/,
+    );
+    const data = expectRecord(body, "Alias evaluate result");
+    assert.equal(typeof data.totalScore, "number");
+    assert.ok(Array.isArray(data.metrics));
+  });
+
+  it("emits the Deprecation header on alias 400 responses too", async () => {
+    const { res } = await fetchJson("/api/quality/analyse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "" }),
+    });
+    assert.equal(res.status, 400);
+    assert.equal(res.headers.get("deprecation"), "true");
+  });
+
+  it("returns 405 for non-POST on the alias", async () => {
+    const { res } = await fetchJson("/api/quality/analyse");
+    assert.equal(res.status, 405);
+  });
+});
+
 describe("dashboard /api/projects", () => {
   it("persists the dashboard state roundtrip", async () => {
     const nextPaths = [PROJECT_PATH, resolve(PROJECT_PATH, "src")];
@@ -1577,6 +2048,93 @@ describe("dashboard terminal endpoints", () => {
     assert.deepEqual(data.sessions, []);
     assert.equal(data.maxSessions, 10);
     assert.equal(data.activeCount, 0);
+  });
+
+  it("POST /api/terminal/:id/upload-image rejects an unsafe session id", async () => {
+    const { res, body } = await fetchJson(
+      "/api/terminal/..%2Fevil/upload-image",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: [] }),
+      },
+    );
+    assert.equal(res.status, 400);
+    const data = expectRecord(body, "Upload bad-id error");
+    assert.match(String(data.error), /Invalid session id/);
+  });
+
+  it("POST /api/terminal/:id/upload-image returns 404 for an unknown session id", async () => {
+    const png = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.alloc(16, 0xff),
+    ]);
+    const { res, body } = await fetchJson(
+      "/api/terminal/sess-not-real/upload-image",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          files: [{ name: "x.png", data: png.toString("base64") }],
+        }),
+      },
+    );
+    assert.equal(res.status, 404);
+    const data = expectRecord(body, "Upload missing-session error");
+    assert.match(String(data.error), /Session not found/);
+  });
+
+  it("POST /api/terminal/:id/upload-image rejects an empty files array", async () => {
+    const { res, body } = await fetchJson("/api/terminal/sess-x/upload-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ files: [] }),
+    });
+    assert.equal(res.status, 400);
+    const data = expectRecord(body, "Upload empty-files error");
+    assert.equal(data.path, "body.files");
+    assert.match(String(data.error), /at least one file/);
+  });
+
+  it("POST /api/terminal/:id/upload-image rejects too many files in one request", async () => {
+    const png = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.alloc(16, 0xff),
+    ]);
+    const oneFile = { name: "x.png", data: png.toString("base64") };
+    const { res, body } = await fetchJson("/api/terminal/sess-x/upload-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        files: [oneFile, oneFile, oneFile, oneFile, oneFile, oneFile],
+      }),
+    });
+    assert.equal(res.status, 400);
+    const data = expectRecord(body, "Upload too-many error");
+    assert.equal(data.path, "body.files");
+    assert.match(String(data.error), /at most 5 file/);
+  });
+
+  it("POST /api/terminal/:id/upload-image rejects malformed JSON", async () => {
+    const { res, body } = await fetchJson("/api/terminal/sess-x/upload-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{not json",
+    });
+    assert.equal(res.status, 400);
+    const data = expectRecord(body, "Upload bad-json error");
+    assert.match(String(data.error), /invalid JSON/);
+  });
+
+  it("POST /api/terminal/:id/upload-image returns JSON 413 for oversized bodies", async () => {
+    const { res, body } = await fetchJson("/api/terminal/sess-x/upload-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "x".repeat(TERMINAL_UPLOAD_MAX_BODY_BYTES + 1),
+    });
+    assert.equal(res.status, 413);
+    const data = expectRecord(body, "Upload oversized error");
+    assert.match(String(data.error), /Upload body too large/);
   });
 });
 

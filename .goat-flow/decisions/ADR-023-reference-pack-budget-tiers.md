@@ -2,6 +2,7 @@
 
 **Date:** 2026-04-20
 **Status:** Accepted
+**Updated:** 2026-05-10 - Path references amended for the v1.6.0 `skill-reference/` and `skill-playbooks/` split.
 **Milestone:** Quality-report follow-up (reports 1-4, persistent MAJOR finding across four runs)
 
 ## Context
@@ -10,7 +11,7 @@
 
 > "Token budget met (dispatcher <500 words, functional skill <2500 words, reference pack <400 words per file)."
 
-Actual shipped state in `.goat-flow/skill-reference/`:
+Actual shipped state at the time in `.goat-flow/skill-reference/`:
 
 | File | Words | Multiple over budget |
 |------|-------|---------------------|
@@ -36,7 +37,7 @@ A single 400-word cap is defensible for progressive packs (small, pick-one-of-ma
 | Dispatcher skill | ≤555 words | `goat/SKILL.md` |
 | Functional skill | <2500 words | `goat-debug/SKILL.md`, `goat-plan/SKILL.md`, `goat-qa/SKILL.md`, `goat-review/SKILL.md`, `goat-critique/SKILL.md`, `goat-security/SKILL.md` |
 | Always-loaded shared content | <1500 words per file | `skill-preamble.md`, `skill-conventions.md` (loaded by every goat-* skill on invocation) |
-| Progressive reference pack | <3000 words per file | Files under per-skill `references/` subdirs and `.goat-flow/skill-reference/<pack>/` subdirs (loaded only when a skill enters the mode that needs them) |
+| Progressive reference pack | <3000 words per file | Files under per-skill `references/` subdirs and `.goat-flow/skill-playbooks/<pack>/` subdirs (loaded only when a skill enters the mode that needs them) |
 
 Under the new tiers:
 
@@ -44,7 +45,7 @@ Under the new tiers:
 - `skill-conventions.md` (977w) ✅ within the 1500w always-loaded tier.
 - `skill-quality-testing.md` (3893w) ❌ still above the 3000w progressive-pack cap. Split required.
 
-**Split `skill-quality-testing.md` into a short index plus three topical files under `.goat-flow/skill-reference/skill-quality-testing/` (mirrored in the `workflow/skills/reference/skill-quality-testing/` template):**
+**Split `skill-quality-testing.md` into a short index plus three topical files under `.goat-flow/skill-playbooks/skill-quality-testing/` (mirrored in the `workflow/skills/playbooks/skill-quality-testing/` template):**
 
 | New file | Content | Loaded when |
 |----------|---------|-------------|
@@ -52,7 +53,7 @@ Under the new tiers:
 | `adversarial-framing.md` | Cynical-reviewer role prompt, zero-findings HALT pattern, parallel reviewer pattern, structured finding schema | Authoring or hardening a review-class skill (goat-review, goat-critique, goat-qa) |
 | `deployment.md` | Skip-testing rationalisations, skill deployment checklist (RED/GREEN/REFACTOR phases, quality checks, deployment gates), STOP-before-next-skill rule | Finalising any skill before merge |
 
-The existing `skill-quality-testing.md` file stays at its current path but becomes a short index (<400w) that names each topical file and when to load it. This preserves every existing cross-reference in the repo (skill-conventions.md, architecture.md, installers, drift checks, docs) while achieving the token-cost reduction: authors load only the topical file relevant to the skill type they are working on.
+The installed `.goat-flow/skill-playbooks/skill-quality-testing.md` file becomes a short index (<400w) that names each topical file and when to load it. This preserves a stable authoring-playbook entry point while achieving the token-cost reduction: authors load only the topical file relevant to the skill type they are working on.
 
 **The budget rule itself moves into `deployment.md`** (the topical file whose checklist it belongs to) and is updated to state the new four-tier model.
 
@@ -68,7 +69,7 @@ The existing `skill-quality-testing.md` file stays at its current path but becom
 
 ## Consequences
 
-- `skill-quality-testing.md` becomes a short index; three new topical files ship under `.goat-flow/skill-reference/skill-quality-testing/` (installed) and `workflow/skills/reference/skill-quality-testing/` (template).
+- `skill-quality-testing.md` becomes a short index; three new topical files ship under `.goat-flow/skill-playbooks/skill-quality-testing/` (installed) and `workflow/skills/playbooks/skill-quality-testing/` (template).
 - Drift-check plumbing grows: `scripts/preflight-checks.sh`, `src/cli/audit/check-drift.ts` `SHARED_FILES` array, `workflow/install-goat-flow.sh`, `workflow/manifest.json`, and the `test/integration/audit-drift.test.ts` + `test/integration/preamble-sync.test.ts` fixture lists each gain the three new pairs.
 - `src/cli/audit/check-content-quality.ts` picks up the three new files so content-quality lint applies to the split content the same way it applied to the monolith.
 - Agents consulting `skill-quality-testing.md` for authoring guidance now read a short index, then load only the topical file their skill type needs (often just one).

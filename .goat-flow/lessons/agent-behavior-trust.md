@@ -1,6 +1,6 @@
 ---
 category: agent-behavior-trust
-last_reviewed: 2026-05-03
+last_reviewed: 2026-05-09
 ---
 
 ## Lesson: Prose-only "show terminal output" rules lose to brevity pressure
@@ -109,6 +109,8 @@ last_reviewed: 2026-05-03
 **Root cause:** The original Codex profile was written based on an early understanding of Codex capabilities. Nobody re-checked when the hooks engine shipped. The assumption propagated through templates, install scripts, fact extraction, and setup guides unchallenged.
 
 **Prevention:** When a profile field says an agent "can't" do something, verify against the current docs before building workarounds. Capabilities evolve - a limitation at setup time may not still hold.
+
+**Updated 2026-05-09:** The same trap recurred around Codex hooks and permissions, then needed a same-day correction from runtime evidence. Codex CLI 0.129.0 reports `[features].codex_hooks` as deprecated and lists `hooks` as the stable feature; it also rejects `read` access on recursive filename globs such as `**/.env.example` with `filesystem glob path '**/.env.example' only supports 'none' access`. Current goat-flow templates therefore use `[features].hooks = true`, keep `.env.example` as an exact read rule, and reserve recursive globs for `none` denies. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `hooks = true`, `Codex read rules must be exact paths`), `workflow/install-goat-flow.sh` (search: `features.codex_hooks`), `src/cli/audit/check-agent-setup.ts` (search: `Deprecated Codex feature flag`).
 
 ---
 ## Lesson: Agent skips AI testing gate and offers to continue

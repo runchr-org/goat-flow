@@ -1,6 +1,6 @@
 {
   "description": "Expected goat-flow project structure. Source of truth for setup, audit, and upgrade paths. Not a JSON Schema - this is a manifest of what should exist on disk.",
-  "version": "1.5.0",
+  "version": "1.6.0",
 
   "required_files": [
     ".goat-flow/.gitignore",
@@ -19,12 +19,13 @@
     ".goat-flow/skill-reference/README.md",
     ".goat-flow/skill-reference/skill-preamble.md",
     ".goat-flow/skill-reference/skill-conventions.md",
-    ".goat-flow/skill-reference/browser-use.md",
-    ".goat-flow/skill-reference/page-capture.md",
-    ".goat-flow/skill-reference/skill-quality-testing.md",
-    ".goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md",
-    ".goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md",
-    ".goat-flow/skill-reference/skill-quality-testing/deployment.md",
+    ".goat-flow/skill-playbooks/README.md",
+    ".goat-flow/skill-playbooks/browser-use.md",
+    ".goat-flow/skill-playbooks/page-capture.md",
+    ".goat-flow/skill-playbooks/skill-quality-testing.md",
+    ".goat-flow/skill-playbooks/skill-quality-testing/tdd-iteration.md",
+    ".goat-flow/skill-playbooks/skill-quality-testing/adversarial-framing.md",
+    ".goat-flow/skill-playbooks/skill-quality-testing/deployment.md",
     ".goat-flow/architecture.md",
     ".goat-flow/code-map.md",
     ".goat-flow/glossary.md",
@@ -42,6 +43,7 @@
     ".goat-flow/logs/security/",
     ".goat-flow/scratchpad/",
     ".goat-flow/skill-reference/",
+    ".goat-flow/skill-playbooks/",
     ".goat-flow/tasks/"
   ],
 
@@ -54,7 +56,8 @@
     ".goat-flow/logs/critiques/": "Workspace-local, gitignored-by-design critique run history. Phase 3 snapshots from `/goat-critique` runs persisted before the Phase 4 blocking gate so work survives session interruptions. Only README.md is committed.",
     ".goat-flow/logs/security/": "Workspace-local, gitignored-by-design security assessment history. Saved `/goat-security` run outputs for reference across sessions. Only README.md is committed.",
     ".goat-flow/scratchpad/": "Local, gitignored-by-design working notes. Session-scoped WIP; not a persistence gap. Durable project knowledge belongs in lessons/, footguns/, or decisions/. Transient continuity notes belong in logs/sessions/. Only README.md, .gitignore, and .gitkeep are committed.",
-    ".goat-flow/skill-reference/": "Committed shared cold-path skill doctrine copied from workflow templates. Holds README.md as the capability-playbook index, skill-preamble.md, skill-conventions.md, browser-use.md for browser evidence capture, page-capture.md for Playwright page-capture usage tiers, and skill-quality-testing.md (index pointing at the skill-quality-testing/ subdir with tdd-iteration.md, adversarial-framing.md, deployment.md per ADR-023); durable reference state used across sessions, not transient notes.",
+    ".goat-flow/skill-reference/": "Committed shared meta references composed into every goat-flow skill at scoring and runtime. Holds README.md, skill-preamble.md (Proof Gate, OBSERVED/INFERRED tagging, evidence discipline; loaded every skill invocation), skill-conventions.md (footgun/lesson entry shapes, frontmatter contracts; loaded on full-depth). These describe the universal contract every skill inherits — adding a new file here commits every skill to inherit it.",
+    ".goat-flow/skill-playbooks/": "Committed standalone playbooks for tools and capabilities available to coding agents. Holds README.md as the capability-playbook index, browser-use.md for browser evidence capture, page-capture.md for Playwright page-capture usage tiers, and skill-quality-testing.md (index pointing at the skill-quality-testing/ subdir with tdd-iteration.md, adversarial-framing.md, deployment.md per ADR-023). Loaded on-demand by skills/agents — never composed into a skill at scoring time.",
     ".goat-flow/tasks/": "Local, gitignored-by-design milestone files and plan subdirs. Session-scoped coordination state; not a persistence gap. Only README.md and .gitignore are committed."
   },
 
@@ -134,7 +137,7 @@
         "pre_tool": "PreToolUse",
         "post_turn": "Stop"
       },
-      "hooks": ["deny-dangerous.sh"]
+      "hooks": ["deny-dangerous.sh", "deny-dangerous.self-test.sh"]
     },
     "codex": {
       "name": "Codex",
@@ -145,15 +148,16 @@
       "hook_config_file": ".codex/hooks.json",
       "deny_hook": ".codex/hooks/deny-dangerous.sh",
       "deny_mechanism": {
-        "type": "deny-script",
-        "path": ".codex/hooks/deny-dangerous.sh"
+        "type": "both",
+        "settings_path": ".codex/config.toml",
+        "script_path": ".codex/hooks/deny-dangerous.sh"
       },
       "local_pattern": ".github/instructions/*.md",
       "hook_events": {
         "pre_tool": "PreToolUse",
-        "post_turn": null
+        "post_turn": "Stop"
       },
-      "hooks": ["deny-dangerous.sh"]
+      "hooks": ["deny-dangerous.sh", "deny-dangerous.self-test.sh"]
     },
     "gemini": {
       "name": "Gemini CLI",
@@ -173,7 +177,7 @@
         "pre_tool": "BeforeTool",
         "post_turn": "AfterAgent"
       },
-      "hooks": ["deny-dangerous.sh"]
+      "hooks": ["deny-dangerous.sh", "deny-dangerous.self-test.sh"]
     },
     "copilot": {
       "name": "Copilot CLI",
@@ -191,7 +195,7 @@
         "pre_tool": "preToolUse",
         "post_turn": null
       },
-      "hooks": ["hooks.json", "deny-dangerous.sh"]
+      "hooks": ["hooks.json", "deny-dangerous.sh", "deny-dangerous.self-test.sh"]
     }
   },
 
@@ -222,6 +226,7 @@
       "quality",
       "settings",
       "setup",
+      "skills",
       "workspace"
     ]
   }

@@ -109,6 +109,10 @@ function app() {
     // detachTerminal() flips this while it closes browser-side sockets so ws.onclose only
     // marks sessions ended when the runner actually exits on the backend.
     _detaching: false,
+    // Drag-drop image upload state for the active terminal pane.
+    terminalDragActive: false,
+    terminalUploading: false,
+    _terminalDragDepth: 0,
     /** Return the active local session. */
     get _activeSession(): LocalSession | null {
       return this.sessions.find((s) => s.id === this.activeSessionId) || null;
@@ -206,6 +210,31 @@ function app() {
     _qualityHistoryTimer: null as ReturnType<typeof setTimeout> | null,
     homeQualityLoading: false,
     homeQualityLatest: null as QualityHistoryLatest | null,
+
+    // --- Skill quality state ---
+    skillQualityArtifacts: [] as SkillQualityArtifact[],
+    skillQualitySelectedId: null as string | null,
+    skillQualityReport: null as SkillQualityReport | null,
+    skillQualityLoading: false,
+    skillQualityAbortController: null as AbortController | null,
+    /** Cache of per-artifact reports so the sidebar can show a grade for each
+     *  skill without waiting on per-click fetches. Populated by prefetchSkillReports
+     *  after loadSkillQualityInventory. */
+    skillQualityReports: {} as Record<string, SkillQualityReport>,
+    skillQualityAuditedAt: null as number | null,
+    skillQualityPrefetching: false,
+
+    // --- Skill evaluator modal state ---
+    skillEvaluatorOpen: false,
+    skillEvaluatorName: "",
+    skillEvaluatorContent: "",
+    skillEvaluatorFiles: [] as { name: string; content: string }[],
+    skillEvaluatorDragActive: false,
+    skillEvaluatorResult: null as SkillEvaluateResult | null,
+    skillEvaluatorLoading: false,
+    skillEvaluatorError: null as string | null,
+    /** Per-metric collapse state for the result-modal tip groups. */
+    skillEvaluatorTipCollapsed: {} as Record<string, boolean>,
 
     /** Resolve the current display name for one supported agent id. */
     agentName(agentId: RunnerId): string {
@@ -545,6 +574,116 @@ function app() {
     async sendToProjectTarget(prompt: string, target: ServerSessionInfo) {
       await dashboardSendToProjectTarget(this, prompt, target);
     },
+    // --- Terminal image drag-drop ---
+    handleTerminalDragEnter(event: DragEvent) {
+      if (!this._dragHasImageFiles(event)) return;
+      if (!this.activeSessionId || this.terminalEnded) return;
+      this._terminalDragDepth += 1;
+      this.terminalDragActive = true;
+    },
+    handleTerminalDragOver(event: DragEvent) {
+      if (!this._dragHasImageFiles(event)) return;
+      // Setting dropEffect on the dataTransfer is what lets browsers fire `drop`
+      // on this pane instead of routing the file to the OS handler.
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+    },
+    handleTerminalDragLeave(_event: DragEvent) {
+      this._terminalDragDepth = Math.max(0, this._terminalDragDepth - 1);
+      if (this._terminalDragDepth === 0) this.terminalDragActive = false;
+    },
+    async handleTerminalDrop(event: DragEvent) {
+      this._terminalDragDepth = 0;
+      this.terminalDragActive = false;
+      if (!this.activeSessionId || this.terminalEnded) {
+        this.showToast("No active terminal session for upload", true);
+        return;
+      }
+      const files = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
+        file.type.startsWith("image/"),
+      );
+      if (files.length === 0) {
+        this.showToast(
+          "Only image files (.png, .jpg, .webp, .gif) can be dropped here",
+          true,
+        );
+        return;
+      }
+      await this._uploadTerminalImages(files);
+    },
+    _dragHasImageFiles(event: DragEvent): boolean {
+      const items = event.dataTransfer?.items;
+      if (!items || items.length === 0) return false;
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index];
+        if (item && item.kind === "file" && item.type.startsWith("image/"))
+          return true;
+      }
+      return false;
+    },
+    async _uploadTerminalImages(files: File[]) {
+      const sessionId = this.activeSessionId;
+      if (!sessionId) return;
+      this.terminalUploading = true;
+      try {
+        const encoded = await Promise.all(
+          files.map(async (file) => ({
+            name: file.name,
+            data: await dashboardFileToBase64(file),
+          })),
+        );
+        const res = await dashboardFetch(
+          `/api/terminal/${encodeURIComponent(sessionId)}/upload-image`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ files: encoded }),
+          },
+        );
+        const payload = readRecord(
+          await res.json(),
+          "Terminal upload response",
+        );
+        const error = readErrorMessage(payload);
+        if (error) {
+          this.showToast(error, true);
+          return;
+        }
+        const note = typeof payload.note === "string" ? payload.note : "";
+        const accepted = Array.isArray(payload.accepted)
+          ? payload.accepted
+          : [];
+        const rejected = Array.isArray(payload.rejected)
+          ? payload.rejected
+          : [];
+        if (note.length > 0) {
+          dashboardSendToTerminalSession(this, sessionId, note, {
+            adapt: false,
+          });
+        }
+        if (rejected.length > 0) {
+          for (const entry of rejected) {
+            const r = entry as Record<string, unknown>;
+            const name =
+              typeof r["originalName"] === "string"
+                ? r["originalName"]
+                : "file";
+            const reason =
+              typeof r["reason"] === "string" ? r["reason"] : "unknown reason";
+            this.showToast(`Rejected ${name}: ${reason}`, true);
+          }
+        } else if (accepted.length > 0) {
+          this.showToast(
+            `Attached ${accepted.length} image${accepted.length === 1 ? "" : "s"}`,
+            false,
+          );
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.showToast(msg || "Terminal image upload failed", true);
+      } finally {
+        this.terminalUploading = false;
+      }
+    },
     // --- Init ---
     init() {
       const self = this as typeof this & AlpineMagics<typeof this>;
@@ -659,6 +798,9 @@ function app() {
           void this.generateQuality();
           this.scheduleQualityHistory();
         }
+        if (v === "skills") {
+          void this.loadSkillQualityInventory();
+        }
         if (v === "setup") {
           void this.detectStack();
           this.scheduleSetupPrompt();
@@ -673,6 +815,18 @@ function app() {
       self.$watch("activeRunner", () => {
         if (this.activeView === "home") {
           void this.generateHomeQualitySummary();
+        }
+        if (this.activeView === "skills") {
+          this.skillQualityAbortController?.abort();
+          this.skillQualityAbortController = null;
+          this.skillQualityArtifacts = [];
+          this.skillQualitySelectedId = null;
+          this.skillQualityReport = null;
+          this.skillQualityLoading = false;
+          this.skillQualityReports = {};
+          this.skillQualityAuditedAt = null;
+          this.skillQualityPrefetching = false;
+          void this.loadSkillQualityInventory();
         }
       });
       self.$watch("selectedQualityModeId", () => {
@@ -704,6 +858,18 @@ function app() {
           }
           if (this.activeView === "home") {
             void this.generateHomeQualitySummary();
+          }
+          this.skillQualityAbortController?.abort();
+          this.skillQualityAbortController = null;
+          this.skillQualityArtifacts = [];
+          this.skillQualitySelectedId = null;
+          this.skillQualityReport = null;
+          this.skillQualityLoading = false;
+          this.skillQualityReports = {};
+          this.skillQualityAuditedAt = null;
+          this.skillQualityPrefetching = false;
+          if (this.activeView === "skills") {
+            void this.loadSkillQualityInventory();
           }
         }
       });
@@ -941,6 +1107,535 @@ function app() {
     /** Copy the current quality prompt to the clipboard. */
     copyQuality() {
       dashboardCopyQuality(this);
+    },
+
+    // -- Skill quality --
+    async loadSkillQualityInventory() {
+      const requestProjectPath = this.projectPath;
+      const requestRunner = this.activeRunner;
+      try {
+        const res = await dashboardFetch(
+          `/api/skill-quality/inventory?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestRunner)}`,
+        );
+        const payload = readRecord(await res.json(), "Skill quality inventory");
+        const error = readErrorMessage(payload);
+        if (error) {
+          this.showToast(error, true);
+          return;
+        }
+        if (
+          this.projectPath !== requestProjectPath ||
+          this.activeRunner !== requestRunner
+        ) {
+          return;
+        }
+        this.skillQualityArtifacts = Array.isArray(payload.artifacts)
+          ? payload.artifacts
+          : [];
+        this.skillQualityReports = {};
+        this.skillQualityAuditedAt = null;
+        void this.prefetchSkillReports(requestProjectPath, requestRunner);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.showToast(msg || "Skill quality inventory failed", true);
+      }
+    },
+    /** Fetch reports for every artifact in parallel so the sidebar can show
+     *  a per-skill grade without requiring the user to click each one first.
+     *  Aborts silently if the project/runner changes mid-flight. */
+    async prefetchSkillReports(projectPath: string, runner: string) {
+      const artifacts = [...this.skillQualityArtifacts];
+      if (artifacts.length === 0) return;
+      this.skillQualityPrefetching = true;
+      const fetches = artifacts.map(async (art) => {
+        try {
+          const res = await dashboardFetch(
+            `/api/skill-quality?path=${encodeURIComponent(projectPath)}&agent=${encodeURIComponent(runner)}&artifact=${encodeURIComponent(art.id)}`,
+          );
+          const payload = readRecord(await res.json(), "Skill quality report");
+          if (readErrorMessage(payload)) return;
+          if (this.projectPath !== projectPath || this.activeRunner !== runner)
+            return;
+          this.skillQualityReports[art.id] =
+            payload as unknown as SkillQualityReport;
+        } catch {
+          /* swallow per-artifact errors so one failure doesn't stop the rest */
+        }
+      });
+      await Promise.all(fetches);
+      if (this.projectPath === projectPath && this.activeRunner === runner) {
+        this.skillQualityAuditedAt = Date.now();
+        this.skillQualityPrefetching = false;
+        if (
+          !this.skillQualitySelectedId &&
+          this.skillQualityArtifacts.length > 0
+        ) {
+          const first = this.skillQualityArtifacts[0];
+          if (first) void this.loadSkillQualityReport(first.id);
+        }
+      }
+    },
+    /** Re-run the inventory + prefetch from scratch — used by the page-level
+     *  "Re-audit all" button. */
+    async reauditAllSkills() {
+      this.skillQualityReport = null;
+      this.skillQualitySelectedId = null;
+      await this.loadSkillQualityInventory();
+    },
+    async loadSkillQualityReport(artifactId: string) {
+      this.skillQualitySelectedId = artifactId;
+      const cached = this.skillQualityReports[artifactId];
+      if (cached) {
+        this.skillQualityReport = cached;
+        this.skillQualityLoading = false;
+        return;
+      }
+      this.skillQualityAbortController?.abort();
+      const controller = new AbortController();
+      this.skillQualityAbortController = controller;
+      const requestProjectPath = this.projectPath;
+      const requestRunner = this.activeRunner;
+      this.skillQualityReport = null;
+      this.skillQualityLoading = true;
+      try {
+        const res = await dashboardFetch(
+          `/api/skill-quality?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestRunner)}&artifact=${encodeURIComponent(artifactId)}`,
+          { signal: controller.signal },
+        );
+        const payload = readRecord(await res.json(), "Skill quality report");
+        const error = readErrorMessage(payload);
+        if (error) {
+          this.showToast(error, true);
+        } else if (
+          this.projectPath === requestProjectPath &&
+          this.activeRunner === requestRunner &&
+          this.skillQualitySelectedId === artifactId
+        ) {
+          const report = payload as unknown as SkillQualityReport;
+          this.skillQualityReport = report;
+          this.skillQualityReports[artifactId] = report;
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        this.showToast(msg || "Skill quality scoring failed", true);
+      }
+      if (this.skillQualityAbortController === controller) {
+        this.skillQualityLoading = false;
+        this.skillQualityAbortController = null;
+      }
+    },
+    /** Map a 0..1 ratio to an A/B/C/D/F letter grade. Matches the convention
+     *  used on the Setup and Quality pages (≥0.9 A, ≥0.8 B, ≥0.7 C, ≥0.6 D). */
+    skillLetterGrade(pct: number): string {
+      if (pct >= 0.9) return "A";
+      if (pct >= 0.8) return "B";
+      if (pct >= 0.7) return "C";
+      if (pct >= 0.6) return "D";
+      return "F";
+    },
+    skillReportPct(report: SkillQualityReport | null): number {
+      if (!report || !report.profileMax) return 0;
+      return report.totalScore / report.profileMax;
+    },
+    /** Aggregate count of skills whose stored report has at least one
+     *  warn/fail metric. Used for the scope-strip "N with warnings" line. */
+    skillsWithWarningsCount(): number {
+      let count = 0;
+      for (const id in this.skillQualityReports) {
+        const r = this.skillQualityReports[id];
+        if (!r) continue;
+        if (
+          r.metrics.some((m) => m.severity === "warn" || m.severity === "fail")
+        )
+          count++;
+      }
+      return count;
+    },
+    /** Mean score across all prefetched reports as a 0..1 ratio. */
+    skillsAvgPct(): number {
+      const reports = Object.values(this.skillQualityReports);
+      if (reports.length === 0) return 0;
+      let sum = 0;
+      for (const r of reports) sum += this.skillReportPct(r);
+      return sum / reports.length;
+    },
+    /** Headline summary for the skills detail panel — derives a one-sentence
+     *  conclusion from the recommendation + warn/fail counts so the buried
+     *  "two non-blocking issues" line gets promoted into a banner. */
+    skillSummaryBanner(report: SkillQualityReport | null): {
+      title: string;
+      desc: string;
+      severity: "pass" | "warn" | "fail";
+    } {
+      if (!report) return { title: "", desc: "", severity: "warn" };
+      const pct = this.skillReportPct(report);
+      const warnCount = report.metrics.filter(
+        (m) => m.severity === "warn",
+      ).length;
+      const failCount = report.metrics.filter(
+        (m) => m.severity === "fail",
+      ).length;
+      const rec = report.recommendation;
+      if (failCount > 0) {
+        return {
+          title: "Critical structural issues require attention",
+          desc: `${failCount} failing metric${failCount > 1 ? "s" : ""}${
+            warnCount
+              ? ` and ${warnCount} warning${warnCount > 1 ? "s" : ""}`
+              : ""
+          }. Recommended: ${rec}.`,
+          severity: "fail",
+        };
+      }
+      if (warnCount > 0) {
+        const title =
+          pct >= 0.85
+            ? "Strong skill identity with adequate structural quality"
+            : "Acceptable skill with non-blocking issues";
+        return {
+          title,
+          desc: `${warnCount} non-blocking issue${
+            warnCount > 1 ? "s" : ""
+          }. Recommended: ${rec}, address warnings.`,
+          severity: "warn",
+        };
+      }
+      return {
+        title: "All structural metrics passing",
+        desc: `Recommended: ${rec}.`,
+        severity: "pass",
+      };
+    },
+    /** Verdict-banner copy for the Evaluate-skill modal result.
+     *
+     *  The headline title softens its tone to match the recommendation: a
+     *  `needs-human-review` verdict says "needs review before keeping", not
+     *  "block ship" — "block ship" is reserved for verdicts that the engine
+     *  is genuinely confident about (retire / consider-revision). Mismatch
+     *  between pill and copy was confusing readers about how confident the
+     *  engine actually is. */
+    skillEvaluatorVerdict(report: SkillEvaluateResult | null): {
+      title: string;
+      desc: string;
+    } {
+      if (!report) return { title: "", desc: "" };
+      const cls = report.classification;
+      const detected = cls.detectedSubtype;
+      const failCount = report.metrics.filter(
+        (m) => m.severity === "fail",
+      ).length;
+      const warnCount = report.metrics.filter(
+        (m) => m.severity === "warn",
+      ).length;
+      const isHardVerdict =
+        report.recommendation === "retire" ||
+        report.recommendation === "consider-revision";
+      let title = "";
+      if (cls.confidence >= 0.85 && detected !== report.subtype) {
+        title = `This reads as a ${detected}, not a ${report.subtype}`;
+      } else if (failCount > 0) {
+        const tail = isHardVerdict
+          ? "block ship"
+          : "— needs review before keeping";
+        title = `${failCount} failing metric${failCount > 1 ? "s" : ""} ${tail}`;
+      } else if (warnCount > 0) {
+        title = `${warnCount} non-blocking warning${warnCount > 1 ? "s" : ""}`;
+      } else {
+        title = "All structural metrics passing";
+      }
+      const recHuman =
+        report.recommendation === "needs-human-review"
+          ? "Manual review required"
+          : report.recommendation === "consider-reclassifying"
+            ? "Consider reclassifying"
+            : report.recommendation === "consider-revision"
+              ? "Revise before shipping"
+              : report.recommendation === "retire"
+                ? "Retire or rewrite"
+                : report.recommendation === "reference-playbook"
+                  ? "Ship as a reference"
+                  : "Keep as a skill";
+      const detail =
+        cls.confidence >= 0.85 && detected !== report.subtype
+          ? `${Math.round(cls.confidence * 100)}% ${detected} classification`
+          : `${failCount + warnCount} non-passing metric${
+              failCount + warnCount === 1 ? "" : "s"
+            }`;
+      return {
+        title,
+        desc: `${detail}. ${recHuman} before deciding to keep, convert, or discard.`,
+      };
+    },
+    /** Group improvement tips by their metric so the modal result can render
+     *  one collapsible cluster per metric (with the metric's score in the
+     *  header). Order follows the metrics array (ranking from skill-quality.ts). */
+    skillEvaluatorTipGroups(report: SkillEvaluateResult | null): Array<{
+      metric: string;
+      label: string;
+      score: number;
+      maxScore: number;
+      severity: SkillQualityMetricSeverity;
+      tips: SkillEvaluateTip[];
+    }> {
+      if (!report || report.tips.length === 0) return [];
+      const tipsByMetric = new Map<string, SkillEvaluateTip[]>();
+      for (const tip of report.tips) {
+        const arr = tipsByMetric.get(tip.metric) ?? [];
+        arr.push(tip);
+        tipsByMetric.set(tip.metric, arr);
+      }
+      const groups: Array<{
+        metric: string;
+        label: string;
+        score: number;
+        maxScore: number;
+        severity: SkillQualityMetricSeverity;
+        tips: SkillEvaluateTip[];
+      }> = [];
+      for (const m of report.metrics) {
+        const tips = tipsByMetric.get(m.metric);
+        if (!tips || tips.length === 0) continue;
+        groups.push({
+          metric: m.metric,
+          label: m.label,
+          score: m.score,
+          maxScore: m.maxScore,
+          severity: m.severity,
+          tips,
+        });
+      }
+      return groups;
+    },
+    toggleSkillEvaluatorTipGroup(metric: string) {
+      this.skillEvaluatorTipCollapsed[metric] =
+        !this.skillEvaluatorTipCollapsed[metric];
+    },
+    /** Pretty "audited just now / 3 minutes ago" formatter for the scope strip. */
+    skillAuditedRelative(): string {
+      const ts = this.skillQualityAuditedAt;
+      if (!ts) return "audited recently";
+      const ms = Date.now() - ts;
+      if (ms < 60_000) return "audited just now";
+      const min = Math.floor(ms / 60_000);
+      if (min < 60) return `audited ${min} min${min > 1 ? "s" : ""} ago`;
+      const hr = Math.floor(min / 60);
+      return `audited ${hr} hr${hr > 1 ? "s" : ""} ago`;
+    },
+    /** Pill-style file-role label used in the composed-from list and modal
+     *  file chips. */
+    skillFileRole(name: string): string {
+      if (name === "skill-preamble.md") return "PREAMBLE";
+      if (name === "skill-conventions.md") return "CONVENTIONS";
+      if (name === "SKILL.md") return "SKILL";
+      if (name.startsWith("references/")) return "REFERENCE";
+      return "FILE";
+    },
+    /** Generate a stable slug for an evaluator result. Used in the result
+     *  footer as a copyable identifier so users can reference a specific
+     *  evaluation run later (e.g. when comparing two scoring sessions). */
+    skillEvaluatorSlug(report: SkillEvaluateResult | null): string {
+      if (!report) return "";
+      const today = new Date().toISOString().slice(0, 10);
+      const safe = (report.artifact.name || "skill")
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      return `evaluation-${today}-${safe}`;
+    },
+    /** Copy a markdown summary of the current evaluation result to the user's
+     *  clipboard. The format mirrors what the engine itself emits so the
+     *  result can be pasted into PR descriptions or session notes. */
+    async copySkillEvaluatorReport() {
+      const r = this.skillEvaluatorResult;
+      if (!r) return;
+      const lines: string[] = [];
+      const pct = Math.round(this.skillReportPct(r) * 100);
+      const grade = this.skillLetterGrade(this.skillReportPct(r));
+      lines.push(`# ${r.artifact.name} — ${grade} ${pct}%`);
+      lines.push(`Slug: \`${this.skillEvaluatorSlug(r)}\``);
+      lines.push(
+        `Subtype: ${r.subtype} (${Math.round(r.classification.confidence * 100)}% ${r.classification.detectedSubtype})`,
+      );
+      lines.push(`Verdict: \`${r.recommendation}\``);
+      lines.push(`Score: ${r.totalScore} / ${r.profileMax}`);
+      lines.push("");
+      lines.push("## Structural metrics");
+      for (const m of r.metrics) {
+        const score = m.severity === "n/a" ? "n/a" : `${m.score}/${m.maxScore}`;
+        lines.push(`- ${m.label}: ${score} (${m.severity})`);
+      }
+      if (r.tips.length > 0) {
+        lines.push("");
+        lines.push("## Improvement tips");
+        for (const tip of r.tips) {
+          lines.push(`- [${tip.metric}] ${tip.message}`);
+        }
+      }
+      if (r.composedFrom.length > 0) {
+        lines.push("");
+        lines.push("## Composed from");
+        for (const src of r.composedFrom) {
+          lines.push(`- ${src}`);
+        }
+      }
+      try {
+        await navigator.clipboard.writeText(lines.join("\n"));
+        this.showToast("Report copied to clipboard");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.showToast(msg || "Copy failed", true);
+      }
+    },
+
+    // -- Skill evaluator modal --
+    openSkillEvaluator() {
+      this.skillEvaluatorOpen = true;
+      this.resetSkillEvaluator();
+    },
+    closeSkillEvaluator() {
+      this.skillEvaluatorOpen = false;
+      this.resetSkillEvaluator();
+    },
+    resetSkillEvaluator() {
+      this.skillEvaluatorName = "";
+      this.skillEvaluatorContent = "";
+      this.skillEvaluatorFiles = [];
+      this.skillEvaluatorDragActive = false;
+      this.skillEvaluatorResult = null;
+      this.skillEvaluatorError = null;
+      this.skillEvaluatorLoading = false;
+    },
+    clearSkillEvaluatorResult() {
+      this.skillEvaluatorResult = null;
+      this.skillEvaluatorError = null;
+    },
+
+    /** Read multiple `.md` files via FileReader; populates the file list and
+     *  pre-fills the suggestedName from the first file. Skips non-markdown
+     *  inputs and surfaces a per-file error if any one fails. */
+    async _ingestSkillEvaluatorFiles(fileList: FileList | File[]) {
+      const list = Array.from(fileList).filter(
+        (file) =>
+          file.name.endsWith(".md") ||
+          file.name.endsWith(".markdown") ||
+          file.type === "text/markdown" ||
+          file.type === "text/plain",
+      );
+      if (list.length === 0) {
+        this.skillEvaluatorError =
+          "Drop .md / .markdown files only (got 0 valid files).";
+        return;
+      }
+      const reads = list.map(
+        (file) =>
+          new Promise<{ name: string; content: string }>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (typeof reader.result === "string") {
+                resolve({ name: file.name, content: reader.result });
+              } else {
+                reject(new Error(`Could not read ${file.name}`));
+              }
+            };
+            reader.onerror = () => {
+              reject(new Error(`Could not read ${file.name}`));
+            };
+            reader.readAsText(file);
+          }),
+      );
+      try {
+        const loaded = await Promise.all(reads);
+        const existing = new Set(this.skillEvaluatorFiles.map((f) => f.name));
+        for (const item of loaded) {
+          if (existing.has(item.name)) continue;
+          this.skillEvaluatorFiles.push(item);
+        }
+        if (!this.skillEvaluatorName && this.skillEvaluatorFiles[0]) {
+          const first = this.skillEvaluatorFiles[0];
+          this.skillEvaluatorName = first.name.replace(/\.(md|markdown)$/i, "");
+        }
+        this.skillEvaluatorError = null;
+      } catch (err) {
+        this.skillEvaluatorError =
+          err instanceof Error ? err.message : String(err);
+      }
+    },
+
+    /** File input change handler (multi-select). */
+    loadSkillEvaluatorFile(event: Event) {
+      const input = event.target as HTMLInputElement;
+      if (!input.files || input.files.length === 0) return;
+      void this._ingestSkillEvaluatorFiles(input.files);
+      input.value = "";
+    },
+
+    /** dragover handler — keep the dropzone visually active. */
+    skillEvaluatorDragOver(event: DragEvent) {
+      event.preventDefault();
+      this.skillEvaluatorDragActive = true;
+    },
+    /** dragleave handler — only clear when leaving the modal card itself. */
+    skillEvaluatorDragLeave(event: DragEvent) {
+      const related = event.relatedTarget as Node | null;
+      const target = event.currentTarget as Node | null;
+      if (target && related && target.contains(related)) return;
+      this.skillEvaluatorDragActive = false;
+    },
+    /** drop handler — read every dropped .md file and append to the list. */
+    skillEvaluatorDrop(event: DragEvent) {
+      event.preventDefault();
+      this.skillEvaluatorDragActive = false;
+      const files = event.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+      void this._ingestSkillEvaluatorFiles(files);
+    },
+    /** Remove one already-attached file by name. */
+    removeSkillEvaluatorFile(name: string) {
+      this.skillEvaluatorFiles = this.skillEvaluatorFiles.filter(
+        (f) => f.name !== name,
+      );
+    },
+
+    async runSkillEvaluator() {
+      this.skillEvaluatorError = null;
+      this.skillEvaluatorResult = null;
+      const hasFiles = this.skillEvaluatorFiles.length > 0;
+      const hasContent = this.skillEvaluatorContent.trim().length > 0;
+      if (!hasFiles && !hasContent) {
+        this.skillEvaluatorError =
+          "Drop .md files, upload, or paste markdown first.";
+        return;
+      }
+      this.skillEvaluatorLoading = true;
+      try {
+        const url = `/api/quality/evaluate?path=${encodeURIComponent(this.projectPath)}`;
+        const body: Record<string, unknown> = {};
+        if (hasFiles) {
+          body.files = this.skillEvaluatorFiles;
+        } else {
+          body.content = this.skillEvaluatorContent;
+        }
+        const name = this.skillEvaluatorName.trim();
+        if (name.length > 0) body.suggestedName = name;
+        const res = await dashboardFetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = readRecord(await res.json(), "Evaluate result");
+        const error = readErrorMessage(data);
+        if (error) {
+          this.skillEvaluatorError = error;
+          return;
+        }
+        this.skillEvaluatorResult = data as unknown as SkillEvaluateResult;
+      } catch (err) {
+        this.skillEvaluatorError =
+          err instanceof Error ? err.message : String(err);
+      } finally {
+        this.skillEvaluatorLoading = false;
+      }
     },
 
     // -- Projects --

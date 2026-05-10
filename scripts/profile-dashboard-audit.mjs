@@ -6,6 +6,28 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const CODEX_CONFIG = [
+  'model = "gpt-5"',
+  'default_permissions = "goat-flow"',
+  "[features]",
+  "hooks = true",
+  "[permissions.goat-flow.filesystem]",
+  "glob_scan_max_depth = 3",
+  '[permissions.goat-flow.filesystem.":project_roots"]',
+  '"." = "write"',
+  '".env.example" = "read"',
+  '".env" = "none"',
+  '"**/.env" = "none"',
+  '".env.*" = "none"',
+  '"**/.env.*" = "none"',
+  '".ssh/**" = "none"',
+  '"**/.ssh/**" = "none"',
+  '".aws/**" = "none"',
+  '"**/.aws/**" = "none"',
+  '"*.pem" = "none"',
+  '"**/*.pem" = "none"',
+  "",
+].join("\n");
 
 function parseArgs(argv) {
   const args = {
@@ -261,6 +283,10 @@ function writeSyntheticProject(fileCount, agents = ["codex"]) {
       "#!/usr/bin/env bash\nexit 0\n",
     );
     writeFileSync(
+      join(root, ".claude", "hooks", "deny-dangerous.self-test.sh"),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
+    writeFileSync(
       join(root, ".claude", "skills", "goat", "SKILL.md"),
       "---\nname: goat\n---\n# goat\n",
     );
@@ -270,13 +296,17 @@ function writeSyntheticProject(fileCount, agents = ["codex"]) {
     mkdirSync(join(root, ".codex", "hooks"), { recursive: true });
     mkdirSync(join(root, ".agents", "skills", "goat"), { recursive: true });
     writeFileSync(join(root, "AGENTS.md"), "# AGENTS.md\n\nSynthetic.\n");
-    writeFileSync(join(root, ".codex", "config.toml"), 'model = "gpt-5"\n');
+    writeFileSync(join(root, ".codex", "config.toml"), CODEX_CONFIG);
     writeFileSync(
       join(root, ".codex", "hooks.json"),
-      '{"hooks":{"preToolUse":[{"command":".codex/hooks/deny-dangerous.sh"}]}}\n',
+      '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/deny-dangerous.sh"}]}]}}\n',
     );
     writeFileSync(
       join(root, ".codex", "hooks", "deny-dangerous.sh"),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
+    writeFileSync(
+      join(root, ".codex", "hooks", "deny-dangerous.self-test.sh"),
       "#!/usr/bin/env bash\nexit 0\n",
     );
     writeFileSync(
@@ -302,6 +332,10 @@ function writeSyntheticProject(fileCount, agents = ["codex"]) {
     );
     writeFileSync(
       join(root, ".github", "hooks", "deny-dangerous.sh"),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
+    writeFileSync(
+      join(root, ".github", "hooks", "deny-dangerous.self-test.sh"),
       "#!/usr/bin/env bash\nexit 0\n",
     );
     writeFileSync(

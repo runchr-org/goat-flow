@@ -3,6 +3,9 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { parseCLIArgs } from "../../src/cli/cli.js";
 
 describe("quality subcommand parsing", () => {
@@ -62,5 +65,78 @@ describe("quality subcommand parsing", () => {
       () => parseCLIArgs(["audit", ".", "--all"]),
       /only valid for the quality command/i,
     );
+  });
+});
+
+describe("skill subcommand parsing", () => {
+  it("keeps projectPath at cwd instead of treating 'new' as a path", () => {
+    const parsed = parseCLIArgs([
+      "skill",
+      "new",
+      "I want a workflow for deploy checks",
+      "--name",
+      "deploy-checks",
+      "--yes",
+    ]);
+    assert.equal(parsed.command, "skill");
+    assert.equal(parsed.skillSubcommand, "new");
+    assert.equal(parsed.projectPath, resolve("."));
+    assert.equal(
+      parsed.skillDescription,
+      "I want a workflow for deploy checks",
+    );
+  });
+
+  it("parses an explicit project path after skill new", () => {
+    const projectRoot = mkdtempSync(join(tmpdir(), "goat-flow-skill-cli-"));
+    try {
+      const parsed = parseCLIArgs([
+        "skill",
+        "new",
+        projectRoot,
+        "I want a workflow for deploy checks",
+      ]);
+      assert.equal(parsed.command, "skill");
+      assert.equal(parsed.skillSubcommand, "new");
+      assert.equal(parsed.projectPath, projectRoot);
+      assert.equal(
+        parsed.skillDescription,
+        "I want a workflow for deploy checks",
+      );
+    } finally {
+      rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("parses an explicit project path before skill new", () => {
+    const projectRoot = mkdtempSync(join(tmpdir(), "goat-flow-skill-cli-"));
+    try {
+      const parsed = parseCLIArgs([
+        "skill",
+        projectRoot,
+        "new",
+        "I want a workflow for deploy checks",
+      ]);
+      assert.equal(parsed.command, "skill");
+      assert.equal(parsed.skillSubcommand, "new");
+      assert.equal(parsed.projectPath, projectRoot);
+      assert.equal(
+        parsed.skillDescription,
+        "I want a workflow for deploy checks",
+      );
+    } finally {
+      rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("quality candidacy draft naming", () => {
+  it("uses the platform path basename instead of POSIX-only splitting", () => {
+    const cliSource = readFileSync(
+      resolve(import.meta.dirname, "..", "..", "src", "cli", "cli.ts"),
+      "utf-8",
+    );
+    assert.match(cliSource, /basename\(path\)\.replace/);
+    assert.doesNotMatch(cliSource, /path\.split\("\/"\)/);
   });
 });

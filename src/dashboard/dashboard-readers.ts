@@ -23,6 +23,28 @@ function dashboardFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   return fetch(input, { ...init, headers });
 }
 
+/** Read a browser File object and return its raw bytes as a base64 string.
+ *  Used by the terminal image drop handler so the upload endpoint receives a
+ *  JSON payload it can decode without multipart parsing. */
+function dashboardFileToBase64(file: File): Promise<string> {
+  return new Promise<string>((resolveBase64, rejectBase64) => {
+    const reader = new FileReader();
+    reader.onerror = () => {
+      rejectBase64(reader.error ?? new Error("File read failed"));
+    };
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        rejectBase64(new Error("Unexpected file read result"));
+        return;
+      }
+      const comma = result.indexOf(",");
+      resolveBase64(comma === -1 ? result : result.slice(comma + 1));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 /** Append the dashboard token to a terminal WebSocket path. */
 function dashboardTerminalWsPath(wsPath: string): string {
   const token = dashboardAuthToken();

@@ -51,7 +51,7 @@ export type DenyMechanism =
 /** Hook event file names specific to each agent runtime */
 interface HookEvents {
   preTool: string;
-  // Null when the runtime exposes no post-turn hook event.
+  // Null when goat-flow does not map a project-specific post-turn validation hook event.
   postTurn: string | null;
 }
 
@@ -284,8 +284,9 @@ export interface AgentFacts {
     absolutePathHooks: string[];
     readDenyCoversSecrets: boolean;
     /** True when the Bash deny hook blocks direct literal secret-bearing paths
-     *  (.env, /.ssh/, /.aws/, .pem/.key/.pfx). Settings.json Read() denies do
-     *  not cover Bash commands, so this is direct-path defence in depth. */
+     *  (.env, /.ssh/, /.aws/, .pem/.key/.pfx). Settings/Codex permission
+     *  file-read denies do not cover Bash commands, so this is direct-path
+     *  defence in depth. */
     bashDenyCoversSecrets: boolean;
   };
   deny: {

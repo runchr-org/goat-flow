@@ -44,7 +44,7 @@ Checks are grouped by **scope**:
 - `session-logs` - `.goat-flow/logs/sessions/` directory exists
 - `tasks` - `.goat-flow/tasks/` directory, `.gitignore`, and README exist (local-session state by design)
 - `scratchpad` - `.goat-flow/scratchpad/` directory, `.gitignore`, and README exist (local WIP by design)
-- `instruction-file-skill-reference-pointer` - when `.goat-flow/skill-reference/` exists, every present instruction file has both the READ-step availability-check rule and Router Table pointer, and the full reference pack including `.goat-flow/skill-reference/README.md` exists; when the directory is absent, this check is skipped
+- `instruction-file-skill-reference-pointer` - when `.goat-flow/skill-reference/` or `.goat-flow/skill-playbooks/` exists, every present instruction file has both the READ-step availability-check rule and Router Table pointer to `.goat-flow/skill-playbooks/`, and the full meta-reference/playbook pack exists; when both directories are absent, this check is skipped
 - `other-files` - Other required manifest surfaces not already covered by named setup checks exist (for example quality-log paths)
 - `config-parses` - `.goat-flow/config.yaml` parses and validates, including manifest-backed `agents:` ids
 - `config-version` - Config version matches current release
@@ -53,7 +53,7 @@ Checks are grouped by **scope**:
 - `agent-instruction` - selected agent instruction file exists; aggregate mode also detects orphaned agent artifacts whose instruction file is missing
 - `agent-skills` - selected agent has canonical skills installed with correct versions and no deprecated skill directories
 - `agent-settings` - selected agent settings/config file parses as valid JSON or TOML
-- `agent-deny-dangerous` - selected agent has a deny mechanism, shell-hook syntax is valid, deny patterns exist, and the deny self-test passes when the script exists
+- `agent-deny-dangerous` - selected agent has a deny mechanism, shell-hook syntax is valid, deny patterns exist, installed deny hook files match the workflow templates, and the smoke deny self-test passes when the script exists
 
 **Agent detection:** `audit` detects configured agents from the manifest-backed instruction-file registry (`workflow/manifest.json` via `src/cli/agents/registry.ts`). Run `npx goat-flow manifest` to inspect the current support matrix; use `--agent <id>` to scope checks to one supported runtime.
 
@@ -75,7 +75,7 @@ Sample harness output:
 ```
 GOAT Flow Setup:          PASS
   Skills:                 7/7 installed
-  Config:                 valid, version 1.5.0
+  Config:                 valid, version 1.6.0
   InstructionFile:        118 lines
 
 Agent Setup:              PASS

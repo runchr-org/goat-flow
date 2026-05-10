@@ -10,6 +10,7 @@ import { getAgentProfile } from "../agents/registry.js";
 import { getPackageVersion } from "../paths.js";
 import { resolve } from "node:path";
 import { QUALITY_REPORT_KIND, type QualityMode } from "../quality/schema.js";
+import type { SkillQualityReport } from "../quality/skill-quality.js";
 
 interface QualityInput {
   agent: AgentId;
@@ -139,7 +140,7 @@ function focusedQualityModePrompt(
       "",
       "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. Do not use /goat-review or any goat skill as the wrapper for this assessment; this prompt is the full assessment contract. You may read files, run read-only validation commands, and write normal gitignored reporting/local-state artifacts if the runner requires them. In this contract, gitignored logs, scratchpad notes, critique snapshots, quality reports, and task-local state do not count as writes; do not report them as read-only violations.",
       "",
-      "Assess the goat-flow framework process in the controlling workspace: instruction files, .goat-flow/config.yaml, .goat-flow/architecture.md, .goat-flow/code-map.md, .goat-flow/skill-reference/, workflow/setup/, workflow/manifest.json, installed skill mirrors, hooks, quality prompt modes, and validation scripts.",
+      "Assess the goat-flow framework process in the controlling workspace: instruction files, .goat-flow/config.yaml, .goat-flow/architecture.md, .goat-flow/code-map.md, .goat-flow/skill-reference/, .goat-flow/skill-playbooks/, workflow/setup/, workflow/manifest.json, installed skill mirrors, hooks, quality prompt modes, and validation scripts.",
       "",
       `Grounding commands to run or explicitly mark skipped: git status --short --untracked-files=all; node --import tsx src/cli/cli.ts stats . --check; ${agentAuditCmd}; node --import tsx src/cli/cli.ts audit . --check-content --format json; bash scripts/preflight-checks.sh. Command output wins over prose.`,
       "",
@@ -155,7 +156,7 @@ function focusedQualityModePrompt(
       "",
       "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. Do not use /goat-critique, /goat-review, or any other goat skill as the wrapper for this assessment; this prompt is the full assessment contract. You may read files, run read-only commands, and write normal gitignored reporting/local-state artifacts if the runner requires them. In this contract, gitignored logs, scratchpad notes, critique snapshots, quality reports, and task-local state do not count as writes; do not report them as read-only violations.",
       "",
-      "Assess all seven goat-flow skills: /goat, /goat-debug, /goat-plan, /goat-review, /goat-critique, /goat-security, and /goat-qa. Use .goat-flow/skill-reference/skill-quality-testing.md plus the relevant files under .goat-flow/skill-reference/skill-quality-testing/. Read the workflow template SKILL.md files and installed mirrors under .claude/skills/, .agents/skills/, and .github/skills/ where relevant.",
+      "Assess all seven goat-flow skills: /goat, /goat-debug, /goat-plan, /goat-review, /goat-critique, /goat-security, and /goat-qa. Use .goat-flow/skill-playbooks/skill-quality-testing.md plus the relevant files under .goat-flow/skill-playbooks/skill-quality-testing/. Read the workflow template SKILL.md files and installed mirrors under .claude/skills/, .agents/skills/, and .github/skills/ where relevant.",
       "",
       "Method rule: prefer live skill invocation only when the runner supports it safely. If live invocation or delegated/sub-agent calls are unavailable, perform a file-grounded protocol run against SKILL.md and label the evidence limit. Never imply a dry run is bulletproof TDD evidence.",
       "",
@@ -174,7 +175,7 @@ function focusedQualityModePrompt(
     "",
     "Grounding commands to run or explicitly mark skipped: git status --short --untracked-files=all; node --import tsx src/cli/cli.ts audit . --harness --format json from the controlling workspace when applicable; node --import tsx src/cli/cli.ts stats . --check when the selected target is a goat-flow installation. Command output wins over prose.",
     "",
-    "Read next: target instruction files, local agent settings/hooks, .goat-flow/config.yaml when present, .goat-flow/skill-reference/ when present, controlling-workspace harness code under src/cli/audit/harness/, and any dashboard terminal/runner context text that affects selected-target execution.",
+    "Read next: target instruction files, local agent settings/hooks, .goat-flow/config.yaml when present, .goat-flow/skill-reference/ and .goat-flow/skill-playbooks/ when present, controlling-workspace harness code under src/cli/audit/harness/, and any dashboard terminal/runner context text that affects selected-target execution.",
     "",
     "Output sections: Harness Scorecard; Findings ordered by severity; Concern-by-concern analysis; False positive and false negative risks; Top 5 improvements; What was not verified. For each deterministic harness concern (Context, Constraints, Verification, Recovery, Feedback Loop), state what works, what fails or is weak, exact file or semantic-anchor evidence, and a verification command that would prove the fix.",
     "",
@@ -219,6 +220,11 @@ function renderPriorFindingSummary(summary: string): string {
     /\bstrict no-write\b/gi,
     "tracked-file write restriction",
   );
+}
+
+/** Escape Markdown table cell content emitted from scorer details. */
+function markdownTableCell(value: string): string {
+  return value.replaceAll("|", "\\|").replace(/\r?\n/g, " ");
 }
 
 function renderPriorReportContext(
@@ -463,6 +469,227 @@ function composeFocusedQuality(
   };
 }
 
+/** Render the per-subtype Examples dimension criteria for the Semantic
+ *  Dimensions section. Playbook/index subtypes weight Examples higher; meta
+ *  subtype permits an explicit `n/a` with justification. */
+function renderExamplesDimensionCriteria(subtype: string): string[] {
+  const lines: string[] = [];
+  lines.push(
+    "  - Are examples concrete (real values, real expected output) or hypothetical placeholders?",
+  );
+  lines.push("  - Do examples show edge cases, not just the happy path?");
+  lines.push(
+    "  - Are BAD/GOOD pairs, labelled counter-examples, or expected-output annotations present where the artifact enforces a convention?",
+  );
+  if (subtype === "workflow") {
+    lines.push(
+      "  - Workflow subtype: is at least one full phase walked through with real artifacts (file path + action + expected outcome)?",
+    );
+  } else if (subtype === "playbook" || subtype === "index") {
+    lines.push(
+      `  - **${subtype} subtype: weight Examples HIGHER.** Playbooks and indexes live or die by examples; treat thin example coverage as a deduction even if other dimensions are strong.`,
+    );
+  } else if (subtype === "meta") {
+    lines.push(
+      "  - Meta subtype: Examples may legitimately be `n/a`. If you mark it n/a, justify why (the artifact is a contract loaded by skills, not a procedure that needs runnable examples) and exclude it from `semanticMax`.",
+    );
+  }
+  return lines;
+}
+
+/** Compose a focused quality prompt for a single skill or reference artifact.
+ *  After M09, the prompt requires four scored semantic dimensions, an
+ *  anti-bias preamble, an explicit per-file `composedFrom` reading
+ *  instruction, a focus/scope probe, a final gate decision, and a fenced JSON
+ *  block summarising the verdict. */
+export function composeArtifactQualityPrompt(
+  report: SkillQualityReport,
+): string {
+  const {
+    artifact,
+    totalScore,
+    maxTotalScore,
+    subtype,
+    recommendation,
+    metrics,
+    composedFrom,
+    fitNotes,
+  } = report;
+  const kindLabel = artifact.kind === "skill" ? "Skill" : "Shared Reference";
+  const kindLower = kindLabel.toLowerCase();
+  const pct =
+    maxTotalScore > 0 ? Math.round((totalScore / maxTotalScore) * 100) : 0;
+
+  const lines: string[] = [];
+  lines.push(`# ${kindLabel} Quality Review: ${artifact.name}`);
+  lines.push("");
+  lines.push(
+    "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. This prompt is the full assessment contract. You may read files and run read-only commands.",
+  );
+  lines.push("");
+  if (composedFrom.length > 0) {
+    lines.push(
+      `Assess the ${kindLower} **${artifact.name}**. Read every file in **Composed from** below — the engine composes ${composedFrom.length} file${composedFrom.length === 1 ? "" : "s"} into the runtime surface (\`${composedFrom.join("`, `")}\`). Structural signals from referenced files count toward your assessment: a phase-2 procedure documented in \`references/auth-authz.md\` is part of the ${kindLower}, not bonus material.`,
+    );
+    lines.push("");
+    lines.push(
+      'If a `composition truncated` fit note appears below, the composed bundle is incomplete. Read the actual files listed in **Composed from** directly when context allows; otherwise note the skipped files in the final "What was not verified" section.',
+    );
+  } else {
+    lines.push(
+      `Assess the ${kindLower} artifact at \`${artifact.path}\`. The engine composed no additional files (single-file scoring path); read this file in full before scoring.`,
+    );
+  }
+  lines.push("");
+
+  lines.push("## Deterministic Baseline");
+  lines.push("");
+  lines.push(`- **Artifact:** ${artifact.name} (${kindLabel})`);
+  lines.push(`- **Path:** \`${artifact.path}\``);
+  lines.push(`- **Subtype:** ${subtype}`);
+  lines.push(`- **Score:** ${totalScore}/${maxTotalScore} (${pct}%)`);
+  lines.push(`- **Recommendation:** ${recommendation}`);
+  if (composedFrom.length > 0) {
+    lines.push(`- **Composed from:** ${composedFrom.join(", ")}`);
+  }
+  lines.push("");
+
+  lines.push("### Metric Breakdown");
+  lines.push("");
+  lines.push("| Metric | Score | Severity | Detail |");
+  lines.push("|--------|-------|----------|--------|");
+  for (const m of metrics) {
+    lines.push(
+      `| ${markdownTableCell(m.label)} | ${m.score}/${m.maxScore} | ${m.severity} | ${markdownTableCell(m.detail)} |`,
+    );
+  }
+  lines.push("");
+
+  if (fitNotes.length > 0) {
+    lines.push("### Fit Notes");
+    lines.push("");
+    for (const note of fitNotes) {
+      lines.push(`- ${note}`);
+    }
+    lines.push("");
+  }
+
+  lines.push("## Anti-Bias Guidance");
+  lines.push("");
+  lines.push(
+    'Score against absolute criteria, not relative to other artifacts you have reviewed. Do not let one strong dimension halo over a weak one — score each dimension independently. Recent sections of the file should not weigh more than earlier ones; read everything before scoring. If you are tempted to round up because the artifact "seems okay," round down — leniency is the most common failure mode of this rubric.',
+  );
+  lines.push("");
+
+  lines.push("## Semantic Dimensions");
+  lines.push("");
+  lines.push(
+    'Score each applicable dimension on a 1-5 scale. For every dimension provide: (a) the score, (b) one sentence of evidence, (c) the lowest-quality span supporting any deduction, cited as `path/file (search: "semantic-anchor")`. If a dimension is legitimately `n/a` for this subtype, mark it `n/a`, justify why, and exclude it from `semanticMax`.',
+  );
+  lines.push("");
+  lines.push("- **Clarity (1-5)** — instruction precision, imperative voice,");
+  lines.push(
+    "  ambiguity, technical-term grounding. Can a fresh reader execute the workflow without guessing?",
+  );
+  lines.push("- **Examples (1-5)** —");
+  for (const line of renderExamplesDimensionCriteria(subtype)) {
+    lines.push(line);
+  }
+  lines.push(
+    '- **Focus (1-5)** — single purpose vs kitchen-sink. Apply the "describe in one sentence" test: if the artifact\'s purpose needs three clauses joined by AND, focus is weak.',
+  );
+  lines.push(
+    "- **Coherence (1-5)** — does the bundle (SKILL.md + references) tell one coherent story, or do parts contradict, drift, or duplicate?",
+  );
+  lines.push("");
+  lines.push(
+    "Compute `semanticTotal`, `semanticMax` (default `/20` across the four dimensions; subtract any `n/a` dimension's max), and `semanticPct = semanticTotal / semanticMax`.",
+  );
+  lines.push("");
+
+  lines.push("## Your Assessment");
+  lines.push("");
+  lines.push(
+    "After the structured semantic scoring above, deepen the assessment with these questions:",
+  );
+  lines.push("");
+  lines.push(
+    `1. **Classification challenge:** Is \`${recommendation}\` the right recommendation? If the artifact is currently a ${kindLower}, should it be reclassified? Provide evidence.`,
+  );
+  lines.push(
+    "2. **Metric verification:** For each metric scored below max, is the deduction justified? Are there structural signals the static scorer missed?",
+  );
+  lines.push(
+    "3. **Quality gaps:** What quality issues exist that the deterministic metrics do not capture (e.g., misleading instructions, outdated references, unclear boundaries)?",
+  );
+  lines.push(
+    "4. **Top 3 improvements:** Actionable changes with file path and semantic anchor evidence. **Each improvement must cite the dimension it addresses; if a deduction has no improvement listed, that is itself a finding.**",
+  );
+  lines.push(
+    "5. **What was not verified:** State any aspects you could not assess from a file read.",
+  );
+  lines.push(
+    '6. **Scope check:** Write a one-sentence summary of what this artifact does. If you cannot, that is a Clarity finding (record in semantic dimensions). If your sentence describes 3+ distinct concerns ("formats code AND evaluates it AND documents it"), recommend splitting and propose the boundaries. Note: this answers "is the scope right within the assigned subtype?" — distinct from the structural `consider-reclassifying` recommendation, which answers "is the subtype right?"',
+  );
+  lines.push("");
+
+  lines.push("## Final Gate");
+  lines.push("");
+  lines.push(
+    "Return one of `ship` / `revise` / `block` based on the deterministic recommendation, the semantic percentage, and per-dimension floors:",
+  );
+  lines.push("");
+  lines.push(
+    "- **ship** — deterministic recommendation is `keep-skill` OR `reference-playbook`, AND `semanticPct >= 0.8`, AND no applicable dimension scores below 3.",
+  );
+  lines.push(
+    "- **revise** — deterministic recommendation is `keep-skill` / `reference-playbook` AND (`semanticPct < 0.8` OR any applicable dimension < 3); OR deterministic recommendation is `consider-revision` AND `semanticPct >= 0.5` AND no applicable dimension equals 1.",
+  );
+  lines.push(
+    "- **block** — deterministic recommendation is `needs-human-review` / `retire` / `consider-reclassifying`; OR `semanticPct < 0.5`; OR any applicable dimension equals 1.",
+  );
+  lines.push("");
+  lines.push(
+    "The deterministic recommendation is the structural floor. You may override it (e.g. gate `block` when the engine said `keep-skill`) only with explicit reasoning that cites specific evidence the engine missed.",
+  );
+  lines.push("");
+
+  lines.push("## Required JSON Verdict");
+  lines.push("");
+  lines.push(
+    "End your response with a fenced ```json``` block matching this schema. The block must be the final content; the dashboard parses it best-effort.",
+  );
+  lines.push("");
+  lines.push("```json");
+  lines.push("{");
+  lines.push('  "semanticScores": {');
+  lines.push('    "clarity": 4,');
+  lines.push('    "examples": 3,');
+  lines.push('    "focus": 5,');
+  lines.push('    "coherence": 4,');
+  lines.push('    "total": 16,');
+  lines.push('    "max": 20');
+  lines.push("  },");
+  lines.push('  "gateDecision": "revise",');
+  lines.push(
+    '  "gateRationale": "Examples score 3/5; only one realistic scenario shown.",',
+  );
+  lines.push('  "blockers": [],');
+  lines.push('  "improvements": [');
+  lines.push("    {");
+  lines.push('      "dimension": "examples",');
+  lines.push('      "priority": "high",');
+  lines.push(
+    '      "action": "Add 2 concrete scenarios showing expected output for the ambiguous-input case (cite file + semantic anchor)."',
+  );
+  lines.push("    }");
+  lines.push("  ]");
+  lines.push("}");
+  lines.push("```");
+
+  return lines.join("\n");
+}
+
 /** Compose the quality review prompt. */
 // eslint-disable-next-line complexity -- prompt assembly branches on audit availability and split hook-config surfaces
 export function composeQuality(input: QualityInput): QualityPayload {
@@ -582,7 +809,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "4. **Learning loop** (`.goat-flow/`) - config, architecture doc, footguns, lessons, decisions, session logs.",
   );
   lines.push(
-    "5. **Shared reference** (under `.goat-flow/skill-reference/`) - skill-preamble.md (loaded every skill invocation), skill-conventions.md (loaded on full-depth), browser-use.md and page-capture.md for browser evidence capture, skill-quality-testing.md index plus skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, and skill-quality-testing/deployment.md (full-depth authoring methodology split across an index and three topical files per ADR-023; load the topical file matching your skill type).",
+    "5. **Shared meta references** (under `.goat-flow/skill-reference/`) - skill-preamble.md (loaded every skill invocation), skill-conventions.md (loaded on full-depth). **Standalone playbooks** (under `.goat-flow/skill-playbooks/`) - browser-use.md and page-capture.md for browser evidence capture, skill-quality-testing.md index plus skill-quality-testing/tdd-iteration.md, skill-quality-testing/adversarial-framing.md, and skill-quality-testing/deployment.md (full-depth authoring methodology split across an index and three topical files per ADR-023; load the topical file matching your skill type).",
   );
   lines.push("");
   lines.push(
@@ -660,7 +887,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "# 2. Hook self-test (if deny-dangerous.sh exists in your hooks directory)",
   );
   if (denyHookFile) {
-    lines.push(`bash ${denyHookFile} --self-test`);
+    lines.push(`bash ${denyHookFile} --self-test=smoke`);
   } else {
     lines.push("#    This agent has no on-disk deny hook script to self-test.");
   }

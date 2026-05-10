@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.6.0 - 2026-05-10
+
+Skill authoring, quality assessment, and playbook/reference cleanup.
+
+- **Skills workbench** - The dashboard Skills page audits installed artifacts, evaluates drafts, and launches qualitative runner assessments.
+- **Draft evaluation** - `/api/quality/evaluate` is now canonical, with the old analyse route kept as a one-release deprecated alias.
+- **Multi-file bundles** - Draft evaluation accepts Markdown bundles, composes sibling files, and reports every source in `composedFrom`.
+- **Skill authoring CLI** - `goat-flow skill new` scaffolds from descriptions, drafts, or interactive prompts without silently choosing the wrong artifact type.
+- **Configurable rubric** - Skill-quality scoring now supports project config for subtype profiles, gates, walk roots, composition, and fixtures.
+- **Candidacy checks** - `goat-flow quality candidacy` recommends whether a request belongs as a skill, playbook, instruction rule, learning-loop entry, CLI command, or no artifact.
+- **Semantic assessments** - Runner prompts now require anti-bias guidance, scored semantic dimensions, scope checks, final gate decisions, and a fenced JSON verdict.
+- **Reference/playbook split** - Shared meta references stay in `.goat-flow/skill-reference/`; standalone tool and authoring playbooks live in `.goat-flow/skill-playbooks/`.
+- **Prime patterns** - Browser-use recovery, active-testing authorization, proof tables, trigger-only descriptions, API skill guardrails, and frontend guidance were folded into existing surfaces.
+- **Release cleanup** - Version surfaces, docs, fixtures, stale path guidance, snapshot facts, and scratchpad link handling were aligned for the 1.6.0 release.
+
+## v1.5.1 - 2026-05-08
+
+Installer config registration fix and release propagation.
+
+- **Existing config agent registration** - `workflow/install-goat-flow.sh` now preserves an existing `.goat-flow/config.yaml` while registering the requested agent in `agents:`. Second-agent installs no longer leave aggregate dashboard audits scoped to the first installed agent, and the updater handles missing, null, inline, and block-list agent configs without duplicating entries. (`workflow/install-goat-flow.sh`, `test/integration/setup-install.test.ts`)
+- **Brand-new project setup smoothing** - Full setup, upgrade, and migration prompts now name both required audit gates (`audit --agent` and `audit --agent --harness`), `stats --check` treats fresh empty footgun/lesson directories as warnings instead of forcing invented entries, setup docs include copyable skill-reference snippets plus earlier workspace-boundary and commit-guidance requirements, and terminal launch prompts are chunked through PTY input while staying out of runner argv/env. (`src/cli/prompt/compose-setup.ts`, `src/cli/stats/stats.ts`, `workflow/setup/`, `src/cli/server/terminal.ts`, `test/unit/audit-command.test.ts`, `test/integration/stats-command.test.ts`, `test/unit/terminal-spawn.test.ts`)
+- **Codex hooks flag migration** - Codex installs now non-destructively migrate existing `.codex/config.toml` files from deprecated `codex_hooks` to `hooks` without overwriting unrelated user settings, and `audit --agent codex` fails `agent-settings` when deprecated or disabled hook feature flags would prevent Codex hooks from running. (`workflow/install-goat-flow.sh`, `src/cli/facts/agent/settings.ts`, `src/cli/audit/check-agent-setup.ts`, `test/integration/setup-install.test.ts`, `test/unit/audit-command.test.ts`)
+- **Release propagation** - Package/config/manifest, instruction files, skill templates and installed mirrors, shared references, security reference packs, hook templates and installed hooks, fixtures, docs sample output, and manifest snapshot catalog bumped to 1.5.1. Manifest snapshot `v1.5.1.json` frozen.
+
 ## v1.5.0 - 2026-05-06
 
 Local dashboard control-plane hardening and honest harness/install signals.

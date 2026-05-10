@@ -1,0 +1,74 @@
+{
+  "skill:goat": {
+    "minPct": 87,
+    "maxPct": 95,
+    "recommendation": "keep-skill",
+    "subtype": "dispatcher"
+  },
+  "skill:goat-debug": {
+    "minPct": 90,
+    "maxPct": 100,
+    "recommendation": "keep-skill",
+    "subtype": "workflow"
+  },
+  "skill:goat-critique": {
+    "minPct": 90,
+    "maxPct": 100,
+    "recommendation": "keep-skill",
+    "subtype": "workflow"
+  },
+  "skill:goat-plan": {
+    "minPct": 90,
+    "maxPct": 100,
+    "recommendation": "keep-skill",
+    "subtype": "workflow"
+  },
+  "skill:goat-qa": {
+    "minPct": 85,
+    "maxPct": 95,
+    "recommendation": "keep-skill",
+    "subtype": "workflow"
+  },
+  "skill:goat-review": {
+    "minPct": 90,
+    "maxPct": 100,
+    "recommendation": "keep-skill",
+    "subtype": "workflow"
+  },
+  "skill:goat-security": {
+    "minPct": 90,
+    "maxPct": 95,
+    "recommendation": "keep-skill",
+    "subtype": "report"
+  },
+  "reference:browser-use": {
+    "minPct": 85,
+    "maxPct": 95,
+    "recommendation": "reference-playbook",
+    "subtype": "playbook"
+  },
+  "reference:page-capture": {
+    "minPct": 85,
+    "maxPct": 95,
+    "recommendation": "reference-playbook",
+    "subtype": "playbook"
+  },
+  "reference:skill-preamble": {
+    "minPct": 85,
+    "maxPct": 100,
+    "recommendation": "reference-playbook",
+    "subtype": "meta"
+  },
+  "reference:skill-conventions": {
+    "minPct": 85,
+    "maxPct": 100,
+    "recommendation": "reference-playbook",
+    "subtype": "meta"
+  },
+  "reference:skill-quality-testing": {
+    "minPct": 70,
+    "maxPct": 95,
+    "recommendation": "reference-playbook",
+    "subtype": "index"
+  }
+}

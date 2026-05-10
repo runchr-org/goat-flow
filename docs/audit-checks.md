@@ -31,7 +31,7 @@ Build mode is the structural install gate. It validates files, directories, conf
 | `session-logs` | Session logs | `.goat-flow/logs/sessions/` exists |
 | `tasks` | Tasks | `.goat-flow/tasks/`, `.goat-flow/tasks/.gitignore`, and `.goat-flow/tasks/README.md` exist |
 | `scratchpad` | Scratchpad | `.goat-flow/scratchpad/`, `.goat-flow/scratchpad/.gitignore`, and `.goat-flow/scratchpad/README.md` exist |
-| `instruction-file-skill-reference-pointer` | Instruction file skill-reference pointer | Skips when `.goat-flow/skill-reference/` is absent. When present, requires the full reference pack, a READ-step rule to consult `.goat-flow/skill-reference/` playbooks and run their Availability Check before declaring tools unavailable, and a Router Table pointer in each present instruction file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) |
+| `instruction-file-skill-reference-pointer` | Instruction file skill-playbooks pointer | Skips when both `.goat-flow/skill-reference/` and `.goat-flow/skill-playbooks/` are absent. When present, requires the full meta-reference and playbook pack, a READ-step rule to consult `.goat-flow/skill-playbooks/` and run playbook Availability Checks before declaring tools unavailable, and a Router Table pointer in each present instruction file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) |
 | `other-files` | Other required files | Every manifest-required file or directory not already covered by a named setup check exists, including quality-log surfaces |
 | `config-parses` | Config file | `.goat-flow/config.yaml` exists, parses as YAML, and validates against the manifest-backed config contract |
 | `config-version` | Config version | `.goat-flow/config.yaml` declares the current `AUDIT_VERSION` |
@@ -43,7 +43,7 @@ Build mode is the structural install gate. It validates files, directories, conf
 | `agent-instruction` | Agent instruction file | The selected agent's instruction file exists; Copilot additionally requires `.github/git-commit-instructions.md` when `.github/` exists. Without `--agent`, this also detects orphaned agent artifacts and incomplete Copilot installs |
 | `agent-skills` | Agent skills | The selected agent has every canonical skill file, each installed skill declares the current `goat-flow-skill-version`, and no deprecated skill directories remain |
 | `agent-settings` | Agent settings | The selected agent's settings file parses as valid JSON or TOML |
-| `agent-deny-dangerous` | Agent deny mechanism | The selected agent has a deny mechanism, any installed shell hooks pass `bash -n`, deny patterns exist, and `deny-dangerous.sh --self-test` passes when the hook script exists |
+| `agent-deny-dangerous` | Agent deny mechanism | The selected agent has a deny mechanism, any installed shell hooks pass `bash -n`, deny patterns exist, installed deny hook files match the workflow templates, and `deny-dangerous.sh --self-test=smoke` passes when the hook script exists |
 
 Aggregate-mode nuance:
 
@@ -61,7 +61,7 @@ Aggregate-mode nuance:
 | Context | `doc-paths-resolve` | `integrity` | Router-table paths, `.goat-flow/architecture.md` backtick paths, and curated audit/glossary docs backtick paths resolve to real files |
 | Context | `instruction-sections-present` | `advisory` | Structural smoke check for required hot-path headings: Truth Order, Execution Loop, Definition of Done, and Router Table |
 | Context | `boundary-guidance-present` | `advisory` | Structural smoke check for workspace boundary guidance (controlling workspace vs target workspace separation) |
-| Constraints | `deny-covers-secrets` | `integrity` | Direct literal secret-path reads are blocked by the deny layer; settings-based agents need both settings `Read` deny coverage and Bash-hook direct-path coverage. Script-only agents can pass with `assurance: "limited"` because settings/file-read deny is unavailable. |
+| Constraints | `deny-covers-secrets` | `integrity` | Direct literal secret-path reads are blocked by the deny layer; agents with file-read deny need both settings/Codex permission coverage and Bash-hook direct-path coverage. Script-only agents can pass with `assurance: "limited"` because file-read deny is unavailable. |
 | Constraints | `deny-blocks-dangerous` | `integrity` | Deny patterns block `rm -rf`, all git push (ADR-025), and `chmod` |
 | Constraints | `deny-blocks-pipe-to-shell` | `advisory` | Deny patterns block `curl | bash` and `wget | sh` pipe-to-shell execution |
 | Constraints | `deny-hook-registered` | `integrity` | A deny hook that exists on disk is registered in the correct pre-tool hook slot |

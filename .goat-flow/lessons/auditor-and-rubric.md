@@ -1,6 +1,6 @@
 ---
 category: auditor-and-rubric
-last_reviewed: 2026-05-02
+last_reviewed: 2026-05-09
 ---
 
 ## Lesson: Rubric changes require fixture expectation sync
@@ -12,6 +12,18 @@ Scanner and rubric changes can invalidate "known failing" fixture expectations e
 **Pattern:** For fixture-driven scanner tests, verify the current failing check IDs from the real scan result first, then update both the test assertions and fixture metadata together. Do not trust older expected IDs after rubric work.
 
 **Trigger:** Human review reports a failing fixture after rubric or detector changes. Reproduce the failing scan, capture the actual check IDs, then sync the fixture corpus and test expectations in the same change.
+
+---
+
+## Lesson: Frontmatter can masquerade as rubric evidence
+
+**Status:** active | **Created:** 2026-05-09
+
+**What happened:** During M07 skill-quality calibration, the negative test for the prose phrase `which milestone` still scored tool-dependency handling as present because the broader `goat-flow` keyword matched `goat-flow-skill-version` frontmatter rather than a CLI dependency.
+
+**Root cause:** The deterministic tool-dependency regex scanned full markdown, including metadata, and did not distinguish version fields from executable tool references.
+
+**Prevention:** When broadening rubric keywords, add negative tests for frontmatter/version strings and ordinary prose, not only positive command examples. Evidence anchors: `src/cli/quality/skill-quality.ts` (search: `goat-flow-skill-version`), `test/unit/skill-quality.test.ts` (search: `which milestone`).
 
 ---
 

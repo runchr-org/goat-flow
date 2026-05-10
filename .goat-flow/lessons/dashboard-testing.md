@@ -1,6 +1,32 @@
 ---
 category: dashboard-testing
-last_reviewed: 2026-05-06
+last_reviewed: 2026-05-10
+---
+
+## Lesson: Dashboard release QA should avoid real agent runners unless runner behavior is the target
+
+**Status:** active | **Created:** 2026-05-10
+
+**What happened:** During v1.6.0 browser-use manual dashboard QA, clicking Workspace `Open terminal` launched a real Claude Code session in the selected project. Before cleanup, `git status --short` showed an unexpected tracked diff in `docs/dashboard.md` adding a temporary `### Skills` section that was not part of the QA request; the diff was removed to restore the read-only testing scope.
+
+**Root cause:** I treated the terminal launch as a harmless UI smoke, but the dashboard terminal starts a real agent process in the selected project. For release QA that only needs Workspace layout and session controls, a real runner can attach to existing agent state and mutate the repository.
+
+**Prevention:** For manual dashboard page/modal sweeps, do not click runner launch buttons unless terminal runner behavior is the explicit target. Prefer browser-use state checks of the empty Workspace, `/api/terminal/sessions`, or a non-agent test harness. If the max-session modal needs coverage, trigger Alpine state via browser-use Python/CDP instead of starting ten runner sessions. When terminal launch is in scope, snapshot `git status --short` before and after, then close the session immediately. Evidence anchors: `src/dashboard/views/workspace.html` (search: `launchInTerminal('', activeRunner`), `src/dashboard/dashboard-terminal.ts` (search: `async function dashboardLaunchInTerminal`).
+
+---
+
+## Lesson: Slow verification can expose unrelated dashboard doc drift
+
+**Status:** active | **Created:** 2026-05-09
+
+**What happened:** While double-checking an unrelated Codex config fix, `npm run test:slow` failed in `checkDrift: installer round-trip fixture` because the temp repo's preflight reported `Dashboard view names drift between manifest and architecture prose`. The Codex fix was clean; the blocker was stale `.goat-flow/architecture.md` prose missing the `skill` dashboard view in both required snippets.
+
+**2026-05-10 recurrence:** Manual v1.6.0 CLI release smoke hit the same class through `node dist/cli/cli.js audit . --check-content --format text`: `Cold-Path Content Lint` failed because `docs/dashboard.md` listed dashboard headings without the manifest-backed `skills` view. Adding the missing `### Skills` section changed the check to `Cold-Path Content Lint: PASS (0 warning(s), 9 info, 177 file(s) scanned)`.
+
+**Root cause:** I treated the broad slow suite as a final confirmation step, but it also runs repo-wide cold-path truth checks through `scripts/preflight-checks.sh`. Those checks can surface unrelated committed dashboard doc drift that focused tests do not touch.
+
+**Prevention:** When `npm run test:slow` or preflight fails during unrelated verification, separate task-local regressions from repo-wide drift before changing code. For dashboard view drift, compare `workflow/manifest.json` (search: `dashboard_views`) against `.goat-flow/architecture.md` (search: `views for`, `Page views`) and rerun both `bash scripts/preflight-checks.sh` and `npm run test:slow` after the doc correction.
+
 ---
 
 ## Lesson: Dashboard readers must preserve fields used by score logic
@@ -104,7 +130,7 @@ last_reviewed: 2026-05-06
 
 **Root cause:** I treated a sandbox timing probe as representative for a route that shells out to `bash` through the deny-hook self-test. When the verification surface depends on external shell/runtime behavior, the sandbox path can understate real latency or skip the expensive branch entirely.
 
-**Prevention:** For shell-backed audit or hook performance work, capture timings in the same environment that can actually run the shell command before updating docs or declaring the bottleneck understood. For this repo, prefer a built `dist` dashboard probe plus a focused integration test, and compare fresh versus cached requests explicitly when a new cache is involved. Evidence anchors: `src/cli/server/dashboard-routes.ts` (search: `const fresh = url.searchParams.get("fresh") === "true";`), `src/cli/server/dashboard-routes.ts` (search: `readQualityAuditCache(projectPath, agent, fresh)`), `src/cli/audit/check-agent-setup.ts` (search: `execFileSync("bash", [denyPath, "--self-test"]`).
+**Prevention:** For shell-backed audit or hook performance work, capture timings in the same environment that can actually run the shell command before updating docs or declaring the bottleneck understood. For this repo, prefer a built `dist` dashboard probe plus a focused integration test, and compare fresh versus cached requests explicitly when a new cache is involved. Evidence anchors: `src/cli/server/dashboard-routes.ts` (search: `const fresh = url.searchParams.get("fresh") === "true";`), `src/cli/server/dashboard-routes.ts` (search: `readQualityAuditCache(projectPath, agent, fresh)`), `src/cli/audit/check-agent-setup.ts` (search: `execFileSync("bash", [denyPath, "--self-test=smoke"]`).
 
 ---
 

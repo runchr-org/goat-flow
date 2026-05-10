@@ -476,7 +476,7 @@ function denyHookHasSecretFamilyMarkers(content: string): boolean {
 
 /** Detect whether the Bash deny hook blocks direct literal secret-bearing paths
  *  (.env, SSH/AWS paths, credentials, and key material). Required because
- *  settings.json Read() deny rules only apply to the Read tool, not Bash. */
+ *  file-read deny rules do not apply to Bash. */
 function detectBashDenyCoversSecrets(
   fs: ReadonlyFS,
   denyHookPath: string | null,

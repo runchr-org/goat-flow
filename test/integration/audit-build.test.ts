@@ -20,15 +20,18 @@ const skillReferenceCheck = SETUP_CHECKS.find(
 )!;
 
 const requiredSkillReferenceFiles = [
+  // Meta references
   ".goat-flow/skill-reference/README.md",
   ".goat-flow/skill-reference/skill-preamble.md",
   ".goat-flow/skill-reference/skill-conventions.md",
-  ".goat-flow/skill-reference/browser-use.md",
-  ".goat-flow/skill-reference/page-capture.md",
-  ".goat-flow/skill-reference/skill-quality-testing.md",
-  ".goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md",
-  ".goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md",
-  ".goat-flow/skill-reference/skill-quality-testing/deployment.md",
+  // Standalone playbooks
+  ".goat-flow/skill-playbooks/README.md",
+  ".goat-flow/skill-playbooks/browser-use.md",
+  ".goat-flow/skill-playbooks/page-capture.md",
+  ".goat-flow/skill-playbooks/skill-quality-testing.md",
+  ".goat-flow/skill-playbooks/skill-quality-testing/tdd-iteration.md",
+  ".goat-flow/skill-playbooks/skill-quality-testing/adversarial-framing.md",
+  ".goat-flow/skill-playbooks/skill-quality-testing/deployment.md",
 ];
 
 function compliantSkillReferenceInstruction(): string {
@@ -37,7 +40,7 @@ function compliantSkillReferenceInstruction(): string {
 ## Execution Loop: READ -> SCOPE -> ACT -> VERIFY
 
 ### READ
-Before declaring any tool or capability unavailable, read the matching playbook in .goat-flow/skill-reference/ and run that doc's "Availability Check" section verbatim.
+Before declaring any tool or capability unavailable, read the matching playbook in .goat-flow/skill-playbooks/ and run that doc's "Availability Check" section verbatim.
 
 ### SCOPE
 
@@ -49,7 +52,7 @@ Before declaring any tool or capability unavailable, read the matching playbook 
 
 | Resource | Path |
 |----------|------|
-| Skill reference + tool playbooks | .goat-flow/skill-reference/ |
+| Skill playbooks | .goat-flow/skill-playbooks/ |
 `;
 }
 
@@ -249,6 +252,7 @@ describe("audit build: skill-reference discoverability", () => {
     const result = skillReferenceCheck.run(ctx);
 
     assert.notEqual(result, null);
+    assert.match(result!.message, /Shared reference\/playbook pack/);
     assert.match(result!.message, /README\.md/);
     assert.equal(result!.evidence, ".goat-flow/skill-reference/README.md");
   });

@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.5.0"
+goat-flow-reference-version: "1.6.0"
 ---
 # Skill TDD Iteration
 
@@ -332,6 +332,32 @@ Treat this as the rough budget for any nontrivial discipline skill.
 - Baseline RED typically captures **10+ unique rationalisations** per nontrivial skill.
 - Pressure-tested compliance rises from ~33% → ~72% - Meincke et al. (2025), N=28,000 AI conversations, p < .001.
 - A bulletproof skill passes **3 consecutive** max-pressure scenarios without new rationalisations.
+
+## Description rule: trigger-only, never workflow-summary
+
+The `description:` frontmatter field decides when an agent loads the skill. It must describe **triggering conditions** ("Use when X happens"), never the skill's internal workflow ("Use when X — dispatches subagent then runs review between tasks").
+
+**Empirical evidence (sourced verbatim from `.goat-flow/scratchpad/skills-example-prime/writing-skills/SKILL.md`, search: `Testing revealed that when a description summarizes`):**
+
+> Testing revealed that when a description summarizes the skill's workflow, Claude may follow the description instead of reading the full skill content. A description saying "code review between tasks" caused Claude to do ONE review, even though the skill's flowchart clearly showed TWO reviews (spec compliance then code quality). When the description was changed to just "Use when executing implementation plans with independent tasks" (no workflow summary), Claude correctly read the flowchart and followed the two-stage review process.
+
+This is not a style preference — it is a measurable failure mode where the description short-circuits the body. Apply when authoring or editing any skill.
+
+```yaml
+# BAD — workflow summary in description; agent will follow this instead of the body
+description: "Use when executing plans - dispatches subagent per task with code review between tasks"
+
+# BAD — too much process detail
+description: "Use for TDD - write test first, watch it fail, write minimal code, refactor"
+
+# GOOD — triggering conditions only, no workflow narration
+description: "Use when executing implementation plans with independent tasks in the current session"
+
+# GOOD — goat-flow style
+description: "Use when starting a non-trivial implementation that needs structured task breakdown with progress tracking."
+```
+
+The deterministic skill-quality scorer surfaces a yellow advisory tip when the description (after stripping the `Use when …` prefix) contains procedural verbs (`dispatches`, `implements`, `executes`, `generates`, `runs`, `produces`, `creates`, `builds`, `writes`, `refactors`) or process connectives (`then`, `between`). The tip never deducts score — it surfaces alongside the metric so the author can decide whether the description is genuinely workflow-summarising or whether the verb is part of trigger context. Scorer source: `src/cli/quality/skill-quality.ts` (search: `descriptionSummarizesWorkflow`).
 
 ## Research citations
 

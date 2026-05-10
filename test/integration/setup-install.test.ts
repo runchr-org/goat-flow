@@ -68,6 +68,76 @@ describe("setup --apply installer", () => {
       existsSync(join(root, ".codex", "hooks", "deny-dangerous.sh")),
       true,
     );
+    assert.equal(
+      existsSync(join(root, ".codex", "hooks", "deny-dangerous.self-test.sh")),
+      true,
+    );
+  });
+
+  it("adds the requested agent to an existing config.yaml", () => {
+    const root = makeTempProject();
+    const configDir = join(root, ".goat-flow");
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(
+      join(configDir, "config.yaml"),
+      'version: "1.6.0"\n\nagents:\n  - claude\n\nskills:\n  install: all\n\ncustom_key: preserve_me\n',
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
+    assert.match(config, /agents:\n  - claude\n  - codex\n/);
+    assert.match(config, /custom_key: preserve_me/);
+  });
+
+  it("does not duplicate an agent already listed in config.yaml", () => {
+    const root = makeTempProject();
+    const configDir = join(root, ".goat-flow");
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(
+      join(configDir, "config.yaml"),
+      'version: "1.6.0"\n\nagents:\n  - claude\n  - codex\n\nskills:\n  install: all\n',
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
+    assert.equal(config.match(/  - codex\n/g)?.length, 1);
+  });
+
+  it("adds an agents block when existing config.yaml has none", () => {
+    const root = makeTempProject();
+    const configDir = join(root, ".goat-flow");
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(
+      join(configDir, "config.yaml"),
+      'version: "1.6.0"\n\nskills:\n  install: all\n',
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
+    assert.match(config, /agents:\n  - codex\n/);
+  });
+
+  it("replaces agents null with the requested agent", () => {
+    const root = makeTempProject();
+    const configDir = join(root, ".goat-flow");
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(
+      join(configDir, "config.yaml"),
+      'version: "1.6.0"\n\nagents: null\n\nskills:\n  install: all\n',
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
+    assert.match(config, /agents:\n  - codex\n/);
+    assert.doesNotMatch(config, /agents: null/);
   });
 });
 
@@ -144,6 +214,45 @@ describe("settings skip warning", () => {
       /deny hook.*was installed but may not be/i,
       "should mention the deny hook may not be registered",
     );
+  });
+});
+
+describe("codex config migration", () => {
+  it("migrates deprecated codex_hooks without overwriting custom config", () => {
+    const root = makeTempProject();
+    const codexDir = join(root, ".codex");
+    mkdirSync(codexDir, { recursive: true });
+    writeFileSync(
+      join(codexDir, "config.toml"),
+      'model = "gpt-5"\napproval_policy = "on-request"\n\n[features]\ncodex_hooks = true\n',
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
+    assert.match(config, /model = "gpt-5"/);
+    assert.match(config, /approval_policy = "on-request"/);
+    assert.match(config, /\[features\]\nhooks = true\n/);
+    assert.doesNotMatch(config, /^\s*codex_hooks\s=/m);
+    assert.match(result.stdout, /migrated deprecated hooks flag/);
+  });
+
+  it("removes deprecated codex_hooks when hooks is already present", () => {
+    const root = makeTempProject();
+    const codexDir = join(root, ".codex");
+    mkdirSync(codexDir, { recursive: true });
+    writeFileSync(
+      join(codexDir, "config.toml"),
+      "[features]\nhooks = true\ncodex_hooks = true\n",
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
+    assert.equal(config.match(/^hooks = true$/gm)?.length, 1);
+    assert.doesNotMatch(config, /^\s*codex_hooks\s=/m);
   });
 });
 

@@ -6,7 +6,7 @@
  */
 
 import { parseArgs } from "node:util";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeFileSync, mkdirSync, realpathSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -14,6 +14,7 @@ import { createInterface } from "node:readline/promises";
 import type { CLIOptions, AgentId, ProjectFacts } from "./types.js";
 import type { AuditReport } from "./audit/types.js";
 import { QUALITY_MODES, type QualityMode } from "./quality/schema.js";
+import type { CandidacyResult } from "./quality/candidacy.js";
 
 import { getPackageVersion, getTemplatePath } from "./paths.js";
 import { getKnownAgentIds } from "./agents/registry.js";
@@ -51,6 +52,7 @@ Commands:
   dashboard         Launch browser dashboard with audit, setup, and terminal
   manifest          Print the resolved single-source-of-truth manifest (--check validates consistency)
   stats             Learning-loop health report (live entry counts, stale refs, freshness). Use --check for CI.
+  skill new         Author a new skill or playbook from a description, draft, or interactive prompt.
 Arguments:
   project-path    Target project directory (default: .)
 
@@ -92,6 +94,10 @@ Examples:
   goat-flow manifest --check           Verify the manifest is consistent with code
   goat-flow stats                      Learning-loop health report
   goat-flow stats --check              Fail if any bucket is missing last_reviewed or has stale refs
+  goat-flow skill new "<description>"  Scaffold a skill from a natural-language description
+  goat-flow skill ./repo new "<description>"
+  goat-flow skill new --draft <path>   Validate an existing draft against the candidacy check
+  goat-flow skill new --interactive    Prompt for description and name, then scaffold
   goat-flow --format markdown          PR-comment friendly output
   goat-flow --output report.json       Write results to file
 `);
@@ -112,10 +118,23 @@ type Command =
   | "status"
   | "audit"
   | "quality"
+  | "skill"
   | "manifest"
   | "stats";
 
-type QualitySubcommand = "prompt" | "history" | "diff" | "validate";
+type SkillSubcommand = "new";
+
+type QualitySubcommand =
+  | "prompt"
+  | "history"
+  | "diff"
+  | "validate"
+  | "candidacy";
+
+interface CandidacyInputArg {
+  mode: "draft" | "description";
+  value: string;
+}
 
 interface ParsedArgValues {
   format?: string;
@@ -133,6 +152,10 @@ interface ParsedArgValues {
   "update-config-version"?: boolean;
   "clean-deprecated"?: boolean;
   dev?: boolean;
+  draft?: string;
+  interactive?: boolean;
+  name?: string;
+  yes?: boolean;
   help?: boolean;
   version?: boolean;
 }
@@ -147,6 +170,7 @@ const COMMANDS: Command[] = [
   "status",
   "audit",
   "quality",
+  "skill",
   "manifest",
   "stats",
 ];
@@ -209,6 +233,13 @@ export interface ParsedCLI extends CLIOptions {
   qualityDiffPair: string | null;
   qualityValidatePath: string | null;
   qualityMode: QualityMode | null;
+  candidacyInput: CandidacyInputArg | null;
+  skillSubcommand: SkillSubcommand | null;
+  skillDescription: string | null;
+  skillDraftPath: string | null;
+  skillName: string | null;
+  skillInteractive: boolean;
+  skillSkipConfirm: boolean;
   all: boolean;
 }
 
@@ -292,11 +323,15 @@ function resolveOutputPath(
 
 /** Parse quality subcommand positionals. */
 // eslint-disable-next-line complexity -- quality subcommand dispatch is intentionally explicit: each branch has its own positional validation
-function parseQualityPositionals(positionals: string[]): {
+function parseQualityPositionals(
+  positionals: string[],
+  draftFlag: string | null,
+): {
   qualitySubcommand: QualitySubcommand;
   projectPath: string;
   qualityDiffPair: string | null;
   qualityValidatePath: string | null;
+  candidacyInput: CandidacyInputArg | null;
 } {
   const [first, second, ...rest] = positionals;
 
@@ -319,6 +354,43 @@ function parseQualityPositionals(positionals: string[]): {
       projectPath: second !== undefined ? resolve(second) : resolve("."),
       qualityDiffPair: null,
       qualityValidatePath: null,
+      candidacyInput: null,
+    };
+  }
+
+  if (first === "candidacy") {
+    if (draftFlag !== null) {
+      if (second !== undefined || rest.length > 0) {
+        throw new CLIError(
+          "quality candidacy: pass either --draft <path> OR a description, not both.",
+          2,
+        );
+      }
+      return {
+        qualitySubcommand: "candidacy",
+        projectPath: resolve("."),
+        qualityDiffPair: null,
+        qualityValidatePath: null,
+        candidacyInput: { mode: "draft", value: resolve(draftFlag) },
+      };
+    }
+    const description = [second, ...rest]
+      .filter(
+        (part): part is string => typeof part === "string" && part.length > 0,
+      )
+      .join(" ");
+    if (description.length === 0) {
+      throw new CLIError(
+        "quality candidacy: pass --draft <path> or a description string.",
+        2,
+      );
+    }
+    return {
+      qualitySubcommand: "candidacy",
+      projectPath: resolve("."),
+      qualityDiffPair: null,
+      qualityValidatePath: null,
+      candidacyInput: { mode: "description", value: description },
     };
   }
 
@@ -334,6 +406,7 @@ function parseQualityPositionals(positionals: string[]): {
       projectPath: resolve("."),
       qualityDiffPair: second ?? null,
       qualityValidatePath: null,
+      candidacyInput: null,
     };
   }
 
@@ -349,6 +422,7 @@ function parseQualityPositionals(positionals: string[]): {
       projectPath: resolve("."),
       qualityDiffPair: null,
       qualityValidatePath: resolve(second),
+      candidacyInput: null,
     };
   }
 
@@ -357,6 +431,7 @@ function parseQualityPositionals(positionals: string[]): {
     projectPath: resolve(first ?? "."),
     qualityDiffPair: null,
     qualityValidatePath: null,
+    candidacyInput: null,
   };
 }
 
@@ -364,14 +439,87 @@ function parseQualityPositionals(positionals: string[]): {
 function parseCommandPositionals(
   command: Command,
   positionals: string[],
+  draftFlag: string | null,
 ): ReturnType<typeof parseQualityPositionals> {
-  if (command === "quality") return parseQualityPositionals(positionals);
+  if (command === "quality")
+    return parseQualityPositionals(positionals, draftFlag);
+  if (command === "skill")
+    return {
+      qualitySubcommand: "prompt",
+      projectPath: parseSkillPositionals(positionals).projectPath,
+      qualityDiffPair: null,
+      qualityValidatePath: null,
+      candidacyInput: null,
+    };
   return {
     qualitySubcommand: "prompt",
     projectPath: resolve(positionals[0] ?? "."),
     qualityDiffPair: null,
     qualityValidatePath: null,
+    candidacyInput: null,
   };
+}
+
+interface SkillPositionals {
+  skillSubcommand: SkillSubcommand | null;
+  skillDescription: string | null;
+  projectPath: string;
+}
+
+function isPathShapedSkillProject(value: string): boolean {
+  const normalized = value.replace(/\\/gu, "/");
+  return (
+    value === "." ||
+    value === ".." ||
+    normalized.startsWith("./") ||
+    normalized.startsWith("../") ||
+    normalized.startsWith("/") ||
+    /^[a-zA-Z]:[\\/]/u.test(value) ||
+    value.startsWith("\\\\")
+  );
+}
+
+function parseSkillDescription(parts: string[]): string | null {
+  const description = parts
+    .filter(
+      (part): part is string => typeof part === "string" && part.length > 0,
+    )
+    .join(" ");
+  return description.length > 0 ? description : null;
+}
+
+/** Parse `skill [project-path] new [project-path] [description...]` positionals. */
+function parseSkillPositionals(positionals: string[]): SkillPositionals {
+  const [first, second, ...rest] = positionals;
+  if (first === undefined) {
+    return {
+      skillSubcommand: null,
+      skillDescription: null,
+      projectPath: resolve("."),
+    };
+  }
+  if (first === "new") {
+    const descriptionParts =
+      second !== undefined && isPathShapedSkillProject(second)
+        ? rest
+        : positionals.slice(1);
+    return {
+      skillSubcommand: "new",
+      skillDescription: parseSkillDescription(descriptionParts),
+      projectPath:
+        second !== undefined && isPathShapedSkillProject(second)
+          ? resolve(second)
+          : resolve("."),
+    };
+  }
+  if (second === "new") {
+    return {
+      skillSubcommand: "new",
+      skillDescription: parseSkillDescription(rest),
+      projectPath: resolve(first),
+    };
+  }
+  throw new CLIError(`unknown skill subcommand "${first}". Supported: new`, 2);
 }
 
 /** Validate flags shared across commands. */
@@ -412,6 +560,7 @@ function validateInstallFlags(command: Command, values: ParsedArgValues): void {
 }
 
 /** Validate quality mode flags against the selected quality subcommand. */
+// eslint-disable-next-line complexity -- enumerates four cross-command flag/subcommand restrictions; splitting per-flag obscures the validation contract
 function validateQualityFlags(
   command: Command,
   values: ParsedArgValues,
@@ -426,6 +575,46 @@ function validateQualityFlags(
       "--mode is only valid for quality prompt, quality history, and quality diff.",
       2,
     );
+  }
+  if (
+    values.draft !== undefined &&
+    !(
+      (command === "quality" && qualitySubcommand === "candidacy") ||
+      command === "skill"
+    )
+  ) {
+    throw new CLIError(
+      "--draft is only valid for quality candidacy and skill new.",
+      2,
+    );
+  }
+  if (values.interactive === true && command !== "skill") {
+    throw new CLIError("--interactive is only valid for skill new.", 2);
+  }
+  if (values.name !== undefined && command !== "skill") {
+    throw new CLIError("--name is only valid for skill new.", 2);
+  }
+  if (values.yes === true && command !== "skill") {
+    throw new CLIError("--yes is only valid for skill new.", 2);
+  }
+}
+
+function formatCandidacyArtifact(
+  recommendation: CandidacyResult["recommendedArtifact"],
+): string {
+  switch (recommendation.type) {
+    case "skill":
+      return `skill (${recommendation.subtype})`;
+    case "reference":
+      return `reference (${recommendation.subtype})`;
+    case "instruction-file":
+      return `instruction-file rule (${recommendation.reason})`;
+    case "learning-loop":
+      return `learning-loop (${recommendation.subtype})`;
+    case "cli-command":
+      return "cli-command";
+    case "do-not-create":
+      return `do-not-create (${recommendation.reason})`;
   }
 }
 
@@ -463,6 +652,10 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
       "update-config-version": { type: "boolean", default: false },
       "clean-deprecated": { type: "boolean", default: false },
       dev: { type: "boolean", default: false },
+      draft: { type: "string" },
+      interactive: { type: "boolean", default: false },
+      name: { type: "string" },
+      yes: { type: "boolean", short: "y", default: false },
       help: { type: "boolean", short: "h", default: false },
       version: { type: "boolean", short: "v", default: false },
     },
@@ -471,7 +664,19 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
   });
 
   const parsedValues = values as ParsedArgValues;
-  const qualityPositionals = parseCommandPositionals(command, positionals);
+  const qualityPositionals = parseCommandPositionals(
+    command,
+    positionals,
+    typeof parsedValues.draft === "string" ? parsedValues.draft : null,
+  );
+  const skillPositionals: SkillPositionals =
+    command === "skill"
+      ? parseSkillPositionals(positionals)
+      : {
+          skillSubcommand: null,
+          skillDescription: null,
+          projectPath: qualityPositionals.projectPath,
+        };
   validateFlagCombinations(
     command,
     parsedValues,
@@ -500,6 +705,19 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     qualityDiffPair: qualityPositionals.qualityDiffPair,
     qualityValidatePath: qualityPositionals.qualityValidatePath,
     qualityMode: parseQualityModeArg(parsedValues.mode),
+    candidacyInput: qualityPositionals.candidacyInput,
+    skillSubcommand: skillPositionals.skillSubcommand,
+    skillDescription: skillPositionals.skillDescription,
+    skillDraftPath:
+      command === "skill" && typeof parsedValues.draft === "string"
+        ? resolve(parsedValues.draft)
+        : null,
+    skillName:
+      command === "skill" && typeof parsedValues.name === "string"
+        ? parsedValues.name
+        : null,
+    skillInteractive: command === "skill" && parsedValues.interactive === true,
+    skillSkipConfirm: command === "skill" && parsedValues.yes === true,
     all: parsedValues.all === true,
     dev: parsedValues.dev === true,
     help: parsedValues.help === true,
@@ -960,6 +1178,59 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
     return;
   }
 
+  if (options.qualitySubcommand === "candidacy") {
+    if (!options.candidacyInput) {
+      throw new CLIError(
+        "quality candidacy: pass --draft <path> or a description string.",
+        2,
+      );
+    }
+    const { runCandidacyCheck } = await import("./quality/candidacy.js");
+    const { readFileSync, existsSync } = await import("node:fs");
+    let result;
+    if (options.candidacyInput.mode === "draft") {
+      const path = options.candidacyInput.value;
+      if (!existsSync(path)) {
+        throw new CLIError(`quality candidacy: file not found: ${path}`, 2);
+      }
+      result = runCandidacyCheck({
+        kind: "draft",
+        content: readFileSync(path, "utf-8"),
+        suggestedName: basename(path).replace(/\.md$/, ""),
+      });
+    } else {
+      result = runCandidacyCheck({
+        kind: "description",
+        text: options.candidacyInput.value,
+      });
+    }
+    if (options.format === "json") {
+      writeOutput(options, JSON.stringify(result, null, 2));
+      return;
+    }
+    const lines: string[] = [];
+    lines.push(
+      `Recommended artifact: ${formatCandidacyArtifact(result.recommendedArtifact)}`,
+    );
+    lines.push(`Confidence: ${Math.round(result.confidence * 100)}%`);
+    if (result.reasoning.length > 0) {
+      lines.push("");
+      lines.push("Reasoning:");
+      for (const reason of result.reasoning) lines.push(`  - ${reason}`);
+    }
+    if (result.nextSteps.length > 0) {
+      lines.push("");
+      lines.push("Next steps:");
+      for (const step of result.nextSteps) {
+        lines.push(
+          `  - ${step.action}${step.template ? ` (template: ${step.template})` : ""}`,
+        );
+      }
+    }
+    writeOutput(options, lines.join("\n"));
+    return;
+  }
+
   if (options.qualitySubcommand === "validate") {
     if (!options.qualityValidatePath) {
       throw new CLIError(
@@ -1156,12 +1427,56 @@ const COMMAND_HANDLERS: Partial<
   install: handleInstallCommand,
   audit: handleAuditCommand,
   quality: handleQualityCommand,
+  skill: handleSkillCommand,
   manifest: handleManifestCommand,
   stats: handleStatsCommand,
   status: handleStatusCommand,
   dashboard: runDashboardCommand,
   info: handleInfoCommand,
 };
+
+async function handleSkillCommand(options: ParsedCLI): Promise<void> {
+  if (options.skillSubcommand !== "new") {
+    throw new CLIError(
+      'Usage: goat-flow skill new ["<description>" | --draft <path> | --interactive]',
+      2,
+    );
+  }
+  const { runSkillNew, SkillNewInputError } = await import("./skill-author.js");
+  let result: Awaited<ReturnType<typeof runSkillNew>>;
+  try {
+    result = await runSkillNew({
+      description: options.skillDescription ?? undefined,
+      draftPath: options.skillDraftPath ?? undefined,
+      interactive: options.skillInteractive,
+      name: options.skillName ?? undefined,
+      skipConfirm: options.skillSkipConfirm,
+      projectRoot: options.projectPath,
+    });
+  } catch (err) {
+    if (err instanceof SkillNewInputError) {
+      throw new CLIError(err.message, 2);
+    }
+    throw err;
+  }
+  if (options.format === "json") {
+    writeOutput(
+      options,
+      JSON.stringify(
+        {
+          candidacy: result.candidacy,
+          proposedPath: result.proposedPath,
+          written: result.written,
+          postScaffoldScore: result.postScaffoldScore ?? null,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+  writeOutput(options, result.output.join("\n"));
+}
 
 /** Dispatch one parsed CLI command to its handler. */
 export async function dispatchCommand(options: ParsedCLI): Promise<void> {

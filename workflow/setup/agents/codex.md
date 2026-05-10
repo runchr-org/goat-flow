@@ -23,15 +23,16 @@
 - If a file exists, modify in place; do not create backup or variant files.
 - `AGENTS.md` is the Codex root instruction file; do not defer to `CLAUDE.md`.
 - Do not copy goat-flow's controlling-workspace Router Table into downstream projects; adapt paths to the target.
-- Codex hooks use `.codex/hooks.json`, not `config.toml`.
-- goat-flow relies on Codex `PreToolUse` only; do not model a Codex post-turn hook event.
+- Codex hooks use `.codex/hooks.json` for goat-flow hook registrations; `.codex/config.toml` enables the engine with `[features].hooks = true` and may define filesystem permission profiles.
+- Codex permission profiles are the closest equivalent to Claude `permissions.allow`/`permissions.deny` for file access. They do not replace the Bash-focused `PreToolUse` deny hook for command patterns such as `git push`, `sudo`, or `curl | bash`.
+- goat-flow ships only the Bash-focused `PreToolUse` deny hook. Codex also supports `PermissionRequest`, `PostToolUse`, `Stop`, and non-Bash tool matchers, but generic post-turn validation remains project-specific.
 - Use `apply_patch` for edits in Codex guidance, not Edit/Write tool prose.
-- Codex has no goat-flow-supported `/compact` or `/clear`; context is per task.
+- goat-flow does not use Codex compaction hooks for recovery; continuity stays file-based through tasks and session logs.
 
 ## Key Resources
 
 - **Learning loop** (grep before every change): `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/`
-- **Tool playbooks**: `.goat-flow/skill-reference/browser-use.md`, `.goat-flow/skill-reference/page-capture.md` — read BEFORE declaring a tool unavailable
+- **Tool playbooks**: `.goat-flow/skill-playbooks/browser-use.md`, `.goat-flow/skill-playbooks/page-capture.md` — read BEFORE declaring a tool unavailable
 
 ## Essential Commands
 
@@ -49,7 +50,7 @@ Only include commands that exist and were verified in the target project. Agent 
 When a goat-* skill is active, its Step 0 replaces READ and selects the skill's mode/depth. SCOPE still applies before writes: a skill may write when its selected mode permits writes or the user explicitly approves them. `/goat-plan` File-Write may create gitignored milestone files without a separate approval gate; `/goat-debug` D3 still requires approval before fixes. Resume at ACT after Step 0 output or when a blocking gate releases.
 
 ### READ
-MUST read relevant files before changes. Never fabricate codebase facts. For URL, local HTML, localhost, screenshot, rendered UI, or browser-visible behaviour, check browser evidence first: `command -v browser-use || command -v browser-use-python`; if available use `browser-use open/state/screenshot`, otherwise ask before installing or use manual fallback. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns/`; include `.goat-flow/decisions/` when the task involves architecture, policy, or setup work. Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-reference/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc's "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool". Open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
+MUST read relevant files before changes. Never fabricate codebase facts. For URL, local HTML, localhost, screenshot, rendered UI, or browser-visible behaviour, check browser evidence first: `command -v browser-use || command -v browser-use-python`; if available use `browser-use open/state/screenshot`, otherwise ask before installing or use manual fallback. Cross-doc: MUST read all files describing the same concept. Use grep-first retrieval across `.goat-flow/footguns/`, `.goat-flow/lessons/`, and `.goat-flow/patterns/`; include `.goat-flow/decisions/` when the task involves architecture, policy, or setup work. Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-playbooks/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc's "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool". Open matching entries only, reword once on zero hits, then record a retrieval miss instead of broad-loading a bucket.
 BAD: "The project has 20 audit checks" (guessed without reading)
 GOOD: Read the relevant source, config, or generated instruction file before stating exact counts.
 
@@ -98,7 +99,7 @@ If VERIFY caught a failure or you corrected course, update the learning loop bef
 - `AGENTS.md` exists and follows the canonical section order.
 - Essential Commands list only real target-project commands.
 - Router Table contains installed project resources only; no `workflow/setup/`, `workflow/hooks/`, or manifest paths.
-- Tool playbook pointer to `.goat-flow/skill-reference/` is present.
+- Tool playbook pointer to `.goat-flow/skill-playbooks/` is present.
 - No hands-off agent files were changed.
 
 ## Artifact Routing
@@ -111,7 +112,8 @@ Requests to add footguns, lessons, decisions, or patterns route to the matching 
 |----------|------|
 | Instruction file | `AGENTS.md` |
 | Learning loop | `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/` |
-| Skill reference + tool playbooks | `.goat-flow/skill-reference/` |
+| Skill reference (meta) | `.goat-flow/skill-reference/` |
+| Skill playbooks (tools) | `.goat-flow/skill-playbooks/` |
 | Orientation | `.goat-flow/code-map.md`, `.goat-flow/glossary.md` |
 | Architecture | `.goat-flow/architecture.md` |
 | Codex skills/config | `.agents/skills/`, `.codex/config.toml`, `.codex/hooks.json`, `.codex/hooks/` when installed |

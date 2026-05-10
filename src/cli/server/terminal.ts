@@ -38,14 +38,6 @@ const RUNNER_BINARIES: Record<Runner, string> = {
   copilot: "copilot",
 };
 
-/** Flag to pass the initial prompt in interactive mode.
- *  `null` means the runner accepts the prompt as a positional argument. */
-const RUNNER_PROMPT_FLAG: Record<Runner, string | null> = {
-  claude: null,
-  codex: null,
-  gemini: "-i",
-  copilot: "-i",
-};
 const WINDOWS_RUNNER_EXTENSION_PRIORITY = [
   ".exe",
   ".cmd",
@@ -54,10 +46,12 @@ const WINDOWS_RUNNER_EXTENSION_PRIORITY = [
   ".ps1",
 ] as const;
 const WINDOWS_TERMINAL_SHELL = "powershell.exe";
-const POSIX_PROMPT_ENV_CLEANUP =
-  "unset GOAT_PROMPT GOAT_PROMPT_FLAG GOAT_PROMPT_PRESENT";
+const POSIX_PROMPT_ENV_CLEANUP = "unset GOAT_RUNNER";
 const WINDOWS_PROMPT_ENV_CLEANUP =
-  "Remove-Item Env:GOAT_PROMPT,Env:GOAT_PROMPT_FLAG,Env:GOAT_PROMPT_PRESENT -ErrorAction SilentlyContinue";
+  "Remove-Item Env:GOAT_RUNNER -ErrorAction SilentlyContinue";
+const INITIAL_PROMPT_AFTER_OUTPUT_DELAY_MS = 150;
+const INITIAL_PROMPT_FALLBACK_DELAY_MS = 5000;
+export const INITIAL_PROMPT_CHUNK_SIZE = 2048;
 
 /** Maximum output to buffer while a session is detached (characters). */
 const DETACH_BUFFER_LIMIT = 512 * 1024; // 512KB
@@ -88,6 +82,27 @@ interface TerminalSpawnSpec {
   shell: string;
   args: string[];
   env: NodeJS.ProcessEnv;
+  initialInput: string | null;
+}
+
+/** Format a full prompt as one terminal paste submitted once to the runner. */
+function formatInitialPromptInput(prompt: string): string {
+  return "\x1b[200~" + prompt + "\x1b[201~" + "\r";
+}
+
+/** Split terminal input into bounded chunks for PTY write reliability. */
+export function chunkTerminalInput(
+  input: string,
+  chunkSize = INITIAL_PROMPT_CHUNK_SIZE,
+): string[] {
+  if (!Number.isInteger(chunkSize) || chunkSize <= 0) {
+    throw new Error("chunkSize must be a positive integer");
+  }
+  const chunks: string[] = [];
+  for (let index = 0; index < input.length; index += chunkSize) {
+    chunks.push(input.slice(index, index + chunkSize));
+  }
+  return chunks;
 }
 
 /** Pick the most runnable Windows runner path from a `where` result set. */
@@ -119,21 +134,18 @@ export function pickWindowsRunnerPath(
 
 /** Build the PTY shell invocation that keeps a usable terminal open per OS. */
 export function buildTerminalSpawnSpec(
-  runner: Runner,
+  _runner: Runner,
   cliPath: string,
   prompt: string,
   environment: NodeJS.ProcessEnv = process.env,
   platform = process.platform,
 ): TerminalSpawnSpec {
-  const flag = RUNNER_PROMPT_FLAG[runner];
   const hasPrompt = prompt.length > 0;
   const env: NodeJS.ProcessEnv = {
     ...environment,
     GOAT_RUNNER: cliPath,
-    GOAT_PROMPT: prompt,
-    GOAT_PROMPT_FLAG: flag ?? "",
-    GOAT_PROMPT_PRESENT: hasPrompt ? "1" : "0",
   };
+  const initialInput = hasPrompt ? formatInitialPromptInput(prompt) : null;
 
   if (platform === "win32") {
     return {
@@ -142,18 +154,15 @@ export function buildTerminalSpawnSpec(
         "-NoLogo",
         "-NoExit",
         "-Command",
-        `try { if ($env:GOAT_PROMPT_PRESENT -eq '1') { if ($env:GOAT_PROMPT_FLAG) { & $env:GOAT_RUNNER $env:GOAT_PROMPT_FLAG $env:GOAT_PROMPT } else { & $env:GOAT_RUNNER $env:GOAT_PROMPT } } else { & $env:GOAT_RUNNER } } finally { ${WINDOWS_PROMPT_ENV_CLEANUP} }`,
+        `try { & $env:GOAT_RUNNER } finally { ${WINDOWS_PROMPT_ENV_CLEANUP} }`,
       ],
       env,
+      initialInput,
     };
   }
 
   const shell = environment.SHELL || "/bin/bash";
-  const shellCmd = hasPrompt
-    ? flag
-      ? `"$GOAT_RUNNER" ${flag} "$GOAT_PROMPT"; ${POSIX_PROMPT_ENV_CLEANUP}; exec "$SHELL" -i`
-      : `"$GOAT_RUNNER" "$GOAT_PROMPT"; ${POSIX_PROMPT_ENV_CLEANUP}; exec "$SHELL" -i`
-    : `"$GOAT_RUNNER"; ${POSIX_PROMPT_ENV_CLEANUP}; exec "$SHELL" -i`;
+  const shellCmd = `"$GOAT_RUNNER"; ${POSIX_PROMPT_ENV_CLEANUP}; exec "$SHELL" -i`;
 
   return {
     shell,
@@ -162,6 +171,7 @@ export function buildTerminalSpawnSpec(
       ...env,
       SHELL: shell,
     },
+    initialInput,
   };
 }
 
@@ -317,6 +327,12 @@ export class TerminalManager {
       env: spawnSpec.env,
     });
 
+    let initialInputSent = false;
+    let initialInputTimer: ReturnType<typeof setTimeout> | null = null;
+    const initialInputLatestDueAt =
+      Date.now() + INITIAL_PROMPT_FALLBACK_DELAY_MS;
+    let initialInputDueAt = 0;
+
     const session: TerminalSession = {
       id,
       status: "active",
@@ -333,8 +349,48 @@ export class TerminalManager {
       detachBufferSize: 0,
     };
 
+    /** Send the launch prompt through the PTY, avoiding shell/native argv limits. */
+    const sendInitialInput = (): void => {
+      if (!spawnSpec.initialInput || initialInputSent) return;
+      const pty = session.pty;
+      if (session.status === "terminated" || !pty) return;
+      initialInputSent = true;
+      if (initialInputTimer) {
+        clearTimeout(initialInputTimer);
+        initialInputTimer = null;
+        initialInputDueAt = 0;
+      }
+      for (const chunk of chunkTerminalInput(spawnSpec.initialInput)) {
+        pty.write(chunk);
+      }
+      session.lastInputAt = Date.now();
+    };
+
+    /** Schedule initial prompt delivery after the runner has had time to draw. */
+    const scheduleInitialInput = (
+      delayMs: number,
+      { reset = false }: { reset?: boolean } = {},
+    ): void => {
+      if (!spawnSpec.initialInput || initialInputSent) return;
+      const now = Date.now();
+      const boundedDelayMs = Math.max(
+        0,
+        Math.min(delayMs, initialInputLatestDueAt - now),
+      );
+      const nextDueAt = now + boundedDelayMs;
+      if (initialInputTimer) {
+        if (!reset && initialInputDueAt <= nextDueAt) return;
+        clearTimeout(initialInputTimer);
+      }
+      initialInputDueAt = nextDueAt;
+      initialInputTimer = setTimeout(sendInitialInput, boundedDelayMs);
+    };
+
     // Wire PTY output at creation - routes to WebSocket if attached, buffer if detached
     pty.onData((data: string) => {
+      scheduleInitialInput(INITIAL_PROMPT_AFTER_OUTPUT_DELAY_MS, {
+        reset: true,
+      });
       if (session.ws) {
         this.resetIdleTimer(session);
         sendMessage(session.ws, { type: "output", data });
@@ -346,6 +402,11 @@ export class TerminalManager {
 
     pty.onExit(({ exitCode, signal }) => {
       session.status = "terminated";
+      if (initialInputTimer) {
+        clearTimeout(initialInputTimer);
+        initialInputTimer = null;
+        initialInputDueAt = 0;
+      }
       if (session.ws) {
         sendMessage(session.ws, {
           type: "exit",
@@ -358,6 +419,7 @@ export class TerminalManager {
 
     this.sessions.set(id, session);
     this.resetIdleTimer(session);
+    scheduleInitialInput(INITIAL_PROMPT_FALLBACK_DELAY_MS);
 
     return {
       id,

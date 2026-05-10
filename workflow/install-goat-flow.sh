@@ -10,7 +10,8 @@
 #
 # Safe by design:
 # - Skills and reference files are always overwritten (verbatim copies)
-# - Settings and config.yaml are NOT overwritten if they already exist
+# - Settings are NOT overwritten if they already exist
+# - Existing config.yaml is preserved but the requested agent is registered
 # - Pass --force to overwrite settings and config
 # - Pass --update-config-version to update only the version field in existing config.yaml
 # - Pass --clean-deprecated to remove deprecated skill directories
@@ -243,6 +244,179 @@ fs.writeFileSync(path, content.replace(/^version:.*$/m, `version: "${version}"`)
 NODE
 }
 
+ensure_config_agent_entry() {
+  local path="$1"
+  local agent="$2"
+  node - "$path" "$agent" <<'NODE'
+const fs = require("node:fs");
+
+const path = process.argv[2];
+const agent = process.argv[3];
+const content = fs.readFileSync(path, "utf8");
+const eol = content.includes("\r\n") ? "\r\n" : "\n";
+const hadFinalNewline = /\r?\n$/u.test(content);
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function splitInlineList(value) {
+  const match = value.trim().match(/^\[(.*)\]$/u);
+  if (!match) return null;
+  return match[1]
+    .split(",")
+    .map((item) => item.trim().replace(/^["']|["']$/g, ""))
+    .filter(Boolean);
+}
+
+function indentOf(line) {
+  return line.match(/^\s*/u)?.[0] ?? "";
+}
+
+let lines = content.split(/\r?\n/u);
+if (hadFinalNewline) lines = lines.slice(0, -1);
+
+const agentKeyRe = /^(\s*)agents\s*:\s*(.*?)(\s*#.*)?$/u;
+const agentItemRe = new RegExp(
+  `^\\s*-\\s*["']?${escapeRegExp(agent)}["']?\\s*(?:#.*)?$`,
+  "u",
+);
+const index = lines.findIndex((line) => agentKeyRe.test(line));
+let changed = false;
+
+if (index === -1) {
+  if (lines.length > 0 && lines[lines.length - 1] !== "") lines.push("");
+  lines.push("agents:", `  - ${agent}`);
+  changed = true;
+} else {
+  const match = lines[index].match(agentKeyRe);
+  const baseIndent = match?.[1] ?? "";
+  const rest = (match?.[2] ?? "").trim();
+  const inlineAgents = splitInlineList(rest);
+
+  if (inlineAgents) {
+    if (!inlineAgents.includes(agent)) {
+      inlineAgents.push(agent);
+      changed = true;
+    }
+    if (changed) {
+      lines.splice(
+        index,
+        1,
+        `${baseIndent}agents:`,
+        ...inlineAgents.map((id) => `${baseIndent}  - ${id}`),
+      );
+    }
+  } else if (rest === "null" || rest === "[]") {
+    lines.splice(index, 1, `${baseIndent}agents:`, `${baseIndent}  - ${agent}`);
+    changed = true;
+  } else {
+    const baseIndentLength = baseIndent.length;
+    let cursor = index + 1;
+    let lastAgentItem = -1;
+    let agentAlreadyPresent = false;
+
+    while (cursor < lines.length) {
+      const line = lines[cursor];
+      const trimmed = line.trim();
+      if (trimmed !== "" && !trimmed.startsWith("#")) {
+        const currentIndentLength = indentOf(line).length;
+        if (currentIndentLength <= baseIndentLength) break;
+      }
+      if (/^\s*-\s*/u.test(line)) {
+        lastAgentItem = cursor;
+        if (agentItemRe.test(line)) agentAlreadyPresent = true;
+      }
+      cursor += 1;
+    }
+
+    if (!agentAlreadyPresent) {
+      const insertAt = lastAgentItem >= 0 ? lastAgentItem + 1 : index + 1;
+      lines.splice(insertAt, 0, `${baseIndent}  - ${agent}`);
+      changed = true;
+    }
+  }
+}
+
+if (changed) {
+  fs.writeFileSync(path, `${lines.join(eol)}${hadFinalNewline ? eol : ""}`);
+}
+console.log(changed ? "changed" : "unchanged");
+NODE
+}
+
+migrate_codex_hooks_feature_flag() {
+  local path="$1"
+  node - "$path" <<'NODE'
+const fs = require("node:fs");
+
+const path = process.argv[2];
+const content = fs.readFileSync(path, "utf8");
+const eol = content.includes("\r\n") ? "\r\n" : "\n";
+const hadFinalNewline = /\r?\n$/u.test(content);
+const lines = content.split(/\r?\n/u);
+if (hadFinalNewline) lines.pop();
+
+function parseFeatureBooleanAssignment(line, section) {
+  if (/^\s*(#|$)/u.test(line)) return null;
+  const match = line.match(
+    /^(\s*)([A-Za-z0-9_.-]+)(\s*=\s*)(true|false)(\s*(?:#.*)?)$/u,
+  );
+  if (!match) return null;
+  const [, indent, rawKey, separator, value, suffix] = match;
+  const normalizedKey =
+    section === "features" && !rawKey.includes(".")
+      ? `features.${rawKey}`
+      : rawKey;
+  return { indent, rawKey, separator, value, suffix, normalizedKey };
+}
+
+let section = "";
+const deprecated = [];
+const current = [];
+for (let index = 0; index < lines.length; index += 1) {
+  const sectionMatch = lines[index].match(/^\s*\[([^\]]+)\]\s*(?:#.*)?$/u);
+  if (sectionMatch) {
+    section = sectionMatch[1].trim();
+    continue;
+  }
+  const assignment = parseFeatureBooleanAssignment(lines[index], section);
+  if (!assignment) continue;
+  if (assignment.normalizedKey === "features.codex_hooks") {
+    deprecated.push({ index, assignment });
+  } else if (assignment.normalizedKey === "features.hooks") {
+    current.push(index);
+  }
+}
+
+if (deprecated.length === 0) {
+  console.log("unchanged");
+  process.exit(0);
+}
+
+const remove = new Set();
+if (current.length === 0) {
+  const first = deprecated[0];
+  const replacementKey = first.assignment.rawKey.includes(".")
+    ? "features.hooks"
+    : "hooks";
+  lines[first.index] =
+    first.assignment.indent +
+    replacementKey +
+    first.assignment.separator +
+    first.assignment.value +
+    first.assignment.suffix;
+  for (const entry of deprecated.slice(1)) remove.add(entry.index);
+} else {
+  for (const entry of deprecated) remove.add(entry.index);
+}
+
+const next = lines.filter((_, index) => !remove.has(index)).join(eol);
+fs.writeFileSync(path, next + (hadFinalNewline ? eol : ""));
+console.log("migrated");
+NODE
+}
+
 echo "goat-flow install: $(basename "$PROJECT") (agent: $AGENT)"
 echo ""
 
@@ -252,7 +426,7 @@ cd "$PROJECT"
 # 1. Create .goat-flow/ directories
 # ==========================================================================
 echo "Directories:"
-for dir in .goat-flow/footguns .goat-flow/lessons .goat-flow/patterns .goat-flow/decisions .goat-flow/tasks .goat-flow/scratchpad .goat-flow/logs/sessions .goat-flow/logs/quality .goat-flow/logs/critiques .goat-flow/logs/security .goat-flow/skill-reference; do
+for dir in .goat-flow/footguns .goat-flow/lessons .goat-flow/patterns .goat-flow/decisions .goat-flow/tasks .goat-flow/scratchpad .goat-flow/logs/sessions .goat-flow/logs/quality .goat-flow/logs/critiques .goat-flow/logs/security .goat-flow/skill-reference .goat-flow/skill-playbooks; do
   if [[ ! -d "$dir" ]]; then
     mkdir -p "$dir"
     echo "  ✓ $dir/"
@@ -282,23 +456,56 @@ touch_anchor ".goat-flow/logs/sessions/.gitkeep"
 echo ""
 
 # ==========================================================================
-# 3. Copy shared reference files (always overwrite - verbatim copies)
+# 3. Migrate legacy skill-reference layout (1.5.1 → 1.5.2 split)
+#    The `skill-reference/` dir was split into:
+#      - skill-reference/   (meta only: skill-preamble.md, skill-conventions.md)
+#      - skill-playbooks/   (browser-use.md, page-capture.md, skill-quality-testing.md + topical dir)
+#    On upgrade, sweep the legacy locations so the installed layout matches.
 # ==========================================================================
-echo "Reference files → .goat-flow/skill-reference/:"
+legacy_reference_files=(
+  ".goat-flow/skill-reference/browser-use.md"
+  ".goat-flow/skill-reference/page-capture.md"
+  ".goat-flow/skill-reference/skill-quality-testing.md"
+)
+legacy_reference_dir=".goat-flow/skill-reference/skill-quality-testing"
+removed_any=false
+for legacy_file in "${legacy_reference_files[@]}"; do
+  if [[ -f "$legacy_file" ]]; then
+    rm -f "$legacy_file"
+    echo "  ✓ migrated $legacy_file → .goat-flow/skill-playbooks/"
+    removed_any=true
+  fi
+done
+if [[ -d "$legacy_reference_dir" ]]; then
+  rm -rf "$legacy_reference_dir"
+  echo "  ✓ migrated $legacy_reference_dir/ → .goat-flow/skill-playbooks/"
+  removed_any=true
+fi
+if [[ "$removed_any" == true ]]; then
+  echo ""
+fi
+
+# ==========================================================================
+# 4. Copy shared reference files (always overwrite - verbatim copies)
+# ==========================================================================
+echo "Meta references → .goat-flow/skill-reference/:"
 copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/README.md" ".goat-flow/skill-reference/README.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-preamble.md" ".goat-flow/skill-reference/skill-preamble.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-conventions.md" ".goat-flow/skill-reference/skill-conventions.md"
-copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/browser-use.md" ".goat-flow/skill-reference/browser-use.md"
-copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-quality-testing.md" ".goat-flow/skill-reference/skill-quality-testing.md"
-copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-quality-testing/tdd-iteration.md" ".goat-flow/skill-reference/skill-quality-testing/tdd-iteration.md"
-copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-quality-testing/adversarial-framing.md" ".goat-flow/skill-reference/skill-quality-testing/adversarial-framing.md"
-copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/skill-quality-testing/deployment.md" ".goat-flow/skill-reference/skill-quality-testing/deployment.md"
-copy_file "$GOAT_FLOW_ROOT/workflow/skills/reference/page-capture.md" ".goat-flow/skill-reference/page-capture.md"
+
+echo "Standalone playbooks → .goat-flow/skill-playbooks/:"
+copy_file "$GOAT_FLOW_ROOT/workflow/skills/playbooks/README.md" ".goat-flow/skill-playbooks/README.md"
+copy_file "$GOAT_FLOW_ROOT/workflow/skills/playbooks/browser-use.md" ".goat-flow/skill-playbooks/browser-use.md"
+copy_file "$GOAT_FLOW_ROOT/workflow/skills/playbooks/page-capture.md" ".goat-flow/skill-playbooks/page-capture.md"
+copy_file "$GOAT_FLOW_ROOT/workflow/skills/playbooks/skill-quality-testing.md" ".goat-flow/skill-playbooks/skill-quality-testing.md"
+copy_file "$GOAT_FLOW_ROOT/workflow/skills/playbooks/skill-quality-testing/tdd-iteration.md" ".goat-flow/skill-playbooks/skill-quality-testing/tdd-iteration.md"
+copy_file "$GOAT_FLOW_ROOT/workflow/skills/playbooks/skill-quality-testing/adversarial-framing.md" ".goat-flow/skill-playbooks/skill-quality-testing/adversarial-framing.md"
+copy_file "$GOAT_FLOW_ROOT/workflow/skills/playbooks/skill-quality-testing/deployment.md" ".goat-flow/skill-playbooks/skill-quality-testing/deployment.md"
 copy_if_missing "$GOAT_FLOW_ROOT/workflow/setup/reference/security-policy.md" ".goat-flow/security-policy.md"
 echo ""
 
 # ==========================================================================
-# 4. Install skills (always overwrite - verbatim from templates)
+# 5. Install skills (always overwrite - verbatim from templates)
 # ==========================================================================
 echo "Skills → $SKILLS_DIR/:"
 for skill in "${SKILL_NAMES[@]}"; do
@@ -339,11 +546,13 @@ if $CLEAN_DEPRECATED || $FORCE; then
 fi
 
 # ==========================================================================
-# 5. Install hooks (always overwrite - verbatim copy)
+# 6. Install hooks (always overwrite - verbatim copy)
 # ==========================================================================
 echo "Hooks → $HOOKS_DIR/:"
 copy_file "$GOAT_FLOW_ROOT/workflow/hooks/deny-dangerous.sh" "$DENY_HOOK_DST"
-chmod +x "$DENY_HOOK_DST"
+DENY_SELF_TEST_DST="$(dirname "$DENY_HOOK_DST")/deny-dangerous.self-test.sh"
+copy_file "$GOAT_FLOW_ROOT/workflow/hooks/deny-dangerous.self-test.sh" "$DENY_SELF_TEST_DST"
+chmod +x "$DENY_HOOK_DST" "$DENY_SELF_TEST_DST"
 if [[ -n "${HOOK_CONFIG_DST:-}" && -n "${HOOK_CONFIG_SRC:-}" ]]; then
   echo "Hooks config:"
   copy_if_missing "$GOAT_FLOW_ROOT/$HOOK_CONFIG_SRC" "$HOOK_CONFIG_DST"
@@ -351,15 +560,20 @@ fi
 echo ""
 
 # ==========================================================================
-# 6. Install agent settings (skip if exists, unless --force)
+# 7. Install agent settings (skip if exists, unless --force)
 # ==========================================================================
 echo "Settings:"
 SETTINGS_SKIPPED=false
 if [[ -n "${SETTINGS_SRC:-}" && -n "${SETTINGS_DST:-}" ]]; then
   if [[ -f "$SETTINGS_DST" ]] && ! $FORCE; then
-    SETTINGS_SKIPPED=true
-    SKIPPED=$((SKIPPED + 1))
-    echo "  · $SETTINGS_DST (exists, skipped)"
+    if [[ "$AGENT" == "codex" ]] && [[ "$(migrate_codex_hooks_feature_flag "$SETTINGS_DST")" == "migrated" ]]; then
+      COPIED=$((COPIED + 1))
+      echo "  ✓ $SETTINGS_DST (migrated deprecated hooks flag)"
+    else
+      SETTINGS_SKIPPED=true
+      SKIPPED=$((SKIPPED + 1))
+      echo "  · $SETTINGS_DST (exists, skipped)"
+    fi
   else
     copy_file "$GOAT_FLOW_ROOT/$SETTINGS_SRC" "$SETTINGS_DST"
   fi
@@ -369,24 +583,35 @@ fi
 echo ""
 
 # ==========================================================================
-# 7. Scaffold config.yaml (skip if exists, unless --force)
+# 8. Scaffold or maintain config.yaml
 # ==========================================================================
 echo "Config:"
 CONFIG_PATH=".goat-flow/config.yaml"
 if [[ -f "$CONFIG_PATH" ]] && ! $FORCE; then
+  CONFIG_CHANGED=false
+  CONFIG_NOTES=()
   if $UPDATE_CONFIG_VERSION; then
     if grep -q "^version:" "$CONFIG_PATH"; then
       update_config_version_line "$CONFIG_PATH"
-      COPIED=$((COPIED + 1))
-      echo "  ✓ $CONFIG_PATH (version updated to $VERSION)"
+      CONFIG_CHANGED=true
+      CONFIG_NOTES+=("version updated to $VERSION")
     else
       echo "version: \"$VERSION\"" >> "$CONFIG_PATH"
-      COPIED=$((COPIED + 1))
-      echo "  ✓ $CONFIG_PATH (version field added: $VERSION)"
+      CONFIG_CHANGED=true
+      CONFIG_NOTES+=("version field added: $VERSION")
     fi
+  fi
+  if [[ "$(ensure_config_agent_entry "$CONFIG_PATH" "$AGENT")" == "changed" ]]; then
+    CONFIG_CHANGED=true
+    CONFIG_NOTES+=("agent $AGENT registered")
+  fi
+  if $CONFIG_CHANGED; then
+    COPIED=$((COPIED + 1))
+    note_text="$(IFS=', '; echo "${CONFIG_NOTES[*]}")"
+    echo "  ✓ $CONFIG_PATH ($note_text)"
   else
     SKIPPED=$((SKIPPED + 1))
-    echo "  · $CONFIG_PATH (exists, skipped)"
+    echo "  · $CONFIG_PATH (exists, no config changes)"
   fi
 else
   IFS=',' read -r -a CONFIG_AGENTS <<< "${CONFIG_AGENTS_CSV:-$SUPPORTED_AGENTS_CSV}"
@@ -403,7 +628,7 @@ fi
 echo ""
 
 # ==========================================================================
-# 8. Write .active marker if exactly one version-named subdir exists
+# 9. Write .active marker if exactly one version-named subdir exists
 # ==========================================================================
 # Convention: .goat-flow/tasks/.active is a one-line file naming the active
 # plan subdir (e.g. "1.2.2"). Skills (goat, goat-plan) read it to scope their

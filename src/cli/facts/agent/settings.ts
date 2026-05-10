@@ -73,7 +73,7 @@ export function extractSettingsFacts(
   let hasDenyPatterns = false;
   if (agent.settingsFile) {
     if (agent.settingsFile.endsWith(".toml")) {
-      // TOML (Codex config.toml) -- parse key=value pairs into an object
+      // TOML (Codex config.toml) -- parse key=value pairs into a flattened object
       const tomlContent = fs.readFile(agent.settingsFile);
       if (tomlContent) {
         const tomlObj: Record<string, unknown> = {};
@@ -83,23 +83,17 @@ export function extractSettingsFacts(
           if (trimmed.startsWith("#") || trimmed === "") continue;
           const sectionMatch = trimmed.match(/^\[(.+)\]$/);
           if (sectionMatch?.[1]) {
-            currentSection = sectionMatch[1];
+            currentSection = normalizeTomlDottedKey(sectionMatch[1]);
             continue;
           }
-          const kvMatch = trimmed.match(/^(\w+)\s*=\s*(.+)$/);
+          const kvMatch = trimmed.match(
+            /^((?:"(?:\\.|[^"\\])*")|[\w.-]+)\s*=\s*(.+)$/,
+          );
           if (kvMatch?.[1] && kvMatch[2]) {
             const key = currentSection
-              ? `${currentSection}.${kvMatch[1]}`
-              : kvMatch[1];
-            let val: unknown = kvMatch[2].trim();
-            if (val === "true") val = true;
-            else if (val === "false") val = false;
-            else if (
-              typeof val === "string" &&
-              val.startsWith('"') &&
-              val.endsWith('"')
-            )
-              val = val.slice(1, -1);
+              ? `${currentSection}.${normalizeTomlKey(kvMatch[1])}`
+              : normalizeTomlKey(kvMatch[1]);
+            const val = parseTomlScalar(kvMatch[2]);
             tomlObj[key] = val;
           }
         }
@@ -131,11 +125,34 @@ export function extractSettingsFacts(
   return { exists, valid, parsed, hasDenyPatterns, readDenyCoversSecrets };
 }
 
+/** Remove simple TOML string-key quoting for keys goat-flow needs to inspect. */
+function normalizeTomlKey(rawKey: string): string {
+  const key = rawKey.trim();
+  if (key.startsWith('"') && key.endsWith('"')) return key.slice(1, -1);
+  return key;
+}
+
+/** Normalize a dotted TOML table key while preserving quoted path/glob parts. */
+function normalizeTomlDottedKey(rawKey: string): string {
+  return rawKey.split(".").map(normalizeTomlKey).join(".");
+}
+
+/** Parse the simple scalar values used in Codex config.toml. */
+function parseTomlScalar(rawValue: string): unknown {
+  const value = rawValue.trim();
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (/^-?\d+$/u.test(value)) return Number(value);
+  if (value.startsWith('"') && value.endsWith('"')) return value.slice(1, -1);
+  return value;
+}
+
 /** Require settings-based read denies for the main secret and credential path families. */
 function checkReadDenyCoversSecrets(
   parsed: unknown,
   hasDenyPatterns: boolean,
 ): boolean {
+  if (checkCodexPermissionProfileCoversSecrets(parsed)) return true;
   if (!hasDenyPatterns || !parsed) return false;
   /** Permissions object from the parsed settings */
   const perms = (parsed as Record<string, unknown>).permissions as
@@ -157,4 +174,67 @@ function checkReadDenyCoversSecrets(
     /Read\(.*\.(pem|key|pfx)\b/.test(denyStr) ||
     /Read\(.*credentials/.test(denyStr);
   return hasEnv && hasSsh && hasAws && hasKeys;
+}
+
+/** Detect Codex TOML permission profiles that deny the main secret path families. */
+function checkCodexPermissionProfileCoversSecrets(parsed: unknown): boolean {
+  if (!parsed || typeof parsed !== "object") return false;
+  const defaultPermissions = (parsed as Record<string, unknown>)
+    .default_permissions;
+  if (typeof defaultPermissions !== "string" || defaultPermissions === "") {
+    return false;
+  }
+
+  const denied = collectCodexDeniedProjectRootPatterns(
+    parsed,
+    defaultPermissions,
+  );
+  if (denied.size === 0) return false;
+
+  return (
+    hasCodexEnvDeny(denied) &&
+    hasAnyCodexPattern(denied, [".ssh/**", "**/.ssh/**"]) &&
+    hasAnyCodexPattern(denied, [".aws/**", "**/.aws/**"]) &&
+    hasCodexKeyMaterialDeny(denied) &&
+    hasAnyCodexPattern(denied, ["credentials*", "**/credentials*"])
+  );
+}
+
+/** Collect project-root relative Codex permission patterns with mode "none". */
+function collectCodexDeniedProjectRootPatterns(
+  parsed: unknown,
+  profileName: string,
+): Set<string> {
+  const denied = new Set<string>();
+  if (!parsed || typeof parsed !== "object") return denied;
+  const prefix = `permissions.${profileName}.filesystem.:project_roots.`;
+  for (const [key, value] of Object.entries(
+    parsed as Record<string, unknown>,
+  )) {
+    if (value === "none" && key.startsWith(prefix)) {
+      const pattern = key.slice(prefix.length);
+      if (pattern) denied.add(pattern);
+    }
+  }
+  return denied;
+}
+
+/** Return whether any required Codex filesystem pattern is denied. */
+function hasAnyCodexPattern(denied: Set<string>, patterns: string[]): boolean {
+  return patterns.some((pattern) => denied.has(pattern));
+}
+
+/** Detect both root .env files and .env.* variants while allowing .env.example. */
+function hasCodexEnvDeny(denied: Set<string>): boolean {
+  return (
+    hasAnyCodexPattern(denied, [".env", "**/.env", "**/*.env", "**/.env*"]) &&
+    hasAnyCodexPattern(denied, [".env.*", "**/.env.*", "**/.env*"])
+  );
+}
+
+/** Detect private key/certificate material path coverage. */
+function hasCodexKeyMaterialDeny(denied: Set<string>): boolean {
+  return ["pem", "key", "pfx"].every((extension) =>
+    hasAnyCodexPattern(denied, [`*.${extension}`, `**/*.${extension}`]),
+  );
 }
