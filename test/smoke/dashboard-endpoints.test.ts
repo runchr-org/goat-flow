@@ -293,7 +293,7 @@ describe("terminal exports", () => {
     assert.equal(spec.initialInput, "\x1b[200~audit target\x1b[201~\r");
   });
 
-  it("reschedules initial prompt delivery after first runner output", async () => {
+  it("waits for runner output to settle before initial prompt delivery", async () => {
     const manager = makeManager();
     const internals = managerInternals(manager);
     const spawned = makeSpawnedPty();
@@ -304,9 +304,13 @@ describe("terminal exports", () => {
     internals.nodePtyAvailable = true;
 
     await manager.create("review this", PROJECT_ROOT, "claude");
-    spawned.emitData("runner ready\n");
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 350));
+    spawned.emitData("runner banner\n");
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
+    spawned.emitData("runner prompt\n");
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 80));
 
+    assert.deepStrictEqual(spawned.writes, []);
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 120));
     assert.deepStrictEqual(spawned.writes, ["\x1b[200~review this\x1b[201~\r"]);
     manager.shutdown();
   });

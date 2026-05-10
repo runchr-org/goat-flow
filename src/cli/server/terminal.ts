@@ -365,11 +365,14 @@ export class TerminalManager {
     };
 
     /** Schedule initial prompt delivery after the runner has had time to draw. */
-    const scheduleInitialInput = (delayMs: number): void => {
+    const scheduleInitialInput = (
+      delayMs: number,
+      { reset = false }: { reset?: boolean } = {},
+    ): void => {
       if (!spawnSpec.initialInput || initialInputSent) return;
       const nextDueAt = Date.now() + delayMs;
       if (initialInputTimer) {
-        if (initialInputDueAt <= nextDueAt) return;
+        if (!reset && initialInputDueAt <= nextDueAt) return;
         clearTimeout(initialInputTimer);
       }
       initialInputDueAt = nextDueAt;
@@ -378,7 +381,9 @@ export class TerminalManager {
 
     // Wire PTY output at creation - routes to WebSocket if attached, buffer if detached
     pty.onData((data: string) => {
-      scheduleInitialInput(INITIAL_PROMPT_AFTER_OUTPUT_DELAY_MS);
+      scheduleInitialInput(INITIAL_PROMPT_AFTER_OUTPUT_DELAY_MS, {
+        reset: true,
+      });
       if (session.ws) {
         this.resetIdleTimer(session);
         sendMessage(session.ws, { type: "output", data });

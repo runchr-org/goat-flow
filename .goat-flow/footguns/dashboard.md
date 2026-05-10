@@ -1,6 +1,6 @@
 ---
 category: dashboard
-last_reviewed: 2026-05-05
+last_reviewed: 2026-05-10
 ---
 
 ## Footgun: Project-browser modal is reachable only via header-span click, not from the add-project flow
@@ -85,6 +85,26 @@ last_reviewed: 2026-05-05
 1. When a dashboard view branches or scores on an API field, verify the matching `readDashboardReport` / helper decoder preserves that field.
 2. Pair backend scoring changes with a browser-reader regression, especially for discriminants such as `type`, `status`, `concern`, and `id`.
 3. Browser-verify the built `dist/` dashboard and compare it with `/api/audit` output; source-only tests can miss packaged reader drift.
+
+---
+
+## Footgun: Terminal initial prompts must wait for runner output to settle
+
+**Status:** active | **Created:** 2026-05-10 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Clicking a dashboard action such as "Run Quality Assessment in Runner" creates a Claude terminal session with the right title, but the terminal lands at Claude's empty `❯` prompt with no assessment prompt pasted.
+
+**Evidence:**
+- `src/cli/server/terminal.ts` (search: `scheduleInitialInput`) owns delayed PTY prompt injection after the runner process starts.
+- User-observed dashboard session on 2026-05-10: "Quality Agent Installation for Claude Code via Claude Code" opened in Claude Code v2.1.138, reached the `❯` prompt, and no quality prompt appeared.
+- `test/smoke/dashboard-endpoints.test.ts` (search: `waits for runner output to settle before initial prompt delivery`) reproduces the multi-chunk startup condition: a second output chunk must reset the initial-input timer, and no prompt may be written until output has been quiet.
+
+**Why it happens:** Agent CLIs render startup screens in multiple PTY chunks. Sending bracketed paste 150 ms after the first chunk can land while the runner is still drawing its banner or initializing input handling. The PTY write succeeds from goat-flow's perspective, but the runner can drop or ignore the prompt before its interactive prompt is actually ready.
+
+**Prevention:**
+1. Treat terminal initial-input delivery as an output-idle debounce, not a first-output trigger.
+2. When changing `scheduleInitialInput`, test at least two output chunks with a delay between them and assert no prompt write before the final quiet window.
+3. Verify built-dashboard behavior after restarting the dashboard process; a running `dist/cli/cli.js dashboard` server keeps old terminal code in memory until restart.
 
 ---
 
