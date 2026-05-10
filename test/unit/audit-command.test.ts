@@ -416,7 +416,7 @@ async function writeAuditSetupFixture(
 ## Execution Loop: READ -> SCOPE -> ACT -> VERIFY
 
 ### READ
-Before declaring any tool or capability unavailable, read the matching playbook in .goat-flow/skill-reference/ and run that doc's "Availability Check" section verbatim.
+Before declaring any tool or capability unavailable, read the matching playbook in .goat-flow/skill-playbooks/ and run that doc's "Availability Check" section verbatim.
 
 ### SCOPE
 
@@ -428,7 +428,7 @@ Before declaring any tool or capability unavailable, read the matching playbook 
 
 | Resource | Path |
 |----------|------|
-| Skill reference + tool playbooks | .goat-flow/skill-reference/ |
+| Skill playbooks | .goat-flow/skill-playbooks/ |
 `
     : "# CLAUDE.md\n";
 
@@ -591,16 +591,16 @@ describe("audit skill-reference pointer rule", () => {
         content,
         /Before declaring any tool or capability unavailable/,
       );
-      assert.match(content, /\.goat-flow\/skill-reference\//);
+      assert.match(content, /\.goat-flow\/skill-playbooks\//);
       assert.match(content, /Availability Check/);
     }
     assert.match(
       instructionStep,
-      /Tool playbooks \(CLI\/MCP availability checks: browser-use, page-capture, skill-\* references\)/,
+      /Tool playbooks \(CLI\/MCP availability checks: browser-use, page-capture, skill-quality-testing\)/,
     );
     assert.match(
       instructionStep,
-      /\.goat-flow\/skill-reference\/` - read BEFORE declaring a tool unavailable/,
+      /\.goat-flow\/skill-playbooks\/` - read BEFORE declaring a tool unavailable/,
     );
   });
 

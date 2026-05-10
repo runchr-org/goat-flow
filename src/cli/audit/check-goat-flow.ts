@@ -66,11 +66,11 @@ const SKILL_REFERENCE_DIR = ".goat-flow/skill-reference";
 const SKILL_PLAYBOOKS_DIR = ".goat-flow/skill-playbooks";
 const READ_RULE_PATTERNS = [
   /Before declaring any tool(?: or capability)? unavailable/i,
-  /\.goat-flow\/skill-(?:reference|playbooks)\//,
+  /\.goat-flow\/skill-playbooks\//,
   /Availability Check/i,
 ];
 const ROUTER_POINTER_PATTERNS = [
-  /\.goat-flow\/skill-(?:reference|playbooks)\//,
+  /\.goat-flow\/skill-playbooks\//,
   /tool playbooks?|skill reference|skill playbooks?/i,
 ];
 const REQUIRED_SKILL_REFERENCE_FILES = [
@@ -421,7 +421,7 @@ const scratchpad: BuildCheck = {
 
 const instructionFileSkillReferencePointer: BuildCheck = {
   id: "instruction-file-skill-reference-pointer",
-  name: "Instruction file skill-reference pointer",
+  name: "Instruction file skill-playbooks pointer",
   scope: "setup",
   provenance: setupSpecProvenance([
     "workflow/manifest.json",
@@ -432,14 +432,14 @@ const instructionFileSkillReferencePointer: BuildCheck = {
   ]),
   skip: (ctx) =>
     !ctx.fs.exists(SKILL_REFERENCE_DIR) && !ctx.fs.exists(SKILL_PLAYBOOKS_DIR),
-  /** Run the Instruction file skill-reference pointer check. */
+  /** Run the Instruction file skill-playbooks pointer check. */
   run: (ctx) => {
     const missingReferenceFiles = REQUIRED_SKILL_REFERENCE_FILES.filter(
       (path) => !ctx.fs.exists(path),
     );
     if (missingReferenceFiles.length > 0) {
       return {
-        check: "Instruction file skill-reference pointer",
+        check: "Instruction file skill-playbooks pointer",
         message: `Skill reference directory is incomplete. Missing: ${missingReferenceFiles.join(", ")}`,
         evidence: missingReferenceFiles[0],
         howToFix:
@@ -455,11 +455,11 @@ const instructionFileSkillReferencePointer: BuildCheck = {
     if (missingRequirements.length === 0) return null;
 
     return {
-      check: "Instruction file skill-reference pointer",
-      message: `Instruction file(s) missing skill-reference READ rule or Router Table pointer: ${missingRequirements.join(", ")}`,
+      check: "Instruction file skill-playbooks pointer",
+      message: `Instruction file(s) missing skill-playbooks READ rule or Router Table pointer: ${missingRequirements.join(", ")}`,
       evidence: missingRequirements[0]?.replace(/\s+\(.+\)$/, ""),
       howToFix:
-        'Append to the existing READ step: "Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-reference/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc\'s "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool"." Add a Router Table row for tool playbooks: | Tool playbooks (CLI/MCP availability checks: browser-use, page-capture, skill-* references) | `.goat-flow/skill-reference/` - read BEFORE declaring a tool unavailable |.',
+        'Append to the existing READ step: "Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-playbooks/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc\'s "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool"." Add a Router Table row for tool playbooks: | Tool playbooks (CLI/MCP availability checks: browser-use, page-capture, skill-quality-testing) | `.goat-flow/skill-playbooks/` - read BEFORE declaring a tool unavailable |.',
     };
   },
 };

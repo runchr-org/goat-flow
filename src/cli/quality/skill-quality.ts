@@ -1454,7 +1454,7 @@ const TIP_RULES: Array<{
     metric: "skill-reference-fit",
     match: /lacks skill structure - may belong/,
     message:
-      "Consider moving this content under `.goat-flow/skill-reference/` as a playbook; it lacks the structural signals of a skill.",
+      "Consider moving this content under `.goat-flow/skill-playbooks/` as a playbook; it lacks the structural signals of a skill.",
   },
   {
     metric: "skill-reference-fit",

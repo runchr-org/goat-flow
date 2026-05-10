@@ -56,13 +56,13 @@ The setup audit requires these phrases. Paste or adapt them with the required wo
 
 READ step:
 
-> Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-reference/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc's "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool".
+> Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-playbooks/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc's "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool".
 
 Router Table row:
 
 | Resource | Path |
 |----------|------|
-| Tool playbooks (CLI/MCP availability checks: browser-use, page-capture, skill-* references) | `.goat-flow/skill-reference/` - read BEFORE declaring a tool unavailable |
+| Tool playbooks (CLI/MCP availability checks: browser-use, page-capture, skill-quality-testing) | `.goat-flow/skill-playbooks/` - read BEFORE declaring a tool unavailable |
 
 ## Optional: project infrastructure
 
@@ -86,8 +86,8 @@ After writing/updating the instruction file:
 - [ ] Router Table is the final section
 - [ ] Examples and boundaries reference real project files
 - [ ] Workspace boundary guidance distinguishes controlling goat-flow workspace from selected target project without hardcoded absolute paths
-- [ ] READ step keeps the canonical skill-reference phrases: "Before declaring any tool or capability unavailable", `.goat-flow/skill-reference/`, and "Availability Check"
-- [ ] Router table includes the canonical `.goat-flow/skill-reference/` tool playbooks row
+- [ ] READ step keeps the canonical skill-playbooks phrases: "Before declaring any tool or capability unavailable", `.goat-flow/skill-playbooks/`, and "Availability Check"
+- [ ] Router table includes the canonical `.goat-flow/skill-playbooks/` tool playbooks row
 - [ ] If `.github/` exists, `.github/git-commit-instructions.md` exists with project-specific commit guidance
 - [ ] Every line fits the Quality Bar: behavioral rule, scope boundary, command, verification gate, router pointer, or composition rule. Domain knowledge and project history are routed to cold-path files, not inlined.
 - [ ] If Path B: no useful existing content was lost

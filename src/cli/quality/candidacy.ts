@@ -368,7 +368,7 @@ function matchReferenceIntent(
       nextSteps: [
         {
           action:
-            "Place under .goat-flow/skill-reference/<name>.md with an Availability Check section",
+            "Place under .goat-flow/skill-playbooks/<name>.md with an Availability Check section",
         },
       ],
     };
