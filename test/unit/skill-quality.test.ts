@@ -29,6 +29,49 @@ const SNAPSHOT_FIXTURE = resolve(
   PROJECT_ROOT,
   "test/fixtures/skill-quality/expected-scores.json",
 );
+const SANITISED_PLAYWRIGHT_SHAPED_SKILL = [
+  "---",
+  "name: browser-runbook",
+  'description: "Browser-test a staging feature using Playwright MCP."',
+  'goat-flow-skill-version: "1.6.1"',
+  "---",
+  "# /browser-runbook",
+  "",
+  "Use the Playwright MCP tools to browser-test a feature on the staging environment.",
+  "",
+  "## Prerequisites",
+  "",
+  "- Browser MCP tools are available in the active agent session.",
+  "",
+  "## Environment",
+  "",
+  "- Base URL: `https://staging.example.test`",
+  "- Test account: use a seeded non-production account from the project test-data docs.",
+  "",
+  "## Step 0 - Start the browser",
+  "",
+  "Run `browser_navigate` to open `/login`.",
+  "",
+  "## Step 1 - Interact with the page",
+  "",
+  "Use `browser_snapshot` to find controls, then `browser_fill_form` for fields and `browser_evaluate` for app-specific widgets.",
+  "",
+  "## Step 2 - Capture evidence",
+  "",
+  "Use `browser_network_requests` to confirm the request returns 200 and `browser_console_messages` to check for unexpected errors.",
+  "",
+  "## Common Gotchas",
+  "",
+  "| Symptom | Fix |",
+  "|---|---|",
+  "| Widget click misses | Use `browser_evaluate` against the stable selector. |",
+  "| Modal content loads late | Wait for visible text before querying nested controls. |",
+  "",
+  "## Quick Reference",
+  "",
+  "- `browser_resize` before screenshots.",
+  "- Prefer visible text waits over fixed sleeps.",
+].join("\n");
 
 function makeTempProject(): string {
   return mkdtempSync(join(tmpdir(), "goat-flow-skill-quality-"));
@@ -656,8 +699,6 @@ describe("recommendation gates", () => {
         "# /moderate",
         "## When to Use",
         "Use when checking recommendation bands.",
-        "## Read First",
-        "Read context before acting.",
         "## Step 0",
         "Gather context.",
         "## Phase 1",
@@ -707,6 +748,39 @@ describe("recommendation gates", () => {
     const report = scoreArtifact(projectRoot, artifact);
     const tool = report.metrics.find((m) => m.metric === "tool-deps")!;
     assert.equal(tool.score, 10);
+  });
+
+  it("scores browser MCP commands as tool dependencies requiring availability and fallback", () => {
+    const projectRoot = makeTempProject();
+    writeSkill(
+      projectRoot,
+      "browser-command",
+      [
+        "---",
+        "name: browser-command",
+        'description: "Skill with browser MCP commands."',
+        'goat-flow-skill-version: "1.6.1"',
+        "---",
+        "# /browser-command",
+        "## When to Use",
+        "Use when testing browser tool detection.",
+        "NOT this skill: prose-only checks.",
+        "## Step 0",
+        "Run `browser_navigate` and `mcp__browser__snapshot` against the page.",
+        "## Phase 1",
+        "CHECKPOINT before work.",
+        "## Phase 2",
+        "Finish.",
+        "## Verification",
+        "- [ ] Evidence required.",
+      ].join("\n"),
+    );
+    const artifact = findArtifact(projectRoot, "skill:browser-command")!;
+    const report = scoreArtifact(projectRoot, artifact);
+    const tool = report.metrics.find((m) => m.metric === "tool-deps")!;
+    assert.ok(tool.score < 10, `expected tool score < 10, got ${tool.score}`);
+    assert.match(tool.detail, /references tools without availability check/);
+    assert.match(tool.detail, /no fallback for tool dependencies/);
   });
 
   it("scores explicit command availability and fallback as handled tool dependency", () => {
@@ -870,6 +944,43 @@ describe("uploaded skill evaluation skips host preamble composition", () => {
     "## Verification",
     "Done.",
   ].join("\n");
+  const PORTABLE_SKILL_WITHOUT_GOAT_FLOW_PREAMBLE = [
+    "---",
+    "name: portable-skill",
+    'description: "Use when checking portable skill evaluator behavior."',
+    'goat-flow-skill-version: "1.6.1"',
+    "---",
+    "# /portable-skill",
+    "",
+    "## When to Use",
+    "Use when evaluating a skill that is not built for goat-flow inheritance.",
+    "",
+    "**NOT this skill:** goat-flow framework setup.",
+    "",
+    "## Read First",
+    "",
+    "- Read `docs/testing.md` before acting.",
+    "",
+    "## Prerequisites",
+    "",
+    "- Requires a checked-out repository and a clear target file.",
+    "- Default mode is Read-Only unless the user approves File-Write.",
+    "",
+    "## Step 0",
+    "",
+    "Confirm the target file, scope, assumptions, and operating mode.",
+    "",
+    "## Phase 1",
+    "",
+    "Inspect the target and capture findings.",
+    "",
+    "CHECKPOINT: human approves before any file write.",
+    "",
+    "## Verification",
+    "",
+    "- [ ] OBSERVED findings cite current source evidence.",
+    '- [ ] Evidence required for each claim, including `(search: "portable-anchor")`.',
+  ].join("\n");
 
   it("evaluateContent composedFrom omits skill-preamble.md and skill-conventions.md", () => {
     const report = evaluateContent(PROJECT_ROOT, {
@@ -924,6 +1035,24 @@ describe("uploaded skill evaluation skips host preamble composition", () => {
     assert.equal(evidence.score, 0, evidence.detail);
   });
 
+  it("does not require goat-flow preamble inheritance for portable uploaded skills", () => {
+    const report = evaluateContent(PROJECT_ROOT, {
+      content: PORTABLE_SKILL_WITHOUT_GOAT_FLOW_PREAMBLE,
+      suggestedName: "portable-skill",
+      kind: "skill",
+    });
+    const coldStart = report.metrics.find((m) => m.metric === "cold-start")!;
+    assert.equal(coldStart.score, coldStart.maxScore, coldStart.detail);
+    assert.ok(
+      !report.tips.some((tip) =>
+        /skill-preamble|\.goat-flow\/skill-reference|Proof Gate/i.test(
+          tip.message,
+        ),
+      ),
+      report.tips.map((tip) => tip.message).join("\n"),
+    );
+  });
+
   it("on-disk scoreArtifact still composes preamble (regression guard for runtime skills)", () => {
     // Counterpart to the upload tests above: skills shipped in this repo are
     // loaded with skill-preamble.md/skill-conventions.md at runtime, so their
@@ -942,6 +1071,52 @@ describe("classification", () => {
     assert.equal(report.classification.detectedSubtype, "workflow");
     assert.equal(report.classification.confidence, 1);
     assert.equal(report.classification.alternatives.length, 0);
+    assert.ok(
+      report.classification.reasoning.some((reason) =>
+        reason.includes("Step 0"),
+      ),
+      report.classification.reasoning.join("\n"),
+    );
+    assert.ok(
+      !report.classification.reasoning.some((reason) =>
+        reason.includes("fallback"),
+      ),
+      report.classification.reasoning.join("\n"),
+    );
+  });
+
+  it("does not report fallback-only classification as certain", () => {
+    const projectRoot = makeTempProject();
+    writeSkill(
+      projectRoot,
+      "fallback-only",
+      [
+        "---",
+        "name: fallback-only",
+        'description: "Skill without workflow shape signals."',
+        'goat-flow-skill-version: "1.6.1"',
+        "---",
+        "# /fallback-only",
+        "Some prose only.",
+      ].join("\n"),
+    );
+    const config = cloneQualityConfig(DEFAULT_QUALITY_CONFIG);
+    config.subtypes.workflow.detection = {
+      kinds: ["skill"],
+      namePatterns: [],
+      headingPatterns: [],
+      mustNotHave: [],
+    };
+    const artifact = findArtifact(projectRoot, "skill:fallback-only")!;
+    const report = scoreArtifact(projectRoot, artifact, config);
+    assert.equal(report.classification.detectedSubtype, "workflow");
+    assert.equal(report.classification.confidence, 0.3);
+    assert.ok(
+      report.classification.reasoning.some((reason) =>
+        reason.includes("fallback"),
+      ),
+      report.classification.reasoning.join("\n"),
+    );
   });
 
   it("surfaces alternatives for the dispatcher skill", () => {
@@ -1006,6 +1181,70 @@ describe("classification", () => {
     assert.ok(
       report.classification.reasoning[0].startsWith("detected dispatcher"),
     );
+  });
+
+  it("reports playbook-shaped skill content without changing the applied subtype", () => {
+    const report = evaluateUploadedBundle(PROJECT_ROOT, {
+      files: [
+        {
+          name: "SKILL.md",
+          content: SANITISED_PLAYWRIGHT_SHAPED_SKILL,
+        },
+      ],
+      suggestedName: "browser-runbook",
+      kind: "skill",
+    });
+
+    assert.equal(report.artifact.kind, "skill");
+    assert.equal(report.subtype, "workflow");
+    assert.equal(report.detectedShape, "playbook");
+    assert.equal(report.shapeMismatch, true);
+    assert.ok(
+      report.shapeConfidence >= 0.7,
+      `expected shape confidence >= 0.7, got ${report.shapeConfidence}`,
+    );
+    assert.ok(
+      report.fitNotes.some((note) =>
+        note.includes("Packaged as skill using workflow scoring profile"),
+      ),
+      report.fitNotes.join("\n"),
+    );
+    assert.ok(
+      report.tips.some((tip) =>
+        tip.message.includes("packaged as a skill but reads like a playbook"),
+      ),
+      report.tips.map((tip) => tip.message).join("\n"),
+    );
+    const serialized = JSON.stringify(report);
+    assert.doesNotMatch(serialized, /halaxy|deploy\.halaxy|bbbbbb99/i);
+    assert.doesNotMatch(serialized, /\.goat-flow\/tasks\//);
+  });
+
+  it("reports reference-packaged workflow content without changing the applied subtype", () => {
+    const report = evaluateContent(PROJECT_ROOT, {
+      kind: "shared-reference",
+      suggestedName: "workflow-reference.md",
+      content: [
+        "---",
+        'goat-flow-reference-version: "1.6.1"',
+        "---",
+        "# Workflow Reference",
+        "## Step 0 - Intake",
+        "Read context first.",
+        "## Phase 1",
+        "Plan.",
+        "CHECKPOINT before acting.",
+        "## Phase 2",
+        "Use Read-Only mode unless approved.",
+        "## Verification",
+        "- [ ] Evidence required.",
+      ].join("\n"),
+    });
+
+    assert.equal(report.artifact.kind, "shared-reference");
+    assert.equal(report.subtype, "playbook");
+    assert.equal(report.detectedShape, "workflow");
+    assert.equal(report.shapeMismatch, true);
   });
 });
 

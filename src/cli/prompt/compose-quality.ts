@@ -547,6 +547,11 @@ export function composeArtifactQualityPrompt(
   lines.push(`- **Artifact:** ${artifact.name} (${kindLabel})`);
   lines.push(`- **Path:** \`${artifact.path}\``);
   lines.push(`- **Subtype:** ${subtype}`);
+  if (report.shapeMismatch) {
+    lines.push(
+      `- **Detected shape:** ${report.detectedShape} (${Math.round(report.shapeConfidence * 100)}% confidence)`,
+    );
+  }
   lines.push(`- **Score:** ${totalScore}/${maxTotalScore} (${pct}%)`);
   lines.push(`- **Recommendation:** ${recommendation}`);
   if (composedFrom.length > 0) {

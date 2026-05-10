@@ -412,6 +412,9 @@ interface SkillQualityReport {
   maxTotalScore: number;
   profileMax: number;
   subtype: string;
+  detectedShape?: string;
+  shapeConfidence?: number;
+  shapeMismatch?: boolean;
   classification: ClassificationResult;
   recommendation: SkillQualityRecommendation;
   metrics: SkillQualityMetric[];

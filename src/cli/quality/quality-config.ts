@@ -212,7 +212,7 @@ export const DEFAULT_QUALITY_CONFIG: QualityConfig = {
     ],
   },
   toolKeywordsRegex:
-    "browser-use|page-capture|command -v|\\bwhich\\s+(command|binary|tool|cli)\\b|\\bnpm\\b|\\bbash\\b|\\bgit\\b|\\bpython\\b|\\bnode\\b|\\bgh\\b|\\bgoat-flow\\b(?!-skill-version)|node --import tsx",
+    "browser-use|page-capture|Playwright\\s+MCP|\\bbrowser_(?:navigate|snapshot|click|type|fill_form|evaluate|resize|wait_for|network_requests|console_messages)\\b|\\bmcp__[A-Za-z0-9_]+\\b|command -v|\\bwhich\\s+(command|binary|tool|cli)\\b|\\bnpm\\b|\\bbash\\b|\\bgit\\b|\\bpython\\b|\\bnode\\b|\\bgh\\b|\\bgoat-flow\\b(?!-skill-version)|node --import tsx",
   subtypes: {
     meta: {
       detection: {
@@ -238,7 +238,14 @@ export const DEFAULT_QUALITY_CONFIG: QualityConfig = {
       detection: {
         kinds: ["shared-reference"],
         namePatterns: [],
-        headingPatterns: [],
+        headingPatterns: [
+          "##\\s+Availability Check",
+          "##\\s+.*Workflow",
+          "##\\s+(Environment|Prerequisites|Common Gotchas|Quick Reference)\\b",
+          "\\bbrowser_(?:navigate|snapshot|click|type|fill_form|evaluate|resize|wait_for|network_requests|console_messages)\\b",
+          "\\bPlaywright\\s+MCP\\b",
+          "\\bmcp__[A-Za-z0-9_]+\\b",
+        ],
         mustNotHave: [],
       },
       profile: DEFAULT_PROFILES.playbook,
@@ -268,7 +275,11 @@ export const DEFAULT_QUALITY_CONFIG: QualityConfig = {
       detection: {
         kinds: ["skill"],
         namePatterns: [],
-        headingPatterns: [],
+        headingPatterns: [
+          "##\\s+Step 0\\b",
+          "\\bCHECKPOINT\\b",
+          "\\b(Read-Only|File-Write|Implement)\\b",
+        ],
         mustNotHave: [],
       },
       profile: DEFAULT_PROFILES.workflow,

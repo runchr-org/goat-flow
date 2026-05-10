@@ -286,6 +286,12 @@
                     x-text="skillQualityReport.subtype"
                   ></span>
                   <span
+                    x-show="skillQualityReport.shapeMismatch"
+                    class="gf-pill-type"
+                    :class="'is-' + (skillQualityReport.detectedShape || 'playbook')"
+                    x-text="'shape: ' + skillQualityReport.detectedShape"
+                  ></span>
+                  <span
                     class="gf-pill-verdict"
                     :class="{
                       'is-keep': skillQualityReport.recommendation === 'keep-skill',
@@ -366,6 +372,11 @@
                   x-text="skillQualityReport.classification.detectedSubtype"
                 ></span>
               </span>
+              <span
+                x-show="skillQualityReport.shapeMismatch"
+                class="gf-cs-alt"
+                x-text="'Shape: ' + skillQualityReport.detectedShape + ' (' + Math.round((skillQualityReport.shapeConfidence || 0) * 100) + '%)'"
+              ></span>
               <template
                 x-if="skillQualityReport.classification.alternatives.length > 0"
               >
@@ -777,6 +788,12 @@
                       :class="'is-' + skillEvaluatorResult.subtype"
                       x-text="skillEvaluatorResult.subtype"
                     ></span>
+                    <span
+                      x-show="skillEvaluatorResult.shapeMismatch"
+                      class="gf-pill-type"
+                      :class="'is-' + (skillEvaluatorResult.detectedShape || 'playbook')"
+                      x-text="'shape: ' + skillEvaluatorResult.detectedShape"
+                    ></span>
                   </div>
 
                   <!-- Big grade -->
@@ -815,6 +832,11 @@
                       ></span>
                       <span
                         x-text="skillEvaluatorResult.classification.detectedSubtype"
+                      ></span>
+                      <span
+                        x-show="skillEvaluatorResult.shapeMismatch"
+                        class="gf-cs-alt"
+                        x-text="'Shape: ' + skillEvaluatorResult.detectedShape + ' (' + Math.round((skillEvaluatorResult.shapeConfidence || 0) * 100) + '%)'"
                       ></span>
                     </span>
                   </div>

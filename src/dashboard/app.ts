@@ -1339,6 +1339,10 @@ function app() {
       if (!report) return { title: "", desc: "" };
       const cls = report.classification;
       const detected = cls.detectedSubtype;
+      const detectedShape = report.detectedShape ?? detected;
+      const shapeConfidence = report.shapeConfidence ?? cls.confidence;
+      const shapeMismatch =
+        report.shapeMismatch ?? detectedShape !== report.subtype;
       const failCount = report.metrics.filter(
         (m) => m.severity === "fail",
       ).length;
@@ -1349,7 +1353,11 @@ function app() {
         report.recommendation === "retire" ||
         report.recommendation === "consider-revision";
       let title = "";
-      if (cls.confidence >= 0.85 && detected !== report.subtype) {
+      if (shapeMismatch && shapeConfidence >= 0.7) {
+        const packagedAs =
+          report.artifact.kind === "skill" ? "skill" : "reference";
+        title = `Packaged as ${packagedAs}, reads like ${detectedShape}`;
+      } else if (cls.confidence >= 0.85 && detected !== report.subtype) {
         title = `This reads as a ${detected}, not a ${report.subtype}`;
       } else if (failCount > 0) {
         const tail = isHardVerdict
@@ -1374,11 +1382,13 @@ function app() {
                   ? "Ship as a reference"
                   : "Keep as a skill";
       const detail =
-        cls.confidence >= 0.85 && detected !== report.subtype
-          ? `${Math.round(cls.confidence * 100)}% ${detected} classification`
-          : `${failCount + warnCount} non-passing metric${
-              failCount + warnCount === 1 ? "" : "s"
-            }`;
+        shapeMismatch && shapeConfidence >= 0.7
+          ? `${Math.round(shapeConfidence * 100)}% shape confidence`
+          : cls.confidence >= 0.85 && detected !== report.subtype
+            ? `${Math.round(cls.confidence * 100)}% ${detected} classification`
+            : `${failCount + warnCount} non-passing metric${
+                failCount + warnCount === 1 ? "" : "s"
+              }`;
       return {
         title,
         desc: `${detail}. ${recHuman} before deciding to keep, convert, or discard.`,
@@ -1474,6 +1484,11 @@ function app() {
       lines.push(
         `Subtype: ${r.subtype} (${Math.round(r.classification.confidence * 100)}% ${r.classification.detectedSubtype})`,
       );
+      if (r.shapeMismatch && r.detectedShape) {
+        lines.push(
+          `Detected shape: ${r.detectedShape} (${Math.round((r.shapeConfidence ?? 0) * 100)}%)`,
+        );
+      }
       lines.push(`Verdict: \`${r.recommendation}\``);
       lines.push(`Score: ${r.totalScore} / ${r.profileMax}`);
       lines.push("");
