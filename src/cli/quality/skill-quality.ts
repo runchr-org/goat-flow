@@ -12,13 +12,23 @@
  * exists in `.goat-flow/config.yaml`.
  */
 import {
+  closeSync,
   existsSync,
   lstatSync,
-  readFileSync,
+  openSync,
+  readSync,
   readdirSync,
+  realpathSync,
   statSync,
 } from "node:fs";
-import { basename, dirname, join, relative } from "node:path";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "node:path";
 
 import {
   compilePatternList,
@@ -311,31 +321,74 @@ export function findArtifact(
 // Content helpers
 // ---------------------------------------------------------------------------
 
+function isPathWithin(parent: string, child: string): boolean {
+  const rel = relative(parent, child);
+  if (rel === "") return true;
+  if (isAbsolute(rel)) return false;
+  const [firstSegment] = rel.split(/[\\/]/);
+  return firstSegment !== "..";
+}
+
+function readTextCapped(
+  path: string,
+  config: QualityConfig,
+): { content: string; truncated: boolean } | null {
+  if (!existsSync(path) || !isSafeEntry(path)) return null;
+  const stats = statSync(path);
+  if (!stats.isFile()) return null;
+  const maxBytes = Math.max(0, Math.floor(config.maxArtifactBytes));
+  const bytesToRead = Math.min(stats.size, maxBytes);
+  const buffer = Buffer.alloc(bytesToRead);
+  const fd = openSync(path, "r");
+  try {
+    const bytesRead = readSync(fd, buffer, 0, bytesToRead, 0);
+    return {
+      content: buffer.subarray(0, bytesRead).toString("utf-8"),
+      truncated: stats.size > config.maxArtifactBytes,
+    };
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function resolveSkillReferencePath(
+  skillDir: string,
+  relativeRef: string,
+): string | null {
+  if (relativeRef.includes("\0")) return null;
+  const referenceRoot = resolve(skillDir, "references");
+  const refPath = resolve(referenceRoot, relativeRef);
+  if (!isPathWithin(referenceRoot, refPath)) return null;
+  if (existsSync(referenceRoot) && !isSafeEntry(referenceRoot)) return null;
+  if (!existsSync(refPath)) return refPath;
+  try {
+    const realReferenceRoot = realpathSync(referenceRoot);
+    const realRefPath = realpathSync(refPath);
+    if (!isPathWithin(realReferenceRoot, realRefPath)) return null;
+  } catch {
+    return null;
+  }
+  return refPath;
+}
+
 function readArtifactContent(
   projectRoot: string,
   artifact: ArtifactEntry,
   config: QualityConfig,
 ): ReadContentResult {
   const fullPath = join(projectRoot, artifact.path);
-  if (!existsSync(fullPath)) return { content: "", notes: [] };
-  const bytes = readFileSync(fullPath);
-  if (bytes.length <= config.maxArtifactBytes) {
-    return { content: bytes.toString("utf-8"), notes: [] };
-  }
+  const text = readTextCapped(fullPath, config);
+  if (text === null) return { content: "", notes: [] };
   return {
-    content: bytes.subarray(0, config.maxArtifactBytes).toString("utf-8"),
-    notes: [`artifact truncated at ${config.maxArtifactBytes} bytes`],
+    content: text.content,
+    notes: text.truncated
+      ? [`artifact truncated at ${config.maxArtifactBytes} bytes`]
+      : [],
   };
 }
 
 function readOptionalText(path: string, config: QualityConfig): string | null {
-  if (!existsSync(path) || !isSafeEntry(path)) return null;
-  if (statSync(path).size > config.maxArtifactBytes) {
-    return readFileSync(path)
-      .subarray(0, config.maxArtifactBytes)
-      .toString("utf-8");
-  }
-  return readFileSync(path, "utf-8");
+  return readTextCapped(path, config)?.content ?? null;
 }
 
 // eslint-disable-next-line complexity -- composition assembles preamble, conventions, and skill-local references in a fixed pipeline; each branch is a distinct artifact-class case
@@ -392,7 +445,8 @@ function composeArtifactContent(
     if (!relativeRef) continue;
     if (seenReferences.has(relativeRef)) continue;
     seenReferences.add(relativeRef);
-    const refPath = join(skillDir, "references", relativeRef);
+    const refPath = resolveSkillReferencePath(skillDir, relativeRef);
+    if (refPath === null) continue;
     const refContent = readOptionalText(refPath, config);
     if (refContent === null) continue;
     chunks.push(refContent);

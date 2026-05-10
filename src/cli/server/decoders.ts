@@ -366,7 +366,11 @@ function decodeEvaluateFiles(
         `must be at most ${MAX_EVALUATE_FILENAME_BYTES} bytes`,
       );
     }
-    if (item.name.includes("/") || item.name.includes("\0")) {
+    if (
+      item.name.includes("/") ||
+      item.name.includes("\\") ||
+      item.name.includes("\0")
+    ) {
       return err(
         `body.files[${index}].name`,
         "must be a bare filename (no path separators or NUL bytes)",

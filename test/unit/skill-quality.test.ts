@@ -260,6 +260,30 @@ describe("skill scoring", () => {
     assert.deepEqual(report.composedFrom, ["SKILL.md"]);
   });
 
+  it("does not compose skill-local references outside the references directory", () => {
+    const projectRoot = makeTempProject();
+    writeSkill(
+      projectRoot,
+      "escaped-ref",
+      [
+        "---",
+        "name: escaped-ref",
+        'description: "Skill with an escaped reference."',
+        'goat-flow-skill-version: "1.6.0"',
+        "---",
+        "# /escaped-ref",
+        "See references/../../leak.md.",
+      ].join("\n"),
+    );
+    writeText(
+      join(projectRoot, ".claude/skills/leak.md"),
+      "# Leaked\n\n## Availability Check\ncommand -v leaked-tool\n",
+    );
+    const artifact = findArtifact(projectRoot, "skill:escaped-ref")!;
+    const report = scoreArtifact(projectRoot, artifact);
+    assert.deepEqual(report.composedFrom, ["SKILL.md"]);
+  });
+
   it("surfaces composition truncation when inherited context exceeds 32KB", () => {
     const projectRoot = makeTempProject();
     writeText(

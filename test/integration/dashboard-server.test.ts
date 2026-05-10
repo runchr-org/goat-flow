@@ -1807,14 +1807,16 @@ describe("dashboard /api/quality/evaluate", () => {
   });
 
   it("returns 400 for a file with a path-separator in its name", async () => {
-    const { res } = await fetchJson("/api/quality/evaluate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        files: [{ name: "../escape.md", content: "# x" }],
-      }),
-    });
-    assert.equal(res.status, 400);
+    for (const name of ["../escape.md", "..\\escape.md"]) {
+      const { res } = await fetchJson("/api/quality/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          files: [{ name, content: "# x" }],
+        }),
+      });
+      assert.equal(res.status, 400, name);
+    }
   });
 
   it("returns 400 for duplicate filenames in the bundle", async () => {
