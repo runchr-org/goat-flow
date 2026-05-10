@@ -4,479 +4,537 @@
   x-cloak
   style="height: calc(100vh - 3.5rem); overflow-y: auto"
 >
-  <div style="max-width: 1280px; margin: 0 auto; padding: 20px 24px 24px">
+  <div style="max-width: 1400px; margin: 0 auto; padding: 24px 32px 24px">
+    <!-- Page head: title + description on the left, page-level actions on the
+         right (Re-analyse all + Analyse skill modal trigger). -->
     <div
       style="
         display: flex;
-        align-items: flex-end;
+        align-items: flex-start;
         justify-content: space-between;
-        margin-bottom: 14px;
+        gap: 24px;
+        margin-bottom: 16px;
       "
     >
-      <div>
+      <div style="flex: 1">
         <div
           class="gf-text-primary"
-          style="font-size: 20px; font-weight: 600; margin-bottom: 4px"
+          style="font-size: 22px; font-weight: 600; margin-bottom: 4px"
         >
           Skills
         </div>
-        <div class="gf-text-muted" style="font-size: 13px">
-          Deterministic structural metrics for the selected runner's installed
-          skills.
+        <div
+          class="gf-text-muted"
+          style="font-size: 13px; max-width: 820px; line-height: 1.5"
+        >
+          Per-artifact deterministic structural metrics for skills and shared
+          references. Subtype profiles adjust the applicable metrics for
+          workflow, dispatcher, report, playbook, index, and meta artifacts.
         </div>
       </div>
-      <button
-        @click="openSkillAnalyser()"
-        class="gf-btn gf-btn-primary"
-        style="padding: 6px 12px; font-size: 12px; font-weight: 600"
+      <div
+        style="display: flex; gap: 8px; flex-shrink: 0; margin-top: 4px"
       >
-        Analyse skill
-      </button>
+        <button
+          @click="reanalyseAllSkills()"
+          :disabled="skillQualityPrefetching"
+          class="gf-btn gf-btn-md gf-btn-secondary"
+        >
+          <span x-show="!skillQualityPrefetching">Re-analyse all</span>
+          <span x-show="skillQualityPrefetching">Auditing…</span>
+        </button>
+        <button
+          @click="openSkillAnalyser()"
+          class="gf-btn gf-btn-md gf-btn-primary"
+        >
+          Analyse skill
+        </button>
+      </div>
     </div>
 
-    <div class="gf-card" style="padding: 16px 20px">
-      <div
-        class="gf-text-secondary"
-        style="font-size: 13px; font-weight: 600; margin-bottom: 4px"
-      >
-        Skill Quality
+    <!-- Scope strip — counts of audited skills + warnings + scope tag + avg
+         grade. Mirrors the Setup page's "14 of 14 installed · audited just now"
+         pattern so the headline finding is visible without drilling in. -->
+    <template x-if="skillQualityArtifacts.length > 0">
+      <div class="gf-skill-scope-strip">
+        <div class="gf-scope-meta">
+          <span class="gf-scope-pass">
+            <span class="gf-scope-check">✓</span>
+            <strong
+              x-text="skillQualityArtifacts.length + ' skill' + (skillQualityArtifacts.length === 1 ? '' : 's') + ' audited'"
+            ></strong>
+          </span>
+          <span class="gf-scope-sep">·</span>
+          <template x-if="skillsWithWarningsCount() > 0">
+            <span class="gf-scope-warn">
+              ⚠
+              <span
+                x-text="skillsWithWarningsCount() + ' with warning' + (skillsWithWarningsCount() === 1 ? '' : 's')"
+              ></span>
+            </span>
+          </template>
+          <template x-if="skillsWithWarningsCount() === 0 && Object.keys(skillQualityReports).length > 0">
+            <span class="gf-scope-dim">no warnings</span>
+          </template>
+          <span class="gf-scope-sep">·</span>
+          <span class="gf-scope-dim" x-text="skillAuditedRelative()"></span>
+          <span class="gf-scope-sep">·</span>
+          <span
+            class="gf-scope-dim"
+            x-text="'scope: ' + activeRunner"
+          ></span>
+        </div>
+        <div
+          class="gf-scope-avg"
+          x-show="Object.keys(skillQualityReports).length > 0"
+        >
+          avg
+          <span class="gf-scope-avg-val">
+            <span x-text="skillLetterGrade(skillsAvgPct())"></span>
+            <span x-text="Math.round(skillsAvgPct() * 100) + '%'"></span>
+          </span>
+        </div>
       </div>
-      <div class="gf-text-muted" style="font-size: 11px; margin-bottom: 12px">
-        Deterministic structural metrics per artifact.
-      </div>
+    </template>
 
+    <!-- Main grid: scored sidebar + detail panel. -->
+    <div
+      class="gf-card"
+      style="
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        padding: 0;
+        overflow: hidden;
+      "
+    >
+      <!-- Sidebar — one row per discovered skill, with letter grade and
+           percentage on the right (populated from the prefetch cache). -->
       <div
         style="
-          display: grid;
-          grid-template-columns: 220px 1fr;
-          gap: 16px;
-          align-items: start;
+          border-right: 1px solid var(--border-subtle);
+          padding: 14px 0;
+          max-height: calc(100vh - 16rem);
+          overflow-y: auto;
         "
       >
-          <!-- Skill list -->
-        <div
-          style="
-            border-right: 1px solid var(--border-subtle);
-            padding-right: 12px;
-            max-height: calc(100vh - 14rem);
-            overflow-y: auto;
-          "
-        >
-          <template x-if="skillQualityArtifacts.length === 0">
-            <div
-              class="gf-text-muted"
-              style="padding: 8px 0; font-size: 11px; text-align: center"
-            >
-              No skills discovered.
-            </div>
-          </template>
-
-          <!-- Skills group -->
-          <template
-            x-if="skillQualityArtifacts.filter(a => a.kind === 'skill').length > 0"
+        <div style="padding: 0 16px 8px">
+          <div
+            style="
+              font-size: 11px;
+              font-weight: 600;
+              color: var(--text-muted);
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+            "
           >
-            <div>
-              <div
-                class="gf-text-muted"
-                style="
-                  font-size: 9px;
-                  font-weight: 600;
-                  padding: 2px 0;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                "
-              >
-                Skills
-              </div>
-              <template
-                x-for="art in skillQualityArtifacts.filter(a => a.kind === 'skill')"
-                :key="'sq-' + art.id"
-              >
-                <button
-                  @click="loadSkillQualityReport(art.id)"
-                  style="
-                    display: block;
-                    width: 100%;
-                    text-align: left;
-                    padding: 4px 8px;
-                    border: none;
-                    background: none;
-                    cursor: pointer;
-                    font-size: 12px;
-                    font-family: inherit;
-                    border-radius: 4px;
-                  "
-                  :style="skillQualitySelectedId === art.id ? { background: 'var(--accent-bg)', color: 'var(--accent)' } : { color: 'var(--text-primary)' }"
-                >
-                  <span x-text="art.name"></span>
-                </button>
-              </template>
-            </div>
-          </template>
+            Skills
+            <span
+              style="opacity: 0.5"
+              x-text="'· ' + skillQualityArtifacts.length"
+            ></span>
+          </div>
         </div>
-
-        <!-- Metric detail -->
-        <div>
-          <!-- Loading -->
-          <template x-if="skillQualityLoading">
-            <div
-              style="
-                padding: 16px;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-              "
+        <template x-if="skillQualityArtifacts.length === 0">
+          <div
+            class="gf-text-muted"
+            style="padding: 8px 16px; font-size: 12px; text-align: center"
+          >
+            No skills discovered.
+          </div>
+        </template>
+        <div class="gf-skill-sidebar-list">
+          <template
+            x-for="art in skillQualityArtifacts"
+            :key="'sq-side-' + art.id"
+          >
+            <button
+              @click="loadSkillQualityReport(art.id)"
+              class="gf-skill-sidebar-item"
+              :class="{ 'is-active': skillQualitySelectedId === art.id }"
             >
-              <svg
-                class="animate-spin"
-                style="width: 14px; height: 14px; color: var(--accent)"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                />
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-              <span class="gf-text-muted" style="font-size: 12px"
-                >Scoring...</span
-              >
-            </div>
-          </template>
-
-          <!-- Empty state -->
-          <template x-if="!skillQualityLoading && !skillQualityReport">
-            <div
-              class="gf-text-muted"
-              style="padding: 20px 0; font-size: 12px; text-align: center"
-            >
-              Select a skill to view its quality metrics.
-            </div>
-          </template>
-
-          <!-- Report -->
-          <template x-if="!skillQualityLoading && skillQualityReport">
-            <div style="display: flex; flex-direction: column; gap: 8px">
-              <!-- Score + recommendation -->
-              <div
-                style="
-                  display: flex;
-                  align-items: center;
-                  justify-content: space-between;
-                "
-              >
-                <div style="display: flex; align-items: center; gap: 8px">
+              <span x-text="art.name"></span>
+              <template x-if="skillQualityReports[art.id]">
+                <span
+                  class="gf-skill-sidebar-score"
+                  :class="{
+                    'is-a': skillLetterGrade(skillReportPct(skillQualityReports[art.id])) === 'A',
+                    'is-b': skillLetterGrade(skillReportPct(skillQualityReports[art.id])) === 'B',
+                    'is-c': skillLetterGrade(skillReportPct(skillQualityReports[art.id])) === 'C',
+                    'is-d': skillLetterGrade(skillReportPct(skillQualityReports[art.id])) === 'D',
+                    'is-f': skillLetterGrade(skillReportPct(skillQualityReports[art.id])) === 'F',
+                  }"
+                >
                   <span
-                    class="gf-text-primary"
-                    style="font-size: 14px; font-weight: 600"
-                    x-text="skillQualityReport.artifact.name"
+                    x-text="skillLetterGrade(skillReportPct(skillQualityReports[art.id]))"
                   ></span>
                   <span
-                    class="gf-text-muted"
-                    style="
-                      font-size: 10px;
-                      font-weight: 600;
-                      padding: 1px 5px;
-                      border-radius: 3px;
-                      border: 1px solid var(--border-subtle);
-                      text-transform: uppercase;
-                      letter-spacing: 0.02em;
-                    "
+                    x-text="Math.round(skillReportPct(skillQualityReports[art.id]) * 100) + '%'"
+                  ></span>
+                </span>
+              </template>
+              <template x-if="!skillQualityReports[art.id]">
+                <span class="gf-skill-sidebar-score is-pending">—</span>
+              </template>
+            </button>
+          </template>
+        </div>
+      </div>
+
+      <!-- Detail panel: per-selected-skill report breakdown. -->
+      <div style="padding: 22px 26px; min-width: 0">
+        <!-- Loading -->
+        <template x-if="skillQualityLoading">
+          <div
+            style="
+              padding: 20px 0;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            "
+          >
+            <svg
+              class="animate-spin"
+              style="width: 14px; height: 14px; color: var(--accent)"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            <span class="gf-text-muted" style="font-size: 12px"
+              >Scoring...</span
+            >
+          </div>
+        </template>
+
+        <!-- Empty state -->
+        <template x-if="!skillQualityLoading && !skillQualityReport">
+          <div
+            class="gf-text-muted"
+            style="padding: 32px 0; font-size: 12px; text-align: center"
+          >
+            <span x-show="skillQualityArtifacts.length === 0"
+              >Run an audit to discover skills.</span
+            >
+            <span x-show="skillQualityArtifacts.length > 0"
+              >Select a skill to view its quality metrics.</span
+            >
+          </div>
+        </template>
+
+        <!-- Report -->
+        <template x-if="!skillQualityLoading && skillQualityReport">
+          <div>
+            <!-- Detail toolbar (top, right-aligned) -->
+            <div class="gf-skill-detail-toolbar">
+              <template x-if="skillQualityReport.prompt && terminalAvailable">
+                <button
+                  @click="launchPreset(skillQualityReport.prompt, activeRunner, 'Skill Quality: ' + skillQualityReport.artifact.name, { cwdPath: projectPath }); activeView = 'workspace'"
+                  :disabled="launching || serverSessions.length >= 10"
+                  class="gf-btn gf-btn-md gf-btn-primary"
+                >
+                  Review in Runner
+                  <svg
+                    width="13"
+                    height="13"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M14 5l7 7m0 0l-7 7m7-7H3"
+                    />
+                  </svg>
+                </button>
+              </template>
+              <button
+                @click="(skillQualityReports[skillQualityReport.artifact.id] = undefined); loadSkillQualityReport(skillQualityReport.artifact.id)"
+                class="gf-btn gf-btn-md gf-btn-secondary"
+              >
+                Re-analyse skill
+              </button>
+            </div>
+
+            <!-- Detail head: skill identity + file path on the left, big
+                 grade block on the right. -->
+            <div
+              style="
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 16px;
+                margin-bottom: 16px;
+              "
+            >
+              <div style="flex: 1; min-width: 0">
+                <div class="gf-skill-id">
+                  <h2 x-text="skillQualityReport.artifact.name"></h2>
+                  <span
+                    class="gf-pill-type"
+                    :class="'is-' + skillQualityReport.subtype"
                     x-text="skillQualityReport.subtype"
                   ></span>
                   <span
-                    style="
-                      font-size: 11px;
-                      font-weight: 600;
-                      padding: 1px 6px;
-                      border-radius: 3px;
-                    "
-                    :style="{
-                      background: skillQualityReport.recommendation === 'keep-skill' ? 'rgba(34,197,94,0.15)' : skillQualityReport.recommendation === 'reference-playbook' ? 'rgba(59,130,246,0.15)' : skillQualityReport.recommendation === 'needs-human-review' ? 'rgba(251,191,36,0.15)' : 'rgba(239,68,68,0.15)',
-                      color: skillQualityReport.recommendation === 'keep-skill' ? '#22c55e' : skillQualityReport.recommendation === 'reference-playbook' ? '#3b82f6' : skillQualityReport.recommendation === 'needs-human-review' ? '#fbbf24' : '#ef4444'
+                    class="gf-pill-verdict"
+                    :class="{
+                      'is-keep': skillQualityReport.recommendation === 'keep-skill',
+                      'is-reference': skillQualityReport.recommendation === 'reference-playbook',
+                      'is-review': skillQualityReport.recommendation === 'needs-human-review' || skillQualityReport.recommendation === 'consider-reclassifying',
+                      'is-retire': skillQualityReport.recommendation === 'retire' || skillQualityReport.recommendation === 'consider-revision',
                     }"
                     x-text="skillQualityReport.recommendation"
                   ></span>
                 </div>
-                <span
-                  style="font-size: 13px; font-weight: 700"
-                  :style="{ color: skillQualityReport.totalScore / skillQualityReport.maxTotalScore >= 0.7 ? 'var(--status-pass)' : skillQualityReport.totalScore / skillQualityReport.maxTotalScore >= 0.5 ? 'var(--status-waiting)' : 'var(--status-danger)' }"
-                  :title="'Subtype profile max: ' + skillQualityReport.profileMax"
-                  x-text="skillQualityReport.totalScore + '/' + skillQualityReport.maxTotalScore"
-                ></span>
-              </div>
-
-              <!-- Classification card: subtype confidence + alternatives -->
-              <div
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 8px;
-                  padding: 4px 8px;
-                  background: rgba(255, 255, 255, 0.02);
-                  border-radius: 4px;
-                  font-size: 11px;
-                "
-              >
-                <span class="gf-text-muted" style="font-weight: 600">
-                  Classification:
-                </span>
-                <span
-                  :style="{ color: skillQualityReport.classification.confidence >= 0.7 ? 'var(--status-pass)' : 'var(--status-waiting)' }"
-                  x-text="Math.round(skillQualityReport.classification.confidence * 100) + '% ' + skillQualityReport.classification.detectedSubtype"
-                ></span>
-                <template
-                  x-if="skillQualityReport.classification.alternatives.length > 0"
-                >
-                  <span class="gf-text-muted">
-                    (also:
-                    <span
-                      x-text="skillQualityReport.classification.alternatives.map(a => a.subtype + '=' + a.score).join(', ')"
-                    ></span>
-                    )
-                  </span>
-                </template>
-              </div>
-
-              <template
-                x-if="skillQualityReport.recommendation === 'consider-reclassifying'"
-              >
-                <div
-                  style="
-                    padding: 6px 10px;
-                    background: rgba(251, 191, 36, 0.1);
-                    border: 1px solid rgba(251, 191, 36, 0.3);
-                    border-radius: 4px;
-                    font-size: 11px;
-                    color: #fbbf24;
-                  "
-                >
-                  <strong>Consider reclassifying:</strong> structure quality is
-                  high but subtype confidence is below <code>70%</code>. Review
-                  whether
-                  <code
-                    x-text="skillQualityReport.classification.detectedSubtype"
-                  ></code>
-                  is the correct shape, or
-                  <code
-                    x-text="skillQualityReport.classification.alternatives[0]?.subtype"
-                  ></code>
-                  fits better.
-                </div>
-              </template>
-
-              <template x-if="skillQualityReport.fitNotes.length > 0">
-                <div style="display: flex; flex-direction: column; gap: 1px">
-                  <template
-                    x-for="note in skillQualityReport.fitNotes"
-                    :key="note"
-                  >
-                    <div
-                      class="gf-text-muted"
-                      style="font-size: 11px"
-                      x-text="note"
-                    ></div>
-                  </template>
-                </div>
-              </template>
-
-              <!-- Metric bars -->
-              <div
-                style="
-                  display: flex;
-                  flex-direction: column;
-                  gap: 4px;
-                  margin-top: 4px;
-                "
-              >
-                <template
-                  x-for="m in skillQualityReport.metrics"
-                  :key="'sqm-' + m.metric"
-                >
-                  <div style="display: flex; align-items: center; gap: 6px">
-                    <span
-                      class="gf-text-muted"
-                      style="
-                        font-size: 10px;
-                        width: 140px;
-                        flex-shrink: 0;
-                        text-align: right;
-                      "
-                      x-text="m.label"
-                    ></span>
-                    <div
-                      style="
-                        flex: 1;
-                        height: 5px;
-                        background: var(--surface-elevated, #27272a);
-                        border-radius: 999px;
-                        overflow: hidden;
-                      "
-                    >
-                      <div
-                        style="
-                          height: 100%;
-                          border-radius: 999px;
-                          transition: width 0.3s;
-                        "
-                        :style="{
-                          width: (m.maxScore > 0 ? m.score / m.maxScore * 100 : 0) + '%',
-                          background: m.severity === 'ok' ? 'var(--status-pass)' : m.severity === 'warn' ? 'var(--status-waiting)' : m.severity === 'n/a' ? 'var(--text-muted)' : 'var(--status-danger)'
-                        }"
-                      ></div>
-                    </div>
-                    <span
-                      style="
-                        font-size: 10px;
-                        font-weight: 600;
-                        width: 36px;
-                        flex-shrink: 0;
-                        text-align: right;
-                      "
-                      :style="{ color: m.severity === 'ok' ? 'var(--status-pass)' : m.severity === 'warn' ? 'var(--status-waiting)' : m.severity === 'n/a' ? 'var(--text-muted)' : 'var(--status-danger)' }"
-                      x-text="m.severity === 'n/a' ? 'n/a' : m.score + '/' + m.maxScore"
-                    ></span>
-                  </div>
-                </template>
-              </div>
-
-              <!-- Warn/fail details -->
-              <template
-                x-if="skillQualityReport.metrics.filter(m => m.severity !== 'ok' && m.severity !== 'n/a').length > 0"
-              >
-                <div
-                  style="
-                    margin-top: 4px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 2px;
-                  "
-                >
-                  <template
-                    x-for="m in skillQualityReport.metrics.filter(m => m.severity !== 'ok' && m.severity !== 'n/a')"
-                    :key="'sqd-' + m.metric"
-                  >
-                    <div style="display: flex; gap: 4px; font-size: 11px">
-                      <span
-                        style="flex-shrink: 0"
-                        :style="{ color: m.severity === 'warn' ? 'var(--status-waiting)' : 'var(--status-danger)' }"
-                        x-text="m.severity === 'warn' ? '!' : 'x'"
-                      ></span>
-                      <span
-                        class="gf-text-primary"
-                        style="font-weight: 500"
-                        x-text="m.label"
-                      ></span>
-                      <span class="gf-text-muted" x-text="m.detail"></span>
-                    </div>
-                  </template>
-                </div>
-              </template>
-
-              <!-- Action -->
-              <template x-if="skillQualityReport.prompt && terminalAvailable">
-                <div style="margin-top: 4px">
+                <div class="gf-skill-file-path">
+                  <span x-text="skillQualityReport.artifact.path"></span>
                   <button
-                    @click="launchPreset(skillQualityReport.prompt, activeRunner, 'Skill Quality: ' + skillQualityReport.artifact.name, { cwdPath: projectPath }); activeView = 'workspace'"
-                    :disabled="launching || serverSessions.length >= 10"
-                    class="gf-btn gf-btn-md gf-btn-secondary"
-                    style="font-size: 11px"
+                    @click="navigator.clipboard.writeText(skillQualityReport.artifact.path); showToast('Path copied')"
+                    class="gf-path-icon"
+                    title="Copy path"
+                    aria-label="Copy path"
                   >
-                    Review in Runner
+                    ⧉
                   </button>
                 </div>
-              </template>
-
-              <div
-                class="gf-text-muted"
-                style="font-size: 10px"
-                x-text="skillQualityReport.artifact.path"
-              ></div>
-
-              <!-- Composed-from list — every file the engine pulled into the
-                   scored surface. Labelled by file role so the bundle is
-                   visible (preamble + conventions + the artifact + sibling
-                   references/*.md or top-level .md files). Lives at the end
-                   of the artifact view so the score and metric breakdown
-                   stay above the fold. -->
-              <template x-if="skillQualityReport.composedFrom.length > 0">
+              </div>
+              <div class="gf-grade-block">
+                <div class="gf-grade-row">
+                  <span
+                    class="gf-grade-letter"
+                    :class="{
+                      'is-a': skillLetterGrade(skillReportPct(skillQualityReport)) === 'A',
+                      'is-b': skillLetterGrade(skillReportPct(skillQualityReport)) === 'B',
+                      'is-c': skillLetterGrade(skillReportPct(skillQualityReport)) === 'C',
+                      'is-d': skillLetterGrade(skillReportPct(skillQualityReport)) === 'D',
+                      'is-f': skillLetterGrade(skillReportPct(skillQualityReport)) === 'F',
+                    }"
+                    x-text="skillLetterGrade(skillReportPct(skillQualityReport))"
+                  ></span>
+                  <span
+                    class="gf-grade-pct"
+                    x-text="Math.round(skillReportPct(skillQualityReport) * 100) + '%'"
+                  ></span>
+                </div>
                 <div
-                  style="
-                    display: flex;
-                    flex-direction: column;
-                    gap: 2px;
-                    margin-top: 8px;
-                    padding: 6px 8px;
-                    background: var(--surface-page);
-                    border: 1px solid var(--border-subtle);
-                    border-radius: 4px;
-                  "
-                >
+                  class="gf-grade-raw"
+                  x-text="skillQualityReport.totalScore + ' / ' + skillQualityReport.profileMax"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Summary banner — promotes the headline conclusion (e.g.
+                 "Strong skill identity with adequate structural quality")
+                 instead of leaving it buried in fit notes. -->
+            <div
+              class="gf-summary-banner"
+              :class="{
+                'is-pass': skillSummaryBanner(skillQualityReport).severity === 'pass',
+                'is-danger': skillSummaryBanner(skillQualityReport).severity === 'fail',
+              }"
+            >
+              <div
+                class="gf-summary-title"
+                x-text="skillSummaryBanner(skillQualityReport).title"
+              ></div>
+              <div
+                class="gf-summary-desc"
+                x-text="skillSummaryBanner(skillQualityReport).desc"
+              ></div>
+            </div>
+
+            <!-- Classification strip -->
+            <div class="gf-classification-strip">
+              <span class="gf-cs-label">Classification</span>
+              <span>
+                <span
+                  class="gf-cs-pct"
+                  :class="{ 'is-low': skillQualityReport.classification.confidence < 0.7 }"
+                  x-text="Math.round(skillQualityReport.classification.confidence * 100) + '%'"
+                ></span>
+                <span
+                  x-text="skillQualityReport.classification.detectedSubtype"
+                ></span>
+              </span>
+              <template
+                x-if="skillQualityReport.classification.alternatives.length > 0"
+              >
+                <span class="gf-cs-alt">
+                  (also:
+                  <span
+                    x-text="skillQualityReport.classification.alternatives.map(a => a.subtype + '=' + a.score).join(', ')"
+                  ></span
+                  >)
+                </span>
+              </template>
+            </div>
+
+            <!-- Reclassification hint (kept from prior implementation). -->
+            <template
+              x-if="skillQualityReport.recommendation === 'consider-reclassifying'"
+            >
+              <div
+                style="
+                  padding: 8px 12px;
+                  background: rgba(251, 191, 36, 0.08);
+                  border: 1px solid rgba(251, 191, 36, 0.25);
+                  border-left: 3px solid var(--status-waiting);
+                  border-radius: 6px;
+                  margin-bottom: 14px;
+                  font-size: 12px;
+                  color: var(--text-secondary);
+                "
+              >
+                <strong>Consider reclassifying:</strong> structure quality is
+                high but subtype confidence is below <code>70%</code>. Review
+                whether
+                <code
+                  x-text="skillQualityReport.classification.detectedSubtype"
+                ></code>
+                is the correct shape, or
+                <code
+                  x-text="skillQualityReport.classification.alternatives[0]?.subtype"
+                ></code>
+                fits better.
+              </div>
+            </template>
+
+            <!-- Structural metrics -->
+            <div class="gf-section-label">Structural metrics</div>
+            <div class="gf-metrics">
+              <template
+                x-for="m in skillQualityReport.metrics"
+                :key="'sqm-' + m.metric"
+              >
+                <div class="gf-metric-row">
                   <div
-                    class="gf-text-muted"
-                    style="
-                      font-size: 10px;
-                      text-transform: uppercase;
-                      letter-spacing: 0.05em;
-                      font-weight: 600;
-                    "
+                    class="gf-metric-label"
+                    :class="{ 'is-na': m.severity === 'n/a' }"
+                    x-text="m.label"
+                  ></div>
+                  <div
+                    class="gf-bar-track"
+                    :class="{ 'is-na': m.severity === 'n/a' }"
                   >
-                    Composed from
-                    <span
-                      x-text="'(' + skillQualityReport.composedFrom.length + ' file' + (skillQualityReport.composedFrom.length === 1 ? '' : 's') + ')'"
-                    ></span>
+                    <template x-if="m.severity !== 'n/a'">
+                      <div
+                        class="gf-bar-fill"
+                        :class="{
+                          'is-ok': m.severity === 'ok',
+                          'is-warn': m.severity === 'warn',
+                          'is-fail': m.severity === 'fail',
+                        }"
+                        :style="{ width: (m.maxScore > 0 ? (m.score / m.maxScore) * 100 : 0) + '%' }"
+                      ></div>
+                    </template>
                   </div>
+                  <div
+                    class="gf-metric-score"
+                    :class="{
+                      'is-ok': m.severity === 'ok',
+                      'is-warn': m.severity === 'warn',
+                      'is-fail': m.severity === 'fail',
+                      'is-na': m.severity === 'n/a',
+                    }"
+                    x-text="m.severity === 'n/a' ? 'n/a' : (m.score + '/' + m.maxScore)"
+                  ></div>
+                </div>
+              </template>
+            </div>
+
+            <!-- Findings — only renders for warn/fail metrics. Each finding
+                 is its own bordered banner with severity colour, score meta,
+                 and the metric's detail string. -->
+            <template
+              x-if="skillQualityReport.metrics.filter(m => m.severity === 'warn' || m.severity === 'fail').length > 0"
+            >
+              <div>
+                <div
+                  class="gf-section-label"
+                  style="margin-top: 22px; margin-bottom: 8px"
+                  x-text="'Findings · ' + skillQualityReport.metrics.filter(m => m.severity === 'warn' || m.severity === 'fail').length"
+                ></div>
+                <div class="gf-findings">
+                  <template
+                    x-for="m in skillQualityReport.metrics.filter(m => m.severity === 'warn' || m.severity === 'fail')"
+                    :key="'sqf-' + m.metric"
+                  >
+                    <div
+                      class="gf-finding"
+                      :class="{ 'is-fail': m.severity === 'fail' }"
+                    >
+                      <span
+                        class="gf-finding-icon"
+                        x-text="m.severity === 'fail' ? '✕' : '⚠'"
+                      ></span>
+                      <div class="gf-finding-body">
+                        <div class="gf-finding-title">
+                          <span x-text="m.label"></span>
+                          <span
+                            class="gf-finding-meta"
+                            x-text="'· ' + m.score + '/' + m.maxScore"
+                          ></span>
+                        </div>
+                        <div
+                          class="gf-finding-desc"
+                          x-text="m.detail"
+                        ></div>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <!-- Composed-from list — every file the engine pulled into the
+                 scored surface. Lives at the bottom so the score and metric
+                 breakdown stay above the fold. The engine's fit-notes prose
+                 was duplicating the summary banner above, so it's been
+                 removed (the headline finding lives in the banner now). -->
+            <template x-if="skillQualityReport.composedFrom.length > 0">
+              <div style="margin-top: 22px">
+                <div
+                  class="gf-section-label"
+                  x-text="'Composed from · ' + skillQualityReport.composedFrom.length + ' file' + (skillQualityReport.composedFrom.length === 1 ? '' : 's')"
+                ></div>
+                <div class="gf-composed-from">
                   <template
                     x-for="src in skillQualityReport.composedFrom"
                     :key="src"
                   >
-                    <div
-                      style="
-                        display: flex;
-                        gap: 6px;
-                        align-items: center;
-                        font-family: ui-monospace, monospace;
-                        font-size: 11px;
-                      "
-                    >
+                    <div class="gf-composed-row">
                       <span
-                        x-text="src === 'skill-preamble.md' ? 'preamble' : src === 'skill-conventions.md' ? 'conventions' : src === 'SKILL.md' ? 'skill' : src.startsWith('references/') ? 'reference' : 'file'"
-                        style="
-                          font-size: 9px;
-                          font-family: inherit;
-                          text-transform: uppercase;
-                          letter-spacing: 0.05em;
-                          padding: 1px 5px;
-                          border: 1px solid var(--border-subtle);
-                          border-radius: 3px;
-                          color: var(--text-muted);
-                          min-width: 64px;
-                          text-align: center;
-                        "
+                        class="gf-pill-file"
+                        :class="{ 'is-skill': src === 'SKILL.md' }"
+                        x-text="skillFileRole(src)"
                       ></span>
-                      <span x-text="src"></span>
+                      <span class="gf-composed-name" x-text="src"></span>
                     </div>
                   </template>
                 </div>
-              </template>
-            </div>
-          </template>
-        </div>
+              </div>
+            </template>
+          </div>
+        </template>
       </div>
     </div>
 
     <div
       class="gf-footer"
-      style="text-align: center; font-size: 11px; padding: 12px 0"
+      style="text-align: center; font-size: 11px; padding: 14px 0"
     >
       Built by
       <a
@@ -489,11 +547,15 @@
     </div>
   </div>
 
-  <!-- ═══ Analyse skill modal ═══ -->
-  <!-- x-teleport lifts the modal to <body> so it isn't trapped by an ancestor
-       containing block (Tailwind utility classes on <html> can do this).
-       x-show on the teleported div lets Alpine toggle display: none / restore
-       the CSS-defined display: flex from `.gf-modal-overlay`. -->
+  <!-- ═══ Analyse-skill modal ═══
+       Three states share one card:
+         (1) empty       — big drop zone + OR PASTE divider + textarea
+         (2) files attached — file chip list (drop zone collapses)
+         (3) result      — verdict banner + 2-col grid (score+metrics on the
+                           left, tips grouped by metric category on the right)
+
+       The teleport lifts the modal to <body> so it isn't trapped by an
+       ancestor containing block. -->
   <template x-teleport="body">
     <div
       x-show="skillAnalyserOpen"
@@ -503,480 +565,438 @@
       @click.self="closeSkillAnalyser()"
     >
       <div
-        class="gf-modal-card"
+        class="gf-modal-card is-skill-analyser"
         @dragover="skillAnalyserDragOver($event)"
         @dragleave="skillAnalyserDragLeave($event)"
         @drop="skillAnalyserDrop($event)"
         :class="{ 'gf-modal-card-dragover': skillAnalyserDragActive }"
       >
-        <div
-          style="
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-          "
-        >
-          <div
-            class="gf-text-primary"
-            style="font-size: 16px; font-weight: 600"
-          >
-            Analyse skill
+        <!-- Header: title + scope tag + (in result state) "Analyse new" + close. -->
+        <div class="gf-modal-header">
+          <div class="gf-modal-title">
+            <h2>Analyse skill</h2>
+            <span
+              class="gf-modal-scope-tag"
+              x-text="skillAnalyserResult ? 'analysed just now' : 'draft · not saved'"
+            ></span>
           </div>
-          <button
-            @click="closeSkillAnalyser()"
-            style="
-              background: none;
-              border: none;
-              font-size: 18px;
-              cursor: pointer;
-              color: var(--text-muted);
-              padding: 0 4px;
-            "
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-        <div class="gf-text-muted" style="font-size: 12px; margin-bottom: 12px">
-          Score a skill or shared reference against the deterministic rubric and
-          surface improvement tips. Drop one or more <code>.md</code> files
-          anywhere on this modal to analyse a bundled skill (e.g.
-          <code>SKILL.md</code> + <code>workflow.md</code> +
-          <code>template.md</code>); the engine composes the files into one
-          scored surface. Or paste markdown into the textarea for a single
-          draft.
-        </div>
-
-        <!-- Drag-and-drop hint zone (visible cue when dragging files over) -->
-        <div
-          x-show="skillAnalyserDragActive"
-          x-cloak
-          class="gf-text-primary"
-          style="
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--accent-bg);
-            border: 2px dashed var(--accent);
-            border-radius: 8px;
-            z-index: 10;
-            font-weight: 600;
-            font-size: 14px;
-            pointer-events: none;
-          "
-        >
-          Drop .md files to add to the bundle
-        </div>
-
-        <!-- File picker (multi-select) + name input -->
-        <div
-          style="
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-bottom: 8px;
-          "
-        >
-          <label
-            class="gf-btn"
-            style="
-              padding: 6px 10px;
-              font-size: 11px;
-              font-weight: 600;
-              cursor: pointer;
-              border: 1px solid var(--border-default);
-              border-radius: 4px;
-              color: var(--text-secondary);
-            "
-          >
-            <input
-              type="file"
-              accept=".md,.markdown,text/markdown,text/plain"
-              multiple
-              @change="loadSkillAnalyserFile($event)"
-              style="display: none"
-            />
-            Upload .md (multi-select)
-          </label>
-          <input
-            x-model="skillAnalyserName"
-            placeholder="bundle display name (optional)"
-            class="gf-modal-input"
-            style="flex: 1"
-          />
-        </div>
-
-        <!-- Attached files list — visible only when one or more files have
-             been dropped/uploaded. Each row shows the file name and a remove
-             (×) button. Order is preserved (drop order = composition order). -->
-        <template x-if="skillAnalyserFiles.length > 0">
-          <div
-            style="
-              display: flex;
-              flex-direction: column;
-              gap: 2px;
-              margin-bottom: 10px;
-              padding: 6px 8px;
-              background: var(--surface-page);
-              border: 1px solid var(--border-subtle);
-              border-radius: 4px;
-            "
-          >
-            <div
-              class="gf-text-muted"
-              style="
-                font-size: 10px;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                font-weight: 600;
-              "
+          <div class="gf-modal-actions">
+            <button
+              x-show="skillAnalyserResult"
+              @click="resetSkillAnalyser()"
+              class="gf-btn gf-btn-md gf-btn-ghost"
             >
-              Attached files
-              <span x-text="'(' + skillAnalyserFiles.length + ')'"></span>
-            </div>
-            <template x-for="file in skillAnalyserFiles" :key="file.name">
+              Analyse new
+            </button>
+            <button
+              @click="closeSkillAnalyser()"
+              class="gf-modal-icon-btn"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        <div class="gf-modal-body">
+          <!-- ───── INPUT MODE ───── -->
+          <template x-if="!skillAnalyserResult">
+            <div>
+              <!-- Empty: big dropzone + OR PASTE + textarea.
+                   Files attached: chips + Add more (no textarea). -->
+              <template x-if="skillAnalyserFiles.length === 0">
+                <div>
+                  <label class="gf-dropzone" style="cursor: pointer">
+                    <input
+                      type="file"
+                      accept=".md,.markdown,text/markdown,text/plain"
+                      multiple
+                      @change="loadSkillAnalyserFile($event)"
+                      style="display: none"
+                    />
+                    <div class="gf-dropzone-icon">⬚</div>
+                    <div class="gf-dropzone-primary">
+                      Drop SKILL.md and any companion files
+                    </div>
+                    <div class="gf-dropzone-secondary">
+                      or
+                      <span class="gf-dropzone-browse">browse</span>
+                      · accepts <code>.md</code> · drop the bundle and the
+                      engine composes them
+                    </div>
+                  </label>
+
+                  <div class="gf-divider-or">or paste</div>
+
+                  <div class="gf-paste-block">
+                    <textarea
+                      x-model="skillAnalyserContent"
+                      placeholder="Paste markdown content..."
+                      rows="6"
+                    ></textarea>
+                  </div>
+                </div>
+              </template>
+
+              <template x-if="skillAnalyserFiles.length > 0">
+                <div class="gf-dropzone has-files">
+                  <div class="gf-files-header">
+                    <span
+                      class="gf-fh-label"
+                      x-text="'Files · ' + skillAnalyserFiles.length + ' attached'"
+                    ></span>
+                    <label class="gf-fh-add">
+                      <input
+                        type="file"
+                        accept=".md,.markdown,text/markdown,text/plain"
+                        multiple
+                        @change="loadSkillAnalyserFile($event)"
+                        style="display: none"
+                      />
+                      + Add more
+                    </label>
+                  </div>
+                  <div class="gf-file-chip-list">
+                    <template
+                      x-for="file in skillAnalyserFiles"
+                      :key="file.name"
+                    >
+                      <span class="gf-file-chip">
+                        <span
+                          class="gf-pill-file"
+                          :class="{ 'is-skill': file.name === 'SKILL.md' }"
+                          style="min-width: 50px"
+                          x-text="skillFileRole(file.name)"
+                        ></span>
+                        <span x-text="file.name"></span>
+                        <button
+                          @click="removeSkillAnalyserFile(file.name)"
+                          class="gf-file-chip-x"
+                          aria-label="Remove file"
+                          title="Remove from bundle"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Drag overlay (visible while dragging files over the modal). -->
               <div
+                x-show="skillAnalyserDragActive"
+                x-cloak
+                class="gf-text-primary"
                 style="
+                  position: absolute;
+                  inset: 0;
                   display: flex;
-                  gap: 6px;
                   align-items: center;
-                  font-family: ui-monospace, monospace;
-                  font-size: 11px;
+                  justify-content: center;
+                  background: var(--accent-bg);
+                  border: 2px dashed var(--accent);
+                  border-radius: 12px;
+                  z-index: 10;
+                  font-weight: 600;
+                  font-size: 14px;
+                  pointer-events: none;
                 "
               >
-                <span style="color: var(--text-muted)">📄</span>
-                <span x-text="file.name" style="flex: 1"></span>
-                <button
-                  @click="removeSkillAnalyserFile(file.name)"
-                  class="gf-text-muted"
-                  style="
-                    background: none;
-                    border: none;
-                    font-size: 14px;
-                    cursor: pointer;
-                    padding: 0 4px;
-                  "
-                  aria-label="Remove file"
-                  title="Remove this file from the bundle"
-                >
-                  ×
-                </button>
+                Drop .md files to add to the bundle
               </div>
-            </template>
-          </div>
-        </template>
 
-        <!-- Markdown content textarea -->
-        <label
-          class="gf-text-secondary"
-          style="font-size: 11px; font-weight: 600; margin-top: 4px"
-        >
-          Markdown content
-        </label>
-        <textarea
-          x-model="skillAnalyserContent"
-          placeholder='---&#10;name: my-skill&#10;description: "…"&#10;goat-flow-skill-version: "1.5.1"&#10;---&#10;&#10;# /my-skill&#10;…'
-          rows="14"
-          class="gf-modal-input"
-          style="
-            margin-top: 6px;
-            font-family: ui-monospace, monospace;
-            font-size: 11px;
-            resize: vertical;
-          "
-        ></textarea>
-
-        <div style="display: flex; gap: 12px; margin-top: 12px">
-          <button
-            @click="runSkillAnalyser()"
-            :disabled="skillAnalyserLoading || (skillAnalyserFiles.length === 0 && !skillAnalyserContent.trim())"
-            class="gf-btn gf-btn-primary"
-            style="padding: 6px 14px; font-size: 12px; font-weight: 600"
-          >
-            <span x-show="!skillAnalyserLoading">Analyse</span>
-            <span x-show="skillAnalyserLoading">Scoring…</span>
-          </button>
-          <button
-            @click="clearSkillAnalyserResult()"
-            x-show="skillAnalyserResult"
-            class="gf-btn"
-            style="
-              padding: 6px 14px;
-              font-size: 12px;
-              border: 1px solid var(--border-default);
-              border-radius: 4px;
-              color: var(--text-secondary);
-              background: none;
-            "
-          >
-            Clear
-          </button>
-        </div>
-
-        <!-- Error display -->
-        <template x-if="skillAnalyserError">
-          <div class="gf-modal-error" x-text="skillAnalyserError"></div>
-        </template>
-
-        <!-- Result -->
-        <template x-if="skillAnalyserResult">
-          <div class="gf-modal-result">
-            <!-- Header: name + subtype + recommendation + score -->
-            <div
-              style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-              "
-            >
-              <div style="display: flex; align-items: center; gap: 8px">
+              <!-- Footer: hint + Clear/Analyse actions. -->
+              <div class="gf-input-footer">
                 <span
-                  class="gf-text-primary"
-                  style="font-size: 14px; font-weight: 600"
-                  x-text="skillAnalyserResult.artifact.name"
+                  class="gf-if-hint"
+                  x-text="skillAnalyserFiles.length > 0 ? 'Engine will compose ' + skillAnalyserFiles.length + ' file' + (skillAnalyserFiles.length === 1 ? '' : 's') + ' into one scored surface.' : 'No data leaves your browser. Analysis runs locally.'"
                 ></span>
+                <div class="gf-if-actions">
+                  <button
+                    @click="resetSkillAnalyser()"
+                    x-show="skillAnalyserFiles.length > 0 || skillAnalyserContent.trim()"
+                    class="gf-btn gf-btn-md gf-btn-ghost"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    @click="runSkillAnalyser()"
+                    :disabled="skillAnalyserLoading || (skillAnalyserFiles.length === 0 && !skillAnalyserContent.trim())"
+                    class="gf-btn gf-btn-md gf-btn-primary"
+                  >
+                    <span x-show="!skillAnalyserLoading">Analyse</span>
+                    <span x-show="skillAnalyserLoading">Scoring…</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Error -->
+              <template x-if="skillAnalyserError">
+                <div
+                  class="gf-modal-error"
+                  x-text="skillAnalyserError"
+                ></div>
+              </template>
+            </div>
+          </template>
+
+          <!-- ───── RESULT MODE ───── -->
+          <template x-if="skillAnalyserResult">
+            <div>
+              <!-- Verdict banner — colour is deterministic by recommendation
+                   name, not by failing-metric count. Severity is in the title
+                   text. -->
+              <div
+                class="gf-verdict-banner"
+                :class="{
+                  'is-keep': skillAnalyserResult.recommendation === 'keep-skill',
+                  'is-reference': skillAnalyserResult.recommendation === 'reference-playbook',
+                  'is-retire': skillAnalyserResult.recommendation === 'retire' || skillAnalyserResult.recommendation === 'consider-revision',
+                }"
+              >
                 <span
-                  class="gf-text-muted"
-                  style="
-                    font-size: 10px;
-                    font-weight: 600;
-                    padding: 1px 5px;
-                    border-radius: 3px;
-                    border: 1px solid var(--border-subtle);
-                    text-transform: uppercase;
-                    letter-spacing: 0.02em;
-                  "
-                  x-text="skillAnalyserResult.subtype"
-                ></span>
-                <span
-                  class="gf-modal-rec-badge"
-                  :data-rec="skillAnalyserResult.recommendation"
+                  class="gf-vb-pill"
                   x-text="skillAnalyserResult.recommendation"
                 ></span>
-              </div>
-              <span
-                style="font-size: 13px; font-weight: 700"
-                :style="{ color: skillAnalyserResult.totalScore / skillAnalyserResult.profileMax >= 0.7 ? 'var(--status-pass)' : skillAnalyserResult.totalScore / skillAnalyserResult.profileMax >= 0.5 ? 'var(--status-waiting)' : 'var(--status-danger)' }"
-                x-text="skillAnalyserResult.totalScore + '/' + skillAnalyserResult.profileMax"
-              ></span>
-            </div>
-
-            <!-- Classification -->
-            <div
-              style="
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                font-size: 11px;
-              "
-            >
-              <span class="gf-text-muted" style="font-weight: 600"
-                >Classification:</span
-              >
-              <span
-                :style="{ color: skillAnalyserResult.classification.confidence >= 0.7 ? 'var(--status-pass)' : 'var(--status-waiting)' }"
-                x-text="Math.round(skillAnalyserResult.classification.confidence * 100) + '% ' + skillAnalyserResult.classification.detectedSubtype"
-              ></span>
-              <template
-                x-if="skillAnalyserResult.classification.alternatives.length > 0"
-              >
-                <span class="gf-text-muted">
-                  (also:
-                  <span
-                    x-text="skillAnalyserResult.classification.alternatives.map(a => a.subtype + '=' + a.score).join(', ')"
-                  ></span
-                  >)
-                </span>
-              </template>
-            </div>
-
-            <!-- Metric bars -->
-            <div
-              style="
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
-                margin-top: 4px;
-              "
-            >
-              <template
-                x-for="m in skillAnalyserResult.metrics"
-                :key="'sam-' + m.metric"
-              >
-                <div style="display: flex; align-items: center; gap: 6px">
-                  <span
-                    class="gf-text-muted"
-                    style="
-                      font-size: 10px;
-                      width: 140px;
-                      flex-shrink: 0;
-                      text-align: right;
-                    "
-                    x-text="m.label"
-                  ></span>
+                <div class="gf-vb-text">
                   <div
-                    style="
-                      flex: 1;
-                      height: 6px;
-                      background: var(--neutral-bg);
-                      border-radius: 3px;
-                      overflow: hidden;
-                    "
-                  >
+                    class="gf-vb-title"
+                    x-text="skillAnalyserVerdict(skillAnalyserResult).title"
+                  ></div>
+                  <div
+                    class="gf-vb-desc"
+                    x-text="skillAnalyserVerdict(skillAnalyserResult).desc"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- Two-column result: structural analysis on the left,
+                   improvement tips grouped by metric on the right. -->
+              <div class="gf-result-grid">
+                <div>
+                  <!-- Skill ID (name + subtype pill) -->
+                  <div class="gf-skill-id" style="margin-bottom: 10px">
+                    <h2
+                      style="font-size: 16px"
+                      x-text="skillAnalyserResult.artifact.name"
+                    ></h2>
+                    <span
+                      class="gf-pill-type"
+                      :class="'is-' + skillAnalyserResult.subtype"
+                      x-text="skillAnalyserResult.subtype"
+                    ></span>
+                  </div>
+
+                  <!-- Big grade -->
+                  <div class="gf-score-display">
+                    <div class="gf-sd-row">
+                      <span
+                        class="gf-sd-grade"
+                        :class="{
+                          'is-a': skillLetterGrade(skillReportPct(skillAnalyserResult)) === 'A',
+                          'is-b': skillLetterGrade(skillReportPct(skillAnalyserResult)) === 'B',
+                          'is-c': skillLetterGrade(skillReportPct(skillAnalyserResult)) === 'C',
+                          'is-d': skillLetterGrade(skillReportPct(skillAnalyserResult)) === 'D',
+                          'is-f': skillLetterGrade(skillReportPct(skillAnalyserResult)) === 'F',
+                        }"
+                        x-text="skillLetterGrade(skillReportPct(skillAnalyserResult))"
+                      ></span>
+                      <span
+                        class="gf-sd-pct"
+                        x-text="Math.round(skillReportPct(skillAnalyserResult) * 100) + '%'"
+                      ></span>
+                    </div>
                     <div
-                      :style="{
-                        width: m.maxScore === 0 ? '0%' : (m.score / m.maxScore * 100) + '%',
-                        height: '100%',
-                        background: m.severity === 'ok' ? 'var(--status-pass)' : m.severity === 'warn' ? 'var(--status-waiting)' : m.severity === 'fail' ? 'var(--status-danger)' : 'var(--text-disabled)',
-                      }"
+                      class="gf-sd-raw"
+                      x-text="skillAnalyserResult.totalScore + ' / ' + skillAnalyserResult.profileMax"
                     ></div>
                   </div>
-                  <span
-                    style="
-                      font-size: 10px;
-                      width: 50px;
-                      text-align: right;
-                      flex-shrink: 0;
-                    "
-                    :style="{ color: m.severity === 'ok' ? 'var(--status-pass)' : m.severity === 'warn' ? 'var(--status-waiting)' : m.severity === 'fail' ? 'var(--status-danger)' : 'var(--text-disabled)' }"
-                    x-text="m.severity === 'n/a' ? 'n/a' : (m.score + '/' + m.maxScore)"
-                  ></span>
-                </div>
-              </template>
-            </div>
 
-            <!-- Improvement tips -->
-            <template x-if="skillAnalyserResult.tips.length > 0">
-              <div style="margin-top: 8px">
-                <div
-                  class="gf-text-secondary"
-                  style="font-size: 12px; font-weight: 600; margin-bottom: 6px"
-                >
-                  Improvement tips
-                </div>
-                <ul
-                  style="
-                    list-style: none;
-                    padding: 0;
-                    margin: 0;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 6px;
-                  "
-                >
-                  <template
-                    x-for="(tip, idx) in skillAnalyserResult.tips"
-                    :key="'tip-' + idx"
-                  >
-                    <li
-                      style="
-                        font-size: 11px;
-                        line-height: 1.5;
-                        padding: 6px 10px;
-                        border-radius: 4px;
-                        border: 1px solid var(--border-subtle);
-                      "
-                      :style="{
-                        borderLeft: '3px solid ' + (tip.severity === 'fail' ? 'var(--status-danger)' : tip.severity === 'warn' ? 'var(--status-waiting)' : 'var(--text-disabled)'),
-                      }"
-                    >
+                  <!-- Classification -->
+                  <div class="gf-meta-strip">
+                    <span class="gf-ms-label">Classification</span>
+                    <span>
                       <span
-                        class="gf-text-muted"
-                        style="font-weight: 600; margin-right: 6px"
-                        x-text="`[${tip.metric}]`"
+                        class="gf-ms-pct"
+                        :class="{ 'is-low': skillAnalyserResult.classification.confidence < 0.7 }"
+                        x-text="Math.round(skillAnalyserResult.classification.confidence * 100) + '%'"
                       ></span>
-                      <span class="gf-text-primary" x-text="tip.message"></span>
-                    </li>
+                      <span
+                        x-text="skillAnalyserResult.classification.detectedSubtype"
+                      ></span>
+                    </span>
+                  </div>
+
+                  <!-- Metric bars -->
+                  <div class="gf-section-label">Structural metrics</div>
+                  <div class="gf-metrics">
+                    <template
+                      x-for="m in skillAnalyserResult.metrics"
+                      :key="'sam-' + m.metric"
+                    >
+                      <div class="gf-metric-row">
+                        <div
+                          class="gf-metric-label"
+                          :class="{ 'is-na': m.severity === 'n/a' }"
+                          x-text="m.label"
+                        ></div>
+                        <div
+                          class="gf-bar-track"
+                          :class="{ 'is-na': m.severity === 'n/a' }"
+                        >
+                          <template x-if="m.severity !== 'n/a'">
+                            <div
+                              class="gf-bar-fill"
+                              :class="{
+                                'is-ok': m.severity === 'ok',
+                                'is-warn': m.severity === 'warn',
+                                'is-fail': m.severity === 'fail',
+                              }"
+                              :style="{ width: (m.maxScore > 0 ? (m.score / m.maxScore) * 100 : 0) + '%' }"
+                            ></div>
+                          </template>
+                        </div>
+                        <div
+                          class="gf-metric-score"
+                          :class="{
+                            'is-ok': m.severity === 'ok',
+                            'is-warn': m.severity === 'warn',
+                            'is-fail': m.severity === 'fail',
+                            'is-na': m.severity === 'n/a',
+                          }"
+                          x-text="m.severity === 'n/a' ? 'n/a' : (m.score + '/' + m.maxScore)"
+                        ></div>
+                      </div>
+                    </template>
+                  </div>
+
+                  <!-- Composed-from -->
+                  <template
+                    x-if="skillAnalyserResult.composedFrom.length > 0"
+                  >
+                    <div style="margin-top: 16px">
+                      <div
+                        class="gf-section-label"
+                        x-text="'Composed from · ' + skillAnalyserResult.composedFrom.length + ' file' + (skillAnalyserResult.composedFrom.length === 1 ? '' : 's')"
+                      ></div>
+                      <div class="gf-composed-from">
+                        <template
+                          x-for="src in skillAnalyserResult.composedFrom"
+                          :key="src"
+                        >
+                          <div class="gf-composed-row">
+                            <span
+                              class="gf-pill-file"
+                              :class="{ 'is-skill': src === 'SKILL.md' }"
+                              x-text="skillFileRole(src)"
+                            ></span>
+                            <span
+                              class="gf-composed-name"
+                              x-text="src"
+                            ></span>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
                   </template>
-                </ul>
-              </div>
-            </template>
+                </div>
 
-            <!-- Fit notes -->
-            <template x-if="skillAnalyserResult.fitNotes.length > 0">
-              <div style="margin-top: 4px">
-                <template
-                  x-for="note in skillAnalyserResult.fitNotes"
-                  :key="note"
-                >
-                  <div
-                    class="gf-text-muted"
-                    style="font-size: 11px"
-                    x-text="note"
-                  ></div>
-                </template>
-              </div>
-            </template>
+                <!-- Right column: tips grouped by metric category. -->
+                <div>
+                  <div class="gf-tips-header">
+                    <h3>Improvement tips</h3>
+                    <span
+                      class="gf-tips-count"
+                      x-text="skillAnalyserResult.tips.length"
+                    ></span>
+                  </div>
 
-            <!-- Composed-from list — shows every file the engine pulled into
-                 the scored surface (preamble, conventions, the artifact itself,
-                 and any sibling references/*.md). Lives at the end so the
-                 score and metric breakdown stay above the fold. -->
-            <template x-if="skillAnalyserResult.composedFrom.length > 0">
-              <div
-                style="
-                  display: flex;
-                  flex-direction: column;
-                  gap: 2px;
-                  margin-top: 8px;
-                  padding: 6px 8px;
-                  background: var(--surface-page);
-                  border: 1px solid var(--border-subtle);
-                  border-radius: 4px;
-                "
-              >
-                <div
-                  class="gf-text-muted"
-                  style="
-                    font-size: 10px;
-                    text-transform: uppercase;
-                    letter-spacing: 0.05em;
-                    font-weight: 600;
-                  "
-                >
-                  Composed from
+                  <template x-if="skillAnalyserResult.tips.length === 0">
+                    <div
+                      class="gf-text-muted"
+                      style="font-size: 12px; padding: 12px 0"
+                    >
+                      No improvement tips — all metrics passing.
+                    </div>
+                  </template>
+
+                  <template
+                    x-for="g in skillAnalyserTipGroups(skillAnalyserResult)"
+                    :key="'tg-' + g.metric"
+                  >
+                    <div class="gf-tip-group">
+                      <button
+                        @click="toggleSkillAnalyserTipGroup(g.metric)"
+                        class="gf-tip-group-header"
+                        :class="{ 'is-collapsed': skillAnalyserTipCollapsed[g.metric] }"
+                      >
+                        <div class="gf-tgh-left">
+                          <span class="gf-tgh-chev">▾</span>
+                          <span class="gf-tgh-name" x-text="g.label"></span>
+                          <span
+                            class="gf-tgh-count"
+                            x-text="'· ' + g.tips.length + ' tip' + (g.tips.length === 1 ? '' : 's')"
+                          ></span>
+                        </div>
+                        <span
+                          class="gf-tgh-score"
+                          :class="{ 'is-warn': g.severity === 'warn', 'is-fail': g.severity === 'fail' }"
+                          x-text="g.score + '/' + g.maxScore"
+                        ></span>
+                      </button>
+                      <div
+                        class="gf-tip-group-body"
+                        x-show="!skillAnalyserTipCollapsed[g.metric]"
+                      >
+                        <template
+                          x-for="(tip, idx) in g.tips"
+                          :key="'tip-' + g.metric + '-' + idx"
+                        >
+                          <div
+                            class="gf-tip-row"
+                            :class="{ 'is-fail': tip.severity === 'fail' }"
+                          >
+                            <span class="gf-tr-marker">●</span>
+                            <span
+                              class="gf-tr-body"
+                              x-text="tip.message"
+                            ></span>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- Engine fit-notes were duplicating the verdict banner
+                       above, so they've been removed. The headline finding
+                       lives in the banner; per-metric tips live above. -->
+                </div>
+              </div>
+
+              <!-- Result footer — slug + Copy report. Save-to-drafts and
+                   Re-run-with-edits are deferred to a later persistence
+                   pass. -->
+              <div class="gf-modal-result-footer">
+                <div class="gf-mrf-meta">
+                  Slug:
                   <span
-                    x-text="'(' + skillAnalyserResult.composedFrom.length + ' file' + (skillAnalyserResult.composedFrom.length === 1 ? '' : 's') + ')'"
+                    class="gf-mrf-slug"
+                    x-text="skillAnalyserSlug(skillAnalyserResult)"
                   ></span>
                 </div>
-                <template
-                  x-for="src in skillAnalyserResult.composedFrom"
-                  :key="src"
-                >
-                  <div
-                    style="
-                      display: flex;
-                      gap: 6px;
-                      align-items: center;
-                      font-family: ui-monospace, monospace;
-                      font-size: 11px;
-                    "
+                <div class="gf-mrf-actions">
+                  <button
+                    @click="copySkillAnalyserReport()"
+                    class="gf-btn gf-btn-md gf-btn-secondary"
                   >
-                    <span
-                      x-text="src === 'skill-preamble.md' ? 'preamble' : src === 'skill-conventions.md' ? 'conventions' : src === 'SKILL.md' ? 'skill' : src.startsWith('references/') ? 'reference' : 'file'"
-                      style="
-                        font-size: 9px;
-                        font-family: inherit;
-                        text-transform: uppercase;
-                        letter-spacing: 0.05em;
-                        padding: 1px 5px;
-                        border: 1px solid var(--border-subtle);
-                        border-radius: 3px;
-                        color: var(--text-muted);
-                        min-width: 64px;
-                        text-align: center;
-                      "
-                    ></span>
-                    <span x-text="src"></span>
-                  </div>
-                </template>
+                    Copy report
+                  </button>
+                </div>
               </div>
-            </template>
-          </div>
-        </template>
+            </div>
+          </template>
+        </div>
       </div>
     </div>
   </template>

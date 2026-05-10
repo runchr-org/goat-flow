@@ -217,6 +217,12 @@ function app() {
     skillQualityReport: null as SkillQualityReport | null,
     skillQualityLoading: false,
     skillQualityAbortController: null as AbortController | null,
+    /** Cache of per-artifact reports so the sidebar can show a grade for each
+     *  skill without waiting on per-click fetches. Populated by prefetchSkillReports
+     *  after loadSkillQualityInventory. */
+    skillQualityReports: {} as Record<string, SkillQualityReport>,
+    skillQualityAuditedAt: null as number | null,
+    skillQualityPrefetching: false,
 
     // --- Skill analyser modal state ---
     skillAnalyserOpen: false,
@@ -227,6 +233,8 @@ function app() {
     skillAnalyserResult: null as SkillAnalyseResult | null,
     skillAnalyserLoading: false,
     skillAnalyserError: null as string | null,
+    /** Per-metric collapse state for the result-modal tip groups. */
+    skillAnalyserTipCollapsed: {} as Record<string, boolean>,
 
     /** Resolve the current display name for one supported agent id. */
     agentName(agentId: RunnerId): string {
@@ -812,6 +820,9 @@ function app() {
           this.skillQualitySelectedId = null;
           this.skillQualityReport = null;
           this.skillQualityLoading = false;
+          this.skillQualityReports = {};
+          this.skillQualityAuditedAt = null;
+          this.skillQualityPrefetching = false;
           void this.loadSkillQualityInventory();
         }
       });
@@ -851,6 +862,9 @@ function app() {
           this.skillQualitySelectedId = null;
           this.skillQualityReport = null;
           this.skillQualityLoading = false;
+          this.skillQualityReports = {};
+          this.skillQualityAuditedAt = null;
+          this.skillQualityPrefetching = false;
           if (this.activeView === "skills") {
             void this.loadSkillQualityInventory();
           }
@@ -1115,18 +1129,71 @@ function app() {
         this.skillQualityArtifacts = Array.isArray(payload.artifacts)
           ? payload.artifacts
           : [];
+        this.skillQualityReports = {};
+        this.skillQualityAuditedAt = null;
+        void this.prefetchSkillReports(requestProjectPath, requestRunner);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         this.showToast(msg || "Skill quality inventory failed", true);
       }
     },
+    /** Fetch reports for every artifact in parallel so the sidebar can show
+     *  a per-skill grade without requiring the user to click each one first.
+     *  Aborts silently if the project/runner changes mid-flight. */
+    async prefetchSkillReports(projectPath: string, runner: string) {
+      const artifacts = [...this.skillQualityArtifacts];
+      if (artifacts.length === 0) return;
+      this.skillQualityPrefetching = true;
+      const fetches = artifacts.map(async (art) => {
+        try {
+          const res = await dashboardFetch(
+            `/api/skill-quality?path=${encodeURIComponent(projectPath)}&agent=${encodeURIComponent(runner)}&artifact=${encodeURIComponent(art.id)}`,
+          );
+          const payload = readRecord(await res.json(), "Skill quality report");
+          if (readErrorMessage(payload)) return;
+          if (
+            this.projectPath !== projectPath ||
+            this.activeRunner !== runner
+          )
+            return;
+          this.skillQualityReports[art.id] = payload as unknown as SkillQualityReport;
+        } catch {
+          /* swallow per-artifact errors so one failure doesn't stop the rest */
+        }
+      });
+      await Promise.all(fetches);
+      if (this.projectPath === projectPath && this.activeRunner === runner) {
+        this.skillQualityAuditedAt = Date.now();
+        this.skillQualityPrefetching = false;
+        if (
+          !this.skillQualitySelectedId &&
+          this.skillQualityArtifacts.length > 0
+        ) {
+          const first = this.skillQualityArtifacts[0];
+          if (first) this.loadSkillQualityReport(first.id);
+        }
+      }
+    },
+    /** Re-run the inventory + prefetch from scratch — used by the page-level
+     *  "Re-analyse all" button. */
+    async reanalyseAllSkills() {
+      this.skillQualityReport = null;
+      this.skillQualitySelectedId = null;
+      await this.loadSkillQualityInventory();
+    },
     async loadSkillQualityReport(artifactId: string) {
+      this.skillQualitySelectedId = artifactId;
+      const cached = this.skillQualityReports[artifactId];
+      if (cached) {
+        this.skillQualityReport = cached;
+        this.skillQualityLoading = false;
+        return;
+      }
       this.skillQualityAbortController?.abort();
       const controller = new AbortController();
       this.skillQualityAbortController = controller;
       const requestProjectPath = this.projectPath;
       const requestRunner = this.activeRunner;
-      this.skillQualitySelectedId = artifactId;
       this.skillQualityReport = null;
       this.skillQualityLoading = true;
       try {
@@ -1143,7 +1210,9 @@ function app() {
           this.activeRunner === requestRunner &&
           this.skillQualitySelectedId === artifactId
         ) {
-          this.skillQualityReport = payload as unknown as SkillQualityReport;
+          const report = payload as unknown as SkillQualityReport;
+          this.skillQualityReport = report;
+          this.skillQualityReports[artifactId] = report;
         }
       } catch (err) {
         if (controller.signal.aborted) return;
@@ -1153,6 +1222,266 @@ function app() {
       if (this.skillQualityAbortController === controller) {
         this.skillQualityLoading = false;
         this.skillQualityAbortController = null;
+      }
+    },
+    /** Map a 0..1 ratio to an A/B/C/D/F letter grade. Matches the convention
+     *  used on the Setup and Quality pages (≥0.9 A, ≥0.8 B, ≥0.7 C, ≥0.6 D). */
+    skillLetterGrade(pct: number): string {
+      if (pct >= 0.9) return "A";
+      if (pct >= 0.8) return "B";
+      if (pct >= 0.7) return "C";
+      if (pct >= 0.6) return "D";
+      return "F";
+    },
+    skillReportPct(report: SkillQualityReport | null): number {
+      if (!report || !report.profileMax) return 0;
+      return report.totalScore / report.profileMax;
+    },
+    /** Aggregate count of skills whose stored report has at least one
+     *  warn/fail metric. Used for the scope-strip "N with warnings" line. */
+    skillsWithWarningsCount(): number {
+      let count = 0;
+      for (const id in this.skillQualityReports) {
+        const r = this.skillQualityReports[id];
+        if (!r) continue;
+        if (
+          r.metrics.some((m) => m.severity === "warn" || m.severity === "fail")
+        )
+          count++;
+      }
+      return count;
+    },
+    /** Mean score across all prefetched reports as a 0..1 ratio. */
+    skillsAvgPct(): number {
+      const reports = Object.values(this.skillQualityReports);
+      if (reports.length === 0) return 0;
+      let sum = 0;
+      for (const r of reports) sum += this.skillReportPct(r);
+      return sum / reports.length;
+    },
+    /** Headline summary for the skills detail panel — derives a one-sentence
+     *  conclusion from the recommendation + warn/fail counts so the buried
+     *  "two non-blocking issues" line gets promoted into a banner. */
+    skillSummaryBanner(report: SkillQualityReport | null): {
+      title: string;
+      desc: string;
+      severity: "pass" | "warn" | "fail";
+    } {
+      if (!report) return { title: "", desc: "", severity: "warn" };
+      const pct = this.skillReportPct(report);
+      const warnCount = report.metrics.filter(
+        (m) => m.severity === "warn",
+      ).length;
+      const failCount = report.metrics.filter(
+        (m) => m.severity === "fail",
+      ).length;
+      const rec = report.recommendation;
+      if (failCount > 0) {
+        return {
+          title: "Critical structural issues require attention",
+          desc: `${failCount} failing metric${failCount > 1 ? "s" : ""}${
+            warnCount
+              ? ` and ${warnCount} warning${warnCount > 1 ? "s" : ""}`
+              : ""
+          }. Recommended: ${rec}.`,
+          severity: "fail",
+        };
+      }
+      if (warnCount > 0) {
+        const title =
+          pct >= 0.85
+            ? "Strong skill identity with adequate structural quality"
+            : "Acceptable skill with non-blocking issues";
+        return {
+          title,
+          desc: `${warnCount} non-blocking issue${
+            warnCount > 1 ? "s" : ""
+          }. Recommended: ${rec}, address warnings.`,
+          severity: "warn",
+        };
+      }
+      return {
+        title: "All structural metrics passing",
+        desc: `Recommended: ${rec}.`,
+        severity: "pass",
+      };
+    },
+    /** Verdict-banner copy for the Analyse-skill modal result.
+     *
+     *  The headline title softens its tone to match the recommendation: a
+     *  `needs-human-review` verdict says "needs review before keeping", not
+     *  "block ship" — "block ship" is reserved for verdicts that the engine
+     *  is genuinely confident about (retire / consider-revision). Mismatch
+     *  between pill and copy was confusing readers about how confident the
+     *  engine actually is. */
+    skillAnalyserVerdict(report: SkillAnalyseResult | null): {
+      title: string;
+      desc: string;
+    } {
+      if (!report) return { title: "", desc: "" };
+      const cls = report.classification;
+      const detected = cls.detectedSubtype;
+      const failCount = report.metrics.filter(
+        (m) => m.severity === "fail",
+      ).length;
+      const warnCount = report.metrics.filter(
+        (m) => m.severity === "warn",
+      ).length;
+      const isHardVerdict =
+        report.recommendation === "retire" ||
+        report.recommendation === "consider-revision";
+      let title = "";
+      if (cls.confidence >= 0.85 && detected !== report.subtype) {
+        title = `This reads as a ${detected}, not a ${report.subtype}`;
+      } else if (failCount > 0) {
+        const tail = isHardVerdict
+          ? "block ship"
+          : "— needs review before keeping";
+        title = `${failCount} failing metric${failCount > 1 ? "s" : ""} ${tail}`;
+      } else if (warnCount > 0) {
+        title = `${warnCount} non-blocking warning${warnCount > 1 ? "s" : ""}`;
+      } else {
+        title = "All structural metrics passing";
+      }
+      const recHuman =
+        report.recommendation === "needs-human-review"
+          ? "Manual review required"
+          : report.recommendation === "consider-reclassifying"
+            ? "Consider reclassifying"
+            : report.recommendation === "consider-revision"
+              ? "Revise before shipping"
+              : report.recommendation === "retire"
+                ? "Retire or rewrite"
+                : report.recommendation === "reference-playbook"
+                  ? "Ship as a reference"
+                  : "Keep as a skill";
+      const detail =
+        cls.confidence >= 0.85 && detected !== report.subtype
+          ? `${Math.round(cls.confidence * 100)}% ${detected} classification`
+          : `${failCount + warnCount} non-passing metric${
+              failCount + warnCount === 1 ? "" : "s"
+            }`;
+      return {
+        title,
+        desc: `${detail}. ${recHuman} before deciding to keep, convert, or discard.`,
+      };
+    },
+    /** Group improvement tips by their metric so the modal result can render
+     *  one collapsible cluster per metric (with the metric's score in the
+     *  header). Order follows the metrics array (ranking from skill-quality.ts). */
+    skillAnalyserTipGroups(report: SkillAnalyseResult | null): Array<{
+      metric: string;
+      label: string;
+      score: number;
+      maxScore: number;
+      severity: SkillQualityMetricSeverity;
+      tips: SkillAnalyseTip[];
+    }> {
+      if (!report || report.tips.length === 0) return [];
+      const tipsByMetric = new Map<string, SkillAnalyseTip[]>();
+      for (const tip of report.tips) {
+        const arr = tipsByMetric.get(tip.metric) ?? [];
+        arr.push(tip);
+        tipsByMetric.set(tip.metric, arr);
+      }
+      const groups: Array<{
+        metric: string;
+        label: string;
+        score: number;
+        maxScore: number;
+        severity: SkillQualityMetricSeverity;
+        tips: SkillAnalyseTip[];
+      }> = [];
+      for (const m of report.metrics) {
+        const tips = tipsByMetric.get(m.metric);
+        if (!tips || tips.length === 0) continue;
+        groups.push({
+          metric: m.metric,
+          label: m.label,
+          score: m.score,
+          maxScore: m.maxScore,
+          severity: m.severity,
+          tips,
+        });
+      }
+      return groups;
+    },
+    toggleSkillAnalyserTipGroup(metric: string) {
+      this.skillAnalyserTipCollapsed[metric] =
+        !this.skillAnalyserTipCollapsed[metric];
+    },
+    /** Pretty "audited just now / 3 minutes ago" formatter for the scope strip. */
+    skillAuditedRelative(): string {
+      const ts = this.skillQualityAuditedAt;
+      if (!ts) return "audited recently";
+      const ms = Date.now() - ts;
+      if (ms < 60_000) return "audited just now";
+      const min = Math.floor(ms / 60_000);
+      if (min < 60) return `audited ${min} min${min > 1 ? "s" : ""} ago`;
+      const hr = Math.floor(min / 60);
+      return `audited ${hr} hr${hr > 1 ? "s" : ""} ago`;
+    },
+    /** Pill-style file-role label used in the composed-from list and modal
+     *  file chips. */
+    skillFileRole(name: string): string {
+      if (name === "skill-preamble.md") return "PREAMBLE";
+      if (name === "skill-conventions.md") return "CONVENTIONS";
+      if (name === "SKILL.md") return "SKILL";
+      if (name.startsWith("references/")) return "REFERENCE";
+      return "FILE";
+    },
+    /** Generate a stable slug for an analyser result. Used in the result
+     *  footer as a copyable identifier so users can reference a specific
+     *  analysis run later (e.g. when comparing two scoring sessions). */
+    skillAnalyserSlug(report: SkillAnalyseResult | null): string {
+      if (!report) return "";
+      const today = new Date().toISOString().slice(0, 10);
+      const safe = (report.artifact.name || "skill")
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      return `analysis-${today}-${safe}`;
+    },
+    /** Copy a markdown summary of the current analyser result to the user's
+     *  clipboard. The format mirrors what the engine itself emits so the
+     *  result can be pasted into PR descriptions or session notes. */
+    async copySkillAnalyserReport() {
+      const r = this.skillAnalyserResult;
+      if (!r) return;
+      const lines: string[] = [];
+      const pct = Math.round(this.skillReportPct(r) * 100);
+      const grade = this.skillLetterGrade(this.skillReportPct(r));
+      lines.push(`# ${r.artifact.name} — ${grade} ${pct}%`);
+      lines.push(`Slug: \`${this.skillAnalyserSlug(r)}\``);
+      lines.push(`Subtype: ${r.subtype} (${Math.round(r.classification.confidence * 100)}% ${r.classification.detectedSubtype})`);
+      lines.push(`Verdict: \`${r.recommendation}\``);
+      lines.push(`Score: ${r.totalScore} / ${r.profileMax}`);
+      lines.push("");
+      lines.push("## Structural metrics");
+      for (const m of r.metrics) {
+        const score = m.severity === "n/a" ? "n/a" : `${m.score}/${m.maxScore}`;
+        lines.push(`- ${m.label}: ${score} (${m.severity})`);
+      }
+      if (r.tips.length > 0) {
+        lines.push("");
+        lines.push("## Improvement tips");
+        for (const tip of r.tips) {
+          lines.push(`- [${tip.metric}] ${tip.message}`);
+        }
+      }
+      if (r.composedFrom.length > 0) {
+        lines.push("");
+        lines.push("## Composed from");
+        for (const src of r.composedFrom) {
+          lines.push(`- ${src}`);
+        }
+      }
+      try {
+        await navigator.clipboard.writeText(lines.join("\n"));
+        this.showToast("Report copied to clipboard");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.showToast(msg || "Copy failed", true);
       }
     },
 
