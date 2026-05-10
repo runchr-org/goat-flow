@@ -611,6 +611,35 @@ function classifyArtifact(
 // Metric scorers
 // ---------------------------------------------------------------------------
 
+/** Workflow-summary detection for skill descriptions. Sourced from the prime
+ *  writing-skills corpus (search: `Testing revealed that when a description
+ *  summarizes`): when a description names *what the skill does internally*
+ *  (procedural verbs, "X then Y" connectives) rather than *when to trigger*,
+ *  agents tend to follow the description and skip the skill body. Detected as
+ *  a yellow signal only — emits a tip via the trigger-clarity detail string;
+ *  never deducts score. Verb list narrowed to keep <10% false-positive rate
+ *  on the in-tree `.claude/skills` corpus. */
+const WORKFLOW_VERB_RE =
+  /\b(dispatches?|implements?(?:ing|ed)?|executes?(?:ing|ed)?|generates?|runs?|produces?|creates?|builds?|refactors?|writes?)\b/i;
+const WORKFLOW_CONNECTIVE_RE = /\b(then|between)\b/i;
+
+function descriptionSummarizesWorkflow(content: string): boolean {
+  const match = /^---[\s\S]*?description:\s*"([^"]+)"[\s\S]*?---/m.exec(
+    content,
+  );
+  if (!match) return false;
+  const description = match[1];
+  if (!description) return false;
+  // Skip the trigger preamble — `Use when X, Y` — and inspect the rest of the
+  // description. If the trailing portion contains procedural verbs or process
+  // connectives, the description is summarising workflow rather than naming
+  // triggering conditions.
+  const stripped = description.replace(/^Use when [^,.;-]*[,.;-]?\s*/i, "");
+  return (
+    WORKFLOW_VERB_RE.test(stripped) || WORKFLOW_CONNECTIVE_RE.test(stripped)
+  );
+}
+
 // eslint-disable-next-line complexity -- exhaustive structural signal scoring; each branch maps to one trigger-clarity rule
 const triggerClarity: MetricScorer = (input) => {
   const { artifact, rawContent: content, subtype } = input;
@@ -633,6 +662,12 @@ const triggerClarity: MetricScorer = (input) => {
     if (hasExclusion && subtype !== "dispatcher") score += 5;
     else if (subtype === "dispatcher") notes.push("dispatcher route-map scope");
     else notes.push('missing "NOT this skill" exclusion list');
+
+    if (hasFrontmatterDesc && descriptionSummarizesWorkflow(content)) {
+      notes.push(
+        "description summarizes workflow rather than triggering conditions",
+      );
+    }
   } else {
     const hasPurpose =
       hasSection(content, /##\s+Purpose/i) ||
@@ -1110,7 +1145,7 @@ function deriveRecommendation(
 
 /**
  * Score raw content against the rubric without reading any file from disk.
- * Used by both `scoreArtifact` (which reads first) and `analyseContent`
+ * Used by both `scoreArtifact` (which reads first) and `evaluateContent`
  * (which gets content from an upload or paste).
  */
 function scoreContent(
@@ -1183,10 +1218,10 @@ export function scoreAllArtifacts(
 }
 
 // ---------------------------------------------------------------------------
-// Uploaded-content analysis
+// Uploaded-content evaluation (draft scoring; user-supplied markdown)
 // ---------------------------------------------------------------------------
 
-interface AnalyseInput {
+interface EvaluateInput {
   /** Raw markdown content (uploaded file or pasted text). */
   content: string;
   /** Optional name; falls back to a generic placeholder. */
@@ -1201,7 +1236,7 @@ interface ImprovementTip {
   message: string;
 }
 
-interface AnalyseResult extends SkillQualityReport {
+interface EvaluateResult extends SkillQualityReport {
   tips: ImprovementTip[];
 }
 
@@ -1229,6 +1264,10 @@ const TIP_RULES: Array<{
   metric: MetricName;
   match: RegExp;
   message: string;
+  /** When true, the tip fires even on `ok` severity. Used for advisory-only
+   *  signals (e.g. workflow-summary descriptions) where we want to surface a
+   *  recommendation without altering the structural score. */
+  alwaysFire?: boolean;
 }> = [
   {
     metric: "trigger-clarity",
@@ -1247,6 +1286,13 @@ const TIP_RULES: Array<{
     match: /missing "NOT this skill"/,
     message:
       "Add a `**NOT this skill:**` exclusion list naming intents that route to other skills, so the dispatcher can disambiguate.",
+  },
+  {
+    metric: "trigger-clarity",
+    match: /description summarizes workflow rather than triggering conditions/,
+    message:
+      'Trim the description to triggering conditions only ("Use when …"). Workflow summaries (e.g. "dispatches subagent then runs review between tasks") cause agents to follow the description and skip the skill body — see `.goat-flow/skill-playbooks/skill-quality-testing/tdd-iteration.md` for the trap and verbatim source.',
+    alwaysFire: true,
   },
   {
     metric: "trigger-clarity",
@@ -1425,10 +1471,12 @@ const TIP_RULES: Array<{
 ];
 
 function tipsForMetric(metric: MetricResult): ImprovementTip[] {
-  if (metric.severity === "ok" || metric.severity === "n/a") return [];
+  if (metric.severity === "n/a") return [];
   const matched: ImprovementTip[] = [];
+  const isOk = metric.severity === "ok";
   for (const rule of TIP_RULES) {
     if (rule.metric !== metric.metric) continue;
+    if (isOk && !rule.alwaysFire) continue;
     if (rule.match.test(metric.detail)) {
       matched.push({
         metric: metric.metric,
@@ -1437,7 +1485,7 @@ function tipsForMetric(metric: MetricResult): ImprovementTip[] {
       });
     }
   }
-  if (matched.length === 0) {
+  if (!isOk && matched.length === 0) {
     matched.push({
       metric: metric.metric,
       severity: metric.severity,
@@ -1460,13 +1508,13 @@ function synthesiseImprovementTips(
 /**
  * Score uploaded markdown content (no file IO) and synthesise actionable
  * improvement tips from the metric breakdown. Used by the dashboard
- * "Analyse skill" modal and by the CLI's analyse subcommand.
+ * "Evaluate skill" modal.
  */
-export function analyseContent(
+export function evaluateContent(
   projectRoot: string,
-  input: AnalyseInput,
+  input: EvaluateInput,
   config: QualityConfig = loadQualityConfig(projectRoot),
-): AnalyseResult {
+): EvaluateResult {
   const kind = input.kind ?? inferArtifactKind(input.content);
   const name = sanitiseUploadName(input.suggestedName);
   const artifact: ArtifactEntry = {
@@ -1485,13 +1533,13 @@ export function analyseContent(
   return { ...report, tips: synthesiseImprovementTips(report) };
 }
 
-interface AnalyseBundleFile {
+interface EvaluateBundleFile {
   name: string;
   content: string;
 }
 
-interface AnalyseBundleInput {
-  files: AnalyseBundleFile[];
+interface EvaluateBundleInput {
+  files: EvaluateBundleFile[];
   suggestedName?: string;
   kind?: ArtifactKind;
 }
@@ -1506,11 +1554,11 @@ interface AnalyseBundleInput {
  * every input file in drop order, plus preamble/conventions when composed in.
  */
 // eslint-disable-next-line complexity -- multi-file scoring fans out across primary-file selection, single-file fast path, and the manual compose+score pipeline; each branch represents one distinct case
-export function analyseUploadedBundle(
+export function evaluateUploadedBundle(
   projectRoot: string,
-  input: AnalyseBundleInput,
+  input: EvaluateBundleInput,
   config: QualityConfig = loadQualityConfig(projectRoot),
-): AnalyseResult {
+): EvaluateResult {
   const files = input.files;
   const primaryIndex = Math.max(
     0,
@@ -1518,7 +1566,7 @@ export function analyseUploadedBundle(
   );
   const primary = files[primaryIndex] ?? files[0];
   if (!primary) {
-    throw new Error("analyseUploadedBundle: files array must be non-empty");
+    throw new Error("evaluateUploadedBundle: files array must be non-empty");
   }
   const siblings = files.filter((_, i) => i !== primaryIndex);
 

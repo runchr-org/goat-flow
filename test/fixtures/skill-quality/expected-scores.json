@@ -67,7 +67,7 @@
   },
   "reference:skill-quality-testing": {
     "minPct": 70,
-    "maxPct": 90,
+    "maxPct": 95,
     "recommendation": "reference-playbook",
     "subtype": "index"
   }

@@ -41,7 +41,7 @@ interface TerminalUploadBody {
   files: TerminalUploadFile[];
 }
 
-interface AnalyseBody {
+interface EvaluateBody {
   /** Either a single content string (paste / textarea) OR an array of named
    *  files (multi-file drop). Exactly one must be set. */
   content?: string;
@@ -296,14 +296,14 @@ export function decodeClientMessage(raw: string): DecodeResult<ClientMessage> {
   );
 }
 
-const MAX_ANALYSE_CONTENT_BYTES = 256 * 1024;
-const MAX_ANALYSE_NAME_BYTES = 200;
-const MAX_ANALYSE_FILES = 32;
-const MAX_ANALYSE_FILENAME_BYTES = 256;
+const MAX_EVALUATE_CONTENT_BYTES = 256 * 1024;
+const MAX_EVALUATE_NAME_BYTES = 200;
+const MAX_EVALUATE_FILES = 32;
+const MAX_EVALUATE_FILENAME_BYTES = 256;
 
 /** Decode the optional `suggestedName` and `kind` fields shared between the
- *  single-content and multi-file analyse payloads. */
-function decodeAnalyseOptionals(obj: Record<string, unknown>): DecodeResult<{
+ *  single-content and multi-file evaluate payloads. */
+function decodeEvaluateOptionals(obj: Record<string, unknown>): DecodeResult<{
   suggestedName?: string;
   kind?: "skill" | "shared-reference";
 }> {
@@ -312,10 +312,10 @@ function decodeAnalyseOptionals(obj: Record<string, unknown>): DecodeResult<{
     if (typeof obj.suggestedName !== "string") {
       return err("body.suggestedName", "must be a string");
     }
-    if (obj.suggestedName.length > MAX_ANALYSE_NAME_BYTES) {
+    if (obj.suggestedName.length > MAX_EVALUATE_NAME_BYTES) {
       return err(
         "body.suggestedName",
-        `must be at most ${MAX_ANALYSE_NAME_BYTES} bytes`,
+        `must be at most ${MAX_EVALUATE_NAME_BYTES} bytes`,
       );
     }
     suggestedName = obj.suggestedName;
@@ -330,18 +330,21 @@ function decodeAnalyseOptionals(obj: Record<string, unknown>): DecodeResult<{
   return { ok: true, value: { suggestedName, kind } };
 }
 
-/** Decode the `files` array on a multi-file analyse body. Validates count,
+/** Decode the `files` array on a multi-file evaluate body. Validates count,
  *  per-file name + content shape, and enforces the same total-byte cap as the
  *  single-content path so the server can't be used as a CPU sink. */
 // eslint-disable-next-line complexity -- per-file boundary validation; each branch maps to one rejection class for the bundle payload
-function decodeAnalyseFiles(
+function decodeEvaluateFiles(
   raw: unknown,
 ): DecodeResult<{ name: string; content: string }[]> {
   if (!Array.isArray(raw)) return err("body.files", "must be an array");
   if (raw.length === 0)
     return err("body.files", "must contain at least one file");
-  if (raw.length > MAX_ANALYSE_FILES) {
-    return err("body.files", `must contain at most ${MAX_ANALYSE_FILES} files`);
+  if (raw.length > MAX_EVALUATE_FILES) {
+    return err(
+      "body.files",
+      `must contain at most ${MAX_EVALUATE_FILES} files`,
+    );
   }
   const files: { name: string; content: string }[] = [];
   let totalBytes = 0;
@@ -353,10 +356,10 @@ function decodeAnalyseFiles(
     if (typeof item.name !== "string" || item.name.length === 0) {
       return err(`body.files[${index}].name`, "must be a non-empty string");
     }
-    if (item.name.length > MAX_ANALYSE_FILENAME_BYTES) {
+    if (item.name.length > MAX_EVALUATE_FILENAME_BYTES) {
       return err(
         `body.files[${index}].name`,
-        `must be at most ${MAX_ANALYSE_FILENAME_BYTES} bytes`,
+        `must be at most ${MAX_EVALUATE_FILENAME_BYTES} bytes`,
       );
     }
     if (item.name.includes("/") || item.name.includes("\0")) {
@@ -376,10 +379,10 @@ function decodeAnalyseFiles(
       return err(`body.files[${index}].content`, "must be a string");
     }
     totalBytes += item.content.length;
-    if (totalBytes > MAX_ANALYSE_CONTENT_BYTES) {
+    if (totalBytes > MAX_EVALUATE_CONTENT_BYTES) {
       return err(
         "body.files",
-        `combined content size exceeds ${MAX_ANALYSE_CONTENT_BYTES} bytes`,
+        `combined content size exceeds ${MAX_EVALUATE_CONTENT_BYTES} bytes`,
       );
     }
     files.push({ name: item.name, content: item.content });
@@ -387,10 +390,11 @@ function decodeAnalyseFiles(
   return { ok: true, value: files };
 }
 
-/** Decode and validate a `POST /api/quality/analyse` request body.
- *  Accepts either a single `content` string (paste / textarea) or a `files`
- *  array (multi-file drag-drop) — exactly one must be set. */
-export function decodeAnalyseBody(body: string): DecodeResult<AnalyseBody> {
+/** Decode and validate a `POST /api/quality/evaluate` request body (also
+ *  accepted via the deprecated `/api/quality/analyse` alias). Accepts either a
+ *  single `content` string (paste / textarea) or a `files` array (multi-file
+ *  drag-drop) — exactly one must be set. */
+export function decodeEvaluateBody(body: string): DecodeResult<EvaluateBody> {
   const parsed = parseJson(body, "body");
   if (!parsed.ok) return parsed;
   if (!isRecord(parsed.value)) {
@@ -402,17 +406,17 @@ export function decodeAnalyseBody(body: string): DecodeResult<AnalyseBody> {
   if (hasContent === hasFiles) {
     return err("body", 'exactly one of "content" or "files" must be set');
   }
-  const optionals = decodeAnalyseOptionals(obj);
+  const optionals = decodeEvaluateOptionals(obj);
   if (!optionals.ok) return optionals;
 
   if (hasContent) {
     if (typeof obj.content !== "string" || obj.content.trim().length === 0) {
       return err("body.content", "must be a non-empty markdown string");
     }
-    if (obj.content.length > MAX_ANALYSE_CONTENT_BYTES) {
+    if (obj.content.length > MAX_EVALUATE_CONTENT_BYTES) {
       return err(
         "body.content",
-        `must be at most ${MAX_ANALYSE_CONTENT_BYTES} bytes`,
+        `must be at most ${MAX_EVALUATE_CONTENT_BYTES} bytes`,
       );
     }
     return {
@@ -425,7 +429,7 @@ export function decodeAnalyseBody(body: string): DecodeResult<AnalyseBody> {
     };
   }
 
-  const filesResult = decodeAnalyseFiles(obj.files);
+  const filesResult = decodeEvaluateFiles(obj.files);
   if (!filesResult.ok) return filesResult;
   return {
     ok: true,

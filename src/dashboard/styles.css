@@ -2975,7 +2975,7 @@ body {
   border-color: rgba(220, 38, 38, 0.28);
 }
 
-/* --- Modal overlay (Analyse skill) ---
+/* --- Modal overlay (Evaluate skill) ---
  *
  * The element is teleported to <body> (Alpine x-teleport) so an ancestor's
  * transformed containing block cannot trap position: fixed. x-show on the
@@ -3077,7 +3077,7 @@ body {
   color: var(--status-danger);
 }
 
-/* === Skills page + Analyse-skill modal redesign ===
+/* === Skills page + Evaluate-skill modal redesign ===
    Pattern parity with Setup/Quality: scope strip + scored sidebar +
    pill families (type/verdict/file) + grade block + summary banner.
    Modal has three explicit states (empty / files-attached / result).
@@ -3572,26 +3572,26 @@ body {
   color: var(--text-primary);
 }
 
-/* === Analyse-skill modal redesign === */
+/* === Evaluate-skill modal redesign === */
 
-.gf-modal-card.is-skill-analyser {
+.gf-modal-card.is-skill-evaluator {
   width: 1100px;
   padding: 0;
   gap: 0;
 }
-.gf-modal-card.is-skill-analyser .gf-modal-header {
+.gf-modal-card.is-skill-evaluator .gf-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 22px;
   border-bottom: 1px solid var(--border-subtle);
 }
-.gf-modal-card.is-skill-analyser .gf-modal-title {
+.gf-modal-card.is-skill-evaluator .gf-modal-title {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.gf-modal-card.is-skill-analyser .gf-modal-title h2 {
+.gf-modal-card.is-skill-evaluator .gf-modal-title h2 {
   font-size: 16px;
   font-weight: 600;
   margin: 0;
@@ -3625,7 +3625,7 @@ body {
   color: var(--text-primary);
   border-color: var(--text-muted);
 }
-.gf-modal-card.is-skill-analyser .gf-modal-body {
+.gf-modal-card.is-skill-evaluator .gf-modal-body {
   padding: 22px;
 }
 

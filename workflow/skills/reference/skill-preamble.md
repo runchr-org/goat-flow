@@ -64,6 +64,23 @@ Before any completion, fix, or "passing" claim:
 
 The red-flags name what NOT to claim; this gate names HOW to substantiate a claim. If you cannot run the proof in this session, mark the claim **UNVERIFIED** and state what evidence is missing. Never substitute "should work", "probably fine", "looks good", or a confidence score.
 
+### Rationalisations to reject (Excuse / Reality)
+
+If you catch yourself thinking the Excuse, run the proof or mark the claim `UNVERIFIED`. New rows require a verbatim source from this repo or the prime corpus.
+
+| Excuse | Reality |
+|---|---|
+| "Should work now" / "Probably fixed" | Re-run the original failing reproduction. |
+| "I'm confident" | Confidence ≠ evidence. |
+| "Linter / typecheck passed" | Linter ≠ compiler ≠ test suite. |
+| "Sub-agent said success" | Re-read the diff yourself. |
+| "Just this once" | No exemption. |
+| "Partial check is enough" | A subset of tests is not the test suite. |
+| "Looks correct to me" | Structural inspection ≠ verification. |
+| "Different words, rule doesn't apply" | Spirit over letter — paraphrases count. |
+
+Concrete claim/proof examples live in `.goat-flow/skill-playbooks/skill-quality-testing.md`.
+
 ## Ceremony Level
 
 Adapt ceremony to complexity. Do NOT run full ceremony on simple tasks. This table is **pre-invocation routing guidance** - use it when deciding which skill to invoke. Once the user explicitly invokes a skill, run its full protocol regardless of complexity.

@@ -224,17 +224,17 @@ function app() {
     skillQualityAuditedAt: null as number | null,
     skillQualityPrefetching: false,
 
-    // --- Skill analyser modal state ---
-    skillAnalyserOpen: false,
-    skillAnalyserName: "",
-    skillAnalyserContent: "",
-    skillAnalyserFiles: [] as { name: string; content: string }[],
-    skillAnalyserDragActive: false,
-    skillAnalyserResult: null as SkillAnalyseResult | null,
-    skillAnalyserLoading: false,
-    skillAnalyserError: null as string | null,
+    // --- Skill evaluator modal state ---
+    skillEvaluatorOpen: false,
+    skillEvaluatorName: "",
+    skillEvaluatorContent: "",
+    skillEvaluatorFiles: [] as { name: string; content: string }[],
+    skillEvaluatorDragActive: false,
+    skillEvaluatorResult: null as SkillEvaluateResult | null,
+    skillEvaluatorLoading: false,
+    skillEvaluatorError: null as string | null,
     /** Per-metric collapse state for the result-modal tip groups. */
-    skillAnalyserTipCollapsed: {} as Record<string, boolean>,
+    skillEvaluatorTipCollapsed: {} as Record<string, boolean>,
 
     /** Resolve the current display name for one supported agent id. */
     agentName(agentId: RunnerId): string {
@@ -1151,12 +1151,10 @@ function app() {
           );
           const payload = readRecord(await res.json(), "Skill quality report");
           if (readErrorMessage(payload)) return;
-          if (
-            this.projectPath !== projectPath ||
-            this.activeRunner !== runner
-          )
+          if (this.projectPath !== projectPath || this.activeRunner !== runner)
             return;
-          this.skillQualityReports[art.id] = payload as unknown as SkillQualityReport;
+          this.skillQualityReports[art.id] =
+            payload as unknown as SkillQualityReport;
         } catch {
           /* swallow per-artifact errors so one failure doesn't stop the rest */
         }
@@ -1170,13 +1168,13 @@ function app() {
           this.skillQualityArtifacts.length > 0
         ) {
           const first = this.skillQualityArtifacts[0];
-          if (first) this.loadSkillQualityReport(first.id);
+          if (first) void this.loadSkillQualityReport(first.id);
         }
       }
     },
     /** Re-run the inventory + prefetch from scratch — used by the page-level
-     *  "Re-analyse all" button. */
-    async reanalyseAllSkills() {
+     *  "Re-audit all" button. */
+    async reauditAllSkills() {
       this.skillQualityReport = null;
       this.skillQualitySelectedId = null;
       await this.loadSkillQualityInventory();
@@ -1306,7 +1304,7 @@ function app() {
         severity: "pass",
       };
     },
-    /** Verdict-banner copy for the Analyse-skill modal result.
+    /** Verdict-banner copy for the Evaluate-skill modal result.
      *
      *  The headline title softens its tone to match the recommendation: a
      *  `needs-human-review` verdict says "needs review before keeping", not
@@ -1314,7 +1312,7 @@ function app() {
      *  is genuinely confident about (retire / consider-revision). Mismatch
      *  between pill and copy was confusing readers about how confident the
      *  engine actually is. */
-    skillAnalyserVerdict(report: SkillAnalyseResult | null): {
+    skillEvaluatorVerdict(report: SkillEvaluateResult | null): {
       title: string;
       desc: string;
     } {
@@ -1369,16 +1367,16 @@ function app() {
     /** Group improvement tips by their metric so the modal result can render
      *  one collapsible cluster per metric (with the metric's score in the
      *  header). Order follows the metrics array (ranking from skill-quality.ts). */
-    skillAnalyserTipGroups(report: SkillAnalyseResult | null): Array<{
+    skillEvaluatorTipGroups(report: SkillEvaluateResult | null): Array<{
       metric: string;
       label: string;
       score: number;
       maxScore: number;
       severity: SkillQualityMetricSeverity;
-      tips: SkillAnalyseTip[];
+      tips: SkillEvaluateTip[];
     }> {
       if (!report || report.tips.length === 0) return [];
-      const tipsByMetric = new Map<string, SkillAnalyseTip[]>();
+      const tipsByMetric = new Map<string, SkillEvaluateTip[]>();
       for (const tip of report.tips) {
         const arr = tipsByMetric.get(tip.metric) ?? [];
         arr.push(tip);
@@ -1390,7 +1388,7 @@ function app() {
         score: number;
         maxScore: number;
         severity: SkillQualityMetricSeverity;
-        tips: SkillAnalyseTip[];
+        tips: SkillEvaluateTip[];
       }> = [];
       for (const m of report.metrics) {
         const tips = tipsByMetric.get(m.metric);
@@ -1406,9 +1404,9 @@ function app() {
       }
       return groups;
     },
-    toggleSkillAnalyserTipGroup(metric: string) {
-      this.skillAnalyserTipCollapsed[metric] =
-        !this.skillAnalyserTipCollapsed[metric];
+    toggleSkillEvaluatorTipGroup(metric: string) {
+      this.skillEvaluatorTipCollapsed[metric] =
+        !this.skillEvaluatorTipCollapsed[metric];
     },
     /** Pretty "audited just now / 3 minutes ago" formatter for the scope strip. */
     skillAuditedRelative(): string {
@@ -1430,30 +1428,32 @@ function app() {
       if (name.startsWith("references/")) return "REFERENCE";
       return "FILE";
     },
-    /** Generate a stable slug for an analyser result. Used in the result
+    /** Generate a stable slug for an evaluator result. Used in the result
      *  footer as a copyable identifier so users can reference a specific
-     *  analysis run later (e.g. when comparing two scoring sessions). */
-    skillAnalyserSlug(report: SkillAnalyseResult | null): string {
+     *  evaluation run later (e.g. when comparing two scoring sessions). */
+    skillEvaluatorSlug(report: SkillEvaluateResult | null): string {
       if (!report) return "";
       const today = new Date().toISOString().slice(0, 10);
       const safe = (report.artifact.name || "skill")
         .toLowerCase()
         .replace(/[^a-z0-9-]+/g, "-")
         .replace(/^-+|-+$/g, "");
-      return `analysis-${today}-${safe}`;
+      return `evaluation-${today}-${safe}`;
     },
-    /** Copy a markdown summary of the current analyser result to the user's
+    /** Copy a markdown summary of the current evaluation result to the user's
      *  clipboard. The format mirrors what the engine itself emits so the
      *  result can be pasted into PR descriptions or session notes. */
-    async copySkillAnalyserReport() {
-      const r = this.skillAnalyserResult;
+    async copySkillEvaluatorReport() {
+      const r = this.skillEvaluatorResult;
       if (!r) return;
       const lines: string[] = [];
       const pct = Math.round(this.skillReportPct(r) * 100);
       const grade = this.skillLetterGrade(this.skillReportPct(r));
       lines.push(`# ${r.artifact.name} — ${grade} ${pct}%`);
-      lines.push(`Slug: \`${this.skillAnalyserSlug(r)}\``);
-      lines.push(`Subtype: ${r.subtype} (${Math.round(r.classification.confidence * 100)}% ${r.classification.detectedSubtype})`);
+      lines.push(`Slug: \`${this.skillEvaluatorSlug(r)}\``);
+      lines.push(
+        `Subtype: ${r.subtype} (${Math.round(r.classification.confidence * 100)}% ${r.classification.detectedSubtype})`,
+      );
       lines.push(`Verdict: \`${r.recommendation}\``);
       lines.push(`Score: ${r.totalScore} / ${r.profileMax}`);
       lines.push("");
@@ -1485,33 +1485,33 @@ function app() {
       }
     },
 
-    // -- Skill analyser modal --
-    openSkillAnalyser() {
-      this.skillAnalyserOpen = true;
-      this.resetSkillAnalyser();
+    // -- Skill evaluator modal --
+    openSkillEvaluator() {
+      this.skillEvaluatorOpen = true;
+      this.resetSkillEvaluator();
     },
-    closeSkillAnalyser() {
-      this.skillAnalyserOpen = false;
-      this.resetSkillAnalyser();
+    closeSkillEvaluator() {
+      this.skillEvaluatorOpen = false;
+      this.resetSkillEvaluator();
     },
-    resetSkillAnalyser() {
-      this.skillAnalyserName = "";
-      this.skillAnalyserContent = "";
-      this.skillAnalyserFiles = [];
-      this.skillAnalyserDragActive = false;
-      this.skillAnalyserResult = null;
-      this.skillAnalyserError = null;
-      this.skillAnalyserLoading = false;
+    resetSkillEvaluator() {
+      this.skillEvaluatorName = "";
+      this.skillEvaluatorContent = "";
+      this.skillEvaluatorFiles = [];
+      this.skillEvaluatorDragActive = false;
+      this.skillEvaluatorResult = null;
+      this.skillEvaluatorError = null;
+      this.skillEvaluatorLoading = false;
     },
-    clearSkillAnalyserResult() {
-      this.skillAnalyserResult = null;
-      this.skillAnalyserError = null;
+    clearSkillEvaluatorResult() {
+      this.skillEvaluatorResult = null;
+      this.skillEvaluatorError = null;
     },
 
     /** Read multiple `.md` files via FileReader; populates the file list and
      *  pre-fills the suggestedName from the first file. Skips non-markdown
      *  inputs and surfaces a per-file error if any one fails. */
-    async _ingestSkillAnalyserFiles(fileList: FileList | File[]) {
+    async _ingestSkillEvaluatorFiles(fileList: FileList | File[]) {
       const list = Array.from(fileList).filter(
         (file) =>
           file.name.endsWith(".md") ||
@@ -1520,7 +1520,7 @@ function app() {
           file.type === "text/plain",
       );
       if (list.length === 0) {
-        this.skillAnalyserError =
+        this.skillEvaluatorError =
           "Drop .md / .markdown files only (got 0 valid files).";
         return;
       }
@@ -1543,95 +1543,95 @@ function app() {
       );
       try {
         const loaded = await Promise.all(reads);
-        const existing = new Set(this.skillAnalyserFiles.map((f) => f.name));
+        const existing = new Set(this.skillEvaluatorFiles.map((f) => f.name));
         for (const item of loaded) {
           if (existing.has(item.name)) continue;
-          this.skillAnalyserFiles.push(item);
+          this.skillEvaluatorFiles.push(item);
         }
-        if (!this.skillAnalyserName && this.skillAnalyserFiles[0]) {
-          const first = this.skillAnalyserFiles[0];
-          this.skillAnalyserName = first.name.replace(/\.(md|markdown)$/i, "");
+        if (!this.skillEvaluatorName && this.skillEvaluatorFiles[0]) {
+          const first = this.skillEvaluatorFiles[0];
+          this.skillEvaluatorName = first.name.replace(/\.(md|markdown)$/i, "");
         }
-        this.skillAnalyserError = null;
+        this.skillEvaluatorError = null;
       } catch (err) {
-        this.skillAnalyserError =
+        this.skillEvaluatorError =
           err instanceof Error ? err.message : String(err);
       }
     },
 
     /** File input change handler (multi-select). */
-    loadSkillAnalyserFile(event: Event) {
+    loadSkillEvaluatorFile(event: Event) {
       const input = event.target as HTMLInputElement;
       if (!input.files || input.files.length === 0) return;
-      void this._ingestSkillAnalyserFiles(input.files);
+      void this._ingestSkillEvaluatorFiles(input.files);
       input.value = "";
     },
 
     /** dragover handler — keep the dropzone visually active. */
-    skillAnalyserDragOver(event: DragEvent) {
+    skillEvaluatorDragOver(event: DragEvent) {
       event.preventDefault();
-      this.skillAnalyserDragActive = true;
+      this.skillEvaluatorDragActive = true;
     },
     /** dragleave handler — only clear when leaving the modal card itself. */
-    skillAnalyserDragLeave(event: DragEvent) {
+    skillEvaluatorDragLeave(event: DragEvent) {
       const related = event.relatedTarget as Node | null;
       const target = event.currentTarget as Node | null;
       if (target && related && target.contains(related)) return;
-      this.skillAnalyserDragActive = false;
+      this.skillEvaluatorDragActive = false;
     },
     /** drop handler — read every dropped .md file and append to the list. */
-    skillAnalyserDrop(event: DragEvent) {
+    skillEvaluatorDrop(event: DragEvent) {
       event.preventDefault();
-      this.skillAnalyserDragActive = false;
+      this.skillEvaluatorDragActive = false;
       const files = event.dataTransfer?.files;
       if (!files || files.length === 0) return;
-      void this._ingestSkillAnalyserFiles(files);
+      void this._ingestSkillEvaluatorFiles(files);
     },
     /** Remove one already-attached file by name. */
-    removeSkillAnalyserFile(name: string) {
-      this.skillAnalyserFiles = this.skillAnalyserFiles.filter(
+    removeSkillEvaluatorFile(name: string) {
+      this.skillEvaluatorFiles = this.skillEvaluatorFiles.filter(
         (f) => f.name !== name,
       );
     },
 
-    async runSkillAnalyser() {
-      this.skillAnalyserError = null;
-      this.skillAnalyserResult = null;
-      const hasFiles = this.skillAnalyserFiles.length > 0;
-      const hasContent = this.skillAnalyserContent.trim().length > 0;
+    async runSkillEvaluator() {
+      this.skillEvaluatorError = null;
+      this.skillEvaluatorResult = null;
+      const hasFiles = this.skillEvaluatorFiles.length > 0;
+      const hasContent = this.skillEvaluatorContent.trim().length > 0;
       if (!hasFiles && !hasContent) {
-        this.skillAnalyserError =
+        this.skillEvaluatorError =
           "Drop .md files, upload, or paste markdown first.";
         return;
       }
-      this.skillAnalyserLoading = true;
+      this.skillEvaluatorLoading = true;
       try {
-        const url = `/api/quality/analyse?path=${encodeURIComponent(this.projectPath)}`;
+        const url = `/api/quality/evaluate?path=${encodeURIComponent(this.projectPath)}`;
         const body: Record<string, unknown> = {};
         if (hasFiles) {
-          body.files = this.skillAnalyserFiles;
+          body.files = this.skillEvaluatorFiles;
         } else {
-          body.content = this.skillAnalyserContent;
+          body.content = this.skillEvaluatorContent;
         }
-        const name = this.skillAnalyserName.trim();
+        const name = this.skillEvaluatorName.trim();
         if (name.length > 0) body.suggestedName = name;
         const res = await dashboardFetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        const data = readRecord(await res.json(), "Analyse result");
+        const data = readRecord(await res.json(), "Evaluate result");
         const error = readErrorMessage(data);
         if (error) {
-          this.skillAnalyserError = error;
+          this.skillEvaluatorError = error;
           return;
         }
-        this.skillAnalyserResult = data as unknown as SkillAnalyseResult;
+        this.skillEvaluatorResult = data as unknown as SkillEvaluateResult;
       } catch (err) {
-        this.skillAnalyserError =
+        this.skillEvaluatorError =
           err instanceof Error ? err.message : String(err);
       } finally {
-        this.skillAnalyserLoading = false;
+        this.skillEvaluatorLoading = false;
       }
     },
 

@@ -90,6 +90,8 @@ MUST run `shellcheck` on .sh changes. MUST check cross-references after renames.
 3. **Fix verification.** Do not claim a fix works without running the reproduction steps that originally demonstrated the bug. "Looks correct" is not verification.
 4. **Hedged claims.** Do not use "should work", "probably fine", "looks good" as verification. These are guesses, not evidence.
 
+The red-flags above name WHAT not to claim. The Excuse/Reality table in `.goat-flow/skill-reference/skill-preamble.md` (search: `Rationalisations to reject`) names the specific rationalisations that defeat the red-flags ("I'm confident", "Just this once", "Linter passed", etc.). Apply both before any completion or fix claim.
+
 - **Stop-the-line:** When tests break, builds fail, or behaviour regresses — stop expanding scope. Preserve evidence, return to diagnosis, re-plan before continuing.
 - Level 1 (isolated): note, continue. Level 2 (cross-doc, broken refs, evidence): MUST full stop, wait for human. Two corrections on same approach = MUST rewind.
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.

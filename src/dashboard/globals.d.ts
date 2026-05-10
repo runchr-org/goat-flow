@@ -415,14 +415,14 @@ interface SkillQualityReport {
   prompt?: string;
 }
 
-interface SkillAnalyseTip {
+interface SkillEvaluateTip {
   metric: string;
   severity: SkillQualityMetricSeverity;
   message: string;
 }
 
-interface SkillAnalyseResult extends SkillQualityReport {
-  tips: SkillAnalyseTip[];
+interface SkillEvaluateResult extends SkillQualityReport {
+  tips: SkillEvaluateTip[];
 }
 
 /** One selectable quality-page prompt mode. */

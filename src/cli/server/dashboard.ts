@@ -91,6 +91,10 @@ const DASHBOARD_ROUTE_INVENTORY = [
   { method: "GET", path: "/api/projects/list", class: "privileged-read" },
   { method: "POST", path: "/api/projects/list", class: "side-effectful" },
   { method: "GET", path: "/api/projects/status", class: "privileged-read" },
+  { method: "POST", path: "/api/quality/evaluate", class: "side-effectful" },
+  // Deprecated alias for /api/quality/evaluate. Same handler, response carries
+  // Deprecation + Link headers. Slated for removal one release after the
+  // dashboard-side migration completes.
   { method: "POST", path: "/api/quality/analyse", class: "side-effectful" },
   { method: "POST", path: "/api/terminal/create", class: "side-effectful" },
   { method: "GET", path: "/api/terminal/list", class: "privileged-read" },
@@ -155,7 +159,7 @@ export function serveDashboard(
       handleQualityHistoryRequest,
       handleSkillQualityRequest,
       handleSkillQualityInventoryRequest,
-      handleQualityAnalyseRequest,
+      handleQualityEvaluateRequest,
       handleBrowseRequest,
       handleAgentDetectRequest,
       handleProjectsListRequest,
@@ -233,7 +237,11 @@ export function serveDashboard(
         return true;
       if (method === "POST" && url.pathname === "/api/terminal/create")
         return true;
-      if (method === "POST" && url.pathname === "/api/quality/analyse")
+      if (
+        method === "POST" &&
+        (url.pathname === "/api/quality/evaluate" ||
+          url.pathname === "/api/quality/analyse")
+      )
         return true;
       return method === "DELETE" && url.pathname.startsWith("/api/terminal/");
     }
@@ -314,7 +322,7 @@ export function serveDashboard(
         () => handleQualityHistoryRequest(url, res),
         () => Promise.resolve(handleSkillQualityRequest(url, res)),
         () => Promise.resolve(handleSkillQualityInventoryRequest(url, res)),
-        () => handleQualityAnalyseRequest(req, url, res),
+        () => handleQualityEvaluateRequest(req, url, res),
 
         () => Promise.resolve(handleBrowseRequest(url, res)),
         () => Promise.resolve(handleAgentDetectRequest(url, res)),

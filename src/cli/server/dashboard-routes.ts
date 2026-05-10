@@ -36,8 +36,8 @@ import type { DashboardReport } from "./types.js";
 import type { QualityMode } from "../quality/schema.js";
 import { QUALITY_MODES } from "../quality/schema.js";
 import {
-  analyseContent,
-  analyseUploadedBundle,
+  evaluateContent,
+  evaluateUploadedBundle,
   discoverArtifacts,
   findArtifact,
   scoreArtifact,
@@ -794,7 +794,7 @@ export function createDashboardRouteHandlers(
     url: URL,
     res: ServerResponse,
   ) => boolean;
-  handleQualityAnalyseRequest: (
+  handleQualityEvaluateRequest: (
     req: IncomingMessage,
     url: URL,
     res: ServerResponse,
@@ -1021,7 +1021,7 @@ export function createDashboardRouteHandlers(
       ...base,
       walkRoots: {
         skills: [{ dir: skillsDir, source: skillSourceForDir(skillsDir) }],
-        references: [],
+        references: base.walkRoots.references,
       },
     };
   }
@@ -1424,7 +1424,17 @@ export function createDashboardRouteHandlers(
     return true;
   }
 
-  /** POST /api/quality/analyse — score uploaded markdown and return tips.
+  /** Stamp the deprecation contract on responses served via the `/analyse`
+   *  alias. Called before `jsonResponse` on every status path of the alias. */
+  function markEvaluateAliasDeprecation(res: ServerResponse): void {
+    res.setHeader("Deprecation", "true");
+    res.setHeader("Link", '</api/quality/evaluate>; rel="successor-version"');
+  }
+
+  /** POST /api/quality/evaluate — score uploaded markdown and return tips.
+   * Also handles `POST /api/quality/analyse` as a deprecated alias (responds
+   * with `Deprecation: true` and `Link: <…/evaluate>; rel="successor-version"`
+   * headers; the response body is identical).
    *
    * Body: { content: string, suggestedName?: string, kind?: "skill" | "shared-reference" }.
    * Returns the full SkillQualityReport plus an `tips` array with actionable
@@ -1434,20 +1444,24 @@ export function createDashboardRouteHandlers(
    * is conservative: even though no IO happens, the endpoint is POST so the
    * Origin check applies, and the body cap keeps the engine from being abused
    * as a CPU sink. */
-  async function handleQualityAnalyseRequest(
+  // eslint-disable-next-line complexity -- one handler covers /evaluate + the deprecated /analyse alias across method/decoder/exec/error branches; each branch represents one HTTP outcome and the deprecation header must stamp every alias path
+  async function handleQualityEvaluateRequest(
     req: IncomingMessage,
     url: URL,
     res: ServerResponse,
   ): Promise<boolean> {
-    if (url.pathname !== "/api/quality/analyse") return false;
+    const isAlias = url.pathname === "/api/quality/analyse";
+    if (url.pathname !== "/api/quality/evaluate" && !isAlias) return false;
     if (req.method !== "POST") {
+      if (isAlias) markEvaluateAliasDeprecation(res);
       jsonResponse(res, 405, { error: "Method not allowed" });
       return true;
     }
     const body = await readBody(req);
-    const { decodeAnalyseBody } = await import("./decoders.js");
-    const decoded = decodeAnalyseBody(body);
+    const { decodeEvaluateBody } = await import("./decoders.js");
+    const decoded = decodeEvaluateBody(body);
     if (!decoded.ok) {
+      if (isAlias) markEvaluateAliasDeprecation(res);
       jsonResponse(res, 400, { error: decoded.error, path: decoded.path });
       return true;
     }
@@ -1457,18 +1471,20 @@ export function createDashboardRouteHandlers(
       );
       requireProjectDirectory(projectPath);
       const result = decoded.value.files
-        ? analyseUploadedBundle(projectPath, {
+        ? evaluateUploadedBundle(projectPath, {
             files: decoded.value.files,
             suggestedName: decoded.value.suggestedName,
             kind: decoded.value.kind,
           })
-        : analyseContent(projectPath, {
+        : evaluateContent(projectPath, {
             content: decoded.value.content ?? "",
             suggestedName: decoded.value.suggestedName,
             kind: decoded.value.kind,
           });
+      if (isAlias) markEvaluateAliasDeprecation(res);
       jsonResponse(res, 200, result);
     } catch (err) {
+      if (isAlias) markEvaluateAliasDeprecation(res);
       jsonResponse(res, 500, {
         error: err instanceof Error ? err.message : String(err),
       });
@@ -1636,7 +1652,7 @@ export function createDashboardRouteHandlers(
     handleQualityHistoryRequest,
     handleSkillQualityRequest,
     handleSkillQualityInventoryRequest,
-    handleQualityAnalyseRequest,
+    handleQualityEvaluateRequest,
     handleBrowseRequest,
     handleAgentDetectRequest,
     handleProjectsListRequest,

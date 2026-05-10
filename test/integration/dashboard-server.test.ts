@@ -1487,12 +1487,25 @@ describe("dashboard /api/skill-quality", () => {
     assert.ok(Array.isArray(data.artifacts));
     const artifacts = data.artifacts as Array<Record<string, unknown>>;
     assert.ok(
-      artifacts.length >= 7,
-      `expected at least 7 artifacts, got ${artifacts.length}`,
+      artifacts.length >= 12,
+      `expected at least 12 artifacts (skills + shared references), got ${artifacts.length}`,
     );
-    assert.ok(artifacts.every((a) => a.kind === "skill"));
+    assert.ok(artifacts.some((a) => a.kind === "skill"));
+    assert.ok(artifacts.some((a) => a.kind === "shared-reference"));
     assert.ok(artifacts.some((a) => a.id === "skill:goat-plan"));
-    assert.ok(!artifacts.some((a) => a.id === "reference:browser-use"));
+    assert.ok(artifacts.some((a) => a.id === "reference:browser-use"));
+    assert.ok(artifacts.some((a) => a.id === "reference:skill-preamble"));
+  });
+
+  it("returns shared references regardless of selected agent", async () => {
+    const { res, body } = await fetchJson(
+      `/api/skill-quality/inventory?path=${encodeURIComponent(PROJECT_PATH)}&agent=codex`,
+    );
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Skill quality inventory");
+    const artifacts = data.artifacts as Array<Record<string, unknown>>;
+    assert.ok(artifacts.some((a) => a.id === "reference:browser-use"));
+    assert.ok(artifacts.some((a) => a.id === "reference:skill-preamble"));
   });
 
   it("uses the selected runner skills directory for inventory", async () => {
@@ -1567,7 +1580,7 @@ describe("dashboard /api/skill-quality", () => {
   });
 });
 
-describe("dashboard /api/quality/analyse", () => {
+describe("dashboard /api/quality/evaluate", () => {
   const SKILL_DRAFT = [
     "---",
     "name: postgres-index",
@@ -1588,7 +1601,7 @@ describe("dashboard /api/quality/analyse", () => {
   ].join("\n");
 
   it("returns a quality report and improvement tips for an uploaded skill", async () => {
-    const { res, body } = await fetchJson("/api/quality/analyse", {
+    const { res, body } = await fetchJson("/api/quality/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1598,8 +1611,8 @@ describe("dashboard /api/quality/analyse", () => {
       }),
     });
     assert.equal(res.status, 200);
-    const data = expectRecord(body, "Analyse result");
-    const artifact = expectRecord(data.artifact, "Analyse result.artifact");
+    const data = expectRecord(body, "Evaluate result");
+    const artifact = expectRecord(data.artifact, "Evaluate result.artifact");
     assert.equal(artifact.kind, "skill");
     assert.equal(typeof data.totalScore, "number");
     assert.equal(typeof data.profileMax, "number");
@@ -1610,14 +1623,14 @@ describe("dashboard /api/quality/analyse", () => {
   });
 
   it("infers the artifact kind when no explicit kind is provided", async () => {
-    const { res, body } = await fetchJson("/api/quality/analyse", {
+    const { res, body } = await fetchJson("/api/quality/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: SKILL_DRAFT }),
     });
     assert.equal(res.status, 200);
-    const data = expectRecord(body, "Analyse result");
-    const artifact = expectRecord(data.artifact, "Analyse result.artifact");
+    const data = expectRecord(body, "Evaluate result");
+    const artifact = expectRecord(data.artifact, "Evaluate result.artifact");
     assert.equal(artifact.kind, "skill");
   });
 
@@ -1627,13 +1640,13 @@ describe("dashboard /api/quality/analyse", () => {
       "",
       "Some prose without sections, frontmatter, or evidence.",
     ].join("\n");
-    const { res, body } = await fetchJson("/api/quality/analyse", {
+    const { res, body } = await fetchJson("/api/quality/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: weakDraft, kind: "skill" }),
     });
     assert.equal(res.status, 200);
-    const data = expectRecord(body, "Analyse result");
+    const data = expectRecord(body, "Evaluate result");
     assert.ok(Array.isArray(data.tips));
     assert.ok(
       (data.tips as unknown[]).length > 0,
@@ -1642,7 +1655,7 @@ describe("dashboard /api/quality/analyse", () => {
   });
 
   it("returns 400 for empty content", async () => {
-    const { res } = await fetchJson("/api/quality/analyse", {
+    const { res } = await fetchJson("/api/quality/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: "" }),
@@ -1651,7 +1664,7 @@ describe("dashboard /api/quality/analyse", () => {
   });
 
   it("returns 400 for missing content", async () => {
-    const { res } = await fetchJson("/api/quality/analyse", {
+    const { res } = await fetchJson("/api/quality/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ suggestedName: "x.md" }),
@@ -1660,7 +1673,7 @@ describe("dashboard /api/quality/analyse", () => {
   });
 
   it("returns 400 for an invalid kind value", async () => {
-    const { res } = await fetchJson("/api/quality/analyse", {
+    const { res } = await fetchJson("/api/quality/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: SKILL_DRAFT, kind: "not-a-kind" }),
@@ -1669,7 +1682,7 @@ describe("dashboard /api/quality/analyse", () => {
   });
 
   it("returns 405 for non-POST methods", async () => {
-    const { res } = await fetchJson("/api/quality/analyse");
+    const { res } = await fetchJson("/api/quality/evaluate");
     assert.equal(res.status, 405);
   });
 
@@ -1700,7 +1713,7 @@ describe("dashboard /api/quality/analyse", () => {
       "",
       "Used by Phase 1 to scaffold the report body.",
     ].join("\n");
-    const { res, body } = await fetchJson("/api/quality/analyse", {
+    const { res, body } = await fetchJson("/api/quality/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1714,7 +1727,7 @@ describe("dashboard /api/quality/analyse", () => {
       }),
     });
     assert.equal(res.status, 200);
-    const data = expectRecord(body, "Bundle analyse result");
+    const data = expectRecord(body, "Bundle evaluate result");
     const composed = data.composedFrom as string[];
     assert.ok(Array.isArray(composed), "composedFrom must be an array");
     for (const expected of ["SKILL.md", "workflow.md", "template.md"]) {
@@ -1728,7 +1741,7 @@ describe("dashboard /api/quality/analyse", () => {
   });
 
   it("returns 400 when both content and files are set", async () => {
-    const { res } = await fetchJson("/api/quality/analyse", {
+    const { res } = await fetchJson("/api/quality/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1740,7 +1753,7 @@ describe("dashboard /api/quality/analyse", () => {
   });
 
   it("returns 400 when neither content nor files is set", async () => {
-    const { res } = await fetchJson("/api/quality/analyse", {
+    const { res } = await fetchJson("/api/quality/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ suggestedName: "x" }),
@@ -1749,7 +1762,7 @@ describe("dashboard /api/quality/analyse", () => {
   });
 
   it("returns 400 for an empty files array", async () => {
-    const { res } = await fetchJson("/api/quality/analyse", {
+    const { res } = await fetchJson("/api/quality/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ files: [] }),
@@ -1758,7 +1771,7 @@ describe("dashboard /api/quality/analyse", () => {
   });
 
   it("returns 400 for a file with a path-separator in its name", async () => {
-    const { res } = await fetchJson("/api/quality/analyse", {
+    const { res } = await fetchJson("/api/quality/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1769,7 +1782,7 @@ describe("dashboard /api/quality/analyse", () => {
   });
 
   it("returns 400 for duplicate filenames in the bundle", async () => {
-    const { res } = await fetchJson("/api/quality/analyse", {
+    const { res } = await fetchJson("/api/quality/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1780,6 +1793,58 @@ describe("dashboard /api/quality/analyse", () => {
       }),
     });
     assert.equal(res.status, 400);
+  });
+});
+
+describe("dashboard /api/quality/analyse (deprecated alias)", () => {
+  const SKILL_DRAFT = [
+    "---",
+    "name: postgres-index",
+    "description: Walk through a Postgres index change with explicit evidence gates.",
+    "goat-flow-skill-version: 1.5.1",
+    "---",
+    "# /postgres-index",
+    "",
+    "## Step 0",
+    "Read CLAUDE.md and the migration file.",
+    "",
+    "## Phase 1",
+    "Plan the index change with downtime estimate.",
+    "",
+    "## Verification",
+    "- [ ] Lock acquisition under 100ms in staging.",
+  ].join("\n");
+
+  it("scores via the alias and emits Deprecation + Link headers", async () => {
+    const { res, body } = await fetchJson("/api/quality/analyse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: SKILL_DRAFT, kind: "skill" }),
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("deprecation"), "true");
+    assert.match(
+      String(res.headers.get("link") ?? ""),
+      /\/api\/quality\/evaluate.*successor-version/,
+    );
+    const data = expectRecord(body, "Alias evaluate result");
+    assert.equal(typeof data.totalScore, "number");
+    assert.ok(Array.isArray(data.metrics));
+  });
+
+  it("emits the Deprecation header on alias 400 responses too", async () => {
+    const { res } = await fetchJson("/api/quality/analyse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "" }),
+    });
+    assert.equal(res.status, 400);
+    assert.equal(res.headers.get("deprecation"), "true");
+  });
+
+  it("returns 405 for non-POST on the alias", async () => {
+    const { res } = await fetchJson("/api/quality/analyse");
+    assert.equal(res.status, 405);
   });
 });
 
