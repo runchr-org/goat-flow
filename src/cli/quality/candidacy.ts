@@ -173,7 +173,7 @@ function analyzeDraft(
       reasoning,
       nextSteps: [
         {
-          action: "Place under .goat-flow/skill-reference/<name>.md",
+          action: "Place under .goat-flow/skill-playbooks/<name>.md",
           template: "playbook",
         },
       ],
@@ -187,7 +187,7 @@ function analyzeDraft(
       reasoning,
       nextSteps: [
         {
-          action: "Place under .goat-flow/skill-reference/<name>.md",
+          action: "Place under .goat-flow/skill-playbooks/<name>.md",
           template: "index",
         },
       ],

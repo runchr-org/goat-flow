@@ -150,6 +150,44 @@ function isSafeEntry(path: string): boolean {
   }
 }
 
+interface ReferenceCandidate {
+  name: string;
+  path: string;
+}
+
+function referenceIdSegment(value: string): string {
+  return (
+    value
+      .replace(/^\.+\/?/u, "")
+      .replace(/[^a-z0-9_-]+/giu, "-")
+      .replace(/^-+|-+$/gu, "")
+      .toLowerCase() || "reference-root"
+  );
+}
+
+function referenceArtifactId(
+  candidate: ReferenceCandidate,
+  nameCounts: ReadonlyMap<string, number>,
+  usedIds: Set<string>,
+): string {
+  const duplicateName = (nameCounts.get(candidate.name) ?? 0) > 1;
+  const baseId = duplicateName
+    ? `reference:${referenceIdSegment(dirname(candidate.path))}:${candidate.name}`
+    : `reference:${candidate.name}`;
+  let id = baseId;
+  let suffix = 2;
+  while (usedIds.has(id)) {
+    id = `${baseId}:${suffix}`;
+    suffix += 1;
+  }
+  usedIds.add(id);
+  return id;
+}
+
+function uploadedSharedReferencePath(name: string): string {
+  return `.goat-flow/skill-playbooks/${name}.md`;
+}
+
 function registerSkillArtifact(
   projectRoot: string,
   artifactsById: Map<string, ArtifactEntry>,
@@ -221,6 +259,7 @@ export function discoverArtifacts(
     addMissingMirrorMetadata(projectRoot, artifact, config),
   );
 
+  const referenceCandidates: ReferenceCandidate[] = [];
   for (const { dir } of config.walkRoots.references) {
     const refDir = join(projectRoot, dir);
     if (!existsSync(refDir)) continue;
@@ -229,14 +268,29 @@ export function discoverArtifacts(
       if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
       if (entry.name === "README.md" || !isSafeEntry(filePath)) continue;
       const name = entry.name.replace(/\.md$/, "");
-      artifacts.push({
-        id: `reference:${name}`,
+      referenceCandidates.push({
         name,
         path: relative(projectRoot, filePath),
-        kind: "shared-reference",
-        source: "shared-reference",
       });
     }
+  }
+
+  const referenceNameCounts = new Map<string, number>();
+  for (const candidate of referenceCandidates) {
+    referenceNameCounts.set(
+      candidate.name,
+      (referenceNameCounts.get(candidate.name) ?? 0) + 1,
+    );
+  }
+  const usedReferenceIds = new Set(artifacts.map((artifact) => artifact.id));
+  for (const candidate of referenceCandidates) {
+    artifacts.push({
+      id: referenceArtifactId(candidate, referenceNameCounts, usedReferenceIds),
+      name: candidate.name,
+      path: candidate.path,
+      kind: "shared-reference",
+      source: "shared-reference",
+    });
   }
 
   return artifacts;
@@ -1523,7 +1577,7 @@ export function evaluateContent(
     path:
       kind === "skill"
         ? `.claude/skills/${name}/SKILL.md`
-        : `.goat-flow/skill-reference/${name}.md`,
+        : uploadedSharedReferencePath(name),
     kind,
     source: kind === "skill" ? "installed" : "shared-reference",
     mirrorPaths: [],
@@ -1580,7 +1634,7 @@ export function evaluateUploadedBundle(
     path:
       kind === "skill"
         ? `.claude/skills/${name}/SKILL.md`
-        : `.goat-flow/skill-reference/${name}.md`,
+        : uploadedSharedReferencePath(name),
     kind,
     source: kind === "skill" ? "installed" : "shared-reference",
     mirrorPaths: [],

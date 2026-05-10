@@ -15,6 +15,7 @@ import {
 } from "../../src/cli/agents/registry.js";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
 import { normalizeAgentVersionOutput } from "../../src/cli/server/dashboard-routes.js";
+import { TERMINAL_UPLOAD_MAX_BODY_BYTES } from "../../src/cli/server/terminal-uploads.js";
 import { detectSetupStack } from "../../src/cli/detect/project-stack.js";
 import { createFS } from "../../src/cli/facts/fs.js";
 import type { AgentId } from "../../src/cli/types.js";
@@ -1707,6 +1708,15 @@ describe("dashboard /api/quality/evaluate", () => {
     assert.match(String(data.error), /Evaluate body too large/);
   });
 
+  it("counts evaluate content caps in UTF-8 bytes, not UTF-16 characters", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "€".repeat(90 * 1024) }),
+    });
+    assert.equal(res.status, 400);
+  });
+
   it("returns 405 for non-POST methods", async () => {
     const { res } = await fetchJson("/api/quality/evaluate");
     assert.equal(res.status, 405);
@@ -1816,6 +1826,31 @@ describe("dashboard /api/quality/evaluate", () => {
           { name: "SKILL.md", content: "# a" },
           { name: "SKILL.md", content: "# b" },
         ],
+      }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("counts evaluate bundle content caps in UTF-8 bytes", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        files: [
+          { name: "one.md", content: "€".repeat(44 * 1024) },
+          { name: "two.md", content: "€".repeat(44 * 1024) },
+        ],
+      }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("counts evaluate filenames in UTF-8 bytes", async () => {
+    const { res } = await fetchJson("/api/quality/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        files: [{ name: `${"é".repeat(130)}.md`, content: "# x" }],
       }),
     });
     assert.equal(res.status, 400);
@@ -2087,6 +2122,17 @@ describe("dashboard terminal endpoints", () => {
     assert.equal(res.status, 400);
     const data = expectRecord(body, "Upload bad-json error");
     assert.match(String(data.error), /invalid JSON/);
+  });
+
+  it("POST /api/terminal/:id/upload-image returns JSON 413 for oversized bodies", async () => {
+    const { res, body } = await fetchJson("/api/terminal/sess-x/upload-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "x".repeat(TERMINAL_UPLOAD_MAX_BODY_BYTES + 1),
+    });
+    assert.equal(res.status, 413);
+    const data = expectRecord(body, "Upload oversized error");
+    assert.match(String(data.error), /Upload body too large/);
   });
 });
 

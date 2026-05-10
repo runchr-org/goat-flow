@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { runSkillNew } from "../../src/cli/skill-author.js";
+import { runSkillNew, SkillNewInputError } from "../../src/cli/skill-author.js";
 
 function makeTempProject(): string {
   return mkdtempSync(join(tmpdir(), "goat-flow-skill-author-"));
@@ -72,7 +72,7 @@ describe("skill new — description mode", () => {
     }
     assert.ok(result.written);
     assert.ok(
-      result.proposedPath?.endsWith(".goat-flow/skill-reference/lefthook.md"),
+      result.proposedPath?.endsWith(".goat-flow/skill-playbooks/lefthook.md"),
     );
     const content = readFileSync(result.proposedPath!, "utf-8");
     assert.match(content, /## Availability Check/);
@@ -154,6 +154,22 @@ describe("skill new — description mode", () => {
     assert.ok(
       result.postScaffoldScore!.totalScore <=
         result.postScaffoldScore!.profileMax,
+    );
+  });
+
+  it("rejects mixed description, draft, and interactive input modes", async () => {
+    const projectRoot = makeTempProject();
+    await assert.rejects(
+      runSkillNew({
+        description: "I want a workflow that walks through deploys.",
+        draftPath: join(projectRoot, "draft.md"),
+        interactive: true,
+        projectRoot,
+        stdinAnswers: [],
+      }),
+      (err) =>
+        err instanceof SkillNewInputError &&
+        /exactly one input mode/.test(err.message),
     );
   });
 });

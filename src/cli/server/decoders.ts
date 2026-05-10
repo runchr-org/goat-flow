@@ -301,6 +301,10 @@ const MAX_EVALUATE_NAME_BYTES = 200;
 const MAX_EVALUATE_FILES = 32;
 const MAX_EVALUATE_FILENAME_BYTES = 256;
 
+function utf8ByteLength(value: string): number {
+  return Buffer.byteLength(value, "utf8");
+}
+
 /** Decode the optional `suggestedName` and `kind` fields shared between the
  *  single-content and multi-file evaluate payloads. */
 function decodeEvaluateOptionals(obj: Record<string, unknown>): DecodeResult<{
@@ -312,7 +316,7 @@ function decodeEvaluateOptionals(obj: Record<string, unknown>): DecodeResult<{
     if (typeof obj.suggestedName !== "string") {
       return err("body.suggestedName", "must be a string");
     }
-    if (obj.suggestedName.length > MAX_EVALUATE_NAME_BYTES) {
+    if (utf8ByteLength(obj.suggestedName) > MAX_EVALUATE_NAME_BYTES) {
       return err(
         "body.suggestedName",
         `must be at most ${MAX_EVALUATE_NAME_BYTES} bytes`,
@@ -356,7 +360,7 @@ function decodeEvaluateFiles(
     if (typeof item.name !== "string" || item.name.length === 0) {
       return err(`body.files[${index}].name`, "must be a non-empty string");
     }
-    if (item.name.length > MAX_EVALUATE_FILENAME_BYTES) {
+    if (utf8ByteLength(item.name) > MAX_EVALUATE_FILENAME_BYTES) {
       return err(
         `body.files[${index}].name`,
         `must be at most ${MAX_EVALUATE_FILENAME_BYTES} bytes`,
@@ -378,7 +382,7 @@ function decodeEvaluateFiles(
     if (typeof item.content !== "string") {
       return err(`body.files[${index}].content`, "must be a string");
     }
-    totalBytes += item.content.length;
+    totalBytes += utf8ByteLength(item.content);
     if (totalBytes > MAX_EVALUATE_CONTENT_BYTES) {
       return err(
         "body.files",
@@ -413,7 +417,7 @@ export function decodeEvaluateBody(body: string): DecodeResult<EvaluateBody> {
     if (typeof obj.content !== "string" || obj.content.trim().length === 0) {
       return err("body.content", "must be a non-empty markdown string");
     }
-    if (obj.content.length > MAX_EVALUATE_CONTENT_BYTES) {
+    if (utf8ByteLength(obj.content) > MAX_EVALUATE_CONTENT_BYTES) {
       return err(
         "body.content",
         `must be at most ${MAX_EVALUATE_CONTENT_BYTES} bytes`,

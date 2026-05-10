@@ -65,6 +65,11 @@ describe("runCandidacyCheck — draft mode", () => {
     if (result.recommendedArtifact.type === "reference") {
       assert.equal(result.recommendedArtifact.subtype, "playbook");
     }
+    assert.ok(
+      result.nextSteps.some((step) =>
+        step.action.includes(".goat-flow/skill-playbooks/<name>.md"),
+      ),
+    );
   });
 
   it("recommends reference (index) when content has 'which file to load'", () => {
@@ -80,6 +85,11 @@ describe("runCandidacyCheck — draft mode", () => {
     if (result.recommendedArtifact.type === "reference") {
       assert.equal(result.recommendedArtifact.subtype, "index");
     }
+    assert.ok(
+      result.nextSteps.some((step) =>
+        step.action.includes(".goat-flow/skill-playbooks/<name>.md"),
+      ),
+    );
   });
 
   it("recommends learning-loop (lesson) for incident-named drafts", () => {

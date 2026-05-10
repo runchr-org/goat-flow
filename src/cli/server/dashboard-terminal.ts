@@ -246,16 +246,24 @@ export function createDashboardTerminalHandlers(
     return new Promise((resolveBody, rejectBody) => {
       const chunks: Buffer[] = [];
       let size = 0;
+      let tooLarge = false;
       req.on("data", (chunk: Buffer) => {
         size += chunk.length;
+        if (tooLarge) {
+          return;
+        }
         if (size > TERMINAL_UPLOAD_MAX_BODY_BYTES) {
-          req.destroy();
-          rejectBody(new Error("Upload body too large"));
+          tooLarge = true;
+          chunks.length = 0;
           return;
         }
         chunks.push(chunk);
       });
       req.on("end", () => {
+        if (tooLarge) {
+          rejectBody(new Error("Upload body too large"));
+          return;
+        }
         resolveBody(Buffer.concat(chunks).toString("utf-8"));
       });
       req.on("error", rejectBody);

@@ -259,7 +259,14 @@ interface SkillNewResult {
 }
 
 const SKILL_DIR = ".claude/skills";
-const REFERENCE_DIR = ".goat-flow/skill-reference";
+const PLAYBOOK_DIR = ".goat-flow/skill-playbooks";
+
+export class SkillNewInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SkillNewInputError";
+  }
+}
 
 interface ResolvedScaffold {
   template: string;
@@ -299,9 +306,25 @@ function resolveScaffold(
   const template = TEMPLATES_BY_SUBTYPE[choice.templateKey];
   if (!template) return null;
   const proposedPath = choice.isReference
-    ? join(projectRoot, REFERENCE_DIR, `${name}.md`)
+    ? join(projectRoot, PLAYBOOK_DIR, `${name}.md`)
     : join(projectRoot, SKILL_DIR, name, "SKILL.md");
   return { template, proposedPath, isReference: choice.isReference };
+}
+
+function selectedInputModes(options: SkillNewOptions): string[] {
+  const modes: string[] = [];
+  if ((options.description ?? "").trim().length > 0) modes.push("description");
+  if ((options.draftPath ?? "").trim().length > 0) modes.push("--draft");
+  if (options.interactive) modes.push("--interactive");
+  return modes;
+}
+
+function assertSingleInputMode(options: SkillNewOptions): void {
+  const modes = selectedInputModes(options);
+  if (modes.length <= 1) return;
+  throw new SkillNewInputError(
+    `skill new accepts exactly one input mode; received ${modes.join(", ")}. Use one of: description, --draft, --interactive.`,
+  );
 }
 
 function isValidSkillName(name: string): boolean {
@@ -660,6 +683,7 @@ async function runInteractiveMode(
 export async function runSkillNew(
   options: SkillNewOptions,
 ): Promise<SkillNewResult> {
+  assertSingleInputMode(options);
   const prompts =
     options.stdinAnswers !== undefined
       ? fakePrompts(options.stdinAnswers)

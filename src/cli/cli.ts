@@ -1403,15 +1403,23 @@ async function handleSkillCommand(options: ParsedCLI): Promise<void> {
       2,
     );
   }
-  const { runSkillNew } = await import("./skill-author.js");
-  const result = await runSkillNew({
-    description: options.skillDescription ?? undefined,
-    draftPath: options.skillDraftPath ?? undefined,
-    interactive: options.skillInteractive,
-    name: options.skillName ?? undefined,
-    skipConfirm: options.skillSkipConfirm,
-    projectRoot: options.projectPath,
-  });
+  const { runSkillNew, SkillNewInputError } = await import("./skill-author.js");
+  let result: Awaited<ReturnType<typeof runSkillNew>>;
+  try {
+    result = await runSkillNew({
+      description: options.skillDescription ?? undefined,
+      draftPath: options.skillDraftPath ?? undefined,
+      interactive: options.skillInteractive,
+      name: options.skillName ?? undefined,
+      skipConfirm: options.skillSkipConfirm,
+      projectRoot: options.projectPath,
+    });
+  } catch (err) {
+    if (err instanceof SkillNewInputError) {
+      throw new CLIError(err.message, 2);
+    }
+    throw err;
+  }
   if (options.format === "json") {
     writeOutput(
       options,

@@ -13,6 +13,7 @@ import { dirname, join, resolve } from "node:path";
 import {
   discoverArtifacts,
   evaluateContent,
+  evaluateUploadedBundle,
   findArtifact,
   scoreArtifact,
   scoreAllArtifacts,
@@ -50,7 +51,7 @@ describe("artifact discovery", () => {
     assert.ok(skills.some((s) => s.id === "skill:goat-review"));
   });
 
-  it("discovers shared references from .goat-flow/skill-reference/", () => {
+  it("discovers shared references and playbooks", () => {
     const artifacts = discoverArtifacts(PROJECT_ROOT);
     const refs = artifacts.filter((a) => a.kind === "shared-reference");
     assert.ok(refs.some((r) => r.id === "reference:browser-use"));
@@ -687,6 +688,68 @@ describe("recommendation gates", () => {
     const tool = report.metrics.find((m) => m.metric === "tool-deps")!;
     assert.ok(tool.score >= 8, `expected tool score >= 8, got ${tool.score}`);
     assert.ok(report.composedFrom.includes("references/browser-use.md"));
+  });
+
+  it("uses unique IDs when shared-reference basenames exist in both roots", () => {
+    const projectRoot = makeTempProject();
+    writeText(
+      join(projectRoot, ".goat-flow/skill-reference/browser-use.md"),
+      "# Legacy Browser Use\n",
+    );
+    writeText(
+      join(projectRoot, ".goat-flow/skill-playbooks/browser-use.md"),
+      "# Browser Use\n\n## Availability Check\ncommand -v browser-use\n",
+    );
+
+    const refs = discoverArtifacts(projectRoot).filter(
+      (artifact) =>
+        artifact.kind === "shared-reference" && artifact.name === "browser-use",
+    );
+    assert.equal(refs.length, 2);
+    assert.equal(new Set(refs.map((artifact) => artifact.id)).size, 2);
+    assert.ok(
+      refs.some((artifact) =>
+        artifact.id.includes("goat-flow-skill-reference"),
+      ),
+    );
+    assert.ok(
+      refs.some((artifact) =>
+        artifact.id.includes("goat-flow-skill-playbooks"),
+      ),
+    );
+  });
+});
+
+describe("uploaded shared-reference evaluation", () => {
+  it("uses the skill-playbooks path for single uploaded shared references", () => {
+    const report = evaluateContent(PROJECT_ROOT, {
+      content: "# Lefthook\n\n## Availability Check\ncommand -v lefthook\n",
+      suggestedName: "lefthook.md",
+      kind: "shared-reference",
+    });
+
+    assert.equal(
+      report.artifact.path,
+      ".goat-flow/skill-playbooks/lefthook.md",
+    );
+  });
+
+  it("uses the skill-playbooks path for uploaded shared-reference bundles", () => {
+    const report = evaluateUploadedBundle(PROJECT_ROOT, {
+      files: [
+        {
+          name: "lefthook.md",
+          content: "# Lefthook\n\n## Availability Check\ncommand -v lefthook\n",
+        },
+      ],
+      suggestedName: "lefthook",
+      kind: "shared-reference",
+    });
+
+    assert.equal(
+      report.artifact.path,
+      ".goat-flow/skill-playbooks/lefthook.md",
+    );
   });
 });
 
