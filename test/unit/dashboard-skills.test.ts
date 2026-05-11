@@ -59,7 +59,23 @@ describe("Skills dashboard view", () => {
     const appSource = readFileSync(DASHBOARD_APP_PATH, "utf-8");
 
     assert.match(appSource, /body\.kind = "skill"/);
-    assert.match(viewSource, /Evaluation runs on this local dashboard server\./);
+    assert.match(
+      viewSource,
+      /Evaluation runs on this local dashboard server\./,
+    );
     assert.doesNotMatch(viewSource, /No data leaves your browser/);
+  });
+
+  it("puts skill evaluation report copy feedback in the modal header", () => {
+    const viewSource = readFileSync(SKILLS_VIEW_PATH, "utf-8");
+    const appSource = readFileSync(DASHBOARD_APP_PATH, "utf-8");
+
+    assert.match(
+      viewSource,
+      /class="gf-modal-actions"[\s\S]*@click="skillEvaluatorReportCopied = true; copySkillEvaluatorReport\(\)"[\s\S]*x-text="skillEvaluatorReportCopied \? 'Copied' : 'Copy report'"/,
+    );
+    assert.doesNotMatch(viewSource, /gf-mrf-actions/);
+    assert.match(appSource, /skillEvaluatorReportCopied:\s*false/);
+    assert.match(appSource, /skillEvaluatorReportCopied = false/);
   });
 });
