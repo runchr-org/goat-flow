@@ -502,6 +502,14 @@ function checkDenyPatterns(ctx: AuditContext): AuditFailure | null {
   return null;
 }
 
+/**
+ * Audit evidence paths are user-visible in text/markdown/JSON output. Force
+ * forward slashes so Windows and POSIX agree on the rendered shape.
+ */
+function evidencePath(relPath: string): string {
+  return relPath.replace(/\\/g, "/");
+}
+
 /** Compare installed deny hook content against the canonical template. */
 function checkHookVersion(ctx: AuditContext): AuditFailure | null {
   const templateFiles = ["deny-dangerous.sh", "deny-dangerous.self-test.sh"];
@@ -525,7 +533,7 @@ function checkHookVersion(ctx: AuditContext): AuditFailure | null {
         return {
           check: "Agent deny mechanism",
           message: `${templateFile} is missing for ${af.agent.id}`,
-          evidence: installedRelPath,
+          evidence: evidencePath(installedRelPath),
           howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${af.agent.id}\` to update the hook files.`,
         };
       }
@@ -533,7 +541,7 @@ function checkHookVersion(ctx: AuditContext): AuditFailure | null {
         return {
           check: "Agent deny mechanism",
           message: `${templateFile} for ${af.agent.id} differs from the current goat-flow template (v${AUDIT_VERSION})`,
-          evidence: installedRelPath,
+          evidence: evidencePath(installedRelPath),
           howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${af.agent.id}\` to update the hook files.`,
         };
       }
@@ -561,7 +569,7 @@ function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
       return {
         check: "Agent deny mechanism",
         message: `deny-dangerous.sh --self-test=smoke failed for ${af.agent.id}`,
-        evidence: denyRelPath,
+        evidence: evidencePath(denyRelPath),
         howToFix:
           "Run `bash <hooks-dir>/deny-dangerous.sh --self-test=smoke` to see which cases fail.",
       };

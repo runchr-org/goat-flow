@@ -211,6 +211,13 @@ function uploadedSharedReferencePath(name: string): string {
   return `.goat-flow/skill-playbooks/${name}.md`;
 }
 
+/** Forward-slash a relative project path so artifact records render the same
+ *  on Windows and POSIX. fs operations accept either separator; user-visible
+ *  paths (dashboard, JSON output, log entries) must not. */
+function relPosix(projectRoot: string, target: string): string {
+  return relative(projectRoot, target).replace(/\\/g, "/");
+}
+
 function registerSkillArtifact(
   projectRoot: string,
   artifactsById: Map<string, ArtifactEntry>,
@@ -219,7 +226,7 @@ function registerSkillArtifact(
   source: ArtifactSource,
 ): void {
   const id = `skill:${name}`;
-  const path = relative(projectRoot, skillFile);
+  const path = relPosix(projectRoot, skillFile);
   const existing = artifactsById.get(id);
   if (existing) {
     existing.mirrorPaths = [...(existing.mirrorPaths ?? []), path];
@@ -243,7 +250,7 @@ function addMissingMirrorMetadata(
 ): ArtifactEntry {
   if (artifact.kind !== "skill") return artifact;
   const expected = config.walkRoots.skills.map(({ dir }) =>
-    relative(projectRoot, join(projectRoot, dir, artifact.name, "SKILL.md")),
+    relPosix(projectRoot, join(projectRoot, dir, artifact.name, "SKILL.md")),
   );
   const present = new Set([artifact.path, ...(artifact.mirrorPaths ?? [])]);
   return {
@@ -293,7 +300,7 @@ export function discoverArtifacts(
       const name = entry.name.replace(/\.md$/, "");
       referenceCandidates.push({
         name,
-        path: relative(projectRoot, filePath),
+        path: relPosix(projectRoot, filePath),
       });
     }
   }

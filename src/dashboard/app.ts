@@ -133,6 +133,20 @@ function app() {
     get terminalAwaitingInput(): boolean {
       return this._activeSession?.awaitingInput === true;
     },
+    /**
+     * True when the active terminal is connected but the runner has not
+     * produced any output yet. Surfaces the gap between WebSocket attach
+     * (~100 ms) and Claude Code's first PTY paint (~5 s observed in M01) so
+     * users see in-place progress instead of a silent terminal.
+     */
+    get terminalWaitingForRunner(): boolean {
+      const session = this._activeSession;
+      if (!session) return false;
+      if (!session.connected || session.ended) return false;
+      if (session.awaitingInput) return false;
+      const tail = session.outputTail ?? "";
+      return tail.length === 0;
+    },
     /** Return the active terminal age label. */
     get terminalAge(): string {
       return this._activeSession?.age ?? "";

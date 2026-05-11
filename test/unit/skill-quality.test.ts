@@ -1,4 +1,5 @@
 import { describe, it } from "node:test";
+import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
 import {
   mkdirSync,
@@ -9,6 +10,26 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+
+/** Symlink helper that skips the surrounding test if the host (Windows
+ *  without Developer Mode) blocks unprivileged symlink creation. */
+function symlinkOrSkip(t: TestContext, target: string, link: string): boolean {
+  try {
+    symlinkSync(target, link);
+    return true;
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      (err as NodeJS.ErrnoException).code === "EPERM"
+    ) {
+      t.skip(
+        "Skipped: host blocks unprivileged symlinks (Windows without Developer Mode)",
+      );
+      return false;
+    }
+    throw err;
+  }
+}
 
 import {
   discoverArtifacts,
@@ -165,7 +186,7 @@ describe("artifact discovery", () => {
     ]);
   });
 
-  it("skips symlink entries in skill walk roots", () => {
+  it("skips symlink entries in skill walk roots", (t) => {
     const projectRoot = makeTempProject();
     mkdirSync(join(projectRoot, ".claude/skills/real"), { recursive: true });
     writeFileSync(
@@ -179,10 +200,15 @@ describe("artifact discovery", () => {
         "# /real",
       ].join("\n"),
     );
-    symlinkSync(
-      join(projectRoot, ".claude/skills/real"),
-      join(projectRoot, ".claude/skills/link"),
-    );
+    if (
+      !symlinkOrSkip(
+        t,
+        join(projectRoot, ".claude/skills/real"),
+        join(projectRoot, ".claude/skills/link"),
+      )
+    ) {
+      return;
+    }
     const artifacts = discoverArtifacts(projectRoot);
     assert.ok(artifacts.some((artifact) => artifact.id === "skill:real"));
     assert.ok(!artifacts.some((artifact) => artifact.id === "skill:link"));

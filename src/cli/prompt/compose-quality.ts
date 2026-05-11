@@ -8,9 +8,21 @@ import type { QualityHistoryEntry } from "../quality/history.js";
 import { loadManifest } from "../manifest/manifest.js";
 import { getAgentProfile } from "../agents/registry.js";
 import { getPackageVersion } from "../paths.js";
-import { resolve } from "node:path";
+import { posix } from "node:path";
 import { QUALITY_REPORT_KIND, type QualityMode } from "../quality/schema.js";
 import type { SkillQualityReport } from "../quality/skill-quality.js";
+
+/**
+ * Build the forward-slash project sub-path that goes inside a Bash snippet in
+ * the prompt. On Windows `path.resolve` returns backslashes and (worse) drive-
+ * prefixes POSIX-shape inputs; `path.posix.join` keeps the input shape and
+ * forces forward-slash separators for the appended segment. The follow-up
+ * `\\` → `/` pass cleans any backslashes that survived from a host-native
+ * projectPath.
+ */
+function toShellProjectPath(projectPath: string, sub: string): string {
+  return posix.join(projectPath, sub).replace(/\\/g, "/");
+}
 
 interface QualityInput {
   agent: AgentId;
@@ -324,7 +336,7 @@ function appendFocusedReportContract(
   lines.push('STAMP="$(date +"%Y-%m-%d-%H%M")"');
   lines.push("RAND=\"$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 5)\"");
   lines.push(
-    `QUALITY_DIR=${shellSingleQuote(resolve(input.projectPath, ".goat-flow/logs/quality"))}`,
+    `QUALITY_DIR=${shellSingleQuote(toShellProjectPath(input.projectPath, ".goat-flow/logs/quality"))}`,
   );
   lines.push(`FILE="\${QUALITY_DIR}/\${STAMP}-${input.agent}-\${RAND}.json"`);
   lines.push('mkdir -p "$QUALITY_DIR"');
@@ -1329,7 +1341,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push('STAMP="$(date +"%Y-%m-%d-%H%M")"      # e.g. 2026-04-19-1430');
   lines.push("RAND=\"$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 5)\"");
   lines.push(
-    `QUALITY_DIR=${shellSingleQuote(resolve(projectPath, ".goat-flow/logs/quality"))}`,
+    `QUALITY_DIR=${shellSingleQuote(toShellProjectPath(projectPath, ".goat-flow/logs/quality"))}`,
   );
   lines.push(`FILE="\${QUALITY_DIR}/\${STAMP}-${agent}-\${RAND}.json"`);
   lines.push('mkdir -p "$QUALITY_DIR"');

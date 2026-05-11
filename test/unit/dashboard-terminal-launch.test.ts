@@ -23,6 +23,13 @@ const WORKSPACE_VIEW_PATH = resolve(
   "views",
   "workspace.html",
 );
+const SETUP_VIEW_PATH = resolve(
+  PROJECT_ROOT,
+  "src",
+  "dashboard",
+  "views",
+  "setup.html",
+);
 
 type LaunchOptions = {
   promptLabel?: string | null;
@@ -1119,5 +1126,38 @@ describe("dashboard terminal launch flow", () => {
       source,
       /item\.kind === "file" && item\.type\.startsWith\("image\/"\)/,
     );
+  });
+
+  it("shows an in-place launching label on the Setup terminal button", () => {
+    const source = readFileSync(SETUP_VIEW_PATH, "utf-8");
+    assert.match(
+      source,
+      /x-text="launching \? 'Starting setup\.\.\.' : 'Run Setup in Terminal'"/,
+    );
+  });
+
+  it("uses agent-specific copy on the Setup prompt generating row", () => {
+    const source = readFileSync(SETUP_VIEW_PATH, "utf-8");
+    assert.match(
+      source,
+      /x-text="'Generating setup prompt for ' \+ agentName\(setupSelectedAgent\) \+ '\.\.\.'"/,
+    );
+  });
+
+  it("exposes terminalWaitingForRunner so Workspace can show inline progress", () => {
+    const source = readFileSync(DASHBOARD_APP_PATH, "utf-8");
+    assert.match(source, /get terminalWaitingForRunner\(\): boolean/);
+    assert.match(
+      source,
+      /if \(!session\.connected \|\| session\.ended\) return false/,
+    );
+    assert.match(source, /if \(session\.awaitingInput\) return false/);
+    assert.match(source, /return tail\.length === 0/);
+  });
+
+  it("renders the Waiting-for-runner badge in the workspace header", () => {
+    const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
+    assert.match(source, /x-show="terminalWaitingForRunner"/);
+    assert.match(source, /Waiting for runner\.\.\./);
   });
 });

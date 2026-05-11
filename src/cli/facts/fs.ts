@@ -94,7 +94,9 @@ function walkGlobSegment(
 
     const fullPath = join(dir, entry.name);
     if (isLast) {
-      results.push(relative(root, resolvePath(fullPath)));
+      // Glob callers and renderers expect POSIX-shape relative paths so the
+      // same patterns work on Windows and POSIX.
+      results.push(relative(root, resolvePath(fullPath)).replace(/\\/g, "/"));
       continue;
     }
     if (entry.isDirectory()) {

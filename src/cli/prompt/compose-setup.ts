@@ -8,6 +8,16 @@ import type { AgentId, ProjectFacts } from "../types.js";
 import { loadManifest } from "../manifest/manifest.js";
 import { PROFILES } from "../detect/agents.js";
 import { getTemplatePath, getCliCommand } from "../paths.js";
+
+/**
+ * Forward-slash version of a packaged template path, suitable for embedding
+ * in user-visible setup prompts. `getTemplatePath` returns OS-native paths
+ * (backslashes on Windows); they render as ugly backslash strings to the
+ * agent and break test assertions that compare against POSIX shapes.
+ */
+function displayTemplatePath(relative: string): string {
+  return getTemplatePath(relative).replace(/\\/g, "/");
+}
 import { classifyProjectState } from "../classify-state.js";
 import { createFS } from "../facts/fs.js";
 import { resolve } from "node:path";
@@ -362,7 +372,7 @@ function renderUpgradeRedirect(
     lines.push("## Step 2 - Rebuild project-specific content");
     lines.push("");
     lines.push(
-      `Continue with \`${getTemplatePath("workflow/setup/02-instruction-file.md")}\` and then the remaining numbered setup docs to refresh the instruction file and local goat-flow content in place.`,
+      `Continue with \`${displayTemplatePath("workflow/setup/02-instruction-file.md")}\` and then the remaining numbered setup docs to refresh the instruction file and local goat-flow content in place.`,
     );
   } else {
     lines.push(`# GOAT Flow Migration - ${profile.name}`);
@@ -391,7 +401,7 @@ function renderUpgradeRedirect(
     lines.push("## Step 3 - Rebuild project-specific content");
     lines.push("");
     lines.push(
-      `Continue with \`${getTemplatePath("workflow/setup/02-instruction-file.md")}\` and then the remaining numbered setup docs to rebuild the project-specific goat-flow surfaces on the current layout.`,
+      `Continue with \`${displayTemplatePath("workflow/setup/02-instruction-file.md")}\` and then the remaining numbered setup docs to rebuild the project-specific goat-flow surfaces on the current layout.`,
     );
   }
 
@@ -409,7 +419,7 @@ function renderUpgradeRedirect(
 
 function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
   const profile = PROFILES[agentId];
-  const setupFile = getTemplatePath(SETUP_FILES[agentId]);
+  const setupFile = displayTemplatePath(SETUP_FILES[agentId]);
   const lines: string[] = [];
 
   const agentFacts = facts.agents.find((af) => af.agent.id === agentId);
@@ -443,7 +453,7 @@ function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
   lines.push("## Step 2 - Create project-specific content");
   lines.push("");
   lines.push(
-    `Read \`${setupFile}\` for agent-specific paths, then follow the setup steps in \`${getTemplatePath("workflow/setup/")}\` one at a time:`,
+    `Read \`${setupFile}\` for agent-specific paths, then follow the setup steps in \`${displayTemplatePath("workflow/setup/")}\` one at a time:`,
   );
   lines.push("");
   lines.push(

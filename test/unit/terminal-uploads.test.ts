@@ -1,4 +1,5 @@
 import { describe, it } from "node:test";
+import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
 import {
   existsSync,
@@ -10,7 +11,31 @@ import {
   symlinkSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve as resolvePath } from "node:path";
+
+/** Symlink with EPERM-skip for Windows hosts that block unprivileged symlinks. */
+function symlinkOrSkip(
+  t: TestContext,
+  target: string,
+  link: string,
+  type?: "dir" | "file" | "junction",
+): boolean {
+  try {
+    symlinkSync(target, link, type);
+    return true;
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      (err as NodeJS.ErrnoException).code === "EPERM"
+    ) {
+      t.skip(
+        "Skipped: host blocks unprivileged symlinks (Windows without Developer Mode)",
+      );
+      return false;
+    }
+    throw err;
+  }
+}
 
 import {
   buildAttachmentNote,
@@ -136,9 +161,15 @@ describe("decodeUploadFile", () => {
 
 describe("uploadDirForSession", () => {
   it("composes a path inside the target's .goat-flow/logs/uploads/<id>/", () => {
+    // `absPath` is filesystem-shape (host-native separators, drive letter on
+    // Windows for absolute POSIX inputs). `relPath` is POSIX-shape so the UI
+    // renders consistently across platforms.
     const target = "/tmp/proj";
     const dir = uploadDirForSession(target, "abc123");
-    assert.equal(dir.absPath, "/tmp/proj/.goat-flow/logs/uploads/abc123");
+    assert.equal(
+      dir.absPath,
+      resolvePath("/tmp/proj/.goat-flow/logs/uploads/abc123"),
+    );
     assert.equal(dir.relPath, ".goat-flow/logs/uploads/abc123");
   });
 
@@ -157,16 +188,21 @@ describe("uploadDirForSession", () => {
     );
   });
 
-  it("rejects upload paths that escape through symlinked components", () => {
+  it("rejects upload paths that escape through symlinked components", (t) => {
     const target = mkdtempSync(join(tmpdir(), "gf-upload-target-"));
     const outside = mkdtempSync(join(tmpdir(), "gf-upload-outside-"));
     try {
       mkdirSync(join(target, ".goat-flow", "logs"), { recursive: true });
-      symlinkSync(
-        outside,
-        join(target, ".goat-flow", "logs", "uploads"),
-        "dir",
-      );
+      if (
+        !symlinkOrSkip(
+          t,
+          outside,
+          join(target, ".goat-flow", "logs", "uploads"),
+          "dir",
+        )
+      ) {
+        return;
+      }
 
       assert.throws(
         () => uploadDirForSession(target, "sess1"),

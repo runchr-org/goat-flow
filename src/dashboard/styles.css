@@ -3640,7 +3640,9 @@ body {
   text-align: center;
   background: var(--surface-page);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
   display: block;
 }
 .gf-dropzone:hover {

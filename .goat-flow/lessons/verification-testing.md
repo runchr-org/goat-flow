@@ -1,6 +1,60 @@
 ---
 category: verification-testing
-last_reviewed: 2026-05-10
+last_reviewed: 2026-05-11
+---
+
+## Lesson: `node --import <abs-path>` on Windows needs a file:// URL
+
+**Status:** active | **Created:** 2026-05-11
+
+**What happened:** Two `runCLI` test helpers (`test/unit/quality-command.test.ts`, `test/integration/quality-history-diff.test.ts`) passed `join(PROJECT_ROOT, "node_modules", "tsx", "dist", "loader.mjs")` to `spawnSync(process.execPath, ["--import", TSX_LOADER_PATH, ...])`. On Windows the path is `D:\dev-lab\...\loader.mjs`. Node's ESM loader rejected it with `ERR_UNSUPPORTED_ESM_URL_SCHEME: Only URLs with a scheme in: file, data, and node are supported by the default ESM loader. On Windows, absolute paths must be valid file:// URLs. Received protocol 'd:'.` Every test that shelled out via the helper failed with exit 1 - looked like CLI bugs, was actually the spawn shape. 25-test full-suite failure baseline on 2026-05-11 included these as 7-8 of the original count.
+
+**Root cause:** Node's `--import` flag goes through the ESM loader, which parses the value as a URL. Drive-letter `D:` looks like a scheme. POSIX absolute paths happen to be valid `file://` -less URLs on Linux/macOS so the bug never surfaces there.
+
+**Fix:** Convert the loader path via `pathToFileURL(...).href` before passing to `--import`:
+```ts
+import { pathToFileURL } from "node:url";
+const TSX_LOADER_URL = pathToFileURL(
+  join(PROJECT_ROOT, "node_modules", "tsx", "dist", "loader.mjs"),
+).href;
+spawnSync(process.execPath, ["--import", TSX_LOADER_URL, CLI_PATH, ...args], ...);
+```
+
+**Prevention:**
+1. Any test that spawns Node with `--import`, `--loader`, or `--experimental-loader` and passes an absolute path must convert it via `pathToFileURL` first.
+2. Same rule applies to dynamic `import()` of absolute paths in production code on Windows. `import("D:\\...\\foo.js")` will throw; `import(pathToFileURL("D:\\...\\foo.js").href)` works.
+3. Treat `ERR_UNSUPPORTED_ESM_URL_SCHEME` as a likely Windows path-shape issue, not an actual code bug, until the file:// conversion is verified.
+
+---
+
+## Lesson: Windows test runs require explicit EPERM handling for symlink fixtures
+
+**Status:** active | **Created:** 2026-05-11
+
+**What happened:** Three tests (`main-module guard via symlink`, `skips symlink entries in skill walk roots`, `rejects upload paths that escape through symlinked components`) call `fs.symlinkSync()` to build fixtures. On Windows without Developer Mode (or admin rights), `symlinkSync` throws `EPERM: operation not permitted`. The tests failed because they treated the fixture setup as guaranteed; the production code under test is correct on all platforms, but the test harness can't reach it.
+
+**Root cause:** Windows blocks unprivileged symlink creation by default. Test fixtures need to be defensive about platform capabilities. Plain `assert.fail`-on-error is wrong because the test infrastructure - not the code under test - is unreachable.
+
+**Fix:** Wrap `symlinkSync` in a helper that catches `EPERM` and calls `t.skip(...)`:
+```ts
+function symlinkOrSkip(t: TestContext, target: string, link: string): boolean {
+  try { symlinkSync(target, link); return true; }
+  catch (err) {
+    if (err instanceof Error && (err as NodeJS.ErrnoException).code === "EPERM") {
+      t.skip("Skipped: host blocks unprivileged symlinks (Windows without Developer Mode)");
+      return false;
+    }
+    throw err;
+  }
+}
+```
+Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`) and bails early when the helper returns false. Evidence: `test/integration/main-guard.test.ts` (search: `symlinkOrSkip`), `test/unit/skill-quality.test.ts` (search: `symlinkOrSkip`), `test/unit/terminal-uploads.test.ts` (search: `symlinkOrSkip`).
+
+**Prevention:**
+1. Any new test that calls `symlinkSync`, `linkSync`, or any privileged fs op must guard against `EPERM` with a `t.skip(...)`.
+2. The skip message must name the platform constraint so a reader knows why coverage dropped, not just that it dropped.
+3. Don't try to detect "is Windows" via `process.platform` - the privilege depends on Developer Mode / admin context, not the OS. Always try-and-catch.
+
 ---
 
 ## Lesson: Workflow parser refactors need both fixture coverage and typecheck
