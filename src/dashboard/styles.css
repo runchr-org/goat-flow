@@ -3643,13 +3643,18 @@ body {
   transition:
     border-color 0.15s,
     background 0.15s;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 .gf-dropzone:hover {
   border-color: var(--accent);
   background: var(--accent-bg);
 }
 .gf-dropzone.has-files {
+  display: block;
   padding: 14px 18px;
   text-align: left;
   cursor: default;
@@ -3659,14 +3664,12 @@ body {
   background: var(--accent-bg);
 }
 .gf-dropzone-icon {
-  font-size: 22px;
   color: var(--text-muted);
-  margin-bottom: 8px;
+  display: flex;
 }
 .gf-dropzone-primary {
   font-size: 14px;
   font-weight: 500;
-  margin-bottom: 4px;
   color: var(--text-primary);
 }
 .gf-dropzone-secondary {
