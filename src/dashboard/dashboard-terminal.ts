@@ -206,9 +206,9 @@ function dashboardOutputLooksReadyForLaunchPrompt(text: string): boolean {
 /** Heuristic for Claude Code committing a long bracketed paste into the composer. */
 function dashboardOutputLooksCommittedPaste(text: string): boolean {
   const plain = dashboardPlainTerminalText(text);
-  const compact = plain.replace(/\s+/g, "");
   return (
-    /\[Pasted text #\d+/i.test(plain) || /pasteagaintoexpand/i.test(compact)
+    /\[Pasted text #\d+/i.test(plain) ||
+    /paste\s+again\s+to\s+expand/i.test(plain)
   );
 }
 

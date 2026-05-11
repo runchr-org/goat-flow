@@ -630,7 +630,7 @@ describe("dashboard terminal launch flow", () => {
       async () => ({ json: async () => ({}) }) as Response,
       timers,
     );
-    const ctx = makeLaunchPromptContext([]);
+    const ctx = makeLaunchPromptContext();
 
     assert.equal(
       helpers.dashboardSendToTerminalSession(

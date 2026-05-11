@@ -1145,7 +1145,8 @@ function app() {
         }
         if (
           this.projectPath !== requestProjectPath ||
-          this.activeRunner !== requestRunner
+          this.activeRunner !== requestRunner ||
+          this.skillQualityPrefetchGeneration !== requestGeneration
         ) {
           return;
         }

@@ -428,12 +428,20 @@ function truncateUtf8Bytes(content: string, maxBytes: number): string {
   return output;
 }
 
+// When false, disk-side reference resolution and the sibling-walk are skipped.
+// Used for uploaded artifacts so a user-supplied name colliding with an
+// installed skill cannot silently leak on-disk content into the score.
+interface ComposeOptions {
+  scanDisk?: boolean;
+}
+
 // eslint-disable-next-line complexity -- composition assembles preamble, conventions, and skill-local references in a fixed pipeline; each branch is a distinct artifact-class case
 function composeArtifactContent(
   projectRoot: string,
   artifact: ArtifactEntry,
   rawContent: string,
   config: QualityConfig,
+  options: ComposeOptions = {},
 ): ComposeResult {
   if (artifact.kind === "shared-reference") {
     return {
@@ -444,6 +452,7 @@ function composeArtifactContent(
     };
   }
 
+  const scanDisk = options.scanDisk !== false;
   const chunks: string[] = [];
   const sources: string[] = [];
   const notes: string[] = [];
@@ -474,43 +483,45 @@ function composeArtifactContent(
   chunks.push(rawContent);
   sources.push("SKILL.md");
 
-  const skillDir = dirname(join(projectRoot, artifact.path));
-  const seenReferences = new Set<string>();
-  const refRegex = new RegExp(config.composition.skillReferencePattern, "g");
-  for (const match of rawContent.matchAll(refRegex)) {
-    const relativeRef = match[1];
-    if (!relativeRef) continue;
-    if (seenReferences.has(relativeRef)) continue;
-    seenReferences.add(relativeRef);
-    const refPath = resolveSkillReferencePath(skillDir, relativeRef);
-    if (refPath === null) continue;
-    const refContent = readOptionalText(refPath, config);
-    if (refContent === null) continue;
-    chunks.push(refContent);
-    sources.push(`references/${relativeRef}`);
-  }
-
-  // Sibling .md files alongside SKILL.md that the goat composition recipe
-  // didn't already pick up (skipping SKILL.md itself, README.md, and any
-  // file under references/). This catches non-goat-shaped bundles where the
-  // skill is split across multiple top-level markdown files (e.g. a
-  // `workflow.md` + `template.md` + `steps/*.md` BMAD-style layout). The
-  // max-bytes cap still applies, so a wildly oversized bundle gets truncated
-  // rather than blowing the composition budget.
-  try {
-    for (const entry of readdirSync(skillDir, { withFileTypes: true })) {
-      if (!entry.isFile()) continue;
-      if (!entry.name.endsWith(".md")) continue;
-      if (entry.name === "SKILL.md" || entry.name === "README.md") continue;
-      const filePath = join(skillDir, entry.name);
-      if (!isSafeEntry(filePath)) continue;
-      const content = readOptionalText(filePath, config);
-      if (content === null) continue;
-      chunks.push(content);
-      sources.push(entry.name);
+  if (scanDisk) {
+    const skillDir = dirname(join(projectRoot, artifact.path));
+    const seenReferences = new Set<string>();
+    const refRegex = new RegExp(config.composition.skillReferencePattern, "g");
+    for (const match of rawContent.matchAll(refRegex)) {
+      const relativeRef = match[1];
+      if (!relativeRef) continue;
+      if (seenReferences.has(relativeRef)) continue;
+      seenReferences.add(relativeRef);
+      const refPath = resolveSkillReferencePath(skillDir, relativeRef);
+      if (refPath === null) continue;
+      const refContent = readOptionalText(refPath, config);
+      if (refContent === null) continue;
+      chunks.push(refContent);
+      sources.push(`references/${relativeRef}`);
     }
-  } catch {
-    // Directory unreadable: ignore — composition continues with what we have.
+
+    // Sibling .md files alongside SKILL.md that the goat composition recipe
+    // didn't already pick up (skipping SKILL.md itself, README.md, and any
+    // file under references/). This catches non-goat-shaped bundles where the
+    // skill is split across multiple top-level markdown files (e.g. a
+    // `workflow.md` + `template.md` + `steps/*.md` BMAD-style layout). The
+    // max-bytes cap still applies, so a wildly oversized bundle gets truncated
+    // rather than blowing the composition budget.
+    try {
+      for (const entry of readdirSync(skillDir, { withFileTypes: true })) {
+        if (!entry.isFile()) continue;
+        if (!entry.name.endsWith(".md")) continue;
+        if (entry.name === "SKILL.md" || entry.name === "README.md") continue;
+        const filePath = join(skillDir, entry.name);
+        if (!isSafeEntry(filePath)) continue;
+        const content = readOptionalText(filePath, config);
+        if (content === null) continue;
+        chunks.push(content);
+        sources.push(entry.name);
+      }
+    } catch {
+      // Directory unreadable: ignore — composition continues with what we have.
+    }
   }
 
   const composed = chunks.join("\n\n---\n\n");
@@ -1549,6 +1560,7 @@ function scoreContent(
   rawContent: string,
   config: QualityConfig,
   preReadNotes: string[] = [],
+  options: ComposeOptions = {},
 ): SkillQualityReport {
   const classification = classifyArtifact(artifact, rawContent, config);
   const subtype = classification.detectedSubtype;
@@ -1559,6 +1571,7 @@ function scoreContent(
     artifact,
     rawContent,
     config,
+    options,
   );
   const metricInput: MetricInput = {
     rawContent: composed.raw,
@@ -1960,6 +1973,8 @@ export function evaluateContent(
     artifact,
     input.content,
     configForUpload(config),
+    [],
+    { scanDisk: false },
   );
   return { ...report, tips: synthesiseImprovementTips(report) };
 }
@@ -2024,6 +2039,8 @@ export function evaluateUploadedBundle(
     artifact,
     primary.content,
     uploadConfig,
+    [],
+    { scanDisk: false },
   );
   if (siblings.length === 0) {
     // Replace the synthetic "SKILL.md"/"<name>.md" entry with the uploaded
@@ -2041,12 +2058,15 @@ export function evaluateUploadedBundle(
   // Re-score with the composed surface explicitly extended by sibling files.
   // We construct the composed content ourselves (rather than relying on the
   // on-disk composer) and replay the metric pipeline so tool/evidence/gate
-  // signals from sibling files count.
+  // signals from sibling files count. scanDisk: false guarantees no on-disk
+  // sibling/reference content leaks in when the uploaded name happens to
+  // match an installed skill.
   const baseCompose = composeArtifactContent(
     projectRoot,
     artifact,
     primary.content,
     uploadConfig,
+    { scanDisk: false },
   );
   const siblingChunks = siblings.map((f) => f.content);
   const siblingNames = siblings.map((f) => f.name);
