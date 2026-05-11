@@ -146,7 +146,7 @@ export function isWslBashPath(candidate: string): boolean {
 }
 
 /** Probe `where bash` for candidate paths. Returns `[]` if the command fails. */
-export function discoverWindowsBashCandidates(): string[] {
+function discoverWindowsBashCandidates(): string[] {
   try {
     const output = execFileSync("where", ["bash"], {
       encoding: "utf-8",
