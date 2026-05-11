@@ -201,8 +201,13 @@ function dashboardOutputLooksAwaitingInput(text: string): boolean {
 }
 
 /** Heuristic for a freshly launched runner reaching its interactive prompt. */
-function dashboardOutputLooksReadyForLaunchPrompt(text: string): boolean {
-  const tail = dashboardPlainTerminalText(text).slice(-2000);
+function dashboardOutputLooksReadyForLaunchPrompt(
+  text: string,
+  runner?: RunnerId | null,
+): boolean {
+  const tail = dashboardPlainTerminalText(text).slice(-5000);
+  const geminiReady = /\bType your message or @path\/to\/file\b/i.test(tail);
+  if (runner === "gemini") return geminiReady;
   const claudeReady =
     /\/remote-control is active\b/i.test(tail) &&
     /(^|\n)\s*❯\s*(?:\n|$)/u.test(tail);
@@ -217,7 +222,7 @@ function dashboardOutputLooksReadyForLaunchPrompt(text: string): boolean {
 function dashboardOutputLooksCommittedPaste(text: string): boolean {
   const plain = dashboardPlainTerminalText(text);
   return (
-    /\[Pasted text #\d+/i.test(plain) ||
+    /\[Pasted\s+text(?:\s+#\d+|:)/i.test(plain) ||
     /paste\s+again\s+to\s+expand/i.test(plain)
   );
 }
@@ -406,7 +411,14 @@ function dashboardHandlePasteSubmitOutput(
   const outputTail = ((refs.pasteSubmitOutputTail ?? "") + output).slice(-2000);
   refs.pasteSubmitOutputTail = outputTail;
   if (dashboardOutputLooksCommittedPaste(outputTail)) {
-    dashboardSubmitPendingPaste(ctx, sessionId);
+    const target = ctx.sessions.find((session) => session.id === sessionId);
+    if (target?.runner === "gemini") {
+      dashboardArmPasteSubmitTimer(ctx, sessionId, {
+        delayMs: TERMINAL_PASTE_SUBMIT_RETRY_DELAY_MS,
+      });
+    } else {
+      dashboardSubmitPendingPaste(ctx, sessionId);
+    }
   }
 }
 
@@ -479,7 +491,9 @@ function dashboardSendToTerminalSession(
   // asynchronously, so submit on its pasted-text echo or fall back after a short
   // bounded delay for CLIs that do not echo that state.
   const pasteData = "\x1b[200~" + prepared + "\x1b[201~";
-  const delayedSubmit = target.runner === "claude" && prepared.includes("\n");
+  const delayedSubmit =
+    (target.runner === "claude" || target.runner === "gemini") &&
+    prepared.includes("\n");
   dashboardSendOrQueueBracketedPaste(ctx, sessionId, {
     data: pasteData,
     delayed: delayedSubmit,
@@ -555,10 +569,11 @@ function dashboardMaybeSendLaunchPrompt(
     return false;
   }
   if (!refs.ws || refs.ws.readyState !== WebSocket.OPEN) return false;
-  if (
-    !force &&
-    !dashboardOutputLooksReadyForLaunchPrompt(target.outputTail ?? "")
-  ) {
+  const ready = dashboardOutputLooksReadyForLaunchPrompt(
+    target.outputTail ?? "",
+    target.runner,
+  );
+  if (!ready && (!force || target.runner === "gemini")) {
     return false;
   }
   refs.launchPrompt = undefined;
@@ -849,14 +864,12 @@ async function dashboardLoadXterm(
       await new Promise<void>((resolve, reject) => {
         const link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href =
-          "https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css";
+        link.href = "/assets/xterm.css";
         document.head.appendChild(link);
         // The fit addon patches the global Terminal constructor, so xterm itself
         // has to finish loading before the addon script is appended.
         const script = document.createElement("script");
-        script.src =
-          "https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js";
+        script.src = "/assets/xterm.js";
         /** Handle script load failures. */
         script.onerror = () => {
           reject(new Error("xterm.js load failed"));
@@ -873,8 +886,7 @@ async function dashboardLoadXterm(
       });
       await new Promise<void>((resolve, reject) => {
         const script = document.createElement("script");
-        script.src =
-          "https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js";
+        script.src = "/assets/addon-fit.js";
         const timer = setTimeout(() => {
           reject(new Error("fit addon load timeout"));
         }, 5000);
