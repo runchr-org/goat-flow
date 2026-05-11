@@ -3587,6 +3587,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 16px 22px;
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -3594,6 +3595,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 .gf-modal-card.is-skill-evaluator .gf-modal-title h2 {
   font-size: 16px;
@@ -3613,7 +3616,17 @@ body {
 .gf-modal-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  flex-wrap: wrap;
+}
+.gf-copy-report-btn {
+  min-width: 98px;
+}
+.gf-copy-report-btn.is-copied {
+  background: var(--status-pass-bg);
+  border-color: var(--status-pass-border);
+  color: var(--status-pass);
 }
 .gf-modal-icon-btn {
   background: transparent;
@@ -4074,9 +4087,9 @@ body {
   font-size: 11px;
 }
 
-/* Modal result footer — slug + cheap copy-report action.
+/* Modal result footer — slug only.
    Save-to-drafts and Re-run-with-edits are deferred until the persistence
-   route lands; the slug + copy button are zero-backend and worth keeping. */
+   route lands; the copy action lives in the header. */
 .gf-modal-result-footer {
   margin-top: 22px;
   padding-top: 16px;
@@ -4100,8 +4113,4 @@ body {
   border-radius: 3px;
   font-family: var(--font-mono);
   font-size: 11px;
-}
-.gf-modal-result-footer .gf-mrf-actions {
-  display: flex;
-  gap: 8px;
 }

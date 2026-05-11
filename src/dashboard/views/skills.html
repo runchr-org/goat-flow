@@ -588,6 +588,17 @@
           <div class="gf-modal-actions">
             <button
               x-show="skillEvaluatorResult"
+              @click="skillEvaluatorReportCopied = true; copySkillEvaluatorReport()"
+              class="gf-btn gf-btn-md gf-btn-secondary gf-copy-report-btn"
+              :class="{ 'is-copied': skillEvaluatorReportCopied }"
+              aria-live="polite"
+            >
+              <span
+                x-text="skillEvaluatorReportCopied ? 'Copied' : 'Copy report'"
+              ></span>
+            </button>
+            <button
+              x-show="skillEvaluatorResult"
               @click="resetSkillEvaluator()"
               class="gf-btn gf-btn-md gf-btn-ghost"
             >
@@ -730,7 +741,7 @@
               <div class="gf-input-footer">
                 <span
                   class="gf-if-hint"
-                  x-text="skillEvaluatorFiles.length > 0 ? 'Engine will compose ' + skillEvaluatorFiles.length + ' file' + (skillEvaluatorFiles.length === 1 ? '' : 's') + ' into one scored surface.' : 'No data leaves your browser. Evaluation runs locally.'"
+                  x-text="skillEvaluatorFiles.length > 0 ? 'Engine will compose ' + skillEvaluatorFiles.length + ' file' + (skillEvaluatorFiles.length === 1 ? '' : 's') + ' into one scored surface.' : 'Evaluation runs on this local dashboard server.'"
                 ></span>
                 <div class="gf-if-actions">
                   <button
@@ -997,9 +1008,8 @@
                 </div>
               </div>
 
-              <!-- Result footer — slug + Copy report. Save-to-drafts and
-                   Re-run-with-edits are deferred to a later persistence
-                   pass. -->
+              <!-- Result footer — slug. Save-to-drafts and Re-run-with-edits
+                   are deferred to a later persistence pass. -->
               <div class="gf-modal-result-footer">
                 <div class="gf-mrf-meta">
                   Slug:
@@ -1007,14 +1017,6 @@
                     class="gf-mrf-slug"
                     x-text="skillEvaluatorSlug(skillEvaluatorResult)"
                   ></span>
-                </div>
-                <div class="gf-mrf-actions">
-                  <button
-                    @click="copySkillEvaluatorReport()"
-                    class="gf-btn gf-btn-md gf-btn-secondary"
-                  >
-                    Copy report
-                  </button>
                 </div>
               </div>
             </div>

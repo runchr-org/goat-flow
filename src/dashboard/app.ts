@@ -248,6 +248,10 @@ function app() {
     skillEvaluatorResult: null as SkillEvaluateResult | null,
     skillEvaluatorLoading: false,
     skillEvaluatorError: null as string | null,
+    skillEvaluatorReportCopied: false,
+    _skillEvaluatorReportCopiedTimer: null as ReturnType<
+      typeof setTimeout
+    > | null,
     /** Per-metric collapse state for the result-modal tip groups. */
     skillEvaluatorTipCollapsed: {} as Record<string, boolean>,
 
@@ -1551,9 +1555,22 @@ function app() {
         }
       }
       try {
-        await navigator.clipboard.writeText(lines.join("\n"));
+        this.copyTextToClipboard(lines.join("\n"));
+        this.skillEvaluatorReportCopied = true;
+        if (this._skillEvaluatorReportCopiedTimer) {
+          clearTimeout(this._skillEvaluatorReportCopiedTimer);
+        }
+        this._skillEvaluatorReportCopiedTimer = setTimeout(() => {
+          this.skillEvaluatorReportCopied = false;
+          this._skillEvaluatorReportCopiedTimer = null;
+        }, 4000);
         this.showToast("Report copied to clipboard");
       } catch (err) {
+        this.skillEvaluatorReportCopied = false;
+        if (this._skillEvaluatorReportCopiedTimer) {
+          clearTimeout(this._skillEvaluatorReportCopiedTimer);
+          this._skillEvaluatorReportCopiedTimer = null;
+        }
         const msg = err instanceof Error ? err.message : String(err);
         this.showToast(msg || "Copy failed", true);
       }
@@ -1576,10 +1593,20 @@ function app() {
       this.skillEvaluatorResult = null;
       this.skillEvaluatorError = null;
       this.skillEvaluatorLoading = false;
+      this.skillEvaluatorReportCopied = false;
+      if (this._skillEvaluatorReportCopiedTimer) {
+        clearTimeout(this._skillEvaluatorReportCopiedTimer);
+        this._skillEvaluatorReportCopiedTimer = null;
+      }
     },
     clearSkillEvaluatorResult() {
       this.skillEvaluatorResult = null;
       this.skillEvaluatorError = null;
+      this.skillEvaluatorReportCopied = false;
+      if (this._skillEvaluatorReportCopiedTimer) {
+        clearTimeout(this._skillEvaluatorReportCopiedTimer);
+        this._skillEvaluatorReportCopiedTimer = null;
+      }
     },
 
     /** Read multiple `.md` files via FileReader; populates the file list and
@@ -1671,6 +1698,11 @@ function app() {
     async runSkillEvaluator() {
       this.skillEvaluatorError = null;
       this.skillEvaluatorResult = null;
+      this.skillEvaluatorReportCopied = false;
+      if (this._skillEvaluatorReportCopiedTimer) {
+        clearTimeout(this._skillEvaluatorReportCopiedTimer);
+        this._skillEvaluatorReportCopiedTimer = null;
+      }
       const hasFiles = this.skillEvaluatorFiles.length > 0;
       const hasContent = this.skillEvaluatorContent.trim().length > 0;
       if (!hasFiles && !hasContent) {
@@ -1687,6 +1719,7 @@ function app() {
         } else {
           body.content = this.skillEvaluatorContent;
         }
+        body.kind = "skill";
         const name = this.skillEvaluatorName.trim();
         if (name.length > 0) body.suggestedName = name;
         const res = await dashboardFetch(url, {
@@ -1756,7 +1789,7 @@ function app() {
     },
 
     // -- Clipboard + Toast --
-    copyText(text: string) {
+    copyTextToClipboard(text: string) {
       const el = document.createElement("textarea");
       el.value = text;
       el.style.position = "fixed";
@@ -1768,6 +1801,9 @@ function app() {
       // eslint-disable-next-line @typescript-eslint/no-deprecated
       document.execCommand("copy");
       document.body.removeChild(el);
+    },
+    copyText(text: string) {
+      this.copyTextToClipboard(text);
       this.copyLabel = "Copied!";
       setTimeout(() => {
         this.copyLabel = "Copy";

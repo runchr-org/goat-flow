@@ -53,4 +53,13 @@ describe("Skills dashboard view", () => {
     );
     assert.match(appSource, /prefetchSkillReports\([^)]*generation/s);
   });
+
+  it("evaluates pasted drafts as skills and describes local-server scoring", () => {
+    const viewSource = readFileSync(SKILLS_VIEW_PATH, "utf-8");
+    const appSource = readFileSync(DASHBOARD_APP_PATH, "utf-8");
+
+    assert.match(appSource, /body\.kind = "skill"/);
+    assert.match(viewSource, /Evaluation runs on this local dashboard server\./);
+    assert.doesNotMatch(viewSource, /No data leaves your browser/);
+  });
 });

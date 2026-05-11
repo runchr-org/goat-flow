@@ -548,6 +548,10 @@ function hasSection(content: string, pattern: RegExp): boolean {
   return pattern.test(content);
 }
 
+function stripYamlFrontmatter(content: string): string {
+  return content.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/u, "");
+}
+
 function estimateTokens(content: string): number {
   return Math.ceil(content.length / 4);
 }
@@ -791,6 +795,15 @@ const SHAPE_DETECTION_ORDER: ArtifactSubtype[] = [
   "meta",
 ];
 
+// Minimum signal score required to call a shape "detected". Below this a
+// single weak signal (e.g. only `hasFrontmatterName`+1, or one stray substring
+// hit) could drive the shapeMismatch path in `deriveRecommendation`. The floor
+// is set so that two heading-style hits (2+2) or one name-strength hit (≥3)
+// qualifies, but a single +1 frontmatter-name signal or single +2 substring
+// hit does not. Below the floor, the fallback shape is reported with 0
+// confidence and no mismatch is raised.
+const MIN_SHAPE_SCORE = 3;
+
 function countRegexMatches(content: string, pattern: RegExp): number {
   return Array.from(content.matchAll(pattern)).length;
 }
@@ -816,10 +829,11 @@ function scoreShapeMatch(
   subtype: ArtifactSubtype,
 ): SubtypeMatchScore {
   const hasStep0 = hasSection(content, /##\s+Step 0/i);
-  const hasCheckpoint = /CHECKPOINT/i.test(content);
-  const hasModeSystem = /Read-Only|File-Write|Plan.*mode|Implement.*mode/i.test(
-    content,
-  );
+  const hasCheckpoint = /\bCHECKPOINT\b/i.test(content);
+  const hasModeSystem =
+    /\b(?:Read-Only|File-Write)\b|\bPlan\b.*\bmode\b|\bImplement\b.*\bmode\b/i.test(
+      content,
+    );
   const hasPhaseHeadings = /^##\s+Phase\s+\d/im.test(content);
   const hasSkillVersion = /goat-flow-skill-version/i.test(content);
   const hasFrontmatterName = /^---[\s\S]*?name:\s*.+[\s\S]*?---/m.test(content);
@@ -837,7 +851,7 @@ function scoreShapeMatch(
     return scoreFromSignals(subtype, [
       [artifact.name === "goat", 5, 'name "goat"'],
       [hasSection(content, /##\s+Route Map/i), 5, "Route Map section"],
-      [/route|dispatch/i.test(content), 2, "routing language"],
+      [/\b(?:route|dispatch)\b/i.test(content), 2, "routing language"],
     ]);
   }
 
@@ -850,8 +864,16 @@ function scoreShapeMatch(
         4,
         "report/audit heading",
       ],
-      [/reporting-only|read-only/i.test(content), 2, "report-only language"],
-      [/finding|OBSERVED|INFERRED/i.test(content), 2, "finding evidence terms"],
+      [
+        /\b(?:reporting-only|read-only)\b/i.test(content),
+        2,
+        "report-only language",
+      ],
+      [
+        /\b(?:finding|OBSERVED|INFERRED)\b/i.test(content),
+        2,
+        "finding evidence terms",
+      ],
     ]);
   }
 
@@ -864,7 +886,7 @@ function scoreShapeMatch(
       [hasSkillVersion, 1, "skill version header"],
       [hasFrontmatterName, 1, "skill frontmatter name"],
       [
-        /Verification|Proof Gate|Testing Gate/i.test(content),
+        /\b(?:Verification|Proof Gate|Testing Gate)\b/i.test(content),
         2,
         "verification language",
       ],
@@ -894,7 +916,7 @@ function scoreShapeMatch(
       ],
       [proceduralStepCount >= 2, 2, "procedural Step N headings"],
       [
-        /tool.*protocol|observation.*workflow|capture.*workflow|Interaction Workflow/i.test(
+        /\btool\b.*\bprotocol\b|\bobservation\b.*\bworkflow\b|\bcapture\b.*\bworkflow\b|\bInteraction Workflow\b/i.test(
           content,
         ),
         2,
@@ -938,7 +960,7 @@ function detectArtifactShape(
   const matches = SHAPE_DETECTION_ORDER.map((subtype) =>
     scoreShapeMatch(artifact, content, subtype),
   )
-    .filter((match) => match.score > 0)
+    .filter((match) => match.score >= MIN_SHAPE_SCORE)
     .sort((a, b) => b.score - a.score);
 
   const top = matches[0];
@@ -950,7 +972,7 @@ function detectArtifactShape(
       confidence: 0,
       alternatives: [],
       reasoning: [
-        `no semantic shape matched ${artifact.id}; using ${fallback} as fallback`,
+        `no semantic shape matched ${artifact.id} above MIN_SHAPE_SCORE=${MIN_SHAPE_SCORE}; using ${fallback} as fallback`,
       ],
     };
   }
@@ -1151,9 +1173,11 @@ const evidenceTestability: MetricScorer = (input) => {
   const notes: string[] = [];
 
   const hasEvidenceTag =
-    /OBSERVED|INFERRED/i.test(content) || /evidence[_-]quality/i.test(content);
+    /\b(?:OBSERVED|INFERRED)\b/i.test(content) ||
+    /\bevidence[_-]quality\b/i.test(content);
   const hasEvidenceGate =
-    /Proof Gate/i.test(content) || /evidence.*required/i.test(content);
+    /\bProof Gate\b/i.test(content) ||
+    /\bevidence\b.*\brequired\b/i.test(content);
   const hasSemanticAnchors =
     /\(search:\s*"[^"]+"\)/i.test(content) || /search:.*`[^`]+`/i.test(content);
 
@@ -1180,11 +1204,11 @@ const coldStartExecutability: MetricScorer = (input) => {
 
   if (artifact.kind === "skill") {
     const hasReadFirst =
-      /Read First/i.test(content) || /read.*before/i.test(content);
+      /\bRead First\b/i.test(content) || /\bread\b.*\bbefore\b/i.test(content);
     const hasContextSetup =
-      /context.*setup/i.test(content) ||
-      /load.*before/i.test(content) ||
-      /read.*(files|docs|references|context)/i.test(content);
+      /\bcontext\b.*\bsetup\b/i.test(content) ||
+      /\bload\b.*\bbefore\b/i.test(content) ||
+      /\bread\b.*\b(?:files|docs|references|context)\b/i.test(content);
     const hasStartupSection = hasSection(
       content,
       /##\s+(Step 0|Read First|Prerequisites|Inputs?|Context|Before You Start)/i,
@@ -1260,13 +1284,14 @@ const tokenCost: MetricScorer = (input) => {
 };
 
 const toolDependencyHandling: MetricScorer = (input) => {
-  const { composedContent: content, config } = input;
+  const { composedContent, config } = input;
+  const content = stripYamlFrontmatter(composedContent);
   let score = 5;
   const notes: string[] = [];
 
-  const hasAvailCheck = /Availability Check/i.test(content);
+  const hasAvailCheck = /\bAvailability Check\b/i.test(content);
   const hasFallback =
-    /fallback/i.test(content) || /if.*unavailable/i.test(content);
+    /\bfallback\b/i.test(content) || /\bif\b.*\bunavailable\b/i.test(content);
   const toolKeywords = new RegExp(config.toolKeywordsRegex, "i");
   const hasToolRef = toolKeywords.test(content);
 
@@ -1298,10 +1323,10 @@ const writeRisk: MetricScorer = (input) => {
 
   if (artifact.kind === "skill") {
     const hasModeSystem =
-      /Read-Only|File-Write|Plan|Implement/i.test(content) &&
-      /mode/i.test(content);
+      /\b(?:Read-Only|File-Write|Plan|Implement)\b/i.test(content) &&
+      /\bmode\b/i.test(content);
     const hasEscalation =
-      /approval/i.test(content) || /ask.*before/i.test(content);
+      /\bapproval\b/i.test(content) || /\bask\b.*\bbefore\b/i.test(content);
 
     if (!hasModeSystem) {
       score -= 4;
@@ -1313,8 +1338,9 @@ const writeRisk: MetricScorer = (input) => {
     }
   } else {
     const writesFiles =
-      /write|create|modify|edit.*file/i.test(content) &&
-      !/read-only/i.test(content);
+      (/\b(?:write|create|modify)\b/i.test(content) ||
+        /\bedit\b.*\bfile\b/i.test(content)) &&
+      !/\bread-only\b/i.test(content);
     if (writesFiles) {
       score -= 2;
       notes.push("reference mentions file writes");
@@ -1335,11 +1361,16 @@ const skillReferenceFit: MetricScorer = (input) => {
   const signals = {
     hasFrontmatterName: /^---[\s\S]*?name:\s*.+[\s\S]*?---/m.test(content),
     hasIntake: hasSection(content, /##\s+Step 0/i),
-    hasCheckpoint: /CHECKPOINT/i.test(content),
-    hasModes: /Read-Only|File-Write|Plan.*mode|Implement.*mode/i.test(content),
-    hasAvailCheck: /Availability Check/i.test(content),
+    hasCheckpoint: /\bCHECKPOINT\b/i.test(content),
+    hasModes:
+      /\b(?:Read-Only|File-Write)\b|\bPlan\b.*\bmode\b|\bImplement\b.*\bmode\b/i.test(
+        content,
+      ),
+    hasAvailCheck: /\bAvailability Check\b/i.test(content),
     isToolProtocol:
-      /tool.*protocol|observation.*workflow|capture.*workflow/i.test(content),
+      /\btool\b.*\bprotocol\b|\bobservation\b.*\bworkflow\b|\bcapture\b.*\bworkflow\b/i.test(
+        content,
+      ),
     hasRefVersion: /goat-flow-reference-version/i.test(content),
     hasSkillVersion: /goat-flow-skill-version/i.test(content),
     hasRouteMap: hasSection(content, /##\s+Route Map/i),
@@ -1486,6 +1517,13 @@ function deriveRecommendation(
   if (fitMetric?.signals?.meta) {
     fitNotes.push(fitMetric.detail);
     return { recommendation: "reference-playbook", fitNotes };
+  }
+
+  if (mismatchNote) {
+    fitNotes.push(
+      "Semantic shape differs from the applied scoring profile. Manual review required before keeping this recommendation.",
+    );
+    return { recommendation: "consider-reclassifying", fitNotes };
   }
 
   if (pct < 0.3) {
@@ -2020,8 +2058,11 @@ export function evaluateUploadedBundle(
     throw new Error("evaluateUploadedBundle: files array must be non-empty");
   }
   const siblings = files.filter((_, i) => i !== primaryIndex);
+  const uploadedSurface = [primary.content, ...siblings.map((f) => f.content)]
+    .filter((content) => content.length > 0)
+    .join("\n\n---\n\n");
 
-  const kind = input.kind ?? inferArtifactKind(primary.content);
+  const kind = input.kind ?? inferArtifactKind(uploadedSurface);
   const name = sanitiseUploadName(
     input.suggestedName ?? primary.name.replace(/\.(md|markdown)$/i, ""),
   );
@@ -2088,16 +2129,12 @@ export function evaluateUploadedBundle(
   const truncated =
     utf8ByteLength(composedFull) > uploadConfig.composition.maxComposedBytes;
 
-  const classification = classifyArtifact(
-    artifact,
-    primary.content,
-    uploadConfig,
-  );
+  const classification = classifyArtifact(artifact, composed, uploadConfig);
   const subtype = classification.detectedSubtype;
-  const shape = detectArtifactShape(artifact, primary.content);
+  const shape = detectArtifactShape(artifact, composed);
   const profileMax = profileMaxForSubtype(uploadConfig, subtype);
   const metricInput: MetricInput = {
-    rawContent: primary.content,
+    rawContent: composed,
     composedContent: composed,
     artifact,
     subtype,

@@ -776,6 +776,58 @@ describe("recommendation gates", () => {
     assert.equal(tool.score, 10);
   });
 
+  it("does not score reference version frontmatter as a tool dependency", () => {
+    const report = evaluateContent(PROJECT_ROOT, {
+      kind: "shared-reference",
+      suggestedName: "plain-reference.md",
+      content: [
+        "---",
+        'goat-flow-reference-version: "1.6.1"',
+        "---",
+        "# Plain Reference",
+        "## Purpose",
+        "Documents local process.",
+        "## Workflow",
+        "Read and apply.",
+        "## Fallback",
+        "Ask a human.",
+      ].join("\n"),
+    });
+    const tool = report.metrics.find((m) => m.metric === "tool-deps")!;
+    assert.equal(tool.score, 10, tool.detail);
+  });
+
+  it("does not score ordinary shell/runtime commands as tool dependencies", () => {
+    const projectRoot = makeTempProject();
+    writeSkill(
+      projectRoot,
+      "ordinary-command",
+      [
+        "---",
+        "name: ordinary-command",
+        'description: "Skill with ordinary commands."',
+        'goat-flow-skill-version: "1.6.1"',
+        "---",
+        "# /ordinary-command",
+        "## When to Use",
+        "Use when testing ordinary commands.",
+        "NOT this skill: browser work.",
+        "## Step 0",
+        "Run `npm test` and `git status`.",
+        "## Phase 1",
+        "CHECKPOINT before work.",
+        "## Phase 2",
+        "Finish.",
+        "## Verification",
+        "- [ ] Evidence required.",
+      ].join("\n"),
+    );
+    const artifact = findArtifact(projectRoot, "skill:ordinary-command")!;
+    const report = scoreArtifact(projectRoot, artifact);
+    const tool = report.metrics.find((m) => m.metric === "tool-deps")!;
+    assert.equal(tool.score, 10, tool.detail);
+  });
+
   it("scores browser MCP commands as tool dependencies requiring availability and fallback", () => {
     const projectRoot = makeTempProject();
     writeSkill(
@@ -1225,6 +1277,7 @@ describe("classification", () => {
     assert.equal(report.subtype, "workflow");
     assert.equal(report.detectedShape, "playbook");
     assert.equal(report.shapeMismatch, true);
+    assert.equal(report.recommendation, "consider-reclassifying");
     assert.ok(
       report.shapeConfidence >= 0.7,
       `expected shape confidence >= 0.7, got ${report.shapeConfidence}`,
@@ -1244,6 +1297,40 @@ describe("classification", () => {
     const serialized = JSON.stringify(report);
     assert.doesNotMatch(serialized, /halaxy|deploy\.halaxy|bbbbbb99/i);
     assert.doesNotMatch(serialized, /\.goat-flow\/tasks\//);
+  });
+
+  it("ignores rubric-keyword substrings that appear inside example prose", () => {
+    // Adversarial case from a humanizer-style content skill: the body quotes
+    // English prose containing "readers ... context", "plans", "Model",
+    // "router" — all substrings of rubric signal words (`\bread\b ... context`,
+    // `\bPlan\b`, `\bmode\b`, `\broute\b`). Without `\b` boundaries these
+    // false-positive into cold-start, write-risk, and dispatcher shape. The
+    // regression check: zero false positives on adversarial prose.
+    const report = evaluateContent(PROJECT_ROOT, {
+      kind: "skill",
+      suggestedName: "prose-skill",
+      content: [
+        "---",
+        "name: prose-skill",
+        'description: "Use when reviewing writing for tone."',
+        "---",
+        "# /prose-skill",
+        "## Examples",
+        "> LLMs hit readers over the head with claims without context.",
+        "> The company plans to open two more locations.",
+        "> Business Model Canvas and large language models.",
+        "> Use the router cache for memoized data.",
+      ].join("\n"),
+    });
+
+    const coldStart = report.metrics.find((m) => m.metric === "cold-start")!;
+    const writeRisk = report.metrics.find((m) => m.metric === "write-risk")!;
+    // Cold-start "context setup" gate must not fire from "readers ... context".
+    assert.match(coldStart.detail, /no Read First or context setup/);
+    // Write-risk mode system must not fire from "plans" or "Model".
+    assert.match(writeRisk.detail, /no read-only vs write mode system/);
+    // Shape must not be detected as dispatcher from "router".
+    assert.notEqual(report.detectedShape, "dispatcher");
   });
 
   it("reports reference-packaged workflow content without changing the applied subtype", () => {
@@ -1271,6 +1358,46 @@ describe("classification", () => {
     assert.equal(report.subtype, "playbook");
     assert.equal(report.detectedShape, "workflow");
     assert.equal(report.shapeMismatch, true);
+    assert.equal(report.recommendation, "consider-reclassifying");
+  });
+
+  it("classifies uploaded bundles against the composed uploaded surface", () => {
+    const report = evaluateUploadedBundle(PROJECT_ROOT, {
+      kind: "skill",
+      suggestedName: "split-skill",
+      files: [
+        {
+          name: "SKILL.md",
+          content: [
+            "---",
+            "name: split-skill",
+            'description: "Use when testing bundle composition."',
+            'goat-flow-skill-version: "1.6.1"',
+            "---",
+            "# /split-skill",
+            "## Step 0",
+            "Read workflow.md.",
+          ].join("\n"),
+        },
+        {
+          name: "workflow.md",
+          content: [
+            "## Phase 1",
+            "Plan the change.",
+            "## Phase 2",
+            "CHECKPOINT: human approves before work.",
+            "## Verification",
+            '- [ ] OBSERVED evidence required with `(search: "split-anchor")`.',
+          ].join("\n"),
+        },
+      ],
+    });
+
+    const workflow = report.metrics.find(
+      (m) => m.metric === "workflow-completeness",
+    )!;
+    assert.equal(workflow.score, workflow.maxScore, workflow.detail);
+    assert.equal(report.detectedShape, "workflow");
   });
 });
 

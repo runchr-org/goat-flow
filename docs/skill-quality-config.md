@@ -20,18 +20,18 @@ quality:
 
 With no `quality:` block, the default rubric is unchanged.
 
-## Custom Subtype
+## Custom Existing Subtype
 
-Declare a subtype when the project has a repeatable artifact shape that is neither a normal workflow skill nor a reference playbook.
+Customize an existing subtype when the project has a repeatable artifact shape that should adjust goat-flow's default scoring or detection rules. The current evaluator supports these subtype keys: `workflow`, `dispatcher`, `report`, `playbook`, `index`, and `meta`.
 
 ```yaml
 quality:
   subtypes:
-    audit:
+    report:
       detection:
         kinds:
           - skill
-        headings:
+        heading-patterns:
           - "^## Audit Mode\\b"
         must-not-have:
           - "^## Step 0\\b"
@@ -61,7 +61,7 @@ Fallback-only subtype matches are intentionally low confidence. If a subtype onl
 | `walk-roots.references` | Reference directories to inventory. |
 | `composition` | Shared preamble/conventions paths, skill-reference regex, and composed byte cap. |
 | `gate-vocabulary` | Regex sources for verification gates, explicit pass/fail language, and human-stop language. |
-| `tool-keywords` | Tokens that indicate external tool dependencies. |
+| `tool-keywords-regex` | Regex source for external tool dependencies. |
 | `subtypes` | Detection rules, metric profile caps, and notes for artifact subtypes. |
 | `fixture-path` | Primary expected-score fixture for the current project. |
 | `additional-fixtures` | Extra expected-score fixtures for consumer corpora. |
@@ -73,7 +73,7 @@ Fallback-only subtype matches are intentionally low confidence. If a subtype onl
 - Prefer extending defaults. Replace defaults only when the project convention is incompatible.
 - Avoid brittle provider-specific regexes unless a real project artifact needs them.
 - Keep the scoring rubric portable. Generic or uploaded skills must earn cold-start and evidence credit through explicit context, prerequisites, gates, and evidence rules; they should not be required to reference goat-flow's shared preamble unless they are installed goat-flow skills that actually inherit it.
-- Browser and MCP tool dependencies count as external tools. Defaults include `browser-use`, `Playwright MCP`, `browser_*` commands, and `mcp__*` tool names; artifacts that mention them need an Availability Check and fallback path for full tool-dependency credit.
+- Browser, MCP, and GitHub CLI dependencies count as external tools. Defaults include `browser-use`, `Playwright MCP`, `browser_*` commands, `mcp__*` tool names, and `gh`; ordinary shell/runtime commands such as `npm`, `git`, `node`, or `bash` do not trigger tool-dependency deductions by themselves.
 - Do not cite gitignored task, scratchpad, or log paths from committed fixtures or docs. When a local artifact exposes a useful failure shape, sanitize it into tracked test content without private domains, accounts, credentials, or `.goat-flow/tasks/**` references.
 
 ## Verification
