@@ -1635,6 +1635,9 @@ describe("dashboard /api/quality/evaluate", () => {
     assert.ok(Array.isArray(data.metrics));
     assert.ok(Array.isArray(data.tips));
     assert.equal(typeof data.subtype, "string");
+    assert.equal(typeof data.detectedShape, "string");
+    assert.equal(typeof data.shapeConfidence, "number");
+    assert.equal(typeof data.shapeMismatch, "boolean");
     assert.equal(typeof data.recommendation, "string");
   });
 

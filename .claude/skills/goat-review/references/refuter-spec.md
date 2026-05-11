@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.6.0"
+goat-flow-reference-version: "1.6.1"
 ---
 # Cross-Model Refuter Specification
 

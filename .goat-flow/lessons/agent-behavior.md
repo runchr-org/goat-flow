@@ -1,6 +1,35 @@
 ---
 category: agent-behavior
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-11
+---
+
+## Lesson: Agent cited gitignored content as evidence in committed docs
+
+**Created:** 2026-05-11
+
+**What happened:** During a 2026-05-11 documentation audit, four committed surfaces were found to cite paths under `.goat-flow/scratchpad/` (which is gitignored by design) as authoritative evidence:
+
+- `docs/dashboard.md` (Design ethos section) cited `.goat-flow/scratchpad/skills-example-prime/frontend-design/SKILL.md` as the source of the anti-convergence checklist.
+- `.goat-flow/skill-playbooks/skill-quality-testing.md` cited `.goat-flow/scratchpad/skills-example-prime/mysql/SKILL.md` and `.goat-flow/scratchpad/skills-example-prime/valyu/SKILL.md` as the source of two authoring patterns, and the verification-claim table credited "the prime corpus's verification-before-completion checklist".
+- `.goat-flow/skill-playbooks/skill-quality-testing/tdd-iteration.md` cited `.goat-flow/scratchpad/skills-example-prime/writing-skills/SKILL.md` as "Empirical evidence (sourced verbatim from ...)" with a `(search: ...)` anchor.
+- `workflow/skills/reference/skill-preamble.md` allowed Excuse/Reality table additions to derive from "this repo or the prime corpus".
+
+The same surfaces also leaked third-party / competitor skill names (MySQL, Valyu, the writing-skills prime pack, an external frontend-design skill) into goat-flow's own committed docs and an env-var example (`VALYU_API_KEY`).
+
+**Root cause:** When seeding pattern docs from external research material temporarily staged under `.goat-flow/scratchpad/`, the authoring agent kept the verbatim citations instead of either (a) committing the source material into the repo first, (b) restating the principle without the citation, or (c) marking the section as guidance-only. The agent treated the scratchpad path as a normal cite-able location because it lives inside `.goat-flow/`, missing that the entire `scratchpad/` subtree is gitignored. Naming the external skills (MySQL, Valyu, frontend-design) was the same failure compounded: the agent imported provider vocabulary along with the structural pattern.
+
+**Why it matters:** Two distinct harms.
+1. **Broken evidence chain.** Anyone who clones this repo cannot follow the cited path - it does not exist in their checkout. The `(search: "...")` anchor fails. The framework's own Evidence Standard (`workflow/skills/reference/skill-preamble.md`, search: `Re-read each cited file`) requires verifiable citations; gitignored paths cannot be re-read by anyone but the original author.
+2. **Competitor/third-party leakage.** Naming external skills in committed docs creates the appearance that goat-flow ships, endorses, or is derivative of those vendors' work. It also pins generic patterns to a specific provider, which makes the pattern look narrower than it is.
+
+**Prevention:**
+1. **Never cite a `.goat-flow/scratchpad/`, `.goat-flow/tasks/`, `.goat-flow/logs/sessions/`, `.goat-flow/logs/quality/`, or `.goat-flow/logs/critiques/` path from a committed file** (`.md`, `.ts`, `.sh`, etc.). These subtrees are gitignored except for anchor files (`README.md`, `.gitignore`, `.gitkeep`, and committed README contents). When a pattern is genuinely worth committing, promote the source material to a committed location (`lessons/`, `footguns/`, `decisions/`, or a new file under `workflow/`) before citing it.
+2. **Strip third-party / competitor skill or vendor names** from generic guidance. State the pattern provider-neutrally ("a domain skill", "a vendor-SDK skill", "an external frontend-design reference") and use placeholder identifiers (`<VENDOR>_API_KEY`, not `VALYU_API_KEY`).
+3. **Apply the same rule to test files and code comments**, not just user-facing docs. Test fixtures and inline comments are read by contributors and shape future authoring habits.
+4. **When auditing docs, grep for both classes:** `rg -n "\.goat-flow/(scratchpad|tasks|logs)/" --glob '*.md' --glob '*.ts'` for gitignored citations, and a project-specific list of competitor names for vendor leakage. Add to the `docs-and-crossrefs` footgun resolution rounds when found.
+
+The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Round 4 (2026-05-11`) record the specific surfaces fixed.
+
 ---
 
 ## Lesson: Agent ignored explicit "next step" command in pasted output

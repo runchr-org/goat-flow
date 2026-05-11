@@ -202,6 +202,36 @@ describe("mergeQualityConfig", () => {
     );
   });
 
+  it("falls back or drops invalid regex config instead of preserving throwers", () => {
+    const merged = mergeQualityConfig({
+      "tool-keywords-regex": "(",
+      composition: { "skill-reference-pattern": "[" },
+      "gate-vocabulary": {
+        "verification-gate": ["(", "Release Gate"],
+      },
+      subtypes: {
+        workflow: {
+          detection: {
+            "heading-patterns": ["(", "##\\s+Step 0"],
+          },
+        },
+      },
+    });
+
+    assert.equal(
+      merged.toolKeywordsRegex,
+      DEFAULT_QUALITY_CONFIG.toolKeywordsRegex,
+    );
+    assert.equal(
+      merged.composition.skillReferencePattern,
+      DEFAULT_QUALITY_CONFIG.composition.skillReferencePattern,
+    );
+    assert.deepEqual(merged.gateVocabulary.verificationGate, ["Release Gate"]);
+    assert.deepEqual(merged.subtypes.workflow.detection.headingPatterns, [
+      "##\\s+Step 0",
+    ]);
+  });
+
   it("preserves goat-flow profile total maxes (workflow=100)", () => {
     const config = cloneQualityConfig(DEFAULT_QUALITY_CONFIG);
     assert.equal(profileMaxForSubtype(config, "workflow"), 100);

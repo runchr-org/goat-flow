@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.6.1 - 2026-05-11
+
+Windows compatibility consolidation, dashboard Skills polish, runner launch reliability, skill evaluator shape detection and report export, skill-quality config toggles, goat-security reference consolidation, and pre-ship correctness fixes.
+
+- **Skills sidebar scope** - Dashboard Skills filters to real installed skills; stale selections clear when filtered out; sidebar, counts, and copy updated.
+- **Runner launch reliability** - Promptless session creation with browser-side send on readiness or short after-output cap (replaces 6s blanket fallback); pasted-text echo gate ends `[Pasted text #N]` stalls; new `terminalWaitingForRunner` indicator replaces the silent launch button.
+- **Windows compatibility** - Fixes `npx install` on native Windows where PowerShell collapsed backslash paths (`C:\Users\…\install.sh` → `CUsers…install.sh`) or hung on WSL `bash.exe`. New `install-invocation.ts` normalises paths, picks Git Bash / MSYS2 ahead of WSL bash, and centralises runner-shim preference + PATH probing (314-line test suite). `toShellProjectPath` also preserves UNC roots so quality prompts no longer misroute `QUALITY_DIR=…` to a local absolute.
+- **Skill evaluator shape detection** - New `detectedShape` / `shapeConfidence` / `shapeMismatch` flag "packaged as skill, reads like playbook" cases; fallback-only subtype matches drop confidence; browser/MCP commands count as tool dependencies; uploads score on explicit gates rather than preamble inheritance.
+- **Skill evaluator clipboard report** - New "Copy report" emits a markdown summary; `copyTextToClipboard` prefers `navigator.clipboard.writeText` with `execCommand("copy")` boolean fallback, so blocked writes surface a real "Copy failed" toast.
+- **Skill-quality config + scope toggles** - Workflow-completeness reads human-stop vocabulary from `quality-config`; `scanDisk` gates disk-side reference resolution; `prefetch` suppresses stale dashboard prompts on artifact switch.
+- **goat-security reference consolidation** - `auth-authz.md`, `dependency-and-supply-chain.md`, and `secrets-and-data-exposure.md` merged into `identity-and-data.md` and an expanded `supply-chain-and-cicd.md` across all four skill mirrors.
+- **Pre-ship correctness fixes** - Setup template Router Table splits skill-reference (meta) and skill-playbooks (tools); `docs/skills.md`, `.goat-flow/code-map.md`, and `workflow/setup/06-final-verification.md` aligned on canonical paths; launch-prompt fallback JSDoc documents the ungated cap as intentional.
+- **UI polish, gitignore, regression coverage** - Consistent max-widths and disabled-state styling across dashboard views with an SVG dropzone icon; `.gitignore` template exposes `.goat-flow/skill-playbooks/`; new unit coverage for Skills filtering, after-output cap, paste fallback, copy-feedback timer, `install-invocation`, and `scanDisk`.
+
 ## v1.6.0 - 2026-05-10
 
 Skill authoring, quality assessment, and playbook/reference cleanup.

@@ -16,12 +16,14 @@
 #   - workflow/manifest.json
 #   - workflow/skills/*/SKILL.md frontmatter (7 templates)
 #   - workflow/skills/reference/ (shared skill reference docs)
+#   - workflow/skills/playbooks/ (standalone skill playbooks)
 #   - workflow/skills/*/references/ (per-skill reference packs)
 #   - Hook templates and installed hook mirrors
 #   - test/fixtures/skill-with-references/SKILL.md
 #   - docs/audit-and-quality.md sample output
 #   - Installed skill mirrors and per-skill reference packs (.claude/skills/, .agents/skills/, .github/skills/ via manifest)
 #   - Installed shared reference docs (.goat-flow/skill-reference/)
+#   - Installed standalone playbooks (.goat-flow/skill-playbooks/)
 #
 # Exit:
 #   0 on success, non-zero on validation failure.
@@ -94,6 +96,9 @@ update_file "test/fixtures/skill-with-references/SKILL.md"
 while IFS= read -r -d '' reference_md; do
   update_file "$reference_md"
 done < <(find workflow/skills/reference -type f -name '*.md' -print0)
+while IFS= read -r -d '' reference_md; do
+  update_file "$reference_md"
+done < <(find workflow/skills/playbooks -type f -name '*.md' -print0)
 while IFS= read -r -d '' reference_md; do
   update_file "$reference_md"
 done < <(find workflow/skills -path '*/references/*.md' -print0)
@@ -206,6 +211,10 @@ done < <(manifest_deny_hooks)
 if [[ -d ".goat-flow/skill-reference" ]]; then
   cp -r workflow/skills/reference/* .goat-flow/skill-reference/
   echo "  ✓ .goat-flow/skill-reference/"
+fi
+if [[ -d ".goat-flow/skill-playbooks" ]]; then
+  cp -r workflow/skills/playbooks/* .goat-flow/skill-playbooks/
+  echo "  ✓ .goat-flow/skill-playbooks/"
 fi
 
 echo ""

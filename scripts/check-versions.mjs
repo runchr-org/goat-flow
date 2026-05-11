@@ -36,6 +36,7 @@ function walkMarkdown(dir, out = []) {
 
 const referenceTemplates = [
   ...walkMarkdown("workflow/skills/reference"),
+  ...walkMarkdown("workflow/skills/playbooks"),
   ...walkMarkdown("workflow/skills").filter((path) =>
     path.includes("/references/"),
   ),

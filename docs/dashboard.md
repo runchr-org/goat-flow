@@ -66,24 +66,34 @@ Getting-started page for new users. Explains what goat-flow is, the audit/qualit
 
 ## API Endpoints
 
+All `/api/*` requests require the dashboard token described in [Local Access Boundary](#local-access-boundary). POST routes additionally enforce the same-origin Origin check.
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
+| `/api/health` | GET | Health check |
 | `/api/audit` | GET | Run audit, return JSON results |
 | `/api/setup` | GET | Generate setup prompt |
-| `/api/quality` | GET | Generate quality-assessment prompt |
 | `/api/setup/detect` | GET | Detect project stack and agents |
-| `/api/health` | GET | Health check |
+| `/api/quality` | GET | Generate quality-assessment prompt |
+| `/api/quality/history` | GET | Persisted quality-history rows and latest trend summary |
+| `/api/quality/evaluate` | POST | Score uploaded markdown (skill or shared-reference) and return a deterministic report plus improvement tips. Read-only; canonical from v1.6.0. |
+| `/api/quality/analyse` | POST | Deprecated alias for `/api/quality/evaluate`. Returns the same body with `Deprecation: true` and `Link: </api/quality/evaluate>; rel="successor-version"` headers. |
+| `/api/skill-quality/inventory` | GET | List installed skill/reference artifacts the dashboard can score |
+| `/api/skill-quality` | GET | Score one installed skill/reference artifact and return the metric breakdown plus a runner-prompt preview |
 | `/api/agents/installed` | GET | Detect installed agent runtimes |
-| `/api/projects/list` | GET | List registered projects |
-| `/api/projects/status` | GET | Project state classification |
+| `/api/browse` | GET | Directory browsing for the dashboard's path picker (project directories only, no hidden entries) |
+| `/api/projects/list` | GET | List registered projects from saved dashboard state |
+| `/api/projects/list` | POST | Save the dashboard's registered project list |
+| `/api/projects/status` | GET | Project state classification (`bare`/`partial`/`v0.9`/`outdated`/`current`/`error`) |
 | `/api/terminal/create` | POST | Start a terminal session |
 | `/api/terminal/list` | GET | List active terminal sessions |
 | `/api/terminal/sessions` | GET | Session metadata |
 | `/api/terminal/:id` | DELETE | End a terminal session |
+| `/api/terminal/:id/upload-image` | POST | Upload one or more images attached to an active session; persists to `.goat-flow/logs/uploads/<session>/` and returns an attachment note for the runner |
 
 ## Design ethos: utilitarian, not decorative
 
-The dashboard is a local operations console for AI coding workflows, not a landing page or marketing surface. When adding or changing UI, run through this anti-convergence checklist before declaring done. The list is harvested from the prime corpus's frontend-design skill (search: `Design Thinking` in `.goat-flow/scratchpad/skills-example-prime/frontend-design/SKILL.md`); apply only the parts that fit a utilitarian operations tool.
+The dashboard is a local operations console for AI coding workflows, not a landing page or marketing surface. When adding or changing UI, run through this anti-convergence checklist before declaring done. Apply only the parts that fit a utilitarian operations tool.
 
 - **Purpose** — what operational decision does this view support? If it has no decision, it is documentation; consider whether it belongs in `docs/` instead.
 - **Density** — every panel earns its space. Default to a denser layout than a typical SaaS landing page; whitespace is for separating noisy regions, not framing single elements.

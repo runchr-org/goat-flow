@@ -54,9 +54,12 @@ export function resolveFirstExistingPackagePath(
   throw new Error(`Could not find any of: ${relatives.join(", ")}`);
 }
 
-/** Build the absolute CLI command used to run goat-flow from any project. */
+/** Build the absolute CLI command used to run goat-flow from any project.
+ *  Returns a forward-slash path so it renders cleanly in user-visible setup
+ *  prompts and is identically callable from PowerShell, CMD, and Bash on
+ *  Windows (where Node accepts forward slashes everywhere argv-style). */
 export function getCliCommand(): string {
-  return `node ${join(GOAT_FLOW_ROOT, "dist", "cli", "cli.js")}`;
+  return `node ${join(GOAT_FLOW_ROOT, "dist", "cli", "cli.js").replace(/\\/g, "/")}`;
 }
 
 /** True when goat-flow is running from a packaged install rather than a source

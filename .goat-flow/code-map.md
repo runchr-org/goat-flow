@@ -83,7 +83,7 @@ globals.d.ts               # Global type declarations for the frontend bundle
 index.html                 # Dashboard HTML entry point
 preset-prompts.json        # Built-in prompt templates for quality and setup modes
 styles.css                 # Dashboard stylesheet
-views/                     # HTML view templates (home, setup, quality, workspace, projects, prompts, settings, about)
+views/                     # HTML view templates (about, home, projects, prompts, quality, settings, setup, skills, workspace)
 ```
 
 ## workflow/ -- Setup templates, skills, and reference docs
@@ -149,6 +149,8 @@ audit-checks.md            # Deterministic audit check inventory and scope break
 cli.md                     # CLI command reference, flags, and examples
 dashboard.md               # Dashboard views, terminal behavior, and HTTP API reference
 deny-dangerous.md          # Deny hook behavior, installation notes, and troubleshooting
+skill-authoring.md         # `goat-flow skill new` / `quality candidacy` / dashboard Evaluate workflow
+skill-quality-config.md    # Project overrides for the skill-quality rubric in `.goat-flow/config.yaml`
 skills.md                  # User-facing goat-* skill overview and routing guide
 
 harness-audit.md           # AI harness audit command/reference material
@@ -162,6 +164,7 @@ coding-standards/          # Project coding conventions used as reference materi
   git-commit.md            # Commit message conventions
 
 assets/                    # Documentation images such as dashboard-preview.png
+site/                      # Standalone landing pages and OG images deployed by `scripts/deploy-landing.sh`
 ```
 
 ## .goat-flow/ -- Framework state (mostly gitignored)
@@ -191,11 +194,11 @@ decisions/                 # ADRs (committed)
 footguns/                  # Architectural traps with semantic-anchor evidence (committed)
 lessons/                   # Behavioural mistake records (committed)
 
-tasks/                     # Milestone files (gitignored, local working state)
-  .active                  # Advisory local pointer to the current plan subdir (may be stale; see ADR-017)
-  <version>/Mxx-*.md       # Milestones live in versioned local plan dirs; skills ask when .active is absent/stale
-  _archived/               # Prior plans + research; not scanned by skills
+tasks/                     # Milestone files and plan subdirs (gitignored local state; anchors only are committed)
 logs/sessions/             # Session logs (gitignored)
-logs/quality/             # Saved quality reports + prose companions (gitignored; README committed)
+logs/quality/              # Saved quality reports + prose companions (gitignored; README committed)
+logs/critiques/            # `/goat-critique` run snapshots (gitignored; README committed)
+logs/security/             # `/goat-security` assessment history (gitignored; README committed)
+logs/uploads/              # Per-session terminal upload-image staging (gitignored; runtime-only)
 scratchpad/                # Ephemeral working notes (gitignored)
 ```

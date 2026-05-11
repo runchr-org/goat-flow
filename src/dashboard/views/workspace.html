@@ -668,6 +668,20 @@
                       x-text="lastRunPrompt || 'Runner session'"
                     ></h3>
                     <span
+                      x-show="terminalWaitingForRunner"
+                      style="
+                        font-family: var(--font-mono);
+                        font-size: 10px;
+                        padding: 1px 7px;
+                        border-radius: 999px;
+                        border: 1px solid var(--border-subtle);
+                        color: var(--text-muted);
+                        background: var(--surface);
+                        white-space: nowrap;
+                      "
+                      >Waiting for runner...</span
+                    >
+                    <span
                       x-show="terminalAwaitingInput"
                       style="
                         font-family: var(--font-mono);

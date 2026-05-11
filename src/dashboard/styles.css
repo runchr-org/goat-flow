@@ -1319,8 +1319,12 @@ body {
   border-color: var(--accent-hover);
   color: var(--accent-contrast);
 }
-.gf-btn-primary:disabled {
-  opacity: 0.5;
+.gf-btn-primary:disabled,
+.gf-btn-primary:disabled:hover {
+  background: var(--surface-elevated);
+  color: var(--text-muted);
+  border-color: var(--border-default);
+  cursor: not-allowed;
 }
 
 /* Variant: Audit/secondary accent */
@@ -3583,6 +3587,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 16px 22px;
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -3590,6 +3595,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 .gf-modal-card.is-skill-evaluator .gf-modal-title h2 {
   font-size: 16px;
@@ -3609,7 +3616,17 @@ body {
 .gf-modal-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  flex-wrap: wrap;
+}
+.gf-copy-report-btn {
+  min-width: 98px;
+}
+.gf-copy-report-btn.is-copied {
+  background: var(--status-pass-bg);
+  border-color: var(--status-pass-border);
+  color: var(--status-pass);
 }
 .gf-modal-icon-btn {
   background: transparent;
@@ -3636,14 +3653,21 @@ body {
   text-align: center;
   background: var(--surface-page);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  display: block;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 .gf-dropzone:hover {
   border-color: var(--accent);
   background: var(--accent-bg);
 }
 .gf-dropzone.has-files {
+  display: block;
   padding: 14px 18px;
   text-align: left;
   cursor: default;
@@ -3653,14 +3677,12 @@ body {
   background: var(--accent-bg);
 }
 .gf-dropzone-icon {
-  font-size: 22px;
   color: var(--text-muted);
-  margin-bottom: 8px;
+  display: flex;
 }
 .gf-dropzone-primary {
   font-size: 14px;
   font-weight: 500;
-  margin-bottom: 4px;
   color: var(--text-primary);
 }
 .gf-dropzone-secondary {
@@ -4065,9 +4087,9 @@ body {
   font-size: 11px;
 }
 
-/* Modal result footer — slug + cheap copy-report action.
+/* Modal result footer — slug only.
    Save-to-drafts and Re-run-with-edits are deferred until the persistence
-   route lands; the slug + copy button are zero-backend and worth keeping. */
+   route lands; the copy action lives in the header. */
 .gf-modal-result-footer {
   margin-top: 22px;
   padding-top: 16px;
@@ -4091,8 +4113,4 @@ body {
   border-radius: 3px;
   font-family: var(--font-mono);
   font-size: 11px;
-}
-.gf-modal-result-footer .gf-mrf-actions {
-  display: flex;
-  gap: 8px;
 }

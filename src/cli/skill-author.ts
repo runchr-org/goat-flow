@@ -305,9 +305,13 @@ function resolveScaffold(
   if (!choice) return null;
   const template = TEMPLATES_BY_SUBTYPE[choice.templateKey];
   if (!template) return null;
-  const proposedPath = choice.isReference
-    ? join(projectRoot, PLAYBOOK_DIR, `${name}.md`)
-    : join(projectRoot, SKILL_DIR, name, "SKILL.md");
+  // Forward-slash form so the path renders consistently in CLI/dashboard
+  // output and matches assertion shapes; `node:fs` accepts both separators.
+  const proposedPath = (
+    choice.isReference
+      ? join(projectRoot, PLAYBOOK_DIR, `${name}.md`)
+      : join(projectRoot, SKILL_DIR, name, "SKILL.md")
+  ).replace(/\\/g, "/");
   return { template, proposedPath, isReference: choice.isReference };
 }
 

@@ -47,23 +47,35 @@ import type {
 // Helpers: minimal mock context for targeted build-check tests
 // ---------------------------------------------------------------------------
 
+/**
+ * Production code calls FS helpers with `path.join` results, which on Windows
+ * use backslashes. Test handlers compare against POSIX-shape literals. Wrap
+ * every incoming path with a forward-slash normaliser so handlers can match
+ * on the documented separator-agnostic shape regardless of host.
+ */
+function posixifyPath(value: string): string {
+  return value.replace(/\\/g, "/");
+}
+
+function wrapPathArg<T>(fn: ((path: string) => T) | undefined, fallback: T) {
+  return (path: string): T => (fn ? fn(posixifyPath(path)) : fallback);
+}
+
 function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
-  const fs = {
-    exists: () => true,
-    readFile: () => null,
-    lineCount: () => 0,
-    readJson: () => null,
-    listDir: () => [],
-    isExecutable: () => false,
-    glob: () => [],
-    ...overrides,
-  };
-  return {
-    ...fs,
+  const fs: ReadonlyFS = {
+    exists: wrapPathArg(overrides.exists, true),
+    readFile: wrapPathArg(overrides.readFile, null),
+    lineCount: wrapPathArg(overrides.lineCount, 0),
+    readJson: wrapPathArg(overrides.readJson, null),
+    listDir: wrapPathArg(overrides.listDir, [] as string[]),
+    isExecutable: wrapPathArg(overrides.isExecutable, false),
+    glob: overrides.glob ?? ((): string[] => []),
     existsGlob:
       overrides.existsGlob ??
-      ((pattern: string) => fs.glob(pattern).length > 0),
+      ((pattern: string) =>
+        (overrides.glob ?? ((): string[] => []))(pattern).length > 0),
   };
+  return fs;
 }
 
 function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {

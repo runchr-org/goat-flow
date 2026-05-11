@@ -1,6 +1,6 @@
 # ADR-025: Block all git push from agents
 
-**Status:** accepted
+**Status:** Accepted
 **Date:** 2026-04-26
 
 ## Context

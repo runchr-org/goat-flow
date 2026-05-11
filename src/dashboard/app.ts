@@ -133,6 +133,20 @@ function app() {
     get terminalAwaitingInput(): boolean {
       return this._activeSession?.awaitingInput === true;
     },
+    /**
+     * True when the active terminal is connected but the runner has not
+     * produced any output yet. Surfaces the gap between WebSocket attach
+     * (~100 ms) and Claude Code's first PTY paint (~5 s observed in M01) so
+     * users see in-place progress instead of a silent terminal.
+     */
+    get terminalWaitingForRunner(): boolean {
+      const session = this._activeSession;
+      if (!session) return false;
+      if (!session.connected || session.ended) return false;
+      if (session.awaitingInput) return false;
+      const tail = session.outputTail ?? "";
+      return tail.length === 0;
+    },
     /** Return the active terminal age label. */
     get terminalAge(): string {
       return this._activeSession?.age ?? "";
@@ -223,6 +237,7 @@ function app() {
     skillQualityReports: {} as Record<string, SkillQualityReport>,
     skillQualityAuditedAt: null as number | null,
     skillQualityPrefetching: false,
+    skillQualityPrefetchGeneration: 0,
 
     // --- Skill evaluator modal state ---
     skillEvaluatorOpen: false,
@@ -233,6 +248,10 @@ function app() {
     skillEvaluatorResult: null as SkillEvaluateResult | null,
     skillEvaluatorLoading: false,
     skillEvaluatorError: null as string | null,
+    skillEvaluatorReportCopied: false,
+    _skillEvaluatorReportCopiedTimer: null as ReturnType<
+      typeof setTimeout
+    > | null,
     /** Per-metric collapse state for the result-modal tip groups. */
     skillEvaluatorTipCollapsed: {} as Record<string, boolean>,
 
@@ -826,6 +845,7 @@ function app() {
           this.skillQualityReports = {};
           this.skillQualityAuditedAt = null;
           this.skillQualityPrefetching = false;
+          this.skillQualityPrefetchGeneration += 1;
           void this.loadSkillQualityInventory();
         }
       });
@@ -868,6 +888,7 @@ function app() {
           this.skillQualityReports = {};
           this.skillQualityAuditedAt = null;
           this.skillQualityPrefetching = false;
+          this.skillQualityPrefetchGeneration += 1;
           if (this.activeView === "skills") {
             void this.loadSkillQualityInventory();
           }
@@ -1113,6 +1134,9 @@ function app() {
     async loadSkillQualityInventory() {
       const requestProjectPath = this.projectPath;
       const requestRunner = this.activeRunner;
+      const requestGeneration = this.skillQualityPrefetchGeneration + 1;
+      this.skillQualityPrefetchGeneration = requestGeneration;
+      this.skillQualityPrefetching = false;
       try {
         const res = await dashboardFetch(
           `/api/skill-quality/inventory?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestRunner)}`,
@@ -1125,16 +1149,39 @@ function app() {
         }
         if (
           this.projectPath !== requestProjectPath ||
-          this.activeRunner !== requestRunner
+          this.activeRunner !== requestRunner ||
+          this.skillQualityPrefetchGeneration !== requestGeneration
         ) {
           return;
         }
         this.skillQualityArtifacts = Array.isArray(payload.artifacts)
-          ? payload.artifacts
+          ? payload.artifacts.filter(
+              (artifact): artifact is SkillQualityArtifact =>
+                isRecord(artifact) &&
+                artifact.kind === "skill" &&
+                typeof artifact.id === "string" &&
+                typeof artifact.name === "string" &&
+                typeof artifact.path === "string" &&
+                typeof artifact.source === "string",
+            )
           : [];
+        if (
+          this.skillQualitySelectedId &&
+          !this.skillQualityArtifacts.some(
+            (artifact) => artifact.id === this.skillQualitySelectedId,
+          )
+        ) {
+          this.skillQualitySelectedId = null;
+          this.skillQualityReport = null;
+        }
         this.skillQualityReports = {};
         this.skillQualityAuditedAt = null;
-        void this.prefetchSkillReports(requestProjectPath, requestRunner);
+        this.skillQualityPrefetching = false;
+        void this.prefetchSkillReports(
+          requestProjectPath,
+          requestRunner,
+          requestGeneration,
+        );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         this.showToast(msg || "Skill quality inventory failed", true);
@@ -1143,7 +1190,11 @@ function app() {
     /** Fetch reports for every artifact in parallel so the sidebar can show
      *  a per-skill grade without requiring the user to click each one first.
      *  Aborts silently if the project/runner changes mid-flight. */
-    async prefetchSkillReports(projectPath: string, runner: string) {
+    async prefetchSkillReports(
+      projectPath: string,
+      runner: string,
+      generation: number,
+    ) {
       const artifacts = [...this.skillQualityArtifacts];
       if (artifacts.length === 0) return;
       this.skillQualityPrefetching = true;
@@ -1154,8 +1205,13 @@ function app() {
           );
           const payload = readRecord(await res.json(), "Skill quality report");
           if (readErrorMessage(payload)) return;
-          if (this.projectPath !== projectPath || this.activeRunner !== runner)
+          if (
+            this.projectPath !== projectPath ||
+            this.activeRunner !== runner ||
+            this.skillQualityPrefetchGeneration !== generation
+          ) {
             return;
+          }
           this.skillQualityReports[art.id] =
             payload as unknown as SkillQualityReport;
         } catch {
@@ -1163,7 +1219,11 @@ function app() {
         }
       });
       await Promise.all(fetches);
-      if (this.projectPath === projectPath && this.activeRunner === runner) {
+      if (
+        this.projectPath === projectPath &&
+        this.activeRunner === runner &&
+        this.skillQualityPrefetchGeneration === generation
+      ) {
         this.skillQualityAuditedAt = Date.now();
         this.skillQualityPrefetching = false;
         if (
@@ -1322,6 +1382,10 @@ function app() {
       if (!report) return { title: "", desc: "" };
       const cls = report.classification;
       const detected = cls.detectedSubtype;
+      const detectedShape = report.detectedShape ?? detected;
+      const shapeConfidence = report.shapeConfidence ?? cls.confidence;
+      const shapeMismatch =
+        report.shapeMismatch ?? detectedShape !== report.subtype;
       const failCount = report.metrics.filter(
         (m) => m.severity === "fail",
       ).length;
@@ -1332,7 +1396,11 @@ function app() {
         report.recommendation === "retire" ||
         report.recommendation === "consider-revision";
       let title = "";
-      if (cls.confidence >= 0.85 && detected !== report.subtype) {
+      if (shapeMismatch && shapeConfidence >= 0.7) {
+        const packagedAs =
+          report.artifact.kind === "skill" ? "skill" : "reference";
+        title = `Packaged as ${packagedAs}, reads like ${detectedShape}`;
+      } else if (cls.confidence >= 0.85 && detected !== report.subtype) {
         title = `This reads as a ${detected}, not a ${report.subtype}`;
       } else if (failCount > 0) {
         const tail = isHardVerdict
@@ -1357,11 +1425,13 @@ function app() {
                   ? "Ship as a reference"
                   : "Keep as a skill";
       const detail =
-        cls.confidence >= 0.85 && detected !== report.subtype
-          ? `${Math.round(cls.confidence * 100)}% ${detected} classification`
-          : `${failCount + warnCount} non-passing metric${
-              failCount + warnCount === 1 ? "" : "s"
-            }`;
+        shapeMismatch && shapeConfidence >= 0.7
+          ? `${Math.round(shapeConfidence * 100)}% shape confidence`
+          : cls.confidence >= 0.85 && detected !== report.subtype
+            ? `${Math.round(cls.confidence * 100)}% ${detected} classification`
+            : `${failCount + warnCount} non-passing metric${
+                failCount + warnCount === 1 ? "" : "s"
+              }`;
       return {
         title,
         desc: `${detail}. ${recHuman} before deciding to keep, convert, or discard.`,
@@ -1457,6 +1527,11 @@ function app() {
       lines.push(
         `Subtype: ${r.subtype} (${Math.round(r.classification.confidence * 100)}% ${r.classification.detectedSubtype})`,
       );
+      if (r.shapeMismatch && r.detectedShape) {
+        lines.push(
+          `Detected shape: ${r.detectedShape} (${Math.round((r.shapeConfidence ?? 0) * 100)}%)`,
+        );
+      }
       lines.push(`Verdict: \`${r.recommendation}\``);
       lines.push(`Score: ${r.totalScore} / ${r.profileMax}`);
       lines.push("");
@@ -1480,9 +1555,23 @@ function app() {
         }
       }
       try {
-        await navigator.clipboard.writeText(lines.join("\n"));
+        const ok = await this.copyTextToClipboard(lines.join("\n"));
+        if (!ok) throw new Error("Clipboard write failed");
+        this.skillEvaluatorReportCopied = true;
+        if (this._skillEvaluatorReportCopiedTimer) {
+          clearTimeout(this._skillEvaluatorReportCopiedTimer);
+        }
+        this._skillEvaluatorReportCopiedTimer = setTimeout(() => {
+          this.skillEvaluatorReportCopied = false;
+          this._skillEvaluatorReportCopiedTimer = null;
+        }, 4000);
         this.showToast("Report copied to clipboard");
       } catch (err) {
+        this.skillEvaluatorReportCopied = false;
+        if (this._skillEvaluatorReportCopiedTimer) {
+          clearTimeout(this._skillEvaluatorReportCopiedTimer);
+          this._skillEvaluatorReportCopiedTimer = null;
+        }
         const msg = err instanceof Error ? err.message : String(err);
         this.showToast(msg || "Copy failed", true);
       }
@@ -1505,10 +1594,20 @@ function app() {
       this.skillEvaluatorResult = null;
       this.skillEvaluatorError = null;
       this.skillEvaluatorLoading = false;
+      this.skillEvaluatorReportCopied = false;
+      if (this._skillEvaluatorReportCopiedTimer) {
+        clearTimeout(this._skillEvaluatorReportCopiedTimer);
+        this._skillEvaluatorReportCopiedTimer = null;
+      }
     },
     clearSkillEvaluatorResult() {
       this.skillEvaluatorResult = null;
       this.skillEvaluatorError = null;
+      this.skillEvaluatorReportCopied = false;
+      if (this._skillEvaluatorReportCopiedTimer) {
+        clearTimeout(this._skillEvaluatorReportCopiedTimer);
+        this._skillEvaluatorReportCopiedTimer = null;
+      }
     },
 
     /** Read multiple `.md` files via FileReader; populates the file list and
@@ -1600,6 +1699,11 @@ function app() {
     async runSkillEvaluator() {
       this.skillEvaluatorError = null;
       this.skillEvaluatorResult = null;
+      this.skillEvaluatorReportCopied = false;
+      if (this._skillEvaluatorReportCopiedTimer) {
+        clearTimeout(this._skillEvaluatorReportCopiedTimer);
+        this._skillEvaluatorReportCopiedTimer = null;
+      }
       const hasFiles = this.skillEvaluatorFiles.length > 0;
       const hasContent = this.skillEvaluatorContent.trim().length > 0;
       if (!hasFiles && !hasContent) {
@@ -1616,6 +1720,7 @@ function app() {
         } else {
           body.content = this.skillEvaluatorContent;
         }
+        body.kind = "skill";
         const name = this.skillEvaluatorName.trim();
         if (name.length > 0) body.suggestedName = name;
         const res = await dashboardFetch(url, {
@@ -1685,18 +1790,27 @@ function app() {
     },
 
     // -- Clipboard + Toast --
-    copyText(text: string) {
+    async copyTextToClipboard(text: string): Promise<boolean> {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        // Falls through to legacy textarea+execCommand on TypeError (clipboard
+        // API undefined in insecure contexts) or any Promise reject reason.
+      }
       const el = document.createElement("textarea");
       el.value = text;
       el.style.position = "fixed";
       el.style.opacity = "0";
       document.body.appendChild(el);
       el.select();
-      // Clipboard API is preferred elsewhere; this keeps copy working in
-      // browsers/contexts where programmatic clipboard writes are unavailable.
       // eslint-disable-next-line @typescript-eslint/no-deprecated
-      document.execCommand("copy");
+      const ok = document.execCommand("copy");
       document.body.removeChild(el);
+      return ok;
+    },
+    copyText(text: string) {
+      void this.copyTextToClipboard(text);
       this.copyLabel = "Copied!";
       setTimeout(() => {
         this.copyLabel = "Copy";

@@ -20,6 +20,7 @@ import { getPackageVersion, getTemplatePath } from "./paths.js";
 import { getKnownAgentIds } from "./agents/registry.js";
 import { classifyProjectState } from "./classify-state.js";
 import { createFS } from "./facts/fs.js";
+import { buildInstallerInvocation } from "./install-invocation.js";
 
 /** Current package version used in --version output */
 const PACKAGE_VERSION = getPackageVersion();
@@ -998,6 +999,16 @@ function deriveInstallFlags(
   }
 }
 
+/** Build the user-supplied installer flag list for the bundled bash script. */
+function collectInstallerFlags(options: ParsedCLI, agent: AgentId): string[] {
+  const flags: string[] = [];
+  if (options.force) flags.push("--force");
+  if (options.updateConfigVersion) flags.push("--update-config-version");
+  if (options.cleanDeprecated) flags.push("--clean-deprecated");
+  flags.push(...deriveInstallFlags(options.projectPath, agent, options));
+  return flags;
+}
+
 /** Handle deterministic install/update by delegating to the packaged installer. */
 function handleInstallCommand(options: ParsedCLI): void {
   if (!options.agent) {
@@ -1010,14 +1021,20 @@ function handleInstallCommand(options: ParsedCLI): void {
     throw new CLIError("--output is not supported for install.", 2);
   }
 
-  const scriptPath = getTemplatePath("workflow/install-goat-flow.sh");
-  const args = [scriptPath, options.projectPath, "--agent", options.agent];
-  if (options.force) args.push("--force");
-  if (options.updateConfigVersion) args.push("--update-config-version");
-  if (options.cleanDeprecated) args.push("--clean-deprecated");
-  args.push(...deriveInstallFlags(options.projectPath, options.agent, options));
+  const invocation = buildInstallerInvocation({
+    scriptPath: getTemplatePath("workflow/install-goat-flow.sh"),
+    projectPath: options.projectPath,
+    agent: options.agent,
+    installerFlags: collectInstallerFlags(options, options.agent),
+    platform: process.platform,
+  });
+  if (!invocation.ok) {
+    throw new CLIError(invocation.error, 1);
+  }
 
-  const result = spawnSync("bash", args, { stdio: "inherit" });
+  const result = spawnSync(invocation.bashCommand, invocation.args, {
+    stdio: "inherit",
+  });
   if (result.error) {
     throw new CLIError(
       `Could not run installer with bash: ${result.error.message}`,

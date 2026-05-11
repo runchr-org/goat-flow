@@ -47,7 +47,7 @@ Treat `copilot` as a first-class `AgentId` and ship full runtime parity in the s
 
 ## Implementation track
 
-Wave 6 (`.goat-flow/tasks/1.2.0-wave-6/`) is the implementation track that lands the runtime, setup, skills, docs, and validation work required by this ADR.
+Wave 6 is the implementation track that lands the runtime, setup, skills, docs, and validation work required by this ADR.
 
 ## Related decisions
 

@@ -4,7 +4,7 @@
   x-cloak
   style="height: calc(100vh - 3.5rem); overflow-y: auto"
 >
-  <div style="max-width: 1280px; margin: 0 auto; padding: 20px 24px 24px">
+  <div style="max-width: 1100px; margin: 0 auto; padding: 20px 24px 24px">
     <div style="margin-bottom: 14px">
       <h2
         class="gf-text-primary"
@@ -370,8 +370,11 @@
             class="gf-btn-terminal-cta"
             style="width: 100%; justify-content: center; padding: 11px"
           >
-            Run Setup in Terminal
+            <span
+              x-text="launching ? 'Starting setup...' : 'Run Setup in Terminal'"
+            ></span>
             <svg
+              x-show="!launching"
               width="13"
               height="13"
               fill="none"
@@ -425,9 +428,11 @@
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
             />
           </svg>
-          <span class="gf-text-muted" style="font-size: 12px"
-            >Generating...</span
-          >
+          <span
+            class="gf-text-muted"
+            style="font-size: 12px"
+            x-text="'Generating setup prompt for ' + agentName(setupSelectedAgent) + '...'"
+          ></span>
         </div>
 
         <pre

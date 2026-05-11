@@ -16,17 +16,16 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const CLI_PATH = join(PROJECT_ROOT, "src", "cli", "cli.ts");
-const TSX_LOADER_PATH = join(
-  PROJECT_ROOT,
-  "node_modules",
-  "tsx",
-  "dist",
-  "loader.mjs",
-);
+// Node's --import flag rejects raw Windows paths (D:\...) as ERR_UNSUPPORTED_ESM_URL_SCHEME
+// because it parses "D:" as a URL scheme. pathToFileURL produces the safe file:// form.
+const TSX_LOADER_URL = pathToFileURL(
+  join(PROJECT_ROOT, "node_modules", "tsx", "dist", "loader.mjs"),
+).href;
 const FIXTURE_DIR = resolve(
   import.meta.dirname,
   "..",
@@ -54,7 +53,7 @@ function runCLI(
 ): { status: number | null; stdout: string; stderr: string } {
   const result = spawnSync(
     process.execPath,
-    ["--import", TSX_LOADER_PATH, CLI_PATH, ...args],
+    ["--import", TSX_LOADER_URL, CLI_PATH, ...args],
     {
       cwd,
       encoding: "utf-8",

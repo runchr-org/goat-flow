@@ -46,6 +46,29 @@ npx goat-flow quality . --agent codex          # Quality prompt for Codex
 
 The agent derives the date/time from its shell and generates a 5-character lowercase-alphanumeric random suffix so parallel runs do not collide. If prior same-agent, same-mode quality history exists, the generated prompt embeds the latest saved report so the new review can mark current findings as `new` or `persisted`.
 
+### `goat-flow quality candidacy <description> [--draft <file>] [--format json]`
+
+Decide what kind of artifact a draft or description should become before authoring it. Returns one of `skill | reference | instruction-file | learning-loop | cli-command | do-not-create` with a deterministic rationale.
+
+```bash
+npx goat-flow quality candidacy "I want a workflow that reviews risky migrations before deploy"
+npx goat-flow quality candidacy --draft ./draft.md
+```
+
+Candidacy is read-only. See [Skill Authoring](skill-authoring.md) for the full authoring workflow.
+
+### `goat-flow skill new [<description>] [--name <slug>] [--draft <file>] [--interactive] [--yes]`
+
+Scaffold a new skill or playbook from a description, validate a draft's location, or run interactively. Runs `quality candidacy` first; only writes a file after confirmation (`--yes` for non-interactive flows).
+
+```bash
+npx goat-flow skill new "I want a workflow that reviews risky database migrations before deploy" --name db-migration-review
+npx goat-flow skill new --draft ./draft.md          # validate location only, never writes
+npx goat-flow skill new --interactive               # prompts for description, name, confirmation
+```
+
+Default destinations: skills install to `.claude/skills/<name>/SKILL.md`; playbooks/references install to `.goat-flow/skill-playbooks/<name>.md`. The command does not edit `workflow/manifest.json`.
+
 ### `goat-flow quality history [--agent <id>] [--all] [--format json]`
 
 List saved quality reports and same-agent setup deltas. By default the text view shows the 20 most recent runs; `--all` lifts that limit.
@@ -145,6 +168,8 @@ Common tasks and the commands to run:
 | Review quality trend history | `npx goat-flow quality history --agent claude` |
 | Compare two saved quality runs | `npx goat-flow quality diff --agent claude` |
 | Generate a setup prompt | `npx goat-flow setup . --agent claude` |
+| Decide what kind of artifact to author | `npx goat-flow quality candidacy "..."` |
+| Scaffold a new skill | `npx goat-flow skill new "..." --name <slug>` |
 | Use this in CI | `npx goat-flow audit . --format json` |
 | Open the dashboard | `npx goat-flow dashboard .` |
 

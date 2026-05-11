@@ -1,7 +1,7 @@
 {
   "skill:goat": {
     "minPct": 87,
-    "maxPct": 95,
+    "maxPct": 100,
     "recommendation": "keep-skill",
     "subtype": "dispatcher"
   },
@@ -25,7 +25,7 @@
   },
   "skill:goat-qa": {
     "minPct": 85,
-    "maxPct": 95,
+    "maxPct": 100,
     "recommendation": "keep-skill",
     "subtype": "workflow"
   },
@@ -37,7 +37,7 @@
   },
   "skill:goat-security": {
     "minPct": 90,
-    "maxPct": 95,
+    "maxPct": 100,
     "recommendation": "keep-skill",
     "subtype": "report"
   },

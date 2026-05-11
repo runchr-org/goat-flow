@@ -1,4 +1,4 @@
-# GEMINI.md - v1.6.0 (2026-05-04)
+# GEMINI.md - v1.6.1 (2026-05-10)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash validation scripts + TypeScript CLI/dashboard.
 
 goat-flow is a harness — guardrails, memory, and workflows for AI coding agents. Five concerns drive every design decision: **Context** (what you read), **Constraints** (what you may never do), **Verification** (how work is checked), **Recovery** (how state survives failure), **Feedback loop** (how mistakes become permanent fixes).
@@ -19,7 +19,7 @@ This repo is the goat-flow controlling workspace. When the dashboard or CLI oper
 **Ask First** (MUST complete before proceeding):
 Before proceeding, state boundary touched, related code read, footgun entry checked, local instruction checked, and exact rollback command. Boundaries: instruction files (`GEMINI.md`, `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`); workflow/manifest (`workflow/setup/`, `workflow/skills/`, `workflow/manifest.json`); architecture/playbooks (`.goat-flow/architecture.md`, `.goat-flow/skill-reference/`, `.goat-flow/skill-playbooks/`); server runtime (`src/cli/server/terminal.ts`, `src/cli/server/dashboard.ts`); agent configs (`.claude/**`, `.codex/**`, `.gemini/**`, `.agents/**`); CI/hooks (`.github/workflows/**`, `.github/actions/**`, `.github/hooks/**`, `.github/skills/**`); any add/remove/rename; changes spanning 3+ docs.
 
-**Never:** If interrupted or told no changes, freeze writes; run only read-only status/diff checks until the user explicitly asks for cleanup, revert, or apply. Delete docs without replacement. Modify secrets/.env. Push. Commit unless asked. Change security config. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`).
+**Never:** If interrupted or told no changes, freeze writes; run only read-only status/diff checks until the user explicitly asks for cleanup, revert, or apply. Delete docs without replacement. Modify .env/secrets. Push. Commit unless asked. Invent hypothetical examples. Overwrite existing files without checking destination (`ls` before `mv`/`cp`/Write; use `mv -n`). Delete/move/overwrite 5+ files in one operation without listing targets and getting confirmation.
 
 ## Hard Rules
 - If file exists, modify in-place. NEVER create `_modified`, `_new`, `_backup`, `_v2` variants.

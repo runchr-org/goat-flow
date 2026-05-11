@@ -4,7 +4,7 @@
 ## Test Plan
 - [ ] `bash scripts/preflight-checks.sh` passes
 - [ ] `npm test` passes
-- [ ] Audit passes: `node dist/cli/cli.js audit .`
+- [ ] Audit passes: `npx goat-flow audit .`
 
 ## AI Disclosure
 <!-- Was AI assistance used? Which tool(s)? -->

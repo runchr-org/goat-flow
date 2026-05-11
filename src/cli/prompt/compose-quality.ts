@@ -8,9 +8,25 @@ import type { QualityHistoryEntry } from "../quality/history.js";
 import { loadManifest } from "../manifest/manifest.js";
 import { getAgentProfile } from "../agents/registry.js";
 import { getPackageVersion } from "../paths.js";
-import { resolve } from "node:path";
+import { posix } from "node:path";
 import { QUALITY_REPORT_KIND, type QualityMode } from "../quality/schema.js";
 import type { SkillQualityReport } from "../quality/skill-quality.js";
+
+/**
+ * Build the forward-slash project sub-path that goes inside a Bash snippet in
+ * the prompt. On Windows `path.resolve` returns backslashes and (worse) drive-
+ * prefixes POSIX-shape inputs; `path.posix.join` keeps the input shape and
+ * forces forward-slash separators for the appended segment. Backslashes are
+ * normalised first so UNC roots (`\\server\share`) survive as `//server/share`;
+ * the leading slash that `posix.join` collapses on UNC inputs is then restored
+ * so quality writes still target the network share, not a local absolute path.
+ */
+function toShellProjectPath(projectPath: string, sub: string): string {
+  const normalized = projectPath.replace(/\\/g, "/");
+  const isUnc = normalized.startsWith("//");
+  const joined = posix.join(normalized, sub);
+  return isUnc && !joined.startsWith("//") ? "/" + joined : joined;
+}
 
 interface QualityInput {
   agent: AgentId;
@@ -324,7 +340,7 @@ function appendFocusedReportContract(
   lines.push('STAMP="$(date +"%Y-%m-%d-%H%M")"');
   lines.push("RAND=\"$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 5)\"");
   lines.push(
-    `QUALITY_DIR=${shellSingleQuote(resolve(input.projectPath, ".goat-flow/logs/quality"))}`,
+    `QUALITY_DIR=${shellSingleQuote(toShellProjectPath(input.projectPath, ".goat-flow/logs/quality"))}`,
   );
   lines.push(`FILE="\${QUALITY_DIR}/\${STAMP}-${input.agent}-\${RAND}.json"`);
   lines.push('mkdir -p "$QUALITY_DIR"');
@@ -497,6 +513,34 @@ function renderExamplesDimensionCriteria(subtype: string): string[] {
   return lines;
 }
 
+function appendComposedFromInstruction(
+  lines: string[],
+  report: SkillQualityReport,
+  kindLower: string,
+): void {
+  const { artifact, composedFrom } = report;
+  if (composedFrom.length === 0) {
+    lines.push(
+      `Assess the ${kindLower} artifact at \`${artifact.path}\`. The engine composed no additional files (single-file scoring path); read this file in full before scoring.`,
+    );
+    return;
+  }
+  const exampleReferenced =
+    composedFrom.find((s) => s.startsWith("references/")) ??
+    composedFrom.find((s) => s !== artifact.name && !/^SKILL\.md$/i.test(s)) ??
+    composedFrom[composedFrom.length - 1];
+  const exampleClause = exampleReferenced
+    ? ` Structural signals from referenced files count toward your assessment: content documented in \`${exampleReferenced}\` is part of the ${kindLower}, not bonus material.`
+    : "";
+  lines.push(
+    `Assess the ${kindLower} **${artifact.name}**. Read every file in **Composed from** below — the engine composes ${composedFrom.length} file${composedFrom.length === 1 ? "" : "s"} into the runtime surface (\`${composedFrom.join("`, `")}\`).${exampleClause}`,
+  );
+  lines.push("");
+  lines.push(
+    'If a `composition truncated` fit note appears below, the composed bundle is incomplete. Read the actual files listed in **Composed from** directly when context allows; otherwise note the skipped files in the final "What was not verified" section.',
+  );
+}
+
 /** Compose a focused quality prompt for a single skill or reference artifact.
  *  After M09, the prompt requires four scored semantic dimensions, an
  *  anti-bias preamble, an explicit per-file `composedFrom` reading
@@ -527,19 +571,7 @@ export function composeArtifactQualityPrompt(
     "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. This prompt is the full assessment contract. You may read files and run read-only commands.",
   );
   lines.push("");
-  if (composedFrom.length > 0) {
-    lines.push(
-      `Assess the ${kindLower} **${artifact.name}**. Read every file in **Composed from** below — the engine composes ${composedFrom.length} file${composedFrom.length === 1 ? "" : "s"} into the runtime surface (\`${composedFrom.join("`, `")}\`). Structural signals from referenced files count toward your assessment: a phase-2 procedure documented in \`references/auth-authz.md\` is part of the ${kindLower}, not bonus material.`,
-    );
-    lines.push("");
-    lines.push(
-      'If a `composition truncated` fit note appears below, the composed bundle is incomplete. Read the actual files listed in **Composed from** directly when context allows; otherwise note the skipped files in the final "What was not verified" section.',
-    );
-  } else {
-    lines.push(
-      `Assess the ${kindLower} artifact at \`${artifact.path}\`. The engine composed no additional files (single-file scoring path); read this file in full before scoring.`,
-    );
-  }
+  appendComposedFromInstruction(lines, report, kindLower);
   lines.push("");
 
   lines.push("## Deterministic Baseline");
@@ -547,6 +579,11 @@ export function composeArtifactQualityPrompt(
   lines.push(`- **Artifact:** ${artifact.name} (${kindLabel})`);
   lines.push(`- **Path:** \`${artifact.path}\``);
   lines.push(`- **Subtype:** ${subtype}`);
+  if (report.shapeMismatch) {
+    lines.push(
+      `- **Detected shape:** ${report.detectedShape} (${Math.round(report.shapeConfidence * 100)}% confidence)`,
+    );
+  }
   lines.push(`- **Score:** ${totalScore}/${maxTotalScore} (${pct}%)`);
   lines.push(`- **Recommendation:** ${recommendation}`);
   if (composedFrom.length > 0) {
@@ -1315,7 +1352,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push('STAMP="$(date +"%Y-%m-%d-%H%M")"      # e.g. 2026-04-19-1430');
   lines.push("RAND=\"$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 5)\"");
   lines.push(
-    `QUALITY_DIR=${shellSingleQuote(resolve(projectPath, ".goat-flow/logs/quality"))}`,
+    `QUALITY_DIR=${shellSingleQuote(toShellProjectPath(projectPath, ".goat-flow/logs/quality"))}`,
   );
   lines.push(`FILE="\${QUALITY_DIR}/\${STAMP}-${agent}-\${RAND}.json"`);
   lines.push('mkdir -p "$QUALITY_DIR"');

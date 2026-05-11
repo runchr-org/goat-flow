@@ -212,7 +212,7 @@ export const DEFAULT_QUALITY_CONFIG: QualityConfig = {
     ],
   },
   toolKeywordsRegex:
-    "browser-use|page-capture|command -v|\\bwhich\\s+(command|binary|tool|cli)\\b|\\bnpm\\b|\\bbash\\b|\\bgit\\b|\\bpython\\b|\\bnode\\b|\\bgh\\b|\\bgoat-flow\\b(?!-skill-version)|node --import tsx",
+    "browser-use|page-capture|Playwright\\s+MCP|\\bbrowser_(?:navigate|snapshot|click|type|fill_form|evaluate|resize|wait_for|network_requests|console_messages)\\b|\\bmcp__[A-Za-z0-9_]+\\b|\\bgh\\b",
   subtypes: {
     meta: {
       detection: {
@@ -238,7 +238,14 @@ export const DEFAULT_QUALITY_CONFIG: QualityConfig = {
       detection: {
         kinds: ["shared-reference"],
         namePatterns: [],
-        headingPatterns: [],
+        headingPatterns: [
+          "##\\s+Availability Check",
+          "##\\s+.*Workflow",
+          "##\\s+(Environment|Prerequisites|Common Gotchas|Quick Reference)\\b",
+          "\\bbrowser_(?:navigate|snapshot|click|type|fill_form|evaluate|resize|wait_for|network_requests|console_messages)\\b",
+          "\\bPlaywright\\s+MCP\\b",
+          "\\bmcp__[A-Za-z0-9_]+\\b",
+        ],
         mustNotHave: [],
       },
       profile: DEFAULT_PROFILES.playbook,
@@ -268,7 +275,11 @@ export const DEFAULT_QUALITY_CONFIG: QualityConfig = {
       detection: {
         kinds: ["skill"],
         namePatterns: [],
-        headingPatterns: [],
+        headingPatterns: [
+          "##\\s+Step 0\\b",
+          "\\bCHECKPOINT\\b",
+          "\\b(Read-Only|File-Write|Implement)\\b",
+        ],
         mustNotHave: [],
       },
       profile: DEFAULT_PROFILES.workflow,
@@ -291,6 +302,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function stringArray(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
   return value.filter((v): v is string => typeof v === "string");
+}
+
+function isValidRegexSource(source: string, flags = "i"): boolean {
+  try {
+    new RegExp(source, flags);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function regexArray(value: unknown, fallback: string[]): string[] {
+  const strings = stringArray(value);
+  if (strings === null) return fallback;
+  return strings.filter((source) => isValidRegexSource(source));
 }
 
 function mergeWalkRoot(value: unknown, fallback: WalkRoot[]): WalkRoot[] {
@@ -329,7 +355,8 @@ function mergeComposition(
           ? null
           : fallback.skillConventionsPath,
     skillReferencePattern:
-      typeof value["skill-reference-pattern"] === "string"
+      typeof value["skill-reference-pattern"] === "string" &&
+      isValidRegexSource(value["skill-reference-pattern"], "g")
         ? value["skill-reference-pattern"]
         : fallback.skillReferencePattern,
     maxComposedBytes:
@@ -346,10 +373,12 @@ function mergeGateVocabulary(
 ): GateVocabularyConfig {
   if (!isRecord(value)) return fallback;
   return {
-    verificationGate:
-      stringArray(value["verification-gate"]) ?? fallback.verificationGate,
-    explicitPass: stringArray(value["explicit-pass"]) ?? fallback.explicitPass,
-    humanStop: stringArray(value["human-stop"]) ?? fallback.humanStop,
+    verificationGate: regexArray(
+      value["verification-gate"],
+      fallback.verificationGate,
+    ),
+    explicitPass: regexArray(value["explicit-pass"], fallback.explicitPass),
+    humanStop: regexArray(value["human-stop"], fallback.humanStop),
   };
 }
 
@@ -362,9 +391,11 @@ function mergeSubtypeDetection(
   return {
     kinds: kinds ? (kinds as ArtifactKind[]) : fallback.kinds,
     namePatterns: stringArray(value["name-patterns"]) ?? fallback.namePatterns,
-    headingPatterns:
-      stringArray(value["heading-patterns"]) ?? fallback.headingPatterns,
-    mustNotHave: stringArray(value["must-not-have"]) ?? fallback.mustNotHave,
+    headingPatterns: regexArray(
+      value["heading-patterns"],
+      fallback.headingPatterns,
+    ),
+    mustNotHave: regexArray(value["must-not-have"], fallback.mustNotHave),
   };
 }
 
@@ -430,7 +461,8 @@ export function mergeQualityConfig(raw: unknown): QualityConfig {
       defaults.gateVocabulary,
     ),
     toolKeywordsRegex:
-      typeof raw["tool-keywords-regex"] === "string"
+      typeof raw["tool-keywords-regex"] === "string" &&
+      isValidRegexSource(raw["tool-keywords-regex"])
         ? raw["tool-keywords-regex"]
         : defaults.toolKeywordsRegex,
     subtypes: mergeSubtypes(raw.subtypes, defaults.subtypes),
