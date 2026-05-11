@@ -3,6 +3,20 @@ category: verification-testing
 last_reviewed: 2026-05-11
 ---
 
+## Lesson: Source-regex dashboard tests must tolerate formatter reflow
+
+**Status:** active | **Created:** 2026-05-11
+
+**What happened:** While fixing dashboard terminal paste submission, focused `test/unit/dashboard-terminal-launch.test.ts` first passed. After formatting touched files, the rerun failed only because the "warms xterm" source assertion expected a multi-line `if` block shape that Prettier collapsed into one line. The runtime behavior was still correct; the test was over-specified to formatting.
+
+**Root cause:** A classic-script source grep test used a whitespace-sensitive regex to assert control-flow structure. Formatter reflow changed the syntax layout without changing semantics.
+
+**Fix:** Keep source-regex tests focused on semantic tokens and tolerate formatter-owned whitespace. Evidence anchors: `test/unit/dashboard-terminal-launch.test.ts` (search: `warms xterm when the workspace or setup view opens`), `src/dashboard/app.ts` (search: `v === "workspace" || v === "setup"`).
+
+**Prevention:** After changing source-grep tests for dashboard classic scripts, run Prettier before the focused test rerun. If a regex only protects structure, make whitespace flexible enough for formatter reflow or use a small VM helper test instead.
+
+---
+
 ## Lesson: `node --import <abs-path>` on Windows needs a file:// URL
 
 **Status:** active | **Created:** 2026-05-11

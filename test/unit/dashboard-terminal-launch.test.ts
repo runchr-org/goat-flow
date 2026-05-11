@@ -474,6 +474,62 @@ describe("dashboard terminal launch flow", () => {
     );
   });
 
+  it("normalizes paste bodies before wrapping them in bracketed paste markers", async () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const sent: string[] = [];
+    const ctx = makeContext({
+      activeSessionId: "session-upload",
+      sessions: [
+        {
+          id: "session-upload",
+          runner: "codex",
+          promptLabel: "Upload target",
+          projectPath: "/tmp/example",
+          cwd: "/tmp/example",
+          targetPath: "/tmp/example",
+          startTime: Date.now(),
+          lastInputTime: 0,
+          connected: true,
+          ended: false,
+          awaitingInput: false,
+          age: "0s",
+          presetId: null,
+        },
+      ],
+      _terminalRefs: {
+        "session-upload": {
+          ws: {
+            readyState: 1,
+            send(payload: string): void {
+              sent.push(payload);
+            },
+          },
+        },
+      },
+    });
+
+    assert.equal(
+      helpers.dashboardSendToTerminalSession(
+        ctx,
+        "session-upload",
+        "first\r\nsecond\x1b[201~third\x1b[200~\rfourth",
+        { adapt: false },
+      ),
+      true,
+    );
+
+    assert.deepStrictEqual(JSON.parse(sent[0] ?? "{}"), {
+      type: "input",
+      data: "\x1b[200~first\nsecondthird\nfourth\x1b[201~",
+    });
+    assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
+  });
+
   it("falls back to submitting pasted terminal text when no paste echo arrives", async () => {
     const timers = createFakeTimers();
     const helpers = loadHelpers(
@@ -524,6 +580,70 @@ describe("dashboard terminal launch flow", () => {
 
     assert.equal(sent.length, 1);
     timers.tick(1000);
+    assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
+    assert.equal(timers.pending(), 0);
+  });
+
+  it("retries delayed paste submit when the websocket is briefly unavailable", async () => {
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+    );
+    const sent: string[] = [];
+    const ws = {
+      readyState: 1,
+      send(payload: string): void {
+        sent.push(payload);
+      },
+    };
+    const ctx = makeContext({
+      activeSessionId: "session-upload",
+      sessions: [
+        {
+          id: "session-upload",
+          runner: "claude",
+          promptLabel: "Upload target",
+          projectPath: "/tmp/example",
+          cwd: "/tmp/example",
+          targetPath: "/tmp/example",
+          startTime: Date.now(),
+          lastInputTime: 0,
+          connected: true,
+          ended: false,
+          awaitingInput: false,
+          age: "0s",
+          presetId: null,
+        },
+      ],
+      _terminalRefs: {
+        "session-upload": {
+          ws,
+        },
+      },
+    });
+
+    assert.equal(
+      helpers.dashboardSendToTerminalSession(
+        ctx,
+        "session-upload",
+        "Attached files\nsecond line",
+        { adapt: false },
+      ),
+      true,
+    );
+
+    assert.equal(sent.length, 1);
+    ws.readyState = 0;
+    timers.tick(1000);
+    assert.equal(sent.length, 1);
+    assert.equal(timers.pending(), 1);
+
+    ws.readyState = 1;
+    timers.tick(300);
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
       data: "\r",
@@ -1055,11 +1175,11 @@ describe("dashboard terminal launch flow", () => {
     );
   });
 
-  it("warms xterm when the workspace view opens", () => {
+  it("warms xterm when the workspace or setup view opens", () => {
     const source = readFileSync(DASHBOARD_APP_PATH, "utf-8");
     assert.match(
       source,
-      /if \(v === "workspace" && this\.terminalAvailable\) \{\s+void this\.loadXterm\(\)\.catch\(\(\) => \{\}\);\s+\}/,
+      /if \(\(v === "workspace" \|\| v === "setup"\) && this\.terminalAvailable\) \{\s+void this\.loadXterm\(\)\.catch\(\(\) => \{\}\);\s+\}/,
     );
   });
 
@@ -1112,6 +1232,7 @@ describe("dashboard terminal launch flow", () => {
       /const TERMINAL_LAUNCH_PROMPT_AFTER_OUTPUT_FALLBACK_DELAY_MS = 2000/,
     );
     assert.match(source, /const TERMINAL_LAUNCH_PROMPT_QUIET_DELAY_MS = 500/);
+    assert.match(source, /const TERMINAL_PASTE_SUBMIT_RETRY_DELAY_MS = 300/);
     assert.match(source, /body: JSON\.stringify\(\{\s+prompt: ""/);
     assert.match(
       source,
