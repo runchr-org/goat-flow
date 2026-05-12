@@ -22,7 +22,6 @@ What do you want to do?
 **Install locally (optional)**
 
 ```bash
-pnpm add -D @blundergoat/goat-flow               # pnpm
 npm install --save-dev @blundergoat/goat-flow    # npm
 ```
 
@@ -181,7 +180,7 @@ See [docs/audit-and-quality.md](docs/audit-and-quality.md) for the full framewor
 ## Troubleshooting
 
 **Terminal not showing in dashboard?**
-goat-flow installs without a C++ toolchain as of v1.2.4. If you need the dashboard's embedded terminal, you'll also need `node-pty` to compile. Install build tools (`sudo apt install build-essential python3` on Debian/Ubuntu, `xcode-select --install` on macOS), then run `npm rebuild node-pty`. If using pnpm: `pnpm approve-builds` (select node-pty). To skip the native build entirely: `npm install @blundergoat/goat-flow --omit=optional`.
+goat-flow installs without a C++ toolchain as of v1.2.4. If you need the dashboard's embedded terminal, you'll also need `node-pty` to compile. Install build tools (`sudo apt install build-essential python3` on Debian/Ubuntu, `xcode-select --install` on macOS), then run `npm rebuild node-pty`. To skip the native build entirely: `npm install @blundergoat/goat-flow --omit=optional`.
 
 **Audit fails on a fresh project?**
 Expected. Run `npx @blundergoat/goat-flow@latest install . --agent claude`, then generate the setup prompt with `npx @blundergoat/goat-flow@latest setup . --agent claude`.
