@@ -337,7 +337,7 @@ export function serveDashboard(
 
       const routeHandlers = [
         () => Promise.resolve(handleHtmlRequest(url, res)),
-        () => Promise.resolve(handleAssetRequest(url, res)),
+        () => Promise.resolve(handleAssetRequest(req, url, res)),
         () => Promise.resolve(handleAuditRequest(url, res)),
         () => Promise.resolve(handleSetupDetectRequest(url, res)),
         () => handleSetupRequest(url, res),

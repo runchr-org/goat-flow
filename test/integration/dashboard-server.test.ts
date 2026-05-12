@@ -16,8 +16,6 @@ import {
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
 import { normalizeAgentVersionOutput } from "../../src/cli/server/dashboard-routes.js";
 import { TERMINAL_UPLOAD_MAX_BODY_BYTES } from "../../src/cli/server/terminal-uploads.js";
-import { detectSetupStack } from "../../src/cli/detect/project-stack.js";
-import { createFS } from "../../src/cli/facts/fs.js";
 import type { AgentId } from "../../src/cli/types.js";
 
 const PROJECT_PATH = resolve(import.meta.dirname, "..", "..");
@@ -588,9 +586,25 @@ describe("dashboard assets", () => {
     const res = await fetch(`${baseUrl}/assets/xterm.js`);
     assert.equal(res.status, 200);
     assert.match(res.headers.get("content-type") ?? "", /javascript/i);
+    assert.equal(res.headers.get("cache-control"), "no-cache");
+    assert.match(res.headers.get("etag") ?? "", /^"\d+-\d+"$/);
 
     const body = await res.text();
     assert.match(body, /bracketedPasteMode/);
+  });
+
+  it("GET /assets/xterm.js supports ETag revalidation", async () => {
+    const first = await fetch(`${baseUrl}/assets/xterm.js`);
+    assert.equal(first.status, 200);
+    const etag = first.headers.get("etag");
+    assert.match(etag ?? "", /^"\d+-\d+"$/);
+
+    const second = await fetch(`${baseUrl}/assets/xterm.js`, {
+      headers: { "If-None-Match": etag ?? "" },
+    });
+    assert.equal(second.status, 304);
+    assert.equal(second.headers.get("etag"), etag);
+    assert.equal(second.headers.get("cache-control"), "no-cache");
   });
 
   it("GET /assets/addon-fit.js returns bundled xterm fit addon JavaScript", async () => {
@@ -606,6 +620,8 @@ describe("dashboard assets", () => {
     const res = await fetch(`${baseUrl}/assets/app.js`);
     assert.equal(res.status, 200);
     assert.match(res.headers.get("content-type") ?? "", /javascript/i);
+    assert.equal(res.headers.get("cache-control"), "no-cache");
+    assert.match(res.headers.get("etag") ?? "", /^"\d+-\d+"$/);
 
     const body = await res.text();
     assert.match(body, /function app\(/);
@@ -1310,20 +1326,120 @@ describe("dashboard /api/setup/detect", () => {
     assert.equal(res.status, 200);
 
     const data = expectRecord(body, "Setup detect response");
-    const canonicalStack = detectSetupStack(createFS(PROJECT_PATH));
     assert.ok(Array.isArray(data.languages));
     assert.ok((data.languages as unknown[]).includes("TypeScript"));
     assert.ok(Array.isArray(data.frameworks));
     const commands = expectRecord(data.commands, "Setup detect commands");
-    assert.deepEqual(data.languages, canonicalStack.languages);
-    assert.deepEqual(data.frameworks, canonicalStack.frameworks);
-    assert.equal(commands.build, canonicalStack.commands.build);
-    assert.equal(commands.test, canonicalStack.commands.test);
-    assert.equal(commands.lint, canonicalStack.commands.lint);
-    assert.equal(commands.format, canonicalStack.commands.format);
+    assert.equal(typeof commands.build, "string");
+    assert.equal(typeof commands.test, "string");
+    assert.equal(typeof commands.lint, "string");
+    assert.equal(typeof commands.format, "string");
     expectRecord(data.agents, "Setup detect agents");
     expectRecord(data.existing, "Setup detect existing");
     assert.ok(Array.isArray(data.nonGoatFlow));
+  });
+
+  it("detects useful mixed-root setup signals without deep stack detection", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-setup-detect-"));
+    try {
+      await writeProjectFile(
+        root,
+        "package.json",
+        JSON.stringify({
+          scripts: {
+            build: "vite build",
+            "test:unit": "vitest run",
+            lint: "eslint .",
+            format: "prettier --check .",
+          },
+          dependencies: { react: "^19.0.0" },
+          devDependencies: { typescript: "^5.0.0" },
+        }),
+      );
+      await writeProjectFile(root, "tsconfig.json", "{}");
+      await writeProjectFile(
+        root,
+        "composer.json",
+        JSON.stringify({
+          require: {
+            "symfony/framework-bundle": "6.4.*",
+            "twig/twig": "^3.0",
+          },
+          scripts: { analyse: "phpstan analyse" },
+        }),
+      );
+      await writeProjectFile(root, "symfony.lock", "{}");
+      await writeProjectFile(root, "phpunit.xml.dist", "<phpunit />");
+      await writeProjectFile(root, "Dockerfile", "FROM node:20\n");
+
+      const { res, body } = await fetchJson(
+        `/api/setup/detect?path=${encodeURIComponent(root)}`,
+      );
+      assert.equal(res.status, 200);
+
+      const data = expectRecord(body, "Mixed setup detect response");
+      assert.deepEqual(data.languages, [
+        "JavaScript",
+        "TypeScript",
+        "PHP",
+        "Twig",
+      ]);
+      assert.deepEqual(data.frameworks, ["React", "Symfony", "Docker"]);
+      const commands = expectRecord(data.commands, "Mixed setup commands");
+      assert.equal(commands.build, "vite build");
+      assert.equal(commands.test, "npm run test:unit");
+      assert.equal(commands.lint, "eslint .");
+      assert.equal(commands.format, "prettier --check .");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps setup detection bounded on large root-first projects", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-large-setup-detect-"));
+    try {
+      await writeProjectFile(
+        root,
+        "package.json",
+        JSON.stringify({
+          scripts: { build: "npm run compile", test: "node --test" },
+          devDependencies: { typescript: "^5.0.0" },
+        }),
+      );
+      await writeProjectFile(root, "tsconfig.json", "{}");
+      for (let index = 0; index < 250; index += 1) {
+        await writeProjectFile(
+          root,
+          `packages/pkg-${index}/nested/deeper/file-${index}.txt`,
+          "x",
+        );
+      }
+
+      const start = performance.now();
+      const { res, body } = await fetchJson(
+        `/api/setup/detect?path=${encodeURIComponent(root)}`,
+      );
+      const durationMs = performance.now() - start;
+      assert.equal(res.status, 200);
+      const data = expectRecord(body, "Large setup detect response");
+      assert.ok((data.languages as unknown[]).includes("TypeScript"));
+      assert.ok(
+        durationMs < 1000,
+        `setup detect should stay bounded on large trees (${durationMs.toFixed(1)}ms)`,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not call the full stack detector from setup-detect route helpers", async () => {
+    const source = await readFile(
+      resolve(PROJECT_PATH, "src/cli/server/setup-detect.ts"),
+      "utf-8",
+    );
+    assert.doesNotMatch(source, /detectStack\(/);
+    assert.doesNotMatch(source, /detectSetupStack\(/);
+    assert.doesNotMatch(source, /existsGlob\(/);
   });
 });
 
@@ -1465,6 +1581,24 @@ describe("dashboard /api/quality", () => {
     assert.equal(data.agent, "claude");
     assert.match(String(data.prompt), /Skill Suite Quality Assessment/);
     assert.match(String(data.prompt), /"quality_mode": "skills"/);
+  });
+
+  it("uses cache-only audit enrichment when fast=true is requested", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-quality-fast-"));
+    try {
+      const { res, body } = await fetchJson(
+        `/api/quality?path=${encodeURIComponent(root)}&agent=claude&fast=true`,
+      );
+      assert.equal(res.status, 200);
+
+      const data = expectRecord(body, "Fast quality response");
+      assert.equal(data.command, "quality");
+      assert.equal(data.agent, "claude");
+      assert.equal(data.auditStatus, "unavailable");
+      assert.match(String(data.prompt), /Audit: UNAVAILABLE/);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it("reuses cached quality audits unless fresh=true is requested", async () => {

@@ -17,6 +17,9 @@
       @custom-variant dark (&:where(.dark, .dark *));
     </style>
     <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="preload" as="script" href="/assets/xterm.js" />
+    <link rel="preload" as="script" href="/assets/addon-fit.js" />
+    <link rel="preload" as="style" href="/assets/xterm.css" />
     <!-- Prevent FOUC: apply dark mode before paint -->
     <script>
       if (

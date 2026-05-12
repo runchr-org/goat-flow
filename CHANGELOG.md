@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.6.4 - 2026-05-12
+
+Dashboard cold-load and Skills evaluator release.
+
+- **Fast setup detection** - `/api/setup/detect` now uses a bounded setup-specific detector built from root manifests and shallow setup directories instead of full recursive stack detection. Large target projects no longer block the dashboard event loop with broad `**` probes before the first render.
+- **Dashboard asset responsiveness** - Terminal assets are preloaded, served from an in-memory ETag cache, and loaded through idempotent DOM insertion with retry cleanup. Warmed xterm assets no longer create duplicate script/link nodes.
+- **Terminal launch path** - `POST /api/terminal/create` now overlaps with xterm loading, while failed xterm loads still clean up the created backend session. Duplicate `/api/terminal/sessions` refreshes are coalesced behind a short debounce.
+- **Skills evaluator workflow** - The dashboard Skills page now leads with evaluating coding-agent skill drafts and Markdown bundles while retaining installed goat-flow skill audit context.
+
 ## v1.6.3 - 2026-05-12
 
 Dashboard terminal UX release for setup launches and cold-start visibility.

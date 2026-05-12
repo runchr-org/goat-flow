@@ -3,7 +3,7 @@
  * These helpers keep file-resolution and asset-shape validation out of the
  * main HTTP server so route code can stay focused on request handling.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { getTemplatePath, resolveFirstExistingPackagePath } from "../paths.js";
 
@@ -21,6 +21,16 @@ interface DashboardPreset extends Record<string, unknown> {
   prompt: string;
   cat: string;
 }
+
+interface CachedDashboardAsset {
+  content: Buffer;
+  etag: string;
+  sourcePath: string;
+  mtimeMs: number;
+  size: number;
+}
+
+const dashboardAssetCache = new Map<string, CachedDashboardAsset>();
 
 /** Replace `<!-- include: path -->` markers with fragment file contents (one level, no nesting). */
 export function assembleDashboardHtml(shellPath: string): string {
@@ -69,12 +79,36 @@ export function loadDashboardPresets(): DashboardPreset[] {
   });
 }
 
-/** Read one bundled dashboard asset, with preset JSON supporting source-run fallback. */
-export function loadDashboardAsset(filename: string): string {
+/** Resolve one asset to the actual file path used for this runtime mode. */
+function resolveDashboardAssetPath(filename: string): string {
   return filename === "preset-prompts.json"
-    ? readFileSync(
-        resolveFirstExistingPackagePath(DASHBOARD_PRESET_CATALOG_PATHS),
-        "utf-8",
-      )
-    : readFileSync(getTemplatePath(`dist/dashboard/${filename}`), "utf-8");
+    ? resolveFirstExistingPackagePath(DASHBOARD_PRESET_CATALOG_PATHS)
+    : getTemplatePath(`dist/dashboard/${filename}`);
+}
+
+/** Read one bundled dashboard asset through a small mtime/size-aware memory cache. */
+export function loadDashboardAssetCached(
+  filename: string,
+): CachedDashboardAsset {
+  const sourcePath = resolveDashboardAssetPath(filename);
+  const stats = statSync(sourcePath);
+  const cached = dashboardAssetCache.get(filename);
+  if (
+    cached &&
+    cached.sourcePath === sourcePath &&
+    cached.mtimeMs === stats.mtimeMs &&
+    cached.size === stats.size
+  ) {
+    return cached;
+  }
+  const content = readFileSync(sourcePath);
+  const asset = {
+    content,
+    etag: `"${stats.size}-${Math.floor(stats.mtimeMs)}"`,
+    sourcePath,
+    mtimeMs: stats.mtimeMs,
+    size: stats.size,
+  };
+  dashboardAssetCache.set(filename, asset);
+  return asset;
 }

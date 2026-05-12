@@ -24,6 +24,9 @@ type TestContext = {
   _setupOutputProjectPath: string | null;
   qualityAgent: string;
   selectedQualityModeId: string;
+  qualityLoading: boolean;
+  qualityResult: unknown;
+  qualityCopyLabel: string;
   qualityHistoryLoading: boolean;
   qualityHistoryRows: unknown[];
   qualityHistoryLatest: unknown;
@@ -38,6 +41,10 @@ type HelperContext = {
   dashboardGenerateSetupPrompt(
     ctx: TestContext,
     options?: { force?: boolean },
+  ): Promise<void>;
+  dashboardGenerateQuality(
+    ctx: TestContext,
+    options?: { fast?: boolean; fresh?: boolean },
   ): Promise<void>;
   dashboardGenerateQualityHistory(ctx: TestContext): Promise<void>;
 };
@@ -76,11 +83,15 @@ function loadHelpers(fetchImpl: typeof fetch): HelperContext {
     readQualityHistoryLatest(value: unknown): unknown {
       return value ?? null;
     },
+    readQualityResult(value: unknown): unknown {
+      return value;
+    },
   });
   runInContext(
     `${js}
 globalThis.__helpers = {
   dashboardGenerateSetupPrompt,
+  dashboardGenerateQuality,
   dashboardGenerateQualityHistory,
 };`,
     context,
@@ -97,6 +108,9 @@ function makeContext(): TestContext {
     _setupOutputProjectPath: null,
     qualityAgent: "claude",
     selectedQualityModeId: "agent-setup",
+    qualityLoading: false,
+    qualityResult: null,
+    qualityCopyLabel: "Copy",
     qualityHistoryLoading: false,
     qualityHistoryRows: [{ date: "old" }],
     qualityHistoryLatest: { date: "old" },
@@ -130,6 +144,80 @@ describe("dashboardGenerateSetupPrompt", () => {
     assert.equal(ctx.setupOutputs.claude, "fresh setup output");
     assert.equal(ctx._setupOutputProjectPath, "/repo");
     assert.equal(ctx.setupGenerating, false);
+  });
+});
+
+describe("dashboardGenerateQuality", () => {
+  it("uses the fast quality endpoint for automatic page loads", async () => {
+    let requested = "";
+    const helpers = loadHelpers(
+      async (input: RequestInfo | URL) => {
+        requested = String(input);
+        return new Response(
+          JSON.stringify({
+            command: "quality",
+            agent: "claude",
+            auditStatus: "unavailable",
+            auditSummary: "cache-only",
+            prompt: "fast quality prompt",
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        );
+      },
+    );
+    const ctx = makeContext();
+
+    await helpers.dashboardGenerateQuality(ctx, { fast: true });
+
+    assert.match(requested, /[?&]fast=true(?:&|$)/);
+    assert.doesNotMatch(requested, /[?&]fresh=true(?:&|$)/);
+    assert.deepEqual(ctx.qualityResult, {
+      command: "quality",
+      agent: "claude",
+      auditStatus: "unavailable",
+      auditSummary: "cache-only",
+      prompt: "fast quality prompt",
+    });
+    assert.equal(ctx.qualityLoading, false);
+  });
+
+  it("requests a fresh audit for explicit quality regeneration", async () => {
+    let requested = "";
+    const helpers = loadHelpers(
+      async (input: RequestInfo | URL) => {
+        requested = String(input);
+        return new Response(
+          JSON.stringify({
+            command: "quality",
+            agent: "claude",
+            auditStatus: "fail",
+            auditSummary: "fresh audit",
+            prompt: "fresh quality prompt",
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        );
+      },
+    );
+    const ctx = makeContext();
+
+    await helpers.dashboardGenerateQuality(ctx, { fresh: true });
+
+    assert.match(requested, /[?&]fresh=true(?:&|$)/);
+    assert.doesNotMatch(requested, /[?&]fast=true(?:&|$)/);
+    assert.deepEqual(ctx.qualityResult, {
+      command: "quality",
+      agent: "claude",
+      auditStatus: "fail",
+      auditSummary: "fresh audit",
+      prompt: "fresh quality prompt",
+    });
+    assert.equal(ctx.qualityLoading, false);
   });
 });
 

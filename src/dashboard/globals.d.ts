@@ -244,6 +244,8 @@ interface TerminalRefs {
   pasteSubmitTimer?: ReturnType<typeof setTimeout>;
   pasteSubmitQueue?: Array<{ data: string; delayed: boolean }>;
   pasteSubmitOutputTail?: string;
+  pasteSubmitAwaitingCommit?: boolean;
+  pasteSubmitFallbackSubmitted?: boolean;
   launchPrompt?: string;
   retryPrompt?: string;
   retryPromptLabel?: string | null;

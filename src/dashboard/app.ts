@@ -252,8 +252,7 @@ function app() {
     skillQualityPrefetching: false,
     skillQualityPrefetchGeneration: 0,
 
-    // --- Skill evaluator modal state ---
-    skillEvaluatorOpen: false,
+    // --- Skill evaluator page state ---
     skillEvaluatorName: "",
     skillEvaluatorContent: "",
     skillEvaluatorFiles: [] as { name: string; content: string }[],
@@ -265,7 +264,7 @@ function app() {
     _skillEvaluatorReportCopiedTimer: null as ReturnType<
       typeof setTimeout
     > | null,
-    /** Per-metric collapse state for the result-modal tip groups. */
+    /** Per-metric collapse state for the evaluator result tip groups. */
     skillEvaluatorTipCollapsed: {} as Record<string, boolean>,
 
     /** Resolve the current display name for one supported agent id. */
@@ -827,7 +826,7 @@ function app() {
           }, 10_000);
         }
         if (v === "quality") {
-          void this.generateQuality();
+          void this.generateQuality({ fast: true });
           this.scheduleQualityHistory();
         }
         if (v === "skills") {
@@ -840,7 +839,7 @@ function app() {
       });
       self.$watch("qualityAgent", () => {
         if (this.activeView === "quality") {
-          void this.generateQuality();
+          void this.generateQuality({ fast: true });
           this.scheduleQualityHistory();
         }
       });
@@ -864,7 +863,7 @@ function app() {
       });
       self.$watch("selectedQualityModeId", () => {
         if (this.activeView === "quality") {
-          void this.generateQuality();
+          void this.generateQuality({ fast: true });
           this.scheduleQualityHistory();
         }
       });
@@ -882,7 +881,7 @@ function app() {
           void this.reconnectTerminal();
           void this.updateSessionCount();
           if (this.activeView === "quality") {
-            void this.generateQuality();
+            void this.generateQuality({ fast: true });
             this.scheduleQualityHistory();
           }
           if (this.activeView === "setup") {
@@ -1099,8 +1098,10 @@ function app() {
     },
 
     // -- Quality --
-    async generateQuality() {
-      await dashboardGenerateQuality(this);
+    async generateQuality(
+      options: { fast?: boolean; fresh?: boolean } = {},
+    ) {
+      await dashboardGenerateQuality(this, options);
     },
     /** Load persisted quality-history rows for the selected project and agent. */
     async generateQualityHistory() {
@@ -1380,7 +1381,7 @@ function app() {
         severity: "pass",
       };
     },
-    /** Verdict-banner copy for the Evaluate-skill modal result.
+    /** Verdict-banner copy for the Skill Evaluator result.
      *
      *  The headline title softens its tone to match the recommendation: a
      *  `needs-human-review` verdict says "needs review before keeping", not
@@ -1505,7 +1506,7 @@ function app() {
       const hr = Math.floor(min / 60);
       return `audited ${hr} hr${hr > 1 ? "s" : ""} ago`;
     },
-    /** Pill-style file-role label used in the composed-from list and modal
+    /** Pill-style file-role label used in the composed-from list and evaluator
      *  file chips. */
     skillFileRole(name: string): string {
       if (name === "skill-preamble.md") return "PREAMBLE";
@@ -1590,15 +1591,7 @@ function app() {
       }
     },
 
-    // -- Skill evaluator modal --
-    openSkillEvaluator() {
-      this.skillEvaluatorOpen = true;
-      this.resetSkillEvaluator();
-    },
-    closeSkillEvaluator() {
-      this.skillEvaluatorOpen = false;
-      this.resetSkillEvaluator();
-    },
+    // -- Skill evaluator page --
     resetSkillEvaluator() {
       this.skillEvaluatorName = "";
       this.skillEvaluatorContent = "";
@@ -1687,7 +1680,7 @@ function app() {
       event.preventDefault();
       this.skillEvaluatorDragActive = true;
     },
-    /** dragleave handler — only clear when leaving the modal card itself. */
+    /** dragleave handler — only clear when leaving the evaluator panel itself. */
     skillEvaluatorDragLeave(event: DragEvent) {
       const related = event.relatedTarget as Node | null;
       const target = event.currentTarget as Node | null;
