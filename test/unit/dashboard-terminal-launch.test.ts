@@ -43,6 +43,7 @@ type LaunchContext = {
   activeView: string;
   workspacePanel: string;
   terminalAvailable: boolean;
+  terminalSessionCount: number;
   serverMaxSessions: number;
   serverSessions: unknown[];
   sessionTitles: Record<string, string>;
@@ -61,6 +62,8 @@ type LaunchContext = {
       pasteSubmitTimer?: ReturnType<typeof setTimeout>;
       pasteSubmitQueue?: Array<{ data: string; delayed: boolean }>;
       pasteSubmitOutputTail?: string;
+      pasteSubmitAwaitingCommit?: boolean;
+      pasteSubmitFallbackSubmitted?: boolean;
       launchPrompt?: string;
       retryPrompt?: string;
       retryPromptLabel?: string | null;
@@ -77,6 +80,7 @@ type LaunchContext = {
   showMaxSessionsModal: boolean;
   adaptPrompt(prompt: string, runner?: string): string;
   showToast(msg: string, isError?: boolean): void;
+  displayNameFor(path: string): string;
   _forgetSavedSession(sessionId: string): void;
   loadXterm(): Promise<void>;
   connectTerminal(sessionId: string, wsUrl: string): void;
@@ -157,6 +161,7 @@ type HelperContext = {
     ctx: LaunchContext,
     sessionId: string,
   ): Promise<void>;
+  dashboardUpdateSessionCount(ctx: LaunchContext): Promise<void>;
 };
 
 type TimerControls = {
@@ -208,6 +213,7 @@ globalThis.__helpers = {
   dashboardArmTerminalLoadingTimers,
   dashboardMarkTerminalLoadingReady,
   dashboardRetryTerminalSession,
+  dashboardUpdateSessionCount,
 };`,
     context,
   );
@@ -223,6 +229,7 @@ function makeContext(
     activeView: "home",
     workspacePanel: "prompts",
     terminalAvailable: true,
+    terminalSessionCount: 0,
     serverMaxSessions: 10,
     serverSessions: [],
     sessionTitles: {},
@@ -235,6 +242,9 @@ function makeContext(
     showMaxSessionsModal: false,
     adaptPrompt(prompt: string): string {
       return prompt;
+    },
+    displayNameFor(path: string): string {
+      return path.split("/").filter(Boolean).pop() || path;
     },
     _forgetSavedSession(): void {
       return;
@@ -624,12 +634,209 @@ describe("dashboard terminal launch flow", () => {
     );
 
     assert.equal(sent.length, 1);
-    timers.tick(1000);
+    timers.tick(15000);
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
       data: "\r",
     });
+    assert.equal(timers.pending(), 1);
+    timers.tick(5000);
     assert.equal(timers.pending(), 0);
+  });
+
+  it("submits delayed Claude paste when the paste echo arrives after fallback", async () => {
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+    );
+    const sent: string[] = [];
+    const ctx = makeContext({
+      activeSessionId: "session-upload",
+      sessions: [
+        {
+          id: "session-upload",
+          runner: "claude",
+          promptLabel: "Upload target",
+          projectPath: "/tmp/example",
+          cwd: "/tmp/example",
+          targetPath: "/tmp/example",
+          startTime: Date.now(),
+          lastInputTime: 0,
+          connected: true,
+          ended: false,
+          awaitingInput: false,
+          age: "0s",
+          presetId: null,
+        },
+      ],
+      _terminalRefs: {
+        "session-upload": {
+          ws: {
+            readyState: 1,
+            send(payload: string): void {
+              sent.push(payload);
+            },
+          },
+        },
+      },
+    });
+
+    assert.equal(
+      helpers.dashboardSendToTerminalSession(
+        ctx,
+        "session-upload",
+        "Setup prompt\nsecond line",
+        { adapt: false },
+      ),
+      true,
+    );
+
+    assert.equal(sent.length, 1);
+    timers.tick(15000);
+    assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
+    assert.equal(
+      ctx._terminalRefs["session-upload"]?.pasteSubmitAwaitingCommit,
+      true,
+    );
+
+    helpers.dashboardHandlePasteSubmitOutput(
+      ctx,
+      "session-upload",
+      "[Pasted text #1 +2 lines]",
+    );
+    assert.equal(sent.length, 3);
+
+    assert.deepStrictEqual(JSON.parse(sent[2] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
+    assert.equal(
+      ctx._terminalRefs["session-upload"]?.pasteSubmitAwaitingCommit,
+      false,
+    );
+    assert.equal(timers.pending(), 0);
+  });
+
+  it("retries Claude submit when output is still on the pasted-text placeholder", async () => {
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+    );
+    const sent: string[] = [];
+    const ctx = makeContext({
+      activeSessionId: "session-upload",
+      sessions: [
+        {
+          id: "session-upload",
+          runner: "claude",
+          promptLabel: "Upload target",
+          projectPath: "/tmp/example",
+          cwd: "/tmp/example",
+          targetPath: "/tmp/example",
+          startTime: Date.now(),
+          lastInputTime: 0,
+          connected: true,
+          ended: false,
+          awaitingInput: false,
+          age: "0s",
+          presetId: null,
+          outputTail:
+            "[Pasted text #1 +2 lines]\n────────────────\npasteagaintoexpand ◉ xhigh · /effort",
+        },
+      ],
+      _terminalRefs: {
+        "session-upload": {
+          ws: {
+            readyState: 1,
+            send(payload: string): void {
+              sent.push(payload);
+            },
+          },
+        },
+      },
+    });
+
+    assert.equal(
+      helpers.dashboardSendToTerminalSession(
+        ctx,
+        "session-upload",
+        "Setup prompt\nsecond line",
+        { adapt: false },
+      ),
+      true,
+    );
+
+    helpers.dashboardHandlePasteSubmitOutput(
+      ctx,
+      "session-upload",
+      "[Pasted text #1 +2 lines]",
+    );
+    timers.tick(1200);
+    assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
+    assert.equal(timers.pending(), 1);
+
+    timers.tick(2500);
+    assert.deepStrictEqual(JSON.parse(sent[2] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
+    assert.equal(timers.pending(), 0);
+  });
+
+  it("submits Claude pasted-text markers even if pending state was cleared", async () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const sent: string[] = [];
+    const ctx = makeContext({
+      activeSessionId: "session-upload",
+      sessions: [
+        {
+          id: "session-upload",
+          runner: "claude",
+          promptLabel: "Upload target",
+          projectPath: "/tmp/example",
+          cwd: "/tmp/example",
+          targetPath: "/tmp/example",
+          startTime: Date.now(),
+          lastInputTime: 0,
+          connected: true,
+          ended: false,
+          awaitingInput: false,
+          age: "0s",
+          presetId: null,
+        },
+      ],
+      _terminalRefs: {
+        "session-upload": {
+          ws: {
+            readyState: 1,
+            send(payload: string): void {
+              sent.push(payload);
+            },
+          },
+        },
+      },
+    });
+
+    helpers.dashboardHandlePasteSubmitOutput(
+      ctx,
+      "session-upload",
+      "[Pasted text #1 +2 lines]",
+    );
+
+    assert.deepStrictEqual(JSON.parse(sent[0] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
   });
 
   it("waits for Claude pasted-text marker to settle before submitting multiline paste", async () => {
@@ -692,10 +899,7 @@ describe("dashboard terminal launch flow", () => {
       "[Pasted text #1 +2 lines]",
     );
 
-    assert.equal(sent.length, 1);
-    timers.tick(299);
-    assert.equal(sent.length, 1);
-    timers.tick(1);
+    assert.equal(sent.length, 2);
 
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
@@ -764,8 +968,7 @@ describe("dashboard terminal launch flow", () => {
       "[Pasted Text: 2 lines]",
     );
 
-    assert.equal(sent.length, 1);
-    timers.tick(300);
+    assert.equal(sent.length, 2);
 
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
@@ -825,7 +1028,7 @@ describe("dashboard terminal launch flow", () => {
 
     assert.equal(sent.length, 1);
     ws.readyState = 0;
-    timers.tick(1000);
+    timers.tick(15000);
     assert.equal(sent.length, 1);
     assert.equal(timers.pending(), 1);
 
@@ -835,6 +1038,8 @@ describe("dashboard terminal launch flow", () => {
       type: "input",
       data: "\r",
     });
+    assert.equal(timers.pending(), 1);
+    timers.tick(5000);
     assert.equal(timers.pending(), 0);
   });
 
@@ -911,8 +1116,7 @@ describe("dashboard terminal launch flow", () => {
       "[Pasted text #1 +1 lines]",
     );
 
-    assert.equal(sent.length, 1);
-    timers.tick(300);
+    assert.equal(sent.length, 3);
 
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
@@ -928,7 +1132,6 @@ describe("dashboard terminal launch flow", () => {
       "session-upload",
       "[Pasted text #2 +1 lines]",
     );
-    timers.tick(300);
     assert.deepStrictEqual(JSON.parse(sent[3] ?? "{}"), {
       type: "input",
       data: "\r",
@@ -963,7 +1166,7 @@ describe("dashboard terminal launch flow", () => {
     );
 
     helpers.dashboardClearPasteSubmitState(ctx, "launch-session");
-    timers.tick(1000);
+    timers.tick(15000);
 
     assert.equal(
       ctx._terminalRefs["launch-session"]?.pasteSubmitTimer,
@@ -976,8 +1179,12 @@ describe("dashboard terminal launch flow", () => {
     assert.equal(ctx.sent.length, 1);
   });
 
-  it("creates the backend session before waiting on xterm assets", async () => {
+  it("starts xterm loading before create returns and connects after both finish", async () => {
     const calls: string[] = [];
+    let resolveXterm!: () => void;
+    const xtermReady = new Promise<void>((resolve) => {
+      resolveXterm = resolve;
+    });
     const helpers = loadHelpers(async (input, init) => {
       calls.push(`fetch:${init?.method ?? "GET"}:${String(input)}`);
       return {
@@ -990,6 +1197,8 @@ describe("dashboard terminal launch flow", () => {
     const ctx = makeContext({
       async loadXterm(): Promise<void> {
         calls.push("loadXterm");
+        await xtermReady;
+        calls.push("loadXterm:ready");
       },
       connectTerminal(sessionId: string, wsUrl: string): void {
         calls.push(`connect:${sessionId}:${wsUrl}`);
@@ -1002,9 +1211,20 @@ describe("dashboard terminal launch flow", () => {
       },
     });
 
-    await helpers.dashboardLaunchInTerminal(ctx, "", "claude", {
+    const launchPromise = helpers.dashboardLaunchInTerminal(ctx, "", "claude", {
       promptLabel: "Manual session",
     });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.equal(calls[0], "loadXterm");
+    assert.equal(calls[1], "fetch:POST:/api/terminal/create");
+    assert.ok(
+      !calls.includes("connect:session-1:/ws/terminal/session-1"),
+      "terminal should not attach until xterm has loaded",
+    );
+    resolveXterm();
+    await launchPromise;
 
     assert.equal(ctx.sessions.length, 1);
     assert.equal(ctx.sessions[0]?.promptLabel, "Manual session");
@@ -1017,23 +1237,58 @@ describe("dashboard terminal launch flow", () => {
     assert.equal(ctx.sessionTitles["session-1"], "Manual session");
     assert.equal(ctx.activeView, "workspace");
     assert.equal(ctx.workspacePanel, "terminal");
-    assert.equal(calls[0], "fetch:POST:/api/terminal/create");
-    assert.ok(
-      calls.indexOf("fetch:POST:/api/terminal/create") <
-        calls.indexOf("loadXterm"),
-      "terminal session should be created before xterm loading starts",
-    );
-    assert.ok(
-      calls.indexOf("$nextTick") < calls.indexOf("loadXterm"),
-      "the workspace container should render before xterm loads",
-    );
     assert.ok(
       calls.indexOf("loadXterm") <
+        calls.indexOf("fetch:POST:/api/terminal/create"),
+      "xterm loading should start before the create POST resolves",
+    );
+    assert.ok(
+      calls.indexOf("$nextTick") <
+        calls.indexOf("connect:session-1:/ws/terminal/session-1"),
+      "the workspace container should render before the terminal attaches",
+    );
+    assert.ok(
+      calls.indexOf("loadXterm:ready") <
         calls.indexOf("connect:session-1:/ws/terminal/session-1"),
       "xterm should load before the browser terminal attaches",
     );
     assert.ok(calls.includes("updateSessionCount"));
     assert.deepStrictEqual(ctx.toasts, []);
+  });
+
+  it("coalesces bursty terminal session refreshes behind one fetch", async () => {
+    const timers = createFakeTimers();
+    let fetchCount = 0;
+    const helpers = loadHelpers(async (input) => {
+      fetchCount += 1;
+      assert.equal(String(input), "/api/terminal/sessions");
+      return {
+        json: async () => ({
+          activeCount: 2,
+          maxSessions: 4,
+          sessions: [],
+        }),
+      } as Response;
+    }, timers);
+    const ctx = makeContext();
+
+    const first = helpers.dashboardUpdateSessionCount(ctx);
+    const second = helpers.dashboardUpdateSessionCount(ctx);
+
+    timers.tick(49);
+    await Promise.resolve();
+    assert.equal(fetchCount, 0);
+    timers.tick(1);
+    await Promise.all([first, second]);
+
+    assert.equal(fetchCount, 1);
+    assert.equal(ctx.terminalSessionCount, 2);
+    assert.equal(ctx.serverMaxSessions, 4);
+
+    const third = helpers.dashboardUpdateSessionCount(ctx);
+    timers.tick(50);
+    await third;
+    assert.equal(fetchCount, 2);
   });
 
   it("loading overlay escalates slow starts and clears on first output", () => {
@@ -1290,9 +1545,27 @@ describe("dashboard terminal launch flow", () => {
   it("loads xterm assets from the local dashboard asset route", () => {
     const source = readFileSync(DASHBOARD_TERMINAL_PATH, "utf-8");
     assert.match(source, /link\.href = "\/assets\/xterm\.css"/);
-    assert.match(source, /script\.src = "\/assets\/xterm\.js"/);
-    assert.match(source, /script\.src = "\/assets\/addon-fit\.js"/);
+    assert.match(
+      source,
+      /loadXtermScript\("\/assets\/xterm\.js", "xterm\.js"\)/,
+    );
+    assert.match(
+      source,
+      /loadXtermScript\("\/assets\/addon-fit\.js", "fit addon"\)/,
+    );
     assert.doesNotMatch(source, /cdn\.jsdelivr\.net\/npm\/@xterm/);
+  });
+
+  it("deduplicates xterm DOM elements and removes partial inserts on retry", () => {
+    const source = readFileSync(DASHBOARD_TERMINAL_PATH, "utf-8");
+    assert.match(
+      source,
+      /document\.querySelector<HTMLLinkElement>\(\s*'link\[rel="stylesheet"\]\[href="\/assets\/xterm\.css"\]'/,
+    );
+    assert.match(source, /document\.querySelector<HTMLScriptElement>/);
+    assert.match(source, /element\.dataset\["loaded"\] = "true"/);
+    assert.match(source, /removeXtermAssetElements\(\)/);
+    assert.match(source, /xtermLoadPromise = null/);
   });
 
   it("keeps the launch title when a local session is ended into recent history", () => {
@@ -1499,7 +1772,7 @@ describe("dashboard terminal launch flow", () => {
       "launch-session",
       "[Pasted text #1 +1 lines]",
     );
-    await delay(320);
+    await delay(1220);
     assert.deepStrictEqual(JSON.parse(ctx.sent[1] ?? "{}"), {
       type: "input",
       data: "\r",
@@ -1565,8 +1838,7 @@ describe("dashboard terminal launch flow", () => {
       "[Pasted Text: 2 lines]",
     );
 
-    assert.equal(ctx.sent.length, 1);
-    timers.tick(300);
+    assert.equal(ctx.sent.length, 2);
 
     assert.deepStrictEqual(JSON.parse(ctx.sent[1] ?? "{}"), {
       type: "input",
@@ -1619,7 +1891,7 @@ describe("dashboard terminal launch flow", () => {
       "launch-session",
       "[Pasted text #1 +1 lines]",
     );
-    await delay(320);
+    await delay(1220);
     assert.deepStrictEqual(JSON.parse(ctx.sent[1] ?? "{}"), {
       type: "input",
       data: "\r",
@@ -1662,7 +1934,7 @@ describe("dashboard terminal launch flow", () => {
       "launch-session",
       "paste again to expand",
     );
-    await delay(320);
+    await delay(1220);
     assert.deepStrictEqual(JSON.parse(ctx.sent[1] ?? "{}"), {
       type: "input",
       data: "\r",
@@ -1749,6 +2021,15 @@ describe("dashboard terminal launch flow", () => {
       /const TERMINAL_LAUNCH_PROMPT_AFTER_OUTPUT_FALLBACK_DELAY_MS = 2000/,
     );
     assert.match(source, /const TERMINAL_LAUNCH_PROMPT_QUIET_DELAY_MS = 500/);
+    assert.match(source, /const TERMINAL_PASTE_COMMIT_DELAY_MS = 1200/);
+    assert.match(
+      source,
+      /const TERMINAL_PASTE_COMMIT_FALLBACK_DELAY_MS = 15000/,
+    );
+    assert.match(
+      source,
+      /const TERMINAL_PASTE_POST_SUBMIT_RETRY_DELAY_MS = 2500/,
+    );
     assert.match(source, /const TERMINAL_PASTE_SUBMIT_RETRY_DELAY_MS = 300/);
     assert.match(source, /body: JSON\.stringify\(\{\s+prompt: ""/);
     assert.match(

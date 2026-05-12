@@ -30,7 +30,7 @@ import {
 } from "../quality/history.js";
 import { composeQuality } from "../prompt/compose-quality.js";
 import type { AgentId } from "../types.js";
-import { loadDashboardAsset } from "./dashboard-assets.js";
+import { loadDashboardAssetCached } from "./dashboard-assets.js";
 import { buildSetupDetectPayload, isProjectDirectory } from "./setup-detect.js";
 import type { DashboardReport } from "./types.js";
 import type { QualityMode } from "../quality/schema.js";
@@ -790,7 +790,11 @@ export function createDashboardRouteHandlers(
   deps: DashboardRouteDependencies,
 ): {
   handleHtmlRequest: (url: URL, res: ServerResponse) => boolean;
-  handleAssetRequest: (url: URL, res: ServerResponse) => boolean;
+  handleAssetRequest: (
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ) => boolean;
   handleAuditRequest: (url: URL, res: ServerResponse) => boolean;
   handleSetupDetectRequest: (url: URL, res: ServerResponse) => boolean;
   handleSetupRequest: (url: URL, res: ServerResponse) => Promise<boolean>;
@@ -971,7 +975,11 @@ export function createDashboardRouteHandlers(
   }
 
   /** Serve bundled dashboard assets from the compiled `dist/dashboard/` output. */
-  function handleAssetRequest(url: URL, res: ServerResponse): boolean {
+  function handleAssetRequest(
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ): boolean {
     if (!url.pathname.startsWith("/assets/")) return false;
 
     const filename = url.pathname.slice("/assets/".length);
@@ -983,9 +991,19 @@ export function createDashboardRouteHandlers(
         ? "application/json; charset=utf-8"
         : "application/javascript; charset=utf-8";
     try {
-      const content = loadDashboardAsset(filename);
-      res.writeHead(200, { "Content-Type": contentType });
-      res.end(content);
+      const asset = loadDashboardAssetCached(filename);
+      const headers = {
+        "Cache-Control": "no-cache",
+        "Content-Type": contentType,
+        ETag: asset.etag,
+      };
+      if (req.headers["if-none-match"] === asset.etag) {
+        res.writeHead(304, headers);
+        res.end();
+        return true;
+      }
+      res.writeHead(200, headers);
+      res.end(asset.content);
     } catch {
       res.writeHead(404);
       res.end("Not found");
@@ -1231,10 +1249,14 @@ export function createDashboardRouteHandlers(
   function getOrRunQualityAudit(
     projectPath: string,
     agent: AgentId,
-    fresh: boolean,
+    {
+      cacheOnly = false,
+      fresh = false,
+    }: { cacheOnly?: boolean; fresh?: boolean } = {},
   ): AuditReport | null {
     const cached = readQualityAuditCache(projectPath, agent, fresh);
     if (cached !== null) return cached;
+    if (cacheOnly) return null;
     try {
       const fs = createFS(projectPath);
       const report = runAudit(fs, projectPath, {
@@ -1266,6 +1288,7 @@ export function createDashboardRouteHandlers(
     const modeParam = url.searchParams.get("mode");
     const qualityMode = parseQualityModeParam(modeParam) ?? "agent-setup";
     const fresh = url.searchParams.get("fresh") === "true";
+    const fast = url.searchParams.get("fast") === "true";
 
     if (modeParam && !VALID_QUALITY_MODES.has(modeParam)) {
       jsonResponse(res, 400, {
@@ -1276,7 +1299,10 @@ export function createDashboardRouteHandlers(
 
     try {
       requireProjectDirectory(projectPath);
-      const auditReport = getOrRunQualityAudit(projectPath, agent, fresh);
+      const auditReport = getOrRunQualityAudit(projectPath, agent, {
+        cacheOnly: fast,
+        fresh,
+      });
       const { entry: priorReport } = findLatestQualityReport(
         projectPath,
         agent,

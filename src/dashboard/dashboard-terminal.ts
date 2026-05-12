@@ -9,15 +9,21 @@ const TERMINAL_INITIAL_FIT_DELAYS_MS = [50, 200, 500] as const;
 const TERMINAL_LAUNCH_PROMPT_NO_OUTPUT_FALLBACK_DELAY_MS = 6000;
 const TERMINAL_LAUNCH_PROMPT_AFTER_OUTPUT_FALLBACK_DELAY_MS = 2000;
 const TERMINAL_LAUNCH_PROMPT_QUIET_DELAY_MS = 500;
-const TERMINAL_PASTE_SUBMIT_DELAY_MS = 1000;
-const TERMINAL_PASTE_COMMIT_DELAY_MS = 300;
+const TERMINAL_PASTE_COMMIT_DELAY_MS = 1200;
+const TERMINAL_PASTE_COMMIT_FALLBACK_DELAY_MS = 15000;
+const TERMINAL_PASTE_FALLBACK_RELEASE_DELAY_MS = 5000;
+const TERMINAL_PASTE_POST_SUBMIT_RETRY_DELAY_MS = 2500;
 const TERMINAL_PASTE_SUBMIT_RETRY_DELAY_MS = 300;
 const TERMINAL_PASTE_SUBMIT_MAX_RETRIES = 5;
 const AWAITING_INPUT_VISIBLE_DELAY_MS = 1200;
 const TERMINAL_LOADING_SLOW_HINT_MS = 3000;
 const TERMINAL_LOADING_RETRY_MS = 10000;
+// Coalesce bursty launch/route refreshes without delaying user-visible state.
+const SESSION_REFRESH_DEBOUNCE_MS = 50;
 const BRACKETED_PASTE_MARKER_PATTERN = /\x1b\[(?:200|201)~/g;
 let xtermLoadPromise: Promise<void> | null = null;
+let sessionRefreshPromise: Promise<void> | null = null;
+let sessionRefreshDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 interface DashboardQueuedPaste {
   data: string;
@@ -230,6 +236,19 @@ function dashboardOutputLooksCommittedPaste(text: string): boolean {
   );
 }
 
+/** Heuristic for a long paste that is still parked in the runner composer. */
+function dashboardOutputStillAtCommittedPaste(text: string): boolean {
+  const tail = dashboardPlainTerminalText(text)
+    .replace(/[ \t]+/g, " ")
+    .trim();
+  if (!dashboardOutputLooksCommittedPaste(tail)) return false;
+  if (dashboardOutputLooksAwaitingInput(tail)) return false;
+  if (/\b(?:Running|Working)\b|Do you want to proceed\?/i.test(tail)) {
+    return false;
+  }
+  return /paste\s*again\s*to\s*expand[\s\S]{0,160}$/i.test(tail);
+}
+
 /** Decide whether a new output chunk should leave a session waiting. */
 function dashboardNextAwaitingInputState(
   previousAwaiting: boolean,
@@ -390,6 +409,8 @@ function dashboardClearPasteSubmitState(
   if (refs) {
     refs.pasteSubmitQueue = undefined;
     refs.pasteSubmitOutputTail = undefined;
+    refs.pasteSubmitAwaitingCommit = false;
+    refs.pasteSubmitFallbackSubmitted = false;
   }
 }
 
@@ -408,9 +429,16 @@ function dashboardArmPasteSubmitTimer(
   ctx: DashboardTerminalContext,
   sessionId: string,
   {
-    delayMs = TERMINAL_PASTE_SUBMIT_DELAY_MS,
+    delayMs = TERMINAL_PASTE_COMMIT_DELAY_MS,
     retryCount = 0,
-  }: { delayMs?: number; retryCount?: number } = {},
+    keepAwaitingCommit = false,
+    retryIfStillCommitted = false,
+  }: {
+    delayMs?: number;
+    retryCount?: number;
+    keepAwaitingCommit?: boolean;
+    retryIfStillCommitted?: boolean;
+  } = {},
 ): void {
   const refs = ctx._terminalRefs[sessionId];
   if (!refs) return;
@@ -419,14 +447,60 @@ function dashboardArmPasteSubmitTimer(
   refs.pasteSubmitTimer = setTimeout(() => {
     const currentRefs = ctx._terminalRefs[sessionId];
     if (currentRefs) currentRefs.pasteSubmitTimer = undefined;
-    const submitted = dashboardSubmitPendingPaste(ctx, sessionId);
+    const submitted = dashboardSubmitPendingPaste(ctx, sessionId, {
+      keepAwaitingCommit,
+      retryIfStillCommitted,
+    });
     if (!submitted && retryCount < TERMINAL_PASTE_SUBMIT_MAX_RETRIES) {
       dashboardArmPasteSubmitTimer(ctx, sessionId, {
         delayMs: TERMINAL_PASTE_SUBMIT_RETRY_DELAY_MS,
         retryCount: retryCount + 1,
+        keepAwaitingCommit,
+        retryIfStillCommitted,
       });
     }
   }, delayMs);
+}
+
+function dashboardReleaseFallbackPasteSubmit(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): void {
+  const refs = ctx._terminalRefs[sessionId];
+  if (!refs?.pasteSubmitAwaitingCommit) return;
+  refs.pasteSubmitTimer = undefined;
+  refs.pasteSubmitAwaitingCommit = false;
+  refs.pasteSubmitFallbackSubmitted = false;
+  dashboardSendNextQueuedPaste(ctx, sessionId);
+}
+
+function dashboardArmPasteSubmitRetryIfStillCommitted(
+  ctx: DashboardTerminalContext,
+  sessionId: string,
+): boolean {
+  const refs = ctx._terminalRefs[sessionId];
+  const target = ctx.sessions.find((session) => session.id === sessionId);
+  if (!refs || typeof target?.outputTail !== "string") {
+    return false;
+  }
+  const outputSnapshot = target.outputTail;
+  refs.pasteSubmitTimer = setTimeout(() => {
+    const currentRefs = ctx._terminalRefs[sessionId];
+    if (currentRefs) currentRefs.pasteSubmitTimer = undefined;
+    const currentTarget = ctx.sessions.find(
+      (session) => session.id === sessionId,
+    );
+    const currentTail = currentTarget?.outputTail ?? "";
+    if (
+      (currentTail === outputSnapshot &&
+        dashboardOutputLooksCommittedPaste(currentTail)) ||
+      dashboardOutputStillAtCommittedPaste(currentTail)
+    ) {
+      dashboardSendTerminalSubmit(ctx, sessionId);
+    }
+    dashboardSendNextQueuedPaste(ctx, sessionId);
+  }, TERMINAL_PASTE_POST_SUBMIT_RETRY_DELAY_MS);
+  return true;
 }
 
 function dashboardSendNextQueuedPaste(
@@ -444,10 +518,36 @@ function dashboardSendNextQueuedPaste(
 function dashboardSubmitPendingPaste(
   ctx: DashboardTerminalContext,
   sessionId: string,
+  {
+    keepAwaitingCommit = false,
+    retryIfStillCommitted = false,
+  }: {
+    keepAwaitingCommit?: boolean;
+    retryIfStillCommitted?: boolean;
+  } = {},
 ): boolean {
   dashboardClearPasteSubmitTimer(ctx, sessionId);
   const submitted = dashboardSendTerminalSubmit(ctx, sessionId);
-  if (submitted) dashboardSendNextQueuedPaste(ctx, sessionId);
+  const refs = ctx._terminalRefs[sessionId];
+  if (!submitted) return false;
+  if (keepAwaitingCommit && refs?.pasteSubmitAwaitingCommit) {
+    refs.pasteSubmitFallbackSubmitted = true;
+    refs.pasteSubmitTimer = setTimeout(() => {
+      dashboardReleaseFallbackPasteSubmit(ctx, sessionId);
+    }, TERMINAL_PASTE_FALLBACK_RELEASE_DELAY_MS);
+    return true;
+  }
+  if (refs) {
+    refs.pasteSubmitAwaitingCommit = false;
+    refs.pasteSubmitFallbackSubmitted = false;
+  }
+  if (
+    retryIfStillCommitted &&
+    dashboardArmPasteSubmitRetryIfStillCommitted(ctx, sessionId)
+  ) {
+    return true;
+  }
+  dashboardSendNextQueuedPaste(ctx, sessionId);
   return submitted;
 }
 
@@ -460,7 +560,12 @@ function dashboardSendBracketedPaste(
   if (!refs?.ws || refs.ws.readyState !== WebSocket.OPEN) return;
   refs.ws.send(JSON.stringify({ type: "input", data: paste.data }));
   if (paste.delayed) {
-    dashboardArmPasteSubmitTimer(ctx, sessionId);
+    refs.pasteSubmitAwaitingCommit = true;
+    refs.pasteSubmitFallbackSubmitted = false;
+    dashboardArmPasteSubmitTimer(ctx, sessionId, {
+      delayMs: TERMINAL_PASTE_COMMIT_FALLBACK_DELAY_MS,
+      keepAwaitingCommit: true,
+    });
   } else if (dashboardSendTerminalSubmit(ctx, sessionId)) {
     dashboardSendNextQueuedPaste(ctx, sessionId);
   } else {
@@ -478,7 +583,7 @@ function dashboardSendOrQueueBracketedPaste(
 ): void {
   const refs = ctx._terminalRefs[sessionId];
   if (!refs) return;
-  if (refs.pasteSubmitTimer) {
+  if (refs.pasteSubmitTimer || refs.pasteSubmitAwaitingCommit) {
     refs.pasteSubmitQueue = [...(refs.pasteSubmitQueue ?? []), paste];
     return;
   }
@@ -492,15 +597,32 @@ function dashboardHandlePasteSubmitOutput(
   output: string,
 ): void {
   const refs = ctx._terminalRefs[sessionId];
-  if (!refs?.pasteSubmitTimer) return;
+  const target = ctx.sessions.find((session) => session.id === sessionId);
+  const runnerUsesPasteMarker =
+    target?.runner === "claude" || target?.runner === "gemini";
+  const hasPendingPaste =
+    refs?.pasteSubmitTimer !== undefined ||
+    refs?.pasteSubmitAwaitingCommit === true;
+  if (!refs || (!hasPendingPaste && !runnerUsesPasteMarker)) return;
   const outputTail = ((refs.pasteSubmitOutputTail ?? "") + output).slice(-2000);
   refs.pasteSubmitOutputTail = outputTail;
-  if (dashboardOutputLooksCommittedPaste(outputTail)) {
-    const target = ctx.sessions.find((session) => session.id === sessionId);
+  const committedPaste = dashboardOutputLooksCommittedPaste(
+    hasPendingPaste ? outputTail : output,
+  );
+  if (committedPaste) {
+    refs.pasteSubmitAwaitingCommit = false;
+    refs.pasteSubmitFallbackSubmitted = false;
     if (target?.runner === "claude" || target?.runner === "gemini") {
-      dashboardArmPasteSubmitTimer(ctx, sessionId, {
-        delayMs: TERMINAL_PASTE_COMMIT_DELAY_MS,
+      const submitted = dashboardSubmitPendingPaste(ctx, sessionId, {
+        retryIfStillCommitted: true,
       });
+      if (!submitted) {
+        dashboardArmPasteSubmitTimer(ctx, sessionId, {
+          delayMs: TERMINAL_PASTE_SUBMIT_RETRY_DELAY_MS,
+          retryCount: 1,
+          retryIfStillCommitted: true,
+        });
+      }
     } else {
       dashboardSubmitPendingPaste(ctx, sessionId);
     }
@@ -577,8 +699,7 @@ function dashboardSendToTerminalSession(
   // bounded delay for CLIs that do not echo that state.
   const pasteData = "\x1b[200~" + prepared + "\x1b[201~";
   const delayedSubmit =
-    (target.runner === "claude" || target.runner === "gemini") &&
-    prepared.includes("\n");
+    target.runner === "claude" || target.runner === "gemini";
   dashboardSendOrQueueBracketedPaste(ctx, sessionId, {
     data: pasteData,
     delayed: delayedSubmit,
@@ -837,6 +958,22 @@ async function dashboardCheckTerminalAvailable(
 async function dashboardUpdateSessionCount(
   ctx: DashboardTerminalContext,
 ): Promise<void> {
+  if (sessionRefreshPromise) return sessionRefreshPromise;
+  sessionRefreshPromise = new Promise<void>((resolve) => {
+    sessionRefreshDebounceTimer = setTimeout(() => {
+      void dashboardUpdateSessionCountImpl(ctx).finally(() => {
+        sessionRefreshPromise = null;
+        sessionRefreshDebounceTimer = null;
+        resolve();
+      });
+    }, SESSION_REFRESH_DEBOUNCE_MS);
+  });
+  return sessionRefreshPromise;
+}
+
+async function dashboardUpdateSessionCountImpl(
+  ctx: DashboardTerminalContext,
+): Promise<void> {
   try {
     const res = await dashboardFetch("/api/terminal/sessions");
     const payload = readRecord(await res.json(), "Terminal sessions response");
@@ -941,52 +1078,84 @@ async function dashboardEndAllSessions(
 }
 
 /** Load the xterm.js globals on demand before any terminal view is rendered. */
+function removeXtermAssetElements(): void {
+  document
+    .querySelector('link[rel="stylesheet"][href="/assets/xterm.css"]')
+    ?.remove();
+  document.querySelector('script[src="/assets/xterm.js"]')?.remove();
+  document.querySelector('script[src="/assets/addon-fit.js"]')?.remove();
+}
+
+function waitForAssetElement(
+  element: HTMLLinkElement | HTMLScriptElement,
+  label: string,
+): Promise<void> {
+  if (element.dataset["loaded"] === "true") return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} load timeout`));
+    }, 5000);
+    const cleanup = (): void => {
+      clearTimeout(timer);
+      element.removeEventListener("load", onLoad);
+      element.removeEventListener("error", onError);
+    };
+    const onLoad = (): void => {
+      cleanup();
+      element.dataset["loaded"] = "true";
+      resolve();
+    };
+    const onError = (): void => {
+      cleanup();
+      reject(new Error(`${label} load failed`));
+    };
+    element.addEventListener("load", onLoad, { once: true });
+    element.addEventListener("error", onError, { once: true });
+  });
+}
+
+async function loadXtermStylesheet(): Promise<void> {
+  const existing = document.querySelector<HTMLLinkElement>(
+    'link[rel="stylesheet"][href="/assets/xterm.css"]',
+  );
+  if (existing) {
+    await waitForAssetElement(existing, "xterm.css");
+    return;
+  }
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "/assets/xterm.css";
+  const loaded = waitForAssetElement(link, "xterm.css");
+  document.head.appendChild(link);
+  await loaded;
+}
+
+async function loadXtermScript(src: string, label: string): Promise<void> {
+  const existing = document.querySelector<HTMLScriptElement>(
+    `script[src="${src}"]`,
+  );
+  if (existing) {
+    await waitForAssetElement(existing, label);
+    return;
+  }
+  const script = document.createElement("script");
+  script.src = src;
+  const loaded = waitForAssetElement(script, label);
+  document.head.appendChild(script);
+  await loaded;
+}
+
 async function dashboardLoadXterm(
   ctx: DashboardTerminalContext,
 ): Promise<void> {
   if (ctx._xtermLoaded) return;
   if (!xtermLoadPromise) {
     xtermLoadPromise = (async () => {
-      await new Promise<void>((resolve, reject) => {
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = "/assets/xterm.css";
-        document.head.appendChild(link);
-        // The fit addon patches the global Terminal constructor, so xterm itself
-        // has to finish loading before the addon script is appended.
-        const script = document.createElement("script");
-        script.src = "/assets/xterm.js";
-        /** Handle script load failures. */
-        script.onerror = () => {
-          reject(new Error("xterm.js load failed"));
-        };
-        const timer = setTimeout(() => {
-          reject(new Error("xterm.js load timeout"));
-        }, 5000);
-        /** Handle successful script loads. */
-        script.onload = () => {
-          clearTimeout(timer);
-          resolve();
-        };
-        document.head.appendChild(script);
-      });
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = "/assets/addon-fit.js";
-        const timer = setTimeout(() => {
-          reject(new Error("fit addon load timeout"));
-        }, 5000);
-        /** Handle successful script loads. */
-        script.onload = () => {
-          clearTimeout(timer);
-          resolve();
-        };
-        /** Handle script load failures. */
-        script.onerror = () => {
-          reject(new Error("fit addon load failed"));
-        };
-        document.head.appendChild(script);
-      });
+      await loadXtermStylesheet();
+      // The fit addon patches the global Terminal constructor, so xterm itself
+      // has to finish loading before the addon script is appended.
+      await loadXtermScript("/assets/xterm.js", "xterm.js");
+      await loadXtermScript("/assets/addon-fit.js", "fit addon");
       getXtermConstructors();
     })();
   }
@@ -995,6 +1164,7 @@ async function dashboardLoadXterm(
     ctx._xtermLoaded = true;
   } catch (err) {
     xtermLoadPromise = null;
+    removeXtermAssetElements();
     throw err;
   }
 }
@@ -1234,6 +1404,15 @@ async function dashboardLaunchInTerminal(
       AlpineMagics<DashboardTerminalContext>;
     const selectedTargetPath = targetPath || ctx.projectPath;
     const controllingCwd = cwdPath || selectedTargetPath;
+    let xtermPromise: Promise<{ ok: true } | { ok: false; error: unknown }>;
+    try {
+      xtermPromise = ctx.loadXterm().then(
+        () => ({ ok: true }) as const,
+        (error: unknown) => ({ ok: false, error }) as const,
+      );
+    } catch (error) {
+      xtermPromise = Promise.resolve({ ok: false, error });
+    }
     const res = await dashboardFetch("/api/terminal/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1286,7 +1465,8 @@ async function dashboardLaunchInTerminal(
     ctx.activeView = "workspace";
     ctx.workspacePanel = "terminal";
     await self.$nextTick();
-    await ctx.loadXterm();
+    const xtermResult = await xtermPromise;
+    if (!xtermResult.ok) throw xtermResult.error;
     ctx.connectTerminal(session.id, wsUrl);
     dashboardScheduleLaunchPrompt(ctx, session.id, prompt);
     void ctx.updateSessionCount();

@@ -47,7 +47,13 @@ interface DashboardSetupQualityContext {
   showToast(msg: string, isError?: boolean): void;
   copyText(text: string): void;
   generateSetupPrompt(force?: boolean): Promise<void>;
+  generateQuality(options?: DashboardQualityGenerateOptions): Promise<void>;
   generateQualityHistory(): Promise<void>;
+}
+
+interface DashboardQualityGenerateOptions {
+  fast?: boolean;
+  fresh?: boolean;
 }
 
 const SETUP_INSTRUCTION_SURFACES: Record<RunnerId, string> = {
@@ -404,6 +410,7 @@ function dashboardScheduleSetupPrompt(ctx: DashboardSetupQualityContext): void {
 /** Generate a quality prompt for the selected project and agent. */
 async function dashboardGenerateQuality(
   ctx: DashboardSetupQualityContext,
+  { fast = false, fresh = false }: DashboardQualityGenerateOptions = {},
 ): Promise<void> {
   ctx.qualityLoading = true;
   ctx.qualityResult = null;
@@ -415,13 +422,15 @@ async function dashboardGenerateQuality(
     : ctx.projectPath;
   const requestSelectedProjectPath = ctx.projectPath;
   const requestAgent = ctx.qualityAgent;
+  const fastParam = fast ? "&fast=true" : "";
+  const freshParam = fresh ? "&fresh=true" : "";
   const isCurrentRequest = (): boolean =>
     ctx.selectedQualityModeId === requestModeId &&
     ctx.projectPath === requestSelectedProjectPath &&
     ctx.qualityAgent === requestAgent;
   try {
     const res = await dashboardFetch(
-      `/api/quality?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestAgent)}&mode=${encodeURIComponent(requestModeId)}&target=${encodeURIComponent(requestSelectedProjectPath)}`,
+      `/api/quality?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestAgent)}&mode=${encodeURIComponent(requestModeId)}&target=${encodeURIComponent(requestSelectedProjectPath)}${fastParam}${freshParam}`,
     );
     const payload = readRecord(await res.json(), "Quality response");
     if (!isCurrentRequest()) return;

@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.6.4 - 2026-05-12
+
+Dashboard cold-load and Skills evaluator release.
+
+- **Faster setup detection** - `/api/setup/detect` now checks common project files first, so large repos do not stall before the first dashboard render.
+- **More reliable terminal assets** - xterm assets load from a local cache, preload earlier, and clean up failed loads before retrying.
+- **Faster terminal launch** - Terminal startup now loads xterm and creates the backend session at the same time, then cleans up failed starts safely.
+- **Faster Quality page load** - The Quality page can use cached audit data on first paint instead of forcing a fresh audit every time.
+- **Clearer Skills evaluator** - The Skills page now puts draft-skill and Markdown-bundle evaluation front and center, while keeping installed-skill audits available.
+- **Safer browser-use installer** - `scripts/install-browser-tools.sh` now writes visible wrappers, checks they work through the real CLI path, handles root containers, and cleans up browser-use daemons.
+- **Regression coverage** - Tests now cover setup detection, faster Quality loading, terminal startup, xterm retry cleanup, asset routes, and Skills page behavior.
+
 ## v1.6.3 - 2026-05-12
 
 Dashboard terminal UX release for setup launches and cold-start visibility.

@@ -1,6 +1,6 @@
 ---
 category: agent-frontend
-last_reviewed: 2026-05-10
+last_reviewed: 2026-05-12
 ---
 
 ## Lesson: Dashboard audit cache survives code changes because signature doesn't cover compiled JS
@@ -110,6 +110,6 @@ last_reviewed: 2026-05-10
 
 **Root cause:** The implementation reached for an existing feedback mechanism without checking whether the state was exceptional or already visible in the primary control. A toast is appropriate when the user needs asynchronous feedback they might otherwise miss; it is poor UX when the user just clicked the exact button whose label already reflects the loading state.
 
-**Prevention:** For expected in-place loading, prefer inline state on the initiating control first: disable the button, change its label, or show a local spinner. Reserve toast messages, especially error-colored or alert-styled ones, for outcomes that are exceptional, backgrounded, or detached from the control the user is watching. Evidence anchors: `src/dashboard/views/workspace.html` (search: `Launching terminal...`), `src/dashboard/dashboard-terminal.ts` (search: `xterm.js load failed`).
+**Prevention:** For expected in-place loading, prefer inline state on the initiating control first: disable the button, change its label, or show a local spinner. Reserve toast messages, especially error-colored or alert-styled ones, for outcomes that are exceptional, backgrounded, or detached from the control the user is watching. Evidence anchors: `src/dashboard/views/workspace.html` (search: `Launching terminal...`), `src/dashboard/dashboard-terminal.ts` (search: `dashboardLaunchInTerminal`).
 
 ---

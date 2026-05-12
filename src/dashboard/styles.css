@@ -3059,13 +3059,7 @@ body {
   border-color: rgba(220, 38, 38, 0.28);
 }
 
-/* --- Modal overlay (Evaluate skill) ---
- *
- * The element is teleported to <body> (Alpine x-teleport) so an ancestor's
- * transformed containing block cannot trap position: fixed. x-show on the
- * teleported div toggles the inline `display` property; this rule provides
- * the default `display: flex` that Alpine restores when showing.
- */
+/* --- Shared evaluator/result surface styles --- */
 .gf-modal-overlay {
   position: fixed;
   top: 0;
@@ -3658,12 +3652,22 @@ body {
 
 /* === Evaluate-skill modal redesign === */
 
+.gf-skill-evaluator-panel {
+  background: var(--surface-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+}
 .gf-modal-card.is-skill-evaluator {
   width: 1100px;
   padding: 0;
   gap: 0;
 }
-.gf-modal-card.is-skill-evaluator .gf-modal-header {
+.gf-modal-card.is-skill-evaluator .gf-modal-header,
+.gf-skill-evaluator-panel .gf-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3671,14 +3675,16 @@ body {
   padding: 16px 22px;
   border-bottom: 1px solid var(--border-subtle);
 }
-.gf-modal-card.is-skill-evaluator .gf-modal-title {
+.gf-modal-card.is-skill-evaluator .gf-modal-title,
+.gf-skill-evaluator-panel .gf-modal-title {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
   min-width: 0;
 }
-.gf-modal-card.is-skill-evaluator .gf-modal-title h2 {
+.gf-modal-card.is-skill-evaluator .gf-modal-title h2,
+.gf-skill-evaluator-panel .gf-modal-title h2 {
   font-size: 16px;
   font-weight: 600;
   margin: 0;
@@ -3722,8 +3728,10 @@ body {
   color: var(--text-primary);
   border-color: var(--text-muted);
 }
-.gf-modal-card.is-skill-evaluator .gf-modal-body {
+.gf-modal-card.is-skill-evaluator .gf-modal-body,
+.gf-skill-evaluator-panel .gf-modal-body {
   padding: 22px;
+  position: relative;
 }
 
 .gf-dropzone {
@@ -3979,6 +3987,27 @@ body {
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: 22px;
+}
+
+@media (max-width: 900px) {
+  .gf-skill-evaluator-panel .gf-modal-header,
+  .gf-input-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .gf-skill-evaluator-panel .gf-modal-actions,
+  .gf-input-footer .gf-if-actions {
+    justify-content: flex-start;
+  }
+  .gf-result-grid,
+  .gf-installed-skills-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .gf-installed-skills-sidebar {
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border-subtle);
+    max-height: 220px !important;
+  }
 }
 
 .gf-score-display {
