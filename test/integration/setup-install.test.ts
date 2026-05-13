@@ -47,7 +47,7 @@ function runInstaller(root: string, ...extraArgs: string[]) {
 }
 
 describe("setup --apply installer", () => {
-  it("scaffolds config.yaml for only the requested agent", () => {
+  it("scaffolds config.yaml without an agents allowlist", () => {
     const root = makeTempProject();
     const result = runInstaller(root, "--agent", "codex");
 
@@ -56,10 +56,9 @@ describe("setup --apply installer", () => {
       join(root, ".goat-flow", "config.yaml"),
       "utf-8",
     );
-    assert.match(config, /agents:\n  - codex\n/);
-    assert.doesNotMatch(config, /  - claude\n/);
-    assert.doesNotMatch(config, /  - gemini\n/);
-    assert.doesNotMatch(config, /  - copilot\n/);
+    assert.doesNotMatch(config, /^agents:/m);
+    const gitignore = readFileSync(join(root, ".gitignore"), "utf-8");
+    assert.match(gitignore, /^node_modules\/$/m);
     assert.equal(
       existsSync(join(root, ".agents", "skills", "goat", "SKILL.md")),
       true,
@@ -74,7 +73,7 @@ describe("setup --apply installer", () => {
     );
   });
 
-  it("adds the requested agent to an existing config.yaml", () => {
+  it("removes an existing agents allowlist from config.yaml", () => {
     const root = makeTempProject();
     const configDir = join(root, ".goat-flow");
     mkdirSync(configDir, { recursive: true });
@@ -87,11 +86,11 @@ describe("setup --apply installer", () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
-    assert.match(config, /agents:\n  - claude\n  - codex\n/);
+    assert.doesNotMatch(config, /^agents:/m);
     assert.match(config, /custom_key: preserve_me/);
   });
 
-  it("does not duplicate an agent already listed in config.yaml", () => {
+  it("removes multi-agent allowlists without touching other config", () => {
     const root = makeTempProject();
     const configDir = join(root, ".goat-flow");
     mkdirSync(configDir, { recursive: true });
@@ -104,10 +103,11 @@ describe("setup --apply installer", () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
-    assert.equal(config.match(/  - codex\n/g)?.length, 1);
+    assert.doesNotMatch(config, /^agents:/m);
+    assert.match(config, /skills:\n  install: all\n/);
   });
 
-  it("adds an agents block when existing config.yaml has none", () => {
+  it("keeps agents absent when existing config.yaml has none", () => {
     const root = makeTempProject();
     const configDir = join(root, ".goat-flow");
     mkdirSync(configDir, { recursive: true });
@@ -120,10 +120,11 @@ describe("setup --apply installer", () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
-    assert.match(config, /agents:\n  - codex\n/);
+    assert.doesNotMatch(config, /^agents:/m);
+    assert.match(config, /skills:\n  install: all\n/);
   });
 
-  it("replaces agents null with the requested agent", () => {
+  it("removes agents null from config.yaml", () => {
     const root = makeTempProject();
     const configDir = join(root, ".goat-flow");
     mkdirSync(configDir, { recursive: true });
@@ -136,8 +137,21 @@ describe("setup --apply installer", () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
-    assert.match(config, /agents:\n  - codex\n/);
     assert.doesNotMatch(config, /agents: null/);
+    assert.match(config, /skills:\n  install: all\n/);
+  });
+
+  it("does not duplicate an existing node_modules gitignore entry", () => {
+    const root = makeTempProject();
+    writeFileSync(join(root, ".gitignore"), "dist/\nnode_modules\n");
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const gitignore = readFileSync(join(root, ".gitignore"), "utf-8");
+    assert.equal(gitignore.match(/^node_modules$/gm)?.length, 1);
+    assert.doesNotMatch(gitignore, /^node_modules\/$/m);
+    assert.match(gitignore, /^dist\/$/m);
   });
 });
 
@@ -163,11 +177,7 @@ describe("--update-config-version flag", () => {
 
     const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
     assert.doesNotMatch(config, /1\.4\.3/, "old version should be replaced");
-    assert.match(
-      config,
-      /agents:\n  - claude\n  - codex\n/,
-      "agents list must be preserved",
-    );
+    assert.doesNotMatch(config, /^agents:/m, "agents list must be removed");
     assert.match(
       config,
       /custom_key: preserve_me/,
@@ -189,6 +199,7 @@ describe("--update-config-version flag", () => {
 
     const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
     assert.match(config, /1\.3\.0/, "version should remain unchanged");
+    assert.doesNotMatch(config, /^agents:/m, "agents list should be removed");
   });
 });
 

@@ -3,9 +3,8 @@
  *
  * `workflow/manifest.json` is the single writable authority for framework
  * support metadata. This module exposes the typed runtime facade consumed by
- * detection, prompts, config validation, and dashboard surfaces.
+ * detection, prompts, and dashboard surfaces.
  */
-import type { LoadedConfig } from "../config/types.js";
 import { loadManifest } from "../manifest/manifest.js";
 import type {
   AgentProfile as ManifestAgentProfile,
@@ -139,25 +138,4 @@ function isKnownAgentId(
   return (
     isAgentId(value) && Object.prototype.hasOwnProperty.call(agents, value)
   );
-}
-
-/** Return configured agents as manifest-backed runtime profiles. */
-export function getConfiguredAgents(config: LoadedConfig): AgentProfile[] {
-  const configured = config.config.agents;
-  if (configured === null) {
-    return getAgentProfiles();
-  }
-  const agents = loadManifest().agents;
-  return configured
-    .filter((id): id is AgentId => isKnownAgentId(id, agents))
-    .flatMap((id) => {
-      const agent = agents[id];
-      return agent ? [toRuntimeProfile(id, agent)] : [];
-    });
-}
-
-/** Return configured agent ids that do not exist in the manifest-backed registry. */
-export function findUnknownConfiguredAgents(configured: string[]): string[] {
-  const agents = loadManifest().agents;
-  return configured.filter((id) => !isKnownAgentId(id, agents));
 }

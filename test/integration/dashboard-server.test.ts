@@ -878,13 +878,13 @@ describe("dashboard /api/audit", () => {
     }
   });
 
-  it("includes configured agents even when their instruction files are missing", async () => {
+  it("includes all supported agents even when config lists one", async () => {
     const root = await mkdtemp(join(tmpdir(), "goat-flow-dashboard-agents-"));
     try {
       await writeProjectFile(
         root,
         ".goat-flow/config.yaml",
-        `version: "${AUDIT_VERSION}"\nagents:\n  - claude\n  - claude\n  - codex\n  - codex\n  - gemini\n  - copilot\nskills:\n  install: all\n`,
+        `version: "${AUDIT_VERSION}"\nagents:\n  - claude\nskills:\n  install: all\n`,
       );
       await writeProjectFile(
         root,
@@ -905,18 +905,18 @@ describe("dashboard /api/audit", () => {
       );
       assert.match(
         JSON.stringify(aggregateAgent),
-        /Configured agent instruction files missing: codex \(AGENTS\.md\), gemini \(GEMINI\.md\), copilot \(\.github\/copilot-instructions\.md\)/,
+        /Supported agent instruction files missing: codex \(AGENTS\.md\), gemini \(GEMINI\.md\), copilot \(\.github\/copilot-instructions\.md\)/,
       );
 
       const agentScores = report.agentScores as unknown[];
       const scoreIds = agentScores.map((score, index) =>
-        String(expectRecord(score, `Configured-agent score[${index}]`).id),
+        String(expectRecord(score, `Supported-agent score[${index}]`).id),
       );
       assert.deepEqual(scoreIds, ["claude", "codex", "gemini", "copilot"]);
 
       const scoresById = new Map<string, Record<string, unknown>>();
       for (const score of agentScores) {
-        const entry = expectRecord(score, "Configured-agent score");
+        const entry = expectRecord(score, "Supported-agent score");
         scoresById.set(String(entry.id), entry);
       }
 

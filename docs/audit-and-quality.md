@@ -15,7 +15,7 @@ npx goat-flow quality diff --agent gemini          # Compare the latest two save
 
 | Command | Output | Deterministic? | Gates CI? | Requires --agent? |
 |---------|--------|---------------|-----------|-------------------|
-| `audit` | Pass/fail per scope | Yes | Yes - exit 1 on failure | No (checks all configured agents) |
+| `audit` | Pass/fail per scope | Yes | Yes - exit 1 on failure | No (checks all supported agents) |
 | `audit --harness` | Pass/fail per harness concern | Yes | Yes - exit 1 on failure | No |
 | `quality` | Prompt for an agent | No - generates a prompt | Never | Yes |
 
@@ -46,7 +46,7 @@ Checks are grouped by **scope**:
 - `scratchpad` - `.goat-flow/scratchpad/` directory, `.gitignore`, and README exist (local WIP by design)
 - `instruction-file-skill-reference-pointer` - when `.goat-flow/skill-reference/` or `.goat-flow/skill-playbooks/` exists, every present instruction file has both the READ-step availability-check rule and Router Table pointer to `.goat-flow/skill-playbooks/`, and the full meta-reference/playbook pack exists; when both directories are absent, this check is skipped
 - `other-files` - Other required manifest surfaces not already covered by named setup checks exist (for example quality-log paths)
-- `config-parses` - `.goat-flow/config.yaml` parses and validates, including manifest-backed `agents:` ids
+- `config-parses` - `.goat-flow/config.yaml` parses and validates supported configuration fields; legacy `agents:` entries are ignored
 - `config-version` - Config version matches current release
 
 **agent scope** (Agent Setup) - 4 registered checks. In aggregate mode, only `agent-instruction` can actively fail without `--agent <id>`:
@@ -55,7 +55,7 @@ Checks are grouped by **scope**:
 - `agent-settings` - selected agent settings/config file parses as valid JSON or TOML
 - `agent-deny-dangerous` - selected agent has a deny mechanism, shell-hook syntax is valid, deny patterns exist, installed deny hook files match the workflow templates, and the smoke deny self-test passes when the script exists
 
-**Agent detection:** `audit` detects configured agents from the manifest-backed instruction-file registry (`workflow/manifest.json` via `src/cli/agents/registry.ts`). Run `npx goat-flow manifest` to inspect the current support matrix; use `--agent <id>` to scope checks to one supported runtime.
+**Agent scope:** `audit` checks every supported manifest-backed agent from `workflow/manifest.json` unless `--agent <id>` is supplied. Run `npx goat-flow manifest` to inspect the current support matrix; use `--agent <id>` to scope checks to one supported runtime.
 
 ### Harness mode (`--harness`)
 

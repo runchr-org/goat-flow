@@ -11,7 +11,7 @@
 # Safe by design:
 # - Skills and reference files are always overwritten (verbatim copies)
 # - Settings are NOT overwritten if they already exist
-# - Existing config.yaml is preserved but the requested agent is registered
+# - Existing config.yaml is preserved but legacy agents allowlists are removed
 # - Pass --force to overwrite settings and config
 # - Pass --update-config-version to update only the version field in existing config.yaml
 # - Pass --clean-deprecated to remove deprecated skill directories
@@ -104,7 +104,6 @@ if (mode === "agent-profile") {
     hook_config_dst: hookConfigDst,
     deny_hook_dst:
       typeof agent.deny_hook === "string" ? agent.deny_hook : "",
-    config_agents: agentId,
   };
 
   for (const [key, value] of Object.entries(entries)) {
@@ -166,7 +165,6 @@ while IFS=$'\t' read -r key value; do
     hook_config_src) HOOK_CONFIG_SRC="$value" ;;
     hook_config_dst) HOOK_CONFIG_DST="$value" ;;
     deny_hook_dst) DENY_HOOK_DST="$value" ;;
-    config_agents) CONFIG_AGENTS_CSV="$value" ;;
   esac
 done <<< "$PROFILE_DATA"
 
@@ -232,6 +230,39 @@ touch_anchor() {
   echo "  ✓ $dst"
 }
 
+ensure_gitignore_entry() {
+  local path="$1"
+  local entry="$2"
+  node - "$path" "$entry" <<'NODE'
+const fs = require("node:fs");
+
+const path = process.argv[2];
+const entry = process.argv[3];
+const content = fs.existsSync(path) ? fs.readFileSync(path, "utf8") : "";
+const eol = content.includes("\r\n") ? "\r\n" : "\n";
+const lines = content.split(/\r?\n/u);
+const equivalentEntries = new Set([
+  entry,
+  entry.replace(/\/$/u, ""),
+  `/${entry}`,
+  `/${entry.replace(/\/$/u, "")}`,
+  `**/${entry}`,
+  `**/${entry.replace(/\/$/u, "")}`,
+]);
+
+if (lines.some((line) => equivalentEntries.has(line.trim()))) {
+  console.log("unchanged");
+  process.exit(0);
+}
+
+let next = content;
+if (next.length > 0 && !/\r?\n$/u.test(next)) next += eol;
+next += `${entry}${eol}`;
+fs.writeFileSync(path, next);
+console.log("changed");
+NODE
+}
+
 update_config_version_line() {
   local path="$1"
   node - "$path" "$VERSION" <<'NODE'
@@ -244,30 +275,15 @@ fs.writeFileSync(path, content.replace(/^version:.*$/m, `version: "${version}"`)
 NODE
 }
 
-ensure_config_agent_entry() {
+remove_config_agents_entry() {
   local path="$1"
-  local agent="$2"
-  node - "$path" "$agent" <<'NODE'
+  node - "$path" <<'NODE'
 const fs = require("node:fs");
 
 const path = process.argv[2];
-const agent = process.argv[3];
 const content = fs.readFileSync(path, "utf8");
 const eol = content.includes("\r\n") ? "\r\n" : "\n";
 const hadFinalNewline = /\r?\n$/u.test(content);
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function splitInlineList(value) {
-  const match = value.trim().match(/^\[(.*)\]$/u);
-  if (!match) return null;
-  return match[1]
-    .split(",")
-    .map((item) => item.trim().replace(/^["']|["']$/g, ""))
-    .filter(Boolean);
-}
 
 function indentOf(line) {
   return line.match(/^\s*/u)?.[0] ?? "";
@@ -276,72 +292,31 @@ function indentOf(line) {
 let lines = content.split(/\r?\n/u);
 if (hadFinalNewline) lines = lines.slice(0, -1);
 
-const agentKeyRe = /^(\s*)agents\s*:\s*(.*?)(\s*#.*)?$/u;
-const agentItemRe = new RegExp(
-  `^\\s*-\\s*["']?${escapeRegExp(agent)}["']?\\s*(?:#.*)?$`,
-  "u",
-);
+const agentKeyRe = /^agents\s*:\s*(.*?)(\s*#.*)?$/u;
 const index = lines.findIndex((line) => agentKeyRe.test(line));
-let changed = false;
 
 if (index === -1) {
-  if (lines.length > 0 && lines[lines.length - 1] !== "") lines.push("");
-  lines.push("agents:", `  - ${agent}`);
-  changed = true;
-} else {
-  const match = lines[index].match(agentKeyRe);
-  const baseIndent = match?.[1] ?? "";
-  const rest = (match?.[2] ?? "").trim();
-  const inlineAgents = splitInlineList(rest);
+  console.log("unchanged");
+  process.exit(0);
+}
 
-  if (inlineAgents) {
-    if (!inlineAgents.includes(agent)) {
-      inlineAgents.push(agent);
-      changed = true;
-    }
-    if (changed) {
-      lines.splice(
-        index,
-        1,
-        `${baseIndent}agents:`,
-        ...inlineAgents.map((id) => `${baseIndent}  - ${id}`),
-      );
-    }
-  } else if (rest === "null" || rest === "[]") {
-    lines.splice(index, 1, `${baseIndent}agents:`, `${baseIndent}  - ${agent}`);
-    changed = true;
-  } else {
-    const baseIndentLength = baseIndent.length;
-    let cursor = index + 1;
-    let lastAgentItem = -1;
-    let agentAlreadyPresent = false;
-
-    while (cursor < lines.length) {
-      const line = lines[cursor];
-      const trimmed = line.trim();
-      if (trimmed !== "" && !trimmed.startsWith("#")) {
-        const currentIndentLength = indentOf(line).length;
-        if (currentIndentLength <= baseIndentLength) break;
-      }
-      if (/^\s*-\s*/u.test(line)) {
-        lastAgentItem = cursor;
-        if (agentItemRe.test(line)) agentAlreadyPresent = true;
-      }
-      cursor += 1;
-    }
-
-    if (!agentAlreadyPresent) {
-      const insertAt = lastAgentItem >= 0 ? lastAgentItem + 1 : index + 1;
-      lines.splice(insertAt, 0, `${baseIndent}  - ${agent}`);
-      changed = true;
-    }
+let removeUntil = index + 1;
+while (removeUntil < lines.length) {
+  const line = lines[removeUntil];
+  const trimmed = line.trim();
+  if (trimmed !== "") {
+    const currentIndentLength = indentOf(line).length;
+    if (currentIndentLength === 0) break;
   }
+  removeUntil += 1;
 }
 
-if (changed) {
-  fs.writeFileSync(path, `${lines.join(eol)}${hadFinalNewline ? eol : ""}`);
+lines.splice(index, removeUntil - index);
+while (lines.length > 1 && lines[index] === "" && lines[index - 1] === "") {
+  lines.splice(index, 1);
 }
-console.log(changed ? "changed" : "unchanged");
+fs.writeFileSync(path, `${lines.join(eol)}${hadFinalNewline ? eol : ""}`);
+console.log("changed");
 NODE
 }
 
@@ -453,6 +428,19 @@ copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/critiques-readme.md" ".goat-
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/security-readme.md" ".goat-flow/logs/security/README.md"
 copy_if_missing "$GOAT_FLOW_ROOT/workflow/setup/reference/decisions-readme.md" ".goat-flow/decisions/README.md"
 touch_anchor ".goat-flow/logs/sessions/.gitkeep"
+echo ""
+
+# ==========================================================================
+# 2b. Maintain project root .gitignore (append-only)
+# ==========================================================================
+echo "Project .gitignore:"
+if [[ "$(ensure_gitignore_entry ".gitignore" "node_modules/")" == "changed" ]]; then
+  COPIED=$((COPIED + 1))
+  echo "  ✓ .gitignore (node_modules/ ignored)"
+else
+  SKIPPED=$((SKIPPED + 1))
+  echo "  · .gitignore (node_modules/ already ignored)"
+fi
 echo ""
 
 # ==========================================================================
@@ -601,9 +589,9 @@ if [[ -f "$CONFIG_PATH" ]] && ! $FORCE; then
       CONFIG_NOTES+=("version field added: $VERSION")
     fi
   fi
-  if [[ "$(ensure_config_agent_entry "$CONFIG_PATH" "$AGENT")" == "changed" ]]; then
+  if [[ "$(remove_config_agents_entry "$CONFIG_PATH")" == "changed" ]]; then
     CONFIG_CHANGED=true
-    CONFIG_NOTES+=("agent $AGENT registered")
+    CONFIG_NOTES+=("legacy agents allowlist removed")
   fi
   if $CONFIG_CHANGED; then
     COPIED=$((COPIED + 1))
@@ -614,14 +602,7 @@ if [[ -f "$CONFIG_PATH" ]] && ! $FORCE; then
     echo "  · $CONFIG_PATH (exists, no config changes)"
   fi
 else
-  IFS=',' read -r -a CONFIG_AGENTS <<< "${CONFIG_AGENTS_CSV:-$SUPPORTED_AGENTS_CSV}"
-  config_agent_lines=""
-  for supported_agent in "${CONFIG_AGENTS[@]}"; do
-    config_agent_lines+="  - ${supported_agent}"$'\n'
-  done
-  printf 'version: "%s"\n\nagents:\n%s\nskills:\n  install: all\n' \
-    "$VERSION" \
-    "$config_agent_lines" > "$CONFIG_PATH"
+  printf 'version: "%s"\n\nskills:\n  install: all\n' "$VERSION" > "$CONFIG_PATH"
   COPIED=$((COPIED + 1))
   echo "  ✓ $CONFIG_PATH (scaffolded)"
 fi

@@ -4,7 +4,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { loadConfig } from "../../src/cli/config/reader.js";
-import { getKnownAgentIds } from "../../src/cli/agents/registry.js";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
 import type { ReadonlyFS } from "../../src/cli/types.js";
 
@@ -117,23 +116,19 @@ skills:
   });
 });
 
-describe("config validates agent ids against the registry", () => {
-  it("errors with the manifest-backed supported-agent list", () => {
+describe("config ignores legacy agents field", () => {
+  it("does not let agents act as an audit allowlist", () => {
     const yaml = `
 version: "${AUDIT_VERSION}"
 agents:
   - cursor
+  - 42
+  - claude
 `;
     const result = loadConfig("/tmp", configFS(yaml));
-    assert.equal(result.valid, false);
-    assert.ok(
-      result.errors.some(
-        (error) =>
-          error.path === "agents[0]" &&
-          error.message.includes(getKnownAgentIds().join(", ")),
-      ),
-      JSON.stringify(result.errors),
-    );
+    assert.equal(result.valid, true);
+    assert.equal(result.config.agents, null);
+    assert.deepEqual(result.errors, []);
   });
 });
 
@@ -153,10 +148,7 @@ describe("config parse errors", () => {
 // M17-7: Config loading fails closed
 // ---------------------------------------------------------------------------
 describe("config fails closed on validation errors", () => {
-  it("returns defaults (not a partial merge) when agents array has bad element types", () => {
-    // A config with an invalid agents array must not leak the malformed
-    // shape through to downstream consumers. The merge layer used to silently
-    // forward non-string elements; M17-7 requires defaults on validation fail.
+  it("keeps defaults when legacy agents has bad element types", () => {
     const yaml = `
 version: "${AUDIT_VERSION}"
 agents:
@@ -165,18 +157,11 @@ agents:
   - "claude"
 `;
     const result = loadConfig("/tmp", configFS(yaml));
-    assert.equal(result.valid, false);
-    // Defaults have agents: null (auto-detect). The malformed array must NOT
-    // be passed through.
+    assert.equal(result.valid, true);
     assert.equal(
       result.config.agents,
       null,
-      "config.agents must be defaults (null) when validation fails, not the malformed array",
-    );
-    // Error detail should still be surfaced so callers can report it.
-    assert.ok(
-      result.errors.some((e) => e.path.startsWith("agents[")),
-      `errors must name the failing element paths: ${JSON.stringify(result.errors)}`,
+      "legacy config.agents must not leak into downstream consumers",
     );
   });
 

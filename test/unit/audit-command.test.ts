@@ -635,7 +635,7 @@ describe("audit skill-reference pointer rule", () => {
       );
 
       assert.equal(
-        report.status,
+        report.scopes.setup.status,
         "pass",
         `Expected pass but got: ${JSON.stringify(report.scopes)}`,
       );
@@ -662,7 +662,7 @@ describe("audit skill-reference pointer rule", () => {
       );
 
       assert.equal(
-        report.status,
+        report.scopes.setup.status,
         "pass",
         `Expected pass but got: ${JSON.stringify(report.scopes)}`,
       );
@@ -787,7 +787,7 @@ describe("M03 batch fact reuse", () => {
     }
   });
 
-  it("deduplicates configured agents before extracting facts", () => {
+  it("ignores legacy config agents when extracting aggregate facts", () => {
     const facts = extractProjectFacts(createFS(PROJECT_ROOT), {
       agentFilter: null,
       projectPath: PROJECT_ROOT,
@@ -798,7 +798,7 @@ describe("M03 batch fact reuse", () => {
 
     assert.deepEqual(
       facts.agents.map((agentFacts) => agentFacts.agent.id),
-      ["claude", "codex"],
+      ["claude", "codex", "gemini", "copilot"],
     );
   });
 
@@ -1105,10 +1105,10 @@ describe("orphaned artifact detection refinement", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test 3: config.agents filters which agents are checked
+// Test 3: --agent filters which agent checks run
 // ---------------------------------------------------------------------------
-describe("config.agents filtering", () => {
-  it("agent-skills check validates skills for filtered agent", () => {
+describe("--agent filtering", () => {
+  it("agent-skills check validates skills for the selected agent", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "agent-skills")!;
     const codexProfile: AgentProfile = {
       id: "codex",
@@ -1150,7 +1150,7 @@ describe("config.agents filtering", () => {
       "Failure should mention codex",
     );
 
-    // With only claude in ctx.agents (config filter applied upstream), check passes
+    // With only claude in ctx.agents (--agent filter applied upstream), check passes
     const ctxClaudeOnly = makeCtx({
       agentFilter: "claude",
       agents: [stubAgentFacts()],
@@ -1160,7 +1160,7 @@ describe("config.agents filtering", () => {
     assert.equal(
       resultClaudeOnly,
       null,
-      "Should pass when only configured agent (claude) is checked",
+      "Should pass when only selected agent (claude) is checked",
     );
   });
 });
@@ -1175,9 +1175,8 @@ describe("config validation failures", () => {
         errors: [
           {
             level: "error",
-            path: "agents[0]",
-            message:
-              'unknown agent "cursor" - known agents: claude, codex, gemini',
+            path: "toolchain.test[0]",
+            message: "must be a string",
           },
         ],
       },
@@ -1188,7 +1187,7 @@ describe("config validation failures", () => {
       null,
       "config-parses should fail on invalid config",
     );
-    assert.match(result!.message, /Validation error: agents\[0\]/);
+    assert.match(result!.message, /Validation error: toolchain\.test\[0\]/);
     assert.equal(result!.evidence, ".goat-flow/config.yaml");
   });
 });
@@ -2961,7 +2960,7 @@ describe("setup check dependency status", () => {
     }
   });
 
-  it("aggregate audit fails when config declares an agent with no instruction file", async () => {
+  it("aggregate audit ignores legacy config agents and checks all supported agents", async () => {
     const project = await makeTempProject(async (root) => {
       await writeProjectFile(
         root,
@@ -2981,16 +2980,17 @@ describe("setup check dependency status", () => {
 
       assert.equal(report.scopes.agent.status, "fail");
       assert.equal(instruction?.status, "fail");
-      assert.match(
-        instruction?.failure?.message ?? "",
-        /Configured agent instruction files missing: codex \(AGENTS\.md\)/,
-      );
+      const message = instruction?.failure?.message ?? "";
+      assert.match(message, /Supported agent instruction files missing/);
+      assert.match(message, /codex \(AGENTS\.md\)/);
+      assert.match(message, /gemini \(GEMINI\.md\)/);
+      assert.match(message, /copilot \(\.github\/copilot-instructions\.md\)/);
     } finally {
       await project.cleanup();
     }
   });
 
-  it("aggregate audit names every missing configured agent in a declared-four partial install", async () => {
+  it("aggregate audit names every missing supported agent in a partial install", async () => {
     const project = await makeTempProject(async (root) => {
       await writeProjectFile(
         root,
@@ -3010,6 +3010,7 @@ describe("setup check dependency status", () => {
       const message = instruction?.failure?.message ?? "";
 
       assert.equal(instruction?.status, "fail");
+      assert.match(message, /Supported agent instruction files missing/);
       assert.match(message, /codex \(AGENTS\.md\)/);
       assert.match(message, /gemini \(GEMINI\.md\)/);
       assert.match(message, /copilot \(\.github\/copilot-instructions\.md\)/);
@@ -3034,11 +3035,11 @@ describe("setup check dependency status", () => {
       assert.equal(instruction?.status, "fail");
       assert.match(
         instruction?.failure?.message ?? "",
-        /No configured agents or agent instruction files found/,
+        /Supported agent instruction files missing/,
       );
       assert.equal(
         report.scopes.setup.summary.skills,
-        `0/${SKILL_NAMES.length} installed (no configured agents)`,
+        `0/${SKILL_NAMES.length} installed`,
       );
     } finally {
       await project.cleanup();

@@ -20,7 +20,6 @@ import {
   getAgentProfiles,
   getKnownAgentIds,
 } from "../agents/registry.js";
-import { detectAgents as detectConfiguredAgents } from "../detect/agents.js";
 import { createFS } from "../facts/fs.js";
 import { extractProjectFacts } from "../facts/orchestrator.js";
 import { extractSharedFacts } from "../facts/shared/index.js";
@@ -204,31 +203,8 @@ function parseQualityModeParam(param: string | null): QualityMode | null {
 }
 
 /** Resolve the managed agent list for dashboard aggregate audits. */
-function resolveDashboardManagedAgentIds(
-  projectPath: string,
-  fs: ReturnType<typeof createFS>,
-  agentFilter: AgentId | null,
-): AgentId[] {
-  let ids: AgentId[];
-  const configState = loadConfig(projectPath, fs);
-  if (
-    configState.exists &&
-    configState.valid &&
-    configState.config.agents !== null
-  ) {
-    const seen = new Set<AgentId>();
-    ids = configState.config.agents.filter((id): id is AgentId => {
-      if (!VALID_AGENTS.has(id) || seen.has(id as AgentId)) return false;
-      seen.add(id as AgentId);
-      return true;
-    });
-  } else {
-    ids = detectConfiguredAgents(fs).map((agent) => agent.id);
-  }
-  if (agentFilter !== null && !ids.includes(agentFilter)) {
-    ids.push(agentFilter);
-  }
-  return ids;
+function resolveDashboardManagedAgentIds(agentFilter: AgentId | null): AgentId[] {
+  return agentFilter === null ? [...KNOWN_AGENT_IDS] : [agentFilter];
 }
 
 /** Build the latest quality summary. */
@@ -1110,7 +1086,7 @@ export function createDashboardRouteHandlers(
 
       const fs = createFS(projectPath);
       const configAgents = profiler.span("managed-agent resolution", () =>
-        resolveDashboardManagedAgentIds(projectPath, fs, agentFilter),
+        resolveDashboardManagedAgentIds(agentFilter),
       );
       const auditFactProfile =
         agentFilter === null ? "dashboard-summary" : "full";

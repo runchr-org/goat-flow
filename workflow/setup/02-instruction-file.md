@@ -74,7 +74,7 @@ If `.github/` exists, create or update `.github/git-commit-instructions.md` with
 
 After writing/updating the instruction file:
 
-- Add agent-local settings to `.gitignore` if not already there (e.g., `.claude/settings.local.json`)
+- Add `node_modules/` and agent-local settings to `.gitignore` if not already there (e.g., `.claude/settings.local.json`)
 - If the project uses a code formatter (prettier, biome, etc.), add `.goat-flow/**/*.md` to the formatter's ignore file (`.prettierignore`, `biome.json` ignores, etc.)
 - Keep the goat-flow section concise. Fold compression and RFC 2119 cleanup into this step instead of creating a separate polish pass.
 
@@ -92,7 +92,7 @@ After writing/updating the instruction file:
 - [ ] Every line fits the Quality Bar: behavioral rule, scope boundary, command, verification gate, router pointer, or composition rule. Domain knowledge and project history are routed to cold-path files, not inlined.
 - [ ] If Path B: no useful existing content was lost
 - [ ] If Path B: Execution Loop is the four-step v1.2 version; `rg 'CLASSIFY|→\s*LOG|->\s*LOG' <instruction-file>` returns zero hits
-- [ ] `.gitignore` updated for agent-local files
+- [ ] `.gitignore` includes `node_modules/` and agent-local files
 
 **Progress marker:** Append one line to the shared setup session log:
 - `Step 02 complete: instruction file created/updated`

@@ -280,9 +280,11 @@ function setupSummary(ctx: AuditContext): Record<string, string> {
   const totalSkills = ctx.structure.skills.canonical.length;
   if (ctx.agents.length === 0) {
     return {
-      skills: `0/${totalSkills} installed (no configured agents)`,
-      config: ctx.config.exists ? "no agents configured" : "invalid or missing",
-      instructionFile: "0 lines (no configured agents)",
+      skills: `0/${totalSkills} installed (no supported agents)`,
+      config: ctx.config.exists
+        ? "valid, no supported agents"
+        : "invalid or missing",
+      instructionFile: "0 lines (no supported agents)",
     };
   }
   let minSkills = totalSkills;
@@ -325,7 +327,7 @@ function agentSummary(ctx: AuditContext): Record<string, string> {
         : "not configured (optional)",
     hooks:
       ctx.agents.length === 0
-        ? "not applicable (no configured agents)"
+        ? "not applicable (no supported agents)"
         : hookInfo.length > 0
           ? hookInfo.join(", ")
           : "none installed",
@@ -748,11 +750,15 @@ export function runAuditBatch(
     validateRegisteredCheckProvenance(fs);
   });
 
+  const effectiveAgentIds = options.agentFilter
+    ? agentIds.filter((id) => id === options.agentFilter)
+    : agentIds;
   const batchFacts = span(options.profile, "aggregate facts", () =>
     extractProjectFacts(fs, {
       agentFilter: options.agentFilter,
       projectPath,
       configState,
+      managedAgentIds: effectiveAgentIds,
       includeStack: currentFactProfile !== "dashboard-summary",
       profile: options.profile,
     }),
@@ -760,9 +766,6 @@ export function runAuditBatch(
   const aggregateFacts = createAuditFactsView(batchFacts, {
     factProfile: currentFactProfile,
   });
-  const effectiveAgentIds = options.agentFilter
-    ? agentIds.filter((id) => id === options.agentFilter)
-    : agentIds;
   const perAgentFacts = new Map<AgentId, ProjectFacts>();
   for (const agentId of effectiveAgentIds) {
     perAgentFacts.set(

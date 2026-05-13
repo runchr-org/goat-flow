@@ -1,6 +1,6 @@
 ---
 category: dashboard
-last_reviewed: 2026-05-12
+last_reviewed: 2026-05-13
 ---
 
 ## Footgun: Project-browser modal is reachable only via header-span click, not from the add-project flow
@@ -85,6 +85,27 @@ last_reviewed: 2026-05-12
 1. When a dashboard view branches or scores on an API field, verify the matching `readDashboardReport` / helper decoder preserves that field.
 2. Pair backend scoring changes with a browser-reader regression, especially for discriminants such as `type`, `status`, `concern`, and `id`.
 3. Browser-verify the built `dist/` dashboard and compare it with `/api/audit` output; source-only tests can miss packaged reader drift.
+
+---
+
+## Footgun: Dashboard aggregate facts and Home agent cards can use different agent sets
+
+**Status:** active | **Created:** 2026-05-13 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Home can show or hide agent cards differently from the aggregate Agent Setup scope. A project may report aggregate `agent-instruction` as passing even when the Home summary is supposed to expose missing supported agents.
+
+**Evidence:**
+- `src/cli/server/dashboard-routes.ts` (search: `resolveDashboardManagedAgentIds`) resolves the managed agent ids used for dashboard per-agent cards.
+- `src/cli/audit/audit.ts` (search: `runAuditBatch`) extracts aggregate facts once, then derives per-agent facts from that batch.
+- `src/cli/facts/orchestrator.ts` (search: `managedAgentIds`) receives the dashboard-managed agent set so aggregate facts and per-agent cards use the same ids.
+- `test/integration/dashboard-server.test.ts` (search: `includes all supported agents even when config lists one`) caught the partial-fix failure: cards were moving toward all supported agents, but the aggregate agent scope still passed with only the config-listed agent.
+
+**Why it happens:** The dashboard report has two related but separate paths: aggregate audit scopes and per-agent Home cards. Changing only the route-level managed-agent helper does not change the fact extraction already performed inside `runAuditBatch`; the batch extractor needs the same managed agent ids before it derives aggregate and per-agent facts.
+
+**Prevention:**
+1. For Home agent visibility changes, update both `resolveDashboardManagedAgentIds` and the `runAuditBatch` aggregate fact extraction path.
+2. Regression tests must assert both `report.agentScores[].id` and `report.scopes.agent`; card-only assertions can miss aggregate scope drift.
+3. Use a fixture where `.goat-flow/config.yaml` lists only one agent while supported registry expectations require all dashboard agents.
 
 ---
 

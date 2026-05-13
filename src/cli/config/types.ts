@@ -30,7 +30,7 @@ export interface GoatFlowConfig {
   decisions: { path: string };
   tasks: { path: string };
   logs: { path: string };
-  /** Detected agent IDs, or null if auto-detection should be used */
+  /** Legacy field retained for old config shape compatibility; command scoping uses --agent. */
   agents: string[] | null;
   /** Which skills to install: explicit list or 'all' for the full set */
   skills: GoatFlowSkillsConfig;

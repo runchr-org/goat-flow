@@ -83,20 +83,19 @@ function checkInstructionPresent(ctx: AuditContext): AuditFailure | null {
   };
 }
 
-/** Check configured managed agents whose primary instruction files are absent. */
-function checkConfiguredInstructionFilesPresent(
+/** Check supported managed agents whose primary instruction files are absent. */
+function checkSupportedInstructionFilesPresent(
   ctx: AuditContext,
 ): AuditFailure | null {
-  if (!ctx.config.exists) return null;
   const missing = ctx.agents
     .filter((af) => !af.instruction.exists)
     .map((af) => `${af.agent.id} (${af.agent.instructionFile})`);
   if (missing.length === 0) return null;
   return {
     check: "Agent instruction file",
-    message: `Configured agent instruction files missing: ${missing.join(", ")}`,
+    message: `Supported agent instruction files missing: ${missing.join(", ")}`,
     howToFix:
-      "Run `goat-flow setup --agent <id>` for each configured missing agent, or remove agents that this repo does not manage from .goat-flow/config.yaml.",
+      "Run `goat-flow setup --agent <id>` for each missing agent, or use `goat-flow audit . --agent <id>` to scope the audit to one agent.",
   };
 }
 
@@ -105,9 +104,7 @@ function checkAnyAgentConfigured(ctx: AuditContext): AuditFailure | null {
   if (ctx.agents.length > 0) return null;
   return {
     check: "Agent instruction file",
-    message: ctx.config.exists
-      ? "No agents configured in .goat-flow/config.yaml"
-      : "No configured agents or agent instruction files found",
+    message: "No supported agent instruction files found",
     howToFix:
       "Run `goat-flow setup --agent <id>` for the agent this repo should manage, then complete the project-specific setup steps.",
   };
@@ -232,7 +229,7 @@ const agentInstruction: BuildCheck = {
     }
     return (
       checkAnyAgentConfigured(ctx) ??
-      checkConfiguredInstructionFilesPresent(ctx) ??
+      checkSupportedInstructionFilesPresent(ctx) ??
       checkOrphanedArtifacts(ctx) ??
       checkCopilotCommitInstructionsPresent(ctx)
     );

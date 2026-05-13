@@ -5,9 +5,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { load } from "js-yaml";
-import type { AgentId, ReadonlyFS } from "../types.js";
+import type { ReadonlyFS } from "../types.js";
 import { AUDIT_VERSION } from "../constants.js";
-import { getKnownAgentIds } from "../agents/registry.js";
 import type {
   GoatFlowConfig,
   LoadedConfig,
@@ -15,9 +14,6 @@ import type {
   ValidationResult,
 } from "./types.js";
 
-/** Manifest-backed agent identifiers accepted in the config's `agents` field. */
-const KNOWN_AGENTS = new Set(getKnownAgentIds());
-const KNOWN_AGENT_LIST = Array.from(KNOWN_AGENTS).join(", ");
 /** Top-level config keys recognized by the validator (others trigger warnings). */
 const KNOWN_TOP_LEVEL_KEYS = new Set([
   "version",
@@ -112,13 +108,6 @@ function mergeVersion(value: unknown, merged: GoatFlowConfig): void {
   }
 }
 
-/** Apply an explicit agent allowlist or null auto-detect override. */
-function mergeAgents(value: unknown, merged: GoatFlowConfig): void {
-  if (value === null || Array.isArray(value)) {
-    merged.agents = value as string[] | null;
-  }
-}
-
 /** Apply the configured skill install policy. */
 function mergeSkills(value: unknown, merged: GoatFlowConfig): void {
   if (!isRecord(value)) return;
@@ -180,7 +169,7 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
   mergeVersion(raw.version, merged);
   // Path overrides for footguns/lessons/decisions/tasks/logs removed in v1.1.0.
   // Canonical paths (.goat-flow/*) are always used.
-  mergeAgents(raw.agents, merged);
+  // Legacy `agents:` is intentionally ignored. Use `--agent <id>` to scope commands.
   mergeSkills(raw.skills, merged);
 
   // YAML key is `line-limits` (kebab-case), TypeScript field is `lineLimits` (camelCase)
@@ -373,51 +362,6 @@ function validateToolchainField(
   });
 }
 
-/** Validate an explicit list of enabled agents. */
-function validateAgentList(
-  agents: unknown[],
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  if (agents.length === 0) {
-    pushError(
-      errors,
-      "agents",
-      "cannot be empty; omit the field to auto-detect",
-    );
-  }
-  for (const [index, value] of agents.entries()) {
-    if (typeof value !== "string") {
-      pushError(errors, `agents[${index}]`, "must be a string");
-      continue;
-    }
-    if (!KNOWN_AGENTS.has(value as AgentId)) {
-      pushError(
-        errors,
-        `agents[${index}]`,
-        `unknown agent "${value}" - known agents: ${KNOWN_AGENT_LIST}`,
-      );
-    }
-  }
-}
-
-/** Validate the optional top-level agents selector. */
-function validateAgentsField(
-  raw: RawConfig,
-  warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  if (!("agents" in raw)) return;
-  const { agents } = raw;
-  if (agents !== null && !Array.isArray(agents)) {
-    pushError(errors, "agents", "must be null or an array");
-    return;
-  }
-  if (Array.isArray(agents)) {
-    validateAgentList(agents, warnings, errors);
-  }
-}
-
 /** Validate an explicit `skills.install` allowlist. */
 function validateSkillInstallList(
   install: unknown[],
@@ -562,7 +506,6 @@ function validateTerminalField(
 const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateVersionField,
   validateLineLimitsField,
-  validateAgentsField,
   validateSkillsField,
   validateToolchainField,
   validateUserRoleField,
