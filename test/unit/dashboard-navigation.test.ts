@@ -42,6 +42,12 @@ describe("dashboard side navigation", () => {
     assert.match(html, /'gf-side-collapsed': sideNavCollapsed/);
     assert.match(sideMenu, /class="gf-side-collapse-btn"/);
     assert.match(sideMenu, /@click="toggleSideNav\(\)"/);
+    assert.match(sideMenu, /aria-label="goat-flow Home"/);
+    assert.match(sideMenu, /class="gf-side-logo-emoji"[\s\S]*🐐/);
+    assert.match(sideMenu, /class="gf-side-logo-text"[\s\S]*goat-flow/);
+    assert.match(html, /id="gf-side-icon-home"/);
+    assert.match(sideMenu, /href="#gf-side-icon-home"/);
+    assert.match(sideMenu, /class="gf-side-icon"/);
     assert.match(sideMenu, /aria-label="Primary navigation"/);
     for (const label of ["Harness", "Managers", "Operations"]) {
       assert.match(sideMenu, new RegExp(`>\\s*${label}\\s*<`));
@@ -78,6 +84,7 @@ describe("dashboard side navigation", () => {
 
     assert.match(html, /gf-side-nav-group-secondary/);
     assert.match(html, /data-short="St"[\s\S]*Settings/);
+    assert.match(html, /href="#gf-side-icon-settings"[\s\S]*Settings/);
     assert.match(appSource, /sideNavCollapsed:/);
     assert.match(appSource, /localStorage\.getItem\("gf-side-nav-collapsed"\)/);
     assert.match(appSource, /toggleSideNav\(\)/);
