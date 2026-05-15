@@ -1601,20 +1601,36 @@ body {
 }
 .gf-side-nav {
   display: flex;
-  width: 238px;
-  flex: 0 0 238px;
+  width: 218px;
+  flex: 0 0 218px;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   overflow-y: auto;
-  padding: 16px 12px;
+  padding: 14px 10px;
   background: var(--surface-base);
   border-right: 1px solid var(--border-subtle);
+  transition:
+    width 0.16s ease,
+    flex-basis 0.16s ease,
+    padding 0.16s ease;
+}
+.gf-side-collapsed .gf-side-nav {
+  width: 64px;
+  flex-basis: 64px;
+  padding: 14px 8px;
+}
+.gf-side-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 .gf-side-logo {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
   padding: 4px 8px 10px;
   border: 0;
   background: transparent;
@@ -1622,6 +1638,11 @@ body {
   font-size: 15px;
   font-weight: 600;
   text-align: left;
+}
+.gf-side-collapsed .gf-side-logo {
+  flex: 0 0 auto;
+  justify-content: center;
+  padding: 2px 0 8px;
 }
 .gf-side-logo-mark {
   display: inline-grid;
@@ -1637,14 +1658,51 @@ body {
   font-weight: 700;
   letter-spacing: 0.04em;
 }
+.gf-side-logo-text,
+.gf-side-link-label,
+.gf-side-group-label {
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+.gf-side-collapse-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.05);
+  color: var(--text-muted);
+}
+.gf-side-collapse-btn:hover {
+  background: var(--neutral-bg);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+.gf-side-collapse-btn svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.16s ease;
+}
+.gf-side-collapsed .gf-side-collapse-btn svg {
+  transform: rotate(180deg);
+}
 .gf-side-nav-groups {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 .gf-side-nav-group {
   display: grid;
   gap: 3px;
+}
+.gf-side-nav-group-secondary {
+  position: relative;
+  margin-top: 2px;
+  padding-top: 13px;
+  border-top: 1px solid var(--border-subtle);
 }
 .gf-side-group-label {
   padding: 0 10px 5px;
@@ -1670,6 +1728,10 @@ body {
   line-height: 1.25;
   text-align: left;
 }
+.gf-side-link::before {
+  content: "";
+  display: none;
+}
 .gf-side-link:hover {
   background: var(--neutral-bg);
   color: var(--text-primary);
@@ -1678,6 +1740,60 @@ body {
   background: var(--accent-bg);
   border-color: var(--accent-border);
   color: var(--accent);
+}
+.gf-side-collapsed .gf-side-top {
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+.gf-side-collapsed .gf-side-collapse-btn {
+  width: 34px;
+}
+.gf-side-collapsed .gf-side-logo-mark {
+  min-width: 34px;
+  padding-inline: 5px;
+  font-size: 10px;
+}
+.gf-side-collapsed .gf-side-logo-text,
+.gf-side-collapsed .gf-side-link-label,
+.gf-side-collapsed .gf-side-group-label {
+  display: none;
+}
+.gf-side-collapsed .gf-side-nav-groups {
+  gap: 10px;
+}
+.gf-side-collapsed .gf-side-nav-group {
+  gap: 5px;
+}
+.gf-side-collapsed .gf-side-nav-group-secondary {
+  margin-top: 4px;
+  padding-top: 12px;
+}
+.gf-side-collapsed .gf-side-link {
+  position: relative;
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 4px;
+}
+.gf-side-collapsed .gf-side-link::before {
+  display: inline-grid;
+  place-items: center;
+  content: attr(data-short);
+  min-width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+.gf-side-collapsed .gf-side-link .gf-status-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  font-size: 0;
+  box-shadow: none;
 }
 .gf-main-shell {
   display: flex;

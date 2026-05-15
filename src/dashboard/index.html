@@ -228,13 +228,42 @@
       </div>
     </div>
 
-    <div class="gf-app-shell">
+    <div
+      class="gf-app-shell"
+      :class="{ 'gf-side-collapsed': sideNavCollapsed }"
+    >
       <!-- ═══ Side Navigation ═══ -->
       <aside class="no-print gf-side-nav" aria-label="Primary navigation">
-        <button @click="activeView = 'home'" class="gf-side-logo">
-          <span class="gf-side-logo-mark">GOAT</span>
-          <span>Flow</span>
-        </button>
+        <div class="gf-side-top">
+          <button
+            @click="activeView = 'home'"
+            class="gf-side-logo"
+            aria-label="GOAT Flow Home"
+          >
+            <span class="gf-side-logo-mark">GOAT</span>
+            <span class="gf-side-logo-text">Flow</span>
+          </button>
+          <button
+            @click="toggleSideNav()"
+            class="gf-side-collapse-btn"
+            :title="sideNavCollapsed ? 'Expand side menu' : 'Collapse side menu'"
+            :aria-label="sideNavCollapsed ? 'Expand side menu' : 'Collapse side menu'"
+            :aria-expanded="(!sideNavCollapsed).toString()"
+            type="button"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+        </div>
 
         <nav class="gf-side-nav-groups">
           <section class="gf-side-nav-group" aria-label="Main">
@@ -242,15 +271,19 @@
               @click="activeView = 'home'"
               class="gf-side-link"
               :class="activeView === 'home' && 'gf-side-link-active'"
+              data-short="H"
+              aria-label="Home"
             >
-              Home
+              <span class="gf-side-link-label">Home</span>
             </button>
             <button
               @click="activeView = 'workspace'"
               class="gf-side-link"
               :class="activeView === 'workspace' && 'gf-side-link-active'"
+              data-short="W"
+              aria-label="Workspace"
             >
-              <span>Workspace</span>
+              <span class="gf-side-link-label">Workspace</span>
               <span
                 x-show="(terminalSessionId && !terminalEnded) || terminalSessionCount > 0"
                 title="Terminal session active"
@@ -263,8 +296,10 @@
               @click="activeView = 'tasks'"
               class="gf-side-link"
               :class="activeView === 'tasks' && 'gf-side-link-active'"
+              data-short="T"
+              aria-label="Tasks"
             >
-              Tasks
+              <span class="gf-side-link-label">Tasks</span>
             </button>
           </section>
 
@@ -274,36 +309,46 @@
               @click="activeView = 'context'"
               class="gf-side-link"
               :class="activeView === 'context' && 'gf-side-link-active'"
+              data-short="C"
+              aria-label="Context"
             >
-              Context
+              <span class="gf-side-link-label">Context</span>
             </button>
             <button
               @click="activeView = 'constraints'"
               class="gf-side-link"
               :class="activeView === 'constraints' && 'gf-side-link-active'"
+              data-short="Ct"
+              aria-label="Constraints"
             >
-              Constraints
+              <span class="gf-side-link-label">Constraints</span>
             </button>
             <button
               @click="activeView = 'verification'"
               class="gf-side-link"
               :class="activeView === 'verification' && 'gf-side-link-active'"
+              data-short="V"
+              aria-label="Verification"
             >
-              Verification
+              <span class="gf-side-link-label">Verification</span>
             </button>
             <button
               @click="activeView = 'recovery'"
               class="gf-side-link"
               :class="activeView === 'recovery' && 'gf-side-link-active'"
+              data-short="R"
+              aria-label="Recovery"
             >
-              Recovery
+              <span class="gf-side-link-label">Recovery</span>
             </button>
             <button
               @click="activeView = 'feedback-loop'"
               class="gf-side-link"
               :class="activeView === 'feedback-loop' && 'gf-side-link-active'"
+              data-short="F"
+              aria-label="Feedback Loop"
             >
-              Feedback Loop
+              <span class="gf-side-link-label">Feedback Loop</span>
             </button>
           </section>
 
@@ -313,36 +358,46 @@
               @click="activeView = 'skills'"
               class="gf-side-link"
               :class="activeView === 'skills' && 'gf-side-link-active'"
+              data-short="S"
+              aria-label="Skills"
             >
-              Skills
+              <span class="gf-side-link-label">Skills</span>
             </button>
             <button
               @click="activeView = 'playbooks'"
               class="gf-side-link"
               :class="activeView === 'playbooks' && 'gf-side-link-active'"
+              data-short="P"
+              aria-label="Playbooks"
             >
-              Playbooks
+              <span class="gf-side-link-label">Playbooks</span>
             </button>
             <button
               @click="activeView = 'hooks'"
               class="gf-side-link"
               :class="activeView === 'hooks' && 'gf-side-link-active'"
+              data-short="Hk"
+              aria-label="Hooks"
             >
-              Hooks
+              <span class="gf-side-link-label">Hooks</span>
             </button>
             <button
               @click="activeView = 'memory'"
               class="gf-side-link"
               :class="activeView === 'memory' && 'gf-side-link-active'"
+              data-short="M"
+              aria-label="Memory"
             >
-              Memory
+              <span class="gf-side-link-label">Memory</span>
             </button>
             <button
               @click="activeView = 'prompts'"
               class="gf-side-link"
               :class="activeView === 'prompts' && 'gf-side-link-active'"
+              data-short="Pr"
+              aria-label="Prompts"
             >
-              Prompts
+              <span class="gf-side-link-label">Prompts</span>
             </button>
           </section>
 
@@ -352,46 +407,61 @@
               @click="activeView = 'projects'"
               class="gf-side-link"
               :class="activeView === 'projects' && 'gf-side-link-active'"
+              data-short="Pj"
+              aria-label="Projects"
             >
-              Projects
+              <span class="gf-side-link-label">Projects</span>
             </button>
             <button
               @click="activeView = 'telemetry'"
               class="gf-side-link"
               :class="activeView === 'telemetry' && 'gf-side-link-active'"
+              data-short="Te"
+              aria-label="Telemetry"
             >
-              Telemetry
+              <span class="gf-side-link-label">Telemetry</span>
             </button>
             <button
               @click="activeView = 'setup'"
               class="gf-side-link"
               :class="activeView === 'setup' && 'gf-side-link-active'"
+              data-short="Se"
+              aria-label="Setup"
             >
-              Setup
+              <span class="gf-side-link-label">Setup</span>
             </button>
             <button
               @click="activeView = 'quality'"
               class="gf-side-link"
               :class="activeView === 'quality' && 'gf-side-link-active'"
+              data-short="Q"
+              aria-label="Quality"
             >
-              Quality
+              <span class="gf-side-link-label">Quality</span>
             </button>
           </section>
 
-          <section class="gf-side-nav-group" aria-label="Other">
+          <section
+            class="gf-side-nav-group gf-side-nav-group-secondary"
+            aria-label="Other"
+          >
             <button
               @click="activeView = 'settings'"
               class="gf-side-link"
               :class="activeView === 'settings' && 'gf-side-link-active'"
+              data-short="St"
+              aria-label="Settings"
             >
-              Settings
+              <span class="gf-side-link-label">Settings</span>
             </button>
             <button
               @click="activeView = 'about'"
               class="gf-side-link"
               :class="activeView === 'about' && 'gf-side-link-active'"
+              data-short="A"
+              aria-label="About"
             >
-              About
+              <span class="gf-side-link-label">About</span>
             </button>
           </section>
         </nav>

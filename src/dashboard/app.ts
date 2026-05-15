@@ -29,6 +29,7 @@ function app() {
     copyLabel: "Copy",
     srAnnouncement: "",
     activeView: "home",
+    sideNavCollapsed: localStorage.getItem("gf-side-nav-collapsed") === "true",
     supportedAgents,
     installedAgents: [] as AgentInfo[],
     allAgents: [] as AgentInfo[],
@@ -1054,6 +1055,13 @@ function app() {
     },
     isComingSoonView(view?: string): boolean {
       return this.comingSoonMeta(view ?? this.activeView) !== null;
+    },
+    toggleSideNav() {
+      this.sideNavCollapsed = !this.sideNavCollapsed;
+      localStorage.setItem(
+        "gf-side-nav-collapsed",
+        String(this.sideNavCollapsed),
+      );
     },
 
     // -- API Calls --

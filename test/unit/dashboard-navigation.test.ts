@@ -39,6 +39,9 @@ describe("dashboard side navigation", () => {
     );
 
     assert.doesNotMatch(html, /class="gf-nav-wrap"/);
+    assert.match(html, /'gf-side-collapsed': sideNavCollapsed/);
+    assert.match(sideMenu, /class="gf-side-collapse-btn"/);
+    assert.match(sideMenu, /@click="toggleSideNav\(\)"/);
     assert.match(sideMenu, /aria-label="Primary navigation"/);
     for (const label of ["Harness", "Managers", "Operations"]) {
       assert.match(sideMenu, new RegExp(`>\\s*${label}\\s*<`));
@@ -67,6 +70,21 @@ describe("dashboard side navigation", () => {
       assert.match(sideMenu, new RegExp(`>\\s*${label}\\s*<`));
     }
     assert.doesNotMatch(sideMenu, /\sdisabled(?:=|\s|>)/);
+  });
+
+  it("separates Settings from Operations and supports a compact rail", () => {
+    const html = read(DASHBOARD_INDEX_PATH);
+    const appSource = read(DASHBOARD_APP_PATH);
+
+    assert.match(html, /gf-side-nav-group-secondary/);
+    assert.match(html, /data-short="St"[\s\S]*Settings/);
+    assert.match(appSource, /sideNavCollapsed:/);
+    assert.match(appSource, /localStorage\.getItem\("gf-side-nav-collapsed"\)/);
+    assert.match(appSource, /toggleSideNav\(\)/);
+    assert.match(
+      appSource,
+      /localStorage\.setItem\(\s*"gf-side-nav-collapsed"/,
+    );
   });
 
   it("keeps project switching in the header and includes Tasks plus Coming Soon views", () => {
