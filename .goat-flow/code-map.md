@@ -131,6 +131,7 @@ deny-dangerous.self-test.sh # Self-test corpus sourced by deny-dangerous.sh --se
 deploy-landing.sh          # Deploy landing page to hosting
 install-browser-tools.sh   # Install browser-use and Playwright for page capture
 npm-publish.sh             # Wrapper: npm publish sanity checks
+mutation-test.sh           # Opt-in StrykerJS mutation-testing helper with target menu
 preflight-checks.sh        # Pre-commit/CI gate: lint, typecheck, cross-ref checks
 prettier-check.sh          # Wrapper: prettier --check (lint)
 prettier.sh                # Wrapper: prettier --write (format)

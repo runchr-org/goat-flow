@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2317
+# Many helpers (render_report and friends) are reached only via the EXIT
+# trap below, which shellcheck's reachability analysis doesn't follow.
+# Disable the warning file-wide rather than tagging every function.
 
 # preflight-checks.sh
 #
@@ -24,6 +28,47 @@ set -euo pipefail
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT_DIR" || exit 1
 MANIFEST_PATH="$ROOT_DIR/workflow/manifest.json"
+
+# ── Output mode flags ────────────────────────────────────────────────
+# Parsed before anything else so capability detection can use them.
+verbose=0
+no_color=
+ascii_mode=
+for arg in "$@"; do
+    case "$arg" in
+        -v|--verbose) verbose=1 ;;
+        --no-color)   no_color=1 ;;
+        --ascii)      ascii_mode=1 ;;
+        -h|--help)
+            cat <<'HELP'
+Usage: preflight-checks.sh [--verbose] [--no-color] [--ascii] [--help]
+
+Runs the local pre-flight quality gate. Exits 0 when all checks pass,
+non-zero otherwise.
+
+Options:
+  -v, --verbose    Expand every sub-check (default collapses to one row per
+                   section; failing/warning sections always expand).
+      --no-color   Disable ANSI colour. Equivalent to NO_COLOR=1.
+      --ascii      Force ASCII fallback for terminals without box-drawing.
+                   Auto-enabled when LANG/LC_ALL is missing UTF-8.
+  -h, --help       Show this help and exit.
+
+Environment:
+  NO_COLOR=1     - same as --no-color
+  FORCE_COLOR=1  - force colour even when stdout is not a TTY
+  COLUMNS=N      - override terminal width detection (default: tput cols, or 80)
+  CI=true        - implies --no-color unless FORCE_COLOR is set
+HELP
+            exit 0
+            ;;
+        *)
+            echo "preflight-checks.sh: unknown option: $arg" >&2
+            echo "Run with --help for usage." >&2
+            exit 2
+            ;;
+    esac
+done
 
 manifest_eval() {
     node - "$MANIFEST_PATH" "$@" <<'NODE'
@@ -94,19 +139,113 @@ process.exit(1);
 NODE
 }
 
-# ── Colours (disabled if not a terminal) ─────────────────────────────
-if [[ -t 1 ]]; then
-    R='\033[0;31m' G='\033[0;32m' Y='\033[0;33m' B='\033[0;34m'
-    DIM='\033[2m' BOLD='\033[1m' RST='\033[0m'
-else
-    R='' G='' Y='' B='' DIM='' BOLD='' RST=''
+# ── Output formatter (M-preflight-redesign) ──────────────────────────
+# Buffer-then-render: helpers append rows to a TSV ledger; render_report
+# walks the ledger at the end and emits a phased summary. Default output
+# collapses each section to one row; --verbose or any FAIL/WARN expands
+# the section under an indent guide. Adding a new check needs three
+# things: (1) call section "Display Name" before the sub-checks run;
+# (2) call pass/fail/warn/skip from inside each sub-check; (3) add an
+# entry to phase_for / display_for / collapsed_desc_for so the section
+# lands under the right phase heading with a meaningful summary line.
+
+# ── Capability detection ─────────────────────────────────────────────
+_is_tty=0
+[[ -t 1 ]] && _is_tty=1
+
+_use_color=1
+if [[ -n "$no_color" ]] || [[ -n "${NO_COLOR:-}" ]]; then
+    _use_color=0
+elif [[ "${CI:-}" == "true" ]] && [[ -z "${FORCE_COLOR:-}" ]]; then
+    _use_color=0
+elif [[ "$_is_tty" -eq 0 ]] && [[ -z "${FORCE_COLOR:-}" ]]; then
+    _use_color=0
 fi
+if [[ "$_use_color" -eq 1 ]] && command -v tput >/dev/null 2>&1; then
+    _color_count=$(tput colors 2>/dev/null || echo 0)
+    [[ "$_color_count" -lt 8 ]] && _use_color=0
+fi
+
+if [[ "$_use_color" -eq 1 ]]; then
+    R=$'\033[0;31m'; G=$'\033[0;32m'; Y=$'\033[0;33m'; CY=$'\033[0;36m'
+    DIM=$'\033[2m'; BOLD=$'\033[1m'; RST=$'\033[0m'
+else
+    R=''; G=''; Y=''; CY=''; DIM=''; BOLD=''; RST=''
+fi
+
+_use_ascii=0
+if [[ -n "$ascii_mode" ]]; then
+    _use_ascii=1
+elif [[ "${LANG:-}${LC_ALL:-}" != *UTF-8* ]] && [[ "${LANG:-}${LC_ALL:-}" != *utf8* ]]; then
+    _use_ascii=1
+fi
+
+if [[ "$_use_ascii" -eq 1 ]]; then
+    GLYPH_PASS='+'; GLYPH_FAIL='x'; GLYPH_WARN='!'; GLYPH_SKIP='-'
+    RULE_TOP='='; RULE_MID='-'; GUIDE='|'
+else
+    GLYPH_PASS='✓'; GLYPH_FAIL='✗'; GLYPH_WARN='⚠'; GLYPH_SKIP='⊘'
+    RULE_TOP='━'; RULE_MID='─'; GUIDE='│'
+fi
+
+
+# Terminal width (overridden by COLUMNS, then tput cols, then 80).
+_term_cols=${COLUMNS:-}
+if [[ -z "$_term_cols" ]]; then
+    if [[ "$_is_tty" -eq 1 ]] && command -v tput >/dev/null 2>&1; then
+        _term_cols=$(tput cols 2>/dev/null || echo 80)
+    else
+        _term_cols=80
+    fi
+fi
+[[ "$_term_cols" -lt 40 ]] && _term_cols=40
+
+# ── Ledger setup ─────────────────────────────────────────────────────
+LEDGER_DIR=$(mktemp -d -t preflight.XXXXXX)
+LEDGER="$LEDGER_DIR/ledger.tsv"
+: > "$LEDGER"
+
+# render_report runs from the EXIT trap so the report still prints when
+# set -e + pipefail kills the script mid-check (e.g. a failure-detail
+# pipeline tripping pipefail). Cleanup follows render. We override the
+# exit code to FAIL when errors were recorded, since set -e may exit
+# the script before the explicit exit statement runs.
+_render_done=0
+_on_exit() {
+    # NB: variable name avoids `rc` because bash uses dynamic scoping
+    # for locals; sub-functions like _emit_section_row's `read -r ...`
+    # would otherwise clobber it on every row and `exit "$rc"` ends up
+    # as `exit ""`.
+    local _exit_rc=$?
+    [[ "$_exit_rc" =~ ^[0-9]+$ ]] || _exit_rc=0
+    if [[ "$_render_done" -eq 0 ]]; then
+        _render_done=1
+        # Render anything left over: the just-finished section's row
+        # (if not yet emitted) and the footer. Wrap in `|| true` so a
+        # render error doesn't mask the script's real exit code.
+        {
+            _emit_header_once
+            _record_section_elapsed
+            if [[ -n "$current_section" ]]; then
+                _emit_section_row "$current_section"
+                current_section=""
+            fi
+            _emit_footer
+        } 2>&1 || true
+    fi
+    rm -rf "$LEDGER_DIR" 2>/dev/null || true
+    if [[ "${errors:-0}" -gt 0 ]] && [[ "$_exit_rc" -eq 0 ]]; then
+        _exit_rc=1
+    fi
+    exit "$_exit_rc"
+}
+trap '_on_exit' EXIT
 
 errors=0
 warnings=0
 checks=0
 
-# Millisecond-precision timing with portable fallback (macOS date lacks %N)
+# Millisecond-precision timing with portable fallback (macOS date lacks %N).
 if date +%s%N 2>/dev/null | grep -qv N; then
     now_ms() { echo $(( $(date +%s%N) / 1000000 )); }
 elif command -v node >/dev/null 2>&1; then
@@ -115,31 +254,391 @@ else
     now_ms() { echo $(( $(date +%s) * 1000 )); }
 fi
 fmt_elapsed() {
+    # one-decimal seconds, e.g. 5.1s, 0.0s
     local ms=$(( $1 ))
     local secs=$(( ms / 1000 ))
-    local frac=$(( ms % 1000 ))
-    printf '%d.%01ds' "$secs" "$(( frac / 100 ))"
+    local frac=$(( (ms % 1000) / 100 ))
+    printf '%d.%ds' "$secs" "$frac"
 }
 
 preflight_start=$(now_ms)
 section_start=$(now_ms)
+current_section=""
 
 # ── Helpers ──────────────────────────────────────────────────────────
-section() {
-    # Print elapsed time for the previous section (skip for the first call)
-    local now
-    now=$(now_ms)
-    if [[ "$checks" -gt 0 ]]; then
-        echo -e "  ${DIM}($(fmt_elapsed $(( now - section_start ))))${RST}"
+_record_section_elapsed() {
+    if [[ -n "$current_section" ]]; then
+        local now elapsed
+        now=$(now_ms)
+        elapsed=$(( now - section_start ))
+        printf 'ELAPSED\t%s\t%d\n' "$current_section" "$elapsed" >> "$LEDGER"
     fi
-    section_start=$now
-    echo -e "\n${B}━━ $1${RST}";
 }
-pass()    { checks=$((checks + 1)); echo -e "  ${G}✓${RST} $1"; }
-fail()    { checks=$((checks + 1)); errors=$((errors + 1)); echo -e "  ${R}✗${RST} $1" >&2; }
-warn()    { checks=$((checks + 1)); warnings=$((warnings + 1)); echo -e "  ${Y}⚠${RST} $1"; }
-skip()    { echo -e "  ${DIM}⊘ $1 (skipped)${RST}"; }
-note()    { warnings=$((warnings + 1)); echo -e "  ${Y}⚠${RST} $1"; }
+
+section() {
+    _record_section_elapsed
+    _emit_header_once
+    if [[ -n "$current_section" ]]; then
+        _emit_section_row "$current_section"
+    fi
+    current_section="$1"
+    section_start=$(now_ms)
+    printf 'SECTION\t%s\n' "$current_section" >> "$LEDGER"
+    local phase
+    phase=$(phase_for "$1")
+    _emit_phase_if_changed "$phase"
+}
+
+# Sub-check helpers append one ROW per call; counters increment for the
+# verdict tally exactly as before. Embedded newlines in the message are
+# collapsed to ` | ` so the TSV ledger stays one row per call (some
+# checks compose messages from grep -c output that can include a stray
+# trailing newline).
+_one_line() { printf '%s' "${1//$'\n'/ | }"; }
+pass()  { checks=$((checks + 1)); printf 'ROW\tPASS\t%s\t%s\n' "$current_section" "$(_one_line "$1")" >> "$LEDGER"; }
+fail()  { checks=$((checks + 1)); errors=$((errors + 1)); printf 'ROW\tFAIL\t%s\t%s\n' "$current_section" "$(_one_line "$1")" >> "$LEDGER"; }
+warn()  { checks=$((checks + 1)); warnings=$((warnings + 1)); printf 'ROW\tWARN\t%s\t%s\n' "$current_section" "$(_one_line "$1")" >> "$LEDGER"; }
+skip()  { printf 'ROW\tSKIP\t%s\t%s\n' "$current_section" "$(_one_line "$1")" >> "$LEDGER"; }
+note()  { warnings=$((warnings + 1)); printf 'ROW\tWARN\t%s\t%s\n' "$current_section" "$(_one_line "$1")" >> "$LEDGER"; }
+
+# Detail lines belong to the current section. They render under the
+# failure expansion (verbose mode, or any failed/warned section). Pipe
+# any multi-line output through details_pipe to attach it to the row.
+details_pipe() {
+    while IFS= read -r line; do
+        printf 'DETAIL\t%s\t%s\n' "$current_section" "$line" >> "$LEDGER"
+    done
+}
+
+# ── Phase mapping (centralised) ──────────────────────────────────────
+# In live rendering, the phase heading prints whenever the phase
+# changes between two consecutive sections. There's no precomputed
+# phase order — sections appear in execution order, and a phase's
+# heading may repeat if its sections aren't contiguous.
+phase_for() {
+    case "$1" in
+        "Shell Scripts"|"TypeScript") printf 'STATIC' ;;
+        "Deny Policy"|"ADR Enforcement") printf 'POLICY' ;;
+        "Agent Config Parity"|"Skill and Reference Versions"|"Version Consistency") printf 'CONFIG INTEGRITY' ;;
+        "Skill Behavioral Contracts"|"Cross-Agent Consistency"|"Instruction Parity Contract"|"Instruction File Quality") printf 'CONTRACTS' ;;
+        "Tests") printf 'TESTS' ;;
+        "GOAT Flow Audit"|"Learning-Loop Schema"|"Doc/Code Drift"|"Skill Reference + Playbooks Sync"|"Skill SKILL.md Parity") printf 'DRIFT' ;;
+        "Path Integrity"|"Markdown Links"|"Package README Links") printf 'LINKS' ;;
+        *) printf 'OTHER' ;;
+    esac
+}
+
+display_for() {
+    case "$1" in
+        "Shell Scripts") printf 'Shell scripts' ;;
+        "TypeScript") printf 'TypeScript' ;;
+        "Deny Policy") printf 'Deny policy' ;;
+        "ADR Enforcement") printf 'ADR enforcement' ;;
+        "Agent Config Parity") printf 'Agent config parity' ;;
+        "Skill and Reference Versions") printf 'Skill versions' ;;
+        "Version Consistency") printf 'Version consistency' ;;
+        "Skill Behavioral Contracts") printf 'Skill behavioural' ;;
+        "Cross-Agent Consistency") printf 'Cross-agent' ;;
+        "Instruction Parity Contract") printf 'Instruction parity' ;;
+        "Instruction File Quality") printf 'Instruction quality' ;;
+        "Tests") printf 'Test suite' ;;
+        "GOAT Flow Audit") printf 'GOAT flow audit' ;;
+        "Learning-Loop Schema") printf 'Learning-loop schema' ;;
+        "Doc/Code Drift") printf 'Doc/code drift' ;;
+        "Skill Reference + Playbooks Sync") printf 'Skill reference sync' ;;
+        "Skill SKILL.md Parity") printf 'Skill SKILL.md parity' ;;
+        "Path Integrity") printf 'Path integrity' ;;
+        "Markdown Links") printf 'Markdown links' ;;
+        "Package README Links") printf 'Package README' ;;
+        *) printf '%s' "$1" ;;
+    esac
+}
+
+collapsed_desc_for() {
+    case "$1" in
+        "Shell Scripts") printf 'bash syntax + shellcheck' ;;
+        "TypeScript") printf 'build · lint · knip · prettier' ;;
+        "Deny Policy") printf 'self-test + runtime smokes' ;;
+        "ADR Enforcement") printf 'no removed patterns' ;;
+        "Agent Config Parity") printf 'claude · codex · gemini · copilot' ;;
+        "Skill and Reference Versions") printf 'templates + installed match version' ;;
+        "Version Consistency") printf 'package.json · config.yaml' ;;
+        "Skill Behavioral Contracts") printf 'goat-critique invocation' ;;
+        "Cross-Agent Consistency") printf 'execution loop · router table' ;;
+        "Instruction Parity Contract") printf 'agent files share contract' ;;
+        "Instruction File Quality") printf 'within line budget · no encyclopedia' ;;
+        "Tests") printf 'fast suite + coverage' ;;
+        "GOAT Flow Audit") printf 'all checks' ;;
+        "Learning-Loop Schema") printf 'footguns + lessons valid' ;;
+        "Doc/Code Drift") printf 'arch counts · setup IDs · code-map' ;;
+        "Skill Reference + Playbooks Sync") printf 'templates match installed' ;;
+        "Skill SKILL.md Parity") printf 'all installed match' ;;
+        "Path Integrity") printf 'internal refs resolve' ;;
+        "Markdown Links") printf 'all markdown links resolve' ;;
+        "Package README Links") printf 'relative paths · packed files' ;;
+        *) printf '' ;;
+    esac
+}
+
+# ── Live renderer ────────────────────────────────────────────────────
+# Each section's collapsed row (and any auto-expansion on FAIL/WARN)
+# is printed when the section completes — i.e. when the next section()
+# call fires, or when _on_exit runs for the last section. The header
+# prints once, lazily, on the first section() call. Phase headings
+# print whenever the phase changes between two consecutive sections.
+# Widths are computed once from a fixed list of known sections, so the
+# columns stay aligned across all rows regardless of which sections
+# end up running.
+
+_widths_computed=0
+_header_printed=0
+_last_phase=""
+NAME_W=10
+DESC_W=10
+ELAPSED_W=6
+BLOCK_W=70
+SHOW_DESC=1
+SHOW_ELAPSED=1
+RULE_TOP_LINE=""
+RULE_MID_LINE=""
+
+_repeat() {
+    local ch="$1" n="$2" out=""
+    local i=0
+    while (( i < n )); do out+="$ch"; i=$((i + 1)); done
+    printf '%s' "$out"
+}
+
+# printf %-*s measures bytes, so multi-byte UTF-8 (·, …) breaks
+# alignment. _pad_right / _pad_left use ${#s} (character count in
+# UTF-8 locales) and pad with explicit spaces.
+_pad_right() {
+    local s="$1" w="$2" len=${#1}
+    printf '%s' "$s"
+    if (( len < w )); then printf '%*s' $((w - len)) ''; fi
+}
+_pad_left() {
+    local s="$1" w="$2" len=${#1}
+    if (( len < w )); then printf '%*s' $((w - len)) ''; fi
+    printf '%s' "$s"
+}
+
+# Truncate $1 to width $2 (character count) with an ellipsis if it
+# would overflow. Bash slicing is character-aware in UTF-8 locales.
+_truncate() {
+    local s="$1" w="$2"
+    if (( ${#s} <= w )); then
+        printf '%s' "$s"
+    elif (( w <= 1 )); then
+        printf '%s' "${s:0:w}"
+    else
+        local head=$((w - 1))
+        if [[ "$_use_ascii" -eq 1 ]]; then
+            printf '%s.' "${s:0:head}"
+        else
+            printf '%s…' "${s:0:head}"
+        fi
+    fi
+}
+
+# In ASCII mode (or when LANG is non-UTF-8 and we auto-fell-back to
+# ASCII), strip `·` from labels so padding via ${#str} (byte count
+# under LANG=C) matches what's displayed on screen.
+_ascii_safe() {
+    if [[ "$_use_ascii" -eq 1 ]]; then
+        printf '%s' "${1//·/+}"
+    else
+        printf '%s' "$1"
+    fi
+}
+
+# Computed once from a hardcoded list of known sections. Adding a
+# new section means adding it here AND to phase_for / display_for /
+# collapsed_desc_for.
+_compute_widths() {
+    [[ "$_widths_computed" -eq 1 ]] && return 0
+    _widths_computed=1
+    local sec disp d
+    local known=(
+        "Shell Scripts" "TypeScript"
+        "Deny Policy" "ADR Enforcement"
+        "Agent Config Parity" "Skill and Reference Versions" "Version Consistency"
+        "Skill Behavioral Contracts" "Cross-Agent Consistency"
+        "Instruction Parity Contract" "Instruction File Quality"
+        "Tests"
+        "GOAT Flow Audit" "Learning-Loop Schema" "Doc/Code Drift"
+        "Skill Reference + Playbooks Sync" "Skill SKILL.md Parity"
+        "Path Integrity" "Markdown Links" "Package README Links"
+    )
+    for sec in "${known[@]}"; do
+        disp=$(_ascii_safe "$(display_for "$sec")")
+        d=$(_ascii_safe "$(collapsed_desc_for "$sec")")
+        (( ${#disp} > NAME_W )) && NAME_W=${#disp}
+        (( ${#d} > DESC_W )) && DESC_W=${#d}
+    done
+    (( NAME_W > 24 )) && NAME_W=24
+    (( DESC_W > 40 )) && DESC_W=40
+
+    local fixed=$((2 + 1 + 1))
+    local row_full=$((fixed + NAME_W + 2 + DESC_W + 2 + ELAPSED_W))
+    SHOW_DESC=1
+    SHOW_ELAPSED=1
+    if (( row_full > _term_cols )); then SHOW_DESC=0; fi
+    if (( fixed + NAME_W + 2 + ELAPSED_W > _term_cols )); then SHOW_ELAPSED=0; fi
+
+    BLOCK_W=$row_full
+    (( SHOW_DESC == 0 )) && BLOCK_W=$((fixed + NAME_W + 2 + ELAPSED_W))
+    (( SHOW_ELAPSED == 0 && SHOW_DESC == 0 )) && BLOCK_W=$((fixed + NAME_W))
+    (( SHOW_ELAPSED == 0 && SHOW_DESC == 1 )) && BLOCK_W=$((fixed + NAME_W + 2 + DESC_W))
+    (( BLOCK_W > _term_cols )) && BLOCK_W=$_term_cols
+    (( BLOCK_W < 30 )) && BLOCK_W=30
+
+    RULE_TOP_LINE=$(_repeat "$RULE_TOP" "$BLOCK_W")
+    RULE_MID_LINE=$(_repeat "$RULE_MID" "$BLOCK_W")
+}
+
+_emit_header_once() {
+    [[ "$_header_printed" -eq 1 ]] && return 0
+    _header_printed=1
+    _compute_widths
+
+    local repo_name branch pkg_version version_label title
+    repo_name=$(basename "$ROOT_DIR")
+    branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+    version_label=""
+    if [[ -f package.json ]]; then
+        pkg_version=$(grep -oE '"version":[[:space:]]*"[^"]+"' package.json | head -1 | sed -E 's/.*"([^"]+)"$/\1/' || true)
+        [[ -n "${pkg_version:-}" ]] && version_label="v$pkg_version"
+    fi
+    title=" preflight · $repo_name"
+    [[ -n "$branch" ]] && title+=" · $branch"
+    title=$(_ascii_safe "$title")
+
+    printf '%s%s%s\n' "$DIM" "$RULE_TOP_LINE" "$RST"
+    if [[ -n "$version_label" ]]; then
+        local title_len=${#title}
+        local ver_len=${#version_label}
+        local pad=$(( BLOCK_W - title_len - ver_len - 1 ))
+        (( pad < 1 )) && pad=1
+        local ver_pad
+        ver_pad=$(_repeat ' ' "$pad")
+        printf '%s%s%s%s%s%s%s\n' "$CY" "$title" "$RST" "$ver_pad" "$DIM" "$version_label" "$RST"
+    else
+        printf '%s%s%s\n' "$CY" "$title" "$RST"
+    fi
+    printf '%s%s%s\n' "$DIM" "$RULE_TOP_LINE" "$RST"
+}
+
+_emit_phase_if_changed() {
+    local phase="$1"
+    if [[ "$phase" != "$_last_phase" ]]; then
+        printf '\n %s%s%s\n' "$DIM" "$phase" "$RST"
+        _last_phase="$phase"
+    fi
+}
+
+# Aggregate the just-completed section's status from its ledger rows
+# and print: collapsed row + (if FAIL/WARN, or --verbose) the indent-
+# guide expansion of every sub-row and detail line.
+_emit_section_row() {
+    local sec="$1"
+    [[ -z "$sec" ]] && return 0
+    _compute_widths
+
+    local agg status rc el
+    agg=$(awk -F '\t' -v target="$sec" '
+        BEGIN { st="EMPTY"; rc=0 }
+        $1=="SECTION" { in_t=($2==target); next }
+        !in_t { next }
+        $1=="ROW" {
+            rc++
+            if ($2=="FAIL") st="FAIL"
+            else if ($2=="WARN" && st!="FAIL") st="WARN"
+            else if ($2=="PASS" && st!="FAIL" && st!="WARN") st="PASS"
+            else if ($2=="SKIP" && st=="EMPTY") st="SKIP"
+        }
+        END { printf "%s\t%d", st, rc }
+    ' "$LEDGER")
+    status="${agg%%$'\t'*}"
+    rc="${agg##*$'\t'}"
+
+    el=$(awk -F '\t' -v target="$sec" '$1=="ELAPSED" && $2==target { print $3; exit }' "$LEDGER")
+    [[ -z "$el" ]] && el=0
+
+    local glyph color disp desc elapsed_str
+    case "$status" in
+        FAIL)       glyph="$GLYPH_FAIL"; color="$R" ;;
+        WARN)       glyph="$GLYPH_WARN"; color="$Y" ;;
+        SKIP|EMPTY) glyph="$GLYPH_SKIP"; color="$DIM" ;;
+        *)          glyph="$GLYPH_PASS"; color="$G" ;;
+    esac
+    disp=$(_ascii_safe "$(display_for "$sec")")
+    desc=$(_ascii_safe "$(collapsed_desc_for "$sec")")
+    elapsed_str=$(fmt_elapsed "$el")
+    disp=$(_truncate "$disp" "$NAME_W")
+    desc=$(_truncate "$desc" "$DESC_W")
+
+    printf '  %s%s%s  ' "$color" "$glyph" "$RST"
+    _pad_right "$disp" "$NAME_W"
+    if (( SHOW_DESC == 1 )); then
+        printf '  '
+        _pad_right "$desc" "$DESC_W"
+    fi
+    if (( SHOW_ELAPSED == 1 )); then
+        printf '  %s' "$DIM"
+        _pad_left "$elapsed_str" "$ELAPSED_W"
+        printf '%s' "$RST"
+    fi
+    printf '\n'
+
+    local expand=0
+    (( verbose == 1 )) && expand=1
+    [[ "$status" == "FAIL" || "$status" == "WARN" ]] && expand=1
+    if (( expand == 1 )) && (( rc > 0 )); then
+        printf '     %s%s%s\n' "$DIM" "$GUIDE" "$RST"
+        awk -F '\t' -v target="$sec" '
+            BEGIN { in_target = 0 }
+            $1 == "SECTION" { in_target = ($2 == target); next }
+            !in_target { next }
+            $1 == "ROW"    { printf "ROW\t%s\t%s\n", $2, $4 }
+            $1 == "DETAIL" { printf "DETAIL\t%s\n", $3 }
+        ' "$LEDGER" | while IFS=$'\t' read -r kind a b; do
+            if [[ "$kind" == "ROW" ]]; then
+                local sub_glyph sub_color
+                case "$a" in
+                    FAIL) sub_glyph="$GLYPH_FAIL"; sub_color="$R" ;;
+                    WARN) sub_glyph="$GLYPH_WARN"; sub_color="$Y" ;;
+                    SKIP) sub_glyph="$GLYPH_SKIP"; sub_color="$DIM" ;;
+                    *)    sub_glyph="$GLYPH_PASS"; sub_color="$G" ;;
+                esac
+                printf '     %s%s%s  %s%s%s  %s\n' "$DIM" "$GUIDE" "$RST" "$sub_color" "$sub_glyph" "$RST" "$b"
+            elif [[ "$kind" == "DETAIL" ]]; then
+                printf '     %s%s%s        %s%s%s\n' "$DIM" "$GUIDE" "$RST" "$DIM" "$a" "$RST"
+            fi
+        done
+        printf '     %s%s%s\n' "$DIM" "$GUIDE" "$RST"
+    fi
+}
+
+_emit_footer() {
+    _compute_widths
+    local total_elapsed verdict verdict_color sep
+    total_elapsed=$(fmt_elapsed $(( $(now_ms) - preflight_start )))
+    if [[ "$errors" -gt 0 ]]; then
+        verdict="FAIL"; verdict_color="$R"
+    elif [[ "$warnings" -gt 0 ]]; then
+        verdict="PASS (with warnings)"; verdict_color="$Y"
+    else
+        verdict="PASS"; verdict_color="$G"
+    fi
+    sep="·"
+    [[ "$_use_ascii" -eq 1 ]] && sep="+"
+    printf '%s%s%s\n' "$DIM" "$RULE_MID_LINE" "$RST"
+    printf ' %s%s%s%s   %d checks %s %d warnings %s %s%s\n' \
+        "$BOLD" "$verdict_color" "$verdict" "$RST" \
+        "$checks" "$sep" "$warnings" "$sep" "$total_elapsed" "$RST"
+    printf '%s%s%s\n' "$DIM" "$RULE_MID_LINE" "$RST"
+}
 
 # ── Shell Scripts ────────────────────────────────────────────────────
 section "Shell Scripts"
@@ -742,7 +1241,7 @@ if [[ -f scripts/check-instruction-parity.mjs ]]; then
         pass "$parity_output"
     else
         fail "Instruction parity check failed (exit $parity_exit)"
-        echo "$parity_output" | head -12 | sed 's/^/    /'
+        echo "$parity_output" | head -12 | details_pipe
     fi
 else
     skip "Instruction parity check (scripts/check-instruction-parity.mjs missing)"
@@ -888,12 +1387,21 @@ fi
 # ── Tests ────────────────────────────────────────────────────────────
 if [[ -f package.json ]] && grep -q '"test"' package.json; then
     section "Tests"
-    if grep -q '"test:fast"' package.json; then
+    test_reports_coverage=false
+    test_retryable=false
+    coverage_output=""
+    if grep -q '"test:coverage"' package.json; then
+        test_command=(npm run test:coverage)
+        test_label="Tests + coverage"
+        test_reports_coverage=true
+        test_retryable=true
+    elif grep -q '"test:fast"' package.json; then
         test_command=(npm run test:fast)
-        test_label="Fast suite passing"
+        test_label="Fast suite"
+        test_retryable=true
     else
         test_command=(npm test)
-        test_label="All passing"
+        test_label="All"
     fi
     test_output=$("${test_command[@]}" 2>&1) && test_exit=0 || test_exit=$?
 
@@ -902,10 +1410,11 @@ if [[ -f package.json ]] && grep -q '"test"' package.json; then
     fail_count=$(echo "$test_output" | grep '# fail' | grep -oE '[0-9]+' || echo "0")
 
     if [[ "$test_exit" -eq 0 ]] && [[ "$test_count" != "0" ]] && [[ "$test_count" != "?" ]]; then
-        pass "$test_label ($pass_count/$test_count)"
+        pass "$test_label passing ($pass_count/$test_count)"
+        coverage_output="$test_output"
     elif [[ "$test_exit" -eq 0 ]] && [[ "$test_count" == "0" || "$test_count" == "?" ]]; then
         warn "No tests found ($pass_count/$test_count) - test suite needs rebuilding (M23)"
-    elif [[ "$test_label" == "Fast suite passing" ]]; then
+    elif [[ "$test_retryable" == true ]]; then
         retry_output=$("${test_command[@]}" 2>&1) && retry_exit=0 || retry_exit=$?
         retry_test_count=$(echo "$retry_output" | grep '# tests' | grep -oE '[0-9]+' || echo "?")
         retry_pass_count=$(echo "$retry_output" | grep '# pass' | grep -oE '[0-9]+' || echo "?")
@@ -913,15 +1422,36 @@ if [[ -f package.json ]] && grep -q '"test"' package.json; then
 
         if [[ "$retry_exit" -eq 0 ]] && [[ "$retry_test_count" != "0" ]] && [[ "$retry_test_count" != "?" ]]; then
             warn "$test_label passed on retry after initial failure ($retry_pass_count/$retry_test_count); investigate transient test isolation"
-            printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/    initial: /' || true
+            coverage_output="$retry_output"
+            printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/initial: /' | details_pipe || true
         else
             fail "Tests failed after retry (initial $fail_count/$test_count failures, retry $retry_fail_count/$retry_test_count failures)"
-            printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/    initial: /' || true
-            printf '%s\n' "$retry_output" | grep 'not ok' | head -5 | sed 's/^/    retry: /' || true
+            printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/initial: /' | details_pipe || true
+            printf '%s\n' "$retry_output" | grep 'not ok' | head -5 | sed 's/^/retry: /' | details_pipe || true
         fi
     else
         fail "Tests failed ($fail_count/$test_count failures)"
-        printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/    /' || true
+        printf '%s\n' "$test_output" | grep 'not ok' | head -5 | details_pipe || true
+    fi
+
+    if [[ "$test_reports_coverage" == true && -n "$coverage_output" ]]; then
+        if printf '%s\n' "$coverage_output" | grep -Fq '# end of coverage report'; then
+            coverage_line=$(printf '%s\n' "$coverage_output" | grep -E '^# all files[[:space:]]*\|' | tail -1 || true)
+            if [[ -n "$coverage_line" ]]; then
+                line_coverage=$(printf '%s\n' "$coverage_line" | awk -F'|' '{ gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2 }')
+                branch_coverage=$(printf '%s\n' "$coverage_line" | awk -F'|' '{ gsub(/^[ \t]+|[ \t]+$/, "", $3); print $3 }')
+                function_coverage=$(printf '%s\n' "$coverage_line" | awk -F'|' '{ gsub(/^[ \t]+|[ \t]+$/, "", $4); print $4 }')
+                if [[ -n "$line_coverage" && -n "$branch_coverage" && -n "$function_coverage" ]]; then
+                    pass "Coverage (line: ${line_coverage}% / branch: ${branch_coverage}% / function: ${function_coverage}%) [fast suite only]"
+                else
+                    note "Coverage summary unavailable (malformed # all files line)"
+                fi
+            else
+                note "Coverage summary unavailable (missing # all files line)"
+            fi
+        else
+            note "Coverage summary unavailable (missing # end of coverage report)"
+        fi
     fi
 fi
 
@@ -940,7 +1470,7 @@ for pattern in "${removed_patterns[@]}"; do
         | grep -v 'CHANGELOG\|TODO_\|ADR-\|design-rationale\|footguns.*RESOLVED\|decisions/\|preflight-checks' || true)
     if [[ -n "$hits" ]]; then
         fail "Removed pattern '$pattern' still found"
-        echo "$hits" | head -3 | sed 's/^/    /'
+        echo "$hits" | head -3 | details_pipe
         adr_clean=false
     fi
 done
@@ -954,7 +1484,7 @@ if [[ -f dist/cli/cli.js ]]; then
         pass "Audit passes"
     else
         fail "goat-flow audit failed (exit $audit_exit)"
-        echo "$audit_output" | head -5 | sed 's/^/    /'
+        echo "$audit_output" | head -5 | details_pipe
     fi
 else
     skip "GOAT Flow Audit (dist/cli/cli.js not built)"
@@ -970,7 +1500,7 @@ if [[ -f dist/cli/cli.js ]]; then
         pass "Footgun/lesson schema passes"
     else
         fail "Footgun/lesson schema violations (exit $stats_exit)"
-        echo "$stats_output" | head -10 | sed 's/^/    /'
+        echo "$stats_output" | head -10 | details_pipe
     fi
 else
     skip "Learning-Loop Schema (dist/cli/cli.js not built)"
@@ -1056,7 +1586,7 @@ if [[ -f dist/cli/audit/check-goat-flow.js ]]; then
             pass "code-map.md scripts list matches scripts/ filesystem"
         else
             fail "code-map.md scripts list drifts from scripts/ filesystem"
-            diff <(echo "$actual_scripts") <(echo "$listed_scripts") 2>&1 | head -10 | sed 's/^/    /'
+            diff <(echo "$actual_scripts") <(echo "$listed_scripts") 2>&1 | head -10 | details_pipe
         fi
     fi
 fi
@@ -1122,9 +1652,7 @@ NODE
         pass "Dashboard view names match manifest and architecture prose"
     else
         fail "Dashboard view names drift between manifest and architecture prose"
-        while IFS= read -r line; do
-            printf '    %s\n' "$line"
-        done <<< "$dashboard_view_doc_check"
+        printf '%s\n' "$dashboard_view_doc_check" | details_pipe
     fi
 fi
 
@@ -1250,9 +1778,15 @@ section "Path Integrity"
 if bash scripts/check-path-integrity.sh . >/dev/null 2>&1; then
     pass "All internal path references resolve"
 else
-    bash scripts/check-path-integrity.sh . 2>&1 | grep "^FAIL:" | while IFS= read -r line; do
+    # Process substitution keeps the `while` body in the current shell, so
+    # fail() correctly increments the global error counter (cmd | while
+    # reads in a subshell and counter mutations get lost). The first
+    # invocation captures stdout into a variable so set -e + pipefail
+    # don't kill the script when the helper exits non-zero.
+    pi_output=$(bash scripts/check-path-integrity.sh . 2>&1 || true)
+    while IFS= read -r line; do
         fail "$line"
-    done
+    done < <(printf '%s\n' "$pi_output" | grep "^FAIL:" || true)
 fi
 
 # ── Markdown Links ───────────────────────────────────────────────────
@@ -1261,9 +1795,10 @@ if bash scripts/check-markdown-links.sh . 2>&1 | grep -q "^All"; then
     link_count=$(bash scripts/check-markdown-links.sh . 2>&1 | grep -oP '\d+' | head -1)
     pass "All $link_count markdown links resolve"
 else
-    bash scripts/check-markdown-links.sh . 2>&1 | grep "^BROKEN" | while IFS= read -r line; do
+    ml_output=$(bash scripts/check-markdown-links.sh . 2>&1 || true)
+    while IFS= read -r line; do
         fail "$line"
-    done
+    done < <(printf '%s\n' "$ml_output" | grep "^BROKEN" || true)
 fi
 
 # ── Package README Links ─────────────────────────────────────────────
@@ -1274,21 +1809,13 @@ if [[ -f scripts/check-package-readme-links.mjs ]]; then
         pass "$package_link_output"
     else
         fail "Package README link check failed (exit $package_link_exit)"
-        echo "$package_link_output" | head -10 | sed 's/^/    /'
+        echo "$package_link_output" | head -10 | details_pipe
     fi
 else
     skip "Package README link check (scripts/check-package-readme-links.mjs missing)"
 fi
 
 # ── Summary ──────────────────────────────────────────────────────────
-# Print elapsed time for the last section
-echo -e "  ${DIM}($(fmt_elapsed $(( $(now_ms) - section_start ))))${RST}"
-
-total_elapsed=$(fmt_elapsed $(( $(now_ms) - preflight_start )))
-echo ""
-echo -e "${DIM}─────────────────────────────────────────────────${RST}"
-if [[ "$errors" -gt 0 ]]; then
-    echo -e "${BOLD}${R}PREFLIGHT FAILED${RST}  ${errors} error(s), ${warnings} warning(s), ${checks} checks  ${DIM}(${total_elapsed})${RST}"
-    exit 1
-fi
-echo -e "${BOLD}${G}PREFLIGHT PASSED${RST}  ${checks} checks, ${warnings} warning(s)  ${DIM}(${total_elapsed})${RST}"
+# render_report runs from the EXIT trap registered near the top.
+[[ "$errors" -gt 0 ]] && exit 1
+exit 0

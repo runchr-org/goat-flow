@@ -203,7 +203,9 @@ function parseQualityModeParam(param: string | null): QualityMode | null {
 }
 
 /** Resolve the managed agent list for dashboard aggregate audits. */
-function resolveDashboardManagedAgentIds(agentFilter: AgentId | null): AgentId[] {
+function resolveDashboardManagedAgentIds(
+  agentFilter: AgentId | null,
+): AgentId[] {
   return agentFilter === null ? [...KNOWN_AGENT_IDS] : [agentFilter];
 }
 

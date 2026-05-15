@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.7.0 - unreleased
+
+- **Removed legacy `detectAgents` helper** - `src/cli/detect/agents.ts` no longer exports the unused `detectAgents` function; all callers route through the supported-agent registry directly.
+- **Preflight coverage reporting** - Preflight reports overall line/branch/function coverage from the fast test suite alongside pass/fail.
+- **Mutation testing helper** - Added an opt-in `scripts/mutation-test.sh` StrykerJS helper with an interactive target menu, local `@stryker-mutator/core` dev dependency, sandbox ignores for goat-flow local state, and a mutation-safe fast-suite dry run.
+
 ## v1.6.4 - 2026-05-12
 
 Dashboard cold-load and Skills evaluator release.
