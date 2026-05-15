@@ -70,21 +70,28 @@ describe("dashboard side navigation", () => {
       "Telemetry",
       "Setup",
       "Quality",
-      "Settings",
-      "About",
     ]) {
       assert.match(sideMenu, new RegExp(`>\\s*${label}\\s*<`));
+    }
+    for (const label of ["Settings", "About"]) {
+      assert.doesNotMatch(sideMenu, new RegExp(`>\\s*${label}\\s*<`));
     }
     assert.doesNotMatch(sideMenu, /\sdisabled(?:=|\s|>)/);
   });
 
-  it("separates Settings from Operations and supports a compact rail", () => {
+  it("keeps Settings and About in the header and supports a compact rail", () => {
     const html = read(DASHBOARD_INDEX_PATH);
     const appSource = read(DASHBOARD_APP_PATH);
+    const sideMenu = html.slice(
+      html.indexOf('<aside class="no-print gf-side-nav"'),
+      html.indexOf("</aside>") + "</aside>".length,
+    );
 
-    assert.match(html, /gf-side-nav-group-secondary/);
-    assert.match(html, /data-short="St"[\s\S]*Settings/);
-    assert.match(html, /href="#gf-side-icon-settings"[\s\S]*Settings/);
+    assert.doesNotMatch(sideMenu, /gf-side-nav-group-secondary/);
+    assert.doesNotMatch(sideMenu, /data-short="St"[\s\S]*Settings/);
+    assert.doesNotMatch(sideMenu, /data-short="A"[\s\S]*About/);
+    assert.match(html, /title="Settings"[\s\S]*aria-label="Settings"/);
+    assert.match(html, /title="About"[\s\S]*aria-label="About"/);
     assert.match(appSource, /sideNavCollapsed:/);
     assert.match(appSource, /localStorage\.getItem\("gf-side-nav-collapsed"\)/);
     assert.match(appSource, /toggleSideNav\(\)/);
@@ -104,6 +111,15 @@ describe("dashboard side navigation", () => {
     assert.match(html, /<!-- include: views\/coming-soon\.html -->/);
     assert.match(tasksView, /x-show="activeView === 'tasks'"/);
     assert.match(tasksView, /loadTasks\(\)/);
+    assert.match(
+      tasksView,
+      /@gf-set-active-task-plan="setActiveTaskPlan\(\$event\.detail\.planName\)"/,
+    );
+    assert.match(
+      tasksView,
+      /\$dispatch\('gf-set-active-task-plan', \{ planName: plan\.name \}\)/,
+    );
+    assert.match(tasksView, /Set active plan/);
     assert.match(comingSoonView, /x-show="isComingSoonView\(\)"/);
     assert.match(comingSoonView, /comingSoonMeta\(activeView\)/);
   });

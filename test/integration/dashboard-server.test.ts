@@ -2181,7 +2181,7 @@ describe("dashboard /api/projects", () => {
 });
 
 describe("dashboard /api/tasks", () => {
-  it("returns an empty read-only state when the selected project has no tasks directory", async () => {
+  it("returns an empty state when the selected project has no tasks directory", async () => {
     const root = await mkdtemp(join(tmpdir(), "goat-flow-no-tasks-"));
     try {
       const { res, body } = await fetchJson(
@@ -2280,6 +2280,86 @@ describe("dashboard /api/tasks", () => {
       assert.equal(data.selectedPlan, "1.7.0");
       const plans = data.plans as Record<string, unknown>[];
       assert.equal(plans[0]?.active, false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("updates the active task plan for the selected project", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-active-task-"));
+    try {
+      await writeProjectFile(root, ".goat-flow/tasks/.active", "one\n");
+      await writeProjectFile(
+        root,
+        ".goat-flow/tasks/one/M00-one.md",
+        "# M00: One\n\n**Status:** planned\n- [ ] Pending\n",
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/tasks/two/M00-two.md",
+        "# M00: Two\n\n**Status:** planned\n- [ ] Pending\n",
+      );
+
+      const { res, body } = await fetchJson(
+        `/api/tasks?path=${encodeURIComponent(root)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan: "two" }),
+        },
+      );
+      assert.equal(res.status, 200);
+      const data = expectRecord(body, "Tasks response");
+      assert.equal(data.active, "two");
+      assert.equal(data.activeExists, true);
+      assert.equal(data.selectedPlan, "two");
+      const plans = data.plans as Record<string, unknown>[];
+      assert.equal(plans.find((plan) => plan.name === "two")?.active, true);
+      assert.equal(
+        await readFile(join(root, ".goat-flow", "tasks", ".active"), "utf-8"),
+        "two\n",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects invalid active task plan updates", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-active-invalid-"));
+    try {
+      await writeProjectFile(
+        root,
+        ".goat-flow/tasks/one/M00-one.md",
+        "# M00: One\n\n**Status:** planned\n- [ ] Pending\n",
+      );
+
+      const traversal = await fetchJson(
+        `/api/tasks?path=${encodeURIComponent(root)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan: "../one" }),
+        },
+      );
+      assert.equal(traversal.res.status, 400);
+      assert.match(
+        String(expectRecord(traversal.body, "Traversal response").error),
+        /top-level task plan directory/,
+      );
+
+      const missing = await fetchJson(
+        `/api/tasks?path=${encodeURIComponent(root)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan: "missing" }),
+        },
+      );
+      assert.equal(missing.res.status, 404);
+      assert.match(
+        String(expectRecord(missing.body, "Missing plan response").error),
+        /not found/,
+      );
     } finally {
       await rm(root, { recursive: true, force: true });
     }

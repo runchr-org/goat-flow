@@ -1697,12 +1697,6 @@ body {
   display: grid;
   gap: 3px;
 }
-.gf-side-nav-group-secondary {
-  position: relative;
-  margin-top: 2px;
-  padding-top: 13px;
-  border-top: 1px solid var(--border-subtle);
-}
 .gf-side-group-label {
   padding: 0 10px 5px;
   color: var(--text-disabled);
@@ -1785,10 +1779,6 @@ body {
 }
 .gf-side-collapsed .gf-side-nav-group {
   gap: 5px;
-}
-.gf-side-collapsed .gf-side-nav-group-secondary {
-  margin-top: 4px;
-  padding-top: 12px;
 }
 .gf-side-collapsed .gf-side-link {
   position: relative;
@@ -2146,23 +2136,61 @@ body {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 9px 10px;
+  padding: 3px;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
   color: var(--text-secondary);
-  text-align: left;
 }
 .gf-task-plan-row:hover {
   background: var(--neutral-bg);
   color: var(--text-primary);
 }
-.gf-task-plan-row.is-active {
+.gf-task-plan-row.is-selected {
   background: var(--accent-bg);
   border-color: var(--accent-border);
   color: var(--accent);
 }
-.gf-task-plan-row strong {
+.gf-task-plan-main {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 6px 7px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.gf-task-plan-active-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-disabled);
+}
+.gf-task-plan-active-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.gf-task-plan-active-btn:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.gf-task-plan-active-btn.is-active {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.gf-task-plan-active-btn:disabled {
+  cursor: default;
+  opacity: 0.82;
+}
+.gf-task-plan-main strong {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2170,7 +2198,7 @@ body {
   font-family: var(--font-mono);
   font-size: 12px;
 }
-.gf-task-plan-row small {
+.gf-task-plan-main small {
   display: block;
   margin-top: 2px;
   color: var(--text-muted);

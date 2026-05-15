@@ -130,22 +130,6 @@
         <path d="m12 17 4-6" />
         <path d="M8 18h8" />
       </symbol>
-      <symbol id="gf-side-icon-settings" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 3v3" />
-        <path d="M12 18v3" />
-        <path d="M3 12h3" />
-        <path d="M18 12h3" />
-        <path d="m5.6 5.6 2.1 2.1" />
-        <path d="m16.3 16.3 2.1 2.1" />
-        <path d="m18.4 5.6-2.1 2.1" />
-        <path d="m7.7 16.3-2.1 2.1" />
-      </symbol>
-      <symbol id="gf-side-icon-about" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="8" />
-        <path d="M12 11v5" />
-        <path d="M12 8h.01" />
-      </symbol>
     </svg>
 
     <!-- Floating toast notification -->
@@ -593,36 +577,6 @@
                 <use href="#gf-side-icon-quality"></use>
               </svg>
               <span class="gf-side-link-label">Quality</span>
-            </button>
-          </section>
-
-          <section
-            class="gf-side-nav-group gf-side-nav-group-secondary"
-            aria-label="Other"
-          >
-            <button
-              @click="activeView = 'settings'"
-              class="gf-side-link"
-              :class="activeView === 'settings' && 'gf-side-link-active'"
-              data-short="St"
-              aria-label="Settings"
-            >
-              <svg class="gf-side-icon" aria-hidden="true">
-                <use href="#gf-side-icon-settings"></use>
-              </svg>
-              <span class="gf-side-link-label">Settings</span>
-            </button>
-            <button
-              @click="activeView = 'about'"
-              class="gf-side-link"
-              :class="activeView === 'about' && 'gf-side-link-active'"
-              data-short="A"
-              aria-label="About"
-            >
-              <svg class="gf-side-icon" aria-hidden="true">
-                <use href="#gf-side-icon-about"></use>
-              </svg>
-              <span class="gf-side-link-label">About</span>
             </button>
           </section>
         </nav>

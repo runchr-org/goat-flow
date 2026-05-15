@@ -228,6 +228,7 @@ function app() {
     // --- Tasks state ---
     tasksState: null as TaskState | null,
     tasksLoading: false,
+    tasksActivePlanSaving: null as string | null,
     tasksError: "",
     selectedTaskPlan: null as string | null,
 
@@ -1182,6 +1183,44 @@ function app() {
     selectTaskPlan(planName: string) {
       this.selectedTaskPlan = planName;
       void this.loadTasks(planName);
+    },
+    async setActiveTaskPlan(planName: string) {
+      if (!planName || this.tasksActivePlanSaving) return;
+      this.tasksActivePlanSaving = planName;
+      this.tasksError = "";
+      const requestProjectPath = this.projectPath;
+      try {
+        const res = await dashboardFetch(
+          `/api/tasks?path=${encodeURIComponent(requestProjectPath)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ plan: planName }),
+          },
+        );
+        const payload = readRecord(await res.json(), "Tasks response");
+        const error = readErrorMessage(payload);
+        if (error) throw new Error(error);
+        if (this.projectPath !== requestProjectPath) return;
+        const state = readTaskState(payload);
+        this.tasksState = state;
+        this.selectedTaskPlan = state.selectedPlan;
+        this.showToast(`Active task plan set to ${planName}`);
+      } catch (err) {
+        if (this.projectPath !== requestProjectPath) return;
+        this.tasksError = err instanceof Error ? err.message : String(err);
+        this.showToast(
+          this.tasksError || "Active task plan update failed",
+          true,
+        );
+      } finally {
+        if (
+          this.projectPath === requestProjectPath &&
+          this.tasksActivePlanSaving === planName
+        ) {
+          this.tasksActivePlanSaving = null;
+        }
+      }
     },
     taskProgressLabel(milestone: TaskMilestoneSummary): string {
       return `${milestone.completedTasks}/${milestone.totalTasks}`;

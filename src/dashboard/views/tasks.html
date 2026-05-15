@@ -11,8 +11,8 @@
         <div class="gf-section-label">Recovery</div>
         <h1>Tasks</h1>
         <p>
-          Read-only milestone state from
-          <code>.goat-flow/tasks/</code> in the selected project.
+          Milestone state from <code>.goat-flow/tasks/</code> in the selected
+          project, with active plan selection.
         </p>
       </div>
       <button
@@ -45,7 +45,11 @@
     </template>
 
     <template x-if="tasksState && tasksState.exists">
-      <section class="gf-tasks-layout">
+      <section
+        class="gf-tasks-layout"
+        @gf-select-task-plan="selectTaskPlan($event.detail.planName)"
+        @gf-set-active-task-plan="setActiveTaskPlan($event.detail.planName)"
+      >
         <aside class="gf-card gf-task-plans">
           <div class="gf-task-panel-head">
             <div>
@@ -66,25 +70,47 @@
 
           <div class="gf-task-plan-list">
             <template x-for="plan in tasksState.plans" :key="plan.path">
-              <button
-                @click="selectTaskPlan(plan.name)"
+              <div
                 class="gf-task-plan-row"
-                :class="plan.name === tasksState.selectedPlan && 'is-active'"
+                :class="{
+                  'is-selected': plan.name === tasksState.selectedPlan,
+                  'is-active-plan': plan.active,
+                }"
               >
-                <span>
-                  <strong x-text="plan.name"></strong>
-                  <small
-                    x-text="plan.milestoneCount + ' milestone' + (plan.milestoneCount === 1 ? '' : 's')"
-                  ></small>
-                </span>
-                <span
-                  x-show="plan.active"
-                  class="gf-status-dot gf-status-running"
-                  title="Active plan"
-                  aria-label="Active plan"
-                  >●</span
+                <button
+                  @click="$dispatch('gf-select-task-plan', { planName: plan.name })"
+                  class="gf-task-plan-main"
+                  :aria-label="'View task plan ' + plan.name"
                 >
-              </button>
+                  <span>
+                    <strong x-text="plan.name"></strong>
+                    <small
+                      x-text="plan.milestoneCount + ' milestone' + (plan.milestoneCount === 1 ? '' : 's')"
+                    ></small>
+                  </span>
+                </button>
+                <button
+                  @click.stop="$dispatch('gf-set-active-task-plan', { planName: plan.name })"
+                  class="gf-task-plan-active-btn"
+                  :class="{ 'is-active': plan.active }"
+                  :disabled="plan.active || tasksActivePlanSaving === plan.name"
+                  :title="plan.active ? 'Active plan' : 'Set active plan'"
+                  :aria-label="plan.active ? plan.name + ' is the active plan' : 'Set ' + plan.name + ' as active plan'"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 5v14" />
+                    <path d="M5 5h11l-2 4 2 4H5" />
+                  </svg>
+                </button>
+              </div>
             </template>
           </div>
         </aside>

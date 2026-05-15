@@ -106,6 +106,7 @@ const DASHBOARD_ROUTE_INVENTORY = [
   { method: "GET", path: "/api/browse", class: "privileged-read" },
   { method: "GET", path: "/api/agents/installed", class: "privileged-read" },
   { method: "GET", path: "/api/tasks", class: "privileged-read" },
+  { method: "POST", path: "/api/tasks", class: "side-effectful" },
   { method: "GET", path: "/api/projects/list", class: "privileged-read" },
   { method: "POST", path: "/api/projects/list", class: "side-effectful" },
   { method: "GET", path: "/api/projects/status", class: "privileged-read" },
@@ -130,6 +131,7 @@ void DASHBOARD_ROUTE_INVENTORY;
 
 const SIDE_EFFECTFUL_EXACT_API_ROUTES = new Set([
   "POST /api/projects/list",
+  "POST /api/tasks",
   "POST /api/quality/evaluate",
   "POST /api/quality/analyse",
   "POST /api/terminal/create",
@@ -350,7 +352,7 @@ export function serveDashboard(
         () => handleQualityEvaluateRequest(req, url, res),
 
         () => Promise.resolve(handleBrowseRequest(url, res)),
-        () => Promise.resolve(handleTasksRequest(url, res)),
+        () => handleTasksRequest(req, url, res),
         () => Promise.resolve(handleAgentDetectRequest(url, res)),
         () => handleProjectsListRequest(req, url, res),
         () => Promise.resolve(handleProjectsStatusRequest(url, res)),

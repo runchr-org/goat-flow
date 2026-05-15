@@ -47,8 +47,8 @@ Live audit results for every supported agent. Per-agent cards show pass/fail acr
 
 ### Tasks
 
-Read-only milestone view for the selected project. Shows active plan state,
-task directories, milestone status, and checkbox progress.
+Milestone view for the selected project. Shows task directories, milestone
+status, checkbox progress, and lets you set the active task plan.
 
 ### Setup
 

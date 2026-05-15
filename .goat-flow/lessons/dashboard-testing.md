@@ -100,6 +100,18 @@ last_reviewed: 2026-05-15
 
 ---
 
+## Lesson: Built dashboard browser smoke needs a restarted server after template edits
+
+**Status:** active | **Created:** 2026-05-15
+
+**What happened:** While adding the Tasks active-plan toggle, the built dashboard browser smoke kept showing the old direct Alpine handlers after `npm run build:dashboard`. Clicking the flag wrote `.goat-flow/tasks/.active`, but the visible active marker stayed stale until I manually refreshed. The running dashboard process had cached the assembled HTML before the template-handler fix landed; after restarting `node dist/cli/cli.js dashboard .`, browser-use showed the new dispatched handlers and the active marker flipped immediately from `1.7.0` to `_archived` and back.
+
+**Root cause:** `serveDashboard()` caches `assembleDashboardHtml(shellPath)` at startup when dev mode is off. Rebuilding `dist/dashboard/views/tasks.html` updates files on disk, but an already-running built dashboard server keeps serving the old assembled shell.
+
+**Prevention:** After changing dashboard HTML/view templates, run `npm run build:dashboard`, restart the built dashboard server, then repeat browser-use smoke against the new URL. Evidence anchors: `src/cli/server/dashboard.ts` (search: `let cachedTemplate`), `src/cli/server/dashboard.ts` (search: `assembleDashboardHtml(shellPath)`), `src/dashboard/views/tasks.html` (search: `gf-set-active-task-plan`).
+
+---
+
 ## Lesson: Dashboard classic scripts need Knip registration
 
 **Status:** active | **Created:** 2026-04-25

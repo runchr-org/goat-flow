@@ -312,6 +312,12 @@ function buildTaskPlanSummary(
   };
 }
 
+function listTaskPlanNames(taskRoot: string): string[] {
+  return readdirSync(taskRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
+    .map((entry) => entry.name);
+}
+
 function buildDashboardTaskState(
   projectPath: string,
   requestedPlan: string | null,
@@ -332,9 +338,7 @@ function buildDashboardTaskState(
     };
   }
 
-  const planNames = readdirSync(taskRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
-    .map((entry) => entry.name);
+  const planNames = listTaskPlanNames(taskRoot);
   const plans = planNames
     .map((name) => buildTaskPlanSummary(taskRoot, name, active))
     .sort((a, b) => {
@@ -368,6 +372,46 @@ function buildDashboardTaskState(
     plans,
     milestones,
   };
+}
+
+function readActiveTaskPlanBody(body: string): string {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    throw new Error("Request body must be valid JSON");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Request body must be a JSON object");
+  }
+  const plan = (parsed as Record<string, unknown>)["plan"];
+  if (typeof plan !== "string" || plan.trim().length === 0) {
+    throw new Error("body.plan must be a non-empty string");
+  }
+  const normalized = plan.trim();
+  if (
+    normalized === "." ||
+    normalized === ".." ||
+    normalized.includes("/") ||
+    normalized.includes("\\") ||
+    normalized.startsWith(".")
+  ) {
+    throw new Error("body.plan must name a top-level task plan directory");
+  }
+  return normalized;
+}
+
+function writeActiveTaskPlan(projectPath: string, planName: string): void {
+  const taskRoot = join(projectPath, ".goat-flow", "tasks");
+  const taskRootStats = statOrNull(taskRoot);
+  if (!taskRootStats?.isDirectory()) {
+    throw new Error(".goat-flow/tasks does not exist for the selected project");
+  }
+  const planNames = listTaskPlanNames(taskRoot);
+  if (!planNames.includes(planName)) {
+    throw new Error(`task plan not found: ${planName}`);
+  }
+  writeFileSync(join(taskRoot, ".active"), `${planName}\n`);
 }
 
 /** Resolve the managed agent list for dashboard aggregate audits. */
@@ -960,7 +1004,11 @@ export function createDashboardRouteHandlers(
     res: ServerResponse,
   ) => Promise<boolean>;
   handleBrowseRequest: (url: URL, res: ServerResponse) => boolean;
-  handleTasksRequest: (url: URL, res: ServerResponse) => boolean;
+  handleTasksRequest: (
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ) => Promise<boolean>;
   handleAgentDetectRequest: (url: URL, res: ServerResponse) => boolean;
   handleProjectsListRequest: (
     req: IncomingMessage,
@@ -1714,12 +1762,38 @@ export function createDashboardRouteHandlers(
     return true;
   }
 
-  /** Return read-only milestone/task state for the selected project. */
-  function handleTasksRequest(url: URL, res: ServerResponse): boolean {
+  /** Return or update milestone/task state for the selected project. */
+  async function handleTasksRequest(
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ): Promise<boolean> {
     if (url.pathname !== "/api/tasks") return false;
 
     const projectPath = safeResolvePath(url.searchParams.get("path"));
     const requestedPlan = url.searchParams.get("plan");
+    if (req.method === "POST") {
+      try {
+        requireProjectDirectory(projectPath);
+        const planName = readActiveTaskPlanBody(await readBody(req));
+        writeActiveTaskPlan(projectPath, planName);
+        jsonResponse(res, 200, buildDashboardTaskState(projectPath, planName));
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status =
+          message.includes("does not exist") || message.includes("not found")
+            ? 404
+            : 400;
+        jsonResponse(res, status, { error: message });
+      }
+      return true;
+    }
+
+    if (req.method !== "GET") {
+      jsonResponse(res, 405, { error: "Method not allowed" });
+      return true;
+    }
+
     try {
       requireProjectDirectory(projectPath);
       jsonResponse(

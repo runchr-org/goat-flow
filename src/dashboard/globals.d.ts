@@ -176,7 +176,7 @@ interface TaskPlanSummary {
   active: boolean;
 }
 
-/** Read-only response from `/api/tasks`. */
+/** Response from `/api/tasks` after reading or changing active task-plan state. */
 interface TaskState {
   taskRoot: string;
   exists: boolean;

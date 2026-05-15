@@ -20,9 +20,9 @@ Overview landing page. Shows an active-sessions strip, a four-pill rollup for in
 
 ### Tasks
 
-Read-only task milestone browser for the selected project. Shows the active plan
-marker, task directories, milestone status, and checkbox progress without
-creating or modifying task files.
+Task milestone browser for the selected project. Shows the active plan marker,
+task directories, milestone status, and checkbox progress. The plan list can
+update `.goat-flow/tasks/.active` for the selected project.
 
 ### Quality
 
@@ -98,7 +98,8 @@ All `/api/*` requests require the dashboard token described in [Local Access Bou
 | `/api/skill-quality` | GET | Score one installed skill/reference artifact and return the metric breakdown plus a runner-prompt preview |
 | `/api/agents/installed` | GET | Detect installed agent runtimes |
 | `/api/browse` | GET | Directory browsing for the dashboard's path picker (project directories only, no hidden entries) |
-| `/api/tasks` | GET | Read-only task milestone state for the selected project |
+| `/api/tasks` | GET | Task milestone state for the selected project |
+| `/api/tasks` | POST | Set the selected project's active task plan in `.goat-flow/tasks/.active` |
 | `/api/projects/list` | GET | List registered projects from saved dashboard state |
 | `/api/projects/list` | POST | Save the dashboard's registered project list |
 | `/api/projects/status` | GET | Project state classification (`bare`/`partial`/`v0.9`/`outdated`/`current`/`error`) |
