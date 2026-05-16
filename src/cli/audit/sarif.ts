@@ -124,7 +124,7 @@ export function renderAuditSarif(report: AuditReport): string {
 }
 
 /** Build the SARIF log object before JSON serialization. */
-export function buildAuditSarifLog(report: AuditReport): SarifLog {
+function buildAuditSarifLog(report: AuditReport): SarifLog {
   const rules = new Map<string, RuleRegistration>();
   const results: SarifResult[] = [];
 

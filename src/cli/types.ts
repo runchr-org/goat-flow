@@ -17,10 +17,10 @@ export type AgentId = (typeof KNOWN_AGENT_IDS)[number];
 // === Agent Profile ===
 
 /** Prompt invocation syntax an agent expects for goat-flow skills. */
-export type PromptInvocationStyle = "slash" | "dollar";
+type PromptInvocationStyle = "slash" | "dollar";
 
 /** Skill mirror/source classification used by quality inventory. */
-export type SkillSource = "installed" | "agent-mirror" | "github-mirror";
+type SkillSource = "installed" | "agent-mirror" | "github-mirror";
 
 /**
  * Describes an agent's file layout and enforcement mechanisms.

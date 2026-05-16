@@ -937,9 +937,10 @@ function splitLearningSections(
   const headings = Array.from(
     body.matchAll(/^##\s+(Lesson|Pattern):\s+(.+)$/gm),
     (match) => ({
-      kind: ((match[1] ?? defaultKind).toLowerCase() === "pattern"
-        ? "pattern"
-        : defaultKind) as LearningLoopEntryKind,
+      kind:
+        (match[1] ?? defaultKind).toLowerCase() === "pattern"
+          ? "pattern"
+          : defaultKind,
       title: (match[2] ?? "").trim(),
       start: match.index,
     }),

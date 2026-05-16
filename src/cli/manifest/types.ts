@@ -20,13 +20,10 @@ interface ManifestHookEvents {
 }
 
 /** Prompt invocation syntax an agent expects for goat-flow skills. */
-export type ManifestPromptInvocationStyle = "slash" | "dollar";
+type ManifestPromptInvocationStyle = "slash" | "dollar";
 
 /** Skill mirror/source classification used by quality inventory. */
-export type ManifestSkillSource =
-  | "installed"
-  | "agent-mirror"
-  | "github-mirror";
+type ManifestSkillSource = "installed" | "agent-mirror" | "github-mirror";
 
 /** Stable capability metadata consumed outside setup/audit internals. */
 interface ManifestAgentCapabilities {

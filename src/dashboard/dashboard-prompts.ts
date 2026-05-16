@@ -337,8 +337,8 @@ function dashboardAdaptPrompt(
 ): string {
   const r = runner ?? ctx.activeRunner;
   const style =
-    ctx.supportedAgents.find((agent) => agent.id === r)?.promptInvocationStyle ??
-    "slash";
+    ctx.supportedAgents.find((agent) => agent.id === r)
+      ?.promptInvocationStyle ?? "slash";
   if (style === "dollar") return prompt.replace(/^\/goat\b/, "$goat");
   return prompt;
 }

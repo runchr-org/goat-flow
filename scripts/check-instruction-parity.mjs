@@ -156,7 +156,9 @@ function assertEqualArray(actual, expected, path, label, failures) {
 function requirePhrases(path, sectionName, section, phrases, label, failures) {
   for (const phrase of phrases) {
     if (!section.includes(phrase)) {
-      failures.push(`${path}: ${label} missing ${JSON.stringify(phrase)} in ${sectionName}`);
+      failures.push(
+        `${path}: ${label} missing ${JSON.stringify(phrase)} in ${sectionName}`,
+      );
     }
   }
 }
@@ -200,7 +202,14 @@ function run() {
 
     for (const rule of SHARED_PHRASES) {
       const section = sectionBodies.get(rule.section) ?? "";
-      requirePhrases(label, rule.section, section, rule.phrases, rule.label, failures);
+      requirePhrases(
+        label,
+        rule.section,
+        section,
+        rule.phrases,
+        rule.label,
+        failures,
+      );
     }
 
     const essentialCommands = sectionBodies.get("Essential Commands") ?? "";
@@ -215,17 +224,23 @@ function run() {
         "generic setup Essential Commands",
         failures,
       );
-      if (/workflow\/(setup|hooks)|workflow\/manifest\.json/.test(routerTable)) {
+      if (
+        /workflow\/(setup|hooks)|workflow\/manifest\.json/.test(routerTable)
+      ) {
         failures.push(
           `${label}: Router Table must describe installed project resources, not workflow setup internals`,
         );
       }
     } else {
       if (/<(?:lint|typecheck|test) command>/.test(essentialCommands)) {
-        failures.push(`${label}: live Essential Commands still contains setup placeholders`);
+        failures.push(
+          `${label}: live Essential Commands still contains setup placeholders`,
+        );
       }
       if (!routerTable.includes("Peer instructions")) {
-        failures.push(`${label}: Router Table must include peer instruction routing`);
+        failures.push(
+          `${label}: Router Table must include peer instruction routing`,
+        );
       }
     }
   }

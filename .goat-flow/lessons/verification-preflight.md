@@ -14,6 +14,7 @@ last_reviewed: 2026-05-17
 **2026-04-25 amendment:** The same trap recurred on `docs/site/goat-flow-landing.html`: a targeted stale-copy edit plus broad `prettier --write` rewrote most of the hand-authored landing page. Keep formatter scopes to touched files that are already formatter-owned, and read `git diff --stat` before running expensive gates so formatting churn can be reverted before verification evidence is collected.
 
 ---
+
 ## Lesson: Repo-wide preflight can be blocked by unrelated formatter drift
 
 **Status:** active | **Created:** 2026-04-18
@@ -34,6 +35,7 @@ last_reviewed: 2026-05-17
 3. Keep the final verification section split between "checks that passed for this change" and "repo-wide checks still blocked by unrelated drift."
 
 ---
+
 ## Lesson: Temp-repo preflight harnesses inherit formatting debt from copied test files
 
 **Status:** active | **Created:** 2026-04-19
@@ -49,6 +51,7 @@ last_reviewed: 2026-05-17
 2. After touching `src/**/*.ts` or `test/**/*.ts`, run the formatter before trusting installer/preflight round-trip tests as evidence about drift logic.
 
 ---
+
 ## Lesson: New server helper files still count as repo-wide formatting debt
 
 **Status:** active | **Created:** 2026-04-20
@@ -67,6 +70,7 @@ last_reviewed: 2026-05-17
 1. This pattern recurred on the next dashboard-server split when `src/cli/server/dashboard-routes.ts` and the rewritten `dashboard.ts` were left unformatted. Treat any new `src/cli/server/*.ts` extraction as high-risk for this exact preflight + round-trip failure pair.
 
 ---
+
 ## Lesson: New tests need formatter gate before verification claims
 
 **Status:** active | **Created:** 2026-04-25
@@ -80,6 +84,7 @@ last_reviewed: 2026-05-17
 **Prevention:** After adding or editing TypeScript tests, run `npx prettier --write <changed test files>` before claiming focused test verification. Keep the formatter check in the same verification bundle as the focused test so style failures are corrected before milestone boxes are ticked.
 
 ---
+
 ## Lesson: Slow installer round-trip catches prompt/test lint debt
 
 **Status:** active | **Created:** 2026-04-26
@@ -91,6 +96,7 @@ last_reviewed: 2026-05-17
 **Prevention:** Before rerunning `npm run test:slow` after prompt/test changes, run `npx eslint src/cli src/dashboard` and `npm run format:check` locally. If the slow round-trip preflight fails, reproduce the reported gate directly in the source checkout before changing installer or drift logic.
 
 ---
+
 ## Lesson: Format touched TypeScript tests before repo-wide preflight
 
 **Status:** active | **Created:** 2026-04-30
@@ -100,3 +106,33 @@ last_reviewed: 2026-05-17
 **Root cause:** I treated focused tests plus typecheck as enough before the repo-wide gate even though new TypeScript test assertions had not been formatter-normalized. Preflight records formatter failure before later gates, so fixing format after a failed preflight requires a clean rerun to produce valid final evidence.
 
 **Prevention:** After editing TypeScript tests or prompt/schema fixtures, run `npm run format` or `npm run format:check` before `bash scripts/preflight-checks.sh`. If preflight fails at Prettier, format, inspect the diff, and rerun preflight from scratch before claiming the final gate. Evidence anchors: `test/unit/check-content-quality.test.ts` (search: `discovers current ADR files`), `test/unit/quality-schema.test.ts` (search: `evidence_warning_count`).
+
+---
+
+## Lesson: Untracked source-shadow files can poison lint, formatter, and drift gates together
+
+**Status:** active | **Created:** 2026-04-20
+
+**What happened:** A tiny Prompts view color tweak looked unrelated to the TypeScript gates, but the first verification rerun still failed preflight and the installer round-trip fixture. The real blocker was an untracked JavaScript shadow file sitting next to the canonical `src/cli/types.ts`. ESLint tried to parse the stray `.js` file against the TypeScript project config, Prettier treated it as a source file under `src/**/*.{ts,js,html}`, and the fixture cloned the same bad state into its temp repo.
+
+**Root cause:** A generated or accidental source-shadow file under `src/` can evade attention because typecheck and the visible diff for the requested change point elsewhere. The repo gates scan the filesystem, not just tracked TS files, so an untracked sibling output can contaminate lint/format/drift verification far away from the user-visible edit.
+
+**Fix:** Check `git status` and `git ls-files` when lint/prettier/fixture failures do not match the touched file. If the blocker is an untracked source-shadow file like `src/**/*.js` beside a canonical `src/**/*.ts`, delete it and rerun the exact failing gates.
+
+**Prevention:**
+1. When preflight suddenly fails with mixed ESLint + Prettier + drift-fixture errors after a small change, scan for untracked source-shadow files under `src/` before changing the requested code again.
+2. Treat `src/**/*.js` siblings of tracked `src/**/*.ts` files as suspicious unless the repo intentionally tracks them.
+
+---
+
+## Lesson: Shared hook refactors need both hook-local proof and repo-wide preflight
+
+**Created:** 2026-04-21
+
+**What happened:** A `deny-dangerous.sh` hardening pass looked correct after the first edit, but the canonical self-test immediately failed because `BASH_REMATCH` was reused after a recursive `check_segment` call inside the new command-substitution helper. After fixing that, the hook copies all passed their own `--self-test`, yet full `bash scripts/preflight-checks.sh` still failed because `scripts/deny-dangerous.sh` is linted under the stricter repo-wide `shellcheck scripts/*.sh` profile, which does not exclude `SC2016` the way the hook-directory check does. The installer round-trip fixture failed for the same reason because it clones the current checkout before running temp-repo preflight.
+
+**Prevention:**
+1. In Bash regex helpers, copy `BASH_REMATCH[n]` into local variables before any recursive call or nested regex operation that can overwrite it.
+2. For shared hook templates, do not stop at `bash workflow/hooks/deny-dangerous.sh --self-test`; also rerun the repo-wide `shellcheck scripts/*.sh scripts/maintenance/*.sh` and full `bash scripts/preflight-checks.sh`, because `scripts/deny-dangerous.sh` and fixture clones exercise stricter paths than the hook directories.
+
+---

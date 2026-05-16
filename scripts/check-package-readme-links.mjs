@@ -92,7 +92,9 @@ function main() {
   if (result.missing.length > 0) {
     console.error("Package README link check: FAIL");
     for (const target of result.missing) {
-      console.error(`  - README.md references unpacked package path: ${target}`);
+      console.error(
+        `  - README.md references unpacked package path: ${target}`,
+      );
     }
     process.exit(1);
   }

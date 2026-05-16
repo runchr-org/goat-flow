@@ -4,7 +4,7 @@ import type {
   SharedFacts,
 } from "../types.js";
 
-export type LearningLoopContextSurface =
+type LearningLoopContextSurface =
   | "quality-agent-setup"
   | "quality-harness"
   | "quality-process"
@@ -26,7 +26,7 @@ export interface LearningLoopContextOptions {
   perKind?: Partial<Record<LearningLoopEntryKind, Partial<KindBudget>>>;
 }
 
-export interface SelectedLearningLoopEntry {
+interface SelectedLearningLoopEntry {
   sourcePath: string;
   kind: LearningLoopEntryKind;
   title: string;
@@ -43,6 +43,15 @@ export interface LearningLoopContextSelection {
   selectedCount: number;
   omittedCount: number;
   zeroHit: boolean;
+}
+
+interface ResolvedLearningLoopOptions {
+  includeStale: boolean;
+  includeDecisions: boolean;
+  includeOversized: boolean;
+  budgetMax: number;
+  perEntryMaxBytes: number;
+  kindBudgets: Record<LearningLoopEntryKind, KindBudget>;
 }
 
 const DEFAULT_KIND_BUDGETS: Record<LearningLoopEntryKind, KindBudget> = {
@@ -101,18 +110,28 @@ function defaultMaxBytes(surface: LearningLoopContextSurface): number {
   return 2_200;
 }
 
-function includeDecisionEntries(surface: LearningLoopContextSurface): boolean {
-  return (
-    surface === "quality-agent-setup" ||
-    surface === "quality-harness" ||
-    surface === "quality-process" ||
-    surface === "setup" ||
-    surface === "maintenance"
-  );
+function includeDecisionEntries(_surface: LearningLoopContextSurface): boolean {
+  return true;
 }
 
 function allowOversizedBuckets(surface: LearningLoopContextSurface): boolean {
   return surface.startsWith("quality-") || surface === "maintenance";
+}
+
+function resolveLearningLoopOptions(
+  options: LearningLoopContextOptions,
+): ResolvedLearningLoopOptions {
+  const surface = options.surface ?? "quality-agent-setup";
+  return {
+    includeStale: options.includeStale ?? surface === "maintenance",
+    includeDecisions:
+      options.includeDecisions ?? includeDecisionEntries(surface),
+    includeOversized:
+      options.includeOversized ?? allowOversizedBuckets(surface),
+    budgetMax: options.maxBytes ?? defaultMaxBytes(surface),
+    perEntryMaxBytes: options.perEntryMaxBytes ?? 360,
+    kindBudgets: mergedKindBudgets(options.perKind),
+  };
 }
 
 function reasonFor(entry: LearningLoopEntryFact): string {
@@ -236,19 +255,15 @@ export function selectLearningLoopContext(
   sharedFacts: Pick<SharedFacts, "learningLoopEntries">,
   options: LearningLoopContextOptions = {},
 ): LearningLoopContextSelection {
-  const surface = options.surface ?? "quality-agent-setup";
-  const includeStale = options.includeStale ?? surface === "maintenance";
-  const includeDecisions =
-    options.includeDecisions ?? includeDecisionEntries(surface);
-  const includeOversized =
-    options.includeOversized ?? allowOversizedBuckets(surface);
-  const budgetMax = options.maxBytes ?? defaultMaxBytes(surface);
-  const perEntryMaxBytes = options.perEntryMaxBytes ?? 360;
-  const kindBudgets = mergedKindBudgets(options.perKind);
+  const resolved = resolveLearningLoopOptions(options);
   const sourceEntries = sharedFacts.learningLoopEntries ?? [];
   const candidates = sourceEntries
     .filter((entry) =>
-      allowedEntry(entry, { includeStale, includeDecisions, includeOversized }),
+      allowedEntry(entry, {
+        includeStale: resolved.includeStale,
+        includeDecisions: resolved.includeDecisions,
+        includeOversized: resolved.includeOversized,
+      }),
     )
     .sort(compareEntries);
   const kindBytes: Record<LearningLoopEntryKind, number> = {
@@ -266,9 +281,9 @@ export function selectLearningLoopContext(
   const selected: SelectedLearningLoopEntry[] = [];
 
   for (const candidate of candidates) {
-    const budget = kindBudgets[candidate.kind];
+    const budget = resolved.kindBudgets[candidate.kind];
     if (kindCounts[candidate.kind] >= budget.maxEntries) continue;
-    const next = selectedFromEntry(candidate, perEntryMaxBytes);
+    const next = selectedFromEntry(candidate, resolved.perEntryMaxBytes);
     const nextBytes = byteLength(renderEntry(next));
     if (kindBytes[candidate.kind] + nextBytes > budget.maxBytes) continue;
     selected.push(next);
@@ -278,7 +293,7 @@ export function selectLearningLoopContext(
 
   return finalizeSelection(
     selected,
-    budgetMax,
+    resolved.budgetMax,
     sourceEntries.length - selected.length,
     candidates.length === 0,
   );

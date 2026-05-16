@@ -131,7 +131,10 @@ describe("manifest-backed agent capability alignment", () => {
         profile.promptInvocationStyle,
         manifestAgent.capabilities.prompt_invocation_style,
       );
-      assert.equal(profile.skillSource, manifestAgent.capabilities.skill_source);
+      assert.equal(
+        profile.skillSource,
+        manifestAgent.capabilities.skill_source,
+      );
       assert.equal(
         profile.supportsPostTurnHook,
         manifestAgent.hook_events.post_turn !== null,

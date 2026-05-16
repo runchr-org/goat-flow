@@ -21,7 +21,7 @@ import {
   type RedactedEvidenceValue,
 } from "./redaction.js";
 
-export type EvidenceActor = "dashboard" | "cli" | "server";
+type EvidenceActor = "dashboard" | "cli" | "server";
 
 export type EvidenceEventKind =
   | "terminal.create"
@@ -37,7 +37,7 @@ export type EvidenceEventKind =
   | "project.remove"
   | "project.switch";
 
-export type EvidencePayloadValue =
+type EvidencePayloadValue =
   | string
   | number
   | boolean
@@ -88,7 +88,7 @@ export interface EvidenceEnvelopeWriteOptions {
 
 type EvidencePathExists = (path: string) => boolean;
 
-export const EVENTS_LOG_RELATIVE_DIR = ".goat-flow/logs/events";
+const EVENTS_LOG_RELATIVE_DIR = ".goat-flow/logs/events";
 const ENVELOPE_FRAMEWORK_EVIDENCE = "src/cli/evidence/envelope.ts";
 const MAX_TAIL_LIMIT = 500;
 const SENSITIVE_PAYLOAD_KEY =
@@ -135,11 +135,7 @@ function validatePayloadValue(
     );
   }
   return Object.entries(value).flatMap(([childKey, childValue]) =>
-    validatePayloadValue(
-      childKey,
-      childValue as EvidencePayloadValue,
-      `${path}.${childKey}`,
-    ),
+    validatePayloadValue(childKey, childValue, `${path}.${childKey}`),
   );
 }
 
@@ -149,6 +145,24 @@ function validatePayload(payload: EvidencePayload | undefined): string[] {
   return Object.entries(payload).flatMap(([key, value]) =>
     validatePayloadValue(key, value, `payload.${key}`),
   );
+}
+
+function applyEnvelopeOptionalFields(
+  envelope: EvidenceEnvelope,
+  input: CreateEvidenceEnvelopeInput,
+): void {
+  if (input.provenance?.evidence_paths) {
+    envelope.evidence_paths = input.provenance.evidence_paths;
+  }
+  if (input.provenance?.target_evidence_paths) {
+    envelope.target_evidence_paths = input.provenance.target_evidence_paths;
+  }
+  if (input.provenance?.reason) {
+    envelope.reason = input.provenance.reason;
+  }
+  if (input.payload) {
+    envelope.payload = input.payload;
+  }
 }
 
 /** Build a validated envelope shape from one local runtime event. */
@@ -170,18 +184,7 @@ export function createEvidenceEnvelope(
     timestamp,
     project_path: input.projectPath,
   };
-  if (input.provenance?.evidence_paths) {
-    envelope.evidence_paths = input.provenance.evidence_paths;
-  }
-  if (input.provenance?.target_evidence_paths) {
-    envelope.target_evidence_paths = input.provenance.target_evidence_paths;
-  }
-  if (input.provenance?.reason) {
-    envelope.reason = input.provenance.reason;
-  }
-  if (input.payload) {
-    envelope.payload = input.payload;
-  }
+  applyEnvelopeOptionalFields(envelope, input);
   return envelope;
 }
 

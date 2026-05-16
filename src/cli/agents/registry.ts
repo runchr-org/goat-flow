@@ -16,8 +16,6 @@ import {
   type AgentId,
   type AgentProfile,
   type DenyMechanism,
-  type PromptInvocationStyle,
-  type SkillSource,
 } from "../types.js";
 
 /** Re-export the canonical runtime authority for agent identity. */
@@ -95,9 +93,8 @@ function toRuntimeProfile(
       capabilities.terminal_binary,
     ),
     setupSurfaces: [...capabilities.setup_surfaces],
-    promptInvocationStyle:
-      capabilities.prompt_invocation_style as PromptInvocationStyle,
-    skillSource: capabilities.skill_source as SkillSource,
+    promptInvocationStyle: capabilities.prompt_invocation_style,
+    skillSource: capabilities.skill_source,
     supportsPostTurnHook: agent.hook_events.post_turn !== null,
     settingsFile: agent.settings ?? null,
     hookConfigFile: agent.hook_config_file ?? agent.settings ?? null,

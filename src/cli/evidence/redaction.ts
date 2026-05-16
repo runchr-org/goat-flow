@@ -28,20 +28,6 @@ export function redactEvidenceText(
   };
 }
 
-/** Return a deterministic hash/length summary for sensitive bytes. */
-export function redactEvidenceBytes(
-  label: string,
-  value: Uint8Array,
-): RedactedEvidenceValue {
-  const buffer = Buffer.from(value);
-  return {
-    kind: "redacted",
-    label,
-    sha256: createHash("sha256").update(buffer).digest("hex"),
-    length: buffer.byteLength,
-  };
-}
-
 /** Runtime guard used by envelope payload validation. */
 export function isRedactedEvidenceValue(
   value: unknown,

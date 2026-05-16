@@ -98,7 +98,7 @@ interface DashboardPresetData {
 
 type ProjectIdentitySource = "git-remote" | "goat-marker" | "path";
 
-export interface DashboardProjectIdentity {
+interface DashboardProjectIdentity {
   identity: string;
   identitySource: ProjectIdentitySource;
   currentPath: string;
@@ -159,6 +159,13 @@ interface LatestQualitySummary {
   minorCount: number;
   evidenceMethods: string[];
   scope: string | null;
+}
+
+interface QualityRequestParams {
+  agent: AgentId;
+  qualityMode: QualityMode;
+  fresh: boolean;
+  fast: boolean;
 }
 
 interface RecentLessonSummary {
@@ -304,6 +311,27 @@ function listTaskMilestoneFilenames(planPath: string): string[] {
   }
 }
 
+function readMarkdownField(
+  content: string,
+  pattern: RegExp,
+  fallback: string,
+): string {
+  return content.match(pattern)?.[1]?.trim() || fallback;
+}
+
+function readTaskProgress(content: string): {
+  totalTasks: number;
+  completedTasks: number;
+} {
+  const taskMatches = Array.from(content.matchAll(/^\s*-\s+\[( |x|X)\]/gmu));
+  return {
+    totalTasks: taskMatches.length,
+    completedTasks: taskMatches.filter(
+      (match) => match[1]?.toLowerCase() === "x",
+    ).length,
+  };
+}
+
 function parseTaskMilestone(
   planPath: string,
   filename: string,
@@ -311,23 +339,15 @@ function parseTaskMilestone(
   const path = join(planPath, filename);
   const content = readOptionalTextFile(path) ?? "";
   const modifiedAt = statOrNull(path)?.mtime.toISOString() ?? "";
-  const title = content.match(/^#\s+(.+)$/mu)?.[1]?.trim() || filename;
-  const status =
-    content.match(/^\*\*Status:\*\*\s*(.+)$/mu)?.[1]?.trim() || "unknown";
-  const objective =
-    content.match(/^\*\*Objective:\*\*\s*(.+)$/mu)?.[1]?.trim() || "";
-  const taskMatches = Array.from(content.matchAll(/^\s*-\s+\[( |x|X)\]/gmu));
-  const completedTasks = taskMatches.filter(
-    (match) => match[1]?.toLowerCase() === "x",
-  ).length;
+  const progress = readTaskProgress(content);
   return {
     filename,
     path,
-    title,
-    status,
-    objective,
-    totalTasks: taskMatches.length,
-    completedTasks,
+    title: readMarkdownField(content, /^#\s+(.+)$/mu, filename),
+    status: readMarkdownField(content, /^\*\*Status:\*\*\s*(.+)$/mu, "unknown"),
+    objective: readMarkdownField(content, /^\*\*Objective:\*\*\s*(.+)$/mu, ""),
+    totalTasks: progress.totalTasks,
+    completedTasks: progress.completedTasks,
     modifiedAt,
   };
 }
@@ -364,6 +384,33 @@ function listTaskPlanNames(taskRoot: string): string[] {
     .map((entry) => entry.name);
 }
 
+function emptyDashboardTaskState(
+  taskRoot: string,
+  active: string | null,
+): DashboardTaskState {
+  return {
+    taskRoot,
+    exists: false,
+    active,
+    activeExists: false,
+    selectedPlan: null,
+    plans: [],
+    milestones: [],
+  };
+}
+
+function selectDashboardTaskPlan(
+  requestedPlan: string | null,
+  active: string | null,
+  activeExists: boolean,
+  plans: DashboardTaskPlanSummary[],
+): string | null {
+  const requestedExists = plans.some((plan) => plan.name === requestedPlan);
+  if (requestedPlan && requestedExists) return requestedPlan;
+  if (activeExists) return active;
+  return plans[0]?.name ?? null;
+}
+
 function buildDashboardTaskState(
   projectPath: string,
   requestedPlan: string | null,
@@ -373,15 +420,7 @@ function buildDashboardTaskState(
   const active =
     readOptionalTextFile(join(taskRoot, ".active"))?.trim() || null;
   if (!taskRootStats?.isDirectory()) {
-    return {
-      taskRoot,
-      exists: false,
-      active,
-      activeExists: false,
-      selectedPlan: null,
-      plans: [],
-      milestones: [],
-    };
+    return emptyDashboardTaskState(taskRoot, active);
   }
 
   const planNames = listTaskPlanNames(taskRoot);
@@ -395,13 +434,12 @@ function buildDashboardTaskState(
   const activeExists = Boolean(
     active && plans.some((plan) => plan.name === active),
   );
-  const selectedPlan =
-    (requestedPlan && plans.some((plan) => plan.name === requestedPlan)
-      ? requestedPlan
-      : null) ??
-    (activeExists ? active : null) ??
-    plans[0]?.name ??
-    null;
+  const selectedPlan = selectDashboardTaskPlan(
+    requestedPlan,
+    active,
+    activeExists,
+    plans,
+  );
   const selectedPlanPath = selectedPlan ? join(taskRoot, selectedPlan) : null;
   const milestones = selectedPlanPath
     ? listTaskMilestoneFilenames(selectedPlanPath).map((filename) =>
@@ -420,7 +458,7 @@ function buildDashboardTaskState(
   };
 }
 
-function readActiveTaskPlanBody(body: string): string {
+function parseJsonObjectBody(body: string): Record<string, unknown> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(body);
@@ -430,20 +468,29 @@ function readActiveTaskPlanBody(body: string): string {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error("Request body must be a JSON object");
   }
-  const plan = (parsed as Record<string, unknown>)["plan"];
+  return parsed as Record<string, unknown>;
+}
+
+function assertTopLevelPlanName(planName: string): void {
+  if (
+    planName === "." ||
+    planName === ".." ||
+    planName.includes("/") ||
+    planName.includes("\\") ||
+    planName.startsWith(".")
+  ) {
+    throw new Error("body.plan must name a top-level task plan directory");
+  }
+}
+
+function readActiveTaskPlanBody(body: string): string {
+  const parsed = parseJsonObjectBody(body);
+  const plan = parsed["plan"];
   if (typeof plan !== "string" || plan.trim().length === 0) {
     throw new Error("body.plan must be a non-empty string");
   }
   const normalized = plan.trim();
-  if (
-    normalized === "." ||
-    normalized === ".." ||
-    normalized.includes("/") ||
-    normalized.includes("\\") ||
-    normalized.startsWith(".")
-  ) {
-    throw new Error("body.plan must name a top-level task plan directory");
-  }
+  assertTopLevelPlanName(normalized);
   return normalized;
 }
 
@@ -741,27 +788,37 @@ function directoryExists(path: string): boolean {
   }
 }
 
-export function normalizeGitRemoteUrl(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
+function cleanRemotePath(host: string | undefined, path: string | undefined) {
+  const remotePath = path?.replace(/^\/+/u, "");
+  if (!host || !remotePath) return null;
+  return `${host.toLowerCase()}/${remotePath}`
+    .replace(/\.git$/u, "")
+    .replace(/\/+$/u, "");
+}
 
+function normalizeScpLikeRemote(trimmed: string): string | null {
   const scpLike = trimmed.match(/^(?:[^@/\s]+@)?([^:/\s]+):(.+)$/u);
-  if (scpLike && !trimmed.includes("://")) {
-    const host = scpLike[1]?.toLowerCase();
-    const remotePath = scpLike[2]?.replace(/^\/+/u, "");
-    if (!host || !remotePath) return null;
-    return `${host}/${remotePath}`.replace(/\.git$/u, "").replace(/\/+$/u, "");
-  }
+  if (!scpLike || trimmed.includes("://")) return null;
+  return cleanRemotePath(scpLike[1], scpLike[2]);
+}
 
+function normalizeUrlRemote(trimmed: string): string | null {
   try {
     const parsed = new URL(trimmed);
-    const host = parsed.hostname.toLowerCase();
-    const remotePath = parsed.pathname.replace(/^\/+/u, "");
-    if (!host || !remotePath) return null;
-    return `${host}/${remotePath}`.replace(/\.git$/u, "").replace(/\/+$/u, "");
+    return cleanRemotePath(parsed.hostname, parsed.pathname);
   } catch {
-    return trimmed.replace(/\.git$/u, "").replace(/\/+$/u, "");
+    return null;
   }
+}
+
+function normalizeGitRemoteUrl(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return (
+    normalizeScpLikeRemote(trimmed) ??
+    normalizeUrlRemote(trimmed) ??
+    trimmed.replace(/\.git$/u, "").replace(/\/+$/u, "")
+  );
 }
 
 function readGitRemote(projectPath: string): string | null {
@@ -807,52 +864,61 @@ function writeProjectMarkerId(markerPath: string): string | null {
   }
 }
 
-export function resolveProjectIdentity(
+function resolveGitRemoteIdentity(
+  currentPath: string,
+): DashboardProjectIdentity | null {
+  const normalizedRemote = normalizeGitRemoteUrl(
+    readGitRemote(currentPath) ?? "",
+  );
+  if (!normalizedRemote) return null;
+  const remoteUrlHash = hashString(normalizedRemote);
+  return {
+    identity: `git-remote:${remoteUrlHash}`,
+    identitySource: "git-remote",
+    currentPath,
+    remoteUrlHash,
+  };
+}
+
+function resolveMarkerIdentity(
+  currentPath: string,
+  allowMarkerWrite: boolean,
+): DashboardProjectIdentity | null {
+  const goatFlowDir = join(currentPath, ".goat-flow");
+  if (!directoryExists(goatFlowDir)) return null;
+  let markerPath: string | null = null;
+  try {
+    markerPath = resolveLocalStatePath(currentPath, "project-id");
+  } catch (err) {
+    if (allowMarkerWrite) throw err;
+  }
+  const markerId =
+    markerPath === null
+      ? null
+      : (readProjectMarkerId(markerPath) ??
+        (allowMarkerWrite ? writeProjectMarkerId(markerPath) : null));
+  if (!markerId) return null;
+  return {
+    identity: `goat-marker:${markerId}`,
+    identitySource: "goat-marker",
+    currentPath,
+    markerId,
+  };
+}
+
+function resolveProjectIdentity(
   projectPath: string,
   options: { allowMarkerWrite?: boolean } = {},
 ): DashboardProjectIdentity {
   const currentPath = normalizeProjectPath(projectPath);
-  const normalizedRemote = normalizeGitRemoteUrl(
-    readGitRemote(currentPath) ?? "",
-  );
-  if (normalizedRemote) {
-    const remoteUrlHash = hashString(normalizedRemote);
-    return {
-      identity: `git-remote:${remoteUrlHash}`,
-      identitySource: "git-remote",
+  return (
+    resolveGitRemoteIdentity(currentPath) ??
+    resolveMarkerIdentity(currentPath, options.allowMarkerWrite === true) ?? {
+      identity: `path:${currentPath}`,
+      identitySource: "path",
       currentPath,
-      remoteUrlHash,
-    };
-  }
-
-  const goatFlowDir = join(currentPath, ".goat-flow");
-  if (directoryExists(goatFlowDir)) {
-    let markerPath: string | null = null;
-    try {
-      markerPath = resolveLocalStatePath(currentPath, "project-id");
-    } catch (err) {
-      if (options.allowMarkerWrite) throw err;
     }
-    const markerId =
-      markerPath === null
-        ? null
-        : (readProjectMarkerId(markerPath) ??
-          (options.allowMarkerWrite ? writeProjectMarkerId(markerPath) : null));
-    if (markerId) {
-      return {
-        identity: `goat-marker:${markerId}`,
-        identitySource: "goat-marker",
-        currentPath,
-        markerId,
-      };
-    }
-  }
-
-  return {
-    identity: `path:${currentPath}`,
-    identitySource: "path",
-    currentPath,
-  };
+  );
 }
 
 function hashExistingFile(projectPath: string, relativePath: string): string {
@@ -1325,6 +1391,35 @@ export function createDashboardRouteHandlers(
     return result;
   }
 
+  function normalizeProjectRecordPaths(record: Record<string, unknown>) {
+    const paths = Array.isArray(record.paths)
+      ? record.paths
+          .filter((entry): entry is string => typeof entry === "string")
+          .map((entry) => normalizeProjectPath(entry))
+      : [];
+    return paths;
+  }
+
+  function readRecordString(
+    record: Record<string, unknown>,
+    key: string,
+  ): string | null {
+    const value = record[key];
+    return typeof value === "string" && value.length > 0 ? value : null;
+  }
+
+  function applyOptionalProjectRecordFields(
+    normalized: DashboardProjectRecord,
+    record: Record<string, unknown>,
+  ): void {
+    const remoteUrlHash = readRecordString(record, "remoteUrlHash");
+    const markerId = readRecordString(record, "markerId");
+    const title = readRecordString(record, "title")?.trim();
+    if (remoteUrlHash) normalized.remoteUrlHash = remoteUrlHash;
+    if (markerId) normalized.markerId = markerId;
+    if (title) normalized.title = title.slice(0, 120);
+  }
+
   function normalizeDashboardProjectRecord(
     identity: string,
     value: unknown,
@@ -1333,37 +1428,21 @@ export function createDashboardRouteHandlers(
       return null;
     }
     const record = value as Record<string, unknown>;
-    const identityValue =
-      typeof record.identity === "string" && record.identity.length > 0
-        ? record.identity
-        : identity;
+    const identityValue = readRecordString(record, "identity") ?? identity;
     const identitySource = identitySourceFrom(record.identitySource);
-    const currentPath =
-      typeof record.currentPath === "string" && record.currentPath.length > 0
-        ? normalizeProjectPath(record.currentPath)
-        : null;
+    const currentPath = readRecordString(record, "currentPath");
     if (!identityValue || !identitySource || !currentPath) return null;
 
-    const paths = Array.isArray(record.paths)
-      ? record.paths
-          .filter((entry): entry is string => typeof entry === "string")
-          .map((entry) => normalizeProjectPath(entry))
-      : [];
     const normalized: DashboardProjectRecord = {
       identity: identityValue,
       identitySource,
-      currentPath,
-      paths: dedupeStrings([currentPath, ...paths]),
+      currentPath: normalizeProjectPath(currentPath),
+      paths: dedupeStrings([
+        normalizeProjectPath(currentPath),
+        ...normalizeProjectRecordPaths(record),
+      ]),
     };
-    if (typeof record.remoteUrlHash === "string") {
-      normalized.remoteUrlHash = record.remoteUrlHash;
-    }
-    if (typeof record.markerId === "string") {
-      normalized.markerId = record.markerId;
-    }
-    if (typeof record.title === "string" && record.title.trim().length > 0) {
-      normalized.title = record.title.trim().slice(0, 120);
-    }
+    applyOptionalProjectRecordFields(normalized, record);
     return normalized;
   }
 
@@ -1556,8 +1635,88 @@ export function createDashboardRouteHandlers(
     return !agentFilter && harness && isPackagedInstall();
   }
 
+  function buildDashboardAuditReport(
+    projectPath: string,
+    agentFilter: AgentId | null,
+    harness: boolean,
+    profiler: DashboardAuditProfiler,
+  ): DashboardReport {
+    const fs = createFS(projectPath);
+    const configAgents = profiler.span("managed-agent resolution", () =>
+      resolveDashboardManagedAgentIds(agentFilter),
+    );
+    const auditFactProfile =
+      agentFilter === null ? "dashboard-summary" : "full";
+    const batch = profiler.span("runAuditBatch", () =>
+      runAuditBatch(
+        fs,
+        projectPath,
+        {
+          agentFilter,
+          harness,
+          // Summary cards only need to know whether the deny mechanism is
+          // installed. Explicit per-agent audits and quality flows still run the
+          // slower runtime self-test.
+          denyMechanismEvidenceLevel:
+            agentFilter === null ? "present-only" : "full",
+          factProfile: auditFactProfile,
+          profile: profiler,
+        },
+        configAgents,
+      ),
+    );
+    return profiler.span("dashboard report build", () =>
+      buildDashboardReport(
+        batch.aggregate,
+        batch.perAgent,
+        projectPath,
+        profiler,
+      ),
+    );
+  }
+
+  function readCachedDashboardAudit(
+    projectPath: string,
+    fresh: boolean,
+    signature: string | null,
+    profiler: DashboardAuditProfiler,
+  ) {
+    if (fresh || signature === null) return null;
+    return profiler.span("cache read", () =>
+      readAuditCache(projectPath, packageVersion, signature),
+    );
+  }
+
   function parseAgentFilter(param: string | null): AgentId | null {
     return param && VALID_AGENTS.has(param) ? (param as AgentId) : null;
+  }
+
+  function parseQualityRequestParams(
+    url: URL,
+    res: ServerResponse,
+  ): QualityRequestParams | null {
+    const agentParam = url.searchParams.get("agent");
+    if (!agentParam || !VALID_AGENTS.has(agentParam)) {
+      jsonResponse(res, 400, {
+        error: `quality requires --agent. Valid: ${KNOWN_AGENT_LIST}`,
+      });
+      return null;
+    }
+
+    const modeParam = url.searchParams.get("mode");
+    if (modeParam && !VALID_QUALITY_MODES.has(modeParam)) {
+      jsonResponse(res, 400, {
+        error: `quality mode must be one of: ${QUALITY_MODES.join(", ")}`,
+      });
+      return null;
+    }
+
+    return {
+      agent: agentParam as AgentId,
+      qualityMode: parseQualityModeParam(modeParam) ?? "agent-setup",
+      fresh: url.searchParams.get("fresh") === "true",
+      fast: url.searchParams.get("fast") === "true",
+    };
   }
 
   function parseRequiredAgentParam(
@@ -1620,79 +1779,50 @@ export function createDashboardRouteHandlers(
           )
         : null;
 
-      if (!fresh && isCacheEligible(agentFilter, harness)) {
-        const cached = profiler.span("cache read", () =>
-          readAuditCache(
-            projectPath,
-            packageVersion,
-            auditCacheSignature ?? "",
+      const cached = readCachedDashboardAudit(
+        projectPath,
+        fresh,
+        auditCacheSignature,
+        profiler,
+      );
+      if (cached) {
+        const report = profiler.span("learning-loop enrichment", () =>
+          enrichDashboardReport(cached.report, projectPath),
+        );
+        recordDashboardEvent(projectPath, "audit.run", {
+          cached: true,
+          harness,
+          agent: agentFilter ?? "all",
+          status: report.status,
+        });
+        jsonResponse(
+          res,
+          200,
+          appendAuditProfile(
+            {
+              ...report,
+              cached: true,
+              cachedAt: cached.cachedAt,
+            },
+            profiler,
           ),
         );
-        if (cached) {
-          const report = profiler.span("learning-loop enrichment", () =>
-            enrichDashboardReport(cached.report, projectPath),
-          );
-          recordDashboardEvent(projectPath, "audit.run", {
-            cached: true,
-            harness,
-            agent: agentFilter ?? "all",
-            status: report.status,
-          });
-          jsonResponse(
-            res,
-            200,
-            appendAuditProfile(
-              {
-                ...report,
-                cached: true,
-                cachedAt: cached.cachedAt,
-              },
-              profiler,
-            ),
-          );
-          return true;
-        }
+        return true;
       }
 
-      const fs = createFS(projectPath);
-      const configAgents = profiler.span("managed-agent resolution", () =>
-        resolveDashboardManagedAgentIds(agentFilter),
-      );
-      const auditFactProfile =
-        agentFilter === null ? "dashboard-summary" : "full";
-      const batch = profiler.span("runAuditBatch", () =>
-        runAuditBatch(
-          fs,
-          projectPath,
-          {
-            agentFilter,
-            harness,
-            // Summary cards only need to know whether the deny mechanism is
-            // installed. Explicit per-agent audits and quality flows still run the
-            // slower runtime self-test.
-            denyMechanismEvidenceLevel:
-              agentFilter === null ? "present-only" : "full",
-            factProfile: auditFactProfile,
-            profile: profiler,
-          },
-          configAgents,
-        ),
-      );
-      const report = profiler.span("dashboard report build", () =>
-        buildDashboardReport(
-          batch.aggregate,
-          batch.perAgent,
-          projectPath,
-          profiler,
-        ),
+      const report = buildDashboardAuditReport(
+        projectPath,
+        agentFilter,
+        harness,
+        profiler,
       );
 
-      if (isCacheEligible(agentFilter, harness)) {
+      if (auditCacheSignature !== null) {
         profiler.span("cache write", () => {
           writeAuditCache(
             projectPath,
             packageVersion,
-            auditCacheSignature ?? "",
+            auditCacheSignature,
             report,
           );
         });
@@ -1834,26 +1964,8 @@ export function createDashboardRouteHandlers(
   function handleQualityRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/quality") return false;
 
-    const agentParam = url.searchParams.get("agent");
-    if (!agentParam || !VALID_AGENTS.has(agentParam)) {
-      jsonResponse(res, 400, {
-        error: `quality requires --agent. Valid: ${KNOWN_AGENT_LIST}`,
-      });
-      return true;
-    }
-
-    const agent = agentParam as AgentId;
-    const modeParam = url.searchParams.get("mode");
-    const qualityMode = parseQualityModeParam(modeParam) ?? "agent-setup";
-    const fresh = url.searchParams.get("fresh") === "true";
-    const fast = url.searchParams.get("fast") === "true";
-
-    if (modeParam && !VALID_QUALITY_MODES.has(modeParam)) {
-      jsonResponse(res, 400, {
-        error: `quality mode must be one of: ${QUALITY_MODES.join(", ")}`,
-      });
-      return true;
-    }
+    const params = parseQualityRequestParams(url, res);
+    if (params === null) return true;
 
     try {
       const projectPath = validatedPath(
@@ -1866,27 +1978,27 @@ export function createDashboardRouteHandlers(
       );
       const fs = createFS(projectPath);
       const sharedFacts = extractSharedFacts(fs, loadConfig(projectPath, fs));
-      const auditReport = getOrRunQualityAudit(projectPath, agent, {
-        cacheOnly: fast,
-        fresh,
+      const auditReport = getOrRunQualityAudit(projectPath, params.agent, {
+        cacheOnly: params.fast,
+        fresh: params.fresh,
       });
       const { entry: priorReport } = findLatestQualityReport(
         projectPath,
-        agent,
-        qualityMode,
+        params.agent,
+        params.qualityMode,
       );
       const result = composeQuality({
-        agent,
+        agent: params.agent,
         projectPath,
         auditReport,
         priorReport,
-        qualityMode,
+        qualityMode: params.qualityMode,
         selectedProjectPath,
         sharedFacts,
       });
       recordDashboardEvent(projectPath, "quality.prompt", {
-        agent,
-        quality_mode: qualityMode,
+        agent: params.agent,
+        quality_mode: params.qualityMode,
         audit_status: auditReport?.status ?? "unavailable",
         prompt: redactEvidenceText("quality prompt", result.prompt),
       });
@@ -2368,9 +2480,9 @@ export function createDashboardRouteHandlers(
       ) {
         recordDashboardEvent(result.path, "project.switch", {
           state: result.state,
-          identity: "identity" in result ? String(result.identity) : "",
+          identity: "identity" in result ? result.identity : "",
           identity_source:
-            "identitySource" in result ? String(result.identitySource) : "",
+            "identitySource" in result ? result.identitySource : "",
         });
       }
     }

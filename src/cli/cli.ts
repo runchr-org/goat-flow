@@ -254,6 +254,16 @@ export interface ParsedCLI extends CLIOptions {
   all: boolean;
 }
 
+type SkillCLIFields = Pick<
+  ParsedCLI,
+  | "skillSubcommand"
+  | "skillDescription"
+  | "skillDraftPath"
+  | "skillName"
+  | "skillInteractive"
+  | "skillSkipConfirm"
+>;
+
 /** Parse the positional subcommand from raw CLI args. Empty argv opens the menu. */
 function parseCommand(argv: string[]): {
   command: Command;
@@ -680,6 +690,26 @@ function parseEventsLimitArg(value: string | undefined): number {
   return Math.min(parsed, 500);
 }
 
+function buildSkillCLIFields(
+  command: Command,
+  values: ParsedArgValues,
+  positionals: SkillPositionals,
+): SkillCLIFields {
+  const isSkillCommand = command === "skill";
+  return {
+    skillSubcommand: positionals.skillSubcommand,
+    skillDescription: positionals.skillDescription,
+    skillDraftPath:
+      isSkillCommand && typeof values.draft === "string"
+        ? resolve(values.draft)
+        : null,
+    skillName:
+      isSkillCommand && typeof values.name === "string" ? values.name : null,
+    skillInteractive: isSkillCommand && values.interactive === true,
+    skillSkipConfirm: isSkillCommand && values.yes === true,
+  };
+}
+
 /** Parse raw CLI argv into a structured ParsedCLI options object */
 export function parseCLIArgs(argv: string[]): ParsedCLI {
   const { command, filteredArgs } = parseCommand(argv);
@@ -737,6 +767,11 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
           skillDescription: null,
           projectPath,
         };
+  const skillFields = buildSkillCLIFields(
+    command,
+    parsedValues,
+    skillPositionals,
+  );
   validateFlagCombinations(
     command,
     parsedValues,
@@ -763,18 +798,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     qualityValidatePath: qualityPositionals.qualityValidatePath,
     qualityMode: parseQualityModeArg(parsedValues.mode),
     candidacyInput: qualityPositionals.candidacyInput,
-    skillSubcommand: skillPositionals.skillSubcommand,
-    skillDescription: skillPositionals.skillDescription,
-    skillDraftPath:
-      command === "skill" && typeof parsedValues.draft === "string"
-        ? resolve(parsedValues.draft)
-        : null,
-    skillName:
-      command === "skill" && typeof parsedValues.name === "string"
-        ? parsedValues.name
-        : null,
-    skillInteractive: command === "skill" && parsedValues.interactive === true,
-    skillSkipConfirm: command === "skill" && parsedValues.yes === true,
+    ...skillFields,
     eventsSubcommand: eventsPositionals.eventsSubcommand,
     eventsLimit: parseEventsLimitArg(parsedValues.limit),
     all: parsedValues.all === true,

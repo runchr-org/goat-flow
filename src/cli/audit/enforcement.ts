@@ -14,7 +14,7 @@ export type EnforcementCapabilityStatus =
   | "missing"
   | "unknown";
 
-export type EnforcementCapabilitySource =
+type EnforcementCapabilitySource =
   | "local-settings"
   | "local-hook"
   | "runtime-self-test"
@@ -22,7 +22,7 @@ export type EnforcementCapabilitySource =
   | "provider-docs"
   | "not-observed";
 
-export type EnforcementCapabilityId =
+type EnforcementCapabilityId =
   | "shell-dangerous"
   | "shell-pipe-to-shell"
   | "secret-file-read"
@@ -33,7 +33,7 @@ export type EnforcementCapabilityId =
   | "file-write-restrictions"
   | "provider-native-enforcement";
 
-export interface EnforcementCapability {
+interface EnforcementCapability {
   id: EnforcementCapabilityId;
   label: string;
   status: EnforcementCapabilityStatus;

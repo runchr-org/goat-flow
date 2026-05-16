@@ -57,6 +57,13 @@ interface DashboardTerminalDependencies {
   idleTimeoutMinutes?: number;
 }
 
+interface DecodedTerminalCreate {
+  prompt: string;
+  projectPath: string;
+  targetPath: string;
+  runner: Runner;
+}
+
 /** Build the terminal-only dashboard handlers for one server instance. */
 export function createDashboardTerminalHandlers(
   deps: DashboardTerminalDependencies,
@@ -129,6 +136,48 @@ export function createDashboardTerminalHandlers(
       bytes: event.bytes,
       input: redactEvidenceText("terminal input", event.input),
     });
+  }
+
+  async function createTerminalSession(
+    manager: TerminalManager,
+    decoded: DecodedTerminalCreate,
+  ) {
+    const { prompt, projectPath, targetPath, runner } = decoded;
+    const result = await manager.create(
+      prompt,
+      projectPath || absDefault,
+      runner,
+      { targetPath: targetPath || projectPath || absDefault },
+    );
+    const session = manager.get(result.id);
+    return {
+      result,
+      session,
+      resolvedTargetPath:
+        session?.targetPath || targetPath || projectPath || absDefault,
+    };
+  }
+
+  function recordTerminalLaunchEvents(
+    decoded: DecodedTerminalCreate,
+    sessionId: string,
+    session: ReturnType<TerminalManager["get"]>,
+    resolvedTargetPath: string,
+  ): void {
+    const { prompt, projectPath, runner } = decoded;
+    recordTerminalEvent(resolvedTargetPath, "terminal.create", {
+      session_id: sessionId,
+      runner,
+      cwd: session?.cwd || projectPath || absDefault,
+      target_path: resolvedTargetPath,
+    });
+    if (prompt.trim().length > 0) {
+      recordTerminalEvent(resolvedTargetPath, "prompt.launch", {
+        session_id: sessionId,
+        runner,
+        prompt: redactEvidenceText("terminal launch prompt", prompt),
+      });
+    }
   }
 
   /** Lazy-load the terminal manager the first time a terminal route is used. */
@@ -212,29 +261,14 @@ export function createDashboardTerminalHandlers(
         jsonResponse(res, 400, { error: decoded.error, path: decoded.path });
         return true;
       }
-      const { prompt, projectPath, targetPath, runner } = decoded.value;
-      const result = await manager.create(
-        prompt,
-        projectPath || absDefault,
-        runner,
-        { targetPath: targetPath || projectPath || absDefault },
+      const { result, session, resolvedTargetPath } =
+        await createTerminalSession(manager, decoded.value);
+      recordTerminalLaunchEvents(
+        decoded.value,
+        result.id,
+        session,
+        resolvedTargetPath,
       );
-      const session = manager.get(result.id);
-      const resolvedTargetPath =
-        session?.targetPath ?? targetPath ?? projectPath ?? absDefault;
-      recordTerminalEvent(resolvedTargetPath, "terminal.create", {
-        session_id: result.id,
-        runner,
-        cwd: session?.cwd ?? projectPath ?? absDefault,
-        target_path: resolvedTargetPath,
-      });
-      if (prompt.trim().length > 0) {
-        recordTerminalEvent(resolvedTargetPath, "prompt.launch", {
-          session_id: result.id,
-          runner,
-          prompt: redactEvidenceText("terminal launch prompt", prompt),
-        });
-      }
       jsonResponse(res, 200, result);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

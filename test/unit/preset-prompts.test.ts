@@ -571,10 +571,7 @@ describe("preset prompt catalog", () => {
     const view = readFileSync(SETUP_VIEW_PATH, "utf-8");
     const helper = readFileSync(DASHBOARD_QUALITY_PATH, "utf-8");
     const manifest = JSON.parse(
-      readFileSync(
-        resolve(PROJECT_ROOT, "workflow", "manifest.json"),
-        "utf-8",
-      ),
+      readFileSync(resolve(PROJECT_ROOT, "workflow", "manifest.json"), "utf-8"),
     ) as {
       agents: Record<string, { capabilities: { setup_surfaces: string[] } }>;
     };

@@ -99,6 +99,38 @@ const CONCERN_LABELS: Record<AuditConcernKey, string> = {
   feedback_loop: "Feedback Loop",
 };
 
+function renderHarnessConcerns(report: AuditReport, lines: string[]): void {
+  if (!report.concerns || !report.scopes.harness) {
+    lines.push(
+      `${DIM}Tip: Run with --harness for AI harness completeness checks across 5 concerns.${RESET}`,
+    );
+    return;
+  }
+
+  lines.push("");
+  lines.push(
+    `${BOLD}AI Harness Completeness:${RESET}  ${statusBadge(report.scopes.harness.status)}`,
+  );
+  lines.push("");
+
+  for (const key of Object.keys(report.concerns) as AuditConcernKey[]) {
+    const concern = report.concerns[key];
+    const label = CONCERN_LABELS[key];
+    const badge = statusBadge(concern.status);
+    lines.push(`  ${CYAN}${label}${RESET}  ${badge}`);
+    for (const finding of concern.findings) {
+      lines.push(`    ${DIM}${finding}${RESET}`);
+    }
+    for (let i = 0; i < concern.recommendations.length; i++) {
+      lines.push(`    ${YELLOW}-> ${concern.recommendations[i]}${RESET}`);
+      if (concern.howToFix[i]) {
+        lines.push(`       ${CYAN}Fix: ${concern.howToFix[i]}${RESET}`);
+      }
+    }
+    lines.push("");
+  }
+}
+
 /** Render the full audit report in the terminal text format. */
 export function renderAuditText(report: AuditReport): string {
   const lines: string[] = [];
@@ -113,43 +145,15 @@ export function renderAuditText(report: AuditReport): string {
 
   lines.push(`Result: ${statusBadge(report.status)}`);
 
-  const enforcement = report.enforcement ?? [];
+  const enforcement = Array.isArray(report.enforcement)
+    ? report.enforcement
+    : [];
   if (enforcement.length > 0) {
     lines.push("");
     lines.push(renderEnforcementMatrix(enforcement));
   }
 
-  // Harness completeness concerns
-  if (report.concerns && report.scopes.harness) {
-    lines.push("");
-    lines.push(
-      `${BOLD}AI Harness Completeness:${RESET}  ${statusBadge(report.scopes.harness.status)}`,
-    );
-    lines.push("");
-
-    for (const key of Object.keys(report.concerns) as AuditConcernKey[]) {
-      const concern = report.concerns[key];
-      const label = CONCERN_LABELS[key];
-      const badge = statusBadge(concern.status);
-      lines.push(`  ${CYAN}${label}${RESET}  ${badge}`);
-      for (const finding of concern.findings) {
-        lines.push(`    ${DIM}${finding}${RESET}`);
-      }
-      if (concern.recommendations.length > 0) {
-        for (let i = 0; i < concern.recommendations.length; i++) {
-          lines.push(`    ${YELLOW}-> ${concern.recommendations[i]}${RESET}`);
-          if (concern.howToFix[i]) {
-            lines.push(`       ${CYAN}Fix: ${concern.howToFix[i]}${RESET}`);
-          }
-        }
-      }
-      lines.push("");
-    }
-  } else {
-    lines.push(
-      `${DIM}Tip: Run with --harness for AI harness completeness checks across 5 concerns.${RESET}`,
-    );
-  }
+  renderHarnessConcerns(report, lines);
 
   if (report.drift) {
     lines.push("");

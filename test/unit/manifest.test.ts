@@ -255,9 +255,7 @@ describe("validateManifest (agent capability metadata)", () => {
       (err: unknown) =>
         err instanceof ManifestValidationError &&
         err.findings.some((f) =>
-          f.includes(
-            "agents.claude.capabilities.prompt_invocation_style",
-          ),
+          f.includes("agents.claude.capabilities.prompt_invocation_style"),
         ) &&
         err.findings.some((f) =>
           f.includes("agents.claude.capabilities.skill_source"),

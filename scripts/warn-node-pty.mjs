@@ -17,7 +17,9 @@ function hasNodePty() {
 }
 
 if (!hasNodePty()) {
-  console.log("Warning: node-pty failed to compile. Dashboard terminal will not work.");
+  console.log(
+    "Warning: node-pty failed to compile. Dashboard terminal will not work.",
+  );
   console.log("  Install C++ build tools, then: npm rebuild node-pty");
   if (isPnpmInstall) {
     console.log("  pnpm: pnpm approve-builds (select node-pty)");
