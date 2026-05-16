@@ -4,10 +4,12 @@
  */
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   rename,
   rm,
   writeFile,
@@ -21,6 +23,10 @@ import {
   getKnownAgentIds,
 } from "../../src/cli/agents/registry.js";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
+import {
+  validateEvidenceEnvelope,
+  type EvidenceEnvelope,
+} from "../../src/cli/evidence/envelope.js";
 import { normalizeAgentVersionOutput } from "../../src/cli/server/dashboard-routes.js";
 import { TERMINAL_UPLOAD_MAX_BODY_BYTES } from "../../src/cli/server/terminal-uploads.js";
 import type { AgentId } from "../../src/cli/types.js";
@@ -234,6 +240,35 @@ async function fetchJson(
   const res = await fetch(`${baseUrl}${path}`, { ...init, headers });
   assertJsonResponse(res, path);
   return { res, body: await res.json() };
+}
+
+async function readEventEnvelopes(root: string): Promise<EvidenceEnvelope[]> {
+  const dir = join(root, ".goat-flow", "logs", "events");
+  let files: string[];
+  try {
+    files = (await readdir(dir))
+      .filter((name) => /^\d{4}-\d{2}-\d{2}\.jsonl$/u.test(name))
+      .sort();
+  } catch {
+    return [];
+  }
+  const envelopes: EvidenceEnvelope[] = [];
+  for (const file of files) {
+    const content = await readFile(join(dir, file), "utf-8");
+    for (const line of content.split(/\r?\n/u)) {
+      if (line.trim()) envelopes.push(JSON.parse(line) as EvidenceEnvelope);
+    }
+  }
+  return envelopes;
+}
+
+function assertValidEmittedEnvelope(envelope: EvidenceEnvelope): void {
+  assert.deepEqual(
+    validateEvidenceEnvelope(envelope, (path) =>
+      existsSync(join(PROJECT_PATH, path)),
+    ),
+    [],
+  );
 }
 
 async function writeProjectFile(
@@ -1603,6 +1638,38 @@ describe("dashboard /api/quality", () => {
       assert.equal(data.agent, "claude");
       assert.equal(data.auditStatus, "unavailable");
       assert.match(String(data.prompt), /Audit: UNAVAILABLE/);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("emits a redacted evidence envelope for generated quality prompts", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-quality-events-"));
+    try {
+      const { res, body } = await fetchJson(
+        `/api/quality?path=${encodeURIComponent(root)}&agent=claude&fast=true`,
+      );
+      assert.equal(res.status, 200);
+      const data = expectRecord(body, "Quality event response");
+      const prompt = String(data.prompt);
+
+      const envelopes = await readEventEnvelopes(root);
+      const event = envelopes.find(
+        (candidate) => candidate.event_kind === "quality.prompt",
+      );
+      assert.ok(event, "quality prompt request should emit an event envelope");
+      assertValidEmittedEnvelope(event);
+      assert.equal(JSON.stringify(event).includes(prompt), false);
+
+      const payload = expectRecord(event.payload, "Quality event payload");
+      const redactedPrompt = expectRecord(
+        payload.prompt,
+        "Quality event payload.prompt",
+      );
+      assert.equal(redactedPrompt.kind, "redacted");
+      assert.equal(redactedPrompt.label, "quality prompt");
+      assert.equal(typeof redactedPrompt.sha256, "string");
+      assert.equal(typeof redactedPrompt.length, "number");
     } finally {
       await rm(root, { recursive: true, force: true });
     }

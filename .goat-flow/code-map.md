@@ -5,7 +5,7 @@ Quick orientation for agents working on the goat-flow codebase.
 ## src/cli/ -- TypeScript CLI auditor and dashboard
 
 ```
-cli.ts                     # Entry point: command parser (audit, setup, dashboard, quality, stats)
+cli.ts                     # Entry point: command parser (audit, setup, dashboard, quality, events, stats)
 classify-state.ts          # Project adoption classifier (bare/partial/v0.9/outdated/current/error)
 constants.ts               # SKILL_NAMES, AUDIT_VERSION
 index.ts                   # Programmatic library entry: re-exports stable audit/prompt/config/utility APIs
@@ -31,6 +31,10 @@ audit/
 config/
   reader.ts                # Loads and validates .goat-flow/config.yaml
   types.ts                 # GoatFlowConfig, LoadedConfig interfaces
+
+evidence/
+  envelope.ts              # EvidenceEnvelope schema, validation, JSONL append, and tail reader
+  redaction.ts             # Hash/length redaction helpers for sensitive event payloads
 
 detect/
   agents.ts                # Agent detection from installed artefacts
@@ -199,6 +203,7 @@ lessons/                   # Behavioural mistake records (committed)
 tasks/                     # Milestone files and plan subdirs (gitignored local state; anchors only are committed)
 logs/sessions/             # Session logs (gitignored)
 logs/quality/              # Saved quality reports + prose companions (gitignored; README committed)
+logs/events/               # Evidence-envelope event JSONL (gitignored; README committed)
 logs/critiques/            # `/goat-critique` run snapshots (gitignored; README committed)
 logs/security/             # `/goat-security` assessment history (gitignored; README committed)
 logs/uploads/              # Per-session terminal upload-image staging (gitignored; runtime-only)

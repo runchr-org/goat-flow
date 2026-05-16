@@ -2,7 +2,7 @@
 
 /**
  * Command-line entry point for goat-flow.
- * Handles argv parsing, command dispatch, exit codes, and on-disk output for audit, quality, setup, dashboard, and info workflows.
+ * Handles argv parsing, command dispatch, exit codes, and on-disk output for audit, quality, setup, dashboard, events, and info workflows.
  */
 
 import { parseArgs } from "node:util";
@@ -53,6 +53,7 @@ Commands:
   dashboard         Launch browser dashboard with audit, setup, and terminal
   manifest          Print the resolved single-source-of-truth manifest (--check validates consistency)
   stats             Learning-loop health report (live entry counts, stale refs, freshness). Use --check for CI.
+  events tail       Read local gitignored evidence-envelope events
   skill new         Author a new skill or playbook from a description, draft, or interactive prompt.
 Arguments:
   project-path    Target project directory (default: .)
@@ -62,6 +63,7 @@ Flags:
   --agent <id>      Filter to one agent: ${validAgentList()}
   --mode <mode>     Quality prompt/history/diff mode: ${QUALITY_MODES.join(", ")}
   --all             Quality history: lift the default 20-run limit
+  --limit <n>       Events tail: number of newest envelopes to read (default: 20, max: 500)
   --harness         Audit: add AI Harness Completeness scope (pass/fail checks across 5 concerns)
   --check-drift     Audit: detect skill template-vs-installed drift and orphan directories
   --check-content   Audit: cold-path content lint (vague terms, generic instructions, factual drift)
@@ -95,6 +97,7 @@ Examples:
   goat-flow manifest --check           Verify the manifest is consistent with code
   goat-flow stats                      Learning-loop health report
   goat-flow stats --check              Fail if any bucket is missing last_reviewed or has stale refs
+  goat-flow events tail . --limit 20   Print local evidence-envelope events as JSONL
   goat-flow skill new "<description>"  Scaffold a skill from a natural-language description
   goat-flow skill ./repo new "<description>"
   goat-flow skill new --draft <path>   Validate an existing draft against the candidacy check
@@ -119,11 +122,13 @@ type Command =
   | "status"
   | "audit"
   | "quality"
+  | "events"
   | "skill"
   | "manifest"
   | "stats";
 
 type SkillSubcommand = "new";
+type EventsSubcommand = "tail";
 
 type QualitySubcommand =
   | "prompt"
@@ -144,6 +149,7 @@ interface ParsedArgValues {
   verbose?: boolean;
   output?: string;
   all?: boolean;
+  limit?: string;
   harness?: boolean;
   "check-drift"?: boolean;
   "check-content"?: boolean;
@@ -171,6 +177,7 @@ const COMMANDS: Command[] = [
   "status",
   "audit",
   "quality",
+  "events",
   "skill",
   "manifest",
   "stats",
@@ -241,6 +248,8 @@ export interface ParsedCLI extends CLIOptions {
   skillName: string | null;
   skillInteractive: boolean;
   skillSkipConfirm: boolean;
+  eventsSubcommand: EventsSubcommand | null;
+  eventsLimit: number;
   all: boolean;
 }
 
@@ -436,6 +445,27 @@ function parseQualityPositionals(
   };
 }
 
+/** Parse events subcommand positionals. */
+function parseEventsPositionals(positionals: string[]): {
+  eventsSubcommand: EventsSubcommand;
+  projectPath: string;
+} {
+  const [first, second, ...rest] = positionals;
+  if (first !== "tail") {
+    throw new CLIError('events requires subcommand "tail".', 2);
+  }
+  if (rest.length > 0) {
+    throw new CLIError(
+      "events tail accepts at most one positional project path.",
+      2,
+    );
+  }
+  return {
+    eventsSubcommand: "tail",
+    projectPath: resolve(second ?? "."),
+  };
+}
+
 /** Return the project path and quality-specific positionals for a command. */
 function parseCommandPositionals(
   command: Command,
@@ -530,6 +560,9 @@ function validateCommonFlags(command: Command, values: ParsedArgValues): void {
   }
   if (command !== "quality" && values.mode !== undefined) {
     throw new CLIError("--mode is only valid for the quality command.", 2);
+  }
+  if (command !== "events" && values.limit !== undefined) {
+    throw new CLIError("--limit is only valid for the events command.", 2);
   }
 }
 
@@ -630,6 +663,16 @@ function validateFlagCombinations(
   validateQualityFlags(command, values, qualitySubcommand);
 }
 
+/** Parse the events tail limit, clamping only after rejecting invalid input. */
+function parseEventsLimitArg(value: string | undefined): number {
+  if (value === undefined) return 20;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0 || String(parsed) !== value) {
+    throw new CLIError("--limit must be a positive integer.", 2);
+  }
+  return Math.min(parsed, 500);
+}
+
 /** Parse raw CLI argv into a structured ParsedCLI options object */
 export function parseCLIArgs(argv: string[]): ParsedCLI {
   const { command, filteredArgs } = parseCommand(argv);
@@ -644,6 +687,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
       verbose: { type: "boolean", default: false },
       output: { type: "string", short: "o" },
       all: { type: "boolean", default: false },
+      limit: { type: "string" },
       harness: { type: "boolean", default: false },
       "check-drift": { type: "boolean", default: false },
       "check-content": { type: "boolean", default: false },
@@ -670,13 +714,21 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     positionals,
     typeof parsedValues.draft === "string" ? parsedValues.draft : null,
   );
+  const eventsPositionals =
+    command === "events"
+      ? parseEventsPositionals(positionals)
+      : { eventsSubcommand: null, projectPath: qualityPositionals.projectPath };
+  const projectPath =
+    command === "events"
+      ? eventsPositionals.projectPath
+      : qualityPositionals.projectPath;
   const skillPositionals: SkillPositionals =
     command === "skill"
       ? parseSkillPositionals(positionals)
       : {
           skillSubcommand: null,
           skillDescription: null,
-          projectPath: qualityPositionals.projectPath,
+          projectPath,
         };
   validateFlagCombinations(
     command,
@@ -686,14 +738,11 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
 
   return {
     command,
-    projectPath: qualityPositionals.projectPath,
+    projectPath,
     format: parseFormatArg(parsedValues.format),
     agent: parseAgentArg(parsedValues.agent),
     verbose: parsedValues.verbose === true,
-    output: resolveOutputPath(
-      parsedValues.output,
-      qualityPositionals.projectPath,
-    ),
+    output: resolveOutputPath(parsedValues.output, projectPath),
     harness: parsedValues.harness === true,
     checkDrift: parsedValues["check-drift"] === true,
     checkContent: parsedValues["check-content"] === true,
@@ -719,6 +768,8 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
         : null,
     skillInteractive: command === "skill" && parsedValues.interactive === true,
     skillSkipConfirm: command === "skill" && parsedValues.yes === true,
+    eventsSubcommand: eventsPositionals.eventsSubcommand,
+    eventsLimit: parseEventsLimitArg(parsedValues.limit),
     all: parsedValues.all === true,
     dev: parsedValues.dev === true,
     help: parsedValues.help === true,
@@ -1380,6 +1431,20 @@ async function handleStatsCommand(options: ParsedCLI): Promise<void> {
   writeOutput(options, rendered.trimEnd());
 }
 
+/** Handle local evidence-envelope event reads. */
+async function handleEventsCommand(options: ParsedCLI): Promise<void> {
+  if (options.eventsSubcommand !== "tail") {
+    throw new CLIError("Usage: goat-flow events tail [path] [--limit 20]", 2);
+  }
+  const { tailEvidenceEvents } = await import("./evidence/envelope.js");
+  const events = tailEvidenceEvents(options.projectPath, options.eventsLimit);
+  if (options.format === "json") {
+    writeOutput(options, JSON.stringify(events, null, 2));
+    return;
+  }
+  writeOutput(options, events.map((event) => JSON.stringify(event)).join("\n"));
+}
+
 /** Handle the manifest command: resolve + print the single-source-of-truth manifest. */
 async function handleManifestCommand(options: ParsedCLI): Promise<void> {
   const { loadManifest, checkManifest, renderManifestMarkdown } =
@@ -1451,6 +1516,7 @@ const COMMAND_HANDLERS: Partial<
   install: handleInstallCommand,
   audit: handleAuditCommand,
   quality: handleQualityCommand,
+  events: handleEventsCommand,
   skill: handleSkillCommand,
   manifest: handleManifestCommand,
   stats: handleStatsCommand,

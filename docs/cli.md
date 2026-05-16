@@ -110,6 +110,18 @@ npx goat-flow stats --check               # CI gate for bucket hygiene
 npx goat-flow stats --format json         # Machine-readable report
 ```
 
+### `goat-flow events tail [path] [--limit <n>] [--format json]`
+
+Read the newest local evidence-envelope events from
+`.goat-flow/logs/events/*.jsonl`. Text output is JSONL for piping; `--format json`
+returns a pretty JSON array. Event records are checkout-local runtime continuity,
+not committed project knowledge.
+
+```bash
+npx goat-flow events tail . --limit 20
+npx goat-flow events tail . --limit 50 --format json
+```
+
 ### `goat-flow setup [path] --agent <id>`
 
 Generate a setup prompt adapted to the project's current state. Detects existing goat-flow installations and routes to upgrade path if appropriate.
@@ -167,6 +179,7 @@ Common tasks and the commands to run:
 | Get a harness quality prompt | `npx goat-flow quality . --agent claude --mode harness` |
 | Review quality trend history | `npx goat-flow quality history --agent claude` |
 | Compare two saved quality runs | `npx goat-flow quality diff --agent claude` |
+| Inspect local dashboard/session events | `npx goat-flow events tail . --limit 20` |
 | Generate a setup prompt | `npx goat-flow setup . --agent claude` |
 | Decide what kind of artifact to author | `npx goat-flow quality candidacy "..."` |
 | Scaffold a new skill | `npx goat-flow skill new "..." --name <slug>` |

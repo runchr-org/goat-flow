@@ -78,6 +78,21 @@ interface TerminalSpawnSpec {
   initialInput: string | null;
 }
 
+type TerminalTraceEventKind = "terminal.send" | "prompt.send";
+
+export interface TerminalTraceEvent {
+  eventKind: TerminalTraceEventKind;
+  sessionId: string;
+  projectPath: string;
+  cwd: string;
+  targetPath: string;
+  runner: Runner;
+  input: string;
+  bytes: number;
+}
+
+export type TerminalTraceSink = (event: TerminalTraceEvent) => void;
+
 /** Format a full prompt as one terminal paste submitted once to the runner. */
 function formatInitialPromptInput(prompt: string): string {
   return "\x1b[200~" + prompt + "\x1b[201~" + "\r";
@@ -242,6 +257,12 @@ function sendMessage(ws: WebSocket, msg: ServerMessage): void {
   }
 }
 
+function looksLikePromptSend(input: string): boolean {
+  return (
+    input.includes("\x1b[200~") || input.includes("\n") || input.length > 80
+  );
+}
+
 /** Manages PTY-backed terminal sessions for the dashboard */
 export class TerminalManager {
   private sessions = new Map<string, TerminalSession>();
@@ -250,10 +271,12 @@ export class TerminalManager {
   private nodePtyAvailable: boolean | null = null;
   private startedAt = Date.now();
   private idleTimeoutMs: number | null;
+  private readonly traceSink: TerminalTraceSink | null;
 
-  constructor(idleTimeoutMinutes?: number) {
+  constructor(idleTimeoutMinutes?: number, traceSink?: TerminalTraceSink) {
     const minutes = idleTimeoutMinutes ?? DEFAULT_IDLE_TIMEOUT_MINUTES;
     this.idleTimeoutMs = minutes === 0 ? null : minutes * 60 * 1000;
+    this.traceSink = traceSink ?? null;
     // Resolve all runner CLI paths at startup
     for (const profile of getAgentProfiles()) {
       const path = resolveCLIPath(profile.terminalBinary);
@@ -468,6 +491,10 @@ export class TerminalManager {
       if (msg.type === "input") {
         session.lastInputAt = Date.now();
         this.resetIdleTimer(session);
+        this.traceTerminalInput(session, "terminal.send", msg.data);
+        if (looksLikePromptSend(msg.data)) {
+          this.traceTerminalInput(session, "prompt.send", msg.data);
+        }
         session.pty?.write(msg.data);
       } else {
         session.pty?.resize(
@@ -568,6 +595,28 @@ export class TerminalManager {
       session.ws = null;
     }
     this.sessions.delete(session.id);
+  }
+
+  /** Emit redaction-ready input metadata; tracing errors never affect PTY writes. */
+  private traceTerminalInput(
+    session: TerminalSession,
+    eventKind: TerminalTraceEventKind,
+    input: string,
+  ): void {
+    try {
+      this.traceSink?.({
+        eventKind,
+        sessionId: session.id,
+        projectPath: session.projectPath,
+        cwd: session.cwd,
+        targetPath: session.targetPath,
+        runner: session.runner,
+        input,
+        bytes: Buffer.byteLength(input, "utf-8"),
+      });
+    } catch {
+      /* trace sink failures must not affect terminal input */
+    }
   }
 
   /** Reset the idle-timeout timer for a session. */

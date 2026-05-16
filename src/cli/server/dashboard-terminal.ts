@@ -24,6 +24,13 @@ import {
   TERMINAL_UPLOAD_MAX_FILES,
   uploadDirForSession,
 } from "./terminal-uploads.js";
+import {
+  recordEvidenceEvent,
+  type EvidenceEventKind,
+  type EvidencePayload,
+} from "../evidence/envelope.js";
+import { redactEvidenceText } from "../evidence/redaction.js";
+import type { TerminalTraceEvent } from "./terminal.js";
 
 type JsonResponder = (
   res: ServerResponse,
@@ -99,11 +106,37 @@ export function createDashboardTerminalHandlers(
   let wssPromise: Promise<WebSocketServer> | null = null;
   let closePromise: Promise<void> | null = null;
 
+  function recordTerminalEvent(
+    projectPath: string,
+    eventKind: EvidenceEventKind,
+    payload?: EvidencePayload,
+  ): void {
+    recordEvidenceEvent({
+      producer: "dashboard-session-trace",
+      actor: "server",
+      eventKind,
+      projectPath,
+      payload,
+    });
+  }
+
+  function recordTerminalTraceInput(event: TerminalTraceEvent): void {
+    recordTerminalEvent(event.projectPath, event.eventKind, {
+      session_id: event.sessionId,
+      runner: event.runner,
+      cwd: event.cwd,
+      target_path: event.targetPath,
+      bytes: event.bytes,
+      input: redactEvidenceText("terminal input", event.input),
+    });
+  }
+
   /** Lazy-load the terminal manager the first time a terminal route is used. */
   async function getManager(): Promise<TerminalManager> {
     if (!managerPromise) {
       managerPromise = import("./terminal.js").then(
-        ({ TerminalManager: TM }) => new TM(deps.idleTimeoutMinutes),
+        ({ TerminalManager: TM }) =>
+          new TM(deps.idleTimeoutMinutes, recordTerminalTraceInput),
       );
     }
     return managerPromise;
@@ -185,6 +218,20 @@ export function createDashboardTerminalHandlers(
         runner,
         { targetPath: targetPath || projectPath || absDefault },
       );
+      const resolvedTargetPath = targetPath || projectPath || absDefault;
+      recordTerminalEvent(resolvedTargetPath, "terminal.create", {
+        session_id: result.id,
+        runner,
+        cwd: projectPath || absDefault,
+        target_path: resolvedTargetPath,
+      });
+      if (prompt.trim().length > 0) {
+        recordTerminalEvent(resolvedTargetPath, "prompt.launch", {
+          session_id: result.id,
+          runner,
+          prompt: redactEvidenceText("terminal launch prompt", prompt),
+        });
+      }
       jsonResponse(res, 200, result);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -225,8 +272,20 @@ export function createDashboardTerminalHandlers(
     const id = url.pathname.slice("/api/terminal/".length);
     try {
       const manager = await getManager();
+      const session = manager.get(id);
       const killed = manager.kill(id);
-      if (killed) {
+      if (killed && session) {
+        recordTerminalEvent(
+          session.targetPath || session.projectPath,
+          "terminal.delete",
+          {
+            session_id: id,
+            runner: session.runner,
+            status: session.status,
+          },
+        );
+        jsonResponse(res, 200, { ok: true });
+      } else if (killed) {
         jsonResponse(res, 200, { ok: true });
       } else {
         jsonResponse(res, 404, { error: "Session not found" });
@@ -336,6 +395,13 @@ export function createDashboardTerminalHandlers(
 
       const result = persistUploads(uploadDir, decoded.value.files);
       const note = buildAttachmentNote(result.accepted);
+      recordTerminalEvent(session.targetPath, "terminal.upload", {
+        session_id: sessionId,
+        runner: session.runner,
+        accepted_count: result.accepted.length,
+        rejected_count: result.rejected.length,
+        bytes: result.accepted.reduce((total, file) => total + file.bytes, 0),
+      });
       jsonResponse(res, 200, {
         accepted: result.accepted.map((file) => ({
           originalName: file.originalName,

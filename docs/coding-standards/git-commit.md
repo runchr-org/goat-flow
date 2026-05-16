@@ -106,7 +106,8 @@ If preflight fails, fix the underlying issue. Do not bypass with `--no-verify`.
 - `.claude/settings.local.json` (user-specific, gitignored)
 - `.claude/projects/`, `.claude/worktrees/` (session data, gitignored)
 - `.goat-flow/logs/sessions/*.md`, `.goat-flow/logs/quality/*.json|*.md`,
-  `.goat-flow/logs/critiques/*.md` (workspace-local runtime state, gitignored)
+  `.goat-flow/logs/events/*.jsonl`, `.goat-flow/logs/critiques/*.md`
+  (workspace-local runtime state, gitignored)
 - Files containing secrets or credentials
 
 Committed under `.goat-flow/`: `.goat-flow/architecture.md`,

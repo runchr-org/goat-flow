@@ -48,6 +48,12 @@ import {
 } from "../quality/quality-config.js";
 import { composeArtifactQualityPrompt } from "../prompt/compose-quality.js";
 import { buildStatsReport, checkStats } from "../stats/stats.js";
+import {
+  recordEvidenceEvent,
+  type EvidenceEventKind,
+  type EvidencePayload,
+} from "../evidence/envelope.js";
+import { redactEvidenceText } from "../evidence/redaction.js";
 
 const KNOWN_AGENT_IDS = getKnownAgentIds();
 const KNOWN_AGENT_LIST = KNOWN_AGENT_IDS.join(", ");
@@ -1221,6 +1227,20 @@ export function createDashboardRouteHandlers(
     }
   >();
 
+  function recordDashboardEvent(
+    projectPath: string,
+    eventKind: EvidenceEventKind,
+    payload?: EvidencePayload,
+  ): void {
+    recordEvidenceEvent({
+      producer: "dashboard-session-trace",
+      actor: "server",
+      eventKind,
+      projectPath,
+      payload,
+    });
+  }
+
   function readQualityAuditCache(
     projectPath: string,
     agent: AgentId,
@@ -1596,6 +1616,12 @@ export function createDashboardRouteHandlers(
           const report = profiler.span("learning-loop enrichment", () =>
             enrichDashboardReport(cached.report, projectPath),
           );
+          recordDashboardEvent(projectPath, "audit.run", {
+            cached: true,
+            harness,
+            agent: agentFilter ?? "all",
+            status: report.status,
+          });
           jsonResponse(
             res,
             200,
@@ -1656,6 +1682,12 @@ export function createDashboardRouteHandlers(
         });
       }
 
+      recordDashboardEvent(projectPath, "audit.run", {
+        cached: false,
+        harness,
+        agent: agentFilter ?? "all",
+        status: report.status,
+      });
       jsonResponse(
         res,
         200,
@@ -1739,8 +1771,13 @@ export function createDashboardRouteHandlers(
       const output = composeSetup(auditReport, facts, agent, {
         denyMechanismEvidenceLevel: "static",
       });
+      const renderedOutput = output ?? "No setup output generated.";
+      recordDashboardEvent(projectPath, "setup.prompt", {
+        agent,
+        output: redactEvidenceText("setup prompt", renderedOutput),
+      });
       jsonResponse(res, 200, {
-        output: output ?? "No setup output generated.",
+        output: renderedOutput,
       });
     } catch (err) {
       jsonResponse(res, 500, {
@@ -1822,6 +1859,12 @@ export function createDashboardRouteHandlers(
         qualityMode,
         selectedProjectPath,
         sharedFacts,
+      });
+      recordDashboardEvent(projectPath, "quality.prompt", {
+        agent,
+        quality_mode: qualityMode,
+        audit_status: auditReport?.status ?? "unavailable",
+        prompt: redactEvidenceText("quality prompt", result.prompt),
       });
       jsonResponse(res, 200, result);
     } catch (err) {
@@ -2196,6 +2239,7 @@ export function createDashboardRouteHandlers(
           return true;
         }
         const { mkdir, rm, writeFile } = await import("node:fs/promises");
+        const previousState = await loadDashboardState();
         const nextState = hydrateDashboardState(
           {
             ...decoded.value,
@@ -2203,9 +2247,28 @@ export function createDashboardRouteHandlers(
           },
           { allowMarkerWrite: true },
         );
+        const previousPaths = new Set(previousState.paths);
+        const nextPaths = new Set(nextState.paths);
+        const removedCount = previousState.paths.filter(
+          (path) => !nextPaths.has(path),
+        ).length;
+        const addedCount = nextState.paths.filter(
+          (path) => !previousPaths.has(path),
+        ).length;
         await mkdir(join(absDefault, ".goat-flow"), { recursive: true });
         await writeFile(dashboardStateFile, JSON.stringify(nextState, null, 2));
         await rm(legacyProjectsListFile, { force: true });
+        recordDashboardEvent(absDefault, "project.save", {
+          project_count: nextState.paths.length,
+          favorite_count: nextState.favorites.length,
+          added_count: addedCount,
+          removed_count: removedCount,
+        });
+        if (removedCount > 0) {
+          recordDashboardEvent(absDefault, "project.remove", {
+            removed_count: removedCount,
+          });
+        }
         jsonResponse(res, 200, { ok: true });
       } catch (err) {
         jsonResponse(res, 400, { error: String(err) });
@@ -2253,6 +2316,22 @@ export function createDashboardRouteHandlers(
         };
       }
     });
+
+    if (paths.length === 1) {
+      const result = results[0];
+      if (
+        result &&
+        result.state !== "error" &&
+        typeof result.path === "string"
+      ) {
+        recordDashboardEvent(result.path, "project.switch", {
+          state: result.state,
+          identity: "identity" in result ? String(result.identity) : "",
+          identity_source:
+            "identitySource" in result ? String(result.identitySource) : "",
+        });
+      }
+    }
 
     jsonResponse(res, 200, { projects: results });
     return true;

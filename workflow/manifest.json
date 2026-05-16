@@ -8,6 +8,7 @@
     ".goat-flow/tasks/.gitignore",
     ".goat-flow/tasks/README.md",
     ".goat-flow/logs/quality/README.md",
+    ".goat-flow/logs/events/README.md",
     ".goat-flow/logs/critiques/README.md",
     ".goat-flow/logs/security/README.md",
     ".goat-flow/scratchpad/.gitignore",
@@ -39,6 +40,7 @@
     ".goat-flow/patterns/",
     ".goat-flow/logs/sessions/",
     ".goat-flow/logs/quality/",
+    ".goat-flow/logs/events/",
     ".goat-flow/logs/critiques/",
     ".goat-flow/logs/security/",
     ".goat-flow/scratchpad/",
@@ -53,6 +55,7 @@
     ".goat-flow/lessons/": "Committed behavioural mistake records. Use for real agent or workflow mistakes learned from incidents; these entries are durable project knowledge, not local session notes.",
     ".goat-flow/logs/sessions/": "Workspace-local, gitignored-by-design session logs. Continuity notes for the current checkout only; not part of committed project history. Only .gitkeep is committed.",
     ".goat-flow/logs/quality/": "Workspace-local, gitignored-by-design quality report history. Saved agent quality reports (JSON) and their captured prose companions (MD); feeds `goat-flow quality history`, `goat-flow quality diff`, and prior same-agent prompt context. Only README.md is committed.",
+    ".goat-flow/logs/events/": "Workspace-local, gitignored-by-design evidence envelope event log. Dashboard and future runtime producers append redacted JSONL records for local continuity; durable project knowledge must be promoted to lessons/, footguns/, or decisions/. Only README.md is committed.",
     ".goat-flow/logs/critiques/": "Workspace-local, gitignored-by-design critique run history. Phase 3 snapshots from `/goat-critique` runs persisted before the Phase 4 blocking gate so work survives session interruptions. Only README.md is committed.",
     ".goat-flow/logs/security/": "Workspace-local, gitignored-by-design security assessment history. Saved `/goat-security` run outputs for reference across sessions. Only README.md is committed.",
     ".goat-flow/scratchpad/": "Local, gitignored-by-design working notes. Session-scoped WIP; not a persistence gap. Durable project knowledge belongs in lessons/, footguns/, or decisions/. Transient continuity notes belong in logs/sessions/. Only README.md, .gitignore, and .gitkeep are committed.",
@@ -146,7 +149,11 @@
       "skills_dir": ".agents/skills/",
       "capabilities": {
         "terminal_binary": "codex",
-        "setup_surfaces": ["AGENTS.md", ".codex/config.toml", ".codex/hooks.json"],
+        "setup_surfaces": [
+          "AGENTS.md",
+          ".codex/config.toml",
+          ".codex/hooks.json"
+        ],
         "prompt_invocation_style": "dollar",
         "skill_source": "agent-mirror"
       },

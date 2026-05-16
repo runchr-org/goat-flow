@@ -8,6 +8,12 @@ The dashboard is a local privileged control plane. Each server process prints a 
 
 Read-only browsing and audit routes may still inspect arbitrary local paths selected in the UI after token authorization. Side-effectful routes are guarded by the same token boundary, and terminal creation still validates that the requested project path is an existing directory.
 
+Successful dashboard operations append redacted evidence-envelope records to
+`.goat-flow/logs/events/*.jsonl`. The trace records metadata such as terminal
+creation, prompt launch/send, audit runs, setup/quality prompt generation, and
+project list changes without storing full prompt text, terminal scrollback, or
+uploaded file contents. Inspect it with `goat-flow events tail . --limit 20`.
+
 ## Views
 
 The dashboard uses a persistent desktop side menu for primary navigation. The
