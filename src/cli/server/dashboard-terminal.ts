@@ -154,7 +154,8 @@ export function createDashboardTerminalHandlers(
 
   /** Map terminal-launch failures to the client-facing HTTP status codes we expose. */
   function terminalCreateStatus(message: string): number {
-    return message.includes("Maximum") ||
+    return message.includes("Local path validation failed") ||
+      message.includes("Maximum") ||
       message.includes("not found") ||
       message.includes("not available") ||
       message.includes("not a directory") ||
@@ -218,11 +219,13 @@ export function createDashboardTerminalHandlers(
         runner,
         { targetPath: targetPath || projectPath || absDefault },
       );
-      const resolvedTargetPath = targetPath || projectPath || absDefault;
+      const session = manager.get(result.id);
+      const resolvedTargetPath =
+        session?.targetPath ?? targetPath ?? projectPath ?? absDefault;
       recordTerminalEvent(resolvedTargetPath, "terminal.create", {
         session_id: result.id,
         runner,
-        cwd: projectPath || absDefault,
+        cwd: session?.cwd ?? projectPath ?? absDefault,
         target_path: resolvedTargetPath,
       });
       if (prompt.trim().length > 0) {

@@ -1220,11 +1220,11 @@ describe("dashboard /api/audit", () => {
     }
   });
 
-  it("returns 500 with JSON for a nonexistent project path", async () => {
+  it("returns 400 with JSON for a nonexistent project path", async () => {
     const { res, body } = await fetchJson(
       `/api/audit?path=${encodeURIComponent(MISSING_PATH)}`,
     );
-    assert.equal(res.status, 500);
+    assert.equal(res.status, 400);
 
     const error = expectRecord(body, "Audit error");
     assert.equal(typeof error.error, "string");
@@ -1301,11 +1301,23 @@ describe("dashboard /api/browse", () => {
     assert.ok(names.includes("src"), "Browse response should include src/");
   });
 
-  it("returns 500 with JSON for an unreadable path", async () => {
+  it("allows passive browsing of exact system roots without granting write capability", async () => {
+    if (process.platform === "win32") return;
+
+    const { res, body } = await fetchJson(
+      `/api/browse?path=${encodeURIComponent("/")}`,
+    );
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Browse root response");
+    assert.equal(data.current, "/");
+    assert.ok(Array.isArray(data.dirs));
+  });
+
+  it("returns 400 with JSON for an unreadable path", async () => {
     const { res, body } = await fetchJson(
       `/api/browse?path=${encodeURIComponent(MISSING_PATH)}`,
     );
-    assert.equal(res.status, 500);
+    assert.equal(res.status, 400);
 
     const data = expectRecord(body, "Browse error");
     assert.equal(typeof data.error, "string");
@@ -2240,6 +2252,24 @@ describe("dashboard /api/projects", () => {
     assert.equal(typeof data.error, "string");
   });
 
+  it("rejects exact shared temp roots when saving project state", async () => {
+    if (process.platform === "win32") return;
+
+    const { res, body } = await fetchJson("/api/projects/list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        paths: ["/tmp"],
+        favorites: [],
+        projectTitles: {},
+      }),
+    });
+    assert.equal(res.status, 400);
+    const data = expectRecord(body, "Projects list blocked-root error");
+    assert.match(String(data.error), /Local path validation failed/);
+    assert.doesNotMatch(String(data.error), /\/tmp/);
+  });
+
   it("returns 405 for unsupported project list methods", async () => {
     const { res, body } = await fetchJson("/api/projects/list", {
       method: "DELETE",
@@ -2270,6 +2300,23 @@ describe("dashboard /api/projects", () => {
     assert.equal(typeof project.state, "string");
     assert.equal(typeof project.action, "string");
     assert.equal(typeof project.details, "string");
+  });
+
+  it("reports blocked roots through the project status result", async () => {
+    if (process.platform === "win32") return;
+
+    const { res, body } = await fetchJson(
+      `/api/projects/status?paths=${encodeURIComponent("/tmp")}`,
+    );
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Projects status blocked-root response");
+    assert.ok(Array.isArray(data.projects));
+    const project = expectRecord(
+      (data.projects as unknown[])[0],
+      "Projects status blocked-root item",
+    );
+    assert.equal(project.state, "error");
+    assert.match(String(project.details), /Local path validation failed/);
   });
 
   it("resolves matching git remotes to one dashboard project identity", async () => {

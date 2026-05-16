@@ -1,6 +1,6 @@
 ---
 category: verification-testing
-last_reviewed: 2026-05-16
+last_reviewed: 2026-05-17
 ---
 
 ## Lesson: Browser terminal fixes need live runner proof, not just timer-unit proof
@@ -273,6 +273,8 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **What happened:** While removing one forbidden phrase and changing dashboard quality report ownership, the first full `npm test` run failed two contract-style checks: `test/contract/skill-hardening-contracts.test.ts` still required the established "hardening debt" evidence language, and `test/unit/preset-prompts.test.ts` still asserted the old relative quality-report path message.
 
 **Root cause:** I treated wording cleanup and path-semantics changes as local edits, but these surfaces are intentionally pinned by tests because agents consume the exact phrasing.
+
+**Recurrence 2026-05-17:** During M10 path validation hardening, the first full `npm test` run caught `test/smoke/dashboard-endpoints.test.ts` still asserting the old `Invalid project path` terminal error wording after `validateProjectPath` moved to the shared `LocalPathValidationError` contract. Evidence anchors: `src/cli/server/local-paths.ts` (search: `Local path validation failed`), `test/smoke/dashboard-endpoints.test.ts` (search: `rejects missing and file project paths before PTY launch`).
 
 **Prevention:** Before broad prose or prompt wording changes, search tests for the exact phrase and adjacent command text. If the product semantics are changing, update the contract test in the same edit; if the test protects unrelated established doctrine, keep that phrase intact.
 

@@ -3,8 +3,7 @@
  * It validates runner and project inputs, spawns CLI sessions, and brokers WebSocket traffic.
  */
 import { randomUUID } from "node:crypto";
-import { extname, resolve } from "node:path";
-import { statSync } from "node:fs";
+import { extname } from "node:path";
 import { execFileSync } from "node:child_process";
 import type { WebSocket } from "ws";
 import type {
@@ -17,6 +16,7 @@ import type {
 } from "./types.js";
 import { decodeClientMessage } from "./decoders.js";
 import { getAgentProfiles } from "../agents/registry.js";
+import { validateProjectPath } from "./local-paths.js";
 
 // node-pty types - optional dep, can't use static import
 /** Lazily imported node-pty module type */
@@ -220,24 +220,6 @@ function resolveCLIPath(name: string): string | null {
       return null;
     }
   }
-}
-
-/** Validate that a project path is safe to use as a CWD. */
-function validateProjectPath(projectPath: string): string {
-  const resolved = resolve(projectPath);
-
-  try {
-    const stat = statSync(resolved);
-    if (!stat.isDirectory()) {
-      throw new Error(`Invalid project path: not a directory`);
-    }
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("Invalid project path"))
-      throw err;
-    throw new Error(`Invalid project path: does not exist`);
-  }
-
-  return resolved;
 }
 
 /** Clamp a terminal dimension to a safe integer range. */

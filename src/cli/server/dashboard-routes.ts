@@ -54,6 +54,12 @@ import {
   type EvidencePayload,
 } from "../evidence/envelope.js";
 import { redactEvidenceText } from "../evidence/redaction.js";
+import {
+  LocalPathValidationError,
+  resolveLocalStatePath,
+  validateLocalPath,
+  type LocalPathPurpose,
+} from "./local-paths.js";
 
 const KNOWN_AGENT_IDS = getKnownAgentIds();
 const KNOWN_AGENT_LIST = KNOWN_AGENT_IDS.join(", ");
@@ -362,7 +368,7 @@ function buildDashboardTaskState(
   projectPath: string,
   requestedPlan: string | null,
 ): DashboardTaskState {
-  const taskRoot = join(projectPath, ".goat-flow", "tasks");
+  const taskRoot = resolveLocalStatePath(projectPath, "tasks");
   const taskRootStats = statOrNull(taskRoot);
   const active =
     readOptionalTextFile(join(taskRoot, ".active"))?.trim() || null;
@@ -442,7 +448,7 @@ function readActiveTaskPlanBody(body: string): string {
 }
 
 function writeActiveTaskPlan(projectPath: string, planName: string): void {
-  const taskRoot = join(projectPath, ".goat-flow", "tasks");
+  const taskRoot = resolveLocalStatePath(projectPath, "tasks");
   const taskRootStats = statOrNull(taskRoot);
   if (!taskRootStats?.isDirectory()) {
     throw new Error(".goat-flow/tasks does not exist for the selected project");
@@ -451,7 +457,10 @@ function writeActiveTaskPlan(projectPath: string, planName: string): void {
   if (!planNames.includes(planName)) {
     throw new Error(`task plan not found: ${planName}`);
   }
-  writeFileSync(join(taskRoot, ".active"), `${planName}\n`);
+  writeFileSync(
+    resolveLocalStatePath(projectPath, "tasks/.active"),
+    `${planName}\n`,
+  );
 }
 
 /** Resolve the managed agent list for dashboard aggregate audits. */
@@ -698,7 +707,6 @@ function hashString(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-const PROJECT_ID_RELATIVE_PATH = ".goat-flow/project-id";
 const PROJECT_ID_COMMENT =
   "# Local goat-flow dashboard project identity. Gitignored by default.";
 
@@ -819,10 +827,17 @@ export function resolveProjectIdentity(
 
   const goatFlowDir = join(currentPath, ".goat-flow");
   if (directoryExists(goatFlowDir)) {
-    const markerPath = join(currentPath, PROJECT_ID_RELATIVE_PATH);
+    let markerPath: string | null = null;
+    try {
+      markerPath = resolveLocalStatePath(currentPath, "project-id");
+    } catch (err) {
+      if (options.allowMarkerWrite) throw err;
+    }
     const markerId =
-      readProjectMarkerId(markerPath) ??
-      (options.allowMarkerWrite ? writeProjectMarkerId(markerPath) : null);
+      markerPath === null
+        ? null
+        : (readProjectMarkerId(markerPath) ??
+          (options.allowMarkerWrite ? writeProjectMarkerId(markerPath) : null));
     if (markerId) {
       return {
         identity: `goat-marker:${markerId}`,
@@ -1056,7 +1071,7 @@ interface AuditCacheEnvelope {
 function readConfigVersion(projectPath: string): string | null {
   try {
     const raw = readFileSync(
-      join(projectPath, ".goat-flow", "config.yaml"),
+      resolveLocalStatePath(projectPath, "config.yaml"),
       "utf-8",
     );
     const match = raw.match(/^version:\s*["']?([^\s"']+)["']?\s*$/m);
@@ -1110,7 +1125,7 @@ function readAuditCache(
 ): { report: DashboardReport; cachedAt: string } | null {
   try {
     const raw = readFileSync(
-      join(projectPath, ".goat-flow", AUDIT_CACHE_FILE),
+      resolveLocalStatePath(projectPath, AUDIT_CACHE_FILE),
       "utf-8",
     );
     const envelope = parseAuditCacheEnvelope(raw);
@@ -1144,7 +1159,7 @@ function writeAuditCache(
       report,
     };
     writeFileSync(
-      join(projectPath, ".goat-flow", AUDIT_CACHE_FILE),
+      resolveLocalStatePath(projectPath, AUDIT_CACHE_FILE),
       JSON.stringify(envelope),
     );
   } catch {
@@ -1211,14 +1226,12 @@ export function createDashboardRouteHandlers(
     jsonResponse,
     readBody,
   } = deps;
-  const dashboardStateFile = join(
+  const dashboardStateFile = resolveLocalStatePath(
     absDefault,
-    ".goat-flow",
     "dashboard-state.json",
   );
-  const legacyProjectsListFile = join(
+  const legacyProjectsListFile = resolveLocalStatePath(
     absDefault,
-    ".goat-flow",
     "dashboard-projects.json",
   );
   const qualityAuditCache = new Map<
@@ -1271,9 +1284,12 @@ export function createDashboardRouteHandlers(
     });
   }
 
-  /** Resolve a user-supplied path to an absolute path. */
-  function safeResolvePath(raw: string | null): string {
-    return resolve(raw || absDefault);
+  /** Validate a user-supplied local directory path for the requested operation. */
+  function validatedPath(
+    raw: string | null,
+    purpose: LocalPathPurpose,
+  ): string {
+    return validateLocalPath(raw || absDefault, purpose).path;
   }
 
   /** Read one optional string array property from a parsed dashboard state file. */
@@ -1475,12 +1491,8 @@ export function createDashboardRouteHandlers(
     return { paths: [], favorites: [], projectTitles: {}, projects: {} };
   }
 
-  /** Fail fast when an endpoint expects a real project directory. */
-  function requireProjectDirectory(projectPath: string): void {
-    const stats = statSync(projectPath);
-    if (!stats.isDirectory()) {
-      throw new Error(`${projectPath} is not a directory`);
-    }
+  function responseStatusForError(err: unknown, fallback: number): number {
+    return err instanceof LocalPathValidationError ? 400 : fallback;
   }
 
   /** Serve the dashboard shell and inject the default workspace path. */
@@ -1590,7 +1602,6 @@ export function createDashboardRouteHandlers(
   function handleAuditRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/audit") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
     const harness = url.searchParams.get("quality") === "true";
     const agentFilter = parseAgentFilter(url.searchParams.get("agent"));
     const fresh = url.searchParams.get("fresh") === "true";
@@ -1599,7 +1610,10 @@ export function createDashboardRouteHandlers(
     );
 
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       const auditCacheSignature = isCacheEligible(agentFilter, harness)
         ? profiler.span("cache signature", () =>
             buildAuditCacheSignature(projectPath, packageVersion),
@@ -1701,7 +1715,7 @@ export function createDashboardRouteHandlers(
     } catch (err) {
       jsonResponse(
         res,
-        500,
+        responseStatusForError(err, 500),
         appendAuditProfile(
           {
             error: err instanceof Error ? err.message : String(err),
@@ -1717,13 +1731,14 @@ export function createDashboardRouteHandlers(
   function handleSetupDetectRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/setup/detect") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
-
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       jsonResponse(res, 200, buildSetupDetectPayload(projectPath));
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1737,7 +1752,6 @@ export function createDashboardRouteHandlers(
   ): Promise<boolean> {
     if (url.pathname !== "/api/setup") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
     const agentParam = url.searchParams.get("agent");
     if (!agentParam) {
       jsonResponse(res, 400, {
@@ -1754,7 +1768,10 @@ export function createDashboardRouteHandlers(
 
     const agent = agentParam as AgentId;
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       const fs = createFS(projectPath);
       const configState = loadConfig(projectPath, fs);
       const facts = extractProjectFacts(fs, {
@@ -1782,7 +1799,7 @@ export function createDashboardRouteHandlers(
         output: renderedOutput,
       });
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1825,8 +1842,6 @@ export function createDashboardRouteHandlers(
       return true;
     }
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
-    const selectedProjectPath = safeResolvePath(url.searchParams.get("target"));
     const agent = agentParam as AgentId;
     const modeParam = url.searchParams.get("mode");
     const qualityMode = parseQualityModeParam(modeParam) ?? "agent-setup";
@@ -1841,7 +1856,14 @@ export function createDashboardRouteHandlers(
     }
 
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
+      const selectedProjectPath = validatedPath(
+        url.searchParams.get("target"),
+        "project-read",
+      );
       const fs = createFS(projectPath);
       const sharedFacts = extractSharedFacts(fs, loadConfig(projectPath, fs));
       const auditReport = getOrRunQualityAudit(projectPath, agent, {
@@ -1870,7 +1892,7 @@ export function createDashboardRouteHandlers(
       });
       jsonResponse(res, 200, result);
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1884,7 +1906,6 @@ export function createDashboardRouteHandlers(
   ): Promise<boolean> {
     if (url.pathname !== "/api/quality/history") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
     const agentParam = url.searchParams.get("agent");
     const agent =
       agentParam && VALID_AGENTS.has(agentParam)
@@ -1910,7 +1931,10 @@ export function createDashboardRouteHandlers(
     }
 
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       const { buildQualityHistoryRows, loadQualityHistoryWindow } =
         await import("../quality/history.js");
       const history = loadQualityHistoryWindow(projectPath, {
@@ -1935,7 +1959,7 @@ export function createDashboardRouteHandlers(
         warnings: history.warnings,
       });
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1949,7 +1973,6 @@ export function createDashboardRouteHandlers(
   ): boolean {
     if (url.pathname !== "/api/skill-quality/inventory") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
     const agent = parseRequiredAgentParam(
       url.searchParams.get("agent"),
       "skill-quality inventory",
@@ -1957,14 +1980,17 @@ export function createDashboardRouteHandlers(
     );
     if (!agent) return true;
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       const artifacts = discoverArtifacts(
         projectPath,
         runnerSkillQualityConfig(projectPath, agent),
       );
       jsonResponse(res, 200, { artifacts });
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1975,7 +2001,6 @@ export function createDashboardRouteHandlers(
   function handleSkillQualityRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/skill-quality") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
     const agent = parseRequiredAgentParam(
       url.searchParams.get("agent"),
       "skill-quality",
@@ -1992,7 +2017,10 @@ export function createDashboardRouteHandlers(
     }
 
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       const config = runnerSkillQualityConfig(projectPath, agent);
       const artifact = findArtifact(projectPath, artifactId, config);
       if (!artifact) {
@@ -2005,7 +2033,7 @@ export function createDashboardRouteHandlers(
       const prompt = composeArtifactQualityPrompt(report);
       jsonResponse(res, 200, { ...report, prompt });
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -2066,10 +2094,10 @@ export function createDashboardRouteHandlers(
       return true;
     }
     try {
-      const projectPath = safeResolvePath(
-        url.searchParams.get("path") ?? absDefault,
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
       );
-      requireProjectDirectory(projectPath);
       const result = decoded.value.files
         ? evaluateUploadedBundle(projectPath, {
             files: decoded.value.files,
@@ -2085,7 +2113,7 @@ export function createDashboardRouteHandlers(
       jsonResponse(res, 200, result);
     } catch (err) {
       if (isAlias) markEvaluateAliasDeprecation(res);
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -2096,8 +2124,8 @@ export function createDashboardRouteHandlers(
   function handleBrowseRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/browse") return false;
 
-    const dirPath = resolve(url.searchParams.get("path") || absDefault);
     try {
+      const dirPath = validatedPath(url.searchParams.get("path"), "browse");
       const entries = readdirSync(dirPath, { withFileTypes: true })
         .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
         .map((entry) => entry.name)
@@ -2112,7 +2140,7 @@ export function createDashboardRouteHandlers(
         dirs,
       });
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -2127,11 +2155,13 @@ export function createDashboardRouteHandlers(
   ): Promise<boolean> {
     if (url.pathname !== "/api/tasks") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
     const requestedPlan = url.searchParams.get("plan");
     if (req.method === "POST") {
       try {
-        requireProjectDirectory(projectPath);
+        const projectPath = validatedPath(
+          url.searchParams.get("path"),
+          "write-local-state",
+        );
         const planName = readActiveTaskPlanBody(await readBody(req));
         writeActiveTaskPlan(projectPath, planName);
         jsonResponse(res, 200, buildDashboardTaskState(projectPath, planName));
@@ -2152,14 +2182,17 @@ export function createDashboardRouteHandlers(
     }
 
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       jsonResponse(
         res,
         200,
         buildDashboardTaskState(projectPath, requestedPlan),
       );
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -2242,9 +2275,13 @@ export function createDashboardRouteHandlers(
         }
         const { mkdir, rm, writeFile } = await import("node:fs/promises");
         const previousState = await loadDashboardState();
+        const validatedProjectPaths = decoded.value.paths.map(
+          (path) => validateLocalPath(path, "write-local-state").path,
+        );
         const nextState = hydrateDashboardState(
           {
             ...decoded.value,
+            paths: validatedProjectPaths,
             projects: {},
           },
           { allowMarkerWrite: true },
@@ -2257,7 +2294,7 @@ export function createDashboardRouteHandlers(
         const addedCount = nextState.paths.filter(
           (path) => !previousPaths.has(path),
         ).length;
-        await mkdir(join(absDefault, ".goat-flow"), { recursive: true });
+        await mkdir(dirname(dashboardStateFile), { recursive: true });
         await writeFile(dashboardStateFile, JSON.stringify(nextState, null, 2));
         await rm(legacyProjectsListFile, { force: true });
         recordDashboardEvent(absDefault, "project.save", {
@@ -2273,7 +2310,9 @@ export function createDashboardRouteHandlers(
         }
         jsonResponse(res, 200, { ok: true });
       } catch (err) {
-        jsonResponse(res, 400, { error: String(err) });
+        jsonResponse(res, 400, {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
       return true;
     }
@@ -2299,7 +2338,8 @@ export function createDashboardRouteHandlers(
 
     const results = paths.map((p) => {
       try {
-        const identity = resolveProjectIdentity(p, {
+        const projectPath = validateLocalPath(p, "write-local-state").path;
+        const identity = resolveProjectIdentity(projectPath, {
           allowMarkerWrite: true,
         });
         const fs = createFS(identity.currentPath);

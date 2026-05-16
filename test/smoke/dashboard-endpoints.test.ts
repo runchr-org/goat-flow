@@ -188,12 +188,12 @@ describe("terminal exports", () => {
   it("rejects missing and file project paths before PTY launch", () => {
     assert.throws(
       () => validateProjectPath("/definitely/missing/goat-flow/project"),
-      /Invalid project path: does not exist/,
+      /Local path validation failed \(terminal-cwd\): missing/,
     );
     const currentFilePath = fileURLToPath(import.meta.url);
     assert.throws(
       () => validateProjectPath(currentFilePath),
-      /Invalid project path: not a directory/,
+      /Local path validation failed \(terminal-cwd\): not directory/,
     );
   });
 
