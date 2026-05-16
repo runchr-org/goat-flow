@@ -27,6 +27,13 @@ skills:
 # Opt-in: logs skill invocations to .goat-flow/logs/skill-usage.jsonl
 telemetry: false
 
+# ── Learning Loop Auto-Capture ──────────────────
+# Opt-in only: future automatic writes to durable lessons/footguns/patterns/decisions.
+learning-loop:
+  auto-capture:
+    enabled: false
+    targets: []
+
 # ── Line Limits ──────────────────────────────────
 # Instruction-file line limits used by audit quality checks.
 # Target is the preferred maximum; limit is the hard failure threshold.

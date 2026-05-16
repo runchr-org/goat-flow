@@ -77,6 +77,7 @@ export function stubConfig(
       },
       userRole: "developer",
       telemetry: false,
+      learningLoop: { autoCapture: { enabled: false, targets: [] } },
       knownGaps: [],
       skillOverrides: {},
       ...overrides,

@@ -638,6 +638,8 @@ function dashboardGlobalLaunchContext(
   const controllingWorkspace = dashboardControllingWorkspace();
   const mayWrite = preset?.mayWriteFiles === true;
   const presetPrompt = preset?.prompt.trim() ?? "";
+  // M07: launched prompts may suggest learning-loop follow-up, but automatic
+  // durable lesson/footgun/pattern/decision writes require opted-in CLI capture.
   const writeLine = mayWrite
     ? "Write behavior: this preset may write only after the prompt or user explicitly approves it."
     : "Write behavior: default to read-only analysis; do not write files in the selected target unless the user explicitly asks.";

@@ -9,6 +9,7 @@ import type { ReadonlyFS } from "../types.js";
 import { AUDIT_VERSION } from "../constants.js";
 import type {
   GoatFlowConfig,
+  LearningLoopAutoCaptureTarget,
   LoadedConfig,
   ValidationIssue,
   ValidationResult,
@@ -23,6 +24,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "toolchain",
   "userRole",
   "telemetry",
+  "learning-loop",
   "known-gaps",
   "skill-overrides",
   "harness",
@@ -50,6 +52,12 @@ const CONFIG_DEFAULTS: GoatFlowConfig = {
   },
   userRole: "developer",
   telemetry: false,
+  learningLoop: {
+    autoCapture: {
+      enabled: false,
+      targets: [],
+    },
+  },
   knownGaps: [],
   skillOverrides: {},
   terminal: { idleTimeoutMinutes: 480 },
@@ -77,6 +85,12 @@ function cloneDefaults(): GoatFlowConfig {
     },
     userRole: CONFIG_DEFAULTS.userRole,
     telemetry: CONFIG_DEFAULTS.telemetry,
+    learningLoop: {
+      autoCapture: {
+        enabled: CONFIG_DEFAULTS.learningLoop.autoCapture.enabled,
+        targets: [...CONFIG_DEFAULTS.learningLoop.autoCapture.targets],
+      },
+    },
     knownGaps: [...CONFIG_DEFAULTS.knownGaps],
     skillOverrides: { ...CONFIG_DEFAULTS.skillOverrides },
     terminal: { ...CONFIG_DEFAULTS.terminal },
@@ -145,10 +159,43 @@ function mergeToolchain(value: unknown, merged: GoatFlowConfig): void {
 /** Valid userRole values accepted in the config file. */
 const KNOWN_USER_ROLES = new Set(["developer", "investigator", "tester"]);
 
+/** Valid durable learning-loop targets accepted for future auto-capture. */
+const LEARNING_LOOP_AUTO_CAPTURE_TARGETS: ReadonlySet<string> =
+  new Set<LearningLoopAutoCaptureTarget>([
+    "lessons",
+    "footguns",
+    "patterns",
+    "decisions",
+  ]);
+
+/** Narrow one raw target string to the supported durable learning-loop kinds. */
+function isLearningLoopAutoCaptureTarget(
+  value: unknown,
+): value is LearningLoopAutoCaptureTarget {
+  return (
+    typeof value === "string" && LEARNING_LOOP_AUTO_CAPTURE_TARGETS.has(value)
+  );
+}
+
 /** Apply a valid userRole override from the raw config. */
 function mergeUserRole(value: unknown, merged: GoatFlowConfig): void {
   if (typeof value === "string" && KNOWN_USER_ROLES.has(value)) {
     merged.userRole = value as GoatFlowConfig["userRole"];
+  }
+}
+
+/** Apply future automatic learning-loop capture policy from the raw config. */
+function mergeLearningLoop(value: unknown, merged: GoatFlowConfig): void {
+  if (!isRecord(value)) return;
+  const autoCapture = value["auto-capture"];
+  if (!isRecord(autoCapture)) return;
+  if (typeof autoCapture.enabled === "boolean") {
+    merged.learningLoop.autoCapture.enabled = autoCapture.enabled;
+  }
+  if (Array.isArray(autoCapture.targets)) {
+    merged.learningLoop.autoCapture.targets = autoCapture.targets.filter(
+      isLearningLoopAutoCaptureTarget,
+    );
   }
 }
 
@@ -177,6 +224,7 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
   mergeToolchain(raw.toolchain, merged);
   mergeUserRole(raw.userRole, merged);
   if (typeof raw.telemetry === "boolean") merged.telemetry = raw.telemetry;
+  mergeLearningLoop(raw["learning-loop"], merged);
 
   // YAML key is `known-gaps` (kebab-case), TypeScript field is `knownGaps` (camelCase)
   if (Array.isArray(raw["known-gaps"])) {
@@ -457,6 +505,50 @@ function validateTelemetryField(
   }
 }
 
+/** Validate future automatic learning-loop capture policy when present. */
+function validateLearningLoopField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  validateObjectField(raw, "learning-loop", errors, (value) => {
+    if (!("auto-capture" in value)) return;
+    const autoCapture = value["auto-capture"];
+    if (!isRecord(autoCapture)) {
+      pushError(errors, "learning-loop.auto-capture", "must be an object");
+      return;
+    }
+
+    if ("enabled" in autoCapture && typeof autoCapture.enabled !== "boolean") {
+      pushError(
+        errors,
+        "learning-loop.auto-capture.enabled",
+        "must be a boolean",
+      );
+    }
+
+    if (!("targets" in autoCapture)) return;
+    if (!Array.isArray(autoCapture.targets)) {
+      pushError(
+        errors,
+        "learning-loop.auto-capture.targets",
+        "must be an array",
+      );
+      return;
+    }
+
+    for (const [index, target] of autoCapture.targets.entries()) {
+      if (!isLearningLoopAutoCaptureTarget(target)) {
+        pushError(
+          errors,
+          `learning-loop.auto-capture.targets[${index}]`,
+          `must be one of: ${Array.from(LEARNING_LOOP_AUTO_CAPTURE_TARGETS).join(", ")}`,
+        );
+      }
+    }
+  });
+}
+
 /** Validate the known-gaps field when present. */
 function validateKnownGapsField(
   raw: RawConfig,
@@ -510,6 +602,7 @@ const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateToolchainField,
   validateUserRoleField,
   validateTelemetryField,
+  validateLearningLoopField,
   validateKnownGapsField,
   validateSkillOverridesField,
   validateHarnessField,

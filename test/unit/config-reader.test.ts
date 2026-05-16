@@ -34,6 +34,8 @@ describe("config defaults when file is missing", () => {
     assert.equal(result.config.lineLimits.limit, 150);
     assert.equal(result.config.userRole, "developer");
     assert.deepStrictEqual(result.config.toolchain.test, []);
+    assert.equal(result.config.learningLoop.autoCapture.enabled, false);
+    assert.deepStrictEqual(result.config.learningLoop.autoCapture.targets, []);
   });
 });
 
@@ -55,6 +57,61 @@ toolchain:
     assert.deepStrictEqual(result.config.toolchain.test, ["npm test"]);
     assert.deepStrictEqual(result.config.toolchain.lint, ["eslint ."]);
     assert.deepStrictEqual(result.config.toolchain.build, ["tsc"]);
+  });
+});
+
+describe("config merges learning-loop auto-capture policy", () => {
+  it("defaults automatic capture to disabled with no targets", () => {
+    const result = loadConfig("/tmp", configFS(null));
+    assert.equal(result.valid, true);
+    assert.equal(result.config.learningLoop.autoCapture.enabled, false);
+    assert.deepStrictEqual(result.config.learningLoop.autoCapture.targets, []);
+  });
+
+  it("parses explicit automatic capture settings from YAML", () => {
+    const yaml = `
+version: "${AUDIT_VERSION}"
+learning-loop:
+  auto-capture:
+    enabled: true
+    targets:
+      - lessons
+      - footguns
+`;
+    const result = loadConfig("/tmp", configFS(yaml));
+    assert.equal(result.valid, true);
+    assert.equal(result.config.learningLoop.autoCapture.enabled, true);
+    assert.deepStrictEqual(result.config.learningLoop.autoCapture.targets, [
+      "lessons",
+      "footguns",
+    ]);
+  });
+
+  it("fails closed when automatic capture config is malformed", () => {
+    const yaml = `
+version: "${AUDIT_VERSION}"
+learning-loop:
+  auto-capture:
+    enabled: "yes"
+    targets:
+      - quality-reports
+`;
+    const result = loadConfig("/tmp", configFS(yaml));
+    assert.equal(result.valid, false);
+    assert.equal(result.config.learningLoop.autoCapture.enabled, false);
+    assert.deepStrictEqual(result.config.learningLoop.autoCapture.targets, []);
+    assert.ok(
+      result.errors.some(
+        (error) => error.path === "learning-loop.auto-capture.enabled",
+      ),
+      JSON.stringify(result.errors),
+    );
+    assert.ok(
+      result.errors.some(
+        (error) => error.path === "learning-loop.auto-capture.targets[0]",
+      ),
+      JSON.stringify(result.errors),
+    );
   });
 });
 

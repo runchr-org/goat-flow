@@ -218,6 +218,8 @@ const LOCAL_ARTIFACT_MARKERS = [
   "task-local",
 ] as const;
 
+// M07: quality prompts may request semantic anchors for durable follow-up, but
+// automatic tracked learning-loop writes belong to CLI-owned code after opt-in.
 function includesAnyMarker(text: string, markers: readonly string[]): boolean {
   return markers.some((marker) => text.includes(marker));
 }

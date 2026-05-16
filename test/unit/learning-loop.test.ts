@@ -60,6 +60,7 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
       },
       userRole: "developer",
       telemetry: false,
+      learningLoop: { autoCapture: { enabled: false, targets: [] } },
       knownGaps: [],
       skillOverrides: {},
       harness: { acknowledge: [] },
