@@ -7,7 +7,7 @@ last_reviewed: 2026-05-17
 
 **Status:** active | **Created:** 2026-05-16
 
-**What happened:** Bumped five milestones from `.goat-flow/tasks/1.7.0/` to `.goat-flow/tasks/1.8.0/` (M02, M06, M15, M16, M17) and reframed M11 from "observer event trail" to "evidence envelope + dashboard session trace". For each touched milestone I edited the Status/Depends-on header and (for M11) the Objective + Tasks, but left the rest of the body untouched. A subsequent Codex review caught five contradictions I should have caught before claiming done:
+**What happened:** Updated six milestone files across `.goat-flow/tasks/1.7.0/` and `.goat-flow/tasks/1.8.0/`: bumped five milestones (M02, M06, M15, M16, M17) and reframed M11 from "observer event trail" to "evidence envelope + dashboard session trace". For each touched milestone I edited the Status/Depends-on header and (for M11) the Objective + Tasks, but left the rest of the body untouched. A subsequent Codex review caught five contradictions I should have caught before claiming done:
 
 - **M09** got a new `**Status:** planned, conditional (doc-only)` header, but the Tasks list still required `assertAutoCaptureAllowed` helper, the Exit Criteria still demanded helper-bound enforcement, and the Manual Testing Gate still asked for helper-rejection scenarios — sending implementers in the opposite direction from the header.
 - **M14** still said `Depends on: none` even though it writes/removes files in agent skill mirror directories — clearly M13 (path validation) and M05 (manifest-backed capabilities) territory.

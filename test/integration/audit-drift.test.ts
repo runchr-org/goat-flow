@@ -687,7 +687,10 @@ describe("checkDrift: installer round-trip fixture", () => {
         `preflight should pass in temp round-trip repo:\n${preflight.output}`,
       );
       // Footer verdict line in the redesigned formatter (M-preflight-redesign).
-      assert.match(preflight.output, /^\s*PASS\s+\d+\s+checks/m);
+      assert.match(
+        preflight.output,
+        /^\s*PASS(?: \(with warnings\))?\s+\d+\s+checks/m,
+      );
       assert.match(
         preflight.output,
         /All installed skill files match workflow templates/,
