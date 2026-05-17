@@ -1987,19 +1987,19 @@ describe("dashboard terminal launch flow", () => {
       source,
       /x-text="launching \? 'Launching\.\.\.' : 'New terminal'"/,
     );
-    assert.match(
-      source,
-      /:style="\{ padding: sessionsCollapsed \? '8px 6px' : '0 12px' \}"/,
-    );
+    assert.match(source, /class="workspace-session-rail"/);
+    assert.match(source, /'is-collapsed': sessionsCollapsed/);
   });
 
   it("keeps the collapsed workspace rail actionable", () => {
     const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
-    assert.match(source, /title="Launch from prompts"/);
+    assert.match(source, /aria-label="New session"/);
     assert.match(source, /:key="'ws-collapsed-' \+ s\.id"/);
     assert.match(source, /@click="openSession\(s\)"/);
     assert.match(source, /:aria-label="'Open ' \+ sessionTitleFor\(s\)"/);
-    assert.match(source, /justify-content: flex-start;/);
+    assert.match(source, /class="workspace-session-dot"/);
+    assert.match(source, /:class="'is-' \+ sessionPipTone\(s\)"/);
+    assert.match(source, />Expand sessions</);
   });
 
   it("routes terminal upload notes to the originating session", () => {

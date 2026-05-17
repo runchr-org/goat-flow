@@ -610,6 +610,316 @@ body {
   box-shadow: 0 0 0 3px var(--red-bg);
 }
 
+/* --- Workspace session rail --- */
+.workspace-session-rail {
+  --workspace-rail-inset: 16px;
+  padding: 0;
+}
+.workspace-session-rail.is-collapsed {
+  padding: 8px 8px 12px;
+  overflow: visible;
+}
+.workspace-session-expanded {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding-top: 20px;
+}
+.workspace-session-heading,
+.workspace-session-launch,
+.workspace-session-footer {
+  padding-right: var(--workspace-rail-inset);
+  padding-left: var(--workspace-rail-inset);
+}
+.workspace-session-heading {
+  flex: 0 0 auto;
+  margin-bottom: 10px;
+}
+.workspace-session-list-scroll {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+  padding: 0 var(--workspace-rail-inset) 2px;
+}
+.workspace-session-card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.workspace-session-card {
+  position: relative;
+  padding: 12px;
+  border-left-width: 3px;
+  border-left-color: transparent;
+  cursor: pointer;
+}
+.workspace-session-card.is-active {
+  border-color: var(--accent-border);
+  border-left-color: var(--accent);
+  background: var(--accent-bg);
+}
+.workspace-session-card.is-waiting:not(.is-active) {
+  border-color: var(--amber-border);
+  background: var(--amber-bg);
+}
+.workspace-session-card-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+.workspace-session-title-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+.workspace-session-title {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+.workspace-agent-chip {
+  display: inline-flex;
+  max-width: 76px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border: 1px solid var(--workspace-agent-border, var(--border-subtle));
+  border-radius: 999px;
+  background: var(--workspace-agent-bg, var(--neutral-bg));
+  color: var(--workspace-agent-color, var(--text-secondary));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.workspace-agent-claude {
+  --workspace-agent-color: var(--purple-400);
+  --workspace-agent-bg: color-mix(in srgb, var(--purple-400) 12%, transparent);
+  --workspace-agent-border: color-mix(
+    in srgb,
+    var(--purple-400) 34%,
+    transparent
+  );
+}
+.workspace-agent-codex {
+  --workspace-agent-color: var(--green-400);
+  --workspace-agent-bg: var(--status-pass-bg);
+  --workspace-agent-border: var(--status-pass-border);
+}
+.workspace-agent-gemini {
+  --workspace-agent-color: var(--blue-400);
+  --workspace-agent-bg: color-mix(in srgb, var(--blue-400) 12%, transparent);
+  --workspace-agent-border: color-mix(
+    in srgb,
+    var(--blue-400) 34%,
+    transparent
+  );
+}
+.workspace-agent-copilot {
+  --workspace-agent-color: var(--ui-workflow-text);
+  --workspace-agent-bg: var(--ui-workflow-bg);
+  --workspace-agent-border: var(--ui-workflow-border);
+}
+.workspace-action-btn {
+  font-size: 11px;
+}
+.workspace-danger-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--red-400);
+  font-size: 11px;
+}
+.workspace-danger-ghost:hover {
+  border-color: var(--red-border);
+  background: var(--red-bg);
+  color: var(--red-400);
+}
+.workspace-session-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 11px;
+}
+.workspace-session-empty {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 10px 0 2px;
+  text-align: left;
+}
+.workspace-session-launch {
+  flex: 0 0 auto;
+  margin-top: 24px;
+}
+.workspace-session-collapsed {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  overflow: visible;
+  padding-top: 8px;
+}
+.workspace-collapsed-launch {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.workspace-collapsed-divider {
+  width: 28px;
+  height: 1px;
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+  background: var(--border-subtle);
+}
+.workspace-collapsed-stack {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  overflow-y: auto;
+  overflow-x: visible;
+  padding-bottom: 4px;
+}
+.workspace-session-dot-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.workspace-session-dot-btn:hover {
+  background: var(--neutral-bg);
+}
+.workspace-session-dot-btn.is-active {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.workspace-session-dot {
+  position: relative;
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--workspace-agent-border, var(--border-default));
+  border-radius: 999px;
+  background: var(--workspace-agent-color, var(--text-muted));
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--surface-base) 28%, transparent);
+}
+.workspace-session-pip {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--surface-base);
+  border-radius: 999px;
+  background: var(--status-recent);
+}
+.workspace-session-pip.is-running {
+  background: var(--green-400);
+  animation: workspace-session-pulse 1.6s ease-in-out infinite;
+}
+.workspace-session-pip.is-waiting {
+  background: var(--amber-400);
+}
+.workspace-session-pip.is-error {
+  background: var(--red-400);
+}
+.workspace-session-pip.is-idle {
+  background: var(--status-recent);
+}
+.workspace-session-tooltip {
+  white-space: normal;
+}
+.workspace-floating-dot-tooltip {
+  bottom: auto;
+  z-index: 60;
+  opacity: 0;
+  visibility: hidden;
+}
+.workspace-floating-dot-tooltip.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(0, -50%);
+  transition:
+    opacity 0.14s ease 0.22s,
+    transform 0.14s ease 0.22s,
+    visibility 0s linear 0.22s;
+}
+.workspace-session-footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding-top: 24px;
+  padding-bottom: 12px;
+}
+.workspace-session-rail.is-collapsed .workspace-session-footer {
+  padding: 12px 0 0;
+}
+.workspace-footer-tooltip-wrap,
+.workspace-session-toggle {
+  width: 100%;
+}
+.workspace-session-toggle {
+  justify-content: flex-start;
+}
+.workspace-session-rail.is-collapsed .workspace-session-toggle {
+  width: 40px;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+}
+.workspace-session-toggle-glyph {
+  display: inline-flex;
+  width: 16px;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+}
+@keyframes workspace-session-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--status-pass-bg);
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--status-pass-bg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-session-pip.is-running {
+    animation: none;
+  }
+}
+
 /* --- Tags --- */
 .gf-tags {
   display: flex !important;
@@ -920,25 +1230,72 @@ body {
   bottom: calc(100% + 8px);
   z-index: 20;
   width: 240px;
-  padding: 8px 10px;
+  padding: 6px 10px;
   border: 1px solid var(--border-default);
   border-radius: 8px;
-  background: var(--surface-deep);
+  background: var(--surface-base);
   color: var(--text-primary);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
   font-size: 12px;
   line-height: 1.4;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
   transform: translateY(4px);
   transition:
-    opacity 0.12s,
-    transform 0.12s;
+    opacity 0.14s ease,
+    transform 0.14s ease,
+    visibility 0s linear 0.14s;
 }
 .gf-tooltip-wrap:hover .gf-tooltip,
 .gf-tooltip-wrap:focus-within .gf-tooltip {
   opacity: 1;
+  visibility: visible;
   transform: translateY(0);
+  transition:
+    opacity 0.14s ease 0.22s,
+    transform 0.14s ease 0.22s,
+    visibility 0s linear 0.22s;
+}
+.gf-tooltip-right {
+  left: calc(100% + 8px);
+  top: 50%;
+  bottom: auto;
+  width: max-content;
+  min-width: 0;
+  max-width: 260px;
+  transform: translate(-4px, -50%);
+  white-space: nowrap;
+}
+.gf-tooltip-right::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  transform: translateY(-50%) rotate(45deg);
+  border-left: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--surface-base);
+}
+.gf-tooltip-wrap:hover .gf-tooltip-right,
+.gf-tooltip-wrap:focus-within .gf-tooltip-right {
+  transform: translate(0, -50%);
+}
+.gf-tooltip-secondary {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gf-tooltip,
+  .gf-tooltip-wrap:hover .gf-tooltip,
+  .gf-tooltip-wrap:focus-within .gf-tooltip {
+    transition: none;
+  }
 }
 .gf-tag-input {
   display: flex;

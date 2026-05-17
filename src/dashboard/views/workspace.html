@@ -4,6 +4,7 @@
   x-cloak
   style="height: calc(100vh - 3.5rem); overflow: hidden"
   x-data="{
+	    collapsedSessionTooltip: null,
 	    localSessionRows() {
 	      return this.sessions.filter((s) => !s.ended).map((s) => ({
 	        id: s.id,
@@ -45,6 +46,13 @@
 	    sessionTone(s) { return this.sessionIsWaiting(s) ? 'waiting' : (s.status === 'active' ? 'running' : 'recent'); },
 	    sessionGlyph(s) { return this.sessionIsWaiting(s) ? '!' : (s.status === 'active' ? '●' : '○'); },
 	    sessionStatusLabel(s) { return this.sessionIsWaiting(s) ? 'Waiting' : (s.status === 'active' ? 'Running' : 'Recent'); },
+	    sessionPipTone(s) {
+	      const local = this.sessions.find((item) => item.id === s.id);
+	      if (local && local.loadingPhase === 'error') return 'error';
+	      if (this.sessionIsWaiting(s)) return 'waiting';
+	      if (s.status === 'active') return 'running';
+	      return 'idle';
+	    },
 	    waitingSessions() {
 	      return this.allSessions().filter(s => this.sessionIsWaiting(s));
 	    },
@@ -58,6 +66,34 @@
 	    },
 	    sessionMeta(s) {
 	      return [s.projectName || projectName, s.runner, this.ageLabel(s)].filter(Boolean).join(' · ');
+	    },
+	    sessionProjectAgeMeta(s) {
+	      return [s.projectName || projectName, this.ageLabel(s)].filter(Boolean).join(' · ');
+	    },
+	    sessionTooltipMeta(s) {
+	      return [s.runner, this.ageLabel(s)].filter(Boolean).join(' · ');
+	    },
+	    sessionAgentClass(s) {
+	      return 'workspace-agent-' + (s.runner || 'unknown');
+	    },
+	    showCollapsedSessionTooltip(event, s) {
+	      const rail = event.currentTarget.closest('.workspace-session-collapsed');
+	      const buttonRect = event.currentTarget.getBoundingClientRect();
+	      const railRect = rail ? rail.getBoundingClientRect() : buttonRect;
+	      this.collapsedSessionTooltip = {
+	        id: s.id,
+	        title: this.sessionTitleFor(s),
+	        meta: this.sessionTooltipMeta(s),
+	        top: buttonRect.top - railRect.top + (buttonRect.height / 2)
+	      };
+	    },
+	    hideCollapsedSessionTooltip(s) {
+	      if (!this.collapsedSessionTooltip || this.collapsedSessionTooltip.id === s.id) {
+	        this.collapsedSessionTooltip = null;
+	      }
+	    },
+	    collapsedSessionTooltipStyle() {
+	      return { top: (this.collapsedSessionTooltip ? this.collapsedSessionTooltip.top : 0) + 'px' };
 	    },
 	    openSession(s) {
 	      if (this.confirmEndSessionId === s.id) return;
@@ -146,18 +182,13 @@
     </div>
 
     <div
-      :style="{ gridTemplateColumns: sessionsCollapsed ? '52px minmax(0, 1fr)' : 'minmax(0, 15rem) minmax(0, 1fr)' }"
-      style="
-        display: grid;
-        gap: 12px;
-        flex: 1;
-        min-height: 0;
-        transition: grid-template-columns 200ms ease;
-      "
+      :style="{ gridTemplateColumns: sessionsCollapsed ? '64px minmax(0, 1fr)' : '220px minmax(0, 1fr)' }"
+      style="display: grid; gap: 12px; flex: 1; min-height: 0"
     >
       <!-- Left rail -->
       <div
-        :style="{ padding: sessionsCollapsed ? '8px 6px' : '0 12px' }"
+        class="workspace-session-rail"
+        :class="{ 'is-collapsed': sessionsCollapsed }"
         style="
           display: flex;
           flex-direction: column;
@@ -165,52 +196,44 @@
           min-width: 0;
           height: 100%;
           box-sizing: border-box;
-          overflow: hidden;
+          overflow: visible;
           border-right: 1px solid var(--border-subtle);
           background: var(--surface-base);
-          transition:
-            padding 200ms ease,
-            background 150ms ease;
         "
       >
         <div
           id="workspace-session-sidebar-content"
           x-show="!sessionsCollapsed"
-          x-transition.opacity.duration.150ms
-          style="display: flex; flex-direction: column; min-height: 0; flex: 1"
+          class="workspace-session-expanded"
         >
-          <div
-            style="
-              display: flex;
-              flex-direction: column;
-              min-height: 0;
-              flex: 1 1 auto;
-              overflow-y: auto;
-              gap: 24px;
-              padding-right: 4px;
-            "
-          >
+          <section class="workspace-session-heading">
+            <div class="section-label">
+              ACTIVE
+              <span class="gf-section-count"
+                >· <span x-text="allSessions().length"></span
+              ></span>
+            </div>
+          </section>
+          <div class="workspace-session-list-scroll scrollbar">
             <section>
-              <div class="section-label" style="margin-bottom: 8px">
-                ACTIVE
-                <span class="gf-section-count"
-                  >· <span x-text="allSessions().length"></span
-                ></span>
+              <div
+                x-show="allSessions().length === 0"
+                class="gf-empty-state workspace-session-empty"
+              >
+                <p>No sessions yet &mdash; launch one from prompts</p>
               </div>
               <div
-                class="scrollbar"
-                style="display: flex; flex-direction: column; gap: 8px"
+                x-show="allSessions().length > 0"
+                class="workspace-session-card-stack"
               >
                 <template x-for="s in allSessions()" :key="'ws-s-' + s.id">
                   <div
                     @click="openSession(s)"
-                    class="gf-card"
-                    :style="{
-                    padding: '12px',
-                    cursor: 'pointer',
-                    borderColor: s.id === activeSessionId ? 'var(--accent-border)' : (sessionIsWaiting(s) ? 'var(--amber-border)' : 'var(--border-default)'),
-                    background: s.id === activeSessionId ? 'var(--accent-bg)' : (sessionIsWaiting(s) ? 'var(--amber-bg)' : undefined)
-                  }"
+                    class="gf-card workspace-session-card"
+                    :class="{
+                      'is-active': s.id === activeSessionId,
+                      'is-waiting': sessionIsWaiting(s)
+                    }"
                   >
                     <div
                       style="
@@ -227,28 +250,19 @@
                         x-text="sessionGlyph(s)"
                         style="margin-top: 2px"
                       ></span>
-                      <div
-                        style="
-                          min-width: 0;
-                          flex: 1;
-                          display: flex;
-                          flex-direction: column;
-                          gap: 4px;
-                        "
-                      >
-                        <div
-                          class="gf-text-primary"
-                          style="
-                            min-width: 0;
-                            overflow: hidden;
-                            text-overflow: ellipsis;
-                            white-space: nowrap;
-                            font-size: 13px;
-                            font-weight: 600;
-                          "
-                          :title="sessionTitleFor(s)"
-                          x-text="sessionTitleFor(s)"
-                        ></div>
+                      <div class="workspace-session-card-body">
+                        <div class="workspace-session-title-row">
+                          <div
+                            class="gf-text-primary workspace-session-title"
+                            :title="sessionTitleFor(s)"
+                            x-text="sessionTitleFor(s)"
+                          ></div>
+                          <span
+                            class="workspace-agent-chip"
+                            :class="sessionAgentClass(s)"
+                            x-text="s.runner"
+                          ></span>
+                        </div>
                         <p
                           class="gf-text-muted"
                           style="
@@ -258,8 +272,8 @@
                             font-size: 12px;
                             margin: 0;
                           "
-                          :title="sessionMeta(s)"
-                          x-text="sessionMeta(s)"
+                          :title="sessionProjectAgeMeta(s)"
+                          x-text="sessionProjectAgeMeta(s)"
                         ></p>
                         <p
                           x-show="s.cwd && s.cwd !== s.projectPath"
@@ -286,33 +300,49 @@
                             padding-top: 6px;
                           "
                         >
-                          <button
+                          <span
                             x-show="isSessionBoundLocally(s.id)"
-                            @click.stop="exportSession(s.id)"
-                            class="gf-btn gf-btn-sm gf-btn-text"
-                            style="font-size: 11px"
+                            class="gf-tooltip-wrap"
                           >
-                            Export
-                          </button>
-                          <button
-                            @click.stop="confirmEndSessionId = (confirmEndSessionId === s.id ? null : s.id)"
-                            class="gf-btn gf-btn-sm gf-btn-text"
-                            style="font-size: 11px; color: var(--red-400)"
-                          >
-                            End
-                          </button>
+                            <button
+                              @click.stop="exportSession(s.id)"
+                              class="gf-btn gf-btn-sm gf-btn-ghost workspace-action-btn"
+                              type="button"
+                              :aria-describedby="'ws-export-tip-' + s.id"
+                            >
+                              Export
+                            </button>
+                            <span
+                              :id="'ws-export-tip-' + s.id"
+                              class="gf-tooltip gf-tooltip-right"
+                              role="tooltip"
+                              >Export session</span
+                            >
+                          </span>
+                          <span class="gf-tooltip-wrap">
+                            <button
+                              @click.stop="confirmEndSessionId = (confirmEndSessionId === s.id ? null : s.id)"
+                              class="gf-btn gf-btn-sm workspace-danger-ghost"
+                              type="button"
+                              :aria-describedby="'ws-end-tip-' + s.id"
+                            >
+                              End
+                            </button>
+                            <span
+                              :id="'ws-end-tip-' + s.id"
+                              class="gf-tooltip gf-tooltip-right"
+                              role="tooltip"
+                              >End session</span
+                            >
+                          </span>
                         </div>
                       </div>
                     </div>
                     <div
                       x-show="confirmEndSessionId === s.id"
-                      style="
-                        margin-top: 7px;
-                        display: flex;
-                        justify-content: flex-end;
-                        gap: 6px;
-                      "
+                      class="workspace-session-confirm"
                     >
+                      <span class="gf-text-muted">End this session?</span>
                       <button
                         @click.stop="endServerSession(s.id); confirmEndSessionId = null"
                         class="gf-btn gf-btn-sm gf-btn-danger"
@@ -321,7 +351,7 @@
                       </button>
                       <button
                         @click.stop="confirmEndSessionId = null"
-                        class="gf-btn gf-btn-sm"
+                        class="gf-btn gf-btn-sm gf-btn-secondary"
                       >
                         No
                       </button>
@@ -385,7 +415,7 @@
             </section>
           </div>
 
-          <div style="margin-top: 12px; padding-top: 12px">
+          <div class="workspace-session-launch">
             <button
               @click="activeView = 'prompts'; $nextTick(() => { $refs.presetSearchInput && $refs.presetSearchInput.focus(); })"
               class="gf-btn gf-btn-md gf-btn-primary"
@@ -396,154 +426,109 @@
           </div>
         </div>
 
-        <div
-          x-show="sessionsCollapsed"
-          x-transition.opacity.duration.150ms
-          style="
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            align-items: center;
-            gap: 8px;
-            flex: 1;
-            min-height: 0;
-            overflow: hidden;
-            padding-top: 8px;
-          "
-        >
-          <button
-            @click="activeView = 'prompts'; $nextTick(() => { $refs.presetSearchInput && $refs.presetSearchInput.focus(); })"
-            class="gf-btn gf-btn-sm gf-btn-primary"
-            type="button"
-            title="Launch from prompts"
-            aria-label="Launch from prompts"
-            style="
-              width: 36px;
-              height: 36px;
-              padding: 0;
-              justify-content: center;
-              flex-shrink: 0;
-            "
-          >
-            <span aria-hidden="true">+</span>
-          </button>
-          <div
-            x-show="allSessions().length > 0"
-            style="
-              width: 28px;
-              height: 1px;
-              background: var(--border-subtle);
-              flex-shrink: 0;
-            "
-          ></div>
-          <div
-            class="scrollbar"
-            style="
-              width: 100%;
-              min-height: 0;
-              overflow-y: auto;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 8px;
-              padding-bottom: 4px;
-            "
-          >
+        <div x-show="sessionsCollapsed" class="workspace-session-collapsed">
+          <span class="gf-tooltip-wrap">
+            <button
+              @click="activeView = 'prompts'; $nextTick(() => { $refs.presetSearchInput && $refs.presetSearchInput.focus(); })"
+              class="gf-btn gf-btn-sm gf-btn-primary workspace-collapsed-launch"
+              type="button"
+              aria-label="New session"
+              aria-describedby="workspace-new-session-tip"
+            >
+              <span aria-hidden="true">+</span>
+            </button>
+            <span
+              id="workspace-new-session-tip"
+              class="gf-tooltip gf-tooltip-right"
+              role="tooltip"
+              >New session</span
+            >
+          </span>
+          <div class="workspace-collapsed-divider"></div>
+          <div class="workspace-collapsed-stack scrollbar">
             <template x-for="s in allSessions()" :key="'ws-collapsed-' + s.id">
-              <button
-                @click="openSession(s)"
-                class="gf-btn gf-btn-sm gf-btn-secondary"
-                type="button"
-                :title="sessionTitleFor(s) + ' · ' + sessionMeta(s)"
-                :aria-label="'Open ' + sessionTitleFor(s)"
-                :style="{
-                  width: '36px',
-                  height: '36px',
-                  padding: '0',
-                  justifyContent: 'center',
-                  borderRadius: '8px',
-                  borderColor: s.id === activeSessionId ? 'var(--accent-border)' : (sessionIsWaiting(s) ? 'var(--amber-border)' : 'var(--border-default)'),
-                  background: s.id === activeSessionId ? 'var(--accent-bg)' : (sessionIsWaiting(s) ? 'var(--amber-bg)' : undefined)
-                }"
-              >
-                <span
-                  class="gf-status-dot"
-                  :class="'gf-status-' + sessionTone(s)"
-                  :aria-label="sessionStatusLabel(s)"
-                  x-text="sessionGlyph(s)"
-                  style="margin: 0"
-                ></span>
-              </button>
+              <span class="gf-tooltip-wrap">
+                <button
+                  @click="openSession(s)"
+                  @mouseenter="showCollapsedSessionTooltip($event, s)"
+                  @focus="showCollapsedSessionTooltip($event, s)"
+                  @mouseleave="hideCollapsedSessionTooltip(s)"
+                  @blur="hideCollapsedSessionTooltip(s)"
+                  class="workspace-session-dot-btn"
+                  type="button"
+                  :class="{ 'is-active': s.id === activeSessionId }"
+                  :aria-label="'Open ' + sessionTitleFor(s)"
+                  aria-describedby="workspace-collapsed-session-tip"
+                >
+                  <span
+                    class="workspace-session-dot"
+                    :class="sessionAgentClass(s)"
+                    aria-hidden="true"
+                  >
+                    <span
+                      class="workspace-session-pip"
+                      :class="'is-' + sessionPipTone(s)"
+                    ></span>
+                  </span>
+                </button>
+              </span>
             </template>
           </div>
-        </div>
-
-        <div
-          style="
-            border-top: 1px solid var(--border-subtle);
-            padding-top: 8px;
-            flex-shrink: 0;
-          "
-        >
-          <button
-            @click="sessionsCollapsed = !sessionsCollapsed"
-            class="gf-btn gf-btn-md gf-btn-secondary"
-            type="button"
-            :aria-expanded="(!sessionsCollapsed).toString()"
-            aria-controls="workspace-session-sidebar-content"
-            :title="sessionsCollapsed ? 'Open sidebar' : 'Close sidebar'"
-            :style="{ width: '100%', justifyContent: sessionsCollapsed ? 'center' : 'flex-start', padding: sessionsCollapsed ? '8px 0' : '8px 10px' }"
+          <span
+            id="workspace-collapsed-session-tip"
+            class="gf-tooltip gf-tooltip-right workspace-session-tooltip workspace-floating-dot-tooltip"
+            :class="{ 'is-visible': collapsedSessionTooltip }"
+            :style="collapsedSessionTooltipStyle()"
+            role="tooltip"
           >
             <span
-              aria-hidden="true"
-              style="
-                display: inline-flex;
-                width: 18px;
-                height: 18px;
-                flex-shrink: 0;
-              "
-            >
-              <svg
-                x-show="!sessionsCollapsed"
-                role="img"
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                width="100%"
-                height="100%"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fill="currentColor"
-                  fill-rule="evenodd"
-                  d="M9.749 5.244c.309.3.333.773.071 1.1l-.071.079L6.07 10l3.679 3.577c.309.3.333.774.071 1.1l-.071.079a.876.876 0 0 1-1.131.07l-.081-.07-4.286-4.167a.816.816 0 0 1-.071-1.1l.071-.078 4.286-4.167a.875.875 0 0 1 1.212 0zm6 0c.309.3.333.773.071 1.1l-.071.079L12.07 10l3.679 3.577c.309.3.333.774.071 1.1l-.071.079a.876.876 0 0 1-1.131.07l-.081-.07-4.286-4.167a.816.816 0 0 1-.071-1.1l.071-.078 4.286-4.167a.875.875 0 0 1 1.212 0z"
-                ></path>
-              </svg>
-              <svg
-                x-show="sessionsCollapsed"
-                role="img"
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                width="100%"
-                height="100%"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fill="currentColor"
-                  fill-rule="evenodd"
-                  d="M11.382 5.175l.081.07L15.75 9.41c.309.3.333.773.071 1.1l-.071.078-4.286 4.167a.875.875 0 0 1-1.212 0 .816.816 0 0 1-.071-1.1l.071-.079L13.93 10l-3.679-3.577a.816.816 0 0 1-.071-1.1l.071-.079a.876.876 0 0 1 1.131-.07zm-6 0l.081.07L9.75 9.41c.309.3.333.773.071 1.1l-.071.078-4.286 4.167a.875.875 0 0 1-1.212 0 .816.816 0 0 1-.071-1.1l.071-.079L7.93 10 4.251 6.423a.816.816 0 0 1-.071-1.1l.071-.079a.876.876 0 0 1 1.131-.07z"
-                ></path>
-              </svg>
-            </span>
-            <span
-              x-show="!sessionsCollapsed"
-              x-text="sessionsCollapsed ? 'Open sidebar' : 'Close sidebar'"
+              x-text="collapsedSessionTooltip ? collapsedSessionTooltip.title : ''"
             ></span>
+            <span
+              class="gf-tooltip-secondary"
+              x-text="collapsedSessionTooltip ? collapsedSessionTooltip.meta : ''"
+            ></span>
+          </span>
+        </div>
+
+        <div class="workspace-session-footer">
+          <span class="gf-tooltip-wrap workspace-footer-tooltip-wrap">
+            <button
+              @click="sessionsCollapsed = !sessionsCollapsed"
+              class="gf-btn gf-btn-md gf-btn-secondary workspace-session-toggle"
+              type="button"
+              :aria-expanded="(!sessionsCollapsed).toString()"
+              aria-controls="workspace-session-sidebar-content"
+              :aria-label="sessionsCollapsed ? 'Expand sessions' : 'Collapse sidebar'"
+              :aria-describedby="sessionsCollapsed ? 'workspace-expand-tip' : 'workspace-collapse-tip'"
+            >
+              <span
+                aria-hidden="true"
+                class="workspace-session-toggle-glyph"
+                x-text="sessionsCollapsed ? '»' : '«'"
+              ></span>
+              <span x-show="!sessionsCollapsed" x-text="'Close sidebar'"></span>
+              <span
+                x-show="sessionsCollapsed"
+                class="sr-only"
+                x-text="'Expand sessions'"
+              ></span>
+            </button>
             <span
               x-show="sessionsCollapsed"
-              class="sr-only"
-              x-text="sessionsCollapsed ? 'Open sidebar' : 'Close sidebar'"
-            ></span>
-          </button>
+              id="workspace-expand-tip"
+              class="gf-tooltip gf-tooltip-right"
+              role="tooltip"
+              >Expand sessions</span
+            >
+            <span
+              x-show="!sessionsCollapsed"
+              id="workspace-collapse-tip"
+              class="gf-tooltip gf-tooltip-right"
+              role="tooltip"
+              >Collapse sidebar</span
+            >
+          </span>
         </div>
       </div>
 
