@@ -58,7 +58,7 @@ describe("dashboard side navigation", () => {
     );
     assert.match(
       sideMenu,
-      />\s*Managers\s*<[\s\S]*>\s*Hooks\s*<[\s\S]*>\s*Memory\s*<[\s\S]*>\s*Playbooks\s*<[\s\S]*>\s*Skills\s*<[\s\S]*>\s*Tasks\s*</,
+      />\s*Managers\s*<[\s\S]*>\s*Hooks\s*<[\s\S]*>\s*Memory\s*<[\s\S]*>\s*Playbooks\s*<[\s\S]*>\s*Skills\s*<[\s\S]*>\s*Plans\s*</,
     );
     assert.match(
       sideMenu,
@@ -77,7 +77,7 @@ describe("dashboard side navigation", () => {
       "Memory",
       "Playbooks",
       "Skills",
-      "Tasks",
+      "Plans",
       "Projects",
       "Quality",
       "Setup",
@@ -113,7 +113,7 @@ describe("dashboard side navigation", () => {
     );
   });
 
-  it("keeps project switching in the header and includes Tasks plus Coming Soon views", () => {
+  it("keeps project switching in the header and includes Plans plus Coming Soon views", () => {
     const html = read(DASHBOARD_INDEX_PATH);
     const tasksView = read(TASKS_VIEW_PATH);
     const comingSoonView = read(COMING_SOON_VIEW_PATH);
@@ -131,7 +131,7 @@ describe("dashboard side navigation", () => {
       tasksView,
       /\$dispatch\('gf-set-active-task-plan', \{ planName: plan\.name \}\)/,
     );
-    assert.match(tasksView, /What active task plan means/);
+    assert.match(tasksView, /What active plan means/);
     assert.match(tasksView, /Active is the default work plan/);
     assert.match(tasksView, /Set active plan/);
     assert.match(comingSoonView, /x-show="isComingSoonView\(\)"/);

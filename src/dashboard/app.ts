@@ -1214,10 +1214,7 @@ function app() {
       } catch (err) {
         if (this.projectPath !== requestProjectPath) return;
         this.tasksError = err instanceof Error ? err.message : String(err);
-        this.showToast(
-          this.tasksError || "Active plan update failed",
-          true,
-        );
+        this.showToast(this.tasksError || "Active plan update failed", true);
       } finally {
         if (
           this.projectPath === requestProjectPath &&
