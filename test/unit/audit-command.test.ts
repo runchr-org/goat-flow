@@ -13,7 +13,11 @@ import {
   runAuditBatch,
   createAuditFactsView,
 } from "../../src/cli/audit/audit.js";
-import { renderAuditText } from "../../src/cli/audit/render.js";
+import {
+  renderAuditJson,
+  renderAuditMarkdown,
+  renderAuditText,
+} from "../../src/cli/audit/render.js";
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
@@ -2309,6 +2313,56 @@ describe("M01 scoring model", () => {
         "docs/harness-audit.md",
       ),
       "framework evidence paths should be labelled separately from target paths",
+    );
+  });
+
+  it("harness check results carry structured details for dashboard consumers", () => {
+    const ctx = makeCtx();
+    const { scope } = computeHarness(ctx);
+
+    const docs = scope.checks.find((c) => c.id === "doc-paths-resolve")!;
+    assert.deepEqual(docs.details?.docPaths, {
+      totalPaths: 0,
+      resolvedCount: 0,
+      unresolved: [],
+    });
+
+    const lineCounts = scope.checks.find(
+      (c) => c.id === "instruction-line-count",
+    )!;
+    assert.deepEqual(lineCounts.details?.lineCounts, [
+      {
+        agent: "claude",
+        actual: 100,
+        target: 125,
+        hardLimit: 150,
+      },
+    ]);
+
+    const parsed = JSON.parse(renderAuditJson(makeReportWithDetails(scope)));
+    assert.equal(
+      parsed.scopes.harness.checks.some(
+        (check: { details?: unknown }) => check.details !== undefined,
+      ),
+      true,
+    );
+  });
+
+  it("markdown audit rendering ignores structured details", () => {
+    const { scope } = computeHarness(makeCtx());
+    const reportWithDetails = makeReportWithDetails(scope);
+    const reportWithoutDetails = makeReportWithDetails({
+      ...scope,
+      checks: scope.checks.map((check) => {
+        const next = { ...check };
+        delete next.details;
+        return next;
+      }),
+    });
+
+    assert.equal(
+      renderAuditMarkdown(reportWithDetails),
+      renderAuditMarkdown(reportWithoutDetails),
     );
   });
 

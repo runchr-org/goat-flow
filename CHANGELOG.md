@@ -1,22 +1,52 @@
 # Changelog
 
-## v1.7.0 - 2026-05-18
+## v1.7.0 - 2026-05-19
 
+Harness audit enrichment, dashboard Plans workspace, and learning-loop bounding release.
+
+### Harness audit
+
+- **SARIF audit output** - `goat-flow audit --format sarif` now exports deterministic audit findings as SARIF 2.1.0 for CI and code-scanning integrations, including stable rule metadata, acknowledged advisory suppressions, no-location fallback behavior, and optional drift/content findings without changing audit pass/fail semantics.
+- **Agent enforcement capability matrix** - Audit JSON/text and dashboard agent detail panels now expose an advisory per-agent matrix for hard, limited, soft, missing, and unknown local enforcement evidence. The matrix separates deny-hook/setup facts from broader file read/write claims, which remain unknown unless evidence-backed, and it does not change audit pass/fail gates.
+- **Structured audit detail payloads** - Harness check results now preserve structured `details` for line counts, execution-loop coverage, documentation path resolution, deny coverage, and recovery/session evidence so dashboard and JSON consumers can inspect detail without parsing finding strings.
+- **Evidence envelope event log** - Added a shared `EvidenceEnvelope` contract that adapts audit provenance, dashboard session-trace producers for redacted local runtime events, `goat-flow events tail`, and setup routing for `.goat-flow/logs/events/*.jsonl`.
+- **Evidence-before-claims metric** - Harness adds `evidence-before-claims` as a score-only Verification metric covering red-flags coverage in all present agent instruction files.
+
+### Manifest, registry, and config
+
+- **Manifest-backed agent capabilities** - `workflow/manifest.json` now carries per-agent terminal binaries, setup surfaces, prompt invocation style, and skill-source classification; registry, manifest validation, setup/quality prompts, terminal launch hints, dashboard readers, custom prompts, and docs consume that data instead of parallel hardcoded lists.
+- **Agent allowlists no longer required in config** - The installer keeps `.goat-flow/config.yaml` free of agent allowlists by default. Dashboard Home and aggregate `goat-flow audit .` now read the supported-agent registry directly and always cover Claude, Codex, Gemini, and Copilot. Use `--agent <id>` when you intentionally want one agent. Legacy `agents:` entries in existing configs are accepted and ignored.
 - **Removed legacy `detectAgents` helper** - `src/cli/detect/agents.ts` no longer exports the unused `detectAgents` function; all callers route through the supported-agent registry directly.
-- **Dashboard Tasks view and active plan controls** - Dashboard now exposes `.goat-flow/tasks/` milestones through `/api/tasks`, adds a Tasks workspace view with milestone progress and plan preview, and supports setting the active task plan from the UI.
-- **Dashboard side navigation refresh** - Workspace navigation moved to a collapsible side rail with icon labels, responsive layout polish, collapsed-state tooltips, an active-task tooltip, and clearer Projects/Prompts/New Prompt placement.
+
+### Dashboard workspace
+
+- **Plans workspace view and active plan controls** - Dashboard now exposes `.goat-flow/tasks/` milestones through `/api/tasks`, adds a Plans workspace view with milestone progress and plan preview, and supports setting the active plan from the UI. The view, side-nav entry, error messages, and tests use "Plans" terminology consistently.
+- **Workspace session UI accessibility** - Workspace session list adds collapsed-rail tooltips, an active-session pip with status tone, per-agent class hooks, runner-aware tooltip metadata, and tighter session metadata layout.
+- **Drag-and-drop image attachments** - Workspace terminal sessions accept images dropped onto the terminal pane and attach them to the next prompt.
+- **Side navigation refresh** - Workspace navigation moved to a collapsible side rail with icon labels, responsive layout polish, collapsed-state tooltips, an active-plan tooltip, and clearer Projects / Prompts / New Prompt placement.
 - **Stable dashboard project identity** - Saved project titles, favorites, and project rows now migrate to identity-keyed records using git remote hash, local `.goat-flow/project-id` marker, then path fallback so dashboard state survives common repo moves and duplicate checkout paths.
+- **Hardened local-path validation** - Dashboard endpoints route project, prompt, and upload paths through a shared `LocalPathValidationError` contract with consistent rejection wording, stricter symlink handling, and explicit unit + integration coverage for missing, file-typed, and traversal paths.
+- **Dashboard scope trim for harness pages** - Placeholder side-menu destinations for Context, Constraints, Verification, Recovery, Feedback Loop, Hooks, Memory, Playbooks, and Telemetry were removed from 1.7.0. The dashboard now keeps only backed destinations in the rail: Home, Prompts, Workspace, Skill Evaluator, Plans, Projects, Quality, and Setup. Dedicated harness and manager pages are deferred to 1.8.0.
+
+### Dashboard foundations
+
+- **Dashboard safe-exec foundation** - Added a shared allow-listed, no-shell, timeout-bounded command executor for future dashboard routes and exported the route inventory/side-effect registry with tests that catch missing CSRF classifications.
+- **Dashboard markdown renderer foundation** - Added the `markdown-it` dashboard dependency, build asset copy, and `window.renderMarkdown` wrapper with raw HTML disabled and simple frontmatter parsing for future Markdown-backed views.
+
+### Learning loop
+
 - **Bounded learning-loop context** - Quality prompts for setup and harness assessments now receive a deterministic `<goat-learning-loop>` block selected from parsed footguns, lessons, patterns, and decisions with per-kind caps, stale-ref filtering, and explicit budget metadata instead of broad-loading bucket files.
 - **Learning-loop auto-capture policy** - Config now exposes disabled-by-default `learning-loop.auto-capture` settings with strict validation, and setup references document Extract / Consolidate / Skip before any future automatic writer.
-- **Evidence envelope event log** - Added a shared `EvidenceEnvelope` contract that adapts audit provenance, dashboard session-trace producers for redacted local runtime events, `goat-flow events tail`, and setup routing for `.goat-flow/logs/events/*.jsonl`.
-- **Agent enforcement capability matrix** - Audit JSON/text and dashboard agent detail panels now expose an advisory per-agent matrix for hard, limited, soft, missing, and unknown local enforcement evidence. The matrix separates deny-hook/setup facts from broader file read/write claims, which remain unknown unless evidence-backed, and it does not change audit pass/fail gates.
-- **Manifest-backed agent capabilities** - `workflow/manifest.json` now carries per-agent terminal binaries, setup surfaces, prompt invocation style, and skill-source classification; registry, manifest validation, setup/quality prompts, terminal launch hints, dashboard readers, custom prompts, and docs consume that data instead of parallel hardcoded lists.
-- **Preflight coverage reporting** - Preflight reports overall line/branch/function coverage from the fast test suite alongside pass/fail.
-- **Evidence-before-claims metric** - Harness adds `evidence-before-claims` as a score-only Verification metric covering red-flags coverage in all present agent instruction files.
 - **Verification documentation refresh** - Verification lessons and related docs now capture the current evidence-before-claims, stale-test, and manifest-backed refactor prevention patterns from the May 16 work.
+
+### Engineering quality
+
+- **Preflight coverage reporting** - Preflight reports overall line/branch/function coverage from the fast test suite alongside pass/fail.
 - **Mutation testing helper** - Added an opt-in `scripts/mutation-test.sh` StrykerJS helper with an interactive target menu, local `@stryker-mutator/core` dev dependency, sandbox ignores for goat-flow local state, and a mutation-safe fast-suite dry run.
-- **SARIF audit output** - `goat-flow audit --format sarif` now exports deterministic audit findings as SARIF 2.1.0 for CI and code-scanning integrations, including stable rule metadata, acknowledged advisory suppressions, no-location fallback behavior, and optional drift/content findings without changing audit pass/fail semantics.
-- **Release propagation** - Package/config/manifest, instruction files, skill templates and installed mirrors, shared references, playbooks, fixtures, docs sample output, and manifest snapshot catalog bumped to 1.7.0. Manifest snapshot `v1.7.0.json` frozen.
+
+### Release propagation
+
+- Package/config/manifest, instruction files, skill templates and installed mirrors, shared references, playbooks, fixtures, docs sample output, and manifest snapshot catalog bumped to 1.7.0. Manifest snapshot `v1.7.0.json` frozen.
 
 ## v1.6.4 - 2026-05-12
 

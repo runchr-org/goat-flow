@@ -209,6 +209,16 @@ function dashboardOutputLooksAwaitingInput(text: string): boolean {
   );
 }
 
+/** Return true for single-frame runner status redraws that should not clear waiting state. */
+function dashboardOutputLooksTransientStatusRedraw(text: string): boolean {
+  const plain = dashboardPlainTerminalText(text).trim();
+  if (!plain) return true;
+  if (/^\r[^\n\r]*$/u.test(text)) return true;
+  return /^[✻✢✳✶*•·]?\s*(?:Thinking|Processing|Checking|Reading|Searching)\b/iu.test(
+    plain,
+  );
+}
+
 /** Heuristic for a freshly launched runner reaching its interactive prompt. */
 function dashboardOutputLooksReadyForLaunchPrompt(
   text: string,
@@ -259,8 +269,16 @@ function dashboardNextAwaitingInputState(
   const chunkHasText =
     dashboardPlainTerminalText(outputChunk).trim().length > 0;
   if (dashboardOutputLooksAwaitingInput(outputChunk)) return true;
-  if (chunkHasText) return false;
-  return previousAwaiting && dashboardOutputLooksAwaitingInput(nextTail);
+  const tailStillAwaiting = dashboardOutputLooksAwaitingInput(nextTail);
+  if (!chunkHasText) return previousAwaiting && tailStillAwaiting;
+  if (
+    previousAwaiting &&
+    tailStillAwaiting &&
+    dashboardOutputLooksTransientStatusRedraw(outputChunk)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 /** Mutate the Alpine-backed local session and the launch-time reference together. */

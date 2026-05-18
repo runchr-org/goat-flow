@@ -15,6 +15,11 @@
  */
 import { spawn } from "node:child_process";
 import { performance } from "node:perf_hooks";
+import {
+  recordEvidenceEvent,
+  type EvidenceEnvelopeWriteOptions,
+  type EvidenceEventKind,
+} from "../evidence/envelope.js";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_STDOUT_CAP_BYTES = 1_048_576; // 1 MB
@@ -48,6 +53,13 @@ export interface ExecOptions {
   stdoutCapBytes?: number;
   /** Optional cap on captured stderr bytes. Defaults to 1 MB. */
   stderrCapBytes?: number;
+  /** Optional local evidence event for spawned command completion. */
+  evidence?: {
+    projectPath: string;
+    eventKind?: EvidenceEventKind;
+    producer?: string;
+    onWarning?: EvidenceEnvelopeWriteOptions["onWarning"];
+  };
 }
 
 export interface ExecResult {
@@ -130,6 +142,33 @@ function capBuffer(
   };
 }
 
+function recordExecEvidence(opts: ExecOptions, result: ExecResult): void {
+  if (!opts.evidence) return;
+  recordEvidenceEvent(
+    {
+      actor: "server",
+      eventKind: opts.evidence.eventKind ?? "audit.exec",
+      producer: opts.evidence.producer ?? "safe-exec",
+      projectPath: opts.evidence.projectPath,
+      payload: {
+        command: result.commandBasename,
+        ok: result.ok,
+        exitCode: result.exitCode,
+        signal: result.signal,
+        timedOut: result.timedOut,
+        truncated: result.truncated,
+        durationMs: result.durationMs,
+      },
+      provenance: {
+        framework_evidence_paths: ["src/cli/server/safe-exec.ts"],
+        reason:
+          "safe-exec records command completion without args, stdout, or stderr",
+      },
+    },
+    { onWarning: opts.evidence.onWarning },
+  );
+}
+
 /** Run a single command with strict allow-listing, no shell, and a timeout. */
 export function execSafely(opts: ExecOptions): Promise<ExecResult> {
   const allowList = opts.allowList;
@@ -210,6 +249,7 @@ export function execSafely(opts: ExecOptions): Promise<ExecResult> {
         durationMs: Number((performance.now() - start).toFixed(2)),
         commandBasename,
       };
+      recordExecEvidence(opts, result);
       resolveExec(result);
     }
 

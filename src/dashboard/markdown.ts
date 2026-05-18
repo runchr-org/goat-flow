@@ -76,10 +76,16 @@ function buildRenderer(): (
       frontmatter: null,
     });
   }
-  const instance = md({
+  const defaultInstance = md({
     html: false,
     linkify: true,
     breaks: true,
+    typographer: false,
+  });
+  const noBreaksInstance = md({
+    html: false,
+    linkify: true,
+    breaks: false,
     typographer: false,
   });
   return (text: string, opts: RenderMarkdownOptions = {}) => {
@@ -92,6 +98,7 @@ function buildRenderer(): (
         body = body.slice(match[0].length);
       }
     }
+    const instance = opts.breaks === false ? noBreaksInstance : defaultInstance;
     return { html: instance.render(body), frontmatter };
   };
 }

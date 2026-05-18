@@ -30,6 +30,7 @@ export type EvidenceEventKind =
   | "terminal.send"
   | "prompt.launch"
   | "prompt.send"
+  | "audit.exec"
   | "audit.run"
   | "setup.prompt"
   | "quality.prompt"

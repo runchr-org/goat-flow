@@ -16,19 +16,25 @@ uploaded file contents. Inspect it with `goat-flow events tail . --limit 20`.
 
 ## Views
 
-The dashboard uses a persistent desktop side menu for primary navigation. The
-header stays focused on the current project switcher, runner switcher, and
-utility actions.
+The dashboard uses a persistent desktop side rail for primary navigation. The
+rail collapses to icon-only with hover tooltips, exposes an active-plan tooltip
+when collapsed, and keeps Projects, Prompts, and New Prompt grouped together.
+The header stays focused on the current project switcher, runner switcher, and
+utility actions. The 1.7.0 release scopes the rail to backed destinations only:
+Home, Prompts, Workspace, Skill Evaluator, Plans, Projects, Quality, and Setup.
+Dedicated harness and manager pages are deferred to 1.8.0.
 
 ### Home
 
 Overview landing page. Shows an active-sessions strip, a four-pill rollup for install, harness, learning-loop, and quality status, plus a priority-driven Next Action card based on the latest audit and quality history. The agent grid compares harness health across supported agents and expands per-agent details, including an advisory enforcement matrix for hard, limited, soft, missing, and unknown local enforcement evidence. The lower row summarizes install state with a health ring and lists recent lesson entries. Run a new audit or re-audit after changes without leaving the page; the healthy state still presents a Next Action card rather than replacing actions with a banner.
 
-### Tasks
+### Plans
 
-Task milestone browser for the selected project. Shows the active plan marker,
-task directories, milestone status, and checkbox progress. The plan list can
-update `.goat-flow/tasks/.active` for the selected project.
+Plans milestone browser for the selected project. Surfaces `.goat-flow/tasks/`
+plan directories, milestone status, and checkbox progress. The plan list can
+update `.goat-flow/tasks/.active` for the selected project. The `/api/tasks`
+backing endpoint and on-disk `.goat-flow/tasks/` directory keep their original
+names.
 
 ### Quality
 
@@ -62,7 +68,7 @@ Good default presets to start with:
 
 ### Workspace
 
-Split layout focused on terminal work. The left **Sessions rail** lists all running terminal sessions (up to 10) grouped by current project first then other projects, with single-click session switching, runner/age/idle/detached indicators, inline-confirm `End`, an `End all` footer, and a `+ New session` shortcut that jumps to Prompts. The right pane is the active xterm.js terminal. The rail uses `x-transition` on collapse/expand.
+Split layout focused on terminal work. The left **Sessions rail** lists all running terminal sessions (up to 10) grouped by current project first then other projects, with single-click session switching, runner/age/idle/detached indicators, inline-confirm `End`, an `End all` footer, and a `+ New session` shortcut that jumps to Prompts. The right pane is the active xterm.js terminal. The rail uses `x-transition` on collapse/expand, supports collapsed-state tooltips, and exposes per-agent class hooks plus an active-session pip with status tone for accessibility. Drag and drop images onto the terminal pane to attach them to the next prompt (uploads go through `/api/terminal/:id/upload-image`).
 
 ### Settings
 
@@ -98,8 +104,8 @@ All `/api/*` requests require the dashboard token described in [Local Access Bou
 | `/api/skill-quality` | GET | Score one installed skill/reference artifact and return the metric breakdown plus a runner-prompt preview |
 | `/api/agents/installed` | GET | Detect installed agent runtimes |
 | `/api/browse` | GET | Directory browsing for the dashboard's path picker (project directories only, no hidden entries) |
-| `/api/tasks` | GET | Task milestone state for the selected project |
-| `/api/tasks` | POST | Set the selected project's active task plan in `.goat-flow/tasks/.active` |
+| `/api/tasks` | GET | Plan milestone state for the selected project |
+| `/api/tasks` | POST | Set the selected project's active plan in `.goat-flow/tasks/.active` |
 | `/api/projects/list` | GET | List registered projects from saved dashboard state, including identity-keyed project records |
 | `/api/projects/list` | POST | Save the dashboard's registered project list and migrate it to identity-keyed records |
 | `/api/projects/status` | GET | Project state classification (`bare`/`partial`/`v0.9`/`outdated`/`current`/`error`) plus dashboard project identity |

@@ -16,6 +16,7 @@
 	        runner: s.runner,
 	        lastInputAt: s.lastInputTime,
 	        awaitingInput: s.awaitingInput === true,
+	        waitingForRunner: s.connected === true && s.ended !== true && s.awaitingInput !== true && s.loadingPhase !== 'ready' && s.loadingPhase !== 'error' && ((s.outputTail || '').length === 0),
 	        age: Math.max(0, Math.floor((Date.now() - s.startTime) / 1000)),
 	        idleDuration: Math.max(0, Math.floor((Date.now() - s.lastInputTime) / 1000)),
 	        projectName: this.displayNameFor(s.projectPath)
@@ -41,7 +42,7 @@
 	      }).slice(0, 4);
 	    },
 	    sessionIsWaiting(s) {
-	      return s.awaitingInput === true || (typeof s.idleDuration === 'number' && this.idleTimeoutMinutes > 0 && s.idleDuration >= Math.floor(this.idleTimeoutMinutes * 0.85) * 60);
+	      return s.awaitingInput === true || s.waitingForRunner === true || (typeof s.idleDuration === 'number' && this.idleTimeoutMinutes > 0 && s.idleDuration >= Math.floor(this.idleTimeoutMinutes * 0.85) * 60);
 	    },
 	    sessionTone(s) { return this.sessionIsWaiting(s) ? 'waiting' : (s.status === 'active' ? 'running' : 'recent'); },
 	    sessionGlyph(s) { return this.sessionIsWaiting(s) ? '!' : (s.status === 'active' ? '●' : '○'); },
@@ -56,7 +57,10 @@
 	    waitingSessions() {
 	      return this.allSessions().filter(s => this.sessionIsWaiting(s));
 	    },
-	    meterRunning() { return this.allSessions().filter(s => s.status === 'active').length; },
+	    runningSessions() {
+	      return this.allSessions().filter(s => s.status === 'active' && !this.sessionIsWaiting(s));
+	    },
+	    meterRunning() { return this.runningSessions().length; },
 	    meterRecent() { return this.recentSessions().length; },
 	    meterWaiting() { return this.waitingSessions().length; },
 	    ageLabel(s) {
@@ -627,9 +631,9 @@
               <div style="display: flex; gap: 10px; min-width: 0">
                 <span
                   class="gf-status-dot"
-                  :class="terminalConnected ? 'gf-status-running' : 'gf-status-recent'"
-                  :aria-label="terminalConnected ? 'Running' : 'Disconnected'"
-                  x-text="terminalConnected ? '●' : '○'"
+                  :class="(terminalWaitingForRunner || terminalAwaitingInput) ? 'gf-status-waiting' : (terminalConnected ? 'gf-status-running' : 'gf-status-recent')"
+                  :aria-label="(terminalWaitingForRunner || terminalAwaitingInput) ? 'Waiting' : (terminalConnected ? 'Running' : 'Disconnected')"
+                  x-text="(terminalWaitingForRunner || terminalAwaitingInput) ? '!' : (terminalConnected ? '●' : '○')"
                   style="margin-top: 4px"
                 ></span>
                 <div style="min-width: 0">

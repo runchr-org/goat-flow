@@ -60,6 +60,9 @@ interface AuditCheckProvenance {
   reason?: string;
 }
 
+/** Structured harness detail payloads are forwarded verbatim for dashboard pages. */
+type AuditCheckDetails = Record<string, unknown>;
+
 /** Individual check result inside an audit scope. */
 interface AuditCheck {
   id: string;
@@ -73,6 +76,7 @@ interface AuditCheck {
   evidenceKind?: AuditCheckEvidenceKind;
   assurance?: AuditCheckAssurance;
   failure?: AuditFailure;
+  details?: AuditCheckDetails;
 }
 
 /** Audit scope as returned by the /api/audit endpoint. */

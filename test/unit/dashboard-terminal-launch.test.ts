@@ -1677,6 +1677,14 @@ describe("dashboard terminal launch flow", () => {
       false,
     );
     assert.equal(
+      helpers.dashboardNextAwaitingInputState(true, prompt, "\r✻ Thinking…"),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(true, prompt, "\r✢ Thinking…"),
+      true,
+    );
+    assert.equal(
       helpers.dashboardNextAwaitingInputState(false, prompt, "\nRunning..."),
       false,
     );
@@ -1957,10 +1965,25 @@ describe("dashboard terminal launch flow", () => {
   it("maps awaiting-input sessions into the workspace waiting state", () => {
     const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
     assert.match(source, /awaitingInput: s\.awaitingInput === true/);
+    assert.match(source, /waitingForRunner: s\.connected === true/);
     assert.match(source, /return s\.awaitingInput === true \|\|/);
+    assert.match(source, /s\.waitingForRunner === true/);
     assert.match(
       source,
       /this\.allSessions\(\)\.filter\(s => this\.sessionIsWaiting\(s\)\)/,
+    );
+  });
+
+  it("excludes waiting sessions from the Workspace running meter", () => {
+    const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
+    assert.match(source, /runningSessions\(\) \{/);
+    assert.match(
+      source,
+      /s\.status === 'active' && !this\.sessionIsWaiting\(s\)/,
+    );
+    assert.match(
+      source,
+      /meterRunning\(\) \{ return this\.runningSessions\(\)\.length; \}/,
     );
   });
 
@@ -2082,6 +2105,10 @@ describe("dashboard terminal launch flow", () => {
     const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
     assert.match(source, /x-show="terminalWaitingForRunner"/);
     assert.match(source, /Waiting for runner\.\.\./);
+    assert.match(
+      source,
+      /\(terminalWaitingForRunner \|\| terminalAwaitingInput\) \? 'gf-status-waiting'/,
+    );
   });
 
   it("renders a terminal loading overlay inside each session shell", () => {

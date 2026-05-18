@@ -12,7 +12,7 @@ import { writeFileSync, mkdirSync, realpathSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import type { CLIOptions, AgentId, ProjectFacts } from "./types.js";
-import type { AuditReport } from "./audit/types.js";
+import type { AuditReport, AuditScope, CheckResult } from "./audit/types.js";
 import { QUALITY_MODES, type QualityMode } from "./quality/schema.js";
 import type { CandidacyResult } from "./quality/candidacy.js";
 
@@ -67,6 +67,7 @@ Flags:
   --harness         Audit: add AI Harness Completeness scope (pass/fail checks across 5 concerns)
   --check-drift     Audit: detect skill template-vs-installed drift and orphan directories
   --check-content   Audit: cold-path content lint (vague terms, generic instructions, factual drift)
+  --no-audit-details Audit JSON: omit structured harness detail payloads
   --check           Manifest: validate static-vs-observed consistency (exits non-zero on drift)
   --apply           Setup: copy/update deterministic system files instead of generating a prompt
   --force           Install/setup --apply: overwrite settings, config, and remove deprecated skills
@@ -154,6 +155,7 @@ interface ParsedArgValues {
   harness?: boolean;
   "check-drift"?: boolean;
   "check-content"?: boolean;
+  "no-audit-details"?: boolean;
   check?: boolean;
   apply?: boolean;
   force?: boolean;
@@ -233,6 +235,7 @@ export interface ParsedCLI extends CLIOptions {
   harness: boolean;
   checkDrift: boolean;
   checkContent: boolean;
+  auditDetails: boolean;
   check: boolean;
   apply: boolean;
   force: boolean;
@@ -581,6 +584,9 @@ function validateCommonFlags(command: Command, values: ParsedArgValues): void {
   if (command !== "events" && values.limit !== undefined) {
     throw new CLIError("--limit is only valid for the events command.", 2);
   }
+  if (command !== "audit" && values["no-audit-details"] === true) {
+    throw new CLIError("--no-audit-details is only valid for the audit command.", 2);
+  }
 }
 
 /** Returns true when the command resolves to a deterministic install/apply path. */
@@ -728,6 +734,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
       harness: { type: "boolean", default: false },
       "check-drift": { type: "boolean", default: false },
       "check-content": { type: "boolean", default: false },
+      "no-audit-details": { type: "boolean", default: false },
       check: { type: "boolean", default: false },
       apply: { type: "boolean", default: false },
       force: { type: "boolean", default: false },
@@ -788,6 +795,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     harness: parsedValues.harness === true,
     checkDrift: parsedValues["check-drift"] === true,
     checkContent: parsedValues["check-content"] === true,
+    auditDetails: parsedValues["no-audit-details"] !== true,
     check: parsedValues.check === true,
     apply: parsedValues.apply === true,
     force: parsedValues.force === true,
@@ -805,6 +813,32 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     dev: parsedValues.dev === true,
     help: parsedValues.help === true,
     version: parsedValues.version === true,
+  };
+}
+
+function stripCheckDetails(check: CheckResult): CheckResult {
+  const stripped: CheckResult = { ...check };
+  delete stripped.details;
+  return stripped;
+}
+
+function stripScopeDetails(scope: AuditScope): AuditScope {
+  return {
+    ...scope,
+    checks: scope.checks.map(stripCheckDetails),
+  };
+}
+
+function stripAuditDetails(report: AuditReport): AuditReport {
+  return {
+    ...report,
+    scopes: {
+      setup: stripScopeDetails(report.scopes.setup),
+      agent: stripScopeDetails(report.scopes.agent),
+      harness: report.scopes.harness
+        ? stripScopeDetails(report.scopes.harness)
+        : null,
+    },
   };
 }
 
@@ -1181,15 +1215,17 @@ async function handleAuditCommand(options: ParsedCLI): Promise<void> {
     checkContent: options.checkContent,
   });
 
+  const reportForRender = options.auditDetails ? report : stripAuditDetails(report);
+
   let rendered: string;
   if (options.format === "json") {
-    rendered = renderAuditJson(report);
+    rendered = renderAuditJson(reportForRender);
   } else if (options.format === "markdown") {
-    rendered = renderAuditMarkdown(report);
+    rendered = renderAuditMarkdown(reportForRender);
   } else if (options.format === "sarif") {
-    rendered = renderAuditSarif(report);
+    rendered = renderAuditSarif(reportForRender);
   } else {
-    rendered = renderAuditText(report);
+    rendered = renderAuditText(reportForRender);
   }
 
   writeOutput(options, rendered);

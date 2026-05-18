@@ -1,6 +1,8 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import { tmpdir } from "node:os";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
 
 import {
   execSafely,
@@ -132,6 +134,45 @@ describe("safe-exec/execSafely", () => {
       timeoutMs: 5_000,
     });
     assert.equal(result.commandBasename, "node");
+  });
+
+  it("records a redacted audit.exec evidence event when requested", async () => {
+    const projectPath = await mkdtemp(join(tmpdir(), "goat-flow-safe-exec-"));
+    try {
+      const result = await execSafely({
+        command: "node",
+        args: ["-e", "process.stdout.write('secret-output')"],
+        cwd: projectPath,
+        allowList: ["node"],
+        timeoutMs: 5_000,
+        evidence: { projectPath },
+      });
+
+      assert.equal(result.ok, true);
+      const logPath = join(
+        projectPath,
+        ".goat-flow",
+        "logs",
+        "events",
+        `${new Date().toISOString().slice(0, 10)}.jsonl`,
+      );
+      const line = (await readFile(logPath, "utf-8")).trim();
+      const event = JSON.parse(line) as {
+        event_kind: string;
+        actor: string;
+        payload: Record<string, unknown>;
+      };
+      assert.equal(event.event_kind, "audit.exec");
+      assert.equal(event.actor, "server");
+      assert.equal(event.payload.command, "node");
+      assert.equal(event.payload.ok, true);
+      assert.equal(event.payload.exitCode, 0);
+      assert.equal(event.payload.timedOut, false);
+      assert.equal("stdout" in event.payload, false);
+      assert.equal("args" in event.payload, false);
+    } finally {
+      await rm(projectPath, { recursive: true, force: true });
+    }
   });
 });
 

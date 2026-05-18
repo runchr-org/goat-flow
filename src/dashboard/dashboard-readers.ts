@@ -313,6 +313,7 @@ function readAuditCheck(value: unknown): AuditCheck | null {
   }
   const failure = readAuditFailure(value.failure);
   if (failure) check.failure = failure;
+  if (isRecord(value.details)) check.details = value.details;
   return check;
 }
 

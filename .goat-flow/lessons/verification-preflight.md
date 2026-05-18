@@ -1,6 +1,6 @@
 ---
 category: verification-preflight
-last_reviewed: 2026-05-17
+last_reviewed: 2026-05-19
 ---
 
 ## Lesson: Formatter verification must preserve repo style flags
@@ -28,6 +28,8 @@ last_reviewed: 2026-05-17
 **Recurrence update (2026-04-21):** A v1.2.2 version-bump run had `npm test` fail only because the installer round-trip fixture runs full preflight and found committed formatter drift in `src/dashboard/index.html`, a file outside the version-bump edit set. `npm run format:check` reproduced the same single-file failure.
 
 **Recurrence update (2026-05-10):** PR #35 review-feedback fixes passed focused dashboard/terminal tests and `npm run typecheck`, but targeted `npx prettier --check ...` still failed on touched file `test/smoke/dashboard-endpoints.test.ts` after adding a terminal timing regression. Running `npx prettier --write test/smoke/dashboard-endpoints.test.ts` fixed the local formatter blocker before rerunning the checks.
+
+**Recurrence update (2026-05-19):** While fixing Workspace terminal waiting status, focused `test/unit/dashboard-terminal-launch.test.ts` passed but targeted `npx prettier --check src/dashboard/views/workspace.html src/dashboard/dashboard-terminal.ts test/unit/dashboard-terminal-launch.test.ts` failed on the touched test file after adding longer source-regex assertions. Running the same touched-file set through `npx prettier --write ...` fixed the local formatter blocker before rerunning the focused terminal test.
 
 **Prevention:**
 1. When preflight fails, immediately identify whether the failing files are in `git status` for the current task.
